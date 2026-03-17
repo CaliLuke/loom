@@ -5,23 +5,25 @@ import "goa.design/goa/v3/http/codegen/openapi"
 type (
 	// OpenAPI is a data structure that encodes the information needed to
 	// generate an OpenAPI specification as defined in
-	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md
+	// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.1.md
 	OpenAPI struct {
-		OpenAPI      string                `json:"openapi" yaml:"openapi"` // Required
-		Info         *Info                 `json:"info" yaml:"info"`       // Required
-		Servers      []*Server             `json:"servers,omitempty" yaml:"servers,omitempty"`
-		Paths        map[string]*PathItem  `json:"paths" yaml:"paths"` // Required
-		Components   *Components           `json:"components,omitempty" yaml:"components,omitempty"`
-		Tags         []*openapi.Tag        `json:"tags,omitempty" yaml:"tags,omitempty"`
-		Security     []map[string][]string `json:"security,omitempty" yaml:"security,omitempty"`
-		ExternalDocs *openapi.ExternalDocs `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
-		Extensions   map[string]any        `json:"-" yaml:"-"`
+		OpenAPI           string                `json:"openapi" yaml:"openapi"` // Required
+		Info              *Info                 `json:"info" yaml:"info"`       // Required
+		JSONSchemaDialect string                `json:"jsonSchemaDialect,omitempty" yaml:"jsonSchemaDialect,omitempty"`
+		Servers           []*Server             `json:"servers,omitempty" yaml:"servers,omitempty"`
+		Paths             map[string]*PathItem  `json:"paths" yaml:"paths"` // Required
+		Components        *Components           `json:"components,omitempty" yaml:"components,omitempty"`
+		Tags              []*openapi.Tag        `json:"tags,omitempty" yaml:"tags,omitempty"`
+		Security          []map[string][]string `json:"security,omitempty" yaml:"security,omitempty"`
+		ExternalDocs      *openapi.ExternalDocs `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
+		Extensions        map[string]any        `json:"-" yaml:"-"`
 	}
 
 	// Info represents an OpenAPI Info object as defined in
-	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#infoObject
+	// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.1.md#info-object
 	Info struct {
 		Title          string         `json:"title" yaml:"title"` // Required
+		Summary        string         `json:"summary,omitempty" yaml:"summary,omitempty"`
 		Description    string         `json:"description,omitempty" yaml:"description,omitempty"`
 		TermsOfService string         `json:"termsOfService,omitempty" yaml:"termsOfService,omitempty"`
 		Contact        *Contact       `json:"contact,omitempty" yaml:"contact,omitempty"`
@@ -83,9 +85,10 @@ type (
 	}
 
 	// License represents an OpenAPI License object as defined in
-	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#licenseObject
+	// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.1.md#license-object
 	License struct {
 		Name       string         `json:"name" yaml:"name"` // Required
+		Identifier string         `json:"identifier,omitempty" yaml:"identifier,omitempty"`
 		URL        string         `json:"url,omitempty" yaml:"url,omitempty"`
 		Extensions map[string]any `json:"-" yaml:"-"`
 	}

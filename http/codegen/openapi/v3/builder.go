@@ -12,8 +12,12 @@ import (
 	"goa.design/goa/v3/http/codegen/openapi"
 )
 
-// OpenAPIVersion is the OpenAPI specification version targeted by this package.
-const OpenAPIVersion = "3.0.3"
+const (
+	// OpenAPIVersion is the OpenAPI specification version targeted by this package.
+	OpenAPIVersion = "3.1.1"
+	// JSONSchemaDialect is the JSON Schema dialect advertised by the generated spec.
+	JSONSchemaDialect = "https://json-schema.org/draft/2020-12/schema"
+)
 
 var (
 	routeIndexReplacementRegExp = regexp.MustCompile(`\((.*){routeIndex}\)`)
@@ -48,13 +52,14 @@ func New(root *expr.RootExpr) *OpenAPI {
 	)
 
 	return &OpenAPI{
-		OpenAPI:    OpenAPIVersion,
-		Info:       info,
-		Components: comps,
-		Paths:      paths,
-		Servers:    servers,
-		Security:   security,
-		Tags:       tags,
+		OpenAPI:           OpenAPIVersion,
+		Info:              info,
+		JSONSchemaDialect: JSONSchemaDialect,
+		Components:        comps,
+		Paths:             paths,
+		Servers:           servers,
+		Security:          security,
+		Tags:              tags,
 	}
 }
 

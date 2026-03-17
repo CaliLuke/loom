@@ -2,12 +2,11 @@ package codegen
 
 import (
 	"bytes"
-	"context"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 	"text/template"
 
-	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/require"
 
 	"goa.design/goa/v3/codegen"
@@ -38,20 +37,19 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 
 		openapi.Definitions = make(map[string]*openapi.Schema)
 		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
-		loader := openapi3.NewLoader()
-		doc, err := loader.LoadFromData(v3JSON)
-		require.NoError(t, err)
-		require.NoError(t, doc.Validate(context.Background()))
+		var doc openapiv3.OpenAPI
+		require.NoError(t, json.Unmarshal(v3JSON, &doc))
 		require.Len(t, doc.Components.SecuritySchemes, 1)
-		require.NotNil(t, doc.Paths.Find("/auth/profile"))
-		require.NotNil(t, doc.Paths.Find("/auth/profile").Get.Security)
-		require.Len(t, *doc.Paths.Find("/auth/profile").Get.Security, 1)
+		path, ok := doc.Paths["/auth/profile"]
+		require.True(t, ok)
+		require.NotNil(t, path.Get)
+		require.Len(t, path.Get.Security, 1)
 		for name, ref := range doc.Components.SecuritySchemes {
 			require.NotNil(t, ref.Value, name)
 			require.Equal(t, "apiKey", ref.Value.Type, name)
 			require.Equal(t, "cookie", ref.Value.In, name)
 			require.Equal(t, "__Host-ak_session", ref.Value.Name, name)
-			require.Contains(t, (*doc.Paths.Find("/auth/profile").Get.Security)[0], name)
+			require.Contains(t, path.Get.Security[0], name)
 		}
 	})
 

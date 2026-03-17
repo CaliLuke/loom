@@ -11,7 +11,7 @@ import (
 	"goa.design/goa/v3/expr"
 )
 
-// Files returns the OpenAPI specification files in JSON and YAML formats.
+// Files returns the OpenAPI 3.1 specification files in JSON and YAML formats.
 func Files(root *expr.RootExpr) ([]*codegen.File, error) {
 	spec := New(root)
 	jsonSection := &codegen.SectionTemplate{

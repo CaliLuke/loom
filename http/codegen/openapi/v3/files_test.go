@@ -2,13 +2,12 @@ package openapiv3_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"path/filepath"
 	"testing"
 	"text/template"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/pb33f/libopenapi"
 
 	"goa.design/goa/v3/codegen/testutil"
 	httpgen "goa.design/goa/v3/http/codegen"
@@ -101,11 +100,14 @@ func TestFiles(t *testing.T) {
 }
 
 func validateOpenAPI(t *testing.T, b []byte) {
-	doc, err := openapi3.NewLoader().LoadFromData(b)
-	if err == nil {
-		err = doc.Validate(context.Background())
-	}
+	parsed, err := libopenapi.NewDocument(b)
 	if err != nil {
-		t.Errorf("invalid spec: %s\nspec:\n%s", err.Error(), string(b))
+		t.Fatalf("libopenapi failed to parse generated spec: %s\nspec:\n%s", err, string(b))
+	}
+	if parsed.GetVersion() != openapiv3.OpenAPIVersion {
+		t.Fatalf("libopenapi parsed version %q, expected %q", parsed.GetVersion(), openapiv3.OpenAPIVersion)
+	}
+	if _, err := parsed.BuildV3Model(); err != nil {
+		t.Fatalf("libopenapi failed to build 3.x model: %s\nspec:\n%s", err, string(b))
 	}
 }
