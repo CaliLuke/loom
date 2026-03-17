@@ -33,7 +33,7 @@ func TagsFromExpr(mdata expr.MetaExpr) (tags []*Tag) {
 		if len(chunks) < 3 {
 			continue
 		}
-		if (chunks[0] != "swagger" && chunks[0] != "openapi") || chunks[1] != "tag" {
+		if chunks[0] != "openapi" || chunks[1] != "tag" {
 			continue
 		}
 

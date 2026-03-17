@@ -15,8 +15,7 @@ import (
 // The Server expression is leveraged by the example generator to produce the
 // service and client commands. It is also consumed by the OpenAPI specification
 // generator. There is one specification generated per server. The first URI of
-// the first host is used to set the OpenAPI v2 specification 'host' and
-// 'basePath' values.
+// the first host is used to initialize the generated OpenAPI server objects.
 //
 // Server must appear in an API expression.
 //

@@ -132,10 +132,6 @@ func OAuth2Security(name string, fn ...func()) *expr.SchemeExpr {
 // The scheme also supports specifying a token URL used to retrieve token
 // values.
 //
-// Since scopes are not compatible with the Swagger specification, the swagger
-// generator inserts comments in the description of the different elements on
-// which they are defined.
-//
 // JWTSecurity is a top level DSL.
 //
 // JWTSecurity takes a name as first argument and an optional DSL as second

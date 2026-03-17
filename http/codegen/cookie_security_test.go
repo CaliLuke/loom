@@ -7,7 +7,6 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/getkin/kin-openapi/openapi2"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/require"
 
@@ -15,7 +14,6 @@ import (
 	"goa.design/goa/v3/dsl"
 	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/http/codegen/openapi"
-	openapiv2 "goa.design/goa/v3/http/codegen/openapi/v2"
 	openapiv3 "goa.design/goa/v3/http/codegen/openapi/v3"
 )
 
@@ -37,21 +35,6 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 	t.Run("openapi uses cookie security scheme", func(t *testing.T) {
 		root := RunHTTPDSL(t, cookieAPIKeySecurityDSL)
 		openapi.Definitions = make(map[string]*openapi.Schema)
-
-		v2JSON := renderOpenAPIJSON(t, openapiv2.Files, root)
-		var swagger openapi2.T
-		require.NoError(t, swagger.UnmarshalJSON(v2JSON))
-		require.Len(t, swagger.SecurityDefinitions, 1)
-		require.Len(t, swagger.Paths, 1)
-		require.Contains(t, swagger.Paths, "/auth/profile")
-		require.NotNil(t, swagger.Paths["/auth/profile"].Get.Security)
-		require.Len(t, *swagger.Paths["/auth/profile"].Get.Security, 1)
-		for name, def := range swagger.SecurityDefinitions {
-			require.Equal(t, "apiKey", def.Type, name)
-			require.Equal(t, "cookie", def.In, name)
-			require.Equal(t, "__Host-ak_session", def.Name, name)
-			require.Contains(t, (*swagger.Paths["/auth/profile"].Get.Security)[0], name)
-		}
 
 		openapi.Definitions = make(map[string]*openapi.Schema)
 		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)

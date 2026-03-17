@@ -30,17 +30,11 @@ func (a *AttributeExpr) Example(r *ExampleGenerator) any {
 	}
 
 	value, ok := a.Meta.Last("openapi:generate")
-	if !ok {
-		value, ok = a.Meta.Last("swagger:generate")
-	}
 	if ok && value == "false" {
 		return nil
 	}
 
 	value, ok = a.Meta.Last("openapi:example")
-	if !ok {
-		value, ok = a.Meta.Last("swagger:example")
-	}
 	if ok && value == "false" {
 		return nil
 	}

@@ -32,9 +32,6 @@ func New(root *expr.RootExpr) *OpenAPI {
 	}
 
 	m, ok := root.API.Meta.Last("openapi:example")
-	if !ok {
-		m, ok = root.API.Meta.Last("swagger:example")
-	}
 	if ok && m == "false" {
 		root.API.ExampleGenerator.Randomizer = nil
 	}
@@ -198,7 +195,7 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 	var summary string
 	setSummary := func(meta expr.MetaExpr) {
 		for n, mdata := range meta {
-			if (n == "openapi:summary" || n == "swagger:summary") && len(mdata) > 0 {
+			if n == "openapi:summary" && len(mdata) > 0 {
 				if mdata[0] == "{path}" {
 					summary = r.Path
 				} else {
@@ -398,7 +395,7 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 	var summary string
 	summary = fmt.Sprintf("Download %s", fs.FilePath)
 	for n, mdata := range fs.Meta {
-		if (n == "openapi:summary" || n == "swagger:summary") && len(mdata) > 0 {
+		if n == "openapi:summary" && len(mdata) > 0 {
 			summary = mdata[0]
 		}
 	}

@@ -15,7 +15,7 @@ The code generated for the service server and client includes:
 
 # OpenAPI
 
-The OpenAPI generator generates a OpenAPI v2 specification for the service
+The OpenAPI generator generates an OpenAPI v3 specification for the service
 REST endpoints. This generator requires the design to define the HTTP transport.
 */
 package generator

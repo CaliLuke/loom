@@ -183,8 +183,6 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("protoc:include", "/usr/local/include/google/protobuf")
 //	})
 //
-// - "swagger:generate" DEPRECATED, use "openapi:generate" instead.
-//
 // - "openapi:generate" specifies whether OpenAPI specification should be
 // generated. Defaults to true. Applicable to Server, Host, services, methods,
 // file servers and attributes.
@@ -208,8 +206,6 @@ const DefaultProtoc = expr.DefaultProtoc
 //	var _ = API("MyAPI", func() {
 //	    Meta("openapi:json:indent", "  ")
 //	})
-//
-// - "swagger:summary" DEPRECATED, use "openapi:summary" instead
 //
 // - "openapi:summary" sets the OpenAPI operation summary field. The special
 // value "{path}" is replaced with the method HTTP path. Applicable to methods
@@ -246,16 +242,12 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    })
 //	})
 //
-// - "swagger:example" DEPRECATED, use "openapi:example" instead
-//
 // - "openapi:example" specifies whether to generate random example. Defaults to
 // true. Applicable to API (applies to all attributes) or individual attributes.
 //
 //	var _ = API("MyAPI", func() {
 //	    Meta("openapi:example", "false")
 //	})
-//
-// - "swagger:tag:xxx" DEPRECATED, use "openapi:tag:xxx" instead
 //
 // - "openapi:tag:xxx" sets the OpenAPI object field tag xxx. Applicable to
 // HTTP services and methods. Tags are defined on services and used by methods.
@@ -273,8 +265,6 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    	})
 //	    })
 //	})
-//
-// - "swagger:extension:xxx" DEPRECATED, use "openapi:extension:xxx" instead
 //
 // - "openapi:extension:xxx" sets the OpenAPI extensions xxx. The value can be
 // any valid JSON. Applicable to API (OpenAPI info and tag objects), Service

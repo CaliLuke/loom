@@ -2,7 +2,6 @@ package openapi
 
 import (
 	"encoding/json"
-	"maps"
 	"strings"
 
 	"goa.design/goa/v3/expr"
@@ -11,16 +10,7 @@ import (
 // ExtensionsFromExpr generates openapi extensions from the given meta
 // expression.
 func ExtensionsFromExpr(mdata expr.MetaExpr) map[string]any {
-	swag := extensionsFromExprWithPrefix(mdata, "swagger:extension:")
-	open := extensionsFromExprWithPrefix(mdata, "openapi:extension:")
-	if swag == nil {
-		return open
-	}
-	if open == nil {
-		return swag
-	}
-	maps.Copy(swag, open)
-	return swag
+	return extensionsFromExprWithPrefix(mdata, "openapi:extension:")
 }
 
 // extensionsFromExprWithPrefix generates openapi extensions from

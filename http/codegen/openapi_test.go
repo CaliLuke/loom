@@ -35,10 +35,8 @@ func TestOutputPath(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.SimpleDSL)
 	o, err := OpenAPIFiles(root)
 	require.NoError(t, err)
-	c := 4 // number of files we expect
+	c := 2 // number of files we expect
 	require.Len(t, o, c)
 	assert.Equal(t, filepath.Join("gen", "http", "openapi.json"), o[0].Path)
 	assert.Equal(t, filepath.Join("gen", "http", "openapi.yaml"), o[1].Path)
-	assert.Equal(t, filepath.Join("gen", "http", "openapi3.json"), o[2].Path)
-	assert.Equal(t, filepath.Join("gen", "http", "openapi3.yaml"), o[3].Path)
 }

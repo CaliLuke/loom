@@ -197,15 +197,6 @@ var FileServiceWildcardDSL = func() {
 	})
 }
 
-var FileServiceSwaggerDSL = func() {
-	var _ = Service("service-name", func() {
-		Files("path1", "filename")
-		Files("path2", "filename", func() {
-			Meta("swagger:tag:user-tag")
-		})
-	})
-}
-
 var StringValidationDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
@@ -338,45 +329,6 @@ var ExtensionDSL = func() {
 				Meta("openapi:extension:x-test-foo", "bar")
 			})
 			Meta("openapi:extension:x-test-operation", "Operation")
-		})
-	})
-}
-
-var ExtensionSwaggerDSL = func() {
-	var PayloadT = Type("Payload", func() {
-		Attribute("string", String, func() {
-			Example("")
-			Meta("swagger:extension:x-test-schema", "Payload")
-		})
-	})
-	var ResultT = Type("Result", func() {
-		Attribute("string", String, func() {
-			Example("")
-			Meta("swagger:extension:x-test-schema", "Result")
-		})
-	})
-	var _ = API("test", func() {
-		Server("test", func() {
-			Host("localhost", func() {
-				URI("https://goa.design")
-			})
-		})
-		Meta("swagger:extension:x-test-api", "API")
-		Meta("swagger:tag:Backend")
-		Meta("swagger:tag:Backend:desc", "Description of Backend")
-		Meta("swagger:tag:Backend:url", "http://example.com")
-		Meta("swagger:tag:Backend:url:desc", "See more docs here")
-		Meta("swagger:tag:Backend:extension:x-data", `{"foo":"bar"}`)
-	})
-	Service("testService", func() {
-		Method("testEndpoint", func() {
-			Payload(PayloadT)
-			Result(ResultT)
-			HTTP(func() {
-				POST("/")
-				Meta("swagger:extension:x-test-foo", "bar")
-			})
-			Meta("swagger:extension:x-test-operation", "Operation")
 		})
 	})
 }
@@ -679,51 +631,6 @@ var WithTagsDSL = func() {
 			})
 			HTTP(func() {
 				Meta("openapi:tag:AnotherService")
-				POST("/{*int_map}")
-			})
-		})
-	})
-}
-
-var WithTagsSwaggerDSL = func() {
-	Service("test service", func() {
-		HTTP(func() {
-			Meta("swagger:tag:SomeTag:desc", "Endpoint description")
-			Meta("swagger:tag:SomeTag:url", "Endpoint URL")
-			Meta("swagger:tag:AnotherTag:desc", "Endpoint description")
-			Meta("swagger:tag:AnotherTag:url", "Endpoint URL")
-		})
-		Method("test endpoint", func() {
-			Payload(func() {
-				Attribute("int_map", Int)
-			})
-			HTTP(func() {
-				Meta("swagger:tag:SomeTag")
-				POST("/{*int_map}")
-			})
-		})
-		Method("another test endpoint", func() {
-			Payload(func() {
-				Attribute("int_map", Int)
-			})
-			HTTP(func() {
-				Meta("swagger:generate", "false")
-				Meta("swagger:tag:AnotherTag")
-				POST("/{*int_map}")
-			})
-		})
-	})
-	Service("another test service", func() {
-		Meta("swagger:generate", "false")
-		HTTP(func() {
-			Meta("swagger:tag:AnotherService:desc", "Another service description")
-		})
-		Method("another test endpoint", func() {
-			Payload(func() {
-				Attribute("int_map", Int)
-			})
-			HTTP(func() {
-				Meta("swagger:tag:AnotherService")
 				POST("/{*int_map}")
 			})
 		})

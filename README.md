@@ -83,7 +83,7 @@ Goa solves these problems by:
   - Type-safe server interfaces that enforce your design
   - Client packages with full error handling
   - Transport layer adapters (HTTP/gRPC/JSON-RPC) with routing and encoding
-  - OpenAPI/Swagger documentation that's always in sync
+  - OpenAPI documentation that's always in sync
   - CLI tools for testing your services
 - **Multi-Protocol Support**: Generate HTTP REST, gRPC, and JSON-RPC endpoints from a single design
 - **Clean Architecture**: Business logic remains separate from transport concerns

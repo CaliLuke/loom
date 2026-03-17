@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"testing"
 	"text/template"
 
@@ -28,7 +27,6 @@ func TestFiles(t *testing.T) {
 	}{
 		// TestSections
 		{"file-service", testdata.FileServiceDSL},
-		{"file-service-swagger", testdata.FileServiceSwaggerDSL},
 		{"file-service-wildcard", testdata.FileServiceWildcardDSL},
 		{"valid", testdata.SimpleDSL},
 		{"multiple-services", testdata.MultipleServicesDSL},
@@ -44,7 +42,6 @@ func TestFiles(t *testing.T) {
 		{"path-with-multiple-explicit-wildcards", testdata.PathWithMultipleExplicitWildcardDSL},
 		{"headers", testdata.HeadersDSL},
 		{"with-tags", testdata.WithTagsDSL},
-		{"with-tags-swagger", testdata.WithTagsSwaggerDSL},
 		{"typename", testdata.TypenameDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},
 		{"not-generate-host", testdata.NotGenerateHostDSL},
@@ -54,7 +51,6 @@ func TestFiles(t *testing.T) {
 		{"json-prefix-indent", testdata.JSONPrefixIndentDSL},
 		// TestEndpoints
 		{"endpoint", testdata.ExtensionDSL},
-		{"endpoint-swagger", testdata.ExtensionSwaggerDSL},
 		{"skip-response-body-encode-decode", testdata.SkipResponseBodyEncodeDecodeDSL},
 		// TestValidations
 		{"string", testdata.StringValidationDSL},
@@ -90,9 +86,9 @@ func TestFiles(t *testing.T) {
 					if err := tmpl.Execute(&buf, s[0].Data); err != nil {
 						t.Fatalf("failed to render template: %s", err)
 					}
-					validateSwagger(t, buf.Bytes())
+					validateOpenAPI(t, buf.Bytes())
 
-					golden := filepath.Join(goldenPath, fmt.Sprintf("%s_%s.golden", strings.TrimSuffix(c.Name, "-swagger"), tname))
+					golden := filepath.Join(goldenPath, fmt.Sprintf("%s_%s.golden", c.Name, tname))
 					if filepath.Ext(o.Path) == ".json" {
 						testutil.AssertJSON(t, golden, buf.Bytes())
 					} else {
@@ -104,10 +100,10 @@ func TestFiles(t *testing.T) {
 	}
 }
 
-func validateSwagger(t *testing.T, b []byte) {
-	swagger, err := openapi3.NewLoader().LoadFromData(b)
+func validateOpenAPI(t *testing.T, b []byte) {
+	doc, err := openapi3.NewLoader().LoadFromData(b)
 	if err == nil {
-		err = swagger.Validate(context.Background())
+		err = doc.Validate(context.Background())
 	}
 	if err != nil {
 		t.Errorf("invalid spec: %s\nspec:\n%s", err.Error(), string(b))

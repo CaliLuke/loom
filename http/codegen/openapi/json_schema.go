@@ -610,9 +610,6 @@ func buildResultTypeSchema(api *expr.APIExpr, mt *expr.ResultTypeExpr, view stri
 // generated, false otherwise.
 func MustGenerate(meta expr.MetaExpr) bool {
 	m, ok := meta.Last("openapi:generate")
-	if !ok {
-		m, ok = meta.Last("swagger:generate")
-	}
 	if ok && m == "false" {
 		return false
 	}
