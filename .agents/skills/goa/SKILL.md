@@ -21,6 +21,16 @@ Use this skill for `goa.design/goa/v3` work only. It does not cover Goa-AI.
 - Do not "fix" SSE by hand-editing generated stream files. Keep the fix in `design/*.go` or non-generated transport/runtime code.
 - Do not map multi-cookie responses through ad hoc `Header("set_cookies:Set-Cookie")` bags and then patch generated encoders. Prefer idiomatic Goa cookies in the DSL when feasible. If the response shape still depends on raw cookie header values, emit them from non-generated transport code on the live `http.ResponseWriter` instead of editing generated files.
 
+## Goa-Light Deltas
+
+- For repo-specific framework changes and new DSL surface area, read `references/goa-light-deltas.md`.
+- Load that reference first when the task touches any of:
+  - OpenAPI output shape or downstream contract consumers
+  - session auth, cookies, or auth error response helpers
+  - union / `OneOf(...)` behavior or discriminator tags
+  - remediation-aware errors
+  - JSON-RPC transport behavior or generated contracts
+
 ## Default Workflow
 
 1. Detect the Goa surface: `go.mod`, `design/`, DSL imports, or `gen/` folders.
@@ -45,6 +55,7 @@ goa example <module-import-path>/design
 ## References
 
 - Framework/source map: `references/repo-map.md`
+- Repo-specific feature and DSL changes: `references/goa-light-deltas.md`
 - Use only the original full guide pages under `references/user-guides/*.md`.
 - For framework/runtime internals, inspect the Goa source tree described in `references/repo-map.md`.
 
@@ -58,9 +69,11 @@ goa example <module-import-path>/design
 - `references/user-guides/error-handling.md`
 - `references/user-guides/interceptors.md`
 - `references/user-guides/production.md`
+- `references/goa-light-deltas.md`
 
 ## Selection Rules
 
 - Start with the one full guide page that best matches the immediate task.
+- For repo-specific behavior differences from upstream Goa, load `references/goa-light-deltas.md` before inspecting the wider source tree.
 - Load additional full guide pages only if the first one is insufficient.
 - Prefer `references/repo-map.md` and the Goa source tree for framework internals or runtime behavior.
