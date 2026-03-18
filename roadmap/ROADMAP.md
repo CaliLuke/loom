@@ -24,6 +24,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Session auth DSL and derived auth/session transport behavior.
 - Per-cookie response model and improved `Set-Cookie` OpenAPI output.
 - Stable OpenAPI schema naming and canonical `operationId` generation.
+- Major generic helper moves out of `goa-ai/shared` into `goa-light`.
 
 ### In Progress
 
@@ -31,15 +32,20 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 
 ### Next
 
-- prove the new auth/session DSL against `auto-k-server` and measure glue reduction
-- audit `goa-ai` for generic Goa-core workarounds and move them into `goa-light`
-- design remediation-aware error contracts as a first-class Goa concept
+- rewire `goa-ai` to consume the core helpers already moved into `goa-light`
+- prove the cleaned stack against `auto-k-server` in temp generation
+- replace real auth/session glue in `auto-k-server` and then perform the swap
 
 ## Roadmap Index
 
+- [Finish Checklist](./finish_checklist.md)
 - [OpenAPI Contract](./openapi_contract.md)
 - [Auth and Session](./auth_and_session.md)
 - [Goa-AI Boundary](./goa_ai_boundary.md)
+
+## Definition Of Finished
+
+This effort is finished only when all items in [Finish Checklist](./finish_checklist.md) are complete.
 
 ## Things to Avoid
 

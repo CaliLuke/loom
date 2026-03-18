@@ -11,14 +11,22 @@ Move generic API-contract and transport semantics into `goa-light`, keep MCP/age
 - move generic union discriminator tag handling into `goa-light`
 - move generic OpenAPI contract stability policy into `goa-light`
 - move generic auth/session transport modeling into `goa-light`
+- move temporary root preparation/finalization helpers into `goa-light`
+- move synthesized JSON-RPC HTTP service construction into `goa-light`
+- move deterministic temporary user-type registration into `goa-light`
+- move remediation-aware error metadata into `goa-light`
+- move inline JSON Schema generation into `goa-light`
+- move generic attribute import gathering into `goa-light`
 
 ### Next
 
-1. Audit `goa-ai` for remaining generic union/schema/example workarounds.
-2. Move generic remediation-aware errors into `goa-light`.
-3. Audit `goa-ai` for generic JSON-RPC transport patches and move them down.
+1. Rewire `goa-ai` to consume the core helpers already moved into `goa-light`.
+2. Delete or collapse duplicated helpers in `goa-ai/codegen/shared`.
+3. Verify the remaining `goa-ai` shared code is MCP-specific only.
 4. Remove direct app-specific framework coupling once the generic Goa-core hooks exist.
 5. Leave MCP annotations, tool runtime, planners, and registries in `goa-ai`.
+
+For the full end-to-end finish gate, see [Finish Checklist](./finish_checklist.md).
 
 ## Migration Plan
 
