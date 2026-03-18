@@ -1,0 +1,60 @@
+# Multipart Object Decoding
+
+## Goal
+
+Generate multipart object request decoding end-to-end so applications do not need handwritten decoder hooks for typed multipart payloads.
+
+## Problem
+
+`auto-k-server` still carries custom multipart request decoding because generated server code expects an application-provided decoder seam for object-shaped multipart payloads. That keeps a high-value source ingestion path outside the framework contract.
+
+## Scope
+
+Framework work only:
+
+- HTTP server request decoding for multipart object payloads
+- generated decoder behavior for typed multipart fields
+- regression coverage for generated multipart decoder paths
+
+Out of scope:
+
+- application-specific file validation or storage logic
+- custom upload policies
+
+## Desired Outcome
+
+- typed multipart object payloads decode without handwritten transport hooks
+- generated server code handles file parts and typed non-file parts consistently
+- applications can model multipart payloads in the DSL and rely on generated decoding
+
+## Work Plan
+
+1. Audit the current multipart request decode path and identify exactly where generation stops short for object payloads.
+2. Define the supported multipart object shape:
+   - file fields
+   - scalar fields
+   - optional fields
+   - repeated fields, if already representable in DSL
+3. Generate multipart decoding for those shapes directly in HTTP transport code.
+4. Preserve normal Goa validation flow after decoding instead of pushing validation into custom hooks.
+5. Add regression tests proving the generated decoder replaces the handwritten multipart hook used by `auto-k-server`.
+
+## Design Constraints
+
+- Keep the feature in generated HTTP transport code, not in app-local helper seams.
+- Reuse existing payload typing and validation instead of inventing a multipart-only modeling path.
+- Be explicit about unsupported multipart shapes rather than silently falling back to custom hooks.
+
+## Risks
+
+- Multipart decoding gets messy when field presence, repeated parts, and files interact.
+- The framework should avoid introducing a partial feature that only works for one app-specific shape.
+
+## Finish Criteria
+
+- A typed multipart object payload can be modeled in the DSL and decoded without a handwritten decoder hook.
+- Generated server code covers the shape needed by `auto-k-server`.
+- Regression tests cover at least:
+  - multipart object with file plus scalar fields
+  - optional multipart fields
+  - invalid multipart field values

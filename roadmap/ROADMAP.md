@@ -49,9 +49,15 @@ These items are prioritized based on two goals:
    See [OpenAPI Schema Deduplication](./openapi_schema_dedup.md).
 2. Closed-object contract mode for machine-facing OpenAPI output
    See [OpenAPI Closed Object Mode](./openapi_closed_object_mode.md).
-3. Generated transport projection helpers from canonical result types
+3. Multipart object request decoding without handwritten decoder hooks
+   See [Multipart Object Decoding](./multipart_object_decoding.md).
+4. Optional JSON request bodies without custom EOF-tolerant decoders
+   See [Optional JSON Bodies](./optional_json_bodies.md).
+5. First-class `application/x-www-form-urlencoded` decoding for typed and union payloads
+   See [Form URL Encoded Decoding](./form_urlencoded_decoding.md).
+6. Generated transport projection helpers from canonical result types
    See [Generated Transport Projections](./generated_transport_projections.md).
-4. Generated projection parity tests and guardrails
+7. Generated projection parity tests and guardrails
    See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
 
 ## Roadmap Index
@@ -63,6 +69,9 @@ These items are prioritized based on two goals:
 - [OpenAPI Closed Object Mode](./openapi_closed_object_mode.md)
 - [Auth and Session](./auth_and_session.md)
 - [Multi-Transport Session Auth](./multi_transport_session_auth.md)
+- [Multipart Object Decoding](./multipart_object_decoding.md)
+- [Optional JSON Bodies](./optional_json_bodies.md)
+- [Form URL Encoded Decoding](./form_urlencoded_decoding.md)
 - [Goa-AI Boundary](./goa_ai_boundary.md)
 - [Generated Transport Projections](./generated_transport_projections.md)
 - [Generated Projection Parity Tests](./generated_projection_parity_tests.md)
