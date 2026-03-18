@@ -197,6 +197,7 @@ func NewViewedResultOneof(res *ResultOneof, view string) *resultwithoneoftypevie
 func newResultOneof(vres *resultwithoneoftypeviews.ResultOneofView) *ResultOneof {
 	res := &ResultOneof{}
 	if vres.Result.Kind() != "" {
+
 		switch string(vres.Result.Kind()) {
 		case "t":
 			actual, _ := vres.Result.AsT()
@@ -220,6 +221,7 @@ func newResultOneof(vres *resultwithoneoftypeviews.ResultOneofView) *ResultOneof
 func newResultOneofView(res *ResultOneof) *resultwithoneoftypeviews.ResultOneofView {
 	vres := &resultwithoneoftypeviews.ResultOneofView{}
 	if res.Result.Kind() != "" {
+
 		switch string(res.Result.Kind()) {
 		case "t":
 			actual, _ := res.Result.AsT()

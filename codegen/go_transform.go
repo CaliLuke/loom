@@ -253,7 +253,7 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 		if code != "" && checkNil {
 			cond := fmt.Sprintf("if %s != nil {\n", srcVar)
 			if expr.IsUnion(srcc.Type) {
-				cond = fmt.Sprintf("if %s.Kind() != \"\" {\n", srcVar)
+				cond = fmt.Sprintf("if %s.Kind() != \"\" {\n\n", srcVar)
 			}
 			code = fmt.Sprintf("%s\t%s}", cond, code)
 			if expr.IsArray(srcc.Type) && srcMatt.IsRequired(n) {

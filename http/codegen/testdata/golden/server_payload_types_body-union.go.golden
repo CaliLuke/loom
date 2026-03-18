@@ -3,6 +3,7 @@
 func NewMethodBodyUnionUnion(body *MethodBodyUnionRequestBody) *servicebodyunion.Union {
 	v := &servicebodyunion.Union{}
 	if body.Values.Kind() != "" {
+
 		switch string(body.Values.Kind()) {
 		case "String":
 			actual, _ := body.Values.AsString()
