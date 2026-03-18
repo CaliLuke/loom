@@ -60,6 +60,27 @@ func TestCanonicalizeExample(t *testing.T) {
 			},
 		},
 		{
+			name:     "ambiguous union example is preserved",
+			attr:     &expr.AttributeExpr{Type: union},
+			example:  map[string]any{},
+			expected: map[string]any{},
+		},
+		{
+			name:    "array canonicalizes union elements",
+			attr:    &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: union}}},
+			example: []any{map[string]any{"name": "alice"}, map[string]any{"items": []any{"a"}}},
+			expected: []any{
+				map[string]any{
+					"kind": "single",
+					"data": map[string]any{"name": "alice"},
+				},
+				map[string]any{
+					"kind": "batch",
+					"data": map[string]any{"items": []any{"a"}},
+				},
+			},
+		},
+		{
 			name:     "non-union examples are unchanged",
 			attr:     &expr.AttributeExpr{Type: expr.String},
 			example:  "plain",

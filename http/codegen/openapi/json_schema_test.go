@@ -58,3 +58,37 @@ func TestAttributeTypeSchemaUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 		t.Errorf("got value example %#v, expected nested object", example[valueKey])
 	}
 }
+
+func TestAttributeTypeSchemaLeavesAmbiguousUnionExampleUnchanged(t *testing.T) {
+	union := &expr.Union{
+		TypeKey:  "kind",
+		ValueKey: "data",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name:      "Single",
+				Attribute: &expr.AttributeExpr{Type: &expr.Object{{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}}}},
+			},
+			{
+				Name:      "Batch",
+				Attribute: &expr.AttributeExpr{Type: &expr.Object{{Name: "items", Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}}}},
+			},
+		},
+	}
+	attr := &expr.AttributeExpr{
+		Type: union,
+		UserExamples: []*expr.ExampleExpr{{
+			Summary: "default",
+			Value:   map[string]any{},
+		}},
+	}
+
+	api := &expr.APIExpr{ExampleGenerator: expr.NewRandom("union")}
+	schema := buildAttributeSchema(api, NewSchema(), attr)
+	example, ok := schema.Example.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map example, got %T", schema.Example)
+	}
+	if len(example) != 0 {
+		t.Errorf("got canonicalized ambiguous example %#v, expected unchanged empty object", example)
+	}
+}

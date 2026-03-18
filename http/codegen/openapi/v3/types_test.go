@@ -275,6 +275,55 @@ func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 	}
 }
 
+func TestInitExamplesCanonicalizesMultipleUnionExamples(t *testing.T) {
+	union := &expr.Union{
+		TypeKey:  "kind",
+		ValueKey: "data",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name: "Single",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{
+						{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}},
+					},
+					Meta: expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+				},
+			},
+			{
+				Name: "Batch",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{
+						{Name: "items", Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}},
+					},
+					Meta: expr.MetaExpr{"oneof:type:tag": []string{"batch"}},
+				},
+			},
+		},
+	}
+	attr := &expr.AttributeExpr{
+		Type: union,
+		UserExamples: []*expr.ExampleExpr{
+			{Summary: "single", Value: map[string]any{"name": "alice"}},
+			{Summary: "batch", Value: map[string]any{"items": []any{"a", "b"}}},
+		},
+	}
+
+	mt := &MediaType{}
+	initExamples(mt, attr, expr.NewRandom("union"))
+
+	if len(mt.Examples) != 2 {
+		t.Fatalf("got %d examples, expected 2", len(mt.Examples))
+	}
+	single := mt.Examples["single"].Value.Value.(map[string]any)
+	if single["kind"] != "single" {
+		t.Errorf("got single example kind %#v, expected %q", single["kind"], "single")
+	}
+	batch := mt.Examples["batch"].Value.Value.(map[string]any)
+	if batch["kind"] != "batch" {
+		t.Errorf("got batch example kind %#v, expected %q", batch["kind"], "batch")
+	}
+}
+
 func matchesSchema(t *testing.T, ctx string, s *openapi.Schema, types map[string]*openapi.Schema, tt typ) {
 	matchesSchemaWithPrefix(t, ctx, s, types, tt, "")
 }
