@@ -168,3 +168,33 @@ var InvalidSessionSecurityDuplicateTransportDSL = func() {
 		})
 	})
 }
+
+var ValidSessionSecurityAutoPayloadDSL = func() {
+	var AppSession = SessionAuth("auto_payload_session", func() {
+		BearerTransport(JWTAuth, "auth")
+		CookieTransport(APIKeyAuth, "browser_session")
+	})
+	Service("ValidSessionSecurityAutoPayloadService", func() {
+		Method("SecureMethod", func() {
+			SessionSecurity(AppSession)
+			Payload(func() {
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
+var InvalidSessionSecurityPayloadConflictDSL = func() {
+	var AppSession = SessionAuth("conflict_session", func() {
+		BearerTransport(JWTAuth, "auth")
+		CookieTransport(APIKeyAuth, "browser_session")
+	})
+	Service("InvalidSessionSecurityPayloadConflictService", func() {
+		Method("SecureMethod", func() {
+			SessionSecurity(AppSession)
+			Payload(func() {
+				Attribute("auth", Int)
+			})
+		})
+	})
+}

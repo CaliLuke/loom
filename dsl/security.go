@@ -318,6 +318,14 @@ func SessionSecurity(arg any) {
 		return
 	}
 	current := eval.Current()
+	switch actual := current.(type) {
+	case *expr.MethodExpr:
+		actual.SessionAuths = append(actual.SessionAuths, sessionAuth)
+	case *expr.ServiceExpr:
+		actual.SessionAuths = append(actual.SessionAuths, sessionAuth)
+	case *expr.APIExpr:
+		actual.SessionAuths = append(actual.SessionAuths, sessionAuth)
+	}
 	for _, transport := range sessionAuth.Transports {
 		if transport == nil || transport.Scheme == nil {
 			continue

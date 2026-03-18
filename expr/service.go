@@ -27,6 +27,9 @@ type (
 		// potentially multiple schemes. Incoming requests must validate
 		// at least one requirement to be authorized.
 		Requirements []*SecurityExpr
+		// SessionAuths contains the multi-transport session auth contracts that
+		// apply to all service methods.
+		SessionAuths []*SessionAuthExpr
 		// ClientInterceptors is the list of client interceptors.
 		ClientInterceptors []*InterceptorExpr
 		// ServerInterceptors is the list of server interceptors.

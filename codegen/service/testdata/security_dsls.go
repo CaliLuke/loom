@@ -180,6 +180,35 @@ var EndpointWithBasicAuthAndSkipRequestBodyEncodeDecodeDSL = func() {
 	})
 }
 
+var EndpointWithBearerOrCookieSecurityDSL = func() {
+	Service("EndpointWithBearerOrCookieSecurity", func() {
+		Method("Secure", func() {
+			Security(JWTAuth)
+			Security(APIKeyAuth)
+			Payload(func() {
+				Token("auth", String)
+				APIKey("api_key", "browser_session", String)
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
+var EndpointWithSessionSecurityDSL = func() {
+	var AppSession = SessionAuth("app_session", func() {
+		BearerTransport(JWTAuth, "auth")
+		CookieTransport(APIKeyAuth, "browser_session")
+	})
+	Service("EndpointWithSessionSecurity", func() {
+		Method("Secure", func() {
+			SessionSecurity(AppSession)
+			Payload(func() {
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
 var SingleServiceDSL = func() {
 	Service("SingleService", func() {
 		Method("Method", func() {

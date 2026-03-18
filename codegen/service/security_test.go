@@ -36,6 +36,42 @@ func TestSecureEndpointInit(t *testing.T) {
 	}
 }
 
+func TestSessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {
+	manualRoot := codegen.RunDSL(t, testdata.EndpointWithBearerOrCookieSecurityDSL)
+	sessionRoot := codegen.RunDSL(t, testdata.EndpointWithSessionSecurityDSL)
+
+	manualServices := NewServicesData(manualRoot)
+	sessionServices := NewServicesData(sessionRoot)
+
+	manualMethod := manualServices.Get("EndpointWithBearerOrCookieSecurity").Method("Secure")
+	sessionMethod := sessionServices.Get("EndpointWithSessionSecurity").Method("Secure")
+	require.NotNil(t, manualMethod)
+	require.NotNil(t, sessionMethod)
+
+	require.Len(t, manualMethod.Requirements, 2)
+	require.Len(t, sessionMethod.Requirements, 2)
+
+	manualJWT := manualMethod.Requirements.Scheme("jwt")
+	sessionJWT := sessionMethod.Requirements.Scheme("jwt")
+	require.NotNil(t, manualJWT)
+	require.NotNil(t, sessionJWT)
+	assert.Equal(t, manualJWT.Type, sessionJWT.Type)
+	assert.Equal(t, manualJWT.CredField, sessionJWT.CredField)
+	assert.Equal(t, manualJWT.KeyAttr, sessionJWT.KeyAttr)
+
+	manualAPIKey := manualMethod.Requirements.Scheme("api_key")
+	sessionAPIKey := sessionMethod.Requirements.Scheme("api_key")
+	require.NotNil(t, manualAPIKey)
+	require.NotNil(t, sessionAPIKey)
+	assert.Equal(t, manualAPIKey.Type, sessionAPIKey.Type)
+	assert.Equal(t, manualAPIKey.CredField, sessionAPIKey.CredField)
+	assert.Equal(t, manualAPIKey.KeyAttr, sessionAPIKey.KeyAttr)
+
+	assert.Contains(t, sessionMethod.PayloadDef, "Auth *string")
+	assert.Contains(t, sessionMethod.PayloadDef, "BrowserSession *string")
+	assert.Contains(t, sessionMethod.PayloadDef, "Message *string")
+}
+
 func TestSecureEndpoint(t *testing.T) {
 	cases := []struct {
 		Name string

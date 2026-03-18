@@ -47,6 +47,10 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 		{"invalid-session-security-duplicate-transport", testdata.InvalidSessionSecurityDuplicateTransportDSL,
 			`session auth "duplicate_transport_session": session auth "duplicate_transport_session" defines duplicate bearer transport`,
 		},
+		{"valid-session-security-auto-payload", testdata.ValidSessionSecurityAutoPayloadDSL, ""},
+		{"invalid-session-security-payload-conflict", testdata.InvalidSessionSecurityPayloadConflictDSL,
+			`service "InvalidSessionSecurityPayloadConflictService" method "SecureMethod": payload of method "SecureMethod" of service "InvalidSessionSecurityPayloadConflictService" defines field "auth" which conflicts with session auth "conflict_session" bearer transport`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -73,6 +77,25 @@ func TestSessionSecurityLowersToMethodRequirements(t *testing.T) {
 	assert.Len(t, root.SessionAuths, 1)
 	assert.Equal(t, "app_session", root.SessionAuths[0].Name)
 	assert.Len(t, root.SessionAuths[0].Transports, 2)
+}
+
+func TestSessionSecurityInjectsPayloadFields(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidSessionSecurityAutoPayloadDSL)
+	method := root.Service("ValidSessionSecurityAutoPayloadService").Method("SecureMethod")
+	auth := method.Payload.Find("auth")
+	assert.NotNil(t, auth)
+	if assert.NotNil(t, auth) {
+		_, ok := auth.Meta["security:token"]
+		assert.True(t, ok)
+		assert.Equal(t, expr.String, auth.Type)
+	}
+	browserSession := method.Payload.Find("browser_session")
+	assert.NotNil(t, browserSession)
+	if assert.NotNil(t, browserSession) {
+		_, ok := browserSession.Meta["security:apikey:api_key"]
+		assert.True(t, ok)
+		assert.Equal(t, expr.String, browserSession.Type)
+	}
 }
 
 func TestMethodExprError(t *testing.T) {
