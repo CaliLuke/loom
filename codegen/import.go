@@ -3,7 +3,9 @@ package codegen
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strconv"
+	"strings"
 
 	"goa.design/goa/v3/expr"
 	goa "goa.design/goa/v3/pkg"
@@ -99,6 +101,19 @@ func (loc *Location) PackageName() string {
 	return Goify(filepath.Base(loc.RelImportPath), false)
 }
 
+// JoinImportPath constructs a generated import path by joining the generation
+// package root with a path relative to the generated `gen` tree.
+func JoinImportPath(genpkg, rel string) string {
+	if rel == "" {
+		return ""
+	}
+	base := strings.TrimSuffix(genpkg, "/")
+	for strings.HasSuffix(base, "/gen") {
+		base = strings.TrimSuffix(base, "/gen")
+	}
+	return filepath.ToSlash(filepath.Join(base, "gen", rel))
+}
+
 // GetMetaType retrieves the type and package defined by the struct:field:type
 // metadata if any.
 func GetMetaType(att *expr.AttributeExpr) (typeName string, importS *ImportSpec) {
@@ -122,6 +137,60 @@ func GetMetaType(att *expr.AttributeExpr) (typeName string, importS *ImportSpec)
 // GetMetaTypeImports parses the attribute for all user defined imports
 func GetMetaTypeImports(att *expr.AttributeExpr) []*ImportSpec {
 	return safelyGetMetaTypeImports(att, nil)
+}
+
+// GatherAttributeImports collects import specifications required by the given
+// attribute, including meta-type imports and user types placed in external
+// generated packages.
+func GatherAttributeImports(genpkg string, att *expr.AttributeExpr) []*ImportSpec {
+	uniq := make(map[string]*ImportSpec)
+	var visit func(*expr.AttributeExpr)
+	visit = func(a *expr.AttributeExpr) {
+		if a == nil {
+			return
+		}
+		for _, im := range GetMetaTypeImports(a) {
+			if im != nil && im.Path != "" {
+				uniq[im.Path] = im
+			}
+		}
+		switch dt := a.Type.(type) {
+		case expr.UserType:
+			if loc := UserTypeLocation(dt); loc != nil && loc.RelImportPath != "" {
+				imp := &ImportSpec{
+					Name: loc.PackageName(),
+					Path: JoinImportPath(genpkg, loc.RelImportPath),
+				}
+				uniq[imp.Path] = imp
+			}
+			visit(dt.Attribute())
+		case *expr.Array:
+			visit(dt.ElemType)
+		case *expr.Map:
+			visit(dt.KeyType)
+			visit(dt.ElemType)
+		case *expr.Object:
+			for _, nat := range *dt {
+				visit(nat.Attribute)
+			}
+		case expr.CompositeExpr:
+			visit(dt.Attribute())
+		}
+	}
+	visit(att)
+	if len(uniq) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(uniq))
+	for p := range uniq {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	imports := make([]*ImportSpec, 0, len(paths))
+	for _, p := range paths {
+		imports = append(imports, uniq[p])
+	}
+	return imports
 }
 
 // safelyGetMetaTypeImports parses attributes while keeping track of previous usertypes to avoid infinite recursion

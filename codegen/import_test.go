@@ -10,6 +10,29 @@ import (
 	"goa.design/goa/v3/expr"
 )
 
+func TestJoinImportPath(t *testing.T) {
+	cases := []struct {
+		name   string
+		genpkg string
+		rel    string
+		want   string
+	}{
+		{name: "empty rel", genpkg: "example.com/myapp/gen", rel: "", want: ""},
+		{name: "gen suffix", genpkg: "example.com/myapp/gen", rel: "types", want: "example.com/myapp/gen/types"},
+		{name: "without gen suffix", genpkg: "example.com/myapp", rel: "types", want: "example.com/myapp/gen/types"},
+		{name: "repeated gen suffix", genpkg: "example.com/myapp/gen/gen", rel: "nested/types", want: "example.com/myapp/gen/nested/types"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := JoinImportPath(tc.genpkg, tc.rel)
+			if got != tc.want {
+				t.Errorf("got import path %q, expected %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestGetMetaTypeImports(t *testing.T) {
 	testdata := []struct {
 		name string
@@ -168,5 +191,67 @@ func TestGetMetaTypeImports(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGatherAttributeImports(t *testing.T) {
+	attr := &expr.AttributeExpr{
+		Type: &expr.Object{
+			{
+				Name: "external",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.UserTypeExpr{
+						TypeName: "ExternalType",
+						AttributeExpr: &expr.AttributeExpr{
+							Type: expr.String,
+							Meta: expr.MetaExpr{
+								"struct:pkg:path": []string{"types"},
+							},
+						},
+					},
+				},
+			},
+			{
+				Name: "meta",
+				Attribute: &expr.AttributeExpr{
+					Type: expr.String,
+					Meta: expr.MetaExpr{
+						"struct:field:type": []string{"CustomString", "example.com/custom/string"},
+					},
+				},
+			},
+			{
+				Name: "nested",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Array{
+						ElemType: &expr.AttributeExpr{
+							Type: &expr.UserTypeExpr{
+								TypeName: "NestedType",
+								AttributeExpr: &expr.AttributeExpr{
+									Type: expr.Int,
+									Meta: expr.MetaExpr{
+										"struct:pkg:path": []string{"nested/types"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	imports := GatherAttributeImports("example.com/app/gen", attr)
+	got := make([]string, 0, len(imports))
+	for _, im := range imports {
+		got = append(got, im.Path)
+	}
+	want := []string{
+		"example.com/app/gen/nested/types",
+		"example.com/app/gen/types",
+		"example.com/custom/string",
+	}
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("got imports %v, expected %v", got, want)
 	}
 }
