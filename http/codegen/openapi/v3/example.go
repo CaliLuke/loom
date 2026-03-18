@@ -23,15 +23,15 @@ func initExamples(obj exampler, attr *expr.AttributeExpr, r *expr.ExampleGenerat
 			example := &Example{
 				Summary:     ex.Summary,
 				Description: ex.Description,
-				Value:       ex.Value,
+				Value:       expr.CanonicalizeExample(attr, ex.Value),
 			}
 			refs[ex.Summary] = &ExampleRef{Value: example}
 		}
 		obj.setExamples(refs)
 		return
 	case len(examples) > 0:
-		obj.setExample(examples[0].Value)
+		obj.setExample(expr.CanonicalizeExample(attr, examples[0].Value))
 	default:
-		obj.setExample(attr.Example(r))
+		obj.setExample(expr.CanonicalizeExample(attr, attr.Example(r)))
 	}
 }

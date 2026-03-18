@@ -223,6 +223,58 @@ func TestBuildBodyTypes(t *testing.T) {
 	}
 }
 
+func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
+	union := &expr.Union{
+		TypeKey:  "kind",
+		ValueKey: "data",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name: "Single",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{
+						{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}},
+					},
+					Meta: expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+				},
+			},
+			{
+				Name: "Batch",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{
+						{Name: "items", Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}},
+					},
+					Meta: expr.MetaExpr{"oneof:type:tag": []string{"batch"}},
+				},
+			},
+		},
+	}
+	attr := &expr.AttributeExpr{
+		Type: union,
+		UserExamples: []*expr.ExampleExpr{{
+			Summary: "default",
+			Value:   map[string]any{"name": "alice"},
+		}},
+	}
+
+	sf := newSchemafier(expr.NewRandom("union"))
+	schema := sf.schemafy(attr)
+
+	typeSchema := schema.Properties[union.GetTypeKey()]
+	if typeSchema.Enum[0] != "single" || typeSchema.Enum[1] != "batch" {
+		t.Errorf("got union enum %#v, expected tagged values", typeSchema.Enum)
+	}
+	example, ok := schema.Example.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map example, got %T", schema.Example)
+	}
+	if example[union.GetTypeKey()] != "single" {
+		t.Errorf("got type example %#v, expected %q", example[union.GetTypeKey()], "single")
+	}
+	if _, ok := example[union.GetValueKey()].(map[string]any); !ok {
+		t.Errorf("got value example %#v, expected nested object", example[union.GetValueKey()])
+	}
+}
+
 func matchesSchema(t *testing.T, ctx string, s *openapi.Schema, types map[string]*openapi.Schema, tt typ) {
 	matchesSchemaWithPrefix(t, ctx, s, types, tt, "")
 }

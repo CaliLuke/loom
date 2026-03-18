@@ -379,7 +379,7 @@ func TypeSchemaWithPrefix(api *expr.APIExpr, t expr.DataType, prefix string) *Sc
 		typeSchema.Type = String
 		typeSchema.Enum = make([]any, len(actual.Values))
 		for i, val := range actual.Values {
-			typeSchema.Enum[i] = val.Name
+			typeSchema.Enum[i] = expr.UnionVariantTag(val)
 		}
 		// Value can be any of the branch schemas.
 		valueSchema := NewSchema()
@@ -506,7 +506,7 @@ func buildAttributeSchema(api *expr.APIExpr, s *Schema, at *expr.AttributeExpr) 
 	}
 	s.DefaultValue = ToStringMap(at.DefaultValue)
 	s.Description = at.Description
-	s.Example = at.Example(api.ExampleGenerator)
+	s.Example = expr.CanonicalizeExample(at, at.Example(api.ExampleGenerator))
 	s.Extensions = ExtensionsFromExpr(at.Meta)
 	if ap := AdditionalPropertiesFromExpr(at.Meta); ap != nil {
 		s.AdditionalProperties = ap

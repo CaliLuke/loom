@@ -223,7 +223,7 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 		typeSchema := &openapi.Schema{Type: "string"}
 		typeSchema.Enum = make([]any, len(t.Values))
 		for i, val := range t.Values {
-			typeSchema.Enum[i] = val.Name
+			typeSchema.Enum[i] = expr.UnionVariantTag(val)
 		}
 		valueSchema := &openapi.Schema{}
 		for _, val := range t.Values {
@@ -279,7 +279,7 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 
 	// Default value, example, extensions
 	s.DefaultValue = toStringMap(attr.DefaultValue)
-	s.Example = attr.Example(sf.rand)
+	s.Example = expr.CanonicalizeExample(attr, attr.Example(sf.rand))
 	s.Extensions = openapi.ExtensionsFromExpr(attr.Meta)
 
 	// Validations
