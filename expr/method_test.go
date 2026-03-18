@@ -40,6 +40,13 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 		{"constructor-union-result-view", testdata.ConstructorUnionResultViewDSL,
 			`service "ConstructorUnionResultViewService" method "Show": result -  uses view "tiny" but "AOrB" is not a result type`,
 		},
+		{"valid-session-security", testdata.ValidSessionSecurityDSL, ""},
+		{"invalid-session-security-transport", testdata.InvalidSessionSecurityTransportDSL,
+			`session auth "invalid_session": cookie transport must use an API key security scheme`,
+		},
+		{"invalid-session-security-duplicate-transport", testdata.InvalidSessionSecurityDuplicateTransportDSL,
+			`session auth "duplicate_transport_session": session auth "duplicate_transport_session" defines duplicate bearer transport`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -51,6 +58,21 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 			}
 		})
 	}
+}
+
+func TestSessionSecurityLowersToMethodRequirements(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidSessionSecurityDSL)
+	method := root.Service("ValidSessionSecurityService").Method("SecureMethod")
+	assert.Len(t, method.Requirements, 2)
+	assert.Len(t, method.Requirements[0].Schemes, 1)
+	assert.Len(t, method.Requirements[1].Schemes, 1)
+	assert.Equal(t, expr.JWTKind, method.Requirements[0].Schemes[0].Kind)
+	assert.Equal(t, "jwt", method.Requirements[0].Schemes[0].SchemeName)
+	assert.Equal(t, expr.APIKeyKind, method.Requirements[1].Schemes[0].Kind)
+	assert.Equal(t, "api_key", method.Requirements[1].Schemes[0].SchemeName)
+	assert.Len(t, root.SessionAuths, 1)
+	assert.Equal(t, "app_session", root.SessionAuths[0].Name)
+	assert.Len(t, root.SessionAuths[0].Transports, 2)
 }
 
 func TestMethodExprError(t *testing.T) {

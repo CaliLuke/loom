@@ -171,6 +171,38 @@ func JWTSecurity(name string, fn ...func()) *expr.SchemeExpr {
 	return e
 }
 
+// SessionAuth defines a logical auth contract backed by one or more transport
+// alternatives.
+//
+// SessionAuth is a top level DSL.
+func SessionAuth(name string, fn ...func()) *expr.SessionAuthExpr {
+	if _, ok := eval.Current().(eval.TopExpr); !ok {
+		eval.IncompatibleDSL()
+		return nil
+	}
+	if sessionAuthRedefined(name) {
+		return nil
+	}
+	e := &expr.SessionAuthExpr{Name: name}
+	if len(fn) != 0 {
+		if !eval.Execute(fn[0], e) {
+			return nil
+		}
+	}
+	expr.Root.SessionAuths = append(expr.Root.SessionAuths, e)
+	return e
+}
+
+// BearerTransport defines a bearer transport for a session auth contract.
+func BearerTransport(scheme any, fieldName string, fn ...func()) {
+	sessionTransport(expr.SessionBearerTransportKind, scheme, fieldName, fn...)
+}
+
+// CookieTransport defines a cookie transport for a session auth contract.
+func CookieTransport(scheme any, fieldName string, fn ...func()) {
+	sessionTransport(expr.SessionCookieTransportKind, scheme, fieldName, fn...)
+}
+
 // Security defines authentication requirements to access an entire API, service
 // or individual service method.
 //
@@ -275,6 +307,37 @@ func Security(args ...any) {
 	default:
 		eval.IncompatibleDSL()
 		return
+	}
+}
+
+// SessionSecurity defines authentication requirements using a named
+// multi-transport session auth contract.
+func SessionSecurity(arg any) {
+	sessionAuth := lookupSessionAuth(arg)
+	if sessionAuth == nil {
+		return
+	}
+	current := eval.Current()
+	for _, transport := range sessionAuth.Transports {
+		if transport == nil || transport.Scheme == nil {
+			continue
+		}
+		security := &expr.SecurityExpr{
+			Schemes: []*expr.SchemeExpr{expr.DupScheme(transport.Scheme)},
+		}
+		switch actual := current.(type) {
+		case *expr.MethodExpr:
+			actual.Requirements = append(actual.Requirements, security)
+		case *expr.ServiceExpr:
+			actual.Requirements = append(actual.Requirements, security)
+		case *expr.APIExpr:
+			actual.Requirements = append(actual.Requirements, security)
+		case expr.SecurityHolder:
+			actual.AddSecurityRequirement(security)
+		default:
+			eval.IncompatibleDSL()
+			return
+		}
 	}
 }
 
@@ -643,6 +706,83 @@ func securitySchemeRedefined(name string) bool {
 		}
 	}
 	return false
+}
+
+func sessionAuthRedefined(name string) bool {
+	for _, s := range expr.Root.SessionAuths {
+		if s.Name == name {
+			eval.ReportError("cannot redefine session auth with name %q", name)
+			return true
+		}
+	}
+	return false
+}
+
+func lookupSessionAuth(arg any) *expr.SessionAuthExpr {
+	switch val := arg.(type) {
+	case string:
+		for _, sessionAuth := range expr.Root.SessionAuths {
+			if sessionAuth.Name == val {
+				return sessionAuth
+			}
+		}
+		eval.ReportError("session auth %q not found", val)
+		return nil
+	case *expr.SessionAuthExpr:
+		if val == nil {
+			eval.InvalidArgError("session auth", val)
+			return nil
+		}
+		return val
+	default:
+		eval.InvalidArgError("session auth or session auth name", val)
+		return nil
+	}
+}
+
+func lookupSessionTransportScheme(arg any) *expr.SchemeExpr {
+	switch val := arg.(type) {
+	case string:
+		for _, scheme := range expr.Root.Schemes {
+			if scheme.SchemeName == val {
+				return scheme
+			}
+		}
+		eval.ReportError("security scheme %q not found", val)
+		return nil
+	case *expr.SchemeExpr:
+		if val == nil {
+			eval.InvalidArgError("security scheme", val)
+			return nil
+		}
+		return val
+	default:
+		eval.InvalidArgError("security scheme or security scheme name", val)
+		return nil
+	}
+}
+
+func sessionTransport(kind expr.SessionTransportKind, scheme any, fieldName string, fn ...func()) {
+	current, ok := eval.Current().(*expr.SessionAuthExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	sch := lookupSessionTransportScheme(scheme)
+	if sch == nil {
+		return
+	}
+	transport := &expr.SessionTransportExpr{
+		Kind:      kind,
+		Scheme:    expr.DupScheme(sch),
+		FieldName: fieldName,
+	}
+	if len(fn) != 0 {
+		if !eval.Execute(fn[0], transport) {
+			return
+		}
+	}
+	current.Transports = append(current.Transports, transport)
 }
 
 // useDSL modifies the Attribute function to use the given function as DSL,

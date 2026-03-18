@@ -24,6 +24,16 @@ const (
 	NoKind
 )
 
+// SessionTransportKind identifies the transport used by a session auth contract.
+type SessionTransportKind int
+
+const (
+	// SessionBearerTransportKind identifies a bearer token transport.
+	SessionBearerTransportKind SessionTransportKind = iota + 1
+	// SessionCookieTransportKind identifies a cookie transport.
+	SessionCookieTransportKind
+)
+
 // FlowKind is a type of OAuth2 flow.
 type FlowKind int
 
@@ -54,6 +64,30 @@ type (
 		Schemes []*SchemeExpr
 		// Scopes list the required scopes if any.
 		Scopes []string
+	}
+
+	// SessionAuthExpr defines a logical auth contract backed by one or more
+	// transport alternatives.
+	SessionAuthExpr struct {
+		// Name is the session auth contract name.
+		Name string
+		// Description describes the session auth contract.
+		Description string
+		// Transports lists the accepted auth transports.
+		Transports []*SessionTransportExpr
+	}
+
+	// SessionTransportExpr defines one accepted transport for a session auth
+	// contract.
+	SessionTransportExpr struct {
+		// Kind identifies the transport kind.
+		Kind SessionTransportKind
+		// Scheme is the underlying security scheme used by this transport.
+		Scheme *SchemeExpr
+		// FieldName is the payload field name associated with the transport.
+		FieldName string
+		// Description describes the transport.
+		Description string
 	}
 
 	// SchemeExpr defines a security scheme used to authenticate against the
@@ -102,6 +136,85 @@ type (
 		Description string
 	}
 )
+
+// EvalName returns the generic definition name used in error messages.
+func (s *SessionAuthExpr) EvalName() string {
+	if s.Name == "" {
+		return "unnamed session auth"
+	}
+	return fmt.Sprintf("session auth %q", s.Name)
+}
+
+// SetDescription sets the session auth description.
+func (s *SessionAuthExpr) SetDescription(d string) {
+	s.Description = d
+}
+
+// Validate validates the session auth contract.
+func (s *SessionAuthExpr) Validate() *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	if len(s.Transports) == 0 {
+		verr.Add(s, "session auth %q must define at least one transport", s.Name)
+		return verr
+	}
+	seenKinds := make(map[SessionTransportKind]struct{}, len(s.Transports))
+	seenFields := make(map[string]struct{}, len(s.Transports))
+	for _, transport := range s.Transports {
+		if transport == nil {
+			continue
+		}
+		if _, ok := seenKinds[transport.Kind]; ok {
+			verr.Add(s, "session auth %q defines duplicate %s transport", s.Name, transport.Kind)
+		} else {
+			seenKinds[transport.Kind] = struct{}{}
+		}
+		if transport.FieldName == "" {
+			verr.Add(s, "session auth %q defines a %s transport with an empty field name", s.Name, transport.Kind)
+		} else if _, ok := seenFields[transport.FieldName]; ok {
+			verr.Add(s, "session auth %q defines duplicate field name %q", s.Name, transport.FieldName)
+		} else {
+			seenFields[transport.FieldName] = struct{}{}
+		}
+		if terr := transport.Validate(); terr != nil {
+			for _, err := range terr.Errors {
+				verr.Add(s, "%s", err.Error())
+			}
+		}
+	}
+	return verr
+}
+
+// EvalName returns the generic definition name used in error messages.
+func (s *SessionTransportExpr) EvalName() string {
+	return fmt.Sprintf("%s transport", s.Kind)
+}
+
+// SetDescription sets the transport description.
+func (s *SessionTransportExpr) SetDescription(d string) {
+	s.Description = d
+}
+
+// Validate validates the session transport.
+func (s *SessionTransportExpr) Validate() *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	if s.Scheme == nil {
+		verr.Add(s, "%s transport must reference a security scheme", s.Kind)
+		return verr
+	}
+	switch s.Kind {
+	case SessionBearerTransportKind:
+		if s.Scheme.Kind != JWTKind && s.Scheme.Kind != OAuth2Kind {
+			verr.Add(s, "bearer transport must use a JWT or OAuth2 security scheme")
+		}
+	case SessionCookieTransportKind:
+		if s.Scheme.Kind != APIKeyKind {
+			verr.Add(s, "cookie transport must use an API key security scheme")
+		}
+	default:
+		verr.Add(s, "unknown session transport kind %d", s.Kind)
+	}
+	return verr
+}
 
 // EvalName returns the generic definition name used in error messages.
 func (s *SecurityExpr) EvalName() string {
@@ -226,5 +339,16 @@ func (k SchemeKind) String() string {
 		return "None"
 	default:
 		panic("unknown kind") // bug
+	}
+}
+
+func (k SessionTransportKind) String() string {
+	switch k {
+	case SessionBearerTransportKind:
+		return "bearer"
+	case SessionCookieTransportKind:
+		return "cookie"
+	default:
+		panic("unknown session transport kind") // bug
 	}
 }

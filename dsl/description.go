@@ -40,6 +40,10 @@ func Description(d string) {
 		e.Description = d
 	case *expr.SchemeExpr:
 		e.Description = d
+	case *expr.SessionAuthExpr:
+		e.Description = d
+	case *expr.SessionTransportExpr:
+		e.Description = d
 	case *expr.HTTPResponseExpr:
 		e.Description = d
 	case *expr.HTTPFileServerExpr:

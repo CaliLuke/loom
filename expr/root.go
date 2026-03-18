@@ -39,6 +39,8 @@ type (
 		Creations []*TypeMap
 		// Schemes list the registered security schemes.
 		Schemes []*SchemeExpr
+		// SessionAuths list the registered multi-transport session auth contracts.
+		SessionAuths []*SessionAuthExpr
 	}
 
 	// MetaExpr is a set of key/value pairs
@@ -214,6 +216,9 @@ func (r *RootExpr) Validate() error {
 	}
 
 	verr.Merge(r.validateRelocatedUserTypes())
+	for _, sessionAuth := range r.SessionAuths {
+		verr.Merge(sessionAuth.Validate())
+	}
 
 	return &verr
 }

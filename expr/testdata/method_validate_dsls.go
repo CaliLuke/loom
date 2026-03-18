@@ -118,3 +118,53 @@ var ConstructorUnionResultViewDSL = func() {
 		})
 	})
 }
+
+var ValidSessionSecurityDSL = func() {
+	var AppSession = SessionAuth("app_session", func() {
+		Description("Application session")
+		BearerTransport(JWTAuth, "auth")
+		CookieTransport(APIKeyAuth, "browser_session")
+	})
+	Service("ValidSessionSecurityService", func() {
+		Method("SecureMethod", func() {
+			SessionSecurity(AppSession)
+			Payload(func() {
+				Token("token", String)
+				APIKey("api_key", "browser_session", String)
+			})
+		})
+	})
+}
+
+var InvalidSessionSecurityTransportDSL = func() {
+	var InvalidSession = SessionAuth("invalid_session", func() {
+		CookieTransport(JWTAuth, "browser_session")
+	})
+	Service("InvalidSessionSecurityTransportService", func() {
+		Method("SecureMethod", func() {
+			SessionSecurity(InvalidSession)
+			Payload(func() {
+				Token("token", String)
+			})
+		})
+	})
+}
+
+var InvalidSessionSecurityDuplicateTransportDSL = func() {
+	var OAuth2JWT = OAuth2Security("oauth2_jwt", func() {
+		AuthorizationCodeFlow("https://example.com/auth", "https://example.com/token", "https://example.com/refresh")
+	})
+	var InvalidSession = SessionAuth("duplicate_transport_session", func() {
+		BearerTransport(JWTAuth, "auth")
+		BearerTransport(OAuth2JWT, "access_token")
+	})
+	Service("InvalidSessionSecurityDuplicateTransportService", func() {
+		Method("SecureMethod", func() {
+			SessionSecurity(InvalidSession)
+			Payload(func() {
+				Token("token", String)
+				AccessToken("oauth_token", String)
+			})
+		})
+	})
+}
