@@ -116,6 +116,17 @@ func TestSessionSecurityInfersCookieBinding(t *testing.T) {
 		require.NotNil(t, endpoint.Cookies.Find("browser_session"))
 	})
 
+	t.Run("api-level session security renders top-level openapi security without mutating api requirements", func(t *testing.T) {
+		root := RunHTTPDSL(t, apiLevelSessionCookieSecurityDSL)
+		require.Len(t, root.API.Requirements, 0)
+		require.Len(t, root.API.SessionAuths, 1)
+
+		openapi.Definitions = make(map[string]*openapi.Schema)
+		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
+		doc := parseOpenAPIV3Document(t, v3JSON)
+		require.Len(t, doc.Security, 2)
+	})
+
 	t.Run("openapi uses inferred cookie security scheme", func(t *testing.T) {
 		root := RunHTTPDSL(t, sessionCookieSecurityDSL)
 		openapi.Definitions = make(map[string]*openapi.Schema)
@@ -250,6 +261,38 @@ var sessionCookieSecurityDSL = func() {
 			dsl.SessionSecurity(appSession)
 			dsl.Payload(func() {
 				dsl.Attribute("message", dsl.String)
+			})
+			dsl.Result(dsl.Empty)
+			dsl.HTTP(func() {
+				dsl.GET("/auth/profile")
+				dsl.Response(dsl.StatusOK)
+			})
+		})
+	})
+}
+
+var apiLevelSessionCookieSecurityDSL = func() {
+	var bearer = dsl.JWTSecurity("session_bearer", func() {
+		dsl.Description("Application bearer")
+	})
+	var browserSessionCookie = dsl.APIKeySecurity("browser_session_cookie", func() {
+		dsl.Description("Browser session cookie")
+	})
+	var appSession = dsl.SessionAuth("app_session_api_level", func() {
+		dsl.BearerTransport(bearer, "auth")
+		dsl.CookieTransport(browserSessionCookie, "browser_session", func() {
+			dsl.CookieName("__Host-ak_session")
+		})
+	})
+
+	dsl.API("cookieSecurityAPI", func() {
+		dsl.SessionSecurity(appSession)
+	})
+
+	dsl.Service("cookieSecurityAPILevel", func() {
+		dsl.Method("profile", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("payload", dsl.String)
 			})
 			dsl.Result(dsl.Empty)
 			dsl.HTTP(func() {

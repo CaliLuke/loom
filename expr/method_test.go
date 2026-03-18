@@ -164,6 +164,16 @@ func TestSessionSecurityLowersToMethodRequirements(t *testing.T) {
 	assert.Len(t, root.SessionAuths[0].Transports, 2)
 }
 
+func TestAPISessionSecurityDerivesMethodRequirements(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidAPISessionSecurityDSL)
+	method := root.Service("ValidAPISessionSecurityService").Method("SecureMethod")
+	assert.Len(t, root.API.Requirements, 0)
+	assert.Len(t, root.API.SessionAuths, 1)
+	assert.Len(t, method.Requirements, 2)
+	assert.Equal(t, expr.JWTKind, method.Requirements[0].Schemes[0].Kind)
+	assert.Equal(t, expr.APIKeyKind, method.Requirements[1].Schemes[0].Kind)
+}
+
 func TestSessionSecurityInjectsPayloadFields(t *testing.T) {
 	root := expr.RunDSL(t, testdata.ValidSessionSecurityAutoPayloadDSL)
 	method := root.Service("ValidSessionSecurityAutoPayloadService").Method("SecureMethod")

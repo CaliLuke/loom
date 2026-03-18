@@ -147,15 +147,7 @@ func (m *MethodExpr) Validate() error {
 // validateRequirements validates the security requirements.
 func (m *MethodExpr) validateRequirements() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	var requirements []*SecurityExpr
-	switch {
-	case len(m.Requirements) > 0:
-		requirements = m.Requirements
-	case len(m.Service.Requirements) > 0:
-		requirements = m.Service.Requirements
-	case len(Root.API.Requirements) > 0:
-		requirements = Root.API.Requirements
-	}
+	requirements := m.validationRequirements()
 	var (
 		hasBasicAuth bool
 		hasAPIKey    bool
@@ -427,6 +419,7 @@ loop:
 			m.SessionAuths = copySessionAuths(Root.API.SessionAuths)
 		}
 	}
+	m.Requirements = mergeRequirements(m.Requirements, sessionRequirements(m.SessionAuths))
 }
 
 // IsStreaming determines whether the method streams payload or result.
@@ -484,9 +477,96 @@ func copySessionAuths(sessionAuths []*SessionAuthExpr) []*SessionAuthExpr {
 	return dups
 }
 
+func (m *MethodExpr) validationRequirements() []*SecurityExpr {
+	requirements := copyReqs(m.Requirements)
+	if len(requirements) == 0 {
+		switch {
+		case len(m.Service.Requirements) > 0:
+			requirements = copyReqs(m.Service.Requirements)
+		case len(Root.API.Requirements) > 0:
+			requirements = copyReqs(Root.API.Requirements)
+		}
+	}
+	sessionAuths := m.validationSessionAuths()
+	return mergeRequirements(requirements, sessionRequirements(sessionAuths))
+}
+
+func (m *MethodExpr) validationSessionAuths() []*SessionAuthExpr {
+	sessionAuths := copySessionAuths(m.SessionAuths)
+	if len(sessionAuths) == 0 {
+		switch {
+		case len(m.Service.SessionAuths) > 0:
+			sessionAuths = copySessionAuths(m.Service.SessionAuths)
+		case len(Root.API.SessionAuths) > 0:
+			sessionAuths = copySessionAuths(Root.API.SessionAuths)
+		}
+	}
+	return sessionAuths
+}
+
+func sessionRequirements(sessionAuths []*SessionAuthExpr) []*SecurityExpr {
+	if len(sessionAuths) == 0 {
+		return nil
+	}
+	reqs := make([]*SecurityExpr, 0, len(sessionAuths))
+	for _, sessionAuth := range sessionAuths {
+		for _, transport := range sessionAuth.Transports {
+			if transport == nil || transport.Scheme == nil {
+				continue
+			}
+			reqs = append(reqs, &SecurityExpr{
+				Schemes: []*SchemeExpr{DupScheme(transport.Scheme)},
+			})
+		}
+	}
+	return reqs
+}
+
+func mergeRequirements(existing []*SecurityExpr, derived []*SecurityExpr) []*SecurityExpr {
+	if len(derived) == 0 {
+		return existing
+	}
+	merged := make([]*SecurityExpr, len(existing))
+	copy(merged, existing)
+	for _, req := range derived {
+		if !containsRequirement(merged, req) {
+			merged = append(merged, req)
+		}
+	}
+	return merged
+}
+
+func containsRequirement(requirements []*SecurityExpr, candidate *SecurityExpr) bool {
+	for _, req := range requirements {
+		if requirementEqual(req, candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+func requirementEqual(left *SecurityExpr, right *SecurityExpr) bool {
+	if len(left.Scopes) != len(right.Scopes) || len(left.Schemes) != len(right.Schemes) {
+		return false
+	}
+	for i, scope := range left.Scopes {
+		if right.Scopes[i] != scope {
+			return false
+		}
+	}
+	for i, scheme := range left.Schemes {
+		other := right.Schemes[i]
+		if scheme.Kind != other.Kind || scheme.SchemeName != other.SchemeName || scheme.In != other.In || scheme.Name != other.Name {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *MethodExpr) injectSessionAuthPayloadFields() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	if len(m.SessionAuths) == 0 {
+	sessionAuths := m.validationSessionAuths()
+	if len(sessionAuths) == 0 {
 		return verr
 	}
 	if m.Payload == nil || m.Payload.Type == Empty {
@@ -505,7 +585,7 @@ func (m *MethodExpr) injectSessionAuthPayloadFields() *eval.ValidationErrors {
 		m.Payload.Type = dupped
 		obj = AsObject(m.Payload.Type)
 	}
-	for _, sessionAuth := range m.SessionAuths {
+	for _, sessionAuth := range sessionAuths {
 		for _, transport := range sessionAuth.Transports {
 			verr.Merge(m.injectSessionTransportField(sessionAuth, transport, obj))
 		}

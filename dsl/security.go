@@ -348,27 +348,9 @@ func SessionSecurity(arg any) {
 		actual.SessionAuths = append(actual.SessionAuths, sessionAuth)
 	case *expr.APIExpr:
 		actual.SessionAuths = append(actual.SessionAuths, sessionAuth)
-	}
-	for _, transport := range sessionAuth.Transports {
-		if transport == nil || transport.Scheme == nil {
-			continue
-		}
-		security := &expr.SecurityExpr{
-			Schemes: []*expr.SchemeExpr{expr.DupScheme(transport.Scheme)},
-		}
-		switch actual := current.(type) {
-		case *expr.MethodExpr:
-			actual.Requirements = append(actual.Requirements, security)
-		case *expr.ServiceExpr:
-			actual.Requirements = append(actual.Requirements, security)
-		case *expr.APIExpr:
-			actual.Requirements = append(actual.Requirements, security)
-		case expr.SecurityHolder:
-			actual.AddSecurityRequirement(security)
-		default:
-			eval.IncompatibleDSL()
-			return
-		}
+	default:
+		eval.IncompatibleDSL()
+		return
 	}
 }
 

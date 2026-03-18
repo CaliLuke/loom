@@ -47,7 +47,7 @@ func New(root *expr.RootExpr) *OpenAPI {
 		comps    = buildComponents(root, types)
 		servers  = buildServers(root.API.Servers)
 		paths    = buildPaths(root.API.HTTP, bodies, root.API)
-		security = buildSecurityRequirements(root.API.Requirements)
+		security = buildSecurityRequirements(effectiveRequirements(root.API.Requirements, root.API.SessionAuths))
 		tags     = buildTags(root.API)
 	)
 
@@ -435,11 +435,59 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 		Parameters:   params,
 		Responses:    responses,
 		Tags:         tagNames,
-		Security:     buildSecurityRequirements(api.Requirements),
+		Security:     buildSecurityRequirements(effectiveRequirements(api.Requirements, api.SessionAuths)),
 		Deprecated:   false,
 		ExternalDocs: openapi.DocsFromExpr(fs.Docs, fs.Meta),
 		Extensions:   openapi.ExtensionsFromExpr(fs.Meta),
 	}
+}
+
+func effectiveRequirements(requirements []*expr.SecurityExpr, sessionAuths []*expr.SessionAuthExpr) []*expr.SecurityExpr {
+	merged := make([]*expr.SecurityExpr, len(requirements))
+	copy(merged, requirements)
+	for _, sessionAuth := range sessionAuths {
+		for _, transport := range sessionAuth.Transports {
+			if transport == nil || transport.Scheme == nil {
+				continue
+			}
+			req := &expr.SecurityExpr{
+				Schemes: []*expr.SchemeExpr{expr.DupScheme(transport.Scheme)},
+			}
+			if !containsRequirement(merged, req) {
+				merged = append(merged, req)
+			}
+		}
+	}
+	return merged
+}
+
+func containsRequirement(requirements []*expr.SecurityExpr, candidate *expr.SecurityExpr) bool {
+	for _, req := range requirements {
+		if len(req.Scopes) != len(candidate.Scopes) || len(req.Schemes) != len(candidate.Schemes) {
+			continue
+		}
+		matched := true
+		for i, scope := range req.Scopes {
+			if candidate.Scopes[i] != scope {
+				matched = false
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		for i, scheme := range req.Schemes {
+			other := candidate.Schemes[i]
+			if scheme.Kind != other.Kind || scheme.SchemeName != other.SchemeName || scheme.In != other.In || scheme.Name != other.Name {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 func parseOperationIDTemplate(template, service, method string, routeIndex int) string {
