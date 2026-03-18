@@ -15,12 +15,12 @@ type (
 	ErrorRemedy struct {
 		// Code is the stable remediation code consumers may use to classify the
 		// failure.
-		Code string
+		Code string `json:"code,omitempty" xml:"code,omitempty" form:"code,omitempty"`
 		// SafeMessage is the safe, user-facing message to surface without
 		// leaking internal details.
-		SafeMessage string
+		SafeMessage string `json:"safe_message,omitempty" xml:"safe_message,omitempty" form:"safe_message,omitempty"`
 		// RetryHint is concise guidance on how to correct the request or retry.
-		RetryHint string
+		RetryHint string `json:"retry_hint,omitempty" xml:"retry_hint,omitempty" form:"retry_hint,omitempty"`
 	}
 
 	// ServiceError is the default error type used by the goa package to

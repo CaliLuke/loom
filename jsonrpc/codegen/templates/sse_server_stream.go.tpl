@@ -142,14 +142,14 @@ func (s *{{ .SSE.StructName }}) SendError(ctx context.Context, id string, err er
 		if _, ok := err.(*goa.ServiceError); ok {
 			code = jsonrpc.InvalidParams
 		}
-		return s.sendError(ctx, id, code, err.Error(), nil)
+		return s.sendError(ctx, id, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 	}
 	switch en.GoaErrorName() {
 	{{- range $gerr := .Errors }}
 		{{- range $err := $gerr.Errors }}
 	case {{ printf "%q" $err.Name }}:
 			{{- with $err.Response}}
-		return s.sendError(ctx, id, {{ .Code }}, err.Error(), err)
+		return s.sendError(ctx, id, {{ .Code }}, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			{{- end }}
 		{{- end }}
 	{{- end }}
@@ -158,7 +158,7 @@ func (s *{{ .SSE.StructName }}) SendError(ctx context.Context, id string, err er
 		if _, ok := err.(*goa.ServiceError); ok {
 			code = jsonrpc.InvalidParams
 		}
-		return s.sendError(ctx, id, code, err.Error(), nil)
+		return s.sendError(ctx, id, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 	}
     {{- else }}
     {{ comment "No custom errors defined - check if it's a validation error, otherwise use internal error" }}
@@ -166,7 +166,7 @@ func (s *{{ .SSE.StructName }}) SendError(ctx context.Context, id string, err er
     if _, ok := err.(*goa.ServiceError); ok {
         code = jsonrpc.InvalidParams
     }
-    return s.sendError(ctx, id, code, err.Error(), nil)
+    return s.sendError(ctx, id, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
     {{- end }}
 }
 

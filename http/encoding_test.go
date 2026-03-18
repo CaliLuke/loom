@@ -232,6 +232,51 @@ func TestResponseEncoder_Encode_ErrorResponse(t *testing.T) {
 	}
 }
 
+func TestResponseEncoder_Encode_ErrorResponseWithRemedy(t *testing.T) {
+	err := goa.WithErrorRemedy(
+		goa.NewServiceError(errors.New("internal detail"), "bad_request", false, false, false),
+		&goa.ErrorRemedy{
+			Code:        "bad_request.fix",
+			SafeMessage: "Retry with a valid request.",
+			RetryHint:   "Correct the payload and retry.",
+		},
+	)
+	previousXMLName := ErrorResponseXMLName
+	ErrorResponseXMLName = xml.Name{Local: "error"}
+	defer func() {
+		ErrorResponseXMLName = previousXMLName
+	}()
+
+	cases := []struct {
+		name       string
+		acceptType string
+		wantBody   string
+	}{
+		{
+			name:       "json",
+			acceptType: "application/json",
+			wantBody:   fmt.Sprintf(`{"name":"bad_request","id":"%s","message":"Retry with a valid request.","remedy":{"code":"bad_request.fix","safe_message":"Retry with a valid request.","retry_hint":"Correct the payload and retry."},"temporary":false,"timeout":false,"fault":false}`, err.ID),
+		},
+		{
+			name:       "xml",
+			acceptType: "application/xml",
+			wantBody:   fmt.Sprintf(`<error><name>bad_request</name><id>%s</id><message>Retry with a valid request.</message><remedy><code>bad_request.fix</code><safe_message>Retry with a valid request.</safe_message><retry_hint>Correct the payload and retry.</retry_hint></remedy><temporary>false</temporary><timeout>false</timeout><fault>false</fault></error>`, err.ID),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ctx = context.WithValue(ctx, AcceptTypeKey, tc.acceptType)
+			w := httptest.NewRecorder()
+
+			encoder := ErrorEncoder(ResponseEncoder, nil)
+			require.NoError(t, encoder(ctx, w, err))
+			assert.Equal(t, tc.wantBody, strings.TrimSpace(w.Body.String()))
+		})
+	}
+}
+
 func TestResponseDecoder(t *testing.T) {
 	cases := []struct {
 		contentType string

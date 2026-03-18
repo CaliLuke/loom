@@ -115,7 +115,7 @@ func (s *StreamServerStream) SendError(ctx context.Context, id string, err error
 	if _, ok := err.(*goa.ServiceError); ok {
 		code = jsonrpc.InvalidParams
 	}
-	return s.sendError(ctx, id, code, err.Error(), nil)
+	return s.sendError(ctx, id, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 }
 
 // sendError sends a JSON-RPC error response via SSE.

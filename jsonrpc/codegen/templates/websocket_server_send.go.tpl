@@ -32,13 +32,13 @@ func (s *{{ lowerInitial $.Service.StructName }}Stream) SendError(ctx context.Co
 		if _, ok := err.(*goa.ServiceError); ok {
 			code = jsonrpc.InvalidParams
 		}
-		return s.sendError(ctx, id, code, err.Error(), nil)
+		return s.sendError(ctx, id, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 	}
 	switch en.GoaErrorName() {
 	{{- range allErrors . }}
 	case {{ printf "%q" .Name }}:
 		{{- with .Response}}
-		return s.sendError(ctx, id, {{ .Code }}, err.Error(), err)
+		return s.sendError(ctx, id, {{ .Code }}, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 		{{- end }}
 	{{- end }}
 	default:
@@ -46,7 +46,7 @@ func (s *{{ lowerInitial $.Service.StructName }}Stream) SendError(ctx context.Co
 		if _, ok := err.(*goa.ServiceError); ok {
 			code = jsonrpc.InvalidParams
 		}
-		return s.sendError(ctx, id, code, err.Error(), nil)
+		return s.sendError(ctx, id, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 	}
 	{{- else }}
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
@@ -54,7 +54,7 @@ func (s *{{ lowerInitial $.Service.StructName }}Stream) SendError(ctx context.Co
 	if _, ok := err.(*goa.ServiceError); ok {
 		code = jsonrpc.InvalidParams
 	}
-	return s.sendError(ctx, id, code, err.Error(), nil)
+	return s.sendError(ctx, id, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 	{{- end }}
 }
 

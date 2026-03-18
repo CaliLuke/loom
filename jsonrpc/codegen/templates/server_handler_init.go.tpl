@@ -74,15 +74,15 @@ func {{ .HandlerInit }}(
                 if errors.As(err, &en) {
                     switch en.GoaErrorName() {
                     case "invalid_params":
-                        return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, err.Error(), nil)
+                        return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
                     case "method_not_found":
-                        return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.MethodNotFound, err.Error(), nil)
+                        return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.MethodNotFound, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
                     }
                 }
                 // Fallback
                 code := jsonrpc.InternalError
                 if _, ok := err.(*goa.ServiceError); ok { code = jsonrpc.InvalidParams }
-                return strm.sendError(ctx, jsonrpc.IDToString(req.ID), code, err.Error(), nil)
+                return strm.sendError(ctx, jsonrpc.IDToString(req.ID), code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
             }
             return nil
         }
@@ -103,7 +103,7 @@ func {{ .HandlerInit }}(
 				if _, ok := err.(*goa.ServiceError); ok {
 					code = jsonrpc.InvalidParams
 				}
-				encodeJSONRPCError(ctx, w, req, code, err.Error(), nil, encoder, errhandler)
+				encodeJSONRPCError(ctx, w, req, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 			} else {
 				// No ID means notification - just log error
 				errhandler(ctx, w, fmt.Errorf("failed to decode parameters: %w", err))
@@ -153,7 +153,7 @@ func {{ .HandlerInit }}(
 			if req.ID != nil && req.ID != "" {
 				var en goa.GoaErrorNamer
 				if !errors.As(err, &en) {
-					encodeJSONRPCError(ctx, w, req, jsonrpc.InternalError, err.Error(), nil, encoder, errhandler)
+					encodeJSONRPCError(ctx, w, req, jsonrpc.InternalError, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 					return nil
 				}
 			switch en.GoaErrorName() {
@@ -161,20 +161,20 @@ func {{ .HandlerInit }}(
 				{{- range $err := $gerr.Errors }}
 				case {{ printf "%q" .Name }}:
 					{{- with .Response}}
-					encodeJSONRPCError(ctx, w, req, {{ .Code }}, err.Error(), err, encoder, errhandler)
+					encodeJSONRPCError(ctx, w, req, {{ .Code }}, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 					{{- end }}
 				{{- end }}
 			{{- end }}
 			case "invalid_params":
-				encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidParams, err.Error(), nil, encoder, errhandler)
+				encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidParams, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 			case "method_not_found":
-				encodeJSONRPCError(ctx, w, req, jsonrpc.MethodNotFound, err.Error(), nil, encoder, errhandler)
+				encodeJSONRPCError(ctx, w, req, jsonrpc.MethodNotFound, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				default:
 					code := jsonrpc.InternalError
 					if _, ok := err.(*goa.ServiceError); ok {
 						code = jsonrpc.InvalidParams
 					}
-					encodeJSONRPCError(ctx, w, req, code, err.Error(), nil, encoder, errhandler)
+					encodeJSONRPCError(ctx, w, req, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				}
 			} else {
 				// No ID means notification - just log error
