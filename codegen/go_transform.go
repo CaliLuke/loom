@@ -498,6 +498,7 @@ func transformUnion(source, target *expr.AttributeExpr, sourceVar, targetVar str
 		}
 		cases = append(cases, map[string]any{
 			"CaseName":        st.Name,
+			"CaseTag":         expr.UnionVariantTag(st),
 			"SourceFieldName": Goify(st.Name, true),
 			"TargetFieldName": Goify(tt.Name, true),
 			"SourceAttr":      st.Attribute,

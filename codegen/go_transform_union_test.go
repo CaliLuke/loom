@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -75,4 +76,61 @@ func TestGoTransformUnionError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGoTransformUnionUsesExplicitVariantTagsInSwitchCases(t *testing.T) {
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, true, "", scope)
+
+	source := &expr.AttributeExpr{
+		Type: &expr.Union{
+			TypeName: "SourceAction",
+			Values: []*expr.NamedAttributeExpr{
+				{
+					Name: "Single",
+					Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+						Meta: expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+					},
+				},
+				{
+					Name: "Batch",
+					Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+						Meta: expr.MetaExpr{"oneof:type:tag": []string{"batch"}},
+					},
+				},
+			},
+		},
+	}
+	target := &expr.AttributeExpr{
+		Type: &expr.Union{
+			TypeName: "TargetAction",
+			Values: []*expr.NamedAttributeExpr{
+				{
+					Name: "Single",
+					Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+						Meta: expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+					},
+				},
+				{
+					Name: "Batch",
+					Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+						Meta: expr.MetaExpr{"oneof:type:tag": []string{"batch"}},
+					},
+				},
+			},
+		},
+	}
+
+	code, _, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	require.NoError(t, err)
+	formatted := FormatTestCode(t, "package foo\nfunc transform(){\n"+code+"}")
+
+	require.Contains(t, formatted, `case "single":`)
+	require.Contains(t, formatted, `case "batch":`)
+	require.False(t, strings.Contains(formatted, `case "Single":`))
+	require.False(t, strings.Contains(formatted, `case "Batch":`))
 }

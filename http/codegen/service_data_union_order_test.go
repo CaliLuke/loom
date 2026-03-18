@@ -60,6 +60,16 @@ func TestCollectHTTPUnionTypesDeterministicAcrossObjectOrder(t *testing.T) {
 	require.Equal(t, forwardNames, reverseNames)
 }
 
+func TestBuildHTTPUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
+	scope := cg.NewNameScope()
+
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
+
+	require.Len(t, data.Fields, 2)
+	require.Equal(t, "single", data.Fields[0].TypeTag)
+	require.Equal(t, "batch", data.Fields[1].TypeTag)
+}
+
 func collectHTTPUnionTypeNames(att *expr.AttributeExpr) map[string]string {
 	scope := cg.NewNameScope()
 	seen := make(map[string]struct{})
@@ -86,5 +96,27 @@ func makeUnionForOrderTest(typeName string, variants ...string) *expr.Union {
 	return &expr.Union{
 		TypeName: typeName,
 		Values:   values,
+	}
+}
+
+func makeTaggedUnionForTagTest() *expr.Union {
+	return &expr.Union{
+		TypeName: "Selection",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name: "Single",
+				Attribute: &expr.AttributeExpr{
+					Type: expr.String,
+					Meta: expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+				},
+			},
+			{
+				Name: "Batch",
+				Attribute: &expr.AttributeExpr{
+					Type: expr.String,
+					Meta: expr.MetaExpr{"oneof:type:tag": []string{"batch"}},
+				},
+			},
+		},
 	}
 }

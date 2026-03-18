@@ -2,7 +2,7 @@
 {{ end -}}
 switch string({{ .SourceVar }}.Kind()) {
 {{- range .Cases }}
-case {{ printf "%q" .CaseName }}:
+case {{ printf "%q" .CaseTag }}:
 	actual, _ := {{ $.SourceVar }}.As{{ .SourceFieldName }}()
 	{{- if .UseHelper }}
 	{{ $.TempVarName }} := {{ .HelperName }}(actual)
