@@ -11,7 +11,7 @@ paths:
             tags:
                 - front
             summary: Download ui/dist
-            operationId: front#/ui/{filepath}
+            operationId: front.ui_filepath
             parameters:
                 - name: filepath
                   in: path

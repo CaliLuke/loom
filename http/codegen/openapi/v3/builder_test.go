@@ -260,47 +260,67 @@ func TestBuildOperationID(t *testing.T) {
 	const svcName = "test service"
 
 	cases := []struct {
-		Name string
-		DSL  func()
+		Name    string
+		Service string
+		DSL     func()
 
 		ExpectedOperationIDs []string
 	}{
 		{
 			Name:                 "template_in_method",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDMethod(svcName, "template_in_method", "{method}"),
 			ExpectedOperationIDs: []string{"template_in_method"},
 		}, {
 			Name:                 "template_in_service",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDService(svcName, "template_in_service", "{service}"),
-			ExpectedOperationIDs: []string{"test service"},
+			ExpectedOperationIDs: []string{"test_service"},
 		}, {
 			Name:                 "template_in_api",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDAPI(svcName, "template_in_api", defaultOperationIDFormat),
-			ExpectedOperationIDs: []string{"test service#template_in_api"},
+			ExpectedOperationIDs: []string{"test_service.template_in_api"},
 		}, {
 			Name:                 "multiple_routes",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDMultipleRoutes(svcName, "multiple_routes", defaultOperationIDFormat),
-			ExpectedOperationIDs: []string{"test service#multiple_routes", "test service#multiple_routes#1"},
+			ExpectedOperationIDs: []string{"test_service.multiple_routes", "test_service.multiple_routes.1"},
 		}, {
 			Name:                 "multiple_routes_custom_separator",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDMultipleRoutes(svcName, "multiple_routes_custom_separator", "{service}.{method}(.{routeIndex})"),
-			ExpectedOperationIDs: []string{"test service.multiple_routes_custom_separator", "test service.multiple_routes_custom_separator.1"},
+			ExpectedOperationIDs: []string{"test_service.multiple_routes_custom_separator", "test_service.multiple_routes_custom_separator.1"},
 		}, {
 			Name:                 "multiple_routes_custom_separator_without_routeIndex",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDMultipleRoutes(svcName, "multiple_routes_custom_separator_without_routeIndex", "{service}.{method}"),
-			ExpectedOperationIDs: []string{"test service.multiple_routes_custom_separator_without_routeIndex", "test service.multiple_routes_custom_separator_without_routeIndex#1"},
+			ExpectedOperationIDs: []string{"test_service.multiple_routes_custom_separator_without_route_index", "test_service.multiple_routes_custom_separator_without_route_index#1"},
 		}, {
 			Name:                 "multiple_routes_no_routeIndex_separator",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDMultipleRoutes(svcName, "multiple_routes_no_routeIndex_separator", "{service}.{method}({routeIndex})"),
-			ExpectedOperationIDs: []string{"test service.multiple_routes_no_routeIndex_separator", "test service.multiple_routes_no_routeIndex_separator1"},
+			ExpectedOperationIDs: []string{"test_service.multiple_routes_no_route_index_separator", "test_service.multiple_routes_no_route_index_separator1"},
 		}, {
 			Name:                 "multiple_routes_long_separator",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDMultipleRoutes(svcName, "multiple_routes_long_separator", "{service}.{method}(someWordsHere and maybe some spaces{routeIndex})"),
-			ExpectedOperationIDs: []string{"test service.multiple_routes_long_separator", "test service.multiple_routes_long_separatorsomeWordsHere and maybe some spaces1"},
+			ExpectedOperationIDs: []string{"test_service.multiple_routes_long_separator", "test_service.multiple_routes_long_separatorsomeWordsHere and maybe some spaces1"},
 		}, {
 			Name:                 "custom_static_operation_id",
+			Service:              svcName,
 			DSL:                  dsls.OperationIDMethod(svcName, "custom_static_operation_id", "listThings"),
 			ExpectedOperationIDs: []string{"listThings"},
+		}, {
+			Name:                 "canonicalize_method_and_service_placeholders",
+			Service:              "Camel Case Service",
+			DSL:                  dsls.OperationIDMethod("Camel Case Service", "OAuth2UserInfo", "{service}.{method}"),
+			ExpectedOperationIDs: []string{"camel_case_service.oauth2_user_info"},
+		}, {
+			Name:                 "canonicalize_file_server_path_placeholders",
+			Service:              "File Service",
+			DSL:                  dsls.OperationIDService("File Service", "/assets/{*filepath}", "{service}.{method}"),
+			ExpectedOperationIDs: []string{"file_service.assets_filepath"},
 		},
 	}
 
@@ -313,7 +333,7 @@ func TestBuildOperationID(t *testing.T) {
 			}
 
 			for _, s := range api.HTTP.Services {
-				if s.Name() == svcName {
+				if s.Name() == c.Service {
 					for _, e := range s.HTTPEndpoints {
 						for i, r := range e.Routes {
 							op := buildOperation(c.Name, r, &EndpointBodies{}, expr.NewRandom(c.Name), api.Meta)
@@ -330,6 +350,28 @@ func TestBuildOperationID(t *testing.T) {
 						}
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestCanonicalOperationIDComponent(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "service name", input: "test service", expected: "test_service"},
+		{name: "camel case", input: "OAuth2UserInfo", expected: "oauth2_user_info"},
+		{name: "path-like", input: "/assets/{*filepath}", expected: "assets_filepath"},
+		{name: "punctuation-only", input: "{}/*-", expected: "operation"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := canonicalOperationIDComponent(tc.input)
+			if actual != tc.expected {
+				t.Errorf("got canonical operation ID component %q, expected %q", actual, tc.expected)
 			}
 		})
 	}

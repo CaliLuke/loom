@@ -43,7 +43,7 @@
   "paths": {
     "/": {
       "get": {
-        "operationId": "testService#testEndpointDefault",
+        "operationId": "test_service.test_endpoint_default",
         "responses": {
           "200": {
             "content": {
@@ -68,7 +68,7 @@
     },
     "/tiny": {
       "get": {
-        "operationId": "testService#testEndpointTiny",
+        "operationId": "test_service.test_endpoint_tiny",
         "responses": {
           "200": {
             "content": {

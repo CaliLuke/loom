@@ -194,7 +194,7 @@
   "paths": {
     "/": {
       "post": {
-        "operationId": "test service#test endpoint",
+        "operationId": "test_service.test_endpoint",
         "requestBody": {
           "content": {
             "application/json": {

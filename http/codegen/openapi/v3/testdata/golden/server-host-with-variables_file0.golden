@@ -9,7 +9,7 @@
   "paths": {
     "/": {
       "post": {
-        "operationId": "testService#testEndpoint",
+        "operationId": "test_service.test_endpoint",
         "responses": {
           "204": {
             "description": "No Content response."

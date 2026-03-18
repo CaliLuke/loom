@@ -84,7 +84,7 @@
   "paths": {
     "/bar": {
       "post": {
-        "operationId": "testService#bar",
+        "operationId": "test_service.bar",
         "requestBody": {
           "content": {
             "application/json": {
@@ -121,7 +121,7 @@
     },
     "/baz": {
       "post": {
-        "operationId": "testService#baz",
+        "operationId": "test_service.baz",
         "requestBody": {
           "content": {
             "application/json": {
@@ -158,7 +158,7 @@
     },
     "/foo": {
       "post": {
-        "operationId": "testService#foo",
+        "operationId": "test_service.foo",
         "requestBody": {
           "content": {
             "application/json": {

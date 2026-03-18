@@ -11,7 +11,7 @@ paths:
             tags:
                 - service-name
             summary: Download filename
-            operationId: service-name#/path1
+            operationId: service_name.path1
             responses:
                 "200":
                     description: File downloaded
@@ -20,7 +20,7 @@ paths:
             tags:
                 - user-tag
             summary: Download filename
-            operationId: service-name#/path2
+            operationId: service_name.path2
             responses:
                 "200":
                     description: File downloaded

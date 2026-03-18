@@ -9,7 +9,7 @@
   "paths": {
     "/{foo}/{bar}": {
       "post": {
-        "operationId": "test service#test endpoint",
+        "operationId": "test_service.test_endpoint",
         "parameters": [
           {
             "example": 1933576090881075000,

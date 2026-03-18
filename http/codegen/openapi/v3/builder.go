@@ -7,7 +7,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
+	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/http/codegen/openapi"
 )
@@ -21,10 +23,11 @@ const (
 
 var (
 	routeIndexReplacementRegExp = regexp.MustCompile(`\((.*){routeIndex}\)`)
+	operationIDSeparatorRegExp  = regexp.MustCompile(`_+`)
 )
 
 const (
-	defaultOperationIDFormat = "{service}#{method}(#{routeIndex})"
+	defaultOperationIDFormat = "{service}.{method}(.{routeIndex})"
 )
 
 // New returns the OpenAPI v3 specification for the given API.
@@ -498,8 +501,8 @@ func parseOperationIDTemplate(template, service, method string, routeIndex int) 
 
 	// The template replacer
 	repl := strings.NewReplacer(
-		"{service}", service,
-		"{method}", method,
+		"{service}", canonicalOperationIDComponent(service),
+		"{method}", canonicalOperationIDComponent(method),
 	)
 
 	operationID := repl.Replace(template)
@@ -515,6 +518,26 @@ func parseOperationIDTemplate(template, service, method string, routeIndex int) 
 
 	// Fallback in the event that the operationId doesn't contain the routeIndex placeholder.
 	return fmt.Sprintf("%s#%d", operationID, routeIndex)
+}
+
+func canonicalOperationIDComponent(name string) string {
+	component := codegen.SnakeCase(name)
+	var b strings.Builder
+	b.Grow(len(component))
+	for _, r := range component {
+		switch {
+		case unicode.IsLower(r), unicode.IsDigit(r):
+			b.WriteRune(r)
+		default:
+			b.WriteRune('_')
+		}
+	}
+	component = operationIDSeparatorRegExp.ReplaceAllString(b.String(), "_")
+	component = strings.Trim(component, "_")
+	if component == "" {
+		return "operation"
+	}
+	return component
 }
 
 // buildServers builds the OpenAPI Server objects from the given server

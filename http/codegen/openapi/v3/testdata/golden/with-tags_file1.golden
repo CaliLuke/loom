@@ -12,7 +12,7 @@ paths:
             tags:
                 - SomeTag
             summary: test endpoint test service
-            operationId: test service#test endpoint
+            operationId: test_service.test_endpoint
             parameters:
                 - name: int_map
                   in: path

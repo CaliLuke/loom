@@ -49,7 +49,7 @@
   "paths": {
     "/": {
       "post": {
-        "operationId": "testService#testEndpoint",
+        "operationId": "test_service.test_endpoint",
         "requestBody": {
           "content": {
             "application/json": {

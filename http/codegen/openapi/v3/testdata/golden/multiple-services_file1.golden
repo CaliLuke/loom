@@ -11,7 +11,7 @@ paths:
             tags:
                 - testService
             summary: testEndpoint testService
-            operationId: testService#testEndpoint
+            operationId: test_service.test_endpoint
             requestBody:
                 required: true
                 content:
@@ -33,7 +33,7 @@ paths:
             tags:
                 - anotherTestService
             summary: testEndpoint anotherTestService
-            operationId: anotherTestService#testEndpoint
+            operationId: another_test_service.test_endpoint
             requestBody:
                 required: true
                 content:

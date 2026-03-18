@@ -84,7 +84,7 @@
   "paths": {
     "/": {
       "get": {
-        "operationId": "Errors#Error",
+        "operationId": "errors.error",
         "responses": {
           "204": {
             "description": "No Content response."

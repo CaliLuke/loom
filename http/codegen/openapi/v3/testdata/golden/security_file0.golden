@@ -64,7 +64,7 @@
   "paths": {
     "/": {
       "get": {
-        "operationId": "testService#testEndpointA",
+        "operationId": "test_service.test_endpoint_a",
         "responses": {
           "204": {
             "description": "No Content response."
@@ -88,7 +88,7 @@
         ]
       },
       "post": {
-        "operationId": "testService#testEndpointB",
+        "operationId": "test_service.test_endpoint_b",
         "responses": {
           "204": {
             "description": "No Content response."

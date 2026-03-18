@@ -9,7 +9,7 @@
   "paths": {
     "/path1": {
       "get": {
-        "operationId": "service-name#/path1",
+        "operationId": "service_name.path1",
         "responses": {
           "200": {
             "description": "File downloaded"
@@ -23,7 +23,7 @@
     },
     "/path2": {
       "get": {
-        "operationId": "service-name#/path2",
+        "operationId": "service_name.path2",
         "responses": {
           "200": {
             "description": "File downloaded"

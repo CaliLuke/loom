@@ -9,7 +9,7 @@
   "paths": {
     "/ui/{filepath}": {
       "get": {
-        "operationId": "front#/ui/{filepath}",
+        "operationId": "front.ui_filepath",
         "parameters": [
           {
             "description": "Relative file path",

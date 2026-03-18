@@ -12,7 +12,7 @@ paths:
             tags:
                 - testService
             summary: binary testService
-            operationId: testService#binary
+            operationId: test_service.binary
             responses:
                 "200":
                     description: OK response.
@@ -26,7 +26,7 @@ paths:
             tags:
                 - testService
             summary: empty testService
-            operationId: testService#empty
+            operationId: test_service.empty
             responses:
                 "204":
                     description: No Content response.
@@ -35,7 +35,7 @@ paths:
             tags:
                 - testService
             summary: empty_ok testService
-            operationId: testService#empty_ok
+            operationId: test_service.empty_ok
             responses:
                 "200":
                     description: OK response.

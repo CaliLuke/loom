@@ -224,15 +224,15 @@ const DefaultProtoc = expr.DefaultProtoc
 //
 //	"{method}" is replaced with the name of the method
 //
-//	"(#{routeIndex})" is replaced with the index of the path in cases where a
+//	"(.{routeIndex})" is replaced with the index of the path in cases where a
 //	 method has more than one route associated with it. The index will never be added
-//	 when only one route exists. The # character may be swapped for any content you
+//	 when only one route exists. The "." characters may be swapped for any content you
 //	 wish to use as a spacer between the preceding content and the route index.
 //
 // If you wish to specify a static operationId, omitting any of the above special values
 // will render the operationId as a literal.
 //
-// Defaults to "{service}#{method}(#{routeIndex})". Applicable to methods, services, or
+// Defaults to "{service}.{method}(.{routeIndex})". Applicable to methods, services, or
 // to API.
 //
 //	var _ = Service("MyService", func() {

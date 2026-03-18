@@ -9,7 +9,7 @@
   "paths": {
     "/binary": {
       "get": {
-        "operationId": "testService#binary",
+        "operationId": "test_service.binary",
         "responses": {
           "200": {
             "content": {
@@ -31,7 +31,7 @@
     },
     "/empty": {
       "get": {
-        "operationId": "testService#empty",
+        "operationId": "test_service.empty",
         "responses": {
           "204": {
             "description": "No Content response."
@@ -45,7 +45,7 @@
     },
     "/empty/ok": {
       "get": {
-        "operationId": "testService#empty_ok",
+        "operationId": "test_service.empty_ok",
         "responses": {
           "200": {
             "description": "OK response."

@@ -12,7 +12,7 @@ paths:
             tags:
                 - Errors
             summary: Error Errors
-            operationId: Errors#Error
+            operationId: errors.error
             responses:
                 "204":
                     description: No Content response.

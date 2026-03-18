@@ -11,7 +11,7 @@ paths:
             tags:
                 - testService
             summary: bar testService
-            operationId: testService#bar
+            operationId: test_service.bar
             requestBody:
                 required: true
                 content:
@@ -34,7 +34,7 @@ paths:
             tags:
                 - testService
             summary: baz testService
-            operationId: testService#baz
+            operationId: test_service.baz
             requestBody:
                 required: true
                 content:
@@ -57,7 +57,7 @@ paths:
             tags:
                 - testService
             summary: foo testService
-            operationId: testService#foo
+            operationId: test_service.foo
             requestBody:
                 required: true
                 content:
