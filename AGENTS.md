@@ -11,7 +11,7 @@
 
 ### Go Code Style
 
-- **Go 1.24+**. Format with `go fmt ./...`.
+- **Go 1.25+**. Format with `go fmt ./...`.
 - **Imports**: Group stdlib separate from external. Let gofmt manage ordering.
 - **Files**: Use `lower_snake_case.go`. Keep ≤1000 lines; split proactively.
 - **Naming**: Packages are lowercase and short. Exported identifiers need GoDoc. Avoid stutter.
@@ -38,14 +38,6 @@ Order declarations as:
 7. Private methods
 
 No commented-out code—delete dead code.
-
-### Error Handling & Contracts
-
-- **Always check errors**. Never discard with `_`.
-- **Strong contracts**: Goa validates payloads at boundaries. Do not re-validate inside service code.
-- **No defensive programming**: Do not add nil/empty guards for values guaranteed by construction, Goa, or prior validation.
-- **Validate only at boundaries**: HTTP/gRPC handlers, event consumers, DB results, third-party APIs, `ctx.Value()`, type assertions, required map lookups.
-- **Fail fast**: Unexpected states are bugs. Return precise errors or panic—do not silently recover or skip.
 
 ### Goa DSL Rules
 
@@ -80,27 +72,11 @@ No commented-out code—delete dead code.
 - Name tests `TestXxx`. Keep fast and deterministic.
 - Use `testify/require` for assertions.
 - Prefer `t.Errorf` over `t.Fatalf` so tests report multiple failures.
-- Do not stop at a happy-path test when changing framework behavior. This fork does not have upstream maintainers or broad community review to catch regressions later.
-- For framework, codegen, OpenAPI, JSON Schema, auth/session, or transport changes, aim for thorough coverage across normal cases, edge cases, and failure modes. Prefer MECE-style test matrices when the behavior has multiple branches.
-- When changing generators or contract-shaping code, add or update:
-  - focused unit tests for the changed logic
-  - golden tests or fixture-based output assertions when output shape matters
-  - regression tests for the exact bug class that motivated the change
-- If coverage is intentionally partial, say so explicitly in your summary and name the missing cases.
+- For new or changed `goa-light` framework capabilities, use the [`framework-capability` skill](/Users/luca/code/goa-light/.agents/skills/framework-capability/SKILL.md).
 
 ---
 
 ## Goa-Specific Rules
-
-### Project Structure
-
-- `dsl/`: Public DSL definitions (dot imports allowed per `.golangci.yml`)
-- `expr/`: Internal AST and validation
-- `codegen/`: Generators for transports, types, docs
-- `http/`, `grpc/`, `jsonrpc/`: Transport-specific codegen
-- `middleware/`: Built-in interceptors
-- `pkg/`: Core runtime
-- `cmd/goa/`: CLI source
 
 ### Build & Test
 
@@ -115,17 +91,6 @@ cd cmd/goa && go install .  # Install CLI locally
 - After modifying goa source, `goa gen` and `goa example` automatically compile and use your changes—no manual rebuild needed.
 - `goa gen` deletes and recreates the entire `gen/` directory.
 - `goa example` only creates new files; it does not overwrite existing `cmd/` files.
-
-### Repro Protocol
-
-To reproduce a codegen issue:
-1. Create `~/src/repros/<issue>/design/design.go`
-2. `go mod init <issue>` in the issue directory
-3. `goa gen <issue>/design`
-4. `go mod tidy`
-5. `go mod edit -replace goa.design/goa/v3=$HOME/src/goa`
-6. `goa gen <issue>/design` again with local goa
-7. Optional: `goa example <issue>/design`
 
 ### Slices/Maps and Required Fields
 
