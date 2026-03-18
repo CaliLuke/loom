@@ -22,6 +22,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - `OneOf(...)` constructor support and explicit union discriminator tag preservation.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
 - Session auth DSL and derived auth/session transport behavior.
+  See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
 - Per-cookie response model and improved `Set-Cookie` OpenAPI output.
 - Stable OpenAPI schema naming and canonical `operationId` generation.
 - Major generic helper moves out of `goa-ai/shared` into `goa-light`.
@@ -36,12 +37,36 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - prove the cleaned stack against `auto-k-server` in temp generation
 - replace real auth/session glue in `auto-k-server` and then perform the swap
 
+## Prioritized Backlog
+
+These items are prioritized based on two goals:
+
+- produce a stronger OpenAPI 3.1 contract for machine reconciliation
+- remove transport projection glue that is currently hand-maintained in application code
+
+1. OpenAPI wrapper-union discriminators
+   See [OpenAPI Union Discriminators](./openapi_union_discriminators.md).
+2. OpenAPI schema deduplication for structurally identical components
+   See [OpenAPI Schema Deduplication](./openapi_schema_dedup.md).
+3. Closed-object contract mode for machine-facing OpenAPI output
+   See [OpenAPI Closed Object Mode](./openapi_closed_object_mode.md).
+4. Generated transport projection helpers from canonical result types
+   See [Generated Transport Projections](./generated_transport_projections.md).
+5. Generated projection parity tests and guardrails
+   See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
+
 ## Roadmap Index
 
 - [Finish Checklist](./finish_checklist.md)
 - [OpenAPI Contract](./openapi_contract.md)
+- [OpenAPI Union Discriminators](./openapi_union_discriminators.md)
+- [OpenAPI Schema Deduplication](./openapi_schema_dedup.md)
+- [OpenAPI Closed Object Mode](./openapi_closed_object_mode.md)
 - [Auth and Session](./auth_and_session.md)
+- [Multi-Transport Session Auth](./multi_transport_session_auth.md)
 - [Goa-AI Boundary](./goa_ai_boundary.md)
+- [Generated Transport Projections](./generated_transport_projections.md)
+- [Generated Projection Parity Tests](./generated_projection_parity_tests.md)
 
 ## Definition Of Finished
 
