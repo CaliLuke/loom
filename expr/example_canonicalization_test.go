@@ -66,6 +66,44 @@ func TestCanonicalizeExample(t *testing.T) {
 			expected: map[string]any{},
 		},
 		{
+			name: "union object uses required fields to disambiguate optional overlap",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				TypeKey:  "action",
+				ValueKey: "payload",
+				Values: []*expr.NamedAttributeExpr{
+					{
+						Name: "Reply",
+						Attribute: &expr.AttributeExpr{
+							Type: &expr.Object{
+								{Name: "thread_id", Attribute: &expr.AttributeExpr{Type: expr.String}},
+								{Name: "content", Attribute: &expr.AttributeExpr{Type: expr.String}},
+							},
+							Validation: &expr.ValidationExpr{
+								Required: []string{"thread_id"},
+							},
+						},
+					},
+					{
+						Name: "Resolve",
+						Attribute: &expr.AttributeExpr{
+							Type: &expr.Object{
+								{Name: "thread_id", Attribute: &expr.AttributeExpr{Type: expr.String}},
+								{Name: "resolved_by", Attribute: &expr.AttributeExpr{Type: expr.String}},
+							},
+							Validation: &expr.ValidationExpr{
+								Required: []string{"thread_id", "resolved_by"},
+							},
+						},
+					},
+				},
+			}},
+			example: map[string]any{"thread_id": "T1"},
+			expected: map[string]any{
+				"action":  "Reply",
+				"payload": map[string]any{"thread_id": "T1"},
+			},
+		},
+		{
 			name:    "array canonicalizes union elements",
 			attr:    &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: union}}},
 			example: []any{map[string]any{"name": "alice"}, map[string]any{"items": []any{"a"}}},

@@ -114,6 +114,13 @@ func unionVariantMatchesObjectKeys(att *AttributeExpr, example map[string]any) b
 			return false
 		}
 	}
+	if attr.Validation != nil {
+		for _, name := range attr.Validation.Required {
+			if _, ok := example[name]; !ok {
+				return false
+			}
+		}
+	}
 	return true
 }
 

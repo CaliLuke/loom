@@ -121,6 +121,51 @@ func TestInlineJSONSchema(t *testing.T) {
 		require.Equal(t, map[string]any{"shared": "x"}, examples[0])
 	})
 
+	t.Run("uses required fields to disambiguate optional object overlap", func(t *testing.T) {
+		union := &AttributeExpr{
+			Type: &Union{
+				TypeKey:  "action",
+				ValueKey: "payload",
+				Values: []*NamedAttributeExpr{
+					{
+						Name: "reply",
+						Attribute: &AttributeExpr{
+							Type: &Object{
+								&NamedAttributeExpr{Name: "thread_id", Attribute: &AttributeExpr{Type: String}},
+								&NamedAttributeExpr{Name: "content", Attribute: &AttributeExpr{Type: String}},
+							},
+							Validation: &ValidationExpr{
+								Required: []string{"thread_id"},
+							},
+						},
+					},
+					{
+						Name: "resolve",
+						Attribute: &AttributeExpr{
+							Type: &Object{
+								&NamedAttributeExpr{Name: "thread_id", Attribute: &AttributeExpr{Type: String}},
+								&NamedAttributeExpr{Name: "resolved_by", Attribute: &AttributeExpr{Type: String}},
+							},
+							Validation: &ValidationExpr{
+								Required: []string{"thread_id", "resolved_by"},
+							},
+						},
+					},
+				},
+			},
+			UserExamples: []*ExampleExpr{{Value: map[string]any{"thread_id": "T1"}}},
+		}
+
+		data := mustInlineJSONSchema(t, union)
+
+		examples := data["examples"].([]any)
+		require.Len(t, examples, 1)
+		require.Equal(t, map[string]any{
+			"action":  "reply",
+			"payload": map[string]any{"thread_id": "T1"},
+		}, examples[0])
+	})
+
 	t.Run("builds map and array schemas with length constraints", func(t *testing.T) {
 		attr := &AttributeExpr{
 			Type: &Object{
