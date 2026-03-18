@@ -485,6 +485,27 @@ func TestTypesOnlyDifferByEnum(t *testing.T) {
 	}
 }
 
+func TestSchemafierUniquifyUsesStableHashSuffix(t *testing.T) {
+	sf := newSchemafier(expr.NewRandom("test"))
+	sf.schemas["CreateThreadRequest"] = openapi.NewSchema()
+	sf.schemas["CreateThreadRequest2"] = openapi.NewSchema()
+
+	name := sf.uniquify("CreateThreadRequest", 0x1234abcd)
+	if name != "CreateThreadRequest_000000001234abcd" {
+		t.Fatalf("got %q, expected deterministic hash suffix", name)
+	}
+
+	name = sf.uniquify("CreateThreadRequest2", 0x99)
+	if name != "CreateThreadRequest2_0000000000000099" {
+		t.Fatalf("got %q, expected original trailing digits to be preserved", name)
+	}
+
+	name = sf.uniquify("FreshName", 0xbeef)
+	if name != "FreshName" {
+		t.Fatalf("got %q, expected unsuffixed fresh name", name)
+	}
+}
+
 func TestHashAttribute(t *testing.T) {
 	type (
 		testAttr struct {

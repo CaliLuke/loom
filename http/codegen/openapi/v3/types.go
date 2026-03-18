@@ -264,7 +264,7 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 			name = n[0]
 		}
 
-		typeName := sf.uniquify(codegen.Goify(name, true))
+		typeName := sf.uniquify(codegen.Goify(name, true), h)
 		s.Ref = toRef(typeName)
 		sf.hashes[h] = append(sf.hashes[h], s.Ref)
 		sf.schemas[typeName] = sf.schemafy(t.Attribute(), true)
@@ -333,20 +333,27 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 	return s
 }
 
-// uniquify returns n if n is not a known type name. Otherwise uniquify appends
-// the smallest integer greater than 1 to n so the result is not a known type
-// name.
-func (sf *schemafier) uniquify(n string) string {
-	exists := func(n string) bool {
-		_, ok := sf.schemas[n]
-		return ok
+// uniquify returns n if n is not a known type name. Otherwise it appends a
+// deterministic hash suffix derived from the schema structure so collisions are
+// stable across generation order changes.
+func (sf *schemafier) uniquify(n string, h uint64) string {
+	if _, ok := sf.schemas[n]; !ok {
+		return n
 	}
-	i := 1
-	for exists(n) {
+	candidate := fmt.Sprintf("%s_%016x", n, h)
+	if _, ok := sf.schemas[candidate]; !ok {
+		return candidate
+	}
+	// A second collision should be effectively impossible because schema hashes
+	// are structural. Keep a deterministic fallback anyway.
+	i := 2
+	for {
+		fallback := fmt.Sprintf("%s_%016x_%d", n, h, i)
+		if _, ok := sf.schemas[fallback]; !ok {
+			return fallback
+		}
 		i++
-		n = strings.TrimRight(n, "0123456789") + strconv.Itoa(i)
 	}
-	return n
 }
 
 // toRef creates a relative JSON Schema reference from a type name that points
