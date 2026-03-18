@@ -1619,7 +1619,7 @@ func (sds *ServicesData) buildResponses(e *expr.HTTPEndpointExpr, result *expr.A
 			)
 			{
 				headersData = sds.extractHeaders(resp.Headers, result, svcctx, scope)
-				cookiesData = sds.extractCookies(resp.Cookies, result, svcctx, scope)
+				cookiesData = sds.extractResponseCookies(resp.Cookies, result, svcctx, scope)
 				if resp.Body.Type != expr.Empty {
 					// If design uses Body("name") syntax we need to use the
 					// corresponding attribute in the result type for body
@@ -1883,7 +1883,7 @@ func (sds *ServicesData) buildErrorsData(e *expr.HTTPEndpointExpr, sd *ServiceDa
 			desc = fmt.Sprintf("%s builds a %s service %s endpoint %s error.",
 				name, svc.Name, e.Name(), v.ErrorExpr.Name)
 			headers := sds.extractHeaders(v.Response.Headers, v.AttributeExpr, errctx, sd.Scope)
-			cookies := sds.extractCookies(v.Response.Cookies, v.AttributeExpr, errctx, sd.Scope)
+			cookies := sds.extractResponseCookies(v.Response.Cookies, v.AttributeExpr, errctx, sd.Scope)
 			argsCap := len(headers) + len(cookies)
 			if body != expr.Empty {
 				argsCap++
@@ -2004,7 +2004,7 @@ func (sds *ServicesData) buildErrorsData(e *expr.HTTPEndpointExpr, sd *ServiceDa
 			}
 
 			headers := sds.extractHeaders(v.Response.Headers, v.AttributeExpr, errctx, sd.Scope)
-			cookies := sds.extractCookies(v.Response.Cookies, v.AttributeExpr, errctx, sd.Scope)
+			cookies := sds.extractResponseCookies(v.Response.Cookies, v.AttributeExpr, errctx, sd.Scope)
 			var mustValidate bool
 			for _, h := range headers {
 				if h.Validate != "" || h.Required || needConversion(h.Type) {
@@ -2600,80 +2600,85 @@ func (sds *ServicesData) extractHeaders(a *expr.MappedAttributeExpr, svcAtt *exp
 func (sds *ServicesData) extractCookies(a *expr.MappedAttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
 	var cookies []*CookieData
 	codegen.WalkMappedAttr(a, func(name, elem string, required bool, _ *expr.AttributeExpr) error { // nolint: errcheck
-		var hattr *expr.AttributeExpr
-		if hattr = svcAtt.Find(name); hattr == nil {
-			hattr = svcAtt
-		}
-		hattr = makeHTTPType(hattr)
-		var (
-			varn    = scope.Name(codegen.Goify(name, false))
-			typeRef = scope.GoTypeRef(hattr)
-			ft      = svcAtt.Type
-
-			fieldName string
-			pointer   bool
-			fptr      bool
-		)
-		pointer = a.IsPrimitivePointer(name, true)
-		if expr.IsObject(svcAtt.Type) {
-			fieldName = codegen.GoifyAtt(hattr, name, true)
-			fptr = svcCtx.IsPrimitivePointer(name, svcAtt)
-			ft = svcAtt.Find(name).Type
-		}
-		if pointer {
-			typeRef = "*" + typeRef
-		}
-		c := &CookieData{
-			Element: &Element{
-				HTTPName:      elem,
-				AttributeName: name,
-				AttributeData: &AttributeData{
-					Name:         name,
-					Description:  hattr.Description,
-					FieldName:    fieldName,
-					FieldPointer: fptr,
-					FieldType:    ft,
-					VarName:      varn,
-					TypeName:     scope.GoTypeName(hattr),
-					TypeRef:      typeRef,
-					Required:     required,
-					Pointer:      pointer,
-					Type:         hattr.Type,
-					Validate:     codegen.AttributeValidationCode(hattr, nil, svcCtx, required, expr.IsAlias(hattr.Type), varn, name),
-					DefaultValue: hattr.DefaultValue,
-					Example:      hattr.Example(sds.Root.API.ExampleGenerator),
-				},
-			},
-		}
-		for n, v := range a.Meta {
-			switch n {
-			case "cookie:max-age":
-				c.MaxAge = v[0]
-			case "cookie:path":
-				c.Path = v[0]
-			case "cookie:domain":
-				c.Domain = v[0]
-			case "cookie:secure":
-				c.Secure = v[0] == "Secure"
-			case "cookie:http-only":
-				c.HTTPOnly = v[0] == "HttpOnly"
-			case "cookie:same-site":
-				switch v[0] {
-				case string(expr.CookieSameSiteLax):
-					c.SameSite = "http.SameSiteLaxMode"
-				case string(expr.CookieSameSiteStrict):
-					c.SameSite = "http.SameSiteStrictMode"
-				case string(expr.CookieSameSiteNone):
-					c.SameSite = "http.SameSiteNoneMode"
-				case string(expr.CookieSameSiteDefault):
-					c.SameSite = "http.SameSiteDefaultMode"
-				}
-			}
-		}
-		cookies = append(cookies, c)
+		pointer := a.IsPrimitivePointer(name, true)
+		cookies = append(cookies, sds.cookieData(name, elem, required, pointer, svcAtt, svcCtx, scope))
 		return nil
 	})
 	return cookies
+}
+
+func (sds *ServicesData) extractResponseCookies(cookiesExpr []*expr.HTTPResponseCookieExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
+	cookies := make([]*CookieData, 0, len(cookiesExpr))
+	for _, cookieExpr := range cookiesExpr {
+		name := cookieExpr.AttributeName()
+		if name == "" {
+			continue
+		}
+		cookie := sds.cookieData(name, cookieExpr.HTTPName(), cookieExpr.IsRequired(name), cookieExpr.IsPrimitivePointer(name, true), svcAtt, svcCtx, scope)
+		cookie.MaxAge = cookieExpr.MaxAge
+		cookie.Path = cookieExpr.Path
+		cookie.Domain = cookieExpr.Domain
+		cookie.Secure = cookieExpr.Secure
+		cookie.HTTPOnly = cookieExpr.HTTPOnly
+		switch cookieExpr.SameSite {
+		case expr.CookieSameSiteLax:
+			cookie.SameSite = "http.SameSiteLaxMode"
+		case expr.CookieSameSiteStrict:
+			cookie.SameSite = "http.SameSiteStrictMode"
+		case expr.CookieSameSiteNone:
+			cookie.SameSite = "http.SameSiteNoneMode"
+		case expr.CookieSameSiteDefault:
+			cookie.SameSite = "http.SameSiteDefaultMode"
+		}
+		cookies = append(cookies, cookie)
+	}
+	return cookies
+}
+
+func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bool, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) *CookieData {
+	var hattr *expr.AttributeExpr
+	if hattr = svcAtt.Find(name); hattr == nil {
+		hattr = svcAtt
+	}
+	hattr = makeHTTPType(hattr)
+	var (
+		varn    = scope.Name(codegen.Goify(name, false))
+		typeRef = scope.GoTypeRef(hattr)
+		ft      = svcAtt.Type
+
+		fieldName string
+		fptr      bool
+	)
+	if expr.IsObject(svcAtt.Type) {
+		fieldName = codegen.GoifyAtt(hattr, name, true)
+		fptr = svcCtx.IsPrimitivePointer(name, svcAtt)
+		ft = svcAtt.Find(name).Type
+	}
+	if pointer {
+		typeRef = "*" + typeRef
+	}
+	return &CookieData{
+		Element: &Element{
+			HTTPName:      elem,
+			AttributeName: name,
+			AttributeData: &AttributeData{
+				Name:         name,
+				Description:  hattr.Description,
+				FieldName:    fieldName,
+				FieldPointer: fptr,
+				FieldType:    ft,
+				VarName:      varn,
+				TypeName:     scope.GoTypeName(hattr),
+				TypeRef:      typeRef,
+				Required:     required,
+				Pointer:      pointer,
+				Type:         hattr.Type,
+				Validate:     codegen.AttributeValidationCode(hattr, nil, svcCtx, required, expr.IsAlias(hattr.Type), varn, name),
+				DefaultValue: hattr.DefaultValue,
+				Example:      hattr.Example(sds.Root.API.ExampleGenerator),
+			},
+		},
+	}
 }
 
 // collectUserTypes traverses the given data type recursively and calls back the

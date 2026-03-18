@@ -294,7 +294,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	// header or cookie) otherwise return renamed attr type (attr encoded in
 	// response body).
 	if !IsObject(attr.Type) {
-		if resp.Headers.IsEmpty() && resp.Cookies.IsEmpty() {
+		if resp.Headers.IsEmpty() && len(resp.Cookies) == 0 {
 			attr = DupAtt(attr)
 			RemovePkgPath(attr)
 			renameType(attr, name, "Response") // Do not use ResponseBody as it could clash with name of element
@@ -308,7 +308,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 
 	// 4. Remove header and cookie attributes
 	removeAttributes(body, resp.Headers)
-	removeAttributes(body, resp.Cookies)
+	removeResponseCookieAttributes(body, resp.Cookies)
 
 	// 4. Return empty type if no attribute left
 	if len(*AsObject(body.Type)) == 0 {
@@ -349,7 +349,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	for i, v := range rt.Views {
 		mv := NewMappedAttributeExpr(v.AttributeExpr)
 		removeAttributes(mv, resp.Headers)
-		removeAttributes(mv, resp.Cookies)
+		removeResponseCookieAttributes(mv, resp.Cookies)
 		nv := &ViewExpr{
 			AttributeExpr: mv.Attribute(),
 			Name:          v.Name,
@@ -465,9 +465,20 @@ func appendSuffix(dt DataType, suffix string) {
 }
 
 func removeAttributes(attr, sub *MappedAttributeExpr) {
+	if sub == nil {
+		return
+	}
 	o := AsObject(sub.Type)
 	for _, nat := range *o {
 		removeAttribute(attr, nat.Name)
+	}
+}
+
+func removeResponseCookieAttributes(attr *MappedAttributeExpr, cookies []*HTTPResponseCookieExpr) {
+	for _, cookie := range cookies {
+		if name := cookie.AttributeName(); name != "" {
+			removeAttribute(attr, name)
+		}
 	}
 }
 

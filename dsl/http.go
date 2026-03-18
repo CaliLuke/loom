@@ -455,6 +455,16 @@ func Header(name string, args ...any) {
 //	    })
 //	})
 func Cookie(name string, args ...any) {
+	if resp, ok := eval.Current().(*expr.HTTPResponseExpr); ok {
+		if name == "" {
+			eval.ReportError("cookie name cannot be empty")
+		}
+		cookie := expr.NewHTTPResponseCookieExpr()
+		eval.Execute(func() { Attribute(name, args...) }, cookie.AttributeExpr)
+		cookie.Remap()
+		resp.AddCookie(cookie)
+		return
+	}
 	h := cookies(eval.Current())
 	if h == nil {
 		eval.IncompatibleDSL()
@@ -507,12 +517,9 @@ func SessionCookie(name string, args ...any) {
 //	    })
 //	})
 func CookieMaxAge(n int) {
-	_, ok := eval.Current().(*expr.HTTPResponseExpr)
-	if !ok {
-		eval.IncompatibleDSL()
-		return
-	}
-	cookieAttribute("max-age", strconv.Itoa(n))
+	cookieAttribute(func(c *expr.HTTPResponseCookieExpr) {
+		c.MaxAge = strconv.Itoa(n)
+	})
 }
 
 // CookieDomain defines the "domain" attribute of a HTTP response cookie.
@@ -535,12 +542,9 @@ func CookieMaxAge(n int) {
 //	    })
 //	})
 func CookieDomain(d string) {
-	_, ok := eval.Current().(*expr.HTTPResponseExpr)
-	if !ok {
-		eval.IncompatibleDSL()
-		return
-	}
-	cookieAttribute("domain", d)
+	cookieAttribute(func(c *expr.HTTPResponseCookieExpr) {
+		c.Domain = d
+	})
 }
 
 // CookiePath defines the "path" attribute of a HTTP response cookie.
@@ -563,12 +567,9 @@ func CookieDomain(d string) {
 //	    })
 //	})
 func CookiePath(p string) {
-	_, ok := eval.Current().(*expr.HTTPResponseExpr)
-	if !ok {
-		eval.IncompatibleDSL()
-		return
-	}
-	cookieAttribute("path", p)
+	cookieAttribute(func(c *expr.HTTPResponseCookieExpr) {
+		c.Path = p
+	})
 }
 
 // CookieSecure initializes the "secure" attribute of a HTTP response cookie
@@ -590,12 +591,9 @@ func CookiePath(p string) {
 //	    })
 //	})
 func CookieSecure() {
-	_, ok := eval.Current().(*expr.HTTPResponseExpr)
-	if !ok {
-		eval.IncompatibleDSL()
-		return
-	}
-	cookieAttribute("secure", "Secure")
+	cookieAttribute(func(c *expr.HTTPResponseCookieExpr) {
+		c.Secure = true
+	})
 }
 
 // CookieHTTPOnly initializes the "http-only" attribute of a HTTP response
@@ -617,12 +615,9 @@ func CookieSecure() {
 //	    })
 //	})
 func CookieHTTPOnly() {
-	_, ok := eval.Current().(*expr.HTTPResponseExpr)
-	if !ok {
-		eval.IncompatibleDSL()
-		return
-	}
-	cookieAttribute("http-only", "HttpOnly")
+	cookieAttribute(func(c *expr.HTTPResponseCookieExpr) {
+		c.HTTPOnly = true
+	})
 }
 
 // CookieSameSite initializes the "same-site" attribute of a HTTP response
@@ -645,12 +640,9 @@ func CookieHTTPOnly() {
 //	    })
 //	})
 func CookieSameSite(s expr.CookieSameSiteValue) {
-	_, ok := eval.Current().(*expr.HTTPResponseExpr)
-	if !ok {
-		eval.IncompatibleDSL()
-		return
-	}
-	cookieAttribute("same-site", string(s))
+	cookieAttribute(func(c *expr.HTTPResponseCookieExpr) {
+		c.SameSite = s
+	})
 }
 
 // Params groups a set of Param expressions. It makes it possible to list
@@ -1193,11 +1185,6 @@ func cookies(exp eval.Expression) *expr.MappedAttributeExpr {
 			e.Cookies = expr.NewEmptyMappedAttributeExpr()
 		}
 		return e.Cookies
-	case *expr.HTTPResponseExpr:
-		if e.Cookies == nil {
-			e.Cookies = expr.NewEmptyMappedAttributeExpr()
-		}
-		return e.Cookies
 	case *expr.MappedAttributeExpr:
 		return e
 	default:
@@ -1232,10 +1219,28 @@ func params(exp eval.Expression) *expr.MappedAttributeExpr {
 	}
 }
 
-// cookieAttribute initialize the current attribute metadata with the details of
-// a HTTP cookie attribute for use by the HTTP code generator.
-func cookieAttribute(name, value string) {
-	c := eval.Current().(*expr.HTTPResponseExpr).Cookies
-	c.DeleteMeta("cookie:" + name)
-	c.AddMeta("cookie:"+name, value)
+// cookieAttribute mutates the active response cookie.
+func cookieAttribute(update func(*expr.HTTPResponseCookieExpr)) {
+	cookie, ok := currentResponseCookie()
+	if !ok {
+		if _, isResponse := eval.Current().(*expr.HTTPResponseExpr); !isResponse {
+			eval.IncompatibleDSL()
+		} else {
+			eval.ReportError("cookie attributes must be declared after Cookie or SessionCookie in an HTTP response")
+		}
+		return
+	}
+	update(cookie)
+}
+
+func currentResponseCookie() (*expr.HTTPResponseCookieExpr, bool) {
+	resp, ok := eval.Current().(*expr.HTTPResponseExpr)
+	if !ok {
+		return nil, false
+	}
+	cookie := resp.CurrentCookie()
+	if cookie == nil {
+		return nil, false
+	}
+	return cookie, true
 }

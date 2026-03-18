@@ -12,6 +12,7 @@ import (
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/dsl"
+	openapiv3 "goa.design/goa/v3/http/codegen/openapi/v3"
 )
 
 func TestSessionCookie(t *testing.T) {
@@ -95,6 +96,82 @@ func TestSessionCookie(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, jar.Cookies(httpOrigin))
 	})
+
+	t.Run("multiple response cookies keep independent policies", func(t *testing.T) {
+		root := RunHTTPDSL(t, multiSessionCookieResponseDSL)
+		services := CreateHTTPServices(root)
+
+		serverFiles := ServerFiles("", services)
+		require.Len(t, serverFiles, 2)
+		serverEncode := codegen.SectionCode(t, serverFiles[1].SectionTemplates[1])
+		require.Contains(t, serverEncode, `"__Host-ak_session"`)
+		require.Contains(t, serverEncode, `"ak_refresh"`)
+		require.Contains(t, serverEncode, `Path:     "/"`)
+		require.Contains(t, serverEncode, `"/tokens"`)
+		require.Contains(t, serverEncode, `"accounts.goa.design"`)
+		require.Contains(t, serverEncode, `Secure:   true`)
+		require.Contains(t, serverEncode, `HttpOnly: true`)
+
+		endpoint := services.Get("multiSessionCookieResponse").Endpoint("create")
+		require.NotNil(t, endpoint)
+		require.Len(t, endpoint.Result.Responses, 1)
+		require.Len(t, endpoint.Result.Responses[0].Cookies, 2)
+
+		sessionCookie := cookieFromData(t, endpoint.Result.Responses[0].Cookies[0]).String()
+		refreshCookie := cookieFromData(t, endpoint.Result.Responses[0].Cookies[1]).String()
+		resp := &http.Response{
+			Header: http.Header{
+				"Set-Cookie": []string{sessionCookie, refreshCookie},
+			},
+		}
+		parsed := resp.Cookies()
+		require.Len(t, parsed, 2)
+		require.Equal(t, "__Host-ak_session", parsed[0].Name)
+		require.Equal(t, "/", parsed[0].Path)
+		require.True(t, parsed[0].Secure)
+		require.True(t, parsed[0].HttpOnly)
+		require.Equal(t, "ak_refresh", parsed[1].Name)
+		require.Equal(t, "/tokens", parsed[1].Path)
+		require.Equal(t, "accounts.goa.design", parsed[1].Domain)
+		require.False(t, parsed[1].Secure)
+		require.False(t, parsed[1].HttpOnly)
+
+		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+		require.NoError(t, err)
+
+		origin, err := url.Parse("https://accounts.goa.design/tokens")
+		require.NoError(t, err)
+		jar.SetCookies(origin, parsed)
+		stored := jar.Cookies(origin)
+		require.Len(t, stored, 2)
+		storedByName := make(map[string]*http.Cookie, len(stored))
+		for _, cookie := range stored {
+			storedByName[cookie.Name] = cookie
+		}
+		require.Contains(t, storedByName, "__Host-ak_session")
+		require.Contains(t, storedByName, "ak_refresh")
+	})
+
+	t.Run("openapi documents concrete response cookies", func(t *testing.T) {
+		root := RunHTTPDSL(t, multiSessionCookieResponseDSL)
+		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
+		doc := parseOpenAPIV3Document(t, v3JSON)
+
+		pathItem, ok := doc.Paths.PathItems.Get("/session")
+		require.True(t, ok)
+		require.NotNil(t, pathItem.Post)
+		okResp, ok := pathItem.Post.Responses.Codes.Get("201")
+		require.True(t, ok)
+		require.NotNil(t, okResp)
+		header, ok := okResp.Headers.Get("Set-Cookie")
+		require.True(t, ok)
+		require.NotNil(t, header)
+		require.Contains(t, header.Description, "__Host-ak_session")
+		require.Contains(t, header.Description, "ak_refresh")
+		require.NotNil(t, header.Schema)
+		require.NotNil(t, header.Examples)
+		require.Equal(t, 2, header.Examples.Len())
+	})
 }
 
 var sessionCookieResponseDSL = func() {
@@ -145,6 +222,26 @@ var sessionCookieResponseOverrideAllDSL = func() {
 					dsl.CookieDomain("session.goa.design")
 					dsl.CookieMaxAge(7200)
 					dsl.CookieSameSite(dsl.CookieSameSiteStrict)
+				})
+			})
+		})
+	})
+}
+
+var multiSessionCookieResponseDSL = func() {
+	dsl.Service("multiSessionCookieResponse", func() {
+		dsl.Method("create", func() {
+			dsl.Result(func() {
+				dsl.Attribute("session", dsl.String)
+				dsl.Attribute("refresh", dsl.String)
+			})
+			dsl.HTTP(func() {
+				dsl.POST("/session")
+				dsl.Response(dsl.StatusCreated, func() {
+					dsl.SessionCookie("session:__Host-ak_session")
+					dsl.Cookie("refresh:ak_refresh")
+					dsl.CookiePath("/tokens")
+					dsl.CookieDomain("accounts.goa.design")
 				})
 			})
 		})

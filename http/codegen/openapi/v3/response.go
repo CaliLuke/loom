@@ -3,6 +3,8 @@ package openapiv3
 import (
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"goa.design/goa/v3/eval"
 	"goa.design/goa/v3/expr"
@@ -41,27 +43,11 @@ func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema
 		ct = "application/json"
 	}
 	headers := headersFromAttr(r.Headers, rand)
-	cookies := headersFromAttr(r.Cookies, rand)
-	if len(cookies) > 0 {
+	if cookieHeader := responseCookieHeader(r.Cookies, rand); cookieHeader != nil {
 		if headers == nil {
 			headers = make(map[string]*HeaderRef)
 		}
-		if len(cookies) == 1 {
-			for _, v := range cookies {
-				headers["Set-Cookie"] = v
-			}
-		} else {
-			// Generic cookies header
-			headers["Set-Cookie"] = &HeaderRef{
-				Value: &Header{
-					Description: "Cookies set by the server",
-					Required:    true,
-					Schema: &openapi.Schema{
-						Type: "string",
-					},
-				},
-			}
-		}
+		headers["Set-Cookie"] = cookieHeader
 	}
 
 	var content map[string]*MediaType
@@ -97,6 +83,113 @@ func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema
 		Content:     content,
 		Extensions:  openapi.ExtensionsFromExpr(r.Meta),
 	}
+}
+
+func responseCookieHeader(cookies []*expr.HTTPResponseCookieExpr, rand *expr.ExampleGenerator) *HeaderRef {
+	if len(cookies) == 0 {
+		return nil
+	}
+	header := &Header{
+		Required: true,
+		Schema: &openapi.Schema{
+			Type: "string",
+		},
+	}
+	if len(cookies) == 1 {
+		cookie := cookies[0]
+		header.Description = describeResponseCookie(cookie)
+		header.Example = serializeResponseCookieExample(cookie, cookie.Attribute().Example(rand))
+		return &HeaderRef{Value: header}
+	}
+	header.Description = describeResponseCookies(cookies)
+	examples := make(map[string]*ExampleRef, len(cookies))
+	for _, cookie := range cookies {
+		examples[cookie.HTTPName()] = &ExampleRef{
+			Value: &Example{
+				Summary:     fmt.Sprintf("%s cookie", cookie.HTTPName()),
+				Description: describeResponseCookie(cookie),
+				Value:       serializeResponseCookieExample(cookie, cookie.Attribute().Example(rand)),
+			},
+		}
+	}
+	header.Examples = examples
+	return &HeaderRef{Value: header}
+}
+
+func describeResponseCookie(cookie *expr.HTTPResponseCookieExpr) string {
+	parts := []string{fmt.Sprintf("Sets the %q cookie.", cookie.HTTPName())}
+	if attr := cookie.Attribute(); attr != nil && attr.Description != "" {
+		parts = append(parts, attr.Description)
+	}
+	if policy := responseCookiePolicy(cookie); policy != "" {
+		parts = append(parts, "Policy: "+policy+".")
+	}
+	return strings.Join(parts, " ")
+}
+
+func describeResponseCookies(cookies []*expr.HTTPResponseCookieExpr) string {
+	lines := []string{"Set-Cookie headers issued by the server:"}
+	for _, cookie := range cookies {
+		lines = append(lines, "- "+describeResponseCookie(cookie))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func responseCookiePolicy(cookie *expr.HTTPResponseCookieExpr) string {
+	parts := make([]string, 0, 6)
+	if cookie.Path != "" {
+		parts = append(parts, "Path="+cookie.Path)
+	}
+	if cookie.Domain != "" {
+		parts = append(parts, "Domain="+cookie.Domain)
+	}
+	if cookie.MaxAge != "" {
+		parts = append(parts, "Max-Age="+cookie.MaxAge)
+	}
+	if cookie.Secure {
+		parts = append(parts, "Secure")
+	}
+	if cookie.HTTPOnly {
+		parts = append(parts, "HttpOnly")
+	}
+	if cookie.SameSite != "" {
+		parts = append(parts, "SameSite="+titleCase(string(cookie.SameSite)))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func serializeResponseCookieExample(cookie *expr.HTTPResponseCookieExpr, value any) string {
+	httpCookie := &http.Cookie{
+		Name:     cookie.HTTPName(),
+		Value:    fmt.Sprintf("%v", value),
+		Path:     cookie.Path,
+		Domain:   cookie.Domain,
+		Secure:   cookie.Secure,
+		HttpOnly: cookie.HTTPOnly,
+	}
+	if cookie.MaxAge != "" {
+		if maxAge, err := strconv.Atoi(cookie.MaxAge); err == nil {
+			httpCookie.MaxAge = maxAge
+		}
+	}
+	switch cookie.SameSite {
+	case expr.CookieSameSiteLax:
+		httpCookie.SameSite = http.SameSiteLaxMode
+	case expr.CookieSameSiteStrict:
+		httpCookie.SameSite = http.SameSiteStrictMode
+	case expr.CookieSameSiteNone:
+		httpCookie.SameSite = http.SameSiteNoneMode
+	case expr.CookieSameSiteDefault:
+		httpCookie.SameSite = http.SameSiteDefaultMode
+	}
+	return httpCookie.String()
+}
+
+func titleCase(val string) string {
+	if val == "" {
+		return ""
+	}
+	return strings.ToUpper(val[:1]) + val[1:]
 }
 
 func isSkipResponseBodyEncodeDecode(parent eval.Expression) bool {

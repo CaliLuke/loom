@@ -93,7 +93,7 @@ type (
 		// Headers describe the HTTP response headers.
 		Headers *MappedAttributeExpr
 		// Cookies describe the HTTP response cookies.
-		Cookies *MappedAttributeExpr
+		Cookies []*HTTPResponseCookieExpr
 		// Response body if any
 		Body *AttributeExpr
 		// Response Content-Type header value
@@ -106,6 +106,8 @@ type (
 		Parent eval.Expression
 		// Meta is a list of key/value pairs
 		Meta MetaExpr
+		// currentCookie tracks the cookie currently configured by the DSL.
+		currentCookie *HTTPResponseCookieExpr
 	}
 )
 
@@ -123,9 +125,6 @@ func (r *HTTPResponseExpr) EvalName() string {
 func (r *HTTPResponseExpr) Prepare() {
 	if r.Headers == nil {
 		r.Headers = NewEmptyMappedAttributeExpr()
-	}
-	if r.Cookies == nil {
-		r.Cookies = NewEmptyMappedAttributeExpr()
 	}
 }
 
@@ -214,24 +213,41 @@ func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors 
 			}
 		}
 	}
-	if !r.Cookies.IsEmpty() {
-		verr.Merge(r.Cookies.Validate("HTTP response cookies", r))
+	if len(r.Cookies) > 0 {
+		seenNames := make(map[string]struct{}, len(r.Cookies))
+		seenAttrs := make(map[string]struct{}, len(r.Cookies))
 		switch {
 		case isEmpty(e.MethodExpr.Result):
 			verr.Add(r, "response defines cookies but result is empty")
 		case IsObject(e.MethodExpr.Result.Type):
-			mobj := AsObject(r.Cookies.Type)
-			for _, c := range *mobj {
-				t := resultAttributeType(c.Name)
+			for _, c := range r.Cookies {
+				verr.Merge(c.Validate("HTTP response cookie", r))
+				httpName := c.HTTPName()
+				if _, ok := seenNames[httpName]; ok {
+					verr.Add(r, "response defines duplicate cookie %q", httpName)
+				} else {
+					seenNames[httpName] = struct{}{}
+				}
+				if attrName := c.AttributeName(); attrName != "" {
+					if _, ok := seenAttrs[attrName]; ok {
+						verr.Add(r, "response defines duplicate cookie mapping for attribute %q", attrName)
+					} else {
+						seenAttrs[attrName] = struct{}{}
+					}
+				}
+				t := resultAttributeType(c.AttributeName())
 				if t == nil {
-					verr.Add(r, "cookie %q has no equivalent attribute in%s result type, use notation 'attribute_name:cookie_name' to identify corresponding result type attribute.", c.Name, inview)
+					verr.Add(r, "cookie %q has no equivalent attribute in%s result type, use notation 'attribute_name:cookie_name' to identify corresponding result type attribute.", httpName, inview)
 				}
 				if !IsPrimitive(t) {
-					verr.Add(e, "attribute %q used in HTTP cookies must be a primitive type.", c.Name)
+					verr.Add(e, "attribute %q used in HTTP cookies must be a primitive type.", c.AttributeName())
 				}
 			}
 		default:
-			if len(*AsObject(r.Cookies.Type)) > 1 {
+			for _, c := range r.Cookies {
+				verr.Merge(c.Validate("HTTP response cookie", r))
+			}
+			if len(r.Cookies) > 1 {
 				verr.Add(r, "response defines more than one cookies but result type is not an object")
 			} else if IsArray(e.MethodExpr.Result.Type) {
 				verr.Add(e, "Array result is mapped to an HTTP cookie.")
@@ -318,7 +334,7 @@ func (r *HTTPResponseExpr) Finalize(a *HTTPEndpointExpr, svcAtt *AttributeExpr) 
 	}
 
 	initAttr(r.Headers, svcAtt)
-	initAttr(r.Cookies, svcAtt)
+	initResponseCookies(r.Cookies, svcAtt)
 }
 
 // Dup creates a copy of the response expression.
@@ -336,10 +352,25 @@ func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 	if r.Headers != nil {
 		res.Headers = DupMappedAtt(r.Headers)
 	}
-	if r.Cookies != nil {
-		res.Cookies = DupMappedAtt(r.Cookies)
+	if len(r.Cookies) > 0 {
+		res.Cookies = make([]*HTTPResponseCookieExpr, len(r.Cookies))
+		for i, c := range r.Cookies {
+			res.Cookies[i] = c.Dup()
+		}
 	}
 	return &res
+}
+
+// AddCookie appends a response cookie to the response and marks it active for
+// subsequent cookie attribute setters.
+func (r *HTTPResponseExpr) AddCookie(cookie *HTTPResponseCookieExpr) {
+	r.Cookies = append(r.Cookies, cookie)
+	r.currentCookie = cookie
+}
+
+// CurrentCookie returns the cookie currently configured by the DSL.
+func (r *HTTPResponseExpr) CurrentCookie() *HTTPResponseCookieExpr {
+	return r.currentCookie
 }
 
 // mapUnmappedAttrs maps any unmapped attributes in ErrorResult type to the
@@ -404,4 +435,32 @@ func bodyAllowedForStatus(status int) bool {
 		return false
 	}
 	return true
+}
+
+func initResponseCookies(cookies []*HTTPResponseCookieExpr, svcAtt *AttributeExpr) {
+	svcObj := AsObject(svcAtt.Type)
+	for _, cookie := range cookies {
+		name := cookie.AttributeName()
+		if name == "" {
+			continue
+		}
+		var (
+			patt     *AttributeExpr
+			required bool
+		)
+		if svcObj != nil {
+			patt = svcObj.Attribute(name)
+			required = svcAtt.IsRequired(name)
+		} else {
+			patt = svcAtt
+			required = true
+		}
+		initAttrFromDesign(cookie.Attribute(), patt)
+		if required {
+			if cookie.Validation == nil {
+				cookie.Validation = &ValidationExpr{}
+			}
+			cookie.Validation.AddRequired(name)
+		}
+	}
 }

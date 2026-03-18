@@ -224,6 +224,61 @@ var SessionCookieRepeatedSetterDSL = func() {
 	})
 }
 
+var MultipleResponseCookiesDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("session", String)
+				Attribute("refresh", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					SessionCookie("session:__Host-ak_session")
+					Cookie("refresh:ak_refresh")
+					CookiePath("/tokens")
+					CookieDomain("accounts.goa.design")
+				})
+			})
+		})
+	})
+}
+
+var DuplicateResponseCookieNameDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("session", String)
+				Attribute("refresh", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					Cookie("session:ak")
+					Cookie("refresh:ak")
+				})
+			})
+		})
+	})
+}
+
+var InvalidCookieSetterPlacementDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					CookiePath("/session")
+					Cookie("cookie")
+				})
+			})
+		})
+	})
+}
+
 var InvalidSessionCookiePlacementDSL = func() {
 	Service("CookieSvc", func() {
 		Method("Method", func() {
