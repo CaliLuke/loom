@@ -20,6 +20,8 @@ Options:
   --output-dir PATH       Directory for artifacts. Default:
                           /tmp/goa-regen-compare-<repo>-<timestamp>
   --goa-root PATH         Local goa-light checkout. Default: current repo root
+  --goa-ai-root PATH      Local goa-ai checkout to replace goa.design/goa-ai.
+                          Default: none
   --baseline-label NAME   Label for pinned dependency output. Default: baseline
   --candidate-label NAME  Label for local goa-light output. Default: candidate
   --keep-temp             Keep the temporary modfile directory.
@@ -56,6 +58,7 @@ repo_name_from_path() {
 
 target_repo="/Users/luca/code/autok/auto-k-server"
 goa_root="$(pwd)"
+goa_ai_root=""
 output_dir=""
 design_package=""
 baseline_label="baseline"
@@ -78,6 +81,10 @@ while [[ $# -gt 0 ]]; do
 			;;
 		--goa-root)
 			goa_root="${2:?missing value for --goa-root}"
+			shift 2
+			;;
+		--goa-ai-root)
+			goa_ai_root="${2:?missing value for --goa-ai-root}"
 			shift 2
 			;;
 		--baseline-label)
@@ -104,10 +111,16 @@ done
 
 target_repo="$(abs_path "$target_repo")"
 goa_root="$(abs_path "$goa_root")"
+if [[ -n "$goa_ai_root" ]]; then
+	goa_ai_root="$(abs_path "$goa_ai_root")"
+fi
 
 [[ -d "$target_repo" ]] || die "target repo does not exist: $target_repo"
 [[ -f "$target_repo/go.mod" ]] || die "target repo is missing go.mod: $target_repo"
 [[ -f "$goa_root/go.mod" ]] || die "goa root is missing go.mod: $goa_root"
+if [[ -n "$goa_ai_root" ]]; then
+	[[ -f "$goa_ai_root/go.mod" ]] || die "goa-ai root is missing go.mod: $goa_ai_root"
+fi
 
 target_module="$(cd "$target_repo" && go list -m -f '{{.Path}}')"
 if [[ -z "$design_package" ]]; then
@@ -149,12 +162,16 @@ fi
 (
 	cd "$temp_dir"
 	go mod edit -replace "goa.design/goa/v3=${goa_root}"
+	if [[ -n "$goa_ai_root" ]]; then
+		go mod edit -replace "goa.design/goa-ai=${goa_ai_root}"
+	fi
 )
 
 cat >"$commands_file" <<EOF
 target_repo=$target_repo
 design_package=$design_package
 goa_root=$goa_root
+goa_ai_root=$goa_ai_root
 baseline_command=(cd $target_repo && env GOWORK=off GOFLAGS=-mod=mod go run goa.design/goa/v3/cmd/goa gen $design_package -o $baseline_root)
 candidate_command=(cd $target_repo && env GOWORK=off GOFLAGS=-mod=mod\ -modfile=$temp_dir/go.mod go run goa.design/goa/v3/cmd/goa gen $design_package -o $candidate_root)
 EOF
