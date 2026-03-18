@@ -143,3 +143,40 @@ var CookieSameSiteDSL = func() {
 		})
 	})
 }
+
+var SessionCookieDefaultsDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					SessionCookie("cookie")
+				})
+			})
+		})
+	})
+}
+
+const SessionCookieOverridePathValue = "/session"
+const SessionCookieOverrideSameSiteValue = CookieSameSiteStrict
+
+var SessionCookieOverrideDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					SessionCookie("cookie")
+					CookiePath(SessionCookieOverridePathValue)
+					CookieSameSite(SessionCookieOverrideSameSiteValue)
+				})
+			})
+		})
+	})
+}

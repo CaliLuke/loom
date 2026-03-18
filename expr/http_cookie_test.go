@@ -24,6 +24,18 @@ func TestHTTPResponseCookie(t *testing.T) {
 		{"secure", testdata.CookieSecureDSL, Props{"cookie:secure": "Secure"}},
 		{"http-only", testdata.CookieHTTPOnlyDSL, Props{"cookie:http-only": "HttpOnly"}},
 		{"same-site", testdata.CookieSameSiteDSL, Props{"cookie:same-site": testdata.CookieSameSiteValue}},
+		{"session-cookie-defaults", testdata.SessionCookieDefaultsDSL, Props{
+			"cookie:path":      "/",
+			"cookie:secure":    "Secure",
+			"cookie:http-only": "HttpOnly",
+			"cookie:same-site": expr.CookieSameSiteLax,
+		}},
+		{"session-cookie-overrides", testdata.SessionCookieOverrideDSL, Props{
+			"cookie:path":      testdata.SessionCookieOverridePathValue,
+			"cookie:secure":    "Secure",
+			"cookie:http-only": "HttpOnly",
+			"cookie:same-site": testdata.SessionCookieOverrideSameSiteValue,
+		}},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -34,10 +46,17 @@ func TestHTTPResponseCookie(t *testing.T) {
 				t.Errorf("got %d cookie(s), expected exactly one", len(*expr.AsObject(cookies.Type)))
 			} else {
 				m := cookies.Meta
+				if len(c.Props) == 0 {
+					if len(m) != 0 {
+						t.Errorf("got cookies metadata with length %d, expected 0", len(m))
+					}
+					return
+				}
+				if len(m) != len(c.Props) {
+					t.Errorf("got cookies metadata with length %d, expected %d", len(m), len(c.Props))
+				}
 				for n, v := range c.Props {
 					switch {
-					case len(m) != 1:
-						t.Errorf("got cookies metadata with length %d, expected 1", len(m))
 					case len(m[n]) != 1:
 						t.Errorf("got cookies metadata %q with length %d, expected 1", n, len(m[n]))
 					case m[n][0] != fmt.Sprintf("%v", v):

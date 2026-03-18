@@ -467,6 +467,26 @@ func Cookie(name string, args ...any) {
 	h.Remap()
 }
 
+// SessionCookie defines a HTTP response cookie using secure session defaults.
+//
+// SessionCookie must appear in a HTTP response expression. It behaves like
+// Cookie and additionally applies the defaults `Path("/")`, `CookieSecure()`,
+// `CookieHTTPOnly()`, and `CookieSameSite(CookieSameSiteLax)`.
+//
+// Explicit cookie setters invoked after SessionCookie override these defaults.
+func SessionCookie(name string, args ...any) {
+	_, ok := eval.Current().(*expr.HTTPResponseExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	Cookie(name, args...)
+	CookiePath("/")
+	CookieSecure()
+	CookieHTTPOnly()
+	CookieSameSite(CookieSameSiteLax)
+}
+
 // CookieMaxAge defines the "max-age" attribute of a HTTP response cookie.
 //
 // CookieMaxAge must appear in a Cookie expression.
@@ -1216,5 +1236,6 @@ func params(exp eval.Expression) *expr.MappedAttributeExpr {
 // a HTTP cookie attribute for use by the HTTP code generator.
 func cookieAttribute(name, value string) {
 	c := eval.Current().(*expr.HTTPResponseExpr).Cookies
+	c.DeleteMeta("cookie:" + name)
 	c.AddMeta("cookie:"+name, value)
 }
