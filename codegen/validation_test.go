@@ -207,3 +207,117 @@ func TestAliasTypeInArrayAndMap(t *testing.T) {
 		})
 	}
 }
+
+func TestValidationCodeUsesExplicitUnionVariantTagsForSumUnions(t *testing.T) {
+	t.Parallel()
+
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, false, "", scope)
+	single := &expr.UserTypeExpr{
+		TypeName: "SingleAction",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{
+				{
+					Name: "value",
+					Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+					},
+				},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"value"}},
+			Meta:       expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+		},
+	}
+	batch := &expr.UserTypeExpr{
+		TypeName: "BatchAction",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{
+				{
+					Name: "values",
+					Attribute: &expr.AttributeExpr{
+						Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+					},
+				},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"values"}},
+			Meta:       expr.MetaExpr{"oneof:type:tag": []string{"batch"}},
+		},
+	}
+	union := &expr.Union{
+		TypeName: "Selection",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name: "Single",
+				Attribute: &expr.AttributeExpr{
+					Type: single,
+				},
+			},
+			{
+				Name: "Batch",
+				Attribute: &expr.AttributeExpr{
+					Type: batch,
+				},
+			},
+		},
+	}
+
+	code := ValidationCode(&expr.AttributeExpr{Type: union}, nil, ctx, true, false, false, "target")
+
+	if !strings.Contains(code, `case "single":`) {
+		t.Errorf("expected validation code to use explicit tag 'single':\n%s", code)
+	}
+	if !strings.Contains(code, `case "batch":`) {
+		t.Errorf("expected validation code to use explicit tag 'batch':\n%s", code)
+	}
+	if strings.Contains(code, `case "Single":`) {
+		t.Errorf("expected validation code to avoid branch name 'Single':\n%s", code)
+	}
+	if strings.Contains(code, `case "Batch":`) {
+		t.Errorf("expected validation code to avoid branch name 'Batch':\n%s", code)
+	}
+}
+
+func TestValidationCodeRequiresObjectUnionBranchValue(t *testing.T) {
+	t.Parallel()
+
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, false, "", scope)
+	single := &expr.UserTypeExpr{
+		TypeName: "SingleAction",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{
+				{
+					Name: "value",
+					Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+					},
+				},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"value"}},
+			Meta: expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+		},
+	}
+	union := &expr.Union{
+		TypeName: "Selection",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name: "Single",
+				Attribute: &expr.AttributeExpr{
+					Type: single,
+				},
+			},
+		},
+	}
+
+	code := ValidationCode(&expr.AttributeExpr{Type: union}, nil, ctx, true, false, false, "target")
+
+	if !strings.Contains(code, `case "single":`) {
+		t.Errorf("expected explicit tag in validation code:\n%s", code)
+	}
+	if !strings.Contains(code, `if actual == nil {`) {
+		t.Errorf("expected missing value guard for object union branch:\n%s", code)
+	}
+	if !strings.Contains(code, `goa.MissingFieldError("value", "target.value")`) {
+		t.Errorf("expected missing value error for object union branch:\n%s", code)
+	}
+}
