@@ -91,6 +91,79 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 	})
 }
 
+func TestSessionSecurityInfersCookieBinding(t *testing.T) {
+	t.Run("endpoint requirements infer bearer header and cookie transport", func(t *testing.T) {
+		root := RunHTTPDSL(t, sessionCookieSecurityDSL)
+		endpoint := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		require.Len(t, endpoint.Requirements, 2)
+
+		var jwtScheme, cookieScheme *expr.SchemeExpr
+		for _, req := range endpoint.Requirements {
+			require.Len(t, req.Schemes, 1)
+			switch req.Schemes[0].Kind {
+			case expr.JWTKind:
+				jwtScheme = req.Schemes[0]
+			case expr.APIKeyKind:
+				cookieScheme = req.Schemes[0]
+			}
+		}
+		require.NotNil(t, jwtScheme)
+		require.NotNil(t, cookieScheme)
+		require.Equal(t, "header", jwtScheme.In)
+		require.Equal(t, "Authorization", jwtScheme.Name)
+		require.Equal(t, "cookie", cookieScheme.In)
+		require.Equal(t, "__Host-ak_session", cookieScheme.Name)
+		require.NotNil(t, endpoint.Cookies.Find("browser_session"))
+	})
+
+	t.Run("openapi uses inferred cookie security scheme", func(t *testing.T) {
+		root := RunHTTPDSL(t, sessionCookieSecurityDSL)
+		openapi.Definitions = make(map[string]*openapi.Schema)
+
+		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
+		doc := parseOpenAPIV3Document(t, v3JSON)
+		require.NotNil(t, doc.Components)
+		require.NotNil(t, doc.Components.SecuritySchemes)
+		require.Equal(t, 2, doc.Components.SecuritySchemes.Len())
+
+		pathItem, ok := doc.Paths.PathItems.Get("/auth/profile")
+		require.True(t, ok)
+		require.NotNil(t, pathItem.Get)
+		require.Len(t, pathItem.Get.Security, 2)
+
+		foundCookie := false
+		for name, scheme := range doc.Components.SecuritySchemes.FromOldest() {
+			if scheme.Type == "apiKey" && scheme.In == "cookie" && scheme.Name == "__Host-ak_session" {
+				for _, requirement := range pathItem.Get.Security {
+					if _, ok := requirement.Requirements.Get(name); ok {
+						foundCookie = true
+						break
+					}
+				}
+			}
+		}
+		require.True(t, foundCookie)
+	})
+
+	t.Run("http codegen reads and writes the inferred cookie", func(t *testing.T) {
+		root := RunHTTPDSL(t, sessionCookieSecurityDSL)
+		services := CreateHTTPServices(root)
+
+		serverFiles := ServerFiles("", services)
+		require.Len(t, serverFiles, 2)
+		serverDecode := codegen.SectionCode(t, serverFiles[1].SectionTemplates[2])
+		require.Contains(t, serverDecode, `r.Cookie("__Host-ak_session")`)
+		require.Contains(t, serverDecode, `"Authorization"`)
+
+		clientFiles := ClientFiles("", services)
+		require.Len(t, clientFiles, 2)
+		clientEncode := codegen.SectionCode(t, clientFiles[1].SectionTemplates[2])
+		require.Contains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
+		require.Contains(t, clientEncode, `Name:  "__Host-ak_session"`)
+		require.Contains(t, clientEncode, `"Authorization"`)
+	})
+}
+
 func renderOpenAPIJSON(
 	t *testing.T,
 	build func(*expr.RootExpr) ([]*codegen.File, error),
@@ -152,6 +225,35 @@ var cookieAPIKeySecurityDSL = func() {
 			dsl.HTTP(func() {
 				dsl.GET("/auth/profile")
 				dsl.Cookie("browser_session:__Host-ak_session")
+				dsl.Response(dsl.StatusOK)
+			})
+		})
+	})
+}
+
+var sessionCookieSecurityDSL = func() {
+	var bearer = dsl.JWTSecurity("session_bearer", func() {
+		dsl.Description("Application bearer")
+	})
+	var browserSessionCookie = dsl.APIKeySecurity("browser_session_cookie", func() {
+		dsl.Description("Browser session cookie")
+	})
+	var appSession = dsl.SessionAuth("app_session", func() {
+		dsl.BearerTransport(bearer, "auth")
+		dsl.CookieTransport(browserSessionCookie, "browser_session", func() {
+			dsl.CookieName("__Host-ak_session")
+		})
+	})
+
+	dsl.Service("sessionCookieSecurity", func() {
+		dsl.Method("profile", func() {
+			dsl.SessionSecurity(appSession)
+			dsl.Payload(func() {
+				dsl.Attribute("message", dsl.String)
+			})
+			dsl.Result(dsl.Empty)
+			dsl.HTTP(func() {
+				dsl.GET("/auth/profile")
 				dsl.Response(dsl.StatusOK)
 			})
 		})

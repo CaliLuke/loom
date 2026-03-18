@@ -762,6 +762,7 @@ func (e *HTTPEndpointExpr) Finalize() {
 	}
 
 	// Compute security scheme attribute name and corresponding HTTP location
+	e.inferSessionSecurityMappings()
 	if reqLen := len(e.MethodExpr.Requirements); reqLen > 0 {
 		e.Requirements = make([]*SecurityExpr, 0, reqLen)
 		for _, req := range e.MethodExpr.Requirements {
@@ -837,6 +838,41 @@ func (e *HTTPEndpointExpr) Finalize() {
 	// Make sure all error types are user types and have a body.
 	for _, herr := range e.HTTPErrors {
 		herr.Finalize(e)
+	}
+}
+
+func (e *HTTPEndpointExpr) inferSessionSecurityMappings() {
+	if len(e.MethodExpr.SessionAuths) == 0 {
+		return
+	}
+	for _, sessionAuth := range e.MethodExpr.SessionAuths {
+		for _, transport := range sessionAuth.Transports {
+			if transport == nil || transport.Scheme == nil {
+				continue
+			}
+			if name, _ := findKey(e, transport.FieldName); name != "" {
+				continue
+			}
+			switch transport.Kind {
+			case SessionCookieTransportKind:
+				attr := e.MethodExpr.Payload.Find(transport.FieldName)
+				if attr == nil {
+					continue
+				}
+				cookieName := transport.HTTPName
+				if cookieName == "" {
+					cookieName = transport.FieldName
+				}
+				e.Cookies.Type.(*Object).Set(transport.FieldName, attr)
+				e.Cookies.Map(cookieName, transport.FieldName)
+				if e.MethodExpr.Payload.IsRequired(transport.FieldName) {
+					if e.Cookies.Validation == nil {
+						e.Cookies.Validation = &ValidationExpr{}
+					}
+					e.Cookies.Validation.AddRequired(transport.FieldName)
+				}
+			}
+		}
 	}
 }
 

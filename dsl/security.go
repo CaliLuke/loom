@@ -203,6 +203,24 @@ func CookieTransport(scheme any, fieldName string, fn ...func()) {
 	sessionTransport(expr.SessionCookieTransportKind, scheme, fieldName, fn...)
 }
 
+// CookieName sets the inferred HTTP cookie name of a session cookie transport.
+func CookieName(name string) {
+	current, ok := eval.Current().(*expr.SessionTransportExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	if current.Kind != expr.SessionCookieTransportKind {
+		eval.ReportError("CookieName must be used with a session cookie transport")
+		return
+	}
+	if name == "" {
+		eval.ReportError("cookie name cannot be empty")
+		return
+	}
+	current.HTTPName = name
+}
+
 // Security defines authentication requirements to access an entire API, service
 // or individual service method.
 //

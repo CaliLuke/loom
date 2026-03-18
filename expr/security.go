@@ -86,6 +86,8 @@ type (
 		Scheme *SchemeExpr
 		// FieldName is the payload field name associated with the transport.
 		FieldName string
+		// HTTPName is the inferred HTTP transport element name if any.
+		HTTPName string
 		// Description describes the transport.
 		Description string
 	}
