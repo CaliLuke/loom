@@ -377,6 +377,40 @@ func TestCanonicalOperationIDComponent(t *testing.T) {
 	}
 }
 
+func TestBuildOperationErrorRemedyDescription(t *testing.T) {
+	const (
+		svcName = "test service"
+		metName = "error_remedy"
+	)
+
+	root := codegen.RunDSL(t, dsls.ErrorRemedyResponseBodyDSL(svcName, metName))
+	bodies, _ := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	endpointBodies := bodies[svcName][metName]
+
+	var route *expr.RouteExpr
+	for _, svc := range root.API.HTTP.Services {
+		if svc.Name() != svcName {
+			continue
+		}
+		route = svc.Endpoint(metName).Routes[0]
+		break
+	}
+	if route == nil {
+		t.Fatal("could not find route")
+	}
+
+	op := buildOperation(metName, route, endpointBodies, expr.NewRandom(metName), root.API.Meta)
+	resp := op.Responses["400"]
+	if resp == nil || resp.Value == nil || resp.Value.Description == nil {
+		t.Fatal("missing bad request response description")
+	}
+
+	expected := "bad: Bad Request response. Remedy code: bad.fix. Safe message: Retry with a valid request. Retry hint: Correct the payload and retry."
+	if *resp.Value.Description != expected {
+		t.Errorf("got response description %q, expected %q", *resp.Value.Description, expected)
+	}
+}
+
 func matchesParameter(t *testing.T, p *ParameterRef, types map[string]*openapi.Schema, expected param) {
 	matchesParameterHeader(t, p, types, expected, "parameter")
 }

@@ -46,6 +46,8 @@ type (
 		*AttributeExpr
 		// Name is the unique name of the error.
 		Name string
+		// Remedy is the optional structured remediation guidance for the error.
+		Remedy *ErrorRemedyExpr
 	}
 )
 
@@ -112,6 +114,7 @@ func (e *ErrorExpr) Validate() error {
 		verr.Add(e, "error type %q must not be a union; use separate named errors or an object type", e.Name)
 		return verr
 	}
+	verr.Merge(e.Remedy.Validate())
 	var errField string
 	walkAttribute(e.AttributeExpr, func(name string, att *AttributeExpr) error { // nolint: errcheck
 		if _, ok := att.Meta["struct:error:name"]; ok {

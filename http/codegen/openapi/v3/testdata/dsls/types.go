@@ -222,6 +222,26 @@ func ObjectErrorResponseBodyDSL(svcName, metName string) func() {
 	}
 }
 
+func ErrorRemedyResponseBodyDSL(svcName, metName string) func() {
+	return func() {
+		var _ = Service(svcName, func() {
+			Method(metName, func() {
+				Error("bad", func() {
+					Remedy(func() {
+						RemedyCode("bad.fix")
+						SafeMessage("Retry with a valid request.")
+						RetryHint("Correct the payload and retry.")
+					})
+				})
+				HTTP(func() {
+					POST("/")
+					Response("bad", StatusBadRequest)
+				})
+			})
+		})
+	}
+}
+
 func ForcedTypeDSL(svcName, metName string) func() {
 	return func() {
 		var _ = Type("Forced", func() {

@@ -57,6 +57,13 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 		{"invalid-auth-error-responses-placement", testdata.InvalidAuthErrorResponsesPlacementDSL,
 			`invalid use of AuthErrorResponses`,
 		},
+		{"valid-error-remedy", testdata.ValidErrorRemedyDSL, ""},
+		{"invalid-empty-error-remedy", testdata.InvalidEmptyErrorRemedyDSL,
+			`error remedy: error remedy must define at least one of code, safe message, or retry hint`,
+		},
+		{"invalid-error-remedy-placement", testdata.InvalidErrorRemedyPlacementDSL,
+			`invalid use of RemedyCode`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -67,6 +74,17 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 				assert.Contains(t, stripValidationLocations(err.Error()), tc.Error)
 			}
 		})
+	}
+}
+
+func TestErrorRemedy(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidErrorRemedyDSL)
+	method := root.Service("ValidErrorRemedyService").Method("SecureMethod")
+	erro := method.Error("bad_request")
+	if assert.NotNil(t, erro) && assert.NotNil(t, erro.Remedy) {
+		assert.Equal(t, "bad_request.fix", erro.Remedy.Code)
+		assert.Equal(t, "The request is invalid.", erro.Remedy.SafeMessage)
+		assert.Equal(t, "Correct the payload and retry.", erro.Remedy.RetryHint)
 	}
 }
 

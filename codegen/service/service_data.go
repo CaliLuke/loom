@@ -289,6 +289,12 @@ type (
 		Timeout bool
 		// Fault indicates whether the error is server-side fault.
 		Fault bool
+		// RemedyCode is the stable remediation code for the error if declared.
+		RemedyCode string
+		// SafeMessage is the safe, user-facing message for the error if declared.
+		SafeMessage string
+		// RetryHint is the retry or correction guidance for the error if declared.
+		RetryHint string
 	}
 
 	// InterceptorData contains the data required to render the service-level
@@ -1256,7 +1262,31 @@ func buildErrorInitData(er *expr.ErrorExpr, scope *codegen.NameScope) *ErrorInit
 		Temporary:   temporary,
 		Timeout:     timeout,
 		Fault:       fault,
+		RemedyCode:  errorRemedyCode(er),
+		SafeMessage: errorSafeMessage(er),
+		RetryHint:   errorRetryHint(er),
 	}
+}
+
+func errorRemedyCode(er *expr.ErrorExpr) string {
+	if er.Remedy == nil {
+		return ""
+	}
+	return er.Remedy.Code
+}
+
+func errorSafeMessage(er *expr.ErrorExpr) string {
+	if er.Remedy == nil {
+		return ""
+	}
+	return er.Remedy.SafeMessage
+}
+
+func errorRetryHint(er *expr.ErrorExpr) string {
+	if er.Remedy == nil {
+		return ""
+	}
+	return er.Remedy.RetryHint
 }
 
 // buildMethodData creates the data needed to render the given endpoint. It

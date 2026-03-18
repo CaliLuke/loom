@@ -307,6 +307,7 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 		if resp.Description != nil {
 			desc += ": " + *resp.Description
 		}
+		desc = appendErrorRemedyDescription(desc, er)
 		resp.Description = &desc
 		if er.Type == expr.ErrorResult && len(er.Response.Body.ExtractUserExamples()) == 0 {
 			for _, content := range resp.Content {
@@ -349,6 +350,27 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 		ExternalDocs: openapi.DocsFromExpr(m.Docs, m.Meta),
 		Extensions:   openapi.ExtensionsFromExpr(m.Meta),
 	}
+}
+
+func appendErrorRemedyDescription(desc string, er *expr.HTTPErrorExpr) string {
+	if er == nil || er.ErrorExpr == nil || er.ErrorExpr.Remedy == nil {
+		return desc
+	}
+	parts := []string{desc}
+	if er.ErrorExpr.Remedy.Code != "" {
+		parts = append(parts, "Remedy code: "+er.ErrorExpr.Remedy.Code+".")
+	}
+	if er.ErrorExpr.Remedy.SafeMessage != "" {
+		parts = append(parts, "Safe message: "+trimSentence(er.ErrorExpr.Remedy.SafeMessage)+".")
+	}
+	if er.ErrorExpr.Remedy.RetryHint != "" {
+		parts = append(parts, "Retry hint: "+trimSentence(er.ErrorExpr.Remedy.RetryHint)+".")
+	}
+	return strings.Join(parts, " ")
+}
+
+func trimSentence(text string) string {
+	return strings.TrimRight(text, ". ")
 }
 
 // buildFileServerOperation builds the OpenAPI Operation object for the given file server.

@@ -92,13 +92,15 @@ func Error(name string, args ...any) {
 		Description: desc,
 		Type:        dt,
 	}
+	erro := &expr.ErrorExpr{AttributeExpr: att, Name: name}
 	if fn != nil {
+		eval.Context.Stack = append(eval.Context.Stack, erro)
 		eval.Execute(fn, att)
+		eval.Context.Stack = eval.Context.Stack[:len(eval.Context.Stack)-1]
 	}
 	if att.Type == nil {
 		att.Type = expr.ErrorResult
 	}
-	erro := &expr.ErrorExpr{AttributeExpr: att, Name: name}
 	switch actual := eval.Current().(type) {
 	case *expr.APIExpr:
 		expr.Root.Errors = append(expr.Root.Errors, erro)
@@ -227,6 +229,70 @@ func Temporary() {
 		return
 	}
 	attr.AddMeta("goa:error:temporary")
+}
+
+// Remedy declares structured remediation guidance for an error.
+//
+// Remedy must appear in an Error expression.
+func Remedy(fn func()) {
+	errExpr, ok := currentErrorExpr()
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	remedy := &expr.ErrorRemedyExpr{}
+	errExpr.Remedy = remedy
+	if fn != nil {
+		eval.Execute(fn, remedy)
+	}
+}
+
+func currentErrorExpr() (*expr.ErrorExpr, bool) {
+	if errExpr, ok := eval.Current().(*expr.ErrorExpr); ok {
+		return errExpr, true
+	}
+	for i := len(eval.Context.Stack) - 1; i >= 0; i-- {
+		if errExpr, ok := eval.Context.Stack[i].(*expr.ErrorExpr); ok {
+			return errExpr, true
+		}
+	}
+	return nil, false
+}
+
+// RemedyCode declares a stable remediation code for an error.
+//
+// RemedyCode must appear in a Remedy expression.
+func RemedyCode(code string) {
+	remedy, ok := eval.Current().(*expr.ErrorRemedyExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	remedy.Code = code
+}
+
+// SafeMessage declares the safe, user-facing message for an error.
+//
+// SafeMessage must appear in a Remedy expression.
+func SafeMessage(message string) {
+	remedy, ok := eval.Current().(*expr.ErrorRemedyExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	remedy.SafeMessage = message
+}
+
+// RetryHint declares concise retry or correction guidance for an error.
+//
+// RetryHint must appear in a Remedy expression.
+func RetryHint(hint string) {
+	remedy, ok := eval.Current().(*expr.ErrorRemedyExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	remedy.RetryHint = hint
 }
 
 // Timeout qualifies an error type as describing errors due to timeouts, or

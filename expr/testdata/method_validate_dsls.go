@@ -256,6 +256,53 @@ var ValidMethodAuthErrorResponsesDSL = func() {
 	})
 }
 
+var ValidErrorRemedyDSL = func() {
+	Service("ValidErrorRemedyService", func() {
+		Method("SecureMethod", func() {
+			Error("bad_request", func() {
+				Remedy(func() {
+					RemedyCode("bad_request.fix")
+					SafeMessage("The request is invalid.")
+					RetryHint("Correct the payload and retry.")
+				})
+			})
+			HTTP(func() {
+				GET("/secure")
+				Response("bad_request", StatusBadRequest)
+			})
+		})
+	})
+}
+
+var InvalidEmptyErrorRemedyDSL = func() {
+	Service("InvalidEmptyErrorRemedyService", func() {
+		Method("SecureMethod", func() {
+			Error("bad_request", func() {
+				Remedy(func() {
+				})
+			})
+			HTTP(func() {
+				GET("/secure")
+				Response("bad_request", StatusBadRequest)
+			})
+		})
+	})
+}
+
+var InvalidErrorRemedyPlacementDSL = func() {
+	Service("InvalidErrorRemedyPlacementService", func() {
+		Method("SecureMethod", func() {
+			Payload(func() {
+				Attribute("message", String)
+				RemedyCode("payload.invalid")
+			})
+			HTTP(func() {
+				GET("/secure")
+			})
+		})
+	})
+}
+
 var ValidServiceAuthErrorResponsesDSL = func() {
 	Service("ValidServiceAuthErrorResponsesService", func() {
 		Security(JWTAuth)

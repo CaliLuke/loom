@@ -231,6 +231,24 @@ var EmptyPayloadMethodDSL = func() {
 	})
 }
 
+var ErrorRemedyMethodDSL = func() {
+	Service("ErrorRemedyMethod", func() {
+		Method("Show", func() {
+			Error("bad_request", func() {
+				Remedy(func() {
+					RemedyCode("bad_request.fix")
+					SafeMessage("The request is invalid.")
+					RetryHint("Correct the payload and retry.")
+				})
+			})
+			HTTP(func() {
+				GET("/")
+				Response("bad_request", StatusBadRequest)
+			})
+		})
+	})
+}
+
 var EmptyResultMethodDSL = func() {
 	var APayload = Type("APayload", func() {
 		Attribute("IntField", Int)
