@@ -59,6 +59,30 @@ func RunDSL() error {
 	return nil
 }
 
+// PrepareValidateFinalize runs prepare, validate, and finalize for the given
+// root using the current evaluation context. It does not execute any source
+// DSL and is intended for callers that construct temporary expression trees
+// programmatically.
+func PrepareValidateFinalize(root Root) error {
+	if root == nil {
+		return nil
+	}
+
+	prepareSet(ExpressionSet{root})
+	root.WalkSets(prepareSet)
+
+	validateSet(ExpressionSet{root})
+	root.WalkSets(validateSet)
+	if Context.Errors != nil {
+		return Context.Errors
+	}
+
+	finalizeSet(ExpressionSet{root})
+	root.WalkSets(finalizeSet)
+
+	return nil
+}
+
 // Execute runs the given DSL to initialize the given expression. It returns
 // true on success. It returns false and appends to Context.Errors on failure.
 // Note that Run takes care of calling Execute on all expressions that implement
