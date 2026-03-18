@@ -198,3 +198,76 @@ var InvalidSessionSecurityPayloadConflictDSL = func() {
 		})
 	})
 }
+
+var ValidMethodAuthErrorResponsesDSL = func() {
+	Service("ValidMethodAuthErrorResponsesService", func() {
+		Method("SecureMethod", func() {
+			Security(JWTAuth)
+			Payload(func() {
+				Token("auth", String)
+			})
+			HTTP(func() {
+				GET("/secure")
+				AuthErrorResponses()
+			})
+		})
+	})
+}
+
+var ValidServiceAuthErrorResponsesDSL = func() {
+	Service("ValidServiceAuthErrorResponsesService", func() {
+		Security(JWTAuth)
+		HTTP(func() {
+			Path("/secure")
+			AuthErrorResponses()
+		})
+		Method("SecureMethod", func() {
+			Payload(func() {
+				Token("auth", String)
+			})
+			HTTP(func() {
+				GET("/")
+			})
+		})
+	})
+}
+
+var ValidAPIAuthErrorResponsesDSL = func() {
+	API("auth-errors", func() {
+		Security(JWTAuth)
+		HTTP(func() {
+			Path("/api")
+			AuthErrorResponses()
+		})
+	})
+	Service("ValidAPIAuthErrorResponsesService", func() {
+		Method("SecureMethod", func() {
+			Payload(func() {
+				Token("auth", String)
+			})
+			HTTP(func() {
+				GET("/secure")
+			})
+		})
+	})
+}
+
+var ValidMethodAuthErrorResponsesReuseDSL = func() {
+	var Unauthorized = Type("MethodAuthErrorUnauthorized", func() {
+		Attribute("reason", String)
+		Required("reason")
+	})
+	Service("ValidMethodAuthErrorResponsesReuseService", func() {
+		Method("SecureMethod", func() {
+			Security(JWTAuth)
+			Error("unauthorized", Unauthorized)
+			Payload(func() {
+				Token("auth", String)
+			})
+			HTTP(func() {
+				GET("/secure")
+				AuthErrorResponses()
+			})
+		})
+	})
+}

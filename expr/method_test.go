@@ -51,6 +51,9 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 		{"invalid-session-security-payload-conflict", testdata.InvalidSessionSecurityPayloadConflictDSL,
 			`service "InvalidSessionSecurityPayloadConflictService" method "SecureMethod": payload of method "SecureMethod" of service "InvalidSessionSecurityPayloadConflictService" defines field "auth" which conflicts with session auth "conflict_session" bearer transport`,
 		},
+		{"valid-method-auth-error-responses", testdata.ValidMethodAuthErrorResponsesDSL, ""},
+		{"valid-service-auth-error-responses", testdata.ValidServiceAuthErrorResponsesDSL, ""},
+		{"valid-api-auth-error-responses", testdata.ValidAPIAuthErrorResponsesDSL, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -62,6 +65,60 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 			}
 		})
 	}
+}
+
+func TestAuthErrorResponses(t *testing.T) {
+	t.Run("method scope injects method and endpoint auth errors", func(t *testing.T) {
+		root := expr.RunDSL(t, testdata.ValidMethodAuthErrorResponsesDSL)
+		method := root.Service("ValidMethodAuthErrorResponsesService").Method("SecureMethod")
+		assert.NotNil(t, method.Error("unauthorized"))
+		assert.NotNil(t, method.Error("forbidden"))
+
+		endpoint := root.API.HTTP.Service("ValidMethodAuthErrorResponsesService").Endpoint("SecureMethod")
+		if assert.Len(t, endpoint.HTTPErrors, 2) {
+			assert.Equal(t, "unauthorized", endpoint.HTTPErrors[0].Name)
+			assert.Equal(t, expr.StatusUnauthorized, endpoint.HTTPErrors[0].Response.StatusCode)
+			assert.Equal(t, "forbidden", endpoint.HTTPErrors[1].Name)
+			assert.Equal(t, expr.StatusForbidden, endpoint.HTTPErrors[1].Response.StatusCode)
+		}
+	})
+
+	t.Run("service scope injects shared auth errors", func(t *testing.T) {
+		root := expr.RunDSL(t, testdata.ValidServiceAuthErrorResponsesDSL)
+		service := root.Service("ValidServiceAuthErrorResponsesService")
+		assert.NotNil(t, service.Error("unauthorized"))
+		assert.NotNil(t, service.Error("forbidden"))
+
+		httpService := root.API.HTTP.Service("ValidServiceAuthErrorResponsesService")
+		if assert.Len(t, httpService.HTTPErrors, 2) {
+			assert.Equal(t, "unauthorized", httpService.HTTPErrors[0].Name)
+			assert.Equal(t, expr.StatusUnauthorized, httpService.HTTPErrors[0].Response.StatusCode)
+			assert.Equal(t, "forbidden", httpService.HTTPErrors[1].Name)
+			assert.Equal(t, expr.StatusForbidden, httpService.HTTPErrors[1].Response.StatusCode)
+		}
+	})
+
+	t.Run("api scope injects shared auth errors", func(t *testing.T) {
+		root := expr.RunDSL(t, testdata.ValidAPIAuthErrorResponsesDSL)
+		assert.NotNil(t, root.Error("unauthorized"))
+		assert.NotNil(t, root.Error("forbidden"))
+		if assert.Len(t, root.API.HTTP.Errors, 2) {
+			assert.Equal(t, "unauthorized", root.API.HTTP.Errors[0].Name)
+			assert.Equal(t, expr.StatusUnauthorized, root.API.HTTP.Errors[0].Response.StatusCode)
+			assert.Equal(t, "forbidden", root.API.HTTP.Errors[1].Name)
+			assert.Equal(t, expr.StatusForbidden, root.API.HTTP.Errors[1].Response.StatusCode)
+		}
+	})
+
+	t.Run("existing error definitions are preserved", func(t *testing.T) {
+		root := expr.RunDSL(t, testdata.ValidMethodAuthErrorResponsesReuseDSL)
+		method := root.Service("ValidMethodAuthErrorResponsesReuseService").Method("SecureMethod")
+		unauthorized := method.Error("unauthorized")
+		if assert.NotNil(t, unauthorized) {
+			assert.NotEqual(t, expr.ErrorResult, unauthorized.Type)
+			assert.Equal(t, "MethodAuthErrorUnauthorized", unauthorized.Type.Name())
+		}
+	})
 }
 
 func TestSessionSecurityLowersToMethodRequirements(t *testing.T) {

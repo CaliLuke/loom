@@ -5,6 +5,11 @@ import (
 	"goa.design/goa/v3/expr"
 )
 
+const (
+	authUnauthorizedErrorName = "unauthorized"
+	authForbiddenErrorName    = "forbidden"
+)
+
 // BasicAuthSecurity defines a basic authentication security scheme.
 //
 // BasicAuthSecurity is a top level DSL.
@@ -367,6 +372,35 @@ func SessionSecurity(arg any) {
 	}
 }
 
+// AuthErrorResponses defines standard HTTP auth error responses for secured
+// endpoints.
+//
+// AuthErrorResponses must appear in an API, service or method HTTP expression.
+// The helper ensures the corresponding "unauthorized" and "forbidden" errors
+// exist in the matching API, service or method scope and adds the HTTP 401 and
+// 403 response mappings if they are not already defined.
+func AuthErrorResponses() {
+	switch actual := eval.Current().(type) {
+	case *expr.RootExpr:
+		ensureAuthError(actual, authUnauthorizedErrorName)
+		ensureAuthError(actual, authForbiddenErrorName)
+		ensureHTTPAuthError(&actual.API.HTTP.Errors, actual, authUnauthorizedErrorName, expr.StatusUnauthorized, "Authentication is required.")
+		ensureHTTPAuthError(&actual.API.HTTP.Errors, actual, authForbiddenErrorName, expr.StatusForbidden, "Access is forbidden.")
+	case *expr.HTTPServiceExpr:
+		ensureAuthError(actual.ServiceExpr, authUnauthorizedErrorName)
+		ensureAuthError(actual.ServiceExpr, authForbiddenErrorName)
+		ensureHTTPAuthError(&actual.HTTPErrors, actual, authUnauthorizedErrorName, expr.StatusUnauthorized, "Authentication is required.")
+		ensureHTTPAuthError(&actual.HTTPErrors, actual, authForbiddenErrorName, expr.StatusForbidden, "Access is forbidden.")
+	case *expr.HTTPEndpointExpr:
+		ensureAuthError(actual.MethodExpr, authUnauthorizedErrorName)
+		ensureAuthError(actual.MethodExpr, authForbiddenErrorName)
+		ensureHTTPAuthError(&actual.HTTPErrors, actual, authUnauthorizedErrorName, expr.StatusUnauthorized, "Authentication is required.")
+		ensureHTTPAuthError(&actual.HTTPErrors, actual, authForbiddenErrorName, expr.StatusForbidden, "Access is forbidden.")
+	default:
+		eval.IncompatibleDSL()
+	}
+}
+
 // NoSecurity removes the need for an endpoint to perform authorization.
 //
 // NoSecurity must appear in Method.
@@ -457,6 +491,57 @@ func Password(name string, args ...any) {
 func PasswordField(tag any, name string, args ...any) {
 	args = useDSL(args, func() { Meta("security:password") })
 	Field(tag, name, args...)
+}
+
+func ensureAuthError(scope eval.Expression, name string) {
+	switch actual := scope.(type) {
+	case *expr.RootExpr:
+		if actual.Error(name) != nil {
+			return
+		}
+		actual.Errors = append(actual.Errors, &expr.ErrorExpr{
+			Name: name,
+			AttributeExpr: &expr.AttributeExpr{
+				Type: expr.ErrorResult,
+			},
+		})
+	case *expr.ServiceExpr:
+		if actual.Error(name) != nil {
+			return
+		}
+		actual.Errors = append(actual.Errors, &expr.ErrorExpr{
+			Name: name,
+			AttributeExpr: &expr.AttributeExpr{
+				Type: expr.ErrorResult,
+			},
+		})
+	case *expr.MethodExpr:
+		if actual.Error(name) != nil {
+			return
+		}
+		actual.Errors = append(actual.Errors, &expr.ErrorExpr{
+			Name: name,
+			AttributeExpr: &expr.AttributeExpr{
+				Type: expr.ErrorResult,
+			},
+		})
+	}
+}
+
+func ensureHTTPAuthError(errors *[]*expr.HTTPErrorExpr, parent eval.Expression, name string, code int, description string) {
+	for _, err := range *errors {
+		if err.Name == name {
+			return
+		}
+	}
+	*errors = append(*errors, &expr.HTTPErrorExpr{
+		Name: name,
+		Response: &expr.HTTPResponseExpr{
+			StatusCode:  code,
+			Description: description,
+			Parent:      parent,
+		},
+	})
 }
 
 // APIKey defines the attribute used to provide the API key to an endpoint
