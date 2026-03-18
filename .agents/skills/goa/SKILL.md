@@ -21,15 +21,37 @@ Use this skill for `goa.design/goa/v3` work only. It does not cover Goa-AI.
 - Do not "fix" SSE by hand-editing generated stream files. Keep the fix in `design/*.go` or non-generated transport/runtime code.
 - Do not map multi-cookie responses through ad hoc `Header("set_cookies:Set-Cookie")` bags and then patch generated encoders. Prefer idiomatic Goa cookies in the DSL when feasible. If the response shape still depends on raw cookie header values, emit them from non-generated transport code on the live `http.ResponseWriter` instead of editing generated files.
 
-## Goa-Light Deltas
+## Goa-Light Contract Rules
 
-- For repo-specific framework changes and new DSL surface area, read `references/goa-light-deltas.md`.
-- Load that reference first when the task touches any of:
-  - OpenAPI output shape or downstream contract consumers
-  - session auth, cookies, or auth error response helpers
-  - union / `OneOf(...)` behavior or discriminator tags
-  - remediation-aware errors
-  - JSON-RPC transport behavior or generated contracts
+- `goa-light` emits OpenAPI 3.1 / JSON Schema 2020-12 only. The canonical artifacts are `gen/http/openapi.json` and `gen/http/openapi.yaml`.
+- Treat OpenAPI output shape as framework contract. Stable schema names, canonical `operationId`, and `libopenapi` validation are intentional behavior, not incidental formatting.
+- Wrapper-style unions now emit OpenAPI discriminators with:
+  - `discriminator.propertyName`
+  - `discriminator.mapping`
+  - `oneOf` refs to generated `...Envelope` component schemas
+- `OneOf(...)` works both as a named union declaration and as a type constructor.
+- Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
+- Session auth is first-class. Prefer the built-in DSL instead of hand-rolling bearer-or-cookie glue:
+  - `SessionAuth(name, fn)`
+  - `BearerTransport(scheme, fieldName, fn...)`
+  - `CookieTransport(scheme, fieldName, fn...)`
+  - `CookieName(name)`
+  - `SessionSecurity(contract)`
+- Use `AuthErrorResponses()` for standard HTTP auth failures instead of duplicating 401/403 mappings.
+- Prefer modeled response cookies over raw `Set-Cookie` header bags. `SessionCookie(...)` is the secure-default helper for common session issuance.
+- Structured remediation metadata is part of the contract surface. Use:
+  - `Remedy(fn)`
+  - `RemedyCode(code)`
+  - `SafeMessage(message)`
+  - `RetryHint(hint)`
+- JSON-RPC is a first-class transport in this repo. Do not assume HTTP or gRPC semantics automatically carry over.
+
+## Practical Checks
+
+- If a design hand-models bearer-or-cookie auth, duplicated auth responses, or raw `Set-Cookie` headers, check whether the newer session and cookie DSL should replace that glue first.
+- If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
+- If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
+- If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
 
 ## Default Workflow
 
@@ -55,7 +77,6 @@ goa example <module-import-path>/design
 ## References
 
 - Framework/source map: `references/repo-map.md`
-- Repo-specific feature and DSL changes: `references/goa-light-deltas.md`
 - Use only the original full guide pages under `references/user-guides/*.md`.
 - For framework/runtime internals, inspect the Goa source tree described in `references/repo-map.md`.
 
@@ -69,11 +90,10 @@ goa example <module-import-path>/design
 - `references/user-guides/error-handling.md`
 - `references/user-guides/interceptors.md`
 - `references/user-guides/production.md`
-- `references/goa-light-deltas.md`
 
 ## Selection Rules
 
 - Start with the one full guide page that best matches the immediate task.
-- For repo-specific behavior differences from upstream Goa, load `references/goa-light-deltas.md` before inspecting the wider source tree.
+- For repo-specific behavior differences from upstream Goa, use the `Goa-Light Contract Rules` section in this skill before inspecting the wider source tree.
 - Load additional full guide pages only if the first one is insufficient.
 - Prefer `references/repo-map.md` and the Goa source tree for framework internals or runtime behavior.

@@ -22,6 +22,7 @@ Use Goa framework source as the authoritative reference for DSL and runtime beha
 - `SKILL.md`: primary routing index for bundled Goa docs
 - `references/user-guides/<topic>/...`: task-sized fragments for quick lookup
 - `references/user-guides/*.md`: full transcripts kept as fallbacks when a fragment is insufficient
+- Repo-specific `goa-light` contract behavior now lives in the skill itself under `Goa-Light Contract Rules`, not in a separate delta appendix.
 
 ## Suggested Lookup Flow
 
