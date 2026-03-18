@@ -54,39 +54,39 @@ type BidirectionalStreamingMethodClientStream interface {
 // APayload is the streaming payload type of the BidirectionalStreamingService
 // service BidirectionalStreamingMethod method.
 type APayload struct {
-	IntField      int
-	StringField   string
-	BooleanField  bool
-	BytesField    []byte
-	OptionalField *string
+	IntField      int     `json:"IntField"`
+	StringField   string  `json:"StringField"`
+	BooleanField  bool    `json:"BooleanField"`
+	BytesField    []byte  `json:"BytesField"`
+	OptionalField *string `json:"OptionalField,omitempty"`
 }
 
 // AResult is the result type of the BidirectionalStreamingService service
 // BidirectionalStreamingMethod method.
 type AResult struct {
-	IntField      int
-	StringField   string
-	BooleanField  bool
-	BytesField    []byte
-	OptionalField *string
+	IntField      int     `json:"IntField"`
+	StringField   string  `json:"StringField"`
+	BooleanField  bool    `json:"BooleanField"`
+	BytesField    []byte  `json:"BytesField"`
+	OptionalField *string `json:"OptionalField,omitempty"`
 }
 
 // BPayload is the payload type of the BidirectionalStreamingService service
 // BidirectionalStreamingMethod method.
 type BPayload struct {
-	ArrayField  []bool
-	MapField    map[int]string
+	ArrayField  []bool         `json:"ArrayField,omitempty"`
+	MapField    map[int]string `json:"MapField,omitempty"`
 	ObjectField *struct {
-		IntField    *int
-		StringField *string
-	}
-	UserTypeField *Parent
+		IntField    *int    `json:"IntField,omitempty"`
+		StringField *string `json:"StringField,omitempty"`
+	} `json:"ObjectField,omitempty"`
+	UserTypeField *Parent `json:"UserTypeField,omitempty"`
 }
 
 type Child struct {
-	P *Parent
+	P *Parent `json:"p,omitempty"`
 }
 
 type Parent struct {
-	C *Child
+	C *Child `json:"c,omitempty"`
 }

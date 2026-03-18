@@ -26,7 +26,7 @@ var MethodNames = [2]string{"A", "list"}
 // ApplicationDashedType is the result type of the ResultWithDashedMimeType
 // service A method.
 type ApplicationDashedType struct {
-	Name *string
+	Name *string `json:"name,omitempty"`
 }
 
 type ApplicationDashedTypeCollection []*ApplicationDashedType
@@ -34,7 +34,7 @@ type ApplicationDashedTypeCollection []*ApplicationDashedType
 // ListResult is the result type of the ResultWithDashedMimeType service list
 // method.
 type ListResult struct {
-	Items ApplicationDashedTypeCollection
+	Items ApplicationDashedTypeCollection `json:"items,omitempty"`
 }
 
 // NewApplicationDashedType initializes result type ApplicationDashedType from

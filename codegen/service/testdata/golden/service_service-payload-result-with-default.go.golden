@@ -23,16 +23,16 @@ var MethodNames = [1]string{"A"}
 
 // APayload is the payload type of the WithDefault service A method.
 type APayload struct {
-	IntField      int
-	StringField   string
-	OptionalField *string
-	RequiredField float32
+	IntField      int     `json:"IntField,omitempty"`
+	StringField   string  `json:"StringField,omitempty"`
+	OptionalField *string `json:"OptionalField,omitempty"`
+	RequiredField float32 `json:"RequiredField"`
 }
 
 // AResult is the result type of the WithDefault service A method.
 type AResult struct {
-	IntField      int
-	StringField   string
-	OptionalField *string
-	RequiredField float32
+	IntField      int     `json:"IntField,omitempty"`
+	StringField   string  `json:"StringField,omitempty"`
+	OptionalField *string `json:"OptionalField,omitempty"`
+	RequiredField float32 `json:"RequiredField"`
 }

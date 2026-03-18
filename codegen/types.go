@@ -74,9 +74,10 @@ func AttributeTags(_, att *expr.AttributeExpr) string {
 // The "struct:tag:json" meta key always takes precedence and is treated as a
 // complete tag override value. When only "struct:tag:json:name" is set, Goa
 // computes the json tag and appends ",omitempty" when the field is not
-// required by its parent object.
+// required by its parent object. When no explicit JSON metadata is present,
+// Goa emits a default json tag that preserves the DSL field name.
 func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *expr.AttributeExpr) string {
-	if att == nil || len(att.Meta) == 0 {
+	if att == nil {
 		return ""
 	}
 	tags := make(map[string]string)
@@ -109,6 +110,12 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 	}
 	if _, ok := tags["json"]; !ok && jsonName != "" {
 		if parent != nil && fieldName != "" && !parent.IsRequired(fieldName) {
+			jsonName += ",omitempty"
+		}
+		tags["json"] = jsonName
+	} else if _, ok := tags["json"]; !ok && fieldName != "" {
+		jsonName = fieldName
+		if parent != nil && !parent.IsRequired(fieldName) {
 			jsonName += ",omitempty"
 		}
 		tags["json"] = jsonName

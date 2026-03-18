@@ -27,13 +27,13 @@ var MethodNames = [1]string{"A"}
 
 // RT is the result type of the ResultWithResultTypeCollection service A method.
 type RT struct {
-	A RT2Collection
+	A RT2Collection `json:"a,omitempty"`
 }
 
 type RT2 struct {
-	C string
-	D int
-	E *string
+	C string  `json:"c"`
+	D int     `json:"d"`
+	E *string `json:"e,omitempty"`
 }
 
 type RT2Collection []*RT2

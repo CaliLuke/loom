@@ -63,19 +63,19 @@ type BidirectionalStreamingResultWithViewsMethodClientStream interface {
 // BidirectionalStreamingResultWithViewsService service
 // BidirectionalStreamingResultWithViewsMethod method.
 type APayload struct {
-	IntField      int
-	StringField   string
-	BooleanField  bool
-	BytesField    []byte
-	OptionalField *string
+	IntField      int     `json:"IntField"`
+	StringField   string  `json:"StringField"`
+	BooleanField  bool    `json:"BooleanField"`
+	BytesField    []byte  `json:"BytesField"`
+	OptionalField *string `json:"OptionalField,omitempty"`
 }
 
 // MultipleViews is the result type of the
 // BidirectionalStreamingResultWithViewsService service
 // BidirectionalStreamingResultWithViewsMethod method.
 type MultipleViews struct {
-	A *string
-	B *string
+	A *string `json:"a,omitempty"`
+	B *string `json:"b,omitempty"`
 }
 
 // NewMultipleViews initializes result type MultipleViews from viewed result

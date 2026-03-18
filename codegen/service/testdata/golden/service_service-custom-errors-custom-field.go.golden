@@ -22,7 +22,7 @@ const ServiceName = "CustomErrorsCustomFields"
 var MethodNames = [1]string{"A"}
 
 type GoaError struct {
-	ErrorCode string
+	ErrorCode string `json:"error"`
 }
 
 // Error returns an error description.

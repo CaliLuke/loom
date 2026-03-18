@@ -28,11 +28,11 @@ var MethodNames = [3]string{"A", "B", "EnvelopedB"}
 // EnvelopedBPayload is the payload type of the MultiplePkgPathMethod service
 // EnvelopedB method.
 type EnvelopedBPayload struct {
-	Baz *baz.Baz
+	Baz *baz.Baz `json:"Baz,omitempty"`
 }
 
 // EnvelopedBResult is the result type of the MultiplePkgPathMethod service
 // EnvelopedB method.
 type EnvelopedBResult struct {
-	Baz *baz.Baz
+	Baz *baz.Baz `json:"Baz,omitempty"`
 }

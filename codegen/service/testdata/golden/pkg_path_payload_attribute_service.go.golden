@@ -23,5 +23,5 @@ var MethodNames = [1]string{"Foo"}
 
 // Bar is the payload type of the PkgPathPayloadAttributeDSL service Foo method.
 type Bar struct {
-	Foo *foo.Foo
+	Foo *foo.Foo `json:"Foo,omitempty"`
 }

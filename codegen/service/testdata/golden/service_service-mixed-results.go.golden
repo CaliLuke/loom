@@ -44,17 +44,17 @@ type MixedResultsMethodClientStream interface {
 // EventType is the streaming result type of the MixedResultsEndpoint service
 // MixedResultsMethod method.
 type EventType struct {
-	Message string
+	Message string `json:"message"`
 }
 
 // Payload is the payload type of the MixedResultsEndpoint service
 // MixedResultsMethod method.
 type Payload struct {
-	ID string
+	ID string `json:"id"`
 }
 
 // ResultType is the result type of the MixedResultsEndpoint service
 // MixedResultsMethod method.
 type ResultType struct {
-	OK bool
+	OK bool `json:"ok"`
 }

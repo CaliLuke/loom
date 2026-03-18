@@ -22,5 +22,5 @@ const ServiceName = "ForceGenerateTypeExplicit"
 var MethodNames = [1]string{"A"}
 
 type ForcedType struct {
-	A *string
+	A *string `json:"a,omitempty"`
 }

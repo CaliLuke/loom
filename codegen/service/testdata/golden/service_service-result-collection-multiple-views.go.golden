@@ -25,8 +25,8 @@ const ServiceName = "ResultCollectionMultipleViewsMethod"
 var MethodNames = [1]string{"A"}
 
 type MultipleViews struct {
-	A string
-	B int
+	A string `json:"a"`
+	B int    `json:"b"`
 }
 
 // MultipleViewsCollection is the result type of the

@@ -32,7 +32,7 @@ var MethodNames = [1]string{"A"}
 // APayload is the payload type of the MixedAndMultipleAPIKeySecurity service A
 // method.
 type APayload struct {
-	JWT      *string
-	APIKey   *string
-	TenantID *string
+	JWT      *string `json:"jwt,omitempty"`
+	APIKey   *string `json:"api_key,omitempty"`
+	TenantID *string `json:"tenant_id,omitempty"`
 }

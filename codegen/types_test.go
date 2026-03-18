@@ -103,15 +103,15 @@ func TestGoTypeDef(t *testing.T) {
 		"UserTypeExpr":   {userType, false, true, "UserType"},
 		"ResultTypeExpr": {resultType, false, true, "ResultType"},
 
-		"Object":                                 {requiredObj, false, true, "struct {\n\tIntField int\n\tStringField string\n}"},
-		"ObjDefault":                             {defaultObj, false, true, "struct {\n\tIntField int\n\tStringField string\n}"},
-		"ObjDefaultNoDef":                        {defaultObj, false, false, "struct {\n\tIntField *int\n\tStringField *string\n}"},
-		"ObjMixed":                               {mixedObj, false, true, "struct {\n\tIntField int\n\tArrayField []bool\n\tMapField map[int]string\n\tUserTypeField UserType\n\tMetaTypeField json.RawMessage\n\tQualifiedMetaTypeField jason.RawMessage\n\tStructPkgPath *types.UserType\n\tNestedStructPkgPath *pkg.NestedUserType\n}"},
-		"ObjMixedPointer":                        {mixedObj, true, true, "struct {\n\tIntField *int\n\tArrayField []bool\n\tMapField map[int]string\n\tUserTypeField *UserType\n\tMetaTypeField *json.RawMessage\n\tQualifiedMetaTypeField *jason.RawMessage\n\tStructPkgPath *types.UserType\n\tNestedStructPkgPath *pkg.NestedUserType\n}"},
-		"ObjMixedWithStructPkgPath":              {mixedObjWithStructPkgPath, false, true, "struct {\n\tIntField int\n\tArrayField []bool\n\tMapField map[int]string\n\tUserTypeField UserType\n\tMetaTypeField json.RawMessage\n\tQualifiedMetaTypeField jason.RawMessage\n\tStructPkgPath *UserType\n\tNestedStructPkgPath *pkg.NestedUserType\n}"},
-		"ObjMixedWithStructPkgPathPointer":       {mixedObjWithStructPkgPath, true, true, "struct {\n\tIntField *int\n\tArrayField []bool\n\tMapField map[int]string\n\tUserTypeField *UserType\n\tMetaTypeField *json.RawMessage\n\tQualifiedMetaTypeField *jason.RawMessage\n\tStructPkgPath *UserType\n\tNestedStructPkgPath *pkg.NestedUserType\n}"},
-		"ObjMixedWithNestedStructPkgPath":        {mixedObjWithNestedStructPkgPath, false, true, "struct {\n\tIntField int\n\tArrayField []bool\n\tMapField map[int]string\n\tUserTypeField UserType\n\tMetaTypeField json.RawMessage\n\tQualifiedMetaTypeField jason.RawMessage\n\tStructPkgPath *types.UserType\n\tNestedStructPkgPath *NestedUserType\n}"},
-		"ObjMixedWithNestedStructPkgPathPointer": {mixedObjWithNestedStructPkgPath, true, true, "struct {\n\tIntField *int\n\tArrayField []bool\n\tMapField map[int]string\n\tUserTypeField *UserType\n\tMetaTypeField *json.RawMessage\n\tQualifiedMetaTypeField *jason.RawMessage\n\tStructPkgPath *types.UserType\n\tNestedStructPkgPath *NestedUserType\n}"},
+		"Object":                                 {requiredObj, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tStringField string `json:\"StringField\"`\n}"},
+		"ObjDefault":                             {defaultObj, false, true, "struct {\n\tIntField int `json:\"IntField,omitempty\"`\n\tStringField string `json:\"StringField,omitempty\"`\n}"},
+		"ObjDefaultNoDef":                        {defaultObj, false, false, "struct {\n\tIntField *int `json:\"IntField,omitempty\"`\n\tStringField *string `json:\"StringField,omitempty\"`\n}"},
+		"ObjMixed":                               {mixedObj, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField UserType `json:\"UserTypeField\"`\n\tMetaTypeField json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *types.UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
+		"ObjMixedPointer":                        {mixedObj, true, true, "struct {\n\tIntField *int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField *UserType `json:\"UserTypeField\"`\n\tMetaTypeField *json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField *jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *types.UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
+		"ObjMixedWithStructPkgPath":              {mixedObjWithStructPkgPath, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField UserType `json:\"UserTypeField\"`\n\tMetaTypeField json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
+		"ObjMixedWithStructPkgPathPointer":       {mixedObjWithStructPkgPath, true, true, "struct {\n\tIntField *int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField *UserType `json:\"UserTypeField\"`\n\tMetaTypeField *json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField *jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
+		"ObjMixedWithNestedStructPkgPath":        {mixedObjWithNestedStructPkgPath, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField UserType `json:\"UserTypeField\"`\n\tMetaTypeField json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *types.UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
+		"ObjMixedWithNestedStructPkgPathPointer": {mixedObjWithNestedStructPkgPath, true, true, "struct {\n\tIntField *int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField *UserType `json:\"UserTypeField\"`\n\tMetaTypeField *json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField *jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *types.UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
 
 		"MetaTypeSameAsDesign":                      {&expr.AttributeExpr{Type: expr.String, Meta: stringMetaType}, false, true, "string"},
 		"MetaTypeOverrideDesign":                    {&expr.AttributeExpr{Type: expr.String, Meta: jsonWithImportMetaType}, false, true, "json.RawMessage"},
@@ -174,6 +174,24 @@ func TestAttributeTagsWithName_JSONName(t *testing.T) {
 		t.Fatalf("required: got %q, want %q", got, want)
 	}
 	if got, want := AttributeTagsWithName(parent, "OptionalField", optional), " `json:\"optional_field,omitempty\"`"; got != want {
+		t.Fatalf("optional: got %q, want %q", got, want)
+	}
+}
+
+func TestAttributeTagsWithName_DefaultJSONName(t *testing.T) {
+	parent := &expr.AttributeExpr{
+		Type: &expr.Object{
+			{Name: "required_field", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			{Name: "optional_field", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		},
+		Validation: &expr.ValidationExpr{Required: []string{"required_field"}},
+	}
+	required := &expr.AttributeExpr{Type: expr.String}
+	optional := &expr.AttributeExpr{Type: expr.String}
+	if got, want := AttributeTagsWithName(parent, "required_field", required), " `json:\"required_field\"`"; got != want {
+		t.Fatalf("required: got %q, want %q", got, want)
+	}
+	if got, want := AttributeTagsWithName(parent, "optional_field", optional), " `json:\"optional_field,omitempty\"`"; got != want {
 		t.Fatalf("optional: got %q, want %q", got, want)
 	}
 }

@@ -56,8 +56,8 @@ type StreamingPayloadResultWithExplicitViewMethodClientStream interface {
 // StreamingPayloadResultWithExplicitViewService service
 // StreamingPayloadResultWithExplicitViewMethod method.
 type MultipleViews struct {
-	A *string
-	B *string
+	A *string `json:"a,omitempty"`
+	B *string `json:"b,omitempty"`
 }
 
 // NewMultipleViews initializes result type MultipleViews from viewed result

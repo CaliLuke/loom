@@ -22,16 +22,16 @@ const ServiceName = "CustomErrors"
 var MethodNames = [1]string{"A"}
 
 type APayload struct {
-	IntField      int
-	StringField   string
-	BooleanField  bool
-	BytesField    []byte
-	OptionalField *string
+	IntField      int     `json:"IntField"`
+	StringField   string  `json:"StringField"`
+	BooleanField  bool    `json:"BooleanField"`
+	BytesField    []byte  `json:"BytesField"`
+	OptionalField *string `json:"OptionalField,omitempty"`
 }
 
 type Result struct {
-	A *string
-	B string
+	A *string `json:"a,omitempty"`
+	B string  `json:"b"`
 }
 
 // primitive error description

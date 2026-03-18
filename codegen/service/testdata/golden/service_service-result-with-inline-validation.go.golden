@@ -26,15 +26,15 @@ var MethodNames = [2]string{"A", "B"}
 // ResultInlineValidation is the result type of the ResultWithInlineValidation
 // service A method.
 type ResultInlineValidation struct {
-	A *string
-	B *int
+	A *string `json:"a,omitempty"`
+	B *int    `json:"b,omitempty"`
 }
 
 // ResultInlineValidationBResult is the result type of the
 // ResultWithInlineValidation service B method.
 type ResultInlineValidationBResult struct {
-	A string
-	B *int
+	A string `json:"a"`
+	B *int   `json:"b,omitempty"`
 }
 
 // NewResultInlineValidation initializes result type ResultInlineValidation

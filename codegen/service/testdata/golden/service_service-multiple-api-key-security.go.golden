@@ -29,6 +29,6 @@ var MethodNames = [1]string{"A"}
 
 // APayload is the payload type of the MultipleAPIKeySecurity service A method.
 type APayload struct {
-	APIKey   string
-	TenantID string
+	APIKey   string `json:"api_key"`
+	TenantID string `json:"tenant_id"`
 }

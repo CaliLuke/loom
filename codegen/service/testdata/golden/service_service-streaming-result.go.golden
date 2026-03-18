@@ -44,19 +44,19 @@ type StreamingResultMethodClientStream interface {
 // APayload is the payload type of the StreamingResultService service
 // StreamingResultMethod method.
 type APayload struct {
-	IntField      int
-	StringField   string
-	BooleanField  bool
-	BytesField    []byte
-	OptionalField *string
+	IntField      int     `json:"IntField"`
+	StringField   string  `json:"StringField"`
+	BooleanField  bool    `json:"BooleanField"`
+	BytesField    []byte  `json:"BytesField"`
+	OptionalField *string `json:"OptionalField,omitempty"`
 }
 
 // AResult is the result type of the StreamingResultService service
 // StreamingResultMethod method.
 type AResult struct {
-	IntField      int
-	StringField   string
-	BooleanField  bool
-	BytesField    []byte
-	OptionalField *string
+	IntField      int     `json:"IntField"`
+	StringField   string  `json:"StringField"`
+	BooleanField  bool    `json:"BooleanField"`
+	BytesField    []byte  `json:"BytesField"`
+	OptionalField *string `json:"OptionalField,omitempty"`
 }
