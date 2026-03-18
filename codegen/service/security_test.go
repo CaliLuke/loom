@@ -72,6 +72,51 @@ func TestSessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {
 	assert.Contains(t, sessionMethod.PayloadDef, "Message *string")
 }
 
+func TestAPISessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {
+	manualRoot := codegen.RunDSL(t, testdata.EndpointWithBearerOrCookieAPISecurityDSL)
+	sessionRoot := codegen.RunDSL(t, testdata.EndpointWithAPISessionSecurityDSL)
+
+	manualServices := NewServicesData(manualRoot)
+	sessionServices := NewServicesData(sessionRoot)
+
+	manualMethod := manualServices.Get("EndpointWithBearerOrCookieAPISecurity").Method("Secure")
+	sessionMethod := sessionServices.Get("EndpointWithAPISessionSecurity").Method("Secure")
+	require.NotNil(t, manualMethod)
+	require.NotNil(t, sessionMethod)
+
+	require.Len(t, manualMethod.Requirements, 2)
+	require.Len(t, sessionMethod.Requirements, 2)
+
+	manualJWT := manualMethod.Requirements.Scheme("jwt")
+	sessionJWT := sessionMethod.Requirements.Scheme("jwt")
+	require.NotNil(t, manualJWT)
+	require.NotNil(t, sessionJWT)
+	assert.Equal(t, manualJWT.Type, sessionJWT.Type)
+	assert.Equal(t, manualJWT.CredField, sessionJWT.CredField)
+
+	manualAPIKey := manualMethod.Requirements.Scheme("api_key")
+	sessionAPIKey := sessionMethod.Requirements.Scheme("api_key")
+	require.NotNil(t, manualAPIKey)
+	require.NotNil(t, sessionAPIKey)
+	assert.Equal(t, manualAPIKey.Type, sessionAPIKey.Type)
+	assert.Equal(t, manualAPIKey.CredField, sessionAPIKey.CredField)
+
+	assert.Contains(t, sessionMethod.PayloadDef, "Auth *string")
+	assert.Contains(t, sessionMethod.PayloadDef, "BrowserSession *string")
+	assert.Contains(t, sessionMethod.PayloadDef, "Message *string")
+}
+
+func TestSessionSecurityNoSecurityOverrideRemovesGeneratedRequirements(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.EndpointWithServiceSessionSecurityNoSecurityDSL)
+	services := NewServicesData(root)
+	method := services.Get("EndpointWithServiceSessionSecurityNoSecurity").Method("Secure")
+	require.NotNil(t, method)
+	assert.Empty(t, method.Requirements)
+	assert.NotContains(t, method.PayloadDef, "Auth *string")
+	assert.NotContains(t, method.PayloadDef, "BrowserSession *string")
+	assert.Contains(t, method.PayloadDef, "Message *string")
+}
+
 func TestSecureEndpoint(t *testing.T) {
 	cases := []struct {
 		Name string

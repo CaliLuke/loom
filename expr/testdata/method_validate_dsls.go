@@ -206,6 +206,26 @@ var ValidAPISessionSecurityDSL = func() {
 	})
 }
 
+var ValidServiceSessionSecurityNoSecurityDSL = func() {
+	var JWT = JWTSecurity("jwt")
+	var APIKey = APIKeySecurity("api_key")
+	var AppSession = SessionAuth("service_no_security_session", func() {
+		BearerTransport(JWT, "auth")
+		CookieTransport(APIKey, "browser_session")
+	})
+
+	Service("ValidServiceSessionSecurityNoSecurityService", func() {
+		SessionSecurity(AppSession)
+		Method("SecureMethod", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("payload", String)
+			})
+			Result(String)
+		})
+	})
+}
+
 var InvalidSessionSecurityPayloadConflictDSL = func() {
 	var AppSession = SessionAuth("conflict_session", func() {
 		BearerTransport(JWTAuth, "auth")

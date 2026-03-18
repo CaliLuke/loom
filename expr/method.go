@@ -478,6 +478,9 @@ func copySessionAuths(sessionAuths []*SessionAuthExpr) []*SessionAuthExpr {
 }
 
 func (m *MethodExpr) validationRequirements() []*SecurityExpr {
+	if m.hasNoSecurityRequirement() {
+		return nil
+	}
 	requirements := copyReqs(m.Requirements)
 	if len(requirements) == 0 {
 		switch {
@@ -492,6 +495,9 @@ func (m *MethodExpr) validationRequirements() []*SecurityExpr {
 }
 
 func (m *MethodExpr) validationSessionAuths() []*SessionAuthExpr {
+	if m.hasNoSecurityRequirement() {
+		return nil
+	}
 	sessionAuths := copySessionAuths(m.SessionAuths)
 	if len(sessionAuths) == 0 {
 		switch {
@@ -561,6 +567,17 @@ func requirementEqual(left *SecurityExpr, right *SecurityExpr) bool {
 		}
 	}
 	return true
+}
+
+func (m *MethodExpr) hasNoSecurityRequirement() bool {
+	for _, req := range m.Requirements {
+		for _, scheme := range req.Schemes {
+			if scheme.Kind == NoKind {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (m *MethodExpr) injectSessionAuthPayloadFields() *eval.ValidationErrors {

@@ -174,6 +174,15 @@ func TestAPISessionSecurityDerivesMethodRequirements(t *testing.T) {
 	assert.Equal(t, expr.APIKeyKind, method.Requirements[1].Schemes[0].Kind)
 }
 
+func TestSessionSecurityNoSecurityOverrideClearsDerivedState(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidServiceSessionSecurityNoSecurityDSL)
+	method := root.Service("ValidServiceSessionSecurityNoSecurityService").Method("SecureMethod")
+	assert.Empty(t, method.Requirements)
+	assert.Empty(t, method.SessionAuths)
+	assert.Nil(t, method.Payload.Find("auth"))
+	assert.Nil(t, method.Payload.Find("browser_session"))
+}
+
 func TestSessionSecurityInjectsPayloadFields(t *testing.T) {
 	root := expr.RunDSL(t, testdata.ValidSessionSecurityAutoPayloadDSL)
 	method := root.Service("ValidSessionSecurityAutoPayloadService").Method("SecureMethod")

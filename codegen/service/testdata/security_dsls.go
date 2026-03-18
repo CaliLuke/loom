@@ -209,6 +209,55 @@ var EndpointWithSessionSecurityDSL = func() {
 	})
 }
 
+var EndpointWithBearerOrCookieAPISecurityDSL = func() {
+	API("EndpointWithBearerOrCookieAPISecurityAPI", func() {
+		Security(JWTAuth)
+		Security(APIKeyAuth)
+	})
+	Service("EndpointWithBearerOrCookieAPISecurity", func() {
+		Method("Secure", func() {
+			Payload(func() {
+				Token("auth", String)
+				APIKey("api_key", "browser_session", String)
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
+var EndpointWithAPISessionSecurityDSL = func() {
+	var AppSession = SessionAuth("api_app_session", func() {
+		BearerTransport(JWTAuth, "auth")
+		CookieTransport(APIKeyAuth, "browser_session")
+	})
+	API("EndpointWithAPISessionSecurityAPI", func() {
+		SessionSecurity(AppSession)
+	})
+	Service("EndpointWithAPISessionSecurity", func() {
+		Method("Secure", func() {
+			Payload(func() {
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
+var EndpointWithServiceSessionSecurityNoSecurityDSL = func() {
+	var AppSession = SessionAuth("service_app_session", func() {
+		BearerTransport(JWTAuth, "auth")
+		CookieTransport(APIKeyAuth, "browser_session")
+	})
+	Service("EndpointWithServiceSessionSecurityNoSecurity", func() {
+		SessionSecurity(AppSession)
+		Method("Secure", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
 var SingleServiceDSL = func() {
 	Service("SingleService", func() {
 		Method("Method", func() {

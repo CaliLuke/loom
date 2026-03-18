@@ -554,7 +554,7 @@ func validateMetadata(metAtt *MappedAttributeExpr, serviceAtt *AttributeExpr, e 
 func getSecurityAttributes(m *MethodExpr) []string {
 	var secAttrs []string
 
-	for _, req := range m.Requirements {
+	for _, req := range m.validationRequirements() {
 		for _, sch := range req.Schemes {
 			switch sch.Kind {
 			case BasicAuthKind:
