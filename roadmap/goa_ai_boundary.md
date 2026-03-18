@@ -4,7 +4,23 @@
 
 Move generic API-contract and transport semantics into `goa-light`, keep MCP/agent/runtime concerns in `goa-ai`, and remove application-specific leaks from generic framework generators.
 
-## Detailed Migration Plan
+## Status
+
+### Completed
+
+- move generic union discriminator tag handling into `goa-light`
+- move generic OpenAPI contract stability policy into `goa-light`
+- move generic auth/session transport modeling into `goa-light`
+
+### Next
+
+1. Audit `goa-ai` for remaining generic union/schema/example workarounds.
+2. Move generic remediation-aware errors into `goa-light`.
+3. Audit `goa-ai` for generic JSON-RPC transport patches and move them down.
+4. Remove direct app-specific framework coupling once the generic Goa-core hooks exist.
+5. Leave MCP annotations, tool runtime, planners, and registries in `goa-ai`.
+
+## Migration Plan
 
 ### 1. Union Discriminator and Schema Semantics
 
@@ -65,11 +81,3 @@ Move generic API-contract and transport semantics into `goa-light`, keep MCP/age
 ## Push Out Of The Frameworks
 
 - application-specific special-casing such as direct framework dependence on a single app-owned error package
-
-## Sequencing
-
-1. Audit `goa-ai` for remaining generic union/schema/example workarounds.
-2. Move generic remediation-aware errors into `goa-light`.
-3. Audit `goa-ai` for generic JSON-RPC transport patches and move them down.
-4. Remove direct app-specific framework coupling once the generic Goa-core hooks exist.
-5. Leave MCP annotations, tool runtime, planners, and registries in `goa-ai`.

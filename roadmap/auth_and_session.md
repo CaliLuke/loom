@@ -4,7 +4,25 @@
 
 Reduce application design-file glue while making the default security posture cleaner and safer.
 
-## Near-Term Priorities
+## Status
+
+### Completed
+
+- Add multi-transport session auth DSL:
+  - `SessionAuth(...)`
+  - `BearerTransport(...)`
+  - `CookieTransport(...)`
+  - `SessionSecurity(...)`
+- Auto-inject session auth payload fields.
+- Infer HTTP cookie bindings for session auth.
+- Add standard HTTP auth error response helper:
+  - `AuthErrorResponses()`
+- Add response-side session cookie helper with secure defaults:
+  - `SessionCookie(...)`
+- Harden auth and session-cookie tests, including non-happy-path coverage, gRPC, JSON-RPC, and real parser / cookie-jar round trips.
+- Replace response-wide cookie metadata with a per-cookie response model.
+
+### Next
 
 ### 1. Prove the New DSL Against `auto-k-server`
 
@@ -53,14 +71,18 @@ Architectural rule:
 - `goa-ai` should consume that model for tool and MCP behavior
 - concrete runtime libraries such as `remedy` may remain the preferred implementation target, but should not be the root abstraction in framework code
 
-## Architectural Backlog
+## Backlog
 
 ### Per-Cookie Attribute Modeling
 
-Current limitation:
+Status:
 
-- cookie attributes such as `Path`, `Domain`, `MaxAge`, `Secure`, `HttpOnly`, and `SameSite` are modeled at the HTTP response cookie container level
-- not per individual cookie
+- completed for response cookies
+
+Remaining follow-up:
+
+- confirm whether request-side cookie modeling needs the same cleanup
+- decide whether richer cookie issuance helpers should build directly on the new model
 
 Why this matters:
 

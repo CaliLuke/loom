@@ -4,13 +4,24 @@
 
 Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifact, not just human documentation.
 
-## Current Focus
+## Status
+
+### Completed
+
+- Remove OpenAPI v2 generation and keep the framework on OpenAPI 3.x only.
+- Upgrade OpenAPI generation to 3.1 / JSON Schema 2020-12.
+- Use `libopenapi` in the test harness for spec parsing and validation.
+- Align cookie documentation with actual wire-format serialization.
+- Use stable hash-based schema collision suffixes.
+- Canonicalize generated `operationId` values into a deterministic normalized form.
+
+### Next
 
 - keep OpenAPI 3.1 / JSON Schema 2020-12 as the canonical output
 - improve contract stability for downstream consumers
 - prefer semantic accuracy over preserving historical document shape
 
-## Priorities
+## Working Rules
 
 ### Keep Outsourcing Commodity Validation
 
@@ -31,7 +42,7 @@ Keep these policies in `goa-light`, not in plugins:
 - truthful response/body/security modeling
 - stable and accurate examples where possible
 
-## Follow-Up Work
+## Backlog
 
 - continue improving OpenAPI output where it materially helps machine consumers
 - keep contract-shape decisions centralized in `goa-light`

@@ -13,22 +13,33 @@ The value proposition is:
 
 This roadmap is meant to keep work focused on those outcomes instead of accumulating disconnected compatibility patches.
 
-## Current Direction
+## Status
 
-The next work should continue to optimize for two things:
+### Completed
 
-1. Reducing application design-file glue.
-2. Making security-related defaults safer without turning `goa-light` into an auth runtime.
+- OpenAPI v2 removal and OpenAPI 3.1 / JSON Schema 2020-12 baseline.
+- `libopenapi`-backed spec validation in the test harness.
+- `OneOf(...)` constructor support and explicit union discriminator tag preservation.
+- Request-body validator parity and transform helper parity needed by `auto-k-server`.
+- Session auth DSL and derived auth/session transport behavior.
+- Per-cookie response model and improved `Set-Cookie` OpenAPI output.
+- Stable OpenAPI schema naming and canonical `operationId` generation.
 
-Framework-level modeling and code generation belong in `goa-light`.
-Token verification, OIDC, session storage, cookie signing/encryption, and similar runtime security concerns should stay delegated to specialized libraries.
+### In Progress
+
+- none
+
+### Next
+
+- prove the new auth/session DSL against `auto-k-server` and measure glue reduction
+- audit `goa-ai` for generic Goa-core workarounds and move them into `goa-light`
+- design remediation-aware error contracts as a first-class Goa concept
 
 ## Roadmap Index
 
-- [Completed Foundation](./completed_foundation.md)
 - [OpenAPI Contract](./openapi_contract.md)
-- [Auth and Session DSL](./auth_and_session.md)
-- [Goa-AI Boundary Cleanup](./goa_ai_boundary.md)
+- [Auth and Session](./auth_and_session.md)
+- [Goa-AI Boundary](./goa_ai_boundary.md)
 
 ## Things to Avoid
 
