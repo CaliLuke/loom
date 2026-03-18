@@ -6,8 +6,18 @@ import (
 )
 
 type testRemediableError struct{}
+type testStatusCodeError struct{}
+type testStatusError struct{}
 
 func (testRemediableError) Error() string { return "unsafe detail" }
+func (testStatusCodeError) Error() string { return "status code detail" }
+func (testStatusError) Error() string     { return "status detail" }
+func (testStatusCodeError) StatusCode() int {
+	return 422
+}
+func (testStatusError) Status() int {
+	return 404
+}
 
 func (testRemediableError) GoaErrorRemedy() *ErrorRemedy {
 	return &ErrorRemedy{
@@ -103,6 +113,18 @@ func TestExtractErrorRemedy(t *testing.T) {
 		}
 		if got := ErrorRetryHint(err); got != "" {
 			t.Errorf("got retry hint %q", got)
+		}
+	})
+
+	t.Run("generic status code extraction", func(t *testing.T) {
+		if got, ok := ErrorStatusCode(testStatusCodeError{}); !ok || got != 422 {
+			t.Errorf("got status code (%d, %t)", got, ok)
+		}
+		if got, ok := ErrorStatusCode(testStatusError{}); !ok || got != 404 {
+			t.Errorf("got status (%d, %t)", got, ok)
+		}
+		if got, ok := ErrorStatusCode(errors.New("raw detail")); ok || got != 0 {
+			t.Errorf("got unexpected status (%d, %t)", got, ok)
 		}
 	})
 }

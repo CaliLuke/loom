@@ -60,6 +60,17 @@ type (
 	GoaErrorRemedier interface {
 		GoaErrorRemedy() *ErrorRemedy
 	}
+
+	// GoaErrorStatuser is implemented by errors that expose an HTTP status code.
+	GoaErrorStatuser interface {
+		StatusCode() int
+	}
+
+	// GoaErrorStatusReporter is implemented by errors that expose an HTTP
+	// status code via Status.
+	GoaErrorStatusReporter interface {
+		Status() int
+	}
 )
 
 const (

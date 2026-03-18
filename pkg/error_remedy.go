@@ -52,3 +52,20 @@ func ErrorRetryHint(err error) string {
 	}
 	return ""
 }
+
+// ErrorStatusCode returns the status code associated with err when the error
+// exposes one via a generic status interface.
+func ErrorStatusCode(err error) (int, bool) {
+	if err == nil {
+		return 0, false
+	}
+	var statuser GoaErrorStatuser
+	if errors.As(err, &statuser) {
+		return statuser.StatusCode(), true
+	}
+	var reporter GoaErrorStatusReporter
+	if errors.As(err, &reporter) {
+		return reporter.Status(), true
+	}
+	return 0, false
+}
