@@ -38,6 +38,7 @@ func TestService(t *testing.T) {
 		{"service-result-with-one-of-type", testdata.ResultWithOneOfTypeMethodDSL},
 		{"service-result-with-inline-validation", testdata.ResultWithInlineValidationDSL},
 		{"service-service-level-error", testdata.ServiceErrorDSL},
+		{"service-error-remedy-method", testdata.ErrorRemedyMethodDSL},
 		{"service-custom-errors", testdata.CustomErrorsDSL},
 		{"service-custom-errors-custom-field", testdata.CustomErrorsCustomFieldDSL},
 		{"service-force-generate-type", testdata.ForceGenerateTypeDSL},

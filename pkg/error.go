@@ -10,6 +10,19 @@ import (
 )
 
 type (
+	// ErrorRemedy describes machine-consumable remediation guidance attached to
+	// an error.
+	ErrorRemedy struct {
+		// Code is the stable remediation code consumers may use to classify the
+		// failure.
+		Code string
+		// SafeMessage is the safe, user-facing message to surface without
+		// leaking internal details.
+		SafeMessage string
+		// RetryHint is concise guidance on how to correct the request or retry.
+		RetryHint string
+	}
+
 	// ServiceError is the default error type used by the goa package to
 	// encode and decode error responses.
 	ServiceError struct {
@@ -27,6 +40,8 @@ type (
 		Temporary bool
 		// Is the error a server-side fault?
 		Fault bool
+		// Remedy contains optional remediation guidance for the error.
+		Remedy *ErrorRemedy
 		// History tracks all the individual errors that were built into this error, should
 		// this error have been merged.
 		history []*ServiceError
@@ -38,6 +53,12 @@ type (
 	// exposes the name of the error as defined in the design.
 	GoaErrorNamer interface {
 		GoaErrorName() string
+	}
+
+	// GoaErrorRemedier is implemented by errors that expose remediation
+	// guidance defined in the design.
+	GoaErrorRemedier interface {
+		GoaErrorRemedy() *ErrorRemedy
 	}
 )
 
@@ -269,6 +290,15 @@ func (e *ServiceError) ErrorName() string { return e.Name }
 
 // GoaErrorName returns the error name.
 func (e *ServiceError) GoaErrorName() string { return e.ErrorName() }
+
+// GoaErrorRemedy returns the remediation guidance attached to the error, if
+// any.
+func (e *ServiceError) GoaErrorRemedy() *ErrorRemedy {
+	if e == nil {
+		return nil
+	}
+	return e.Remedy
+}
 
 func (e *ServiceError) Unwrap() error { return e.err }
 

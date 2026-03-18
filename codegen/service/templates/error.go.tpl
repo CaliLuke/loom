@@ -14,3 +14,14 @@ func (e {{ .Ref }}) ErrorName() string {
 func (e {{ .Ref }}) GoaErrorName() string {
 	return {{ errorName . }}
 }
+{{- if or .RemedyCode .SafeMessage .RetryHint }}
+
+// GoaErrorRemedy returns the remediation guidance for the error.
+func (e {{ .Ref }}) GoaErrorRemedy() *goa.ErrorRemedy {
+	return &goa.ErrorRemedy{
+		Code:        {{ printf "%q" .RemedyCode }},
+		SafeMessage: {{ printf "%q" .SafeMessage }},
+		RetryHint:   {{ printf "%q" .RetryHint }},
+	}
+}
+{{- end }}

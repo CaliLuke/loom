@@ -434,6 +434,12 @@ type (
 		Loc *codegen.Location
 		// Type is the underlying type.
 		Type expr.UserType
+		// RemedyCode is the stable remediation code for this error type if declared.
+		RemedyCode string
+		// SafeMessage is the safe, user-facing message for this error type if declared.
+		SafeMessage string
+		// RetryHint is retry or correction guidance for this error type if declared.
+		RetryHint string
 	}
 
 	// UnionTypeData describes a generated sum-type union for a service.
@@ -758,7 +764,19 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 
 	// A function to collect user types from an error expression
 	recordError := func(er *expr.ErrorExpr) {
-		errTypes = append(errTypes, collectTypes(er.AttributeExpr, scope, seen, nil)...)
+		collected := collectTypes(er.AttributeExpr, scope, seen, nil)
+		errTypes = append(errTypes, collected...)
+		if ut, ok := er.Type.(expr.UserType); ok {
+			for _, t := range collected {
+				if t.Type.ID() != ut.ID() {
+					continue
+				}
+				t.RemedyCode = errorRemedyCode(er)
+				t.SafeMessage = errorSafeMessage(er)
+				t.RetryHint = errorRetryHint(er)
+				break
+			}
+		}
 		if er.Type == expr.ErrorResult {
 			if _, ok := seenErrors[er.Name]; ok {
 				return
