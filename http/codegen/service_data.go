@@ -2116,9 +2116,11 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, e *
 		def = goTypeDef(sd.Scope, ut.Attribute(), svr, !svr)
 		desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.",
 			varname, svc.Name, e.Name())
-		if svr {
-			// generate validation code for unmarshaled type (server-side).
-			validateDef = codegen.ValidationCode(ut.Attribute(), ut, httpctx, true, expr.IsAlias(ut), false, "body")
+		// Generate validation code for unmarshaled request bodies on the server,
+		// and for client request bodies only when constructor unions require the
+		// corresponding validator helper during CLI payload validation.
+		if svr || containsUnionType(body.Type) {
+			validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
 			if validateDef != "" {
 				validateRef = fmt.Sprintf("err = Validate%s(&body)", varname)
 			}
@@ -2956,6 +2958,36 @@ func addMarshalTags(att *expr.AttributeExpr, seen map[string]struct{}) {
 		natt.Attribute.Meta["struct:tag:json"] = ns
 		natt.Attribute.Meta["struct:tag:xml"] = ns
 	}
+}
+
+func containsUnionType(dt expr.DataType) bool {
+	return containsUnionTypeRecursive(dt, make(map[string]struct{}))
+}
+
+func containsUnionTypeRecursive(dt expr.DataType, seen map[string]struct{}) bool {
+	switch actual := dt.(type) {
+	case nil:
+		return false
+	case *expr.Union:
+		return true
+	case expr.UserType:
+		if _, ok := seen[actual.ID()]; ok {
+			return false
+		}
+		seen[actual.ID()] = struct{}{}
+		return containsUnionTypeRecursive(actual.Attribute().Type, seen)
+	case *expr.Object:
+		for _, nat := range *actual {
+			if containsUnionTypeRecursive(nat.Attribute.Type, seen) {
+				return true
+			}
+		}
+	case *expr.Array:
+		return containsUnionTypeRecursive(actual.ElemType.Type, seen)
+	case *expr.Map:
+		return containsUnionTypeRecursive(actual.KeyType.Type, seen) || containsUnionTypeRecursive(actual.ElemType.Type, seen)
+	}
+	return false
 }
 
 // needInit returns true if and only if the given type is or makes use of user
