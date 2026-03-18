@@ -77,6 +77,33 @@ Continue using libraries for:
 
 Avoid reintroducing bespoke parsing or validator logic where standard libraries already do the job well.
 
+### 4. Make Remediation a First-Class Contract Concept
+
+Current direction:
+
+- keep design definitions as the driver of failure behavior
+- avoid hard-wiring application-specific error packages directly into core templates
+
+What this should become:
+
+- a first-class DSL concept for remediation-aware errors
+- generated consistently across HTTP, JSON-RPC, OpenAPI, and MCP/tool surfaces
+- reusable outside AI/MCP-specific transports
+
+Desired contract fields:
+
+- stable error code
+- user-safe message
+- retryability
+- hint / recommended next action
+- optional structured fields for downstream consumers
+
+Architectural rule:
+
+- `goa-light` should own the generic remediation/error contract
+- `goa-ai` should consume that model for tool and MCP behavior
+- concrete runtime libraries such as `remedy` may remain the preferred implementation target, but should not be the root abstraction in framework code
+
 ## Important Architectural Backlog
 
 ### Per-Cookie Attribute Modeling
@@ -114,6 +141,34 @@ Potential follow-up:
 - explicit “expire this session cookie” and “issue this session cookie” DSL conveniences
 
 Only do this after confirming the current `SessionCookie(...)` helper materially reduces glue and after deciding whether per-cookie metadata needs to come first.
+
+### Goa-AI to Goa-Core Boundary Cleanup
+
+The current `goa-ai` fork still contains a few things that are better understood as missing Goa-core capabilities rather than AI-specific features.
+
+The direction here is:
+
+- move generic API-contract and transport semantics into `goa-light`
+- keep MCP, agent, planner, registry, and tool-runtime concerns in `goa-ai`
+- remove application-specific leaks from generic framework generators
+
+Candidates to move into `goa-light`:
+
+- generic union discriminator and example/schema semantics
+- generic OpenAPI contract stability rules
+- generic remediation-aware error modeling
+- generic auth/session transport modeling where it benefits ordinary APIs too
+
+Candidates to keep in `goa-ai`:
+
+- MCP DSL and code generation
+- agent and toolset DSL/runtime behavior
+- planner/runtime structured tool execution features
+- MCP-specific annotations and protocol-specific metadata
+
+Candidates to push out of the frameworks:
+
+- application-specific special-casing such as direct framework dependence on a single app-owned error package
 
 ## Things to Avoid
 
