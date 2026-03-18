@@ -2,11 +2,12 @@ package codegen
 
 import (
 	"bytes"
-	"encoding/json"
 	"path/filepath"
 	"testing"
 	"text/template"
 
+	"github.com/pb33f/libopenapi"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/stretchr/testify/require"
 
 	"goa.design/goa/v3/codegen"
@@ -35,21 +36,27 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 		root := RunHTTPDSL(t, cookieAPIKeySecurityDSL)
 		openapi.Definitions = make(map[string]*openapi.Schema)
 
-		openapi.Definitions = make(map[string]*openapi.Schema)
 		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
-		var doc openapiv3.OpenAPI
-		require.NoError(t, json.Unmarshal(v3JSON, &doc))
-		require.Len(t, doc.Components.SecuritySchemes, 1)
-		path, ok := doc.Paths["/auth/profile"]
+		doc := parseOpenAPIV3Document(t, v3JSON)
+		require.NotNil(t, doc.Components)
+		require.NotNil(t, doc.Components.SecuritySchemes)
+		require.Equal(t, 1, doc.Components.SecuritySchemes.Len())
+
+		pathItem, ok := doc.Paths.PathItems.Get("/auth/profile")
 		require.True(t, ok)
-		require.NotNil(t, path.Get)
-		require.Len(t, path.Get.Security, 1)
-		for name, ref := range doc.Components.SecuritySchemes {
-			require.NotNil(t, ref.Value, name)
-			require.Equal(t, "apiKey", ref.Value.Type, name)
-			require.Equal(t, "cookie", ref.Value.In, name)
-			require.Equal(t, "__Host-ak_session", ref.Value.Name, name)
-			require.Contains(t, path.Get.Security[0], name)
+		require.NotNil(t, pathItem)
+		require.NotNil(t, pathItem.Get)
+		require.Len(t, pathItem.Get.Security, 1)
+
+		for name, scheme := range doc.Components.SecuritySchemes.FromOldest() {
+			require.NotNil(t, scheme, name)
+			require.Equal(t, "apiKey", scheme.Type, name)
+			require.Equal(t, "cookie", scheme.In, name)
+			require.Equal(t, "__Host-ak_session", scheme.Name, name)
+
+			requirement, found := pathItem.Get.Security[0].Requirements.Get(name)
+			require.True(t, found, name)
+			require.Empty(t, requirement, name)
 		}
 	})
 
@@ -110,6 +117,21 @@ func renderOpenAPIJSON(
 
 	t.Fatalf("no JSON OpenAPI file generated")
 	return nil
+}
+
+func parseOpenAPIV3Document(t *testing.T, spec []byte) *v3.Document {
+	t.Helper()
+
+	parsed, err := libopenapi.NewDocument(spec)
+	require.NoError(t, err)
+	require.Equal(t, openapiv3.OpenAPIVersion, parsed.GetVersion())
+
+	model, err := parsed.BuildV3Model()
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.NotNil(t, model.Model.Paths)
+
+	return &model.Model
 }
 
 var cookieAPIKeySecurityDSL = func() {
