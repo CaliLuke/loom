@@ -25,6 +25,9 @@ var PayloadBodyInlineRecursiveUserTransformCode1 = `// unmarshalPayloadTypeReque
 // builds a value of type *servicebodyinlinerecursiveuser.PayloadType from a
 // value of type *PayloadTypeRequestBody.
 func unmarshalPayloadTypeRequestBodyToServicebodyinlinerecursiveuserPayloadType(v *PayloadTypeRequestBody) *servicebodyinlinerecursiveuser.PayloadType {
+	if v == nil {
+		return nil
+	}
 	res := &servicebodyinlinerecursiveuser.PayloadType{
 		A: *v.A,
 		B: v.B,

@@ -3,22 +3,31 @@ package codegen
 import (
 	"testing"
 
-	"goa.design/goa/v3/codegen/testutil"
-
 	"github.com/stretchr/testify/require"
 
 	"goa.design/goa/v3/codegen"
-	// "goa.design/goa/v3/http/codegen/testdata"
+	"goa.design/goa/v3/http/codegen/testdata"
 )
 
 func TestTransformHelperServer(t *testing.T) {
 	cases := []struct {
-		Name   string
-		DSL    func()
-		Offset int
+		Name     string
+		DSL      func()
+		Offset   int
+		Expected string
 	}{
-		// {"body-user-inner-default-1", testdata.PayloadBodyUserInnerDefaultDSL1, 1},
-		// {"body-user-recursive-default-1", testdata.PayloadBodyInlineRecursiveUserDSL1, 1},
+		{
+			Name:     "body-user-inner-default-1",
+			DSL:      testdata.PayloadBodyUserInnerDefaultDSL,
+			Offset:   1,
+			Expected: testdata.PayloadBodyUserInnerDefaultTransformCode1,
+		},
+		{
+			Name:     "body-user-recursive-default-1",
+			DSL:      testdata.PayloadBodyInlineRecursiveUserDSL,
+			Offset:   1,
+			Expected: testdata.PayloadBodyInlineRecursiveUserTransformCode1,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -28,21 +37,42 @@ func TestTransformHelperServer(t *testing.T) {
 			sections := f.SectionTemplates
 			require.Greater(t, len(sections), c.Offset)
 			code := codegen.SectionCode(t, sections[len(sections)-c.Offset])
-			testutil.AssertGo(t, "testdata/golden/transform_helper_"+c.Name+".go.golden", code)
+			require.Equal(t, c.Expected, code)
 		})
 	}
 }
 
 func TestTransformHelperCLI(t *testing.T) {
 	cases := []struct {
-		Name   string
-		DSL    func()
-		Offset int
+		Name     string
+		DSL      func()
+		Offset   int
+		Expected string
 	}{
-		// {"cli-body-user-inner-default-1", testdata.PayloadBodyUserInnerDefaultDSLCLI1, 1},
-		// {"cli-body-user-inner-default-2", testdata.PayloadBodyUserInnerDefaultDSLCLI2, 2},
-		// {"cli-body-user-recursive-default-1", testdata.PayloadBodyInlineRecursiveUserDSLCLI1, 1},
-		// {"cli-body-user-recursive-default-2", testdata.PayloadBodyInlineRecursiveUserDSLCLI2, 2},
+		{
+			Name:     "cli-body-user-inner-default-1",
+			DSL:      testdata.PayloadBodyUserInnerDefaultDSL,
+			Offset:   1,
+			Expected: testdata.PayloadBodyUserInnerDefaultTransformCodeCLI1,
+		},
+		{
+			Name:     "cli-body-user-inner-default-2",
+			DSL:      testdata.PayloadBodyUserInnerDefaultDSL,
+			Offset:   2,
+			Expected: testdata.PayloadBodyUserInnerDefaultTransformCodeCLI2,
+		},
+		{
+			Name:     "cli-body-user-recursive-default-1",
+			DSL:      testdata.PayloadBodyInlineRecursiveUserDSL,
+			Offset:   1,
+			Expected: testdata.PayloadBodyInlineRecursiveUserTransformCodeCLI1,
+		},
+		{
+			Name:     "cli-body-user-recursive-default-2",
+			DSL:      testdata.PayloadBodyInlineRecursiveUserDSL,
+			Offset:   2,
+			Expected: testdata.PayloadBodyInlineRecursiveUserTransformCodeCLI2,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -52,7 +82,7 @@ func TestTransformHelperCLI(t *testing.T) {
 			sections := f.SectionTemplates
 			require.Greater(t, len(sections), c.Offset)
 			code := codegen.SectionCode(t, sections[len(sections)-c.Offset])
-			testutil.AssertGo(t, "testdata/golden/transform_helper_"+c.Name+".go.golden", code)
+			require.Equal(t, c.Expected, code)
 		})
 	}
 }
