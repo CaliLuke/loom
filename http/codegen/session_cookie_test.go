@@ -172,6 +172,26 @@ func TestSessionCookie(t *testing.T) {
 		require.NotNil(t, header.Examples)
 		require.Equal(t, 2, header.Examples.Len())
 	})
+
+	t.Run("openapi clear-cookie docs stay consistent with serialized example", func(t *testing.T) {
+		root := RunHTTPDSL(t, sessionCookieClearDSL)
+		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
+		doc := parseOpenAPIV3Document(t, v3JSON)
+
+		pathItem, ok := doc.Paths.PathItems.Get("/session/logout")
+		require.True(t, ok)
+		require.NotNil(t, pathItem.Post)
+		noContentResp, ok := pathItem.Post.Responses.Codes.Get("204")
+		require.True(t, ok)
+		require.NotNil(t, noContentResp)
+		header, ok := noContentResp.Headers.Get("Set-Cookie")
+		require.True(t, ok)
+		require.NotNil(t, header)
+		require.Contains(t, header.Description, `Sets the "__Host-ak_session" cookie.`)
+		require.Contains(t, header.Description, `Policy: Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax.`)
+		require.NotNil(t, header.Example)
+		require.Equal(t, `__Host-ak_session="Quia molestias."; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`, header.Example.Value)
+	})
 }
 
 var sessionCookieResponseDSL = func() {
@@ -242,6 +262,23 @@ var multiSessionCookieResponseDSL = func() {
 					dsl.Cookie("refresh:ak_refresh")
 					dsl.CookiePath("/tokens")
 					dsl.CookieDomain("accounts.goa.design")
+				})
+			})
+		})
+	})
+}
+
+var sessionCookieClearDSL = func() {
+	dsl.Service("sessionCookieClear", func() {
+		dsl.Method("logout", func() {
+			dsl.Result(func() {
+				dsl.Attribute("session", dsl.String)
+			})
+			dsl.HTTP(func() {
+				dsl.POST("/session/logout")
+				dsl.Response(dsl.StatusNoContent, func() {
+					dsl.SessionCookie("session:__Host-ak_session")
+					dsl.CookieMaxAge(-1)
 				})
 			})
 		})

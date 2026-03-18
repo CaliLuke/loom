@@ -137,31 +137,36 @@ func describeResponseCookies(cookies []*expr.HTTPResponseCookieExpr) string {
 
 func responseCookiePolicy(cookie *expr.HTTPResponseCookieExpr) string {
 	parts := make([]string, 0, 6)
-	if cookie.Path != "" {
-		parts = append(parts, "Path="+cookie.Path)
+	httpCookie := buildResponseHTTPCookie(cookie, "")
+	if httpCookie.Path != "" {
+		parts = append(parts, "Path="+httpCookie.Path)
 	}
-	if cookie.Domain != "" {
-		parts = append(parts, "Domain="+cookie.Domain)
+	if httpCookie.Domain != "" {
+		parts = append(parts, "Domain="+httpCookie.Domain)
 	}
 	if cookie.MaxAge != "" {
-		parts = append(parts, "Max-Age="+cookie.MaxAge)
+		parts = append(parts, "Max-Age="+strconv.Itoa(normalizeCookieMaxAge(httpCookie.MaxAge)))
 	}
-	if cookie.Secure {
+	if httpCookie.Secure {
 		parts = append(parts, "Secure")
 	}
-	if cookie.HTTPOnly {
+	if httpCookie.HttpOnly {
 		parts = append(parts, "HttpOnly")
 	}
-	if cookie.SameSite != "" {
-		parts = append(parts, "SameSite="+titleCase(string(cookie.SameSite)))
+	if sameSite := sameSiteString(httpCookie.SameSite); sameSite != "" {
+		parts = append(parts, "SameSite="+sameSite)
 	}
 	return strings.Join(parts, "; ")
 }
 
 func serializeResponseCookieExample(cookie *expr.HTTPResponseCookieExpr, value any) string {
+	return buildResponseHTTPCookie(cookie, fmt.Sprintf("%v", value)).String()
+}
+
+func buildResponseHTTPCookie(cookie *expr.HTTPResponseCookieExpr, value string) *http.Cookie {
 	httpCookie := &http.Cookie{
 		Name:     cookie.HTTPName(),
-		Value:    fmt.Sprintf("%v", value),
+		Value:    value,
 		Path:     cookie.Path,
 		Domain:   cookie.Domain,
 		Secure:   cookie.Secure,
@@ -182,14 +187,29 @@ func serializeResponseCookieExample(cookie *expr.HTTPResponseCookieExpr, value a
 	case expr.CookieSameSiteDefault:
 		httpCookie.SameSite = http.SameSiteDefaultMode
 	}
-	return httpCookie.String()
+	return httpCookie
 }
 
-func titleCase(val string) string {
-	if val == "" {
+func sameSiteString(mode http.SameSite) string {
+	switch mode {
+	case http.SameSiteDefaultMode:
+		return "Default"
+	case http.SameSiteLaxMode:
+		return "Lax"
+	case http.SameSiteStrictMode:
+		return "Strict"
+	case http.SameSiteNoneMode:
+		return "None"
+	default:
 		return ""
 	}
-	return strings.ToUpper(val[:1]) + val[1:]
+}
+
+func normalizeCookieMaxAge(maxAge int) int {
+	if maxAge < 0 {
+		return 0
+	}
+	return maxAge
 }
 
 func isSkipResponseBodyEncodeDecode(parent eval.Expression) bool {
