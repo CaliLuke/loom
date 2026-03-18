@@ -159,6 +159,72 @@ Candidates to move into `goa-light`:
 - generic remediation-aware error modeling
 - generic auth/session transport modeling where it benefits ordinary APIs too
 
+Detailed migration plan:
+
+1. Union discriminator and schema semantics
+
+- Move any remaining generic union wire-tag behavior out of `goa-ai/codegen/shared`.
+- The canonical source of truth for variant wire tags, discriminator values, and
+  union example normalization should live in `goa-light`.
+- `goa-ai` should only add MCP-specific wrapping on top of Goa’s generic union model.
+- Goal: no MCP generator should need its own fallback copy of generic union-tag logic.
+
+2. JSON Schema example canonicalization
+
+- Move generic example canonicalization for unions and nested Goa types into
+  `goa-light` where it can benefit HTTP, JSON-RPC, OpenAPI, and any future generators.
+- Keep only MCP-specific final shaping in `goa-ai` when the protocol requires a
+  different outer envelope.
+- Goal: example correctness is a Goa property, not an MCP plugin property.
+
+3. OpenAPI contract stability policy
+
+- Keep stable `operationId`, schema naming, response modeling, and other
+  machine-consumable contract choices in `goa-light`.
+- Do not let `goa-ai` carry its own naming or contract-stability conventions.
+- Goal: there is one contract policy for generated APIs, not separate policies for AI and non-AI generators.
+
+4. Generic auth/session transport modeling
+
+- Keep bearer-or-cookie session auth, cookie transport binding, standard auth
+  responses, and related OpenAPI/security emission in `goa-light`.
+- `goa-ai` should consume those contracts instead of inventing its own auth
+  transport shortcuts.
+- Goal: MCP and ordinary APIs share one security model wherever the transport semantics are the same.
+
+5. Generic remediation-aware error modeling
+
+- Add first-class remediation/error contract primitives in `goa-light`.
+- Support stable error code, safe message, retryability, hint, and optional
+  structured fields as design-level concepts.
+- Generate these consistently across HTTP, JSON-RPC, OpenAPI, and any transport
+  that Goa owns directly.
+- Goal: tool-style actionable failures come from the Goa design model, not from
+  app-specific template hooks.
+
+6. JSON-RPC contract semantics that are not MCP-specific
+
+- Audit `goa-ai` for any JSON-RPC generator behavior that is generic transport
+  semantics rather than MCP behavior.
+- Move anything that improves plain JSON-RPC correctness or stability into
+  `goa-light/jsonrpc`.
+- Goal: `goa-ai` should rely on Goa’s JSON-RPC transport, not patch around it.
+
+7. Generic transport/runtime metadata hooks
+
+- If `goa-ai` needs structured method metadata beyond raw `Meta(...)` for things
+  that are not MCP-specific, add proper extension points to `goa-light` instead
+  of duplicating metadata interpretation in plugin code.
+- Goal: generic framework hooks live in Goa; protocol-specific metadata stays in plugins.
+
+8. Error projection into OpenAPI and JSON Schema
+
+- Once remediation-aware errors exist in `goa-light`, ensure OpenAPI 3.1 output
+  exposes them in a machine-usable way with stable schemas and examples.
+- `goa-ai` should then map tool/MCP failure behavior onto the same underlying
+  contract instead of bypassing it.
+- Goal: one error contract across normal APIs and tool-style APIs.
+
 Candidates to keep in `goa-ai`:
 
 - MCP DSL and code generation
@@ -169,6 +235,14 @@ Candidates to keep in `goa-ai`:
 Candidates to push out of the frameworks:
 
 - application-specific special-casing such as direct framework dependence on a single app-owned error package
+
+Sequencing:
+
+1. Audit `goa-ai` for remaining generic union/schema/example workarounds.
+2. Move generic remediation-aware errors into `goa-light`.
+3. Audit `goa-ai` for generic JSON-RPC transport patches and move them down.
+4. Remove direct app-specific framework coupling once the generic Goa-core hooks exist.
+5. Leave MCP annotations, tool runtime, planners, and registries in `goa-ai`.
 
 ## Things to Avoid
 
