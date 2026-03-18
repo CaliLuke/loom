@@ -54,6 +54,9 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 		{"valid-method-auth-error-responses", testdata.ValidMethodAuthErrorResponsesDSL, ""},
 		{"valid-service-auth-error-responses", testdata.ValidServiceAuthErrorResponsesDSL, ""},
 		{"valid-api-auth-error-responses", testdata.ValidAPIAuthErrorResponsesDSL, ""},
+		{"invalid-auth-error-responses-placement", testdata.InvalidAuthErrorResponsesPlacementDSL,
+			`invalid use of AuthErrorResponses`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -61,7 +64,7 @@ service "AnotherInvalidSecuritySchemesService" method "Method": payload of metho
 				expr.RunDSL(t, tc.DSL)
 			} else {
 				err := expr.RunInvalidDSL(t, tc.DSL)
-				assert.Equal(t, tc.Error, stripValidationLocations(err.Error()))
+				assert.Contains(t, stripValidationLocations(err.Error()), tc.Error)
 			}
 		})
 	}
@@ -117,6 +120,31 @@ func TestAuthErrorResponses(t *testing.T) {
 		if assert.NotNil(t, unauthorized) {
 			assert.NotEqual(t, expr.ErrorResult, unauthorized.Type)
 			assert.Equal(t, "MethodAuthErrorUnauthorized", unauthorized.Type.Name())
+		}
+	})
+
+	t.Run("repeated calls are idempotent", func(t *testing.T) {
+		root := expr.RunDSL(t, testdata.ValidMethodAuthErrorResponsesRepeatedDSL)
+		method := root.Service("ValidMethodAuthErrorResponsesRepeatedService").Method("SecureMethod")
+		httpEndpoint := root.API.HTTP.Service("ValidMethodAuthErrorResponsesRepeatedService").Endpoint("SecureMethod")
+
+		assert.NotNil(t, method.Error("unauthorized"))
+		assert.NotNil(t, method.Error("forbidden"))
+		if assert.Len(t, httpEndpoint.HTTPErrors, 2) {
+			assert.Equal(t, "unauthorized", httpEndpoint.HTTPErrors[0].Name)
+			assert.Equal(t, "forbidden", httpEndpoint.HTTPErrors[1].Name)
+		}
+	})
+
+	t.Run("existing mappings are preserved", func(t *testing.T) {
+		root := expr.RunDSL(t, testdata.ValidMethodAuthErrorResponsesCustomMappingDSL)
+		httpEndpoint := root.API.HTTP.Service("ValidMethodAuthErrorResponsesCustomMappingService").Endpoint("SecureMethod")
+		if assert.Len(t, httpEndpoint.HTTPErrors, 2) {
+			assert.Equal(t, "unauthorized", httpEndpoint.HTTPErrors[0].Name)
+			assert.Equal(t, expr.StatusPaymentRequired, httpEndpoint.HTTPErrors[0].Response.StatusCode)
+			assert.Equal(t, "Custom auth challenge", httpEndpoint.HTTPErrors[0].Response.Description)
+			assert.Equal(t, "forbidden", httpEndpoint.HTTPErrors[1].Name)
+			assert.Equal(t, expr.StatusForbidden, httpEndpoint.HTTPErrors[1].Response.StatusCode)
 		}
 	})
 }

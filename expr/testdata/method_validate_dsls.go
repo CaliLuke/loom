@@ -271,3 +271,46 @@ var ValidMethodAuthErrorResponsesReuseDSL = func() {
 		})
 	})
 }
+
+var InvalidAuthErrorResponsesPlacementDSL = func() {
+	Service("InvalidAuthErrorResponsesPlacementService", func() {
+		Method("SecureMethod", func() {
+			AuthErrorResponses()
+		})
+	})
+}
+
+var ValidMethodAuthErrorResponsesRepeatedDSL = func() {
+	Service("ValidMethodAuthErrorResponsesRepeatedService", func() {
+		Method("SecureMethod", func() {
+			Security(JWTAuth)
+			Payload(func() {
+				Token("auth", String)
+			})
+			HTTP(func() {
+				GET("/secure")
+				AuthErrorResponses()
+				AuthErrorResponses()
+			})
+		})
+	})
+}
+
+var ValidMethodAuthErrorResponsesCustomMappingDSL = func() {
+	Service("ValidMethodAuthErrorResponsesCustomMappingService", func() {
+		Method("SecureMethod", func() {
+			Security(JWTAuth)
+			Payload(func() {
+				Token("auth", String)
+			})
+			Error("unauthorized")
+			HTTP(func() {
+				GET("/secure")
+				Response("unauthorized", StatusPaymentRequired, func() {
+					Description("Custom auth challenge")
+				})
+				AuthErrorResponses()
+			})
+		})
+	})
+}

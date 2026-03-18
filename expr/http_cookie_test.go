@@ -2,6 +2,7 @@ package expr_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"goa.design/goa/v3/expr"
@@ -36,6 +37,20 @@ func TestHTTPResponseCookie(t *testing.T) {
 			"cookie:http-only": "HttpOnly",
 			"cookie:same-site": testdata.SessionCookieOverrideSameSiteValue,
 		}},
+		{"session-cookie-overrides-all", testdata.SessionCookieOverrideAllDSL, Props{
+			"cookie:path":      testdata.SessionCookieOverridePathValue,
+			"cookie:domain":    testdata.SessionCookieOverrideDomainValue,
+			"cookie:max-age":   testdata.SessionCookieOverrideMaxAgeValue,
+			"cookie:secure":    "Secure",
+			"cookie:http-only": "HttpOnly",
+			"cookie:same-site": testdata.SessionCookieOverrideSameSiteValue,
+		}},
+		{"session-cookie-repeated-setter", testdata.SessionCookieRepeatedSetterDSL, Props{
+			"cookie:path":      testdata.SessionCookieOverridePathValue,
+			"cookie:secure":    "Secure",
+			"cookie:http-only": "HttpOnly",
+			"cookie:same-site": testdata.SessionCookieOverrideSameSiteValue,
+		}},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -65,5 +80,12 @@ func TestHTTPResponseCookie(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSessionCookieInvalidPlacement(t *testing.T) {
+	err := expr.RunInvalidDSL(t, testdata.InvalidSessionCookiePlacementDSL)
+	if actual := err.Error(); actual == "" || !strings.Contains(actual, "invalid use of SessionCookie") {
+		t.Fatalf("got error %q, expected it to contain %q", actual, "invalid use of SessionCookie")
 	}
 }

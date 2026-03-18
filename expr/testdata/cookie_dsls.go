@@ -180,3 +180,61 @@ var SessionCookieOverrideDSL = func() {
 		})
 	})
 }
+
+const SessionCookieOverrideDomainValue = "session.goa.design"
+const SessionCookieOverrideMaxAgeValue = 7200
+
+var SessionCookieOverrideAllDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					SessionCookie("cookie")
+					CookiePath(SessionCookieOverridePathValue)
+					CookieDomain(SessionCookieOverrideDomainValue)
+					CookieMaxAge(SessionCookieOverrideMaxAgeValue)
+					CookieSameSite(SessionCookieOverrideSameSiteValue)
+				})
+			})
+		})
+	})
+}
+
+var SessionCookieRepeatedSetterDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					SessionCookie("cookie")
+					CookiePath("/ignored")
+					CookiePath(SessionCookieOverridePathValue)
+					CookieSameSite(CookieSameSiteNone)
+					CookieSameSite(SessionCookieOverrideSameSiteValue)
+				})
+			})
+		})
+	})
+}
+
+var InvalidSessionCookiePlacementDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			SessionCookie("cookie")
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK)
+			})
+		})
+	})
+}
