@@ -5,13 +5,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/codegen/service"
+	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/http/codegen/testdata"
 )
 
 func TestClientRequestBodyValidatorsForUnionBodies(t *testing.T) {
-	t.Parallel()
-
 	cases := []struct {
 		name            string
 		dsl             func()
@@ -53,11 +53,73 @@ func TestClientRequestBodyValidatorsForUnionBodies(t *testing.T) {
 			if c.expectValidator {
 				require.NotEmpty(t, body.ValidateDef)
 				require.Equal(t, c.validateRef, body.ValidateRef)
-				return
+			} else {
+				require.Empty(t, body.ValidateDef)
+				require.Empty(t, body.ValidateRef)
 			}
-
-			require.Empty(t, body.ValidateDef)
-			require.Empty(t, body.ValidateRef)
 		})
 	}
+}
+
+func TestAttributeTypeDataEmitsNoOpValidatorStubForTaggedClientRequestBodyType(t *testing.T) {
+	t.Parallel()
+
+	tagged := &expr.UserTypeExpr{
+		TypeName: "SingleAction",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{
+				{
+					Name: "value",
+					Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+					},
+				},
+			},
+			Meta: expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+		},
+	}
+	sd := &ServiceData{
+		Scope:           codegen.NewNameScope(),
+		ServerTypeNames: make(map[string]bool),
+		ClientTypeNames: make(map[string]bool),
+	}
+	sds := &ServicesData{
+		ServicesData: &service.ServicesData{Root: expr.Root},
+	}
+
+	data := sds.attributeTypeData(tagged, true, false, false, sd)
+	require.NotNil(t, data)
+	require.Equal(t, "// no validations", data.ValidateDef)
+	require.Equal(t, "err = ValidateSingleAction(v)", data.ValidateRef)
+}
+
+func TestAttributeTypeDataSkipsNoOpValidatorStubForUntaggedClientRequestBodyType(t *testing.T) {
+	t.Parallel()
+
+	untagged := &expr.UserTypeExpr{
+		TypeName: "SingleAction",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{
+				{
+					Name: "value",
+					Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+					},
+				},
+			},
+		},
+	}
+	sd := &ServiceData{
+		Scope:           codegen.NewNameScope(),
+		ServerTypeNames: make(map[string]bool),
+		ClientTypeNames: make(map[string]bool),
+	}
+	sds := &ServicesData{
+		ServicesData: &service.ServicesData{Root: expr.Root},
+	}
+
+	data := sds.attributeTypeData(untagged, true, false, false, sd)
+	require.NotNil(t, data)
+	require.Empty(t, data.ValidateDef)
+	require.Empty(t, data.ValidateRef)
 }

@@ -2819,6 +2819,9 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bo
 		// requests server-side and CLI.
 		// Alias types are validated inline in the parent type
 		validate = codegen.ValidationCode(ut.Attribute(), ut, hctx, true, expr.IsAlias(ut), false, "body")
+		if validate == "" && req && !server && needsClientRequestBodyValidatorStub(ut) {
+			validate = "// no validations"
+		}
 	}
 	if validate != "" {
 		validateRef = fmt.Sprintf("err = Validate%s(v)", name)
@@ -2833,6 +2836,14 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bo
 		ValidateRef: validateRef,
 		Example:     att.Example(sds.Root.API.ExampleGenerator),
 	}
+}
+
+func needsClientRequestBodyValidatorStub(ut expr.UserType) bool {
+	if ut == nil || ut.Attribute() == nil || ut.Attribute().Meta == nil {
+		return false
+	}
+	_, ok := ut.Attribute().Meta.Last("oneof:type:tag")
+	return ok
 }
 
 // httpContext returns a context for attributes of types used to marshal and
