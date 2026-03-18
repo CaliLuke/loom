@@ -242,6 +242,10 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 	}
 	validated[a] = true
 	verr := new(eval.ValidationErrors)
+	if err := a.resolveTypeRef(); err != nil {
+		verr.Add(parent, "%s", err.Error())
+		return verr
+	}
 	if a.Type == nil {
 		verr.Add(parent, "attribute type is nil")
 		return verr
@@ -302,6 +306,11 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 	return verr
 }
 
+// Prepare resolves any deferred named type references before validation.
+func (a *AttributeExpr) Prepare() {
+	a.prepareTypeRefs(make(map[*AttributeExpr]struct{}))
+}
+
 func (a *AttributeExpr) validatePkgPath(pkgPath string, t DataType) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	if ar := AsArray(t); ar != nil {
@@ -342,6 +351,10 @@ func (a *AttributeExpr) Finalize() {
 		return // Avoid infinite recursion.
 	}
 	a.finalized = true
+	if err := a.resolveTypeRef(); err != nil {
+		eval.ReportError(err.Error())
+		return
+	}
 	if ut, ok := a.Type.(UserType); ok {
 		ut.Finalize()
 	}
@@ -371,9 +384,11 @@ func (a *AttributeExpr) Finalize() {
 			nat.Attribute.Finalize()
 		}
 	case IsUnion(a.Type):
-		for _, nat := range AsUnion(a.Type).Values {
+		union := AsUnion(a.Type)
+		for _, nat := range union.Values {
 			nat.Attribute.Finalize()
 		}
+		normalizeDerivedUnion(union)
 	case IsArray(a.Type):
 		AsArray(a.Type).ElemType.Finalize()
 	case IsMap(a.Type):
@@ -381,6 +396,86 @@ func (a *AttributeExpr) Finalize() {
 		m.ElemType.Finalize()
 		m.KeyType.Finalize()
 	}
+}
+
+func (a *AttributeExpr) prepareTypeRefs(seen map[*AttributeExpr]struct{}) {
+	if a == nil {
+		return
+	}
+	if _, ok := seen[a]; ok {
+		return
+	}
+	seen[a] = struct{}{}
+
+	if err := a.resolveTypeRef(); err != nil {
+		eval.ReportError(err.Error())
+		return
+	}
+	switch {
+	case IsObject(a.Type):
+		for _, nat := range *AsObject(a.Type) {
+			nat.Attribute.prepareTypeRefs(seen)
+		}
+	case IsUnion(a.Type):
+		for _, nat := range AsUnion(a.Type).Values {
+			nat.Attribute.prepareTypeRefs(seen)
+		}
+	case IsArray(a.Type):
+		AsArray(a.Type).ElemType.prepareTypeRefs(seen)
+	case IsMap(a.Type):
+		m := AsMap(a.Type)
+		m.ElemType.prepareTypeRefs(seen)
+		m.KeyType.prepareTypeRefs(seen)
+	}
+}
+
+func (a *AttributeExpr) resolveTypeRef() error {
+	ut, ok := a.Type.(*UserTypeExpr)
+	if !ok || !isTypeRef(ut) {
+		return nil
+	}
+	resolved := Root.UserType(ut.TypeName)
+	if resolved == nil {
+		return fmt.Errorf("unknown type reference %q", ut.TypeName)
+	}
+	a.Type = resolved
+	return nil
+}
+
+func isTypeRef(ut *UserTypeExpr) bool {
+	return ut != nil && strings.HasPrefix(ut.UID, "$type-ref:")
+}
+
+func normalizeDerivedUnion(union *Union) {
+	if !hasDerivedUnionVariantNames(union) {
+		return
+	}
+	types := make([]DataType, len(union.Values))
+	for i, nat := range union.Values {
+		types[i] = nat.Attribute.Type
+	}
+	names := DerivedUnionVariantNames(types)
+	for i, nat := range union.Values {
+		nat.Name = names[i]
+	}
+	if !union.ExplicitTypeName {
+		union.TypeName = DerivedUnionTypeName(names)
+	}
+}
+
+func hasDerivedUnionVariantNames(union *Union) bool {
+	if union == nil || len(union.Values) == 0 {
+		return false
+	}
+	for _, nat := range union.Values {
+		if nat == nil || nat.Attribute == nil {
+			return false
+		}
+		if _, ok := nat.Attribute.Meta.Last("oneof:variant:derived"); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // Merge merges other's attributes into a overriding attributes of a with

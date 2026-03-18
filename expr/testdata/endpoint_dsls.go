@@ -259,6 +259,69 @@ var EndpointMissingTokenPayload = func() {
 	})
 }
 
+var EndpointUnionQueryParam = func() {
+	var Text = Type("Text", func() {
+		Attribute("value", String)
+	})
+	var JSON = Type("JSON", func() {
+		Attribute("message", String)
+	})
+
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("filter", OneOf(Text, JSON))
+			})
+			HTTP(func() {
+				GET("/")
+				Param("filter")
+			})
+		})
+	})
+}
+
+var EndpointUnionHeader = func() {
+	var Text = Type("Text", func() {
+		Attribute("value", String)
+	})
+	var JSON = Type("JSON", func() {
+		Attribute("message", String)
+	})
+
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("filter", OneOf(Text, JSON))
+			})
+			HTTP(func() {
+				GET("/")
+				Header("filter")
+			})
+		})
+	})
+}
+
+var EndpointUnionCookie = func() {
+	var Text = Type("Text", func() {
+		Attribute("value", String)
+	})
+	var JSON = Type("JSON", func() {
+		Attribute("message", String)
+	})
+
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("filter", OneOf(Text, JSON))
+			})
+			HTTP(func() {
+				GET("/")
+				Cookie("filter")
+			})
+		})
+	})
+}
+
 var EndpointExtendToken = func() {
 	var CommonAttributes = Type("Common", func() {
 		Token("token", String)
@@ -748,6 +811,24 @@ var GRPCEndpointWithUnionContainingAny = func() {
 		Method("MethodUnion", func() {
 			Payload(U)
 			GRPC(func() {})
+		})
+	})
+}
+
+var EndpointMultipartConstructorUnion = func() {
+	TextPayload := Type("MultipartUnionTextPayload", func() {
+		Attribute("text", String)
+	})
+	JSONPayload := Type("MultipartUnionJSONPayload", func() {
+		Attribute("message", String)
+	})
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(OneOf(TextPayload, JSONPayload))
+			HTTP(func() {
+				POST("/")
+				MultipartRequest()
+			})
 		})
 	})
 }
