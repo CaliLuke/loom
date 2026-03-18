@@ -19,6 +19,11 @@ Use this file before changing designs that depend on OpenAPI contracts, session 
 - `operationId` generation is canonical by default and can be customized with `Meta("openapi:operationId", ...)`.
 - The default template is `{service}.{method}(.{routeIndex})`.
 - `libopenapi`-backed validation is part of the repo’s OpenAPI test harness.
+- Wrapper-style unions now emit OpenAPI discriminator metadata with `oneOf` refs to generated branch-envelope component schemas instead of leaving branch selection implicit under a `value.anyOf` shape.
+- When reviewing OpenAPI diffs for unions, expect:
+  - `discriminator.propertyName`
+  - `discriminator.mapping`
+  - `oneOf` refs to `...Envelope` component schemas
 
 ### Unions now support constructor-style `OneOf(...)`
 
@@ -39,6 +44,7 @@ var _ = Service("search", func() {
 
 - This constructor form was added specifically to remove real compatibility friction in consumer designs.
 - When checking generated contracts, pay attention to explicit discriminator tag behavior as well as type shape.
+- Explicit union discriminator tags continue to control the wire value even when the underlying type names are renamed for OpenAPI/schema purposes.
 
 ### Session auth is now a first-class multi-transport DSL concept
 

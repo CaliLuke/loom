@@ -44,8 +44,22 @@ func TestAttributeTypeSchemaUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 	typeKey := union.GetTypeKey()
 	valueKey := union.GetValueKey()
 
-	if schema.Properties[typeKey].Enum[0] != "single" || schema.Properties[typeKey].Enum[1] != "batch" {
-		t.Errorf("got union enum %#v, expected tagged values", schema.Properties[typeKey].Enum)
+	if schema.Discriminator == nil || schema.Discriminator.PropertyName != typeKey {
+		t.Fatalf("got discriminator %#v, expected property %q", schema.Discriminator, typeKey)
+	}
+	if len(schema.OneOf) != 2 {
+		t.Fatalf("got %d union branches, expected 2", len(schema.OneOf))
+	}
+	firstType := schema.OneOf[0].Properties[typeKey]
+	if firstType.Enum[0] != "single" {
+		t.Errorf("got first union enum %#v, expected %q", firstType.Enum, "single")
+	}
+	secondType := schema.OneOf[1].Properties[typeKey]
+	if secondType.Enum[0] != "batch" {
+		t.Errorf("got second union enum %#v, expected %q", secondType.Enum, "batch")
+	}
+	if schema.OneOf[0].Properties[valueKey] == nil || schema.OneOf[1].Properties[valueKey] == nil {
+		t.Fatalf("expected value schemas on all union branches")
 	}
 	example, ok := schema.Example.(map[string]any)
 	if !ok {

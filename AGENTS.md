@@ -80,6 +80,13 @@ No commented-out code—delete dead code.
 - Name tests `TestXxx`. Keep fast and deterministic.
 - Use `testify/require` for assertions.
 - Prefer `t.Errorf` over `t.Fatalf` so tests report multiple failures.
+- Do not stop at a happy-path test when changing framework behavior. This fork does not have upstream maintainers or broad community review to catch regressions later.
+- For framework, codegen, OpenAPI, JSON Schema, auth/session, or transport changes, aim for thorough coverage across normal cases, edge cases, and failure modes. Prefer MECE-style test matrices when the behavior has multiple branches.
+- When changing generators or contract-shaping code, add or update:
+  - focused unit tests for the changed logic
+  - golden tests or fixture-based output assertions when output shape matters
+  - regression tests for the exact bug class that motivated the change
+- If coverage is intentionally partial, say so explicitly in your summary and name the missing cases.
 
 ---
 

@@ -20,6 +20,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI v2 removal and OpenAPI 3.1 / JSON Schema 2020-12 baseline.
 - `libopenapi`-backed spec validation in the test harness.
 - `OneOf(...)` constructor support and explicit union discriminator tag preservation.
+- OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
@@ -44,15 +45,13 @@ These items are prioritized based on two goals:
 - produce a stronger OpenAPI 3.1 contract for machine reconciliation
 - remove transport projection glue that is currently hand-maintained in application code
 
-1. OpenAPI wrapper-union discriminators
-   See [OpenAPI Union Discriminators](./openapi_union_discriminators.md).
-2. OpenAPI schema deduplication for structurally identical components
+1. OpenAPI schema deduplication for structurally identical components
    See [OpenAPI Schema Deduplication](./openapi_schema_dedup.md).
-3. Closed-object contract mode for machine-facing OpenAPI output
+2. Closed-object contract mode for machine-facing OpenAPI output
    See [OpenAPI Closed Object Mode](./openapi_closed_object_mode.md).
-4. Generated transport projection helpers from canonical result types
+3. Generated transport projection helpers from canonical result types
    See [Generated Transport Projections](./generated_transport_projections.md).
-5. Generated projection parity tests and guardrails
+4. Generated projection parity tests and guardrails
    See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
 
 ## Roadmap Index

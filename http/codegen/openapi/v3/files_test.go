@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"testing"
 	"text/template"
 
@@ -99,6 +101,41 @@ func TestFiles(t *testing.T) {
 	}
 }
 
+func TestRenderedUnionSchemasIncludeDiscriminatorMappingsAndEnvelopeRefs(t *testing.T) {
+	cases := []struct {
+		name      string
+		dsl       func()
+		typeKey   string
+		valueKey  string
+		wantTags  []string
+		envelopes []string
+	}{
+		{
+			name:      "payload-custom-keys",
+			dsl:       testdata.PayloadBodyUnionCustomKeysDSL,
+			typeKey:   "kind",
+			valueKey:  "data",
+			wantTags:  []string{"Int", "String"},
+			envelopes: []string{"ValuesIntEnvelope", "ValuesStringEnvelope"},
+		},
+		{
+			name:      "result-custom-keys-multi",
+			dsl:       testdata.ResultBodyUnionCustomKeysMultiDSL,
+			typeKey:   "statusType",
+			valueKey:  "statusDetails",
+			wantTags:  []string{"failure", "success"},
+			envelopes: []string{"StatusfailureEnvelope", "StatussuccessEnvelope"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec := renderYAMLOpenAPI(t, tc.dsl)
+			assertRenderedUnionContract(t, spec, tc.typeKey, tc.valueKey, tc.wantTags, tc.envelopes)
+		})
+	}
+}
+
 func validateOpenAPI(t *testing.T, b []byte) {
 	parsed, err := libopenapi.NewDocument(b)
 	if err != nil {
@@ -109,5 +146,76 @@ func validateOpenAPI(t *testing.T, b []byte) {
 	}
 	if _, err := parsed.BuildV3Model(); err != nil {
 		t.Fatalf("libopenapi failed to build 3.x model: %s\nspec:\n%s", err, string(b))
+	}
+}
+
+func renderYAMLOpenAPI(t *testing.T, dsl func()) string {
+	t.Helper()
+
+	openapi.Definitions = make(map[string]*openapi.Schema)
+	root := httpgen.RunHTTPDSL(t, dsl)
+	oFiles, err := openapiv3.Files(root)
+	if err != nil {
+		t.Fatalf("OpenAPI failed with %s", err)
+	}
+
+	for _, o := range oFiles {
+		if filepath.Ext(o.Path) != ".yaml" {
+			continue
+		}
+		if len(o.SectionTemplates) != 1 {
+			t.Fatalf("expected 1 section for %s, got %d", o.Path, len(o.SectionTemplates))
+		}
+		var buf bytes.Buffer
+		section := o.SectionTemplates[0]
+		tmpl := template.Must(template.New("openapi").Funcs(section.FuncMap).Parse(section.Source))
+		if err := tmpl.Execute(&buf, section.Data); err != nil {
+			t.Fatalf("failed to render template: %s", err)
+		}
+		validateOpenAPI(t, buf.Bytes())
+		return buf.String()
+	}
+
+	t.Fatal("missing YAML OpenAPI output")
+	return ""
+}
+
+func assertRenderedUnionContract(t *testing.T, spec, typeKey, valueKey string, wantTags, envelopePrefixes []string) {
+	t.Helper()
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(fmt.Sprintf(`(?m)^\s+propertyName: %s$`, regexp.QuoteMeta(typeKey)))
+	requirePattern(`(?m)^\s+mapping:$`)
+	requirePattern(`(?m)^\s+oneOf:$`)
+
+	oneOfMatches := regexp.MustCompile(`(?m)^\s+- \$ref: '#/components/schemas/([^']+Envelope[^']*)'$`).FindAllStringSubmatch(spec, -1)
+	if len(oneOfMatches) < len(wantTags) {
+		t.Fatalf("got %d oneOf envelope refs, expected at least %d\nspec:\n%s", len(oneOfMatches), len(wantTags), spec)
+	}
+	oneOfRefs := make([]string, 0, len(oneOfMatches))
+	for _, match := range oneOfMatches {
+		oneOfRefs = append(oneOfRefs, match[1])
+	}
+
+	for i, tag := range wantTags {
+		prefix := envelopePrefixes[i]
+		re := regexp.MustCompile(fmt.Sprintf(`(?m)^\s+%s: '#/components/schemas/((?:%s)(?:_[0-9a-f]+(?:_\d+)?)?)'$`, regexp.QuoteMeta(tag), regexp.QuoteMeta(prefix)))
+		match := re.FindStringSubmatch(spec)
+		if len(match) != 2 {
+			t.Fatalf("missing mapping for tag %q with envelope prefix %q\nspec:\n%s", tag, prefix, spec)
+		}
+		if !slices.Contains(oneOfRefs, match[1]) {
+			t.Fatalf("mapping ref %q for tag %q is not present in oneOf refs %#v", match[1], tag, oneOfRefs)
+		}
+		requirePattern(fmt.Sprintf(`(?m)^\s+%s:$`, regexp.QuoteMeta(match[1])))
+		requirePattern(fmt.Sprintf(`(?m)^\s+- %s$`, regexp.QuoteMeta(typeKey)))
+		requirePattern(fmt.Sprintf(`(?m)^\s+- %s$`, regexp.QuoteMeta(valueKey)))
 	}
 }

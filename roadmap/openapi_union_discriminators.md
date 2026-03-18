@@ -1,5 +1,7 @@
 # OpenAPI Union Discriminators
 
+Status: completed on 2026-03-18
+
 ## Goal
 
 Emit machine-usable OpenAPI 3.1 discriminators for wrapper-style Goa unions so downstream consumers can reconcile contract branches without guessing from examples or `anyOf` ordering.
@@ -32,21 +34,20 @@ Out of scope:
 - MCP runtime behavior
 - manual schema patching in generated output
 
-## Desired Outcome
+## Delivered Outcome
 
-- wrapper unions emit `oneOf` instead of ambiguous `anyOf` where the branch is exclusive
+- wrapper unions emit `oneOf` refs to generated branch-envelope component schemas
 - generated schemas include `discriminator.propertyName`
 - generated schemas include stable discriminator mappings to component refs
 - examples align with discriminator-based branch selection
+- rendered OpenAPI output is covered by `libopenapi`-validated regression tests
 
-## Work Plan
+## What Changed
 
-1. Audit current union-shape emission paths in OpenAPI generation.
-2. Define the exact criteria for when a Goa union can safely emit `oneOf` plus discriminator.
-3. Reuse existing Goa union metadata instead of inventing new app-facing DSL.
-4. Add generator support for discriminator mappings on wrapper unions.
-5. Add golden coverage for nested and reused wrapper unions.
-6. Validate generated specs with `libopenapi`.
+1. The OpenAPI v3 schema generator now emits `oneOf` refs plus discriminator mappings for wrapper unions.
+2. The generator creates stable branch-envelope component schemas instead of leaving branch selection implicit under `value.anyOf`.
+3. Unit coverage now checks request and response unions, custom discriminator field names, and renamed-type discriminator stability.
+4. Rendered-spec tests now assert the generated OpenAPI shape and validate it through `libopenapi`.
 
 ## Design Constraints
 
@@ -54,16 +55,17 @@ Out of scope:
 - Do not require application-specific meta tags for the common `type`/`value` pattern.
 - Preserve stable schema names and refs while adding discriminator metadata.
 
-## Risks
+## Remaining Follow-Up
 
-- Some unions may not be exclusive enough for `oneOf`; those cases need a clear fallback rule.
-- Discriminator mappings can become unstable if component naming is unstable.
+- Deduplicate structurally identical schemas that still produce multiple envelope or body component names.
+- Decide whether additional wrapper-union golden fixtures should be added to the checked-in OpenAPI golden set instead of remaining in assertion-based regression tests.
 
 ## Finish Criteria
 
 - Generated OpenAPI 3.1 includes discriminator metadata for supported wrapper unions.
 - Existing union examples still validate.
-- Golden tests cover at least:
+- Unit and rendered-spec tests cover:
   - simple wrapper union
   - nested wrapper union
-  - reused wrapper union component
+  - custom discriminator field names
+  - discriminator stability for renamed variant types

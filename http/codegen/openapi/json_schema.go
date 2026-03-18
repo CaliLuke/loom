@@ -48,7 +48,9 @@ type (
 		AdditionalProperties any      `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
 
 		// Union
-		AnyOf []*Schema `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
+		AnyOf         []*Schema      `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
+		OneOf         []*Schema      `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+		Discriminator *Discriminator `json:"discriminator,omitempty" yaml:"discriminator,omitempty"`
 
 		// Extensions defines the OpenAPI extensions.
 		Extensions map[string]any `json:"-" yaml:"-"`
@@ -61,6 +63,12 @@ type (
 	Media struct {
 		BinaryEncoding string `json:"binaryEncoding,omitempty" yaml:"binaryEncoding,omitempty"`
 		Type           string `json:"type,omitempty" yaml:"type,omitempty"`
+	}
+
+	// Discriminator represents an OpenAPI discriminator object.
+	Discriminator struct {
+		PropertyName string            `json:"propertyName" yaml:"propertyName"`
+		Mapping      map[string]string `json:"mapping,omitempty" yaml:"mapping,omitempty"`
 	}
 
 	// Link represents a "link" field in a JSON hyper schema.
@@ -365,30 +373,28 @@ func TypeSchemaWithPrefix(api *expr.APIExpr, t expr.DataType, prefix string) *Sc
 			s.AdditionalProperties = true
 		}
 	case *expr.Union:
-		// Unions are represented as an object with a discriminated value.
-		// The field names are configurable via Meta tags (defaults: "type" and "value").
+		// Unions are represented as wrapper objects with a discriminator field and
+		// a typed value field. Emit one wrapper branch per variant so OpenAPI
+		// consumers can select the branch from the discriminator directly.
 		typeKey := actual.GetTypeKey()
 		valueKey := actual.GetValueKey()
 
 		s.Type = Object
-		if s.Properties == nil {
-			s.Properties = make(map[string]*Schema)
-		}
-		// Discriminator with enum of branch names.
-		typeSchema := NewSchema()
-		typeSchema.Type = String
-		typeSchema.Enum = make([]any, len(actual.Values))
-		for i, val := range actual.Values {
-			typeSchema.Enum[i] = expr.UnionVariantTag(val)
-		}
-		// Value can be any of the branch schemas.
-		valueSchema := NewSchema()
+		s.Discriminator = &Discriminator{PropertyName: typeKey}
 		for _, val := range actual.Values {
-			valueSchema.AnyOf = append(valueSchema.AnyOf, AttributeTypeSchemaWithPrefix(api, val.Attribute, prefix))
+			tag := expr.UnionVariantTag(val)
+			branch := NewSchema()
+			branch.Type = Object
+			branch.Properties = map[string]*Schema{
+				typeKey: {
+					Type: String,
+					Enum: []any{tag},
+				},
+				valueKey: AttributeTypeSchemaWithPrefix(api, val.Attribute, prefix),
+			}
+			branch.Required = []string{typeKey, valueKey}
+			s.OneOf = append(s.OneOf, branch)
 		}
-		s.Properties[typeKey] = typeSchema
-		s.Properties[valueKey] = valueSchema
-		s.Required = append(s.Required, typeKey, valueKey)
 	case *expr.UserTypeExpr:
 		s.Ref = TypeRefWithPrefix(api, actual, prefix)
 	case *expr.ResultTypeExpr:

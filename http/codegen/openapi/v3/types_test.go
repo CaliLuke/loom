@@ -6,10 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"goa.design/goa/v3/codegen"
+	dsl "goa.design/goa/v3/dsl"
 	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/http/codegen/openapi"
 	"goa.design/goa/v3/http/codegen/openapi/v3/testdata/dsls"
+	"goa.design/goa/v3/http/codegen/testdata"
 )
 
 // describes a type for comparison in tests.
@@ -225,6 +229,7 @@ func TestBuildBodyTypes(t *testing.T) {
 
 func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 	union := &expr.Union{
+		TypeName: "PayloadResult",
 		TypeKey:  "kind",
 		ValueKey: "data",
 		Values: []*expr.NamedAttributeExpr{
@@ -259,10 +264,7 @@ func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 	sf := newSchemafier(expr.NewRandom("union"))
 	schema := sf.schemafy(attr)
 
-	typeSchema := schema.Properties[union.GetTypeKey()]
-	if typeSchema.Enum[0] != "single" || typeSchema.Enum[1] != "batch" {
-		t.Errorf("got union enum %#v, expected tagged values", typeSchema.Enum)
-	}
+	assertUnionSchema(t, schema, sf.schemas, union.GetTypeKey(), union.GetValueKey(), []string{"batch", "single"})
 	example, ok := schema.Example.(map[string]any)
 	if !ok {
 		t.Fatalf("expected map example, got %T", schema.Example)
@@ -273,6 +275,80 @@ func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 	if _, ok := example[union.GetValueKey()].(map[string]any); !ok {
 		t.Errorf("got value example %#v, expected nested object", example[union.GetValueKey()])
 	}
+}
+
+func TestBuildBodyTypesUnionIncludesDiscriminatorMappingsForRequestAndResponse(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		textResult := dsl.Type("TextResult", func() {
+			dsl.Attribute("text", dsl.String)
+			dsl.Required("text")
+		})
+		jsonResult := dsl.Type("JSONResult", func() {
+			dsl.Attribute("message", dsl.String)
+			dsl.Required("message")
+		})
+		dsl.Service("union-service", func() {
+			dsl.Method("show", func() {
+				dsl.Payload(dsl.OneOf(textResult, jsonResult))
+				dsl.Result(dsl.OneOf(textResult, jsonResult))
+				dsl.HTTP(func() {
+					dsl.POST("/")
+				})
+			})
+		})
+	})
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	methodBodies := bodies["union-service"]["show"]
+	requestSchema := derefSchema(t, methodBodies.RequestBody, types)
+	responseSchema := derefSchema(t, methodBodies.ResponseBodies[200][0], types)
+
+	assertUnionSchema(t, requestSchema, types, "type", "value", []string{"JSONResult", "TextResult"})
+	assertUnionSchema(t, responseSchema, types, "type", "value", []string{"JSONResult", "TextResult"})
+}
+
+func TestBuildBodyTypesUnionSupportsCustomKeysAndStableEnvelopeRefs(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.PayloadBodyUnionCustomKeysDSL)
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	requestSchema := derefSchema(t, bodies["ServiceBodyUnionCustomKeys"]["MethodBodyUnionCustomKeys"].RequestBody, types)
+	unionSchema := requestSchema.Properties["Values"]
+
+	assertUnionSchema(t, unionSchema, types, "kind", "data", []string{"Int", "String"})
+}
+
+func TestBuildBodyTypesUnionRenamedTypesKeepDeclaredDiscriminators(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		alpha := dsl.Type("AlphaPayload", func() {
+			dsl.Meta("openapi:typename", "RenamedAlphaPayload")
+			dsl.Meta("oneof:type:tag", "AlphaPayload")
+			dsl.Attribute("alpha", dsl.String)
+			dsl.Required("alpha")
+		})
+		beta := dsl.Type("BetaPayload", func() {
+			dsl.Meta("openapi:typename", "RenamedBetaPayload")
+			dsl.Meta("oneof:type:tag", "BetaPayload")
+			dsl.Attribute("beta", dsl.String)
+			dsl.Required("beta")
+		})
+		dsl.Service("renamed-union-service", func() {
+			dsl.Method("show", func() {
+				dsl.Payload(dsl.OneOf(alpha, beta))
+				dsl.HTTP(func() {
+					dsl.POST("/")
+				})
+			})
+		})
+	})
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	requestSchema := derefSchema(t, bodies["renamed-union-service"]["show"].RequestBody, types)
+
+	require.NotNil(t, requestSchema.Discriminator)
+	require.Contains(t, requestSchema.Discriminator.Mapping, "AlphaPayload")
+	require.Contains(t, requestSchema.Discriminator.Mapping, "BetaPayload")
+	require.NotContains(t, requestSchema.Discriminator.Mapping, "RenamedAlphaPayload")
+	require.NotContains(t, requestSchema.Discriminator.Mapping, "RenamedBetaPayload")
 }
 
 func TestInitExamplesCanonicalizesMultipleUnionExamples(t *testing.T) {
@@ -322,6 +398,61 @@ func TestInitExamplesCanonicalizesMultipleUnionExamples(t *testing.T) {
 	if batch["kind"] != "batch" {
 		t.Errorf("got batch example kind %#v, expected %q", batch["kind"], "batch")
 	}
+}
+
+func assertUnionSchema(t *testing.T, schema *openapi.Schema, types map[string]*openapi.Schema, typeKey, valueKey string, wantTags []string) {
+	t.Helper()
+
+	require.NotNil(t, schema)
+	require.NotNil(t, schema.Discriminator)
+	require.Equal(t, typeKey, schema.Discriminator.PropertyName)
+	require.Len(t, schema.OneOf, len(wantTags))
+	require.Len(t, schema.Discriminator.Mapping, len(wantTags))
+
+	expectedTags := make(map[string]struct{}, len(wantTags))
+	for _, tag := range wantTags {
+		expectedTags[tag] = struct{}{}
+	}
+
+	oneOfRefs := make(map[string]struct{}, len(schema.OneOf))
+	for _, branch := range schema.OneOf {
+		require.NotNil(t, branch)
+		require.NotEmpty(t, branch.Ref)
+		oneOfRefs[branch.Ref] = struct{}{}
+	}
+
+	for tag := range expectedTags {
+		ref, ok := schema.Discriminator.Mapping[tag]
+		require.Truef(t, ok, "missing discriminator mapping for %q", tag)
+		if _, ok := oneOfRefs[ref]; !ok {
+			t.Fatalf("mapping ref %q for tag %q is not present in oneOf", ref, tag)
+		}
+		branchSchema, ok := types[nameFromRef(ref)]
+		require.Truef(t, ok, "missing branch schema for %q", ref)
+		require.Equal(t, string(openapi.Object), string(branchSchema.Type))
+		require.ElementsMatch(t, []string{typeKey, valueKey}, branchSchema.Required)
+
+		typeSchema, ok := branchSchema.Properties[typeKey]
+		require.Truef(t, ok, "missing discriminator property %q", typeKey)
+		require.Equal(t, string(openapi.String), string(typeSchema.Type))
+		require.Equal(t, []any{tag}, typeSchema.Enum)
+
+		valueSchema, ok := branchSchema.Properties[valueKey]
+		require.Truef(t, ok, "missing value property %q", valueKey)
+		require.NotNil(t, valueSchema)
+	}
+}
+
+func derefSchema(t *testing.T, schema *openapi.Schema, types map[string]*openapi.Schema) *openapi.Schema {
+	t.Helper()
+
+	require.NotNil(t, schema)
+	if schema.Ref == "" {
+		return schema
+	}
+	resolved, ok := types[nameFromRef(schema.Ref)]
+	require.Truef(t, ok, "missing schema for ref %q", schema.Ref)
+	return resolved
 }
 
 func matchesSchema(t *testing.T, ctx string, s *openapi.Schema, types map[string]*openapi.Schema, tt typ) {

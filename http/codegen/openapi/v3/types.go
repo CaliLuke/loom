@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash"
 	"hash/fnv"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -36,16 +37,19 @@ type (
 		schemas map[string]*openapi.Schema
 		// type names indexed by hashes
 		hashes map[uint64][]string
-		rand   *expr.ExampleGenerator
+		// union branch schema names indexed by a stable branch key
+		unionBranchSchemas map[string]string
+		rand               *expr.ExampleGenerator
 	}
 )
 
 // newSchemafier initializes a schemafier.
 func newSchemafier(rand *expr.ExampleGenerator) *schemafier {
 	return &schemafier{
-		schemas: make(map[string]*openapi.Schema),
-		hashes:  make(map[uint64][]string),
-		rand:    rand,
+		schemas:            make(map[string]*openapi.Schema),
+		hashes:             make(map[uint64][]string),
+		unionBranchSchemas: make(map[string]string),
+		rand:               rand,
 	}
 }
 
@@ -211,27 +215,19 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 			s.AdditionalProperties = sf.schemafy(t.ElemType)
 		}
 	case *expr.Union:
-		// Represent unions as an object with discriminator and value fields.
-		// The field names are configurable via Meta tags (defaults: "type" and "value").
-		typeKey := t.GetTypeKey()
-		valueKey := t.GetValueKey()
-
+		// Represent unions as wrapper objects with referenced branch envelopes so
+		// OpenAPI consumers can use discriminator mappings for stable selection.
+		values := sortedUnionValues(t)
 		s.Type = openapi.Object
-		if s.Properties == nil {
-			s.Properties = make(map[string]*openapi.Schema)
+		s.Discriminator = &openapi.Discriminator{
+			PropertyName: t.GetTypeKey(),
+			Mapping:      make(map[string]string, len(values)),
 		}
-		typeSchema := &openapi.Schema{Type: "string"}
-		typeSchema.Enum = make([]any, len(t.Values))
-		for i, val := range t.Values {
-			typeSchema.Enum[i] = expr.UnionVariantTag(val)
+		for _, val := range values {
+			ref := sf.ensureUnionBranchSchema(t, val)
+			s.OneOf = append(s.OneOf, &openapi.Schema{Ref: ref})
+			s.Discriminator.Mapping[expr.UnionVariantTag(val)] = ref
 		}
-		valueSchema := &openapi.Schema{}
-		for _, val := range t.Values {
-			valueSchema.AnyOf = append(valueSchema.AnyOf, sf.schemafy(val.Attribute))
-		}
-		s.Properties[typeKey] = typeSchema
-		s.Properties[valueKey] = valueSchema
-		s.Required = append(s.Required, typeKey, valueKey)
 	case expr.UserType:
 		if expr.IsAlias(t) {
 			return sf.schemafy(t.Attribute())
@@ -331,6 +327,72 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 	}
 
 	return s
+}
+
+func (sf *schemafier) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAttributeExpr) string {
+	key := sf.unionBranchSchemaKey(union, val)
+	if name, ok := sf.unionBranchSchemas[key]; ok {
+		return toRef(name)
+	}
+
+	name := deterministicUnionBranchSchemaName(union, val)
+	hash := hashString(key, fnv.New64())
+	name = sf.uniquify(name, hash)
+	sf.unionBranchSchemas[key] = name
+
+	branchSchema := openapi.NewSchema()
+	branchSchema.Type = openapi.Object
+	typeKey := union.GetTypeKey()
+	valueKey := union.GetValueKey()
+	branchSchema.Properties[typeKey] = &openapi.Schema{
+		Type: openapi.String,
+		Enum: []any{expr.UnionVariantTag(val)},
+	}
+	branchSchema.Properties[valueKey] = sf.schemafy(val.Attribute)
+	branchSchema.Required = []string{typeKey, valueKey}
+	sf.schemas[name] = branchSchema
+
+	return toRef(name)
+}
+
+func (sf *schemafier) unionBranchSchemaKey(union *expr.Union, val *expr.NamedAttributeExpr) string {
+	hash := sf.hashAttribute(val.Attribute, fnv.New64())
+	return strings.Join([]string{
+		union.TypeName,
+		union.GetTypeKey(),
+		union.GetValueKey(),
+		expr.UnionVariantTag(val),
+		strconv.FormatUint(hash, 10),
+	}, ":")
+}
+
+func deterministicUnionBranchSchemaName(union *expr.Union, val *expr.NamedAttributeExpr) string {
+	unionName := strings.TrimSpace(union.TypeName)
+	if unionName == "" {
+		unionName = "Union"
+	}
+	branchName := strings.TrimSpace(val.Name)
+	if branchName == "" {
+		branchName = "Value"
+	}
+	return codegen.Goify(fmt.Sprintf("%s%sEnvelope", unionName, branchName), true)
+}
+
+func sortedUnionValues(union *expr.Union) []*expr.NamedAttributeExpr {
+	if len(union.Values) < 2 {
+		return union.Values
+	}
+
+	values := append([]*expr.NamedAttributeExpr(nil), union.Values...)
+	sort.SliceStable(values, func(i, j int) bool {
+		leftName := values[i].Name
+		rightName := values[j].Name
+		if leftName == rightName {
+			return values[i].Attribute.Type.Hash() < values[j].Attribute.Type.Hash()
+		}
+		return leftName < rightName
+	})
+	return values
 }
 
 // uniquify returns n if n is not a known type name. Otherwise it appends a
