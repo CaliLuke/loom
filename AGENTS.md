@@ -66,6 +66,12 @@ No commented-out code—delete dead code.
 | Changes ≥3 files | Describe plan first |
 | New dependencies | Explain why first |
 
+### Git Remotes
+
+- Treat `origin` as the upstream `goadesign/goa` remote. Do **not** push there unless the user explicitly says to.
+- For this repo, default pushes should go to the user's fork remote instead of `origin`.
+- Check `git remote -v` before pushing if there is any ambiguity. In the current setup, `fork` is the user's fork of `goa`, while `goa-light` is a separate fork remote.
+
 ### Testing
 
 - Write table-driven tests in `*_test.go`.
