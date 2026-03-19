@@ -700,6 +700,54 @@ var TypenameDSL = func() {
 	})
 }
 
+var OpenAPISchemaDedupDSL = func() {
+	var Alpha = Type("AlphaSchemaDedup", func() {
+		Attribute("alpha", String)
+		Required("alpha")
+	})
+
+	var Beta = Type("BetaSchemaDedup", func() {
+		Attribute("beta", String)
+		Required("beta")
+	})
+
+	Service("dedupService", func() {
+		Method("first", func() {
+			Payload(func() {
+				Attribute("name", String)
+				Required("name")
+			})
+			HTTP(func() {
+				POST("/first")
+			})
+		})
+
+		Method("second", func() {
+			Payload(func() {
+				Attribute("name", String)
+				Required("name")
+			})
+			HTTP(func() {
+				POST("/second")
+			})
+		})
+
+		Method("union_first", func() {
+			Payload(OneOf(Alpha, Beta))
+			HTTP(func() {
+				POST("/union/first")
+			})
+		})
+
+		Method("union_second", func() {
+			Payload(OneOf(Alpha, Beta))
+			HTTP(func() {
+				POST("/union/second")
+			})
+		})
+	})
+}
+
 var SkipResponseBodyEncodeDecodeDSL = func() {
 	Service("testService", func() {
 		Method("empty", func() {

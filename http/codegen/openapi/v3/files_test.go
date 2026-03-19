@@ -44,6 +44,7 @@ func TestFiles(t *testing.T) {
 		{"headers", testdata.HeadersDSL},
 		{"with-tags", testdata.WithTagsDSL},
 		{"typename", testdata.TypenameDSL},
+		{"schema-dedup", testdata.OpenAPISchemaDedupDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},
 		{"not-generate-host", testdata.NotGenerateHostDSL},
 		{"not-generate-attribute", testdata.NotGenerateAttributeDSL},
@@ -133,6 +134,31 @@ func TestRenderedUnionSchemasIncludeDiscriminatorMappingsAndEnvelopeRefs(t *test
 			spec := renderYAMLOpenAPI(t, tc.dsl)
 			assertRenderedUnionContract(t, spec, tc.typeKey, tc.valueKey, tc.wantTags, tc.envelopes)
 		})
+	}
+}
+
+func TestRenderedSpecDeduplicatesGeneratedRequestBodiesAndUnionEnvelopes(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPISchemaDedupDSL)
+
+	requestRefs := regexp.MustCompile(`(?m)^\s+\$ref: '#/components/schemas/([^']+RequestBody)'$`).FindAllStringSubmatch(spec, -1)
+	if len(requestRefs) != 2 {
+		t.Fatalf("expected 2 request body refs for the duplicated JSON payload methods, got %d\nspec:\n%s", len(requestRefs), spec)
+	}
+
+	counts := make(map[string]int)
+	for _, match := range requestRefs {
+		counts[match[1]]++
+	}
+	if counts["FirstRequestBody"] < 2 {
+		t.Fatalf("expected FirstRequestBody to be reused across duplicate request payloads, got counts %#v\nspec:\n%s", counts, spec)
+	}
+	if _, ok := counts["SecondRequestBody"]; ok {
+		t.Fatalf("expected duplicate request body component to be removed, got counts %#v\nspec:\n%s", counts, spec)
+	}
+
+	envelopes := regexp.MustCompile(`(?m)^\s+([A-Za-z0-9]+Envelope):$`).FindAllStringSubmatch(spec, -1)
+	if len(envelopes) != 2 {
+		t.Fatalf("expected exactly 2 deduplicated union envelope components, got %d\nspec:\n%s", len(envelopes), spec)
 	}
 }
 

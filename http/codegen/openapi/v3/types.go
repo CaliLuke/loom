@@ -35,11 +35,18 @@ type (
 	schemafier struct {
 		// type schemas indexed by ref
 		schemas map[string]*openapi.Schema
-		// type names indexed by hashes
-		hashes map[uint64][]string
+		// type references indexed by hashes
+		hashes map[uint64][]schemaRef
 		// union branch schema names indexed by a stable branch key
 		unionBranchSchemas map[string]string
 		rand               *expr.ExampleGenerator
+	}
+
+	// schemaRef tracks a registered component reference and whether it came from
+	// an explicit openapi:typename declaration.
+	schemaRef struct {
+		ref      string
+		explicit bool
 	}
 )
 
@@ -47,7 +54,7 @@ type (
 func newSchemafier(rand *expr.ExampleGenerator) *schemafier {
 	return &schemafier{
 		schemas:            make(map[string]*openapi.Schema),
-		hashes:             make(map[uint64][]string),
+		hashes:             make(map[uint64][]schemaRef),
 		unionBranchSchemas: make(map[string]string),
 		rand:               rand,
 	}
@@ -244,11 +251,9 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 		// If it is not named, it refers to the same structure.
 		refs, ok := sf.hashes[h]
 		if len(noref) == 0 && ok {
-			for _, ref := range refs {
-				if ref == metaRef || metaName == "" {
-					s.Ref = ref
-					return s
-				}
+			if ref := findMatchingSchemaRef(refs, metaRef, metaName != ""); ref != "" {
+				s.Ref = ref
+				return s
 			}
 		}
 
@@ -262,7 +267,7 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 
 		typeName := sf.uniquify(codegen.Goify(name, true), h)
 		s.Ref = toRef(typeName)
-		sf.hashes[h] = append(sf.hashes[h], s.Ref)
+		sf.hashes[h] = append(sf.hashes[h], schemaRef{ref: s.Ref, explicit: metaName != ""})
 		sf.schemas[typeName] = sf.schemafy(t.Attribute(), true)
 		return s // All other schema properties are set in the reference
 	default:
@@ -358,7 +363,6 @@ func (sf *schemafier) ensureUnionBranchSchema(union *expr.Union, val *expr.Named
 func (sf *schemafier) unionBranchSchemaKey(union *expr.Union, val *expr.NamedAttributeExpr) string {
 	hash := sf.hashAttribute(val.Attribute, fnv.New64())
 	return strings.Join([]string{
-		union.TypeName,
 		union.GetTypeKey(),
 		union.GetValueKey(),
 		expr.UnionVariantTag(val),
@@ -376,6 +380,21 @@ func deterministicUnionBranchSchemaName(union *expr.Union, val *expr.NamedAttrib
 		branchName = "Value"
 	}
 	return codegen.Goify(fmt.Sprintf("%s%sEnvelope", unionName, branchName), true)
+}
+
+func findMatchingSchemaRef(refs []schemaRef, metaRef string, explicit bool) string {
+	for _, ref := range refs {
+		if explicit {
+			if ref.ref == metaRef {
+				return ref.ref
+			}
+			continue
+		}
+		if !ref.explicit {
+			return ref.ref
+		}
+	}
+	return ""
 }
 
 func sortedUnionValues(union *expr.Union) []*expr.NamedAttributeExpr {

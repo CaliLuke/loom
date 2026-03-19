@@ -1,0 +1,163 @@
+openapi: 3.1.1
+info:
+    title: Goa API
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: http://localhost:80
+      description: Default server for test api
+paths:
+    /first:
+        post:
+            tags:
+                - dedupService
+            summary: first dedupService
+            operationId: dedup_service.first
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/FirstRequestBody'
+                        example:
+                            name: Nisi sint sunt beatae quia.
+            responses:
+                "204":
+                    description: No Content response.
+    /second:
+        post:
+            tags:
+                - dedupService
+            summary: second dedupService
+            operationId: dedup_service.second
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/FirstRequestBody'
+                        example:
+                            name: Assumenda fuga est sint maxime.
+            responses:
+                "204":
+                    description: No Content response.
+    /union/first:
+        post:
+            tags:
+                - dedupService
+            summary: union_first dedupService
+            operationId: dedup_service.union_first
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            example:
+                                type: BetaSchemaDedup
+                                value:
+                                    beta: Et est neque.
+                            oneOf:
+                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                            discriminator:
+                                propertyName: type
+                                mapping:
+                                    AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                    BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                        example:
+                            type: AlphaSchemaDedup
+                            value:
+                                alpha: Molestiae iure sit.
+            responses:
+                "204":
+                    description: No Content response.
+    /union/second:
+        post:
+            tags:
+                - dedupService
+            summary: union_second dedupService
+            operationId: dedup_service.union_second
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            example:
+                                type: BetaSchemaDedup
+                                value:
+                                    beta: Et est neque.
+                            oneOf:
+                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                            discriminator:
+                                propertyName: type
+                                mapping:
+                                    AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                    BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                        example:
+                            type: AlphaSchemaDedup
+                            value:
+                                alpha: Molestiae iure sit.
+            responses:
+                "204":
+                    description: No Content response.
+components:
+    schemas:
+        AlphaSchemaDedup:
+            type: object
+            properties:
+                alpha:
+                    type: string
+                    example: Quia molestias.
+            example:
+                alpha: Doloribus qui quia.
+            required:
+                - alpha
+        AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - AlphaSchemaDedup
+                value:
+                    $ref: '#/components/schemas/AlphaSchemaDedup'
+            required:
+                - type
+                - value
+        AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - BetaSchemaDedup
+                value:
+                    $ref: '#/components/schemas/BetaSchemaDedup'
+            required:
+                - type
+                - value
+        BetaSchemaDedup:
+            type: object
+            properties:
+                beta:
+                    type: string
+                    example: Et tempora et quae.
+            example:
+                beta: Itaque inventore optio.
+            required:
+                - beta
+        FirstRequestBody:
+            type: object
+            properties:
+                name:
+                    type: string
+                    example: Ullam aut.
+            example:
+                name: Iste perspiciatis.
+            required:
+                - name
+tags:
+    - name: dedupService

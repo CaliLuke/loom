@@ -351,6 +351,106 @@ func TestBuildBodyTypesUnionRenamedTypesKeepDeclaredDiscriminators(t *testing.T)
 	require.NotContains(t, requestSchema.Discriminator.Mapping, "RenamedBetaPayload")
 }
 
+func TestBuildBodyTypesDeduplicatesGeneratedRequestBodySchemasByStructure(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		dsl.Service("dedup-service", func() {
+			dsl.Method("first", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("name", dsl.String)
+					dsl.Required("name")
+				})
+				dsl.HTTP(func() {
+					dsl.POST("/first")
+				})
+			})
+			dsl.Method("second", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("name", dsl.String)
+					dsl.Required("name")
+				})
+				dsl.HTTP(func() {
+					dsl.POST("/second")
+				})
+			})
+		})
+	})
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	firstRef := bodies["dedup-service"]["first"].RequestBody.Ref
+	secondRef := bodies["dedup-service"]["second"].RequestBody.Ref
+
+	require.Equal(t, firstRef, secondRef)
+	require.Len(t, types, 1)
+	matchesSchema(t, "shared request body", types[nameFromRef(firstRef)], types, tobj("name", tstring))
+}
+
+func TestBuildBodyTypesDeduplicatesRepeatedUnionEnvelopeSchemas(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		alpha := dsl.Type("Alpha", func() {
+			dsl.Attribute("alpha", dsl.String)
+			dsl.Required("alpha")
+		})
+		beta := dsl.Type("Beta", func() {
+			dsl.Attribute("beta", dsl.String)
+			dsl.Required("beta")
+		})
+		dsl.Service("union-dedup-service", func() {
+			for _, name := range []string{"first", "second"} {
+				methodName := name
+				dsl.Method(methodName, func() {
+					dsl.Payload(dsl.OneOf(alpha, beta))
+					dsl.HTTP(func() {
+						dsl.POST("/" + methodName)
+					})
+				})
+			}
+		})
+	})
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	firstSchema := derefSchema(t, bodies["union-dedup-service"]["first"].RequestBody, types)
+	secondSchema := derefSchema(t, bodies["union-dedup-service"]["second"].RequestBody, types)
+
+	require.Equal(t, firstSchema.Discriminator.Mapping, secondSchema.Discriminator.Mapping)
+	require.Len(t, firstSchema.Discriminator.Mapping, 2)
+	require.Len(t, countEnvelopeSchemas(types), 2)
+}
+
+func TestBuildBodyTypesKeepsExplicitOpenAPITypenamesDistinct(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		dsl.Service("named-service", func() {
+			dsl.Method("foo", func() {
+				dsl.Payload(func() {
+					dsl.Meta("openapi:typename", "FooPayload")
+					dsl.Attribute("value", dsl.String)
+					dsl.Required("value")
+				})
+				dsl.HTTP(func() {
+					dsl.POST("/foo")
+				})
+			})
+			dsl.Method("bar", func() {
+				dsl.Payload(func() {
+					dsl.Meta("openapi:typename", "BarPayload")
+					dsl.Attribute("value", dsl.String)
+					dsl.Required("value")
+				})
+				dsl.HTTP(func() {
+					dsl.POST("/bar")
+				})
+			})
+		})
+	})
+
+	bodies, _ := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	fooRef := bodies["named-service"]["foo"].RequestBody.Ref
+	barRef := bodies["named-service"]["bar"].RequestBody.Ref
+
+	require.NotEqual(t, fooRef, barRef)
+	require.Equal(t, "#/components/schemas/FooPayload", fooRef)
+	require.Equal(t, "#/components/schemas/BarPayload", barRef)
+}
+
 func TestInitExamplesCanonicalizesMultipleUnionExamples(t *testing.T) {
 	union := &expr.Union{
 		TypeKey:  "kind",
@@ -965,4 +1065,14 @@ func newRecursiveType(name string) *expr.AttributeExpr {
 func nameFromRef(ref string) string {
 	elems := strings.Split(ref, "/")
 	return elems[len(elems)-1]
+}
+
+func countEnvelopeSchemas(types map[string]*openapi.Schema) []string {
+	var names []string
+	for name := range types {
+		if strings.Contains(name, "Envelope") {
+			names = append(names, name)
+		}
+	}
+	return names
 }

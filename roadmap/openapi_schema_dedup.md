@@ -1,5 +1,7 @@
 # OpenAPI Schema Deduplication
 
+Status: completed
+
 ## Goal
 
 Reduce duplicate hashed component schemas in generated OpenAPI when the shapes are structurally identical, so the contract is easier to diff, reference, and reconcile over time.
@@ -59,3 +61,9 @@ Out of scope:
   - repeated request body wrappers
   - repeated union wrappers
   - true collision cases that still need suffixes
+
+## Implementation Notes
+
+- Generated request/response wrapper schemas now reuse the first generated component for a structural hash instead of creating parallel names for the same shape.
+- Explicit `openapi:typename` declarations remain distinct even when their schemas are structurally identical.
+- Repeated union branch envelope components now deduplicate on discriminator contract plus branch schema shape, rather than on union type name alone.
