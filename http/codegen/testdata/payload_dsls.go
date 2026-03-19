@@ -3268,6 +3268,30 @@ var PayloadMultipartObjectGeneratedDSL = func() {
 	})
 }
 
+var PayloadMultipartObjectGeneratedWithPathParamDSL = func() {
+	Service("ServiceMultipartObjectGeneratedWithPathParam", func() {
+		Method("MethodMultipartObjectGeneratedWithPathParam", func() {
+			Payload(func() {
+				Attribute("project_id", String, func() {
+					Pattern("project-[a-z]+")
+				})
+				Attribute("file", Bytes)
+				Attribute("filename", String)
+				Attribute("content_type", String)
+				Attribute("label", String, func() {
+					Pattern("label-[a-z]+")
+				})
+				Required("project_id", "file", "label")
+			})
+			HTTP(func() {
+				POST("/{project_id}")
+				Param("project_id")
+				MultipartRequest()
+			})
+		})
+	})
+}
+
 var PayloadMultipartObjectGeneratedOptionalDSL = func() {
 	Service("ServiceMultipartObjectGeneratedOptional", func() {
 		Method("MethodMultipartObjectGeneratedOptional", func() {
