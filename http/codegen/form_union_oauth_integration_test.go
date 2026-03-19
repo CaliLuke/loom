@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	cg "goa.design/goa/v3/codegen"
@@ -36,11 +37,7 @@ func TestFormRequestUnionOAuthIntegration(t *testing.T) {
 	dir := t.TempDir()
 	renderGeneratedFiles(t, dir, files)
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	repoRoot := filepath.Clean(filepath.Join(wd, "..", ".."))
+	repoRoot := checkoutPinnedGoaModule(t, dir)
 
 	goMod := fmt.Sprintf(`module %s
 
@@ -62,6 +59,36 @@ replace goa.design/goa/v3 => %s
 	runGoCommand(t, dir, "test", "./...")
 }
 
+func checkoutPinnedGoaModule(t *testing.T, parentDir string) string {
+	t.Helper()
+
+	commit := strings.TrimSpace(runCommand(t, "", "git", "rev-parse", "HEAD"))
+	remote := strings.TrimSpace(resolveGitRemoteURL(t))
+	dest := filepath.Join(parentDir, "goa-pinned")
+
+	runCommand(t, "", "git", "init", dest)
+	runCommand(t, dest, "git", "remote", "add", "origin", remote)
+	runCommand(t, dest, "git", "fetch", "--depth", "1", "origin", commit)
+	runCommand(t, dest, "git", "checkout", "--detach", "FETCH_HEAD")
+
+	return dest
+}
+
+func resolveGitRemoteURL(t *testing.T) string {
+	t.Helper()
+
+	for _, name := range []string{"fork", "origin"} {
+		if out, err := runCommandAllowFailure("", "git", "remote", "get-url", name); err == nil {
+			url := strings.TrimSpace(out)
+			if url != "" {
+				return url
+			}
+		}
+	}
+	t.Fatal("could not resolve git remote URL from fork or origin")
+	return ""
+}
+
 func renderGeneratedFiles(t *testing.T, dir string, files []*cg.File) {
 	t.Helper()
 
@@ -75,12 +102,24 @@ func renderGeneratedFiles(t *testing.T, dir string, files []*cg.File) {
 func runGoCommand(t *testing.T, dir string, args ...string) {
 	t.Helper()
 
-	cmd := exec.Command("go", args...)
+	runCommand(t, dir, "go", args...)
+}
+
+func runCommand(t *testing.T, dir, name string, args ...string) string {
+	t.Helper()
+
+	out, err := runCommandAllowFailure(dir, name, args...)
+	if err != nil {
+		t.Fatalf("%s %v failed: %v\n%s", name, args, err, out)
+	}
+	return out
+}
+
+func runCommandAllowFailure(dir, name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go %v failed: %v\n%s", args, err, out)
-	}
+	return string(out), err
 }
 
 func oauthFormRequestUnionDSL() {

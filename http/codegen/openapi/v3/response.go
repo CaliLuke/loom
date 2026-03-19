@@ -25,7 +25,7 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 			Example:     attr.Example(rand),
 			Extensions:  openapi.ExtensionsFromExpr(attr.Meta),
 		}
-		initExamples(header, attr, rand)
+		initExamples(header, attr, rand, closeObjects)
 		headers[elem] = &HeaderRef{Value: header}
 		return nil
 	})
@@ -58,7 +58,7 @@ func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema
 				Schema:     bodies[r.StatusCode][0],
 				Extensions: openapi.ExtensionsFromExpr(r.Body.Meta),
 			}
-			initExamples(content[ct], r.Body, rand)
+			initExamples(content[ct], r.Body, rand, closeObjects)
 		} else if r.StatusCode != expr.StatusNoContent &&
 			isSkipResponseBodyEncodeDecode(r.Parent) {
 			// When SkipResponseBodyEncodeDecode is declared, the response type

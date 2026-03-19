@@ -1,0 +1,187 @@
+openapi: 3.1.1
+info:
+    title: Activity Feed API
+    description: Union-heavy audit and activity retrieval endpoints.
+    license:
+        name: Apache-2.0
+        url: https://www.apache.org/licenses/LICENSE-2.0.html
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: https://api.activity-feed.example.test
+paths:
+    /projects/{project_id}/activities:
+        get:
+            tags:
+                - activityFeed
+            summary: listActivities activityFeed
+            operationId: activity_feed.list_activities
+            parameters:
+                - name: project_id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: proj_9
+                  example: proj_9
+                - name: cursor
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    example: cursor_2
+                  example: cursor_2
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/ActivityEnvelope'
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ActivityValidationError'
+                            example:
+                                field: cursor
+                                message: cursor must be a base64 token
+            security: []
+    /projects/{project_id}/activities/{activity_id}:
+        get:
+            tags:
+                - activityFeed
+            summary: showActivity activityFeed
+            operationId: activity_feed.show_activity
+            parameters:
+                - name: project_id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: proj_9
+                  example: proj_9
+                - name: activity_id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: act_4
+                  example: act_4
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ActivityEnvelope'
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ActivityValidationError'
+                            example:
+                                field: cursor
+                                message: cursor must be a base64 token
+            security: []
+components:
+    schemas:
+        ActivityEnvelope:
+            type: object
+            properties:
+                entry:
+                    type: object
+                    unevaluatedProperties: false
+                    oneOf:
+                        - $ref: '#/components/schemas/EntrycommentAddedEnvelope'
+                        - $ref: '#/components/schemas/EntrytaskClosedEnvelope'
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            comment_added: '#/components/schemas/EntrycommentAddedEnvelope'
+                            task_closed: '#/components/schemas/EntrytaskClosedEnvelope'
+            additionalProperties: false
+        ActivityValidationError:
+            type: object
+            properties:
+                field:
+                    type: string
+                    example: cursor
+                message:
+                    type: string
+                    example: cursor must be a base64 token
+            example:
+                field: cursor
+                message: cursor must be a base64 token
+            required:
+                - message
+                - field
+            additionalProperties: false
+        CommentAddedActivity:
+            type: object
+            properties:
+                author:
+                    type: string
+                    example: alice
+                comment_id:
+                    type: string
+                    example: cmt_17
+                thread_id:
+                    type: string
+                    example: thr_42
+            example:
+                author: alice
+                comment_id: cmt_17
+                thread_id: thr_42
+            required:
+                - comment_id
+                - thread_id
+                - author
+            additionalProperties: false
+        EntrycommentAddedEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - comment_added
+                value:
+                    $ref: '#/components/schemas/CommentAddedActivity'
+            required:
+                - type
+                - value
+        EntrytaskClosedEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - task_closed
+                value:
+                    $ref: '#/components/schemas/TaskClosedActivity'
+            required:
+                - type
+                - value
+        TaskClosedActivity:
+            type: object
+            properties:
+                closed_by:
+                    type: string
+                    example: bob
+                task_id:
+                    type: string
+                    example: TASK-9
+            example:
+                closed_by: bob
+                task_id: TASK-9
+            required:
+                - task_id
+                - closed_by
+            additionalProperties: false
+tags:
+    - name: activityFeed
+      description: Read activity entries across project workstreams.

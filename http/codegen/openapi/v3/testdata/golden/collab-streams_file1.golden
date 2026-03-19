@@ -1,0 +1,200 @@
+openapi: 3.1.1
+info:
+    title: Collaboration Streams API
+    description: Collaborative thread operations exposed through HTTP and SSE.
+    license:
+        name: Apache-2.0
+        url: https://www.apache.org/licenses/LICENSE-2.0.html
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: https://api.collab-streams.example.test
+paths:
+    /threads/{thread_id}:
+        get:
+            tags:
+                - collabStreams
+            summary: getThread collabStreams
+            operationId: collab_streams.get_thread
+            parameters:
+                - name: thread_id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: thr_42
+                    pattern: ^thr_[0-9]+$
+                  example: thr_42
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ThreadSummary'
+                            example:
+                                participants:
+                                    - alice
+                                    - bob
+                                thread_id: thr_42
+                                title: Release freeze follow-up
+                "404":
+                    description: 'not_found: Not Found response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security: []
+    /threads/{thread_id}/events:
+        get:
+            tags:
+                - collabStreams
+            summary: watchThread collabStreams
+            operationId: collab_streams.watch_thread
+            parameters:
+                - name: thread_id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: thr_42
+                    pattern: ^thr_[0-9]+$
+                  example: thr_42
+                - name: last_event_id
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    example: evt_7
+                  example: evt_7
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/WatchThreadResponseBody'
+                            example:
+                                data:
+                                    author: alice
+                                    preview: Shipping the OpenAPI cleanup next.
+                                event: thread.message_posted
+                                id: evt_8
+                "429":
+                    description: 'busy: Too Many Requests response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security: []
+components:
+    schemas:
+        Error:
+            type: object
+            properties:
+                fault:
+                    type: boolean
+                    description: Is the error a server-side fault?
+                    example: false
+                id:
+                    type: string
+                    description: ID is a unique identifier for this particular occurrence of the problem.
+                    example: 123abc
+                message:
+                    type: string
+                    description: Message is a human-readable explanation specific to this occurrence of the problem.
+                    example: parameter 'p' must be an integer
+                name:
+                    type: string
+                    description: Name is the name of this class of errors.
+                    example: bad_request
+                temporary:
+                    type: boolean
+                    description: Is the error temporary?
+                    example: false
+                timeout:
+                    type: boolean
+                    description: Is the error a timeout?
+                    example: true
+            example:
+                fault: true
+                id: 123abc
+                message: parameter 'p' must be an integer
+                name: bad_request
+                temporary: false
+                timeout: false
+            required:
+                - name
+                - id
+                - message
+                - temporary
+                - timeout
+                - fault
+            additionalProperties: false
+        ThreadSummary:
+            type: object
+            properties:
+                participants:
+                    type: array
+                    items:
+                        type: string
+                        example: Ea praesentium.
+                    example:
+                        - alice
+                        - bob
+                thread_id:
+                    type: string
+                    example: thr_42
+                    pattern: ^thr_[0-9]+$
+                title:
+                    type: string
+                    example: Release freeze follow-up
+            example:
+                participants:
+                    - alice
+                    - bob
+                thread_id: thr_42
+                title: Release freeze follow-up
+            required:
+                - thread_id
+                - title
+            additionalProperties: false
+        WatchThreadResponseBody:
+            type: object
+            properties:
+                data:
+                    type: object
+                    properties:
+                        author:
+                            type: string
+                            example: alice
+                        preview:
+                            type: string
+                            example: Shipping the OpenAPI cleanup next.
+                    example:
+                        author: alice
+                        preview: Shipping the OpenAPI cleanup next.
+                    required:
+                        - author
+                        - preview
+                    additionalProperties: false
+                event:
+                    type: string
+                    example: thread.message_posted
+                id:
+                    type: string
+                    example: evt_8
+            example:
+                data:
+                    author: alice
+                    preview: Shipping the OpenAPI cleanup next.
+                event: thread.message_posted
+                id: evt_8
+            required:
+                - id
+                - event
+                - data
+            additionalProperties: false
+tags:
+    - name: collabStreams
+      description: Thread collaboration entry points.

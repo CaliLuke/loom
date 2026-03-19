@@ -1,0 +1,90 @@
+{
+  "components": {
+    "schemas": {
+      "StreamCommandsResponseBody": {
+        "additionalProperties": false,
+        "example": {
+          "event": "command.accepted",
+          "ok": true
+        },
+        "properties": {
+          "event": {
+            "example": "command.accepted",
+            "type": "string"
+          },
+          "ok": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "event",
+          "ok"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "WebSocket control surface for operator consoles.",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "title": "Ops Socket API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/ws/ops/{channel}": {
+      "get": {
+        "operationId": "ops_socket.stream_commands",
+        "parameters": [
+          {
+            "example": "deployments",
+            "in": "path",
+            "name": "channel",
+            "required": true,
+            "schema": {
+              "example": "deployments",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "event": "command.accepted",
+                  "ok": true
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StreamCommandsResponseBody"
+                }
+              }
+            },
+            "description": "Switching Protocols response."
+          }
+        },
+        "security": [],
+        "summary": "streamCommands opsSocket",
+        "tags": [
+          "opsSocket"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.ops-socket.example.test"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Bidirectional operator control channel.",
+      "name": "opsSocket"
+    }
+  ]
+}

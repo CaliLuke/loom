@@ -22,6 +22,9 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
   `Meta("openapi:example", "false")` on wrapper fields, keep SSE response
   statuses on normal HTTP success codes, and normalize binary request examples
   to JSON/OpenAPI string form.
+- Suppress invalid synthesized examples for closed-object direct-union
+  collections, including response/media-type examples for arrays whose element
+  shape contains discriminator-driven closed unions.
 - Keep a non-trivial specimen API under `http/codegen/testdata` and validate its
   rendered OpenAPI with both `libopenapi` and Redocly as a closed-loop contract
   check.
@@ -61,3 +64,8 @@ Keep these policies in `goa-light`, not in plugins:
 - continue improving OpenAPI output where it materially helps machine consumers
 - keep contract-shape decisions centralized in `goa-light`
 - do not let `goa-ai` develop its own contract-stability layer
+- keep the specimen matrix broad enough to cover:
+  - form and multipart request bodies
+  - closed-object union wrappers and union collections
+  - result views and collections
+  - SSE and WebSocket streaming response shapes

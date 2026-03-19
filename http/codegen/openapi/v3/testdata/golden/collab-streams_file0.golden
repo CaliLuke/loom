@@ -1,0 +1,285 @@
+{
+  "components": {
+    "schemas": {
+      "Error": {
+        "additionalProperties": false,
+        "example": {
+          "fault": true,
+          "id": "123abc",
+          "message": "parameter 'p' must be an integer",
+          "name": "bad_request",
+          "temporary": false,
+          "timeout": false
+        },
+        "properties": {
+          "fault": {
+            "description": "Is the error a server-side fault?",
+            "example": false,
+            "type": "boolean"
+          },
+          "id": {
+            "description": "ID is a unique identifier for this particular occurrence of the problem.",
+            "example": "123abc",
+            "type": "string"
+          },
+          "message": {
+            "description": "Message is a human-readable explanation specific to this occurrence of the problem.",
+            "example": "parameter 'p' must be an integer",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name is the name of this class of errors.",
+            "example": "bad_request",
+            "type": "string"
+          },
+          "temporary": {
+            "description": "Is the error temporary?",
+            "example": false,
+            "type": "boolean"
+          },
+          "timeout": {
+            "description": "Is the error a timeout?",
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "message",
+          "temporary",
+          "timeout",
+          "fault"
+        ],
+        "type": "object"
+      },
+      "ThreadSummary": {
+        "additionalProperties": false,
+        "example": {
+          "participants": [
+            "alice",
+            "bob"
+          ],
+          "thread_id": "thr_42",
+          "title": "Release freeze follow-up"
+        },
+        "properties": {
+          "participants": {
+            "example": [
+              "alice",
+              "bob"
+            ],
+            "items": {
+              "example": "Ea praesentium.",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "thread_id": {
+            "example": "thr_42",
+            "pattern": "^thr_[0-9]+$",
+            "type": "string"
+          },
+          "title": {
+            "example": "Release freeze follow-up",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thread_id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "WatchThreadResponseBody": {
+        "additionalProperties": false,
+        "example": {
+          "data": {
+            "author": "alice",
+            "preview": "Shipping the OpenAPI cleanup next."
+          },
+          "event": "thread.message_posted",
+          "id": "evt_8"
+        },
+        "properties": {
+          "data": {
+            "additionalProperties": false,
+            "example": {
+              "author": "alice",
+              "preview": "Shipping the OpenAPI cleanup next."
+            },
+            "properties": {
+              "author": {
+                "example": "alice",
+                "type": "string"
+              },
+              "preview": {
+                "example": "Shipping the OpenAPI cleanup next.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "author",
+              "preview"
+            ],
+            "type": "object"
+          },
+          "event": {
+            "example": "thread.message_posted",
+            "type": "string"
+          },
+          "id": {
+            "example": "evt_8",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event",
+          "data"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Collaborative thread operations exposed through HTTP and SSE.",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "title": "Collaboration Streams API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/threads/{thread_id}": {
+      "get": {
+        "operationId": "collab_streams.get_thread",
+        "parameters": [
+          {
+            "example": "thr_42",
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "example": "thr_42",
+              "pattern": "^thr_[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "participants": [
+                    "alice",
+                    "bob"
+                  ],
+                  "thread_id": "thr_42",
+                  "title": "Release freeze follow-up"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadSummary"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "404": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "not_found: Not Found response."
+          }
+        },
+        "security": [],
+        "summary": "getThread collabStreams",
+        "tags": [
+          "collabStreams"
+        ]
+      }
+    },
+    "/threads/{thread_id}/events": {
+      "get": {
+        "operationId": "collab_streams.watch_thread",
+        "parameters": [
+          {
+            "example": "thr_42",
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "example": "thr_42",
+              "pattern": "^thr_[0-9]+$",
+              "type": "string"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": "evt_7",
+            "in": "query",
+            "name": "last_event_id",
+            "schema": {
+              "example": "evt_7",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "author": "alice",
+                    "preview": "Shipping the OpenAPI cleanup next."
+                  },
+                  "event": "thread.message_posted",
+                  "id": "evt_8"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/WatchThreadResponseBody"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "429": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "busy: Too Many Requests response."
+          }
+        },
+        "security": [],
+        "summary": "watchThread collabStreams",
+        "tags": [
+          "collabStreams"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.collab-streams.example.test"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Thread collaboration entry points.",
+      "name": "collabStreams"
+    }
+  ]
+}

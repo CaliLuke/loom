@@ -1,0 +1,58 @@
+openapi: 3.1.1
+info:
+    title: Ops Socket API
+    description: WebSocket control surface for operator consoles.
+    license:
+        name: Apache-2.0
+        url: https://www.apache.org/licenses/LICENSE-2.0.html
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: https://api.ops-socket.example.test
+paths:
+    /ws/ops/{channel}:
+        get:
+            tags:
+                - opsSocket
+            summary: streamCommands opsSocket
+            operationId: ops_socket.stream_commands
+            parameters:
+                - name: channel
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: deployments
+                  example: deployments
+            responses:
+                "101":
+                    description: Switching Protocols response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/StreamCommandsResponseBody'
+                            example:
+                                event: command.accepted
+                                ok: true
+            security: []
+components:
+    schemas:
+        StreamCommandsResponseBody:
+            type: object
+            properties:
+                event:
+                    type: string
+                    example: command.accepted
+                ok:
+                    type: boolean
+                    example: true
+            example:
+                event: command.accepted
+                ok: true
+            required:
+                - event
+                - ok
+            additionalProperties: false
+tags:
+    - name: opsSocket
+      description: Bidirectional operator control channel.

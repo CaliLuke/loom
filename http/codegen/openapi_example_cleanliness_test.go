@@ -95,6 +95,24 @@ func TestOpenAPISSEStreamingResponsesRemainHTTP200(t *testing.T) {
 	require.NotContains(t, responses, "101")
 }
 
+func TestOpenAPIClosedObjectUnionCollectionExamplesAreSuppressed(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.ActivityFeedDSL)
+	openapi.Definitions = make(map[string]*openapi.Schema)
+
+	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
+	parseOpenAPIV3Document(t, spec)
+
+	activityEnvelope := componentSchemaFromSpec(t, spec, "ActivityEnvelope")
+	require.NotContains(t, activityEnvelope, "example")
+
+	activitiesMediaType := operationResponseMediaTypeFromSpec(t, spec, "/projects/{project_id}/activities", "get", "200", "application/json")
+	require.NotContains(t, activitiesMediaType, "example")
+
+	schema, ok := activitiesMediaType["schema"].(map[string]any)
+	require.True(t, ok)
+	require.NotContains(t, schema, "example")
+}
+
 func componentSchemaFromSpec(t *testing.T, spec []byte, name string) map[string]any {
 	t.Helper()
 
@@ -117,6 +135,21 @@ func operationMediaTypeFromSpec(t *testing.T, spec []byte, path, method, content
 	requestBody, ok := op["requestBody"].(map[string]any)
 	require.True(t, ok)
 	content, ok := requestBody["content"].(map[string]any)
+	require.True(t, ok)
+	mediaType, ok := content[contentType].(map[string]any)
+	require.True(t, ok, contentType)
+	return mediaType
+}
+
+func operationResponseMediaTypeFromSpec(t *testing.T, spec []byte, path, method, status, contentType string) map[string]any {
+	t.Helper()
+
+	op := operationFromSpec(t, spec, path, method)
+	responses, ok := op["responses"].(map[string]any)
+	require.True(t, ok)
+	response, ok := responses[status].(map[string]any)
+	require.True(t, ok, status)
+	content, ok := response["content"].(map[string]any)
 	require.True(t, ok)
 	mediaType, ok := content[contentType].(map[string]any)
 	require.True(t, ok, contentType)

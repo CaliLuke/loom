@@ -14,8 +14,8 @@ type (
 )
 
 // initExample sets the example or examples of the given object.
-func initExamples(obj exampler, attr *expr.AttributeExpr, r *expr.ExampleGenerator) {
-	if shouldSuppressOpenAPIExamples(attr, false) {
+func initExamples(obj exampler, attr *expr.AttributeExpr, r *expr.ExampleGenerator, closeObjects bool) {
+	if shouldSuppressOpenAPIExamples(attr, closeObjects) {
 		return
 	}
 	examples := attr.ExtractUserExamples()
@@ -86,6 +86,11 @@ func objectContainsSuppressedOpenAPIExample(attr *expr.AttributeExpr, closeObjec
 		}
 		seenUT[id] = struct{}{}
 		return objectContainsSuppressedOpenAPIExample(actual.Attribute(), closeObjects, seenUT, seenDT)
+	case *expr.Array:
+		return objectContainsSuppressedOpenAPIExample(actual.ElemType, closeObjects, seenUT, seenDT)
+	case *expr.Map:
+		return objectContainsSuppressedOpenAPIExample(actual.KeyType, closeObjects, seenUT, seenDT) ||
+			objectContainsSuppressedOpenAPIExample(actual.ElemType, closeObjects, seenUT, seenDT)
 	case *expr.Object:
 		for _, nat := range *actual {
 			if nat == nil || nat.Attribute == nil {

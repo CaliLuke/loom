@@ -28,6 +28,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - Generated OpenAPI emits operation-level security for secured endpoints, including inherited service/API requirements; `NoSecurity()` emits explicit `security: []` on the operation instead of relying on omission.
 - Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
 - Generated OpenAPI suppresses closed-object union-wrapper examples that would be invalid against the emitted schema, and field-level `Meta("openapi:example", "false")` must suppress wrapper examples all the way through enclosing request bodies/media types.
+- Generated OpenAPI also suppresses synthesized examples for closed-object union collections when the array/map element shape would otherwise emit invalid discriminator-wrapper examples.
 - Wrapper-style unions now emit OpenAPI discriminators with:
   - `discriminator.propertyName`
   - `discriminator.mapping`
@@ -71,6 +72,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - If a design hand-models bearer-or-cookie auth, duplicated auth responses, or raw `Set-Cookie` headers, check whether the newer session and cookie DSL should replace that glue first.
 - If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
 - When hardening OpenAPI output, prefer a non-trivial specimen DSL plus rendered-spec assertions and external linting over isolated schema snapshots only.
+- For temp-module generation loops, pin the pushed GitHub commit of `goa.design/goa/v3` instead of replacing against an uncommitted local checkout. Local working-tree replaces are fine for in-repo package tests, but not for CI-reproducible external generation.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
 

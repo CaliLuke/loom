@@ -390,7 +390,7 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 			ct = "application/x-www-form-urlencoded"
 		}
 		mt := &MediaType{Schema: bodies.RequestBody}
-		initExamples(mt, e.Body, rand)
+		initExamples(mt, e.Body, rand, closeObjects)
 		requestBody = &RequestBodyRef{Value: &RequestBody{
 			Description: e.Body.Description,
 			Required:    e.Body.Type != expr.Empty && !e.OptionalRequestBody,

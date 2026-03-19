@@ -68,6 +68,6 @@ func paramFor(att *expr.AttributeExpr, name, in string, required bool, rand *exp
 		Schema:          newSchemafier(rand, closeObjects).schemafy(att),
 		Extensions:      openapi.ExtensionsFromExpr(att.Meta),
 	}
-	initExamples(param, att, rand)
+	initExamples(param, att, rand, closeObjects)
 	return param
 }

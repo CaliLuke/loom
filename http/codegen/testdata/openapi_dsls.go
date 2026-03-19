@@ -1439,3 +1439,256 @@ var MealPlannerDSL = func() {
 		})
 	})
 }
+
+var CollabStreamsDSL = func() {
+	var ThreadSummary = Type("ThreadSummary", func() {
+		Attribute("thread_id", String, func() {
+			Example("thr_42")
+			Pattern("^thr_[0-9]+$")
+		})
+		Attribute("title", String, func() {
+			Example("Release freeze follow-up")
+		})
+		Attribute("participants", ArrayOf(String), func() {
+			Example([]string{"alice", "bob"})
+		})
+		Required("thread_id", "title")
+	})
+	var _ = API("collab-streams", func() {
+		Title("Collaboration Streams API")
+		Description("Collaborative thread operations exposed through HTTP and SSE.")
+		Meta("openapi:closed-objects", "true")
+		License(func() {
+			Name("Apache-2.0")
+			URL("https://www.apache.org/licenses/LICENSE-2.0.html")
+		})
+		Server("collab-streams", func() {
+			Host("api", func() {
+				URI("https://api.collab-streams.example.test")
+			})
+		})
+	})
+	Service("collabStreams", func() {
+		Description("Thread collaboration entry points.")
+
+		Method("getThread", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("thread_id", String, func() {
+					Example("thr_42")
+					Pattern("^thr_[0-9]+$")
+				})
+				Required("thread_id")
+			})
+			Result(ThreadSummary)
+			Error("not_found")
+			HTTP(func() {
+				GET("/threads/{thread_id}")
+				Param("thread_id")
+				Response(StatusOK)
+				Response("not_found", StatusNotFound)
+			})
+		})
+
+		Method("watchThread", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("thread_id", String, func() {
+					Example("thr_42")
+					Pattern("^thr_[0-9]+$")
+				})
+				Attribute("last_event_id", String, func() {
+					Example("evt_7")
+				})
+				Required("thread_id")
+			})
+			StreamingResult(func() {
+				Attribute("id", String, func() {
+					Example("evt_8")
+				})
+				Attribute("event", String, func() {
+					Example("thread.message_posted")
+				})
+				Attribute("data", func() {
+					Attribute("author", String, func() {
+						Example("alice")
+					})
+					Attribute("preview", String, func() {
+						Example("Shipping the OpenAPI cleanup next.")
+					})
+					Required("author", "preview")
+				})
+				Required("id", "event", "data")
+			})
+			Error("busy")
+			HTTP(func() {
+				GET("/threads/{thread_id}/events")
+				Param("thread_id")
+				Param("last_event_id")
+				ServerSentEvents(func() {
+					SSERequestID("last_event_id")
+					SSEEventID("id")
+				})
+				Response("busy", StatusTooManyRequests)
+			})
+		})
+	})
+}
+
+var OpsSocketDSL = func() {
+	var _ = API("ops-socket", func() {
+		Title("Ops Socket API")
+		Description("WebSocket control surface for operator consoles.")
+		Meta("openapi:closed-objects", "true")
+		License(func() {
+			Name("Apache-2.0")
+			URL("https://www.apache.org/licenses/LICENSE-2.0.html")
+		})
+		Server("ops-socket", func() {
+			Host("api", func() {
+				URI("https://api.ops-socket.example.test")
+			})
+		})
+	})
+	Service("opsSocket", func() {
+		Description("Bidirectional operator control channel.")
+
+		Method("streamCommands", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("channel", String, func() {
+					Example("deployments")
+				})
+				Required("channel")
+			})
+			StreamingPayload(func() {
+				Attribute("op", String, func() {
+					Example("pause")
+				})
+				Attribute("target", String, func() {
+					Example("worker-eu-1")
+				})
+				Required("op", "target")
+			})
+			StreamingResult(func() {
+				Attribute("event", String, func() {
+					Example("command.accepted")
+				})
+				Attribute("ok", Boolean, func() {
+					Example(true)
+				})
+				Required("event", "ok")
+			})
+			HTTP(func() {
+				GET("/ws/ops/{channel}")
+				Param("channel")
+			})
+		})
+	})
+}
+
+var ActivityFeedDSL = func() {
+	var CommentAdded = Type("CommentAddedActivity", func() {
+		Attribute("comment_id", String, func() {
+			Example("cmt_17")
+		})
+		Attribute("thread_id", String, func() {
+			Example("thr_42")
+		})
+		Attribute("author", String, func() {
+			Example("alice")
+		})
+		Required("comment_id", "thread_id", "author")
+	})
+	var TaskClosed = Type("TaskClosedActivity", func() {
+		Attribute("task_id", String, func() {
+			Example("TASK-9")
+		})
+		Attribute("closed_by", String, func() {
+			Example("bob")
+		})
+		Required("task_id", "closed_by")
+	})
+	var ActivityEnvelope = Type("ActivityEnvelope", func() {
+		OneOf("entry", func() {
+			Attribute("comment_added", CommentAdded, func() {
+				Meta("oneof:type:tag", "comment_added")
+			})
+			Attribute("task_closed", TaskClosed, func() {
+				Meta("oneof:type:tag", "task_closed")
+			})
+		})
+		Meta("oneof:type:field", "kind")
+		Meta("oneof:value:field", "payload")
+	})
+	var ValidationError = Type("ActivityValidationError", func() {
+		Attribute("message", String, func() {
+			Example("cursor must be a base64 token")
+		})
+		Attribute("field", String, func() {
+			Example("cursor")
+		})
+		Required("message", "field")
+	})
+	var _ = API("activity-feed", func() {
+		Title("Activity Feed API")
+		Description("Union-heavy audit and activity retrieval endpoints.")
+		Meta("openapi:closed-objects", "true")
+		License(func() {
+			Name("Apache-2.0")
+			URL("https://www.apache.org/licenses/LICENSE-2.0.html")
+		})
+		Server("activity-feed", func() {
+			Host("api", func() {
+				URI("https://api.activity-feed.example.test")
+			})
+		})
+	})
+	Service("activityFeed", func() {
+		Description("Read activity entries across project workstreams.")
+
+		Method("listActivities", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("project_id", String, func() {
+					Example("proj_9")
+				})
+				Attribute("cursor", String, func() {
+					Example("cursor_2")
+				})
+				Required("project_id")
+			})
+			Result(ArrayOf(ActivityEnvelope))
+			Error("bad_request", ValidationError)
+			HTTP(func() {
+				GET("/projects/{project_id}/activities")
+				Param("project_id")
+				Param("cursor")
+				Response(StatusOK)
+				Response("bad_request", StatusBadRequest)
+			})
+		})
+
+		Method("showActivity", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("project_id", String, func() {
+					Example("proj_9")
+				})
+				Attribute("activity_id", String, func() {
+					Example("act_4")
+				})
+				Required("project_id", "activity_id")
+			})
+			Result(ActivityEnvelope)
+			Error("bad_request", ValidationError)
+			HTTP(func() {
+				GET("/projects/{project_id}/activities/{activity_id}")
+				Param("project_id")
+				Param("activity_id")
+				Response(StatusOK)
+				Response("bad_request", StatusBadRequest)
+			})
+		})
+	})
+}

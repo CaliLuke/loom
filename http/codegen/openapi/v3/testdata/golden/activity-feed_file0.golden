@@ -1,0 +1,282 @@
+{
+  "components": {
+    "schemas": {
+      "ActivityEnvelope": {
+        "additionalProperties": false,
+        "properties": {
+          "entry": {
+            "discriminator": {
+              "mapping": {
+                "comment_added": "#/components/schemas/EntrycommentAddedEnvelope",
+                "task_closed": "#/components/schemas/EntrytaskClosedEnvelope"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EntrycommentAddedEnvelope"
+              },
+              {
+                "$ref": "#/components/schemas/EntrytaskClosedEnvelope"
+              }
+            ],
+            "type": "object",
+            "unevaluatedProperties": false
+          }
+        },
+        "type": "object"
+      },
+      "ActivityValidationError": {
+        "additionalProperties": false,
+        "example": {
+          "field": "cursor",
+          "message": "cursor must be a base64 token"
+        },
+        "properties": {
+          "field": {
+            "example": "cursor",
+            "type": "string"
+          },
+          "message": {
+            "example": "cursor must be a base64 token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "field"
+        ],
+        "type": "object"
+      },
+      "CommentAddedActivity": {
+        "additionalProperties": false,
+        "example": {
+          "author": "alice",
+          "comment_id": "cmt_17",
+          "thread_id": "thr_42"
+        },
+        "properties": {
+          "author": {
+            "example": "alice",
+            "type": "string"
+          },
+          "comment_id": {
+            "example": "cmt_17",
+            "type": "string"
+          },
+          "thread_id": {
+            "example": "thr_42",
+            "type": "string"
+          }
+        },
+        "required": [
+          "comment_id",
+          "thread_id",
+          "author"
+        ],
+        "type": "object"
+      },
+      "EntrycommentAddedEnvelope": {
+        "properties": {
+          "type": {
+            "enum": [
+              "comment_added"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/CommentAddedActivity"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "EntrytaskClosedEnvelope": {
+        "properties": {
+          "type": {
+            "enum": [
+              "task_closed"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/TaskClosedActivity"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "TaskClosedActivity": {
+        "additionalProperties": false,
+        "example": {
+          "closed_by": "bob",
+          "task_id": "TASK-9"
+        },
+        "properties": {
+          "closed_by": {
+            "example": "bob",
+            "type": "string"
+          },
+          "task_id": {
+            "example": "TASK-9",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "closed_by"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Union-heavy audit and activity retrieval endpoints.",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "title": "Activity Feed API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/projects/{project_id}/activities": {
+      "get": {
+        "operationId": "activity_feed.list_activities",
+        "parameters": [
+          {
+            "example": "proj_9",
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "example": "proj_9",
+              "type": "string"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": "cursor_2",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "example": "cursor_2",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityEnvelope"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "field": "cursor",
+                  "message": "cursor must be a base64 token"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityValidationError"
+                }
+              }
+            },
+            "description": "bad_request: Bad Request response."
+          }
+        },
+        "security": [],
+        "summary": "listActivities activityFeed",
+        "tags": [
+          "activityFeed"
+        ]
+      }
+    },
+    "/projects/{project_id}/activities/{activity_id}": {
+      "get": {
+        "operationId": "activity_feed.show_activity",
+        "parameters": [
+          {
+            "example": "proj_9",
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "example": "proj_9",
+              "type": "string"
+            }
+          },
+          {
+            "example": "act_4",
+            "in": "path",
+            "name": "activity_id",
+            "required": true,
+            "schema": {
+              "example": "act_4",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityEnvelope"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "field": "cursor",
+                  "message": "cursor must be a base64 token"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityValidationError"
+                }
+              }
+            },
+            "description": "bad_request: Bad Request response."
+          }
+        },
+        "security": [],
+        "summary": "showActivity activityFeed",
+        "tags": [
+          "activityFeed"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.activity-feed.example.test"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Read activity entries across project workstreams.",
+      "name": "activityFeed"
+    }
+  ]
+}

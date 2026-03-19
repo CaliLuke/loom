@@ -508,7 +508,7 @@ func TestInitExamplesCanonicalizesMultipleUnionExamples(t *testing.T) {
 	}
 
 	mt := &MediaType{}
-	initExamples(mt, attr, expr.NewRandom("union"))
+	initExamples(mt, attr, expr.NewRandom("union"), false)
 
 	if len(mt.Examples) != 2 {
 		t.Fatalf("got %d examples, expected 2", len(mt.Examples))
