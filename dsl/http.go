@@ -816,6 +816,22 @@ func MultipartRequest() {
 	e.MultipartRequest = true
 }
 
+// FormRequest indicates that HTTP requests made to the method use
+// application/x-www-form-urlencoded encoding.
+//
+// FormRequest must appear in a HTTP endpoint expression.
+//
+// goa generates framework-owned request decoding and encoding for supported
+// typed payloads so applications do not need handwritten form parsers.
+func FormRequest() {
+	e, ok := eval.Current().(*expr.HTTPEndpointExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	e.FormRequest = true
+}
+
 // SkipRequestBodyEncodeDecode prevents Goa from generating the request encoding
 // (client) and decoding (server) code. Instead the service method gets direct
 // access to the HTTP body reader. The client method provides a reader from

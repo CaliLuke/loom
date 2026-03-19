@@ -72,6 +72,9 @@ type (
 		// MultipartRequest indicates that the request content type for
 		// the endpoint is a multipart type.
 		MultipartRequest bool
+		// FormRequest indicates that the request content type for
+		// the endpoint is application/x-www-form-urlencoded.
+		FormRequest bool
 		// Redirect defines a redirect for the endpoint.
 		Redirect *HTTPRedirectExpr
 		// SSE defines the Server-Sent Events configuration for this endpoint if it's
@@ -606,6 +609,9 @@ func (e *HTTPEndpointExpr) Validate() error {
 		if e.MultipartRequest {
 			verr.Add(e, "MultipartRequest is set but Payload is not defined")
 		}
+		if e.FormRequest {
+			verr.Add(e, "FormRequest is set but Payload is not defined")
+		}
 		if !e.Params.IsEmpty() {
 			verr.Add(e, "Params are set but Payload is not defined.")
 		}
@@ -614,19 +620,38 @@ func (e *HTTPEndpointExpr) Validate() error {
 		}
 		return verr
 	}
+	if e.FormRequest && e.MultipartRequest {
+		verr.Add(e, "HTTP endpoint cannot define both FormRequest and MultipartRequest.")
+	}
+	if e.FormRequest && e.SkipRequestBodyEncodeDecode {
+		verr.Add(e, "HTTP endpoint cannot use FormRequest with SkipRequestBodyEncodeDecode.")
+	}
 	if e.MultipartRequest && IsUnion(e.MethodExpr.Payload.Type) {
 		verr.Add(e, "MultipartRequest requires an object payload, constructor unions are not supported")
+	}
+	if e.FormRequest && !(IsUnion(e.MethodExpr.Payload.Type) || IsObject(e.MethodExpr.Payload.Type)) {
+		verr.Add(e, "FormRequest requires an object or constructor union payload")
 	}
 	if IsArray(e.MethodExpr.Payload.Type) {
 		if e.MapQueryParams != nil {
 			verr.Add(e, "MapParams is set but Payload type is array. Payload type must be map or an object with a map attribute")
 		}
-		if hasParams && e.MultipartRequest {
-			verr.Add(e, "Payload type is array but HTTP endpoint defines MultipartRequest and route/query string parameters. At most one of these must be defined.")
+		if hasParams && (e.MultipartRequest || e.FormRequest) {
+			if e.MultipartRequest {
+				verr.Add(e, "Payload type is array but HTTP endpoint defines MultipartRequest and route/query string parameters. At most one of these must be defined.")
+			} else {
+				verr.Add(e, "Payload type is array but HTTP endpoint defines FormRequest and route/query string parameters. At most one of these must be defined.")
+			}
 		}
 		if hasHeaders {
-			if hasCookies || e.MultipartRequest {
-				verr.Add(e, "Payload type is array but HTTP endpoint defines headers and MultipartRequest or cookies. At most one of these must be defined.")
+			if hasCookies || e.MultipartRequest || e.FormRequest {
+				if e.MultipartRequest {
+					verr.Add(e, "Payload type is array but HTTP endpoint defines headers and MultipartRequest or cookies. At most one of these must be defined.")
+				} else if e.FormRequest {
+					verr.Add(e, "Payload type is array but HTTP endpoint defines headers and FormRequest or cookies. At most one of these must be defined.")
+				} else {
+					verr.Add(e, "Payload type is array but HTTP endpoint defines headers and cookies. At most one of these must be defined.")
+				}
 			}
 			if hasParams {
 				verr.Add(e, "Payload type is array but HTTP endpoint defines both route or query string parameters and headers. At most one parameter or header must be defined and it must be of type array.")
@@ -638,6 +663,9 @@ func (e *HTTPEndpointExpr) Validate() error {
 		if e.Body != nil && e.Body.Type != Empty {
 			if e.MultipartRequest {
 				verr.Add(e, "Payload type is array but HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.")
+			}
+			if e.FormRequest {
+				verr.Add(e, "Payload type is array but HTTP endpoint defines FormRequest and body. At most one of these must be defined.")
 			}
 			if !IsArray(e.Body.Type) {
 				verr.Add(e, "Payload type is array but HTTP endpoint body is not.")
@@ -659,6 +687,9 @@ func (e *HTTPEndpointExpr) Validate() error {
 			if e.MultipartRequest {
 				verr.Add(e, "Payload type is map but HTTP endpoint defines MultipartRequest and MapParams. At most one of these must be defined.")
 			}
+			if e.FormRequest {
+				verr.Add(e, "Payload type is map but HTTP endpoint defines FormRequest and MapParams. At most one of these must be defined.")
+			}
 			if *e.MapQueryParams != "" {
 				verr.Add(e, "MapParams is set to an attribute in the Payload but Payload is a map. Payload must be an object with an attribute of map type")
 			}
@@ -672,12 +703,19 @@ func (e *HTTPEndpointExpr) Validate() error {
 				verr.Add(e, "MapParams is set and Payload type is map. But array elements in payload element type must be primitive")
 			}
 		}
-		if hasParams && e.MultipartRequest {
-			verr.Add(e, "Payload type is map but HTTP endpoint defines MultipartRequest and route/query string parameters. At most one of these must be defined.")
+		if hasParams && (e.MultipartRequest || e.FormRequest) {
+			if e.MultipartRequest {
+				verr.Add(e, "Payload type is map but HTTP endpoint defines MultipartRequest and route/query string parameters. At most one of these must be defined.")
+			} else {
+				verr.Add(e, "Payload type is map but HTTP endpoint defines FormRequest and route/query string parameters. At most one of these must be defined.")
+			}
 		}
 		if e.Body != nil && e.Body.Type != Empty {
 			if e.MultipartRequest {
 				verr.Add(e, "Payload type is map but HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.")
+			}
+			if e.FormRequest {
+				verr.Add(e, "Payload type is map but HTTP endpoint defines FormRequest and body. At most one of these must be defined.")
 			}
 			if !IsMap(e.Body.Type) {
 				verr.Add(e, "Payload type is map but HTTP endpoint body is not.")
@@ -702,6 +740,9 @@ func (e *HTTPEndpointExpr) Validate() error {
 		if e.Body != nil {
 			if e.MultipartRequest {
 				verr.Add(e, "HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.")
+			}
+			if e.FormRequest {
+				verr.Add(e, "HTTP endpoint defines FormRequest and body. At most one of these must be defined.")
 			}
 			if bObj := AsObject(e.Body.Type); bObj != nil {
 				var props []string

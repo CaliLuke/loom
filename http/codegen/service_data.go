@@ -315,6 +315,9 @@ type (
 		// Multipart if true indicates the request is a multipart
 		// request.
 		Multipart bool
+		// FormEncoded if true indicates the request uses
+		// application/x-www-form-urlencoded.
+		FormEncoded bool
 	}
 
 	// ResponseData describes a response.
@@ -1186,6 +1189,7 @@ func (sds *ServicesData) buildPayloadData(e *expr.HTTPEndpointExpr, sd *ServiceD
 			MustHaveBody: mustHaveBody,
 			MustValidate: mustValidate,
 			Multipart:    e.MultipartRequest,
+			FormEncoded:  e.FormRequest,
 		}
 	}
 

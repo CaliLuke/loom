@@ -15,26 +15,45 @@ func {{ .RequestDecoder }}(mux goahttp.Muxer, decoder func(*http.Request) goahtt
 			body {{ .Payload.Request.ServerBody.VarName }}
 			err  error
 		)
+	{{- if .Payload.Request.FormEncoded }}
+		if err = r.ParseForm(); err != nil {
+			return payload, goa.DecodePayloadError(err.Error())
+		}
+		if len(r.PostForm) == 0 {
+		{{- if .Payload.Request.MustHaveBody }}
+			return payload, goa.MissingPayloadError()
+		{{- end }}
+		} else {
+			if _, err = goahttp.DecodeFormValue(r.PostForm, "", &body); err != nil {
+				var gerr *goa.ServiceError
+				if errors.As(err, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(err.Error())
+			}
+		}
+	{{- else }}
 		err = decoder(r).Decode(&body)
 		if err != nil {
-	{{- if .Payload.Request.MustHaveBody }}
+		{{- if .Payload.Request.MustHaveBody }}
 			if errors.Is(err, io.EOF) {
 				return payload, goa.MissingPayloadError()
 			}
-	{{- else }}
+		{{- else }}
 			if errors.Is(err, io.EOF) {
 				err = nil
 			} else {
-	{{- end }}
+		{{- end }}
 			var gerr *goa.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
 			return payload, goa.DecodePayloadError(err.Error())
-	{{- if not .Payload.Request.MustHaveBody }}
+		{{- if not .Payload.Request.MustHaveBody }}
 			}
-	{{- end }}
+		{{- end }}
 		}
+	{{- end }}
 	{{- if .Payload.Request.ServerBody.ValidateRef }}
 		{{ .Payload.Request.ServerBody.ValidateRef }}
 		if err != nil {

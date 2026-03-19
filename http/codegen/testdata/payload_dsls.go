@@ -3028,6 +3028,79 @@ var PayloadMapQueryObjectDSL = func() {
 	})
 }
 
+var PayloadFormBodyObjectDSL = func() {
+	Service("ServiceFormBodyObject", func() {
+		Method("MethodFormBodyObject", func() {
+			Payload(func() {
+				Attribute("client_id", String)
+				Attribute("scope", ArrayOf(String))
+				Attribute("active", Boolean)
+				Required("client_id", "scope")
+			})
+			HTTP(func() {
+				POST("/")
+				FormRequest()
+			})
+		})
+	})
+}
+
+var PayloadFormBodyObjectOptionalDSL = func() {
+	Service("ServiceFormBodyObjectOptional", func() {
+		Method("MethodFormBodyObjectOptional", func() {
+			Payload(func() {
+				Attribute("client_id", String)
+				Attribute("scope", ArrayOf(String))
+				Attribute("active", Boolean)
+				Required("client_id")
+			})
+			HTTP(func() {
+				POST("/")
+				FormRequest()
+			})
+		})
+	})
+}
+
+var PayloadFormBodyInvalidDSL = func() {
+	Service("ServiceFormBodyInvalid", func() {
+		Method("MethodFormBodyInvalid", func() {
+			Payload(func() {
+				Attribute("count", Int)
+				Required("count")
+			})
+			HTTP(func() {
+				POST("/")
+				FormRequest()
+			})
+		})
+	})
+}
+
+var PayloadFormBodyUnionDSL = func() {
+	var Grant = Type("FormGrant", func() {
+		OneOf("Values", func() {
+			Attribute("AuthorizationCode", func() {
+				Attribute("code", String)
+				Required("code")
+			})
+			Attribute("RefreshToken", func() {
+				Attribute("refresh_token", String)
+				Required("refresh_token")
+			})
+		})
+	})
+	Service("ServiceFormBodyUnion", func() {
+		Method("MethodFormBodyUnion", func() {
+			Payload(Grant)
+			HTTP(func() {
+				POST("/")
+				FormRequest()
+			})
+		})
+	})
+}
+
 var PayloadMultipartPrimitiveDSL = func() {
 	Service("ServiceMultipartPrimitive", func() {
 		Method("MethodMultipartPrimitive", func() {

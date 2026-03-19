@@ -1,0 +1,15 @@
+// EncodeMethodFormBodyObjectRequest returns an encoder for requests sent to
+// the ServiceFormBodyObject MethodFormBodyObject server.
+func EncodeMethodFormBodyObjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*serviceformbodyobject.MethodFormBodyObjectPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("ServiceFormBodyObject", "MethodFormBodyObject", "*serviceformbodyobject.MethodFormBodyObjectPayload", v)
+		}
+		body := NewMethodFormBodyObjectRequestBody(p)
+		if err := goahttp.SetFormRequest(req, &body); err != nil {
+			return goahttp.ErrEncodingError("ServiceFormBodyObject", "MethodFormBodyObject", err)
+		}
+		return nil
+	}
+}

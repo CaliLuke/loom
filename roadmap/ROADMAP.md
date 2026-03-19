@@ -21,6 +21,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - `libopenapi`-backed spec validation in the test harness.
 - `OneOf(...)` constructor support and explicit union discriminator tag preservation.
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
+- First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
@@ -53,11 +54,9 @@ These items are prioritized based on two goals:
    See [Multipart Object Decoding](./multipart_object_decoding.md).
 4. Optional JSON request bodies without custom EOF-tolerant decoders
    See [Optional JSON Bodies](./optional_json_bodies.md).
-5. First-class `application/x-www-form-urlencoded` decoding for typed and union payloads
-   See [Form URL Encoded Decoding](./form_urlencoded_decoding.md).
-6. Generated transport projection helpers from canonical result types
+5. Generated transport projection helpers from canonical result types
    See [Generated Transport Projections](./generated_transport_projections.md).
-7. Generated projection parity tests and guardrails
+6. Generated projection parity tests and guardrails
    See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
 
 ## Roadmap Index

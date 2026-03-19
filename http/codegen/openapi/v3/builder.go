@@ -241,6 +241,8 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 		ct := "application/json" // TBD: need a way to specify method media type in design...
 		if e.MultipartRequest {
 			ct = "multipart/form-data"
+		} else if e.FormRequest {
+			ct = "application/x-www-form-urlencoded"
 		}
 		mt := &MediaType{Schema: bodies.RequestBody}
 		initExamples(mt, e.Body, rand)

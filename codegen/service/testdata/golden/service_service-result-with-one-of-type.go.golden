@@ -149,6 +149,63 @@ func (u Result) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// MarshalFormValues marshals the union into application/x-www-form-urlencoded
+// values using the canonical {type,value} form shape.
+func (u Result) MarshalFormValues(values url.Values, prefix string) error {
+	if err := u.Validate(); err != nil {
+		return err
+	}
+	values.Set(goahttp.FormChildKey(prefix, "type"), string(u.kind))
+	switch u.kind {
+	case ResultKindT:
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.T)
+		return err
+	case ResultKindU:
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.U)
+		return err
+	default:
+		return fmt.Errorf("unexpected Result discriminant %q", u.kind)
+	}
+}
+
+// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded
+// values using the canonical {type,value} form shape.
+func (u *Result) UnmarshalFormValues(values url.Values, prefix string) error {
+	typeKey := goahttp.FormChildKey(prefix, "type")
+	valueKey := goahttp.FormChildKey(prefix, "value")
+	rawType := values.Get(typeKey)
+	if rawType == "" {
+		return goa.MissingFieldError("type", "body")
+	}
+	switch rawType {
+	case string(ResultKindT):
+		var v *T
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError("value", "body")
+		}
+		u.kind = ResultKindT
+		u.T = v
+	case string(ResultKindU):
+		var v *U
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError("value", "body")
+		}
+		u.kind = ResultKindU
+		u.U = v
+	default:
+		return fmt.Errorf("unexpected Result type %q", rawType)
+	}
+	return nil
+}
+
 // UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.
 func (u *Result) UnmarshalJSON(data []byte) error {
 	var raw struct {

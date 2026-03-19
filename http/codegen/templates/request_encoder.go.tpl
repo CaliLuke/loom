@@ -153,9 +153,15 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) goahttp.Encoder) func(*ht
 		{{- else }}
 		body := p{{ if .Payload.Request.PayloadAttr }}.{{ .Payload.Request.PayloadAttr }}{{ end }}
 		{{- end }}
+		{{- if .Payload.Request.FormEncoded }}
+		if err := goahttp.SetFormRequest(req, &body); err != nil {
+			return goahttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
+		}
+		{{- else }}
 		if err := encoder(req).Encode(&body); err != nil {
 			return goahttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
+		{{- end }}
 	{{- end }}
 	{{- if .BasicScheme }}{{ with .BasicScheme }}
 		{{- if not .UsernameRequired }}

@@ -137,6 +137,63 @@ func (u Values) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// MarshalFormValues marshals the union into application/x-www-form-urlencoded
+// values using the canonical {type,value} form shape.
+func (u Values) MarshalFormValues(values url.Values, prefix string) error {
+	if err := u.Validate(); err != nil {
+		return err
+	}
+	values.Set(goahttp.FormChildKey(prefix, "type"), string(u.kind))
+	switch u.kind {
+	case ValuesKindDevice:
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Device)
+		return err
+	case ValuesKindMetric:
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Metric)
+		return err
+	default:
+		return fmt.Errorf("unexpected Values discriminant %q", u.kind)
+	}
+}
+
+// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded
+// values using the canonical {type,value} form shape.
+func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
+	typeKey := goahttp.FormChildKey(prefix, "type")
+	valueKey := goahttp.FormChildKey(prefix, "value")
+	rawType := values.Get(typeKey)
+	if rawType == "" {
+		return goa.MissingFieldError("type", "body")
+	}
+	switch rawType {
+	case string(ValuesKindDevice):
+		var v alias.Alias
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError("value", "body")
+		}
+		u.kind = ValuesKindDevice
+		u.Device = v
+	case string(ValuesKindMetric):
+		var v alias.Alias
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError("value", "body")
+		}
+		u.kind = ValuesKindMetric
+		u.Metric = v
+	default:
+		return fmt.Errorf("unexpected Values type %q", rawType)
+	}
+	return nil
+}
+
 // UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.
 func (u *Values) UnmarshalJSON(data []byte) error {
 	var raw struct {
@@ -166,4 +223,3 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
-

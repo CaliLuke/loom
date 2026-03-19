@@ -207,6 +207,91 @@ func (u Values) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// MarshalFormValues marshals the union into application/x-www-form-urlencoded
+// values using the canonical {type,value} form shape.
+func (u Values) MarshalFormValues(values url.Values, prefix string) error {
+	if err := u.Validate(); err != nil {
+		return err
+	}
+	values.Set(goahttp.FormChildKey(prefix, "type"), string(u.kind))
+	switch u.kind {
+	case ValuesKindInt:
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Int)
+		return err
+	case ValuesKindString:
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.String)
+		return err
+	case ValuesKindBoolean:
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Boolean)
+		return err
+	case ValuesKindBytes:
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Bytes)
+		return err
+	default:
+		return fmt.Errorf("unexpected Values discriminant %q", u.kind)
+	}
+}
+
+// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded
+// values using the canonical {type,value} form shape.
+func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
+	typeKey := goahttp.FormChildKey(prefix, "type")
+	valueKey := goahttp.FormChildKey(prefix, "value")
+	rawType := values.Get(typeKey)
+	if rawType == "" {
+		return goa.MissingFieldError("type", "body")
+	}
+	switch rawType {
+	case string(ValuesKindInt):
+		var v ValuesInt
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError("value", "body")
+		}
+		u.kind = ValuesKindInt
+		u.Int = v
+	case string(ValuesKindString):
+		var v ValuesString
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError("value", "body")
+		}
+		u.kind = ValuesKindString
+		u.String = v
+	case string(ValuesKindBoolean):
+		var v ValuesBoolean
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError("value", "body")
+		}
+		u.kind = ValuesKindBoolean
+		u.Boolean = v
+	case string(ValuesKindBytes):
+		var v ValuesBytes
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError("value", "body")
+		}
+		u.kind = ValuesKindBytes
+		u.Bytes = v
+	default:
+		return fmt.Errorf("unexpected Values type %q", rawType)
+	}
+	return nil
+}
+
 // UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.
 func (u *Values) UnmarshalJSON(data []byte) error {
 	var raw struct {
@@ -250,4 +335,3 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
-

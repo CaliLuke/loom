@@ -1,0 +1,32 @@
+// DecodeMethodFormBodyUnionRequest returns a decoder for requests sent to the
+// ServiceFormBodyUnion MethodFormBodyUnion endpoint.
+func DecodeMethodFormBodyUnionRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*serviceformbodyunion.FormGrant, error) {
+	return func(r *http.Request) (*serviceformbodyunion.FormGrant, error) {
+		var payload *serviceformbodyunion.FormGrant
+		var (
+			body MethodFormBodyUnionRequestBody
+			err  error
+		)
+		if err = r.ParseForm(); err != nil {
+			return payload, goa.DecodePayloadError(err.Error())
+		}
+		if len(r.PostForm) == 0 {
+			return payload, goa.MissingPayloadError()
+		} else {
+			if _, err = goahttp.DecodeFormValue(r.PostForm, "", &body); err != nil {
+				var gerr *goa.ServiceError
+				if errors.As(err, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(err.Error())
+			}
+		}
+		err = ValidateMethodFormBodyUnionRequestBody(&body)
+		if err != nil {
+			return payload, err
+		}
+		payload = NewMethodFormBodyUnionFormGrant(&body)
+
+		return payload, nil
+	}
+}

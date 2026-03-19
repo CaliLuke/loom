@@ -1,5 +1,7 @@
 # Form URL Encoded Decoding
 
+Status: completed on 2026-03-18
+
 ## Goal
 
 Make `application/x-www-form-urlencoded` request decoding first-class for typed and union payloads so applications do not need custom form parsers.
@@ -21,23 +23,20 @@ Out of scope:
 - application-specific OAuth semantics
 - non-HTTP transport behavior
 
-## Desired Outcome
+## Delivered Outcome
 
 - typed form payloads decode through generated transport code
 - union-shaped form payloads use framework-owned discriminator behavior where applicable
 - applications do not need custom form parsing for standard typed form endpoints
 
-## Work Plan
+## What Changed
 
-1. Audit current form decoding support and identify which typed/union shapes fall through to app-local parsing.
-2. Define the supported payload matrix:
-   - scalar fields
-   - optional fields
-   - repeated fields
-   - union/discriminator-driven shapes where contractually valid
-3. Generate typed form decoding for the supported matrix.
-4. Reuse existing validation and union-tag semantics after decode.
-5. Add regression tests covering the OAuth token-style request shape from `auto-k-server`.
+1. Added `FormRequest()` to the HTTP DSL so request bodies can explicitly opt into `application/x-www-form-urlencoded`.
+2. Added endpoint validation so form requests are restricted to supported payload shapes and incompatible body/param combinations fail at design time.
+3. Generated HTTP request decoders now parse form bodies through framework-owned decoding instead of forcing app-local parser hooks.
+4. Generated HTTP request encoders now emit `application/x-www-form-urlencoded` bodies for matching endpoints.
+5. Added runtime form helpers for typed object decoding plus canonical `{type,value}` union encoding and decoding.
+6. Added regression coverage for typed, optional, invalid, and union-shaped form payloads, then refreshed shared service/codegen fixtures.
 
 ## Design Constraints
 
@@ -45,10 +44,10 @@ Out of scope:
 - Do not special-case OAuth in the framework; solve the generic transport capability.
 - Be explicit about unsupported shapes rather than silently requiring custom parsing again.
 
-## Risks
+## Remaining Follow-Up
 
-- Union handling for form payloads may need a stricter rule than JSON payloads.
-- Repeated and optional form fields can create ambiguous presence semantics if not specified carefully.
+- Decide whether `Optional JSON Bodies` should reuse pieces of the new form runtime helpers for presence handling or remain a separate HTTP body path.
+- Revisit whether additional form payload shapes should be promoted from “unsupported by design-time validation” to first-class support once a real consumer needs them.
 
 ## Finish Criteria
 
