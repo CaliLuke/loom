@@ -33,11 +33,6 @@ func (s *SSEAllFieldsMethodServerStream) initHeaders() {
 	})
 }
 
-func (s *SSEAllFieldsMethodServerStream) open() error {
-	s.initHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 // SendWithContext SendWithContext streams instances of
 // "sseallfieldsservice.SSEAllFieldsMethodResult" to the "SSEAllFieldsMethod"
 // endpoint SSE connection with context.

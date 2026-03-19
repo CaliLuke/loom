@@ -31,11 +31,6 @@ func (s *SSEIntMethodServerStream) initHeaders() {
 	})
 }
 
-func (s *SSEIntMethodServerStream) open() error {
-	s.initHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 // SendWithContext SendWithContext streams instances of "int" to the
 // "SSEIntMethod" endpoint SSE connection with context.
 func (s *SSEIntMethodServerStream) SendWithContext(ctx context.Context, v int) error {

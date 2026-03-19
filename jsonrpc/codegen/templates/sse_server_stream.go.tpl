@@ -27,12 +27,6 @@ func (s *{{ .SSE.StructName }}) initSSEHeaders() {
 	})
 }
 
-{{ comment "open commits and flushes the SSE headers before the first application event." }}
-func (s *{{ .SSE.StructName }}) open() error {
-	s.initSSEHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 {{ comment "Send sends a JSON-RPC notification to the client." }}
 {{ comment "Notifications do not expect a response from the client." }}
 func (s *{{ .SSE.StructName }}) Send(ctx context.Context, event {{ .ServicePkgName }}.{{ .Method.VarName }}Event) error {
@@ -163,7 +157,7 @@ func (s *{{ .SSE.StructName }}) SendError(ctx context.Context, id string, err er
 {{ comment "sendError sends a JSON-RPC error response via SSE." }}
 func (s *{{ .SSE.StructName }}) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
-	return s.sendSSEEvent("error", response)
+	return s.sendSSEEvent("message", response)
 }
 
 {{ comment "sendSSEEvent sends a single SSE event." }}

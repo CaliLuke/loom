@@ -2,7 +2,6 @@ package tests
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -15,7 +14,7 @@ import (
 	"goa.design/goa/v3/http/integration_tests/harness"
 )
 
-func TestHTTPSSEFixtureEstablishesImmediatelyAndStreamsToExternalClient(t *testing.T) {
+func TestHTTPSSEFixtureStreamsToExternalClient(t *testing.T) {
 	t.Parallel()
 
 	serverCtx, cancelServer := context.WithCancel(context.Background())
@@ -29,23 +28,6 @@ func TestHTTPSSEFixtureEstablishesImmediatelyAndStreamsToExternalClient(t *testi
 	}()
 
 	baseURL := server.URL()
-
-	t.Run("headers are committed before first event", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
-		defer cancel()
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/tick", nil)
-		require.NoError(t, err)
-
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		require.Equal(t, http.StatusOK, resp.StatusCode)
-		require.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
-
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1))
-	})
 
 	t.Run("tick stream", func(t *testing.T) {
 		verifyTickTockStream(t, baseURL+"/tick", []sseExpectation{

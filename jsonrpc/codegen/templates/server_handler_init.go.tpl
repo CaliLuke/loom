@@ -18,21 +18,18 @@ func {{ .HandlerInit }}(
 		ctx = context.WithValue(ctx, goa.ServiceKey, {{ printf "%q" .ServiceName }})
 
 {{- if isSSEEndpoint . }}
-        // Initialize SSE stream early so decode errors can be sent as SSE error events
+        // Initialize SSE stream lazily so endpoint failures can still choose the correct HTTP status.
         strm := &{{ .SSE.StructName }}{
             w:         w,
             r:         r,
             encoder:   encoder,
             requestID: req.ID,
         }
-        if err := strm.open(); err != nil {
-            return err
-        }
     {{- if .Payload.Ref }}
         decodeParams := {{ .RequestDecoder }}(mux, decoder)
         params, err := decodeParams(r, req)
         if err != nil {
-            // Send error via SSE (JSON-RPC error event) to match SSE transport semantics
+            // Send error via the normal JSON-RPC SSE message channel.
             if req.ID != nil && req.ID != "" {
                 strm.SendError(ctx, jsonrpc.IDToString(req.ID), err)
             }

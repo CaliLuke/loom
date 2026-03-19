@@ -66,12 +66,6 @@ func {{ .HandlerInit }}(
 				w: w,
 				r: r,
 			}
-			if err = stream.open(); err != nil {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
 			v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 				Stream: stream,
 			{{- if .Payload.Ref }}
@@ -214,12 +208,6 @@ func {{ .HandlerInit }}(
 		stream := &{{ .SSE.StructName }}{
 			w: w,
 			r: r,
-		}
-		if err = stream.open(); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
 		}
 		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 			Stream: stream,

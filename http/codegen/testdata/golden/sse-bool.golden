@@ -31,11 +31,6 @@ func (s *SSEBoolMethodServerStream) initHeaders() {
 	})
 }
 
-func (s *SSEBoolMethodServerStream) open() error {
-	s.initHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 // SendWithContext SendWithContext streams instances of "bool" to the
 // "SSEBoolMethod" endpoint SSE connection with context.
 func (s *SSEBoolMethodServerStream) SendWithContext(ctx context.Context, v bool) error {

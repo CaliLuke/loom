@@ -403,7 +403,7 @@ func (e *executor) validateSSEEvent(t *testing.T, event harness.SSEEvent, expect
 
 func expectedSSEEventType(msg map[string]any) string {
 	if _, ok := msg["error"]; ok {
-		return "error"
+		return "message"
 	}
 	if _, ok := msg["result"]; ok {
 		return "response"

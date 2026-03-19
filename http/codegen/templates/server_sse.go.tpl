@@ -29,11 +29,6 @@ func (s *{{ .SSE.StructName }}) initHeaders() {
 	})
 }
 
-func (s *{{ .SSE.StructName }}) open() error {
-	s.initHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 {{ printf "%s %s" .SSE.SendWithContextName .SSE.SendWithContextDesc | comment }}
 func (s *{{ .SSE.StructName }}) {{ .SSE.SendWithContextName }}(ctx context.Context, v {{ .SSE.EventTypeRef }}) error {
 	s.initHeaders()

@@ -24,12 +24,6 @@ func (s *{{ lowerInitial .Service.StructName }}SSEStream) initSSEHeaders() {
 	})
 }
 
-// open commits and flushes the SSE headers before the first application event
-func (s *{{ lowerInitial .Service.StructName }}SSEStream) open() error {
-	s.initSSEHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 // sendSSEEvent sends a single SSE event.
 func (s *{{ lowerInitial .Service.StructName }}SSEStream) sendSSEEvent(eventType string, v any) error {
 	s.initSSEHeaders()
@@ -42,7 +36,7 @@ func (s *{{ lowerInitial .Service.StructName }}SSEStream) sendSSEEvent(eventType
 // sendError sends a JSON-RPC error response to the SSE stream
 func (s *{{ lowerInitial .Service.StructName }}SSEStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
-	return s.sendSSEEvent("error", response)
+	return s.sendSSEEvent("message", response)
 }
 
 {{- $hasResults := false }}

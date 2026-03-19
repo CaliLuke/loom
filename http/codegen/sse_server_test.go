@@ -42,7 +42,7 @@ func TestSSE(t *testing.T) {
 	}
 }
 
-func TestSSEServerStreamOpensBeforeFirstEvent(t *testing.T) {
+func TestSSEServerStreamCommitsHeadersOnSend(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.SSEObjectDSL)
 	services := CreateHTTPServices(root)
 	files := ServerFiles("", services)
@@ -57,12 +57,12 @@ func TestSSEServerStreamOpensBeforeFirstEvent(t *testing.T) {
 	require.NotNil(t, sseFile)
 
 	code := codegen.SectionCode(t, sseFile.Section("server-sse")[0])
-	require.Contains(t, code, "func (s *SSEObjectMethodServerStream) open() error")
-	require.Contains(t, code, "return http.NewResponseController(s.w).Flush()")
 	require.Contains(t, code, "s.initHeaders()")
+	require.NotContains(t, code, "func (s *SSEObjectMethodServerStream) open() error")
+	require.Contains(t, code, "if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {")
 }
 
-func TestSSEHandlerOpensStreamBeforeEndpoint(t *testing.T) {
+func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.SSEObjectDSL)
 	services := CreateHTTPServices(root)
 	files := ServerFiles("", services)
@@ -78,6 +78,6 @@ func TestSSEHandlerOpensStreamBeforeEndpoint(t *testing.T) {
 
 	code := codegen.SectionCode(t, serverFile.Section("server-handler-init")[0])
 	require.Contains(t, code, "stream := &SSEObjectMethodServerStream{")
-	require.Contains(t, code, "if err = stream.open(); err != nil {")
 	require.Contains(t, code, "Stream: stream,")
+	require.NotContains(t, code, "stream.open()")
 }

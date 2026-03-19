@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,7 @@ import (
 	"goa.design/goa/v3/jsonrpc/integration_tests/harness"
 )
 
-func TestSSEHeadersAreCommittedBeforeFirstEvent(t *testing.T) {
+func TestSSEHeadersAreDeferredUntilFirstEvent(t *testing.T) {
 	t.Parallel()
 
 	methodInfo, err := framework.ParseMethod("stream_object_sse")
@@ -52,11 +51,8 @@ func TestSSEHeadersAreCommittedBeforeFirstEvent(t *testing.T) {
 		},
 		ID: "req-1",
 	})
-	require.NoError(t, err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
+	require.Error(t, err)
+	require.Nil(t, resp)
 }
 
 func delayFirstSSEEvent(path string, delay time.Duration) error {

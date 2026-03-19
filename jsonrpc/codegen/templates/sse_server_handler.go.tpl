@@ -5,7 +5,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	// Read the JSON-RPC request
 	var req jsonrpc.RawRequest
 	if err := s.decoder(r).Decode(&req); err != nil {
-		// Emit JSON-RPC parse error as SSE event
+		// Emit JSON-RPC parse error on the standard SSE message channel.
 		stream := &{{ lowerInitial .Service.StructName }}SSEStream{w: w, r: r, encoder: s.encoder, decoder: s.decoder}
 		_ = stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil)
 		return

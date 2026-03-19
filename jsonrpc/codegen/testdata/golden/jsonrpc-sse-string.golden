@@ -28,12 +28,6 @@ func (s *StreamServerStream) initSSEHeaders() {
 	})
 }
 
-// open commits and flushes the SSE headers before the first application event.
-func (s *StreamServerStream) open() error {
-	s.initSSEHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 // Send sends a JSON-RPC notification to the client.
 // Notifications do not expect a response from the client.
 func (s *StreamServerStream) Send(ctx context.Context, event jsonrpcssestringservice.StreamEvent) error {
@@ -111,7 +105,7 @@ func (s *StreamServerStream) SendError(ctx context.Context, id string, err error
 // sendError sends a JSON-RPC error response via SSE.
 func (s *StreamServerStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
-	return s.sendSSEEvent("error", response)
+	return s.sendSSEEvent("message", response)
 }
 
 // sendSSEEvent sends a single SSE event.

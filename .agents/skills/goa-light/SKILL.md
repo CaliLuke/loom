@@ -66,9 +66,9 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
   - `SafeMessage(message)`
   - `RetryHint(hint)`
 - JSON-RPC is a first-class transport in this repo. Do not assume HTTP or gRPC semantics automatically carry over.
-- JSON-RPC SSE event names are part of the transport contract: streamed notifications use `message`, final success envelopes use `response`, and JSON-RPC failures use `error`. The local JSON-RPC integration harness must preserve and validate those event types instead of dropping `event:` metadata.
-- JSON-RPC SSE streams eagerly commit and flush the `text/event-stream` response as soon as the stream is accepted. Clients should be able to observe stream establishment before the first domain event arrives, so do not rely on old “first event flushes headers” workarounds.
-- HTTP SSE streams also eagerly commit and flush `text/event-stream` before the first domain event. Treat that as transport contract, and keep the persistent [`http/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/http/integration_tests/fixtures/ticktock) specimen green when changing HTTP SSE generation.
+- JSON-RPC SSE event names are part of the transport contract: streamed notifications use `message`, final success envelopes use `response`, and JSON-RPC error envelopes also ride the normal `message` channel. The local JSON-RPC integration harness must preserve and validate those event types instead of dropping `event:` metadata.
+- JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. Do not rely on old “accepting the stream flushes headers immediately” workarounds.
+- HTTP SSE streams also defer committing `text/event-stream` until the first application event is written. Treat that as transport contract, and keep the persistent [`http/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/http/integration_tests/fixtures/ticktock) specimen green when changing HTTP SSE generation.
 - Shared SSE wire handling now lives in [`http/sse.go`](/Users/luca/code/goa-light/http/sse.go) and is backed by `github.com/tmaxmax/go-sse`. When changing SSE parsing or frame formatting, update that runtime helper first instead of copying ad hoc logic into multiple templates or harnesses.
 
 ## Practical Checks
