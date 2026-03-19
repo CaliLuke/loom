@@ -7,6 +7,7 @@ import (
 
 	"goa.design/goa/v3/codegen/service"
 	. "goa.design/goa/v3/dsl"
+	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/http/codegen/testdata"
 )
 
@@ -313,6 +314,23 @@ func TestHTTPJSONRPCIDProjection(t *testing.T) {
 	require.NotNil(t, endpoint.Result)
 	require.Equal(t, "ID", endpoint.Result.IDAttribute)
 	require.True(t, endpoint.Result.IDAttributeRequired)
+}
+
+func TestHTTPClientRequestInitUsesServiceTypeRefsForAliasedPathParams(t *testing.T) {
+	svc := firstServiceData(t, testdata.PathIntAliasDSL)
+	require.NotEmpty(t, svc.Endpoints)
+	endpoint := svc.Endpoints[0]
+	require.NotEmpty(t, endpoint.Routes)
+	require.NotNil(t, endpoint.RequestInit)
+
+	pathInit := endpoint.Routes[0].PathInit
+	require.NotNil(t, pathInit)
+	require.Len(t, pathInit.ClientArgs, 3)
+
+	for _, arg := range pathInit.ClientArgs {
+		require.True(t, arg.IsAliased)
+		require.Equal(t, svc.Scope.GoTypeRef(&expr.AttributeExpr{Type: arg.Type}), arg.ServiceTypeRef)
+	}
 }
 
 func TestHTTPResponseBodyGenerationCoverage(t *testing.T) {
