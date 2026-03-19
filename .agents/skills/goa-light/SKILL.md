@@ -1,10 +1,9 @@
----
 name: goa-light
-description: Build and maintain goa.design services in Go. Use this skill when a user mentions Goa, Goa DSL, `goa gen`, generated `gen/` transport code, OpenAPI/proto generation, service implementation after DSL changes, or refactoring a project with a `design` package.
+description: Build and maintain `goa-light` services in Go. Use this skill when a user mentions Goa, `goa-light`, Goa DSL, `goa gen`, generated `gen/` transport code, OpenAPI/proto generation, service implementation after DSL changes, or refactoring a project with a `design` package.
 ---
-# Goa
+# Goa Light
 
-Use this skill for `goa.design/goa/v3` work only. It does not cover Goa-AI.
+Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 
 ## Non-Negotiables
 

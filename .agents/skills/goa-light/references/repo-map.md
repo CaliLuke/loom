@@ -1,4 +1,4 @@
-# Goa References Map
+# Goa Light References Map
 
 Use Goa framework source as the authoritative reference for DSL and runtime behavior when the bundled guide fragments are insufficient.
 
