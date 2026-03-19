@@ -261,7 +261,7 @@ func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 		}},
 	}
 
-	sf := newSchemafier(expr.NewRandom("union"))
+	sf := newSchemafier(expr.NewRandom("union"), false)
 	schema := sf.schemafy(attr)
 
 	assertUnionSchema(t, schema, sf.schemas, union.GetTypeKey(), union.GetValueKey(), []string{"batch", "single"})
@@ -449,6 +449,29 @@ func TestBuildBodyTypesKeepsExplicitOpenAPITypenamesDistinct(t *testing.T) {
 	require.NotEqual(t, fooRef, barRef)
 	require.Equal(t, "#/components/schemas/FooPayload", fooRef)
 	require.Equal(t, "#/components/schemas/BarPayload", barRef)
+}
+
+func TestBuildBodyTypesClosedObjectModeClosesObjectsAndLeavesMapsOpen(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.OpenAPIClosedObjectsDSL)
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+
+	objectSchema := derefSchema(t, bodies["closedObjectsService"]["object"].RequestBody, types)
+	require.Equal(t, false, objectSchema.AdditionalProperties)
+
+	addressSchema, ok := objectSchema.Properties["address"]
+	require.True(t, ok)
+	addressSchema = derefSchema(t, addressSchema, types)
+	require.Equal(t, false, addressSchema.AdditionalProperties)
+
+	mapSchema := derefSchema(t, bodies["closedObjectsService"]["map_object"].RequestBody, types)
+	labelsSchema, ok := mapSchema.Properties["labels"]
+	require.True(t, ok)
+	labelsSchema = derefSchema(t, labelsSchema, types)
+	require.IsType(t, &openapi.Schema{}, labelsSchema.AdditionalProperties)
+
+	unionSchema := derefSchema(t, bodies["closedObjectsService"]["union_object"].RequestBody, types)
+	require.Equal(t, false, unionSchema.UnevaluatedProperties)
 }
 
 func TestInitExamplesCanonicalizesMultipleUnionExamples(t *testing.T) {
@@ -818,7 +841,7 @@ func TestTypesOnlyDifferByEnum(t *testing.T) {
 }
 
 func TestSchemafierUniquifyUsesStableHashSuffix(t *testing.T) {
-	sf := newSchemafier(expr.NewRandom("test"))
+	sf := newSchemafier(expr.NewRandom("test"), false)
 	sf.schemas["CreateThreadRequest"] = openapi.NewSchema()
 	sf.schemas["CreateThreadRequest2"] = openapi.NewSchema()
 
@@ -956,7 +979,7 @@ func TestHashAttribute(t *testing.T) {
 	}
 
 	h := fnv.New64()
-	sf := newSchemafier(expr.NewRandom("test"))
+	sf := newSchemafier(expr.NewRandom("test"), false)
 
 	for _, group := range cases {
 		t.Run(group.name, func(t *testing.T) {

@@ -29,6 +29,8 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
   - `discriminator.propertyName`
   - `discriminator.mapping`
   - `oneOf` refs to generated `...Envelope` component schemas
+- Use API metadata `Meta("openapi:closed-objects", "true")` when machine consumers need stricter object contracts in generated OpenAPI.
+- In closed-object mode, normal object schemas emit `additionalProperties: false`, composed union wrappers emit `unevaluatedProperties: false`, and explicit dictionaries such as `MapOf(...)` remain open.
 - `OneOf(...)` works both as a named union declaration and as a type constructor.
 - Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
 - Use `FormRequest()` on HTTP endpoints when the request body contract is `application/x-www-form-urlencoded`.

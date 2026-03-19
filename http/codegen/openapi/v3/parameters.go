@@ -11,7 +11,7 @@ import (
 
 // paramsFromPath computes the OpenAPI spec parameters for the given endpoint
 // HTTP path and query parameters.
-func paramsFromPath(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.ExampleGenerator) []*Parameter {
+func paramsFromPath(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.ExampleGenerator, closeObjects bool) []*Parameter {
 	var (
 		res       []*Parameter
 		params    = endpoint.Params
@@ -26,7 +26,7 @@ func paramsFromPath(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.Exa
 		if in != "path" && openapiinternal.IsSecurityParameter(endpoint, in, pn) {
 			return nil
 		}
-		res = append(res, paramFor(at, pn, in, required, rand))
+		res = append(res, paramFor(at, pn, in, required, rand, closeObjects))
 		return nil
 	})
 	return res
@@ -34,7 +34,7 @@ func paramsFromPath(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.Exa
 
 // paramsFromHeadersAndCookies computes the OpenAPI spec parameters for the
 // given endpoint HTTP headers and cookies.
-func paramsFromHeadersAndCookies(endpoint *expr.HTTPEndpointExpr, rand *expr.ExampleGenerator) []*Parameter {
+func paramsFromHeadersAndCookies(endpoint *expr.HTTPEndpointExpr, rand *expr.ExampleGenerator, closeObjects bool) []*Parameter {
 	var params []*Parameter
 
 	expr.WalkMappedAttr(endpoint.Headers, func(name, elem string, att *expr.AttributeExpr) error { // nolint: errcheck
@@ -42,7 +42,7 @@ func paramsFromHeadersAndCookies(endpoint *expr.HTTPEndpointExpr, rand *expr.Exa
 			return nil
 		}
 		required := endpoint.Headers.IsRequiredNoDefault(name)
-		params = append(params, paramFor(att, elem, "header", required, rand))
+		params = append(params, paramFor(att, elem, "header", required, rand, closeObjects))
 		return nil
 	})
 	expr.WalkMappedAttr(endpoint.Cookies, func(name, elem string, att *expr.AttributeExpr) error { // nolint: errcheck
@@ -50,7 +50,7 @@ func paramsFromHeadersAndCookies(endpoint *expr.HTTPEndpointExpr, rand *expr.Exa
 			return nil
 		}
 		required := endpoint.Cookies.IsRequiredNoDefault(name)
-		params = append(params, paramFor(att, elem, "cookie", required, rand))
+		params = append(params, paramFor(att, elem, "cookie", required, rand, closeObjects))
 		return nil
 	})
 
@@ -58,14 +58,14 @@ func paramsFromHeadersAndCookies(endpoint *expr.HTTPEndpointExpr, rand *expr.Exa
 }
 
 // paramFor converts the given attribute into a OpenAPI spec parameter.
-func paramFor(att *expr.AttributeExpr, name, in string, required bool, rand *expr.ExampleGenerator) *Parameter {
+func paramFor(att *expr.AttributeExpr, name, in string, required bool, rand *expr.ExampleGenerator, closeObjects bool) *Parameter {
 	param := &Parameter{
 		Name:            name,
 		In:              in,
 		Description:     att.Description,
 		AllowEmptyValue: in != "path",
 		Required:        required,
-		Schema:          newSchemafier(rand).schemafy(att),
+		Schema:          newSchemafier(rand, closeObjects).schemafy(att),
 		Extensions:      openapi.ExtensionsFromExpr(att.Meta),
 	}
 	initExamples(param, att, rand)

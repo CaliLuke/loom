@@ -296,6 +296,14 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:additionalProperties", "false")
 //	})
 //
+// - "openapi:closed-objects" enables contract-oriented OpenAPI emission where
+// ordinary object schemas are closed by default. Applicable to the API only.
+// Explicit maps remain open.
+//
+//	var _ = API("MyAPI", func() {
+//	    Meta("openapi:closed-objects", "true")
+//	})
+//
 // - "openapi:typename" overrides the name of the type generated in the OpenAPI specification.
 // Applicable to types (including embedded Payload and Result definitions).
 //

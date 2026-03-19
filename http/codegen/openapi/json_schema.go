@@ -33,19 +33,20 @@ type (
 		Ref       string  `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 
 		// Validation
-		Enum                 []any    `json:"enum,omitempty" yaml:"enum,omitempty"`
-		Format               string   `json:"format,omitempty" yaml:"format,omitempty"`
-		Pattern              string   `json:"pattern,omitempty" yaml:"pattern,omitempty"`
-		ExclusiveMinimum     *float64 `json:"exclusiveMinimum,omitempty" yaml:"exclusiveMinimum,omitempty"`
-		Minimum              *float64 `json:"minimum,omitempty" yaml:"minimum,omitempty"`
-		ExclusiveMaximum     *float64 `json:"exclusiveMaximum,omitempty" yaml:"exclusiveMaximum,omitempty"`
-		Maximum              *float64 `json:"maximum,omitempty" yaml:"maximum,omitempty"`
-		MinLength            *int     `json:"minLength,omitempty" yaml:"minLength,omitempty"`
-		MaxLength            *int     `json:"maxLength,omitempty" yaml:"maxLength,omitempty"`
-		MinItems             *int     `json:"minItems,omitempty" yaml:"minItems,omitempty"`
-		MaxItems             *int     `json:"maxItems,omitempty" yaml:"maxItems,omitempty"`
-		Required             []string `json:"required,omitempty" yaml:"required,omitempty"`
-		AdditionalProperties any      `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+		Enum                  []any    `json:"enum,omitempty" yaml:"enum,omitempty"`
+		Format                string   `json:"format,omitempty" yaml:"format,omitempty"`
+		Pattern               string   `json:"pattern,omitempty" yaml:"pattern,omitempty"`
+		ExclusiveMinimum      *float64 `json:"exclusiveMinimum,omitempty" yaml:"exclusiveMinimum,omitempty"`
+		Minimum               *float64 `json:"minimum,omitempty" yaml:"minimum,omitempty"`
+		ExclusiveMaximum      *float64 `json:"exclusiveMaximum,omitempty" yaml:"exclusiveMaximum,omitempty"`
+		Maximum               *float64 `json:"maximum,omitempty" yaml:"maximum,omitempty"`
+		MinLength             *int     `json:"minLength,omitempty" yaml:"minLength,omitempty"`
+		MaxLength             *int     `json:"maxLength,omitempty" yaml:"maxLength,omitempty"`
+		MinItems              *int     `json:"minItems,omitempty" yaml:"minItems,omitempty"`
+		MaxItems              *int     `json:"maxItems,omitempty" yaml:"maxItems,omitempty"`
+		Required              []string `json:"required,omitempty" yaml:"required,omitempty"`
+		AdditionalProperties  any      `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+		UnevaluatedProperties any      `json:"unevaluatedProperties,omitempty" yaml:"unevaluatedProperties,omitempty"`
 
 		// Union
 		AnyOf         []*Schema      `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
@@ -629,4 +630,11 @@ func AdditionalPropertiesFromExpr(meta expr.MetaExpr) any {
 		return false
 	}
 	return nil
+}
+
+// ClosedObjectModeFromExpr reports whether OpenAPI closed object mode is
+// enabled via metadata.
+func ClosedObjectModeFromExpr(meta expr.MetaExpr) bool {
+	m, ok := meta.Last("openapi:closed-objects")
+	return ok && m == "true"
 }

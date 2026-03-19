@@ -11,7 +11,7 @@ import (
 	"goa.design/goa/v3/http/codegen/openapi"
 )
 
-func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator) map[string]*HeaderRef {
+func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator, closeObjects bool) map[string]*HeaderRef {
 	o := expr.AsObject(attr.Type)
 	if len(*o) == 0 {
 		return nil
@@ -21,7 +21,7 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 		header := &Header{
 			Description: attr.Description,
 			Required:    attr.IsRequiredNoDefault(name),
-			Schema:      newSchemafier(rand).schemafy(attr),
+			Schema:      newSchemafier(rand, closeObjects).schemafy(attr),
 			Example:     attr.Example(rand),
 			Extensions:  openapi.ExtensionsFromExpr(attr.Meta),
 		}
@@ -32,7 +32,7 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 	return headers
 }
 
-func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema, rand *expr.ExampleGenerator) *Response {
+func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema, rand *expr.ExampleGenerator, closeObjects bool) *Response {
 	ct := r.ContentType
 	rt, ok := r.Body.Type.(*expr.ResultTypeExpr)
 	if ok && ct == "" {
@@ -42,7 +42,7 @@ func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema
 		// Default to application/json
 		ct = "application/json"
 	}
-	headers := headersFromAttr(r.Headers, rand)
+	headers := headersFromAttr(r.Headers, rand, closeObjects)
 	if cookieHeader := responseCookieHeader(r.Cookies, rand); cookieHeader != nil {
 		if headers == nil {
 			headers = make(map[string]*HeaderRef)

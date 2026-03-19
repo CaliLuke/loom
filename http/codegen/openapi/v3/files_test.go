@@ -162,6 +162,29 @@ func TestRenderedSpecDeduplicatesGeneratedRequestBodiesAndUnionEnvelopes(t *test
 	}
 }
 
+func TestRenderedSpecClosedObjectModeClosesObjectsAndUsesUnevaluatedPropertiesForUnions(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPIClosedObjectsDSL)
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(`(?m)ObjectRequestBody:$`)
+	requirePattern(`(?m)address:$`)
+	requirePattern(`(?m)\$ref: '#/components/schemas/ClosedObjectsNested'$`)
+	requirePattern(`(?s)ObjectRequestBody:.*additionalProperties: false`)
+	requirePattern(`(?s)ClosedObjectsNested:.*additionalProperties: false`)
+	requirePattern(`(?m)MapObjectRequestBody:$`)
+	requirePattern(`(?m)labels:$`)
+	requirePattern(`(?m)additionalProperties:$`)
+	requirePattern(`(?m)type: string`)
+	requirePattern(`(?m)unevaluatedProperties: false`)
+}
+
 func validateOpenAPI(t *testing.T, b []byte) {
 	parsed, err := libopenapi.NewDocument(b)
 	if err != nil {

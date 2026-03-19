@@ -198,6 +198,7 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 	e := r.Endpoint
 	m := e.MethodExpr
 	svc := e.Service
+	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
 
 	// OpenAPI summary
 	var summary string
@@ -257,8 +258,8 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 	// parameters
 	var params []*ParameterRef
 	{
-		ps := paramsFromPath(e, key, rand)
-		ps = append(ps, paramsFromHeadersAndCookies(e, rand)...)
+		ps := paramsFromPath(e, key, rand, closeObjects)
+		ps = append(ps, paramsFromHeadersAndCookies(e, rand, closeObjects)...)
 		if e.MapQueryParams != nil {
 			name := *e.MapQueryParams
 			if name == "" {
@@ -297,14 +298,14 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 				bodies.ResponseBodies[r.StatusCode] = b
 			}
 		}
-		resp := responseFromExpr(r, bodies.ResponseBodies, rand)
+		resp := responseFromExpr(r, bodies.ResponseBodies, rand, closeObjects)
 		responses[strconv.Itoa(r.StatusCode)] = &ResponseRef{Value: resp}
 	}
 	for _, er := range e.HTTPErrors {
 		if er.Description != "" && er.Response.Description == "" {
 			er.Response.Description = er.Description
 		}
-		resp := responseFromExpr(er.Response, bodies.ResponseBodies, rand)
+		resp := responseFromExpr(er.Response, bodies.ResponseBodies, rand, closeObjects)
 		desc := er.Name
 		if resp.Description != nil {
 			desc += ": " + *resp.Description

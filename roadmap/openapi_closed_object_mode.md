@@ -4,6 +4,10 @@
 
 Add a contract-focused OpenAPI mode that defaults normal object schemas to closed shapes, making machine reconciliation stricter and less ambiguous while preserving explicit dictionary types where needed.
 
+## Status
+
+Completed.
+
 ## Problem
 
 Many generated object schemas remain effectively open. That is convenient, but weak for machine consumers trying to detect drift or unexpected fields. A stricter contract mode would improve:
@@ -25,22 +29,21 @@ Out of scope:
 - changing application DSL object definitions
 - changing wire behavior at runtime
 
-## Desired Outcome
+## Shipped Outcome
 
-- normal object schemas can be emitted as closed by default in contract mode
-- explicit `MapOf(...)` and intentionally open types remain open
-- the mode is deterministic and testable
+- API-level `Meta("openapi:closed-objects", "true")` enables closed-object contract mode for generated OpenAPI.
+- Ordinary object schemas emit `additionalProperties: false`.
+- Wrapper unions emit `unevaluatedProperties: false` on the composed outer schema.
+- Explicit dictionary shapes such as `MapOf(...)` remain open.
+- The generated 3.1 spec is validated with `libopenapi`, and regression coverage includes standard, nested, map, and union cases.
 
-## Work Plan
+## Implementation Notes
 
-1. Classify current schema emission paths into:
-   - regular object types
-   - explicit maps / dictionaries
-   - special framework-owned open shapes
-2. Decide whether closed mode uses `additionalProperties: false`, `unevaluatedProperties: false`, or both depending on schema composition rules.
-3. Add a framework-level switch or policy hook for contract-oriented output.
-4. Preserve open behavior for explicit dictionaries and dynamic metadata maps.
-5. Add validation tests against `libopenapi` and JSON Schema 2020-12 expectations.
+1. Closed-object mode is opt-in and controlled from API metadata rather than changing the global default.
+2. Plain object schemas close with `additionalProperties: false`.
+3. Composed union wrapper schemas close with `unevaluatedProperties: false` so branch refs and discriminators remain valid under JSON Schema 2020-12.
+4. Explicit maps and dictionary-like schemas still emit schema-valued `additionalProperties`.
+5. The behavior is covered both at the schema-builder level and in rendered-spec assertions.
 
 ## Design Constraints
 
@@ -53,12 +56,8 @@ Out of scope:
 - Closed schemas interact subtly with composed schemas and unions.
 - Some downstream tools still handle `unevaluatedProperties` inconsistently.
 
-## Finish Criteria
+## Verification
 
-- Contract mode can emit closed object schemas for ordinary object types.
-- Explicit maps remain open.
-- Golden tests cover:
-  - standard object type
-  - nested object type
-  - map/dictionary type
-  - union or composed object case
+- `go test ./http/codegen/openapi/v3`
+- `go test ./http/codegen/openapi/...`
+- `go test ./http/codegen/...`

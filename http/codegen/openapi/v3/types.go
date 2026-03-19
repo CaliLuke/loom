@@ -39,6 +39,7 @@ type (
 		hashes map[uint64][]schemaRef
 		// union branch schema names indexed by a stable branch key
 		unionBranchSchemas map[string]string
+		closeObjects       bool
 		rand               *expr.ExampleGenerator
 	}
 
@@ -51,11 +52,12 @@ type (
 )
 
 // newSchemafier initializes a schemafier.
-func newSchemafier(rand *expr.ExampleGenerator) *schemafier {
+func newSchemafier(rand *expr.ExampleGenerator, closeObjects bool) *schemafier {
 	return &schemafier{
 		schemas:            make(map[string]*openapi.Schema),
 		hashes:             make(map[uint64][]schemaRef),
 		unionBranchSchemas: make(map[string]string),
+		closeObjects:       closeObjects,
 		rand:               rand,
 	}
 }
@@ -74,7 +76,7 @@ func newSchemafier(rand *expr.ExampleGenerator) *schemafier {
 // NOTE: entries are nil when the corresponding type is Empty.
 func buildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr.ResultTypeExpr) (map[string]map[string]*EndpointBodies, map[string]*openapi.Schema) {
 	bodies := make(map[string]map[string]*EndpointBodies)
-	sf := newSchemafier(api.ExampleGenerator)
+	sf := newSchemafier(api.ExampleGenerator, openapi.ClosedObjectModeFromExpr(api.Meta))
 
 	// Generates the types referenced from the endpoints.
 	for _, t := range types {
@@ -212,6 +214,9 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 		if len(itemNotes) > 0 {
 			note = strings.Join(itemNotes, "\n")
 		}
+		if sf.closeObjects && openapi.AdditionalPropertiesFromExpr(attr.Meta) == nil {
+			s.AdditionalProperties = false
+		}
 	case *expr.Map:
 		s.Type = openapi.Object
 		if t.ElemType.Type == expr.Any {
@@ -229,6 +234,9 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 		s.Discriminator = &openapi.Discriminator{
 			PropertyName: t.GetTypeKey(),
 			Mapping:      make(map[string]string, len(values)),
+		}
+		if sf.closeObjects {
+			s.UnevaluatedProperties = false
 		}
 		for _, val := range values {
 			ref := sf.ensureUnionBranchSchema(t, val)
