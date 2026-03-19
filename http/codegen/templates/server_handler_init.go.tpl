@@ -242,7 +242,7 @@ func {{ .HandlerInit }}(
 				}
 				{{- end }}
 				{{- if and (isSSEEndpoint .) (not .HasMixedResults) }}
-				if errhandler != nil {
+				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
 				{{- else }}

@@ -80,4 +80,6 @@ func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {
 	require.Contains(t, code, "stream := &SSEObjectMethodServerStream{")
 	require.Contains(t, code, "Stream: stream,")
 	require.NotContains(t, code, "stream.open()")
+	require.Contains(t, code, "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
+	require.NotContains(t, code, "if errhandler != nil {\n\t\t\t\t\terrhandler(ctx, w, err)\n\t\t\t\t}")
 }
