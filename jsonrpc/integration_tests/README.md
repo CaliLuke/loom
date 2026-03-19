@@ -32,6 +32,26 @@ Git commit and remote URL into a temp checkout before running `goa gen` /
 silently depending on the local working tree. Set `GOA_REPO=/path/to/repo` only
 when you intentionally want to override that behavior for local debugging.
 
+## Persistent Fixtures
+
+The directory [`fixtures/ticktock`](/Users/luca/code/goa-light/jsonrpc/integration_tests/fixtures/ticktock) is a checked-in generated JSON-RPC SSE specimen. It exposes two simple streaming methods, `Tick` and `Tock`, which emit timed notification frames followed by a final response. It exists for two reasons:
+
+- as a human-readable debugging tool when working on JSON-RPC SSE transport behavior
+- as the target for the external-client interoperability test that uses `github.com/tmaxmax/go-sse`
+
+When you intentionally change JSON-RPC SSE generation and need to regenerate the fixture, run from that directory:
+
+```bash
+mv clock.go clock.go.src
+go mod tidy
+go run /Users/luca/code/goa-light/cmd/goa gen example.com/ticktock/design
+go run /Users/luca/code/goa-light/cmd/goa example example.com/ticktock/design
+mv clock.go.src clock.go
+go mod tidy
+```
+
+`clock.go` is kept outside `gen/` as the fixture's real implementation and should be restored after regeneration.
+
 ### Adding a New Test - Three Complete Examples
 
 Adding a new test requires only a small addition to the scenarios file; no Go code is needed.

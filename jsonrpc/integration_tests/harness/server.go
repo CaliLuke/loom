@@ -41,7 +41,8 @@ func StartServer(ctx context.Context, workDir string, port int) (*Server, error)
 	}
 
 	// Build server command - look for the generated server
-	// Try multiple possible locations
+	// Try the historical generated locations first, then fall back to any
+	// fixture app under cmd/*/main.go (excluding CLI entrypoints).
 	var serverPath string
 	candidates := []string{
 		filepath.Join(workDir, "cmd", "test_api", "main.go"),
@@ -52,6 +53,20 @@ func StartServer(ctx context.Context, workDir string, port int) (*Server, error)
 	for _, path := range candidates {
 		if _, err := os.Stat(path); err == nil {
 			serverPath = path
+			break
+		}
+	}
+
+	if serverPath == "" {
+		matches, err := filepath.Glob(filepath.Join(workDir, "cmd", "*", "main.go"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan cmd directories: %w", err)
+		}
+		for _, match := range matches {
+			if strings.Contains(match, "-cli") {
+				continue
+			}
+			serverPath = match
 			break
 		}
 	}

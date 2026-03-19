@@ -76,6 +76,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - When hardening OpenAPI output, prefer a non-trivial specimen DSL plus rendered-spec assertions and external linting over isolated schema snapshots only.
 - For temp-module generation loops, pin the pushed GitHub commit of `goa.design/goa/v3` instead of replacing against an uncommitted local checkout. Local working-tree replaces are fine for in-repo package tests, but not for CI-reproducible external generation.
 - For the repo-local JSON-RPC integration loop, use `make goa-local` while iterating on unpushed changes and `make goa-remote` when you need pinned-remote parity. `GOA_REPO=/absolute/path` still overrides both for one-off runs.
+- For objective JSON-RPC SSE interoperability checks, use the persistent [`jsonrpc/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/jsonrpc/integration_tests/fixtures/ticktock) fixture and the external-client test built on `github.com/tmaxmax/go-sse`, not just the in-repo harness parser.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
 

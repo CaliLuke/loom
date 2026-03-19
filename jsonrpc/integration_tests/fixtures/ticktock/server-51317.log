@@ -1,0 +1,8 @@
+{"time":"2026-03-19T17:13:17Z","level":"info","http-port":"51317"}
+{"time":"2026-03-19T17:13:17Z","level":"info","msg":"JSON-RPC method \"Tick\" mounted on POST /rpc"}
+{"time":"2026-03-19T17:13:17Z","level":"info","msg":"JSON-RPC method \"Tock\" mounted on POST /rpc"}
+{"time":"2026-03-19T17:13:17Z","level":"info","msg":"HTTP server listening on \"localhost:51317\""}
+{"time":"2026-03-19T17:13:17Z","level":"info","request_id":"wzTK2P4R","msg":"start","http.method":"POST","http.url":"/rpc","http.remote_addr":"127.0.0.1"}
+{"time":"2026-03-19T17:13:17Z","level":"info","request_id":"wzTK2P4R","msg":"end","http.method":"POST","http.url":"/rpc","http.status":200,"http.time_ms":0,"http.bytes":170}
+{"time":"2026-03-19T17:13:17Z","level":"info","request_id":"V-BncbQf","msg":"start","http.method":"POST","http.url":"/rpc","http.remote_addr":"127.0.0.1"}
+{"time":"2026-03-19T17:13:17Z","level":"info","request_id":"V-BncbQf","msg":"end","http.method":"POST","http.url":"/rpc","http.status":200,"http.time_ms":0,"http.bytes":170}
