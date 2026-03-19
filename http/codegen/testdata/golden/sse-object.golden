@@ -16,10 +16,7 @@ func (s *SSEObjectMethodServerStream) Send(v *sseobjectservice.SSEObjectMethodRe
 	return s.SendWithContext(context.Background(), v)
 }
 
-// SendWithContext SendWithContext streams instances of
-// "sseobjectservice.SSEObjectMethodResult" to the "SSEObjectMethod" endpoint
-// SSE connection with context.
-func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *sseobjectservice.SSEObjectMethodResult) error {
+func (s *SSEObjectMethodServerStream) initHeaders() {
 	s.once.Do(func() {
 		header := s.w.Header()
 		if header.Get("Content-Type") == "" {
@@ -33,6 +30,18 @@ func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *ss
 		}
 		s.w.WriteHeader(http.StatusOK)
 	})
+}
+
+func (s *SSEObjectMethodServerStream) open() error {
+	s.initHeaders()
+	return http.NewResponseController(s.w).Flush()
+}
+
+// SendWithContext SendWithContext streams instances of
+// "sseobjectservice.SSEObjectMethodResult" to the "SSEObjectMethod" endpoint
+// SSE connection with context.
+func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *sseobjectservice.SSEObjectMethodResult) error {
+	s.initHeaders()
 	res := v
 
 	var data string
@@ -85,8 +94,7 @@ func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *ss
 	}
 	fmt.Fprintf(s.w, "data: %s\n\n", data)
 
-	http.NewResponseController(s.w).Flush()
-	return nil
+	return http.NewResponseController(s.w).Flush()
 }
 
 // Close is a no-op for SSE. We keep the method for compatibility with other

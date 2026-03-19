@@ -35,7 +35,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
   - `oneOf` refs to generated `...Envelope` component schemas
 - Use API metadata `Meta("openapi:closed-objects", "true")` when machine consumers need stricter object contracts in generated OpenAPI.
 - In closed-object mode, normal object schemas emit `additionalProperties: false`, composed union wrappers emit `unevaluatedProperties: false`, and explicit dictionaries such as `MapOf(...)` remain open.
-- Generated OpenAPI keeps SSE endpoints on ordinary HTTP success responses instead of rewriting them to WebSocket `101` semantics.
+- Generated OpenAPI keeps SSE endpoints on ordinary HTTP success responses instead of rewriting them to WebSocket `101` semantics, and advertises those responses as `text/event-stream` rather than `application/json`.
 - Generated OpenAPI normalizes binary (`Bytes`) examples to string form; do not expect byte-array literals in emitted OpenAPI examples.
 - `OneOf(...)` works both as a named union declaration and as a type constructor.
 - Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
@@ -68,6 +68,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - JSON-RPC is a first-class transport in this repo. Do not assume HTTP or gRPC semantics automatically carry over.
 - JSON-RPC SSE event names are part of the transport contract: streamed notifications use `message`, final success envelopes use `response`, and JSON-RPC failures use `error`. The local JSON-RPC integration harness must preserve and validate those event types instead of dropping `event:` metadata.
 - JSON-RPC SSE streams eagerly commit and flush the `text/event-stream` response as soon as the stream is accepted. Clients should be able to observe stream establishment before the first domain event arrives, so do not rely on old “first event flushes headers” workarounds.
+- HTTP SSE streams also eagerly commit and flush `text/event-stream` before the first domain event. Treat that as transport contract, and keep the persistent [`http/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/http/integration_tests/fixtures/ticktock) specimen green when changing HTTP SSE generation.
 
 ## Practical Checks
 
@@ -77,6 +78,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - For temp-module generation loops, pin the pushed GitHub commit of `goa.design/goa/v3` instead of replacing against an uncommitted local checkout. Local working-tree replaces are fine for in-repo package tests, but not for CI-reproducible external generation.
 - For the repo-local JSON-RPC integration loop, use `make goa-local` while iterating on unpushed changes and `make goa-remote` when you need pinned-remote parity. `GOA_REPO=/absolute/path` still overrides both for one-off runs.
 - For objective JSON-RPC SSE interoperability checks, use the persistent [`jsonrpc/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/jsonrpc/integration_tests/fixtures/ticktock) fixture and the external-client test built on `github.com/tmaxmax/go-sse`, not just the in-repo harness parser.
+- For objective HTTP SSE interoperability checks, use the persistent [`http/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/http/integration_tests/fixtures/ticktock) fixture and the external-client test under [`http/integration_tests/tests`](/Users/luca/code/goa-light/http/integration_tests/tests), not just codegen string assertions.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
 

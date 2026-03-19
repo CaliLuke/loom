@@ -106,6 +106,7 @@ endif
 integration-test: build-goa
 ifneq ($(GOOS),windows)
 	cd jsonrpc/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 10m ./...
+	cd http/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 10m ./...
 endif
 
 goa-local:

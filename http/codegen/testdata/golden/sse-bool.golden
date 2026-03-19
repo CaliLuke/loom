@@ -15,9 +15,7 @@ func (s *SSEBoolMethodServerStream) Send(v bool) error {
 	return s.SendWithContext(context.Background(), v)
 }
 
-// SendWithContext SendWithContext streams instances of "bool" to the
-// "SSEBoolMethod" endpoint SSE connection with context.
-func (s *SSEBoolMethodServerStream) SendWithContext(ctx context.Context, v bool) error {
+func (s *SSEBoolMethodServerStream) initHeaders() {
 	s.once.Do(func() {
 		header := s.w.Header()
 		if header.Get("Content-Type") == "" {
@@ -31,6 +29,17 @@ func (s *SSEBoolMethodServerStream) SendWithContext(ctx context.Context, v bool)
 		}
 		s.w.WriteHeader(http.StatusOK)
 	})
+}
+
+func (s *SSEBoolMethodServerStream) open() error {
+	s.initHeaders()
+	return http.NewResponseController(s.w).Flush()
+}
+
+// SendWithContext SendWithContext streams instances of "bool" to the
+// "SSEBoolMethod" endpoint SSE connection with context.
+func (s *SSEBoolMethodServerStream) SendWithContext(ctx context.Context, v bool) error {
+	s.initHeaders()
 	res := v
 
 	var data string
@@ -83,8 +92,7 @@ func (s *SSEBoolMethodServerStream) SendWithContext(ctx context.Context, v bool)
 	}
 	fmt.Fprintf(s.w, "data: %s\n\n", data)
 
-	http.NewResponseController(s.w).Flush()
-	return nil
+	return http.NewResponseController(s.w).Flush()
 }
 
 // Close is a no-op for SSE. We keep the method for compatibility with other

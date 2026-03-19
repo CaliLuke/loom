@@ -10,11 +10,10 @@ type {{ .SSE.StructName }} struct {
 
 {{ printf "%s %s" .SSE.SendName .SSE.SendDesc | comment }}
 func (s *{{ .SSE.StructName }}) {{ .SSE.SendName }}(v {{ .SSE.EventTypeRef }}) error {
-    return s.{{ .SSE.SendWithContextName }}(context.Background(), v)
+	return s.{{ .SSE.SendWithContextName }}(context.Background(), v)
 }
 
-{{ printf "%s %s" .SSE.SendWithContextName .SSE.SendWithContextDesc | comment }}
-func (s *{{ .SSE.StructName }}) {{ .SSE.SendWithContextName }}(ctx context.Context, v {{ .SSE.EventTypeRef }}) error {
+func (s *{{ .SSE.StructName }}) initHeaders() {
 	s.once.Do(func() {
 		header := s.w.Header()
 		if header.Get("Content-Type") == "" {
@@ -28,6 +27,16 @@ func (s *{{ .SSE.StructName }}) {{ .SSE.SendWithContextName }}(ctx context.Conte
 		}
 		s.w.WriteHeader(http.StatusOK)
 	})
+}
+
+func (s *{{ .SSE.StructName }}) open() error {
+	s.initHeaders()
+	return http.NewResponseController(s.w).Flush()
+}
+
+{{ printf "%s %s" .SSE.SendWithContextName .SSE.SendWithContextDesc | comment }}
+func (s *{{ .SSE.StructName }}) {{ .SSE.SendWithContextName }}(ctx context.Context, v {{ .SSE.EventTypeRef }}) error {
+	s.initHeaders()
 
 	{{- if .Method.ViewedResult }}
 		{{- if .Method.ViewedResult.ViewName }}
@@ -119,8 +128,7 @@ func (s *{{ .SSE.StructName }}) {{ .SSE.SendWithContextName }}(ctx context.Conte
 	}
 	fmt.Fprintf(s.w, "data: %s\n\n", data)
 
-	http.NewResponseController(s.w).Flush()
-	return nil
+	return http.NewResponseController(s.w).Flush()
 }
 
 {{ comment "Close is a no-op for SSE. We keep the method for compatibility with other stream types." }}

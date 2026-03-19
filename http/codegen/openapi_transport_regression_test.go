@@ -21,6 +21,16 @@ func TestOpenAPIApiLevelSSEConfiguration(t *testing.T) {
 	require.True(t, ok)
 	require.NotNil(t, pathItem)
 	require.NotNil(t, pathItem.Get)
+
+	responses := pathItem.Get.Responses
+	require.NotNil(t, responses)
+	response, ok := responses.Codes.Get("200")
+	require.True(t, ok)
+	require.NotNil(t, response)
+	_, ok = response.Content.Get("text/event-stream")
+	require.True(t, ok)
+	_, ok = response.Content.Get("application/json")
+	require.False(t, ok)
 }
 
 var apiLevelSSEOpenAPIDSL = func() {

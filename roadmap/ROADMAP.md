@@ -25,7 +25,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.
 - OpenAPI now prunes unreferenced generated component schemas instead of publishing every top-level type and result type.
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
-- OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, and normalizes binary request examples to string form.
+- OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, advertises SSE responses as `text/event-stream`, and normalizes binary request examples to string form.
 - OpenAPI now suppresses invalid synthesized examples for closed-object direct-union collections in response/media-type arrays instead of emitting examples that fail schema validation.
 - OpenAPI now omits transport-level media-type examples for streaming responses instead of synthesizing partial SSE/WebSocket payload examples that can drift from the referenced schema.
 - Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
@@ -36,6 +36,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - JSON-RPC SSE server generation now emits `message` events for streamed payloads, `response` events for final non-streaming completions, and `error` events for JSON-RPC failures; generated SSE clients and the integration harness preserve and validate those event types while remaining backward compatible with legacy/default frames.
 - JSON-RPC SSE server streams now commit and flush `200 OK` plus `Content-Type: text/event-stream` as soon as the stream is accepted, before the first application event is emitted, so clients can observe stream establishment without server-side synchronization tricks.
 - JSON-RPC integration tests now include a persistent generated `ticktock` SSE fixture plus an external-client interoperability check using `github.com/tmaxmax/go-sse`, so generated streams are verified against a real third-party client as well as the in-repo harness.
+- HTTP SSE server streams now commit and flush `200 OK` plus `Content-Type: text/event-stream` before the first application event, and `http/integration_tests` carries a persistent generated `ticktock` fixture verified with `github.com/tmaxmax/go-sse`.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).

@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -39,4 +40,44 @@ func TestSSE(t *testing.T) {
 			testutil.CompareOrUpdateGolden(t, code, golden)
 		})
 	}
+}
+
+func TestSSEServerStreamOpensBeforeFirstEvent(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.SSEObjectDSL)
+	services := CreateHTTPServices(root)
+	files := ServerFiles("", services)
+
+	var sseFile *codegen.File
+	for _, f := range files {
+		if strings.HasSuffix(f.Path, filepath.Join("server", "sse.go")) {
+			sseFile = f
+			break
+		}
+	}
+	require.NotNil(t, sseFile)
+
+	code := codegen.SectionCode(t, sseFile.Section("server-sse")[0])
+	require.Contains(t, code, "func (s *SSEObjectMethodServerStream) open() error")
+	require.Contains(t, code, "return http.NewResponseController(s.w).Flush()")
+	require.Contains(t, code, "s.initHeaders()")
+}
+
+func TestSSEHandlerOpensStreamBeforeEndpoint(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.SSEObjectDSL)
+	services := CreateHTTPServices(root)
+	files := ServerFiles("", services)
+
+	var serverFile *codegen.File
+	for _, f := range files {
+		if strings.HasSuffix(f.Path, filepath.Join("server", "server.go")) {
+			serverFile = f
+			break
+		}
+	}
+	require.NotNil(t, serverFile)
+
+	code := codegen.SectionCode(t, serverFile.Section("server-handler-init")[0])
+	require.Contains(t, code, "stream := &SSEObjectMethodServerStream{")
+	require.Contains(t, code, "if err = stream.open(); err != nil {")
+	require.Contains(t, code, "Stream: stream,")
 }

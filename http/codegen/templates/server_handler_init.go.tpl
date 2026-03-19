@@ -20,7 +20,7 @@ func {{ .HandlerInit }}(
 		{{- if not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults))) }}
 		encodeResponse = {{ .ResponseEncoder }}(encoder)
 		{{- end }}
-		{{- if (or (mustDecodeRequest .) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
+		{{- if (or (mustDecodeRequest .) (and (not .Redirect) (not (and (isSSEEndpoint .) (not .HasMixedResults)))) .Method.SkipResponseBodyEncodeDecode) }}
 		encodeError    = {{ if .Errors }}{{ .ErrorEncoder }}{{ else }}goahttp.ErrorEncoder{{ end }}(encoder, formatter)
 		{{- end }}
 	{{- if (or (mustDecodeRequest .) (not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults)))) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
@@ -62,18 +62,25 @@ func {{ .HandlerInit }}(
 			{{- end }}
 			}
 		{{- end }}
+			stream := &{{ .SSE.StructName }}{
+				w: w,
+				r: r,
+			}
+			if err = stream.open(); err != nil {
+				if errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				return
+			}
 			v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
-				Stream: &{{ .SSE.StructName }}{
-					w: w,
-					r: r,
-				},
+				Stream: stream,
 			{{- if .Payload.Ref }}
 				Payload: payload,
 			{{- end }}
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
 			}
@@ -161,14 +168,14 @@ func {{ .HandlerInit }}(
 		{{- end }}
 		}
 	{{- else }}
-	{{- if mustDecodeRequest . }}
-		{{ if .Redirect }}_{{ else }}payload{{ end }}, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
+		{{- if mustDecodeRequest . }}
+			{{ if .Redirect }}_{{ else }}payload{{ end }}, err := decodeRequest(r)
+			if err != nil {
+				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				return
 			}
-			return
-		}
 	{{- else if not .Redirect }}
 		var err error
 	{{- end }}
@@ -204,11 +211,18 @@ func {{ .HandlerInit }}(
 			{{- end }}
 		}
 		{{- end }}
+		stream := &{{ .SSE.StructName }}{
+			w: w,
+			r: r,
+		}
+		if err = stream.open(); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
 		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
-			Stream: &{{ .SSE.StructName }}{
-				w: w,
-				r: r,
-			},
+			Stream: stream,
 		{{- if .Payload.Ref }}
 			Payload: payload,
 		{{- end }}
@@ -222,29 +236,35 @@ func {{ .HandlerInit }}(
 	{{- else }}
 		res, err := endpoint(ctx, {{ if .Payload.Ref }}payload{{ else }}nil{{ end }})
 	{{- end }}
-	{{- if not .Redirect }}
-		if err != nil {
-			{{- if isWebSocketEndpoint . }}
+		{{- if not .Redirect }}
+			if err != nil {
+				{{- if isWebSocketEndpoint . }}
 			var stream *{{ .ServerWebSocket.VarName }}
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*{{ .ServerWebSocket.VarName }})
 			} else {
 				stream = v.Stream.(*{{ .ServerWebSocket.VarName }})
 			}
-			if stream != nil && stream.conn != nil {
-				// Response writer has been hijacked, do not encode the error
+				if stream != nil && stream.conn != nil {
+					// Response writer has been hijacked, do not encode the error
+					if errhandler != nil {
+						errhandler(ctx, w, err)
+					}
+					return
+				}
+				{{- end }}
+				{{- if and (isSSEEndpoint .) (not .HasMixedResults) }}
 				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
+				{{- else }}
+				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				{{- end }}
 				return
 			}
-			{{- end }}
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-	{{- end }}
+		{{- end }}
 	{{- if .Method.SkipResponseBodyEncodeDecode }}
 		o := res.(*{{ .ServicePkgName }}.{{ .Method.ResponseStruct }})
 		defer o.Body.Close()

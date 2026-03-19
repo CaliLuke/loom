@@ -15,9 +15,7 @@ func (s *SSEIntMethodServerStream) Send(v int) error {
 	return s.SendWithContext(context.Background(), v)
 }
 
-// SendWithContext SendWithContext streams instances of "int" to the
-// "SSEIntMethod" endpoint SSE connection with context.
-func (s *SSEIntMethodServerStream) SendWithContext(ctx context.Context, v int) error {
+func (s *SSEIntMethodServerStream) initHeaders() {
 	s.once.Do(func() {
 		header := s.w.Header()
 		if header.Get("Content-Type") == "" {
@@ -31,6 +29,17 @@ func (s *SSEIntMethodServerStream) SendWithContext(ctx context.Context, v int) e
 		}
 		s.w.WriteHeader(http.StatusOK)
 	})
+}
+
+func (s *SSEIntMethodServerStream) open() error {
+	s.initHeaders()
+	return http.NewResponseController(s.w).Flush()
+}
+
+// SendWithContext SendWithContext streams instances of "int" to the
+// "SSEIntMethod" endpoint SSE connection with context.
+func (s *SSEIntMethodServerStream) SendWithContext(ctx context.Context, v int) error {
+	s.initHeaders()
 	res := v
 
 	var data string
@@ -83,8 +92,7 @@ func (s *SSEIntMethodServerStream) SendWithContext(ctx context.Context, v int) e
 	}
 	fmt.Fprintf(s.w, "data: %s\n\n", data)
 
-	http.NewResponseController(s.w).Flush()
-	return nil
+	return http.NewResponseController(s.w).Flush()
 }
 
 // Close is a no-op for SSE. We keep the method for compatibility with other

@@ -120,7 +120,7 @@ func TestOpenAPIStreamingSyntheticExamplesAreSuppressedWhenIncomplete(t *testing
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
 
-	sseMediaType := operationResponseMediaTypeFromSpec(t, spec, "/events", "get", "200", "application/json")
+	sseMediaType := operationResponseMediaTypeFromSpec(t, spec, "/events", "get", "200", "text/event-stream")
 	require.NotContains(t, sseMediaType, "example")
 
 	wsMediaType := operationResponseMediaTypeFromSpec(t, spec, "/ws/projects/{projectID}", "get", "101", "application/json")

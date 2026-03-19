@@ -38,6 +38,9 @@ func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema
 	if ok && ct == "" {
 		ct = rt.ContentType
 	}
+	if ct == "" && isSSEResponse(r) {
+		ct = "text/event-stream"
+	}
 	if ct == "" {
 		// Default to application/json
 		ct = "application/json"
@@ -96,6 +99,17 @@ func shouldEmitResponseExamples(r *expr.HTTPResponseExpr) bool {
 		return true
 	}
 	return !endpoint.MethodExpr.IsStreaming()
+}
+
+func isSSEResponse(r *expr.HTTPResponseExpr) bool {
+	if r == nil {
+		return false
+	}
+	endpoint, ok := r.Parent.(*expr.HTTPEndpointExpr)
+	if !ok {
+		return false
+	}
+	return endpoint.SSE != nil
 }
 
 func responseCookieHeader(cookies []*expr.HTTPResponseCookieExpr, rand *expr.ExampleGenerator) *HeaderRef {

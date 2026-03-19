@@ -111,16 +111,23 @@ func NewCreateHandler(
 				}
 				return
 			}
+			stream := &CreateServerStream{
+				w: w,
+				r: r,
+			}
+			if err = stream.open(); err != nil {
+				if errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				return
+			}
 			v := &mixedresultsservice.CreateEndpointInput{
-				Stream: &CreateServerStream{
-					w: w,
-					r: r,
-				},
+				Stream:  stream,
 				Payload: payload,
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
 			}
