@@ -20,7 +20,7 @@ func TestParseMethod(t *testing.T) {
 		{"echo_string_notify", "echo", "string", "notify", false},
 		{"transform_map_error", "transform", "map", "error", false},
 		{"stream_string_final", "stream", "string", "final", false},
-		
+
 		// Invalid methods
 		{"invalid", "", "", "", true},
 		{"echo", "", "", "", true},
@@ -29,7 +29,7 @@ func TestParseMethod(t *testing.T) {
 		{"", "", "", "", true},
 		{"echo__string", "", "", "", true},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.method, func(t *testing.T) {
 			info, err := ParseMethod(tt.method)
@@ -39,11 +39,11 @@ func TestParseMethod(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("ParseMethod(%q) failed: %v", tt.method, err)
 			}
-			
+
 			if info.Action != tt.action {
 				t.Errorf("Action: got %q, want %q", info.Action, tt.action)
 			}

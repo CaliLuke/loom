@@ -10,10 +10,10 @@ var MixedJSONRPCTransportsAPI = func() {
 		Title("Mixed JSON-RPC Transports API")
 		Description("API demonstrating mixed HTTP and SSE JSON-RPC transports")
 	})
-	
+
 	Service("MixedService", func() {
 		Description("Service with both HTTP and SSE JSON-RPC methods")
-		
+
 		// Regular HTTP method
 		Method("GetUser", func() {
 			Payload(func() {
@@ -32,8 +32,8 @@ var MixedJSONRPCTransportsAPI = func() {
 			JSONRPC(func() {
 			})
 		})
-		
-		// SSE streaming method  
+
+		// SSE streaming method
 		Method("WatchUsers", func() {
 			Payload(func() {
 				ID("request_id", String, "Request ID")
@@ -52,7 +52,7 @@ var MixedJSONRPCTransportsAPI = func() {
 			JSONRPC(func() {
 			})
 		})
-		
+
 		// Another regular HTTP method
 		Method("CreateUser", func() {
 			Payload(func() {
@@ -70,7 +70,7 @@ var MixedJSONRPCTransportsAPI = func() {
 				// Notification - no ID needed
 			})
 		})
-		
+
 		// Configure JSON-RPC endpoint
 		JSONRPC(func() {
 			Path("/api/rpc")
@@ -83,10 +83,10 @@ var ValidWebSocketOnlyAPI = func() {
 	API("WebSocketOnly", func() {
 		Title("WebSocket Only API")
 	})
-	
+
 	Service("WebSocketService", func() {
 		Description("Service with only WebSocket JSON-RPC methods")
-		
+
 		Method("Connect", func() {
 			Payload(func() {
 				ID("token", String, "Request token used as ID")
@@ -104,7 +104,7 @@ var ValidWebSocketOnlyAPI = func() {
 			JSONRPC(func() {
 			})
 		})
-		
+
 		JSONRPC(func() {
 			Path("/ws")
 		})
@@ -116,10 +116,10 @@ var InvalidMixedWebSocketAPI = func() {
 	API("InvalidMixed", func() {
 		Title("Invalid Mixed API")
 	})
-	
+
 	Service("InvalidService", func() {
 		Description("Service incorrectly mixing WebSocket with HTTP")
-		
+
 		// WebSocket method
 		Method("Stream", func() {
 			StreamingPayload(String)
@@ -131,7 +131,7 @@ var InvalidMixedWebSocketAPI = func() {
 				// Streaming methods typically don't use ID
 			})
 		})
-		
+
 		// Regular HTTP method - THIS SHOULD CAUSE VALIDATION ERROR
 		Method("Get", func() {
 			Payload(String)
@@ -143,7 +143,7 @@ var InvalidMixedWebSocketAPI = func() {
 				// This method mixes with WebSocket - should error
 			})
 		})
-		
+
 		JSONRPC(func() {
 			Path("/invalid")
 		})

@@ -11,11 +11,11 @@ import (
 )
 
 func TestGRPCSessionSecurityHarness(t *testing.T) {
-		t.Run("api-level session security derives grpc metadata schemes", func(t *testing.T) {
-			root := RunGRPCDSL(t, grpcAPISessionSecurityDSL)
-			services := CreateGRPCServices(root)
-			service := services.Get("grpcSessionSecurity")
-			require.NotNil(t, service)
+	t.Run("api-level session security derives grpc metadata schemes", func(t *testing.T) {
+		root := RunGRPCDSL(t, grpcAPISessionSecurityDSL)
+		services := CreateGRPCServices(root)
+		service := services.Get("grpcSessionSecurity")
+		require.NotNil(t, service)
 		require.Len(t, service.Endpoints, 1)
 
 		endpoint := service.Endpoints[0]
@@ -29,11 +29,11 @@ func TestGRPCSessionSecurityHarness(t *testing.T) {
 		assert.Contains(t, endpoint.Method.PayloadDef, "BrowserSession *string")
 	})
 
-		t.Run("no security override clears grpc derived schemes", func(t *testing.T) {
-			root := RunGRPCDSL(t, grpcSessionSecurityNoSecurityDSL)
-			services := CreateGRPCServices(root)
-			service := services.Get("grpcSessionSecurityNoSecurity")
-			require.NotNil(t, service)
+	t.Run("no security override clears grpc derived schemes", func(t *testing.T) {
+		root := RunGRPCDSL(t, grpcSessionSecurityNoSecurityDSL)
+		services := CreateGRPCServices(root)
+		service := services.Get("grpcSessionSecurityNoSecurity")
+		require.NotNil(t, service)
 		require.Len(t, service.Endpoints, 1)
 
 		endpoint := service.Endpoints[0]

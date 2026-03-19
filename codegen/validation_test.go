@@ -294,7 +294,7 @@ func TestValidationCodeRequiresObjectUnionBranchValue(t *testing.T) {
 				},
 			},
 			Validation: &expr.ValidationExpr{Required: []string{"value"}},
-			Meta: expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+			Meta:       expr.MetaExpr{"oneof:type:tag": []string{"single"}},
 		},
 	}
 	union := &expr.Union{
