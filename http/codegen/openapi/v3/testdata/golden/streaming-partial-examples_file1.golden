@@ -1,0 +1,91 @@
+openapi: 3.1.1
+info:
+    title: Streaming Partial Examples API
+    description: Exercises suppression of invalid synthetic examples for streaming responses.
+    license:
+        name: Apache-2.0
+        url: https://www.apache.org/licenses/LICENSE-2.0.html
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: https://api.streaming-partial-examples.example.test
+paths:
+    /events:
+        get:
+            tags:
+                - streamingPartialExamples
+            summary: events streamingPartialExamples
+            operationId: streaming_partial_examples.events
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/RealtimeSSEEvent'
+            security: []
+    /ws/projects/{projectID}:
+        get:
+            tags:
+                - streamingPartialExamples
+            summary: projectSocket streamingPartialExamples
+            operationId: streaming_partial_examples.project_socket
+            parameters:
+                - name: projectID
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: proj_1
+                  example: proj_1
+            responses:
+                "101":
+                    description: Switching Protocols response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/RealtimeEnvelope'
+            security: []
+components:
+    schemas:
+        RealtimeEnvelope:
+            type: object
+            properties:
+                event:
+                    type: string
+                    example: Commodi ab officia.
+                ts:
+                    type: integer
+                    example: 1
+                    format: int64
+            example:
+                event: Autem et.
+                ts: 1
+            required:
+                - ts
+                - event
+        RealtimeSSEEvent:
+            type: object
+            properties:
+                data:
+                    type: object
+                    properties:
+                        message:
+                            type: string
+                            example: Autem placeat illo ut autem itaque.
+                    example:
+                        message: Maxime voluptatem.
+                    required:
+                        - message
+                event:
+                    type: string
+                    example: abc123
+            example:
+                data:
+                    message: Non corporis commodi.
+                event: abc123
+            required:
+                - event
+                - data
+tags:
+    - name: streamingPartialExamples

@@ -28,10 +28,6 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/WatchPlannerEventsResponseBody'
-                            example:
-                                data:
-                                    meal_plan_id: plan_12
-                                event: plan.updated
                 "429":
                     description: 'rate_limited: Too Many Requests response.'
                     content:

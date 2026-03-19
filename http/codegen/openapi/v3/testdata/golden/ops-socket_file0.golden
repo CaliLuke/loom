@@ -56,10 +56,6 @@
           "101": {
             "content": {
               "application/json": {
-                "example": {
-                  "event": "command.accepted",
-                  "ok": true
-                },
                 "schema": {
                   "$ref": "#/components/schemas/StreamCommandsResponseBody"
                 }

@@ -1,7 +1,10 @@
 package openapiv3
 
 import (
+	"reflect"
+
 	"goa.design/goa/v3/expr"
+	"goa.design/goa/v3/http/codegen/openapi"
 )
 
 type (
@@ -118,16 +121,128 @@ func openAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 		return nil, false
 	}
 	val := normalizeOpenAPIExample(expr.CanonicalizeExample(attr, raw))
-	if objectExample, ok := val.(map[string]any); ok && len(objectExample) == 0 && len(attr.AllRequired()) > 0 {
+	if !isCompleteOpenAPIExample(attr, val) {
 		return nil, false
 	}
 	return val, true
+}
+
+func isCompleteOpenAPIExample(attr *expr.AttributeExpr, val any) bool {
+	if attr == nil {
+		return val != nil
+	}
+	if val == nil {
+		return false
+	}
+	switch actual := attr.Type.(type) {
+	case expr.UserType:
+		return isCompleteOpenAPIExample(actual.Attribute(), val)
+	case *expr.Object:
+		obj, ok := val.(map[string]any)
+		if !ok {
+			return false
+		}
+		if len(obj) == 0 && len(attr.AllRequired()) > 0 {
+			return false
+		}
+		for _, name := range attr.AllRequired() {
+			child := attr.Find(name)
+			if child == nil {
+				continue
+			}
+			if !openapi.MustGenerate(child.Meta) {
+				continue
+			}
+			fieldVal, ok := obj[name]
+			if !ok {
+				return false
+			}
+			if !isCompleteOpenAPIExample(child, fieldVal) {
+				return false
+			}
+		}
+		return true
+	case *expr.Array:
+		items, ok := val.([]any)
+		if !ok {
+			return true
+		}
+		for _, item := range items {
+			if !isCompleteOpenAPIExample(actual.ElemType, item) {
+				return false
+			}
+		}
+		return true
+	case *expr.Map:
+		m, ok := val.(map[string]any)
+		if !ok {
+			return true
+		}
+		for _, item := range m {
+			if !isCompleteOpenAPIExample(actual.ElemType, item) {
+				return false
+			}
+		}
+		return true
+	case *expr.Union:
+		example, ok := val.(map[string]any)
+		if !ok {
+			return false
+		}
+		typeKey := actual.GetTypeKey()
+		valueKey := actual.GetValueKey()
+		rawTag, ok := example[typeKey]
+		if !ok {
+			return false
+		}
+		tag, ok := rawTag.(string)
+		if !ok || tag == "" {
+			return false
+		}
+		rawValue, ok := example[valueKey]
+		if !ok {
+			return false
+		}
+		for _, branch := range actual.Values {
+			if branch == nil || branch.Attribute == nil {
+				continue
+			}
+			if expr.UnionVariantTag(branch) == tag {
+				return isCompleteOpenAPIExample(branch.Attribute, rawValue)
+			}
+		}
+		return false
+	default:
+		return true
+	}
 }
 
 func normalizeOpenAPIExample(val any) any {
 	switch actual := val.(type) {
 	case []byte:
 		return string(actual)
+	case expr.Val:
+		out := make(map[string]any, len(actual))
+		for k, v := range actual {
+			out[k] = normalizeOpenAPIExample(v)
+		}
+		return out
+	case expr.ArrayVal:
+		out := make([]any, len(actual))
+		for i, v := range actual {
+			out[i] = normalizeOpenAPIExample(v)
+		}
+		return out
+	case expr.MapVal:
+		out := make(map[string]any, len(actual))
+		for k, v := range actual {
+			key, ok := k.(string)
+			if !ok {
+				return val
+			}
+			out[key] = normalizeOpenAPIExample(v)
+		}
+		return out
 	case map[string]any:
 		out := make(map[string]any, len(actual))
 		for k, v := range actual {
@@ -141,6 +256,26 @@ func normalizeOpenAPIExample(val any) any {
 		}
 		return out
 	default:
+		rv := reflect.ValueOf(val)
+		switch rv.Kind() {
+		case reflect.Map:
+			out := make(map[string]any, rv.Len())
+			iter := rv.MapRange()
+			for iter.Next() {
+				key := iter.Key()
+				if key.Kind() != reflect.String {
+					return val
+				}
+				out[key.String()] = normalizeOpenAPIExample(iter.Value().Interface())
+			}
+			return out
+		case reflect.Slice, reflect.Array:
+			out := make([]any, rv.Len())
+			for i := 0; i < rv.Len(); i++ {
+				out[i] = normalizeOpenAPIExample(rv.Index(i).Interface())
+			}
+			return out
+		}
 		return val
 	}
 }

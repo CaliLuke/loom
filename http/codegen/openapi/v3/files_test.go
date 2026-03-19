@@ -47,6 +47,7 @@ func TestFiles(t *testing.T) {
 		{"collab-streams", testdata.CollabStreamsDSL},
 		{"ops-socket", testdata.OpsSocketDSL},
 		{"activity-feed", testdata.ActivityFeedDSL},
+		{"streaming-partial-examples", testdata.StreamingPartialExamplesDSL},
 		{"typename", testdata.TypenameDSL},
 		{"schema-dedup", testdata.OpenAPISchemaDedupDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},

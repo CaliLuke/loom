@@ -58,7 +58,9 @@ func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema
 				Schema:     bodies[r.StatusCode][0],
 				Extensions: openapi.ExtensionsFromExpr(r.Body.Meta),
 			}
-			initExamples(content[ct], r.Body, rand, closeObjects)
+			if shouldEmitResponseExamples(r) {
+				initExamples(content[ct], r.Body, rand, closeObjects)
+			}
 		} else if r.StatusCode != expr.StatusNoContent &&
 			isSkipResponseBodyEncodeDecode(r.Parent) {
 			// When SkipResponseBodyEncodeDecode is declared, the response type
@@ -83,6 +85,17 @@ func responseFromExpr(r *expr.HTTPResponseExpr, bodies map[int][]*openapi.Schema
 		Content:     content,
 		Extensions:  openapi.ExtensionsFromExpr(r.Meta),
 	}
+}
+
+func shouldEmitResponseExamples(r *expr.HTTPResponseExpr) bool {
+	if r == nil {
+		return false
+	}
+	endpoint, ok := r.Parent.(*expr.HTTPEndpointExpr)
+	if !ok || endpoint.MethodExpr == nil {
+		return true
+	}
+	return !endpoint.MethodExpr.IsStreaming()
 }
 
 func responseCookieHeader(cookies []*expr.HTTPResponseCookieExpr, rand *expr.ExampleGenerator) *HeaderRef {

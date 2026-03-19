@@ -1,0 +1,141 @@
+{
+  "components": {
+    "schemas": {
+      "RealtimeEnvelope": {
+        "example": {
+          "event": "Autem et.",
+          "ts": 1
+        },
+        "properties": {
+          "event": {
+            "example": "Commodi ab officia.",
+            "type": "string"
+          },
+          "ts": {
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ts",
+          "event"
+        ],
+        "type": "object"
+      },
+      "RealtimeSSEEvent": {
+        "example": {
+          "data": {
+            "message": "Non corporis commodi."
+          },
+          "event": "abc123"
+        },
+        "properties": {
+          "data": {
+            "example": {
+              "message": "Maxime voluptatem."
+            },
+            "properties": {
+              "message": {
+                "example": "Autem placeat illo ut autem itaque.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ],
+            "type": "object"
+          },
+          "event": {
+            "example": "abc123",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Exercises suppression of invalid synthetic examples for streaming responses.",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "title": "Streaming Partial Examples API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/events": {
+      "get": {
+        "operationId": "streaming_partial_examples.events",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeSSEEvent"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "events streamingPartialExamples",
+        "tags": [
+          "streamingPartialExamples"
+        ]
+      }
+    },
+    "/ws/projects/{projectID}": {
+      "get": {
+        "operationId": "streaming_partial_examples.project_socket",
+        "parameters": [
+          {
+            "example": "proj_1",
+            "in": "path",
+            "name": "projectID",
+            "required": true,
+            "schema": {
+              "example": "proj_1",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeEnvelope"
+                }
+              }
+            },
+            "description": "Switching Protocols response."
+          }
+        },
+        "security": [],
+        "summary": "projectSocket streamingPartialExamples",
+        "tags": [
+          "streamingPartialExamples"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.streaming-partial-examples.example.test"
+    }
+  ],
+  "tags": [
+    {
+      "name": "streamingPartialExamples"
+    }
+  ]
+}

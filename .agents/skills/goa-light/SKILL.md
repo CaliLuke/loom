@@ -29,6 +29,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
 - Generated OpenAPI suppresses closed-object union-wrapper examples that would be invalid against the emitted schema, and field-level `Meta("openapi:example", "false")` must suppress wrapper examples all the way through enclosing request bodies/media types.
 - Generated OpenAPI also suppresses synthesized examples for closed-object union collections when the array/map element shape would otherwise emit invalid discriminator-wrapper examples.
+- Generated OpenAPI does not emit transport-level media-type examples for streaming responses; SSE and WebSocket response shapes still appear via their schemas, but the generator should not synthesize single-message examples from sparse field examples.
 - Wrapper-style unions now emit OpenAPI discriminators with:
   - `discriminator.propertyName`
   - `discriminator.mapping`

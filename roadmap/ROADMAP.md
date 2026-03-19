@@ -27,6 +27,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
 - OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, and normalizes binary request examples to string form.
 - OpenAPI now suppresses invalid synthesized examples for closed-object direct-union collections in response/media-type arrays instead of emitting examples that fail schema validation.
+- OpenAPI now omits transport-level media-type examples for streaming responses instead of synthesizing partial SSE/WebSocket payload examples that can drift from the referenced schema.
 - Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
 - First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads, including flat OAuth-style object-union fields.
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
@@ -39,7 +40,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Per-cookie response model and improved `Set-Cookie` OpenAPI output.
 - Stable OpenAPI schema naming and canonical `operationId` generation.
 - `http/codegen/openapi/v3` now carries a non-trivial `meal-planner` specimen that closes the loop with rendered-spec assertions plus Redocly lint for auth, forms, multipart, union wrappers, views, and SSE.
-- `http/codegen/openapi/v3` now carries a small specimen matrix (`meal-planner`, `collab-streams`, `activity-feed`, `ops-socket`) to exercise form/multipart, SSE, closed-object union collections, and WebSocket-style streaming OpenAPI output.
+- `http/codegen/openapi/v3` now carries a small specimen matrix (`meal-planner`, `collab-streams`, `activity-feed`, `ops-socket`, `streaming-partial-examples`) to exercise form/multipart, SSE, closed-object union collections, and WebSocket-style streaming OpenAPI output.
 - Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `goa.design/goa/v3`.
 - Major generic helper moves out of `goa-ai/shared` into `goa-light`.
 

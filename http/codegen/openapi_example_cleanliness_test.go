@@ -113,6 +113,20 @@ func TestOpenAPIClosedObjectUnionCollectionExamplesAreSuppressed(t *testing.T) {
 	require.NotContains(t, schema, "example")
 }
 
+func TestOpenAPIStreamingSyntheticExamplesAreSuppressedWhenIncomplete(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.StreamingPartialExamplesDSL)
+	openapi.Definitions = make(map[string]*openapi.Schema)
+
+	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
+	parseOpenAPIV3Document(t, spec)
+
+	sseMediaType := operationResponseMediaTypeFromSpec(t, spec, "/events", "get", "200", "application/json")
+	require.NotContains(t, sseMediaType, "example")
+
+	wsMediaType := operationResponseMediaTypeFromSpec(t, spec, "/ws/projects/{projectID}", "get", "101", "application/json")
+	require.NotContains(t, wsMediaType, "example")
+}
+
 func componentSchemaFromSpec(t *testing.T, spec []byte, name string) map[string]any {
 	t.Helper()
 

@@ -25,6 +25,8 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
 - Suppress invalid synthesized examples for closed-object direct-union
   collections, including response/media-type examples for arrays whose element
   shape contains discriminator-driven closed unions.
+- Omit transport-level media-type examples for streaming responses instead of
+  synthesizing SSE/WebSocket payload examples from partial field examples.
 - Keep a non-trivial specimen API under `http/codegen/testdata` and validate its
   rendered OpenAPI with both `libopenapi` and Redocly as a closed-loop contract
   check.
@@ -58,6 +60,8 @@ Keep these policies in `goa-light`, not in plugins:
 - truthful response/body/security modeling
 - no dead generated component schemas in published output
 - stable and accurate examples where possible
+- no transport-level streaming examples unless the generator can prove they
+  match the published schema
 
 ## Backlog
 
@@ -69,3 +73,5 @@ Keep these policies in `goa-light`, not in plugins:
   - closed-object union wrappers and union collections
   - result views and collections
   - SSE and WebSocket streaming response shapes
+  - streaming endpoints whose field-level examples are incomplete or
+    intentionally sparse

@@ -237,14 +237,6 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "data": {
-                    "author": "alice",
-                    "preview": "Shipping the OpenAPI cleanup next."
-                  },
-                  "event": "thread.message_posted",
-                  "id": "evt_8"
-                },
                 "schema": {
                   "$ref": "#/components/schemas/WatchThreadResponseBody"
                 }

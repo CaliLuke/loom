@@ -3020,6 +3020,10 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bo
 	if validate != "" {
 		validateRef = fmt.Sprintf("err = Validate%s(v)", name)
 	}
+	var example any
+	if sds != nil && sds.Root != nil && sds.Root.API != nil {
+		example = att.Example(sds.Root.API.ExampleGenerator)
+	}
 	return &TypeData{
 		Name:        ut.Name(),
 		VarName:     name,
@@ -3028,7 +3032,7 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bo
 		Ref:         rd.Scope.GoTypeRef(att),
 		ValidateDef: validate,
 		ValidateRef: validateRef,
-		Example:     att.Example(sds.Root.API.ExampleGenerator),
+		Example:     example,
 	}
 }
 
