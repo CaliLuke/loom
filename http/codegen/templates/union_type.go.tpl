@@ -93,6 +93,68 @@ func (u {{ .Name }}) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// MarshalFormValues marshals the union into application/x-www-form-urlencoded
+// values using the discriminator field plus flattened object fields for
+// object-shaped branches and the canonical {type,value} form shape for scalar
+// branches.
+func (u {{ .Name }}) MarshalFormValues(values url.Values, prefix string) error {
+	if err := u.Validate(); err != nil {
+		return err
+	}
+	values.Set(goahttp.FormChildKey(prefix, {{ printf "%q" .TypeKey }}), string(u.kind))
+	switch u.kind {
+	{{- range .Fields }}
+	case {{ .KindConst }}:
+		{{- if .FlatFormObject }}
+		_, err := goahttp.EncodeFormValue(values, prefix, u.{{ .FieldName }})
+		return err
+		{{- else }}
+		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, {{ printf "%q" $.ValueKey }}), u.{{ .FieldName }})
+		return err
+		{{- end }}
+	{{- end }}
+	default:
+		return fmt.Errorf("unexpected {{ .Name }} discriminant %q", u.kind)
+	}
+}
+
+// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded
+// values using the discriminator field plus flattened object fields for
+// object-shaped branches and the canonical {type,value} form shape for scalar
+// branches.
+func (u *{{ .Name }}) UnmarshalFormValues(values url.Values, prefix string) error {
+	typeKey := goahttp.FormChildKey(prefix, {{ printf "%q" .TypeKey }})
+	{{- if .HasScalarFormBranch }}
+	valueKey := goahttp.FormChildKey(prefix, {{ printf "%q" .ValueKey }})
+	{{- end }}
+	rawType := values.Get(typeKey)
+	if rawType == "" {
+		return goa.MissingFieldError({{ printf "%q" .TypeKey }}, "body")
+	}
+	switch rawType {
+	{{- range .Fields }}
+	case string({{ .KindConst }}):
+		var v {{ .FieldType }}
+		{{- if .FlatFormObject }}
+		seen, err := goahttp.DecodeFormValue(values, prefix, &v)
+		{{- else }}
+		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		{{- end }}
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return goa.MissingFieldError({{ printf "%q" $.ValueKey }}, "body")
+		}
+		u.kind = {{ .KindConst }}
+		u.{{ .FieldName }} = v
+	{{- end }}
+	default:
+		return fmt.Errorf("unexpected {{ .Name }} type %q", rawType)
+	}
+	return nil
+}
+
 // UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.
 func (u *{{ .Name }}) UnmarshalJSON(data []byte) error {
 	var raw struct {

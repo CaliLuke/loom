@@ -49,9 +49,11 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	imports := []*codegen.ImportSpec{
 		{Path: "encoding/json"},
 		{Path: "fmt"},
+		{Path: "net/url"},
 		{Path: "unicode/utf8"},
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		codegen.GoaImport(""),
+		codegen.GoaNamedImport("http", "goahttp"),
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}
 	header := codegen.Header(svc.Name()+" HTTP server types", "server", imports)

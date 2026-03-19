@@ -579,6 +579,10 @@ type (
 		Example any
 		// View is the view used to render the (result) type if any.
 		View string
+		// FlatFormUnionField is the field name of a synthetic single-field request
+		// body wrapper that should delegate form encoding and decoding to the
+		// wrapped union directly.
+		FlatFormUnionField string
 	}
 
 	// MultipartData contains the data needed to render multipart
@@ -958,9 +962,21 @@ func (sds *ServicesData) initEndpointMultipartData(endpoint *EndpointData, httpE
 }
 
 func (sds *ServicesData) collectEndpointBodyAttributeTypes(httpEndpoint *expr.HTTPEndpointExpr, sd *ServiceData) {
+	unionBranchTypes := make(map[string]struct{})
+	collectUnionBranchUserTypes(httpEndpoint.Body, unionBranchTypes)
+	if httpEndpoint.MethodExpr.StreamingPayload.Type != expr.Empty {
+		collectUnionBranchUserTypes(httpEndpoint.StreamingBody, unionBranchTypes)
+	}
+
 	appendTypeData := func(att *expr.AttributeExpr, req, ptr, server bool, target *[]*TypeData) {
 		collectUserTypes(att.Type, func(ut expr.UserType) {
 			if d := sds.attributeTypeData(ut, req, ptr, server, sd); d != nil {
+				if req && !server && d.ValidateDef == "" {
+					if _, ok := unionBranchTypes[ut.ID()]; ok {
+						d.ValidateDef = "// no validations"
+						d.ValidateRef = fmt.Sprintf("err = Validate%s(v)", d.VarName)
+					}
+				}
 				*target = append(*target, d)
 			}
 		})
@@ -2220,13 +2236,14 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, e *
 		return nil
 	}
 	var (
-		name        string
-		varname     string
-		desc        string
-		def         string
-		ref         string
-		validateDef string
-		validateRef string
+		name               string
+		varname            string
+		desc               string
+		def                string
+		ref                string
+		validateDef        string
+		validateRef        string
+		flatFormUnionField string
 
 		svc     = sd.Service
 		httpctx = httpContext(sd.Scope, true, svr)
@@ -2244,6 +2261,11 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, e *
 		def = goTypeDef(sd.Scope, ut.Attribute(), svr, !svr)
 		desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.",
 			varname, svc.Name, e.Name())
+		if e.FormRequest {
+			if obj := expr.AsObject(ut.Attribute().Type); obj != nil && len(*obj) == 1 && expr.IsUnion((*obj)[0].Attribute.Type) {
+				flatFormUnionField = codegen.Goify((*obj)[0].Name, true)
+			}
+		}
 		// Generate validation code for unmarshaled request bodies on the server,
 		// and for client request bodies only when constructor unions require the
 		// corresponding validator helper during CLI payload validation.
@@ -2321,15 +2343,16 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, e *
 		}
 	}
 	return &TypeData{
-		Name:        name,
-		VarName:     varname,
-		Description: desc,
-		Def:         def,
-		Ref:         ref,
-		Init:        init,
-		ValidateDef: validateDef,
-		ValidateRef: validateRef,
-		Example:     body.Example(sds.Root.API.ExampleGenerator),
+		Name:               name,
+		VarName:            varname,
+		Description:        desc,
+		Def:                def,
+		Ref:                ref,
+		Init:               init,
+		ValidateDef:        validateDef,
+		ValidateRef:        validateRef,
+		Example:            body.Example(sds.Root.API.ExampleGenerator),
+		FlatFormUnionField: flatFormUnionField,
 	}
 }
 
@@ -2845,6 +2868,40 @@ func collectUserTypes(dt expr.DataType, cb func(expr.UserType), seen ...map[stri
 	}
 }
 
+func collectUnionBranchUserTypes(att *expr.AttributeExpr, ids map[string]struct{}) {
+	collectUnionBranchUserTypesSeen(att, ids, make(map[string]struct{}))
+}
+
+func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, ids, seen map[string]struct{}) {
+	if att == nil || att.Type == expr.Empty {
+		return
+	}
+	switch actual := att.Type.(type) {
+	case expr.UserType:
+		if _, ok := seen[actual.ID()]; ok {
+			return
+		}
+		seen[actual.ID()] = struct{}{}
+		collectUnionBranchUserTypesSeen(actual.Attribute(), ids, seen)
+	case *expr.Object:
+		for _, nat := range *actual {
+			collectUnionBranchUserTypesSeen(nat.Attribute, ids, seen)
+		}
+	case *expr.Array:
+		collectUnionBranchUserTypesSeen(actual.ElemType, ids, seen)
+	case *expr.Map:
+		collectUnionBranchUserTypesSeen(actual.KeyType, ids, seen)
+		collectUnionBranchUserTypesSeen(actual.ElemType, ids, seen)
+	case *expr.Union:
+		for _, nat := range actual.Values {
+			collectUserTypes(nat.Attribute.Type, func(ut expr.UserType) {
+				ids[ut.ID()] = struct{}{}
+			})
+			collectUnionBranchUserTypesSeen(nat.Attribute, ids, seen)
+		}
+	}
+}
+
 func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, unions map[string]*service.UnionTypeData, seen map[string]struct{}) {
 	if att == nil || att.Type == expr.Empty {
 		return
@@ -2882,25 +2939,30 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope) *service.Un
 	kindName := scope.Unique(name + "Kind")
 
 	fields := make([]*service.UnionFieldData, len(u.Values))
+	hasScalarFormBranch := false
 	for i, nat := range u.Values {
 		fieldName := codegen.Goify(nat.Name, true)
 		fieldType := scope.GoTypeRef(nat.Attribute)
 		kindConst := kindName + fieldName
 		fields[i] = &service.UnionFieldData{
-			Name:      nat.Name,
-			KindConst: kindConst,
-			FieldName: fieldName,
-			FieldType: fieldType,
-			TypeTag:   expr.UnionVariantTag(nat),
+			Name:               nat.Name,
+			KindConst:          kindConst,
+			FieldName:          fieldName,
+			FieldType:          fieldType,
+			TypeTag:            expr.UnionVariantTag(nat),
+			FlatFormObject:     expr.IsObject(nat.Attribute.Type),
+			EmitPrimitiveAlias: false,
 		}
+		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
 
 	return &service.UnionTypeData{
-		Name:     name,
-		KindName: kindName,
-		Fields:   fields,
-		TypeKey:  u.GetTypeKey(),
-		ValueKey: u.GetValueKey(),
+		Name:                name,
+		KindName:            kindName,
+		Fields:              fields,
+		TypeKey:             u.GetTypeKey(),
+		ValueKey:            u.GetValueKey(),
+		HasScalarFormBranch: hasScalarFormBranch,
 	}
 }
 

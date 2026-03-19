@@ -61,6 +61,32 @@ func TestClientRequestBodyValidatorsForUnionBodies(t *testing.T) {
 	}
 }
 
+func TestClientRequestBodyValidatorStubForUnionObjectBranchTypes(t *testing.T) {
+	t.Parallel()
+
+	root := RunHTTPDSL(t, oauthFormRequestUnionDSL)
+	require.Len(t, root.API.HTTP.Services, 1)
+
+	httpServices := NewServicesData(service.NewServicesData(root), root.API.HTTP)
+	sd := httpServices.Get(root.API.HTTP.Services[0].Name())
+	require.NotNil(t, sd)
+
+	stubs := make(map[string]*TypeData)
+	for _, bodyType := range sd.ClientBodyAttributeTypes {
+		stubs[bodyType.Name] = bodyType
+	}
+
+	authCode := stubs["AuthorizationCodeGrantRequestBody"]
+	require.NotNil(t, authCode)
+	require.Equal(t, "// no validations", authCode.ValidateDef)
+	require.Equal(t, "err = ValidateAuthorizationCodeGrantRequestBody(v)", authCode.ValidateRef)
+
+	refresh := stubs["RefreshTokenGrantRequestBody"]
+	require.NotNil(t, refresh)
+	require.Equal(t, "// no validations", refresh.ValidateDef)
+	require.Equal(t, "err = ValidateRefreshTokenGrantRequestBody(v)", refresh.ValidateRef)
+}
+
 func TestAttributeTypeDataEmitsNoOpValidatorStubForTaggedClientRequestBodyType(t *testing.T) {
 	t.Parallel()
 

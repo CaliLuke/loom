@@ -208,7 +208,9 @@ func (u Values) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalFormValues marshals the union into application/x-www-form-urlencoded
-// values using the canonical {type,value} form shape.
+// values using the discriminator field plus flattened object fields for
+// object-shaped branches and the canonical {type,value} form shape for scalar
+// branches.
 func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 	if err := u.Validate(); err != nil {
 		return err
@@ -233,7 +235,9 @@ func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 }
 
 // UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded
-// values using the canonical {type,value} form shape.
+// values using the discriminator field plus flattened object fields for
+// object-shaped branches and the canonical {type,value} form shape for scalar
+// branches.
 func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
 	typeKey := goahttp.FormChildKey(prefix, "type")
 	valueKey := goahttp.FormChildKey(prefix, "value")

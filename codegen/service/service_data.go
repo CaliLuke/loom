@@ -478,6 +478,9 @@ type (
 		TypeKey string
 		// ValueKey is the value field name for JSON marshaling (defaults to "value").
 		ValueKey string
+		// HasScalarFormBranch is true when at least one branch keeps canonical
+		// type/value form encoding.
+		HasScalarFormBranch bool
 	}
 
 	// UnionFieldData describes a single branch of a union.
@@ -490,6 +493,9 @@ type (
 		FieldName string
 		// FieldType is the Go type used in the union struct field and public API.
 		FieldType string
+		// FlatFormObject is true when the branch value is object-shaped and form
+		// encoding should flatten its fields under the current prefix.
+		FlatFormObject bool
 		// EmitPrimitiveAlias is true when the branch uses a generated primitive alias
 		// that must be declared in the same file as the union type.
 		EmitPrimitiveAlias bool
@@ -1199,6 +1205,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 	unionPkg := loc.PackageName()
 
 	fields := make([]*UnionFieldData, len(u.Values))
+	hasScalarFormBranch := false
 	for i, nat := range u.Values {
 		fieldName := codegen.Goify(nat.Name, true)
 		var pkg string
@@ -1218,19 +1225,22 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 			KindConst:          kindConst,
 			FieldName:          fieldName,
 			FieldType:          fieldType,
+			FlatFormObject:     expr.IsObject(nat.Attribute.Type),
 			EmitPrimitiveAlias: emitPrimitiveAlias,
 			PrimitiveAliasType: primitiveAliasType,
 			TypeTag:            expr.UnionVariantTag(nat),
 		}
+		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
 
 	return &UnionTypeData{
-		Name:     name,
-		KindName: kindName,
-		Fields:   fields,
-		Loc:      loc,
-		TypeKey:  u.GetTypeKey(),
-		ValueKey: u.GetValueKey(),
+		Name:                name,
+		KindName:            kindName,
+		Fields:              fields,
+		Loc:                 loc,
+		TypeKey:             u.GetTypeKey(),
+		ValueKey:            u.GetValueKey(),
+		HasScalarFormBranch: hasScalarFormBranch,
 	}
 }
 
@@ -1278,6 +1288,7 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 	kindName := scope.Unique(name + "Kind")
 
 	fields := make([]*UnionFieldData, len(u.Values))
+	hasScalarFormBranch := false
 	for i, nat := range u.Values {
 		fieldName := codegen.Goify(nat.Name, true)
 		fieldType := scope.GoTypeRef(nat.Attribute)
@@ -1290,19 +1301,22 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 			KindConst:          kindConst,
 			FieldName:          fieldName,
 			FieldType:          fieldType,
+			FlatFormObject:     expr.IsObject(nat.Attribute.Type),
 			EmitPrimitiveAlias: emitPrimitiveAlias,
 			PrimitiveAliasType: primitiveAliasType,
 			TypeTag:            expr.UnionVariantTag(nat),
 		}
+		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
 
 	return &UnionTypeData{
-		Name:     name,
-		KindName: kindName,
-		Fields:   fields,
-		Loc:      loc,
-		TypeKey:  u.GetTypeKey(),
-		ValueKey: u.GetValueKey(),
+		Name:                name,
+		KindName:            kindName,
+		Fields:              fields,
+		Loc:                 loc,
+		TypeKey:             u.GetTypeKey(),
+		ValueKey:            u.GetValueKey(),
+		HasScalarFormBranch: hasScalarFormBranch,
 	}
 }
 

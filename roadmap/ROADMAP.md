@@ -24,7 +24,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI schema deduplication now reuses structurally identical generated components while preserving explicit `openapi:typename` names and real collisions.
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
 - Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
-- First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads.
+- First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads, including flat OAuth-style object-union fields.
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
 - Multipart object request decoding without handwritten decoder hooks, including shared validation flow when multipart bodies are combined with generated request-element decoding.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
@@ -58,7 +58,7 @@ These items are prioritized based on two goals:
 2. Refactor follow-up test backlog
    The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.
    Started 2026-03-18:
-   Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, and multipart decoder/encoder gating.
+   Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, file-server path normalization/wildcard extraction, error content-type suppression, and multipart decoder/encoder gating.
 
    `expr/http_endpoint.go`
    - Add prepare tests for implicit default success responses: redirect status and no-content status.

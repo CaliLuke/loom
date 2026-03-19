@@ -26,7 +26,7 @@ Out of scope:
 ## Delivered Outcome
 
 - typed form payloads decode through generated transport code
-- union-shaped form payloads use framework-owned discriminator behavior where applicable
+- union-shaped form payloads use framework-owned discriminator behavior, including flat top-level fields for standard object-branch unions
 - applications do not need custom form parsing for standard typed form endpoints
 
 ## What Changed
@@ -35,8 +35,9 @@ Out of scope:
 2. Added endpoint validation so form requests are restricted to supported payload shapes and incompatible body/param combinations fail at design time.
 3. Generated HTTP request decoders now parse form bodies through framework-owned decoding instead of forcing app-local parser hooks.
 4. Generated HTTP request encoders now emit `application/x-www-form-urlencoded` bodies for matching endpoints.
-5. Added runtime form helpers for typed object decoding plus canonical `{type,value}` union encoding and decoding.
-6. Added regression coverage for typed, optional, invalid, and union-shaped form payloads, then refreshed shared service/codegen fixtures.
+5. Added runtime form helpers for typed object decoding plus union encoding and decoding that keeps scalar branches on the canonical `{type,value}` shape while flattening object branches onto standard form fields.
+6. Added wrapper delegation for direct union form payloads so generated request bodies do not introduce extra top-level nesting around standard OAuth-style fields.
+7. Added regression coverage for typed, optional, invalid, and union-shaped form payloads, including an end-to-end temp-module test that exercises generated decoding with `golang.org/x/oauth2` and the generated client path.
 
 ## Design Constraints
 
@@ -52,7 +53,7 @@ Out of scope:
 ## Finish Criteria
 
 - Typed `application/x-www-form-urlencoded` payloads decode without app-local parsers.
-- Supported union-shaped form payloads decode through generated transport code.
+- Supported union-shaped form payloads decode through generated transport code, including flat OAuth-style object unions.
 - Regression tests cover at least:
   - simple typed form payload
   - optional form fields

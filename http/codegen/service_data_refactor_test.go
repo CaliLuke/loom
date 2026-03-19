@@ -214,7 +214,81 @@ func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 	}
 }
 
+func TestHTTPFileServerPathNormalizationAndWildcardExtraction(t *testing.T) {
+	cases := []struct {
+		name             string
+		dsl              func()
+		wantRequestPaths []string
+		wantDirFlags     []bool
+		wantPathParams   []string
+	}{
+		{
+			name:             "service root and wildcard paths",
+			dsl:              testdata.ServerMultipleFilesDSL,
+			wantRequestPaths: []string{"/file.json", "/", "/file.json", "/"},
+			wantDirFlags:     []bool{false, false, false, true},
+			wantPathParams:   []string{"", "", "", "wildcard"},
+		},
+		{
+			name:             "prefixed root and wildcard paths",
+			dsl:              testdata.ServerMultipleFilesWithPrefixPathDSL,
+			wantRequestPaths: []string{"/server_file_server/file.json", "/server_file_server", "/server_file_server/file.json", "/server_file_server"},
+			wantDirFlags:     []bool{false, false, false, true},
+			wantPathParams:   []string{"", "", "", "wildcard"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc := firstServiceData(t, c.dsl)
+			require.Len(t, svc.FileServers, len(c.wantRequestPaths))
+			for i, fs := range svc.FileServers {
+				require.Equal(t, []string{c.wantRequestPaths[i]}, fs.RequestPaths)
+				require.Equal(t, c.wantDirFlags[i], fs.IsDir)
+				require.Equal(t, c.wantPathParams[i], fs.PathParam)
+			}
+		})
+	}
+}
+
+func TestHTTPErrorResponseContentTypeSuppression(t *testing.T) {
+	cases := []struct {
+		name string
+		dsl  func()
+		want string
+	}{
+		{
+			name: "default error response suppresses sentinel",
+			dsl:  testdata.DefaultErrorResponseDSL,
+			want: "",
+		},
+		{
+			name: "explicit error response content type preserved",
+			dsl:  testdata.DefaultErrorResponseWithContentTypeDSL,
+			want: "application/xml",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			endpoint := firstEndpointData(t, c.dsl)
+			require.NotEmpty(t, endpoint.Errors)
+			require.NotEmpty(t, endpoint.Errors[0].Errors)
+			require.NotNil(t, endpoint.Errors[0].Errors[0].Response)
+			require.Equal(t, c.want, endpoint.Errors[0].Errors[0].Response.ContentType)
+		})
+	}
+}
+
 func firstEndpointData(t *testing.T, dsl func()) *EndpointData {
+	t.Helper()
+
+	svc := firstServiceData(t, dsl)
+	require.NotEmpty(t, svc.Endpoints)
+	return svc.Endpoints[0]
+}
+
+func firstServiceData(t *testing.T, dsl func()) *ServiceData {
 	t.Helper()
 
 	root := RunHTTPDSL(t, dsl)
@@ -223,9 +297,7 @@ func firstEndpointData(t *testing.T, dsl func()) *EndpointData {
 	services := CreateHTTPServices(root)
 	svc := services.Get(root.API.HTTP.Services[0].Name())
 	require.NotNil(t, svc)
-	require.NotEmpty(t, svc.Endpoints)
-
-	return svc.Endpoints[0]
+	return svc
 }
 
 func lastQueryParam(t *testing.T, endpoint *EndpointData) *ParamData {
