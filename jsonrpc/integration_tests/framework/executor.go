@@ -199,12 +199,44 @@ func (e *executor) executeWebSocket(ctx context.Context, t *testing.T, scenario 
 }
 
 // executeSSE handles Server-Sent Events scenarios
-func (e *executor) executeSSE(_ context.Context, t *testing.T, _ Scenario) {
+func (e *executor) executeSSE(ctx context.Context, t *testing.T, scenario Scenario) {
 	t.Helper()
 
-	// SSE implementation would go here
-	// For now, just a placeholder
-	t.Skip("SSE transport not yet implemented")
+	client, err := harness.NewClient(e.serverURL, nil)
+	require.NoError(t, err, "Failed to create client")
+
+	method := scenario.Request.GetMethod(scenario.Method)
+	req := harness.JSONRPCRequest{
+		Method: method,
+		Params: scenario.Request.Params,
+		ID:     scenario.Request.ID,
+	}
+	if scenario.Request.JSONRPC == "-" {
+		emptyStr := ""
+		req.JSONRPC = &emptyStr
+	} else if scenario.Request.JSONRPC != "" {
+		req.JSONRPC = &scenario.Request.JSONRPC
+	}
+
+	events, err := client.CallSSE(ctx, req)
+	require.NoError(t, err, "SSE request failed")
+
+	if scenario.Expect.NoResponse {
+		require.Len(t, events, 0, "Expected no SSE events for notification")
+		return
+	}
+
+	require.Len(t, events, 1, "Expected exactly one SSE event")
+	var response map[string]any
+	err = json.Unmarshal(events[0].Data, &response)
+	require.NoError(t, err, "Failed to unmarshal SSE response")
+
+	expectedEventType := "response"
+	if scenario.Expect.Error != nil {
+		expectedEventType = "error"
+	}
+	require.Equal(t, expectedEventType, events[0].Type, "Unexpected SSE event type")
+	e.validateJSONRPCResponse(t, response, scenario.Expect)
 }
 
 // executeStreaming handles streaming scenarios with sequences
@@ -350,18 +382,33 @@ func (e *executor) executeSSESequence(ctx context.Context, t *testing.T, scenari
 
 		require.Lessf(t, i, len(events), "Expected event at step %d, but no more events", i)
 
-		// Parse and validate the event
-		var response map[string]any
-		err := json.Unmarshal(events[i], &response)
-		require.NoErrorf(t, err, "Failed to unmarshal event %d", i)
-
-		// For SSE streaming, step.Expect contains the full expected JSON-RPC message
+		// For SSE streaming, step.Expect contains the full expected JSON-RPC message.
 		expectedMsg, ok := step.Expect.(map[string]any)
 		require.True(t, ok, "Step %d: invalid expect format", i)
 
-		// Compare the messages
-		e.compareJSONRPCMessages(t, response, expectedMsg)
+		e.validateSSEEvent(t, events[i], expectedMsg, i)
 	}
+}
+
+func (e *executor) validateSSEEvent(t *testing.T, event harness.SSEEvent, expectedMsg map[string]any, step int) {
+	t.Helper()
+
+	require.Equalf(t, expectedSSEEventType(expectedMsg), event.Type, "Step %d: unexpected SSE event type", step)
+
+	var response map[string]any
+	err := json.Unmarshal(event.Data, &response)
+	require.NoErrorf(t, err, "Failed to unmarshal event %d", step)
+	e.compareJSONRPCMessages(t, response, expectedMsg)
+}
+
+func expectedSSEEventType(msg map[string]any) string {
+	if _, ok := msg["error"]; ok {
+		return "error"
+	}
+	if _, ok := msg["result"]; ok {
+		return "response"
+	}
+	return "message"
 }
 
 // executeBatch handles batch request scenarios
@@ -516,7 +563,18 @@ func (e *executor) compareJSONRPCMessages(t *testing.T, actual, expected map[str
 	if expectedError, ok := expected["error"]; ok {
 		actualError, ok := actual["error"]
 		require.True(t, ok, "Expected error in response")
-		e.compareValues(t, actualError, expectedError, "error")
+		expectedErrObj, ok := expectedError.(map[string]any)
+		if !ok {
+			e.compareValues(t, actualError, expectedError, "error")
+			return
+		}
+		actualErrObj, ok := actualError.(map[string]any)
+		require.True(t, ok, "Expected object error in response")
+		for key, expectedValue := range expectedErrObj {
+			actualValue, ok := actualErrObj[key]
+			require.Truef(t, ok, "Expected error.%s in response", key)
+			e.compareValues(t, actualValue, expectedValue, "error."+key)
+		}
 	}
 
 	// Compare id

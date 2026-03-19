@@ -33,7 +33,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
 - Multipart object request decoding without handwritten decoder hooks, including shared validation flow when multipart bodies are combined with generated request-element decoding.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
-- JSON-RPC SSE server generation now emits MCP-compatible `message` events for streamed payload delivery, and generated SSE clients accept both `message`/default frames and the legacy custom event names.
+- JSON-RPC SSE server generation now emits `message` events for streamed payloads, `response` events for final non-streaming completions, and `error` events for JSON-RPC failures; generated SSE clients and the integration harness preserve and validate those event types while remaining backward compatible with legacy/default frames.
+- JSON-RPC SSE server streams now commit and flush `200 OK` plus `Content-Type: text/event-stream` as soon as the stream is accepted, before the first application event is emitted, so clients can observe stream establishment without server-side synchronization tricks.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
@@ -102,6 +103,7 @@ These items are prioritized based on two goals:
    Lower-priority integration/golden follow-up
    - Add representative golden coverage for viewed results, explicit response tags, explicit body origin attributes, multipart, skip request body encode/decode, skip response body encode/decode, and JSON-RPC mixed results.
    - Add one complex end-to-end generator test that combines params, headers, cookies, tagged responses, and typed error responses.
+   - Add an SSE interoperability loop that runs a well-known third-party SSE client against generated servers as a complement to the raw `net/http` transport regressions.
 
 ## Roadmap Index
 

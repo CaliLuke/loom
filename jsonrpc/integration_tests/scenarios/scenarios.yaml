@@ -1216,6 +1216,18 @@ scenarios:
         code: -32601
         message: "Method not found"
 
+  - name: "method_not_found_sse"
+    transport: "sse"
+    request:
+      method: "non_existent_method"
+      params: "test"
+      id: "not-found-sse"
+    expect:
+      id: "not-found-sse"
+      error:
+        code: -32601
+        message: "Method not found"
+
   # Edge case tests
   - name: "null_id"
     transport: "http"
@@ -1442,7 +1454,8 @@ scenarios:
       jsonrpc: "2.0"
       # Missing method and no id (notification) -> no events
       params: "ignored"
-    sequence: []
+    expect:
+      no_response: true
 
   - name: "http_params_id_with_request_id_mapping"
     method: "echo_string_idmap"

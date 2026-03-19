@@ -23,6 +23,8 @@ var templateFS embed.FS
 // generatorTemplates is the template reader for the test generator
 var generatorTemplates = &goatemplate.TemplateReader{FS: templateFS}
 
+const goaSourceModeFile = ".goa_source_mode"
+
 // Generator generates test service code using templates
 // Flow:
 //  1. Build design data from scenarios
@@ -451,6 +453,9 @@ func (g *Generator) repoRootReplace() string {
 	if p := os.Getenv("GOA_REPO"); p != "" {
 		return p
 	}
+	if p := configuredLocalGoaSource(); p != "" {
+		return p
+	}
 	dest := filepath.Join(g.workDir, ".goa-pinned")
 	if fi, err := os.Stat(dest); err == nil && fi.IsDir() {
 		return dest
@@ -461,11 +466,49 @@ func (g *Generator) repoRootReplace() string {
 			return dest
 		}
 	}
+	root, err := runCommandOutput("", "git", "rev-parse", "--show-toplevel")
+	if err == nil && strings.TrimSpace(root) != "" {
+		return strings.TrimSpace(root)
+	}
 	absPath, err := filepath.Abs("../../..")
 	if err != nil {
 		return "../../../.."
 	}
 	return absPath
+}
+
+func configuredLocalGoaSource() string {
+	repoRoot, err := repoTopLevel()
+	if err != nil || repoRoot == "" {
+		return ""
+	}
+	return localGoaSourceFromModeFile(filepath.Join(repoRoot, "jsonrpc", "integration_tests", goaSourceModeFile))
+}
+
+func localGoaSourceFromModeFile(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) == 0 {
+		return ""
+	}
+	if fields[0] != "local" {
+		return ""
+	}
+	if len(fields) < 2 {
+		return ""
+	}
+	return fields[1]
+}
+
+func repoTopLevel() (string, error) {
+	root, err := runCommandOutput("", "git", "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(root), nil
 }
 
 func resolvePinnedGoaSource() (string, string, error) {

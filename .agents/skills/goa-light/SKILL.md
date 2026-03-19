@@ -16,7 +16,6 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 
 ## Runtime Gotchas
 
-- SSE server streams do not expose a generated `Open()` hook. Goa emits SSE headers on the first `Send`, so long-idle streams that must return `200` before the first domain event need a non-generated transport/runtime flush strategy or an explicit initial event designed into the contract.
 - Do not "fix" SSE by hand-editing generated stream files. Keep the fix in `design/*.go` or non-generated transport/runtime code.
 - Do not map multi-cookie responses through ad hoc `Header("set_cookies:Set-Cookie")` bags and then patch generated encoders. Prefer idiomatic Goa cookies in the DSL when feasible. If the response shape still depends on raw cookie header values, emit them from non-generated transport code on the live `http.ResponseWriter` instead of editing generated files.
 
@@ -67,6 +66,8 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
   - `SafeMessage(message)`
   - `RetryHint(hint)`
 - JSON-RPC is a first-class transport in this repo. Do not assume HTTP or gRPC semantics automatically carry over.
+- JSON-RPC SSE event names are part of the transport contract: streamed notifications use `message`, final success envelopes use `response`, and JSON-RPC failures use `error`. The local JSON-RPC integration harness must preserve and validate those event types instead of dropping `event:` metadata.
+- JSON-RPC SSE streams eagerly commit and flush the `text/event-stream` response as soon as the stream is accepted. Clients should be able to observe stream establishment before the first domain event arrives, so do not rely on old “first event flushes headers” workarounds.
 
 ## Practical Checks
 
@@ -74,6 +75,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
 - When hardening OpenAPI output, prefer a non-trivial specimen DSL plus rendered-spec assertions and external linting over isolated schema snapshots only.
 - For temp-module generation loops, pin the pushed GitHub commit of `goa.design/goa/v3` instead of replacing against an uncommitted local checkout. Local working-tree replaces are fine for in-repo package tests, but not for CI-reproducible external generation.
+- For the repo-local JSON-RPC integration loop, use `make goa-local` while iterating on unpushed changes and `make goa-remote` when you need pinned-remote parity. `GOA_REPO=/absolute/path` still overrides both for one-off runs.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
 

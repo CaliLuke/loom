@@ -44,6 +44,23 @@ func (s *streamServerStreamEventWriter) finish() {
 	}
 }
 
+// initSSEHeaders initializes the SSE response headers.
+func (s *StreamServerStream) initSSEHeaders() {
+	s.once.Do(func() {
+		s.w.Header().Set("Content-Type", "text/event-stream")
+		s.w.Header().Set("Cache-Control", "no-cache")
+		s.w.Header().Set("Connection", "keep-alive")
+		s.w.Header().Set("X-Accel-Buffering", "no")
+		s.w.WriteHeader(http.StatusOK)
+	})
+}
+
+// open commits and flushes the SSE headers before the first application event.
+func (s *StreamServerStream) open() error {
+	s.initSSEHeaders()
+	return http.NewResponseController(s.w).Flush()
+}
+
 // Send sends a JSON-RPC notification to the client.
 // Notifications do not expect a response from the client.
 func (s *StreamServerStream) Send(ctx context.Context, event jsonrpcssestringservice.StreamEvent) error {
@@ -104,7 +121,7 @@ func (s *StreamServerStream) SendAndClose(ctx context.Context, event jsonrpcsses
 		"result":  body,
 	}
 
-	return s.sendSSEEvent("message", message)
+	return s.sendSSEEvent("response", message)
 }
 
 // SendError sends a JSON-RPC error response.
@@ -121,20 +138,14 @@ func (s *StreamServerStream) SendError(ctx context.Context, id string, err error
 // sendError sends a JSON-RPC error response via SSE.
 func (s *StreamServerStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
-	return s.sendSSEEvent("message", response)
+	return s.sendSSEEvent("error", response)
 }
 
 // sendSSEEvent sends a single SSE event by creating an encoder that writes to
 // the event writer
 func (s *StreamServerStream) sendSSEEvent(eventType string, v any) error {
 	// Ensure headers are sent once
-	s.once.Do(func() {
-		s.w.Header().Set("Content-Type", "text/event-stream")
-		s.w.Header().Set("Cache-Control", "no-cache")
-		s.w.Header().Set("Connection", "keep-alive")
-		s.w.Header().Set("X-Accel-Buffering", "no")
-		s.w.WriteHeader(http.StatusOK)
-	})
+	s.initSSEHeaders()
 
 	// Create SSE event writer that wraps the response writer
 	ew := &streamServerStreamEventWriter{w: s.w, eventType: eventType}

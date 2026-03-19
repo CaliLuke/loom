@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -57,9 +58,9 @@ func TestJSONRPCSSE(t *testing.T) {
 			// Compare with golden file
 			code := codegen.SectionCode(t, streamSection)
 			require.NotContains(t, code, `sendSSEEvent("notification",`)
-			require.NotContains(t, code, `sendSSEEvent("response",`)
-			require.NotContains(t, code, `sendSSEEvent("error",`)
-			require.Contains(t, code, `sendSSEEvent("message",`)
+			require.Contains(t, code, `sendSSEEvent("message", message)`)
+			require.Contains(t, code, `sendSSEEvent("response", message)`)
+			require.Contains(t, code, `sendSSEEvent("error", response)`)
 			golden := filepath.Join("testdata", "golden", "jsonrpc-sse-"+c.Name+".golden")
 			testutil.CompareOrUpdateGolden(t, code, golden)
 
@@ -90,4 +91,105 @@ func TestJSONRPCSSE(t *testing.T) {
 			require.Contains(t, clientCode, `case "error":`)
 		})
 	}
+}
+
+func TestJSONRPCSSEServiceStreamUsesTypedResponseEvents(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	services := CreateJSONRPCServices(root)
+	fs := ServerFiles("", services)
+	require.NotEmpty(t, fs, "expected JSON-RPC server files to be generated")
+
+	var serviceStreamCode string
+	for _, f := range fs {
+		if filepath.Base(f.Path) != "sse.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.SectionTemplates {
+			if s.Name != "jsonrpc-server-sse-stream-impl" {
+				continue
+			}
+			serviceStreamCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, serviceStreamCode, "jsonrpc-server-sse-stream-impl section not found")
+	require.Contains(t, serviceStreamCode, `eventType = "response"`)
+	require.Contains(t, serviceStreamCode, `eventType = "message"`)
+	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent("error", response)`)
+}
+
+func TestJSONRPCSSEOpensStreamBeforeFirstEvent(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	services := CreateJSONRPCServices(root)
+
+	streamFiles := SSEServerFiles("", services)
+	require.NotEmpty(t, streamFiles, "expected SSE stream files to be generated")
+
+	var endpointStreamCode string
+	for _, f := range streamFiles {
+		if filepath.Base(f.Path) != "stream.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.SectionTemplates {
+			if s.Name != "jsonrpc-sse-server-stream" {
+				continue
+			}
+			endpointStreamCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+	require.NotEmpty(t, endpointStreamCode, "jsonrpc-sse-server-stream section not found")
+	require.Contains(t, endpointStreamCode, `func (s *StreamServerStream) open() error {`)
+	require.Contains(t, endpointStreamCode, `s.w.WriteHeader(http.StatusOK)`)
+	require.Contains(t, endpointStreamCode, `return http.NewResponseController(s.w).Flush()`)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var handlerInitCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.SectionTemplates {
+			if s.Name != "jsonrpc-server-handler-init" {
+				continue
+			}
+			code := codegen.SectionCode(t, s)
+			if !strings.Contains(code, "StreamServerStream") {
+				continue
+			}
+			handlerInitCode = code
+			break
+		}
+	}
+	require.NotEmpty(t, handlerInitCode, "jsonrpc-server-handler-init section for SSE stream not found")
+	require.Contains(t, handlerInitCode, `if err := strm.open(); err != nil {`)
+}
+
+func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var sseHandlerCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.SectionTemplates {
+			if s.Name != "jsonrpc-sse-server-handler" {
+				continue
+			}
+			sseHandlerCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, sseHandlerCode, "jsonrpc-sse-server-handler section not found")
+	require.Contains(t, sseHandlerCode, `if req.ID == nil || req.ID == "" {`)
+	require.Contains(t, sseHandlerCode, `w.WriteHeader(http.StatusNoContent)`)
 }

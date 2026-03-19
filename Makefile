@@ -26,7 +26,7 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend lint test test-release integration-test build-goa release release-preflight release-goa release-examples release-plugins
+.PHONY: all all-tests ci depend lint test test-release integration-test build-goa goa-local goa-remote goa-status release release-preflight release-goa release-examples release-plugins
 .NOTPARALLEL: release release-goa release-examples release-plugins
 
 # Only list test and build dependencies
@@ -108,6 +108,15 @@ ifneq ($(GOOS),windows)
 	cd jsonrpc/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 10m ./...
 endif
 
+goa-local:
+	bash ./scripts/goa_source_mode.sh local
+
+goa-remote:
+	bash ./scripts/goa_source_mode.sh remote
+
+goa-status:
+	bash ./scripts/goa_source_mode.sh status
+
 # Needed for CI to run integration tests
 build-goa:
 	cd cmd/goa && GOBIN="$(GOBIN_DIR)" go install .
@@ -177,4 +186,3 @@ release-plugins:
 		git tag v$(MAJOR).$(MINOR).$(BUILD) && \
 		git push origin v$(MAJOR) && \
 		git push origin v$(MAJOR).$(MINOR).$(BUILD)
-

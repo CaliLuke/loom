@@ -25,6 +25,9 @@ func {{ .HandlerInit }}(
             encoder:   encoder,
             requestID: req.ID,
         }
+        if err := strm.open(); err != nil {
+            return err
+        }
     {{- if .Payload.Ref }}
         decodeParams := {{ .RequestDecoder }}(mux, decoder)
         params, err := decodeParams(r, req)

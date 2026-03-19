@@ -43,6 +43,23 @@ func (s *{{ lowerInitial .SSE.StructName }}EventWriter) finish() {
 	}
 }
 
+{{ comment "initSSEHeaders initializes the SSE response headers." }}
+func (s *{{ .SSE.StructName }}) initSSEHeaders() {
+	s.once.Do(func() {
+		s.w.Header().Set("Content-Type", "text/event-stream")
+		s.w.Header().Set("Cache-Control", "no-cache")
+		s.w.Header().Set("Connection", "keep-alive")
+		s.w.Header().Set("X-Accel-Buffering", "no")
+		s.w.WriteHeader(http.StatusOK)
+	})
+}
+
+{{ comment "open commits and flushes the SSE headers before the first application event." }}
+func (s *{{ .SSE.StructName }}) open() error {
+	s.initSSEHeaders()
+	return http.NewResponseController(s.w).Flush()
+}
+
 {{ comment "Send sends a JSON-RPC notification to the client." }}
 {{ comment "Notifications do not expect a response from the client." }}
 func (s *{{ .SSE.StructName }}) Send(ctx context.Context, event {{ .ServicePkgName }}.{{ .Method.VarName }}Event) error {
@@ -130,7 +147,7 @@ func (s *{{ .SSE.StructName }}) SendAndClose(ctx context.Context, event {{ .Serv
 		"result":  body,
 	}
 
-	return s.sendSSEEvent("message", message)
+	return s.sendSSEEvent("response", message)
 }
 
 {{ comment "SendError sends a JSON-RPC error response." }}
@@ -173,19 +190,13 @@ func (s *{{ .SSE.StructName }}) SendError(ctx context.Context, id string, err er
 {{ comment "sendError sends a JSON-RPC error response via SSE." }}
 func (s *{{ .SSE.StructName }}) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
-	return s.sendSSEEvent("message", response)
+	return s.sendSSEEvent("error", response)
 }
 
 {{ comment "sendSSEEvent sends a single SSE event by creating an encoder that writes to the event writer" }}
 func (s *{{ .SSE.StructName }}) sendSSEEvent(eventType string, v any) error {
 	{{ comment "Ensure headers are sent once" }}
-	s.once.Do(func() {
-		s.w.Header().Set("Content-Type", "text/event-stream")
-		s.w.Header().Set("Cache-Control", "no-cache")
-		s.w.Header().Set("Connection", "keep-alive")
-		s.w.Header().Set("X-Accel-Buffering", "no")
-		s.w.WriteHeader(http.StatusOK)
-	})
+	s.initSSEHeaders()
 
 	// Create SSE event writer that wraps the response writer
 	ew := &{{ lowerInitial .SSE.StructName }}EventWriter{w: s.w, eventType: eventType}

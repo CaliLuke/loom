@@ -72,6 +72,15 @@ No commented-out code—delete dead code.
 - Name tests `TestXxx`. Keep fast and deterministic.
 - Use `testify/require` for assertions.
 - Prefer `t.Errorf` over `t.Fatalf` so tests report multiple failures.
+- For framework/codegen bugs, add the failing test first, then change implementation.
+- Prefer direct seam tests for generator logic (`expr`, `http/codegen`, `codegen/service`) before leaning on broad goldens alone.
+- When output shape matters, pair direct structural assertions with rendered/golden coverage.
+- For OpenAPI contract work, validate rendered specs with `libopenapi` and lint the specimen outputs with Redocly.
+- Keep the OpenAPI specimen matrix meaningful. Reuse or extend the non-trivial fixtures under `http/codegen/testdata` instead of inventing throwaway one-off examples when a real contract shape is under test.
+- For external temp-module or fake-app generation loops, pin `goa.design/goa/v3` to a pushed GitHub commit, not the local working tree, so CI can reproduce the result.
+- For this repo, the standard JSON-RPC integration toggle is `make goa-local` for local iteration and `make goa-remote` for pinned-remote parity. `make goa-status` shows the current mode.
+- `make goa-local` writes a repo-local source-mode file for the JSON-RPC temp-module generator; `GOA_REPO=/absolute/path` still overrides that mode for one-off runs.
+- While developing an unpushed framework change, use local mode or set `GOA_REPO=/Users/luca/code/goa-light` explicitly so verification exercises the code you just changed rather than the last pushed commit.
 - For new or changed `goa-light` framework capabilities, use the [`framework-capability` skill](/Users/luca/code/goa-light/.agents/skills/framework-capability/SKILL.md).
 
 ---

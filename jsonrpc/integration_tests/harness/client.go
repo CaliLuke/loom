@@ -24,6 +24,12 @@ type JSONRPCRequest struct {
 	HasID   bool    `json:"-"` // true if the id key must be included even if null
 }
 
+// SSEEvent represents a single Server-Sent Event frame.
+type SSEEvent struct {
+	Type string
+	Data json.RawMessage
+}
+
 // Default values
 const (
 	DefaultHTTPTimeout = 10 * time.Second
@@ -220,8 +226,31 @@ func (c *Client) CallHTTP(ctx context.Context, req JSONRPCRequest) (json.RawMess
 	return json.RawMessage(body), nil
 }
 
-// CallSSE makes a JSON-RPC call over SSE and returns all events
-func (c *Client) CallSSE(ctx context.Context, req JSONRPCRequest) ([]json.RawMessage, error) {
+// CallSSE makes a JSON-RPC call over SSE and returns all events.
+func (c *Client) CallSSE(ctx context.Context, req JSONRPCRequest) ([]SSEEvent, error) {
+	resp, err := c.OpenSSE(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode == http.StatusNoContent {
+		return nil, nil
+	}
+
+	// Read response body for debug
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read SSE response: %w", err)
+	}
+
+	// Parse SSE events
+	events, err := c.parseSSEEvents(bytes.NewReader(body))
+	return events, err
+}
+
+// OpenSSE opens an SSE request and returns after the response headers are available.
+func (c *Client) OpenSSE(ctx context.Context, req JSONRPCRequest) (*http.Response, error) {
 	// Build JSON-RPC request envelope
 	envelope := map[string]any{}
 	// Set jsonrpc per request: nil -> default to "2.0"; non-nil empty -> omit; otherwise use value
@@ -265,30 +294,22 @@ func (c *Client) CallSSE(ctx context.Context, req JSONRPCRequest) ([]json.RawMes
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close() //nolint:errcheck
 		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
-
-	// Read response body for debug
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read SSE response: %w", err)
-	}
-
-	// Parse SSE events
-	events, err := c.parseSSEEvents(bytes.NewReader(body))
-	return events, err
+	return resp, nil
 }
 
-// parseSSEEvents parses Server-Sent Events from a reader
-func (c *Client) parseSSEEvents(r io.Reader) ([]json.RawMessage, error) {
-	var events []json.RawMessage
+// parseSSEEvents parses Server-Sent Events from a reader.
+func (c *Client) parseSSEEvents(r io.Reader) ([]SSEEvent, error) {
+	var events []SSEEvent
 	scanner := bufio.NewScanner(r)
 
 	var eventData strings.Builder
+	var eventType string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -296,9 +317,18 @@ func (c *Client) parseSSEEvents(r io.Reader) ([]json.RawMessage, error) {
 		if line == "" {
 			// Empty line signals end of event
 			if eventData.Len() > 0 {
-				events = append(events, json.RawMessage(eventData.String()))
+				events = append(events, SSEEvent{
+					Type: eventType,
+					Data: json.RawMessage(eventData.String()),
+				})
 				eventData.Reset()
+				eventType = ""
 			}
+			continue
+		}
+
+		if strings.HasPrefix(line, "event: ") {
+			eventType = strings.TrimPrefix(line, "event: ")
 			continue
 		}
 
@@ -314,7 +344,10 @@ func (c *Client) parseSSEEvents(r io.Reader) ([]json.RawMessage, error) {
 
 	// Handle last event if no trailing empty line
 	if eventData.Len() > 0 {
-		events = append(events, json.RawMessage(eventData.String()))
+		events = append(events, SSEEvent{
+			Type: eventType,
+			Data: json.RawMessage(eventData.String()),
+		})
 	}
 
 	return events, scanner.Err()
