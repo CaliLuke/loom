@@ -91,9 +91,6 @@ func oauthFormRequestUnionDSL() {
 		Required("client_id", "code", "redirect_uri")
 	})
 	var RefreshTokenGrant = Type("RefreshTokenGrant", func() {
-		Attribute("client_id", String)
-		Attribute("refresh_token", String)
-		Required("client_id", "refresh_token")
 	})
 	var Grant = Type("Grant", func() {
 		OneOf("Grant", func() {
@@ -246,11 +243,8 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 		if got := form.Get("grant_type"); got != "refresh_token" {
 			t.Fatalf("grant_type = %q, want refresh_token", got)
 		}
-		if got := form.Get("client_id"); got != "client-123" {
-			t.Fatalf("client_id = %q, want client-123", got)
-		}
-		if got := form.Get("refresh_token"); got != "refresh-abc" {
-			t.Fatalf("refresh_token = %q, want refresh-abc", got)
+		if len(form) != 1 {
+			t.Fatalf("form = %v, want only grant_type", form)
 		}
 		for key := range form {
 			if key == "value" || strings.HasPrefix(key, "value[") {
@@ -269,8 +263,8 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 		if !ok || grant == nil {
 			t.Fatalf("decoded payload missing refresh_token branch: %#v", payload)
 		}
-		if grant.ClientID != "client-123" || grant.RefreshToken != "refresh-abc" {
-			t.Fatalf("decoded refresh grant = %#v", grant)
+		if *grant != (token.RefreshTokenGrant{}) {
+			t.Fatalf("decoded refresh grant = %#v, want zero-value object", *grant)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -293,10 +287,7 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 	endpoint := client.Exchange()
 
 	result, err := endpoint(context.Background(), &token.Grant{
-		Grant: token.NewGrant2RefreshToken(&token.RefreshTokenGrant{
-			ClientID:     "client-123",
-			RefreshToken: "refresh-abc",
-		}),
+		Grant: token.NewGrant2RefreshToken(&token.RefreshTokenGrant{}),
 	})
 	if err != nil {
 		t.Fatalf("generated client exchange: %v", err)
@@ -310,6 +301,77 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 	}
 	if tokenRes.RefreshToken == nil || *tokenRes.RefreshToken != "refresh-456" {
 		t.Fatalf("refresh token = %#v, want refresh-456", tokenRes.RefreshToken)
+	}
+}
+
+func TestZeroFieldRefreshGrantDecodesFromDiscriminatorAndCookie(t *testing.T) {
+	mux := goahttp.NewMuxer()
+	decode := tokenserver.DecodeExchangeRequest(mux, goahttp.RequestDecoder)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		r.Body = io.NopCloser(bytes.NewReader(raw))
+
+		form, err := url.ParseQuery(string(raw))
+		if err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if got := form.Get("grant_type"); got != "refresh_token" {
+			t.Fatalf("grant_type = %q, want refresh_token", got)
+		}
+		if len(form) != 1 {
+			t.Fatalf("form = %v, want only grant_type", form)
+		}
+		if cookie, err := r.Cookie("session"); err != nil || cookie.Value != "session-cookie" {
+			t.Fatalf("session cookie = (%v, %v), want session-cookie", cookie, err)
+		}
+
+		payload, err := decode(r)
+		if err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if payload.Grant.Kind() != token.Grant2KindRefreshToken {
+			t.Fatalf("decoded kind = %q, want %q", payload.Grant.Kind(), token.Grant2KindRefreshToken)
+		}
+		grant, ok := payload.Grant.AsRefreshToken()
+		if !ok || grant == nil {
+			t.Fatalf("decoded payload missing refresh_token branch: %#v", payload)
+		}
+		if *grant != (token.RefreshTokenGrant{}) {
+			t.Fatalf("decoded refresh grant = %#v, want zero-value object", *grant)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(&token.TokenResponse{
+			AccessToken: "access-cookie",
+			TokenType:   "Bearer",
+		}); err != nil {
+			t.Fatalf("encode response: %v", err)
+		}
+	}))
+	defer srv.Close()
+
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+
+	req, err := http.NewRequest(http.MethodPost, srv.URL, strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "session", Value: "session-cookie"})
+
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("post refresh grant: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
 }
 `

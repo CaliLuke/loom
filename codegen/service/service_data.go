@@ -496,6 +496,12 @@ type (
 		// FlatFormObject is true when the branch value is object-shaped and form
 		// encoding should flatten its fields under the current prefix.
 		FlatFormObject bool
+		// FlatFormObjectAllowsEmpty is true when the flattened object branch may be
+		// selected with only the discriminator because it has no required fields.
+		FlatFormObjectAllowsEmpty bool
+		// EmptyValueExpr is the Go expression that initializes an empty branch
+		// value when FlatFormObjectAllowsEmpty is true.
+		EmptyValueExpr string
 		// EmitPrimitiveAlias is true when the branch uses a generated primitive alias
 		// that must be declared in the same file as the union type.
 		EmitPrimitiveAlias bool
@@ -1221,14 +1227,16 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		emitPrimitiveAlias := hasPrimitiveAlias && !isUserType && pkg == ""
 		kindConst := kindName + codegen.Goify(nat.Name, true)
 		fields[i] = &UnionFieldData{
-			Name:               nat.Name,
-			KindConst:          kindConst,
-			FieldName:          fieldName,
-			FieldType:          fieldType,
-			FlatFormObject:     expr.IsObject(nat.Attribute.Type),
-			EmitPrimitiveAlias: emitPrimitiveAlias,
-			PrimitiveAliasType: primitiveAliasType,
-			TypeTag:            expr.UnionVariantTag(nat),
+			Name:                      nat.Name,
+			KindConst:                 kindConst,
+			FieldName:                 fieldName,
+			FieldType:                 fieldType,
+			FlatFormObject:            expr.IsObject(nat.Attribute.Type),
+			FlatFormObjectAllowsEmpty: flatFormObjectAllowsEmpty(nat.Attribute),
+			EmptyValueExpr:            emptyObjectValueExpr(fieldType),
+			EmitPrimitiveAlias:        emitPrimitiveAlias,
+			PrimitiveAliasType:        primitiveAliasType,
+			TypeTag:                   expr.UnionVariantTag(nat),
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
@@ -1297,14 +1305,16 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 		emitPrimitiveAlias := hasPrimitiveAlias && !isUserType
 		kindConst := kindName + codegen.Goify(nat.Name, true)
 		fields[i] = &UnionFieldData{
-			Name:               nat.Name,
-			KindConst:          kindConst,
-			FieldName:          fieldName,
-			FieldType:          fieldType,
-			FlatFormObject:     expr.IsObject(nat.Attribute.Type),
-			EmitPrimitiveAlias: emitPrimitiveAlias,
-			PrimitiveAliasType: primitiveAliasType,
-			TypeTag:            expr.UnionVariantTag(nat),
+			Name:                      nat.Name,
+			KindConst:                 kindConst,
+			FieldName:                 fieldName,
+			FieldType:                 fieldType,
+			FlatFormObject:            expr.IsObject(nat.Attribute.Type),
+			FlatFormObjectAllowsEmpty: flatFormObjectAllowsEmpty(nat.Attribute),
+			EmptyValueExpr:            emptyObjectValueExpr(fieldType),
+			EmitPrimitiveAlias:        emitPrimitiveAlias,
+			PrimitiveAliasType:        primitiveAliasType,
+			TypeTag:                   expr.UnionVariantTag(nat),
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
@@ -1348,6 +1358,17 @@ func primitiveAliasGoType(dt expr.DataType) (string, bool) {
 		}
 		dt = ut.Attribute().Type
 	}
+}
+
+func flatFormObjectAllowsEmpty(att *expr.AttributeExpr) bool {
+	return expr.IsObject(att.Type) && len(att.AllRequired()) == 0
+}
+
+func emptyObjectValueExpr(fieldType string) string {
+	if strings.HasPrefix(fieldType, "*") {
+		return "&" + strings.TrimPrefix(fieldType, "*") + "{}"
+	}
+	return fieldType + "{}"
 }
 
 // buildErrorInitData creates the data needed to generate code around endpoint error return values.

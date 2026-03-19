@@ -144,7 +144,11 @@ func (u *{{ .Name }}) UnmarshalFormValues(values url.Values, prefix string) erro
 			return err
 		}
 		if !seen {
+			{{- if .FlatFormObjectAllowsEmpty }}
+			v = {{ .EmptyValueExpr }}
+			{{- else }}
 			return goa.MissingFieldError({{ printf "%q" $.ValueKey }}, "body")
+			{{- end }}
 		}
 		u.kind = {{ .KindConst }}
 		u.{{ .FieldName }} = v

@@ -2945,13 +2945,15 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope) *service.Un
 		fieldType := scope.GoTypeRef(nat.Attribute)
 		kindConst := kindName + fieldName
 		fields[i] = &service.UnionFieldData{
-			Name:               nat.Name,
-			KindConst:          kindConst,
-			FieldName:          fieldName,
-			FieldType:          fieldType,
-			TypeTag:            expr.UnionVariantTag(nat),
-			FlatFormObject:     expr.IsObject(nat.Attribute.Type),
-			EmitPrimitiveAlias: false,
+			Name:                      nat.Name,
+			KindConst:                 kindConst,
+			FieldName:                 fieldName,
+			FieldType:                 fieldType,
+			TypeTag:                   expr.UnionVariantTag(nat),
+			FlatFormObject:            expr.IsObject(nat.Attribute.Type),
+			FlatFormObjectAllowsEmpty: flatFormObjectAllowsEmpty(nat.Attribute),
+			EmptyValueExpr:            emptyObjectValueExpr(fieldType),
+			EmitPrimitiveAlias:        false,
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
@@ -2979,6 +2981,17 @@ func sortedNamedAttributes(attrs []*expr.NamedAttributeExpr) []*expr.NamedAttrib
 		return sorted[i].Name < sorted[j].Name
 	})
 	return sorted
+}
+
+func flatFormObjectAllowsEmpty(att *expr.AttributeExpr) bool {
+	return expr.IsObject(att.Type) && len(att.AllRequired()) == 0
+}
+
+func emptyObjectValueExpr(fieldType string) string {
+	if strings.HasPrefix(fieldType, "*") {
+		return "&" + strings.TrimPrefix(fieldType, "*") + "{}"
+	}
+	return fieldType + "{}"
 }
 
 func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bool, rd *ServiceData) *TypeData {

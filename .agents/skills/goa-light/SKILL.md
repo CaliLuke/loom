@@ -39,7 +39,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
   - `New<ResultType>From<ProjectedType>[ViewSuffix](...)` to rebuild the canonical result from a projected view
 - Use `FormRequest()` on HTTP endpoints when the request body contract is `application/x-www-form-urlencoded`.
 - `FormRequest()` is for typed object payloads and constructor unions only; incompatible body/param mixes are rejected during design validation instead of silently falling back to app-local parsing.
-- Form-encoded unions keep scalar branches on the canonical wrapper shape (`type` + `value`) but flatten object branches onto normal form fields; direct top-level union form payloads do not add an extra synthetic wrapper key.
+- Form-encoded unions keep scalar branches on the canonical wrapper shape (`type` + `value`) but flatten object branches onto normal form fields; direct top-level union form payloads do not add an extra synthetic wrapper key, and all-optional object branches may be selected by discriminator alone without synthetic `value` fields.
 - `MultipartRequest()` now generates server-side decoding for supported object payloads, including common file-plus-fields uploads, instead of requiring a handwritten decoder hook.
 - Generated multipart decoding is intentionally narrower than form decoding: unsupported multipart payload shapes still use the legacy custom encoder/decoder seam instead of partial magic.
 - For supported multipart object payloads with a single top-level file field, sibling body attributes named `filename` and `content_type` are auto-populated from the uploaded part when those fields are present and not explicitly supplied.

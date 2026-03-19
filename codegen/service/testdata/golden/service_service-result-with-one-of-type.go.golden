@@ -188,7 +188,7 @@ func (u *Result) UnmarshalFormValues(values url.Values, prefix string) error {
 			return err
 		}
 		if !seen {
-			return goa.MissingFieldError("value", "body")
+			v = &T{}
 		}
 		u.kind = ResultKindT
 		u.T = v
@@ -199,7 +199,7 @@ func (u *Result) UnmarshalFormValues(values url.Values, prefix string) error {
 			return err
 		}
 		if !seen {
-			return goa.MissingFieldError("value", "body")
+			v = &U{}
 		}
 		u.kind = ResultKindU
 		u.U = v

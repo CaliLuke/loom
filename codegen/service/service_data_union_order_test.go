@@ -88,6 +88,36 @@ func TestBuildViewUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
 	require.Equal(t, "batch", data.Fields[1].TypeTag)
 }
 
+func TestBuildUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
+	scope := codegen.NewNameScope()
+	loc := &codegen.Location{
+		RelImportPath: "gen/service",
+	}
+
+	data := buildUnionTypeData(makeOptionalObjectUnionForFormTest(), scope, loc)
+
+	require.Len(t, data.Fields, 2)
+	require.True(t, data.Fields[0].FlatFormObject)
+	require.True(t, data.Fields[0].FlatFormObjectAllowsEmpty)
+	require.Contains(t, data.Fields[0].EmptyValueExpr, "{}")
+	require.True(t, data.Fields[1].FlatFormObject)
+	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
+}
+
+func TestBuildViewUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
+	scope := codegen.NewNameScope()
+	loc := &codegen.Location{
+		RelImportPath: "gen/service/views",
+	}
+
+	data := buildViewUnionTypeData(makeOptionalObjectUnionForFormTest(), scope, loc)
+
+	require.Len(t, data.Fields, 2)
+	require.True(t, data.Fields[0].FlatFormObjectAllowsEmpty)
+	require.Contains(t, data.Fields[0].EmptyValueExpr, "{}")
+	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
+}
+
 func collectServiceUnionTypeNames(att *expr.AttributeExpr, loc *codegen.Location) map[string]string {
 	scope := codegen.NewNameScope()
 	seen := make(map[string]struct{})
@@ -133,6 +163,34 @@ func makeTaggedUnionForTagTest() *expr.Union {
 				Attribute: &expr.AttributeExpr{
 					Type: expr.String,
 					Meta: expr.MetaExpr{"oneof:type:tag": []string{"batch"}},
+				},
+			},
+		},
+	}
+}
+
+func makeOptionalObjectUnionForFormTest() *expr.Union {
+	return &expr.Union{
+		TypeName: "Grant",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name: "Refresh",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{},
+				},
+			},
+			{
+				Name: "AuthorizationCode",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{
+						{
+							Name: "code",
+							Attribute: &expr.AttributeExpr{
+								Type: expr.String,
+							},
+						},
+					},
+					Validation: &expr.ValidationExpr{Required: []string{"code"}},
 				},
 			},
 		},

@@ -70,6 +70,19 @@ func TestBuildHTTPUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
 	require.Equal(t, "batch", data.Fields[1].TypeTag)
 }
 
+func TestBuildHTTPUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
+	scope := cg.NewNameScope()
+
+	data := buildHTTPUnionTypeData(makeOptionalObjectUnionForFormTest(), scope)
+
+	require.Len(t, data.Fields, 2)
+	require.True(t, data.Fields[0].FlatFormObject)
+	require.True(t, data.Fields[0].FlatFormObjectAllowsEmpty)
+	require.Contains(t, data.Fields[0].EmptyValueExpr, "{}")
+	require.True(t, data.Fields[1].FlatFormObject)
+	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
+}
+
 func collectHTTPUnionTypeNames(att *expr.AttributeExpr) map[string]string {
 	scope := cg.NewNameScope()
 	seen := make(map[string]struct{})
@@ -115,6 +128,34 @@ func makeTaggedUnionForTagTest() *expr.Union {
 				Attribute: &expr.AttributeExpr{
 					Type: expr.String,
 					Meta: expr.MetaExpr{"oneof:type:tag": []string{"batch"}},
+				},
+			},
+		},
+	}
+}
+
+func makeOptionalObjectUnionForFormTest() *expr.Union {
+	return &expr.Union{
+		TypeName: "Grant",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name: "Refresh",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{},
+				},
+			},
+			{
+				Name: "AuthorizationCode",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{
+						{
+							Name: "code",
+							Attribute: &expr.AttributeExpr{
+								Type: expr.String,
+							},
+						},
+					},
+					Validation: &expr.ValidationExpr{Required: []string{"code"}},
 				},
 			},
 		},
