@@ -333,16 +333,33 @@ func TestHTTPResponseBodyGenerationCoverage(t *testing.T) {
 		resp := endpoint.Result.Responses[0]
 		require.Len(t, resp.ServerBody, 1)
 		require.Equal(t, "A", resp.ResultAttr)
+		require.Equal(t, "", resp.ServerBody[0].View)
 		require.NotNil(t, resp.ClientBody)
 	})
 
 	t.Run("explicit method view keeps single projected body", func(t *testing.T) {
 		endpoint := firstEndpointData(t, testdata.ResultWithResultViewDSL)
 		require.NotNil(t, endpoint.Result)
+		require.Equal(t, "full", endpoint.Result.View)
 		require.NotEmpty(t, endpoint.Result.Responses)
 		resp := endpoint.Result.Responses[0]
 		require.Len(t, resp.ServerBody, 1)
 		require.NotNil(t, resp.ViewedResult)
+		require.Equal(t, "full", resp.ServerBody[0].View)
+		require.Equal(t, "", resp.ClientBody.View)
+	})
+
+	t.Run("inline object body on multi-view result fans out server bodies per view", func(t *testing.T) {
+		endpoint := firstEndpointData(t, testdata.ExplicitBodyUserResultObjectMultipleViewDSL)
+		require.NotNil(t, endpoint.Result)
+		require.NotEmpty(t, endpoint.Result.Responses)
+		resp := endpoint.Result.Responses[0]
+		require.Empty(t, resp.ResultAttr)
+		require.Len(t, resp.ServerBody, 2)
+		require.NotNil(t, resp.ViewedResult)
+		require.Equal(t, []string{"default", "tiny"}, bodyViews(resp.ServerBody))
+		require.NotNil(t, resp.ClientBody)
+		require.Equal(t, "", resp.ClientBody.View)
 	})
 }
 
@@ -430,6 +447,14 @@ func initArgRefs(args []*InitArgData) []string {
 		refs[i] = arg.Ref
 	}
 	return refs
+}
+
+func bodyViews(types []*TypeData) []string {
+	views := make([]string, len(types))
+	for i, td := range types {
+		views[i] = td.View
+	}
+	return views
 }
 
 func requestEncoderBodyDSL() {
