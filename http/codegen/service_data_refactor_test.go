@@ -216,6 +216,41 @@ func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 	}
 }
 
+func TestHTTPBuildStreamPayloadMultipartGating(t *testing.T) {
+	cases := []struct {
+		name                 string
+		dsl                  func()
+		expectBuildStreaming bool
+	}{
+		{
+			name:                 "skip request body encode decode",
+			dsl:                  testdata.SkipRequestBodyEncodeDecodeDSL,
+			expectBuildStreaming: true,
+		},
+		{
+			name:                 "custom multipart decoder path",
+			dsl:                  testdata.PayloadMultipartPrimitiveDSL,
+			expectBuildStreaming: false,
+		},
+		{
+			name:                 "generated multipart object path",
+			dsl:                  testdata.PayloadMultipartObjectGeneratedDSL,
+			expectBuildStreaming: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			endpoint := firstEndpointData(t, c.dsl)
+			if c.expectBuildStreaming {
+				require.NotEmpty(t, endpoint.BuildStreamPayload)
+				return
+			}
+			require.Empty(t, endpoint.BuildStreamPayload)
+		})
+	}
+}
+
 func TestHTTPFileServerPathNormalizationAndWildcardExtraction(t *testing.T) {
 	cases := []struct {
 		name             string

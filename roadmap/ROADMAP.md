@@ -73,26 +73,10 @@ These items are prioritized based on two goals:
    Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, file-server path normalization/wildcard extraction, aliased path-param request init, result-init and error-init arg assembly, response-body generation for explicit origin/view fanout, error content-type suppression, and multipart decoder/encoder gating.
 
    `expr/http_endpoint.go`
-   - Add prepare tests for implicit default success responses: redirect status and no-content status.
-   - Add prepare tests for SSE inheritance from service and API scopes.
-   - Add prepare tests for inherited HTTP errors from service and API scopes.
-   - Add prepare test for WebSocket route method coercion to `GET`.
-   - Add validation tests for all-tagged responses rejection and tagged responses requiring object results.
-   - Add validation tests for SSE on non-streaming endpoints and JSON-RPC result/request `id` consistency.
-   - Add validation tests for redirect plus mismatched response status, map/array payload skip-request-body cases, and JSON-RPC payload migration in `Finalize`.
-   - Add finalize test for implicit session cookie mapping.
+   - Add validation coverage for map/array payload skip-request-body edge cases.
 
    `http/codegen/service_data.go`
-   - Add direct tests for file-server path normalization and directory wildcard extraction.
-   - Add direct tests for request encoder emission and omission.
-   - Add request-shape tests for whole-payload and named-field `MapParams(...)`.
-   - Add request validation-flag tests covering cookies, headers, query params, path params, and optional-body origin handling.
-   - Add payload decoder return-value precedence tests for params, headers, cookies, and whole-payload map query.
-   - Add JSON-RPC payload/result `id` projection tests.
-   - Add response ordering test that keeps the tagless response last.
-   - Add error content-type suppression test for `expr.ErrorResultIdentifier`.
-   - Add error body description rewrite tests.
-   - Add multipart gating tests for decoder generation, encoder generation, and `BuildStreamPayload`.
+   - Add request validation-flag coverage for optional-body origin handling.
    - Add direct union collection tests across request body, streaming body, responses, and errors.
 
    `codegen/service/service_data.go`
