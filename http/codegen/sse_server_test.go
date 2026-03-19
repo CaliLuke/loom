@@ -80,6 +80,11 @@ func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {
 	require.Contains(t, code, "stream := &SSEObjectMethodServerStream{")
 	require.Contains(t, code, "Stream: stream,")
 	require.NotContains(t, code, "stream.open()")
+	decl := strings.Index(code, "encodeError =")
+	require.NotEqual(t, -1, decl, "raw SSE handlers must declare encodeError before using it")
+	use := strings.Index(code, "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
+	require.NotEqual(t, -1, use, "raw SSE handlers must encode pre-stream endpoint failures")
+	require.Less(t, decl, use, "encodeError must be declared before the endpoint failure path uses it")
 	require.Contains(t, code, "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
 	require.NotContains(t, code, "if errhandler != nil {\n\t\t\t\t\terrhandler(ctx, w, err)\n\t\t\t\t}")
 }

@@ -20,7 +20,7 @@ func {{ .HandlerInit }}(
 		{{- if not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults))) }}
 		encodeResponse = {{ .ResponseEncoder }}(encoder)
 		{{- end }}
-		{{- if (or (mustDecodeRequest .) (and (not .Redirect) (not (and (isSSEEndpoint .) (not .HasMixedResults)))) .Method.SkipResponseBodyEncodeDecode) }}
+	{{- if (or (mustDecodeRequest .) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
 		encodeError    = {{ if .Errors }}{{ .ErrorEncoder }}{{ else }}goahttp.ErrorEncoder{{ end }}(encoder, formatter)
 		{{- end }}
 	{{- if (or (mustDecodeRequest .) (not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults)))) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
