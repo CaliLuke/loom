@@ -1,5 +1,0 @@
-# example.com/ticktock
-../../clock.go:26:55: cannot use value (variable of type string) as *string value in struct literal
-../../clock.go:37:59: cannot use "tick-done" (untyped string constant) as *string value in struct literal
-../../clock.go:50:55: cannot use value (variable of type string) as *string value in struct literal
-../../clock.go:61:59: cannot use "tock-finished" (untyped string constant) as *string value in struct literal
