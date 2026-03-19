@@ -65,5 +65,7 @@ Out of scope:
 
 - Supported object multipart payloads now use framework-owned HTTP server decoding.
 - Generated multipart decoding reuses the request-body type, constructor, and validator flow instead of a custom transport hook.
+- Generated multipart decoders now share the same validation accumulator across body validation and generated request-element validation, so multipart object endpoints continue to compile when they also include validated path/query/header/cookie-derived fields.
 - Top-level `Bytes` fields are populated from multipart file parts, and a single file part can auto-populate sibling `filename` and `content_type` fields when those attributes exist on the body.
 - Unsupported multipart payload shapes still use the legacy custom decoder seam instead of silently generating partial behavior.
+- Regression coverage now includes multipart object decoding combined with a validated generated request element, closing the compile-time `err` redeclaration gap that showed up in real generated server code.

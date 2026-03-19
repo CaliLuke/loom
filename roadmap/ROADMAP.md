@@ -26,7 +26,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
 - First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads.
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
-- Multipart object request decoding without handwritten decoder hooks.
+- Multipart object request decoding without handwritten decoder hooks, including shared validation flow when multipart bodies are combined with generated request-element decoding.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
 - JSON-RPC SSE server generation now emits MCP-compatible `message` events for streamed payload delivery, and generated SSE clients accept both `message`/default frames and the legacy custom event names.
 - Session auth DSL and derived auth/session transport behavior.
