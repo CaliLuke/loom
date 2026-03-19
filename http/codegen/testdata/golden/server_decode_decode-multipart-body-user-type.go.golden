@@ -3,13 +3,48 @@
 func DecodeMethodMultipartUserTypeRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicemultipartusertype.MethodMultipartUserTypePayload, error) {
 	return func(r *http.Request) (*servicemultipartusertype.MethodMultipartUserTypePayload, error) {
 		var payload *servicemultipartusertype.MethodMultipartUserTypePayload
-		if err := decoder(r).Decode(&payload); err != nil {
+		var (
+			body MethodMultipartUserTypeRequestBody
+			err  error
+		)
+		mr, multipartErr := r.MultipartReader()
+		if multipartErr != nil {
 			var gerr *goa.ServiceError
-			if errors.As(err, &gerr) {
+			if errors.As(multipartErr, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, goa.DecodePayloadError(multipartErr.Error())
 		}
+		multipartForm, multipartErr := goahttp.ReadMultipartForm(mr)
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
+			return payload, goa.MissingPayloadError()
+		} else {
+			if _, multipartErr = goahttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
+				var gerr *goa.ServiceError
+				if errors.As(multipartErr, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(multipartErr.Error())
+			}
+		}
+		err = ValidateMethodMultipartUserTypeRequestBody(&body)
+		if err != nil {
+			if multipartErr != nil {
+				err = goa.MergeErrors(multipartErr, err)
+			}
+			return payload, err
+		}
+		if multipartErr != nil {
+			return payload, multipartErr
+		}
+		payload = NewMethodMultipartUserTypePayload(&body)
 
 		return payload, nil
 	}

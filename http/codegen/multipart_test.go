@@ -17,7 +17,6 @@ func TestServerMultipartFuncType(t *testing.T) {
 		DSL  func()
 	}{
 		{"multipart-body-primitive", testdata.PayloadMultipartPrimitiveDSL},
-		{"multipart-body-user-type", testdata.PayloadMultipartUserTypeDSL},
 		{"multipart-body-array-type", testdata.PayloadMultipartArrayTypeDSL},
 		{"multipart-body-map-type", testdata.PayloadMultipartMapTypeDSL},
 	}
@@ -67,11 +66,8 @@ func TestServerMultipartNewFunc(t *testing.T) {
 		DSL  func()
 	}{
 		{"server-multipart-body-primitive", testdata.PayloadMultipartPrimitiveDSL},
-		{"server-multipart-body-user-type", testdata.PayloadMultipartUserTypeDSL},
 		{"server-multipart-body-array-type", testdata.PayloadMultipartArrayTypeDSL},
 		{"server-multipart-body-map-type", testdata.PayloadMultipartMapTypeDSL},
-		{"server-multipart-with-param", testdata.PayloadMultipartWithParamDSL},
-		{"server-multipart-with-params-and-headers", testdata.PayloadMultipartWithParamsAndHeadersDSL},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -110,6 +106,31 @@ func TestClientMultipartNewFunc(t *testing.T) {
 			require.Greater(t, len(sections), 3)
 			code := codegen.SectionCode(t, sections[3])
 			testutil.AssertGo(t, "testdata/golden/client_multipart_"+c.Name+".go.golden", code)
+		})
+	}
+}
+
+func TestServerMultipartObjectUsesGeneratedDecoder(t *testing.T) {
+	const genpkg = "gen"
+	cases := []struct {
+		Name string
+		DSL  func()
+	}{
+		{"generated object", testdata.PayloadMultipartObjectGeneratedDSL},
+		{"generated object with param", testdata.PayloadMultipartWithParamDSL},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			root := RunHTTPDSL(t, c.DSL)
+			services := CreateHTTPServices(root)
+			fs := ServerFiles(genpkg, services)
+			require.Len(t, fs, 2)
+			sections := fs[0].SectionTemplates
+			require.Greater(t, len(sections), 3)
+			require.Equal(t, "server-init", sections[3].Name)
+			code := codegen.SectionCode(t, sections[3])
+			require.NotContains(t, code, "DecoderFunc")
+			require.NotContains(t, code, "DecoderFn")
 		})
 	}
 }

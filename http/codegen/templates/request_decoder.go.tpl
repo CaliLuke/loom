@@ -15,7 +15,60 @@ func {{ .RequestDecoder }}(mux goahttp.Muxer, decoder func(*http.Request) goahtt
 			body {{ .Payload.Request.ServerBody.VarName }}
 			err  error
 		)
-	{{- if .Payload.Request.FormEncoded }}
+	{{- if .Payload.Request.MultipartGenerated }}
+		mr, multipartErr := r.MultipartReader()
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		multipartForm, multipartErr := goahttp.ReadMultipartForm(mr)
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
+		{{- if .Payload.Request.MustHaveBody }}
+			return payload, goa.MissingPayloadError()
+		{{- end }}
+		} else {
+		{{- range .Payload.Request.MultipartFileFields }}
+			files := multipartForm.Files["{{ .HTTPName }}"]
+			switch len(files) {
+			case 0:
+			{{- if .Required }}
+				err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "body"))
+			{{- end }}
+			case 1:
+				multipartForm.Values.Set("{{ .HTTPName }}", string(files[0].Data))
+			{{- if .PopulateFilename }}
+				if _, ok := multipartForm.Values["filename"]; !ok && files[0].Filename != "" {
+					multipartForm.Values.Set("filename", files[0].Filename)
+				}
+			{{- end }}
+			{{- if .PopulateContentType }}
+				if _, ok := multipartForm.Values["content_type"]; !ok && files[0].ContentType != "" {
+					multipartForm.Values.Set("content_type", files[0].ContentType)
+				}
+			{{- end }}
+			default:
+				return payload, goa.DecodePayloadError("multiple multipart files provided for field {{ .HTTPName }}")
+			}
+		{{- end }}
+			if _, multipartErr = goahttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
+				var gerr *goa.ServiceError
+				if errors.As(multipartErr, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(multipartErr.Error())
+			}
+		}
+	{{- else if .Payload.Request.FormEncoded }}
 		if err = r.ParseForm(); err != nil {
 			return payload, goa.DecodePayloadError(err.Error())
 		}
@@ -57,7 +110,17 @@ func {{ .RequestDecoder }}(mux goahttp.Muxer, decoder func(*http.Request) goahtt
 	{{- if .Payload.Request.ServerBody.ValidateRef }}
 		{{ .Payload.Request.ServerBody.ValidateRef }}
 		if err != nil {
+		{{- if .Payload.Request.MultipartGenerated }}
+			if multipartErr != nil {
+				err = goa.MergeErrors(multipartErr, err)
+			}
+		{{- end }}
 			return payload, err
+		}
+	{{- end }}
+	{{- if .Payload.Request.MultipartGenerated }}
+		if multipartErr != nil {
+			return payload, multipartErr
 		}
 	{{- end }}
 {{- end }}

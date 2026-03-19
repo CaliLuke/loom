@@ -205,6 +205,9 @@ func TestDecode(t *testing.T) {
 		{"decode-multipart-body-user-type", testdata.PayloadMultipartUserTypeDSL},
 		{"decode-multipart-body-array-type", testdata.PayloadMultipartArrayTypeDSL},
 		{"decode-multipart-body-map-type", testdata.PayloadMultipartMapTypeDSL},
+		{"decode-multipart-body-object-generated", testdata.PayloadMultipartObjectGeneratedDSL},
+		{"decode-multipart-body-object-generated-optional", testdata.PayloadMultipartObjectGeneratedOptionalDSL},
+		{"decode-multipart-body-object-generated-invalid", testdata.PayloadMultipartObjectGeneratedInvalidDSL},
 		{"decode-with-params-and-headers-dsl", testdata.WithParamsAndHeadersBlockDSL},
 
 		{"decode-query-int-alias", testdata.QueryIntAliasDSL},

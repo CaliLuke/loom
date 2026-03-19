@@ -1,0 +1,75 @@
+package http
+
+import (
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/url"
+	"strings"
+)
+
+type (
+	// MultipartFile holds one multipart file part.
+	MultipartFile struct {
+		// Filename is the uploaded filename from the part headers.
+		Filename string
+		// ContentType is the part content type.
+		ContentType string
+		// Data contains the full part payload.
+		Data []byte
+	}
+
+	// MultipartForm is the parsed in-memory representation of a multipart
+	// request body.
+	MultipartForm struct {
+		// Values contains non-file part values keyed by form field name.
+		Values url.Values
+		// Files contains file parts keyed by form field name.
+		Files map[string][]MultipartFile
+	}
+)
+
+// ReadMultipartForm reads all multipart parts from mr into an in-memory form
+// representation suitable for generated request decoding.
+func ReadMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
+	if mr == nil {
+		return nil, fmt.Errorf("multipart reader cannot be nil")
+	}
+	form := &MultipartForm{
+		Values: url.Values{},
+		Files:  make(map[string][]MultipartFile),
+	}
+	for {
+		part, err := mr.NextPart()
+		if err != nil {
+			if err == io.EOF {
+				return form, nil
+			}
+			return nil, err
+		}
+		name := part.FormName()
+		if name == "" {
+			if closeErr := part.Close(); closeErr != nil {
+				return nil, closeErr
+			}
+			continue
+		}
+		data, readErr := io.ReadAll(part)
+		closeErr := part.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
+		if filename := part.FileName(); filename != "" {
+			form.Files[name] = append(form.Files[name], MultipartFile{
+				Filename:    filename,
+				ContentType: strings.TrimSpace(part.Header.Get("Content-Type")),
+				Data:        data,
+			})
+			continue
+		}
+		form.Values.Add(name, string(data))
+	}
+}

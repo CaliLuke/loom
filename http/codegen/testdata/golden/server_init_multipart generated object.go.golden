@@ -1,11 +1,11 @@
-// New instantiates HTTP handlers for all the ServiceMultipartUserType service
-// endpoints using the provided encoder and decoder. The handlers are mounted
-// on the given mux using the HTTP verb and path defined in the design.
+// New instantiates HTTP handlers for all the ServiceMultipartObjectGenerated
+// service endpoints using the provided encoder and decoder. The handlers are
+// mounted on the given mux using the HTTP verb and path defined in the design.
 // errhandler is called whenever a response fails to be encoded. formatter is
 // used to format errors returned by the service methods prior to encoding.
 // Both errhandler and formatter are optional and can be nil.
 func New(
-	e *servicemultipartusertype.Endpoints,
+	e *servicemultipartobjectgenerated.Endpoints,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
@@ -14,8 +14,8 @@ func New(
 ) *Server {
 	return &Server{
 		Mounts: []*MountPoint{
-			{"MethodMultipartUserType", "POST", "/"},
+			{"MethodMultipartObjectGenerated", "POST", "/"},
 		},
-		MethodMultipartUserType: NewMethodMultipartUserTypeHandler(e.MethodMultipartUserType, mux, decoder, encoder, errhandler, formatter),
+		MethodMultipartObjectGenerated: NewMethodMultipartObjectGeneratedHandler(e.MethodMultipartObjectGenerated, mux, decoder, encoder, errhandler, formatter),
 	}
 }

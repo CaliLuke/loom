@@ -1,0 +1,59 @@
+// DecodeMethodMultipartObjectGeneratedOptionalRequest returns a decoder for
+// requests sent to the ServiceMultipartObjectGeneratedOptional
+// MethodMultipartObjectGeneratedOptional endpoint.
+func DecodeMethodMultipartObjectGeneratedOptionalRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicemultipartobjectgeneratedoptional.MethodMultipartObjectGeneratedOptionalPayload, error) {
+	return func(r *http.Request) (*servicemultipartobjectgeneratedoptional.MethodMultipartObjectGeneratedOptionalPayload, error) {
+		var payload *servicemultipartobjectgeneratedoptional.MethodMultipartObjectGeneratedOptionalPayload
+		var (
+			body MethodMultipartObjectGeneratedOptionalRequestBody
+			err  error
+		)
+		mr, multipartErr := r.MultipartReader()
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		multipartForm, multipartErr := goahttp.ReadMultipartForm(mr)
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
+			return payload, goa.MissingPayloadError()
+		} else {
+			files := multipartForm.Files["file"]
+			switch len(files) {
+			case 0:
+			case 1:
+				multipartForm.Values.Set("file", string(files[0].Data))
+				if _, ok := multipartForm.Values["filename"]; !ok && files[0].Filename != "" {
+					multipartForm.Values.Set("filename", files[0].Filename)
+				}
+				if _, ok := multipartForm.Values["content_type"]; !ok && files[0].ContentType != "" {
+					multipartForm.Values.Set("content_type", files[0].ContentType)
+				}
+			default:
+				return payload, goa.DecodePayloadError("multiple multipart files provided for field file")
+			}
+			if _, multipartErr = goahttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
+				var gerr *goa.ServiceError
+				if errors.As(multipartErr, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(multipartErr.Error())
+			}
+		}
+		if multipartErr != nil {
+			return payload, multipartErr
+		}
+		payload = NewMethodMultipartObjectGeneratedOptionalPayload(&body)
+
+		return payload, nil
+	}
+}

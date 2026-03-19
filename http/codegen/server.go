@@ -53,7 +53,6 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		{Path: "context"},
 		{Path: "fmt"},
 		{Path: "io"},
-		{Path: "mime/multipart"},
 		{Path: "net/http"},
 		{Path: "path"},
 		{Path: "strings"},
@@ -62,6 +61,9 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		codegen.GoaNamedImport("http", "goahttp"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
+	}
+	if hasCustomMultipartDecoder(data) {
+		imports = append(imports, &codegen.ImportSpec{Path: "mime/multipart"})
 	}
 	sections := []*codegen.SectionTemplate{
 		codegen.Header(title, "server", imports),
@@ -132,12 +134,14 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		{Path: "strconv"},
 		{Path: "strings"},
 		{Path: "encoding/json"},
-		{Path: "mime/multipart"},
 		{Path: "unicode/utf8"},
 		codegen.GoaImport(""),
 		codegen.GoaNamedImport("http", "goahttp"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
+	}
+	if hasCustomMultipartDecoder(data) {
+		imports = append(imports, &codegen.ImportSpec{Path: "mime/multipart"})
 	}
 	sections := []*codegen.SectionTemplate{codegen.Header(title, "server", imports)}
 
@@ -210,6 +214,15 @@ func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]
 		"printValue":           printValue,
 		"viewedServerBody":     viewedServerBody,
 	}
+}
+
+func hasCustomMultipartDecoder(data *ServiceData) bool {
+	for _, e := range data.Endpoints {
+		if e.MultipartRequestDecoder != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // mustDecodeRequest returns true if the Payload type is not empty.

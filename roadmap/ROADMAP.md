@@ -23,6 +23,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
 - First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads.
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
+- Multipart object request decoding without handwritten decoder hooks.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
@@ -51,11 +52,9 @@ These items are prioritized based on two goals:
    See [OpenAPI Schema Deduplication](./openapi_schema_dedup.md).
 2. Closed-object contract mode for machine-facing OpenAPI output
    See [OpenAPI Closed Object Mode](./openapi_closed_object_mode.md).
-3. Multipart object request decoding without handwritten decoder hooks
-   See [Multipart Object Decoding](./multipart_object_decoding.md).
-4. Generated transport projection helpers from canonical result types
+3. Generated transport projection helpers from canonical result types
    See [Generated Transport Projections](./generated_transport_projections.md).
-5. Generated projection parity tests and guardrails
+4. Generated projection parity tests and guardrails
    See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
 
 ## Roadmap Index

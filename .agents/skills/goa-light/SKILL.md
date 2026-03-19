@@ -33,6 +33,9 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - Use `FormRequest()` on HTTP endpoints when the request body contract is `application/x-www-form-urlencoded`.
 - `FormRequest()` is for typed object payloads and constructor unions only; incompatible body/param mixes are rejected during design validation instead of silently falling back to app-local parsing.
 - Form-encoded unions use the same canonical wrapper shape as JSON: discriminator under `type`, branch payload under `value`.
+- `MultipartRequest()` now generates server-side decoding for supported object payloads, including common file-plus-fields uploads, instead of requiring a handwritten decoder hook.
+- Generated multipart decoding is intentionally narrower than form decoding: unsupported multipart payload shapes still use the legacy custom encoder/decoder seam instead of partial magic.
+- For supported multipart object payloads with a single top-level file field, sibling body attributes named `filename` and `content_type` are auto-populated from the uploaded part when those fields are present and not explicitly supplied.
 - Use `OptionalRequestBody()` when an HTTP endpoint may omit a JSON request body entirely.
 - `OptionalRequestBody()` is intentionally narrow: JSON only, object request bodies only, no raw body streaming, no multipart, no form bodies, and no required body-mapped payload attribute.
 - OpenAPI request bodies generated from `OptionalRequestBody()` render with `required: false`.

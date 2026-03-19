@@ -25,6 +25,7 @@ func TestServerInit(t *testing.T) {
 		{"file server with root path", testdata.ServerFileServerRootPathDSL, 1, 3},
 		{"mixed", testdata.ServerMixedDSL, 2, 3},
 		{"multipart", testdata.ServerMultipartDSL, 2, 4},
+		{"multipart generated object", testdata.PayloadMultipartObjectGeneratedDSL, 2, 3},
 		{"streaming", testdata.StreamingResultDSL, 3, 3},
 	}
 	for _, c := range cases {

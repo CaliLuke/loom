@@ -1,0 +1,64 @@
+// DecodeMethodMultipartObjectGeneratedInvalidRequest returns a decoder for
+// requests sent to the ServiceMultipartObjectGeneratedInvalid
+// MethodMultipartObjectGeneratedInvalid endpoint.
+func DecodeMethodMultipartObjectGeneratedInvalidRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicemultipartobjectgeneratedinvalid.MethodMultipartObjectGeneratedInvalidPayload, error) {
+	return func(r *http.Request) (*servicemultipartobjectgeneratedinvalid.MethodMultipartObjectGeneratedInvalidPayload, error) {
+		var payload *servicemultipartobjectgeneratedinvalid.MethodMultipartObjectGeneratedInvalidPayload
+		var (
+			body MethodMultipartObjectGeneratedInvalidRequestBody
+			err  error
+		)
+		mr, multipartErr := r.MultipartReader()
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		multipartForm, multipartErr := goahttp.ReadMultipartForm(mr)
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
+			return payload, goa.MissingPayloadError()
+		} else {
+			files := multipartForm.Files["file"]
+			switch len(files) {
+			case 0:
+				err = goa.MergeErrors(err, goa.MissingFieldError("file", "body"))
+			case 1:
+				multipartForm.Values.Set("file", string(files[0].Data))
+				if _, ok := multipartForm.Values["filename"]; !ok && files[0].Filename != "" {
+					multipartForm.Values.Set("filename", files[0].Filename)
+				}
+			default:
+				return payload, goa.DecodePayloadError("multiple multipart files provided for field file")
+			}
+			if _, multipartErr = goahttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
+				var gerr *goa.ServiceError
+				if errors.As(multipartErr, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(multipartErr.Error())
+			}
+		}
+		err = ValidateMethodMultipartObjectGeneratedInvalidRequestBody(&body)
+		if err != nil {
+			if multipartErr != nil {
+				err = goa.MergeErrors(multipartErr, err)
+			}
+			return payload, err
+		}
+		if multipartErr != nil {
+			return payload, multipartErr
+		}
+		payload = NewMethodMultipartObjectGeneratedInvalidPayload(&body)
+
+		return payload, nil
+	}
+}

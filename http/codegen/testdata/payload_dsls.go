@@ -3248,6 +3248,60 @@ var PayloadMultipartWithParamsAndHeadersDSL = func() {
 	})
 }
 
+var PayloadMultipartObjectGeneratedDSL = func() {
+	Service("ServiceMultipartObjectGenerated", func() {
+		Method("MethodMultipartObjectGenerated", func() {
+			Payload(func() {
+				Attribute("file", Bytes)
+				Attribute("filename", String)
+				Attribute("content_type", String)
+				Attribute("label", String, func() {
+					Pattern("label-[a-z]+")
+				})
+				Required("file", "label")
+			})
+			HTTP(func() {
+				POST("/")
+				MultipartRequest()
+			})
+		})
+	})
+}
+
+var PayloadMultipartObjectGeneratedOptionalDSL = func() {
+	Service("ServiceMultipartObjectGeneratedOptional", func() {
+		Method("MethodMultipartObjectGeneratedOptional", func() {
+			Payload(func() {
+				Attribute("file", Bytes)
+				Attribute("filename", String)
+				Attribute("content_type", String)
+				Attribute("label", String)
+			})
+			HTTP(func() {
+				POST("/")
+				MultipartRequest()
+			})
+		})
+	})
+}
+
+var PayloadMultipartObjectGeneratedInvalidDSL = func() {
+	Service("ServiceMultipartObjectGeneratedInvalid", func() {
+		Method("MethodMultipartObjectGeneratedInvalid", func() {
+			Payload(func() {
+				Attribute("file", Bytes)
+				Attribute("filename", String)
+				Attribute("count", Int)
+				Required("file", "count")
+			})
+			HTTP(func() {
+				POST("/")
+				MultipartRequest()
+			})
+		})
+	})
+}
+
 var MultipleMethodsDSL = func() {
 	var APayload = Type("APayload", func() {
 		Attribute("a", String, func() {

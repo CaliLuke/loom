@@ -4,6 +4,8 @@
 
 Generate multipart object request decoding end-to-end so applications do not need handwritten decoder hooks for typed multipart payloads.
 
+Status: completed.
+
 ## Problem
 
 `auto-k-server` still carries custom multipart request decoding because generated server code expects an application-provided decoder seam for object-shaped multipart payloads. That keeps a high-value source ingestion path outside the framework contract.
@@ -58,3 +60,10 @@ Out of scope:
   - multipart object with file plus scalar fields
   - optional multipart fields
   - invalid multipart field values
+
+## Completed Notes
+
+- Supported object multipart payloads now use framework-owned HTTP server decoding.
+- Generated multipart decoding reuses the request-body type, constructor, and validator flow instead of a custom transport hook.
+- Top-level `Bytes` fields are populated from multipart file parts, and a single file part can auto-populate sibling `filename` and `content_type` fields when those attributes exist on the body.
+- Unsupported multipart payload shapes still use the legacy custom decoder seam instead of silently generating partial behavior.

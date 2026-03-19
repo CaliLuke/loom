@@ -179,8 +179,8 @@ If the capability changes how an agent should think about Goa-light behavior, up
 
 Check:
 
-- `.agents/skills/goa/SKILL.md`
-- `.agents/skills/goa/references/repo-map.md` if navigation guidance changed
+- `.agents/skills/goa-light/SKILL.md`
+- `.agents/skills/goa-light/references/repo-map.md` if navigation guidance changed
 
 Do not hide important repo-specific framework semantics in a hacky sidecar note when they belong in the main skill instructions.
 

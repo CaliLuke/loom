@@ -796,17 +796,11 @@ func MapParams(args ...any) {
 //
 // MultipartRequest must appear in a HTTP endpoint expression.
 //
-// goa generates a custom encoder that writes the payload for requests made to
-// HTTP endpoints that use MultipartRequest. The generated encoder accept a
-// user provided function that does the actual mapping of the payload to the
-// multipart content. The user provided function accepts a multipart writer
-// and a reference to the payload and is responsible for encoding the payload.
-// goa also generates a custom decoder that reads back the multipart content
-// into the payload struct. The generated decoder also accepts a user provided
-// function that takes a multipart reader and a reference to the payload struct
-// as parameter. The user provided decoder is responsible for decoding the
-// multipart content into the payload. The example command generates a default
-// implementation for the user decoder and encoder.
+// goa generates framework-owned request decoding for supported object payloads
+// so applications do not need handwritten multipart decoder hooks for common
+// file-and-fields uploads. Multipart request encoding still accepts a user
+// provided writer function for now, and unsupported multipart payload shapes
+// continue to use the existing custom encoder/decoder seam.
 func MultipartRequest() {
 	e, ok := eval.Current().(*expr.HTTPEndpointExpr)
 	if !ok {
