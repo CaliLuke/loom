@@ -27,6 +27,12 @@ func (s *{{ .SSE.StructName }}) initSSEHeaders() {
 	})
 }
 
+{{ comment "open commits and flushes the SSE headers before the first application event." }}
+func (s *{{ .SSE.StructName }}) open() error {
+	s.initSSEHeaders()
+	return http.NewResponseController(s.w).Flush()
+}
+
 {{ comment "Send sends a JSON-RPC notification to the client." }}
 {{ comment "Notifications do not expect a response from the client." }}
 func (s *{{ .SSE.StructName }}) Send(ctx context.Context, event {{ .ServicePkgName }}.{{ .Method.VarName }}Event) error {

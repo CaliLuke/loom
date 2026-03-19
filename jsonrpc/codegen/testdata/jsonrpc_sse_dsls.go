@@ -50,3 +50,25 @@ var JSONRPCSSEObjectDSL = func() {
 		})
 	})
 }
+
+var JSONRPCSSEEventsStreamDSL = func() {
+	API("jsonrpc-sse-events-stream-test", func() {
+		JSONRPC(func() {})
+	})
+	Service("JSONRPCSSEEventsStreamService", func() {
+		JSONRPC(func() {
+			POST("/rpc")
+		})
+		Method("events/stream", func() {
+			Payload(func() {
+				ID("id", String, "Request ID")
+			})
+			StreamingResult(func() {
+				Attribute("value", String)
+			})
+			JSONRPC(func() {
+				ServerSentEvents()
+			})
+		})
+	})
+}

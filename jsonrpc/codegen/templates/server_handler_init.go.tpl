@@ -19,11 +19,19 @@ func {{ .HandlerInit }}(
 
 {{- if isSSEEndpoint . }}
         // Initialize SSE stream lazily so endpoint failures can still choose the correct HTTP status.
+        // The raw streamable-HTTP GET listener is the exception: it must establish
+        // the SSE connection before the first domain event so clients can observe
+        // readiness before publishing notifications.
         strm := &{{ .SSE.StructName }}{
             w:         w,
             r:         r,
             encoder:   encoder,
             requestID: req.ID,
+        }
+        if r.Method == http.MethodGet && req.Method == "events/stream" {
+            if err := strm.open(); err != nil {
+                return err
+            }
         }
     {{- if .Payload.Ref }}
         decodeParams := {{ .RequestDecoder }}(mux, decoder)

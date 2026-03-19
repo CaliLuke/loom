@@ -119,7 +119,7 @@ func TestJSONRPCSSEServiceStreamUsesTypedResponseEvents(t *testing.T) {
 	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent("message", response)`)
 }
 
-func TestJSONRPCSSEDefersStreamCommitUntilFirstFrame(t *testing.T) {
+func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	services := CreateJSONRPCServices(root)
 
@@ -140,7 +140,7 @@ func TestJSONRPCSSEDefersStreamCommitUntilFirstFrame(t *testing.T) {
 		}
 	}
 	require.NotEmpty(t, endpointStreamCode, "jsonrpc-sse-server-stream section not found")
-	require.NotContains(t, endpointStreamCode, `func (s *StreamServerStream) open() error {`)
+	require.Contains(t, endpointStreamCode, `func (s *StreamServerStream) open() error {`)
 	require.Contains(t, endpointStreamCode, `return s.sendSSEEvent("message", response)`)
 
 	serverFiles := ServerFiles("", services)
@@ -164,7 +164,41 @@ func TestJSONRPCSSEDefersStreamCommitUntilFirstFrame(t *testing.T) {
 		}
 	}
 	require.NotEmpty(t, handlerInitCode, "jsonrpc-server-handler-init section for SSE stream not found")
-	require.NotContains(t, handlerInitCode, `strm.open()`)
+	require.Contains(t, handlerInitCode, `if r.Method == http.MethodGet && req.Method == "events/stream" {`)
+	require.NotContains(t, handlerInitCode, `if err := strm.open(); err != nil {
+			return err
+		}
+		decodeParams :=`)
+}
+
+func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var handlerInitCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.SectionTemplates {
+			if s.Name != "jsonrpc-server-handler-init" {
+				continue
+			}
+			code := codegen.SectionCode(t, s)
+			if !strings.Contains(code, `"events/stream"`) {
+				continue
+			}
+			handlerInitCode = code
+			break
+		}
+	}
+
+	require.NotEmpty(t, handlerInitCode, "jsonrpc-server-handler-init section for events/stream not found")
+	require.Contains(t, handlerInitCode, `if r.Method == http.MethodGet && req.Method == "events/stream" {`)
+	require.Contains(t, handlerInitCode, `if err := strm.open(); err != nil {`)
 }
 
 func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
