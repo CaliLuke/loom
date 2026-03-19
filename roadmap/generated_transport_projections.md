@@ -4,6 +4,10 @@
 
 Generate transport projection helpers from canonical result types so applications stop hand-copying fields into sibling REST, JSON-RPC, or MCP result shapes.
 
+## Status
+
+Completed for the canonical `ResultType`/`View` pattern.
+
 ## Problem
 
 Projection drift is still easy when one canonical service result is manually reshaped for another transport or tool surface. The issue is not just missing helpers; the framework currently leaves enough boundary work to application code that drift remains likely.
@@ -21,23 +25,24 @@ Out of scope:
 - application-specific adapter logic
 - custom non-Goa transport runtimes
 
-## Desired Outcome
+## Shipped Outcome
 
 - applications can define one canonical result type and one or more projected views
-- `goa-light` generates conversion helpers for projected transport results
-- nested structs, slices, maps, and optionals are projected recursively
+- `goa-light` now generates exported projection helpers in the service package for canonical result-to-view and view-to-result conversion
+- nested structs, slices, maps, unions, collections, and optionals are projected recursively through the existing transform-helper machinery
+- wrappers such as `NewViewed...` and `New...` now build on those exported helpers instead of private-only projection functions
 
-## Work Plan
+## Implementation Notes
 
-1. Audit current Goa projection/view support and identify where it stops short for sibling transport DTOs.
-2. Define the canonical framework pattern:
-   - canonical result type
-   - projected transport view or sibling result type
-   - generated converter
-3. Prefer `ResultType` / `View` semantics where possible instead of inventing parallel DSL.
-4. Add codegen for strongly typed projection helpers.
-5. Support optional field propagation and nested collection projection.
-6. Add generator tests that prove application code can call the helper instead of rewriting field copies.
+1. The supported framework pattern is now:
+   - canonical service result type
+   - projected Goa view type in the generated `views` package
+   - exported service-package helpers for projection in both directions
+2. The generated helper names are stable and typed:
+   - `Project<ResultType>[ViewSuffix](...)`
+   - `New<ResultType>From<ProjectedType>[ViewSuffix](...)`
+3. Existing recursive transform generation is reused rather than duplicated in transport generators.
+4. The capability is intentionally based on `ResultType` / `View`; arbitrary sibling non-view DTO mapping remains out of scope.
 
 ## Design Constraints
 
@@ -50,12 +55,10 @@ Out of scope:
 - Projection generation can become too magical if the source/target relationship is ambiguous.
 - View semantics may be sufficient for some cases and insufficient for others; the framework needs a clear rule for both.
 
-## Finish Criteria
+## Verification
 
-- `goa-light` can generate typed projection helpers for canonical-to-transport result shapes.
-- Nested and optional fields are preserved correctly.
-- Golden coverage includes at least:
-  - flat struct projection
-  - nested struct projection
-  - slice-of-struct projection
-  - optional field propagation
+- `go test -update ./codegen/service`
+- `go test ./codegen/service/...`
+- `go test ./http/codegen/...`
+- `go test ./grpc/...`
+- `go test ./jsonrpc/...`

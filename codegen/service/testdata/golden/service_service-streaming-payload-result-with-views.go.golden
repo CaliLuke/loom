@@ -81,9 +81,9 @@ func NewMultipleViews(vres *streamingpayloadresultwithviewsserviceviews.Multiple
 	var res *MultipleViews
 	switch vres.View {
 	case "default", "":
-		res = newMultipleViews(vres.Projected)
+		res = NewMultipleViewsFromMultipleViewsView(vres.Projected)
 	case "tiny":
-		res = newMultipleViewsTiny(vres.Projected)
+		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	}
 	return res
 }
@@ -94,18 +94,18 @@ func NewViewedMultipleViews(res *MultipleViews, view string) *streamingpayloadre
 	var vres *streamingpayloadresultwithviewsserviceviews.MultipleViews
 	switch view {
 	case "default", "":
-		p := newMultipleViewsView(res)
+		p := ProjectMultipleViews(res)
 		vres = &streamingpayloadresultwithviewsserviceviews.MultipleViews{Projected: p, View: "default"}
 	case "tiny":
-		p := newMultipleViewsViewTiny(res)
+		p := ProjectMultipleViewsTiny(res)
 		vres = &streamingpayloadresultwithviewsserviceviews.MultipleViews{Projected: p, View: "tiny"}
 	}
 	return vres
 }
 
-// newMultipleViews converts projected type MultipleViews to service type
-// MultipleViews.
-func newMultipleViews(vres *streamingpayloadresultwithviewsserviceviews.MultipleViewsView) *MultipleViews {
+// NewMultipleViewsFromMultipleViewsView converts projected type
+// MultipleViewsView to service type MultipleViews.
+func NewMultipleViewsFromMultipleViewsView(vres *streamingpayloadresultwithviewsserviceviews.MultipleViewsView) *MultipleViews {
 	res := &MultipleViews{
 		A: vres.A,
 		B: vres.B,
@@ -113,18 +113,18 @@ func newMultipleViews(vres *streamingpayloadresultwithviewsserviceviews.Multiple
 	return res
 }
 
-// newMultipleViewsTiny converts projected type MultipleViews to service type
-// MultipleViews.
-func newMultipleViewsTiny(vres *streamingpayloadresultwithviewsserviceviews.MultipleViewsView) *MultipleViews {
+// NewMultipleViewsFromMultipleViewsViewTiny converts projected type
+// MultipleViewsView to service type MultipleViews.
+func NewMultipleViewsFromMultipleViewsViewTiny(vres *streamingpayloadresultwithviewsserviceviews.MultipleViewsView) *MultipleViews {
 	res := &MultipleViews{
 		A: vres.A,
 	}
 	return res
 }
 
-// newMultipleViewsView projects result type MultipleViews to projected type
+// ProjectMultipleViews projects result type MultipleViews to projected type
 // MultipleViewsView using the "default" view.
-func newMultipleViewsView(res *MultipleViews) *streamingpayloadresultwithviewsserviceviews.MultipleViewsView {
+func ProjectMultipleViews(res *MultipleViews) *streamingpayloadresultwithviewsserviceviews.MultipleViewsView {
 	vres := &streamingpayloadresultwithviewsserviceviews.MultipleViewsView{
 		A: res.A,
 		B: res.B,
@@ -132,9 +132,9 @@ func newMultipleViewsView(res *MultipleViews) *streamingpayloadresultwithviewsse
 	return vres
 }
 
-// newMultipleViewsViewTiny projects result type MultipleViews to projected
+// ProjectMultipleViewsTiny projects result type MultipleViews to projected
 // type MultipleViewsView using the "tiny" view.
-func newMultipleViewsViewTiny(res *MultipleViews) *streamingpayloadresultwithviewsserviceviews.MultipleViewsView {
+func ProjectMultipleViewsTiny(res *MultipleViews) *streamingpayloadresultwithviewsserviceviews.MultipleViewsView {
 	vres := &streamingpayloadresultwithviewsserviceviews.MultipleViewsView{
 		A: res.A,
 	}

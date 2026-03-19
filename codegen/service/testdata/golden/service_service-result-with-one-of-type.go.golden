@@ -239,19 +239,19 @@ func (u *Result) UnmarshalJSON(data []byte) error {
 // NewResultOneof initializes result type ResultOneof from viewed result type
 // ResultOneof.
 func NewResultOneof(vres *resultwithoneoftypeviews.ResultOneof) *ResultOneof {
-	return newResultOneof(vres.Projected)
+	return NewResultOneofFromResultOneofView(vres.Projected)
 }
 
 // NewViewedResultOneof initializes viewed result type ResultOneof from result
 // type ResultOneof using the given view.
 func NewViewedResultOneof(res *ResultOneof, view string) *resultwithoneoftypeviews.ResultOneof {
-	p := newResultOneofView(res)
+	p := ProjectResultOneof(res)
 	return &resultwithoneoftypeviews.ResultOneof{Projected: p, View: "default"}
 }
 
-// newResultOneof converts projected type ResultOneof to service type
-// ResultOneof.
-func newResultOneof(vres *resultwithoneoftypeviews.ResultOneofView) *ResultOneof {
+// NewResultOneofFromResultOneofView converts projected type ResultOneofView to
+// service type ResultOneof.
+func NewResultOneofFromResultOneofView(vres *resultwithoneoftypeviews.ResultOneofView) *ResultOneof {
 	res := &ResultOneof{}
 	if vres.Result.Kind() != "" {
 
@@ -273,9 +273,9 @@ func newResultOneof(vres *resultwithoneoftypeviews.ResultOneofView) *ResultOneof
 	return res
 }
 
-// newResultOneofView projects result type ResultOneof to projected type
+// ProjectResultOneof projects result type ResultOneof to projected type
 // ResultOneofView using the "default" view.
-func newResultOneofView(res *ResultOneof) *resultwithoneoftypeviews.ResultOneofView {
+func ProjectResultOneof(res *ResultOneof) *resultwithoneoftypeviews.ResultOneofView {
 	vres := &resultwithoneoftypeviews.ResultOneofView{}
 	if res.Result.Kind() != "" {
 

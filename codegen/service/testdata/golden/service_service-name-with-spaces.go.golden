@@ -36,28 +36,28 @@ type ResultWithSpace struct {
 // NewResultWithSpace initializes result type ResultWithSpace from viewed
 // result type ResultWithSpace.
 func NewResultWithSpace(vres *servicewithspacesviews.ResultWithSpace) *ResultWithSpace {
-	return newResultWithSpace(vres.Projected)
+	return NewResultWithSpaceFromResultWithSpaceView(vres.Projected)
 }
 
 // NewViewedResultWithSpace initializes viewed result type ResultWithSpace from
 // result type ResultWithSpace using the given view.
 func NewViewedResultWithSpace(res *ResultWithSpace, view string) *servicewithspacesviews.ResultWithSpace {
-	p := newResultWithSpaceView(res)
+	p := ProjectResultWithSpace(res)
 	return &servicewithspacesviews.ResultWithSpace{Projected: p, View: "default"}
 }
 
-// newResultWithSpace converts projected type ResultWithSpace to service type
-// ResultWithSpace.
-func newResultWithSpace(vres *servicewithspacesviews.ResultWithSpaceView) *ResultWithSpace {
+// NewResultWithSpaceFromResultWithSpaceView converts projected type
+// ResultWithSpaceView to service type ResultWithSpace.
+func NewResultWithSpaceFromResultWithSpaceView(vres *servicewithspacesviews.ResultWithSpaceView) *ResultWithSpace {
 	res := &ResultWithSpace{
 		Int: vres.Int,
 	}
 	return res
 }
 
-// newResultWithSpaceView projects result type ResultWithSpace to projected
+// ProjectResultWithSpace projects result type ResultWithSpace to projected
 // type ResultWithSpaceView using the "default" view.
-func newResultWithSpaceView(res *ResultWithSpace) *servicewithspacesviews.ResultWithSpaceView {
+func ProjectResultWithSpace(res *ResultWithSpace) *servicewithspacesviews.ResultWithSpaceView {
 	vres := &servicewithspacesviews.ResultWithSpaceView{
 		Int: res.Int,
 	}

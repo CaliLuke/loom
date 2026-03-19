@@ -33,6 +33,10 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - In closed-object mode, normal object schemas emit `additionalProperties: false`, composed union wrappers emit `unevaluatedProperties: false`, and explicit dictionaries such as `MapOf(...)` remain open.
 - `OneOf(...)` works both as a named union declaration and as a type constructor.
 - Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
+- When modeling alternate transport/tool result shapes, prefer a canonical `ResultType` plus `View(...)` definitions over hand-maintained sibling DTO copies.
+- The service generator now emits exported typed projection helpers for result views:
+  - `Project<ResultType>[ViewSuffix](...)` to project a canonical result into the generated view type
+  - `New<ResultType>From<ProjectedType>[ViewSuffix](...)` to rebuild the canonical result from a projected view
 - Use `FormRequest()` on HTTP endpoints when the request body contract is `application/x-www-form-urlencoded`.
 - `FormRequest()` is for typed object payloads and constructor unions only; incompatible body/param mixes are rejected during design validation instead of silently falling back to app-local parsing.
 - Form-encoded unions use the same canonical wrapper shape as JSON: discriminator under `type`, branch payload under `value`.

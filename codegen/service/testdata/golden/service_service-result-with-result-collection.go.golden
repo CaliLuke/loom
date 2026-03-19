@@ -43,11 +43,11 @@ func NewRT(vres *resultwithresulttypecollectionviews.RT) *RT {
 	var res *RT
 	switch vres.View {
 	case "default", "":
-		res = newRT(vres.Projected)
+		res = NewRTFromRTView(vres.Projected)
 	case "extended":
-		res = newRTExtended(vres.Projected)
+		res = NewRTFromRTViewExtended(vres.Projected)
 	case "tiny":
-		res = newRTTiny(vres.Projected)
+		res = NewRTFromRTViewTiny(vres.Projected)
 	}
 	return res
 }
@@ -58,20 +58,20 @@ func NewViewedRT(res *RT, view string) *resultwithresulttypecollectionviews.RT {
 	var vres *resultwithresulttypecollectionviews.RT
 	switch view {
 	case "default", "":
-		p := newRTView(res)
+		p := ProjectRT(res)
 		vres = &resultwithresulttypecollectionviews.RT{Projected: p, View: "default"}
 	case "extended":
-		p := newRTViewExtended(res)
+		p := ProjectRTExtended(res)
 		vres = &resultwithresulttypecollectionviews.RT{Projected: p, View: "extended"}
 	case "tiny":
-		p := newRTViewTiny(res)
+		p := ProjectRTTiny(res)
 		vres = &resultwithresulttypecollectionviews.RT{Projected: p, View: "tiny"}
 	}
 	return vres
 }
 
-// newRT converts projected type RT to service type RT.
-func newRT(vres *resultwithresulttypecollectionviews.RTView) *RT {
+// NewRTFromRTView converts projected type RTView to service type RT.
+func NewRTFromRTView(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	res := &RT{}
 	if vres.A != nil {
 		res.A = newRT2Collection(vres.A)
@@ -79,8 +79,8 @@ func newRT(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	return res
 }
 
-// newRTExtended converts projected type RT to service type RT.
-func newRTExtended(vres *resultwithresulttypecollectionviews.RTView) *RT {
+// NewRTFromRTViewExtended converts projected type RTView to service type RT.
+func NewRTFromRTViewExtended(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	res := &RT{}
 	if vres.A != nil {
 		res.A = newRT2CollectionExtended(vres.A)
@@ -88,8 +88,8 @@ func newRTExtended(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	return res
 }
 
-// newRTTiny converts projected type RT to service type RT.
-func newRTTiny(vres *resultwithresulttypecollectionviews.RTView) *RT {
+// NewRTFromRTViewTiny converts projected type RTView to service type RT.
+func NewRTFromRTViewTiny(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	res := &RT{}
 	if vres.A != nil {
 		res.A = newRT2CollectionTiny(vres.A)
@@ -97,9 +97,9 @@ func newRTTiny(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	return res
 }
 
-// newRTView projects result type RT to projected type RTView using the
+// ProjectRT projects result type RT to projected type RTView using the
 // "default" view.
-func newRTView(res *RT) *resultwithresulttypecollectionviews.RTView {
+func ProjectRT(res *RT) *resultwithresulttypecollectionviews.RTView {
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
 		vres.A = newRT2CollectionView(res.A)
@@ -107,9 +107,9 @@ func newRTView(res *RT) *resultwithresulttypecollectionviews.RTView {
 	return vres
 }
 
-// newRTViewExtended projects result type RT to projected type RTView using the
+// ProjectRTExtended projects result type RT to projected type RTView using the
 // "extended" view.
-func newRTViewExtended(res *RT) *resultwithresulttypecollectionviews.RTView {
+func ProjectRTExtended(res *RT) *resultwithresulttypecollectionviews.RTView {
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
 		vres.A = newRT2CollectionViewExtended(res.A)
@@ -117,9 +117,9 @@ func newRTViewExtended(res *RT) *resultwithresulttypecollectionviews.RTView {
 	return vres
 }
 
-// newRTViewTiny projects result type RT to projected type RTView using the
+// ProjectRTTiny projects result type RT to projected type RTView using the
 // "tiny" view.
-func newRTViewTiny(res *RT) *resultwithresulttypecollectionviews.RTView {
+func ProjectRTTiny(res *RT) *resultwithresulttypecollectionviews.RTView {
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
 		vres.A = newRT2CollectionViewTiny(res.A)
@@ -127,9 +127,9 @@ func newRTViewTiny(res *RT) *resultwithresulttypecollectionviews.RTView {
 	return vres
 }
 
-// newRT2Collection converts projected type RT2Collection to service type
-// RT2Collection.
-func newRT2Collection(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
+// NewRT2CollectionFromRT2CollectionView converts projected type
+// RT2CollectionView to service type RT2Collection.
+func NewRT2CollectionFromRT2CollectionView(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
 	res := make(RT2Collection, len(vres))
 	for i, n := range vres {
 		res[i] = newRT2(n)
@@ -137,9 +137,9 @@ func newRT2Collection(vres resultwithresulttypecollectionviews.RT2CollectionView
 	return res
 }
 
-// newRT2CollectionExtended converts projected type RT2Collection to service
-// type RT2Collection.
-func newRT2CollectionExtended(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
+// NewRT2CollectionFromRT2CollectionViewExtended converts projected type
+// RT2CollectionView to service type RT2Collection.
+func NewRT2CollectionFromRT2CollectionViewExtended(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
 	res := make(RT2Collection, len(vres))
 	for i, n := range vres {
 		res[i] = newRT2Extended(n)
@@ -147,9 +147,9 @@ func newRT2CollectionExtended(vres resultwithresulttypecollectionviews.RT2Collec
 	return res
 }
 
-// newRT2CollectionTiny converts projected type RT2Collection to service type
-// RT2Collection.
-func newRT2CollectionTiny(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
+// NewRT2CollectionFromRT2CollectionViewTiny converts projected type
+// RT2CollectionView to service type RT2Collection.
+func NewRT2CollectionFromRT2CollectionViewTiny(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
 	res := make(RT2Collection, len(vres))
 	for i, n := range vres {
 		res[i] = newRT2Tiny(n)
@@ -157,9 +157,9 @@ func newRT2CollectionTiny(vres resultwithresulttypecollectionviews.RT2Collection
 	return res
 }
 
-// newRT2CollectionView projects result type RT2Collection to projected type
+// ProjectRT2Collection projects result type RT2Collection to projected type
 // RT2CollectionView using the "default" view.
-func newRT2CollectionView(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
+func ProjectRT2Collection(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
 	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
 	for i, n := range res {
 		vres[i] = newRT2View(n)
@@ -167,9 +167,9 @@ func newRT2CollectionView(res RT2Collection) resultwithresulttypecollectionviews
 	return vres
 }
 
-// newRT2CollectionViewExtended projects result type RT2Collection to projected
+// ProjectRT2CollectionExtended projects result type RT2Collection to projected
 // type RT2CollectionView using the "extended" view.
-func newRT2CollectionViewExtended(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
+func ProjectRT2CollectionExtended(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
 	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
 	for i, n := range res {
 		vres[i] = newRT2ViewExtended(n)
@@ -177,9 +177,9 @@ func newRT2CollectionViewExtended(res RT2Collection) resultwithresulttypecollect
 	return vres
 }
 
-// newRT2CollectionViewTiny projects result type RT2Collection to projected
+// ProjectRT2CollectionTiny projects result type RT2Collection to projected
 // type RT2CollectionView using the "tiny" view.
-func newRT2CollectionViewTiny(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
+func ProjectRT2CollectionTiny(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
 	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
 	for i, n := range res {
 		vres[i] = newRT2ViewTiny(n)
@@ -187,8 +187,8 @@ func newRT2CollectionViewTiny(res RT2Collection) resultwithresulttypecollectionv
 	return vres
 }
 
-// newRT2 converts projected type RT2 to service type RT2.
-func newRT2(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
+// NewRT2FromRT2View converts projected type RT2View to service type RT2.
+func NewRT2FromRT2View(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
 	res := &RT2{}
 	if vres.C != nil {
 		res.C = *vres.C
@@ -199,8 +199,9 @@ func newRT2(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
 	return res
 }
 
-// newRT2Extended converts projected type RT2 to service type RT2.
-func newRT2Extended(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
+// NewRT2FromRT2ViewExtended converts projected type RT2View to service type
+// RT2.
+func NewRT2FromRT2ViewExtended(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
 	res := &RT2{
 		E: vres.E,
 	}
@@ -213,8 +214,8 @@ func newRT2Extended(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
 	return res
 }
 
-// newRT2Tiny converts projected type RT2 to service type RT2.
-func newRT2Tiny(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
+// NewRT2FromRT2ViewTiny converts projected type RT2View to service type RT2.
+func NewRT2FromRT2ViewTiny(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
 	res := &RT2{}
 	if vres.D != nil {
 		res.D = *vres.D
@@ -222,9 +223,9 @@ func newRT2Tiny(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
 	return res
 }
 
-// newRT2View projects result type RT2 to projected type RT2View using the
+// ProjectRT2 projects result type RT2 to projected type RT2View using the
 // "default" view.
-func newRT2View(res *RT2) *resultwithresulttypecollectionviews.RT2View {
+func ProjectRT2(res *RT2) *resultwithresulttypecollectionviews.RT2View {
 	vres := &resultwithresulttypecollectionviews.RT2View{
 		C: &res.C,
 		D: &res.D,
@@ -232,9 +233,9 @@ func newRT2View(res *RT2) *resultwithresulttypecollectionviews.RT2View {
 	return vres
 }
 
-// newRT2ViewExtended projects result type RT2 to projected type RT2View using
+// ProjectRT2Extended projects result type RT2 to projected type RT2View using
 // the "extended" view.
-func newRT2ViewExtended(res *RT2) *resultwithresulttypecollectionviews.RT2View {
+func ProjectRT2Extended(res *RT2) *resultwithresulttypecollectionviews.RT2View {
 	vres := &resultwithresulttypecollectionviews.RT2View{
 		C: &res.C,
 		D: &res.D,
@@ -243,9 +244,9 @@ func newRT2ViewExtended(res *RT2) *resultwithresulttypecollectionviews.RT2View {
 	return vres
 }
 
-// newRT2ViewTiny projects result type RT2 to projected type RT2View using the
+// ProjectRT2Tiny projects result type RT2 to projected type RT2View using the
 // "tiny" view.
-func newRT2ViewTiny(res *RT2) *resultwithresulttypecollectionviews.RT2View {
+func ProjectRT2Tiny(res *RT2) *resultwithresulttypecollectionviews.RT2View {
 	vres := &resultwithresulttypecollectionviews.RT2View{
 		D: &res.D,
 	}

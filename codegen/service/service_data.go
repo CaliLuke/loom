@@ -2044,7 +2044,7 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 		"ReturnTypeRef": vresref,
 		"IsCollection":  isarr,
 		"TargetType":    scope.GoFullTypeName(att, viewspkg),
-		"InitName":      "new" + viewScope.GoTypeName(projected),
+		"InitName":      "Project" + resvar,
 	}
 	buf = &bytes.Buffer{}
 	if err := initTypeCodeTmpl.Execute(buf, data); err != nil {
@@ -2076,7 +2076,7 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 		"ReturnVar":     "res",
 		"Views":         views,
 		"ReturnTypeRef": resref,
-		"InitName":      "new" + scope.GoTypeName(att),
+		"InitName":      "New" + resvar + "From" + viewScope.GoTypeName(projected),
 	}
 	buf = &bytes.Buffer{}
 	if err := initTypeCodeTmpl.Execute(buf, data); err != nil {
@@ -2183,7 +2183,7 @@ func buildTypeInits(projected, att *expr.AttributeExpr, viewspkg string, scope, 
 		srcCtx := projectedTypeContext(viewspkg, true, viewScope)
 		tgtCtx := typeContext(scope)
 		resvar := scope.GoTypeName(att)
-		name := "new" + resvar
+		name := "New" + resvar + "From" + viewScope.GoTypeName(projected)
 		if view.Name != expr.DefaultView {
 			name += codegen.Goify(view.Name, true)
 		}
@@ -2195,7 +2195,7 @@ func buildTypeInits(projected, att *expr.AttributeExpr, viewspkg string, scope, 
 		}
 		init = append(init, &InitData{
 			Name:          name,
-			Description:   fmt.Sprintf("%s converts projected type %s to service type %s.", name, resvar, resvar),
+			Description:   fmt.Sprintf("%s converts projected type %s to service type %s.", name, viewScope.GoTypeName(projected), resvar),
 			Args:          []*InitArgData{{Name: "vres", Ref: viewScope.GoFullTypeRef(projected, viewspkg)}},
 			ReturnTypeRef: scope.GoFullTypeRef(att, pkg),
 			Code:          code,
@@ -2247,7 +2247,7 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 		srcCtx := typeContext(scope)
 		tgtCtx := projectedTypeContext(viewspkg, true, viewScope)
 		tname := scope.GoTypeName(projected)
-		name := "new" + tname
+		name := "Project" + scope.GoTypeName(att)
 		if view.Name != expr.DefaultView {
 			name += codegen.Goify(view.Name, true)
 		}

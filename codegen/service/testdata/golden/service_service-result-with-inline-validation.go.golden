@@ -40,20 +40,20 @@ type ResultInlineValidationBResult struct {
 // NewResultInlineValidation initializes result type ResultInlineValidation
 // from viewed result type ResultInlineValidation.
 func NewResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlineValidation) *ResultInlineValidation {
-	return newResultInlineValidation(vres.Projected)
+	return NewResultInlineValidationFromResultInlineValidationView(vres.Projected)
 }
 
 // NewViewedResultInlineValidation initializes viewed result type
 // ResultInlineValidation from result type ResultInlineValidation using the
 // given view.
 func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) *resultwithinlinevalidationviews.ResultInlineValidation {
-	p := newResultInlineValidationView(res)
+	p := ProjectResultInlineValidation(res)
 	return &resultwithinlinevalidationviews.ResultInlineValidation{Projected: p, View: "default"}
 }
 
-// newResultInlineValidation converts projected type ResultInlineValidation to
-// service type ResultInlineValidation.
-func newResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlineValidationView) *ResultInlineValidation {
+// NewResultInlineValidationFromResultInlineValidationView converts projected
+// type ResultInlineValidationView to service type ResultInlineValidation.
+func NewResultInlineValidationFromResultInlineValidationView(vres *resultwithinlinevalidationviews.ResultInlineValidationView) *ResultInlineValidation {
 	res := &ResultInlineValidation{
 		A: vres.A,
 		B: vres.B,
@@ -61,9 +61,9 @@ func newResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlin
 	return res
 }
 
-// newResultInlineValidationView projects result type ResultInlineValidation to
+// ProjectResultInlineValidation projects result type ResultInlineValidation to
 // projected type ResultInlineValidationView using the "default" view.
-func newResultInlineValidationView(res *ResultInlineValidation) *resultwithinlinevalidationviews.ResultInlineValidationView {
+func ProjectResultInlineValidation(res *ResultInlineValidation) *resultwithinlinevalidationviews.ResultInlineValidationView {
 	vres := &resultwithinlinevalidationviews.ResultInlineValidationView{
 		A: res.A,
 		B: res.B,
