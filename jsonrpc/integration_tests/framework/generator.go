@@ -451,11 +451,67 @@ func (g *Generator) repoRootReplace() string {
 	if p := os.Getenv("GOA_REPO"); p != "" {
 		return p
 	}
+	dest := filepath.Join(g.workDir, ".goa-pinned")
+	if fi, err := os.Stat(dest); err == nil && fi.IsDir() {
+		return dest
+	}
+	remote, commit, err := resolvePinnedGoaSource()
+	if err == nil {
+		if err := checkoutPinnedGoaSource(dest, remote, commit); err == nil {
+			return dest
+		}
+	}
 	absPath, err := filepath.Abs("../../..")
 	if err != nil {
 		return "../../../.."
 	}
 	return absPath
+}
+
+func resolvePinnedGoaSource() (string, string, error) {
+	remoteNames := []string{"fork", "origin"}
+	var remote string
+	for _, name := range remoteNames {
+		out, err := runCommandOutput("", "git", "remote", "get-url", name)
+		if err == nil && strings.TrimSpace(out) != "" {
+			remote = strings.TrimSpace(out)
+			break
+		}
+	}
+	if remote == "" {
+		return "", "", fmt.Errorf("resolve git remote: no fork/origin URL available")
+	}
+	commit, err := runCommandOutput("", "git", "rev-parse", "HEAD")
+	if err != nil {
+		return "", "", fmt.Errorf("resolve git commit: %w", err)
+	}
+	return remote, strings.TrimSpace(commit), nil
+}
+
+func checkoutPinnedGoaSource(dest, remote, commit string) error {
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	if _, err := runCommandOutput("", "git", "init", dest); err != nil {
+		return err
+	}
+	if _, err := runCommandOutput(dest, "git", "remote", "add", "origin", remote); err != nil {
+		return err
+	}
+	if _, err := runCommandOutput(dest, "git", "fetch", "--depth", "1", "origin", commit); err != nil {
+		return err
+	}
+	if _, err := runCommandOutput(dest, "git", "checkout", "--detach", "FETCH_HEAD"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func runCommandOutput(dir, name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	return string(out), err
 }
 
 // goify converts a string to a Go identifier.
