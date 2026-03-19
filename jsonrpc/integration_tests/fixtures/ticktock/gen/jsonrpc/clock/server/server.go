@@ -79,7 +79,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	// Read the JSON-RPC request
 	var req jsonrpc.RawRequest
 	if err := s.decoder(r).Decode(&req); err != nil {
-		// Emit JSON-RPC parse error as SSE event
+		// Emit JSON-RPC parse error on the standard SSE message channel.
 		stream := &clockSSEStream{w: w, r: r, encoder: s.encoder, decoder: s.decoder}
 		_ = stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil)
 		return
@@ -158,20 +158,25 @@ func NewTickHandler(
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 		ctx = context.WithValue(ctx, goa.MethodKey, "Tick")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "clock")
-		// Initialize SSE stream early so decode errors can be sent as SSE error events
+		// Initialize SSE stream lazily so endpoint failures can still choose the correct HTTP status.
+		// The raw streamable-HTTP GET listener is the exception: it must establish
+		// the SSE connection before the first domain event so clients can observe
+		// readiness before publishing notifications.
 		strm := &TickServerStream{
 			w:         w,
 			r:         r,
 			encoder:   encoder,
 			requestID: req.ID,
 		}
-		if err := strm.open(); err != nil {
-			return err
+		if r.Method == http.MethodGet && req.Method == "events/stream" {
+			if err := strm.open(); err != nil {
+				return err
+			}
 		}
 		decodeParams := DecodeTickRequest(mux, decoder)
 		params, err := decodeParams(r, req)
 		if err != nil {
-			// Send error via SSE (JSON-RPC error event) to match SSE transport semantics
+			// Send error via the normal JSON-RPC SSE message channel.
 			if req.ID != nil && req.ID != "" {
 				strm.SendError(ctx, jsonrpc.IDToString(req.ID), err)
 			}
@@ -222,20 +227,25 @@ func NewTockHandler(
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 		ctx = context.WithValue(ctx, goa.MethodKey, "Tock")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "clock")
-		// Initialize SSE stream early so decode errors can be sent as SSE error events
+		// Initialize SSE stream lazily so endpoint failures can still choose the correct HTTP status.
+		// The raw streamable-HTTP GET listener is the exception: it must establish
+		// the SSE connection before the first domain event so clients can observe
+		// readiness before publishing notifications.
 		strm := &TockServerStream{
 			w:         w,
 			r:         r,
 			encoder:   encoder,
 			requestID: req.ID,
 		}
-		if err := strm.open(); err != nil {
-			return err
+		if r.Method == http.MethodGet && req.Method == "events/stream" {
+			if err := strm.open(); err != nil {
+				return err
+			}
 		}
 		decodeParams := DecodeTockRequest(mux, decoder)
 		params, err := decodeParams(r, req)
 		if err != nil {
-			// Send error via SSE (JSON-RPC error event) to match SSE transport semantics
+			// Send error via the normal JSON-RPC SSE message channel.
 			if req.ID != nil && req.ID != "" {
 				strm.SendError(ctx, jsonrpc.IDToString(req.ID), err)
 			}

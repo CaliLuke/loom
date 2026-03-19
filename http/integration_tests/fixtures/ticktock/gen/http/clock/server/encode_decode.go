@@ -9,10 +9,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	clock "example.com/http-ticktock/gen/clock"
 	goahttp "goa.design/goa/v3/http"
+	goa "goa.design/goa/v3/pkg"
 )
 
 // EncodeTickResponse returns an encoder for responses returned by the clock
@@ -36,5 +38,64 @@ func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) goaht
 		body := NewTockResponseBody(res)
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
+	}
+}
+
+// EncodeGuardedResponse returns an encoder for responses returned by the clock
+// Guarded endpoint.
+func EncodeGuardedResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*clock.TickTockEvent)
+		enc := encoder(ctx, w)
+		body := NewGuardedResponseBody(res)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeGuardedRequest returns a decoder for requests sent to the clock
+// Guarded endpoint.
+func DecodeGuardedRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*clock.GuardedPayload, error) {
+	return func(r *http.Request) (*clock.GuardedPayload, error) {
+		var payload *clock.GuardedPayload
+		var (
+			token *string
+		)
+		tokenRaw := r.URL.Query().Get("token")
+		if tokenRaw != "" {
+			token = &tokenRaw
+		}
+		payload = NewGuardedPayload(token)
+
+		return payload, nil
+	}
+}
+
+// EncodeGuardedError returns an encoder for errors returned by the Guarded
+// clock endpoint.
+func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "unauthorized":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGuardedUnauthorizedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusUnauthorized)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
 	}
 }

@@ -25,6 +25,10 @@ type Client struct {
 	// Tock Doer is the HTTP client used to make requests to the Tock endpoint.
 	TockDoer goahttp.Doer
 
+	// Guarded Doer is the HTTP client used to make requests to the Guarded
+	// endpoint.
+	GuardedDoer goahttp.Doer
+
 	// RestoreResponseBody controls whether the response bodies are reset after
 	// decoding so they can be read again.
 	RestoreResponseBody bool
@@ -47,6 +51,7 @@ func NewClient(
 	return &Client{
 		TickDoer:            doer,
 		TockDoer:            doer,
+		GuardedDoer:         doer,
 		RestoreResponseBody: restoreBody,
 		scheme:              scheme,
 		host:                host,
@@ -112,5 +117,41 @@ func (c *Client) Tock() goa.Endpoint {
 		}
 
 		return NewTockStream(resp, c.decoder), nil
+	}
+}
+
+// Guarded returns an endpoint that makes HTTP requests to the clock service
+// Guarded server.
+func (c *Client) Guarded() goa.Endpoint {
+	var (
+		encodeRequest = EncodeGuardedRequest(c.encoder)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildGuardedRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		// For SSE endpoints, connect and return a stream
+		resp, err := c.GuardedDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("clock", "Guarded", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("unexpected status from SSE endpoint: %d", resp.StatusCode)
+		}
+
+		contentType := resp.Header.Get("Content-Type")
+		if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
+			resp.Body.Close()
+			return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+		}
+
+		return NewGuardedStream(resp, c.decoder), nil
 	}
 }

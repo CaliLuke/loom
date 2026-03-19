@@ -87,6 +87,18 @@ No commented-out code—delete dead code.
 - For this repo, the standard JSON-RPC integration toggle is `make goa-local` for local iteration and `make goa-remote` for pinned-remote parity. `make goa-status` shows the current mode.
 - `make goa-local` writes a repo-local source-mode file for the JSON-RPC temp-module generator; `GOA_REPO=/absolute/path` still overrides that mode for one-off runs.
 - While developing an unpushed framework change, use local mode or set `GOA_REPO=/Users/luca/code/goa-light` explicitly so verification exercises the code you just changed rather than the last pushed commit.
+- Distinguish the two SSE verification paths:
+  - the JSON-RPC temp-module generator must honor the local-vs-remote switch (`make goa-local`, `make goa-remote`, or `GOA_REPO=...`)
+  - temp-copy regeneration smoke tests for checked-in fixtures are intentionally local-only and should rewrite the copied fixture `replace goa.design/goa/v3 => ...` to the current repo root before running `goa gen`
+- Treat the checked-in SSE fixtures as part of the transport regression surface, not as demos:
+  - `http/integration_tests/fixtures/ticktock`
+  - `jsonrpc/integration_tests/fixtures/ticktock`
+- Be explicit about fixture scope. The checked-in JSON-RPC ticktock fixture only proves POST-initiated SSE behavior; it does **not** cover the raw `events/stream` GET listener contract. That branch currently needs separate codegen or dedicated-fixture coverage.
+- Happy-path SSE tests are not enough. When changing SSE behavior, add or update adversarial coverage for:
+  - pre-stream endpoint failures
+  - event-type compatibility for protocol-level errors
+  - compile-after-generation of the emitted fixture app
+  - any branch-specific connection timing semantics the fixture actually supports
 - For new or changed `goa-light` framework capabilities, use the [`framework-capability` skill](/Users/luca/code/goa-light/.agents/skills/framework-capability/SKILL.md).
 
 ---

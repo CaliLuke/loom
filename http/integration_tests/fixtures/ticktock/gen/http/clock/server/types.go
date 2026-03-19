@@ -9,6 +9,7 @@ package server
 
 import (
 	clock "example.com/http-ticktock/gen/clock"
+	goa "goa.design/goa/v3/pkg"
 )
 
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
@@ -23,6 +24,31 @@ type TickResponseBody struct {
 type TockResponseBody struct {
 	Event string `form:"event" json:"event" xml:"event"`
 	Data  string `form:"data" json:"data" xml:"data"`
+}
+
+// GuardedResponseBody is the type of the "clock" service "Guarded" endpoint
+// HTTP response body.
+type GuardedResponseBody struct {
+	Event string `form:"event" json:"event" xml:"event"`
+	Data  string `form:"data" json:"data" xml:"data"`
+}
+
+// GuardedUnauthorizedResponseBody is the type of the "clock" service "Guarded"
+// endpoint HTTP response body for the "unauthorized" error.
+type GuardedUnauthorizedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // NewTickResponseBody builds the HTTP response body from the result of the
@@ -43,4 +69,36 @@ func NewTockResponseBody(res *clock.TickTockEvent) *TockResponseBody {
 		Data:  res.Data,
 	}
 	return body
+}
+
+// NewGuardedResponseBody builds the HTTP response body from the result of the
+// "Guarded" endpoint of the "clock" service.
+func NewGuardedResponseBody(res *clock.TickTockEvent) *GuardedResponseBody {
+	body := &GuardedResponseBody{
+		Event: res.Event,
+		Data:  res.Data,
+	}
+	return body
+}
+
+// NewGuardedUnauthorizedResponseBody builds the HTTP response body from the
+// result of the "Guarded" endpoint of the "clock" service.
+func NewGuardedUnauthorizedResponseBody(res *goa.ServiceError) *GuardedUnauthorizedResponseBody {
+	body := &GuardedUnauthorizedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewGuardedPayload builds a clock service Guarded endpoint payload.
+func NewGuardedPayload(token *string) *clock.GuardedPayload {
+	v := &clock.GuardedPayload{}
+	v.Token = token
+
+	return v
 }

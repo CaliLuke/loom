@@ -39,6 +39,13 @@ The directory [`fixtures/ticktock`](/Users/luca/code/goa-light/jsonrpc/integrati
 - as a human-readable debugging tool when working on JSON-RPC SSE transport behavior
 - as the target for the external-client interoperability test that uses `github.com/tmaxmax/go-sse`
 
+It now also acts as an adversarial regression surface for:
+
+- protocol-level decode errors that must still arrive on the normal SSE `message` channel
+- temp-copy regeneration and compile-after-generation against the current repo root
+
+What it does **not** prove: the raw streamable-HTTP `GET` listener contract for `events/stream`. The ticktock fixture only exercises POST-initiated JSON-RPC SSE. The raw `events/stream` eager-open branch is currently owned by direct codegen tests in [`jsonrpc/codegen/sse_test.go`](/Users/luca/code/goa-light/jsonrpc/codegen/sse_test.go), not by this checked-in fixture.
+
 When you intentionally change JSON-RPC SSE generation and need to regenerate the fixture, run from that directory:
 
 ```bash

@@ -6,6 +6,7 @@ import (
 
 	clock "example.com/http-ticktock/gen/clock"
 	"goa.design/clue/log"
+	goa "goa.design/goa/v3/pkg"
 )
 
 type (
@@ -33,6 +34,15 @@ func (s *clocksrvc) Tick(ctx context.Context, stream clock.TickServerStream) (er
 func (s *clocksrvc) Tock(ctx context.Context, stream clock.TockServerStream) (err error) {
 	log.Printf(ctx, "clock.Tock")
 	return emit(ctx, stream.SendWithContext, "tock", []string{"tock-a", "tock-b", "tock-done"})
+}
+
+// Guarded implements Guarded.
+func (s *clocksrvc) Guarded(ctx context.Context, p *clock.GuardedPayload, stream clock.GuardedServerStream) error {
+	log.Printf(ctx, "clock.Guarded")
+	if p.Token == nil || *p.Token != "open-sesame" {
+		return goa.PermanentError("unauthorized", "missing or invalid token")
+	}
+	return emit(ctx, stream.SendWithContext, "guarded", []string{"guarded-1", "guarded-done"})
 }
 
 func emit(ctx context.Context, send func(context.Context, *clock.TickTockEvent) error, eventType string, values []string) error {

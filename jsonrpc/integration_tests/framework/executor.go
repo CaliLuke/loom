@@ -233,7 +233,7 @@ func (e *executor) executeSSE(ctx context.Context, t *testing.T, scenario Scenar
 
 	expectedEventType := "response"
 	if scenario.Expect.Error != nil {
-		expectedEventType = "error"
+		expectedEventType = "message"
 	}
 	require.Equal(t, expectedEventType, events[0].Type, "Unexpected SSE event type")
 	e.validateJSONRPCResponse(t, response, scenario.Expect)

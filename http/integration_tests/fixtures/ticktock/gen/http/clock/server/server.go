@@ -18,9 +18,10 @@ import (
 
 // Server lists the clock service endpoint HTTP handlers.
 type Server struct {
-	Mounts []*MountPoint
-	Tick   http.Handler
-	Tock   http.Handler
+	Mounts  []*MountPoint
+	Tick    http.Handler
+	Tock    http.Handler
+	Guarded http.Handler
 }
 
 // MountPoint holds information about the mounted endpoints.
@@ -52,9 +53,11 @@ func New(
 		Mounts: []*MountPoint{
 			{"Tick", "GET", "/tick"},
 			{"Tock", "GET", "/tock"},
+			{"Guarded", "GET", "/guarded"},
 		},
-		Tick: NewTickHandler(e.Tick, mux, decoder, encoder, errhandler, formatter),
-		Tock: NewTockHandler(e.Tock, mux, decoder, encoder, errhandler, formatter),
+		Tick:    NewTickHandler(e.Tick, mux, decoder, encoder, errhandler, formatter),
+		Tock:    NewTockHandler(e.Tock, mux, decoder, encoder, errhandler, formatter),
+		Guarded: NewGuardedHandler(e.Guarded, mux, decoder, encoder, errhandler, formatter),
 	}
 }
 
@@ -65,6 +68,7 @@ func (s *Server) Service() string { return "clock" }
 func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.Tick = m(s.Tick)
 	s.Tock = m(s.Tock)
+	s.Guarded = m(s.Guarded)
 }
 
 // MethodNames returns the methods served.
@@ -74,6 +78,7 @@ func (s *Server) MethodNames() []string { return clock.MethodNames[:] }
 func Mount(mux goahttp.Muxer, h *Server) {
 	MountTickHandler(mux, h.Tick)
 	MountTockHandler(mux, h.Tock)
+	MountGuardedHandler(mux, h.Guarded)
 }
 
 // Mount configures the mux to serve the clock endpoints.
@@ -103,7 +108,9 @@ func NewTickHandler(
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
-	var ()
+	var (
+		encodeError = goahttp.ErrorEncoder(encoder, formatter)
+	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, "Tick")
@@ -113,18 +120,12 @@ func NewTickHandler(
 			w: w,
 			r: r,
 		}
-		if err = stream.open(); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
 		v := &clock.TickEndpointInput{
 			Stream: stream,
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			if errhandler != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
 			return
@@ -154,7 +155,9 @@ func NewTockHandler(
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
-	var ()
+	var (
+		encodeError = goahttp.ErrorEncoder(encoder, formatter)
+	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, "Tock")
@@ -164,18 +167,67 @@ func NewTockHandler(
 			w: w,
 			r: r,
 		}
-		if err = stream.open(); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
 		v := &clock.TockEndpointInput{
 			Stream: stream,
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			if errhandler != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+	})
+}
+
+// MountGuardedHandler configures the mux to serve the "clock" service
+// "Guarded" endpoint.
+func MountGuardedHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/guarded", f)
+}
+
+// NewGuardedHandler creates a HTTP handler which loads the HTTP request and
+// calls the "clock" service "Guarded" endpoint.
+func NewGuardedHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest = DecodeGuardedRequest(mux, decoder)
+		encodeError   = EncodeGuardedError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "Guarded")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "clock")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		stream := &GuardedServerStream{
+			w: w,
+			r: r,
+		}
+		v := &clock.GuardedEndpointInput{
+			Stream:  stream,
+			Payload: payload,
+		}
+		_, err = endpoint(ctx, v)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
 			return

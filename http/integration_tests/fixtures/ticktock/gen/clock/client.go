@@ -15,15 +15,17 @@ import (
 
 // Client is the "clock" service client.
 type Client struct {
-	TickEndpoint goa.Endpoint
-	TockEndpoint goa.Endpoint
+	TickEndpoint    goa.Endpoint
+	TockEndpoint    goa.Endpoint
+	GuardedEndpoint goa.Endpoint
 }
 
 // NewClient initializes a "clock" service client given the endpoints.
-func NewClient(tick, tock goa.Endpoint) *Client {
+func NewClient(tick, tock, guarded goa.Endpoint) *Client {
 	return &Client{
-		TickEndpoint: tick,
-		TockEndpoint: tock,
+		TickEndpoint:    tick,
+		TockEndpoint:    tock,
+		GuardedEndpoint: guarded,
 	}
 }
 
@@ -45,4 +47,17 @@ func (c *Client) Tock(ctx context.Context) (res TockClientStream, err error) {
 		return
 	}
 	return ires.(TockClientStream), nil
+}
+
+// Guarded calls the "Guarded" endpoint of the "clock" service.
+// Guarded may return the following errors:
+//   - "unauthorized" (type *goa.ServiceError)
+//   - error: internal error
+func (c *Client) Guarded(ctx context.Context, p *GuardedPayload) (res GuardedClientStream, err error) {
+	var ires any
+	ires, err = c.GuardedEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(GuardedClientStream), nil
 }

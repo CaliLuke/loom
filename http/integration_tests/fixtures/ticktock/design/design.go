@@ -34,4 +34,21 @@ var _ = Service("clock", func() {
 			})
 		})
 	})
+
+	Method("Guarded", func() {
+		Payload(func() {
+			Attribute("token", String)
+		})
+		Error("unauthorized")
+		StreamingResult(TickTockEvent)
+		HTTP(func() {
+			GET("/guarded")
+			Param("token")
+			Response("unauthorized", StatusUnauthorized)
+			ServerSentEvents(func() {
+				SSEEventType("event")
+				SSEEventData("data")
+			})
+		})
+	})
 })

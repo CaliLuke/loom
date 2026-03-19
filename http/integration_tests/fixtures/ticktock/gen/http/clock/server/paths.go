@@ -16,3 +16,8 @@ func TickClockPath() string {
 func TockClockPath() string {
 	return "/tock"
 }
+
+// GuardedClockPath returns the URL path to the clock service Guarded HTTP endpoint.
+func GuardedClockPath() string {
+	return "/guarded"
+}

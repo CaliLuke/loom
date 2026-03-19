@@ -23,7 +23,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"clock (tick|tock)",
+		"clock (tick|tock|guarded)",
 	}
 }
 
@@ -48,10 +48,14 @@ func ParseEndpoint(
 		clockTickFlags = flag.NewFlagSet("tick", flag.ExitOnError)
 
 		clockTockFlags = flag.NewFlagSet("tock", flag.ExitOnError)
+
+		clockGuardedFlags     = flag.NewFlagSet("guarded", flag.ExitOnError)
+		clockGuardedTokenFlag = clockGuardedFlags.String("token", "", "")
 	)
 	clockFlags.Usage = clockUsage
 	clockTickFlags.Usage = clockTickUsage
 	clockTockFlags.Usage = clockTockUsage
+	clockGuardedFlags.Usage = clockGuardedUsage
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
@@ -93,6 +97,9 @@ func ParseEndpoint(
 			case "tock":
 				epf = clockTockFlags
 
+			case "guarded":
+				epf = clockGuardedFlags
+
 			}
 
 		}
@@ -122,6 +129,9 @@ func ParseEndpoint(
 				endpoint = c.Tick()
 			case "tock":
 				endpoint = c.Tock()
+			case "guarded":
+				endpoint = c.Guarded()
+				data, err = clockc.BuildGuardedPayload(*clockGuardedTokenFlag)
 			}
 		}
 	}
@@ -139,6 +149,7 @@ func clockUsage() {
 	fmt.Fprintln(os.Stderr, "COMMAND:")
 	fmt.Fprintln(os.Stderr, `    tick: Tick implements Tick.`)
 	fmt.Fprintln(os.Stderr, `    tock: Tock implements Tock.`)
+	fmt.Fprintln(os.Stderr, `    guarded: Guarded implements Guarded.`)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s clock COMMAND --help\n", os.Args[0])
@@ -173,4 +184,22 @@ func clockTockUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tock")
+}
+
+func clockGuardedUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] clock guarded", os.Args[0])
+	fmt.Fprint(os.Stderr, " -token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Guarded implements Guarded.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock guarded --token \"Incidunt facere officiis est et est tempore.\"")
 }

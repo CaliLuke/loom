@@ -6,3 +6,22 @@
 // $ goa gen example.com/http-ticktock/design
 
 package client
+
+import (
+	clock "example.com/http-ticktock/gen/clock"
+)
+
+// BuildGuardedPayload builds the payload for the clock Guarded endpoint from
+// CLI flags.
+func BuildGuardedPayload(clockGuardedToken string) (*clock.GuardedPayload, error) {
+	var token *string
+	{
+		if clockGuardedToken != "" {
+			token = &clockGuardedToken
+		}
+	}
+	v := &clock.GuardedPayload{}
+	v.Token = token
+
+	return v, nil
+}

@@ -15,8 +15,9 @@ import (
 
 // Endpoints wraps the "clock" service endpoints.
 type Endpoints struct {
-	Tick goa.Endpoint
-	Tock goa.Endpoint
+	Tick    goa.Endpoint
+	Tock    goa.Endpoint
+	Guarded goa.Endpoint
 }
 
 // TickEndpointInput holds both the payload and the server stream of the "Tick"
@@ -33,11 +34,21 @@ type TockEndpointInput struct {
 	Stream TockServerStream
 }
 
+// GuardedEndpointInput holds both the payload and the server stream of the
+// "Guarded" method.
+type GuardedEndpointInput struct {
+	// Payload is the method payload.
+	Payload *GuardedPayload
+	// Stream is the server stream used by the "Guarded" method to send data.
+	Stream GuardedServerStream
+}
+
 // NewEndpoints wraps the methods of the "clock" service with endpoints.
 func NewEndpoints(s Service) *Endpoints {
 	return &Endpoints{
-		Tick: NewTickEndpoint(s),
-		Tock: NewTockEndpoint(s),
+		Tick:    NewTickEndpoint(s),
+		Tock:    NewTockEndpoint(s),
+		Guarded: NewGuardedEndpoint(s),
 	}
 }
 
@@ -45,6 +56,7 @@ func NewEndpoints(s Service) *Endpoints {
 func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.Tick = m(e.Tick)
 	e.Tock = m(e.Tock)
+	e.Guarded = m(e.Guarded)
 }
 
 // NewTickEndpoint returns an endpoint function that calls the method "Tick" of
@@ -62,5 +74,14 @@ func NewTockEndpoint(s Service) goa.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		ep := req.(*TockEndpointInput)
 		return nil, s.Tock(ctx, ep.Stream)
+	}
+}
+
+// NewGuardedEndpoint returns an endpoint function that calls the method
+// "Guarded" of service "clock".
+func NewGuardedEndpoint(s Service) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		ep := req.(*GuardedEndpointInput)
+		return nil, s.Guarded(ctx, ep.Payload, ep.Stream)
 	}
 }

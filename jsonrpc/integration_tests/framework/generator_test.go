@@ -27,3 +27,10 @@ func TestLocalGoaSourceFromModeFile(t *testing.T) {
 		require.Empty(t, localGoaSourceFromModeFile(path))
 	})
 }
+
+func TestGeneratorRepoRootReplacePrefersGOARepoEnv(t *testing.T) {
+	t.Setenv("GOA_REPO", "/tmp/goa-light-override")
+
+	g := NewGenerator(t.TempDir(), nil)
+	require.Equal(t, "/tmp/goa-light-override", g.repoRootReplace())
+}

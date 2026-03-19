@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	clock "example.com/http-ticktock/gen/clock"
+	goahttp "goa.design/goa/v3/http"
 )
 
 // TickServerStream implements the clock.TickServerStream interface using
@@ -50,20 +51,11 @@ func (s *TickServerStream) initHeaders() {
 	})
 }
 
-func (s *TickServerStream) open() error {
-	s.initHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 // SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
 // to the "Tick" endpoint SSE connection with context.
 func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
 	s.initHeaders()
 	res := v
-
-	if event := res.Event; event != "" {
-		fmt.Fprintf(s.w, "event: %s\n", event)
-	}
 
 	var data string
 	var payload any
@@ -113,7 +105,16 @@ func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 		}
 		data = string(byts)
 	}
-	fmt.Fprintf(s.w, "data: %s\n\n", data)
+
+	msg := goahttp.SSEMessage{Data: data}
+
+	if event := res.Event; event != "" {
+		msg.Type = event
+	}
+
+	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+		return err
+	}
 
 	return http.NewResponseController(s.w).Flush()
 }
@@ -157,20 +158,11 @@ func (s *TockServerStream) initHeaders() {
 	})
 }
 
-func (s *TockServerStream) open() error {
-	s.initHeaders()
-	return http.NewResponseController(s.w).Flush()
-}
-
 // SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
 // to the "Tock" endpoint SSE connection with context.
 func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
 	s.initHeaders()
 	res := v
-
-	if event := res.Event; event != "" {
-		fmt.Fprintf(s.w, "event: %s\n", event)
-	}
 
 	var data string
 	var payload any
@@ -220,7 +212,16 @@ func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 		}
 		data = string(byts)
 	}
-	fmt.Fprintf(s.w, "data: %s\n\n", data)
+
+	msg := goahttp.SSEMessage{Data: data}
+
+	if event := res.Event; event != "" {
+		msg.Type = event
+	}
+
+	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+		return err
+	}
 
 	return http.NewResponseController(s.w).Flush()
 }
@@ -228,5 +229,112 @@ func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 // Close is a no-op for SSE. We keep the method for compatibility with other
 // stream types.
 func (s *TockServerStream) Close() error {
+	return nil
+}
+
+// GuardedServerStream implements the clock.GuardedServerStream interface using
+// Server-Sent Events.
+type GuardedServerStream struct {
+	// once ensures the headers are written once.
+	once sync.Once
+	// w is the HTTP response writer used to send the SSE events.
+	w http.ResponseWriter
+	// r is the HTTP request.
+	r *http.Request
+}
+
+// Send Send streams instances of "clock.TickTockEvent" to the "Guarded"
+// endpoint SSE connection.
+func (s *GuardedServerStream) Send(v *clock.TickTockEvent) error {
+	return s.SendWithContext(context.Background(), v)
+}
+
+func (s *GuardedServerStream) initHeaders() {
+	s.once.Do(func() {
+		header := s.w.Header()
+		if header.Get("Content-Type") == "" {
+			header.Set("Content-Type", "text/event-stream")
+		}
+		if header.Get("Cache-Control") == "" {
+			header.Set("Cache-Control", "no-cache")
+		}
+		if header.Get("Connection") == "" {
+			header.Set("Connection", "keep-alive")
+		}
+		s.w.WriteHeader(http.StatusOK)
+	})
+}
+
+// SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
+// to the "Guarded" endpoint SSE connection with context.
+func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
+	s.initHeaders()
+	res := v
+
+	var data string
+	var payload any
+	body := NewGuardedResponseBody(res)
+	payload = body.Data
+	switch v := payload.(type) {
+	case nil:
+		data = "null"
+	case string:
+		data = v
+	case []byte:
+		data = string(v)
+	case bool:
+		if v {
+			data = "true"
+		} else {
+			data = "false"
+		}
+	case int:
+		data = fmt.Sprintf("%d", v)
+	case int8:
+		data = fmt.Sprintf("%d", v)
+	case int16:
+		data = fmt.Sprintf("%d", v)
+	case int32:
+		data = fmt.Sprintf("%d", v)
+	case int64:
+		data = fmt.Sprintf("%d", v)
+	case uint:
+		data = fmt.Sprintf("%d", v)
+	case uint8:
+		data = fmt.Sprintf("%d", v)
+	case uint16:
+		data = fmt.Sprintf("%d", v)
+	case uint32:
+		data = fmt.Sprintf("%d", v)
+	case uint64:
+		data = fmt.Sprintf("%d", v)
+	case float32:
+		data = fmt.Sprintf("%g", v)
+	case float64:
+		data = fmt.Sprintf("%g", v)
+	default:
+		byts, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+		data = string(byts)
+	}
+
+	msg := goahttp.SSEMessage{Data: data}
+
+	if event := res.Event; event != "" {
+		msg.Type = event
+	}
+
+	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+		return err
+	}
+
+	return http.NewResponseController(s.w).Flush()
+}
+
+// Close is a no-op for SSE. We keep the method for compatibility with other
+// stream types.
+func (s *GuardedServerStream) Close() error {
 	return nil
 }

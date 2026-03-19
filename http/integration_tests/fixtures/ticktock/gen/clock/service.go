@@ -9,6 +9,8 @@ package clock
 
 import (
 	"context"
+
+	goa "goa.design/goa/v3/pkg"
 )
 
 // Service is the clock service interface.
@@ -17,6 +19,8 @@ type Service interface {
 	Tick(context.Context, TickServerStream) (err error)
 	// Tock implements Tock.
 	Tock(context.Context, TockServerStream) (err error)
+	// Guarded implements Guarded.
+	Guarded(context.Context, *GuardedPayload, GuardedServerStream) (err error)
 }
 
 // APIName is the name of the API as defined in the design.
@@ -33,7 +37,7 @@ const ServiceName = "clock"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [2]string{"Tick", "Tock"}
+var MethodNames = [3]string{"Tick", "Tock", "Guarded"}
 
 // TickServerStream allows streaming instances of *TickTockEvent to the client.
 type TickServerStream interface {
@@ -73,8 +77,39 @@ type TockClientStream interface {
 	RecvWithContext(context.Context) (*TickTockEvent, error)
 }
 
+// GuardedServerStream allows streaming instances of *TickTockEvent to the
+// client.
+type GuardedServerStream interface {
+	// Send streams instances of "TickTockEvent".
+	Send(*TickTockEvent) error
+	// SendWithContext streams instances of "TickTockEvent" with context.
+	SendWithContext(context.Context, *TickTockEvent) error
+	// Close closes the stream.
+	Close() error
+}
+
+// GuardedClientStream allows streaming instances of *TickTockEvent to the
+// client.
+type GuardedClientStream interface {
+	// Recv reads instances of "TickTockEvent" from the stream.
+	Recv() (*TickTockEvent, error)
+	// RecvWithContext reads instances of "TickTockEvent" from the stream with
+	// context.
+	RecvWithContext(context.Context) (*TickTockEvent, error)
+}
+
+// GuardedPayload is the payload type of the clock service Guarded method.
+type GuardedPayload struct {
+	Token *string `json:"token,omitempty"`
+}
+
 // TickTockEvent is the result type of the clock service Tick method.
 type TickTockEvent struct {
 	Event string `json:"event"`
 	Data  string `json:"data"`
+}
+
+// MakeUnauthorized builds a goa.ServiceError from an error.
+func MakeUnauthorized(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "unauthorized", false, false, false)
 }
