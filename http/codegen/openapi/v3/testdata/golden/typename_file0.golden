@@ -13,6 +13,18 @@
         },
         "type": "object"
       },
+      "BarResult": {
+        "example": {
+          "value": ""
+        },
+        "properties": {
+          "value": {
+            "example": "",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "BazPayload": {
         "example": {
           "value": ""
@@ -37,7 +49,7 @@
         },
         "type": "object"
       },
-      "Foo": {
+      "FooPayload": {
         "example": {
           "value": ""
         },
@@ -50,18 +62,6 @@
         "type": "object"
       },
       "FooResult": {
-        "example": {
-          "value": ""
-        },
-        "properties": {
-          "value": {
-            "example": "",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "GoaExampleBar": {
         "example": {
           "value": ""
         },
@@ -106,7 +106,7 @@
                   "value": ""
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/GoaExampleBar"
+                  "$ref": "#/components/schemas/BarResult"
                 }
               }
             },
@@ -166,7 +166,7 @@
                 "value": ""
               },
               "schema": {
-                "$ref": "#/components/schemas/Foo"
+                "$ref": "#/components/schemas/FooPayload"
               }
             }
           },

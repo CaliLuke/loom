@@ -132,6 +132,12 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 	)
 	if a.Body != nil {
 		a.Body = DupAtt(a.Body)
+		a.Body.AddMeta("openapi:typename:canonical", "true")
+		if ut, ok := a.Body.Type.(UserType); ok {
+			if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
+				a.Body.AddMeta("openapi:typename", m)
+			}
+		}
 		renameType(a.Body, name, suffix)
 		if ut, ok := a.Body.Type.(*UserTypeExpr); ok {
 			ut.UID = a.Service.Name() + "#" + name
@@ -156,6 +162,10 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		if bodyOnly {
 			payload = DupAtt(payload)
 			RemovePkgPath(payload)
+			if m, ok := payload.Meta.Last("openapi:typename"); ok {
+				payload.AddMeta("openapi:typename", m)
+				payload.AddMeta("openapi:typename:canonical", "true")
+			}
 			renameType(payload, name, suffix)
 			return payload
 		}
@@ -200,6 +210,10 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		if m, ok := t.Attribute().Meta["openapi:additionalProperties"]; ok {
 			ut.AddMeta("openapi:additionalProperties", m...)
 		}
+	}
+	if m, ok := payload.Meta.Last("openapi:typename"); ok {
+		ut.AddMeta("openapi:typename", m)
+		ut.AddMeta("openapi:typename:canonical", "true")
 	}
 
 	return &AttributeExpr{
@@ -273,12 +287,24 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	// methods with potentially different result types.
 	if resp.Body != nil {
 		if !IsObject(resp.Body.Type) {
+			resp.Body.AddMeta("openapi:typename:canonical", "true")
+			if ut, ok := resp.Body.Type.(UserType); ok {
+				if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
+					resp.Body.AddMeta("openapi:typename", m)
+				}
+			}
 			return resp.Body
 		}
 		if len(*AsObject(resp.Body.Type)) == 0 {
 			return &AttributeExpr{Type: Empty}
 		}
 		att := DupAtt(resp.Body)
+		att.AddMeta("openapi:typename:canonical", "true")
+		if ut, ok := att.Type.(UserType); ok {
+			if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
+				att.AddMeta("openapi:typename", m)
+			}
+		}
 		renameType(att, name, suffix)
 		if ut, ok := att.Type.(*UserTypeExpr); ok {
 			ut.UID = svc.Name() + "#" + name
@@ -334,6 +360,10 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		if m, ok := t.Attribute().Meta["openapi:additionalProperties"]; ok {
 			userType.AddMeta("openapi:additionalProperties", m...)
 		}
+	}
+	if m, ok := attr.Meta.Last("openapi:typename"); ok {
+		userType.AddMeta("openapi:typename", m)
+		userType.AddMeta("openapi:typename:canonical", "true")
 	}
 
 	appendSuffix(userType.Attribute().Type, suffix)

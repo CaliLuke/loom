@@ -23,7 +23,8 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 
 - `goa-light` emits OpenAPI 3.1 / JSON Schema 2020-12 only. The canonical artifacts are `gen/http/openapi.json` and `gen/http/openapi.yaml`.
 - Treat OpenAPI output shape as framework contract. Stable schema names, canonical `operationId`, and `libopenapi` validation are intentional behavior, not incidental formatting.
-- Structurally identical generated OpenAPI components are deduplicated and reused by `$ref`; explicit `openapi:typename` declarations still keep their own named components.
+- Structurally identical generated OpenAPI components are deduplicated and reused by `$ref`.
+- For explicit HTTP `Body(...)` request/response types, `Meta("openapi:typename", "...")` is the public OpenAPI component name contract. When two non-equivalent explicit body schemas claim the same name, generation fails instead of leaking a hash-suffixed fallback into the spec.
 - Generated OpenAPI emits operation-level security for secured endpoints, including inherited service/API requirements; `NoSecurity()` emits explicit `security: []` on the operation instead of relying on omission.
 - Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
 - Generated OpenAPI suppresses closed-object union-wrapper examples that would be invalid against the emitted schema, and field-level `Meta("openapi:example", "false")` must suppress wrapper examples all the way through enclosing request bodies/media types.

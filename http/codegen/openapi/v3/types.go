@@ -35,8 +35,12 @@ type (
 	schemafier struct {
 		// type schemas indexed by ref
 		schemas map[string]*openapi.Schema
+		// schema hashes indexed by component name
+		schemaHashes map[string]uint64
 		// type references indexed by hashes
 		hashes map[uint64][]schemaRef
+		// canonical schema names reserved by explicit HTTP Body(...) declarations
+		canonicalNames map[string]uint64
 		// union branch schema names indexed by a stable branch key
 		unionBranchSchemas map[string]string
 		closeObjects       bool
@@ -55,7 +59,9 @@ type (
 func newSchemafier(rand *expr.ExampleGenerator, closeObjects bool) *schemafier {
 	return &schemafier{
 		schemas:            make(map[string]*openapi.Schema),
+		schemaHashes:       make(map[string]uint64),
 		hashes:             make(map[uint64][]schemaRef),
+		canonicalNames:     make(map[string]uint64),
 		unionBranchSchemas: make(map[string]string),
 		closeObjects:       closeObjects,
 		rand:               rand,
@@ -250,9 +256,12 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 		h := sf.hashAttribute(attr, fnv.New64())
 
 		var metaName string
-		if n, ok := t.Attribute().Meta["openapi:typename"]; ok {
-			metaName = codegen.Goify(n[0], true)
+		if n, ok := attr.Meta.Last("openapi:typename"); ok {
+			metaName = codegen.Goify(n, true)
+		} else if n, ok := t.Attribute().Meta.Last("openapi:typename"); ok {
+			metaName = codegen.Goify(n, true)
 		}
+		canonical := hasCanonicalOpenAPITypeName(attr.Meta) || hasCanonicalOpenAPITypeName(t.Attribute().Meta)
 		metaRef := toRef(metaName)
 
 		// If it is named, it refers to the same structure and name.
@@ -273,10 +282,21 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 			name = n[0]
 		}
 
-		typeName := sf.uniquify(codegen.Goify(name, true), h)
+		typeName := codegen.Goify(name, true)
+		if canonical {
+			typeName = sf.claimExplicitName(typeName, h)
+		} else {
+			typeName = sf.uniquify(typeName, h)
+		}
 		s.Ref = toRef(typeName)
-		sf.hashes[h] = append(sf.hashes[h], schemaRef{ref: s.Ref, explicit: metaName != ""})
-		sf.schemas[typeName] = sf.schemafy(t.Attribute(), true)
+		sf.registerSchemaRef(h, s.Ref, metaName != "")
+		if _, ok := sf.schemas[typeName]; !ok {
+			sf.schemaHashes[typeName] = h
+			if canonical {
+				sf.canonicalNames[typeName] = h
+			}
+			sf.schemas[typeName] = sf.schemafy(t.Attribute(), true)
+		}
 		return s // All other schema properties are set in the reference
 	default:
 		panic(fmt.Sprintf("unknown type %T", t)) // bug
@@ -367,6 +387,7 @@ func (sf *schemafier) ensureUnionBranchSchema(union *expr.Union, val *expr.Named
 	}
 	branchSchema.Properties[valueKey] = sf.schemafy(val.Attribute)
 	branchSchema.Required = []string{typeKey, valueKey}
+	sf.schemaHashes[name] = hash
 	sf.schemas[name] = branchSchema
 
 	return toRef(name)
@@ -447,6 +468,30 @@ func (sf *schemafier) uniquify(n string, h uint64) string {
 		}
 		i++
 	}
+}
+
+func (sf *schemafier) claimExplicitName(name string, h uint64) string {
+	if existingHash, ok := sf.schemaHashes[name]; ok {
+		if existingHash != h {
+			panic(fmt.Sprintf("openapi: explicit component name %q is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values", name))
+		}
+	}
+	sf.canonicalNames[name] = h
+	return name
+}
+
+func (sf *schemafier) registerSchemaRef(h uint64, ref string, explicit bool) {
+	for _, existing := range sf.hashes[h] {
+		if existing.ref == ref && existing.explicit == explicit {
+			return
+		}
+	}
+	sf.hashes[h] = append(sf.hashes[h], schemaRef{ref: ref, explicit: explicit})
+}
+
+func hasCanonicalOpenAPITypeName(meta expr.MetaExpr) bool {
+	value, ok := meta.Last("openapi:typename:canonical")
+	return ok && value == "true"
 }
 
 // toRef creates a relative JSON Schema reference from a type name that points

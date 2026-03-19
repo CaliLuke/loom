@@ -21,7 +21,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - `libopenapi`-backed spec validation in the test harness.
 - `OneOf(...)` constructor support and explicit union discriminator tag preservation.
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
-- OpenAPI schema deduplication now reuses structurally identical generated components while preserving explicit `openapi:typename` names and real collisions.
+- OpenAPI schema deduplication now reuses structurally identical generated components while treating explicit HTTP `Body(...)` `openapi:typename` declarations as authoritative public names; conflicting non-equivalent claims now fail generation instead of leaking hash-suffixed public schemas.
 - OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.
 - OpenAPI now prunes unreferenced generated component schemas instead of publishing every top-level type and result type.
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.

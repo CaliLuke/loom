@@ -30,7 +30,7 @@ Out of scope:
 ## Desired Outcome
 
 - structurally identical schemas are emitted once and reused by `$ref`
-- hash suffixes remain available only for real collisions
+- hash suffixes remain available only for implicit-name collisions
 - generated component naming stays deterministic across runs
 
 ## Work Plan
@@ -65,5 +65,5 @@ Out of scope:
 ## Implementation Notes
 
 - Generated request/response wrapper schemas now reuse the first generated component for a structural hash instead of creating parallel names for the same shape.
-- Explicit `openapi:typename` declarations remain distinct even when their schemas are structurally identical.
+- Explicit HTTP `Body(...)` schemas with `openapi:typename` are now authoritative public component names. Equivalent schemas may reuse that exact component, and non-equivalent explicit body schemas claiming the same name fail generation instead of emitting hash-suffixed public names.
 - Repeated union branch envelope components now deduplicate on discriminator contract plus branch schema shape, rather than on union type name alone.

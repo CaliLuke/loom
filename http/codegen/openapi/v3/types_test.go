@@ -451,6 +451,79 @@ func TestBuildBodyTypesKeepsExplicitOpenAPITypenamesDistinct(t *testing.T) {
 	require.Equal(t, "#/components/schemas/BarPayload", barRef)
 }
 
+func TestBuildBodyTypesUsesExplicitOpenAPITypenameAsCanonicalBodyComponentName(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		body := dsl.Type("AuthSessionResponseBodyType", func() {
+			dsl.Meta("openapi:typename", "AuthSessionResponseBody")
+			dsl.Attribute("authenticated", dsl.Boolean)
+			dsl.Required("authenticated")
+		})
+		dsl.Service("auth-service", func() {
+			dsl.Method("session", func() {
+				dsl.Result(body)
+				dsl.HTTP(func() {
+					dsl.GET("/session")
+					dsl.Response(200, func() {
+						dsl.Body(body)
+					})
+				})
+			})
+		})
+	})
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	responseRef := bodies["auth-service"]["session"].ResponseBodies[200][0].Ref
+
+	require.Equal(t, "#/components/schemas/AuthSessionResponseBody", responseRef)
+	require.Contains(t, types, "AuthSessionResponseBody")
+	for name := range types {
+		require.NotContains(t, name, "AuthSessionResponseBody_")
+	}
+}
+
+func TestBuildBodyTypesPanicsOnConflictingExplicitOpenAPITypename(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		first := dsl.Type("AuthSessionResponseBodyA", func() {
+			dsl.Meta("openapi:typename", "AuthSessionResponseBody")
+			dsl.Attribute("authenticated", dsl.Boolean)
+			dsl.Required("authenticated")
+		})
+		second := dsl.Type("AuthSessionResponseBodyB", func() {
+			dsl.Meta("openapi:typename", "AuthSessionResponseBody")
+			dsl.Attribute("authenticated", dsl.Boolean)
+			dsl.Attribute("user_id", dsl.Int64)
+			dsl.Required("authenticated", "user_id")
+		})
+		dsl.Service("auth-conflict-service", func() {
+			dsl.Method("session", func() {
+				dsl.Result(first)
+				dsl.HTTP(func() {
+					dsl.GET("/session")
+					dsl.Response(200, func() {
+						dsl.Body(first)
+					})
+				})
+			})
+			dsl.Method("profile", func() {
+				dsl.Result(second)
+				dsl.HTTP(func() {
+					dsl.GET("/profile")
+					dsl.Response(200, func() {
+						dsl.Body(second)
+					})
+				})
+			})
+		})
+	})
+
+	require.PanicsWithValue(t,
+		"openapi: explicit component name \"AuthSessionResponseBody\" is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values",
+		func() {
+			buildBodyTypes(root.API, root.Types, root.ResultTypes)
+		},
+	)
+}
+
 func TestBuildBodyTypesClosedObjectModeClosesObjectsAndLeavesMapsOpen(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.OpenAPIClosedObjectsDSL)
 
@@ -859,6 +932,18 @@ func TestSchemafierUniquifyUsesStableHashSuffix(t *testing.T) {
 	if name != "FreshName" {
 		t.Fatalf("got %q, expected unsuffixed fresh name", name)
 	}
+}
+
+func TestClaimExplicitNamePanicsOnConflictingSchema(t *testing.T) {
+	sf := newSchemafier(expr.NewRandom("test"), false)
+	sf.schemaHashes["AuthSessionResponseBody"] = 0x1
+
+	require.PanicsWithValue(t,
+		"openapi: explicit component name \"AuthSessionResponseBody\" is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values",
+		func() {
+			sf.claimExplicitName("AuthSessionResponseBody", 0x2)
+		},
+	)
 }
 
 func TestHashAttribute(t *testing.T) {
