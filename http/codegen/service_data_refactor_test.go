@@ -280,6 +280,28 @@ func TestHTTPErrorResponseContentTypeSuppression(t *testing.T) {
 	}
 }
 
+func TestHTTPResultAndErrorInitArgAssembly(t *testing.T) {
+	endpoint := firstEndpointData(t, responseInitArgsDSL)
+
+	require.NotNil(t, endpoint.Result)
+	require.NotEmpty(t, endpoint.Result.Responses)
+	resultInit := endpoint.Result.Responses[0].ResultInit
+	require.NotNil(t, resultInit)
+	require.Equal(t, "Body", resultInit.ReturnTypeAttribute)
+	require.Equal(t, []string{"body", "header", "session"}, initArgNames(resultInit.ClientArgs))
+	require.Equal(t, []string{"", "Header", "Session"}, initArgFieldNames(resultInit.ClientArgs))
+	require.Equal(t, []string{"&body", "header", "session"}, initArgRefs(resultInit.ClientArgs))
+
+	require.NotEmpty(t, endpoint.Errors)
+	require.NotEmpty(t, endpoint.Errors[0].Errors)
+	errorInit := endpoint.Errors[0].Errors[0].Response.ResultInit
+	require.NotNil(t, errorInit)
+	require.Equal(t, "Body", errorInit.ReturnTypeAttribute)
+	require.Equal(t, []string{"body", "code", "session"}, initArgNames(errorInit.ClientArgs))
+	require.Equal(t, []string{"", "Code", "Session"}, initArgFieldNames(errorInit.ClientArgs))
+	require.Equal(t, []string{"&body", "code", "session"}, initArgRefs(errorInit.ClientArgs))
+}
+
 func firstEndpointData(t *testing.T, dsl func()) *EndpointData {
 	t.Helper()
 
@@ -307,6 +329,30 @@ func lastQueryParam(t *testing.T, endpoint *EndpointData) *ParamData {
 	return endpoint.Payload.Request.QueryParams[len(endpoint.Payload.Request.QueryParams)-1]
 }
 
+func initArgNames(args []*InitArgData) []string {
+	names := make([]string, len(args))
+	for i, arg := range args {
+		names[i] = arg.Name
+	}
+	return names
+}
+
+func initArgFieldNames(args []*InitArgData) []string {
+	names := make([]string, len(args))
+	for i, arg := range args {
+		names[i] = arg.FieldName
+	}
+	return names
+}
+
+func initArgRefs(args []*InitArgData) []string {
+	refs := make([]string, len(args))
+	for i, arg := range args {
+		refs[i] = arg.Ref
+	}
+	return refs
+}
+
 func requestEncoderBodyDSL() {
 	Service("RequestEncoderBody", func() {
 		Method("show", func() {
@@ -315,6 +361,46 @@ func requestEncoderBodyDSL() {
 			})
 			HTTP(func() {
 				POST("/")
+			})
+		})
+	})
+}
+
+func responseInitArgsDSL() {
+	var successBody = Type("ResponseInitArgsSuccessBody", func() {
+		Attribute("value", String)
+	})
+	var errorBody = Type("ResponseInitArgsErrorBody", func() {
+		Attribute("message", String)
+	})
+	var methodError = Type("ResponseInitArgsError", func() {
+		Attribute("body", errorBody)
+		Attribute("code", Int)
+		Attribute("session", String)
+		Required("body", "code", "session")
+	})
+
+	Service("ResponseInitArgs", func() {
+		Method("show", func() {
+			Result(func() {
+				Attribute("body", successBody)
+				Attribute("header", String)
+				Attribute("session", String)
+				Required("body", "header", "session")
+			})
+			Error("bad_request", methodError)
+			HTTP(func() {
+				GET("/")
+				Response(StatusOK, func() {
+					Body("body")
+					Header("header:X-Header")
+					Cookie("session:session")
+				})
+				Response("bad_request", StatusBadRequest, func() {
+					Body("body")
+					Header("code:X-Code")
+					Cookie("session:session")
+				})
 			})
 		})
 	})

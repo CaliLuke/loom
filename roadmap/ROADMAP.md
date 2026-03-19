@@ -58,7 +58,7 @@ These items are prioritized based on two goals:
 2. Refactor follow-up test backlog
    The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.
    Started 2026-03-18:
-   Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, file-server path normalization/wildcard extraction, error content-type suppression, and multipart decoder/encoder gating.
+   Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, file-server path normalization/wildcard extraction, result-init and error-init arg assembly, error content-type suppression, and multipart decoder/encoder gating.
 
    `expr/http_endpoint.go`
    - Add prepare tests for implicit default success responses: redirect status and no-content status.
@@ -80,7 +80,6 @@ These items are prioritized based on two goals:
    - Add JSON-RPC payload/result `id` projection tests.
    - Add response-body generation tests for explicit origin attributes, explicit views, and per-view fanout.
    - Add response ordering test that keeps the tagless response last.
-   - Add result-init and error-init arg assembly tests for body, header, and cookie constructor args.
    - Add error content-type suppression test for `expr.ErrorResultIdentifier`.
    - Add error body description rewrite tests.
    - Add multipart gating tests for decoder generation, encoder generation, and `BuildStreamPayload`.
