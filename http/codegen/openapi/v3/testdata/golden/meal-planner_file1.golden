@@ -25,7 +25,7 @@ paths:
                 "200":
                     description: OK response.
                     content:
-                        application/json:
+                        text/event-stream:
                             schema:
                                 $ref: '#/components/schemas/WatchPlannerEventsResponseBody'
                 "429":
