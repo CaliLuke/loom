@@ -436,6 +436,13 @@ func jsonExample(v any) string {
 	r := reflect.ValueOf(v)
 	if r.Kind() == reflect.Map {
 		keys := r.MapKeys()
+		if len(keys) == 0 {
+			b, err := json.MarshalIndent(v, "   ", "   ")
+			if err == nil {
+				return string(b)
+			}
+			return "{}"
+		}
 		if keys[0].Kind() != reflect.String {
 			a := make(map[string]any, len(keys))
 			var kstr string

@@ -27,12 +27,15 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - Structurally identical generated OpenAPI components are deduplicated and reused by `$ref`; explicit `openapi:typename` declarations still keep their own named components.
 - Generated OpenAPI emits operation-level security for secured endpoints, including inherited service/API requirements; `NoSecurity()` emits explicit `security: []` on the operation instead of relying on omission.
 - Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
+- Generated OpenAPI suppresses closed-object union-wrapper examples that would be invalid against the emitted schema, and field-level `Meta("openapi:example", "false")` must suppress wrapper examples all the way through enclosing request bodies/media types.
 - Wrapper-style unions now emit OpenAPI discriminators with:
   - `discriminator.propertyName`
   - `discriminator.mapping`
   - `oneOf` refs to generated `...Envelope` component schemas
 - Use API metadata `Meta("openapi:closed-objects", "true")` when machine consumers need stricter object contracts in generated OpenAPI.
 - In closed-object mode, normal object schemas emit `additionalProperties: false`, composed union wrappers emit `unevaluatedProperties: false`, and explicit dictionaries such as `MapOf(...)` remain open.
+- Generated OpenAPI keeps SSE endpoints on ordinary HTTP success responses instead of rewriting them to WebSocket `101` semantics.
+- Generated OpenAPI normalizes binary (`Bytes`) examples to string form; do not expect byte-array literals in emitted OpenAPI examples.
 - `OneOf(...)` works both as a named union declaration and as a type constructor.
 - Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
 - When modeling alternate transport/tool result shapes, prefer a canonical `ResultType` plus `View(...)` definitions over hand-maintained sibling DTO copies.
@@ -67,6 +70,7 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 
 - If a design hand-models bearer-or-cookie auth, duplicated auth responses, or raw `Set-Cookie` headers, check whether the newer session and cookie DSL should replace that glue first.
 - If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
+- When hardening OpenAPI output, prefer a non-trivial specimen DSL plus rendered-spec assertions and external linting over isolated schema snapshots only.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
 

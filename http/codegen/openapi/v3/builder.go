@@ -430,7 +430,7 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 	// responses
 	responses := make(map[string]*ResponseRef, len(e.Responses))
 	for _, r := range e.Responses {
-		if e.MethodExpr.IsStreaming() {
+		if e.MethodExpr.IsStreaming() && e.SSE == nil {
 			// A streaming endpoint allows at most one successful response
 			// definition. So it is okay to change the first successful
 			// response to a HTTP 101 response for openapi docs.

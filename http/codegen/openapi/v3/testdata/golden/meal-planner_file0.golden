@@ -1,0 +1,1352 @@
+{
+  "components": {
+    "schemas": {
+      "Error": {
+        "additionalProperties": false,
+        "example": {
+          "fault": false,
+          "id": "123abc",
+          "message": "parameter 'p' must be an integer",
+          "name": "bad_request",
+          "temporary": true,
+          "timeout": true
+        },
+        "properties": {
+          "fault": {
+            "description": "Is the error a server-side fault?",
+            "example": false,
+            "type": "boolean"
+          },
+          "id": {
+            "description": "ID is a unique identifier for this particular occurrence of the problem.",
+            "example": "123abc",
+            "type": "string"
+          },
+          "message": {
+            "description": "Message is a human-readable explanation specific to this occurrence of the problem.",
+            "example": "parameter 'p' must be an integer",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name is the name of this class of errors.",
+            "example": "bad_request",
+            "type": "string"
+          },
+          "temporary": {
+            "description": "Is the error temporary?",
+            "example": true,
+            "type": "boolean"
+          },
+          "timeout": {
+            "description": "Is the error a timeout?",
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "message",
+          "temporary",
+          "timeout",
+          "fault"
+        ],
+        "type": "object"
+      },
+      "HealthResponseBody": {
+        "additionalProperties": false,
+        "example": {
+          "checked_at": "2026-03-19T12:00:00Z",
+          "status": "ok"
+        },
+        "properties": {
+          "checked_at": {
+            "example": "2026-03-19T12:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok"
+            ],
+            "example": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checked_at"
+        ],
+        "type": "object"
+      },
+      "ImportPantryRequestBody": {
+        "additionalProperties": false,
+        "example": {
+          "content_type": "Vel qui.",
+          "file": "Eligendi non ut.",
+          "filename": "Quos ut libero quaerat et est.",
+          "label": "scan-weekly"
+        },
+        "properties": {
+          "content_type": {
+            "example": "Odit accusantium aut qui.",
+            "type": "string"
+          },
+          "file": {
+            "example": "Quia iste recusandae suscipit doloremque earum numquam.",
+            "format": "binary",
+            "type": "string"
+          },
+          "filename": {
+            "example": "Et dolore qui.",
+            "type": "string"
+          },
+          "label": {
+            "example": "scan-weekly",
+            "pattern": "^scan-[a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "label"
+        ],
+        "type": "object"
+      },
+      "MealPlan": {
+        "additionalProperties": false,
+        "description": "A meal plan covering one planning week.",
+        "example": {
+          "meals": [
+            {
+              "day": "monday",
+              "recipe_id": "recipe_42",
+              "slot": "dinner"
+            },
+            {
+              "day": "monday",
+              "recipe_id": "recipe_42",
+              "slot": "dinner"
+            }
+          ],
+          "week_start": "2026-03-16"
+        },
+        "properties": {
+          "meals": {
+            "example": [
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              },
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              },
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              }
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MealPlanEntry"
+            },
+            "type": "array"
+          },
+          "week_start": {
+            "example": "2026-03-16",
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week_start"
+        ],
+        "type": "object"
+      },
+      "MealPlanEntry": {
+        "additionalProperties": false,
+        "example": {
+          "day": "monday",
+          "recipe_id": "recipe_42",
+          "slot": "dinner"
+        },
+        "properties": {
+          "day": {
+            "enum": [
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday",
+              "saturday",
+              "sunday"
+            ],
+            "example": "monday",
+            "type": "string"
+          },
+          "recipe_id": {
+            "example": "recipe_42",
+            "type": "string"
+          },
+          "slot": {
+            "enum": [
+              "breakfast",
+              "lunch",
+              "dinner"
+            ],
+            "example": "dinner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "slot",
+          "recipe_id"
+        ],
+        "type": "object"
+      },
+      "MealPlanPatch": {
+        "additionalProperties": false,
+        "description": "A partial meal plan update.",
+        "example": {
+          "meals": [
+            {
+              "day": "monday",
+              "recipe_id": "recipe_42",
+              "slot": "dinner"
+            },
+            {
+              "day": "monday",
+              "recipe_id": "recipe_42",
+              "slot": "dinner"
+            }
+          ]
+        },
+        "properties": {
+          "meals": {
+            "example": [
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              },
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              },
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              },
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              }
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MealPlanEntry"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "MealplannerRecipe": {
+        "additionalProperties": false,
+        "description": "A saved recipe with planning metadata.",
+        "example": {
+          "difficulty": "easy",
+          "id": "recipe_42",
+          "ingredients": [
+            "gnocchi",
+            "tomatoes",
+            "spinach"
+          ],
+          "minutes": 30,
+          "tags": [
+            "weeknight",
+            "vegetarian"
+          ],
+          "title": "Sheet Pan Gnocchi"
+        },
+        "properties": {
+          "difficulty": {
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "example": "easy",
+            "type": "string"
+          },
+          "id": {
+            "example": "recipe_42",
+            "type": "string"
+          },
+          "ingredients": {
+            "example": [
+              "gnocchi",
+              "tomatoes",
+              "spinach"
+            ],
+            "items": {
+              "example": "Non suscipit facilis.",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "minutes": {
+            "example": 30,
+            "format": "int64",
+            "minimum": 5,
+            "type": "integer"
+          },
+          "tags": {
+            "example": [
+              "weeknight",
+              "vegetarian"
+            ],
+            "items": {
+              "example": "Nam in iure dolore mollitia in.",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "example": "Sheet Pan Gnocchi",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "minutes",
+          "difficulty"
+        ],
+        "type": "object"
+      },
+      "PantryImportReceipt": {
+        "additionalProperties": false,
+        "example": {
+          "accepted_items": 12,
+          "import_id": "import_7"
+        },
+        "properties": {
+          "accepted_items": {
+            "example": 12,
+            "format": "int64",
+            "type": "integer"
+          },
+          "import_id": {
+            "example": "import_7",
+            "type": "string"
+          }
+        },
+        "required": [
+          "import_id",
+          "accepted_items"
+        ],
+        "type": "object"
+      },
+      "PreviewSelectionRequestBody": {
+        "additionalProperties": false,
+        "properties": {
+          "selection": {
+            "$ref": "#/components/schemas/RecipeSelection"
+          }
+        },
+        "required": [
+          "selection"
+        ],
+        "type": "object"
+      },
+      "RecipePairSelection": {
+        "additionalProperties": false,
+        "example": {
+          "backup_recipe_id": "recipe_84",
+          "primary_recipe_id": "recipe_42"
+        },
+        "properties": {
+          "backup_recipe_id": {
+            "example": "recipe_84",
+            "type": "string"
+          },
+          "primary_recipe_id": {
+            "example": "recipe_42",
+            "type": "string"
+          }
+        },
+        "required": [
+          "primary_recipe_id",
+          "backup_recipe_id"
+        ],
+        "type": "object"
+      },
+      "RecipeResponseSummary": {
+        "additionalProperties": false,
+        "description": "A saved recipe with planning metadata. (summary view)",
+        "example": {
+          "difficulty": "easy",
+          "id": "recipe_42",
+          "minutes": 30,
+          "title": "Sheet Pan Gnocchi"
+        },
+        "properties": {
+          "difficulty": {
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "example": "easy",
+            "type": "string"
+          },
+          "id": {
+            "example": "recipe_42",
+            "type": "string"
+          },
+          "minutes": {
+            "example": 30,
+            "format": "int64",
+            "minimum": 5,
+            "type": "integer"
+          },
+          "title": {
+            "example": "Sheet Pan Gnocchi",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "minutes",
+          "difficulty"
+        ],
+        "type": "object"
+      },
+      "RecipeResponseSummaryCollection": {
+        "description": "ListRecipesResponseBody is the result type for an array of RecipeResponse (summary view)",
+        "example": [
+          {
+            "difficulty": "easy",
+            "id": "recipe_42",
+            "minutes": 30,
+            "title": "Sheet Pan Gnocchi"
+          },
+          {
+            "difficulty": "easy",
+            "id": "recipe_42",
+            "minutes": 30,
+            "title": "Sheet Pan Gnocchi"
+          },
+          {
+            "difficulty": "easy",
+            "id": "recipe_42",
+            "minutes": 30,
+            "title": "Sheet Pan Gnocchi"
+          },
+          {
+            "difficulty": "easy",
+            "id": "recipe_42",
+            "minutes": 30,
+            "title": "Sheet Pan Gnocchi"
+          }
+        ],
+        "items": {
+          "$ref": "#/components/schemas/RecipeResponseSummary"
+        },
+        "type": "array"
+      },
+      "RecipeSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "selection": {
+            "discriminator": {
+              "mapping": {
+                "pair": "#/components/schemas/SelectionpairEnvelope",
+                "single": "#/components/schemas/SelectionsingleEnvelope"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SelectionpairEnvelope"
+              },
+              {
+                "$ref": "#/components/schemas/SelectionsingleEnvelope"
+              }
+            ],
+            "type": "object",
+            "unevaluatedProperties": false
+          }
+        },
+        "type": "object"
+      },
+      "SelectionpairEnvelope": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "pair"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/RecipePairSelection"
+          }
+        },
+        "required": [
+          "mode",
+          "value"
+        ],
+        "type": "object"
+      },
+      "SelectionsingleEnvelope": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "single"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/SingleRecipeSelection"
+          }
+        },
+        "required": [
+          "mode",
+          "value"
+        ],
+        "type": "object"
+      },
+      "ShareMealPlanRequestBody": {
+        "additionalProperties": false,
+        "example": {
+          "email": "friend@example.test",
+          "include_shopping_list": true,
+          "note": "Dinner plan for next week."
+        },
+        "properties": {
+          "email": {
+            "example": "friend@example.test",
+            "format": "email",
+            "type": "string"
+          },
+          "include_shopping_list": {
+            "example": true,
+            "type": "boolean"
+          },
+          "note": {
+            "example": "Dinner plan for next week.",
+            "maxLength": 280,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
+      "SingleRecipeSelection": {
+        "additionalProperties": false,
+        "example": {
+          "recipe_id": "recipe_42"
+        },
+        "properties": {
+          "recipe_id": {
+            "example": "recipe_42",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipe_id"
+        ],
+        "type": "object"
+      },
+      "WatchPlannerEventsResponseBody": {
+        "additionalProperties": false,
+        "example": {
+          "data": {
+            "meal_plan_id": "plan_12"
+          },
+          "event": "plan.updated"
+        },
+        "properties": {
+          "data": {
+            "additionalProperties": false,
+            "example": {
+              "meal_plan_id": "plan_12"
+            },
+            "properties": {
+              "meal_plan_id": {
+                "example": "plan_12",
+                "type": "string"
+              }
+            },
+            "required": [
+              "meal_plan_id"
+            ],
+            "type": "object"
+          },
+          "event": {
+            "example": "plan.updated",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "access_token_header_Authorization": {
+        "description": "Bearer token used by web and mobile clients.",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "browser_session_cookie___Host-mealplanner_session": {
+        "description": "Browser session cookie used by the meal planner web app.",
+        "in": "cookie",
+        "name": "__Host-mealplanner_session",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "contact": {
+      "email": "support@mealplanner.example.test",
+      "name": "Meal Planner Support",
+      "url": "https://mealplanner.example.test/support"
+    },
+    "description": "Plan weekly meals, manage recipes, and coordinate pantry imports.",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "termsOfService": "https://mealplanner.example.test/terms",
+    "title": "Meal Planner API",
+    "version": "2026-03-19"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/events": {
+      "get": {
+        "operationId": "meal_planner.watch_planner_events",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "meal_plan_id": "plan_12"
+                  },
+                  "event": "plan.updated"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/WatchPlannerEventsResponseBody"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "429": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "rate_limited: Too Many Requests response."
+          }
+        },
+        "security": [],
+        "summary": "watchPlannerEvents mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "meal_planner.health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "checked_at": "2026-03-19T12:00:00Z",
+                  "status": "ok"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseBody"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "429": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "rate_limited: Too Many Requests response."
+          }
+        },
+        "security": [],
+        "summary": "health mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    },
+    "/meal-plans/{week_start}": {
+      "patch": {
+        "operationId": "meal_planner.upsert_meal_plan",
+        "parameters": [
+          {
+            "example": "2026-03-16",
+            "in": "path",
+            "name": "week_start",
+            "required": true,
+            "schema": {
+              "example": "2026-03-16",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "meals": [
+                  {
+                    "day": "monday",
+                    "recipe_id": "recipe_42",
+                    "slot": "dinner"
+                  },
+                  {
+                    "day": "monday",
+                    "recipe_id": "recipe_42",
+                    "slot": "dinner"
+                  },
+                  {
+                    "day": "monday",
+                    "recipe_id": "recipe_42",
+                    "slot": "dinner"
+                  },
+                  {
+                    "day": "monday",
+                    "recipe_id": "recipe_42",
+                    "slot": "dinner"
+                  }
+                ]
+              },
+              "schema": {
+                "$ref": "#/components/schemas/MealPlanPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "meals": [
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    },
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    },
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    },
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    }
+                  ],
+                  "week_start": "2026-03-16"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "400": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "bad_request: Bad Request response."
+          },
+          "401": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized: Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "forbidden: Access is forbidden."
+          }
+        },
+        "security": [
+          {
+            "access_token_header_Authorization": []
+          },
+          {
+            "browser_session_cookie___Host-mealplanner_session": []
+          }
+        ],
+        "summary": "upsertMealPlan mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    },
+    "/meal-plans/{week_start}/share": {
+      "post": {
+        "operationId": "meal_planner.share_meal_plan",
+        "parameters": [
+          {
+            "example": "2026-03-16",
+            "in": "path",
+            "name": "week_start",
+            "required": true,
+            "schema": {
+              "example": "2026-03-16",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "example": {
+                "email": "friend@example.test",
+                "include_shopping_list": true,
+                "note": "Dinner plan for next week."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ShareMealPlanRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content response."
+          },
+          "400": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "bad_request: Bad Request response."
+          },
+          "401": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized: Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "forbidden: Access is forbidden."
+          }
+        },
+        "security": [
+          {
+            "access_token_header_Authorization": []
+          },
+          {
+            "browser_session_cookie___Host-mealplanner_session": []
+          }
+        ],
+        "summary": "shareMealPlan mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    },
+    "/pantries/{pantry_id}/imports": {
+      "post": {
+        "operationId": "meal_planner.import_pantry",
+        "parameters": [
+          {
+            "example": "pantry_12",
+            "in": "path",
+            "name": "pantry_id",
+            "required": true,
+            "schema": {
+              "example": "pantry_12",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "example": {
+                "content_type": "Iure aliquid quae vero.",
+                "file": "Quis nihil quis amet.",
+                "filename": "Ut ut dicta aliquid possimus voluptas.",
+                "label": "scan-weekly"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ImportPantryRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "accepted_items": 12,
+                  "import_id": "import_7"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PantryImportReceipt"
+                }
+              }
+            },
+            "description": "Accepted response."
+          },
+          "400": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "bad_request: Bad Request response."
+          },
+          "401": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized: Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "forbidden: Access is forbidden."
+          }
+        },
+        "security": [
+          {
+            "access_token_header_Authorization": []
+          },
+          {
+            "browser_session_cookie___Host-mealplanner_session": []
+          }
+        ],
+        "summary": "importPantry mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    },
+    "/plans/preview": {
+      "post": {
+        "operationId": "meal_planner.preview_selection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewSelectionRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content response."
+          },
+          "400": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "bad_request: Bad Request response."
+          },
+          "401": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized: Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "forbidden: Access is forbidden."
+          }
+        },
+        "security": [
+          {
+            "access_token_header_Authorization": []
+          },
+          {
+            "browser_session_cookie___Host-mealplanner_session": []
+          }
+        ],
+        "summary": "previewSelection mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    },
+    "/plans/preview-suppressed": {
+      "post": {
+        "operationId": "meal_planner.preview_selection_suppressed",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewSelectionRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content response."
+          },
+          "400": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "bad_request: Bad Request response."
+          },
+          "401": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized: Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "forbidden: Access is forbidden."
+          }
+        },
+        "security": [
+          {
+            "access_token_header_Authorization": []
+          },
+          {
+            "browser_session_cookie___Host-mealplanner_session": []
+          }
+        ],
+        "summary": "previewSelectionSuppressed mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    },
+    "/recipes": {
+      "get": {
+        "operationId": "meal_planner.list_recipes",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": "vegetarian",
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "example": "vegetarian",
+              "type": "string"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": "cursor_2",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "example": "cursor_2",
+              "type": "string"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": 20,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "example": 20,
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "difficulty": "easy",
+                    "id": "recipe_42",
+                    "minutes": 30,
+                    "title": "Sheet Pan Gnocchi"
+                  },
+                  {
+                    "difficulty": "easy",
+                    "id": "recipe_42",
+                    "minutes": 30,
+                    "title": "Sheet Pan Gnocchi"
+                  },
+                  {
+                    "difficulty": "easy",
+                    "id": "recipe_42",
+                    "minutes": 30,
+                    "title": "Sheet Pan Gnocchi"
+                  }
+                ],
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeResponseSummaryCollection"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "400": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "bad_request: Bad Request response."
+          },
+          "401": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized: Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "forbidden: Access is forbidden."
+          }
+        },
+        "security": [
+          {
+            "access_token_header_Authorization": []
+          },
+          {
+            "browser_session_cookie___Host-mealplanner_session": []
+          }
+        ],
+        "summary": "listRecipes mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    },
+    "/recipes/{recipe_id}": {
+      "get": {
+        "operationId": "meal_planner.show_recipe",
+        "parameters": [
+          {
+            "example": "recipe_42",
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "example": "recipe_42",
+              "pattern": "^recipe_[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "difficulty": "easy",
+                  "id": "recipe_42",
+                  "ingredients": [
+                    "gnocchi",
+                    "tomatoes",
+                    "spinach"
+                  ],
+                  "minutes": 30,
+                  "tags": [
+                    "weeknight",
+                    "vegetarian"
+                  ],
+                  "title": "Sheet Pan Gnocchi"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/MealplannerRecipe"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "401": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized: Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "forbidden: Access is forbidden."
+          },
+          "404": {
+            "content": {
+              "application/vnd.goa.error": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "not_found: Not Found response."
+          }
+        },
+        "security": [
+          {
+            "access_token_header_Authorization": []
+          },
+          {
+            "browser_session_cookie___Host-mealplanner_session": []
+          }
+        ],
+        "summary": "showRecipe mealPlanner",
+        "tags": [
+          "mealPlanner"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.mealplanner.example.test"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Plan meals, browse recipes, and import pantry inventory.",
+      "name": "mealPlanner"
+    }
+  ]
+}

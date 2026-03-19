@@ -18,6 +18,13 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
   empty `security: []` arrays for `NoSecurity()` operations.
 - Prune unreferenced generated component schemas so the published contract only
   contains reachable request/response shapes.
+- Suppress invalid closed-object union-wrapper examples, honor
+  `Meta("openapi:example", "false")` on wrapper fields, keep SSE response
+  statuses on normal HTTP success codes, and normalize binary request examples
+  to JSON/OpenAPI string form.
+- Keep a non-trivial specimen API under `http/codegen/testdata` and validate its
+  rendered OpenAPI with both `libopenapi` and Redocly as a closed-loop contract
+  check.
 
 ### Next
 

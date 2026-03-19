@@ -1,0 +1,893 @@
+openapi: 3.1.1
+info:
+    title: Meal Planner API
+    description: Plan weekly meals, manage recipes, and coordinate pantry imports.
+    termsOfService: https://mealplanner.example.test/terms
+    contact:
+        name: Meal Planner Support
+        url: https://mealplanner.example.test/support
+        email: support@mealplanner.example.test
+    license:
+        name: Apache-2.0
+        url: https://www.apache.org/licenses/LICENSE-2.0.html
+    version: "2026-03-19"
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: https://api.mealplanner.example.test
+paths:
+    /events:
+        get:
+            tags:
+                - mealPlanner
+            summary: watchPlannerEvents mealPlanner
+            operationId: meal_planner.watch_planner_events
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/WatchPlannerEventsResponseBody'
+                            example:
+                                data:
+                                    meal_plan_id: plan_12
+                                event: plan.updated
+                "429":
+                    description: 'rate_limited: Too Many Requests response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security: []
+    /healthz:
+        get:
+            tags:
+                - mealPlanner
+            summary: health mealPlanner
+            operationId: meal_planner.health
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/HealthResponseBody'
+                            example:
+                                checked_at: "2026-03-19T12:00:00Z"
+                                status: ok
+                "429":
+                    description: 'rate_limited: Too Many Requests response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security: []
+    /meal-plans/{week_start}:
+        patch:
+            tags:
+                - mealPlanner
+            summary: upsertMealPlan mealPlanner
+            operationId: meal_planner.upsert_meal_plan
+            parameters:
+                - name: week_start
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: "2026-03-16"
+                    format: date
+                  example: "2026-03-16"
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/MealPlanPatch'
+                        example:
+                            meals:
+                                - day: monday
+                                  recipe_id: recipe_42
+                                  slot: dinner
+                                - day: monday
+                                  recipe_id: recipe_42
+                                  slot: dinner
+                                - day: monday
+                                  recipe_id: recipe_42
+                                  slot: dinner
+                                - day: monday
+                                  recipe_id: recipe_42
+                                  slot: dinner
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MealPlan'
+                            example:
+                                meals:
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
+                                week_start: "2026-03-16"
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "401":
+                    description: 'unauthorized: Authentication is required.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "403":
+                    description: 'forbidden: Access is forbidden.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - access_token_header_Authorization: []
+                - browser_session_cookie___Host-mealplanner_session: []
+    /meal-plans/{week_start}/share:
+        post:
+            tags:
+                - mealPlanner
+            summary: shareMealPlan mealPlanner
+            operationId: meal_planner.share_meal_plan
+            parameters:
+                - name: week_start
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: "2026-03-16"
+                    format: date
+                  example: "2026-03-16"
+            requestBody:
+                required: true
+                content:
+                    application/x-www-form-urlencoded:
+                        schema:
+                            $ref: '#/components/schemas/ShareMealPlanRequestBody'
+                        example:
+                            email: friend@example.test
+                            include_shopping_list: true
+                            note: Dinner plan for next week.
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "401":
+                    description: 'unauthorized: Authentication is required.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "403":
+                    description: 'forbidden: Access is forbidden.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - access_token_header_Authorization: []
+                - browser_session_cookie___Host-mealplanner_session: []
+    /pantries/{pantry_id}/imports:
+        post:
+            tags:
+                - mealPlanner
+            summary: importPantry mealPlanner
+            operationId: meal_planner.import_pantry
+            parameters:
+                - name: pantry_id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: pantry_12
+                  example: pantry_12
+            requestBody:
+                required: true
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/ImportPantryRequestBody'
+                        example:
+                            content_type: Iure aliquid quae vero.
+                            file: Quis nihil quis amet.
+                            filename: Ut ut dicta aliquid possimus voluptas.
+                            label: scan-weekly
+            responses:
+                "202":
+                    description: Accepted response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PantryImportReceipt'
+                            example:
+                                accepted_items: 12
+                                import_id: import_7
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "401":
+                    description: 'unauthorized: Authentication is required.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "403":
+                    description: 'forbidden: Access is forbidden.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - access_token_header_Authorization: []
+                - browser_session_cookie___Host-mealplanner_session: []
+    /plans/preview:
+        post:
+            tags:
+                - mealPlanner
+            summary: previewSelection mealPlanner
+            operationId: meal_planner.preview_selection
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PreviewSelectionRequestBody'
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "401":
+                    description: 'unauthorized: Authentication is required.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "403":
+                    description: 'forbidden: Access is forbidden.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - access_token_header_Authorization: []
+                - browser_session_cookie___Host-mealplanner_session: []
+    /plans/preview-suppressed:
+        post:
+            tags:
+                - mealPlanner
+            summary: previewSelectionSuppressed mealPlanner
+            operationId: meal_planner.preview_selection_suppressed
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PreviewSelectionRequestBody'
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "401":
+                    description: 'unauthorized: Authentication is required.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "403":
+                    description: 'forbidden: Access is forbidden.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - access_token_header_Authorization: []
+                - browser_session_cookie___Host-mealplanner_session: []
+    /recipes:
+        get:
+            tags:
+                - mealPlanner
+            summary: listRecipes mealPlanner
+            operationId: meal_planner.list_recipes
+            parameters:
+                - name: tag
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    example: vegetarian
+                  example: vegetarian
+                - name: cursor
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    example: cursor_2
+                  example: cursor_2
+                - name: limit
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: integer
+                    example: 20
+                    format: int64
+                    minimum: 1
+                    maximum: 100
+                  example: 20
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/RecipeResponseSummaryCollection'
+                            example:
+                                - difficulty: easy
+                                  id: recipe_42
+                                  minutes: 30
+                                  title: Sheet Pan Gnocchi
+                                - difficulty: easy
+                                  id: recipe_42
+                                  minutes: 30
+                                  title: Sheet Pan Gnocchi
+                                - difficulty: easy
+                                  id: recipe_42
+                                  minutes: 30
+                                  title: Sheet Pan Gnocchi
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "401":
+                    description: 'unauthorized: Authentication is required.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "403":
+                    description: 'forbidden: Access is forbidden.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - access_token_header_Authorization: []
+                - browser_session_cookie___Host-mealplanner_session: []
+    /recipes/{recipe_id}:
+        get:
+            tags:
+                - mealPlanner
+            summary: showRecipe mealPlanner
+            operationId: meal_planner.show_recipe
+            parameters:
+                - name: recipe_id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: recipe_42
+                    pattern: ^recipe_[0-9]+$
+                  example: recipe_42
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MealplannerRecipe'
+                            example:
+                                difficulty: easy
+                                id: recipe_42
+                                ingredients:
+                                    - gnocchi
+                                    - tomatoes
+                                    - spinach
+                                minutes: 30
+                                tags:
+                                    - weeknight
+                                    - vegetarian
+                                title: Sheet Pan Gnocchi
+                "401":
+                    description: 'unauthorized: Authentication is required.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "403":
+                    description: 'forbidden: Access is forbidden.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'not_found: Not Found response.'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - access_token_header_Authorization: []
+                - browser_session_cookie___Host-mealplanner_session: []
+components:
+    schemas:
+        Error:
+            type: object
+            properties:
+                fault:
+                    type: boolean
+                    description: Is the error a server-side fault?
+                    example: false
+                id:
+                    type: string
+                    description: ID is a unique identifier for this particular occurrence of the problem.
+                    example: 123abc
+                message:
+                    type: string
+                    description: Message is a human-readable explanation specific to this occurrence of the problem.
+                    example: parameter 'p' must be an integer
+                name:
+                    type: string
+                    description: Name is the name of this class of errors.
+                    example: bad_request
+                temporary:
+                    type: boolean
+                    description: Is the error temporary?
+                    example: true
+                timeout:
+                    type: boolean
+                    description: Is the error a timeout?
+                    example: true
+            example:
+                fault: false
+                id: 123abc
+                message: parameter 'p' must be an integer
+                name: bad_request
+                temporary: true
+                timeout: true
+            required:
+                - name
+                - id
+                - message
+                - temporary
+                - timeout
+                - fault
+            additionalProperties: false
+        HealthResponseBody:
+            type: object
+            properties:
+                checked_at:
+                    type: string
+                    example: "2026-03-19T12:00:00Z"
+                    format: date-time
+                status:
+                    type: string
+                    example: ok
+                    enum:
+                        - ok
+            example:
+                checked_at: "2026-03-19T12:00:00Z"
+                status: ok
+            required:
+                - status
+                - checked_at
+            additionalProperties: false
+        ImportPantryRequestBody:
+            type: object
+            properties:
+                content_type:
+                    type: string
+                    example: Odit accusantium aut qui.
+                file:
+                    type: string
+                    example: Quia iste recusandae suscipit doloremque earum numquam.
+                    format: binary
+                filename:
+                    type: string
+                    example: Et dolore qui.
+                label:
+                    type: string
+                    example: scan-weekly
+                    pattern: ^scan-[a-z]+$
+            example:
+                content_type: Vel qui.
+                file: Eligendi non ut.
+                filename: Quos ut libero quaerat et est.
+                label: scan-weekly
+            required:
+                - file
+                - label
+            additionalProperties: false
+        MealPlan:
+            type: object
+            properties:
+                meals:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/MealPlanEntry'
+                    example:
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
+                week_start:
+                    type: string
+                    example: "2026-03-16"
+                    format: date
+            description: A meal plan covering one planning week.
+            example:
+                meals:
+                    - day: monday
+                      recipe_id: recipe_42
+                      slot: dinner
+                    - day: monday
+                      recipe_id: recipe_42
+                      slot: dinner
+                week_start: "2026-03-16"
+            required:
+                - week_start
+            additionalProperties: false
+        MealPlanEntry:
+            type: object
+            properties:
+                day:
+                    type: string
+                    example: monday
+                    enum:
+                        - monday
+                        - tuesday
+                        - wednesday
+                        - thursday
+                        - friday
+                        - saturday
+                        - sunday
+                recipe_id:
+                    type: string
+                    example: recipe_42
+                slot:
+                    type: string
+                    example: dinner
+                    enum:
+                        - breakfast
+                        - lunch
+                        - dinner
+            example:
+                day: monday
+                recipe_id: recipe_42
+                slot: dinner
+            required:
+                - day
+                - slot
+                - recipe_id
+            additionalProperties: false
+        MealPlanPatch:
+            type: object
+            properties:
+                meals:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/MealPlanEntry'
+                    example:
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
+            description: A partial meal plan update.
+            example:
+                meals:
+                    - day: monday
+                      recipe_id: recipe_42
+                      slot: dinner
+                    - day: monday
+                      recipe_id: recipe_42
+                      slot: dinner
+            additionalProperties: false
+        MealplannerRecipe:
+            type: object
+            properties:
+                difficulty:
+                    type: string
+                    example: easy
+                    enum:
+                        - easy
+                        - medium
+                        - hard
+                id:
+                    type: string
+                    example: recipe_42
+                ingredients:
+                    type: array
+                    items:
+                        type: string
+                        example: Non suscipit facilis.
+                    example:
+                        - gnocchi
+                        - tomatoes
+                        - spinach
+                minutes:
+                    type: integer
+                    example: 30
+                    format: int64
+                    minimum: 5
+                tags:
+                    type: array
+                    items:
+                        type: string
+                        example: Nam in iure dolore mollitia in.
+                    example:
+                        - weeknight
+                        - vegetarian
+                title:
+                    type: string
+                    example: Sheet Pan Gnocchi
+            description: A saved recipe with planning metadata.
+            example:
+                difficulty: easy
+                id: recipe_42
+                ingredients:
+                    - gnocchi
+                    - tomatoes
+                    - spinach
+                minutes: 30
+                tags:
+                    - weeknight
+                    - vegetarian
+                title: Sheet Pan Gnocchi
+            required:
+                - id
+                - title
+                - minutes
+                - difficulty
+            additionalProperties: false
+        PantryImportReceipt:
+            type: object
+            properties:
+                accepted_items:
+                    type: integer
+                    example: 12
+                    format: int64
+                import_id:
+                    type: string
+                    example: import_7
+            example:
+                accepted_items: 12
+                import_id: import_7
+            required:
+                - import_id
+                - accepted_items
+            additionalProperties: false
+        PreviewSelectionRequestBody:
+            type: object
+            properties:
+                selection:
+                    $ref: '#/components/schemas/RecipeSelection'
+            required:
+                - selection
+            additionalProperties: false
+        RecipePairSelection:
+            type: object
+            properties:
+                backup_recipe_id:
+                    type: string
+                    example: recipe_84
+                primary_recipe_id:
+                    type: string
+                    example: recipe_42
+            example:
+                backup_recipe_id: recipe_84
+                primary_recipe_id: recipe_42
+            required:
+                - primary_recipe_id
+                - backup_recipe_id
+            additionalProperties: false
+        RecipeResponseSummary:
+            type: object
+            properties:
+                difficulty:
+                    type: string
+                    example: easy
+                    enum:
+                        - easy
+                        - medium
+                        - hard
+                id:
+                    type: string
+                    example: recipe_42
+                minutes:
+                    type: integer
+                    example: 30
+                    format: int64
+                    minimum: 5
+                title:
+                    type: string
+                    example: Sheet Pan Gnocchi
+            description: A saved recipe with planning metadata. (summary view)
+            example:
+                difficulty: easy
+                id: recipe_42
+                minutes: 30
+                title: Sheet Pan Gnocchi
+            required:
+                - id
+                - title
+                - minutes
+                - difficulty
+            additionalProperties: false
+        RecipeResponseSummaryCollection:
+            type: array
+            items:
+                $ref: '#/components/schemas/RecipeResponseSummary'
+            description: ListRecipesResponseBody is the result type for an array of RecipeResponse (summary view)
+            example:
+                - difficulty: easy
+                  id: recipe_42
+                  minutes: 30
+                  title: Sheet Pan Gnocchi
+                - difficulty: easy
+                  id: recipe_42
+                  minutes: 30
+                  title: Sheet Pan Gnocchi
+                - difficulty: easy
+                  id: recipe_42
+                  minutes: 30
+                  title: Sheet Pan Gnocchi
+                - difficulty: easy
+                  id: recipe_42
+                  minutes: 30
+                  title: Sheet Pan Gnocchi
+        RecipeSelection:
+            type: object
+            properties:
+                selection:
+                    type: object
+                    unevaluatedProperties: false
+                    oneOf:
+                        - $ref: '#/components/schemas/SelectionpairEnvelope'
+                        - $ref: '#/components/schemas/SelectionsingleEnvelope'
+                    discriminator:
+                        propertyName: mode
+                        mapping:
+                            pair: '#/components/schemas/SelectionpairEnvelope'
+                            single: '#/components/schemas/SelectionsingleEnvelope'
+            additionalProperties: false
+        SelectionpairEnvelope:
+            type: object
+            properties:
+                mode:
+                    type: string
+                    enum:
+                        - pair
+                value:
+                    $ref: '#/components/schemas/RecipePairSelection'
+            required:
+                - mode
+                - value
+        SelectionsingleEnvelope:
+            type: object
+            properties:
+                mode:
+                    type: string
+                    enum:
+                        - single
+                value:
+                    $ref: '#/components/schemas/SingleRecipeSelection'
+            required:
+                - mode
+                - value
+        ShareMealPlanRequestBody:
+            type: object
+            properties:
+                email:
+                    type: string
+                    example: friend@example.test
+                    format: email
+                include_shopping_list:
+                    type: boolean
+                    example: true
+                note:
+                    type: string
+                    example: Dinner plan for next week.
+                    maxLength: 280
+            example:
+                email: friend@example.test
+                include_shopping_list: true
+                note: Dinner plan for next week.
+            required:
+                - email
+            additionalProperties: false
+        SingleRecipeSelection:
+            type: object
+            properties:
+                recipe_id:
+                    type: string
+                    example: recipe_42
+            example:
+                recipe_id: recipe_42
+            required:
+                - recipe_id
+            additionalProperties: false
+        WatchPlannerEventsResponseBody:
+            type: object
+            properties:
+                data:
+                    type: object
+                    properties:
+                        meal_plan_id:
+                            type: string
+                            example: plan_12
+                    example:
+                        meal_plan_id: plan_12
+                    required:
+                        - meal_plan_id
+                    additionalProperties: false
+                event:
+                    type: string
+                    example: plan.updated
+            example:
+                data:
+                    meal_plan_id: plan_12
+                event: plan.updated
+            required:
+                - event
+                - data
+            additionalProperties: false
+    securitySchemes:
+        access_token_header_Authorization:
+            type: http
+            description: Bearer token used by web and mobile clients.
+            scheme: bearer
+        browser_session_cookie___Host-mealplanner_session:
+            type: apiKey
+            description: Browser session cookie used by the meal planner web app.
+            name: __Host-mealplanner_session
+            in: cookie
+tags:
+    - name: mealPlanner
+      description: Plan meals, browse recipes, and import pantry inventory.

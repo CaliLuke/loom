@@ -25,16 +25,19 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.
 - OpenAPI now prunes unreferenced generated component schemas instead of publishing every top-level type and result type.
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
+- OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, and normalizes binary request examples to string form.
 - Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
 - First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads, including flat OAuth-style object-union fields.
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
 - Multipart object request decoding without handwritten decoder hooks, including shared validation flow when multipart bodies are combined with generated request-element decoding.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
 - JSON-RPC SSE server generation now emits MCP-compatible `message` events for streamed payload delivery, and generated SSE clients accept both `message`/default frames and the legacy custom event names.
+- CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
 - Per-cookie response model and improved `Set-Cookie` OpenAPI output.
 - Stable OpenAPI schema naming and canonical `operationId` generation.
+- `http/codegen/openapi/v3` now carries a non-trivial `meal-planner` specimen that closes the loop with rendered-spec assertions plus Redocly lint for auth, forms, multipart, union wrappers, views, and SSE.
 - Major generic helper moves out of `goa-ai/shared` into `goa-light`.
 
 ### In Progress

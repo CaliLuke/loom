@@ -288,7 +288,11 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 
 	// Default value, example, extensions
 	s.DefaultValue = toStringMap(attr.DefaultValue)
-	s.Example = expr.CanonicalizeExample(attr, attr.Example(sf.rand))
+	if !shouldSuppressOpenAPIExamples(attr, sf.closeObjects) {
+		if example, ok := openAPIExampleValue(attr, attr.Example(sf.rand)); ok {
+			s.Example = example
+		}
+	}
 	s.Extensions = openapi.ExtensionsFromExpr(attr.Meta)
 
 	// Validations

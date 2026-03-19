@@ -43,6 +43,7 @@ func TestFiles(t *testing.T) {
 		{"path-with-multiple-explicit-wildcards", testdata.PathWithMultipleExplicitWildcardDSL},
 		{"headers", testdata.HeadersDSL},
 		{"with-tags", testdata.WithTagsDSL},
+		{"meal-planner", testdata.MealPlannerDSL},
 		{"typename", testdata.TypenameDSL},
 		{"schema-dedup", testdata.OpenAPISchemaDedupDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},
