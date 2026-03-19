@@ -45,16 +45,6 @@ func (s *SSEAllFieldsMethodServerStream) SendWithContext(ctx context.Context, v 
 	s.initHeaders()
 	res := v
 
-	if id := res.ID; id != "" {
-		fmt.Fprintf(s.w, "id: %s\n", id)
-	}
-	if event := res.Event; event != "" {
-		fmt.Fprintf(s.w, "event: %s\n", event)
-	}
-	if retry := res.Retry; retry > 0 {
-		fmt.Fprintf(s.w, "retry: %d\n", retry)
-	}
-
 	var data string
 	var payload any
 	body := NewSSEAllFieldsMethodResponseBody(res)
@@ -103,7 +93,22 @@ func (s *SSEAllFieldsMethodServerStream) SendWithContext(ctx context.Context, v 
 		}
 		data = string(byts)
 	}
-	fmt.Fprintf(s.w, "data: %s\n\n", data)
+
+	msg := goahttp.SSEMessage{Data: data}
+
+	if id := res.ID; id != "" {
+		msg.ID = id
+	}
+	if event := res.Event; event != "" {
+		msg.Type = event
+	}
+	if retry := res.Retry; retry > 0 {
+		msg.RetryMillis = int64(retry)
+	}
+
+	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+		return err
+	}
 
 	return http.NewResponseController(s.w).Flush()
 }

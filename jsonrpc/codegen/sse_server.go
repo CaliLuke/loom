@@ -69,9 +69,7 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	title := fmt.Sprintf("%s SSE server streaming", svc.Name())
 	imports := make([]*codegen.ImportSpec, 0, 11+len(data.Service.UserTypeImports))
 	imports = append(imports,
-		&codegen.ImportSpec{Path: "bytes"},
 		&codegen.ImportSpec{Path: "context"},
-		&codegen.ImportSpec{Path: "encoding/json"},
 		&codegen.ImportSpec{Path: "errors"},
 		&codegen.ImportSpec{Path: "fmt"},
 		&codegen.ImportSpec{Path: "net/http"},

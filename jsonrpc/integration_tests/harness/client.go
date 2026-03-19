@@ -1,7 +1,6 @@
 package harness
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -13,6 +12,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	goahttp "goa.design/goa/v3/http"
 )
 
 // JSONRPCRequest represents a JSON-RPC 2.0 request
@@ -305,52 +306,18 @@ func (c *Client) OpenSSE(ctx context.Context, req JSONRPCRequest) (*http.Respons
 
 // parseSSEEvents parses Server-Sent Events from a reader.
 func (c *Client) parseSSEEvents(r io.Reader) ([]SSEEvent, error) {
-	var events []SSEEvent
-	scanner := bufio.NewScanner(r)
-
-	var eventData strings.Builder
-	var eventType string
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if line == "" {
-			// Empty line signals end of event
-			if eventData.Len() > 0 {
-				events = append(events, SSEEvent{
-					Type: eventType,
-					Data: json.RawMessage(eventData.String()),
-				})
-				eventData.Reset()
-				eventType = ""
-			}
-			continue
-		}
-
-		if strings.HasPrefix(line, "event: ") {
-			eventType = strings.TrimPrefix(line, "event: ")
-			continue
-		}
-
-		if strings.HasPrefix(line, "data: ") {
-			data := strings.TrimPrefix(line, "data: ")
-			if eventData.Len() > 0 {
-				eventData.WriteString("\n")
-			}
-			eventData.WriteString(data)
-		}
-		// Ignore other SSE fields like event:, id:, retry:
+	parsed, err := goahttp.ParseSSEStream(r)
+	if err != nil {
+		return nil, err
 	}
-
-	// Handle last event if no trailing empty line
-	if eventData.Len() > 0 {
+	events := make([]SSEEvent, 0, len(parsed))
+	for _, event := range parsed {
 		events = append(events, SSEEvent{
-			Type: eventType,
-			Data: json.RawMessage(eventData.String()),
+			Type: event.Type,
+			Data: json.RawMessage(event.Data),
 		})
 	}
-
-	return events, scanner.Err()
+	return events, nil
 }
 
 // ConnectWebSocket establishes a WebSocket connection

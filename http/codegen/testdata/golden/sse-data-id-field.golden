@@ -45,10 +45,6 @@ func (s *SSEDataIDFieldMethodServerStream) SendWithContext(ctx context.Context, 
 	s.initHeaders()
 	res := v
 
-	if id := res.ID; id != "" {
-		fmt.Fprintf(s.w, "id: %s\n", id)
-	}
-
 	var data string
 	var payload any
 	body := NewSSEDataIDFieldMethodResponseBody(res)
@@ -97,7 +93,16 @@ func (s *SSEDataIDFieldMethodServerStream) SendWithContext(ctx context.Context, 
 		}
 		data = string(byts)
 	}
-	fmt.Fprintf(s.w, "data: %s\n\n", data)
+
+	msg := goahttp.SSEMessage{Data: data}
+
+	if id := res.ID; id != "" {
+		msg.ID = id
+	}
+
+	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+		return err
+	}
 
 	return http.NewResponseController(s.w).Flush()
 }

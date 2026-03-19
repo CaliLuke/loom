@@ -182,70 +182,36 @@ func (s *{{ .Method.VarName }}StreamImpl) Close() error {
 
 // processEvent processes a raw SSE event into the expected type
 func (s *{{ .Method.VarName }}StreamImpl) processEvent(eventData []byte) (event {{ .SSE.EventTypeRef }}, err error) {
+        parsed, err := goahttp.ParseSSEEvent(eventData)
+        if err != nil {
+                return event, err
+        }
         {{- if .SSE.EventIsStruct }}
         event = new({{ deref .SSE.EventTypeRef }})
         {{- end }}
-        var dataLines []string
-        for _, line := range bytes.Split(eventData, []byte("\n")) {
-                if len(line) == 0 {
-                        continue
-                }
-                if bytes.HasPrefix(line, []byte("data:")) {
-                        dataLines = append(dataLines, s.trimHeader(len("data:"), line))
-                        continue
-                }
-                {{- if .SSE.IDField }}
-                if bytes.HasPrefix(line, []byte("id:")) {
-                        event.{{ .SSE.IDField }} = s.trimHeader(len("id:"), line)
-                        continue
-                }
-                {{- end }}
-                {{- if .SSE.EventField }}
-                if bytes.HasPrefix(line, []byte("event:")) {
-                        event.{{ .SSE.EventField }} = s.trimHeader(len("event:"), line)
-                        continue
-                }
-                {{- end }}
-                {{- if .SSE.RetryField }}
-                if bytes.HasPrefix(line, []byte("retry:")) {
-                        // Note: retry value parsing depends on the field type; client currently expects integer-like types.
-                        // We deliberately leave conversion to a future enhancement that includes the field type reference.
-                        // For now this branch is kept for completeness; services using RetryField should be handled server-side.
-                        continue
-                }
-                {{- end }}
+        {{- if .SSE.IDField }}
+        event.{{ .SSE.IDField }} = parsed.ID
+        {{- end }}
+        {{- if .SSE.EventField }}
+        event.{{ .SSE.EventField }} = parsed.Type
+        {{- end }}
+        dataContent := parsed.Data
+        {{- if .SSE.DataField }}
+        {{ template "partial_sse_parse" dict "Target" (printf "event.%s" .SSE.DataField) "TypeRef" .SSE.DataFieldTypeRef }}
+        {{- else }}
+        {{- if .SSE.EventIsStruct }}
+        // Decode JSON into the struct pointer directly
+        respBody := &http.Response{
+                StatusCode: http.StatusOK,
+                Body:       io.NopCloser(bytes.NewReader([]byte(dataContent))),
         }
-        if len(dataLines) > 0 {
-                dataContent := strings.Join(dataLines, "\n")
-                {{- if .SSE.DataField }}
-                {{ template "partial_sse_parse" dict "Target" (printf "event.%s" .SSE.DataField) "TypeRef" .SSE.DataFieldTypeRef }}
-                {{- else }}
-                {{- if .SSE.EventIsStruct }}
-                // Decode JSON into the struct pointer directly
-                respBody := &http.Response{
-                        StatusCode: http.StatusOK,
-                        Body:       io.NopCloser(bytes.NewReader([]byte(dataContent))),
-                }
-                err = s.decoder(respBody).Decode(event)
-                if err != nil {
-                        return
-                }
-                {{- else }}
-                {{ template "partial_sse_parse" dict "Target" "event" "TypeRef" .SSE.EventTypeRef }}
-                {{- end }}
-                {{- end }}
+        err = s.decoder(respBody).Decode(event)
+        if err != nil {
+                return
         }
+        {{- else }}
+        {{ template "partial_sse_parse" dict "Target" "event" "TypeRef" .SSE.EventTypeRef }}
+        {{- end }}
+        {{- end }}
         return
-}
-
-// trimHeader removes the header prefix and optional leading space
-func (s *{{ .Method.VarName }}StreamImpl) trimHeader(size int, data []byte) string {
-        if len(data) < size {
-                return string(data)
-        }
-        data = data[size:]
-        if len(data) > 0 && data[0] == ' ' {
-                data = data[1:]
-        }
-        return string(data)
 }

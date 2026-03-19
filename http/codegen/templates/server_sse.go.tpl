@@ -48,24 +48,6 @@ func (s *{{ .SSE.StructName }}) {{ .SSE.SendWithContextName }}(ctx context.Conte
 	res := v
 	{{- end }}
 
-	{{ if .SSE.IDField }}
-	if id := res.{{ .SSE.IDField }}; id != "" {
-		fmt.Fprintf(s.w, "id: %s\n", id)
-	}
-	{{- end }}
-
-	{{- if .SSE.EventField }}
-	if event := res.{{ .SSE.EventField }}; event != "" {
-		fmt.Fprintf(s.w, "event: %s\n", event)
-	}
-	{{- end }}
-
-	{{- if .SSE.RetryField }}
-	if retry := res.{{ .SSE.RetryField }}; retry > 0 {
-		fmt.Fprintf(s.w, "retry: %d\n", retry)
-	}
-	{{- end }}
-
 	var data string
 	var payload any
 	{{- if .SSE.HasResponseBody }}
@@ -126,7 +108,29 @@ func (s *{{ .SSE.StructName }}) {{ .SSE.SendWithContextName }}(ctx context.Conte
 		}
 		data = string(byts)
 	}
-	fmt.Fprintf(s.w, "data: %s\n\n", data)
+
+	msg := goahttp.SSEMessage{Data: data}
+	{{ if .SSE.IDField }}
+	if id := res.{{ .SSE.IDField }}; id != "" {
+		msg.ID = id
+	}
+	{{- end }}
+
+	{{- if .SSE.EventField }}
+	if event := res.{{ .SSE.EventField }}; event != "" {
+		msg.Type = event
+	}
+	{{- end }}
+
+	{{- if .SSE.RetryField }}
+	if retry := res.{{ .SSE.RetryField }}; retry > 0 {
+		msg.RetryMillis = int64(retry)
+	}
+	{{- end }}
+
+	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+		return err
+	}
 
 	return http.NewResponseController(s.w).Flush()
 }

@@ -16,33 +16,6 @@ type {{ .SSE.StructName }} struct {
 	mu sync.Mutex
 }
 
-{{ comment "sseEventWriter wraps http.ResponseWriter to format output as SSE events." }}
-type {{ lowerInitial .SSE.StructName }}EventWriter struct {
-	w         http.ResponseWriter
-	eventType string
-	started   bool
-}
-
-func (s *{{ lowerInitial .SSE.StructName }}EventWriter) Header() http.Header { return s.w.Header() }
-func (s *{{ lowerInitial .SSE.StructName }}EventWriter) WriteHeader(statusCode int) { s.w.WriteHeader(statusCode) }
-func (s *{{ lowerInitial .SSE.StructName }}EventWriter) Write(data []byte) (int, error) {
-	if !s.started {
-		s.started = true
-		if s.eventType != "" {
-			fmt.Fprintf(s.w, "event: %s\n", s.eventType)
-		}
-		s.w.Write([]byte("data: "))
-	}
-	return s.w.Write(data)
-}
-
-func (s *{{ lowerInitial .SSE.StructName }}EventWriter) finish() {
-	if s.started {
-		s.w.Write([]byte("\n\n"))
-		http.NewResponseController(s.w).Flush()
-	}
-}
-
 {{ comment "initSSEHeaders initializes the SSE response headers." }}
 func (s *{{ .SSE.StructName }}) initSSEHeaders() {
 	s.once.Do(func() {
@@ -193,19 +166,11 @@ func (s *{{ .SSE.StructName }}) sendError(ctx context.Context, id any, code json
 	return s.sendSSEEvent("error", response)
 }
 
-{{ comment "sendSSEEvent sends a single SSE event by creating an encoder that writes to the event writer" }}
+{{ comment "sendSSEEvent sends a single SSE event." }}
 func (s *{{ .SSE.StructName }}) sendSSEEvent(eventType string, v any) error {
-	{{ comment "Ensure headers are sent once" }}
 	s.initSSEHeaders()
-
-	// Create SSE event writer that wraps the response writer
-	ew := &{{ lowerInitial .SSE.StructName }}EventWriter{w: s.w, eventType: eventType}
-
-	// Create encoder with the event writer and encode the value
-	err := s.encoder(context.Background(), ew).Encode(v)
-
-	// Finish the SSE event (adds newlines and flushes)
-	ew.finish()
-
-	return err
+	if err := goahttp.WriteJSONSSEEvent(s.w, goahttp.SSEMessage{Type: eventType}, v); err != nil {
+		return err
+	}
+	return http.NewResponseController(s.w).Flush()
 }

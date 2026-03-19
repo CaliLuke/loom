@@ -12,33 +12,6 @@ type {{ lowerInitial .Service.StructName }}SSEStream struct {
 	decoder func(*http.Request) goahttp.Decoder
 }
 
-{{ comment "sseEventWriter wraps http.ResponseWriter to format output as SSE events." }}
-type sseEventWriter struct {
-	w         http.ResponseWriter
-	eventType string
-	started   bool
-}
-
-func (s *sseEventWriter) Header() http.Header { return s.w.Header() }
-func (s *sseEventWriter) WriteHeader(statusCode int) { s.w.WriteHeader(statusCode) }
-func (s *sseEventWriter) Write(data []byte) (int, error) {
-	if !s.started {
-		s.started = true
-		if s.eventType != "" {
-			fmt.Fprintf(s.w, "event: %s\n", s.eventType)
-		}
-		s.w.Write([]byte("data: "))
-	}
-	return s.w.Write(data)
-}
-
-func (s *sseEventWriter) finish() {
-	if s.started {
-		s.w.Write([]byte("\n\n"))
-		http.NewResponseController(s.w).Flush()
-	}
-}
-
 // initSSEHeaders initializes the SSE response headers
 func (s *{{ lowerInitial .Service.StructName }}SSEStream) initSSEHeaders() {
 	s.once.Do(func() {
@@ -57,20 +30,13 @@ func (s *{{ lowerInitial .Service.StructName }}SSEStream) open() error {
 	return http.NewResponseController(s.w).Flush()
 }
 
-// sendSSEEvent sends a single SSE event by creating an encoder that writes to the event writer
+// sendSSEEvent sends a single SSE event.
 func (s *{{ lowerInitial .Service.StructName }}SSEStream) sendSSEEvent(eventType string, v any) error {
 	s.initSSEHeaders()
-
-	// Create SSE event writer that wraps the response writer
-	ew := &sseEventWriter{w: s.w, eventType: eventType}
-
-	// Create encoder with the event writer and encode the value
-	err := s.encoder(context.Background(), ew).Encode(v)
-
-	// Finish the SSE event (adds newlines and flushes)
-	ew.finish()
-
-	return err
+	if err := goahttp.WriteJSONSSEEvent(s.w, goahttp.SSEMessage{Type: eventType}, v); err != nil {
+		return err
+	}
+	return http.NewResponseController(s.w).Flush()
 }
 
 // sendError sends a JSON-RPC error response to the SSE stream

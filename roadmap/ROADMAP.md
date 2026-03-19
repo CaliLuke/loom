@@ -37,6 +37,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - JSON-RPC SSE server streams now commit and flush `200 OK` plus `Content-Type: text/event-stream` as soon as the stream is accepted, before the first application event is emitted, so clients can observe stream establishment without server-side synchronization tricks.
 - JSON-RPC integration tests now include a persistent generated `ticktock` SSE fixture plus an external-client interoperability check using `github.com/tmaxmax/go-sse`, so generated streams are verified against a real third-party client as well as the in-repo harness.
 - HTTP SSE server streams now commit and flush `200 OK` plus `Content-Type: text/event-stream` before the first application event, and `http/integration_tests` carries a persistent generated `ticktock` fixture verified with `github.com/tmaxmax/go-sse`.
+- SSE wire parsing and formatting now flow through shared helpers in `goa.design/goa/v3/http` backed by `github.com/tmaxmax/go-sse`, replacing duplicated hand-rolled frame logic across generated HTTP clients, generated JSON-RPC streams, and the local JSON-RPC SSE harness.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).

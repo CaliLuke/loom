@@ -90,7 +90,12 @@ func (s *SSEBoolMethodServerStream) SendWithContext(ctx context.Context, v bool)
 		}
 		data = string(byts)
 	}
-	fmt.Fprintf(s.w, "data: %s\n\n", data)
+
+	msg := goahttp.SSEMessage{Data: data}
+
+	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+		return err
+	}
 
 	return http.NewResponseController(s.w).Flush()
 }

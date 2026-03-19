@@ -37,12 +37,10 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 			[]*codegen.ImportSpec{
 				{Path: "bytes"},
 				{Path: "context"},
-				{Path: "encoding/json"},
 				{Path: "errors"},
 				{Path: "io"},
 				{Path: "net/http"},
 				{Path: "fmt"},
-				{Path: "strings"},
 				{Path: "strconv"},
 				{Path: "sync"},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},

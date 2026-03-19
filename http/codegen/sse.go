@@ -190,6 +190,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "time"},
 				{Path: "encoding/json"},
 				{Path: "fmt"},
+				{Path: "goa.design/goa/v3/http", Name: "goahttp"},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
 			},
