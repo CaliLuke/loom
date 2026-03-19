@@ -3,7 +3,7 @@ description: Build and maintain `goa-light` services in Go. Use this skill when 
 ---
 # Goa Light
 
-Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
+Use this skill when building or changing a service that uses `goa-light`. It is for framework users: service designers and implementers working from a Goa DSL and generated code.
 
 ## Non-Negotiables
 
@@ -66,20 +66,14 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
   - `SafeMessage(message)`
   - `RetryHint(hint)`
 - JSON-RPC is a first-class transport in this repo. Do not assume HTTP or gRPC semantics automatically carry over.
-- JSON-RPC SSE event names are part of the transport contract: streamed notifications use `message`, final success envelopes use `response`, and JSON-RPC error envelopes also ride the normal `message` channel. The local JSON-RPC integration harness must preserve and validate those event types instead of dropping `event:` metadata.
+- JSON-RPC SSE event names are part of the transport contract: streamed notifications use `message`, final success envelopes use `response`, and JSON-RPC error envelopes also ride the normal `message` channel.
 - JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. The narrow exception is the raw streamable-HTTP `GET /rpc` listener for the `events/stream` method, which must eagerly establish the SSE response so clients can observe readiness before the first domain event.
-- HTTP SSE streams also defer committing `text/event-stream` until the first application event is written. Treat that as transport contract, and keep the persistent [`http/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/http/integration_tests/fixtures/ticktock) specimen green when changing HTTP SSE generation.
-- Shared SSE wire handling now lives in [`http/sse.go`](/Users/luca/code/goa-light/http/sse.go) and is backed by `github.com/tmaxmax/go-sse`. When changing SSE parsing or frame formatting, update that runtime helper first instead of copying ad hoc logic into multiple templates or harnesses.
+- HTTP SSE streams also defer committing `text/event-stream` until the first application event is written.
 
 ## Practical Checks
 
 - If a design hand-models bearer-or-cookie auth, duplicated auth responses, or raw `Set-Cookie` headers, check whether the newer session and cookie DSL should replace that glue first.
 - If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
-- When hardening OpenAPI output, prefer a non-trivial specimen DSL plus rendered-spec assertions and external linting over isolated schema snapshots only.
-- For temp-module generation loops, pin the pushed GitHub commit of `goa.design/goa/v3` instead of replacing against an uncommitted local checkout. Local working-tree replaces are fine for in-repo package tests, but not for CI-reproducible external generation.
-- For the repo-local JSON-RPC integration loop, use `make goa-local` while iterating on unpushed changes and `make goa-remote` when you need pinned-remote parity. `GOA_REPO=/absolute/path` still overrides both for one-off runs.
-- For objective JSON-RPC SSE interoperability checks, use the persistent [`jsonrpc/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/jsonrpc/integration_tests/fixtures/ticktock) fixture and the external-client test built on `github.com/tmaxmax/go-sse`, not just the in-repo harness parser.
-- For objective HTTP SSE interoperability checks, use the persistent [`http/integration_tests/fixtures/ticktock`](/Users/luca/code/goa-light/http/integration_tests/fixtures/ticktock) fixture and the external-client test under [`http/integration_tests/tests`](/Users/luca/code/goa-light/http/integration_tests/tests), not just codegen string assertions.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
 
