@@ -28,6 +28,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
 - Multipart object request decoding without handwritten decoder hooks.
 - Request-body validator parity and transform helper parity needed by `auto-k-server`.
+- JSON-RPC SSE server generation now emits MCP-compatible `message` events for streamed payload delivery, and generated SSE clients accept both `message`/default frames and the legacy custom event names.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
 - Per-cookie response model and improved `Set-Cookie` OpenAPI output.
@@ -53,6 +54,48 @@ These items are prioritized based on two goals:
 
 1. Generated projection parity tests and guardrails
    See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
+
+2. Refactor follow-up test backlog
+   The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.
+   Started 2026-03-18:
+   Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, and multipart decoder/encoder gating.
+
+   `expr/http_endpoint.go`
+   - Add prepare tests for implicit default success responses: redirect status and no-content status.
+   - Add prepare tests for SSE inheritance from service and API scopes.
+   - Add prepare tests for inherited HTTP errors from service and API scopes.
+   - Add prepare test for WebSocket route method coercion to `GET`.
+   - Add validation tests for all-tagged responses rejection and tagged responses requiring object results.
+   - Add validation tests for SSE on non-streaming endpoints and JSON-RPC result/request `id` consistency.
+   - Add validation tests for redirect plus mismatched response status, map/array payload skip-request-body cases, and JSON-RPC payload migration in `Finalize`.
+   - Add finalize test for implicit session cookie mapping.
+
+   `http/codegen/service_data.go`
+   - Add direct tests for file-server path normalization and directory wildcard extraction.
+   - Add direct tests for request encoder emission and omission.
+   - Add request-init tests for aliased path params using service type refs.
+   - Add request-shape tests for whole-payload and named-field `MapParams(...)`.
+   - Add request validation-flag tests covering cookies, headers, query params, path params, and optional-body origin handling.
+   - Add payload decoder return-value precedence tests for params, headers, cookies, and whole-payload map query.
+   - Add JSON-RPC payload/result `id` projection tests.
+   - Add response-body generation tests for explicit origin attributes, explicit views, and per-view fanout.
+   - Add response ordering test that keeps the tagless response last.
+   - Add result-init and error-init arg assembly tests for body, header, and cookie constructor args.
+   - Add error content-type suppression test for `expr.ErrorResultIdentifier`.
+   - Add error body description rewrite tests.
+   - Add multipart gating tests for decoder generation, encoder generation, and `BuildStreamPayload`.
+   - Add direct union collection tests across request body, streaming body, responses, and errors.
+
+   `codegen/service/service_data.go`
+   - Add direct tests for remediation metadata on collected service errors.
+   - Add tests for raw-object payload/result wrapping into synthetic user types.
+   - Add tests for viewed-result deduplication by view and separation across different views.
+   - Add direct union collection coverage across payload, streaming payload, result, and errors.
+   - Add forced-type generation tests with and without service filters.
+
+   Lower-priority integration/golden follow-up
+   - Add representative golden coverage for viewed results, explicit response tags, explicit body origin attributes, multipart, skip request body encode/decode, skip response body encode/decode, and JSON-RPC mixed results.
+   - Add one complex end-to-end generator test that combines params, headers, cookies, tagged responses, and typed error responses.
 
 ## Roadmap Index
 

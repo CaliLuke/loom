@@ -56,8 +56,38 @@ func TestJSONRPCSSE(t *testing.T) {
 
 			// Compare with golden file
 			code := codegen.SectionCode(t, streamSection)
+			require.NotContains(t, code, `sendSSEEvent("notification",`)
+			require.NotContains(t, code, `sendSSEEvent("response",`)
+			require.NotContains(t, code, `sendSSEEvent("error",`)
+			require.Contains(t, code, `sendSSEEvent("message",`)
 			golden := filepath.Join("testdata", "golden", "jsonrpc-sse-"+c.Name+".golden")
 			testutil.CompareOrUpdateGolden(t, code, golden)
+
+			// Find the client stream file/section and verify it accepts MCP-compatible
+			// default or "message" SSE events while remaining backward compatible.
+			var clientStreamFile *codegen.File
+			for _, f := range fs {
+				if filepath.Base(f.Path) == "stream.go" && filepath.Base(filepath.Dir(f.Path)) == "client" {
+					clientStreamFile = f
+					break
+				}
+			}
+			require.NotNil(t, clientStreamFile, "client stream file not found")
+
+			var clientSection *codegen.SectionTemplate
+			for _, s := range clientStreamFile.SectionTemplates {
+				if s.Name == "jsonrpc-sse-client-stream" {
+					clientSection = s
+					break
+				}
+			}
+			require.NotNil(t, clientSection, "jsonrpc-sse-client-stream section not found")
+
+			clientCode := codegen.SectionCode(t, clientSection)
+			require.Contains(t, clientCode, `case "", "message":`)
+			require.Contains(t, clientCode, `case "notification":`)
+			require.Contains(t, clientCode, `case "response":`)
+			require.Contains(t, clientCode, `case "error":`)
 		})
 	}
 }

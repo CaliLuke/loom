@@ -782,95 +782,9 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 	seenErrors := make(map[string]struct{})
 	seenProj := make(map[string]*ProjectedTypeData)
 	seenViewed := make(map[string]*ViewedResultTypeData)
-
-	// A function to collect user types from an error expression
-	recordError := func(er *expr.ErrorExpr) {
-		collected := collectTypes(er.AttributeExpr, scope, seen, nil)
-		errTypes = append(errTypes, collected...)
-		if ut, ok := er.Type.(expr.UserType); ok {
-			for _, t := range collected {
-				if t.Type.ID() != ut.ID() {
-					continue
-				}
-				t.RemedyCode = errorRemedyCode(er)
-				t.SafeMessage = errorSafeMessage(er)
-				t.RetryHint = errorRetryHint(er)
-				break
-			}
-		}
-		if er.Type == expr.ErrorResult {
-			if _, ok := seenErrors[er.Name]; ok {
-				return
-			}
-			seenErrors[er.Name] = struct{}{}
-			errorInits = append(errorInits, buildErrorInitData(er, scope))
-		}
-	}
-	for _, er := range service.Errors {
-		recordError(er)
-	}
-
-	// A function to collect inner user types from an attribute expression
-	collectUserTypes := func(att *expr.AttributeExpr) {
-		if att == nil {
-			return
-		}
-		var loc *codegen.Location
-		if ut, ok := att.Type.(expr.UserType); ok {
-			loc = codegen.UserTypeLocation(ut)
-			att = ut.Attribute()
-		}
-		types = append(types, collectTypes(att, scope, seen, loc)...)
-	}
-	for _, m := range service.Methods {
-		// collect inner user types
-		collectUserTypes(m.Payload)
-		collectUserTypes(m.StreamingPayload)
-		collectUserTypes(m.Result)
-		// Collect streaming result types if different from Result
-		if m.HasMixedResults() {
-			collectUserTypes(m.StreamingResult)
-		}
-		// Collect projected types
-		if hasResultType(m.Result) {
-			ptypes := collectProjectedTypes(expr.DupAtt(m.Result), m.Result, viewspkg, scope, viewScope, seenProj)
-			projTypes = append(projTypes, ptypes...)
-		}
-		for _, er := range m.Errors {
-			recordError(er)
-		}
-	}
-
-	// A function to convert raw object type to user type.
-	wrapObject := func(att *expr.AttributeExpr, name, id string) {
-		if att == nil {
-			return
-		}
-		if _, ok := att.Type.(*expr.Object); ok {
-			att.Type = &expr.UserTypeExpr{
-				AttributeExpr: expr.DupAtt(att),
-				TypeName:      scope.PeekUnique(name),
-				UID:           id,
-			}
-		}
-		if ut, ok := att.Type.(expr.UserType); ok {
-			seen[ut.ID()] = struct{}{}
-		}
-	}
-
-	for _, m := range service.Methods {
-		name := codegen.Goify(m.Name, true)
-		// Create user type for raw object payloads
-		wrapObject(m.Payload, name+"Payload", service.Name+"#"+name+"Payload")
-		// Create user type for raw object streaming payloads
-		wrapObject(m.StreamingPayload, name+"StreamingPayload", service.Name+"#"+name+"StreamingPayload")
-		// Create user type for raw object results
-		wrapObject(m.Result, name+"Result", service.Name+"#"+name+"Result")
-		// Create user type for raw object streaming results (if different from Result)
-		if m.HasMixedResults() {
-			wrapObject(m.StreamingResult, name+"StreamingResult", service.Name+"#"+name+"StreamingResult")
-		}
-	}
+	errTypes, errorInits = d.collectServiceErrorData(service.Errors, scope, seen, seenErrors, errTypes, errorInits)
+	types, projTypes, errTypes, errorInits = d.collectMethodTypeData(service, scope, viewScope, viewspkg, seen, seenProj, seenErrors, types, projTypes, errTypes, errorInits)
+	wrapRawObjectMethods(service, scope, seen)
 
 	// Add forced types
 	for _, t := range d.Root.Types {
@@ -895,40 +809,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 		schemes SchemesData
 	)
 	methods = make([]*MethodData, len(service.Methods))
-	for i, e := range service.Methods {
-		m := d.buildMethodData(e, scope)
-		methods[i] = m
-		for _, s := range m.Schemes {
-			schemes = schemes.Append(s)
-		}
-		rt, ok := e.Result.Type.(*expr.ResultTypeExpr)
-		if !ok {
-			continue
-		}
-		var view string
-		if v, ok := e.Result.Meta.Last(expr.ViewMetaKey); ok {
-			view = v
-		}
-		if vrt, ok := seenViewed[m.Result+"::"+view]; ok {
-			m.ViewedResult = vrt
-			continue
-		}
-		projected := seenProj[rt.ID()]
-		projAtt := &expr.AttributeExpr{Type: projected.Type}
-		vrt := buildViewedResultType(e.Result, projAtt, viewspkg, scope, viewScope)
-		found := false
-		for _, rt := range viewedRTs {
-			if rt.Type.ID() == vrt.Type.ID() {
-				found = true
-				break
-			}
-		}
-		if !found {
-			viewedRTs = append(viewedRTs, vrt)
-		}
-		m.ViewedResult = vrt
-		seenViewed[vrt.Name+"::"+view] = vrt
-	}
+	methods, schemes, viewedRTs = d.buildServiceMethods(service, scope, viewScope, viewspkg, seenProj, seenViewed, viewedRTs)
 
 	// Compute unique EndpointField names using the service-level scope, after
 	// method names are set. This records field identifiers without changing
@@ -941,38 +822,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 	}
 
 	// Collect union sum-type definitions for the service.
-	unionByHash := make(map[string]*UnionTypeData)
-	seen = make(map[string]struct{})
-	collectUnions := func(att *expr.AttributeExpr, loc *codegen.Location) {
-		collectUnionTypes(att, scope, loc, unionByHash, seen)
-	}
-	for _, t := range types {
-		collectUnions(&expr.AttributeExpr{Type: t.Type}, t.Loc)
-	}
-	for _, t := range errTypes {
-		collectUnions(&expr.AttributeExpr{Type: t.Type}, t.Loc)
-	}
-	for _, m := range service.Methods {
-		if m.Payload != nil {
-			collectUnions(m.Payload, codegen.UserTypeLocation(m.Payload.Type))
-		}
-		if m.StreamingPayload != nil {
-			collectUnions(m.StreamingPayload, codegen.UserTypeLocation(m.StreamingPayload.Type))
-		}
-		if m.Result != nil {
-			collectUnions(m.Result, codegen.UserTypeLocation(m.Result.Type))
-		}
-		for _, e := range m.Errors {
-			collectUnions(e.AttributeExpr, codegen.UserTypeLocation(e.Type))
-		}
-	}
-	unions := make([]*UnionTypeData, 0, len(unionByHash))
-	for _, u := range unionByHash {
-		unions = append(unions, u)
-	}
-	sort.Slice(unions, func(i, j int) bool {
-		return unions[i].Name < unions[j].Name
-	})
+	unions := collectServiceUnions(service, types, errTypes, scope)
 
 	desc := service.Description
 	if desc == "" {
@@ -1007,6 +857,209 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 	d.Services[service.Name] = data
 
 	return data
+}
+
+func (d *ServicesData) collectServiceErrorData(
+	errors []*expr.ErrorExpr,
+	scope *codegen.NameScope,
+	seen map[string]struct{},
+	seenErrors map[string]struct{},
+	errTypes []*UserTypeData,
+	errorInits []*ErrorInitData,
+) ([]*UserTypeData, []*ErrorInitData) {
+	for _, errExpr := range errors {
+		errTypes, errorInits = recordServiceError(errExpr, scope, seen, seenErrors, errTypes, errorInits)
+	}
+	return errTypes, errorInits
+}
+
+func (d *ServicesData) collectMethodTypeData(
+	service *expr.ServiceExpr,
+	scope, viewScope *codegen.NameScope,
+	viewspkg string,
+	seen map[string]struct{},
+	seenProj map[string]*ProjectedTypeData,
+	seenErrors map[string]struct{},
+	types []*UserTypeData,
+	projTypes []*ProjectedTypeData,
+	errTypes []*UserTypeData,
+	errorInits []*ErrorInitData,
+) ([]*UserTypeData, []*ProjectedTypeData, []*UserTypeData, []*ErrorInitData) {
+	for _, method := range service.Methods {
+		types = append(types, collectMethodUserTypes(method, scope, seen)...)
+		if hasResultType(method.Result) {
+			projTypes = append(projTypes, collectProjectedTypes(expr.DupAtt(method.Result), method.Result, viewspkg, scope, viewScope, seenProj)...)
+		}
+		for _, errExpr := range method.Errors {
+			errTypes, errorInits = recordServiceError(errExpr, scope, seen, seenErrors, errTypes, errorInits)
+		}
+	}
+	return types, projTypes, errTypes, errorInits
+}
+
+func collectMethodUserTypes(method *expr.MethodExpr, scope *codegen.NameScope, seen map[string]struct{}) []*UserTypeData {
+	var types []*UserTypeData
+	appendTypes := func(att *expr.AttributeExpr) {
+		if att == nil {
+			return
+		}
+		var loc *codegen.Location
+		if ut, ok := att.Type.(expr.UserType); ok {
+			loc = codegen.UserTypeLocation(ut)
+			att = ut.Attribute()
+		}
+		types = append(types, collectTypes(att, scope, seen, loc)...)
+	}
+	appendTypes(method.Payload)
+	appendTypes(method.StreamingPayload)
+	appendTypes(method.Result)
+	if method.HasMixedResults() {
+		appendTypes(method.StreamingResult)
+	}
+	return types
+}
+
+func recordServiceError(
+	errExpr *expr.ErrorExpr,
+	scope *codegen.NameScope,
+	seen map[string]struct{},
+	seenErrors map[string]struct{},
+	errTypes []*UserTypeData,
+	errorInits []*ErrorInitData,
+) ([]*UserTypeData, []*ErrorInitData) {
+	collected := collectTypes(errExpr.AttributeExpr, scope, seen, nil)
+	errTypes = append(errTypes, collected...)
+	if ut, ok := errExpr.Type.(expr.UserType); ok {
+		for _, t := range collected {
+			if t.Type.ID() != ut.ID() {
+				continue
+			}
+			t.RemedyCode = errorRemedyCode(errExpr)
+			t.SafeMessage = errorSafeMessage(errExpr)
+			t.RetryHint = errorRetryHint(errExpr)
+			break
+		}
+	}
+	if errExpr.Type == expr.ErrorResult {
+		if _, ok := seenErrors[errExpr.Name]; !ok {
+			seenErrors[errExpr.Name] = struct{}{}
+			errorInits = append(errorInits, buildErrorInitData(errExpr, scope))
+		}
+	}
+	return errTypes, errorInits
+}
+
+func wrapRawObjectMethods(service *expr.ServiceExpr, scope *codegen.NameScope, seen map[string]struct{}) {
+	for _, method := range service.Methods {
+		name := codegen.Goify(method.Name, true)
+		wrapRawObject(method.Payload, name+"Payload", service.Name+"#"+name+"Payload", scope, seen)
+		wrapRawObject(method.StreamingPayload, name+"StreamingPayload", service.Name+"#"+name+"StreamingPayload", scope, seen)
+		wrapRawObject(method.Result, name+"Result", service.Name+"#"+name+"Result", scope, seen)
+		if method.HasMixedResults() {
+			wrapRawObject(method.StreamingResult, name+"StreamingResult", service.Name+"#"+name+"StreamingResult", scope, seen)
+		}
+	}
+}
+
+func wrapRawObject(att *expr.AttributeExpr, name, id string, scope *codegen.NameScope, seen map[string]struct{}) {
+	if att == nil {
+		return
+	}
+	if _, ok := att.Type.(*expr.Object); ok {
+		att.Type = &expr.UserTypeExpr{
+			AttributeExpr: expr.DupAtt(att),
+			TypeName:      scope.PeekUnique(name),
+			UID:           id,
+		}
+	}
+	if ut, ok := att.Type.(expr.UserType); ok {
+		seen[ut.ID()] = struct{}{}
+	}
+}
+
+func (d *ServicesData) buildServiceMethods(
+	service *expr.ServiceExpr,
+	scope, viewScope *codegen.NameScope,
+	viewspkg string,
+	seenProj map[string]*ProjectedTypeData,
+	seenViewed map[string]*ViewedResultTypeData,
+	viewedRTs []*ViewedResultTypeData,
+) ([]*MethodData, SchemesData, []*ViewedResultTypeData) {
+	methods := make([]*MethodData, len(service.Methods))
+	var schemes SchemesData
+	for i, methodExpr := range service.Methods {
+		method := d.buildMethodData(methodExpr, scope)
+		methods[i] = method
+		for _, scheme := range method.Schemes {
+			schemes = schemes.Append(scheme)
+		}
+		rt, ok := methodExpr.Result.Type.(*expr.ResultTypeExpr)
+		if !ok {
+			continue
+		}
+		view := ""
+		if v, ok := methodExpr.Result.Meta.Last(expr.ViewMetaKey); ok {
+			view = v
+		}
+		if vrt, ok := seenViewed[method.Result+"::"+view]; ok {
+			method.ViewedResult = vrt
+			continue
+		}
+		projected := seenProj[rt.ID()]
+		projAtt := &expr.AttributeExpr{Type: projected.Type}
+		vrt := buildViewedResultType(methodExpr.Result, projAtt, viewspkg, scope, viewScope)
+		if !containsViewedResultType(viewedRTs, vrt) {
+			viewedRTs = append(viewedRTs, vrt)
+		}
+		method.ViewedResult = vrt
+		seenViewed[vrt.Name+"::"+view] = vrt
+	}
+	return methods, schemes, viewedRTs
+}
+
+func containsViewedResultType(viewed []*ViewedResultTypeData, target *ViewedResultTypeData) bool {
+	for _, existing := range viewed {
+		if existing.Type.ID() == target.Type.ID() {
+			return true
+		}
+	}
+	return false
+}
+
+func collectServiceUnions(service *expr.ServiceExpr, types, errTypes []*UserTypeData, scope *codegen.NameScope) []*UnionTypeData {
+	unionByHash := make(map[string]*UnionTypeData)
+	seen := make(map[string]struct{})
+	collect := func(att *expr.AttributeExpr, loc *codegen.Location) {
+		collectUnionTypes(att, scope, loc, unionByHash, seen)
+	}
+	for _, t := range types {
+		collect(&expr.AttributeExpr{Type: t.Type}, t.Loc)
+	}
+	for _, t := range errTypes {
+		collect(&expr.AttributeExpr{Type: t.Type}, t.Loc)
+	}
+	for _, method := range service.Methods {
+		if method.Payload != nil {
+			collect(method.Payload, codegen.UserTypeLocation(method.Payload.Type))
+		}
+		if method.StreamingPayload != nil {
+			collect(method.StreamingPayload, codegen.UserTypeLocation(method.StreamingPayload.Type))
+		}
+		if method.Result != nil {
+			collect(method.Result, codegen.UserTypeLocation(method.Result.Type))
+		}
+		for _, errExpr := range method.Errors {
+			collect(errExpr.AttributeExpr, codegen.UserTypeLocation(errExpr.Type))
+		}
+	}
+	unions := make([]*UnionTypeData, 0, len(unionByHash))
+	for _, union := range unionByHash {
+		unions = append(unions, union)
+	}
+	sort.Slice(unions, func(i, j int) bool {
+		return unions[i].Name < unions[j].Name
+	})
+	return unions
 }
 
 // collectInterceptors returns the set of interceptors defined on the given
@@ -2018,12 +2071,7 @@ func buildViews(rt *expr.ResultTypeExpr, viewScope *codegen.NameScope) []*ViewDa
 	return views
 }
 
-// buildViewedResultType builds a viewed result type from the given result type
-// and projected type.
-func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, scope, viewScope *codegen.NameScope) *ViewedResultTypeData {
-	// collect result type views
-	rt := att.Type.(*expr.ResultTypeExpr)
-	isarr := expr.IsArray(att.Type)
+func viewedResultDefaultViewName(att *expr.AttributeExpr, rt *expr.ResultTypeExpr) string {
 	var viewName string
 	if !rt.HasMultipleViews() {
 		viewName = expr.DefaultView
@@ -2031,89 +2079,21 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	if v, ok := att.Meta.Last(expr.ViewMetaKey); ok {
 		viewName = v
 	}
+	return viewName
+}
+
+// buildViewedResultType builds a viewed result type from the given result type
+// and projected type.
+func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, scope, viewScope *codegen.NameScope) *ViewedResultTypeData {
+	rt := att.Type.(*expr.ResultTypeExpr)
+	isarr := expr.IsArray(att.Type)
+	viewName := viewedResultDefaultViewName(att, rt)
 	views := buildViews(rt, viewScope)
-
-	// build validation data
 	resvar := scope.GoTypeName(att)
-	resref := scope.GoTypeRef(att)
-	validateTData := viewedResultValidateTemplateData{
-		Projected: scope.GoTypeName(projected),
-		ArgVar:    "result",
-		Source:    "result",
-		Views:     views,
-		IsViewed:  true,
-	}
-	buf := &bytes.Buffer{}
-	if err := validateTypeCodeTmpl.Execute(buf, validateTData); err != nil {
-		panic(err) // bug
-	}
-	name := "Validate" + resvar
-	validate := &ValidateData{
-		Name:        name,
-		Description: fmt.Sprintf("%s runs the validations defined on the viewed result type %s.", name, resvar),
-		Ref:         resref,
-		Validate:    buf.String(),
-	}
-
-	// build constructor to initialize viewed result type from result type
 	vresref := viewScope.GoFullTypeRef(att, viewspkg)
-	initTData := viewedResultInitTemplateData{
-		ToViewed:      true,
-		ArgVar:        "res",
-		ReturnVar:     "vres",
-		Views:         views,
-		ReturnTypeRef: vresref,
-		IsCollection:  isarr,
-		TargetType:    scope.GoFullTypeName(att, viewspkg),
-		InitName:      projectionHelperBaseName(scope, att),
-		ViewExpr:      "view",
-	}
-	buf = &bytes.Buffer{}
-	if err := initTypeCodeTmpl.Execute(buf, initTData); err != nil {
-		panic(err) // bug
-	}
-	pkg := ""
-	if loc := codegen.UserTypeLocation(att.Type); loc != nil {
-		pkg = loc.PackageName()
-	}
-	name = "NewViewed" + resvar
-	init := &InitData{
-		Name:        name,
-		Description: fmt.Sprintf("%s initializes viewed result type %s from result type %s using the given view.", name, resvar, resvar),
-		Args: []*InitArgData{
-			{Name: "res", Ref: scope.GoFullTypeRef(att, pkg)},
-			{Name: "view", Ref: "string"},
-		},
-		ReturnTypeRef: vresref,
-		Code:          buf.String(),
-	}
-
-	// build constructor to initialize result type from viewed result type
-	if loc := codegen.UserTypeLocation(att.Type); loc != nil {
-		resref = scope.GoFullTypeRef(att, loc.PackageName())
-	}
-	resultInitTData := viewedResultInitTemplateData{
-		ToResult:      true,
-		ArgVar:        "vres",
-		ReturnVar:     "res",
-		Views:         views,
-		ReturnTypeRef: resref,
-		InitName:      projectedResultInitHelperBaseName(scope, viewScope, att, projected),
-		ViewExpr:      "vres.View",
-	}
-	buf = &bytes.Buffer{}
-	if err := initTypeCodeTmpl.Execute(buf, resultInitTData); err != nil {
-		panic(err) // bug
-	}
-	name = "New" + resvar
-	resinit := &InitData{
-		Name:          name,
-		Description:   fmt.Sprintf("%s initializes result type %s from viewed result type %s.", name, resvar, resvar),
-		Args:          []*InitArgData{{Name: "vres", Ref: scope.GoFullTypeRef(att, viewspkg)}},
-		ReturnTypeRef: resref,
-		Code:          buf.String(),
-	}
-
+	validate := buildViewedResultValidation(projected, views, scope, att, resvar)
+	init := buildViewedResultInit(att, views, viewspkg, scope, viewScope, resvar, vresref, isarr)
+	resinit, resref := buildViewedResultResultInit(att, projected, views, viewspkg, scope, viewScope, resvar)
 	projT := wrapProjected(projected.Type.(expr.UserType))
 	return &ViewedResultTypeData{
 		UserTypeData: &UserTypeData{
@@ -2134,6 +2114,94 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 		ViewName:     viewName,
 		ViewsPkg:     viewspkg,
 	}
+}
+
+func buildViewedResultValidation(projected *expr.AttributeExpr, views []*ViewData, scope *codegen.NameScope, att *expr.AttributeExpr, resvar string) *ValidateData {
+	validateTData := viewedResultValidateTemplateData{
+		Projected: scope.GoTypeName(projected),
+		ArgVar:    "result",
+		Source:    "result",
+		Views:     views,
+		IsViewed:  true,
+	}
+	validate := executeValidateTypeTemplate(validateTData)
+	name := "Validate" + resvar
+	return &ValidateData{
+		Name:        name,
+		Description: fmt.Sprintf("%s runs the validations defined on the viewed result type %s.", name, resvar),
+		Ref:         scope.GoTypeRef(att),
+		Validate:    validate,
+	}
+}
+
+func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg string, scope, viewScope *codegen.NameScope, resvar, vresref string, isarr bool) *InitData {
+	initTData := viewedResultInitTemplateData{
+		ToViewed:      true,
+		ArgVar:        "res",
+		ReturnVar:     "vres",
+		Views:         views,
+		ReturnTypeRef: vresref,
+		IsCollection:  isarr,
+		TargetType:    scope.GoFullTypeName(att, viewspkg),
+		InitName:      projectionHelperBaseName(scope, att),
+		ViewExpr:      "view",
+	}
+	name := "NewViewed" + resvar
+	return &InitData{
+		Name:        name,
+		Description: fmt.Sprintf("%s initializes viewed result type %s from result type %s using the given view.", name, resvar, resvar),
+		Args: []*InitArgData{
+			{Name: "res", Ref: fullTypeRefForAttribute(scope, att, "")},
+			{Name: "view", Ref: "string"},
+		},
+		ReturnTypeRef: vresref,
+		Code:          executeInitTypeTemplate(initTData),
+	}
+}
+
+func buildViewedResultResultInit(att, projected *expr.AttributeExpr, views []*ViewData, viewspkg string, scope, viewScope *codegen.NameScope, resvar string) (*InitData, string) {
+	resref := fullTypeRefForAttribute(scope, att, "")
+	resultInitTData := viewedResultInitTemplateData{
+		ToResult:      true,
+		ArgVar:        "vres",
+		ReturnVar:     "res",
+		Views:         views,
+		ReturnTypeRef: resref,
+		InitName:      projectedResultInitHelperBaseName(scope, viewScope, att, projected),
+		ViewExpr:      "vres.View",
+	}
+	name := "New" + resvar
+	return &InitData{
+		Name:          name,
+		Description:   fmt.Sprintf("%s initializes result type %s from viewed result type %s.", name, resvar, resvar),
+		Args:          []*InitArgData{{Name: "vres", Ref: scope.GoFullTypeRef(att, viewspkg)}},
+		ReturnTypeRef: resref,
+		Code:          executeInitTypeTemplate(resultInitTData),
+	}, resref
+}
+
+func executeValidateTypeTemplate(data viewedResultValidateTemplateData) string {
+	buf := &bytes.Buffer{}
+	if err := validateTypeCodeTmpl.Execute(buf, data); err != nil {
+		panic(err) // bug
+	}
+	return buf.String()
+}
+
+func executeInitTypeTemplate(data viewedResultInitTemplateData) string {
+	buf := &bytes.Buffer{}
+	if err := initTypeCodeTmpl.Execute(buf, data); err != nil {
+		panic(err) // bug
+	}
+	return buf.String()
+}
+
+func fullTypeRefForAttribute(scope *codegen.NameScope, att *expr.AttributeExpr, defaultPkg string) string {
+	pkg := defaultPkg
+	if loc := codegen.UserTypeLocation(att.Type); loc != nil {
+		pkg = loc.PackageName()
+	}
+	return scope.GoFullTypeRef(att, pkg)
 }
 
 // wrapProjected builds a viewed result type by wrapping the given projected

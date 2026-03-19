@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	. "goa.design/goa/v3/dsl"
 	"goa.design/goa/v3/eval"
 	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/expr/testdata"
@@ -35,6 +36,17 @@ route HEAD "/" of service "DisallowResponseBody" HTTP endpoint "Method": HTTP st
 				}
 			}
 		})
+	}
+}
+
+func TestHTTPRouteParamConsistency(t *testing.T) {
+	err := expr.RunInvalidDSL(t, inconsistentRouteParamsDSL)
+	got := stripValidationLocations(err.Error())
+	if !strings.Contains(got, `service "RouteMismatch" HTTP endpoint "Show": Param "id" does not appear in all routes`) {
+		t.Fatalf("missing id route mismatch error: %q", got)
+	}
+	if !strings.Contains(got, `service "RouteMismatch" HTTP endpoint "Show": Param "slug" does not appear in all routes`) {
+		t.Fatalf("missing slug route mismatch error: %q", got)
 	}
 }
 
@@ -246,6 +258,35 @@ service "Service" HTTP endpoint "MethodC": HTTP endpoint request body must be em
 	}
 }
 
+func TestHTTPEndpointStreamingValidationCoverage(t *testing.T) {
+	cases := map[string]struct {
+		DSL      func()
+		Contains string
+	}{
+		"mixed results require sse": {
+			DSL:      mixedResultsWithoutSSEDsl,
+			Contains: `Methods with both Result and StreamingResult defined with different types must use ServerSentEvents()`,
+		},
+		"sse disallows client stream": {
+			DSL:      sseWithClientStreamDsl,
+			Contains: `Server-Sent Events cannot be used with client-to-server streaming endpoints`,
+		},
+		"sse disallows bidirectional stream": {
+			DSL:      sseWithBidirectionalStreamDsl,
+			Contains: `Server-Sent Events cannot be used with bidirectional streaming endpoints`,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, tc.DSL)
+			got := stripValidationLocations(err.Error())
+			if !strings.Contains(got, tc.Contains) {
+				t.Fatalf("got %q, expected substring %q", got, tc.Contains)
+			}
+		})
+	}
+}
+
 func TestHTTPEndpointParentRequired(t *testing.T) {
 	root := expr.RunDSL(t, testdata.EndpointHasParent)
 	svc := root.Service("Child")
@@ -337,4 +378,70 @@ func TestHTTPAuthorizationMapping(t *testing.T) {
 			}
 		})
 	}
+}
+
+var inconsistentRouteParamsDSL = func() {
+	Service("RouteMismatch", func() {
+		Method("Show", func() {
+			Payload(func() {
+				Attribute("id", String)
+				Attribute("slug", String)
+			})
+			Result(String)
+			HTTP(func() {
+				GET("/{id}")
+				GET("/{slug}")
+			})
+		})
+	})
+}
+
+var mixedResultsWithoutSSEDsl = func() {
+	Service("MixedResults", func() {
+		Method("Watch", func() {
+			Result(func() {
+				Attribute("done", Boolean)
+			})
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			HTTP(func() {
+				GET("/")
+			})
+		})
+	})
+}
+
+var sseWithClientStreamDsl = func() {
+	Service("ClientStreamSSE", func() {
+		Method("Watch", func() {
+			StreamingPayload(func() {
+				Attribute("value", String)
+			})
+			Result(func() {
+				Attribute("done", Boolean)
+			})
+			HTTP(func() {
+				GET("/")
+				ServerSentEvents()
+			})
+		})
+	})
+}
+
+var sseWithBidirectionalStreamDsl = func() {
+	Service("BidirectionalStreamSSE", func() {
+		Method("Watch", func() {
+			StreamingPayload(func() {
+				Attribute("value", String)
+			})
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			HTTP(func() {
+				GET("/")
+				ServerSentEvents()
+			})
+		})
+	})
 }

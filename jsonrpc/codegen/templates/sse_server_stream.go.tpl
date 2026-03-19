@@ -74,7 +74,7 @@ func (s *{{ .SSE.StructName }}) Send(ctx context.Context, event {{ .ServicePkgNa
 		"params":  body,
 	}
 
-	return s.sendSSEEvent("notification", message)
+	return s.sendSSEEvent("message", message)
 }
 
 {{ comment "SendAndClose sends a final JSON-RPC response to the client and closes the stream." }}
@@ -130,7 +130,7 @@ func (s *{{ .SSE.StructName }}) SendAndClose(ctx context.Context, event {{ .Serv
 		"result":  body,
 	}
 
-	return s.sendSSEEvent("response", message)
+	return s.sendSSEEvent("message", message)
 }
 
 {{ comment "SendError sends a JSON-RPC error response." }}
@@ -173,7 +173,7 @@ func (s *{{ .SSE.StructName }}) SendError(ctx context.Context, id string, err er
 {{ comment "sendError sends a JSON-RPC error response via SSE." }}
 func (s *{{ .SSE.StructName }}) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
-	return s.sendSSEEvent("error", response)
+	return s.sendSSEEvent("message", response)
 }
 
 {{ comment "sendSSEEvent sends a single SSE event by creating an encoder that writes to the event writer" }}
