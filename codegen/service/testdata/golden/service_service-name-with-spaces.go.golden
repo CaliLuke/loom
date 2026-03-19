@@ -36,14 +36,34 @@ type ResultWithSpace struct {
 // NewResultWithSpace initializes result type ResultWithSpace from viewed
 // result type ResultWithSpace.
 func NewResultWithSpace(vres *servicewithspacesviews.ResultWithSpace) *ResultWithSpace {
-	return NewResultWithSpaceFromResultWithSpaceView(vres.Projected)
+
+	var res *ResultWithSpace
+	switch vres.View {
+	case "default", "":
+		res = NewResultWithSpaceFromResultWithSpaceView(vres.Projected)
+	default:
+		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+		}))
+	}
+	return res
 }
 
 // NewViewedResultWithSpace initializes viewed result type ResultWithSpace from
 // result type ResultWithSpace using the given view.
 func NewViewedResultWithSpace(res *ResultWithSpace, view string) *servicewithspacesviews.ResultWithSpace {
-	p := ProjectResultWithSpace(res)
-	return &servicewithspacesviews.ResultWithSpace{Projected: p, View: "default"}
+
+	var vres *servicewithspacesviews.ResultWithSpace
+	switch view {
+	case "default", "":
+		p := ProjectResultWithSpace(res)
+		vres = &servicewithspacesviews.ResultWithSpace{Projected: p, View: "default"}
+	default:
+		panic(goa.InvalidEnumValueError("view", view, []any{
+			"default",
+		}))
+	}
+	return vres
 }
 
 // NewResultWithSpaceFromResultWithSpaceView converts projected type

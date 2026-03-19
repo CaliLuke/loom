@@ -57,12 +57,18 @@ type MultipleViews struct {
 // NewMultipleViews initializes result type MultipleViews from viewed result
 // type MultipleViews.
 func NewMultipleViews(vres *streamingresultwithviewsserviceviews.MultipleViews) *MultipleViews {
+
 	var res *MultipleViews
 	switch vres.View {
 	case "default", "":
 		res = NewMultipleViewsFromMultipleViewsView(vres.Projected)
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
+	default:
+		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+			"tiny",
+		}))
 	}
 	return res
 }
@@ -70,6 +76,7 @@ func NewMultipleViews(vres *streamingresultwithviewsserviceviews.MultipleViews) 
 // NewViewedMultipleViews initializes viewed result type MultipleViews from
 // result type MultipleViews using the given view.
 func NewViewedMultipleViews(res *MultipleViews, view string) *streamingresultwithviewsserviceviews.MultipleViews {
+
 	var vres *streamingresultwithviewsserviceviews.MultipleViews
 	switch view {
 	case "default", "":
@@ -78,6 +85,11 @@ func NewViewedMultipleViews(res *MultipleViews, view string) *streamingresultwit
 	case "tiny":
 		p := ProjectMultipleViewsTiny(res)
 		vres = &streamingresultwithviewsserviceviews.MultipleViews{Projected: p, View: "tiny"}
+	default:
+		panic(goa.InvalidEnumValueError("view", view, []any{
+			"default",
+			"tiny",
+		}))
 	}
 	return vres
 }

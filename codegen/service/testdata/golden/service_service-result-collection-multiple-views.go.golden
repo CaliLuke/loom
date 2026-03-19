@@ -36,12 +36,18 @@ type MultipleViewsCollection []*MultipleViews
 // NewMultipleViewsCollection initializes result type MultipleViewsCollection
 // from viewed result type MultipleViewsCollection.
 func NewMultipleViewsCollection(vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollection) MultipleViewsCollection {
+
 	var res MultipleViewsCollection
 	switch vres.View {
 	case "default", "":
 		res = NewMultipleViewsCollectionFromMultipleViewsCollectionView(vres.Projected)
 	case "tiny":
 		res = NewMultipleViewsCollectionFromMultipleViewsCollectionViewTiny(vres.Projected)
+	default:
+		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+			"tiny",
+		}))
 	}
 	return res
 }
@@ -50,6 +56,7 @@ func NewMultipleViewsCollection(vres resultcollectionmultipleviewsmethodviews.Mu
 // MultipleViewsCollection from result type MultipleViewsCollection using the
 // given view.
 func NewViewedMultipleViewsCollection(res MultipleViewsCollection, view string) resultcollectionmultipleviewsmethodviews.MultipleViewsCollection {
+
 	var vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollection
 	switch view {
 	case "default", "":
@@ -58,6 +65,11 @@ func NewViewedMultipleViewsCollection(res MultipleViewsCollection, view string) 
 	case "tiny":
 		p := ProjectMultipleViewsCollectionTiny(res)
 		vres = resultcollectionmultipleviewsmethodviews.MultipleViewsCollection{Projected: p, View: "tiny"}
+	default:
+		panic(goa.InvalidEnumValueError("view", view, []any{
+			"default",
+			"tiny",
+		}))
 	}
 	return vres
 }

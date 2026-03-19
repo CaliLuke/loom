@@ -53,12 +53,18 @@ type SingleView struct {
 // NewMultipleViews initializes result type MultipleViews from viewed result
 // type MultipleViews.
 func NewMultipleViews(vres *multiplemethodsresultmultipleviewsviews.MultipleViews) *MultipleViews {
+
 	var res *MultipleViews
 	switch vres.View {
 	case "default", "":
 		res = NewMultipleViewsFromMultipleViewsView(vres.Projected)
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
+	default:
+		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+			"tiny",
+		}))
 	}
 	return res
 }
@@ -66,6 +72,7 @@ func NewMultipleViews(vres *multiplemethodsresultmultipleviewsviews.MultipleView
 // NewViewedMultipleViews initializes viewed result type MultipleViews from
 // result type MultipleViews using the given view.
 func NewViewedMultipleViews(res *MultipleViews, view string) *multiplemethodsresultmultipleviewsviews.MultipleViews {
+
 	var vres *multiplemethodsresultmultipleviewsviews.MultipleViews
 	switch view {
 	case "default", "":
@@ -74,6 +81,11 @@ func NewViewedMultipleViews(res *MultipleViews, view string) *multiplemethodsres
 	case "tiny":
 		p := ProjectMultipleViewsTiny(res)
 		vres = &multiplemethodsresultmultipleviewsviews.MultipleViews{Projected: p, View: "tiny"}
+	default:
+		panic(goa.InvalidEnumValueError("view", view, []any{
+			"default",
+			"tiny",
+		}))
 	}
 	return vres
 }
@@ -81,14 +93,34 @@ func NewViewedMultipleViews(res *MultipleViews, view string) *multiplemethodsres
 // NewSingleView initializes result type SingleView from viewed result type
 // SingleView.
 func NewSingleView(vres *multiplemethodsresultmultipleviewsviews.SingleView) *SingleView {
-	return NewSingleViewFromSingleViewView(vres.Projected)
+
+	var res *SingleView
+	switch vres.View {
+	case "default", "":
+		res = NewSingleViewFromSingleViewView(vres.Projected)
+	default:
+		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+		}))
+	}
+	return res
 }
 
 // NewViewedSingleView initializes viewed result type SingleView from result
 // type SingleView using the given view.
 func NewViewedSingleView(res *SingleView, view string) *multiplemethodsresultmultipleviewsviews.SingleView {
-	p := ProjectSingleView(res)
-	return &multiplemethodsresultmultipleviewsviews.SingleView{Projected: p, View: "default"}
+
+	var vres *multiplemethodsresultmultipleviewsviews.SingleView
+	switch view {
+	case "default", "":
+		p := ProjectSingleView(res)
+		vres = &multiplemethodsresultmultipleviewsviews.SingleView{Projected: p, View: "default"}
+	default:
+		panic(goa.InvalidEnumValueError("view", view, []any{
+			"default",
+		}))
+	}
+	return vres
 }
 
 // NewMultipleViewsFromMultipleViewsView converts projected type

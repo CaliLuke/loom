@@ -31,6 +31,27 @@ var (
 )
 
 type (
+	viewedResultValidateTemplateData struct {
+		Projected string
+		ArgVar    string
+		Source    string
+		Views     []*ViewData
+		IsViewed  bool
+	}
+
+	viewedResultInitTemplateData struct {
+		ToViewed      bool
+		ToResult      bool
+		ArgVar        string
+		ReturnVar     string
+		Views         []*ViewData
+		ReturnTypeRef string
+		IsCollection  bool
+		TargetType    string
+		InitName      string
+		ViewExpr      string
+	}
+
 	// ServicesData encapsulates the data computed from the service designs.
 	ServicesData struct {
 		Root     *expr.RootExpr
@@ -2015,15 +2036,15 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	// build validation data
 	resvar := scope.GoTypeName(att)
 	resref := scope.GoTypeRef(att)
-	data := map[string]any{
-		"Projected": scope.GoTypeName(projected),
-		"ArgVar":    "result",
-		"Source":    "result",
-		"Views":     views,
-		"IsViewed":  true,
+	validateTData := viewedResultValidateTemplateData{
+		Projected: scope.GoTypeName(projected),
+		ArgVar:    "result",
+		Source:    "result",
+		Views:     views,
+		IsViewed:  true,
 	}
 	buf := &bytes.Buffer{}
-	if err := validateTypeCodeTmpl.Execute(buf, data); err != nil {
+	if err := validateTypeCodeTmpl.Execute(buf, validateTData); err != nil {
 		panic(err) // bug
 	}
 	name := "Validate" + resvar
@@ -2036,18 +2057,19 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 
 	// build constructor to initialize viewed result type from result type
 	vresref := viewScope.GoFullTypeRef(att, viewspkg)
-	data = map[string]any{
-		"ToViewed":      true,
-		"ArgVar":        "res",
-		"ReturnVar":     "vres",
-		"Views":         views,
-		"ReturnTypeRef": vresref,
-		"IsCollection":  isarr,
-		"TargetType":    scope.GoFullTypeName(att, viewspkg),
-		"InitName":      "Project" + resvar,
+	initTData := viewedResultInitTemplateData{
+		ToViewed:      true,
+		ArgVar:        "res",
+		ReturnVar:     "vres",
+		Views:         views,
+		ReturnTypeRef: vresref,
+		IsCollection:  isarr,
+		TargetType:    scope.GoFullTypeName(att, viewspkg),
+		InitName:      projectionHelperBaseName(scope, att),
+		ViewExpr:      "view",
 	}
 	buf = &bytes.Buffer{}
-	if err := initTypeCodeTmpl.Execute(buf, data); err != nil {
+	if err := initTypeCodeTmpl.Execute(buf, initTData); err != nil {
 		panic(err) // bug
 	}
 	pkg := ""
@@ -2070,16 +2092,17 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	if loc := codegen.UserTypeLocation(att.Type); loc != nil {
 		resref = scope.GoFullTypeRef(att, loc.PackageName())
 	}
-	data = map[string]any{
-		"ToResult":      true,
-		"ArgVar":        "vres",
-		"ReturnVar":     "res",
-		"Views":         views,
-		"ReturnTypeRef": resref,
-		"InitName":      "New" + resvar + "From" + viewScope.GoTypeName(projected),
+	resultInitTData := viewedResultInitTemplateData{
+		ToResult:      true,
+		ArgVar:        "vres",
+		ReturnVar:     "res",
+		Views:         views,
+		ReturnTypeRef: resref,
+		InitName:      projectedResultInitHelperBaseName(scope, viewScope, att, projected),
+		ViewExpr:      "vres.View",
 	}
 	buf = &bytes.Buffer{}
-	if err := initTypeCodeTmpl.Execute(buf, data); err != nil {
+	if err := initTypeCodeTmpl.Execute(buf, resultInitTData); err != nil {
 		panic(err) // bug
 	}
 	name = "New" + resvar
@@ -2183,7 +2206,7 @@ func buildTypeInits(projected, att *expr.AttributeExpr, viewspkg string, scope, 
 		srcCtx := projectedTypeContext(viewspkg, true, viewScope)
 		tgtCtx := typeContext(scope)
 		resvar := scope.GoTypeName(att)
-		name := "New" + resvar + "From" + viewScope.GoTypeName(projected)
+		name := projectedResultInitHelperBaseName(scope, viewScope, att, projected)
 		if view.Name != expr.DefaultView {
 			name += codegen.Goify(view.Name, true)
 		}
@@ -2247,7 +2270,7 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 		srcCtx := typeContext(scope)
 		tgtCtx := projectedTypeContext(viewspkg, true, viewScope)
 		tname := scope.GoTypeName(projected)
-		name := "Project" + scope.GoTypeName(att)
+		name := projectionHelperBaseName(scope, att)
 		if view.Name != expr.DefaultView {
 			name += codegen.Goify(view.Name, true)
 		}
@@ -2267,6 +2290,14 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 		})
 	}
 	return projections
+}
+
+func projectedResultInitHelperBaseName(scope, viewScope *codegen.NameScope, att, projected *expr.AttributeExpr) string {
+	return "New" + scope.GoTypeName(att) + "From" + viewScope.GoTypeName(projected)
+}
+
+func projectionHelperBaseName(scope *codegen.NameScope, att *expr.AttributeExpr) string {
+	return "Project" + scope.GoTypeName(att)
 }
 
 // buildValidations builds the data required to generate validations for the

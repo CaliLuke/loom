@@ -40,15 +40,35 @@ type ListResult struct {
 // NewApplicationDashedType initializes result type ApplicationDashedType from
 // viewed result type ApplicationDashedType.
 func NewApplicationDashedType(vres *resultwithdashedmimetypeviews.ApplicationDashedType) *ApplicationDashedType {
-	return NewApplicationDashedTypeFromApplicationDashedTypeView(vres.Projected)
+
+	var res *ApplicationDashedType
+	switch vres.View {
+	case "default", "":
+		res = NewApplicationDashedTypeFromApplicationDashedTypeView(vres.Projected)
+	default:
+		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+		}))
+	}
+	return res
 }
 
 // NewViewedApplicationDashedType initializes viewed result type
 // ApplicationDashedType from result type ApplicationDashedType using the given
 // view.
 func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) *resultwithdashedmimetypeviews.ApplicationDashedType {
-	p := ProjectApplicationDashedType(res)
-	return &resultwithdashedmimetypeviews.ApplicationDashedType{Projected: p, View: "default"}
+
+	var vres *resultwithdashedmimetypeviews.ApplicationDashedType
+	switch view {
+	case "default", "":
+		p := ProjectApplicationDashedType(res)
+		vres = &resultwithdashedmimetypeviews.ApplicationDashedType{Projected: p, View: "default"}
+	default:
+		panic(goa.InvalidEnumValueError("view", view, []any{
+			"default",
+		}))
+	}
+	return vres
 }
 
 // NewApplicationDashedTypeFromApplicationDashedTypeView converts projected

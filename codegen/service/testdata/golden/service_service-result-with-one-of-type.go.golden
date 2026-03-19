@@ -239,14 +239,34 @@ func (u *Result) UnmarshalJSON(data []byte) error {
 // NewResultOneof initializes result type ResultOneof from viewed result type
 // ResultOneof.
 func NewResultOneof(vres *resultwithoneoftypeviews.ResultOneof) *ResultOneof {
-	return NewResultOneofFromResultOneofView(vres.Projected)
+
+	var res *ResultOneof
+	switch vres.View {
+	case "default", "":
+		res = NewResultOneofFromResultOneofView(vres.Projected)
+	default:
+		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+		}))
+	}
+	return res
 }
 
 // NewViewedResultOneof initializes viewed result type ResultOneof from result
 // type ResultOneof using the given view.
 func NewViewedResultOneof(res *ResultOneof, view string) *resultwithoneoftypeviews.ResultOneof {
-	p := ProjectResultOneof(res)
-	return &resultwithoneoftypeviews.ResultOneof{Projected: p, View: "default"}
+
+	var vres *resultwithoneoftypeviews.ResultOneof
+	switch view {
+	case "default", "":
+		p := ProjectResultOneof(res)
+		vres = &resultwithoneoftypeviews.ResultOneof{Projected: p, View: "default"}
+	default:
+		panic(goa.InvalidEnumValueError("view", view, []any{
+			"default",
+		}))
+	}
+	return vres
 }
 
 // NewResultOneofFromResultOneofView converts projected type ResultOneofView to

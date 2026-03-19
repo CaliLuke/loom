@@ -40,15 +40,35 @@ type ResultInlineValidationBResult struct {
 // NewResultInlineValidation initializes result type ResultInlineValidation
 // from viewed result type ResultInlineValidation.
 func NewResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlineValidation) *ResultInlineValidation {
-	return NewResultInlineValidationFromResultInlineValidationView(vres.Projected)
+
+	var res *ResultInlineValidation
+	switch vres.View {
+	case "default", "":
+		res = NewResultInlineValidationFromResultInlineValidationView(vres.Projected)
+	default:
+		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+		}))
+	}
+	return res
 }
 
 // NewViewedResultInlineValidation initializes viewed result type
 // ResultInlineValidation from result type ResultInlineValidation using the
 // given view.
 func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) *resultwithinlinevalidationviews.ResultInlineValidation {
-	p := ProjectResultInlineValidation(res)
-	return &resultwithinlinevalidationviews.ResultInlineValidation{Projected: p, View: "default"}
+
+	var vres *resultwithinlinevalidationviews.ResultInlineValidation
+	switch view {
+	case "default", "":
+		p := ProjectResultInlineValidation(res)
+		vres = &resultwithinlinevalidationviews.ResultInlineValidation{Projected: p, View: "default"}
+	default:
+		panic(goa.InvalidEnumValueError("view", view, []any{
+			"default",
+		}))
+	}
+	return vres
 }
 
 // NewResultInlineValidationFromResultInlineValidationView converts projected
