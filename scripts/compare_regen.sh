@@ -14,8 +14,7 @@ Then write the generated trees, logs, unified diff, and a compact summary to an
 output directory.
 
 Options:
-  --target-repo PATH      Target application repository. Default:
-                          /Users/luca/code/autok/auto-k-server
+  --target-repo PATH      Target application repository. Required.
   --design-package PKG    Design package to generate. Default: <module>/design
   --output-dir PATH       Directory for artifacts. Default:
                           /tmp/goa-regen-compare-<repo>-<timestamp>
@@ -56,7 +55,7 @@ repo_name_from_path() {
 	basename "$1" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-'
 }
 
-target_repo="/Users/luca/code/autok/auto-k-server"
+target_repo=""
 goa_root="$(pwd)"
 goa_ai_root=""
 output_dir=""
@@ -109,6 +108,7 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+[[ -n "$target_repo" ]] || die "--target-repo is required"
 target_repo="$(abs_path "$target_repo")"
 goa_root="$(abs_path "$goa_root")"
 if [[ -n "$goa_ai_root" ]]; then

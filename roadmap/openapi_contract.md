@@ -67,7 +67,6 @@ Keep these policies in `goa-light`, not in plugins:
 
 - continue improving OpenAPI output where it materially helps machine consumers
 - keep contract-shape decisions centralized in `goa-light`
-- do not let `goa-ai` develop its own contract-stability layer
 - keep the specimen matrix broad enough to cover:
   - form and multipart request bodies
   - closed-object union wrappers and union collections

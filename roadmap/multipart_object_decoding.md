@@ -8,7 +8,7 @@ Status: completed.
 
 ## Problem
 
-`auto-k-server` still carries custom multipart request decoding because generated server code expects an application-provided decoder seam for object-shaped multipart payloads. That keeps a high-value source ingestion path outside the framework contract.
+Downstream consumers still carry custom multipart request decoding when generated server code expects an application-provided decoder seam for object-shaped multipart payloads. That keeps high-value ingestion paths outside the framework contract.
 
 ## Scope
 
@@ -39,7 +39,7 @@ Out of scope:
    - repeated fields, if already representable in DSL
 3. Generate multipart decoding for those shapes directly in HTTP transport code.
 4. Preserve normal Goa validation flow after decoding instead of pushing validation into custom hooks.
-5. Add regression tests proving the generated decoder replaces the handwritten multipart hook used by `auto-k-server`.
+5. Add regression tests proving the generated decoder replaces the handwritten multipart hook used by representative consumers.
 
 ## Design Constraints
 
@@ -55,7 +55,7 @@ Out of scope:
 ## Finish Criteria
 
 - A typed multipart object payload can be modeled in the DSL and decoded without a handwritten decoder hook.
-- Generated server code covers the shape needed by `auto-k-server`.
+- Generated server code covers the high-value object multipart shapes that previously forced handwritten hooks.
 - Regression tests cover at least:
   - multipart object with file plus scalar fields
   - optional multipart fields

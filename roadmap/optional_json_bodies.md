@@ -8,7 +8,7 @@ Allow endpoints to accept either no JSON body or a typed JSON body without handw
 
 ## Problem
 
-Some endpoints legitimately accept an empty body or a small typed JSON body. Today `auto-k-server` still needs custom HTTP decoder handling to tolerate EOF on those endpoints instead of relying on generated transport behavior.
+Some endpoints legitimately accept an empty body or a small typed JSON body. Today downstream consumers still need custom HTTP decoder handling to tolerate EOF on those endpoints instead of relying on generated transport behavior.
 
 ## Scope
 

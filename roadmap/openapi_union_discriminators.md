@@ -51,7 +51,7 @@ Out of scope:
 
 ## Design Constraints
 
-- Keep the contract policy in `goa-light`, not in `goa-ai`.
+- Keep the contract policy in `goa-light`, not in downstream plugins or consumers.
 - Do not require application-specific meta tags for the common `type`/`value` pattern.
 - Preserve stable schema names and refs while adding discriminator metadata.
 

@@ -42,7 +42,7 @@ Out of scope:
 
 - Generated tests should stay deterministic and cheap.
 - The harness should validate framework semantics, not random example generation.
-- Guardrails belong in `goa-light` and `goa-ai` generators, not in app-specific CI scripts alone.
+- Guardrails belong in `goa-light` generators and shared framework test infrastructure, not in app-specific CI scripts alone.
 
 ## Risks
 

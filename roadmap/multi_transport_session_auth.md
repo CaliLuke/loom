@@ -4,7 +4,7 @@
 
 Model one logical authenticated session that may arrive through multiple
 transports, while removing duplicated payload types and repeated HTTP glue from
-application designs such as `auto-k-server`.
+application designs.
 
 ## Status
 
@@ -117,7 +117,7 @@ This work enabled or aligns closely with:
 The core feature is done. Remaining work is consumer proof, not framework
 foundation:
 
-- prove the DSL against real `auto-k-server` design cleanup
+- prove the DSL against real consumer design cleanup
 - measure how much duplicated payload and transport glue disappears
 - decide whether any additional ergonomics are justified by real consumer
   friction

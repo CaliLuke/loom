@@ -32,7 +32,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads, including flat OAuth-style object-union fields.
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
 - Multipart object request decoding without handwritten decoder hooks, including shared validation flow when multipart bodies are combined with generated request-element decoding.
-- Request-body validator parity and transform helper parity needed by `auto-k-server`.
+- Request-body validator parity and transform helper parity for downstream consumers.
 - JSON-RPC SSE server generation now emits `message` events for streamed payloads and JSON-RPC error envelopes, while final success envelopes still use `response`; generated SSE clients and the integration harness preserve and validate those event types while remaining backward compatible with legacy/default frames.
 - JSON-RPC SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first SSE frame is actually written, so endpoint setup failures can still surface as the correct HTTP error response. The raw streamable-HTTP `GET /rpc` listener for `events/stream` remains an explicit eager-open exception so clients can observe stream establishment before the first published notification.
 - JSON-RPC integration tests now include a persistent generated `ticktock` SSE fixture plus an external-client interoperability check using `github.com/tmaxmax/go-sse`, so generated streams are verified against a real third-party client as well as the in-repo harness.
@@ -46,7 +46,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - `http/codegen/openapi/v3` now carries a non-trivial `meal-planner` specimen that closes the loop with rendered-spec assertions plus Redocly lint for auth, forms, multipart, union wrappers, views, and SSE.
 - `http/codegen/openapi/v3` now carries a small specimen matrix (`meal-planner`, `collab-streams`, `activity-feed`, `ops-socket`, `streaming-partial-examples`) to exercise form/multipart, SSE, closed-object union collections, and WebSocket-style streaming OpenAPI output.
 - Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `goa.design/goa/v3`.
-- Major generic helper moves out of `goa-ai/shared` into `goa-light`.
+- Generic helper consolidation into `goa-light`.
 
 ### In Progress
 
@@ -54,9 +54,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 
 ### Next
 
-- rewire `goa-ai` to consume the core helpers already moved into `goa-light`
-- prove the cleaned stack against `auto-k-server` in temp generation
-- replace real auth/session glue in `auto-k-server` and then perform the swap
+- prove the cleaned stack against representative downstream generation in temp modules
+- replace remaining real auth/session glue in consumer designs where the new DSL applies
+- finish the direct follow-up test backlog for refactored transport/service-data seams
 
 ## Prioritized Backlog
 
@@ -103,7 +103,6 @@ These items are prioritized based on two goals:
 - [Multipart Object Decoding](./multipart_object_decoding.md)
 - [Optional JSON Bodies](./optional_json_bodies.md)
 - [Form URL Encoded Decoding](./form_urlencoded_decoding.md)
-- [Goa-AI Boundary](./goa_ai_boundary.md)
 - [Generated Transport Projections](./generated_transport_projections.md)
 - [Generated Projection Parity Tests](./generated_projection_parity_tests.md)
 
@@ -124,6 +123,6 @@ Before starting a new framework feature, ask:
 
 1. Does this remove real glue or real risk in application design files?
 2. Is this framework semantics, rather than runtime security logic better handled by libraries?
-3. Is there a concrete consumer, ideally `auto-k-server`, that benefits now?
+3. Is there a concrete downstream consumer that benefits now?
 
 If the answer to any of these is “no”, the feature should usually wait.

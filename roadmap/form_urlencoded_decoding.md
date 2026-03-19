@@ -8,7 +8,7 @@ Make `application/x-www-form-urlencoded` request decoding first-class for typed 
 
 ## Problem
 
-`auto-k-server` still needs handwritten form parsing for OAuth token flows because generated request decoding does not fully support typed or union-shaped `application/x-www-form-urlencoded` payloads.
+Downstream consumers still need handwritten form parsing for OAuth token flows when generated request decoding does not fully support typed or union-shaped `application/x-www-form-urlencoded` payloads.
 
 ## Scope
 

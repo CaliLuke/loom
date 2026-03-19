@@ -4,12 +4,12 @@ This is the complete checklist to call the current effort finished.
 
 The finish line is not "more ideas remain". The finish line is:
 
-- the generic Goa-core work is fully moved out of `goa-ai`
-- `goa-ai` consumes the cleaned core instead of duplicating it
-- `auto-k-server` proves the stack in real generation and real design cleanup
-- the final swap can happen with understood blast radius
+- the framework behavior is fully owned by `goa-light`
+- representative downstream generation succeeds against the cleaned stack
+- at least one real consumer design is simplified by the new DSL/capability
+- the final release or repin can happen with understood blast radius
 
-## A. Finish The Goa-AI To Goa-Core Boundary
+## A. Keep Framework Ownership Clean
 
 - [x] Move generic union discriminator semantics into `goa-light`.
 - [x] Move generic union example canonicalization into `goa-light`.
@@ -19,35 +19,33 @@ The finish line is not "more ideas remain". The finish line is:
 - [x] Move remediation-aware error metadata into `goa-light`.
 - [x] Move inline JSON Schema generation into `goa-light`.
 - [x] Move generic attribute import gathering into `goa-light`.
-- [ ] Rewire `goa-ai` to use those core helpers instead of local duplicates.
-- [ ] Delete or collapse the now-redundant helpers in `goa-ai/codegen/shared`.
-- [ ] Verify the remaining `goa-ai` shared code is only MCP or agent specific.
+- [ ] Audit for any remaining generic helper duplication or leaked consumer-specific behavior.
+- [ ] Keep only framework-owned abstractions in roadmap and implementation docs.
 
 ## B. Finish The Remedy Boundary Cleanly
 
 - [x] Add first-class remediation metadata to Goa error contracts.
 - [ ] Decide whether remediation should project beyond OpenAPI and service data into generated runtime helpers.
 - [ ] If yes, add transport projections for HTTP, JSON-RPC, and other Goa-owned transports without introducing app-specific coupling.
-- [ ] Remove any direct `remedy` package dependence from generic `goa-ai` code generation.
 - [ ] Keep the generic abstraction in Goa-core and the concrete `remedy` package as an adapter target, not the framework root abstraction.
 
-## C. Prove Goa-AI Cleanly On Top Of Goa-Light
+## C. Prove Downstream Generation Cleanly On Top Of Goa-Light
 
-- [ ] Point the `goa-ai` fork at local `goa-light` and make it compile cleanly.
-- [ ] Run the full `goa-ai` test suite against `goa-light`.
-- [ ] Fix any breakage caused by the moved core helpers.
-- [ ] Commit the `goa-ai` cleanup in isolated feature commits.
+- [ ] Point at least one representative downstream generator or consumer at local `goa-light` and make it compile cleanly.
+- [ ] Run the relevant downstream suite against `goa-light`.
+- [ ] Fix any breakage caused by moved or tightened core helpers.
+- [ ] Commit downstream cleanup in isolated feature commits when needed.
 
-## D. Prove The Stack In Auto-K With Temp Generation
+## D. Prove The Stack With Temp Generation
 
-- [ ] Point a temporary `auto-k-server` generation run at the cleaned `goa-light` and cleaned `goa-ai`.
+- [ ] Point a temporary downstream generation run at the cleaned `goa-light`.
 - [ ] Regenerate outside the repo tree, not into checked-in `gen/`.
 - [ ] Compare the result against the current pinned output with `/Users/luca/code/goa-light/scripts/compare_regen.sh`.
 - [ ] Confirm the remaining drift is intentional contract drift, not transport or codegen regression.
 
-## E. Replace Real Design Glue In Auto-K
+## E. Replace Real Design Glue In A Consumer
 
-- [ ] Pick one representative auth area in `auto-k-server` and replace duplicated bearer/browser auth DSL with:
+- [ ] Pick one representative auth area in a real consumer and replace duplicated bearer/browser auth DSL with:
   - `SessionAuth(...)`
   - `SessionSecurity(...)`
   - `SessionCookie(...)`
@@ -66,17 +64,16 @@ The finish line is not "more ideas remain". The finish line is:
 ## G. Swap Readiness Gate
 
 - [x] `goa-light`: `go test ./...`
-- [ ] `goa-ai`: full suite green against `goa-light`
-- [ ] `auto-k-server`: temp regeneration succeeds against the cleaned stack
+- [ ] representative downstream suite green against `goa-light`
+- [ ] temp regeneration succeeds against the cleaned stack
 - [ ] drift review is complete and understood
-- [ ] at least one real `auto-k-server` design area is simplified with the new DSL
-- [ ] no remaining generic helper duplication exists in `goa-ai`
+- [ ] at least one real consumer design area is simplified with the new DSL
+- [ ] no remaining generic helper duplication or consumer-specific roadmap residue exists in `goa-light`
 - [ ] roadmap and boundary docs reflect the final split accurately
 
 ## H. Actual Swap
 
-- [ ] Repin `auto-k-server` from `goa` to `goa-light`.
-- [ ] Repin `goa-ai` to the cleaned version that consumes `goa-light`.
+- [ ] Repin the target downstream repo(s) from `goa` to `goa-light`.
 - [ ] Regenerate the checked-in `gen/` tree.
 - [ ] Run app tests and integration checks.
 - [ ] Commit the swap as its own isolated change.
@@ -85,15 +82,15 @@ The finish line is not "more ideas remain". The finish line is:
 
 These are not open items anymore:
 
-- transport/codegen parity work in `goa-light` for `auto-k-server`
+- transport/codegen parity work in `goa-light` for downstream consumers
 - the OpenAPI 3.1 baseline migration
 - the session auth/session cookie/auth error DSL foundation
-- the major generic helper moves out of `goa-ai/shared`
+- the major generic helper consolidation into `goa-light`
 
 ## Current Next Step
 
 The next concrete step is:
 
-- rewire `goa-ai` to consume the core helpers already moved into `goa-light`
+- prove the cleaned stack against representative downstream generation and design cleanup
 
 Until that is done, the boundary cleanup pass is not complete.

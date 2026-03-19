@@ -25,9 +25,9 @@ Reduce application design-file glue while making the default security posture cl
 
 ### Next
 
-### 1. Prove the New DSL Against `auto-k-server`
+### 1. Prove the New DSL Against Real Consumer Designs
 
-Use the new session/auth helpers in real `auto-k-server` designs and measure:
+Use the new session/auth helpers in real consumer designs and measure:
 
 - which duplicated payload types disappear
 - which explicit `Header(...)`, `Cookie(...)`, and `Response(...)` blocks disappear
@@ -43,7 +43,7 @@ If real app usage still shows friction, prioritize:
 - cleaner modeling of bearer-or-cookie session auth at API/service scope
 - sharper defaulting around standard auth responses
 
-This should be driven by actual design churn in `auto-k-server`, not by abstract feature expansion.
+This should be driven by actual design churn in downstream consumers, not by abstract feature expansion.
 
 ### 3. Make Remediation a First-Class Contract Concept
 
@@ -69,7 +69,6 @@ Desired contract fields:
 Architectural rule:
 
 - `goa-light` should own the generic remediation/error contract
-- `goa-ai` should consume that model for tool and MCP behavior
 - concrete runtime libraries such as `remedy` may remain the preferred implementation target, but should not be the root abstraction in framework code
 
 ## Backlog
@@ -98,7 +97,7 @@ Why this is worth doing eventually:
 
 Why it does not need to happen immediately:
 
-- `auto-k-server` does not currently appear to need multiple response cookies with distinct policies
+- no current downstream consumer appears to need multiple response cookies with distinct policies
 - the existing model is sufficient for the common hardened session-cookie case
 
 Trigger to prioritize:
