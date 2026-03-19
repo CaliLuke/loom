@@ -58,6 +58,24 @@ var RequestObjectBody = func(svc, met string) func() {
 	}
 }
 
+var RequestOptionalObjectBody = func(svc, met string) func() {
+	return func() {
+		var BodyType = Type("OptionalBody", func() {
+			Attribute("name", String)
+		})
+		var _ = Service(svc, func() {
+			Method(met, func() {
+				Payload(BodyType)
+				HTTP(func() {
+					POST("/")
+					Body(BodyType)
+					OptionalRequestBody()
+				})
+			})
+		})
+	}
+}
+
 var RequestMapParams = func(svc, met string) func() {
 	return func() {
 		var _ = Service(svc, func() {

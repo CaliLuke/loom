@@ -1,0 +1,27 @@
+// DecodeMethodBodyObjectOptionalOriginRequestRequest returns a decoder for
+// requests sent to the ServiceBodyObjectOptionalOriginRequest
+// MethodBodyObjectOptionalOriginRequest endpoint.
+func DecodeMethodBodyObjectOptionalOriginRequestRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload, error) {
+	return func(r *http.Request) (*servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload, error) {
+		var payload *servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload
+		var (
+			body MethodBodyObjectOptionalOriginRequestRequestBody
+			err  error
+		)
+		err = decoder(r).Decode(&body)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				err = nil
+			} else {
+				var gerr *goa.ServiceError
+				if errors.As(err, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(err.Error())
+			}
+		}
+		payload = NewMethodBodyObjectOptionalOriginRequestPayload(&body)
+
+		return payload, nil
+	}
+}

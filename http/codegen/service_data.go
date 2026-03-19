@@ -1167,6 +1167,9 @@ func (sds *ServicesData) buildPayloadData(e *expr.HTTPEndpointExpr, sd *ServiceD
 			}
 		}
 		if e.Body.Type != expr.Empty {
+			if e.OptionalRequestBody {
+				mustHaveBody = false
+			}
 			// If design uses Body("name") syntax we need to use the
 			// corresponding attribute in the result type for body
 			// transformation.

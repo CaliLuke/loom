@@ -2088,6 +2088,40 @@ var PayloadBodyObjectValidateDSL = func() {
 	})
 }
 
+var PayloadBodyObjectOptionalRequestDSL = func() {
+	var LinkStart = Type("LinkStart", func() {
+		Attribute("continue", String)
+	})
+	Service("ServiceBodyObjectOptionalRequest", func() {
+		Method("MethodBodyObjectOptionalRequest", func() {
+			Payload(LinkStart)
+			HTTP(func() {
+				POST("/")
+				Body(LinkStart)
+				OptionalRequestBody()
+			})
+		})
+	})
+}
+
+var PayloadBodyObjectOptionalOriginRequestDSL = func() {
+	var LinkStart = Type("LinkStart", func() {
+		Attribute("continue", String)
+	})
+	Service("ServiceBodyObjectOptionalOriginRequest", func() {
+		Method("MethodBodyObjectOptionalOriginRequest", func() {
+			Payload(func() {
+				Attribute("body", LinkStart)
+			})
+			HTTP(func() {
+				POST("/")
+				Body("body")
+				OptionalRequestBody()
+			})
+		})
+	})
+}
+
 var PayloadBodyUnionDSL = func() {
 	var Union = Type("Union", func() {
 		OneOf("Values", func() {

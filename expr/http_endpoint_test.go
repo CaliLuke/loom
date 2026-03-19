@@ -134,6 +134,26 @@ func TestHTTPEndpointValidation(t *testing.T) {
 		"endpoint-body-as-user-type": {
 			DSL: testdata.EndpointBodyAsUserType,
 		},
+		"endpoint-optional-request-body": {
+			DSL: testdata.EndpointOptionalRequestBody,
+		},
+		"endpoint-optional-request-body-missing-body": {
+			DSL:   testdata.EndpointOptionalRequestBodyMissingBody,
+			Error: `service "Service" HTTP endpoint "Method": HTTP endpoint uses OptionalRequestBody but does not define a request body.`,
+		},
+		"endpoint-optional-request-body-with-form": {
+			DSL: testdata.EndpointOptionalRequestBodyWithForm,
+			Error: `service "Service" HTTP endpoint "Method": HTTP endpoint cannot use OptionalRequestBody with FormRequest.
+service "Service" HTTP endpoint "Method": HTTP endpoint defines FormRequest and body. At most one of these must be defined.`,
+		},
+		"endpoint-optional-request-body-required-attribute": {
+			DSL:   testdata.EndpointOptionalRequestBodyRequiredAttribute,
+			Error: `service "Service" HTTP endpoint "Method": OptionalRequestBody requires the request body to have no required attributes.`,
+		},
+		"endpoint-optional-request-body-required-origin-attribute": {
+			DSL:   testdata.EndpointOptionalRequestBodyRequiredOriginAttribute,
+			Error: `service "Service" HTTP endpoint "Method": OptionalRequestBody requires the payload attribute mapped to the request body to be optional.`,
+		},
 		"endpoint-missing-token": {
 			DSL:   testdata.EndpointMissingToken,
 			Error: `service "Service" method "Method": payload of method "Method" of service "Service" does not define a JWT attribute, use Token to define one`,

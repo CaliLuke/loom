@@ -75,6 +75,9 @@ type (
 		// FormRequest indicates that the request content type for
 		// the endpoint is application/x-www-form-urlencoded.
 		FormRequest bool
+		// OptionalRequestBody indicates that the endpoint accepts an empty
+		// request body in addition to a typed JSON request body.
+		OptionalRequestBody bool
 		// Redirect defines a redirect for the endpoint.
 		Redirect *HTTPRedirectExpr
 		// SSE defines the Server-Sent Events configuration for this endpoint if it's
@@ -612,6 +615,9 @@ func (e *HTTPEndpointExpr) Validate() error {
 		if e.FormRequest {
 			verr.Add(e, "FormRequest is set but Payload is not defined")
 		}
+		if e.OptionalRequestBody {
+			verr.Add(e, "OptionalRequestBody is set but Payload is not defined")
+		}
 		if !e.Params.IsEmpty() {
 			verr.Add(e, "Params are set but Payload is not defined.")
 		}
@@ -625,6 +631,21 @@ func (e *HTTPEndpointExpr) Validate() error {
 	}
 	if e.FormRequest && e.SkipRequestBodyEncodeDecode {
 		verr.Add(e, "HTTP endpoint cannot use FormRequest with SkipRequestBodyEncodeDecode.")
+	}
+	if e.OptionalRequestBody && e.SkipRequestBodyEncodeDecode {
+		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with SkipRequestBodyEncodeDecode.")
+	}
+	if e.OptionalRequestBody && e.MultipartRequest {
+		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.")
+	}
+	if e.OptionalRequestBody && e.FormRequest {
+		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with FormRequest.")
+	}
+	if e.OptionalRequestBody && (e.Body == nil || e.Body.Type == Empty) {
+		verr.Add(e, "HTTP endpoint uses OptionalRequestBody but does not define a request body.")
+	}
+	if e.OptionalRequestBody && e.Body != nil && !IsObject(e.Body.Type) {
+		verr.Add(e, "OptionalRequestBody requires an object request body.")
 	}
 	if e.MultipartRequest && IsUnion(e.MethodExpr.Payload.Type) {
 		verr.Add(e, "MultipartRequest requires an object payload, constructor unions are not supported")
@@ -758,6 +779,14 @@ func (e *HTTPEndpointExpr) Validate() error {
 						verr.Add(e, "Body %q is not found in Payload.", prop)
 					}
 				}
+				if e.OptionalRequestBody {
+					if ok && len(props) == 1 && e.MethodExpr.Payload.IsRequired(props[0]) {
+						verr.Add(e, "OptionalRequestBody requires the payload attribute mapped to the request body to be optional.")
+					}
+					if !ok && hasRequiredBodyAttributes(e.Body) {
+						verr.Add(e, "OptionalRequestBody requires the request body to have no required attributes.")
+					}
+				}
 			}
 		}
 	}
@@ -780,6 +809,21 @@ func (e *HTTPEndpointExpr) Validate() error {
 	}
 
 	return verr
+}
+
+func hasRequiredBodyAttributes(att *AttributeExpr) bool {
+	if att == nil {
+		return false
+	}
+	if att.Validation != nil && len(att.Validation.Required) > 0 {
+		return true
+	}
+	if ut, ok := att.Type.(UserType); ok {
+		if v := ut.Attribute().Validation; v != nil && len(v.Required) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // Finalize is run post DSL execution. It merges response definitions, creates

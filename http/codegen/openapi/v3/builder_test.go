@@ -149,6 +149,13 @@ func TestBuildOperation(t *testing.T) {
 		ExpectedRequestBody: &requestBody{"", tobj("name", tstring), true},
 		ExpectedResponses:   responses{"204": {Description: "No Content response."}},
 	}, {
+		Name: "request_optional_object_body",
+		DSL:  dsls.RequestOptionalObjectBody(svcName, "request_optional_object_body"),
+
+		ExpectedDeprecated:  false,
+		ExpectedRequestBody: &requestBody{"", tobj("name", tstring), false},
+		ExpectedResponses:   responses{"204": {Description: "No Content response."}},
+	}, {
 		Name: "request_streaming_string_body",
 		DSL:  dsls.RequestObjectBody(svcName, "request_streaming_string_body"),
 

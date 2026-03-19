@@ -113,6 +113,8 @@ func TestPayloadConstructor(t *testing.T) {
 		{"body-user-inner", testdata.PayloadBodyUserInnerDSL},
 		{"body-user-inner-default", testdata.PayloadBodyUserInnerDefaultDSL},
 		{"body-user-inner-origin", testdata.PayloadBodyUserOriginDSL},
+		{"body-object-optional-request", testdata.PayloadBodyObjectOptionalRequestDSL},
+		{"body-object-optional-origin-request", testdata.PayloadBodyObjectOptionalOriginRequestDSL},
 		{"body-inline-array-user", testdata.PayloadBodyInlineArrayUserDSL},
 		{"body-inline-map-user", testdata.PayloadBodyInlineMapUserDSL},
 		{"body-inline-recursive-user", testdata.PayloadBodyInlineRecursiveUserDSL},

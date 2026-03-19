@@ -1,0 +1,10 @@
+// NewMethodBodyObjectOptionalRequestLinkStart builds a
+// ServiceBodyObjectOptionalRequest service MethodBodyObjectOptionalRequest
+// endpoint payload.
+func NewMethodBodyObjectOptionalRequestLinkStart(body *MethodBodyObjectOptionalRequestRequestBody) *servicebodyobjectoptionalrequest.LinkStart {
+	v := &servicebodyobjectoptionalrequest.LinkStart{
+		Continue: body.Continue,
+	}
+
+	return v
+}

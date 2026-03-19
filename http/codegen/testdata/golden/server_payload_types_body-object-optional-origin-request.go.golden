@@ -1,0 +1,13 @@
+// NewMethodBodyObjectOptionalOriginRequestPayload builds a
+// ServiceBodyObjectOptionalOriginRequest service
+// MethodBodyObjectOptionalOriginRequest endpoint payload.
+func NewMethodBodyObjectOptionalOriginRequestPayload(body *MethodBodyObjectOptionalOriginRequestRequestBody) *servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload {
+	v := &servicebodyobjectoptionaloriginrequest.LinkStart{
+		Continue: body.Continue,
+	}
+	res := &servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload{
+		Body: v,
+	}
+
+	return res
+}

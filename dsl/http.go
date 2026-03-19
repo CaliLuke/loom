@@ -832,6 +832,23 @@ func FormRequest() {
 	e.FormRequest = true
 }
 
+// OptionalRequestBody indicates that HTTP requests made to the method may omit
+// the JSON request body entirely or provide a typed JSON request body.
+//
+// OptionalRequestBody must appear in a HTTP endpoint expression.
+//
+// goa generates EOF-tolerant request decoding only for the explicit
+// OptionalRequestBody contract shape so required-body endpoints retain their
+// current strict behavior.
+func OptionalRequestBody() {
+	e, ok := eval.Current().(*expr.HTTPEndpointExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	e.OptionalRequestBody = true
+}
+
 // SkipRequestBodyEncodeDecode prevents Goa from generating the request encoding
 // (client) and decoding (server) code. Instead the service method gets direct
 // access to the HTTP body reader. The client method provides a reader from

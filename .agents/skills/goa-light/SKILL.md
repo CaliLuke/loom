@@ -33,6 +33,9 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - Use `FormRequest()` on HTTP endpoints when the request body contract is `application/x-www-form-urlencoded`.
 - `FormRequest()` is for typed object payloads and constructor unions only; incompatible body/param mixes are rejected during design validation instead of silently falling back to app-local parsing.
 - Form-encoded unions use the same canonical wrapper shape as JSON: discriminator under `type`, branch payload under `value`.
+- Use `OptionalRequestBody()` when an HTTP endpoint may omit a JSON request body entirely.
+- `OptionalRequestBody()` is intentionally narrow: JSON only, object request bodies only, no raw body streaming, no multipart, no form bodies, and no required body-mapped payload attribute.
+- OpenAPI request bodies generated from `OptionalRequestBody()` render with `required: false`.
 - Session auth is first-class. Prefer the built-in DSL instead of hand-rolling bearer-or-cookie glue:
   - `SessionAuth(name, fn)`
   - `BearerTransport(scheme, fieldName, fn...)`

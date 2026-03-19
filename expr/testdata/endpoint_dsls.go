@@ -222,6 +222,89 @@ var EndpointBodyAsUserType = func() {
 	})
 }
 
+var EndpointOptionalRequestBody = func() {
+	var LinkStart = Type("LinkStart", func() {
+		Attribute("continue", String)
+	})
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(LinkStart)
+			HTTP(func() {
+				POST("/")
+				Body(LinkStart)
+				OptionalRequestBody()
+			})
+		})
+	})
+}
+
+var EndpointOptionalRequestBodyMissingBody = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("continue", String)
+			})
+			HTTP(func() {
+				POST("/")
+				OptionalRequestBody()
+			})
+		})
+	})
+}
+
+var EndpointOptionalRequestBodyWithForm = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("continue", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Body(func() {
+					Attribute("continue", String)
+				})
+				FormRequest()
+				OptionalRequestBody()
+			})
+		})
+	})
+}
+
+var EndpointOptionalRequestBodyRequiredAttribute = func() {
+	var LinkStart = Type("LinkStart", func() {
+		Attribute("continue", String)
+		Required("continue")
+	})
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(LinkStart)
+			HTTP(func() {
+				POST("/")
+				Body(LinkStart)
+				OptionalRequestBody()
+			})
+		})
+	})
+}
+
+var EndpointOptionalRequestBodyRequiredOriginAttribute = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("body", func() {
+					Attribute("continue", String)
+				})
+				Required("body")
+			})
+			HTTP(func() {
+				POST("/")
+				Body("body")
+				OptionalRequestBody()
+			})
+		})
+	})
+}
+
 var EndpointMissingToken = func() {
 	var Entity = Type("Entity", func() {
 		Attribute("id", String)

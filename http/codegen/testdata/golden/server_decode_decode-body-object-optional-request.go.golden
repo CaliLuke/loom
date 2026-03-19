@@ -1,0 +1,27 @@
+// DecodeMethodBodyObjectOptionalRequestRequest returns a decoder for requests
+// sent to the ServiceBodyObjectOptionalRequest MethodBodyObjectOptionalRequest
+// endpoint.
+func DecodeMethodBodyObjectOptionalRequestRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicebodyobjectoptionalrequest.LinkStart, error) {
+	return func(r *http.Request) (*servicebodyobjectoptionalrequest.LinkStart, error) {
+		var payload *servicebodyobjectoptionalrequest.LinkStart
+		var (
+			body MethodBodyObjectOptionalRequestRequestBody
+			err  error
+		)
+		err = decoder(r).Decode(&body)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				err = nil
+			} else {
+				var gerr *goa.ServiceError
+				if errors.As(err, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(err.Error())
+			}
+		}
+		payload = NewMethodBodyObjectOptionalRequestLinkStart(&body)
+
+		return payload, nil
+	}
+}

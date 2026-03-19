@@ -1,5 +1,7 @@
 # Optional JSON Bodies
 
+Status: completed on 2026-03-18
+
 ## Goal
 
 Allow endpoints to accept either no JSON body or a typed JSON body without handwritten EOF-tolerant decoder logic.
@@ -21,19 +23,23 @@ Out of scope:
 - application-specific defaulting after decode
 - custom auth/session runtime logic
 
-## Desired Outcome
+## Delivered Outcome
 
 - the DSL can express an optional JSON request body clearly
 - generated decoders accept an empty body when the contract allows it
 - generated decoders still reject malformed JSON and invalid typed payloads
 
-## Work Plan
+## What Changed
 
-1. Define the contract rule for “optional JSON body” in Goa-light terms.
-2. Audit current HTTP JSON decoder generation to identify where EOF is treated as a hard error.
-3. Add generated behavior that treats EOF as empty-body success only when the contract allows it.
-4. Preserve normal validation and required-field checks when a body is present.
-5. Add regression tests for the OAuth-style endpoint shape that motivated this request.
+1. Added `OptionalRequestBody()` to the HTTP DSL so an endpoint can explicitly allow an omitted JSON request body.
+2. Added endpoint validation to keep the feature narrow and predictable:
+   - request body must be defined
+   - request body must be JSON/object-shaped
+   - body-mapped payload attributes must remain optional
+   - form, multipart, and raw body streaming paths are rejected
+3. Updated HTTP request decoding so EOF is accepted only for endpoints that opt into `OptionalRequestBody()`.
+4. Updated OpenAPI request-body generation so optional JSON bodies render with `required: false`.
+5. Added regression coverage for explicit body types, `Body("body")` origin mapping, and invalid DSL combinations.
 
 ## Design Constraints
 
@@ -41,10 +47,10 @@ Out of scope:
 - The feature should be contract-driven, not based on app-local decoder swaps.
 - Avoid broad decoder leniency that changes behavior for existing required-body endpoints.
 
-## Risks
+## Remaining Follow-Up
 
-- Optional-body semantics can become ambiguous if the DSL does not express them cleanly.
-- Overly broad EOF tolerance could accidentally weaken required-body endpoints.
+- If a real consumer needs optional non-object JSON bodies or optional multipart/form behavior, handle that as a separate feature instead of broadening `OptionalRequestBody()` silently.
+- If a future consumer needs omitted-body semantics combined with required nested body fields, the framework will need explicit presence-tracking rather than the current “optional object with optional fields” contract.
 
 ## Finish Criteria
 
