@@ -99,6 +99,9 @@ func (m *MethodExpr) EvalName() string {
 // type if nil) and merges the method interceptors with the API and service level
 // interceptors.
 func (m *MethodExpr) Prepare() {
+	if m.Stream == 0 {
+		m.Stream = NoStreamKind
+	}
 	if m.Payload == nil {
 		m.Payload = &AttributeExpr{Type: Empty}
 	}

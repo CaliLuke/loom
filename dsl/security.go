@@ -394,6 +394,10 @@ func NoSecurity() {
 	current := eval.Current()
 	switch actual := current.(type) {
 	case *expr.MethodExpr:
+		if actual.Meta == nil {
+			actual.Meta = expr.MetaExpr{}
+		}
+		actual.Meta["security:no"] = []string{}
 		actual.Requirements = append(actual.Requirements, security)
 	default:
 		eval.IncompatibleDSL()

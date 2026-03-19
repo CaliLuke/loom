@@ -14,6 +14,10 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
 - Align cookie documentation with actual wire-format serialization.
 - Use stable hash-based schema collision suffixes.
 - Canonicalize generated `operationId` values into a deterministic normalized form.
+- Emit operation-level security requirements for secured endpoints, and explicit
+  empty `security: []` arrays for `NoSecurity()` operations.
+- Prune unreferenced generated component schemas so the published contract only
+  contains reachable request/response shapes.
 
 ### Next
 
@@ -39,7 +43,10 @@ Keep these policies in `goa-light`, not in plugins:
 
 - stable `operationId`
 - stable schema naming
+- explicit operation-level security semantics, including public-operation
+  overrides
 - truthful response/body/security modeling
+- no dead generated component schemas in published output
 - stable and accurate examples where possible
 
 ## Backlog

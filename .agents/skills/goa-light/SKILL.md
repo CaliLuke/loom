@@ -25,6 +25,8 @@ Use this skill for `goa-light` framework work only. It does not cover Goa-AI.
 - `goa-light` emits OpenAPI 3.1 / JSON Schema 2020-12 only. The canonical artifacts are `gen/http/openapi.json` and `gen/http/openapi.yaml`.
 - Treat OpenAPI output shape as framework contract. Stable schema names, canonical `operationId`, and `libopenapi` validation are intentional behavior, not incidental formatting.
 - Structurally identical generated OpenAPI components are deduplicated and reused by `$ref`; explicit `openapi:typename` declarations still keep their own named components.
+- Generated OpenAPI emits operation-level security for secured endpoints, including inherited service/API requirements; `NoSecurity()` emits explicit `security: []` on the operation instead of relying on omission.
+- Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
 - Wrapper-style unions now emit OpenAPI discriminators with:
   - `discriminator.propertyName`
   - `discriminator.mapping`

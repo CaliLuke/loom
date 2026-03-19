@@ -345,6 +345,167 @@ func TestHTTPEndpointFinalization(t *testing.T) {
 	}
 }
 
+func TestHTTPEndpointPrepareAdditionalCoverage(t *testing.T) {
+	t.Run("service sse inheritance", func(t *testing.T) {
+		root := expr.RunDSL(t, serviceLevelSSEInheritanceDSL)
+		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		if e.SSE == nil {
+			t.Fatalf("expected SSE inheritance from service HTTP block")
+		}
+		if e.SSE.DataField != "event" {
+			t.Fatalf("got SSE data field %q, expected %q", e.SSE.DataField, "event")
+		}
+	})
+
+	t.Run("api sse inheritance", func(t *testing.T) {
+		root := expr.RunDSL(t, apiLevelSSEInheritanceDSL)
+		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		if e.SSE == nil {
+			t.Fatalf("expected SSE inheritance from API HTTP block")
+		}
+		if e.SSE.DataField != "event" {
+			t.Fatalf("got SSE data field %q, expected %q", e.SSE.DataField, "event")
+		}
+	})
+
+	t.Run("service http errors inherited", func(t *testing.T) {
+		root := expr.RunDSL(t, serviceLevelHTTPErrorsDSL)
+		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		if len(e.HTTPErrors) != 1 {
+			t.Fatalf("got %d HTTP errors, expected 1", len(e.HTTPErrors))
+		}
+		if e.HTTPErrors[0].Name != "bad_request" || e.HTTPErrors[0].Response.StatusCode != StatusBadRequest {
+			t.Fatalf("unexpected inherited service error %#v", e.HTTPErrors[0])
+		}
+	})
+
+	t.Run("api http errors inherited", func(t *testing.T) {
+		root := expr.RunDSL(t, apiLevelHTTPErrorsDSL)
+		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		if len(e.HTTPErrors) != 1 {
+			t.Fatalf("got %d HTTP errors, expected 1", len(e.HTTPErrors))
+		}
+		if e.HTTPErrors[0].Name != "bad_request" || e.HTTPErrors[0].Response.StatusCode != StatusBadRequest {
+			t.Fatalf("unexpected inherited API error %#v", e.HTTPErrors[0])
+		}
+	})
+
+	t.Run("websocket route coerced to get", func(t *testing.T) {
+		root := expr.RunDSL(t, websocketRouteMethodCoercionDSL)
+		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		if len(e.Routes) != 1 {
+			t.Fatalf("got %d routes, expected 1", len(e.Routes))
+		}
+		if e.Routes[0].Method != "GET" {
+			t.Fatalf("got route method %q, expected GET", e.Routes[0].Method)
+		}
+	})
+
+	t.Run("default no content response", func(t *testing.T) {
+		root := expr.RunDSL(t, defaultNoContentResponseDSL)
+		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		if len(e.Responses) != 1 {
+			t.Fatalf("got %d responses, expected 1", len(e.Responses))
+		}
+		if e.Responses[0].StatusCode != StatusNoContent {
+			t.Fatalf("got response status %d, expected %d", e.Responses[0].StatusCode, StatusNoContent)
+		}
+	})
+
+	t.Run("default redirect response", func(t *testing.T) {
+		root := expr.RunDSL(t, defaultRedirectResponseDSL)
+		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		if len(e.Responses) != 1 {
+			t.Fatalf("got %d responses, expected 1", len(e.Responses))
+		}
+		if e.Responses[0].StatusCode != StatusMovedPermanently {
+			t.Fatalf("got response status %d, expected %d", e.Responses[0].StatusCode, StatusMovedPermanently)
+		}
+	})
+
+	t.Run("jsonrpc websocket payload migration", func(t *testing.T) {
+		root := expr.RunDSL(t, jsonrpcWebSocketPayloadMigrationDSL)
+		e := root.API.JSONRPC.Services[0].HTTPEndpoints[0]
+		if e.MethodExpr.Stream != expr.BidirectionalStreamKind {
+			t.Fatalf("got stream kind %v, expected bidirectional", e.MethodExpr.Stream)
+		}
+		if e.MethodExpr.Payload == nil || e.MethodExpr.Payload.Type == expr.Empty {
+			t.Fatalf("expected finalized payload to remain addressable for JSON-RPC WebSocket")
+		}
+		if e.MethodExpr.StreamingPayload == nil || e.MethodExpr.StreamingPayload.Type == expr.Empty {
+			t.Fatalf("expected streaming payload to be populated during JSON-RPC WebSocket finalize")
+		}
+		if e.Body == nil || e.Body.Type == expr.Empty {
+			t.Fatalf("expected request body to remain addressable for migrated JSON-RPC payload")
+		}
+		if e.Body != e.StreamingBody {
+			t.Fatalf("expected migrated JSON-RPC body to reuse streaming body")
+		}
+	})
+
+	t.Run("implicit session cookie mapping", func(t *testing.T) {
+		root := expr.RunDSL(t, sessionCookieMappingDSL)
+		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+		if e.MethodExpr.Payload.Find("browser_session") == nil {
+			t.Fatalf("expected session auth to inject browser_session into payload")
+		}
+		if e.Cookies.Find("browser_session") == nil {
+			t.Fatalf("expected implicit session cookie mapping for browser_session")
+		}
+		if e.Cookies.ElemName("browser_session") != "__Host-browser_session" {
+			t.Fatalf("got cookie name %q, expected %q", e.Cookies.ElemName("browser_session"), "__Host-browser_session")
+		}
+	})
+
+	t.Run("jsonrpc id projection captured on endpoint", func(t *testing.T) {
+		root := expr.RunDSL(t, jsonrpcEndpointIDProjectionDSL)
+		e := root.API.JSONRPC.Services[0].HTTPEndpoints[0]
+		if e.PayloadIDAttribute != "id" {
+			t.Fatalf("got payload ID attribute %q, expected %q", e.PayloadIDAttribute, "id")
+		}
+		if e.ResultIDAttribute != "id" {
+			t.Fatalf("got result ID attribute %q, expected %q", e.ResultIDAttribute, "id")
+		}
+	})
+}
+
+func TestHTTPEndpointValidationAdditionalCoverage(t *testing.T) {
+	cases := map[string]struct {
+		DSL      func()
+		Contains string
+	}{
+		"all tagged responses rejected": {
+			DSL:      allTaggedResponsesDSL,
+			Contains: "All responses define a Tag, at least one response must define no Tag.",
+		},
+		"tagged responses require object result": {
+			DSL:      taggedPrimitiveResultDSL,
+			Contains: "Some responses define a Tag but the method Result type is not an object.",
+		},
+		"sse on non streaming endpoint rejected": {
+			DSL:      nonStreamingSSEDsl,
+			Contains: "Server-Sent Events can only be used with endpoints that have a streaming result or mixed results",
+		},
+		"jsonrpc result id requires request id": {
+			DSL:      jsonrpcResultIDWithoutRequestIDDSL,
+			Contains: `JSON-RPC method "show" result defines an ID field but the request (payload) does not`,
+		},
+		"redirect rejects mismatched response status": {
+			DSL:      redirectWithMismatchedResponseDSL,
+			Contains: "Endpoint cannot use Response when using Redirect.",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, tc.DSL)
+			got := stripValidationLocations(err.Error())
+			if !strings.Contains(got, tc.Contains) {
+				t.Fatalf("got %q, expected substring %q", got, tc.Contains)
+			}
+		})
+	}
+}
+
 func TestHTTPAuthorizationMapping(t *testing.T) {
 	cases := []struct {
 		Name           string
@@ -441,6 +602,246 @@ var sseWithBidirectionalStreamDsl = func() {
 			HTTP(func() {
 				GET("/")
 				ServerSentEvents()
+			})
+		})
+	})
+}
+
+var serviceLevelSSEInheritanceDSL = func() {
+	Service("ServiceLevelSSE", func() {
+		HTTP(func() {
+			ServerSentEvents("event")
+		})
+		Method("watch", func() {
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			HTTP(func() {
+				GET("/watch")
+			})
+		})
+	})
+}
+
+var apiLevelSSEInheritanceDSL = func() {
+	API("APISSE", func() {
+		HTTP(func() {
+			ServerSentEvents("event")
+		})
+	})
+	Service("APILevelSSE", func() {
+		Method("watch", func() {
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			HTTP(func() {
+				GET("/watch")
+			})
+		})
+	})
+}
+
+var serviceLevelHTTPErrorsDSL = func() {
+	Service("ServiceLevelErrors", func() {
+		Error("bad_request")
+		HTTP(func() {
+			Response("bad_request", StatusBadRequest)
+		})
+		Method("show", func() {
+			Error("bad_request")
+			Result(String)
+			HTTP(func() {
+				GET("/")
+			})
+		})
+	})
+}
+
+var apiLevelHTTPErrorsDSL = func() {
+	API("APILevelErrors", func() {
+		Error("bad_request")
+		HTTP(func() {
+			Response("bad_request", StatusBadRequest)
+		})
+	})
+	Service("APIInheritedErrors", func() {
+		Method("show", func() {
+			Error("bad_request")
+			Result(String)
+			HTTP(func() {
+				GET("/")
+			})
+		})
+	})
+}
+
+var websocketRouteMethodCoercionDSL = func() {
+	Service("WebSocketRouteMethodCoercion", func() {
+		Method("stream", func() {
+			StreamingResult(String)
+			HTTP(func() {
+				POST("/stream")
+			})
+		})
+	})
+}
+
+var defaultNoContentResponseDSL = func() {
+	Service("DefaultNoContent", func() {
+		Method("create", func() {
+			HTTP(func() {
+				POST("/")
+			})
+		})
+	})
+}
+
+var defaultRedirectResponseDSL = func() {
+	Service("DefaultRedirect", func() {
+		Method("show", func() {
+			HTTP(func() {
+				GET("/")
+				Redirect("/dest", StatusMovedPermanently)
+			})
+		})
+	})
+}
+
+var jsonrpcWebSocketPayloadMigrationDSL = func() {
+	Service("JSONRPCPayloadMigration", func() {
+		Method("stream", func() {
+			Payload(func() {
+				ID("id", String)
+				Attribute("message", String)
+				Required("id")
+			})
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			JSONRPC(func() {})
+		})
+		JSONRPC(func() {
+			GET("/rpc")
+		})
+	})
+}
+
+var sessionCookieMappingDSL = func() {
+	var browserSession = APIKeySecurity("browser_session_key")
+	var appSession = SessionAuth("app_session", func() {
+		CookieTransport(browserSession, "browser_session", func() {
+			CookieName("__Host-browser_session")
+		})
+	})
+	Service("SessionCookieMapping", func() {
+		Method("show", func() {
+			SessionSecurity(appSession)
+			Payload(func() {
+				Attribute("message", String)
+			})
+			Result(String)
+			HTTP(func() {
+				GET("/")
+			})
+		})
+	})
+}
+
+var jsonrpcEndpointIDProjectionDSL = func() {
+	Service("JSONRPCEndpointIDProjection", func() {
+		Method("show", func() {
+			Payload(func() {
+				ID("id", String)
+				Attribute("query", String)
+				Required("id")
+			})
+			Result(func() {
+				ID("id", String)
+				Attribute("value", String)
+				Required("id")
+			})
+			JSONRPC(func() {})
+		})
+		JSONRPC(func() {
+			Path("/rpc")
+		})
+	})
+}
+
+var allTaggedResponsesDSL = func() {
+	Service("AllTaggedResponses", func() {
+		Method("show", func() {
+			Result(func() {
+				Attribute("kind", String)
+			})
+			HTTP(func() {
+				GET("/")
+				Response(StatusOK, func() {
+					Tag("kind", "ok")
+				})
+				Response(StatusAccepted, func() {
+					Tag("kind", "accepted")
+				})
+			})
+		})
+	})
+}
+
+var taggedPrimitiveResultDSL = func() {
+	Service("TaggedPrimitiveResult", func() {
+		Method("show", func() {
+			Result(String)
+			HTTP(func() {
+				GET("/")
+				Response(StatusOK)
+				Response(StatusAccepted, func() {
+					Tag("kind", "accepted")
+				})
+			})
+		})
+	})
+}
+
+var nonStreamingSSEDsl = func() {
+	Service("NonStreamingSSE", func() {
+		Method("show", func() {
+			Result(func() {
+				Attribute("event", String)
+			})
+			HTTP(func() {
+				GET("/")
+				ServerSentEvents("event")
+			})
+		})
+	})
+}
+
+var jsonrpcResultIDWithoutRequestIDDSL = func() {
+	Service("JSONRPCIDValidation", func() {
+		Method("show", func() {
+			Payload(func() {
+				Attribute("query", String)
+			})
+			Result(func() {
+				ID("id", String)
+				Attribute("value", String)
+				Required("id")
+			})
+			JSONRPC(func() {})
+		})
+		JSONRPC(func() {
+			Path("/rpc")
+		})
+	})
+}
+
+var redirectWithMismatchedResponseDSL = func() {
+	Service("RedirectMismatch", func() {
+		Method("show", func() {
+			HTTP(func() {
+				GET("/")
+				Redirect("/dest", StatusMovedPermanently)
+				Response(StatusOK)
 			})
 		})
 	})

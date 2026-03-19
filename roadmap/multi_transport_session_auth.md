@@ -78,6 +78,10 @@ Semantics:
 For bearer-or-cookie auth, the generated OpenAPI security shape is the expected
 OR form, with one requirement object per accepted transport.
 
+Operation-level OpenAPI security is emitted even when the effective security is
+inherited from API or service scope, and explicit public overrides now render
+`security: []` instead of silently omitting the field.
+
 The framework owns:
 
 - DSL semantics

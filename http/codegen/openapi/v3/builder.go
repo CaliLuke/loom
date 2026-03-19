@@ -47,9 +47,9 @@ func New(root *expr.RootExpr) *OpenAPI {
 		bodies, types = buildBodyTypes(root.API, root.Types, root.ResultTypes)
 
 		info     = buildInfo(root.API)
-		comps    = buildComponents(root, types)
 		servers  = buildServers(root.API.Servers)
 		paths    = buildPaths(root.API.HTTP, bodies, root.API)
+		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, types))
 		security = buildSecurityRequirements(effectiveRequirements(root.API.Requirements, root.API.SessionAuths))
 		tags     = buildTags(root.API)
 	)
@@ -63,6 +63,150 @@ func New(root *expr.RootExpr) *OpenAPI {
 		Servers:           servers,
 		Security:          security,
 		Tags:              tags,
+	}
+}
+
+func pruneUnusedComponentSchemas(paths map[string]*PathItem, schemas map[string]*openapi.Schema) map[string]*openapi.Schema {
+	if len(schemas) == 0 {
+		return schemas
+	}
+
+	reachable := make(map[string]struct{}, len(schemas))
+	queue := make([]string, 0, len(schemas))
+	enqueue := func(ref string) {
+		name, ok := schemaNameFromRef(ref)
+		if !ok {
+			return
+		}
+		if _, seen := reachable[name]; seen {
+			return
+		}
+		reachable[name] = struct{}{}
+		queue = append(queue, name)
+	}
+
+	for _, pathItem := range paths {
+		collectPathItemSchemaRefs(pathItem, enqueue)
+	}
+
+	for len(queue) > 0 {
+		name := queue[0]
+		queue = queue[1:]
+		schema := schemas[name]
+		if schema == nil {
+			continue
+		}
+		collectSchemaRefs(schema, enqueue)
+	}
+
+	pruned := make(map[string]*openapi.Schema, len(reachable))
+	for name := range reachable {
+		if schema := schemas[name]; schema != nil {
+			pruned[name] = schema
+		}
+	}
+	return pruned
+}
+
+func schemaNameFromRef(ref string) (string, bool) {
+	const prefix = "#/components/schemas/"
+	if !strings.HasPrefix(ref, prefix) {
+		return "", false
+	}
+	name := strings.TrimPrefix(ref, prefix)
+	if name == "" {
+		return "", false
+	}
+	return name, true
+}
+
+func collectPathItemSchemaRefs(pathItem *PathItem, addRef func(string)) {
+	if pathItem == nil {
+		return
+	}
+	ops := []*Operation{
+		pathItem.Get,
+		pathItem.Put,
+		pathItem.Post,
+		pathItem.Delete,
+		pathItem.Options,
+		pathItem.Head,
+		pathItem.Patch,
+	}
+	for _, op := range ops {
+		collectOperationSchemaRefs(op, addRef)
+	}
+}
+
+func collectOperationSchemaRefs(op *Operation, addRef func(string)) {
+	if op == nil {
+		return
+	}
+	for _, param := range op.Parameters {
+		if param != nil && param.Value != nil {
+			collectSchemaRefs(param.Value.Schema, addRef)
+		}
+	}
+	if op.RequestBody != nil && op.RequestBody.Value != nil {
+		for _, content := range op.RequestBody.Value.Content {
+			if content != nil {
+				collectSchemaRefs(content.Schema, addRef)
+			}
+		}
+	}
+	for _, response := range op.Responses {
+		if response == nil || response.Value == nil {
+			continue
+		}
+		for _, header := range response.Value.Headers {
+			if header != nil && header.Value != nil {
+				collectSchemaRefs(header.Value.Schema, addRef)
+			}
+		}
+		for _, content := range response.Value.Content {
+			if content != nil {
+				collectSchemaRefs(content.Schema, addRef)
+			}
+		}
+	}
+}
+
+func collectSchemaRefs(schema *openapi.Schema, addRef func(string)) {
+	if schema == nil {
+		return
+	}
+	if schema.Ref != "" {
+		addRef(schema.Ref)
+		return
+	}
+	collectSchemaRefs(schema.Items, addRef)
+	for _, prop := range schema.Properties {
+		collectSchemaRefs(prop, addRef)
+	}
+	for _, def := range schema.Defs {
+		collectSchemaRefs(def, addRef)
+	}
+	for _, item := range schema.AnyOf {
+		collectSchemaRefs(item, addRef)
+	}
+	for _, item := range schema.OneOf {
+		collectSchemaRefs(item, addRef)
+	}
+	if nested, ok := schema.AdditionalProperties.(*openapi.Schema); ok {
+		collectSchemaRefs(nested, addRef)
+	}
+	if nested, ok := schema.UnevaluatedProperties.(*openapi.Schema); ok {
+		collectSchemaRefs(nested, addRef)
+	}
+	if schema.Media != nil {
+		// no schema refs
+	}
+	for _, link := range schema.Links {
+		if link == nil {
+			continue
+		}
+		collectSchemaRefs(link.Schema, addRef)
+		collectSchemaRefs(link.TargetSchema, addRef)
 	}
 }
 
@@ -348,11 +492,24 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 		Parameters:   params,
 		RequestBody:  requestBody,
 		Responses:    responses,
-		Security:     buildSecurityRequirements(e.Requirements),
+		Security:     buildOperationSecurity(e),
 		Deprecated:   deprecated,
 		ExternalDocs: openapi.DocsFromExpr(m.Docs, m.Meta),
 		Extensions:   openapi.ExtensionsFromExpr(m.Meta),
 	}
+}
+
+func buildOperationSecurity(e *expr.HTTPEndpointExpr) []map[string][]string {
+	if e == nil || e.MethodExpr == nil {
+		return nil
+	}
+	if _, ok := e.MethodExpr.Meta["security:no"]; ok {
+		return []map[string][]string{}
+	}
+	if len(e.Requirements) == 0 {
+		return nil
+	}
+	return buildSecurityRequirements(e.Requirements)
 }
 
 func appendErrorRemedyDescription(desc string, er *expr.HTTPErrorExpr) string {
@@ -633,6 +790,9 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 // buildSecurityRequirements builds the OpenAPI security requirements for the
 // given security expressions.
 func buildSecurityRequirements(reqs []*expr.SecurityExpr) []map[string][]string {
+	if len(reqs) == 0 {
+		return nil
+	}
 	srs := make([]map[string][]string, len(reqs))
 	for i, req := range reqs {
 		sr := make(map[string][]string, len(req.Schemes))

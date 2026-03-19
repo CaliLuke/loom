@@ -1270,15 +1270,9 @@ func (sds *ServicesData) buildPayloadData(e *expr.HTTPEndpointExpr, sd *ServiceD
 		DecoderReturnValue: returnValue,
 	}
 	if e.IsJSONRPC() {
-		obj := expr.AsObject(e.MethodExpr.Payload.Type)
-		if obj != nil {
-			for _, att := range *obj {
-				if _, ok := att.Attribute.Meta["jsonrpc:id"]; ok {
-					data.IDAttribute = codegen.Goify(att.Name, true)
-					data.IDAttributeRequired = e.MethodExpr.Payload.IsRequired(att.Name)
-					break
-				}
-			}
+		if e.PayloadIDAttribute != "" {
+			data.IDAttribute = codegen.Goify(e.PayloadIDAttribute, true)
+			data.IDAttributeRequired = e.MethodExpr.Payload.IsRequired(e.PayloadIDAttribute)
 		}
 	}
 	return data
@@ -1762,17 +1756,9 @@ func (sds *ServicesData) buildResultData(e *expr.HTTPEndpointExpr, sd *ServiceDa
 	}
 	idAtt := ""
 	idAttRequired := false
-	if e.IsJSONRPC() && result.Type != expr.Empty {
-		obj := expr.AsObject(result.Type)
-		if obj != nil {
-			for _, att := range *obj {
-				if _, ok := att.Attribute.Meta["jsonrpc:id"]; ok {
-					idAtt = codegen.Goify(att.Name, true)
-					idAttRequired = result.IsRequired(att.Name)
-					break
-				}
-			}
-		}
+	if e.IsJSONRPC() && e.ResultIDAttribute != "" {
+		idAtt = codegen.Goify(e.ResultIDAttribute, true)
+		idAttRequired = result.IsRequired(e.ResultIDAttribute)
 	}
 	return &ResultData{
 		IsStruct:            expr.IsObject(result.Type),

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"goa.design/goa/v3/codegen/service"
 	. "goa.design/goa/v3/dsl"
 	"goa.design/goa/v3/http/codegen/testdata"
 )
@@ -302,6 +303,64 @@ func TestHTTPResultAndErrorInitArgAssembly(t *testing.T) {
 	require.Equal(t, []string{"&body", "code", "session"}, initArgRefs(errorInit.ClientArgs))
 }
 
+func TestHTTPJSONRPCIDProjection(t *testing.T) {
+	endpoint := firstJSONRPCEndpointData(t, jsonrpcIDProjectionDSL)
+
+	require.NotNil(t, endpoint.Payload)
+	require.Equal(t, "ID", endpoint.Payload.IDAttribute)
+	require.True(t, endpoint.Payload.IDAttributeRequired)
+
+	require.NotNil(t, endpoint.Result)
+	require.Equal(t, "ID", endpoint.Result.IDAttribute)
+	require.True(t, endpoint.Result.IDAttributeRequired)
+}
+
+func TestHTTPResponseBodyGenerationCoverage(t *testing.T) {
+	t.Run("inline response body keeps projected body without synthetic origin attribute", func(t *testing.T) {
+		endpoint := firstEndpointData(t, testdata.ExplicitBodyUserResultObjectDSL)
+		require.NotNil(t, endpoint.Result)
+		require.NotEmpty(t, endpoint.Result.Responses)
+		resp := endpoint.Result.Responses[0]
+		require.Empty(t, resp.ResultAttr)
+		require.Len(t, resp.ServerBody, 1)
+		require.NotNil(t, resp.ClientBody)
+	})
+
+	t.Run("Body(\"a\") keeps result attr for projected attribute bodies", func(t *testing.T) {
+		endpoint := firstEndpointData(t, testdata.ExplicitBodyUserResultMultipleViewsDSL)
+		require.NotNil(t, endpoint.Result)
+		require.NotEmpty(t, endpoint.Result.Responses)
+		resp := endpoint.Result.Responses[0]
+		require.Len(t, resp.ServerBody, 1)
+		require.Equal(t, "A", resp.ResultAttr)
+		require.NotNil(t, resp.ClientBody)
+	})
+
+	t.Run("explicit method view keeps single projected body", func(t *testing.T) {
+		endpoint := firstEndpointData(t, testdata.ResultWithResultViewDSL)
+		require.NotNil(t, endpoint.Result)
+		require.NotEmpty(t, endpoint.Result.Responses)
+		resp := endpoint.Result.Responses[0]
+		require.Len(t, resp.ServerBody, 1)
+		require.NotNil(t, resp.ViewedResult)
+	})
+}
+
+func TestHTTPErrorBodyDescriptionRewrite(t *testing.T) {
+	endpoint := firstEndpointData(t, testdata.WithErrorCustomPkgDSL)
+	require.NotEmpty(t, endpoint.Errors)
+	require.NotEmpty(t, endpoint.Errors[0].Errors)
+
+	errResp := endpoint.Errors[0].Errors[0].Response
+	require.NotNil(t, errResp)
+	require.NotNil(t, errResp.ClientBody)
+	require.Contains(t, errResp.ClientBody.Description, `"ServiceWithErrorCustomPkg" service`)
+	require.Contains(t, errResp.ClientBody.Description, `"MethodWithErrorCustomPkg" endpoint`)
+	require.Contains(t, errResp.ClientBody.Description, `"error_name" error`)
+	require.NotEmpty(t, errResp.ServerBody)
+	require.Contains(t, errResp.ServerBody[0].Description, `"ServiceWithErrorCustomPkg" service`)
+}
+
 func firstEndpointData(t *testing.T, dsl func()) *EndpointData {
 	t.Helper()
 
@@ -318,6 +377,26 @@ func firstServiceData(t *testing.T, dsl func()) *ServiceData {
 
 	services := CreateHTTPServices(root)
 	svc := services.Get(root.API.HTTP.Services[0].Name())
+	require.NotNil(t, svc)
+	return svc
+}
+
+func firstJSONRPCEndpointData(t *testing.T, dsl func()) *EndpointData {
+	t.Helper()
+
+	svc := firstJSONRPCServiceData(t, dsl)
+	require.NotEmpty(t, svc.Endpoints)
+	return svc.Endpoints[0]
+}
+
+func firstJSONRPCServiceData(t *testing.T, dsl func()) *ServiceData {
+	t.Helper()
+
+	root := RunHTTPDSL(t, dsl)
+	require.NotEmpty(t, root.API.JSONRPC.Services)
+
+	services := NewServicesData(service.NewServicesData(root), &root.API.JSONRPC.HTTPExpr)
+	svc := services.Get(root.API.JSONRPC.Services[0].Name())
 	require.NotNil(t, svc)
 	return svc
 }
@@ -402,6 +481,27 @@ func responseInitArgsDSL() {
 					Cookie("session:session")
 				})
 			})
+		})
+	})
+}
+
+func jsonrpcIDProjectionDSL() {
+	Service("JSONRPCIDProjection", func() {
+		Method("show", func() {
+			Payload(func() {
+				ID("id", String)
+				Attribute("query", String)
+				Required("id")
+			})
+			Result(func() {
+				ID("id", String)
+				Attribute("value", String)
+				Required("id")
+			})
+			JSONRPC(func() {})
+		})
+		JSONRPC(func() {
+			Path("/rpc")
 		})
 	})
 }

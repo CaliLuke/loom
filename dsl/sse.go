@@ -121,6 +121,8 @@ func ServerSentEvents(args ...any) {
 	}
 
 	switch actual := eval.Current().(type) {
+	case *expr.RootExpr:
+		actual.API.HTTP.SSE = sse
 	case *expr.HTTPExpr:
 		actual.SSE = sse
 	case *expr.HTTPServiceExpr:

@@ -132,7 +132,10 @@ func (e *HTTPEndpointExpr) EvalName() string {
 
 // IsJSONRPC returns true if the endpoint is a JSON-RPC endpoint.
 func (e *HTTPEndpointExpr) IsJSONRPC() bool {
-	_, ok := e.Meta["jsonrpc"]
+	if _, ok := e.Meta["jsonrpc"]; ok {
+		return true
+	}
+	_, ok := e.MethodExpr.Meta["jsonrpc"]
 	return ok
 }
 
@@ -923,6 +926,8 @@ func (e *HTTPEndpointExpr) Finalize() {
 			e.MethodExpr.Payload = e.MethodExpr.StreamingPayload
 			e.Body = e.StreamingBody
 		}
+		e.PayloadIDAttribute = jsonrpcIDAttributeName(e.MethodExpr.Payload)
+		e.ResultIDAttribute = jsonrpcIDAttributeName(e.MethodExpr.Result)
 	}
 
 	// Initialize responses parent, headers and body
@@ -936,6 +941,22 @@ func (e *HTTPEndpointExpr) Finalize() {
 	for _, herr := range e.HTTPErrors {
 		herr.Finalize(e)
 	}
+}
+
+func jsonrpcIDAttributeName(att *AttributeExpr) string {
+	if att == nil {
+		return ""
+	}
+	obj := AsObject(att.Type)
+	if obj == nil {
+		return ""
+	}
+	for _, nat := range *obj {
+		if _, ok := nat.Attribute.Meta["jsonrpc:id"]; ok {
+			return nat.Name
+		}
+	}
+	return ""
 }
 
 func (e *HTTPEndpointExpr) inferSessionSecurityMappings() {

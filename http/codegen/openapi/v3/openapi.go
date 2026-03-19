@@ -283,7 +283,37 @@ func (p PathItem) MarshalJSON() ([]byte, error) {
 
 // MarshalJSON returns the JSON encoding of o.
 func (o Operation) MarshalJSON() ([]byte, error) {
-	return openapi.MarshalJSON(_Operation(o), o.Extensions)
+	if o.Security == nil {
+		return openapi.MarshalJSON(_Operation(o), o.Extensions)
+	}
+	type operationWithSecurity struct {
+		Tags         []string                `json:"tags,omitempty"`
+		Summary      string                  `json:"summary,omitempty"`
+		Description  string                  `json:"description,omitempty"`
+		OperationID  string                  `json:"operationId,omitempty"`
+		Parameters   []*ParameterRef         `json:"parameters,omitempty"`
+		RequestBody  *RequestBodyRef         `json:"requestBody,omitempty"`
+		Responses    map[string]*ResponseRef `json:"responses"`
+		Callbacks    map[string]*CallbackRef `json:"callbacks,omitempty"`
+		Deprecated   bool                    `json:"deprecated,omitempty"`
+		Security     []map[string][]string   `json:"security"`
+		Servers      []*Server               `json:"servers,omitempty"`
+		ExternalDocs *openapi.ExternalDocs   `json:"externalDocs,omitempty"`
+	}
+	return openapi.MarshalJSON(operationWithSecurity{
+		Tags:         o.Tags,
+		Summary:      o.Summary,
+		Description:  o.Description,
+		OperationID:  o.OperationID,
+		Parameters:   o.Parameters,
+		RequestBody:  o.RequestBody,
+		Responses:    o.Responses,
+		Callbacks:    o.Callbacks,
+		Deprecated:   o.Deprecated,
+		Security:     o.Security,
+		Servers:      o.Servers,
+		ExternalDocs: o.ExternalDocs,
+	}, o.Extensions)
 }
 
 // MarshalJSON returns the JSON encoding of p.
@@ -313,7 +343,37 @@ func (p PathItem) MarshalYAML() (any, error) {
 
 // MarshalYAML returns value which marshaled in place of the original value
 func (o Operation) MarshalYAML() (any, error) {
-	return openapi.MarshalYAML(_Operation(o), o.Extensions)
+	if o.Security == nil {
+		return openapi.MarshalYAML(_Operation(o), o.Extensions)
+	}
+	type operationWithSecurity struct {
+		Tags         []string                `yaml:"tags,omitempty"`
+		Summary      string                  `yaml:"summary,omitempty"`
+		Description  string                  `yaml:"description,omitempty"`
+		OperationID  string                  `yaml:"operationId,omitempty"`
+		Parameters   []*ParameterRef         `yaml:"parameters,omitempty"`
+		RequestBody  *RequestBodyRef         `yaml:"requestBody,omitempty"`
+		Responses    map[string]*ResponseRef `yaml:"responses"`
+		Callbacks    map[string]*CallbackRef `yaml:"callbacks,omitempty"`
+		Deprecated   bool                    `yaml:"deprecated,omitempty"`
+		Security     []map[string][]string   `yaml:"security"`
+		Servers      []*Server               `yaml:"servers,omitempty"`
+		ExternalDocs *openapi.ExternalDocs   `yaml:"externalDocs,omitempty"`
+	}
+	return openapi.MarshalYAML(operationWithSecurity{
+		Tags:         o.Tags,
+		Summary:      o.Summary,
+		Description:  o.Description,
+		OperationID:  o.OperationID,
+		Parameters:   o.Parameters,
+		RequestBody:  o.RequestBody,
+		Responses:    o.Responses,
+		Callbacks:    o.Callbacks,
+		Deprecated:   o.Deprecated,
+		Security:     o.Security,
+		Servers:      o.Servers,
+		ExternalDocs: o.ExternalDocs,
+	}, o.Extensions)
 }
 
 // MarshalYAML returns value which marshaled in place of the original value

@@ -22,6 +22,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - `OneOf(...)` constructor support and explicit union discriminator tag preservation.
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
 - OpenAPI schema deduplication now reuses structurally identical generated components while preserving explicit `openapi:typename` names and real collisions.
+- OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.
+- OpenAPI now prunes unreferenced generated component schemas instead of publishing every top-level type and result type.
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
 - Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
 - First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads, including flat OAuth-style object-union fields.
