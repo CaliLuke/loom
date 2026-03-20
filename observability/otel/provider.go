@@ -56,43 +56,55 @@ func newLoggerProvider(ctx context.Context, cfg LogConfig, res *resource.Resourc
 }
 
 func traceExporterOptions(cfg TraceConfig) []otlptracehttp.Option {
-	opts := make([]otlptracehttp.Option, 0, 3)
-	if cfg.Endpoint != "" {
-		opts = append(opts, otlptracehttp.WithEndpoint(cfg.Endpoint))
-	}
-	if cfg.Insecure {
-		opts = append(opts, otlptracehttp.WithInsecure())
-	}
-	if len(cfg.Headers) > 0 {
-		opts = append(opts, otlptracehttp.WithHeaders(cfg.Headers))
-	}
-	return opts
+	return appendOTLPHTTPOptions(
+		cfg.Endpoint,
+		cfg.Insecure,
+		cfg.Headers,
+		otlptracehttp.WithEndpoint,
+		otlptracehttp.WithInsecure,
+		otlptracehttp.WithHeaders,
+	)
 }
 
 func metricExporterOptions(cfg MetricConfig) []otlpmetrichttp.Option {
-	opts := make([]otlpmetrichttp.Option, 0, 3)
-	if cfg.Endpoint != "" {
-		opts = append(opts, otlpmetrichttp.WithEndpoint(cfg.Endpoint))
-	}
-	if cfg.Insecure {
-		opts = append(opts, otlpmetrichttp.WithInsecure())
-	}
-	if len(cfg.Headers) > 0 {
-		opts = append(opts, otlpmetrichttp.WithHeaders(cfg.Headers))
-	}
-	return opts
+	return appendOTLPHTTPOptions(
+		cfg.Endpoint,
+		cfg.Insecure,
+		cfg.Headers,
+		otlpmetrichttp.WithEndpoint,
+		otlpmetrichttp.WithInsecure,
+		otlpmetrichttp.WithHeaders,
+	)
 }
 
 func logExporterOptions(cfg LogConfig) []otlploghttp.Option {
-	opts := make([]otlploghttp.Option, 0, 3)
-	if cfg.Endpoint != "" {
-		opts = append(opts, otlploghttp.WithEndpoint(cfg.Endpoint))
+	return appendOTLPHTTPOptions(
+		cfg.Endpoint,
+		cfg.Insecure,
+		cfg.Headers,
+		otlploghttp.WithEndpoint,
+		otlploghttp.WithInsecure,
+		otlploghttp.WithHeaders,
+	)
+}
+
+func appendOTLPHTTPOptions[T any](
+	endpoint string,
+	insecure bool,
+	headers map[string]string,
+	withEndpoint func(string) T,
+	withInsecure func() T,
+	withHeaders func(map[string]string) T,
+) []T {
+	opts := make([]T, 0, 3)
+	if endpoint != "" {
+		opts = append(opts, withEndpoint(endpoint))
 	}
-	if cfg.Insecure {
-		opts = append(opts, otlploghttp.WithInsecure())
+	if insecure {
+		opts = append(opts, withInsecure())
 	}
-	if len(cfg.Headers) > 0 {
-		opts = append(opts, otlploghttp.WithHeaders(cfg.Headers))
+	if len(headers) > 0 {
+		opts = append(opts, withHeaders(headers))
 	}
 	return opts
 }

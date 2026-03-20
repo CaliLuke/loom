@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/trace"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 	"goa.design/goa/v3/observability/otel/internal/testkit"
 
 	"github.com/stretchr/testify/require"
@@ -144,6 +146,60 @@ func TestWrapHTTPClientEmitsClientSpanAndPropagatesContext(t *testing.T) {
 
 	ended := traceHarness.Recorder.Ended()
 	require.NotEmpty(t, ended)
+}
+
+func TestMakeHTTPInstrumentationOptions(t *testing.T) {
+	t.Parallel()
+
+	tp := tracenoop.NewTracerProvider()
+	mp := noop.NewMeterProvider()
+
+	cases := []struct {
+		name string
+		cfg  HTTPConfig
+		want int
+	}{
+		{
+			name: "defaults include propagators only",
+			cfg:  HTTPConfig{},
+			want: 1,
+		},
+		{
+			name: "otel metrics add tracer and meter providers",
+			cfg: HTTPConfig{
+				TracerProvider: tp,
+				MeterProvider:  mp,
+				MetricMode:     HTTPMetricModeOTelOnly,
+			},
+			want: 3,
+		},
+		{
+			name: "custom mode swaps in noop meter provider",
+			cfg: HTTPConfig{
+				MetricMode: HTTPMetricModeCustomOnly,
+			},
+			want: 2,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			serverOpts := makeHTTPInstrumentationOptions(
+				tc.cfg.TracerProvider,
+				tc.cfg.MeterProvider,
+				tc.cfg.Propagators,
+				tc.cfg.MetricMode,
+			)
+			clientOpts := makeHTTPInstrumentationOptions(
+				tc.cfg.TracerProvider,
+				tc.cfg.MeterProvider,
+				tc.cfg.Propagators,
+				tc.cfg.MetricMode,
+			)
+			require.Len(t, serverOpts, tc.want)
+			require.Len(t, clientOpts, tc.want)
+		})
+	}
 }
 
 func (httpAttributeSource) Attributes(_ *http.Request, _ HTTPRequestInfo) []attribute.KeyValue {

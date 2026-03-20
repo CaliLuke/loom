@@ -112,7 +112,12 @@ type httpAttributeCollectorKey struct{}
 // OpenTelemetry HTTP middleware plus Goa-specific post-response enrichment
 // hooks.
 func HTTPMiddleware(cfg HTTPConfig) func(http.Handler) http.Handler {
-	opts := makeHTTPOptions(cfg)
+	opts := makeHTTPInstrumentationOptions(
+		cfg.TracerProvider,
+		cfg.MeterProvider,
+		cfg.Propagators,
+		cfg.MetricMode,
+	)
 	inner := goahttpotel.Middleware(cfg.ServiceName, opts...)
 	return func(next http.Handler) http.Handler {
 		return inner(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -144,28 +149,26 @@ func HTTPMiddleware(cfg HTTPConfig) func(http.Handler) http.Handler {
 // WrapHTTPClient returns a shallow copy of client with OpenTelemetry transport
 // instrumentation configured according to cfg.
 func WrapHTTPClient(client *http.Client, cfg HTTPClientConfig) *http.Client {
-	return goahttpotel.WrapClient(client, makeHTTPClientOptions(cfg)...)
+	return goahttpotel.WrapClient(client, makeHTTPInstrumentationOptions(
+		cfg.TracerProvider,
+		cfg.MeterProvider,
+		cfg.Propagators,
+		cfg.MetricMode,
+	)...)
 }
 
-func makeHTTPOptions(cfg HTTPConfig) []goahttpotel.Option {
+func makeHTTPInstrumentationOptions(
+	tracerProvider trace.TracerProvider,
+	meterProvider metric.MeterProvider,
+	propagators propagation.TextMapPropagator,
+	mode HTTPMetricMode,
+) []goahttpotel.Option {
 	opts := make([]goahttpotel.Option, 0, 3)
-	if cfg.TracerProvider != nil {
-		opts = append(opts, otelhttp.WithTracerProvider(cfg.TracerProvider))
+	if tracerProvider != nil {
+		opts = append(opts, otelhttp.WithTracerProvider(tracerProvider))
 	}
-	opts = append(opts, otelhttp.WithPropagators(defaultPropagators(cfg.Propagators)))
-	if provider := selectedMeterProvider(cfg.MeterProvider, cfg.MetricMode); provider != nil {
-		opts = append(opts, otelhttp.WithMeterProvider(provider))
-	}
-	return opts
-}
-
-func makeHTTPClientOptions(cfg HTTPClientConfig) []goahttpotel.Option {
-	opts := make([]goahttpotel.Option, 0, 3)
-	if cfg.TracerProvider != nil {
-		opts = append(opts, otelhttp.WithTracerProvider(cfg.TracerProvider))
-	}
-	opts = append(opts, otelhttp.WithPropagators(defaultPropagators(cfg.Propagators)))
-	if provider := selectedMeterProvider(cfg.MeterProvider, cfg.MetricMode); provider != nil {
+	opts = append(opts, otelhttp.WithPropagators(defaultPropagators(propagators)))
+	if provider := selectedMeterProvider(meterProvider, mode); provider != nil {
 		opts = append(opts, otelhttp.WithMeterProvider(provider))
 	}
 	return opts

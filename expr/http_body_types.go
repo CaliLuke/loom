@@ -131,17 +131,7 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		name = concat(a.Name(), "Request", "Body")
 	)
 	if a.Body != nil {
-		a.Body = DupAtt(a.Body)
-		a.Body.AddMeta("openapi:typename:canonical", "true")
-		if ut, ok := a.Body.Type.(UserType); ok {
-			if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
-				a.Body.AddMeta("openapi:typename", m)
-			}
-		}
-		renameType(a.Body, name, suffix)
-		if ut, ok := a.Body.Type.(*UserTypeExpr); ok {
-			ut.UID = a.Service.Name() + "#" + name
-		}
+		a.Body = cloneExplicitHTTPBody(a.Body, name, suffix, a.Service.Name()+"#"+name)
 		return a.Body
 	}
 
@@ -287,32 +277,13 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	// methods with potentially different result types.
 	if resp.Body != nil {
 		if !IsObject(resp.Body.Type) {
-			resp.Body.AddMeta("openapi:typename:canonical", "true")
-			if ut, ok := resp.Body.Type.(UserType); ok {
-				if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
-					resp.Body.AddMeta("openapi:typename", m)
-				}
-			}
+			preserveCanonicalOpenAPITypeName(resp.Body)
 			return resp.Body
 		}
 		if len(*AsObject(resp.Body.Type)) == 0 {
 			return &AttributeExpr{Type: Empty}
 		}
-		att := DupAtt(resp.Body)
-		att.AddMeta("openapi:typename:canonical", "true")
-		if ut, ok := att.Type.(UserType); ok {
-			if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
-				att.AddMeta("openapi:typename", m)
-			}
-		}
-		renameType(att, name, suffix)
-		if ut, ok := att.Type.(*UserTypeExpr); ok {
-			ut.UID = svc.Name() + "#" + name
-		}
-		if rt, ok := att.Type.(*ResultTypeExpr); ok {
-			rt.UID = svc.Name() + "#" + name
-		}
-		return att
+		return cloneExplicitHTTPBody(resp.Body, name, suffix, svc.Name()+"#"+name)
 	}
 
 	// 2. If attribute is not an object then check whether there are headers or
@@ -470,6 +441,32 @@ func renameType(att *AttributeExpr, name, suffix string) {
 		appendSuffix(rt, suffix)
 	case *Map:
 		appendSuffix(rt, suffix)
+	}
+}
+
+func cloneExplicitHTTPBody(body *AttributeExpr, name, suffix, uid string) *AttributeExpr {
+	cloned := DupAtt(body)
+	preserveCanonicalOpenAPITypeName(cloned)
+	renameType(cloned, name, suffix)
+	setTypeUID(cloned.Type, uid)
+	return cloned
+}
+
+func preserveCanonicalOpenAPITypeName(attr *AttributeExpr) {
+	attr.AddMeta("openapi:typename:canonical", "true")
+	if ut, ok := attr.Type.(UserType); ok {
+		if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
+			attr.AddMeta("openapi:typename", m)
+		}
+	}
+}
+
+func setTypeUID(dt DataType, uid string) {
+	switch actual := dt.(type) {
+	case *UserTypeExpr:
+		actual.UID = uid
+	case *ResultTypeExpr:
+		actual.UID = uid
 	}
 }
 
