@@ -12,6 +12,7 @@ import (
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/http/codegen/openapi"
+	openapiir "goa.design/goa/v3/http/codegen/openapi/internal/ir"
 )
 
 const (
@@ -44,12 +45,18 @@ func New(root *expr.RootExpr) *OpenAPI {
 	}
 
 	var (
-		bodies, types = buildBodyTypes(root.API, root.Types, root.ResultTypes)
+		doc = openapiir.BuildDocument(
+			root.API,
+			root.Types,
+			root.ResultTypes,
+			openapiir.WithExampleValue(openAPIExampleValue),
+			openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
+		)
 
 		info     = buildInfo(root.API)
 		servers  = buildServers(root.API.Servers)
-		paths    = buildPaths(root.API.HTTP, bodies, root.API)
-		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, types))
+		paths    = buildPaths(root.API.HTTP, doc, root.API)
+		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, openapiir.RenderSchemaMap(doc.Components.Schemas)))
 		security = buildSecurityRequirements(effectiveRequirements(root.API.Requirements, root.API.SessionAuths))
 		tags     = buildTags(root.API)
 	)
@@ -264,14 +271,13 @@ func buildComponents(root *expr.RootExpr, types map[string]*openapi.Schema) *Com
 
 // buildPaths builds the OpenAPI Paths map with key as the HTTP path string and
 // the value as the corresponding PathItem object.
-func buildPaths(h *expr.HTTPExpr, bodies map[string]map[string]*EndpointBodies, api *expr.APIExpr) map[string]*PathItem {
+func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) map[string]*PathItem {
 	var paths = make(map[string]*PathItem)
 	for _, svc := range h.Services {
 		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
 			continue
 		}
 		exts := openapi.ExtensionsFromExpr(svc.Meta)
-		sbod := bodies[svc.Name()]
 
 		// endpoints
 		for _, e := range svc.HTTPEndpoints {
@@ -283,7 +289,7 @@ func buildPaths(h *expr.HTTPExpr, bodies map[string]map[string]*EndpointBodies, 
 					// Remove any wildcards that is defined in path as a workaround to
 					// https://github.com/OAI/OpenAPI-Specification/issues/291
 					key = expr.HTTPWildcardRegex.ReplaceAllString(key, "/{$1}")
-					operation := buildOperation(key, r, sbod[e.Name()], api.ExampleGenerator, api.Meta)
+					operation := buildOperationFromIR(key, r, irOperation(doc, key, r.Method), api.ExampleGenerator, api.Meta)
 					path, ok := paths[key]
 					if !ok {
 						path = new(PathItem)
@@ -344,6 +350,154 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 	svc := e.Service
 	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
 
+	var summary string
+	setSummary := func(meta expr.MetaExpr) {
+		for n, mdata := range meta {
+			if n == "openapi:summary" && len(mdata) > 0 {
+				if mdata[0] == "{path}" {
+					summary = r.Path
+				} else {
+					summary = mdata[0]
+				}
+			}
+		}
+	}
+
+	summary = fmt.Sprintf("%s %s", e.Name(), svc.Name())
+	setSummary(meta)
+	setSummary(svc.ServiceExpr.Meta)
+	setSummary(e.Meta)
+	setSummary(m.Meta)
+
+	var operationIDFormat string
+	setOperationIDFormat := func(meta expr.MetaExpr) {
+		for n, mdata := range meta {
+			if n == "openapi:operationId" && len(mdata) > 0 {
+				operationIDFormat = mdata[0]
+			}
+		}
+	}
+
+	operationIDFormat = defaultOperationIDFormat
+	setOperationIDFormat(meta)
+	setOperationIDFormat(m.Service.Meta)
+	setOperationIDFormat(e.Meta)
+	setOperationIDFormat(m.Meta)
+
+	var requestBody *RequestBodyRef
+	if e.Body.Type != expr.Empty {
+		contentType := "application/json"
+		if e.MultipartRequest {
+			contentType = "multipart/form-data"
+		} else if e.FormRequest {
+			contentType = "application/x-www-form-urlencoded"
+		}
+		mediaType := &MediaType{Schema: bodies.RequestBody}
+		initExamples(mediaType, e.Body, rand, closeObjects)
+		requestBody = &RequestBodyRef{Value: &RequestBody{
+			Description: e.Body.Description,
+			Required:    !e.OptionalRequestBody,
+			Content:     map[string]*MediaType{contentType: mediaType},
+			Extensions:  openapi.ExtensionsFromExpr(e.Body.Meta),
+		}}
+	}
+
+	var params []*ParameterRef
+	{
+		ps := paramsFromPath(e, key, rand, closeObjects)
+		ps = append(ps, paramsFromHeadersAndCookies(e, rand, closeObjects)...)
+		if e.MapQueryParams != nil {
+			name := *e.MapQueryParams
+			if name == "" {
+				name = "payload"
+			}
+			ps = append(ps, &Parameter{
+				Name:        name,
+				Description: "Query parameters",
+				In:          "query",
+				Required:    name == "payload" || e.MethodExpr.Payload.IsRequired(name),
+				Schema: &openapi.Schema{
+					Type:                 "object",
+					AdditionalProperties: true,
+				},
+				Style: "deepObject",
+			})
+		}
+		params = make([]*ParameterRef, len(ps))
+		for i, p := range ps {
+			params[i] = &ParameterRef{Value: p}
+		}
+	}
+
+	responses := make(map[string]*ResponseRef, len(e.Responses))
+	for _, resp := range e.Responses {
+		if e.MethodExpr.IsStreaming() && e.SSE == nil {
+			if _, ok := responses[strconv.Itoa(expr.StatusSwitchingProtocols)]; !ok {
+				body := bodies.ResponseBodies[resp.StatusCode]
+				delete(bodies.ResponseBodies, resp.StatusCode)
+				resp = resp.Dup()
+				resp.StatusCode = expr.StatusSwitchingProtocols
+				bodies.ResponseBodies[resp.StatusCode] = body
+			}
+		}
+		response := responseFromExpr(resp, bodies.ResponseBodies, rand, closeObjects)
+		responses[strconv.Itoa(resp.StatusCode)] = &ResponseRef{Value: response}
+	}
+	for _, errResp := range e.HTTPErrors {
+		if errResp.Description != "" && errResp.Response.Description == "" {
+			errResp.Response.Description = errResp.Description
+		}
+		response := responseFromExpr(errResp.Response, bodies.ResponseBodies, rand, closeObjects)
+		desc := errResp.Name
+		if response.Description != nil {
+			desc += ": " + *response.Description
+		}
+		desc = appendErrorRemedyDescription(desc, errResp)
+		response.Description = &desc
+		if errResp.Type == expr.ErrorResult && len(errResp.Response.Body.ExtractUserExamples()) == 0 {
+			for _, content := range response.Content {
+				content.Example = nil
+			}
+		}
+		responses[strconv.Itoa(errResp.Response.StatusCode)] = &ResponseRef{Value: response}
+	}
+
+	var tagNames []string
+	tagNames = openapi.TagNamesFromExpr(e.Meta)
+	if len(tagNames) == 0 {
+		tagNames = []string{e.Service.Name()}
+	}
+
+	var routeIndex int
+	for i, rt := range e.Routes {
+		if rt == r {
+			routeIndex = i
+			break
+		}
+	}
+
+	_, deprecated := e.Meta.Last("openapi:deprecated")
+	return &Operation{
+		Tags:         tagNames,
+		Summary:      summary,
+		Description:  e.Description(),
+		OperationID:  parseOperationIDTemplate(operationIDFormat, svc.Name(), e.Name(), routeIndex),
+		Parameters:   params,
+		RequestBody:  requestBody,
+		Responses:    responses,
+		Security:     buildOperationSecurity(e),
+		Deprecated:   deprecated,
+		ExternalDocs: openapi.DocsFromExpr(m.Docs, m.Meta),
+		Extensions:   openapi.ExtensionsFromExpr(m.Meta),
+	}
+}
+
+func buildOperationFromIR(key string, r *expr.RouteExpr, operationIR *openapiir.Operation, rand *expr.ExampleGenerator, meta expr.MetaExpr) *Operation {
+	e := r.Endpoint
+	m := e.MethodExpr
+	svc := e.Service
+	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
+
 	// OpenAPI summary
 	var summary string
 	setSummary := func(meta expr.MetaExpr) {
@@ -380,24 +534,7 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 	setOperationIDFormat(e.Meta)
 	setOperationIDFormat(m.Meta)
 
-	// request body
-	var requestBody *RequestBodyRef
-	if e.Body.Type != expr.Empty {
-		ct := "application/json" // TBD: need a way to specify method media type in design...
-		if e.MultipartRequest {
-			ct = "multipart/form-data"
-		} else if e.FormRequest {
-			ct = "application/x-www-form-urlencoded"
-		}
-		mt := &MediaType{Schema: bodies.RequestBody}
-		initExamples(mt, e.Body, rand, closeObjects)
-		requestBody = &RequestBodyRef{Value: &RequestBody{
-			Description: e.Body.Description,
-			Required:    e.Body.Type != expr.Empty && !e.OptionalRequestBody,
-			Content:     map[string]*MediaType{ct: mt},
-			Extensions:  openapi.ExtensionsFromExpr(e.Body.Meta),
-		}}
-	}
+	requestBody := requestBodyFromIR(operationIR.RequestBody)
 
 	// parameters
 	var params []*ParameterRef
@@ -427,42 +564,7 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 		}
 	}
 
-	// responses
-	responses := make(map[string]*ResponseRef, len(e.Responses))
-	for _, r := range e.Responses {
-		if e.MethodExpr.IsStreaming() && e.SSE == nil {
-			// A streaming endpoint allows at most one successful response
-			// definition. So it is okay to change the first successful
-			// response to a HTTP 101 response for openapi docs.
-			if _, ok := responses[strconv.Itoa(expr.StatusSwitchingProtocols)]; !ok {
-				b := bodies.ResponseBodies[r.StatusCode]
-				delete(bodies.ResponseBodies, r.StatusCode)
-				r = r.Dup()
-				r.StatusCode = expr.StatusSwitchingProtocols
-				bodies.ResponseBodies[r.StatusCode] = b
-			}
-		}
-		resp := responseFromExpr(r, bodies.ResponseBodies, rand, closeObjects)
-		responses[strconv.Itoa(r.StatusCode)] = &ResponseRef{Value: resp}
-	}
-	for _, er := range e.HTTPErrors {
-		if er.Description != "" && er.Response.Description == "" {
-			er.Response.Description = er.Description
-		}
-		resp := responseFromExpr(er.Response, bodies.ResponseBodies, rand, closeObjects)
-		desc := er.Name
-		if resp.Description != nil {
-			desc += ": " + *resp.Description
-		}
-		desc = appendErrorRemedyDescription(desc, er)
-		resp.Description = &desc
-		if er.Type == expr.ErrorResult && len(er.Response.Body.ExtractUserExamples()) == 0 {
-			for _, content := range resp.Content {
-				content.Example = nil
-			}
-		}
-		responses[strconv.Itoa(er.Response.StatusCode)] = &ResponseRef{Value: resp}
-	}
+	responses := responsesFromIR(operationIR.Responses)
 
 	// tag names
 	var tagNames []string
@@ -497,6 +599,17 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 		ExternalDocs: openapi.DocsFromExpr(m.Docs, m.Meta),
 		Extensions:   openapi.ExtensionsFromExpr(m.Meta),
 	}
+}
+
+func irOperation(doc *openapiir.Document, path, method string) *openapiir.Operation {
+	if doc == nil || doc.Paths == nil {
+		return nil
+	}
+	pathItem := doc.Paths[path]
+	if pathItem == nil || pathItem.Operations == nil {
+		return nil
+	}
+	return pathItem.Operations[method]
 }
 
 func buildOperationSecurity(e *expr.HTTPEndpointExpr) []map[string][]string {

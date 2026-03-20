@@ -28,18 +28,40 @@ type (
 		Description string
 		Required    bool
 		Content     map[string]*MediaType
+		Extensions  map[string]any
 	}
 
 	// Response describes an IR response.
 	Response struct {
 		Description string
+		Headers     map[string]*Header
 		Content     map[string]*MediaType
+		Extensions  map[string]any
 	}
 
 	// MediaType describes an IR media type.
 	MediaType struct {
-		Schema  *Schema
-		Example any
+		Schema     *Schema
+		Example    any
+		Examples   map[string]*Example
+		Extensions map[string]any
+	}
+
+	// Header describes an IR header.
+	Header struct {
+		Description string
+		Required    bool
+		Schema      *Schema
+		Example     any
+		Examples    map[string]*Example
+		Extensions  map[string]any
+	}
+
+	// Example describes an IR example object.
+	Example struct {
+		Summary     string
+		Description string
+		Value       any
 	}
 
 	// BodyTypes groups endpoint bodies and component schemas.
