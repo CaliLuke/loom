@@ -21,9 +21,8 @@ type ResponseCapture struct {
 
 // CaptureResponse creates a ResponseCapture that wraps the given ResponseWriter.
 //
-// Deprecated: Use OpenTelemetry instead, see for example
-// github.com/goadesign/clue. This function will be removed in a future version
-// of Goa.
+// Deprecated: use goa.design/goa/v3/http/middleware/otel instead. This
+// function will be removed in a future version of Goa.
 func CaptureResponse(w http.ResponseWriter) *ResponseCapture {
 	return &ResponseCapture{ResponseWriter: w}
 }

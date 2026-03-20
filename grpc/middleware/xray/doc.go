@@ -12,5 +12,8 @@ service version or record an error.
 The client interceptor works by extracing the segment from the RPC's context
 and creates a new sub-segment. It updates the RPC context with the latest trace
 information.
+
+Deprecated: use goa.design/goa/v3/grpc/middleware/otel instead. This package
+will be removed in a future version of Goa.
 */
 package xray

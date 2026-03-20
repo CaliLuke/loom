@@ -25,6 +25,8 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - Treat OpenAPI output shape as framework contract. Stable schema names, canonical `operationId`, and `libopenapi` validation are intentional behavior, not incidental formatting.
 - Structurally identical generated OpenAPI components are deduplicated and reused by `$ref`.
 - For explicit HTTP `Body(...)` request/response types, `Meta("openapi:typename", "...")` is the public OpenAPI component name contract. When two non-equivalent explicit body schemas claim the same name, generation fails instead of leaking a hash-suffixed fallback into the spec.
+- Treat that failure as a modeling conflict, not as a cue to add more aliases. It usually means one DSL type is being asked to represent both the semantic service/result shape and a transport-only projection (for example, “same object minus cookie/header fields”).
+- If some fields are transport-only, keep them in HTTP headers/cookies and out of the canonical body/result type. Do not rely on OpenAPI naming to paper over service-shape vs transport-shape drift.
 - Generated OpenAPI emits operation-level security for secured endpoints, including inherited service/API requirements; `NoSecurity()` emits explicit `security: []` on the operation instead of relying on omission.
 - Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
 - Generated OpenAPI suppresses closed-object union-wrapper examples that would be invalid against the emitted schema, and field-level `Meta("openapi:example", "false")` must suppress wrapper examples all the way through enclosing request bodies/media types.
@@ -70,6 +72,16 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - JSON-RPC SSE event names are part of the transport contract: streamed notifications use `message`, final success envelopes use `response`, and JSON-RPC error envelopes also ride the normal `message` channel.
 - JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. The narrow exception is the raw streamable-HTTP `GET /rpc` listener for the `events/stream` method, which must eagerly establish the SSE response so clients can observe readiness before the first domain event.
 - HTTP SSE streams also defer committing `text/event-stream` until the first application event is written.
+- OpenTelemetry transport instrumentation is first-class. Prefer:
+  - `goa.design/goa/v3/http/middleware/otel`
+  - `goa.design/goa/v3/grpc/middleware/otel`
+- Those packages intentionally wrap the official contrib libraries:
+  - `otelhttp` for HTTP
+  - `otelgrpc` for gRPC
+- Keep tracer provider, exporter, resource attributes, and sampling setup in application bootstrap. `goa-light` owns the transport seam, not SDK initialization.
+- For HTTP servers, use `goahttp.NewMuxer()` plus `goahttpotel.Middleware(...)` so spans can use the matched `METHOD /pattern` route name from `r.Pattern`.
+- For generated HTTP clients, wrap an `*http.Client` with `goahttpotel.WrapClient(...)` before passing it anywhere a Goa HTTP Doer is expected.
+- For gRPC, prefer `goagrpcotel.ServerOption(...)` and `goagrpcotel.ClientOption(...)` over the legacy trace/X-Ray middleware.
 
 ## Practical Checks
 

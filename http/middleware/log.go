@@ -20,9 +20,8 @@ import (
 // middleware also logs the response HTTP status code, body length (in bytes) and
 // timing information.
 //
-// Deprecated: use OpenTelemetry instead, see for example
-// github.com/goadesign/clue. This function will be removed in a future version
-// of Goa.
+// Deprecated: use goa.design/goa/v3/http/middleware/otel instead. This
+// function will be removed in a future version of Goa.
 func Log(l middleware.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -35,9 +34,8 @@ func Log(l middleware.Logger) func(h http.Handler) http.Handler {
 // Log. LogContext calls the given function with the request context to extract
 // the logger.
 //
-// Deprecated: use OpenTelemetry instead, see for example
-// github.com/goadesign/clue. This function will be removed in a future version
-// of Goa.
+// Deprecated: use goa.design/goa/v3/http/middleware/otel instead. This
+// function will be removed in a future version of Goa.
 func LogContext(logFromCtx func(context.Context) middleware.Logger) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
