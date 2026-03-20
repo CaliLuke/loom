@@ -277,6 +277,47 @@ func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 	}
 }
 
+func TestSchemafyUserTypeRegistersComponentReferenceByDefault(t *testing.T) {
+	sf := newSchemafier(expr.NewRandom("schemafy-ref"), false)
+	attr := &expr.AttributeExpr{
+		Type: &expr.UserTypeExpr{
+			AttributeExpr: &expr.AttributeExpr{
+				Type: &expr.Object{
+					{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				},
+			},
+			TypeName: "Payload",
+		},
+	}
+
+	schema := sf.schemafy(attr)
+
+	require.Equal(t, "#/components/schemas/Payload", schema.Ref)
+	require.Contains(t, sf.schemas, "Payload")
+}
+
+func TestSchemafyUserTypeNoRefSkipsReferenceReuse(t *testing.T) {
+	sf := newSchemafier(expr.NewRandom("schemafy-inline"), false)
+	attr := &expr.AttributeExpr{
+		Type: &expr.UserTypeExpr{
+			AttributeExpr: &expr.AttributeExpr{
+				Type: &expr.Object{
+					{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				},
+			},
+			TypeName: "Payload",
+		},
+	}
+
+	first := sf.schemafy(attr)
+	second := sf.schemafy(attr, true)
+
+	require.Equal(t, "#/components/schemas/Payload", first.Ref)
+	require.NotEqual(t, first.Ref, second.Ref)
+	require.Len(t, sf.schemas, 2)
+	require.Contains(t, sf.schemas, "Payload")
+}
+
 func TestBuildBodyTypesUnionIncludesDiscriminatorMappingsForRequestAndResponse(t *testing.T) {
 	root := codegen.RunDSL(t, func() {
 		textResult := dsl.Type("TextResult", func() {
