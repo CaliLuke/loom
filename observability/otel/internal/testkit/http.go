@@ -1,0 +1,37 @@
+package testkit
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	goahttp "goa.design/goa/v3/http"
+)
+
+type (
+	// HTTPFixture wraps a Goa mux in an httptest server.
+	HTTPFixture struct {
+		Mux    goahttp.ResolverMuxer
+		Server *httptest.Server
+	}
+)
+
+// NewHTTPFixture creates a Goa mux plus httptest server.
+func NewHTTPFixture(tb testing.TB) *HTTPFixture {
+	tb.Helper()
+	mux := goahttp.NewMuxer()
+	server := httptest.NewServer(mux)
+	tb.Cleanup(server.Close)
+	return &HTTPFixture{Mux: mux, Server: server}
+}
+
+// Request performs one HTTP request against the test server.
+func (f *HTTPFixture) Request(ctx context.Context, method string, path string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, f.Server.URL+path, body)
+	if err != nil {
+		return nil, err
+	}
+	return f.Server.Client().Do(req)
+}

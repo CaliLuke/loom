@@ -10,10 +10,23 @@
   - `go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc`
 - Keep provider/exporter/resource bootstrap app-owned while moving transport instrumentation into the framework.
 - Make the HTTP wrapper route-aware by default so spans use Goa's matched `METHOD /pattern` name when `goahttp.NewMuxer()` has populated `r.Pattern`.
+- Add the higher-level framework-owned observability package:
+  - `goa.design/goa/v3/observability/otel`
+  - `goa.design/goa/v3/observability/otel/logrusbridge`
+- Support framework-owned trace, metric, and OTLP log bootstrap while keeping environment parsing app-owned.
+- Add HTTP transport metric modes:
+  - `otel_only`
+  - `custom_only`
+  - `both`
+  - `none`
+- Add request-scoped HTTP transport attribute collection via `AddHTTPAttributes(...)` so downstream middlewares can enrich the active request span without mutating it directly.
+- Add a reusable observability harness in `observability/otel/internal/testkit` covering in-memory traces, metrics, logs, Goa HTTP mux usage, gRPC bufconn transport, and an Auto-K-style compatibility contract.
 
 ## Contract
 
-- Use the `otel` packages for framework-level transport instrumentation.
-- Keep tracer provider, exporter, resource attributes, and sampling setup in application bootstrap.
-- Prefer `goahttp.NewMuxer()` plus `goahttpotel.Middleware(...)` for HTTP so span names and route attributes stay stable across path parameters.
-- Prefer `goagrpcotel.ServerOption(...)` and `goagrpcotel.ClientOption(...)` for gRPC instead of reviving the legacy trace/X-Ray middleware.
+- Prefer `goa.design/goa/v3/observability/otel` when the service wants framework-owned provider bootstrap and transport observability policy.
+- Keep environment parsing and domain-specific metrics app-owned.
+- Use the lower-level `http/middleware/otel` and `grpc/middleware/otel` packages only when transport-only instrumentation is sufficient.
+- Prefer `goahttp.NewMuxer()` plus `otel.HTTPMiddleware(...)` for HTTP so span names and route attributes stay stable across path parameters.
+- Use `otel.AddHTTPAttributes(...)` from downstream HTTP middleware when request-scoped transport attributes need to be attached after the span has started.
+- Prefer `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)` for gRPC instead of reviving the legacy trace/X-Ray middleware.

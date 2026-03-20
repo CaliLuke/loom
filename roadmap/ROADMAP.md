@@ -39,6 +39,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - HTTP SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first application event is written, and `http/integration_tests` carries a persistent generated `ticktock` fixture verified with `github.com/tmaxmax/go-sse`.
 - SSE wire parsing and formatting now flow through shared helpers in `goa.design/goa/v3/http` backed by `github.com/tmaxmax/go-sse`, replacing duplicated hand-rolled frame logic across generated HTTP clients, generated JSON-RPC streams, and the local JSON-RPC SSE harness.
 - First-class OpenTelemetry transport wrappers now live in `goa.design/goa/v3/http/middleware/otel` and `goa.design/goa/v3/grpc/middleware/otel`, using the official `otelhttp` and `otelgrpc` libraries while keeping provider/exporter bootstrap app-owned.
+- OpenTelemetry V2 now adds a framework-owned observability package in `goa.design/goa/v3/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
@@ -107,6 +108,7 @@ These items are prioritized based on two goals:
 - [Generated Transport Projections](./generated_transport_projections.md)
 - [Generated Projection Parity Tests](./generated_projection_parity_tests.md)
 - [OpenTelemetry Instrumentation](./opentelemetry.md)
+- [OpenTelemetry V2](./opentelemetry_v2.md)
 
 ## Definition Of Finished
 

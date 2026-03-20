@@ -73,15 +73,29 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. The narrow exception is the raw streamable-HTTP `GET /rpc` listener for the `events/stream` method, which must eagerly establish the SSE response so clients can observe readiness before the first domain event.
 - HTTP SSE streams also defer committing `text/event-stream` until the first application event is written.
 - OpenTelemetry transport instrumentation is first-class. Prefer:
+  - `goa.design/goa/v3/observability/otel` when you want framework-owned
+    trace, metric, and OTLP log bootstrap plus transport policy.
   - `goa.design/goa/v3/http/middleware/otel`
   - `goa.design/goa/v3/grpc/middleware/otel`
-- Those packages intentionally wrap the official contrib libraries:
+- The root observability package is the preferred path for services that want to
+  replace repeated app-local observability glue. The lower-level HTTP and gRPC
+  packages remain the transport-only escape hatch.
+- These packages intentionally wrap the official contrib libraries:
   - `otelhttp` for HTTP
   - `otelgrpc` for gRPC
-- Keep tracer provider, exporter, resource attributes, and sampling setup in application bootstrap. `goa-light` owns the transport seam, not SDK initialization.
-- For HTTP servers, use `goahttp.NewMuxer()` plus `goahttpotel.Middleware(...)` so spans can use the matched `METHOD /pattern` route name from `r.Pattern`.
-- For generated HTTP clients, wrap an `*http.Client` with `goahttpotel.WrapClient(...)` before passing it anywhere a Goa HTTP Doer is expected.
-- For gRPC, prefer `goagrpcotel.ServerOption(...)` and `goagrpcotel.ClientOption(...)` over the legacy trace/X-Ray middleware.
+- Keep environment parsing and domain-specific metrics in application bootstrap.
+  The root package owns provider setup, transport policy, and request-scoped
+  transport hooks; it does not own app-specific exporter configuration parsing.
+- For HTTP servers, use `goahttp.NewMuxer()` plus `otel.HTTPMiddleware(...)` so
+  spans can use the matched `METHOD /pattern` route name from `r.Pattern`.
+- For downstream HTTP middlewares that need to attach request-scoped transport
+  attributes after the span starts, call `otel.AddHTTPAttributes(...)` instead
+  of mutating spans directly.
+- For generated HTTP clients, wrap an `*http.Client` with
+  `otel.WrapHTTPClient(...)` before passing it anywhere a Goa HTTP Doer is
+  expected.
+- For gRPC, prefer `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`
+  over the legacy trace/X-Ray middleware.
 
 ## Practical Checks
 
