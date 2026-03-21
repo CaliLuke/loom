@@ -102,17 +102,7 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 		codegen.Header(title, "cli", specs),
 		cli.UsageCommands(data),
 		cli.UsageExamples(data),
-		&codegen.SectionTemplate{
-			Name:   "parse-endpoint-grpc",
-			Source: grpcTemplates.Read(grpcParseEndpointT),
-			Data: struct {
-				FlagsCode string
-				Commands  []*cli.CommandData
-			}{
-				cli.FlagsCode(data),
-				data,
-			},
-		},
+		grpcParseEndpointSection(cli.FlagsCode(data), data),
 	)
 	for _, cmd := range data {
 		sections = append(sections, cli.CommandUsage(cmd))

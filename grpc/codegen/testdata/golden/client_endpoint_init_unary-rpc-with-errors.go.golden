@@ -2,10 +2,7 @@
 // service_unary_rpc_with_errorspb.ServiceUnaryRPCWithErrorsClient interface.
 func (c *Client) MethodUnaryRPCWithErrors() goa.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
-			BuildMethodUnaryRPCWithErrorsFunc(c.grpccli, c.opts...),
-			EncodeMethodUnaryRPCWithErrorsRequest,
-			DecodeMethodUnaryRPCWithErrorsResponse)
+		inv := goagrpc.NewInvoker(BuildMethodUnaryRPCWithErrorsFunc(c.grpccli, c.opts...), EncodeMethodUnaryRPCWithErrorsRequest, DecodeMethodUnaryRPCWithErrorsResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
 			resp := goagrpc.DecodeError(err)

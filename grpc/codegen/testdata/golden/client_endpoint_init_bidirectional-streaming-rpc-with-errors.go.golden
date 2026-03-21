@@ -4,10 +4,7 @@
 // interface.
 func (c *Client) MethodBidirectionalStreamingRPCWithErrors() goa.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
-			BuildMethodBidirectionalStreamingRPCWithErrorsFunc(c.grpccli, c.opts...),
-			nil,
-			DecodeMethodBidirectionalStreamingRPCWithErrorsResponse)
+		inv := goagrpc.NewInvoker(BuildMethodBidirectionalStreamingRPCWithErrorsFunc(c.grpccli, c.opts...), nil, DecodeMethodBidirectionalStreamingRPCWithErrorsResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
 			resp := goagrpc.DecodeError(err)

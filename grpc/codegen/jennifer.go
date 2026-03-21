@@ -6,6 +6,7 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	codegenpkg "goa.design/goa/v3/codegen"
+	"goa.design/goa/v3/codegen/cli"
 	"goa.design/goa/v3/expr"
 )
 
@@ -34,6 +35,104 @@ func grpcClientInitSection(data *ServiceData) codegenpkg.Section {
 						jen.Id("grpccli"): codegenpkg.Expr(data.ClientInterfaceInit).Call(jen.Id("cc")),
 						jen.Id("opts"):    jen.Id("opts"),
 					}),
+				),
+			)
+	})
+}
+
+func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection("client-endpoint-init", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, fmt.Sprintf("%s calls the %q function in %s.%s interface.", endpoint.Method.VarName, endpoint.Method.VarName, endpoint.PkgName, endpoint.ClientInterface))
+		stmt.Func().Params(jen.Id("c").Op("*").Id(endpoint.ClientStruct)).
+			Id(endpoint.Method.VarName).
+			Params().
+			Add(codegenpkg.TypeRef("goa.Endpoint")).
+			Block(
+				jen.Return(
+					jen.Func().
+						Params(
+							jen.Id("ctx").Qual("context", "Context"),
+							jen.Id("v").Any(),
+						).
+						Params(jen.Any(), jen.Error()).
+						BlockFunc(func(g *jen.Group) {
+							encodeFn := jen.Id("nil")
+							if endpoint.PayloadRef != "" {
+								encodeFn = jen.Id("Encode" + endpoint.Method.VarName + "Request")
+							}
+							decodeFn := jen.Id("nil")
+							if endpoint.ResultRef != "" || endpoint.ClientStream != nil {
+								decodeFn = jen.Id("Decode" + endpoint.Method.VarName + "Response")
+							}
+							g.Id("inv").Op(":=").Add(codegenpkg.Expr("goagrpc.NewInvoker")).Call(
+								jen.Id("Build"+endpoint.Method.VarName+"Func").Call(jen.Id("c").Dot("grpccli"), jen.Id("c").Dot("opts").Op("...")),
+								encodeFn,
+								decodeFn,
+							)
+							g.List(jen.Id("res"), jen.Err()).Op(":=").Id("inv").Dot("Invoke").Call(jen.Id("ctx"), jen.Id("v"))
+							g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
+								eg.Id("resp").Op(":=").Add(codegenpkg.Expr("goagrpc.DecodeError")).Call(jen.Err())
+								if len(endpoint.Errors) > 0 {
+									eg.Switch(jen.Id("message").Op(":=").Id("resp").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
+										for _, errData := range endpoint.Errors {
+											if errData.Response.ClientConvert == nil {
+												continue
+											}
+											caseBody := []jen.Code{}
+											if errData.Response.ClientConvert.Validation != nil {
+												caseBody = append(caseBody,
+													jen.If(
+														jen.Err().Op(":=").Id(errData.Response.ClientConvert.Validation.Name).Call(jen.Id("message")),
+														jen.Err().Op("!=").Nil(),
+													).Block(
+														jen.Return(jen.Nil(), jen.Err()),
+													),
+												)
+											}
+											initArgs := make([]jen.Code, 0, len(errData.Response.ClientConvert.Init.Args))
+											for _, arg := range errData.Response.ClientConvert.Init.Args {
+												initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
+											}
+											caseBody = append(caseBody,
+												jen.Return(
+													jen.Nil(),
+													jen.Id(errData.Response.ClientConvert.Init.Name).Call(initArgs...),
+												),
+											)
+											sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(caseBody...)
+										}
+										sg.Case(jen.Op("*").Id("goapb").Dot("ErrorResponse")).Block(
+											jen.Return(
+												jen.Nil(),
+												codegenpkg.Expr("goagrpc.NewServiceError").Call(jen.Id("message")),
+											),
+										)
+										sg.Default().Block(
+											jen.Return(
+												jen.Nil(),
+												codegenpkg.Expr("goa.Fault").Call(jen.Lit("%s"), jen.Err().Dot("Error").Call()),
+											),
+										)
+									})
+									return
+								}
+								eg.Comment(codegenpkg.Comment("Try to decode a Goa error response detail before falling back to Fault."))
+								eg.If(
+									jen.List(jen.Id("eresp"), jen.Id("ok")).Op(":=").Id("resp").Assert(jen.Op("*").Id("goapb").Dot("ErrorResponse")),
+									jen.Id("ok"),
+								).Block(
+									jen.Return(
+										jen.Nil(),
+										codegenpkg.Expr("goagrpc.NewServiceError").Call(jen.Id("eresp")),
+									),
+								)
+								eg.Return(
+									jen.Nil(),
+									codegenpkg.Expr("goa.Fault").Call(jen.Lit("%s"), jen.Err().Dot("Error").Call()),
+								)
+							})
+							g.Return(jen.Id("res"), jen.Nil())
+						}),
 				),
 			)
 	})
@@ -254,6 +353,251 @@ func grpcExampleCLISection(defaultTransportType string, services []*ServiceData,
 			)
 		}
 	})
+}
+
+func grpcParseEndpointSection(flagsCode string, commands []*cli.CommandData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection("parse-endpoint-grpc", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, "ParseEndpoint returns the endpoint and payload as specified on the command line.")
+		params := []jen.Code{
+			jen.Id("cc").Op("*").Qual("google.golang.org/grpc", "ClientConn"),
+		}
+		for _, command := range commands {
+			if command.Interceptors != nil {
+				params = append(params,
+					jen.Id(command.Interceptors.VarName).Qual(command.Interceptors.PkgName, "ClientInterceptors"),
+				)
+			}
+		}
+		params = append(params, jen.Id("opts").Op("...").Qual("google.golang.org/grpc", "CallOption"))
+		stmt.Func().Id("ParseEndpoint").
+			Params(params...).
+			Params(codegenpkg.TypeRef("goa.Endpoint"), jen.Any(), jen.Error()).
+			BlockFunc(func(g *jen.Group) {
+				g.Add(codegenpkg.Expr(flagsCode))
+				g.Var().Defs(
+					jen.Id("data").Any(),
+					jen.Id("endpoint").Add(codegenpkg.TypeRef("goa.Endpoint")),
+					jen.Err().Error(),
+				)
+				g.BlockFunc(func(bg *jen.Group) {
+					bg.Switch(jen.Id("svcn")).BlockFunc(func(sg *jen.Group) {
+						for _, command := range commands {
+							sg.Case(jen.Lit(command.Name)).BlockFunc(func(cg *jen.Group) {
+								cg.Id("c").Op(":=").Id(command.PkgName).Dot("NewClient").Call(jen.Id("cc"), jen.Id("opts").Op("..."))
+								cg.Switch(jen.Id("epn")).BlockFunc(func(eg *jen.Group) {
+									for _, subcommand := range command.Subcommands {
+										eg.Case(jen.Lit(subcommand.Name)).BlockFunc(func(scg *jen.Group) {
+											scg.Id("endpoint").Op("=").Id("c").Dot(subcommand.MethodVarName).Call()
+											if subcommand.Interceptors != nil {
+												scg.Id("endpoint").Op("=").Id(subcommand.Interceptors.PkgName).Dot("Wrap"+subcommand.MethodVarName+"ClientEndpoint").Call(
+													jen.Id("endpoint"),
+													jen.Id(subcommand.Interceptors.VarName),
+												)
+											}
+											switch {
+											case subcommand.BuildFunction != nil:
+												args := make([]jen.Code, 0, len(subcommand.BuildFunction.ActualParams))
+												for _, param := range subcommand.BuildFunction.ActualParams {
+													args = append(args, jen.Op("*").Id(param+"Flag"))
+												}
+												scg.List(jen.Id("data"), jen.Err()).Op("=").Id(command.PkgName).Dot(subcommand.BuildFunction.Name).Call(args...)
+											case subcommand.Conversion != "":
+												scg.Add(codegenpkg.Expr(subcommand.Conversion))
+											}
+										})
+									}
+								})
+							})
+						}
+					})
+				})
+				g.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Return(jen.Nil(), jen.Nil(), jen.Err()),
+				)
+				g.Return(jen.Id("endpoint"), jen.Id("data"), jen.Nil())
+			})
+	})
+}
+
+func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection("remote-method-builder", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, fmt.Sprintf("Build%sFunc builds the remote method to invoke for %q service %q endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name))
+		stmt.Func().Id("Build"+endpoint.Method.VarName+"Func").
+			Params(
+				jen.Id("grpccli").Add(codegenpkg.TypeRef(endpoint.PkgName+"."+endpoint.ClientInterface)),
+				jen.Id("cliopts").Op("...").Qual("google.golang.org/grpc", "CallOption"),
+			).
+			Add(codegenpkg.TypeRef("goagrpc.RemoteFunc")).
+			Block(
+				jen.Return(
+					jen.Func().
+						Params(
+							jen.Id("ctx").Qual("context", "Context"),
+							jen.Id("reqpb").Any(),
+							jen.Id("opts").Op("...").Qual("google.golang.org/grpc", "CallOption"),
+						).
+						Params(jen.Any(), jen.Error()).
+						BlockFunc(func(g *jen.Group) {
+							g.For(
+								jen.List(jen.Id("_"), jen.Id("opt")).Op(":=").Range().Id("cliopts"),
+							).Block(
+								jen.Id("opts").Op("=").Append(jen.Id("opts"), jen.Id("opt")),
+							)
+							callArgs := []jen.Code{jen.Id("ctx")}
+							if endpoint.Method.StreamingPayload == "" {
+								callArgs = append(callArgs, jen.Id("reqpb").Assert(codegenpkg.Expr(endpoint.Request.ClientConvert.TgtRef)))
+							}
+							callArgs = append(callArgs, jen.Id("opts").Op("..."))
+							g.If(jen.Id("reqpb").Op("!=").Nil()).Block(
+								jen.Return(jen.Id("grpccli").Dot(endpoint.ClientMethodName).Call(callArgs...)),
+							)
+							nilArgs := []jen.Code{jen.Id("ctx")}
+							if endpoint.Method.StreamingPayload == "" {
+								nilArgs = append(nilArgs, jen.Op("&").Id(endpoint.Request.ClientConvert.TgtName).Values())
+							}
+							nilArgs = append(nilArgs, jen.Id("opts").Op("..."))
+							g.Return(jen.Id("grpccli").Dot(endpoint.ClientMethodName).Call(nilArgs...))
+						}),
+				),
+			)
+	})
+}
+
+func grpcExampleServerSection(services []*ServiceData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection("server-grpc-main", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, "handleGRPCServer starts configures and starts a gRPC server on the given URL. It shuts down the server if any error is received in the error channel.")
+		params := []jen.Code{
+			jen.Id("ctx").Qual("context", "Context"),
+			jen.Id("u").Op("*").Qual("net/url", "URL"),
+		}
+		for _, service := range services {
+			if len(service.Service.Methods) == 0 {
+				continue
+			}
+			params = append(params, jen.Id(service.Service.VarName+"Endpoints").Op("*").Qual(service.Service.PkgName, "Endpoints"))
+		}
+		params = append(params,
+			jen.Id("wg").Op("*").Qual("sync", "WaitGroup"),
+			jen.Id("errc").Chan().Error(),
+			jen.Id("dbg").Bool(),
+		)
+		stmt.Func().Id("handleGRPCServer").Params(params...).BlockFunc(func(g *jen.Group) {
+			g.Comment(codegenpkg.Comment("Wrap the endpoints with the transport specific layers. The generated"))
+			g.Comment(codegenpkg.Comment("server packages contains code generated from the design which maps"))
+			g.Comment(codegenpkg.Comment("the service input and output data structures to gRPC requests and"))
+			g.Comment(codegenpkg.Comment("responses."))
+			g.Var().DefsFunc(func(defs *jen.Group) {
+				for _, service := range services {
+					defs.Id(service.Service.VarName + "Server").Op("*").Id(service.Service.PkgName + "svr").Dot("Server")
+				}
+			})
+			g.BlockFunc(func(bg *jen.Group) {
+				for _, service := range services {
+					newArgs := []jen.Code{jen.Nil()}
+					if len(service.Endpoints) > 0 {
+						newArgs[0] = jen.Id(service.Service.VarName + "Endpoints")
+					}
+					if service.HasUnaryEndpoint() {
+						newArgs = append(newArgs, jen.Nil())
+					}
+					if service.HasStreamingEndpoint() {
+						newArgs = append(newArgs, jen.Nil())
+					}
+					bg.Id(service.Service.VarName + "Server").Op("=").Id(service.Service.PkgName + "svr").Dot("New").Call(newArgs...)
+				}
+			})
+			g.Line()
+			g.Comment(codegenpkg.Comment("Create interceptor which sets up the logger in each request context."))
+			g.Id("chain").Op(":=").Qual("google.golang.org/grpc", "ChainUnaryInterceptor").Call(
+				jen.Qual("goa.design/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
+			)
+			g.If(jen.Id("dbg")).Block(
+				jen.Comment(codegenpkg.Comment("Log request and response content if debug logs are enabled.")),
+				jen.Id("chain").Op("=").Qual("google.golang.org/grpc", "ChainUnaryInterceptor").Call(
+					jen.Qual("goa.design/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
+					jen.Qual("goa.design/clue/debug", "UnaryServerInterceptor").Call(),
+				),
+			)
+			needStream := false
+			for _, service := range services {
+				if needStreamSection(service) {
+					needStream = true
+					break
+				}
+			}
+			if needStream {
+				g.Id("streamchain").Op(":=").Qual("google.golang.org/grpc", "ChainStreamInterceptor").Call(
+					jen.Qual("goa.design/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
+				)
+				g.If(jen.Id("dbg")).Block(
+					jen.Id("streamchain").Op("=").Qual("google.golang.org/grpc", "ChainStreamInterceptor").Call(
+						jen.Qual("goa.design/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
+						jen.Qual("goa.design/clue/debug", "StreamServerInterceptor").Call(),
+					),
+				)
+			}
+			g.Line()
+			g.Comment(codegenpkg.Comment("Initialize gRPC server"))
+			serverArgs := []jen.Code{jen.Id("chain")}
+			if needStream {
+				serverArgs = append(serverArgs, jen.Id("streamchain"))
+			}
+			g.Id("srv").Op(":=").Qual("google.golang.org/grpc", "NewServer").Call(serverArgs...)
+			g.Line()
+			g.Comment(codegenpkg.Comment("Register the servers."))
+			for _, service := range services {
+				g.Id(service.PkgName).Dot("Register"+codegenpkg.Goify(service.Service.VarName, true)+"Server").Call(
+					jen.Id("srv"),
+					jen.Id(service.Service.VarName+"Server"),
+				)
+			}
+			g.Line()
+			g.For(
+				jen.List(jen.Id("svc"), jen.Id("info")).Op(":=").Range().Id("srv").Dot("GetServiceInfo").Call(),
+			).Block(
+				jen.For(jen.List(jen.Id("_"), jen.Id("m")).Op(":=").Range().Id("info").Dot("Methods")).Block(
+					jen.Qual("goa.design/clue/log", "Printf").Call(
+						jen.Id("ctx"),
+						jen.Lit("serving gRPC method %s"),
+						jen.Id("svc").Op("+").Lit("/").Op("+").Id("m").Dot("Name"),
+					),
+				),
+			)
+			g.Line()
+			g.Comment(codegenpkg.Comment("Register the server reflection service on the server."))
+			g.Comment(codegenpkg.Comment("See https://grpc.github.io/grpc/core/md_doc_server-reflection.html."))
+			g.Qual("google.golang.org/grpc/reflection", "Register").Call(jen.Id("srv"))
+			g.Line()
+			g.Parens(jen.Op("*").Id("wg")).Dot("Add").Call(jen.Lit(1))
+			g.Go().Func().Params().Block(
+				jen.Defer().Parens(jen.Op("*").Id("wg")).Dot("Done").Call(),
+				jen.Comment(codegenpkg.Comment("Start gRPC server in a separate goroutine.")),
+				jen.Go().Func().Params().Block(
+					jen.List(jen.Id("lis"), jen.Err()).Op(":=").Qual("net", "Listen").Call(jen.Lit("tcp"), jen.Id("u").Dot("Host")),
+					jen.If(jen.Err().Op("!=").Nil()).Block(
+						jen.Id("errc").Op("<-").Err(),
+					),
+					jen.If(jen.Id("lis").Op("==").Nil()).Block(
+						jen.Id("errc").Op("<-").Qual("fmt", "Errorf").Call(jen.Lit("failed to listen on %q"), jen.Id("u").Dot("Host")),
+					),
+					jen.Qual("goa.design/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("gRPC server listening on %q"), jen.Id("u").Dot("Host")),
+					jen.Id("errc").Op("<-").Id("srv").Dot("Serve").Call(jen.Id("lis")),
+				).Call(),
+				jen.Op("<-").Id("ctx").Dot("Done").Call(),
+				jen.Qual("goa.design/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("shutting down gRPC server at %q"), jen.Id("u").Dot("Host")),
+				jen.Id("srv").Dot("Stop").Call(),
+			).Call()
+		})
+	})
+}
+
+func needStreamSection(service *ServiceData) bool {
+	for _, endpoint := range service.Endpoints {
+		if endpoint.ServerStream != nil || endpoint.ClientStream != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func grpcStreamSections(endpoint *EndpointData, stream *StreamData, side string) []codegenpkg.Section {

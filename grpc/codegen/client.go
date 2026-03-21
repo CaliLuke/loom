@@ -55,11 +55,7 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		}
 		sections = append(sections, grpcClientInitSection(data))
 		for _, e := range data.Endpoints {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "client-endpoint-init",
-				Source: grpcTemplates.Read(grpcClientEndpointInitT),
-				Data:   e,
-			})
+			sections = append(sections, grpcClientEndpointInitSection(e))
 		}
 		for _, e := range data.Endpoints {
 			if e.ClientStream != nil {
@@ -116,11 +112,7 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 		fm["typeConversionData"] = typeConversionData
 		fm["isBearer"] = isBearer
 		for _, e := range data.Endpoints {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "remote-method-builder",
-				Source: grpcTemplates.Read(grpcRemoteMethodBuilderT),
-				Data:   e,
-			})
+			sections = append(sections, grpcRemoteMethodBuilderSection(e))
 			if e.PayloadRef != "" {
 				sections = append(sections, &codegen.SectionTemplate{
 					Name:    "request-encoder",

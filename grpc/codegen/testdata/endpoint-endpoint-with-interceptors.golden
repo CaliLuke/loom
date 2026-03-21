@@ -26,11 +26,7 @@ func UsageExamples() string {
 	return os.Args[0] + " service-with-interceptors method-a --message '{\n      \"field\": \"Sapiente est.\"\n   }'\\n"
 } // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
-func ParseEndpoint(
-	cc *grpc.ClientConn,
-	serviceWithInterceptorsInter servicewithinterceptors.ClientInterceptors,
-	opts ...grpc.CallOption,
-) (goa.Endpoint, any, error) {
+func ParseEndpoint(cc *grpc.ClientConn, serviceWithInterceptorsInter servicewithinterceptors.ClientInterceptors, opts ...grpc.CallOption) (goa.Endpoint, any, error) {
 	var (
 		serviceWithInterceptorsFlags = flag.NewFlagSet("service-with-interceptors", flag.ContinueOnError)
 
@@ -123,11 +119,8 @@ func ParseEndpoint(
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return endpoint, data, nil
-}
-
-// serviceWithInterceptorsUsage displays the usage of the
+} // serviceWithInterceptorsUsage displays the usage of the
 // service-with-interceptors command and its subcommands.
 func serviceWithInterceptorsUsage() {
 	fmt.Fprintln(os.Stderr, "Service is the ServiceWithInterceptors service interface.")

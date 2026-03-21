@@ -1,7 +1,6 @@
 // handleGRPCServer starts configures and starts a gRPC server on the given
 // URL. It shuts down the server if any error is received in the error channel.
 func handleGRPCServer(ctx context.Context, u *url.URL, serviceEndpoints *service.Endpoints, wg *sync.WaitGroup, errc chan error, dbg bool) {
-
 	// Wrap the endpoints with the transport specific layers. The generated
 	// server packages contains code generated from the design which maps
 	// the service input and output data structures to gRPC requests and
@@ -39,7 +38,6 @@ func handleGRPCServer(ctx context.Context, u *url.URL, serviceEndpoints *service
 	(*wg).Add(1)
 	go func() {
 		defer (*wg).Done()
-
 		// Start gRPC server in a separate goroutine.
 		go func() {
 			lis, err := net.Listen("tcp", u.Host)
@@ -52,7 +50,6 @@ func handleGRPCServer(ctx context.Context, u *url.URL, serviceEndpoints *service
 			log.Printf(ctx, "gRPC server listening on %q", u.Host)
 			errc <- srv.Serve(lis)
 		}()
-
 		<-ctx.Done()
 		log.Printf(ctx, "shutting down gRPC server at %q", u.Host)
 		srv.Stop()

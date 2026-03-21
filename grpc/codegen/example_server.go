@@ -90,48 +90,7 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr) 
 	}
 	sections = []codegen.Section{
 		codegen.Header("", "main", specs),
-		&codegen.SectionTemplate{
-			Name:   "server-grpc-start",
-			Source: grpcTemplates.Read(grpcServerGRPCStartT),
-			Data: map[string]any{
-				"Services": svcdata,
-			},
-		}, &codegen.SectionTemplate{
-			Name:   "server-grpc-init",
-			Source: grpcTemplates.Read(grpcServerGRPCInitT),
-			Data: map[string]any{
-				"Services": svcdata,
-			},
-		}, &codegen.SectionTemplate{
-			Name:   "server-grpc-register",
-			Source: grpcTemplates.Read(grpcServerGRPCRegisterT),
-			Data: map[string]any{
-				"Services": svcdata,
-			},
-			FuncMap: map[string]any{
-				"goify":      codegen.Goify,
-				"needStream": needStream,
-			},
-		}, &codegen.SectionTemplate{
-			Name:   "server-grpc-end",
-			Source: grpcTemplates.Read(grpcServerGRPCEndT),
-			Data: map[string]any{
-				"Services": svcdata,
-			},
-		},
+		grpcExampleServerSection(svcdata),
 	}
 	return &codegen.File{Path: mainPath, Sections: sections, SkipExist: true}
-}
-
-// needStream returns true if at least one method in the defined services
-// uses stream for sending payload/result.
-func needStream(data []*ServiceData) bool {
-	for _, svc := range data {
-		for _, e := range svc.Endpoints {
-			if e.ServerStream != nil || e.ClientStream != nil {
-				return true
-			}
-		}
-	}
-	return false
 }
