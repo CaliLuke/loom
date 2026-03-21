@@ -26,10 +26,7 @@
       }
     },
     "responses": {
-      "MealPlannerShareMealPlanStatus204Response": {
-        "description": "No Content response."
-      },
-      "MealPlannerUpsertMealPlanStatus400Response": {
+      "BadRequestError": {
         "content": {
           "application/vnd.goa.error": {
             "schema": {
@@ -39,17 +36,7 @@
         },
         "description": "bad_request: Bad Request response."
       },
-      "MealPlannerUpsertMealPlanStatus401Response": {
-        "content": {
-          "application/vnd.goa.error": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            }
-          }
-        },
-        "description": "unauthorized: Authentication is required."
-      },
-      "MealPlannerUpsertMealPlanStatus403Response": {
+      "ForbiddenError": {
         "content": {
           "application/vnd.goa.error": {
             "schema": {
@@ -59,7 +46,10 @@
         },
         "description": "forbidden: Access is forbidden."
       },
-      "MealPlannerWatchPlannerEventsStatus429Response": {
+      "MealPlannerShareMealPlanStatus204Response": {
+        "description": "No Content response."
+      },
+      "TooManyRequestsError": {
         "content": {
           "application/vnd.goa.error": {
             "schema": {
@@ -68,6 +58,16 @@
           }
         },
         "description": "rate_limited: Too Many Requests response."
+      },
+      "UnauthorizedError": {
+        "content": {
+          "application/vnd.goa.error": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "unauthorized: Authentication is required."
       }
     },
     "schemas": {
@@ -722,7 +722,7 @@
             "description": "OK response."
           },
           "429": {
-            "$ref": "#/components/responses/MealPlannerWatchPlannerEventsStatus429Response"
+            "$ref": "#/components/responses/TooManyRequestsError"
           }
         },
         "security": [],
@@ -751,7 +751,7 @@
             "description": "OK response."
           },
           "429": {
-            "$ref": "#/components/responses/MealPlannerWatchPlannerEventsStatus429Response"
+            "$ref": "#/components/responses/TooManyRequestsError"
           }
         },
         "security": [],
@@ -839,13 +839,13 @@
             "description": "OK response."
           },
           "400": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
+            "$ref": "#/components/responses/BadRequestError"
           },
           "401": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "403": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
+            "$ref": "#/components/responses/ForbiddenError"
           }
         },
         "security": [
@@ -890,13 +890,13 @@
             "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
           },
           "400": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
+            "$ref": "#/components/responses/BadRequestError"
           },
           "401": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "403": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
+            "$ref": "#/components/responses/ForbiddenError"
           }
         },
         "security": [
@@ -960,13 +960,13 @@
             "description": "Accepted response."
           },
           "400": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
+            "$ref": "#/components/responses/BadRequestError"
           },
           "401": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "403": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
+            "$ref": "#/components/responses/ForbiddenError"
           }
         },
         "security": [
@@ -994,13 +994,13 @@
             "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
           },
           "400": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
+            "$ref": "#/components/responses/BadRequestError"
           },
           "401": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "403": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
+            "$ref": "#/components/responses/ForbiddenError"
           }
         },
         "security": [
@@ -1028,13 +1028,13 @@
             "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
           },
           "400": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
+            "$ref": "#/components/responses/BadRequestError"
           },
           "401": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "403": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
+            "$ref": "#/components/responses/ForbiddenError"
           }
         },
         "security": [
@@ -1121,13 +1121,13 @@
             "description": "OK response."
           },
           "400": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
+            "$ref": "#/components/responses/BadRequestError"
           },
           "401": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "403": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
+            "$ref": "#/components/responses/ForbiddenError"
           }
         },
         "security": [
@@ -1187,10 +1187,10 @@
             "description": "OK response."
           },
           "401": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "403": {
-            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
+            "$ref": "#/components/responses/ForbiddenError"
           },
           "404": {
             "content": {

@@ -220,6 +220,24 @@ var ResponseSkipResponseBodyEncodeDecode = func(svc, met string) func() {
 	}
 }
 
+var ResponseSkipResponseBodyEncodeDecodeOpenAPIBody = func(svc, met string) func() {
+	return func() {
+		var _ = Service(svc, func() {
+			Method(met, func() {
+				Result(Empty)
+				HTTP(func() {
+					GET("/")
+					SkipResponseBodyEncodeDecode()
+					Response(StatusOK, func() {
+						ContentType("text/html")
+						OpenAPIBody(String)
+					})
+				})
+			})
+		})
+	}
+}
+
 var OperationIDStatic = func(svc, met string) func() {
 	return func() {
 		var _ = Service(svc, func() {

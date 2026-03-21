@@ -209,14 +209,20 @@ func mergeStreamingBodyNote(req, streaming *Schema) *Schema {
 }
 
 func responseBodyAttribute(resp *expr.HTTPResponseExpr) *expr.AttributeExpr {
+	body := resp.Body
+	if resp.OpenAPIBody != nil {
+		body = resp.OpenAPIBody
+	}
+	if body == nil {
+		return &expr.AttributeExpr{Type: expr.Empty}
+	}
 	var view string
-	if v, ok := resp.Body.Meta.Last(expr.ViewMetaKey); ok {
+	if v, ok := body.Meta.Last(expr.ViewMetaKey); ok {
 		view = v
 	}
 	if view == "" {
-		return resp.Body
+		return body
 	}
-	body := resp.Body
 	rt := expr.Dup(body.Type).(*expr.ResultTypeExpr)
 	projected, err := expr.Project(rt, view)
 	if err != nil {

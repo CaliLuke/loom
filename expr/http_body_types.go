@@ -254,6 +254,26 @@ func httpResponseBody(a *HTTPEndpointExpr, resp *HTTPResponseExpr) *AttributeExp
 	return buildHTTPResponseBody(name, a.MethodExpr.Result, resp, a.Service)
 }
 
+// httpOpenAPIResponseBody returns the documentation-only HTTP response body for
+// the given endpoint and response, if any.
+func httpOpenAPIResponseBody(a *HTTPEndpointExpr, resp *HTTPResponseExpr) *AttributeExpr {
+	if resp.OpenAPIBody == nil {
+		return nil
+	}
+	name := concat(a.Name(), "OpenAPI", "Response", "Body")
+	if len(a.Responses) > 1 {
+		name = concat(a.Name(), http.StatusText(resp.StatusCode), "OpenAPI", "Response", "Body")
+	}
+	if !IsObject(resp.OpenAPIBody.Type) {
+		preserveCanonicalOpenAPITypeName(resp.OpenAPIBody)
+		return resp.OpenAPIBody
+	}
+	if len(*AsObject(resp.OpenAPIBody.Type)) == 0 {
+		return &AttributeExpr{Type: Empty}
+	}
+	return cloneExplicitHTTPBody(resp.OpenAPIBody, name, "ResponseBody", a.Service.Name()+"#"+name)
+}
+
 // httpErrorResponseBody returns an attribute describing the response body of a
 // given error. If the DSL defines a body explicitly via the Body function then
 // the corresponding attribute is returned. Otherwise the attribute is computed

@@ -96,6 +96,9 @@ type (
 		Cookies []*HTTPResponseCookieExpr
 		// Response body if any
 		Body *AttributeExpr
+		// OpenAPIBody describes a documentation-only response body used by
+		// OpenAPI generation when runtime response encoding/decoding is skipped.
+		OpenAPIBody *AttributeExpr
 		// Response Content-Type header value
 		ContentType string
 		// Tag the value a field of the result must have for this
@@ -145,7 +148,11 @@ func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors 
 	// text/html and text/plain can only encode strings so make sure there isn't
 	// an explicit conflict with the content-type and response.
 	if (r.ContentType == "text/html" || r.ContentType == "text/plain") && !e.SkipRequestBodyEncodeDecode {
-		if e.MethodExpr.Result.Type != nil && e.MethodExpr.Result.Type != String && e.MethodExpr.Result.Type != Bytes && r.Body == nil {
+		if r.OpenAPIBody != nil {
+			if r.OpenAPIBody.Type != String && r.OpenAPIBody.Type != Bytes {
+				verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
+			}
+		} else if e.MethodExpr.Result.Type != nil && e.MethodExpr.Result.Type != String && e.MethodExpr.Result.Type != Bytes && r.Body == nil {
 			verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
 		}
 		if r.Body != nil && r.Body.Type != String && r.Body.Type != Bytes {
@@ -276,6 +283,9 @@ func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors 
 			verr.Add(e, "HTTP endpoint response body must be empty when using SkipResponseBodyEncodeDecode. Make sure to define headers and cookies as needed.")
 		}
 	}
+	if r.OpenAPIBody != nil {
+		verr.Merge(r.OpenAPIBody.Validate("HTTP response OpenAPI body", r))
+	}
 	return verr
 }
 
@@ -334,6 +344,10 @@ func (r *HTTPResponseExpr) Finalize(a *HTTPEndpointExpr, svcAtt *AttributeExpr) 
 			r.Body.Meta = bodyAtt.Meta
 		}
 	}
+	if r.OpenAPIBody != nil {
+		r.OpenAPIBody = httpOpenAPIResponseBody(a, r)
+		r.OpenAPIBody.Finalize()
+	}
 
 	// Set response content type if empty and if set in the result type
 	if r.ContentType == "" {
@@ -357,6 +371,9 @@ func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 	}
 	if r.Body != nil {
 		res.Body = DupAtt(r.Body)
+	}
+	if r.OpenAPIBody != nil {
+		res.OpenAPIBody = DupAtt(r.OpenAPIBody)
 	}
 	if r.Headers != nil {
 		res.Headers = DupMappedAtt(r.Headers)

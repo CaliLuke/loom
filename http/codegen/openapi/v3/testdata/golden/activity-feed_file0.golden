@@ -13,7 +13,7 @@
       }
     },
     "responses": {
-      "ActivityFeedListActivitiesStatus400Response": {
+      "BadRequestError": {
         "content": {
           "application/json": {
             "example": {
@@ -209,7 +209,7 @@
             "description": "OK response."
           },
           "400": {
-            "$ref": "#/components/responses/ActivityFeedListActivitiesStatus400Response"
+            "$ref": "#/components/responses/BadRequestError"
           }
         },
         "security": [],
@@ -249,7 +249,7 @@
             "description": "OK response."
           },
           "400": {
-            "$ref": "#/components/responses/ActivityFeedListActivitiesStatus400Response"
+            "$ref": "#/components/responses/BadRequestError"
           }
         },
         "security": [],

@@ -28,6 +28,9 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
 - Support attribute-level OpenAPI schema metadata for `readOnly`, `writeOnly`,
   `deprecated`, `contentEncoding`, and `contentMediaType` in the IR-backed
   schema-generation paths.
+- Add first-class `ReadOnly()` / `WriteOnly()` DSL helpers and allow
+  documentation-only `OpenAPIBody(...)` declarations for
+  `SkipResponseBodyEncodeDecode()` HTTP responses.
 - Prune unreferenced generated component schemas so the published contract only
   contains reachable request/response shapes.
 - Suppress invalid closed-object union-wrapper examples, honor
@@ -150,6 +153,8 @@ Add framework support to:
 - keep attribute-level `writeOnly`, `readOnly`, `deprecated`,
   `contentEncoding`, and `contentMediaType` metadata first-class in the
   published schema
+- keep documentation-only response body declarations available for manual
+  HTTP response endpoints without leaking into runtime transport code
 - declare parameters alongside fields and operations centrally when a stable DSL
   surface exists
 - split request and response schemas automatically when the same domain type

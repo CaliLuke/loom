@@ -951,6 +951,21 @@ func SkipResponseBodyEncodeDecode() {
 //	    })
 //	})
 func Body(args ...any) {
+	body(args, false)
+}
+
+// OpenAPIBody describes a documentation-only HTTP response body.
+//
+// OpenAPIBody must appear in a Response or HTTP Error expression. It affects
+// the generated OpenAPI contract only and does not change runtime transport
+// encode/decode behavior.
+//
+// OpenAPIBody accepts the same arguments as Body.
+func OpenAPIBody(args ...any) {
+	body(args, true)
+}
+
+func body(args []any, openAPIOnly bool) {
 	if len(args) == 0 {
 		eval.TooFewArgError()
 		return
@@ -965,6 +980,10 @@ func Body(args ...any) {
 	// Figure out reference type and setter function
 	switch e := eval.Current().(type) {
 	case *expr.HTTPEndpointExpr:
+		if openAPIOnly {
+			eval.IncompatibleDSL()
+			return
+		}
 		ref = e.MethodExpr.Payload
 		setter = func(att *expr.AttributeExpr) {
 			e.Body = att
@@ -976,7 +995,11 @@ func Body(args ...any) {
 			if e.Response == nil {
 				e.Response = &expr.HTTPResponseExpr{}
 			}
-			e.Response.Body = att
+			if openAPIOnly {
+				e.Response.OpenAPIBody = att
+			} else {
+				e.Response.Body = att
+			}
 		}
 		kind = "Error"
 		if e.Name != "" {
@@ -990,7 +1013,11 @@ func Body(args ...any) {
 		}
 		ref = p.MethodExpr.Result
 		setter = func(att *expr.AttributeExpr) {
-			e.Body = att
+			if openAPIOnly {
+				e.OpenAPIBody = att
+			} else {
+				e.Body = att
+			}
 		}
 		kind = "Response"
 	default:
@@ -1043,6 +1070,20 @@ func Body(args ...any) {
 				return
 			}
 		}
+	case expr.DataType:
+		if !openAPIOnly {
+			eval.InvalidArgError("attribute name, user type or DSL", a)
+			return
+		}
+		attr = &expr.AttributeExpr{Type: a}
+		if len(args) > 1 {
+			var ok bool
+			fn, ok = args[1].(func())
+			if !ok {
+				eval.InvalidArgError("function", args[1])
+				return
+			}
+		}
 	case func():
 		fn = a
 		if ref == nil {
@@ -1051,6 +1092,10 @@ func Body(args ...any) {
 		}
 		attr = &expr.AttributeExpr{References: []expr.DataType{ref.Type}}
 	default:
+		if openAPIOnly {
+			eval.InvalidArgError("attribute name, data type, user type or DSL", a)
+			return
+		}
 		eval.InvalidArgError("attribute name, user type or DSL", a)
 		return
 	}
@@ -1059,7 +1104,11 @@ func Body(args ...any) {
 	if fn != nil {
 		eval.Execute(fn, attr)
 	}
-	attr.AddMeta("http:body")
+	if openAPIOnly {
+		attr.AddMeta("http:openapi:body")
+	} else {
+		attr.AddMeta("http:body")
+	}
 	setter(attr)
 }
 

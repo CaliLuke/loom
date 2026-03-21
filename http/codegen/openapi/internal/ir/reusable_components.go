@@ -379,12 +379,40 @@ func collectResponseUsages(paths map[string]*PathItem) []responseUsage {
 				}
 				usages = append(usages, responseUsage{
 					ref:  ref,
-					base: componentNameFromOperation(operation.OperationID) + responseStatusComponentSuffix(status) + "Response",
+					base: responseComponentBase(operation.OperationID, status),
 				})
 			}
 		}
 	}
 	return usages
+}
+
+func responseComponentBase(operationID, status string) string {
+	if base := standardErrorResponseComponentBase(status); base != "" {
+		return base
+	}
+	return componentNameFromOperation(operationID) + responseStatusComponentSuffix(status) + "Response"
+}
+
+func standardErrorResponseComponentBase(status string) string {
+	switch strings.TrimSpace(status) {
+	case "400":
+		return "BadRequestError"
+	case "401":
+		return "UnauthorizedError"
+	case "403":
+		return "ForbiddenError"
+	case "404":
+		return "NotFoundError"
+	case "409":
+		return "ConflictError"
+	case "422":
+		return "UnprocessableEntityError"
+	case "429":
+		return "TooManyRequestsError"
+	default:
+		return ""
+	}
 }
 
 func orderedPathKeys(paths map[string]*PathItem) []string {

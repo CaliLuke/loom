@@ -106,6 +106,7 @@ type requestBody struct {
 
 type response struct {
 	Description string
+	ContentType string
 	Type        typ
 	Headers     map[string]param
 }
@@ -175,25 +176,31 @@ func TestBuildOperation(t *testing.T) {
 		DSL:  dsls.ResponseArrayOfString(svcName, "response_array_of_string"),
 
 		ExpectedDeprecated: false,
-		ExpectedResponses:  responses{"200": {"OK response.", tobj("result", tobj("children", tarray)), nil}},
+		ExpectedResponses:  responses{"200": {Description: "OK response.", Type: tobj("result", tobj("children", tarray))}},
 	}, {
 		Name: "response_recursive_user_type",
 		DSL:  dsls.ResponseRecursiveUserType(svcName, "response_recursive_user_type"),
 
 		ExpectedDeprecated: false,
-		ExpectedResponses:  responses{"200": {"OK response.", tobj("recursive", tobj()), nil}},
+		ExpectedResponses:  responses{"200": {Description: "OK response.", Type: tobj("recursive", tobj())}},
 	}, {
 		Name: "response_recursive_array_user_type",
 		DSL:  dsls.ResponseRecursiveArrayUserType(svcName, "response_recursive_array_user_type"),
 
 		ExpectedDeprecated: false,
-		ExpectedResponses:  responses{"200": {"OK response.", tobj("result", tobj("children", tarray)), nil}},
+		ExpectedResponses:  responses{"200": {Description: "OK response.", Type: tobj("result", tobj("children", tarray))}},
 	}, {
 		Name: "response_skip_response_body_encode_decode",
 		DSL:  dsls.ResponseSkipResponseBodyEncodeDecode(svcName, "response_skip_response_body_encode_decode"),
 
 		ExpectedDeprecated: false,
-		ExpectedResponses:  responses{"200": {"OK response.", tbinary, nil}},
+		ExpectedResponses:  responses{"200": {Description: "OK response.", Type: tbinary, ContentType: "application/json"}},
+	}, {
+		Name: "response_skip_response_body_encode_decode_openapi_body",
+		DSL:  dsls.ResponseSkipResponseBodyEncodeDecodeOpenAPIBody(svcName, "response_skip_response_body_encode_decode_openapi_body"),
+
+		ExpectedDeprecated: false,
+		ExpectedResponses:  responses{"200": {Description: "OK response.", Type: tstring, ContentType: "text/html"}},
 	}}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -598,9 +605,13 @@ func matchesResponse(t *testing.T, r *ResponseRef, types map[string]*openapi.Sch
 		matchesHeader(t, h, types, exp)
 	}
 	if expected.Type.Type != "" {
-		ct, ok := v.Content["application/json"]
+		contentType := expected.ContentType
+		if contentType == "" {
+			contentType = "application/json"
+		}
+		ct, ok := v.Content[contentType]
 		if !ok {
-			t.Error("missing response content, expected application/json")
+			t.Errorf("missing response content, expected %s", contentType)
 			return
 		}
 		matchesSchema(t, "response body", ct.Schema, types, expected.Type)

@@ -56,6 +56,29 @@
           "testService"
         ]
       }
+    },
+    "/html": {
+      "get": {
+        "operationId": "test_service.html",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "example": "Doloribus qui quia.",
+                "schema": {
+                  "example": "Quia molestias.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "summary": "html testService",
+        "tags": [
+          "testService"
+        ]
+      }
     }
   },
   "servers": [

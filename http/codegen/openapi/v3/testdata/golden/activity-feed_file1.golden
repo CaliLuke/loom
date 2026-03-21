@@ -35,7 +35,7 @@ paths:
                                 items:
                                     $ref: '#/components/schemas/ActivityEnvelope'
                 "400":
-                    $ref: '#/components/responses/ActivityFeedListActivitiesStatus400Response'
+                    $ref: '#/components/responses/BadRequestError'
             security: []
     /projects/{project_id}/activities/{activity_id}:
         get:
@@ -60,7 +60,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ActivityEnvelope'
                 "400":
-                    $ref: '#/components/responses/ActivityFeedListActivitiesStatus400Response'
+                    $ref: '#/components/responses/BadRequestError'
             security: []
 components:
     schemas:
@@ -166,7 +166,7 @@ components:
                 example: proj_9
             example: proj_9
     responses:
-        ActivityFeedListActivitiesStatus400Response:
+        BadRequestError:
             description: 'bad_request: Bad Request response.'
             content:
                 application/json:

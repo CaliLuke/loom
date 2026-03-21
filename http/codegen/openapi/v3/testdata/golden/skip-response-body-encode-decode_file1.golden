@@ -39,6 +39,21 @@ paths:
             responses:
                 "200":
                     description: OK response.
+    /html:
+        get:
+            tags:
+                - testService
+            summary: html testService
+            operationId: test_service.html
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        text/html:
+                            schema:
+                                type: string
+                                example: Quia molestias.
+                            example: Doloribus qui quia.
 components: {}
 tags:
     - name: testService

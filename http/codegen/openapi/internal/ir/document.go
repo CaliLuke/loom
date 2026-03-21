@@ -123,6 +123,7 @@ func buildResponses(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, ran
 }
 
 func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][]*Schema, rand *expr.ExampleGenerator, closeObjects bool) *Response {
+	body := responseDocumentBody(resp)
 	contentType := responseContentType(resp)
 	headers := headersFromAttr(resp.Headers, rand, closeObjects)
 	if cookieHeader := responseCookieHeader(resp.Cookies, rand); cookieHeader != nil {
@@ -133,9 +134,9 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 	}
 
 	var content map[string]*MediaType
-	if resp.Body.Type != expr.Empty {
+	if body != nil && body.Type != expr.Empty {
 		content = map[string]*MediaType{
-			contentType: buildMediaType(resp.Body, firstResponseBody(bodies[statusCode]), rand, closeObjects),
+			contentType: buildMediaType(body, firstResponseBody(bodies[statusCode]), rand, closeObjects),
 		}
 		if !shouldEmitResponseExamples(resp) {
 			for _, mediaType := range content {
@@ -150,7 +151,7 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 					Type:   "string",
 					Format: "binary",
 				},
-				Extensions: openapi.ExtensionsFromExpr(resp.Body.Meta),
+				Extensions: openapi.ExtensionsFromExpr(resp.Meta),
 			},
 		}
 	}
@@ -222,9 +223,12 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 }
 
 func responseContentType(resp *expr.HTTPResponseExpr) string {
+	body := responseDocumentBody(resp)
 	contentType := resp.ContentType
-	if rt, ok := resp.Body.Type.(*expr.ResultTypeExpr); ok && contentType == "" {
-		contentType = rt.ContentType
+	if body != nil {
+		if rt, ok := body.Type.(*expr.ResultTypeExpr); ok && contentType == "" {
+			contentType = rt.ContentType
+		}
 	}
 	if contentType == "" && isSSEResponse(resp) {
 		contentType = "text/event-stream"
@@ -233,6 +237,16 @@ func responseContentType(resp *expr.HTTPResponseExpr) string {
 		contentType = "application/json"
 	}
 	return contentType
+}
+
+func responseDocumentBody(resp *expr.HTTPResponseExpr) *expr.AttributeExpr {
+	if resp == nil {
+		return nil
+	}
+	if resp.OpenAPIBody != nil {
+		return resp.OpenAPIBody
+	}
+	return resp.Body
 }
 
 func shouldEmitResponseExamples(resp *expr.HTTPResponseExpr) bool {

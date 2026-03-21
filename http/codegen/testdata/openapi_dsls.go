@@ -936,6 +936,18 @@ var SkipResponseBodyEncodeDecodeDSL = func() {
 				})
 			})
 		})
+		Method("html", func() {
+			Payload(Empty)
+			Result(Empty)
+			HTTP(func() {
+				GET("/html")
+				SkipResponseBodyEncodeDecode()
+				Response(StatusOK, func() {
+					ContentType("text/html")
+					OpenAPIBody(String)
+				})
+			})
+		})
 	})
 }
 

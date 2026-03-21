@@ -318,6 +318,9 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:writeOnly", "true")
 //	})
 //
+// The ReadOnly() and WriteOnly() helpers provide first-class DSL shorthands
+// for these metadata entries.
+//
 // - "openapi:deprecated" marks an attribute or HTTP method as deprecated in the
 // generated OpenAPI contract. The value can be true or false. Applicable to
 // attributes and HTTP methods.

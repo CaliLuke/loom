@@ -33,6 +33,7 @@ func TestHTTPResponseValidation(t *testing.T) {
 		{"missing cookie result attribute", missingCookieResultAttributeDSL, `HTTP response of service "MissingCookieResultAttribute" HTTP endpoint "Method": cookie "bar" has no equivalent attribute in result type, use notation 'attribute_name:cookie_name' to identify corresponding result type attribute.
 service "MissingCookieResultAttribute" HTTP endpoint "Method": attribute "bar" used in HTTP cookies must be a primitive type.`},
 		{"skip encode and gRPC", skipEncodeAndGRPCDSL, `service "SkipEncodeAndGRPC" HTTP endpoint "Method": Endpoint response cannot use SkipResponseBodyEncodeDecode and define a gRPC transport.`},
+		{"skip encode with OpenAPI body", skipEncodeWithOpenAPIBodyDSL, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -328,6 +329,22 @@ var skipEncodeAndGRPCDSL = func() {
 				})
 			})
 			GRPC(func() {})
+		})
+	})
+}
+
+var skipEncodeWithOpenAPIBodyDSL = func() {
+	Service("SkipEncodeWithOpenAPIBody", func() {
+		Method("Method", func() {
+			Result(Empty)
+			HTTP(func() {
+				POST("/")
+				SkipResponseBodyEncodeDecode()
+				Response(func() {
+					ContentType("text/html")
+					OpenAPIBody(String)
+				})
+			})
 		})
 	})
 }
