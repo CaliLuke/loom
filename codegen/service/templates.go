@@ -14,10 +14,6 @@ const (
 	serviceClientMethodT = "service_client_method"
 
 	// Convert templates
-	convertT         = "convert"
-	createT          = "create"
-	transformHelperT = "transform_helper"
-
 	// Endpoint templates
 	serviceEndpointsT            = "service_endpoints"
 	serviceEndpointStreamStructT = "service_endpoint_stream_struct"
@@ -39,12 +35,7 @@ const (
 	jsonrpcHandleStreamT      = "jsonrpc_handle_stream"
 
 	// Service templates
-	serviceT        = "service"
-	unionTypeT      = "union_type"
-	errorInitT      = "error_init"
-	typeInitT       = "type_init"
-	returnTypeInitT = "return_type_init"
-	typeValidateT   = "type_validate"
+	serviceT = "service"
 
 	// Interceptor templates
 	interceptorsT                        = "interceptors"

@@ -65,11 +65,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		}
 	}
 	for _, u := range svc.unions {
-		addTypeDefSection(pathWithDefault(u.Loc, svcPath), "~union:"+u.Name, &codegen.SectionTemplate{
-			Name:   "service-union-type",
-			Source: serviceTemplates.Read(unionTypeT),
-			Data:   u,
-		})
+		addTypeDefSection(pathWithDefault(u.Loc, svcPath), "~union:"+u.Name, unionTypeSection("service-union-type", u))
 	}
 
 	var errorTypes []*UserTypeData

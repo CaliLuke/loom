@@ -65,11 +65,7 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 		sections = append(sections, userTypeSection("projected-type", t.UserTypeData))
 	}
 	for _, u := range unions {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "projected-union-type",
-			Source: serviceTemplates.Read(unionTypeT),
-			Data:   u,
-		})
+		sections = append(sections, unionTypeSection("projected-union-type", u))
 	}
 
 	// generate a map for result types with view name as key and the fields
