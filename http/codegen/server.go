@@ -70,8 +70,8 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	}
 
 	sections = append(sections,
-		&codegen.SectionTemplate{Name: "server-struct", Source: httpTemplates.Read(serverStructT), Data: data},
-		&codegen.SectionTemplate{Name: "server-mountpoint", Source: httpTemplates.Read(mountPointStructT), Data: data})
+		serverStructSection(data),
+		mountPointStructSection(data))
 
 	for _, e := range data.Endpoints {
 		if e.MultipartRequestDecoder != nil {
@@ -84,15 +84,15 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	}
 
 	sections = append(sections,
-		&codegen.SectionTemplate{Name: "server-init", Source: httpTemplates.Read(serverInitT), Data: data, FuncMap: funcs},
-		&codegen.SectionTemplate{Name: "server-service", Source: httpTemplates.Read(serverServiceT), Data: data},
-		&codegen.SectionTemplate{Name: "server-use", Source: httpTemplates.Read(serverUseT), Data: data},
-		&codegen.SectionTemplate{Name: "server-method-names", Source: httpTemplates.Read(serverMethodNamesT), Data: data},
-		&codegen.SectionTemplate{Name: "server-mount", Source: httpTemplates.Read(serverMountT), Data: data, FuncMap: funcs})
+		serverInitSection(data),
+		serverServiceSection(data),
+		serverUseSection(data),
+		serverMethodNamesSection(data),
+		serverMountSection(data))
 
 	for _, e := range data.Endpoints {
 		sections = append(sections,
-			&codegen.SectionTemplate{Name: "server-handler", Source: httpTemplates.Read(serverHandlerT), Data: e},
+			serverHandlerSection(e),
 			&codegen.SectionTemplate{Name: "server-handler-init", Source: httpTemplates.Read(serverHandlerInitT), FuncMap: funcs, Data: e})
 	}
 	if len(data.FileServers) > 0 {
@@ -109,10 +109,10 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 				}
 			}
 		}
-		sections = append(sections, &codegen.SectionTemplate{Name: "append-fs", Source: httpTemplates.Read(appendFsT), FuncMap: funcs, Data: mappedFiles})
+		sections = append(sections, appendFSSection(mappedFiles))
 	}
 	for _, s := range data.FileServers {
-		sections = append(sections, &codegen.SectionTemplate{Name: "server-files", Source: httpTemplates.Read(fileServerT), FuncMap: funcs, Data: s})
+		sections = append(sections, fileServerSection(s))
 	}
 
 	return &codegen.File{Path: fpath, Sections: sections}
