@@ -271,6 +271,45 @@ func TestBuildOperation(t *testing.T) {
 	}
 }
 
+func TestCollapseSchemaAliasesRewritesOperationRefs(t *testing.T) {
+	paths := map[string]*PathItem{
+		"/invites/redeem": {
+			Post: &Operation{
+				Responses: map[string]*ResponseRef{
+					"201": {
+						Value: &Response{
+							Content: map[string]*MediaType{
+								"application/json": {
+									Schema: &openapi.Schema{Ref: "#/components/schemas/RestInvitesRedeemResponseBody"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	schemas := map[string]*openapi.Schema{
+		"RestInvitesRedeemResponseBody": {Ref: "#/components/schemas/RedeemInviteResponse"},
+		"RedeemInviteResponse": {
+			Type: openapi.Object,
+			Properties: map[string]*openapi.Schema{
+				"authenticated": {Type: openapi.Boolean},
+			},
+		},
+	}
+
+	collapseSchemaAliases(paths, schemas, reusableComponents{})
+
+	if _, ok := schemas["RestInvitesRedeemResponseBody"]; ok {
+		t.Fatal("expected pure-ref alias schema to be removed")
+	}
+	got := paths["/invites/redeem"].Post.Responses["201"].Value.Content["application/json"].Schema.Ref
+	if want := "#/components/schemas/RedeemInviteResponse"; got != want {
+		t.Fatalf("got rewritten response ref %q, want %q", got, want)
+	}
+}
+
 func TestNewBuildsReusableContractComponentsAndServiceTags(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.OpenAPIReusableComponentsDSL)
 

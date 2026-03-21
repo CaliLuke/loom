@@ -331,7 +331,7 @@ func (r *HTTPResponseExpr) Finalize(a *HTTPEndpointExpr, svcAtt *AttributeExpr) 
 				TypeName:      fmt.Sprintf("%s%sResponseBody", a.Service.Name(), a.Name()),
 			}
 			if ut, ok := bodyAtt.Type.(UserType); ok {
-				if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
+				if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok && strings.TrimSpace(m) != "" {
 					r.Body.AddMeta("openapi:typename", m)
 					utBody, ok := r.Body.Type.(UserType)
 					if ok {

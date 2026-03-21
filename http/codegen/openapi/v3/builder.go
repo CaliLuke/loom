@@ -56,10 +56,12 @@ func New(root *expr.RootExpr) *OpenAPI {
 		servers  = buildServers(root.API.Servers)
 		paths    = buildPaths(root.API.HTTP, doc, root.API)
 		reusable = reusableComponentsFromIR(doc.Components)
-		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, openapiir.RenderSchemaMap(doc.Components.Schemas), reusable), reusable)
+		schemas  = openapiir.RenderSchemaMap(doc.Components.Schemas)
 		security = buildSecurityRequirements(effectiveRequirements(root.API.Requirements, root.API.SessionAuths))
 		tags     = buildTags(root.API)
 	)
+	collapseSchemaAliases(paths, schemas, reusable)
+	comps := buildComponents(root, pruneUnusedComponentSchemas(paths, schemas, reusable), reusable)
 
 	return &OpenAPI{
 		OpenAPI:           OpenAPIVersion,
@@ -70,6 +72,54 @@ func New(root *expr.RootExpr) *OpenAPI {
 		Servers:           servers,
 		Security:          security,
 		Tags:              tags,
+	}
+}
+
+func collapseSchemaAliases(paths map[string]*PathItem, schemas map[string]*openapi.Schema, reusable reusableComponents) {
+	if len(schemas) == 0 {
+		return
+	}
+	aliases := make(map[string]string)
+	for name, schema := range schemas {
+		if !isPureRefSchema(schema) {
+			continue
+		}
+		target, ok := schemaNameFromRef(schema.Ref)
+		if !ok || target == name {
+			continue
+		}
+		aliases[name] = target
+	}
+	if len(aliases) == 0 {
+		return
+	}
+	resolveRef := func(ref string) string {
+		name, ok := schemaNameFromRef(ref)
+		if !ok {
+			return ref
+		}
+		seen := map[string]struct{}{name: {}}
+		for {
+			target, ok := aliases[name]
+			if !ok {
+				return toSchemaComponentRef(name)
+			}
+			if _, loop := seen[target]; loop {
+				return toSchemaComponentRef(target)
+			}
+			seen[target] = struct{}{}
+			name = target
+		}
+	}
+	for _, pathItem := range paths {
+		rewritePathItemSchemaRefs(pathItem, resolveRef)
+	}
+	rewriteReusableSchemaRefs(reusable, resolveRef)
+	for _, schema := range schemas {
+		rewriteSchemaRefs(schema, resolveRef)
+	}
+	for name := range aliases {
+		delete(schemas, name)
 	}
 }
 
@@ -126,6 +176,185 @@ func schemaNameFromRef(ref string) (string, bool) {
 		return "", false
 	}
 	return name, true
+}
+
+func rewritePathItemSchemaRefs(pathItem *PathItem, resolveRef func(string) string) {
+	if pathItem == nil {
+		return
+	}
+	for _, op := range []*Operation{pathItem.Get, pathItem.Put, pathItem.Post, pathItem.Delete, pathItem.Options, pathItem.Head, pathItem.Patch} {
+		rewriteOperationSchemaRefs(op, resolveRef)
+	}
+}
+
+func rewriteOperationSchemaRefs(op *Operation, resolveRef func(string) string) {
+	if op == nil {
+		return
+	}
+	for _, param := range op.Parameters {
+		if param != nil && param.Value != nil {
+			rewriteSchemaRefs(param.Value.Schema, resolveRef)
+		}
+	}
+	if op.RequestBody != nil && op.RequestBody.Value != nil {
+		for _, content := range op.RequestBody.Value.Content {
+			if content != nil {
+				rewriteSchemaRefs(content.Schema, resolveRef)
+			}
+		}
+	}
+	for _, response := range op.Responses {
+		if response == nil || response.Value == nil {
+			continue
+		}
+		for _, header := range response.Value.Headers {
+			if header != nil && header.Value != nil {
+				rewriteSchemaRefs(header.Value.Schema, resolveRef)
+				for _, content := range header.Value.Content {
+					if content != nil {
+						rewriteSchemaRefs(content.Schema, resolveRef)
+					}
+				}
+			}
+		}
+		for _, content := range response.Value.Content {
+			if content != nil {
+				rewriteSchemaRefs(content.Schema, resolveRef)
+			}
+		}
+	}
+}
+
+func rewriteReusableSchemaRefs(reusable reusableComponents, resolveRef func(string) string) {
+	for _, parameter := range reusable.Parameters {
+		if parameter != nil && parameter.Value != nil {
+			rewriteSchemaRefs(parameter.Value.Schema, resolveRef)
+		}
+	}
+	for _, header := range reusable.Headers {
+		if header == nil || header.Value == nil {
+			continue
+		}
+		rewriteSchemaRefs(header.Value.Schema, resolveRef)
+		for _, content := range header.Value.Content {
+			if content != nil {
+				rewriteSchemaRefs(content.Schema, resolveRef)
+			}
+		}
+	}
+	for _, requestBody := range reusable.RequestBodies {
+		if requestBody == nil || requestBody.Value == nil {
+			continue
+		}
+		for _, content := range requestBody.Value.Content {
+			if content != nil {
+				rewriteSchemaRefs(content.Schema, resolveRef)
+			}
+		}
+	}
+	for _, response := range reusable.Responses {
+		if response == nil || response.Value == nil {
+			continue
+		}
+		for _, header := range response.Value.Headers {
+			if header == nil || header.Value == nil {
+				continue
+			}
+			rewriteSchemaRefs(header.Value.Schema, resolveRef)
+			for _, content := range header.Value.Content {
+				if content != nil {
+					rewriteSchemaRefs(content.Schema, resolveRef)
+				}
+			}
+		}
+		for _, content := range response.Value.Content {
+			if content != nil {
+				rewriteSchemaRefs(content.Schema, resolveRef)
+			}
+		}
+	}
+}
+
+func rewriteSchemaRefs(schema *openapi.Schema, resolveRef func(string) string) {
+	if schema == nil {
+		return
+	}
+	if schema.Ref != "" {
+		schema.Ref = resolveRef(schema.Ref)
+		return
+	}
+	rewriteSchemaRefs(schema.Items, resolveRef)
+	for _, prop := range schema.Properties {
+		rewriteSchemaRefs(prop, resolveRef)
+	}
+	for _, def := range schema.Defs {
+		rewriteSchemaRefs(def, resolveRef)
+	}
+	for _, item := range schema.AnyOf {
+		rewriteSchemaRefs(item, resolveRef)
+	}
+	for _, item := range schema.OneOf {
+		rewriteSchemaRefs(item, resolveRef)
+	}
+	if nested, ok := schema.AdditionalProperties.(*openapi.Schema); ok {
+		rewriteSchemaRefs(nested, resolveRef)
+	}
+	if nested, ok := schema.UnevaluatedProperties.(*openapi.Schema); ok {
+		rewriteSchemaRefs(nested, resolveRef)
+	}
+	for _, link := range schema.Links {
+		if link == nil {
+			continue
+		}
+		rewriteSchemaRefs(link.Schema, resolveRef)
+		rewriteSchemaRefs(link.TargetSchema, resolveRef)
+	}
+}
+
+func isPureRefSchema(schema *openapi.Schema) bool {
+	if schema == nil || schema.Ref == "" {
+		return false
+	}
+	return schema.Schema == "" &&
+		schema.ID == "" &&
+		schema.Title == "" &&
+		schema.Type == "" &&
+		schema.Items == nil &&
+		len(schema.Properties) == 0 &&
+		len(schema.Defs) == 0 &&
+		schema.Description == "" &&
+		schema.DefaultValue == nil &&
+		schema.Example == nil &&
+		schema.Media == nil &&
+		!schema.ReadOnly &&
+		!schema.WriteOnly &&
+		!schema.Deprecated &&
+		schema.ContentEncoding == "" &&
+		schema.ContentMediaType == "" &&
+		schema.PathStart == "" &&
+		len(schema.Links) == 0 &&
+		len(schema.Enum) == 0 &&
+		schema.Format == "" &&
+		schema.Pattern == "" &&
+		schema.ExclusiveMinimum == nil &&
+		schema.Minimum == nil &&
+		schema.ExclusiveMaximum == nil &&
+		schema.Maximum == nil &&
+		schema.MinLength == nil &&
+		schema.MaxLength == nil &&
+		schema.MinItems == nil &&
+		schema.MaxItems == nil &&
+		len(schema.Required) == 0 &&
+		schema.AdditionalProperties == nil &&
+		schema.UnevaluatedProperties == nil &&
+		len(schema.AnyOf) == 0 &&
+		len(schema.OneOf) == 0 &&
+		schema.Discriminator == nil &&
+		len(schema.Extensions) == 0
+}
+
+func toSchemaComponentRef(name string) string {
+	return "#/components/schemas/" + name
 }
 
 func collectPathItemSchemaRefs(pathItem *PathItem, addRef func(string)) {
