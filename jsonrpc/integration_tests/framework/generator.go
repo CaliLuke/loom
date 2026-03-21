@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"text/template"
 
 	"goa.design/goa/v3/codegen"
 	goatemplate "goa.design/goa/v3/codegen/template"
@@ -17,7 +16,7 @@ import (
 	gotoken "go/token"
 )
 
-//go:embed templates/*.tpl templates/dsl/*.tpl templates/impl/*.tpl templates/partial/*.tpl
+//go:embed templates/go_mod.go.tpl
 var templateFS embed.FS
 
 // generatorTemplates is the template reader for the test generator
@@ -25,7 +24,7 @@ var generatorTemplates = &goatemplate.TemplateReader{FS: templateFS}
 
 const goaSourceModeFile = ".goa_source_mode"
 
-// Generator generates test service code using templates
+// Generator generates test service code for the integration framework.
 // Flow:
 //  1. Build design data from scenarios
 //  2. Render design (go.mod, design.go)
@@ -103,13 +102,8 @@ func (g *Generator) renderDesign(design *DesignData) error {
 	}
 	// design.go
 	designFile := &codegen.File{
-		Path: filepath.Join("design", "design.go"),
-		Sections: []codegen.Section{&codegen.SectionTemplate{
-			Name:    "design",
-			Source:  generatorTemplates.Read("dsl/design", "method", "type"),
-			FuncMap: g.templateFuncs(),
-			Data:    design,
-		}},
+		Path:     filepath.Join("design", "design.go"),
+		Sections: []codegen.Section{codegen.NewRawSection("design", renderDesignSource(design))},
 	}
 	if _, err := designFile.Render(g.workDir); err != nil {
 		return fmt.Errorf("render design.go: %w", err)
@@ -364,30 +358,6 @@ func (g *Generator) buildMethodImplData(method *MethodData, serviceName string) 
 		data.StreamInterface = fmt.Sprintf("%sServerStream", method.GoName)
 	}
 	return data
-}
-
-// templateFuncs returns the template functions used by templates.
-func (g *Generator) templateFuncs() template.FuncMap {
-	return template.FuncMap{
-		"goify": goify,
-		"hasStreamingMethod": func(methods []*MethodImplData) bool {
-			for _, m := range methods {
-				if m.IsStreaming {
-					return true
-				}
-			}
-			return false
-		},
-		"collectRequired": func(fields []FieldSpec) []string {
-			var required []string
-			for _, f := range fields {
-				if f.Required {
-					required = append(required, f.Name)
-				}
-			}
-			return required
-		},
-	}
 }
 
 // getServiceName returns which service bucket a method belongs to.
@@ -645,12 +615,7 @@ func (g *Generator) filesImpl(impl *ImplementationData) []*codegen.File {
 		}
 		sections := []codegen.Section{
 			codegen.Header(fmt.Sprintf("%s service implementation", service.Title), "testservice", imports),
-			&codegen.SectionTemplate{
-				Name:    "service-impl",
-				Source:  generatorTemplates.Read("impl/service", "method_signature", "error", "echo", "transform", "generate", "streaming_sse", "streaming_websocket", "notify", "validate"),
-				FuncMap: g.templateFuncs(),
-				Data:    service,
-			},
+			codegen.NewRawSection("service-impl", renderImplementationSource(service)),
 		}
 		files = append(files, &codegen.File{Path: fmt.Sprintf("%s.go", service.Name), Sections: sections})
 	}
