@@ -55,7 +55,7 @@ func New(root *expr.RootExpr) *OpenAPI {
 		info     = buildInfo(root.API)
 		servers  = buildServers(root.API.Servers)
 		paths    = buildPaths(root.API.HTTP, doc, root.API)
-		reusable = componentizeReusableComponents(paths)
+		reusable = reusableComponentsFromIR(doc.Components)
 		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, openapiir.RenderSchemaMap(doc.Components.Schemas), reusable), reusable)
 		security = buildSecurityRequirements(effectiveRequirements(root.API.Requirements, root.API.SessionAuths))
 		tags     = buildTags(root.API)
@@ -295,7 +295,7 @@ func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) ma
 					// Remove any wildcards that is defined in path as a workaround to
 					// https://github.com/OAI/OpenAPI-Specification/issues/291
 					key = expr.HTTPWildcardRegex.ReplaceAllString(key, "/{$1}")
-					operation := buildOperationFromIR(key, r, irOperation(doc, key, r.Method), api.ExampleGenerator, api.Meta)
+					operation := buildOperationFromIR(irOperation(doc, key, r.Method))
 					path, ok := paths[key]
 					if !ok {
 						path = new(PathItem)
@@ -352,115 +352,26 @@ func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) ma
 // buildOperation builds the OpenAPI Operation object for the given path.
 func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, meta expr.MetaExpr) *Operation {
 	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
-	operationIR := openapiir.BuildOperation(r.Endpoint, endpointBodiesToIR(bodies), rand, closeObjects)
-	return buildOperationFromIR(key, r, operationIR, rand, meta)
+	operationIR := openapiir.BuildRouteOperation(r, key, endpointBodiesToIR(bodies), rand, meta, closeObjects)
+	return buildOperationFromIR(operationIR)
 }
 
-func buildOperationFromIR(key string, r *expr.RouteExpr, operationIR *openapiir.Operation, rand *expr.ExampleGenerator, meta expr.MetaExpr) *Operation {
-	e := r.Endpoint
-	m := e.MethodExpr
-	svc := e.Service
-	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
+func buildOperationFromIR(operationIR *openapiir.Operation) *Operation {
 	if operationIR == nil {
 		operationIR = &openapiir.Operation{}
 	}
-
-	// OpenAPI summary
-	var summary string
-	setSummary := func(meta expr.MetaExpr) {
-		for n, mdata := range meta {
-			if n == "openapi:summary" && len(mdata) > 0 {
-				if mdata[0] == "{path}" {
-					summary = r.Path
-				} else {
-					summary = mdata[0]
-				}
-			}
-		}
-	}
-
-	summary = fmt.Sprintf("%s %s", e.Name(), svc.Name())
-	setSummary(meta)
-	setSummary(svc.ServiceExpr.Meta)
-	setSummary(e.Meta)
-	setSummary(m.Meta)
-
-	// OpenAPI operationId
-	var operationIDFormat string
-	setOperationIDFormat := func(meta expr.MetaExpr) {
-		for n, mdata := range meta {
-			if (n == "openapi:operationId") && len(mdata) > 0 {
-				operationIDFormat = mdata[0]
-			}
-		}
-	}
-
-	operationIDFormat = defaultOperationIDFormat
-	setOperationIDFormat(meta)
-	setOperationIDFormat(m.Service.Meta)
-	setOperationIDFormat(e.Meta)
-	setOperationIDFormat(m.Meta)
-
-	requestBody := requestBodyFromIR(operationIR.RequestBody)
-
-	// parameters
-	var params []*ParameterRef
-	{
-		ps := paramsFromPath(e, key, rand, closeObjects)
-		ps = append(ps, paramsFromHeadersAndCookies(e, rand, closeObjects)...)
-		if e.MapQueryParams != nil {
-			name := *e.MapQueryParams
-			if name == "" {
-				name = "payload"
-			}
-			ps = append(ps, &Parameter{
-				Name:        name,
-				Description: "Query parameters",
-				In:          "query",
-				Required:    name == "payload" || e.MethodExpr.Payload.IsRequired(name),
-				Schema: &openapi.Schema{
-					Type:                 "object",
-					AdditionalProperties: true,
-				},
-				Style: "deepObject",
-			})
-		}
-		params = make([]*ParameterRef, len(ps))
-		for i, p := range ps {
-			params[i] = &ParameterRef{Value: p}
-		}
-	}
-
-	responses := responsesFromIR(operationIR.Responses)
-
-	// tag names
-	var tagNames []string
-	tagNames = operationTagNames(e.Meta, e.Service.Meta, e.Service.Name())
-
-	// An endpoint can have multiple routes, so we need to be able to build a unique
-	// operationId for each route.
-	var routeIndex int
-	for i, rt := range e.Routes {
-		if rt == r {
-			routeIndex = i
-			break
-		}
-	}
-
-	// An endpoint may be marked as deprecated. if the openapi:deprecated tag is present, we populate it to true
-	_, deprecated := e.Meta.Last("openapi:deprecated")
 	return &Operation{
-		Tags:         tagNames,
-		Summary:      summary,
-		Description:  e.Description(),
-		OperationID:  parseOperationIDTemplate(operationIDFormat, svc.Name(), e.Name(), routeIndex),
-		Parameters:   params,
-		RequestBody:  requestBody,
-		Responses:    responses,
-		Security:     buildOperationSecurity(e),
-		Deprecated:   deprecated,
-		ExternalDocs: openapi.DocsFromExpr(m.Docs, m.Meta),
-		Extensions:   openapi.ExtensionsFromExpr(m.Meta),
+		Tags:         append([]string(nil), operationIR.Tags...),
+		Summary:      operationIR.Summary,
+		Description:  operationIR.Description,
+		OperationID:  operationIR.OperationID,
+		Parameters:   parametersFromIR(operationIR.Parameters),
+		RequestBody:  requestBodyRefFromIR(operationIR.RequestBody),
+		Responses:    responsesFromIR(operationIR.Responses),
+		Security:     cloneOperationSecurity(operationIR.Security),
+		Deprecated:   operationIR.Deprecated,
+		ExternalDocs: externalDocsFromIR(operationIR.ExternalDocs),
+		Extensions:   cloneStringAnyMap(operationIR.Extensions),
 	}
 }
 
@@ -473,19 +384,6 @@ func irOperation(doc *openapiir.Document, path, method string) *openapiir.Operat
 		return nil
 	}
 	return pathItem.Operations[method]
-}
-
-func buildOperationSecurity(e *expr.HTTPEndpointExpr) []map[string][]string {
-	if e == nil || e.MethodExpr == nil {
-		return nil
-	}
-	if _, ok := e.MethodExpr.Meta["security:no"]; ok {
-		return []map[string][]string{}
-	}
-	if len(e.Requirements) == 0 {
-		return nil
-	}
-	return buildSecurityRequirements(e.Requirements)
 }
 
 // buildFileServerOperation builds the OpenAPI Operation object for the given file server.
@@ -576,6 +474,24 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 		ExternalDocs: openapi.DocsFromExpr(fs.Docs, fs.Meta),
 		Extensions:   openapi.ExtensionsFromExpr(fs.Meta),
 	}
+}
+
+func cloneOperationSecurity(requirements []map[string][]string) []map[string][]string {
+	if requirements == nil {
+		return nil
+	}
+	if len(requirements) == 0 {
+		return []map[string][]string{}
+	}
+	cloned := make([]map[string][]string, len(requirements))
+	for i, requirement := range requirements {
+		current := make(map[string][]string, len(requirement))
+		for name, scopes := range requirement {
+			current[name] = append([]string(nil), scopes...)
+		}
+		cloned[i] = current
+	}
+	return cloned
 }
 
 func effectiveRequirements(requirements []*expr.SecurityExpr, sessionAuths []*expr.SessionAuthExpr) []*expr.SecurityExpr {

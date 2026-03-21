@@ -45,6 +45,10 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
 - Route OpenAPI v3 request/response body and content generation through the
   typed IR operation path end to end, including direct operation helpers used by
   tests, and remove the duplicate legacy v3 response/body builder seam.
+- Move OpenAPI parameter analysis, route-level operation metadata
+  (`operationId`, tags, deprecation, security, docs), and reusable component
+  hoisting into the typed IR layer so `http/codegen/openapi/v3` primarily
+  renders IR-owned decisions instead of re-deriving them post-render.
 
 ### Next
 

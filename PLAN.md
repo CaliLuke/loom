@@ -12,15 +12,16 @@ Success means:
 
 Completed in the pilot so far:
 - Typed OpenAPI IR package under `http/codegen/openapi/internal/ir` covering
-  schemas, components, request bodies, responses, headers, media types, and
-  examples.
+  schemas, components, request bodies, responses, headers, parameters, media
+  types, examples, and operation metadata.
 - Analyzer-driven body/schema component construction plus renderer-driven
   `openapi.Schema` materialization.
-- IR-backed OpenAPI document construction for request and response body/content
-  data.
-- IR-backed direct operation construction in `http/codegen/openapi/v3`, so the
-  package no longer carries a separate legacy response/body builder path for
-  tests or helper entry points.
+- IR-backed OpenAPI document construction for request/response body/content
+  data plus route-scoped operation metadata, parameter modeling, and reusable
+  component hoisting.
+- `http/codegen/openapi/v3` now consumes the IR for endpoint operation shape
+  and component reuse instead of carrying separate legacy builders for
+  parameters, responses, and post-render component identity.
 
 Remaining follow-up after this pilot pass:
 - Keep expanding typed IR reuse into adjacent OpenAPI generation seams where it

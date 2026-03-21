@@ -1,35 +1,25 @@
-package openapiv3
+package ir
 
 import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 
 	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/http/codegen/openapi"
 )
 
 const (
-	exampleComponentRefPrefix     = "#/components/examples/"
-	headerComponentRefPrefix      = "#/components/headers/"
-	requestBodyComponentRefPrefix = "#/components/requestBodies/"
-	responseComponentRefPrefix    = "#/components/responses/"
+	ParameterComponentRefPrefix   = "#/components/parameters/"
+	HeaderComponentRefPrefix      = "#/components/headers/"
+	RequestBodyComponentRefPrefix = "#/components/requestBodies/"
+	ResponseComponentRefPrefix    = "#/components/responses/"
+	ExampleComponentRefPrefix     = "#/components/examples/"
 )
 
 type (
-	reusableComponents struct {
-		Parameters    map[string]*ParameterRef
-		Headers       map[string]*HeaderRef
-		RequestBodies map[string]*RequestBodyRef
-		Responses     map[string]*ResponseRef
-		Examples      map[string]*ExampleRef
-	}
-
 	exampleUsage struct {
 		ref  *ExampleRef
 		base string
@@ -57,20 +47,60 @@ type (
 	}
 )
 
-func componentizeReusableComponents(paths map[string]*PathItem) reusableComponents {
-	examples := componentizeExamples(paths)
-	headers := componentizeHeaders(paths)
-	requestBodies := componentizeRequestBodies(paths)
-	responses := componentizeResponses(paths)
-	parameters := componentizeParameters(paths)
-
-	return reusableComponents{
-		Parameters:    parameters,
-		Headers:       headers,
-		RequestBodies: requestBodies,
-		Responses:     responses,
-		Examples:      examples,
+func componentizeDocument(doc *Document) {
+	if doc == nil {
+		return
 	}
+	if doc.Components == nil {
+		doc.Components = &Components{}
+	}
+	doc.Components.Examples = componentizeExamples(doc.Paths)
+	doc.Components.Headers = componentizeHeaders(doc.Paths)
+	doc.Components.RequestBodies = componentizeRequestBodies(doc.Paths)
+	doc.Components.Responses = componentizeResponses(doc.Paths)
+	doc.Components.Parameters = componentizeParameters(doc.Paths)
+}
+
+func componentizeParameters(paths map[string]*PathItem) map[string]*ParameterRef {
+	inlineRefs := collectInlineParameters(paths)
+	if len(inlineRefs) == 0 {
+		return nil
+	}
+
+	counts := make(map[string]int)
+	for _, ref := range inlineRefs {
+		hash, err := parameterHash(ref.Value)
+		if err != nil || hash == "" {
+			continue
+		}
+		counts[hash]++
+	}
+
+	components := make(map[string]*ParameterRef)
+	namesByHash := make(map[string]string)
+	hashesByName := make(map[string]string)
+	for _, ref := range inlineRefs {
+		if ref == nil || ref.Value == nil || ref.Ref != "" {
+			continue
+		}
+		hash, err := parameterHash(ref.Value)
+		if err != nil || counts[hash] < 2 {
+			continue
+		}
+		name, ok := namesByHash[hash]
+		if !ok {
+			name = uniqueParameterComponentName(ref.Value, hash, hashesByName)
+			namesByHash[hash] = name
+			hashesByName[name] = hash
+			components[name] = &ParameterRef{Value: ref.Value}
+		}
+		ref.Ref = ParameterComponentRefPrefix + name
+		ref.Value = nil
+	}
+	if len(components) == 0 {
+		return nil
+	}
+	return components
 }
 
 func componentizeExamples(paths map[string]*PathItem) map[string]*ExampleRef {
@@ -78,11 +108,7 @@ func componentizeExamples(paths map[string]*PathItem) map[string]*ExampleRef {
 	return componentizeReusableRefs(
 		usages,
 		func(usage exampleUsage) componentUsage[Example, *ExampleRef] {
-			return componentUsage[Example, *ExampleRef]{
-				ref:    usage.ref,
-				base:   usage.base,
-				prefix: exampleComponentRefPrefix,
-			}
+			return componentUsage[Example, *ExampleRef]{ref: usage.ref, base: usage.base, prefix: ExampleComponentRefPrefix}
 		},
 		func(ref *ExampleRef) *Example {
 			if ref == nil {
@@ -90,13 +116,11 @@ func componentizeExamples(paths map[string]*PathItem) map[string]*ExampleRef {
 			}
 			return ref.Value
 		},
-		func(ref *ExampleRef, refPath string) {
-			ref.Ref = refPath
+		func(ref *ExampleRef, path string) {
+			ref.Ref = path
 			ref.Value = nil
 		},
-		func(value *Example) *ExampleRef {
-			return &ExampleRef{Value: value}
-		},
+		func(value *Example) *ExampleRef { return &ExampleRef{Value: value} },
 	)
 }
 
@@ -105,11 +129,7 @@ func componentizeHeaders(paths map[string]*PathItem) map[string]*HeaderRef {
 	return componentizeReusableRefs(
 		usages,
 		func(usage headerUsage) componentUsage[Header, *HeaderRef] {
-			return componentUsage[Header, *HeaderRef]{
-				ref:    usage.ref,
-				base:   usage.base,
-				prefix: headerComponentRefPrefix,
-			}
+			return componentUsage[Header, *HeaderRef]{ref: usage.ref, base: usage.base, prefix: HeaderComponentRefPrefix}
 		},
 		func(ref *HeaderRef) *Header {
 			if ref == nil {
@@ -117,13 +137,11 @@ func componentizeHeaders(paths map[string]*PathItem) map[string]*HeaderRef {
 			}
 			return ref.Value
 		},
-		func(ref *HeaderRef, refPath string) {
-			ref.Ref = refPath
+		func(ref *HeaderRef, path string) {
+			ref.Ref = path
 			ref.Value = nil
 		},
-		func(value *Header) *HeaderRef {
-			return &HeaderRef{Value: value}
-		},
+		func(value *Header) *HeaderRef { return &HeaderRef{Value: value} },
 	)
 }
 
@@ -132,11 +150,7 @@ func componentizeRequestBodies(paths map[string]*PathItem) map[string]*RequestBo
 	return componentizeReusableRefs(
 		usages,
 		func(usage requestBodyUsage) componentUsage[RequestBody, *RequestBodyRef] {
-			return componentUsage[RequestBody, *RequestBodyRef]{
-				ref:    usage.ref,
-				base:   usage.base,
-				prefix: requestBodyComponentRefPrefix,
-			}
+			return componentUsage[RequestBody, *RequestBodyRef]{ref: usage.ref, base: usage.base, prefix: RequestBodyComponentRefPrefix}
 		},
 		func(ref *RequestBodyRef) *RequestBody {
 			if ref == nil {
@@ -144,13 +158,11 @@ func componentizeRequestBodies(paths map[string]*PathItem) map[string]*RequestBo
 			}
 			return ref.Value
 		},
-		func(ref *RequestBodyRef, refPath string) {
-			ref.Ref = refPath
+		func(ref *RequestBodyRef, path string) {
+			ref.Ref = path
 			ref.Value = nil
 		},
-		func(value *RequestBody) *RequestBodyRef {
-			return &RequestBodyRef{Value: value}
-		},
+		func(value *RequestBody) *RequestBodyRef { return &RequestBodyRef{Value: value} },
 	)
 }
 
@@ -159,11 +171,7 @@ func componentizeResponses(paths map[string]*PathItem) map[string]*ResponseRef {
 	return componentizeReusableRefs(
 		usages,
 		func(usage responseUsage) componentUsage[Response, *ResponseRef] {
-			return componentUsage[Response, *ResponseRef]{
-				ref:    usage.ref,
-				base:   usage.base,
-				prefix: responseComponentRefPrefix,
-			}
+			return componentUsage[Response, *ResponseRef]{ref: usage.ref, base: usage.base, prefix: ResponseComponentRefPrefix}
 		},
 		func(ref *ResponseRef) *Response {
 			if ref == nil {
@@ -171,133 +179,50 @@ func componentizeResponses(paths map[string]*PathItem) map[string]*ResponseRef {
 			}
 			return ref.Value
 		},
-		func(ref *ResponseRef, refPath string) {
-			ref.Ref = refPath
+		func(ref *ResponseRef, path string) {
+			ref.Ref = path
 			ref.Value = nil
 		},
-		func(value *Response) *ResponseRef {
-			return &ResponseRef{Value: value}
-		},
+		func(value *Response) *ResponseRef { return &ResponseRef{Value: value} },
 	)
 }
 
-func collectReusableComponentSchemaRefs(reusable reusableComponents, addRef func(string)) {
-	for _, parameter := range reusable.Parameters {
-		if parameter == nil || parameter.Value == nil {
-			continue
-		}
-		collectSchemaRefs(parameter.Value.Schema, addRef)
-	}
-	for _, header := range reusable.Headers {
-		if header == nil || header.Value == nil {
-			continue
-		}
-		collectSchemaRefs(header.Value.Schema, addRef)
-		collectMediaTypeSchemaRefs(header.Value.Content, addRef)
-	}
-	for _, requestBody := range reusable.RequestBodies {
-		if requestBody == nil || requestBody.Value == nil {
-			continue
-		}
-		collectMediaTypeSchemaRefs(requestBody.Value.Content, addRef)
-	}
-	for _, response := range reusable.Responses {
-		if response == nil || response.Value == nil {
-			continue
-		}
-		for _, header := range response.Value.Headers {
-			if header == nil || header.Value == nil {
-				continue
-			}
-			collectSchemaRefs(header.Value.Schema, addRef)
-			collectMediaTypeSchemaRefs(header.Value.Content, addRef)
-		}
-		collectMediaTypeSchemaRefs(response.Value.Content, addRef)
-	}
-}
-
-func collectMediaTypeSchemaRefs(mediaTypes map[string]*MediaType, addRef func(string)) {
-	for _, mediaType := range mediaTypes {
-		if mediaType == nil {
-			continue
-		}
-		collectSchemaRefs(mediaType.Schema, addRef)
-	}
-}
-
-func operationTagNames(endpointMeta, serviceMeta expr.MetaExpr, serviceName string) []string {
-	tagNames := openapi.TagNamesFromExpr(endpointMeta)
-	if len(tagNames) > 0 {
-		return tagNames
-	}
-	tagNames = openapi.TagNamesFromExpr(serviceMeta)
-	if len(tagNames) > 0 {
-		return tagNames
-	}
-	return []string{serviceName}
-}
-
-func orderedPathKeys(paths map[string]*PathItem) []string {
-	keys := make([]string, 0, len(paths))
-	for path := range paths {
-		keys = append(keys, path)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func appendOperationRefs(paths map[string]*PathItem, fn func(path string, pathItem *PathItem, method string, operation *Operation)) {
+func collectInlineParameters(paths map[string]*PathItem) []*ParameterRef {
+	refs := make([]*ParameterRef, 0)
 	for _, path := range orderedPathKeys(paths) {
 		pathItem := paths[path]
 		if pathItem == nil {
 			continue
 		}
 		for _, op := range orderedOperations(pathItem) {
-			fn(path, pathItem, op.method, op.operation)
+			refs = appendInlineParameterRefs(refs, op.Parameters)
 		}
 	}
+	return refs
 }
 
-type orderedOperation struct {
-	method    string
-	operation *Operation
-}
-
-func orderedOperations(pathItem *PathItem) []orderedOperation {
-	ops := []orderedOperation{
-		{method: "connect", operation: pathItem.Connect},
-		{method: "delete", operation: pathItem.Delete},
-		{method: "get", operation: pathItem.Get},
-		{method: "head", operation: pathItem.Head},
-		{method: "options", operation: pathItem.Options},
-		{method: "patch", operation: pathItem.Patch},
-		{method: "post", operation: pathItem.Post},
-		{method: "put", operation: pathItem.Put},
-		{method: "trace", operation: pathItem.Trace},
+func appendInlineParameterRefs(dst []*ParameterRef, refs []*ParameterRef) []*ParameterRef {
+	for _, ref := range refs {
+		if ref == nil || ref.Value == nil || ref.Ref != "" {
+			continue
+		}
+		dst = append(dst, ref)
 	}
-	return slices.DeleteFunc(ops, func(op orderedOperation) bool {
-		return op.operation == nil
-	})
+	return dst
 }
 
 func collectExampleUsages(paths map[string]*PathItem) []exampleUsage {
 	usages := make([]exampleUsage, 0)
-	appendOperationRefs(paths, func(_ string, pathItem *PathItem, _ string, operation *Operation) {
-		usages = append(usages, pathItemExampleUsages(pathItem)...)
-		usages = append(usages, operationExampleUsages(operation)...)
-	})
+	for _, path := range orderedPathKeys(paths) {
+		pathItem := paths[path]
+		if pathItem == nil {
+			continue
+		}
+		for _, operation := range orderedOperations(pathItem) {
+			usages = append(usages, operationExampleUsages(operation)...)
+		}
+	}
 	return compactExampleUsages(usages)
-}
-
-func pathItemExampleUsages(pathItem *PathItem) []exampleUsage {
-	if pathItem == nil {
-		return nil
-	}
-	usages := make([]exampleUsage, 0)
-	for _, parameter := range pathItem.Parameters {
-		usages = append(usages, parameterExampleUsages(parameter, "Parameter")...)
-	}
-	return usages
 }
 
 func operationExampleUsages(operation *Operation) []exampleUsage {
@@ -395,56 +320,95 @@ func compactExampleUsages(usages []exampleUsage) []exampleUsage {
 
 func collectHeaderUsages(paths map[string]*PathItem) []headerUsage {
 	usages := make([]headerUsage, 0)
-	appendOperationRefs(paths, func(_ string, _ *PathItem, _ string, operation *Operation) {
-		for _, status := range orderedStringKeys(operation.Responses) {
-			response := operation.Responses[status]
-			if response == nil || response.Value == nil {
-				continue
-			}
-			for _, headerName := range orderedStringKeys(response.Value.Headers) {
-				ref := response.Value.Headers[headerName]
-				if ref == nil || ref.Value == nil || ref.Ref != "" {
+	for _, path := range orderedPathKeys(paths) {
+		pathItem := paths[path]
+		if pathItem == nil {
+			continue
+		}
+		for _, operation := range orderedOperations(pathItem) {
+			for _, status := range orderedStringKeys(operation.Responses) {
+				response := operation.Responses[status]
+				if response == nil || response.Value == nil {
 					continue
 				}
-				usages = append(usages, headerUsage{
-					ref:  ref,
-					base: headerComponentBase(headerName),
-				})
+				for _, headerName := range orderedStringKeys(response.Value.Headers) {
+					ref := response.Value.Headers[headerName]
+					if ref == nil || ref.Value == nil || ref.Ref != "" {
+						continue
+					}
+					usages = append(usages, headerUsage{ref: ref, base: headerComponentBase(headerName)})
+				}
 			}
 		}
-	})
+	}
 	return usages
 }
 
 func collectRequestBodyUsages(paths map[string]*PathItem) []requestBodyUsage {
 	usages := make([]requestBodyUsage, 0)
-	appendOperationRefs(paths, func(_ string, _ *PathItem, _ string, operation *Operation) {
-		if operation.RequestBody == nil || operation.RequestBody.Value == nil || operation.RequestBody.Ref != "" {
-			return
+	for _, path := range orderedPathKeys(paths) {
+		pathItem := paths[path]
+		if pathItem == nil {
+			continue
 		}
-		usages = append(usages, requestBodyUsage{
-			ref:  operation.RequestBody,
-			base: componentNameFromOperation(operation.OperationID) + "RequestBody",
-		})
-	})
+		for _, operation := range orderedOperations(pathItem) {
+			if operation.RequestBody == nil || operation.RequestBody.Value == nil || operation.RequestBody.Ref != "" {
+				continue
+			}
+			usages = append(usages, requestBodyUsage{
+				ref:  operation.RequestBody,
+				base: componentNameFromOperation(operation.OperationID) + "RequestBody",
+			})
+		}
+	}
 	return usages
 }
 
 func collectResponseUsages(paths map[string]*PathItem) []responseUsage {
 	usages := make([]responseUsage, 0)
-	appendOperationRefs(paths, func(_ string, _ *PathItem, _ string, operation *Operation) {
-		for _, status := range orderedStringKeys(operation.Responses) {
-			ref := operation.Responses[status]
-			if ref == nil || ref.Value == nil || ref.Ref != "" {
-				continue
-			}
-			usages = append(usages, responseUsage{
-				ref:  ref,
-				base: componentNameFromOperation(operation.OperationID) + responseStatusComponentSuffix(status) + "Response",
-			})
+	for _, path := range orderedPathKeys(paths) {
+		pathItem := paths[path]
+		if pathItem == nil {
+			continue
 		}
-	})
+		for _, operation := range orderedOperations(pathItem) {
+			for _, status := range orderedStringKeys(operation.Responses) {
+				ref := operation.Responses[status]
+				if ref == nil || ref.Value == nil || ref.Ref != "" {
+					continue
+				}
+				usages = append(usages, responseUsage{
+					ref:  ref,
+					base: componentNameFromOperation(operation.OperationID) + responseStatusComponentSuffix(status) + "Response",
+				})
+			}
+		}
+	}
 	return usages
+}
+
+func orderedPathKeys(paths map[string]*PathItem) []string {
+	keys := make([]string, 0, len(paths))
+	for path := range paths {
+		keys = append(keys, path)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func orderedOperations(pathItem *PathItem) []*Operation {
+	if pathItem == nil {
+		return nil
+	}
+	methods := []string{"CONNECT", "DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"}
+	operations := make([]*Operation, 0, len(methods))
+	for _, method := range methods {
+		operation := pathItem.Operations[method]
+		if operation != nil {
+			operations = append(operations, operation)
+		}
+	}
+	return operations
 }
 
 func orderedStringKeys[T any](values map[string]T) []string {
@@ -478,7 +442,6 @@ func componentizeReusableRefs[U any, V any, R any](
 	if len(usages) == 0 {
 		return nil
 	}
-
 	mapped := make([]componentUsage[V, R], 0, len(usages))
 	for _, usage := range usages {
 		current := mapUsage(usage)
@@ -490,7 +453,6 @@ func componentizeReusableRefs[U any, V any, R any](
 	if len(mapped) == 0 {
 		return nil
 	}
-
 	counts := countReusableValues(mapped, func(usage componentUsage[V, R]) (string, error) {
 		return hashReusableValue(valueOf(usage.ref))
 	})
@@ -518,6 +480,10 @@ func componentizeReusableRefs[U any, V any, R any](
 	return components
 }
 
+func parameterHash(parameter *Parameter) (string, error) {
+	return hashReusableValue(parameter)
+}
+
 func hashReusableValue(value any) (string, error) {
 	if value == nil {
 		return "", nil
@@ -528,6 +494,25 @@ func hashReusableValue(value any) (string, error) {
 	}
 	sum := sha1.Sum(data)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func uniqueParameterComponentName(parameter *Parameter, hash string, hashesByName map[string]string) string {
+	base := ParameterComponentName(parameter)
+	if existingHash, ok := hashesByName[base]; !ok || existingHash == hash {
+		return base
+	}
+	return fmt.Sprintf("%s_%s", base, hash[:8])
+}
+
+func ParameterComponentName(parameter *Parameter) string {
+	if parameter == nil {
+		return "Parameter"
+	}
+	base := codegen.Goify(parameter.In, true) + codegen.Goify(parameterComponentSuffix(parameter.Name), true)
+	if base == "" {
+		return "Parameter"
+	}
+	return base
 }
 
 func uniqueReusableComponentName(base, hash string, hashesByName map[string]string) string {
@@ -566,16 +551,22 @@ func mediaTypeComponentSuffix(contentType string) string {
 
 func responseStatusComponentSuffix(status string) string {
 	trimmed := strings.TrimSpace(status)
-	if trimmed == "" {
+	switch {
+	case trimmed == "", trimmed == "default":
 		return "Default"
-	}
-	if trimmed == "default" {
-		return "Default"
-	}
-	if isDigits(trimmed) {
+	case isDigits(trimmed):
 		return "Status" + trimmed
+	default:
+		return codegen.Goify(trimmed, true)
 	}
-	return codegen.Goify(trimmed, true)
+}
+
+func parameterComponentSuffix(name string) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return "Parameter"
+	}
+	return trimmed
 }
 
 func isDigits(value string) bool {

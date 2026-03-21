@@ -63,6 +63,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   typed IR analyzer/renderer end to end, including the direct operation helper
   path used by local seam tests, with the duplicate legacy v3 response/body
   builder removed.
+- OpenAPI parameter analysis, route-level operation metadata, and reusable
+  component hoisting now also live under the typed IR layer, so the remaining
+  `http/codegen/openapi/v3` package mostly renders IR-owned decisions instead
+  of duplicating contract logic.
 - Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `goa.design/goa/v3`.
 - Generic helper consolidation into `goa-light`.
 

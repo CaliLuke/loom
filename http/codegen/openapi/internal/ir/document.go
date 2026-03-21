@@ -34,10 +34,10 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 			if !openapi.MustGenerate(endpoint.Meta) || !openapi.MustGenerate(endpoint.MethodExpr.Meta) {
 				continue
 			}
-			operation := buildOperation(endpoint, serviceBodies[endpoint.Name()], api.ExampleGenerator, closeObjects)
 			for _, route := range endpoint.Routes {
 				for _, key := range route.FullPaths() {
 					key = expr.HTTPWildcardRegex.ReplaceAllString(key, "/{$1}")
+					operation := BuildRouteOperation(route, key, serviceBodies[endpoint.Name()], api.ExampleGenerator, api.Meta, closeObjects)
 					pathItem := doc.Paths[key]
 					if pathItem == nil {
 						pathItem = &PathItem{
@@ -50,6 +50,7 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 			}
 		}
 	}
+	componentizeDocument(doc)
 	return doc
 }
 
@@ -63,8 +64,8 @@ func buildOperation(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, ran
 		return nil
 	}
 	return &Operation{
-		RequestBody: buildRequestBody(endpoint, bodies, rand, closeObjects),
-		Responses:   buildResponses(endpoint, bodies, rand, closeObjects),
+		RequestBody: wrapRequestBody(buildRequestBody(endpoint, bodies, rand, closeObjects)),
+		Responses:   wrapResponses(buildResponses(endpoint, bodies, rand, closeObjects)),
 	}
 }
 
@@ -126,9 +127,9 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 	headers := headersFromAttr(resp.Headers, rand, closeObjects)
 	if cookieHeader := responseCookieHeader(resp.Cookies, rand); cookieHeader != nil {
 		if headers == nil {
-			headers = make(map[string]*Header)
+			headers = make(map[string]*HeaderRef)
 		}
-		headers["Set-Cookie"] = cookieHeader
+		headers["Set-Cookie"] = &HeaderRef{Value: cookieHeader}
 	}
 
 	var content map[string]*MediaType
@@ -196,7 +197,7 @@ func buildMediaType(attr *expr.AttributeExpr, schema *Schema, rand *expr.Example
 	return mediaType
 }
 
-func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator, closeObjects bool) map[string]*Header {
+func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator, closeObjects bool) map[string]*HeaderRef {
 	if attr == nil {
 		return nil
 	}
@@ -205,7 +206,7 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 		return nil
 	}
 	analyzer := NewAnalyzer(rand, closeObjects)
-	headers := make(map[string]*Header, len(*object))
+	headers := make(map[string]*HeaderRef, len(*object))
 	expr.WalkMappedAttr(attr, func(name, elem string, child *expr.AttributeExpr) error { // nolint: errcheck
 		header := &Header{
 			Description: child.Description,
@@ -214,7 +215,7 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 			Extensions:  openapi.ExtensionsFromExpr(child.Meta),
 		}
 		initExamples(header, child, rand, closeObjects)
-		headers[elem] = header
+		headers[elem] = &HeaderRef{Value: header}
 		return nil
 	})
 	return headers
@@ -270,13 +271,13 @@ func responseCookieHeader(cookies []*expr.HTTPResponseCookieExpr, rand *expr.Exa
 		return header
 	}
 	header.Description = describeResponseCookies(cookies)
-	header.Examples = make(map[string]*Example, len(cookies))
+	header.Examples = make(map[string]*ExampleRef, len(cookies))
 	for _, cookie := range cookies {
-		header.Examples[cookie.HTTPName()] = &Example{
+		header.Examples[cookie.HTTPName()] = &ExampleRef{Value: &Example{
 			Summary:     fmt.Sprintf("%s cookie", cookie.HTTPName()),
 			Description: describeResponseCookie(cookie),
 			Value:       serializeResponseCookieExample(cookie, cookie.Attribute().Example(rand)),
-		}
+		}}
 	}
 	return header
 }
@@ -384,7 +385,7 @@ func isSkipResponseBodyEncodeDecode(parent eval.Expression) bool {
 
 func initExamples(target interface {
 	setExample(any)
-	setExamples(map[string]*Example)
+	setExamples(map[string]*ExampleRef)
 }, attr *expr.AttributeExpr, rand *expr.ExampleGenerator, closeObjects bool) {
 	if attr == nil {
 		return
@@ -404,17 +405,17 @@ func initExamples(target interface {
 	examples := attr.ExtractUserExamples()
 	switch {
 	case len(examples) > 1:
-		refs := make(map[string]*Example, len(examples))
+		refs := make(map[string]*ExampleRef, len(examples))
 		for _, example := range examples {
 			val, ok := openAPIExampleValue(attr, example.Value)
 			if !ok {
 				continue
 			}
-			refs[example.Summary] = &Example{
+			refs[example.Summary] = &ExampleRef{Value: &Example{
 				Summary:     example.Summary,
 				Description: example.Description,
 				Value:       val,
-			}
+			}}
 		}
 		if len(refs) > 0 {
 			target.setExamples(refs)
@@ -463,7 +464,7 @@ func (m *MediaType) setExample(value any) {
 	m.Example = value
 }
 
-func (m *MediaType) setExamples(value map[string]*Example) {
+func (m *MediaType) setExamples(value map[string]*ExampleRef) {
 	m.Examples = value
 }
 
@@ -471,8 +472,27 @@ func (h *Header) setExample(value any) {
 	h.Example = value
 }
 
-func (h *Header) setExamples(value map[string]*Example) {
+func (h *Header) setExamples(value map[string]*ExampleRef) {
 	h.Examples = value
+}
+
+func (p *Parameter) setExample(value any) {
+	p.Example = value
+}
+
+func (p *Parameter) setExamples(value map[string]*ExampleRef) {
+	p.Examples = value
+}
+
+func wrapResponses(responses map[string]*Response) map[string]*ResponseRef {
+	if len(responses) == 0 {
+		return nil
+	}
+	wrapped := make(map[string]*ResponseRef, len(responses))
+	for status, response := range responses {
+		wrapped[status] = &ResponseRef{Value: response}
+	}
+	return wrapped
 }
 
 func objectContainsSuppressedOpenAPIExample(attr *expr.AttributeExpr, closeObjects bool, seenUT map[string]struct{}, seenDT map[expr.DataType]struct{}) bool {

@@ -8,6 +8,7 @@ import (
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/http/codegen/openapi/v3/testdata/dsls"
+	"goa.design/goa/v3/http/codegen/testdata"
 )
 
 func TestBuildDocumentIncludesRequestBodyAndResponses(t *testing.T) {
@@ -23,11 +24,14 @@ func TestBuildDocumentIncludesRequestBodyAndResponses(t *testing.T) {
 	operation := doc.Paths[path].Operations["POST"]
 	require.NotNil(t, operation)
 	require.NotNil(t, operation.RequestBody)
-	require.True(t, operation.RequestBody.Required)
-	require.Contains(t, operation.RequestBody.Content, "application/json")
-	require.NotEmpty(t, operation.RequestBody.Content["application/json"].Schema.Ref)
+	require.NotNil(t, operation.RequestBody.Value)
+	require.True(t, operation.RequestBody.Value.Required)
+	require.Contains(t, operation.RequestBody.Value.Content, "application/json")
+	require.NotEmpty(t, operation.RequestBody.Value.Content["application/json"].Schema.Ref)
 	require.Contains(t, operation.Responses, "204")
-	require.Equal(t, "No Content response.", operation.Responses["204"].Description)
+	require.NotNil(t, operation.Responses["204"])
+	require.NotNil(t, operation.Responses["204"].Value)
+	require.Equal(t, "No Content response.", operation.Responses["204"].Value.Description)
 }
 
 func TestBuildDocumentCarriesErrorRemedyDescriptions(t *testing.T) {
@@ -43,7 +47,9 @@ func TestBuildDocumentCarriesErrorRemedyDescriptions(t *testing.T) {
 	operation := doc.Paths[path].Operations["POST"]
 	require.NotNil(t, operation)
 	require.Contains(t, operation.Responses, "400")
-	require.Equal(t, "bad: Bad Request response. Remedy code: bad.fix. Safe message: Retry with a valid request. Retry hint: Correct the payload and retry.", operation.Responses["400"].Description)
+	require.NotNil(t, operation.Responses["400"])
+	require.NotNil(t, operation.Responses["400"].Value)
+	require.Equal(t, "bad: Bad Request response. Remedy code: bad.fix. Safe message: Retry with a valid request. Retry hint: Correct the payload and retry.", operation.Responses["400"].Value.Description)
 }
 
 func TestBuildOperationAddsResponseCookieHeader(t *testing.T) {
@@ -68,8 +74,12 @@ func TestBuildOperationAddsResponseCookieHeader(t *testing.T) {
 	operation := BuildOperation(endpoint, bodyTypes.Services[serviceName]["other"], root.API.ExampleGenerator, false)
 	require.NotNil(t, operation)
 	require.Contains(t, operation.Responses, "200")
-	require.Contains(t, operation.Responses["200"].Headers, "Set-Cookie")
-	require.Equal(t, "string", operation.Responses["200"].Headers["Set-Cookie"].Schema.Type)
+	require.NotNil(t, operation.Responses["200"])
+	require.NotNil(t, operation.Responses["200"].Value)
+	require.Contains(t, operation.Responses["200"].Value.Headers, "Set-Cookie")
+	require.NotNil(t, operation.Responses["200"].Value.Headers["Set-Cookie"])
+	require.NotNil(t, operation.Responses["200"].Value.Headers["Set-Cookie"].Value)
+	require.Equal(t, "string", operation.Responses["200"].Value.Headers["Set-Cookie"].Value.Schema.Type)
 }
 
 func TestBuildOperationSuppressesStreamingResponseExamples(t *testing.T) {
@@ -96,9 +106,31 @@ func TestBuildOperationSuppressesStreamingResponseExamples(t *testing.T) {
 	require.Contains(t, operation.Responses, "101")
 	response := operation.Responses["101"]
 	require.NotNil(t, response)
-	require.Contains(t, response.Content, "application/json")
-	require.Nil(t, response.Content["application/json"].Example)
-	require.Nil(t, response.Content["application/json"].Examples)
+	require.NotNil(t, response.Value)
+	require.Contains(t, response.Value.Content, "application/json")
+	require.Nil(t, response.Value.Content["application/json"].Example)
+	require.Nil(t, response.Value.Content["application/json"].Examples)
+}
+
+func TestBuildDocumentComponentizesRepeatedContractNodes(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.OpenAPIReusableComponentsDSL)
+
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NotNil(t, doc)
+	require.NotNil(t, doc.Components)
+	require.NotEmpty(t, doc.Components.RequestBodies)
+	require.NotEmpty(t, doc.Components.Responses)
+	require.NotEmpty(t, doc.Components.Headers)
+	require.NotEmpty(t, doc.Components.Examples)
+
+	signin := doc.Paths["/auth/signin"].Operations["POST"]
+	refresh := doc.Paths["/auth/refresh"].Operations["POST"]
+	require.NotNil(t, signin)
+	require.NotNil(t, refresh)
+	require.NotNil(t, signin.RequestBody)
+	require.NotNil(t, refresh.RequestBody)
+	require.NotEmpty(t, signin.RequestBody.Ref)
+	require.Equal(t, signin.RequestBody.Ref, refresh.RequestBody.Ref)
 }
 
 func openAPIExampleValueForTest(attr *expr.AttributeExpr, raw any) (any, bool) {

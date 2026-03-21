@@ -10,6 +10,18 @@ type (
 	}
 )
 
+// RenderExternalDocs converts IR external docs to the concrete OpenAPI type.
+func RenderExternalDocs(docs *ExternalDocs) *openapi.ExternalDocs {
+	if docs == nil {
+		return nil
+	}
+	return &openapi.ExternalDocs{
+		Description: docs.Description,
+		URL:         docs.URL,
+		Extensions:  cloneMap(docs.Extensions),
+	}
+}
+
 // RenderSchema converts an IR schema to the concrete OpenAPI schema type.
 func RenderSchema(schema *Schema) *openapi.Schema {
 	if schema == nil {
@@ -80,6 +92,7 @@ func RenderBodyTypes(bodyTypes *BodyTypes) (map[string]map[string]*RenderedEndpo
 	}
 	return services, RenderSchemaMap(bodyTypes.Components)
 }
+
 
 func renderEndpointBodies(bodies *EndpointBodies) *RenderedEndpointBodies {
 	if bodies == nil {

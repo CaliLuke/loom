@@ -14,7 +14,7 @@ paths:
             operationId: service_name.path1
             responses:
                 "200":
-                    $ref: '#/components/responses/ServiceNamePath1Status200Response'
+                    description: File downloaded
     /path2:
         get:
             tags:
@@ -23,10 +23,7 @@ paths:
             operationId: service_name.path2
             responses:
                 "200":
-                    $ref: '#/components/responses/ServiceNamePath1Status200Response'
-components:
-    responses:
-        ServiceNamePath1Status200Response:
-            description: File downloaded
+                    description: File downloaded
+components: {}
 tags:
     - name: service-name

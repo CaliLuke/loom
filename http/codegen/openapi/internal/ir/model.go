@@ -9,7 +9,12 @@ type (
 
 	// Components contains reusable IR components.
 	Components struct {
-		Schemas map[string]*Schema
+		Schemas       map[string]*Schema
+		Parameters    map[string]*ParameterRef
+		Headers       map[string]*HeaderRef
+		RequestBodies map[string]*RequestBodyRef
+		Responses     map[string]*ResponseRef
+		Examples      map[string]*ExampleRef
 	}
 
 	// PathItem groups operations by method.
@@ -19,8 +24,47 @@ type (
 
 	// Operation describes an IR operation.
 	Operation struct {
-		RequestBody *RequestBody
-		Responses   map[string]*Response
+		Tags         []string
+		Summary      string
+		Description  string
+		OperationID  string
+		Parameters   []*ParameterRef
+		RequestBody  *RequestBodyRef
+		Responses    map[string]*ResponseRef
+		Deprecated   bool
+		Security     []map[string][]string
+		ExternalDocs *ExternalDocs
+		Extensions   map[string]any
+	}
+
+	// ParameterRef is a parameter reference or value.
+	ParameterRef struct {
+		Ref   string
+		Value *Parameter
+	}
+
+	// Parameter describes an IR parameter object.
+	Parameter struct {
+		Name            string
+		In              string
+		Description     string
+		Style           string
+		Explode         *bool
+		AllowEmptyValue bool
+		AllowReserved   bool
+		Deprecated      bool
+		Required        bool
+		Schema          *Schema
+		Example         any
+		Examples        map[string]*ExampleRef
+		Content         map[string]*MediaType
+		Extensions      map[string]any
+	}
+
+	// RequestBodyRef is a request body reference or value.
+	RequestBodyRef struct {
+		Ref   string
+		Value *RequestBody
 	}
 
 	// RequestBody describes an IR request body.
@@ -31,10 +75,16 @@ type (
 		Extensions  map[string]any
 	}
 
+	// ResponseRef is a response reference or value.
+	ResponseRef struct {
+		Ref   string
+		Value *Response
+	}
+
 	// Response describes an IR response.
 	Response struct {
 		Description string
-		Headers     map[string]*Header
+		Headers     map[string]*HeaderRef
 		Content     map[string]*MediaType
 		Extensions  map[string]any
 	}
@@ -43,8 +93,14 @@ type (
 	MediaType struct {
 		Schema     *Schema
 		Example    any
-		Examples   map[string]*Example
+		Examples   map[string]*ExampleRef
 		Extensions map[string]any
+	}
+
+	// HeaderRef is a header reference or value.
+	HeaderRef struct {
+		Ref   string
+		Value *Header
 	}
 
 	// Header describes an IR header.
@@ -53,8 +109,14 @@ type (
 		Required    bool
 		Schema      *Schema
 		Example     any
-		Examples    map[string]*Example
+		Examples    map[string]*ExampleRef
 		Extensions  map[string]any
+	}
+
+	// ExampleRef is an example reference or value.
+	ExampleRef struct {
+		Ref   string
+		Value *Example
 	}
 
 	// Example describes an IR example object.
@@ -62,6 +124,13 @@ type (
 		Summary     string
 		Description string
 		Value       any
+	}
+
+	// ExternalDocs describes operation-level external documentation.
+	ExternalDocs struct {
+		Description string
+		URL         string
+		Extensions  map[string]any
 	}
 
 	// BodyTypes groups endpoint bodies and component schemas.

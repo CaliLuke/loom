@@ -5,6 +5,19 @@ import (
 	openapiir "goa.design/goa/v3/http/codegen/openapi/internal/ir"
 )
 
+func reusableComponentsFromIR(components *openapiir.Components) reusableComponents {
+	if components == nil {
+		return reusableComponents{}
+	}
+	return reusableComponents{
+		Parameters:    parameterComponentsFromIR(components.Parameters),
+		Headers:       headersFromIR(components.Headers),
+		RequestBodies: requestBodyComponentsFromIR(components.RequestBodies),
+		Responses:     responsesFromIR(components.Responses),
+		Examples:      examplesFromIR(components.Examples),
+	}
+}
+
 func endpointBodiesToIR(bodies *EndpointBodies) *openapiir.EndpointBodies {
 	if bodies == nil {
 		return nil
@@ -17,6 +30,28 @@ func endpointBodiesToIR(bodies *EndpointBodies) *openapiir.EndpointBodies {
 		RequestBody:    schemaToIR(bodies.RequestBody),
 		ResponseBodies: responseBodies,
 	}
+}
+
+func parameterComponentsFromIR(parameters map[string]*openapiir.ParameterRef) map[string]*ParameterRef {
+	if len(parameters) == 0 {
+		return nil
+	}
+	out := make(map[string]*ParameterRef, len(parameters))
+	for name, parameter := range parameters {
+		out[name] = parameterRefFromIR(parameter)
+	}
+	return out
+}
+
+func requestBodyComponentsFromIR(requestBodies map[string]*openapiir.RequestBodyRef) map[string]*RequestBodyRef {
+	if len(requestBodies) == 0 {
+		return nil
+	}
+	out := make(map[string]*RequestBodyRef, len(requestBodies))
+	for name, body := range requestBodies {
+		out[name] = requestBodyRefFromIR(body)
+	}
+	return out
 }
 
 func requestBodyFromIR(body *openapiir.RequestBody) *RequestBodyRef {
@@ -33,15 +68,35 @@ func requestBodyFromIR(body *openapiir.RequestBody) *RequestBodyRef {
 	}
 }
 
-func responsesFromIR(responses map[string]*openapiir.Response) map[string]*ResponseRef {
+func requestBodyRefFromIR(body *openapiir.RequestBodyRef) *RequestBodyRef {
+	if body == nil {
+		return nil
+	}
+	if body.Ref != "" {
+		return &RequestBodyRef{Ref: body.Ref}
+	}
+	return requestBodyFromIR(body.Value)
+}
+
+func responsesFromIR(responses map[string]*openapiir.ResponseRef) map[string]*ResponseRef {
 	if len(responses) == 0 {
 		return nil
 	}
 	out := make(map[string]*ResponseRef, len(responses))
 	for status, response := range responses {
-		out[status] = &ResponseRef{Value: responseFromIR(response)}
+		out[status] = responseRefFromIR(response)
 	}
 	return out
+}
+
+func responseRefFromIR(response *openapiir.ResponseRef) *ResponseRef {
+	if response == nil {
+		return nil
+	}
+	if response.Ref != "" {
+		return &ResponseRef{Ref: response.Ref}
+	}
+	return &ResponseRef{Value: responseFromIR(response.Value)}
 }
 
 func responseFromIR(response *openapiir.Response) *Response {
@@ -57,22 +112,71 @@ func responseFromIR(response *openapiir.Response) *Response {
 	}
 }
 
-func headersFromIR(headers map[string]*openapiir.Header) map[string]*HeaderRef {
+func headersFromIR(headers map[string]*openapiir.HeaderRef) map[string]*HeaderRef {
 	if len(headers) == 0 {
 		return nil
 	}
 	out := make(map[string]*HeaderRef, len(headers))
 	for name, header := range headers {
-		out[name] = &HeaderRef{Value: &Header{
-			Description: header.Description,
-			Required:    header.Required,
-			Schema:      openapiir.RenderSchema(header.Schema),
-			Example:     header.Example,
-			Examples:    examplesFromIR(header.Examples),
-			Extensions:  cloneStringAnyMap(header.Extensions),
-		}}
+		out[name] = headerRefFromIR(header)
 	}
 	return out
+}
+
+func headerRefFromIR(header *openapiir.HeaderRef) *HeaderRef {
+	if header == nil {
+		return nil
+	}
+	if header.Ref != "" {
+		return &HeaderRef{Ref: header.Ref}
+	}
+	return &HeaderRef{Value: &Header{
+		Description: header.Value.Description,
+		Required:    header.Value.Required,
+		Schema:      openapiir.RenderSchema(header.Value.Schema),
+		Example:     header.Value.Example,
+		Examples:    examplesFromIR(header.Value.Examples),
+		Extensions:  cloneStringAnyMap(header.Value.Extensions),
+	}}
+}
+
+func parametersFromIR(parameters []*openapiir.ParameterRef) []*ParameterRef {
+	if len(parameters) == 0 {
+		return nil
+	}
+	out := make([]*ParameterRef, len(parameters))
+	for i, parameter := range parameters {
+		out[i] = parameterRefFromIR(parameter)
+	}
+	return out
+}
+
+func parameterRefFromIR(parameter *openapiir.ParameterRef) *ParameterRef {
+	if parameter == nil {
+		return nil
+	}
+	if parameter.Ref != "" {
+		return &ParameterRef{Ref: parameter.Ref}
+	}
+	if parameter.Value == nil {
+		return nil
+	}
+	return &ParameterRef{Value: &Parameter{
+		Name:            parameter.Value.Name,
+		In:              parameter.Value.In,
+		Description:     parameter.Value.Description,
+		Style:           parameter.Value.Style,
+		Explode:         parameter.Value.Explode,
+		AllowEmptyValue: parameter.Value.AllowEmptyValue,
+		AllowReserved:   parameter.Value.AllowReserved,
+		Deprecated:      parameter.Value.Deprecated,
+		Required:        parameter.Value.Required,
+		Schema:          openapiir.RenderSchema(parameter.Value.Schema),
+		Example:         parameter.Value.Example,
+		Examples:        examplesFromIR(parameter.Value.Examples),
+		Content:         mediaTypesFromIR(parameter.Value.Content),
+		Extensions:      cloneStringAnyMap(parameter.Value.Extensions),
+	}}
 }
 
 func mediaTypesFromIR(mediaTypes map[string]*openapiir.MediaType) map[string]*MediaType {
@@ -91,21 +195,36 @@ func mediaTypesFromIR(mediaTypes map[string]*openapiir.MediaType) map[string]*Me
 	return out
 }
 
-func examplesFromIR(examples map[string]*openapiir.Example) map[string]*ExampleRef {
+func examplesFromIR(examples map[string]*openapiir.ExampleRef) map[string]*ExampleRef {
 	if len(examples) == 0 {
 		return nil
 	}
 	out := make(map[string]*ExampleRef, len(examples))
 	for name, example := range examples {
-		out[name] = &ExampleRef{
-			Value: &Example{
-				Summary:     example.Summary,
-				Description: example.Description,
-				Value:       example.Value,
-			},
-		}
+		out[name] = exampleRefFromIR(example)
 	}
 	return out
+}
+
+func exampleRefFromIR(example *openapiir.ExampleRef) *ExampleRef {
+	if example == nil {
+		return nil
+	}
+	if example.Ref != "" {
+		return &ExampleRef{Ref: example.Ref}
+	}
+	if example.Value == nil {
+		return nil
+	}
+	return &ExampleRef{Value: &Example{
+		Summary:     example.Value.Summary,
+		Description: example.Value.Description,
+		Value:       example.Value.Value,
+	}}
+}
+
+func externalDocsFromIR(docs *openapiir.ExternalDocs) *openapi.ExternalDocs {
+	return openapiir.RenderExternalDocs(docs)
 }
 
 func cloneStringAnyMap(values map[string]any) map[string]any {
