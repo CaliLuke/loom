@@ -55,7 +55,7 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 	}
 	header := codegen.Header(service.Name+" views", "views",
 		imports)
-	sections := []*codegen.SectionTemplate{header}
+	sections := []codegen.Section{header}
 
 	// type definitions
 	for _, t := range svc.viewedResultTypes {
@@ -129,5 +129,5 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 		}
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }

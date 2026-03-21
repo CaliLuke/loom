@@ -33,7 +33,7 @@ func TestSSE(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ServerFiles("", services)
 			require.Len(t, fs, 3)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			require.Greater(t, len(sections), 1)
 			code := codegen.SectionCode(t, sections[1])
 			golden := filepath.Join("testdata", "golden", "sse-"+c.Name+".golden")

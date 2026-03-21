@@ -67,9 +67,9 @@ func ExampleCLI(genpkg string, svr *expr.ServerExpr, services *ServicesData) *co
 			svcData = append(svcData, data)
 		}
 	}
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
-		{
+		&codegen.SectionTemplate{
 			Name:   "cli-http-start",
 			Source: httpTemplates.Read(cliStartT),
 			Data: map[string]any{
@@ -77,7 +77,7 @@ func ExampleCLI(genpkg string, svr *expr.ServerExpr, services *ServicesData) *co
 				"InterceptorsPkg": interceptorsPkg,
 			},
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "cli-http-streaming",
 			Source: httpTemplates.Read(cliStreamingT),
 			Data: map[string]any{
@@ -87,7 +87,7 @@ func ExampleCLI(genpkg string, svr *expr.ServerExpr, services *ServicesData) *co
 				"needDialer": NeedDialer,
 			},
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "cli-http-end",
 			Source: httpTemplates.Read(cliEndT),
 			Data: map[string]any{
@@ -99,14 +99,14 @@ func ExampleCLI(genpkg string, svr *expr.ServerExpr, services *ServicesData) *co
 				"hasWebSocket": HasWebSocket,
 			},
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "cli-http-usage",
 			Source: httpTemplates.Read(cliUsageT),
 		},
 	}
 	return &codegen.File{
-		Path:             path,
-		SectionTemplates: sections,
-		SkipExist:        true,
+		Path:      path,
+		Sections:  sections,
+		SkipExist: true,
 	}
 }

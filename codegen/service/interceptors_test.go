@@ -55,7 +55,7 @@ func TestInterceptors(t *testing.T) {
 			require.Len(t, fs, c.expectedFileCount)
 			for _, f := range fs {
 				buf := new(bytes.Buffer)
-				for _, s := range f.SectionTemplates[1:] {
+				for _, s := range f.AllSections()[1:] {
 					require.NoError(t, s.Write(buf))
 				}
 				bs, err := format.Source(buf.Bytes())

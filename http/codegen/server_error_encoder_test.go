@@ -36,7 +36,7 @@ func TestEncodeError(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ServerFiles("", services)
 			require.Len(t, fs, 2)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			require.Greater(t, len(sections), 1)
 			code := codegen.SectionCode(t, sections[2])
 			testutil.AssertGo(t, "testdata/golden/server_error_encoder_"+c.Name+".go.golden", code)

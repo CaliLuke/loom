@@ -65,7 +65,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	if hasCustomMultipartDecoder(data) {
 		imports = append(imports, &codegen.ImportSpec{Path: "mime/multipart"})
 	}
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(title, "server", imports),
 	}
 
@@ -115,7 +115,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		sections = append(sections, &codegen.SectionTemplate{Name: "server-files", Source: httpTemplates.Read(fileServerT), FuncMap: funcs, Data: s})
 	}
 
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 // ServerEncodeDecodeFile returns the file defining the HTTP server encoding and
@@ -143,7 +143,7 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 	if hasCustomMultipartDecoder(data) {
 		imports = append(imports, &codegen.ImportSpec{Path: "mime/multipart"})
 	}
-	sections := []*codegen.SectionTemplate{codegen.Header(title, "server", imports)}
+	sections := []codegen.Section{codegen.Header(title, "server", imports)}
 
 	for _, e := range data.Endpoints {
 		if e.Redirect == nil && (!IsWebSocketEndpoint(e) || e.Method.IsJSONRPC) {
@@ -197,7 +197,7 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		return nil
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]any {

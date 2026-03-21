@@ -38,7 +38,7 @@ func TestServerTypes(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := serverType(genpkg, root.API.HTTP.Services[0], services)
 			var buf bytes.Buffer
-			for _, s := range fs.SectionTemplates[1:] {
+			for _, s := range fs.AllSections()[1:] {
 				require.NoError(t, s.Write(&buf))
 			}
 			code := codegen.FormatTestCode(t, "package foo\n"+buf.String())

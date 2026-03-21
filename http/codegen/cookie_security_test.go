@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"path/filepath"
 	"testing"
-	"text/template"
 
 	"github.com/pb33f/libopenapi"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
@@ -66,7 +65,7 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 
 		serverTypes := serverType("gen", root.API.HTTP.Services[0], services)
 		var serverTypesBuf bytes.Buffer
-		for _, section := range serverTypes.SectionTemplates[1:] {
+		for _, section := range serverTypes.AllSections()[1:] {
 			require.NoError(t, section.Write(&serverTypesBuf))
 		}
 		serverTypesCode := codegen.FormatTestCode(t, "package foo\n"+serverTypesBuf.String())
@@ -76,7 +75,7 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
-		serverDecode := codegen.SectionCode(t, serverFiles[1].SectionTemplates[2])
+		serverDecode := codegen.SectionCode(t, serverFiles[1].AllSections()[2])
 		require.Contains(t, serverDecode, `r.Cookie("__Host-ak_session")`)
 		require.NotContains(t, serverDecode, "Authorization")
 		require.NotContains(t, serverDecode, "browserSession *string, browserSession *string")
@@ -162,7 +161,7 @@ func TestSessionSecurityInfersCookieBinding(t *testing.T) {
 
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
-		serverDecode := codegen.SectionCode(t, serverFiles[1].SectionTemplates[2])
+		serverDecode := codegen.SectionCode(t, serverFiles[1].AllSections()[2])
 		require.Contains(t, serverDecode, `r.Cookie("__Host-ak_session")`)
 		require.Contains(t, serverDecode, `"Authorization"`)
 
@@ -188,14 +187,12 @@ func renderOpenAPIJSON(
 		if filepath.Ext(f.Path) != ".json" {
 			continue
 		}
-		require.Len(t, f.SectionTemplates, 1)
-		section := f.SectionTemplates[0]
-		require.NotEmpty(t, section.Source)
-		require.NotNil(t, section.Data)
+		sections := f.AllSections()
+		require.Len(t, sections, 1)
+		section := sections[0]
 
 		var buf bytes.Buffer
-		tmpl := template.Must(template.New("openapi").Funcs(section.FuncMap).Parse(section.Source))
-		require.NoError(t, tmpl.Execute(&buf, section.Data))
+		require.NoError(t, section.Write(&buf))
 		return buf.Bytes()
 	}
 

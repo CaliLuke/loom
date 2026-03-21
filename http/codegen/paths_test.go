@@ -38,7 +38,7 @@ func TestPaths(t *testing.T) {
 			require.Len(t, root.API.HTTP.Services, 1)
 			services := CreateHTTPServices(root)
 			fs := serverPath(root.API.HTTP.Services[0], services)
-			sections := fs.SectionTemplates
+			sections := fs.AllSections()
 			code := codegen.SectionCode(t, sections[1])
 			testutil.AssertGo(t, "testdata/golden/paths_"+c.Name+".go.golden", code)
 		})
@@ -64,7 +64,7 @@ func TestPathTrailingShash(t *testing.T) {
 			require.Len(t, root.API.HTTP.Services, 1)
 			services := CreateHTTPServices(root)
 			fs := serverPath(root.API.HTTP.Services[0], services)
-			sections := fs.SectionTemplates
+			sections := fs.AllSections()
 			code := codegen.SectionCode(t, sections[1])
 			testutil.AssertGo(t, "testdata/golden/paths_"+c.Name+".go.golden", code)
 		})

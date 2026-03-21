@@ -94,7 +94,7 @@ func TestEncode(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ServerFiles("", services)
 			require.Len(t, fs, 2)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			require.Greater(t, len(sections), 1)
 			code := codegen.SectionCode(t, sections[1])
 			testutil.AssertGo(t, "testdata/golden/server_encode_"+c.Name+".go.golden", code)
@@ -119,7 +119,7 @@ func TestEncodeMarshallingAndUnmarshalling(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ServerFiles("", services)
 			require.Len(t, fs, 2)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			totalSectionsExpected := c.SectionsOffset + c.SectionCount
 			require.Len(t, sections, totalSectionsExpected)
 			for i := 0; i < c.SectionCount; i++ {

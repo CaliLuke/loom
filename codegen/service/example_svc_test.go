@@ -37,9 +37,10 @@ func TestExampleServiceFiles(t *testing.T) {
 				fs := ExampleServiceFiles("", root, services)
 				require.Len(t, fs, 3)
 				for _, f := range fs {
-					require.Greater(t, len(f.SectionTemplates), 0)
+					sections := f.AllSections()
+					require.Greater(t, len(sections), 0)
 					var b bytes.Buffer
-					require.NoError(t, f.SectionTemplates[0].Write(&b))
+					require.NoError(t, sections[0].Write(&b))
 					line, err := b.ReadBytes('\n')
 					require.NoError(t, err)
 					got := string(bytes.TrimRight(line, "\r\n"))

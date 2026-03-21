@@ -71,7 +71,7 @@ func TestService(t *testing.T) {
 
 			// Generate the code
 			buf := new(bytes.Buffer)
-			for _, s := range files[0].SectionTemplates[1:] {
+			for _, s := range files[0].AllSections()[1:] {
 				require.NoError(t, s.Write(buf))
 			}
 			bs, err := format.Source(buf.Bytes())
@@ -116,7 +116,7 @@ func TestStructPkgPath(t *testing.T) {
 
 			// First file is always the service file
 			buf := new(bytes.Buffer)
-			for _, s := range files[0].SectionTemplates[1:] {
+			for _, s := range files[0].AllSections()[1:] {
 				require.NoError(t, s.Write(buf))
 			}
 			bs, err := format.Source(buf.Bytes())
@@ -126,7 +126,7 @@ func TestStructPkgPath(t *testing.T) {
 			// Type files
 			for i, typeFile := range c.TypeFiles {
 				buf := new(bytes.Buffer)
-				for _, s := range files[i+1].SectionTemplates[1:] {
+				for _, s := range files[i+1].AllSections()[1:] {
 					require.NoError(t, s.Write(buf))
 				}
 				bs, err := format.Source(buf.Bytes())
@@ -140,7 +140,7 @@ func TestStructPkgPath(t *testing.T) {
 				files = Files("goa.design/goa/example", root.Services[1], services, userTypePkgs)
 				require.Len(t, files, 1)
 				buf := new(bytes.Buffer)
-				for _, s := range files[0].SectionTemplates[1:] {
+				for _, s := range files[0].AllSections()[1:] {
 					require.NoError(t, s.Write(buf))
 				}
 				bs, err := format.Source(buf.Bytes())
@@ -169,7 +169,7 @@ func TestStructPkgPath_UnionImportsJSON(t *testing.T) {
 	require.NotNil(t, typeFile, "expected generated type file for struct:pkg:path type_with_union")
 
 	buf := new(bytes.Buffer)
-	for _, s := range typeFile.SectionTemplates {
+	for _, s := range typeFile.AllSections() {
 		require.NoError(t, s.Write(buf))
 	}
 	code := buf.String()
@@ -194,7 +194,7 @@ func TestStructPkgPath_UnionJSONFieldBranchesGenerateAliases(t *testing.T) {
 	require.NotNil(t, typeFile, "expected generated type file for struct:pkg:path type_with_json_field_union")
 
 	buf := new(bytes.Buffer)
-	for _, s := range typeFile.SectionTemplates {
+	for _, s := range typeFile.AllSections() {
 		require.NoError(t, s.Write(buf))
 	}
 	code := buf.String()

@@ -43,9 +43,10 @@ func TestExampleServerFiles(t *testing.T) {
 						// Skip example http server.
 						continue
 					}
-					require.Greater(t, len(f.SectionTemplates), 0)
+					sections := f.AllSections()
+					require.Greater(t, len(sections), 0)
 					var b bytes.Buffer
-					require.NoError(t, f.SectionTemplates[0].Write(&b))
+					require.NoError(t, sections[0].Write(&b))
 					line, err := b.ReadBytes('\n')
 					assert.NoError(t, err)
 					got := string(bytes.TrimRight(line, "\n"))
@@ -74,9 +75,10 @@ func TestExampleServerFiles(t *testing.T) {
 				httpServices := NewServicesData(service.NewServicesData(root), root.API.HTTP)
 				fs := ExampleServerFiles("", httpServices)
 				require.Len(t, fs, 1)
-				require.Greater(t, len(fs[0].SectionTemplates), 0)
+				sections := fs[0].AllSections()
+				require.Greater(t, len(sections), 0)
 				var buf bytes.Buffer
-				for _, s := range fs[0].SectionTemplates[1:] {
+				for _, s := range sections[1:] {
 					require.NoError(t, s.Write(&buf))
 				}
 				code := codegen.FormatTestCode(t, "package foo\n"+buf.String())

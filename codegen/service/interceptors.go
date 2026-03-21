@@ -66,12 +66,12 @@ func interceptorFile(svc *Data, server bool) *codegen.File {
 		interceptors = filtered
 	}
 
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(desc, svc.PkgName, []*codegen.ImportSpec{
 			{Path: "context"},
 			codegen.GoaImport(""),
 		}),
-		{
+		&codegen.SectionTemplate{
 			Name:   section,
 			Source: serviceTemplates.Read(template),
 			Data:   svc,
@@ -126,14 +126,14 @@ func interceptorFile(svc *Data, server bool) *codegen.File {
 		})
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // wrapperFile returns the file containing the interceptor wrappers.
 func wrapperFile(svc *Data) *codegen.File {
 	path := filepath.Join(codegen.Gendir, svc.PathName, "interceptor_wrappers.go")
 
-	var sections []*codegen.SectionTemplate
+	var sections []codegen.Section
 	sections = append(sections, codegen.Header("Interceptor wrappers", svc.PkgName, []*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "fmt"},
@@ -210,8 +210,8 @@ func wrapperFile(svc *Data) *codegen.File {
 	}
 
 	return &codegen.File{
-		Path:             path,
-		SectionTemplates: sections,
+		Path:     path,
+		Sections: sections,
 	}
 }
 

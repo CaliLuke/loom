@@ -84,24 +84,24 @@ func ExampleServer(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, ser
 		}
 	}
 
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
-		{
+		&codegen.SectionTemplate{
 			Name:   "server-http-start",
 			Source: httpTemplates.Read(serverStartT),
 			Data: map[string]any{
 				"Services": svcdata,
 			},
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "server-http-encoding",
 			Source: httpTemplates.Read(serverEncodingT),
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "server-http-mux",
 			Source: httpTemplates.Read(serverMuxT),
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "server-http-init",
 			Source: httpTemplates.Read(serverConfigureT),
 			Data: map[string]any{
@@ -110,24 +110,24 @@ func ExampleServer(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, ser
 			},
 			FuncMap: map[string]any{"needDialer": NeedDialer, "hasWebSocket": HasWebSocket},
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "server-http-middleware",
 			Source: httpTemplates.Read(serverMiddlewareT),
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "server-http-end",
 			Source: httpTemplates.Read(serverEndT),
 			Data: map[string]any{
 				"Services": svcdata,
 			},
 		},
-		{
+		&codegen.SectionTemplate{
 			Name:   "server-http-errorhandler",
 			Source: httpTemplates.Read(serverErrorHandlerT),
 		},
 	}
 
-	return &codegen.File{Path: fpath, SectionTemplates: sections, SkipExist: true}
+	return &codegen.File{Path: fpath, Sections: sections, SkipExist: true}
 }
 
 // dummyMultipartFile returns a dummy implementation of the multipart decoders
@@ -138,7 +138,7 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, svc *expr.HTTPServic
 		return nil // file already exists, skip it.
 	}
 	var (
-		sections []*codegen.SectionTemplate
+		sections []codegen.Section
 		mustGen  bool
 
 		scope = codegen.NewNameScope()
@@ -164,7 +164,7 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, svc *expr.HTTPServic
 		})
 
 		apiPkg := scope.Unique(strings.ToLower(codegen.Goify(root.API.Name, false)), "api")
-		sections = []*codegen.SectionTemplate{codegen.Header("", apiPkg, specs)}
+		sections = []codegen.Section{codegen.Header("", apiPkg, specs)}
 		for _, e := range data.Endpoints {
 			if e.MultipartRequestDecoder != nil {
 				mustGen = true
@@ -188,8 +188,8 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, svc *expr.HTTPServic
 		return nil
 	}
 	return &codegen.File{
-		Path:             mpath,
-		SectionTemplates: sections,
-		SkipExist:        true,
+		Path:      mpath,
+		Sections:  sections,
+		SkipExist: true,
 	}
 }

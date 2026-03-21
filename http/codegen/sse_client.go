@@ -29,7 +29,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 	}
 	path := filepath.Join(codegen.Gendir, "http", codegen.SnakeCase(svc.Name()), "client", "sse.go")
 	tmplSections := sseClientTemplateSections(data)
-	sections := make([]*codegen.SectionTemplate, 0, 1+len(tmplSections))
+	sections := make([]codegen.Section, 0, 1+len(tmplSections))
 	sections = append(sections,
 		codegen.Header(
 			"sse-client",
@@ -49,8 +49,10 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 			},
 		),
 	)
-	sections = append(sections, tmplSections...) // add SSE client methods
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	for _, section := range tmplSections {
+		sections = append(sections, section)
+	}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // sseClientTemplateSections returns section templates for SSE client endpoints.

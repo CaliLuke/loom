@@ -125,15 +125,9 @@ func TestPayloadConstructor(t *testing.T) {
 			require.Len(t, root.API.HTTP.Services, 1)
 			services := CreateHTTPServices(root)
 			fs := serverType("", root.API.HTTP.Services[0], services)
-			sections := fs.SectionTemplates
-			var section *codegen.SectionTemplate
-			for _, s := range sections {
-				if s.Source == httpTemplates.Read("server_type_init") {
-					section = s
-				}
-			}
-			require.NotNil(t, section)
-			code := codegen.SectionCode(t, section)
+			sections := fs.Section("server-payload-init")
+			require.NotEmpty(t, sections)
+			code := codegen.SectionCode(t, sections[0])
 			testutil.AssertGo(t, "testdata/golden/server_payload_types_"+c.Name+".go.golden", code)
 		})
 	}

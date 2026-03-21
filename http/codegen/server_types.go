@@ -62,7 +62,7 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		initData       []*InitData
 		validatedTypes []*TypeData
 
-		sections = []*codegen.SectionTemplate{header}
+		sections = []codegen.Section{header}
 	)
 
 	// request body types
@@ -216,7 +216,7 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		})
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // fieldCode returns the code to initialize the return struct fields. It is

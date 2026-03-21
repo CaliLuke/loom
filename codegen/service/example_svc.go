@@ -73,24 +73,13 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 		{Path: "goa.design/clue/log"},
 		{Path: "goa.design/goa/v3/security"},
 	}
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header("", apipkg, specs),
-		{
-			Name:   "basic-service-struct",
-			Source: serviceTemplates.Read(exampleServiceStructT),
-			Data:   data,
-		}, {
-			Name:   "basic-service-init",
-			Source: serviceTemplates.Read(exampleServiceInitT),
-			Data:   data,
-		},
+		exampleServiceStructSection(data),
+		exampleServiceInitSection(data),
 	}
 	if len(data.Schemes) > 0 {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "security-authfuncs",
-			Source: serviceTemplates.Read(exampleSecurityAuthfuncsT),
-			Data:   data,
-		})
+		sections = append(sections, exampleSecurityAuthSection(data))
 	}
 	for _, m := range svc.Methods {
 		sections = append(sections, basicEndpointSection(m, data))
@@ -98,23 +87,19 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 
 	// Add HandleStream method for JSON-RPC WebSocket services (not SSE)
 	if hasJSONRPCStreaming(data) && !isJSONRPCSSE(services, svc) {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "jsonrpc-handle-stream",
-			Source: serviceTemplates.Read(jsonrpcHandleStreamT),
-			Data:   data,
-		})
+		sections = append(sections, jsonrpcHandleStreamSection(data))
 	}
 
 	return &codegen.File{
-		Path:             fpath,
-		SectionTemplates: sections,
-		SkipExist:        true,
+		Path:      fpath,
+		Sections:  sections,
+		SkipExist: true,
 	}
 }
 
 // basicEndpointSection returns a section with a basic implementation for the
 // given method.
-func basicEndpointSection(m *expr.MethodExpr, svcData *Data) *codegen.SectionTemplate {
+func basicEndpointSection(m *expr.MethodExpr, svcData *Data) codegen.Section {
 	md := svcData.Method(m.Name)
 	ed := &basicEndpointData{
 		MethodData:     md,
@@ -138,9 +123,5 @@ func basicEndpointSection(m *expr.MethodExpr, svcData *Data) *codegen.SectionTem
 	if md.ServerStream != nil {
 		ed.StreamInterface = svcData.PkgName + "." + md.ServerStream.Interface
 	}
-	return &codegen.SectionTemplate{
-		Name:   "basic-endpoint",
-		Source: serviceTemplates.Read(endpointT),
-		Data:   ed,
-	}
+	return exampleEndpointSection(ed)
 }

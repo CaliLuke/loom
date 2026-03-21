@@ -22,7 +22,7 @@ func TestSessionCookie(t *testing.T) {
 
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
-		serverEncode := codegen.SectionCode(t, serverFiles[1].SectionTemplates[1])
+		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `Path:     "/"`)
 		require.Contains(t, serverEncode, `Secure:   true`)
 		require.Contains(t, serverEncode, `HttpOnly: true`)
@@ -35,7 +35,7 @@ func TestSessionCookie(t *testing.T) {
 
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
-		serverEncode := codegen.SectionCode(t, serverFiles[1].SectionTemplates[1])
+		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `Path:     "/session"`)
 		require.Contains(t, serverEncode, `SameSite: http.SameSiteStrictMode`)
 		require.Contains(t, serverEncode, `Secure:   true`)
@@ -48,7 +48,7 @@ func TestSessionCookie(t *testing.T) {
 
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
-		serverEncode := codegen.SectionCode(t, serverFiles[1].SectionTemplates[1])
+		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `Path:     "/session"`)
 		require.Contains(t, serverEncode, `Domain:   "session.goa.design"`)
 		require.Contains(t, serverEncode, `MaxAge:   7200`)
@@ -103,7 +103,7 @@ func TestSessionCookie(t *testing.T) {
 
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
-		serverEncode := codegen.SectionCode(t, serverFiles[1].SectionTemplates[1])
+		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `"__Host-ak_session"`)
 		require.Contains(t, serverEncode, `"ak_refresh"`)
 		require.Contains(t, serverEncode, `Path:     "/"`)

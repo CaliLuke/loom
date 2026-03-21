@@ -5,6 +5,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
+
+	"github.com/dave/jennifer/jen"
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
@@ -40,7 +43,7 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 		if _, err := os.Stat(serverPath); os.IsNotExist(err) {
 			files = append(files, &codegen.File{
 				Path: serverPath,
-				SectionTemplates: []*codegen.SectionTemplate{
+				Sections: []codegen.Section{
 					codegen.Header(fmt.Sprintf("%s example server interceptors", sdata.Name), "interceptors", []*codegen.ImportSpec{
 						{Path: "context"},
 						{Path: "fmt"},
@@ -48,11 +51,7 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 						codegen.GoaImport(""),
 						{Path: path.Join(genpkg, sdata.PathName), Name: sdata.PkgName},
 					}),
-					{
-						Name:   "example-server-interceptor",
-						Source: serviceTemplates.Read(exampleServerInterceptorT),
-						Data:   data,
-					},
+					exampleInterceptorSection("example-server-interceptor", data, true),
 				},
 			})
 		}
@@ -64,7 +63,7 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 		if _, err := os.Stat(clientPath); os.IsNotExist(err) {
 			files = append(files, &codegen.File{
 				Path: clientPath,
-				SectionTemplates: []*codegen.SectionTemplate{
+				Sections: []codegen.Section{
 					codegen.Header(fmt.Sprintf("%s example client interceptors", sdata.Name), "interceptors", []*codegen.ImportSpec{
 						{Path: "context"},
 						{Path: "fmt"},
@@ -72,15 +71,54 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 						codegen.GoaImport(""),
 						{Path: path.Join(genpkg, sdata.PathName), Name: sdata.PkgName},
 					}),
-					{
-						Name:   "example-client-interceptor",
-						Source: serviceTemplates.Read(exampleClientInterceptorT),
-						Data:   data,
-					},
+					exampleInterceptorSection("example-client-interceptor", data, false),
 				},
 			})
 		}
 	}
 
 	return files
+}
+
+func exampleInterceptorSection(name string, data map[string]any, server bool) codegen.Section {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
+		structName := data["StructName"].(string)
+		serviceName := data["ServiceName"].(string)
+		pkgName := data["PkgName"].(string)
+		mode := "client"
+		implements := "client interceptors"
+		action := "Sending request"
+		interceptors := data["ClientInterceptors"].([]*InterceptorData)
+		if server {
+			mode = "server"
+			implements = "server interceptor"
+			action = "Processing request"
+			interceptors = data["ServerInterceptors"].([]*InterceptorData)
+		}
+
+		stmt.Add(codegen.Expr(fmt.Sprintf("// %s%sInterceptors implements the %s for the %s service.\ntype %s%sInterceptors struct {\n}", structName, strings.Title(mode), implements, serviceName, structName, strings.Title(mode))))
+		stmt.Line()
+		stmt.Add(codegen.Expr(fmt.Sprintf("// New%s%sInterceptors creates a new %s interceptor for the %s service.\nfunc New%s%sInterceptors() *%s%sInterceptors {\nreturn &%s%sInterceptors{}\n}", structName, strings.Title(mode), mode, serviceName, structName, strings.Title(mode), structName, strings.Title(mode), structName, strings.Title(mode))))
+		stmt.Line()
+		for _, interceptor := range interceptors {
+			if interceptor.Description != "" {
+				codegen.Doc(stmt, interceptor.Description)
+			}
+			responseAction := "Received response"
+			if server {
+				responseAction = "Response"
+			}
+			stmt.Add(codegen.Expr(fmt.Sprintf(`func (i *%s%sInterceptors) %s(ctx context.Context, info *%s.%sInfo, next goa.Endpoint) (any, error) {
+log.Printf(ctx, "[%s] %s: %%v", info.RawPayload())
+resp, err := next(ctx, info.RawPayload())
+if err != nil {
+	log.Printf(ctx, "[%s] Error: %%v", err)
+	return nil, err
+}
+log.Printf(ctx, "[%s] %s: %%v", resp)
+return resp, nil
+}`, structName, strings.Title(mode), interceptor.Name, pkgName, interceptor.Name, interceptor.Name, action, interceptor.Name, interceptor.Name, responseAction)))
+			stmt.Line()
+		}
+	})
 }

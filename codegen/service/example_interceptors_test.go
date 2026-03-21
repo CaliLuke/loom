@@ -102,7 +102,7 @@ func TestExampleInterceptorsFiles(t *testing.T) {
 			// Verify file content
 			for _, f := range fs {
 				buf := new(bytes.Buffer)
-				for _, s := range f.SectionTemplates {
+				for _, s := range f.AllSections() {
 					require.NoError(t, s.Write(buf))
 				}
 				bs, err := format.Source(buf.Bytes())

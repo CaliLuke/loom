@@ -38,7 +38,7 @@ func TestAuthErrorResponses(t *testing.T) {
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
 		var serverEncode bytes.Buffer
-		for _, section := range serverFiles[1].SectionTemplates {
+		for _, section := range serverFiles[1].AllSections() {
 			require.NoError(t, section.Write(&serverEncode))
 		}
 		require.Contains(t, serverEncode.String(), `case "unauthorized":`)

@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
 )
@@ -21,7 +23,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	seen := make(map[string]struct{})
 	typeDefSections := make(map[string]map[string]*codegen.SectionTemplate)
 	typesByPath := make(map[string][]string)
-	svcSections := make([]*codegen.SectionTemplate, 0, 10)
+	svcSections := make([]codegen.Section, 0, 10)
 
 	addTypeDefSection := func(path, name string, section *codegen.SectionTemplate) {
 		if typeDefSections[path] == nil {
@@ -126,45 +128,29 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		})
 	}
 	for _, er := range svc.errorInits {
-		svcSections = append(svcSections, &codegen.SectionTemplate{
-			Name:   "error-init-func",
-			Source: serviceTemplates.Read(errorInitT),
-			Data:   er,
-		})
+		svcSections = append(svcSections, errorInitSection(er))
 	}
 
 	// transform result type functions
 	for _, t := range svc.viewedResultTypes {
 		svcSections = append(svcSections,
-			&codegen.SectionTemplate{Name: "viewed-result-type-to-service-result-type", Source: serviceTemplates.Read(typeInitT), Data: t.ResultInit},
-			&codegen.SectionTemplate{Name: "service-result-type-to-viewed-result-type", Source: serviceTemplates.Read(typeInitT), Data: t.Init})
+			typeInitSection("viewed-result-type-to-service-result-type", t.ResultInit),
+			typeInitSection("service-result-type-to-viewed-result-type", t.Init))
 	}
 	var projh []*codegen.TransformFunctionData
 	for _, t := range svc.projectedTypes {
 		for _, i := range t.TypeInits {
 			projh = codegen.AppendHelpers(projh, i.Helpers)
-			svcSections = append(svcSections, &codegen.SectionTemplate{
-				Name:   "projected-type-to-service-type",
-				Source: serviceTemplates.Read(typeInitT),
-				Data:   i,
-			})
+			svcSections = append(svcSections, typeInitSection("projected-type-to-service-type", i))
 		}
 		for _, i := range t.Projections {
 			projh = codegen.AppendHelpers(projh, i.Helpers)
-			svcSections = append(svcSections, &codegen.SectionTemplate{
-				Name:   "service-type-to-projected-type",
-				Source: serviceTemplates.Read(typeInitT),
-				Data:   i,
-			})
+			svcSections = append(svcSections, typeInitSection("service-type-to-projected-type", i))
 		}
 	}
 
 	for _, h := range projh {
-		svcSections = append(svcSections, &codegen.SectionTemplate{
-			Name:   "transform-helpers",
-			Source: serviceTemplates.Read(transformHelperT),
-			Data:   h,
-		})
+		svcSections = append(svcSections, transformHelperSection("transform-helpers", h))
 	}
 
 	imports := []*codegen.ImportSpec{
@@ -196,7 +182,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	}
 
 	// service.go
-	var sections []*codegen.SectionTemplate
+	var sections []codegen.Section
 	{
 		names := make([]string, len(typeDefSections[svcPath]))
 		i := 0
@@ -204,7 +190,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 			names[i] = n
 			i++
 		}
-		sections = make([]*codegen.SectionTemplate, 0, 2+len(names)+len(svcSections))
+		sections = make([]codegen.Section, 0, 2+len(names)+len(svcSections))
 		sections = append(sections, header, def)
 		sort.Strings(names)
 		for _, n := range names {
@@ -212,7 +198,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		}
 		sections = append(sections, svcSections...)
 	}
-	files := []*codegen.File{{Path: svcPath, SectionTemplates: sections}}
+	files := []*codegen.File{{Path: svcPath, Sections: sections}}
 
 	// service and client interceptors
 	files = append(files, InterceptorsFiles(genpkg, service, services)...)
@@ -229,7 +215,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		if p == svcPath {
 			continue
 		}
-		var secs []*codegen.SectionTemplate
+		var secs []codegen.Section
 		hasUnion := false
 		ts := typesByPath[p]
 		sort.Strings(ts)
@@ -266,8 +252,8 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 			)
 		}
 		h := codegen.Header("User types", codegen.Goify(filepath.Base(dir), false), imports)
-		sections := append([]*codegen.SectionTemplate{h}, secs...)
-		files = append(files, &codegen.File{Path: fullRelPath, SectionTemplates: sections})
+		sections := append([]codegen.Section{h}, secs...)
+		files = append(files, &codegen.File{Path: fullRelPath, Sections: sections})
 	}
 
 	return files
@@ -347,6 +333,59 @@ func AddUserTypeImports(genpkg string, header *codegen.SectionTemplate, d *Data)
 		codegen.AddImport(header, imp)
 		d.UserTypeImports = append(d.UserTypeImports, imp)
 	}
+}
+
+func typeInitSection(name string, data *InitData) codegen.Section {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
+		codegen.Doc(stmt, data.Description)
+		stmt.Add(codegen.Expr("func " + data.Name + "(" + initArgsString(data.Args) + ") " + data.ReturnTypeRef + " {\n" + data.Code + "\n}"))
+		stmt.Line()
+	})
+}
+
+func errorInitSection(data *ErrorInitData) codegen.Section {
+	return codegen.NewJenniferSection("error-init-func", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s builds a %s from an error.", data.Name, data.TypeName))
+		stmt.Func().Id(data.Name).Params(jen.Id("err").Error()).Add(codegen.TypeRef(data.TypeRef)).BlockFunc(func(group *jen.Group) {
+			if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
+				group.Id("serr").Op(":=").Add(codegen.Expr("goa.NewServiceError")).Call(
+					jen.Id("err"),
+					jen.Lit(data.ErrName),
+					jen.Lit(data.Timeout),
+					jen.Lit(data.Temporary),
+					jen.Lit(data.Fault),
+				)
+				group.Add(codegen.Expr(fmt.Sprintf(`goa.WithErrorRemedy(serr, &goa.ErrorRemedy{
+	Code:        %q,
+	SafeMessage: %q,
+	RetryHint:   %q,
+})`, data.RemedyCode, data.SafeMessage, data.RetryHint)))
+				group.Return(jen.Id("serr"))
+				return
+			}
+			group.Return(
+				codegen.Expr("goa.NewServiceError").Call(
+					jen.Id("err"),
+					jen.Lit(data.ErrName),
+					jen.Lit(data.Timeout),
+					jen.Lit(data.Temporary),
+					jen.Lit(data.Fault),
+				),
+			)
+		})
+		stmt.Line()
+	})
+}
+
+func initArgsString(args []*InitArgData) string {
+	if len(args) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(args))
+	for _, arg := range args {
+		parts = append(parts, arg.Name+" "+arg.Ref)
+	}
+	return strings.Join(parts, ", ")
 }
 
 func errorName(et *UserTypeData) string {

@@ -16,7 +16,7 @@ import (
 // renderFileToString renders all sections of a file to a string without writing to disk
 func renderFileToString(file *codegen.File) (string, error) {
 	var buf bytes.Buffer
-	for _, section := range file.SectionTemplates {
+	for _, section := range file.AllSections() {
 		if err := section.Write(&buf); err != nil {
 			return "", err
 		}

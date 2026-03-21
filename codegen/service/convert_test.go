@@ -340,9 +340,10 @@ func TestConvertFiles(t *testing.T) {
 					for _, file := range files {
 						if strings.HasSuffix(file.Path, normalizedExpected) {
 							found = true
-							require.Equal(t, expectedSections, len(file.SectionTemplates))
+							sections := file.AllSections()
+							require.Equal(t, expectedSections, len(sections))
 							// First section should be header
-							require.Equal(t, "source-header", file.SectionTemplates[0].Name)
+							require.Equal(t, "source-header", sections[0].SectionName())
 							break
 						}
 					}

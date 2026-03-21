@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
 )
@@ -199,7 +201,7 @@ func generateConvertFileForPath(
 
 	// Build header section
 	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.GoaImport(""))
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(service.Name+" service type conversion functions", convertPkgName, pkgs),
 	}
 
@@ -256,11 +258,7 @@ func generateConvertFileForPath(
 			TypeRef:         ref,
 			Code:            code,
 		}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "convert-to",
-			Source: serviceTemplates.Read(convertT),
-			Data:   data,
-		})
+		sections = append(sections, convertSection("convert-to", data))
 	}
 
 	// Build creation sections if any
@@ -308,11 +306,7 @@ func generateConvertFileForPath(
 			TypeRef:         ref,
 			Code:            code,
 		}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "create-from",
-			Source: serviceTemplates.Read(createT),
-			Data:   data,
-		})
+		sections = append(sections, createSection("create-from", data))
 	}
 
 	// Build transformation helper functions section if any.
@@ -322,14 +316,10 @@ func generateConvertFileForPath(
 			continue
 		}
 		seen[tf.Name] = struct{}{}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "convert-create-helper",
-			Source: serviceTemplates.Read(transformHelperT),
-			Data:   tf,
-		})
+		sections = append(sections, transformHelperSection("convert-create-helper", tf))
 	}
 
-	return &codegen.File{Path: convertPath, SectionTemplates: sections}, nil
+	return &codegen.File{Path: convertPath, Sections: sections}, nil
 }
 
 func commonPath(sep byte, paths ...string) string {
@@ -517,7 +507,7 @@ func ConvertFile(root *expr.RootExpr, service *expr.ServiceExpr, services *Servi
 	// Build header section
 	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.GoaImport(""))
 	path := filepath.Join(codegen.Gendir, codegen.SnakeCase(service.Name), "convert.go")
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(service.Name+" service type conversion functions", svc.PkgName, pkgs),
 	}
 
@@ -563,11 +553,7 @@ func ConvertFile(root *expr.RootExpr, service *expr.ServiceExpr, services *Servi
 			TypeRef:         ref,
 			Code:            code,
 		}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "convert-to",
-			Source: serviceTemplates.Read(convertT),
-			Data:   data,
-		})
+		sections = append(sections, convertSection("convert-to", data))
 	}
 
 	// Build creation sections if any
@@ -603,11 +589,7 @@ func ConvertFile(root *expr.RootExpr, service *expr.ServiceExpr, services *Servi
 			TypeRef:         ref,
 			Code:            code,
 		}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "create-from",
-			Source: serviceTemplates.Read(createT),
-			Data:   data,
-		})
+		sections = append(sections, createSection("create-from", data))
 	}
 
 	// Build transformation helper functions section if any.
@@ -617,14 +599,32 @@ func ConvertFile(root *expr.RootExpr, service *expr.ServiceExpr, services *Servi
 			continue
 		}
 		seen[tf.Name] = struct{}{}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "convert-create-helper",
-			Source: serviceTemplates.Read(transformHelperT),
-			Data:   tf,
-		})
+		sections = append(sections, transformHelperSection("convert-create-helper", tf))
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}, nil
+	return &codegen.File{Path: path, Sections: sections}, nil
+}
+
+func convertSection(name string, data convertData) codegen.Section {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s creates an instance of %s initialized from t.", data.Name, data.TypeName))
+		stmt.Add(codegen.Expr("func (t " + data.ReceiverTypeRef + ") " + data.Name + "() " + data.TypeRef + " {\n" + data.Code + "\nreturn v\n}"))
+	})
+}
+
+func createSection(name string, data convertData) codegen.Section {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s initializes t from the fields of v", data.Name))
+		stmt.Add(codegen.Expr("func (t " + data.ReceiverTypeRef + ") " + data.Name + "(v " + data.TypeRef + ") {\n" + data.Code + "\n*t = *temp\n}"))
+	})
+}
+
+func transformHelperSection(name string, data *codegen.TransformFunctionData) codegen.Section {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s builds a value of type %s from a value of type %s.", data.Name, data.ResultTypeRef, data.ParamTypeRef))
+		stmt.Add(codegen.Expr("func " + data.Name + "(v " + data.ParamTypeRef + ") " + data.ResultTypeRef + " {\n" + data.Code + "\nreturn res\n}"))
+		stmt.Line()
+	})
 }
 
 // uniquify checks if base is a key of taken and if not returns it. Otherwise

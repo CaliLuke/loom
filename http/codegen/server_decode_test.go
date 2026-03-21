@@ -233,7 +233,7 @@ func TestDecode(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ServerFiles("", services)
 			require.Len(t, fs, 2)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			require.Greater(t, len(sections), 2)
 			code := codegen.SectionCode(t, sections[2])
 			require.NotContains(t, code, "return nil,")

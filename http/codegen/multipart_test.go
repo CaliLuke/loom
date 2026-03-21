@@ -26,7 +26,7 @@ func TestServerMultipartFuncType(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ServerFiles(genpkg, services)
 			require.Len(t, fs, 2)
-			sections := fs[0].SectionTemplates
+			sections := fs[0].AllSections()
 			require.Greater(t, len(sections), 5)
 			code := codegen.SectionCode(t, sections[3])
 			testutil.AssertGo(t, "testdata/golden/server_multipart_"+c.Name+".go.golden", code)
@@ -75,7 +75,7 @@ func TestServerMultipartNewFunc(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ServerFiles(genpkg, services)
 			require.Len(t, fs, 2)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			require.Greater(t, len(sections), 3)
 			code := codegen.SectionCode(t, sections[3])
 			testutil.AssertGo(t, "testdata/golden/server_multipart_"+c.Name+".go.golden", code)
@@ -125,9 +125,9 @@ func TestServerMultipartObjectUsesGeneratedDecoder(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ServerFiles(genpkg, services)
 			require.Len(t, fs, 2)
-			sections := fs[0].SectionTemplates
+			sections := fs[0].AllSections()
 			require.Greater(t, len(sections), 3)
-			require.Equal(t, "server-init", sections[3].Name)
+			require.Equal(t, "server-init", sections[3].SectionName())
 			code := codegen.SectionCode(t, sections[3])
 			require.NotContains(t, code, "DecoderFunc")
 			require.NotContains(t, code, "DecoderFn")

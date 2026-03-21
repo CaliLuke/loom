@@ -23,7 +23,7 @@ func TestService_DedupEventMarkers(t *testing.T) {
 
 	// Generate the service.go content
 	buf := new(bytes.Buffer)
-	for _, s := range files[0].SectionTemplates[1:] {
+	for _, s := range files[0].AllSections()[1:] {
 		require.NoError(t, s.Write(buf))
 	}
 	code := buf.String()

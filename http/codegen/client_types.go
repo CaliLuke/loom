@@ -65,7 +65,7 @@ func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct
 		seenValidated  = make(map[string]struct{}) // Track validated types to avoid duplicates
 		seenInit       = make(map[string]struct{}) // Track init functions to avoid duplicates
 
-		sections = []*codegen.SectionTemplate{header}
+		sections = []codegen.Section{header}
 	)
 
 	// request body types
@@ -263,5 +263,5 @@ func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct
 			Data:   data,
 		})
 	}
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
