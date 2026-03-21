@@ -129,18 +129,13 @@ func sseServerStreamSections(data *httpcodegen.ServiceData) []codegen.Section {
 }
 
 // sseClientStreamSections returns section templates for SSE client endpoints.
-func sseClientStreamSections(data *httpcodegen.ServiceData) []*codegen.SectionTemplate {
-	sections := make([]*codegen.SectionTemplate, 0)
+func sseClientStreamSections(data *httpcodegen.ServiceData) []codegen.Section {
+	sections := make([]codegen.Section, 0)
 	for _, ed := range data.Endpoints {
 		if ed.SSE == nil {
 			continue
 		}
-		// Generate SSE client stream struct and methods
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "jsonrpc-sse-client-stream",
-			Source: jsonrpcTemplates.Read(sseClientStreamT),
-			Data:   ed,
-		})
+		sections = append(sections, jsonrpcSSEClientStreamSection(ed))
 	}
 	return sections
 }

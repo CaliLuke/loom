@@ -87,12 +87,6 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	svcName := data.Service.PathName
 	fpath := filepath.Join(codegen.Gendir, "jsonrpc", svcName, "server", "server.go")
 	title := fmt.Sprintf("%s JSON-RPC server", svc.Name())
-	funcs := map[string]any{
-		"isWebSocketEndpoint": httpcodegen.IsWebSocketEndpoint,
-		"isSSEEndpoint":       httpcodegen.IsSSEEndpoint,
-		"lowerInitial":        lowerInitial,
-		"hasMixedTransports":  func() bool { return hasMixedJSONRPCTransports(svc, services) },
-	}
 	imports := make([]*codegen.ImportSpec, 0, 15+len(data.Service.UserTypeImports))
 	imports = append(imports,
 		&codegen.ImportSpec{Path: "bufio"},
@@ -130,15 +124,15 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		// For mixed transports, we need a unified handler with content negotiation
 		sections = append(sections, jsonrpcMixedServerHandlerSection(data))
 		// Include the standard HTTP handlers that the mixed handler delegates to
-		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-server-handler", Source: jsonrpcTemplates.Read(serverHandlerT), FuncMap: funcs, Data: data})
+		sections = append(sections, jsonrpcServerHandlerSection(data, true))
 		// Also include SSE handler for SSE-specific logic
-		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-sse-server-handler", Source: jsonrpcTemplates.Read(sseServerHandlerT), FuncMap: funcs, Data: data})
+		sections = append(sections, jsonrpcSSEServerHandlerSection(data))
 	case hasJSONRPCSSE(svc, services):
-		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-sse-server-handler", Source: jsonrpcTemplates.Read(sseServerHandlerT), FuncMap: funcs, Data: data})
+		sections = append(sections, jsonrpcSSEServerHandlerSection(data))
 	case httpcodegen.HasWebSocket(data):
-		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-websocket-server-handler", Source: jsonrpcTemplates.Read(websocketServerHandlerT), FuncMap: funcs, Data: data})
+		sections = append(sections, jsonrpcWebSocketServerHandlerSection(data))
 	default:
-		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-server-handler", Source: jsonrpcTemplates.Read(serverHandlerT), FuncMap: funcs, Data: data})
+		sections = append(sections, jsonrpcServerHandlerSection(data, false))
 	}
 
 	// Add transport flags to data
@@ -157,8 +151,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	)
 
 	for _, e := range data.Endpoints {
-		sections = append(sections,
-			&codegen.SectionTemplate{Name: "jsonrpc-server-handler-init", Source: jsonrpcTemplates.Read(serverHandlerInitT), FuncMap: funcs, Data: e})
+		sections = append(sections, jsonrpcServerHandlerInitSection(e))
 	}
 
 	if !httpcodegen.HasWebSocket(data) {

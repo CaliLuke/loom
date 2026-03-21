@@ -25,6 +25,7 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 		}
 	}
 	for _, svc := range jsvcs {
+		svcData := data.Get(svc.Name())
 		f := httpcodegen.ClientEncodeDecodeFile(genpkg, svc, data)
 		if f == nil {
 			continue
@@ -52,14 +53,19 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 					return strings.Replace(newJSONRPCBody, "{{ .NewBody }}", matches[1], 1)
 				})
 			case "response-decoder":
-				s.Source = jsonrpcTemplates.Read(responseDecoderT, singleResponseP, queryTypeConversionP, elementSliceConversionP, sliceItemConversionP)
+				ed, ok := s.Data.(*httpcodegen.EndpointData)
+				if !ok {
+					continue
+				}
+				sections = append(sections, jsonrpcResponseDecoderSection(svcData.Endpoint(ed.Method.Name)))
+				continue
 			}
 			s.Name = "jsonrpc-" + s.Name
 			sections = append(sections, s)
 		}
 
 		// For JSON-RPC methods without request encoders, add one
-		for _, endpoint := range data.Get(svc.Name()).Endpoints {
+		for _, endpoint := range svcData.Endpoints {
 			if endpoint.RequestEncoder == "" {
 				sections = append(sections, jsonrpcMinimalRequestEncoderSection(endpoint))
 				endpoint.RequestEncoder = fmt.Sprintf("Encode%sRequest", endpoint.Method.VarName)

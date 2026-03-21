@@ -51,12 +51,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 			continue
 		}
 
-		// Add stream implementation (endpoint methods are in client.go)
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "jsonrpc-websocket-client-stream",
-			Source: jsonrpcTemplates.Read(websocketClientStreamT),
-			Data:   e.ClientWebSocket,
-		})
+		sections = append(sections, jsonrpcWebSocketClientStreamSection(e.ClientWebSocket))
 	}
 
 	return &codegen.File{
