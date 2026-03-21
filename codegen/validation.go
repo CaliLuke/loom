@@ -5,59 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"text/template"
 
 	"goa.design/goa/v3/expr"
 )
-
-var (
-	enumValT       *template.Template
-	formatValT     *template.Template
-	patternValT    *template.Template
-	exclMinMaxValT *template.Template
-	minMaxValT     *template.Template
-	lengthValT     *template.Template
-	requiredValT   *template.Template
-	arrayValT      *template.Template
-	mapValT        *template.Template
-	unionValT      *template.Template
-	unionSumValT   *template.Template
-	userValT       *template.Template
-)
-
-func init() {
-	fm := template.FuncMap{
-		"slice":    toSlice,
-		"oneof":    oneof,
-		"constant": constant,
-		"isUnion": func(att *expr.AttributeExpr) bool {
-			if att == nil {
-				return false
-			}
-			return expr.IsUnion(att.Type)
-		},
-		"isAttributeScope": func(scope Attributor) bool {
-			if scope == nil {
-				return false
-			}
-			_, ok := scope.(*AttributeScope)
-			return ok
-		},
-		"add": func(a, b int) int { return a + b },
-	}
-	enumValT = template.Must(template.New("enum").Funcs(fm).Parse(codegenTemplates.Read(validationEnumT)))
-	formatValT = template.Must(template.New("format").Funcs(fm).Parse(codegenTemplates.Read(validationFormatT)))
-	patternValT = template.Must(template.New("pattern").Funcs(fm).Parse(codegenTemplates.Read(validationPatternT)))
-	exclMinMaxValT = template.Must(template.New("exclMinMax").Funcs(fm).Parse(codegenTemplates.Read(validationExclMinMaxT)))
-	minMaxValT = template.Must(template.New("minMax").Funcs(fm).Parse(codegenTemplates.Read(validationMinMaxT)))
-	lengthValT = template.Must(template.New("length").Funcs(fm).Parse(codegenTemplates.Read(validationLengthT)))
-	requiredValT = template.Must(template.New("req").Funcs(fm).Parse(codegenTemplates.Read(validationRequiredT)))
-	arrayValT = template.Must(template.New("array").Funcs(fm).Parse(codegenTemplates.Read(validationArrayT)))
-	mapValT = template.Must(template.New("map").Funcs(fm).Parse(codegenTemplates.Read(validationMapT)))
-	unionValT = template.Must(template.New("union").Funcs(fm).Parse(codegenTemplates.Read(validationUnionT)))
-	unionSumValT = template.Must(template.New("union-sum").Funcs(fm).Parse(codegenTemplates.Read(validationUnionSumT)))
-	userValT = template.Must(template.New("user").Funcs(fm).Parse(codegenTemplates.Read(validationUserT)))
-}
 
 // AttributeValidationCode produces Go code that runs the validations defined
 // in the given attribute against the value held by the variable named target.
@@ -156,15 +106,7 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 		val := validateAttribute(ctx, elem, put, "e", context+"[*]", true, view, seen)
 		if val != "" || arr.NonNullableElems {
 			newline()
-			data := map[string]any{
-				"target":           target,
-				"validation":       val,
-				"nonNullableElems": arr.NonNullableElems,
-				"context":          context,
-			}
-			if err := arrayValT.Execute(buf, data); err != nil {
-				panic(err) // bug
-			}
+			buf.WriteString(renderArrayValidation(target, val, arr.NonNullableElems, context))
 		}
 	case expr.IsMap(att.Type):
 		m := expr.AsMap(att.Type)
@@ -180,10 +122,7 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 		}
 		if keyVal != "" || valueVal != "" {
 			newline()
-			data := map[string]any{"target": target, "keyValidation": keyVal, "valueValidation": valueVal}
-			if err := mapValT.Execute(buf, data); err != nil {
-				panic(err) // bug
-			}
+			buf.WriteString(renderMapValidation(target, keyVal, valueVal))
 		}
 	case expr.IsUnion(att.Type):
 		u := expr.AsUnion(att.Type)
@@ -211,13 +150,7 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 			}
 			if len(cases) > 0 {
 				newline()
-				data := map[string]any{
-					"target": target,
-					"cases":  cases,
-				}
-				if err := unionSumValT.Execute(buf, data); err != nil {
-					panic(err) // bug
-				}
+				buf.WriteString(renderUnionSumValidation(target, cases))
 			}
 			break
 		}
@@ -248,14 +181,7 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 		}
 		if len(vals) > 0 {
 			newline()
-			data := map[string]any{
-				"target": target,
-				"types":  types,
-				"values": vals,
-			}
-			if err := unionValT.Execute(buf, data); err != nil {
-				panic(err) // bug
-			}
+			buf.WriteString(renderUnionValidation(target, types, vals))
 		}
 	}
 
@@ -312,10 +238,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	// protocol buffer-reserved names that include a trailing underscore
 	// (e.g., Message_). Applying Goify here would drop underscores and
 	// cause mismatches between function declarations and call sites.
-	data := map[string]any{"name": name, "target": target}
-	if err := userValT.Execute(&buf, data); err != nil {
-		panic(err) // bug
-	}
+	buf.WriteString(renderUserValidation(name, target))
 	return fmt.Sprintf("if %s != nil {\n\t%s\n}", target, buf.String())
 }
 
@@ -382,57 +305,50 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 		"array":     expr.IsArray(att.Type),
 		"map":       expr.IsMap(att.Type),
 	}
-	runTemplate := func(tmpl *template.Template, data any) string {
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, data); err != nil {
-			panic(err) // bug
-		}
-		return strings.Trim(buf.String(), "\n")
-	}
 	res := make([]string, 0, 8) // preallocate with typical validation count
 	if values := validation.Values; values != nil {
 		data["values"] = values
-		if val := runTemplate(enumValT, data); val != "" {
+		if val := renderValidationTemplate("enum", data); val != "" {
 			res = append(res, val)
 		}
 	}
 	if format := validation.Format; format != "" {
 		data["format"] = string(format)
-		if val := runTemplate(formatValT, data); val != "" {
+		if val := renderValidationTemplate("format", data); val != "" {
 			res = append(res, val)
 		}
 	}
 	if pattern := validation.Pattern; pattern != "" {
 		data["pattern"] = pattern
-		if val := runTemplate(patternValT, data); val != "" {
+		if val := renderValidationTemplate("pattern", data); val != "" {
 			res = append(res, val)
 		}
 	}
 	if exclMin := validation.ExclusiveMinimum; exclMin != nil {
 		data["exclMin"] = *exclMin
 		data["isExclMin"] = true
-		if val := runTemplate(exclMinMaxValT, data); val != "" {
+		if val := renderValidationTemplate("exclMinMax", data); val != "" {
 			res = append(res, val)
 		}
 	}
 	if minVal := validation.Minimum; minVal != nil {
 		data["min"] = *minVal
 		data["isMin"] = true
-		if val := runTemplate(minMaxValT, data); val != "" {
+		if val := renderValidationTemplate("minMax", data); val != "" {
 			res = append(res, val)
 		}
 	}
 	if exclMax := validation.ExclusiveMaximum; exclMax != nil {
 		data["exclMax"] = *exclMax
 		data["isExclMax"] = true
-		if val := runTemplate(exclMinMaxValT, data); val != "" {
+		if val := renderValidationTemplate("exclMinMax", data); val != "" {
 			res = append(res, val)
 		}
 	}
 	if maxVal := validation.Maximum; maxVal != nil {
 		data["max"] = *maxVal
 		data["isMin"] = false
-		if val := runTemplate(minMaxValT, data); val != "" {
+		if val := renderValidationTemplate("minMax", data); val != "" {
 			res = append(res, val)
 		}
 	}
@@ -440,7 +356,7 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 		data["minLength"] = minLength
 		data["isMinLength"] = true
 		delete(data, "maxLength")
-		if val := runTemplate(lengthValT, data); val != "" {
+		if val := renderValidationTemplate("length", data); val != "" {
 			res = append(res, val)
 		}
 	}
@@ -448,7 +364,7 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 		data["maxLength"] = maxLength
 		data["isMinLength"] = false
 		delete(data, "minLength")
-		if val := runTemplate(lengthValT, data); val != "" {
+		if val := renderValidationTemplate("length", data); val != "" {
 			res = append(res, val)
 		}
 	}
@@ -458,9 +374,222 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 		reqAtt := obj.Attribute(r)
 		data["req"] = r
 		data["reqAtt"] = reqAtt
-		res = append(res, runTemplate(requiredValT, data))
+		res = append(res, renderValidationTemplate("required", data))
 	}
 	return strings.Join(res, "\n")
+}
+
+func renderValidationTemplate(kind string, data map[string]any) string {
+	switch kind {
+	case "enum":
+		return renderEnumValidation(data)
+	case "format":
+		return renderFormatValidation(data)
+	case "pattern":
+		return renderPatternValidation(data)
+	case "exclMinMax":
+		return renderExclMinMaxValidation(data)
+	case "minMax":
+		return renderMinMaxValidation(data)
+	case "length":
+		return renderLengthValidation(data)
+	case "required":
+		return renderRequiredValidation(data)
+	default:
+		panic("unknown validation template kind") // bug
+	}
+}
+
+func renderEnumValidation(data map[string]any) string {
+	var b strings.Builder
+	if data["isPointer"].(bool) {
+		fmt.Fprintf(&b, "if %s != nil {\n", data["target"])
+	}
+	fmt.Fprintf(&b, "if !(%s) {\n", oneof(data["targetVal"].(string), data["values"].([]any)))
+	fmt.Fprintf(&b, "\terr = goa.MergeErrors(err, goa.InvalidEnumValueError(%q, %s, %s))\n", data["context"], data["targetVal"], toSlice(data["values"].([]any)))
+	fmt.Fprintf(&b, "}")
+	if data["isPointer"].(bool) {
+		fmt.Fprintf(&b, "\n}")
+	}
+	return strings.Trim(b.String(), "\n")
+}
+
+func renderFormatValidation(data map[string]any) string {
+	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string),
+		fmt.Sprintf("err = goa.MergeErrors(err, goa.ValidateFormat(%q, %s, %s))",
+			data["context"], data["targetVal"], constant(data["format"].(string))))
+}
+
+func renderPatternValidation(data map[string]any) string {
+	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string),
+		fmt.Sprintf("err = goa.MergeErrors(err, goa.ValidatePattern(%q, %s, %q))",
+			data["context"], data["targetVal"], data["pattern"]))
+}
+
+func renderExclMinMaxValidation(data map[string]any) string {
+	var (
+		op    string
+		bound any
+		flag  bool
+	)
+	if data["isExclMin"] == true {
+		op = "<="
+		bound = data["exclMin"]
+		flag = true
+	} else {
+		op = ">="
+		bound = data["exclMax"]
+		flag = false
+	}
+	body := fmt.Sprintf("if %s %s %v {\n\terr = goa.MergeErrors(err, goa.InvalidRangeError(%q, %s, %v, %t))\n}",
+		data["targetVal"], op, bound, data["context"], data["targetVal"], bound, flag)
+	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string), body)
+}
+
+func renderMinMaxValidation(data map[string]any) string {
+	var (
+		op    string
+		bound any
+		flag  bool
+	)
+	if data["isMin"] == true {
+		op = "<"
+		bound = data["min"]
+		flag = true
+	} else {
+		op = ">"
+		bound = data["max"]
+		flag = false
+	}
+	body := fmt.Sprintf("if %s %s %v {\n\terr = goa.MergeErrors(err, goa.InvalidRangeError(%q, %s, %v, %t))\n}",
+		data["targetVal"], op, bound, data["context"], data["targetVal"], bound, flag)
+	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string), body)
+}
+
+func renderLengthValidation(data map[string]any) string {
+	targetExpr := data["targetVal"].(string)
+	if ((data["array"] == true || data["map"] == true) || data["nonzero"] == true) && data["target"] != nil {
+		targetExpr = data["target"].(string)
+	}
+	lengthExpr := fmt.Sprintf("len(%s)", targetExpr)
+	if data["string"].(bool) {
+		lengthExpr = fmt.Sprintf("utf8.RuneCountInString(%s)", targetExpr)
+	}
+	var (
+		op    string
+		bound int
+		flag  bool
+	)
+	if data["isMinLength"] == true {
+		op = "<"
+		bound = *data["minLength"].(*int)
+		flag = true
+	} else {
+		op = ">"
+		bound = *data["maxLength"].(*int)
+		flag = false
+	}
+	body := fmt.Sprintf("if %s %s %v {\n\terr = goa.MergeErrors(err, goa.InvalidLengthError(%q, %s, %s, %v, %t))\n}",
+		lengthExpr, op, bound, data["context"], targetExpr, lengthExpr, bound, flag)
+	return renderSimplePointerWrappedValidation(data["isPointer"].(bool) && data["string"].(bool), data["target"].(string), body)
+}
+
+func renderRequiredValidation(data map[string]any) string {
+	reqAtt := data["reqAtt"].(*expr.AttributeExpr)
+	field := data["attCtx"].(*AttributeContext).Scope.Field(reqAtt, data["req"].(string), true)
+	if expr.IsUnion(reqAtt.Type) {
+		if _, ok := data["attCtx"].(*AttributeContext).Scope.(*AttributeScope); ok {
+			return fmt.Sprintf("if %s.%s.Kind() == \"\" {\n\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, %q))\n}",
+				data["target"], field, data["req"], data["context"])
+		}
+	}
+	return fmt.Sprintf("if %s.%s == nil {\n\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, %q))\n}",
+		data["target"], field, data["req"], data["context"])
+}
+
+func renderArrayValidation(target, validation string, nonNullable bool, context string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "for _, e := range %s {\n", target)
+	if nonNullable {
+		fmt.Fprintf(&b, "\tif e == nil {\n")
+		fmt.Fprintf(&b, "\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, \"[*]\"))\n", context)
+		fmt.Fprintf(&b, "\t}\n")
+	}
+	if validation != "" {
+		b.WriteString(indentCode(validation, "\t"))
+	}
+	fmt.Fprintf(&b, "}")
+	return b.String()
+}
+
+func renderMapValidation(target, keyValidation, valueValidation string) string {
+	keyVar := "_"
+	if keyValidation != "" {
+		keyVar = "k"
+	}
+	valueVar := "_"
+	if valueValidation != "" {
+		valueVar = "v"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "for %s, %s := range %s {\n", keyVar, valueVar, target)
+	if keyValidation != "" {
+		b.WriteString(indentCode(strings.TrimPrefix(keyValidation, "\n"), "\t"))
+	}
+	if valueValidation != "" {
+		b.WriteString(indentCode(strings.TrimPrefix(valueValidation, "\n"), "\t"))
+	}
+	fmt.Fprintf(&b, "}")
+	return b.String()
+}
+
+func renderUnionValidation(target string, types, values []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "switch v := %s.(type) {\n", target)
+	for i, val := range values {
+		fmt.Fprintf(&b, "case %s:\n", types[i])
+		b.WriteString(indentCode(val, "\t"))
+	}
+	fmt.Fprintf(&b, "}")
+	return b.String()
+}
+
+func renderUnionSumValidation(target string, cases []map[string]any) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "switch string(%s.Kind()) {\n", target)
+	for _, c := range cases {
+		fmt.Fprintf(&b, "case %q:\n", c["typeTag"])
+		fmt.Fprintf(&b, "\tactual, _ := %s.As%s()\n", target, c["fieldName"])
+		if c["requiresValue"].(bool) {
+			fmt.Fprintf(&b, "\tif actual == nil {\n")
+			fmt.Fprintf(&b, "\t\terr = goa.MergeErrors(err, goa.MissingFieldError(\"value\", %q))\n", c["context"])
+			fmt.Fprintf(&b, "\t\tbreak\n")
+			fmt.Fprintf(&b, "\t}\n")
+		}
+		b.WriteString(indentCode(c["validation"].(string), "\t"))
+	}
+	fmt.Fprintf(&b, "}")
+	return b.String()
+}
+
+func renderUserValidation(name, target string) string {
+	return fmt.Sprintf("if err2 := Validate%s(%s); err2 != nil {\n\terr = goa.MergeErrors(err, err2)\n}", name, target)
+}
+
+func renderSimplePointerWrappedValidation(isPointer bool, target, body string) string {
+	body = strings.Trim(body, "\n")
+	if !isPointer {
+		return body
+	}
+	return fmt.Sprintf("if %s != nil {\n%s\n}", target, indentCode(body, "\t"))
+}
+
+func indentCode(code, indent string) string {
+	trimmed := strings.Trim(code, "\n")
+	if trimmed == "" {
+		return ""
+	}
+	return indent + strings.ReplaceAll(trimmed, "\n", "\n"+indent) + "\n"
 }
 
 // hasValidations returns true if a UserType contains validations.

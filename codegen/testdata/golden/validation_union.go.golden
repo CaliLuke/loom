@@ -37,7 +37,6 @@ func Validate() (err error) {
 			}
 		}
 	}
-
 	switch string(target.Union.Kind()) {
 	case "int":
 		actual, _ := target.Union.AsInt()
