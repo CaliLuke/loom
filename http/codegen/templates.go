@@ -22,7 +22,6 @@ const (
 	clientStructT       = "client_struct"
 	clientInitT         = "client_init"
 	clientEndpointInitT = "client_endpoint_init"
-	clientSseT          = "client_sse"
 
 	// Common templates
 	transformHelperT = "transform_helper"
@@ -43,18 +42,10 @@ const (
 
 	// Multipart templates
 	multipartRequestEncoderT     = "multipart_request_encoder"
-	multipartRequestEncoderTypeT = "multipart_request_encoder_type"
 	multipartRequestDecoderT     = "multipart_request_decoder"
 	multipartRequestDecoderTypeT = "multipart_request_decoder_type"
 
 	// WebSocket templates
-	websocketStructTypeT               = "websocket_struct_type"
-	websocketSendT                     = "websocket_send"
-	websocketRecvT                     = "websocket_recv"
-	websocketCloseT                    = "websocket_close"
-	websocketSetViewT                  = "websocket_set_view"
-	websocketConnConfigurerStructT     = "websocket_conn_configurer_struct"
-	websocketConnConfigurerStructInitT = "websocket_conn_configurer_struct_init"
 
 	// SSE templates
 	serverSseT = "server_sse"
@@ -67,12 +58,9 @@ const (
 	mountPointStructT = "mount_point_struct"
 
 	// Stream templates
-	buildStreamRequestT = "build_stream_request"
-
 	// Partial templates
 	sseFormatP              = "sse_format"
 	sseParseP               = "sse_parse"
-	websocketUpgradeP       = "websocket_upgrade"
 	clientTypeConversionP   = "client_type_conversion"
 	clientMapConversionP    = "client_map_conversion"
 	singleResponseP         = "single_response"

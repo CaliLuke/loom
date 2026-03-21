@@ -1,9 +1,7 @@
 package codegen
 
 import (
-	"fmt"
 	"path/filepath"
-	"strings"
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
@@ -28,8 +26,8 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 		return nil
 	}
 	path := filepath.Join(codegen.Gendir, "http", codegen.SnakeCase(svc.Name()), "client", "sse.go")
-	tmplSections := sseClientTemplateSections(data)
-	sections := make([]codegen.Section, 0, 1+len(tmplSections))
+	streamSections := sseClientSections(data)
+	sections := make([]codegen.Section, 0, 1+len(streamSections))
 	sections = append(sections,
 		codegen.Header(
 			"sse-client",
@@ -42,6 +40,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "net/http"},
 				{Path: "fmt"},
 				{Path: "strconv"},
+				{Path: "strings"},
 				{Path: "sync"},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
@@ -49,45 +48,8 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 			},
 		),
 	)
-	for _, section := range tmplSections {
+	for _, section := range streamSections {
 		sections = append(sections, section)
 	}
 	return &codegen.File{Path: path, Sections: sections}
-}
-
-// sseClientTemplateSections returns section templates for SSE client endpoints.
-func sseClientTemplateSections(data *ServiceData) []*codegen.SectionTemplate {
-	sections := make([]*codegen.SectionTemplate, 0)
-	for _, ed := range data.Endpoints {
-		if ed.SSE == nil {
-			continue
-		}
-		// Create a map of template functions needed for the SSE template
-		funcs := map[string]any{
-			"dict": func(values ...any) (map[string]any, error) {
-				if len(values)%2 != 0 {
-					return nil, fmt.Errorf("odd number of arguments")
-				}
-				dict := make(map[string]any, len(values)/2)
-				for i := 0; i < len(values); i += 2 {
-					key, ok := values[i].(string)
-					if !ok {
-						return nil, fmt.Errorf("dict keys must be strings")
-					}
-					dict[key] = values[i+1]
-				}
-				return dict, nil
-			},
-			"deref": func(ref string) string {
-				return strings.TrimPrefix(ref, "*")
-			},
-		}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:    "client-sse",
-			Source:  httpTemplates.Read(clientSseT, sseParseP),
-			Data:    ed,
-			FuncMap: funcs,
-		})
-	}
-	return sections
 }

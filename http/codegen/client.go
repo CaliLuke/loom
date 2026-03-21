@@ -110,14 +110,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 			})
 		}
 		if e.Method.SkipRequestBodyEncodeDecode {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "build-stream-request",
-				Source: httpTemplates.Read(buildStreamRequestT),
-				Data:   e,
-				FuncMap: map[string]any{
-					"requestStructPkg": requestStructPkg,
-				},
-			})
+			sections = append(sections, buildStreamRequestSection(e))
 		}
 	}
 	for _, h := range data.ClientTransformHelpers {
@@ -158,11 +151,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 
 	for _, e := range data.Endpoints {
 		if e.MultipartRequestEncoder != nil {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "multipart-request-encoder-type",
-				Source: httpTemplates.Read(multipartRequestEncoderTypeT),
-				Data:   e.MultipartRequestEncoder,
-			})
+			sections = append(sections, multipartRequestEncoderTypeSection(e.MultipartRequestEncoder))
 		}
 	}
 	sections = append(sections, clientInitSection(data))
