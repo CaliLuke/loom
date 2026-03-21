@@ -61,7 +61,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		if e.RequestEncoder != "" && e.Payload.Ref != "" {
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:   "request-encoder",
-				Source: httpTemplates.Read(requestEncoderT, clientTypeConversionP, clientMapConversionP),
+				Source: requestEncoderSource,
 				FuncMap: map[string]any{
 					"typeConversionData": typeConversionData,
 					"mapConversionData":  mapConversionData,
@@ -91,7 +91,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		if e.Result != nil || len(e.Errors) > 0 {
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:   "response-decoder",
-				Source: httpTemplates.Read(responseDecoderT, singleResponseP, queryTypeConversionP, elementSliceConversionP, sliceItemConversionP),
+				Source: responseDecoderSource,
 				Data:   e,
 				FuncMap: map[string]any{
 					"goTypeRef": func(dt expr.DataType) string {

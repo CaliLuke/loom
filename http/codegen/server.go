@@ -89,7 +89,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	for _, e := range data.Endpoints {
 		sections = append(sections,
 			serverHandlerSection(e),
-			&codegen.SectionTemplate{Name: "server-handler-init", Source: httpTemplates.Read(serverHandlerInitT), FuncMap: funcs, Data: e})
+			&codegen.SectionTemplate{Name: "server-handler-init", Source: serverHandlerInitSource, FuncMap: funcs, Data: e})
 	}
 	if len(data.FileServers) > 0 {
 		mappedFiles := make(map[string]string)
@@ -146,7 +146,7 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:    "response-encoder",
 				FuncMap: transTmplFuncs(svc, services),
-				Source:  httpTemplates.Read(responseEncoderT, responseP, headerConversionP),
+				Source:  responseEncoderSource,
 				Data:    e,
 			})
 		}
@@ -155,7 +155,7 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 			fm["mapQueryDecodeData"] = mapQueryDecodeData
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:    "request-decoder",
-				Source:  httpTemplates.Read(requestDecoderT, requestElementsP, sliceItemConversionP, elementSliceConversionP, querySliceConversionP, queryTypeConversionP, queryMapConversionP, pathConversionP),
+				Source:  requestDecoderSource,
 				FuncMap: fm,
 				Data:    e,
 			})
@@ -165,7 +165,7 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 			fm["mapQueryDecodeData"] = mapQueryDecodeData
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:    "multipart-request-decoder",
-				Source:  httpTemplates.Read(multipartRequestDecoderT, requestElementsP, sliceItemConversionP, elementSliceConversionP, querySliceConversionP, queryTypeConversionP, queryMapConversionP, pathConversionP),
+				Source:  multipartRequestDecoderSource,
 				FuncMap: fm,
 				Data:    e.MultipartRequestDecoder,
 			})
@@ -173,7 +173,7 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		if len(e.Errors) > 0 {
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:    "error-encoder",
-				Source:  httpTemplates.Read(errorEncoderT, responseP, headerConversionP),
+				Source:  errorEncoderSource,
 				FuncMap: transTmplFuncs(svc, services),
 				Data:    e,
 			})
