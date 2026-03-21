@@ -49,11 +49,7 @@ func pathSections(svc *expr.HTTPServiceExpr, pkg string, services *ServicesData)
 	)
 	sdata := services.Get(svc.Name())
 	for _, e := range svc.HTTPEndpoints {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "path",
-			Source: httpTemplates.Read(pathT),
-			Data:   sdata.Endpoint(e.Name()),
-		})
+		sections = append(sections, pathSection(sdata.Endpoint(e.Name())))
 	}
 
 	return sections

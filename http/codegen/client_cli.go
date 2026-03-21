@@ -146,18 +146,7 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 		codegen.Header(title, "cli", specs),
 		cli.UsageCommands(cliData),
 		cli.UsageExamples(cliData),
-		&codegen.SectionTemplate{
-			Name:   "parse-endpoint",
-			Source: httpTemplates.Read(parseEndpointT),
-			Data: struct {
-				FlagsCode string
-				Commands  []*commandData
-			}{
-				cli.FlagsCode(cliData),
-				data,
-			},
-			FuncMap: map[string]any{"streamingCmdExists": streamingCmdExists},
-		},
+		parseEndpointSection(cli.FlagsCode(cliData), data),
 	)
 	for _, cmd := range cliData {
 		sections = append(sections, cli.CommandUsage(cmd))
