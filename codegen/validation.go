@@ -581,7 +581,7 @@ func renderSimplePointerWrappedValidation(isPointer bool, target, body string) s
 	if !isPointer {
 		return body
 	}
-	return fmt.Sprintf("if %s != nil {\n%s\n}", target, indentCode(body, "\t"))
+	return fmt.Sprintf("if %s != nil {\n%s}", target, indentCode(body, "\t"))
 }
 
 func indentCode(code, indent string) string {

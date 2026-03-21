@@ -8,14 +8,12 @@ func NewMethodBodyUnionUnion(body *MethodBodyUnionRequestBody) *servicebodyunion
 		case "String":
 			actual, _ := body.Values.AsString()
 			obj := servicebodyunion.ValuesString(actual)
-
 			u := v.Values
 			u.SetString((servicebodyunion.ValuesString)(obj))
 			v.Values = u
 		case "Int":
 			actual, _ := body.Values.AsInt()
 			obj := servicebodyunion.ValuesInt(actual)
-
 			u := v.Values
 			u.SetInt((servicebodyunion.ValuesInt)(obj))
 			v.Values = u

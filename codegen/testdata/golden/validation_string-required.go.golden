@@ -13,6 +13,5 @@ func Validate() (err error) {
 	}
 	if target.String != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("target.string", *target.String, goa.FormatDateTime))
-
 	}
 }

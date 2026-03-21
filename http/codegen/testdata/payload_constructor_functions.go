@@ -1006,7 +1006,7 @@ var PayloadBodyInlineMapUserConstructorCode = `// NewMethodBodyInlineMapUserMapK
 func NewMethodBodyInlineMapUserMapKeyTypeElemType(body map[*KeyTypeRequestBody]*ElemTypeRequestBody) map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType {
 	v := make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
 	for key, val := range body {
-		tk := unmarshalKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(val)
+		tk := unmarshalKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
 		if val == nil {
 			v[tk] = nil
 			continue
