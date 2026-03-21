@@ -10,16 +10,24 @@ import (
 // TemplateReader reads templates and partials from a provided filesystem.
 type TemplateReader struct {
 	FS fs.FS
+	// Extension is the filename suffix used for top-level templates.
+	// Defaults to ".go.tpl" when empty.
+	Extension string
+	// PartialExtension is the filename suffix used for partial templates.
+	// Defaults to Extension when empty.
+	PartialExtension string
 }
 
 // Read returns the template with the given name, optionally including partials.
 // Partials are loaded from the 'partial' subdirectory and defined as named blocks.
 func (tr *TemplateReader) Read(name string, partials ...string) string {
+	extension := tr.templateExtension()
+	partialExtension := tr.partialTemplateExtension()
 	var prefix string
 	if len(partials) > 0 {
 		partialDefs := make([]string, 0, len(partials))
 		for _, partial := range partials {
-			content, err := fs.ReadFile(tr.FS, path.Join("templates", "partial", partial+".go.tpl"))
+			content, err := fs.ReadFile(tr.FS, path.Join("templates", "partial", partial+partialExtension))
 			if err != nil {
 				panic(fmt.Sprintf("failed to read partial template %s: %v", partial, err))
 			}
@@ -30,7 +38,7 @@ func (tr *TemplateReader) Read(name string, partials ...string) string {
 		}
 		prefix = strings.Join(partialDefs, "\n")
 	}
-	content, err := fs.ReadFile(tr.FS, path.Join("templates", name)+".go.tpl")
+	content, err := fs.ReadFile(tr.FS, path.Join("templates", name)+extension)
 	if err != nil {
 		panic(fmt.Sprintf("failed to load template %s: %v", name, err))
 	}
@@ -40,4 +48,18 @@ func (tr *TemplateReader) Read(name string, partials ...string) string {
 		return prefix + "\n" + contentStr
 	}
 	return contentStr
+}
+
+func (tr *TemplateReader) templateExtension() string {
+	if tr.Extension != "" {
+		return tr.Extension
+	}
+	return ".go.tpl"
+}
+
+func (tr *TemplateReader) partialTemplateExtension() string {
+	if tr.PartialExtension != "" {
+		return tr.PartialExtension
+	}
+	return tr.templateExtension()
 }

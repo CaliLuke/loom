@@ -16,11 +16,11 @@ import (
 	gotoken "go/token"
 )
 
-//go:embed templates/go_mod.go.tpl
+//go:embed templates/go_mod.tmpl
 var templateFS embed.FS
 
 // generatorTemplates is the template reader for the test generator
-var generatorTemplates = &goatemplate.TemplateReader{FS: templateFS}
+var generatorTemplates = &goatemplate.TemplateReader{FS: templateFS, Extension: ".tmpl"}
 
 const goaSourceModeFile = ".goa_source_mode"
 

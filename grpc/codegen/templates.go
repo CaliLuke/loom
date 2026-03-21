@@ -56,8 +56,8 @@ const (
 	grpcTransformHelperT = "transform_helper"
 )
 
-//go:embed templates/*.go.tpl
+//go:embed templates/*.tmpl
 var templateFS embed.FS
 
 // grpcTemplates is the shared template reader for the grpc codegen package (package-private).
-var grpcTemplates = &template.TemplateReader{FS: templateFS}
+var grpcTemplates = &template.TemplateReader{FS: templateFS, Extension: ".tmpl"}
