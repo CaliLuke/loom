@@ -75,11 +75,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 
 	for _, e := range data.Endpoints {
 		if e.MultipartRequestDecoder != nil {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "multipart-request-decoder-type",
-				Source: httpTemplates.Read(multipartRequestDecoderTypeT),
-				Data:   e.MultipartRequestDecoder,
-			})
+			sections = append(sections, multipartRequestDecoderTypeSection(e.MultipartRequestDecoder))
 		}
 	}
 
@@ -184,11 +180,7 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		}
 	}
 	for _, h := range data.ServerTransformHelpers {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "server-transform-helper",
-			Source: httpTemplates.Read(transformHelperT),
-			Data:   h,
-		})
+		sections = append(sections, transformHelperSection("server-transform-helper", h))
 	}
 
 	// If all endpoints use skip encoding and decoding of both payloads and

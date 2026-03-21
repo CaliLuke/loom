@@ -1,27 +1,16 @@
 package codegen
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/codegen/service"
 	"goa.design/goa/v3/expr"
-)
-
-var (
-	// pathInitTmpl is the template used to render path constructors code.
-	pathInitTmpl = template.Must(
-		template.New("path-init").
-			Funcs(template.FuncMap{"goify": codegen.Goify}).
-			Parse(httpTemplates.Read(pathInitT, querySliceConversionP)),
-	)
 )
 
 type (
@@ -824,14 +813,7 @@ func (sds *ServicesData) buildPathInitData(httpEndpoint *expr.HTTPEndpointExpr, 
 			},
 		}
 	}
-	var buffer bytes.Buffer
-	if err := pathInitTmpl.Execute(&buffer, map[string]any{
-		"Args":       initArgs,
-		"PathParams": pathParamsObj,
-		"PathFormat": expr.HTTPWildcardRegex.ReplaceAllString(path, "/%v"),
-	}); err != nil {
-		panic(err)
-	}
+	code := renderPathInitCode(initArgs, pathParamsObj, expr.HTTPWildcardRegex.ReplaceAllString(path, "/%v"))
 	return &InitData{
 		Name:           name,
 		Description:    fmt.Sprintf("%s returns the URL path to the %s service %s HTTP endpoint. ", name, svc.Name, method.Name),
@@ -839,8 +821,8 @@ func (sds *ServicesData) buildPathInitData(httpEndpoint *expr.HTTPEndpointExpr, 
 		ClientArgs:     initArgs,
 		ReturnTypeName: "string",
 		ReturnTypeRef:  "string",
-		ServerCode:     buffer.String(),
-		ClientCode:     buffer.String(),
+		ServerCode:     code,
+		ClientCode:     code,
 	}
 }
 
@@ -913,27 +895,25 @@ func (sds *ServicesData) buildClientRequestInit(httpEndpoint *expr.HTTPEndpointE
 	if len(routes[0].PathInit.ClientArgs) > 0 && httpEndpoint.MethodExpr.Payload.Type != expr.Empty {
 		payloadRef = svc.Scope.GoFullTypeRef(httpEndpoint.MethodExpr.Payload, pkg)
 	}
-	data := map[string]any{
-		"PayloadRef":   payloadRef,
-		"HasFields":    expr.IsObject(httpEndpoint.MethodExpr.Payload.Type),
-		"ServiceName":  svc.Name,
-		"EndpointName": method.Name,
-		"Args":         args,
-		"PathInit":     routes[0].PathInit,
-		"Verb":         routes[0].Verb,
-		"IsWebSocket":  httpEndpoint.MethodExpr.IsStreaming() && httpEndpoint.SSE == nil,
-	}
+	requestStruct := ""
 	if httpEndpoint.SkipRequestBodyEncodeDecode {
-		data["RequestStruct"] = pkg + "." + method.RequestStruct
+		requestStruct = pkg + "." + method.RequestStruct
 	}
-	var buf bytes.Buffer
-	if err := requestInitTemplate(sd).Execute(&buf, data); err != nil {
-		panic(err) // bug
-	}
+	code := renderRequestInitCode(
+		payloadRef,
+		expr.IsObject(httpEndpoint.MethodExpr.Payload.Type),
+		svc.Name,
+		method.Name,
+		args,
+		routes[0].PathInit,
+		routes[0].Verb,
+		httpEndpoint.MethodExpr.IsStreaming() && httpEndpoint.SSE == nil,
+		requestStruct,
+	)
 	return &InitData{
 		Name:        name,
 		Description: fmt.Sprintf("%s instantiates a HTTP request object with method and path set to call the %q service %q endpoint", name, svc.Name, method.Name),
-		ClientCode:  buf.String(),
+		ClientCode:  code,
 		ClientArgs:  []*InitArgData{{Ref: "v", AttributeData: &AttributeData{Name: "payload", VarName: "v", TypeRef: "any"}}},
 	}
 }
@@ -1032,24 +1012,6 @@ func (sds *ServicesData) collectEndpointUnionTypes(httpSvc *expr.HTTPServiceExpr
 		return unions[i].Name < unions[j].Name
 	})
 	return unions
-}
-
-// requestInitTemplate returns the template used to render request constructors.
-func requestInitTemplate(svcData *ServiceData) *template.Template {
-	return template.Must(
-		template.New("request-init").
-			Funcs(template.FuncMap{
-				"goTypeRef": func(dt expr.DataType, svc string) string {
-					return svcData.Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
-				},
-				"isAliased": func(dt expr.DataType) bool {
-					_, ok := dt.(expr.UserType)
-					return ok
-				},
-				"isWebSocketEndpoint": IsWebSocketEndpoint,
-			}).
-			Parse(httpTemplates.Read(requestInitT)),
-	)
 }
 
 // makeHTTPType traverses the attribute recursively and performs these actions:

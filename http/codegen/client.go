@@ -57,11 +57,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 	sections := []codegen.Section{codegen.Header(title, "client", imports)}
 
 	for _, e := range data.Endpoints {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "request-builder",
-			Source: httpTemplates.Read(requestBuilderT),
-			Data:   e,
-		})
+		sections = append(sections, requestBuilderSection(e))
 		if e.RequestEncoder != "" && e.Payload.Ref != "" {
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:   "request-encoder",
@@ -90,11 +86,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 			})
 		}
 		if e.MultipartRequestEncoder != nil {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "multipart-request-encoder",
-				Source: httpTemplates.Read(multipartRequestEncoderT),
-				Data:   e.MultipartRequestEncoder,
-			})
+			sections = append(sections, multipartRequestEncoderSection(e.MultipartRequestEncoder))
 		}
 		if e.Result != nil || len(e.Errors) > 0 {
 			sections = append(sections, &codegen.SectionTemplate{
@@ -114,11 +106,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		}
 	}
 	for _, h := range data.ClientTransformHelpers {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "client-transform-helper",
-			Source: httpTemplates.Read(transformHelperT),
-			Data:   h,
-		})
+		sections = append(sections, transformHelperSection("client-transform-helper", h))
 	}
 
 	return &codegen.File{Path: path, Sections: sections}

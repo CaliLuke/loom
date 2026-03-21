@@ -24,15 +24,10 @@ const (
 	clientEndpointInitT = "client_endpoint_init"
 
 	// Common templates
-	transformHelperT = "transform_helper"
-	pathT            = "path"
-	pathInitT        = "path_init"
-	requestInitT     = "request_init"
+	pathT = "path"
 
 	// Endpoint templates
-	parseEndpointT  = "parse_endpoint"
-	requestBuilderT = "request_builder"
-
+	parseEndpointT = "parse_endpoint"
 	// Encoder/Decoder templates
 	requestEncoderT  = "request_encoder"
 	responseDecoderT = "response_decoder"
@@ -41,15 +36,11 @@ const (
 	errorEncoderT    = "error_encoder"
 
 	// Multipart templates
-	multipartRequestEncoderT     = "multipart_request_encoder"
-	multipartRequestDecoderT     = "multipart_request_decoder"
-	multipartRequestDecoderTypeT = "multipart_request_decoder_type"
+	multipartRequestDecoderT = "multipart_request_decoder"
 
 	// WebSocket templates
 
 	// SSE templates
-	serverSseT = "server_sse"
-
 	// File server templates
 	appendFsT   = "append_fs"
 	fileServerT = "file_server"
@@ -59,7 +50,6 @@ const (
 
 	// Stream templates
 	// Partial templates
-	sseFormatP              = "sse_format"
 	sseParseP               = "sse_parse"
 	clientTypeConversionP   = "client_type_conversion"
 	clientMapConversionP    = "client_map_conversion"
