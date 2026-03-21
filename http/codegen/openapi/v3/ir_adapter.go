@@ -1,6 +1,23 @@
 package openapiv3
 
-import openapiir "goa.design/goa/v3/http/codegen/openapi/internal/ir"
+import (
+	"goa.design/goa/v3/http/codegen/openapi"
+	openapiir "goa.design/goa/v3/http/codegen/openapi/internal/ir"
+)
+
+func endpointBodiesToIR(bodies *EndpointBodies) *openapiir.EndpointBodies {
+	if bodies == nil {
+		return nil
+	}
+	responseBodies := make(map[int][]*openapiir.Schema, len(bodies.ResponseBodies))
+	for status, schemas := range bodies.ResponseBodies {
+		responseBodies[status] = schemaSliceToIR(schemas)
+	}
+	return &openapiir.EndpointBodies{
+		RequestBody:    schemaToIR(bodies.RequestBody),
+		ResponseBodies: responseBodies,
+	}
+}
 
 func requestBodyFromIR(body *openapiir.RequestBody) *RequestBodyRef {
 	if body == nil {
@@ -96,6 +113,129 @@ func cloneStringAnyMap(values map[string]any) map[string]any {
 		return nil
 	}
 	out := make(map[string]any, len(values))
+	for key, value := range values {
+		out[key] = value
+	}
+	return out
+}
+
+func schemaSliceToIR(schemas []*openapi.Schema) []*openapiir.Schema {
+	if len(schemas) == 0 {
+		return nil
+	}
+	out := make([]*openapiir.Schema, len(schemas))
+	for i, schema := range schemas {
+		out[i] = schemaToIR(schema)
+	}
+	return out
+}
+
+func schemaToIR(schema *openapi.Schema) *openapiir.Schema {
+	if schema == nil {
+		return nil
+	}
+	out := &openapiir.Schema{
+		Ref:                   schema.Ref,
+		Type:                  string(schema.Type),
+		Format:                schema.Format,
+		Items:                 schemaToIR(schema.Items),
+		Properties:            schemaMapToIR(schema.Properties),
+		Defs:                  schemaMapToIR(schema.Defs),
+		Description:           schema.Description,
+		DefaultValue:          schema.DefaultValue,
+		Example:               schema.Example,
+		ReadOnly:              schema.ReadOnly,
+		WriteOnly:             schema.WriteOnly,
+		Deprecated:            schema.Deprecated,
+		ContentEncoding:       schema.ContentEncoding,
+		ContentMediaType:      schema.ContentMediaType,
+		PathStart:             schema.PathStart,
+		Links:                 linksToIR(schema.Links),
+		Enum:                  append([]any(nil), schema.Enum...),
+		Pattern:               schema.Pattern,
+		ExclusiveMinimum:      schema.ExclusiveMinimum,
+		Minimum:               schema.Minimum,
+		ExclusiveMaximum:      schema.ExclusiveMaximum,
+		Maximum:               schema.Maximum,
+		MinLength:             schema.MinLength,
+		MaxLength:             schema.MaxLength,
+		MinItems:              schema.MinItems,
+		MaxItems:              schema.MaxItems,
+		Required:              append([]string(nil), schema.Required...),
+		AdditionalProperties:  boolOrSchemaToIR(schema.AdditionalProperties),
+		UnevaluatedProperties: boolOrSchemaToIR(schema.UnevaluatedProperties),
+		AnyOf:                 schemaSliceToIR(schema.AnyOf),
+		OneOf:                 schemaSliceToIR(schema.OneOf),
+		Discriminator:         discriminatorToIR(schema.Discriminator),
+		Extensions:            cloneStringAnyMap(schema.Extensions),
+	}
+	if schema.Media != nil {
+		out.Media = &openapiir.Media{
+			BinaryEncoding: schema.Media.BinaryEncoding,
+			Type:           schema.Media.Type,
+		}
+	}
+	return out
+}
+
+func schemaMapToIR(schemas map[string]*openapi.Schema) map[string]*openapiir.Schema {
+	if len(schemas) == 0 {
+		return nil
+	}
+	out := make(map[string]*openapiir.Schema, len(schemas))
+	for name, schema := range schemas {
+		out[name] = schemaToIR(schema)
+	}
+	return out
+}
+
+func boolOrSchemaToIR(value any) *openapiir.BoolOrSchema {
+	switch actual := value.(type) {
+	case bool:
+		return &openapiir.BoolOrSchema{Bool: &actual}
+	case *openapi.Schema:
+		return &openapiir.BoolOrSchema{Schema: schemaToIR(actual)}
+	default:
+		return nil
+	}
+}
+
+func discriminatorToIR(discriminator *openapi.Discriminator) *openapiir.Discriminator {
+	if discriminator == nil {
+		return nil
+	}
+	return &openapiir.Discriminator{
+		PropertyName: discriminator.PropertyName,
+		Mapping:      cloneStringMap(discriminator.Mapping),
+	}
+}
+
+func linksToIR(links []*openapi.Link) []*openapiir.Link {
+	if len(links) == 0 {
+		return nil
+	}
+	out := make([]*openapiir.Link, len(links))
+	for i, link := range links {
+		out[i] = &openapiir.Link{
+			Title:        link.Title,
+			Description:  link.Description,
+			Rel:          link.Rel,
+			Href:         link.Href,
+			Method:       link.Method,
+			Schema:       schemaToIR(link.Schema),
+			TargetSchema: schemaToIR(link.TargetSchema),
+			ResultType:   link.ResultType,
+			EncType:      link.EncType,
+		}
+	}
+	return out
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(values))
 	for key, value := range values {
 		out[key] = value
 	}

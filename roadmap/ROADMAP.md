@@ -34,7 +34,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   duplicating method-level metadata.
 - OpenAPI schema generation now honors attribute-level `readOnly`,
   `writeOnly`, `deprecated`, `contentEncoding`, and `contentMediaType`
-  metadata in both the IR-backed and legacy schema paths.
+  metadata in the IR-backed schema paths.
 - OpenAPI now prunes unreferenced generated component schemas instead of publishing every top-level type and result type.
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
 - OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, advertises SSE responses as `text/event-stream`, and normalizes binary request examples to string form.
@@ -59,6 +59,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Stable OpenAPI schema naming and canonical `operationId` generation.
 - `http/codegen/openapi/v3` now carries a non-trivial `meal-planner` specimen that closes the loop with rendered-spec assertions plus Redocly lint for auth, forms, multipart, union wrappers, views, and SSE.
 - `http/codegen/openapi/v3` now carries a small specimen matrix (`meal-planner`, `collab-streams`, `activity-feed`, `ops-socket`, `streaming-partial-examples`) to exercise form/multipart, SSE, closed-object union collections, and WebSocket-style streaming OpenAPI output.
+- OpenAPI v3 request/response body and content generation now flows through the
+  typed IR analyzer/renderer end to end, including the direct operation helper
+  path used by local seam tests, with the duplicate legacy v3 response/body
+  builder removed.
 - Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `goa.design/goa/v3`.
 - Generic helper consolidation into `goa-light`.
 

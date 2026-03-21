@@ -8,6 +8,27 @@ Success means:
 - `schemafy`-style logic is no longer the place where both analysis and rendering decisions are mixed.
 - The new IR is reusable by at least one additional generator after the pilot without redesign.
 
+## Current Status
+
+Completed in the pilot so far:
+- Typed OpenAPI IR package under `http/codegen/openapi/internal/ir` covering
+  schemas, components, request bodies, responses, headers, media types, and
+  examples.
+- Analyzer-driven body/schema component construction plus renderer-driven
+  `openapi.Schema` materialization.
+- IR-backed OpenAPI document construction for request and response body/content
+  data.
+- IR-backed direct operation construction in `http/codegen/openapi/v3`, so the
+  package no longer carries a separate legacy response/body builder path for
+  tests or helper entry points.
+
+Remaining follow-up after this pilot pass:
+- Keep expanding typed IR reuse into adjacent OpenAPI generation seams where it
+  removes remaining ad hoc renderer decisions.
+- Use the stabilized IR concepts as the input layer for a later `jennifer`-backed
+  Go-emitter pilot, rather than introducing `jennifer` into the OpenAPI pilot
+  itself.
+
 ## Implementation Changes
 ### 1. Add a generator IR package for HTTP/OpenAPI schema and endpoint description
 Create a new internal codegen model layer for OpenAPI-oriented generation, likely under `http/codegen/openapi/internal` or a new sibling package dedicated to generator models.

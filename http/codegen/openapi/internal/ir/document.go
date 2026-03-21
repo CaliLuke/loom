@@ -53,6 +53,11 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 	return doc
 }
 
+// BuildOperation analyzes HTTP body/content-related OpenAPI operation data.
+func BuildOperation(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {
+	return buildOperation(endpoint, bodies, rand, closeObjects)
+}
+
 func buildOperation(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {
 	if endpoint == nil {
 		return nil

@@ -26,8 +26,8 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
   servers do not declare their own tags, so operation tags match the published
   top-level tag objects by default.
 - Support attribute-level OpenAPI schema metadata for `readOnly`, `writeOnly`,
-  `deprecated`, `contentEncoding`, and `contentMediaType` in both the IR-backed
-  and legacy schema-generation paths.
+  `deprecated`, `contentEncoding`, and `contentMediaType` in the IR-backed
+  schema-generation paths.
 - Prune unreferenced generated component schemas so the published contract only
   contains reachable request/response shapes.
 - Suppress invalid closed-object union-wrapper examples, honor
@@ -42,6 +42,9 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
 - Keep a non-trivial specimen API under `http/codegen/testdata` and validate its
   rendered OpenAPI with both `libopenapi` and Redocly as a closed-loop contract
   check.
+- Route OpenAPI v3 request/response body and content generation through the
+  typed IR operation path end to end, including direct operation helpers used by
+  tests, and remove the duplicate legacy v3 response/body builder seam.
 
 ### Next
 

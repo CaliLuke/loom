@@ -5,7 +5,6 @@ import (
 	"maps"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -352,148 +351,9 @@ func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) ma
 
 // buildOperation builds the OpenAPI Operation object for the given path.
 func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, meta expr.MetaExpr) *Operation {
-	e := r.Endpoint
-	m := e.MethodExpr
-	svc := e.Service
 	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
-
-	var summary string
-	setSummary := func(meta expr.MetaExpr) {
-		for n, mdata := range meta {
-			if n == "openapi:summary" && len(mdata) > 0 {
-				if mdata[0] == "{path}" {
-					summary = r.Path
-				} else {
-					summary = mdata[0]
-				}
-			}
-		}
-	}
-
-	summary = fmt.Sprintf("%s %s", e.Name(), svc.Name())
-	setSummary(meta)
-	setSummary(svc.ServiceExpr.Meta)
-	setSummary(e.Meta)
-	setSummary(m.Meta)
-
-	var operationIDFormat string
-	setOperationIDFormat := func(meta expr.MetaExpr) {
-		for n, mdata := range meta {
-			if n == "openapi:operationId" && len(mdata) > 0 {
-				operationIDFormat = mdata[0]
-			}
-		}
-	}
-
-	operationIDFormat = defaultOperationIDFormat
-	setOperationIDFormat(meta)
-	setOperationIDFormat(m.Service.Meta)
-	setOperationIDFormat(e.Meta)
-	setOperationIDFormat(m.Meta)
-
-	var requestBody *RequestBodyRef
-	if e.Body.Type != expr.Empty {
-		contentType := "application/json"
-		if e.MultipartRequest {
-			contentType = "multipart/form-data"
-		} else if e.FormRequest {
-			contentType = "application/x-www-form-urlencoded"
-		}
-		mediaType := &MediaType{Schema: bodies.RequestBody}
-		initExamples(mediaType, e.Body, rand, closeObjects)
-		requestBody = &RequestBodyRef{Value: &RequestBody{
-			Description: e.Body.Description,
-			Required:    !e.OptionalRequestBody,
-			Content:     map[string]*MediaType{contentType: mediaType},
-			Extensions:  openapi.ExtensionsFromExpr(e.Body.Meta),
-		}}
-	}
-
-	var params []*ParameterRef
-	{
-		ps := paramsFromPath(e, key, rand, closeObjects)
-		ps = append(ps, paramsFromHeadersAndCookies(e, rand, closeObjects)...)
-		if e.MapQueryParams != nil {
-			name := *e.MapQueryParams
-			if name == "" {
-				name = "payload"
-			}
-			ps = append(ps, &Parameter{
-				Name:        name,
-				Description: "Query parameters",
-				In:          "query",
-				Required:    name == "payload" || e.MethodExpr.Payload.IsRequired(name),
-				Schema: &openapi.Schema{
-					Type:                 "object",
-					AdditionalProperties: true,
-				},
-				Style: "deepObject",
-			})
-		}
-		params = make([]*ParameterRef, len(ps))
-		for i, p := range ps {
-			params[i] = &ParameterRef{Value: p}
-		}
-	}
-
-	responses := make(map[string]*ResponseRef, len(e.Responses))
-	for _, resp := range e.Responses {
-		if e.MethodExpr.IsStreaming() && e.SSE == nil {
-			if _, ok := responses[strconv.Itoa(expr.StatusSwitchingProtocols)]; !ok {
-				body := bodies.ResponseBodies[resp.StatusCode]
-				delete(bodies.ResponseBodies, resp.StatusCode)
-				resp = resp.Dup()
-				resp.StatusCode = expr.StatusSwitchingProtocols
-				bodies.ResponseBodies[resp.StatusCode] = body
-			}
-		}
-		response := responseFromExpr(resp, bodies.ResponseBodies, rand, closeObjects)
-		responses[strconv.Itoa(resp.StatusCode)] = &ResponseRef{Value: response}
-	}
-	for _, errResp := range e.HTTPErrors {
-		if errResp.Description != "" && errResp.Response.Description == "" {
-			errResp.Response.Description = errResp.Description
-		}
-		response := responseFromExpr(errResp.Response, bodies.ResponseBodies, rand, closeObjects)
-		desc := errResp.Name
-		if response.Description != nil {
-			desc += ": " + *response.Description
-		}
-		desc = appendErrorRemedyDescription(desc, errResp)
-		response.Description = &desc
-		if errResp.Type == expr.ErrorResult && len(errResp.Response.Body.ExtractUserExamples()) == 0 {
-			for _, content := range response.Content {
-				content.Example = nil
-			}
-		}
-		responses[strconv.Itoa(errResp.Response.StatusCode)] = &ResponseRef{Value: response}
-	}
-
-	var tagNames []string
-	tagNames = operationTagNames(e.Meta, e.Service.Meta, e.Service.Name())
-
-	var routeIndex int
-	for i, rt := range e.Routes {
-		if rt == r {
-			routeIndex = i
-			break
-		}
-	}
-
-	_, deprecated := e.Meta.Last("openapi:deprecated")
-	return &Operation{
-		Tags:         tagNames,
-		Summary:      summary,
-		Description:  e.Description(),
-		OperationID:  parseOperationIDTemplate(operationIDFormat, svc.Name(), e.Name(), routeIndex),
-		Parameters:   params,
-		RequestBody:  requestBody,
-		Responses:    responses,
-		Security:     buildOperationSecurity(e),
-		Deprecated:   deprecated,
-		ExternalDocs: openapi.DocsFromExpr(m.Docs, m.Meta),
-		Extensions:   openapi.ExtensionsFromExpr(m.Meta),
-	}
+	operationIR := openapiir.BuildOperation(r.Endpoint, endpointBodiesToIR(bodies), rand, closeObjects)
+	return buildOperationFromIR(key, r, operationIR, rand, meta)
 }
 
 func buildOperationFromIR(key string, r *expr.RouteExpr, operationIR *openapiir.Operation, rand *expr.ExampleGenerator, meta expr.MetaExpr) *Operation {
@@ -501,6 +361,9 @@ func buildOperationFromIR(key string, r *expr.RouteExpr, operationIR *openapiir.
 	m := e.MethodExpr
 	svc := e.Service
 	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
+	if operationIR == nil {
+		operationIR = &openapiir.Operation{}
+	}
 
 	// OpenAPI summary
 	var summary string
@@ -623,27 +486,6 @@ func buildOperationSecurity(e *expr.HTTPEndpointExpr) []map[string][]string {
 		return nil
 	}
 	return buildSecurityRequirements(e.Requirements)
-}
-
-func appendErrorRemedyDescription(desc string, er *expr.HTTPErrorExpr) string {
-	if er == nil || er.ErrorExpr == nil || er.ErrorExpr.Remedy == nil {
-		return desc
-	}
-	parts := []string{desc}
-	if er.ErrorExpr.Remedy.Code != "" {
-		parts = append(parts, "Remedy code: "+er.ErrorExpr.Remedy.Code+".")
-	}
-	if er.ErrorExpr.Remedy.SafeMessage != "" {
-		parts = append(parts, "Safe message: "+trimSentence(er.ErrorExpr.Remedy.SafeMessage)+".")
-	}
-	if er.ErrorExpr.Remedy.RetryHint != "" {
-		parts = append(parts, "Retry hint: "+trimSentence(er.ErrorExpr.Remedy.RetryHint)+".")
-	}
-	return strings.Join(parts, " ")
-}
-
-func trimSentence(text string) string {
-	return strings.TrimRight(text, ". ")
 }
 
 // buildFileServerOperation builds the OpenAPI Operation object for the given file server.

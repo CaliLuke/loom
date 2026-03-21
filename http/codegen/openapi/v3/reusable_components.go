@@ -49,6 +49,12 @@ type (
 		ref  *ResponseRef
 		base string
 	}
+
+	componentUsage[V any, R any] struct {
+		ref    R
+		base   string
+		prefix string
+	}
 )
 
 func componentizeReusableComponents(paths map[string]*PathItem) reusableComponents {
@@ -69,146 +75,110 @@ func componentizeReusableComponents(paths map[string]*PathItem) reusableComponen
 
 func componentizeExamples(paths map[string]*PathItem) map[string]*ExampleRef {
 	usages := collectExampleUsages(paths)
-	if len(usages) == 0 {
-		return nil
-	}
-
-	counts := countReusableValues(usages, func(usage exampleUsage) (string, error) {
-		return hashReusableValue(usage.ref.Value)
-	})
-	components := make(map[string]*ExampleRef)
-	namesByHash := make(map[string]string)
-	hashesByName := make(map[string]string)
-	for _, usage := range usages {
-		if usage.ref == nil || usage.ref.Value == nil || usage.ref.Ref != "" {
-			continue
-		}
-		hash, err := hashReusableValue(usage.ref.Value)
-		if err != nil || counts[hash] < 2 {
-			continue
-		}
-		name, ok := namesByHash[hash]
-		if !ok {
-			name = uniqueReusableComponentName(usage.base, hash, hashesByName)
-			namesByHash[hash] = name
-			hashesByName[name] = hash
-			components[name] = &ExampleRef{Value: usage.ref.Value}
-		}
-		usage.ref.Ref = exampleComponentRefPrefix + name
-		usage.ref.Value = nil
-	}
-	if len(components) == 0 {
-		return nil
-	}
-	return components
+	return componentizeReusableRefs(
+		usages,
+		func(usage exampleUsage) componentUsage[Example, *ExampleRef] {
+			return componentUsage[Example, *ExampleRef]{
+				ref:    usage.ref,
+				base:   usage.base,
+				prefix: exampleComponentRefPrefix,
+			}
+		},
+		func(ref *ExampleRef) *Example {
+			if ref == nil {
+				return nil
+			}
+			return ref.Value
+		},
+		func(ref *ExampleRef, refPath string) {
+			ref.Ref = refPath
+			ref.Value = nil
+		},
+		func(value *Example) *ExampleRef {
+			return &ExampleRef{Value: value}
+		},
+	)
 }
 
 func componentizeHeaders(paths map[string]*PathItem) map[string]*HeaderRef {
 	usages := collectHeaderUsages(paths)
-	if len(usages) == 0 {
-		return nil
-	}
-
-	counts := countReusableValues(usages, func(usage headerUsage) (string, error) {
-		return hashReusableValue(usage.ref.Value)
-	})
-	components := make(map[string]*HeaderRef)
-	namesByHash := make(map[string]string)
-	hashesByName := make(map[string]string)
-	for _, usage := range usages {
-		if usage.ref == nil || usage.ref.Value == nil || usage.ref.Ref != "" {
-			continue
-		}
-		hash, err := hashReusableValue(usage.ref.Value)
-		if err != nil || counts[hash] < 2 {
-			continue
-		}
-		name, ok := namesByHash[hash]
-		if !ok {
-			name = uniqueReusableComponentName(usage.base, hash, hashesByName)
-			namesByHash[hash] = name
-			hashesByName[name] = hash
-			components[name] = &HeaderRef{Value: usage.ref.Value}
-		}
-		usage.ref.Ref = headerComponentRefPrefix + name
-		usage.ref.Value = nil
-	}
-	if len(components) == 0 {
-		return nil
-	}
-	return components
+	return componentizeReusableRefs(
+		usages,
+		func(usage headerUsage) componentUsage[Header, *HeaderRef] {
+			return componentUsage[Header, *HeaderRef]{
+				ref:    usage.ref,
+				base:   usage.base,
+				prefix: headerComponentRefPrefix,
+			}
+		},
+		func(ref *HeaderRef) *Header {
+			if ref == nil {
+				return nil
+			}
+			return ref.Value
+		},
+		func(ref *HeaderRef, refPath string) {
+			ref.Ref = refPath
+			ref.Value = nil
+		},
+		func(value *Header) *HeaderRef {
+			return &HeaderRef{Value: value}
+		},
+	)
 }
 
 func componentizeRequestBodies(paths map[string]*PathItem) map[string]*RequestBodyRef {
 	usages := collectRequestBodyUsages(paths)
-	if len(usages) == 0 {
-		return nil
-	}
-
-	counts := countReusableValues(usages, func(usage requestBodyUsage) (string, error) {
-		return hashReusableValue(usage.ref.Value)
-	})
-	components := make(map[string]*RequestBodyRef)
-	namesByHash := make(map[string]string)
-	hashesByName := make(map[string]string)
-	for _, usage := range usages {
-		if usage.ref == nil || usage.ref.Value == nil || usage.ref.Ref != "" {
-			continue
-		}
-		hash, err := hashReusableValue(usage.ref.Value)
-		if err != nil || counts[hash] < 2 {
-			continue
-		}
-		name, ok := namesByHash[hash]
-		if !ok {
-			name = uniqueReusableComponentName(usage.base, hash, hashesByName)
-			namesByHash[hash] = name
-			hashesByName[name] = hash
-			components[name] = &RequestBodyRef{Value: usage.ref.Value}
-		}
-		usage.ref.Ref = requestBodyComponentRefPrefix + name
-		usage.ref.Value = nil
-	}
-	if len(components) == 0 {
-		return nil
-	}
-	return components
+	return componentizeReusableRefs(
+		usages,
+		func(usage requestBodyUsage) componentUsage[RequestBody, *RequestBodyRef] {
+			return componentUsage[RequestBody, *RequestBodyRef]{
+				ref:    usage.ref,
+				base:   usage.base,
+				prefix: requestBodyComponentRefPrefix,
+			}
+		},
+		func(ref *RequestBodyRef) *RequestBody {
+			if ref == nil {
+				return nil
+			}
+			return ref.Value
+		},
+		func(ref *RequestBodyRef, refPath string) {
+			ref.Ref = refPath
+			ref.Value = nil
+		},
+		func(value *RequestBody) *RequestBodyRef {
+			return &RequestBodyRef{Value: value}
+		},
+	)
 }
 
 func componentizeResponses(paths map[string]*PathItem) map[string]*ResponseRef {
 	usages := collectResponseUsages(paths)
-	if len(usages) == 0 {
-		return nil
-	}
-
-	counts := countReusableValues(usages, func(usage responseUsage) (string, error) {
-		return hashReusableValue(usage.ref.Value)
-	})
-	components := make(map[string]*ResponseRef)
-	namesByHash := make(map[string]string)
-	hashesByName := make(map[string]string)
-	for _, usage := range usages {
-		if usage.ref == nil || usage.ref.Value == nil || usage.ref.Ref != "" {
-			continue
-		}
-		hash, err := hashReusableValue(usage.ref.Value)
-		if err != nil || counts[hash] < 2 {
-			continue
-		}
-		name, ok := namesByHash[hash]
-		if !ok {
-			name = uniqueReusableComponentName(usage.base, hash, hashesByName)
-			namesByHash[hash] = name
-			hashesByName[name] = hash
-			components[name] = &ResponseRef{Value: usage.ref.Value}
-		}
-		usage.ref.Ref = responseComponentRefPrefix + name
-		usage.ref.Value = nil
-	}
-	if len(components) == 0 {
-		return nil
-	}
-	return components
+	return componentizeReusableRefs(
+		usages,
+		func(usage responseUsage) componentUsage[Response, *ResponseRef] {
+			return componentUsage[Response, *ResponseRef]{
+				ref:    usage.ref,
+				base:   usage.base,
+				prefix: responseComponentRefPrefix,
+			}
+		},
+		func(ref *ResponseRef) *Response {
+			if ref == nil {
+				return nil
+			}
+			return ref.Value
+		},
+		func(ref *ResponseRef, refPath string) {
+			ref.Ref = refPath
+			ref.Value = nil
+		},
+		func(value *Response) *ResponseRef {
+			return &ResponseRef{Value: value}
+		},
+	)
 }
 
 func collectReusableComponentSchemaRefs(reusable reusableComponents, addRef func(string)) {
@@ -313,8 +283,8 @@ func orderedOperations(pathItem *PathItem) []orderedOperation {
 func collectExampleUsages(paths map[string]*PathItem) []exampleUsage {
 	usages := make([]exampleUsage, 0)
 	appendOperationRefs(paths, func(_ string, pathItem *PathItem, _ string, operation *Operation) {
-		usages = appendNamedExampleUsages(usages, pathItemExampleUsages(pathItem))
-		usages = appendNamedExampleUsages(usages, operationExampleUsages(operation))
+		usages = append(usages, pathItemExampleUsages(pathItem)...)
+		usages = append(usages, operationExampleUsages(operation)...)
 	})
 	return compactExampleUsages(usages)
 }
@@ -423,10 +393,6 @@ func compactExampleUsages(usages []exampleUsage) []exampleUsage {
 	return compacted
 }
 
-func appendNamedExampleUsages(dst, src []exampleUsage) []exampleUsage {
-	return append(dst, src...)
-}
-
 func collectHeaderUsages(paths map[string]*PathItem) []headerUsage {
 	usages := make([]headerUsage, 0)
 	appendOperationRefs(paths, func(_ string, _ *PathItem, _ string, operation *Operation) {
@@ -500,6 +466,56 @@ func countReusableValues[T any](usages []T, hashFn func(T) (string, error)) map[
 		counts[hash]++
 	}
 	return counts
+}
+
+func componentizeReusableRefs[U any, V any, R any](
+	usages []U,
+	mapUsage func(U) componentUsage[V, R],
+	valueOf func(R) *V,
+	setRef func(R, string),
+	newRef func(*V) R,
+) map[string]R {
+	if len(usages) == 0 {
+		return nil
+	}
+
+	mapped := make([]componentUsage[V, R], 0, len(usages))
+	for _, usage := range usages {
+		current := mapUsage(usage)
+		if valueOf(current.ref) == nil {
+			continue
+		}
+		mapped = append(mapped, current)
+	}
+	if len(mapped) == 0 {
+		return nil
+	}
+
+	counts := countReusableValues(mapped, func(usage componentUsage[V, R]) (string, error) {
+		return hashReusableValue(valueOf(usage.ref))
+	})
+	components := make(map[string]R)
+	namesByHash := make(map[string]string)
+	hashesByName := make(map[string]string)
+	for _, usage := range mapped {
+		value := valueOf(usage.ref)
+		hash, err := hashReusableValue(value)
+		if err != nil || counts[hash] < 2 {
+			continue
+		}
+		name, ok := namesByHash[hash]
+		if !ok {
+			name = uniqueReusableComponentName(usage.base, hash, hashesByName)
+			namesByHash[hash] = name
+			hashesByName[name] = hash
+			components[name] = newRef(value)
+		}
+		setRef(usage.ref, usage.prefix+name)
+	}
+	if len(components) == 0 {
+		return nil
+	}
+	return components
 }
 
 func hashReusableValue(value any) (string, error) {
