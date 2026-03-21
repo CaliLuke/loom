@@ -1,0 +1,75 @@
+package codegen
+
+import (
+	"fmt"
+
+	"github.com/dave/jennifer/jen"
+
+	codegenpkg "goa.design/goa/v3/codegen"
+	"goa.design/goa/v3/expr"
+)
+
+func grpcTypeInitSection(init *InitData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection("type-init", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, init.Description)
+		params := make([]jen.Code, 0, len(init.Args))
+		for _, arg := range init.Args {
+			params = append(params, jen.Id(arg.Name).Add(codegenpkg.TypeRef(arg.TypeRef)))
+		}
+		stmt.Func().Id(init.Name).
+			Params(params...).
+			Add(codegenpkg.TypeRef(init.ReturnTypeRef)).
+			BlockFunc(func(g *jen.Group) {
+				g.Add(codegenpkg.Expr(init.Code))
+				if init.ReturnIsStruct {
+					for _, arg := range init.Args {
+						if arg.FieldName == "" {
+							continue
+						}
+						fieldValue := arg.Name
+						if expr.IsAlias(arg.FieldType) {
+							fieldValue = fullTypeName(arg.FieldType) + "(" + fieldValue + ")"
+						}
+						g.Id(init.ReturnVarName).Dot(arg.FieldName).Op("=").Add(codegenpkg.Expr(fieldValue))
+					}
+				}
+				g.Return(codegenpkg.Expr(init.ReturnVarName))
+			})
+		stmt.Line()
+	})
+}
+
+func grpcValidateSection(data *ValidationData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection("validate", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, fmt.Sprintf("%s runs the validations defined on %s.", data.Name, data.SrcName))
+		stmt.Func().Id(data.Name).
+			Params(jen.Id(data.ArgName).Add(codegenpkg.TypeRef(data.SrcRef))).
+			Params(jen.Err().Error()).
+			Block(
+				codegenpkg.Expr(data.Def),
+				jen.Return(),
+			)
+		stmt.Line()
+	})
+}
+
+func grpcTransformHelperSection(data *codegenpkg.TransformFunctionData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection("transform-helper", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, fmt.Sprintf("%s builds a value of type %s from a value of type %s.", data.Name, data.ResultTypeRef, data.ParamTypeRef))
+		stmt.Func().Id(data.Name).
+			Params(jen.Id("v").Add(codegenpkg.TypeRef(data.ParamTypeRef))).
+			Add(codegenpkg.TypeRef(data.ResultTypeRef)).
+			Block(
+				codegenpkg.Expr(data.Code),
+				jen.Return(jen.Id("res")),
+			)
+		stmt.Line()
+	})
+}
+
+func fullTypeName(dt expr.DataType) string {
+	if loc := codegenpkg.UserTypeLocation(dt); loc != nil {
+		return loc.PackageName() + "." + dt.Name()
+	}
+	return dt.Name()
+}

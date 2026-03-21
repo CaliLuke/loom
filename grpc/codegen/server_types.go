@@ -97,38 +97,17 @@ func serverType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			if _, ok := foundInits[init.Name]; ok {
 				continue
 			}
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "server-type-init",
-				Source: grpcTemplates.Read(grpcTypeInitT),
-				Data:   init,
-				FuncMap: map[string]any{
-					"isAlias": expr.IsAlias,
-					"fullName": func(dt expr.DataType) string {
-						if loc := codegen.UserTypeLocation(dt); loc != nil {
-							return loc.PackageName() + "." + dt.Name()
-						}
-						return dt.Name()
-					},
-				},
-			})
+			sections = append(sections, grpcTypeInitSection(init))
 			foundInits[init.Name] = struct{}{}
 		}
 		for _, data := range sd.validations {
 			if data.Kind == validateClient {
 				continue
 			}
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "server-validate",
-				Source: grpcTemplates.Read(grpcValidateT),
-				Data:   data,
-			})
+			sections = append(sections, grpcValidateSection(data))
 		}
 		for _, h := range sd.transformHelpers {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "server-transform-helper",
-				Source: grpcTemplates.Read(grpcTransformHelperT),
-				Data:   h,
-			})
+			sections = append(sections, grpcTransformHelperSection(h))
 		}
 	}
 	return &codegen.File{Path: fpath, Sections: sections}

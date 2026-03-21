@@ -99,37 +99,16 @@ func clientType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		imports = append(imports, sd.Service.ProtoImports...)
 		sections = []codegen.Section{codegen.Header(svc.Name()+" gRPC client types", "client", imports)}
 		for _, init := range initData {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "client-type-init",
-				Source: grpcTemplates.Read(grpcTypeInitT),
-				Data:   init,
-				FuncMap: map[string]any{
-					"isAlias": expr.IsAlias,
-					"fullName": func(dt expr.DataType) string {
-						if loc := codegen.UserTypeLocation(dt); loc != nil {
-							return loc.PackageName() + "." + dt.Name()
-						}
-						return dt.Name()
-					},
-				},
-			})
+			sections = append(sections, grpcTypeInitSection(init))
 		}
 		for _, data := range sd.validations {
 			if data.Kind == validateServer {
 				continue
 			}
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "client-validate",
-				Source: grpcTemplates.Read(grpcValidateT),
-				Data:   data,
-			})
+			sections = append(sections, grpcValidateSection(data))
 		}
 		for _, h := range sd.transformHelpers {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "client-transform-helper",
-				Source: grpcTemplates.Read(grpcTransformHelperT),
-				Data:   h,
-			})
+			sections = append(sections, grpcTransformHelperSection(h))
 		}
 	}
 
