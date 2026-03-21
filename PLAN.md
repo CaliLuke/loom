@@ -22,13 +22,17 @@ Completed in the pilot so far:
 - `http/codegen/openapi/v3` now consumes the IR for endpoint operation shape
   and component reuse instead of carrying separate legacy builders for
   parameters, responses, and post-render component identity.
+- A first `jennifer`-backed Go-emitter pilot now exists in `http/codegen` for
+  HTTP client transport generation. The `Client` struct, `NewClient`, and
+  endpoint initializer sections render through `codegen.JenniferSection`
+  helpers instead of logic-heavy `text/template` sections, while the heavier
+  request/response encode-decode paths remain template-backed for now.
 
 Remaining follow-up after this pilot pass:
 - Keep expanding typed IR reuse into adjacent OpenAPI generation seams where it
   removes remaining ad hoc renderer decisions.
-- Use the stabilized IR concepts as the input layer for a later `jennifer`-backed
-  Go-emitter pilot, rather than introducing `jennifer` into the OpenAPI pilot
-  itself.
+- Extend the `jennifer` pilot into additional Go emitters where it reduces
+  template/business-logic mixing without forcing a repo-wide rewrite.
 
 ## Implementation Changes
 ### 1. Add a generator IR package for HTTP/OpenAPI schema and endpoint description
@@ -100,8 +104,12 @@ Where behavior is currently implicit, promote it into named IR policies/helpers 
 After OpenAPI v3 is stable on the IR:
 1. Extend the same IR concepts to shared schema/body analysis used by other OpenAPI-related paths.
 2. Add a second pilot for a Go emitter that currently has high template complexity, with HTTP server/client generation the preferred candidate.
-3. For that later Go-emitter pilot, adopt `jennifer` as the default rendering backend for new code paths while keeping raw AST limited to post-processing or narrow syntax-sensitive cases.
-4. Retire template/business-logic mixing incrementally, not in a single rewrite.
+3. Adopt `jennifer` as the default rendering backend for new Go-emitter code
+   paths while keeping raw AST limited to post-processing or narrow
+   syntax-sensitive cases. The initial shipped pilot is the HTTP client
+   transport file.
+4. Retire template/business-logic mixing incrementally, not in a single
+   rewrite.
 
 ## Public API / Interface Additions
 The plan should keep public DSL and generated surface behavior unchanged.
@@ -112,8 +120,8 @@ New internal interfaces/types to add:
 - A renderer interface or package function that converts IR to OpenAPI v3 structs.
 
 No user-facing DSL changes.
-No new repo dependency in the pilot.
-Do not add `jennifer` yet.
+Internal dependency added for the Go-emitter pilot:
+- `github.com/dave/jennifer/jen`
 
 ## Test Plan
 Add direct tests for the IR analyzer and renderer split, while keeping current end-to-end coverage.
@@ -134,6 +142,9 @@ Acceptance criteria:
 - `go test ./http/codegen/openapi/v3` passes throughout.
 - Any new IR package has focused seam tests that do not depend on full DSL runs unless required.
 - No generated spec regressions beyond formatting-only differences.
+- The `jennifer` helper path has focused seam coverage and at least one
+  transport-generation package (`http/codegen`) passes both direct section
+  checks and the temp-module/local-source loop.
 
 ## Assumptions and Defaults
 - The first pilot is OpenAPI v3 only.

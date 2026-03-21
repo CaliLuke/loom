@@ -67,6 +67,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   component hoisting now also live under the typed IR layer, so the remaining
   `http/codegen/openapi/v3` package mostly renders IR-owned decisions instead
   of duplicating contract logic.
+- `codegen.JenniferSection` now provides a shared typed Go-emitter seam for new
+  generator work, and the HTTP client transport file (`http/codegen/client.go`)
+  uses it for the `Client` struct, `NewClient`, and endpoint initializer
+  sections instead of logic-heavy text templates.
 - Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `goa.design/goa/v3`.
 - Generic helper consolidation into `goa-light`.
 
@@ -81,6 +85,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - finish the direct follow-up test backlog for refactored transport/service-data seams
 - improve the OpenAPI framework layer using the live Auto-K contract as a
   downstream acceptance surface
+- extend the `jennifer` pilot into the next high-value Go-emitter slices where
+  it removes template/business-logic mixing cleanly
 
 ## Prioritized Backlog
 

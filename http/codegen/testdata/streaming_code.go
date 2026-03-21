@@ -364,11 +364,7 @@ func (c *Client) StreamingResultMethod() goa.Endpoint {
 		}
 		go func() {
 			<-ctx.Done()
-			conn.WriteControl(
-				websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
-				time.Now().Add(time.Second),
-			)
+			conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"), time.Now().Add(time.Second))
 			conn.Close()
 		}()
 		stream := &StreamingResultMethodClientStream{conn: conn}
@@ -448,11 +444,7 @@ func (c *Client) StreamingResultWithViewsMethod() goa.Endpoint {
 		}
 		go func() {
 			<-ctx.Done()
-			conn.WriteControl(
-				websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
-				time.Now().Add(time.Second),
-			)
+			conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"), time.Now().Add(time.Second))
 			conn.Close()
 		}()
 		stream := &StreamingResultWithViewsMethodClientStream{conn: conn}
@@ -528,11 +520,7 @@ func (c *Client) StreamingResultWithExplicitViewMethod() goa.Endpoint {
 		}
 		go func() {
 			<-ctx.Done()
-			conn.WriteControl(
-				websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
-				time.Now().Add(time.Second),
-			)
+			conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"), time.Now().Add(time.Second))
 			conn.Close()
 		}()
 		stream := &StreamingResultWithExplicitViewMethodClientStream{conn: conn}
@@ -771,11 +759,7 @@ func (c *Client) StreamingResultCollectionWithExplicitViewMethod() goa.Endpoint 
 		}
 		go func() {
 			<-ctx.Done()
-			conn.WriteControl(
-				websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
-				time.Now().Add(time.Second),
-			)
+			conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"), time.Now().Add(time.Second))
 			conn.Close()
 		}()
 		stream := &StreamingResultCollectionWithExplicitViewMethodClientStream{conn: conn}
@@ -1158,11 +1142,7 @@ func (c *Client) StreamingResultNoPayloadMethod() goa.Endpoint {
 		}
 		go func() {
 			<-ctx.Done()
-			conn.WriteControl(
-				websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
-				time.Now().Add(time.Second),
-			)
+			conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"), time.Now().Add(time.Second))
 			conn.Close()
 		}()
 		stream := &StreamingResultNoPayloadMethodClientStream{conn: conn}

@@ -93,7 +93,6 @@ func RenderBodyTypes(bodyTypes *BodyTypes) (map[string]map[string]*RenderedEndpo
 	return services, RenderSchemaMap(bodyTypes.Components)
 }
 
-
 func renderEndpointBodies(bodies *EndpointBodies) *RenderedEndpointBodies {
 	if bodies == nil {
 		return nil
