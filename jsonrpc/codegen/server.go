@@ -117,18 +117,18 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	}
 
 	sections = append(sections,
-		&codegen.SectionTemplate{Name: "jsonrpc-server-struct", Source: jsonrpcTemplates.Read(serverStructT), FuncMap: funcs, Data: data},
-		&codegen.SectionTemplate{Name: "jsonrpc-server-init", Source: jsonrpcTemplates.Read(serverInitT), Data: data, FuncMap: funcs},
-		&codegen.SectionTemplate{Name: "jsonrpc-server-service", Source: jsonrpcTemplates.Read(serverServiceT), Data: data},
-		&codegen.SectionTemplate{Name: "jsonrpc-server-use", Source: jsonrpcTemplates.Read(serverUseT), Data: data},
-		&codegen.SectionTemplate{Name: "jsonrpc-server-method-names", Source: jsonrpcTemplates.Read(serverMethodNamesT), Data: data},
+		jsonrpcServerStructSection(data),
+		jsonrpcServerInitSection(data, hasJSONRPCSSE(svc, services)),
+		jsonrpcServerServiceSection(data),
+		jsonrpcServerUseSection(data),
+		jsonrpcServerMethodNamesSection(data),
 	)
 
 	// Use appropriate server handler based on transport
 	switch {
 	case hasMixedJSONRPCTransports(svc, services):
 		// For mixed transports, we need a unified handler with content negotiation
-		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-mixed-server-handler", Source: jsonrpcTemplates.Read(mixedServerHandlerT), FuncMap: funcs, Data: data})
+		sections = append(sections, jsonrpcMixedServerHandlerSection(data))
 		// Include the standard HTTP handlers that the mixed handler delegates to
 		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-server-handler", Source: jsonrpcTemplates.Read(serverHandlerT), FuncMap: funcs, Data: data})
 		// Also include SSE handler for SSE-specific logic
@@ -153,7 +153,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	}
 
 	sections = append(sections,
-		&codegen.SectionTemplate{Name: "jsonrpc-server-mount", Source: jsonrpcTemplates.Read(serverMountT), Data: mountData},
+		jsonrpcServerMountSection(data, mountData.HasSSE, mountData.HasMixed),
 	)
 
 	for _, e := range data.Endpoints {
@@ -162,7 +162,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	}
 
 	if !httpcodegen.HasWebSocket(data) {
-		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-server-encode-error", Source: jsonrpcTemplates.Read(serverEncodeErrorT)})
+		sections = append(sections, jsonrpcServerEncodeErrorSection(data.ServerStruct))
 	}
 
 	return &codegen.File{Path: fpath, Sections: sections}

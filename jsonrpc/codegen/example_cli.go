@@ -26,14 +26,17 @@ func exampleCLI(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerE
 	}
 	f.Path = strings.Replace(f.Path, "http.go", "jsonrpc.go", 1)
 	updateHeader(f)
+	updated := make([]codegen.Section, 0, len(f.AllSections()))
 	for _, section := range f.AllSections() {
-		s, ok := section.(*codegen.SectionTemplate)
-		if !ok {
+		if section.SectionName() == "source-header" {
+			updated = append(updated, section)
 			continue
 		}
-		s.Source = strings.ReplaceAll(s.Source, "doHTTP", "doJSONRPC")
-		s.Source = strings.ReplaceAll(s.Source, "httpUsage", "jsonrpcUsage")
+		source := renderSectionSource(section)
+		source = strings.ReplaceAll(source, "doHTTP", "doJSONRPC")
+		source = strings.ReplaceAll(source, "httpUsage", "jsonrpcUsage")
+		updated = append(updated, codegen.NewRawSection(section.SectionName(), source))
 	}
-
+	f.SetSections(updated)
 	return f
 }

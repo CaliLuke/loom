@@ -69,60 +69,47 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 		}
 	}
 	updatedSections := make([]codegen.Section, 0, len(sections)+2)
+	httpServices := []*httpcodegen.ServiceData(nil)
+	if hasHTTP {
+		httpServices = svcdata
+	}
+	apiPkg := jsonrpcExampleAPIPkg(genpkg, header, data)
 	for _, section := range sections {
-		s, ok := section.(*codegen.SectionTemplate)
-		if !ok {
-			updatedSections = append(updatedSections, section)
+		switch section.SectionName() {
+		case "server-http-start":
+			updatedSections = append(updatedSections, codegen.NewRawSection("server-http-start", jsonrpcExampleServerStartSource(httpServices, svcdata)))
+			continue
+		case "server-http-end":
+			source := renderSectionSource(section)
+			source = strings.Replace(source, "\n\t(*wg).Add(1)", "\n"+jsonrpcHTTPMountLogSource(svcdata)+"\n\t(*wg).Add(1)", 1)
+			updatedSections = append(updatedSections, codegen.NewRawSection("server-http-end", source))
+			continue
+		case "server-http-init":
+			updatedSections = append(updatedSections, codegen.NewRawSection("server-http-init", jsonrpcExampleServerConfigureSource(httpServices, svcdata, apiPkg)))
 			continue
 		}
-		switch s.Name {
-		case "server-http-start":
-			// Check if the main template already has JSONRPCServices data
-			data := s.Data.(map[string]any)
-			if _, hasJSONRPCServices := data["JSONRPCServices"]; !hasJSONRPCServices {
-				// Main template doesn't have JSON-RPC services, so we need to add them
-				data["JSONRPCServices"] = svcdata
-				// Replace with JSON-RPC template that includes service parameters in function signature
-				s.Source = jsonrpcTemplates.Read(serverHttpStartT)
-			}
-		case "server-http-end":
-			updateData(s, svcdata, hasHTTP)
-			mountCode := logJSONRPCMount
-			if hasHTTP {
-				mountCode = logHTTPMount + "\n" + logJSONRPCMount
-			}
-			s.Source = strings.Replace(s.Source, logHTTPMount, mountCode, 1)
-		case "server-http-init":
-			updateData(s, svcdata, hasHTTP)
-			s.Source = jsonrpcTemplates.Read(serverConfigureT)
-			s.FuncMap = map[string]any{
-				"needDialer":   httpcodegen.NeedDialer,
-				"hasWebSocket": httpcodegen.HasWebSocket,
-			}
-		}
-		updatedSections = append(updatedSections, s)
+		updatedSections = append(updatedSections, section)
 	}
 	file.SetSections(updatedSections)
 	return file
 }
 
-func updateData(s *codegen.SectionTemplate, svcdata []*httpcodegen.ServiceData, hasHTTP bool) {
-	s.Data.(map[string]any)["JSONRPCServices"] = svcdata
-	if !hasHTTP {
-		delete(s.Data.(map[string]any), "Services")
+func jsonrpcExampleAPIPkg(genpkg string, header *codegen.SectionTemplate, data *httpcodegen.ServicesData) string {
+	headerData := codegen.HeaderSectionData(header)
+	if headerData != nil {
+		rootPath := "."
+		if idx := strings.LastIndex(genpkg, "/"); idx > 0 {
+			rootPath = genpkg[:idx]
+		}
+		for _, imp := range headerData.Imports {
+			if imp.Path == rootPath {
+				if imp.Name != "" {
+					return imp.Name
+				}
+				parts := strings.Split(rootPath, "/")
+				return parts[len(parts)-1]
+			}
+		}
 	}
+	return strings.ToLower(codegen.Goify(data.Root.API.Name, false))
 }
-
-const logHTTPMount = `{{- range .Services }}
-		for _, m := range {{ .Service.VarName }}Server.Mounts {
-			log.Printf(ctx, "HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
-		}
-	{{- end }}`
-
-const logJSONRPCMount = `{{- range .JSONRPCServices }}
-		for _, m := range {{ .Service.VarName }}JSONRPCServer.Methods {
-		{{- range (index .Endpoints 0).Routes }}
-			log.Printf(ctx, "JSON-RPC method %q mounted on {{ .Verb }} {{ .Path }}", m)
-		{{- end }}
-		}
-	{{- end }}`

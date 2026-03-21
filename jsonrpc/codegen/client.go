@@ -107,27 +107,8 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 			{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 		}),
 	}
-	sections = append(sections, &codegen.SectionTemplate{
-		Name:   "jsonrpc-client-struct",
-		Source: jsonrpcTemplates.Read(clientStructT),
-		Data:   data,
-		FuncMap: map[string]any{
-			"hasWebSocket":  httpcodegen.HasWebSocket,
-			"hasSSE":        httpcodegen.HasSSE,
-			"isSSEEndpoint": httpcodegen.IsSSEEndpoint,
-		},
-	})
-
-	sections = append(sections, &codegen.SectionTemplate{
-		Name:   "jsonrpc-client-init",
-		Source: jsonrpcTemplates.Read(clientInitT),
-		Data:   data,
-		FuncMap: map[string]any{
-			"hasWebSocket":  httpcodegen.HasWebSocket,
-			"hasSSE":        httpcodegen.HasSSE,
-			"isSSEEndpoint": httpcodegen.IsSSEEndpoint,
-		},
-	})
+	sections = append(sections, jsonrpcClientStructSection(data))
+	sections = append(sections, jsonrpcClientInitSection(data))
 
 	for _, e := range data.Endpoints {
 		sections = append(sections, &codegen.SectionTemplate{
