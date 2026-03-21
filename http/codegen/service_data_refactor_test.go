@@ -449,6 +449,9 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		payload := services.buildPayloadData(endpointExpr, svcData)
 		require.Equal(t, "ID", payload.IDAttribute)
 		require.True(t, payload.IDAttributeRequired)
+		require.NotNil(t, payload.Request)
+		require.NotNil(t, payload.Request.PayloadInit)
+		require.Empty(t, payload.DecoderReturnValue)
 	})
 
 	t.Run("buildResultData keeps default view and jsonrpc ids", func(t *testing.T) {
@@ -458,6 +461,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.Equal(t, expr.DefaultView, result.View)
 		require.Equal(t, "ID", result.IDAttribute)
 		require.True(t, result.IDAttributeRequired)
+		require.True(t, result.MustInit)
+		require.NotEmpty(t, result.Responses)
 	})
 
 	t.Run("buildRequestBodyType flattens form union helper field", func(t *testing.T) {

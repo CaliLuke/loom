@@ -65,86 +65,47 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		sections = []codegen.Section{header}
 	)
 
-	// request body types
-	for _, a := range svc.HTTPEndpoints {
-		adata := data.Endpoint(a.Name())
-		if data := adata.Payload.Request.ServerBody; data != nil {
-			if data.Def != "" {
-				sections = append(sections, typeDeclSection("request-body-type-decl", data))
-			}
-			if data.ValidateDef != "" {
-				validatedTypes = append(validatedTypes, data)
-			}
+	appendServerType := func(section string, tdata *TypeData, trackInit bool) {
+		if tdata == nil {
+			return
 		}
-		if adata.ServerWebSocket != nil && !adata.Method.IsJSONRPC {
-			if data := adata.ServerWebSocket.Payload; data != nil {
-				if data.Def != "" {
-					sections = append(sections, typeDeclSection("request-stream-payload-type-decl", data))
-				}
-				if data.ValidateDef != "" {
-					validatedTypes = append(validatedTypes, data)
-				}
-			}
+		if generated, ok := data.ServerTypeNames[tdata.Name]; ok && generated {
+			return
 		}
-	}
-
-	// response body types
-	for _, a := range svc.HTTPEndpoints {
-		adata := data.Endpoint(a.Name())
-		for _, resp := range adata.Result.Responses {
-			for _, tdata := range resp.ServerBody {
-				if generated, ok := data.ServerTypeNames[tdata.Name]; ok && !generated {
-					if tdata.Def != "" {
-						sections = append(sections, typeDeclSection("response-server-body", tdata))
-					}
-					if tdata.Init != nil {
-						initData = append(initData, tdata.Init)
-					}
-					if tdata.ValidateDef != "" {
-						validatedTypes = append(validatedTypes, tdata)
-					}
-					data.ServerTypeNames[tdata.Name] = true
-				}
-			}
-		}
-	}
-
-	// error body types
-	for _, a := range svc.HTTPEndpoints {
-		adata := data.Endpoint(a.Name())
-		for _, gerr := range adata.Errors {
-			for _, herr := range gerr.Errors {
-				for _, tdata := range herr.Response.ServerBody {
-					// Check if this error type has already been generated
-					if generated, ok := data.ServerTypeNames[tdata.Name]; ok && generated {
-						continue
-					}
-
-					if tdata.Def != "" {
-						sections = append(sections, typeDeclSection("error-body-type-decl", tdata))
-						// Mark this type as generated
-						data.ServerTypeNames[tdata.Name] = true
-					}
-					if tdata.Init != nil {
-						initData = append(initData, tdata.Init)
-					}
-					if tdata.ValidateDef != "" {
-						validatedTypes = append(validatedTypes, tdata)
-					}
-				}
-			}
-		}
-	}
-
-	// body attribute types
-	for _, tdata := range data.ServerBodyAttributeTypes {
 		if tdata.Def != "" {
-			sections = append(sections, typeDeclSection("server-body-attributes", tdata))
+			sections = append(sections, typeDeclSection(section, tdata))
+			data.ServerTypeNames[tdata.Name] = true
 		}
-
+		if trackInit && tdata.Init != nil {
+			initData = append(initData, tdata.Init)
+		}
 		if tdata.ValidateDef != "" {
 			validatedTypes = append(validatedTypes, tdata)
 		}
+	}
+
+	for _, a := range svc.HTTPEndpoints {
+		adata := data.Endpoint(a.Name())
+		appendServerType("request-body-type-decl", adata.Payload.Request.ServerBody, false)
+		if adata.ServerWebSocket != nil && !adata.Method.IsJSONRPC {
+			appendServerType("request-stream-payload-type-decl", adata.ServerWebSocket.Payload, false)
+		}
+		for _, resp := range adata.Result.Responses {
+			for _, tdata := range resp.ServerBody {
+				appendServerType("response-server-body", tdata, true)
+			}
+		}
+		for _, gerr := range adata.Errors {
+			for _, herr := range gerr.Errors {
+				for _, tdata := range herr.Response.ServerBody {
+					appendServerType("error-body-type-decl", tdata, true)
+				}
+			}
+		}
+	}
+
+	for _, tdata := range data.ServerBodyAttributeTypes {
+		appendServerType("server-body-attributes", tdata, false)
 	}
 
 	// union sum types

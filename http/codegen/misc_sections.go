@@ -237,67 +237,9 @@ func renderQuerySliceConversion(dt expr.DataType) string {
 
 func renderRequestInitCode(payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, pathInit *InitData, verb string, isWebSocket bool, requestStruct string) string {
 	var b strings.Builder
-	if len(args) > 0 || requestStruct != "" {
-		b.WriteString("\tvar (\n")
-		for _, arg := range args {
-			fmt.Fprintf(&b, "\t\t%s %s\n", arg.VarName, arg.TypeRef)
-		}
-		if requestStruct != "" {
-			b.WriteString("\t\tbody io.Reader\n")
-		}
-		b.WriteString("\t)\n")
-	}
+	renderRequestInitVars(&b, args, requestStruct)
 	if payloadRef != "" && len(args) > 0 {
-		b.WriteString("\t{\n")
-		if requestStruct != "" {
-			fmt.Fprintf(&b, "\t\trd, ok := v.(*%s)\n", requestStruct)
-			ifTypeErr(&b, serviceName, endpointName, requestStruct)
-			b.WriteString("\t\tp := rd.Payload\n")
-			b.WriteString("\t\tbody = rd.Body\n")
-		} else {
-			fmt.Fprintf(&b, "\t\tp, ok := v.(%s)\n", payloadRef)
-			ifTypeErr(&b, serviceName, endpointName, payloadRef)
-		}
-		for _, arg := range args {
-			if arg.Pointer {
-				if hasFields {
-					fmt.Fprintf(&b, "\t\tif p.%s != nil {\n", arg.FieldName)
-				} else {
-					b.WriteString("\t\tif p != nil {\n")
-				}
-			}
-			if arg.IsAliased {
-				if hasFields {
-					fmt.Fprintf(&b, "\t\t\t%s = %s(", arg.VarName, arg.ServiceTypeRef)
-					if arg.Pointer {
-						b.WriteString("*")
-					}
-					fmt.Fprintf(&b, "p.%s)\n", arg.FieldName)
-				} else {
-					fmt.Fprintf(&b, "\t\t\t%s = %s(", arg.VarName, arg.ServiceTypeRef)
-					if arg.Pointer {
-						b.WriteString("*")
-					}
-					b.WriteString("p)\n")
-				}
-			} else if hasFields {
-				fmt.Fprintf(&b, "\t\t\t%s = ", arg.VarName)
-				if arg.Pointer {
-					b.WriteString("*")
-				}
-				fmt.Fprintf(&b, "p.%s\n", arg.FieldName)
-			} else {
-				fmt.Fprintf(&b, "\t\t\t%s = ", arg.VarName)
-				if arg.Pointer {
-					b.WriteString("*")
-				}
-				b.WriteString("p\n")
-			}
-			if arg.Pointer {
-				b.WriteString("\t\t}\n")
-			}
-		}
-		b.WriteString("\t}\n")
+		renderPayloadExtraction(&b, payloadRef, hasFields, serviceName, endpointName, args, requestStruct)
 	} else if requestStruct != "" {
 		fmt.Fprintf(&b, "\trd, ok := v.(*%s)\n", requestStruct)
 		ifTypeErr(&b, serviceName, endpointName, requestStruct)
@@ -331,6 +273,79 @@ func renderRequestInitCode(payloadRef string, hasFields bool, serviceName, endpo
 	b.WriteString("\tif ctx != nil {\n\t\treq = req.WithContext(ctx)\n\t}\n\n")
 	b.WriteString("\treturn req, nil\n")
 	return b.String()
+}
+
+func renderRequestInitVars(b *strings.Builder, args []*InitArgData, requestStruct string) {
+	if len(args) == 0 && requestStruct == "" {
+		return
+	}
+	b.WriteString("\tvar (\n")
+	for _, arg := range args {
+		fmt.Fprintf(b, "\t\t%s %s\n", arg.VarName, arg.TypeRef)
+	}
+	if requestStruct != "" {
+		b.WriteString("\t\tbody io.Reader\n")
+	}
+	b.WriteString("\t)\n")
+}
+
+func renderPayloadExtraction(b *strings.Builder, payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, requestStruct string) {
+	b.WriteString("\t{\n")
+	if requestStruct != "" {
+		fmt.Fprintf(b, "\t\trd, ok := v.(*%s)\n", requestStruct)
+		ifTypeErr(b, serviceName, endpointName, requestStruct)
+		b.WriteString("\t\tp := rd.Payload\n")
+		b.WriteString("\t\tbody = rd.Body\n")
+	} else {
+		fmt.Fprintf(b, "\t\tp, ok := v.(%s)\n", payloadRef)
+		ifTypeErr(b, serviceName, endpointName, payloadRef)
+	}
+	for _, arg := range args {
+		renderPayloadAssignment(b, hasFields, arg)
+	}
+	b.WriteString("\t}\n")
+}
+
+func renderPayloadAssignment(b *strings.Builder, hasFields bool, arg *InitArgData) {
+	if arg.Pointer {
+		if hasFields {
+			fmt.Fprintf(b, "\t\tif p.%s != nil {\n", arg.FieldName)
+		} else {
+			b.WriteString("\t\tif p != nil {\n")
+		}
+	}
+	if arg.IsAliased {
+		renderAliasedPayloadAssignment(b, hasFields, arg)
+	} else {
+		renderDirectPayloadAssignment(b, hasFields, arg)
+	}
+	if arg.Pointer {
+		b.WriteString("\t\t}\n")
+	}
+}
+
+func renderAliasedPayloadAssignment(b *strings.Builder, hasFields bool, arg *InitArgData) {
+	fmt.Fprintf(b, "\t\t\t%s = %s(", arg.VarName, arg.ServiceTypeRef)
+	if arg.Pointer {
+		b.WriteString("*")
+	}
+	if hasFields {
+		fmt.Fprintf(b, "p.%s)\n", arg.FieldName)
+		return
+	}
+	b.WriteString("p)\n")
+}
+
+func renderDirectPayloadAssignment(b *strings.Builder, hasFields bool, arg *InitArgData) {
+	fmt.Fprintf(b, "\t\t\t%s = ", arg.VarName)
+	if arg.Pointer {
+		b.WriteString("*")
+	}
+	if hasFields {
+		fmt.Fprintf(b, "p.%s\n", arg.FieldName)
+		return
+	}
+	b.WriteString("p\n")
 }
 
 func ifTypeErr(b *strings.Builder, serviceName, endpointName, typeRef string) {

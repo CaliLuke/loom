@@ -68,115 +68,46 @@ func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct
 		sections = []codegen.Section{header}
 	)
 
-	// request body types
-	for _, a := range svc.HTTPEndpoints {
-		adata := data.Endpoint(a.Name())
-		if data := adata.Payload.Request.ClientBody; data != nil {
-			if _, ok := seen[data.Ref]; ok {
-				continue
-			}
-			seen[data.Ref] = struct{}{}
-			if data.Def != "" {
-				sections = append(sections, typeDeclSection("client-request-body", data))
-			}
-			if data.Init != nil {
-				if _, ok := seenInit[data.Init.Name]; !ok {
-					seenInit[data.Init.Name] = struct{}{}
-					initData = append(initData, data.Init)
-				}
-			}
-			if data.ValidateDef != "" {
-				if _, ok := seenValidated[data.Name]; !ok {
-					seenValidated[data.Name] = struct{}{}
-					validatedTypes = append(validatedTypes, data)
-				}
+	appendTypeData := func(section string, data *TypeData, trackInit bool) {
+		if data == nil {
+			return
+		}
+		if _, ok := seen[data.Ref]; ok {
+			return
+		}
+		seen[data.Ref] = struct{}{}
+		if data.Def != "" {
+			sections = append(sections, typeDeclSection(section, data))
+		}
+		if trackInit && data.Init != nil {
+			if _, ok := seenInit[data.Init.Name]; !ok {
+				seenInit[data.Init.Name] = struct{}{}
+				initData = append(initData, data.Init)
 			}
 		}
+		if data.ValidateDef != "" {
+			recordValidatedType(data, seenValidated, &validatedTypes)
+		}
+	}
+
+	for _, a := range svc.HTTPEndpoints {
+		adata := data.Endpoint(a.Name())
+		appendTypeData("client-request-body", adata.Payload.Request.ClientBody, true)
 		if adata.ClientWebSocket != nil {
-			if data := adata.ClientWebSocket.Payload; data != nil {
-				if _, ok := seen[data.Ref]; ok {
-					continue
-				}
-				seen[data.Ref] = struct{}{}
-				if data.Def != "" {
-					sections = append(sections, typeDeclSection("client-request-body", data))
-				}
-				if data.Init != nil {
-					initData = append(initData, data.Init)
-				}
-				if data.ValidateDef != "" {
-					if _, ok := seenValidated[data.Name]; !ok {
-						seenValidated[data.Name] = struct{}{}
-						validatedTypes = append(validatedTypes, data)
-					}
-				}
-			}
+			appendTypeData("client-request-body", adata.ClientWebSocket.Payload, true)
 		}
-	}
-
-	// response body types
-	for _, a := range svc.HTTPEndpoints {
-		adata := data.Endpoint(a.Name())
 		for _, resp := range adata.Result.Responses {
-			if data := resp.ClientBody; data != nil {
-				if _, ok := seen[data.Ref]; ok {
-					continue
-				}
-				seen[data.Ref] = struct{}{}
-				if data.Def != "" {
-					sections = append(sections, typeDeclSection("client-response-body", data))
-				}
-				if data.ValidateDef != "" {
-					if _, ok := seenValidated[data.Name]; !ok {
-						seenValidated[data.Name] = struct{}{}
-						validatedTypes = append(validatedTypes, data)
-					}
-				}
-			}
+			appendTypeData("client-response-body", resp.ClientBody, false)
 		}
-	}
-
-	// error body types
-	for _, a := range svc.HTTPEndpoints {
-		adata := data.Endpoint(a.Name())
 		for _, gerr := range adata.Errors {
 			for _, herr := range gerr.Errors {
-				if data := herr.Response.ClientBody; data != nil {
-					if _, ok := seen[data.Ref]; ok {
-						continue
-					}
-					seen[data.Ref] = struct{}{}
-					if data.Def != "" {
-						sections = append(sections, typeDeclSection("client-error-body", data))
-					}
-					if data.ValidateDef != "" {
-						if _, ok := seenValidated[data.Name]; !ok {
-							seenValidated[data.Name] = struct{}{}
-							validatedTypes = append(validatedTypes, data)
-						}
-					}
-				}
+				appendTypeData("client-error-body", herr.Response.ClientBody, false)
 			}
 		}
 	}
 
 	for _, data := range data.ClientBodyAttributeTypes {
-		// Check if this type has already been added to avoid duplicates
-		if _, ok := seen[data.Ref]; ok {
-			continue
-		}
-		seen[data.Ref] = struct{}{}
-
-		if data.Def != "" {
-			sections = append(sections, typeDeclSection("client-body-attributes", data))
-		}
-
-		if data.ValidateDef != "" {
-			if _, ok := seenValidated[data.Name]; !ok {
-				seenValidated[data.Name] = struct{}{}
-				validatedTypes = append(validatedTypes, data)
-			}
-		}
+		appendTypeData("client-body-attributes", data, false)
 	}
 
 	// union sum types
@@ -222,4 +153,12 @@ func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct
 		sections = append(sections, validateSection("client-validate", data))
 	}
 	return &codegen.File{Path: path, Sections: sections}
+}
+
+func recordValidatedType(data *TypeData, seenValidated map[string]struct{}, validatedTypes *[]*TypeData) {
+	if _, ok := seenValidated[data.Name]; ok {
+		return
+	}
+	seenValidated[data.Name] = struct{}{}
+	*validatedTypes = append(*validatedTypes, data)
 }
