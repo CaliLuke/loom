@@ -270,6 +270,24 @@ var EndpointOptionalRequestBodyWithForm = func() {
 	})
 }
 
+var EndpointOptionalRequestBodyWithMultipart = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("continue", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Body(func() {
+					Attribute("continue", String)
+				})
+				MultipartRequest()
+				OptionalRequestBody()
+			})
+		})
+	})
+}
+
 var EndpointOptionalRequestBodyRequiredAttribute = func() {
 	var LinkStart = Type("LinkStart", func() {
 		Attribute("continue", String)
@@ -600,6 +618,98 @@ var EndpointPayloadMissingRequired = func() {
 				Body(func() {
 					Attribute("nonreq")
 					Required("nonreq")
+				})
+			})
+		})
+	})
+}
+
+var EndpointHasSkipRequestEncodeAndFormWithBody = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("query", String)
+			})
+			HTTP(func() {
+				POST("/")
+				FormRequest()
+				SkipRequestBodyEncodeDecode()
+			})
+		})
+	})
+}
+
+var EndpointHasSkipRequestEncodeAndMultipartWithBody = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("query", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Body(func() {
+					Attribute("query", String)
+				})
+				MultipartRequest()
+				SkipRequestBodyEncodeDecode()
+			})
+		})
+	})
+}
+
+var EndpointDuplicateResponseStatusCode = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("ok", Boolean)
+			})
+			HTTP(func() {
+				GET("/")
+				Response(StatusOK)
+				Response(StatusOK)
+			})
+		})
+	})
+}
+
+var EndpointArrayPayloadBodyConflict = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(ArrayOf(String))
+			HTTP(func() {
+				POST("/")
+				Body(func() {
+					Attribute("value", String)
+				})
+			})
+		})
+	})
+}
+
+var EndpointMapPayloadBodyConflict = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(MapOf(String, String))
+			HTTP(func() {
+				POST("/")
+				Body(func() {
+					Attribute("value", String)
+				})
+			})
+		})
+	})
+}
+
+var EndpointObjectPayloadBodyConflict = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Attribute("other", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Body(func() {
+					Attribute("value", String)
 				})
 			})
 		})

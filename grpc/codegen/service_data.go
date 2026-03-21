@@ -460,154 +460,16 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) *ServiceData {
 		ClientInterfaceInit: fmt.Sprintf("%s.New%sClient", pkg, svcVarN),
 		Scope:               scope,
 	}
-	seen, imported := make(map[string]struct{}), make(map[string]struct{})
+	collector := newMessageCollector(sd)
 	for _, e := range gs.GRPCEndpoints {
-		// convert request and response types to protocol buffer message types
-		e.Request = makeProtoBufMessage(e.Request, protoBufify(e.Name()+"_request", true, true), sd)
-		if e.MethodExpr.StreamingPayload.Type != expr.Empty {
-			e.StreamingRequest = makeProtoBufMessage(e.StreamingRequest, protoBufify(e.Name()+"_streaming_request", true, true), sd)
-		}
-		e.Response.Message = makeProtoBufMessage(e.Response.Message, protoBufify(e.Name()+"_response", true, true), sd)
-		for _, er := range e.GRPCErrors {
-			if er.Type == expr.ErrorResult || !expr.IsObject(er.Type) {
-				continue
-			}
-			er.Response.Message = makeProtoBufMessage(er.Response.Message, protoBufify(e.Name()+"_"+er.Name+"_error", true, true), sd)
-		}
-
-		// collect all the nested messages and return the top-level message
-		// Also collect all proto imports specified via Meta.
-		collect := func(att *expr.AttributeExpr) *service.UserTypeData {
-			msgs, imports := collectMessages(att, sd, seen)
-			if len(imports) > 0 {
-				for _, imp := range imports {
-					if _, ok := imported[imp]; ok {
-						continue
-					}
-					imported[imp] = struct{}{}
-					sd.ProtoImports = append(sd.ProtoImports, imp)
-				}
-			}
-			if len(msgs) > 0 {
-				sd.Messages = append(sd.Messages, msgs...)
-				return msgs[0]
-			}
-			// lookup message in sd.Messages
-			if ut, ok := att.Type.(expr.UserType); ok {
-				name := ut.Name()
-				if n := att.Meta["struct:name:proto"]; n != nil {
-					name = n[0]
-				}
-				for _, t := range sd.Messages {
-					if t.Name == name {
-						return t
-					}
-				}
-			}
-			return nil
-		}
-
-		var (
-			payloadRef      string
-			resultRef       string
-			viewedResultRef string
-		)
+		d.convertEndpointMessages(e, sd)
 		md := svc.Method(e.Name())
-		if e.MethodExpr.Payload.Type != expr.Empty {
-			payloadRef = svc.Scope.GoFullTypeRef(e.MethodExpr.Payload,
-				pkgWithDefault(md.PayloadLoc, svc.PkgName))
-		}
-		if e.MethodExpr.Result.Type != expr.Empty {
-			resultRef = svc.Scope.GoFullTypeRef(e.MethodExpr.Result,
-				pkgWithDefault(md.ResultLoc, svc.PkgName))
-		}
-		if md.ViewedResult != nil {
-			viewedResultRef = md.ViewedResult.FullRef
-		}
+		payloadRef, resultRef, viewedResultRef := endpointRefs(e, svc, md)
 		errors := d.buildErrorsData(e, sd)
-		for _, er := range e.GRPCErrors {
-			if er.Type == expr.ErrorResult || !expr.IsObject(er.Type) {
-				continue
-			}
-			collect(er.Response.Message)
-		}
-
-		// build request data
-		reqMD := extractMetadata(e.Metadata, e.MethodExpr.Payload, svc.Scope, *d)
-		request := &RequestData{
-			Description:   e.Request.Description,
-			Metadata:      reqMD,
-			ServerConvert: d.buildRequestConvertData(e.Request, e.MethodExpr.Payload, reqMD, e, sd, true),
-			ClientConvert: d.buildRequestConvertData(e.Request, e.MethodExpr.Payload, reqMD, e, sd, false),
-		}
-		if obj := expr.AsObject(e.Request.Type); (obj != nil && len(*obj) > 0) || expr.IsUnion(e.Request.Type) {
-			// add the request message as the first argument to the CLI
-			request.CLIArgs = append(request.CLIArgs, &InitArgData{
-				Name:     "message",
-				Ref:      "message",
-				TypeName: protoBufGoFullTypeName(e.Request, sd.PkgName, sd.Scope),
-				TypeRef:  protoBufGoFullTypeRef(e.Request, sd.PkgName, sd.Scope),
-				Example:  e.Request.Example(d.Root.API.ExampleGenerator),
-			})
-		}
-		// pass the metadata as arguments to client CLI args
-		for _, m := range reqMD {
-			request.CLIArgs = append(request.CLIArgs, &InitArgData{
-				Name:         m.VarName,
-				Ref:          m.VarName,
-				FieldName:    m.FieldName,
-				FieldType:    m.FieldType,
-				TypeName:     m.TypeName,
-				TypeRef:      m.TypeRef,
-				Type:         m.Type,
-				Pointer:      m.Pointer,
-				Required:     m.Required,
-				Validate:     m.Validate,
-				Example:      m.Example,
-				DefaultValue: m.DefaultValue,
-			})
-		}
-		if e.StreamingRequest.Type != expr.Empty {
-			request.Message = collect(e.StreamingRequest)
-		} else {
-			request.Message = collect(e.Request)
-		}
-
-		// build response data
-		result, svcCtx := resultContext(e, sd)
-		hdrs := extractMetadata(e.Response.Headers, result, svc.Scope, *d)
-		trlrs := extractMetadata(e.Response.Trailers, result, svc.Scope, *d)
-		response := &ResponseData{
-			StatusCode:    statusCodeToGRPCConst(e.Response.StatusCode),
-			Description:   e.Response.Description,
-			Headers:       hdrs,
-			Trailers:      trlrs,
-			ServerConvert: d.buildResponseConvertData(e.Response.Message, result, svcCtx, hdrs, trlrs, e, sd, true),
-			ClientConvert: d.buildResponseConvertData(e.Response.Message, result, svcCtx, hdrs, trlrs, e, sd, false),
-		}
-		// If the endpoint is a streaming endpoint, no message is returned
-		// by gRPC. Hence, no need to set response message.
-		if e.Response.Message.Type != expr.Empty || !e.MethodExpr.IsStreaming() {
-			response.Message = collect(e.Response.Message)
-		}
-
-		// gather security requirements
-		var (
-			msgSch service.SchemesData
-			metSch service.SchemesData
-		)
-		for _, req := range e.Requirements {
-			for _, sch := range req.Schemes {
-				s := md.Requirements.Scheme(sch.SchemeName).Dup()
-				s.In = sch.In
-				switch s.In {
-				case "message":
-					msgSch = msgSch.Append(s)
-				default:
-					metSch = metSch.Append(s)
-				}
-			}
-		}
+		collector.collectErrorMessages(e)
+		request := d.buildRequestData(e, svc, sd, collector)
+		response := d.buildResponseData(e, svc, sd, collector)
+		msgSch, metSch := partitionSecuritySchemes(e, md)
 		ed := &EndpointData{
 			ServiceName:      svc.Name,
 			PkgName:          sd.PkgName,
@@ -635,6 +497,173 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) *ServiceData {
 		}
 	}
 	return sd
+}
+
+type messageCollector struct {
+	sd       *ServiceData
+	seen     map[string]struct{}
+	imported map[string]struct{}
+}
+
+func newMessageCollector(sd *ServiceData) *messageCollector {
+	return &messageCollector{
+		sd:       sd,
+		seen:     make(map[string]struct{}),
+		imported: make(map[string]struct{}),
+	}
+}
+
+func (c *messageCollector) collect(att *expr.AttributeExpr) *service.UserTypeData {
+	msgs, imports := collectMessages(att, c.sd, c.seen)
+	c.appendImports(imports)
+	if len(msgs) > 0 {
+		c.sd.Messages = append(c.sd.Messages, msgs...)
+		return msgs[0]
+	}
+	return c.lookupMessage(att)
+}
+
+func (c *messageCollector) appendImports(imports []string) {
+	for _, imp := range imports {
+		if _, ok := c.imported[imp]; ok {
+			continue
+		}
+		c.imported[imp] = struct{}{}
+		c.sd.ProtoImports = append(c.sd.ProtoImports, imp)
+	}
+}
+
+func (c *messageCollector) lookupMessage(att *expr.AttributeExpr) *service.UserTypeData {
+	ut, ok := att.Type.(expr.UserType)
+	if !ok {
+		return nil
+	}
+	name := ut.Name()
+	if n := att.Meta["struct:name:proto"]; n != nil {
+		name = n[0]
+	}
+	for _, t := range c.sd.Messages {
+		if t.Name == name {
+			return t
+		}
+	}
+	return nil
+}
+
+func (c *messageCollector) collectErrorMessages(e *expr.GRPCEndpointExpr) {
+	for _, er := range e.GRPCErrors {
+		if er.Type == expr.ErrorResult || !expr.IsObject(er.Type) {
+			continue
+		}
+		c.collect(er.Response.Message)
+	}
+}
+
+func (d *ServicesData) convertEndpointMessages(e *expr.GRPCEndpointExpr, sd *ServiceData) {
+	e.Request = makeProtoBufMessage(e.Request, protoBufify(e.Name()+"_request", true, true), sd)
+	if e.MethodExpr.StreamingPayload.Type != expr.Empty {
+		e.StreamingRequest = makeProtoBufMessage(e.StreamingRequest, protoBufify(e.Name()+"_streaming_request", true, true), sd)
+	}
+	e.Response.Message = makeProtoBufMessage(e.Response.Message, protoBufify(e.Name()+"_response", true, true), sd)
+	for _, er := range e.GRPCErrors {
+		if er.Type == expr.ErrorResult || !expr.IsObject(er.Type) {
+			continue
+		}
+		er.Response.Message = makeProtoBufMessage(er.Response.Message, protoBufify(e.Name()+"_"+er.Name+"_error", true, true), sd)
+	}
+}
+
+func endpointRefs(e *expr.GRPCEndpointExpr, svc *service.Data, md *service.MethodData) (string, string, string) {
+	var payloadRef, resultRef, viewedResultRef string
+	if e.MethodExpr.Payload.Type != expr.Empty {
+		payloadRef = svc.Scope.GoFullTypeRef(e.MethodExpr.Payload,
+			pkgWithDefault(md.PayloadLoc, svc.PkgName))
+	}
+	if e.MethodExpr.Result.Type != expr.Empty {
+		resultRef = svc.Scope.GoFullTypeRef(e.MethodExpr.Result,
+			pkgWithDefault(md.ResultLoc, svc.PkgName))
+	}
+	if md.ViewedResult != nil {
+		viewedResultRef = md.ViewedResult.FullRef
+	}
+	return payloadRef, resultRef, viewedResultRef
+}
+
+func (d *ServicesData) buildRequestData(e *expr.GRPCEndpointExpr, svc *service.Data, sd *ServiceData, collector *messageCollector) *RequestData {
+	reqMD := extractMetadata(e.Metadata, e.MethodExpr.Payload, svc.Scope, *d)
+	request := &RequestData{
+		Description:   e.Request.Description,
+		Metadata:      reqMD,
+		ServerConvert: d.buildRequestConvertData(e.Request, e.MethodExpr.Payload, reqMD, e, sd, true),
+		ClientConvert: d.buildRequestConvertData(e.Request, e.MethodExpr.Payload, reqMD, e, sd, false),
+	}
+	if obj := expr.AsObject(e.Request.Type); (obj != nil && len(*obj) > 0) || expr.IsUnion(e.Request.Type) {
+		request.CLIArgs = append(request.CLIArgs, &InitArgData{
+			Name:     "message",
+			Ref:      "message",
+			TypeName: protoBufGoFullTypeName(e.Request, sd.PkgName, sd.Scope),
+			TypeRef:  protoBufGoFullTypeRef(e.Request, sd.PkgName, sd.Scope),
+			Example:  e.Request.Example(d.Root.API.ExampleGenerator),
+		})
+	}
+	for _, m := range reqMD {
+		request.CLIArgs = append(request.CLIArgs, &InitArgData{
+			Name:         m.VarName,
+			Ref:          m.VarName,
+			FieldName:    m.FieldName,
+			FieldType:    m.FieldType,
+			TypeName:     m.TypeName,
+			TypeRef:      m.TypeRef,
+			Type:         m.Type,
+			Pointer:      m.Pointer,
+			Required:     m.Required,
+			Validate:     m.Validate,
+			Example:      m.Example,
+			DefaultValue: m.DefaultValue,
+		})
+	}
+	if e.StreamingRequest.Type != expr.Empty {
+		request.Message = collector.collect(e.StreamingRequest)
+	} else {
+		request.Message = collector.collect(e.Request)
+	}
+	return request
+}
+
+func (d *ServicesData) buildResponseData(e *expr.GRPCEndpointExpr, svc *service.Data, sd *ServiceData, collector *messageCollector) *ResponseData {
+	result, svcCtx := resultContext(e, sd)
+	hdrs := extractMetadata(e.Response.Headers, result, svc.Scope, *d)
+	trlrs := extractMetadata(e.Response.Trailers, result, svc.Scope, *d)
+	response := &ResponseData{
+		StatusCode:    statusCodeToGRPCConst(e.Response.StatusCode),
+		Description:   e.Response.Description,
+		Headers:       hdrs,
+		Trailers:      trlrs,
+		ServerConvert: d.buildResponseConvertData(e.Response.Message, result, svcCtx, hdrs, trlrs, e, sd, true),
+		ClientConvert: d.buildResponseConvertData(e.Response.Message, result, svcCtx, hdrs, trlrs, e, sd, false),
+	}
+	if e.Response.Message.Type != expr.Empty || !e.MethodExpr.IsStreaming() {
+		response.Message = collector.collect(e.Response.Message)
+	}
+	return response
+}
+
+func partitionSecuritySchemes(e *expr.GRPCEndpointExpr, md *service.MethodData) (service.SchemesData, service.SchemesData) {
+	var msgSch service.SchemesData
+	var metSch service.SchemesData
+	for _, req := range e.Requirements {
+		for _, sch := range req.Schemes {
+			s := md.Requirements.Scheme(sch.SchemeName).Dup()
+			s.In = sch.In
+			switch s.In {
+			case "message":
+				msgSch = msgSch.Append(s)
+			default:
+				metSch = metSch.Append(s)
+			}
+		}
+	}
+	return msgSch, metSch
 }
 
 // collectMessages recurses through the attribute to gather all the messages.

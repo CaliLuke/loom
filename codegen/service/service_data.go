@@ -1482,24 +1482,7 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 	}
 
 	_, isJSONRPC = m.Meta["jsonrpc"]
-
-	// Check if this JSON-RPC method uses SSE or WebSocket
-	var isJSONRPCSSE bool
-	var isJSONRPCWebSocket bool
-	if isJSONRPC && m.IsStreaming() {
-		if httpJSONRPCSvc := d.Root.API.JSONRPC.HTTPExpr.Service(m.Service.Name); httpJSONRPCSvc != nil {
-			for _, e := range httpJSONRPCSvc.HTTPEndpoints {
-				if e.MethodExpr.Name == m.Name {
-					if e.SSE != nil {
-						isJSONRPCSSE = true
-					} else {
-						isJSONRPCWebSocket = true
-					}
-					break
-				}
-			}
-		}
-	}
+	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
 
 	for _, req := range m.Requirements {
 		var rs SchemesData
@@ -1511,23 +1494,7 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 		reqs = append(reqs, &RequirementData{Schemes: rs, Scopes: req.Scopes})
 	}
 
-	// Unfortunately we can't completely isolate the service codegen from
-	// the underlying transport when wanting to skip Goa's built-in decoding.
-	skipRequestBodyEncodeDecode := false
-	skipResponseBodyEncodeDecode := false
-	var httpSvc *expr.HTTPServiceExpr
-	for _, svc := range d.Root.API.HTTP.Services {
-		if svc.Name() == m.Service.Name {
-			httpSvc = svc
-			break
-		}
-	}
-	if httpSvc != nil {
-		if httpMet := httpSvc.Endpoint(m.Name); httpMet != nil {
-			skipRequestBodyEncodeDecode = httpMet.SkipRequestBodyEncodeDecode
-			skipResponseBodyEncodeDecode = httpMet.SkipResponseBodyEncodeDecode
-		}
-	}
+	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode := d.httpSkipBodyFlags(m)
 
 	data := &MethodData{
 		Name:                         m.Name,
@@ -1563,6 +1530,42 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 
 	d.initStreamData(data, m, vname, rname, resultRef, scope)
 	return data
+}
+
+func (d *ServicesData) classifyJSONRPCStreamTransport(m *expr.MethodExpr, isJSONRPC bool) (bool, bool) {
+	if !isJSONRPC || !m.IsStreaming() {
+		return false, false
+	}
+	httpJSONRPCSvc := d.Root.API.JSONRPC.HTTPExpr.Service(m.Service.Name)
+	if httpJSONRPCSvc == nil {
+		return false, false
+	}
+	for _, e := range httpJSONRPCSvc.HTTPEndpoints {
+		if e.MethodExpr.Name != m.Name {
+			continue
+		}
+		if e.SSE != nil {
+			return true, false
+		}
+		return false, true
+	}
+	return false, false
+}
+
+func (d *ServicesData) httpSkipBodyFlags(m *expr.MethodExpr) (bool, bool) {
+	// Service codegen still needs the HTTP transport policy when Goa's built-in
+	// request/response body encoding is disabled.
+	for _, svc := range d.Root.API.HTTP.Services {
+		if svc.Name() != m.Service.Name {
+			continue
+		}
+		httpMethod := svc.Endpoint(m.Name)
+		if httpMethod == nil {
+			return false, false
+		}
+		return httpMethod.SkipRequestBodyEncodeDecode, httpMethod.SkipResponseBodyEncodeDecode
+	}
+	return false, false
 }
 
 // initStreamData initializes the streaming payload data structures and methods.
@@ -1610,53 +1613,9 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, vnam
 		}
 		spayloadEx = m.StreamingPayload.Example(d.Root.API.ExampleGenerator)
 	}
-	// For JSON-RPC WebSocket:
-	// - Client streaming (no result streaming): no endpoint struct needed, just payload
-	// - Bidirectional streaming: endpoint struct needed for both payload and stream
-	endpointStruct := vname + "EndpointInput"
-	if data.IsJSONRPC && m.IsStreaming() && !data.IsJSONRPCSSE && m.Stream == expr.ClientStreamKind {
-		endpointStruct = ""
-	}
-	// For mixed results with SSE, treat as server streaming
-	streamKind := m.Stream
-	if m.HasMixedResults() && !m.IsStreaming() {
-		// Mixed results with SSE should be treated as server streaming
-		streamKind = expr.ServerStreamKind
-	}
-	svrStream := &StreamData{
-		Interface:           vname + "ServerStream",
-		VarName:             scope.Unique(codegen.Goify(m.Name, true), "ServerStream"),
-		EndpointStruct:      endpointStruct,
-		Kind:                streamKind,
-		SendName:            "Send",
-		SendDesc:            fmt.Sprintf("Send streams instances of %q.", srname),
-		SendWithContextName: "SendWithContext",
-		SendWithContextDesc: fmt.Sprintf("SendWithContext streams instances of %q with context.", srname),
-		SendTypeName:        srname,
-		SendTypeRef:         srref,
-		MustClose:           true,
-	}
-	cliStream := &StreamData{
-		Interface:           vname + "ClientStream",
-		VarName:             scope.Unique(codegen.Goify(m.Name, true), "ClientStream"),
-		Kind:                streamKind,
-		RecvName:            "Recv",
-		RecvDesc:            fmt.Sprintf("Recv reads instances of %q from the stream.", srname),
-		RecvWithContextName: "RecvWithContext",
-		RecvWithContextDesc: fmt.Sprintf("RecvWithContext reads instances of %q from the stream with context.", srname),
-		RecvTypeName:        srname,
-		RecvTypeRef:         srref,
-	}
-	// For SSE server streaming, we need both Send (for notifications) and SendAndClose (for final response)
-	if data.IsJSONRPCSSE && m.Stream == expr.ServerStreamKind && resultRef != "" {
-		svrStream.SendAndCloseName = "SendAndClose"
-		svrStream.SendAndCloseDesc = fmt.Sprintf("SendAndClose sends a final response with %q and closes the stream.", srname)
-		// For JSON-RPC SSE, methods take context directly; align names accordingly
-		svrStream.SendWithContextName = "Send"
-		svrStream.RecvWithContextName = "Recv"
-		// Update Send description to clarify it's for notifications only
-		svrStream.SendDesc = fmt.Sprintf("Send streams JSON-RPC notifications with %q. Notifications do not expect a response.", srname)
-	}
+	streamKind := streamDataKind(m)
+	svrStream, cliStream := buildBaseStreamData(m, vname, srname, srref, scope, data.IsJSONRPC, data.IsJSONRPCSSE)
+	applyJSONRPCStreamAdjustments(svrStream, m, resultRef, srname, data.IsJSONRPCSSE)
 	if streamKind == expr.ClientStreamKind || streamKind == expr.BidirectionalStreamKind {
 		switch streamKind {
 		case expr.ClientStreamKind:
@@ -1696,6 +1655,57 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, vnam
 	data.StreamingPayloadRef = spayloadRef
 	data.StreamingPayloadDesc = spayloadDesc
 	data.StreamingPayloadEx = spayloadEx
+}
+
+func streamDataKind(m *expr.MethodExpr) expr.StreamKind {
+	if m.HasMixedResults() && !m.IsStreaming() {
+		return expr.ServerStreamKind
+	}
+	return m.Stream
+}
+
+func buildBaseStreamData(m *expr.MethodExpr, vname, srname, srref string, scope *codegen.NameScope, isJSONRPC, isJSONRPCSSE bool) (*StreamData, *StreamData) {
+	endpointStruct := vname + "EndpointInput"
+	if isJSONRPC && m.IsStreaming() && !isJSONRPCSSE && m.Stream == expr.ClientStreamKind {
+		endpointStruct = ""
+	}
+	streamKind := streamDataKind(m)
+	svrStream := &StreamData{
+		Interface:           vname + "ServerStream",
+		VarName:             scope.Unique(codegen.Goify(m.Name, true), "ServerStream"),
+		EndpointStruct:      endpointStruct,
+		Kind:                streamKind,
+		SendName:            "Send",
+		SendDesc:            fmt.Sprintf("Send streams instances of %q.", srname),
+		SendWithContextName: "SendWithContext",
+		SendWithContextDesc: fmt.Sprintf("SendWithContext streams instances of %q with context.", srname),
+		SendTypeName:        srname,
+		SendTypeRef:         srref,
+		MustClose:           true,
+	}
+	cliStream := &StreamData{
+		Interface:           vname + "ClientStream",
+		VarName:             scope.Unique(codegen.Goify(m.Name, true), "ClientStream"),
+		Kind:                streamKind,
+		RecvName:            "Recv",
+		RecvDesc:            fmt.Sprintf("Recv reads instances of %q from the stream.", srname),
+		RecvWithContextName: "RecvWithContext",
+		RecvWithContextDesc: fmt.Sprintf("RecvWithContext reads instances of %q from the stream with context.", srname),
+		RecvTypeName:        srname,
+		RecvTypeRef:         srref,
+	}
+	return svrStream, cliStream
+}
+
+func applyJSONRPCStreamAdjustments(svrStream *StreamData, m *expr.MethodExpr, resultRef, srname string, isJSONRPCSSE bool) {
+	if !isJSONRPCSSE || m.Stream != expr.ServerStreamKind || resultRef == "" {
+		return
+	}
+	svrStream.SendAndCloseName = "SendAndClose"
+	svrStream.SendAndCloseDesc = fmt.Sprintf("SendAndClose sends a final response with %q and closes the stream.", srname)
+	svrStream.SendWithContextName = "Send"
+	svrStream.RecvWithContextName = "Recv"
+	svrStream.SendDesc = fmt.Sprintf("Send streams JSON-RPC notifications with %q. Notifications do not expect a response.", srname)
 }
 
 // buildInterceptorData creates the data needed to generate interceptor code.

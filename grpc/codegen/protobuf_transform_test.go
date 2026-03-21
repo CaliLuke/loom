@@ -236,6 +236,90 @@ func TestProtoBufTransformAnyType(t *testing.T) {
 	}
 }
 
+func TestProtoBufTransformSeams(t *testing.T) {
+	root := codegen.RunDSL(t, ctestdata.TestTypesDSL)
+	sd := &ServiceData{Name: "Service", Scope: codegen.NewNameScope()}
+	svcCtx := serviceTypeContext("proto", sd.Scope)
+	ptrCtx := pointerContext("proto", sd.Scope)
+	pbCtx := protoBufTypeContext("proto", sd.Scope, true)
+
+	cases := []struct {
+		name     string
+		source   expr.DataType
+		target   expr.DataType
+		toProto  bool
+		newVar   bool
+		ctx      *codegen.AttributeContext
+		contains string
+	}{
+		{
+			name:     "wrapped scalar field to proto",
+			source:   expr.Int,
+			target:   expr.Int,
+			toProto:  true,
+			newVar:   true,
+			ctx:      svcCtx,
+			contains: ".Field",
+		},
+		{
+			name:     "optional pointer field to proto checks nil",
+			source:   root.UserType("Optional"),
+			target:   root.UserType("Optional"),
+			toProto:  true,
+			newVar:   true,
+			ctx:      ptrCtx,
+			contains: "!= nil",
+		},
+		{
+			name:     "alias conversion to service uses cast",
+			source:   root.UserType("Simple"),
+			target:   root.UserType("CustomTypes"),
+			toProto:  false,
+			newVar:   true,
+			ctx:      svcCtx,
+			contains: "CustomTypes",
+		},
+		{
+			name:     "union to proto uses concrete oneof conversion",
+			source:   root.UserType("SimpleOneOf"),
+			target:   root.UserType("SimpleOneOf"),
+			toProto:  true,
+			newVar:   true,
+			ctx:      svcCtx,
+			contains: "case",
+		},
+		{
+			name:     "assignment path uses equals",
+			source:   expr.String,
+			target:   expr.String,
+			toProto:  false,
+			newVar:   false,
+			ctx:      svcCtx,
+			contains: "target =",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			source := &expr.AttributeExpr{Type: tc.source}
+			target := &expr.AttributeExpr{Type: tc.target}
+			srcCtx := tc.ctx
+			tgtCtx := tc.ctx
+			if tc.toProto {
+				target = makeProtoBufMessage(expr.DupAtt(target), target.Type.Name(), sd)
+				tgtCtx = pbCtx
+			} else {
+				source = makeProtoBufMessage(expr.DupAtt(source), source.Type.Name(), sd)
+				srcCtx = pbCtx
+			}
+
+			code, _, err := protoBufTransform(source, target, "source", "target", srcCtx, tgtCtx, tc.toProto, tc.newVar)
+			require.NoError(t, err)
+			require.Contains(t, code, tc.contains)
+		})
+	}
+}
+
 func pointerContext(pkg string, scope *codegen.NameScope) *codegen.AttributeContext {
 	return codegen.NewAttributeContext(true, false, true, pkg, scope)
 }

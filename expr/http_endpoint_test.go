@@ -158,6 +158,11 @@ func TestHTTPEndpointValidation(t *testing.T) {
 			Error: `service "Service" HTTP endpoint "Method": HTTP endpoint cannot use OptionalRequestBody with FormRequest.
 service "Service" HTTP endpoint "Method": HTTP endpoint defines FormRequest and body. At most one of these must be defined.`,
 		},
+		"endpoint-optional-request-body-with-multipart": {
+			DSL: testdata.EndpointOptionalRequestBodyWithMultipart,
+			Error: `service "Service" HTTP endpoint "Method": HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.
+service "Service" HTTP endpoint "Method": HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.`,
+		},
 		"endpoint-optional-request-body-required-attribute": {
 			DSL:   testdata.EndpointOptionalRequestBodyRequiredAttribute,
 			Error: `service "Service" HTTP endpoint "Method": OptionalRequestBody requires the request body to have no required attributes.`,
@@ -186,6 +191,17 @@ service "Service" HTTP endpoint "Method": HTTP endpoint defines FormRequest and 
 		"endpoint-has-skip-request-encode-and-payload-streaming": {
 			DSL:   testdata.EndpointHasSkipRequestEncodeAndPayloadStreaming,
 			Error: `service "Service" HTTP endpoint "Method": Endpoint cannot use SkipRequestBodyEncodeDecode when method defines a StreamingPayload.`,
+		},
+		"endpoint-skip-request-encode-with-form-body": {
+			DSL: testdata.EndpointHasSkipRequestEncodeAndFormWithBody,
+			Error: `service "Service" HTTP endpoint "Method": HTTP endpoint cannot use FormRequest with SkipRequestBodyEncodeDecode.
+service "Service" HTTP endpoint "Method": HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.`,
+		},
+		"endpoint-skip-request-encode-with-multipart-body": {
+			DSL: testdata.EndpointHasSkipRequestEncodeAndMultipartWithBody,
+			Error: `service "Service" HTTP endpoint "Method": Cannot define a request body when using SkipRequestBodyEncodeDecode.
+service "Service" HTTP endpoint "Method": HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.
+service "Service" HTTP endpoint "Method": HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.`,
 		},
 		"endpoint-has-skip-request-encode-and-result-streaming": {
 			DSL:   testdata.EndpointHasSkipRequestEncodeAndResultStreaming,
@@ -229,6 +245,18 @@ service "Service" HTTP endpoint "MethodC": HTTP endpoint request body must be em
 		"endpoint-multipart-constructor-union": {
 			DSL:   testdata.EndpointMultipartConstructorUnion,
 			Error: `service "Service" HTTP endpoint "Method": MultipartRequest requires an object payload, constructor unions are not supported`,
+		},
+		"endpoint-array-payload-body-conflict": {
+			DSL:   testdata.EndpointArrayPayloadBodyConflict,
+			Error: `service "Service" HTTP endpoint "Method": Payload type is array but HTTP endpoint body is not.`,
+		},
+		"endpoint-map-payload-body-conflict": {
+			DSL:   testdata.EndpointMapPayloadBodyConflict,
+			Error: `service "Service" HTTP endpoint "Method": Payload type is map but HTTP endpoint body is not.`,
+		},
+		"endpoint-object-payload-body-conflict": {
+			DSL:   testdata.EndpointObjectPayloadBodyConflict,
+			Error: `service "Service" HTTP endpoint "Method": Body "value" is not found in Payload.`,
 		},
 	}
 	for name, c := range cases {
@@ -481,6 +509,10 @@ func TestHTTPEndpointValidationAdditionalCoverage(t *testing.T) {
 		"tagged responses require object result": {
 			DSL:      taggedPrimitiveResultDSL,
 			Contains: "Some responses define a Tag but the method Result type is not an object.",
+		},
+		"duplicate response status code": {
+			DSL:      testdata.EndpointDuplicateResponseStatusCode,
+			Contains: "Multiple response definitions with status code 200",
 		},
 		"sse on non streaming endpoint rejected": {
 			DSL:      nonStreamingSSEDsl,

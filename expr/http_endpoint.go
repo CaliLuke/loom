@@ -419,20 +419,46 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateJSONRPCTransport(verr)
 	e.validateRedirect(verr)
 	e.validateRoutes(verr)
+	e.validateResponses(verr)
+	e.validateBodyAndPayload(verr)
 
-	// Validate responses
+	// Validate errors
+	for _, er := range e.HTTPErrors {
+		verr.Merge(er.Validate())
+	}
 
-	// All responses but one must have tags for the same status code
+	body := httpRequestBody(e)
+	// For streaming endpoints, check if request body is allowed.
+	if e.MethodExpr.IsStreaming() && body.Type != Empty {
+		// SSE endpoints can have request bodies, but WebSocket endpoints cannot.
+		// Exception: JSON-RPC WebSocket endpoints can have payloads as they are sent
+		// as JSON-RPC messages after the WebSocket connection is established.
+		_, isJSONRPC := e.MethodExpr.Meta["jsonrpc"]
+		if e.SSE == nil && !isJSONRPC {
+			verr.Add(e, "HTTP endpoint request body must be empty when the endpoint uses streaming. Payload attributes must be mapped to headers and/or params.")
+		}
+	}
+
+	return verr
+}
+
+func (e *HTTPEndpointExpr) validateResponses(verr *eval.ValidationErrors) {
+	// All responses but one must have tags for the same status code.
 	hasTags := false
 	allTagged := true
 	successResp := false
-	for i, r := range e.Responses {
+	statusCounts := make(map[int]int, len(e.Responses))
+	for _, r := range e.Responses {
+		statusCounts[r.StatusCode]++
+	}
+	for _, r := range e.Responses {
 		verr.Merge(r.Validate(e))
-		for j, r2 := range e.Responses {
-			if i != j && r.StatusCode == r2.StatusCode {
+		if count := statusCounts[r.StatusCode]; count > 1 {
+			for i := 0; i < count-1; i++ {
 				verr.Add(r, "Multiple response definitions with status code %d", r.StatusCode)
 			}
 		}
+
 		if r.Tag[0] == "" {
 			allTagged = false
 		} else {
@@ -456,19 +482,20 @@ func (e *HTTPEndpointExpr) Validate() error {
 	if hasTags && !IsObject(e.MethodExpr.Result.Type) {
 		verr.Add(e, "Some responses define a Tag but the method Result type is not an object.")
 	}
+}
 
-	// Make sure parameters and headers use compatible types
+func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
+	// Make sure parameters and headers use compatible types.
 	verr.Merge(e.validateParams())
 	verr.Merge(e.validateHeadersAndCookies())
 
-	// Validate body attribute (required fields exist etc.)
+	// Validate body attribute (required fields exist etc.).
 	if e.Body != nil {
 		verr.Merge(e.Body.Validate("HTTP body", e))
 		if e.SkipRequestBodyEncodeDecode {
 			verr.Add(e, "Cannot define a request body when using SkipRequestBodyEncodeDecode.")
 		}
-		// Make sure Body does not require attribute that are not required in
-		// payload.
+		// Make sure Body does not require attribute that are not required in payload.
 		if v := e.Body.Validation; v != nil {
 			var preqs, missing []string
 			if e.MethodExpr.Payload != nil && e.MethodExpr.Payload.Validation != nil {
@@ -493,12 +520,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 		}
 	}
 
-	// Validate errors
-	for _, er := range e.HTTPErrors {
-		verr.Merge(er.Validate())
-	}
-
-	// Validate definitions of params, headers and bodies against definition of payload
+	// Validate definitions of params, headers and bodies against definition of payload.
 	var (
 		hasParams  = !e.Params.IsEmpty()
 		hasHeaders = !e.Headers.IsEmpty()
@@ -523,35 +545,10 @@ func (e *HTTPEndpointExpr) Validate() error {
 		if !e.Headers.IsEmpty() {
 			verr.Add(e, "Headers are set but Payload is not defined.")
 		}
-		return verr
+		return
 	}
-	if e.FormRequest && e.MultipartRequest {
-		verr.Add(e, "HTTP endpoint cannot define both FormRequest and MultipartRequest.")
-	}
-	if e.FormRequest && e.SkipRequestBodyEncodeDecode {
-		verr.Add(e, "HTTP endpoint cannot use FormRequest with SkipRequestBodyEncodeDecode.")
-	}
-	if e.OptionalRequestBody && e.SkipRequestBodyEncodeDecode {
-		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with SkipRequestBodyEncodeDecode.")
-	}
-	if e.OptionalRequestBody && e.MultipartRequest {
-		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.")
-	}
-	if e.OptionalRequestBody && e.FormRequest {
-		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with FormRequest.")
-	}
-	if e.OptionalRequestBody && (e.Body == nil || e.Body.Type == Empty) {
-		verr.Add(e, "HTTP endpoint uses OptionalRequestBody but does not define a request body.")
-	}
-	if e.OptionalRequestBody && e.Body != nil && !IsObject(e.Body.Type) {
-		verr.Add(e, "OptionalRequestBody requires an object request body.")
-	}
-	if e.MultipartRequest && IsUnion(e.MethodExpr.Payload.Type) {
-		verr.Add(e, "MultipartRequest requires an object payload, constructor unions are not supported")
-	}
-	if e.FormRequest && !(IsUnion(e.MethodExpr.Payload.Type) || IsObject(e.MethodExpr.Payload.Type)) {
-		verr.Add(e, "FormRequest requires an object or constructor union payload")
-	}
+	e.validateRequestBodyOptions(verr)
+
 	if IsArray(e.MethodExpr.Payload.Type) {
 		if e.MapQueryParams != nil {
 			verr.Add(e, "MapParams is set but Payload type is array. Payload type must be map or an object with a map attribute")
@@ -690,24 +687,39 @@ func (e *HTTPEndpointExpr) Validate() error {
 		}
 	}
 
-	body := httpRequestBody(e)
-	if e.SkipRequestBodyEncodeDecode && body.Type != Empty {
+	if e.SkipRequestBodyEncodeDecode && httpRequestBody(e).Type != Empty {
 		verr.Add(e, "HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.")
 	}
+}
 
-	// For streaming endpoints, check if request body is allowed
-	if e.MethodExpr.IsStreaming() && body.Type != Empty {
-		// SSE endpoints can have request bodies, but WebSocket endpoints cannot
-		// Refer WebSocket protocol - https://tools.ietf.org/html/rfc6455
-		// Exception: JSON-RPC WebSocket endpoints can have payloads as they are sent
-		// as JSON-RPC messages after the WebSocket connection is established
-		_, isJSONRPC := e.MethodExpr.Meta["jsonrpc"]
-		if e.SSE == nil && !isJSONRPC { // Only apply this validation to non-SSE, non-JSON-RPC streaming endpoints
-			verr.Add(e, "HTTP endpoint request body must be empty when the endpoint uses streaming. Payload attributes must be mapped to headers and/or params.")
-		}
+func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationErrors) {
+	if e.FormRequest && e.MultipartRequest {
+		verr.Add(e, "HTTP endpoint cannot define both FormRequest and MultipartRequest.")
 	}
-
-	return verr
+	if e.FormRequest && e.SkipRequestBodyEncodeDecode {
+		verr.Add(e, "HTTP endpoint cannot use FormRequest with SkipRequestBodyEncodeDecode.")
+	}
+	if e.OptionalRequestBody && e.SkipRequestBodyEncodeDecode {
+		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with SkipRequestBodyEncodeDecode.")
+	}
+	if e.OptionalRequestBody && e.MultipartRequest {
+		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.")
+	}
+	if e.OptionalRequestBody && e.FormRequest {
+		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with FormRequest.")
+	}
+	if e.OptionalRequestBody && e.Body != nil && !IsObject(e.Body.Type) {
+		verr.Add(e, "OptionalRequestBody requires an object request body.")
+	}
+	if e.OptionalRequestBody && (e.Body == nil || e.Body.Type == Empty) {
+		verr.Add(e, "HTTP endpoint uses OptionalRequestBody but does not define a request body.")
+	}
+	if e.MultipartRequest && IsUnion(e.MethodExpr.Payload.Type) {
+		verr.Add(e, "MultipartRequest requires an object payload, constructor unions are not supported")
+	}
+	if e.FormRequest && !(IsUnion(e.MethodExpr.Payload.Type) || IsObject(e.MethodExpr.Payload.Type)) {
+		verr.Add(e, "FormRequest requires an object or constructor union payload")
+	}
 }
 
 func (e *HTTPEndpointExpr) validateSkipBodyEncoding(verr *eval.ValidationErrors) {

@@ -137,40 +137,7 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 		}
 	}
 
-	var code string
-	{
-		switch {
-		case expr.IsArray(source.Type):
-			// Top-level array transforms never assign into a pointer field.
-			code, err = transformArray(expr.AsArray(source.Type), expr.AsArray(target.Type), sourceVar, targetVar, newVar, false, false, ta)
-		case expr.IsMap(source.Type):
-			code, err = transformMap(expr.AsMap(source.Type), expr.AsMap(target.Type), sourceVar, targetVar, newVar, false, ta)
-		case expr.IsObject(source.Type):
-			code, err = transformObject(source, target, sourceVar, targetVar, newVar, ta)
-		case expr.IsUnion(source.Type):
-			if ta.proto {
-				// At top-level we do not expect pointer-to-interface unions.
-				code, err = transformUnionToProto(source, target, sourceVar, targetVar, false, ta)
-			} else {
-				code, err = transformUnionFromProto(source, target, sourceVar, targetVar, ta)
-			}
-		case source.Type.Kind() == expr.AnyKind || target.Type.Kind() == expr.AnyKind:
-			// Special handling for Any type conversions
-			assign := "="
-			if newVar {
-				assign = ":="
-			}
-			srcField := convertType(source, target, false, false, sourceVar, ta)
-			code = fmt.Sprintf("%s %s %s\n", targetVar, assign, srcField)
-		default:
-			assign := "="
-			if newVar {
-				assign = ":="
-			}
-			srcField := convertType(source, target, false, false, sourceVar, ta)
-			code = fmt.Sprintf("%s %s %s\n", targetVar, assign, srcField)
-		}
-	}
+	code, err := transformAttributeByKind(source, target, sourceVar, targetVar, newVar, ta)
 	if err != nil {
 		return "", err
 	}
@@ -179,6 +146,37 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 		code += "\n"
 	}
 	return initCode + code, nil
+}
+
+func transformAttributeByKind(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, error) {
+	switch {
+	case expr.IsArray(source.Type):
+		// Top-level array transforms never assign into a pointer field.
+		return transformArray(expr.AsArray(source.Type), expr.AsArray(target.Type), sourceVar, targetVar, newVar, false, false, ta)
+	case expr.IsMap(source.Type):
+		return transformMap(expr.AsMap(source.Type), expr.AsMap(target.Type), sourceVar, targetVar, newVar, false, ta)
+	case expr.IsObject(source.Type):
+		return transformObject(source, target, sourceVar, targetVar, newVar, ta)
+	case expr.IsUnion(source.Type):
+		if ta.proto {
+			// At top-level we do not expect pointer-to-interface unions.
+			return transformUnionToProto(source, target, sourceVar, targetVar, false, ta)
+		}
+		return transformUnionFromProto(source, target, sourceVar, targetVar, ta)
+	case source.Type.Kind() == expr.AnyKind || target.Type.Kind() == expr.AnyKind:
+		return transformScalarAssignment(source, target, sourceVar, targetVar, newVar, ta), nil
+	default:
+		return transformScalarAssignment(source, target, sourceVar, targetVar, newVar, ta), nil
+	}
+}
+
+func transformScalarAssignment(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *transformAttrs) string {
+	assign := "="
+	if newVar {
+		assign = ":="
+	}
+	srcField := convertType(source, target, false, false, sourceVar, ta)
+	return fmt.Sprintf("%s %s %s\n", targetVar, assign, srcField)
 }
 
 // transformObject returns the code to transform source attribute of object
@@ -202,46 +200,13 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 				srcPtr       = ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr)
 				tgtPtr       = ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr)
 				srcFieldConv = convertType(srcc, tgtc, srcPtr, tgtPtr, srcField, ta)
-				_, isSrcUT   = srcc.Type.(expr.UserType)
-				_, isTgtUT   = tgtc.Type.(expr.UserType)
 			)
-			switch {
-			case isSrcUT || isTgtUT || (srcField != srcFieldConv):
-				var deref string
-				if srcPtr {
-					deref = "*"
-				}
-				exp = srcFieldConv
-				if isSrcUT && !ta.proto {
-					// If the source is an alias type and the code is initializing a service
-					// type then we must cast to the alias type.
-					exp = fmt.Sprintf("%s(%s%s)", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)), deref, srcField)
-				}
-				if srcPtr && !srcMatt.IsRequired(n) {
-					postInitCode += fmt.Sprintf("if %s != nil {\n", srcField)
-					if tgtPtr {
-						tmp := codegen.Goify(tgtMatt.ElemName(n), false)
-						postInitCode += fmt.Sprintf("%s := %s\n%s.%s = &%s\n", tmp, exp, targetVar, tgtField, tmp)
-					} else {
-						postInitCode += fmt.Sprintf("%s.%s = %s\n", targetVar, tgtField, exp)
-					}
-					postInitCode += "}\n"
-					return
-				} else if tgtPtr {
-					tmp := codegen.Goify(tgtMatt.ElemName(n), false)
-					postInitCode += fmt.Sprintf("%s := %s\n%s.%s = &%s\n", tmp, exp, targetVar, tgtField, tmp)
-					return
-				}
-			case srcPtr && !tgtPtr:
-				exp = "*" + srcField
-				if !srcMatt.IsRequired(n) {
-					postInitCode += fmt.Sprintf("if %s != nil {\n\t%s.%s = %s\n}\n", srcField, targetVar, tgtField, exp)
-					return
-				}
-			case !srcPtr && tgtPtr:
-				exp = "&" + srcField
-			default:
-				exp = srcField
+			var handled bool
+			exp, postInitCode, handled = transformObjectPrimitivePointerCases(
+				srcMatt, srcc, tgtc, srcField, tgtField, srcFieldConv, srcPtr, tgtPtr, targetVar, postInitCode, tgtMatt.ElemName(n), n, ta,
+			)
+			if handled {
+				return
 			}
 			initCode += fmt.Sprintf("\n%s: %s,", tgtField, exp)
 		})
@@ -395,6 +360,71 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	}
 
 	return buffer.String(), nil
+}
+
+func transformObjectPrimitivePointerCases(
+	srcMatt *expr.MappedAttributeExpr,
+	srcc, tgtc *expr.AttributeExpr,
+	srcField, tgtField, srcFieldConv string,
+	srcPtr, tgtPtr bool,
+	targetVar, postInitCode string,
+	elemName, attrName string,
+	ta *transformAttrs,
+) (string, string, bool) {
+	_, isSrcUT := srcc.Type.(expr.UserType)
+	_, isTgtUT := tgtc.Type.(expr.UserType)
+	switch {
+	case isSrcUT || isTgtUT || (srcField != srcFieldConv):
+		exp := convertedPrimitiveObjectFieldExpr(srcc, tgtc, srcField, srcFieldConv, srcPtr, ta)
+		if srcPtr && !srcMatt.IsRequired(attrName) {
+			return "", appendConditionalPrimitiveAssignment(postInitCode, srcField, targetVar, tgtField, exp, elemName, tgtPtr), true
+		}
+		if tgtPtr {
+			return "", appendPointerPrimitiveAssignment(postInitCode, targetVar, tgtField, exp, elemName), true
+		}
+		return exp, postInitCode, false
+	case srcPtr && !tgtPtr:
+		exp := "*" + srcField
+		if !srcMatt.IsRequired(attrName) {
+			postInitCode += fmt.Sprintf("if %s != nil {\n\t%s.%s = %s\n}\n", srcField, targetVar, tgtField, exp)
+			return "", postInitCode, true
+		}
+		return exp, postInitCode, false
+	case !srcPtr && tgtPtr:
+		return "&" + srcField, postInitCode, false
+	default:
+		return srcField, postInitCode, false
+	}
+}
+
+func convertedPrimitiveObjectFieldExpr(srcc, tgtc *expr.AttributeExpr, srcField, srcFieldConv string, srcPtr bool, ta *transformAttrs) string {
+	var deref string
+	if srcPtr {
+		deref = "*"
+	}
+	exp := srcFieldConv
+	if _, isSrcUT := srcc.Type.(expr.UserType); isSrcUT && !ta.proto {
+		exp = fmt.Sprintf("%s(%s%s)", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)), deref, srcField)
+	}
+	return exp
+}
+
+func appendConditionalPrimitiveAssignment(postInitCode, srcField, targetVar, tgtField, exp, elemName string, tgtPtr bool) string {
+	postInitCode += fmt.Sprintf("if %s != nil {\n", srcField)
+	if tgtPtr {
+		tmp := codegen.Goify(elemName, false)
+		postInitCode += fmt.Sprintf("%s := %s\n%s.%s = &%s\n", tmp, exp, targetVar, tgtField, tmp)
+	} else {
+		postInitCode += fmt.Sprintf("%s.%s = %s\n", targetVar, tgtField, exp)
+	}
+	postInitCode += "}\n"
+	return postInitCode
+}
+
+func appendPointerPrimitiveAssignment(postInitCode, targetVar, tgtField, exp, elemName string) string {
+	tmp := codegen.Goify(elemName, false)
+	postInitCode += fmt.Sprintf("%s := %s\n%s.%s = &%s\n", tmp, exp, targetVar, tgtField, tmp)
+	return postInitCode
 }
 
 // transformArray returns the code to transform source attribute of array
