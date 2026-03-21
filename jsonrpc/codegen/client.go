@@ -60,7 +60,9 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 				sections = append(sections, jsonrpcResponseDecoderSection(svcData.Endpoint(ed.Method.Name)))
 				continue
 			}
-			s.Name = "jsonrpc-" + s.Name
+			if s.Name != "source-header" {
+				s.Name = "jsonrpc-" + s.Name
+			}
 			sections = append(sections, s)
 		}
 

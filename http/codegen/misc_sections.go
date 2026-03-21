@@ -19,9 +19,9 @@ func renderRequestBuilderSection(endpoint *EndpointData) string {
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(endpoint.RequestInit.Description))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (c *%s) %s(ctx context.Context, ", endpoint.ClientStruct, endpoint.RequestInit.Name)
+	fmt.Fprintf(&b, "func (c *%s) %s(ctx context.Context", endpoint.ClientStruct, endpoint.RequestInit.Name)
 	for _, arg := range endpoint.RequestInit.ClientArgs {
-		fmt.Fprintf(&b, "%s %s,", arg.VarName, arg.TypeRef)
+		fmt.Fprintf(&b, ", %s %s", arg.VarName, arg.TypeRef)
 	}
 	b.WriteString(") (*http.Request, error) {\n")
 	b.WriteString(strings.TrimLeft(endpoint.RequestInit.ClientCode, "\n"))

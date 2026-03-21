@@ -38,29 +38,34 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 	b.WriteString("\t\t}\n\n")
 	b.WriteString("\t\tif jresp.Error != nil {\n")
 	b.WriteString("\t\t\tswitch jresp.Error.Code {\n")
-	seenCodes := map[string]bool{}
 	for _, group := range e.Errors {
-		for _, item := range group.Errors {
-			if item.Response == nil || seenCodes[item.Response.StatusCode] {
-				continue
-			}
-			seenCodes[item.Response.StatusCode] = true
-			fmt.Fprintf(&b, "\t\t\tcase %s:\n", item.Response.StatusCode)
-			b.WriteString("\t\t\t\tresp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))\n")
-			renderSingleResponseDecode(&b, item.Response, e.ServiceName, e.Method)
-			if item.Response.ResultInit != nil {
-				b.WriteString("\t\t\t\treturn nil, " + item.Response.ResultInit.Name + "(")
-				for _, arg := range item.Response.ResultInit.ClientArgs {
-					b.WriteString(arg.Ref)
-					b.WriteString(",")
-				}
-				b.WriteString(")\n")
-			} else if item.Response.ClientBody != nil {
-				b.WriteString("\t\t\t\treturn nil, body\n")
-			} else {
-				b.WriteString("\t\t\t\treturn nil, nil\n")
-			}
+		if len(group.Errors) == 0 || group.Errors[0].Response == nil {
+			continue
 		}
+		fmt.Fprintf(&b, "\t\t\tcase %s:\n", group.StatusCode)
+		if len(group.Errors) > 1 {
+			b.WriteString("\t\t\t\tvar jerrData jsonrpc.ErrorData\n")
+			b.WriteString("\t\t\t\tif len(jresp.Error.Data) > 0 {\n")
+			fmt.Fprintf(&b, "\t\t\t\t\tif err := json.Unmarshal(jresp.Error.Data, &jerrData); err != nil {\n\t\t\t\t\t\treturn nil, goahttp.ErrDecodingError(%q, %q, err)\n\t\t\t\t\t}\n", e.ServiceName, e.Method.Name)
+			b.WriteString("\t\t\t\t}\n")
+			b.WriteString("\t\t\t\tswitch jerrData.Name {\n")
+			for _, item := range group.Errors {
+				if item.Response == nil {
+					continue
+				}
+				fmt.Fprintf(&b, "\t\t\t\tcase %q:\n", item.Name)
+				b.WriteString("\t\t\t\t\tresp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))\n")
+				renderSingleResponseDecode(&b, item.Response, e.ServiceName, e.Method)
+				writeResultInitReturn(&b, item.Response)
+			}
+			fmt.Fprintf(&b, "\t\t\t\tdefault:\n\t\t\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(jresp.Error.Data))\n", e.ServiceName, e.Method.Name)
+			b.WriteString("\t\t\t\t}\n")
+			continue
+		}
+		item := group.Errors[0]
+		b.WriteString("\t\t\t\tresp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))\n")
+		renderSingleResponseDecode(&b, item.Response, e.ServiceName, e.Method)
+		writeResultInitReturn(&b, item.Response)
 	}
 	b.WriteString("\t\t\tdefault:\n")
 	fmt.Fprintf(&b, "\t\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
@@ -73,9 +78,11 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 		case resp.ResultInit != nil:
 			if resp.ViewedResult != nil {
 				b.WriteString("\t\tp := " + resp.ResultInit.Name + "(")
-				for _, arg := range resp.ResultInit.ClientArgs {
+				for i, arg := range resp.ResultInit.ClientArgs {
+					if i > 0 {
+						b.WriteString(", ")
+					}
 					b.WriteString(arg.Ref)
-					b.WriteString(",")
 				}
 				b.WriteString(")\n")
 				if resp.TagName != "" {
@@ -96,9 +103,11 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 				b.WriteString("\t\treturn res, nil\n")
 			}
 			b.WriteString("\t\tres := " + resp.ResultInit.Name + "(")
-			for _, arg := range resp.ResultInit.ClientArgs {
+			for i, arg := range resp.ResultInit.ClientArgs {
+				if i > 0 {
+					b.WriteString(", ")
+				}
 				b.WriteString(arg.Ref)
-				b.WriteString(",")
 			}
 			b.WriteString(")\n")
 			if resp.TagName != "" && !isViewedResponse(resp) {
@@ -123,6 +132,24 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 	}
 	b.WriteString("\t}\n}\n")
 	return b.String()
+}
+
+func writeResultInitReturn(b *strings.Builder, resp *httpcodegen.ResponseData) {
+	switch {
+	case resp.ResultInit != nil:
+		b.WriteString("\t\t\t\treturn nil, " + resp.ResultInit.Name + "(")
+		for i, arg := range resp.ResultInit.ClientArgs {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(arg.Ref)
+		}
+		b.WriteString(")\n")
+	case resp.ClientBody != nil:
+		b.WriteString("\t\t\t\treturn nil, body\n")
+	default:
+		b.WriteString("\t\t\t\treturn nil, nil\n")
+	}
 }
 
 func renderSingleResponseDecode(b *strings.Builder, data *httpcodegen.ResponseData, serviceName string, method *service.MethodData) {

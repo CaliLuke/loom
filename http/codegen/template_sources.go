@@ -174,7 +174,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) goahttp.Encoder) func(*ht
 		}
 	{{- else if .Payload.Request.ClientBody }}
 		{{- if .Payload.Request.ClientBody.Init }}
-		body := {{ .Payload.Request.ClientBody.Init.Name }}({{ range .Payload.Request.ClientBody.Init.ClientArgs }}{{ if .FieldPointer }}&{{ end }}{{ .VarName }}, {{ end }})
+		body := {{ .Payload.Request.ClientBody.Init.Name }}({{ range $i, $arg := .Payload.Request.ClientBody.Init.ClientArgs }}{{ if $i }}, {{ end }}{{ if $arg.FieldPointer }}&{{ end }}{{ $arg.VarName }}{{ end }})
 		{{- else }}
 		body := p{{ if .Payload.Request.PayloadAttr }}.{{ .Payload.Request.PayloadAttr }}{{ end }}
 		{{- end }}
@@ -1023,7 +1023,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) goahttp.Decoder, restor
 			{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 		{{- if .ResultInit }}
 			{{- if .ViewedResult }}
-			p := {{ .ResultInit.Name }}({{ range .ResultInit.ClientArgs }}{{ .Ref }},{{ end }})
+			p := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
 				{{- if .TagName }}
 				tmp := {{ printf "%q" .TagValue }}
 				p.{{ .TagName }} = &tmp
@@ -1041,7 +1041,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) goahttp.Decoder, restor
 				{{- end }}
 			res := {{ $.ServicePkgName }}.{{ $.Method.ViewedResult.ResultInit.Name }}(vres)
 			{{- else }}
-			res := {{ .ResultInit.Name }}({{ range .ResultInit.ClientArgs }}{{ .Ref }},{{ end }})
+			res := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
 			{{- end }}
 			{{- if and .TagName (not .ViewedResult) }}
 				{{- if .TagPointer }}
@@ -1072,7 +1072,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) goahttp.Decoder, restor
 				{{- with .Response }}
 					{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 					{{- if .ResultInit }}
-			return nil, {{ .ResultInit.Name }}({{ range .ResultInit.ClientArgs }}{{ .Ref }},{{ end }})
+			return nil, {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
 					{{- else if .ClientBody }}
 			return nil, body
 					{{- else }}
@@ -1088,7 +1088,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) goahttp.Decoder, restor
 			{{- with (index .Errors 0).Response }}
 				{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 				{{- if .ResultInit }}
-			return nil, {{ .ResultInit.Name }}({{ range .ResultInit.ClientArgs }}{{ .Ref }},{{ end }})
+			return nil, {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
 				{{- else if .ClientBody }}
 			return nil, body
 				{{- else }}
