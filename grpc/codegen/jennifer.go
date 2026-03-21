@@ -216,6 +216,66 @@ func grpcHandlerInitSection(endpoint *EndpointData) codegenpkg.Section {
 	})
 }
 
+func grpcServerInterfaceSection(endpoint *EndpointData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection("server-grpc-interface", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %q method in %s.%s interface.", endpoint.Method.VarName, endpoint.Method.VarName, endpoint.PkgName, endpoint.ServerInterface))
+		params := []jen.Code{}
+		if endpoint.ServerStream == nil {
+			params = append(params, jen.Id("ctx").Qual("context", "Context"))
+		}
+		if endpoint.Method.StreamingPayload == "" {
+			params = append(params, jen.Id("message").Add(codegenpkg.TypeRef(endpoint.Request.Message.Ref)))
+		}
+		if endpoint.ServerStream != nil {
+			params = append(params, jen.Id("stream").Add(codegenpkg.TypeRef(endpoint.ServerStream.Interface)))
+		}
+		results := []jen.Code{jen.Error()}
+		if endpoint.ServerStream == nil && endpoint.Response.Message != nil {
+			results = []jen.Code{codegenpkg.TypeRef(endpoint.Response.Message.Ref), jen.Error()}
+		}
+		stmt.Func().Params(jen.Id("s").Op("*").Id(endpoint.ServerStruct)).
+			Id(endpoint.Method.VarName).
+			Params(params...).
+			Params(results...).
+			BlockFunc(func(g *jen.Group) {
+				if endpoint.ServerStream != nil {
+					g.Id("ctx").Op(":=").Id("stream").Dot("Context").Call()
+				}
+				g.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), codegenpkg.Expr("goa.MethodKey"), jen.Lit(endpoint.Method.Name))
+				g.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), codegenpkg.Expr("goa.ServiceKey"), jen.Lit(endpoint.ServiceName))
+				if endpoint.ServerStream != nil {
+					decodeTarget := "_"
+					if endpoint.PayloadRef != "" {
+						decodeTarget = "p"
+					}
+					decodeArg := jen.Id("message")
+					if endpoint.Method.StreamingPayload != "" {
+						decodeArg = jen.Nil()
+					}
+					g.List(jen.Id(decodeTarget), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Decode").Call(jen.Id("ctx"), decodeArg)
+					appendGRPCServerErrorHandler(g, endpoint, true)
+					g.Id("ep").Op(":=").Op("&").Qual(endpoint.ServicePkgName, endpoint.Method.VarName+"EndpointInput").ValuesFunc(func(dict *jen.Group) {
+						dict.Id("Stream").Op(":").Op("&").Id(endpoint.ServerStream.VarName).Values(jen.Dict{
+							jen.Id("stream"): jen.Id("stream"),
+						})
+						if endpoint.PayloadRef != "" {
+							dict.Id("Payload").Op(":").Id("p").Assert(codegenpkg.Expr(endpoint.PayloadRef))
+						}
+					})
+					g.Err().Op("=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Handle").Call(jen.Id("ctx"), jen.Id("ep"))
+				} else {
+					g.List(jen.Id("resp"), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Handle").Call(jen.Id("ctx"), jen.Id("message"))
+				}
+				appendGRPCServerErrorHandler(g, endpoint, endpoint.ServerStream != nil)
+				if endpoint.ServerStream == nil {
+					g.Return(jen.Id("resp").Assert(codegenpkg.Expr(endpoint.Response.ServerConvert.TgtRef)), jen.Nil())
+					return
+				}
+				g.Return(jen.Nil())
+			})
+	})
+}
+
 func grpcStreamStructSection(stream *StreamData) codegenpkg.Section {
 	return codegenpkg.MustJenniferSection(stream.Type+"-stream-struct-type", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %s interface.", stream.VarName, stream.ServiceInterface))
@@ -269,6 +329,108 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 	})
 }
 
+func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
+	return codegenpkg.MustJenniferSection(stream.Type+"-stream-recv", func(stmt *jen.Statement) {
+		codegenpkg.Doc(stmt, stream.RecvDesc)
+		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
+			Id(stream.RecvName).
+			Params().
+			Params(codegenpkg.TypeRef(stream.RecvRef), jen.Error()).
+			BlockFunc(func(g *jen.Group) {
+				g.Var().Id("res").Add(codegenpkg.TypeRef(stream.RecvRef))
+				g.List(jen.Id("v"), jen.Err()).Op(":=").Id("s").Dot("stream").Dot(stream.RecvName).Call()
+				g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
+					if stream.Endpoint != nil && len(stream.Endpoint.Errors) > 0 && stream.Type == "client" {
+						eg.Id("resp").Op(":=").Add(codegenpkg.Expr("goagrpc.DecodeError")).Call(jen.Err())
+						eg.Switch(jen.Id("message").Op(":=").Id("resp").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
+							for _, errData := range stream.Endpoint.Errors {
+								if errData.Response.ClientConvert == nil {
+									continue
+								}
+								caseBody := []jen.Code{}
+								if errData.Response.ClientConvert.Validation != nil {
+									caseBody = append(caseBody,
+										jen.If(
+											jen.Err().Op(":=").Id(errData.Response.ClientConvert.Validation.Name).Call(jen.Id("message")),
+											jen.Err().Op("!=").Nil(),
+										).Block(
+											jen.Return(jen.Id("res"), jen.Err()),
+										),
+									)
+								}
+								initArgs := make([]jen.Code, 0, len(errData.Response.ClientConvert.Init.Args))
+								for _, arg := range errData.Response.ClientConvert.Init.Args {
+									initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
+								}
+								caseBody = append(caseBody,
+									jen.Return(jen.Id("res"), jen.Id(errData.Response.ClientConvert.Init.Name).Call(initArgs...)),
+								)
+								sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(caseBody...)
+							}
+							sg.Case(jen.Op("*").Id("goapb").Dot("ErrorResponse")).Block(
+								jen.Return(jen.Id("res"), codegenpkg.Expr("goagrpc.NewServiceError").Call(jen.Id("message"))),
+							)
+							sg.Default().Block(
+								jen.Return(jen.Id("res"), jen.Err()),
+							)
+						})
+						return
+					}
+					eg.Return(jen.Id("res"), jen.Err())
+				})
+				if stream.Endpoint != nil && stream.Endpoint.Method.ViewedResult != nil && stream.Type == "client" {
+					viewArg := fmt.Sprintf("%q", stream.Endpoint.Method.ViewedResult.ViewName)
+					if stream.Endpoint.Method.ViewedResult.ViewName == "" {
+						viewArg = "s.view"
+					}
+					initArgs := make([]jen.Code, 0, len(stream.RecvConvert.Init.Args))
+					for _, arg := range stream.RecvConvert.Init.Args {
+						initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
+					}
+					g.Id("proj").Op(":=").Id(stream.RecvConvert.Init.Name).Call(initArgs...)
+					if !stream.Endpoint.Method.ViewedResult.IsCollection {
+						g.Add(codegenpkg.Expr("vres := &" + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
+					} else {
+						g.Add(codegenpkg.Expr("vres := " + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
+					}
+					g.If(
+						jen.Err().Op(":=").Qual(stream.Endpoint.Method.ViewedResult.ViewsPkg, "Validate"+stream.Endpoint.Method.Result).Call(jen.Id("vres")),
+						jen.Err().Op("!=").Nil(),
+					).Block(
+						jen.Return(jen.Nil(), jen.Err()),
+					)
+					g.Return(
+						jen.Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.ResultInit.Name).Call(jen.Id("vres")),
+						jen.Nil(),
+					)
+					return
+				}
+				if stream.RecvConvert.Validation != nil {
+					g.If(
+						jen.Err().Op("=").Id(stream.RecvConvert.Validation.Name).Call(jen.Id("v")),
+						jen.Err().Op("!=").Nil(),
+					).Block(
+						jen.Return(jen.Id("res"), jen.Err()),
+					)
+				}
+				initArgs := make([]jen.Code, 0, len(stream.RecvConvert.Init.Args))
+				for _, arg := range stream.RecvConvert.Init.Args {
+					initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
+				}
+				g.Return(jen.Id(stream.RecvConvert.Init.Name).Call(initArgs...), jen.Nil())
+			})
+		stmt.Line()
+		codegenpkg.Doc(stmt, stream.RecvWithContextDesc)
+		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
+			Id(stream.RecvWithContextName).
+			Params(jen.Id("ctx").Qual("context", "Context")).
+			Params(codegenpkg.TypeRef(stream.RecvRef), jen.Error()).
+			Block(
+				jen.Return(jen.Id("s").Dot(stream.RecvName).Call()),
+			)
+	})
+}
+
 func grpcStreamCloseSection(stream *StreamData) codegenpkg.Section {
 	return codegenpkg.MustJenniferSection(stream.Type+"-stream-close", func(stmt *jen.Statement) {
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).Id("Close").Params().Error().BlockFunc(func(g *jen.Group) {
@@ -291,6 +453,55 @@ func grpcStreamCloseSection(stream *StreamData) codegenpkg.Section {
 			g.Comment(codegenpkg.Comment("synchronize stream"))
 			g.Return(jen.Id("s").Dot("stream").Dot("SendAndClose").Call(jen.Op("&").Id(stream.Endpoint.Response.ServerConvert.TgtName).Values()))
 		})
+	})
+}
+
+func appendGRPCServerErrorHandler(g *jen.Group, endpoint *EndpointData, serverStream bool) {
+	g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
+		if len(endpoint.Errors) > 0 {
+			prefix := []jen.Code{}
+			if !serverStream {
+				prefix = append(prefix, jen.Nil())
+			}
+			eg.Var().Id("en").Add(codegenpkg.TypeRef("goa.GoaErrorNamer"))
+			eg.If(jen.Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("en"))).Block(
+				jen.Switch(jen.Id("en").Dot("GoaErrorName").Call()).BlockFunc(func(sg *jen.Group) {
+					for _, errData := range endpoint.Errors {
+						body := []jen.Code{}
+						if errData.Response.ServerConvert != nil {
+							body = append(body,
+								jen.Var().Id("er").Add(codegenpkg.TypeRef(errData.Response.ServerConvert.SrcRef)),
+								jen.Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("er")),
+							)
+						}
+						statusArg := codegenpkg.Expr("goagrpc.NewErrorResponse(err)")
+						if errData.Response.ServerConvert != nil {
+							initArgs := make([]jen.Code, 0, len(errData.Response.ServerConvert.Init.Args))
+							for _, arg := range errData.Response.ServerConvert.Init.Args {
+								initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
+							}
+							statusArg = jen.Id(errData.Response.ServerConvert.Init.Name).Call(initArgs...)
+						}
+						body = append(body,
+							jen.Return(append(prefix,
+								codegenpkg.Expr("goagrpc.NewStatusError").Call(
+									codegenpkg.Expr(errData.Response.StatusCode),
+									jen.Err(),
+									statusArg,
+								),
+							)...),
+						)
+						sg.Case(jen.Lit(errData.Name)).Block(body...)
+					}
+				}),
+			)
+		}
+		ret := []jen.Code{}
+		if !serverStream {
+			ret = append(ret, jen.Nil())
+		}
+		ret = append(ret, codegenpkg.Expr("goagrpc.EncodeError").Call(jen.Err()))
+		eg.Return(ret...)
 	})
 }
 

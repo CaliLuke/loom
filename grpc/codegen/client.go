@@ -60,11 +60,7 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		for _, e := range data.Endpoints {
 			if e.ClientStream != nil {
 				if e.ClientStream.RecvConvert != nil {
-					sections = append(sections, &codegen.SectionTemplate{
-						Name:   "client-stream-recv",
-						Source: grpcTemplates.Read(grpcStreamRecvT),
-						Data:   e.ClientStream,
-					})
+					sections = append(sections, grpcStreamRecvSection(e.ClientStream))
 				}
 				if e.Method.StreamKind == expr.ClientStreamKind || e.Method.StreamKind == expr.BidirectionalStreamKind {
 					sections = append(sections, grpcStreamSendSection(e.ClientStream))

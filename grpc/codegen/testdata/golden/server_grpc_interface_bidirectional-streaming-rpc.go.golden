@@ -10,9 +10,7 @@ func (s *Server) MethodBidirectionalStreamingRPC(stream service_bidirectional_st
 	if err != nil {
 		return goagrpc.EncodeError(err)
 	}
-	ep := &servicebidirectionalstreamingrpc.MethodBidirectionalStreamingRPCEndpointInput{
-		Stream: &MethodBidirectionalStreamingRPCServerStream{stream: stream},
-	}
+	ep := &servicebidirectionalstreamingrpc.MethodBidirectionalStreamingRPCEndpointInput{Stream: &MethodBidirectionalStreamingRPCServerStream{stream: stream}}
 	err = s.MethodBidirectionalStreamingRPCH.Handle(ctx, ep)
 	if err != nil {
 		return goagrpc.EncodeError(err)

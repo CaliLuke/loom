@@ -10,10 +10,7 @@ func (s *Server) MethodClientStreamingRPCWithPayload(stream service_client_strea
 	if err != nil {
 		return goagrpc.EncodeError(err)
 	}
-	ep := &serviceclientstreamingrpcwithpayload.MethodClientStreamingRPCWithPayloadEndpointInput{
-		Stream:  &MethodClientStreamingRPCWithPayloadServerStream{stream: stream},
-		Payload: p.(int),
-	}
+	ep := &serviceclientstreamingrpcwithpayload.MethodClientStreamingRPCWithPayloadEndpointInput{Stream: &MethodClientStreamingRPCWithPayloadServerStream{stream: stream}, Payload: p.(int)}
 	err = s.MethodClientStreamingRPCWithPayloadH.Handle(ctx, ep)
 	if err != nil {
 		return goagrpc.EncodeError(err)

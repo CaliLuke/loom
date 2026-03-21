@@ -57,11 +57,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		}
 		sections = append(sections, grpcServerInitSection(data))
 		for _, e := range data.Endpoints {
-			sections = append(sections, grpcHandlerInitSection(e), &codegen.SectionTemplate{
-				Name:   "server-grpc-interface",
-				Source: grpcTemplates.Read(grpcServerGRPCInterfaceT),
-				Data:   e,
-			})
+			sections = append(sections, grpcHandlerInitSection(e), grpcServerInterfaceSection(e))
 		}
 		for _, e := range data.Endpoints {
 			if e.ServerStream != nil {
@@ -69,11 +65,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 					sections = append(sections, grpcStreamSendSection(e.ServerStream))
 				}
 				if e.Method.StreamKind == expr.ClientStreamKind || e.Method.StreamKind == expr.BidirectionalStreamKind {
-					sections = append(sections, &codegen.SectionTemplate{
-						Name:   "server-stream-recv",
-						Source: grpcTemplates.Read(grpcStreamRecvT),
-						Data:   e.ServerStream,
-					})
+					sections = append(sections, grpcStreamRecvSection(e.ServerStream))
 				}
 				if e.ServerStream.MustClose {
 					sections = append(sections, grpcStreamCloseSection(e.ServerStream))

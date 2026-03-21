@@ -8,9 +8,7 @@ func (s *Server) MethodClientStreamingRPC(stream service_client_streaming_rpcpb.
 	if err != nil {
 		return goagrpc.EncodeError(err)
 	}
-	ep := &serviceclientstreamingrpc.MethodClientStreamingRPCEndpointInput{
-		Stream: &MethodClientStreamingRPCServerStream{stream: stream},
-	}
+	ep := &serviceclientstreamingrpc.MethodClientStreamingRPCEndpointInput{Stream: &MethodClientStreamingRPCServerStream{stream: stream}}
 	err = s.MethodClientStreamingRPCH.Handle(ctx, ep)
 	if err != nil {
 		return goagrpc.EncodeError(err)
