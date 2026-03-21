@@ -17,9 +17,7 @@ func ClientFile(_ string, service *expr.ServiceExpr, services *ServicesData) *co
 	svc := services.Get(service.Name)
 	data := endpointData(svc)
 	path := filepath.Join(codegen.Gendir, svc.PathName, "client.go")
-	var (
-		sections []*codegen.SectionTemplate
-	)
+	var sections []codegen.Section
 	{
 		imports := []*codegen.ImportSpec{
 			{Path: "context"},
@@ -27,26 +25,14 @@ func ClientFile(_ string, service *expr.ServiceExpr, services *ServicesData) *co
 			codegen.GoaImport(""),
 		}
 		header := codegen.Header(service.Name+" client", svc.PkgName, imports)
-		def := &codegen.SectionTemplate{
-			Name:   "client-struct",
-			Source: serviceTemplates.Read(serviceClientT),
-			Data:   data,
-		}
-		init := &codegen.SectionTemplate{
-			Name:   "client-init",
-			Source: serviceTemplates.Read(serviceClientInitT),
-			Data:   data,
-		}
-		sections = make([]*codegen.SectionTemplate, 0, 3+len(data.Methods))
+		def := clientStructSection(data)
+		init := clientInitSection(data)
+		sections = make([]codegen.Section, 0, 3+len(data.Methods))
 		sections = append(sections, header, def, init)
 		for _, m := range data.Methods {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "client-method",
-				Source: serviceTemplates.Read(serviceClientMethodT),
-				Data:   m,
-			})
+			sections = append(sections, methodSection(m))
 		}
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }

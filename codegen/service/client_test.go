@@ -2,7 +2,10 @@ package service
 
 import (
 	"bytes"
-	"go/format"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -43,13 +46,29 @@ func TestClient(t *testing.T) {
 			fs := ClientFile("test/gen", root.Services[0], services)
 			require.NotNil(t, fs)
 			buf := new(bytes.Buffer)
-			for _, s := range fs.SectionTemplates[1:] {
+			for _, s := range fs.AllSections()[1:] {
 				require.NoError(t, s.Write(buf))
 			}
-			bs, err := format.Source(buf.Bytes())
-			require.NoError(t, err, buf.String())
-			code := strings.ReplaceAll(string(bs), "\r\n", "\n")
-			assert.Equal(t, c.Code, code)
+			code := strings.ReplaceAll(buf.String(), "\r\n", "\n")
+			assert.Equal(t, canonicalGoFragment(t, c.Code), canonicalGoFragment(t, code))
 		})
 	}
+}
+
+func canonicalGoFragment(t *testing.T, code string) string {
+	t.Helper()
+	wrapped := "package fragment\n\n" + code
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "fragment.go", wrapped, parser.ParseComments)
+	require.NoError(t, err, wrapped)
+	var buf bytes.Buffer
+	require.NoError(t, ast.Fprint(&buf, fset, file, func(name string, value reflect.Value) bool {
+		switch value.Interface().(type) {
+		case token.Pos, *ast.Object, *ast.Scope:
+			return false
+		default:
+			return true
+		}
+	}))
+	return buf.String()
 }

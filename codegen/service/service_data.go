@@ -1,42 +1,26 @@
 package service
 
 import (
-	"bytes"
 	"fmt"
 	"slices"
 	"sort"
 	"strings"
-	"text/template"
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
 )
 
-var (
-	// initTypeTmpl is the template used to render the code that initializes a
-	// projected type or viewed result type or a result type.
-	initTypeCodeTmpl = template.Must(
-		template.New("initTypeCode").
-			Funcs(template.FuncMap{"goify": codegen.Goify}).
-			Parse(serviceTemplates.Read(returnTypeInitT)),
-	)
-
-	// validateTypeCodeTmpl is the template used to render the code to
-	// validate a projected type or a viewed result type.
-	validateTypeCodeTmpl = template.Must(
-		template.New("validateType").
-			Funcs(template.FuncMap{"goify": codegen.Goify}).
-			Parse(serviceTemplates.Read(typeValidateT)),
-	)
-)
-
 type (
 	viewedResultValidateTemplateData struct {
-		Projected string
-		ArgVar    string
-		Source    string
-		Views     []*ViewData
-		IsViewed  bool
+		Projected    string
+		ArgVar       string
+		Source       string
+		Views        []*ViewData
+		IsViewed     bool
+		IsCollection bool
+		ValidateVar  string
+		Validate     string
+		Fields       []validateFieldTemplateData
 	}
 
 	viewedResultInitTemplateData struct {
@@ -50,6 +34,21 @@ type (
 		TargetType    string
 		InitName      string
 		ViewExpr      string
+		Source        string
+		Target        string
+		Code          string
+		Fields        []initFieldTemplateData
+	}
+
+	validateFieldTemplateData struct {
+		Name        string
+		ValidateVar string
+		IsRequired  bool
+	}
+
+	initFieldTemplateData struct {
+		VarName   string
+		FieldInit string
 	}
 
 	// ServicesData encapsulates the data computed from the service designs.
@@ -2216,19 +2215,139 @@ func buildViewedResultResultInit(att, projected *expr.AttributeExpr, views []*Vi
 }
 
 func executeValidateTypeTemplate(data viewedResultValidateTemplateData) string {
-	buf := &bytes.Buffer{}
-	if err := validateTypeCodeTmpl.Execute(buf, data); err != nil {
-		panic(err) // bug
-	}
-	return buf.String()
+	return renderValidateTypeCode(data)
 }
 
 func executeInitTypeTemplate(data viewedResultInitTemplateData) string {
-	buf := &bytes.Buffer{}
-	if err := initTypeCodeTmpl.Execute(buf, data); err != nil {
-		panic(err) // bug
+	return renderInitTypeCode(data)
+}
+
+func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
+	var lines []string
+	if data.IsViewed {
+		lines = append(lines, "switch "+data.ArgVar+".View {")
+		for _, view := range data.Views {
+			caseLine := "case " + quotedViewCase(view.Name) + ":"
+			lines = append(lines, "\t"+caseLine)
+			validateName := "Validate" + data.Projected
+			if view.Name != expr.DefaultView {
+				validateName += codegen.Goify(view.Name, true)
+			}
+			lines = append(lines, "\t\terr = "+validateName+"("+data.ArgVar+".Projected)")
+		}
+		lines = append(lines, "\tdefault:")
+		lines = append(lines, "\t\terr = goa.InvalidEnumValueError(\"view\", "+data.Source+".View, []any{ "+strings.Join(quotedViews(data.Views), ", ")+" })")
+		lines = append(lines, "}")
+		return strings.Join(lines, "\n")
 	}
-	return buf.String()
+
+	if data.IsCollection {
+		lines = append(lines, "for _, "+data.Source+" := range "+data.ArgVar+" {")
+		lines = append(lines, "\tif err2 := "+data.ValidateVar+"("+data.Source+"); err2 != nil {")
+		lines = append(lines, "\t\terr = goa.MergeErrors(err, err2)")
+		lines = append(lines, "\t}")
+		lines = append(lines, "}")
+		return strings.Join(lines, "\n")
+	}
+
+	if data.Validate != "" {
+		lines = append(lines, data.Validate)
+	} else if needsValidationFieldSpacer(data.Fields) {
+		lines = append(lines, "")
+	}
+	for _, field := range data.Fields {
+		fieldName := codegen.Goify(field.Name, true)
+		if field.IsRequired {
+			lines = append(lines, "if "+data.Source+"."+fieldName+" == nil {")
+			lines = append(lines, "\terr = goa.MergeErrors(err, goa.MissingFieldError("+fmt.Sprintf("%q", field.Name)+", "+fmt.Sprintf("%q", data.Source)+"))")
+			lines = append(lines, "}")
+		}
+		lines = append(lines, "if "+data.Source+"."+fieldName+" != nil {")
+		lines = append(lines, "\tif err2 := "+field.ValidateVar+"("+data.Source+"."+fieldName+"); err2 != nil {")
+		lines = append(lines, "\t\terr = goa.MergeErrors(err, err2)")
+		lines = append(lines, "\t}")
+		lines = append(lines, "}")
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderInitTypeCode(data viewedResultInitTemplateData) string {
+	var lines []string
+	switch {
+	case data.ToResult || data.ToViewed:
+		lines = append(lines, "")
+		lines = append(lines, "var "+data.ReturnVar+" "+data.ReturnTypeRef)
+		lines = append(lines, "switch "+data.ViewExpr+" {")
+		for _, view := range data.Views {
+			lines = append(lines, "\tcase "+quotedViewCase(view.Name)+":")
+			initName := data.InitName
+			if view.Name != expr.DefaultView {
+				initName += codegen.Goify(view.Name, true)
+			}
+			if data.ToViewed {
+				lines = append(lines, "\t\tp := "+initName+"("+data.ArgVar+")")
+				prefix := ""
+				if !data.IsCollection {
+					prefix = "&"
+				}
+				lines = append(lines, "\t\t"+data.ReturnVar+" = "+prefix+data.TargetType+"{Projected: p, View: "+fmt.Sprintf("%q", view.Name)+" }")
+			} else {
+				lines = append(lines, "\t\t"+data.ReturnVar+" = "+initName+"("+data.ArgVar+".Projected)")
+			}
+		}
+		lines = append(lines, "\tdefault:")
+		lines = append(lines, "\t\tpanic(goa.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
+		for _, value := range quotedViews(data.Views) {
+			lines = append(lines, "\t\t\t"+value+",")
+		}
+		lines = append(lines, "\t\t}))")
+		lines = append(lines, "}")
+		lines = append(lines, "return "+data.ReturnVar)
+	case data.IsCollection:
+		lines = append(lines, data.ReturnVar+" := make("+data.TargetType+", len("+data.ArgVar+"))")
+		lines = append(lines, "for i, n := range "+data.ArgVar+" {")
+		lines = append(lines, "\t"+data.ReturnVar+"[i] = "+data.InitName+"(n)")
+		lines = append(lines, "}")
+		lines = append(lines, "return "+data.ReturnVar)
+	default:
+		if data.Code != "" {
+			lines = append(lines, data.Code)
+		}
+		for _, field := range data.Fields {
+			lines = append(lines, "if "+data.Source+"."+field.VarName+" != nil {")
+			lines = append(lines, "\t"+data.Target+"."+field.VarName+" = "+field.FieldInit+"("+data.Source+"."+field.VarName+")")
+			lines = append(lines, "}")
+		}
+		lines = append(lines, "return "+data.ReturnVar)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func quotedViewCase(viewName string) string {
+	if viewName == expr.DefaultView {
+		return `"default", ""`
+	}
+	return fmt.Sprintf("%q", viewName)
+}
+
+func quotedViews(views []*ViewData) []string {
+	quoted := make([]string, 0, len(views))
+	for _, view := range views {
+		quoted = append(quoted, fmt.Sprintf("%q", view.Name))
+	}
+	return quoted
+}
+
+func needsValidationFieldSpacer(fields []validateFieldTemplateData) bool {
+	if len(fields) == 0 {
+		return false
+	}
+	for _, field := range fields {
+		if field.IsRequired {
+			return false
+		}
+	}
+	return true
 }
 
 func fullTypeRefForAttribute(scope *codegen.NameScope, att *expr.AttributeExpr, defaultPkg string) string {
@@ -2414,11 +2533,11 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 		// specific validation logic for each view
 		arr := expr.AsArray(projected.Type)
 		for _, view := range rt.Views {
-			data := map[string]any{
-				"Projected":    tname,
-				"ArgVar":       "result",
-				"Source":       "result",
-				"IsCollection": arr != nil,
+			data := viewedResultValidateTemplateData{
+				Projected:    tname,
+				ArgVar:       "result",
+				Source:       "result",
+				IsCollection: arr != nil,
 			}
 			var vn string
 			name := "Validate" + tname
@@ -2429,10 +2548,10 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 
 			if arr != nil {
 				// dealing with an array type
-				data["Source"] = "item"
-				data["ValidateVar"] = "Validate" + scope.GoTypeName(arr.ElemType) + vn
+				data.Source = "item"
+				data.ValidateVar = "Validate" + scope.GoTypeName(arr.ElemType) + vn
 			} else {
-				var fields []map[string]any
+				var fields []validateFieldTemplateData
 				o := &expr.Object{}
 				walkViewAttrs(expr.AsObject(projected.Type), view, func(name string, attr, vatt *expr.AttributeExpr) {
 					if rt, ok := attr.Type.(*expr.ResultTypeExpr); ok {
@@ -2442,30 +2561,25 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 						if v, ok := vatt.Meta.Last(expr.ViewMetaKey); ok && v != expr.DefaultView {
 							vw = v
 						}
-						fields = append(fields, map[string]any{
-							"Name":        name,
-							"ValidateVar": "Validate" + scope.GoTypeName(attr) + codegen.Goify(vw, true),
-							"IsRequired":  rt.Attribute().IsRequired(name),
+						fields = append(fields, validateFieldTemplateData{
+							Name:        name,
+							ValidateVar: "Validate" + scope.GoTypeName(attr) + codegen.Goify(vw, true),
+							IsRequired:  rt.Attribute().IsRequired(name),
 						})
 					} else {
 						o.Set(name, attr)
 					}
 				})
 				ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
-				data["Validate"] = codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: rt.Validation}, rt, ctx, true, false, true, "result")
-				data["Fields"] = fields
-			}
-
-			buf := &bytes.Buffer{}
-			if err := validateTypeCodeTmpl.Execute(buf, data); err != nil {
-				panic(err) // bug
+				data.Validate = codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: rt.Validation}, rt, ctx, true, false, true, "result")
+				data.Fields = fields
 			}
 
 			validations = append(validations, &ValidateData{
 				Name:        name,
 				Description: fmt.Sprintf("%s runs the validations defined on %s using the %q view.", name, tname, view.Name),
 				Ref:         scope.GoTypeRef(projected),
-				Validate:    buf.String(),
+				Validate:    renderValidateTypeCode(data),
 			})
 		}
 	} else {
@@ -2493,18 +2607,15 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 //
 // view is used to generate the constructor function name.
 func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext, view string) (string, []*codegen.TransformFunctionData) {
-	var (
-		helpers []*codegen.TransformFunctionData
-		buf     bytes.Buffer
-	)
+	var helpers []*codegen.TransformFunctionData
 	rt := src.Type.(*expr.ResultTypeExpr)
 	arr := expr.AsArray(tgt.Type)
 
-	data := map[string]any{
-		"ArgVar":       sourceVar,
-		"ReturnVar":    targetVar,
-		"IsCollection": arr != nil,
-		"TargetType":   targetCtx.Scope.Name(tgt, targetCtx.Pkg(tgt), targetCtx.Pointer, targetCtx.UseDefault),
+	data := viewedResultInitTemplateData{
+		ArgVar:       sourceVar,
+		ReturnVar:    targetVar,
+		IsCollection: arr != nil,
+		TargetType:   targetCtx.Scope.Name(tgt, targetCtx.Pkg(tgt), targetCtx.Pointer, targetCtx.UseDefault),
 	}
 
 	if arr != nil {
@@ -2513,11 +2624,8 @@ func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar str
 		if view != "" && view != expr.DefaultView {
 			init += codegen.Goify(view, true)
 		}
-		data["InitName"] = init
-		if err := initTypeCodeTmpl.Execute(&buf, data); err != nil {
-			panic(err) // bug
-		}
-		return buf.String(), helpers
+		data.InitName = init
+		return renderInitTypeCode(data), helpers
 	}
 
 	// service type to projected type (or vice versa)
@@ -2530,20 +2638,20 @@ func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar str
 			tobj.Delete(nat.Name)
 		}
 	}
-	data["Source"] = sourceVar
-	data["Target"] = targetVar
+	data.Source = sourceVar
+	data.Target = targetVar
 
 	// build code for target with no result types
 	code, helpers, err := codegen.GoTransform(src, tatt, sourceVar, targetVar, sourceCtx, targetCtx, "transform", true)
 	if err != nil {
 		panic(err) // bug
 	}
-	data["Code"] = code
+	data.Code = code
 
 	if view != "" {
-		data["InitName"] = targetCtx.Scope.Name(src, "", targetCtx.Pointer, targetCtx.UseDefault)
+		data.InitName = targetCtx.Scope.Name(src, "", targetCtx.Pointer, targetCtx.UseDefault)
 	}
-	fields := make([]map[string]any, 0, len(*targetRTs))
+	fields := make([]initFieldTemplateData, 0, len(*targetRTs))
 	// iterate through the result types found in the target and add the
 	// code to initialize them
 	for _, nat := range *targetRTs {
@@ -2558,17 +2666,13 @@ func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar str
 			}
 			finit += codegen.Goify(v, true)
 		}
-		fields = append(fields, map[string]any{
-			"VarName":   codegen.Goify(nat.Name, true),
-			"FieldInit": finit,
+		fields = append(fields, initFieldTemplateData{
+			VarName:   codegen.Goify(nat.Name, true),
+			FieldInit: finit,
 		})
 	}
-	data["Fields"] = fields
-
-	if err := initTypeCodeTmpl.Execute(&buf, data); err != nil {
-		panic(err) // bug
-	}
-	return buf.String(), helpers
+	data.Fields = fields
+	return renderInitTypeCode(data), helpers
 }
 
 // walkViewAttrs iterates through the attributes in att that are found in the
