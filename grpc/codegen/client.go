@@ -103,27 +103,13 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}
 		sections = []codegen.Section{codegen.Header(svc.Name()+" gRPC client encoders and decoders", "client", imports)}
-		fm := transTmplFuncs(svc, services)
-		fm["metadataEncodeDecodeData"] = metadataEncodeDecodeData
-		fm["typeConversionData"] = typeConversionData
-		fm["isBearer"] = isBearer
 		for _, e := range data.Endpoints {
 			sections = append(sections, grpcRemoteMethodBuilderSection(e))
 			if e.PayloadRef != "" {
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:    "request-encoder",
-					Source:  grpcTemplates.Read(grpcRequestEncoderT, grpcConvertTypeToStringP, "string_conversion"),
-					Data:    e,
-					FuncMap: fm,
-				})
+				sections = append(sections, grpcRequestEncoderSection(e))
 			}
 			if e.ResultRef != "" || e.ClientStream != nil {
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:    "response-decoder",
-					Source:  grpcTemplates.Read(grpcResponseDecoderT, grpcConvertStringToTypeP, "type_conversion", "slice_conversion", "slice_item_conversion"),
-					Data:    e,
-					FuncMap: fm,
-				})
+				sections = append(sections, grpcResponseDecoderSection(e))
 			}
 		}
 	}

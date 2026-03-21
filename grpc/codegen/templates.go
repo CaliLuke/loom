@@ -11,8 +11,6 @@ const (
 	grpcClientStructT       = "client_struct"
 	grpcClientInitT         = "client_init"
 	grpcClientEndpointInitT = "client_endpoint_init"
-	grpcRequestEncoderT     = "request_encoder"
-	grpcResponseDecoderT    = "response_decoder"
 )
 
 // Server template constants
@@ -24,8 +22,6 @@ const (
 	grpcServerGRPCRegisterT  = "server_grpc_register"
 	grpcServerGRPCStartT     = "server_grpc_start"
 	grpcServerGRPCEndT       = "server_grpc_end"
-	grpcRequestDecoderT      = "request_decoder"
-	grpcResponseEncoderT     = "response_encoder"
 	grpcHandlerInitT         = "grpc_handler_init"
 )
 
@@ -61,12 +57,6 @@ const (
 	grpcTransformGoUnionToProtoT   = "transform_go_union_to_proto"
 )
 
-// Partial template constants
-const (
-	grpcConvertTypeToStringP = "convert_type_to_string"
-	grpcConvertStringToTypeP = "convert_string_to_type"
-)
-
 // Common template constants
 const (
 	grpcTypeInitT        = "type_init"
@@ -74,7 +64,7 @@ const (
 	grpcTransformHelperT = "transform_helper"
 )
 
-//go:embed templates/*
+//go:embed templates/*.go.tpl
 var templateFS embed.FS
 
 // grpcTemplates is the shared template reader for the grpc codegen package (package-private).

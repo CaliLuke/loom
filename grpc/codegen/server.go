@@ -109,54 +109,12 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 
 		for _, e := range data.Endpoints {
 			if e.Response.ServerConvert != nil {
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:   "response-encoder",
-					Source: grpcTemplates.Read(grpcResponseEncoderT, grpcConvertTypeToStringP, "string_conversion"),
-					Data:   e,
-					FuncMap: map[string]any{
-						"typeConversionData":       typeConversionData,
-						"metadataEncodeDecodeData": metadataEncodeDecodeData,
-					},
-				})
+				sections = append(sections, grpcResponseEncoderSection(e))
 			}
 			if e.PayloadRef != "" {
-				fm := transTmplFuncs(svc, services)
-				fm["isEmpty"] = isEmpty
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:    "request-decoder",
-					Source:  grpcTemplates.Read(grpcRequestDecoderT, grpcConvertStringToTypeP, "type_conversion", "slice_conversion", "slice_item_conversion"),
-					Data:    e,
-					FuncMap: fm,
-				})
+				sections = append(sections, grpcRequestDecoderSection(e))
 			}
 		}
 	}
 	return &codegen.File{Path: fpath, Sections: sections}
-}
-
-func transTmplFuncs(s *expr.GRPCServiceExpr, services *ServicesData) map[string]any {
-	return map[string]any{
-		"goTypeRef": func(dt expr.DataType) string {
-			return services.ServicesData.Get(s.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
-		},
-	}
-}
-
-// typeConversionData produces the template data suitable for executing the
-// "type_conversion" template.
-func typeConversionData(dt expr.DataType, varName, target string) map[string]any {
-	return map[string]any{
-		"Type":    dt,
-		"VarName": varName,
-		"Target":  target,
-	}
-}
-
-// metadataEncodeDecodeData produces the template data suitable for executing the
-// "metadata_decoder" and "metadata_encoder" template.
-func metadataEncodeDecodeData(md *MetadataData, vname string) map[string]any {
-	return map[string]any{
-		"Metadata": md,
-		"VarName":  vname,
-	}
 }
