@@ -17,10 +17,7 @@ func renderExampleCLIStart(services []*ServiceData, interceptorsPkg string) stri
 	b.WriteString("func doHTTP(scheme, host string, timeout int, debug bool) (goa.Endpoint, any, error) {\n")
 	b.WriteString("\tvar (\n")
 	b.WriteString("\t\tdoer goahttp.Doer\n")
-	for _, svc := range services {
-		if len(svc.Service.ClientInterceptors) == 0 {
-			continue
-		}
+	for _, svc := range servicesWithClientInterceptors(services) {
 		fmt.Fprintf(&b, "\t\t%sInterceptors %s.ClientInterceptors\n", svc.Service.VarName, svc.Service.PkgName)
 	}
 	b.WriteString("\t)\n")
@@ -29,10 +26,7 @@ func renderExampleCLIStart(services []*ServiceData, interceptorsPkg string) stri
 	b.WriteString("\t\tif debug {\n")
 	b.WriteString("\t\t\tdoer = goahttp.NewDebugDoer(doer)\n")
 	b.WriteString("\t\t}\n")
-	for _, svc := range services {
-		if len(svc.Service.ClientInterceptors) == 0 {
-			continue
-		}
+	for _, svc := range servicesWithClientInterceptors(services) {
 		fmt.Fprintf(&b, "\t\t%sInterceptors = %s.New%sClientInterceptors()\n", svc.Service.VarName, interceptorsPkg, svc.Service.StructName)
 	}
 	b.WriteString("\t}\n")
@@ -78,10 +72,7 @@ func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
 			}
 		}
 	}
-	for _, svc := range services {
-		if len(svc.Service.ClientInterceptors) == 0 {
-			continue
-		}
+	for _, svc := range servicesWithClientInterceptors(services) {
 		fmt.Fprintf(&b, "\t\t%sInterceptors,\n", svc.Service.VarName)
 	}
 	b.WriteString("\t)\n}\n")
@@ -136,34 +127,14 @@ func renderExampleServerConfigure(services []*ServiceData, apiPkg string) string
 		b.WriteString("\t\tupgrader := &websocket.Upgrader{}\n")
 	}
 	for _, svc := range services {
-		if len(svc.Endpoints) > 0 {
-			fmt.Fprintf(&b, "\t\t%sServer = %ssvr.New(%sEndpoints, mux, dec, enc, eh, nil", svc.Service.VarName, svc.Service.PkgName, svc.Service.VarName)
-			if HasWebSocket(svc) {
-				b.WriteString(", upgrader, nil")
-			}
-			for _, endpoint := range svc.Endpoints {
-				if endpoint.MultipartRequestDecoder != nil {
-					fmt.Fprintf(&b, ", %s.%s", apiPkg, endpoint.MultipartRequestDecoder.FuncName)
-				}
-			}
-			for range svc.FileServers {
-				b.WriteString(", nil")
-			}
-			b.WriteString(")\n")
-			continue
-		}
-		fmt.Fprintf(&b, "\t\t%sServer = %ssvr.New(nil, mux, dec, enc, eh, nil", svc.Service.VarName, svc.Service.PkgName)
-		for range svc.FileServers {
-			b.WriteString(", nil")
-		}
-		b.WriteString(")\n")
+		fmt.Fprintf(&b, "\t\t%s\n", exampleServerConstructorCall(svc, apiPkg))
 	}
 	b.WriteString("\t}\n\n")
 	b.WriteString("\t// Configure the mux.\n")
 	for _, svc := range services {
-		fmt.Fprintf(&b, "\t%s svr.Mount(mux, %sServer)\n", svc.Service.PkgName, svc.Service.VarName)
+		fmt.Fprintf(&b, "\t%ssvr.Mount(mux, %sServer)\n", svc.Service.PkgName, svc.Service.VarName)
 	}
-	return strings.ReplaceAll(b.String(), " svr.", "svr.")
+	return b.String()
 }
 
 func exampleServerMiddlewareSection() codegen.Section {
@@ -239,4 +210,39 @@ func renderDummyMultipartRequestEncoder(data *MultipartData) string {
 
 func renderFileServerBasePath(filePath string) string {
 	return "/" + filepath.Base(filePath)
+}
+
+func servicesWithClientInterceptors(services []*ServiceData) []*ServiceData {
+	filtered := make([]*ServiceData, 0, len(services))
+	for _, svc := range services {
+		if len(svc.Service.ClientInterceptors) == 0 {
+			continue
+		}
+		filtered = append(filtered, svc)
+	}
+	return filtered
+}
+
+func exampleServerConstructorCall(svc *ServiceData, apiPkg string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%sServer = %ssvr.New(", svc.Service.VarName, svc.Service.PkgName)
+	if len(svc.Endpoints) > 0 {
+		fmt.Fprintf(&b, "%sEndpoints", svc.Service.VarName)
+	} else {
+		b.WriteString("nil")
+	}
+	b.WriteString(", mux, dec, enc, eh, nil")
+	if HasWebSocket(svc) {
+		b.WriteString(", upgrader, nil")
+	}
+	for _, endpoint := range svc.Endpoints {
+		if endpoint.MultipartRequestDecoder != nil {
+			fmt.Fprintf(&b, ", %s.%s", apiPkg, endpoint.MultipartRequestDecoder.FuncName)
+		}
+	}
+	for range svc.FileServers {
+		b.WriteString(", nil")
+	}
+	b.WriteString(")")
+	return b.String()
 }

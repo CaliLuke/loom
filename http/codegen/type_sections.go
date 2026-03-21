@@ -2,14 +2,11 @@ package codegen
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"goa.design/goa/v3/codegen"
 	servicecodegen "goa.design/goa/v3/codegen/service"
 )
-
-var blankLineBeforeReturnRE = regexp.MustCompile(`\n[ \t]*\n(\treturn body)`)
 
 func typeDeclSection(name string, data *TypeData) codegen.Section {
 	return codegen.NewRawSection(name, renderTypeDecl(data))
@@ -177,14 +174,7 @@ func bodyInitSection(name string, init *InitData, client bool) codegen.Section {
 }
 
 func renderBodyInit(init *InitData, client bool) string {
-	var args []*InitArgData
-	code := strings.TrimRight(init.ServerCode, "\n\t ")
-	if client {
-		args = init.ClientArgs
-		code = strings.TrimRight(init.ClientCode, "\n\t ")
-	} else {
-		args = init.ServerArgs
-	}
+	args, code := initRenderData(init, client)
 	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(init.Description))
@@ -198,7 +188,7 @@ func renderBodyInit(init *InitData, client bool) string {
 		fmt.Fprintf(&b, "\t%s\n", code)
 	}
 	b.WriteString("\treturn body\n}\n")
-	return blankLineBeforeReturnRE.ReplaceAllString(b.String(), "\n$1")
+	return stripBlankLineBeforeBodyReturn(b.String())
 }
 
 func typeInitSection(name string, init *InitData, client bool) codegen.Section {
@@ -206,20 +196,8 @@ func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 }
 
 func renderTypeInit(init *InitData, client bool) string {
-	var (
-		args []*InitArgData
-		code string
-		typ  string
-	)
-	if client {
-		args = init.ClientArgs
-		code = strings.TrimRight(init.ClientCode, "\n\t ")
-		typ = "client"
-	} else {
-		args = init.ServerArgs
-		code = strings.TrimRight(init.ServerCode, "\n\t ")
-		typ = "server"
-	}
+	args, code := initRenderData(init, client)
+	typ := initRenderTarget(client)
 
 	var b strings.Builder
 	b.WriteString("\n")
@@ -279,4 +257,22 @@ func renderHTTPValidate(data *TypeData) string {
 	}
 	b.WriteString("\treturn\n}\n")
 	return b.String()
+}
+
+func initRenderData(init *InitData, client bool) ([]*InitArgData, string) {
+	if client {
+		return init.ClientArgs, strings.TrimRight(init.ClientCode, "\n\t ")
+	}
+	return init.ServerArgs, strings.TrimRight(init.ServerCode, "\n\t ")
+}
+
+func initRenderTarget(client bool) string {
+	if client {
+		return "client"
+	}
+	return "server"
+}
+
+func stripBlankLineBeforeBodyReturn(code string) string {
+	return strings.ReplaceAll(code, "\n\n\treturn body", "\n\treturn body")
 }
