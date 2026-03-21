@@ -38,35 +38,7 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 	b.WriteString("\t\t}\n\n")
 	b.WriteString("\t\tif jresp.Error != nil {\n")
 	b.WriteString("\t\t\tswitch jresp.Error.Code {\n")
-	for _, group := range e.Errors {
-		if len(group.Errors) == 0 || group.Errors[0].Response == nil {
-			continue
-		}
-		fmt.Fprintf(&b, "\t\t\tcase %s:\n", group.StatusCode)
-		if len(group.Errors) > 1 {
-			b.WriteString("\t\t\t\tvar jerrData jsonrpc.ErrorData\n")
-			b.WriteString("\t\t\t\tif len(jresp.Error.Data) > 0 {\n")
-			fmt.Fprintf(&b, "\t\t\t\t\tif err := json.Unmarshal(jresp.Error.Data, &jerrData); err != nil {\n\t\t\t\t\t\treturn nil, goahttp.ErrDecodingError(%q, %q, err)\n\t\t\t\t\t}\n", e.ServiceName, e.Method.Name)
-			b.WriteString("\t\t\t\t}\n")
-			b.WriteString("\t\t\t\tswitch jerrData.Name {\n")
-			for _, item := range group.Errors {
-				if item.Response == nil {
-					continue
-				}
-				fmt.Fprintf(&b, "\t\t\t\tcase %q:\n", item.Name)
-				b.WriteString("\t\t\t\t\tresp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))\n")
-				renderSingleResponseDecode(&b, item.Response, e.ServiceName, e.Method)
-				writeResultInitReturn(&b, item.Response)
-			}
-			fmt.Fprintf(&b, "\t\t\t\tdefault:\n\t\t\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(jresp.Error.Data))\n", e.ServiceName, e.Method.Name)
-			b.WriteString("\t\t\t\t}\n")
-			continue
-		}
-		item := group.Errors[0]
-		b.WriteString("\t\t\t\tresp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))\n")
-		renderSingleResponseDecode(&b, item.Response, e.ServiceName, e.Method)
-		writeResultInitReturn(&b, item.Response)
-	}
+	writeJSONRPCErrorDecodeSwitch(&b, e)
 	b.WriteString("\t\t\tdefault:\n")
 	fmt.Fprintf(&b, "\t\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t\t}\n\t\t}\n\n")
@@ -132,6 +104,44 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 	}
 	b.WriteString("\t}\n}\n")
 	return b.String()
+}
+
+func writeJSONRPCErrorDecodeSwitch(b *strings.Builder, e *httpcodegen.EndpointData) {
+	for _, group := range e.Errors {
+		if len(group.Errors) == 0 || group.Errors[0].Response == nil {
+			continue
+		}
+		fmt.Fprintf(b, "\t\t\tcase %s:\n", group.StatusCode)
+		if len(group.Errors) > 1 {
+			writeJSONRPCNamedErrorDecode(b, group, e)
+			continue
+		}
+		writeJSONRPCErrorResponseDecode(b, group.Errors[0].Response, e.ServiceName, e.Method)
+		writeResultInitReturn(b, group.Errors[0].Response)
+	}
+}
+
+func writeJSONRPCNamedErrorDecode(b *strings.Builder, group *httpcodegen.ErrorGroupData, e *httpcodegen.EndpointData) {
+	b.WriteString("\t\t\t\tvar jerrData jsonrpc.ErrorData\n")
+	b.WriteString("\t\t\t\tif len(jresp.Error.Data) > 0 {\n")
+	fmt.Fprintf(b, "\t\t\t\t\tif err := json.Unmarshal(jresp.Error.Data, &jerrData); err != nil {\n\t\t\t\t\t\treturn nil, goahttp.ErrDecodingError(%q, %q, err)\n\t\t\t\t\t}\n", e.ServiceName, e.Method.Name)
+	b.WriteString("\t\t\t\t}\n")
+	b.WriteString("\t\t\t\tswitch jerrData.Name {\n")
+	for _, item := range group.Errors {
+		if item.Response == nil {
+			continue
+		}
+		fmt.Fprintf(b, "\t\t\t\tcase %q:\n", item.Name)
+		writeJSONRPCErrorResponseDecode(b, item.Response, e.ServiceName, e.Method)
+		writeResultInitReturn(b, item.Response)
+	}
+	fmt.Fprintf(b, "\t\t\t\tdefault:\n\t\t\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(jresp.Error.Data))\n", e.ServiceName, e.Method.Name)
+	b.WriteString("\t\t\t\t}\n")
+}
+
+func writeJSONRPCErrorResponseDecode(b *strings.Builder, data *httpcodegen.ResponseData, serviceName string, method *service.MethodData) {
+	b.WriteString("\t\t\t\tresp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))\n")
+	renderSingleResponseDecode(b, data, serviceName, method)
 }
 
 func writeResultInitReturn(b *strings.Builder, resp *httpcodegen.ResponseData) {

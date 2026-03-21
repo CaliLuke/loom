@@ -26,59 +26,76 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 	}
 	for _, svc := range jsvcs {
 		svcData := data.Get(svc.Name())
-		f := httpcodegen.ClientEncodeDecodeFile(genpkg, svc, data)
-		if f == nil {
-			continue
+		if f := clientEncodeDecodeFile(genpkg, svc, data, svcData); f != nil {
+			files = append(files, f)
 		}
-		updateHeader(f)
-		var sections []codegen.Section
-		for _, section := range f.AllSections() {
-			s, ok := section.(*codegen.SectionTemplate)
-			if !ok {
-				sections = append(sections, section)
-				continue
-			}
-			switch s.Name {
-			case "source-header":
-				codegen.AddImport(s, &codegen.ImportSpec{Path: "bufio"})
-				codegen.AddImport(s, &codegen.ImportSpec{Path: "bytes"})
-				codegen.AddImport(s, &codegen.ImportSpec{Path: "sync"})
-				codegen.AddImport(s, &codegen.ImportSpec{Path: "sync/atomic"})
-				codegen.AddImport(s, &codegen.ImportSpec{Path: "github.com/google/uuid"})
-				codegen.AddImport(s, codegen.GoaImport("jsonrpc"))
-			case "request-encoder":
-				re := regexp.MustCompile(`body := (.*)\n`)
-				s.Source = re.ReplaceAllStringFunc(s.Source, func(match string) string {
-					matches := re.FindStringSubmatch(match)
-					return strings.Replace(newJSONRPCBody, "{{ .NewBody }}", matches[1], 1)
-				})
-			case "response-decoder":
-				ed, ok := s.Data.(*httpcodegen.EndpointData)
-				if !ok {
-					continue
-				}
-				sections = append(sections, jsonrpcResponseDecoderSection(svcData.Endpoint(ed.Method.Name)))
-				continue
-			}
-			if s.Name != "source-header" {
-				s.Name = "jsonrpc-" + s.Name
-			}
-			sections = append(sections, s)
-		}
-
-		// For JSON-RPC methods without request encoders, add one
-		for _, endpoint := range svcData.Endpoints {
-			if endpoint.RequestEncoder == "" {
-				sections = append(sections, jsonrpcMinimalRequestEncoderSection(endpoint))
-				endpoint.RequestEncoder = fmt.Sprintf("Encode%sRequest", endpoint.Method.VarName)
-			}
-		}
-
-		f.SetSections(sections)
-		f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
-		files = append(files, f)
 	}
 	return files
+}
+
+func clientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *httpcodegen.ServicesData, svcData *httpcodegen.ServiceData) *codegen.File {
+	f := httpcodegen.ClientEncodeDecodeFile(genpkg, svc, data)
+	if f == nil {
+		return nil
+	}
+	updateHeader(f)
+	f.SetSections(clientEncodeDecodeSections(f, svcData))
+	f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
+	return f
+}
+
+func clientEncodeDecodeSections(f *codegen.File, svcData *httpcodegen.ServiceData) []codegen.Section {
+	sections := make([]codegen.Section, 0, len(f.AllSections())+len(svcData.Endpoints))
+	for _, section := range f.AllSections() {
+		s, ok := section.(*codegen.SectionTemplate)
+		if !ok {
+			sections = append(sections, section)
+			continue
+		}
+		switch s.Name {
+		case "source-header":
+			addJSONRPCClientImports(s)
+		case "request-encoder":
+			rewriteJSONRPCRequestEncoder(s)
+		case "response-decoder":
+			ed, ok := s.Data.(*httpcodegen.EndpointData)
+			if !ok {
+				continue
+			}
+			sections = append(sections, jsonrpcResponseDecoderSection(svcData.Endpoint(ed.Method.Name)))
+			continue
+		}
+		if s.Name != "source-header" {
+			s.Name = "jsonrpc-" + s.Name
+		}
+		sections = append(sections, s)
+	}
+
+	for _, endpoint := range svcData.Endpoints {
+		if endpoint.RequestEncoder == "" {
+			sections = append(sections, jsonrpcMinimalRequestEncoderSection(endpoint))
+			endpoint.RequestEncoder = fmt.Sprintf("Encode%sRequest", endpoint.Method.VarName)
+		}
+	}
+
+	return sections
+}
+
+func addJSONRPCClientImports(section *codegen.SectionTemplate) {
+	codegen.AddImport(section, &codegen.ImportSpec{Path: "bufio"})
+	codegen.AddImport(section, &codegen.ImportSpec{Path: "bytes"})
+	codegen.AddImport(section, &codegen.ImportSpec{Path: "sync"})
+	codegen.AddImport(section, &codegen.ImportSpec{Path: "sync/atomic"})
+	codegen.AddImport(section, &codegen.ImportSpec{Path: "github.com/google/uuid"})
+	codegen.AddImport(section, codegen.GoaImport("jsonrpc"))
+}
+
+func rewriteJSONRPCRequestEncoder(section *codegen.SectionTemplate) {
+	re := regexp.MustCompile(`body := (.*)\n`)
+	section.Source = re.ReplaceAllStringFunc(section.Source, func(match string) string {
+		matches := re.FindStringSubmatch(match)
+		return strings.Replace(newJSONRPCBody, "{{ .NewBody }}", matches[1], 1)
+	})
 }
 
 // clientFile returns the client HTTP transport file

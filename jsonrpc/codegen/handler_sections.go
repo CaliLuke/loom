@@ -25,43 +25,14 @@ func renderJSONRPCServerHandler(data *httpcodegen.ServiceData, mixed bool) strin
 	b.WriteString(codegen.Comment("handleHTTP handles JSON-RPC requests."))
 	b.WriteString("\n")
 	fmt.Fprintf(&b, "func (s *%s) handleHTTP(w http.ResponseWriter, r *http.Request) {\n", data.ServerStruct)
-	b.WriteString("\t// Peek at the first byte to determine request type\n")
-	b.WriteString("\tbufReader := bufio.NewReader(r.Body)\n")
-	b.WriteString("\tpeek, err := bufReader.Peek(1)\n")
-	b.WriteString("\tif err != nil && err != io.EOF {\n")
-	b.WriteString("\t\tr.Body.Close()\n")
-	b.WriteString("\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to read request body: %w\", err))\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n\n")
-	b.WriteString("\t// Wrap the buffered reader with the original closer\n")
-	b.WriteString("\tr.Body = struct {\n")
-	b.WriteString("\t\tio.Reader\n")
-	b.WriteString("\t\tio.Closer\n")
-	b.WriteString("\t}{\n")
-	b.WriteString("\t\tReader: bufReader,\n")
-	b.WriteString("\t\tCloser: r.Body,\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\tdefer func(r *http.Request) {\n")
-	b.WriteString("\t\tif err := r.Body.Close(); err != nil {\n")
-	b.WriteString("\t\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to close request body: %w\", err))\n")
-	b.WriteString("\t\t}\n")
-	b.WriteString("\t}(r)\n\n")
-	b.WriteString("\t// Route to appropriate handler\n")
-	b.WriteString("\tif len(peek) > 0 && peek[0] == '[' {\n")
-	b.WriteString("\t\ts.handleBatch(w, r)\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\ts.handleSingle(w, r)\n")
+	writeBufferedRequestHandling(&b)
 	b.WriteString("}\n\n")
 
 	b.WriteString("// handleSingle handles a single JSON-RPC request.\n")
 	b.WriteString("func (s *Server) handleSingle(w http.ResponseWriter, r *http.Request) {\n")
 	b.WriteString("\tvar req jsonrpc.RawRequest\n")
 	b.WriteString("\tif err := s.decoder(r).Decode(&req); err != nil {\n")
-	b.WriteString("\t\tresponse := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, \"Parse error\", nil)\n")
-	b.WriteString("\t\tif encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {\n")
-	b.WriteString("\t\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to encode parse error response: %w\", encErr))\n")
-	b.WriteString("\t\t}\n")
+	writeParseErrorResponse(&b, "\t\t")
 	b.WriteString("\t\treturn\n")
 	b.WriteString("\t}\n")
 	b.WriteString("\ts.processRequest(r.Context(), r, &req, w)\n")
@@ -71,10 +42,7 @@ func renderJSONRPCServerHandler(data *httpcodegen.ServiceData, mixed bool) strin
 	b.WriteString("func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {\n")
 	b.WriteString("\tvar reqs []jsonrpc.RawRequest\n")
 	b.WriteString("\tif err := s.decoder(r).Decode(&reqs); err != nil {\n")
-	b.WriteString("\t\tresponse := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, \"Parse error\", nil)\n")
-	b.WriteString("\t\tif encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {\n")
-	b.WriteString("\t\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to encode parse error response: %w\", encErr))\n")
-	b.WriteString("\t\t}\n")
+	writeParseErrorResponse(&b, "\t\t")
 	b.WriteString("\t\treturn\n")
 	b.WriteString("\t}\n\n")
 	b.WriteString("\tw.Header().Set(\"Content-Type\", \"application/json\")\n")
@@ -98,12 +66,7 @@ func renderJSONRPCServerHandler(data *httpcodegen.ServiceData, mixed bool) strin
 	b.WriteString("\t\treturn\n")
 	b.WriteString("\t}\n\n")
 	b.WriteString("\tswitch req.Method {\n")
-	for _, endpoint := range data.Endpoints {
-		fmt.Fprintf(&b, "\tcase %q:\n", endpoint.Method.Name)
-		fmt.Fprintf(&b, "\t\tif err := s.%s(ctx, r, req, w); err != nil {\n", endpoint.Method.VarName)
-		fmt.Fprintf(&b, "\t\t\ts.errhandler(ctx, w, fmt.Errorf(\"handler error for %%s: %%w\", %q, err))\n", endpoint.Method.Name)
-		b.WriteString("\t\t}\n")
-	}
+	writeJSONRPCMethodDispatch(&b, data.Endpoints)
 	b.WriteString("\tdefault:\n")
 	b.WriteString("\t\ts.encodeJSONRPCError(ctx, w, req, jsonrpc.MethodNotFound, \"Method not found\", nil)\n")
 	b.WriteString("\t}\n")
@@ -140,6 +103,52 @@ func renderJSONRPCServerHandler(data *httpcodegen.ServiceData, mixed bool) strin
 	return b.String()
 }
 
+func writeBufferedRequestHandling(b *strings.Builder) {
+	b.WriteString("\t// Peek at the first byte to determine request type\n")
+	b.WriteString("\tbufReader := bufio.NewReader(r.Body)\n")
+	b.WriteString("\tpeek, err := bufReader.Peek(1)\n")
+	b.WriteString("\tif err != nil && err != io.EOF {\n")
+	b.WriteString("\t\tr.Body.Close()\n")
+	b.WriteString("\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to read request body: %w\", err))\n")
+	b.WriteString("\t\treturn\n")
+	b.WriteString("\t}\n\n")
+	b.WriteString("\t// Wrap the buffered reader with the original closer\n")
+	b.WriteString("\tr.Body = struct {\n")
+	b.WriteString("\t\tio.Reader\n")
+	b.WriteString("\t\tio.Closer\n")
+	b.WriteString("\t}{\n")
+	b.WriteString("\t\tReader: bufReader,\n")
+	b.WriteString("\t\tCloser: r.Body,\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\tdefer func(r *http.Request) {\n")
+	b.WriteString("\t\tif err := r.Body.Close(); err != nil {\n")
+	b.WriteString("\t\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to close request body: %w\", err))\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t}(r)\n\n")
+	b.WriteString("\t// Route to appropriate handler\n")
+	b.WriteString("\tif len(peek) > 0 && peek[0] == '[' {\n")
+	b.WriteString("\t\ts.handleBatch(w, r)\n")
+	b.WriteString("\t\treturn\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\ts.handleSingle(w, r)\n")
+}
+
+func writeParseErrorResponse(b *strings.Builder, indent string) {
+	fmt.Fprintf(b, "%sresponse := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, \"Parse error\", nil)\n", indent)
+	fmt.Fprintf(b, "%sif encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {\n", indent)
+	fmt.Fprintf(b, "%s\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to encode parse error response: %%w\", encErr))\n", indent)
+	fmt.Fprintf(b, "%s}\n", indent)
+}
+
+func writeJSONRPCMethodDispatch(b *strings.Builder, endpoints []*httpcodegen.EndpointData) {
+	for _, endpoint := range endpoints {
+		fmt.Fprintf(b, "\tcase %q:\n", endpoint.Method.Name)
+		fmt.Fprintf(b, "\t\tif err := s.%s(ctx, r, req, w); err != nil {\n", endpoint.Method.VarName)
+		fmt.Fprintf(b, "\t\t\ts.errhandler(ctx, w, fmt.Errorf(\"handler error for %%s: %%w\", %q, err))\n", endpoint.Method.Name)
+		b.WriteString("\t\t}\n")
+	}
+}
+
 func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.NewRawSection("jsonrpc-sse-server-handler", renderJSONRPCSSEServerHandler(data))
 }
@@ -152,28 +161,11 @@ func renderJSONRPCSSEServerHandler(data *httpcodegen.ServiceData) string {
 	b.WriteString("\tctx := r.Context()\n\n")
 	b.WriteString("\tvar req jsonrpc.RawRequest\n")
 	b.WriteString("\tif err := s.decoder(r).Decode(&req); err != nil {\n")
-	fmt.Fprintf(&b, "\t\tstream := &%s{w: w, r: r, encoder: s.encoder, decoder: s.decoder}\n", streamName)
+	writeSSEErrorStreamInit(&b, streamName, "\t\t")
 	b.WriteString("\t\t_ = stream.sendError(ctx, nil, jsonrpc.ParseError, \"Parse error\", nil)\n")
 	b.WriteString("\t\treturn\n")
 	b.WriteString("\t}\n\n")
-	b.WriteString("\tif req.JSONRPC != \"2.0\" {\n")
-	b.WriteString("\t\tif req.ID == nil || req.ID == \"\" {\n")
-	b.WriteString("\t\t\tw.WriteHeader(http.StatusNoContent)\n")
-	b.WriteString("\t\t\treturn\n")
-	b.WriteString("\t\t}\n")
-	fmt.Fprintf(&b, "\t\tstream := &%s{w: w, r: r, encoder: s.encoder, decoder: s.decoder}\n", streamName)
-	b.WriteString("\t\t_ = stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, \"Invalid request\", nil)\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n\n")
-	b.WriteString("\tif req.Method == \"\" {\n")
-	b.WriteString("\t\tif req.ID == nil || req.ID == \"\" {\n")
-	b.WriteString("\t\t\tw.WriteHeader(http.StatusNoContent)\n")
-	b.WriteString("\t\t\treturn\n")
-	b.WriteString("\t\t}\n")
-	fmt.Fprintf(&b, "\t\tstream := &%s{w: w, r: r, encoder: s.encoder, decoder: s.decoder}\n", streamName)
-	b.WriteString("\t\t_ = stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, \"Invalid request\", nil)\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n\n")
+	writeSSERequestValidation(&b, streamName)
 	b.WriteString("\tvar handler func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error\n")
 	b.WriteString("\tswitch req.Method {\n")
 	for _, endpoint := range data.Endpoints {
@@ -209,6 +201,29 @@ func renderJSONRPCSSEServerHandler(data *httpcodegen.ServiceData) string {
 	b.WriteString("\t}\n")
 	b.WriteString("}\n")
 	return b.String()
+}
+
+func writeSSEErrorStreamInit(b *strings.Builder, streamName, indent string) {
+	fmt.Fprintf(b, "%sstream := &%s{w: w, r: r, encoder: s.encoder, decoder: s.decoder}\n", indent, streamName)
+}
+
+func writeSSEValidationError(b *strings.Builder, streamName, message string) {
+	b.WriteString("\t\tif req.ID == nil || req.ID == \"\" {\n")
+	b.WriteString("\t\t\tw.WriteHeader(http.StatusNoContent)\n")
+	b.WriteString("\t\t\treturn\n")
+	b.WriteString("\t\t}\n")
+	writeSSEErrorStreamInit(b, streamName, "\t\t")
+	fmt.Fprintf(b, "\t\t_ = stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, %q, nil)\n", message)
+	b.WriteString("\t\treturn\n")
+}
+
+func writeSSERequestValidation(b *strings.Builder, streamName string) {
+	b.WriteString("\tif req.JSONRPC != \"2.0\" {\n")
+	writeSSEValidationError(b, streamName, "Invalid request")
+	b.WriteString("\t}\n\n")
+	b.WriteString("\tif req.Method == \"\" {\n")
+	writeSSEValidationError(b, streamName, "Invalid request")
+	b.WriteString("\t}\n\n")
 }
 
 func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {

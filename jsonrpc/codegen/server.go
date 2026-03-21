@@ -26,61 +26,71 @@ func ServerFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 		}
 	}
 	for _, svc := range jsvcs {
-		f := httpcodegen.ServerEncodeDecodeFile(genpkg, svc, data)
-		if f == nil {
-			continue
+		if f := serverEncodeDecodeFile(genpkg, svc, data); f != nil {
+			files = append(files, f)
 		}
-		updateHeader(f)
-		var sections []codegen.Section
-		for _, section := range f.AllSections() {
-			s, ok := section.(*codegen.SectionTemplate)
-			if !ok {
-				sections = append(sections, section)
-				continue
-			}
-			// Add the JSON-RPC imports.
-			if s.Name == "source-header" {
-				codegen.AddImport(s, &codegen.ImportSpec{Path: "bytes"})
-				codegen.AddImport(s, &codegen.ImportSpec{Path: "io"})
-				codegen.AddImport(s, codegen.GoaImport("jsonrpc"))
-			}
-			// Replace HTTP request decoder with proper JSON-RPC version
-			if s.Name == "request-decoder" {
-				// Surgical modification 1: Update function signatures for JSON-RPC
-				s.Source = strings.Replace(s.Source,
-					"func(*http.Request) (",
-					"func(*http.Request, *jsonrpc.RawRequest) (", 1)
-
-				// Surgical modification 2: Inject JSON-RPC body handling + signature
-				s.Source = strings.Replace(s.Source,
-					"return func(r *http.Request) ({{ .Payload.Ref }}, error) {",
-					`return func(r *http.Request, req *jsonrpc.RawRequest) ({{ .Payload.Ref }}, error) {
-		r.Body = io.NopCloser(bytes.NewReader(req.Params))`, 1)
-
-				// Surgical modification 3: Fix return values (nil -> zero values)
-				s.Source = strings.ReplaceAll(s.Source,
-					"return nil, ",
-					`var zero {{ .Payload.Ref }}
-		return zero, `)
-
-				s.Name = "jsonrpc-request-decoder"
-				sections = append(sections, s)
-				continue
-			}
-			// Remove the error encoder sections, JSON-RPC
-			// inlines the error encoding in each handler.
-			if s.Name != "error-encoder" {
-				if s.Name != "source-header" {
-					s.Name = "jsonrpc-" + s.Name
-				}
-				sections = append(sections, s)
-			}
-		}
-		f.SetSections(sections)
-		f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
-		files = append(files, f)
 	}
 	return files
+}
+
+func serverEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *httpcodegen.ServicesData) *codegen.File {
+	f := httpcodegen.ServerEncodeDecodeFile(genpkg, svc, data)
+	if f == nil {
+		return nil
+	}
+	updateHeader(f)
+	f.SetSections(serverEncodeDecodeSections(f))
+	f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
+	return f
+}
+
+func serverEncodeDecodeSections(f *codegen.File) []codegen.Section {
+	sections := make([]codegen.Section, 0, len(f.AllSections()))
+	for _, section := range f.AllSections() {
+		s, ok := section.(*codegen.SectionTemplate)
+		if !ok {
+			sections = append(sections, section)
+			continue
+		}
+		switch s.Name {
+		case "source-header":
+			addJSONRPCServerImports(s)
+		case "request-decoder":
+			rewriteJSONRPCRequestDecoder(s)
+			s.Name = "jsonrpc-request-decoder"
+			sections = append(sections, s)
+			continue
+		case "error-encoder":
+			continue
+		}
+		if s.Name != "source-header" {
+			s.Name = "jsonrpc-" + s.Name
+		}
+		sections = append(sections, s)
+	}
+	return sections
+}
+
+func addJSONRPCServerImports(section *codegen.SectionTemplate) {
+	codegen.AddImport(section, &codegen.ImportSpec{Path: "bytes"})
+	codegen.AddImport(section, &codegen.ImportSpec{Path: "io"})
+	codegen.AddImport(section, codegen.GoaImport("jsonrpc"))
+}
+
+func rewriteJSONRPCRequestDecoder(section *codegen.SectionTemplate) {
+	section.Source = strings.Replace(section.Source,
+		"func(*http.Request) (",
+		"func(*http.Request, *jsonrpc.RawRequest) (", 1)
+
+	section.Source = strings.Replace(section.Source,
+		"return func(r *http.Request) ({{ .Payload.Ref }}, error) {",
+		`return func(r *http.Request, req *jsonrpc.RawRequest) ({{ .Payload.Ref }}, error) {
+		r.Body = io.NopCloser(bytes.NewReader(req.Params))`, 1)
+
+	section.Source = strings.ReplaceAll(section.Source,
+		"return nil, ",
+		`var zero {{ .Payload.Ref }}
+		return zero, `)
 }
 
 // serverFile returns the file implementing the HTTP server.

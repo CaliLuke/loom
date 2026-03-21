@@ -66,12 +66,7 @@ func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 		b.WriteString("\t// Convert to response body type for proper JSON encoding\n")
 	}
 	fmt.Fprintf(&b, "\t%s\n", streamResultBodyInit("result", ed))
-	b.WriteString("\t// Send as notification (no ID)\n")
-	b.WriteString("\tmessage := map[string]any{\n")
-	b.WriteString("\t\t\"jsonrpc\": \"2.0\",\n")
-	fmt.Fprintf(&b, "\t\t\"method\":  %q,\n", ed.Method.Name)
-	b.WriteString("\t\t\"params\":  body,\n")
-	b.WriteString("\t}\n\n")
+	writeStreamNotificationMessage(&b, ed.Method.Name)
 	b.WriteString("\treturn s.sendSSEEvent(\"message\", message)\n")
 	b.WriteString("}\n\n")
 
@@ -115,12 +110,7 @@ func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 		b.WriteString("\t// Convert to response body type for proper JSON encoding\n")
 	}
 	fmt.Fprintf(&b, "\t%s\n", streamResultBodyInit("result", ed))
-	b.WriteString("\t// Send as response with ID\n")
-	b.WriteString("\tmessage := map[string]any{\n")
-	b.WriteString("\t\t\"jsonrpc\": \"2.0\",\n")
-	b.WriteString("\t\t\"id\":      id,\n")
-	b.WriteString("\t\t\"result\":  body,\n")
-	b.WriteString("\t}\n\n")
+	writeStreamResponseMessage(&b)
 	b.WriteString("\treturn s.sendSSEEvent(\"response\", message)\n")
 	b.WriteString("}\n\n")
 
@@ -148,6 +138,24 @@ func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 	b.WriteString("}\n")
 
 	return codegen.NewRawSection("jsonrpc-sse-server-stream", b.String())
+}
+
+func writeStreamNotificationMessage(b *strings.Builder, methodName string) {
+	b.WriteString("\t// Send as notification (no ID)\n")
+	b.WriteString("\tmessage := map[string]any{\n")
+	b.WriteString("\t\t\"jsonrpc\": \"2.0\",\n")
+	fmt.Fprintf(b, "\t\t\"method\":  %q,\n", methodName)
+	b.WriteString("\t\t\"params\":  body,\n")
+	b.WriteString("\t}\n\n")
+}
+
+func writeStreamResponseMessage(b *strings.Builder) {
+	b.WriteString("\t// Send as response with ID\n")
+	b.WriteString("\tmessage := map[string]any{\n")
+	b.WriteString("\t\t\"jsonrpc\": \"2.0\",\n")
+	b.WriteString("\t\t\"id\":      id,\n")
+	b.WriteString("\t\t\"result\":  body,\n")
+	b.WriteString("\t}\n\n")
 }
 
 func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section {

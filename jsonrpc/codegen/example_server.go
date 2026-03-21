@@ -40,6 +40,7 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 		file = httpcodegen.ExampleServer(genpkg, data.Root, svr, data)
 		updateHeader(file)
 	}
+	file.Path = rewriteJSONRPCExampleServerPath(file.Path)
 
 	// Add JSON-RPC imports to the HTTP server file
 	sections := file.AllSections()
