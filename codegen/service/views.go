@@ -59,18 +59,10 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 
 	// type definitions
 	for _, t := range svc.viewedResultTypes {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "viewed-result-type",
-			Source: serviceTemplates.Read(userTypeT),
-			Data:   t.UserTypeData,
-		})
+		sections = append(sections, userTypeSection("viewed-result-type", t.UserTypeData))
 	}
 	for _, t := range svc.projectedTypes {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "projected-type",
-			Source: serviceTemplates.Read(userTypeT),
-			Data:   t.UserTypeData,
-		})
+		sections = append(sections, userTypeSection("projected-type", t.UserTypeData))
 	}
 	for _, u := range unions {
 		sections = append(sections, &codegen.SectionTemplate{
@@ -103,29 +95,15 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 			seen[name] = struct{}{}
 		}
 	}
-	sections = append(sections, &codegen.SectionTemplate{
-		Name:   "viewed-type-map",
-		Source: serviceTemplates.Read(viewedTypeMapT),
-		Data: map[string]any{
-			"ViewedTypes": rtdata,
-		},
-	})
+	sections = append(sections, viewedTypeMapSection(rtdata))
 
 	// validations
 	for _, t := range svc.viewedResultTypes {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "validate-viewed-result-type",
-			Source: serviceTemplates.Read(validateT),
-			Data:   t.Validate,
-		})
+		sections = append(sections, validateSection("validate-viewed-result-type", t.Validate))
 	}
 	for _, t := range svc.projectedTypes {
 		for _, v := range t.Validations {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "validate-projected-type",
-				Source: serviceTemplates.Read(validateT),
-				Data:   v,
-			})
+			sections = append(sections, validateSection("validate-projected-type", v))
 		}
 	}
 

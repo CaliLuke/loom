@@ -21,13 +21,13 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	svcName := svc.PathName
 	svcPath := filepath.Join(codegen.Gendir, svcName, "service.go")
 	seen := make(map[string]struct{})
-	typeDefSections := make(map[string]map[string]*codegen.SectionTemplate)
+	typeDefSections := make(map[string]map[string]codegen.Section)
 	typesByPath := make(map[string][]string)
 	svcSections := make([]codegen.Section, 0, 10)
 
-	addTypeDefSection := func(path, name string, section *codegen.SectionTemplate) {
+	addTypeDefSection := func(path, name string, section codegen.Section) {
 		if typeDefSections[path] == nil {
-			typeDefSections[path] = make(map[string]*codegen.SectionTemplate)
+			typeDefSections[path] = make(map[string]codegen.Section)
 		}
 		typeDefSections[path][name] = section
 		typesByPath[path] = append(typesByPath[path], name)
@@ -39,53 +39,29 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		resultPath := pathWithDefault(m.ResultLoc, svcPath)
 		if m.PayloadDef != "" {
 			if _, ok := seen[m.Payload]; !ok {
-				addTypeDefSection(payloadPath, m.Payload, &codegen.SectionTemplate{
-					Name:   "service-payload",
-					Source: serviceTemplates.Read(payloadT),
-					Data:   m,
-				})
+				addTypeDefSection(payloadPath, m.Payload, payloadSection(m))
 			}
 		}
 		if m.StreamingPayloadDef != "" {
 			if _, ok := seen[m.StreamingPayload]; !ok {
-				addTypeDefSection(payloadPath, m.StreamingPayload, &codegen.SectionTemplate{
-					Name:   "service-streaming-payload",
-					Source: serviceTemplates.Read(streamingPayloadT),
-					Data:   m,
-				})
+				addTypeDefSection(payloadPath, m.StreamingPayload, streamingPayloadSection(m))
 			}
 		}
 		if m.ResultDef != "" {
 			if _, ok := seen[m.Result]; !ok {
-				addTypeDefSection(resultPath, m.Result, &codegen.SectionTemplate{
-					Name:   "service-result",
-					Source: serviceTemplates.Read(resultT),
-					Data:   m,
-				})
+				addTypeDefSection(resultPath, m.Result, resultSection("service-result", m.Result, m.ResultDesc, m.ResultDef))
 			}
 		}
 		// Generate streaming result type if different from result
 		if m.StreamingResultDef != "" && m.StreamingResult != m.Result {
 			if _, ok := seen[m.StreamingResult]; !ok {
-				addTypeDefSection(resultPath, m.StreamingResult, &codegen.SectionTemplate{
-					Name:   "service-streaming-result",
-					Source: serviceTemplates.Read(resultT),
-					Data: map[string]any{
-						"Result":     m.StreamingResult,
-						"ResultDef":  m.StreamingResultDef,
-						"ResultDesc": m.StreamingResultDesc,
-					},
-				})
+				addTypeDefSection(resultPath, m.StreamingResult, resultSection("service-streaming-result", m.StreamingResult, m.StreamingResultDesc, m.StreamingResultDef))
 			}
 		}
 	}
 	for _, ut := range svc.userTypes {
 		if _, ok := seen[ut.VarName]; !ok {
-			addTypeDefSection(pathWithDefault(ut.Loc, svcPath), ut.VarName, &codegen.SectionTemplate{
-				Name:   "service-user-type",
-				Source: serviceTemplates.Read(userTypeT),
-				Data:   ut,
-			})
+			addTypeDefSection(pathWithDefault(ut.Loc, svcPath), ut.VarName, userTypeSection("service-user-type", ut))
 		}
 	}
 	for _, u := range svc.unions {
@@ -105,11 +81,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		if _, ok := seenErrs[et.Name]; !ok {
 			seenErrs[et.Name] = struct{}{}
 			if _, ok := seen[et.Name]; !ok {
-				addTypeDefSection(pathWithDefault(et.Loc, svcPath), et.Name, &codegen.SectionTemplate{
-					Name:   "error-user-type",
-					Source: serviceTemplates.Read(userTypeT),
-					Data:   et,
-				})
+				addTypeDefSection(pathWithDefault(et.Loc, svcPath), et.Name, userTypeSection("error-user-type", et))
 			}
 			errorTypes = append(errorTypes, et)
 		}
@@ -120,12 +92,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		// declaration, make sure the key does not clash with existing
 		// type names, make it generated last.
 		key := "|" + et.Name
-		addTypeDefSection(pathWithDefault(et.Loc, svcPath), key, &codegen.SectionTemplate{
-			Name:    "service-error",
-			Source:  serviceTemplates.Read(errorT),
-			FuncMap: map[string]any{"errorName": errorName},
-			Data:    et,
-		})
+		addTypeDefSection(pathWithDefault(et.Loc, svcPath), key, errorSection(et))
 	}
 	for _, er := range svc.errorInits {
 		svcSections = append(svcSections, errorInitSection(er))

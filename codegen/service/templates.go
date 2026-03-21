@@ -39,19 +39,12 @@ const (
 	jsonrpcHandleStreamT      = "jsonrpc_handle_stream"
 
 	// Service templates
-	serviceT          = "service"
-	payloadT          = "payload"
-	streamingPayloadT = "streaming_payload"
-	resultT           = "result"
-	userTypeT         = "user_type"
-	unionTypeT        = "union_type"
-	errorT            = "error"
-	errorInitT        = "error_init"
-	typeInitT         = "type_init"
-	returnTypeInitT   = "return_type_init"
-	typeValidateT     = "type_validate"
-	validateT         = "validate"
-	viewedTypeMapT    = "viewed_type_map"
+	serviceT        = "service"
+	unionTypeT      = "union_type"
+	errorInitT      = "error_init"
+	typeInitT       = "type_init"
+	returnTypeInitT = "return_type_init"
+	typeValidateT   = "type_validate"
 
 	// Interceptor templates
 	interceptorsT                        = "interceptors"

@@ -7,6 +7,11 @@ func NewJenniferSection(name string, build func(*jen.Statement)) Section {
 	return &JenniferSection{Name: name, Build: build}
 }
 
+// NewRawSection builds a raw source-backed section.
+func NewRawSection(name, source string) Section {
+	return &RawSection{Name: name, Source: source}
+}
+
 // MustJenniferSection builds a Jennifer-backed section.
 func MustJenniferSection(name string, build func(*jen.Statement)) Section {
 	return NewJenniferSection(name, build)

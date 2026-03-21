@@ -17,6 +17,14 @@ type (
 		// Build appends code to the provided statement.
 		Build JenniferBuilder
 	}
+
+	// RawSection renders an exact file section from a precomputed source string.
+	RawSection struct {
+		// Name is the stable section identifier used by tests and merge logic.
+		Name string
+		// Source is written as-is.
+		Source string
+	}
 )
 
 // SectionName returns the stable section identifier.
@@ -31,4 +39,15 @@ func (s *JenniferSection) Write(w io.Writer) error {
 		s.Build(stmt)
 	}
 	return stmt.Render(w)
+}
+
+// SectionName returns the stable section identifier.
+func (s *RawSection) SectionName() string {
+	return s.Name
+}
+
+// Write writes the raw section source to the given writer.
+func (s *RawSection) Write(w io.Writer) error {
+	_, err := io.WriteString(w, s.Source)
+	return err
 }
