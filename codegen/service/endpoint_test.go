@@ -45,7 +45,7 @@ func TestEndpoint(t *testing.T) {
 			fs := EndpointFile("goa.design/goa/example", root.Services[0], services)
 			require.NotNil(t, fs)
 			buf := new(bytes.Buffer)
-			for _, s := range fs.SectionTemplates[1:] {
+			for _, s := range fs.AllSections()[1:] {
 				require.NoError(t, s.Write(buf))
 			}
 			bs, err := format.Source(buf.Bytes())

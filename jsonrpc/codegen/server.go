@@ -31,8 +31,13 @@ func ServerFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 			continue
 		}
 		updateHeader(f)
-		var sections []*codegen.SectionTemplate
-		for _, s := range f.SectionTemplates {
+		var sections []codegen.Section
+		for _, section := range f.AllSections() {
+			s, ok := section.(*codegen.SectionTemplate)
+			if !ok {
+				sections = append(sections, section)
+				continue
+			}
 			// Add the JSON-RPC imports.
 			if s.Name == "source-header" {
 				codegen.AddImport(s, &codegen.ImportSpec{Path: "bytes"})
@@ -69,7 +74,7 @@ func ServerFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 				sections = append(sections, s)
 			}
 		}
-		f.SectionTemplates = sections
+		f.SetSections(sections)
 		f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
 		files = append(files, f)
 	}
@@ -107,7 +112,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(title, "server", imports),
 	}
 
@@ -160,7 +165,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		sections = append(sections, &codegen.SectionTemplate{Name: "jsonrpc-server-encode-error", Source: jsonrpcTemplates.Read(serverEncodeErrorT)})
 	}
 
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 // lowerInitial returns the string with the first letter in lowercase.

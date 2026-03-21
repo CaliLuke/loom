@@ -34,7 +34,7 @@ func TestClientTypeFiles(t *testing.T) {
 			fs := ClientTypeFiles("", services)
 			require.Len(t, fs, 1)
 			var buf bytes.Buffer
-			for _, s := range fs[0].SectionTemplates[1:] {
+			for _, s := range fs[0].AllSections()[1:] {
 				require.NoError(t, s.Write(&buf))
 			}
 			code := codegen.FormatTestCode(t, "package foo\n"+buf.String())

@@ -63,7 +63,7 @@ func clientType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 
 	var (
 		fpath    string
-		sections []*codegen.SectionTemplate
+		sections []codegen.Section
 	)
 	{
 		svcName := sd.Service.PathName
@@ -97,7 +97,7 @@ func clientType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			imports = append(imports, &codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"})
 		}
 		imports = append(imports, sd.Service.ProtoImports...)
-		sections = []*codegen.SectionTemplate{codegen.Header(svc.Name()+" gRPC client types", "client", imports)}
+		sections = []codegen.Section{codegen.Header(svc.Name()+" gRPC client types", "client", imports)}
 		for _, init := range initData {
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:   "client-type-init",
@@ -133,5 +133,5 @@ func clientType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		}
 	}
 
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }

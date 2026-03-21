@@ -14,7 +14,11 @@ func ClientCLIFiles(genpkg string, services *httpcodegen.ServicesData) []*codege
 		updateHeader(f)
 		f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
 		// Fix JSON-RPC specific template sections
-		for _, section := range f.SectionTemplates {
+		for _, raw := range f.AllSections() {
+			section, ok := raw.(*codegen.SectionTemplate)
+			if !ok {
+				continue
+			}
 			if section.Name == "parse-endpoint" {
 				// Update the template source to use goahttp.ConnConfigureFunc instead of *ConnConfigurer
 				section.Source = strings.ReplaceAll(section.Source,

@@ -29,7 +29,7 @@ func ServerFiles(genpkg string, services *ServicesData) []*codegen.File {
 func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData) *codegen.File {
 	var (
 		fpath    string
-		sections []*codegen.SectionTemplate
+		sections []codegen.Section
 
 		data = services.Get(svc.Name())
 	)
@@ -46,9 +46,9 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}
-		sections = []*codegen.SectionTemplate{
+		sections = []codegen.Section{
 			codegen.Header(svc.Name()+" gRPC server", "server", imports),
-			{
+			&codegen.SectionTemplate{
 				Name:   "server-struct",
 				Source: grpcTemplates.Read(grpcServerStructTypeT),
 				Data:   data,
@@ -112,7 +112,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			}
 		}
 	}
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 // serverEncodeDecode returns the file defining the gRPC server encoding and
@@ -120,7 +120,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData) *codegen.File {
 	var (
 		fpath    string
-		sections []*codegen.SectionTemplate
+		sections []codegen.Section
 
 		data = services.Get(svc.Name())
 	)
@@ -141,7 +141,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}
-		sections = []*codegen.SectionTemplate{codegen.Header(title, "server", imports)}
+		sections = []codegen.Section{codegen.Header(title, "server", imports)}
 
 		for _, e := range data.Endpoints {
 			if e.Response.ServerConvert != nil {
@@ -167,7 +167,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			}
 		}
 	}
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 func transTmplFuncs(s *expr.GRPCServiceExpr, services *ServicesData) map[string]any {

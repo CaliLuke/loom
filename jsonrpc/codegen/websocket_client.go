@@ -39,7 +39,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
 
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(title, "client", imports),
 	}
 
@@ -64,8 +64,8 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	}
 
 	return &codegen.File{
-		Path:             filepath.Join(codegen.Gendir, "jsonrpc", svcName, "client", "websocket.go"),
-		SectionTemplates: sections,
+		Path:     filepath.Join(codegen.Gendir, "jsonrpc", svcName, "client", "websocket.go"),
+		Sections: sections,
 	}
 }
 

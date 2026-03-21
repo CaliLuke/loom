@@ -81,9 +81,9 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: genpkg + "/" + codegen.SnakeCase(data.Service.Name), Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(title, "server", imports),
-		{
+		&codegen.SectionTemplate{
 			Name:    "jsonrpc-server-sse-stream-impl",
 			Source:  jsonrpcTemplates.Read(sseServerStreamImplT),
 			Data:    data,
@@ -92,7 +92,7 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	}
 
 	return &codegen.File{
-		Path:             filepath.Join(codegen.Gendir, "jsonrpc", svcName, "server", "sse.go"),
-		SectionTemplates: sections,
+		Path:     filepath.Join(codegen.Gendir, "jsonrpc", svcName, "server", "sse.go"),
+		Sections: sections,
 	}
 }

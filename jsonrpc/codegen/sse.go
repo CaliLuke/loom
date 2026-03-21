@@ -44,7 +44,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 
 	path := filepath.Join(codegen.Gendir, "jsonrpc", codegen.SnakeCase(svc.Name()), "server", "stream.go")
 	tmplSections := sseServerStreamSections(data)
-	sections := make([]*codegen.SectionTemplate, 0, 1+len(tmplSections))
+	sections := make([]codegen.Section, 0, 1+len(tmplSections))
 	sections = append(sections,
 		codegen.Header(
 			"stream",
@@ -62,8 +62,10 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 			},
 		),
 	)
-	sections = append(sections, tmplSections...)
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	for _, section := range tmplSections {
+		sections = append(sections, section)
+	}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // sseClientFile returns the file implementing the SSE client streaming implementation if any.
@@ -87,7 +89,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 
 	path := filepath.Join(codegen.Gendir, "jsonrpc", codegen.SnakeCase(svc.Name()), "client", "stream.go")
 	tmplSections := sseClientStreamSections(data)
-	sections := make([]*codegen.SectionTemplate, 0, 1+len(tmplSections))
+	sections := make([]codegen.Section, 0, 1+len(tmplSections))
 	sections = append(sections,
 		codegen.Header(
 			"stream",
@@ -108,8 +110,10 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 			},
 		),
 	)
-	sections = append(sections, tmplSections...)
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	for _, section := range tmplSections {
+		sections = append(sections, section)
+	}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // sseServerStreamSections returns section templates for SSE server endpoints.

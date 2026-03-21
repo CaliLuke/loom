@@ -42,7 +42,11 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 	}
 
 	// Add JSON-RPC imports to the HTTP server file
-	header := file.SectionTemplates[0]
+	sections := file.AllSections()
+	header, ok := sections[0].(*codegen.SectionTemplate)
+	if !ok {
+		return file
+	}
 	scope := codegen.NewNameScope()
 	for _, svc := range data.Root.API.JSONRPC.Services {
 		sd := data.Get(svc.Name())
@@ -64,8 +68,13 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 			svcdata = append(svcdata, d)
 		}
 	}
-	sections := make([]*codegen.SectionTemplate, 0, len(file.SectionTemplates)+2)
-	for _, s := range file.SectionTemplates {
+	updatedSections := make([]codegen.Section, 0, len(sections)+2)
+	for _, section := range sections {
+		s, ok := section.(*codegen.SectionTemplate)
+		if !ok {
+			updatedSections = append(updatedSections, section)
+			continue
+		}
 		switch s.Name {
 		case "server-http-start":
 			// Check if the main template already has JSONRPCServices data
@@ -91,9 +100,9 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 				"hasWebSocket": httpcodegen.HasWebSocket,
 			}
 		}
-		sections = append(sections, s)
+		updatedSections = append(updatedSections, s)
 	}
-	file.SectionTemplates = sections
+	file.SetSections(updatedSections)
 	return file
 }
 

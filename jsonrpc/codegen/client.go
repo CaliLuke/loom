@@ -86,7 +86,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "jsonrpc", svcName, "client", "client.go")
 	title := fmt.Sprintf("%s client JSON-RPC transport", svc.Name())
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(title, "client", []*codegen.ImportSpec{
 			{Path: "bufio"},
 			{Path: "bytes"},
@@ -149,7 +149,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		})
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 const newJSONRPCBody = `b := {{ .NewBody }}

@@ -28,7 +28,7 @@ func TestJSONRPCSSE_DedupEventTypes(t *testing.T) {
 			t.Logf("file: %s", f.Path)
 			// Render all sections into a single source string
 			var b strings.Builder
-			for _, s := range f.SectionTemplates {
+			for _, s := range f.AllSections() {
 				_ = s.Write(&b)
 			}
 			code = b.String()

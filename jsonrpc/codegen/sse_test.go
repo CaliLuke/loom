@@ -46,9 +46,9 @@ func TestJSONRPCSSE(t *testing.T) {
 			require.NotNil(t, serverStreamFile, "server stream file not found")
 
 			// Find the jsonrpc-sse-server-stream section
-			var streamSection *codegen.SectionTemplate
-			for _, s := range serverStreamFile.SectionTemplates {
-				if s.Name == "jsonrpc-sse-server-stream" {
+			var streamSection codegen.Section
+			for _, s := range serverStreamFile.AllSections() {
+				if s.SectionName() == "jsonrpc-sse-server-stream" {
 					streamSection = s
 					break
 				}
@@ -75,9 +75,9 @@ func TestJSONRPCSSE(t *testing.T) {
 			}
 			require.NotNil(t, clientStreamFile, "client stream file not found")
 
-			var clientSection *codegen.SectionTemplate
-			for _, s := range clientStreamFile.SectionTemplates {
-				if s.Name == "jsonrpc-sse-client-stream" {
+			var clientSection codegen.Section
+			for _, s := range clientStreamFile.AllSections() {
+				if s.SectionName() == "jsonrpc-sse-client-stream" {
 					clientSection = s
 					break
 				}
@@ -104,8 +104,8 @@ func TestJSONRPCSSEServiceStreamUsesTypedResponseEvents(t *testing.T) {
 		if filepath.Base(f.Path) != "sse.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
 			continue
 		}
-		for _, s := range f.SectionTemplates {
-			if s.Name != "jsonrpc-server-sse-stream-impl" {
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-server-sse-stream-impl" {
 				continue
 			}
 			serviceStreamCode = codegen.SectionCode(t, s)
@@ -131,8 +131,8 @@ func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
 		if filepath.Base(f.Path) != "stream.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
 			continue
 		}
-		for _, s := range f.SectionTemplates {
-			if s.Name != "jsonrpc-sse-server-stream" {
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-sse-server-stream" {
 				continue
 			}
 			endpointStreamCode = codegen.SectionCode(t, s)
@@ -151,8 +151,8 @@ func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
 		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
 			continue
 		}
-		for _, s := range f.SectionTemplates {
-			if s.Name != "jsonrpc-server-handler-init" {
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-server-handler-init" {
 				continue
 			}
 			code := codegen.SectionCode(t, s)
@@ -183,8 +183,8 @@ func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
 		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
 			continue
 		}
-		for _, s := range f.SectionTemplates {
-			if s.Name != "jsonrpc-server-handler-init" {
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-server-handler-init" {
 				continue
 			}
 			code := codegen.SectionCode(t, s)
@@ -213,8 +213,8 @@ func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
 		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
 			continue
 		}
-		for _, s := range f.SectionTemplates {
-			if s.Name != "jsonrpc-sse-server-handler" {
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-sse-server-handler" {
 				continue
 			}
 			sseHandlerCode = codegen.SectionCode(t, s)

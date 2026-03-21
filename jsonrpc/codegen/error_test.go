@@ -48,8 +48,8 @@ func TestJSONRPCErrorProjectionUsesCoreHelpers(t *testing.T) {
 
 		found := false
 		for _, file := range files {
-			for _, section := range file.SectionTemplates {
-				if section.Name != "jsonrpc-sse-server-stream" {
+			for _, section := range file.AllSections() {
+				if section.SectionName() != "jsonrpc-sse-server-stream" {
 					continue
 				}
 				found = true

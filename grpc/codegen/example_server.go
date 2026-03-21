@@ -80,7 +80,7 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr) 
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath, Name: apiPkg})
 
 	var (
-		sections []*codegen.SectionTemplate
+		sections []codegen.Section
 	)
 	var svcdata []*ServiceData
 	for _, svc := range svr.Services {
@@ -88,21 +88,21 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr) 
 			svcdata = append(svcdata, data)
 		}
 	}
-	sections = []*codegen.SectionTemplate{
+	sections = []codegen.Section{
 		codegen.Header("", "main", specs),
-		{
+		&codegen.SectionTemplate{
 			Name:   "server-grpc-start",
 			Source: grpcTemplates.Read(grpcServerGRPCStartT),
 			Data: map[string]any{
 				"Services": svcdata,
 			},
-		}, {
+		}, &codegen.SectionTemplate{
 			Name:   "server-grpc-init",
 			Source: grpcTemplates.Read(grpcServerGRPCInitT),
 			Data: map[string]any{
 				"Services": svcdata,
 			},
-		}, {
+		}, &codegen.SectionTemplate{
 			Name:   "server-grpc-register",
 			Source: grpcTemplates.Read(grpcServerGRPCRegisterT),
 			Data: map[string]any{
@@ -112,7 +112,7 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr) 
 				"goify":      codegen.Goify,
 				"needStream": needStream,
 			},
-		}, {
+		}, &codegen.SectionTemplate{
 			Name:   "server-grpc-end",
 			Source: grpcTemplates.Read(grpcServerGRPCEndT),
 			Data: map[string]any{
@@ -120,7 +120,7 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr) 
 			},
 		},
 	}
-	return &codegen.File{Path: mainPath, SectionTemplates: sections, SkipExist: true}
+	return &codegen.File{Path: mainPath, Sections: sections, SkipExist: true}
 }
 
 // needStream returns true if at least one method in the defined services

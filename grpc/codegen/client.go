@@ -27,7 +27,7 @@ func ClientFiles(genpkg string, services *ServicesData) []*codegen.File {
 func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData) *codegen.File {
 	var (
 		fpath    string
-		sections []*codegen.SectionTemplate
+		sections []codegen.Section
 
 		data = services.Get(svc.Name())
 	)
@@ -44,7 +44,7 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}
-		sections = []*codegen.SectionTemplate{
+		sections = []codegen.Section{
 			codegen.Header(svc.Name()+" gRPC client", "client", imports),
 		}
 		sections = append(sections, &codegen.SectionTemplate{
@@ -106,7 +106,7 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			}
 		}
 	}
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 // clientEncodeDecode returns the file containing the gRPC client encoding and
@@ -114,7 +114,7 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData) *codegen.File {
 	var (
 		fpath    string
-		sections []*codegen.SectionTemplate
+		sections []codegen.Section
 
 		data = services.Get(svc.Name())
 	)
@@ -134,7 +134,7 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}
-		sections = []*codegen.SectionTemplate{codegen.Header(svc.Name()+" gRPC client encoders and decoders", "client", imports)}
+		sections = []codegen.Section{codegen.Header(svc.Name()+" gRPC client encoders and decoders", "client", imports)}
 		fm := transTmplFuncs(svc, services)
 		fm["metadataEncodeDecodeData"] = metadataEncodeDecodeData
 		fm["typeConversionData"] = typeConversionData
@@ -163,7 +163,7 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			}
 		}
 	}
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 // isBearer returns true if the security scheme uses a Bearer scheme.

@@ -30,9 +30,10 @@ func TestExampleServerFiles(t *testing.T) {
 			services := NewServicesData(service.NewServicesData(root))
 			fs := ExampleServerFiles("", services)
 			require.Greater(t, len(fs), 0)
-			require.Greater(t, len(fs[0].SectionTemplates), 0)
+			sections := fs[0].AllSections()
+			require.Greater(t, len(sections), 0)
 			var buf bytes.Buffer
-			for _, s := range fs[0].SectionTemplates[1:] {
+			for _, s := range sections[1:] {
 				require.NoError(t, s.Write(&buf))
 			}
 			code := codegen.FormatTestCode(t, "package foo\n"+buf.String())

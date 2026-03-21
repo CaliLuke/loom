@@ -28,7 +28,7 @@ func TestSecureEndpointInit(t *testing.T) {
 			require.Len(t, root.Services, 1)
 			fs := EndpointFile("", root.Services[0], services)
 			require.NotNil(t, fs)
-			sections := fs.SectionTemplates
+			sections := fs.AllSections()
 			require.Greater(t, len(sections), 1)
 			code := codegen.SectionCode(t, sections[2])
 			assert.Equal(t, c.Code, code)
@@ -135,7 +135,7 @@ func TestSecureEndpoint(t *testing.T) {
 			require.Len(t, root.Services, 1)
 			fs := EndpointFile("", root.Services[0], services)
 			require.NotNil(t, fs)
-			sections := fs.SectionTemplates
+			sections := fs.AllSections()
 			code := codegen.SectionCode(t, sections[4])
 			assert.Equal(t, c.Code, code)
 		})
@@ -157,7 +157,7 @@ func TestSecureWithSkipRequestBodyEncodeDecode(t *testing.T) {
 			require.Len(t, root.Services, 1)
 			fs := EndpointFile("", root.Services[0], services)
 			require.NotNil(t, fs)
-			sections := fs.SectionTemplates
+			sections := fs.AllSections()
 			code := codegen.SectionCode(t, sections[5])
 			assert.Equal(t, c.Code, code)
 		})

@@ -74,7 +74,7 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 	path := filepath.Join(codegen.Gendir, svcName, "endpoints.go")
 	data := endpointData(svc)
 	var (
-		sections []*codegen.SectionTemplate
+		sections []codegen.Section
 	)
 	{
 		imports := []*codegen.ImportSpec{
@@ -91,7 +91,7 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 			Source: serviceTemplates.Read(serviceEndpointsT),
 			Data:   data,
 		}
-		sections = []*codegen.SectionTemplate{header, def}
+		sections = []codegen.Section{header, def}
 		for _, m := range data.Methods {
 			if m.ServerStream != nil {
 				// Generate endpoint input struct for streaming methods
@@ -142,7 +142,7 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 		}
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 func endpointData(svc *Data) *EndpointsData {

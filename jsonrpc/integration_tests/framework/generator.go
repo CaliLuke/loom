@@ -92,7 +92,7 @@ func (g *Generator) renderDesign(design *DesignData) error {
 	// go.mod
 	gomod := &codegen.File{
 		Path: "go.mod",
-		SectionTemplates: []*codegen.SectionTemplate{{
+		Sections: []codegen.Section{&codegen.SectionTemplate{
 			Name:   "go-mod",
 			Source: generatorTemplates.Read("go_mod"),
 			Data:   map[string]string{"GoaPath": g.repoRootReplace()},
@@ -104,7 +104,7 @@ func (g *Generator) renderDesign(design *DesignData) error {
 	// design.go
 	designFile := &codegen.File{
 		Path: filepath.Join("design", "design.go"),
-		SectionTemplates: []*codegen.SectionTemplate{{
+		Sections: []codegen.Section{&codegen.SectionTemplate{
 			Name:    "design",
 			Source:  generatorTemplates.Read("dsl/design", "method", "type"),
 			FuncMap: g.templateFuncs(),
@@ -643,16 +643,16 @@ func (g *Generator) filesImpl(impl *ImplementationData) []*codegen.File {
 			{Name: "goa", Path: "goa.design/goa/v3/pkg"},
 			{Name: service.ServicePackage, Path: fmt.Sprintf("testservice/gen/%s", service.ServicePackage)},
 		}
-		sections := []*codegen.SectionTemplate{
+		sections := []codegen.Section{
 			codegen.Header(fmt.Sprintf("%s service implementation", service.Title), "testservice", imports),
-			{
+			&codegen.SectionTemplate{
 				Name:    "service-impl",
 				Source:  generatorTemplates.Read("impl/service", "method_signature", "error", "echo", "transform", "generate", "streaming_sse", "streaming_websocket", "notify", "validate"),
 				FuncMap: g.templateFuncs(),
 				Data:    service,
 			},
 		}
-		files = append(files, &codegen.File{Path: fmt.Sprintf("%s.go", service.Name), SectionTemplates: sections})
+		files = append(files, &codegen.File{Path: fmt.Sprintf("%s.go", service.Name), Sections: sections})
 	}
 	return files
 }
