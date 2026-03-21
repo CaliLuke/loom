@@ -1,5 +1,35 @@
 {
   "components": {
+    "requestBodies": {
+      "TestServiceTestEndpointRequestBody": {
+        "content": {
+          "application/json": {
+            "example": {
+              "string": ""
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Payload"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "responses": {
+      "TestServiceTestEndpointStatus200Response": {
+        "content": {
+          "application/json": {
+            "example": {
+              "string": ""
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Result"
+            }
+          }
+        },
+        "description": "OK response."
+      }
+    },
     "schemas": {
       "Payload": {
         "example": {
@@ -38,31 +68,11 @@
       "get": {
         "operationId": "test_service.test_endpoint",
         "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "string": ""
-              },
-              "schema": {
-                "$ref": "#/components/schemas/Payload"
-              }
-            }
-          },
-          "required": true
+          "$ref": "#/components/requestBodies/TestServiceTestEndpointRequestBody"
         },
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "string": ""
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Result"
-                }
-              }
-            },
-            "description": "OK response."
+            "$ref": "#/components/responses/TestServiceTestEndpointStatus200Response"
           }
         },
         "summary": "testEndpoint testService",
@@ -73,31 +83,11 @@
       "post": {
         "operationId": "another_test_service.test_endpoint",
         "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "string": ""
-              },
-              "schema": {
-                "$ref": "#/components/schemas/Payload"
-              }
-            }
-          },
-          "required": true
+          "$ref": "#/components/requestBodies/TestServiceTestEndpointRequestBody"
         },
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "string": ""
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Result"
-                }
-              }
-            },
-            "description": "OK response."
+            "$ref": "#/components/responses/TestServiceTestEndpointStatus200Response"
           }
         },
         "summary": "testEndpoint anotherTestService",

@@ -264,6 +264,56 @@ func TestBuildOperation(t *testing.T) {
 	}
 }
 
+func TestNewBuildsReusableContractComponentsAndServiceTags(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.OpenAPIReusableComponentsDSL)
+
+	spec := New(root)
+	if spec == nil {
+		t.Fatal("expected spec")
+	}
+	if spec.Components == nil {
+		t.Fatal("expected components")
+	}
+	if len(spec.Components.RequestBodies) == 0 {
+		t.Fatal("expected reusable request body components")
+	}
+	if len(spec.Components.Responses) == 0 {
+		t.Fatal("expected reusable response components")
+	}
+	if len(spec.Components.Headers) == 0 {
+		t.Fatal("expected reusable header components")
+	}
+	if len(spec.Components.Examples) == 0 {
+		t.Fatal("expected reusable example components")
+	}
+
+	postSignin := spec.Paths["/auth/signin"].Post
+	postRefresh := spec.Paths["/auth/refresh"].Post
+	postRevoke := spec.Paths["/auth/revoke"].Post
+	postSignout := spec.Paths["/auth/signout"].Post
+	if postSignin == nil || postRefresh == nil || postRevoke == nil || postSignout == nil {
+		t.Fatal("expected auth operations")
+	}
+	if postSignin.RequestBody == nil || postRefresh.RequestBody == nil {
+		t.Fatal("expected reusable request body refs")
+	}
+	if postSignin.RequestBody.Ref == "" || postRefresh.RequestBody.Ref == "" || postSignin.RequestBody.Ref != postRefresh.RequestBody.Ref {
+		t.Fatalf("unexpected request body refs: signin=%#v refresh=%#v", postSignin.RequestBody, postRefresh.RequestBody)
+	}
+	if postRevoke.Responses["204"] == nil || postSignout.Responses["204"] == nil {
+		t.Fatal("expected reusable 204 responses")
+	}
+	if postRevoke.Responses["204"].Ref == "" || postRevoke.Responses["204"].Ref != postSignout.Responses["204"].Ref {
+		t.Fatalf("unexpected 204 response refs: revoke=%#v signout=%#v", postRevoke.Responses["204"], postSignout.Responses["204"])
+	}
+	if got := postSignin.Tags; len(got) != 1 || got[0] != "Auth" {
+		t.Fatalf("unexpected signin tags: %#v", got)
+	}
+	if got := postRefresh.Tags; len(got) != 1 || got[0] != "Auth" {
+		t.Fatalf("unexpected refresh tags: %#v", got)
+	}
+}
+
 func TestBuildOperationID(t *testing.T) {
 	const svcName = "test service"
 

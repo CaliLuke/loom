@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
@@ -26,11 +27,15 @@ type (
 		Example      any                `json:"example,omitempty" yaml:"example,omitempty"`
 
 		// Hyper schema
-		Media     *Media  `json:"media,omitempty" yaml:"media,omitempty"`
-		ReadOnly  bool    `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-		PathStart string  `json:"pathStart,omitempty" yaml:"pathStart,omitempty"`
-		Links     []*Link `json:"links,omitempty" yaml:"links,omitempty"`
-		Ref       string  `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+		Media            *Media  `json:"media,omitempty" yaml:"media,omitempty"`
+		ReadOnly         bool    `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+		WriteOnly        bool    `json:"writeOnly,omitempty" yaml:"writeOnly,omitempty"`
+		Deprecated       bool    `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
+		ContentEncoding  string  `json:"contentEncoding,omitempty" yaml:"contentEncoding,omitempty"`
+		ContentMediaType string  `json:"contentMediaType,omitempty" yaml:"contentMediaType,omitempty"`
+		PathStart        string  `json:"pathStart,omitempty" yaml:"pathStart,omitempty"`
+		Links            []*Link `json:"links,omitempty" yaml:"links,omitempty"`
+		Ref              string  `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 
 		// Validation
 		Enum                  []any    `json:"enum,omitempty" yaml:"enum,omitempty"`
@@ -476,6 +481,10 @@ func (s *Schema) Dup() *Schema {
 		Title:                s.Title,
 		Media:                s.Media,
 		ReadOnly:             s.ReadOnly,
+		WriteOnly:            s.WriteOnly,
+		Deprecated:           s.Deprecated,
+		ContentEncoding:      s.ContentEncoding,
+		ContentMediaType:     s.ContentMediaType,
 		PathStart:            s.PathStart,
 		Links:                s.Links,
 		Ref:                  s.Ref,
@@ -515,12 +524,45 @@ func buildAttributeSchema(api *expr.APIExpr, s *Schema, at *expr.AttributeExpr) 
 	s.Description = at.Description
 	s.Example = expr.CanonicalizeExample(at, at.Example(api.ExampleGenerator))
 	s.Extensions = ExtensionsFromExpr(at.Meta)
+	applySchemaOpenAPIMetadata(s, at.Meta)
 	if ap := AdditionalPropertiesFromExpr(at.Meta); ap != nil {
 		s.AdditionalProperties = ap
 	}
 	initAttributeValidation(s, at)
 
 	return s
+}
+
+func applySchemaOpenAPIMetadata(s *Schema, meta expr.MetaExpr) {
+	if s == nil || meta == nil {
+		return
+	}
+	if value, ok := meta.Last("openapi:readOnly"); ok {
+		s.ReadOnly = metaBoolValue(value)
+	}
+	if value, ok := meta.Last("openapi:writeOnly"); ok {
+		s.WriteOnly = metaBoolValue(value)
+	}
+	if value, ok := meta.Last("openapi:deprecated"); ok {
+		s.Deprecated = metaBoolValue(value)
+	}
+	if value, ok := meta.Last("openapi:contentEncoding"); ok {
+		s.ContentEncoding = value
+	}
+	if value, ok := meta.Last("openapi:contentMediaType"); ok {
+		s.ContentMediaType = value
+	}
+}
+
+func metaBoolValue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "true":
+		return true
+	case "false":
+		return false
+	default:
+		return true
+	}
 }
 
 // initAttributeValidation initializes validation rules for an attribute.

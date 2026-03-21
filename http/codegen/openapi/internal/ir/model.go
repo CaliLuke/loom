@@ -88,10 +88,14 @@ type (
 		DefaultValue any
 		Example      any
 
-		Media     *Media
-		ReadOnly  bool
-		PathStart string
-		Links     []*Link
+		Media            *Media
+		ReadOnly         bool
+		WriteOnly        bool
+		Deprecated       bool
+		ContentEncoding  string
+		ContentMediaType string
+		PathStart        string
+		Links            []*Link
 
 		Enum                  []any
 		Pattern               string

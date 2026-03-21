@@ -304,6 +304,42 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:closed-objects", "true")
 //	})
 //
+// - "openapi:readOnly" marks an attribute schema as read-only in the generated
+// OpenAPI contract. The value can be true or false. Applicable to attributes.
+//
+//	Attribute("id", String, func() {
+//	    Meta("openapi:readOnly", "true")
+//	})
+//
+// - "openapi:writeOnly" marks an attribute schema as write-only in the generated
+// OpenAPI contract. The value can be true or false. Applicable to attributes.
+//
+//	Attribute("password", String, func() {
+//	    Meta("openapi:writeOnly", "true")
+//	})
+//
+// - "openapi:deprecated" marks an attribute or HTTP method as deprecated in the
+// generated OpenAPI contract. The value can be true or false. Applicable to
+// attributes and HTTP methods.
+//
+//	Attribute("legacy_token", String, func() {
+//	    Meta("openapi:deprecated", "true")
+//	})
+//
+// - "openapi:contentEncoding" sets the JSON Schema contentEncoding keyword for an
+// attribute schema. Applicable to attributes.
+//
+//	Attribute("payload", String, func() {
+//	    Meta("openapi:contentEncoding", "base64")
+//	})
+//
+// - "openapi:contentMediaType" sets the JSON Schema contentMediaType keyword for
+// an attribute schema. Applicable to attributes.
+//
+//	Attribute("payload", String, func() {
+//	    Meta("openapi:contentMediaType", "application/json")
+//	})
+//
 // - "openapi:typename" overrides the name of the type generated in the OpenAPI specification.
 // Applicable to types (including embedded Payload and Result definitions).
 //

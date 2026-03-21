@@ -62,6 +62,10 @@ replace goa.design/goa/v3 => %s
 func checkoutPinnedGoaModule(t *testing.T, parentDir string) string {
 	t.Helper()
 
+	if local := configuredLocalGoaModulePath(); local != "" {
+		return local
+	}
+
 	commit := strings.TrimSpace(runCommand(t, "", "git", "rev-parse", "HEAD"))
 	remote := strings.TrimSpace(resolveGitRemoteURL(t))
 	dest := filepath.Join(parentDir, "goa-pinned")
@@ -72,6 +76,26 @@ func checkoutPinnedGoaModule(t *testing.T, parentDir string) string {
 	runCommand(t, dest, "git", "checkout", "--detach", "FETCH_HEAD")
 
 	return dest
+}
+
+func configuredLocalGoaModulePath() string {
+	if repo := os.Getenv("GOA_REPO"); repo != "" {
+		return repo
+	}
+	root, err := runCommandAllowFailure("", "git", "rev-parse", "--show-toplevel")
+	if err != nil {
+		return ""
+	}
+	modeFile := filepath.Join(strings.TrimSpace(root), "jsonrpc", "integration_tests", ".goa_source_mode")
+	data, err := os.ReadFile(modeFile)
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) < 2 || fields[0] != "local" {
+		return ""
+	}
+	return fields[1]
 }
 
 func resolveGitRemoteURL(t *testing.T) string {

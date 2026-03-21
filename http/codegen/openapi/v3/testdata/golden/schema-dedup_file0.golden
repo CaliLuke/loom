@@ -1,5 +1,49 @@
 {
   "components": {
+    "requestBodies": {
+      "DedupServiceUnionFirstRequestBody": {
+        "content": {
+          "application/json": {
+            "example": {
+              "type": "AlphaSchemaDedup",
+              "value": {
+                "alpha": "Molestiae iure sit."
+              }
+            },
+            "schema": {
+              "discriminator": {
+                "mapping": {
+                  "AlphaSchemaDedup": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope",
+                  "BetaSchemaDedup": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope"
+                },
+                "propertyName": "type"
+              },
+              "example": {
+                "type": "BetaSchemaDedup",
+                "value": {
+                  "beta": "Et est neque."
+                }
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope"
+                },
+                {
+                  "$ref": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope"
+                }
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "responses": {
+      "DedupServiceFirstStatus204Response": {
+        "description": "No Content response."
+      }
+    },
     "schemas": {
       "AlphaSchemaDedup": {
         "example": {
@@ -109,7 +153,7 @@
         },
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/DedupServiceFirstStatus204Response"
           }
         },
         "summary": "first dedupService",
@@ -136,7 +180,7 @@
         },
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/DedupServiceFirstStatus204Response"
           }
         },
         "summary": "second dedupService",
@@ -149,45 +193,11 @@
       "post": {
         "operationId": "dedup_service.union_first",
         "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "type": "AlphaSchemaDedup",
-                "value": {
-                  "alpha": "Molestiae iure sit."
-                }
-              },
-              "schema": {
-                "discriminator": {
-                  "mapping": {
-                    "AlphaSchemaDedup": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope",
-                    "BetaSchemaDedup": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope"
-                  },
-                  "propertyName": "type"
-                },
-                "example": {
-                  "type": "BetaSchemaDedup",
-                  "value": {
-                    "beta": "Et est neque."
-                  }
-                },
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope"
-                  },
-                  {
-                    "$ref": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope"
-                  }
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
+          "$ref": "#/components/requestBodies/DedupServiceUnionFirstRequestBody"
         },
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/DedupServiceFirstStatus204Response"
           }
         },
         "summary": "union_first dedupService",
@@ -200,45 +210,11 @@
       "post": {
         "operationId": "dedup_service.union_second",
         "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "type": "AlphaSchemaDedup",
-                "value": {
-                  "alpha": "Molestiae iure sit."
-                }
-              },
-              "schema": {
-                "discriminator": {
-                  "mapping": {
-                    "AlphaSchemaDedup": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope",
-                    "BetaSchemaDedup": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope"
-                  },
-                  "propertyName": "type"
-                },
-                "example": {
-                  "type": "BetaSchemaDedup",
-                  "value": {
-                    "beta": "Et est neque."
-                  }
-                },
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope"
-                  },
-                  {
-                    "$ref": "#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope"
-                  }
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
+          "$ref": "#/components/requestBodies/DedupServiceUnionFirstRequestBody"
         },
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/DedupServiceFirstStatus204Response"
           }
         },
         "summary": "union_second dedupService",

@@ -19,6 +19,15 @@ Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifa
 - Hoist repeated OpenAPI parameters into `components.parameters` and rewrite
   repeated inline operation/path parameter occurrences to `$ref`s with stable
   component names.
+- Hoist repeated request bodies, headers, named examples, and structurally
+  identical no-body responses into reusable OpenAPI components with stable
+  names.
+- Inherit service-level OpenAPI tags onto operations when methods and file
+  servers do not declare their own tags, so operation tags match the published
+  top-level tag objects by default.
+- Support attribute-level OpenAPI schema metadata for `readOnly`, `writeOnly`,
+  `deprecated`, `contentEncoding`, and `contentMediaType` in both the IR-backed
+  and legacy schema-generation paths.
 - Prune unreferenced generated component schemas so the published contract only
   contains reachable request/response shapes.
 - Suppress invalid closed-object union-wrapper examples, honor
@@ -80,16 +89,17 @@ default.
 
 ### 1. Shared Component Deduplication Beyond Schemas
 
-The current generator already prunes and deduplicates schemas, but it still
-inlines repeated parameters, request bodies, responses, and examples.
+The current generator already prunes and deduplicates schemas. Parameters,
+request bodies, headers, named examples, and structurally identical no-body
+responses are now componentized as well.
 
 Add framework support to:
 
-- hoist repeated path and query parameters into `components.parameters`
-- hoist repeated request bodies into `components.requestBodies`
-- hoist repeated success and error responses into `components.responses`
-- hoist repeated headers into `components.headers`
-- hoist named examples into `components.examples`
+- extend response reuse beyond simple no-body duplicates so repeated success and
+  error responses with equivalent schema payloads also hoist cleanly into
+  `components.responses`
+- continue tightening stable naming for hoisted request bodies, headers, and
+  examples across larger specimen APIs
 
 The generator should prefer component reuse whenever the public contract shape
 is equivalent and the component name is stable.
@@ -105,7 +115,8 @@ The framework should expose a first-class public naming policy for:
 Requirements:
 
 - generated `operationId` values must be stable and SDK-safe
-- default operation tags must match the top-level tag objects exactly
+- default operation tags should inherit service-level tags so they match the
+  top-level tag objects exactly
 - internal transport naming should not leak into published contract names unless
   the API author opts into it explicitly
 
@@ -129,9 +140,11 @@ generator contract should go further.
 
 Add framework support to:
 
-- declare request-only fields as `writeOnly`
-- declare response-only or server-computed fields as `readOnly`
-- declare deprecated fields, parameters, and operations centrally
+- keep attribute-level `writeOnly`, `readOnly`, `deprecated`,
+  `contentEncoding`, and `contentMediaType` metadata first-class in the
+  published schema
+- declare parameters alongside fields and operations centrally when a stable DSL
+  surface exists
 - split request and response schemas automatically when the same domain type
   would otherwise leak secrets or server-managed fields both ways
 
@@ -201,12 +214,13 @@ TypeScript target and one Go target.
   [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md)
 - implement shared-component reuse for parameters, request bodies, responses,
   headers, and examples
-- extend the completed parameter-componentization pass to request bodies,
-  responses, headers, and examples
-- add SDK-safe naming policy for operation IDs and tags
+- extend the completed shared-component pass so repeated payload-bearing
+  responses componentize even when they carry equivalent schema refs generated
+  from separate endpoints
+- add SDK-safe naming policy for operation IDs and remaining tag/security names
 - add standards-first typed error contracts
-- add first-class `readOnly`, `writeOnly`, and deprecation semantics to the DSL
-  and generator path
+- extend the completed schema metadata pass with a first-class DSL story for
+  parameters plus automatic request/response schema splitting where needed
 - add a truthful async contract story for SSE and WebSocket endpoints
 - keep the specimen matrix broad enough to cover:
   - form and multipart request bodies

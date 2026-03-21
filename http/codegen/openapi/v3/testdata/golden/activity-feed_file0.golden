@@ -12,6 +12,22 @@
         }
       }
     },
+    "responses": {
+      "ActivityFeedListActivitiesStatus400Response": {
+        "content": {
+          "application/json": {
+            "example": {
+              "field": "cursor",
+              "message": "cursor must be a base64 token"
+            },
+            "schema": {
+              "$ref": "#/components/schemas/ActivityValidationError"
+            }
+          }
+        },
+        "description": "bad_request: Bad Request response."
+      }
+    },
     "schemas": {
       "ActivityEnvelope": {
         "additionalProperties": false,
@@ -193,18 +209,7 @@
             "description": "OK response."
           },
           "400": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "field": "cursor",
-                  "message": "cursor must be a base64 token"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ActivityValidationError"
-                }
-              }
-            },
-            "description": "bad_request: Bad Request response."
+            "$ref": "#/components/responses/ActivityFeedListActivitiesStatus400Response"
           }
         },
         "security": [],
@@ -244,18 +249,7 @@
             "description": "OK response."
           },
           "400": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "field": "cursor",
-                  "message": "cursor must be a base64 token"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ActivityValidationError"
-                }
-              }
-            },
-            "description": "bad_request: Bad Request response."
+            "$ref": "#/components/responses/ActivityFeedListActivitiesStatus400Response"
           }
         },
         "security": [],

@@ -76,3 +76,26 @@ func TestAnalyzerClaimExplicitNamePanicsOnConflict(t *testing.T) {
 		},
 	)
 }
+
+func TestAnalyzerAppliesSchemaOpenAPIMetadata(t *testing.T) {
+	t.Parallel()
+
+	schema := NewAnalyzer(expr.NewRandom("ir"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type: expr.String,
+		Meta: expr.MetaExpr{
+			"openapi:readOnly":        []string{"true"},
+			"openapi:writeOnly":       []string{"true"},
+			"openapi:deprecated":      []string{"true"},
+			"openapi:contentEncoding": []string{"base64"},
+			"openapi:contentMediaType": []string{
+				"application/json",
+			},
+		},
+	})
+
+	require.True(t, schema.ReadOnly)
+	require.True(t, schema.WriteOnly)
+	require.True(t, schema.Deprecated)
+	require.Equal(t, "base64", schema.ContentEncoding)
+	require.Equal(t, "application/json", schema.ContentMediaType)
+}

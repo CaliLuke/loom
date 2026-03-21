@@ -56,8 +56,8 @@ func New(root *expr.RootExpr) *OpenAPI {
 		info     = buildInfo(root.API)
 		servers  = buildServers(root.API.Servers)
 		paths    = buildPaths(root.API.HTTP, doc, root.API)
-		params   = componentizeParameters(paths)
-		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, openapiir.RenderSchemaMap(doc.Components.Schemas)), params)
+		reusable = componentizeReusableComponents(paths)
+		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, openapiir.RenderSchemaMap(doc.Components.Schemas), reusable), reusable)
 		security = buildSecurityRequirements(effectiveRequirements(root.API.Requirements, root.API.SessionAuths))
 		tags     = buildTags(root.API)
 	)
@@ -74,7 +74,7 @@ func New(root *expr.RootExpr) *OpenAPI {
 	}
 }
 
-func pruneUnusedComponentSchemas(paths map[string]*PathItem, schemas map[string]*openapi.Schema) map[string]*openapi.Schema {
+func pruneUnusedComponentSchemas(paths map[string]*PathItem, schemas map[string]*openapi.Schema, reusable reusableComponents) map[string]*openapi.Schema {
 	if len(schemas) == 0 {
 		return schemas
 	}
@@ -96,6 +96,7 @@ func pruneUnusedComponentSchemas(paths map[string]*PathItem, schemas map[string]
 	for _, pathItem := range paths {
 		collectPathItemSchemaRefs(pathItem, enqueue)
 	}
+	collectReusableComponentSchemaRefs(reusable, enqueue)
 
 	for len(queue) > 0 {
 		name := queue[0]
@@ -248,7 +249,7 @@ func buildInfo(api *expr.APIExpr) *Info {
 }
 
 // buildComponents builds the OpenAPI Components object.
-func buildComponents(root *expr.RootExpr, types map[string]*openapi.Schema, params map[string]*ParameterRef) *Components {
+func buildComponents(root *expr.RootExpr, types map[string]*openapi.Schema, reusable reusableComponents) *Components {
 	var schemesRef map[string]*SecuritySchemeRef
 	{
 		schemesRef = make(map[string]*SecuritySchemeRef)
@@ -267,7 +268,11 @@ func buildComponents(root *expr.RootExpr, types map[string]*openapi.Schema, para
 	return &Components{
 		SecuritySchemes: schemesRef,
 		Schemas:         types,
-		Parameters:      params,
+		Parameters:      reusable.Parameters,
+		Headers:         reusable.Headers,
+		RequestBodies:   reusable.RequestBodies,
+		Responses:       reusable.Responses,
+		Examples:        reusable.Examples,
 	}
 }
 
@@ -465,10 +470,7 @@ func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand 
 	}
 
 	var tagNames []string
-	tagNames = openapi.TagNamesFromExpr(e.Meta)
-	if len(tagNames) == 0 {
-		tagNames = []string{e.Service.Name()}
-	}
+	tagNames = operationTagNames(e.Meta, e.Service.Meta, e.Service.Name())
 
 	var routeIndex int
 	for i, rt := range e.Routes {
@@ -570,11 +572,7 @@ func buildOperationFromIR(key string, r *expr.RouteExpr, operationIR *openapiir.
 
 	// tag names
 	var tagNames []string
-	tagNames = openapi.TagNamesFromExpr(e.Meta)
-	if len(tagNames) == 0 {
-		// By default tag with service name
-		tagNames = []string{e.Service.Name()}
-	}
+	tagNames = operationTagNames(e.Meta, e.Service.Meta, e.Service.Name())
 
 	// An endpoint can have multiple routes, so we need to be able to build a unique
 	// operationId for each route.
@@ -722,11 +720,7 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 
 	// tag names
 	var tagNames []string
-	tagNames = openapi.TagNamesFromExpr(fs.Meta)
-	if len(tagNames) == 0 {
-		// By default tag with service name
-		tagNames = []string{svc.Name()}
-	}
+	tagNames = operationTagNames(fs.Meta, svc.Meta, svc.Name())
 
 	return &Operation{
 		OperationID:  parseOperationIDTemplate(operationIDFormat, svc.Name(), key, 0),

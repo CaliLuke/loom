@@ -35,14 +35,7 @@ paths:
                                 items:
                                     $ref: '#/components/schemas/ActivityEnvelope'
                 "400":
-                    description: 'bad_request: Bad Request response.'
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ActivityValidationError'
-                            example:
-                                field: cursor
-                                message: cursor must be a base64 token
+                    $ref: '#/components/responses/ActivityFeedListActivitiesStatus400Response'
             security: []
     /projects/{project_id}/activities/{activity_id}:
         get:
@@ -67,14 +60,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ActivityEnvelope'
                 "400":
-                    description: 'bad_request: Bad Request response.'
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ActivityValidationError'
-                            example:
-                                field: cursor
-                                message: cursor must be a base64 token
+                    $ref: '#/components/responses/ActivityFeedListActivitiesStatus400Response'
             security: []
 components:
     schemas:
@@ -179,6 +165,16 @@ components:
                 type: string
                 example: proj_9
             example: proj_9
+    responses:
+        ActivityFeedListActivitiesStatus400Response:
+            description: 'bad_request: Bad Request response.'
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ActivityValidationError'
+                    example:
+                        field: cursor
+                        message: cursor must be a base64 token
 tags:
     - name: activityFeed
       description: Read activity entries across project workstreams.

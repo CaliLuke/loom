@@ -23,7 +23,7 @@ paths:
                             name: Nisi sint sunt beatae quia.
             responses:
                 "204":
-                    description: No Content response.
+                    $ref: '#/components/responses/DedupServiceFirstStatus204Response'
     /second:
         post:
             tags:
@@ -40,7 +40,7 @@ paths:
                             name: Assumenda fuga est sint maxime.
             responses:
                 "204":
-                    description: No Content response.
+                    $ref: '#/components/responses/DedupServiceFirstStatus204Response'
     /union/first:
         post:
             tags:
@@ -48,30 +48,10 @@ paths:
             summary: union_first dedupService
             operationId: dedup_service.union_first
             requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            example:
-                                type: BetaSchemaDedup
-                                value:
-                                    beta: Et est neque.
-                            oneOf:
-                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
-                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
-                            discriminator:
-                                propertyName: type
-                                mapping:
-                                    AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
-                                    BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
-                        example:
-                            type: AlphaSchemaDedup
-                            value:
-                                alpha: Molestiae iure sit.
+                $ref: '#/components/requestBodies/DedupServiceUnionFirstRequestBody'
             responses:
                 "204":
-                    description: No Content response.
+                    $ref: '#/components/responses/DedupServiceFirstStatus204Response'
     /union/second:
         post:
             tags:
@@ -79,30 +59,10 @@ paths:
             summary: union_second dedupService
             operationId: dedup_service.union_second
             requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            example:
-                                type: BetaSchemaDedup
-                                value:
-                                    beta: Et est neque.
-                            oneOf:
-                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
-                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
-                            discriminator:
-                                propertyName: type
-                                mapping:
-                                    AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
-                                    BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
-                        example:
-                            type: AlphaSchemaDedup
-                            value:
-                                alpha: Molestiae iure sit.
+                $ref: '#/components/requestBodies/DedupServiceUnionFirstRequestBody'
             responses:
                 "204":
-                    description: No Content response.
+                    $ref: '#/components/responses/DedupServiceFirstStatus204Response'
 components:
     schemas:
         AlphaSchemaDedup:
@@ -159,5 +119,31 @@ components:
                 name: Iste perspiciatis.
             required:
                 - name
+    requestBodies:
+        DedupServiceUnionFirstRequestBody:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        example:
+                            type: BetaSchemaDedup
+                            value:
+                                beta: Et est neque.
+                        oneOf:
+                            - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                            - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                        discriminator:
+                            propertyName: type
+                            mapping:
+                                AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                    example:
+                        type: AlphaSchemaDedup
+                        value:
+                            alpha: Molestiae iure sit.
+    responses:
+        DedupServiceFirstStatus204Response:
+            description: No Content response.
 tags:
     - name: dedupService

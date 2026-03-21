@@ -13,44 +13,20 @@ paths:
             summary: testEndpoint testService
             operationId: test_service.test_endpoint
             requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/Payload'
-                        example:
-                            string: ""
+                $ref: '#/components/requestBodies/TestServiceTestEndpointRequestBody'
             responses:
                 "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Result'
-                            example:
-                                string: ""
+                    $ref: '#/components/responses/TestServiceTestEndpointStatus200Response'
         post:
             tags:
                 - anotherTestService
             summary: testEndpoint anotherTestService
             operationId: another_test_service.test_endpoint
             requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/Payload'
-                        example:
-                            string: ""
+                $ref: '#/components/requestBodies/TestServiceTestEndpointRequestBody'
             responses:
                 "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Result'
-                            example:
-                                string: ""
+                    $ref: '#/components/responses/TestServiceTestEndpointStatus200Response'
 components:
     schemas:
         Payload:
@@ -69,6 +45,24 @@ components:
                     example: ""
             example:
                 string: ""
+    requestBodies:
+        TestServiceTestEndpointRequestBody:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Payload'
+                    example:
+                        string: ""
+    responses:
+        TestServiceTestEndpointStatus200Response:
+            description: OK response.
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Result'
+                    example:
+                        string: ""
 tags:
     - name: testService
     - name: anotherTestService

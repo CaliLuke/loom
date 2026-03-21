@@ -1,0 +1,296 @@
+{
+  "components": {
+    "examples": {
+      "AuthRefreshRequestBodyBackupExample": {
+        "summary": "backup",
+        "value": {
+          "legacyToken": "legacy-token-2",
+          "password": "swordfish",
+          "profile": "eyJyb2xlIjoiZWRpdG9yIn0=",
+          "username": "bob"
+        }
+      },
+      "AuthRefreshRequestBodyPrimaryExample": {
+        "summary": "primary",
+        "value": {
+          "legacyToken": "legacy-token",
+          "password": "hunter2",
+          "profile": "eyJyb2xlIjoiYWRtaW4ifQ==",
+          "username": "alice"
+        }
+      },
+      "AuthRefreshStatus200ResponseCurrentExample": {
+        "summary": "current",
+        "value": {
+          "expiresAt": "2026-03-20T12:00:00Z",
+          "token": "token-123",
+          "traceID": "trace_123"
+        }
+      },
+      "AuthRefreshStatus200ResponseNextExample": {
+        "summary": "next",
+        "value": {
+          "expiresAt": "2026-03-21T12:00:00Z",
+          "token": "token-456",
+          "traceID": "trace_456"
+        }
+      },
+      "XTraceIDHeaderTraceAExample": {
+        "summary": "trace-a",
+        "value": "trace_123"
+      },
+      "XTraceIDHeaderTraceBExample": {
+        "summary": "trace-b",
+        "value": "trace_456"
+      }
+    },
+    "headers": {
+      "XTraceIDHeader": {
+        "examples": {
+          "trace-a": {
+            "$ref": "#/components/examples/XTraceIDHeaderTraceAExample"
+          },
+          "trace-b": {
+            "$ref": "#/components/examples/XTraceIDHeaderTraceBExample"
+          }
+        },
+        "schema": {
+          "example": "trace_456",
+          "type": "string"
+        }
+      }
+    },
+    "requestBodies": {
+      "AuthRefreshRequestBody": {
+        "content": {
+          "application/json": {
+            "examples": {
+              "backup": {
+                "$ref": "#/components/examples/AuthRefreshRequestBodyBackupExample"
+              },
+              "primary": {
+                "$ref": "#/components/examples/AuthRefreshRequestBodyPrimaryExample"
+              }
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Credentials"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "responses": {
+      "AuthRevokeStatus204Response": {
+        "description": "No Content response."
+      }
+    },
+    "schemas": {
+      "Credentials": {
+        "example": {
+          "legacyToken": "legacy-token-2",
+          "password": "swordfish",
+          "profile": "eyJyb2xlIjoiZWRpdG9yIn0=",
+          "username": "bob"
+        },
+        "properties": {
+          "legacyToken": {
+            "deprecated": true,
+            "example": "legacy-token",
+            "type": "string"
+          },
+          "password": {
+            "example": "hunter2",
+            "type": "string",
+            "writeOnly": true
+          },
+          "profile": {
+            "contentEncoding": "base64",
+            "contentMediaType": "application/json",
+            "example": "eyJyb2xlIjoiYWRtaW4ifQ==",
+            "type": "string"
+          },
+          "username": {
+            "example": "alice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "type": "object"
+      },
+      "Session_d5d120e942d17641": {
+        "example": {
+          "expiresAt": "2026-03-21T12:00:00Z",
+          "token": "token-456",
+          "traceID": "trace_456"
+        },
+        "properties": {
+          "expiresAt": {
+            "example": "2026-03-20T12:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "token": {
+            "example": "token-123",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "Session_d5d120e942d17641_2": {
+        "example": {
+          "expiresAt": "2026-03-21T12:00:00Z",
+          "token": "token-456",
+          "traceID": "trace_456"
+        },
+        "properties": {
+          "expiresAt": {
+            "example": "2026-03-20T12:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "token": {
+            "example": "token-123",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expiresAt"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Goa API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/auth/refresh": {
+      "post": {
+        "operationId": "auth.refresh",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/AuthRefreshRequestBody"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "current": {
+                    "$ref": "#/components/examples/AuthRefreshStatus200ResponseCurrentExample"
+                  },
+                  "next": {
+                    "$ref": "#/components/examples/AuthRefreshStatus200ResponseNextExample"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Session_d5d120e942d17641_2"
+                }
+              }
+            },
+            "description": "OK response.",
+            "headers": {
+              "X-Trace-ID": {
+                "$ref": "#/components/headers/XTraceIDHeader"
+              }
+            }
+          }
+        },
+        "summary": "refresh auth",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/revoke": {
+      "post": {
+        "operationId": "auth.revoke",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/AuthRevokeStatus204Response"
+          }
+        },
+        "summary": "revoke auth",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/signin": {
+      "post": {
+        "operationId": "auth.signin",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/AuthRefreshRequestBody"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "current": {
+                    "$ref": "#/components/examples/AuthRefreshStatus200ResponseCurrentExample"
+                  },
+                  "next": {
+                    "$ref": "#/components/examples/AuthRefreshStatus200ResponseNextExample"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Session_d5d120e942d17641"
+                }
+              }
+            },
+            "description": "OK response.",
+            "headers": {
+              "X-Trace-ID": {
+                "$ref": "#/components/headers/XTraceIDHeader"
+              }
+            }
+          }
+        },
+        "summary": "signin auth",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/signout": {
+      "post": {
+        "operationId": "auth.signout",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/AuthRevokeStatus204Response"
+          }
+        },
+        "summary": "signout auth",
+        "tags": [
+          "Auth"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Authentication operations.",
+      "name": "Auth"
+    }
+  ]
+}

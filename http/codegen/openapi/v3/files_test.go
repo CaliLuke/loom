@@ -49,6 +49,7 @@ func TestFiles(t *testing.T) {
 		{"activity-feed", testdata.ActivityFeedDSL},
 		{"streaming-partial-examples", testdata.StreamingPartialExamplesDSL},
 		{"parameter-components", testdata.OpenAPIParameterComponentsDSL},
+		{"reusable-components", testdata.OpenAPIReusableComponentsDSL},
 		{"typename", testdata.TypenameDSL},
 		{"schema-dedup", testdata.OpenAPISchemaDedupDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},
@@ -189,6 +190,38 @@ func TestRenderedSpecDeduplicatesRepeatedParameters(t *testing.T) {
 	if count := len(regexp.MustCompile(`(?m)^\s+- \$ref: '#/components/parameters/QueryLimit'$`).FindAllString(spec, -1)); count != 2 {
 		t.Fatalf("expected QueryLimit to be referenced twice, got %d\nspec:\n%s", count, spec)
 	}
+}
+
+func TestRenderedSpecReusesRequestBodiesResponsesHeadersExamplesAndServiceTags(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPIReusableComponentsDSL)
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(`(?m)^    requestBodies:$`)
+	requirePattern(`(?m)^    responses:$`)
+	requirePattern(`(?m)^    headers:$`)
+	requirePattern(`(?m)^    examples:$`)
+	requirePattern(`(?m)^\s+- name: Auth$`)
+	requirePattern(`(?s)post:\n\s+tags:\n\s+- Auth`)
+	requirePattern(`(?m)^\s+\$ref: '#/components/requestBodies/AuthRefreshRequestBody'$`)
+	requirePattern(`(?s)responses:\n\s+"204":\n\s+\$ref: '#/components/responses/AuthRevokeStatus204Response'`)
+	requirePattern(`(?m)^\s+X-Trace-ID:\n\s+\$ref: '#/components/headers/XTraceIDHeader'$`)
+	requirePattern(`(?m)^\s+AuthRefreshRequestBodyPrimaryExample:$`)
+	requirePattern(`(?m)^\s+AuthRefreshStatus200ResponseCurrentExample:$`)
+	requirePattern(`(?m)^\s+XTraceIDHeaderTraceAExample:$`)
+	requirePattern(`(?m)password:$`)
+	requirePattern(`(?m)writeOnly: true`)
+	requirePattern(`(?m)legacyToken:$`)
+	requirePattern(`(?m)deprecated: true`)
+	requirePattern(`(?m)profile:$`)
+	requirePattern(`(?m)contentEncoding: base64`)
+	requirePattern(`(?m)contentMediaType: application/json`)
 }
 
 func TestRenderedSpecClosedObjectModeClosesObjectsAndUsesUnevaluatedPropertiesForUnions(t *testing.T) {

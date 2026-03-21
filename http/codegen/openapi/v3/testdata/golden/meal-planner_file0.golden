@@ -13,6 +13,63 @@
         }
       }
     },
+    "requestBodies": {
+      "MealPlannerPreviewSelectionRequestBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PreviewSelectionRequestBody"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "responses": {
+      "MealPlannerShareMealPlanStatus204Response": {
+        "description": "No Content response."
+      },
+      "MealPlannerUpsertMealPlanStatus400Response": {
+        "content": {
+          "application/vnd.goa.error": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "bad_request: Bad Request response."
+      },
+      "MealPlannerUpsertMealPlanStatus401Response": {
+        "content": {
+          "application/vnd.goa.error": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "unauthorized: Authentication is required."
+      },
+      "MealPlannerUpsertMealPlanStatus403Response": {
+        "content": {
+          "application/vnd.goa.error": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "forbidden: Access is forbidden."
+      },
+      "MealPlannerWatchPlannerEventsStatus429Response": {
+        "content": {
+          "application/vnd.goa.error": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "rate_limited: Too Many Requests response."
+      }
+    },
     "schemas": {
       "Error": {
         "additionalProperties": false,
@@ -665,14 +722,7 @@
             "description": "OK response."
           },
           "429": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "rate_limited: Too Many Requests response."
+            "$ref": "#/components/responses/MealPlannerWatchPlannerEventsStatus429Response"
           }
         },
         "security": [],
@@ -701,14 +751,7 @@
             "description": "OK response."
           },
           "429": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "rate_limited: Too Many Requests response."
+            "$ref": "#/components/responses/MealPlannerWatchPlannerEventsStatus429Response"
           }
         },
         "security": [],
@@ -796,34 +839,13 @@
             "description": "OK response."
           },
           "400": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "bad_request: Bad Request response."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
           },
           "401": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "unauthorized: Authentication is required."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
           },
           "403": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "forbidden: Access is forbidden."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
           }
         },
         "security": [
@@ -865,37 +887,16 @@
         },
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
           },
           "400": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "bad_request: Bad Request response."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
           },
           "401": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "unauthorized: Authentication is required."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
           },
           "403": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "forbidden: Access is forbidden."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
           }
         },
         "security": [
@@ -959,34 +960,13 @@
             "description": "Accepted response."
           },
           "400": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "bad_request: Bad Request response."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
           },
           "401": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "unauthorized: Authentication is required."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
           },
           "403": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "forbidden: Access is forbidden."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
           }
         },
         "security": [
@@ -1007,48 +987,20 @@
       "post": {
         "operationId": "meal_planner.preview_selection",
         "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PreviewSelectionRequestBody"
-              }
-            }
-          },
-          "required": true
+          "$ref": "#/components/requestBodies/MealPlannerPreviewSelectionRequestBody"
         },
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
           },
           "400": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "bad_request: Bad Request response."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
           },
           "401": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "unauthorized: Authentication is required."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
           },
           "403": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "forbidden: Access is forbidden."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
           }
         },
         "security": [
@@ -1069,48 +1021,20 @@
       "post": {
         "operationId": "meal_planner.preview_selection_suppressed",
         "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PreviewSelectionRequestBody"
-              }
-            }
-          },
-          "required": true
+          "$ref": "#/components/requestBodies/MealPlannerPreviewSelectionRequestBody"
         },
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
           },
           "400": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "bad_request: Bad Request response."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
           },
           "401": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "unauthorized: Authentication is required."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
           },
           "403": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "forbidden: Access is forbidden."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
           }
         },
         "security": [
@@ -1197,34 +1121,13 @@
             "description": "OK response."
           },
           "400": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "bad_request: Bad Request response."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus400Response"
           },
           "401": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "unauthorized: Authentication is required."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
           },
           "403": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "forbidden: Access is forbidden."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
           }
         },
         "security": [
@@ -1284,24 +1187,10 @@
             "description": "OK response."
           },
           "401": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "unauthorized: Authentication is required."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus401Response"
           },
           "403": {
-            "content": {
-              "application/vnd.goa.error": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "forbidden: Access is forbidden."
+            "$ref": "#/components/responses/MealPlannerUpsertMealPlanStatus403Response"
           },
           "404": {
             "content": {

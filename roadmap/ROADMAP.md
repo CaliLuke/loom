@@ -26,6 +26,15 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI now hoists repeated path/query/header/cookie parameters into
   `components.parameters` with stable component names and rewrites repeated
   inline occurrences to parameter refs.
+- OpenAPI now hoists repeated request bodies, headers, named examples, and
+  structurally identical no-body responses into reusable components where the
+  contract shape is stable enough for downstream client generators.
+- OpenAPI operations now inherit service-level tag declarations by default, so
+  operation tags line up with published top-level tag objects without
+  duplicating method-level metadata.
+- OpenAPI schema generation now honors attribute-level `readOnly`,
+  `writeOnly`, `deprecated`, `contentEncoding`, and `contentMediaType`
+  metadata in both the IR-backed and legacy schema paths.
 - OpenAPI now prunes unreferenced generated component schemas instead of publishing every top-level type and result type.
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
 - OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, advertises SSE responses as `text/event-stream`, and normalizes binary request examples to string form.
@@ -81,13 +90,16 @@ These items are prioritized based on two goals:
 
    Prioritize:
 
-   - shared component reuse beyond schemas: parameters, request bodies,
-     responses, headers, and examples
-   - SDK-safe naming for `operationId`, tags, and security scheme identifiers
+   - finish response-component reuse for repeated payload-bearing success and
+     error responses whose schemas are structurally equivalent but emitted from
+     separate endpoints
+   - SDK-safe naming for `operationId`, remaining tag surfaces, and security
+     scheme identifiers
    - standards-first typed error responses instead of Goa-specific generic error
      payload reuse
-   - first-class `readOnly`, `writeOnly`, and deprecation metadata for auth,
-     session, and secret-bearing schemas
+   - automatic request/response schema splitting on top of the completed
+     `readOnly`, `writeOnly`, and deprecation metadata for auth, session, and
+     secret-bearing schemas
    - truthful async contract modeling for SSE and WebSocket endpoints
    - contract linting plus downstream SDK smoke-generation gates
 

@@ -29,11 +29,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/WatchPlannerEventsResponseBody'
                 "429":
-                    description: 'rate_limited: Too Many Requests response.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerWatchPlannerEventsStatus429Response'
             security: []
     /healthz:
         get:
@@ -52,11 +48,7 @@ paths:
                                 checked_at: "2026-03-19T12:00:00Z"
                                 status: ok
                 "429":
-                    description: 'rate_limited: Too Many Requests response.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerWatchPlannerEventsStatus429Response'
             security: []
     /meal-plans/{week_start}:
         patch:
@@ -108,23 +100,11 @@ paths:
                                       slot: dinner
                                 week_start: "2026-03-16"
                 "400":
-                    description: 'bad_request: Bad Request response.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus400Response'
                 "401":
-                    description: 'unauthorized: Authentication is required.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus401Response'
                 "403":
-                    description: 'forbidden: Access is forbidden.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus403Response'
             security:
                 - access_token_header_Authorization: []
                 - browser_session_cookie___Host-mealplanner_session: []
@@ -148,25 +128,13 @@ paths:
                             note: Dinner plan for next week.
             responses:
                 "204":
-                    description: No Content response.
+                    $ref: '#/components/responses/MealPlannerShareMealPlanStatus204Response'
                 "400":
-                    description: 'bad_request: Bad Request response.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus400Response'
                 "401":
-                    description: 'unauthorized: Authentication is required.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus401Response'
                 "403":
-                    description: 'forbidden: Access is forbidden.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus403Response'
             security:
                 - access_token_header_Authorization: []
                 - browser_session_cookie___Host-mealplanner_session: []
@@ -206,23 +174,11 @@ paths:
                                 accepted_items: 12
                                 import_id: import_7
                 "400":
-                    description: 'bad_request: Bad Request response.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus400Response'
                 "401":
-                    description: 'unauthorized: Authentication is required.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus401Response'
                 "403":
-                    description: 'forbidden: Access is forbidden.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus403Response'
             security:
                 - access_token_header_Authorization: []
                 - browser_session_cookie___Host-mealplanner_session: []
@@ -233,32 +189,16 @@ paths:
             summary: previewSelection mealPlanner
             operationId: meal_planner.preview_selection
             requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/PreviewSelectionRequestBody'
+                $ref: '#/components/requestBodies/MealPlannerPreviewSelectionRequestBody'
             responses:
                 "204":
-                    description: No Content response.
+                    $ref: '#/components/responses/MealPlannerShareMealPlanStatus204Response'
                 "400":
-                    description: 'bad_request: Bad Request response.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus400Response'
                 "401":
-                    description: 'unauthorized: Authentication is required.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus401Response'
                 "403":
-                    description: 'forbidden: Access is forbidden.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus403Response'
             security:
                 - access_token_header_Authorization: []
                 - browser_session_cookie___Host-mealplanner_session: []
@@ -269,32 +209,16 @@ paths:
             summary: previewSelectionSuppressed mealPlanner
             operationId: meal_planner.preview_selection_suppressed
             requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/PreviewSelectionRequestBody'
+                $ref: '#/components/requestBodies/MealPlannerPreviewSelectionRequestBody'
             responses:
                 "204":
-                    description: No Content response.
+                    $ref: '#/components/responses/MealPlannerShareMealPlanStatus204Response'
                 "400":
-                    description: 'bad_request: Bad Request response.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus400Response'
                 "401":
-                    description: 'unauthorized: Authentication is required.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus401Response'
                 "403":
-                    description: 'forbidden: Access is forbidden.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus403Response'
             security:
                 - access_token_header_Authorization: []
                 - browser_session_cookie___Host-mealplanner_session: []
@@ -350,23 +274,11 @@ paths:
                                   minutes: 30
                                   title: Sheet Pan Gnocchi
                 "400":
-                    description: 'bad_request: Bad Request response.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus400Response'
                 "401":
-                    description: 'unauthorized: Authentication is required.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus401Response'
                 "403":
-                    description: 'forbidden: Access is forbidden.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus403Response'
             security:
                 - access_token_header_Authorization: []
                 - browser_session_cookie___Host-mealplanner_session: []
@@ -405,17 +317,9 @@ paths:
                                     - vegetarian
                                 title: Sheet Pan Gnocchi
                 "401":
-                    description: 'unauthorized: Authentication is required.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus401Response'
                 "403":
-                    description: 'forbidden: Access is forbidden.'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
+                    $ref: '#/components/responses/MealPlannerUpsertMealPlanStatus403Response'
                 "404":
                     description: 'not_found: Not Found response.'
                     content:
@@ -870,6 +774,40 @@ components:
                 example: "2026-03-16"
                 format: date
             example: "2026-03-16"
+    requestBodies:
+        MealPlannerPreviewSelectionRequestBody:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/PreviewSelectionRequestBody'
+    responses:
+        MealPlannerShareMealPlanStatus204Response:
+            description: No Content response.
+        MealPlannerUpsertMealPlanStatus400Response:
+            description: 'bad_request: Bad Request response.'
+            content:
+                application/vnd.goa.error:
+                    schema:
+                        $ref: '#/components/schemas/Error'
+        MealPlannerUpsertMealPlanStatus401Response:
+            description: 'unauthorized: Authentication is required.'
+            content:
+                application/vnd.goa.error:
+                    schema:
+                        $ref: '#/components/schemas/Error'
+        MealPlannerUpsertMealPlanStatus403Response:
+            description: 'forbidden: Access is forbidden.'
+            content:
+                application/vnd.goa.error:
+                    schema:
+                        $ref: '#/components/schemas/Error'
+        MealPlannerWatchPlannerEventsStatus429Response:
+            description: 'rate_limited: Too Many Requests response.'
+            content:
+                application/vnd.goa.error:
+                    schema:
+                        $ref: '#/components/schemas/Error'
     securitySchemes:
         access_token_header_Authorization:
             type: http

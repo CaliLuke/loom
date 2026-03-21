@@ -796,6 +796,118 @@ var OpenAPIParameterComponentsDSL = func() {
 	})
 }
 
+var OpenAPIReusableComponentsDSL = func() {
+	var Credentials = Type("Credentials", func() {
+		Attribute("username", String, func() {
+			Example("alice")
+		})
+		Attribute("password", String, func() {
+			Meta("openapi:writeOnly", "true")
+			Example("hunter2")
+		})
+		Attribute("legacyToken", String, func() {
+			Meta("openapi:deprecated", "true")
+			Example("legacy-token")
+		})
+		Attribute("profile", String, func() {
+			Meta("openapi:contentEncoding", "base64")
+			Meta("openapi:contentMediaType", "application/json")
+			Example("eyJyb2xlIjoiYWRtaW4ifQ==")
+		})
+		Required("username", "password")
+		Example("primary", Val{
+			"username":    "alice",
+			"password":    "hunter2",
+			"legacyToken": "legacy-token",
+			"profile":     "eyJyb2xlIjoiYWRtaW4ifQ==",
+		})
+		Example("backup", Val{
+			"username":    "bob",
+			"password":    "swordfish",
+			"legacyToken": "legacy-token-2",
+			"profile":     "eyJyb2xlIjoiZWRpdG9yIn0=",
+		})
+	})
+
+	var Session = Type("Session", func() {
+		Attribute("token", String, func() {
+			Meta("openapi:readOnly", "true")
+			Example("token-123")
+		})
+		Attribute("traceID", String, func() {
+			Example("trace_123")
+		})
+		Attribute("expiresAt", String, func() {
+			Format(FormatDateTime)
+			Example("2026-03-20T12:00:00Z")
+		})
+		Required("token", "traceID", "expiresAt")
+		Example("current", Val{
+			"token":     "token-123",
+			"traceID":   "trace_123",
+			"expiresAt": "2026-03-20T12:00:00Z",
+		})
+		Example("next", Val{
+			"token":     "token-456",
+			"traceID":   "trace_456",
+			"expiresAt": "2026-03-21T12:00:00Z",
+		})
+	})
+
+	Service("auth", func() {
+		HTTP(func() {
+			Meta("openapi:tag:Auth")
+			Meta("openapi:tag:Auth:desc", "Authentication operations.")
+		})
+
+		Method("signin", func() {
+			Payload(Credentials)
+			Result(Session)
+			HTTP(func() {
+				POST("/auth/signin")
+				Response(StatusOK, func() {
+					Header("traceID:X-Trace-ID", String, func() {
+						Example("trace-a", "trace_123")
+						Example("trace-b", "trace_456")
+					})
+				})
+			})
+		})
+
+		Method("refresh", func() {
+			Payload(Credentials)
+			Result(Session)
+			HTTP(func() {
+				POST("/auth/refresh")
+				Response(StatusOK, func() {
+					Header("traceID:X-Trace-ID", String, func() {
+						Example("trace-a", "trace_123")
+						Example("trace-b", "trace_456")
+					})
+				})
+			})
+		})
+
+		Method("revoke", func() {
+			Payload(Empty)
+			Result(Empty)
+			HTTP(func() {
+				POST("/auth/revoke")
+				Response(StatusNoContent)
+			})
+		})
+
+		Method("signout", func() {
+			Payload(Empty)
+			Result(Empty)
+			HTTP(func() {
+				POST("/auth/signout")
+				Response(StatusNoContent)
+			})
+		})
+	})
+}
+
 var SkipResponseBodyEncodeDecodeDSL = func() {
 	Service("testService", func() {
 		Method("empty", func() {

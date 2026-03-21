@@ -387,6 +387,7 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 		}
 	}
 	s.Extensions = openapi.ExtensionsFromExpr(attr.Meta)
+	applySchemaOpenAPIMetadata(s, attr.Meta)
 	if ap := openapi.AdditionalPropertiesFromExpr(attr.Meta); ap != nil {
 		if explicit, ok := ap.(bool); ok {
 			s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(explicit)}
@@ -425,6 +426,38 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 			continue
 		}
 		s.Required = append(s.Required, required)
+	}
+}
+
+func applySchemaOpenAPIMetadata(s *Schema, meta expr.MetaExpr) {
+	if s == nil || meta == nil {
+		return
+	}
+	if value, ok := meta.Last("openapi:readOnly"); ok {
+		s.ReadOnly = metaBoolValue(value)
+	}
+	if value, ok := meta.Last("openapi:writeOnly"); ok {
+		s.WriteOnly = metaBoolValue(value)
+	}
+	if value, ok := meta.Last("openapi:deprecated"); ok {
+		s.Deprecated = metaBoolValue(value)
+	}
+	if value, ok := meta.Last("openapi:contentEncoding"); ok {
+		s.ContentEncoding = value
+	}
+	if value, ok := meta.Last("openapi:contentMediaType"); ok {
+		s.ContentMediaType = value
+	}
+}
+
+func metaBoolValue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "true":
+		return true
+	case "false":
+		return false
+	default:
+		return true
 	}
 }
 

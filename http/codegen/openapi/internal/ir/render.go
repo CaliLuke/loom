@@ -27,6 +27,10 @@ func RenderSchema(schema *Schema) *openapi.Schema {
 	out.Example = schema.Example
 	out.Media = renderMedia(schema.Media)
 	out.ReadOnly = schema.ReadOnly
+	out.WriteOnly = schema.WriteOnly
+	out.Deprecated = schema.Deprecated
+	out.ContentEncoding = schema.ContentEncoding
+	out.ContentMediaType = schema.ContentMediaType
 	out.PathStart = schema.PathStart
 	out.Links = renderLinks(schema.Links)
 	out.Enum = schema.Enum

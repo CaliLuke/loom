@@ -33,6 +33,16 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
   parameters into `components.parameters` with stable component names; repeated
   inline parameter shapes should appear as `$ref`s rather than duplicated
   objects.
+- Generated OpenAPI also hoists repeated request bodies, headers, named
+  examples, and structurally identical no-body responses into reusable
+  components where the public contract shape is stable enough to share safely.
+- Service-level OpenAPI tags are inherited by operations and file servers when
+  those operations do not declare method-level tags of their own.
+- Attribute-level `Meta("openapi:readOnly", ...)`,
+  `Meta("openapi:writeOnly", ...)`, `Meta("openapi:deprecated", ...)`,
+  `Meta("openapi:contentEncoding", ...)`, and
+  `Meta("openapi:contentMediaType", ...)` flow through to generated OpenAPI
+  schemas.
 - Generated OpenAPI suppresses closed-object union-wrapper examples that would be invalid against the emitted schema, and field-level `Meta("openapi:example", "false")` must suppress wrapper examples all the way through enclosing request bodies/media types.
 - Generated OpenAPI also suppresses synthesized examples for closed-object union collections when the array/map element shape would otherwise emit invalid discriminator-wrapper examples.
 - Generated OpenAPI does not emit transport-level media-type examples for streaming responses; SSE and WebSocket response shapes still appear via their schemas, but the generator should not synthesize single-message examples from sparse field examples.

@@ -63,27 +63,14 @@ func componentizeParameters(paths map[string]*PathItem) map[string]*ParameterRef
 
 func collectInlineParameters(paths map[string]*PathItem) []*ParameterRef {
 	refs := make([]*ParameterRef, 0)
-	for _, pathItem := range paths {
+	for _, path := range orderedPathKeys(paths) {
+		pathItem := paths[path]
 		if pathItem == nil {
 			continue
 		}
 		refs = appendInlineParameterRefs(refs, pathItem.Parameters)
-		ops := []*Operation{
-			pathItem.Get,
-			pathItem.Put,
-			pathItem.Post,
-			pathItem.Delete,
-			pathItem.Options,
-			pathItem.Head,
-			pathItem.Patch,
-			pathItem.Trace,
-			pathItem.Connect,
-		}
-		for _, op := range ops {
-			if op == nil {
-				continue
-			}
-			refs = appendInlineParameterRefs(refs, op.Parameters)
+		for _, op := range orderedOperations(pathItem) {
+			refs = appendInlineParameterRefs(refs, op.operation.Parameters)
 		}
 	}
 	return refs

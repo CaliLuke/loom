@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -145,9 +146,9 @@ func componentSchemaFromSpec(t *testing.T, spec []byte, name string) map[string]
 func operationMediaTypeFromSpec(t *testing.T, spec []byte, path, method, contentType string) map[string]any {
 	t.Helper()
 
+	doc := parseSpecMap(t, spec)
 	op := operationFromSpec(t, spec, path, method)
-	requestBody, ok := op["requestBody"].(map[string]any)
-	require.True(t, ok)
+	requestBody := resolveRequestBodyRef(t, doc, op)
 	content, ok := requestBody["content"].(map[string]any)
 	require.True(t, ok)
 	mediaType, ok := content[contentType].(map[string]any)
@@ -158,14 +159,61 @@ func operationMediaTypeFromSpec(t *testing.T, spec []byte, path, method, content
 func operationResponseMediaTypeFromSpec(t *testing.T, spec []byte, path, method, status, contentType string) map[string]any {
 	t.Helper()
 
+	doc := parseSpecMap(t, spec)
 	op := operationFromSpec(t, spec, path, method)
 	responses, ok := op["responses"].(map[string]any)
 	require.True(t, ok)
 	response, ok := responses[status].(map[string]any)
-	require.True(t, ok, status)
-	content, ok := response["content"].(map[string]any)
 	require.True(t, ok)
+	response = resolveResponseRef(t, doc, response)
+	content, ok := response["content"].(map[string]any)
 	mediaType, ok := content[contentType].(map[string]any)
 	require.True(t, ok, contentType)
 	return mediaType
+}
+
+func parseSpecMap(t *testing.T, spec []byte) map[string]any {
+	t.Helper()
+
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(spec, &doc))
+	return doc
+}
+
+func resolveRequestBodyRef(t *testing.T, doc map[string]any, operation map[string]any) map[string]any {
+	t.Helper()
+
+	requestBody, ok := operation["requestBody"].(map[string]any)
+	require.True(t, ok)
+	if ref, ok := requestBody["$ref"].(string); ok {
+		return resolveComponentRef(t, doc, ref, "requestBodies")
+	}
+	return requestBody
+}
+
+func resolveResponseRef(t *testing.T, doc map[string]any, response map[string]any) map[string]any {
+	t.Helper()
+
+	if ref, ok := response["$ref"].(string); ok {
+		return resolveComponentRef(t, doc, ref, "responses")
+	}
+	return response
+}
+
+func resolveComponentRef(t *testing.T, doc map[string]any, ref, section string) map[string]any {
+	t.Helper()
+
+	const prefix = "#/components/"
+	require.True(t, strings.HasPrefix(ref, prefix), ref)
+	parts := strings.Split(ref[len(prefix):], "/")
+	require.Len(t, parts, 2, ref)
+	require.Equal(t, section, parts[0])
+
+	components, ok := doc["components"].(map[string]any)
+	require.True(t, ok)
+	values, ok := components[section].(map[string]any)
+	require.True(t, ok)
+	value, ok := values[parts[1]].(map[string]any)
+	require.True(t, ok, ref)
+	return value
 }

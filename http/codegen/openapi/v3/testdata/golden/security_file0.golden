@@ -1,5 +1,10 @@
 {
   "components": {
+    "responses": {
+      "TestServiceTestEndpointAStatus204Response": {
+        "description": "No Content response."
+      }
+    },
     "securitySchemes": {
       "api_key_header_Authorization": {
         "description": "Secures endpoint by requiring an API key.",
@@ -67,7 +72,7 @@
         "operationId": "test_service.test_endpoint_a",
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/TestServiceTestEndpointAStatus204Response"
           }
         },
         "security": [
@@ -91,7 +96,7 @@
         "operationId": "test_service.test_endpoint_b",
         "responses": {
           "204": {
-            "description": "No Content response."
+            "$ref": "#/components/responses/TestServiceTestEndpointAStatus204Response"
           }
         },
         "security": [
