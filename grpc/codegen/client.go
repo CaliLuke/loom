@@ -46,26 +46,14 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		}
 		sections = []codegen.Section{
 			codegen.Header(svc.Name()+" gRPC client", "client", imports),
+			grpcClientStructSection(data),
 		}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "client-struct",
-			Source: grpcTemplates.Read(grpcClientStructT),
-			Data:   data,
-		})
 		for _, e := range data.Endpoints {
 			if e.ClientStream != nil {
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:   "client-stream-struct-type",
-					Source: grpcTemplates.Read(grpcStreamStructTypeT),
-					Data:   e.ClientStream,
-				})
+				sections = append(sections, grpcStreamStructSection(e.ClientStream))
 			}
 		}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "grpc-client-init",
-			Source: grpcTemplates.Read(grpcClientInitT),
-			Data:   data,
-		})
+		sections = append(sections, grpcClientInitSection(data))
 		for _, e := range data.Endpoints {
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:   "client-endpoint-init",
@@ -83,25 +71,13 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 					})
 				}
 				if e.Method.StreamKind == expr.ClientStreamKind || e.Method.StreamKind == expr.BidirectionalStreamKind {
-					sections = append(sections, &codegen.SectionTemplate{
-						Name:   "client-stream-send",
-						Source: grpcTemplates.Read(grpcStreamSendT),
-						Data:   e.ClientStream,
-					})
+					sections = append(sections, grpcStreamSendSection(e.ClientStream))
 				}
 				if e.ClientStream.MustClose {
-					sections = append(sections, &codegen.SectionTemplate{
-						Name:   "client-stream-close",
-						Source: grpcTemplates.Read(grpcStreamCloseT),
-						Data:   e.ClientStream,
-					})
+					sections = append(sections, grpcStreamCloseSection(e.ClientStream))
 				}
 				if e.Method.ViewedResult != nil && e.Method.ViewedResult.ViewName == "" {
-					sections = append(sections, &codegen.SectionTemplate{
-						Name:   "client-stream-set-view",
-						Source: grpcTemplates.Read(grpcStreamSetViewT),
-						Data:   e.ClientStream,
-					})
+					sections = append(sections, grpcStreamSetViewSection(e.ClientStream))
 				}
 			}
 		}

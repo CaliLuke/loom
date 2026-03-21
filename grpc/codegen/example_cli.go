@@ -65,15 +65,7 @@ func exampleCLI(genpkg string, services *ServicesData, svr *expr.ServerExpr) *co
 
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
-		&codegen.SectionTemplate{
-			Name:   "do-grpc-cli",
-			Source: grpcTemplates.Read(grpcDoGRPCCLIT),
-			Data: map[string]any{
-				"DefaultTransport": svrdata.DefaultTransport(),
-				"Services":         svcData,
-				"InterceptorsPkg":  "interceptors",
-			},
-		},
+		grpcExampleCLISection(string(svrdata.DefaultTransport().Type), svcData, "interceptors"),
 	}
 
 	return &codegen.File{Path: mainPath, Sections: sections, SkipExist: true}
