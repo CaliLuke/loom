@@ -48,6 +48,7 @@ func TestFiles(t *testing.T) {
 		{"ops-socket", testdata.OpsSocketDSL},
 		{"activity-feed", testdata.ActivityFeedDSL},
 		{"streaming-partial-examples", testdata.StreamingPartialExamplesDSL},
+		{"parameter-components", testdata.OpenAPIParameterComponentsDSL},
 		{"typename", testdata.TypenameDSL},
 		{"schema-dedup", testdata.OpenAPISchemaDedupDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},
@@ -164,6 +165,29 @@ func TestRenderedSpecDeduplicatesGeneratedRequestBodiesAndUnionEnvelopes(t *test
 	envelopes := regexp.MustCompile(`(?m)^\s+([A-Za-z0-9]+Envelope):$`).FindAllStringSubmatch(spec, -1)
 	if len(envelopes) != 2 {
 		t.Fatalf("expected exactly 2 deduplicated union envelope components, got %d\nspec:\n%s", len(envelopes), spec)
+	}
+}
+
+func TestRenderedSpecDeduplicatesRepeatedParameters(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPIParameterComponentsDSL)
+
+	if count := len(regexp.MustCompile(`(?m)^components:$`).FindAllString(spec, -1)); count != 1 {
+		t.Fatalf("expected exactly one components block, got %d\nspec:\n%s", count, spec)
+	}
+	if count := len(regexp.MustCompile(`(?m)^    parameters:$`).FindAllString(spec, -1)); count != 1 {
+		t.Fatalf("expected exactly one components.parameters block, got %d\nspec:\n%s", count, spec)
+	}
+	if count := len(regexp.MustCompile(`(?m)^\s+PathWidgetID:$`).FindAllString(spec, -1)); count != 1 {
+		t.Fatalf("expected PathWidgetID parameter component once, got %d\nspec:\n%s", count, spec)
+	}
+	if count := len(regexp.MustCompile(`(?m)^\s+QueryLimit:$`).FindAllString(spec, -1)); count != 1 {
+		t.Fatalf("expected QueryLimit parameter component once, got %d\nspec:\n%s", count, spec)
+	}
+	if count := len(regexp.MustCompile(`(?m)^\s+- \$ref: '#/components/parameters/PathWidgetID'$`).FindAllString(spec, -1)); count != 2 {
+		t.Fatalf("expected PathWidgetID to be referenced twice, got %d\nspec:\n%s", count, spec)
+	}
+	if count := len(regexp.MustCompile(`(?m)^\s+- \$ref: '#/components/parameters/QueryLimit'$`).FindAllString(spec, -1)); count != 2 {
+		t.Fatalf("expected QueryLimit to be referenced twice, got %d\nspec:\n%s", count, spec)
 	}
 }
 

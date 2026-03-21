@@ -17,13 +17,7 @@ paths:
             summary: listActivities activityFeed
             operationId: activity_feed.list_activities
             parameters:
-                - name: project_id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: proj_9
-                  example: proj_9
+                - $ref: '#/components/parameters/PathProjectID'
                 - name: cursor
                   in: query
                   allowEmptyValue: true
@@ -57,13 +51,7 @@ paths:
             summary: showActivity activityFeed
             operationId: activity_feed.show_activity
             parameters:
-                - name: project_id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: proj_9
-                  example: proj_9
+                - $ref: '#/components/parameters/PathProjectID'
                 - name: activity_id
                   in: path
                   required: true
@@ -182,6 +170,15 @@ components:
                 - task_id
                 - closed_by
             additionalProperties: false
+    parameters:
+        PathProjectID:
+            name: project_id
+            in: path
+            required: true
+            schema:
+                type: string
+                example: proj_9
+            example: proj_9
 tags:
     - name: activityFeed
       description: Read activity entries across project workstreams.

@@ -17,14 +17,7 @@ paths:
             summary: getThread collabStreams
             operationId: collab_streams.get_thread
             parameters:
-                - name: thread_id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: thr_42
-                    pattern: ^thr_[0-9]+$
-                  example: thr_42
+                - $ref: '#/components/parameters/PathThreadID'
             responses:
                 "200":
                     description: OK response.
@@ -52,14 +45,7 @@ paths:
             summary: watchThread collabStreams
             operationId: collab_streams.watch_thread
             parameters:
-                - name: thread_id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: thr_42
-                    pattern: ^thr_[0-9]+$
-                  example: thr_42
+                - $ref: '#/components/parameters/PathThreadID'
                 - name: last_event_id
                   in: query
                   allowEmptyValue: true
@@ -189,6 +175,16 @@ components:
                 - event
                 - data
             additionalProperties: false
+    parameters:
+        PathThreadID:
+            name: thread_id
+            in: path
+            required: true
+            schema:
+                type: string
+                example: thr_42
+                pattern: ^thr_[0-9]+$
+            example: thr_42
 tags:
     - name: collabStreams
       description: Thread collaboration entry points.

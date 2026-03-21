@@ -23,6 +23,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
 - OpenAPI schema deduplication now reuses structurally identical generated components while treating explicit HTTP `Body(...)` `openapi:typename` declarations as authoritative public names; conflicting non-equivalent claims now fail generation instead of leaking hash-suffixed public schemas.
 - OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.
+- OpenAPI now hoists repeated path/query/header/cookie parameters into
+  `components.parameters` with stable component names and rewrites repeated
+  inline occurrences to parameter refs.
 - OpenAPI now prunes unreferenced generated component schemas instead of publishing every top-level type and result type.
 - OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
 - OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, advertises SSE responses as `text/event-stream`, and normalizes binary request examples to string form.
@@ -59,6 +62,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - prove the cleaned stack against representative downstream generation in temp modules
 - replace remaining real auth/session glue in consumer designs where the new DSL applies
 - finish the direct follow-up test backlog for refactored transport/service-data seams
+- improve the OpenAPI framework layer using the live Auto-K contract as a
+  downstream acceptance surface
 
 ## Prioritized Backlog
 
@@ -70,7 +75,23 @@ These items are prioritized based on two goals:
 1. Generated projection parity tests and guardrails
    See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
 
-2. Refactor follow-up test backlog
+2. OpenAPI framework contract improvements
+   See [OpenAPI Contract](./openapi_contract.md) and
+   [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md).
+
+   Prioritize:
+
+   - shared component reuse beyond schemas: parameters, request bodies,
+     responses, headers, and examples
+   - SDK-safe naming for `operationId`, tags, and security scheme identifiers
+   - standards-first typed error responses instead of Goa-specific generic error
+     payload reuse
+   - first-class `readOnly`, `writeOnly`, and deprecation metadata for auth,
+     session, and secret-bearing schemas
+   - truthful async contract modeling for SSE and WebSocket endpoints
+   - contract linting plus downstream SDK smoke-generation gates
+
+3. Refactor follow-up test backlog
    The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.
    Started 2026-03-18:
    Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, file-server path normalization/wildcard extraction, aliased path-param request init, result-init and error-init arg assembly, response-body generation for explicit origin/view fanout, error content-type suppression, and multipart decoder/encoder gating.
@@ -97,6 +118,7 @@ These items are prioritized based on two goals:
 
 - [Finish Checklist](./finish_checklist.md)
 - [OpenAPI Contract](./openapi_contract.md)
+- [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md)
 - [OpenAPI Union Discriminators](./openapi_union_discriminators.md)
 - [OpenAPI Schema Deduplication](./openapi_schema_dedup.md)
 - [OpenAPI Closed Object Mode](./openapi_closed_object_mode.md)

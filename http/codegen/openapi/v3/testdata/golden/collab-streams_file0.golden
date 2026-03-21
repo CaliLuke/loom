@@ -1,5 +1,18 @@
 {
   "components": {
+    "parameters": {
+      "PathThreadID": {
+        "example": "thr_42",
+        "in": "path",
+        "name": "thread_id",
+        "required": true,
+        "schema": {
+          "example": "thr_42",
+          "pattern": "^thr_[0-9]+$",
+          "type": "string"
+        }
+      }
+    },
     "schemas": {
       "Error": {
         "additionalProperties": false,
@@ -159,15 +172,7 @@
         "operationId": "collab_streams.get_thread",
         "parameters": [
           {
-            "example": "thr_42",
-            "in": "path",
-            "name": "thread_id",
-            "required": true,
-            "schema": {
-              "example": "thr_42",
-              "pattern": "^thr_[0-9]+$",
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/PathThreadID"
           }
         ],
         "responses": {
@@ -212,15 +217,7 @@
         "operationId": "collab_streams.watch_thread",
         "parameters": [
           {
-            "example": "thr_42",
-            "in": "path",
-            "name": "thread_id",
-            "required": true,
-            "schema": {
-              "example": "thr_42",
-              "pattern": "^thr_[0-9]+$",
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/PathThreadID"
           },
           {
             "allowEmptyValue": true,

@@ -1,0 +1,71 @@
+openapi: 3.1.1
+info:
+    title: Goa API
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: http://localhost:80
+      description: Default server for test api
+paths:
+    /gadgets/{widgetID}:
+        get:
+            tags:
+                - componentService
+            summary: listGadgets componentService
+            operationId: component_service.list_gadgets
+            parameters:
+                - $ref: '#/components/parameters/PathWidgetID'
+                - $ref: '#/components/parameters/QueryLimit'
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: string
+                                example: Doloribus qui quia.
+                            example: Itaque inventore optio.
+    /widgets/{widgetID}:
+        get:
+            tags:
+                - componentService
+            summary: listWidgets componentService
+            operationId: component_service.list_widgets
+            parameters:
+                - $ref: '#/components/parameters/PathWidgetID'
+                - $ref: '#/components/parameters/QueryLimit'
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: string
+                                example: Quia molestias.
+                            example: Et tempora et quae.
+components:
+    parameters:
+        PathWidgetID:
+            name: widgetID
+            in: path
+            description: Widget identifier.
+            required: true
+            schema:
+                type: string
+                description: Widget identifier.
+                example: widget-123
+            example: widget-123
+        QueryLimit:
+            name: limit
+            in: query
+            description: Page size.
+            allowEmptyValue: true
+            schema:
+                type: integer
+                description: Page size.
+                example: 25
+                format: int64
+                minimum: 1
+            example: 25
+tags:
+    - name: componentService

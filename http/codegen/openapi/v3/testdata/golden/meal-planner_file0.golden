@@ -1,5 +1,18 @@
 {
   "components": {
+    "parameters": {
+      "PathWeekStart": {
+        "example": "2026-03-16",
+        "in": "path",
+        "name": "week_start",
+        "required": true,
+        "schema": {
+          "example": "2026-03-16",
+          "format": "date",
+          "type": "string"
+        }
+      }
+    },
     "schemas": {
       "Error": {
         "additionalProperties": false,
@@ -710,15 +723,7 @@
         "operationId": "meal_planner.upsert_meal_plan",
         "parameters": [
           {
-            "example": "2026-03-16",
-            "in": "path",
-            "name": "week_start",
-            "required": true,
-            "schema": {
-              "example": "2026-03-16",
-              "format": "date",
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/PathWeekStart"
           }
         ],
         "requestBody": {
@@ -840,15 +845,7 @@
         "operationId": "meal_planner.share_meal_plan",
         "parameters": [
           {
-            "example": "2026-03-16",
-            "in": "path",
-            "name": "week_start",
-            "required": true,
-            "schema": {
-              "example": "2026-03-16",
-              "format": "date",
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/PathWeekStart"
           }
         ],
         "requestBody": {

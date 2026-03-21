@@ -1,0 +1,113 @@
+{
+  "components": {
+    "parameters": {
+      "PathWidgetID": {
+        "description": "Widget identifier.",
+        "example": "widget-123",
+        "in": "path",
+        "name": "widgetID",
+        "required": true,
+        "schema": {
+          "description": "Widget identifier.",
+          "example": "widget-123",
+          "type": "string"
+        }
+      },
+      "QueryLimit": {
+        "allowEmptyValue": true,
+        "description": "Page size.",
+        "example": 25,
+        "in": "query",
+        "name": "limit",
+        "schema": {
+          "description": "Page size.",
+          "example": 25,
+          "format": "int64",
+          "minimum": 1,
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "info": {
+    "title": "Goa API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/gadgets/{widgetID}": {
+      "get": {
+        "operationId": "component_service.list_gadgets",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PathWidgetID"
+          },
+          {
+            "$ref": "#/components/parameters/QueryLimit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": "Itaque inventore optio.",
+                "schema": {
+                  "example": "Doloribus qui quia.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "summary": "listGadgets componentService",
+        "tags": [
+          "componentService"
+        ]
+      }
+    },
+    "/widgets/{widgetID}": {
+      "get": {
+        "operationId": "component_service.list_widgets",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PathWidgetID"
+          },
+          {
+            "$ref": "#/components/parameters/QueryLimit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": "Et tempora et quae.",
+                "schema": {
+                  "example": "Quia molestias.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "summary": "listWidgets componentService",
+        "tags": [
+          "componentService"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "componentService"
+    }
+  ]
+}

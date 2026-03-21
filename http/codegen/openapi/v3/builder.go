@@ -56,7 +56,8 @@ func New(root *expr.RootExpr) *OpenAPI {
 		info     = buildInfo(root.API)
 		servers  = buildServers(root.API.Servers)
 		paths    = buildPaths(root.API.HTTP, doc, root.API)
-		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, openapiir.RenderSchemaMap(doc.Components.Schemas)))
+		params   = componentizeParameters(paths)
+		comps    = buildComponents(root, pruneUnusedComponentSchemas(paths, openapiir.RenderSchemaMap(doc.Components.Schemas)), params)
 		security = buildSecurityRequirements(effectiveRequirements(root.API.Requirements, root.API.SessionAuths))
 		tags     = buildTags(root.API)
 	)
@@ -247,7 +248,7 @@ func buildInfo(api *expr.APIExpr) *Info {
 }
 
 // buildComponents builds the OpenAPI Components object.
-func buildComponents(root *expr.RootExpr, types map[string]*openapi.Schema) *Components {
+func buildComponents(root *expr.RootExpr, types map[string]*openapi.Schema, params map[string]*ParameterRef) *Components {
 	var schemesRef map[string]*SecuritySchemeRef
 	{
 		schemesRef = make(map[string]*SecuritySchemeRef)
@@ -266,6 +267,7 @@ func buildComponents(root *expr.RootExpr, types map[string]*openapi.Schema) *Com
 	return &Components{
 		SecuritySchemes: schemesRef,
 		Schemas:         types,
+		Parameters:      params,
 	}
 }
 

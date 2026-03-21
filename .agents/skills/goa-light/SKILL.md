@@ -29,6 +29,10 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - If some fields are transport-only, keep them in HTTP headers/cookies and out of the canonical body/result type. Do not rely on OpenAPI naming to paper over service-shape vs transport-shape drift.
 - Generated OpenAPI emits operation-level security for secured endpoints, including inherited service/API requirements; `NoSecurity()` emits explicit `security: []` on the operation instead of relying on omission.
 - Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
+- Generated OpenAPI now also hoists repeated path, query, header, and cookie
+  parameters into `components.parameters` with stable component names; repeated
+  inline parameter shapes should appear as `$ref`s rather than duplicated
+  objects.
 - Generated OpenAPI suppresses closed-object union-wrapper examples that would be invalid against the emitted schema, and field-level `Meta("openapi:example", "false")` must suppress wrapper examples all the way through enclosing request bodies/media types.
 - Generated OpenAPI also suppresses synthesized examples for closed-object union collections when the array/map element shape would otherwise emit invalid discriminator-wrapper examples.
 - Generated OpenAPI does not emit transport-level media-type examples for streaming responses; SSE and WebSocket response shapes still appear via their schemas, but the generator should not synthesize single-message examples from sparse field examples.

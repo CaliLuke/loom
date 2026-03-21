@@ -65,14 +65,7 @@ paths:
             summary: upsertMealPlan mealPlanner
             operationId: meal_planner.upsert_meal_plan
             parameters:
-                - name: week_start
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: "2026-03-16"
-                    format: date
-                  example: "2026-03-16"
+                - $ref: '#/components/parameters/PathWeekStart'
             requestBody:
                 content:
                     application/json:
@@ -142,14 +135,7 @@ paths:
             summary: shareMealPlan mealPlanner
             operationId: meal_planner.share_meal_plan
             parameters:
-                - name: week_start
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: "2026-03-16"
-                    format: date
-                  example: "2026-03-16"
+                - $ref: '#/components/parameters/PathWeekStart'
             requestBody:
                 required: true
                 content:
@@ -874,6 +860,16 @@ components:
                 - event
                 - data
             additionalProperties: false
+    parameters:
+        PathWeekStart:
+            name: week_start
+            in: path
+            required: true
+            schema:
+                type: string
+                example: "2026-03-16"
+                format: date
+            example: "2026-03-16"
     securitySchemes:
         access_token_header_Authorization:
             type: http

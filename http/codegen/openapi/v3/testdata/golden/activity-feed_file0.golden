@@ -1,5 +1,17 @@
 {
   "components": {
+    "parameters": {
+      "PathProjectID": {
+        "example": "proj_9",
+        "in": "path",
+        "name": "project_id",
+        "required": true,
+        "schema": {
+          "example": "proj_9",
+          "type": "string"
+        }
+      }
+    },
     "schemas": {
       "ActivityEnvelope": {
         "additionalProperties": false,
@@ -153,14 +165,7 @@
         "operationId": "activity_feed.list_activities",
         "parameters": [
           {
-            "example": "proj_9",
-            "in": "path",
-            "name": "project_id",
-            "required": true,
-            "schema": {
-              "example": "proj_9",
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/PathProjectID"
           },
           {
             "allowEmptyValue": true,
@@ -214,14 +219,7 @@
         "operationId": "activity_feed.show_activity",
         "parameters": [
           {
-            "example": "proj_9",
-            "in": "path",
-            "name": "project_id",
-            "required": true,
-            "schema": {
-              "example": "proj_9",
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/PathProjectID"
           },
           {
             "example": "act_4",

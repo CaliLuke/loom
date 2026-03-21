@@ -748,6 +748,54 @@ var OpenAPISchemaDedupDSL = func() {
 	})
 }
 
+var OpenAPIParameterComponentsDSL = func() {
+	Service("componentService", func() {
+		Method("listWidgets", func() {
+			Payload(func() {
+				Attribute("widgetID", String, func() {
+					Description("Widget identifier.")
+					Example("widget-123")
+				})
+				Attribute("limit", Int, func() {
+					Description("Page size.")
+					Example(25)
+					Minimum(1)
+				})
+				Required("widgetID")
+			})
+			Result(String)
+			HTTP(func() {
+				GET("/widgets/{widgetID}")
+				Param("widgetID")
+				Param("limit")
+				Response(StatusOK)
+			})
+		})
+
+		Method("listGadgets", func() {
+			Payload(func() {
+				Attribute("widgetID", String, func() {
+					Description("Widget identifier.")
+					Example("widget-123")
+				})
+				Attribute("limit", Int, func() {
+					Description("Page size.")
+					Example(25)
+					Minimum(1)
+				})
+				Required("widgetID")
+			})
+			Result(String)
+			HTTP(func() {
+				GET("/gadgets/{widgetID}")
+				Param("widgetID")
+				Param("limit")
+				Response(StatusOK)
+			})
+		})
+	})
+}
+
 var SkipResponseBodyEncodeDecodeDSL = func() {
 	Service("testService", func() {
 		Method("empty", func() {

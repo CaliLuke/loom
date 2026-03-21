@@ -8,6 +8,7 @@ import (
 	"goa.design/goa/v3/expr"
 	"goa.design/goa/v3/http/codegen/openapi"
 	"goa.design/goa/v3/http/codegen/openapi/v3/testdata/dsls"
+	"goa.design/goa/v3/http/codegen/testdata"
 )
 
 func TestBuildInfo(t *testing.T) {
@@ -415,6 +416,47 @@ func TestBuildOperationErrorRemedyDescription(t *testing.T) {
 	expected := "bad: Bad Request response. Remedy code: bad.fix. Safe message: Retry with a valid request. Retry hint: Correct the payload and retry."
 	if *resp.Value.Description != expected {
 		t.Errorf("got response description %q, expected %q", *resp.Value.Description, expected)
+	}
+}
+
+func TestNewDeduplicatesRepeatedParametersIntoComponents(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.OpenAPIParameterComponentsDSL)
+
+	spec := New(root)
+	if spec == nil {
+		t.Fatal("expected OpenAPI spec")
+	}
+	if spec.Components == nil {
+		t.Fatal("expected components")
+	}
+
+	widgetIDName := parameterComponentName(&Parameter{Name: "widgetID", In: "path"})
+	limitName := parameterComponentName(&Parameter{Name: "limit", In: "query"})
+
+	if len(spec.Components.Parameters) != 2 {
+		t.Fatalf("got %d parameter components, expected 2", len(spec.Components.Parameters))
+	}
+	if spec.Components.Parameters[widgetIDName] == nil || spec.Components.Parameters[widgetIDName].Value == nil {
+		t.Fatalf("missing component parameter %q", widgetIDName)
+	}
+	if spec.Components.Parameters[limitName] == nil || spec.Components.Parameters[limitName].Value == nil {
+		t.Fatalf("missing component parameter %q", limitName)
+	}
+
+	for _, path := range []string{"/widgets/{widgetID}", "/gadgets/{widgetID}"} {
+		op := spec.Paths[path].Get
+		if op == nil {
+			t.Fatalf("missing GET operation for %s", path)
+		}
+		if len(op.Parameters) != 2 {
+			t.Fatalf("got %d parameters for %s, expected 2", len(op.Parameters), path)
+		}
+		if op.Parameters[0].Ref != parameterComponentRefPrefix+widgetIDName || op.Parameters[0].Value != nil {
+			t.Fatalf("expected first parameter for %s to reference %q, got ref=%q value=%#v", path, parameterComponentRefPrefix+widgetIDName, op.Parameters[0].Ref, op.Parameters[0].Value)
+		}
+		if op.Parameters[1].Ref != parameterComponentRefPrefix+limitName || op.Parameters[1].Value != nil {
+			t.Fatalf("expected second parameter for %s to reference %q, got ref=%q value=%#v", path, parameterComponentRefPrefix+limitName, op.Parameters[1].Ref, op.Parameters[1].Value)
+		}
 	}
 }
 
