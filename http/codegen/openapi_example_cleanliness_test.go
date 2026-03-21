@@ -124,8 +124,12 @@ func TestOpenAPIStreamingSyntheticExamplesAreSuppressedWhenIncomplete(t *testing
 	sseMediaType := operationResponseMediaTypeFromSpec(t, spec, "/events", "get", "200", "text/event-stream")
 	require.NotContains(t, sseMediaType, "example")
 
-	wsMediaType := operationResponseMediaTypeFromSpec(t, spec, "/ws/projects/{projectID}", "get", "101", "application/json")
-	require.NotContains(t, wsMediaType, "example")
+	op := operationFromSpec(t, spec, "/ws/projects/{projectID}", "get")
+	responses, ok := op["responses"].(map[string]any)
+	require.True(t, ok)
+	response, ok := responses["101"].(map[string]any)
+	require.True(t, ok)
+	require.NotContains(t, response, "content")
 }
 
 func componentSchemaFromSpec(t *testing.T, spec []byte, name string) map[string]any {

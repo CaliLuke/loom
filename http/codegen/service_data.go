@@ -2237,59 +2237,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, e *
 		varname = sd.Scope.GoTypeRef(body)
 		desc = body.Description
 	}
-	var init *InitData
-	if !svr && att.Type != expr.Empty && needInit(body.Type) {
-		var (
-			name    string
-			desc    string
-			code    string
-			origin  string
-			err     error
-			helpers []*codegen.TransformFunctionData
-
-			sourceVar = "p"
-			svc       = sd.Service
-		)
-		{
-			name = fmt.Sprintf("New%s", codegen.Goify(sd.Scope.GoTypeName(body), true))
-			desc = fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",
-				name, e.Name(), svc.Name)
-			src := sourceVar
-			srcAtt := att
-			// If design uses Body("name") syntax then need to use payload attribute
-			// to transform.
-			if o, ok := body.Meta["origin:attribute"]; ok {
-				srcObj := expr.AsObject(att.Type)
-				origin = o[0]
-				srcAtt = srcObj.Attribute(origin)
-				src += "." + codegen.Goify(origin, true)
-			}
-			code, helpers, err = marshal(srcAtt, body, src, "body", svcctx, httpctx)
-			if err != nil {
-				fmt.Println(err.Error()) // TBD validate DSL so errors are not possible
-			}
-			sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, helpers)
-		}
-		arg := InitArgData{
-			Ref: sourceVar,
-			AttributeData: &AttributeData{
-				Name:     "payload",
-				VarName:  sourceVar,
-				TypeRef:  svc.Scope.GoFullTypeRef(att, pkg),
-				Type:     att.Type,
-				Validate: validateDef,
-				Example:  att.Example(sds.Root.API.ExampleGenerator),
-			},
-		}
-		init = &InitData{
-			Name:                name,
-			Description:         desc,
-			ReturnTypeRef:       sd.Scope.GoTypeRef(body),
-			ReturnTypeAttribute: codegen.Goify(origin, true),
-			ClientCode:          code,
-			ClientArgs:          []*InitArgData{&arg},
-		}
-	}
+	init := sds.buildRequestBodyInit(body, att, e, pkg, validateDef, svr, svcctx, httpctx, sd)
 	return &TypeData{
 		Name:               name,
 		VarName:            varname,
@@ -2420,80 +2368,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 			}
 		})
 	}
-
-	var init *InitData
-	if svr && mustInit {
-		var (
-			name    string
-			desc    string
-			rtref   string
-			code    string
-			origin  string
-			err     error
-			helpers []*codegen.TransformFunctionData
-
-			sourceVar = "res"
-			svc       = sd.Service
-		)
-		{
-			var rtname string
-			if _, ok := body.Type.(expr.UserType); !ok && !expr.IsPrimitive(body.Type) {
-				rtname = codegen.Goify(e.Name(), true) + "ResponseBody"
-				rtref = rtname
-			} else {
-				rtname = codegen.Goify(sd.Scope.GoTypeName(body), true)
-				rtref = sd.Scope.GoTypeRef(body)
-			}
-			name = fmt.Sprintf("New%s", rtname)
-			desc = fmt.Sprintf("%s builds the HTTP response body from the result of the %q endpoint of the %q service.",
-				name, e.Name(), svc.Name)
-			if view != nil {
-				svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
-			}
-			src := sourceVar
-			srcAtt := att
-			// If design uses Body("name") syntax then need to use result attribute
-			// to transform.
-			if o, ok := body.Meta["origin:attribute"]; ok {
-				srcObj := expr.AsObject(att.Type)
-				origin = o[0]
-				srcAtt = srcObj.Attribute(origin)
-				src += "." + codegen.Goify(origin, true)
-			}
-			code, helpers, err = marshal(srcAtt, body, src, "body", svcctx, httpctx)
-			if err != nil {
-				panic(err) // bug
-			}
-			sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
-		}
-		ref := sourceVar
-		if view != nil {
-			ref += ".Projected"
-		}
-		tref := svc.Scope.GoFullTypeRef(att, pkg)
-		if view != nil {
-			tref = svc.ViewScope.GoFullTypeRef(att, svc.ViewsPkg)
-		}
-		arg := InitArgData{
-			Ref: ref,
-			AttributeData: &AttributeData{
-				Name:     "result",
-				VarName:  sourceVar,
-				TypeRef:  tref,
-				Type:     att.Type,
-				Validate: validateDef,
-				Example:  att.Example(sds.Root.API.ExampleGenerator),
-			},
-		}
-		init = &InitData{
-			Name:                name,
-			Description:         desc,
-			ReturnTypeRef:       rtref,
-			ReturnTypeAttribute: codegen.Goify(origin, true),
-			ServerCode:          code,
-			ServerArgs:          []*InitArgData{&arg},
-		}
-	}
+	init := sds.buildResponseBodyInit(body, att, pkg, e, view, mustInit, validateDef, svr, svcctx, httpctx, sd)
 	td := &TypeData{
 		Name:        name,
 		VarName:     varname,
@@ -2507,6 +2382,131 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		View:        viewName,
 	}
 	return td
+}
+
+func (sds *ServicesData) buildRequestBodyInit(
+	body, att *expr.AttributeExpr,
+	e *expr.HTTPEndpointExpr,
+	pkg, validateDef string,
+	svr bool,
+	svcctx, httpctx *codegen.AttributeContext,
+	sd *ServiceData,
+) *InitData {
+	if svr || att.Type == expr.Empty || !needInit(body.Type) {
+		return nil
+	}
+
+	const sourceVar = "p"
+
+	initName := fmt.Sprintf("New%s", codegen.Goify(sd.Scope.GoTypeName(body), true))
+	initDesc := fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",
+		initName, e.Name(), sd.Service.Name)
+	src := sourceVar
+	srcAtt := att
+	origin := ""
+	if o, ok := body.Meta["origin:attribute"]; ok {
+		srcObj := expr.AsObject(att.Type)
+		origin = o[0]
+		srcAtt = srcObj.Attribute(origin)
+		src += "." + codegen.Goify(origin, true)
+	}
+	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
+	if err != nil {
+		fmt.Println(err.Error()) // TBD validate DSL so errors are not possible
+	}
+	sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, helpers)
+
+	arg := &InitArgData{
+		Ref: sourceVar,
+		AttributeData: &AttributeData{
+			Name:     "payload",
+			VarName:  sourceVar,
+			TypeRef:  sd.Service.Scope.GoFullTypeRef(att, pkg),
+			Type:     att.Type,
+			Validate: validateDef,
+			Example:  att.Example(sds.Root.API.ExampleGenerator),
+		},
+	}
+	return &InitData{
+		Name:                initName,
+		Description:         initDesc,
+		ReturnTypeRef:       sd.Scope.GoTypeRef(body),
+		ReturnTypeAttribute: codegen.Goify(origin, true),
+		ClientCode:          code,
+		ClientArgs:          []*InitArgData{arg},
+	}
+}
+
+func (sds *ServicesData) buildResponseBodyInit(
+	body, att *expr.AttributeExpr,
+	pkg string,
+	e *expr.HTTPEndpointExpr,
+	view *string,
+	mustInit bool,
+	validateDef string,
+	svr bool,
+	svcctx, httpctx *codegen.AttributeContext,
+	sd *ServiceData,
+) *InitData {
+	if !svr || !mustInit {
+		return nil
+	}
+
+	const sourceVar = "res"
+
+	rtname := codegen.Goify(sd.Scope.GoTypeName(body), true)
+	rtref := sd.Scope.GoTypeRef(body)
+	if _, ok := body.Type.(expr.UserType); !ok && !expr.IsPrimitive(body.Type) {
+		rtname = codegen.Goify(e.Name(), true) + "ResponseBody"
+		rtref = rtname
+	}
+	initName := fmt.Sprintf("New%s", rtname)
+	initDesc := fmt.Sprintf("%s builds the HTTP response body from the result of the %q endpoint of the %q service.",
+		initName, e.Name(), sd.Service.Name)
+	if view != nil {
+		svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
+	}
+
+	src := sourceVar
+	srcAtt := att
+	origin := ""
+	if o, ok := body.Meta["origin:attribute"]; ok {
+		srcObj := expr.AsObject(att.Type)
+		origin = o[0]
+		srcAtt = srcObj.Attribute(origin)
+		src += "." + codegen.Goify(origin, true)
+	}
+	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
+	if err != nil {
+		panic(err) // bug
+	}
+	sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
+
+	argRef := sourceVar
+	argTypeRef := sd.Service.Scope.GoFullTypeRef(att, pkg)
+	if view != nil {
+		argRef += ".Projected"
+		argTypeRef = sd.Service.ViewScope.GoFullTypeRef(att, sd.Service.ViewsPkg)
+	}
+	arg := &InitArgData{
+		Ref: argRef,
+		AttributeData: &AttributeData{
+			Name:     "result",
+			VarName:  sourceVar,
+			TypeRef:  argTypeRef,
+			Type:     att.Type,
+			Validate: validateDef,
+			Example:  att.Example(sds.Root.API.ExampleGenerator),
+		},
+	}
+	return &InitData{
+		Name:                initName,
+		Description:         initDesc,
+		ReturnTypeRef:       rtref,
+		ReturnTypeAttribute: codegen.Goify(origin, true),
+		ServerCode:          code,
+		ServerArgs:          []*InitArgData{arg},
+	}
 }
 
 func (sds *ServicesData) extractPathParams(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, scope *codegen.NameScope) []*ParamData {

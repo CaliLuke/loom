@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/codegen/service"
 	. "goa.design/goa/v3/dsl"
 	"goa.design/goa/v3/expr"
@@ -431,6 +432,91 @@ func TestHTTPErrorBodyDescriptionRewrite(t *testing.T) {
 	require.Contains(t, errResp.ServerBody[0].Description, `"ServiceWithErrorCustomPkg" service`)
 }
 
+func TestHTTPDirectBuilderSeams(t *testing.T) {
+	t.Run("buildEndpointData preserves mixed result assembly", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.MixedResultsDSL)
+
+		endpoint := services.buildEndpointData(endpointExpr, svcData.Service, svcData, codegen.NewNameScope())
+		require.True(t, endpoint.HasMixedResults)
+		require.NotNil(t, endpoint.SSE)
+		require.Equal(t, "EncodeCreateRequest", endpoint.RequestEncoder)
+		require.Equal(t, "BuildCreateRequest", endpoint.RequestInit.Name)
+	})
+
+	t.Run("buildPayloadData projects jsonrpc ids", func(t *testing.T) {
+		services, endpointExpr, svcData := firstJSONRPCBuildContext(t, jsonrpcIDProjectionDSL)
+
+		payload := services.buildPayloadData(endpointExpr, svcData)
+		require.Equal(t, "ID", payload.IDAttribute)
+		require.True(t, payload.IDAttributeRequired)
+	})
+
+	t.Run("buildResultData keeps default view and jsonrpc ids", func(t *testing.T) {
+		services, endpointExpr, svcData := firstJSONRPCBuildContext(t, jsonrpcIDProjectionDSL)
+
+		result := services.buildResultData(endpointExpr, svcData)
+		require.Equal(t, expr.DefaultView, result.View)
+		require.Equal(t, "ID", result.IDAttribute)
+		require.True(t, result.IDAttributeRequired)
+	})
+
+	t.Run("buildRequestBodyType flattens form union helper field", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
+
+		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr, false, svcData)
+		require.NotNil(t, bodyType)
+		require.Equal(t, "Values", bodyType.FlatFormUnionField)
+		require.NotNil(t, bodyType.Init)
+		require.NotEmpty(t, bodyType.Init.ClientCode)
+	})
+
+	t.Run("buildRequestBodyType only emits constructors on the client", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
+
+		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr, false, svcData)
+		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr, true, svcData)
+		require.NotNil(t, clientBodyType)
+		require.NotNil(t, clientBodyType.Init)
+		require.NotNil(t, serverBodyType)
+		require.Nil(t, serverBodyType.Init)
+	})
+
+	t.Run("buildResponseBodyType keeps projected view names", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultWithResultViewDSL)
+		method := svcData.Service.Method(endpointExpr.Name())
+
+		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr, true, stringPtr("full"), svcData)
+		require.NotNil(t, bodyType)
+		require.Equal(t, "full", bodyType.View)
+		require.NotNil(t, bodyType.Init)
+		require.NotEmpty(t, bodyType.Init.ServerCode)
+	})
+
+	t.Run("buildResponseBodyType only emits constructors on the server", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultBodyCollectionDSL)
+		method := svcData.Service.Method(endpointExpr.Name())
+
+		serverBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr, true, nil, svcData)
+		clientBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr, false, nil, svcData)
+		require.NotNil(t, serverBodyType)
+		require.NotNil(t, serverBodyType.Init)
+		require.NotNil(t, clientBodyType)
+		require.Nil(t, clientBodyType.Init)
+	})
+
+	t.Run("buildResponseBodyType uses endpoint scoped wrapper for collection bodies", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultBodyCollectionDSL)
+		method := svcData.Service.Method(endpointExpr.Name())
+
+		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr, true, nil, svcData)
+		require.NotNil(t, bodyType)
+		require.Equal(t, "MethodBodyCollectionResponseBody", bodyType.Name)
+		require.Equal(t, "MethodBodyCollectionResponseBody", bodyType.VarName)
+		require.NotNil(t, bodyType.Init)
+		require.Equal(t, "NewMethodBodyCollectionResponseBody", bodyType.Init.Name)
+	})
+}
+
 func firstEndpointData(t *testing.T, dsl func()) *EndpointData {
 	t.Helper()
 
@@ -451,6 +537,21 @@ func firstServiceData(t *testing.T, dsl func()) *ServiceData {
 	return svc
 }
 
+func firstHTTPBuildContext(t *testing.T, dsl func()) (*ServicesData, *expr.HTTPEndpointExpr, *ServiceData) {
+	t.Helper()
+
+	root := RunHTTPDSL(t, dsl)
+	require.NotEmpty(t, root.API.HTTP.Services)
+
+	services := CreateHTTPServices(root)
+	httpSvc := root.API.HTTP.Services[0]
+	require.NotEmpty(t, httpSvc.HTTPEndpoints)
+
+	svc := services.Get(httpSvc.Name())
+	require.NotNil(t, svc)
+	return services, httpSvc.HTTPEndpoints[0], svc
+}
+
 func firstJSONRPCEndpointData(t *testing.T, dsl func()) *EndpointData {
 	t.Helper()
 
@@ -469,6 +570,21 @@ func firstJSONRPCServiceData(t *testing.T, dsl func()) *ServiceData {
 	svc := services.Get(root.API.JSONRPC.Services[0].Name())
 	require.NotNil(t, svc)
 	return svc
+}
+
+func firstJSONRPCBuildContext(t *testing.T, dsl func()) (*ServicesData, *expr.HTTPEndpointExpr, *ServiceData) {
+	t.Helper()
+
+	root := RunHTTPDSL(t, dsl)
+	require.NotEmpty(t, root.API.JSONRPC.Services)
+
+	services := NewServicesData(service.NewServicesData(root), &root.API.JSONRPC.HTTPExpr)
+	httpSvc := root.API.JSONRPC.Services[0]
+	require.NotEmpty(t, httpSvc.HTTPEndpoints)
+
+	svc := services.Get(httpSvc.Name())
+	require.NotNil(t, svc)
+	return services, httpSvc.HTTPEndpoints[0], svc
 }
 
 func lastQueryParam(t *testing.T, endpoint *EndpointData) *ParamData {
@@ -508,6 +624,10 @@ func bodyViews(types []*TypeData) []string {
 		views[i] = td.View
 	}
 	return views
+}
+
+func stringPtr(v string) *string {
+	return &v
 }
 
 func requestEncoderBodyDSL() {
