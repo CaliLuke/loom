@@ -1,28 +1,6 @@
 {
   "components": {
     "schemas": {
-      "RealtimeEnvelope": {
-        "example": {
-          "event": "Autem et.",
-          "ts": 1
-        },
-        "properties": {
-          "event": {
-            "example": "Commodi ab officia.",
-            "type": "string"
-          },
-          "ts": {
-            "example": 1,
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "ts",
-          "event"
-        ],
-        "type": "object"
-      },
       "RealtimeSSEEvent": {
         "example": {
           "data": {
@@ -110,13 +88,6 @@
         ],
         "responses": {
           "101": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RealtimeEnvelope"
-                }
-              }
-            },
             "description": "Switching Protocols response."
           }
         },

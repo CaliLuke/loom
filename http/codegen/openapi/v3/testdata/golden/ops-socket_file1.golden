@@ -27,29 +27,8 @@ paths:
             responses:
                 "101":
                     description: Switching Protocols response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/StreamCommandsResponseBody'
             security: []
-components:
-    schemas:
-        StreamCommandsResponseBody:
-            type: object
-            properties:
-                event:
-                    type: string
-                    example: command.accepted
-                ok:
-                    type: boolean
-                    example: true
-            example:
-                event: command.accepted
-                ok: true
-            required:
-                - event
-                - ok
-            additionalProperties: false
+components: {}
 tags:
     - name: opsSocket
       description: Bidirectional operator control channel.

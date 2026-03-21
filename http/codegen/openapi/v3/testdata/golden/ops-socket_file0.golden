@@ -1,30 +1,5 @@
 {
-  "components": {
-    "schemas": {
-      "StreamCommandsResponseBody": {
-        "additionalProperties": false,
-        "example": {
-          "event": "command.accepted",
-          "ok": true
-        },
-        "properties": {
-          "event": {
-            "example": "command.accepted",
-            "type": "string"
-          },
-          "ok": {
-            "example": true,
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "event",
-          "ok"
-        ],
-        "type": "object"
-      }
-    }
-  },
+  "components": {},
   "info": {
     "description": "WebSocket control surface for operator consoles.",
     "license": {
@@ -54,13 +29,6 @@
         ],
         "responses": {
           "101": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StreamCommandsResponseBody"
-                }
-              }
-            },
             "description": "Switching Protocols response."
           }
         },

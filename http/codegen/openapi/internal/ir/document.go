@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 	"net/http"
+	"net/textproto"
 	"reflect"
 	"strconv"
 	"strings"
@@ -124,7 +125,7 @@ func buildResponses(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, ran
 
 func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][]*Schema, rand *expr.ExampleGenerator, closeObjects bool) *Response {
 	body := responseDocumentBody(resp)
-	contentType := responseContentType(resp)
+	contentTypes := responseContentTypes(resp)
 	headers := headersFromAttr(resp.Headers, rand, closeObjects)
 	if cookieHeader := responseCookieHeader(resp.Cookies, rand); cookieHeader != nil {
 		if headers == nil {
@@ -134,9 +135,12 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 	}
 
 	var content map[string]*MediaType
-	if body != nil && body.Type != expr.Empty {
-		content = map[string]*MediaType{
-			contentType: buildMediaType(body, firstResponseBody(bodies[statusCode]), rand, closeObjects),
+	if isWebSocketResponse(resp, statusCode) {
+		content = nil
+	} else if body != nil && body.Type != expr.Empty {
+		content = make(map[string]*MediaType, len(contentTypes))
+		for _, contentType := range contentTypes {
+			content[contentType] = buildMediaType(body, firstResponseBody(bodies[statusCode]), rand, closeObjects)
 		}
 		if !shouldEmitResponseExamples(resp) {
 			for _, mediaType := range content {
@@ -145,14 +149,15 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 			}
 		}
 	} else if statusCode != expr.StatusNoContent && isSkipResponseBodyEncodeDecode(resp.Parent) {
-		content = map[string]*MediaType{
-			contentType: {
+		content = make(map[string]*MediaType, len(contentTypes))
+		for _, contentType := range contentTypes {
+			content[contentType] = &MediaType{
 				Schema: &Schema{
 					Type:   "string",
 					Format: "binary",
 				},
 				Extensions: openapi.ExtensionsFromExpr(resp.Meta),
-			},
+			}
 		}
 	}
 
@@ -223,6 +228,17 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 }
 
 func responseContentType(resp *expr.HTTPResponseExpr) string {
+	contentTypes := responseContentTypes(resp)
+	if len(contentTypes) > 0 {
+		return contentTypes[0]
+	}
+	return "application/json"
+}
+
+func responseContentTypes(resp *expr.HTTPResponseExpr) []string {
+	if contentTypes := responseContentTypeHeaderEnums(resp); len(contentTypes) > 0 {
+		return contentTypes
+	}
 	body := responseDocumentBody(resp)
 	contentType := resp.ContentType
 	if body != nil {
@@ -236,7 +252,7 @@ func responseContentType(resp *expr.HTTPResponseExpr) string {
 	if contentType == "" {
 		contentType = "application/json"
 	}
-	return contentType
+	return []string{contentType}
 }
 
 func responseDocumentBody(resp *expr.HTTPResponseExpr) *expr.AttributeExpr {
@@ -266,6 +282,44 @@ func isSSEResponse(resp *expr.HTTPResponseExpr) bool {
 	}
 	endpoint, ok := resp.Parent.(*expr.HTTPEndpointExpr)
 	return ok && endpoint.SSE != nil
+}
+
+func isWebSocketResponse(resp *expr.HTTPResponseExpr, statusCode int) bool {
+	if resp == nil || statusCode != expr.StatusSwitchingProtocols {
+		return false
+	}
+	endpoint, ok := resp.Parent.(*expr.HTTPEndpointExpr)
+	return ok && endpoint.MethodExpr != nil && endpoint.MethodExpr.IsStreaming() && endpoint.SSE == nil
+}
+
+func responseContentTypeHeaderEnums(resp *expr.HTTPResponseExpr) []string {
+	if resp == nil || resp.Headers == nil {
+		return nil
+	}
+	var contentTypes []string
+	seen := map[string]struct{}{}
+	expr.WalkMappedAttr(resp.Headers, func(_, elem string, child *expr.AttributeExpr) error { // nolint: errcheck
+		if textproto.CanonicalMIMEHeaderKey(elem) != "Content-Type" || child == nil || child.Validation == nil {
+			return nil
+		}
+		for _, raw := range child.Validation.Values {
+			value, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			value = strings.TrimSpace(value)
+			if value == "" {
+				continue
+			}
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			contentTypes = append(contentTypes, value)
+		}
+		return nil
+	})
+	return contentTypes
 }
 
 func responseCookieHeader(cookies []*expr.HTTPResponseCookieExpr, rand *expr.ExampleGenerator) *Header {

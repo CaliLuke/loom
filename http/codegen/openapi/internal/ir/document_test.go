@@ -107,9 +107,7 @@ func TestBuildOperationSuppressesStreamingResponseExamples(t *testing.T) {
 	response := operation.Responses["101"]
 	require.NotNil(t, response)
 	require.NotNil(t, response.Value)
-	require.Contains(t, response.Value.Content, "application/json")
-	require.Nil(t, response.Value.Content["application/json"].Example)
-	require.Nil(t, response.Value.Content["application/json"].Examples)
+	require.Empty(t, response.Value.Content)
 }
 
 func TestBuildDocumentComponentizesRepeatedContractNodes(t *testing.T) {
