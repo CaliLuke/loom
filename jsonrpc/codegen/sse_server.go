@@ -29,42 +29,6 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		return nil
 	}
 
-	funcs := map[string]any{
-		"lowerInitial": lowerInitial,
-		"allErrors":    allErrors,
-		"hasErrors": func() bool {
-			for _, m := range data.Service.Methods {
-				if len(m.Errors) > 0 {
-					return true
-				}
-			}
-			return false
-		},
-		"hasStreamingPayload": func() bool {
-			for _, m := range data.Service.Methods {
-				if m.StreamingPayload != "" {
-					return true
-				}
-			}
-			return false
-		},
-		// dedupeBySSEEvent returns endpoints with unique SSE event type
-		"dedupeBySSEEvent": func(eds []*httpcodegen.EndpointData) []*httpcodegen.EndpointData {
-			seen := make(map[string]struct{})
-			out := make([]*httpcodegen.EndpointData, 0, len(eds))
-			for _, e := range eds {
-				if e == nil || e.SSE == nil || e.SSE.EventTypeRef == "" {
-					continue
-				}
-				if _, ok := seen[e.SSE.EventTypeRef]; ok {
-					continue
-				}
-				seen[e.SSE.EventTypeRef] = struct{}{}
-				out = append(out, e)
-			}
-			return out
-		},
-	}
 	svcName := data.Service.PathName
 	title := fmt.Sprintf("%s SSE server streaming", svc.Name())
 	imports := make([]*codegen.ImportSpec, 0, 11+len(data.Service.UserTypeImports))
@@ -83,12 +47,7 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	imports = append(imports, data.Service.UserTypeImports...)
 	sections := []codegen.Section{
 		codegen.Header(title, "server", imports),
-		&codegen.SectionTemplate{
-			Name:    "jsonrpc-server-sse-stream-impl",
-			Source:  jsonrpcTemplates.Read(sseServerStreamImplT),
-			Data:    data,
-			FuncMap: funcs,
-		},
+		jsonrpcSSEServerImplSection(data),
 	}
 
 	return &codegen.File{

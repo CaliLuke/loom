@@ -61,14 +61,7 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 		// For JSON-RPC methods without request encoders, add one
 		for _, endpoint := range data.Get(svc.Name()).Endpoints {
 			if endpoint.RequestEncoder == "" {
-				// Add the encoder function
-				encoderSection := &codegen.SectionTemplate{
-					Name:   "jsonrpc-minimal-request-encoder",
-					Source: jsonrpcTemplates.Read("minimal_request_encoder"),
-					Data:   endpoint,
-				}
-				sections = append(sections, encoderSection)
-				// Update endpoint data to reference the encoder
+				sections = append(sections, jsonrpcMinimalRequestEncoderSection(endpoint))
 				endpoint.RequestEncoder = fmt.Sprintf("Encode%sRequest", endpoint.Method.VarName)
 			}
 		}
@@ -111,23 +104,11 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	sections = append(sections, jsonrpcClientInitSection(data))
 
 	for _, e := range data.Endpoints {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "jsonrpc-client-endpoint-init",
-			Source: jsonrpcTemplates.Read(clientEndpointInitT),
-			Data:   e,
-			FuncMap: map[string]any{
-				"isWebSocketEndpoint": httpcodegen.IsWebSocketEndpoint,
-				"isSSEEndpoint":       httpcodegen.IsSSEEndpoint,
-			},
-		})
+		sections = append(sections, jsonrpcClientEndpointInitSection(e))
 	}
 
 	if httpcodegen.HasWebSocket(data) {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "jsonrpc-client-websocket-conn",
-			Source: jsonrpcTemplates.Read(websocketClientConnT),
-			Data:   data,
-		})
+		sections = append(sections, jsonrpcWebSocketClientConnSection(data))
 	}
 
 	return &codegen.File{Path: path, Sections: sections}

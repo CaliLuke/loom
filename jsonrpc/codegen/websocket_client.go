@@ -43,11 +43,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		codegen.Header(title, "client", imports),
 	}
 
-	// Add common error handling types for all streams
-	sections = append(sections, &codegen.SectionTemplate{
-		Name:   "jsonrpc-websocket-stream-error-types",
-		Source: jsonrpcTemplates.Read(websocketStreamErrorTypesT),
-	})
+	sections = append(sections, jsonrpcWebSocketStreamErrorTypesSection())
 
 	// Process only WebSocket endpoints and generate stream implementations only
 	for _, e := range data.Endpoints {

@@ -17,11 +17,6 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	if !httpcodegen.HasWebSocket(data) {
 		return nil
 	}
-	funcs := map[string]any{
-		"lowerInitial":        lowerInitial,
-		"allErrors":           allErrors,
-		"isWebSocketEndpoint": httpcodegen.IsWebSocketEndpoint,
-	}
 	svcName := data.Service.PathName
 	title := fmt.Sprintf("%s WebSocket server streaming", svc.Name())
 	imports := make([]*codegen.ImportSpec, 0, 14+len(data.Service.UserTypeImports))
@@ -44,37 +39,8 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	imports = append(imports, data.Service.UserTypeImports...)
 	sections := []codegen.Section{
 		codegen.Header(title, "server", imports),
-		&codegen.SectionTemplate{
-			Name:    "jsonrpc-server-websocket-struct",
-			Source:  jsonrpcTemplates.Read(websocketServerStreamT),
-			Data:    data,
-			FuncMap: funcs,
-		},
-		&codegen.SectionTemplate{
-			Name:    "jsonrpc-server-websocket-stream-wrapper",
-			Source:  jsonrpcTemplates.Read(websocketServerStreamWrapperT),
-			Data:    data,
-			FuncMap: funcs,
-		},
-		&codegen.SectionTemplate{
-			Name:    "jsonrpc-server-websocket-send",
-			Source:  jsonrpcTemplates.Read(websocketServerSendT),
-			Data:    data,
-			FuncMap: funcs,
-		},
-		&codegen.SectionTemplate{
-			Name:    "jsonrpc-server-websocket-recv",
-			Source:  jsonrpcTemplates.Read(websocketServerRecvT),
-			Data:    data,
-			FuncMap: funcs,
-		},
-		&codegen.SectionTemplate{
-			Name:    "jsonrpc-server-websocket-close",
-			Source:  jsonrpcTemplates.Read(websocketServerCloseT),
-			Data:    data,
-			FuncMap: funcs,
-		},
 	}
+	sections = append(sections, jsonrpcWebSocketServerSections(data)...)
 
 	return &codegen.File{
 		Path:     filepath.Join(codegen.Gendir, "jsonrpc", svcName, "server", "websocket.go"),

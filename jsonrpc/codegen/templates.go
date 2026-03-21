@@ -15,27 +15,17 @@ const (
 	serverHandlerInitT = "server_handler_init"
 
 	// Client
-	clientEndpointInitT = "client_endpoint_init"
-	responseDecoderT    = "response_decoder"
+	responseDecoderT = "response_decoder"
 
 	// WebSocket templates
-	websocketServerStreamT        = "websocket_server_stream"
-	websocketServerStreamWrapperT = "websocket_server_stream_wrapper"
-	websocketServerHandlerT       = "websocket_server_handler"
-	websocketServerSendT          = "websocket_server_send"
-	websocketServerRecvT          = "websocket_server_recv"
-	websocketServerCloseT         = "websocket_server_close"
+	websocketServerHandlerT = "websocket_server_handler"
 
 	// JSON-RPC WebSocket client templates
-	websocketClientConnT       = "websocket_client_conn"
-	websocketClientStreamT     = "websocket_client_stream"
-	websocketStreamErrorTypesT = "websocket_stream_error_types"
+	websocketClientStreamT = "websocket_client_stream"
 
 	// SSE templates
-	sseServerStreamT     = "sse_server_stream"
-	sseClientStreamT     = "sse_client_stream"
-	sseServerStreamImplT = "sse_server_stream_impl"
-	sseServerHandlerT    = "sse_server_handler"
+	sseClientStreamT  = "sse_client_stream"
+	sseServerHandlerT = "sse_server_handler"
 
 	// Partial templates
 	singleResponseP         = "single_response"
