@@ -132,17 +132,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		)
 	}
 	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
-	def := &codegen.SectionTemplate{
-		Name:   "service",
-		Source: serviceTemplates.Read(serviceT),
-		Data:   svc,
-		FuncMap: map[string]any{
-			"hasJSONRPCStreaming": hasJSONRPCStreaming,
-			"isJSONRPCWebSocket":  func(sd *Data) bool { return hasJSONRPCStreaming(sd) && !isJSONRPCSSE(services, service) },
-			"streamInterfaceFor":  streamInterfaceFor,
-			"dedupeByResult":      dedupeByResult,
-		},
-	}
+	def := serviceDefinitionSection(svc)
 
 	// service.go
 	var sections []codegen.Section
@@ -369,17 +359,6 @@ func errorName(et *UserTypeData) string {
 	return fmt.Sprintf("%q", et.Name)
 }
 
-// hasJSONRPCStreaming returns true if the service has a JSON-RPC streaming
-// endpoint (WebSocket or SSE).
-func hasJSONRPCStreaming(sd *Data) bool {
-	for _, m := range sd.Methods {
-		if m.IsJSONRPC && m.ServerStream != nil {
-			return true
-		}
-	}
-	return false
-}
-
 // isJSONRPCSSE returns true if the service uses SSE for JSON-RPC streaming.
 // This requires checking the HTTP endpoints in the root expression.
 func isJSONRPCSSE(sd *ServicesData, svc *expr.ServiceExpr) bool {
@@ -397,24 +376,6 @@ func isJSONRPCSSE(sd *ServicesData, svc *expr.ServiceExpr) bool {
 	}
 
 	return false
-}
-
-// streamInterfaceFor builds the data to generate the client and server stream
-// interfaces for the given endpoint.
-func streamInterfaceFor(typ string, m *MethodData, stream *StreamData) map[string]any {
-	return map[string]any{
-		"Type":               typ,
-		"Endpoint":           m.Name,
-		"Stream":             stream,
-		"MethodVarName":      m.VarName,
-		"IsJSONRPC":          m.IsJSONRPC,
-		"IsJSONRPCSSE":       m.IsJSONRPCSSE && typ == "server",
-		"IsJSONRPCWebSocket": m.IsJSONRPCWebSocket,
-		// If a view is explicitly set (ViewName is not empty) in the Result
-		// expression, we can use that view to render the result type instead
-		// of iterating through the list of views defined in the result type.
-		"IsViewedResult": m.ViewedResult != nil && m.ViewedResult.ViewName == "",
-	}
 }
 
 func pathWithDefault(loc *codegen.Location, def string) string {

@@ -109,12 +109,7 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 		}
 		sections = append(sections, endpointsInitSection(data), endpointsUseSection(data))
 		for _, m := range data.Methods {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:    "endpoint-method",
-				Source:  serviceTemplates.Read(serviceEndpointMethodT),
-				Data:    m,
-				FuncMap: map[string]any{"payloadVar": payloadVar},
-			})
+			sections = append(sections, endpointMethodSection(m))
 		}
 	}
 
