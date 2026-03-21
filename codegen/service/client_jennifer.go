@@ -57,15 +57,15 @@ func methodSection(method *EndpointMethodData) codegen.Section {
 	return codegen.NewJenniferSection("client-method", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s calls the %q endpoint of the %q service.", method.VarName, method.Name, method.ServiceName))
 		if len(method.Errors) > 0 {
-			stmt.Comment(codegen.Comment(fmt.Sprintf("%s may return the following errors:", method.VarName)))
+			codegen.CommentBlock(stmt, fmt.Sprintf("%s may return the following errors:", method.VarName))
 			for _, errData := range method.Errors {
 				line := fmt.Sprintf("- %q (type %s)", errData.ErrName, errData.TypeRef)
 				if errData.Description != "" {
 					line += ": " + errData.Description
 				}
-				stmt.Comment("\t" + line)
+				codegen.CommentBlock(stmt, "\t"+line)
 			}
-			stmt.Comment("\t- error: internal error")
+			codegen.CommentBlock(stmt, "\t- error: internal error")
 		}
 		buildClientMethod(stmt, method, false)
 		if method.HasMixedResults {

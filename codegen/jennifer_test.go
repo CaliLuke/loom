@@ -41,3 +41,25 @@ func TestJenniferHelpers(t *testing.T) {
 		t.Fatalf("unexpected helper code:\n%s", got)
 	}
 }
+
+func TestCommentBlock(t *testing.T) {
+	var buf bytes.Buffer
+	stmt := jen.Empty()
+	CommentBlock(stmt, "Widget may return the following errors:\n- alpha\n- beta")
+	stmt.Func().Id("Answer").Params().Block(
+		jen.Return(),
+	)
+	if err := stmt.Render(&buf); err != nil {
+		t.Fatalf("render failed: %v", err)
+	}
+	got := strings.TrimSpace(strings.ReplaceAll(buf.String(), "\t", ""))
+	want := strings.TrimSpace(strings.ReplaceAll(`// Widget may return the following errors:
+// - alpha
+// - beta
+func Answer() {
+	return
+}`, "\t", ""))
+	if got != want {
+		t.Fatalf("unexpected block code:\n%s", buf.String())
+	}
+}

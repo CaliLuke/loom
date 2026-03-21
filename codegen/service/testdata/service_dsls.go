@@ -1,6 +1,8 @@
 package testdata
 
 import (
+	"fmt"
+
 	. "goa.design/goa/v3/dsl"
 )
 
@@ -308,6 +310,17 @@ var CustomErrorsCustomFieldDSL = func() {
 	Service("CustomErrorsCustomFields", func() {
 		Method("A", func() {
 			Error("struct_error_name", Result, "struct error name description")
+		})
+	})
+}
+
+var LargeErrorSetClientDSL = func() {
+	Service("LargeErrorSetClient", func() {
+		Method("ListAccounts", func() {
+			Result(ArrayOf(String))
+			for i := 0; i < 60; i++ {
+				Error(fmt.Sprintf("error_%02d", i))
+			}
 		})
 	})
 }

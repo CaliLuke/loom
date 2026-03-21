@@ -55,6 +55,22 @@ func TestClient(t *testing.T) {
 	}
 }
 
+func TestClientLargeErrorSetCommentsRemainValidGo(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.LargeErrorSetClientDSL)
+	services := NewServicesData(root)
+	require.Len(t, root.Services, 1)
+	fs := ClientFile("test/gen", root.Services[0], services)
+	require.NotNil(t, fs)
+	buf := new(bytes.Buffer)
+	for _, s := range fs.AllSections()[1:] {
+		require.NoError(t, s.Write(buf))
+	}
+	code := strings.ReplaceAll(buf.String(), "\r\n", "\n")
+	require.NotContains(t, code, "internal error func")
+	require.Contains(t, code, `func (c *Client) ListAccounts(`)
+	_ = canonicalGoFragment(t, code)
+}
+
 func canonicalGoFragment(t *testing.T, code string) string {
 	t.Helper()
 	wrapped := "package fragment\n\n" + code
