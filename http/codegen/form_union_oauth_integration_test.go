@@ -11,6 +11,8 @@ import (
 	cg "goa.design/goa/v3/codegen"
 	servicecodegen "goa.design/goa/v3/codegen/service"
 	. "goa.design/goa/v3/dsl"
+	"goa.design/goa/v3/expr"
+	"goa.design/goa/v3/http/codegen/testdata"
 )
 
 func TestFormRequestUnionOAuthIntegration(t *testing.T) {
@@ -20,25 +22,50 @@ func TestFormRequestUnionOAuthIntegration(t *testing.T) {
 	)
 
 	root := RunHTTPDSL(t, oauthFormRequestUnionDSL)
+	dir := t.TempDir()
+	renderHTTPModule(t, dir, modulePath, root)
+
+	if err := os.WriteFile(filepath.Join(dir, "integration_test.go"), []byte(oauthIntegrationHarness), 0644); err != nil {
+		t.Fatalf("write integration harness: %v", err)
+	}
+
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "test", "./...")
+}
+
+func TestLargeErrorSetHTTPClientIntegration(t *testing.T) {
+	const modulePath = "example.com/largeerrorsit"
+
+	root := RunHTTPDSL(t, testdata.LargeErrorSetHTTPClientDSL)
+	dir := t.TempDir()
+	renderHTTPModule(t, dir, modulePath, root)
+
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "test", "./...")
+}
+
+func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {
+	t.Helper()
+
+	genpkg := modulePath + "/gen"
 	serviceData := servicecodegen.NewServicesData(root)
 	httpData := CreateHTTPServices(root)
 
-	files := servicecodegen.Files(genpkg, root.Services[0], serviceData, make(map[string][]string))
+	var files []*cg.File
+	userTypePkgs := make(map[string][]string)
+	for _, service := range root.Services {
+		files = append(files, servicecodegen.Files(genpkg, service, serviceData, userTypePkgs)...)
+		files = append(files, servicecodegen.EndpointFile(genpkg, service, serviceData))
+	}
 	files = append(files, PathFiles(httpData)...)
 	files = append(files, ClientTypeFiles(genpkg, httpData)...)
 	files = append(files, ClientFiles(genpkg, httpData)...)
 	files = append(files, ServerTypeFiles(genpkg, httpData)...)
-	for _, svc := range httpData.Expressions.Services {
-		if file := ServerEncodeDecodeFile(genpkg, svc, httpData); file != nil {
-			files = append(files, file)
-		}
-	}
+	files = append(files, ServerFiles(genpkg, httpData)...)
 
-	dir := t.TempDir()
 	renderGeneratedFiles(t, dir, files)
 
 	repoRoot := checkoutPinnedGoaModule(t, dir)
-
 	goMod := fmt.Sprintf(`module %s
 
 go 1.25.0
@@ -50,13 +77,6 @@ replace goa.design/goa/v3 => %s
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-
-	if err := os.WriteFile(filepath.Join(dir, "integration_test.go"), []byte(oauthIntegrationHarness), 0644); err != nil {
-		t.Fatalf("write integration harness: %v", err)
-	}
-
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "test", "./...")
 }
 
 func checkoutPinnedGoaModule(t *testing.T, parentDir string) string {
