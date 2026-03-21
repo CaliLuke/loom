@@ -1,16 +1,19 @@
-# Typed Generator IR Pilot for OpenAPI v3
+# Typed Generator IR for OpenAPI v3
 
 ## Summary
-Introduce a typed generator IR layer between `expr` and code generation, using OpenAPI v3 as the first vertical slice. The pilot will move naming, schema-shape, deduplication, discriminator, and example decisions out of ad hoc renderer helpers into explicit IR construction. Rendering for OpenAPI remains structured-object based. Future Go-emitter migrations are planned to target `jennifer` by default, but that decision is deferred from the pilot.
+The OpenAPI v3 generator now uses a typed IR layer between `expr` and code
+generation. Naming, schema-shape, deduplication, discriminator, and example
+decisions live in explicit IR construction instead of ad hoc renderer helpers.
+Rendering for OpenAPI remains structured-object based.
 
 Success means:
 - OpenAPI v3 generation still produces byte-for-byte equivalent specs or intentionally equivalent structured output with existing tests updated only where formatting requires it.
 - `schemafy`-style logic is no longer the place where both analysis and rendering decisions are mixed.
-- The new IR is reusable by at least one additional generator after the pilot without redesign.
+- The IR is reusable by adjacent generator code without redesign.
 
 ## Current Status
 
-Completed in the pilot so far:
+Current implementation:
 - Typed OpenAPI IR package under `http/codegen/openapi/internal/ir` covering
   schemas, components, request bodies, responses, headers, parameters, media
   types, examples, and operation metadata.
@@ -22,17 +25,17 @@ Completed in the pilot so far:
 - `http/codegen/openapi/v3` now consumes the IR for endpoint operation shape
   and component reuse instead of carrying separate legacy builders for
   parameters, responses, and post-render component identity.
-- A first `jennifer`-backed Go-emitter pilot now exists in `http/codegen` for
-  HTTP client transport generation. The `Client` struct, `NewClient`, and
-  endpoint initializer sections render through `codegen.JenniferSection`
-  helpers instead of logic-heavy `text/template` sections, while the heavier
-  request/response encode-decode paths remain template-backed for now.
+- Go-source generator sections are implemented in Go through the shared
+  section model (`codegen.Section`, `codegen.JenniferSection`,
+  `codegen.RawSection`) rather than file-backed Go template assets.
+- Non-Go text artifacts still use template rendering where it is the simplest
+  fit, and those assets use neutral `.tmpl` filenames.
 
-Remaining follow-up after this pilot pass:
-- Keep expanding typed IR reuse into adjacent OpenAPI generation seams where it
-  removes remaining ad hoc renderer decisions.
-- Extend the `jennifer` pilot into additional Go emitters where it reduces
-  template/business-logic mixing without forcing a repo-wide rewrite.
+Remaining follow-up:
+- Keep expanding typed IR reuse where it removes remaining ad hoc OpenAPI
+  renderer decisions.
+- Keep the Go-source generator architecture on the shared section model and use
+  typed Go emission for new logic-heavy sections by default.
 
 ## Implementation Changes
 ### 1. Add a generator IR package for HTTP/OpenAPI schema and endpoint description
@@ -73,23 +76,25 @@ Phase B: IR rendering to current OpenAPI structs
 - Keep `http/codegen/openapi/v3/files.go` as a thin serialization layer over the final OpenAPI document object.
 - Rendering must not decide names, dedupe, or inspect DSL metadata beyond what the IR already resolved.
 
-### 3. Keep the first migration bounded to OpenAPI v3 body/schema generation
-Do not migrate all of OpenAPI v3 at once. Limit the pilot to the code path currently centered on body/schema generation and component registration.
+### 3. Keep the OpenAPI IR responsibility bounded and explicit
+Do not broaden the IR without a clear contract need. Keep the current split
+centered on body/schema generation, operation metadata, and reusable component
+registration.
 
-In scope for the pilot:
+In scope:
 - Request/response body schema construction.
 - Component schema registration and reuse.
 - Union/discriminator and envelope schema generation.
 - Example and validation projection as used by body schemas.
 
-Out of scope for the pilot:
+Out of scope:
 - Rewriting JSON/YAML serialization.
-- Replacing non-OpenAPI Go code emitters.
-- Converting template-heavy HTTP/gRPC/JSON-RPC Go generation.
-- Introducing `jennifer` or raw AST in this pilot.
+- Replacing non-OpenAPI artifact generators that already have an adequate
+  contract surface.
+- Expanding the IR into unrelated transport/runtime concerns.
 
 ### 4. Preserve and formalize compatibility behavior
-The pilot must preserve the current behavior for:
+The implementation must preserve the current behavior for:
 - Explicit OpenAPI typenames and canonical body component names.
 - Structural deduplication of generated request/response body schemas.
 - Distinct explicit names when schemas differ.
@@ -100,16 +105,13 @@ The pilot must preserve the current behavior for:
 
 Where behavior is currently implicit, promote it into named IR policies/helpers so future generators do not need to rediscover it.
 
-### 5. Define the staged migration path after the pilot
-After OpenAPI v3 is stable on the IR:
-1. Extend the same IR concepts to shared schema/body analysis used by other OpenAPI-related paths.
-2. Add a second pilot for a Go emitter that currently has high template complexity, with HTTP server/client generation the preferred candidate.
-3. Adopt `jennifer` as the default rendering backend for new Go-emitter code
-   paths while keeping raw AST limited to post-processing or narrow
-   syntax-sensitive cases. The initial shipped pilot is the HTTP client
-   transport file.
-4. Retire template/business-logic mixing incrementally, not in a single
-   rewrite.
+### 5. Keep the generator architecture consistent
+For follow-up generator work:
+1. Extend the same IR concepts to adjacent OpenAPI-related analysis where it
+   removes duplicated contract logic.
+2. Keep Go-source generation on the shared section model.
+3. Use typed Go emission by default for new logic-heavy generator sections.
+4. Keep raw AST limited to finalization or narrow syntax-sensitive cleanup.
 
 ## Public API / Interface Additions
 The plan should keep public DSL and generated surface behavior unchanged.
@@ -120,7 +122,7 @@ New internal interfaces/types to add:
 - A renderer interface or package function that converts IR to OpenAPI v3 structs.
 
 No user-facing DSL changes.
-Internal dependency added for the Go-emitter pilot:
+Internal dependency used by typed Go emitters:
 - `github.com/dave/jennifer/jen`
 
 ## Test Plan
@@ -142,13 +144,15 @@ Acceptance criteria:
 - `go test ./http/codegen/openapi/v3` passes throughout.
 - Any new IR package has focused seam tests that do not depend on full DSL runs unless required.
 - No generated spec regressions beyond formatting-only differences.
-- The `jennifer` helper path has focused seam coverage and at least one
-  transport-generation package (`http/codegen`) passes both direct section
-  checks and the temp-module/local-source loop.
+- The typed Go-emitter path has focused seam coverage and the relevant
+  transport-generation packages pass direct section checks plus the
+  temp-module/local-source loop where applicable.
 
 ## Assumptions and Defaults
-- The first pilot is OpenAPI v3 only.
-- The plan includes both the pilot implementation shape and the staged migration path for the broader framework.
-- The pilot is renderer-neutral and does not choose `jennifer` or raw AST.
-- Future Go-emitter migrations should default to `jennifer`, not raw `go/ast`.
+- OpenAPI v3 remains the canonical IR-backed contract generator in this plan.
+- The Go-source generator architecture is already standardized on the shared
+  section model.
+- The OpenAPI IR remains renderer-neutral.
+- Future Go-source generator work should default to typed Go emission, not raw
+  `go/ast`.
 - Raw AST remains acceptable only for narrow cleanup/finalization cases, similar to the current import/format handling.

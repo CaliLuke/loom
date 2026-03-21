@@ -27,10 +27,14 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
   `http/codegen/openapi/internal/ir` first. That package now owns schema,
   parameter, operation-metadata, and reusable-component analysis; the
   `http/codegen/openapi/v3` package should mostly render IR-owned decisions.
-- When adding or refactoring Go-source generation in framework code, prefer the
-  shared `codegen.JenniferSection` / `codegen.MustJenniferSection` path over
-  adding new logic-heavy `text/template` sections. The first shipped pilot is
-  the HTTP client transport file in `http/codegen/client.go`.
+- Go-source generation in framework code should be implemented in Go via the
+  generic section model (`codegen.Section`, `codegen.JenniferSection`,
+  `codegen.RawSection`) rather than file-backed template assets.
+- Use `codegen.JenniferSection` when a section benefits from typed Go emission.
+  Use `codegen.RawSection` when direct source assembly is simpler and keeps the
+  logic local and explicit.
+- Non-Go artifact generation may still use text templates, but those assets
+  should use neutral `.tmpl` names rather than Go-specific suffixes.
 - Structurally identical generated OpenAPI components are deduplicated and reused by `$ref`.
 - For explicit HTTP `Body(...)` request/response types, `Meta("openapi:typename", "...")` is the public OpenAPI component name contract. When two non-equivalent explicit body schemas claim the same name, generation fails instead of leaking a hash-suffixed fallback into the spec.
 - Treat that failure as a modeling conflict, not as a cue to add more aliases. It usually means one DSL type is being asked to represent both the semantic service/result shape and a transport-only projection (for example, “same object minus cookie/header fields”).
