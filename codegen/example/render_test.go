@@ -1,0 +1,52 @@
+package example
+
+import (
+	"bytes"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"goa.design/goa/v3/codegen"
+	"goa.design/goa/v3/codegen/service"
+	. "goa.design/goa/v3/dsl"
+)
+
+func TestServerFilesOmitUnusedHostOverrideFlags(t *testing.T) {
+	t.Cleanup(func() {
+		Servers = make(ServersData)
+	})
+	Servers = make(ServersData)
+
+	root := codegen.RunDSL(t, func() {
+		API("Quickstart", func() {
+			Server("orchestrator", func() {
+				Services("orchestrator")
+			})
+		})
+		Service("orchestrator", func() {
+			Method("run", func() {
+				HTTP(func() {
+					GET("/")
+				})
+			})
+		})
+	})
+	services := service.NewServicesData(root)
+	files := ServerFiles(filepath.Join("example.com", "quickstart"), root, services)
+	require.Len(t, files, 1)
+
+	var buf bytes.Buffer
+	for _, section := range files[0].AllSections()[1:] {
+		require.NoError(t, section.Write(&buf))
+	}
+	code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
+
+	if strings.Contains(code, "domainF = flag.String") {
+		t.Errorf("expected generated server main to omit domain flag when no server URIs are rendered")
+	}
+	if strings.Contains(code, "secureF = flag.Bool") {
+		t.Errorf("expected generated server main to omit secure flag when no server URIs are rendered")
+	}
+}

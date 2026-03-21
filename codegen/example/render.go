@@ -189,11 +189,14 @@ func renderUsage(apiName string, server *Data, hasJSONRPC, hasHTTP bool) string 
 
 func renderServerMain(server *Data, svcData []*service.Data, apiPkg, interPkg string, hasInterceptors bool, root *expr.RootExpr) string {
 	var b strings.Builder
+	usesHostOverrideFlags := serverHasRenderedURIs(server)
 	fmt.Fprintf(&b, "func main() {\n")
 	fmt.Fprintf(&b, "\t%s\n", codegen.Comment("Define command line flags, add any other flag required to configure the service."))
 	fmt.Fprintf(&b, "\tvar(\n")
 	fmt.Fprintf(&b, "\t\thostF = flag.String(%q, %q, %q)\n", "host", server.DefaultHost().Name, fmt.Sprintf("Server host (valid values: %s)", strings.Join(server.AvailableHosts(), ", ")))
-	fmt.Fprintf(&b, "\t\tdomainF = flag.String(%q, %q, %q)\n", "domain", "", "Host domain name (overrides host domain specified in service design)")
+	if usesHostOverrideFlags {
+		fmt.Fprintf(&b, "\t\tdomainF = flag.String(%q, %q, %q)\n", "domain", "", "Host domain name (overrides host domain specified in service design)")
+	}
 	for _, t := range server.Transports {
 		fmt.Fprintf(&b, "\t\t%sPortF = flag.String(%q, %q, %q)\n", t.Type, string(t.Type)+"-port", "", fmt.Sprintf("%s port (overrides host %s port specified in service design)", t.Name, t.Name))
 	}
@@ -204,7 +207,9 @@ func renderServerMain(server *Data, svcData []*service.Data, apiPkg, interPkg st
 		}
 		fmt.Fprintf(&b, "\t\t%sF = flag.String(%q, %q, %q)\n", v.VarName, v.Name, v.DefaultValue, desc)
 	}
-	fmt.Fprintf(&b, "\t\tsecureF = flag.Bool(%q, false, %q)\n", "secure", "Use secure scheme (https or grpcs)")
+	if usesHostOverrideFlags {
+		fmt.Fprintf(&b, "\t\tsecureF = flag.Bool(%q, false, %q)\n", "secure", "Use secure scheme (https or grpcs)")
+	}
 	fmt.Fprintf(&b, "\t\tdbgF  = flag.Bool(%q, false, %q)\n", "debug", "Log request and response bodies")
 	fmt.Fprintf(&b, "\t)\n")
 	fmt.Fprintf(&b, "\tflag.Parse()\n\n")
@@ -283,6 +288,17 @@ func renderServerMain(server *Data, svcData []*service.Data, apiPkg, interPkg st
 	fmt.Fprintf(&b, "\tlog.Printf(ctx, \"exited\")\n")
 	fmt.Fprintf(&b, "}\n")
 	return b.String()
+}
+
+func serverHasRenderedURIs(server *Data) bool {
+	for _, host := range server.Hosts {
+		for _, uri := range host.URIs {
+			if server.HasTransport(uri.Transport.Type) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func writeVariableReplacement(b *strings.Builder, vars []*VariableData, fatal bool) {
