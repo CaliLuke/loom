@@ -8,9 +8,9 @@ import (
 	gocodegen "goa.design/goa/v3/codegen"
 )
 
-func clientStructSection(data *ServiceData) *gocodegen.SectionTemplate {
+func clientStructSection(data *ServiceData) gocodegen.Section {
 	return gocodegen.MustJenniferSection("client-struct", func(stmt *jen.Statement) {
-		stmt.Comment(gocodegen.Comment(fmt.Sprintf("%s lists the %s service endpoint HTTP clients.", data.ClientStruct, data.Service.Name))).Line()
+		gocodegen.Doc(stmt, fmt.Sprintf("%s lists the %s service endpoint HTTP clients.", data.ClientStruct, data.Service.Name))
 		stmt.Type().Id(data.ClientStruct).StructFunc(func(group *jen.Group) {
 			for _, endpoint := range data.Endpoints {
 				group.Comment(gocodegen.Comment(fmt.Sprintf("%s Doer is the HTTP client used to make requests to the %s endpoint.", endpoint.Method.VarName, endpoint.Method.Name)))
@@ -33,9 +33,9 @@ func clientStructSection(data *ServiceData) *gocodegen.SectionTemplate {
 	})
 }
 
-func clientInitSection(data *ServiceData) *gocodegen.SectionTemplate {
+func clientInitSection(data *ServiceData) gocodegen.Section {
 	return gocodegen.MustJenniferSection("http-client-init", func(stmt *jen.Statement) {
-		stmt.Comment(gocodegen.Comment(fmt.Sprintf("New%s instantiates HTTP clients for all the %s service servers.", data.ClientStruct, data.Service.Name))).Line()
+		gocodegen.Doc(stmt, fmt.Sprintf("New%s instantiates HTTP clients for all the %s service servers.", data.ClientStruct, data.Service.Name))
 
 		fn := stmt.Func().Id("New" + data.ClientStruct).ParamsFunc(func(args *jen.Group) {
 			args.Id("scheme").String()
@@ -75,7 +75,7 @@ func clientInitSection(data *ServiceData) *gocodegen.SectionTemplate {
 	})
 }
 
-func clientEndpointSections(endpoint *EndpointData) []*gocodegen.SectionTemplate {
+func clientEndpointSections(endpoint *EndpointData) []gocodegen.Section {
 	if endpoint.HasMixedResults {
 		standard := *endpoint
 		standard.SSE = nil
@@ -83,18 +83,18 @@ func clientEndpointSections(endpoint *EndpointData) []*gocodegen.SectionTemplate
 		sseEndpoint := *endpoint
 		sseEndpoint.EndpointInit = endpoint.EndpointInit + "Stream"
 
-		return []*gocodegen.SectionTemplate{
+		return []gocodegen.Section{
 			clientEndpointSection(&standard),
 			clientEndpointSection(&sseEndpoint),
 		}
 	}
 
-	return []*gocodegen.SectionTemplate{clientEndpointSection(endpoint)}
+	return []gocodegen.Section{clientEndpointSection(endpoint)}
 }
 
-func clientEndpointSection(endpoint *EndpointData) *gocodegen.SectionTemplate {
+func clientEndpointSection(endpoint *EndpointData) gocodegen.Section {
 	return gocodegen.MustJenniferSection("client-endpoint-init", func(stmt *jen.Statement) {
-		stmt.Comment(gocodegen.Comment(fmt.Sprintf("%s returns an endpoint that makes HTTP requests to the %s service %s server.", endpoint.EndpointInit, endpoint.ServiceName, endpoint.Method.Name))).Line()
+		gocodegen.Doc(stmt, fmt.Sprintf("%s returns an endpoint that makes HTTP requests to the %s service %s server.", endpoint.EndpointInit, endpoint.ServiceName, endpoint.Method.Name))
 
 		fn := stmt.Func().Params(jen.Id("c").Op("*").Id(endpoint.ClientStruct)).Id(endpoint.EndpointInit)
 		if endpoint.MultipartRequestEncoder != nil {

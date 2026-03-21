@@ -23,10 +23,25 @@ import (
 const Gendir = "gen"
 
 type (
+	// A Section renders one file fragment.
+	Section interface {
+		// SectionName returns the stable section identifier used by tests and
+		// merge logic.
+		SectionName() string
+		// Write writes the rendered section content to the given writer.
+		Write(io.Writer) error
+	}
+
 	// A File contains the logic to generate a complete file.
 	File struct {
+		// Sections is the list of file sections in order of rendering. New
+		// generator code should prefer this field over SectionTemplates.
+		Sections []Section
 		// SectionTemplates is the list of file section templates in
 		// order of rendering.
+		//
+		// Deprecated: kept for compatibility while generators migrate to the
+		// generic Section abstraction.
 		SectionTemplates []*SectionTemplate
 		// Path returns the file path relative to the output directory.
 		Path string
@@ -53,15 +68,46 @@ type (
 	}
 )
 
-// Section returns the section templates with the given name or nil if not found.
-func (f *File) Section(name string) []*SectionTemplate {
-	var sts []*SectionTemplate
-	for _, s := range f.SectionTemplates {
-		if s.Name == name {
+// Section returns the sections with the given name or nil if not found.
+func (f *File) Section(name string) []Section {
+	var sts []Section
+	for _, s := range f.AllSections() {
+		if s.SectionName() == name {
 			sts = append(sts, s)
 		}
 	}
 	return sts
+}
+
+// AllSections returns all file sections using the generic section abstraction.
+func (f *File) AllSections() []Section {
+	if len(f.Sections) > 0 {
+		return f.Sections
+	}
+	if len(f.SectionTemplates) == 0 {
+		return nil
+	}
+	sections := make([]Section, len(f.SectionTemplates))
+	for i, s := range f.SectionTemplates {
+		sections[i] = s
+	}
+	return sections
+}
+
+// SetSections replaces the file sections with the given generic section list.
+func (f *File) SetSections(sections []Section) {
+	f.Sections = sections
+	f.SectionTemplates = nil
+}
+
+// HeaderTemplate returns the first section when it is a template-backed header.
+func (f *File) HeaderTemplate() *SectionTemplate {
+	sections := f.AllSections()
+	if len(sections) == 0 {
+		return nil
+	}
+	header, _ := sections[0].(*SectionTemplate)
+	return header
 }
 
 // Render executes the file section templates and writes the resulting bytes to
@@ -87,7 +133,7 @@ func (f *File) Render(dir string) (string, error) {
 
 	// Render all sections to a buffer instead of directly to file
 	var buf bytes.Buffer
-	for _, s := range f.SectionTemplates {
+	for _, s := range f.AllSections() {
 		if err := s.Write(&buf); err != nil {
 			return "", err
 		}
@@ -117,8 +163,16 @@ func (f *File) Render(dir string) (string, error) {
 	return path, nil
 }
 
+// SectionName returns the stable identifier of the section.
+func (s *SectionTemplate) SectionName() string {
+	return s.Name
+}
+
 // Write writes the section to the given writer.
 func (s *SectionTemplate) Write(w io.Writer) error {
+	if s.Name == "source-header" {
+		return renderHeaderSection(w, HeaderSectionData(s))
+	}
 	funcs := TemplateFuncs()
 	maps.Copy(funcs, s.FuncMap)
 	tmpl := template.Must(template.New(s.Name).Funcs(funcs).Parse(s.Source))

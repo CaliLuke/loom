@@ -3,7 +3,6 @@ package example
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
@@ -48,60 +47,16 @@ func exampleCLIMain(_ string, root *expr.RootExpr, svr *expr.ServerExpr) *codege
 		{Path: "strings"},
 		codegen.GoaImport(""),
 	}
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
-		{
-			Name:   "cli-main-start",
-			Source: exampleTemplates.Read(clientStartT),
-			Data: map[string]any{
-				"Server":     svrdata,
-				"HasJSONRPC": hasJSONRPC(root, svr),
-				"HasHTTP":    hasHTTP(root, svr),
-			},
-			FuncMap: map[string]any{
-				"join": strings.Join,
-			},
-		}, {
-			Name:   "cli-main-var-init",
-			Source: exampleTemplates.Read(clientVarInitT),
-			Data: map[string]any{
-				"Server": svrdata,
-			},
-			FuncMap: map[string]any{
-				"join": strings.Join,
-			},
-		}, {
-			Name:   "cli-main-endpoint-init",
-			Source: exampleTemplates.Read(clientEndpointInitT),
-			Data: map[string]any{
-				"Server":     svrdata,
-				"Root":       root,
-				"HasJSONRPC": hasJSONRPC(root, svr),
-				"HasHTTP":    hasHTTP(root, svr),
-			},
-			FuncMap: map[string]any{
-				"join":    strings.Join,
-				"toUpper": strings.ToUpper,
-			},
-		}, {
-			Name:   "cli-main-end",
-			Source: exampleTemplates.Read(clientEndT),
-		}, {
-			Name:   "cli-main-usage",
-			Source: exampleTemplates.Read(clientUsageT),
-			Data: map[string]any{
-				"APIName":    root.API.Name,
-				"Server":     svrdata,
-				"HasJSONRPC": hasJSONRPC(root, svr),
-				"HasHTTP":    hasHTTP(root, svr),
-			},
-			FuncMap: map[string]any{
-				"toUpper": strings.ToUpper,
-				"join":    strings.Join,
-			},
-		},
+		newRenderSection("cli-main", func() string {
+			return renderClientMain(svrdata, root, hasJSONRPC(root, svr), hasHTTP(root, svr))
+		}),
+		newRenderSection("cli-main-usage", func() string {
+			return renderUsage(root.API.Name, svrdata, hasJSONRPC(root, svr), hasHTTP(root, svr))
+		}),
 	}
-	return &codegen.File{Path: path, SectionTemplates: sections, SkipExist: true}
+	return &codegen.File{Path: path, Sections: sections, SkipExist: true}
 }
 
 // hasJSONRPC returns true if the server expression has a JSON-RPC server.

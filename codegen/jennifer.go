@@ -1,31 +1,28 @@
 package codegen
 
-import (
-	"bytes"
-	"fmt"
+import "github.com/dave/jennifer/jen"
 
-	"github.com/dave/jennifer/jen"
-)
-
-// JenniferSection renders a Jennifer statement into a file section.
-func JenniferSection(name string, build func(*jen.Statement)) (*SectionTemplate, error) {
-	stmt := jen.Empty()
-	build(stmt)
-
-	var buf bytes.Buffer
-	if err := stmt.Render(&buf); err != nil {
-		return nil, fmt.Errorf("render jennifer section %q: %w", name, err)
-	}
-
-	return &SectionTemplate{Name: name, Source: buf.String()}, nil
+// NewJenniferSection builds a Jennifer-backed section.
+func NewJenniferSection(name string, build func(*jen.Statement)) Section {
+	return &JenniferSection{Name: name, Build: build}
 }
 
-// MustJenniferSection renders a Jennifer statement into a file section and
-// panics if rendering fails.
-func MustJenniferSection(name string, build func(*jen.Statement)) *SectionTemplate {
-	section, err := JenniferSection(name, build)
-	if err != nil {
-		panic(err)
-	}
-	return section
+// MustJenniferSection builds a Jennifer-backed section.
+func MustJenniferSection(name string, build func(*jen.Statement)) Section {
+	return NewJenniferSection(name, build)
+}
+
+// Doc appends a wrapped Go doc comment followed by a blank line.
+func Doc(stmt *jen.Statement, text string) *jen.Statement {
+	return stmt.Comment(Comment(text)).Line()
+}
+
+// Expr renders a precomputed Go expression as-is.
+func Expr(code string) *jen.Statement {
+	return jen.Id(code)
+}
+
+// TypeRef renders a precomputed Go type reference as-is.
+func TypeRef(ref string) *jen.Statement {
+	return Expr(ref)
 }

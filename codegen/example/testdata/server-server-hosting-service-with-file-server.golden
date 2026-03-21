@@ -63,7 +63,6 @@ func main() {
 			}
 			handleHTTPServer(ctx, u, &wg, errc, *dbgF)
 		}
-
 	default:
 		log.Fatal(ctx, fmt.Errorf("invalid host argument: %q (valid hosts: svc)", *hostF))
 	}

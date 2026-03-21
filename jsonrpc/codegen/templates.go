@@ -67,13 +67,18 @@ var jsonrpcTemplates = &template.TemplateReader{FS: templateFS}
 // updateHeader modifies the header of the given file to be JSON-RPC specific.
 func updateHeader(f *codegen.File) {
 	// Update the title
-	header := f.SectionTemplates[0]
-	title := strings.Replace(header.Data.(map[string]any)["Title"].(string), "HTTP", "JSON-RPC", 1)
-	header.Data.(map[string]any)["Title"] = title
+	header := f.HeaderTemplate()
+	if header == nil {
+		return
+	}
+	data := codegen.HeaderSectionData(header)
+	if data == nil {
+		return
+	}
+	data.Title = strings.Replace(data.Title, "HTTP", "JSON-RPC", 1)
 
 	// Update the imports
-	imports := header.Data.(map[string]any)["Imports"].([]*codegen.ImportSpec)
-	for _, i := range imports {
+	for _, i := range data.Imports {
 		i.Path = strings.Replace(i.Path, "gen/http", "gen/jsonrpc", 1)
 	}
 }

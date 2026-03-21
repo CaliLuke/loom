@@ -83,7 +83,6 @@ func main() {
 			}
 			handleHTTPServer(ctx, u, serviceEndpoints, &wg, errc, *dbgF)
 		}
-
 		{
 			addr := "https://example:80"
 			u, err := url.Parse(addr)
@@ -107,7 +106,6 @@ func main() {
 			}
 			handleHTTPServer(ctx, u, serviceEndpoints, &wg, errc, *dbgF)
 		}
-
 		{
 			addr := "grpc://example:8080"
 			u, err := url.Parse(addr)
@@ -131,7 +129,6 @@ func main() {
 			}
 			handleGRPCServer(ctx, u, serviceEndpoints, &wg, errc, *dbgF)
 		}
-
 		{
 			addr := "http://[::1]:8080"
 			u, err := url.Parse(addr)
@@ -155,7 +152,6 @@ func main() {
 			}
 			handleHTTPServer(ctx, u, serviceEndpoints, &wg, errc, *dbgF)
 		}
-
 	default:
 		log.Fatal(ctx, fmt.Errorf("invalid host argument: %q (valid hosts: dev)", *hostF))
 	}

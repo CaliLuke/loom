@@ -80,81 +80,14 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 		specs = append(specs, &codegen.ImportSpec{Path: path.Join(rootPath, "interceptors"), Name: interPkg})
 	}
 
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
-		{
-			Name:   "server-main-start",
-			Source: exampleTemplates.Read(serverStartT),
-			Data: map[string]any{
-				"Server": svrdata,
-			},
-			FuncMap: map[string]any{
-				"join": strings.Join,
-			},
-		}, {
-			Name:   "server-main-logger",
-			Source: exampleTemplates.Read(serverLoggerT),
-			Data: map[string]any{
-				"APIPkg": apiPkg,
-				"Server": svrdata,
-			},
-		}, {
-			Name:   "server-main-services",
-			Source: exampleTemplates.Read(serverServicesT),
-			Data: map[string]any{
-				"APIPkg":   apiPkg,
-				"Services": svcData,
-			},
-			FuncMap: map[string]any{
-				"mustInitServices": mustInitServices,
-			},
-		}, {
-			Name:   "server-main-interceptors",
-			Source: exampleTemplates.Read(serverInterceptorsT),
-			Data: map[string]any{
-				"APIPkg":          apiPkg,
-				"InterPkg":        interPkg,
-				"Services":        svcData,
-				"HasInterceptors": hasInterceptors,
-			},
-			FuncMap: map[string]any{
-				"mustInitServices": mustInitServices,
-			},
-		}, {
-			Name:   "server-main-endpoints",
-			Source: exampleTemplates.Read(serverEndpointsT),
-			Data: map[string]any{
-				"Services": svcData,
-			},
-			FuncMap: map[string]any{
-				"mustInitServices": mustInitServices,
-			},
-		}, {
-			Name:   "server-main-interrupts",
-			Source: exampleTemplates.Read(serverInterruptsT),
-		}, {
-			Name:   "server-main-handler",
-			Source: exampleTemplates.Read(serverHandlerT),
-			Data: map[string]any{
-				"Server":   svrdata,
-				"Services": svcData,
-			},
-			FuncMap: map[string]any{
-				"goify":   codegen.Goify,
-				"join":    strings.Join,
-				"toUpper": strings.ToUpper,
-				"hasJSONRPCEndpoints": func(svcData *service.Data) bool {
-					return hasJSONRPCEndpoints(root, svcData)
-				},
-			},
-		},
-		{
-			Name:   "server-main-end",
-			Source: exampleTemplates.Read(serverEndT),
-		},
+		newRenderSection("server-main", func() string {
+			return renderServerMain(svrdata, svcData, apiPkg, interPkg, hasInterceptors, root)
+		}),
 	}
 
-	return &codegen.File{Path: mainPath, SectionTemplates: sections, SkipExist: true}
+	return &codegen.File{Path: mainPath, Sections: sections, SkipExist: true}
 }
 
 // mustInitServices returns true if at least one of the services defines methods.

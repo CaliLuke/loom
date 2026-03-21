@@ -141,7 +141,7 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 		cliData[i] = cmd.CommandData
 	}
 
-	sections := make([]*codegen.SectionTemplate, 0, 4+len(cliData))
+	sections := make([]codegen.Section, 0, 4+len(cliData))
 	sections = append(sections,
 		codegen.Header(title, "cli", specs),
 		cli.UsageCommands(cliData),
@@ -162,7 +162,7 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 	for _, cmd := range cliData {
 		sections = append(sections, cli.CommandUsage(cmd))
 	}
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // payloadBuilders returns the file that contains the payload constructors that
@@ -182,7 +182,7 @@ func payloadBuilders(genpkg string, svc *expr.HTTPServiceExpr, data *cli.Command
 		codegen.GoaNamedImport("http", "goahttp"),
 		{Path: genpkg + "/" + sd.Service.PathName, Name: sd.Service.PkgName},
 	}
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(title, "client", specs),
 	}
 	for _, sub := range data.Subcommands {
@@ -191,7 +191,7 @@ func payloadBuilders(genpkg string, svc *expr.HTTPServiceExpr, data *cli.Command
 		}
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // buildFlags builds the flag data and build function for an endpoint.

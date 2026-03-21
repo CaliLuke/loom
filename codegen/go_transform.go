@@ -4,23 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	"text/template"
 
 	"goa.design/goa/v3/expr"
 )
-
-var transformGoArrayT, transformGoMapT, transformGoUnionT *template.Template
-
-// NOTE: can't initialize inline because https://github.com/golang/go/issues/1817
-func init() {
-	fm := template.FuncMap{
-		"transformAttribute":  transformAttribute,
-		"transformHelperName": transformHelperName,
-	}
-	transformGoArrayT = template.Must(template.New("transformGoArray").Funcs(fm).Parse(codegenTemplates.Read(transformGoArrayTmplName)))
-	transformGoMapT = template.Must(template.New("transformGoMap").Funcs(fm).Parse(codegenTemplates.Read(transformGoMapTmplName)))
-	transformGoUnionT = template.Must(template.New("transformGoUnion").Funcs(fm).Parse(codegenTemplates.Read(transformGoUnionTmplName)))
-}
 
 // GoTransform produces Go code that initializes the data structure defined
 // by target from an instance of the data structure described by source.
@@ -399,11 +385,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		"LoopVar":        string(rune(105 + strings.Count(targetVar, "["))),
 		"IsStruct":       expr.IsObject(target.ElemType.Type),
 	}
-	var buf bytes.Buffer
-	if err := transformGoArrayT.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return renderTransformGoArray(data)
 }
 
 // transformMap generates Go code to transform source map to target map.
@@ -432,11 +414,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	if depth := MapDepth(target); depth > 0 {
 		data["LoopVar"] = string(rune(97 + depth))
 	}
-	var buf bytes.Buffer
-	if err := transformGoMapT.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return renderTransformGoMap(data)
 }
 
 // transformUnion generates Go code to transform source union to target union.
@@ -521,11 +499,132 @@ func transformUnion(source, target *expr.AttributeExpr, sourceVar, targetVar str
 		"TransformAttrs":  ta,
 	}
 
+	return renderTransformGoUnion(data)
+}
+
+func renderTransformGoArray(data map[string]any) (string, error) {
 	var buf bytes.Buffer
-	if err := transformGoUnionT.Execute(&buf, data); err != nil {
-		return "", err
+	targetVar := data["TargetVar"].(string)
+	sourceVar := data["SourceVar"].(string)
+	assign := "="
+	if data["NewVar"].(bool) {
+		assign = ":="
 	}
+	typeName := "[]" + data["ElemTypeRef"].(string)
+	if alias, ok := data["TypeAliasName"].(string); ok && alias != "" {
+		typeName = alias
+	}
+	loopVar := data["LoopVar"].(string)
+	fmt.Fprintf(&buf, "%s %s make(%s, len(%s))\n", targetVar, assign, typeName, sourceVar)
+	fmt.Fprintf(&buf, "for %s, val := range %s {\n", loopVar, sourceVar)
+	if data["IsStruct"].(bool) {
+		fmt.Fprintf(&buf, "\tif val == nil {\n")
+		fmt.Fprintf(&buf, "\t\t%s[%s] = nil\n", targetVar, loopVar)
+		fmt.Fprintf(&buf, "\t\tcontinue\n")
+		fmt.Fprintf(&buf, "\t}\n")
+		fmt.Fprintf(&buf, "\t%s[%s] = %s(val)\n", targetVar, loopVar, transformHelperName(data["SourceElem"].(*expr.AttributeExpr), data["TargetElem"].(*expr.AttributeExpr), data["TransformAttrs"].(*TransformAttrs)))
+	} else {
+		code, err := transformAttribute(data["SourceElem"].(*expr.AttributeExpr), data["TargetElem"].(*expr.AttributeExpr), "val", fmt.Sprintf("%s[%s]", targetVar, loopVar), false, data["TransformAttrs"].(*TransformAttrs))
+		if err != nil {
+			return "", err
+		}
+		buf.WriteString("\t" + indentTransformCode(code))
+	}
+	fmt.Fprintf(&buf, "}\n")
 	return buf.String(), nil
+}
+
+func renderTransformGoMap(data map[string]any) (string, error) {
+	var buf bytes.Buffer
+	targetVar := data["TargetVar"].(string)
+	sourceVar := data["SourceVar"].(string)
+	assign := "="
+	if data["NewVar"].(bool) {
+		assign = ":="
+	}
+	typeName := fmt.Sprintf("map[%s]%s", data["KeyTypeRef"].(string), data["ElemTypeRef"].(string))
+	if alias, ok := data["TypeAliasName"].(string); ok && alias != "" {
+		typeName = alias
+	}
+	loopVar := data["LoopVar"].(string)
+	fmt.Fprintf(&buf, "%s %s make(%s, len(%s))\n", targetVar, assign, typeName, sourceVar)
+	fmt.Fprintf(&buf, "for key, val := range %s {\n", sourceVar)
+	if data["IsKeyStruct"].(bool) {
+		fmt.Fprintf(&buf, "\ttk := %s(key)\n", transformHelperName(data["SourceKey"].(*expr.AttributeExpr), data["TargetKey"].(*expr.AttributeExpr), data["TransformAttrs"].(*TransformAttrs)))
+	} else {
+		code, err := transformAttribute(data["SourceKey"].(*expr.AttributeExpr), data["TargetKey"].(*expr.AttributeExpr), "key", "tk", true, data["TransformAttrs"].(*TransformAttrs))
+		if err != nil {
+			return "", err
+		}
+		buf.WriteString("\t" + indentTransformCode(code))
+	}
+	if data["IsElemStruct"].(bool) {
+		fmt.Fprintf(&buf, "\tif val == nil {\n")
+		fmt.Fprintf(&buf, "\t\t%s[tk] = nil\n", targetVar)
+		fmt.Fprintf(&buf, "\t\tcontinue\n")
+		fmt.Fprintf(&buf, "\t}\n")
+		fmt.Fprintf(&buf, "\t%s[tk] = %s(val)\n", targetVar, transformHelperName(data["SourceElem"].(*expr.AttributeExpr), data["TargetElem"].(*expr.AttributeExpr), data["TransformAttrs"].(*TransformAttrs)))
+	} else {
+		temp := "tv" + loopVar
+		code, err := transformAttribute(data["SourceElem"].(*expr.AttributeExpr), data["TargetElem"].(*expr.AttributeExpr), "val", temp, true, data["TransformAttrs"].(*TransformAttrs))
+		if err != nil {
+			return "", err
+		}
+		buf.WriteString("\t" + indentTransformCode(code))
+		fmt.Fprintf(&buf, "\t%s[tk] = %s\n", targetVar, temp)
+	}
+	fmt.Fprintf(&buf, "}\n")
+	return buf.String(), nil
+}
+
+func renderTransformGoUnion(data map[string]any) (string, error) {
+	var buf bytes.Buffer
+	sourceVar := data["SourceVar"].(string)
+	targetVar := data["TargetVar"].(string)
+	newVar := data["NewVar"].(bool)
+	typeRef := data["TypeRef"].(string)
+	targetIsPointer := data["TargetIsPointer"].(bool)
+	valueTypeRef := data["ValueTypeRef"].(string)
+	tempVarName := data["TempVarName"].(string)
+	transformAttrs := data["TransformAttrs"].(*TransformAttrs)
+	if newVar {
+		fmt.Fprintf(&buf, "var %s %s\n", targetVar, typeRef)
+	}
+	fmt.Fprintf(&buf, "switch string(%s.Kind()) {\n", sourceVar)
+	for _, c := range data["Cases"].([]map[string]any) {
+		fmt.Fprintf(&buf, "case %q:\n", c["CaseTag"].(string))
+		fmt.Fprintf(&buf, "\tactual, _ := %s.As%s()\n", sourceVar, c["SourceFieldName"].(string))
+		if c["UseHelper"].(bool) {
+			fmt.Fprintf(&buf, "\t%s := %s(actual)\n", tempVarName, c["HelperName"].(string))
+			fmt.Fprintf(&buf, "\n")
+		} else {
+			code, err := transformAttribute(c["SourceAttr"].(*expr.AttributeExpr), c["TargetAttr"].(*expr.AttributeExpr), "actual", tempVarName, true, transformAttrs)
+			if err != nil {
+				return "", err
+			}
+			buf.WriteString("\t" + indentTransformCode(code))
+		}
+		if newVar {
+			fmt.Fprintf(&buf, "\tvar u %s\n", valueTypeRef)
+			fmt.Fprintf(&buf, "\tu.Set%s((%s)(%s))\n", c["TargetFieldName"].(string), c["TargetCastType"].(string), tempVarName)
+			if targetIsPointer {
+				fmt.Fprintf(&buf, "\t%s = &u\n", targetVar)
+			} else {
+				fmt.Fprintf(&buf, "\t%s = u\n", targetVar)
+			}
+		} else {
+			fmt.Fprintf(&buf, "\tu := %s\n", targetVar)
+			fmt.Fprintf(&buf, "\tu.Set%s((%s)(%s))\n", c["TargetFieldName"].(string), c["TargetCastType"].(string), tempVarName)
+			fmt.Fprintf(&buf, "\t%s = u\n", targetVar)
+		}
+	}
+	fmt.Fprintf(&buf, "}\n")
+	return buf.String(), nil
+}
+
+func indentTransformCode(code string) string {
+	trimmed := strings.TrimSuffix(code, "\n")
+	return strings.ReplaceAll(trimmed, "\n", "\n\t") + "\n"
 }
 
 // transformAttributeHelpers returns the Go transform functions and their definitions

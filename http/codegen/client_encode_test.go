@@ -186,7 +186,7 @@ func TestClientEncode(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ClientFiles("", services)
 			require.Len(t, fs, 2)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			require.Greater(t, len(sections), 2)
 			code := codegen.SectionCode(t, sections[2])
 			testutil.AssertGo(t, "testdata/golden/client_encode_"+c.Name+".go.golden", code)
@@ -210,7 +210,7 @@ func TestClientBuildRequest(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ClientFiles("", services)
 			require.Len(t, fs, 2)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			require.Greater(t, len(sections), 2)
 			code := codegen.SectionCode(t, sections[1])
 			testutil.AssertGo(t, "testdata/golden/client_build_request_"+c.Name+".go.golden", code)

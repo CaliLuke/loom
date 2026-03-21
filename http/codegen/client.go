@@ -54,7 +54,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}
-	sections := []*codegen.SectionTemplate{codegen.Header(title, "client", imports)}
+	sections := []codegen.Section{codegen.Header(title, "client", imports)}
 
 	for _, e := range data.Endpoints {
 		sections = append(sections, &codegen.SectionTemplate{
@@ -128,7 +128,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		})
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // clientFile returns the client HTTP transport file
@@ -137,7 +137,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "http", svcName, "client", "client.go")
 	title := fmt.Sprintf("%s client HTTP transport", svc.Name())
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(title, "client", []*codegen.ImportSpec{
 			{Path: "context"},
 			{Path: "fmt"},
@@ -170,7 +170,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		sections = append(sections, clientEndpointSections(e)...)
 	}
 
-	return &codegen.File{Path: path, SectionTemplates: sections}
+	return &codegen.File{Path: path, Sections: sections}
 }
 
 // typeConversionData produces the template data suitable for executing the

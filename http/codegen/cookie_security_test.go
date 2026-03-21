@@ -84,7 +84,7 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 
 		clientFiles := ClientFiles("", services)
 		require.Len(t, clientFiles, 2)
-		clientEncode := codegen.SectionCode(t, clientFiles[1].SectionTemplates[2])
+		clientEncode := codegen.SectionCode(t, clientFiles[1].AllSections()[2])
 		require.Contains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
 		require.Contains(t, clientEncode, `Name:  "__Host-ak_session"`)
 		require.NotContains(t, clientEncode, "Authorization")
@@ -168,7 +168,7 @@ func TestSessionSecurityInfersCookieBinding(t *testing.T) {
 
 		clientFiles := ClientFiles("", services)
 		require.Len(t, clientFiles, 2)
-		clientEncode := codegen.SectionCode(t, clientFiles[1].SectionTemplates[2])
+		clientEncode := codegen.SectionCode(t, clientFiles[1].AllSections()[2])
 		require.Contains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
 		require.Contains(t, clientEncode, `Name:  "__Host-ak_session"`)
 		require.Contains(t, clientEncode, `"Authorization"`)

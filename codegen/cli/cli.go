@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/codegen/service"
 	"goa.design/goa/v3/expr"
@@ -245,9 +247,9 @@ func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunctio
 	return sub
 }
 
-// UsageCommands builds a section template that generates a help text showing
+// UsageCommands builds a section that generates a help text showing
 // the list of allowed commands and sub-commands.
-func UsageCommands(data []*CommandData) *codegen.SectionTemplate {
+func UsageCommands(data []*CommandData) codegen.Section {
 	usages := make([]string, len(data))
 	for i, cmd := range data {
 		subs := make([]string, len(cmd.Subcommands))
@@ -262,12 +264,23 @@ func UsageCommands(data []*CommandData) *codegen.SectionTemplate {
 		usages[i] = fmt.Sprintf("%s %s%s%s", cmd.Name, lp, strings.Join(subs, "|"), rp)
 	}
 
-	return &codegen.SectionTemplate{Source: cliTemplates.Read(usageCommandsT), Data: usages}
+	return codegen.MustJenniferSection("cli-usage-commands", func(stmt *jen.Statement) {
+		stmt.Comment("UsageCommands returns the set of commands and sub-commands using the format").Line()
+		stmt.Comment("").Line()
+		stmt.Comment("   command (subcommand1|subcommand2|...)").Line()
+		stmt.Func().Id("UsageCommands").Params().Index().String().BlockFunc(func(group *jen.Group) {
+			group.Return().Index().String().ValuesFunc(func(values *jen.Group) {
+				for _, usage := range usages {
+					values.Lit(usage)
+				}
+			})
+		})
+	})
 }
 
-// UsageExamples builds a section template that generates a help text showing
+// UsageExamples builds a section that generates a help text showing
 // a valid invocation of the CLI tool.
-func UsageExamples(data []*CommandData) *codegen.SectionTemplate {
+func UsageExamples(data []*CommandData) codegen.Section {
 	var examples []string
 	for i, cmd := range data {
 		if i < 5 {
@@ -275,7 +288,25 @@ func UsageExamples(data []*CommandData) *codegen.SectionTemplate {
 		}
 	}
 
-	return &codegen.SectionTemplate{Source: cliTemplates.Read(usageExamplesT), Data: examples}
+	return codegen.MustJenniferSection("cli-usage-examples", func(stmt *jen.Statement) {
+		stmt.Comment("UsageExamples produces an example of a valid invocation of the CLI tool.").Line()
+		stmt.Func().Id("UsageExamples").Params().String().BlockFunc(func(group *jen.Group) {
+			if len(examples) == 0 {
+				group.Return(jen.Lit(""))
+				return
+			}
+			var expr *jen.Statement
+			for i, example := range examples {
+				part := jen.Id("os").Dot("Args").Index(jen.Lit(0)).Op("+").Lit(" " + example + "\\n")
+				if i == 0 {
+					expr = part
+					continue
+				}
+				expr.Op("+").Add(part)
+			}
+			group.Return(expr)
+		})
+	})
 }
 
 // FlagsCode returns a string containing the code that parses the command-line
@@ -283,43 +314,190 @@ func UsageExamples(data []*CommandData) *codegen.SectionTemplate {
 // arguments (method payload) invoked by the tool. It panics if any error
 // occurs during the generation of flag parsing code.
 func FlagsCode(data []*CommandData) string {
-	section := codegen.SectionTemplate{
-		Name:    "parse-endpoint-flags",
-		Source:  cliTemplates.Read(parseFlagsT),
-		Data:    data,
-		FuncMap: map[string]any{"printDescription": printDescription},
-	}
 	var flagsCode bytes.Buffer
-	err := section.Write(&flagsCode)
-	if err != nil {
-		panic(err)
+	flagsCode.WriteString("var (\n")
+	for _, cmd := range data {
+		fmt.Fprintf(&flagsCode, "\t%sFlags = flag.NewFlagSet(%q, flag.ContinueOnError)\n", cmd.VarName, cmd.Name)
+		flagsCode.WriteString("\n")
+		for _, sub := range cmd.Subcommands {
+			fmt.Fprintf(&flagsCode, "\t%sFlags = flag.NewFlagSet(%q, flag.ExitOnError)\n", sub.FullName, sub.Name)
+			for _, flag := range sub.Flags {
+				defaultValue := ""
+				if flag.Default != nil {
+					defaultValue = fmt.Sprint(flag.Default)
+				} else if flag.Required {
+					defaultValue = "REQUIRED"
+				}
+				fmt.Fprintf(&flagsCode, "\t%sFlag = %sFlags.String(%q, %q, %q)\n", flag.FullName, sub.FullName, flag.Name, defaultValue, flag.Description)
+			}
+			flagsCode.WriteString("\n")
+		}
 	}
+	flagsCode.WriteString(")\n")
+
+	for _, cmd := range data {
+		fmt.Fprintf(&flagsCode, "%sFlags.Usage = %sUsage\n", cmd.VarName, cmd.VarName)
+		for _, sub := range cmd.Subcommands {
+			fmt.Fprintf(&flagsCode, "%sFlags.Usage = %sUsage\n", sub.FullName, sub.FullName)
+		}
+		flagsCode.WriteString("\n")
+	}
+
+	flagsCode.WriteString(`if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
+	return nil, nil, err
+}
+
+if flag.NArg() < 2 { // two non flag args are required: SERVICE and ENDPOINT (aka COMMAND)
+	return nil, nil, fmt.Errorf("not enough arguments")
+}
+
+var (
+	svcn string
+	svcf *flag.FlagSet
+)
+{
+	svcn = flag.Arg(0)
+	switch svcn {
+`)
+	for _, cmd := range data {
+		fmt.Fprintf(&flagsCode, "\tcase %q:\n\t\tsvcf = %sFlags\n", cmd.Name, cmd.VarName)
+	}
+	flagsCode.WriteString(`	default:
+		return nil, nil, fmt.Errorf("unknown service %q", svcn)
+	}
+}
+if err := svcf.Parse(flag.Args()[1:]); err != nil {
+	return nil, nil, err
+}
+
+var (
+	epn string
+	epf *flag.FlagSet
+)
+{
+	epn = svcf.Arg(0)
+	switch svcn {
+`)
+	for _, cmd := range data {
+		fmt.Fprintf(&flagsCode, "\tcase %q:\n\t\tswitch epn {\n", cmd.Name)
+		for _, sub := range cmd.Subcommands {
+			fmt.Fprintf(&flagsCode, "\t\tcase %q:\n\t\t\tepf = %sFlags\n", sub.Name, sub.FullName)
+			flagsCode.WriteString("\n")
+		}
+		flagsCode.WriteString("\t\t}\n\n")
+	}
+	flagsCode.WriteString(`	}
+}
+if epf == nil {
+	return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
+}
+
+// Parse endpoint flags if any
+if svcf.NArg() > 1 {
+	if err := epf.Parse(svcf.Args()[1:]); err != nil {
+		return nil, nil, err
+	}
+}
+`)
 
 	return flagsCode.String()
 }
 
-// CommandUsage builds the section templates that can be used to generate the
+// CommandUsage builds the section that can be used to generate the
 // endpoint command usage code.
-func CommandUsage(data *CommandData) *codegen.SectionTemplate {
-	return &codegen.SectionTemplate{
-		Name:    "cli-command-usage",
-		Source:  cliTemplates.Read(commandUsageT),
-		Data:    data,
-		FuncMap: map[string]any{"printDescription": printDescription},
-	}
+func CommandUsage(data *CommandData) codegen.Section {
+	return codegen.MustJenniferSection("cli-command-usage", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%sUsage displays the usage of the %s command and its subcommands.", data.VarName, data.Name))
+		stmt.Func().Id(data.VarName + "Usage").Params().BlockFunc(func(group *jen.Group) {
+			group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit(printDescription(data.Description)))
+			group.Qual("fmt", "Fprintf").Call(jen.Qual("os", "Stderr"), jen.Lit("Usage:\n    %s [globalflags] "+data.Name+" COMMAND [flags]\n\n"), jen.Qual("os", "Args").Index(jen.Lit(0)))
+			group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("COMMAND:"))
+			for _, sub := range data.Subcommands {
+				group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("    "+sub.Name+": "+printDescription(sub.Description)))
+			}
+			group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"))
+			group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("Additional help:"))
+			group.Qual("fmt", "Fprintf").Call(jen.Qual("os", "Stderr"), jen.Lit("    %s "+data.Name+" COMMAND --help\n"), jen.Qual("os", "Args").Index(jen.Lit(0)))
+		})
+		stmt.Line()
+		for _, sub := range data.Subcommands {
+			stmt.Func().Id(sub.FullName + "Usage").Params().BlockFunc(func(group *jen.Group) {
+				group.Comment("Header with flags")
+				group.Qual("fmt", "Fprintf").Call(jen.Qual("os", "Stderr"), jen.Lit("%s [flags] "+data.Name+" "+sub.Name), jen.Qual("os", "Args").Index(jen.Lit(0)))
+				for _, flag := range sub.Flags {
+					group.Qual("fmt", "Fprint").Call(jen.Qual("os", "Stderr"), jen.Lit(" -"+flag.Name+" "+flag.Type))
+				}
+				group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"))
+				group.Line()
+				group.Comment("Description")
+				group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"))
+				group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit(printDescription(sub.Description)))
+				group.Line()
+				group.Comment("Flags list")
+				for _, flag := range sub.Flags {
+					group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("    -"+flag.Name+" "+flag.Type+": "+flag.Description))
+				}
+				group.Line()
+				group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"))
+				group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("Example:"))
+				group.Qual("fmt", "Fprintf").Call(jen.Qual("os", "Stderr"), jen.Lit("    %s %s\n"), jen.Qual("os", "Args").Index(jen.Lit(0)), jen.Lit(sub.Example))
+			})
+			stmt.Line()
+		}
+	})
 }
 
-// PayloadBuilderSection builds the section template that can be used to
+// PayloadBuilderSection builds the section that can be used to
 // generate the payload builder code.
-func PayloadBuilderSection(buildFunction *BuildFunctionData) *codegen.SectionTemplate {
-	return &codegen.SectionTemplate{
-		Name:   "cli-build-payload",
-		Source: cliTemplates.Read(buildPayloadT),
-		Data:   buildFunction,
-		FuncMap: map[string]any{
-			"fieldCode": fieldCode,
-		},
-	}
+func PayloadBuilderSection(buildFunction *BuildFunctionData) codegen.Section {
+	return codegen.MustJenniferSection("cli-build-payload", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s builds the payload for the %s %s endpoint from CLI flags.", buildFunction.Name, buildFunction.ServiceName, buildFunction.MethodName))
+		fn := stmt.Func().Id(buildFunction.Name).ParamsFunc(func(group *jen.Group) {
+			for _, formal := range buildFunction.FormalParams {
+				group.Id(formal).String()
+			}
+		}).Params(codegen.TypeRef(buildFunction.ResultType), jen.Error())
+		fn.BlockFunc(func(group *jen.Group) {
+			if buildFunction.CheckErr {
+				group.Var().Err().Error()
+			}
+			for _, field := range buildFunction.Fields {
+				if field.VarName == "" {
+					continue
+				}
+				group.Var().Id(field.VarName).Add(codegen.TypeRef(field.TypeRef))
+				group.Block(codegen.Expr(field.Init))
+			}
+			if buildFunction.PayloadInit != nil {
+				if buildFunction.PayloadInit.Code != "" {
+					group.Add(codegen.Expr(buildFunction.PayloadInit.Code))
+					if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
+						value := buildFunction.PayloadInit.ReturnTypeAttribute + ": "
+						if buildFunction.PayloadInit.ReturnTypeAttributePointer {
+							value += "&"
+						}
+						value += "v,\n"
+						group.Add(codegen.Expr("res := &" + buildFunction.PayloadInit.ReturnTypeName + "{\n" + value + "}"))
+					}
+				}
+				if buildFunction.PayloadInit.ReturnIsStruct {
+					if buildFunction.PayloadInit.Code == "" {
+						target := "v"
+						if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
+							target = "res"
+						}
+						group.Add(codegen.Expr(target + " := &" + buildFunction.PayloadInit.ReturnTypeName + "{}"))
+					}
+					group.Add(codegen.Expr(fieldCode(buildFunction.PayloadInit)))
+				}
+				resultVar := "v"
+				if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
+					resultVar = "res"
+				}
+				group.Return(codegen.Expr(resultVar), jen.Nil())
+			}
+		})
+	})
 }
 
 // NewFlagData creates a new FlagData from the given argument attributes.

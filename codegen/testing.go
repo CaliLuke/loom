@@ -28,12 +28,12 @@ func RunDSL(t *testing.T, dsl func()) *expr.RootExpr {
 }
 
 // SectionCode generates and formats the code for the given section.
-func SectionCode(t *testing.T, section *SectionTemplate) string {
+func SectionCode(t *testing.T, section Section) string {
 	return sectionCodeWithPrefix(t, section, "package foo\n")
 }
 
 // SectionsCode generates and formats the code for the given sections.
-func SectionsCode(t *testing.T, sections []*SectionTemplate) string {
+func SectionsCode(t *testing.T, sections []Section) string {
 	codes := make([]string, len(sections))
 	for i, section := range sections {
 		codes[i] = sectionCodeWithPrefix(t, section, "package foo\n")
@@ -42,14 +42,14 @@ func SectionsCode(t *testing.T, sections []*SectionTemplate) string {
 }
 
 // SectionCodeFromImportsAndMethods generates and formats the code for given import and method definition sections.
-func SectionCodeFromImportsAndMethods(t *testing.T, importSection, methodSection *SectionTemplate) string {
+func SectionCodeFromImportsAndMethods(t *testing.T, importSection, methodSection Section) string {
 	t.Helper()
 	var code bytes.Buffer
 	require.NoError(t, importSection.Write(&code))
 	return sectionCodeWithPrefix(t, methodSection, code.String())
 }
 
-func sectionCodeWithPrefix(t *testing.T, section *SectionTemplate, prefix string) string {
+func sectionCodeWithPrefix(t *testing.T, section Section, prefix string) string {
 	var code bytes.Buffer
 	require.NoError(t, section.Write(&code))
 	codestr := code.String()

@@ -26,7 +26,7 @@ func TestClientInit(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ClientFiles("", services)
 			require.Len(t, fs, c.FileCount)
-			sections := fs[0].SectionTemplates
+			sections := fs[0].AllSections()
 			require.Greater(t, len(sections), c.SectionNum)
 			code := codegen.SectionCode(t, sections[c.SectionNum])
 			testutil.AssertGo(t, "testdata/golden/client_init_"+c.Name+".go.golden", code)

@@ -51,7 +51,7 @@ func TestClientMultipartFuncType(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ClientFiles(genpkg, services)
 			require.Len(t, fs, 2)
-			sections := fs[0].SectionTemplates
+			sections := fs[0].AllSections()
 			require.Greater(t, len(sections), 4)
 			code := codegen.SectionCode(t, sections[2])
 			testutil.AssertGo(t, "testdata/golden/client_multipart_"+c.Name+".go.golden", code)
@@ -102,7 +102,7 @@ func TestClientMultipartNewFunc(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ClientFiles(genpkg, services)
 			require.Len(t, fs, 2)
-			sections := fs[1].SectionTemplates
+			sections := fs[1].AllSections()
 			require.Greater(t, len(sections), 3)
 			code := codegen.SectionCode(t, sections[3])
 			testutil.AssertGo(t, "testdata/golden/client_multipart_"+c.Name+".go.golden", code)

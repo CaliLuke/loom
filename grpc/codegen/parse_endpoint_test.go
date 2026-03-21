@@ -28,9 +28,9 @@ func TestParseEndpointWithInterceptors(t *testing.T) {
 			services := CreateGRPCServices(root)
 			fs := ClientCLIFiles("", services)
 			require.Greater(t, len(fs), 1, "expected at least 2 files")
-			require.NotEmpty(t, fs[0].SectionTemplates)
+			require.NotEmpty(t, fs[0].AllSections())
 			var buf bytes.Buffer
-			for _, s := range fs[0].SectionTemplates {
+			for _, s := range fs[0].AllSections() {
 				require.NoError(t, s.Write(&buf))
 			}
 			code := codegen.FormatTestCode(t, buf.String())

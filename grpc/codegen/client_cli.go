@@ -97,7 +97,7 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 		}
 	}
 
-	sections := make([]*codegen.SectionTemplate, 0, 4+len(data))
+	sections := make([]codegen.Section, 0, 4+len(data))
 	sections = append(sections,
 		codegen.Header(title, "cli", specs),
 		cli.UsageCommands(data),
@@ -117,7 +117,7 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 	for _, cmd := range data {
 		sections = append(sections, cli.CommandUsage(cmd))
 	}
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 // payloadBuilders returns the file that contains the payload constructors that
@@ -149,7 +149,7 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 			&codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"},
 		)
 	}
-	sections := []*codegen.SectionTemplate{
+	sections := []codegen.Section{
 		codegen.Header(title, "client", specs),
 	}
 	for _, sub := range data.Subcommands {
@@ -157,7 +157,7 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 			sections = append(sections, cli.PayloadBuilderSection(sub.BuildFunction))
 		}
 	}
-	return &codegen.File{Path: fpath, SectionTemplates: sections}
+	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 func buildFlags(e *EndpointData) ([]*cli.FlagData, *cli.BuildFunctionData) {

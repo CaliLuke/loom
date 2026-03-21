@@ -20,18 +20,11 @@ import (
 //
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
-	return []string{
-		"service-with-interceptors (method-a|method-b)",
-	}
-}
-
-// UsageExamples produces an example of a valid invocation of the CLI tool.
+	return []string{"service-with-interceptors (method-a|method-b)"}
+} // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " " + "service-with-interceptors method-a --message '{\n      \"field\": \"Sapiente est.\"\n   }'" + "\n" +
-		""
-}
-
-// ParseEndpoint returns the endpoint and payload as specified on the command
+	return os.Args[0] + " service-with-interceptors method-a --message '{\n      \"field\": \"Sapiente est.\"\n   }'\\n"
+} // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(
 	cc *grpc.ClientConn,
@@ -137,11 +130,11 @@ func ParseEndpoint(
 // serviceWithInterceptorsUsage displays the usage of the
 // service-with-interceptors command and its subcommands.
 func serviceWithInterceptorsUsage() {
-	fmt.Fprintln(os.Stderr, `Service is the ServiceWithInterceptors service interface.`)
+	fmt.Fprintln(os.Stderr, "Service is the ServiceWithInterceptors service interface.")
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] service-with-interceptors COMMAND [flags]\n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "COMMAND:")
-	fmt.Fprintln(os.Stderr, `    method-a: MethodA implements MethodA.`)
-	fmt.Fprintln(os.Stderr, `    method-b: MethodB implements MethodB.`)
+	fmt.Fprintln(os.Stderr, "    method-a: MethodA implements MethodA.")
+	fmt.Fprintln(os.Stderr, "    method-b: MethodB implements MethodB.")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s service-with-interceptors COMMAND --help\n", os.Args[0])
@@ -154,16 +147,15 @@ func serviceWithInterceptorsMethodAUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `MethodA implements MethodA.`)
+	fmt.Fprintln(os.Stderr, "MethodA implements MethodA.")
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -message JSON: `)
+	fmt.Fprintln(os.Stderr, "    -message JSON: ")
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "service-with-interceptors method-a --message '{\n      \"field\": \"Sapiente est.\"\n   }'")
 }
-
 func serviceWithInterceptorsMethodBUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] service-with-interceptors method-b", os.Args[0])
@@ -172,10 +164,10 @@ func serviceWithInterceptorsMethodBUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `MethodB implements MethodB.`)
+	fmt.Fprintln(os.Stderr, "MethodB implements MethodB.")
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -message JSON: `)
+	fmt.Fprintln(os.Stderr, "    -message JSON: ")
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")

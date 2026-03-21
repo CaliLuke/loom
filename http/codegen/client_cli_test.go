@@ -53,7 +53,7 @@ func TestClientCLIFiles(t *testing.T) {
 			root := RunHTTPDSL(t, c.DSL)
 			services := CreateHTTPServices(root)
 			fs := ClientCLIFiles("", services)
-			sections := fs[c.FileIndex].SectionTemplates
+			sections := fs[c.FileIndex].AllSections()
 			code := codegen.SectionCode(t, sections[c.SectionIndex])
 			testutil.AssertGo(t, "testdata/golden/client_cli_"+c.Name+".go.golden", code)
 		})

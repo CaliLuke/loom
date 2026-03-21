@@ -4,6 +4,7 @@ func transform() {
 	case "SomeType":
 		actual, _ := source.AsSomeType()
 		obj := transformSomeTypeToSomeType(actual)
+
 		var u UnionSomeType2
 		u.SetSomeType((*SomeType)(obj))
 		target = &u

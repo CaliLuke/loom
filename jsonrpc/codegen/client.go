@@ -30,8 +30,13 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 			continue
 		}
 		updateHeader(f)
-		var sections []*codegen.SectionTemplate
-		for _, s := range f.SectionTemplates {
+		var sections []codegen.Section
+		for _, section := range f.AllSections() {
+			s, ok := section.(*codegen.SectionTemplate)
+			if !ok {
+				sections = append(sections, section)
+				continue
+			}
 			switch s.Name {
 			case "source-header":
 				codegen.AddImport(s, &codegen.ImportSpec{Path: "bufio"})
@@ -68,7 +73,7 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 			}
 		}
 
-		f.SectionTemplates = sections
+		f.SetSections(sections)
 		f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
 		files = append(files, f)
 	}

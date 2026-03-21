@@ -117,7 +117,7 @@ func TestStreaming(t *testing.T) {
 			for _, s := range c.Sections {
 				var (
 					path     string
-					sections []*codegen.SectionTemplate
+					sections []codegen.Section
 				)
 				if strings.HasPrefix(s.Name, "server-") {
 					sections = serverfs[0].Section(s.Name)

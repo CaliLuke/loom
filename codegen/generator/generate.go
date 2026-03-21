@@ -292,28 +292,32 @@ func mergeFilesByPath(files []*codegen.File) []*codegen.File {
 		}
 		path := f.Path
 		if existing, ok := byPath[path]; ok {
+			existingSections := append([]codegen.Section{}, existing.AllSections()...)
+			incomingSections := f.AllSections()
+
 			// Merge headers (index 0) imports
-			if len(existing.SectionTemplates) > 0 && len(f.SectionTemplates) > 0 {
-				mergeHeaderImports(existing.SectionTemplates[0], f.SectionTemplates[0])
+			if len(existingSections) > 0 && len(incomingSections) > 0 {
+				mergeHeaderImports(sectionTemplate(existingSections[0]), sectionTemplate(incomingSections[0]))
 			}
 			// Initialize seen section names for this path
 			if namesByPath[path] == nil {
 				namesByPath[path] = make(map[string]struct{})
-				for _, st := range existing.SectionTemplates {
-					namesByPath[path][st.Name] = struct{}{}
+				for _, section := range existingSections {
+					namesByPath[path][section.SectionName()] = struct{}{}
 				}
 			}
 			// Append unique sections (skip header at index 0)
-			for i, st := range f.SectionTemplates {
+			for i, section := range incomingSections {
 				if i == 0 {
 					continue
 				}
-				if _, seen := namesByPath[path][st.Name]; seen {
+				if _, seen := namesByPath[path][section.SectionName()]; seen {
 					continue
 				}
-				existing.SectionTemplates = append(existing.SectionTemplates, st)
-				namesByPath[path][st.Name] = struct{}{}
+				existingSections = append(existingSections, section)
+				namesByPath[path][section.SectionName()] = struct{}{}
 			}
+			existing.SetSections(existingSections)
 			// Preserve a finalize function if destination does not have one
 			if existing.FinalizeFunc == nil && f.FinalizeFunc != nil {
 				existing.FinalizeFunc = f.FinalizeFunc
@@ -325,8 +329,8 @@ func mergeFilesByPath(files []*codegen.File) []*codegen.File {
 		// New path: record and initialize seen names
 		byPath[path] = f
 		m := make(map[string]struct{})
-		for _, st := range f.SectionTemplates {
-			m[st.Name] = struct{}{}
+		for _, section := range f.AllSections() {
+			m[section.SectionName()] = struct{}{}
 		}
 		namesByPath[path] = m
 	}
@@ -347,6 +351,14 @@ func mergeFilesByPath(files []*codegen.File) []*codegen.File {
 		}
 	}
 	return merged
+}
+
+func sectionTemplate(section codegen.Section) *codegen.SectionTemplate {
+	if section == nil {
+		return nil
+	}
+	template, _ := section.(*codegen.SectionTemplate)
+	return template
 }
 
 // mergeHeaderImports merges the import specs from src header into dst header,

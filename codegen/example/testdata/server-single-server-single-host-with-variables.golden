@@ -100,7 +100,6 @@ func main() {
 			}
 			handleHTTPServer(ctx, u, serviceEndpoints, &wg, errc, *dbgF)
 		}
-
 		{
 			addr := "https://example-{int32}-{int64}-{uint32}-{uint64}-{float64}:80/{bool}"
 			addr = strings.ReplaceAll(addr, "{int}", *int_F)
@@ -133,7 +132,6 @@ func main() {
 			}
 			handleHTTPServer(ctx, u, serviceEndpoints, &wg, errc, *dbgF)
 		}
-
 	default:
 		log.Fatal(ctx, fmt.Errorf("invalid host argument: %q (valid hosts: dev)", *hostF))
 	}

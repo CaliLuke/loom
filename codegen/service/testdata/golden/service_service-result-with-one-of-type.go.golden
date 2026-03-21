@@ -282,12 +282,14 @@ func NewResultOneofFromResultOneofView(vres *resultwithoneoftypeviews.ResultOneo
 		case "t":
 			actual, _ := vres.Result.AsT()
 			obj := transformResultwithoneoftypeviewsTViewToT(actual)
+
 			u := res.Result
 			u.SetT((*T)(obj))
 			res.Result = u
 		case "u":
 			actual, _ := vres.Result.AsU()
 			obj := transformResultwithoneoftypeviewsUViewToU(actual)
+
 			u := res.Result
 			u.SetU((*U)(obj))
 			res.Result = u
@@ -306,12 +308,14 @@ func ProjectResultOneof(res *ResultOneof) *resultwithoneoftypeviews.ResultOneofV
 		case "t":
 			actual, _ := res.Result.AsT()
 			obj := transformTToResultwithoneoftypeviewsTView(actual)
+
 			u := vres.Result
 			u.SetT((*resultwithoneoftypeviews.TView)(obj))
 			vres.Result = u
 		case "u":
 			actual, _ := res.Result.AsU()
 			obj := transformUToResultwithoneoftypeviewsUView(actual)
+
 			u := vres.Result
 			u.SetU((*resultwithoneoftypeviews.UView)(obj))
 			vres.Result = u

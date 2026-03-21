@@ -53,11 +53,11 @@ func Transport(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 
 		// Add service data meta type imports
 		for _, f := range files {
-			if len(f.SectionTemplates) > 0 {
+			if header := f.HeaderTemplate(); header != nil {
 				for _, s := range r.Services {
 					d := services.Get(s.Name)
-					service.AddServiceDataMetaTypeImports(f.SectionTemplates[0], s, d)
-					service.AddUserTypeImports(genpkg, f.SectionTemplates[0], d)
+					service.AddServiceDataMetaTypeImports(header, s, d)
+					service.AddUserTypeImports(genpkg, header, d)
 				}
 			}
 		}

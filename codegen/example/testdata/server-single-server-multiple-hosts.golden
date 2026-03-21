@@ -82,7 +82,6 @@ func main() {
 			}
 			handleHTTPServer(ctx, u, serviceEndpoints, &wg, errc, *dbgF)
 		}
-
 	case "stage":
 		{
 			addr := "https://example"
@@ -107,7 +106,6 @@ func main() {
 			}
 			handleHTTPServer(ctx, u, serviceEndpoints, &wg, errc, *dbgF)
 		}
-
 	default:
 		log.Fatal(ctx, fmt.Errorf("invalid host argument: %q (valid hosts: dev|stage)", *hostF))
 	}

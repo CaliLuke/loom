@@ -79,9 +79,9 @@ func Example(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 
 		// Add imports defined via struct:field:type
 		for _, f := range files {
-			if len(f.SectionTemplates) > 0 {
+			if header := f.HeaderTemplate(); header != nil {
 				for _, s := range r.Services {
-					service.AddServiceDataMetaTypeImports(f.SectionTemplates[0], s, services.Get(s.Name))
+					service.AddServiceDataMetaTypeImports(header, s, services.Get(s.Name))
 				}
 			}
 		}

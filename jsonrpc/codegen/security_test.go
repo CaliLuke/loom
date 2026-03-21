@@ -75,7 +75,7 @@ func jsonrpcGeneratedCode(t *testing.T, files []*codegen.File) string {
 
 	parts := make([]string, 0, len(files))
 	for _, file := range files {
-		for _, section := range file.SectionTemplates {
+		for _, section := range file.AllSections() {
 			var buf bytes.Buffer
 			require.NoError(t, section.Write(&buf))
 			parts = append(parts, buf.String())

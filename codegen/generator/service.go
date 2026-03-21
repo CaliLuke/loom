@@ -30,10 +30,10 @@ func Service(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 				files = append(files, f)
 			}
 			for _, f := range files {
-				if len(f.SectionTemplates) > 0 {
+				if header := f.HeaderTemplate(); header != nil {
 					d := services.Get(s.Name)
-					service.AddServiceDataMetaTypeImports(f.SectionTemplates[0], s, d)
-					service.AddUserTypeImports(genpkg, f.SectionTemplates[0], d)
+					service.AddServiceDataMetaTypeImports(header, s, d)
+					service.AddUserTypeImports(genpkg, header, d)
 				}
 			}
 			convFiles, err := service.ConvertFiles(r, s, services)
