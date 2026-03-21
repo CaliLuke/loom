@@ -238,41 +238,73 @@ func renderQuerySliceConversion(dt expr.DataType) string {
 func renderRequestInitCode(payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, pathInit *InitData, verb string, isWebSocket bool, requestStruct string) string {
 	var b strings.Builder
 	renderRequestInitVars(&b, args, requestStruct)
+	renderRequestPayloadSetup(&b, payloadRef, hasFields, serviceName, endpointName, args, requestStruct)
+	renderRequestURLSetup(&b, pathInit, args, isWebSocket)
+	renderRequestCreation(&b, serviceName, endpointName, requestStruct, verb)
+	renderRequestContextBinding(&b)
+	renderRequestReturn(&b)
+	return b.String()
+}
+
+func renderRequestPayloadSetup(b *strings.Builder, payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, requestStruct string) {
 	if payloadRef != "" && len(args) > 0 {
-		renderPayloadExtraction(&b, payloadRef, hasFields, serviceName, endpointName, args, requestStruct)
-	} else if requestStruct != "" {
-		fmt.Fprintf(&b, "\trd, ok := v.(*%s)\n", requestStruct)
-		ifTypeErr(&b, serviceName, endpointName, requestStruct)
-		b.WriteString("\tbody = rd.Body\n")
+		renderPayloadExtraction(b, payloadRef, hasFields, serviceName, endpointName, args, requestStruct)
+		return
 	}
-	if isWebSocket {
-		b.WriteString("\tscheme := c.scheme\n")
-		b.WriteString("\tswitch c.scheme {\n")
-		b.WriteString("\tcase \"http\":\n\t\tscheme = \"ws\"\n")
-		b.WriteString("\tcase \"https\":\n\t\tscheme = \"wss\"\n")
-		b.WriteString("\t}\n")
+	if requestStruct == "" {
+		return
 	}
-	if isWebSocket {
-		b.WriteString("\tu := &url.URL{Scheme: scheme, Host: c.host, Path: ")
-	} else {
-		b.WriteString("\tu := &url.URL{Scheme: c.scheme, Host: c.host, Path: ")
-	}
-	fmt.Fprintf(&b, "%s(", pathInit.Name)
+	fmt.Fprintf(b, "\trd, ok := v.(*%s)\n", requestStruct)
+	ifTypeErr(b, serviceName, endpointName, requestStruct)
+	b.WriteString("\tbody = rd.Body\n")
+}
+
+func renderRequestURLSetup(b *strings.Builder, pathInit *InitData, args []*InitArgData, isWebSocket bool) {
+	renderRequestScheme(b, isWebSocket)
+	renderRequestURLPrefix(b, isWebSocket)
+	fmt.Fprintf(b, "%s(", pathInit.Name)
 	for _, arg := range args {
-		fmt.Fprintf(&b, "%s, ", arg.Ref)
+		fmt.Fprintf(b, "%s, ", arg.Ref)
 	}
 	b.WriteString(")}\n")
-	if requestStruct != "" {
-		fmt.Fprintf(&b, "\treq, err := http.NewRequest(%q, u.String(), body)\n", verb)
-	} else {
-		fmt.Fprintf(&b, "\treq, err := http.NewRequest(%q, u.String(), nil)\n", verb)
+}
+
+func renderRequestScheme(b *strings.Builder, isWebSocket bool) {
+	if !isWebSocket {
+		return
 	}
-	b.WriteString("\tif err != nil {\n")
-	fmt.Fprintf(&b, "\t\treturn nil, goahttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
+	b.WriteString("\tscheme := c.scheme\n")
+	b.WriteString("\tswitch c.scheme {\n")
+	b.WriteString("\tcase \"http\":\n\t\tscheme = \"ws\"\n")
+	b.WriteString("\tcase \"https\":\n\t\tscheme = \"wss\"\n")
 	b.WriteString("\t}\n")
+}
+
+func renderRequestURLPrefix(b *strings.Builder, isWebSocket bool) {
+	if isWebSocket {
+		b.WriteString("\tu := &url.URL{Scheme: scheme, Host: c.host, Path: ")
+		return
+	}
+	b.WriteString("\tu := &url.URL{Scheme: c.scheme, Host: c.host, Path: ")
+}
+
+func renderRequestCreation(b *strings.Builder, serviceName, endpointName, requestStruct, verb string) {
+	bodyRef := "nil"
+	if requestStruct != "" {
+		bodyRef = "body"
+	}
+	fmt.Fprintf(b, "\treq, err := http.NewRequest(%q, u.String(), %s)\n", verb, bodyRef)
+	b.WriteString("\tif err != nil {\n")
+	fmt.Fprintf(b, "\t\treturn nil, goahttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
+	b.WriteString("\t}\n")
+}
+
+func renderRequestContextBinding(b *strings.Builder) {
 	b.WriteString("\tif ctx != nil {\n\t\treq = req.WithContext(ctx)\n\t}\n\n")
+}
+
+func renderRequestReturn(b *strings.Builder) {
 	b.WriteString("\treturn req, nil\n")
-	return b.String()
 }
 
 func renderRequestInitVars(b *strings.Builder, args []*InitArgData, requestStruct string) {

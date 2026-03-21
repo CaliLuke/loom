@@ -7,6 +7,15 @@ import (
 	"goa.design/goa/v3/expr"
 )
 
+type clientTypeSections struct {
+	sections       []codegen.Section
+	initData       []*InitData
+	validatedTypes []*TypeData
+	seenTypes      map[string]struct{}
+	seenValidated  map[string]struct{}
+	seenInits      map[string]struct{}
+}
+
 // ClientTypeFiles returns the HTTP transport client types files.
 func ClientTypeFiles(genpkg string, data *ServicesData) []*codegen.File {
 	fw := make([]*codegen.File, len(data.Expressions.Services))
@@ -41,13 +50,33 @@ func ClientTypeFiles(genpkg string, data *ServicesData) []*codegen.File {
 //   - Response header variables hold pointers when not required and have no
 //     default value.
 func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct{}, services *ServicesData) *codegen.File {
-	var (
-		path    string
-		data    = services.Get(svc.Name())
-		svcName = data.Service.PathName
-	)
-	path = filepath.Join(codegen.Gendir, "http", svcName, "client", "types.go")
-	imports := []*codegen.ImportSpec{
+	data := services.Get(svc.Name())
+	svcName := data.Service.PathName
+	path := filepath.Join(codegen.Gendir, "http", svcName, "client", "types.go")
+	sections := newClientTypeSections(codegen.Header(svc.Name()+" HTTP client types", "client", clientTypeImports(genpkg, svcName, data)))
+
+	for _, a := range svc.HTTPEndpoints {
+		sections.appendEndpointTypes(data.Endpoint(a.Name()), seen)
+	}
+
+	sections.appendBodyAttributeTypes(data.ClientBodyAttributeTypes, seen)
+
+	for _, u := range data.UnionTypes {
+		sections.sections = append(sections.sections, unionTypeSection("client-union-type", u))
+	}
+
+	sections.appendBodyInitSections()
+
+	for _, adata := range data.Endpoints {
+		sections.appendResultInitSections(adata)
+	}
+
+	sections.appendValidateSections()
+	return &codegen.File{Path: path, Sections: sections.sections}
+}
+
+func clientTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {
+	return []*codegen.ImportSpec{
 		{Path: "encoding/json"},
 		{Path: "fmt"},
 		{Path: "net/url"},
@@ -57,102 +86,100 @@ func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct
 		codegen.GoaImport(""),
 		codegen.GoaNamedImport("http", "goahttp"),
 	}
-	header := codegen.Header(svc.Name()+" HTTP client types", "client", imports)
+}
 
-	var (
-		initData       []*InitData
-		validatedTypes []*TypeData
-		seenValidated  = make(map[string]struct{}) // Track validated types to avoid duplicates
-		seenInit       = make(map[string]struct{}) // Track init functions to avoid duplicates
+func newClientTypeSections(header codegen.Section) *clientTypeSections {
+	return &clientTypeSections{
+		sections:      []codegen.Section{header},
+		seenTypes:     make(map[string]struct{}),
+		seenValidated: make(map[string]struct{}),
+		seenInits:     make(map[string]struct{}),
+	}
+}
 
-		sections = []codegen.Section{header}
-	)
-
-	appendTypeData := func(section string, data *TypeData, trackInit bool) {
-		if data == nil {
-			return
-		}
-		if _, ok := seen[data.Ref]; ok {
-			return
-		}
-		seen[data.Ref] = struct{}{}
-		if data.Def != "" {
-			sections = append(sections, typeDeclSection(section, data))
-		}
-		if trackInit && data.Init != nil {
-			if _, ok := seenInit[data.Init.Name]; !ok {
-				seenInit[data.Init.Name] = struct{}{}
-				initData = append(initData, data.Init)
-			}
-		}
-		if data.ValidateDef != "" {
-			recordValidatedType(data, seenValidated, &validatedTypes)
+func (s *clientTypeSections) appendEndpointTypes(adata *EndpointData, seen map[string]struct{}) {
+	s.appendTypeData("client-request-body", adata.Payload.Request.ClientBody, true, seen)
+	if adata.ClientWebSocket != nil {
+		s.appendTypeData("client-request-body", adata.ClientWebSocket.Payload, true, seen)
+	}
+	for _, resp := range adata.Result.Responses {
+		s.appendTypeData("client-response-body", resp.ClientBody, false, seen)
+	}
+	for _, gerr := range adata.Errors {
+		for _, herr := range gerr.Errors {
+			s.appendTypeData("client-error-body", herr.Response.ClientBody, false, seen)
 		}
 	}
+}
 
-	for _, a := range svc.HTTPEndpoints {
-		adata := data.Endpoint(a.Name())
-		appendTypeData("client-request-body", adata.Payload.Request.ClientBody, true)
-		if adata.ClientWebSocket != nil {
-			appendTypeData("client-request-body", adata.ClientWebSocket.Payload, true)
-		}
-		for _, resp := range adata.Result.Responses {
-			appendTypeData("client-response-body", resp.ClientBody, false)
-		}
-		for _, gerr := range adata.Errors {
-			for _, herr := range gerr.Errors {
-				appendTypeData("client-error-body", herr.Response.ClientBody, false)
-			}
-		}
+func (s *clientTypeSections) appendBodyAttributeTypes(types []*TypeData, seen map[string]struct{}) {
+	for _, data := range types {
+		s.appendTypeData("client-body-attributes", data, false, seen)
 	}
+}
 
-	for _, data := range data.ClientBodyAttributeTypes {
-		appendTypeData("client-body-attributes", data, false)
+func (s *clientTypeSections) appendTypeData(section string, data *TypeData, trackInit bool, seen map[string]struct{}) {
+	if data == nil {
+		return
 	}
-
-	// union sum types
-	for _, u := range data.UnionTypes {
-		sections = append(sections, unionTypeSection("client-union-type", u))
+	if _, ok := seen[data.Ref]; ok {
+		return
 	}
-
-	// body constructors
-	for _, init := range initData {
-		sections = append(sections, bodyInitSection("client-body-init", init, true))
+	seen[data.Ref] = struct{}{}
+	if data.Def != "" {
+		s.sections = append(s.sections, typeDeclSection(section, data))
 	}
+	if trackInit {
+		s.appendInitData(data.Init)
+	}
+	if data.ValidateDef != "" {
+		recordValidatedType(data, s.seenValidated, &s.validatedTypes)
+	}
+}
 
-	// Track generated init functions to avoid duplicates
-	seenInits := make(map[string]struct{})
+func (s *clientTypeSections) appendInitData(init *InitData) {
+	if init == nil {
+		return
+	}
+	if _, ok := s.seenInits[init.Name]; ok {
+		return
+	}
+	s.seenInits[init.Name] = struct{}{}
+	s.initData = append(s.initData, init)
+}
 
-	for _, adata := range data.Endpoints {
-		// response to method result (client)
-		for _, resp := range adata.Result.Responses {
-			if init := resp.ResultInit; init != nil {
-				if _, ok := seenInits[init.Name]; !ok {
-					seenInits[init.Name] = struct{}{}
-					sections = append(sections, typeInitSection("client-result-init", init, true))
-				}
-			}
-		}
+func (s *clientTypeSections) appendBodyInitSections() {
+	for _, init := range s.initData {
+		s.sections = append(s.sections, bodyInitSection("client-body-init", init, true))
+	}
+}
 
-		// error response to method result (client)
-		for _, gerr := range adata.Errors {
-			for _, herr := range gerr.Errors {
-				if init := herr.Response.ResultInit; init != nil {
-					if _, ok := seenInits[init.Name]; !ok {
-						seenInits[init.Name] = struct{}{}
-						sections = append(sections, typeInitSection("client-error-result-init", init, true))
-					}
-				}
-			}
+func (s *clientTypeSections) appendResultInitSections(adata *EndpointData) {
+	for _, resp := range adata.Result.Responses {
+		s.appendTypeInitSection("client-result-init", resp.ResultInit)
+	}
+	for _, gerr := range adata.Errors {
+		for _, herr := range gerr.Errors {
+			s.appendTypeInitSection("client-error-result-init", herr.Response.ResultInit)
 		}
 	}
+}
 
-	// body attribute types
-	// validate methods
-	for _, data := range validatedTypes {
-		sections = append(sections, validateSection("client-validate", data))
+func (s *clientTypeSections) appendTypeInitSection(section string, init *InitData) {
+	if init == nil {
+		return
 	}
-	return &codegen.File{Path: path, Sections: sections}
+	if _, ok := s.seenTypes[init.Name]; ok {
+		return
+	}
+	s.seenTypes[init.Name] = struct{}{}
+	s.sections = append(s.sections, typeInitSection(section, init, true))
+}
+
+func (s *clientTypeSections) appendValidateSections() {
+	for _, data := range s.validatedTypes {
+		s.sections = append(s.sections, validateSection("client-validate", data))
+	}
 }
 
 func recordValidatedType(data *TypeData, seenValidated map[string]struct{}, validatedTypes *[]*TypeData) {

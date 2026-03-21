@@ -26,73 +26,85 @@ import (
 func goTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault bool) string {
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
-		if t, _ := codegen.GetMetaType(att); t != "" {
-			return t
-		}
-		return codegen.GoNativeTypeName(actual)
+		return goPrimitiveTypeDef(att, actual)
 	case *expr.Array:
-		d := goTypeDef(scope, actual.ElemType, ptr, useDefault)
-		if expr.IsObject(actual.ElemType.Type) {
-			d = "*" + d
-		}
-		return "[]" + d
+		return goArrayTypeDef(scope, actual, ptr, useDefault)
 	case *expr.Map:
-		keyDef := goTypeDef(scope, actual.KeyType, ptr, useDefault)
-		if expr.IsObject(actual.KeyType.Type) {
-			keyDef = "*" + keyDef
-		}
-		elemDef := goTypeDef(scope, actual.ElemType, ptr, useDefault)
-		if expr.IsObject(actual.ElemType.Type) {
-			elemDef = "*" + elemDef
-		}
-		return fmt.Sprintf("map[%s]%s", keyDef, elemDef)
+		return goMapTypeDef(scope, actual, ptr, useDefault)
 	case *expr.Object:
-		var ss []string
-		ss = append(ss, "struct {")
-		ma := expr.NewMappedAttributeExpr(att)
-		mat := ma.Attribute()
-		codegen.WalkMappedAttr(ma, func(name, elem string, _ bool, at *expr.AttributeExpr) error { // nolint: errcheck
-			var (
-				fn   string
-				tdef string
-				desc string
-				tags string
-			)
-			{
-				fn = codegen.GoifyAtt(at, name, true)
-				tdef = goTypeDef(scope, at, ptr, useDefault)
-				if expr.IsPrimitive(at.Type) {
-					if (ptr || mat.IsPrimitivePointer(name, useDefault)) && at.Type != expr.Bytes && at.Type != expr.Any {
-						tdef = "*" + tdef
-					}
-				} else if expr.IsObject(at.Type) {
-					tdef = "*" + tdef
-				}
-				if at.Description != "" {
-					desc = codegen.Comment(at.Description) + "\n\t"
-				}
-				var optional bool
-				{
-					switch {
-					case ptr:
-						optional = true
-					case useDefault:
-						optional = !ma.IsRequired(name) && !ma.HasDefaultValue(name)
-					default:
-						optional = !ma.IsRequired(name)
-					}
-				}
-				tags = attributeTags(mat, at, elem, optional)
-			}
-			ss = append(ss, fmt.Sprintf("\t%s%s %s%s", desc, fn, tdef, tags))
-			return nil
-		})
-		ss = append(ss, "}")
-		return strings.Join(ss, "\n")
+		return goObjectTypeDef(scope, att, actual, ptr, useDefault)
 	case expr.UserType, *expr.Union:
 		return scope.GoTypeName(att)
 	default:
 		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
+	}
+}
+
+func goPrimitiveTypeDef(att *expr.AttributeExpr, actual expr.Primitive) string {
+	if t, _ := codegen.GetMetaType(att); t != "" {
+		return t
+	}
+	return codegen.GoNativeTypeName(actual)
+}
+
+func goArrayTypeDef(scope *codegen.NameScope, actual *expr.Array, ptr, useDefault bool) string {
+	return "[]" + goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault)
+}
+
+func goMapTypeDef(scope *codegen.NameScope, actual *expr.Map, ptr, useDefault bool) string {
+	keyDef := goCollectionElemTypeDef(scope, actual.KeyType, ptr, useDefault)
+	elemDef := goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault)
+	return fmt.Sprintf("map[%s]%s", keyDef, elemDef)
+}
+
+func goCollectionElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault bool) string {
+	def := goTypeDef(scope, att, ptr, useDefault)
+	if expr.IsObject(att.Type) {
+		def = "*" + def
+	}
+	return def
+}
+
+func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault bool) string {
+	_ = actual
+	lines := []string{"struct {"}
+	ma := expr.NewMappedAttributeExpr(att)
+	parent := ma.Attribute()
+	codegen.WalkMappedAttr(ma, func(name, elem string, _ bool, at *expr.AttributeExpr) error { // nolint: errcheck
+		lines = append(lines, goObjectFieldDef(scope, ma, parent, name, elem, at, ptr, useDefault))
+		return nil
+	})
+	lines = append(lines, "}")
+	return strings.Join(lines, "\n")
+}
+
+func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, parent *expr.AttributeExpr, name, elem string, att *expr.AttributeExpr, ptr, useDefault bool) string {
+	fieldName := codegen.GoifyAtt(att, name, true)
+	typeDef := goTypeDef(scope, att, ptr, useDefault)
+	if expr.IsPrimitive(att.Type) {
+		if (ptr || parent.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && att.Type != expr.Any {
+			typeDef = "*" + typeDef
+		}
+	} else if expr.IsObject(att.Type) {
+		typeDef = "*" + typeDef
+	}
+	description := ""
+	if att.Description != "" {
+		description = codegen.Comment(att.Description) + "\n\t"
+	}
+	optional := objectFieldOptional(ma, name, ptr, useDefault)
+	tags := attributeTags(parent, att, elem, optional)
+	return fmt.Sprintf("\t%s%s %s%s", description, fieldName, typeDef, tags)
+}
+
+func objectFieldOptional(ma *expr.MappedAttributeExpr, name string, ptr, useDefault bool) bool {
+	switch {
+	case ptr:
+		return true
+	case useDefault:
+		return !ma.IsRequired(name) && !ma.HasDefaultValue(name)
+	default:
+		return !ma.IsRequired(name)
 	}
 }
 

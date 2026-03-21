@@ -1,382 +1,408 @@
 package codegen
 
-import (
-	"fmt"
-	"strings"
-)
-
-func joinHTTPTemplateSource(source string, partials ...templateSource) string {
-	if len(partials) == 0 {
-		return source
-	}
-	defs := make([]string, 0, len(partials)+1)
-	for _, partial := range partials {
-		defs = append(defs, fmt.Sprintf("{{- define %q }}\n%s\n{{- end }}", "partial_"+partial.name, partial.source))
-	}
-	defs = append(defs, source)
-	return strings.Join(defs, "\n")
-}
-
-type templateSource struct {
-	name   string
-	source string
-}
-
 var (
-	serverHandlerInitSource = `{{ printf "%s creates a HTTP handler which loads the HTTP request and calls the %q service %q endpoint." .HandlerInit .ServiceName .Method.Name | comment }}
-func {{ .HandlerInit }}(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-	{{- if isWebSocketEndpoint . }}
-	upgrader goahttp.Upgrader,
-	configurer goahttp.ConnConfigureFunc,
-	{{- end }}
-) http.Handler {
-	{{- if (or (mustDecodeRequest .) (not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults)))) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
-	var (
-	{{- end }}
-		{{- if mustDecodeRequest . }}
-		decodeRequest  = {{ .RequestDecoder }}(mux, decoder)
-		{{- end }}
-		{{- if not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults))) }}
-		encodeResponse = {{ .ResponseEncoder }}(encoder)
-		{{- end }}
-	{{- if (or (mustDecodeRequest .) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
-		encodeError    = {{ if .Errors }}{{ .ErrorEncoder }}{{ else }}goahttp.ErrorEncoder{{ end }}(encoder, formatter)
-		{{- end }}
-	{{- if (or (mustDecodeRequest .) (not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults)))) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
-	)
-	{{- end }}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, {{ printf "%q" .Method.Name }})
-		ctx = context.WithValue(ctx, goa.ServiceKey, {{ printf "%q" .ServiceName }})
-	{{- if .HasMixedResults }}
-
-		// Content negotiation for mixed results (standard HTTP vs SSE)
-		acceptHeader := r.Header.Get("Accept")
-		if strings.Contains(acceptHeader, "text/event-stream") {
-			// Handle SSE request
-		{{- if mustDecodeRequest . }}
-			payload, err := decodeRequest(r)
-			if err != nil {
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-		{{- else }}
-			var err error
-		{{- end }}
-		{{- if .SSE.RequestIDField }}
-			// Set Last-Event-ID header if present
-			if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {
-				ctx = context.WithValue(ctx, "last-event-id", lastEventID)
-			{{- if .Payload.Ref }}
-			{{- if isObject .Payload.Request.PayloadType }}
-				{{- if .SSE.RequestIDPointer }}
-				payload.{{ .SSE.RequestIDField }} = &lastEventID
-				{{- else }}
-				payload.{{ .SSE.RequestIDField }} = lastEventID
-				{{- end }}
-			{{- end }}
-			{{- end }}
-			}
-		{{- end }}
-			stream := &{{ .SSE.StructName }}{
-				w: w,
-				r: r,
-			}
-			v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
-				Stream: stream,
-			{{- if .Payload.Ref }}
-				Payload: payload,
-			{{- end }}
-			}
-			_, err = endpoint(ctx, v)
-			if err != nil {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-			}
-		} else {
-			// Handle standard HTTP request
-		{{- if mustDecodeRequest . }}
-			payload, err := decodeRequest(r)
-			if err != nil {
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-		{{- else }}
-			var err error
-		{{- end }}
+	requestEncoderSource = joinHTTPTemplateSource(`{{ printf "%s returns an encoder for requests sent to the %s %s server." .RequestEncoder .ServiceName .Method.Name | comment }}
+func {{ .RequestEncoder }}(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
 		{{- if .Method.SkipRequestBodyEncodeDecode }}
-			data := &{{ .ServicePkgName }}.{{ .Method.RequestStruct }}{ {{ if .Payload.Ref }}Payload: payload, {{ end }}Body: r.Body }
-			res, err := endpoint(ctx, data)
+		data, ok := v.(*{{ requestStructPkg .Method .ServicePkgName }}.{{ .Method.RequestStruct }})
+		if !ok {
+			return goahttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "*{{ requestStructPkg .Method .ServicePkgName }}.{{ .Method.RequestStruct }}", v)
+		}
+		p := data.Payload
 		{{- else }}
-			// Mixed results endpoints always use the generated endpoint input struct.
-			// In the standard (non-SSE) mode, Stream discards events and the service
-			// must return the synchronous result.
-			v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
-				Stream: &discard{{ .Method.VarName }}ServerStream{},
-			{{- if .Payload.Ref }}
-				Payload: payload,
+		p, ok := v.({{ .Payload.Ref }})
+		if !ok {
+			return goahttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Payload.Ref }}", v)
+		}
+		{{- end }}
+	{{- range .Payload.Request.Headers }}
+		{{- if .FieldName }}
+			{{- if .FieldPointer }}
+		if p.{{ .FieldName }} != nil {
+			{{- else }}
+			{
 			{{- end }}
-			}
-			res, err := endpoint(ctx, v)
-		{{- end }}
-			if err != nil {
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-		{{- if .Method.SkipResponseBodyEncodeDecode }}
-			o := res.(*{{ .ServicePkgName }}.{{ .Method.ResponseStruct }})
-			defer o.Body.Close()
-			if wt, ok := o.Body.(io.WriterTo); ok {
-				if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-					if errhandler != nil {
-						errhandler(ctx, w, err)
-					}
-					return
-				}
-				n, err := wt.WriteTo(w)
-				if err != nil {
-					if n == 0 {
-						if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-							errhandler(ctx, w, err)
-						}
-					} else {
-						http.NewResponseController(w).Flush()
-						panic(http.ErrAbortHandler) // too late to write an error
-					}
-				}
-				return
-			}
-			// handle immediate read error like a returned error
-			buf := bufio.NewReader(o.Body)
-			if _, err := buf.Peek(1); err != nil && err != io.EOF {
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if _, err := io.Copy(w, buf); err != nil {
-				http.NewResponseController(w).Flush()
-				panic(http.ErrAbortHandler)
-			}
-		{{- else }}
-			if err := encodeResponse(ctx, w, res); err != nil {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-			}
-		{{- end }}
-		}
-	{{- else }}
-		{{- if mustDecodeRequest . }}
-			{{ if .Redirect }}_{{ else }}payload{{ end }}, err := decodeRequest(r)
-			if err != nil {
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-	{{- else if not .Redirect }}
-		var err error
-	{{- end }}
-	{{- if isWebSocketEndpoint . }}
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithCancel(ctx)
-		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
-			Stream: &{{ .ServerWebSocket.VarName }}{
-				upgrader: upgrader,
-				configurer: configurer,
-				cancel: cancel,
-				w: w,
-				r: r,
-			},
-		{{- if .Payload.Ref }}
-			Payload: payload,
-		{{- end }}
-		}
-		_, err = endpoint(ctx, v)
-	{{- else if and (isSSEEndpoint .) (not .HasMixedResults) }}
-		{{- if .SSE.RequestIDField }}
-		if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {
-			ctx = context.WithValue(ctx, "last-event-id", lastEventID)
-			{{- if .Payload.Ref }}
-			{{- if isObject .Payload.Request.PayloadType }}
-				{{- if .SSE.RequestIDPointer }}
-				payload.{{ .SSE.RequestIDField }} = &lastEventID
+			head := {{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
+			{{- if (and (eq .HTTPName "Authorization") (isBearer $.HeaderSchemes)) }}
+		if !strings.Contains(head, " ") {
+			req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+head)
+		} else {
+			{{- end }}
+			{{- if eq .Type.Name "array" }}
+			for _, val := range head {
+				{{- if eq .Type.ElemType.Type.Name "string" }}
+				req.Header.Add({{ printf "%q" .HTTPName }}, val)
+				{{- else if (and (isAlias .Type.ElemType.Type) (eq (underlyingType .Type.ElemType.Type).Name "string")) }}
+				req.Header.Set({{ printf "%q" .HTTPName }}, string(val))
 				{{- else }}
-				payload.{{ .SSE.RequestIDField }} = lastEventID
+				{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valStr" "val") }}
+				req.Header.Add({{ printf "%q" .HTTPName }}, valStr)
 				{{- end }}
+			}
+			{{- else if (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }}
+			req.Header.Set({{ printf "%q" .HTTPName }}, string(head))
+			{{- else if eq .Type.Name "string" }}
+			req.Header.Set({{ printf "%q" .HTTPName }}, head)
+			{{- else }}
+			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "headStr" "head") }}
+			req.Header.Set({{ printf "%q" .HTTPName }}, headStr)
 			{{- end }}
+			{{- if (and (eq .HTTPName "Authorization") (isBearer $.HeaderSchemes)) }}
+		}
 			{{- end }}
 		}
 		{{- end }}
-		stream := &{{ .SSE.StructName }}{
-			w: w,
-			r: r,
+	{{- end }}
+	{{- range .Payload.Request.Cookies }}
+		{{- if .FieldName }}
+			{{- if .FieldPointer }}
+		if p.{{ .FieldName }} != nil {
+			{{- else }}
+			{
+			{{- end }}
+			v{{ if not (eq .Type.Name "string") }}raw{{ end }} := {{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
+			{{- if not (eq .Type.Name "string" ) }}
+			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "vraw" "v") }}
+			{{- end }}
+			req.AddCookie(&http.Cookie{
+				Name: {{ printf "%q" .HTTPName }},
+				Value: v,
+				{{- if .MaxAge }}
+				MaxAge: {{ .MaxAge }},
+				{{- end }}
+				{{- if .Path }}
+				Path: {{ .Path }},
+				{{- end }}
+				{{- if .Domain }}
+				Domain: {{ .Domain }},
+				{{- end }}
+				{{- if .Secure }}
+				Secure: true,
+				{{- end }}
+				{{- if .HTTPOnly }}
+				HttpOnly: true,
+				{{- end }}
+				{{- if .SameSite }}
+				SameSite: {{ .SameSite }},
+				{{- end }}
+			})
 		}
-		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
-			Stream: stream,
-		{{- if .Payload.Ref }}
-			Payload: payload,
 		{{- end }}
+	{{- end }}
+	{{- if or .Payload.Request.QueryParams }}
+		values := req.URL.Query()
+	{{- end }}
+	{{- range .Payload.Request.QueryParams }}
+		{{- if .MapQueryParams }}
+		for key, value := range p{{ if .FieldName }}.{{ .FieldName }}{{ end }} {
+			{{ template "partial_client_type_conversion" (typeConversionData .Type.KeyType.Type (aliasedType .FieldType).KeyType.Type "keyStr" "key") }}
+			{{- if eq .Type.ElemType.Type.Name "array" }}
+			for _, val := range value {
+				{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type.ElemType.Type (aliasedType (aliasedType .FieldType).ElemType.Type).ElemType.Type "valStr" "val") }}
+				values.Add(keyStr, valStr)
+			}
+			{{- else }}
+			{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valueStr" "value") }}
+			values.Add(keyStr, valueStr)
+			{{- end }}
+    }
+		{{- else if .StringSlice }}
+			for _, value := range p{{ if .FieldName }}.{{ .FieldName }}{{ end }} {
+				values.Add("{{ .HTTPName }}", value)
+			}
+		{{- else if .Slice }}
+			for _, value := range p{{ if .FieldName }}.{{ .FieldName }}{{ end }} {
+				{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valueStr" "value") }}
+				values.Add("{{ .HTTPName }}", valueStr)
+			}
+		{{- else if .Map }}
+			{{- template "partial_client_map_conversion" (mapConversionData .Type .FieldType .HTTPName "p" .FieldName true) }}
+		{{- else if .FieldName }}
+			{{- if .FieldPointer }}
+		if p.{{ .FieldName }} != nil {
+			{{- end }}
+		values.Add("{{ .HTTPName }}",
+			{{- if or (eq .Type.Name "bytes") (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }} string(
+			{{- else if not (eq .Type.Name "string") }} fmt.Sprintf("%v",
+			{{- end }}
+			{{- if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
+			{{- if or (eq .Type.Name "bytes") (not (eq .Type.Name "string")) (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }})
+			{{- end }})
+			{{- if .FieldPointer }}
 		}
-		_, err = endpoint(ctx, v)
-	{{- else if .Method.SkipRequestBodyEncodeDecode }}
-		data := &{{ .ServicePkgName }}.{{ .Method.RequestStruct }}{ {{ if .Payload.Ref }}Payload: payload, {{ end }}Body: r.Body }
-		res, err := endpoint(ctx, data)
-	{{- else if .Redirect }}
-		http.Redirect(w, r, "{{ .Redirect.URL }}", {{ .Redirect.StatusCode }})
+			{{- end }}
+		{{- else }}
+			{{- if eq .Type.Name "string" }}
+				values.Add("{{ .HTTPName }}", p)
+			{{- else if (and (isAlias .Type) (eq (underlyingType .Type).Name "string")) }}
+				values.Add("{{ .HTTPName }}", string(p))
+			{{- else }}
+				{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "pStr" "p") }}
+				values.Add("{{ .HTTPName }}", pStr)
+			{{- end }}
+		{{- end }}
+	{{- end }}
+	{{- if .Payload.Request.QueryParams }}
+		req.URL.RawQuery = values.Encode()
+	{{- end }}
+	{{- if .MultipartRequestEncoder }}
+		if err := encoder(req).Encode(p); err != nil {
+			return goahttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
+		}
+	{{- else if .Payload.Request.ClientBody }}
+		{{- if .Payload.Request.ClientBody.Init }}
+		body := {{ .Payload.Request.ClientBody.Init.Name }}({{ range $i, $arg := .Payload.Request.ClientBody.Init.ClientArgs }}{{ if $i }}, {{ end }}{{ if $arg.FieldPointer }}&{{ end }}{{ $arg.VarName }}{{ end }})
+		{{- else }}
+		body := p{{ if .Payload.Request.PayloadAttr }}.{{ .Payload.Request.PayloadAttr }}{{ end }}
+		{{- end }}
+		{{- if .Payload.Request.FormEncoded }}
+		if err := goahttp.SetFormRequest(req, &body); err != nil {
+			return goahttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
+		}
+		{{- else }}
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
+		}
+		{{- end }}
+	{{- end }}
+	{{- if .BasicScheme }}{{ with .BasicScheme }}
+		{{- if not .UsernameRequired }}
+		if p.{{ .UsernameField }} != nil {
+		{{- end }}
+		{{- if not .PasswordRequired }}
+		if p.{{ .PasswordField }} != nil {
+		{{- end }}
+		req.SetBasicAuth({{ if .UsernamePointer }}*{{ end }}p.{{ .UsernameField }}, {{ if .PasswordPointer }}*{{ end }}p.{{ .PasswordField }})
+		{{- if not .UsernameRequired }}
+		}
+		{{- end }}
+		{{- if not .PasswordRequired }}
+		}
+		{{- end }}
+	{{- end }}{{ end }}
+		return nil
+	}
+}
+`,
+		templateSource{name: "client_type_conversion", source: `  {{- if eq .Type.Name "boolean" -}}
+    {{ .VarName }} := strconv.FormatBool({{ if .IsAliased }}bool({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }})
+  {{- else if eq .Type.Name "int" -}}
+    {{ .VarName }} := strconv.Itoa({{ if .IsAliased }}int({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }})
+  {{- else if eq .Type.Name "int32" -}}
+    {{ .VarName }} := strconv.FormatInt(int64({{ .Target }}), 10)
+  {{- else if eq .Type.Name "int64" -}}
+    {{ .VarName }} := strconv.FormatInt({{ if .IsAliased }}int64({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }}, 10)
+  {{- else if eq .Type.Name "uint" -}}
+    {{ .VarName }} := strconv.FormatUint(uint64({{ .Target }}), 10)
+  {{- else if eq .Type.Name "uint32" -}}
+    {{ .VarName }} := strconv.FormatUint(uint64({{ .Target }}), 10)
+  {{- else if eq .Type.Name "uint64" -}}
+    {{ .VarName }} := strconv.FormatUint({{ if .IsAliased }}uint64({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }}, 10)
+  {{- else if eq .Type.Name "float32" -}}
+    {{ .VarName }} := strconv.FormatFloat(float64({{ .Target }}), 'f', -1, 32)
+  {{- else if eq .Type.Name "float64" -}}
+    {{ .VarName }} := strconv.FormatFloat({{ if .IsAliased }}float64({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }}, 'f', -1, 64)
+	{{- else if eq .Type.Name "string" -}}
+    {{ .VarName }} := {{ if .IsAliased }}string({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }}
+  {{- else if eq .Type.Name "bytes" -}}
+    {{ .VarName }} := string({{ .Target }})
+  {{- else if eq .Type.Name "any" -}}
+    {{ .VarName }} := fmt.Sprintf("%v", {{ .Target }})
+  {{- else }}
+    // unsupported type {{ .Type.Name }} for field {{ .FieldName }}
+  {{- end }}`},
+		templateSource{name: "client_map_conversion", source: `for k{{ if not (eq .Type.KeyType.Type.Name "string") }}Raw{{ end }}, value := range {{ .SourceVar }}{{ if .SourceField }}.{{ .SourceField }}{{ end }} {
+		{{- if not (eq .Type.KeyType.Type.Name "string") }}
+			{{ template "partial_client_type_conversion" (typeConversionData .Type.KeyType.Type .FieldType.KeyType.Type "k" "kRaw") }}
+		{{- end }}
+		key {{ if .NewVar }}:={{ else }}={{ end }} fmt.Sprintf("{{ .VarName }}[%s]", {{ if not .NewVar }}key, {{ end }}k)
+		{{- if eq .Type.ElemType.Type.Name "string" }}
+			values.Add(key, {{ if (isAlias .FieldType.ElemType.Type) }}string({{ end }}value{{ if (isAlias .FieldType.ElemType.Type) }}){{ end }})
+		{{- else if eq .Type.ElemType.Type.Name "map" }}
+			{{- template "partial_client_map_conversion" (mapConversionData .Type.ElemType.Type .FieldType.ElemType.Type "%s" "value" "" false) }}
+		{{- else if eq .Type.ElemType.Type.Name "array" }}
+			{{- if and (eq .Type.ElemType.Type.ElemType.Type.Name "string") (not (isAlias .FieldType.ElemType.Type.ElemType.Type)) }}
+				values[key] = value
+			{{- else }}
+				for _, val := range value {
+					{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type.ElemType.Type (aliasedType .FieldType.ElemType.Type).ElemType.Type "valStr" "val") }}
+					values.Add(key, valStr)
+				}
+			{{- end }}
+		{{- else }}
+			{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type .FieldType.ElemType.Type "valueStr" "value") }}
+			values.Add(key, valueStr)
+		{{- end }}
+	}`},
+	)
+
+	requestDecoderSource = joinHTTPTemplateSource(`{{ printf "%s returns a decoder for requests sent to the %s %s endpoint." .RequestDecoder .ServiceName .Method.Name | comment }}
+func {{ .RequestDecoder }}(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) ({{ .Payload.Ref }}, error) {
+	return func(r *http.Request) ({{ .Payload.Ref }}, error) {
+		var payload {{ .Payload.Ref }}
+{{- if .MultipartRequestDecoder }}
+		if err := decoder(r).Decode(&payload); err != nil {
+			var gerr *goa.ServiceError
+			if errors.As(err, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(err.Error())
+		}
+{{- else if .Payload.Request.ServerBody }}
+		var (
+			body {{ .Payload.Request.ServerBody.VarName }}
+			err  error
+		)
+	{{- if .Payload.Request.MultipartGenerated }}
+		mr, multipartErr := r.MultipartReader()
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		multipartForm, multipartErr := goahttp.ReadMultipartForm(mr)
+		if multipartErr != nil {
+			var gerr *goa.ServiceError
+			if errors.As(multipartErr, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(multipartErr.Error())
+		}
+		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
+		{{- if .Payload.Request.MustHaveBody }}
+			return payload, goa.MissingPayloadError()
+		{{- end }}
+		} else {
+		{{- range .Payload.Request.MultipartFileFields }}
+			files := multipartForm.Files["{{ .HTTPName }}"]
+			switch len(files) {
+			case 0:
+			{{- if .Required }}
+				err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "body"))
+			{{- end }}
+			case 1:
+				multipartForm.Values.Set("{{ .HTTPName }}", string(files[0].Data))
+			{{- if .PopulateFilename }}
+				if _, ok := multipartForm.Values["filename"]; !ok && files[0].Filename != "" {
+					multipartForm.Values.Set("filename", files[0].Filename)
+				}
+			{{- end }}
+			{{- if .PopulateContentType }}
+				if _, ok := multipartForm.Values["content_type"]; !ok && files[0].ContentType != "" {
+					multipartForm.Values.Set("content_type", files[0].ContentType)
+				}
+			{{- end }}
+			default:
+				return payload, goa.DecodePayloadError("multiple multipart files provided for field {{ .HTTPName }}")
+			}
+		{{- end }}
+			if _, multipartErr = goahttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
+				var gerr *goa.ServiceError
+				if errors.As(multipartErr, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(multipartErr.Error())
+			}
+		}
+	{{- else if .Payload.Request.FormEncoded }}
+		if err = r.ParseForm(); err != nil {
+			return payload, goa.DecodePayloadError(err.Error())
+		}
+		if len(r.PostForm) == 0 {
+		{{- if .Payload.Request.MustHaveBody }}
+			return payload, goa.MissingPayloadError()
+		{{- end }}
+		} else {
+			if _, err = goahttp.DecodeFormValue(r.PostForm, "", &body); err != nil {
+				var gerr *goa.ServiceError
+				if errors.As(err, &gerr) {
+					return payload, gerr
+				}
+				return payload, goa.DecodePayloadError(err.Error())
+			}
+		}
 	{{- else }}
-		res, err := endpoint(ctx, {{ if .Payload.Ref }}payload{{ else }}nil{{ end }})
-	{{- end }}
-		{{- if not .Redirect }}
-			if err != nil {
-				{{- if isWebSocketEndpoint . }}
-			var stream *{{ .ServerWebSocket.VarName }}
-			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
-				stream = wrapper.Unwrap().(*{{ .ServerWebSocket.VarName }})
-			} else {
-				stream = v.Stream.(*{{ .ServerWebSocket.VarName }})
+		err = decoder(r).Decode(&body)
+		if err != nil {
+		{{- if .Payload.Request.MustHaveBody }}
+			if errors.Is(err, io.EOF) {
+				return payload, goa.MissingPayloadError()
 			}
-				if stream != nil && stream.conn != nil {
-					// Response writer has been hijacked, do not encode the error
-					if errhandler != nil {
-						errhandler(ctx, w, err)
-					}
-					return
-				}
-				{{- end }}
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
+		{{- else }}
+			if errors.Is(err, io.EOF) {
+				err = nil
+			} else {
+		{{- end }}
+			var gerr *goa.ServiceError
+			if errors.As(err, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(err.Error())
+		{{- if not .Payload.Request.MustHaveBody }}
 			}
 		{{- end }}
-	{{- if .Method.SkipResponseBodyEncodeDecode }}
-		o := res.(*{{ .ServicePkgName }}.{{ .Method.ResponseStruct }})
-		defer o.Body.Close()
-		if wt, ok := o.Body.(io.WriterTo); ok {
-			{{- if not (or .Redirect (isWebSocketEndpoint .)) }}
-			if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			{{- end }}
-			n, err := wt.WriteTo(w)
-			if err != nil {
-				if n == 0 {
-					if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-						errhandler(ctx, w, err)
-					}
-				} else {
-					http.NewResponseController(w).Flush()
-					panic(http.ErrAbortHandler) // too late to write an error
-				}
-			}
-			return
-		}
-		// handle immediate read error like a returned error
-		buf := bufio.NewReader(o.Body)
-		if _, err := buf.Peek(1); err != nil && err != io.EOF {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
 		}
 	{{- end }}
-	{{- if not (or .Redirect (isWebSocketEndpoint .) (isSSEEndpoint .)) }}
-		if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
+	{{- if .Payload.Request.ServerBody.ValidateRef }}
+		{{ .Payload.Request.ServerBody.ValidateRef }}
+		if err != nil {
+		{{- if .Payload.Request.MultipartGenerated }}
+			if multipartErr != nil {
+				err = goa.MergeErrors(multipartErr, err)
 			}
-			{{- if .Method.SkipResponseBodyEncodeDecode }}
-			return
-			{{- end }}
+		{{- end }}
+			return payload, err
 		}
 	{{- end }}
-	{{- if .Method.SkipResponseBodyEncodeDecode }}
-		if _, err := io.Copy(w, buf); err != nil {
-			http.NewResponseController(w).Flush()
-			panic(http.ErrAbortHandler) // too late to write an error
+	{{- if .Payload.Request.MultipartGenerated }}
+		if multipartErr != nil {
+			return payload, multipartErr
 		}
 	{{- end }}
-	{{- end }}
-	})
-}
-
-{{- if .HasMixedResults }}
-
-// discard{{ .Method.VarName }}ServerStream implements the {{ .SSE.Interface }}
-// interface and drops all events. It is used for mixed results endpoints in
-// unary (non-SSE) mode so service implementations can use the stream parameter
-// without nil checks.
-type discard{{ .Method.VarName }}ServerStream struct{}
-
-// {{ .SSE.SendName }} discards the event.
-func (s *discard{{ .Method.VarName }}ServerStream) {{ .SSE.SendName }}(v {{ .SSE.EventTypeRef }}) error {
-	return nil
-}
-
-// {{ .SSE.SendWithContextName }} discards the event.
-func (s *discard{{ .Method.VarName }}ServerStream) {{ .SSE.SendWithContextName }}(ctx context.Context, v {{ .SSE.EventTypeRef }}) error {
-	return nil
-}
-
-// Close is a no-op.
-func (s *discard{{ .Method.VarName }}ServerStream) Close() error {
-	return nil
-}
 {{- end }}
-`
+{{- if not .MultipartRequestDecoder }}
+	{{- template "partial_request_elements" .Payload.Request }}
+	{{- if .Payload.Request.MustValidate }}
+		if err != nil {
+			return payload, err
+		}
+	{{- end }}
+	{{- if .Payload.Request.PayloadInit }}
+	payload = {{ .Payload.Request.PayloadInit.Name }}({{ range .Payload.Request.PayloadInit.ServerArgs }}{{ .Ref }}, {{ end }})
+	{{- else if .Payload.DecoderReturnValue }}
+	payload = {{ .Payload.DecoderReturnValue }}
+	{{- else }}
+	payload = body
+	{{- end }}
+{{- end }}
+{{- if .BasicScheme }}{{ with .BasicScheme }}
+	user, pass, {{ if or .UsernameRequired .PasswordRequired }}ok{{ else }}_{{ end }} := r.BasicAuth()
+		{{- if or .UsernameRequired .PasswordRequired}}
+	if !ok {
+		return payload, goa.MissingFieldError("Authorization", "header")
+	}
+		{{- end }}
+	payload.{{ .UsernameField }} = {{ if .UsernamePointer }}&{{ end }}user
+	payload.{{ .PasswordField }} = {{ if .PasswordPointer }}&{{ end }}pass
+{{- end }}{{ end }}
+{{- range .HeaderSchemes }}
+	{{- if not .CredRequired }}
+	if payload.{{ .CredField }} != nil {
+	{{- end }}
+	if strings.Contains({{ if .CredPointer }}*{{ end }}payload.{{ .CredField }}, " ") {
+		// Remove authorization scheme prefix (e.g. "Bearer")
+		cred := strings.SplitN({{ if .CredPointer }}*{{ end }}payload.{{ .CredField }}, " ", 2)[1]
+		payload.{{ .CredField }} = {{ if .CredPointer }}&{{ end }}cred
+	}
+	{{- if not .CredRequired }}
+	}
+	{{- end }}
+{{- end }}
 
-	multipartRequestDecoderSource = joinHTTPTemplateSource(`{{ printf "%s returns a decoder to decode the multipart request for the %q service %q endpoint." .InitName .ServiceName .MethodName | comment }}
-func {{ .InitName }}(mux goahttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r *http.Request) goahttp.Decoder {
-	return func(r *http.Request) goahttp.Decoder {
-		return goahttp.EncodingFunc(func(v any) error {
-			mr, merr := r.MultipartReader()
-			if merr != nil {
-				return merr
-			}
-			p := v.(*{{ .Payload.Ref }})
-			if err := {{ .VarName }}(mr, p); err != nil {
-				return err
-			}
-			{{- template "partial_request_elements" .Payload.Request }}
-			{{- if .Payload.Request.MustValidate }}
-			if err != nil {
-				return err
-			}
-			{{- end }}
-			{{- if .Payload.Request.PayloadInit }}
-				{{- range .Payload.Request.PayloadInit.ServerArgs }}
-					{{- if .FieldName }}
-			(*p).{{ .FieldName }} = {{ if and (not .Pointer) .FieldPointer }}&{{ end }}{{ .VarName }}
-					{{- end }}
-				{{- end }}
-			{{- end }}
-			return nil
-		})
+	return payload, nil
 	}
 }
 `,
@@ -412,7 +438,7 @@ func {{ .InitName }}(mux goahttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r *
 	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
 		{{ .VarName }} = params["{{ .HTTPName }}"]
 
-	{{- else }}
+	{{- else }}{{/* not string and not any */}}
 		{
 			{{ .VarName }}Raw := params["{{ .HTTPName }}"]
 			{{- template "partial_path_conversion" . }}
@@ -567,7 +593,7 @@ qp := r.URL.Query()
 		{{- end }}
 	}
 
-	{{- else }}
+	{{- else }}{{/* not string, not any, not slice and not map */}}
 	{
 		{{ .VarName }}Raw := {{$qpVar}}.Get("{{ .HTTPName }}")
 		{{- if .Required }}
@@ -647,7 +673,7 @@ qp := r.URL.Query()
 		{{- end }}
 	}
 
-	{{- else }}
+	{{- else }}{{/* not string, not any and not slice */}}
 	{
 		{{ .VarName }}Raw := r.Header.Get("{{ .HTTPName }}")
 		{{- if .Required }}
@@ -697,7 +723,7 @@ qp := r.URL.Query()
 		}
 		{{- end }}
 
-	{{- else }}
+	{{- else }}{{/* not string and not any */}}
 	{
 		var {{ .VarName }}Raw string
 		if c != nil {
@@ -795,6 +821,17 @@ qp := r.URL.Query()
 	for i, rv := range {{ .VarName }}Raw {
 		{{- template "partial_slice_item_conversion" . }}
 	}`},
+		templateSource{name: "query_slice_conversion", source: `	{{- if eq . "string" }} url.QueryEscape(v)
+	{{- else if eq . "int" "int32" }} strconv.FormatInt(int64(v), 10)
+	{{- else if eq . "int64" }} strconv.FormatInt(v, 10)
+	{{- else if eq . "uint" "uint32" }} strconv.FormatUint(uint64(v), 10)
+	{{- else if eq . "uint64" }} strconv.FormatUint(v, 10)
+	{{- else if eq . "float32" }} strconv.FormatFloat(float64(v), 'f', -1, 32)
+	{{- else if eq . "float64" }} strconv.FormatFloat(v, 'f', -1, 64)
+	{{- else if eq . "boolean" }} strconv.FormatBool(v)
+	{{- else if eq . "bytes" }} url.QueryEscape(string(v))
+	{{- else }} url.QueryEscape(fmt.Sprintf("%v", v))
+	{{- end }}`},
 		templateSource{name: "query_type_conversion", source: `	{{- if eq .Type.Name "bytes" }}
 		{{ .VarName }} = []byte({{.VarName}}Raw)
 	{{- else if eq .Type.Name "int" }}
