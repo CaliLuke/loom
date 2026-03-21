@@ -86,45 +86,13 @@ func ExampleServer(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, ser
 
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
-		&codegen.SectionTemplate{
-			Name:   "server-http-start",
-			Source: httpTemplates.Read(serverStartT),
-			Data: map[string]any{
-				"Services": svcdata,
-			},
-		},
-		&codegen.SectionTemplate{
-			Name:   "server-http-encoding",
-			Source: httpTemplates.Read(serverEncodingT),
-		},
-		&codegen.SectionTemplate{
-			Name:   "server-http-mux",
-			Source: httpTemplates.Read(serverMuxT),
-		},
-		&codegen.SectionTemplate{
-			Name:   "server-http-init",
-			Source: httpTemplates.Read(serverConfigureT),
-			Data: map[string]any{
-				"Services": svcdata,
-				"APIPkg":   apiPkg,
-			},
-			FuncMap: map[string]any{"needDialer": NeedDialer, "hasWebSocket": HasWebSocket},
-		},
-		&codegen.SectionTemplate{
-			Name:   "server-http-middleware",
-			Source: httpTemplates.Read(serverMiddlewareT),
-		},
-		&codegen.SectionTemplate{
-			Name:   "server-http-end",
-			Source: httpTemplates.Read(serverEndT),
-			Data: map[string]any{
-				"Services": svcdata,
-			},
-		},
-		&codegen.SectionTemplate{
-			Name:   "server-http-errorhandler",
-			Source: httpTemplates.Read(serverErrorHandlerT),
-		},
+		exampleServerStartSection(svcdata),
+		exampleServerEncodingSection(),
+		exampleServerMuxSection(),
+		exampleServerConfigureSection(svcdata, apiPkg),
+		exampleServerMiddlewareSection(),
+		exampleServerEndSection(svcdata),
+		exampleServerErrorHandlerSection(),
 	}
 
 	return &codegen.File{Path: fpath, Sections: sections, SkipExist: true}
@@ -168,19 +136,11 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, svc *expr.HTTPServic
 		for _, e := range data.Endpoints {
 			if e.MultipartRequestDecoder != nil {
 				mustGen = true
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:   "dummy-multipart-request-decoder",
-					Source: httpTemplates.Read(dummyMultipartRequestDecoderT),
-					Data:   e.MultipartRequestDecoder,
-				})
+				sections = append(sections, dummyMultipartRequestDecoderSection(e.MultipartRequestDecoder))
 			}
 			if e.MultipartRequestEncoder != nil {
 				mustGen = true
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:   "dummy-multipart-request-encoder",
-					Source: httpTemplates.Read(dummyMultipartRequestEncoderT),
-					Data:   e.MultipartRequestEncoder,
-				})
+				sections = append(sections, dummyMultipartRequestEncoderSection(e.MultipartRequestEncoder))
 			}
 		}
 	}

@@ -10,5 +10,6 @@ func NewMethodBodyInlineMapUserMapKeyTypeElemType(body map[*KeyTypeRequestBody]*
 		}
 		v[tk] = unmarshalElemTypeRequestBodyToServicebodyinlinemapuserElemType(val)
 	}
+
 	return v
 }

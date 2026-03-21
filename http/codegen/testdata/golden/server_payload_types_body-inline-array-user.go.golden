@@ -9,5 +9,6 @@ func NewMethodBodyInlineArrayUserElemType(body []*ElemTypeRequestBody) []*servic
 		}
 		v[i] = unmarshalElemTypeRequestBodyToServicebodyinlinearrayuserElemType(val)
 	}
+
 	return v
 }
