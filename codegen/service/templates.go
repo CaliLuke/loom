@@ -8,31 +8,8 @@ import (
 
 // Template constants
 const (
-	// Client templates
-	serviceClientT       = "service_client"
-	serviceClientInitT   = "service_client_init"
-	serviceClientMethodT = "service_client_method"
-
-	// Convert templates
 	// Endpoint templates
-	serviceEndpointsT            = "service_endpoints"
-	serviceEndpointStreamStructT = "service_endpoint_stream_struct"
-	serviceRequestBodyStructT    = "service_request_body_struct"
-	serviceResponseBodyStructT   = "service_response_body_struct"
-	serviceEndpointsInitT        = "service_endpoints_init"
-	serviceEndpointsUseT         = "service_endpoints_use"
-	serviceEndpointMethodT       = "service_endpoint_method"
-
-	// Example interceptor templates
-	exampleServerInterceptorT = "example_server_interceptor"
-	exampleClientInterceptorT = "example_client_interceptor"
-
-	// Example service templates
-	exampleServiceStructT     = "example_service_struct"
-	exampleServiceInitT       = "example_service_init"
-	exampleSecurityAuthfuncsT = "example_security_authfuncs"
-	endpointT                 = "endpoint"
-	jsonrpcHandleStreamT      = "jsonrpc_handle_stream"
+	serviceEndpointMethodT = "service_endpoint_method"
 
 	// Service templates
 	serviceT = "service"

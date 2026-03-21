@@ -86,11 +86,7 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 			{Path: genpkg + "/" + svcName + "/" + "views", Name: svc.ViewsPkg},
 		}
 		header := codegen.Header(service.Name+" endpoints", svc.PkgName, imports)
-		def := &codegen.SectionTemplate{
-			Name:   "endpoints-struct",
-			Source: serviceTemplates.Read(serviceEndpointsT),
-			Data:   data,
-		}
+		def := endpointsStructSection(data)
 		sections = []codegen.Section{header, def}
 		for _, m := range data.Methods {
 			if m.ServerStream != nil {
@@ -101,37 +97,17 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 				// For HTTP/gRPC: always generate endpoint input struct
 				isJSONRPCWebSocket := m.IsJSONRPC && !isJSONRPCSSE(services, service)
 				if !isJSONRPCWebSocket || (isJSONRPCWebSocket && m.ServerStream.EndpointStruct != "") {
-					sections = append(sections, &codegen.SectionTemplate{
-						Name:   "endpoint-input-struct",
-						Source: serviceTemplates.Read(serviceEndpointStreamStructT),
-						Data:   m,
-					})
+					sections = append(sections, endpointStreamStructSection(m))
 				}
 			}
 			if m.SkipRequestBodyEncodeDecode {
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:   "request-body-struct",
-					Source: serviceTemplates.Read(serviceRequestBodyStructT),
-					Data:   m,
-				})
+				sections = append(sections, requestBodyStructSection(m))
 			}
 			if m.SkipResponseBodyEncodeDecode {
-				sections = append(sections, &codegen.SectionTemplate{
-					Name:   "response-body-struct",
-					Source: serviceTemplates.Read(serviceResponseBodyStructT),
-					Data:   m,
-				})
+				sections = append(sections, responseBodyStructSection(m))
 			}
 		}
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "endpoints-init",
-			Source: serviceTemplates.Read(serviceEndpointsInitT),
-			Data:   data,
-		}, &codegen.SectionTemplate{
-			Name:   "endpoints-use",
-			Source: serviceTemplates.Read(serviceEndpointsUseT),
-			Data:   data,
-		})
+		sections = append(sections, endpointsInitSection(data), endpointsUseSection(data))
 		for _, m := range data.Methods {
 			sections = append(sections, &codegen.SectionTemplate{
 				Name:    "endpoint-method",
