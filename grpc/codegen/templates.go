@@ -49,14 +49,6 @@ const (
 	grpcRemoteMethodBuilderT = "remote_method_builder"
 )
 
-// Transform template constants
-const (
-	grpcTransformGoArrayT          = "transform_go_array"
-	grpcTransformGoMapT            = "transform_go_map"
-	grpcTransformGoUnionFromProtoT = "transform_go_union_from_proto"
-	grpcTransformGoUnionToProtoT   = "transform_go_union_to_proto"
-)
-
 // Common template constants
 const (
 	grpcTypeInitT        = "type_init"

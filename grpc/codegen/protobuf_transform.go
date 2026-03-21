@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	"text/template"
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
@@ -40,32 +39,6 @@ type unionData struct {
 	// TargetWrapperRefs holds wrapper type refs used when assigning from
 	// protobuf to Go union (proto -> Go). Empty string means no wrapper.
 	TargetWrapperRefs []string
-}
-
-var (
-	// transformGoArrayT is the template to generate Go array transformation
-	// code.
-	transformGoArrayT *template.Template
-	// transformGoMapT is the template to generate Go map transformation code.
-	transformGoMapT *template.Template
-	// transformGoUnionT is the template to generate Go union transformation
-	// code to protobuf.
-	transformGoUnionToProtoT *template.Template
-	// transformGoUnionT is the template to generate Go union transformation
-	// code from protobuf.
-	transformGoUnionFromProtoT *template.Template
-)
-
-// NOTE: can't initialize inline because https://github.com/golang/go/issues/1817
-func init() {
-	fm := template.FuncMap{
-		"transformAttribute": transformAttribute,
-		"convertType":        convertType,
-	}
-	transformGoArrayT = template.Must(template.New("transformGoArray").Funcs(fm).Parse(grpcTemplates.Read(grpcTransformGoArrayT)))
-	transformGoMapT = template.Must(template.New("transformGoMap").Funcs(fm).Parse(grpcTemplates.Read(grpcTransformGoMapT)))
-	transformGoUnionToProtoT = template.Must(template.New("transformGoUnionToProto").Funcs(fm).Parse(grpcTemplates.Read(grpcTransformGoUnionToProtoT)))
-	transformGoUnionFromProtoT = template.Must(template.New("transformGoUnionFromProto").Funcs(fm).Parse(grpcTemplates.Read(grpcTransformGoUnionFromProtoT)))
 }
 
 // protoBufTransform produces Go code to initialize a data structure defined
@@ -480,22 +453,40 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		}
 	}
 
-	data := map[string]any{
-		"ElemTypeRef":    targetRef,
-		"SourceElem":     src,
-		"TargetElem":     tgt,
-		"SourceVar":      sourceVar,
-		"TargetVar":      targetVar,
-		"TargetPtr":      targetPtr,
-		"SourcePtr":      sourcePtr,
-		"NewVar":         newVar,
-		"TransformAttrs": ta,
-		"LoopVar":        string(rune(105 + strings.Count(targetVar, "["))),
-		"ValVar":         valVar,
+	var (
+		buf     bytes.Buffer
+		loopVar = string(rune(105 + strings.Count(targetVar, "[")))
+		rangeOn = sourceVar
+		assign  = "="
+	)
+	if sourcePtr {
+		rangeOn = "*" + rangeOn
 	}
-	var buf bytes.Buffer
-	if err := transformGoArrayT.Execute(&buf, data); err != nil {
+	if newVar {
+		assign = ":="
+	}
+	sourceValue := "val"
+	targetElemVar := fmt.Sprintf("%s[%s]", targetVar, loopVar)
+	if targetPtr {
+		arrayVar := fmt.Sprintf("arr%s", loopVar)
+		targetElemVar = fmt.Sprintf("%s[%s]", arrayVar, loopVar)
+		fmt.Fprintf(&buf, "%s := make([]%s, len(%s))\n", arrayVar, targetRef, rangeOn)
+	} else {
+		fmt.Fprintf(&buf, "%s %s make([]%s, len(%s))\n", targetVar, assign, targetRef, rangeOn)
+	}
+	if valVar != "" {
+		fmt.Fprintf(&buf, "for %s, %s := range %s {\n", loopVar, valVar, rangeOn)
+	} else {
+		fmt.Fprintf(&buf, "for %s := range %s {\n", loopVar, rangeOn)
+	}
+	elemCode, err := transformAttribute(src, tgt, sourceValue, targetElemVar, false, ta)
+	if err != nil {
 		return "", err
+	}
+	buf.WriteString(codegen.Indent(elemCode, "\t"))
+	buf.WriteString("}\n")
+	if targetPtr {
+		fmt.Fprintf(&buf, "%s = &arr%s\n", targetVar, loopVar)
 	}
 	return code + buf.String(), nil
 }
@@ -559,26 +550,45 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 			return "", err
 		}
 	}
-	data := map[string]any{
-		"KeyTypeRef":     targetKeyRef,
-		"ElemTypeRef":    targetElemRef,
-		"SourceKey":      source.KeyType,
-		"TargetKey":      target.KeyType,
-		"SourceElem":     src,
-		"TargetElem":     tgt,
-		"SourceVar":      sourceVar,
-		"TargetVar":      targetVar,
-		"TargetPtr":      targetPtr,
-		"NewVar":         newVar,
-		"TransformAttrs": ta,
-		"LoopVar":        "",
-	}
+	var (
+		buf     bytes.Buffer
+		loopVar string
+		suffix  string
+		assign  = "="
+		mapVar  = targetVar
+	)
 	if depth := codegen.MapDepth(target); depth > 0 {
-		data["LoopVar"] = string(rune(97 + depth))
+		loopVar = string(rune(97 + depth))
+		suffix = loopVar
 	}
-	var buf bytes.Buffer
-	if err := transformGoMapT.Execute(&buf, data); err != nil {
+	if loopVar == "" {
+		loopVar = "a"
+	}
+	if newVar {
+		assign = ":="
+	}
+	if targetPtr {
+		mapVar = fmt.Sprintf("m%s", loopVar)
+		fmt.Fprintf(&buf, "%s := make(map[%s]%s, len(%s))\n", mapVar, targetKeyRef, targetElemRef, sourceVar)
+	} else {
+		fmt.Fprintf(&buf, "%s %s make(map[%s]%s, len(%s))\n", targetVar, assign, targetKeyRef, targetElemRef, sourceVar)
+	}
+	fmt.Fprintf(&buf, "for key, val := range %s {\n", sourceVar)
+	keyCode, err := transformAttribute(source.KeyType, target.KeyType, "key", "tk", true, ta)
+	if err != nil {
 		return "", err
+	}
+	buf.WriteString(codegen.Indent(keyCode, "\t"))
+	elemTmp := fmt.Sprintf("tv%s", suffix)
+	elemCode, err := transformAttribute(src, tgt, "val", elemTmp, true, ta)
+	if err != nil {
+		return "", err
+	}
+	buf.WriteString(codegen.Indent(elemCode, "\t"))
+	fmt.Fprintf(&buf, "\t%s[tk] = %s\n", mapVar, elemTmp)
+	buf.WriteString("}\n")
+	if targetPtr {
+		fmt.Fprintf(&buf, "%s = &%s\n", targetVar, mapVar)
 	}
 	return code + buf.String(), nil
 }
@@ -605,17 +615,19 @@ func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, target
 		})
 	}
 
-	data := map[string]any{
-		"SourceVar":      sourceVar,
-		"TargetVar":      targetVar,
-		"SourcePtr":      sourcePtr,
-		"TransformAttrs": ta,
-		"Cases":          cases,
-	}
 	var buf bytes.Buffer
-	if err := transformGoUnionToProtoT.Execute(&buf, data); err != nil {
-		return "", err
+	switchTarget := sourceVar
+	if sourcePtr {
+		switchTarget = "(*" + sourceVar + ")"
 	}
+	fmt.Fprintf(&buf, "switch string(%s.Kind()) {\n", switchTarget)
+	for _, c := range cases {
+		fmt.Fprintf(&buf, "case %q:\n", c["typeTag"])
+		fmt.Fprintf(&buf, "\tactual, _ := %s.As%s()\n", switchTarget, c["sourceFieldName"])
+		val := convertType(c["sourceAttr"].(*expr.AttributeExpr), c["targetAttr"].(*expr.AttributeExpr), false, false, "actual", ta)
+		fmt.Fprintf(&buf, "\t%s = &%s{%s: %s}\n", targetVar, c["targetWrapperType"], c["targetFieldName"], val)
+	}
+	buf.WriteString("}\n")
 	return buf.String(), nil
 }
 
@@ -640,16 +652,19 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 			"targetFieldName":    targetFieldName,
 		})
 	}
-	data := map[string]any{
-		"SourceVar":      sourceVar,
-		"TargetVar":      targetVar,
-		"TransformAttrs": ta,
-		"Cases":          cases,
-	}
 	var buf bytes.Buffer
-	if err := transformGoUnionFromProtoT.Execute(&buf, data); err != nil {
-		return "", err
+	fmt.Fprintf(&buf, "switch val := %s.(type) {\n", sourceVar)
+	for _, c := range cases {
+		fmt.Fprintf(&buf, "case %s:\n", c["sourceValueTypeRef"])
+		field := "val." + c["sourceFieldName"].(string)
+		tmp := convertType(c["sourceAttr"].(*expr.AttributeExpr), c["targetAttr"].(*expr.AttributeExpr), false, false, field, ta)
+		buf.WriteString("\t{\n")
+		fmt.Fprintf(&buf, "\t\tu := %s\n", targetVar)
+		fmt.Fprintf(&buf, "\t\tu.Set%s(%s)\n", c["targetFieldName"], tmp)
+		fmt.Fprintf(&buf, "\t\t%s = u\n", targetVar)
+		buf.WriteString("\t}\n")
 	}
+	buf.WriteString("}\n")
 	return buf.String(), nil
 }
 
