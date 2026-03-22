@@ -92,6 +92,9 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
   - `CookieName(name)`
   - `SessionSecurity(contract)`
 - Use `AuthErrorResponses()` for standard HTTP auth failures instead of duplicating 401/403 mappings.
+- `AuthErrorResponses()` now reuses compatible canonical 401/403 mappings from
+  method, service, or API scope when those auth errors are already modeled,
+  instead of forcing the helper-owned fallback descriptions into the contract.
 - Prefer modeled response cookies over raw `Set-Cookie` header bags. `SessionCookie(...)` is the secure-default helper for common session issuance.
 - Structured remediation metadata is part of the contract surface. Use:
   - `Remedy(fn)`

@@ -403,3 +403,73 @@ var ValidMethodAuthErrorResponsesCustomMappingDSL = func() {
 		})
 	})
 }
+
+var ValidMethodAuthErrorResponsesReuseServiceMappingDSL = func() {
+	var Unauthorized = Type("ServiceAuthErrorUnauthorized", func() {
+		Attribute("reason", String)
+		Required("reason")
+	})
+	var Forbidden = Type("ServiceAuthErrorForbidden", func() {
+		Attribute("reason", String)
+		Required("reason")
+	})
+	Service("ValidMethodAuthErrorResponsesReuseServiceMappingService", func() {
+		Security(JWTAuth)
+		Error("unauthorized", Unauthorized)
+		Error("forbidden", Forbidden)
+		HTTP(func() {
+			Path("/secure")
+			Response("unauthorized", StatusUnauthorized, func() {
+				Description("Session expired")
+			})
+			Response("forbidden", StatusForbidden, func() {
+				Description("Plan upgrade required")
+			})
+		})
+		Method("SecureMethod", func() {
+			Payload(func() {
+				Token("auth", String)
+			})
+			HTTP(func() {
+				GET("/")
+				AuthErrorResponses()
+			})
+		})
+	})
+}
+
+var ValidMethodAuthErrorResponsesReuseAPIMappingDSL = func() {
+	var Unauthorized = Type("APIAuthErrorUnauthorized", func() {
+		Attribute("reason", String)
+		Required("reason")
+	})
+	var Forbidden = Type("APIAuthErrorForbidden", func() {
+		Attribute("reason", String)
+		Required("reason")
+	})
+	API("auth-error-reuse", func() {
+		Security(JWTAuth)
+		Error("unauthorized", Unauthorized)
+		Error("forbidden", Forbidden)
+		HTTP(func() {
+			Path("/api")
+			Response("unauthorized", StatusUnauthorized, func() {
+				Description("Session expired")
+			})
+			Response("forbidden", StatusForbidden, func() {
+				Description("Team membership required")
+			})
+		})
+	})
+	Service("ValidMethodAuthErrorResponsesReuseAPIMappingService", func() {
+		Method("SecureMethod", func() {
+			Payload(func() {
+				Token("auth", String)
+			})
+			HTTP(func() {
+				GET("/secure")
+				AuthErrorResponses()
+			})
+		})
+	})
+}

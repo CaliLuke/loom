@@ -520,6 +520,12 @@ func ensureHTTPAuthError(errors *[]*expr.HTTPErrorExpr, parent eval.Expression, 
 			return
 		}
 	}
+	if inherited := inheritedCompatibleHTTPAuthError(parent, name, code); inherited != nil {
+		dup := inherited.Dup()
+		dup.Response.Parent = parent
+		*errors = append(*errors, dup)
+		return
+	}
 	*errors = append(*errors, &expr.HTTPErrorExpr{
 		Name: name,
 		Response: &expr.HTTPResponseExpr{
@@ -528,6 +534,32 @@ func ensureHTTPAuthError(errors *[]*expr.HTTPErrorExpr, parent eval.Expression, 
 			Parent:      parent,
 		},
 	})
+}
+
+func inheritedCompatibleHTTPAuthError(parent eval.Expression, name string, code int) *expr.HTTPErrorExpr {
+	switch actual := parent.(type) {
+	case *expr.HTTPServiceExpr:
+		return compatibleHTTPAuthError(actual.Root.Errors, name, code)
+	case *expr.HTTPEndpointExpr:
+		if err := compatibleHTTPAuthError(actual.Service.HTTPErrors, name, code); err != nil {
+			return err
+		}
+		return compatibleHTTPAuthError(actual.Service.Root.Errors, name, code)
+	default:
+		return nil
+	}
+}
+
+func compatibleHTTPAuthError(errors []*expr.HTTPErrorExpr, name string, code int) *expr.HTTPErrorExpr {
+	for _, err := range errors {
+		if err == nil || err.Name != name || err.Response == nil {
+			continue
+		}
+		if err.Response.StatusCode == code {
+			return err
+		}
+	}
+	return nil
 }
 
 // APIKey defines the attribute used to provide the API key to an endpoint

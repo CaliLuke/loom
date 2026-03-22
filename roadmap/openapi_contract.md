@@ -38,6 +38,9 @@ roadmap items unless a regression appears:
   responses when a schema-derived or generic public name can be inferred
   safely, plus pruning of nil-valued component placeholders during IR to v3
   adaptation.
+- `AuthErrorResponses()` reuse of compatible canonical 401/403 auth mappings
+  across method, service, and API scopes instead of forcing framework-owned
+  helper descriptions when the design already models those auth errors.
 - Attribute-level schema metadata for `readOnly`, `writeOnly`, `deprecated`,
   `contentEncoding`, and `contentMediaType`.
 - Documentation-only `OpenAPIBody(...)` support for
@@ -142,7 +145,7 @@ Acceptance:
 
 ### Unit 3: Auth Error Canonicalization
 
-Status: planned
+Status: completed
 
 Problem:
 `AuthErrorResponses()` still injects framework-owned 401/403 descriptions and
