@@ -25,96 +25,12 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	typesByPath := make(map[string][]string)
 	svcSections := make([]codegen.Section, 0, 10)
 
-	addTypeDefSection := func(path, name string, section codegen.Section) {
-		if typeDefSections[path] == nil {
-			typeDefSections[path] = make(map[string]codegen.Section)
-		}
-		typeDefSections[path][name] = section
-		typesByPath[path] = append(typesByPath[path], name)
-		seen[name] = struct{}{}
-	}
-
-	for _, m := range svc.Methods {
-		payloadPath := pathWithDefault(m.PayloadLoc, svcPath)
-		resultPath := pathWithDefault(m.ResultLoc, svcPath)
-		if m.PayloadDef != "" {
-			if _, ok := seen[m.Payload]; !ok {
-				addTypeDefSection(payloadPath, m.Payload, payloadSection(m))
-			}
-		}
-		if m.StreamingPayloadDef != "" {
-			if _, ok := seen[m.StreamingPayload]; !ok {
-				addTypeDefSection(payloadPath, m.StreamingPayload, streamingPayloadSection(m))
-			}
-		}
-		if m.ResultDef != "" {
-			if _, ok := seen[m.Result]; !ok {
-				addTypeDefSection(resultPath, m.Result, resultSection("service-result", m.Result, m.ResultDesc, m.ResultDef))
-			}
-		}
-		// Generate streaming result type if different from result
-		if m.StreamingResultDef != "" && m.StreamingResult != m.Result {
-			if _, ok := seen[m.StreamingResult]; !ok {
-				addTypeDefSection(resultPath, m.StreamingResult, resultSection("service-streaming-result", m.StreamingResult, m.StreamingResultDesc, m.StreamingResultDef))
-			}
-		}
-	}
-	for _, ut := range svc.userTypes {
-		if _, ok := seen[ut.VarName]; !ok {
-			addTypeDefSection(pathWithDefault(ut.Loc, svcPath), ut.VarName, userTypeSection("service-user-type", ut))
-		}
-	}
-	for _, u := range svc.unions {
-		addTypeDefSection(pathWithDefault(u.Loc, svcPath), "~union:"+u.Name, unionTypeSection("service-union-type", u))
-	}
-
-	var errorTypes []*UserTypeData
-	seenErrs := make(map[string]struct{})
-	for _, et := range svc.errorTypes {
-		if et.Type == expr.ErrorResult {
-			continue
-		}
-		if _, ok := seenErrs[et.Name]; !ok {
-			seenErrs[et.Name] = struct{}{}
-			if _, ok := seen[et.Name]; !ok {
-				addTypeDefSection(pathWithDefault(et.Loc, svcPath), et.Name, userTypeSection("error-user-type", et))
-			}
-			errorTypes = append(errorTypes, et)
-		}
-	}
-
-	for _, et := range errorTypes {
-		// Don't override the section created for the error type
-		// declaration, make sure the key does not clash with existing
-		// type names, make it generated last.
-		key := "|" + et.Name
-		addTypeDefSection(pathWithDefault(et.Loc, svcPath), key, errorSection(et))
-	}
-	for _, er := range svc.errorInits {
-		svcSections = append(svcSections, errorInitSection(er))
-	}
-
-	// transform result type functions
-	for _, t := range svc.viewedResultTypes {
-		svcSections = append(svcSections,
-			typeInitSection("viewed-result-type-to-service-result-type", t.ResultInit),
-			typeInitSection("service-result-type-to-viewed-result-type", t.Init))
-	}
-	var projh []*codegen.TransformFunctionData
-	for _, t := range svc.projectedTypes {
-		for _, i := range t.TypeInits {
-			projh = codegen.AppendHelpers(projh, i.Helpers)
-			svcSections = append(svcSections, typeInitSection("projected-type-to-service-type", i))
-		}
-		for _, i := range t.Projections {
-			projh = codegen.AppendHelpers(projh, i.Helpers)
-			svcSections = append(svcSections, typeInitSection("service-type-to-projected-type", i))
-		}
-	}
-
-	for _, h := range projh {
-		svcSections = append(svcSections, transformHelperSection("transform-helpers", h))
-	}
+	addTypeDefSection := newTypeSectionCollector(typeDefSections, typesByPath, seen)
+	collectMethodTypeSections(svc, svcPath, addTypeDefSection, seen)
+	collectUserTypeSections(svc, svcPath, addTypeDefSection, seen)
+	errorTypes := collectErrorTypeSections(svc, svcPath, addTypeDefSection, seen)
+	svcSections = append(svcSections, buildErrorSections(errorTypes, svc, svcPath, addTypeDefSection)...)
+	svcSections = append(svcSections, buildTypeInitSections(svc)...)
 
 	imports := []*codegen.ImportSpec{
 		codegen.SimpleImport("context"),
@@ -134,82 +50,189 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
 	def := serviceDefinitionSection(svc)
 
-	// service.go
-	var sections []codegen.Section
-	{
-		names := make([]string, len(typeDefSections[svcPath]))
-		i := 0
-		for n := range typeDefSections[svcPath] {
-			names[i] = n
-			i++
-		}
-		sections = make([]codegen.Section, 0, 2+len(names)+len(svcSections))
-		sections = append(sections, header, def)
-		sort.Strings(names)
-		for _, n := range names {
-			sections = append(sections, typeDefSections[svcPath][n])
-		}
-		sections = append(sections, svcSections...)
-	}
-	files := []*codegen.File{{Path: svcPath, Sections: sections}}
+	files := make([]*codegen.File, 0, 1+len(svc.ServerInterceptors)+len(svc.ClientInterceptors))
+	files = append(files, &codegen.File{Path: svcPath, Sections: buildServiceFileSections(typeDefSections[svcPath], header, def, svcSections)})
 
-	// service and client interceptors
 	files = append(files, InterceptorsFiles(genpkg, service, services)...)
+	return appendUserTypeFiles(files, svcPath, typeDefSections, typesByPath, userTypePkgs)
+}
 
-	// user types
-	paths := make([]string, len(typeDefSections))
-	i := 0
-	for p := range typesByPath {
-		paths[i] = p
-		i++
+func newTypeSectionCollector(typeDefSections map[string]map[string]codegen.Section, typesByPath map[string][]string, seen map[string]struct{}) func(string, string, codegen.Section) {
+	return func(path, name string, section codegen.Section) {
+		if typeDefSections[path] == nil {
+			typeDefSections[path] = make(map[string]codegen.Section)
+		}
+		typeDefSections[path][name] = section
+		typesByPath[path] = append(typesByPath[path], name)
+		seen[name] = struct{}{}
+	}
+}
+
+func collectMethodTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) {
+	for _, method := range svc.Methods {
+		payloadPath := pathWithDefault(method.PayloadLoc, svcPath)
+		resultPath := pathWithDefault(method.ResultLoc, svcPath)
+		maybeAddNamedTypeSection(method.PayloadDef != "", method.Payload, payloadPath, payloadSection(method), addTypeDefSection, seen)
+		maybeAddNamedTypeSection(method.StreamingPayloadDef != "", method.StreamingPayload, payloadPath, streamingPayloadSection(method), addTypeDefSection, seen)
+		maybeAddNamedTypeSection(method.ResultDef != "", method.Result, resultPath, resultSection("service-result", method.Result, method.ResultDesc, method.ResultDef), addTypeDefSection, seen)
+		maybeAddNamedTypeSection(method.StreamingResultDef != "" && method.StreamingResult != method.Result, method.StreamingResult, resultPath, resultSection("service-streaming-result", method.StreamingResult, method.StreamingResultDesc, method.StreamingResultDef), addTypeDefSection, seen)
+	}
+}
+
+func collectUserTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) {
+	for _, userType := range svc.userTypes {
+		maybeAddNamedTypeSection(true, userType.VarName, pathWithDefault(userType.Loc, svcPath), userTypeSection("service-user-type", userType), addTypeDefSection, seen)
+	}
+	for _, union := range svc.unions {
+		addTypeDefSection(pathWithDefault(union.Loc, svcPath), "~union:"+union.Name, unionTypeSection("service-union-type", union))
+	}
+}
+
+func collectErrorTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) []*UserTypeData {
+	var errorTypes []*UserTypeData
+	seenErrs := make(map[string]struct{})
+	for _, errorType := range svc.errorTypes {
+		if errorType.Type == expr.ErrorResult {
+			continue
+		}
+		if _, ok := seenErrs[errorType.Name]; ok {
+			continue
+		}
+		seenErrs[errorType.Name] = struct{}{}
+		maybeAddNamedTypeSection(true, errorType.Name, pathWithDefault(errorType.Loc, svcPath), userTypeSection("error-user-type", errorType), addTypeDefSection, seen)
+		errorTypes = append(errorTypes, errorType)
+	}
+	return errorTypes
+}
+
+func buildErrorSections(errorTypes []*UserTypeData, svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section)) []codegen.Section {
+	sections := make([]codegen.Section, 0, len(errorTypes)+len(svc.errorInits))
+	for _, errorType := range errorTypes {
+		addTypeDefSection(pathWithDefault(errorType.Loc, svcPath), "|"+errorType.Name, errorSection(errorType))
+	}
+	for _, errorInit := range svc.errorInits {
+		sections = append(sections, errorInitSection(errorInit))
+	}
+	return sections
+}
+
+func buildTypeInitSections(svc *Data) []codegen.Section {
+	var sections []codegen.Section
+	for _, viewed := range svc.viewedResultTypes {
+		sections = append(sections,
+			typeInitSection("viewed-result-type-to-service-result-type", viewed.ResultInit),
+			typeInitSection("service-result-type-to-viewed-result-type", viewed.Init),
+		)
+	}
+	var helpers []*codegen.TransformFunctionData
+	for _, projected := range svc.projectedTypes {
+		for _, initData := range projected.TypeInits {
+			helpers = codegen.AppendHelpers(helpers, initData.Helpers)
+			sections = append(sections, typeInitSection("projected-type-to-service-type", initData))
+		}
+		for _, projection := range projected.Projections {
+			helpers = codegen.AppendHelpers(helpers, projection.Helpers)
+			sections = append(sections, typeInitSection("service-type-to-projected-type", projection))
+		}
+	}
+	for _, helper := range helpers {
+		sections = append(sections, transformHelperSection("transform-helpers", helper))
+	}
+	return sections
+}
+
+func buildServiceFileSections(typeSections map[string]codegen.Section, header, def codegen.Section, svcSections []codegen.Section) []codegen.Section {
+	names := make([]string, 0, len(typeSections))
+	for name := range typeSections {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	sections := make([]codegen.Section, 0, 2+len(names)+len(svcSections))
+	sections = append(sections, header, def)
+	for _, name := range names {
+		sections = append(sections, typeSections[name])
+	}
+	return append(sections, svcSections...)
+}
+
+func appendUserTypeFiles(files []*codegen.File, svcPath string, typeDefSections map[string]map[string]codegen.Section, typesByPath map[string][]string, userTypePkgs map[string][]string) []*codegen.File {
+	paths := sortedTypePaths(typesByPath)
+	for _, path := range paths {
+		if path == svcPath {
+			continue
+		}
+		sections, hasUnion := collectUserTypeFileSections(path, typesByPath[path], typeDefSections[path], userTypePkgs)
+		if len(sections) == 0 {
+			continue
+		}
+		files = append(files, newUserTypeFile(path, sections, hasUnion))
+	}
+	return files
+}
+
+func sortedTypePaths(typesByPath map[string][]string) []string {
+	paths := make([]string, 0, len(typesByPath))
+	for path := range typesByPath {
+		paths = append(paths, path)
 	}
 	sort.Strings(paths)
-	for _, p := range paths {
-		if p == svcPath {
-			continue
-		}
-		var secs []codegen.Section
-		hasUnion := false
-		ts := typesByPath[p]
-		sort.Strings(ts)
-		for _, name := range ts {
-			if strings.HasPrefix(name, "~union:") {
-				hasUnion = true
-			}
-			hasName := false
-			for _, n := range userTypePkgs[p] {
-				if hasName = n == name; hasName {
-					break
-				}
-			}
-			if hasName {
-				continue
-			}
-			userTypePkgs[p] = append(userTypePkgs[p], name)
-			secs = append(secs, typeDefSections[p][name])
-		}
-		if len(secs) == 0 {
-			continue
-		}
-		fullRelPath := filepath.Join(codegen.Gendir, p)
-		dir, _ := filepath.Split(fullRelPath)
-		imports := []*codegen.ImportSpec{
-			codegen.SimpleImport("fmt"),
-			codegen.LoomImport(""),
-		}
-		if hasUnion {
-			imports = append(imports,
-				codegen.SimpleImport("encoding/json"),
-				codegen.SimpleImport("net/url"),
-				codegen.LoomNamedImport("http", "loomhttp"),
-			)
-		}
-		h := codegen.Header("User types", codegen.Goify(filepath.Base(dir), false), imports)
-		sections := append([]codegen.Section{h}, secs...)
-		files = append(files, &codegen.File{Path: fullRelPath, Sections: sections})
-	}
+	return paths
+}
 
-	return files
+func collectUserTypeFileSections(path string, typeNames []string, typeSections map[string]codegen.Section, userTypePkgs map[string][]string) ([]codegen.Section, bool) {
+	names := append([]string(nil), typeNames...)
+	sort.Strings(names)
+	sections := make([]codegen.Section, 0, len(names))
+	hasUnion := false
+	for _, name := range names {
+		if strings.HasPrefix(name, "~union:") {
+			hasUnion = true
+		}
+		if containsString(userTypePkgs[path], name) {
+			continue
+		}
+		userTypePkgs[path] = append(userTypePkgs[path], name)
+		sections = append(sections, typeSections[name])
+	}
+	return sections, hasUnion
+}
+
+func newUserTypeFile(path string, sections []codegen.Section, hasUnion bool) *codegen.File {
+	fullRelPath := filepath.Join(codegen.Gendir, path)
+	dir, _ := filepath.Split(fullRelPath)
+	imports := []*codegen.ImportSpec{
+		codegen.SimpleImport("fmt"),
+		codegen.LoomImport(""),
+	}
+	if hasUnion {
+		imports = append(imports,
+			codegen.SimpleImport("encoding/json"),
+			codegen.SimpleImport("net/url"),
+			codegen.LoomNamedImport("http", "loomhttp"),
+		)
+	}
+	header := codegen.Header("User types", codegen.Goify(filepath.Base(dir), false), imports)
+	return &codegen.File{Path: fullRelPath, Sections: append([]codegen.Section{header}, sections...)}
+}
+
+func maybeAddNamedTypeSection(enabled bool, name, path string, section codegen.Section, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) {
+	if !enabled {
+		return
+	}
+	if _, ok := seen[name]; ok {
+		return
+	}
+	addTypeDefSection(path, name, section)
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 // dedupeByResult returns a slice of methods where only a single representative

@@ -21,129 +21,33 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Starting generator.Generate()\n")
 	}
 
-	// 1. Compute design roots.
-	var roots []eval.Root
-	{
-		start := time.Now()
-		rs, err := eval.Context.Roots()
-		if err != nil {
-			return nil, err
-		}
-		roots = rs
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 1: Compute design roots took %v\n", time.Since(start))
-		}
+	roots, err := loadRoots(debug)
+	if err != nil {
+		return nil, err
 	}
 
-	// 2. Compute "gen" package import path.
-	var genpkg string
-	{
-		start := time.Now()
-		base, err := filepath.Abs(dir)
-		if err != nil {
-			return nil, err
-		}
-		path := filepath.Join(base, codegen.Gendir)
-		if err := os.MkdirAll(path, 0750); err != nil {
-			return nil, err
-		}
-
-		// We create a temporary Go file to make sure the directory is a valid Go package
-		dummy, err := os.CreateTemp(path, "temp.*.go")
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if err := os.Remove(dummy.Name()); err != nil {
-				outputs = nil
-				err1 = err
-			}
-		}()
-		if _, err = dummy.Write([]byte("package gen")); err != nil {
-			return nil, err
-		}
-		if err = dummy.Close(); err != nil {
-			return nil, err
-		}
-
-		startPkgLoad := time.Now()
-		pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName}, path)
-		if err != nil {
-			return nil, err
-		}
-		// In temporary workspaces (e.g., tests) and on Windows, PkgPath may resolve
-		// to an absolute filesystem path which is not a valid Go import path and
-		// would produce invalid imports (e.g., backslashes). Fall back to the
-		// relative generated package import path in that case.
-		if filepath.IsAbs(pkgs[0].PkgPath) {
-			genpkg = codegen.Gendir
-		} else {
-			genpkg = pkgs[0].PkgPath
-		}
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate]   packages.Load took %v\n", time.Since(startPkgLoad))
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 2: Compute gen package import path took %v\n", time.Since(start))
-		}
+	genpkg, err := computeGenPackage(dir, debug)
+	if err != nil {
+		return nil, err
 	}
 
-	// 3. Retrieve Loom generators for given command.
-	var genfuncs []Genfunc
-	{
-		start := time.Now()
-		gs, err := Generators(cmd)
-		if err != nil {
-			return nil, err
-		}
-		genfuncs = gs
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 3: Retrieve Loom generators took %v (%d generators)\n", time.Since(start), len(genfuncs))
-		}
+	genfuncs, err := loadGenerators(cmd, debug)
+	if err != nil {
+		return nil, err
 	}
 
-	// 4. Run the code pre generation plugins.
-	{
-		start := time.Now()
-		err := codegen.RunPluginsPrepare(cmd, genpkg, roots)
-		if err != nil {
-			return nil, err
-		}
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 4: Run pre-generation plugins took %v\n", time.Since(start))
-		}
+	if err := runPreparePlugins(cmd, genpkg, roots, debug); err != nil {
+		return nil, err
 	}
 
-	// 5. Generate initial set of files produced by Loom code generators.
-	// NOTE: Parallelization causes infinite recursion in AsObject() for circular type references
-	var genfiles []*codegen.File
-	{
-		start := time.Now()
-		for i, gen := range genfuncs {
-			genStart := time.Now()
-			fs, err := gen(genpkg, roots)
-			if err != nil {
-				return nil, err
-			}
-			genfiles = append(genfiles, fs...)
-			if debug {
-				fmt.Fprintf(os.Stderr, "[TIMING]     [generate]   Generator %d produced %d files in %v\n", i, len(fs), time.Since(genStart))
-			}
-		}
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 5: Generate initial files took %v (total %d files)\n", time.Since(start), len(genfiles))
-		}
+	genfiles, err := generateInitialFiles(genpkg, roots, genfuncs, debug)
+	if err != nil {
+		return nil, err
 	}
 
-	// 6. Run the code generation plugins.
-	{
-		start := time.Now()
-		var err error
-		genfiles, err = codegen.RunPlugins(cmd, genpkg, roots, genfiles)
-		if err != nil {
-			return nil, err
-		}
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 6: Run post-generation plugins took %v (now %d files)\n", time.Since(start), len(genfiles))
-		}
+	genfiles, err = runPostGenerationPlugins(cmd, genpkg, roots, genfiles, debug)
+	if err != nil {
+		return nil, err
 	}
 
 	// 7. Merge files that target the same path to avoid overwriting content when
@@ -161,115 +65,229 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		genfiles = append(genfiles, codegen.VersionFile())
 	}
 
-	// 9. Write the files (in parallel).
-	written := make(map[string]struct{})
-	{
-		start := time.Now()
-		numWorkers := runtime.NumCPU()
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 9: Starting parallel file writing with %d workers\n", numWorkers)
-		}
-
-		// Channel for work items
-		type workItem struct {
-			index int
-			file  *codegen.File
-		}
-		workChan := make(chan workItem, len(genfiles))
-
-		// Channel for results
-		type result struct {
-			index    int
-			filename string
-			duration time.Duration
-			err      error
-		}
-		resultChan := make(chan result, len(genfiles))
-
-		// Start worker pool
-		var wg sync.WaitGroup
-		for range numWorkers {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for work := range workChan {
-					renderStart := time.Now()
-					filename, err := work.file.Render(dir)
-					resultChan <- result{
-						index:    work.index,
-						filename: filename,
-						duration: time.Since(renderStart),
-						err:      err,
-					}
-				}
-			}()
-		}
-
-		// Send all files to work channel
-		for i, f := range genfiles {
-			workChan <- workItem{index: i, file: f}
-		}
-		close(workChan)
-
-		// Wait for all workers to finish in a separate goroutine
-		go func() {
-			wg.Wait()
-			close(resultChan)
-		}()
-
-		// Collect results
-		var firstErr error
-		slowRenders := 0
-		for res := range resultChan {
-			if res.err != nil && firstErr == nil {
-				firstErr = res.err
-			}
-			if res.filename != "" {
-				written[res.filename] = struct{}{}
-			}
-			// Only log slow renders (>100ms) to avoid spam
-			if debug && res.duration > 100*time.Millisecond {
-				fmt.Fprintf(os.Stderr, "[TIMING]     [generate]   File %d (%s) render took %v\n", res.index, res.filename, res.duration)
-				slowRenders++
-			}
-		}
-
-		if firstErr != nil {
-			return nil, firstErr
-		}
-
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 9: Write files took %v (%d files written, %d slow renders)\n", time.Since(start), len(written), slowRenders)
-		}
+	written, err := writeFiles(dir, genfiles, debug)
+	if err != nil {
+		return nil, err
 	}
 
-	// 10. Compute all output filenames.
-	{
-		start := time.Now()
-		outputs = make([]string, len(written))
-		cwd, err := os.Getwd()
-		if err != nil {
-			cwd = "."
-		}
-		i := 0
-		for o := range written {
-			rel, err := filepath.Rel(cwd, o)
-			if err != nil {
-				rel = o
-			}
-			outputs[i] = rel
-			i++
-		}
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 10: Compute output filenames took %v\n", time.Since(start))
-		}
-	}
+	outputs = computeOutputs(written, debug)
 	sort.Strings(outputs)
 
 	if debug {
 		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Total generator.Generate() took %v\n", time.Since(startGenerate))
 	}
 	return outputs, nil
+}
+
+func loadRoots(debug bool) ([]eval.Root, error) {
+	start := time.Now()
+	roots, err := eval.Context.Roots()
+	if err != nil {
+		return nil, err
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 1: Compute design roots took %v\n", time.Since(start))
+	}
+	return roots, nil
+}
+
+func computeGenPackage(dir string, debug bool) (string, error) {
+	start := time.Now()
+	base, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(base, codegen.Gendir)
+	if err := os.MkdirAll(path, 0750); err != nil {
+		return "", err
+	}
+
+	dummy, err := os.CreateTemp(path, "temp.*.go")
+	if err != nil {
+		return "", err
+	}
+	dummyName := dummy.Name()
+	defer func() {
+		_ = os.Remove(dummyName)
+	}()
+	if _, err = dummy.Write([]byte("package gen")); err != nil {
+		return "", err
+	}
+	if err = dummy.Close(); err != nil {
+		return "", err
+	}
+
+	startPkgLoad := time.Now()
+	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName}, path)
+	if err != nil {
+		return "", err
+	}
+	genpkg := codegen.Gendir
+	if !filepath.IsAbs(pkgs[0].PkgPath) {
+		genpkg = pkgs[0].PkgPath
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate]   packages.Load took %v\n", time.Since(startPkgLoad))
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 2: Compute gen package import path took %v\n", time.Since(start))
+	}
+	return genpkg, nil
+}
+
+func loadGenerators(cmd string, debug bool) ([]Genfunc, error) {
+	start := time.Now()
+	genfuncs, err := Generators(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 3: Retrieve Loom generators took %v (%d generators)\n", time.Since(start), len(genfuncs))
+	}
+	return genfuncs, nil
+}
+
+func runPreparePlugins(cmd, genpkg string, roots []eval.Root, debug bool) error {
+	start := time.Now()
+	if err := codegen.RunPluginsPrepare(cmd, genpkg, roots); err != nil {
+		return err
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 4: Run pre-generation plugins took %v\n", time.Since(start))
+	}
+	return nil
+}
+
+func generateInitialFiles(genpkg string, roots []eval.Root, genfuncs []Genfunc, debug bool) ([]*codegen.File, error) {
+	start := time.Now()
+	var genfiles []*codegen.File
+	for i, gen := range genfuncs {
+		genStart := time.Now()
+		files, err := gen(genpkg, roots)
+		if err != nil {
+			return nil, err
+		}
+		genfiles = append(genfiles, files...)
+		if debug {
+			fmt.Fprintf(os.Stderr, "[TIMING]     [generate]   Generator %d produced %d files in %v\n", i, len(files), time.Since(genStart))
+		}
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 5: Generate initial files took %v (total %d files)\n", time.Since(start), len(genfiles))
+	}
+	return genfiles, nil
+}
+
+func runPostGenerationPlugins(cmd, genpkg string, roots []eval.Root, genfiles []*codegen.File, debug bool) ([]*codegen.File, error) {
+	start := time.Now()
+	files, err := codegen.RunPlugins(cmd, genpkg, roots, genfiles)
+	if err != nil {
+		return nil, err
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 6: Run post-generation plugins took %v (now %d files)\n", time.Since(start), len(files))
+	}
+	return files, nil
+}
+
+type fileRenderWorkItem struct {
+	index int
+	file  *codegen.File
+}
+
+type fileRenderResult struct {
+	index    int
+	filename string
+	duration time.Duration
+	err      error
+}
+
+func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]struct{}, error) {
+	start := time.Now()
+	numWorkers := runtime.NumCPU()
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 9: Starting parallel file writing with %d workers\n", numWorkers)
+	}
+
+	workChan := make(chan fileRenderWorkItem, len(genfiles))
+	resultChan := make(chan fileRenderResult, len(genfiles))
+
+	var wg sync.WaitGroup
+	for range numWorkers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for work := range workChan {
+				renderStart := time.Now()
+				filename, err := work.file.Render(dir)
+				resultChan <- fileRenderResult{
+					index:    work.index,
+					filename: filename,
+					duration: time.Since(renderStart),
+					err:      err,
+				}
+			}
+		}()
+	}
+
+	for i, file := range genfiles {
+		workChan <- fileRenderWorkItem{index: i, file: file}
+	}
+	close(workChan)
+
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	written := make(map[string]struct{})
+	firstErr := collectWriteResults(written, resultChan, debug)
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 9: Write files took %v (%d files written)\n", time.Since(start), len(written))
+	}
+	return written, nil
+}
+
+func collectWriteResults(written map[string]struct{}, resultChan <-chan fileRenderResult, debug bool) error {
+	var firstErr error
+	slowRenders := 0
+	for res := range resultChan {
+		if res.err != nil && firstErr == nil {
+			firstErr = res.err
+		}
+		if res.filename != "" {
+			written[res.filename] = struct{}{}
+		}
+		if debug && res.duration > 100*time.Millisecond {
+			fmt.Fprintf(os.Stderr, "[TIMING]     [generate]   File %d (%s) render took %v\n", res.index, res.filename, res.duration)
+			slowRenders++
+		}
+	}
+	if debug && slowRenders > 0 {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate]   Slow renders: %d\n", slowRenders)
+	}
+	return firstErr
+}
+
+func computeOutputs(written map[string]struct{}, debug bool) []string {
+	start := time.Now()
+	outputs := make([]string, 0, len(written))
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "."
+	}
+	for output := range written {
+		rel, err := filepath.Rel(cwd, output)
+		if err != nil {
+			rel = output
+		}
+		outputs = append(outputs, rel)
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 10: Compute output filenames took %v\n", time.Since(start))
+	}
+	return outputs
 }
 
 // mergeFilesByPath coalesces files that share the same output path by

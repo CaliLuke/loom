@@ -122,77 +122,83 @@ func CamelCase(name string, firstUpper, acronym bool) string {
 // camelCaseUncached is the original implementation without caching.
 func camelCaseUncached(name string, firstUpper, acronym bool) string {
 	runes := []rune(name)
-	// remove trailing invalid identifiers (makes code below simpler)
 	runes = removeTrailingInvalid(runes)
-
-	// all characters are invalid
 	if len(runes) == 0 {
 		return ""
 	}
 
-	w, i := 0, 0 // index of start of word, scan
+	w, i := 0, 0
 	for i+1 <= len(runes) {
-		eow := false // whether we hit the end of a word
-
-		// remove leading invalid identifiers
-		runes = removeInvalidAtIndex(i, runes)
-
-		switch {
-		case i+1 == len(runes):
-			eow = true
-		case !validIdentifier(runes[i]):
-			// get rid of it
-			runes = append(runes[:i], runes[i+1:]...)
-		case runes[i+1] == '_':
-			// underscore; shift the remainder forward over any run of underscores
-			eow = true
-			n := 1
-			for i+n+1 < len(runes) && runes[i+n+1] == '_' {
-				n++
-			}
-			copy(runes[i+1:], runes[i+n+1:])
-			runes = runes[:len(runes)-n]
-		case isLower(runes[i]) && !isLower(runes[i+1]):
-			// lower->non-lower
-			eow = true
-		}
-		i++
+		var eow bool
+		runes, i, eow = advanceCamelWord(runes, i)
 		if !eow {
 			continue
 		}
-
-		// [w,i] is a word.
-		word := string(runes[w:i])
-		// is it one of our initialisms?
-		if u := strings.ToUpper(word); commonInitialisms[u] {
-			switch {
-			case firstUpper && acronym:
-				// u is already in upper case. Nothing to do here.
-			case firstUpper && !acronym:
-				u = expr.Title(strings.ToLower(u))
-			case w > 0 && !acronym:
-				u = expr.Title(strings.ToLower(u))
-			case w == 0:
-				u = strings.ToLower(u)
-			}
-
-			// All the common initialisms are ASCII,
-			// so we can replace the bytes exactly.
-			copy(runes[w:], []rune(u))
-		} else if w > 0 && strings.ToLower(word) == word {
-			// already all lowercase, and not the first word, so uppercase the first character.
-			runes[w] = unicode.ToUpper(runes[w])
-		} else if w == 0 && strings.ToLower(word) == word && firstUpper {
-			runes[w] = unicode.ToUpper(runes[w])
-		}
-		if w == 0 && !firstUpper {
-			runes[w] = unicode.ToLower(runes[w])
-		}
-		// advance to next word
+		normalizeCamelWord(runes, w, i, firstUpper, acronym)
 		w = i
 	}
 
 	return string(runes)
+}
+
+func advanceCamelWord(runes []rune, i int) ([]rune, int, bool) {
+	runes = removeInvalidAtIndex(i, runes)
+	eow := false
+	switch {
+	case i+1 == len(runes):
+		eow = true
+	case !validIdentifier(runes[i]):
+		runes = append(runes[:i], runes[i+1:]...)
+	case runes[i+1] == '_':
+		eow = true
+		n := countAdjacentUnderscores(runes, i)
+		copy(runes[i+1:], runes[i+n+1:])
+		runes = runes[:len(runes)-n]
+	case isLower(runes[i]) && !isLower(runes[i+1]):
+		eow = true
+	}
+	return runes, i + 1, eow
+}
+
+func countAdjacentUnderscores(runes []rune, i int) int {
+	n := 1
+	for i+n+1 < len(runes) && runes[i+n+1] == '_' {
+		n++
+	}
+	return n
+}
+
+func normalizeCamelWord(runes []rune, start, end int, firstUpper, acronym bool) {
+	word := string(runes[start:end])
+	if normalizeCamelInitialism(runes, word, start, firstUpper, acronym) {
+		return
+	}
+	if start > 0 && strings.ToLower(word) == word {
+		runes[start] = unicode.ToUpper(runes[start])
+	} else if start == 0 && strings.ToLower(word) == word && firstUpper {
+		runes[start] = unicode.ToUpper(runes[start])
+	}
+	if start == 0 && !firstUpper {
+		runes[start] = unicode.ToLower(runes[start])
+	}
+}
+
+func normalizeCamelInitialism(runes []rune, word string, start int, firstUpper, acronym bool) bool {
+	upper := strings.ToUpper(word)
+	if !commonInitialisms[upper] {
+		return false
+	}
+	switch {
+	case firstUpper && acronym:
+	case firstUpper && !acronym:
+		upper = expr.Title(strings.ToLower(upper))
+	case start > 0 && !acronym:
+		upper = expr.Title(strings.ToLower(upper))
+	case start == 0:
+		upper = strings.ToLower(upper)
+	}
+	copy(runes[start:], []rune(upper))
+	return true
 }
 
 // SnakeCase produces the snake_case version of the given CamelCase string.

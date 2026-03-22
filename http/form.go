@@ -399,19 +399,6 @@ func hasFormPrefix(values url.Values, prefix string) bool {
 	return false
 }
 
-func extractImmediateFormChild(prefix, key string) (string, bool) {
-	child, _, ok := parseFormChildKey(prefix, key)
-	return child, ok
-}
-
-func extractNestedRemainder(prefix, key string) string {
-	_, remainder, ok := parseFormChildKey(prefix, key)
-	if !ok {
-		return ""
-	}
-	return remainder
-}
-
 func parseFormChildKey(prefix, key string) (string, string, bool) {
 	if prefix == "" {
 		if idx := strings.IndexByte(key, '['); idx >= 0 {

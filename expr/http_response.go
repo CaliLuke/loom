@@ -137,145 +137,138 @@ func (r *HTTPResponseExpr) Prepare() {
 // and the result type definition if any is valid.
 func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	resultType := newHTTPResponseResultType(e)
 
+	r.validateStatusAndBody(e, verr)
+	r.validateTextContentType(e, verr)
+	r.validateHeadersAndCookies(e, resultType, verr)
+	r.validateBodyAndLinks(e, resultType, verr)
+	return verr
+}
+
+func (r *HTTPResponseExpr) validateStatusAndBody(e *HTTPEndpointExpr, verr *eval.ValidationErrors) {
 	if r.StatusCode == 0 {
 		verr.Add(r, "HTTP response status not defined")
-	} else if !bodyAllowedForStatus(r.StatusCode) && !e.MethodExpr.IsStreaming() {
-		ep, ok := r.Parent.(*HTTPEndpointExpr)
-		if ok && httpResponseBody(ep, r).Type != Empty {
-			verr.Add(r, "Response body defined for status code %d which does not allow response body.", r.StatusCode)
-		}
+		return
 	}
-
-	// text/html and text/plain can only encode strings so make sure there isn't
-	// an explicit conflict with the content-type and response.
-	if (r.ContentType == "text/html" || r.ContentType == "text/plain") && !e.SkipRequestBodyEncodeDecode {
-		if r.OpenAPIBody != nil {
-			if r.OpenAPIBody.Type != String && r.OpenAPIBody.Type != Bytes {
-				verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
-			}
-		} else if e.MethodExpr.Result.Type != nil && e.MethodExpr.Result.Type != String && e.MethodExpr.Result.Type != Bytes && r.Body == nil {
-			verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
-		}
-		if r.Body != nil && r.Body.Type != String && r.Body.Type != Bytes {
-			verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
-		}
+	if bodyAllowedForStatus(r.StatusCode) || e.MethodExpr.IsStreaming() {
+		return
 	}
-
-	rt, isrt := e.MethodExpr.Result.Type.(*ResultTypeExpr)
-	resultAttributeType := func(name string) DataType {
-		if !IsObject(e.MethodExpr.Result.Type) {
-			return nil
-		}
-		if isrt {
-			if view, ok := e.MethodExpr.Result.Meta.Last(ViewMetaKey); ok {
-				v := rt.View(view)
-				if v == nil {
-					return nil
-				}
-				return v.AttributeExpr.Find(name).Type
-			}
-			for _, v := range rt.Views {
-				if !rt.ViewHasAttribute(v.Name, name) {
-					return nil
-				}
-			}
-		}
-		att := e.MethodExpr.Result.Find(name)
-		if att == nil || att.Type == nil {
-			// nil != nil
-			return nil
-		}
-		return att.Type
+	ep, ok := r.Parent.(*HTTPEndpointExpr)
+	if ok && httpResponseBody(ep, r).Type != Empty {
+		verr.Add(r, "Response body defined for status code %d which does not allow response body.", r.StatusCode)
 	}
+}
 
-	var inview string
-	if isrt {
-		inview = " all views of"
+func (r *HTTPResponseExpr) validateTextContentType(e *HTTPEndpointExpr, verr *eval.ValidationErrors) {
+	if (r.ContentType != "text/html" && r.ContentType != "text/plain") || e.SkipRequestBodyEncodeDecode {
+		return
 	}
+	if r.OpenAPIBody != nil && r.OpenAPIBody.Type != String && r.OpenAPIBody.Type != Bytes {
+		verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
+	}
+	if r.OpenAPIBody == nil && e.MethodExpr.Result.Type != nil && e.MethodExpr.Result.Type != String && e.MethodExpr.Result.Type != Bytes && r.Body == nil {
+		verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
+	}
+	if r.Body != nil && r.Body.Type != String && r.Body.Type != Bytes {
+		verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
+	}
+}
 
+func (r *HTTPResponseExpr) validateHeadersAndCookies(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
 	if !r.Headers.IsEmpty() {
-		verr.Merge(r.Headers.Validate("HTTP response headers", r))
-		switch {
-		case isEmpty(e.MethodExpr.Result):
-			verr.Add(r, "response defines headers but result is empty")
-		case IsObject(e.MethodExpr.Result.Type):
-			mobj := AsObject(r.Headers.Type)
-			for _, h := range *mobj {
-				t := resultAttributeType(h.Name)
-				switch {
-				case t == nil:
-					verr.Add(r, "header %q has no equivalent attribute in%s result type, use notation 'attribute_name:header_name' to identify corresponding result type attribute.", h.Name, inview)
-				case IsArray(t):
-					if !IsPrimitive(AsArray(t).ElemType.Type) {
-						verr.Add(e, "attribute %q used in HTTP headers must be a primitive type or an array of primitive types.", h.Name)
-					}
-				case !IsPrimitive(t):
-					verr.Add(e, "attribute %q used in HTTP headers must be a primitive type or an array of primitive types.", h.Name)
-				}
-			}
-		case len(*AsObject(r.Headers.Type)) > 1:
-			verr.Add(r, "response defines more than one headers but result type is not an object")
-		case IsArray(e.MethodExpr.Result.Type):
-			if !IsPrimitive(AsArray(e.MethodExpr.Result.Type).ElemType.Type) {
-				verr.Add(e, "Array result is mapped to an HTTP header but is not an array of primitive types.")
-			}
-		}
+		r.validateHeaders(e, resultType, verr)
 	}
 	if len(r.Cookies) > 0 {
-		seenNames := make(map[string]struct{}, len(r.Cookies))
-		seenAttrs := make(map[string]struct{}, len(r.Cookies))
-		switch {
-		case isEmpty(e.MethodExpr.Result):
-			verr.Add(r, "response defines cookies but result is empty")
-		case IsObject(e.MethodExpr.Result.Type):
-			for _, c := range r.Cookies {
-				verr.Merge(c.Validate("HTTP response cookie", r))
-				httpName := c.HTTPName()
-				if _, ok := seenNames[httpName]; ok {
-					verr.Add(r, "response defines duplicate cookie %q", httpName)
-				} else {
-					seenNames[httpName] = struct{}{}
+		r.validateCookies(e, resultType, verr)
+	}
+}
+
+func (r *HTTPResponseExpr) validateHeaders(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
+	verr.Merge(r.Headers.Validate("HTTP response headers", r))
+	switch {
+	case isEmpty(e.MethodExpr.Result):
+		verr.Add(r, "response defines headers but result is empty")
+	case IsObject(e.MethodExpr.Result.Type):
+		mobj := AsObject(r.Headers.Type)
+		for _, header := range *mobj {
+			t := resultType.AttributeType(header.Name)
+			switch {
+			case t == nil:
+				verr.Add(r, "header %q has no equivalent attribute in%s result type, use notation 'attribute_name:header_name' to identify corresponding result type attribute.", header.Name, resultType.InView)
+			case IsArray(t):
+				if !IsPrimitive(AsArray(t).ElemType.Type) {
+					verr.Add(e, "attribute %q used in HTTP headers must be a primitive type or an array of primitive types.", header.Name)
 				}
-				if attrName := c.AttributeName(); attrName != "" {
-					if _, ok := seenAttrs[attrName]; ok {
-						verr.Add(r, "response defines duplicate cookie mapping for attribute %q", attrName)
-					} else {
-						seenAttrs[attrName] = struct{}{}
-					}
-				}
-				t := resultAttributeType(c.AttributeName())
-				if t == nil {
-					verr.Add(r, "cookie %q has no equivalent attribute in%s result type, use notation 'attribute_name:cookie_name' to identify corresponding result type attribute.", httpName, inview)
-				}
-				if !IsPrimitive(t) {
-					verr.Add(e, "attribute %q used in HTTP cookies must be a primitive type.", c.AttributeName())
-				}
-			}
-		default:
-			for _, c := range r.Cookies {
-				verr.Merge(c.Validate("HTTP response cookie", r))
-			}
-			if len(r.Cookies) > 1 {
-				verr.Add(r, "response defines more than one cookies but result type is not an object")
-			} else if IsArray(e.MethodExpr.Result.Type) {
-				verr.Add(e, "Array result is mapped to an HTTP cookie.")
+			case !IsPrimitive(t):
+				verr.Add(e, "attribute %q used in HTTP headers must be a primitive type or an array of primitive types.", header.Name)
 			}
 		}
+	case len(*AsObject(r.Headers.Type)) > 1:
+		verr.Add(r, "response defines more than one headers but result type is not an object")
+	case IsArray(e.MethodExpr.Result.Type):
+		if !IsPrimitive(AsArray(e.MethodExpr.Result.Type).ElemType.Type) {
+			verr.Add(e, "Array result is mapped to an HTTP header but is not an array of primitive types.")
+		}
 	}
+}
+
+func (r *HTTPResponseExpr) validateCookies(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
+	seenNames := make(map[string]struct{}, len(r.Cookies))
+	seenAttrs := make(map[string]struct{}, len(r.Cookies))
+	switch {
+	case isEmpty(e.MethodExpr.Result):
+		verr.Add(r, "response defines cookies but result is empty")
+	case IsObject(e.MethodExpr.Result.Type):
+		for _, cookie := range r.Cookies {
+			verr.Merge(cookie.Validate("HTTP response cookie", r))
+			httpName := cookie.HTTPName()
+			if _, ok := seenNames[httpName]; ok {
+				verr.Add(r, "response defines duplicate cookie %q", httpName)
+			} else {
+				seenNames[httpName] = struct{}{}
+			}
+			if attrName := cookie.AttributeName(); attrName != "" {
+				if _, ok := seenAttrs[attrName]; ok {
+					verr.Add(r, "response defines duplicate cookie mapping for attribute %q", attrName)
+				} else {
+					seenAttrs[attrName] = struct{}{}
+				}
+			}
+			t := resultType.AttributeType(cookie.AttributeName())
+			if t == nil {
+				verr.Add(r, "cookie %q has no equivalent attribute in%s result type, use notation 'attribute_name:cookie_name' to identify corresponding result type attribute.", httpName, resultType.InView)
+			}
+			if !IsPrimitive(t) {
+				verr.Add(e, "attribute %q used in HTTP cookies must be a primitive type.", cookie.AttributeName())
+			}
+		}
+	default:
+		for _, cookie := range r.Cookies {
+			verr.Merge(cookie.Validate("HTTP response cookie", r))
+		}
+		if len(r.Cookies) > 1 {
+			verr.Add(r, "response defines more than one cookies but result type is not an object")
+		} else if IsArray(e.MethodExpr.Result.Type) {
+			verr.Add(e, "Array result is mapped to an HTTP cookie.")
+		}
+	}
+}
+
+func (r *HTTPResponseExpr) validateBodyAndLinks(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
 	if r.Body != nil {
 		verr.Merge(r.Body.Validate("HTTP response body", r))
 		if e.SkipResponseBodyEncodeDecode {
 			verr.Add(r, "Cannot define a response body when endpoint uses SkipResponseBodyEncodeDecode.")
 		}
 		if att, ok := r.Body.Meta["origin:attribute"]; ok {
-			if resultAttributeType(att[0]) == nil {
-				verr.Add(r, "body %q has no equivalent attribute in%s result type", att[0], inview)
+			if resultType.AttributeType(att[0]) == nil {
+				verr.Add(r, "body %q has no equivalent attribute in%s result type", att[0], resultType.InView)
 			}
 		} else if bobj := AsObject(r.Body.Type); bobj != nil {
 			for _, n := range *bobj {
-				if resultAttributeType(n.Name) == nil {
-					verr.Add(r, "body %q has no equivalent attribute in%s result type", n.Name, inview)
+				if resultType.AttributeType(n.Name) == nil {
+					verr.Add(r, "body %q has no equivalent attribute in%s result type", n.Name, resultType.InView)
 				}
 			}
 		}
@@ -303,7 +296,44 @@ func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors 
 			seen[link.Name] = struct{}{}
 		}
 	}
-	return verr
+}
+
+type httpResponseResultType struct {
+	AttributeType func(string) DataType
+	InView        string
+}
+
+func newHTTPResponseResultType(e *HTTPEndpointExpr) *httpResponseResultType {
+	rt, isrt := e.MethodExpr.Result.Type.(*ResultTypeExpr)
+	resultType := &httpResponseResultType{}
+	resultType.AttributeType = func(name string) DataType {
+		if !IsObject(e.MethodExpr.Result.Type) {
+			return nil
+		}
+		if isrt {
+			if view, ok := e.MethodExpr.Result.Meta.Last(ViewMetaKey); ok {
+				v := rt.View(view)
+				if v == nil {
+					return nil
+				}
+				return v.AttributeExpr.Find(name).Type
+			}
+			for _, v := range rt.Views {
+				if !rt.ViewHasAttribute(v.Name, name) {
+					return nil
+				}
+			}
+		}
+		att := e.MethodExpr.Result.Find(name)
+		if att == nil || att.Type == nil {
+			return nil
+		}
+		return att.Type
+	}
+	if isrt {
+		resultType.InView = " all views of"
+	}
+	return resultType
 }
 
 // Finalize sets the response result type from its type if the type is a result

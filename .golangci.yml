@@ -4,6 +4,8 @@ linters:
     - errorlint     # Better error handling patterns for Go 1.13+
     - errcheck      # Check for unchecked errors
     - staticcheck   # Advanced static analysis
+    - gocyclo       # Enforce a cyclomatic complexity ceiling
+    - maintidx      # Enforce maintainability index floor (Halstead + cyclomatic + LOC)
     - unparam       # Detects unused parameters
     - unused        # Detects unused constants, variables, functions and types
     - ineffassign   # Detects ineffectual assignments
@@ -18,13 +20,21 @@ linters:
     - copyloopvar   # Check for loop variable issues  
     - sqlclosecheck # Check sql.Rows and sql.Stmt are closed
     - makezero      # Find slice declarations with non-zero initial length
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - maintidx
   settings:
     staticcheck:
       checks:
         - "-ST1001"   # Dot imports are used intentionally in DSL
+    gocyclo:
+      min-complexity: 50
+    maintidx:
+      under: 18
     nakedret:
       max-func-lines: 30
     misspell:
       ignore-rules:
         - Statuser
-

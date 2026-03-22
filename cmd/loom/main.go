@@ -12,6 +12,13 @@ import (
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
+type generatorRunner interface {
+	Write(bool) error
+	Compile(bool) error
+	Run(bool) ([]string, error)
+	Remove()
+}
+
 func main() {
 	var (
 		cmd    string
@@ -72,15 +79,18 @@ func main() {
 
 // help with tests
 var (
-	usage = help
-	gen   = generate
+	usage        = help
+	gen          = generate
+	newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
+		return NewGenerator(cmd, path, output, debug)
+	}
 )
 
 func generate(cmd, path, output string, debug bool) error {
 	var (
 		files []string
 		err   error
-		tmp   *Generator
+		tmp   generatorRunner
 		startTotal, startImport, startNewGen,
 		startWrite, startCompile, startRun time.Time
 	)
@@ -99,7 +109,7 @@ func generate(cmd, path, output string, debug bool) error {
 	}
 
 	startNewGen = time.Now()
-	tmp = NewGenerator(cmd, path, output, debug)
+	tmp = newGenerator(cmd, path, output, debug)
 	if debug {
 		fmt.Fprintf(os.Stderr, "[TIMING] NewGenerator took %v\n", time.Since(startNewGen))
 	}
