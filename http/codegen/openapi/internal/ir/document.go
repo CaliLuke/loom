@@ -74,6 +74,7 @@ func buildRequestBody(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, r
 	if endpoint == nil || endpoint.Body == nil || endpoint.Body.Type == expr.Empty {
 		return nil
 	}
+	bodyAttr, _ := attributeForSchemaUsage(endpoint.Body, schemaUsageRequest)
 	contentType := "application/json"
 	if endpoint.MultipartRequest {
 		contentType = "multipart/form-data"
@@ -81,13 +82,13 @@ func buildRequestBody(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, r
 		contentType = "application/x-www-form-urlencoded"
 	}
 	return &RequestBody{
-		Description:   endpoint.Body.Description,
+		Description:   bodyAttr.Description,
 		Required:      !endpoint.OptionalRequestBody,
-		ComponentName: componentMetaValue(endpoint.Body, "openapi:component:requestBody"),
+		ComponentName: componentMetaValue(bodyAttr, "openapi:component:requestBody"),
 		Content: map[string]*MediaType{
-			contentType: buildMediaType(endpoint.Body, bodies.RequestBody, rand, closeObjects),
+			contentType: buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects),
 		},
-		Extensions: openapi.ExtensionsFromExpr(endpoint.Body.Meta),
+		Extensions: openapi.ExtensionsFromExpr(bodyAttr.Meta),
 	}
 }
 
@@ -125,7 +126,7 @@ func buildResponses(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, ran
 }
 
 func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][]*Schema, rand *expr.ExampleGenerator, closeObjects bool) *Response {
-	body := responseDocumentBody(resp)
+	body, _ := attributeForSchemaUsage(responseDocumentBody(resp), schemaUsageResponse)
 	contentTypes := responseContentTypes(resp)
 	headers := headersFromAttr(resp.Headers, rand, closeObjects)
 	if cookieHeader := responseCookieHeader(resp.Cookies, rand); cookieHeader != nil {

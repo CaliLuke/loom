@@ -51,6 +51,7 @@ func TestFiles(t *testing.T) {
 		{"parameter-components", testdata.OpenAPIParameterComponentsDSL},
 		{"reusable-components", testdata.OpenAPIReusableComponentsDSL},
 		{"explicit-reusable-component-names", testdata.OpenAPIExplicitReusableComponentNamesDSL},
+		{"request-response-split", testdata.OpenAPIRequestResponseSplitDSL},
 		{"typename", testdata.TypenameDSL},
 		{"schema-dedup", testdata.OpenAPISchemaDedupDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},
@@ -244,6 +245,23 @@ func TestRenderedSpecUsesExplicitReusableRequestBodyAndParameterNames(t *testing
 	requirePattern(`(?m)^\s+SearchFiltersRequest:$`)
 	requirePattern(`(?m)^\s+- \$ref: '#/components/parameters/WidgetIDParam'$`)
 	requirePattern(`(?m)^\s+\$ref: '#/components/requestBodies/SearchFiltersRequest'$`)
+}
+
+func TestRenderedSpecSplitsRequestAndResponseSchemasFromDirectionalMetadata(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPIRequestResponseSplitDSL)
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(`(?m)^\s+CreateRequestBodyRequest:$`)
+	requirePattern(`(?m)^\s+CreateResponseBodyResponse:$`)
+	requirePattern(`(?s)CreateRequestBodyRequest:.*email:.*password:`)
+	requirePattern(`(?s)CreateResponseBodyResponse:.*id:.*email:`)
 }
 
 func TestRenderedSpecClosedObjectModeClosesObjectsAndUsesUnevaluatedPropertiesForUnions(t *testing.T) {

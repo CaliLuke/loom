@@ -201,7 +201,7 @@ Acceptance:
 
 ### Unit 5: Projection Controls For Public Request/Response Surfaces
 
-Status: in progress
+Status: completed
 
 Problem:
 The framework still lacks a complete public contract story for when a stable
@@ -215,13 +215,6 @@ Scope:
 - Add automatic request/response schema splitting on top of the existing
   metadata pass when the same domain type would otherwise leak secrets or
   server-managed fields both ways.
-
-Progress:
-
-- Completed: explicit metadata-driven naming for reusable request-body and
-  parameter components.
-- Remaining: automatic request/response schema splitting for shared domain
-  types that need different public request vs response shapes.
 
 Out of scope:
 

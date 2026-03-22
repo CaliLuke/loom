@@ -1,0 +1,72 @@
+openapi: 3.1.1
+info:
+    title: Goa API
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: http://localhost:80
+      description: Default server for test api
+paths:
+    /accounts:
+        post:
+            tags:
+                - accounts
+            summary: create accounts
+            operationId: accounts.create
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateRequestBodyRequest'
+                        example:
+                            email: user@example.test
+                            password: hunter2
+            responses:
+                "201":
+                    description: Created response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateResponseBodyResponse'
+                            example:
+                                email: user@example.test
+                                id: acct_123
+components:
+    schemas:
+        CreateRequestBodyRequest:
+            type: object
+            properties:
+                email:
+                    type: string
+                    example: user@example.test
+                    format: email
+                password:
+                    type: string
+                    example: hunter2
+                    writeOnly: true
+            example:
+                email: user@example.test
+                password: hunter2
+            required:
+                - email
+                - password
+        CreateResponseBodyResponse:
+            type: object
+            properties:
+                email:
+                    type: string
+                    example: user@example.test
+                    format: email
+                id:
+                    type: string
+                    example: acct_123
+                    readOnly: true
+            example:
+                email: user@example.test
+                id: acct_123
+            required:
+                - id
+                - email
+tags:
+    - name: accounts

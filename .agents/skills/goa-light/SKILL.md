@@ -56,6 +56,10 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
   request body needs an explicit public component name, and
   `Meta("openapi:component:parameter", "...")` when a hoisted reusable
   path/query/header/cookie parameter needs one.
+- When the same domain type is used on both request and response paths,
+  `readOnly` and `writeOnly` metadata now trigger automatic request/response
+  schema splitting so server-managed and secret fields do not share one public
+  schema component across both directions.
 - Service-level OpenAPI tags are inherited by operations and file servers when
   those operations do not declare method-level tags of their own.
 - Attribute-level `Meta("openapi:readOnly", ...)`,

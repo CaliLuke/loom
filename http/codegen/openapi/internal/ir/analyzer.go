@@ -17,6 +17,8 @@ import (
 )
 
 type (
+	schemaUsage int
+
 	// AnalyzerOption customizes analyzer behavior.
 	AnalyzerOption func(*Analyzer)
 
@@ -37,6 +39,12 @@ type (
 		ref      string
 		explicit bool
 	}
+)
+
+const (
+	schemaUsageNeutral schemaUsage = iota
+	schemaUsageRequest
+	schemaUsageResponse
 )
 
 // WithExampleValue projects raw expr examples into OpenAPI-safe values.
@@ -124,9 +132,11 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 				continue
 			}
 
-			req := a.AnalyzeSchema(endpoint.Body)
+			reqBodyAttr, _ := attributeForSchemaUsage(endpoint.Body, schemaUsageRequest)
+			req := a.AnalyzeSchema(reqBodyAttr)
 			if endpoint.StreamingBody != nil {
-				streaming := a.AnalyzeSchema(endpoint.StreamingBody)
+				streamingAttr, _ := attributeForSchemaUsage(endpoint.StreamingBody, schemaUsageRequest)
+				streaming := a.AnalyzeSchema(streamingAttr)
 				req = mergeStreamingBodyNote(req, streaming)
 			}
 
@@ -136,7 +146,7 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 				responses = append(responses, errResp.Response)
 			}
 			for _, resp := range responses {
-				body := responseBodyAttribute(resp)
+				body, _ := attributeForSchemaUsage(responseBodyAttribute(resp), schemaUsageResponse)
 				responseBodies[resp.StatusCode] = append(responseBodies[resp.StatusCode], a.AnalyzeSchema(body))
 			}
 
@@ -150,6 +160,167 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 
 	bodies.Components = a.schemas
 	return bodies
+}
+
+func attributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage) (*expr.AttributeExpr, bool) {
+	if attr == nil || attr.Type == expr.Empty || usage == schemaUsageNeutral {
+		return attr, false
+	}
+	cloned := expr.DupAtt(attr)
+	if !pruneAttributeForSchemaUsage(cloned, usage, map[string]struct{}{}) {
+		return attr, false
+	}
+	return cloned, true
+}
+
+func pruneAttributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage, seen map[string]struct{}) bool {
+	if attr == nil || attr.Type == nil || attr.Type == expr.Empty {
+		return false
+	}
+	switch actual := attr.Type.(type) {
+	case *expr.Array:
+		return pruneAttributeForSchemaUsage(actual.ElemType, usage, seen)
+	case *expr.Map:
+		return pruneAttributeForSchemaUsage(actual.ElemType, usage, seen)
+	case expr.UserType:
+		key := actual.Hash()
+		if _, ok := seen[key]; ok {
+			return false
+		}
+		seen[key] = struct{}{}
+		changed := pruneAttributeForSchemaUsage(actual.Attribute(), usage, seen)
+		delete(seen, key)
+		if changed {
+			clearUsageSpecificTypeMetadata(attr)
+			clearUsageSpecificTypeMetadata(actual.Attribute())
+			synchronizeRequiredAttributes(attr, actual.Attribute().Type)
+			clearAttributeExamples(attr)
+			clearAttributeExamples(actual.Attribute())
+			renameSchemaUsageType(actual, usage)
+		}
+		return changed
+	case *expr.Object:
+		return pruneObjectForSchemaUsage(attr, actual, usage, seen)
+	default:
+		return false
+	}
+}
+
+func pruneObjectForSchemaUsage(attr *expr.AttributeExpr, object *expr.Object, usage schemaUsage, seen map[string]struct{}) bool {
+	if object == nil {
+		return false
+	}
+	var (
+		changed  bool
+		filtered expr.Object
+	)
+	for _, named := range *object {
+		if shouldOmitAttributeForSchemaUsage(named.Attribute, usage) {
+			changed = true
+			continue
+		}
+		if pruneAttributeForSchemaUsage(named.Attribute, usage, seen) {
+			changed = true
+		}
+		filtered = append(filtered, named)
+	}
+	if !changed {
+		return false
+	}
+	attr.Type = &filtered
+	if attr.Validation != nil && len(attr.Validation.Required) > 0 {
+		synchronizeRequiredAttributes(attr, attr.Type)
+	}
+	clearAttributeExamples(attr)
+	return true
+}
+
+func shouldOmitAttributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage) bool {
+	if attr == nil {
+		return false
+	}
+	switch usage {
+	case schemaUsageRequest:
+		if value, ok := attr.Meta.Last("openapi:readOnly"); ok {
+			return metaBoolValue(value)
+		}
+	case schemaUsageResponse:
+		if value, ok := attr.Meta.Last("openapi:writeOnly"); ok {
+			return metaBoolValue(value)
+		}
+	}
+	return false
+}
+
+func clearUsageSpecificTypeMetadata(attr *expr.AttributeExpr) {
+	if attr == nil || attr.Meta == nil {
+		return
+	}
+	delete(attr.Meta, "openapi:typename")
+	delete(attr.Meta, "openapi:typename:canonical")
+	delete(attr.Meta, "name:original")
+}
+
+func clearAttributeExamples(attr *expr.AttributeExpr) {
+	if attr == nil {
+		return
+	}
+	attr.UserExamples = nil
+	attr.DefaultValue = nil
+}
+
+func synchronizeRequiredAttributes(attr *expr.AttributeExpr, dataType expr.DataType) {
+	if attr == nil || attr.Validation == nil || len(attr.Validation.Required) == 0 {
+		return
+	}
+	object := expr.AsObject(dataType)
+	if object == nil {
+		return
+	}
+	required := attr.Validation.Required[:0]
+	for _, name := range attr.Validation.Required {
+		if object.Attribute(name) != nil {
+			required = append(required, name)
+		}
+	}
+	attr.Validation.Required = required
+}
+
+func renameSchemaUsageType(userType expr.UserType, usage schemaUsage) {
+	if userType == nil {
+		return
+	}
+	suffix := schemaUsageTypeSuffix(usage)
+	if suffix == "" {
+		return
+	}
+	switch actual := userType.(type) {
+	case *expr.ResultTypeExpr:
+		if !strings.HasSuffix(actual.TypeName, suffix) {
+			actual.TypeName += suffix
+		}
+		if actual.UID != "" && !strings.HasSuffix(actual.UID, "#"+suffix) {
+			actual.UID += "#" + suffix
+		}
+	case *expr.UserTypeExpr:
+		if !strings.HasSuffix(actual.TypeName, suffix) {
+			actual.TypeName += suffix
+		}
+		if actual.UID != "" && !strings.HasSuffix(actual.UID, "#"+suffix) {
+			actual.UID += "#" + suffix
+		}
+	}
+}
+
+func schemaUsageTypeSuffix(usage schemaUsage) string {
+	switch usage {
+	case schemaUsageRequest:
+		return "Request"
+	case schemaUsageResponse:
+		return "Response"
+	default:
+		return ""
+	}
 }
 
 // Uniquify returns a stable unique component name.

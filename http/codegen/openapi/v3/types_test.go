@@ -588,6 +588,30 @@ func TestBuildBodyTypesClosedObjectModeClosesObjectsAndLeavesMapsOpen(t *testing
 	require.Equal(t, false, unionSchema.UnevaluatedProperties)
 }
 
+func TestBuildBodyTypesSplitsRequestAndResponseSchemasFromDirectionalMetadata(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.OpenAPIRequestResponseSplitDSL)
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	requestRef := bodies["accounts"]["create"].RequestBody.Ref
+	responseRef := bodies["accounts"]["create"].ResponseBodies[201][0].Ref
+
+	require.NotEqual(t, requestRef, responseRef)
+	requestSchema := derefSchema(t, bodies["accounts"]["create"].RequestBody, types)
+	responseSchema := derefSchema(t, bodies["accounts"]["create"].ResponseBodies[201][0], types)
+
+	require.NotContains(t, requestSchema.Properties, "id")
+	require.Contains(t, requestSchema.Properties, "email")
+	require.Contains(t, requestSchema.Properties, "password")
+	require.NotContains(t, requestSchema.Required, "id")
+	require.Contains(t, requestSchema.Required, "password")
+
+	require.Contains(t, responseSchema.Properties, "id")
+	require.Contains(t, responseSchema.Properties, "email")
+	require.NotContains(t, responseSchema.Properties, "password")
+	require.Contains(t, responseSchema.Required, "id")
+	require.NotContains(t, responseSchema.Required, "password")
+}
+
 func TestInitExamplesCanonicalizesMultipleUnionExamples(t *testing.T) {
 	union := &expr.Union{
 		TypeKey:  "kind",

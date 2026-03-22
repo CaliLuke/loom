@@ -39,6 +39,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - `AuthErrorResponses()` now reuses compatible canonical 401/403 auth mappings
   across method, service, and API scopes instead of forcing helper-owned auth
   response descriptions when the design already defines those contract shapes.
+- OpenAPI now supports explicit public names for hoisted reusable request-body
+  and parameter components, and automatically splits request vs response
+  schemas when `readOnly`/`writeOnly` metadata would otherwise leak
+  server-managed or secret fields across both directions.
 - OpenAPI operations now inherit service-level tag declarations by default, so
   operation tags line up with published top-level tag objects without
   duplicating method-level metadata.
@@ -86,18 +90,15 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 
 ### In Progress
 
-- Unit 5 of [OpenAPI Contract](./openapi_contract.md): explicit reusable
-  request-body and parameter component naming is in; automatic request/response
-  schema splitting remains.
+- none
 
 ### Next
 
 - prove the cleaned stack against representative downstream generation in temp modules
 - finish the direct follow-up test backlog for refactored transport/service-data seams
 - execute the remaining self-contained OpenAPI units in
-  [OpenAPI Contract](./openapi_contract.md), starting with the remaining
-  request/response schema-splitting slice of projection controls for public
-  request/response surfaces
+  [OpenAPI Contract](./openapi_contract.md), starting with problem-document
+  error contracts
 - keep new generator work on the shared Go-section architecture and use typed
   Go emission for logic-heavy sections by default
 
@@ -117,7 +118,6 @@ These items are prioritized based on two goals:
 
    Remaining units:
 
-   - Unit 5: projection controls for public request/response surfaces.
    - Unit 4: problem-document error contracts.
    - Unit 7: OpenAPI links DSL.
    - Unit 6: async contract publication for SSE and WebSocket.

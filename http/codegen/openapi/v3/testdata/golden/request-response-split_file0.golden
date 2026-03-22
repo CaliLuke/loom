@@ -1,0 +1,110 @@
+{
+  "components": {
+    "schemas": {
+      "CreateRequestBodyRequest": {
+        "example": {
+          "email": "user@example.test",
+          "password": "hunter2"
+        },
+        "properties": {
+          "email": {
+            "example": "user@example.test",
+            "format": "email",
+            "type": "string"
+          },
+          "password": {
+            "example": "hunter2",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object"
+      },
+      "CreateResponseBodyResponse": {
+        "example": {
+          "email": "user@example.test",
+          "id": "acct_123"
+        },
+        "properties": {
+          "email": {
+            "example": "user@example.test",
+            "format": "email",
+            "type": "string"
+          },
+          "id": {
+            "example": "acct_123",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Goa API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/accounts": {
+      "post": {
+        "operationId": "accounts.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "user@example.test",
+                "password": "hunter2"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CreateRequestBodyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "email": "user@example.test",
+                  "id": "acct_123"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CreateResponseBodyResponse"
+                }
+              }
+            },
+            "description": "Created response."
+          }
+        },
+        "summary": "create accounts",
+        "tags": [
+          "accounts"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "accounts"
+    }
+  ]
+}
