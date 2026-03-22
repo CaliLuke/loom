@@ -7,27 +7,23 @@
   <a href="https://github.com/CaliLuke/loom/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Community-Discussions-0285FF?style=for-the-badge"></a>
 </p>
 
-# Loom - Design First, Code With Confidence
+# Loom - The AI-First Goa Fork
 
 ## Overview
 
-Loom transforms how you build APIs and microservices in Go with its powerful design-first approach. Instead of writing boilerplate code, you express your API's intent through a clear, expressive DSL. Loom then automatically generates production-ready code, comprehensive documentation, and client libraries—all perfectly aligned with your design.
+Loom is a fork of [Goa](https://github.com/goadesign/goa) that was pushed in a different direction: AI-first API development, stronger machine-consumable contracts, and less app-local glue. It was shaped to support the creation of Auto-K and the style of development that came with it: agent-assisted iteration, contract-first generation, and downstream tooling that depends on trustworthy specs.
 
-The result? Dramatically reduced development time, consistent APIs, and the elimination of the documentation-code drift that plagues traditional development.
+Like Goa, Loom is design-first. You describe the service once in a Go DSL, then generate transports, clients, docs, and scaffolding from that contract. The difference is where Loom puts pressure on the framework: OpenAPI 3.1 quality, reusable public contract components, JSON-RPC and streaming behavior, session/auth ergonomics, and repo conventions that make AI-assisted development materially easier.
 
 ## Why Loom?
 
-Traditional API development suffers from:
-- **Inconsistency**: Manually maintained docs that quickly fall out of sync with code
-- **Wasted effort**: Writing repetitive boilerplate and transport-layer code
-- **Painful integrations**: Client packages that need constant updates
-- **Design afterthoughts**: Documentation added after implementation, missing key details
+Traditional API development breaks down in two places: teams end up hand-maintaining transport glue, and the published spec is too weak to safely drive codegen, SDKs, and agents. Loom exists to fix both.
 
-Loom solves these problems by:
-- Generating 30-50% of your codebase directly from your design
-- Ensuring perfect alignment between design, code, and documentation
-- Supporting multiple transports (HTTP, gRPC, and JSON-RPC) from a single design
-- Maintaining a clean separation between business logic and transport details
+Loom is designed for teams that want:
+- one design source of truth for service behavior, transport shape, and published contract
+- OpenAPI output strong enough to feed downstream client generators directly
+- framework-owned solutions for recurring glue instead of per-app patches
+- a repo and workflow that cooperate with AI-assisted implementation instead of fighting it
 
 ## Key Features
 
@@ -42,6 +38,40 @@ Loom solves these problems by:
 - **Clean Architecture**: Business logic remains separate from transport concerns
 - **Enterprise Ready**: Supports authentication, authorization, CORS, logging, and more
 - **Comprehensive Testing**: Includes extensive unit and integration test suites ensuring quality and reliability
+
+## Why Loom Instead Of Goa?
+
+Loom started as a Goa fork, but it is no longer trying to stay source-compatible or share an implementation roadmap. The goals diverged.
+
+Compared to Goa, Loom currently emphasizes:
+- **AI-first development**: the repo ships with its own Loom skill for AI-assisted service work, plus repo conventions and generated-contract rules meant to keep agents on the rails instead of patching around framework gaps
+- **Auto-K-driven framework design**: many capabilities were added because Auto-K needed them in the framework, not as one-off application glue
+- **Stronger OpenAPI 3.1 as a product surface**: Loom treats the OpenAPI document as a machine contract, not a byproduct. The generator validates with `libopenapi`, lints with Redocly, and smoke-tests downstream generation with `openapi-typescript` and `oapi-codegen`
+- **Better reusable public contracts**: repeated parameters, request bodies, responses, examples, and schemas are hoisted and named more deliberately so generated specs are easier to consume and diff
+- **More truthful request/response schema publication**: `readOnly` and `writeOnly` metadata split public request and response schemas when they should not share one shape
+- **Standards-oriented error contracts**: first-class `application/problem+json` support via `ProblemResult`, rather than forcing everything through the legacy error media type
+- **First-class async contract publication**: SSE and WebSocket endpoints publish framework-owned async metadata in OpenAPI so downstream tooling can reason about stream payloads and handshake behavior
+- **JSON-RPC as a real transport, not an afterthought**: Loom treats JSON-RPC and JSON-RPC SSE as framework-owned behavior with dedicated generation and integration coverage
+- **Less application glue**: session auth, auth error reuse, response links, form and multipart request support, observability hooks, and transport-specific contract controls live in the framework instead of being repeatedly rebuilt in services
+
+The short version: Goa is the origin. Loom is the fork that optimized for AI-assisted service development and machine-grade contracts.
+
+## Built For Auto-K
+
+Auto-K was one of the forcing functions behind Loom. The framework was pushed to absorb repeated infrastructure and contract concerns that would otherwise have remained application-local:
+- cleaner auth/session modeling
+- better generated OpenAPI for downstream automation
+- stronger streaming and JSON-RPC behavior
+- more reusable public contract components
+- better direct seam tests for generator behavior
+
+That matters beyond Auto-K. The same work makes Loom better for any codebase that wants to generate clients directly from the spec, keep transport behavior honest, and let AI tools operate on a clearer contract surface.
+
+## AI Assistance
+
+Loom comes with its own repository skill for AI-assisted development at [.agents/skills/goa-light/SKILL.md](./.agents/skills/goa-light/SKILL.md). It documents the framework contract rules, generation workflow, OpenAPI behavior, and the repo-specific guardrails an agent needs to make useful changes without thrashing generated code.
+
+This is part of the product, not an afterthought. Loom is intentionally shaped so both humans and agents can work from the same design, the same generated surfaces, and the same published contract.
 
 ## How It Works
 

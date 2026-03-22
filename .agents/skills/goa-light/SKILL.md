@@ -1,14 +1,18 @@
-name: goa-light
-description: Build and maintain `goa-light` services in Go. Use this skill when a user mentions Goa, `goa-light`, Goa DSL, `goa gen`, generated `gen/` transport code, OpenAPI/proto generation, service implementation after DSL changes, or refactoring a project with a `design` package.
+name: loom
+description: Build and maintain `loom` services in Go. Use this skill when a user mentions Loom, Goa fork migration, Loom DSL, `loom gen`, generated `gen/` transport code, OpenAPI/proto generation, service implementation after DSL changes, or refactoring a project with a `design` package.
 ---
-# Goa Light
+# Loom
 
-Use this skill when building or changing a service that uses `goa-light`. It is for framework users: service designers and implementers working from a Goa DSL and generated code.
+Use this skill when building or changing a service that uses `loom`. It is for framework users: service designers and implementers working from the Loom DSL and generated code.
+
+Loom is a fork of Goa that diverged to support AI-first development, stronger
+machine-facing OpenAPI 3.1 contracts, and the framework capabilities needed to
+build Auto-K without repeating large amounts of app-local glue.
 
 ## Non-Negotiables
 
 - Treat `design/*.go` as the source of truth.
-- Regenerate after every design change with `goa gen <module-import-path>/design`.
+- Regenerate after every design change with `loom gen <module-import-path>/design`.
 - Never hand-edit generated `gen/` files.
 - Implement business logic in non-generated files.
 - Use Go import paths for Goa commands, not filesystem paths.
@@ -19,11 +23,11 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - Do not "fix" SSE by hand-editing generated stream files. Keep the fix in `design/*.go` or non-generated transport/runtime code.
 - Do not map multi-cookie responses through ad hoc `Header("set_cookies:Set-Cookie")` bags and then patch generated encoders. Prefer idiomatic Goa cookies in the DSL when feasible. If the response shape still depends on raw cookie header values, emit them from non-generated transport code on the live `http.ResponseWriter` instead of editing generated files.
 
-## Goa-Light Contract Rules
+## Loom Contract Rules
 
-- `goa-light` emits OpenAPI 3.1 / JSON Schema 2020-12 only. The canonical artifacts are `gen/http/openapi.json` and `gen/http/openapi.yaml`.
+- `loom` emits OpenAPI 3.1 / JSON Schema 2020-12 only. The canonical artifacts are `gen/http/openapi.json` and `gen/http/openapi.yaml`.
 - Treat OpenAPI output shape as framework contract. Stable schema names, canonical `operationId`, and `libopenapi` validation are intentional behavior, not incidental formatting.
-- When changing OpenAPI contract generation in `goa-light`, start in
+- When changing OpenAPI contract generation in `loom`, start in
   `http/codegen/openapi/internal/ir` first. That package now owns schema,
   parameter, operation-metadata, and reusable-component analysis; the
   `http/codegen/openapi/v3` package should mostly render IR-owned decisions.
@@ -85,7 +89,7 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - In closed-object mode, normal object schemas emit `additionalProperties: false`, composed union wrappers emit `unevaluatedProperties: false`, and explicit dictionaries such as `MapOf(...)` remain open.
 - Generated OpenAPI keeps SSE endpoints on ordinary HTTP success responses instead of rewriting them to WebSocket `101` semantics, and advertises those responses as `text/event-stream` rather than `application/json`.
 - Generated OpenAPI also publishes framework-owned async streaming contracts
-  under `x-goa-async` for SSE and WebSocket endpoints, with inline message
+  under `x-loom-async` for SSE and WebSocket endpoints, with inline message
   schemas plus truthful handshake metadata.
 - Generated OpenAPI normalizes binary (`Bytes`) examples to string form; do not expect byte-array literals in emitted OpenAPI examples.
 - The OpenAPI regression gate in `http/codegen/openapi/v3` now includes
@@ -163,8 +167,8 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 
 1. Detect the Goa surface: `go.mod`, `design/`, DSL imports, or `gen/` folders.
 2. Edit the DSL in `design/`.
-3. Run `goa gen <module>/design`.
-4. Run `goa example <module>/design` only when scaffolding a new service or new starter files are explicitly wanted.
+3. Run `loom gen <module>/design`.
+4. Run `loom example <module>/design` only when scaffolding a new service or new starter files are explicitly wanted.
 5. Implement logic outside `gen/`.
 6. Verify with `go mod tidy` and project tests.
 
@@ -173,12 +177,12 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 ```bash
 go install goa.design/goa/v3/cmd/goa@latest
 goa version
-goa gen <module-import-path>/design
-goa example <module-import-path>/design
+loom gen <module-import-path>/design
+loom example <module-import-path>/design
 ```
 
-- Correct: `goa gen example.com/myapi/design`
-- Incorrect: `goa gen ./design`
+- Correct: `loom gen example.com/myapi/design`
+- Incorrect: `loom gen ./design`
 
 ## References
 
@@ -200,6 +204,6 @@ goa example <module-import-path>/design
 ## Selection Rules
 
 - Start with the one full guide page that best matches the immediate task.
-- For repo-specific behavior differences from upstream Goa, use the `Goa-Light Contract Rules` section in this skill before inspecting the wider source tree.
+- For repo-specific behavior differences from upstream Goa, use the `Loom Contract Rules` section in this skill before inspecting the wider source tree.
 - Load additional full guide pages only if the first one is insufficient.
 - Prefer `references/repo-map.md` and the Goa source tree for framework internals or runtime behavior.
