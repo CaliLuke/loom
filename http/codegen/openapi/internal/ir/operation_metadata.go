@@ -63,19 +63,22 @@ func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBod
 		responses[status] = &ResponseRef{Value: response}
 	}
 
+	operationID := parseOperationIDTemplate(operationIDFormat, service.Name(), endpoint.Name(), routeIndex)
+	extensions := mergeExtensions(openapi.ExtensionsFromExpr(method.Meta), buildAsyncOperationExtension(endpoint, path, rand, closeObjects))
+
 	_, deprecated := endpoint.Meta.Last("openapi:deprecated")
 	return &Operation{
 		Tags:         operationTagNames(endpoint.Meta, service.Meta, service.Name()),
 		Summary:      summary,
 		Description:  endpoint.Description(),
-		OperationID:  parseOperationIDTemplate(operationIDFormat, service.Name(), endpoint.Name(), routeIndex),
+		OperationID:  operationID,
 		Parameters:   buildParameters(endpoint, path, rand, closeObjects),
 		RequestBody:  wrapRequestBody(requestBody),
 		Responses:    responses,
 		Deprecated:   deprecated,
 		Security:     buildOperationSecurity(endpoint),
 		ExternalDocs: externalDocs(method.Docs, method.Meta),
-		Extensions:   openapi.ExtensionsFromExpr(method.Meta),
+		Extensions:   extensions,
 	}
 }
 
