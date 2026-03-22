@@ -4,10 +4,10 @@ import (
 	"sort"
 	"strings"
 
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
-const asyncContractExtensionName = "x-goa-async"
+const asyncContractExtensionName = "x-loom-async"
 
 func buildResponseLinks(resp *expr.HTTPResponseExpr) map[string]*ResponseLinkRef {
 	if resp == nil || len(resp.Links) == 0 {

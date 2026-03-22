@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // GoTransform produces Go code that initializes the data structure defined

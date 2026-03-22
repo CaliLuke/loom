@@ -18,9 +18,9 @@ func ExtractErrorRemedy(err error) *ErrorRemedy {
 	if err == nil {
 		return nil
 	}
-	var remedier GoaErrorRemedier
+	var remedier LoomErrorRemedier
 	if errors.As(err, &remedier) {
-		return remedier.GoaErrorRemedy()
+		return remedier.LoomErrorRemedy()
 	}
 	return nil
 }
@@ -59,11 +59,11 @@ func ErrorStatusCode(err error) (int, bool) {
 	if err == nil {
 		return 0, false
 	}
-	var statuser GoaErrorStatuser
+	var statuser LoomErrorStatuser
 	if errors.As(err, &statuser) {
 		return statuser.StatusCode(), true
 	}
-	var reporter GoaErrorStatusReporter
+	var reporter LoomErrorStatusReporter
 	if errors.As(err, &reporter) {
 		return reporter.Status(), true
 	}

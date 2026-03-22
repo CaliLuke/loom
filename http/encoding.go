@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"strings"
 
-	goa "goa.design/goa/v3/pkg"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 const (

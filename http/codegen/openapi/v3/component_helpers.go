@@ -3,9 +3,9 @@ package openapiv3
 import (
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/http/codegen/openapi"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
 )
 
 const parameterComponentRefPrefix = "#/components/parameters/"

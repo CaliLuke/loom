@@ -8,10 +8,10 @@ import (
 	"strings"
 	"unicode"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/http/codegen/openapi"
-	openapiir "goa.design/goa/v3/http/codegen/openapi/internal/ir"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	openapiir "github.com/CaliLuke/loom/v3/http/codegen/openapi/internal/ir"
 )
 
 const (
@@ -451,7 +451,7 @@ func collectSchemaRefs(schema *openapi.Schema, addRef func(string)) {
 func buildInfo(api *expr.APIExpr) *Info {
 	title := api.Title
 	if title == "" {
-		title = "Goa API" // cannot be empty as per OpenAPI spec
+		title = "Loom API" // cannot be empty as per OpenAPI spec
 	}
 	info := &Info{
 		Title:          title,

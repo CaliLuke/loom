@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/expr/testdata"
+	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr/testdata"
 )
 
 func TestHTTPResponseCookie(t *testing.T) {

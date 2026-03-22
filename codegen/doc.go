@@ -1,5 +1,5 @@
 /*
-Package codegen contains data structures and algorithms used by the Goa code
+Package codegen contains data structures and algorithms used by the Loom code
 generation tool.
 
 In particular package codegen defines the data structure that represents a

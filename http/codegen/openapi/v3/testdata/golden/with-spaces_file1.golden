@@ -1,6 +1,6 @@
 openapi: 3.1.1
 info:
-    title: Goa API
+    title: Loom API
     version: 0.0.1
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 servers:
@@ -27,7 +27,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/GoaFoobar'
+                                $ref: '#/components/schemas/LoomFoobar'
                             example:
                                 bar:
                                     - string: ""
@@ -38,7 +38,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/GoaFoobar'
+                                $ref: '#/components/schemas/LoomFoobar'
                             example:
                                 bar:
                                     - string: ""
@@ -56,7 +56,7 @@ components:
                     example: ""
             example:
                 string: ""
-        GoaFoobar:
+        LoomFoobar:
             type: object
             properties:
                 bar:

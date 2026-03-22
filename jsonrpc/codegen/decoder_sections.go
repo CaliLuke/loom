@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/expr"
-	httpcodegen "goa.design/goa/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/expr"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
 )
 
 func jsonrpcResponseDecoderSection(e *httpcodegen.EndpointData) codegen.Section {
@@ -63,7 +63,7 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 				if e.Method.ViewedResult != nil && e.Method.ViewedResult.ViewName != "" {
 					fmt.Fprintf(&b, "\t\tview := %q\n", e.Method.ViewedResult.ViewName)
 				} else {
-					b.WriteString("\t\tview := resp.Header.Get(\"goa-view\")\n")
+					b.WriteString("\t\tview := resp.Header.Get(\"loom-view\")\n")
 				}
 				fmt.Fprintf(&b, "\t\tvres := %s%s.%s{Projected: p, View: view}\n", viewedResultPrefix(e.Method.ViewedResult), e.Method.ViewedResult.ViewsPkg, e.Method.ViewedResult.VarName)
 				if resp.ClientBody != nil {

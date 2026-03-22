@@ -1,6 +1,6 @@
 package openapi
 
-import "goa.design/goa/v3/expr"
+import "github.com/CaliLuke/loom/v3/expr"
 
 // ExternalDocs represents an OpenAPI External Documentation object as defined in
 // https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#externalDocumentationObject
@@ -10,7 +10,7 @@ type ExternalDocs struct {
 	Extensions  map[string]any `json:"-" yaml:"-"`
 }
 
-// DocsFromExpr builds a ExternalDocs from the Goa docs expression.
+// DocsFromExpr builds a ExternalDocs from the Loom docs expression.
 func DocsFromExpr(docs *expr.DocsExpr, meta expr.MetaExpr) *ExternalDocs {
 	if docs == nil {
 		return nil

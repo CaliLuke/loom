@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	httpm "goa.design/goa/v3/http/middleware"
-	"goa.design/goa/v3/middleware"
+	httpm "github.com/CaliLuke/loom/v3/http/middleware"
+	"github.com/CaliLuke/loom/v3/middleware"
 )
 
 type (

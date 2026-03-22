@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/eval"
+	"github.com/CaliLuke/loom/v3/eval"
 )
 
 const (
@@ -436,7 +436,7 @@ func (r *HTTPResponseExpr) CurrentCookie() *HTTPResponseCookieExpr {
 // response headers. Unmapped attributes refer to the attributes in ErrorResult
 // type that are not mapped to response body or headers. Such unmapped
 // attributes are mapped to special goa headers in the form of
-// "Goa-Attribute(-<Attribute Name>)".
+// "Loom-Attribute(-<Attribute Name>)".
 func (r *HTTPResponseExpr) mapUnmappedAttrs(svcAtt *AttributeExpr) {
 	if svcAtt.Type != ErrorResult {
 		return
@@ -465,7 +465,7 @@ func (r *HTTPResponseExpr) mapUnmappedAttrs(svcAtt *AttributeExpr) {
 					continue
 				}
 				r.Headers.Type.(*Object).Set(nat.Name, nat.Attribute)
-				r.Headers.Map("goa-attribute-"+nat.Name, nat.Name)
+				r.Headers.Map("loom-attribute-"+nat.Name, nat.Name)
 				if svcAtt.IsRequired(nat.Name) {
 					if r.Headers.Validation == nil {
 						r.Headers.Validation = &ValidationExpr{}
@@ -476,7 +476,7 @@ func (r *HTTPResponseExpr) mapUnmappedAttrs(svcAtt *AttributeExpr) {
 		}
 	default:
 		if r.Headers.IsEmpty() && (r.Body == nil || r.Body.Type == Empty) {
-			r.Headers.Type.(*Object).Set("goa-attribute", svcAtt)
+			r.Headers.Type.(*Object).Set("loom-attribute", svcAtt)
 		}
 	}
 }

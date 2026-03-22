@@ -34,12 +34,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: true
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: true
                                 timeout: true
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
                 "409":
                     description: 'conflict: Conflict response.'
                     content:
@@ -50,12 +50,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: false
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: false
                                 timeout: true
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
                 "429":
                     description: 'busy: Too Many Requests response.'
                     content:
@@ -66,12 +66,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: false
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: false
                                 timeout: true
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
             security: []
     /threads/{thread_id}:
         get:
@@ -101,12 +101,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: false
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: false
                                 timeout: true
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
                 "409":
                     description: 'conflict: Conflict response.'
                     content:
@@ -117,12 +117,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: true
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: true
                                 timeout: false
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
                 "429":
                     description: 'busy: Too Many Requests response.'
                     content:
@@ -133,12 +133,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: true
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: true
                                 timeout: true
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
             security: []
     /threads/{thread_id}/archive:
         post:
@@ -161,12 +161,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: false
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: true
                                 timeout: false
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
                 "409":
                     description: 'conflict: Conflict response.'
                     content:
@@ -177,12 +177,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: false
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: false
                                 timeout: false
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
                 "429":
                     description: 'busy: Too Many Requests response.'
                     content:
@@ -193,12 +193,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: false
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: true
                                 timeout: false
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
             security: []
     /threads/{thread_id}/events:
         get:
@@ -241,7 +241,7 @@ paths:
             summary: watchThread threadOps
             tags:
                 - threadOps
-            x-goa-async:
+            x-loom-async:
                 direction: server
                 handshake:
                     path: /threads/{thread_id}/events
@@ -317,12 +317,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: true
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: true
                                 timeout: false
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
                 "409":
                     description: 'conflict: Conflict response.'
                     content:
@@ -333,12 +333,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: false
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: true
                                 timeout: false
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
                 "429":
                     description: 'busy: Too Many Requests response.'
                     content:
@@ -349,12 +349,12 @@ paths:
                                 code: bad_request
                                 detail: parameter 'p' must be an integer
                                 fault: false
-                                instance: urn:goa:error:123abc
+                                instance: urn:loom:error:123abc
                                 status: 400
                                 temporary: true
                                 timeout: true
                                 title: Bad Request
-                                type: https://goa.design/problems/bad-request
+                                type: https://github.com/CaliLuke/loom/problems/bad-request
             security: []
     /ws/ops/{channel}:
         get:
@@ -374,7 +374,7 @@ paths:
             summary: streamCommands opsSocket
             tags:
                 - opsSocket
-            x-goa-async:
+            x-loom-async:
                 direction: bidirectional
                 handshake:
                     path: /ws/ops/{channel}
@@ -522,7 +522,7 @@ components:
                 instance:
                     type: string
                     description: Instance identifies this specific occurrence of the problem.
-                    example: urn:goa:error:123abc
+                    example: urn:loom:error:123abc
                 status:
                     type: integer
                     description: Status is the HTTP status code generated for this occurrence of the problem.
@@ -543,17 +543,17 @@ components:
                 type:
                     type: string
                     description: Type identifies the problem category using a URI reference.
-                    example: https://goa.design/problems/bad-request
+                    example: https://github.com/CaliLuke/loom/problems/bad-request
             example:
                 code: bad_request
                 detail: parameter 'p' must be an integer
                 fault: true
-                instance: urn:goa:error:123abc
+                instance: urn:loom:error:123abc
                 status: 400
                 temporary: false
                 timeout: false
                 title: Bad Request
-                type: https://goa.design/problems/bad-request
+                type: https://github.com/CaliLuke/loom/problems/bad-request
             required:
                 - code
                 - title

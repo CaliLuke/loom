@@ -3,7 +3,7 @@ package codegen
 import (
 	"testing"
 
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestGoTypeDef(t *testing.T) {
@@ -27,7 +27,7 @@ func TestGoTypeDef(t *testing.T) {
 				{Name: "StringField", Attribute: &expr.AttributeExpr{Type: expr.String, DefaultValue: "foo"}},
 			}}
 		ut                          = &expr.UserTypeExpr{AttributeExpr: &expr.AttributeExpr{Type: expr.Boolean}, TypeName: "UserType"}
-		rt                          = &expr.ResultTypeExpr{UserTypeExpr: &expr.UserTypeExpr{AttributeExpr: &expr.AttributeExpr{Type: expr.Boolean}, TypeName: "ResultType"}, Identifier: "application/vnd.goa.example", Views: nil}
+		rt                          = &expr.ResultTypeExpr{UserTypeExpr: &expr.UserTypeExpr{AttributeExpr: &expr.AttributeExpr{Type: expr.Boolean}, TypeName: "ResultType"}, Identifier: "application/vnd.loom.example", Views: nil}
 		userType                    = &expr.AttributeExpr{Type: ut}
 		resultType                  = &expr.AttributeExpr{Type: rt}
 		stringMetaType              = expr.MetaExpr{"struct:field:type": []string{"string"}}

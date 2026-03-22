@@ -4,43 +4,43 @@ This is the complete checklist to call the current effort finished.
 
 The finish line is not "more ideas remain". The finish line is:
 
-- the framework behavior is fully owned by `goa-light`
+- the framework behavior is fully owned by `loom`
 - representative downstream generation succeeds against the cleaned stack
 - at least one real consumer design is simplified by the new DSL/capability
 - the final release or repin can happen with understood blast radius
 
 ## A. Keep Framework Ownership Clean
 
-- [x] Move generic union discriminator semantics into `goa-light`.
-- [x] Move generic union example canonicalization into `goa-light`.
-- [x] Move temporary root prepare/validate/finalize into `goa-light`.
-- [x] Move synthesized JSON-RPC HTTP service construction into `goa-light`.
-- [x] Move deterministic named user-type registration into `goa-light`.
-- [x] Move remediation-aware error metadata into `goa-light`.
-- [x] Move inline JSON Schema generation into `goa-light`.
-- [x] Move generic attribute import gathering into `goa-light`.
+- [x] Move generic union discriminator semantics into `loom`.
+- [x] Move generic union example canonicalization into `loom`.
+- [x] Move temporary root prepare/validate/finalize into `loom`.
+- [x] Move synthesized JSON-RPC HTTP service construction into `loom`.
+- [x] Move deterministic named user-type registration into `loom`.
+- [x] Move remediation-aware error metadata into `loom`.
+- [x] Move inline JSON Schema generation into `loom`.
+- [x] Move generic attribute import gathering into `loom`.
 - [ ] Audit for any remaining generic helper duplication or leaked consumer-specific behavior.
 - [ ] Keep only framework-owned abstractions in roadmap and implementation docs.
 
 ## B. Finish The Remedy Boundary Cleanly
 
-- [x] Add first-class remediation metadata to Goa error contracts.
+- [x] Add first-class remediation metadata to Loom error contracts.
 - [ ] Decide whether remediation should project beyond OpenAPI and service data into generated runtime helpers.
-- [ ] If yes, add transport projections for HTTP, JSON-RPC, and other Goa-owned transports without introducing app-specific coupling.
-- [ ] Keep the generic abstraction in Goa-core and the concrete `remedy` package as an adapter target, not the framework root abstraction.
+- [ ] If yes, add transport projections for HTTP, JSON-RPC, and other Loom-owned transports without introducing app-specific coupling.
+- [ ] Keep the generic abstraction in Loom-core and the concrete `remedy` package as an adapter target, not the framework root abstraction.
 
-## C. Prove Downstream Generation Cleanly On Top Of Goa-Light
+## C. Prove Downstream Generation Cleanly On Top Of Loom
 
-- [ ] Point at least one representative downstream generator or consumer at local `goa-light` and make it compile cleanly.
-- [ ] Run the relevant downstream suite against `goa-light`.
+- [ ] Point at least one representative downstream generator or consumer at local `loom` and make it compile cleanly.
+- [ ] Run the relevant downstream suite against `loom`.
 - [ ] Fix any breakage caused by moved or tightened core helpers.
 - [ ] Commit downstream cleanup in isolated feature commits when needed.
 
 ## D. Prove The Stack With Temp Generation
 
-- [ ] Point a temporary downstream generation run at the cleaned `goa-light`.
+- [ ] Point a temporary downstream generation run at the cleaned `loom`.
 - [ ] Regenerate outside the repo tree, not into checked-in `gen/`.
-- [ ] Compare the result against the current pinned output with `/Users/luca/code/goa-light/scripts/compare_regen.sh`.
+- [ ] Compare the result against the current pinned output with `/Users/luca/code/loom/scripts/compare_regen.sh`.
 - [ ] Confirm the remaining drift is intentional contract drift, not transport or codegen regression.
 
 ## E. Replace Real Design Glue In A Consumer
@@ -63,17 +63,17 @@ The finish line is not "more ideas remain". The finish line is:
 
 ## G. Swap Readiness Gate
 
-- [x] `goa-light`: `go test ./...`
-- [ ] representative downstream suite green against `goa-light`
+- [x] `loom`: `go test ./...`
+- [ ] representative downstream suite green against `loom`
 - [ ] temp regeneration succeeds against the cleaned stack
 - [ ] drift review is complete and understood
 - [ ] at least one real consumer design area is simplified with the new DSL
-- [ ] no remaining generic helper duplication or consumer-specific roadmap residue exists in `goa-light`
+- [ ] no remaining generic helper duplication or consumer-specific roadmap residue exists in `loom`
 - [ ] roadmap and boundary docs reflect the final split accurately
 
 ## H. Actual Swap
 
-- [ ] Repin the target downstream repo(s) from `goa` to `goa-light`.
+- [ ] Repin the target downstream repo(s) from `goa` to `loom`.
 - [ ] Regenerate the checked-in `gen/` tree.
 - [ ] Run app tests and integration checks.
 - [ ] Commit the swap as its own isolated change.
@@ -82,10 +82,10 @@ The finish line is not "more ideas remain". The finish line is:
 
 These are not open items anymore:
 
-- transport/codegen parity work in `goa-light` for downstream consumers
+- transport/codegen parity work in `loom` for downstream consumers
 - the OpenAPI 3.1 baseline migration
 - the session auth/session cookie/auth error DSL foundation
-- the major generic helper consolidation into `goa-light`
+- the major generic helper consolidation into `loom`
 
 ## Current Next Step
 

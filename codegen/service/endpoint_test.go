@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service/testdata"
 )
 
 func TestEndpoint(t *testing.T) {
@@ -42,7 +42,7 @@ func TestEndpoint(t *testing.T) {
 			root := codegen.RunDSL(t, c.DSL)
 			services := NewServicesData(root)
 			require.Len(t, root.Services, 1)
-			fs := EndpointFile("goa.design/goa/example", root.Services[0], services)
+			fs := EndpointFile("github.com/CaliLuke/loom/example", root.Services[0], services)
 			require.NotNil(t, fs)
 			buf := new(bytes.Buffer)
 			for _, s := range fs.AllSections()[1:] {

@@ -12,8 +12,8 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // convertData contains the info needed to render convert and create functions.
@@ -379,7 +379,7 @@ func commonPath(sep byte, paths ...string) string {
 
 // getPkgImport returns the correct import path of a package.
 // It's needed because the "reflect" package provides the binary import path
-// ("goa.design/goa/vendor/some/package") for vendored packages
+// ("github.com/CaliLuke/loom/vendor/some/package") for vendored packages
 // instead the source import path ("some/package")
 func getPkgImport(pkg, cwd string) string {
 	gopath := os.Getenv("GOPATH")

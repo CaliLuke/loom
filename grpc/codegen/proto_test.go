@@ -1,7 +1,7 @@
 package codegen
 
 import (
-	"goa.design/goa/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/v3/codegen/testutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/grpc/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/grpc/codegen/testdata"
 )
 
 func TestProtoFiles(t *testing.T) {

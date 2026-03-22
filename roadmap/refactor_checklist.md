@@ -28,7 +28,7 @@ do not merge passes, and do not change behavior intentionally.
 
 ## Pass 1: Split HTTP Endpoint Validation
 
-Target: [expr/http_endpoint.go](/Users/luca/code/goa-light/expr/http_endpoint.go#L411)
+Target: [expr/http_endpoint.go](/Users/luca/code/loom/expr/http_endpoint.go#L411)
 
 ### Required coverage
 
@@ -67,7 +67,7 @@ Target: [expr/http_endpoint.go](/Users/luca/code/goa-light/expr/http_endpoint.go
 
 ## Pass 2: Decouple Generic Service Codegen From Transport Policy
 
-Target: [codegen/service/service_data.go](/Users/luca/code/goa-light/codegen/service/service_data.go#L1420)
+Target: [codegen/service/service_data.go](/Users/luca/code/loom/codegen/service/service_data.go#L1420)
 
 ### Required coverage
 
@@ -102,7 +102,7 @@ Target: [codegen/service/service_data.go](/Users/luca/code/goa-light/codegen/ser
 
 ## Pass 3: Decompose gRPC Service Analysis
 
-Target: [grpc/codegen/service_data.go](/Users/luca/code/goa-light/grpc/codegen/service_data.go#L444)
+Target: [grpc/codegen/service_data.go](/Users/luca/code/loom/grpc/codegen/service_data.go#L444)
 
 ### Required coverage
 
@@ -141,7 +141,7 @@ Target: [grpc/codegen/service_data.go](/Users/luca/code/goa-light/grpc/codegen/s
 
 ## Pass 4: Simplify Protobuf Transform Generation
 
-Target: [grpc/codegen/protobuf_transform.go](/Users/luca/code/goa-light/grpc/codegen/protobuf_transform.go#L106)
+Target: [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom/grpc/codegen/protobuf_transform.go#L106)
 
 ### Required coverage
 
@@ -174,7 +174,7 @@ Target: [grpc/codegen/protobuf_transform.go](/Users/luca/code/goa-light/grpc/cod
 
 ## Follow-On Cleanup: Split `dsl/http.go`
 
-Target: [dsl/http.go](/Users/luca/code/goa-light/dsl/http.go)
+Target: [dsl/http.go](/Users/luca/code/loom/dsl/http.go)
 
 This happens only after Passes 1-4 are complete and green.
 

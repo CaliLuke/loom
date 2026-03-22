@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
 )
 
 func serverStructSection(data *ServiceData) codegen.Section {

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // GoNativeTypeName returns the Go built-in type corresponding to the given
@@ -72,10 +72,10 @@ func AttributeTags(_, att *expr.AttributeExpr) string {
 // interpreting the "struct:tag:json:name" key when present.
 //
 // The "struct:tag:json" meta key always takes precedence and is treated as a
-// complete tag override value. When only "struct:tag:json:name" is set, Goa
+// complete tag override value. When only "struct:tag:json:name" is set, Loom
 // computes the json tag and appends ",omitempty" when the field is not
 // required by its parent object. When no explicit JSON metadata is present,
-// Goa emits a default json tag that preserves the DSL field name.
+// Loom emits a default json tag that preserves the DSL field name.
 func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *expr.AttributeExpr) string {
 	if att == nil {
 		return ""

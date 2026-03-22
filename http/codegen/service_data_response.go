@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // buildResponses builds the response data for all the responses in the endpoint

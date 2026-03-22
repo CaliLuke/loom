@@ -1,8 +1,8 @@
 package dsl
 
 import (
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // MultipartRequest indicates that HTTP requests made to the method use
@@ -57,7 +57,7 @@ func OptionalRequestBody() {
 	e.OptionalRequestBody = true
 }
 
-// SkipRequestBodyEncodeDecode prevents Goa from generating the request encoding
+// SkipRequestBodyEncodeDecode prevents Loom from generating the request encoding
 // (client) and decoding (server) code. Instead the service method gets direct
 // access to the HTTP body reader. The client method provides a reader from
 // which to stream the request body. This makes it possible to stream requests
@@ -90,7 +90,7 @@ func SkipRequestBodyEncodeDecode() {
 	e.SkipRequestBodyEncodeDecode = true
 }
 
-// SkipResponseBodyEncodeDecode prevents Goa from generating the response
+// SkipResponseBodyEncodeDecode prevents Loom from generating the response
 // encoding (server) and decoding (client) code. Instead the service method
 // returns a reader from which to stream the HTTP response body io. The client
 // also gets access to a reader to stream the incoming response body. This makes

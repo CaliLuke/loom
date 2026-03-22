@@ -23,7 +23,7 @@ as new framework backlog.
 - [x] Keep OpenAPI 3.1.1 plus JSON Schema 2020-12 as the only published HTTP
       contract format.
 - [x] Treat the spec as an SDK input artifact, not just human documentation.
-- [x] Replace Goa-flavored `operationId` values with SDK-safe stable IDs that do
+- [x] Replace Loom-flavored `operationId` values with SDK-safe stable IDs that do
       not contain `#`.
 - [x] Make operation tags match the top-level tag objects exactly.
 - [x] Reuse repeated `components.parameters`, `components.requestBodies`,
@@ -90,7 +90,7 @@ as new framework backlog.
 
 ### Sweep D: Error Semantics
 
-- [ ] Replace generic reused Goa error payloads with typed problem documents that
+- [ ] Replace generic reused Loom error payloads with typed problem documents that
       keep `type`, `title`, `status`, `detail`, `instance`, and an Auto-K code.
 - [ ] Add endpoint-specific documented 409 / 422 / 429 / 503 cases only where
       the server actually guarantees them.

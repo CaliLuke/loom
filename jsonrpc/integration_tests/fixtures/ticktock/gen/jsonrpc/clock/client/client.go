@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	goahttp "goa.design/goa/v3/http"
-	goa "goa.design/goa/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/v3/http"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 // Client lists the clock service endpoint HTTP clients.

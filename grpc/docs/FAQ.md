@@ -52,16 +52,16 @@ type ArrayOfBool struct {
 
 # How does goa handle the Any type in gRPC?
 
-Goa supports the `Any` type in gRPC by mapping it to `google.protobuf.Value`, which is specifically designed to represent dynamic JSON-like values. This is simpler and more efficient than using `google.protobuf.Any`.
+Loom supports the `Any` type in gRPC by mapping it to `google.protobuf.Value`, which is specifically designed to represent dynamic JSON-like values. This is simpler and more efficient than using `google.protobuf.Any`.
 
 ## Conversion Process
 
-- **Go to Protobuf**: When converting from Go `any` to `*structpb.Value`, Goa uses `structpb.NewValue()` which directly converts Go types to protobuf Value.
-- **Protobuf to Go**: When converting from `*structpb.Value` to Go `any`, Goa uses the `AsInterface()` method which returns the corresponding Go value.
+- **Go to Protobuf**: When converting from Go `any` to `*structpb.Value`, Loom uses `structpb.NewValue()` which directly converts Go types to protobuf Value.
+- **Protobuf to Go**: When converting from `*structpb.Value` to Go `any`, Loom uses the `AsInterface()` method which returns the corresponding Go value.
 
 ## Example Usage
 
-In your Goa design:
+In your Loom design:
 ```go
 Method("echo", func() {
     Payload(func() {

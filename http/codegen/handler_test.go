@@ -3,13 +3,13 @@ package codegen
 import (
 	"testing"
 
-	"goa.design/goa/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/v3/codegen/testutil"
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/codegentest"
-	"goa.design/goa/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/codegentest"
+	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
 )
 
 func TestHandlerInit(t *testing.T) {

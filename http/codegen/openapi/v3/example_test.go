@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestShouldSuppressOpenAPIExamplesHandlesRecursiveUserTypes(t *testing.T) {

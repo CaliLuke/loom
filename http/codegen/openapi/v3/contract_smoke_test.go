@@ -13,11 +13,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	httpgen "goa.design/goa/v3/http/codegen"
-	"goa.design/goa/v3/http/codegen/openapi"
-	openapiv3 "goa.design/goa/v3/http/codegen/openapi/v3"
-	"goa.design/goa/v3/http/codegen/testdata"
-	"goa.design/goa/v3/internal/testingx"
+	httpgen "github.com/CaliLuke/loom/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/internal/testingx"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 	openAPITypescriptVersion = "7.13.0"
 	typeScriptVersion        = "5.9.3"
 	oapiCodegenVersion       = "v2.6.0"
-	openAPIAsyncExtension    = "x-goa-async"
+	openAPIAsyncExtension    = "x-loom-async"
 )
 
 type renderedOpenAPIArtifacts struct {

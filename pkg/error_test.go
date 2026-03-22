@@ -19,7 +19,7 @@ func (testStatusError) Status() int {
 	return 404
 }
 
-func (testRemediableError) GoaErrorRemedy() *ErrorRemedy {
+func (testRemediableError) LoomErrorRemedy() *ErrorRemedy {
 	return &ErrorRemedy{
 		Code:        "test.fix",
 		SafeMessage: "safe detail",

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/eval"
+	"github.com/CaliLuke/loom/v3/eval"
 )
 
 // RunDSL returns the DSL root resulting from running the given DSL.

@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/http/integration_tests/harness"
-	"goa.design/goa/v3/internal/testingx"
+	"github.com/CaliLuke/loom/v3/http/integration_tests/harness"
+	"github.com/CaliLuke/loom/v3/internal/testingx"
 )
 
 func TestHTTPSSEFixtureRejectsBeforeStreamCommit(t *testing.T) {
@@ -55,7 +55,7 @@ func TestHTTPSSEFixtureRegeneratesAndBuilds(t *testing.T) {
 	require.NoError(t, testingx.CopyTree(srcDir, workDir))
 	require.NoError(t, testingx.PinLocalReplace(workDir, testingx.RepoRoot()))
 
-	_, err := testingx.RunCmd(workDir, "go", "run", "goa.design/goa/v3/cmd/goa", "gen", "example.com/http-ticktock/design")
+	_, err := testingx.RunCmd(workDir, "go", "run", "github.com/CaliLuke/loom/v3/cmd/loom", "gen", "example.com/http-ticktock/design")
 	require.NoError(t, err)
 
 	_, err = testingx.RunCmd(workDir, "go", "test", "./...")

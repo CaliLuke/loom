@@ -4,17 +4,17 @@
 func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
+		var en goa.LoomErrorNamer
 		if !errors.As(v, &en) {
 			return encodeError(ctx, w, v)
 		}
-		switch en.GoaErrorName() {
+		switch en.LoomErrorName() {
 		case "bad_request":
 			var res serviceprimitiveerrorresponse.BadRequest
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			body := res
-			w.Header().Set("goa-error", res.GoaErrorName())
+			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
 		case "internal_error":
@@ -22,7 +22,7 @@ func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			body := res
-			w.Header().Set("goa-error", res.GoaErrorName())
+			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)
 		default:

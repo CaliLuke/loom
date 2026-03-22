@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service/testdata"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service/testdata"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 var updateGolden = flag.Bool("update-interceptors", false, "update golden files for interceptor tests")
@@ -50,7 +50,7 @@ func TestInterceptors(t *testing.T) {
 			services := NewServicesData(root)
 			require.Len(t, root.Services, 1)
 
-			fs := InterceptorsFiles("goa.design/goa/example", root.Services[0], services)
+			fs := InterceptorsFiles("github.com/CaliLuke/loom/example", root.Services[0], services)
 
 			require.Len(t, fs, c.expectedFileCount)
 			for _, f := range fs {
@@ -194,7 +194,7 @@ func TestCollectAttributes(t *testing.T) {
 									{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.Primitive(expr.StringKind)}},
 								},
 								Meta: map[string][]string{
-									"struct:pkg:path": {"goa.design/goa/example/user"},
+									"struct:pkg:path": {"github.com/CaliLuke/loom/example/user"},
 								},
 							},
 							TypeName: "User",

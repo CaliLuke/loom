@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	goa "goa.design/goa/v3/pkg"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 type (
@@ -18,11 +18,11 @@ func (testNamedRemedyError) Error() string {
 	return "named failure"
 }
 
-func (testNamedRemedyError) GoaErrorName() string {
+func (testNamedRemedyError) LoomErrorName() string {
 	return "named_failure"
 }
 
-func (testNamedRemedyError) GoaErrorRemedy() *goa.ErrorRemedy {
+func (testNamedRemedyError) LoomErrorRemedy() *goa.ErrorRemedy {
 	return &goa.ErrorRemedy{
 		Code:        "named.fix",
 		SafeMessage: "Named safe message.",

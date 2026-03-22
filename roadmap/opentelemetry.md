@@ -2,17 +2,17 @@
 
 ## Completed
 
-- Add first-class OpenTelemetry transport wrappers in `goa-light`:
-  - `goa.design/goa/v3/http/middleware/otel`
-  - `goa.design/goa/v3/grpc/middleware/otel`
+- Add first-class OpenTelemetry transport wrappers in `loom`:
+  - `github.com/CaliLuke/loom/v3/http/middleware/otel`
+  - `github.com/CaliLuke/loom/v3/grpc/middleware/otel`
 - Use the official contrib libraries instead of custom tracing code:
   - `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp`
   - `go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc`
 - Keep provider/exporter/resource bootstrap app-owned while moving transport instrumentation into the framework.
-- Make the HTTP wrapper route-aware by default so spans use Goa's matched `METHOD /pattern` name when `goahttp.NewMuxer()` has populated `r.Pattern`.
+- Make the HTTP wrapper route-aware by default so spans use Loom's matched `METHOD /pattern` name when `goahttp.NewMuxer()` has populated `r.Pattern`.
 - Add the higher-level framework-owned observability package:
-  - `goa.design/goa/v3/observability/otel`
-  - `goa.design/goa/v3/observability/otel/logrusbridge`
+  - `github.com/CaliLuke/loom/v3/observability/otel`
+  - `github.com/CaliLuke/loom/v3/observability/otel/logrusbridge`
 - Support framework-owned trace, metric, and OTLP log bootstrap while keeping environment parsing app-owned.
 - Add HTTP transport metric modes:
   - `otel_only`
@@ -20,11 +20,11 @@
   - `both`
   - `none`
 - Add request-scoped HTTP transport attribute collection via `AddHTTPAttributes(...)` so downstream middlewares can enrich the active request span without mutating it directly.
-- Add a reusable observability harness in `observability/otel/internal/testkit` covering in-memory traces, metrics, logs, Goa HTTP mux usage, gRPC bufconn transport, and an Auto-K-style compatibility contract.
+- Add a reusable observability harness in `observability/otel/internal/testkit` covering in-memory traces, metrics, logs, Loom HTTP mux usage, gRPC bufconn transport, and an Auto-K-style compatibility contract.
 
 ## Contract
 
-- Prefer `goa.design/goa/v3/observability/otel` when the service wants framework-owned provider bootstrap and transport observability policy.
+- Prefer `github.com/CaliLuke/loom/v3/observability/otel` when the service wants framework-owned provider bootstrap and transport observability policy.
 - Keep environment parsing and domain-specific metrics app-owned.
 - Use the lower-level `http/middleware/otel` and `grpc/middleware/otel` packages only when transport-only instrumentation is sufficient.
 - Prefer `goahttp.NewMuxer()` plus `otel.HTTPMiddleware(...)` for HTTP so span names and route attributes stay stable across path parameters.

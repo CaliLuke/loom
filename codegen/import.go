@@ -7,14 +7,14 @@ import (
 	"strconv"
 	"strings"
 
-	"goa.design/goa/v3/expr"
-	goa "goa.design/goa/v3/pkg"
+	"github.com/CaliLuke/loom/v3/expr"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
-// DesignVersion contains the major component of the version of Goa used to
+// DesignVersion contains the major component of the version of Loom used to
 // author the design - either 2 or 3. This value is initialized when the
 // generated tool is invoked by retrieving the information passed on the
-// command line by the goa tool.
+// command line by the loom tool.
 var DesignVersion = goa.Major
 
 type (
@@ -46,7 +46,7 @@ func SimpleImport(path string) *ImportSpec {
 	return &ImportSpec{Path: path}
 }
 
-// GoaImport creates an import for a Goa package.
+// GoaImport creates an import for a Loom package.
 func GoaImport(rel string) *ImportSpec {
 	name := ""
 	if rel == "" {
@@ -56,9 +56,9 @@ func GoaImport(rel string) *ImportSpec {
 	return GoaNamedImport(rel, name)
 }
 
-// GoaNamedImport creates an import for a Goa package with the given name.
+// GoaNamedImport creates an import for a Loom package with the given name.
 func GoaNamedImport(rel, name string) *ImportSpec {
-	root := "goa.design/goa"
+	root := "github.com/CaliLuke/loom"
 	if DesignVersion > 2 {
 		root += "/v" + strconv.Itoa(DesignVersion)
 	}

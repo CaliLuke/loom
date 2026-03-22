@@ -6,7 +6,7 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	"goa.design/goa/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
 )
 
 func exampleServiceStructSection(data *Data) codegen.Section {

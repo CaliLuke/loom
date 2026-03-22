@@ -1,9 +1,9 @@
 package dsl
 
 import (
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
-	pkg "goa.design/goa/v3/pkg"
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
+	pkg "github.com/CaliLuke/loom/v3/pkg"
 )
 
 const (

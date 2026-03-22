@@ -1,13 +1,15 @@
-# Releasing Goa
+# Releasing Loom
 
-This document is intended to help Goa maintainers release new versions of Goa.
+This document is intended to help Loom maintainers release new versions of Loom.
 
 ## Using `make release`
 
 1. Update `MAJOR`, `MINOR` and `BUILD` as needed in `Makefile`.
-2. Make sure the `goa.design/examples` and `goa.design/plugins` repositories exist in `$(go env GOPATH)/src` and are clean:
-   - `$(go env GOPATH)/src/goa.design/examples` on branch `main`
-   - `$(go env GOPATH)/src/goa.design/plugins` on branch `v3`
+2. Make sure any downstream examples/plugins repositories you intend to release alongside Loom exist locally and are clean.
+3. Confirm the top-level docs surface is current before tagging:
+   - `README.md` points at `CaliLuke/loom`
+   - `LICENSE` reflects Loom contributors
+   - the CLI install path uses `github.com/CaliLuke/loom/v3/cmd/loom`
 3. Run `make release`
 
 `make release` runs a preflight check (`release-preflight`) after bumping the version and updating

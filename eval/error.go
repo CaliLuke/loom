@@ -108,10 +108,10 @@ func computeErrorLocation() (file string, line int) {
 	return "", 0
 }
 
-// isGoaSourceFile reports whether file points into the Goa module sources.
+// isGoaSourceFile reports whether file points into the Loom module sources.
 //
-// This is used to robustly skip internal Goa frames even when the runtime
-// reports a call location (file:line) inside an inlined Goa function but the
+// This is used to robustly skip internal Loom frames even when the runtime
+// reports a call location (file:line) inside an inlined Loom function but the
 // corresponding frame Function name does not include an import path.
 func isGoaSourceFile(file string) bool {
 	_, thisFile, _, ok := runtime.Caller(0)

@@ -36,7 +36,7 @@ func init() {
 // NewContext creates a new DSL evaluation context with the default package
 // filtering configuration used for error location reporting.
 func NewContext() *DSLContext {
-	return &DSLContext{dslPackages: []string{"goa.design/goa/v3/eval"}}
+	return &DSLContext{dslPackages: []string{"github.com/CaliLuke/loom/v3/eval"}}
 }
 
 // Reset resets the eval context, mostly useful for tests.

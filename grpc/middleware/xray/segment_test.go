@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/v3/middleware/xray"
 	"github.com/pkg/errors"
-	"goa.design/goa/v3/middleware/xray"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"

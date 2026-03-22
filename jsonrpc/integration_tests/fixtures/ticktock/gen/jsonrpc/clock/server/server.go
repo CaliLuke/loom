@@ -3,7 +3,7 @@
 // clock JSON-RPC server
 //
 // Command:
-// $ goa gen example.com/ticktock/design
+// $ loom gen example.com/ticktock/design
 
 package server
 
@@ -14,9 +14,9 @@ import (
 	"net/http"
 
 	clock "example.com/ticktock/gen/clock"
-	goahttp "goa.design/goa/v3/http"
-	"goa.design/goa/v3/jsonrpc"
-	goa "goa.design/goa/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/v3/http"
+	"github.com/CaliLuke/loom/v3/jsonrpc"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 // Server handles JSON-RPC requests for the clock service.
@@ -193,9 +193,9 @@ func NewTickHandler(
 		if _, err := endpoint(ctx, v); err != nil {
 			// Send error response via SSE with proper JSON-RPC code mapping
 			if req.ID != nil && req.ID != "" {
-				var en goa.GoaErrorNamer
+				var en goa.LoomErrorNamer
 				if errors.As(err, &en) {
-					switch en.GoaErrorName() {
+					switch en.LoomErrorName() {
 					case "invalid_params":
 						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 					case "method_not_found":
@@ -262,9 +262,9 @@ func NewTockHandler(
 		if _, err := endpoint(ctx, v); err != nil {
 			// Send error response via SSE with proper JSON-RPC code mapping
 			if req.ID != nil && req.ID != "" {
-				var en goa.GoaErrorNamer
+				var en goa.LoomErrorNamer
 				if errors.As(err, &en) {
-					switch en.GoaErrorName() {
+					switch en.LoomErrorName() {
 					case "invalid_params":
 						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 					case "method_not_found":

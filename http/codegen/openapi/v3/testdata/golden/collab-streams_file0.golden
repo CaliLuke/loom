@@ -196,7 +196,7 @@
           },
           "404": {
             "content": {
-              "application/vnd.goa.error": {
+              "application/vnd.loom.error": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -243,7 +243,7 @@
           },
           "429": {
             "content": {
-              "application/vnd.goa.error": {
+              "application/vnd.loom.error": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -257,7 +257,7 @@
         "tags": [
           "collabStreams"
         ],
-        "x-goa-async": {
+        "x-loom-async": {
           "direction": "server",
           "handshake": {
             "path": "/threads/{thread_id}/events",

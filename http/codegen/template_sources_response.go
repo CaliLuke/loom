@@ -40,7 +40,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) goahttp.Decoder, restor
 				{{- if $.Method.ViewedResult.ViewName }}
 			view := {{ printf "%q" $.Method.ViewedResult.ViewName }}
 				{{- else }}
-			view := resp.Header.Get("goa-view")
+			view := resp.Header.Get("loom-view")
 				{{- end }}
 			vres := {{ if not $.Method.ViewedResult.IsCollection }}&{{ end }}{{ $.Method.ViewedResult.ViewsPkg}}.{{ $.Method.ViewedResult.VarName }}{Projected: p, View: view}
 				{{- if .ClientBody }}
@@ -74,7 +74,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) goahttp.Decoder, restor
 	{{- range .Errors }}
 		case {{ .StatusCode }}:
 		{{- if gt (len .Errors) 1 }}
-		en := resp.Header.Get("goa-error")
+		en := resp.Header.Get("loom-error")
 		switch en {
 			{{- range .Errors }}
 		case {{ printf "%q" .Name }}:
@@ -460,7 +460,7 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) g
 		{{- if .Method.ViewedResult }}
 			res := v.({{ .Method.ViewedResult.FullRef }})
 			{{- if not .Method.ViewedResult.ViewName }}
-				w.Header().Set("goa-view", res.View)
+				w.Header().Set("loom-view", res.View)
 			{{- end }}
 		{{- else }}
 			res, _ := v.({{ .Result.Ref }})
@@ -613,7 +613,7 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) g
 	{{- end }}
 
 	{{- if .ErrorHeader }}
-	w.Header().Set("goa-error", res.GoaErrorName())
+	w.Header().Set("loom-error", res.LoomErrorName())
 	{{- end }}
 	w.WriteHeader({{ .StatusCode }})`},
 		templateSource{name: "header_conversion", source: `	{{- if eq .Type.Name "boolean" -}}
@@ -660,11 +660,11 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) g
 func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
+		var en goa.LoomErrorNamer
 		if !errors.As(v, &en) {
 			return encodeError(ctx, w, v)
 		}
-		switch en.GoaErrorName() {
+		switch en.LoomErrorName() {
 	{{- range $gerr := .Errors }}
 	{{- range $err := .Errors }}
 		case {{ printf "%q" .Name }}:
@@ -805,7 +805,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) goah
 	{{- end }}
 
 	{{- if .ErrorHeader }}
-	w.Header().Set("goa-error", res.GoaErrorName())
+	w.Header().Set("loom-error", res.LoomErrorName())
 	{{- end }}
 	w.WriteHeader({{ .StatusCode }})`},
 		templateSource{name: "header_conversion", source: `	{{- if eq .Type.Name "boolean" -}}

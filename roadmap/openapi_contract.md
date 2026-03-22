@@ -8,7 +8,7 @@ artifact, not just human documentation.
 ## Canonical Plan
 
 This document is the canonical framework plan for remaining OpenAPI work in
-`goa-light`.
+`loom`.
 
 Do not create parallel plan docs for the same work. Downstream audit notes may
 capture evidence, but backlog state and sequencing belong here.
@@ -55,7 +55,7 @@ roadmap items unless a regression appears:
 - Streaming example suppression for SSE and WebSocket response media types.
 - Truthful SSE handshake modeling in ordinary HTTP success responses with
   `text/event-stream`.
-- Framework-owned async contract publication under `x-goa-async` for SSE and
+- Framework-owned async contract publication under `x-loom-async` for SSE and
   WebSocket endpoints, with inline message schemas plus truthful handshake
   metadata.
 - Representative contract linting and downstream smoke-generation gates using
@@ -78,7 +78,7 @@ framework capabilities rather than future roadmap units:
 
 ## Working Rules
 
-- Keep contract-shape decisions in `goa-light`, not in per-app patches.
+- Keep contract-shape decisions in `loom`, not in per-app patches.
 - Prefer semantic accuracy over preserving historical document shape.
 - Do not add DSL surface unless it removes repeated app-local glue or repeated
   downstream contract drift.
@@ -187,7 +187,7 @@ Acceptance:
 Status: completed
 
 Problem:
-The framework still defaults to `application/vnd.goa.error`, which is not the
+The framework still defaults to `application/vnd.loom.error`, which is not the
 best machine-facing contract for SDKs and automation.
 
 Scope:

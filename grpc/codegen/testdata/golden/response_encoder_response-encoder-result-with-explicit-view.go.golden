@@ -7,7 +7,7 @@ func EncodeMethodMessageResultTypeWithExplicitViewResponse(ctx context.Context, 
 		return nil, goagrpc.ErrInvalidType("ServiceMessageResultTypeWithExplicitView", "MethodMessageResultTypeWithExplicitView", "*servicemessageresulttypewithexplicitviewviews.RT", v)
 	}
 	result := vres.Projected
-	(*hdr).Append("goa-view", vres.View)
+	(*hdr).Append("loom-view", vres.View)
 	resp := NewProtoMethodMessageResultTypeWithExplicitViewResponse(result)
 	return resp, nil
 }

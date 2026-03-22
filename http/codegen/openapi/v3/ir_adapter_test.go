@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	openapiir "goa.design/goa/v3/http/codegen/openapi/internal/ir"
-	"goa.design/goa/v3/http/codegen/openapi/v3/testdata/dsls"
+	"github.com/CaliLuke/loom/v3/codegen"
+	openapiir "github.com/CaliLuke/loom/v3/http/codegen/openapi/internal/ir"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi/v3/testdata/dsls"
 )
 
 func TestNewUsesIRBuiltOperationBodies(t *testing.T) {

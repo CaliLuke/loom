@@ -5,7 +5,7 @@ import (
 	"mime"
 	"strings"
 
-	"goa.design/goa/v3/eval"
+	"github.com/CaliLuke/loom/v3/eval"
 )
 
 const (
@@ -48,7 +48,7 @@ type (
 var (
 	// ErrorResultIdentifier is the result type identifier used for error
 	// responses.
-	ErrorResultIdentifier = "application/vnd.goa.error"
+	ErrorResultIdentifier = "application/vnd.loom.error"
 
 	// ProblemResultIdentifier is the standards-first result type identifier used
 	// for RFC 9457-style problem responses.
@@ -124,7 +124,7 @@ var (
 			Type:        String,
 			Description: "Type identifies the problem category using a URI reference.",
 			UserExamples: []*ExampleExpr{{
-				Value: "https://goa.design/problems/bad-request",
+				Value: "https://github.com/CaliLuke/loom/problems/bad-request",
 			}},
 		}},
 		{"title", &AttributeExpr{
@@ -152,7 +152,7 @@ var (
 			Type:        String,
 			Description: "Instance identifies this specific occurrence of the problem.",
 			UserExamples: []*ExampleExpr{{
-				Value: "urn:goa:error:123abc",
+				Value: "urn:loom:error:123abc",
 			}},
 		}},
 		{"code", &AttributeExpr{

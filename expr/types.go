@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sort"
 
-	"goa.design/goa/v3/eval"
+	"github.com/CaliLuke/loom/v3/eval"
 )
 
 type (

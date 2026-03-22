@@ -1,8 +1,8 @@
 package dsl
 
 import (
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 const (
@@ -90,7 +90,7 @@ const (
 //
 // Using JSON-RPC with Other Transports:
 //
-// Goa allows you to expose a single service or method over multiple transports.
+// Loom allows you to expose a single service or method over multiple transports.
 // For example, a method can have both standard HTTP or gRPC endpoints in addition
 // to a JSON-RPC endpoint.
 //

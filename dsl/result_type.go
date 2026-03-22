@@ -5,8 +5,8 @@ import (
 	"mime"
 	"strings"
 
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // Counter used to create unique result type names for identifier-less result
@@ -39,7 +39,7 @@ var resultTypeCount int
 //
 // Example:
 //
-//	var BottleMT = ResultType("application/vnd.goa.example.bottle", "BottleResult", func() {
+//	var BottleMT = ResultType("application/vnd.loom.example.bottle", "BottleResult", func() {
 //	    Description("A bottle of wine")
 //
 //	    Attributes(func() {
@@ -167,7 +167,7 @@ func TypeName(name string) {
 // Examples:
 //
 //	// MyResultType defines 2 views.
-//	var MyResultType = ResultType("application/vnd.goa.my", func() {
+//	var MyResultType = ResultType("application/vnd.loom.my", func() {
 //	    Attributes(func() {
 //	        Attribute("id", String)
 //	        Attribute("name", String)
@@ -263,7 +263,7 @@ func View(name string, adsl ...func()) {
 //
 // Example:
 //
-//	var DivisionResult = ResultType("application/vnd.goa.divresult", func() {
+//	var DivisionResult = ResultType("application/vnd.loom.divresult", func() {
 //	    Attributes(func() {
 //	        Attribute("value", Float64)
 //	        Attribute("remainder", Int)
@@ -404,7 +404,7 @@ func CollectionOf(v any, adsl ...func()) *expr.ResultTypeExpr {
 //		Attribute("somethingelse", String)
 //	})
 //
-//	var BottleResult = ResultType("vnd.goa.bottle", func() {
+//	var BottleResult = ResultType("vnd.loom.bottle", func() {
 //		Reference(Bottle)
 //		Attributes(func() {
 //			Attribute("id", UInt64, "ID is the bottle identifier")

@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // CLIFiles returns example client tool main implementation for each server

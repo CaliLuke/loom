@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"goa.design/goa/v3/middleware/xray"
+	"github.com/CaliLuke/loom/v3/middleware/xray"
 )
 
 // ReadUDP verifies that exactly the expected number of messages are received.

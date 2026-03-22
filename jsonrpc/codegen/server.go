@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
-	httpcodegen "goa.design/goa/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
 )
 
 // ServerFiles returns the generated JSON-RPC server files if any.

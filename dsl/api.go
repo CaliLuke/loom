@@ -1,8 +1,8 @@
 package dsl
 
 import (
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // API defines a network service API. It provides the API name, description and other global
@@ -138,7 +138,7 @@ func Contact(fn func()) {
 //	var _ = API("divider", func() {
 //	    License(func() {
 //	        Name("MIT")
-//	        URL("https://github.com/goadesign/goa/blob/master/LICENSE")
+//	        URL("https://github.com/CaliLuke/loom/blob/main/LICENSE")
 //	    })
 //	})
 func License(fn func()) {
@@ -251,7 +251,7 @@ func TermsOfService(terms string) {
 //	var _ = API("divider", func() {
 //	    License(func() {
 //	        Name("MIT")
-//	        URL("https://github.com/goadesign/goa/blob/master/LICENSE")
+//	        URL("https://github.com/CaliLuke/loom/blob/main/LICENSE")
 //	    })
 //	})
 func Name(name string) {

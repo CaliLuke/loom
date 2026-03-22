@@ -39,7 +39,7 @@ Order declarations as:
 
 No commented-out code—delete dead code.
 
-### Goa DSL Rules
+### Loom DSL Rules
 
 - **Never edit `gen/`**: Always regenerate.
 - **DSL validation**: Put validations (lengths, enums, formats) in the design. Do not re-validate in code.
@@ -48,7 +48,7 @@ No commented-out code—delete dead code.
 ### Codegen Implementation
 
 - **Use NameScope helpers** for type references: `GoTypeRef`, `GoFullTypeRef`, `GoTypeName`. Never concatenate strings for types.
-- Let Goa decide pointer/value semantics. Do not force `pointer=true` except in transport validation.
+- Let Loom decide pointer/value semantics. Do not force `pointer=true` except in transport validation.
 - **Keep helper visibility minimal**: If logic is shared only inside one codegen area, keep it package-private or move it under an `internal` package. Do not export helpers from a parent package just to share them across sibling generators.
 - **Avoid pass-through wrappers**: When two helper functions differ only by forwarding arguments or hard-coding `nil`, collapse them into a single implementation instead of adding an extra layer.
 
@@ -68,9 +68,8 @@ No commented-out code—delete dead code.
 
 ### Git Remotes
 
-- Treat `origin` as the upstream `goadesign/goa` remote. Do **not** push there unless the user explicitly says to.
-- For this repo, default pushes should go to the user's fork remote instead of `origin`.
-- Check `git remote -v` before pushing if there is any ambiguity. In the current setup, `fork` is the user's fork of `goa`, while `goa-light` is a separate fork remote.
+- Treat `origin` as the canonical `CaliLuke/loom` remote unless the user explicitly reconfigures remotes.
+- Check `git remote -v` before pushing if there is any ambiguity.
 
 ### Testing
 
@@ -83,13 +82,13 @@ No commented-out code—delete dead code.
 - When output shape matters, pair direct structural assertions with rendered/golden coverage.
 - For OpenAPI contract work, validate rendered specs with `libopenapi` and lint the specimen outputs with Redocly.
 - Keep the OpenAPI specimen matrix meaningful. Reuse or extend the non-trivial fixtures under `http/codegen/testdata` instead of inventing throwaway one-off examples when a real contract shape is under test.
-- For external temp-module or fake-app generation loops, pin `goa.design/goa/v3` to a pushed GitHub commit, not the local working tree, so CI can reproduce the result.
-- For this repo, the standard JSON-RPC integration toggle is `make goa-local` for local iteration and `make goa-remote` for pinned-remote parity. `make goa-status` shows the current mode.
-- `make goa-local` writes a repo-local source-mode file for the JSON-RPC temp-module generator; `GOA_REPO=/absolute/path` still overrides that mode for one-off runs.
-- While developing an unpushed framework change, use local mode or set `GOA_REPO=/Users/luca/code/goa-light` explicitly so verification exercises the code you just changed rather than the last pushed commit.
+- For external temp-module or fake-app generation loops, pin `github.com/CaliLuke/loom/v3` to a pushed GitHub commit, not the local working tree, so CI can reproduce the result.
+- For this repo, the standard JSON-RPC integration toggle is `make loom-local` for local iteration and `make loom-remote` for pinned-remote parity. `make loom-status` shows the current mode. The legacy `goa-*` targets remain as aliases.
+- `make loom-local` writes a repo-local source-mode file for the JSON-RPC temp-module generator; `LOOM_DIR=/absolute/path` still overrides that mode for one-off runs. `GOA_DIR` remains a legacy alias.
+- While developing an unpushed framework change, use local mode or set `LOOM_DIR=/Users/luca/code/goa-light` explicitly so verification exercises the code you just changed rather than the last pushed commit.
 - Distinguish the two SSE verification paths:
   - the JSON-RPC temp-module generator must honor the local-vs-remote switch (`make goa-local`, `make goa-remote`, or `GOA_REPO=...`)
-  - temp-copy regeneration smoke tests for checked-in fixtures are intentionally local-only and should rewrite the copied fixture `replace goa.design/goa/v3 => ...` to the current repo root before running `goa gen`
+  - temp-copy regeneration smoke tests for checked-in fixtures are intentionally local-only and should rewrite the copied fixture `replace github.com/CaliLuke/loom/v3 => ...` to the current repo root before running `loom gen`
 - Treat the checked-in SSE fixtures as part of the transport regression surface, not as demos:
   - `http/integration_tests/fixtures/ticktock`
   - `jsonrpc/integration_tests/fixtures/ticktock`
@@ -99,26 +98,26 @@ No commented-out code—delete dead code.
   - event-type compatibility for protocol-level errors
   - compile-after-generation of the emitted fixture app
   - any branch-specific connection timing semantics the fixture actually supports
-- For new or changed `goa-light` framework capabilities, use the [`framework-capability` skill](/Users/luca/code/goa-light/.agents/skills/framework-capability/SKILL.md).
+- For new or changed `loom` framework capabilities, use the [`framework-capability` skill](/Users/luca/code/loom/.agents/skills/framework-capability/SKILL.md).
 
 ---
 
-## Goa-Specific Rules
+## Loom-Specific Rules
 
 ### Build & Test
 
 ```bash
 make lint          # Run linters
 make test          # Run tests
-cd cmd/goa && go install .  # Install CLI locally
+cd cmd/loom && go install .  # Install CLI locally
 ```
 
 ### Code Generation Behavior
 
-- After modifying goa source, `goa gen` and `goa example` automatically compile and use your changes—no manual rebuild needed.
-- `goa gen` deletes and recreates the entire `gen/` directory.
-- `goa example` only creates new files; it does not overwrite existing `cmd/` files.
+- After modifying goa source, `loom gen` and `loom example` automatically compile and use your changes—no manual rebuild needed.
+- `loom gen` deletes and recreates the entire `gen/` directory.
+- `loom example` only creates new files; it does not overwrite existing `cmd/` files.
 
 ### Slices/Maps and Required Fields
 
-Do not rely on nil vs empty to encode presence. Goa uses `omitempty`—both nil and empty serialize as "missing". If empty is valid, do not mark the field as required.
+Do not rely on nil vs empty to encode presence. Loom uses `omitempty`—both nil and empty serialize as "missing". If empty is valid, do not mark the field as required.

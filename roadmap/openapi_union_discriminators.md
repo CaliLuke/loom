@@ -4,11 +4,11 @@ Status: completed on 2026-03-18
 
 ## Goal
 
-Emit machine-usable OpenAPI 3.1 discriminators for wrapper-style Goa unions so downstream consumers can reconcile contract branches without guessing from examples or `anyOf` ordering.
+Emit machine-usable OpenAPI 3.1 discriminators for wrapper-style Loom unions so downstream consumers can reconcile contract branches without guessing from examples or `anyOf` ordering.
 
 ## Problem
 
-`goa-light` already preserves union tag semantics in code generation, but the published OpenAPI for wrapper unions still degrades into object shells that contain:
+`loom` already preserves union tag semantics in code generation, but the published OpenAPI for wrapper unions still degrades into object shells that contain:
 
 - a `type` field with enum values
 - a `value` field with `anyOf` branches
@@ -24,9 +24,9 @@ That shape is readable, but it is weak for:
 
 Framework work only:
 
-- Goa DSL metadata to OpenAPI projection
+- Loom DSL metadata to OpenAPI projection
 - OpenAPI schema generation for wrapper unions
-- tests and golden files in `goa-light`
+- tests and golden files in `loom`
 
 Out of scope:
 
@@ -51,7 +51,7 @@ Out of scope:
 
 ## Design Constraints
 
-- Keep the contract policy in `goa-light`, not in downstream plugins or consumers.
+- Keep the contract policy in `loom`, not in downstream plugins or consumers.
 - Do not require application-specific meta tags for the common `type`/`value` pattern.
 - Preserve stable schema names and refs while adding discriminator metadata.
 

@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 var DefaultErrorResponseDSL = func() {
@@ -218,7 +218,7 @@ var NoBodyErrorResponseWithContentTypeDSL = func() {
 }
 
 var ErrorExamplesDSL = func() {
-	var customType = ResultType("application/vnd.goa.custom-error", func() {
+	var customType = ResultType("application/vnd.loom.custom-error", func() {
 		TypeName("CustomError")
 		Attribute("message", String, func() {
 			Example("error message")

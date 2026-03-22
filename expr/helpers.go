@@ -1,7 +1,7 @@
 package expr
 
 import (
-	"goa.design/goa/v3/eval"
+	"github.com/CaliLuke/loom/v3/eval"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )

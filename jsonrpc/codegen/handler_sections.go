@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	httpcodegen "goa.design/goa/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
 )
 
 func jsonrpcServerHandlerSection(data *httpcodegen.ServiceData, mixed bool) codegen.Section {
@@ -356,9 +356,9 @@ func renderSSEHandlerInitBody(b *strings.Builder, e *httpcodegen.EndpointData) {
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t\tif _, err := endpoint(ctx, v); err != nil {\n")
 	b.WriteString("\t\t\tif req.ID != nil && req.ID != \"\" {\n")
-	b.WriteString("\t\t\t\tvar en goa.GoaErrorNamer\n")
+	b.WriteString("\t\t\t\tvar en goa.LoomErrorNamer\n")
 	b.WriteString("\t\t\t\tif errors.As(err, &en) {\n")
-	b.WriteString("\t\t\t\t\tswitch en.GoaErrorName() {\n")
+	b.WriteString("\t\t\t\t\tswitch en.LoomErrorName() {\n")
 	b.WriteString("\t\t\t\t\tcase \"invalid_params\":\n")
 	b.WriteString("\t\t\t\t\t\treturn strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 	b.WriteString("\t\t\t\t\tcase \"method_not_found\":\n")
@@ -431,12 +431,12 @@ func renderJSONRPCStandardHandlerInitBody(b *strings.Builder, e *httpcodegen.End
 
 	b.WriteString("\t\tif err != nil {\n")
 	b.WriteString("\t\t\tif req.ID != nil && req.ID != \"\" {\n")
-	b.WriteString("\t\t\t\tvar en goa.GoaErrorNamer\n")
+	b.WriteString("\t\t\t\tvar en goa.LoomErrorNamer\n")
 	b.WriteString("\t\t\t\tif !errors.As(err, &en) {\n")
 	b.WriteString("\t\t\t\t\tencodeJSONRPCError(ctx, w, req, jsonrpc.InternalError, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)\n")
 	b.WriteString("\t\t\t\t\treturn nil\n")
 	b.WriteString("\t\t\t\t}\n")
-	b.WriteString("\t\t\t\tswitch en.GoaErrorName() {\n")
+	b.WriteString("\t\t\t\tswitch en.LoomErrorName() {\n")
 	for _, gerr := range e.Errors {
 		for _, item := range gerr.Errors {
 			if item.Response == nil {

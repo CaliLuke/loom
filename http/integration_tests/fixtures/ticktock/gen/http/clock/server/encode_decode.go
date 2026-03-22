@@ -3,7 +3,7 @@
 // clock HTTP server encoders and decoders
 //
 // Command:
-// $ goa gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design
 
 package server
 
@@ -13,8 +13,8 @@ import (
 	"net/http"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "goa.design/goa/v3/http"
-	goa "goa.design/goa/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/v3/http"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 // EncodeTickResponse returns an encoder for responses returned by the clock
@@ -76,11 +76,11 @@ func DecodeGuardedRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
+		var en goa.LoomErrorNamer
 		if !errors.As(v, &en) {
 			return encodeError(ctx, w, v)
 		}
-		switch en.GoaErrorName() {
+		switch en.LoomErrorName() {
 		case "unauthorized":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -91,7 +91,7 @@ func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) goaht
 			} else {
 				body = NewGuardedUnauthorizedResponseBody(res)
 			}
-			w.Header().Set("goa-error", res.GoaErrorName())
+			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusUnauthorized)
 			return enc.Encode(body)
 		default:

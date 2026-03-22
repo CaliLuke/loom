@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "goa.design/goa/v3/http"
+	goahttp "github.com/CaliLuke/loom/v3/http"
 )
 
 // TickServerStream implements the clock.TickServerStream interface using

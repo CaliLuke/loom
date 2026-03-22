@@ -38,18 +38,18 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) goa
 				err = goa.MergeErrors(err, goa.MissingFieldError("name", "header"))
 			}
 			name = nameRaw
-			idRaw := resp.Header.Get("Goa-Attribute-Id")
+			idRaw := resp.Header.Get("Loom-Attribute-Id")
 			if idRaw == "" {
 				err = goa.MergeErrors(err, goa.MissingFieldError("id", "header"))
 			}
 			id = idRaw
-			messageRaw := resp.Header.Get("Goa-Attribute-Message")
+			messageRaw := resp.Header.Get("Loom-Attribute-Message")
 			if messageRaw == "" {
 				err = goa.MergeErrors(err, goa.MissingFieldError("message", "header"))
 			}
 			message = messageRaw
 			{
-				temporaryRaw := resp.Header.Get("Goa-Attribute-Temporary")
+				temporaryRaw := resp.Header.Get("Loom-Attribute-Temporary")
 				if temporaryRaw == "" {
 					return nil, goahttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", goa.MissingFieldError("temporary", "header"))
 				}
@@ -60,7 +60,7 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) goa
 				temporary = v
 			}
 			{
-				timeoutRaw := resp.Header.Get("Goa-Attribute-Timeout")
+				timeoutRaw := resp.Header.Get("Loom-Attribute-Timeout")
 				if timeoutRaw == "" {
 					return nil, goahttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", goa.MissingFieldError("timeout", "header"))
 				}
@@ -71,7 +71,7 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) goa
 				timeout = v
 			}
 			{
-				faultRaw := resp.Header.Get("Goa-Attribute-Fault")
+				faultRaw := resp.Header.Get("Loom-Attribute-Fault")
 				if faultRaw == "" {
 					return nil, goahttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", goa.MissingFieldError("fault", "header"))
 				}

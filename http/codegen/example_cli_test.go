@@ -7,12 +7,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/example"
-	ctestdata "goa.design/goa/v3/codegen/example/testdata"
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/codegen/testutil"
-	"goa.design/goa/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/example"
+	ctestdata "github.com/CaliLuke/loom/v3/codegen/example/testdata"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
 )
 
 func TestExampleCLIFiles(t *testing.T) {

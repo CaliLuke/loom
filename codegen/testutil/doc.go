@@ -1,4 +1,4 @@
-// Package testutil provides testing utilities for the Goa code generation framework.
+// Package testutil provides testing utilities for the Loom code generation framework.
 //
 // # Golden File Testing
 //

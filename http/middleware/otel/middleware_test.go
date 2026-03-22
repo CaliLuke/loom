@@ -7,12 +7,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	goahttp "github.com/CaliLuke/loom/v3/http"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
-	goahttp "goa.design/goa/v3/http"
 
 	"github.com/stretchr/testify/require"
 )

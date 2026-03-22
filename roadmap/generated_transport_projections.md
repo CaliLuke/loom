@@ -23,12 +23,12 @@ Framework work only:
 Out of scope:
 
 - application-specific adapter logic
-- custom non-Goa transport runtimes
+- custom non-Loom transport runtimes
 
 ## Shipped Outcome
 
 - applications can define one canonical result type and one or more projected views
-- `goa-light` now generates exported projection helpers in the service package for canonical result-to-view and view-to-result conversion
+- `loom` now generates exported projection helpers in the service package for canonical result-to-view and view-to-result conversion
 - nested structs, slices, maps, unions, collections, and optionals are projected recursively through the existing transform-helper machinery
 - wrappers such as `NewViewed...` and `New...` now build on those exported helpers instead of private-only projection functions
 
@@ -36,7 +36,7 @@ Out of scope:
 
 1. The supported framework pattern is now:
    - canonical service result type
-   - projected Goa view type in the generated `views` package
+   - projected Loom view type in the generated `views` package
    - exported service-package helpers for projection in both directions
 2. The generated helper names are stable and typed:
    - `Project<ResultType>[ViewSuffix](...)`
@@ -46,7 +46,7 @@ Out of scope:
 
 ## Design Constraints
 
-- Generated helpers should use existing Goa type metadata and naming scopes.
+- Generated helpers should use existing Loom type metadata and naming scopes.
 - Do not force applications into transport-specific wrapper types when a view is sufficient.
 - Keep helper visibility minimal and generator output predictable.
 

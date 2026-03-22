@@ -6,7 +6,7 @@ import (
 
 	clock "example.com/http-ticktock/gen/clock"
 	"goa.design/clue/log"
-	goa "goa.design/goa/v3/pkg"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 type (

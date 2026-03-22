@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 
-	grpcm "goa.design/goa/v3/grpc/middleware"
+	grpcm "github.com/CaliLuke/loom/v3/grpc/middleware"
 )
 
 type (

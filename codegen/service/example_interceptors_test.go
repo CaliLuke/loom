@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen/service/testdata"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen/service/testdata"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestExampleInterceptorsFiles(t *testing.T) {
@@ -109,7 +109,7 @@ func TestExampleInterceptorsFiles(t *testing.T) {
 				require.NoError(t, err, buf.String())
 				code := string(bs)
 
-				// Remove the first line so the version of Goa is not part of the golden file
+				// Remove the first line so the version of Loom is not part of the golden file
 				code = strings.SplitN(code, "\n", 2)[1]
 
 				// Use the base name of the generated file without extension for the golden file

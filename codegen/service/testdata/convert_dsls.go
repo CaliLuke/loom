@@ -1,9 +1,9 @@
 package testdata
 
 import (
-	aliasd "goa.design/goa/v3/codegen/service/testdata/alias-external"
-	"goa.design/goa/v3/codegen/service/testdata/external"
-	. "goa.design/goa/v3/dsl"
+	aliasd "github.com/CaliLuke/loom/v3/codegen/service/testdata/alias-external"
+	"github.com/CaliLuke/loom/v3/codegen/service/testdata/external"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 var ConvertStringDSL = func() {

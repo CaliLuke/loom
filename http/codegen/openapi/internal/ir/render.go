@@ -1,6 +1,6 @@
 package ir
 
-import "goa.design/goa/v3/http/codegen/openapi"
+import "github.com/CaliLuke/loom/v3/http/codegen/openapi"
 
 type (
 	// RenderedEndpointBodies is the rendered endpoint body set used by v3 adapters.

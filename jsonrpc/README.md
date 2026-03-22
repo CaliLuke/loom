@@ -1,6 +1,6 @@
-# JSON-RPC 2.0 in Goa
+# JSON-RPC 2.0 in Loom
 
-Goa provides first-class, type-safe support for JSON-RPC 2.0, enabling you to build robust RPC services with the same powerful DSL used for REST and gRPC. This implementation handles all protocol complexities while preserving Goa's design-first philosophy.
+Loom provides first-class, type-safe support for JSON-RPC 2.0, enabling you to build robust RPC services with the same powerful DSL used for REST and gRPC. This implementation handles all protocol complexities while preserving Loom's design-first philosophy.
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@ Define a simple JSON-RPC calculator service:
 // design/design.go
 package design
 
-import . "goa.design/goa/v3/dsl"
+import . "github.com/CaliLuke/loom/v3/dsl"
 
 var _ = API("calculator", func() {
     Title("Calculator Service")
@@ -85,7 +85,7 @@ var _ = Service("calc", func() {
 Generate the code:
 
 ```bash
-goa gen calculator/design
+loom gen calculator/design
 ```
 
 Implement the service:
@@ -289,7 +289,7 @@ How IDs behave across transports and shapes:
     the design.
 
 - Runtime type
-  - JSON-RPC allows string or number IDs. Goa accepts either on the wire and
+  - JSON-RPC allows string or number IDs. Loom accepts either on the wire and
     normalizes to string when assigning to your `ID()` fields.
 
 - HTTP (request/response)
@@ -736,7 +736,7 @@ Batch processing is automatic - no special configuration needed.
 
 ### Error Handling
 
-Goa provides comprehensive error handling with standard JSON-RPC error codes:
+Loom provides comprehensive error handling with standard JSON-RPC error codes:
 
 ```go
 Service("api", func() {
@@ -984,13 +984,13 @@ Service("universal", func() {
 ## Additional Resources
 
 - [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)
-- [Goa Documentation](https://goa.design)
+- [Loom Repository](https://github.com/CaliLuke/loom)
 - [Example Services](https://github.com/goadesign/examples)
 - [Integration Tests](../jsonrpc/integration_tests)
 
 ## Summary
 
-Goa's JSON-RPC implementation provides:
+Loom's JSON-RPC implementation provides:
 
 - **Type Safety**: Full compile-time type checking
 - **Code Generation**: Automatic client/server code from DSL
@@ -1001,6 +1001,6 @@ Goa's JSON-RPC implementation provides:
 - **Content Negotiation**: Mixed results based on Accept headers
 - **Batch Processing**: Automatic batch request handling
 
-The implementation seamlessly integrates with Goa's existing features while
+The implementation seamlessly integrates with Loom's existing features while
 maintaining clean separation of concerns and enabling powerful real-time
 communication patterns.

@@ -38,7 +38,7 @@ Out of scope:
    - optional fields
    - repeated fields, if already representable in DSL
 3. Generate multipart decoding for those shapes directly in HTTP transport code.
-4. Preserve normal Goa validation flow after decoding instead of pushing validation into custom hooks.
+4. Preserve normal Loom validation flow after decoding instead of pushing validation into custom hooks.
 5. Add regression tests proving the generated decoder replaces the handwritten multipart hook used by representative consumers.
 
 ## Design Constraints

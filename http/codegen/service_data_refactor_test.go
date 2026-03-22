@@ -5,11 +5,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service"
-	. "goa.design/goa/v3/dsl"
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	. "github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
 )
 
 func TestHTTPPayloadDecoderReturnValueFallback(t *testing.T) {

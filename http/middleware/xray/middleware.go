@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"goa.design/goa/v3/middleware"
-	"goa.design/goa/v3/middleware/xray"
+	"github.com/CaliLuke/loom/v3/middleware"
+	"github.com/CaliLuke/loom/v3/middleware/xray"
 )
 
 // New returns a middleware that sends AWS X-Ray segments to the daemon running

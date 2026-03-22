@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 type transformAttrs struct {
@@ -281,7 +281,7 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 					// Go service union fields are interfaces (nil when absent); do not dereference.
 					code, err = transformUnionToProto(srcc, tgtc, srcVar, tgtVar, false, ta)
 				} else {
-					// Service unions in Goa are represented as interface types, not *interface.
+					// Service unions in Loom are represented as interface types, not *interface.
 					// Always assign concrete values to the interface (no pointer-to-interface).
 					code, err = transformUnionFromProto(srcc, tgtc, srcVar, tgtVar, ta)
 				}
@@ -624,7 +624,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 }
 
 // transformUnionToProto returns the code to transform an attribute of type
-// union from protobuf to Goa. It returns an error if source and target are not
+// union from protobuf to Loom. It returns an error if source and target are not
 // compatible for transformation.
 func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourcePtr bool, ta *transformAttrs) (string, error) {
 	if err := codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
@@ -662,7 +662,7 @@ func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, target
 }
 
 // transformUnionFromProto returns the code to transform an attribute of type
-// union from protobuf to Goa. It returns an error if source and target are not
+// union from protobuf to Loom. It returns an error if source and target are not
 // compatible for transformation.
 func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *transformAttrs) (string, error) {
 	if err := codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
@@ -752,7 +752,7 @@ const convertProtobufValueToGoAnyFunc = `func() any {
 // convertPrimitive returns the code to convert a primitive type from one
 // representation to another.
 // NOTE: For Int and UInt kinds, protocol buffer Go compiler generates
-// int32 and uint32 respectively whereas Goa generates int and uint.
+// int32 and uint32 respectively whereas Loom generates int and uint.
 func convertPrimitiveToProto(_, tgt *expr.AttributeExpr, srcPtr, _ bool, srcVar string, _ *transformAttrs) string {
 	// Special handling for Any type conversion to google.protobuf.Value
 	if tgt.Type.Kind() == expr.AnyKind {

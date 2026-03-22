@@ -4,15 +4,15 @@
 func EncodeMethodEmptyCustomErrorResponseBodyError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
+		var en goa.LoomErrorNamer
 		if !errors.As(v, &en) {
 			return encodeError(ctx, w, v)
 		}
-		switch en.GoaErrorName() {
+		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *serviceemptycustomerrorresponsebody.Error
 			errors.As(v, &res)
-			w.Header().Set("goa-error", res.GoaErrorName())
+			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return nil
 		default:

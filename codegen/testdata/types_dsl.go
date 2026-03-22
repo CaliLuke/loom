@@ -3,7 +3,7 @@ package testdata
 import (
 	"encoding/json"
 
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 var TestTypesDSL = func() {
@@ -19,14 +19,14 @@ var TestTypesDSL = func() {
 
 		_ = Type("CustomTypes", func() {
 			Attribute("required_string", String, func() {
-				Meta("struct:field:type", "tdtypes.CustomString", "goa.design/goa/v3/codegen/testdata/tdtypes")
+				Meta("struct:field:type", "tdtypes.CustomString", "github.com/CaliLuke/loom/v3/codegen/testdata/tdtypes")
 			})
 			Attribute("default_bool", Boolean, func() {
-				Meta("struct:field:type", "tdtypes.CustomBool", "goa.design/goa/v3/codegen/testdata/tdtypes")
+				Meta("struct:field:type", "tdtypes.CustomBool", "github.com/CaliLuke/loom/v3/codegen/testdata/tdtypes")
 				Default(true)
 			})
 			Attribute("integer", Int, func() {
-				Meta("struct:field:type", "tdtypes.CustomInt", "goa.design/goa/v3/codegen/testdata/tdtypes")
+				Meta("struct:field:type", "tdtypes.CustomInt", "github.com/CaliLuke/loom/v3/codegen/testdata/tdtypes")
 			})
 			Required("required_string")
 		})
@@ -164,7 +164,7 @@ var TestTypesDSL = func() {
 			Required("required_string")
 		})
 
-		RT = ResultType("application/vnd.goa.example", func() {
+		RT = ResultType("application/vnd.loom.example", func() {
 			TypeName("ResultType")
 			Attributes(func() {
 				Attribute("int", Int)
@@ -172,7 +172,7 @@ var TestTypesDSL = func() {
 			})
 		})
 
-		_ = ResultType("application/vnd.goa.collection", func() {
+		_ = ResultType("application/vnd.loom.collection", func() {
 			TypeName("ResultTypeCollection")
 			Attributes(func() {
 				Attribute("collection", CollectionOf(RT))

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"goa.design/goa/v3/eval"
+	"github.com/CaliLuke/loom/v3/eval"
 )
 
 func TestTaggedAttribute(t *testing.T) {

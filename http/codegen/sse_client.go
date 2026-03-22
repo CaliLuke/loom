@@ -3,8 +3,8 @@ package codegen
 import (
 	"path/filepath"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // sseClientFile returns the file implementing the SSE client code for SSE endpoints if any.
@@ -44,7 +44,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "sync"},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
-				{Path: "goa.design/goa/v3/http", Name: "goahttp"},
+				{Path: "github.com/CaliLuke/loom/v3/http", Name: "goahttp"},
 			},
 		),
 	)

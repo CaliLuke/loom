@@ -12,8 +12,8 @@ func TestNormalizeFileForPackageMatch(t *testing.T) {
 			want: "/home/me/src/goa/eval/error.go",
 		},
 		"module cache version": {
-			in:   "/home/me/go/pkg/mod/goa.design/goa/v3@v3.23.2/dsl/result_type.go",
-			want: "/home/me/go/pkg/mod/goa.design/goa/v3/dsl/result_type.go",
+			in:   "/home/me/go/pkg/mod/github.com/CaliLuke/loom/v3@v3.23.2/dsl/result_type.go",
+			want: "/home/me/go/pkg/mod/github.com/CaliLuke/loom/v3/dsl/result_type.go",
 		},
 		"multiple @ segments": {
 			in:   "/home/me/go/pkg/mod/example.com/foo@v1.2.3/bar@v0.1.0/baz.go",

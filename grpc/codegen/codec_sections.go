@@ -6,9 +6,9 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func grpcRequestEncoderSection(endpoint *EndpointData) codegen.Section {
@@ -90,7 +90,7 @@ func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 	if endpoint.ViewedResultRef != "" {
 		b.WriteString("\tvar view string\n")
 		b.WriteString("\t{\n")
-		b.WriteString("\t\tif vals := hdr.Get(\"goa-view\"); len(vals) > 0 {\n")
+		b.WriteString("\t\tif vals := hdr.Get(\"loom-view\"); len(vals) > 0 {\n")
 		b.WriteString("\t\t\tview = vals[0]\n")
 		b.WriteString("\t\t}\n")
 		b.WriteString("\t}\n")
@@ -207,7 +207,7 @@ func renderGRPCResponseEncoder(endpoint *EndpointData) string {
 		fmt.Fprintf(&b, "\t\treturn nil, goagrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ViewedResultRef)
 		b.WriteString("\t}\n")
 		b.WriteString("\tresult := vres.Projected\n")
-		b.WriteString("\t(*hdr).Append(\"goa-view\", vres.View)\n")
+		b.WriteString("\t(*hdr).Append(\"loom-view\", vres.View)\n")
 	} else if endpoint.ResultRef != "" {
 		fmt.Fprintf(&b, "\tresult, ok := v.(%s)\n", endpoint.ResultRef)
 		b.WriteString("\tif !ok {\n")

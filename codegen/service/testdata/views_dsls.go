@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 var ResultWithMultipleViewsDSL = func() {

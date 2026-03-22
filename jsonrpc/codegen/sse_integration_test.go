@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/jsonrpc/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/jsonrpc/codegen/testdata"
 )
 
 func TestJSONRPCSSEIntegration(t *testing.T) {

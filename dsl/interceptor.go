@@ -1,8 +1,8 @@
 package dsl
 
 import (
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // Interceptor defines a request interceptor. Interceptors provide a type-safe way

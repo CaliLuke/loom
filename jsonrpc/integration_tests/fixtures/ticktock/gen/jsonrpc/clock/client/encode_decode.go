@@ -15,8 +15,8 @@ import (
 	"net/url"
 
 	clock "example.com/ticktock/gen/clock"
-	goahttp "goa.design/goa/v3/http"
-	"goa.design/goa/v3/jsonrpc"
+	goahttp "github.com/CaliLuke/loom/v3/http"
+	"github.com/CaliLuke/loom/v3/jsonrpc"
 )
 
 // BuildTickRequest instantiates a HTTP request object with method and path set

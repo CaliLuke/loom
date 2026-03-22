@@ -1,6 +1,6 @@
 package testdata
 
-import . "goa.design/goa/v3/dsl"
+import . "github.com/CaliLuke/loom/v3/dsl"
 
 var ValidationTypesDSL = func() {
 	var (
@@ -137,7 +137,7 @@ var ValidationTypesDSL = func() {
 			Required("required_union")
 		})
 
-		Result = ResultType("application/vnd.goa.result", func() {
+		Result = ResultType("application/vnd.loom.result", func() {
 			TypeName("Result")
 			Attributes(func() {
 				Attribute("required", Int, func() {
@@ -148,7 +148,7 @@ var ValidationTypesDSL = func() {
 
 		_ = Type("Collection", CollectionOf(Result))
 
-		_ = ResultType("application/vnd.goa.collection", func() {
+		_ = ResultType("application/vnd.loom.collection", func() {
 			TypeName("TypeWithCollection")
 			Attributes(func() {
 				Attribute("collection", CollectionOf(Result))

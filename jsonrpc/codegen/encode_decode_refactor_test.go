@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/dsl"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/dsl"
 )
 
 func TestJSONRPCClientEncodeDecodeFileRewrite(t *testing.T) {
@@ -25,7 +25,7 @@ func TestJSONRPCClientEncodeDecodeFileRewrite(t *testing.T) {
 
 	code := renderCodegenFile(t, file)
 	assert.Contains(t, code, `"github.com/google/uuid"`)
-	assert.Contains(t, code, `goa.design/goa/v3/jsonrpc`)
+	assert.Contains(t, code, `github.com/CaliLuke/loom/v3/jsonrpc`)
 	assert.Contains(t, code, `body := &jsonrpc.Request{`)
 	assert.Contains(t, code, `Method:  "sum",`)
 }
@@ -42,7 +42,7 @@ func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
 	assert.NotContains(t, sectionNames, "error-encoder")
 
 	code := renderCodegenFile(t, file)
-	assert.Contains(t, code, `goa.design/goa/v3/jsonrpc`)
+	assert.Contains(t, code, `github.com/CaliLuke/loom/v3/jsonrpc`)
 	assert.Contains(t, code, `func(r *http.Request, req *jsonrpc.RawRequest)`)
 	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(req.Params))`)
 }

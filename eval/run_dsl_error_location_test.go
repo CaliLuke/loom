@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"goa.design/goa/v3/eval"
+	"github.com/CaliLuke/loom/v3/eval"
 )
 
 func TestRunDSL_ReportErrorLocation(t *testing.T) {

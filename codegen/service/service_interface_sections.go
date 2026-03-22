@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
 )
 
 func serviceDefinitionSection(data *Data) codegen.Section {
@@ -26,7 +26,7 @@ func renderServiceDefinition(data *Data) string {
 		b.WriteString(codegen.Indent(codegen.Comment(method.Description), "\t"))
 		b.WriteString("\n")
 		if method.SkipResponseBodyEncodeDecode {
-			b.WriteString(codegen.Indent(codegen.Comment("\nIf body implements [io.WriterTo], that implementation will be used instead. Consider [goa.design/goa/v3/pkg.SkipResponseWriter] to adapt existing implementations."), "\t"))
+			b.WriteString(codegen.Indent(codegen.Comment("\nIf body implements [io.WriterTo], that implementation will be used instead. Consider [github.com/CaliLuke/loom/v3/pkg.SkipResponseWriter] to adapt existing implementations."), "\t"))
 			b.WriteString("\n")
 		}
 		if method.ViewedResult != nil && method.ViewedResult.ViewName == "" {

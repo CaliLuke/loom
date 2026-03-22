@@ -3,7 +3,6 @@ package testingx
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -37,9 +36,9 @@ func TestPinLocalReplaceUpdatesGoMod(t *testing.T) {
 
 go 1.25.0
 
-require goa.design/goa/v3 v3.0.0
+require github.com/CaliLuke/loom/v3 v3.0.0
 
-replace goa.design/goa/v3 => ../stale
+replace github.com/CaliLuke/loom/v3 => ../stale
 `
 	require.NoError(t, os.WriteFile(filepath.Join(workDir, "go.mod"), []byte(goMod), 0o644))
 
@@ -48,7 +47,7 @@ replace goa.design/goa/v3 => ../stale
 
 	updated, err := os.ReadFile(filepath.Join(workDir, "go.mod"))
 	require.NoError(t, err)
-	require.Contains(t, string(updated), "replace goa.design/goa/v3 => "+repoRoot)
+	require.Contains(t, string(updated), "replace github.com/CaliLuke/loom/v3 => "+repoRoot)
 	require.NotContains(t, string(updated), "../stale")
 }
 
@@ -57,9 +56,13 @@ func TestRepoRootReturnsRepositoryTopLevel(t *testing.T) {
 
 	root := RepoRoot()
 	require.True(t, filepath.IsAbs(root))
-	require.True(t, strings.HasSuffix(root, string(filepath.Separator)+"goa-light"))
 
-	info, err := os.Stat(filepath.Join(root, "go.mod"))
+	goModPath := filepath.Join(root, "go.mod")
+	info, err := os.Stat(goModPath)
 	require.NoError(t, err)
 	require.False(t, info.IsDir())
+
+	goMod, err := os.ReadFile(goModPath)
+	require.NoError(t, err)
+	require.Contains(t, string(goMod), "module github.com/CaliLuke/loom/v3")
 }

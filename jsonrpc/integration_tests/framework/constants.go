@@ -23,7 +23,7 @@ const (
 	TypeArray  = "array"
 	TypeObject = "object"
 	TypeMap    = "map"
-	TypeUser   = "user" // Goa user-defined type
+	TypeUser   = "user" // Loom user-defined type
 	TypeInt    = "int"
 	TypeBool   = "bool"
 )

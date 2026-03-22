@@ -11,8 +11,8 @@ import (
 	testservice "/test_service"
 	"context"
 	"github.com/gorilla/websocket"
-	goahttp "goa.design/goa/v3/http"
-	goa "goa.design/goa/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/v3/http"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 	"io"
 	"net/http"
 	"sync"
@@ -66,7 +66,7 @@ func (s *StreamUserWithViewsServerStream) Send(v *testservice.User) error {
 	// before calling the actual service method which may call Send().
 	s.once.Do(func() {
 		respHdr := make(http.Header)
-		respHdr.Add("goa-view", s.view)
+		respHdr.Add("loom-view", s.view)
 		var conn *websocket.Conn
 		conn, err = s.upgrader.Upgrade(s.w, s.r, respHdr)
 		if err != nil {

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"goa.design/goa/v3/middleware"
+	"github.com/CaliLuke/loom/v3/middleware"
 )
 
 type (
@@ -33,8 +33,8 @@ const (
 // Trace returns a trace middleware that initializes the trace information in
 // the request context.
 //
-// Deprecated: use goa.design/goa/v3/http/middleware/otel instead. This
-// function will be removed in a future version of Goa.
+// Deprecated: use github.com/CaliLuke/loom/v3/http/middleware/otel instead. This
+// function will be removed in a future version of Loom.
 func Trace(opts ...middleware.TraceOption) func(http.Handler) http.Handler {
 	o := middleware.NewTraceOptions(opts...)
 	sampler := o.NewSampler()

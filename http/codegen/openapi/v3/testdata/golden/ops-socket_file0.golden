@@ -37,7 +37,7 @@
         "tags": [
           "opsSocket"
         ],
-        "x-goa-async": {
+        "x-loom-async": {
           "direction": "bidirectional",
           "handshake": {
             "path": "/ws/ops/{channel}",

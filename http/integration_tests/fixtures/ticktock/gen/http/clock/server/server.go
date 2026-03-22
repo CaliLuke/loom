@@ -12,8 +12,8 @@ import (
 	"net/http"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "goa.design/goa/v3/http"
-	goa "goa.design/goa/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/v3/http"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 // Server lists the clock service endpoint HTTP handlers.

@@ -10,7 +10,7 @@ package clock
 import (
 	"context"
 
-	goa "goa.design/goa/v3/pkg"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 // Client is the "clock" service client.

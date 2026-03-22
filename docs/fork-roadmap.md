@@ -1,4 +1,4 @@
-# Goa Light Fork Roadmap
+# Loom Fork Roadmap
 
 This fork is intentionally opinionated. The goal is to reduce maintenance cost
 by removing legacy compatibility layers and transports we do not plan to

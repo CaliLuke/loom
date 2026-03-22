@@ -160,12 +160,12 @@
           "code": "bad_request",
           "detail": "parameter 'p' must be an integer",
           "fault": true,
-          "instance": "urn:goa:error:123abc",
+          "instance": "urn:loom:error:123abc",
           "status": 400,
           "temporary": false,
           "timeout": false,
           "title": "Bad Request",
-          "type": "https://goa.design/problems/bad-request"
+          "type": "https://github.com/CaliLuke/loom/problems/bad-request"
         },
         "properties": {
           "code": {
@@ -185,7 +185,7 @@
           },
           "instance": {
             "description": "Instance identifies this specific occurrence of the problem.",
-            "example": "urn:goa:error:123abc",
+            "example": "urn:loom:error:123abc",
             "type": "string"
           },
           "status": {
@@ -211,7 +211,7 @@
           },
           "type": {
             "description": "Type identifies the problem category using a URI reference.",
-            "example": "https://goa.design/problems/bad-request",
+            "example": "https://github.com/CaliLuke/loom/problems/bad-request",
             "type": "string"
           }
         },
@@ -259,12 +259,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": true,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": true,
                   "timeout": true,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -280,12 +280,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": false,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": false,
                   "timeout": true,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -301,12 +301,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": false,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": false,
                   "timeout": true,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -353,12 +353,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": false,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": false,
                   "timeout": true,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -374,12 +374,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": true,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": true,
                   "timeout": false,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -395,12 +395,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": true,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": true,
                   "timeout": true,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -436,12 +436,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": false,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": true,
                   "timeout": false,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -457,12 +457,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": false,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": false,
                   "timeout": false,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -478,12 +478,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": false,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": true,
                   "timeout": false,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -565,7 +565,7 @@
         "tags": [
           "threadOps"
         ],
-        "x-goa-async": {
+        "x-loom-async": {
           "direction": "server",
           "handshake": {
             "path": "/threads/{thread_id}/events",
@@ -661,12 +661,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": true,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": true,
                   "timeout": false,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -682,12 +682,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": false,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": true,
                   "timeout": false,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -703,12 +703,12 @@
                   "code": "bad_request",
                   "detail": "parameter 'p' must be an integer",
                   "fault": false,
-                  "instance": "urn:goa:error:123abc",
+                  "instance": "urn:loom:error:123abc",
                   "status": 400,
                   "temporary": true,
                   "timeout": true,
                   "title": "Bad Request",
-                  "type": "https://goa.design/problems/bad-request"
+                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
@@ -750,7 +750,7 @@
         "tags": [
           "opsSocket"
         ],
-        "x-goa-async": {
+        "x-loom-async": {
           "direction": "bidirectional",
           "handshake": {
             "path": "/ws/ops/{channel}",

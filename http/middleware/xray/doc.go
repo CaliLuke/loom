@@ -12,7 +12,7 @@ The client middleware wraps the client Doer and works by extracing the
 segment from the request context. It creates a new sub-segment and updates
 the request context with the latest segment before making the request.
 
-Deprecated: use goa.design/goa/v3/http/middleware/otel instead. This package
-will be removed in a future version of Goa.
+Deprecated: use github.com/CaliLuke/loom/v3/http/middleware/otel instead. This package
+will be removed in a future version of Loom.
 */
 package xray

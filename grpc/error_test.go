@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	goapb "goa.design/goa/v3/grpc/pb"
-	goa "goa.design/goa/v3/pkg"
+	goapb "github.com/CaliLuke/loom/v3/grpc/pb"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 // TestNewErrorResponseHistory tests that history is correctly included for merged errors

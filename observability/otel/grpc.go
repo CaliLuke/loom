@@ -1,11 +1,11 @@
 package otel
 
 import (
+	goagrpcotel "github.com/CaliLuke/loom/v3/grpc/middleware/otel"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-	goagrpcotel "goa.design/goa/v3/grpc/middleware/otel"
 	"google.golang.org/grpc"
 )
 

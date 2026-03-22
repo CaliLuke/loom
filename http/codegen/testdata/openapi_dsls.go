@@ -1,6 +1,6 @@
 package testdata
 
-import . "goa.design/goa/v3/dsl"
+import . "github.com/CaliLuke/loom/v3/dsl"
 
 var SimpleDSL = func() {
 	var PayloadT = Type("Payload", func() {
@@ -423,7 +423,7 @@ var WithSpacesDSL = func() {
 			Example("")
 		})
 	})
-	var FooBar = ResultType("application/vnd.goa.foobar", func() {
+	var FooBar = ResultType("application/vnd.loom.foobar", func() {
 		TypeName("Foo Bar")
 		Attribute("foo", String, func() {
 			Example("")
@@ -449,7 +449,7 @@ var WithMapDSL = func() {
 			Example("")
 		})
 	})
-	var FooBar = ResultType("application/vnd.goa.foobar", func() {
+	var FooBar = ResultType("application/vnd.loom.foobar", func() {
 		TypeName("Foo Bar")
 		Attribute("foo", String, func() {
 			Example("")
@@ -653,7 +653,7 @@ var TypenameDSL = func() {
 		})
 	})
 
-	var Bar = ResultType("application/vnd.goa.example.bar", func() {
+	var Bar = ResultType("application/vnd.loom.example.bar", func() {
 		TypeName("Bar")
 		Meta("openapi:typename", "BarResult")
 		Attribute("value", String, func() {

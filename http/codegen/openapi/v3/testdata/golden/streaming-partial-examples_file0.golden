@@ -69,7 +69,7 @@
         "tags": [
           "streamingPartialExamples"
         ],
-        "x-goa-async": {
+        "x-loom-async": {
           "direction": "server",
           "handshake": {
             "path": "/events",
@@ -156,7 +156,7 @@
         "tags": [
           "streamingPartialExamples"
         ],
-        "x-goa-async": {
+        "x-loom-async": {
           "direction": "server",
           "handshake": {
             "path": "/ws/projects/{projectID}",

@@ -5,7 +5,7 @@ const ResultWithViewsResponseDecoderCode = `// DecodeMethodMessageResultTypeWith
 func DecodeMethodMessageResultTypeWithViewsResponse(ctx context.Context, v any, hdr, trlr metadata.MD) (any, error) {
 	var view string
 	{
-		if vals := hdr.Get("goa-view"); len(vals) > 0 {
+		if vals := hdr.Get("loom-view"); len(vals) > 0 {
 			view = vals[0]
 		}
 	}
@@ -28,7 +28,7 @@ const ResultWithExplicitViewResponseDecoderCode = `// DecodeMethodMessageResultT
 func DecodeMethodMessageResultTypeWithExplicitViewResponse(ctx context.Context, v any, hdr, trlr metadata.MD) (any, error) {
 	var view string
 	{
-		if vals := hdr.Get("goa-view"); len(vals) > 0 {
+		if vals := hdr.Get("loom-view"); len(vals) > 0 {
 			view = vals[0]
 		}
 	}
@@ -177,7 +177,7 @@ const ResultCollectionResponseDecoderCode = `// DecodeMethodMessageUserTypeWithN
 func DecodeMethodMessageUserTypeWithNestedUserTypesResponse(ctx context.Context, v any, hdr, trlr metadata.MD) (any, error) {
 	var view string
 	{
-		if vals := hdr.Get("goa-view"); len(vals) > 0 {
+		if vals := hdr.Get("loom-view"); len(vals) > 0 {
 			view = vals[0]
 		}
 	}
@@ -208,7 +208,7 @@ const ServerStreamingResultWithViewsResponseDecoderCode = `// DecodeMethodServer
 func DecodeMethodServerStreamingUserTypeRPCResponse(ctx context.Context, v any, hdr, trlr metadata.MD) (any, error) {
 	var view string
 	{
-		if vals := hdr.Get("goa-view"); len(vals) > 0 {
+		if vals := hdr.Get("loom-view"); len(vals) > 0 {
 			view = vals[0]
 		}
 	}
@@ -233,7 +233,7 @@ const BidirectionalStreamingResponseDecoderCode = `// DecodeMethodBidirectionalS
 func DecodeMethodBidirectionalStreamingRPCResponse(ctx context.Context, v any, hdr, trlr metadata.MD) (any, error) {
 	var view string
 	{
-		if vals := hdr.Get("goa-view"); len(vals) > 0 {
+		if vals := hdr.Get("loom-view"); len(vals) > 0 {
 			view = vals[0]
 		}
 	}

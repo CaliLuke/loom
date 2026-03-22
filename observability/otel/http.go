@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	goahttpotel "github.com/CaliLuke/loom/v3/http/middleware/otel"
 	"github.com/felixge/httpsnoop"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-	goahttpotel "goa.design/goa/v3/http/middleware/otel"
 )
 
 type (
@@ -24,7 +24,7 @@ type (
 
 	// HTTPConfig configures HTTP server-side OpenTelemetry instrumentation.
 	HTTPConfig struct {
-		// ServiceName is the fallback operation name when no Goa route pattern is
+		// ServiceName is the fallback operation name when no Loom route pattern is
 		// available.
 		ServiceName string
 		// MetricMode selects otelhttp metrics, custom metrics, both, or neither.
@@ -61,7 +61,7 @@ type (
 	HTTPRequestInfo struct {
 		// Method is the HTTP method.
 		Method string
-		// Route is the Goa route pattern or fallback method-path name.
+		// Route is the Loom route pattern or fallback method-path name.
 		Route string
 		// StatusCode is the final HTTP response status.
 		StatusCode int
@@ -109,7 +109,7 @@ var pathVarPattern = regexp.MustCompile(`\{[*]?([^}:]+)(?::[^}]+)?\}`)
 type httpAttributeCollectorKey struct{}
 
 // HTTPMiddleware instruments an HTTP handler chain using the official
-// OpenTelemetry HTTP middleware plus Goa-specific post-response enrichment
+// OpenTelemetry HTTP middleware plus Loom-specific post-response enrichment
 // hooks.
 func HTTPMiddleware(cfg HTTPConfig) func(http.Handler) http.Handler {
 	opts := makeHTTPInstrumentationOptions(

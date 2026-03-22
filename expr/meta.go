@@ -2,13 +2,13 @@ package expr
 
 // MetaAdder is implemented by expressions that can receive design-time metadata.
 //
-// Goa's standard DSL helper `Meta(name, value...)` attaches metadata to the
-// current expression. Most Goa core expressions store metadata directly in a
+// Loom's standard DSL helper `Meta(name, value...)` attaches metadata to the
+// current expression. Most Loom core expressions store metadata directly in a
 // `MetaExpr` field. Third-party DSLs (and plugins) may add new expression types
-// that also want to support `Meta` without Goa needing to know about those
+// that also want to support `Meta` without Loom needing to know about those
 // concrete types.
 //
-// An expression that implements MetaAdder opts into Goa's `Meta` DSL by
+// An expression that implements MetaAdder opts into Loom's `Meta` DSL by
 // providing an AddMeta implementation that:
 //   - appends values to the existing entry for the given name, and
 //   - preserves existing metadata for other names.
@@ -22,7 +22,7 @@ type MetaAdder interface {
 
 // MetaDeleter is implemented by expressions that can remove design-time metadata.
 //
-// Goa's standard DSL helper `RemoveMeta(name)` removes the metadata entry with
+// Loom's standard DSL helper `RemoveMeta(name)` removes the metadata entry with
 // the given name from the current expression.
 //
 // Implementations should be a no-op when no metadata is present.

@@ -52,7 +52,7 @@
         ],
         "type": "object"
       },
-      "GoaCustomError": {
+      "LoomCustomError": {
         "example": {
           "message": "error message",
           "name": "custom"
@@ -76,7 +76,7 @@
     }
   },
   "info": {
-    "title": "Goa API",
+    "title": "Loom API",
     "version": "0.0.1"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -91,7 +91,7 @@
           },
           "400": {
             "content": {
-              "application/vnd.goa.error": {
+              "application/vnd.loom.error": {
                 "example": {
                   "fault": false,
                   "id": "foo",
@@ -109,7 +109,7 @@
           },
           "404": {
             "content": {
-              "application/vnd.goa.error": {
+              "application/vnd.loom.error": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -119,13 +119,13 @@
           },
           "409": {
             "content": {
-              "application/vnd.goa.custom-error": {
+              "application/vnd.loom.custom-error": {
                 "example": {
                   "message": "error message",
                   "name": "custom"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/GoaCustomError"
+                  "$ref": "#/components/schemas/LoomCustomError"
                 }
               }
             },

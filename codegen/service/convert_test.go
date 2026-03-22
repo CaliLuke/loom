@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen/service/testdata"
-	"goa.design/goa/v3/dsl"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen/service/testdata"
+	"github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 type (
@@ -65,7 +65,7 @@ func TestPkgImport(t *testing.T) {
 	if gopath == "" {
 		gopath = build.Default.GOPATH
 	}
-	cwd := gopath + "/src/goa.design/goa/codegen/service"
+	cwd := gopath + "/src/github.com/CaliLuke/loom/codegen/service"
 	goModCwd := "/home/user/project/goa/codegen/service"
 	cases := []struct {
 		Name           string
@@ -73,11 +73,11 @@ func TestPkgImport(t *testing.T) {
 		Pkg            string
 		ExpectedImport string
 	}{
-		{"goa-pkg", cwd, "goa.design/goa/v3/pkg", "goa.design/goa/v3/pkg"},
-		{"internal-pkg", cwd, "goa.design/goa/v3/codegen", "goa.design/goa/v3/codegen"},
-		{"vendored-pkg", cwd, "goa.design/goa/vendor/github.com/some/pkg", "github.com/some/pkg"},
+		{"goa-pkg", cwd, "github.com/CaliLuke/loom/v3/pkg", "github.com/CaliLuke/loom/v3/pkg"},
+		{"internal-pkg", cwd, "github.com/CaliLuke/loom/v3/codegen", "github.com/CaliLuke/loom/v3/codegen"},
+		{"vendored-pkg", cwd, "github.com/CaliLuke/loom/vendor/github.com/some/pkg", "github.com/some/pkg"},
 		{"external-pkg", cwd, "github.com/some/pkg", "github.com/some/pkg"},
-		{"gomod-goa-pkg", goModCwd, "goa.design/goa/v3/pkg", "goa.design/goa/v3/pkg"},
+		{"gomod-goa-pkg", goModCwd, "github.com/CaliLuke/loom/v3/pkg", "github.com/CaliLuke/loom/v3/pkg"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -204,7 +204,7 @@ var obj = &expr.UserTypeExpr{
 		},
 	},
 	TypeName: "objT",
-	UID:      "goa.design/goa/v3/codegen/service#objT",
+	UID:      "github.com/CaliLuke/loom/v3/codegen/service#objT",
 }
 
 var objMapped = &expr.UserTypeExpr{

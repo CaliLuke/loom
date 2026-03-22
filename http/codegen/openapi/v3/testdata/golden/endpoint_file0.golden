@@ -30,7 +30,7 @@
     }
   },
   "info": {
-    "title": "Goa API",
+    "title": "Loom API",
     "version": "0.0.1",
     "x-test-api": "API"
   },

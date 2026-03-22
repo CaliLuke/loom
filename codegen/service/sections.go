@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
 )
 
 func typeDefinitionSection(name, description, typeName, def string) codegen.Section {
@@ -56,13 +56,13 @@ func renderErrorMethods(data *UserTypeData) string {
 	b.WriteString("// Error returns an error description.\n")
 	fmt.Fprintf(&b, "func (e %s) Error() string {\n\treturn %q\n}\n\n", data.Ref, data.Description)
 	b.WriteString("// ErrorName returns the error name.\n//\n")
-	b.WriteString("// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105\n")
-	fmt.Fprintf(&b, "func (e %s) ErrorName() string {\n\treturn e.GoaErrorName()\n}\n\n", data.Ref)
-	b.WriteString("// GoaErrorName returns the error name.\n")
-	fmt.Fprintf(&b, "func (e %s) GoaErrorName() string {\n\treturn %s\n}\n", data.Ref, errorName(data))
+	b.WriteString("// Deprecated: Use LoomErrorName.\n")
+	fmt.Fprintf(&b, "func (e %s) ErrorName() string {\n\treturn e.LoomErrorName()\n}\n\n", data.Ref)
+	b.WriteString("// LoomErrorName returns the error name.\n")
+	fmt.Fprintf(&b, "func (e %s) LoomErrorName() string {\n\treturn %s\n}\n", data.Ref, errorName(data))
 	if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
-		b.WriteString("\n// GoaErrorRemedy returns the remediation guidance for the error.\n")
-		fmt.Fprintf(&b, "func (e %s) GoaErrorRemedy() *goa.ErrorRemedy {\n", data.Ref)
+		b.WriteString("\n// LoomErrorRemedy returns the remediation guidance for the error.\n")
+		fmt.Fprintf(&b, "func (e %s) LoomErrorRemedy() *goa.ErrorRemedy {\n", data.Ref)
 		b.WriteString("\treturn &goa.ErrorRemedy{\n")
 		fmt.Fprintf(&b, "\t\tCode:        %q,\n", data.RemedyCode)
 		fmt.Fprintf(&b, "\t\tSafeMessage: %q,\n", data.SafeMessage)

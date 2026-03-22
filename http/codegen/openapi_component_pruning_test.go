@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/dsl"
-	"goa.design/goa/v3/http/codegen/openapi"
-	openapiv3 "goa.design/goa/v3/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
 )
 
 func TestOpenAPIPrunesUnusedComponentSchemas(t *testing.T) {

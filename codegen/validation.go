@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // AttributeValidationCode produces Go code that runs the validations defined
@@ -31,7 +31,7 @@ func AttributeValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx 
 // alias indicates whether the attribute is an alias user type attribute.
 //
 // view indicates whether the attribute is a view type attribute.
-// This only matters for union types: generated Goa view union types have a
+// This only matters for union types: generated Loom view union types have a
 // different layout than proto generated union types.
 //
 // target is the variable name against which the validation code is generated
@@ -255,7 +255,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 // alias indicates whether the attribute is an alias user type attribute.
 //
 // view indicates whether the attribute is a view type attribute.
-// This only matters for union types: generated Goa view union types have a
+// This only matters for union types: generated Loom view union types have a
 // different layout than proto generated union types.
 //
 // target is the variable name against which the validation code is generated

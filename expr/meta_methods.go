@@ -1,4 +1,4 @@
-// This file wires Goa's core expressions into the Meta DSL extension points.
+// This file wires Loom's core expressions into the Meta DSL extension points.
 //
 // The `dsl.Meta` and `dsl.RemoveMeta` helpers operate on the expression returned
 // by `eval.Current()`. Most expressions that accept metadata store it in a

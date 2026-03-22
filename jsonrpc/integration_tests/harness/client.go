@@ -13,7 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	goahttp "goa.design/goa/v3/http"
+	goahttp "github.com/CaliLuke/loom/v3/http"
 )
 
 // JSONRPCRequest represents a JSON-RPC 2.0 request

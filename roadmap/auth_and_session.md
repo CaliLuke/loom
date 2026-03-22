@@ -34,7 +34,7 @@ The in-repo representative consumer specimen now uses inherited
 `SessionSecurity(...)`, but the remaining proof is external:
 
 - point a representative downstream repo or temp-module generation run at
-  `goa-light`
+  `loom`
 - measure which duplicated payload types and explicit auth transport bindings
   disappear
 - confirm the cleanup survives real regeneration across HTTP, JSON-RPC, gRPC,
@@ -73,7 +73,7 @@ Desired contract fields:
 
 Architectural rule:
 
-- `goa-light` should own the generic remediation/error contract
+- `loom` should own the generic remediation/error contract
 - concrete runtime libraries such as `remedy` may remain the preferred implementation target, but should not be the root abstraction in framework code
 
 ## Backlog

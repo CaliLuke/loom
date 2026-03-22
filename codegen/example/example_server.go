@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // ServerFiles returns an example server main implementation for every server

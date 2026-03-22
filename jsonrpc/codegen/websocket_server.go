@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
-	httpcodegen "goa.design/goa/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
 )
 
 // websocketServerFile returns the file implementing the JSON-RPC WebSocket server

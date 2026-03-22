@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"goa.design/goa/v3/middleware"
-	"goa.design/goa/v3/middleware/xray"
-	"goa.design/goa/v3/middleware/xray/xraytest"
+	"github.com/CaliLuke/loom/v3/middleware"
+	"github.com/CaliLuke/loom/v3/middleware/xray"
+	"github.com/CaliLuke/loom/v3/middleware/xray/xraytest"
 )
 
 const (

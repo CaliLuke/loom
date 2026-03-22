@@ -3,7 +3,7 @@ package example
 import (
 	"testing"
 
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestComputeHandlerArgsForURI_JSONRPCOrdering(t *testing.T) {

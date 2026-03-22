@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/expr"
-	httpcodegen "goa.design/goa/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/expr"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
 )
 
 func TestJSONRPCCodegenWithSynthesizedService(t *testing.T) {

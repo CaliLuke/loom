@@ -21,23 +21,23 @@ const ServiceName = "CustomErrorsCustomFields"
 // MethodKey key.
 var MethodNames = [1]string{"A"}
 
-type GoaError struct {
+type LoomError struct {
 	ErrorCode string `json:"error"`
 }
 
 // Error returns an error description.
-func (e *GoaError) Error() string {
+func (e *LoomError) Error() string {
 	return ""
 }
 
 // ErrorName returns the error name.
 //
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *GoaError) ErrorName() string {
-	return e.GoaErrorName()
+// Deprecated: Use LoomErrorName.
+func (e *LoomError) ErrorName() string {
+	return e.LoomErrorName()
 }
 
-// GoaErrorName returns the error name.
-func (e *GoaError) GoaErrorName() string {
+// LoomErrorName returns the error name.
+func (e *LoomError) LoomErrorName() string {
 	return e.ErrorCode
 }

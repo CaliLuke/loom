@@ -1,6 +1,6 @@
-# Goa JSON-RPC Integration Test Framework
+# Loom JSON-RPC Integration Test Framework
 
-A clean, data-driven integration test framework for testing Goa's JSON-RPC implementations.
+A clean, data-driven integration test framework for testing Loom's JSON-RPC implementations.
 
 This framework is designed to be simple and extensible. All test cases are defined in a single `YAML` file, allowing you to add new tests without writing any Go code. The core principle is **client-side testing**: every test is written from the perspective of a client sending a request and expecting a specific response.
 
@@ -26,15 +26,15 @@ FILTER="^echo_.*" go test -count=1 -v ./...
 
 The `FILTER` environment variable is useful for running a specific group of tests (like all `echo` tests) without typing each full name. It matches the regular expression against the `name` field in your `scenarios.yaml` file.
 
-By default, the framework now materializes `goa.design/goa/v3` from the current
-Git commit and remote URL into a temp checkout before running `goa gen` /
-`goa example`, so generated test services are reproducible in CI rather than
+By default, the framework now materializes `github.com/CaliLuke/loom/v3` from the current
+Git commit and remote URL into a temp checkout before running `loom gen` /
+`loom example`, so generated test services are reproducible in CI rather than
 silently depending on the local working tree. Set `GOA_REPO=/path/to/repo` only
 when you intentionally want to override that behavior for local debugging.
 
 ## Persistent Fixtures
 
-The directory [`fixtures/ticktock`](/Users/luca/code/goa-light/jsonrpc/integration_tests/fixtures/ticktock) is a checked-in generated JSON-RPC SSE specimen. It exposes two simple streaming methods, `Tick` and `Tock`, which emit timed notification frames followed by a final response. It exists for two reasons:
+The directory [`fixtures/ticktock`](/Users/luca/code/loom/jsonrpc/integration_tests/fixtures/ticktock) is a checked-in generated JSON-RPC SSE specimen. It exposes two simple streaming methods, `Tick` and `Tock`, which emit timed notification frames followed by a final response. It exists for two reasons:
 
 - as a human-readable debugging tool when working on JSON-RPC SSE transport behavior
 - as the target for the external-client interoperability test that uses `github.com/tmaxmax/go-sse`
@@ -44,15 +44,15 @@ It now also acts as an adversarial regression surface for:
 - protocol-level decode errors that must still arrive on the normal SSE `message` channel
 - temp-copy regeneration and compile-after-generation against the current repo root
 
-What it does **not** prove: the raw streamable-HTTP `GET` listener contract for `events/stream`. The ticktock fixture only exercises POST-initiated JSON-RPC SSE. The raw `events/stream` eager-open branch is currently owned by direct codegen tests in [`jsonrpc/codegen/sse_test.go`](/Users/luca/code/goa-light/jsonrpc/codegen/sse_test.go), not by this checked-in fixture.
+What it does **not** prove: the raw streamable-HTTP `GET` listener contract for `events/stream`. The ticktock fixture only exercises POST-initiated JSON-RPC SSE. The raw `events/stream` eager-open branch is currently owned by direct codegen tests in [`jsonrpc/codegen/sse_test.go`](/Users/luca/code/loom/jsonrpc/codegen/sse_test.go), not by this checked-in fixture.
 
 When you intentionally change JSON-RPC SSE generation and need to regenerate the fixture, run from that directory:
 
 ```bash
 mv clock.go clock.go.src
 go mod tidy
-go run /Users/luca/code/goa-light/cmd/goa gen example.com/ticktock/design
-go run /Users/luca/code/goa-light/cmd/goa example example.com/ticktock/design
+go run /Users/luca/code/loom/cmd/loom gen example.com/ticktock/design
+go run /Users/luca/code/loom/cmd/loom example example.com/ticktock/design
 mv clock.go.src clock.go
 go mod tidy
 ```
@@ -179,21 +179,21 @@ expect:
 
 ## ✨ How It Works
 
-The framework's power comes from dynamically generating a complete Goa service tailored to the tests you define. This ensures we are testing against real, compiled Goa code, not mocks.
+The framework's power comes from dynamically generating a complete Loom service tailored to the tests you define. This ensures we are testing against real, compiled Loom code, not mocks.
 
 The execution flow for `go test` is:
 
 1.  **Scenario Discovery**: The test runner parses `scenarios.yaml`, collects all test cases, and compiles a unique list of all `method` names used (e.g., `echo_string`, `transform_object`). This list informs the next step.
 
-2.  **Dynamic Code Generation**: A temporary directory is created to house a complete Goa service.
+2.  **Dynamic Code Generation**: A temporary directory is created to house a complete Loom service.
 
-      * A `design/design.go` file is generated containing a Goa DSL design for all discovered methods.
-      * The framework runs `goa gen` and `goa example` to scaffold the service, server, and client code.
+      * A `design/design.go` file is generated containing a Loom DSL design for all discovered methods.
+      * The framework runs `loom gen` and `loom example` to scaffold the service, server, and client code.
       * Crucially, it **injects service implementations** with predictable behavior based on their names. For example, a method named `transform_string` will be implemented to uppercase its string input. This removes the need for any manual service implementation.
 
-3.  **Server Startup**: The generated Goa server is compiled and started on a random, available port. The test runner waits until the server is responsive before proceeding.
+3.  **Server Startup**: The generated Loom server is compiled and started on a random, available port. The test runner waits until the server is responsive before proceeding.
 
-4.  **Test Execution**: For each scenario, the framework sends the defined `request` over the specified `transport`. It prioritizes using the **Goa-generated CLI** for this task to ensure tests closely mimic a real client's behavior. When a test requires sending a payload that the standard CLI cannot produce (e.g., a malformed request, an invalid JSON-RPC structure, or specific protocol-level edge cases), it falls back to a **custom JSON-RPC client** that allows for this fine-grained control. The client then asserts that the response from the server exactly matches the `expect` block in the scenario.
+4.  **Test Execution**: For each scenario, the framework sends the defined `request` over the specified `transport`. It prioritizes using the **Loom-generated CLI** for this task to ensure tests closely mimic a real client's behavior. When a test requires sending a payload that the standard CLI cannot produce (e.g., a malformed request, an invalid JSON-RPC structure, or specific protocol-level edge cases), it falls back to a **custom JSON-RPC client** that allows for this fine-grained control. The client then asserts that the response from the server exactly matches the `expect` block in the scenario.
 
 5.  **Cleanup**: Once all tests are complete, the server is shut down, and the temporary directory with all generated code is removed. To inspect the code, you can prevent this step (see **Debugging**).
 
@@ -318,13 +318,13 @@ Server behavior is determined entirely by the method name, which follows the pat
         another_key: 123
     ```
   
-  * `user`: A Goa user-defined type with built-in validations
+  * `user`: A Loom user-defined type with built-in validations
 
 ### Modifiers (Optional)
 
   * `_notify`: Indicates a JSON-RPC notification (no response expected).
   * `_error`: The method is hardcoded to always return a predefined JSON-RPC error.
-  * `_validate`: The method includes Goa validation logic on the payload, which will return an error if the payload is invalid.
+  * `_validate`: The method includes Loom validation logic on the payload, which will return an error if the payload is invalid.
   * `_final`: (SSE) The method sends several notifications before sending a final, ID-tagged response.
 
 ## 📊 Data-Driven Behavior
@@ -546,14 +546,14 @@ expect:
 
 When a test fails, you can use the following tools to diagnose the issue:
 
-  * **Keep Generated Code**: To inspect the dynamically generated Goa service, set the `KEEP_GENERATED` environment variable. The path to the generated code will be printed in the test logs.
+  * **Keep Generated Code**: To inspect the dynamically generated Loom service, set the `KEEP_GENERATED` environment variable. The path to the generated code will be printed in the test logs.
 
     ```bash
     KEEP_GENERATED=true go test -count=1 -v ./...
     # Look for: "Generated code kept in: /tmp/jsonrpc-test-XXXXX"
     ```
 
-    Once you have the code, inspect `design/design.go` to see how your method was translated into Goa DSL and `http/server/server.go` to see its actual Go implementation.
+    Once you have the code, inspect `design/design.go` to see how your method was translated into Loom DSL and `http/server/server.go` to see its actual Go implementation.
 
   * **Verbose Output**: Always use the `-v` flag. It provides detailed logs showing the exact JSON payloads being sent and received, which is invaluable for debugging discrepancies between your `expect` block and the actual server response.
 

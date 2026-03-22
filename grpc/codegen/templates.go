@@ -3,7 +3,7 @@ package codegen
 import (
 	"embed"
 
-	"goa.design/goa/v3/codegen/template"
+	"github.com/CaliLuke/loom/v3/codegen/template"
 )
 
 // Client template constants

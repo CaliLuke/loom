@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"goa.design/goa/v3/jsonrpc/integration_tests/harness"
+	"github.com/CaliLuke/loom/v3/jsonrpc/integration_tests/harness"
 	"gopkg.in/yaml.v3"
 )
 

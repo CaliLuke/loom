@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	goa.design/clue v1.2.5
-	goa.design/goa/v3 v3.25.3
+	github.com/CaliLuke/loom/v3 v3.25.3
 )
 
 require (
@@ -37,4 +37,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace goa.design/goa/v3 => ../../../..
+replace github.com/CaliLuke/loom/v3 => ../../../..

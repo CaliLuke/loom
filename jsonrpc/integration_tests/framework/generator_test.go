@@ -11,8 +11,8 @@ import (
 func TestLocalGoaSourceFromModeFile(t *testing.T) {
 	t.Run("local mode returns configured path", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), goaSourceModeFile)
-		require.NoError(t, os.WriteFile(path, []byte("local /tmp/goa-light\n"), 0o644))
-		require.Equal(t, "/tmp/goa-light", localGoaSourceFromModeFile(path))
+		require.NoError(t, os.WriteFile(path, []byte("local /tmp/loom\n"), 0o644))
+		require.Equal(t, "/tmp/loom", localGoaSourceFromModeFile(path))
 	})
 
 	t.Run("remote mode disables local override", func(t *testing.T) {
@@ -29,8 +29,8 @@ func TestLocalGoaSourceFromModeFile(t *testing.T) {
 }
 
 func TestGeneratorRepoRootReplacePrefersGOARepoEnv(t *testing.T) {
-	t.Setenv("GOA_REPO", "/tmp/goa-light-override")
+	t.Setenv("GOA_REPO", "/tmp/loom-override")
 
 	g := NewGenerator(t.TempDir(), nil)
-	require.Equal(t, "/tmp/goa-light-override", g.repoRootReplace())
+	require.Equal(t, "/tmp/loom-override", g.repoRootReplace())
 }

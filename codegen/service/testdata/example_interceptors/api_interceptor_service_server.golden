@@ -10,8 +10,8 @@ import (
 	apiinterceptorservice "api_interceptor_service"
 	"context"
 	"fmt"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 	"goa.design/clue/log"
-	goa "goa.design/goa/v3/pkg"
 )
 
 // APIInterceptorServiceServerInterceptors implements the server interceptor for the APIInterceptorService service.

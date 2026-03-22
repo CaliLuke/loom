@@ -34,7 +34,7 @@ paths:
                 "404":
                     description: 'not_found: Not Found response.'
                     content:
-                        application/vnd.goa.error:
+                        application/vnd.loom.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
             security: []
@@ -59,7 +59,7 @@ paths:
                     description: OK response.
                 "429":
                     content:
-                        application/vnd.goa.error:
+                        application/vnd.loom.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: 'busy: Too Many Requests response.'
@@ -67,7 +67,7 @@ paths:
             summary: watchThread collabStreams
             tags:
                 - collabStreams
-            x-goa-async:
+            x-loom-async:
                 direction: server
                 handshake:
                     path: /threads/{thread_id}/events

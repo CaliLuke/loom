@@ -5,8 +5,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/CaliLuke/loom/v3/eval"
 	"github.com/dimfeld/httppath"
-	"goa.design/goa/v3/eval"
 )
 
 type (

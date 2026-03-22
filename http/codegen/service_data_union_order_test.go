@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	cg "goa.design/goa/v3/codegen"
-	svc "goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/expr"
+	cg "github.com/CaliLuke/loom/v3/codegen"
+	svc "github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestCollectHTTPUnionTypesDeterministicAcrossObjectOrder(t *testing.T) {

@@ -3,13 +3,13 @@ package codegen
 import (
 	"testing"
 
-	"goa.design/goa/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/v3/codegen/testutil"
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	ctestdata "goa.design/goa/v3/codegen/testdata"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	ctestdata "github.com/CaliLuke/loom/v3/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestProtoBufTransform(t *testing.T) {

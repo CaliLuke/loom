@@ -61,7 +61,7 @@
     }
   },
   "info": {
-    "title": "Goa API",
+    "title": "Loom API",
     "version": "0.0.1"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",

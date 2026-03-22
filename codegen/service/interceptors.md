@@ -1,6 +1,6 @@
 # Interceptors Code Generation
 
-Goa generates interceptor code to enable request/response interception and payload/result access.
+Loom generates interceptor code to enable request/response interception and payload/result access.
 
 ---
 

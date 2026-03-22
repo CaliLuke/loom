@@ -1,6 +1,6 @@
 #! /usr/bin/make
 #
-# Makefile for Goa v3
+# Makefile for Loom v3
 #
 # Targets:
 # - "depend" retrieves the Go packages needed to run the linter and tests
@@ -26,8 +26,8 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend lint test test-release integration-test build-goa goa-local goa-remote goa-status release release-preflight release-goa release-examples release-plugins
-.NOTPARALLEL: release release-goa release-examples release-plugins
+.PHONY: all all-tests ci depend lint test test-release integration-test build-loom loom-local loom-remote loom-status goa-local goa-remote goa-status release release-preflight release-loom release-examples release-plugins
+.NOTPARALLEL: release release-loom release-examples release-plugins
 
 # Only list test and build dependencies
 # Standard dependencies are installed via go get
@@ -103,35 +103,41 @@ else
 	go test -count=1 ./...
 endif
 
-integration-test: build-goa
+integration-test: build-loom
 ifneq ($(GOOS),windows)
 	cd jsonrpc/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 10m ./...
 	cd http/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 10m ./...
 endif
 
-goa-local:
+loom-local:
 	bash ./scripts/goa_source_mode.sh local
 
-goa-remote:
+loom-remote:
 	bash ./scripts/goa_source_mode.sh remote
 
-goa-status:
+loom-status:
 	bash ./scripts/goa_source_mode.sh status
 
+goa-local: loom-local
+
+goa-remote: loom-remote
+
+goa-status: loom-status
+
 # Needed for CI to run integration tests
-build-goa:
-	cd cmd/goa && GOBIN="$(GOBIN_DIR)" go install .
+build-loom:
+	cd cmd/loom && GOBIN="$(GOBIN_DIR)" go install .
 
 release-preflight: lint test-release integration-test
 
-release: release-goa release-examples release-plugins
+release: release-loom release-examples release-plugins
 	@echo "Release v$(MAJOR).$(MINOR).$(BUILD) complete"
 
-release-goa:
+release-loom:
 	# First make sure all is clean
 	@status="$$(git status --porcelain)"; \
 	if [ -n "$$status" ]; then \
-		echo "error: goa repo has uncommitted changes:"; \
+		echo "error: loom repo has uncommitted changes:"; \
 		echo "$$status"; \
 		exit 1; \
 	fi
@@ -158,12 +164,12 @@ release-goa:
 	sed 's/Major = .*/Major = $(MAJOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
 	sed 's/Minor = .*/Minor = $(MINOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
 	sed 's/Build = .*/Build = $(BUILD)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
-	sed 's/goa\/v3@v.*tab=doc/goa\/v3@v$(MAJOR).$(MINOR).$(BUILD)\/dsl?tab=doc/' README.md > _tmp && mv _tmp README.md
+	sed 's|github.com/CaliLuke/loom/v3@v.*tab=doc|github.com/CaliLuke/loom/v3@v$(MAJOR).$(MINOR).$(BUILD)/dsl?tab=doc|' README.md > _tmp && mv _tmp README.md
 	$(MAKE) release-preflight
 	git add .
 	git commit -m "Release v$(MAJOR).$(MINOR).$(BUILD)"
 	git tag v$(MAJOR).$(MINOR).$(BUILD)
-	cd cmd/goa && go install .
+	cd cmd/loom && go install .
 	git push origin v$(MAJOR)
 	git push origin v$(MAJOR).$(MINOR).$(BUILD)
 	# Wait for Go proxy to update

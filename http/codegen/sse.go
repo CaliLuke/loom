@@ -6,8 +6,8 @@ import (
 
 	"slices"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 type (
@@ -190,7 +190,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "time"},
 				{Path: "encoding/json"},
 				{Path: "fmt"},
-				{Path: "goa.design/goa/v3/http", Name: "goahttp"},
+				{Path: "github.com/CaliLuke/loom/v3/http", Name: "goahttp"},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
 			},

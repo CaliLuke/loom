@@ -31,7 +31,7 @@ paths:
                 "401":
                     description: 'unauthorized: Unauthorized response.'
                     content:
-                        application/vnd.goa.error:
+                        application/vnd.loom.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
     /tick:

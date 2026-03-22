@@ -1,9 +1,9 @@
 package testdata
 
-import . "goa.design/goa/v3/dsl"
+import . "github.com/CaliLuke/loom/v3/dsl"
 
 var ValidErrorsDSL = func() {
-	var Result = ResultType("application/vnd.goa.error", func() {
+	var Result = ResultType("application/vnd.loom.error", func() {
 		TypeName("Result")
 		Attributes(func() {
 			Attribute("a", String)
@@ -30,7 +30,7 @@ var InvalidStructErrorNameDSL = func() {
 		ErrorName("a", Int) // invalid type for error name
 		Required("a")
 	})
-	var Result = ResultType("application/vnd.goa.error", func() {
+	var Result = ResultType("application/vnd.loom.error", func() {
 		TypeName("Error")
 		Attributes(func() {
 			Extend(Common)

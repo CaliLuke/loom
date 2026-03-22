@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/dsl"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/dsl"
 )
 
 func TestGRPCSessionSecurityHarness(t *testing.T) {

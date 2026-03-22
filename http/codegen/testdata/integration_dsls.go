@@ -3,7 +3,7 @@ package testdata
 import (
 	"fmt"
 
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 // LargeErrorSetHTTPClientDSL defines an HTTP service with a large declared

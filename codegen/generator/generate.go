@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/eval"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/eval"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -86,7 +86,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		}
 	}
 
-	// 3. Retrieve goa generators for given command.
+	// 3. Retrieve Loom generators for given command.
 	var genfuncs []Genfunc
 	{
 		start := time.Now()
@@ -96,7 +96,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		}
 		genfuncs = gs
 		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 3: Retrieve goa generators took %v (%d generators)\n", time.Since(start), len(genfuncs))
+			fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Stage 3: Retrieve Loom generators took %v (%d generators)\n", time.Since(start), len(genfuncs))
 		}
 	}
 
@@ -112,7 +112,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		}
 	}
 
-	// 5. Generate initial set of files produced by goa code generators.
+	// 5. Generate initial set of files produced by Loom code generators.
 	// NOTE: Parallelization causes infinite recursion in AsObject() for circular type references
 	var genfiles []*codegen.File
 	{
@@ -156,7 +156,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		}
 	}
 
-	// 8. Emit goa.json version file (gen command only).
+	// 8. Emit loom.json version file (gen command only).
 	if cmd == "gen" {
 		genfiles = append(genfiles, codegen.VersionFile())
 	}

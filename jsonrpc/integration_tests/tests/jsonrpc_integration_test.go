@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goa.design/goa/v3/jsonrpc/integration_tests/framework"
+	"github.com/CaliLuke/loom/v3/jsonrpc/integration_tests/framework"
 )
 
 // TestJSONRPC is the single entry point for all JSON-RPC integration tests.

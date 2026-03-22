@@ -5,10 +5,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	stest "goa.design/goa/v3/codegen/service/testdata"
-	dsl "goa.design/goa/v3/dsl"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	stest "github.com/CaliLuke/loom/v3/codegen/service/testdata"
+	dsl "github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestAnalyzeServiceErrorsCarryRemedyMetadataToErrorTypes(t *testing.T) {

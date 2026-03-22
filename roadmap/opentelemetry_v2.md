@@ -3,9 +3,9 @@
 ## Goal
 
 Add a second-phase OpenTelemetry capability that can replace the repeated
-observability glue currently carried in downstream Goa services.
+observability glue currently carried in downstream Loom services.
 
-This phase expands `goa-light` from transport-only wrappers into a framework
+This phase expands `loom` from transport-only wrappers into a framework
 observability surface that covers:
 
 - provider bootstrap
@@ -41,19 +41,19 @@ This phase does not attempt to replace:
 2. Build the observability harness first.
 3. Encode the replacement contract as failing/target tests.
 4. Implement the new package and adapters against that harness.
-5. Update user-facing Goa guidance once the harness is green.
+5. Update user-facing Loom guidance once the harness is green.
 
 ## Public API Direction
 
 Add:
 
-- `goa.design/goa/v3/observability/otel`
-- `goa.design/goa/v3/observability/otel/logrusbridge`
+- `github.com/CaliLuke/loom/v3/observability/otel`
+- `github.com/CaliLuke/loom/v3/observability/otel/logrusbridge`
 
 Keep:
 
-- `goa.design/goa/v3/http/middleware/otel`
-- `goa.design/goa/v3/grpc/middleware/otel`
+- `github.com/CaliLuke/loom/v3/http/middleware/otel`
+- `github.com/CaliLuke/loom/v3/grpc/middleware/otel`
 
 The existing transport wrappers remain the low-level escape hatch. The new root
 package becomes the preferred path when users want framework-owned bootstrap and
@@ -106,7 +106,7 @@ The harness must provide:
 - in-memory trace capture
 - in-memory metric capture
 - in-memory log capture
-- Goa HTTP mux fixtures
+- Loom HTTP mux fixtures
 - gRPC bufconn fixtures
 - synthetic auth/project enrichment helpers
 - optional custom HTTP RED metrics recorder
@@ -128,7 +128,7 @@ This phase is done only when:
 
 - the harness is green
 - the framework package can replace the generic Auto-K observability setup
-- the Goa skill reflects the new preferred observability workflow
+- the Loom skill reflects the new preferred observability workflow
 
 ## Status
 
@@ -136,7 +136,7 @@ Completed on 2026-03-19:
 
 - the plan doc landed first and drove the implementation sequence
 - the harness was built before the feature package
-- `goa.design/goa/v3/observability/otel` now owns bootstrap plus transport
+- `github.com/CaliLuke/loom/v3/observability/otel` now owns bootstrap plus transport
   policy
-- `goa.design/goa/v3/observability/otel/logrusbridge` now provides the
+- `github.com/CaliLuke/loom/v3/observability/otel/logrusbridge` now provides the
   optional logrus bridge

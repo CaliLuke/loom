@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	goatemplate "goa.design/goa/v3/codegen/template"
+	"github.com/CaliLuke/loom/v3/codegen"
+	goatemplate "github.com/CaliLuke/loom/v3/codegen/template"
 
 	goast "go/ast"
 	goparser "go/parser"
@@ -610,7 +610,7 @@ func (g *Generator) filesImpl(impl *ImplementationData) []*codegen.File {
 			{Path: "strings"},
 			{Path: "sort"},
 			{Path: "io"},
-			{Name: "goa", Path: "goa.design/goa/v3/pkg"},
+			{Name: "goa", Path: "github.com/CaliLuke/loom/v3/pkg"},
 			{Name: service.ServicePackage, Path: fmt.Sprintf("testservice/gen/%s", service.ServicePackage)},
 		}
 		sections := []codegen.Section{

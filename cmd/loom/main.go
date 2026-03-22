@@ -9,7 +9,7 @@ import (
 
 	"flag"
 
-	goa "goa.design/goa/v3/pkg"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "version":
-		fmt.Println("Goa version " + goa.Version())
+		fmt.Println("Loom version " + goa.Version())
 		os.Exit(0)
 	case "gen", "example":
 		if len(os.Args) == 2 {
@@ -87,7 +87,7 @@ func generate(cmd, path, output string, debug bool) error {
 
 	startTotal = time.Now()
 	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING] Starting goa generation\n")
+		fmt.Fprintf(os.Stderr, "[TIMING] Starting loom generation\n")
 	}
 
 	startImport = time.Now()
@@ -141,13 +141,13 @@ fail:
 }
 
 func help() {
-	fmt.Fprint(os.Stderr, `goa is the code generation tool for the Goa framework.
-Learn more at https://goa.design.
+	fmt.Fprint(os.Stderr, `loom is the code generation tool for the Loom framework.
+Learn more at https://github.com/CaliLuke/loom.
 
 Usage:
-  goa gen PACKAGE [--output DIRECTORY] [--debug]
-  goa example PACKAGE [--output DIRECTORY] [--debug]
-  goa version
+  loom gen PACKAGE [--output DIRECTORY] [--debug]
+  loom example PACKAGE [--output DIRECTORY] [--debug]
+  loom version
 
 Commands:
   gen
@@ -166,11 +166,11 @@ Flags:
         output directory, defaults to the current working directory
 
   -debug
-        Print debug information (mainly intended for Goa developers)
+        Print debug information (mainly intended for Loom developers)
 
 Example:
 
-  goa gen goa.design/examples/cellar/design -o gendir
+  loom gen github.com/CaliLuke/loom-examples/cellar/design -o gendir
 
 `)
 }

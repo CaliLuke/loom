@@ -1190,7 +1190,7 @@ scenarios:
         code: -32700
         message: "Parse error"
 
-  # TODO: This test expects Goa to validate JSON-RPC protocol version
+  # TODO: This test expects Loom to validate JSON-RPC protocol version
   - name: "missing_jsonrpc_version"
     transport: "http"
     request:

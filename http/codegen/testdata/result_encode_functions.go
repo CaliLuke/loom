@@ -639,7 +639,7 @@ var ResultBodyMultipleViewsEncodeCode = `// EncodeMethodBodyMultipleViewResponse
 func EncodeMethodBodyMultipleViewResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res := v.(*servicebodymultipleviewviews.Resulttypemultipleviews)
-		w.Header().Set("goa-view", res.View)
+		w.Header().Set("loom-view", res.View)
 		enc := encoder(ctx, w)
 		var body any
 		switch res.View {
@@ -662,7 +662,7 @@ var ResultBodyCollectionMultipleViewsEncodeCode = `// EncodeMethodBodyCollection
 func EncodeMethodBodyCollectionResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res := v.(servicebodycollectionviews.ResulttypecollectionCollection)
-		w.Header().Set("goa-view", res.View)
+		w.Header().Set("loom-view", res.View)
 		enc := encoder(ctx, w)
 		var body any
 		switch res.View {
@@ -697,7 +697,7 @@ var EmptyBodyResultMultipleViewsEncodeCode = `// EncodeMethodEmptyBodyResultMult
 func EncodeMethodEmptyBodyResultMultipleViewResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res := v.(*serviceemptybodyresultmultipleviewviews.Resulttypemultipleviews)
-		w.Header().Set("goa-view", res.View)
+		w.Header().Set("loom-view", res.View)
 		if res.Projected.C != nil {
 			w.Header().Set("Location", *res.Projected.C)
 		}
@@ -740,7 +740,7 @@ var ExplicitBodyPrimitiveResultMultipleViewsEncodeCode = `// EncodeMethodExplici
 func EncodeMethodExplicitBodyPrimitiveResultMultipleViewResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res := v.(*serviceexplicitbodyprimitiveresultmultipleviewviews.Resulttypemultipleviews)
-		w.Header().Set("goa-view", res.View)
+		w.Header().Set("loom-view", res.View)
 		enc := encoder(ctx, w)
 		body := res.Projected.A
 		if res.Projected.C != nil {
@@ -758,7 +758,7 @@ var ExplicitBodyUserResultMultipleViewsEncodeCode = `// EncodeMethodExplicitBody
 func EncodeMethodExplicitBodyUserResultMultipleViewResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res := v.(*serviceexplicitbodyuserresultmultipleviewviews.Resulttypemultipleviews)
-		w.Header().Set("goa-view", res.View)
+		w.Header().Set("loom-view", res.View)
 		enc := encoder(ctx, w)
 		body := NewMethodExplicitBodyUserResultMultipleViewResponseBody(res.Projected)
 		if res.Projected.C != nil {
@@ -981,7 +981,7 @@ var ResultMultipleViewsTagEncodeCode = `// EncodeMethodTagMultipleViewsResponse 
 func EncodeMethodTagMultipleViewsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res := v.(*servicetagmultipleviewsviews.Resulttypemultipleviews)
-		w.Header().Set("goa-view", res.View)
+		w.Header().Set("loom-view", res.View)
 		if res.Projected.B != nil && *res.Projected.B == "value" {
 			enc := encoder(ctx, w)
 			var body any

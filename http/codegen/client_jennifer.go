@@ -5,7 +5,7 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	gocodegen "goa.design/goa/v3/codegen"
+	gocodegen "github.com/CaliLuke/loom/v3/codegen"
 )
 
 func clientStructSection(data *ServiceData) gocodegen.Section {
@@ -206,7 +206,7 @@ func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
 
 	group.Id("stream").Op(":=").Op("&").Id(endpoint.ClientWebSocket.VarName).Values(jen.Id("conn").Op(":").Id("conn"))
 	if endpoint.Method.ViewedResult != nil && endpoint.Method.ViewedResult.ViewName == "" {
-		group.Id("view").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("goa-view"))
+		group.Id("view").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("loom-view"))
 		group.Id("stream").Dot("SetView").Call(jen.Id("view"))
 	}
 	group.Return(jen.Id("stream"), jen.Nil())

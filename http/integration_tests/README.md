@@ -1,10 +1,10 @@
 # HTTP Integration Tests
 
-This module carries persistent generated HTTP fixtures that exercise transport behavior against the current local `goa-light` tree.
+This module carries persistent generated HTTP fixtures that exercise transport behavior against the current local `loom` tree.
 
 ## Ticktock SSE Fixture
 
-[`fixtures/ticktock`](/Users/luca/code/goa-light/http/integration_tests/fixtures/ticktock) is a checked-in generated HTTP SSE specimen. It exposes two simple SSE endpoints:
+[`fixtures/ticktock`](/Users/luca/code/loom/http/integration_tests/fixtures/ticktock) is a checked-in generated HTTP SSE specimen. It exposes two simple SSE endpoints:
 
 - `GET /tick`
 - `GET /tock`
@@ -16,12 +16,12 @@ This module carries persistent generated HTTP fixtures that exercise transport b
 
 ## What The Tests Prove
 
-[`tests/sse_fixture_test.go`](/Users/luca/code/goa-light/http/integration_tests/tests/sse_fixture_test.go) verifies:
+[`tests/sse_fixture_test.go`](/Users/luca/code/loom/http/integration_tests/tests/sse_fixture_test.go) verifies:
 
 - the generated HTTP SSE handler commits headers before the first event
 - a real third-party client (`github.com/tmaxmax/go-sse`) can consume both `tick` and `tock` streams from the generated server
 
-[`tests/sse_adversarial_test.go`](/Users/luca/code/goa-light/http/integration_tests/tests/sse_adversarial_test.go) verifies:
+[`tests/sse_adversarial_test.go`](/Users/luca/code/loom/http/integration_tests/tests/sse_adversarial_test.go) verifies:
 
 - pre-stream endpoint failures preserve the real HTTP status (`/guarded` returns `401`, not `200 text/event-stream`)
 - the checked-in fixture can be copied to a temp directory, repinned to the current repo root, regenerated, and compiled from scratch

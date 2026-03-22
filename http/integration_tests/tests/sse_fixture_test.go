@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	sse "github.com/tmaxmax/go-sse"
 
-	"goa.design/goa/v3/http/integration_tests/harness"
+	"github.com/CaliLuke/loom/v3/http/integration_tests/harness"
 )
 
 func TestHTTPSSEFixtureStreamsToExternalClient(t *testing.T) {

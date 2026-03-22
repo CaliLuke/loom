@@ -42,7 +42,7 @@ Out of scope:
 
 ## Design Constraints
 
-- Keep form decoding semantics aligned with existing Goa payload typing.
+- Keep form decoding semantics aligned with existing Loom payload typing.
 - Do not special-case OAuth in the framework; solve the generic transport capability.
 - Be explicit about unsupported shapes rather than silently requiring custom parsing again.
 

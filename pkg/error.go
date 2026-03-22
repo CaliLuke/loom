@@ -49,26 +49,26 @@ type (
 		err error
 	}
 
-	// GoaErrorNamer is an interface implemented by generated error structs that
+	// LoomErrorNamer is an interface implemented by generated error structs that
 	// exposes the name of the error as defined in the design.
-	GoaErrorNamer interface {
-		GoaErrorName() string
+	LoomErrorNamer interface {
+		LoomErrorName() string
 	}
 
-	// GoaErrorRemedier is implemented by errors that expose remediation
+	// LoomErrorRemedier is implemented by errors that expose remediation
 	// guidance defined in the design.
-	GoaErrorRemedier interface {
-		GoaErrorRemedy() *ErrorRemedy
+	LoomErrorRemedier interface {
+		LoomErrorRemedy() *ErrorRemedy
 	}
 
-	// GoaErrorStatuser is implemented by errors that expose an HTTP status code.
-	GoaErrorStatuser interface {
+	// LoomErrorStatuser is implemented by errors that expose an HTTP status code.
+	LoomErrorStatuser interface {
 		StatusCode() int
 	}
 
-	// GoaErrorStatusReporter is implemented by errors that expose an HTTP
+	// LoomErrorStatusReporter is implemented by errors that expose an HTTP
 	// status code via Status.
-	GoaErrorStatusReporter interface {
+	LoomErrorStatusReporter interface {
 		Status() int
 	}
 )
@@ -88,7 +88,7 @@ const (
 	InvalidRange = "invalid_range"
 	// InvalidLength is the error name for invalid length errors.
 	InvalidLength = "invalid_length"
-	// UnsupportedMediaType is the error name returned by the Goa decoder
+	// UnsupportedMediaType is the error name returned by the Loom decoder
 	// when the content type of the HTTP request body is not supported.
 	UnsupportedMediaType = "unsupported_media_type"
 	// DecodePayload is the error name for decode payload errors.
@@ -155,7 +155,7 @@ func DecodePayloadError(msg string) error {
 	return PermanentError(DecodePayload, "%s", msg)
 }
 
-// UnsupportedMediaTypeError is the error produced by the Goa decoder when the
+// UnsupportedMediaTypeError is the error produced by the Loom decoder when the
 // content type of the HTTP request body is not supported.
 func UnsupportedMediaTypeError(ct string) error {
 	return PermanentError(UnsupportedMediaType, "unsupported media type %s", ct)
@@ -296,15 +296,15 @@ func (e *ServiceError) Error() string { return e.Message }
 
 // ErrorName returns the error name.
 //
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
+// Deprecated: Use LoomErrorName.
 func (e *ServiceError) ErrorName() string { return e.Name }
 
-// GoaErrorName returns the error name.
-func (e *ServiceError) GoaErrorName() string { return e.ErrorName() }
+// LoomErrorName returns the error name.
+func (e *ServiceError) LoomErrorName() string { return e.ErrorName() }
 
-// GoaErrorRemedy returns the remediation guidance attached to the error, if
+// LoomErrorRemedy returns the remediation guidance attached to the error, if
 // any.
-func (e *ServiceError) GoaErrorRemedy() *ErrorRemedy {
+func (e *ServiceError) LoomErrorRemedy() *ErrorRemedy {
 	if e == nil {
 		return nil
 	}

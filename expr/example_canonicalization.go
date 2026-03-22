@@ -1,6 +1,6 @@
 package expr
 
-// CanonicalizeExample normalizes example values so Goa unions use their
+// CanonicalizeExample normalizes example values so Loom unions use their
 // canonical discriminator/value JSON shape.
 func CanonicalizeExample(att *AttributeExpr, example any) any {
 	if att == nil || att.Type == nil || att.Type == Empty {

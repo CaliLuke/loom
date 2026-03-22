@@ -147,7 +147,7 @@ var CreateAliasConvert = `// Service service type conversion functions
 package service
 
 import (
-	aliasd "goa.design/goa/v3/codegen/service/testdata/alias-external"
+	aliasd "github.com/CaliLuke/loom/v3/codegen/service/testdata/alias-external"
 )
 
 // CreateFromConvertModel initializes t from the fields of v
@@ -167,7 +167,7 @@ var MixedCaseConvert = `// Service service type conversion functions
 package service
 
 import (
-	external "goa.design/goa/v3/codegen/service/testdata/external"
+	external "github.com/CaliLuke/loom/v3/codegen/service/testdata/external"
 )
 
 // CreateFromMixedCaseModel initializes t from the fields of v

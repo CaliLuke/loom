@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service/testdata"
 )
 
 func TestViews(t *testing.T) {
@@ -36,7 +36,7 @@ func TestViews(t *testing.T) {
 			root := codegen.RunDSL(t, c.DSL)
 			services := NewServicesData(root)
 			require.Len(t, root.Services, 1)
-			fs := ViewsFile("goa.design/goa/example", root.Services[0], services)
+			fs := ViewsFile("github.com/CaliLuke/loom/example", root.Services[0], services)
 			require.NotNil(t, fs)
 			buf := new(bytes.Buffer)
 			for _, s := range fs.AllSections()[1:] {

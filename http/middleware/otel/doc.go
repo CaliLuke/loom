@@ -1,11 +1,11 @@
 /*
-Package otel provides thin OpenTelemetry middleware helpers for Goa HTTP
+Package otel provides thin OpenTelemetry middleware helpers for Loom HTTP
 servers and clients.
 
 The package intentionally wraps the official OpenTelemetry contrib HTTP
 instrumentation instead of implementing tracing itself. Applications remain
 responsible for configuring the tracer provider, exporter, and resource
-attributes. Goa owns the transport seam so generated and hand-written handlers
+attributes. Loom owns the transport seam so generated and hand-written handlers
 can share one instrumentation path.
 
 Use Middleware with goahttp.NewMuxer so spans can inherit the matched

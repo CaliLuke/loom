@@ -9,8 +9,8 @@ package interceptors
 import (
 	"context"
 	"fmt"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 	"goa.design/clue/log"
-	goa "goa.design/goa/v3/pkg"
 	serverinterceptorservice "server_interceptor_service"
 )
 

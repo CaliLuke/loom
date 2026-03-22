@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	stest "goa.design/goa/v3/codegen/service/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	stest "github.com/CaliLuke/loom/v3/codegen/service/testdata"
 )
 
 // TestService_DedupEventMarkers verifies that when multiple streaming methods share the
@@ -18,7 +18,7 @@ func TestService_DedupEventMarkers(t *testing.T) {
 	services := NewServicesData(root)
 	require.Len(t, root.Services, 1)
 
-	files := Files("goa.design/goa/example", root.Services[0], services, make(map[string][]string))
+	files := Files("github.com/CaliLuke/loom/example", root.Services[0], services, make(map[string][]string))
 	require.Greater(t, len(files), 0)
 
 	// Generate the service.go content

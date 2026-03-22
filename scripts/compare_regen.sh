@@ -6,9 +6,9 @@ usage() {
 	cat <<'EOF'
 Usage: compare_regen.sh [options]
 
-Regenerate a Goa application twice:
-1. With the application's pinned Goa dependency.
-2. With the local goa-light checkout replacing goa.design/goa/v3.
+Regenerate a Loom application twice:
+1. With the application's pinned Loom dependency.
+2. With the local loom checkout replacing github.com/CaliLuke/loom/v3.
 
 Then write the generated trees, logs, unified diff, and a compact summary to an
 output directory.
@@ -18,11 +18,11 @@ Options:
   --design-package PKG    Design package to generate. Default: <module>/design
   --output-dir PATH       Directory for artifacts. Default:
                           /tmp/goa-regen-compare-<repo>-<timestamp>
-  --goa-root PATH         Local goa-light checkout. Default: current repo root
+  --goa-root PATH         Local loom checkout. Default: current repo root
   --goa-ai-root PATH      Local goa-ai checkout to replace goa.design/goa-ai.
                           Default: none
   --baseline-label NAME   Label for pinned dependency output. Default: baseline
-  --candidate-label NAME  Label for local goa-light output. Default: candidate
+  --candidate-label NAME  Label for local loom output. Default: candidate
   --keep-temp             Keep the temporary modfile directory.
   --help                  Show this help.
 EOF
@@ -161,7 +161,7 @@ if [[ -f "$target_repo/go.sum" ]]; then
 fi
 (
 	cd "$temp_dir"
-	go mod edit -replace "goa.design/goa/v3=${goa_root}"
+	go mod edit -replace "github.com/CaliLuke/loom/v3=${goa_root}"
 	if [[ -n "$goa_ai_root" ]]; then
 		go mod edit -replace "goa.design/goa-ai=${goa_ai_root}"
 	fi
@@ -172,22 +172,22 @@ target_repo=$target_repo
 design_package=$design_package
 goa_root=$goa_root
 goa_ai_root=$goa_ai_root
-baseline_command=(cd $target_repo && env GOWORK=off GOFLAGS=-mod=mod go run goa.design/goa/v3/cmd/goa gen $design_package -o $baseline_root)
-candidate_command=(cd $target_repo && env GOWORK=off GOFLAGS=-mod=mod\ -modfile=$temp_dir/go.mod go run goa.design/goa/v3/cmd/goa gen $design_package -o $candidate_root)
+baseline_command=(cd $target_repo && env GOWORK=off GOFLAGS=-mod=mod go run github.com/CaliLuke/loom/v3/cmd/loom gen $design_package -o $baseline_root)
+candidate_command=(cd $target_repo && env GOWORK=off GOFLAGS=-mod=mod\ -modfile=$temp_dir/go.mod go run github.com/CaliLuke/loom/v3/cmd/loom gen $design_package -o $candidate_root)
 EOF
 
 printf 'Generating pinned baseline into %s\n' "$baseline_root"
 (
 	cd "$target_repo"
 	env GOWORK=off GOFLAGS='-mod=mod' \
-		go run goa.design/goa/v3/cmd/goa gen "$design_package" -o "$baseline_root"
+		go run github.com/CaliLuke/loom/v3/cmd/loom gen "$design_package" -o "$baseline_root"
 ) >"$baseline_log" 2>&1
 
 printf 'Generating local candidate into %s\n' "$candidate_root"
 (
 	cd "$target_repo"
 	env GOWORK=off GOFLAGS="-mod=mod -modfile=$temp_dir/go.mod" \
-		go run goa.design/goa/v3/cmd/goa gen "$design_package" -o "$candidate_root"
+		go run github.com/CaliLuke/loom/v3/cmd/loom gen "$design_package" -o "$candidate_root"
 ) >"$candidate_log" 2>&1
 
 printf 'Writing diff artifacts into %s\n' "$output_dir"

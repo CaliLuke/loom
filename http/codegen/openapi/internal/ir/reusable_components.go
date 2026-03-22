@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
 )
 
 const (

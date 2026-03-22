@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 // The DSL function names follow the following pattern:
@@ -1530,7 +1530,7 @@ var WithHeadersBlockDSL = func() {
 }
 
 var WithHeadersBlockViewedResultDSL = func() {
-	var AResult = ResultType("application/vnd.goa.aresult", func() {
+	var AResult = ResultType("application/vnd.loom.aresult", func() {
 		TypeName("AResult")
 		Attributes(func() {
 			Attribute("required", Int)
@@ -1563,7 +1563,7 @@ var WithHeadersBlockViewedResultDSL = func() {
 }
 
 var ValidateErrorResponseTypeDSL = func() {
-	var AResult = ResultType("application/vnd.goa.aresult", func() {
+	var AResult = ResultType("application/vnd.loom.aresult", func() {
 		TypeName("AResult")
 		Attributes(func() {
 			Attribute("required", Int)

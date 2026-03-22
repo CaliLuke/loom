@@ -42,13 +42,13 @@ func (e *FooPayload) Error() string {
 
 // ErrorName returns the error name.
 //
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
+// Deprecated: Use LoomErrorName.
 func (e *FooPayload) ErrorName() string {
-	return e.GoaErrorName()
+	return e.LoomErrorName()
 }
 
-// GoaErrorName returns the error name.
-func (e *FooPayload) GoaErrorName() string {
+// LoomErrorName returns the error name.
+func (e *FooPayload) LoomErrorName() string {
 	return "reserve_foo_payload"
 }
 
@@ -59,12 +59,12 @@ func (e *FooPayload2) Error() string {
 
 // ErrorName returns the error name.
 //
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
+// Deprecated: Use LoomErrorName.
 func (e *FooPayload2) ErrorName() string {
-	return e.GoaErrorName()
+	return e.LoomErrorName()
 }
 
-// GoaErrorName returns the error name.
-func (e *FooPayload2) GoaErrorName() string {
+// LoomErrorName returns the error name.
+func (e *FooPayload2) LoomErrorName() string {
 	return "reserve_foo_payload2"
 }

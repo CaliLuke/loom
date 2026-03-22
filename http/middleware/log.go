@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"goa.design/goa/v3/middleware"
+	"github.com/CaliLuke/loom/v3/middleware"
 )
 
 // Log returns a middleware that logs incoming HTTP requests and outgoing
@@ -20,8 +20,8 @@ import (
 // middleware also logs the response HTTP status code, body length (in bytes) and
 // timing information.
 //
-// Deprecated: use goa.design/goa/v3/http/middleware/otel instead. This
-// function will be removed in a future version of Goa.
+// Deprecated: use github.com/CaliLuke/loom/v3/http/middleware/otel instead. This
+// function will be removed in a future version of Loom.
 func Log(l middleware.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,8 +34,8 @@ func Log(l middleware.Logger) func(h http.Handler) http.Handler {
 // Log. LogContext calls the given function with the request context to extract
 // the logger.
 //
-// Deprecated: use goa.design/goa/v3/http/middleware/otel instead. This
-// function will be removed in a future version of Goa.
+// Deprecated: use github.com/CaliLuke/loom/v3/http/middleware/otel instead. This
+// function will be removed in a future version of Loom.
 func LogContext(logFromCtx func(context.Context) middleware.Logger) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

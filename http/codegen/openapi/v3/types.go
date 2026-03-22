@@ -5,9 +5,9 @@ import (
 	"hash"
 	"maps"
 
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/http/codegen/openapi"
-	openapiir "goa.design/goa/v3/http/codegen/openapi/internal/ir"
+	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	openapiir "github.com/CaliLuke/loom/v3/http/codegen/openapi/internal/ir"
 )
 
 type (

@@ -224,7 +224,7 @@ var CreateExternalConvert = `// Service service type conversion functions
 package service
 
 import (
-	external "goa.design/goa/v3/codegen/service/testdata/external"
+	external "github.com/CaliLuke/loom/v3/codegen/service/testdata/external"
 )
 
 // CreateFromConvertModel initializes t from the fields of v

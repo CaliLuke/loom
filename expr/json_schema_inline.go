@@ -4,7 +4,7 @@ import "encoding/json"
 
 type (
 	// InlineSchema represents a fully inlined JSON Schema document derived from
-	// a Goa attribute. It avoids $ref indirections so machine consumers can
+	// a Loom attribute. It avoids $ref indirections so machine consumers can
 	// consume standalone payload and result contracts directly.
 	//
 	//nolint:tagliatelle // JSON Schema uses camelCase field names.
@@ -40,7 +40,7 @@ const (
 	jsonTypeBoolean = "boolean"
 )
 
-// InlineJSONSchema returns a compact JSON Schema for the given Goa attribute.
+// InlineJSONSchema returns a compact JSON Schema for the given Loom attribute.
 // The schema is fully resolved and does not include $ref references.
 func InlineJSONSchema(attr *AttributeExpr) ([]byte, error) {
 	if attr == nil || attr.Type == nil || attr.Type == Empty {

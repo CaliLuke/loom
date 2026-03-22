@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func sseClientSections(data *ServiceData) []codegen.Section {
@@ -639,7 +639,7 @@ func renderWebsocketUpgrade(endpoint *EndpointData, function string, recv bool) 
 	b.WriteString("\ts.once.Do(func() {\n")
 	if endpoint.Method.ViewedResult != nil && function == "Send" && endpoint.Method.ViewedResult.ViewName == "" {
 		b.WriteString("\t\trespHdr := make(http.Header)\n")
-		b.WriteString("\t\trespHdr.Add(\"goa-view\", s.view)\n")
+		b.WriteString("\t\trespHdr.Add(\"loom-view\", s.view)\n")
 	}
 	b.WriteString("\t\tvar conn *websocket.Conn\n")
 	if function == "Send" && endpoint.Method.ViewedResult != nil && endpoint.Method.ViewedResult.ViewName == "" {

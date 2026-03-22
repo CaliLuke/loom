@@ -7,10 +7,10 @@ import (
 	"strings"
 	"unicode"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/http/codegen/openapi"
-	openapiinternal "goa.design/goa/v3/http/codegen/openapi/internal"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	openapiinternal "github.com/CaliLuke/loom/v3/http/codegen/openapi/internal"
 )
 
 const defaultOperationIDFormat = "{service}.{method}(.{routeIndex})"

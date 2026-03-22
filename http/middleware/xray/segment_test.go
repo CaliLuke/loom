@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/CaliLuke/loom/v3/middleware/xray"
 	"github.com/pkg/errors"
-	"goa.design/goa/v3/middleware/xray"
 )
 
 func TestRecordError(t *testing.T) {

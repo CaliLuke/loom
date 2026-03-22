@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 type (

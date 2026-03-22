@@ -24,7 +24,7 @@ paths:
             summary: events streamingPartialExamples
             tags:
                 - streamingPartialExamples
-            x-goa-async:
+            x-loom-async:
                 direction: server
                 handshake:
                     path: /events
@@ -84,7 +84,7 @@ paths:
             summary: projectSocket streamingPartialExamples
             tags:
                 - streamingPartialExamples
-            x-goa-async:
+            x-loom-async:
                 direction: server
                 handshake:
                     path: /ws/projects/{projectID}

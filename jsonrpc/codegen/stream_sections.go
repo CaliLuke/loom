@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/expr"
-	httpcodegen "goa.design/goa/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/expr"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
 )
 
 func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section {
@@ -257,12 +257,12 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 	if serviceHasErrors(data.Service.Methods) {
 		b.WriteString("// SendError sends a JSON-RPC error response.\n")
 		fmt.Fprintf(&b, "func (s *%s) SendError(ctx context.Context, id string, err error) error {\n", streamName)
-		b.WriteString("\tvar en goa.GoaErrorNamer\n")
+		b.WriteString("\tvar en goa.LoomErrorNamer\n")
 		b.WriteString("\tcode := jsonrpc.InternalError\n")
 		b.WriteString("\tmessage := err.Error()\n")
 		b.WriteString("\tvar data any\n\n")
 		b.WriteString("\tif errors.As(err, &en) {\n")
-		b.WriteString("\t\tswitch en.GoaErrorName() {\n")
+		b.WriteString("\t\tswitch en.LoomErrorName() {\n")
 		b.WriteString("\t\tcase \"invalid_params\":\n")
 		b.WriteString("\t\t\tcode = jsonrpc.InvalidParams\n")
 		b.WriteString("\t\tcase \"method_not_found\":\n")
@@ -508,7 +508,7 @@ func streamResultBodyInit(resultVar string, ed *httpcodegen.EndpointData) string
 func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) string {
 	var b strings.Builder
 	if len(groups) > 0 {
-		b.WriteString("\tvar en goa.GoaErrorNamer\n")
+		b.WriteString("\tvar en goa.LoomErrorNamer\n")
 		b.WriteString("\tif !errors.As(err, &en) {\n")
 		b.WriteString("\t\tcode := jsonrpc.InternalError\n")
 		b.WriteString("\t\tif _, ok := err.(*goa.ServiceError); ok {\n")
@@ -516,7 +516,7 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 		b.WriteString("\t\t}\n")
 		b.WriteString("\t\t" + prefix + "code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 		b.WriteString("\t}\n")
-		b.WriteString("\tswitch en.GoaErrorName() {\n")
+		b.WriteString("\tswitch en.LoomErrorName() {\n")
 		for _, gerr := range groups {
 			for _, e := range gerr.Errors {
 				if e.Response == nil {
@@ -546,7 +546,7 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 func streamErrorDataSwitch(prefix string, errs []*httpcodegen.ErrorData) string {
 	var b strings.Builder
 	if len(errs) > 0 {
-		b.WriteString("\tvar en goa.GoaErrorNamer\n")
+		b.WriteString("\tvar en goa.LoomErrorNamer\n")
 		b.WriteString("\tif !errors.As(err, &en) {\n")
 		b.WriteString("\t\tcode := jsonrpc.InternalError\n")
 		b.WriteString("\t\tif _, ok := err.(*goa.ServiceError); ok {\n")
@@ -554,7 +554,7 @@ func streamErrorDataSwitch(prefix string, errs []*httpcodegen.ErrorData) string 
 		b.WriteString("\t\t}\n")
 		b.WriteString("\t\t" + prefix + "code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 		b.WriteString("\t}\n")
-		b.WriteString("\tswitch en.GoaErrorName() {\n")
+		b.WriteString("\tswitch en.LoomErrorName() {\n")
 		for _, e := range errs {
 			if e.Response == nil {
 				continue

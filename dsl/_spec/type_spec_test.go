@@ -2,7 +2,7 @@
 package dsl_test
 
 import (
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 // BasicType shows the basic usage for Type.
@@ -40,7 +40,7 @@ var BasicType = Type("Name", func() {
 // Result type takes a result type identifier (as defined by RFC 6838) as first
 // argument. This identifier must be unique across all result types in a given
 // package.
-var BasicResultType = ResultType("application/vnd.goa.result", func() {
+var BasicResultType = ResultType("application/vnd.loom.result", func() {
 	// Optional description used in code comments and docs.
 	Description("Optional description")
 

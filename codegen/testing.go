@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
 	"github.com/stretchr/testify/require"
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
 )
 
 // RunDSL returns the DSL root resulting from running the given DSL.

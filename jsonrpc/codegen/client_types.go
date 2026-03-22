@@ -3,8 +3,8 @@ package codegen
 import (
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	httpcodegen "goa.design/goa/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
 )
 
 // ClientTypeFiles returns the JSON-RPC transport type files.

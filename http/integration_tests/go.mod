@@ -1,11 +1,11 @@
-module goa.design/goa/v3/http/integration_tests
+module github.com/CaliLuke/loom/v3/http/integration_tests
 
 go 1.25.0
 
 require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tmaxmax/go-sse v0.11.0
-	goa.design/goa/v3 v3.0.0
+	github.com/CaliLuke/loom/v3 v3.0.0
 )
 
 require (
@@ -14,4 +14,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace goa.design/goa/v3 => ../..
+replace github.com/CaliLuke/loom/v3 => ../..

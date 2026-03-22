@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	. "goa.design/goa/v3/dsl"
-	"goa.design/goa/v3/expr"
+	. "github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestIncompatibleDSLIncludesTypeContext(t *testing.T) {

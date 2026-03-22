@@ -1,6 +1,6 @@
 package expr
 
-import "goa.design/goa/v3/eval"
+import "github.com/CaliLuke/loom/v3/eval"
 
 type (
 	// ErrorRemedyExpr describes machine-consumable remediation guidance for an

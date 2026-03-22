@@ -1,6 +1,6 @@
 package testdata
 
-import . "goa.design/goa/v3/dsl"
+import . "github.com/CaliLuke/loom/v3/dsl"
 
 // DuplicateUserTypeNamesDSL defines two user types that both set the same
 // TypeName, which should be rejected by validation.

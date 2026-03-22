@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 var UnaryRPCsDSL = func() {
@@ -13,7 +13,7 @@ var UnaryRPCsDSL = func() {
 		Field(1, "UInt", UInt)
 		Field(2, "Float32", Float32)
 	})
-	var ResultT = ResultType("application/vnd.goa.resultt", func() {
+	var ResultT = ResultType("application/vnd.loom.resultt", func() {
 		TypeName("ResultT")
 		Attributes(func() {
 			Field(1, "ArrayField", ArrayOf(Boolean))
@@ -56,7 +56,7 @@ var UnaryRPCWithErrorsDSL = func() {
 	var ErrorType = Type("ErrorType", func() {
 		Attribute("a", String)
 	})
-	var AnotherError = ResultType("application/vnd.goa.another_error", func() {
+	var AnotherError = ResultType("application/vnd.loom.another_error", func() {
 		TypeName("AnotherError")
 		Attributes(func() {
 			ErrorName("name", String, func() {
@@ -379,7 +379,7 @@ var MessageUserTypeWithPrimitivesDSL = func() {
 		Field(6, "UInt32Field", UInt32)
 		Field(7, "UInt64Field", UInt64)
 	})
-	var ResultT = ResultType("application/vnd.goa.resultt", func() {
+	var ResultT = ResultType("application/vnd.loom.resultt", func() {
 		TypeName("ResultT")
 		Attributes(func() {
 			Attribute("Float32Field", Float32, func() {
@@ -412,7 +412,7 @@ var MessageUserTypeWithAliasMessageDSL = func() {
 		Field(2, "OptionalIntAliasField", IntAlias)
 		Required("IntAliasField")
 	})
-	var ResultT = ResultType("application/vnd.goa.aliast", func() {
+	var ResultT = ResultType("application/vnd.loom.aliast", func() {
 		TypeName("ResultT")
 		Attributes(func() {
 			Attribute("IntAliasField", Int, func() {
@@ -446,7 +446,7 @@ var MessageUserTypeWithNestedUserTypesDSL = func() {
 		Field(2, "IntField", Int)
 		Field(3, "UTLevel1", UTLevel1)
 	})
-	var RecursiveT = ResultType("application/vnd.goa.recursivet", func() {
+	var RecursiveT = ResultType("application/vnd.loom.recursivet", func() {
 		TypeName("RecursiveT")
 		Attributes(func() {
 			Field(1, "Recursive", "RecursiveT")
@@ -462,7 +462,7 @@ var MessageUserTypeWithNestedUserTypesDSL = func() {
 }
 
 var MessageResultTypeWithViewsDSL = func() {
-	var RT = ResultType("application/vnd.goa.rt", func() {
+	var RT = ResultType("application/vnd.loom.rt", func() {
 		TypeName("RT")
 		Attributes(func() {
 			Field(1, "IntField", Int)
@@ -485,7 +485,7 @@ var MessageResultTypeWithViewsDSL = func() {
 }
 
 var MessageResultTypeWithExplicitViewDSL = func() {
-	var RT = ResultType("application/vnd.goa.rt", func() {
+	var RT = ResultType("application/vnd.loom.rt", func() {
 		TypeName("RT")
 		Attributes(func() {
 			Field(1, "IntField", Int)
@@ -510,7 +510,7 @@ var MessageResultTypeWithExplicitViewDSL = func() {
 }
 
 var MessageResultTypeCollectionDSL = func() {
-	var RT = ResultType("application/vnd.goa.rt", func() {
+	var RT = ResultType("application/vnd.loom.rt", func() {
 		TypeName("RT")
 		Attributes(func() {
 			Field(1, "IntField", Int)
@@ -533,7 +533,7 @@ var MessageResultTypeCollectionDSL = func() {
 }
 
 var MessageUserTypeWithCollectionDSL = func() {
-	var RT = ResultType("application/vnd.goa.rt", func() {
+	var RT = ResultType("application/vnd.loom.rt", func() {
 		TypeName("RT")
 		Attributes(func() {
 			Attribute("IntField", Int, func() {
@@ -541,7 +541,7 @@ var MessageUserTypeWithCollectionDSL = func() {
 			})
 		})
 	})
-	var ResultT = ResultType("application/vnd.goa.resultt", func() {
+	var ResultT = ResultType("application/vnd.loom.resultt", func() {
 		TypeName("ResultT")
 		Attributes(func() {
 			Attribute("CollectionField", CollectionOf(RT), func() {
@@ -558,7 +558,7 @@ var MessageUserTypeWithCollectionDSL = func() {
 }
 
 var ResultWithCollectionDSL = func() {
-	var RT = ResultType("application/vnd.goa.rt", func() {
+	var RT = ResultType("application/vnd.loom.rt", func() {
 		TypeName("RT")
 		Attributes(func() {
 			Attribute("IntField", Int, func() {
@@ -566,7 +566,7 @@ var ResultWithCollectionDSL = func() {
 			})
 		})
 	})
-	var ResultT = ResultType("application/vnd.goa.resultt", func() {
+	var ResultT = ResultType("application/vnd.loom.resultt", func() {
 		TypeName("ResultT")
 		Attributes(func() {
 			Attribute("CollectionField", CollectionOf(RT), func() {
@@ -870,7 +870,7 @@ var MethodWithReservedNameDSL = func() {
 }
 
 var MultipleMethodsSameResultCollectionDSL = func() {
-	var ResultT = ResultType("application/vnd.goa.result", func() {
+	var ResultT = ResultType("application/vnd.loom.result", func() {
 		TypeName("ResultT")
 		Field(1, "BooleanField", Boolean)
 	})

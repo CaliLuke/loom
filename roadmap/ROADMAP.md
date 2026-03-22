@@ -1,8 +1,8 @@
-# Goa Light Roadmap
+# Loom Roadmap
 
 ## Purpose
 
-`goa-light` is not trying to preserve every historical Goa feature.
+`loom` is not trying to preserve every historical Loom feature.
 The value proposition is:
 
 - a smaller framework surface
@@ -45,7 +45,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   server-managed or secret fields across both directions.
 - OpenAPI now supports standards-first problem error contracts via
   `ProblemResult`, first-class response links, framework-owned async streaming
-  contracts under `x-goa-async`, and representative Redocly plus downstream
+  contracts under `x-loom-async`, and representative Redocly plus downstream
   TypeScript/Go smoke-generation gates.
 - OpenAPI operations now inherit service-level tag declarations by default, so
   operation tags line up with published top-level tag objects without
@@ -67,9 +67,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - JSON-RPC SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first SSE frame is actually written, so endpoint setup failures can still surface as the correct HTTP error response. The raw streamable-HTTP `GET /rpc` listener for `events/stream` remains an explicit eager-open exception so clients can observe stream establishment before the first published notification.
 - JSON-RPC integration tests now include a persistent generated `ticktock` SSE fixture plus an external-client interoperability check using `github.com/tmaxmax/go-sse`, so generated streams are verified against a real third-party client as well as the in-repo harness.
 - HTTP SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first application event is written, and `http/integration_tests` carries a persistent generated `ticktock` fixture verified with `github.com/tmaxmax/go-sse`.
-- SSE wire parsing and formatting now flow through shared helpers in `goa.design/goa/v3/http` backed by `github.com/tmaxmax/go-sse`, replacing duplicated hand-rolled frame logic across generated HTTP clients, generated JSON-RPC streams, and the local JSON-RPC SSE harness.
-- First-class OpenTelemetry transport wrappers now live in `goa.design/goa/v3/http/middleware/otel` and `goa.design/goa/v3/grpc/middleware/otel`, using the official `otelhttp` and `otelgrpc` libraries while keeping provider/exporter bootstrap app-owned.
-- OpenTelemetry V2 now adds a framework-owned observability package in `goa.design/goa/v3/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
+- SSE wire parsing and formatting now flow through shared helpers in `github.com/CaliLuke/loom/v3/http` backed by `github.com/tmaxmax/go-sse`, replacing duplicated hand-rolled frame logic across generated HTTP clients, generated JSON-RPC streams, and the local JSON-RPC SSE harness.
+- First-class OpenTelemetry transport wrappers now live in `github.com/CaliLuke/loom/v3/http/middleware/otel` and `github.com/CaliLuke/loom/v3/grpc/middleware/otel`, using the official `otelhttp` and `otelgrpc` libraries while keeping provider/exporter bootstrap app-owned.
+- OpenTelemetry V2 now adds a framework-owned observability package in `github.com/CaliLuke/loom/v3/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
@@ -89,8 +89,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   (`codegen.Section`, `codegen.JenniferSection`, `codegen.RawSection`) instead
   of file-backed Go template assets, and non-Go template assets use neutral
   `.tmpl` names.
-- Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `goa.design/goa/v3`.
-- Generic helper consolidation into `goa-light`.
+- Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `github.com/CaliLuke/loom/v3`.
+- Generic helper consolidation into `loom`.
 
 ### In Progress
 
@@ -164,8 +164,8 @@ This effort is finished only when all items in [Finish Checklist](./finish_check
 
 ## Things to Avoid
 
-- Building auth runtime behavior into `goa-light`.
-- Adding features solely to preserve historical Goa behavior.
+- Building auth runtime behavior into `loom`.
+- Adding features solely to preserve historical Loom behavior.
 - Expanding the DSL without validating that it removes real application complexity.
 - Replacing core DSL-to-codegen semantics with libraries.
 

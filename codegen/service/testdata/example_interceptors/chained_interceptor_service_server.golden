@@ -10,8 +10,8 @@ import (
 	chainedinterceptorservice "chained_interceptor_service"
 	"context"
 	"fmt"
+	goa "github.com/CaliLuke/loom/v3/pkg"
 	"goa.design/clue/log"
-	goa "goa.design/goa/v3/pkg"
 )
 
 // ChainedInterceptorServiceServerInterceptors implements the server interceptor for the ChainedInterceptorService service.

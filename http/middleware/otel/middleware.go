@@ -15,7 +15,7 @@ type (
 // OpenTelemetry HTTP middleware.
 //
 // The provided service name is used as the fallback operation name. When the
-// request carries a matched Goa route pattern in r.Pattern, the middleware uses
+// request carries a matched Loom route pattern in r.Pattern, the middleware uses
 // that pattern as the span name so spans remain stable across path parameters.
 func Middleware(service string, opts ...Option) func(http.Handler) http.Handler {
 	return otelhttp.NewMiddleware(service, append([]Option{

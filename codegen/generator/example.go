@@ -1,14 +1,14 @@
 package generator
 
 import (
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/example"
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
-	grpccodegen "goa.design/goa/v3/grpc/codegen"
-	httpcodegen "goa.design/goa/v3/http/codegen"
-	jsonrpccodegen "goa.design/goa/v3/jsonrpc/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/example"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
+	grpccodegen "github.com/CaliLuke/loom/v3/grpc/codegen"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
+	jsonrpccodegen "github.com/CaliLuke/loom/v3/jsonrpc/codegen"
 )
 
 // Example iterates through the roots and returns files that implement an

@@ -1,9 +1,9 @@
 package codegen
 
 import (
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
-	openapiv3 "goa.design/goa/v3/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
+	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
 )
 
 // OpenAPIFiles returns the files for the OpenAPIFile spec of the given HTTP API.

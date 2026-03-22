@@ -1,10 +1,10 @@
-# Goa JSON-RPC Architecture
+# Loom JSON-RPC Architecture
 
-This document explains the architecture of Goa's JSON-RPC support, covering both basic HTTP and advanced WebSocket-based streaming communication. It details the code generation process, runtime behavior, and recommended usage patterns.
+This document explains the architecture of Loom's JSON-RPC support, covering both basic HTTP and advanced WebSocket-based streaming communication. It details the code generation process, runtime behavior, and recommended usage patterns.
 
 ## Core Principle: Composition Over Modification
 
-The fundamental principle behind Goa's JSON-RPC implementation is **composition over modification**. Instead of altering shared HTTP templates to accommodate JSON-RPC, the JSON-RPC code generation layer builds upon the existing HTTP transport infrastructure. This approach ensures a clean separation of concerns, preventing the HTTP layer from becoming coupled to JSON-RPC specifics and allowing both to evolve independently.
+The fundamental principle behind Loom's JSON-RPC implementation is **composition over modification**. Instead of altering shared HTTP templates to accommodate JSON-RPC, the JSON-RPC code generation layer builds upon the existing HTTP transport infrastructure. This approach ensures a clean separation of concerns, preventing the HTTP layer from becoming coupled to JSON-RPC specifics and allowing both to evolve independently.
 
 ## Code Generation
 
@@ -90,14 +90,14 @@ The handler signatures clearly illustrate the differences between the transport 
 
 ### JSON-RPC over WebSocket
 
-Goa provides a powerful abstraction for building streaming services with WebSockets. This allows for full-duplex communication channels that can support a variety of interaction patterns.
+Loom provides a powerful abstraction for building streaming services with WebSockets. This allows for full-duplex communication channels that can support a variety of interaction patterns.
 
 #### Architectural Principles
 
 The WebSocket architecture is guided by three principles:
 
 1.  **Single WebSocket Connection**: A single WebSocket connection is used to handle all JSON-RPC communication for a given service, including multiplexing different method calls and streaming patterns.
-2.  **User Code Owns Streaming Logic**: The core streaming logic is implemented by the developer in the `HandleStream` method. Goa provides the infrastructure and the `Stream` interface, but the implementation of the streaming strategy is left to the user.
+2.  **User Code Owns Streaming Logic**: The core streaming logic is implemented by the developer in the `HandleStream` method. Loom provides the infrastructure and the `Stream` interface, but the implementation of the streaming strategy is left to the user.
 3.  **Clean Separation of Concerns**: The architecture separates the business logic (in service methods), the transport layer (JSON-RPC protocol and WebSocket management), and the streaming logic (in `HandleStream`).
 
 #### Core Components

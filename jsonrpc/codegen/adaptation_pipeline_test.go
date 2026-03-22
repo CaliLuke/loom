@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/example"
-	"goa.design/goa/v3/dsl"
-	httpcodegen "goa.design/goa/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/example"
+	"github.com/CaliLuke/loom/v3/dsl"
+	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
 )
 
 func TestJSONRPCClientCLIFilesUseAdaptationPipeline(t *testing.T) {

@@ -34,7 +34,7 @@ func DecodeMethodBodyMultipleViewResponse(decoder func(*http.Response) goahttp.D
 				c = &cRaw
 			}
 			p := NewMethodBodyMultipleViewResulttypemultipleviewsOK(&body, c)
-			view := resp.Header.Get("goa-view")
+			view := resp.Header.Get("loom-view")
 			vres := &servicebodymultipleviewviews.Resulttypemultipleviews{Projected: p, View: view}
 			if err = servicebodymultipleviewviews.ValidateResulttypemultipleviews(vres); err != nil {
 				return nil, goahttp.ErrValidationError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)

@@ -11,11 +11,11 @@ import (
 
 	"github.com/pb33f/libopenapi"
 
-	"goa.design/goa/v3/codegen/testutil"
-	httpgen "goa.design/goa/v3/http/codegen"
-	"goa.design/goa/v3/http/codegen/openapi"
-	openapiv3 "goa.design/goa/v3/http/codegen/openapi/v3"
-	"goa.design/goa/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen/testutil"
+	httpgen "github.com/CaliLuke/loom/v3/http/codegen"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
 )
 
 func TestFiles(t *testing.T) {
@@ -285,7 +285,7 @@ func TestRenderedSpecPublishesProblemLinksAndAsyncContracts(t *testing.T) {
 	requirePattern(`(?m)^\s+watch:$`)
 	requirePattern(`(?m)^\s+operationId: thread_ops\.get_thread$`)
 	requirePattern(`(?m)^\s+operationId: thread_ops\.watch_thread$`)
-	requirePattern(`(?m)^\s+x-goa-async:$`)
+	requirePattern(`(?m)^\s+x-loom-async:$`)
 	requirePattern(`(?m)^\s+transport: sse$`)
 	requirePattern(`(?m)^\s+transport: websocket$`)
 	requirePattern(`(?m)^\s+direction: server$`)

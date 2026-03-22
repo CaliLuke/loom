@@ -1,7 +1,7 @@
 /*
-Package dsl implements the Goa DSL.
+Package dsl implements the Loom DSL.
 
-The Goa DSL consists of Go functions that can be composed to describe a remote
+The Loom DSL consists of Go functions that can be composed to describe a remote
 service API. The functions are composed using anonymous function arguments, for
 example:
 
@@ -26,12 +26,12 @@ optional arguments, for example these are all valid use of Attribute:
 It is recommended to use "dot" import when importing the DSL package to improve
 the readability of designs:
 
-	import . "goa.design/goa/v3/dsl"
+	import . "github.com/CaliLuke/loom/v3/dsl"
 
 Importing the DSL package this way makes it possible to write the designs as
 shown in the examples above instead of having to prefix each DSL function call
 with "dsl." (note: the authors are aware that using "dot" imports is bad
-practice in general when writing standard Go code and Goa in particular makes no
+practice in general when writing standard Go code and Loom in particular makes no
 use of them outside of writing DSLs. However they DO make designs much easier to
 read and maintain).
 

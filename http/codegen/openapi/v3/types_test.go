@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	dsl "goa.design/goa/v3/dsl"
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/http/codegen/openapi"
-	"goa.design/goa/v3/http/codegen/openapi/v3/testdata/dsls"
-	"goa.design/goa/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	dsl "github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi/v3/testdata/dsls"
+	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
 )
 
 // describes a type for comparison in tests.

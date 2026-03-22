@@ -44,13 +44,13 @@ func (e *APayload) Error() string {
 
 // ErrorName returns the error name.
 //
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
+// Deprecated: Use LoomErrorName.
 func (e *APayload) ErrorName() string {
-	return e.GoaErrorName()
+	return e.LoomErrorName()
 }
 
-// GoaErrorName returns the error name.
-func (e *APayload) GoaErrorName() string {
+// LoomErrorName returns the error name.
+func (e *APayload) LoomErrorName() string {
 	return "user_type"
 }
 
@@ -61,13 +61,13 @@ func (e *Result) Error() string {
 
 // ErrorName returns the error name.
 //
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
+// Deprecated: Use LoomErrorName.
 func (e *Result) ErrorName() string {
-	return e.GoaErrorName()
+	return e.LoomErrorName()
 }
 
-// GoaErrorName returns the error name.
-func (e *Result) GoaErrorName() string {
+// LoomErrorName returns the error name.
+func (e *Result) LoomErrorName() string {
 	return e.B
 }
 
@@ -78,12 +78,12 @@ func (e Primitive) Error() string {
 
 // ErrorName returns the error name.
 //
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
+// Deprecated: Use LoomErrorName.
 func (e Primitive) ErrorName() string {
-	return e.GoaErrorName()
+	return e.LoomErrorName()
 }
 
-// GoaErrorName returns the error name.
-func (e Primitive) GoaErrorName() string {
+// LoomErrorName returns the error name.
+func (e Primitive) LoomErrorName() string {
 	return "primitive"
 }

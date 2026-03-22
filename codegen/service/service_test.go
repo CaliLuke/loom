@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service/testdata"
-	"goa.design/goa/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service/testdata"
+	"github.com/CaliLuke/loom/v3/codegen/testutil"
 )
 
 func TestService(t *testing.T) {
@@ -66,7 +66,7 @@ func TestService(t *testing.T) {
 			root := codegen.RunDSL(t, c.DSL)
 			services := NewServicesData(root)
 			require.Len(t, root.Services, 1)
-			files := Files("goa.design/goa/example", root.Services[0], services, make(map[string][]string))
+			files := Files("github.com/CaliLuke/loom/example", root.Services[0], services, make(map[string][]string))
 			require.Greater(t, len(files), 0)
 
 			// Generate the code
@@ -108,7 +108,7 @@ func TestStructPkgPath(t *testing.T) {
 			userTypePkgs := make(map[string][]string)
 			root := codegen.RunDSL(t, c.DSL)
 			services := NewServicesData(root)
-			files := Files("goa.design/goa/example", root.Services[0], services, userTypePkgs)
+			files := Files("github.com/CaliLuke/loom/example", root.Services[0], services, userTypePkgs)
 
 			// Check file count
 			expectedFiles := len(c.TypeFiles) + 1
@@ -137,7 +137,7 @@ func TestStructPkgPath(t *testing.T) {
 
 			// For dupes case, test the second service
 			if c.Name == "dupes" && len(root.Services) > 1 {
-				files = Files("goa.design/goa/example", root.Services[1], services, userTypePkgs)
+				files = Files("github.com/CaliLuke/loom/example", root.Services[1], services, userTypePkgs)
 				require.Len(t, files, 1)
 				buf := new(bytes.Buffer)
 				for _, s := range files[0].AllSections()[1:] {
@@ -156,7 +156,7 @@ func TestStructPkgPath_UnionImportsJSON(t *testing.T) {
 	services := NewServicesData(root)
 	require.Len(t, root.Services, 1)
 
-	files := Files("goa.design/goa/example", root.Services[0], services, make(map[string][]string))
+	files := Files("github.com/CaliLuke/loom/example", root.Services[0], services, make(map[string][]string))
 	require.GreaterOrEqual(t, len(files), 2, "expected at least service.go + one struct:pkg:path file")
 
 	var typeFile *codegen.File
@@ -181,7 +181,7 @@ func TestStructPkgPath_UnionJSONFieldBranchesGenerateAliases(t *testing.T) {
 	services := NewServicesData(root)
 	require.Len(t, root.Services, 1)
 
-	files := Files("goa.design/goa/example", root.Services[0], services, make(map[string][]string))
+	files := Files("github.com/CaliLuke/loom/example", root.Services[0], services, make(map[string][]string))
 	require.GreaterOrEqual(t, len(files), 2, "expected at least service.go + one struct:pkg:path file")
 
 	var typeFile *codegen.File

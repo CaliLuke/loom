@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/dsl"
-	"goa.design/goa/v3/grpc/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/v3/grpc/codegen/testdata"
 )
 
 func TestAnalyzeCollectsMessagesAndProtoImportsWithoutDuplicates(t *testing.T) {

@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/example/testdata"
-	"goa.design/goa/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/example/testdata"
+	"github.com/CaliLuke/loom/v3/codegen/service"
 )
 
 // updateGolden is true when -w is passed to `go test`, e.g. `go test ./... -w`

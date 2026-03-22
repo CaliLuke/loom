@@ -3,7 +3,7 @@ package testdata
 import (
 	"fmt"
 
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 var SingleMethodDSL = func() {
@@ -285,7 +285,7 @@ var CustomErrorsDSL = func() {
 		Required("IntField", "StringField", "BooleanField", "BytesField")
 	})
 
-	var Result = ResultType("application/vnd.goa.error", func() {
+	var Result = ResultType("application/vnd.loom.error", func() {
 		TypeName("Result")
 		Attribute("a", String)
 		ErrorName("b", String)
@@ -301,7 +301,7 @@ var CustomErrorsDSL = func() {
 }
 
 var CustomErrorsCustomFieldDSL = func() {
-	var Result = ResultType("application/vnd.goa.error", func() {
+	var Result = ResultType("application/vnd.loom.error", func() {
 		ErrorName("error", String, func() {
 			Meta("struct:field:name", "ErrorCode")
 		})
@@ -905,7 +905,7 @@ var NamesWithSpacesDSL = func() {
 	var APayload = Type("Payload With Space", func() {
 		Field(1, "String", String)
 	})
-	var AResult = ResultType("application/vnd.goa.result", func() {
+	var AResult = ResultType("application/vnd.loom.result", func() {
 		TypeName("Result With Space")
 		Attributes(func() {
 			Field(1, "Int", Int)

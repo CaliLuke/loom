@@ -8,7 +8,7 @@ application designs.
 
 ## Status
 
-Implemented in `goa-light`.
+Implemented in `loom`.
 
 The core session/auth DSL and its transport behavior are now part of the
 framework surface.
@@ -93,7 +93,7 @@ logic.
 
 ## Boundaries
 
-This feature does not turn `goa-light` into a session-management framework.
+This feature does not turn `loom` into a session-management framework.
 
 It intentionally does not own:
 

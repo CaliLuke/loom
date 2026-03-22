@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
-	"goa.design/goa/v3/http/codegen/openapi"
-	"goa.design/goa/v3/http/codegen/openapi/v3/testdata/dsls"
-	"goa.design/goa/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	"github.com/CaliLuke/loom/v3/http/codegen/openapi/v3/testdata/dsls"
+	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
 )
 
 func TestBuildInfo(t *testing.T) {
@@ -68,7 +68,7 @@ func TestBuildInfo(t *testing.T) {
 
 			expected := c.Title
 			if api.Title == "" {
-				expected = "Goa API"
+				expected = "Loom API"
 			}
 			if info.Title != expected {
 				t.Errorf("got API title %q, expected %q", info.Title, expected)

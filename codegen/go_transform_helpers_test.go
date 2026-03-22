@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen/testdata"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestGoTransformHelpers(t *testing.T) {

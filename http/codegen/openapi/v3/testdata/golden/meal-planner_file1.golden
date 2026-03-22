@@ -31,7 +31,7 @@ paths:
             summary: watchPlannerEvents mealPlanner
             tags:
                 - mealPlanner
-            x-goa-async:
+            x-loom-async:
                 direction: server
                 handshake:
                     path: /events
@@ -367,7 +367,7 @@ paths:
                 "404":
                     description: 'not_found: Not Found response.'
                     content:
-                        application/vnd.goa.error:
+                        application/vnd.loom.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
             security:
@@ -829,13 +829,13 @@ components:
         BadRequestError:
             description: 'bad_request: Bad Request response.'
             content:
-                application/vnd.goa.error:
+                application/vnd.loom.error:
                     schema:
                         $ref: '#/components/schemas/Error'
         ForbiddenError:
             description: 'forbidden: Access is forbidden.'
             content:
-                application/vnd.goa.error:
+                application/vnd.loom.error:
                     schema:
                         $ref: '#/components/schemas/Error'
         NoContentResponse:
@@ -843,13 +843,13 @@ components:
         TooManyRequestsError:
             description: 'rate_limited: Too Many Requests response.'
             content:
-                application/vnd.goa.error:
+                application/vnd.loom.error:
                     schema:
                         $ref: '#/components/schemas/Error'
         UnauthorizedError:
             description: 'unauthorized: Authentication is required.'
             content:
-                application/vnd.goa.error:
+                application/vnd.loom.error:
                     schema:
                         $ref: '#/components/schemas/Error'
     securitySchemes:

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	cg "goa.design/goa/v3/codegen"
-	d "goa.design/goa/v3/dsl"
+	cg "github.com/CaliLuke/loom/v3/codegen"
+	d "github.com/CaliLuke/loom/v3/dsl"
 )
 
 // TestGenerateUnionUserTypeSamePathMerged exercises the real service codegen path

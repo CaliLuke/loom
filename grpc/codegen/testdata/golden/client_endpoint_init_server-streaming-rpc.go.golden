@@ -6,7 +6,7 @@ func (c *Client) MethodServerStreamingRPC() goa.Endpoint {
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
 			resp := goagrpc.DecodeError(err)
-			// Try to decode a Goa error response detail before falling back to Fault.
+			// Try to decode a Loom error response detail before falling back to Fault.
 			if eresp, ok := resp.(*goapb.ErrorResponse); ok {
 				return nil, goagrpc.NewServiceError(eresp)
 			}

@@ -1,6 +1,6 @@
 package testdata
 
-import . "goa.design/goa/v3/dsl"
+import . "github.com/CaliLuke/loom/v3/dsl"
 
 var NoServerDSL = func() {
 	Service("Service", func() {
@@ -218,7 +218,7 @@ var NamesWithSpacesDSL = func() {
 	var APayload = Type("Payload With Space", func() {
 		Field(1, "String", String)
 	})
-	var AResult = ResultType("application/vnd.goa.result", func() {
+	var AResult = ResultType("application/vnd.loom.result", func() {
 		TypeName("Result With Space")
 		Attributes(func() {
 			Field(1, "Int", Int)

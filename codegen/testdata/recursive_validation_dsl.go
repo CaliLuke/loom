@@ -1,6 +1,6 @@
 package testdata
 
-import . "goa.design/goa/v3/dsl"
+import . "github.com/CaliLuke/loom/v3/dsl"
 
 // RecursiveValidationDSL defines types for testing recursive validation
 // with proper cycle detection.

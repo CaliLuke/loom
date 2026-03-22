@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/service"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 type (
@@ -347,7 +347,7 @@ type (
 		// ContentType contains the value of the response
 		// "Content-Type" header.
 		ContentType string
-		// ErrorHeader contains the value of the response "goa-error"
+		// ErrorHeader contains the value of the response "loom-error"
 		// header if any.
 		ErrorHeader string
 		// ServerBody is the type of the response body used by server

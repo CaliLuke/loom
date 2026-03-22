@@ -1,11 +1,11 @@
 package codegen
 
 import (
-	"goa.design/goa/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/v3/codegen/testutil"
 	"testing"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
 )
 
 func TestClientCLIFiles(t *testing.T) {

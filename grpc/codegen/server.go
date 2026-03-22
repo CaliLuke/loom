@@ -5,8 +5,8 @@ import (
 	"path"
 	"path/filepath"
 
-	"goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // ServerFiles returns all the server files for every gRPC service. The files

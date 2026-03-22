@@ -5,9 +5,9 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	codegenpkg "goa.design/goa/v3/codegen"
-	"goa.design/goa/v3/codegen/cli"
-	"goa.design/goa/v3/expr"
+	codegenpkg "github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen/cli"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func grpcClientStructSection(data *ServiceData) codegenpkg.Section {
@@ -116,7 +116,7 @@ func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
 									})
 									return
 								}
-								eg.Comment(codegenpkg.Comment("Try to decode a Goa error response detail before falling back to Fault."))
+								eg.Comment(codegenpkg.Comment("Try to decode a Loom error response detail before falling back to Fault."))
 								eg.If(
 									jen.List(jen.Id("eresp"), jen.Id("ok")).Op(":=").Id("resp").Assert(jen.Op("*").Id("goapb").Dot("ErrorResponse")),
 									jen.Id("ok"),
@@ -147,7 +147,7 @@ func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 			if endpoint.ServerStream != nil {
 				handlerType = "StreamHandler"
 			}
-			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Qual("goa.design/goa/v3/grpc", handlerType))
+			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Qual("github.com/CaliLuke/loom/v3/grpc", handlerType))
 		}
 		fields = append(fields, jen.Qual(data.PkgName, "Unimplemented"+data.ServerInterface))
 		stmt.Type().Id(data.ServerStruct).Struct(fields...)
@@ -159,10 +159,10 @@ func grpcServerInitSection(data *ServiceData) codegenpkg.Section {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s instantiates the server struct with the %s service endpoints.", data.ServerInit, data.Service.Name))
 		params := []jen.Code{jen.Id("e").Op("*").Qual(data.Service.PkgName, "Endpoints")}
 		if data.HasUnaryEndpoint() {
-			params = append(params, jen.Id("uh").Qual("goa.design/goa/v3/grpc", "UnaryHandler"))
+			params = append(params, jen.Id("uh").Qual("github.com/CaliLuke/loom/v3/grpc", "UnaryHandler"))
 		}
 		if data.HasStreamingEndpoint() {
-			params = append(params, jen.Id("sh").Qual("goa.design/goa/v3/grpc", "StreamHandler"))
+			params = append(params, jen.Id("sh").Qual("github.com/CaliLuke/loom/v3/grpc", "StreamHandler"))
 		}
 		dict := jen.Dict{}
 		for _, endpoint := range data.Endpoints {
@@ -463,9 +463,9 @@ func appendGRPCServerErrorHandler(g *jen.Group, endpoint *EndpointData, serverSt
 			if !serverStream {
 				prefix = append(prefix, jen.Nil())
 			}
-			eg.Var().Id("en").Add(codegenpkg.TypeRef("goa.GoaErrorNamer"))
+			eg.Var().Id("en").Add(codegenpkg.TypeRef("goa.LoomErrorNamer"))
 			eg.If(jen.Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("en"))).Block(
-				jen.Switch(jen.Id("en").Dot("GoaErrorName").Call()).BlockFunc(func(sg *jen.Group) {
+				jen.Switch(jen.Id("en").Dot("LoomErrorName").Call()).BlockFunc(func(sg *jen.Group) {
 					for _, errData := range endpoint.Errors {
 						body := []jen.Code{}
 						if errData.Response.ServerConvert != nil {

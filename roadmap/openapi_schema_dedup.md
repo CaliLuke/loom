@@ -8,7 +8,7 @@ Reduce duplicate hashed component schemas in generated OpenAPI when the shapes a
 
 ## Problem
 
-`goa-light` already uses stable hash-based suffixes to avoid collisions, but identical or near-identical schemas can still be emitted under separate names. That creates noise for:
+`loom` already uses stable hash-based suffixes to avoid collisions, but identical or near-identical schemas can still be emitted under separate names. That creates noise for:
 
 - contract diffs
 - downstream schema references
@@ -46,7 +46,7 @@ Out of scope:
 
 - Deduplication must be deterministic.
 - Deduplication must not merge semantically distinct schemas that happen to look similar because of generator lossiness.
-- Keep the current contract-stability rules centered in `goa-light`.
+- Keep the current contract-stability rules centered in `loom`.
 
 ## Risks
 

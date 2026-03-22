@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"goa.design/goa/v3/codegen/testdata"
-	"goa.design/goa/v3/codegen/testutil"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/codegen/testdata"
+	"github.com/CaliLuke/loom/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 func TestGoTransformUnion(t *testing.T) {

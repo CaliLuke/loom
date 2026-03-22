@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"goa.design/goa/v3/codegen"
+	"github.com/CaliLuke/loom/v3/codegen"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -30,7 +30,7 @@ type Generator struct {
 	// Output is the absolute path to the output directory.
 	Output string
 
-	// DesignVersion is the major component of the Goa version used by the design DSL.
+	// DesignVersion is the major component of the Loom version used by the design DSL.
 	// DesignVersion is either 2 or 3.
 	DesignVersion int
 
@@ -46,7 +46,7 @@ type Generator struct {
 
 // NewGenerator creates a Generator.
 func NewGenerator(cmd, path, output string, debug bool) *Generator {
-	bin := "goa"
+	bin := "loom"
 	if runtime.GOOS == "windows" {
 		bin += ".exe"
 	}
@@ -62,7 +62,7 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 			fmt.Fprintf(os.Stderr, "[TIMING]   packages.Load (design files) took %v\n", time.Since(startPkgLoad))
 		}
 		fset := token.NewFileSet()
-		p := regexp.MustCompile(`goa.design/goa/v(\d+)/dsl`)
+		p := regexp.MustCompile(`github.com/CaliLuke/loom/v(\d+)/dsl`)
 		for _, pkg := range pkgs {
 			// Nil check in case packages.Load can't get module info
 			if pkg.Module != nil {
@@ -110,7 +110,7 @@ func (g *Generator) Write(_ bool) error {
 		if cwd, err := os.Getwd(); err != nil {
 			wd = cwd
 		}
-		tmp, err := os.MkdirTemp(wd, "goa")
+		tmp, err := os.MkdirTemp(wd, "loom")
 		if err != nil {
 			return err
 		}
@@ -138,10 +138,10 @@ func (g *Generator) Write(_ bool) error {
 			codegen.SimpleImport("strconv"),
 			codegen.SimpleImport("strings"),
 			codegen.SimpleImport("time"),
-			codegen.SimpleImport("goa.design/goa/" + ver + "codegen"),
-			codegen.SimpleImport("goa.design/goa/" + ver + "codegen/generator"),
-			codegen.SimpleImport("goa.design/goa/" + ver + "eval"),
-			codegen.NewImport("goa", "goa.design/goa/"+ver+"pkg"),
+			codegen.SimpleImport("github.com/CaliLuke/loom/" + ver + "codegen"),
+			codegen.SimpleImport("github.com/CaliLuke/loom/" + ver + "codegen/generator"),
+			codegen.SimpleImport("github.com/CaliLuke/loom/" + ver + "eval"),
+			codegen.NewImport("goa", "github.com/CaliLuke/loom/"+ver+"pkg"),
 			codegen.NewImport("_", g.DesignPath),
 		}
 		sections = []*codegen.SectionTemplate{
@@ -193,8 +193,8 @@ func (g *Generator) Compile(debug bool) error {
 
 	// If we're in vendor context we check the error string to see if it's an issue of unsatisfied dependencies
 	if err != nil && g.hasVendorDirectory {
-		if strings.Contains(err.Error(), "cannot find package") && strings.Contains(err.Error(), "/goa.design/goa/v3/codegen/generator") {
-			return errors.New("generated code expected `goa.design/goa/v3/codegen/generator` to be present in the vendor directory, see documentation for more details")
+		if strings.Contains(err.Error(), "cannot find package") && strings.Contains(err.Error(), "/github.com/CaliLuke/loom/v3/codegen/generator") {
+			return errors.New("generated code expected `github.com/CaliLuke/loom/v3/codegen/generator` to be present in the vendor directory, see documentation for more details")
 		}
 	}
 

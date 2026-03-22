@@ -1,8 +1,8 @@
 package dsl
 
 import (
-	"goa.design/goa/v3/eval"
-	"goa.design/goa/v3/expr"
+	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/v3/expr"
 )
 
 // DefaultProtoc is the default command to be invoked for generating code from protobuf schemas.
@@ -96,10 +96,10 @@ const DefaultProtoc = expr.DefaultProtoc
 //	var Timestamp = Type("Timestamp", func() {
 //	    Description("Google timestamp compatible design")
 //	    Field(1, "seconds", Int64, "Unix timestamp in seconds", func() {
-//	        Meta("struct:field:proto", "int64") // Goa generates sint64 by default
+//	        Meta("struct:field:proto", "int64") // Loom generates sint64 by default
 //	    })
 //	    Field(2, "nanos", Int32, "Unix timestamp in nanoseconds", func() {
-//	        Meta("struct:field:proto", "int32") // Goa generates sint32 by default
+//	        Meta("struct:field:proto", "int32") // Loom generates sint32 by default
 //	    })
 //	})
 //
@@ -119,7 +119,7 @@ const DefaultProtoc = expr.DefaultProtoc
 //	})
 //
 // - "struct:tag:xxx" sets a generated Go struct field tag and overrides tags
-// that Goa would otherwise set. If the metadata value is a slice then the
+// that Loom would otherwise set. If the metadata value is a slice then the
 // strings are joined with the space character as separator. Applicable to
 // attributes only.
 //
@@ -130,9 +130,9 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    })
 //	})
 //
-// - "struct:tag:json:name" sets the JSON field name used when Goa generates a
+// - "struct:tag:json:name" sets the JSON field name used when Loom generates a
 // `json` struct tag for non-transport types (e.g., service types in gen/<svc>/service.go).
-// Goa appends ",omitempty" automatically when the attribute is not required by
+// Loom appends ",omitempty" automatically when the attribute is not required by
 // its parent object. If "struct:tag:json" is also set, it takes precedence and
 // overrides the tag entirely.
 //

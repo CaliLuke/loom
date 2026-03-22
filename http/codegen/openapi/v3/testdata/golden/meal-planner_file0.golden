@@ -28,7 +28,7 @@
     "responses": {
       "BadRequestError": {
         "content": {
-          "application/vnd.goa.error": {
+          "application/vnd.loom.error": {
             "schema": {
               "$ref": "#/components/schemas/Error"
             }
@@ -38,7 +38,7 @@
       },
       "ForbiddenError": {
         "content": {
-          "application/vnd.goa.error": {
+          "application/vnd.loom.error": {
             "schema": {
               "$ref": "#/components/schemas/Error"
             }
@@ -51,7 +51,7 @@
       },
       "TooManyRequestsError": {
         "content": {
-          "application/vnd.goa.error": {
+          "application/vnd.loom.error": {
             "schema": {
               "$ref": "#/components/schemas/Error"
             }
@@ -61,7 +61,7 @@
       },
       "UnauthorizedError": {
         "content": {
-          "application/vnd.goa.error": {
+          "application/vnd.loom.error": {
             "schema": {
               "$ref": "#/components/schemas/Error"
             }
@@ -730,7 +730,7 @@
         "tags": [
           "mealPlanner"
         ],
-        "x-goa-async": {
+        "x-loom-async": {
           "direction": "server",
           "handshake": {
             "path": "/events",
@@ -1256,7 +1256,7 @@
           },
           "404": {
             "content": {
-              "application/vnd.goa.error": {
+              "application/vnd.loom.error": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }

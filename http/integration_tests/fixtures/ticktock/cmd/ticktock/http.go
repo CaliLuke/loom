@@ -11,7 +11,7 @@ import (
 	clocksvr "example.com/http-ticktock/gen/http/clock/server"
 	"goa.design/clue/debug"
 	"goa.design/clue/log"
-	goahttp "goa.design/goa/v3/http"
+	goahttp "github.com/CaliLuke/loom/v3/http"
 )
 
 // handleHTTPServer starts configures and starts a HTTP server on the given

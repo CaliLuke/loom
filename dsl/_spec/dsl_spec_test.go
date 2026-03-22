@@ -2,7 +2,7 @@
 package dsl_test
 
 import (
-	. "goa.design/goa/v3/dsl"
+	. "github.com/CaliLuke/loom/v3/dsl"
 )
 
 // The API expression defines the global API properties of the design. There can
@@ -193,7 +193,7 @@ var AErrorType = Type("AErrorType", func() {
 })
 
 // AErrorResultType is a simple result type definition.
-var AErrorResultType = ResultType("application/vnd.goa.design.error", func() {
+var AErrorResultType = ResultType("application/vnd.loom.design.error", func() {
 	TypeName("AErrorResult")
 	Attributes(func() {
 		Attribute("msg")
@@ -212,7 +212,7 @@ var PayloadType = Type("Payload", func() {
 })
 
 // ResType is the result type that describes the result shape.
-var ResType = ResultType("application/vnd.goa.result", func() {
+var ResType = ResultType("application/vnd.loom.result", func() {
 	Description("Optional description")
 	Attributes(func() {
 		Attribute("required")

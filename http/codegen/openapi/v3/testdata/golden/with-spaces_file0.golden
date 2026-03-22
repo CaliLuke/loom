@@ -13,7 +13,7 @@
         },
         "type": "object"
       },
-      "GoaFoobar": {
+      "LoomFoobar": {
         "example": {
           "bar": [
             {
@@ -56,7 +56,7 @@
     }
   },
   "info": {
-    "title": "Goa API",
+    "title": "Loom API",
     "version": "0.0.1"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -94,7 +94,7 @@
                   "foo": ""
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/GoaFoobar"
+                  "$ref": "#/components/schemas/LoomFoobar"
                 }
               }
             },
@@ -121,7 +121,7 @@
                   "foo": ""
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/GoaFoobar"
+                  "$ref": "#/components/schemas/LoomFoobar"
                 }
               }
             },
