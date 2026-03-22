@@ -30,6 +30,10 @@ roadmap items unless a regression appears:
 - Reusable OpenAPI components for repeated path/query/header/cookie parameters.
 - Reusable OpenAPI components for repeated request bodies, headers, named
   examples, and structurally identical no-body responses.
+- Reusable OpenAPI components for repeated payload-bearing responses when the
+  description, headers, content type, and referenced schema shape are
+  equivalent even if duplicate generated schema refs differ only by internal
+  alias names.
 - Attribute-level schema metadata for `readOnly`, `writeOnly`, `deprecated`,
   `contentEncoding`, and `contentMediaType`.
 - Documentation-only `OpenAPIBody(...)` support for
@@ -73,7 +77,7 @@ work it owns, what it does not own, and the acceptance bar.
 
 ### Unit 1: Payload-Bearing Response Reuse
 
-Status: planned
+Status: completed
 
 Problem:
 Repeated success and error responses that carry equivalent payload schemas still
@@ -306,14 +310,13 @@ Acceptance:
 Land the remaining OpenAPI work in this order unless a concrete downstream bug
 forces reprioritization:
 
-1. Unit 1: Payload-Bearing Response Reuse
-2. Unit 2: Public Component Naming And Adapter Hygiene
-3. Unit 3: Auth Error Canonicalization
-4. Unit 5: Projection Controls For Public Request/Response Surfaces
-5. Unit 4: Problem-Document Error Contracts
-6. Unit 7: OpenAPI Links DSL
-7. Unit 6: Async Contract Publication
-8. Unit 8: Contract Linting And Consumer Smoke Tests
+1. Unit 2: Public Component Naming And Adapter Hygiene
+2. Unit 3: Auth Error Canonicalization
+3. Unit 5: Projection Controls For Public Request/Response Surfaces
+4. Unit 4: Problem-Document Error Contracts
+5. Unit 7: OpenAPI Links DSL
+6. Unit 6: Async Contract Publication
+7. Unit 8: Contract Linting And Consumer Smoke Tests
 
 ## Downstream Acceptance Surface
 

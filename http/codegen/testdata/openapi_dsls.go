@@ -1393,6 +1393,7 @@ var MealPlannerDSL = func() {
 
 	Service("mealPlanner", func() {
 		Description("Plan meals, browse recipes, and import pantry inventory.")
+		SessionSecurity(appSession)
 
 		Method("health", func() {
 			NoSecurity()
@@ -1416,7 +1417,6 @@ var MealPlannerDSL = func() {
 		})
 
 		Method("listRecipes", func() {
-			SessionSecurity(appSession)
 			Error("bad_request")
 			Result(CollectionOf(Recipe), func() {
 				View("summary")
@@ -1446,7 +1446,6 @@ var MealPlannerDSL = func() {
 		})
 
 		Method("showRecipe", func() {
-			SessionSecurity(appSession)
 			Error("not_found")
 			Result(Recipe)
 			Payload(func() {
@@ -1466,7 +1465,6 @@ var MealPlannerDSL = func() {
 		})
 
 		Method("upsertMealPlan", func() {
-			SessionSecurity(appSession)
 			Error("bad_request")
 			Result(MealPlan)
 			Payload(func() {
@@ -1489,7 +1487,6 @@ var MealPlannerDSL = func() {
 		})
 
 		Method("shareMealPlan", func() {
-			SessionSecurity(appSession)
 			Error("bad_request")
 			Result(Empty)
 			Payload(func() {
@@ -1521,7 +1518,6 @@ var MealPlannerDSL = func() {
 		})
 
 		Method("previewSelection", func() {
-			SessionSecurity(appSession)
 			Error("bad_request")
 			Result(Empty)
 			Payload(func() {
@@ -1544,7 +1540,6 @@ var MealPlannerDSL = func() {
 		})
 
 		Method("previewSelectionSuppressed", func() {
-			SessionSecurity(appSession)
 			Error("bad_request")
 			Result(Empty)
 			Payload(func() {
@@ -1562,7 +1557,6 @@ var MealPlannerDSL = func() {
 		})
 
 		Method("importPantry", func() {
-			SessionSecurity(appSession)
 			Error("bad_request")
 			Result(PantryImportReceipt)
 			Payload(func() {

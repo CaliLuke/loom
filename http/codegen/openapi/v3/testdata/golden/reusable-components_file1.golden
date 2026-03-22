@@ -17,19 +17,7 @@ paths:
                 $ref: '#/components/requestBodies/AuthRefreshRequestBody'
             responses:
                 "200":
-                    description: OK response.
-                    headers:
-                        X-Trace-ID:
-                            $ref: '#/components/headers/XTraceIDHeader'
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Session_d5d120e942d17641_2'
-                            examples:
-                                current:
-                                    $ref: '#/components/examples/AuthRefreshStatus200ResponseCurrentExample'
-                                next:
-                                    $ref: '#/components/examples/AuthRefreshStatus200ResponseNextExample'
+                    $ref: '#/components/responses/AuthRefreshStatus200Response'
     /auth/revoke:
         post:
             tags:
@@ -49,19 +37,7 @@ paths:
                 $ref: '#/components/requestBodies/AuthRefreshRequestBody'
             responses:
                 "200":
-                    description: OK response.
-                    headers:
-                        X-Trace-ID:
-                            $ref: '#/components/headers/XTraceIDHeader'
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Session_d5d120e942d17641'
-                            examples:
-                                current:
-                                    $ref: '#/components/examples/AuthRefreshStatus200ResponseCurrentExample'
-                                next:
-                                    $ref: '#/components/examples/AuthRefreshStatus200ResponseNextExample'
+                    $ref: '#/components/responses/AuthRefreshStatus200Response'
     /auth/signout:
         post:
             tags:
@@ -100,24 +76,6 @@ components:
             required:
                 - username
                 - password
-        Session_d5d120e942d17641:
-            type: object
-            properties:
-                expiresAt:
-                    type: string
-                    example: "2026-03-20T12:00:00Z"
-                    format: date-time
-                token:
-                    type: string
-                    example: token-123
-                    readOnly: true
-            example:
-                expiresAt: "2026-03-21T12:00:00Z"
-                token: token-456
-                traceID: trace_456
-            required:
-                - token
-                - expiresAt
         Session_d5d120e942d17641_2:
             type: object
             properties:
@@ -159,6 +117,20 @@ components:
                         primary:
                             $ref: '#/components/examples/AuthRefreshRequestBodyPrimaryExample'
     responses:
+        AuthRefreshStatus200Response:
+            description: OK response.
+            headers:
+                X-Trace-ID:
+                    $ref: '#/components/headers/XTraceIDHeader'
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Session_d5d120e942d17641_2'
+                    examples:
+                        current:
+                            $ref: '#/components/examples/AuthRefreshStatus200ResponseCurrentExample'
+                        next:
+                            $ref: '#/components/examples/AuthRefreshStatus200ResponseNextExample'
         AuthRevokeStatus204Response:
             description: No Content response.
     examples:

@@ -9,6 +9,7 @@ import (
 	"goa.design/goa/v3/dsl"
 	"goa.design/goa/v3/http/codegen/openapi"
 	openapiv3 "goa.design/goa/v3/http/codegen/openapi/v3"
+	"goa.design/goa/v3/http/codegen/testdata"
 )
 
 func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
@@ -49,6 +50,24 @@ func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 		security, ok := op["security"]
 		require.True(t, ok)
 		require.Empty(t, security.([]any))
+	})
+
+	t.Run("service session security applies to secured meal planner operations only", func(t *testing.T) {
+		root := RunHTTPDSL(t, testdata.MealPlannerDSL)
+		openapi.Definitions = make(map[string]*openapi.Schema)
+
+		spec := renderOpenAPIJSON(t, openapiv3.Files, root)
+		parseOpenAPIV3Document(t, spec)
+
+		secured := operationFromSpec(t, spec, "/recipes", "get")
+		security, ok := secured["security"].([]any)
+		require.True(t, ok)
+		require.Len(t, security, 2)
+
+		public := operationFromSpec(t, spec, "/healthz", "get")
+		noSecurity, ok := public["security"]
+		require.True(t, ok)
+		require.Empty(t, noSecurity.([]any))
 	})
 }
 

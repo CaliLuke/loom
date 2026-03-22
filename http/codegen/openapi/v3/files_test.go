@@ -210,6 +210,8 @@ func TestRenderedSpecReusesRequestBodiesResponsesHeadersExamplesAndServiceTags(t
 	requirePattern(`(?m)^\s+- name: Auth$`)
 	requirePattern(`(?s)post:\n\s+tags:\n\s+- Auth`)
 	requirePattern(`(?m)^\s+\$ref: '#/components/requestBodies/AuthRefreshRequestBody'$`)
+	requirePattern(`(?m)^\s+AuthRefreshStatus200Response:$`)
+	requirePattern(`(?s)responses:\n\s+"200":\n\s+\$ref: '#/components/responses/AuthRefreshStatus200Response'`)
 	requirePattern(`(?s)responses:\n\s+"204":\n\s+\$ref: '#/components/responses/AuthRevokeStatus204Response'`)
 	requirePattern(`(?m)^\s+X-Trace-ID:\n\s+\$ref: '#/components/headers/XTraceIDHeader'$`)
 	requirePattern(`(?m)^\s+AuthRefreshRequestBodyPrimaryExample:$`)

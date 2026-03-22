@@ -57,7 +57,7 @@ func componentizeDocument(doc *Document) {
 	doc.Components.Examples = componentizeExamples(doc.Paths)
 	doc.Components.Headers = componentizeHeaders(doc.Paths)
 	doc.Components.RequestBodies = componentizeRequestBodies(doc.Paths)
-	doc.Components.Responses = componentizeResponses(doc.Paths)
+	doc.Components.Responses = componentizeResponses(doc.Paths, doc.Components.Schemas)
 	doc.Components.Parameters = componentizeParameters(doc.Paths)
 }
 
@@ -166,25 +166,41 @@ func componentizeRequestBodies(paths map[string]*PathItem) map[string]*RequestBo
 	)
 }
 
-func componentizeResponses(paths map[string]*PathItem) map[string]*ResponseRef {
+func componentizeResponses(paths map[string]*PathItem, schemas map[string]*Schema) map[string]*ResponseRef {
 	usages := collectResponseUsages(paths)
-	return componentizeReusableRefs(
-		usages,
-		func(usage responseUsage) componentUsage[Response, *ResponseRef] {
-			return componentUsage[Response, *ResponseRef]{ref: usage.ref, base: usage.base, prefix: ResponseComponentRefPrefix}
-		},
-		func(ref *ResponseRef) *Response {
-			if ref == nil {
-				return nil
-			}
-			return ref.Value
-		},
-		func(ref *ResponseRef, path string) {
-			ref.Ref = path
-			ref.Value = nil
-		},
-		func(value *Response) *ResponseRef { return &ResponseRef{Value: value} },
-	)
+	if len(usages) == 0 {
+		return nil
+	}
+
+	counts := countReusableValues(usages, func(usage responseUsage) (string, error) {
+		return responseHash(usage.ref, schemas)
+	})
+
+	components := make(map[string]*ResponseRef)
+	namesByHash := make(map[string]string)
+	hashesByName := make(map[string]string)
+	for _, usage := range usages {
+		if usage.ref == nil || usage.ref.Value == nil || usage.ref.Ref != "" {
+			continue
+		}
+		hash, err := responseHash(usage.ref, schemas)
+		if err != nil || counts[hash] < 2 {
+			continue
+		}
+		name, ok := namesByHash[hash]
+		if !ok {
+			name = uniqueReusableComponentName(usage.base, hash, hashesByName)
+			namesByHash[hash] = name
+			hashesByName[name] = hash
+			components[name] = &ResponseRef{Value: usage.ref.Value}
+		}
+		usage.ref.Ref = ResponseComponentRefPrefix + name
+		usage.ref.Value = nil
+	}
+	if len(components) == 0 {
+		return nil
+	}
+	return components
 }
 
 func collectInlineParameters(paths map[string]*PathItem) []*ParameterRef {
@@ -510,6 +526,231 @@ func componentizeReusableRefs[U any, V any, R any](
 
 func parameterHash(parameter *Parameter) (string, error) {
 	return hashReusableValue(parameter)
+}
+
+func responseHash(ref *ResponseRef, schemas map[string]*Schema) (string, error) {
+	if ref == nil || ref.Value == nil {
+		return "", nil
+	}
+	normalized := cloneResponseForHash(ref.Value, schemas)
+	return hashReusableValue(normalized)
+}
+
+func cloneResponseHeaderRefs(headers map[string]*HeaderRef) map[string]*HeaderRef {
+	if len(headers) == 0 {
+		return nil
+	}
+	cloned := make(map[string]*HeaderRef, len(headers))
+	for name, header := range headers {
+		if header == nil {
+			continue
+		}
+		current := *header
+		cloned[name] = &current
+	}
+	return cloned
+}
+
+func cloneResponseExampleRefs(examples map[string]*ExampleRef) map[string]*ExampleRef {
+	if len(examples) == 0 {
+		return nil
+	}
+	cloned := make(map[string]*ExampleRef, len(examples))
+	for name, example := range examples {
+		if example == nil {
+			continue
+		}
+		current := *example
+		cloned[name] = &current
+	}
+	return cloned
+}
+
+func cloneResponseExtensions(values map[string]any) map[string]any {
+	if len(values) == 0 {
+		return nil
+	}
+	cloned := make(map[string]any, len(values))
+	for key, value := range values {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func cloneResponseForHash(response *Response, schemas map[string]*Schema) *Response {
+	if response == nil {
+		return nil
+	}
+	cloned := &Response{
+		Description: response.Description,
+		Headers:     cloneResponseHeaderRefs(response.Headers),
+		Extensions:  cloneResponseExtensions(response.Extensions),
+	}
+	if len(response.Content) > 0 {
+		cloned.Content = make(map[string]*MediaType, len(response.Content))
+		for contentType, mediaType := range response.Content {
+			cloned.Content[contentType] = cloneMediaTypeForHash(mediaType, schemas, map[string]string{}, map[string]struct{}{})
+		}
+	}
+	return cloned
+}
+
+func cloneMediaTypeForHash(mediaType *MediaType, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *MediaType {
+	if mediaType == nil {
+		return nil
+	}
+	return &MediaType{
+		Schema:     normalizeSchemaForHash(mediaType.Schema, schemas, cache, stack),
+		Example:    mediaType.Example,
+		Examples:   cloneResponseExampleRefs(mediaType.Examples),
+		Extensions: cloneResponseExtensions(mediaType.Extensions),
+	}
+}
+
+func normalizeSchemaForHash(schema *Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *Schema {
+	if schema == nil {
+		return nil
+	}
+	if refName, ok := schemaComponentName(schema.Ref); ok {
+		return &Schema{Ref: canonicalResponseSchemaRef(refName, schemas, cache)}
+	}
+
+	cloned := *schema
+	cloned.Items = normalizeSchemaForHash(schema.Items, schemas, cache, stack)
+	cloned.Properties = normalizeSchemaMapForHash(schema.Properties, schemas, cache, stack)
+	cloned.Defs = normalizeSchemaMapForHash(schema.Defs, schemas, cache, stack)
+	cloned.AnyOf = normalizeSchemaSliceForHash(schema.AnyOf, schemas, cache, stack)
+	cloned.OneOf = normalizeSchemaSliceForHash(schema.OneOf, schemas, cache, stack)
+	cloned.AdditionalProperties = normalizeBoolOrSchemaForHash(schema.AdditionalProperties, schemas, cache, stack)
+	cloned.UnevaluatedProperties = normalizeBoolOrSchemaForHash(schema.UnevaluatedProperties, schemas, cache, stack)
+	cloned.Discriminator = normalizeDiscriminatorForHash(schema.Discriminator, schemas, cache, stack)
+	cloned.Links = normalizeLinksForHash(schema.Links, schemas, cache, stack)
+	return &cloned
+}
+
+func normalizeSchemaMapForHash(schemasMap map[string]*Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) map[string]*Schema {
+	if len(schemasMap) == 0 {
+		return nil
+	}
+	cloned := make(map[string]*Schema, len(schemasMap))
+	for name, schema := range schemasMap {
+		cloned[name] = normalizeSchemaForHash(schema, schemas, cache, stack)
+	}
+	return cloned
+}
+
+func normalizeSchemaSliceForHash(values []*Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) []*Schema {
+	if len(values) == 0 {
+		return nil
+	}
+	cloned := make([]*Schema, len(values))
+	for i, schema := range values {
+		cloned[i] = normalizeSchemaForHash(schema, schemas, cache, stack)
+	}
+	return cloned
+}
+
+func normalizeBoolOrSchemaForHash(value *BoolOrSchema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *BoolOrSchema {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	cloned.Schema = normalizeSchemaForHash(value.Schema, schemas, cache, stack)
+	return &cloned
+}
+
+func normalizeDiscriminatorForHash(discriminator *Discriminator, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *Discriminator {
+	if discriminator == nil {
+		return nil
+	}
+	cloned := *discriminator
+	if len(discriminator.Mapping) > 0 {
+		cloned.Mapping = make(map[string]string, len(discriminator.Mapping))
+		for key, ref := range discriminator.Mapping {
+			if refName, ok := schemaComponentName(ref); ok {
+				cloned.Mapping[key] = "schema:" + schemaHashByName(refName, schemas, cache, stack)
+				continue
+			}
+			cloned.Mapping[key] = ref
+		}
+	}
+	return &cloned
+}
+
+func normalizeLinksForHash(links []*Link, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) []*Link {
+	if len(links) == 0 {
+		return nil
+	}
+	cloned := make([]*Link, len(links))
+	for i, link := range links {
+		if link == nil {
+			continue
+		}
+		current := *link
+		current.Schema = normalizeSchemaForHash(link.Schema, schemas, cache, stack)
+		current.TargetSchema = normalizeSchemaForHash(link.TargetSchema, schemas, cache, stack)
+		cloned[i] = &current
+	}
+	return cloned
+}
+
+func schemaHashByName(name string, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) string {
+	if name == "" {
+		return "missing"
+	}
+	if hash, ok := cache[name]; ok {
+		return hash
+	}
+	if _, ok := stack[name]; ok {
+		return "recursive"
+	}
+	schema := schemas[name]
+	if schema == nil {
+		return "missing:" + name
+	}
+	stack[name] = struct{}{}
+	normalized := normalizeSchemaForHash(schema, schemas, cache, stack)
+	delete(stack, name)
+	hash, err := hashReusableValue(normalized)
+	if err != nil || hash == "" {
+		hash = "unhashable:" + name
+	}
+	cache[name] = hash
+	return hash
+}
+
+func canonicalResponseSchemaRef(name string, schemas map[string]*Schema, cache map[string]string) string {
+	if name == "" {
+		return ""
+	}
+	base, ok := duplicateAliasBase(name)
+	if !ok || schemas[base] == nil || schemas[name] == nil {
+		return "#/components/schemas/" + name
+	}
+	if schemaHashByName(base, schemas, cache, map[string]struct{}{}) == schemaHashByName(name, schemas, cache, map[string]struct{}{}) {
+		return "#/components/schemas/" + base
+	}
+	return "#/components/schemas/" + name
+}
+
+func duplicateAliasBase(name string) (string, bool) {
+	idx := strings.LastIndex(name, "_")
+	if idx <= 0 || idx == len(name)-1 {
+		return "", false
+	}
+	suffix := name[idx+1:]
+	if !isDigits(suffix) {
+		return "", false
+	}
+	return name[:idx], true
+}
+
+func schemaComponentName(ref string) (string, bool) {
+	const prefix = "#/components/schemas/"
+	if !strings.HasPrefix(ref, prefix) {
+		return "", false
+	}
+	return strings.TrimPrefix(ref, prefix), true
 }
 
 func hashReusableValue(value any) (string, error) {

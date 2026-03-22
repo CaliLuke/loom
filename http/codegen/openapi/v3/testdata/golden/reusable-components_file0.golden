@@ -81,6 +81,29 @@
       }
     },
     "responses": {
+      "AuthRefreshStatus200Response": {
+        "content": {
+          "application/json": {
+            "examples": {
+              "current": {
+                "$ref": "#/components/examples/AuthRefreshStatus200ResponseCurrentExample"
+              },
+              "next": {
+                "$ref": "#/components/examples/AuthRefreshStatus200ResponseNextExample"
+              }
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Session_d5d120e942d17641_2"
+            }
+          }
+        },
+        "description": "OK response.",
+        "headers": {
+          "X-Trace-ID": {
+            "$ref": "#/components/headers/XTraceIDHeader"
+          }
+        }
+      },
       "AuthRevokeStatus204Response": {
         "description": "No Content response."
       }
@@ -118,30 +141,6 @@
         "required": [
           "username",
           "password"
-        ],
-        "type": "object"
-      },
-      "Session_d5d120e942d17641": {
-        "example": {
-          "expiresAt": "2026-03-21T12:00:00Z",
-          "token": "token-456",
-          "traceID": "trace_456"
-        },
-        "properties": {
-          "expiresAt": {
-            "example": "2026-03-20T12:00:00Z",
-            "format": "date-time",
-            "type": "string"
-          },
-          "token": {
-            "example": "token-123",
-            "readOnly": true,
-            "type": "string"
-          }
-        },
-        "required": [
-          "token",
-          "expiresAt"
         ],
         "type": "object"
       },
@@ -186,27 +185,7 @@
         },
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "examples": {
-                  "current": {
-                    "$ref": "#/components/examples/AuthRefreshStatus200ResponseCurrentExample"
-                  },
-                  "next": {
-                    "$ref": "#/components/examples/AuthRefreshStatus200ResponseNextExample"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Session_d5d120e942d17641_2"
-                }
-              }
-            },
-            "description": "OK response.",
-            "headers": {
-              "X-Trace-ID": {
-                "$ref": "#/components/headers/XTraceIDHeader"
-              }
-            }
+            "$ref": "#/components/responses/AuthRefreshStatus200Response"
           }
         },
         "summary": "refresh auth",
@@ -237,27 +216,7 @@
         },
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "examples": {
-                  "current": {
-                    "$ref": "#/components/examples/AuthRefreshStatus200ResponseCurrentExample"
-                  },
-                  "next": {
-                    "$ref": "#/components/examples/AuthRefreshStatus200ResponseNextExample"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Session_d5d120e942d17641"
-                }
-              }
-            },
-            "description": "OK response.",
-            "headers": {
-              "X-Trace-ID": {
-                "$ref": "#/components/headers/XTraceIDHeader"
-              }
-            }
+            "$ref": "#/components/responses/AuthRefreshStatus200Response"
           }
         },
         "summary": "signin auth",

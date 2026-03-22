@@ -22,18 +22,23 @@ Reduce application design-file glue while making the default security posture cl
   - `SessionCookie(...)`
 - Harden auth and session-cookie tests, including non-happy-path coverage, gRPC, JSON-RPC, and real parser / cookie-jar round trips.
 - Replace response-wide cookie metadata with a per-cookie response model.
+- Simplify the representative `meal-planner` consumer specimen by lifting
+  `SessionSecurity(...)` to service scope while preserving explicit
+  `NoSecurity()` overrides on public endpoints.
 
 ### Next
 
-### 1. Prove the New DSL Against Real Consumer Designs
+### 1. Prove the New DSL Against Downstream Generation
 
-Use the new session/auth helpers in real consumer designs and measure:
+The in-repo representative consumer specimen now uses inherited
+`SessionSecurity(...)`, but the remaining proof is external:
 
-- which duplicated payload types disappear
-- which explicit `Header(...)`, `Cookie(...)`, and `Response(...)` blocks disappear
-- whether any awkward edge cases remain
-
-This is the highest-value next step because it validates whether the new surface actually reduces glue where it matters.
+- point a representative downstream repo or temp-module generation run at
+  `goa-light`
+- measure which duplicated payload types and explicit auth transport bindings
+  disappear
+- confirm the cleanup survives real regeneration across HTTP, JSON-RPC, gRPC,
+  and OpenAPI
 
 ### 2. Clean Up Auth DSL Ergonomics Further
 
