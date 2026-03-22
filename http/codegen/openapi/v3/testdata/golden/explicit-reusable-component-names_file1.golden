@@ -1,0 +1,79 @@
+openapi: 3.1.1
+info:
+    title: Goa API
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: http://localhost:80
+      description: Default server for test api
+paths:
+    /gadgets/{widgetID}/search:
+        post:
+            tags:
+                - componentNames
+            summary: searchGadgets componentNames
+            operationId: component_names.search_gadgets
+            parameters:
+                - $ref: '#/components/parameters/WidgetIDParam'
+            requestBody:
+                $ref: '#/components/requestBodies/SearchFiltersRequest'
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: string
+                                example: Doloribus qui quia.
+                            example: Itaque inventore optio.
+    /recipes/{widgetID}/search:
+        post:
+            tags:
+                - componentNames
+            summary: searchRecipes componentNames
+            operationId: component_names.search_recipes
+            parameters:
+                - $ref: '#/components/parameters/WidgetIDParam'
+            requestBody:
+                $ref: '#/components/requestBodies/SearchFiltersRequest'
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: string
+                                example: Quia molestias.
+                            example: Et tempora et quae.
+components:
+    schemas:
+        SearchFilters:
+            type: object
+            properties:
+                query:
+                    type: string
+                    example: soup
+            example:
+                query: soup
+            required:
+                - query
+    parameters:
+        WidgetIDParam:
+            name: widgetID
+            in: path
+            required: true
+            schema:
+                type: string
+                example: widget-123
+            example: widget-123
+    requestBodies:
+        SearchFiltersRequest:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/SearchFilters'
+                    example:
+                        query: soup
+tags:
+    - name: componentNames

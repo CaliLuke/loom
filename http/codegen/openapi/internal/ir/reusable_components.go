@@ -425,6 +425,9 @@ func responseComponentBase(operationID, status string) string {
 }
 
 func requestBodyComponentBase(usage requestBodyUsage, schemas map[string]*Schema) string {
+	if usage.ref != nil && usage.ref.Value != nil && strings.TrimSpace(usage.ref.Value.ComponentName) != "" {
+		return strings.TrimSpace(usage.ref.Value.ComponentName)
+	}
 	if base := reusableRequestBodyComponentBase(usage.ref, schemas); base != "" {
 		return base
 	}
@@ -893,6 +896,9 @@ func uniqueParameterComponentName(parameter *Parameter, hash string, hashesByNam
 func ParameterComponentName(parameter *Parameter) string {
 	if parameter == nil {
 		return "Parameter"
+	}
+	if strings.TrimSpace(parameter.ComponentName) != "" {
+		return strings.TrimSpace(parameter.ComponentName)
 	}
 	base := codegen.Goify(parameter.In, true) + codegen.Goify(parameterComponentSuffix(parameter.Name), true)
 	if base == "" {

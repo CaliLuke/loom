@@ -50,6 +50,7 @@ func TestFiles(t *testing.T) {
 		{"streaming-partial-examples", testdata.StreamingPartialExamplesDSL},
 		{"parameter-components", testdata.OpenAPIParameterComponentsDSL},
 		{"reusable-components", testdata.OpenAPIReusableComponentsDSL},
+		{"explicit-reusable-component-names", testdata.OpenAPIExplicitReusableComponentNamesDSL},
 		{"typename", testdata.TypenameDSL},
 		{"schema-dedup", testdata.OpenAPISchemaDedupDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},
@@ -226,6 +227,23 @@ func TestRenderedSpecReusesRequestBodiesResponsesHeadersExamplesAndServiceTags(t
 	requirePattern(`(?m)profile:$`)
 	requirePattern(`(?m)contentEncoding: base64`)
 	requirePattern(`(?m)contentMediaType: application/json`)
+}
+
+func TestRenderedSpecUsesExplicitReusableRequestBodyAndParameterNames(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPIExplicitReusableComponentNamesDSL)
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(`(?m)^\s+WidgetIDParam:$`)
+	requirePattern(`(?m)^\s+SearchFiltersRequest:$`)
+	requirePattern(`(?m)^\s+- \$ref: '#/components/parameters/WidgetIDParam'$`)
+	requirePattern(`(?m)^\s+\$ref: '#/components/requestBodies/SearchFiltersRequest'$`)
 }
 
 func TestRenderedSpecClosedObjectModeClosesObjectsAndUsesUnevaluatedPropertiesForUnions(t *testing.T) {

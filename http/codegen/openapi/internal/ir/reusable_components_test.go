@@ -160,6 +160,88 @@ func TestComponentizeRequestBodiesUsesPublicSchemaNameWhenAvailable(t *testing.T
 	require.Equal(t, "#/components/requestBodies/PayloadRequestBody", doc.Paths["/two"].Operations["POST"].RequestBody.Ref)
 }
 
+func TestComponentizeRequestBodiesUsesExplicitComponentNameWhenAvailable(t *testing.T) {
+	doc := &Document{
+		Paths: map[string]*PathItem{
+			"/one": {
+				Operations: map[string]*Operation{
+					"POST": {
+						OperationID: "svc.one",
+						RequestBody: &RequestBodyRef{
+							Value: &RequestBody{
+								ComponentName: "SearchFiltersRequest",
+								Required:      true,
+								Content: map[string]*MediaType{
+									"application/json": {
+										Schema: &Schema{Ref: "#/components/schemas/Payload"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"/two": {
+				Operations: map[string]*Operation{
+					"POST": {
+						OperationID: "svc.two",
+						RequestBody: &RequestBodyRef{
+							Value: &RequestBody{
+								ComponentName: "SearchFiltersRequest",
+								Required:      true,
+								Content: map[string]*MediaType{
+									"application/json": {
+										Schema: &Schema{Ref: "#/components/schemas/Payload"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	componentizeDocument(doc)
+
+	require.Contains(t, doc.Components.RequestBodies, "SearchFiltersRequest")
+	require.Equal(t, "#/components/requestBodies/SearchFiltersRequest", doc.Paths["/one"].Operations["POST"].RequestBody.Ref)
+	require.Equal(t, "#/components/requestBodies/SearchFiltersRequest", doc.Paths["/two"].Operations["POST"].RequestBody.Ref)
+}
+
+func TestComponentizeParametersUsesExplicitComponentNameWhenAvailable(t *testing.T) {
+	doc := &Document{
+		Paths: map[string]*PathItem{
+			"/one/{widgetID}": {
+				Operations: map[string]*Operation{
+					"GET": {
+						OperationID: "svc.one",
+						Parameters: []*ParameterRef{
+							{Value: &Parameter{Name: "widgetID", In: "path", Required: true, ComponentName: "WidgetIDParam", Schema: &Schema{Type: "string"}}},
+						},
+					},
+				},
+			},
+			"/two/{widgetID}": {
+				Operations: map[string]*Operation{
+					"GET": {
+						OperationID: "svc.two",
+						Parameters: []*ParameterRef{
+							{Value: &Parameter{Name: "widgetID", In: "path", Required: true, ComponentName: "WidgetIDParam", Schema: &Schema{Type: "string"}}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	componentizeDocument(doc)
+
+	require.Contains(t, doc.Components.Parameters, "WidgetIDParam")
+	require.Equal(t, "#/components/parameters/WidgetIDParam", doc.Paths["/one/{widgetID}"].Operations["GET"].Parameters[0].Ref)
+	require.Equal(t, "#/components/parameters/WidgetIDParam", doc.Paths["/two/{widgetID}"].Operations["GET"].Parameters[0].Ref)
+}
+
 func TestComponentizeResponsesUsesPublicSchemaNameWhenAvailable(t *testing.T) {
 	doc := &Document{
 		Paths: map[string]*PathItem{

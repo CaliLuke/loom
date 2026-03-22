@@ -52,6 +52,10 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
   generic public component names when that contract identity can be inferred
   safely, instead of defaulting to operation-derived names; hash suffixes
   remain only as a collision fallback.
+- Use `Meta("openapi:component:requestBody", "...")` when a hoisted reusable
+  request body needs an explicit public component name, and
+  `Meta("openapi:component:parameter", "...")` when a hoisted reusable
+  path/query/header/cookie parameter needs one.
 - Service-level OpenAPI tags are inherited by operations and file servers when
   those operations do not declare method-level tags of their own.
 - Attribute-level `Meta("openapi:readOnly", ...)`,

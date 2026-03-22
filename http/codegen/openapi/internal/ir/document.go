@@ -81,8 +81,9 @@ func buildRequestBody(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, r
 		contentType = "application/x-www-form-urlencoded"
 	}
 	return &RequestBody{
-		Description: endpoint.Body.Description,
-		Required:    !endpoint.OptionalRequestBody,
+		Description:   endpoint.Body.Description,
+		Required:      !endpoint.OptionalRequestBody,
+		ComponentName: componentMetaValue(endpoint.Body, "openapi:component:requestBody"),
 		Content: map[string]*MediaType{
 			contentType: buildMediaType(endpoint.Body, bodies.RequestBody, rand, closeObjects),
 		},
@@ -508,6 +509,21 @@ func openAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 		return nil, false
 	}
 	return val, true
+}
+
+func componentMetaValue(attr *expr.AttributeExpr, key string) string {
+	if attr == nil {
+		return ""
+	}
+	if value, ok := attr.Meta.Last(key); ok && strings.TrimSpace(value) != "" {
+		return value
+	}
+	if userType, ok := attr.Type.(expr.UserType); ok {
+		if value, ok := userType.Attribute().Meta.Last(key); ok && strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func firstResponseBody(schemas []*Schema) *Schema {

@@ -47,6 +47,7 @@ type (
 	Parameter struct {
 		Name            string
 		In              string
+		ComponentName   string `json:"-"`
 		Description     string
 		Style           string
 		Explode         *bool
@@ -69,10 +70,11 @@ type (
 
 	// RequestBody describes an IR request body.
 	RequestBody struct {
-		Description string
-		Required    bool
-		Content     map[string]*MediaType
-		Extensions  map[string]any
+		Description   string
+		Required      bool
+		ComponentName string `json:"-"`
+		Content       map[string]*MediaType
+		Extensions    map[string]any
 	}
 
 	// ResponseRef is a response reference or value.

@@ -86,15 +86,18 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 
 ### In Progress
 
-- none
+- Unit 5 of [OpenAPI Contract](./openapi_contract.md): explicit reusable
+  request-body and parameter component naming is in; automatic request/response
+  schema splitting remains.
 
 ### Next
 
 - prove the cleaned stack against representative downstream generation in temp modules
 - finish the direct follow-up test backlog for refactored transport/service-data seams
 - execute the remaining self-contained OpenAPI units in
-  [OpenAPI Contract](./openapi_contract.md), starting with projection controls
-  for public request/response surfaces
+  [OpenAPI Contract](./openapi_contract.md), starting with the remaining
+  request/response schema-splitting slice of projection controls for public
+  request/response surfaces
 - keep new generator work on the shared Go-section architecture and use typed
   Go emission for logic-heavy sections by default
 

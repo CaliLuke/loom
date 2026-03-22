@@ -153,6 +153,7 @@ func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *ex
 	parameter := &Parameter{
 		Name:            name,
 		In:              in,
+		ComponentName:   componentMetaValue(attr, "openapi:component:parameter"),
 		Description:     attr.Description,
 		AllowEmptyValue: in != "path",
 		Required:        required,

@@ -1,0 +1,129 @@
+{
+  "components": {
+    "parameters": {
+      "WidgetIDParam": {
+        "example": "widget-123",
+        "in": "path",
+        "name": "widgetID",
+        "required": true,
+        "schema": {
+          "example": "widget-123",
+          "type": "string"
+        }
+      }
+    },
+    "requestBodies": {
+      "SearchFiltersRequest": {
+        "content": {
+          "application/json": {
+            "example": {
+              "query": "soup"
+            },
+            "schema": {
+              "$ref": "#/components/schemas/SearchFilters"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "schemas": {
+      "SearchFilters": {
+        "example": {
+          "query": "soup"
+        },
+        "properties": {
+          "query": {
+            "example": "soup",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Goa API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/gadgets/{widgetID}/search": {
+      "post": {
+        "operationId": "component_names.search_gadgets",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WidgetIDParam"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/SearchFiltersRequest"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": "Itaque inventore optio.",
+                "schema": {
+                  "example": "Doloribus qui quia.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "summary": "searchGadgets componentNames",
+        "tags": [
+          "componentNames"
+        ]
+      }
+    },
+    "/recipes/{widgetID}/search": {
+      "post": {
+        "operationId": "component_names.search_recipes",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WidgetIDParam"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/SearchFiltersRequest"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": "Et tempora et quae.",
+                "schema": {
+                  "example": "Quia molestias.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "summary": "searchRecipes componentNames",
+        "tags": [
+          "componentNames"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "componentNames"
+    }
+  ]
+}

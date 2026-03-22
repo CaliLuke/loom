@@ -350,6 +350,22 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Attribute("name", String)
 //	    Meta("openapi:typename", "Bar")
 //	})
+//
+// - "openapi:component:requestBody" sets the public component name used when a
+// repeated request body is hoisted into `components.requestBodies`. Applicable
+// to payload/body attributes and their underlying user types.
+//
+//	var SearchFilters = Type("SearchFilters", func() {
+//	    Meta("openapi:component:requestBody", "SearchFiltersRequest")
+//	})
+//
+// - "openapi:component:parameter" sets the public component name used when a
+// repeated path/query/header/cookie parameter is hoisted into
+// `components.parameters`. Applicable to attributes.
+//
+//	Attribute("cursor", String, func() {
+//	    Meta("openapi:component:parameter", "CursorParam")
+//	})
 func Meta(name string, value ...string) {
 	switch e := eval.Current().(type) {
 	case expr.MetaAdder:
