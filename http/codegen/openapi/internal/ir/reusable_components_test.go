@@ -103,7 +103,148 @@ func TestComponentizeResponsesReusesEquivalentPayloadResponsesAcrossSchemaAliase
 
 	componentizeDocument(doc)
 
-	require.Contains(t, doc.Components.Responses, "SvcOneStatus200Response")
-	require.Equal(t, "#/components/responses/SvcOneStatus200Response", doc.Paths["/one"].Operations["GET"].Responses["200"].Ref)
-	require.Equal(t, "#/components/responses/SvcOneStatus200Response", doc.Paths["/two"].Operations["GET"].Responses["200"].Ref)
+	require.Contains(t, doc.Components.Responses, "SharedShapeStatus200Response")
+	require.Equal(t, "#/components/responses/SharedShapeStatus200Response", doc.Paths["/one"].Operations["GET"].Responses["200"].Ref)
+	require.Equal(t, "#/components/responses/SharedShapeStatus200Response", doc.Paths["/two"].Operations["GET"].Responses["200"].Ref)
+}
+
+func TestComponentizeRequestBodiesUsesPublicSchemaNameWhenAvailable(t *testing.T) {
+	doc := &Document{
+		Paths: map[string]*PathItem{
+			"/one": {
+				Operations: map[string]*Operation{
+					"POST": {
+						OperationID: "svc.one",
+						RequestBody: &RequestBodyRef{
+							Value: &RequestBody{
+								Required: true,
+								Content: map[string]*MediaType{
+									"application/json": {
+										Schema: &Schema{Ref: "#/components/schemas/Payload"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"/two": {
+				Operations: map[string]*Operation{
+					"POST": {
+						OperationID: "svc.two",
+						RequestBody: &RequestBodyRef{
+							Value: &RequestBody{
+								Required: true,
+								Content: map[string]*MediaType{
+									"application/json": {
+										Schema: &Schema{Ref: "#/components/schemas/Payload"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Components: &Components{
+			Schemas: map[string]*Schema{
+				"Payload": {Type: "object"},
+			},
+		},
+	}
+
+	componentizeDocument(doc)
+
+	require.Contains(t, doc.Components.RequestBodies, "PayloadRequestBody")
+	require.Equal(t, "#/components/requestBodies/PayloadRequestBody", doc.Paths["/one"].Operations["POST"].RequestBody.Ref)
+	require.Equal(t, "#/components/requestBodies/PayloadRequestBody", doc.Paths["/two"].Operations["POST"].RequestBody.Ref)
+}
+
+func TestComponentizeResponsesUsesPublicSchemaNameWhenAvailable(t *testing.T) {
+	doc := &Document{
+		Paths: map[string]*PathItem{
+			"/one": {
+				Operations: map[string]*Operation{
+					"GET": {
+						OperationID: "svc.one",
+						Responses: map[string]*ResponseRef{
+							"200": {
+								Value: &Response{
+									Description: "OK response.",
+									Content: map[string]*MediaType{
+										"application/json": {
+											Schema: &Schema{Ref: "#/components/schemas/Result"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"/two": {
+				Operations: map[string]*Operation{
+					"GET": {
+						OperationID: "svc.two",
+						Responses: map[string]*ResponseRef{
+							"200": {
+								Value: &Response{
+									Description: "OK response.",
+									Content: map[string]*MediaType{
+										"application/json": {
+											Schema: &Schema{Ref: "#/components/schemas/Result"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Components: &Components{
+			Schemas: map[string]*Schema{
+				"Result": {Type: "object"},
+			},
+		},
+	}
+
+	componentizeDocument(doc)
+
+	require.Contains(t, doc.Components.Responses, "ResultStatus200Response")
+	require.Equal(t, "#/components/responses/ResultStatus200Response", doc.Paths["/one"].Operations["GET"].Responses["200"].Ref)
+	require.Equal(t, "#/components/responses/ResultStatus200Response", doc.Paths["/two"].Operations["GET"].Responses["200"].Ref)
+}
+
+func TestComponentizeResponsesUsesGenericNoContentName(t *testing.T) {
+	doc := &Document{
+		Paths: map[string]*PathItem{
+			"/one": {
+				Operations: map[string]*Operation{
+					"POST": {
+						OperationID: "svc.one",
+						Responses: map[string]*ResponseRef{
+							"204": {Value: &Response{Description: "No Content response."}},
+						},
+					},
+				},
+			},
+			"/two": {
+				Operations: map[string]*Operation{
+					"POST": {
+						OperationID: "svc.two",
+						Responses: map[string]*ResponseRef{
+							"204": {Value: &Response{Description: "No Content response."}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	componentizeDocument(doc)
+
+	require.Contains(t, doc.Components.Responses, "NoContentResponse")
+	require.Equal(t, "#/components/responses/NoContentResponse", doc.Paths["/one"].Operations["POST"].Responses["204"].Ref)
+	require.Equal(t, "#/components/responses/NoContentResponse", doc.Paths["/two"].Operations["POST"].Responses["204"].Ref)
 }

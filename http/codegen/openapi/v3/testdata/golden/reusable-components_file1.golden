@@ -14,10 +14,10 @@ paths:
             summary: refresh auth
             operationId: auth.refresh
             requestBody:
-                $ref: '#/components/requestBodies/AuthRefreshRequestBody'
+                $ref: '#/components/requestBodies/CredentialsRequestBody'
             responses:
                 "200":
-                    $ref: '#/components/responses/AuthRefreshStatus200Response'
+                    $ref: '#/components/responses/Session_d5d120e942d17641Status200Response'
     /auth/revoke:
         post:
             tags:
@@ -26,7 +26,7 @@ paths:
             operationId: auth.revoke
             responses:
                 "204":
-                    $ref: '#/components/responses/AuthRevokeStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
     /auth/signin:
         post:
             tags:
@@ -34,10 +34,10 @@ paths:
             summary: signin auth
             operationId: auth.signin
             requestBody:
-                $ref: '#/components/requestBodies/AuthRefreshRequestBody'
+                $ref: '#/components/requestBodies/CredentialsRequestBody'
             responses:
                 "200":
-                    $ref: '#/components/responses/AuthRefreshStatus200Response'
+                    $ref: '#/components/responses/Session_d5d120e942d17641Status200Response'
     /auth/signout:
         post:
             tags:
@@ -46,7 +46,7 @@ paths:
             operationId: auth.signout
             responses:
                 "204":
-                    $ref: '#/components/responses/AuthRevokeStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
 components:
     schemas:
         Credentials:
@@ -105,7 +105,7 @@ components:
                 trace-b:
                     $ref: '#/components/examples/XTraceIDHeaderTraceBExample'
     requestBodies:
-        AuthRefreshRequestBody:
+        CredentialsRequestBody:
             required: true
             content:
                 application/json:
@@ -117,7 +117,9 @@ components:
                         primary:
                             $ref: '#/components/examples/AuthRefreshRequestBodyPrimaryExample'
     responses:
-        AuthRefreshStatus200Response:
+        NoContentResponse:
+            description: No Content response.
+        Session_d5d120e942d17641Status200Response:
             description: OK response.
             headers:
                 X-Trace-ID:
@@ -131,8 +133,6 @@ components:
                             $ref: '#/components/examples/AuthRefreshStatus200ResponseCurrentExample'
                         next:
                             $ref: '#/components/examples/AuthRefreshStatus200ResponseNextExample'
-        AuthRevokeStatus204Response:
-            description: No Content response.
     examples:
         AuthRefreshRequestBodyBackupExample:
             summary: backup

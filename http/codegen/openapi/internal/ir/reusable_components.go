@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"goa.design/goa/v3/codegen"
@@ -36,8 +38,9 @@ type (
 	}
 
 	responseUsage struct {
-		ref  *ResponseRef
-		base string
+		ref    *ResponseRef
+		base   string
+		status string
 	}
 
 	componentUsage[V any, R any] struct {
@@ -56,7 +59,7 @@ func componentizeDocument(doc *Document) {
 	}
 	doc.Components.Examples = componentizeExamples(doc.Paths)
 	doc.Components.Headers = componentizeHeaders(doc.Paths)
-	doc.Components.RequestBodies = componentizeRequestBodies(doc.Paths)
+	doc.Components.RequestBodies = componentizeRequestBodies(doc.Paths, doc.Components.Schemas)
 	doc.Components.Responses = componentizeResponses(doc.Paths, doc.Components.Schemas)
 	doc.Components.Parameters = componentizeParameters(doc.Paths)
 }
@@ -145,12 +148,16 @@ func componentizeHeaders(paths map[string]*PathItem) map[string]*HeaderRef {
 	)
 }
 
-func componentizeRequestBodies(paths map[string]*PathItem) map[string]*RequestBodyRef {
+func componentizeRequestBodies(paths map[string]*PathItem, schemas map[string]*Schema) map[string]*RequestBodyRef {
 	usages := collectRequestBodyUsages(paths)
 	return componentizeReusableRefs(
 		usages,
 		func(usage requestBodyUsage) componentUsage[RequestBody, *RequestBodyRef] {
-			return componentUsage[RequestBody, *RequestBodyRef]{ref: usage.ref, base: usage.base, prefix: RequestBodyComponentRefPrefix}
+			return componentUsage[RequestBody, *RequestBodyRef]{
+				ref:    usage.ref,
+				base:   requestBodyComponentBase(usage, schemas),
+				prefix: RequestBodyComponentRefPrefix,
+			}
 		},
 		func(ref *RequestBodyRef) *RequestBody {
 			if ref == nil {
@@ -189,7 +196,13 @@ func componentizeResponses(paths map[string]*PathItem, schemas map[string]*Schem
 		}
 		name, ok := namesByHash[hash]
 		if !ok {
-			name = uniqueReusableComponentName(usage.base, hash, hashesByName)
+			base := usage.base
+			if standardErrorResponseComponentBase(usage.status) == "" {
+				if inferred := reusableResponseComponentBase(usage.ref, usage.status, schemas); inferred != "" {
+					base = inferred
+				}
+			}
+			name = uniqueReusableComponentName(base, hash, hashesByName)
 			namesByHash[hash] = name
 			hashesByName[name] = hash
 			components[name] = &ResponseRef{Value: usage.ref.Value}
@@ -394,8 +407,9 @@ func collectResponseUsages(paths map[string]*PathItem) []responseUsage {
 					continue
 				}
 				usages = append(usages, responseUsage{
-					ref:  ref,
-					base: responseComponentBase(operation.OperationID, status),
+					ref:    ref,
+					base:   responseComponentBase(operation.OperationID, status),
+					status: status,
 				})
 			}
 		}
@@ -408,6 +422,109 @@ func responseComponentBase(operationID, status string) string {
 		return base
 	}
 	return componentNameFromOperation(operationID) + responseStatusComponentSuffix(status) + "Response"
+}
+
+func requestBodyComponentBase(usage requestBodyUsage, schemas map[string]*Schema) string {
+	if base := reusableRequestBodyComponentBase(usage.ref, schemas); base != "" {
+		return base
+	}
+	return usage.base
+}
+
+func reusableRequestBodyComponentBase(ref *RequestBodyRef, schemas map[string]*Schema) string {
+	if ref == nil || ref.Value == nil || len(ref.Value.Content) != 1 {
+		return ""
+	}
+	contentType := orderedStringKeys(ref.Value.Content)[0]
+	mediaType := ref.Value.Content[contentType]
+	schemaName, ok := componentSchemaNameFromMediaType(mediaType, schemas)
+	if !ok {
+		return ""
+	}
+	suffix := mediaTypeComponentSuffix(contentType)
+	if strings.HasSuffix(schemaName, "RequestBody") {
+		if suffix == "" {
+			return schemaName
+		}
+		return schemaName + suffix
+	}
+	return schemaName + suffix + "RequestBody"
+}
+
+func reusableResponseComponentBase(ref *ResponseRef, status string, schemas map[string]*Schema) string {
+	if ref == nil || ref.Value == nil {
+		return ""
+	}
+	if base := genericEmptyResponseComponentBase(ref.Value, status); base != "" {
+		return base
+	}
+	if len(ref.Value.Content) != 1 {
+		return ""
+	}
+	contentType := orderedStringKeys(ref.Value.Content)[0]
+	mediaType := ref.Value.Content[contentType]
+	schemaName, ok := componentSchemaNameFromMediaType(mediaType, schemas)
+	if !ok {
+		return ""
+	}
+	return schemaName + mediaTypeComponentSuffix(contentType) + responseStatusComponentSuffix(status) + "Response"
+}
+
+func genericEmptyResponseComponentBase(response *Response, status string) string {
+	if response == nil || len(response.Content) != 0 || len(response.Headers) != 0 {
+		return ""
+	}
+	if !isDefaultResponseDescription(response.Description, status) {
+		return ""
+	}
+	text := strings.TrimSpace(http.StatusText(statusCodeValue(status)))
+	if text == "" {
+		return ""
+	}
+	return codegen.Goify(text, true) + "Response"
+}
+
+func isDefaultResponseDescription(description, status string) bool {
+	code := statusCodeValue(status)
+	if code == 0 {
+		return false
+	}
+	return description == fmt.Sprintf("%s response.", http.StatusText(code))
+}
+
+func statusCodeValue(status string) int {
+	trimmed := strings.TrimSpace(status)
+	if !isDigits(trimmed) {
+		return 0
+	}
+	code, err := strconv.Atoi(trimmed)
+	if err != nil {
+		return 0
+	}
+	return code
+}
+
+func componentSchemaNameFromMediaType(mediaType *MediaType, schemas map[string]*Schema) (string, bool) {
+	if mediaType == nil || mediaType.Schema == nil {
+		return "", false
+	}
+	name, ok := schemaComponentName(mediaType.Schema.Ref)
+	if !ok {
+		return "", false
+	}
+	return canonicalComponentSchemaName(name, schemas), true
+}
+
+func canonicalComponentSchemaName(name string, schemas map[string]*Schema) string {
+	base, ok := duplicateAliasBase(name)
+	if !ok || schemas[base] == nil || schemas[name] == nil {
+		return name
+	}
+	cache := map[string]string{}
+	if schemaHashByName(base, schemas, cache, map[string]struct{}{}) == schemaHashByName(name, schemas, cache, map[string]struct{}{}) {
+		return base
+	}
+	return name
 }
 
 func standardErrorResponseComponentBase(status string) string {

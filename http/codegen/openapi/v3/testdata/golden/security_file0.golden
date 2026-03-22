@@ -1,7 +1,7 @@
 {
   "components": {
     "responses": {
-      "TestServiceTestEndpointAStatus204Response": {
+      "NoContentResponse": {
         "description": "No Content response."
       }
     },
@@ -72,7 +72,7 @@
         "operationId": "test_service.test_endpoint_a",
         "responses": {
           "204": {
-            "$ref": "#/components/responses/TestServiceTestEndpointAStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           }
         },
         "security": [
@@ -96,7 +96,7 @@
         "operationId": "test_service.test_endpoint_b",
         "responses": {
           "204": {
-            "$ref": "#/components/responses/TestServiceTestEndpointAStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           }
         },
         "security": [

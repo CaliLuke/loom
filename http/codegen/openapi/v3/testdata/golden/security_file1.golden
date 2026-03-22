@@ -15,7 +15,7 @@ paths:
             operationId: test_service.test_endpoint_a
             responses:
                 "204":
-                    $ref: '#/components/responses/TestServiceTestEndpointAStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
             security:
                 - api_key_query_k: []
                   basic_header_Authorization: []
@@ -30,7 +30,7 @@ paths:
             operationId: test_service.test_endpoint_b
             responses:
                 "204":
-                    $ref: '#/components/responses/TestServiceTestEndpointAStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
             security:
                 - api_key_header_Authorization: []
                 - oauth2_query_auth:
@@ -38,7 +38,7 @@ paths:
                     - api:write
 components:
     responses:
-        TestServiceTestEndpointAStatus204Response:
+        NoContentResponse:
             description: No Content response.
     securitySchemes:
         api_key_header_Authorization:

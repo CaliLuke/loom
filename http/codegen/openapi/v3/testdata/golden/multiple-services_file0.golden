@@ -1,7 +1,7 @@
 {
   "components": {
     "requestBodies": {
-      "TestServiceTestEndpointRequestBody": {
+      "PayloadRequestBody": {
         "content": {
           "application/json": {
             "example": {
@@ -16,7 +16,7 @@
       }
     },
     "responses": {
-      "TestServiceTestEndpointStatus200Response": {
+      "ResultStatus200Response": {
         "content": {
           "application/json": {
             "example": {
@@ -68,11 +68,11 @@
       "get": {
         "operationId": "test_service.test_endpoint",
         "requestBody": {
-          "$ref": "#/components/requestBodies/TestServiceTestEndpointRequestBody"
+          "$ref": "#/components/requestBodies/PayloadRequestBody"
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/TestServiceTestEndpointStatus200Response"
+            "$ref": "#/components/responses/ResultStatus200Response"
           }
         },
         "summary": "testEndpoint testService",
@@ -83,11 +83,11 @@
       "post": {
         "operationId": "another_test_service.test_endpoint",
         "requestBody": {
-          "$ref": "#/components/requestBodies/TestServiceTestEndpointRequestBody"
+          "$ref": "#/components/requestBodies/PayloadRequestBody"
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/TestServiceTestEndpointStatus200Response"
+            "$ref": "#/components/responses/ResultStatus200Response"
           }
         },
         "summary": "testEndpoint anotherTestService",

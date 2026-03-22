@@ -13,20 +13,20 @@ paths:
             summary: testEndpoint testService
             operationId: test_service.test_endpoint
             requestBody:
-                $ref: '#/components/requestBodies/TestServiceTestEndpointRequestBody'
+                $ref: '#/components/requestBodies/PayloadRequestBody'
             responses:
                 "200":
-                    $ref: '#/components/responses/TestServiceTestEndpointStatus200Response'
+                    $ref: '#/components/responses/ResultStatus200Response'
         post:
             tags:
                 - anotherTestService
             summary: testEndpoint anotherTestService
             operationId: another_test_service.test_endpoint
             requestBody:
-                $ref: '#/components/requestBodies/TestServiceTestEndpointRequestBody'
+                $ref: '#/components/requestBodies/PayloadRequestBody'
             responses:
                 "200":
-                    $ref: '#/components/responses/TestServiceTestEndpointStatus200Response'
+                    $ref: '#/components/responses/ResultStatus200Response'
 components:
     schemas:
         Payload:
@@ -46,7 +46,7 @@ components:
             example:
                 string: ""
     requestBodies:
-        TestServiceTestEndpointRequestBody:
+        PayloadRequestBody:
             required: true
             content:
                 application/json:
@@ -55,7 +55,7 @@ components:
                     example:
                         string: ""
     responses:
-        TestServiceTestEndpointStatus200Response:
+        ResultStatus200Response:
             description: OK response.
             content:
                 application/json:

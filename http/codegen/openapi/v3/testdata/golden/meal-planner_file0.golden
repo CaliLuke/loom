@@ -14,7 +14,7 @@
       }
     },
     "requestBodies": {
-      "MealPlannerPreviewSelectionRequestBody": {
+      "PreviewSelectionRequestBody": {
         "content": {
           "application/json": {
             "schema": {
@@ -46,7 +46,7 @@
         },
         "description": "forbidden: Access is forbidden."
       },
-      "MealPlannerShareMealPlanStatus204Response": {
+      "NoContentResponse": {
         "description": "No Content response."
       },
       "TooManyRequestsError": {
@@ -887,7 +887,7 @@
         },
         "responses": {
           "204": {
-            "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           },
           "400": {
             "$ref": "#/components/responses/BadRequestError"
@@ -987,11 +987,11 @@
       "post": {
         "operationId": "meal_planner.preview_selection",
         "requestBody": {
-          "$ref": "#/components/requestBodies/MealPlannerPreviewSelectionRequestBody"
+          "$ref": "#/components/requestBodies/PreviewSelectionRequestBody"
         },
         "responses": {
           "204": {
-            "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           },
           "400": {
             "$ref": "#/components/responses/BadRequestError"
@@ -1021,11 +1021,11 @@
       "post": {
         "operationId": "meal_planner.preview_selection_suppressed",
         "requestBody": {
-          "$ref": "#/components/requestBodies/MealPlannerPreviewSelectionRequestBody"
+          "$ref": "#/components/requestBodies/PreviewSelectionRequestBody"
         },
         "responses": {
           "204": {
-            "$ref": "#/components/responses/MealPlannerShareMealPlanStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           },
           "400": {
             "$ref": "#/components/responses/BadRequestError"

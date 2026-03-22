@@ -38,7 +38,12 @@ func parameterComponentsFromIR(parameters map[string]*openapiir.ParameterRef) ma
 	}
 	out := make(map[string]*ParameterRef, len(parameters))
 	for name, parameter := range parameters {
-		out[name] = parameterRefFromIR(parameter)
+		if converted := parameterRefFromIR(parameter); converted != nil {
+			out[name] = converted
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -49,7 +54,12 @@ func requestBodyComponentsFromIR(requestBodies map[string]*openapiir.RequestBody
 	}
 	out := make(map[string]*RequestBodyRef, len(requestBodies))
 	for name, body := range requestBodies {
-		out[name] = requestBodyRefFromIR(body)
+		if converted := requestBodyRefFromIR(body); converted != nil {
+			out[name] = converted
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -84,7 +94,12 @@ func responsesFromIR(responses map[string]*openapiir.ResponseRef) map[string]*Re
 	}
 	out := make(map[string]*ResponseRef, len(responses))
 	for status, response := range responses {
-		out[status] = responseRefFromIR(response)
+		if converted := responseRefFromIR(response); converted != nil {
+			out[status] = converted
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -118,7 +133,12 @@ func headersFromIR(headers map[string]*openapiir.HeaderRef) map[string]*HeaderRe
 	}
 	out := make(map[string]*HeaderRef, len(headers))
 	for name, header := range headers {
-		out[name] = headerRefFromIR(header)
+		if converted := headerRefFromIR(header); converted != nil {
+			out[name] = converted
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -201,7 +221,12 @@ func examplesFromIR(examples map[string]*openapiir.ExampleRef) map[string]*Examp
 	}
 	out := make(map[string]*ExampleRef, len(examples))
 	for name, example := range examples {
-		out[name] = exampleRefFromIR(example)
+		if converted := exampleRefFromIR(example); converted != nil {
+			out[name] = converted
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }

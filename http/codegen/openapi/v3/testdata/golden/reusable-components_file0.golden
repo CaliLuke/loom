@@ -61,7 +61,7 @@
       }
     },
     "requestBodies": {
-      "AuthRefreshRequestBody": {
+      "CredentialsRequestBody": {
         "content": {
           "application/json": {
             "examples": {
@@ -81,7 +81,10 @@
       }
     },
     "responses": {
-      "AuthRefreshStatus200Response": {
+      "NoContentResponse": {
+        "description": "No Content response."
+      },
+      "Session_d5d120e942d17641Status200Response": {
         "content": {
           "application/json": {
             "examples": {
@@ -103,9 +106,6 @@
             "$ref": "#/components/headers/XTraceIDHeader"
           }
         }
-      },
-      "AuthRevokeStatus204Response": {
-        "description": "No Content response."
       }
     },
     "schemas": {
@@ -181,11 +181,11 @@
       "post": {
         "operationId": "auth.refresh",
         "requestBody": {
-          "$ref": "#/components/requestBodies/AuthRefreshRequestBody"
+          "$ref": "#/components/requestBodies/CredentialsRequestBody"
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/AuthRefreshStatus200Response"
+            "$ref": "#/components/responses/Session_d5d120e942d17641Status200Response"
           }
         },
         "summary": "refresh auth",
@@ -199,7 +199,7 @@
         "operationId": "auth.revoke",
         "responses": {
           "204": {
-            "$ref": "#/components/responses/AuthRevokeStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           }
         },
         "summary": "revoke auth",
@@ -212,11 +212,11 @@
       "post": {
         "operationId": "auth.signin",
         "requestBody": {
-          "$ref": "#/components/requestBodies/AuthRefreshRequestBody"
+          "$ref": "#/components/requestBodies/CredentialsRequestBody"
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/AuthRefreshStatus200Response"
+            "$ref": "#/components/responses/Session_d5d120e942d17641Status200Response"
           }
         },
         "summary": "signin auth",
@@ -230,7 +230,7 @@
         "operationId": "auth.signout",
         "responses": {
           "204": {
-            "$ref": "#/components/responses/AuthRevokeStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           }
         },
         "summary": "signout auth",

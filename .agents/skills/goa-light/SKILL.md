@@ -48,6 +48,10 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - Generated OpenAPI also hoists repeated request bodies, headers, named
   examples, and structurally identical no-body responses into reusable
   components where the public contract shape is stable enough to share safely.
+- Shared reusable request bodies and responses now prefer schema-derived or
+  generic public component names when that contract identity can be inferred
+  safely, instead of defaulting to operation-derived names; hash suffixes
+  remain only as a collision fallback.
 - Service-level OpenAPI tags are inherited by operations and file servers when
   those operations do not declare method-level tags of their own.
 - Attribute-level `Meta("openapi:readOnly", ...)`,

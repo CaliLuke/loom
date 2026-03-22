@@ -40,7 +40,7 @@
       }
     },
     "responses": {
-      "DedupServiceFirstStatus204Response": {
+      "NoContentResponse": {
         "description": "No Content response."
       }
     },
@@ -153,7 +153,7 @@
         },
         "responses": {
           "204": {
-            "$ref": "#/components/responses/DedupServiceFirstStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           }
         },
         "summary": "first dedupService",
@@ -180,7 +180,7 @@
         },
         "responses": {
           "204": {
-            "$ref": "#/components/responses/DedupServiceFirstStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           }
         },
         "summary": "second dedupService",
@@ -197,7 +197,7 @@
         },
         "responses": {
           "204": {
-            "$ref": "#/components/responses/DedupServiceFirstStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           }
         },
         "summary": "union_first dedupService",
@@ -214,7 +214,7 @@
         },
         "responses": {
           "204": {
-            "$ref": "#/components/responses/DedupServiceFirstStatus204Response"
+            "$ref": "#/components/responses/NoContentResponse"
           }
         },
         "summary": "union_second dedupService",

@@ -23,7 +23,7 @@ paths:
                             name: Nisi sint sunt beatae quia.
             responses:
                 "204":
-                    $ref: '#/components/responses/DedupServiceFirstStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
     /second:
         post:
             tags:
@@ -40,7 +40,7 @@ paths:
                             name: Assumenda fuga est sint maxime.
             responses:
                 "204":
-                    $ref: '#/components/responses/DedupServiceFirstStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
     /union/first:
         post:
             tags:
@@ -51,7 +51,7 @@ paths:
                 $ref: '#/components/requestBodies/DedupServiceUnionFirstRequestBody'
             responses:
                 "204":
-                    $ref: '#/components/responses/DedupServiceFirstStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
     /union/second:
         post:
             tags:
@@ -62,7 +62,7 @@ paths:
                 $ref: '#/components/requestBodies/DedupServiceUnionFirstRequestBody'
             responses:
                 "204":
-                    $ref: '#/components/responses/DedupServiceFirstStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
 components:
     schemas:
         AlphaSchemaDedup:
@@ -143,7 +143,7 @@ components:
                         value:
                             alpha: Molestiae iure sit.
     responses:
-        DedupServiceFirstStatus204Response:
+        NoContentResponse:
             description: No Content response.
 tags:
     - name: dedupService

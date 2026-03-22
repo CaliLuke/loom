@@ -128,7 +128,7 @@ paths:
                             note: Dinner plan for next week.
             responses:
                 "204":
-                    $ref: '#/components/responses/MealPlannerShareMealPlanStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequestError'
                 "401":
@@ -189,10 +189,10 @@ paths:
             summary: previewSelection mealPlanner
             operationId: meal_planner.preview_selection
             requestBody:
-                $ref: '#/components/requestBodies/MealPlannerPreviewSelectionRequestBody'
+                $ref: '#/components/requestBodies/PreviewSelectionRequestBody'
             responses:
                 "204":
-                    $ref: '#/components/responses/MealPlannerShareMealPlanStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequestError'
                 "401":
@@ -209,10 +209,10 @@ paths:
             summary: previewSelectionSuppressed mealPlanner
             operationId: meal_planner.preview_selection_suppressed
             requestBody:
-                $ref: '#/components/requestBodies/MealPlannerPreviewSelectionRequestBody'
+                $ref: '#/components/requestBodies/PreviewSelectionRequestBody'
             responses:
                 "204":
-                    $ref: '#/components/responses/MealPlannerShareMealPlanStatus204Response'
+                    $ref: '#/components/responses/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequestError'
                 "401":
@@ -775,7 +775,7 @@ components:
                 format: date
             example: "2026-03-16"
     requestBodies:
-        MealPlannerPreviewSelectionRequestBody:
+        PreviewSelectionRequestBody:
             required: true
             content:
                 application/json:
@@ -794,7 +794,7 @@ components:
                 application/vnd.goa.error:
                     schema:
                         $ref: '#/components/schemas/Error'
-        MealPlannerShareMealPlanStatus204Response:
+        NoContentResponse:
             description: No Content response.
         TooManyRequestsError:
             description: 'rate_limited: Too Many Requests response.'

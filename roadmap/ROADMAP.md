@@ -33,6 +33,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   `components.responses` when the response description, headers, content type,
   and referenced schema shape are equivalent even if duplicate generated schema
   refs only differ by internal alias names.
+- OpenAPI now gives shared reusable request bodies and responses stable
+  schema-driven or generic public component names where safe, while pruning
+  nil-valued component placeholders before rendering `components.*` maps.
 - OpenAPI operations now inherit service-level tag declarations by default, so
   operation tags line up with published top-level tag objects without
   duplicating method-level metadata.
@@ -87,8 +90,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - prove the cleaned stack against representative downstream generation in temp modules
 - finish the direct follow-up test backlog for refactored transport/service-data seams
 - execute the remaining self-contained OpenAPI units in
-  [OpenAPI Contract](./openapi_contract.md), starting with public component
-  naming cleanup and auth error canonicalization
+  [OpenAPI Contract](./openapi_contract.md), starting with auth error
+  canonicalization
 - keep new generator work on the shared Go-section architecture and use typed
   Go emission for logic-heavy sections by default
 
@@ -108,7 +111,6 @@ These items are prioritized based on two goals:
 
    Remaining units:
 
-   - Unit 2: public component naming and adapter hygiene.
    - Unit 3: auth error canonicalization.
    - Unit 5: projection controls for public request/response surfaces.
    - Unit 4: problem-document error contracts.

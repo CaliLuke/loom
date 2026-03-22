@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"goa.design/goa/v3/codegen"
+	openapiir "goa.design/goa/v3/http/codegen/openapi/internal/ir"
 	"goa.design/goa/v3/http/codegen/openapi/v3/testdata/dsls"
 )
 
@@ -26,4 +27,30 @@ func TestNewUsesIRBuiltOperationBodies(t *testing.T) {
 	require.True(t, operation.RequestBody.Value.Required)
 	require.Contains(t, operation.RequestBody.Value.Content, "application/json")
 	require.NotEmpty(t, operation.RequestBody.Value.Content["application/json"].Schema.Ref)
+}
+
+func TestReusableComponentsFromIRSkipsNilValues(t *testing.T) {
+	components := reusableComponentsFromIR(&openapiir.Components{
+		Parameters: map[string]*openapiir.ParameterRef{
+			"Nil": nil,
+		},
+		Headers: map[string]*openapiir.HeaderRef{
+			"Nil": nil,
+		},
+		RequestBodies: map[string]*openapiir.RequestBodyRef{
+			"Nil": nil,
+		},
+		Responses: map[string]*openapiir.ResponseRef{
+			"Nil": nil,
+		},
+		Examples: map[string]*openapiir.ExampleRef{
+			"Nil": nil,
+		},
+	})
+
+	require.Nil(t, components.Parameters)
+	require.Nil(t, components.Headers)
+	require.Nil(t, components.RequestBodies)
+	require.Nil(t, components.Responses)
+	require.Nil(t, components.Examples)
 }

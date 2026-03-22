@@ -34,6 +34,10 @@ roadmap items unless a regression appears:
   description, headers, content type, and referenced schema shape are
   equivalent even if duplicate generated schema refs differ only by internal
   alias names.
+- Stable reusable public component naming for shared request bodies and
+  responses when a schema-derived or generic public name can be inferred
+  safely, plus pruning of nil-valued component placeholders during IR to v3
+  adaptation.
 - Attribute-level schema metadata for `readOnly`, `writeOnly`, `deprecated`,
   `contentEncoding`, and `contentMediaType`.
 - Documentation-only `OpenAPIBody(...)` support for
@@ -107,7 +111,7 @@ Acceptance:
 
 ### Unit 2: Public Component Naming And Adapter Hygiene
 
-Status: planned
+Status: completed
 
 Problem:
 Some reusable public components still get operation-derived names or hash
