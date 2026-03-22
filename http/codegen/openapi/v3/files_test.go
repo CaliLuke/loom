@@ -52,6 +52,7 @@ func TestFiles(t *testing.T) {
 		{"reusable-components", testdata.OpenAPIReusableComponentsDSL},
 		{"explicit-reusable-component-names", testdata.OpenAPIExplicitReusableComponentNamesDSL},
 		{"request-response-split", testdata.OpenAPIRequestResponseSplitDSL},
+		{"problem-links-async", testdata.OpenAPIProblemLinksAsyncDSL},
 		{"typename", testdata.TypenameDSL},
 		{"schema-dedup", testdata.OpenAPISchemaDedupDSL},
 		{"not-generate-server", testdata.NotGenerateServerDSL},
@@ -262,6 +263,35 @@ func TestRenderedSpecSplitsRequestAndResponseSchemasFromDirectionalMetadata(t *t
 	requirePattern(`(?m)^\s+CreateResponseBodyResponse:$`)
 	requirePattern(`(?s)CreateRequestBodyRequest:.*email:.*password:`)
 	requirePattern(`(?s)CreateResponseBodyResponse:.*id:.*email:`)
+}
+
+func TestRenderedSpecPublishesProblemLinksAndAsyncContracts(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPIProblemLinksAsyncDSL)
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(`(?m)^    responses:$`)
+	requirePattern(`(?m)^\s+Problem:$`)
+	requirePattern(`(?m)^\s+application/problem\+json:$`)
+	requirePattern(`(?m)^\s+OpenAPIThreadAcceptedStatus202Response:$`)
+	requirePattern(`(?m)^\s+links:$`)
+	requirePattern(`(?m)^\s+thread:$`)
+	requirePattern(`(?m)^\s+watch:$`)
+	requirePattern(`(?m)^\s+operationId: thread_ops\.get_thread$`)
+	requirePattern(`(?m)^\s+operationId: thread_ops\.watch_thread$`)
+	requirePattern(`(?m)^\s+x-goa-async:$`)
+	requirePattern(`(?m)^\s+transport: sse$`)
+	requirePattern(`(?m)^\s+transport: websocket$`)
+	requirePattern(`(?m)^\s+direction: server$`)
+	requirePattern(`(?m)^\s+direction: bidirectional$`)
+	requirePattern(`(?m)^\s+contentType: text/event-stream$`)
+	requirePattern(`(?m)^\s+status: 101$`)
 }
 
 func TestRenderedSpecClosedObjectModeClosesObjectsAndUsesUnevaluatedPropertiesForUnions(t *testing.T) {

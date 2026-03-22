@@ -68,7 +68,67 @@
         "summary": "events streamingPartialExamples",
         "tags": [
           "streamingPartialExamples"
-        ]
+        ],
+        "x-goa-async": {
+          "direction": "server",
+          "handshake": {
+            "path": "/events",
+            "request": {
+              "method": "GET"
+            },
+            "response": {
+              "contentType": "text/event-stream",
+              "status": 200
+            }
+          },
+          "messages": {
+            "outbound": {
+              "contentType": "application/json",
+              "schema": {
+                "example": {
+                  "data": {
+                    "message": "A nisi porro aspernatur maxime et in."
+                  },
+                  "event": "abc123"
+                },
+                "properties": {
+                  "data": {
+                    "example": {
+                      "message": "Magnam repellat tenetur quia aut earum."
+                    },
+                    "properties": {
+                      "message": {
+                        "example": "Incidunt assumenda voluptate autem.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message"
+                    ],
+                    "type": "object"
+                  },
+                  "event": {
+                    "example": "abc123",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "event",
+                  "data"
+                ],
+                "type": "object"
+              },
+              "sse": {
+                "dataField": null,
+                "eventField": null,
+                "idField": null,
+                "requestIDField": null,
+                "retryField": null
+              }
+            }
+          },
+          "transport": "sse"
+        }
       }
     },
     "/ws/projects/{projectID}": {
@@ -95,7 +155,48 @@
         "summary": "projectSocket streamingPartialExamples",
         "tags": [
           "streamingPartialExamples"
-        ]
+        ],
+        "x-goa-async": {
+          "direction": "server",
+          "handshake": {
+            "path": "/ws/projects/{projectID}",
+            "request": {
+              "method": "GET"
+            },
+            "response": {
+              "contentType": "",
+              "status": 101
+            }
+          },
+          "messages": {
+            "outbound": {
+              "contentType": "application/json",
+              "schema": {
+                "example": {
+                  "event": "Ad exercitationem qui consequuntur non.",
+                  "ts": 1
+                },
+                "properties": {
+                  "event": {
+                    "example": "Quis ut.",
+                    "type": "string"
+                  },
+                  "ts": {
+                    "example": 1,
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "ts",
+                  "event"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "transport": "websocket"
+        }
       }
     }
   },

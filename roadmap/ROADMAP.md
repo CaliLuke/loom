@@ -43,6 +43,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   and parameter components, and automatically splits request vs response
   schemas when `readOnly`/`writeOnly` metadata would otherwise leak
   server-managed or secret fields across both directions.
+- OpenAPI now supports standards-first problem error contracts via
+  `ProblemResult`, first-class response links, framework-owned async streaming
+  contracts under `x-goa-async`, and representative Redocly plus downstream
+  TypeScript/Go smoke-generation gates.
 - OpenAPI operations now inherit service-level tag declarations by default, so
   operation tags line up with published top-level tag objects without
   duplicating method-level metadata.
@@ -96,9 +100,6 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 
 - prove the cleaned stack against representative downstream generation in temp modules
 - finish the direct follow-up test backlog for refactored transport/service-data seams
-- execute the remaining self-contained OpenAPI units in
-  [OpenAPI Contract](./openapi_contract.md), starting with problem-document
-  error contracts
 - keep new generator work on the shared Go-section architecture and use typed
   Go emission for logic-heavy sections by default
 
@@ -115,13 +116,6 @@ These items are prioritized based on two goals:
 2. OpenAPI framework contract improvements
    See [OpenAPI Contract](./openapi_contract.md) and
    [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md).
-
-   Remaining units:
-
-   - Unit 4: problem-document error contracts.
-   - Unit 7: OpenAPI links DSL.
-   - Unit 6: async contract publication for SSE and WebSocket.
-   - Unit 8: contract linting plus downstream SDK smoke-generation gates.
 
 3. Refactor follow-up test backlog
    The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.

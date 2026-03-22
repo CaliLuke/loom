@@ -12,36 +12,107 @@ servers:
 paths:
     /events:
         get:
-            tags:
-                - streamingPartialExamples
-            summary: events streamingPartialExamples
             operationId: streaming_partial_examples.events
             responses:
                 "200":
-                    description: OK response.
                     content:
                         text/event-stream:
                             schema:
                                 $ref: '#/components/schemas/RealtimeSSEEvent'
+                    description: OK response.
             security: []
-    /ws/projects/{projectID}:
-        get:
+            summary: events streamingPartialExamples
             tags:
                 - streamingPartialExamples
-            summary: projectSocket streamingPartialExamples
+            x-goa-async:
+                direction: server
+                handshake:
+                    path: /events
+                    request:
+                        method: GET
+                    response:
+                        contentType: text/event-stream
+                        status: 200
+                messages:
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                data:
+                                    type: object
+                                    properties:
+                                        message:
+                                            type: string
+                                            example: Incidunt assumenda voluptate autem.
+                                    example:
+                                        message: Magnam repellat tenetur quia aut earum.
+                                    required:
+                                        - message
+                                event:
+                                    type: string
+                                    example: abc123
+                            example:
+                                data:
+                                    message: A nisi porro aspernatur maxime et in.
+                                event: abc123
+                            required:
+                                - event
+                                - data
+                        sse:
+                            dataField: null
+                            eventField: null
+                            idField: null
+                            requestIDField: null
+                            retryField: null
+                transport: sse
+    /ws/projects/{projectID}:
+        get:
             operationId: streaming_partial_examples.project_socket
             parameters:
-                - name: projectID
+                - example: proj_1
                   in: path
+                  name: projectID
                   required: true
                   schema:
-                    type: string
                     example: proj_1
-                  example: proj_1
+                    type: string
             responses:
                 "101":
                     description: Switching Protocols response.
             security: []
+            summary: projectSocket streamingPartialExamples
+            tags:
+                - streamingPartialExamples
+            x-goa-async:
+                direction: server
+                handshake:
+                    path: /ws/projects/{projectID}
+                    request:
+                        method: GET
+                    response:
+                        contentType: ""
+                        status: 101
+                messages:
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                event:
+                                    type: string
+                                    example: Quis ut.
+                                ts:
+                                    type: integer
+                                    example: 1
+                                    format: int64
+                            example:
+                                event: Ad exercitationem qui consequuntur non.
+                                ts: 1
+                            required:
+                                - ts
+                                - event
+                transport: websocket
 components:
     schemas:
         RealtimeSSEEvent:

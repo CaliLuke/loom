@@ -17,20 +17,64 @@ servers:
 paths:
     /events:
         get:
-            tags:
-                - mealPlanner
-            summary: watchPlannerEvents mealPlanner
             operationId: meal_planner.watch_planner_events
             responses:
                 "200":
-                    description: OK response.
                     content:
                         text/event-stream:
                             schema:
                                 $ref: '#/components/schemas/WatchPlannerEventsResponseBody'
+                    description: OK response.
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
             security: []
+            summary: watchPlannerEvents mealPlanner
+            tags:
+                - mealPlanner
+            x-goa-async:
+                direction: server
+                handshake:
+                    path: /events
+                    request:
+                        method: GET
+                    response:
+                        contentType: text/event-stream
+                        status: 200
+                messages:
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                data:
+                                    type: object
+                                    properties:
+                                        meal_plan_id:
+                                            type: string
+                                            example: plan_12
+                                    example:
+                                        meal_plan_id: plan_12
+                                    required:
+                                        - meal_plan_id
+                                    additionalProperties: false
+                                event:
+                                    type: string
+                                    example: plan.updated
+                            example:
+                                data:
+                                    meal_plan_id: plan_12
+                                event: plan.updated
+                            required:
+                                - event
+                                - data
+                            additionalProperties: false
+                        sse:
+                            dataField: null
+                            eventField: null
+                            idField: null
+                            requestIDField: null
+                            retryField: null
+                transport: sse
     /healthz:
         get:
             tags:

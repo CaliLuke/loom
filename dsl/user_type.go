@@ -10,8 +10,16 @@ var (
 	// responses.
 	ErrorResultIdentifier = expr.ErrorResultIdentifier
 
+	// ProblemResultIdentifier is the result type identifier used for
+	// standards-first problem error responses.
+	ProblemResultIdentifier = expr.ProblemResultIdentifier
+
 	// ErrorResult is the built-in result type for error responses.
 	ErrorResult = expr.ErrorResult
+
+	// ProblemResult is the built-in result type for RFC 9457-style problem
+	// responses.
+	ProblemResult = expr.ProblemResult
 )
 
 // Type defines a user type. A user type has a unique name and may be an alias

@@ -48,6 +48,9 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - Generated OpenAPI also hoists repeated request bodies, headers, named
   examples, and structurally identical no-body responses into reusable
   components where the public contract shape is stable enough to share safely.
+- Use `ProblemResult` / `ProblemResultIdentifier` when you want
+  RFC 9457-style `application/problem+json` error contracts with a stable
+  machine-readable `code` field instead of the legacy Goa error media type.
 - Shared reusable request bodies and responses now prefer schema-derived or
   generic public component names when that contract identity can be inferred
   safely, instead of defaulting to operation-derived names; hash suffixes
@@ -62,6 +65,10 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
   schema component across both directions.
 - Service-level OpenAPI tags are inherited by operations and file servers when
   those operations do not declare method-level tags of their own.
+- Use `Link(...)`, `LinkOperation(...)`, `LinkOperationRef(...)`,
+  `LinkParam(...)`, and `LinkRequestBody(...)` on HTTP responses when a
+  workflow or follow-up operation should be published as an OpenAPI response
+  link instead of a handwritten patch.
 - Attribute-level `Meta("openapi:readOnly", ...)`,
   `Meta("openapi:writeOnly", ...)`, `Meta("openapi:deprecated", ...)`,
   `Meta("openapi:contentEncoding", ...)`, and
@@ -77,7 +84,14 @@ Use this skill when building or changing a service that uses `goa-light`. It is 
 - Use API metadata `Meta("openapi:closed-objects", "true")` when machine consumers need stricter object contracts in generated OpenAPI.
 - In closed-object mode, normal object schemas emit `additionalProperties: false`, composed union wrappers emit `unevaluatedProperties: false`, and explicit dictionaries such as `MapOf(...)` remain open.
 - Generated OpenAPI keeps SSE endpoints on ordinary HTTP success responses instead of rewriting them to WebSocket `101` semantics, and advertises those responses as `text/event-stream` rather than `application/json`.
+- Generated OpenAPI also publishes framework-owned async streaming contracts
+  under `x-goa-async` for SSE and WebSocket endpoints, with inline message
+  schemas plus truthful handshake metadata.
 - Generated OpenAPI normalizes binary (`Bytes`) examples to string form; do not expect byte-array literals in emitted OpenAPI examples.
+- The OpenAPI regression gate in `http/codegen/openapi/v3` now includes
+  Redocly lint plus downstream `openapi-typescript` and `oapi-codegen` smoke
+  generation. Treat those tests as contract-shape enforcement, not optional
+  extras.
 - `OneOf(...)` works both as a named union declaration and as a type constructor.
 - Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
 - When modeling alternate transport/tool result shapes, prefer a canonical `ResultType` plus `View(...)` definitions over hand-maintained sibling DTO copies.

@@ -54,3 +54,24 @@ func TestReusableComponentsFromIRSkipsNilValues(t *testing.T) {
 	require.Nil(t, components.Responses)
 	require.Nil(t, components.Examples)
 }
+
+func TestResponseFromIRCarriesLinks(t *testing.T) {
+	response := responseFromIR(&openapiir.Response{
+		Description: "Accepted response.",
+		Links: map[string]*openapiir.ResponseLinkRef{
+			"self": {
+				Value: &openapiir.ResponseLink{
+					OperationID: "thread_ops.get_thread",
+					Parameters: map[string]any{
+						"thread_id": "$response.body#/thread_id",
+					},
+				},
+			},
+		},
+	})
+
+	require.NotNil(t, response)
+	require.Contains(t, response.Links, "self")
+	require.Equal(t, "thread_ops.get_thread", response.Links["self"].Value.OperationID)
+	require.Equal(t, "$response.body#/thread_id", response.Links["self"].Value.Parameters["thread_id"])
+}

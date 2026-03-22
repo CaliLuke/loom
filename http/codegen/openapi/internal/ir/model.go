@@ -88,7 +88,24 @@ type (
 		Description string
 		Headers     map[string]*HeaderRef
 		Content     map[string]*MediaType
+		Links       map[string]*ResponseLinkRef
 		Extensions  map[string]any
+	}
+
+	// ResponseLinkRef is a response link reference or value.
+	ResponseLinkRef struct {
+		Ref   string
+		Value *ResponseLink
+	}
+
+	// ResponseLink describes an OpenAPI response link.
+	ResponseLink struct {
+		OperationID  string
+		OperationRef string
+		Description  string
+		Parameters   map[string]any
+		RequestBody  any
+		Extensions   map[string]any
 	}
 
 	// MediaType describes an IR media type.

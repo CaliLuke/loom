@@ -1,12 +1,14 @@
 package ir
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"goa.design/goa/v3/codegen"
 	"goa.design/goa/v3/expr"
+	"goa.design/goa/v3/http/codegen/openapi"
 	"goa.design/goa/v3/http/codegen/openapi/v3/testdata/dsls"
 	"goa.design/goa/v3/http/codegen/testdata"
 )
@@ -129,6 +131,50 @@ func TestBuildDocumentComponentizesRepeatedContractNodes(t *testing.T) {
 	require.NotNil(t, refresh.RequestBody)
 	require.NotEmpty(t, signin.RequestBody.Ref)
 	require.Equal(t, signin.RequestBody.Ref, refresh.RequestBody.Ref)
+}
+
+func TestBuildDocumentPublishesResponseLinksAndAsyncContracts(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.OpenAPIProblemLinksAsyncDSL)
+
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NotNil(t, doc)
+
+	createThread := doc.Paths["/threads"].Operations["POST"]
+	require.NotNil(t, createThread)
+	require.Contains(t, createThread.Responses, "202")
+	accepted := createThread.Responses["202"]
+	require.NotNil(t, accepted)
+	require.NotEmpty(t, accepted.Ref)
+	componentName := strings.TrimPrefix(accepted.Ref, ResponseComponentRefPrefix)
+	require.Contains(t, doc.Components.Responses, componentName)
+	require.NotNil(t, doc.Components.Responses[componentName])
+	require.NotNil(t, doc.Components.Responses[componentName].Value)
+	require.Contains(t, doc.Components.Responses[componentName].Value.Links, "thread")
+	require.Contains(t, doc.Components.Responses[componentName].Value.Links, "watch")
+	require.Equal(t, "thread_ops.get_thread", doc.Components.Responses[componentName].Value.Links["thread"].Value.OperationID)
+	require.Equal(t, "$response.body#/thread_id", doc.Components.Responses[componentName].Value.Links["thread"].Value.Parameters["thread_id"])
+
+	watchThread := doc.Paths["/threads/{thread_id}/events"].Operations["GET"]
+	require.NotNil(t, watchThread)
+	async, ok := watchThread.Extensions[asyncContractExtensionName].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "sse", async["transport"])
+
+	streamCommands := doc.Paths["/ws/ops/{channel}"].Operations["GET"]
+	require.NotNil(t, streamCommands)
+	async, ok = streamCommands.Extensions[asyncContractExtensionName].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "websocket", async["transport"])
+	messages, ok := async["messages"].(map[string]any)
+	require.True(t, ok)
+	inbound, ok := messages["inbound"].(map[string]any)
+	require.True(t, ok)
+	schema, ok := inbound["schema"].(*openapi.Schema)
+	require.True(t, ok)
+	require.Empty(t, schema.Ref)
+	require.Equal(t, "object", string(schema.Type))
+	require.Contains(t, schema.Properties, "op")
+	require.Contains(t, schema.Properties, "target")
 }
 
 func openAPIExampleValueForTest(attr *expr.AttributeExpr, raw any) (any, bool) {

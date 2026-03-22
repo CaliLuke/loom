@@ -109,6 +109,8 @@ type (
 		Parent eval.Expression
 		// Meta is a list of key/value pairs
 		Meta MetaExpr
+		// Links describes the OpenAPI links emitted for this response.
+		Links []*HTTPResponseLinkExpr
 		// currentCookie tracks the cookie currently configured by the DSL.
 		currentCookie *HTTPResponseCookieExpr
 	}
@@ -286,6 +288,21 @@ func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors 
 	if r.OpenAPIBody != nil {
 		verr.Merge(r.OpenAPIBody.Validate("HTTP response OpenAPI body", r))
 	}
+	if len(r.Links) > 0 {
+		seen := make(map[string]struct{}, len(r.Links))
+		for _, link := range r.Links {
+			if link == nil {
+				verr.Add(r, "response defines a nil link")
+				continue
+			}
+			verr.Merge(link.Validate())
+			if _, ok := seen[link.Name]; ok {
+				verr.Add(r, "response defines duplicate link %q", link.Name)
+				continue
+			}
+			seen[link.Name] = struct{}{}
+		}
+	}
 	return verr
 }
 
@@ -382,6 +399,22 @@ func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 		res.Cookies = make([]*HTTPResponseCookieExpr, len(r.Cookies))
 		for i, c := range r.Cookies {
 			res.Cookies[i] = c.Dup()
+		}
+	}
+	if len(r.Links) > 0 {
+		res.Links = make([]*HTTPResponseLinkExpr, len(r.Links))
+		for i, link := range r.Links {
+			if link == nil {
+				continue
+			}
+			dup := *link
+			if len(link.Parameters) > 0 {
+				dup.Parameters = make(map[string]string, len(link.Parameters))
+				for name, expression := range link.Parameters {
+					dup.Parameters[name] = expression
+				}
+			}
+			res.Links[i] = &dup
 		}
 	}
 	return &res

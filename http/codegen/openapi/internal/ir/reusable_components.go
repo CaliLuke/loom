@@ -704,6 +704,7 @@ func cloneResponseForHash(response *Response, schemas map[string]*Schema) *Respo
 	cloned := &Response{
 		Description: response.Description,
 		Headers:     cloneResponseHeaderRefs(response.Headers),
+		Links:       cloneResponseLinkRefs(response.Links),
 		Extensions:  cloneResponseExtensions(response.Extensions),
 	}
 	if len(response.Content) > 0 {
@@ -711,6 +712,32 @@ func cloneResponseForHash(response *Response, schemas map[string]*Schema) *Respo
 		for contentType, mediaType := range response.Content {
 			cloned.Content[contentType] = cloneMediaTypeForHash(mediaType, schemas, map[string]string{}, map[string]struct{}{})
 		}
+	}
+	return cloned
+}
+
+func cloneResponseLinkRefs(links map[string]*ResponseLinkRef) map[string]*ResponseLinkRef {
+	if len(links) == 0 {
+		return nil
+	}
+	cloned := make(map[string]*ResponseLinkRef, len(links))
+	for name, link := range links {
+		if link == nil {
+			continue
+		}
+		current := *link
+		if link.Value != nil {
+			value := *link.Value
+			if len(link.Value.Parameters) > 0 {
+				value.Parameters = make(map[string]any, len(link.Value.Parameters))
+				for key, parameter := range link.Value.Parameters {
+					value.Parameters[key] = parameter
+				}
+			}
+			value.Extensions = cloneResponseExtensions(link.Value.Extensions)
+			current.Value = &value
+		}
+		cloned[name] = &current
 	}
 	return cloned
 }

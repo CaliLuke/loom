@@ -171,6 +171,7 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 		Description: desc,
 		Headers:     headers,
 		Content:     content,
+		Links:       buildResponseLinks(resp),
 		Extensions:  openapi.ExtensionsFromExpr(resp.Meta),
 	}
 }

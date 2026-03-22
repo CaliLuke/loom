@@ -729,7 +729,69 @@
         "summary": "watchPlannerEvents mealPlanner",
         "tags": [
           "mealPlanner"
-        ]
+        ],
+        "x-goa-async": {
+          "direction": "server",
+          "handshake": {
+            "path": "/events",
+            "request": {
+              "method": "GET"
+            },
+            "response": {
+              "contentType": "text/event-stream",
+              "status": 200
+            }
+          },
+          "messages": {
+            "outbound": {
+              "contentType": "application/json",
+              "schema": {
+                "additionalProperties": false,
+                "example": {
+                  "data": {
+                    "meal_plan_id": "plan_12"
+                  },
+                  "event": "plan.updated"
+                },
+                "properties": {
+                  "data": {
+                    "additionalProperties": false,
+                    "example": {
+                      "meal_plan_id": "plan_12"
+                    },
+                    "properties": {
+                      "meal_plan_id": {
+                        "example": "plan_12",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "meal_plan_id"
+                    ],
+                    "type": "object"
+                  },
+                  "event": {
+                    "example": "plan.updated",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "event",
+                  "data"
+                ],
+                "type": "object"
+              },
+              "sse": {
+                "dataField": null,
+                "eventField": null,
+                "idField": null,
+                "requestIDField": null,
+                "retryField": null
+              }
+            }
+          },
+          "transport": "sse"
+        }
       }
     },
     "/healthz": {

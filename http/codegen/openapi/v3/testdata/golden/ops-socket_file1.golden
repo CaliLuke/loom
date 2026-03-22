@@ -12,22 +12,69 @@ servers:
 paths:
     /ws/ops/{channel}:
         get:
-            tags:
-                - opsSocket
-            summary: streamCommands opsSocket
             operationId: ops_socket.stream_commands
             parameters:
-                - name: channel
+                - example: deployments
                   in: path
+                  name: channel
                   required: true
                   schema:
-                    type: string
                     example: deployments
-                  example: deployments
+                    type: string
             responses:
                 "101":
                     description: Switching Protocols response.
             security: []
+            summary: streamCommands opsSocket
+            tags:
+                - opsSocket
+            x-goa-async:
+                direction: bidirectional
+                handshake:
+                    path: /ws/ops/{channel}
+                    request:
+                        method: GET
+                    response:
+                        contentType: ""
+                        status: 101
+                messages:
+                    inbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                op:
+                                    type: string
+                                    example: pause
+                                target:
+                                    type: string
+                                    example: worker-eu-1
+                            example:
+                                op: pause
+                                target: worker-eu-1
+                            required:
+                                - op
+                                - target
+                            additionalProperties: false
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                event:
+                                    type: string
+                                    example: command.accepted
+                                ok:
+                                    type: boolean
+                                    example: true
+                            example:
+                                event: command.accepted
+                                ok: true
+                            required:
+                                - event
+                                - ok
+                            additionalProperties: false
+                transport: websocket
 components: {}
 tags:
     - name: opsSocket

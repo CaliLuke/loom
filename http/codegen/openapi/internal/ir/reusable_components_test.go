@@ -298,6 +298,82 @@ func TestComponentizeResponsesUsesPublicSchemaNameWhenAvailable(t *testing.T) {
 	require.Equal(t, "#/components/responses/ResultStatus200Response", doc.Paths["/two"].Operations["GET"].Responses["200"].Ref)
 }
 
+func TestComponentizeResponsesIncludesLinksInReuseHash(t *testing.T) {
+	doc := &Document{
+		Paths: map[string]*PathItem{
+			"/one": {
+				Operations: map[string]*Operation{
+					"POST": {
+						OperationID: "svc.one",
+						Responses: map[string]*ResponseRef{
+							"202": {
+								Value: &Response{
+									Description: "Accepted response.",
+									Content: map[string]*MediaType{
+										"application/json": {
+											Schema: &Schema{Ref: "#/components/schemas/Result"},
+										},
+									},
+									Links: map[string]*ResponseLinkRef{
+										"self": {
+											Value: &ResponseLink{
+												OperationID: "svc.show",
+												Parameters: map[string]any{
+													"id": "$response.body#/id",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"/two": {
+				Operations: map[string]*Operation{
+					"POST": {
+						OperationID: "svc.two",
+						Responses: map[string]*ResponseRef{
+							"202": {
+								Value: &Response{
+									Description: "Accepted response.",
+									Content: map[string]*MediaType{
+										"application/json": {
+											Schema: &Schema{Ref: "#/components/schemas/Result"},
+										},
+									},
+									Links: map[string]*ResponseLinkRef{
+										"self": {
+											Value: &ResponseLink{
+												OperationID: "svc.show",
+												Parameters: map[string]any{
+													"id": "$response.body#/id",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Components: &Components{
+			Schemas: map[string]*Schema{
+				"Result": {Type: "object"},
+			},
+		},
+	}
+
+	componentizeDocument(doc)
+
+	require.Contains(t, doc.Components.Responses, "ResultStatus202Response")
+	require.Equal(t, "#/components/responses/ResultStatus202Response", doc.Paths["/one"].Operations["POST"].Responses["202"].Ref)
+	require.Equal(t, "#/components/responses/ResultStatus202Response", doc.Paths["/two"].Operations["POST"].Responses["202"].Ref)
+}
+
 func TestComponentizeResponsesUsesGenericNoContentName(t *testing.T) {
 	doc := &Document{
 		Paths: map[string]*PathItem{

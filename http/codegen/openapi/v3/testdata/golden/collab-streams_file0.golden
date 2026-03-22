@@ -256,7 +256,82 @@
         "summary": "watchThread collabStreams",
         "tags": [
           "collabStreams"
-        ]
+        ],
+        "x-goa-async": {
+          "direction": "server",
+          "handshake": {
+            "path": "/threads/{thread_id}/events",
+            "request": {
+              "method": "GET"
+            },
+            "response": {
+              "contentType": "text/event-stream",
+              "status": 200
+            }
+          },
+          "messages": {
+            "outbound": {
+              "contentType": "application/json",
+              "schema": {
+                "additionalProperties": false,
+                "example": {
+                  "data": {
+                    "author": "alice",
+                    "preview": "Shipping the OpenAPI cleanup next."
+                  },
+                  "event": "thread.message_posted",
+                  "id": "evt_8"
+                },
+                "properties": {
+                  "data": {
+                    "additionalProperties": false,
+                    "example": {
+                      "author": "alice",
+                      "preview": "Shipping the OpenAPI cleanup next."
+                    },
+                    "properties": {
+                      "author": {
+                        "example": "alice",
+                        "type": "string"
+                      },
+                      "preview": {
+                        "example": "Shipping the OpenAPI cleanup next.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "author",
+                      "preview"
+                    ],
+                    "type": "object"
+                  },
+                  "event": {
+                    "example": "thread.message_posted",
+                    "type": "string"
+                  },
+                  "id": {
+                    "example": "evt_8",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "event",
+                  "data"
+                ],
+                "type": "object"
+              },
+              "sse": {
+                "dataField": null,
+                "eventField": null,
+                "idField": "id",
+                "requestIDField": "last_event_id",
+                "retryField": null
+              }
+            }
+          },
+          "transport": "sse"
+        }
       }
     }
   },

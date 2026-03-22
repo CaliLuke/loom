@@ -40,33 +40,88 @@ paths:
             security: []
     /threads/{thread_id}/events:
         get:
-            tags:
-                - collabStreams
-            summary: watchThread collabStreams
             operationId: collab_streams.watch_thread
             parameters:
                 - $ref: '#/components/parameters/PathThreadID'
-                - name: last_event_id
-                  in: query
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    example: evt_7
+                - allowEmptyValue: true
                   example: evt_7
+                  in: query
+                  name: last_event_id
+                  schema:
+                    example: evt_7
+                    type: string
             responses:
                 "200":
-                    description: OK response.
                     content:
                         text/event-stream:
                             schema:
                                 $ref: '#/components/schemas/WatchThreadResponseBody'
+                    description: OK response.
                 "429":
-                    description: 'busy: Too Many Requests response.'
                     content:
                         application/vnd.goa.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
+                    description: 'busy: Too Many Requests response.'
             security: []
+            summary: watchThread collabStreams
+            tags:
+                - collabStreams
+            x-goa-async:
+                direction: server
+                handshake:
+                    path: /threads/{thread_id}/events
+                    request:
+                        method: GET
+                    response:
+                        contentType: text/event-stream
+                        status: 200
+                messages:
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                data:
+                                    type: object
+                                    properties:
+                                        author:
+                                            type: string
+                                            example: alice
+                                        preview:
+                                            type: string
+                                            example: Shipping the OpenAPI cleanup next.
+                                    example:
+                                        author: alice
+                                        preview: Shipping the OpenAPI cleanup next.
+                                    required:
+                                        - author
+                                        - preview
+                                    additionalProperties: false
+                                event:
+                                    type: string
+                                    example: thread.message_posted
+                                id:
+                                    type: string
+                                    example: evt_8
+                            example:
+                                data:
+                                    author: alice
+                                    preview: Shipping the OpenAPI cleanup next.
+                                event: thread.message_posted
+                                id: evt_8
+                            required:
+                                - id
+                                - event
+                                - data
+                            additionalProperties: false
+                        sse:
+                            dataField: null
+                            eventField: null
+                            idField: id
+                            requestIDField: last_event_id
+                            retryField: null
+                transport: sse
 components:
     schemas:
         Error:

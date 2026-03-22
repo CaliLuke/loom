@@ -36,7 +36,73 @@
         "summary": "streamCommands opsSocket",
         "tags": [
           "opsSocket"
-        ]
+        ],
+        "x-goa-async": {
+          "direction": "bidirectional",
+          "handshake": {
+            "path": "/ws/ops/{channel}",
+            "request": {
+              "method": "GET"
+            },
+            "response": {
+              "contentType": "",
+              "status": 101
+            }
+          },
+          "messages": {
+            "inbound": {
+              "contentType": "application/json",
+              "schema": {
+                "additionalProperties": false,
+                "example": {
+                  "op": "pause",
+                  "target": "worker-eu-1"
+                },
+                "properties": {
+                  "op": {
+                    "example": "pause",
+                    "type": "string"
+                  },
+                  "target": {
+                    "example": "worker-eu-1",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "op",
+                  "target"
+                ],
+                "type": "object"
+              }
+            },
+            "outbound": {
+              "contentType": "application/json",
+              "schema": {
+                "additionalProperties": false,
+                "example": {
+                  "event": "command.accepted",
+                  "ok": true
+                },
+                "properties": {
+                  "event": {
+                    "example": "command.accepted",
+                    "type": "string"
+                  },
+                  "ok": {
+                    "example": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "event",
+                  "ok"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "transport": "websocket"
+        }
       }
     }
   },

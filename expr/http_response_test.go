@@ -34,6 +34,8 @@ func TestHTTPResponseValidation(t *testing.T) {
 service "MissingCookieResultAttribute" HTTP endpoint "Method": attribute "bar" used in HTTP cookies must be a primitive type.`},
 		{"skip encode and gRPC", skipEncodeAndGRPCDSL, `service "SkipEncodeAndGRPC" HTTP endpoint "Method": Endpoint response cannot use SkipResponseBodyEncodeDecode and define a gRPC transport.`},
 		{"skip encode with OpenAPI body", skipEncodeWithOpenAPIBodyDSL, ""},
+		{"response link", responseLinkDSL, ""},
+		{"invalid response link", invalidResponseLinkDSL, `HTTP response link "self": response link must define either a target operation or operation ref`},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -118,6 +120,56 @@ var stringResultResponseWithTextContentTypeDSL = func() {
 				POST("/")
 				Response(func() {
 					ContentType("text/plain")
+				})
+			})
+		})
+	})
+}
+
+var responseLinkDSL = func() {
+	Service("ResponseLink", func() {
+		Method("Show", func() {
+			Payload(func() {
+				Attribute("id", String)
+				Required("id")
+			})
+			Result(String)
+			HTTP(func() {
+				GET("/{id}")
+				Param("id")
+			})
+		})
+		Method("Create", func() {
+			Result(func() {
+				Attribute("id", String)
+				Required("id")
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusAccepted, func() {
+					Link("self", func() {
+						LinkOperation("Show")
+						LinkParam("id", "$response.body#/id")
+					})
+				})
+			})
+		})
+	})
+}
+
+var invalidResponseLinkDSL = func() {
+	Service("InvalidResponseLink", func() {
+		Method("Create", func() {
+			Result(func() {
+				Attribute("id", String)
+				Required("id")
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusAccepted, func() {
+					Link("self", func() {
+						LinkParam("id", "$response.body#/id")
+					})
 				})
 			})
 		})

@@ -50,6 +50,10 @@ var (
 	// responses.
 	ErrorResultIdentifier = "application/vnd.goa.error"
 
+	// ProblemResultIdentifier is the standards-first result type identifier used
+	// for RFC 9457-style problem responses.
+	ProblemResultIdentifier = "application/problem+json"
+
 	// ErrorResult is the built-in result type for error responses.
 	ErrorResult = &ResultTypeExpr{
 		UserTypeExpr: &UserTypeExpr{
@@ -62,6 +66,21 @@ var (
 		},
 		Identifier: ErrorResultIdentifier,
 		Views:      []*ViewExpr{errorResultView},
+	}
+
+	// ProblemResult is the built-in result type for problem-document error
+	// responses.
+	ProblemResult = &ResultTypeExpr{
+		UserTypeExpr: &UserTypeExpr{
+			AttributeExpr: &AttributeExpr{
+				Type:        problemResultType,
+				Description: "Problem response result type",
+				Validation:  &ValidationExpr{Required: []string{"code", "title", "detail"}},
+			},
+			TypeName: "problem",
+		},
+		Identifier: ProblemResultIdentifier,
+		Views:      []*ViewExpr{problemResultView},
 	}
 
 	errorResultType = &Object{
@@ -97,6 +116,67 @@ var (
 
 	errorResultView = &ViewExpr{
 		AttributeExpr: &AttributeExpr{Type: errorResultType},
+		Name:          DefaultView,
+	}
+
+	problemResultType = &Object{
+		{"type", &AttributeExpr{
+			Type:        String,
+			Description: "Type identifies the problem category using a URI reference.",
+			UserExamples: []*ExampleExpr{{
+				Value: "https://goa.design/problems/bad-request",
+			}},
+		}},
+		{"title", &AttributeExpr{
+			Type:        String,
+			Description: "Title is a short, human-readable summary of the problem type.",
+			UserExamples: []*ExampleExpr{{
+				Value: "Bad Request",
+			}},
+		}},
+		{"status", &AttributeExpr{
+			Type:        Int,
+			Description: "Status is the HTTP status code generated for this occurrence of the problem.",
+			UserExamples: []*ExampleExpr{{
+				Value: 400,
+			}},
+		}},
+		{"detail", &AttributeExpr{
+			Type:        String,
+			Description: "Detail is a human-readable explanation specific to this occurrence of the problem.",
+			UserExamples: []*ExampleExpr{{
+				Value: "parameter 'p' must be an integer",
+			}},
+		}},
+		{"instance", &AttributeExpr{
+			Type:        String,
+			Description: "Instance identifies this specific occurrence of the problem.",
+			UserExamples: []*ExampleExpr{{
+				Value: "urn:goa:error:123abc",
+			}},
+		}},
+		{"code", &AttributeExpr{
+			Type:         String,
+			Description:  "Code is the stable machine-readable problem code.",
+			Meta:         MetaExpr{"struct:error:name": nil},
+			UserExamples: []*ExampleExpr{{Value: "bad_request"}},
+		}},
+		{"temporary", &AttributeExpr{
+			Type:        Boolean,
+			Description: "Temporary indicates whether retrying later may succeed.",
+		}},
+		{"timeout", &AttributeExpr{
+			Type:        Boolean,
+			Description: "Timeout indicates whether the problem was caused by a timeout.",
+		}},
+		{"fault", &AttributeExpr{
+			Type:        Boolean,
+			Description: "Fault indicates whether the problem represents a server-side fault.",
+		}},
+	}
+
+	problemResultView = &ViewExpr{
+		AttributeExpr: &AttributeExpr{Type: problemResultType},
 		Name:          DefaultView,
 	}
 )

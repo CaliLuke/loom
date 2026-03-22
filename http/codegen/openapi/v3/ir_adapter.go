@@ -123,8 +123,45 @@ func responseFromIR(response *openapiir.Response) *Response {
 		Description: &desc,
 		Headers:     headersFromIR(response.Headers),
 		Content:     mediaTypesFromIR(response.Content),
+		Links:       responseLinksFromIR(response.Links),
 		Extensions:  cloneStringAnyMap(response.Extensions),
 	}
+}
+
+func responseLinksFromIR(links map[string]*openapiir.ResponseLinkRef) map[string]*LinkRef {
+	if len(links) == 0 {
+		return nil
+	}
+	out := make(map[string]*LinkRef, len(links))
+	for name, link := range links {
+		if converted := responseLinkRefFromIR(link); converted != nil {
+			out[name] = converted
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func responseLinkRefFromIR(link *openapiir.ResponseLinkRef) *LinkRef {
+	if link == nil {
+		return nil
+	}
+	if link.Ref != "" {
+		return &LinkRef{Ref: link.Ref}
+	}
+	if link.Value == nil {
+		return nil
+	}
+	return &LinkRef{Value: &Link{
+		OperationID:  link.Value.OperationID,
+		OperationRef: link.Value.OperationRef,
+		Description:  link.Value.Description,
+		Parameters:   cloneStringAnyMap(link.Value.Parameters),
+		RequestBody:  link.Value.RequestBody,
+		Extensions:   cloneStringAnyMap(link.Value.Extensions),
+	}}
 }
 
 func headersFromIR(headers map[string]*openapiir.HeaderRef) map[string]*HeaderRef {

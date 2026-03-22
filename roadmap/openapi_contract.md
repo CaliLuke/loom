@@ -41,15 +41,25 @@ roadmap items unless a regression appears:
 - `AuthErrorResponses()` reuse of compatible canonical 401/403 auth mappings
   across method, service, and API scopes instead of forcing framework-owned
   helper descriptions when the design already models those auth errors.
+- First-class standards-oriented problem error contracts via `ProblemResult`
+  / `application/problem+json`, including stable machine-readable problem
+  codes and reusable problem schema publication.
 - Attribute-level schema metadata for `readOnly`, `writeOnly`, `deprecated`,
   `contentEncoding`, and `contentMediaType`.
 - Documentation-only `OpenAPIBody(...)` support for
   `SkipResponseBodyEncodeDecode()` responses.
+- First-class response-link DSL support with rendered OpenAPI `links` output on
+  inline and reusable responses.
 - Pruning of unreferenced generated component schemas.
 - Closed-object union example suppression and related invalid-example cleanup.
 - Streaming example suppression for SSE and WebSocket response media types.
 - Truthful SSE handshake modeling in ordinary HTTP success responses with
   `text/event-stream`.
+- Framework-owned async contract publication under `x-goa-async` for SSE and
+  WebSocket endpoints, with inline message schemas plus truthful handshake
+  metadata.
+- Representative contract linting and downstream smoke-generation gates using
+  Redocly, `openapi-typescript`, and `oapi-codegen`.
 - Typed IR ownership for schema, parameter, operation-metadata, and reusable
   component analysis, leaving `http/codegen/openapi/v3` mostly as a renderer.
 
@@ -174,7 +184,7 @@ Acceptance:
 
 ### Unit 4: Problem-Document Error Contracts
 
-Status: planned
+Status: completed
 
 Problem:
 The framework still defaults to `application/vnd.goa.error`, which is not the
@@ -232,7 +242,7 @@ Acceptance:
 
 ### Unit 6: Async Contract Publication
 
-Status: planned
+Status: completed
 
 Problem:
 OpenAPI can describe the HTTP handshake for SSE and WebSocket endpoints, but it
@@ -260,7 +270,7 @@ Acceptance:
 
 ### Unit 7: OpenAPI Links DSL
 
-Status: planned
+Status: completed
 
 Problem:
 The OpenAPI model and renderer can represent links, but the DSL still has no
@@ -285,7 +295,7 @@ Acceptance:
 
 ### Unit 8: Contract Linting And Consumer Smoke Tests
 
-Status: planned
+Status: completed
 
 Problem:
 The framework still relies too heavily on human review to catch high-signal
