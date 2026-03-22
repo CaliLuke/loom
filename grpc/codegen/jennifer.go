@@ -147,7 +147,7 @@ func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 			if endpoint.ServerStream != nil {
 				handlerType = "StreamHandler"
 			}
-			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Qual("github.com/CaliLuke/loom/grpc", handlerType))
+			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Add(codegenpkg.TypeRef("goagrpc."+handlerType)))
 		}
 		fields = append(fields, jen.Qual(data.PkgName, "Unimplemented"+data.ServerInterface))
 		stmt.Type().Id(data.ServerStruct).Struct(fields...)
@@ -159,10 +159,10 @@ func grpcServerInitSection(data *ServiceData) codegenpkg.Section {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s instantiates the server struct with the %s service endpoints.", data.ServerInit, data.Service.Name))
 		params := []jen.Code{jen.Id("e").Op("*").Qual(data.Service.PkgName, "Endpoints")}
 		if data.HasUnaryEndpoint() {
-			params = append(params, jen.Id("uh").Qual("github.com/CaliLuke/loom/grpc", "UnaryHandler"))
+			params = append(params, jen.Id("uh").Add(codegenpkg.TypeRef("goagrpc.UnaryHandler")))
 		}
 		if data.HasStreamingEndpoint() {
-			params = append(params, jen.Id("sh").Qual("github.com/CaliLuke/loom/grpc", "StreamHandler"))
+			params = append(params, jen.Id("sh").Add(codegenpkg.TypeRef("goagrpc.StreamHandler")))
 		}
 		dict := jen.Dict{}
 		for _, endpoint := range data.Endpoints {
@@ -433,6 +433,7 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 
 func grpcStreamCloseSection(stream *StreamData) codegenpkg.Section {
 	return codegenpkg.MustJenniferSection(stream.Type+"-stream-close", func(stmt *jen.Statement) {
+		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).Id("Close").Params().Error().BlockFunc(func(g *jen.Group) {
 			if stream.Type == "client" {
 				if stream.Endpoint.Method.ResultRef != "" {

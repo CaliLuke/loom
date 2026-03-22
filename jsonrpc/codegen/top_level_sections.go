@@ -222,7 +222,53 @@ func jsonrpcServerMethodNamesSection(data *httpcodegen.ServiceData) codegen.Sect
 }
 
 func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-mixed-server-handler", "\n// ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.\nfunc (s *"+data.ServerStruct+") ServeHTTP(w http.ResponseWriter, r *http.Request) {\n\taccept := r.Header.Get(\"Accept\")\n\tif strings.Contains(accept, \"text/event-stream\") {\n\t\ts.handleSSE(w, r)\n\t\treturn\n\t}\n\t\n\ts.handleHTTP(w, r)\n}\n")
+	var b strings.Builder
+	b.WriteString("\n// ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.\n")
+	fmt.Fprintf(&b, "func (s *%s) ServeHTTP(w http.ResponseWriter, r *http.Request) {\n", data.ServerStruct)
+	b.WriteString("\taccept := r.Header.Get(\"Accept\")\n")
+	b.WriteString("\tif !strings.Contains(accept, \"text/event-stream\") {\n")
+	b.WriteString("\t\ts.handleHTTP(w, r)\n")
+	b.WriteString("\t\treturn\n")
+	b.WriteString("\t}\n\n")
+	b.WriteString("\tif r.Method == http.MethodGet {\n")
+	b.WriteString("\t\ts.handleSSE(w, r)\n")
+	b.WriteString("\t\treturn\n")
+	b.WriteString("\t}\n\n")
+	b.WriteString("\tbody, err := io.ReadAll(r.Body)\n")
+	b.WriteString("\tif err != nil {\n")
+	b.WriteString("\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to read request body: %w\", err))\n")
+	b.WriteString("\t\treturn\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\tif err := r.Body.Close(); err != nil {\n")
+	b.WriteString("\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to close request body: %w\", err))\n")
+	b.WriteString("\t\treturn\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\tr.Body = io.NopCloser(bytes.NewReader(body))\n\n")
+	b.WriteString("\ttrimmed := bytes.TrimLeft(body, \" \\t\\r\\n\")\n")
+	b.WriteString("\tif len(trimmed) == 0 || trimmed[0] == '[' {\n")
+	b.WriteString("\t\ts.handleHTTP(w, r)\n")
+	b.WriteString("\t\treturn\n")
+	b.WriteString("\t}\n\n")
+	b.WriteString("\tvar req jsonrpc.RawRequest\n")
+	b.WriteString("\tif err := s.decoder(r).Decode(&req); err != nil {\n")
+	b.WriteString("\t\tr.Body = io.NopCloser(bytes.NewReader(body))\n")
+	b.WriteString("\t\ts.handleSSE(w, r)\n")
+	b.WriteString("\t\treturn\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\tr.Body = io.NopCloser(bytes.NewReader(body))\n\n")
+	b.WriteString("\tswitch req.Method {\n")
+	for _, endpoint := range data.Endpoints {
+		if endpoint.SSE == nil {
+			continue
+		}
+		fmt.Fprintf(&b, "\tcase %q:\n", endpoint.Method.Name)
+	}
+	b.WriteString("\t\ts.handleSSE(w, r)\n")
+	b.WriteString("\tdefault:\n")
+	b.WriteString("\t\ts.handleHTTP(w, r)\n")
+	b.WriteString("\t}\n")
+	b.WriteString("}\n")
+	return codegen.NewRawSection("jsonrpc-mixed-server-handler", b.String())
 }
 
 func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
@@ -238,7 +284,7 @@ func renderJSONRPCServerMount(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 	fmt.Fprintf(&b, "func %s(mux goahttp.Muxer, h *%s) {\n", data.MountServer, data.ServerStruct)
 	switch {
 	case hasMixed:
-		b.WriteString("\t// Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header\n")
+		b.WriteString("\t// Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header and JSON-RPC method\n")
 		for _, route := range data.Endpoints[0].Routes {
 			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", route.Verb, route.Path)
 		}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
 )
 
@@ -201,6 +202,38 @@ func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
 	require.Contains(t, handlerInitCode, `if err := strm.open(); err != nil {`)
 }
 
+func TestJSONRPCMixedHTTPAndSSEHandlerRoutesByMethod(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var mixedHandlerCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-mixed-server-handler" {
+				continue
+			}
+			mixedHandlerCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, mixedHandlerCode, "jsonrpc-mixed-server-handler section not found")
+	require.Contains(t, mixedHandlerCode, `if !strings.Contains(accept, "text/event-stream") {`)
+	require.Contains(t, mixedHandlerCode, `if r.Method == http.MethodGet {`)
+	require.Contains(t, mixedHandlerCode, `var req jsonrpc.RawRequest`)
+	require.Contains(t, mixedHandlerCode, `switch req.Method {`)
+	require.Contains(t, mixedHandlerCode, `case "events/stream":`)
+	require.Contains(t, mixedHandlerCode, `s.handleSSE(w, r)`)
+	require.Contains(t, mixedHandlerCode, `s.handleHTTP(w, r)`)
+	require.NotContains(t, mixedHandlerCode, "if strings.Contains(accept, \"text/event-stream\") {\n\t\ts.handleSSE(w, r)\n\t\treturn\n\t}")
+}
+
 func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	services := CreateJSONRPCServices(root)
@@ -225,4 +258,36 @@ func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
 	require.NotEmpty(t, sseHandlerCode, "jsonrpc-sse-server-handler section not found")
 	require.Contains(t, sseHandlerCode, `if req.ID == nil || req.ID == "" {`)
 	require.Contains(t, sseHandlerCode, `w.WriteHeader(http.StatusNoContent)`)
+}
+
+var jsonrpcMixedInitializeAndEventsStreamDSL = func() {
+	dsl.API("jsonrpc-mixed-initialize-events-stream-test", func() {
+		dsl.JSONRPC(func() {})
+	})
+	dsl.Service("JSONRPCMixedInitializeEventsStreamService", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		dsl.Method("initialize", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.Result(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+				dsl.Attribute("protocol_version", dsl.String)
+			})
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Method("events/stream", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.StreamingResult(func() {
+				dsl.Attribute("value", dsl.String)
+			})
+			dsl.JSONRPC(func() {
+				dsl.ServerSentEvents()
+			})
+		})
+	})
 }
