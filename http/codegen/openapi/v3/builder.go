@@ -12,6 +12,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
+	"github.com/CaliLuke/loom/internal/securityreq"
 )
 
 const (
@@ -57,7 +58,7 @@ func New(root *expr.RootExpr) *OpenAPI {
 		paths    = buildPaths(root.API.HTTP, doc, root.API)
 		reusable = reusableComponentsFromIR(doc.Components)
 		schemas  = openapiir.RenderSchemaMap(doc.Components.Schemas)
-		security = buildSecurityRequirements(effectiveRequirements(root.API.Requirements, root.API.SessionAuths))
+		security = securityreq.OpenAPI(securityreq.Effective(root.API.Requirements, root.API.SessionAuths))
 		tags     = buildTags(root.API)
 	)
 	collapseSchemaAliases(paths, schemas, reusable)
@@ -698,7 +699,7 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 		Parameters:   params,
 		Responses:    responses,
 		Tags:         tagNames,
-		Security:     buildSecurityRequirements(effectiveRequirements(api.Requirements, api.SessionAuths)),
+		Security:     securityreq.OpenAPI(securityreq.Effective(api.Requirements, api.SessionAuths)),
 		Deprecated:   false,
 		ExternalDocs: openapi.DocsFromExpr(fs.Docs, fs.Meta),
 		Extensions:   openapi.ExtensionsFromExpr(fs.Meta),
@@ -721,54 +722,6 @@ func cloneOperationSecurity(requirements []map[string][]string) []map[string][]s
 		cloned[i] = current
 	}
 	return cloned
-}
-
-func effectiveRequirements(requirements []*expr.SecurityExpr, sessionAuths []*expr.SessionAuthExpr) []*expr.SecurityExpr {
-	merged := make([]*expr.SecurityExpr, 0, len(requirements)+len(sessionAuths))
-	merged = append(merged, requirements...)
-	for _, sessionAuth := range sessionAuths {
-		for _, transport := range sessionAuth.Transports {
-			if transport == nil || transport.Scheme == nil {
-				continue
-			}
-			req := &expr.SecurityExpr{
-				Schemes: []*expr.SchemeExpr{expr.DupScheme(transport.Scheme)},
-			}
-			if !containsRequirement(merged, req) {
-				merged = append(merged, req)
-			}
-		}
-	}
-	return merged
-}
-
-func containsRequirement(requirements []*expr.SecurityExpr, candidate *expr.SecurityExpr) bool {
-	for _, req := range requirements {
-		if len(req.Scopes) != len(candidate.Scopes) || len(req.Schemes) != len(candidate.Schemes) {
-			continue
-		}
-		matched := true
-		for i, scope := range req.Scopes {
-			if candidate.Scopes[i] != scope {
-				matched = false
-				break
-			}
-		}
-		if !matched {
-			continue
-		}
-		for i, scheme := range req.Schemes {
-			other := candidate.Schemes[i]
-			if scheme.Kind != other.Kind || scheme.SchemeName != other.SchemeName || scheme.In != other.In || scheme.Name != other.Name {
-				matched = false
-				break
-			}
-		}
-		if matched {
-			return true
-		}
-	}
-	return false
 }
 
 func parseOperationIDTemplate(template, service, method string, routeIndex int) string {
@@ -881,30 +834,6 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 		}
 	}
 	return svrs
-}
-
-// buildSecurityRequirements builds the OpenAPI security requirements for the
-// given security expressions.
-func buildSecurityRequirements(reqs []*expr.SecurityExpr) []map[string][]string {
-	if len(reqs) == 0 {
-		return nil
-	}
-	srs := make([]map[string][]string, len(reqs))
-	for i, req := range reqs {
-		sr := make(map[string][]string, len(req.Schemes))
-		for _, sch := range req.Schemes {
-			scopes := make([]string, 0)
-			switch sch.Kind {
-			case expr.OAuth2Kind, expr.JWTKind:
-				if len(req.Scopes) > 0 {
-					scopes = req.Scopes
-				}
-			}
-			sr[sch.Hash()] = scopes
-		}
-		srs[i] = sr
-	}
-	return srs
 }
 
 // buildSecurityScheme builds the OpenAPI SecurityScheme object from the

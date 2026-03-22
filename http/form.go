@@ -98,100 +98,26 @@ func SetFormRequest(req *http.Request, body any) error {
 }
 
 func encodeFormValue(values url.Values, prefix string, v reflect.Value) (bool, error) {
-	if !v.IsValid() {
+	normalized, handled, err := normalizeFormEncodeValue(values, prefix, v)
+	if err != nil {
+		return false, err
+	}
+	if handled {
+		return true, nil
+	}
+	if !normalized.IsValid() {
 		return false, nil
 	}
-	for v.Kind() == reflect.Interface {
-		if v.IsNil() {
-			return false, nil
-		}
-		v = v.Elem()
-	}
-	if v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			return false, nil
-		}
-		if v.Type().Implements(formValuesMarshalerType) {
-			return true, v.Interface().(FormValuesMarshaler).MarshalFormValues(values, prefix)
-		}
-		return encodeFormValue(values, prefix, v.Elem())
-	}
-	if v.Type().Implements(formValuesMarshalerType) {
-		return true, v.Interface().(FormValuesMarshaler).MarshalFormValues(values, prefix)
-	}
-	if v.CanAddr() && v.Addr().Type().Implements(formValuesMarshalerType) {
-		return true, v.Addr().Interface().(FormValuesMarshaler).MarshalFormValues(values, prefix)
-	}
 
-	switch v.Kind() {
+	switch normalized.Kind() {
 	case reflect.Struct:
-		seen := false
-		for i := range v.NumField() {
-			field := v.Type().Field(i)
-			if field.PkgPath != "" {
-				continue
-			}
-			name, ok := formFieldName(field)
-			if !ok {
-				continue
-			}
-			fieldSeen, err := encodeFormValue(values, FormChildKey(prefix, name), v.Field(i))
-			if err != nil {
-				return seen, err
-			}
-			seen = seen || fieldSeen
-		}
-		return seen, nil
+		return encodeStructFields(values, prefix, normalized)
 	case reflect.Map:
-		if v.IsNil() {
-			return false, nil
-		}
-		seen := false
-		iter := v.MapRange()
-		for iter.Next() {
-			key, err := scalarToString(iter.Key())
-			if err != nil {
-				return seen, err
-			}
-			fieldSeen, err := encodeFormValue(values, FormChildKey(prefix, key), iter.Value())
-			if err != nil {
-				return seen, err
-			}
-			seen = seen || fieldSeen
-		}
-		return seen, nil
+		return encodeMapEntries(values, prefix, normalized)
 	case reflect.Slice, reflect.Array:
-		if v.Kind() == reflect.Slice && v.IsNil() {
-			return false, nil
-		}
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			if prefix == "" {
-				return false, fmt.Errorf("form encoding requires a field name for bytes values")
-			}
-			values.Add(prefix, string(v.Bytes()))
-			return true, nil
-		}
-		if !isScalarType(v.Type().Elem()) {
-			return false, fmt.Errorf("unsupported form slice element type %s", v.Type().Elem())
-		}
-		for i := range v.Len() {
-			raw, err := scalarToString(v.Index(i))
-			if err != nil {
-				return false, err
-			}
-			values.Add(prefix, raw)
-		}
-		return v.Len() > 0, nil
+		return encodeSequenceValue(values, prefix, normalized)
 	default:
-		if prefix == "" {
-			return false, fmt.Errorf("form encoding requires a field name for %s", v.Type())
-		}
-		raw, err := scalarToString(v)
-		if err != nil {
-			return false, err
-		}
-		values.Add(prefix, raw)
-		return true, nil
+		return encodeScalarFormValue(values, prefix, normalized)
 	}
 }
 
@@ -211,51 +137,13 @@ func decodeFormValue(values url.Values, prefix string, target reflect.Value) (bo
 	case reflect.Interface:
 		return false, fmt.Errorf("unsupported form interface target %s", elem.Type())
 	case reflect.Pointer:
-		child := reflect.New(elem.Type().Elem())
-		seen, err := decodeFormValue(values, prefix, child)
-		if !seen || err != nil {
-			return seen, err
-		}
-		elem.Set(child)
-		return true, nil
+		return decodePointerTarget(values, prefix, elem)
 	case reflect.Struct:
-		seen := false
-		for i := range elem.NumField() {
-			field := elem.Type().Field(i)
-			if field.PkgPath != "" {
-				continue
-			}
-			name, ok := formFieldName(field)
-			if !ok {
-				continue
-			}
-			fieldSeen, err := decodeIntoField(values, FormChildKey(prefix, name), elem.Field(i))
-			if err != nil {
-				return seen, err
-			}
-			seen = seen || fieldSeen
-		}
-		return seen, nil
+		return decodeStructFields(values, prefix, elem)
 	case reflect.Map:
 		return decodeFormMap(values, prefix, elem)
 	case reflect.Slice:
-		if elem.Type().Elem().Kind() == reflect.Uint8 {
-			raw := values.Get(prefix)
-			elem.SetBytes([]byte(raw))
-			return true, nil
-		}
-		raws := values[prefix]
-		if !isScalarType(elem.Type().Elem()) {
-			return false, fmt.Errorf("unsupported form slice element type %s", elem.Type().Elem())
-		}
-		slice := reflect.MakeSlice(elem.Type(), len(raws), len(raws))
-		for i, raw := range raws {
-			if err := setScalarValue(slice.Index(i), raw); err != nil {
-				return false, err
-			}
-		}
-		elem.Set(slice)
-		return len(raws) > 0, nil
+		return decodeSliceValue(values, prefix, elem)
 	default:
 		raw := values.Get(prefix)
 		if err := setScalarValue(elem, raw); err != nil {
@@ -263,6 +151,160 @@ func decodeFormValue(values url.Values, prefix string, target reflect.Value) (bo
 		}
 		return true, nil
 	}
+}
+
+func normalizeFormEncodeValue(values url.Values, prefix string, v reflect.Value) (reflect.Value, bool, error) {
+	if !v.IsValid() {
+		return reflect.Value{}, false, nil
+	}
+	for v.Kind() == reflect.Interface {
+		if v.IsNil() {
+			return reflect.Value{}, false, nil
+		}
+		v = v.Elem()
+	}
+	if v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return reflect.Value{}, false, nil
+		}
+		if v.Type().Implements(formValuesMarshalerType) {
+			return reflect.Value{}, true, v.Interface().(FormValuesMarshaler).MarshalFormValues(values, prefix)
+		}
+		return normalizeFormEncodeValue(values, prefix, v.Elem())
+	}
+	if v.Type().Implements(formValuesMarshalerType) {
+		return reflect.Value{}, true, v.Interface().(FormValuesMarshaler).MarshalFormValues(values, prefix)
+	}
+	if v.CanAddr() && v.Addr().Type().Implements(formValuesMarshalerType) {
+		return reflect.Value{}, true, v.Addr().Interface().(FormValuesMarshaler).MarshalFormValues(values, prefix)
+	}
+	return v, false, nil
+}
+
+func encodeStructFields(values url.Values, prefix string, v reflect.Value) (bool, error) {
+	seen := false
+	for i := range v.NumField() {
+		field := v.Type().Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		name, ok := formFieldName(field)
+		if !ok {
+			continue
+		}
+		fieldSeen, err := encodeFormValue(values, FormChildKey(prefix, name), v.Field(i))
+		if err != nil {
+			return seen, err
+		}
+		seen = seen || fieldSeen
+	}
+	return seen, nil
+}
+
+func encodeMapEntries(values url.Values, prefix string, v reflect.Value) (bool, error) {
+	if v.IsNil() {
+		return false, nil
+	}
+	seen := false
+	iter := v.MapRange()
+	for iter.Next() {
+		key, err := scalarToString(iter.Key())
+		if err != nil {
+			return seen, err
+		}
+		fieldSeen, err := encodeFormValue(values, FormChildKey(prefix, key), iter.Value())
+		if err != nil {
+			return seen, err
+		}
+		seen = seen || fieldSeen
+	}
+	return seen, nil
+}
+
+func encodeSequenceValue(values url.Values, prefix string, v reflect.Value) (bool, error) {
+	if v.Kind() == reflect.Slice && v.IsNil() {
+		return false, nil
+	}
+	if v.Type().Elem().Kind() == reflect.Uint8 {
+		if prefix == "" {
+			return false, fmt.Errorf("form encoding requires a field name for bytes values")
+		}
+		values.Add(prefix, string(v.Bytes()))
+		return true, nil
+	}
+	if !isScalarType(v.Type().Elem()) {
+		return false, fmt.Errorf("unsupported form slice element type %s", v.Type().Elem())
+	}
+	for i := range v.Len() {
+		raw, err := scalarToString(v.Index(i))
+		if err != nil {
+			return false, err
+		}
+		values.Add(prefix, raw)
+	}
+	return v.Len() > 0, nil
+}
+
+func encodeScalarFormValue(values url.Values, prefix string, v reflect.Value) (bool, error) {
+	if prefix == "" {
+		return false, fmt.Errorf("form encoding requires a field name for %s", v.Type())
+	}
+	raw, err := scalarToString(v)
+	if err != nil {
+		return false, err
+	}
+	values.Add(prefix, raw)
+	return true, nil
+}
+
+func decodePointerTarget(values url.Values, prefix string, elem reflect.Value) (bool, error) {
+	child := reflect.New(elem.Type().Elem())
+	seen, err := decodeFormValue(values, prefix, child)
+	if !seen || err != nil {
+		return seen, err
+	}
+	elem.Set(child)
+	return true, nil
+}
+
+func decodeStructFields(values url.Values, prefix string, elem reflect.Value) (bool, error) {
+	seen := false
+	for i := range elem.NumField() {
+		field := elem.Type().Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		name, ok := formFieldName(field)
+		if !ok {
+			continue
+		}
+		fieldSeen, err := decodeIntoField(values, FormChildKey(prefix, name), elem.Field(i))
+		if err != nil {
+			return seen, err
+		}
+		seen = seen || fieldSeen
+	}
+	return seen, nil
+}
+
+func decodeSliceValue(values url.Values, prefix string, elem reflect.Value) (bool, error) {
+	if elem.Type().Elem().Kind() == reflect.Uint8 {
+		raw := values.Get(prefix)
+		elem.SetBytes([]byte(raw))
+		return true, nil
+	}
+	raws := values[prefix]
+	if !isScalarType(elem.Type().Elem()) {
+		return false, fmt.Errorf("unsupported form slice element type %s", elem.Type().Elem())
+	}
+	slice := reflect.MakeSlice(elem.Type(), len(raws), len(raws))
+	for i, raw := range raws {
+		if err := setScalarValue(slice.Index(i), raw); err != nil {
+			return false, err
+		}
+	}
+	elem.Set(slice)
+	return len(raws) > 0, nil
 }
 
 func decodeIntoField(values url.Values, prefix string, field reflect.Value) (bool, error) {
@@ -287,14 +329,14 @@ func decodeFormMap(values url.Values, prefix string, target reflect.Value) (bool
 	}
 	entries := make(map[string]url.Values)
 	for key, vals := range values {
-		child, ok := extractImmediateFormChild(prefix, key)
+		child, nested, ok := parseFormChildKey(prefix, key)
 		if !ok {
 			continue
 		}
 		if entries[child] == nil {
 			entries[child] = url.Values{}
 		}
-		if nested := extractNestedRemainder(prefix, key); nested != "" {
+		if nested != "" {
 			entries[child][nested] = append(entries[child][nested], vals...)
 		} else {
 			entries[child][child] = append(entries[child][child], vals...)
@@ -358,41 +400,39 @@ func hasFormPrefix(values url.Values, prefix string) bool {
 }
 
 func extractImmediateFormChild(prefix, key string) (string, bool) {
+	child, _, ok := parseFormChildKey(prefix, key)
+	return child, ok
+}
+
+func extractNestedRemainder(prefix, key string) string {
+	_, remainder, ok := parseFormChildKey(prefix, key)
+	if !ok {
+		return ""
+	}
+	return remainder
+}
+
+func parseFormChildKey(prefix, key string) (string, string, bool) {
 	if prefix == "" {
 		if idx := strings.IndexByte(key, '['); idx >= 0 {
-			return key[:idx], true
+			return key[:idx], key[idx:], true
 		}
-		return key, true
+		return key, "", true
 	}
 	pfx := prefix + "["
 	if !strings.HasPrefix(key, pfx) {
-		return "", false
+		return "", "", false
 	}
 	rest := strings.TrimPrefix(key, pfx)
 	idx := strings.IndexByte(rest, ']')
 	if idx < 0 {
-		return "", false
+		return "", "", false
 	}
-	return rest[:idx], true
-}
-
-func extractNestedRemainder(prefix, key string) string {
-	if prefix == "" {
-		if idx := strings.IndexByte(key, '['); idx >= 0 {
-			return key[idx:]
-		}
-		return ""
+	child := rest[:idx]
+	if idx == len(rest)-1 {
+		return child, "", true
 	}
-	pfx := prefix + "["
-	if !strings.HasPrefix(key, pfx) {
-		return ""
-	}
-	rest := strings.TrimPrefix(key, pfx)
-	idx := strings.IndexByte(rest, ']')
-	if idx < 0 || idx == len(rest)-1 {
-		return ""
-	}
-	return rest[idx+1:]
+	return child, rest[idx+1:], true
 }
 
 func firstFormValue(values url.Values, key string) string {

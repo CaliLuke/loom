@@ -827,33 +827,27 @@ func (sds *ServicesData) buildPathInitData(httpEndpoint *expr.HTTPEndpointExpr, 
 }
 
 func (sds *ServicesData) buildRequirementSchemes(httpEndpoint *expr.HTTPEndpointExpr) (service.RequirementsData, service.SchemesData, service.SchemesData, service.SchemesData, *service.SchemeData) {
-	reqs := make(service.RequirementsData, 0, len(httpEndpoint.Requirements))
+	reqs, allSchemes := service.BuildRequirementsData(httpEndpoint.Requirements, httpEndpoint.MethodExpr)
 	var (
 		headerSchemes service.SchemesData
 		bodySchemes   service.SchemesData
 		querySchemes  service.SchemesData
 		basicScheme   *service.SchemeData
 	)
-	for _, req := range httpEndpoint.Requirements {
-		rs := make(service.SchemesData, 0, len(req.Schemes))
-		for _, sch := range req.Schemes {
-			s := service.BuildSchemeData(sch, httpEndpoint.MethodExpr)
-			rs = rs.Append(s)
-			switch s.Type {
-			case "Basic":
-				basicScheme = s
+	for _, scheme := range allSchemes {
+		switch scheme.Type {
+		case "Basic":
+			basicScheme = scheme
+		default:
+			switch scheme.In {
+			case "query":
+				querySchemes = querySchemes.Append(scheme)
+			case "header":
+				headerSchemes = headerSchemes.Append(scheme)
 			default:
-				switch s.In {
-				case "query":
-					querySchemes = querySchemes.Append(s)
-				case "header":
-					headerSchemes = headerSchemes.Append(s)
-				default:
-					bodySchemes = bodySchemes.Append(s)
-				}
+				bodySchemes = bodySchemes.Append(scheme)
 			}
 		}
-		reqs = append(reqs, &service.RequirementData{Schemes: rs, Scopes: req.Scopes})
 	}
 	return reqs, headerSchemes, bodySchemes, querySchemes, basicScheme
 }
@@ -1245,56 +1239,101 @@ func buildResultIDData(e *expr.HTTPEndpointExpr, result *expr.AttributeExpr) (st
 	return codegen.Goify(e.ResultIDAttribute, true), result.IsRequired(e.ResultIDAttribute)
 }
 
+func transportStringSlice(att *expr.AttributeExpr) bool {
+	arr := expr.AsArray(att.Type)
+	return arr != nil && arr.ElemType.Type.Kind() == expr.StringKind
+}
+
+func transportFieldBinding(name string, fieldAttr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext) (string, expr.DataType, bool) {
+	fieldType := svcAtt.Type
+	if !expr.IsObject(svcAtt.Type) {
+		return "", fieldType, false
+	}
+	fieldType = svcAtt.Find(name).Type
+	fieldName := codegen.GoifyAtt(fieldAttr, name, true)
+	if svcCtx == nil {
+		return fieldName, fieldType, svcAtt.IsPrimitivePointer(name, true)
+	}
+	return fieldName, fieldType, svcCtx.IsPrimitivePointer(name, svcAtt)
+}
+
+func (sds *ServicesData) buildTransportAttributeData(
+	name string,
+	attr *expr.AttributeExpr,
+	required bool,
+	pointer bool,
+	fieldName string,
+	fieldType expr.DataType,
+	fieldPointer bool,
+	validateCtx *codegen.AttributeContext,
+	scope *codegen.NameScope,
+) *AttributeData {
+	varName := scope.Name(codegen.Goify(name, false))
+	typeRef := scope.GoTypeRef(attr)
+	if pointer {
+		typeRef = "*" + typeRef
+	}
+	return &AttributeData{
+		Name:         name,
+		Description:  attr.Description,
+		FieldName:    fieldName,
+		FieldPointer: fieldPointer,
+		FieldType:    fieldType,
+		VarName:      varName,
+		Required:     required,
+		Type:         attr.Type,
+		TypeName:     scope.GoTypeName(attr),
+		TypeRef:      typeRef,
+		Pointer:      pointer,
+		Validate:     codegen.AttributeValidationCode(attr, nil, validateCtx, required, expr.IsAlias(attr.Type), varName, name),
+		DefaultValue: attr.DefaultValue,
+		Example:      attr.Example(sds.Root.API.ExampleGenerator),
+	}
+}
+
+func (sds *ServicesData) buildTransportElement(
+	name string,
+	elem string,
+	attr *expr.AttributeExpr,
+	stringSlice bool,
+	required bool,
+	pointer bool,
+	fieldName string,
+	fieldType expr.DataType,
+	fieldPointer bool,
+	validateCtx *codegen.AttributeContext,
+	scope *codegen.NameScope,
+) *Element {
+	return &Element{
+		HTTPName:      elem,
+		AttributeName: name,
+		StringSlice:   stringSlice,
+		Slice:         expr.AsArray(attr.Type) != nil,
+		AttributeData: sds.buildTransportAttributeData(
+			name,
+			attr,
+			required,
+			pointer,
+			fieldName,
+			fieldType,
+			fieldPointer,
+			validateCtx,
+			scope,
+		),
+	}
+}
+
 func (sds *ServicesData) extractPathParams(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, scope *codegen.NameScope) []*ParamData {
 	var params []*ParamData
 	codegen.WalkMappedAttr(a, func(name, elem string, _ bool, c *expr.AttributeExpr) error { // nolint: errcheck
-		// The StringSlice field of ParamData must be false for aliased primitive types
-		var stringSlice bool
-		if arr := expr.AsArray(c.Type); arr != nil {
-			stringSlice = arr.ElemType.Type.Kind() == expr.StringKind
-		}
-
+		stringSlice := transportStringSlice(c)
 		c = makeHTTPType(c)
-		var (
-			varn = scope.Name(codegen.Goify(name, false))
-			arr  = expr.AsArray(c.Type)
-			ctx  = serviceContext("", scope)
-			ft   = service.Type
-
-			fptr bool
-		)
-		fieldName := codegen.GoifyAtt(c, name, true)
-		if !expr.IsObject(service.Type) {
-			fieldName = ""
-		} else {
-			fptr = service.IsPrimitivePointer(name, true)
-			ft = service.Find(name).Type
-		}
+		ctx := serviceContext("", scope)
+		fieldName, fieldType, fieldPointer := transportFieldBinding(name, c, service, nil)
 		params = append(params, &ParamData{
 			Map:            false,
 			MapStringSlice: false,
-			Element: &Element{
-				HTTPName:      elem,
-				AttributeName: name,
-				Slice:         arr != nil,
-				StringSlice:   stringSlice,
-				AttributeData: &AttributeData{
-					Name:         name,
-					Description:  c.Description,
-					FieldName:    fieldName,
-					FieldPointer: fptr,
-					FieldType:    ft,
-					VarName:      varn,
-					Required:     true,
-					Type:         c.Type,
-					TypeName:     scope.GoTypeName(c),
-					TypeRef:      scope.GoTypeRef(c),
-					Pointer:      false,
-					Validate:     codegen.AttributeValidationCode(c, nil, ctx, true, expr.IsAlias(c.Type), varn, name),
-					DefaultValue: c.DefaultValue,
-					Example:      c.Example(sds.Root.API.ExampleGenerator),
-				},
-			},
+			Element:        sds.buildTransportElement(name, elem, c, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, scope),
 		})
 		return nil
 	})
@@ -1305,63 +1344,19 @@ func (sds *ServicesData) extractPathParams(a *expr.MappedAttributeExpr, service 
 func (sds *ServicesData) extractQueryParams(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, scope *codegen.NameScope) []*ParamData {
 	var params []*ParamData
 	codegen.WalkMappedAttr(a, func(name, elem string, required bool, c *expr.AttributeExpr) error { // nolint: errcheck
-		// The StringSlice field of ParamData must be false for aliased primitive types
-		var stringSlice bool
-		if arr := expr.AsArray(c.Type); arr != nil {
-			stringSlice = arr.ElemType.Type.Kind() == expr.StringKind
-		}
-
+		stringSlice := transportStringSlice(c)
 		c = makeHTTPType(c)
-		var (
-			varn    = scope.Name(codegen.Goify(name, false))
-			arr     = expr.AsArray(c.Type)
-			mp      = expr.AsMap(c.Type)
-			typeRef = scope.GoTypeRef(c)
-			ctx     = serviceContext("", scope)
-			ft      = service.Type
-
-			pointer bool
-			fptr    bool
-		)
-		pointer = a.IsPrimitivePointer(name, true)
-		if pointer {
-			typeRef = "*" + typeRef
-		}
-		fieldName := codegen.GoifyAtt(c, name, true)
-		if !expr.IsObject(service.Type) {
-			fieldName = ""
-		} else {
-			fptr = service.IsPrimitivePointer(name, true)
-			ft = service.Find(name).Type
-		}
+		mp := expr.AsMap(c.Type)
+		ctx := serviceContext("", scope)
+		pointer := a.IsPrimitivePointer(name, true)
+		fieldName, fieldType, fieldPointer := transportFieldBinding(name, c, service, nil)
 		params = append(params, &ParamData{
 			Map: mp != nil,
 			MapStringSlice: mp != nil &&
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
-			Element: &Element{
-				Slice:         arr != nil,
-				StringSlice:   stringSlice,
-				HTTPName:      elem,
-				AttributeName: name,
-				AttributeData: &AttributeData{
-					Name:         name,
-					Description:  c.Description,
-					FieldName:    fieldName,
-					FieldPointer: fptr,
-					FieldType:    ft,
-					VarName:      varn,
-					Required:     required,
-					Type:         c.Type,
-					TypeName:     scope.GoTypeName(c),
-					TypeRef:      typeRef,
-					Pointer:      pointer,
-					Validate:     codegen.AttributeValidationCode(c, nil, ctx, required, expr.IsAlias(c.Type), varn, name),
-					DefaultValue: c.DefaultValue,
-					Example:      c.Example(sds.Root.API.ExampleGenerator),
-				},
-			},
+			Element: sds.buildTransportElement(name, elem, c, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, ctx, scope),
 		})
 		return nil
 	})
@@ -1376,56 +1371,13 @@ func (sds *ServicesData) extractHeaders(a *expr.MappedAttributeExpr, svcAtt *exp
 		if attr = svcAtt.Find(name); attr == nil {
 			attr = svcAtt
 		}
-		var hattr *expr.AttributeExpr
-		var stringSlice bool
-		// The StringSlice field of ParamData must be false for aliased primitive types
-		if arr := expr.AsArray(attr.Type); arr != nil {
-			stringSlice = arr.ElemType.Type.Kind() == expr.StringKind
-		}
-
-		hattr = makeHTTPType(attr)
-		var (
-			varn    = scope.Name(codegen.Goify(name, false))
-			arr     = expr.AsArray(hattr.Type)
-			typeRef = scope.GoTypeRef(hattr)
-			ft      = attr.Type
-
-			fieldName string
-			pointer   bool
-			fptr      bool
-		)
-		pointer = a.IsPrimitivePointer(name, true)
-		if expr.IsObject(svcAtt.Type) {
-			fieldName = codegen.GoifyAtt(attr, name, true)
-			fptr = svcCtx.IsPrimitivePointer(name, svcAtt)
-		}
-		if pointer {
-			typeRef = "*" + typeRef
-		}
+		stringSlice := transportStringSlice(attr)
+		hattr := makeHTTPType(attr)
+		pointer := a.IsPrimitivePointer(name, true)
+		fieldName, fieldType, fieldPointer := transportFieldBinding(name, attr, svcAtt, svcCtx)
 		headers = append(headers, &HeaderData{
 			CanonicalName: http.CanonicalHeaderKey(elem),
-			Element: &Element{
-				HTTPName:      elem,
-				Slice:         arr != nil,
-				StringSlice:   stringSlice,
-				AttributeName: name,
-				AttributeData: &AttributeData{
-					Name:         name,
-					Description:  hattr.Description,
-					FieldName:    fieldName,
-					FieldPointer: fptr,
-					FieldType:    ft,
-					VarName:      varn,
-					TypeName:     scope.GoTypeName(hattr),
-					TypeRef:      typeRef,
-					Required:     required,
-					Pointer:      pointer,
-					Type:         hattr.Type,
-					Validate:     codegen.AttributeValidationCode(hattr, nil, svcCtx, required, expr.IsAlias(hattr.Type), varn, name),
-					DefaultValue: hattr.DefaultValue,
-					Example:      hattr.Example(sds.Root.API.ExampleGenerator),
-				},
-			},
+			Element:       sds.buildTransportElement(name, elem, hattr, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope),
 		})
 		return nil
 	})
@@ -1475,44 +1427,11 @@ func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bo
 	if hattr = svcAtt.Find(name); hattr == nil {
 		hattr = svcAtt
 	}
+	stringSlice := transportStringSlice(hattr)
 	hattr = makeHTTPType(hattr)
-	var (
-		varn    = scope.Name(codegen.Goify(name, false))
-		typeRef = scope.GoTypeRef(hattr)
-		ft      = svcAtt.Type
-
-		fieldName string
-		fptr      bool
-	)
-	if expr.IsObject(svcAtt.Type) {
-		fieldName = codegen.GoifyAtt(hattr, name, true)
-		fptr = svcCtx.IsPrimitivePointer(name, svcAtt)
-		ft = svcAtt.Find(name).Type
-	}
-	if pointer {
-		typeRef = "*" + typeRef
-	}
+	fieldName, fieldType, fieldPointer := transportFieldBinding(name, hattr, svcAtt, svcCtx)
 	return &CookieData{
-		Element: &Element{
-			HTTPName:      elem,
-			AttributeName: name,
-			AttributeData: &AttributeData{
-				Name:         name,
-				Description:  hattr.Description,
-				FieldName:    fieldName,
-				FieldPointer: fptr,
-				FieldType:    ft,
-				VarName:      varn,
-				TypeName:     scope.GoTypeName(hattr),
-				TypeRef:      typeRef,
-				Required:     required,
-				Pointer:      pointer,
-				Type:         hattr.Type,
-				Validate:     codegen.AttributeValidationCode(hattr, nil, svcCtx, required, expr.IsAlias(hattr.Type), varn, name),
-				DefaultValue: hattr.DefaultValue,
-				Example:      hattr.Example(sds.Root.API.ExampleGenerator),
-			},
-		},
+		Element: sds.buildTransportElement(name, elem, hattr, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope),
 	}
 }
 

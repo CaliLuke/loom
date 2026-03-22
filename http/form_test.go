@@ -118,3 +118,35 @@ func TestSetFormRequest(t *testing.T) {
 	require.Contains(t, string(buf), "type=refresh_token")
 	require.Contains(t, string(buf), "value=rt-1")
 }
+
+func TestParseFormChildKey(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		prefix    string
+		key       string
+		child     string
+		remainder string
+		ok        bool
+	}{
+		{name: "root scalar", key: "client_id", child: "client_id", ok: true},
+		{name: "root nested", key: "grant[type]", child: "grant", remainder: "[type]", ok: true},
+		{name: "prefixed scalar", prefix: "grant", key: "grant[type]", child: "type", ok: true},
+		{name: "prefixed nested", prefix: "grant", key: "grant[value][id]", child: "value", remainder: "[id]", ok: true},
+		{name: "wrong prefix", prefix: "grant", key: "other[type]", ok: false},
+		{name: "missing closing bracket", prefix: "grant", key: "grant[type", ok: false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			child, remainder, ok := parseFormChildKey(tc.prefix, tc.key)
+			require.Equal(t, tc.ok, ok)
+			require.Equal(t, tc.child, child)
+			require.Equal(t, tc.remainder, remainder)
+		})
+	}
+}

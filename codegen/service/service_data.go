@@ -674,6 +674,15 @@ type (
 	}
 )
 
+type methodAttributeProjection struct {
+	Name        string
+	Location    *codegen.Location
+	Definition  string
+	Reference   string
+	Description string
+	Example     any
+}
+
 // NewServicesData creates a new ServicesData instance for the given root.
 func NewServicesData(root *expr.RootExpr) *ServicesData {
 	return &ServicesData{
@@ -1418,80 +1427,32 @@ func errorRetryHint(er *expr.ErrorExpr) string {
 // records the user types needed by the service definition in userTypes.
 func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameScope) *MethodData {
 	var (
-		vname       string
-		desc        string
-		payloadName string
-		payloadLoc  *codegen.Location
-		payloadDef  string
-		payloadRef  string
-		payloadDesc string
-		payloadEx   any
-		rname       string
-		resultLoc   *codegen.Location
-		resultDef   string
-		resultRef   string
-		resultDesc  string
-		resultEx    any
-		errors      []*ErrorInitData
-		errorLocs   map[string]*codegen.Location
-		isJSONRPC   bool
-		reqs        = make(RequirementsData, 0, len(m.Requirements))
-		schemes     SchemesData
+		vname string
+		desc  string
+
+		payloadData methodAttributeProjection
+		resultData  methodAttributeProjection
+
+		errors    []*ErrorInitData
+		errorLocs map[string]*codegen.Location
+
+		isJSONRPC bool
+		reqs      RequirementsData
+		schemes   SchemesData
 	)
 	vname = scope.Unique(codegen.Goify(m.Name, true), "Endpoint")
 	desc = m.Description
 	if desc == "" {
 		desc = codegen.Goify(m.Name, true) + " implements " + m.Name + "."
 	}
-	if m.Payload.Type != expr.Empty {
-		payloadName = scope.GoTypeName(m.Payload)
-		if dt, ok := m.Payload.Type.(expr.UserType); ok {
-			payloadDef = scope.GoTypeDef(dt.Attribute(), false, true)
-			payloadLoc = codegen.UserTypeLocation(dt)
-		}
-		payloadRef = scope.GoFullTypeRef(m.Payload, payloadLoc.PackageName())
-		payloadDesc = m.Payload.Description
-		if payloadDesc == "" {
-			payloadDesc = fmt.Sprintf("%s is the payload type of the %s service %s method.",
-				payloadName, m.Service.Name, m.Name)
-		}
-		payloadEx = m.Payload.Example(d.Root.API.ExampleGenerator)
-	}
-	if m.Result.Type != expr.Empty {
-		rname = scope.GoTypeName(m.Result)
-		if dt, ok := m.Result.Type.(expr.UserType); ok {
-			resultDef = scope.GoTypeDef(dt.Attribute(), false, true)
-			resultLoc = codegen.UserTypeLocation(dt)
-		}
-		resultRef = scope.GoFullTypeRef(m.Result, resultLoc.PackageName())
-		resultDesc = m.Result.Description
-		if resultDesc == "" {
-			resultDesc = fmt.Sprintf("%s is the result type of the %s service %s method.",
-				rname, m.Service.Name, m.Name)
-		}
-		resultEx = m.Result.Example(d.Root.API.ExampleGenerator)
-	}
-	if len(m.Errors) > 0 {
-		errors = make([]*ErrorInitData, len(m.Errors))
-		errorLocs = make(map[string]*codegen.Location, len(m.Errors))
-		for i, er := range m.Errors {
-			errors[i] = buildErrorInitData(er, scope)
-			errorLocs[er.Name] = codegen.UserTypeLocation(er.Type)
-		}
-	}
+	payloadData = buildMethodAttributeProjection(m.Payload, "payload", m.Service.Name, m.Name, d.Root.API.ExampleGenerator, scope)
+	resultData = buildMethodAttributeProjection(m.Result, "result", m.Service.Name, m.Name, d.Root.API.ExampleGenerator, scope)
+	errors, errorLocs = buildMethodErrorData(m.Errors, scope)
 
 	_, isJSONRPC = m.Meta["jsonrpc"]
 	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
 
-	for _, req := range m.Requirements {
-		var rs SchemesData
-		for _, s := range req.Schemes {
-			sch := BuildSchemeData(s, m)
-			rs = rs.Append(sch)
-			schemes = schemes.Append(sch)
-		}
-		reqs = append(reqs, &RequirementData{Schemes: rs, Scopes: req.Scopes})
-	}
+	reqs, schemes = BuildRequirementsData(m.Requirements, m)
 
 	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode := d.httpSkipBodyFlags(m)
 
@@ -1499,19 +1460,19 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 		Name:                         m.Name,
 		VarName:                      vname,
 		Description:                  desc,
-		Payload:                      payloadName,
-		PayloadLoc:                   payloadLoc,
-		PayloadDef:                   payloadDef,
-		PayloadRef:                   payloadRef,
-		PayloadDesc:                  payloadDesc,
-		PayloadEx:                    payloadEx,
+		Payload:                      payloadData.Name,
+		PayloadLoc:                   payloadData.Location,
+		PayloadDef:                   payloadData.Definition,
+		PayloadRef:                   payloadData.Reference,
+		PayloadDesc:                  payloadData.Description,
+		PayloadEx:                    payloadData.Example,
 		PayloadDefault:               m.Payload.DefaultValue,
-		Result:                       rname,
-		ResultLoc:                    resultLoc,
-		ResultDef:                    resultDef,
-		ResultRef:                    resultRef,
-		ResultDesc:                   resultDesc,
-		ResultEx:                     resultEx,
+		Result:                       resultData.Name,
+		ResultLoc:                    resultData.Location,
+		ResultDef:                    resultData.Definition,
+		ResultRef:                    resultData.Reference,
+		ResultDesc:                   resultData.Description,
+		ResultEx:                     resultData.Example,
 		Errors:                       errors,
 		ErrorLocs:                    errorLocs,
 		IsJSONRPC:                    isJSONRPC,
@@ -1527,8 +1488,43 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 		ResponseStruct:               vname + "ResponseData",
 	}
 
-	d.initStreamData(data, m, vname, rname, resultRef, scope)
+	d.initStreamData(data, m, vname, resultData.Name, resultData.Reference, scope)
 	return data
+}
+
+func buildMethodAttributeProjection(att *expr.AttributeExpr, kind, serviceName, methodName string, gen *expr.ExampleGenerator, scope *codegen.NameScope) methodAttributeProjection {
+	if att == nil || att.Type == expr.Empty {
+		return methodAttributeProjection{}
+	}
+
+	projection := methodAttributeProjection{
+		Name:        scope.GoTypeName(att),
+		Description: att.Description,
+		Example:     att.Example(gen),
+	}
+	if dt, ok := att.Type.(expr.UserType); ok {
+		projection.Definition = scope.GoTypeDef(dt.Attribute(), false, true)
+		projection.Location = codegen.UserTypeLocation(dt)
+	}
+	projection.Reference = scope.GoFullTypeRef(att, projection.Location.PackageName())
+	if projection.Description == "" {
+		projection.Description = fmt.Sprintf("%s is the %s type of the %s service %s method.",
+			projection.Name, kind, serviceName, methodName)
+	}
+	return projection
+}
+
+func buildMethodErrorData(methodErrors []*expr.ErrorExpr, scope *codegen.NameScope) ([]*ErrorInitData, map[string]*codegen.Location) {
+	if len(methodErrors) == 0 {
+		return nil, nil
+	}
+	errors := make([]*ErrorInitData, len(methodErrors))
+	errorLocs := make(map[string]*codegen.Location, len(methodErrors))
+	for i, methodError := range methodErrors {
+		errors[i] = buildErrorInitData(methodError, scope)
+		errorLocs[methodError.Name] = codegen.UserTypeLocation(methodError.Type)
+	}
+	return errors, errorLocs
 }
 
 func (d *ServicesData) classifyJSONRPCStreamTransport(m *expr.MethodExpr, isJSONRPC bool) (bool, bool) {

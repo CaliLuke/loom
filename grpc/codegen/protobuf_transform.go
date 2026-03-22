@@ -7,6 +7,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/transformassign"
 )
 
 type transformAttrs struct {
@@ -376,17 +377,32 @@ func transformObjectPrimitivePointerCases(
 	switch {
 	case isSrcUT || isTgtUT || (srcField != srcFieldConv):
 		exp := convertedPrimitiveObjectFieldExpr(srcc, tgtc, srcField, srcFieldConv, srcPtr, ta)
-		if srcPtr && !srcMatt.IsRequired(attrName) {
-			return "", appendConditionalPrimitiveAssignment(postInitCode, srcField, targetVar, tgtField, exp, elemName, tgtPtr), true
+		initExp, postAssign, handled := transformassign.BuildPrimitiveObjectAssignment(transformassign.PrimitiveObjectPlan{
+			SourceField:    srcField,
+			TargetVar:      targetVar,
+			TargetField:    tgtField,
+			Expression:     exp,
+			TempVar:        codegen.Goify(elemName, false),
+			SourcePointer:  srcPtr,
+			TargetPointer:  tgtPtr,
+			SourceRequired: srcMatt.IsRequired(attrName),
+		})
+		if handled {
+			return "", postInitCode + postAssign, true
 		}
-		if tgtPtr {
-			return "", appendPointerPrimitiveAssignment(postInitCode, targetVar, tgtField, exp, elemName), true
-		}
-		return exp, postInitCode, false
+		return initExp, postInitCode, false
 	case srcPtr && !tgtPtr:
 		exp := "*" + srcField
 		if !srcMatt.IsRequired(attrName) {
-			postInitCode += fmt.Sprintf("if %s != nil {\n\t%s.%s = %s\n}\n", srcField, targetVar, tgtField, exp)
+			_, postAssign, _ := transformassign.BuildPrimitiveObjectAssignment(transformassign.PrimitiveObjectPlan{
+				SourceField:    srcField,
+				TargetVar:      targetVar,
+				TargetField:    tgtField,
+				Expression:     exp,
+				SourcePointer:  true,
+				SourceRequired: false,
+			})
+			postInitCode += postAssign
 			return "", postInitCode, true
 		}
 		return exp, postInitCode, false
@@ -407,24 +423,6 @@ func convertedPrimitiveObjectFieldExpr(srcc, tgtc *expr.AttributeExpr, srcField,
 		exp = fmt.Sprintf("%s(%s%s)", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)), deref, srcField)
 	}
 	return exp
-}
-
-func appendConditionalPrimitiveAssignment(postInitCode, srcField, targetVar, tgtField, exp, elemName string, tgtPtr bool) string {
-	postInitCode += fmt.Sprintf("if %s != nil {\n", srcField)
-	if tgtPtr {
-		tmp := codegen.Goify(elemName, false)
-		postInitCode += fmt.Sprintf("%s := %s\n%s.%s = &%s\n", tmp, exp, targetVar, tgtField, tmp)
-	} else {
-		postInitCode += fmt.Sprintf("%s.%s = %s\n", targetVar, tgtField, exp)
-	}
-	postInitCode += "}\n"
-	return postInitCode
-}
-
-func appendPointerPrimitiveAssignment(postInitCode, targetVar, tgtField, exp, elemName string) string {
-	tmp := codegen.Goify(elemName, false)
-	postInitCode += fmt.Sprintf("%s := %s\n%s.%s = &%s\n", tmp, exp, targetVar, tgtField, tmp)
-	return postInitCode
 }
 
 // transformArray returns the code to transform source attribute of array

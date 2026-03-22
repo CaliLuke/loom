@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/transformassign"
 )
 
 // GoTransform produces Go code that initializes the data structure defined
@@ -138,25 +139,33 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 						deref = "*"
 					}
 					exp = fmt.Sprintf("%s(%s%s)", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)), deref, srcField)
-					if srcPtr && !srcMatt.IsRequired(n) {
-						postInitCode += fmt.Sprintf("if %s != nil {\n", srcField)
-						if tgtPtr {
-							tmp := Goify(tgtMatt.ElemName(n), false)
-							postInitCode += fmt.Sprintf("%s := %s\n%s.%s = &%s\n", tmp, exp, targetVar, tgtField, tmp)
-						} else {
-							postInitCode += fmt.Sprintf("%s.%s = %s\n", targetVar, tgtField, exp)
-						}
-						postInitCode += "}\n"
-						return
-					} else if tgtPtr {
-						tmp := Goify(tgtMatt.ElemName(n), false)
-						postInitCode += fmt.Sprintf("%s := %s\n%s.%s = &%s\n", tmp, exp, targetVar, tgtField, tmp)
+					initExp, postAssign, handled := transformassign.BuildPrimitiveObjectAssignment(transformassign.PrimitiveObjectPlan{
+						SourceField:    srcField,
+						TargetVar:      targetVar,
+						TargetField:    tgtField,
+						Expression:     exp,
+						TempVar:        Goify(tgtMatt.ElemName(n), false),
+						SourcePointer:  srcPtr,
+						TargetPointer:  tgtPtr,
+						SourceRequired: srcMatt.IsRequired(n),
+					})
+					if handled {
+						postInitCode += postAssign
 						return
 					}
+					exp = initExp
 				case srcPtr && !tgtPtr:
 					exp = "*" + srcField
 					if !srcMatt.IsRequired(n) {
-						postInitCode += fmt.Sprintf("if %s != nil {\n\t%s.%s = %s\n}\n", srcField, targetVar, tgtField, exp)
+						_, postAssign, _ := transformassign.BuildPrimitiveObjectAssignment(transformassign.PrimitiveObjectPlan{
+							SourceField:    srcField,
+							TargetVar:      targetVar,
+							TargetField:    tgtField,
+							Expression:     exp,
+							SourcePointer:  true,
+							SourceRequired: false,
+						})
+						postInitCode += postAssign
 						return
 					}
 				case !srcPtr && tgtPtr:

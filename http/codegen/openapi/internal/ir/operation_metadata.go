@@ -11,6 +11,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiinternal "github.com/CaliLuke/loom/http/codegen/openapi/internal"
+	"github.com/CaliLuke/loom/internal/securityreq"
 )
 
 const defaultOperationIDFormat = "{service}.{method}(.{routeIndex})"
@@ -196,29 +197,7 @@ func buildOperationSecurity(endpoint *expr.HTTPEndpointExpr) []map[string][]stri
 	if len(endpoint.Requirements) == 0 {
 		return nil
 	}
-	return buildSecurityRequirements(endpoint.Requirements)
-}
-
-func buildSecurityRequirements(requirements []*expr.SecurityExpr) []map[string][]string {
-	if len(requirements) == 0 {
-		return nil
-	}
-	result := make([]map[string][]string, len(requirements))
-	for i, requirement := range requirements {
-		schemes := make(map[string][]string, len(requirement.Schemes))
-		for _, scheme := range requirement.Schemes {
-			scopes := make([]string, 0)
-			switch scheme.Kind {
-			case expr.OAuth2Kind, expr.JWTKind:
-				if len(requirement.Scopes) > 0 {
-					scopes = requirement.Scopes
-				}
-			}
-			schemes[scheme.Hash()] = scopes
-		}
-		result[i] = schemes
-	}
-	return result
+	return securityreq.OpenAPI(endpoint.Requirements)
 }
 
 func operationTagNames(endpointMeta, serviceMeta expr.MetaExpr, serviceName string) []string {
