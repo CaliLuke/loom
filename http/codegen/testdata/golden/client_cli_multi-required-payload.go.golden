@@ -2,11 +2,11 @@
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		serviceMultiRequired1Flags = flag.NewFlagSet("service-multi-required1", flag.ContinueOnError)
 
@@ -93,7 +93,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{

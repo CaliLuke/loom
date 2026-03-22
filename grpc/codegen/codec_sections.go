@@ -41,7 +41,7 @@ func renderGRPCRequestEncoder(endpoint *EndpointData) string {
 	fmt.Fprintf(&b, "func Encode%sRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	fmt.Fprintf(&b, "\tpayload, ok := v.(%s)\n", endpoint.PayloadRef)
 	b.WriteString("\tif !ok {\n")
-	fmt.Fprintf(&b, "\t\treturn nil, goagrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.PayloadRef)
+	fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.PayloadRef)
 	b.WriteString("\t}\n")
 	for _, md := range endpoint.Request.Metadata {
 		b.WriteString(renderGRPCMetadataAppend(md, "payload", endpoint.MetadataSchemes))
@@ -107,7 +107,7 @@ func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 	}
 	fmt.Fprintf(&b, "\tmessage, ok := v.(%s)\n", endpoint.Response.ClientConvert.SrcRef)
 	b.WriteString("\tif !ok {\n")
-	fmt.Fprintf(&b, "\t\treturn nil, goagrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Response.ClientConvert.SrcRef)
+	fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Response.ClientConvert.SrcRef)
 	b.WriteString("\t}\n")
 	if endpoint.Response.ClientConvert.Validation != nil && endpoint.ViewedResultRef == "" {
 		assign := ":="
@@ -157,7 +157,7 @@ func renderGRPCRequestDecoder(endpoint *EndpointData) string {
 		fmt.Fprintf(&b, "\tvar (\n\t\tmessage %s\n\t\tok bool\n\t)\n", endpoint.Request.ServerConvert.SrcRef)
 		b.WriteString("\t{\n")
 		fmt.Fprintf(&b, "\t\tif message, ok = v.(%s); !ok {\n", endpoint.Request.ServerConvert.SrcRef)
-		fmt.Fprintf(&b, "\t\t\treturn nil, goagrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Request.Message.Ref)
+		fmt.Fprintf(&b, "\t\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Request.Message.Ref)
 		b.WriteString("\t\t}\n")
 		if endpoint.Request.ServerConvert.Validation != nil {
 			assign := ":="
@@ -204,14 +204,14 @@ func renderGRPCResponseEncoder(endpoint *EndpointData) string {
 	if endpoint.ViewedResultRef != "" {
 		fmt.Fprintf(&b, "\tvres, ok := v.(%s)\n", endpoint.ViewedResultRef)
 		b.WriteString("\tif !ok {\n")
-		fmt.Fprintf(&b, "\t\treturn nil, goagrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ViewedResultRef)
+		fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ViewedResultRef)
 		b.WriteString("\t}\n")
 		b.WriteString("\tresult := vres.Projected\n")
 		b.WriteString("\t(*hdr).Append(\"loom-view\", vres.View)\n")
 	} else if endpoint.ResultRef != "" {
 		fmt.Fprintf(&b, "\tresult, ok := v.(%s)\n", endpoint.ResultRef)
 		b.WriteString("\tif !ok {\n")
-		fmt.Fprintf(&b, "\t\treturn nil, goagrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ResultRef)
+		fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ResultRef)
 		b.WriteString("\t}\n")
 	}
 	fmt.Fprintf(&b, "\tresp := %s(%s)\n", endpoint.Response.ServerConvert.Init.Name, renderInitArgList(endpoint.Response.ServerConvert.Init.Args))
@@ -268,7 +268,7 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 	case md.TypeName == "string" || md.Type.Name() == "any":
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%s, \"metadata\"))\n", name)
+			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.WriteString("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
 			b.WriteString("\t\t}\n")
@@ -280,7 +280,7 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 	case md.StringSlice:
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%s, \"metadata\"))\n", name)
+			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.WriteString("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals\n", md.VarName)
 			b.WriteString("\t\t}\n")
@@ -291,7 +291,7 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 		rawVar := md.VarName + "Raw"
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif %s := %s.Get(%s); len(%s) == 0 {\n", rawVar, mdVar, name, rawVar)
-			fmt.Fprintf(&b, "\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%s, \"metadata\"))\n", name)
+			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.WriteString("\t\t} else {\n")
 			b.WriteString(indent(renderGRPCSliceConversion(md, rawVar), 3))
 			b.WriteString("\t\t}\n")
@@ -304,7 +304,7 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 		rawVar := md.VarName + "Raw"
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%s, \"metadata\"))\n", name)
+			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.WriteString("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", rawVar)
 			b.WriteString("\n")
@@ -328,7 +328,7 @@ func renderGRPCRequestMetadataDecode(md *MetadataData) string {
 	case md.TypeName == "string" || md.Type.Name() == "any":
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := md.Get(%s); len(vals) == 0 {\n", name)
-			fmt.Fprintf(&b, "\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%s, \"metadata\"))\n", name)
+			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.WriteString("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
 			b.WriteString("\t\t}\n")
@@ -344,7 +344,7 @@ func renderGRPCRequestMetadataDecode(md *MetadataData) string {
 	case md.StringSlice:
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := md.Get(%s); len(vals) == 0 {\n", name)
-			fmt.Fprintf(&b, "\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%s, \"metadata\"))\n", name)
+			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.WriteString("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals\n", md.VarName)
 			b.WriteString("\t\t}\n")
@@ -355,7 +355,7 @@ func renderGRPCRequestMetadataDecode(md *MetadataData) string {
 		rawVar := md.VarName + "Raw"
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif %s := md.Get(%s); len(%s) == 0 {\n", rawVar, name, rawVar)
-			fmt.Fprintf(&b, "\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%s, \"metadata\"))\n", name)
+			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.WriteString("\t\t} else {\n")
 			b.WriteString(indent(renderGRPCSliceConversion(md, rawVar), 3))
 			b.WriteString("\t\t}\n")
@@ -368,7 +368,7 @@ func renderGRPCRequestMetadataDecode(md *MetadataData) string {
 		rawVar := md.VarName + "Raw"
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := md.Get(%s); len(vals) == 0 {\n", name)
-			fmt.Fprintf(&b, "\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%s, \"metadata\"))\n", name)
+			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.WriteString("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s := vals[0]\n", rawVar)
 			b.WriteString("\n")
@@ -469,23 +469,23 @@ func renderGRPCStringParse(md *MetadataData, rawVar string) string {
 	case "bytes":
 		return fmt.Sprintf("%s = []byte(%s)\n", md.VarName, rawVar)
 	case "int":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, strconv.IntSize)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "int(v)"))
+		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, strconv.IntSize)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "int(v)"))
 	case "int32":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, 32)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "int32(v)"))
+		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "int32(v)"))
 	case "int64":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, 64)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md, "v"))
+		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md))
 	case "uint":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, strconv.IntSize)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "uint(v)"))
+		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, strconv.IntSize)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "uint(v)"))
 	case "uint32":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, 32)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "uint32(v)"))
+		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "uint32(v)"))
 	case "uint64":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, 64)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md, "v"))
+		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md))
 	case "float32":
-		return fmt.Sprintf("v, err2 := strconv.ParseFloat(%s, 32)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"float\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "float32(v)"))
+		return fmt.Sprintf("v, err2 := strconv.ParseFloat(%s, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"float\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "float32(v)"))
 	case "float64":
-		return fmt.Sprintf("v, err2 := strconv.ParseFloat(%s, 64)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"float\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md, "v"))
+		return fmt.Sprintf("v, err2 := strconv.ParseFloat(%s, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"float\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md))
 	case "boolean":
-		return fmt.Sprintf("v, err2 := strconv.ParseBool(%s)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %s, \"boolean\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md, "v"))
+		return fmt.Sprintf("v, err2 := strconv.ParseBool(%s)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"boolean\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md))
 	default:
 		return fmt.Sprintf("// unsupported type %s for var %s\n", md.Type.Name(), md.VarName)
 	}
@@ -498,11 +498,11 @@ func renderParsedAssign(md *MetadataData, value string) string {
 	return fmt.Sprintf("%s = %s\n", md.VarName, value)
 }
 
-func renderDirectOrValueAssign(md *MetadataData, value string) string {
+func renderDirectOrValueAssign(md *MetadataData) string {
 	if md.Pointer {
-		return fmt.Sprintf("%s = &%s\n", md.VarName, value)
+		return fmt.Sprintf("%s = &v\n", md.VarName)
 	}
-	return fmt.Sprintf("%s = %s\n", md.VarName, value)
+	return fmt.Sprintf("%s = v\n", md.VarName)
 }
 
 func renderGRPCSliceConversion(md *MetadataData, rawVar string) string {
@@ -523,23 +523,23 @@ func renderGRPCSliceItemConversion(md *MetadataData) string {
 	case "bytes":
 		return fmt.Sprintf("%s[i] = []byte(rv)\n", md.VarName)
 	case "int":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = int(v)\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = int(v)\n", name, md.VarName, md.VarName)
 	case "int32":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, 32)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = int32(v)\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = int32(v)\n", name, md.VarName, md.VarName)
 	case "int64":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, 64)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
 	case "uint":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = uint(v)\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = uint(v)\n", name, md.VarName, md.VarName)
 	case "uint32":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, 32)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = int32(v)\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = int32(v)\n", name, md.VarName, md.VarName)
 	case "uint64":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, 64)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
 	case "float32":
-		return fmt.Sprintf("v, err2 := strconv.ParseFloat(rv, 32)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of floats\"))\n}\n%s[i] = float32(v)\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseFloat(rv, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of floats\"))\n}\n%s[i] = float32(v)\n", name, md.VarName, md.VarName)
 	case "float64":
-		return fmt.Sprintf("v, err2 := strconv.ParseFloat(rv, 64)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of floats\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseFloat(rv, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of floats\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
 	case "boolean":
-		return fmt.Sprintf("v, err2 := strconv.ParseBool(rv)\nif err2 != nil {\n\terr = goa.MergeErrors(err, goa.InvalidFieldTypeError(%s, %sRaw, \"array of booleans\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
+		return fmt.Sprintf("v, err2 := strconv.ParseBool(rv)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of booleans\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
 	case "any":
 		return fmt.Sprintf("%s[i] = rv\n", md.VarName)
 	default:

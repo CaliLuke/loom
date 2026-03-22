@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Inspired from https://github.com/go-kit/kit/blob/1c17eccf28596f5a2c59314f7923ca66301b90e4/transport/grpc/server.go
@@ -40,19 +40,19 @@ type (
 	}
 
 	unaryHandler struct {
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		decoder  RequestDecoder
 		encoder  ResponseEncoder
 	}
 
 	streamHandler struct {
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		decoder  RequestDecoder
 	}
 )
 
 // NewUnaryHandler returns a handler to handle unary gRPC endpoints.
-func NewUnaryHandler(e goa.Endpoint, dec RequestDecoder, enc ResponseEncoder) UnaryHandler {
+func NewUnaryHandler(e loom.Endpoint, dec RequestDecoder, enc ResponseEncoder) UnaryHandler {
 	return &unaryHandler{
 		endpoint: e,
 		decoder:  dec,
@@ -61,7 +61,7 @@ func NewUnaryHandler(e goa.Endpoint, dec RequestDecoder, enc ResponseEncoder) Un
 }
 
 // NewStreamHandler returns a handler to handle streaming gRPC endpoints.
-func NewStreamHandler(e goa.Endpoint, dec RequestDecoder) StreamHandler {
+func NewStreamHandler(e loom.Endpoint, dec RequestDecoder) StreamHandler {
 	return &streamHandler{
 		endpoint: e,
 		decoder:  dec,
@@ -79,11 +79,11 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 			// Decode gRPC request message and incoming metadata
 			md, _ := metadata.FromIncomingContext(ctx)
 			if req, err = h.decoder(ctx, reqpb, md); err != nil {
-				var e *goa.ServiceError
+				var e *loom.ServiceError
 				if errors.As(err, &e) {
 					return nil, err
 				}
-				gerr := goa.DecodePayloadError(err.Error())
+				gerr := loom.DecodePayloadError(err.Error())
 				return nil, NewStatusError(codes.InvalidArgument, gerr, NewErrorResponse(gerr))
 			}
 		}
@@ -93,7 +93,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 		resp any
 	)
 	{
-		// Invoke goa endpoint
+		// Invoke Loom endpoint
 		if resp, err = h.endpoint(ctx, req); err != nil {
 			return nil, err
 		}
@@ -109,11 +109,11 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 		if h.encoder != nil {
 			// Encode gRPC response
 			if respb, err = h.encoder(ctx, resp, &hdr, &trlr); err != nil {
-				var e *goa.ServiceError
+				var e *loom.ServiceError
 				if errors.As(err, &e) {
 					return nil, err
 				}
-				gerr := goa.Fault("%s", err.Error())
+				gerr := loom.Fault("%s", err.Error())
 				return nil, NewStatusError(codes.Unknown, gerr, NewErrorResponse(gerr))
 			}
 		}
@@ -122,7 +122,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 	// Encode gRPC headers
 	if len(hdr) > 0 {
 		if err := grpc.SendHeader(ctx, hdr); err != nil {
-			gerr := goa.Fault("%s", err.Error())
+			gerr := loom.Fault("%s", err.Error())
 			return nil, NewStatusError(codes.Unknown, gerr, NewErrorResponse(gerr))
 		}
 	}
@@ -130,7 +130,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 	// Encode gRPC trailers
 	if len(trlr) > 0 {
 		if err := grpc.SetTrailer(ctx, trlr); err != nil {
-			gerr := goa.Fault("%s", err.Error())
+			gerr := loom.Fault("%s", err.Error())
 			return nil, NewStatusError(codes.Unknown, gerr, NewErrorResponse(gerr))
 		}
 	}
@@ -138,7 +138,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 	return respb, err
 }
 
-// Decode decodes the request message and incoming metadata into goa type.
+// Decode decodes the request message and incoming metadata into Loom type.
 func (h *streamHandler) Decode(ctx context.Context, reqpb any) (any, error) {
 	var (
 		req any
@@ -148,11 +148,11 @@ func (h *streamHandler) Decode(ctx context.Context, reqpb any) (any, error) {
 		if h.decoder != nil {
 			md, _ := metadata.FromIncomingContext(ctx)
 			if req, err = h.decoder(ctx, reqpb, md); err != nil {
-				var e *goa.ServiceError
+				var e *loom.ServiceError
 				if errors.As(err, &e) {
 					return nil, err
 				}
-				gerr := goa.DecodePayloadError(err.Error())
+				gerr := loom.DecodePayloadError(err.Error())
 				return nil, NewStatusError(codes.InvalidArgument, gerr, NewErrorResponse(gerr))
 			}
 		}

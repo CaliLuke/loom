@@ -1,6 +1,6 @@
 // DecodeMethodMultipartUserTypeRequest returns a decoder for requests sent to
 // the ServiceMultipartUserType MethodMultipartUserType endpoint.
-func DecodeMethodMultipartUserTypeRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicemultipartusertype.MethodMultipartUserTypePayload, error) {
+func DecodeMethodMultipartUserTypeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartusertype.MethodMultipartUserTypePayload, error) {
 	return func(r *http.Request) (*servicemultipartusertype.MethodMultipartUserTypePayload, error) {
 		var payload *servicemultipartusertype.MethodMultipartUserTypePayload
 		var (
@@ -9,35 +9,35 @@ func DecodeMethodMultipartUserTypeRequest(mux goahttp.Muxer, decoder func(*http.
 		)
 		mr, multipartErr := r.MultipartReader()
 		if multipartErr != nil {
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(multipartErr, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(multipartErr.Error())
+			return payload, loom.DecodePayloadError(multipartErr.Error())
 		}
-		multipartForm, multipartErr := goahttp.ReadMultipartForm(mr)
+		multipartForm, multipartErr := loomhttp.ReadMultipartForm(mr)
 		if multipartErr != nil {
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(multipartErr, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(multipartErr.Error())
+			return payload, loom.DecodePayloadError(multipartErr.Error())
 		}
 		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
-			return payload, goa.MissingPayloadError()
+			return payload, loom.MissingPayloadError()
 		} else {
-			if _, multipartErr = goahttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
-				var gerr *goa.ServiceError
+			if _, multipartErr = loomhttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
+				var gerr *loom.ServiceError
 				if errors.As(multipartErr, &gerr) {
 					return payload, gerr
 				}
-				return payload, goa.DecodePayloadError(multipartErr.Error())
+				return payload, loom.DecodePayloadError(multipartErr.Error())
 			}
 		}
 		err = ValidateMethodMultipartUserTypeRequestBody(&body)
 		if err != nil {
 			if multipartErr != nil {
-				err = goa.MergeErrors(multipartErr, err)
+				err = loom.MergeErrors(multipartErr, err)
 			}
 			return payload, err
 		}

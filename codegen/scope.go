@@ -310,7 +310,7 @@ func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
 		return s.GoTypeDef(att, false, false)
 	case expr.UserType, *expr.Union:
 		if actual == expr.ErrorResult {
-			return "goa.ServiceError"
+			return "loom.ServiceError"
 		}
 		// Qualified type references (pkg.Type) do not compete in the local
 		// identifier namespace.

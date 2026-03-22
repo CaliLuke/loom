@@ -1,7 +1,7 @@
 package otel
 
 import (
-	goagrpcotel "github.com/CaliLuke/loom/grpc/middleware/otel"
+	loomgrpcotel "github.com/CaliLuke/loom/grpc/middleware/otel"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
@@ -24,17 +24,17 @@ type (
 // GRPCServerOption returns a gRPC server option that installs OpenTelemetry
 // stats handling using the official otelgrpc implementation.
 func GRPCServerOption(cfg GRPCConfig) grpc.ServerOption {
-	return goagrpcotel.ServerOption(makeGRPCOptions(cfg)...)
+	return loomgrpcotel.ServerOption(makeGRPCOptions(cfg)...)
 }
 
 // GRPCClientOption returns a gRPC dial option that installs OpenTelemetry stats
 // handling using the official otelgrpc implementation.
 func GRPCClientOption(cfg GRPCConfig) grpc.DialOption {
-	return goagrpcotel.ClientOption(makeGRPCOptions(cfg)...)
+	return loomgrpcotel.ClientOption(makeGRPCOptions(cfg)...)
 }
 
-func makeGRPCOptions(cfg GRPCConfig) []goagrpcotel.Option {
-	opts := make([]goagrpcotel.Option, 0, 3)
+func makeGRPCOptions(cfg GRPCConfig) []loomgrpcotel.Option {
+	opts := make([]loomgrpcotel.Option, 0, 3)
 	if cfg.TracerProvider != nil {
 		opts = append(opts, otelgrpc.WithTracerProvider(cfg.TracerProvider))
 	}

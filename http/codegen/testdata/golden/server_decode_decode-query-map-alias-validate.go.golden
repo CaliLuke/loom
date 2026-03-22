@@ -1,6 +1,6 @@
 // DecodeMethodARequest returns a decoder for requests sent to the
 // ServiceQueryMapAliasValidate MethodA endpoint.
-func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerymapaliasvalidate.MethodAPayload, error) {
+func DecodeMethodARequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapaliasvalidate.MethodAPayload, error) {
 	return func(r *http.Request) (*servicequerymapaliasvalidate.MethodAPayload, error) {
 		var payload *servicequerymapaliasvalidate.MethodAPayload
 		var (
@@ -20,12 +20,12 @@ func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 							openIdx := strings.IndexRune(keyRaw, '[')
 							closeIdx := strings.IndexRune(keyRaw, ']')
 							if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-								err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+								err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 							} else {
 								keyaRaw := keyRaw[openIdx+1 : closeIdx]
 								v, err2 := strconv.ParseFloat(keyaRaw, 32)
 								if err2 != nil {
-									err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", keyaRaw, "float"))
+									err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keyaRaw, "float"))
 								}
 								keya = float32(v)
 							}
@@ -35,7 +35,7 @@ func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 							valaRaw := valRaw[0]
 							v, err2 := strconv.ParseBool(valaRaw)
 							if err2 != nil {
-								err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", valaRaw, "boolean"))
+								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valaRaw, "boolean"))
 							}
 							vala = v
 						}
@@ -45,7 +45,7 @@ func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 			}
 		}
 		if len(map_) < 5 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("map", map_, len(map_), 5, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("map", map_, len(map_), 5, true))
 		}
 		if err != nil {
 			return payload, err

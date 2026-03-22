@@ -3,7 +3,7 @@
 // payload is sent to the service. The implementation is responsible for calling
 // next to complete the request.
 type ServerInterceptors interface {
-	Logging(ctx context.Context, info *LoggingInfo, next goa.Endpoint) (any, error)
+	Logging(ctx context.Context, info *LoggingInfo, next loom.Endpoint) (any, error)
 }
 
 // Access interfaces for interceptor payloads and results
@@ -13,14 +13,14 @@ type (
 	LoggingInfo struct {
 		service    string
 		method     string
-		callType   goa.InterceptorCallType
+		callType   loom.InterceptorCallType
 		rawPayload any
 	}
 )
 
 // WrapMethodEndpoint wraps the Method endpoint with the server-side
 // interceptors defined in the design.
-func WrapMethodEndpoint(endpoint goa.Endpoint, i ServerInterceptors) goa.Endpoint {
+func WrapMethodEndpoint(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
 	if i != nil {
 		endpoint = wrapMethodlogging(endpoint, i)
 	}
@@ -40,7 +40,7 @@ func (info *LoggingInfo) Method() string {
 }
 
 // CallType returns the type of call the interceptor is handling.
-func (info *LoggingInfo) CallType() goa.InterceptorCallType {
+func (info *LoggingInfo) CallType() loom.InterceptorCallType {
 	return info.callType
 }
 

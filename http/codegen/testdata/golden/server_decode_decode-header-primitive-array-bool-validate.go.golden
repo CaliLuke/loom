@@ -1,7 +1,7 @@
 // DecodeMethodHeaderPrimitiveArrayBoolValidateRequest returns a decoder for
 // requests sent to the ServiceHeaderPrimitiveArrayBoolValidate
 // MethodHeaderPrimitiveArrayBoolValidate endpoint.
-func DecodeMethodHeaderPrimitiveArrayBoolValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) ([]bool, error) {
+func DecodeMethodHeaderPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) ([]bool, error) {
 	return func(r *http.Request) ([]bool, error) {
 		var payload []bool
 		var (
@@ -11,23 +11,23 @@ func DecodeMethodHeaderPrimitiveArrayBoolValidateRequest(mux goahttp.Muxer, deco
 		{
 			hRaw := r.Header["H"]
 			if hRaw == nil {
-				err = goa.MergeErrors(err, goa.MissingFieldError("h", "header"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
 			}
 			h = make([]bool, len(hRaw))
 			for i, rv := range hRaw {
 				v, err2 := strconv.ParseBool(rv)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("h", hRaw, "array of booleans"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("h", hRaw, "array of booleans"))
 				}
 				h[i] = v
 			}
 		}
 		if len(h) < 1 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("h", h, len(h), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("h", h, len(h), 1, true))
 		}
 		for _, e := range h {
 			if !(e == true) {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("h[*]", e, []any{true}))
+				err = loom.MergeErrors(err, loom.InvalidEnumValueError("h[*]", e, []any{true}))
 			}
 		}
 		if err != nil {

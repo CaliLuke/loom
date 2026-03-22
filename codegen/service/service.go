@@ -128,7 +128,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 			codegen.SimpleImport("encoding/json"),
 			codegen.SimpleImport("fmt"),
 			codegen.SimpleImport("net/url"),
-			codegen.LoomNamedImport("http", "goahttp"),
+			codegen.LoomNamedImport("http", "loomhttp"),
 		)
 	}
 	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
@@ -201,7 +201,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 			imports = append(imports,
 				codegen.SimpleImport("encoding/json"),
 				codegen.SimpleImport("net/url"),
-				codegen.LoomNamedImport("http", "goahttp"),
+				codegen.LoomNamedImport("http", "loomhttp"),
 			)
 		}
 		h := codegen.Header("User types", codegen.Goify(filepath.Base(dir), false), imports)
@@ -301,14 +301,14 @@ func errorInitSection(data *ErrorInitData) codegen.Section {
 		codegen.Doc(stmt, fmt.Sprintf("%s builds a %s from an error.", data.Name, data.TypeName))
 		stmt.Func().Id(data.Name).Params(jen.Id("err").Error()).Add(codegen.TypeRef(data.TypeRef)).BlockFunc(func(group *jen.Group) {
 			if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
-				group.Id("serr").Op(":=").Add(codegen.Expr("goa.NewServiceError")).Call(
+				group.Id("serr").Op(":=").Add(codegen.Expr("loom.NewServiceError")).Call(
 					jen.Id("err"),
 					jen.Lit(data.ErrName),
 					jen.Lit(data.Timeout),
 					jen.Lit(data.Temporary),
 					jen.Lit(data.Fault),
 				)
-				group.Add(codegen.Expr(fmt.Sprintf(`goa.WithErrorRemedy(serr, &goa.ErrorRemedy{
+				group.Add(codegen.Expr(fmt.Sprintf(`loom.WithErrorRemedy(serr, &loom.ErrorRemedy{
 	Code:        %q,
 	SafeMessage: %q,
 	RetryHint:   %q,
@@ -317,7 +317,7 @@ func errorInitSection(data *ErrorInitData) codegen.Section {
 				return
 			}
 			group.Return(
-				codegen.Expr("goa.NewServiceError").Call(
+				codegen.Expr("loom.NewServiceError").Call(
 					jen.Id("err"),
 					jen.Lit(data.ErrName),
 					jen.Lit(data.Timeout),

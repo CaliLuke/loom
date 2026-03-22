@@ -154,7 +154,7 @@ func (u *Values) SetBytes(v ValuesBytes) {
 func (u Values) Validate() error {
 	switch u.kind {
 	case "":
-		return goa.InvalidEnumValueError("type", "", []any{
+		return loom.InvalidEnumValueError("type", "", []any{
 			string(ValuesKindInt),
 			string(ValuesKindString),
 			string(ValuesKindBoolean),
@@ -169,7 +169,7 @@ func (u Values) Validate() error {
 	case ValuesKindBytes:
 		return nil
 	default:
-		return goa.InvalidEnumValueError("type", u.kind, []any{
+		return loom.InvalidEnumValueError("type", u.kind, []any{
 			string(ValuesKindInt),
 			string(ValuesKindString),
 			string(ValuesKindBoolean),
@@ -215,19 +215,19 @@ func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 	if err := u.Validate(); err != nil {
 		return err
 	}
-	values.Set(goahttp.FormChildKey(prefix, "type"), string(u.kind))
+	values.Set(loomhttp.FormChildKey(prefix, "type"), string(u.kind))
 	switch u.kind {
 	case ValuesKindInt:
-		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Int)
+		_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "value"), u.Int)
 		return err
 	case ValuesKindString:
-		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.String)
+		_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "value"), u.String)
 		return err
 	case ValuesKindBoolean:
-		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Boolean)
+		_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "value"), u.Boolean)
 		return err
 	case ValuesKindBytes:
-		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Bytes)
+		_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "value"), u.Bytes)
 		return err
 	default:
 		return fmt.Errorf("unexpected Values discriminant %q", u.kind)
@@ -239,54 +239,54 @@ func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 // object-shaped branches and the canonical {type,value} form shape for scalar
 // branches.
 func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
-	typeKey := goahttp.FormChildKey(prefix, "type")
-	valueKey := goahttp.FormChildKey(prefix, "value")
+	typeKey := loomhttp.FormChildKey(prefix, "type")
+	valueKey := loomhttp.FormChildKey(prefix, "value")
 	rawType := values.Get(typeKey)
 	if rawType == "" {
-		return goa.MissingFieldError("type", "body")
+		return loom.MissingFieldError("type", "body")
 	}
 	switch rawType {
 	case string(ValuesKindInt):
 		var v ValuesInt
-		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		seen, err := loomhttp.DecodeFormValue(values, valueKey, &v)
 		if err != nil {
 			return err
 		}
 		if !seen {
-			return goa.MissingFieldError("value", "body")
+			return loom.MissingFieldError("value", "body")
 		}
 		u.kind = ValuesKindInt
 		u.Int = v
 	case string(ValuesKindString):
 		var v ValuesString
-		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		seen, err := loomhttp.DecodeFormValue(values, valueKey, &v)
 		if err != nil {
 			return err
 		}
 		if !seen {
-			return goa.MissingFieldError("value", "body")
+			return loom.MissingFieldError("value", "body")
 		}
 		u.kind = ValuesKindString
 		u.String = v
 	case string(ValuesKindBoolean):
 		var v ValuesBoolean
-		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		seen, err := loomhttp.DecodeFormValue(values, valueKey, &v)
 		if err != nil {
 			return err
 		}
 		if !seen {
-			return goa.MissingFieldError("value", "body")
+			return loom.MissingFieldError("value", "body")
 		}
 		u.kind = ValuesKindBoolean
 		u.Boolean = v
 	case string(ValuesKindBytes):
 		var v ValuesBytes
-		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		seen, err := loomhttp.DecodeFormValue(values, valueKey, &v)
 		if err != nil {
 			return err
 		}
 		if !seen {
-			return goa.MissingFieldError("value", "body")
+			return loom.MissingFieldError("value", "body")
 		}
 		u.kind = ValuesKindBytes
 		u.Bytes = v

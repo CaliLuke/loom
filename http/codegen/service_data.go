@@ -708,7 +708,7 @@ func (sds *ServicesData) buildEndpointData(httpEndpoint *expr.HTTPEndpointExpr, 
 	routes := sds.buildEndpointRoutes(httpEndpoint, method, svc, sd)
 	payload := sds.buildPayloadData(httpEndpoint, sd)
 	reqs, hsch, bosch, qsch, basch := sds.buildRequirementSchemes(httpEndpoint)
-	requestInit := sds.buildClientRequestInit(httpEndpoint, method, svc, routes, sd)
+	requestInit := sds.buildClientRequestInit(httpEndpoint, method, svc, routes)
 
 	endpoint := &EndpointData{
 		Method:          method,
@@ -869,7 +869,7 @@ func endpointRequestEncoderName(method *service.MethodData, payload *PayloadData
 	return fmt.Sprintf("Encode%sRequest", method.VarName)
 }
 
-func (sds *ServicesData) buildClientRequestInit(httpEndpoint *expr.HTTPEndpointExpr, method *service.MethodData, svc *service.Data, routes []*RouteData, sd *ServiceData) *InitData {
+func (sds *ServicesData) buildClientRequestInit(httpEndpoint *expr.HTTPEndpointExpr, method *service.MethodData, svc *service.Data, routes []*RouteData) *InitData {
 	name := fmt.Sprintf("Build%sRequest", method.VarName)
 	scope := codegen.NewNameScope()
 	scope.Unique("c")
@@ -948,10 +948,10 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(httpEndpoint *expr.HT
 		collectUnionBranchUserTypes(httpEndpoint.StreamingBody, unionBranchTypes)
 	}
 
-	appendTypeData := func(att *expr.AttributeExpr, req, ptr, server bool, target *[]*TypeData) {
+	appendTypeData := func(att *expr.AttributeExpr, ptr, server bool, target *[]*TypeData) {
 		collectUserTypes(att.Type, func(ut expr.UserType) {
-			if d := sds.attributeTypeData(ut, req, ptr, server, sd); d != nil {
-				if req && !server && d.ValidateDef == "" {
+			if d := sds.attributeTypeData(ut, true, ptr, server, sd); d != nil {
+				if !server && d.ValidateDef == "" {
 					if _, ok := unionBranchTypes[ut.ID()]; ok {
 						d.ValidateDef = "// no validations"
 						d.ValidateRef = fmt.Sprintf("err = Validate%s(v)", d.VarName)
@@ -961,12 +961,12 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(httpEndpoint *expr.HT
 			}
 		})
 	}
-	appendTypeData(httpEndpoint.Body, true, true, true, &sd.ServerBodyAttributeTypes)
-	appendTypeData(httpEndpoint.Body, true, false, false, &sd.ClientBodyAttributeTypes)
+	appendTypeData(httpEndpoint.Body, true, true, &sd.ServerBodyAttributeTypes)
+	appendTypeData(httpEndpoint.Body, false, false, &sd.ClientBodyAttributeTypes)
 
 	if httpEndpoint.MethodExpr.StreamingPayload.Type != expr.Empty {
-		appendTypeData(httpEndpoint.StreamingBody, true, true, true, &sd.ServerBodyAttributeTypes)
-		appendTypeData(httpEndpoint.StreamingBody, true, false, false, &sd.ClientBodyAttributeTypes)
+		appendTypeData(httpEndpoint.StreamingBody, true, true, &sd.ServerBodyAttributeTypes)
+		appendTypeData(httpEndpoint.StreamingBody, false, false, &sd.ClientBodyAttributeTypes)
 	}
 
 	if httpEndpoint.MethodExpr.Result != nil {
@@ -1927,13 +1927,6 @@ func needInit(dt expr.DataType) bool {
 
 // upgradeParams returns the data required to render the websocket_upgrade
 // template.
-func upgradeParams(e *EndpointData, fn string) map[string]any {
-	return map[string]any{
-		"ViewedResult": e.Method.ViewedResult,
-		"Function":     fn,
-	}
-}
-
 // NeedDialer returns true if at least one method in the defined services
 // uses WebSocket for sending payload or result.
 func NeedDialer(data []*ServiceData) bool {

@@ -1,7 +1,7 @@
 // Test gRPC client CLI support package
 //
 // Command:
-// goa
+// loom
 
 package cli
 
@@ -12,7 +12,7 @@ import (
 	servicewithinterceptorsc "grpc/service_with_interceptors/client"
 	"os"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 	grpc "google.golang.org/grpc"
 )
 
@@ -26,7 +26,7 @@ func UsageExamples() string {
 	return os.Args[0] + " service-with-interceptors method-a --message '{\n      \"field\": \"Sapiente est.\"\n   }'\\n"
 } // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
-func ParseEndpoint(cc *grpc.ClientConn, serviceWithInterceptorsInter servicewithinterceptors.ClientInterceptors, opts ...grpc.CallOption) (goa.Endpoint, any, error) {
+func ParseEndpoint(cc *grpc.ClientConn, serviceWithInterceptorsInter servicewithinterceptors.ClientInterceptors, opts ...grpc.CallOption) (loom.Endpoint, any, error) {
 	var (
 		serviceWithInterceptorsFlags = flag.NewFlagSet("service-with-interceptors", flag.ContinueOnError)
 
@@ -97,7 +97,7 @@ func ParseEndpoint(cc *grpc.ClientConn, serviceWithInterceptorsInter servicewith
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{

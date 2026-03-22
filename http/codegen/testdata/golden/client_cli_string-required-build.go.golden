@@ -6,7 +6,7 @@ func BuildMethodQueryStringValidatePayload(serviceQueryStringValidateMethodQuery
 	{
 		q = serviceQueryStringValidateMethodQueryStringValidateQ
 		if !(q == "val") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("q", q, []any{"val"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"val"}))
 		}
 		if err != nil {
 			return nil, err

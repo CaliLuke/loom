@@ -754,7 +754,7 @@ func (a *AttributeExpr) ExtractUserExamples() []*ExampleExpr {
 	return ut.Attribute().ExtractUserExamples()
 }
 
-// Debug dumps the attribute to STDOUT in a goa developer friendly way.
+// Debug dumps the attribute to STDOUT in a Loom developer friendly way.
 func (a *AttributeExpr) Debug(prefix string) { a.debug(prefix, make(map[*AttributeExpr]int), 0) }
 func (a *AttributeExpr) debug(prefix string, seen map[*AttributeExpr]int, indent int) {
 	tab := "    "
@@ -1052,7 +1052,7 @@ func (v *ValidationExpr) Dup() *ValidationExpr {
 	}
 }
 
-// Debug dumps the validation to STDOUT in a goa developer friendly way.
+// Debug dumps the validation to STDOUT in a Loom developer friendly way.
 func (v *ValidationExpr) Debug(title, prefix, indent string) {
 	if v.HasRequiredOnly() && len(v.Required) == 0 {
 		return
@@ -1090,7 +1090,7 @@ func (v *ValidationExpr) Debug(title, prefix, indent string) {
 	}
 }
 
-// IsSupportedValidationFormat checks if the validation format is supported by goa.
+// IsSupportedValidationFormat checks if the validation format is supported by Loom.
 func (*AttributeExpr) IsSupportedValidationFormat(vf ValidationFormat) bool {
 	switch vf {
 	case FormatDate:

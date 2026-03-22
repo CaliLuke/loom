@@ -3,13 +3,13 @@ package testdata
 var MixedEndpointsConnConfigurerStructCode = `// ConnConfigurer holds the websocket connection configurer functions for the
 // streaming endpoints in "StreamingResultService" service.
 type ConnConfigurer struct {
-	StreamingResultMethodFn goahttp.ConnConfigureFunc
+	StreamingResultMethodFn loomhttp.ConnConfigureFunc
 }
 `
 
 var MixedEndpointsConnConfigurerInitCode = `// NewConnConfigurer initializes the websocket connection configurer function
 // with fn for all the streaming endpoints in "StreamingResultService" service.
-func NewConnConfigurer(fn goahttp.ConnConfigureFunc) *ConnConfigurer {
+func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {
 	return &ConnConfigurer{
 		StreamingResultMethodFn: fn,
 	}
@@ -20,23 +20,23 @@ var StreamingResultServerHandlerInitCode = `// NewStreamingResultMethodHandler c
 // request and calls the "StreamingResultService" service
 // "StreamingResultMethod" endpoint.
 func NewStreamingResultMethodHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-	upgrader goahttp.Upgrader,
-	configurer goahttp.ConnConfigureFunc,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	upgrader loomhttp.Upgrader,
+	configurer loomhttp.ConnConfigureFunc,
 ) http.Handler {
 	var (
 		decodeRequest = DecodeStreamingResultMethodRequest(mux, decoder)
-		encodeError   = goahttp.ErrorEncoder(encoder, formatter)
+		encodeError   = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "StreamingResultMethod")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "StreamingResultService")
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingResultMethod")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingResultService")
 		payload, err := decodeRequest(r)
 		if err != nil {
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
@@ -83,22 +83,22 @@ func NewStreamingResultMethodHandler(
 var MixedResultsServerHandlerInitCode = `// NewCreateHandler creates a HTTP handler which loads the HTTP request and
 // calls the "MixedResultsService" service "Create" endpoint.
 func NewCreateHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 ) http.Handler {
 	var (
 		decodeRequest  = DecodeCreateRequest(mux, decoder)
 		encodeResponse = EncodeCreateResponse(encoder)
-		encodeError    = goahttp.ErrorEncoder(encoder, formatter)
+		encodeError    = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "Create")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "MixedResultsService")
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, "Create")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "MixedResultsService")
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
 		acceptHeader := r.Header.Get("Accept")
@@ -287,22 +287,22 @@ var StreamingResultNoPayloadServerHandlerInitCode = `// NewStreamingResultNoPayl
 // the HTTP request and calls the "StreamingResultNoPayloadService" service
 // "StreamingResultNoPayloadMethod" endpoint.
 func NewStreamingResultNoPayloadMethodHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-	upgrader goahttp.Upgrader,
-	configurer goahttp.ConnConfigureFunc,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	upgrader loomhttp.Upgrader,
+	configurer loomhttp.ConnConfigureFunc,
 ) http.Handler {
 	var (
-		encodeError = goahttp.ErrorEncoder(encoder, formatter)
+		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "StreamingResultNoPayloadMethod")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "StreamingResultNoPayloadService")
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingResultNoPayloadMethod")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingResultNoPayloadService")
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -341,7 +341,7 @@ func NewStreamingResultNoPayloadMethodHandler(
 
 var StreamingResultClientEndpointCode = `// StreamingResultMethod returns an endpoint that makes HTTP requests to the
 // StreamingResultService service StreamingResultMethod server.
-func (c *Client) StreamingResultMethod() goa.Endpoint {
+func (c *Client) StreamingResultMethod() loom.Endpoint {
 	var (
 		decodeResponse = DecodeStreamingResultMethodResponse(c.decoder, c.RestoreResponseBody)
 	)
@@ -355,7 +355,7 @@ func (c *Client) StreamingResultMethod() goa.Endpoint {
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("StreamingResultService", "StreamingResultMethod", err)
+			return nil, loomhttp.ErrRequestError("StreamingResultService", "StreamingResultMethod", err)
 		}
 		if c.configurer.StreamingResultMethodFn != nil {
 			var cancel context.CancelFunc
@@ -421,7 +421,7 @@ func (s *StreamingResultMethodClientStream) RecvWithContext(ctx context.Context)
 var StreamingResultWithViewsClientEndpointCode = `// StreamingResultWithViewsMethod returns an endpoint that makes HTTP requests
 // to the StreamingResultWithViewsService service
 // StreamingResultWithViewsMethod server.
-func (c *Client) StreamingResultWithViewsMethod() goa.Endpoint {
+func (c *Client) StreamingResultWithViewsMethod() loom.Endpoint {
 	var (
 		decodeResponse = DecodeStreamingResultWithViewsMethodResponse(c.decoder, c.RestoreResponseBody)
 	)
@@ -435,7 +435,7 @@ func (c *Client) StreamingResultWithViewsMethod() goa.Endpoint {
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
+			return nil, loomhttp.ErrRequestError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 		}
 		if c.configurer.StreamingResultWithViewsMethodFn != nil {
 			var cancel context.CancelFunc
@@ -474,7 +474,7 @@ func (s *StreamingResultWithViewsMethodClientStream) Recv() (*streamingresultwit
 	res := NewStreamingResultWithViewsMethodUsertypeOK(&body)
 	vres := &streamingresultwithviewsserviceviews.Usertype{res, s.view}
 	if err := streamingresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
-		return rv, goahttp.ErrValidationError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
+		return rv, loomhttp.ErrValidationError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 	}
 	return streamingresultwithviewsservice.NewUsertype(vres), nil
 }
@@ -497,7 +497,7 @@ func (s *StreamingResultWithViewsMethodClientStream) SetView(view string) {
 var StreamingResultWithExplicitViewClientEndpointCode = `// StreamingResultWithExplicitViewMethod returns an endpoint that makes HTTP
 // requests to the StreamingResultWithExplicitViewService service
 // StreamingResultWithExplicitViewMethod server.
-func (c *Client) StreamingResultWithExplicitViewMethod() goa.Endpoint {
+func (c *Client) StreamingResultWithExplicitViewMethod() loom.Endpoint {
 	var (
 		decodeResponse = DecodeStreamingResultWithExplicitViewMethodResponse(c.decoder, c.RestoreResponseBody)
 	)
@@ -511,7 +511,7 @@ func (c *Client) StreamingResultWithExplicitViewMethod() goa.Endpoint {
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
+			return nil, loomhttp.ErrRequestError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 		}
 		if c.configurer.StreamingResultWithExplicitViewMethodFn != nil {
 			var cancel context.CancelFunc
@@ -549,7 +549,7 @@ func (s *StreamingResultWithExplicitViewMethodClientStream) Recv() (*streamingre
 	res := NewStreamingResultWithExplicitViewMethodUsertypeOK(&body)
 	vres := &streamingresultwithexplicitviewserviceviews.Usertype{res, "extended"}
 	if err := streamingresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
-		return rv, goahttp.ErrValidationError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
+		return rv, loomhttp.ErrValidationError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 	}
 	return streamingresultwithexplicitviewservice.NewUsertype(vres), nil
 }
@@ -675,7 +675,7 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) Recv() (streaming
 	res := NewStreamingResultCollectionWithViewsMethodUsertypeCollectionOK(body)
 	vres := streamingresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
 	if err := streamingresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
-		return rv, goahttp.ErrValidationError("StreamingResultCollectionWithViewsService", "StreamingResultCollectionWithViewsMethod", err)
+		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithViewsService", "StreamingResultCollectionWithViewsMethod", err)
 	}
 	return streamingresultcollectionwithviewsservice.NewUsertypeCollection(vres), nil
 }
@@ -736,7 +736,7 @@ func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithCo
 var StreamingResultCollectionWithExplicitViewClientEndpointCode = `// StreamingResultCollectionWithExplicitViewMethod returns an endpoint that
 // makes HTTP requests to the StreamingResultCollectionWithExplicitViewService
 // service StreamingResultCollectionWithExplicitViewMethod server.
-func (c *Client) StreamingResultCollectionWithExplicitViewMethod() goa.Endpoint {
+func (c *Client) StreamingResultCollectionWithExplicitViewMethod() loom.Endpoint {
 	var (
 		decodeResponse = DecodeStreamingResultCollectionWithExplicitViewMethodResponse(c.decoder, c.RestoreResponseBody)
 	)
@@ -750,7 +750,7 @@ func (c *Client) StreamingResultCollectionWithExplicitViewMethod() goa.Endpoint 
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
+			return nil, loomhttp.ErrRequestError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 		}
 		if c.configurer.StreamingResultCollectionWithExplicitViewMethodFn != nil {
 			var cancel context.CancelFunc
@@ -789,7 +789,7 @@ func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) Recv() (st
 	res := NewStreamingResultCollectionWithExplicitViewMethodUsertypeCollectionOK(body)
 	vres := streamingresultcollectionwithexplicitviewserviceviews.UsertypeCollection{res, "tiny"}
 	if err := streamingresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
-		return rv, goahttp.ErrValidationError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
+		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 	}
 	return streamingresultcollectionwithexplicitviewservice.NewUsertypeCollection(vres), nil
 }
@@ -1119,7 +1119,7 @@ func (s *StreamingResultUserTypeMapMethodClientStream) RecvWithContext(ctx conte
 var StreamingResultNoPayloadClientEndpointCode = `// StreamingResultNoPayloadMethod returns an endpoint that makes HTTP requests
 // to the StreamingResultNoPayloadService service
 // StreamingResultNoPayloadMethod server.
-func (c *Client) StreamingResultNoPayloadMethod() goa.Endpoint {
+func (c *Client) StreamingResultNoPayloadMethod() loom.Endpoint {
 	var (
 		decodeResponse = DecodeStreamingResultNoPayloadMethodResponse(c.decoder, c.RestoreResponseBody)
 	)
@@ -1133,7 +1133,7 @@ func (c *Client) StreamingResultNoPayloadMethod() goa.Endpoint {
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("StreamingResultNoPayloadService", "StreamingResultNoPayloadMethod", err)
+			return nil, loomhttp.ErrRequestError("StreamingResultNoPayloadService", "StreamingResultNoPayloadMethod", err)
 		}
 		if c.configurer.StreamingResultNoPayloadMethodFn != nil {
 			var cancel context.CancelFunc
@@ -1155,23 +1155,23 @@ var StreamingPayloadServerHandlerInitCode = `// NewStreamingPayloadMethodHandler
 // request and calls the "StreamingPayloadService" service
 // "StreamingPayloadMethod" endpoint.
 func NewStreamingPayloadMethodHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-	upgrader goahttp.Upgrader,
-	configurer goahttp.ConnConfigureFunc,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	upgrader loomhttp.Upgrader,
+	configurer loomhttp.ConnConfigureFunc,
 ) http.Handler {
 	var (
 		decodeRequest = DecodeStreamingPayloadMethodRequest(mux, decoder)
-		encodeError   = goahttp.ErrorEncoder(encoder, formatter)
+		encodeError   = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "StreamingPayloadMethod")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "StreamingPayloadService")
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingPayloadMethod")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingPayloadService")
 		payload, err := decodeRequest(r)
 		if err != nil {
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
@@ -1277,7 +1277,7 @@ func (s *StreamingPayloadMethodServerStream) RecvWithContext(ctx context.Context
 
 var StreamingPayloadClientEndpointCode = `// StreamingPayloadMethod returns an endpoint that makes HTTP requests to the
 // StreamingPayloadService service StreamingPayloadMethod server.
-func (c *Client) StreamingPayloadMethod() goa.Endpoint {
+func (c *Client) StreamingPayloadMethod() loom.Endpoint {
 	var (
 		encodeRequest  = EncodeStreamingPayloadMethodRequest(c.encoder)
 		decodeResponse = DecodeStreamingPayloadMethodResponse(c.decoder, c.RestoreResponseBody)
@@ -1296,7 +1296,7 @@ func (c *Client) StreamingPayloadMethod() goa.Endpoint {
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("StreamingPayloadService", "StreamingPayloadMethod", err)
+			return nil, loomhttp.ErrRequestError("StreamingPayloadService", "StreamingPayloadMethod", err)
 		}
 		if c.configurer.StreamingPayloadMethodFn != nil {
 			conn = c.configurer.StreamingPayloadMethodFn(conn, nil)
@@ -1359,22 +1359,22 @@ var StreamingPayloadNoPayloadServerHandlerInitCode = `// NewStreamingPayloadNoPa
 // the HTTP request and calls the "StreamingPayloadNoPayloadService" service
 // "StreamingPayloadNoPayloadMethod" endpoint.
 func NewStreamingPayloadNoPayloadMethodHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-	upgrader goahttp.Upgrader,
-	configurer goahttp.ConnConfigureFunc,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	upgrader loomhttp.Upgrader,
+	configurer loomhttp.ConnConfigureFunc,
 ) http.Handler {
 	var (
-		encodeError = goahttp.ErrorEncoder(encoder, formatter)
+		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "StreamingPayloadNoPayloadMethod")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "StreamingPayloadNoPayloadService")
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingPayloadNoPayloadMethod")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingPayloadNoPayloadService")
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -1414,7 +1414,7 @@ func NewStreamingPayloadNoPayloadMethodHandler(
 var StreamingPayloadNoPayloadClientEndpointCode = `// StreamingPayloadNoPayloadMethod returns an endpoint that makes HTTP requests
 // to the StreamingPayloadNoPayloadService service
 // StreamingPayloadNoPayloadMethod server.
-func (c *Client) StreamingPayloadNoPayloadMethod() goa.Endpoint {
+func (c *Client) StreamingPayloadNoPayloadMethod() loom.Endpoint {
 	var (
 		decodeResponse = DecodeStreamingPayloadNoPayloadMethodResponse(c.decoder, c.RestoreResponseBody)
 	)
@@ -1428,7 +1428,7 @@ func (c *Client) StreamingPayloadNoPayloadMethod() goa.Endpoint {
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("StreamingPayloadNoPayloadService", "StreamingPayloadNoPayloadMethod", err)
+			return nil, loomhttp.ErrRequestError("StreamingPayloadNoPayloadService", "StreamingPayloadNoPayloadMethod", err)
 		}
 		if c.configurer.StreamingPayloadNoPayloadMethodFn != nil {
 			conn = c.configurer.StreamingPayloadNoPayloadMethodFn(conn, nil)
@@ -1693,7 +1693,7 @@ func (s *StreamingPayloadResultWithViewsMethodClientStream) CloseAndRecv() (*str
 	res := NewStreamingPayloadResultWithViewsMethodUsertypeOK(&body)
 	vres := &streamingpayloadresultwithviewsserviceviews.Usertype{res, s.view}
 	if err := streamingpayloadresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
-		return rv, goahttp.ErrValidationError("StreamingPayloadResultWithViewsService", "StreamingPayloadResultWithViewsMethod", err)
+		return rv, loomhttp.ErrValidationError("StreamingPayloadResultWithViewsService", "StreamingPayloadResultWithViewsMethod", err)
 	}
 	return streamingpayloadresultwithviewsservice.NewUsertype(vres), nil
 }
@@ -1817,7 +1817,7 @@ func (s *StreamingPayloadResultWithExplicitViewMethodClientStream) CloseAndRecv(
 	res := NewStreamingPayloadResultWithExplicitViewMethodUsertypeOK(&body)
 	vres := &streamingpayloadresultwithexplicitviewserviceviews.Usertype{res, "extended"}
 	if err := streamingpayloadresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
-		return rv, goahttp.ErrValidationError("StreamingPayloadResultWithExplicitViewService", "StreamingPayloadResultWithExplicitViewMethod", err)
+		return rv, loomhttp.ErrValidationError("StreamingPayloadResultWithExplicitViewService", "StreamingPayloadResultWithExplicitViewMethod", err)
 	}
 	return streamingpayloadresultwithexplicitviewservice.NewUsertype(vres), nil
 }
@@ -1955,7 +1955,7 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodClientStream) CloseAndRe
 	res := NewStreamingPayloadResultCollectionWithViewsMethodUsertypeCollectionOK(body)
 	vres := streamingpayloadresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
 	if err := streamingpayloadresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
-		return rv, goahttp.ErrValidationError("StreamingPayloadResultCollectionWithViewsService", "StreamingPayloadResultCollectionWithViewsMethod", err)
+		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithViewsService", "StreamingPayloadResultCollectionWithViewsMethod", err)
 	}
 	return streamingpayloadresultcollectionwithviewsservice.NewUsertypeCollection(vres), nil
 }
@@ -2084,7 +2084,7 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodClientStream) Clo
 	res := NewStreamingPayloadResultCollectionWithExplicitViewMethodUsertypeCollectionOK(body)
 	vres := streamingpayloadresultcollectionwithexplicitviewserviceviews.UsertypeCollection{res, "tiny"}
 	if err := streamingpayloadresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
-		return rv, goahttp.ErrValidationError("StreamingPayloadResultCollectionWithExplicitViewService", "StreamingPayloadResultCollectionWithExplicitViewMethod", err)
+		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithExplicitViewService", "StreamingPayloadResultCollectionWithExplicitViewMethod", err)
 	}
 	return streamingpayloadresultcollectionwithexplicitviewservice.NewUsertypeCollection(vres), nil
 }
@@ -2646,23 +2646,23 @@ var BidirectionalStreamingServerHandlerInitCode = `// NewBidirectionalStreamingM
 // the HTTP request and calls the "BidirectionalStreamingService" service
 // "BidirectionalStreamingMethod" endpoint.
 func NewBidirectionalStreamingMethodHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-	upgrader goahttp.Upgrader,
-	configurer goahttp.ConnConfigureFunc,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	upgrader loomhttp.Upgrader,
+	configurer loomhttp.ConnConfigureFunc,
 ) http.Handler {
 	var (
 		decodeRequest = DecodeBidirectionalStreamingMethodRequest(mux, decoder)
-		encodeError   = goahttp.ErrorEncoder(encoder, formatter)
+		encodeError   = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "BidirectionalStreamingMethod")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "BidirectionalStreamingService")
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, "BidirectionalStreamingMethod")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "BidirectionalStreamingService")
 		payload, err := decodeRequest(r)
 		if err != nil {
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
@@ -2805,7 +2805,7 @@ func (s *BidirectionalStreamingMethodServerStream) Close() error {
 var BidirectionalStreamingClientEndpointCode = `// BidirectionalStreamingMethod returns an endpoint that makes HTTP requests to
 // the BidirectionalStreamingService service BidirectionalStreamingMethod
 // server.
-func (c *Client) BidirectionalStreamingMethod() goa.Endpoint {
+func (c *Client) BidirectionalStreamingMethod() loom.Endpoint {
 	var (
 		encodeRequest  = EncodeBidirectionalStreamingMethodRequest(c.encoder)
 		decodeResponse = DecodeBidirectionalStreamingMethodResponse(c.decoder, c.RestoreResponseBody)
@@ -2824,7 +2824,7 @@ func (c *Client) BidirectionalStreamingMethod() goa.Endpoint {
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("BidirectionalStreamingService", "BidirectionalStreamingMethod", err)
+			return nil, loomhttp.ErrRequestError("BidirectionalStreamingService", "BidirectionalStreamingMethod", err)
 		}
 		if c.configurer.BidirectionalStreamingMethodFn != nil {
 			conn = c.configurer.BidirectionalStreamingMethodFn(conn, nil)
@@ -2894,22 +2894,22 @@ var BidirectionalStreamingNoPayloadServerHandlerInitCode = `// NewBidirectionalS
 // "BidirectionalStreamingNoPayloadService" service
 // "BidirectionalStreamingNoPayloadMethod" endpoint.
 func NewBidirectionalStreamingNoPayloadMethodHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-	upgrader goahttp.Upgrader,
-	configurer goahttp.ConnConfigureFunc,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	upgrader loomhttp.Upgrader,
+	configurer loomhttp.ConnConfigureFunc,
 ) http.Handler {
 	var (
-		encodeError = goahttp.ErrorEncoder(encoder, formatter)
+		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "BidirectionalStreamingNoPayloadMethod")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "BidirectionalStreamingNoPayloadService")
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, "BidirectionalStreamingNoPayloadMethod")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "BidirectionalStreamingNoPayloadService")
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -2967,7 +2967,7 @@ func (s *BidirectionalStreamingNoPayloadMethodServerStream) Close() error {
 var BidirectionalStreamingNoPayloadClientEndpointCode = `// BidirectionalStreamingNoPayloadMethod returns an endpoint that makes HTTP
 // requests to the BidirectionalStreamingNoPayloadService service
 // BidirectionalStreamingNoPayloadMethod server.
-func (c *Client) BidirectionalStreamingNoPayloadMethod() goa.Endpoint {
+func (c *Client) BidirectionalStreamingNoPayloadMethod() loom.Endpoint {
 	var (
 		decodeResponse = DecodeBidirectionalStreamingNoPayloadMethodResponse(c.decoder, c.RestoreResponseBody)
 	)
@@ -2981,7 +2981,7 @@ func (c *Client) BidirectionalStreamingNoPayloadMethod() goa.Endpoint {
 			if resp != nil {
 				return decodeResponse(resp)
 			}
-			return nil, goahttp.ErrRequestError("BidirectionalStreamingNoPayloadService", "BidirectionalStreamingNoPayloadMethod", err)
+			return nil, loomhttp.ErrRequestError("BidirectionalStreamingNoPayloadService", "BidirectionalStreamingNoPayloadMethod", err)
 		}
 		if c.configurer.BidirectionalStreamingNoPayloadMethodFn != nil {
 			conn = c.configurer.BidirectionalStreamingNoPayloadMethodFn(conn, nil)
@@ -3199,7 +3199,7 @@ func (s *BidirectionalStreamingResultWithViewsMethodClientStream) Recv() (*bidir
 	res := NewBidirectionalStreamingResultWithViewsMethodUsertypeOK(&body)
 	vres := &bidirectionalstreamingresultwithviewsserviceviews.Usertype{res, s.view}
 	if err := bidirectionalstreamingresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
-		return rv, goahttp.ErrValidationError("BidirectionalStreamingResultWithViewsService", "BidirectionalStreamingResultWithViewsMethod", err)
+		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultWithViewsService", "BidirectionalStreamingResultWithViewsMethod", err)
 	}
 	return bidirectionalstreamingresultwithviewsservice.NewUsertype(vres), nil
 }
@@ -3349,7 +3349,7 @@ func (s *BidirectionalStreamingResultWithExplicitViewMethodClientStream) Recv() 
 	res := NewBidirectionalStreamingResultWithExplicitViewMethodUsertypeOK(&body)
 	vres := &bidirectionalstreamingresultwithexplicitviewserviceviews.Usertype{res, "extended"}
 	if err := bidirectionalstreamingresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
-		return rv, goahttp.ErrValidationError("BidirectionalStreamingResultWithExplicitViewService", "BidirectionalStreamingResultWithExplicitViewMethod", err)
+		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultWithExplicitViewService", "BidirectionalStreamingResultWithExplicitViewMethod", err)
 	}
 	return bidirectionalstreamingresultwithexplicitviewservice.NewUsertype(vres), nil
 }
@@ -3500,7 +3500,7 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodClientStream) Recv
 	res := NewBidirectionalStreamingResultCollectionWithViewsMethodUsertypeCollectionOK(body)
 	vres := bidirectionalstreamingresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
 	if err := bidirectionalstreamingresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
-		return rv, goahttp.ErrValidationError("BidirectionalStreamingResultCollectionWithViewsService", "BidirectionalStreamingResultCollectionWithViewsMethod", err)
+		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultCollectionWithViewsService", "BidirectionalStreamingResultCollectionWithViewsMethod", err)
 	}
 	return bidirectionalstreamingresultcollectionwithviewsservice.NewUsertypeCollection(vres), nil
 }
@@ -3639,7 +3639,7 @@ func (s *BidirectionalStreamingResultCollectionWithExplicitViewMethodClientStrea
 	res := NewBidirectionalStreamingResultCollectionWithExplicitViewMethodUsertypeCollectionOK(body)
 	vres := bidirectionalstreamingresultcollectionwithexplicitviewserviceviews.UsertypeCollection{res, "tiny"}
 	if err := bidirectionalstreamingresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
-		return rv, goahttp.ErrValidationError("BidirectionalStreamingResultCollectionWithExplicitViewService", "BidirectionalStreamingResultCollectionWithExplicitViewMethod", err)
+		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultCollectionWithExplicitViewService", "BidirectionalStreamingResultCollectionWithExplicitViewMethod", err)
 	}
 	return bidirectionalstreamingresultcollectionwithexplicitviewservice.NewUsertypeCollection(vres), nil
 }

@@ -8,11 +8,11 @@ var ServerMultiEndpointsConstructorCode = `// New instantiates HTTP handlers for
 // Both errhandler and formatter are optional and can be nil.
 func New(
 	e *servicemultiendpoints.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 ) *Server {
 	return &Server{
 		Mounts: []*MountPoint{
@@ -33,11 +33,11 @@ var ServerMultiBasesConstructorCode = `// New instantiates HTTP handlers for all
 // Both errhandler and formatter are optional and can be nil.
 func New(
 	e *servicemultibases.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 ) *Server {
 	return &Server{
 		Mounts: []*MountPoint{
@@ -57,11 +57,11 @@ const ServerFileServerRootPathConstructorCode = `// New instantiates HTTP handle
 // Both errhandler and formatter are optional and can be nil.
 func New(
 	e *servicefileserver.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	fileSystemFile1JSON http.FileSystem,
 	fileSystemFile1JSON2 http.FileSystem,
 	fileSystemFile1JSON3 http.FileSystem,
@@ -106,11 +106,11 @@ var ServerFileServerConstructorCode = `// New instantiates HTTP handlers for all
 // Both errhandler and formatter are optional and can be nil.
 func New(
 	e *servicefileserver.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	fileSystemPathToFile1JSON http.FileSystem,
 	fileSystemPathToFile2JSON http.FileSystem,
 	fileSystemPathToFile3JSON http.FileSystem,
@@ -148,11 +148,11 @@ var ServerMixedConstructorCode = `// New instantiates HTTP handlers for all the 
 // and formatter are optional and can be nil.
 func New(
 	e *servermixed.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	fileSystemPathToFile1JSON http.FileSystem,
 	fileSystemPathToFile2JSON http.FileSystem,
 ) *Server {
@@ -187,11 +187,11 @@ var ServerMultipartConstructorCode = `// New instantiates HTTP handlers for all 
 // Both errhandler and formatter are optional and can be nil.
 func New(
 	e *servicemultipart.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	serviceMultipartMethodMultiBasesDecoderFn ServiceMultipartMethodMultiBasesDecoderFunc,
 ) *Server {
 	return &Server{
@@ -211,12 +211,12 @@ var ServerStreamingConstructorCode = `// New instantiates HTTP handlers for all 
 // Both errhandler and formatter are optional and can be nil.
 func New(
 	e *streamingresultservice.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-	upgrader goahttp.Upgrader,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	upgrader loomhttp.Upgrader,
 	configurer *ConnConfigurer,
 ) *Server {
 	if configurer == nil {
@@ -232,7 +232,7 @@ func New(
 `
 
 var ServerMultipleFilesConstructorCode = `// Mount configures the mux to serve the ServiceFileServer endpoints.
-func Mount(mux goahttp.Muxer, h *Server) {
+func Mount(mux loomhttp.Muxer, h *Server) {
 	MountPathToFileJSON(mux, h.PathToFileJSON)
 	MountPathToFileJSON2(mux, h.PathToFileJSON2)
 	MountFileJSON(mux, h.FileJSON)
@@ -240,13 +240,13 @@ func Mount(mux goahttp.Muxer, h *Server) {
 }
 
 // Mount configures the mux to serve the ServiceFileServer endpoints.
-func (s *Server) Mount(mux goahttp.Muxer) {
+func (s *Server) Mount(mux loomhttp.Muxer) {
 	Mount(mux, s)
 }
 `
 
 var ServerMultipleFilesWithPrefixPathConstructorCode = `// Mount configures the mux to serve the ServiceFileServer endpoints.
-func Mount(mux goahttp.Muxer, h *Server) {
+func Mount(mux loomhttp.Muxer, h *Server) {
 	MountPathToFileJSON(mux, http.StripPrefix("/server_file_server", h.PathToFileJSON))
 	MountPathToFileJSON2(mux, h.PathToFileJSON2)
 	MountFileJSON(mux, http.StripPrefix("/server_file_server", h.FileJSON))
@@ -254,13 +254,13 @@ func Mount(mux goahttp.Muxer, h *Server) {
 }
 
 // Mount configures the mux to serve the ServiceFileServer endpoints.
-func (s *Server) Mount(mux goahttp.Muxer) {
+func (s *Server) Mount(mux loomhttp.Muxer) {
 	Mount(mux, s)
 }
 `
 
 var ServerMultipleFilesWithRedirectConstructorCode = `// Mount configures the mux to serve the ServiceFileServer endpoints.
-func Mount(mux goahttp.Muxer, h *Server) {
+func Mount(mux loomhttp.Muxer, h *Server) {
 	MountPathToFileJSON(mux, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/redirect/dest", http.StatusMovedPermanently)
 	}))
@@ -270,24 +270,24 @@ func Mount(mux goahttp.Muxer, h *Server) {
 }
 
 // Mount configures the mux to serve the ServiceFileServer endpoints.
-func (s *Server) Mount(mux goahttp.Muxer) {
+func (s *Server) Mount(mux loomhttp.Muxer) {
 	Mount(mux, s)
 }
 `
 
 var ServerSimpleRoutingConstructorCode = `// Mount configures the mux to serve the ServiceSimpleRoutingServer endpoints.
-func Mount(mux goahttp.Muxer, h *Server) {
+func Mount(mux loomhttp.Muxer, h *Server) {
 	MountServerSimpleRoutingHandler(mux, h.ServerSimpleRouting)
 }
 
 // Mount configures the mux to serve the ServiceSimpleRoutingServer endpoints.
-func (s *Server) Mount(mux goahttp.Muxer) {
+func (s *Server) Mount(mux loomhttp.Muxer) {
 	Mount(mux, s)
 }
 `
 
 var ServerMultipleFilesMounterCode = `// MountPathToFolder configures the mux to serve GET request made to "/".
-func MountPathToFolder(mux goahttp.Muxer, h http.Handler) {
+func MountPathToFolder(mux loomhttp.Muxer, h http.Handler) {
 	mux.Handle("GET", "/", h.ServeHTTP)
 	mux.Handle("GET", "/{*wildcard}", h.ServeHTTP)
 }
@@ -295,7 +295,7 @@ func MountPathToFolder(mux goahttp.Muxer, h http.Handler) {
 
 var ServerMultipleFilesWithPrefixPathMounterCode = `// MountPathToFolder configures the mux to serve GET request made to
 // "/server_file_server".
-func MountPathToFolder(mux goahttp.Muxer, h http.Handler) {
+func MountPathToFolder(mux loomhttp.Muxer, h http.Handler) {
 	mux.Handle("GET", "/server_file_server/", h.ServeHTTP)
 	mux.Handle("GET", "/server_file_server/{*wildcard}", h.ServeHTTP)
 }
@@ -303,7 +303,7 @@ func MountPathToFolder(mux goahttp.Muxer, h http.Handler) {
 
 var ServerSimpleRoutingCode = `// MountServerSimpleRoutingHandler configures the mux to serve the
 // "ServiceSimpleRoutingServer" service "server-simple-routing" endpoint.
-func MountServerSimpleRoutingHandler(mux goahttp.Muxer, h http.Handler) {
+func MountServerSimpleRoutingHandler(mux loomhttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +317,7 @@ func MountServerSimpleRoutingHandler(mux goahttp.Muxer, h http.Handler) {
 var ServerTrailingSlashRoutingCode = `// MountServerTrailingSlashRoutingHandler configures the mux to serve the
 // "ServiceTrailingSlashRoutingServer" service "server-trailing-slash-routing"
 // endpoint.
-func MountServerTrailingSlashRoutingHandler(mux goahttp.Muxer, h http.Handler) {
+func MountServerTrailingSlashRoutingHandler(mux loomhttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {

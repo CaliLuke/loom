@@ -7,7 +7,7 @@ import (
 	"sort"
 
 	"github.com/CaliLuke/loom/eval"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Root is the root object built by the DSL.
@@ -131,8 +131,8 @@ func (*RootExpr) Packages() []string {
 	return []string{
 		"github.com/CaliLuke/loom/expr",
 		"github.com/CaliLuke/loom/dsl",
-		fmt.Sprintf("github.com/CaliLuke/loom@%s/expr", goa.Version()),
-		fmt.Sprintf("github.com/CaliLuke/loom@%s/dsl", goa.Version()),
+		fmt.Sprintf("github.com/CaliLuke/loom@%s/expr", loom.Version()),
+		fmt.Sprintf("github.com/CaliLuke/loom@%s/dsl", loom.Version()),
 	}
 }
 

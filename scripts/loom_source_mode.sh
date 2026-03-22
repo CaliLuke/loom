@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE_FILE="${ROOT_DIR}/jsonrpc/integration_tests/.loom_source_mode"
-LOCAL_LOOM_DIR="${LOOM_DIR:-${GOA_DIR:-${ROOT_DIR}}}"
+LOCAL_LOOM_DIR="${LOOM_DIR:-${ROOT_DIR}}"
 
 usage() {
   cat <<EOF
@@ -17,7 +17,6 @@ Modes:
 
 Environment:
   LOOM_DIR  Override the local Loom checkout path used by local mode
-  GOA_DIR   Legacy alias for LOOM_DIR
 EOF
 }
 

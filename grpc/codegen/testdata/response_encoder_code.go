@@ -14,7 +14,7 @@ const ResultWithViewsResponseEncoderCode = `// EncodeMethodMessageResultTypeWith
 func EncodeMethodMessageResultTypeWithViewsResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {
 	vres, ok := v.(*servicemessageresulttypewithviewsviews.RT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageResultTypeWithViews", "MethodMessageResultTypeWithViews", "*servicemessageresulttypewithviewsviews.RT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageResultTypeWithViews", "MethodMessageResultTypeWithViews", "*servicemessageresulttypewithviewsviews.RT", v)
 	}
 	result := vres.Projected
 	(*hdr).Append("loom-view", vres.View)
@@ -29,7 +29,7 @@ const ResultWithExplicitViewResponseEncoderCode = `// EncodeMethodMessageResultT
 func EncodeMethodMessageResultTypeWithExplicitViewResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {
 	vres, ok := v.(*servicemessageresulttypewithexplicitviewviews.RT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageResultTypeWithExplicitView", "MethodMessageResultTypeWithExplicitView", "*servicemessageresulttypewithexplicitviewviews.RT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageResultTypeWithExplicitView", "MethodMessageResultTypeWithExplicitView", "*servicemessageresulttypewithexplicitviewviews.RT", v)
 	}
 	result := vres.Projected
 	(*hdr).Append("loom-view", vres.View)
@@ -43,7 +43,7 @@ const ResultArrayResponseEncoderCode = `// EncodeMethodMessageArrayResponse enco
 func EncodeMethodMessageArrayResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {
 	result, ok := v.([]*servicemessagearray.UT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageArray", "MethodMessageArray", "[]*servicemessagearray.UT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageArray", "MethodMessageArray", "[]*servicemessagearray.UT", v)
 	}
 	resp := NewProtoMethodMessageArrayResponse(result)
 	return resp, nil
@@ -55,7 +55,7 @@ const ResultPrimitiveResponseEncoderCode = `// EncodeMethodUnaryRPCNoPayloadResp
 func EncodeMethodUnaryRPCNoPayloadResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {
 	result, ok := v.(string)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceUnaryRPCNoPayload", "MethodUnaryRPCNoPayload", "string", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceUnaryRPCNoPayload", "MethodUnaryRPCNoPayload", "string", v)
 	}
 	resp := NewProtoMethodUnaryRPCNoPayloadResponse(result)
 	return resp, nil
@@ -67,7 +67,7 @@ const ResultWithMetadataResponseEncoderCode = `// EncodeMethodMessageWithMetadat
 func EncodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {
 	result, ok := v.(*servicemessagewithmetadata.ResponseUT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*servicemessagewithmetadata.ResponseUT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*servicemessagewithmetadata.ResponseUT", v)
 	}
 	resp := NewProtoMethodMessageWithMetadataResponse(result)
 
@@ -87,7 +87,7 @@ const ResultWithValidateResponseEncoderCode = `// EncodeMethodMessageWithValidat
 func EncodeMethodMessageWithValidateResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {
 	result, ok := v.(*servicemessagewithvalidate.ResponseUT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*servicemessagewithvalidate.ResponseUT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*servicemessagewithvalidate.ResponseUT", v)
 	}
 	resp := NewProtoMethodMessageWithValidateResponse(result)
 
@@ -108,7 +108,7 @@ const ResultCollectionResponseEncoderCode = `// EncodeMethodMessageUserTypeWithN
 func EncodeMethodMessageUserTypeWithNestedUserTypesResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {
 	vres, ok := v.(servicemessageusertypewithnestedusertypesviews.RTCollection)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "servicemessageusertypewithnestedusertypesviews.RTCollection", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "servicemessageusertypewithnestedusertypesviews.RTCollection", v)
 	}
 	result := vres.Projected
 	(*hdr).Append("loom-view", vres.View)

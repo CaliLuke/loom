@@ -37,7 +37,7 @@ func renderEndpointsStruct(data *EndpointsData) string {
 	b.WriteString("\n")
 	fmt.Fprintf(&b, "type %s struct {\n", data.VarName)
 	for _, method := range data.Methods {
-		fmt.Fprintf(&b, "\t%s goa.Endpoint\n", method.VarName)
+		fmt.Fprintf(&b, "\t%s loom.Endpoint\n", method.VarName)
 	}
 	b.WriteString("}\n")
 	return b.String()
@@ -53,8 +53,8 @@ func renderEndpointsInit(data *EndpointsData) string {
 	}
 	fmt.Fprintf(&b, ") *%s {\n", data.VarName)
 	if len(data.Schemes) > 0 {
-		b.WriteString("\t// Casting service to Auther interface\n")
-		b.WriteString("\ta := s.(Auther)\n")
+		b.WriteString("\t// Casting service to Authorizer interface\n")
+		b.WriteString("\ta := s.(Authorizer)\n")
 	}
 	if data.HasServerInterceptors {
 		fmt.Fprintf(&b, "\tendpoints := &%s{\n", data.VarName)
@@ -86,7 +86,7 @@ func renderEndpointsUse(data *EndpointsData) string {
 	var b strings.Builder
 	b.WriteString(codegen.Comment(fmt.Sprintf("Use applies the given middleware to all the %q service endpoints.", data.Name)))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (e *%s) Use(m func(goa.Endpoint) goa.Endpoint) {\n", data.VarName)
+	fmt.Fprintf(&b, "func (e *%s) Use(m func(loom.Endpoint) loom.Endpoint) {\n", data.VarName)
 	for _, method := range data.Methods {
 		fmt.Fprintf(&b, "\te.%s = m(e.%s)\n", method.VarName, method.VarName)
 	}

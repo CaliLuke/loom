@@ -89,7 +89,7 @@ func (s *SSEAllFieldsMethodServerStream) SendWithContext(ctx context.Context, v 
 		data = string(byts)
 	}
 
-	msg := goahttp.SSEMessage{Data: data}
+	msg := loomhttp.SSEMessage{Data: data}
 
 	if id := res.ID; id != "" {
 		msg.ID = id
@@ -101,7 +101,7 @@ func (s *SSEAllFieldsMethodServerStream) SendWithContext(ctx context.Context, v 
 		msg.RetryMillis = int64(retry)
 	}
 
-	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
 		return err
 	}
 

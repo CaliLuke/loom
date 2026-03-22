@@ -115,14 +115,14 @@ func buildAsyncOperationExtension(endpoint *expr.HTTPEndpointExpr, path string, 
 
 	messages := make(map[string]any)
 	if endpoint.MethodExpr.StreamingPayload != nil && endpoint.StreamingBody != nil {
-		payloadAttr, _ := attributeForSchemaUsage(endpoint.StreamingBody, schemaUsageRequest)
+		payloadAttr := attributeForSchemaUsage(endpoint.StreamingBody, schemaUsageRequest)
 		messages["inbound"] = map[string]any{
 			"contentType": "application/json",
 			"schema":      asyncSchemaValue(buildInlineAsyncSchema(payloadAttr, rand, closeObjects)),
 		}
 	}
 	if endpoint.MethodExpr.StreamingResult != nil {
-		resultAttr, _ := attributeForSchemaUsage(endpoint.MethodExpr.StreamingResult, schemaUsageResponse)
+		resultAttr := attributeForSchemaUsage(endpoint.MethodExpr.StreamingResult, schemaUsageResponse)
 		outbound := map[string]any{
 			"contentType": "application/json",
 			"schema":      asyncSchemaValue(buildInlineAsyncSchema(resultAttr, rand, closeObjects)),

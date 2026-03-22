@@ -1,7 +1,7 @@
 // DecodeMethodBodyPrimitiveArrayUserRequiredRequest returns a decoder for
 // requests sent to the ServiceBodyPrimitiveArrayUserRequired
 // MethodBodyPrimitiveArrayUserRequired endpoint.
-func DecodeMethodBodyPrimitiveArrayUserRequiredRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) ([]*servicebodyprimitivearrayuserrequired.PayloadType, error) {
+func DecodeMethodBodyPrimitiveArrayUserRequiredRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) ([]*servicebodyprimitivearrayuserrequired.PayloadType, error) {
 	return func(r *http.Request) ([]*servicebodyprimitivearrayuserrequired.PayloadType, error) {
 		var payload []*servicebodyprimitivearrayuserrequired.PayloadType
 		var (
@@ -11,18 +11,18 @@ func DecodeMethodBodyPrimitiveArrayUserRequiredRequest(mux goahttp.Muxer, decode
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		for _, e := range body {
 			if e != nil {
 				if err2 := ValidatePayloadTypeRequestBody(e); err2 != nil {
-					err = goa.MergeErrors(err, err2)
+					err = loom.MergeErrors(err, err2)
 				}
 			}
 		}

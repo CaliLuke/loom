@@ -1,6 +1,6 @@
 // DecodeMapQueryPrimitiveArrayRequest returns a decoder for requests sent to
 // the ServiceMapQueryPrimitiveArray MapQueryPrimitiveArray endpoint.
-func DecodeMapQueryPrimitiveArrayRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (map[string][]uint, error) {
+func DecodeMapQueryPrimitiveArrayRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string][]uint, error) {
 	return func(r *http.Request) (map[string][]uint, error) {
 		var payload map[string][]uint
 		var (
@@ -10,7 +10,7 @@ func DecodeMapQueryPrimitiveArrayRequest(mux goahttp.Muxer, decoder func(*http.R
 		{
 			queryRaw := r.URL.Query()
 			if len(queryRaw) == 0 {
-				err = goa.MergeErrors(err, goa.MissingFieldError("query", "query string"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("query", "query string"))
 			}
 			for keyRaw, valRaw := range queryRaw {
 				if strings.HasPrefix(keyRaw, "query[") {
@@ -22,7 +22,7 @@ func DecodeMapQueryPrimitiveArrayRequest(mux goahttp.Muxer, decoder func(*http.R
 						openIdx := strings.IndexRune(keyRaw, '[')
 						closeIdx := strings.IndexRune(keyRaw, ']')
 						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 						} else {
 							keya = keyRaw[openIdx+1 : closeIdx]
 						}
@@ -33,7 +33,7 @@ func DecodeMapQueryPrimitiveArrayRequest(mux goahttp.Muxer, decoder func(*http.R
 						for i, rv := range valRaw {
 							v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
 							if err2 != nil {
-								err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", valRaw, "array of unsigned integers"))
+								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valRaw, "array of unsigned integers"))
 							}
 							val[i] = uint(v)
 						}

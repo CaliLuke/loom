@@ -4,16 +4,16 @@
 // interface.
 func (s *Server) MethodClientStreamingRPCWithPayload(stream service_client_streaming_rpc_with_payloadpb.ServiceClientStreamingRPCWithPayload_MethodClientStreamingRPCWithPayloadServer) error {
 	ctx := stream.Context()
-	ctx = context.WithValue(ctx, goa.MethodKey, "MethodClientStreamingRPCWithPayload")
-	ctx = context.WithValue(ctx, goa.ServiceKey, "ServiceClientStreamingRPCWithPayload")
+	ctx = context.WithValue(ctx, loom.MethodKey, "MethodClientStreamingRPCWithPayload")
+	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceClientStreamingRPCWithPayload")
 	p, err := s.MethodClientStreamingRPCWithPayloadH.Decode(ctx, nil)
 	if err != nil {
-		return goagrpc.EncodeError(err)
+		return loomgrpc.EncodeError(err)
 	}
 	ep := &serviceclientstreamingrpcwithpayload.MethodClientStreamingRPCWithPayloadEndpointInput{Stream: &MethodClientStreamingRPCWithPayloadServerStream{stream: stream}, Payload: p.(int)}
 	err = s.MethodClientStreamingRPCWithPayloadH.Handle(ctx, ep)
 	if err != nil {
-		return goagrpc.EncodeError(err)
+		return loomgrpc.EncodeError(err)
 	}
 	return nil
 }

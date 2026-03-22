@@ -33,13 +33,12 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: "github.com/gorilla/websocket"},
 		codegen.LoomImport(""),
 		codegen.LoomImport("jsonrpc"),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
-	sections := []codegen.Section{
-		codegen.Header(title, "server", imports),
-	}
+	sections := make([]codegen.Section, 0, 1+len(data.Endpoints))
+	sections = append(sections, codegen.Header(title, "server", imports))
 	sections = append(sections, jsonrpcWebSocketServerSections(data)...)
 
 	return &codegen.File{

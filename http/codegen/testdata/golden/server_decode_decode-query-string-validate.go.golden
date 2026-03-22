@@ -1,6 +1,6 @@
 // DecodeMethodQueryStringValidateRequest returns a decoder for requests sent
 // to the ServiceQueryStringValidate MethodQueryStringValidate endpoint.
-func DecodeMethodQueryStringValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerystringvalidate.MethodQueryStringValidatePayload, error) {
+func DecodeMethodQueryStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerystringvalidate.MethodQueryStringValidatePayload, error) {
 	return func(r *http.Request) (*servicequerystringvalidate.MethodQueryStringValidatePayload, error) {
 		var payload *servicequerystringvalidate.MethodQueryStringValidatePayload
 		var (
@@ -9,10 +9,10 @@ func DecodeMethodQueryStringValidateRequest(mux goahttp.Muxer, decoder func(*htt
 		)
 		q = r.URL.Query().Get("q")
 		if q == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("q", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 		}
 		if !(q == "val") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("q", q, []any{"val"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"val"}))
 		}
 		if err != nil {
 			return payload, err

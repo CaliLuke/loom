@@ -1,7 +1,7 @@
 // DecodeMethodQueryMapBoolArrayStringValidateRequest returns a decoder for
 // requests sent to the ServiceQueryMapBoolArrayStringValidate
 // MethodQueryMapBoolArrayStringValidate endpoint.
-func DecodeMethodQueryMapBoolArrayStringValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload, error) {
+func DecodeMethodQueryMapBoolArrayStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload, error) {
 	return func(r *http.Request) (*servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload, error) {
 		var payload *servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload
 		var (
@@ -21,12 +21,12 @@ func DecodeMethodQueryMapBoolArrayStringValidateRequest(mux goahttp.Muxer, decod
 							openIdx := strings.IndexRune(keyRaw, '[')
 							closeIdx := strings.IndexRune(keyRaw, ']')
 							if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-								err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+								err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 							} else {
 								keyaRaw := keyRaw[openIdx+1 : closeIdx]
 								v, err2 := strconv.ParseBool(keyaRaw)
 								if err2 != nil {
-									err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", keyaRaw, "boolean"))
+									err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keyaRaw, "boolean"))
 								}
 								keya = v
 							}
@@ -37,14 +37,14 @@ func DecodeMethodQueryMapBoolArrayStringValidateRequest(mux goahttp.Muxer, decod
 			}
 		}
 		if len(q) < 1 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
 		}
 		for k, v := range q {
 			if !(k == true) {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("q.key", k, []any{true}))
+				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q.key", k, []any{true}))
 			}
 			if len(v) < 2 {
-				err = goa.MergeErrors(err, goa.InvalidLengthError("q[key]", v, len(v), 2, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("q[key]", v, len(v), 2, true))
 			}
 		}
 		if err != nil {

@@ -3,10 +3,10 @@
 // endpoint. restoreBody controls whether the response body should be restored
 // after having been read.
 // DecodeMethodEmptyErrorResponseBodyResponse may return the following errors:
-//   - "internal_error" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "internal_error" (type *loom.ServiceError): http.StatusInternalServerError
 //   - "not_found" (type serviceemptyerrorresponsebody.NotFound): http.StatusNotFound
 //   - error: internal error
-func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -35,54 +35,54 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) goa
 			)
 			nameRaw := resp.Header.Get("Error-Name")
 			if nameRaw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("name", "header"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("name", "header"))
 			}
 			name = nameRaw
 			idRaw := resp.Header.Get("Loom-Attribute-Id")
 			if idRaw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("id", "header"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("id", "header"))
 			}
 			id = idRaw
 			messageRaw := resp.Header.Get("Loom-Attribute-Message")
 			if messageRaw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("message", "header"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("message", "header"))
 			}
 			message = messageRaw
 			{
 				temporaryRaw := resp.Header.Get("Loom-Attribute-Temporary")
 				if temporaryRaw == "" {
-					return nil, goahttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", goa.MissingFieldError("temporary", "header"))
+					return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("temporary", "header"))
 				}
 				v, err2 := strconv.ParseBool(temporaryRaw)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("temporary", temporaryRaw, "boolean"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("temporary", temporaryRaw, "boolean"))
 				}
 				temporary = v
 			}
 			{
 				timeoutRaw := resp.Header.Get("Loom-Attribute-Timeout")
 				if timeoutRaw == "" {
-					return nil, goahttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", goa.MissingFieldError("timeout", "header"))
+					return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("timeout", "header"))
 				}
 				v, err2 := strconv.ParseBool(timeoutRaw)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("timeout", timeoutRaw, "boolean"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("timeout", timeoutRaw, "boolean"))
 				}
 				timeout = v
 			}
 			{
 				faultRaw := resp.Header.Get("Loom-Attribute-Fault")
 				if faultRaw == "" {
-					return nil, goahttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", goa.MissingFieldError("fault", "header"))
+					return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("fault", "header"))
 				}
 				v, err2 := strconv.ParseBool(faultRaw)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("fault", faultRaw, "boolean"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("fault", faultRaw, "boolean"))
 				}
 				fault = v
 			}
 			if err != nil {
-				return nil, goahttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", err)
+				return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", err)
 			}
 			return nil, NewMethodEmptyErrorResponseBodyInternalError(name, id, message, temporary, timeout, fault)
 		case http.StatusNotFound:
@@ -92,16 +92,16 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) goa
 			)
 			inHeaderRaw := resp.Header.Get("In-Header")
 			if inHeaderRaw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("in-header", "header"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("in-header", "header"))
 			}
 			inHeader = inHeaderRaw
 			if err != nil {
-				return nil, goahttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", err)
+				return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", err)
 			}
 			return nil, NewMethodEmptyErrorResponseBodyNotFound(inHeader)
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", resp.StatusCode, string(body))
 		}
 	}
 }

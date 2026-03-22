@@ -13,8 +13,8 @@ import (
 
 func TestJSONRPCSSEIntegration(t *testing.T) {
 	// Skip if not in CI or explicitly requested
-	if os.Getenv("GOA_INTEGRATION_TEST") == "" {
-		t.Skip("Skipping integration test. Set GOA_INTEGRATION_TEST=1 to run.")
+	if os.Getenv("LOOM_INTEGRATION_TEST") == "" {
+		t.Skip("Skipping integration test. Set LOOM_INTEGRATION_TEST=1 to run.")
 	}
 
 	// Run the DSL

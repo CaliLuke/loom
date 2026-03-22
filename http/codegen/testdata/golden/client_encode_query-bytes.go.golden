@@ -1,10 +1,10 @@
 // EncodeMethodQueryBytesRequest returns an encoder for requests sent to the
 // ServiceQueryBytes MethodQueryBytes server.
-func EncodeMethodQueryBytesRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryBytesRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerybytes.MethodQueryBytesPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryBytes", "MethodQueryBytes", "*servicequerybytes.MethodQueryBytesPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryBytes", "MethodQueryBytes", "*servicequerybytes.MethodQueryBytesPayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", string(p.Q))

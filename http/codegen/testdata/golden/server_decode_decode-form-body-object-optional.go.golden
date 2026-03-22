@@ -1,7 +1,7 @@
 // DecodeMethodFormBodyObjectOptionalRequest returns a decoder for requests
 // sent to the ServiceFormBodyObjectOptional MethodFormBodyObjectOptional
 // endpoint.
-func DecodeMethodFormBodyObjectOptionalRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload, error) {
+func DecodeMethodFormBodyObjectOptionalRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload, error) {
 	return func(r *http.Request) (*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload, error) {
 		var payload *serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload
 		var (
@@ -9,17 +9,17 @@ func DecodeMethodFormBodyObjectOptionalRequest(mux goahttp.Muxer, decoder func(*
 			err  error
 		)
 		if err = r.ParseForm(); err != nil {
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		if len(r.PostForm) == 0 {
-			return payload, goa.MissingPayloadError()
+			return payload, loom.MissingPayloadError()
 		} else {
-			if _, err = goahttp.DecodeFormValue(r.PostForm, "", &body); err != nil {
-				var gerr *goa.ServiceError
+			if _, err = loomhttp.DecodeFormValue(r.PostForm, "", &body); err != nil {
+				var gerr *loom.ServiceError
 				if errors.As(err, &gerr) {
 					return payload, gerr
 				}
-				return payload, goa.DecodePayloadError(err.Error())
+				return payload, loom.DecodePayloadError(err.Error())
 			}
 		}
 		err = ValidateMethodFormBodyObjectOptionalRequestBody(&body)

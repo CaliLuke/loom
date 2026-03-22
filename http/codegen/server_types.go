@@ -84,7 +84,7 @@ func serverTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.Imp
 		{Path: "unicode/utf8"},
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		codegen.LoomImport(""),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}
 }

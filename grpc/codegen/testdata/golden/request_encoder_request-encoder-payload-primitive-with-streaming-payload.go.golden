@@ -4,8 +4,8 @@
 func EncodeMethodClientStreamingRPCWithPayloadRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(int)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceClientStreamingRPCWithPayload", "MethodClientStreamingRPCWithPayload", "int", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceClientStreamingRPCWithPayload", "MethodClientStreamingRPCWithPayload", "int", v)
 	}
-	(*md).Append("goa_payload", fmt.Sprintf("%v", payload))
+	(*md).Append("loom_payload", fmt.Sprintf("%v", payload))
 	return nil, nil
 }

@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +39,7 @@ func TestSmartRedirectSlashes(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Pattern, func(t *testing.T) {
 			var called bool
-			mux := goahttp.NewMuxer()
+			mux := loomhttp.NewMuxer()
 			mux.Use(SmartRedirectSlashes)
 			handler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 				called = true

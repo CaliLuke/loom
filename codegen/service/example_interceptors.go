@@ -108,7 +108,7 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 			if server {
 				responseAction = "Response"
 			}
-			stmt.Add(codegen.Expr(fmt.Sprintf(`func (i *%s%sInterceptors) %s(ctx context.Context, info *%s.%sInfo, next goa.Endpoint) (any, error) {
+			stmt.Add(codegen.Expr(fmt.Sprintf(`func (i *%s%sInterceptors) %s(ctx context.Context, info *%s.%sInfo, next loom.Endpoint) (any, error) {
 log.Printf(ctx, "[%s] %s: %%v", info.RawPayload())
 resp, err := next(ctx, info.RawPayload())
 if err != nil {

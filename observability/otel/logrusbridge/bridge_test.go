@@ -36,7 +36,7 @@ func requireLogAttribute(t *testing.T, record sdklog.Record, expected attribute.
 	t.Helper()
 	found := false
 	record.WalkAttributes(func(kv otellog.KeyValue) bool {
-		if string(kv.Key) != string(expected.Key) {
+		if attribute.Key(kv.Key) != expected.Key {
 			return true
 		}
 		require.Equal(t, expected.Value.AsString(), kv.Value.AsString())

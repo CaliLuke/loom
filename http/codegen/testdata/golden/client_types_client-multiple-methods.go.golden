@@ -43,7 +43,7 @@ func NewMethodBRequestBody(p *servicemultiplemethods.PayloadType) *MethodBReques
 // APayloadRequestBody
 func ValidateAPayloadRequestBody(body *APayloadRequestBody) (err error) {
 	if body.A != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.a", *body.A, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("body.a", *body.A, "patterna"))
 	}
 	return
 }

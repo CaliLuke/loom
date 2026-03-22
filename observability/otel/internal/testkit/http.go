@@ -7,13 +7,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 type (
 	// HTTPFixture wraps a Loom mux in an httptest server.
 	HTTPFixture struct {
-		Mux    goahttp.ResolverMuxer
+		Mux    loomhttp.ResolverMuxer
 		Server *httptest.Server
 	}
 )
@@ -21,7 +21,7 @@ type (
 // NewHTTPFixture creates a Loom mux plus httptest server.
 func NewHTTPFixture(tb testing.TB) *HTTPFixture {
 	tb.Helper()
-	mux := goahttp.NewMuxer()
+	mux := loomhttp.NewMuxer()
 	server := httptest.NewServer(mux)
 	tb.Cleanup(server.Close)
 	return &HTTPFixture{Mux: mux, Server: server}

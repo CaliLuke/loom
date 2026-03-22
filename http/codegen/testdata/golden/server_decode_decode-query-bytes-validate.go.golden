@@ -1,6 +1,6 @@
 // DecodeMethodQueryBytesValidateRequest returns a decoder for requests sent to
 // the ServiceQueryBytesValidate MethodQueryBytesValidate endpoint.
-func DecodeMethodQueryBytesValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerybytesvalidate.MethodQueryBytesValidatePayload, error) {
+func DecodeMethodQueryBytesValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerybytesvalidate.MethodQueryBytesValidatePayload, error) {
 	return func(r *http.Request) (*servicequerybytesvalidate.MethodQueryBytesValidatePayload, error) {
 		var payload *servicequerybytesvalidate.MethodQueryBytesValidatePayload
 		var (
@@ -10,12 +10,12 @@ func DecodeMethodQueryBytesValidateRequest(mux goahttp.Muxer, decoder func(*http
 		{
 			qRaw := r.URL.Query().Get("q")
 			if qRaw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("q", "query string"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
 			q = []byte(qRaw)
 		}
 		if len(q) < 1 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
 		}
 		if err != nil {
 			return payload, err

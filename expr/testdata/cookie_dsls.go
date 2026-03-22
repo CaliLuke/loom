@@ -53,7 +53,7 @@ var CookieMaxAgeDSL = func() {
 	})
 }
 
-const CookieDomainValue = "goa.design"
+const CookieDomainValue = "loom.design"
 
 var CookieDomainDSL = func() {
 	Service("CookieSvc", func() {
@@ -181,7 +181,7 @@ var SessionCookieOverrideDSL = func() {
 	})
 }
 
-const SessionCookieOverrideDomainValue = "session.goa.design"
+const SessionCookieOverrideDomainValue = "session.loom.design"
 const SessionCookieOverrideMaxAgeValue = 7200
 
 var SessionCookieOverrideAllDSL = func() {
@@ -237,7 +237,7 @@ var MultipleResponseCookiesDSL = func() {
 					SessionCookie("session:__Host-ak_session")
 					Cookie("refresh:ak_refresh")
 					CookiePath("/tokens")
-					CookieDomain("accounts.goa.design")
+					CookieDomain("accounts.loom.design")
 				})
 			})
 		})

@@ -6,11 +6,11 @@
 // and formatter are optional and can be nil.
 func New(
 	e *servermixed.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	fileSystemPathToFile1JSON http.FileSystem,
 	fileSystemPathToFile2JSON http.FileSystem,
 ) *Server {

@@ -6,9 +6,9 @@ const (
 func NewClient(
 	scheme string,
 	host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restoreBody bool,
 ) *Client {
 	return &Client{
@@ -28,11 +28,11 @@ func NewClient(
 func NewClient(
 	scheme string,
 	host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restoreBody bool,
-	dialer goahttp.Dialer,
+	dialer loomhttp.Dialer,
 	cfn *ConnConfigurer,
 ) *Client {
 	if cfn == nil {

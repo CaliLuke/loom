@@ -2,7 +2,7 @@
 // responses returned by the ServiceEmptyServerResponseWithTags
 // MethodEmptyServerResponseWithTags endpoint. restoreBody controls whether the
 // response body should be restored after having been read.
-func DecodeMethodEmptyServerResponseWithTagsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeMethodEmptyServerResponseWithTagsResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -26,7 +26,7 @@ func DecodeMethodEmptyServerResponseWithTagsResponse(decoder func(*http.Response
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("ServiceEmptyServerResponseWithTags", "MethodEmptyServerResponseWithTags", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("ServiceEmptyServerResponseWithTags", "MethodEmptyServerResponseWithTags", resp.StatusCode, string(body))
 		}
 	}
 }

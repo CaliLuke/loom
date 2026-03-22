@@ -16,7 +16,7 @@ const (
 	ProtoVersion = "proto3"
 
 	// ProtoPrefix is the prefix added to the proto package name.
-	ProtoPrefix = "goagen"
+	ProtoPrefix = "loomgen"
 )
 
 // ProtoFiles returns the protobuf file for every gRPC service.

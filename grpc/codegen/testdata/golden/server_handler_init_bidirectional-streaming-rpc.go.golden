@@ -1,9 +1,9 @@
 // NewMethodBidirectionalStreamingRPCHandler creates a gRPC handler which
 // serves the "ServiceBidirectionalStreamingRPC" service
 // "MethodBidirectionalStreamingRPC" endpoint.
-func NewMethodBidirectionalStreamingRPCHandler(endpoint goa.Endpoint, h goagrpc.StreamHandler) goagrpc.StreamHandler {
+func NewMethodBidirectionalStreamingRPCHandler(endpoint loom.Endpoint, h loomgrpc.StreamHandler) loomgrpc.StreamHandler {
 	if h == nil {
-		h = goagrpc.NewStreamHandler(endpoint, nil)
+		h = loomgrpc.NewStreamHandler(endpoint, nil)
 	}
 	return h
 }

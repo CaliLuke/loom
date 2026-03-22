@@ -407,9 +407,9 @@ func NoSecurity() {
 
 // Username defines the attribute used to provide the username to an endpoint
 // secured with basic authentication. The parameters and usage of Username are
-// the same as the goa DSL Attribute function.
+// the same as the Loom DSL Attribute function.
 //
-// The generated code produced by goa uses the value of the corresponding
+// The generated code produced by Loom uses the value of the corresponding
 // payload field to compute the basic authentication Authorization header value.
 //
 // Username must appear in Payload or Type.
@@ -444,9 +444,9 @@ func UsernameField(tag any, name string, args ...any) {
 
 // Password defines the attribute used to provide the password to an endpoint
 // secured with basic authentication. The parameters and usage of Password are
-// the same as the goa DSL Attribute function.
+// the same as the Loom DSL Attribute function.
 //
-// The generated code produced by goa uses the value of the corresponding
+// The generated code produced by Loom uses the value of the corresponding
 // payload field to compute the basic authentication Authorization header value.
 //
 // Password must appear in Payload or Type.
@@ -567,7 +567,7 @@ func compatibleHTTPAuthError(errors []*expr.HTTPErrorExpr, name string, code int
 // Attribute function except that it accepts an extra first argument
 // corresponding to the name of the API key security scheme.
 //
-// The generated code produced by goa uses the value of the corresponding
+// The generated code produced by Loom uses the value of the corresponding
 // payload field to set the API key value.
 //
 // APIKey must appear in Payload or Type.
@@ -616,9 +616,9 @@ func APIKeyField(tag any, scheme, name string, args ...any) {
 
 // AccessToken defines the attribute used to provide the access token to an
 // endpoint secured with OAuth2. The parameters and usage of AccessToken are the
-// same as the goa DSL Attribute function.
+// same as the Loom DSL Attribute function.
 //
-// The generated code produced by goa uses the value of the corresponding
+// The generated code produced by Loom uses the value of the corresponding
 // payload field to initialize the Authorization header.
 //
 // AccessToken must appear in Payload or Type.
@@ -653,10 +653,10 @@ func AccessTokenField(tag any, name string, args ...any) {
 }
 
 // Token defines the attribute used to provide the JWT to an endpoint secured
-// via JWT. The parameters and usage of Token are the same as the goa DSL
+// via JWT. The parameters and usage of Token are the same as the Loom DSL
 // Attribute function.
 //
-// The generated code produced by goa uses the value of the corresponding
+// The generated code produced by Loom uses the value of the corresponding
 // payload field to initialize the Authorization header.
 //
 // Example:

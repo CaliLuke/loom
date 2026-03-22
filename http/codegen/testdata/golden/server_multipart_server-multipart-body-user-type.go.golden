@@ -1,9 +1,9 @@
 // NewServiceMultipartUserTypeMethodMultipartUserTypeDecoder returns a decoder
 // to decode the multipart request for the "ServiceMultipartUserType" service
 // "MethodMultipartUserType" endpoint.
-func NewServiceMultipartUserTypeMethodMultipartUserTypeDecoder(mux goahttp.Muxer, serviceMultipartUserTypeMethodMultipartUserTypeDecoderFn ServiceMultipartUserTypeMethodMultipartUserTypeDecoderFunc) func(r *http.Request) goahttp.Decoder {
-	return func(r *http.Request) goahttp.Decoder {
-		return goahttp.EncodingFunc(func(v any) error {
+func NewServiceMultipartUserTypeMethodMultipartUserTypeDecoder(mux loomhttp.Muxer, serviceMultipartUserTypeMethodMultipartUserTypeDecoderFn ServiceMultipartUserTypeMethodMultipartUserTypeDecoderFunc) func(r *http.Request) loomhttp.Decoder {
+	return func(r *http.Request) loomhttp.Decoder {
+		return loomhttp.EncodingFunc(func(v any) error {
 			mr, merr := r.MultipartReader()
 			if merr != nil {
 				return merr

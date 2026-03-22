@@ -40,7 +40,7 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: "sync"},
 		codegen.LoomImport(""),
 		codegen.LoomImport("jsonrpc"),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		// Import the service package from the correct location
 		&codegen.ImportSpec{Path: genpkg + "/" + codegen.SnakeCase(data.Service.Name), Name: data.Service.PkgName},
 	)

@@ -41,7 +41,7 @@ func NewPayloadBRequestBody(p []*servicemultiplemethods.PayloadB) []*PayloadBReq
 // PayloadARequestBody
 func ValidatePayloadARequestBody(body *PayloadARequestBody) (err error) {
 	if body.A != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.a", *body.A, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("body.a", *body.A, "patterna"))
 	}
 	return
 }
@@ -49,7 +49,7 @@ func ValidatePayloadARequestBody(body *PayloadARequestBody) (err error) {
 // ValidatePayloadBRequestBody runs the validations defined on
 // PayloadBRequestBody
 func ValidatePayloadBRequestBody(body *PayloadBRequestBody) (err error) {
-	err = goa.MergeErrors(err, goa.ValidatePattern("body.a", body.A, "patterna"))
-	err = goa.MergeErrors(err, goa.ValidatePattern("body.b", body.B, "patternb"))
+	err = loom.MergeErrors(err, loom.ValidatePattern("body.a", body.A, "patterna"))
+	err = loom.MergeErrors(err, loom.ValidatePattern("body.b", body.B, "patternb"))
 	return
 }

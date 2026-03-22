@@ -1,6 +1,6 @@
 // DecodeMethodQueryMapBoolArrayBoolRequest returns a decoder for requests sent
 // to the ServiceQueryMapBoolArrayBool MethodQueryMapBoolArrayBool endpoint.
-func DecodeMethodQueryMapBoolArrayBoolRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload, error) {
+func DecodeMethodQueryMapBoolArrayBoolRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload, error) {
 	return func(r *http.Request) (*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload, error) {
 		var payload *servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload
 		var (
@@ -20,12 +20,12 @@ func DecodeMethodQueryMapBoolArrayBoolRequest(mux goahttp.Muxer, decoder func(*h
 							openIdx := strings.IndexRune(keyRaw, '[')
 							closeIdx := strings.IndexRune(keyRaw, ']')
 							if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-								err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+								err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 							} else {
 								keyaRaw := keyRaw[openIdx+1 : closeIdx]
 								v, err2 := strconv.ParseBool(keyaRaw)
 								if err2 != nil {
-									err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", keyaRaw, "boolean"))
+									err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keyaRaw, "boolean"))
 								}
 								keya = v
 							}
@@ -36,7 +36,7 @@ func DecodeMethodQueryMapBoolArrayBoolRequest(mux goahttp.Muxer, decoder func(*h
 							for i, rv := range valRaw {
 								v, err2 := strconv.ParseBool(rv)
 								if err2 != nil {
-									err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", valRaw, "array of booleans"))
+									err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valRaw, "array of booleans"))
 								}
 								val[i] = v
 							}

@@ -22,7 +22,7 @@ func NewMethodQueryStringExtendedValidatePayloadPayload(body *MethodQueryStringE
 // validations defined on MethodQueryStringExtendedValidatePayloadRequestBody
 func ValidateMethodQueryStringExtendedValidatePayloadRequestBody(body *MethodQueryStringExtendedValidatePayloadRequestBody) (err error) {
 	if body.Body == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("body", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("body", "body"))
 	}
 	return
 }

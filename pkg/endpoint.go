@@ -1,4 +1,4 @@
-package goa
+package loom
 
 import "context"
 

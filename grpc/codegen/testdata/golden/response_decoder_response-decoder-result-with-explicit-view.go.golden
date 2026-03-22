@@ -10,7 +10,7 @@ func DecodeMethodMessageResultTypeWithExplicitViewResponse(ctx context.Context, 
 	}
 	message, ok := v.(*service_message_result_type_with_explicit_viewpb.MethodMessageResultTypeWithExplicitViewResponse)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageResultTypeWithExplicitView", "MethodMessageResultTypeWithExplicitView", "*service_message_result_type_with_explicit_viewpb.MethodMessageResultTypeWithExplicitViewResponse", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageResultTypeWithExplicitView", "MethodMessageResultTypeWithExplicitView", "*service_message_result_type_with_explicit_viewpb.MethodMessageResultTypeWithExplicitViewResponse", v)
 	}
 	res := NewMethodMessageResultTypeWithExplicitViewResult(message)
 	vres := &servicemessageresulttypewithexplicitviewviews.RT{Projected: res, View: view}

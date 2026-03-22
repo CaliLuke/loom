@@ -3,18 +3,18 @@ package testdata
 const (
 	UnaryRPCsServerHandlerInitCode = `// NewMethodUnaryRPCAHandler creates a gRPC handler which serves the
 // "ServiceUnaryRPCs" service "MethodUnaryRPCA" endpoint.
-func NewMethodUnaryRPCAHandler(endpoint goa.Endpoint, h goagrpc.UnaryHandler) goagrpc.UnaryHandler {
+func NewMethodUnaryRPCAHandler(endpoint loom.Endpoint, h loomgrpc.UnaryHandler) loomgrpc.UnaryHandler {
 	if h == nil {
-		h = goagrpc.NewUnaryHandler(endpoint, DecodeMethodUnaryRPCARequest, EncodeMethodUnaryRPCAResponse)
+		h = loomgrpc.NewUnaryHandler(endpoint, DecodeMethodUnaryRPCARequest, EncodeMethodUnaryRPCAResponse)
 	}
 	return h
 }
 
 // NewMethodUnaryRPCBHandler creates a gRPC handler which serves the
 // "ServiceUnaryRPCs" service "MethodUnaryRPCB" endpoint.
-func NewMethodUnaryRPCBHandler(endpoint goa.Endpoint, h goagrpc.UnaryHandler) goagrpc.UnaryHandler {
+func NewMethodUnaryRPCBHandler(endpoint loom.Endpoint, h loomgrpc.UnaryHandler) loomgrpc.UnaryHandler {
 	if h == nil {
-		h = goagrpc.NewUnaryHandler(endpoint, DecodeMethodUnaryRPCBRequest, EncodeMethodUnaryRPCBResponse)
+		h = loomgrpc.NewUnaryHandler(endpoint, DecodeMethodUnaryRPCBRequest, EncodeMethodUnaryRPCBResponse)
 	}
 	return h
 }
@@ -22,9 +22,9 @@ func NewMethodUnaryRPCBHandler(endpoint goa.Endpoint, h goagrpc.UnaryHandler) go
 
 	UnaryRPCNoPayloadServerHandlerInitCode = `// NewMethodUnaryRPCNoPayloadHandler creates a gRPC handler which serves the
 // "ServiceUnaryRPCNoPayload" service "MethodUnaryRPCNoPayload" endpoint.
-func NewMethodUnaryRPCNoPayloadHandler(endpoint goa.Endpoint, h goagrpc.UnaryHandler) goagrpc.UnaryHandler {
+func NewMethodUnaryRPCNoPayloadHandler(endpoint loom.Endpoint, h loomgrpc.UnaryHandler) loomgrpc.UnaryHandler {
 	if h == nil {
-		h = goagrpc.NewUnaryHandler(endpoint, nil, EncodeMethodUnaryRPCNoPayloadResponse)
+		h = loomgrpc.NewUnaryHandler(endpoint, nil, EncodeMethodUnaryRPCNoPayloadResponse)
 	}
 	return h
 }
@@ -32,9 +32,9 @@ func NewMethodUnaryRPCNoPayloadHandler(endpoint goa.Endpoint, h goagrpc.UnaryHan
 
 	UnaryRPCNoResultServerHandlerInitCode = `// NewMethodUnaryRPCNoResultHandler creates a gRPC handler which serves the
 // "ServiceUnaryRPCNoResult" service "MethodUnaryRPCNoResult" endpoint.
-func NewMethodUnaryRPCNoResultHandler(endpoint goa.Endpoint, h goagrpc.UnaryHandler) goagrpc.UnaryHandler {
+func NewMethodUnaryRPCNoResultHandler(endpoint loom.Endpoint, h loomgrpc.UnaryHandler) loomgrpc.UnaryHandler {
 	if h == nil {
-		h = goagrpc.NewUnaryHandler(endpoint, DecodeMethodUnaryRPCNoResultRequest, EncodeMethodUnaryRPCNoResultResponse)
+		h = loomgrpc.NewUnaryHandler(endpoint, DecodeMethodUnaryRPCNoResultRequest, EncodeMethodUnaryRPCNoResultResponse)
 	}
 	return h
 }
@@ -42,9 +42,9 @@ func NewMethodUnaryRPCNoResultHandler(endpoint goa.Endpoint, h goagrpc.UnaryHand
 
 	ServerStreamingRPCServerHandlerInitCode = `// NewMethodServerStreamingRPCHandler creates a gRPC handler which serves the
 // "ServiceServerStreamingRPC" service "MethodServerStreamingRPC" endpoint.
-func NewMethodServerStreamingRPCHandler(endpoint goa.Endpoint, h goagrpc.StreamHandler) goagrpc.StreamHandler {
+func NewMethodServerStreamingRPCHandler(endpoint loom.Endpoint, h loomgrpc.StreamHandler) loomgrpc.StreamHandler {
 	if h == nil {
-		h = goagrpc.NewStreamHandler(endpoint, DecodeMethodServerStreamingRPCRequest)
+		h = loomgrpc.NewStreamHandler(endpoint, DecodeMethodServerStreamingRPCRequest)
 	}
 	return h
 }
@@ -52,9 +52,9 @@ func NewMethodServerStreamingRPCHandler(endpoint goa.Endpoint, h goagrpc.StreamH
 
 	ClientStreamingRPCServerHandlerInitCode = `// NewMethodClientStreamingRPCHandler creates a gRPC handler which serves the
 // "ServiceClientStreamingRPC" service "MethodClientStreamingRPC" endpoint.
-func NewMethodClientStreamingRPCHandler(endpoint goa.Endpoint, h goagrpc.StreamHandler) goagrpc.StreamHandler {
+func NewMethodClientStreamingRPCHandler(endpoint loom.Endpoint, h loomgrpc.StreamHandler) loomgrpc.StreamHandler {
 	if h == nil {
-		h = goagrpc.NewStreamHandler(endpoint, nil)
+		h = loomgrpc.NewStreamHandler(endpoint, nil)
 	}
 	return h
 }
@@ -63,9 +63,9 @@ func NewMethodClientStreamingRPCHandler(endpoint goa.Endpoint, h goagrpc.StreamH
 	ClientStreamingRPCWithPayloadServerHandlerInitCode = `// NewMethodClientStreamingRPCWithPayloadHandler creates a gRPC handler which
 // serves the "ServiceClientStreamingRPCWithPayload" service
 // "MethodClientStreamingRPCWithPayload" endpoint.
-func NewMethodClientStreamingRPCWithPayloadHandler(endpoint goa.Endpoint, h goagrpc.StreamHandler) goagrpc.StreamHandler {
+func NewMethodClientStreamingRPCWithPayloadHandler(endpoint loom.Endpoint, h loomgrpc.StreamHandler) loomgrpc.StreamHandler {
 	if h == nil {
-		h = goagrpc.NewStreamHandler(endpoint, DecodeMethodClientStreamingRPCWithPayloadRequest)
+		h = loomgrpc.NewStreamHandler(endpoint, DecodeMethodClientStreamingRPCWithPayloadRequest)
 	}
 	return h
 }
@@ -74,9 +74,9 @@ func NewMethodClientStreamingRPCWithPayloadHandler(endpoint goa.Endpoint, h goag
 	BidirectionalStreamingRPCServerHandlerInitCode = `// NewMethodBidirectionalStreamingRPCHandler creates a gRPC handler which
 // serves the "ServiceBidirectionalStreamingRPC" service
 // "MethodBidirectionalStreamingRPC" endpoint.
-func NewMethodBidirectionalStreamingRPCHandler(endpoint goa.Endpoint, h goagrpc.StreamHandler) goagrpc.StreamHandler {
+func NewMethodBidirectionalStreamingRPCHandler(endpoint loom.Endpoint, h loomgrpc.StreamHandler) loomgrpc.StreamHandler {
 	if h == nil {
-		h = goagrpc.NewStreamHandler(endpoint, nil)
+		h = loomgrpc.NewStreamHandler(endpoint, nil)
 	}
 	return h
 }
@@ -85,9 +85,9 @@ func NewMethodBidirectionalStreamingRPCHandler(endpoint goa.Endpoint, h goagrpc.
 	BidirectionalStreamingRPCWithPayloadServerHandlerInitCode = `// NewMethodBidirectionalStreamingRPCWithPayloadHandler creates a gRPC handler
 // which serves the "ServiceBidirectionalStreamingRPCWithPayload" service
 // "MethodBidirectionalStreamingRPCWithPayload" endpoint.
-func NewMethodBidirectionalStreamingRPCWithPayloadHandler(endpoint goa.Endpoint, h goagrpc.StreamHandler) goagrpc.StreamHandler {
+func NewMethodBidirectionalStreamingRPCWithPayloadHandler(endpoint loom.Endpoint, h loomgrpc.StreamHandler) loomgrpc.StreamHandler {
 	if h == nil {
-		h = goagrpc.NewStreamHandler(endpoint, DecodeMethodBidirectionalStreamingRPCWithPayloadRequest)
+		h = loomgrpc.NewStreamHandler(endpoint, DecodeMethodBidirectionalStreamingRPCWithPayloadRequest)
 	}
 	return h
 }

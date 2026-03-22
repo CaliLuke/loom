@@ -1,6 +1,6 @@
 // DecodeMethodCookieStringValidateRequest returns a decoder for requests sent
 // to the ServiceCookieStringValidate MethodCookieStringValidate endpoint.
-func DecodeMethodCookieStringValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicecookiestringvalidate.MethodCookieStringValidatePayload, error) {
+func DecodeMethodCookieStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiestringvalidate.MethodCookieStringValidatePayload, error) {
 	return func(r *http.Request) (*servicecookiestringvalidate.MethodCookieStringValidatePayload, error) {
 		var payload *servicecookiestringvalidate.MethodCookieStringValidatePayload
 		var (
@@ -17,7 +17,7 @@ func DecodeMethodCookieStringValidateRequest(mux goahttp.Muxer, decoder func(*ht
 			c2 = &c2Raw
 		}
 		if c2 != nil {
-			err = goa.MergeErrors(err, goa.ValidatePattern("c", *c2, "cookie"))
+			err = loom.MergeErrors(err, loom.ValidatePattern("c", *c2, "cookie"))
 		}
 		if err != nil {
 			return payload, err

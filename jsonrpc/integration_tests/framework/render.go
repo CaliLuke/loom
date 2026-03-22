@@ -58,9 +58,6 @@ func renderMethodDSL(m *MethodData) string {
 	if m.IsSSE() {
 		b.WriteString("\t\tServerSentEvents()\n")
 	}
-	if m.Info.Modifier == ModifierIDMap {
-		b.WriteString("\t\tID(\"request_id\")\n")
-	}
 	b.WriteString("\t})\n")
 	if shouldGenerateGRPC(m) {
 		b.WriteString("\tGRPC(func() {})\n")
@@ -85,9 +82,20 @@ func renderInlineType(spec *TypeSpec, methodContext bool) string {
 		var b strings.Builder
 		b.WriteString("func() {\n")
 		for _, f := range spec.Fields {
+			if f.IsID {
+				fmt.Fprintf(&b, "\tID(%q, %s", f.Name, renderInlineType(f.Type, methodContext))
+				if f.Description != "" {
+					fmt.Fprintf(&b, ", %q", f.Description)
+				}
+				b.WriteString(")\n")
+				continue
+			}
 			fmt.Fprintf(&b, "\tField(%d, %q, %s", f.Position, f.Name, renderInlineType(f.Type, methodContext))
 			if f.Description != "" {
 				fmt.Fprintf(&b, ", %q", f.Description)
+			}
+			if validation := renderFieldValidations(f); validation != "" {
+				fmt.Fprintf(&b, ", func() {\n%s\t}", indentBlock(validation, 2))
 			}
 			b.WriteString(")\n")
 		}
@@ -117,6 +125,17 @@ func renderInlineType(spec *TypeSpec, methodContext bool) string {
 	default:
 		return "Any"
 	}
+}
+
+func renderFieldValidations(field FieldSpec) string {
+	var b strings.Builder
+	if field.MinLength > 0 {
+		fmt.Fprintf(&b, "MinLength(%d)\n", field.MinLength)
+	}
+	if field.Minimum != nil {
+		fmt.Fprintf(&b, "Minimum(%d)\n", *field.Minimum)
+	}
+	return b.String()
 }
 
 func renderImplementationSource(service *ServiceImplData) string {
@@ -213,9 +232,9 @@ func renderMethodImplementation(service *ServiceImplData, m *MethodImplData) str
 	}
 	if m.ReturnsError {
 		if m.HasResult {
-			return "\treturn nil, &goa.ServiceError{Message: \"test error\"}"
+			return "\treturn nil, &loom.ServiceError{Message: \"test error\"}"
 		}
-		return "\treturn &goa.ServiceError{Message: \"test error\"}"
+		return "\treturn &loom.ServiceError{Message: \"test error\"}"
 	}
 	switch m.Info.Action {
 	case ActionEcho:
@@ -316,7 +335,7 @@ func renderSSEFinalize(m *MethodImplData) string {
 			return fmt.Sprintf("\tfinalResult := &%s.%sResult{\n\t\tData: map[string]any{\"status\": \"completed\", \"final\": true},\n\t}\n\treturn stream.SendAndClose(ctx, finalResult)", m.ServicePackage, m.GoName)
 		}
 	case ModifierError:
-		return "\treturn &goa.ServiceError{Message: \"Streaming error occurred\"}"
+		return "\treturn &loom.ServiceError{Message: \"Streaming error occurred\"}"
 	}
 	return "\treturn nil"
 }
@@ -402,7 +421,7 @@ func renderWebSocketImplementation(service *ServiceImplData, m *MethodImplData) 
 	switch m.Info.Action {
 	case ActionEcho:
 		if m.Info.Modifier == ModifierError {
-			return "\ttestErr := &goa.ServiceError{Name: \"test_error\", Message: \"Invalid params\"}\n\tif err := stream.SendError(ctx, testErr); err != nil {\n\t\treturn err\n\t}\n\treturn nil"
+			return "\ttestErr := &loom.ServiceError{Name: \"test_error\", Message: \"Invalid params\"}\n\tif err := stream.SendError(ctx, testErr); err != nil {\n\t\treturn err\n\t}\n\treturn nil"
 		}
 		return renderWebSocketEcho(m)
 	case ActionTransform:
@@ -468,7 +487,13 @@ func renderWebSocketGenerate(m *MethodImplData) string {
 func renderWebSocketStream(m *MethodImplData) string {
 	switch m.Info.Type {
 	case TypeString:
-		return fmt.Sprintf("\tif p != nil {\n\t\tcount := 3\n\t\tif p.Value != \"\" { count = len(p.Value); if count > 10 { count = 10 } }\n\t\tstreamCount := count\n\t\tif %t && streamCount > 2 { streamCount = 2 }\n\t\tfor i := 1; i <= streamCount; i++ {\n\t\t\tnotification := &%s.%sResult{Value: fmt.Sprintf(\"Stream %%d of %%d\", i, count)}\n\t\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t\t}\n\t\tif %t { testErr := &goa.ServiceError{Name: \"test_error\", Message: \"Streaming error occurred\"}; if err := stream.SendError(ctx, testErr); err != nil { return err }; return nil }\n\t\tresult := &%s.%sResult{Value: \"completed\"}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.Info.Modifier == ModifierError, m.ServicePackage, m.GoName, m.Info.Modifier == ModifierError, m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tif p != nil {\n\t\tcount := 3\n\t\tif p.Value != \"\" { count = len(p.Value); if count > 10 { count = 10 } }\n\t\tstreamCount := count\n\t\tif %t && streamCount > 2 { streamCount = 2 }\n\t\tfor i := 1; i <= streamCount; i++ {\n\t\t\tnotification := &%s.%sResult{Value: fmt.Sprintf(\"Stream %%d of %%d\", i, count)}\n\t\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t\t}\n\t\tif %t { testErr := &loom.ServiceError{Name: \"test_error\", Message: \"Streaming error occurred\"}; if err := stream.SendError(ctx, testErr); err != nil { return err }; return nil }\n\t\tresult := &%s.%sResult{Value: \"completed\"}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.Info.Modifier == ModifierError, m.ServicePackage, m.GoName, m.Info.Modifier == ModifierError, m.ServicePackage, m.GoName)
+	case TypeArray:
+		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\tif len(p.Items) == 0 {\n\t\tnotification := &%s.%sResult{Items: []string{\"empty\"}}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t} else {\n\t\tfor _, item := range p.Items {\n\t\t\tnotification := &%s.%sResult{Items: []string{fmt.Sprintf(\"Processing: %%s\", item)}}\n\t\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t\t}\n\t}\n\tresult := &%s.%sResult{Items: []string{\"completed\"}}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
+	case TypeObject:
+		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\tcount := p.Field2\n\tif count <= 0 { count = 3 }\n\tif count > 10 { count = 10 }\n\tfor i := 1; i <= count; i++ {\n\t\tnotification := &%s.%sResult{\n\t\t\tField1: fmt.Sprintf(\"%%s-%%d\", p.Field1, i),\n\t\t\tField2: i,\n\t\t\tField3: i == count,\n\t\t}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t}\n\tresult := &%s.%sResult{Field1: \"completed\", Field2: 100, Field3: true}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
+	case TypeMap:
+		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\tif len(p.Data) == 0 {\n\t\tnotification := &%s.%sResult{Data: map[string]any{\"status\": \"empty\"}}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t} else {\n\t\tkeys := make([]string, 0, len(p.Data))\n\t\tfor k := range p.Data { keys = append(keys, k) }\n\t\tsort.Strings(keys)\n\t\tfor _, k := range keys {\n\t\t\tnotification := &%s.%sResult{Data: map[string]any{\"key\": k, \"value\": p.Data[k]}}\n\t\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t\t}\n\t}\n\tresult := &%s.%sResult{Data: map[string]any{\"status\": \"completed\", \"final\": true}}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
 	default:
 		return "\treturn nil"
 	}

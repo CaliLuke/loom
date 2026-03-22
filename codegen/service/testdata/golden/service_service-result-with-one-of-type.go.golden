@@ -108,7 +108,7 @@ func (u *Result) SetU(v *U) {
 func (u Result) Validate() error {
 	switch u.kind {
 	case "":
-		return goa.InvalidEnumValueError("type", "", []any{
+		return loom.InvalidEnumValueError("type", "", []any{
 			string(ResultKindT),
 			string(ResultKindU),
 		})
@@ -117,7 +117,7 @@ func (u Result) Validate() error {
 	case ResultKindU:
 		return nil
 	default:
-		return goa.InvalidEnumValueError("type", u.kind, []any{
+		return loom.InvalidEnumValueError("type", u.kind, []any{
 			string(ResultKindT),
 			string(ResultKindU),
 		})
@@ -157,13 +157,13 @@ func (u Result) MarshalFormValues(values url.Values, prefix string) error {
 	if err := u.Validate(); err != nil {
 		return err
 	}
-	values.Set(goahttp.FormChildKey(prefix, "type"), string(u.kind))
+	values.Set(loomhttp.FormChildKey(prefix, "type"), string(u.kind))
 	switch u.kind {
 	case ResultKindT:
-		_, err := goahttp.EncodeFormValue(values, prefix, u.T)
+		_, err := loomhttp.EncodeFormValue(values, prefix, u.T)
 		return err
 	case ResultKindU:
-		_, err := goahttp.EncodeFormValue(values, prefix, u.U)
+		_, err := loomhttp.EncodeFormValue(values, prefix, u.U)
 		return err
 	default:
 		return fmt.Errorf("unexpected Result discriminant %q", u.kind)
@@ -175,15 +175,15 @@ func (u Result) MarshalFormValues(values url.Values, prefix string) error {
 // object-shaped branches and the canonical {type,value} form shape for scalar
 // branches.
 func (u *Result) UnmarshalFormValues(values url.Values, prefix string) error {
-	typeKey := goahttp.FormChildKey(prefix, "type")
+	typeKey := loomhttp.FormChildKey(prefix, "type")
 	rawType := values.Get(typeKey)
 	if rawType == "" {
-		return goa.MissingFieldError("type", "body")
+		return loom.MissingFieldError("type", "body")
 	}
 	switch rawType {
 	case string(ResultKindT):
 		var v *T
-		seen, err := goahttp.DecodeFormValue(values, prefix, &v)
+		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
 		if err != nil {
 			return err
 		}
@@ -194,7 +194,7 @@ func (u *Result) UnmarshalFormValues(values url.Values, prefix string) error {
 		u.T = v
 	case string(ResultKindU):
 		var v *U
-		seen, err := goahttp.DecodeFormValue(values, prefix, &v)
+		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
 		if err != nil {
 			return err
 		}
@@ -248,7 +248,7 @@ func NewResultOneof(vres *resultwithoneoftypeviews.ResultOneof) *ResultOneof {
 	case "default", "":
 		res = NewResultOneofFromResultOneofView(vres.Projected)
 	default:
-		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+		panic(loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		}))
 	}
@@ -265,7 +265,7 @@ func NewViewedResultOneof(res *ResultOneof, view string) *resultwithoneoftypevie
 		p := ProjectResultOneof(res)
 		vres = &resultwithoneoftypeviews.ResultOneof{Projected: p, View: "default"}
 	default:
-		panic(goa.InvalidEnumValueError("view", view, []any{
+		panic(loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		}))
 	}

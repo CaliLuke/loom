@@ -3,19 +3,18 @@
 func handleHTTPServer(ctx context.Context, u *url.URL, wg *sync.WaitGroup, errc chan error, dbg bool) {
 
 	// Provide the transport specific request decoder and response encoder.
-	// The goa http package has built-in support for JSON, XML and gob.
-	// Other encodings can be used by providing the corresponding functions,
-	// see goa.design/implement/encoding.
+	// The Loom http package has built-in support for JSON, XML and gob.
+	// Other encodings can be used by providing the corresponding functions.
 	var (
-		dec = goahttp.RequestDecoder
-		enc = goahttp.ResponseEncoder
+		dec = loomhttp.RequestDecoder
+		enc = loomhttp.ResponseEncoder
 	)
 
 	// Build the service HTTP request multiplexer and mount debug and profiler
 	// endpoints in debug mode.
-	var mux goahttp.Muxer
+	var mux loomhttp.Muxer
 	{
-		mux = goahttp.NewMuxer()
+		mux = loomhttp.NewMuxer()
 		if dbg {
 			// Mount pprof handlers for memory profiling under /debug/pprof.
 			debug.MountPprofHandlers(debug.Adapt(mux))

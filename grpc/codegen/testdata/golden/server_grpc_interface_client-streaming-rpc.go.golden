@@ -2,16 +2,16 @@
 // service_client_streaming_rpcpb.ServiceClientStreamingRPCServer interface.
 func (s *Server) MethodClientStreamingRPC(stream service_client_streaming_rpcpb.ServiceClientStreamingRPC_MethodClientStreamingRPCServer) error {
 	ctx := stream.Context()
-	ctx = context.WithValue(ctx, goa.MethodKey, "MethodClientStreamingRPC")
-	ctx = context.WithValue(ctx, goa.ServiceKey, "ServiceClientStreamingRPC")
+	ctx = context.WithValue(ctx, loom.MethodKey, "MethodClientStreamingRPC")
+	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceClientStreamingRPC")
 	_, err := s.MethodClientStreamingRPCH.Decode(ctx, nil)
 	if err != nil {
-		return goagrpc.EncodeError(err)
+		return loomgrpc.EncodeError(err)
 	}
 	ep := &serviceclientstreamingrpc.MethodClientStreamingRPCEndpointInput{Stream: &MethodClientStreamingRPCServerStream{stream: stream}}
 	err = s.MethodClientStreamingRPCH.Handle(ctx, ep)
 	if err != nil {
-		return goagrpc.EncodeError(err)
+		return loomgrpc.EncodeError(err)
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ func renderEndpointMethod(method *EndpointMethodData) string {
 	for _, scheme := range method.Schemes.DedupeByType() {
 		fmt.Fprintf(&b, ", auth%sFn security.Auth%sFunc", scheme.Type, scheme.Type)
 	}
-	b.WriteString(") goa.Endpoint {\n")
+	b.WriteString(") loom.Endpoint {\n")
 	b.WriteString("\treturn func(ctx context.Context, req any) (any, error) {\n")
 
 	switch {

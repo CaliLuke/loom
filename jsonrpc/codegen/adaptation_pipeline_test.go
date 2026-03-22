@@ -23,7 +23,7 @@ func TestJSONRPCClientCLIFilesUseAdaptationPipeline(t *testing.T) {
 	assert.Contains(t, parseFile.Path, filepath.Join("jsonrpc", "cli", "single_host", "cli.go"))
 
 	parseSource := sectionSourceByName(t, parseFile, "parse-endpoint")
-	assert.Contains(t, parseSource, "goahttp.ConnConfigureFunc")
+	assert.Contains(t, parseSource, "loomhttp.ConnConfigureFunc")
 	assert.NotContains(t, parseSource, "ConnConfigurer")
 }
 

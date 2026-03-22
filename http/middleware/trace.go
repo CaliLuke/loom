@@ -102,7 +102,7 @@ func DiscardFromTrace(discard *regexp.Regexp) middleware.TraceOption {
 	return middleware.DiscardFromTrace(discard)
 }
 
-// WrapDoer wraps a goa client Doer and sets the trace headers so that the
+// WrapDoer wraps a Loom client Doer and sets the trace headers so that the
 // downstream service may properly retrieve the parent span ID and trace ID.
 func WrapDoer(doer Doer) Doer {
 	return &tracedDoer{doer}

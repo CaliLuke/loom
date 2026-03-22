@@ -1,6 +1,6 @@
 // DecodeMethodQueryBoolRequest returns a decoder for requests sent to the
 // ServiceQueryBool MethodQueryBool endpoint.
-func DecodeMethodQueryBoolRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerybool.MethodQueryBoolPayload, error) {
+func DecodeMethodQueryBoolRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerybool.MethodQueryBoolPayload, error) {
 	return func(r *http.Request) (*servicequerybool.MethodQueryBoolPayload, error) {
 		var payload *servicequerybool.MethodQueryBoolPayload
 		var (
@@ -12,7 +12,7 @@ func DecodeMethodQueryBoolRequest(mux goahttp.Muxer, decoder func(*http.Request)
 			if qRaw != "" {
 				v, err2 := strconv.ParseBool(qRaw)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("q", qRaw, "boolean"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "boolean"))
 				}
 				q = &v
 			}

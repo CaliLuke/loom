@@ -1,14 +1,14 @@
 // EncodeMethodFormBodyUnionRequest returns an encoder for requests sent to the
 // ServiceFormBodyUnion MethodFormBodyUnion server.
-func EncodeMethodFormBodyUnionRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodFormBodyUnionRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceformbodyunion.FormGrant)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceFormBodyUnion", "MethodFormBodyUnion", "*serviceformbodyunion.FormGrant", v)
+			return loomhttp.ErrInvalidType("ServiceFormBodyUnion", "MethodFormBodyUnion", "*serviceformbodyunion.FormGrant", v)
 		}
 		body := NewMethodFormBodyUnionRequestBody(p)
-		if err := goahttp.SetFormRequest(req, &body); err != nil {
-			return goahttp.ErrEncodingError("ServiceFormBodyUnion", "MethodFormBodyUnion", err)
+		if err := loomhttp.SetFormRequest(req, &body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceFormBodyUnion", "MethodFormBodyUnion", err)
 		}
 		return nil
 	}

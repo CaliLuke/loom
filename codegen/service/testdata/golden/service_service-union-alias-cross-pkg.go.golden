@@ -96,7 +96,7 @@ func (u *Values) SetMetric(v alias.Alias) {
 func (u Values) Validate() error {
 	switch u.kind {
 	case "":
-		return goa.InvalidEnumValueError("type", "", []any{
+		return loom.InvalidEnumValueError("type", "", []any{
 			string(ValuesKindDevice),
 			string(ValuesKindMetric),
 		})
@@ -105,7 +105,7 @@ func (u Values) Validate() error {
 	case ValuesKindMetric:
 		return nil
 	default:
-		return goa.InvalidEnumValueError("type", u.kind, []any{
+		return loom.InvalidEnumValueError("type", u.kind, []any{
 			string(ValuesKindDevice),
 			string(ValuesKindMetric),
 		})
@@ -145,13 +145,13 @@ func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 	if err := u.Validate(); err != nil {
 		return err
 	}
-	values.Set(goahttp.FormChildKey(prefix, "type"), string(u.kind))
+	values.Set(loomhttp.FormChildKey(prefix, "type"), string(u.kind))
 	switch u.kind {
 	case ValuesKindDevice:
-		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Device)
+		_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "value"), u.Device)
 		return err
 	case ValuesKindMetric:
-		_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, "value"), u.Metric)
+		_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "value"), u.Metric)
 		return err
 	default:
 		return fmt.Errorf("unexpected Values discriminant %q", u.kind)
@@ -163,32 +163,32 @@ func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 // object-shaped branches and the canonical {type,value} form shape for scalar
 // branches.
 func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
-	typeKey := goahttp.FormChildKey(prefix, "type")
-	valueKey := goahttp.FormChildKey(prefix, "value")
+	typeKey := loomhttp.FormChildKey(prefix, "type")
+	valueKey := loomhttp.FormChildKey(prefix, "value")
 	rawType := values.Get(typeKey)
 	if rawType == "" {
-		return goa.MissingFieldError("type", "body")
+		return loom.MissingFieldError("type", "body")
 	}
 	switch rawType {
 	case string(ValuesKindDevice):
 		var v alias.Alias
-		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		seen, err := loomhttp.DecodeFormValue(values, valueKey, &v)
 		if err != nil {
 			return err
 		}
 		if !seen {
-			return goa.MissingFieldError("value", "body")
+			return loom.MissingFieldError("value", "body")
 		}
 		u.kind = ValuesKindDevice
 		u.Device = v
 	case string(ValuesKindMetric):
 		var v alias.Alias
-		seen, err := goahttp.DecodeFormValue(values, valueKey, &v)
+		seen, err := loomhttp.DecodeFormValue(values, valueKey, &v)
 		if err != nil {
 			return err
 		}
 		if !seen {
-			return goa.MissingFieldError("value", "body")
+			return loom.MissingFieldError("value", "body")
 		}
 		u.kind = ValuesKindMetric
 		u.Metric = v

@@ -10,7 +10,7 @@ func DecodeMethodMessageUserTypeWithNestedUserTypesRequest(ctx context.Context, 
 	)
 	{
 		if message, ok = v.(*service_message_user_type_with_nested_user_typespb.MethodMessageUserTypeWithNestedUserTypesRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "*service_message_user_type_with_nested_user_typespb.MethodMessageUserTypeWithNestedUserTypesRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "*service_message_user_type_with_nested_user_typespb.MethodMessageUserTypeWithNestedUserTypesRequest", v)
 		}
 	}
 	var payload *servicemessageusertypewithnestedusertypes.UT
@@ -30,7 +30,7 @@ func DecodeMethodUnaryRPCNoResultRequest(ctx context.Context, v any, md metadata
 	)
 	{
 		if message, ok = v.(*service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceUnaryRPCNoResult", "MethodUnaryRPCNoResult", "*service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceUnaryRPCNoResult", "MethodUnaryRPCNoResult", "*service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultRequest", v)
 		}
 	}
 	var payload []string
@@ -50,7 +50,7 @@ func DecodeMethodMessageMapRequest(ctx context.Context, v any, md metadata.MD) (
 	)
 	{
 		if message, ok = v.(*service_message_mappb.MethodMessageMapRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageMap", "MethodMessageMap", "*service_message_mappb.MethodMessageMapRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageMap", "MethodMessageMap", "*service_message_mappb.MethodMessageMapRequest", v)
 		}
 		if err := ValidateMethodMessageMapRequest(message); err != nil {
 			return nil, err
@@ -73,7 +73,7 @@ func DecodeMethodServerStreamingRPCRequest(ctx context.Context, v any, md metada
 	)
 	{
 		if message, ok = v.(*service_server_streaming_rpcpb.MethodServerStreamingRPCRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceServerStreamingRPC", "MethodServerStreamingRPC", "*service_server_streaming_rpcpb.MethodServerStreamingRPCRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceServerStreamingRPC", "MethodServerStreamingRPC", "*service_server_streaming_rpcpb.MethodServerStreamingRPCRequest", v)
 		}
 	}
 	var payload int
@@ -89,20 +89,20 @@ const PayloadPrimitiveWithStreamingPayloadRequestDecoderCode = `// DecodeMethodC
 // "MethodClientStreamingRPCWithPayload" endpoint.
 func DecodeMethodClientStreamingRPCWithPayloadRequest(ctx context.Context, v any, md metadata.MD) (any, error) {
 	var (
-		goaPayload int
+		loomPayload int
 		err        error
 	)
 	{
-		if vals := md.Get("goa_payload"); len(vals) == 0 {
-			err = goa.MergeErrors(err, goa.MissingFieldError("goa_payload", "metadata"))
+		if vals := md.Get("loom_payload"); len(vals) == 0 {
+			err = loom.MergeErrors(err, loom.MissingFieldError("loom_payload", "metadata"))
 		} else {
-			goaPayloadRaw := vals[0]
+			loomPayloadRaw := vals[0]
 
-			v, err2 := strconv.ParseInt(goaPayloadRaw, 10, strconv.IntSize)
+			v, err2 := strconv.ParseInt(loomPayloadRaw, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("goaPayload", goaPayloadRaw, "integer"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("loomPayload", loomPayloadRaw, "integer"))
 			}
-			goaPayload = int(v)
+			loomPayload = int(v)
 		}
 	}
 	if err != nil {
@@ -110,7 +110,7 @@ func DecodeMethodClientStreamingRPCWithPayloadRequest(ctx context.Context, v any
 	}
 	var payload int
 	{
-		payload = goaPayload
+		payload = loomPayload
 	}
 	return payload, nil
 }
@@ -131,7 +131,7 @@ func DecodeMethodBidirectionalStreamingRPCWithPayloadRequest(ctx context.Context
 
 			v, err2 := strconv.ParseInt(aRaw, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("a", aRaw, "integer"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("a", aRaw, "integer"))
 			}
 			pv := int(v)
 			a = &pv
@@ -164,7 +164,7 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 
 			v, err2 := strconv.ParseInt(inMetadataRaw, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("inMetadata", inMetadataRaw, "integer"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("inMetadata", inMetadataRaw, "integer"))
 			}
 			pv := int(v)
 			inMetadata = &pv
@@ -179,7 +179,7 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 	)
 	{
 		if message, ok = v.(*service_message_with_metadatapb.MethodMessageWithMetadataRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*service_message_with_metadatapb.MethodMessageWithMetadataRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*service_message_with_metadatapb.MethodMessageWithMetadataRequest", v)
 		}
 	}
 	var payload *servicemessagewithmetadata.RequestUT
@@ -203,14 +203,14 @@ func DecodeMethodMessageWithValidateRequest(ctx context.Context, v any, md metad
 
 			v, err2 := strconv.ParseInt(inMetadataRaw, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("inMetadata", inMetadataRaw, "integer"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("inMetadata", inMetadataRaw, "integer"))
 			}
 			pv := int(v)
 			inMetadata = &pv
 		}
 		if inMetadata != nil {
 			if *inMetadata > 100 {
-				err = goa.MergeErrors(err, goa.InvalidRangeError("InMetadata", *inMetadata, 100, false))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("InMetadata", *inMetadata, 100, false))
 			}
 		}
 	}
@@ -223,7 +223,7 @@ func DecodeMethodMessageWithValidateRequest(ctx context.Context, v any, md metad
 	)
 	{
 		if message, ok = v.(*service_message_with_validatepb.MethodMessageWithValidateRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*service_message_with_validatepb.MethodMessageWithValidateRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*service_message_with_validatepb.MethodMessageWithValidateRequest", v)
 		}
 		if err = ValidateMethodMessageWithValidateRequest(message); err != nil {
 			return nil, err
@@ -270,7 +270,7 @@ func DecodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md metad
 	)
 	{
 		if message, ok = v.(*service_message_with_securitypb.MethodMessageWithSecurityRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*service_message_with_securitypb.MethodMessageWithSecurityRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*service_message_with_securitypb.MethodMessageWithSecurityRequest", v)
 		}
 	}
 	var payload *servicemessagewithsecurity.RequestUT

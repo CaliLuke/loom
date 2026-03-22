@@ -892,7 +892,7 @@ func attributeName(obj *expr.Object, name string) (string, string) {
 	return name, ""
 }
 
-// isPrimitive is true if the given kind matches a goa primitive type.
+// isPrimitive is true if the given kind matches a Loom primitive type.
 func isPrimitive(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Bool:

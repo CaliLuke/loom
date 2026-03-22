@@ -724,8 +724,8 @@ func cloneOperationSecurity(requirements []map[string][]string) []map[string][]s
 }
 
 func effectiveRequirements(requirements []*expr.SecurityExpr, sessionAuths []*expr.SessionAuthExpr) []*expr.SecurityExpr {
-	merged := make([]*expr.SecurityExpr, len(requirements))
-	copy(merged, requirements)
+	merged := make([]*expr.SecurityExpr, 0, len(requirements)+len(sessionAuths))
+	merged = append(merged, requirements...)
 	for _, sessionAuth := range sessionAuths {
 		for _, transport := range sessionAuth.Transports {
 			if transport == nil || transport.Scheme == nil {

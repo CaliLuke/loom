@@ -39,7 +39,7 @@ func ExampleServer(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, ser
 		{Path: "os"},
 		{Path: "sync"},
 		{Path: "time"},
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: "goa.design/clue/debug"},
 		{Path: "goa.design/clue/log"},
 		codegen.LoomImport("middleware"),

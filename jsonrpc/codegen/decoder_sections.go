@@ -20,7 +20,7 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(comment))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {\n", e.ResponseDecoder)
+	fmt.Fprintf(&b, "func %s(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {\n", e.ResponseDecoder)
 	b.WriteString("\treturn func(resp *http.Response) (any, error) {\n")
 	b.WriteString("\t\tif restoreBody {\n")
 	b.WriteString("\t\t\tb, err := io.ReadAll(resp.Body)\n")
@@ -30,17 +30,17 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t\tdefer resp.Body.Close()\n\n")
 	b.WriteString("\t\tif resp.StatusCode != http.StatusOK {\n")
-	fmt.Fprintf(&b, "\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
+	fmt.Fprintf(&b, "\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t}\n\n")
 	b.WriteString("\t\tvar jresp jsonrpc.RawResponse\n")
 	b.WriteString("\t\tif err := decoder(resp).Decode(&jresp); err != nil {\n")
-	fmt.Fprintf(&b, "\t\t\treturn nil, goahttp.ErrDecodingError(%q, %q, err)\n", e.ServiceName, e.Method.Name)
+	fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrDecodingError(%q, %q, err)\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t}\n\n")
 	b.WriteString("\t\tif jresp.Error != nil {\n")
 	b.WriteString("\t\t\tswitch jresp.Error.Code {\n")
 	writeJSONRPCErrorDecodeSwitch(&b, e)
 	b.WriteString("\t\t\tdefault:\n")
-	fmt.Fprintf(&b, "\t\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
+	fmt.Fprintf(&b, "\t\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t\t}\n\t\t}\n\n")
 	if e.Result != nil && len(e.Result.Responses) > 0 {
 		resp := e.Result.Responses[0]
@@ -68,7 +68,7 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 				fmt.Fprintf(&b, "\t\tvres := %s%s.%s{Projected: p, View: view}\n", viewedResultPrefix(e.Method.ViewedResult), e.Method.ViewedResult.ViewsPkg, e.Method.ViewedResult.VarName)
 				if resp.ClientBody != nil {
 					fmt.Fprintf(&b, "\t\tif err = %s.Validate%s(vres); err != nil {\n", e.Method.ViewedResult.ViewsPkg, e.Method.Result)
-					fmt.Fprintf(&b, "\t\t\treturn nil, goahttp.ErrValidationError(%q, %q, err)\n", e.ServiceName, e.Method.Name)
+					fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrValidationError(%q, %q, err)\n", e.ServiceName, e.Method.Name)
 					b.WriteString("\t\t}\n")
 				}
 				fmt.Fprintf(&b, "\t\tres := %s.%s(vres)\n", e.ServicePkgName, e.Method.ViewedResult.ResultInit.Name)
@@ -124,7 +124,7 @@ func writeJSONRPCErrorDecodeSwitch(b *strings.Builder, e *httpcodegen.EndpointDa
 func writeJSONRPCNamedErrorDecode(b *strings.Builder, group *httpcodegen.ErrorGroupData, e *httpcodegen.EndpointData) {
 	b.WriteString("\t\t\t\tvar jerrData jsonrpc.ErrorData\n")
 	b.WriteString("\t\t\t\tif len(jresp.Error.Data) > 0 {\n")
-	fmt.Fprintf(b, "\t\t\t\t\tif err := json.Unmarshal(jresp.Error.Data, &jerrData); err != nil {\n\t\t\t\t\t\treturn nil, goahttp.ErrDecodingError(%q, %q, err)\n\t\t\t\t\t}\n", e.ServiceName, e.Method.Name)
+	fmt.Fprintf(b, "\t\t\t\t\tif err := json.Unmarshal(jresp.Error.Data, &jerrData); err != nil {\n\t\t\t\t\t\treturn nil, loomhttp.ErrDecodingError(%q, %q, err)\n\t\t\t\t\t}\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t\t\t}\n")
 	b.WriteString("\t\t\t\tswitch jerrData.Name {\n")
 	for _, item := range group.Errors {
@@ -135,7 +135,7 @@ func writeJSONRPCNamedErrorDecode(b *strings.Builder, group *httpcodegen.ErrorGr
 		writeJSONRPCErrorResponseDecode(b, item.Response, e.ServiceName, e.Method)
 		writeResultInitReturn(b, item.Response)
 	}
-	fmt.Fprintf(b, "\t\t\t\tdefault:\n\t\t\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(jresp.Error.Data))\n", e.ServiceName, e.Method.Name)
+	fmt.Fprintf(b, "\t\t\t\tdefault:\n\t\t\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(jresp.Error.Data))\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t\t\t}\n")
 }
 
@@ -165,9 +165,9 @@ func writeResultInitReturn(b *strings.Builder, resp *httpcodegen.ResponseData) {
 func renderSingleResponseDecode(b *strings.Builder, data *httpcodegen.ResponseData, serviceName string, method *service.MethodData) {
 	if data.ClientBody != nil {
 		fmt.Fprintf(b, "\t\t\tvar (\n\t\t\t\tbody %s\n\t\t\t\terr error\n\t\t\t)\n", data.ClientBody.VarName)
-		fmt.Fprintf(b, "\t\t\terr = decoder(resp).Decode(&body)\n\t\t\tif err != nil {\n\t\t\t\treturn nil, goahttp.ErrDecodingError(%q, %q, err)\n\t\t\t}\n", serviceName, method.Name)
+		fmt.Fprintf(b, "\t\t\terr = decoder(resp).Decode(&body)\n\t\t\tif err != nil {\n\t\t\t\treturn nil, loomhttp.ErrDecodingError(%q, %q, err)\n\t\t\t}\n", serviceName, method.Name)
 		if data.ClientBody.ValidateRef != "" {
-			fmt.Fprintf(b, "\t\t\t%s\n\t\t\tif err != nil {\n\t\t\t\treturn nil, goahttp.ErrValidationError(%q, %q, err)\n\t\t\t}\n", data.ClientBody.ValidateRef, serviceName, method.Name)
+			fmt.Fprintf(b, "\t\t\t%s\n\t\t\tif err != nil {\n\t\t\t\treturn nil, loomhttp.ErrValidationError(%q, %q, err)\n\t\t\t}\n", data.ClientBody.ValidateRef, serviceName, method.Name)
 		}
 	}
 	if len(data.Headers) > 0 {
@@ -210,7 +210,7 @@ func renderSingleResponseDecode(b *strings.Builder, data *httpcodegen.ResponseDa
 		}
 	}
 	if data.MustValidate {
-		fmt.Fprintf(b, "\t\t\tif err != nil {\n\t\t\t\treturn nil, goahttp.ErrValidationError(%q, %q, err)\n\t\t\t}\n", serviceName, method.Name)
+		fmt.Fprintf(b, "\t\t\tif err != nil {\n\t\t\t\treturn nil, loomhttp.ErrValidationError(%q, %q, err)\n\t\t\t}\n", serviceName, method.Name)
 	}
 }
 
@@ -219,7 +219,7 @@ func writeResponseHeaderDecode(b *strings.Builder, h *httpcodegen.HeaderData) {
 	case h.Type.Name() == "string" || h.Type.Name() == "any":
 		fmt.Fprintf(b, "\t\t\t%sRaw := resp.Header.Get(%q)\n", h.VarName, h.CanonicalName)
 		if h.Required {
-			fmt.Fprintf(b, "\t\t\tif %sRaw == \"\" {\n\t\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, \"header\"))\n\t\t\t}\n", h.VarName, h.Name)
+			fmt.Fprintf(b, "\t\t\tif %sRaw == \"\" {\n\t\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, \"header\"))\n\t\t\t}\n", h.VarName, h.Name)
 			fmt.Fprintf(b, "\t\t\t%s = %s%sRaw\n", h.VarName, stringPointerPrefix(h.Type.Name(), h.Pointer), h.VarName)
 		} else {
 			fmt.Fprintf(b, "\t\t\tif %sRaw != \"\" {\n\t\t\t\t%s = %s%sRaw\n\t\t\t}", h.VarName, h.VarName, stringPointerPrefix(h.Type.Name(), h.Pointer), h.VarName)
@@ -232,19 +232,19 @@ func writeResponseHeaderDecode(b *strings.Builder, h *httpcodegen.HeaderData) {
 	case h.StringSlice:
 		fmt.Fprintf(b, "\t\t\t%s = resp.Header[%q]\n", h.VarName, h.CanonicalName)
 		if h.Required {
-			fmt.Fprintf(b, "\t\t\tif %s == nil {\n\t\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, \"header\"))\n\t\t\t}\n", h.VarName, h.Name)
+			fmt.Fprintf(b, "\t\t\tif %s == nil {\n\t\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, \"header\"))\n\t\t\t}\n", h.VarName, h.Name)
 		}
 	case h.Slice:
 		fmt.Fprintf(b, "\t\t\t{\n\t\t\t\t%sRaw := resp.Header[%q]\n", h.VarName, h.CanonicalName)
 		if h.Required {
-			fmt.Fprintf(b, "\t\t\t\tif %sRaw == nil {\n\t\t\t\t\treturn nil, goahttp.ErrValidationError(%q, %q, goa.MissingFieldError(%q, \"header\"))\n\t\t\t\t}\n", h.VarName, "", "", h.Name)
+			fmt.Fprintf(b, "\t\t\t\tif %sRaw == nil {\n\t\t\t\t\treturn nil, loomhttp.ErrValidationError(%q, %q, loom.MissingFieldError(%q, \"header\"))\n\t\t\t\t}\n", h.VarName, "", "", h.Name)
 		}
 		writeElementSliceConversion(b, h.AttributeData)
 		b.WriteString("\t\t\t}\n")
 	default:
 		fmt.Fprintf(b, "\t\t\t{\n\t\t\t\t%sRaw := resp.Header.Get(%q)\n", h.VarName, h.CanonicalName)
 		if h.Required {
-			fmt.Fprintf(b, "\t\t\t\tif %sRaw == \"\" {\n\t\t\t\t\treturn nil, goahttp.ErrValidationError(%q, %q, goa.MissingFieldError(%q, \"header\"))\n\t\t\t\t}\n", h.VarName, "", "", h.Name)
+			fmt.Fprintf(b, "\t\t\t\tif %sRaw == \"\" {\n\t\t\t\t\treturn nil, loomhttp.ErrValidationError(%q, %q, loom.MissingFieldError(%q, \"header\"))\n\t\t\t\t}\n", h.VarName, "", "", h.Name)
 		}
 		writeQueryTypeConversion(b, h.AttributeData)
 		b.WriteString("\t\t\t}\n")
@@ -254,7 +254,7 @@ func writeResponseHeaderDecode(b *strings.Builder, h *httpcodegen.HeaderData) {
 func writeResponseCookieDecode(b *strings.Builder, c *httpcodegen.CookieData) {
 	if c.Type.Name() == "string" || c.Type.Name() == "any" {
 		if c.Required {
-			fmt.Fprintf(b, "\t\t\tif %sRaw == \"\" {\n\t\t\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, \"cookie\"))\n\t\t\t}\n", c.VarName, c.Name)
+			fmt.Fprintf(b, "\t\t\tif %sRaw == \"\" {\n\t\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, \"cookie\"))\n\t\t\t}\n", c.VarName, c.Name)
 			fmt.Fprintf(b, "\t\t\t%s = %s%sRaw\n", c.VarName, stringPointerPrefix(c.Type.Name(), c.Pointer), c.VarName)
 		} else {
 			fmt.Fprintf(b, "\t\t\tif %sRaw != \"\" {\n\t\t\t\t%s = %s%sRaw\n\t\t\t}\n", c.VarName, c.VarName, stringPointerPrefix(c.Type.Name(), c.Pointer), c.VarName)
@@ -263,7 +263,7 @@ func writeResponseCookieDecode(b *strings.Builder, c *httpcodegen.CookieData) {
 	}
 	fmt.Fprintf(b, "\t\t\t{\n")
 	if c.Required {
-		fmt.Fprintf(b, "\t\t\t\tif %sRaw == \"\" {\n\t\t\t\t\treturn nil, goahttp.ErrValidationError(%q, %q, goa.MissingFieldError(%q, \"cookie\"))\n\t\t\t\t}\n", c.VarName, "", "", c.Name)
+		fmt.Fprintf(b, "\t\t\t\tif %sRaw == \"\" {\n\t\t\t\t\treturn nil, loomhttp.ErrValidationError(%q, %q, loom.MissingFieldError(%q, \"cookie\"))\n\t\t\t\t}\n", c.VarName, "", "", c.Name)
 	}
 	writeQueryTypeConversion(b, c.AttributeData)
 	b.WriteString("\t\t\t}\n")
@@ -290,39 +290,39 @@ func writeSliceItemConversion(b *strings.Builder, a *httpcodegen.AttributeData) 
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = []byte(rv)\n", a.VarName)
 	case "int":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of integers\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of integers\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = int(v)\n", a.VarName)
 	case "int32":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseInt(rv, 10, 32)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of integers\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of integers\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = int32(v)\n", a.VarName)
 	case "int64":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseInt(rv, 10, 64)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of integers\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of integers\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = v\n", a.VarName)
 	case "uint":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of unsigned integers\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of unsigned integers\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = uint(v)\n", a.VarName)
 	case "uint32":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseUint(rv, 10, 32)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of unsigned integers\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of unsigned integers\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = uint32(v)\n", a.VarName)
 	case "uint64":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseUint(rv, 10, 64)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of unsigned integers\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of unsigned integers\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = v\n", a.VarName)
 	case "float32":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseFloat(rv, 32)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of floats\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of floats\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = float32(v)\n", a.VarName)
 	case "float64":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseFloat(rv, 64)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of floats\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of floats\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = v\n", a.VarName)
 	case "boolean":
 		b.WriteString("\t\t\t\t\tv, err2 := strconv.ParseBool(rv)\n")
-		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"array of booleans\")) }\n", a.Name, a.VarName)
+		fmt.Fprintf(b, "\t\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"array of booleans\")) }\n", a.Name, a.VarName)
 		fmt.Fprintf(b, "\t\t\t\t\t%s[i] = v\n", a.VarName)
 	}
 }
@@ -333,71 +333,71 @@ func writeQueryTypeConversion(b *strings.Builder, a *httpcodegen.AttributeData) 
 		fmt.Fprintf(b, "\t\t\t\t%s = []byte(%sRaw)\n", a.VarName, a.VarName)
 	case "int":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, strconv.IntSize)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"integer\")) }\n", a.Name, a.VarName)
-		assignConverted(b, a, "int", "v")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"integer\")) }\n", a.Name, a.VarName)
+		assignConverted(b, a, "int")
 	case "int32":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, 32)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"integer\")) }\n", a.Name, a.VarName)
-		assignConverted(b, a, "int32", "v")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"integer\")) }\n", a.Name, a.VarName)
+		assignConverted(b, a, "int32")
 	case "int64":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, 64)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"integer\")) }\n", a.Name, a.VarName)
-		assignDirectOrCast(b, a, "v", "int64")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"integer\")) }\n", a.Name, a.VarName)
+		assignDirectOrCast(b, a, "int64")
 	case "uint":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, strconv.IntSize)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"unsigned integer\")) }\n", a.Name, a.VarName)
-		assignConverted(b, a, "uint", "v")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"unsigned integer\")) }\n", a.Name, a.VarName)
+		assignConverted(b, a, "uint")
 	case "uint32":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, 32)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"unsigned integer\")) }\n", a.Name, a.VarName)
-		assignConverted(b, a, "uint32", "v")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"unsigned integer\")) }\n", a.Name, a.VarName)
+		assignConverted(b, a, "uint32")
 	case "uint64":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, 64)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"unsigned integer\")) }\n", a.Name, a.VarName)
-		assignDirectOrCast(b, a, "v", "uint64")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"unsigned integer\")) }\n", a.Name, a.VarName)
+		assignDirectOrCast(b, a, "uint64")
 	case "float32":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseFloat(" + a.VarName + "Raw, 32)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"float\")) }\n", a.Name, a.VarName)
-		assignConverted(b, a, "float32", "v")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"float\")) }\n", a.Name, a.VarName)
+		assignConverted(b, a, "float32")
 	case "float64":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseFloat(" + a.VarName + "Raw, 64)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"float\")) }\n", a.Name, a.VarName)
-		assignDirectOrCast(b, a, "v", "float64")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"float\")) }\n", a.Name, a.VarName)
+		assignDirectOrCast(b, a, "float64")
 	case "boolean":
 		b.WriteString("\t\t\t\tv, err2 := strconv.ParseBool(" + a.VarName + "Raw)\n")
-		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = goa.MergeErrors(err, goa.InvalidFieldTypeError(%q, %sRaw, \"boolean\")) }\n", a.Name, a.VarName)
-		assignDirectOrCast(b, a, "v", "bool")
+		fmt.Fprintf(b, "\t\t\t\tif err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, \"boolean\")) }\n", a.Name, a.VarName)
+		assignDirectOrCast(b, a, "bool")
 	default:
 		fmt.Fprintf(b, "\t\t\t\t// unsupported type %s for var %s\n", a.Type.Name(), a.VarName)
 	}
 }
 
-func assignConverted(b *strings.Builder, a *httpcodegen.AttributeData, baseType, source string) {
+func assignConverted(b *strings.Builder, a *httpcodegen.AttributeData, baseType string) {
 	targetType := baseType
 	if a.TypeRef != "" {
 		targetType = strings.TrimPrefix(a.TypeRef, "*")
 	}
 	if a.Pointer {
-		fmt.Fprintf(b, "\t\t\t\tpv := %s(%s)\n", targetType, source)
+		fmt.Fprintf(b, "\t\t\t\tpv := %s(v)\n", targetType)
 		fmt.Fprintf(b, "\t\t\t\t%s = &pv\n", a.VarName)
 		return
 	}
-	fmt.Fprintf(b, "\t\t\t\t%s = %s(%s)\n", a.VarName, targetType, source)
+	fmt.Fprintf(b, "\t\t\t\t%s = %s(v)\n", a.VarName, targetType)
 }
 
-func assignDirectOrCast(b *strings.Builder, a *httpcodegen.AttributeData, source, builtin string) {
+func assignDirectOrCast(b *strings.Builder, a *httpcodegen.AttributeData, builtin string) {
 	if a.TypeRef != "" && a.TypeRef != builtin && a.TypeRef != "*"+builtin {
 		if a.Pointer {
-			fmt.Fprintf(b, "\t\t\t\t%s = (%s)(&%s)\n", a.VarName, a.TypeRef, source)
+			fmt.Fprintf(b, "\t\t\t\t%s = (%s)(&v)\n", a.VarName, a.TypeRef)
 		} else {
-			fmt.Fprintf(b, "\t\t\t\t%s = (%s)(%s)\n", a.VarName, a.TypeRef, source)
+			fmt.Fprintf(b, "\t\t\t\t%s = (%s)(v)\n", a.VarName, a.TypeRef)
 		}
 		return
 	}
 	if a.Pointer {
-		fmt.Fprintf(b, "\t\t\t\t%s = &%s\n", a.VarName, source)
+		fmt.Fprintf(b, "\t\t\t\t%s = &v\n", a.VarName)
 	} else {
-		fmt.Fprintf(b, "\t\t\t\t%s = %s\n", a.VarName, source)
+		fmt.Fprintf(b, "\t\t\t\t%s = v\n", a.VarName)
 	}
 }
 

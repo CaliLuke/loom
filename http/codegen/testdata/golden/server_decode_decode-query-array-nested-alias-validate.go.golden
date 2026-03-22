@@ -1,6 +1,6 @@
 // DecodeMethodARequest returns a decoder for requests sent to the
 // ServiceQueryArrayAliasValidate MethodA endpoint.
-func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequeryarrayaliasvalidate.MethodAPayload, error) {
+func DecodeMethodARequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayaliasvalidate.MethodAPayload, error) {
 	return func(r *http.Request) (*servicequeryarrayaliasvalidate.MethodAPayload, error) {
 		var payload *servicequeryarrayaliasvalidate.MethodAPayload
 		var (
@@ -14,7 +14,7 @@ func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 				for i, rv := range arrayRaw {
 					v, err2 := strconv.ParseFloat(rv, 64)
 					if err2 != nil {
-						err = goa.MergeErrors(err, goa.InvalidFieldTypeError("array", arrayRaw, "array of floats"))
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("array", arrayRaw, "array of floats"))
 					}
 					array[i] = v
 				}
@@ -22,7 +22,7 @@ func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 		}
 		for _, e := range array {
 			if e < 10 {
-				err = goa.MergeErrors(err, goa.InvalidRangeError("array[*]", e, 10, true))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("array[*]", e, 10, true))
 			}
 		}
 		if err != nil {

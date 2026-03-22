@@ -31,7 +31,7 @@ func ValidateMethodElemValidationRequest(message *service_elem_validationpb.Meth
 	for _, v := range message.Foo {
 		if v != nil {
 			if err2 := ValidateArrayOfString(v); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	}
@@ -41,10 +41,10 @@ func ValidateMethodElemValidationRequest(message *service_elem_validationpb.Meth
 // ValidateArrayOfString runs the validations defined on ArrayOfString.
 func ValidateArrayOfString(val *service_elem_validationpb.ArrayOfString) (err error) {
 	if val.Field == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("field", "val"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "val"))
 	}
 	if len(val.Field) < 1 {
-		err = goa.MergeErrors(err, goa.InvalidLengthError("val.field", val.Field, len(val.Field), 1, true))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("val.field", val.Field, len(val.Field), 1, true))
 	}
 	return
 }

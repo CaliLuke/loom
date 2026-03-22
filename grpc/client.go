@@ -9,7 +9,7 @@ import (
 
 type (
 	// Invoker invokes a gRPC method. The request and response types
-	// are goa types.
+	// are Loom types.
 	Invoker interface {
 		Invoke(ctx context.Context, req any) (res any, err error)
 	}

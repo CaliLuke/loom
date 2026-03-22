@@ -46,7 +46,7 @@ func NewApplicationDashedType(vres *resultwithdashedmimetypeviews.ApplicationDas
 	case "default", "":
 		res = NewApplicationDashedTypeFromApplicationDashedTypeView(vres.Projected)
 	default:
-		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+		panic(loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		}))
 	}
@@ -64,7 +64,7 @@ func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) *re
 		p := ProjectApplicationDashedType(res)
 		vres = &resultwithdashedmimetypeviews.ApplicationDashedType{Projected: p, View: "default"}
 	default:
-		panic(goa.InvalidEnumValueError("view", view, []any{
+		panic(loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		}))
 	}

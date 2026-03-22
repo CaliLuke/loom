@@ -17,7 +17,7 @@ func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 	b.WriteString("\t// once ensures headers are written once\n")
 	b.WriteString("\tonce sync.Once\n")
 	b.WriteString("\t// encoder is the SSE event encoder\n")
-	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) goahttp.Encoder\n")
+	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder\n")
 	b.WriteString("\t// w is the HTTP response writer\n")
 	b.WriteString("\tw http.ResponseWriter\n")
 	b.WriteString("\t// r is the HTTP request\n")
@@ -131,7 +131,7 @@ func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 	fmt.Fprintf(&b, "%s\n", codegen.Comment("sendSSEEvent sends a single SSE event."))
 	fmt.Fprintf(&b, "func (s *%s) sendSSEEvent(eventType string, v any) error {\n", ed.SSE.StructName)
 	b.WriteString("\ts.initSSEHeaders()\n")
-	b.WriteString("\tif err := goahttp.WriteJSONSSEEvent(s.w, goahttp.SSEMessage{Type: eventType}, v); err != nil {\n")
+	b.WriteString("\tif err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {\n")
 	b.WriteString("\t\treturn err\n")
 	b.WriteString("\t}\n")
 	b.WriteString("\treturn http.NewResponseController(s.w).Flush()\n")
@@ -170,9 +170,9 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 	b.WriteString("\t" + codegen.Comment("r is the HTTP request.") + "\n")
 	b.WriteString("\tr *http.Request\n")
 	b.WriteString("\t" + codegen.Comment("encoder is the response encoder.") + "\n")
-	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) goahttp.Encoder\n")
+	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder\n")
 	b.WriteString("\t" + codegen.Comment("decoder is the request decoder.") + "\n")
-	b.WriteString("\tdecoder func(*http.Request) goahttp.Decoder\n")
+	b.WriteString("\tdecoder func(*http.Request) loomhttp.Decoder\n")
 	b.WriteString("}\n\n")
 
 	fmt.Fprintf(&b, "func (s *%s) initSSEHeaders() {\n", streamName)
@@ -188,7 +188,7 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 
 	fmt.Fprintf(&b, "func (s *%s) sendSSEEvent(eventType string, v any) error {\n", streamName)
 	b.WriteString("\ts.initSSEHeaders()\n")
-	b.WriteString("\tif err := goahttp.WriteJSONSSEEvent(s.w, goahttp.SSEMessage{Type: eventType}, v); err != nil {\n")
+	b.WriteString("\tif err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {\n")
 	b.WriteString("\t\treturn err\n")
 	b.WriteString("\t}\n")
 	b.WriteString("\treturn http.NewResponseController(s.w).Flush()\n")
@@ -257,7 +257,7 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 	if serviceHasErrors(data.Service.Methods) {
 		b.WriteString("// SendError sends a JSON-RPC error response.\n")
 		fmt.Fprintf(&b, "func (s *%s) SendError(ctx context.Context, id string, err error) error {\n", streamName)
-		b.WriteString("\tvar en goa.LoomErrorNamer\n")
+		b.WriteString("\tvar en loom.LoomErrorNamer\n")
 		b.WriteString("\tcode := jsonrpc.InternalError\n")
 		b.WriteString("\tmessage := err.Error()\n")
 		b.WriteString("\tvar data any\n\n")
@@ -299,7 +299,7 @@ func jsonrpcWebSocketServerStructSection(data *httpcodegen.ServiceData) codegen.
 		fmt.Fprintf(&b, "\t%s func(context.Context, *http.Request, *jsonrpc.RawRequest) (any, error)\n", lowerInitial(ed.Method.VarName))
 		if ed.Method.ServerStream != nil && (ed.Method.ServerStream.Kind == expr.ServerStreamKind || ed.Method.ServerStream.Kind == expr.BidirectionalStreamKind) {
 			fmt.Fprintf(&b, "\t%s\n", codegen.Comment(fmt.Sprintf("%sEndpoint is the endpoint for the %s method", lowerInitial(ed.Method.VarName), ed.Method.Name)))
-			fmt.Fprintf(&b, "\t%sEndpoint goa.Endpoint\n", lowerInitial(ed.Method.VarName))
+			fmt.Fprintf(&b, "\t%sEndpoint loom.Endpoint\n", lowerInitial(ed.Method.VarName))
 		}
 	}
 	b.WriteString("\t" + codegen.Comment("cancel is the context cancellation function which cancels the request context when invoked.") + "\n")
@@ -420,6 +420,12 @@ func jsonrpcWebSocketServerRecvSection(data *httpcodegen.ServiceData) codegen.Se
 				fmt.Fprintf(&b, "\t\t_, err := s.%s(ctx, s.r, req)\n", lowerInitial(ed.Method.VarName))
 			}
 			b.WriteString("\t\tif err != nil {\n")
+			b.WriteString("\t\t\tif req.HasID {\n")
+			b.WriteString("\t\t\t\tif sendErr := s.SendError(ctx, req.ID, err); sendErr != nil {\n")
+			b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"failed to send error response: %w\", sendErr)\n")
+			b.WriteString("\t\t\t\t}\n")
+			b.WriteString("\t\t\t\treturn nil\n")
+			b.WriteString("\t\t\t}\n")
 			fmt.Fprintf(&b, "\t\t\treturn fmt.Errorf(\"handler error for %s: %%w\", err)\n", ed.Method.Name)
 			b.WriteString("\t\t}\n")
 			fmt.Fprintf(&b, "\t\tstreamWrapper := &%sStreamWrapper{\n", lowerInitial(ed.Method.VarName))
@@ -508,13 +514,13 @@ func streamResultBodyInit(resultVar string, ed *httpcodegen.EndpointData) string
 func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) string {
 	var b strings.Builder
 	if len(groups) > 0 {
-		b.WriteString("\tvar en goa.LoomErrorNamer\n")
+		b.WriteString("\tvar en loom.LoomErrorNamer\n")
 		b.WriteString("\tif !errors.As(err, &en) {\n")
 		b.WriteString("\t\tcode := jsonrpc.InternalError\n")
-		b.WriteString("\t\tif _, ok := err.(*goa.ServiceError); ok {\n")
+		b.WriteString("\t\tif _, ok := err.(*loom.ServiceError); ok {\n")
 		b.WriteString("\t\t\tcode = jsonrpc.InvalidParams\n")
 		b.WriteString("\t\t}\n")
-		b.WriteString("\t\t" + prefix + "code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
+		b.WriteString("\t\t" + prefix + "code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 		b.WriteString("\t}\n")
 		b.WriteString("\tswitch en.LoomErrorName() {\n")
 		for _, gerr := range groups {
@@ -523,36 +529,36 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 					continue
 				}
 				fmt.Fprintf(&b, "\tcase %q:\n", e.Name)
-				fmt.Fprintf(&b, "\t\t%s%d, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, e.Response.Code)
+				fmt.Fprintf(&b, "\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, e.Response.Code)
 			}
 		}
 		b.WriteString("\tdefault:\n")
 		b.WriteString("\t\tcode := jsonrpc.InternalError\n")
-		b.WriteString("\t\tif _, ok := err.(*goa.ServiceError); ok {\n")
+		b.WriteString("\t\tif _, ok := err.(*loom.ServiceError); ok {\n")
 		b.WriteString("\t\t\tcode = jsonrpc.InvalidParams\n")
 		b.WriteString("\t\t}\n")
-		b.WriteString("\t\t" + prefix + "code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
+		b.WriteString("\t\t" + prefix + "code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 		b.WriteString("\t}\n")
 		return b.String()
 	}
 	b.WriteString("\tcode := jsonrpc.InternalError\n")
-	b.WriteString("\tif _, ok := err.(*goa.ServiceError); ok {\n")
+	b.WriteString("\tif _, ok := err.(*loom.ServiceError); ok {\n")
 	b.WriteString("\t\tcode = jsonrpc.InvalidParams\n")
 	b.WriteString("\t}\n")
-	b.WriteString("\t" + prefix + "code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
+	b.WriteString("\t" + prefix + "code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 	return b.String()
 }
 
 func streamErrorDataSwitch(prefix string, errs []*httpcodegen.ErrorData) string {
 	var b strings.Builder
 	if len(errs) > 0 {
-		b.WriteString("\tvar en goa.LoomErrorNamer\n")
+		b.WriteString("\tvar en loom.LoomErrorNamer\n")
 		b.WriteString("\tif !errors.As(err, &en) {\n")
 		b.WriteString("\t\tcode := jsonrpc.InternalError\n")
-		b.WriteString("\t\tif _, ok := err.(*goa.ServiceError); ok {\n")
+		b.WriteString("\t\tif _, ok := err.(*loom.ServiceError); ok {\n")
 		b.WriteString("\t\t\tcode = jsonrpc.InvalidParams\n")
 		b.WriteString("\t\t}\n")
-		b.WriteString("\t\t" + prefix + "code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
+		b.WriteString("\t\t" + prefix + "code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 		b.WriteString("\t}\n")
 		b.WriteString("\tswitch en.LoomErrorName() {\n")
 		for _, e := range errs {
@@ -560,22 +566,22 @@ func streamErrorDataSwitch(prefix string, errs []*httpcodegen.ErrorData) string 
 				continue
 			}
 			fmt.Fprintf(&b, "\tcase %q:\n", e.Name)
-			fmt.Fprintf(&b, "\t\t%s%d, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, e.Response.Code)
+			fmt.Fprintf(&b, "\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, e.Response.Code)
 		}
 		b.WriteString("\tdefault:\n")
 		b.WriteString("\t\tcode := jsonrpc.InternalError\n")
-		b.WriteString("\t\tif _, ok := err.(*goa.ServiceError); ok {\n")
+		b.WriteString("\t\tif _, ok := err.(*loom.ServiceError); ok {\n")
 		b.WriteString("\t\t\tcode = jsonrpc.InvalidParams\n")
 		b.WriteString("\t\t}\n")
-		b.WriteString("\t\t" + prefix + "code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
+		b.WriteString("\t\t" + prefix + "code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 		b.WriteString("\t}\n")
 		return b.String()
 	}
 	b.WriteString("\tcode := jsonrpc.InternalError\n")
-	b.WriteString("\tif _, ok := err.(*goa.ServiceError); ok {\n")
+	b.WriteString("\tif _, ok := err.(*loom.ServiceError); ok {\n")
 	b.WriteString("\t\tcode = jsonrpc.InvalidParams\n")
 	b.WriteString("\t}\n")
-	b.WriteString("\t" + prefix + "code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
+	b.WriteString("\t" + prefix + "code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n")
 	return b.String()
 }
 
@@ -616,7 +622,7 @@ func dedupeSSEEndpoints(endpoints []*httpcodegen.EndpointData) []*httpcodegen.En
 func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.Section {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n%s\n", codegen.Comment(fmt.Sprintf("Encode%sRequest returns an encoder for requests sent to the %s service %s JSON-RPC method.", ed.Method.VarName, ed.ServiceName, ed.Method.Name)))
-	fmt.Fprintf(&b, "func Encode%sRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {\n", ed.Method.VarName)
+	fmt.Fprintf(&b, "func Encode%sRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {\n", ed.Method.VarName)
 	b.WriteString("\treturn func(req *http.Request, v any) error {\n")
 	b.WriteString("\t\tid := uuid.New().String()\n")
 	b.WriteString("\t\tbody := &jsonrpc.Request{\n")
@@ -625,7 +631,7 @@ func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.S
 	b.WriteString("\t\t\tID:      id,\n")
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t\tif err := encoder(req).Encode(body); err != nil {\n")
-	fmt.Fprintf(&b, "\t\t\treturn goahttp.ErrEncodingError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
+	fmt.Fprintf(&b, "\t\t\treturn loomhttp.ErrEncodingError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t\treturn nil\n")
 	b.WriteString("\t}\n")
@@ -635,12 +641,16 @@ func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.S
 
 func jsonrpcClientEndpointInitSection(ed *httpcodegen.EndpointData) codegen.Section {
 	var b strings.Builder
+	requestEncoder := ed.RequestEncoder
+	if requestEncoder == "" && !httpcodegen.IsWebSocketEndpoint(ed) {
+		requestEncoder = fmt.Sprintf("Encode%sRequest", ed.Method.VarName)
+	}
 	fmt.Fprintf(&b, "\n%s\n", codegen.Comment(fmt.Sprintf("%s returns an endpoint that makes JSON-RPC requests to the %s service %s method.", ed.EndpointInit, ed.ServiceName, ed.Method.Name)))
-	fmt.Fprintf(&b, "func (c *%s) %s() goa.Endpoint {\n", ed.ClientStruct, ed.EndpointInit)
+	fmt.Fprintf(&b, "func (c *%s) %s() loom.Endpoint {\n", ed.ClientStruct, ed.EndpointInit)
 	if !httpcodegen.IsWebSocketEndpoint(ed) {
 		b.WriteString("\tvar (\n")
-		if ed.RequestEncoder != "" {
-			fmt.Fprintf(&b, "\t\tencodeRequest  = %s(c.encoder)\n", ed.RequestEncoder)
+		if requestEncoder != "" {
+			fmt.Fprintf(&b, "\t\tencodeRequest  = %s(c.encoder)\n", requestEncoder)
 		}
 		if !httpcodegen.IsSSEEndpoint(ed) {
 			fmt.Fprintf(&b, "\t\tdecodeResponse = %s(c.decoder, c.RestoreResponseBody)\n", ed.ResponseDecoder)
@@ -663,7 +673,7 @@ func jsonrpcClientEndpointInitSection(ed *httpcodegen.EndpointData) codegen.Sect
 		b.WriteString("\t\tif err != nil {\n")
 		b.WriteString("\t\t\treturn nil, err\n")
 		b.WriteString("\t\t}\n")
-		if ed.RequestEncoder != "" {
+		if requestEncoder != "" {
 			b.WriteString("\t\tif err := encodeRequest(req, v); err != nil {\n")
 			b.WriteString("\t\t\treturn nil, err\n")
 			b.WriteString("\t\t}\n")
@@ -694,12 +704,12 @@ func jsonrpcClientEndpointInitSection(ed *httpcodegen.EndpointData) codegen.Sect
 	case httpcodegen.IsSSEEndpoint(ed):
 		b.WriteString("\t\tresp, err := c.Doer.Do(req)\n")
 		b.WriteString("\t\tif err != nil {\n")
-		fmt.Fprintf(&b, "\t\t\treturn nil, goahttp.ErrRequestError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
+		fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrRequestError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
 		b.WriteString("\t\t}\n\n")
 		b.WriteString("\t\tif resp.StatusCode != http.StatusOK {\n")
 		b.WriteString("\t\t\tbody, _ := io.ReadAll(resp.Body)\n")
 		b.WriteString("\t\t\tresp.Body.Close()\n")
-		fmt.Fprintf(&b, "\t\t\treturn nil, goahttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", ed.ServiceName, ed.Method.Name)
+		fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", ed.ServiceName, ed.Method.Name)
 		b.WriteString("\t\t}\n\n")
 		b.WriteString("\t\tcontentType := resp.Header.Get(\"Content-Type\")\n")
 		b.WriteString("\t\tif contentType != \"\" && !strings.HasPrefix(contentType, \"text/event-stream\") {\n")
@@ -715,7 +725,7 @@ func jsonrpcClientEndpointInitSection(ed *httpcodegen.EndpointData) codegen.Sect
 	default:
 		b.WriteString("\t\tresp, err := c.Doer.Do(req)\n")
 		b.WriteString("\t\tif err != nil {\n")
-		fmt.Fprintf(&b, "\t\t\treturn nil, goahttp.ErrRequestError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
+		fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrRequestError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
 		b.WriteString("\t\t}\n")
 		b.WriteString("\t\treturn decodeResponse(resp)\n")
 	}
@@ -768,7 +778,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 	b.WriteString("\n\n")
 	b.WriteString("\tws, _, err := c.dialer.DialContext(ctx, url, nil)\n")
 	b.WriteString("\tif err != nil {\n")
-	fmt.Fprintf(&b, "\t\treturn nil, goahttp.ErrRequestError(%q, %q, err)\n", data.Service.Name, "connect")
+	fmt.Fprintf(&b, "\t\treturn nil, loomhttp.ErrRequestError(%q, %q, err)\n", data.Service.Name, "connect")
 	b.WriteString("\t}\n\n")
 	b.WriteString("\tif c.configfn != nil {\n")
 	b.WriteString("\t\tws = c.configfn(ws, nil)\n")

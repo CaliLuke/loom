@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 func main() {
@@ -61,7 +61,7 @@ func main() {
 	}
 
 	var (
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		payload  any
 		err      error
 	)

@@ -535,8 +535,8 @@ func mergeRequirements(existing []*SecurityExpr, derived []*SecurityExpr) []*Sec
 	if len(derived) == 0 {
 		return existing
 	}
-	merged := make([]*SecurityExpr, len(existing))
-	copy(merged, existing)
+	merged := make([]*SecurityExpr, 0, len(existing)+len(derived))
+	merged = append(merged, existing...)
 	for _, req := range derived {
 		if !containsRequirement(merged, req) {
 			merged = append(merged, req)

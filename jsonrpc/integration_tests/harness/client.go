@@ -13,7 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 // JSONRPCRequest represents a JSON-RPC 2.0 request
@@ -306,7 +306,7 @@ func (c *Client) OpenSSE(ctx context.Context, req JSONRPCRequest) (*http.Respons
 
 // parseSSEEvents parses Server-Sent Events from a reader.
 func (c *Client) parseSSEEvents(r io.Reader) ([]SSEEvent, error) {
-	parsed, err := goahttp.ParseSSEStream(r)
+	parsed, err := loomhttp.ParseSSEStream(r)
 	if err != nil {
 		return nil, err
 	}

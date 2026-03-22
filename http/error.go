@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net/http"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (
@@ -21,7 +21,7 @@ type (
 		// Message describes the specific error occurrence.
 		Message string `json:"message" xml:"message" form:"message"`
 		// Remedy describes machine-consumable remediation guidance for the error.
-		Remedy *goa.ErrorRemedy `json:"remedy,omitempty" xml:"remedy,omitempty" form:"remedy,omitempty"`
+		Remedy *loom.ErrorRemedy `json:"remedy,omitempty" xml:"remedy,omitempty" form:"remedy,omitempty"`
 		// Temporary indicates whether the error is temporary.
 		Temporary bool `json:"temporary" xml:"temporary" form:"temporary"`
 		// Timeout indicates whether the error is a timeout.
@@ -46,31 +46,31 @@ var (
 
 // NewErrorResponse creates a HTTP response from the given error.
 func NewErrorResponse(ctx context.Context, err error) Statuser {
-	var gerr *goa.ServiceError
+	var gerr *loom.ServiceError
 	if errors.As(err, &gerr) {
 		return &ErrorResponse{
 			Name:      gerr.Name,
 			ID:        gerr.ID,
-			Message:   goa.ErrorSafeMessage(err),
-			Remedy:    goa.ExtractErrorRemedy(err),
+			Message:   loom.ErrorSafeMessage(err),
+			Remedy:    loom.ExtractErrorRemedy(err),
 			Timeout:   gerr.Timeout,
 			Temporary: gerr.Temporary,
 			Fault:     gerr.Fault,
 		}
 	}
-	return NewErrorResponse(ctx, goa.Fault("%s", err.Error()))
+	return NewErrorResponse(ctx, loom.Fault("%s", err.Error()))
 }
 
 func (resp *ErrorResponse) MarshalXML(e *xml.Encoder, _ xml.StartElement) error {
 	return e.Encode(struct {
 		XMLName   xml.Name
-		Name      string           `xml:"name"`
-		ID        string           `xml:"id"`
-		Message   string           `xml:"message"`
-		Remedy    *goa.ErrorRemedy `xml:"remedy,omitempty"`
-		Temporary bool             `xml:"temporary"`
-		Timeout   bool             `xml:"timeout"`
-		Fault     bool             `xml:"fault"`
+		Name      string            `xml:"name"`
+		ID        string            `xml:"id"`
+		Message   string            `xml:"message"`
+		Remedy    *loom.ErrorRemedy `xml:"remedy,omitempty"`
+		Temporary bool              `xml:"temporary"`
+		Timeout   bool              `xml:"timeout"`
+		Fault     bool              `xml:"fault"`
 	}{
 		XMLName:   ErrorResponseXMLName,
 		Name:      resp.Name,
@@ -88,7 +88,7 @@ func (resp *ErrorResponse) MarshalXML(e *xml.Encoder, _ xml.StartElement) error 
 // error. This method is used by the generated server code when the error is not
 // described explicitly in the design.
 func (resp *ErrorResponse) StatusCode() int {
-	if resp.Name == goa.UnsupportedMediaType {
+	if resp.Name == loom.UnsupportedMediaType {
 		return http.StatusUnsupportedMediaType
 	}
 	if resp.Fault {

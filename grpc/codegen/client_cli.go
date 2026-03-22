@@ -58,7 +58,7 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
-		codegen.LoomNamedImport("grpc", "goagrpc"),
+		codegen.LoomNamedImport("grpc", "loomgrpc"),
 		{Path: "google.golang.org/grpc", Name: "grpc"},
 	}
 	// Add structpb import if Any type is used

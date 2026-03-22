@@ -1,7 +1,7 @@
 // DecodeMethodBodyPrimitiveArrayUserValidateRequest returns a decoder for
 // requests sent to the ServiceBodyPrimitiveArrayUserValidate
 // MethodBodyPrimitiveArrayUserValidate endpoint.
-func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicebodyprimitivearrayuservalidate.PayloadType, error) {
+func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyprimitivearrayuservalidate.PayloadType, error) {
 	return func(r *http.Request) (*servicebodyprimitivearrayuservalidate.PayloadType, error) {
 		var payload *servicebodyprimitivearrayuservalidate.PayloadType
 		var (
@@ -11,19 +11,19 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux goahttp.Muxer, decode
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		if len(body) < 1 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("body", body, len(body), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, len(body), 1, true))
 		}
 		for _, e := range body {
-			err = goa.MergeErrors(err, goa.ValidatePattern("body[*]", e, "pattern"))
+			err = loom.MergeErrors(err, loom.ValidatePattern("body[*]", e, "pattern"))
 		}
 		if err != nil {
 			return payload, err

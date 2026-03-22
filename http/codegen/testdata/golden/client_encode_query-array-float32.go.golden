@@ -1,10 +1,10 @@
 // EncodeMethodQueryArrayFloat32Request returns an encoder for requests sent to
 // the ServiceQueryArrayFloat32 MethodQueryArrayFloat32 server.
-func EncodeMethodQueryArrayFloat32Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayFloat32Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayFloat32", "MethodQueryArrayFloat32", "*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayFloat32", "MethodQueryArrayFloat32", "*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {

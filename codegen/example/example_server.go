@@ -82,7 +82,7 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
 		newRenderSection("server-main", func() string {
-			return renderServerMain(svrdata, svcData, apiPkg, interPkg, hasInterceptors, root)
+			return renderServerMain(svrdata, svcData, apiPkg, interPkg, hasInterceptors)
 		}),
 	}
 
@@ -94,16 +94,6 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 func mustInitServices(data []*service.Data) bool {
 	for _, svc := range data {
 		if len(svc.Methods) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// hasJSONRPCEndpoints returns true if the service has JSON-RPC endpoints.
-func hasJSONRPCEndpoints(root *expr.RootExpr, data *service.Data) bool {
-	for _, svc := range root.API.JSONRPC.Services {
-		if svc.Name() == data.Name {
 			return true
 		}
 	}

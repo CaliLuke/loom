@@ -50,7 +50,7 @@ func NewRT(vres *resultwithresulttypecollectionviews.RT) *RT {
 	case "tiny":
 		res = NewRTFromRTViewTiny(vres.Projected)
 	default:
-		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+		panic(loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"extended",
 			"tiny",
@@ -75,7 +75,7 @@ func NewViewedRT(res *RT, view string) *resultwithresulttypecollectionviews.RT {
 		p := ProjectRTTiny(res)
 		vres = &resultwithresulttypecollectionviews.RT{Projected: p, View: "tiny"}
 	default:
-		panic(goa.InvalidEnumValueError("view", view, []any{
+		panic(loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"extended",
 			"tiny",

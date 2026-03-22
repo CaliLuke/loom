@@ -562,11 +562,12 @@ func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
 		}
 		if hasHeaders {
 			if hasCookies || e.MultipartRequest || e.FormRequest {
-				if e.MultipartRequest {
+				switch {
+				case e.MultipartRequest:
 					verr.Add(e, "Payload type is array but HTTP endpoint defines headers and MultipartRequest or cookies. At most one of these must be defined.")
-				} else if e.FormRequest {
+				case e.FormRequest:
 					verr.Add(e, "Payload type is array but HTTP endpoint defines headers and FormRequest or cookies. At most one of these must be defined.")
-				} else {
+				default:
 					verr.Add(e, "Payload type is array but HTTP endpoint defines headers and cookies. At most one of these must be defined.")
 				}
 			}
@@ -983,8 +984,7 @@ func (e *HTTPEndpointExpr) inferSessionSecurityMappings() {
 			if name, _ := findKey(e, transport.FieldName); name != "" {
 				continue
 			}
-			switch transport.Kind {
-			case SessionCookieTransportKind:
+			if transport.Kind == SessionCookieTransportKind {
 				attr := e.MethodExpr.Payload.Find(transport.FieldName)
 				if attr == nil {
 					continue

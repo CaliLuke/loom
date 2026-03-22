@@ -1,4 +1,4 @@
-package goa
+package loom
 
 import (
 	"errors"
@@ -22,24 +22,24 @@ func TestValidateFormat(t *testing.T) {
 		validUUIDWithURNPrefix = "urn:uuid:6ba7b810-9dad-11d1-80b4-00c04fd430c8"
 		invalidUUID            = "96054a62-a9e45ed26688389b"
 		invalidUUIDNonHex      = "abcdefgh-ijkl-mnop-qrst-uvqxyz012345" // UUID with characters other than hex digit
-		validEmail             = "raphael@goa.design"
+		validEmail             = "raphael@loom.design"
 
 		// Re-enable once CircleCI uses Go 1.13
 		// invalidEmail    = "foo"
 
-		validHostname   = "goa.design"
+		validHostname   = "loom.design"
 		invalidHostname = "_hi_"
 		validIPv4       = "192.168.0.1"
 		invalidIPv4     = "192-168.0.1"
 		validIPv6       = "::1"
 		invalidIPv6     = "foo"
-		validURI        = "hhp://goa.design/contact"
+		validURI        = "hhp://loom.design/contact"
 		invalidURI      = "foo_"
 		validMAC        = "06-00-00-00-00-00"
 		invalidMAC      = "bar"
 		validCIDR       = "10.0.0.0/8"
 		invalidCIDR     = "foo"
-		validRegexp     = "^goa$"
+		validRegexp     = "^loom$"
 		invalidRegexp   = "foo["
 		validJSON       = `{"a":"b","c":2}`
 		invalidJSON     = "{"
@@ -108,8 +108,8 @@ func TestValidateFormat(t *testing.T) {
 func TestValidatePattern(t *testing.T) {
 	var (
 		name      = "foo"
-		pattern   = "^goa$"
-		matched   = "goa"
+		pattern   = "^loom$"
+		matched   = "loom"
 		unmatched = "foo["
 	)
 	cases := map[string]struct {
@@ -126,7 +126,7 @@ func TestValidatePattern(t *testing.T) {
 		actual := ValidatePattern(tc.name, tc.val, tc.pattern)
 		if !errors.Is(actual, tc.expected) {
 			// Compare only the messages because the error has always a new error ID.
-			if actual.Error() != tc.expected.Error() {
+			if actual == nil || tc.expected == nil || actual.Error() != tc.expected.Error() {
 				t.Errorf("%s: got %#v, expected %#v", k, actual, tc.expected)
 			}
 		}

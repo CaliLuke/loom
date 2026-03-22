@@ -1,7 +1,7 @@
 // DecodeMethodBodyQueryPathUserValidateRequest returns a decoder for requests
 // sent to the ServiceBodyQueryPathUserValidate MethodBodyQueryPathUserValidate
 // endpoint.
-func DecodeMethodBodyQueryPathUserValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicebodyquerypathuservalidate.PayloadType, error) {
+func DecodeMethodBodyQueryPathUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyquerypathuservalidate.PayloadType, error) {
 	return func(r *http.Request) (*servicebodyquerypathuservalidate.PayloadType, error) {
 		var payload *servicebodyquerypathuservalidate.PayloadType
 		var (
@@ -11,13 +11,13 @@ func DecodeMethodBodyQueryPathUserValidateRequest(mux goahttp.Muxer, decoder fun
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		err = ValidateMethodBodyQueryPathUserValidateRequestBody(&body)
 		if err != nil {
@@ -31,12 +31,12 @@ func DecodeMethodBodyQueryPathUserValidateRequest(mux goahttp.Muxer, decoder fun
 			params = mux.Vars(r)
 		)
 		c2 = params["c"]
-		err = goa.MergeErrors(err, goa.ValidatePattern("c", c2, "patternc"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("c", c2, "patternc"))
 		b = r.URL.Query().Get("b")
 		if b == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("b", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("b", "query string"))
 		}
-		err = goa.MergeErrors(err, goa.ValidatePattern("b", b, "patternb"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("b", b, "patternb"))
 		if err != nil {
 			return payload, err
 		}

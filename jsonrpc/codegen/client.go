@@ -120,7 +120,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 			{Path: "github.com/gorilla/websocket"},
 			codegen.LoomImport(""),
 			codegen.LoomImport("jsonrpc"),
-			codegen.LoomNamedImport("http", "goahttp"),
+			codegen.LoomNamedImport("http", "loomhttp"),
 			{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 			{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 		}),

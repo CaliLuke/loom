@@ -1,9 +1,9 @@
 // NewServiceMultipartWithParamMethodMultipartWithParamDecoder returns a
 // decoder to decode the multipart request for the "ServiceMultipartWithParam"
 // service "MethodMultipartWithParam" endpoint.
-func NewServiceMultipartWithParamMethodMultipartWithParamDecoder(mux goahttp.Muxer, serviceMultipartWithParamMethodMultipartWithParamDecoderFn ServiceMultipartWithParamMethodMultipartWithParamDecoderFunc) func(r *http.Request) goahttp.Decoder {
-	return func(r *http.Request) goahttp.Decoder {
-		return goahttp.EncodingFunc(func(v any) error {
+func NewServiceMultipartWithParamMethodMultipartWithParamDecoder(mux loomhttp.Muxer, serviceMultipartWithParamMethodMultipartWithParamDecoderFn ServiceMultipartWithParamMethodMultipartWithParamDecoderFunc) func(r *http.Request) loomhttp.Decoder {
+	return func(r *http.Request) loomhttp.Decoder {
+		return loomhttp.EncodingFunc(func(v any) error {
 			mr, merr := r.MultipartReader()
 			if merr != nil {
 				return merr
@@ -20,7 +20,7 @@ func NewServiceMultipartWithParamMethodMultipartWithParamDecoder(mux goahttp.Mux
 			{
 				c2Raw := r.URL.Query()
 				if len(c2Raw) == 0 {
-					err = goa.MergeErrors(err, goa.MissingFieldError("c", "query string"))
+					err = loom.MergeErrors(err, loom.MissingFieldError("c", "query string"))
 				}
 				for keyRaw, valRaw := range c2Raw {
 					if strings.HasPrefix(keyRaw, "c[") {
@@ -32,12 +32,12 @@ func NewServiceMultipartWithParamMethodMultipartWithParamDecoder(mux goahttp.Mux
 							openIdx := strings.IndexRune(keyRaw, '[')
 							closeIdx := strings.IndexRune(keyRaw, ']')
 							if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-								err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+								err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 							} else {
 								keyaRaw := keyRaw[openIdx+1 : closeIdx]
 								v, err2 := strconv.ParseInt(keyaRaw, 10, strconv.IntSize)
 								if err2 != nil {
-									err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", keyaRaw, "integer"))
+									err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keyaRaw, "integer"))
 								}
 								keya = int(v)
 							}

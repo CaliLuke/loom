@@ -3,8 +3,8 @@
 // payload is sent to the service. The implementation is responsible for calling
 // next to complete the request.
 type ServerInterceptors interface {
-	Test(ctx context.Context, info *TestInfo, next goa.Endpoint) (any, error)
-	Test3(ctx context.Context, info *Test3Info, next goa.Endpoint) (any, error)
+	Test(ctx context.Context, info *TestInfo, next loom.Endpoint) (any, error)
+	Test3(ctx context.Context, info *Test3Info, next loom.Endpoint) (any, error)
 }
 
 // Access interfaces for interceptor payloads and results
@@ -14,7 +14,7 @@ type (
 	TestInfo struct {
 		service    string
 		method     string
-		callType   goa.InterceptorCallType
+		callType   loom.InterceptorCallType
 		rawPayload any
 	}
 	// Test3Info provides metadata about the current interception.
@@ -22,14 +22,14 @@ type (
 	Test3Info struct {
 		service    string
 		method     string
-		callType   goa.InterceptorCallType
+		callType   loom.InterceptorCallType
 		rawPayload any
 	}
 )
 
 // WrapMethodEndpoint wraps the Method endpoint with the server-side
 // interceptors defined in the design.
-func WrapMethodEndpoint(endpoint goa.Endpoint, i ServerInterceptors) goa.Endpoint {
+func WrapMethodEndpoint(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
 	if i != nil {
 		endpoint = wrapMethodtest(endpoint, i)
 		endpoint = wrapMethodtest3(endpoint, i)
@@ -50,7 +50,7 @@ func (info *TestInfo) Method() string {
 }
 
 // CallType returns the type of call the interceptor is handling.
-func (info *TestInfo) CallType() goa.InterceptorCallType {
+func (info *TestInfo) CallType() loom.InterceptorCallType {
 	return info.callType
 }
 
@@ -70,7 +70,7 @@ func (info *Test3Info) Method() string {
 }
 
 // CallType returns the type of call the interceptor is handling.
-func (info *Test3Info) CallType() goa.InterceptorCallType {
+func (info *Test3Info) CallType() loom.InterceptorCallType {
 	return info.callType
 }
 

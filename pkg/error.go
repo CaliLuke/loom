@@ -1,4 +1,4 @@
-package goa
+package loom
 
 import (
 	"crypto/rand"
@@ -23,7 +23,7 @@ type (
 		RetryHint string `json:"retry_hint,omitempty" xml:"retry_hint,omitempty" form:"retry_hint,omitempty"`
 	}
 
-	// ServiceError is the default error type used by the goa package to
+	// ServiceError is the default error type used by the Loom package to
 	// encode and decode error responses.
 	ServiceError struct {
 		// Name is a name for that class of errors.
@@ -146,7 +146,7 @@ func TemporaryTimeoutError(name, format string, v ...any) *ServiceError {
 // MissingPayloadError is the error produced by the generated code when a
 // request is missing a required payload.
 func MissingPayloadError() error {
-	return PermanentError(MissingPayload, "missing required payload")
+	return validationError(PermanentError(MissingPayload, "missing required payload"))
 }
 
 // DecodePayloadError is the error produced by the generated code when a request
@@ -164,15 +164,15 @@ func UnsupportedMediaTypeError(ct string) error {
 // InvalidFieldTypeError is the error produced by the generated code when the
 // type of a payload field does not match the type defined in the design.
 func InvalidFieldTypeError(name string, val any, expected string) error {
-	return withField(name, PermanentError(
-		InvalidFieldType, "invalid value %#v for %q, must be a %s", val, name, expected))
+	return validationError(withField(name, PermanentError(
+		InvalidFieldType, "invalid value %#v for %q, must be a %s", val, name, expected)))
 }
 
 // MissingFieldError is the error produced by the generated code when a payload
 // is missing a required field.
 func MissingFieldError(name, context string) error {
-	return withField(name, PermanentError(
-		MissingField, "%q is missing from %s", name, context))
+	return validationError(withField(name, PermanentError(
+		MissingField, "%q is missing from %s", name, context)))
 }
 
 // InvalidEnumValueError is the error produced by the generated code when the
@@ -183,24 +183,24 @@ func InvalidEnumValueError(name string, val any, allowed []any) error {
 	for i, a := range allowed {
 		elems[i] = fmt.Sprintf("%#v", a)
 	}
-	return withField(name, PermanentError(
-		InvalidEnumValue, "value of %s must be one of %s but got value %#v", name, strings.Join(elems, ", "), val))
+	return validationError(withField(name, PermanentError(
+		InvalidEnumValue, "value of %s must be one of %s but got value %#v", name, strings.Join(elems, ", "), val)))
 }
 
 // InvalidFormatError is the error produced by the generated code when the value
 // of a payload field does not match the format validation defined in the
 // design.
 func InvalidFormatError(name, target string, format Format, formatError error) error {
-	return withField(name, PermanentError(
-		InvalidFormat, "%s must be formatted as a %s but got value %q, %s", name, format, target, formatError.Error()))
+	return validationError(withField(name, PermanentError(
+		InvalidFormat, "%s must be formatted as a %s but got value %q, %s", name, format, target, formatError.Error())))
 }
 
 // InvalidPatternError is the error produced by the generated code when the
 // value of a payload field does not match the pattern validation defined in the
 // design.
 func InvalidPatternError(name, target, pattern string) error {
-	return withField(name, PermanentError(
-		InvalidPattern, "%s must match the regexp %q but got value %q", name, pattern, target))
+	return validationError(withField(name, PermanentError(
+		InvalidPattern, "%s must match the regexp %q but got value %q", name, pattern, target)))
 }
 
 // InvalidRangeError is the error produced by the generated code when the value
@@ -211,8 +211,8 @@ func InvalidRangeError(name string, target, value any, min bool) error {
 	if !min {
 		comp = "lesser or equal"
 	}
-	return withField(name, PermanentError(
-		InvalidRange, "%s must be %s than %d but got value %#v", name, comp, value, target))
+	return validationError(withField(name, PermanentError(
+		InvalidRange, "%s must be %s than %d but got value %#v", name, comp, value, target)))
 }
 
 // InvalidLengthError is the error produced by the generated code when the value
@@ -223,8 +223,12 @@ func InvalidLengthError(name string, target any, ln, value int, min bool) error 
 	if !min {
 		comp = "lesser or equal"
 	}
-	return withField(name, PermanentError(
-		InvalidLength, "length of %s must be %s than %d but got value %#v (len=%d)", name, comp, value, target, ln))
+	return validationError(withField(name, PermanentError(
+		InvalidLength, "length of %s must be %s than %d but got value %#v (len=%d)", name, comp, value, target, ln)))
+}
+
+func validationError(err *ServiceError) *ServiceError {
+	return WithErrorRemedy(err, &ErrorRemedy{SafeMessage: "validation error"})
 }
 
 // NewErrorID creates a unique 8 character ID that is well suited to use as an

@@ -12,8 +12,8 @@ func NewEndpoints(s Service) *Endpoints {
 var EndpointInitWithRequirementsCode = `// NewEndpoints wraps the methods of the "EndpointsWithRequirements" service
 // with endpoints.
 func NewEndpoints(s Service) *Endpoints {
-	// Casting service to Auther interface
-	a := s.(Auther)
+	// Casting service to Authorizer interface
+	a := s.(Authorizer)
 	return &Endpoints{
 		SecureWithRequirements:       NewSecureWithRequirementsEndpoint(s, a.BasicAuth),
 		DoublySecureWithRequirements: NewDoublySecureWithRequirementsEndpoint(s, a.BasicAuth, a.JWTAuth),
@@ -24,8 +24,8 @@ func NewEndpoints(s Service) *Endpoints {
 var EndpointInitWithServiceRequirementsCode = `// NewEndpoints wraps the methods of the "EndpointsWithServiceRequirements"
 // service with endpoints.
 func NewEndpoints(s Service) *Endpoints {
-	// Casting service to Auther interface
-	a := s.(Auther)
+	// Casting service to Authorizer interface
+	a := s.(Authorizer)
 	return &Endpoints{
 		SecureWithRequirements:     NewSecureWithRequirementsEndpoint(s, a.BasicAuth),
 		AlsoSecureWithRequirements: NewAlsoSecureWithRequirementsEndpoint(s, a.BasicAuth),
@@ -45,7 +45,7 @@ func NewEndpoints(s Service) *Endpoints {
 var EndpointWithRequiredScopesCode = `// NewSecureWithRequiredScopesEndpoint returns an endpoint function that calls
 // the method "SecureWithRequiredScopes" of service
 // "EndpointWithRequiredScopes".
-func NewSecureWithRequiredScopesEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+func NewSecureWithRequiredScopesEndpoint(s Service, authJWTFn security.AuthJWTFunc) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		p := req.(*SecureWithRequiredScopesPayload)
 		var err error
@@ -70,7 +70,7 @@ func NewSecureWithRequiredScopesEndpoint(s Service, authJWTFn security.AuthJWTFu
 var EndpointWithOptionalRequiredScopesCode = `// NewSecureWithOptionalRequiredScopesEndpoint returns an endpoint function
 // that calls the method "SecureWithOptionalRequiredScopes" of service
 // "EndpointWithOptionalRequiredScopes".
-func NewSecureWithOptionalRequiredScopesEndpoint(s Service, authBasicFn security.AuthBasicFunc) goa.Endpoint {
+func NewSecureWithOptionalRequiredScopesEndpoint(s Service, authBasicFn security.AuthBasicFunc) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		p := req.(*SecureWithOptionalRequiredScopesPayload)
 		var err error
@@ -99,7 +99,7 @@ func NewSecureWithOptionalRequiredScopesEndpoint(s Service, authBasicFn security
 var EndpointWithAPIKeyOverrideCode = `// NewSecureWithAPIKeyOverrideEndpoint returns an endpoint function that calls
 // the method "SecureWithAPIKeyOverride" of service
 // "EndpointWithAPIKeyOverride".
-func NewSecureWithAPIKeyOverrideEndpoint(s Service, authAPIKeyFn security.AuthAPIKeyFunc) goa.Endpoint {
+func NewSecureWithAPIKeyOverrideEndpoint(s Service, authAPIKeyFn security.AuthAPIKeyFunc) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		p := req.(*SecureWithAPIKeyOverridePayload)
 		var err error
@@ -123,7 +123,7 @@ func NewSecureWithAPIKeyOverrideEndpoint(s Service, authAPIKeyFn security.AuthAP
 
 var EndpointWithOAuth2Code = `// NewSecureWithOAuth2Endpoint returns an endpoint function that calls the
 // method "SecureWithOAuth2" of service "EndpointWithOAuth2".
-func NewSecureWithOAuth2Endpoint(s Service, authOAuth2Fn security.AuthOAuth2Func) goa.Endpoint {
+func NewSecureWithOAuth2Endpoint(s Service, authOAuth2Fn security.AuthOAuth2Func) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		p := req.(*SecureWithOAuth2Payload)
 		var err error
@@ -156,7 +156,7 @@ func NewSecureWithOAuth2Endpoint(s Service, authOAuth2Fn security.AuthOAuth2Func
 var EndpointWithBasicAuthAndSkipRequestBodyEncodeDecodeCode = `// NewEndpointWithSkipRequestBodyEncodeDecodeEndpoint returns an endpoint
 // function that calls the method "EndpointWithSkipRequestBodyEncodeDecode" of
 // service "EndpointWithSkipRequestBodyEncodeDecode".
-func NewEndpointWithSkipRequestBodyEncodeDecodeEndpoint(s Service, authBasicFn security.AuthBasicFunc) goa.Endpoint {
+func NewEndpointWithSkipRequestBodyEncodeDecodeEndpoint(s Service, authBasicFn security.AuthBasicFunc) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		ep := req.(*EndpointWithSkipRequestBodyEncodeDecodeRequestData)
 		var err error

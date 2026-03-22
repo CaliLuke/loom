@@ -1,6 +1,6 @@
 // EncodeMethodHeaderArrayUIntResponse returns an encoder for responses
 // returned by the ServiceHeaderArrayUInt MethodHeaderArrayUInt endpoint.
-func EncodeMethodHeaderArrayUIntResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeMethodHeaderArrayUIntResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(*serviceheaderarrayuint.MethodHeaderArrayUIntResult)
 		if res.H != nil {

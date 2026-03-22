@@ -45,8 +45,8 @@ func renderServiceDefinition(data *Data) string {
 	b.WriteString("}\n")
 
 	if len(data.Schemes) > 0 {
-		b.WriteString("\n// Auther defines the authorization functions to be implemented by the service.\n")
-		b.WriteString("type Auther interface {\n")
+		b.WriteString("\n// Authorizer defines the authorization functions to be implemented by the service.\n")
+		b.WriteString("type Authorizer interface {\n")
 		for _, scheme := range data.Schemes.DedupeByType() {
 			b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sAuth implements the authorization logic for the %s security scheme.", scheme.Type, scheme.Type)), "\t"))
 			b.WriteString("\n")

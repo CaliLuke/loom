@@ -1,6 +1,6 @@
 // DecodeMapQueryPrimitivePrimitiveRequest returns a decoder for requests sent
 // to the ServiceMapQueryPrimitivePrimitive MapQueryPrimitivePrimitive endpoint.
-func DecodeMapQueryPrimitivePrimitiveRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (map[string]string, error) {
+func DecodeMapQueryPrimitivePrimitiveRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string]string, error) {
 	return func(r *http.Request) (map[string]string, error) {
 		var payload map[string]string
 		var (
@@ -10,7 +10,7 @@ func DecodeMapQueryPrimitivePrimitiveRequest(mux goahttp.Muxer, decoder func(*ht
 		{
 			queryRaw := r.URL.Query()
 			if len(queryRaw) == 0 {
-				err = goa.MergeErrors(err, goa.MissingFieldError("query", "query string"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("query", "query string"))
 			}
 			for keyRaw, valRaw := range queryRaw {
 				if strings.HasPrefix(keyRaw, "query[") {
@@ -22,7 +22,7 @@ func DecodeMapQueryPrimitivePrimitiveRequest(mux goahttp.Muxer, decoder func(*ht
 						openIdx := strings.IndexRune(keyRaw, '[')
 						closeIdx := strings.IndexRune(keyRaw, ']')
 						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 						} else {
 							keya = keyRaw[openIdx+1 : closeIdx]
 						}

@@ -104,7 +104,7 @@ func (u *Values) SetB(v *TypeB) {
 func (u Values) Validate() error {
 	switch u.kind {
 	case "":
-		return goa.InvalidEnumValueError("type", "", []any{
+		return loom.InvalidEnumValueError("type", "", []any{
 			string(ValuesKindA),
 			string(ValuesKindB),
 		})
@@ -113,7 +113,7 @@ func (u Values) Validate() error {
 	case ValuesKindB:
 		return nil
 	default:
-		return goa.InvalidEnumValueError("type", u.kind, []any{
+		return loom.InvalidEnumValueError("type", u.kind, []any{
 			string(ValuesKindA),
 			string(ValuesKindB),
 		})
@@ -153,13 +153,13 @@ func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 	if err := u.Validate(); err != nil {
 		return err
 	}
-	values.Set(goahttp.FormChildKey(prefix, "type"), string(u.kind))
+	values.Set(loomhttp.FormChildKey(prefix, "type"), string(u.kind))
 	switch u.kind {
 	case ValuesKindA:
-		_, err := goahttp.EncodeFormValue(values, prefix, u.A)
+		_, err := loomhttp.EncodeFormValue(values, prefix, u.A)
 		return err
 	case ValuesKindB:
-		_, err := goahttp.EncodeFormValue(values, prefix, u.B)
+		_, err := loomhttp.EncodeFormValue(values, prefix, u.B)
 		return err
 	default:
 		return fmt.Errorf("unexpected Values discriminant %q", u.kind)
@@ -171,15 +171,15 @@ func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 // object-shaped branches and the canonical {type,value} form shape for scalar
 // branches.
 func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
-	typeKey := goahttp.FormChildKey(prefix, "type")
+	typeKey := loomhttp.FormChildKey(prefix, "type")
 	rawType := values.Get(typeKey)
 	if rawType == "" {
-		return goa.MissingFieldError("type", "body")
+		return loom.MissingFieldError("type", "body")
 	}
 	switch rawType {
 	case string(ValuesKindA):
 		var v *TypeA
-		seen, err := goahttp.DecodeFormValue(values, prefix, &v)
+		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
 		if err != nil {
 			return err
 		}
@@ -190,7 +190,7 @@ func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
 		u.A = v
 	case string(ValuesKindB):
 		var v *TypeB
-		seen, err := goahttp.DecodeFormValue(values, prefix, &v)
+		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
 		if err != nil {
 			return err
 		}

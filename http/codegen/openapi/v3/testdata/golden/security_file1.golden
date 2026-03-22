@@ -64,9 +64,9 @@ components:
             description: Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".
             flows:
                 authorizationCode:
-                    authorizationUrl: http://goa.design/authorization
-                    tokenUrl: http://goa.design/token
-                    refreshUrl: http://goa.design/refresh
+                    authorizationUrl: http://loom.design/authorization
+                    tokenUrl: http://loom.design/token
+                    refreshUrl: http://loom.design/refresh
                     scopes:
                         api:read: Read-only access
                         api:write: Read and write access
@@ -75,9 +75,9 @@ components:
             description: Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".
             flows:
                 authorizationCode:
-                    authorizationUrl: http://goa.design/authorization
-                    tokenUrl: http://goa.design/token
-                    refreshUrl: http://goa.design/refresh
+                    authorizationUrl: http://loom.design/authorization
+                    tokenUrl: http://loom.design/token
+                    refreshUrl: http://loom.design/refresh
                     scopes:
                         api:read: Read-only access
                         api:write: Read and write access

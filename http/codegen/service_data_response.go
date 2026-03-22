@@ -123,7 +123,7 @@ func (sds *ServicesData) buildViewedResponseBodyData(
 	e *expr.HTTPEndpointExpr,
 	sd *ServiceData,
 ) ([]*TypeData, *TypeData) {
-	serverViews, clientView := viewedResponseBodyViews(resp, origin, md, e)
+	serverViews, clientView := viewedResponseBodyViews(origin, md, e)
 	serverBodyData := make([]*TypeData, 0, len(serverViews))
 	for _, view := range serverViews {
 		viewName := view
@@ -136,7 +136,7 @@ func (sds *ServicesData) buildViewedResponseBodyData(
 	return serverBodyData, clientBodyData
 }
 
-func viewedResponseBodyViews(resp *expr.HTTPResponseExpr, origin string, md *service.MethodData, e *expr.HTTPEndpointExpr) ([]*string, *string) {
+func viewedResponseBodyViews(origin string, md *service.MethodData, e *expr.HTTPEndpointExpr) ([]*string, *string) {
 	vname := ""
 	clientView := &vname
 	if origin != "" {

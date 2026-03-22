@@ -8,14 +8,14 @@ responsible for configuring the tracer provider, exporter, and resource
 attributes. Loom owns the transport seam so generated and hand-written handlers
 can share one instrumentation path.
 
-Use Middleware with goahttp.NewMuxer so spans can inherit the matched
+Use Middleware with loomhttp.NewMuxer so spans can inherit the matched
 METHOD-plus-route pattern from r.Pattern:
 
-	mux := goahttp.NewMuxer()
+	mux := loomhttp.NewMuxer()
 	mux.Use(otel.Middleware("service"))
 
 For generated HTTP clients, wrap an *http.Client before passing it anywhere a
-goa HTTP Doer is expected:
+Loom HTTP Doer is expected:
 
 	client := otel.WrapClient(&http.Client{})
 */

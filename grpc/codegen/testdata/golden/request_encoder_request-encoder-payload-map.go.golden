@@ -3,7 +3,7 @@
 func EncodeMethodMessageMapRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(map[int]*servicemessagemap.UT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageMap", "MethodMessageMap", "map[int]*servicemessagemap.UT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageMap", "MethodMessageMap", "map[int]*servicemessagemap.UT", v)
 	}
 	return NewProtoMethodMessageMapRequest(payload), nil
 }

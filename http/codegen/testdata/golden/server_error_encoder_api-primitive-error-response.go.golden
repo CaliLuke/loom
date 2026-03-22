@@ -1,16 +1,16 @@
 // EncodeMethodAPIPrimitiveErrorResponseError returns an encoder for errors
 // returned by the MethodAPIPrimitiveErrorResponse
 // ServiceAPIPrimitiveErrorResponse endpoint.
-func EncodeMethodAPIPrimitiveErrorResponseError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+func EncodeMethodAPIPrimitiveErrorResponseError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.LoomErrorNamer
+		var en loom.LoomErrorNamer
 		if !errors.As(v, &en) {
 			return encodeError(ctx, w, v)
 		}
 		switch en.LoomErrorName() {
 		case "internal_error":
-			var res *goa.ServiceError
+			var res *loom.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any

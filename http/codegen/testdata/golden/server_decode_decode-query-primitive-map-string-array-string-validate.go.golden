@@ -2,7 +2,7 @@
 // decoder for requests sent to the
 // ServiceQueryPrimitiveMapStringArrayStringValidate
 // MethodQueryPrimitiveMapStringArrayStringValidate endpoint.
-func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (map[string][]string, error) {
+func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string][]string, error) {
 	return func(r *http.Request) (map[string][]string, error) {
 		var payload map[string][]string
 		var (
@@ -12,7 +12,7 @@ func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux goahttp.M
 		{
 			qRaw := r.URL.Query()
 			if len(qRaw) == 0 {
-				err = goa.MergeErrors(err, goa.MissingFieldError("q", "query string"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
 			for keyRaw, valRaw := range qRaw {
 				if strings.HasPrefix(keyRaw, "q[") {
@@ -24,7 +24,7 @@ func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux goahttp.M
 						openIdx := strings.IndexRune(keyRaw, '[')
 						closeIdx := strings.IndexRune(keyRaw, ']')
 						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 						} else {
 							keya = keyRaw[openIdx+1 : closeIdx]
 						}
@@ -34,15 +34,15 @@ func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux goahttp.M
 			}
 		}
 		if len(q) < 1 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
 		}
 		for k, v := range q {
-			err = goa.MergeErrors(err, goa.ValidatePattern("q.key", k, "key"))
+			err = loom.MergeErrors(err, loom.ValidatePattern("q.key", k, "key"))
 			if len(v) < 2 {
-				err = goa.MergeErrors(err, goa.InvalidLengthError("q[key]", v, len(v), 2, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("q[key]", v, len(v), 2, true))
 			}
 			for _, e := range v {
-				err = goa.MergeErrors(err, goa.ValidatePattern("q[key][*]", e, "val"))
+				err = loom.MergeErrors(err, loom.ValidatePattern("q[key][*]", e, "val"))
 			}
 		}
 		if err != nil {

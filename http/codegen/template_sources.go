@@ -25,15 +25,15 @@ type templateSource struct {
 var (
 	serverHandlerInitSource = `{{ printf "%s creates a HTTP handler which loads the HTTP request and calls the %q service %q endpoint." .HandlerInit .ServiceName .Method.Name | comment }}
 func {{ .HandlerInit }}(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	{{- if isWebSocketEndpoint . }}
-	upgrader goahttp.Upgrader,
-	configurer goahttp.ConnConfigureFunc,
+	upgrader loomhttp.Upgrader,
+	configurer loomhttp.ConnConfigureFunc,
 	{{- end }}
 ) http.Handler {
 	{{- if (or (mustDecodeRequest .) (not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults)))) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
@@ -46,15 +46,15 @@ func {{ .HandlerInit }}(
 		encodeResponse = {{ .ResponseEncoder }}(encoder)
 		{{- end }}
 	{{- if (or (mustDecodeRequest .) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
-		encodeError    = {{ if .Errors }}{{ .ErrorEncoder }}{{ else }}goahttp.ErrorEncoder{{ end }}(encoder, formatter)
+		encodeError    = {{ if .Errors }}{{ .ErrorEncoder }}{{ else }}loomhttp.ErrorEncoder{{ end }}(encoder, formatter)
 		{{- end }}
 	{{- if (or (mustDecodeRequest .) (not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults)))) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
 	)
 	{{- end }}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, {{ printf "%q" .Method.Name }})
-		ctx = context.WithValue(ctx, goa.ServiceKey, {{ printf "%q" .ServiceName }})
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, {{ printf "%q" .Method.Name }})
+		ctx = context.WithValue(ctx, loom.ServiceKey, {{ printf "%q" .ServiceName }})
 	{{- if .HasMixedResults }}
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
@@ -351,9 +351,9 @@ func (s *discard{{ .Method.VarName }}ServerStream) Close() error {
 `
 
 	multipartRequestDecoderSource = joinHTTPTemplateSource(`{{ printf "%s returns a decoder to decode the multipart request for the %q service %q endpoint." .InitName .ServiceName .MethodName | comment }}
-func {{ .InitName }}(mux goahttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r *http.Request) goahttp.Decoder {
-	return func(r *http.Request) goahttp.Decoder {
-		return goahttp.EncodingFunc(func(v any) error {
+func {{ .InitName }}(mux loomhttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r *http.Request) loomhttp.Decoder {
+	return func(r *http.Request) loomhttp.Decoder {
+		return loomhttp.EncodingFunc(func(v any) error {
 			mr, merr := r.MultipartReader()
 			if merr != nil {
 				return merr
@@ -433,7 +433,7 @@ qp := r.URL.Query()
 	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
 		{{ .VarName }} = {{$qpVar}}.Get("{{ .HTTPName }}")
 		if {{ .VarName }} == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 
 	{{- else if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
@@ -450,7 +450,7 @@ qp := r.URL.Query()
 		{{ .VarName }} = {{$qpVar}}["{{ .HTTPName }}"]
 		{{- if .Required }}
 		if {{ .VarName }} == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
 		if {{ .VarName }} == nil {
@@ -467,7 +467,7 @@ qp := r.URL.Query()
 		{{ .VarName }}Raw := {{$qpVar}}["{{ .HTTPName }}"]
 		{{- if .Required }}
 		if {{ .VarName }}Raw == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
 		if {{ .VarName }}Raw == nil {
@@ -490,7 +490,7 @@ qp := r.URL.Query()
 		{{ .VarName }}Raw := {{$qpVar}}
 		{{- if .Required }}
 		if len({{ .VarName }}Raw) == 0 {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
 		if len({{ .VarName }}Raw) == 0 {
@@ -517,7 +517,7 @@ qp := r.URL.Query()
 		{{ .VarName }}Raw := {{$qpVar}}
 		{{- if .Required }}
 		if len({{ .VarName }}Raw) == 0 {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
 		if len({{ .VarName }}Raw) == 0 {
@@ -572,7 +572,7 @@ qp := r.URL.Query()
 		{{ .VarName }}Raw := {{$qpVar}}.Get("{{ .HTTPName }}")
 		{{- if .Required }}
 		if {{ .VarName }}Raw == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
 		if {{ .VarName }}Raw == "" {
@@ -600,7 +600,7 @@ qp := r.URL.Query()
 	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
 		{{ .VarName }} = r.Header.Get("{{ .HTTPName }}")
 		if {{ .VarName }} == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "header"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
 
 	{{- else if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
@@ -617,7 +617,7 @@ qp := r.URL.Query()
 		{{ .VarName }} = r.Header["{{ .CanonicalName }}"]
 		{{- if .Required }}
 		if {{ .VarName }} == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "header"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
 		{{- else if .DefaultValue }}
 		if {{ .VarName }} == nil {
@@ -629,7 +629,7 @@ qp := r.URL.Query()
 	{
 		{{ .VarName }}Raw := r.Header["{{ .CanonicalName }}"]
 		{{ if .Required }}if {{ .VarName }}Raw == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "header"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
 		{{- else if .DefaultValue }}
 		if {{ .VarName }}Raw == nil {
@@ -652,7 +652,7 @@ qp := r.URL.Query()
 		{{ .VarName }}Raw := r.Header.Get("{{ .HTTPName }}")
 		{{- if .Required }}
 		if {{ .VarName }}Raw == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "header"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
 		{{- else if .DefaultValue }}
 		if {{ .VarName }}Raw == "" {
@@ -679,7 +679,7 @@ qp := r.URL.Query()
 	c, {{ if not .Required }}_{{ else }}err{{ end }} = r.Cookie("{{ .HTTPName }}")
 	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
 		if errors.Is(err, http.ErrNoCookie) {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "cookie"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
 		} else {
 			{{ .VarName }} = c.Value
 		}
@@ -705,7 +705,7 @@ qp := r.URL.Query()
 		}
 		{{- if .Required }}
 		if {{ .VarName }}Raw == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("{{ .Name }}", "cookie"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
 		}
 		{{- else if .DefaultValue }}
 		if {{ .VarName }}Raw == "" {
@@ -735,55 +735,55 @@ qp := r.URL.Query()
 		{{- else if eq .Type.ElemType.Type.Name "int" }}
 			v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
 			}
 			{{ .VarName }}[i] = int(v)
 		{{- else if eq .Type.ElemType.Type.Name "int32" }}
 			v, err2 := strconv.ParseInt(rv, 10, 32)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
 			}
 			{{ .VarName }}[i] = int32(v)
 		{{- else if eq .Type.ElemType.Type.Name "int64" }}
 			v, err2 := strconv.ParseInt(rv, 10, 64)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "uint" }}
 			v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
 			}
 			{{ .VarName }}[i] = uint(v)
 		{{- else if eq .Type.ElemType.Type.Name "uint32" }}
 			v, err2 := strconv.ParseUint(rv, 10, 32)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
 			}
 			{{ .VarName }}[i] = uint32(v)
 		{{- else if eq .Type.ElemType.Type.Name "uint64" }}
 			v, err2 := strconv.ParseUint(rv, 10, 64)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "float32" }}
 			v, err2 := strconv.ParseFloat(rv, 32)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of floats"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of floats"))
 			}
 			{{ .VarName }}[i] = float32(v)
 		{{- else if eq .Type.ElemType.Type.Name "float64" }}
 			v, err2 := strconv.ParseFloat(rv, 64)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of floats"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of floats"))
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "boolean" }}
 			v, err2 := strconv.ParseBool(rv)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of booleans"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of booleans"))
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "any" }}
@@ -800,7 +800,7 @@ qp := r.URL.Query()
 	{{- else if eq .Type.Name "int" }}
 		v, err2 := strconv.ParseInt({{ .VarName }}Raw, 10, strconv.IntSize)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{slice .TypeRef 1 (len .TypeRef)}}{{ else }}int{{ end }}(v)
@@ -811,7 +811,7 @@ qp := r.URL.Query()
 	{{- else if eq .Type.Name "int32" }}
 		v, err2 := strconv.ParseInt({{ .VarName }}Raw, 10, 32)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}int32{{ end }}(v)
@@ -822,13 +822,13 @@ qp := r.URL.Query()
 	{{- else if eq .Type.Name "int64" }}
 		v, err2 := strconv.ParseInt({{ .VarName }}Raw, 10, 64)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
 		}
 		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "int64") (ne .TypeRef "*int64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
 	{{- else if eq .Type.Name "uint" }}
 		v, err2 := strconv.ParseUint({{ .VarName }}Raw, 10, strconv.IntSize)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}uint{{ end }}(v)
@@ -839,7 +839,7 @@ qp := r.URL.Query()
 	{{- else if eq .Type.Name "uint32" }}
 		v, err2 := strconv.ParseUint({{ .VarName }}Raw, 10, 32)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}uint32{{ end }}(v)
@@ -850,13 +850,13 @@ qp := r.URL.Query()
 	{{- else if eq .Type.Name "uint64" }}
 		v, err2 := strconv.ParseUint({{ .VarName }}Raw, 10, 64)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
 		}
 		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "uint64") (ne .TypeRef "*uint64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
 	{{- else if eq .Type.Name "float32" }}
 		v, err2 := strconv.ParseFloat({{ .VarName }}Raw, 32)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "float"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "float"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}float32{{ end }}(v)
@@ -867,13 +867,13 @@ qp := r.URL.Query()
 	{{- else if eq .Type.Name "float64" }}
 		v, err2 := strconv.ParseFloat({{ .VarName }}Raw, 64)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "float"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "float"))
 		}
 		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "float64") (ne .TypeRef "*float64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
 	{{- else if eq .Type.Name "boolean" }}
 		v, err2 := strconv.ParseBool({{ .VarName }}Raw)
 		if err2 != nil {
-			err = goa.MergeErrors(err, goa.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "boolean"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "boolean"))
 		}
 		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "bool") (ne .TypeRef "*bool")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
 	{{- else }}
@@ -887,7 +887,7 @@ qp := r.URL.Query()
 		openIdx := strings.IndexRune(keyRaw, '[')
 		closeIdx := strings.IndexRune(keyRaw, ']')
 		if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-			err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+			err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 		} else {
 	{{- if eq .Type.KeyType.Type.Name "string" }}
 		key{{ .Loop }} = keyRaw[openIdx+1 : closeIdx]

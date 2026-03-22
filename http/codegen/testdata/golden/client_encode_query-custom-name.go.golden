@@ -1,10 +1,10 @@
 // EncodeMethodQueryCustomNameRequest returns an encoder for requests sent to
 // the ServiceQueryCustomName MethodQueryCustomName server.
-func EncodeMethodQueryCustomNameRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerycustomname.MethodQueryCustomNamePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryCustomName", "MethodQueryCustomName", "*servicequerycustomname.MethodQueryCustomNamePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryCustomName", "MethodQueryCustomName", "*servicequerycustomname.MethodQueryCustomNamePayload", v)
 		}
 		values := req.URL.Query()
 		if p.Query != nil {

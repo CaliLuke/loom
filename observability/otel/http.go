@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	goahttpotel "github.com/CaliLuke/loom/http/middleware/otel"
+	loomhttpotel "github.com/CaliLuke/loom/http/middleware/otel"
 	"github.com/felixge/httpsnoop"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
@@ -118,7 +118,7 @@ func HTTPMiddleware(cfg HTTPConfig) func(http.Handler) http.Handler {
 		cfg.Propagators,
 		cfg.MetricMode,
 	)
-	inner := goahttpotel.Middleware(cfg.ServiceName, opts...)
+	inner := loomhttpotel.Middleware(cfg.ServiceName, opts...)
 	return func(next http.Handler) http.Handler {
 		return inner(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			collector := &httpAttributeCollector{}
@@ -149,7 +149,7 @@ func HTTPMiddleware(cfg HTTPConfig) func(http.Handler) http.Handler {
 // WrapHTTPClient returns a shallow copy of client with OpenTelemetry transport
 // instrumentation configured according to cfg.
 func WrapHTTPClient(client *http.Client, cfg HTTPClientConfig) *http.Client {
-	return goahttpotel.WrapClient(client, makeHTTPInstrumentationOptions(
+	return loomhttpotel.WrapClient(client, makeHTTPInstrumentationOptions(
 		cfg.TracerProvider,
 		cfg.MeterProvider,
 		cfg.Propagators,
@@ -162,8 +162,8 @@ func makeHTTPInstrumentationOptions(
 	meterProvider metric.MeterProvider,
 	propagators propagation.TextMapPropagator,
 	mode HTTPMetricMode,
-) []goahttpotel.Option {
-	opts := make([]goahttpotel.Option, 0, 3)
+) []loomhttpotel.Option {
+	opts := make([]loomhttpotel.Option, 0, 3)
 	if tracerProvider != nil {
 		opts = append(opts, otelhttp.WithTracerProvider(tracerProvider))
 	}

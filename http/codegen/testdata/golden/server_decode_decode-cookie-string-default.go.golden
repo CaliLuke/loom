@@ -1,6 +1,6 @@
 // DecodeMethodCookieStringDefaultRequest returns a decoder for requests sent
 // to the ServiceCookieStringDefault MethodCookieStringDefault endpoint.
-func DecodeMethodCookieStringDefaultRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicecookiestringdefault.MethodCookieStringDefaultPayload, error) {
+func DecodeMethodCookieStringDefaultRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiestringdefault.MethodCookieStringDefaultPayload, error) {
 	return func(r *http.Request) (*servicecookiestringdefault.MethodCookieStringDefaultPayload, error) {
 		var payload *servicecookiestringdefault.MethodCookieStringDefaultPayload
 		var (

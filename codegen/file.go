@@ -18,7 +18,7 @@ import (
 )
 
 // Gendir is the name of the subdirectory of the output directory that contains
-// the generated files. This directory is wiped and re-written each time goa is
+// the generated files. This directory is wiped and re-written each time Loom is
 // run.
 const Gendir = "gen"
 

@@ -1,7 +1,7 @@
 // DecodeMethodQueryPrimitiveStringValidateRequest returns a decoder for
 // requests sent to the ServiceQueryPrimitiveStringValidate
 // MethodQueryPrimitiveStringValidate endpoint.
-func DecodeMethodQueryPrimitiveStringValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (string, error) {
+func DecodeMethodQueryPrimitiveStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (string, error) {
 	return func(r *http.Request) (string, error) {
 		var payload string
 		var (
@@ -10,10 +10,10 @@ func DecodeMethodQueryPrimitiveStringValidateRequest(mux goahttp.Muxer, decoder 
 		)
 		q = r.URL.Query().Get("q")
 		if q == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("q", "query string"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 		}
 		if !(q == "val") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("q", q, []any{"val"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"val"}))
 		}
 		if err != nil {
 			return payload, err

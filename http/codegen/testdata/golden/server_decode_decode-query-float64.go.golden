@@ -1,6 +1,6 @@
 // DecodeMethodQueryFloat64Request returns a decoder for requests sent to the
 // ServiceQueryFloat64 MethodQueryFloat64 endpoint.
-func DecodeMethodQueryFloat64Request(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequeryfloat64.MethodQueryFloat64Payload, error) {
+func DecodeMethodQueryFloat64Request(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryfloat64.MethodQueryFloat64Payload, error) {
 	return func(r *http.Request) (*servicequeryfloat64.MethodQueryFloat64Payload, error) {
 		var payload *servicequeryfloat64.MethodQueryFloat64Payload
 		var (
@@ -12,7 +12,7 @@ func DecodeMethodQueryFloat64Request(mux goahttp.Muxer, decoder func(*http.Reque
 			if qRaw != "" {
 				v, err2 := strconv.ParseFloat(qRaw, 64)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("q", qRaw, "float"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "float"))
 				}
 				q = &v
 			}

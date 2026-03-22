@@ -3,7 +3,7 @@
 func EncodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(*servicemessagewithsecurity.RequestUT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*servicemessagewithsecurity.RequestUT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*servicemessagewithsecurity.RequestUT", v)
 	}
 	if payload.Token != nil {
 		(*md).Append("authorization", *payload.Token)

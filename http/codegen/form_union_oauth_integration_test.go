@@ -51,7 +51,7 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 	serviceData := servicecodegen.NewServicesData(root)
 	httpData := CreateHTTPServices(root)
 
-	var files []*cg.File
+	files := make([]*cg.File, 0, len(root.Services)*2+5)
 	userTypePkgs := make(map[string][]string)
 	for _, service := range root.Services {
 		files = append(files, servicecodegen.Files(genpkg, service, serviceData, userTypePkgs)...)
@@ -90,17 +90,30 @@ func checkoutPinnedLoomModule(t *testing.T, parentDir string) string {
 	remote := strings.TrimSpace(resolveGitRemoteURL(t))
 	dest := filepath.Join(parentDir, "loom-pinned")
 
-	runCommand(t, "", "git", "init", dest)
-	runCommand(t, dest, "git", "remote", "add", "origin", remote)
-	runCommand(t, dest, "git", "fetch", "--depth", "1", "origin", commit)
-	runCommand(t, dest, "git", "checkout", "--detach", "FETCH_HEAD")
+	if _, err := runCommandAllowFailure("", "git", "init", dest); err == nil {
+		if _, err := runCommandAllowFailure(dest, "git", "remote", "add", "origin", remote); err == nil {
+			if _, err := runCommandAllowFailure(dest, "git", "fetch", "--depth", "1", "origin", commit); err == nil {
+				if _, err := runCommandAllowFailure(dest, "git", "checkout", "--detach", "FETCH_HEAD"); err == nil {
+					return dest
+				}
+			}
+		}
+	}
 
-	return dest
+	root, err := runCommandAllowFailure("", "git", "rev-parse", "--show-toplevel")
+	if err == nil {
+		if local := validatedLocalLoomModulePath(strings.TrimSpace(root)); local != "" {
+			return local
+		}
+	}
+
+	t.Fatalf("could not resolve local or pinned loom module source")
+	return ""
 }
 
 func configuredLocalLoomModulePath() string {
 	if repo := os.Getenv("LOOM_REPO"); repo != "" {
-		return repo
+		return validatedLocalLoomModulePath(repo)
 	}
 	root, err := runCommandAllowFailure("", "git", "rev-parse", "--show-toplevel")
 	if err != nil {
@@ -115,13 +128,25 @@ func configuredLocalLoomModulePath() string {
 	if len(fields) < 2 || fields[0] != "local" {
 		return ""
 	}
-	return fields[1]
+	return validatedLocalLoomModulePath(fields[1])
+}
+
+func validatedLocalLoomModulePath(path string) string {
+	if path == "" {
+		return ""
+	}
+	cleaned := filepath.Clean(path)
+	info, err := os.Stat(filepath.Join(cleaned, "go.mod"))
+	if err != nil || info.IsDir() {
+		return ""
+	}
+	return cleaned
 }
 
 func resolveGitRemoteURL(t *testing.T) string {
 	t.Helper()
 
-	for _, name := range []string{"fork", "origin"} {
+	for _, name := range []string{"origin", "fork"} {
 		if out, err := runCommandAllowFailure("", "git", "remote", "get-url", name); err == nil {
 			url := strings.TrimSpace(out)
 			if url != "" {
@@ -219,7 +244,7 @@ import (
 	"strings"
 	"testing"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"golang.org/x/oauth2"
 
 	token "example.com/formunionit/gen/token"
@@ -228,8 +253,8 @@ import (
 )
 
 func TestXOAuth2AuthCodeRequestUsesFlatFormFields(t *testing.T) {
-	mux := goahttp.NewMuxer()
-	decode := tokenserver.DecodeExchangeRequest(mux, goahttp.RequestDecoder)
+	mux := loomhttp.NewMuxer()
+	decode := tokenserver.DecodeExchangeRequest(mux, loomhttp.RequestDecoder)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, err := io.ReadAll(r.Body)
@@ -309,8 +334,8 @@ func TestXOAuth2AuthCodeRequestUsesFlatFormFields(t *testing.T) {
 }
 
 func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
-	mux := goahttp.NewMuxer()
-	decode := tokenserver.DecodeExchangeRequest(mux, goahttp.RequestDecoder)
+	mux := loomhttp.NewMuxer()
+	decode := tokenserver.DecodeExchangeRequest(mux, loomhttp.RequestDecoder)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, err := io.ReadAll(r.Body)
@@ -366,7 +391,7 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse server URL: %v", err)
 	}
-	client := tokenclient.NewClient(u.Scheme, u.Host, srv.Client(), goahttp.RequestEncoder, goahttp.ResponseDecoder, false)
+	client := tokenclient.NewClient(u.Scheme, u.Host, srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
 	endpoint := client.Exchange()
 
 	result, err := endpoint(context.Background(), &token.Grant{
@@ -388,8 +413,8 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 }
 
 func TestZeroFieldRefreshGrantDecodesFromDiscriminatorAndCookie(t *testing.T) {
-	mux := goahttp.NewMuxer()
-	decode := tokenserver.DecodeExchangeRequest(mux, goahttp.RequestDecoder)
+	mux := loomhttp.NewMuxer()
+	decode := tokenserver.DecodeExchangeRequest(mux, loomhttp.RequestDecoder)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, err := io.ReadAll(r.Body)

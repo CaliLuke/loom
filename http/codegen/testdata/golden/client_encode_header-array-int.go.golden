@@ -1,10 +1,10 @@
 // EncodeMethodHeaderArrayIntRequest returns an encoder for requests sent to
 // the ServiceHeaderArrayInt MethodHeaderArrayInt server.
-func EncodeMethodHeaderArrayIntRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderArrayIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderarrayint.MethodHeaderArrayIntPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderArrayInt", "MethodHeaderArrayInt", "*serviceheaderarrayint.MethodHeaderArrayIntPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayInt", "MethodHeaderArrayInt", "*serviceheaderarrayint.MethodHeaderArrayIntPayload", v)
 		}
 		{
 			head := p.H

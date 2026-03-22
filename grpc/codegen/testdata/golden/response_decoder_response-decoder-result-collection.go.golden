@@ -10,7 +10,7 @@ func DecodeMethodMessageUserTypeWithNestedUserTypesResponse(ctx context.Context,
 	}
 	message, ok := v.(*service_message_user_type_with_nested_user_typespb.RTCollection)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "*service_message_user_type_with_nested_user_typespb.RTCollection", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "*service_message_user_type_with_nested_user_typespb.RTCollection", v)
 	}
 	res := NewMethodMessageUserTypeWithNestedUserTypesResult(message)
 	vres := servicemessageusertypewithnestedusertypesviews.RTCollection{Projected: res, View: view}

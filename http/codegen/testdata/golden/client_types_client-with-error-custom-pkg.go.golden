@@ -19,7 +19,7 @@ func NewMethodWithErrorCustomPkgErrorName(body *MethodWithErrorCustomPkgErrorNam
 // defined on MethodWithErrorCustomPkg_error_name_Response_Body
 func ValidateMethodWithErrorCustomPkgErrorNameResponseBody(body *MethodWithErrorCustomPkgErrorNameResponseBody) (err error) {
 	if body.Name == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("name", "body"))
 	}
 	return
 }

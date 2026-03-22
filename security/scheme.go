@@ -1,6 +1,6 @@
 /*
 Package security contains the types used by the code generators to
-secure goa endpoint. It supports the following security schemes:
+secure Loom endpoint. It supports the following security schemes:
 
   - Basic security using usernames and passwords.
   - API key security using keys.

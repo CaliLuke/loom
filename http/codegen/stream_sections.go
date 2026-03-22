@@ -42,7 +42,7 @@ func renderSSEClientSection(ed *EndpointData) string {
 	fmt.Fprintf(&b, "\t%s\n", codegen.Comment(implName+" implements the "+streamName+" interface."))
 	fmt.Fprintf(&b, "\t%s struct {\n", implName)
 	b.WriteString("\t\tresp *http.Response\n")
-	b.WriteString("\t\tdecoder func(*http.Response) goahttp.Decoder\n")
+	b.WriteString("\t\tdecoder func(*http.Response) loomhttp.Decoder\n")
 	b.WriteString("\t\tbuffer []byte // Buffer for unprocessed data\n")
 	b.WriteString("\t\tlock sync.Mutex\n")
 	b.WriteString("\t\tclosed bool\n")
@@ -53,7 +53,7 @@ func renderSSEClientSection(ed *EndpointData) string {
 	fmt.Fprintf(&b, "var _ %s = (*%s)(nil)\n\n", streamName, implName)
 
 	fmt.Fprintf(&b, "%s\n", codegen.Comment("New"+ed.Method.VarName+"Stream creates a new "+streamName+"."))
-	fmt.Fprintf(&b, "func New%sStream(resp *http.Response, decoder func(*http.Response) goahttp.Decoder) %s {\n", ed.Method.VarName, streamName)
+	fmt.Fprintf(&b, "func New%sStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) %s {\n", ed.Method.VarName, streamName)
 	fmt.Fprintf(&b, "\treturn &%s{\n", implName)
 	b.WriteString("\t\tresp: resp,\n")
 	b.WriteString("\t\tdecoder: decoder,\n")
@@ -198,7 +198,7 @@ func renderSSEClientSection(ed *EndpointData) string {
 	b.WriteString("}\n\n")
 
 	fmt.Fprintf(&b, "// processEvent processes a raw SSE event into the expected type\nfunc (s *%s) processEvent(eventData []byte) (event %s, err error) {\n", implName, ed.SSE.EventTypeRef)
-	b.WriteString("\tparsed, err := goahttp.ParseSSEEvent(eventData)\n")
+	b.WriteString("\tparsed, err := loomhttp.ParseSSEEvent(eventData)\n")
 	b.WriteString("\tif err != nil {\n")
 	b.WriteString("\t\treturn event, err\n")
 	b.WriteString("\t}\n")
@@ -212,9 +212,10 @@ func renderSSEClientSection(ed *EndpointData) string {
 		fmt.Fprintf(&b, "\tevent.%s = parsed.Type\n", ed.SSE.EventField)
 	}
 	b.WriteString("\tdataContent := parsed.Data\n")
-	if ed.SSE.DataField != "" {
+	switch {
+	case ed.SSE.DataField != "":
 		b.WriteString(renderSSEParseAssignment("event."+ed.SSE.DataField, ed.SSE.DataFieldTypeRef))
-	} else if ed.SSE.EventIsStruct {
+	case ed.SSE.EventIsStruct:
 		b.WriteString("\t// Decode JSON into the struct pointer directly\n")
 		b.WriteString("\trespBody := &http.Response{\n")
 		b.WriteString("\t\tStatusCode: http.StatusOK,\n")
@@ -224,7 +225,7 @@ func renderSSEClientSection(ed *EndpointData) string {
 		b.WriteString("\tif err != nil {\n")
 		b.WriteString("\t\treturn\n")
 		b.WriteString("\t}\n")
-	} else {
+	default:
 		b.WriteString(renderSSEParseAssignment("event", ed.SSE.EventTypeRef))
 	}
 	b.WriteString("\treturn\n")
@@ -318,7 +319,7 @@ func websocketConnConfigurerStructSection(data *ServiceData, client bool) codege
 	b.WriteString("type ConnConfigurer struct {\n")
 	for _, endpoint := range data.Endpoints {
 		if IsWebSocketEndpoint(endpoint) {
-			fmt.Fprintf(&b, "\t%sFn goahttp.ConnConfigureFunc\n", endpoint.Method.VarName)
+			fmt.Fprintf(&b, "\t%sFn loomhttp.ConnConfigureFunc\n", endpoint.Method.VarName)
 		}
 	}
 	b.WriteString("}\n")
@@ -334,7 +335,7 @@ func websocketConnConfigurerInitSection(data *ServiceData, client bool) codegen.
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(fmt.Sprintf("NewConnConfigurer initializes the websocket connection configurer function with fn for all the streaming endpoints in %q service.", data.Service.Name)))
 	b.WriteString("\n")
-	b.WriteString("func NewConnConfigurer(fn goahttp.ConnConfigureFunc) *ConnConfigurer {\n")
+	b.WriteString("func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {\n")
 	b.WriteString("\treturn &ConnConfigurer{\n")
 	for _, endpoint := range data.Endpoints {
 		if IsWebSocketEndpoint(endpoint) {
@@ -361,9 +362,9 @@ func websocketStructTypeSection(ws *WebSocketData) codegen.Section {
 		b.WriteString("\t" + codegen.Comment("upgradeErr is the error returned by the websocket upgrade attempt.") + "\n")
 		b.WriteString("\tupgradeErr error\n")
 		b.WriteString("\t" + codegen.Comment("upgrader is the websocket connection upgrader.") + "\n")
-		b.WriteString("\tupgrader goahttp.Upgrader\n")
+		b.WriteString("\tupgrader loomhttp.Upgrader\n")
 		b.WriteString("\t" + codegen.Comment("configurer is the websocket connection configurer.") + "\n")
-		b.WriteString("\tconfigurer goahttp.ConnConfigureFunc\n")
+		b.WriteString("\tconfigurer loomhttp.ConnConfigureFunc\n")
 		b.WriteString("\t" + codegen.Comment("cancel is the context cancellation function which cancels the request context when invoked.") + "\n")
 		b.WriteString("\tcancel context.CancelFunc\n")
 		b.WriteString("\t" + codegen.Comment("w is the HTTP response writer used in upgrading the connection.") + "\n")
@@ -518,15 +519,16 @@ func websocketRecvSection(ws *WebSocketData) codegen.Section {
 			b.WriteString("\t\treturn rv, err\n")
 			b.WriteString("\t}\n")
 		}
-		if ws.Payload != nil && ws.Payload.Init != nil {
+		switch {
+		case ws.Payload != nil && ws.Payload.Init != nil:
 			if ws.RecvTypeIsPointer {
 				fmt.Fprintf(&b, "\treturn %s(body), nil\n", ws.Payload.Init.Name)
 			} else {
 				fmt.Fprintf(&b, "\treturn %s(msg), nil\n", ws.Payload.Init.Name)
 			}
-		} else if ws.RecvTypeIsPointer {
+		case ws.RecvTypeIsPointer:
 			b.WriteString("\treturn body, nil\n")
-		} else {
+		default:
 			b.WriteString("\treturn *msg, nil\n")
 		}
 	} else {
@@ -572,7 +574,7 @@ func websocketRecvSection(ws *WebSocketData) codegen.Section {
 				}
 				fmt.Fprintf(&b, "\tvres := %s%s.%s{res, %s }\n", prefix, view.ViewsPkg, view.VarName, viewArg)
 				fmt.Fprintf(&b, "\tif err := %s.Validate%s(vres); err != nil {\n", view.ViewsPkg, ws.Endpoint.Method.Result)
-				fmt.Fprintf(&b, "\t\treturn rv, goahttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
+				fmt.Fprintf(&b, "\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
 				b.WriteString("\t}\n")
 				fmt.Fprintf(&b, "\treturn %s.%s(vres), nil\n", ws.PkgName, view.ResultInit.Name)
 			} else {

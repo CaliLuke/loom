@@ -1,4 +1,4 @@
-package goa
+package loom
 
 type (
 	// InterceptorInfo contains information about the request shared between

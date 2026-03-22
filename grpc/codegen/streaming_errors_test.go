@@ -23,7 +23,7 @@ func TestStreamingWithErrors(t *testing.T) {
 			dsl:  testdata.ServerStreamingWithCustomErrorsDSL,
 			testFunc: func(t *testing.T, code string) {
 				// Verify error decoding is present
-				assert.Contains(t, code, "goagrpc.DecodeError(err)",
+				assert.Contains(t, code, "loomgrpc.DecodeError(err)",
 					"should decode errors from stream")
 
 				// Verify custom error types are handled
@@ -33,8 +33,8 @@ func TestStreamingWithErrors(t *testing.T) {
 					"should handle validation error type")
 
 				// Verify generic errors are handled
-				assert.Contains(t, code, "case *goapb.ErrorResponse:",
-					"should handle generic goa errors")
+				assert.Contains(t, code, "case *loompb.ErrorResponse:",
+					"should handle generic Loom errors")
 
 				// Verify proper error construction
 				assert.Contains(t, code, "NewServerStreamCustomErrorError(message",
@@ -48,9 +48,9 @@ func TestStreamingWithErrors(t *testing.T) {
 			dsl:  testdata.BidirectionalStreamingRPCWithErrorsDSL,
 			testFunc: func(t *testing.T, code string) {
 				// Bidirectional streaming with simple errors should still decode
-				assert.Contains(t, code, "goagrpc.DecodeError(err)",
+				assert.Contains(t, code, "loomgrpc.DecodeError(err)",
 					"should decode errors from bidirectional stream")
-				assert.Contains(t, code, "case *goapb.ErrorResponse:",
+				assert.Contains(t, code, "case *loompb.ErrorResponse:",
 					"should handle generic errors in bidirectional streaming")
 			},
 		},
@@ -178,9 +178,9 @@ func TestStreamingErrorComparison(t *testing.T) {
 	}
 
 	// Both should decode errors
-	assert.Contains(t, unaryCode, "goagrpc.DecodeError(err)",
+	assert.Contains(t, unaryCode, "loomgrpc.DecodeError(err)",
 		"unary methods should decode errors")
-	assert.Contains(t, streamCode, "goagrpc.DecodeError(err)",
+	assert.Contains(t, streamCode, "loomgrpc.DecodeError(err)",
 		"streaming methods should decode errors")
 
 	// Both should handle the custom error type

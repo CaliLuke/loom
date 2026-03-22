@@ -227,11 +227,11 @@ type (
 		// used.
 		ResponseStruct string
 		// EndpointField is the unique field name used in the generated client
-		// struct to store the goa.Endpoint for this method. It is computed with a
+		// struct to store the loom.Endpoint for this method. It is computed with a
 		// scope that includes method names to avoid field/method name collisions.
 		EndpointField string
 		// StreamEndpointField is the unique field name used in the generated client
-		// struct to store the "streaming mode" goa.Endpoint for mixed results. The
+		// struct to store the "streaming mode" loom.Endpoint for mixed results. The
 		// transport endpoint forces server streaming (e.g. sets "Accept:
 		// text/event-stream") and returns the client stream interface.
 		//
@@ -819,7 +819,6 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 		methods []*MethodData
 		schemes SchemesData
 	)
-	methods = make([]*MethodData, len(service.Methods))
 	methods, schemes, viewedRTs = d.buildServiceMethods(service, scope, viewScope, viewspkg, seenProj, seenViewed, viewedRTs)
 
 	// Compute unique EndpointField names using the service-level scope, after
@@ -1372,9 +1371,9 @@ func emptyObjectValueExpr(fieldType string) string {
 
 // buildErrorInitData creates the data needed to generate code around endpoint error return values.
 func buildErrorInitData(er *expr.ErrorExpr, scope *codegen.NameScope) *ErrorInitData {
-	_, temporary := er.Meta["goa:error:temporary"]
-	_, timeout := er.Meta["goa:error:timeout"]
-	_, fault := er.Meta["goa:error:fault"]
+	_, temporary := er.Meta["loom:error:temporary"]
+	_, timeout := er.Meta["loom:error:timeout"]
+	_, fault := er.Meta["loom:error:fault"]
 	var pkg string
 	if ut, ok := er.Type.(expr.UserType); ok {
 		pkg = codegen.UserTypeLocation(ut).PackageName()
@@ -2136,7 +2135,7 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	resvar := scope.GoTypeName(att)
 	vresref := viewScope.GoFullTypeRef(att, viewspkg)
 	validate := buildViewedResultValidation(projected, views, scope, att, resvar)
-	init := buildViewedResultInit(att, views, viewspkg, scope, viewScope, resvar, vresref, isarr)
+	init := buildViewedResultInit(att, views, viewspkg, scope, resvar, vresref, isarr)
 	resinit, resref := buildViewedResultResultInit(att, projected, views, viewspkg, scope, viewScope, resvar)
 	projT := wrapProjected(projected.Type.(expr.UserType))
 	return &ViewedResultTypeData{
@@ -2178,7 +2177,7 @@ func buildViewedResultValidation(projected *expr.AttributeExpr, views []*ViewDat
 	}
 }
 
-func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg string, scope, viewScope *codegen.NameScope, resvar, vresref string, isarr bool) *InitData {
+func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg string, scope *codegen.NameScope, resvar, vresref string, isarr bool) *InitData {
 	initTData := viewedResultInitTemplateData{
 		ToViewed:      true,
 		ArgVar:        "res",
@@ -2246,7 +2245,7 @@ func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 			lines = append(lines, "\t\terr = "+validateName+"("+data.ArgVar+".Projected)")
 		}
 		lines = append(lines, "\tdefault:")
-		lines = append(lines, "\t\terr = goa.InvalidEnumValueError(\"view\", "+data.Source+".View, []any{ "+strings.Join(quotedViews(data.Views), ", ")+" })")
+		lines = append(lines, "\t\terr = loom.InvalidEnumValueError(\"view\", "+data.Source+".View, []any{ "+strings.Join(quotedViews(data.Views), ", ")+" })")
 		lines = append(lines, "}")
 		return strings.Join(lines, "\n")
 	}
@@ -2254,7 +2253,7 @@ func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 	if data.IsCollection {
 		lines = append(lines, "for _, "+data.Source+" := range "+data.ArgVar+" {")
 		lines = append(lines, "\tif err2 := "+data.ValidateVar+"("+data.Source+"); err2 != nil {")
-		lines = append(lines, "\t\terr = goa.MergeErrors(err, err2)")
+		lines = append(lines, "\t\terr = loom.MergeErrors(err, err2)")
 		lines = append(lines, "\t}")
 		lines = append(lines, "}")
 		return strings.Join(lines, "\n")
@@ -2269,12 +2268,12 @@ func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 		fieldName := codegen.Goify(field.Name, true)
 		if field.IsRequired {
 			lines = append(lines, "if "+data.Source+"."+fieldName+" == nil {")
-			lines = append(lines, "\terr = goa.MergeErrors(err, goa.MissingFieldError("+fmt.Sprintf("%q", field.Name)+", "+fmt.Sprintf("%q", data.Source)+"))")
+			lines = append(lines, "\terr = loom.MergeErrors(err, loom.MissingFieldError("+fmt.Sprintf("%q", field.Name)+", "+fmt.Sprintf("%q", data.Source)+"))")
 			lines = append(lines, "}")
 		}
 		lines = append(lines, "if "+data.Source+"."+fieldName+" != nil {")
 		lines = append(lines, "\tif err2 := "+field.ValidateVar+"("+data.Source+"."+fieldName+"); err2 != nil {")
-		lines = append(lines, "\t\terr = goa.MergeErrors(err, err2)")
+		lines = append(lines, "\t\terr = loom.MergeErrors(err, err2)")
 		lines = append(lines, "\t}")
 		lines = append(lines, "}")
 	}
@@ -2306,7 +2305,7 @@ func renderInitTypeCode(data viewedResultInitTemplateData) string {
 			}
 		}
 		lines = append(lines, "\tdefault:")
-		lines = append(lines, "\t\tpanic(goa.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
+		lines = append(lines, "\t\tpanic(loom.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
 		for _, value := range quotedViews(data.Views) {
 			lines = append(lines, "\t\t\t"+value+",")
 		}

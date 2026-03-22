@@ -9,57 +9,147 @@ servers:
 paths:
     /guarded:
         get:
-            tags:
-                - clock
-            summary: Guarded clock
             operationId: clock.guarded
             parameters:
-                - name: token
+                - allowEmptyValue: true
+                  example: Similique et.
                   in: query
-                  allowEmptyValue: true
+                  name: token
                   schema:
+                    example: Provident et in.
                     type: string
-                    example: Dolorem illum libero vel aut eos natus.
-                  example: Fuga nihil et modi.
             responses:
                 "200":
-                    description: OK response.
-                    content:
-                        text/event-stream:
-                            schema:
-                                $ref: '#/components/schemas/TickTockEvent'
+                    $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
                 "401":
-                    description: 'unauthorized: Unauthorized response.'
                     content:
                         application/vnd.loom.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
-    /tick:
-        get:
+                    description: 'unauthorized: Unauthorized response.'
+            summary: Guarded clock
             tags:
                 - clock
-            summary: Tick clock
+            x-loom-async:
+                direction: server
+                handshake:
+                    path: /guarded
+                    request:
+                        method: GET
+                    response:
+                        contentType: text/event-stream
+                        status: 200
+                messages:
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                data:
+                                    type: string
+                                    example: Deserunt voluptas nisi.
+                                event:
+                                    type: string
+                                    example: Exercitationem praesentium.
+                            example:
+                                data: Eos cumque fugiat ut suscipit.
+                                event: Quia nam eum sit similique excepturi.
+                            required:
+                                - event
+                                - data
+                        sse:
+                            dataField: data
+                            eventField: event
+                            idField: null
+                            requestIDField: null
+                            retryField: null
+                transport: sse
+    /tick:
+        get:
             operationId: clock.tick
             responses:
                 "200":
-                    description: OK response.
-                    content:
-                        text/event-stream:
-                            schema:
-                                $ref: '#/components/schemas/TickTockEvent'
-    /tock:
-        get:
+                    $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
+            summary: Tick clock
             tags:
                 - clock
-            summary: Tock clock
+            x-loom-async:
+                direction: server
+                handshake:
+                    path: /tick
+                    request:
+                        method: GET
+                    response:
+                        contentType: text/event-stream
+                        status: 200
+                messages:
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                data:
+                                    type: string
+                                    example: Fuga nihil et modi.
+                                event:
+                                    type: string
+                                    example: Dolorem illum libero vel aut eos natus.
+                            example:
+                                data: Corporis expedita dolores ipsam ut sit.
+                                event: Id doloremque.
+                            required:
+                                - event
+                                - data
+                        sse:
+                            dataField: data
+                            eventField: event
+                            idField: null
+                            requestIDField: null
+                            retryField: null
+                transport: sse
+    /tock:
+        get:
             operationId: clock.tock
             responses:
                 "200":
-                    description: OK response.
-                    content:
-                        text/event-stream:
-                            schema:
-                                $ref: '#/components/schemas/TickTockEvent'
+                    $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
+            summary: Tock clock
+            tags:
+                - clock
+            x-loom-async:
+                direction: server
+                handshake:
+                    path: /tock
+                    request:
+                        method: GET
+                    response:
+                        contentType: text/event-stream
+                        status: 200
+                messages:
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                data:
+                                    type: string
+                                    example: Maiores harum corrupti aliquid quis fuga vero.
+                                event:
+                                    type: string
+                                    example: Aut voluptatem ratione et accusamus saepe.
+                            example:
+                                data: Eveniet autem praesentium dolorem rem nobis aliquid.
+                                event: Pariatur ut beatae doloribus quae commodi.
+                            required:
+                                - event
+                                - data
+                        sse:
+                            dataField: data
+                            eventField: event
+                            idField: null
+                            requestIDField: null
+                            retryField: null
+                transport: sse
 components:
     schemas:
         Error:
@@ -118,5 +208,12 @@ components:
             required:
                 - event
                 - data
+    responses:
+        TickTockEventTextEventStreamStatus200Response:
+            description: OK response.
+            content:
+                text/event-stream:
+                    schema:
+                        $ref: '#/components/schemas/TickTockEvent'
 tags:
     - name: clock

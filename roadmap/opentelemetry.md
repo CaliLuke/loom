@@ -9,7 +9,7 @@
   - `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp`
   - `go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc`
 - Keep provider/exporter/resource bootstrap app-owned while moving transport instrumentation into the framework.
-- Make the HTTP wrapper route-aware by default so spans use Loom's matched `METHOD /pattern` name when `goahttp.NewMuxer()` has populated `r.Pattern`.
+- Make the HTTP wrapper route-aware by default so spans use Loom's matched `METHOD /pattern` name when `loomhttp.NewMuxer()` has populated `r.Pattern`.
 - Add the higher-level framework-owned observability package:
   - `github.com/CaliLuke/loom/observability/otel`
   - `github.com/CaliLuke/loom/observability/otel/logrusbridge`
@@ -27,6 +27,6 @@
 - Prefer `github.com/CaliLuke/loom/observability/otel` when the service wants framework-owned provider bootstrap and transport observability policy.
 - Keep environment parsing and domain-specific metrics app-owned.
 - Use the lower-level `http/middleware/otel` and `grpc/middleware/otel` packages only when transport-only instrumentation is sufficient.
-- Prefer `goahttp.NewMuxer()` plus `otel.HTTPMiddleware(...)` for HTTP so span names and route attributes stay stable across path parameters.
+- Prefer `loomhttp.NewMuxer()` plus `otel.HTTPMiddleware(...)` for HTTP so span names and route attributes stay stable across path parameters.
 - Use `otel.AddHTTPAttributes(...)` from downstream HTTP middleware when request-scoped transport attributes need to be attached after the span has started.
 - Prefer `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)` for gRPC instead of reviving the legacy trace/X-Ray middleware.

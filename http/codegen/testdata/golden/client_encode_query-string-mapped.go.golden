@@ -1,10 +1,10 @@
 // EncodeMethodQueryStringMappedRequest returns an encoder for requests sent to
 // the ServiceQueryStringMapped MethodQueryStringMapped server.
-func EncodeMethodQueryStringMappedRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryStringMappedRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerystringmapped.MethodQueryStringMappedPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryStringMapped", "MethodQueryStringMapped", "*servicequerystringmapped.MethodQueryStringMappedPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryStringMapped", "MethodQueryStringMapped", "*servicequerystringmapped.MethodQueryStringMappedPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Query != nil {

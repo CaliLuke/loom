@@ -2,14 +2,14 @@
 // ServerInterceptorByNameService example server interceptors
 //
 // Command:
-// goa
+// loom
 
 package interceptors
 
 import (
 	"context"
 	"fmt"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 	"goa.design/clue/log"
 	serverinterceptorbynameservice "server_interceptor_by_name_service"
 )
@@ -22,7 +22,7 @@ type ServerInterceptorByNameServiceServerInterceptors struct {
 func NewServerInterceptorByNameServiceServerInterceptors() *ServerInterceptorByNameServiceServerInterceptors {
 	return &ServerInterceptorByNameServiceServerInterceptors{}
 }
-func (i *ServerInterceptorByNameServiceServerInterceptors) Test(ctx context.Context, info *interceptors.TestInfo, next goa.Endpoint) (any, error) {
+func (i *ServerInterceptorByNameServiceServerInterceptors) Test(ctx context.Context, info *interceptors.TestInfo, next loom.Endpoint) (any, error) {
 	log.Printf(ctx, "[Test] Processing request: %v", info.RawPayload())
 	resp, err := next(ctx, info.RawPayload())
 	if err != nil {

@@ -159,7 +159,7 @@ func NewMethodResultWithAliasValidationResult(message *service_result_with_alias
 
 // ValidateUUID runs the validations defined on UUID.
 func ValidateUUID(message *service_result_with_alias_validationpb.UUID) (err error) {
-	err = goa.MergeErrors(err, goa.ValidateFormat("message.field", message.Field, goa.FormatUUID))
+	err = loom.MergeErrors(err, loom.ValidateFormat("message.field", message.Field, loom.FormatUUID))
 	return
 }
 `
@@ -282,7 +282,7 @@ func NewMethodUnaryRPCWithErrorsCustomErrorError(message *service_unary_rpc_with
 // on MethodUnaryRPCWithErrorsInternalError.
 func ValidateMethodUnaryRPCWithErrorsInternalError(errmsg *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsInternalError) (err error) {
 	if !(errmsg.Name == "this" || errmsg.Name == "that") {
-		err = goa.MergeErrors(err, goa.InvalidEnumValueError("errmsg.name", errmsg.Name, []any{"this", "that"}))
+		err = loom.MergeErrors(err, loom.InvalidEnumValueError("errmsg.name", errmsg.Name, []any{"this", "that"}))
 	}
 	return
 }
@@ -291,7 +291,7 @@ func ValidateMethodUnaryRPCWithErrorsInternalError(errmsg *service_unary_rpc_wit
 // on MethodUnaryRPCWithErrorsBadRequestError.
 func ValidateMethodUnaryRPCWithErrorsBadRequestError(errmsg *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsBadRequestError) (err error) {
 	if !(errmsg.Name == "this" || errmsg.Name == "that") {
-		err = goa.MergeErrors(err, goa.InvalidEnumValueError("errmsg.name", errmsg.Name, []any{"this", "that"}))
+		err = loom.MergeErrors(err, loom.InvalidEnumValueError("errmsg.name", errmsg.Name, []any{"this", "that"}))
 	}
 	return
 }
@@ -408,7 +408,7 @@ func NewMethodResult(message *using_meta_typespb.MethodResponse) *usingmetatypes
 // ValidateMethodResponse runs the validations defined on MethodResponse.
 func ValidateMethodResponse(message *using_meta_typespb.MethodResponse) (err error) {
 	if message.B == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("b", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("b", "message"))
 	}
 	return
 }

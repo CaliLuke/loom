@@ -88,9 +88,9 @@ func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *ss
 		data = string(byts)
 	}
 
-	msg := goahttp.SSEMessage{Data: data}
+	msg := loomhttp.SSEMessage{Data: data}
 
-	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
 		return err
 	}
 

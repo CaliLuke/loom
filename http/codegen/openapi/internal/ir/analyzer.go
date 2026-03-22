@@ -132,10 +132,10 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 				continue
 			}
 
-			reqBodyAttr, _ := attributeForSchemaUsage(endpoint.Body, schemaUsageRequest)
+			reqBodyAttr := attributeForSchemaUsage(endpoint.Body, schemaUsageRequest)
 			req := a.AnalyzeSchema(reqBodyAttr)
 			if endpoint.StreamingBody != nil {
-				streamingAttr, _ := attributeForSchemaUsage(endpoint.StreamingBody, schemaUsageRequest)
+				streamingAttr := attributeForSchemaUsage(endpoint.StreamingBody, schemaUsageRequest)
 				streaming := a.AnalyzeSchema(streamingAttr)
 				req = mergeStreamingBodyNote(req, streaming)
 			}
@@ -146,7 +146,7 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 				responses = append(responses, errResp.Response)
 			}
 			for _, resp := range responses {
-				body, _ := attributeForSchemaUsage(responseBodyAttribute(resp), schemaUsageResponse)
+				body := attributeForSchemaUsage(responseBodyAttribute(resp), schemaUsageResponse)
 				responseBodies[resp.StatusCode] = append(responseBodies[resp.StatusCode], a.AnalyzeSchema(body))
 			}
 
@@ -162,15 +162,15 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 	return bodies
 }
 
-func attributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage) (*expr.AttributeExpr, bool) {
+func attributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage) *expr.AttributeExpr {
 	if attr == nil || attr.Type == expr.Empty || usage == schemaUsageNeutral {
-		return attr, false
+		return attr
 	}
 	cloned := expr.DupAtt(attr)
 	if !pruneAttributeForSchemaUsage(cloned, usage, map[string]struct{}{}) {
-		return attr, false
+		return attr
 	}
-	return cloned, true
+	return cloned
 }
 
 func pruneAttributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage, seen map[string]struct{}) bool {

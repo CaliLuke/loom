@@ -50,7 +50,7 @@ func exampleCLIMain(_ string, root *expr.RootExpr, svr *expr.ServerExpr) *codege
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
 		newRenderSection("cli-main", func() string {
-			return renderClientMain(svrdata, root, hasJSONRPC(root, svr), hasHTTP(root, svr))
+			return renderClientMain(svrdata, hasJSONRPC(root, svr), hasHTTP(root, svr))
 		}),
 		newRenderSection("cli-main-usage", func() string {
 			return renderUsage(root.API.Name, svrdata, hasJSONRPC(root, svr), hasHTTP(root, svr))

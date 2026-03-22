@@ -16,6 +16,6 @@ func NewMethodResultWithAliasValidationResult(message *service_result_with_alias
 
 // ValidateUUID runs the validations defined on UUID.
 func ValidateUUID(message *service_result_with_alias_validationpb.UUID) (err error) {
-	err = goa.MergeErrors(err, goa.ValidateFormat("message.field", message.Field, goa.FormatUUID))
+	err = loom.MergeErrors(err, loom.ValidateFormat("message.field", message.Field, loom.FormatUUID))
 	return
 }

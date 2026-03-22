@@ -57,11 +57,11 @@ func rewriteJSONRPCSectionSources(sections []codegen.Section, rewrite func(strin
 func rewriteJSONRPCCLIParseEndpointSource(source string) string {
 	source = strings.ReplaceAll(source,
 		"{{ .VarName }}Configurer *{{ .PkgName }}.ConnConfigurer,",
-		"{{ .VarName }}ConfigFn goahttp.ConnConfigureFunc,")
+		"{{ .VarName }}ConfigFn loomhttp.ConnConfigureFunc,")
 	source = strings.ReplaceAll(source,
 		", {{ .VarName }}Configurer{{ end }}",
 		", {{ .VarName }}ConfigFn{{ end }}")
-	source = jsonrpcCLIConfigurerDeclPattern.ReplaceAllString(source, `${1}ConfigFn goahttp.ConnConfigureFunc,`)
+	source = jsonrpcCLIConfigurerDeclPattern.ReplaceAllString(source, `${1}ConfigFn loomhttp.ConnConfigureFunc,`)
 	source = jsonrpcCLIConfigurerUsePattern.ReplaceAllString(source, `, ${1}ConfigFn${2}`)
 	return source
 }

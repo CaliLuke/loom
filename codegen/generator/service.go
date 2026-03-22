@@ -9,7 +9,7 @@ import (
 
 // Service iterates through the roots and returns the files needed to render
 // the service code. It returns an error if the roots slice does not include
-// a goa design.
+// a Loom design.
 func Service(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 	var files []*codegen.File
 	var userTypePkgs = make(map[string][]string)

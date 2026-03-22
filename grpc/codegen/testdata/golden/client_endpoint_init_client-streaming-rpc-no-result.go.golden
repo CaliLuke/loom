@@ -2,17 +2,17 @@
 // function in
 // service_client_streaming_no_resultpb.ServiceClientStreamingNoResultClient
 // interface.
-func (c *Client) MethodClientStreamingNoResult() goa.Endpoint {
+func (c *Client) MethodClientStreamingNoResult() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(BuildMethodClientStreamingNoResultFunc(c.grpccli, c.opts...), nil, DecodeMethodClientStreamingNoResultResponse)
+		inv := loomgrpc.NewInvoker(BuildMethodClientStreamingNoResultFunc(c.grpccli, c.opts...), nil, DecodeMethodClientStreamingNoResultResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			resp := goagrpc.DecodeError(err)
+			resp := loomgrpc.DecodeError(err)
 			// Try to decode a Loom error response detail before falling back to Fault.
-			if eresp, ok := resp.(*goapb.ErrorResponse); ok {
-				return nil, goagrpc.NewServiceError(eresp)
+			if eresp, ok := resp.(*loompb.ErrorResponse); ok {
+				return nil, loomgrpc.NewServiceError(eresp)
 			}
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}

@@ -3,12 +3,12 @@ import (
 	cli "my/pkg/path/grpc/cli/test_api"
 	"os"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func doGRPC(_, host string, _ int, _ bool) (goa.Endpoint, any, error) {
+func doGRPC(_, host string, _ int, _ bool) (loom.Endpoint, any, error) {
 	conn, err := grpc.NewClient(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "could not connect to gRPC server at %s: %v\n", host, err)

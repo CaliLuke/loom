@@ -115,7 +115,7 @@ func Enum(vals ...any) {
 
 // Format adds a "format" validation to the attribute.
 // See http://json-schema.org/latest/json-schema-validation.html#anchor104.
-// The formats supported by goa are:
+// The formats supported by Loom are:
 //
 // FormatDate: RFC3339 date
 //

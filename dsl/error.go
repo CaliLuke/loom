@@ -228,7 +228,7 @@ func Temporary() {
 		eval.IncompatibleDSL()
 		return
 	}
-	attr.AddMeta("goa:error:temporary")
+	attr.AddMeta("loom:error:temporary")
 }
 
 // Remedy declares structured remediation guidance for an error.
@@ -325,7 +325,7 @@ func Timeout(args ...string) {
 			eval.ReportError("Timeout in Error expression takes no arguments")
 			return
 		}
-		e.AddMeta("goa:error:timeout")
+		e.AddMeta("loom:error:timeout")
 	case expr.TimeoutHolder:
 		if len(args) != 1 {
 			eval.ReportError("Timeout requires a duration string argument")
@@ -359,5 +359,5 @@ func Fault() {
 		eval.IncompatibleDSL()
 		return
 	}
-	attr.AddMeta("goa:error:fault")
+	attr.AddMeta("loom:error:fault")
 }

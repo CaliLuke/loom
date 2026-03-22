@@ -1,10 +1,10 @@
 // EncodeMethodBodyQueryObjectRequest returns an encoder for requests sent to
 // the ServiceBodyQueryObject MethodBodyQueryObject server.
-func EncodeMethodBodyQueryObjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryObjectRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyqueryobject.MethodBodyQueryObjectPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryObject", "MethodBodyQueryObject", "*servicebodyqueryobject.MethodBodyQueryObjectPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryObject", "MethodBodyQueryObject", "*servicebodyqueryobject.MethodBodyQueryObjectPayload", v)
 		}
 		values := req.URL.Query()
 		if p.B != nil {
@@ -13,7 +13,7 @@ func EncodeMethodBodyQueryObjectRequest(encoder func(*http.Request) goahttp.Enco
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryObjectRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryObject", "MethodBodyQueryObject", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryObject", "MethodBodyQueryObject", err)
 		}
 		return nil
 	}

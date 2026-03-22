@@ -21,10 +21,10 @@ const ServiceName = "ErrorRemedyMethod"
 // MethodKey key.
 var MethodNames = [1]string{"Show"}
 
-// MakeBadRequest builds a goa.ServiceError from an error.
-func MakeBadRequest(err error) *goa.ServiceError {
-	serr := goa.NewServiceError(err, "bad_request", false, false, false)
-	goa.WithErrorRemedy(serr, &goa.ErrorRemedy{
+// MakeBadRequest builds a loom.ServiceError from an error.
+func MakeBadRequest(err error) *loom.ServiceError {
+	serr := loom.NewServiceError(err, "bad_request", false, false, false)
+	loom.WithErrorRemedy(serr, &loom.ErrorRemedy{
 		Code:        "bad_request.fix",
 		SafeMessage: "The request is invalid.",
 		RetryHint:   "Correct the payload and retry.",

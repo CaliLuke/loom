@@ -8,7 +8,7 @@ func DecodeMethodMessageUserTypeWithNestedUserTypesRequest(ctx context.Context, 
 	)
 	{
 		if message, ok = v.(*service_message_user_type_with_nested_user_typespb.MethodMessageUserTypeWithNestedUserTypesRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "*service_message_user_type_with_nested_user_typespb.MethodMessageUserTypeWithNestedUserTypesRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "*service_message_user_type_with_nested_user_typespb.MethodMessageUserTypeWithNestedUserTypesRequest", v)
 		}
 	}
 	var payload *servicemessageusertypewithnestedusertypes.UT

@@ -47,7 +47,7 @@ func NewMultipleViews(vres *resultwithotherresultviews.MultipleViews) *MultipleV
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	default:
-		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+		panic(loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 		}))
@@ -68,7 +68,7 @@ func NewViewedMultipleViews(res *MultipleViews, view string) *resultwithotherres
 		p := ProjectMultipleViewsTiny(res)
 		vres = &resultwithotherresultviews.MultipleViews{Projected: p, View: "tiny"}
 	default:
-		panic(goa.InvalidEnumValueError("view", view, []any{
+		panic(loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 		}))

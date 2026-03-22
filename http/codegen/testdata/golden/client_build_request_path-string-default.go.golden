@@ -8,14 +8,14 @@ func (c *Client) BuildMethodPathStringDefaultRequest(ctx context.Context, v any)
 	{
 		p, ok := v.(*servicepathstringdefault.MethodPathStringDefaultPayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("ServicePathStringDefault", "MethodPathStringDefault", "*servicepathstringdefault.MethodPathStringDefaultPayload", v)
+			return nil, loomhttp.ErrInvalidType("ServicePathStringDefault", "MethodPathStringDefault", "*servicepathstringdefault.MethodPathStringDefaultPayload", v)
 		}
 		p = p.P
 	}
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringDefaultServicePathStringDefaultPath(p)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("ServicePathStringDefault", "MethodPathStringDefault", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("ServicePathStringDefault", "MethodPathStringDefault", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)

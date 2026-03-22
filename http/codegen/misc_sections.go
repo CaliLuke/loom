@@ -45,11 +45,11 @@ func multipartRequestEncoderSection(data *MultipartData) codegen.Section {
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(fmt.Sprintf("%s returns an encoder to encode the multipart request for the %q service %q endpoint.", data.InitName, data.ServiceName, data.MethodName)))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(encoderFn %s) func(r *http.Request) goahttp.Encoder {\n", data.InitName, data.FuncName)
-	b.WriteString("\treturn func(r *http.Request) goahttp.Encoder {\n")
+	fmt.Fprintf(&b, "func %s(encoderFn %s) func(r *http.Request) loomhttp.Encoder {\n", data.InitName, data.FuncName)
+	b.WriteString("\treturn func(r *http.Request) loomhttp.Encoder {\n")
 	b.WriteString("\t\tbody := &bytes.Buffer{}\n")
 	b.WriteString("\t\tmw := multipart.NewWriter(body)\n")
-	b.WriteString("\t\treturn goahttp.EncodingFunc(func(v any) error {\n")
+	b.WriteString("\t\treturn loomhttp.EncodingFunc(func(v any) error {\n")
 	fmt.Fprintf(&b, "\t\t\tp := v.(%s)\n", data.Payload.Ref)
 	b.WriteString("\t\t\tif err := encoderFn(mw, p); err != nil {\n")
 	b.WriteString("\t\t\t\treturn err\n")
@@ -162,7 +162,7 @@ func serverSSESection(ed *EndpointData) codegen.Section {
 	b.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
 	b.WriteString("\t\tdata = string(byts)\n")
 	b.WriteString("\t}\n\n")
-	b.WriteString("\tmsg := goahttp.SSEMessage{Data: data}\n")
+	b.WriteString("\tmsg := loomhttp.SSEMessage{Data: data}\n")
 	if ed.SSE.IDField != "" {
 		fmt.Fprintf(&b, "\n\tif id := res.%s; id != \"\" {\n\t\tmsg.ID = id\n\t}\n", ed.SSE.IDField)
 	}
@@ -173,7 +173,7 @@ func serverSSESection(ed *EndpointData) codegen.Section {
 		fmt.Fprintf(&b, "\tif retry := res.%s; retry > 0 {\n\t\tmsg.RetryMillis = int64(retry)\n\t}\n", ed.SSE.RetryField)
 	}
 	b.WriteString("\n")
-	b.WriteString("\tif err := goahttp.WriteSSEEvent(s.w, msg); err != nil {\n\t\treturn err\n\t}\n\n")
+	b.WriteString("\tif err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {\n\t\treturn err\n\t}\n\n")
 	b.WriteString("\treturn http.NewResponseController(s.w).Flush()\n")
 	b.WriteString("}\n\n")
 	b.WriteString(codegen.Comment("Close is a no-op for SSE. We keep the method for compatibility with other stream types."))
@@ -295,7 +295,7 @@ func renderRequestCreation(b *strings.Builder, serviceName, endpointName, reques
 	}
 	fmt.Fprintf(b, "\treq, err := http.NewRequest(%q, u.String(), %s)\n", verb, bodyRef)
 	b.WriteString("\tif err != nil {\n")
-	fmt.Fprintf(b, "\t\treturn nil, goahttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
+	fmt.Fprintf(b, "\t\treturn nil, loomhttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
 	b.WriteString("\t}\n")
 }
 
@@ -382,6 +382,6 @@ func renderDirectPayloadAssignment(b *strings.Builder, hasFields bool, arg *Init
 
 func ifTypeErr(b *strings.Builder, serviceName, endpointName, typeRef string) {
 	b.WriteString("\t\tif !ok {\n")
-	fmt.Fprintf(b, "\t\t\treturn nil, goahttp.ErrInvalidType(%q, %q, %q, v)\n", serviceName, endpointName, typeRef)
+	fmt.Fprintf(b, "\t\t\treturn nil, loomhttp.ErrInvalidType(%q, %q, %q, v)\n", serviceName, endpointName, typeRef)
 	b.WriteString("\t\t}\n")
 }

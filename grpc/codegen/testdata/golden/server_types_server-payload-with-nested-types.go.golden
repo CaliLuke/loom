@@ -25,7 +25,7 @@ func NewProtoMethodPayloadWithNestedTypesResponse() *service_payload_with_nested
 func ValidateMethodPayloadWithNestedTypesRequest(message *service_payload_with_nested_typespb.MethodPayloadWithNestedTypesRequest) (err error) {
 	if message.AParams != nil {
 		if err2 := ValidateAParams(message.AParams); err2 != nil {
-			err = goa.MergeErrors(err, err2)
+			err = loom.MergeErrors(err, err2)
 		}
 	}
 	return
@@ -36,7 +36,7 @@ func ValidateAParams(aParams *service_payload_with_nested_typespb.AParams) (err 
 	for _, v := range aParams.A {
 		if v != nil {
 			if err2 := ValidateArrayOfString(v); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	}
@@ -46,7 +46,7 @@ func ValidateAParams(aParams *service_payload_with_nested_typespb.AParams) (err 
 // ValidateArrayOfString runs the validations defined on ArrayOfString.
 func ValidateArrayOfString(val *service_payload_with_nested_typespb.ArrayOfString) (err error) {
 	if val.Field == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("field", "val"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "val"))
 	}
 	return
 }

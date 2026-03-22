@@ -51,7 +51,7 @@ func exampleCLI(genpkg string, services *ServicesData, svr *expr.ServerExpr) *co
 		{Path: "os"},
 		{Path: "time"},
 		codegen.LoomImport(""),
-		codegen.LoomNamedImport("grpc", "goagrpc"),
+		codegen.LoomNamedImport("grpc", "loomgrpc"),
 		{Path: rootPath + "/interceptors"},
 		{Path: path.Join(genpkg, "grpc", "cli", svrdata.Dir), Name: "cli"},
 	}

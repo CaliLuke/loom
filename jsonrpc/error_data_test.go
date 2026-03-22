@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (
@@ -22,8 +22,8 @@ func (testNamedRemedyError) LoomErrorName() string {
 	return "named_failure"
 }
 
-func (testNamedRemedyError) LoomErrorRemedy() *goa.ErrorRemedy {
-	return &goa.ErrorRemedy{
+func (testNamedRemedyError) LoomErrorRemedy() *loom.ErrorRemedy {
+	return &loom.ErrorRemedy{
 		Code:        "named.fix",
 		SafeMessage: "Named safe message.",
 		RetryHint:   "Retry later.",
@@ -32,9 +32,9 @@ func (testNamedRemedyError) LoomErrorRemedy() *goa.ErrorRemedy {
 
 func TestNewErrorData(t *testing.T) {
 	t.Run("service error includes transport-neutral metadata", func(t *testing.T) {
-		err := goa.WithErrorRemedy(
-			goa.NewServiceError(errors.New("internal detail"), "bad_request", true, true, true),
-			&goa.ErrorRemedy{
+		err := loom.WithErrorRemedy(
+			loom.NewServiceError(errors.New("internal detail"), "bad_request", true, true, true),
+			&loom.ErrorRemedy{
 				Code:        "bad_request.fix",
 				SafeMessage: "Retry with a valid request.",
 				RetryHint:   "Correct the payload and retry.",

@@ -7,14 +7,14 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // DesignVersion contains the major component of the version of Loom used to
 // author the design. This value is initialized when the generated tool is
 // invoked by retrieving the information passed on the command line by the
 // loom tool.
-var DesignVersion = goa.Major
+var DesignVersion = loom.Major
 
 type (
 	// ImportSpec defines a generated import statement.
@@ -49,7 +49,7 @@ func SimpleImport(path string) *ImportSpec {
 func LoomImport(rel string) *ImportSpec {
 	name := ""
 	if rel == "" {
-		name = "goa"
+		name = "loom"
 		rel = "pkg"
 	}
 	return LoomNamedImport(rel, name)

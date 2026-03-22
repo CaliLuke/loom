@@ -22,7 +22,7 @@ func TestJSONRPCAdaptationHelpers(t *testing.T) {
 	t.Run("cli parse endpoint rewrite", func(t *testing.T) {
 		source := "func parse({{ .VarName }}Configurer *{{ .PkgName }}.ConnConfigurer, x int) {}\ncall(x, {{ .VarName }}Configurer{{ end }})"
 		rewritten := rewriteJSONRPCCLIParseEndpointSource(source)
-		assert.Contains(t, rewritten, "{{ .VarName }}ConfigFn goahttp.ConnConfigureFunc,")
+		assert.Contains(t, rewritten, "{{ .VarName }}ConfigFn loomhttp.ConnConfigureFunc,")
 		assert.Contains(t, rewritten, ", {{ .VarName }}ConfigFn{{ end }}")
 		assert.NotContains(t, rewritten, "ConnConfigurer")
 	})

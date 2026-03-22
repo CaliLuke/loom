@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
 // executor handles test scenario execution
@@ -38,6 +38,7 @@ func newExecutor(serverURL string, opts ...executorOption) *executor {
 // Execute runs a test scenario
 func (e *executor) Execute(t *testing.T, scenario Scenario) {
 	t.Helper()
+	e.debugf(t, "execute scenario=%q transport=%s method=%s", scenario.Name, scenario.Transport, scenario.Request.GetMethod(scenario.Method))
 
 	// Handle different scenario types
 	switch {
@@ -81,6 +82,7 @@ func (e *executor) executeHTTP(ctx context.Context, t *testing.T, scenario Scena
 
 	// Build request
 	method := scenario.Request.GetMethod(scenario.Method)
+	e.debugf(t, "http request method=%s", method)
 
 	// Try CLI client first for non-streaming scenarios
 	// Skip CLI if custom JSONRPC field is specified
@@ -160,6 +162,7 @@ func (e *executor) executeHTTP(ctx context.Context, t *testing.T, scenario Scena
 
 	// Parse response
 	if result != nil {
+		e.debugf(t, "http response bytes=%d", len(result))
 		var resp any
 		err := json.Unmarshal(result, &resp)
 		require.NoError(t, err, "Failed to parse response")
@@ -206,6 +209,7 @@ func (e *executor) executeSSE(ctx context.Context, t *testing.T, scenario Scenar
 	require.NoError(t, err, "Failed to create client")
 
 	method := scenario.Request.GetMethod(scenario.Method)
+	e.debugf(t, "sse request method=%s", method)
 	req := harness.JSONRPCRequest{
 		Method: method,
 		Params: scenario.Request.Params,
@@ -220,6 +224,7 @@ func (e *executor) executeSSE(ctx context.Context, t *testing.T, scenario Scenar
 
 	events, err := client.CallSSE(ctx, req)
 	require.NoError(t, err, "SSE request failed")
+	e.debugf(t, "sse event count=%d", len(events))
 
 	if scenario.Expect.NoResponse {
 		require.Len(t, events, 0, "Expected no SSE events for notification")
@@ -265,6 +270,7 @@ func (e *executor) executeWebSocketSequence(ctx context.Context, t *testing.T, s
 
 	// Execute sequence steps
 	for i, step := range scenario.Sequence {
+		e.debugf(t, "websocket step=%d type=%s", i, step.Type)
 		switch step.Type {
 		case "connect":
 			err := client.ConnectWebSocket(ctx)
@@ -353,6 +359,7 @@ func (e *executor) executeSSESequence(ctx context.Context, t *testing.T, scenari
 
 	// Send request and get SSE events
 	method := scenario.Request.GetMethod(scenario.Method)
+	e.debugf(t, "sse sequence request method=%s steps=%d", method, len(scenario.Sequence))
 	req := harness.JSONRPCRequest{
 		Method: method,
 		Params: scenario.Request.Params,
@@ -373,6 +380,7 @@ func (e *executor) executeSSESequence(ctx context.Context, t *testing.T, scenari
 	// If JSONRPC is empty string (not specified), req.JSONRPC remains nil and defaults to "2.0"
 	events, err := client.CallSSE(ctx, req)
 	require.NoError(t, err, "SSE request failed")
+	e.debugf(t, "sse sequence event count=%d", len(events))
 
 	// Validate sequence
 	require.Len(t, events, len(scenario.Sequence), "Event count mismatch")
@@ -414,6 +422,7 @@ func expectedSSEEventType(msg map[string]any) string {
 // executeBatch handles batch request scenarios
 func (e *executor) executeBatch(t *testing.T, scenario Scenario) {
 	t.Helper()
+	e.debugf(t, "batch request size=%d", len(scenario.Batch))
 
 	// Batch requests only work with HTTP
 	require.Equal(t, TransportHTTP, scenario.Transport, "Batch requests only supported on HTTP transport")
@@ -464,6 +473,7 @@ func (e *executor) executeBatch(t *testing.T, scenario Scenario) {
 // executeRaw handles raw request scenarios
 func (e *executor) executeRaw(t *testing.T, scenario Scenario) {
 	t.Helper()
+	e.debugf(t, "raw request bytes=%d", len(scenario.RawRequest))
 
 	// Raw requests only work with HTTP
 	require.Equal(t, TransportHTTP, scenario.Transport, "Raw requests only supported on HTTP transport")
@@ -583,6 +593,14 @@ func (e *executor) compareJSONRPCMessages(t *testing.T, actual, expected map[str
 		require.True(t, ok, "Expected id in response")
 		e.compareValues(t, actualID, expectedID, "id")
 	}
+}
+
+func (e *executor) debugf(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if !e.config.Debug {
+		return
+	}
+	t.Logf(format, args...)
 }
 
 func (e *executor) validateBatchResponse(t *testing.T, _ int, response map[string]any, expect Expect) {

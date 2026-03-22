@@ -4,7 +4,7 @@
 // DecodeMethodAResponse may return the following errors:
 //   - "some_error" (type *validateerrorresponsetype.AError): http.StatusBadRequest
 //   - error: internal error
-func DecodeMethodAResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -27,16 +27,16 @@ func DecodeMethodAResponse(decoder func(*http.Response) goahttp.Decoder, restore
 			{
 				requiredRaw := resp.Header.Get("X-Request-Id")
 				if requiredRaw == "" {
-					return nil, goahttp.ErrValidationError("ValidateErrorResponseType", "MethodA", goa.MissingFieldError("required", "header"))
+					return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", loom.MissingFieldError("required", "header"))
 				}
 				v, err2 := strconv.ParseInt(requiredRaw, 10, strconv.IntSize)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("required", requiredRaw, "integer"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("required", requiredRaw, "integer"))
 				}
 				required = int(v)
 			}
 			if err != nil {
-				return nil, goahttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
+				return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
 			}
 			p := NewMethodAAResultOK(required)
 			view := "default"
@@ -51,7 +51,7 @@ func DecodeMethodAResponse(decoder func(*http.Response) goahttp.Decoder, restore
 			)
 			error_Raw := resp.Header.Get("X-Application-Error")
 			if error_Raw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("error", "header"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("error", "header"))
 			}
 			error_ = error_Raw
 			{
@@ -59,7 +59,7 @@ func DecodeMethodAResponse(decoder func(*http.Response) goahttp.Decoder, restore
 				if numOccurRaw != "" {
 					v, err2 := strconv.ParseInt(numOccurRaw, 10, strconv.IntSize)
 					if err2 != nil {
-						err = goa.MergeErrors(err, goa.InvalidFieldTypeError("num_occur", numOccurRaw, "integer"))
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("num_occur", numOccurRaw, "integer"))
 					}
 					pv := int(v)
 					numOccur = &pv
@@ -67,16 +67,16 @@ func DecodeMethodAResponse(decoder func(*http.Response) goahttp.Decoder, restore
 			}
 			if numOccur != nil {
 				if *numOccur < 1 {
-					err = goa.MergeErrors(err, goa.InvalidRangeError("num_occur", *numOccur, 1, true))
+					err = loom.MergeErrors(err, loom.InvalidRangeError("num_occur", *numOccur, 1, true))
 				}
 			}
 			if err != nil {
-				return nil, goahttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
+				return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
 			}
 			return nil, NewMethodASomeError(error_, numOccur)
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("ValidateErrorResponseType", "MethodA", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("ValidateErrorResponseType", "MethodA", resp.StatusCode, string(body))
 		}
 	}
 }

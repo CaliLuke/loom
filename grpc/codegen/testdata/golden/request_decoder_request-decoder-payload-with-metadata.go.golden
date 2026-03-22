@@ -11,7 +11,7 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 
 			v, err2 := strconv.ParseInt(inMetadataRaw, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("inMetadata", inMetadataRaw, "integer"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("inMetadata", inMetadataRaw, "integer"))
 			}
 			pv := int(v)
 			inMetadata = &pv
@@ -26,7 +26,7 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 	)
 	{
 		if message, ok = v.(*service_message_with_metadatapb.MethodMessageWithMetadataRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*service_message_with_metadatapb.MethodMessageWithMetadataRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*service_message_with_metadatapb.MethodMessageWithMetadataRequest", v)
 		}
 	}
 	var payload *servicemessagewithmetadata.RequestUT

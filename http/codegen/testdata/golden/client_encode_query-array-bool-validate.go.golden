@@ -1,11 +1,11 @@
 // EncodeMethodQueryArrayBoolValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayBoolValidate MethodQueryArrayBoolValidate
 // server.
-func EncodeMethodQueryArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayboolvalidate.MethodQueryArrayBoolValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayBoolValidate", "MethodQueryArrayBoolValidate", "*servicequeryarrayboolvalidate.MethodQueryArrayBoolValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayBoolValidate", "MethodQueryArrayBoolValidate", "*servicequeryarrayboolvalidate.MethodQueryArrayBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {

@@ -89,13 +89,13 @@ func (s *SSEDataIDFieldMethodServerStream) SendWithContext(ctx context.Context, 
 		data = string(byts)
 	}
 
-	msg := goahttp.SSEMessage{Data: data}
+	msg := loomhttp.SSEMessage{Data: data}
 
 	if id := res.ID; id != "" {
 		msg.ID = id
 	}
 
-	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
 		return err
 	}
 

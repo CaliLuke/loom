@@ -1,7 +1,7 @@
 // DecodeMethodQueryArrayBytesValidateRequest returns a decoder for requests
 // sent to the ServiceQueryArrayBytesValidate MethodQueryArrayBytesValidate
 // endpoint.
-func DecodeMethodQueryArrayBytesValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequeryarraybytesvalidate.MethodQueryArrayBytesValidatePayload, error) {
+func DecodeMethodQueryArrayBytesValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarraybytesvalidate.MethodQueryArrayBytesValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryarraybytesvalidate.MethodQueryArrayBytesValidatePayload, error) {
 		var payload *servicequeryarraybytesvalidate.MethodQueryArrayBytesValidatePayload
 		var (
@@ -11,7 +11,7 @@ func DecodeMethodQueryArrayBytesValidateRequest(mux goahttp.Muxer, decoder func(
 		{
 			qRaw := r.URL.Query()["q"]
 			if qRaw == nil {
-				err = goa.MergeErrors(err, goa.MissingFieldError("q", "query string"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
 			q = make([][]byte, len(qRaw))
 			for i, rv := range qRaw {
@@ -19,11 +19,11 @@ func DecodeMethodQueryArrayBytesValidateRequest(mux goahttp.Muxer, decoder func(
 			}
 		}
 		if len(q) < 1 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
 		}
 		for _, e := range q {
 			if len(e) < 2 {
-				err = goa.MergeErrors(err, goa.InvalidLengthError("q[*]", e, len(e), 2, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("q[*]", e, len(e), 2, true))
 			}
 		}
 		if err != nil {

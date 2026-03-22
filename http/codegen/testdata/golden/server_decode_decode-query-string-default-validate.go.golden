@@ -1,7 +1,7 @@
 // DecodeMethodQueryStringDefaultValidateRequest returns a decoder for requests
 // sent to the ServiceQueryStringDefaultValidate
 // MethodQueryStringDefaultValidate endpoint.
-func DecodeMethodQueryStringDefaultValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerystringdefaultvalidate.MethodQueryStringDefaultValidatePayload, error) {
+func DecodeMethodQueryStringDefaultValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerystringdefaultvalidate.MethodQueryStringDefaultValidatePayload, error) {
 	return func(r *http.Request) (*servicequerystringdefaultvalidate.MethodQueryStringDefaultValidatePayload, error) {
 		var payload *servicequerystringdefaultvalidate.MethodQueryStringDefaultValidatePayload
 		var (
@@ -15,7 +15,7 @@ func DecodeMethodQueryStringDefaultValidateRequest(mux goahttp.Muxer, decoder fu
 			q = "def"
 		}
 		if !(q == "def") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("q", q, []any{"def"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"def"}))
 		}
 		if err != nil {
 			return payload, err

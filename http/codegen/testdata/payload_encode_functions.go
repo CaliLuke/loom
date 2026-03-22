@@ -2,11 +2,11 @@ package testdata
 
 var PayloadQueryBoolEncodeCode = `// EncodeMethodQueryBoolRequest returns an encoder for requests sent to the
 // ServiceQueryBool MethodQueryBool server.
-func EncodeMethodQueryBoolRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryBoolRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerybool.MethodQueryBoolPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryBool", "MethodQueryBool", "*servicequerybool.MethodQueryBoolPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryBool", "MethodQueryBool", "*servicequerybool.MethodQueryBoolPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -20,11 +20,11 @@ func EncodeMethodQueryBoolRequest(encoder func(*http.Request) goahttp.Encoder) f
 
 var PayloadQueryBoolValidateEncodeCode = `// EncodeMethodQueryBoolValidateRequest returns an encoder for requests sent to
 // the ServiceQueryBoolValidate MethodQueryBoolValidate server.
-func EncodeMethodQueryBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryboolvalidate.MethodQueryBoolValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryBoolValidate", "MethodQueryBoolValidate", "*servicequeryboolvalidate.MethodQueryBoolValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryBoolValidate", "MethodQueryBoolValidate", "*servicequeryboolvalidate.MethodQueryBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -36,11 +36,11 @@ func EncodeMethodQueryBoolValidateRequest(encoder func(*http.Request) goahttp.En
 
 var PayloadQueryIntEncodeCode = `// EncodeMethodQueryIntRequest returns an encoder for requests sent to the
 // ServiceQueryInt MethodQueryInt server.
-func EncodeMethodQueryIntRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryint.MethodQueryIntPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryInt", "MethodQueryInt", "*servicequeryint.MethodQueryIntPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryInt", "MethodQueryInt", "*servicequeryint.MethodQueryIntPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -54,11 +54,11 @@ func EncodeMethodQueryIntRequest(encoder func(*http.Request) goahttp.Encoder) fu
 
 var PayloadQueryIntValidateEncodeCode = `// EncodeMethodQueryIntValidateRequest returns an encoder for requests sent to
 // the ServiceQueryIntValidate MethodQueryIntValidate server.
-func EncodeMethodQueryIntValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryintvalidate.MethodQueryIntValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryIntValidate", "MethodQueryIntValidate", "*servicequeryintvalidate.MethodQueryIntValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryIntValidate", "MethodQueryIntValidate", "*servicequeryintvalidate.MethodQueryIntValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -70,11 +70,11 @@ func EncodeMethodQueryIntValidateRequest(encoder func(*http.Request) goahttp.Enc
 
 var PayloadQueryInt32EncodeCode = `// EncodeMethodQueryInt32Request returns an encoder for requests sent to the
 // ServiceQueryInt32 MethodQueryInt32 server.
-func EncodeMethodQueryInt32Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryInt32Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryint32.MethodQueryInt32Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryInt32", "MethodQueryInt32", "*servicequeryint32.MethodQueryInt32Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryInt32", "MethodQueryInt32", "*servicequeryint32.MethodQueryInt32Payload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -88,11 +88,11 @@ func EncodeMethodQueryInt32Request(encoder func(*http.Request) goahttp.Encoder) 
 
 var PayloadQueryInt32ValidateEncodeCode = `// EncodeMethodQueryInt32ValidateRequest returns an encoder for requests sent
 // to the ServiceQueryInt32Validate MethodQueryInt32Validate server.
-func EncodeMethodQueryInt32ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryInt32ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryint32validate.MethodQueryInt32ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryInt32Validate", "MethodQueryInt32Validate", "*servicequeryint32validate.MethodQueryInt32ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryInt32Validate", "MethodQueryInt32Validate", "*servicequeryint32validate.MethodQueryInt32ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -104,11 +104,11 @@ func EncodeMethodQueryInt32ValidateRequest(encoder func(*http.Request) goahttp.E
 
 var PayloadQueryInt64EncodeCode = `// EncodeMethodQueryInt64Request returns an encoder for requests sent to the
 // ServiceQueryInt64 MethodQueryInt64 server.
-func EncodeMethodQueryInt64Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryInt64Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryint64.MethodQueryInt64Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryInt64", "MethodQueryInt64", "*servicequeryint64.MethodQueryInt64Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryInt64", "MethodQueryInt64", "*servicequeryint64.MethodQueryInt64Payload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -122,11 +122,11 @@ func EncodeMethodQueryInt64Request(encoder func(*http.Request) goahttp.Encoder) 
 
 var PayloadQueryInt64ValidateEncodeCode = `// EncodeMethodQueryInt64ValidateRequest returns an encoder for requests sent
 // to the ServiceQueryInt64Validate MethodQueryInt64Validate server.
-func EncodeMethodQueryInt64ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryInt64ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryint64validate.MethodQueryInt64ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryInt64Validate", "MethodQueryInt64Validate", "*servicequeryint64validate.MethodQueryInt64ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryInt64Validate", "MethodQueryInt64Validate", "*servicequeryint64validate.MethodQueryInt64ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -138,11 +138,11 @@ func EncodeMethodQueryInt64ValidateRequest(encoder func(*http.Request) goahttp.E
 
 var PayloadQueryUIntEncodeCode = `// EncodeMethodQueryUIntRequest returns an encoder for requests sent to the
 // ServiceQueryUInt MethodQueryUInt server.
-func EncodeMethodQueryUIntRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryUIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryuint.MethodQueryUIntPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryUInt", "MethodQueryUInt", "*servicequeryuint.MethodQueryUIntPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryUInt", "MethodQueryUInt", "*servicequeryuint.MethodQueryUIntPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -156,11 +156,11 @@ func EncodeMethodQueryUIntRequest(encoder func(*http.Request) goahttp.Encoder) f
 
 var PayloadQueryUIntValidateEncodeCode = `// EncodeMethodQueryUIntValidateRequest returns an encoder for requests sent to
 // the ServiceQueryUIntValidate MethodQueryUIntValidate server.
-func EncodeMethodQueryUIntValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryUIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryuintvalidate.MethodQueryUIntValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryUIntValidate", "MethodQueryUIntValidate", "*servicequeryuintvalidate.MethodQueryUIntValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryUIntValidate", "MethodQueryUIntValidate", "*servicequeryuintvalidate.MethodQueryUIntValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -172,11 +172,11 @@ func EncodeMethodQueryUIntValidateRequest(encoder func(*http.Request) goahttp.En
 
 var PayloadQueryUInt32EncodeCode = `// EncodeMethodQueryUInt32Request returns an encoder for requests sent to the
 // ServiceQueryUInt32 MethodQueryUInt32 server.
-func EncodeMethodQueryUInt32Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryUInt32Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryuint32.MethodQueryUInt32Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryUInt32", "MethodQueryUInt32", "*servicequeryuint32.MethodQueryUInt32Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryUInt32", "MethodQueryUInt32", "*servicequeryuint32.MethodQueryUInt32Payload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -190,11 +190,11 @@ func EncodeMethodQueryUInt32Request(encoder func(*http.Request) goahttp.Encoder)
 
 var PayloadQueryUInt32ValidateEncodeCode = `// EncodeMethodQueryUInt32ValidateRequest returns an encoder for requests sent
 // to the ServiceQueryUInt32Validate MethodQueryUInt32Validate server.
-func EncodeMethodQueryUInt32ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryUInt32ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryuint32validate.MethodQueryUInt32ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryUInt32Validate", "MethodQueryUInt32Validate", "*servicequeryuint32validate.MethodQueryUInt32ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryUInt32Validate", "MethodQueryUInt32Validate", "*servicequeryuint32validate.MethodQueryUInt32ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -206,11 +206,11 @@ func EncodeMethodQueryUInt32ValidateRequest(encoder func(*http.Request) goahttp.
 
 var PayloadQueryUInt64EncodeCode = `// EncodeMethodQueryUInt64Request returns an encoder for requests sent to the
 // ServiceQueryUInt64 MethodQueryUInt64 server.
-func EncodeMethodQueryUInt64Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryUInt64Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryuint64.MethodQueryUInt64Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryUInt64", "MethodQueryUInt64", "*servicequeryuint64.MethodQueryUInt64Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryUInt64", "MethodQueryUInt64", "*servicequeryuint64.MethodQueryUInt64Payload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -224,11 +224,11 @@ func EncodeMethodQueryUInt64Request(encoder func(*http.Request) goahttp.Encoder)
 
 var PayloadQueryUInt64ValidateEncodeCode = `// EncodeMethodQueryUInt64ValidateRequest returns an encoder for requests sent
 // to the ServiceQueryUInt64Validate MethodQueryUInt64Validate server.
-func EncodeMethodQueryUInt64ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryUInt64ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryuint64validate.MethodQueryUInt64ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryUInt64Validate", "MethodQueryUInt64Validate", "*servicequeryuint64validate.MethodQueryUInt64ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryUInt64Validate", "MethodQueryUInt64Validate", "*servicequeryuint64validate.MethodQueryUInt64ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -240,11 +240,11 @@ func EncodeMethodQueryUInt64ValidateRequest(encoder func(*http.Request) goahttp.
 
 var PayloadQueryFloat32EncodeCode = `// EncodeMethodQueryFloat32Request returns an encoder for requests sent to the
 // ServiceQueryFloat32 MethodQueryFloat32 server.
-func EncodeMethodQueryFloat32Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryFloat32Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryfloat32.MethodQueryFloat32Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryFloat32", "MethodQueryFloat32", "*servicequeryfloat32.MethodQueryFloat32Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryFloat32", "MethodQueryFloat32", "*servicequeryfloat32.MethodQueryFloat32Payload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -258,11 +258,11 @@ func EncodeMethodQueryFloat32Request(encoder func(*http.Request) goahttp.Encoder
 
 var PayloadQueryFloat32ValidateEncodeCode = `// EncodeMethodQueryFloat32ValidateRequest returns an encoder for requests sent
 // to the ServiceQueryFloat32Validate MethodQueryFloat32Validate server.
-func EncodeMethodQueryFloat32ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryFloat32ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryfloat32validate.MethodQueryFloat32ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryFloat32Validate", "MethodQueryFloat32Validate", "*servicequeryfloat32validate.MethodQueryFloat32ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryFloat32Validate", "MethodQueryFloat32Validate", "*servicequeryfloat32validate.MethodQueryFloat32ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -274,11 +274,11 @@ func EncodeMethodQueryFloat32ValidateRequest(encoder func(*http.Request) goahttp
 
 var PayloadQueryFloat64EncodeCode = `// EncodeMethodQueryFloat64Request returns an encoder for requests sent to the
 // ServiceQueryFloat64 MethodQueryFloat64 server.
-func EncodeMethodQueryFloat64Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryFloat64Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryfloat64.MethodQueryFloat64Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryFloat64", "MethodQueryFloat64", "*servicequeryfloat64.MethodQueryFloat64Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryFloat64", "MethodQueryFloat64", "*servicequeryfloat64.MethodQueryFloat64Payload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -292,11 +292,11 @@ func EncodeMethodQueryFloat64Request(encoder func(*http.Request) goahttp.Encoder
 
 var PayloadQueryFloat64ValidateEncodeCode = `// EncodeMethodQueryFloat64ValidateRequest returns an encoder for requests sent
 // to the ServiceQueryFloat64Validate MethodQueryFloat64Validate server.
-func EncodeMethodQueryFloat64ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryFloat64ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryfloat64validate.MethodQueryFloat64ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryFloat64Validate", "MethodQueryFloat64Validate", "*servicequeryfloat64validate.MethodQueryFloat64ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryFloat64Validate", "MethodQueryFloat64Validate", "*servicequeryfloat64validate.MethodQueryFloat64ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -308,11 +308,11 @@ func EncodeMethodQueryFloat64ValidateRequest(encoder func(*http.Request) goahttp
 
 var PayloadQueryStringEncodeCode = `// EncodeMethodQueryStringRequest returns an encoder for requests sent to the
 // ServiceQueryString MethodQueryString server.
-func EncodeMethodQueryStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerystring.MethodQueryStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryString", "MethodQueryString", "*servicequerystring.MethodQueryStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryString", "MethodQueryString", "*servicequerystring.MethodQueryStringPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {
@@ -326,11 +326,11 @@ func EncodeMethodQueryStringRequest(encoder func(*http.Request) goahttp.Encoder)
 
 var PayloadQueryStringValidateEncodeCode = `// EncodeMethodQueryStringValidateRequest returns an encoder for requests sent
 // to the ServiceQueryStringValidate MethodQueryStringValidate server.
-func EncodeMethodQueryStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerystringvalidate.MethodQueryStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryStringValidate", "MethodQueryStringValidate", "*servicequerystringvalidate.MethodQueryStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryStringValidate", "MethodQueryStringValidate", "*servicequerystringvalidate.MethodQueryStringValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", p.Q)
@@ -342,11 +342,11 @@ func EncodeMethodQueryStringValidateRequest(encoder func(*http.Request) goahttp.
 
 var PayloadQueryBytesEncodeCode = `// EncodeMethodQueryBytesRequest returns an encoder for requests sent to the
 // ServiceQueryBytes MethodQueryBytes server.
-func EncodeMethodQueryBytesRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryBytesRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerybytes.MethodQueryBytesPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryBytes", "MethodQueryBytes", "*servicequerybytes.MethodQueryBytesPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryBytes", "MethodQueryBytes", "*servicequerybytes.MethodQueryBytesPayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", string(p.Q))
@@ -358,11 +358,11 @@ func EncodeMethodQueryBytesRequest(encoder func(*http.Request) goahttp.Encoder) 
 
 var PayloadQueryBytesValidateEncodeCode = `// EncodeMethodQueryBytesValidateRequest returns an encoder for requests sent
 // to the ServiceQueryBytesValidate MethodQueryBytesValidate server.
-func EncodeMethodQueryBytesValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryBytesValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerybytesvalidate.MethodQueryBytesValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryBytesValidate", "MethodQueryBytesValidate", "*servicequerybytesvalidate.MethodQueryBytesValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryBytesValidate", "MethodQueryBytesValidate", "*servicequerybytesvalidate.MethodQueryBytesValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", string(p.Q))
@@ -374,11 +374,11 @@ func EncodeMethodQueryBytesValidateRequest(encoder func(*http.Request) goahttp.E
 
 var PayloadQueryAnyEncodeCode = `// EncodeMethodQueryAnyRequest returns an encoder for requests sent to the
 // ServiceQueryAny MethodQueryAny server.
-func EncodeMethodQueryAnyRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryAnyRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryany.MethodQueryAnyPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryAny", "MethodQueryAny", "*servicequeryany.MethodQueryAnyPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryAny", "MethodQueryAny", "*servicequeryany.MethodQueryAnyPayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -390,11 +390,11 @@ func EncodeMethodQueryAnyRequest(encoder func(*http.Request) goahttp.Encoder) fu
 
 var PayloadQueryAnyValidateEncodeCode = `// EncodeMethodQueryAnyValidateRequest returns an encoder for requests sent to
 // the ServiceQueryAnyValidate MethodQueryAnyValidate server.
-func EncodeMethodQueryAnyValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryAnyValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryanyvalidate.MethodQueryAnyValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryAnyValidate", "MethodQueryAnyValidate", "*servicequeryanyvalidate.MethodQueryAnyValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryAnyValidate", "MethodQueryAnyValidate", "*servicequeryanyvalidate.MethodQueryAnyValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", fmt.Sprintf("%v", p.Q))
@@ -406,11 +406,11 @@ func EncodeMethodQueryAnyValidateRequest(encoder func(*http.Request) goahttp.Enc
 
 var PayloadQueryArrayBoolEncodeCode = `// EncodeMethodQueryArrayBoolRequest returns an encoder for requests sent to
 // the ServiceQueryArrayBool MethodQueryArrayBool server.
-func EncodeMethodQueryArrayBoolRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayBoolRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarraybool.MethodQueryArrayBoolPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayBool", "MethodQueryArrayBool", "*servicequeryarraybool.MethodQueryArrayBoolPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayBool", "MethodQueryArrayBool", "*servicequeryarraybool.MethodQueryArrayBoolPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -426,11 +426,11 @@ func EncodeMethodQueryArrayBoolRequest(encoder func(*http.Request) goahttp.Encod
 var PayloadQueryArrayBoolValidateEncodeCode = `// EncodeMethodQueryArrayBoolValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayBoolValidate MethodQueryArrayBoolValidate
 // server.
-func EncodeMethodQueryArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayboolvalidate.MethodQueryArrayBoolValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayBoolValidate", "MethodQueryArrayBoolValidate", "*servicequeryarrayboolvalidate.MethodQueryArrayBoolValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayBoolValidate", "MethodQueryArrayBoolValidate", "*servicequeryarrayboolvalidate.MethodQueryArrayBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -445,11 +445,11 @@ func EncodeMethodQueryArrayBoolValidateRequest(encoder func(*http.Request) goaht
 
 var PayloadQueryArrayIntEncodeCode = `// EncodeMethodQueryArrayIntRequest returns an encoder for requests sent to the
 // ServiceQueryArrayInt MethodQueryArrayInt server.
-func EncodeMethodQueryArrayIntRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayint.MethodQueryArrayIntPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayInt", "MethodQueryArrayInt", "*servicequeryarrayint.MethodQueryArrayIntPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayInt", "MethodQueryArrayInt", "*servicequeryarrayint.MethodQueryArrayIntPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -464,11 +464,11 @@ func EncodeMethodQueryArrayIntRequest(encoder func(*http.Request) goahttp.Encode
 
 var PayloadQueryArrayIntValidateEncodeCode = `// EncodeMethodQueryArrayIntValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayIntValidate MethodQueryArrayIntValidate server.
-func EncodeMethodQueryArrayIntValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayintvalidate.MethodQueryArrayIntValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayIntValidate", "MethodQueryArrayIntValidate", "*servicequeryarrayintvalidate.MethodQueryArrayIntValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayIntValidate", "MethodQueryArrayIntValidate", "*servicequeryarrayintvalidate.MethodQueryArrayIntValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -483,11 +483,11 @@ func EncodeMethodQueryArrayIntValidateRequest(encoder func(*http.Request) goahtt
 
 var PayloadQueryArrayInt32EncodeCode = `// EncodeMethodQueryArrayInt32Request returns an encoder for requests sent to
 // the ServiceQueryArrayInt32 MethodQueryArrayInt32 server.
-func EncodeMethodQueryArrayInt32Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayInt32Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayint32.MethodQueryArrayInt32Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayInt32", "MethodQueryArrayInt32", "*servicequeryarrayint32.MethodQueryArrayInt32Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayInt32", "MethodQueryArrayInt32", "*servicequeryarrayint32.MethodQueryArrayInt32Payload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -503,11 +503,11 @@ func EncodeMethodQueryArrayInt32Request(encoder func(*http.Request) goahttp.Enco
 var PayloadQueryArrayInt32ValidateEncodeCode = `// EncodeMethodQueryArrayInt32ValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayInt32Validate MethodQueryArrayInt32Validate
 // server.
-func EncodeMethodQueryArrayInt32ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayInt32ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayint32validate.MethodQueryArrayInt32ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayInt32Validate", "MethodQueryArrayInt32Validate", "*servicequeryarrayint32validate.MethodQueryArrayInt32ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayInt32Validate", "MethodQueryArrayInt32Validate", "*servicequeryarrayint32validate.MethodQueryArrayInt32ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -522,11 +522,11 @@ func EncodeMethodQueryArrayInt32ValidateRequest(encoder func(*http.Request) goah
 
 var PayloadQueryArrayInt64EncodeCode = `// EncodeMethodQueryArrayInt64Request returns an encoder for requests sent to
 // the ServiceQueryArrayInt64 MethodQueryArrayInt64 server.
-func EncodeMethodQueryArrayInt64Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayInt64Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayint64.MethodQueryArrayInt64Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayInt64", "MethodQueryArrayInt64", "*servicequeryarrayint64.MethodQueryArrayInt64Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayInt64", "MethodQueryArrayInt64", "*servicequeryarrayint64.MethodQueryArrayInt64Payload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -542,11 +542,11 @@ func EncodeMethodQueryArrayInt64Request(encoder func(*http.Request) goahttp.Enco
 var PayloadQueryArrayInt64ValidateEncodeCode = `// EncodeMethodQueryArrayInt64ValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayInt64Validate MethodQueryArrayInt64Validate
 // server.
-func EncodeMethodQueryArrayInt64ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayInt64ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayint64validate.MethodQueryArrayInt64ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayInt64Validate", "MethodQueryArrayInt64Validate", "*servicequeryarrayint64validate.MethodQueryArrayInt64ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayInt64Validate", "MethodQueryArrayInt64Validate", "*servicequeryarrayint64validate.MethodQueryArrayInt64ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -561,11 +561,11 @@ func EncodeMethodQueryArrayInt64ValidateRequest(encoder func(*http.Request) goah
 
 var PayloadQueryArrayUIntEncodeCode = `// EncodeMethodQueryArrayUIntRequest returns an encoder for requests sent to
 // the ServiceQueryArrayUInt MethodQueryArrayUInt server.
-func EncodeMethodQueryArrayUIntRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayUIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayuint.MethodQueryArrayUIntPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayUInt", "MethodQueryArrayUInt", "*servicequeryarrayuint.MethodQueryArrayUIntPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayUInt", "MethodQueryArrayUInt", "*servicequeryarrayuint.MethodQueryArrayUIntPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -581,11 +581,11 @@ func EncodeMethodQueryArrayUIntRequest(encoder func(*http.Request) goahttp.Encod
 var PayloadQueryArrayUIntValidateEncodeCode = `// EncodeMethodQueryArrayUIntValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayUIntValidate MethodQueryArrayUIntValidate
 // server.
-func EncodeMethodQueryArrayUIntValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayUIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayuintvalidate.MethodQueryArrayUIntValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayUIntValidate", "MethodQueryArrayUIntValidate", "*servicequeryarrayuintvalidate.MethodQueryArrayUIntValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayUIntValidate", "MethodQueryArrayUIntValidate", "*servicequeryarrayuintvalidate.MethodQueryArrayUIntValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -600,11 +600,11 @@ func EncodeMethodQueryArrayUIntValidateRequest(encoder func(*http.Request) goaht
 
 var PayloadQueryArrayUInt32EncodeCode = `// EncodeMethodQueryArrayUInt32Request returns an encoder for requests sent to
 // the ServiceQueryArrayUInt32 MethodQueryArrayUInt32 server.
-func EncodeMethodQueryArrayUInt32Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayUInt32Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayuint32.MethodQueryArrayUInt32Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayUInt32", "MethodQueryArrayUInt32", "*servicequeryarrayuint32.MethodQueryArrayUInt32Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayUInt32", "MethodQueryArrayUInt32", "*servicequeryarrayuint32.MethodQueryArrayUInt32Payload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -620,11 +620,11 @@ func EncodeMethodQueryArrayUInt32Request(encoder func(*http.Request) goahttp.Enc
 var PayloadQueryArrayUInt32ValidateEncodeCode = `// EncodeMethodQueryArrayUInt32ValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayUInt32Validate MethodQueryArrayUInt32Validate
 // server.
-func EncodeMethodQueryArrayUInt32ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayUInt32ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayuint32validate.MethodQueryArrayUInt32ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayUInt32Validate", "MethodQueryArrayUInt32Validate", "*servicequeryarrayuint32validate.MethodQueryArrayUInt32ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayUInt32Validate", "MethodQueryArrayUInt32Validate", "*servicequeryarrayuint32validate.MethodQueryArrayUInt32ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -639,11 +639,11 @@ func EncodeMethodQueryArrayUInt32ValidateRequest(encoder func(*http.Request) goa
 
 var PayloadQueryArrayUInt64EncodeCode = `// EncodeMethodQueryArrayUInt64Request returns an encoder for requests sent to
 // the ServiceQueryArrayUInt64 MethodQueryArrayUInt64 server.
-func EncodeMethodQueryArrayUInt64Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayUInt64Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayuint64.MethodQueryArrayUInt64Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayUInt64", "MethodQueryArrayUInt64", "*servicequeryarrayuint64.MethodQueryArrayUInt64Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayUInt64", "MethodQueryArrayUInt64", "*servicequeryarrayuint64.MethodQueryArrayUInt64Payload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -659,11 +659,11 @@ func EncodeMethodQueryArrayUInt64Request(encoder func(*http.Request) goahttp.Enc
 var PayloadQueryArrayUInt64ValidateEncodeCode = `// EncodeMethodQueryArrayUInt64ValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayUInt64Validate MethodQueryArrayUInt64Validate
 // server.
-func EncodeMethodQueryArrayUInt64ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayUInt64ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayUInt64Validate", "MethodQueryArrayUInt64Validate", "*servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayUInt64Validate", "MethodQueryArrayUInt64Validate", "*servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -678,11 +678,11 @@ func EncodeMethodQueryArrayUInt64ValidateRequest(encoder func(*http.Request) goa
 
 var PayloadQueryArrayFloat32EncodeCode = `// EncodeMethodQueryArrayFloat32Request returns an encoder for requests sent to
 // the ServiceQueryArrayFloat32 MethodQueryArrayFloat32 server.
-func EncodeMethodQueryArrayFloat32Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayFloat32Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayFloat32", "MethodQueryArrayFloat32", "*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayFloat32", "MethodQueryArrayFloat32", "*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -698,11 +698,11 @@ func EncodeMethodQueryArrayFloat32Request(encoder func(*http.Request) goahttp.En
 var PayloadQueryArrayFloat32ValidateEncodeCode = `// EncodeMethodQueryArrayFloat32ValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayFloat32Validate MethodQueryArrayFloat32Validate
 // server.
-func EncodeMethodQueryArrayFloat32ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayFloat32ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayfloat32validate.MethodQueryArrayFloat32ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayFloat32Validate", "MethodQueryArrayFloat32Validate", "*servicequeryarrayfloat32validate.MethodQueryArrayFloat32ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayFloat32Validate", "MethodQueryArrayFloat32Validate", "*servicequeryarrayfloat32validate.MethodQueryArrayFloat32ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -717,11 +717,11 @@ func EncodeMethodQueryArrayFloat32ValidateRequest(encoder func(*http.Request) go
 
 var PayloadQueryArrayFloat64EncodeCode = `// EncodeMethodQueryArrayFloat64Request returns an encoder for requests sent to
 // the ServiceQueryArrayFloat64 MethodQueryArrayFloat64 server.
-func EncodeMethodQueryArrayFloat64Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayFloat64Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayfloat64.MethodQueryArrayFloat64Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayFloat64", "MethodQueryArrayFloat64", "*servicequeryarrayfloat64.MethodQueryArrayFloat64Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayFloat64", "MethodQueryArrayFloat64", "*servicequeryarrayfloat64.MethodQueryArrayFloat64Payload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -737,11 +737,11 @@ func EncodeMethodQueryArrayFloat64Request(encoder func(*http.Request) goahttp.En
 var PayloadQueryArrayFloat64ValidateEncodeCode = `// EncodeMethodQueryArrayFloat64ValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayFloat64Validate MethodQueryArrayFloat64Validate
 // server.
-func EncodeMethodQueryArrayFloat64ValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayFloat64ValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayfloat64validate.MethodQueryArrayFloat64ValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayFloat64Validate", "MethodQueryArrayFloat64Validate", "*servicequeryarrayfloat64validate.MethodQueryArrayFloat64ValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayFloat64Validate", "MethodQueryArrayFloat64Validate", "*servicequeryarrayfloat64validate.MethodQueryArrayFloat64ValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -756,11 +756,11 @@ func EncodeMethodQueryArrayFloat64ValidateRequest(encoder func(*http.Request) go
 
 var PayloadQueryArrayStringEncodeCode = `// EncodeMethodQueryArrayStringRequest returns an encoder for requests sent to
 // the ServiceQueryArrayString MethodQueryArrayString server.
-func EncodeMethodQueryArrayStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarraystring.MethodQueryArrayStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayString", "MethodQueryArrayString", "*servicequeryarraystring.MethodQueryArrayStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayString", "MethodQueryArrayString", "*servicequeryarraystring.MethodQueryArrayStringPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -775,11 +775,11 @@ func EncodeMethodQueryArrayStringRequest(encoder func(*http.Request) goahttp.Enc
 var PayloadQueryArrayStringValidateEncodeCode = `// EncodeMethodQueryArrayStringValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayStringValidate MethodQueryArrayStringValidate
 // server.
-func EncodeMethodQueryArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarraystringvalidate.MethodQueryArrayStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayStringValidate", "MethodQueryArrayStringValidate", "*servicequeryarraystringvalidate.MethodQueryArrayStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayStringValidate", "MethodQueryArrayStringValidate", "*servicequeryarraystringvalidate.MethodQueryArrayStringValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -793,11 +793,11 @@ func EncodeMethodQueryArrayStringValidateRequest(encoder func(*http.Request) goa
 
 var PayloadQueryArrayBytesEncodeCode = `// EncodeMethodQueryArrayBytesRequest returns an encoder for requests sent to
 // the ServiceQueryArrayBytes MethodQueryArrayBytes server.
-func EncodeMethodQueryArrayBytesRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayBytesRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarraybytes.MethodQueryArrayBytesPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayBytes", "MethodQueryArrayBytes", "*servicequeryarraybytes.MethodQueryArrayBytesPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayBytes", "MethodQueryArrayBytes", "*servicequeryarraybytes.MethodQueryArrayBytesPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -813,11 +813,11 @@ func EncodeMethodQueryArrayBytesRequest(encoder func(*http.Request) goahttp.Enco
 var PayloadQueryArrayBytesValidateEncodeCode = `// EncodeMethodQueryArrayBytesValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayBytesValidate MethodQueryArrayBytesValidate
 // server.
-func EncodeMethodQueryArrayBytesValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayBytesValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarraybytesvalidate.MethodQueryArrayBytesValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayBytesValidate", "MethodQueryArrayBytesValidate", "*servicequeryarraybytesvalidate.MethodQueryArrayBytesValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayBytesValidate", "MethodQueryArrayBytesValidate", "*servicequeryarraybytesvalidate.MethodQueryArrayBytesValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -832,11 +832,11 @@ func EncodeMethodQueryArrayBytesValidateRequest(encoder func(*http.Request) goah
 
 var PayloadQueryArrayAnyEncodeCode = `// EncodeMethodQueryArrayAnyRequest returns an encoder for requests sent to the
 // ServiceQueryArrayAny MethodQueryArrayAny server.
-func EncodeMethodQueryArrayAnyRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayAnyRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayany.MethodQueryArrayAnyPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayAny", "MethodQueryArrayAny", "*servicequeryarrayany.MethodQueryArrayAnyPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayAny", "MethodQueryArrayAny", "*servicequeryarrayany.MethodQueryArrayAnyPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -851,11 +851,11 @@ func EncodeMethodQueryArrayAnyRequest(encoder func(*http.Request) goahttp.Encode
 
 var PayloadQueryArrayAnyValidateEncodeCode = `// EncodeMethodQueryArrayAnyValidateRequest returns an encoder for requests
 // sent to the ServiceQueryArrayAnyValidate MethodQueryArrayAnyValidate server.
-func EncodeMethodQueryArrayAnyValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayAnyValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayanyvalidate.MethodQueryArrayAnyValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayAnyValidate", "MethodQueryArrayAnyValidate", "*servicequeryarrayanyvalidate.MethodQueryArrayAnyValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayAnyValidate", "MethodQueryArrayAnyValidate", "*servicequeryarrayanyvalidate.MethodQueryArrayAnyValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -870,11 +870,11 @@ func EncodeMethodQueryArrayAnyValidateRequest(encoder func(*http.Request) goahtt
 
 var PayloadQueryArrayAliasEncodeCode = `// EncodeMethodQueryArrayAliasRequest returns an encoder for requests sent to
 // the ServiceQueryArrayAlias MethodQueryArrayAlias server.
-func EncodeMethodQueryArrayAliasRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryArrayAliasRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayalias.MethodQueryArrayAliasPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayAlias", "MethodQueryArrayAlias", "*servicequeryarrayalias.MethodQueryArrayAliasPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayAlias", "MethodQueryArrayAlias", "*servicequeryarrayalias.MethodQueryArrayAliasPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
@@ -889,11 +889,11 @@ func EncodeMethodQueryArrayAliasRequest(encoder func(*http.Request) goahttp.Enco
 
 var PayloadQueryMapStringStringEncodeCode = `// EncodeMethodQueryMapStringStringRequest returns an encoder for requests sent
 // to the ServiceQueryMapStringString MethodQueryMapStringString server.
-func EncodeMethodQueryMapStringStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringstring.MethodQueryMapStringStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringString", "MethodQueryMapStringString", "*servicequerymapstringstring.MethodQueryMapStringStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringString", "MethodQueryMapStringString", "*servicequerymapstringstring.MethodQueryMapStringStringPayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {
@@ -909,11 +909,11 @@ func EncodeMethodQueryMapStringStringRequest(encoder func(*http.Request) goahttp
 var PayloadQueryMapStringStringValidateEncodeCode = `// EncodeMethodQueryMapStringStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapStringStringValidate
 // MethodQueryMapStringStringValidate server.
-func EncodeMethodQueryMapStringStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringstringvalidate.MethodQueryMapStringStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringStringValidate", "MethodQueryMapStringStringValidate", "*servicequerymapstringstringvalidate.MethodQueryMapStringStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringStringValidate", "MethodQueryMapStringStringValidate", "*servicequerymapstringstringvalidate.MethodQueryMapStringStringValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {
@@ -928,11 +928,11 @@ func EncodeMethodQueryMapStringStringValidateRequest(encoder func(*http.Request)
 
 var PayloadQueryMapStringBoolEncodeCode = `// EncodeMethodQueryMapStringBoolRequest returns an encoder for requests sent
 // to the ServiceQueryMapStringBool MethodQueryMapStringBool server.
-func EncodeMethodQueryMapStringBoolRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringBoolRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringbool.MethodQueryMapStringBoolPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringBool", "MethodQueryMapStringBool", "*servicequerymapstringbool.MethodQueryMapStringBoolPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringBool", "MethodQueryMapStringBool", "*servicequerymapstringbool.MethodQueryMapStringBoolPayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {
@@ -949,11 +949,11 @@ func EncodeMethodQueryMapStringBoolRequest(encoder func(*http.Request) goahttp.E
 var PayloadQueryMapStringBoolValidateEncodeCode = `// EncodeMethodQueryMapStringBoolValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapStringBoolValidate
 // MethodQueryMapStringBoolValidate server.
-func EncodeMethodQueryMapStringBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringBoolValidate", "MethodQueryMapStringBoolValidate", "*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringBoolValidate", "MethodQueryMapStringBoolValidate", "*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {
@@ -969,11 +969,11 @@ func EncodeMethodQueryMapStringBoolValidateRequest(encoder func(*http.Request) g
 
 var PayloadQueryMapBoolStringEncodeCode = `// EncodeMethodQueryMapBoolStringRequest returns an encoder for requests sent
 // to the ServiceQueryMapBoolString MethodQueryMapBoolString server.
-func EncodeMethodQueryMapBoolStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolstring.MethodQueryMapBoolStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolString", "MethodQueryMapBoolString", "*servicequerymapboolstring.MethodQueryMapBoolStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolString", "MethodQueryMapBoolString", "*servicequerymapboolstring.MethodQueryMapBoolStringPayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {
@@ -990,11 +990,11 @@ func EncodeMethodQueryMapBoolStringRequest(encoder func(*http.Request) goahttp.E
 var PayloadQueryMapBoolStringValidateEncodeCode = `// EncodeMethodQueryMapBoolStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapBoolStringValidate
 // MethodQueryMapBoolStringValidate server.
-func EncodeMethodQueryMapBoolStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolstringvalidate.MethodQueryMapBoolStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolStringValidate", "MethodQueryMapBoolStringValidate", "*servicequerymapboolstringvalidate.MethodQueryMapBoolStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolStringValidate", "MethodQueryMapBoolStringValidate", "*servicequerymapboolstringvalidate.MethodQueryMapBoolStringValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {
@@ -1010,11 +1010,11 @@ func EncodeMethodQueryMapBoolStringValidateRequest(encoder func(*http.Request) g
 
 var PayloadQueryMapBoolBoolEncodeCode = `// EncodeMethodQueryMapBoolBoolRequest returns an encoder for requests sent to
 // the ServiceQueryMapBoolBool MethodQueryMapBoolBool server.
-func EncodeMethodQueryMapBoolBoolRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolBoolRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolbool.MethodQueryMapBoolBoolPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolBool", "MethodQueryMapBoolBool", "*servicequerymapboolbool.MethodQueryMapBoolBoolPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolBool", "MethodQueryMapBoolBool", "*servicequerymapboolbool.MethodQueryMapBoolBoolPayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {
@@ -1032,11 +1032,11 @@ func EncodeMethodQueryMapBoolBoolRequest(encoder func(*http.Request) goahttp.Enc
 var PayloadQueryMapBoolBoolValidateEncodeCode = `// EncodeMethodQueryMapBoolBoolValidateRequest returns an encoder for requests
 // sent to the ServiceQueryMapBoolBoolValidate MethodQueryMapBoolBoolValidate
 // server.
-func EncodeMethodQueryMapBoolBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolboolvalidate.MethodQueryMapBoolBoolValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolBoolValidate", "MethodQueryMapBoolBoolValidate", "*servicequerymapboolboolvalidate.MethodQueryMapBoolBoolValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolBoolValidate", "MethodQueryMapBoolBoolValidate", "*servicequerymapboolboolvalidate.MethodQueryMapBoolBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {
@@ -1054,11 +1054,11 @@ func EncodeMethodQueryMapBoolBoolValidateRequest(encoder func(*http.Request) goa
 var PayloadQueryMapStringArrayStringEncodeCode = `// EncodeMethodQueryMapStringArrayStringRequest returns an encoder for requests
 // sent to the ServiceQueryMapStringArrayString MethodQueryMapStringArrayString
 // server.
-func EncodeMethodQueryMapStringArrayStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringArrayStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringarraystring.MethodQueryMapStringArrayStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringArrayString", "MethodQueryMapStringArrayString", "*servicequerymapstringarraystring.MethodQueryMapStringArrayStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringArrayString", "MethodQueryMapStringArrayString", "*servicequerymapstringarraystring.MethodQueryMapStringArrayStringPayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {
@@ -1074,11 +1074,11 @@ func EncodeMethodQueryMapStringArrayStringRequest(encoder func(*http.Request) go
 var PayloadQueryMapStringArrayStringValidateEncodeCode = `// EncodeMethodQueryMapStringArrayStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapStringArrayStringValidate
 // MethodQueryMapStringArrayStringValidate server.
-func EncodeMethodQueryMapStringArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringarraystringvalidate.MethodQueryMapStringArrayStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringArrayStringValidate", "MethodQueryMapStringArrayStringValidate", "*servicequerymapstringarraystringvalidate.MethodQueryMapStringArrayStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringArrayStringValidate", "MethodQueryMapStringArrayStringValidate", "*servicequerymapstringarraystringvalidate.MethodQueryMapStringArrayStringValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {
@@ -1094,11 +1094,11 @@ func EncodeMethodQueryMapStringArrayStringValidateRequest(encoder func(*http.Req
 var PayloadQueryMapStringArrayBoolEncodeCode = `// EncodeMethodQueryMapStringArrayBoolRequest returns an encoder for requests
 // sent to the ServiceQueryMapStringArrayBool MethodQueryMapStringArrayBool
 // server.
-func EncodeMethodQueryMapStringArrayBoolRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringArrayBoolRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringarraybool.MethodQueryMapStringArrayBoolPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringArrayBool", "MethodQueryMapStringArrayBool", "*servicequerymapstringarraybool.MethodQueryMapStringArrayBoolPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringArrayBool", "MethodQueryMapStringArrayBool", "*servicequerymapstringarraybool.MethodQueryMapStringArrayBoolPayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {
@@ -1117,11 +1117,11 @@ func EncodeMethodQueryMapStringArrayBoolRequest(encoder func(*http.Request) goah
 var PayloadQueryMapStringArrayBoolValidateEncodeCode = `// EncodeMethodQueryMapStringArrayBoolValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapStringArrayBoolValidate
 // MethodQueryMapStringArrayBoolValidate server.
-func EncodeMethodQueryMapStringArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringarrayboolvalidate.MethodQueryMapStringArrayBoolValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringArrayBoolValidate", "MethodQueryMapStringArrayBoolValidate", "*servicequerymapstringarrayboolvalidate.MethodQueryMapStringArrayBoolValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringArrayBoolValidate", "MethodQueryMapStringArrayBoolValidate", "*servicequerymapstringarrayboolvalidate.MethodQueryMapStringArrayBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {
@@ -1140,11 +1140,11 @@ func EncodeMethodQueryMapStringArrayBoolValidateRequest(encoder func(*http.Reque
 var PayloadQueryMapBoolArrayStringEncodeCode = `// EncodeMethodQueryMapBoolArrayStringRequest returns an encoder for requests
 // sent to the ServiceQueryMapBoolArrayString MethodQueryMapBoolArrayString
 // server.
-func EncodeMethodQueryMapBoolArrayStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolArrayStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolarraystring.MethodQueryMapBoolArrayStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolArrayString", "MethodQueryMapBoolArrayString", "*servicequerymapboolarraystring.MethodQueryMapBoolArrayStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolArrayString", "MethodQueryMapBoolArrayString", "*servicequerymapboolarraystring.MethodQueryMapBoolArrayStringPayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {
@@ -1161,11 +1161,11 @@ func EncodeMethodQueryMapBoolArrayStringRequest(encoder func(*http.Request) goah
 var PayloadQueryMapBoolArrayStringValidateEncodeCode = `// EncodeMethodQueryMapBoolArrayStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapBoolArrayStringValidate
 // MethodQueryMapBoolArrayStringValidate server.
-func EncodeMethodQueryMapBoolArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolArrayStringValidate", "MethodQueryMapBoolArrayStringValidate", "*servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolArrayStringValidate", "MethodQueryMapBoolArrayStringValidate", "*servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {
@@ -1181,11 +1181,11 @@ func EncodeMethodQueryMapBoolArrayStringValidateRequest(encoder func(*http.Reque
 
 var PayloadQueryMapBoolArrayBoolEncodeCode = `// EncodeMethodQueryMapBoolArrayBoolRequest returns an encoder for requests
 // sent to the ServiceQueryMapBoolArrayBool MethodQueryMapBoolArrayBool server.
-func EncodeMethodQueryMapBoolArrayBoolRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolArrayBoolRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolArrayBool", "MethodQueryMapBoolArrayBool", "*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolArrayBool", "MethodQueryMapBoolArrayBool", "*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {
@@ -1205,11 +1205,11 @@ func EncodeMethodQueryMapBoolArrayBoolRequest(encoder func(*http.Request) goahtt
 var PayloadQueryMapBoolArrayBoolValidateEncodeCode = `// EncodeMethodQueryMapBoolArrayBoolValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapBoolArrayBoolValidate
 // MethodQueryMapBoolArrayBoolValidate server.
-func EncodeMethodQueryMapBoolArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolarrayboolvalidate.MethodQueryMapBoolArrayBoolValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolArrayBoolValidate", "MethodQueryMapBoolArrayBoolValidate", "*servicequerymapboolarrayboolvalidate.MethodQueryMapBoolArrayBoolValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolArrayBoolValidate", "MethodQueryMapBoolArrayBoolValidate", "*servicequerymapboolarrayboolvalidate.MethodQueryMapBoolArrayBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {
@@ -1229,11 +1229,11 @@ func EncodeMethodQueryMapBoolArrayBoolValidateRequest(encoder func(*http.Request
 var PayloadQueryPrimitiveStringValidateEncodeCode = `// EncodeMethodQueryPrimitiveStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryPrimitiveStringValidate
 // MethodQueryPrimitiveStringValidate server.
-func EncodeMethodQueryPrimitiveStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveStringValidate", "MethodQueryPrimitiveStringValidate", "string", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveStringValidate", "MethodQueryPrimitiveStringValidate", "string", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", p)
@@ -1246,11 +1246,11 @@ func EncodeMethodQueryPrimitiveStringValidateRequest(encoder func(*http.Request)
 var PayloadQueryPrimitiveBoolValidateEncodeCode = `// EncodeMethodQueryPrimitiveBoolValidateRequest returns an encoder for
 // requests sent to the ServiceQueryPrimitiveBoolValidate
 // MethodQueryPrimitiveBoolValidate server.
-func EncodeMethodQueryPrimitiveBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveBoolValidate", "MethodQueryPrimitiveBoolValidate", "bool", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveBoolValidate", "MethodQueryPrimitiveBoolValidate", "bool", v)
 		}
 		values := req.URL.Query()
 		pStr := strconv.FormatBool(p)
@@ -1264,11 +1264,11 @@ func EncodeMethodQueryPrimitiveBoolValidateRequest(encoder func(*http.Request) g
 var PayloadQueryPrimitiveArrayStringValidateEncodeCode = `// EncodeMethodQueryPrimitiveArrayStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryPrimitiveArrayStringValidate
 // MethodQueryPrimitiveArrayStringValidate server.
-func EncodeMethodQueryPrimitiveArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.([]string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveArrayStringValidate", "MethodQueryPrimitiveArrayStringValidate", "[]string", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveArrayStringValidate", "MethodQueryPrimitiveArrayStringValidate", "[]string", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p {
@@ -1283,11 +1283,11 @@ func EncodeMethodQueryPrimitiveArrayStringValidateRequest(encoder func(*http.Req
 var PayloadQueryPrimitiveArrayBoolValidateEncodeCode = `// EncodeMethodQueryPrimitiveArrayBoolValidateRequest returns an encoder for
 // requests sent to the ServiceQueryPrimitiveArrayBoolValidate
 // MethodQueryPrimitiveArrayBoolValidate server.
-func EncodeMethodQueryPrimitiveArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.([]bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveArrayBoolValidate", "MethodQueryPrimitiveArrayBoolValidate", "[]bool", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveArrayBoolValidate", "MethodQueryPrimitiveArrayBoolValidate", "[]bool", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p {
@@ -1304,11 +1304,11 @@ var PayloadQueryPrimitiveMapStringArrayStringValidateEncodeCode = `// EncodeMeth
 // encoder for requests sent to the
 // ServiceQueryPrimitiveMapStringArrayStringValidate
 // MethodQueryPrimitiveMapStringArrayStringValidate server.
-func EncodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[string][]string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveMapStringArrayStringValidate", "MethodQueryPrimitiveMapStringArrayStringValidate", "map[string][]string", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveMapStringArrayStringValidate", "MethodQueryPrimitiveMapStringArrayStringValidate", "map[string][]string", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p {
@@ -1324,11 +1324,11 @@ func EncodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(encoder func(
 var PayloadQueryPrimitiveMapStringBoolValidateEncodeCode = `// EncodeMethodQueryPrimitiveMapStringBoolValidateRequest returns an encoder
 // for requests sent to the ServiceQueryPrimitiveMapStringBoolValidate
 // MethodQueryPrimitiveMapStringBoolValidate server.
-func EncodeMethodQueryPrimitiveMapStringBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveMapStringBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[string]bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveMapStringBoolValidate", "MethodQueryPrimitiveMapStringBoolValidate", "map[string]bool", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveMapStringBoolValidate", "MethodQueryPrimitiveMapStringBoolValidate", "map[string]bool", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p {
@@ -1345,11 +1345,11 @@ func EncodeMethodQueryPrimitiveMapStringBoolValidateRequest(encoder func(*http.R
 var PayloadQueryPrimitiveMapBoolArrayBoolValidateEncodeCode = `// EncodeMethodQueryPrimitiveMapBoolArrayBoolValidateRequest returns an encoder
 // for requests sent to the ServiceQueryPrimitiveMapBoolArrayBoolValidate
 // MethodQueryPrimitiveMapBoolArrayBoolValidate server.
-func EncodeMethodQueryPrimitiveMapBoolArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveMapBoolArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[bool][]bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveMapBoolArrayBoolValidate", "MethodQueryPrimitiveMapBoolArrayBoolValidate", "map[bool][]bool", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveMapBoolArrayBoolValidate", "MethodQueryPrimitiveMapBoolArrayBoolValidate", "map[bool][]bool", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p {
@@ -1369,11 +1369,11 @@ func EncodeMethodQueryPrimitiveMapBoolArrayBoolValidateRequest(encoder func(*htt
 var PayloadQueryMapStringMapIntStringValidateEncodeCode = `// EncodeMethodQueryMapStringMapIntStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapStringMapIntStringValidate
 // MethodQueryMapStringMapIntStringValidate server.
-func EncodeMethodQueryMapStringMapIntStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringMapIntStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[string]map[int]string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringMapIntStringValidate", "MethodQueryMapStringMapIntStringValidate", "map[string]map[int]string", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringMapIntStringValidate", "MethodQueryMapStringMapIntStringValidate", "map[string]map[int]string", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p {
@@ -1393,11 +1393,11 @@ func EncodeMethodQueryMapStringMapIntStringValidateRequest(encoder func(*http.Re
 var PayloadQueryMapIntMapStringArrayIntValidateEncodeCode = `// EncodeMethodQueryMapIntMapStringArrayIntValidateRequest returns an encoder
 // for requests sent to the ServiceQueryMapIntMapStringArrayIntValidate
 // MethodQueryMapIntMapStringArrayIntValidate server.
-func EncodeMethodQueryMapIntMapStringArrayIntValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapIntMapStringArrayIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[int]map[string][]int)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapIntMapStringArrayIntValidate", "MethodQueryMapIntMapStringArrayIntValidate", "map[int]map[string][]int", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapIntMapStringArrayIntValidate", "MethodQueryMapIntMapStringArrayIntValidate", "map[int]map[string][]int", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p {
@@ -1419,11 +1419,11 @@ func EncodeMethodQueryMapIntMapStringArrayIntValidateRequest(encoder func(*http.
 
 var PayloadQueryStringMappedEncodeCode = `// EncodeMethodQueryStringMappedRequest returns an encoder for requests sent to
 // the ServiceQueryStringMapped MethodQueryStringMapped server.
-func EncodeMethodQueryStringMappedRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryStringMappedRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerystringmapped.MethodQueryStringMappedPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryStringMapped", "MethodQueryStringMapped", "*servicequerystringmapped.MethodQueryStringMappedPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryStringMapped", "MethodQueryStringMapped", "*servicequerystringmapped.MethodQueryStringMappedPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Query != nil {
@@ -1437,11 +1437,11 @@ func EncodeMethodQueryStringMappedRequest(encoder func(*http.Request) goahttp.En
 
 var PayloadQueryStringDefaultEncodeCode = `// EncodeMethodQueryStringDefaultRequest returns an encoder for requests sent
 // to the ServiceQueryStringDefault MethodQueryStringDefault server.
-func EncodeMethodQueryStringDefaultRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerystringdefault.MethodQueryStringDefaultPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryStringDefault", "MethodQueryStringDefault", "*servicequerystringdefault.MethodQueryStringDefaultPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryStringDefault", "MethodQueryStringDefault", "*servicequerystringdefault.MethodQueryStringDefaultPayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", p.Q)
@@ -1454,11 +1454,11 @@ func EncodeMethodQueryStringDefaultRequest(encoder func(*http.Request) goahttp.E
 var PayloadQueryPrimitiveStringDefaultEncodeCode = `// EncodeMethodQueryPrimitiveStringDefaultRequest returns an encoder for
 // requests sent to the ServiceQueryPrimitiveStringDefault
 // MethodQueryPrimitiveStringDefault server.
-func EncodeMethodQueryPrimitiveStringDefaultRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveStringDefault", "MethodQueryPrimitiveStringDefault", "string", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveStringDefault", "MethodQueryPrimitiveStringDefault", "string", v)
 		}
 		values := req.URL.Query()
 		values.Add("q", p)
@@ -1471,11 +1471,11 @@ func EncodeMethodQueryPrimitiveStringDefaultRequest(encoder func(*http.Request) 
 var PayloadJWTAuthorizationQueryEncodeCode = `// EncodeMethodHeaderPrimitiveStringDefaultRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveStringDefault
 // MethodHeaderPrimitiveStringDefault server.
-func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Token != nil {
@@ -1489,11 +1489,11 @@ func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request)
 
 var PayloadHeaderStringEncodeCode = `// EncodeMethodHeaderStringRequest returns an encoder for requests sent to the
 // ServiceHeaderString MethodHeaderString server.
-func EncodeMethodHeaderStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderstring.MethodHeaderStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderString", "MethodHeaderString", "*serviceheaderstring.MethodHeaderStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderString", "MethodHeaderString", "*serviceheaderstring.MethodHeaderStringPayload", v)
 		}
 		if p.H != nil {
 			head := *p.H
@@ -1506,11 +1506,11 @@ func EncodeMethodHeaderStringRequest(encoder func(*http.Request) goahttp.Encoder
 
 var PayloadHeaderStringValidateEncodeCode = `// EncodeMethodHeaderStringValidateRequest returns an encoder for requests sent
 // to the ServiceHeaderStringValidate MethodHeaderStringValidate server.
-func EncodeMethodHeaderStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderstringvalidate.MethodHeaderStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderStringValidate", "MethodHeaderStringValidate", "*serviceheaderstringvalidate.MethodHeaderStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderStringValidate", "MethodHeaderStringValidate", "*serviceheaderstringvalidate.MethodHeaderStringValidatePayload", v)
 		}
 		if p.H != nil {
 			head := *p.H
@@ -1523,11 +1523,11 @@ func EncodeMethodHeaderStringValidateRequest(encoder func(*http.Request) goahttp
 
 var PayloadHeaderArrayStringEncodeCode = `// EncodeMethodHeaderArrayStringRequest returns an encoder for requests sent to
 // the ServiceHeaderArrayString MethodHeaderArrayString server.
-func EncodeMethodHeaderArrayStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderArrayStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderarraystring.MethodHeaderArrayStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderArrayString", "MethodHeaderArrayString", "*serviceheaderarraystring.MethodHeaderArrayStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayString", "MethodHeaderArrayString", "*serviceheaderarraystring.MethodHeaderArrayStringPayload", v)
 		}
 		{
 			head := p.H
@@ -1543,11 +1543,11 @@ func EncodeMethodHeaderArrayStringRequest(encoder func(*http.Request) goahttp.En
 var PayloadHeaderArrayStringValidateEncodeCode = `// EncodeMethodHeaderArrayStringValidateRequest returns an encoder for requests
 // sent to the ServiceHeaderArrayStringValidate MethodHeaderArrayStringValidate
 // server.
-func EncodeMethodHeaderArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderArrayStringValidate", "MethodHeaderArrayStringValidate", "*serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayStringValidate", "MethodHeaderArrayStringValidate", "*serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload", v)
 		}
 		{
 			head := p.H
@@ -1562,11 +1562,11 @@ func EncodeMethodHeaderArrayStringValidateRequest(encoder func(*http.Request) go
 
 var PayloadHeaderIntEncodeCode = `// EncodeMethodHeaderIntRequest returns an encoder for requests sent to the
 // ServiceHeaderInt MethodHeaderInt server.
-func EncodeMethodHeaderIntRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderint.MethodHeaderIntPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderInt", "MethodHeaderInt", "*serviceheaderint.MethodHeaderIntPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderInt", "MethodHeaderInt", "*serviceheaderint.MethodHeaderIntPayload", v)
 		}
 		if p.H != nil {
 			head := *p.H
@@ -1580,11 +1580,11 @@ func EncodeMethodHeaderIntRequest(encoder func(*http.Request) goahttp.Encoder) f
 
 var PayloadHeaderIntValidateEncodeCode = `// EncodeMethodHeaderIntValidateRequest returns an encoder for requests sent to
 // the ServiceHeaderIntValidate MethodHeaderIntValidate server.
-func EncodeMethodHeaderIntValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderintvalidate.MethodHeaderIntValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderIntValidate", "MethodHeaderIntValidate", "*serviceheaderintvalidate.MethodHeaderIntValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderIntValidate", "MethodHeaderIntValidate", "*serviceheaderintvalidate.MethodHeaderIntValidatePayload", v)
 		}
 		if p.H != nil {
 			head := *p.H
@@ -1598,11 +1598,11 @@ func EncodeMethodHeaderIntValidateRequest(encoder func(*http.Request) goahttp.En
 
 var PayloadHeaderArrayIntEncodeCode = `// EncodeMethodHeaderArrayIntRequest returns an encoder for requests sent to
 // the ServiceHeaderArrayInt MethodHeaderArrayInt server.
-func EncodeMethodHeaderArrayIntRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderArrayIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderarrayint.MethodHeaderArrayIntPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderArrayInt", "MethodHeaderArrayInt", "*serviceheaderarrayint.MethodHeaderArrayIntPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayInt", "MethodHeaderArrayInt", "*serviceheaderarrayint.MethodHeaderArrayIntPayload", v)
 		}
 		{
 			head := p.H
@@ -1619,11 +1619,11 @@ func EncodeMethodHeaderArrayIntRequest(encoder func(*http.Request) goahttp.Encod
 var PayloadHeaderArrayIntValidateEncodeCode = `// EncodeMethodHeaderArrayIntValidateRequest returns an encoder for requests
 // sent to the ServiceHeaderArrayIntValidate MethodHeaderArrayIntValidate
 // server.
-func EncodeMethodHeaderArrayIntValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderArrayIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderarrayintvalidate.MethodHeaderArrayIntValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderArrayIntValidate", "MethodHeaderArrayIntValidate", "*serviceheaderarrayintvalidate.MethodHeaderArrayIntValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayIntValidate", "MethodHeaderArrayIntValidate", "*serviceheaderarrayintvalidate.MethodHeaderArrayIntValidatePayload", v)
 		}
 		{
 			head := p.H
@@ -1640,11 +1640,11 @@ func EncodeMethodHeaderArrayIntValidateRequest(encoder func(*http.Request) goaht
 var PayloadHeaderPrimitiveStringValidateEncodeCode = `// EncodeMethodHeaderPrimitiveStringValidateRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveStringValidate
 // MethodHeaderPrimitiveStringValidate server.
-func EncodeMethodHeaderPrimitiveStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderPrimitiveStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderPrimitiveStringValidate", "MethodHeaderPrimitiveStringValidate", "string", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveStringValidate", "MethodHeaderPrimitiveStringValidate", "string", v)
 		}
 		return nil
 	}
@@ -1654,11 +1654,11 @@ func EncodeMethodHeaderPrimitiveStringValidateRequest(encoder func(*http.Request
 var PayloadHeaderPrimitiveBoolValidateEncodeCode = `// EncodeMethodHeaderPrimitiveBoolValidateRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveBoolValidate
 // MethodHeaderPrimitiveBoolValidate server.
-func EncodeMethodHeaderPrimitiveBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderPrimitiveBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderPrimitiveBoolValidate", "MethodHeaderPrimitiveBoolValidate", "bool", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveBoolValidate", "MethodHeaderPrimitiveBoolValidate", "bool", v)
 		}
 		return nil
 	}
@@ -1668,11 +1668,11 @@ func EncodeMethodHeaderPrimitiveBoolValidateRequest(encoder func(*http.Request) 
 var PayloadHeaderPrimitiveArrayStringValidateEncodeCode = `// EncodeMethodHeaderPrimitiveArrayStringValidateRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveArrayStringValidate
 // MethodHeaderPrimitiveArrayStringValidate server.
-func EncodeMethodHeaderPrimitiveArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderPrimitiveArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.([]string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderPrimitiveArrayStringValidate", "MethodHeaderPrimitiveArrayStringValidate", "[]string", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveArrayStringValidate", "MethodHeaderPrimitiveArrayStringValidate", "[]string", v)
 		}
 		return nil
 	}
@@ -1682,11 +1682,11 @@ func EncodeMethodHeaderPrimitiveArrayStringValidateRequest(encoder func(*http.Re
 var PayloadHeaderPrimitiveArrayBoolValidateEncodeCode = `// EncodeMethodHeaderPrimitiveArrayBoolValidateRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveArrayBoolValidate
 // MethodHeaderPrimitiveArrayBoolValidate server.
-func EncodeMethodHeaderPrimitiveArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderPrimitiveArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.([]bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderPrimitiveArrayBoolValidate", "MethodHeaderPrimitiveArrayBoolValidate", "[]bool", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveArrayBoolValidate", "MethodHeaderPrimitiveArrayBoolValidate", "[]bool", v)
 		}
 		return nil
 	}
@@ -1695,11 +1695,11 @@ func EncodeMethodHeaderPrimitiveArrayBoolValidateRequest(encoder func(*http.Requ
 
 var PayloadHeaderStringDefaultEncodeCode = `// EncodeMethodHeaderStringDefaultRequest returns an encoder for requests sent
 // to the ServiceHeaderStringDefault MethodHeaderStringDefault server.
-func EncodeMethodHeaderStringDefaultRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderstringdefault.MethodHeaderStringDefaultPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderStringDefault", "MethodHeaderStringDefault", "*serviceheaderstringdefault.MethodHeaderStringDefaultPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderStringDefault", "MethodHeaderStringDefault", "*serviceheaderstringdefault.MethodHeaderStringDefaultPayload", v)
 		}
 		{
 			head := p.H
@@ -1713,11 +1713,11 @@ func EncodeMethodHeaderStringDefaultRequest(encoder func(*http.Request) goahttp.
 var PayloadHeaderPrimitiveStringDefaultEncodeCode = `// EncodeMethodHeaderPrimitiveStringDefaultRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveStringDefault
 // MethodHeaderPrimitiveStringDefault server.
-func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "string", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "string", v)
 		}
 		return nil
 	}
@@ -1727,11 +1727,11 @@ func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request)
 var PayloadJWTAuthorizationHeaderEncodeCode = `// EncodeMethodHeaderPrimitiveStringDefaultRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveStringDefault
 // MethodHeaderPrimitiveStringDefault server.
-func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload", v)
 		}
 		if p.Token != nil {
 			head := *p.Token
@@ -1749,11 +1749,11 @@ func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request)
 var PayloadJWTAuthorizationCustomHeaderEncodeCode = `// EncodeMethodHeaderPrimitiveStringDefaultRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveStringDefault
 // MethodHeaderPrimitiveStringDefault server.
-func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload", v)
 		}
 		{
 			head := p.Token
@@ -1766,15 +1766,15 @@ func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request)
 
 var PayloadBodyStringEncodeCode = `// EncodeMethodBodyStringRequest returns an encoder for requests sent to the
 // ServiceBodyString MethodBodyString server.
-func EncodeMethodBodyStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodystring.MethodBodyStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyString", "MethodBodyString", "*servicebodystring.MethodBodyStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyString", "MethodBodyString", "*servicebodystring.MethodBodyStringPayload", v)
 		}
 		body := NewMethodBodyStringRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyString", "MethodBodyString", err)
+			return loomhttp.ErrEncodingError("ServiceBodyString", "MethodBodyString", err)
 		}
 		return nil
 	}
@@ -1783,15 +1783,15 @@ func EncodeMethodBodyStringRequest(encoder func(*http.Request) goahttp.Encoder) 
 
 var PayloadBodyStringValidateEncodeCode = `// EncodeMethodBodyStringValidateRequest returns an encoder for requests sent
 // to the ServiceBodyStringValidate MethodBodyStringValidate server.
-func EncodeMethodBodyStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodystringvalidate.MethodBodyStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyStringValidate", "MethodBodyStringValidate", "*servicebodystringvalidate.MethodBodyStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyStringValidate", "MethodBodyStringValidate", "*servicebodystringvalidate.MethodBodyStringValidatePayload", v)
 		}
 		body := NewMethodBodyStringValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyStringValidate", "MethodBodyStringValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyStringValidate", "MethodBodyStringValidate", err)
 		}
 		return nil
 	}
@@ -1800,15 +1800,15 @@ func EncodeMethodBodyStringValidateRequest(encoder func(*http.Request) goahttp.E
 
 var PayloadBodyUserEncodeCode = `// EncodeMethodBodyUserRequest returns an encoder for requests sent to the
 // ServiceBodyUser MethodBodyUser server.
-func EncodeMethodBodyUserRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyuser.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyUser", "MethodBodyUser", "*servicebodyuser.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyUser", "MethodBodyUser", "*servicebodyuser.PayloadType", v)
 		}
 		body := NewMethodBodyUserRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyUser", "MethodBodyUser", err)
+			return loomhttp.ErrEncodingError("ServiceBodyUser", "MethodBodyUser", err)
 		}
 		return nil
 	}
@@ -1817,15 +1817,15 @@ func EncodeMethodBodyUserRequest(encoder func(*http.Request) goahttp.Encoder) fu
 
 var PayloadBodyUserValidateEncodeCode = `// EncodeMethodBodyUserValidateRequest returns an encoder for requests sent to
 // the ServiceBodyUserValidate MethodBodyUserValidate server.
-func EncodeMethodBodyUserValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyuservalidate.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyUserValidate", "MethodBodyUserValidate", "*servicebodyuservalidate.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyUserValidate", "MethodBodyUserValidate", "*servicebodyuservalidate.PayloadType", v)
 		}
 		body := p.A
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyUserValidate", "MethodBodyUserValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyUserValidate", "MethodBodyUserValidate", err)
 		}
 		return nil
 	}
@@ -1834,15 +1834,15 @@ func EncodeMethodBodyUserValidateRequest(encoder func(*http.Request) goahttp.Enc
 
 var PayloadBodyArrayStringEncodeCode = `// EncodeMethodBodyArrayStringRequest returns an encoder for requests sent to
 // the ServiceBodyArrayString MethodBodyArrayString server.
-func EncodeMethodBodyArrayStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyArrayStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyarraystring.MethodBodyArrayStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyArrayString", "MethodBodyArrayString", "*servicebodyarraystring.MethodBodyArrayStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyArrayString", "MethodBodyArrayString", "*servicebodyarraystring.MethodBodyArrayStringPayload", v)
 		}
 		body := NewMethodBodyArrayStringRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyArrayString", "MethodBodyArrayString", err)
+			return loomhttp.ErrEncodingError("ServiceBodyArrayString", "MethodBodyArrayString", err)
 		}
 		return nil
 	}
@@ -1852,15 +1852,15 @@ func EncodeMethodBodyArrayStringRequest(encoder func(*http.Request) goahttp.Enco
 var PayloadBodyArrayStringValidateEncodeCode = `// EncodeMethodBodyArrayStringValidateRequest returns an encoder for requests
 // sent to the ServiceBodyArrayStringValidate MethodBodyArrayStringValidate
 // server.
-func EncodeMethodBodyArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyArrayStringValidate", "MethodBodyArrayStringValidate", "*servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyArrayStringValidate", "MethodBodyArrayStringValidate", "*servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload", v)
 		}
 		body := NewMethodBodyArrayStringValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyArrayStringValidate", "MethodBodyArrayStringValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyArrayStringValidate", "MethodBodyArrayStringValidate", err)
 		}
 		return nil
 	}
@@ -1869,15 +1869,15 @@ func EncodeMethodBodyArrayStringValidateRequest(encoder func(*http.Request) goah
 
 var PayloadBodyArrayUserEncodeCode = `// EncodeMethodBodyArrayUserRequest returns an encoder for requests sent to the
 // ServiceBodyArrayUser MethodBodyArrayUser server.
-func EncodeMethodBodyArrayUserRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyArrayUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyarrayuser.MethodBodyArrayUserPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyArrayUser", "MethodBodyArrayUser", "*servicebodyarrayuser.MethodBodyArrayUserPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyArrayUser", "MethodBodyArrayUser", "*servicebodyarrayuser.MethodBodyArrayUserPayload", v)
 		}
 		body := NewMethodBodyArrayUserRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyArrayUser", "MethodBodyArrayUser", err)
+			return loomhttp.ErrEncodingError("ServiceBodyArrayUser", "MethodBodyArrayUser", err)
 		}
 		return nil
 	}
@@ -1886,15 +1886,15 @@ func EncodeMethodBodyArrayUserRequest(encoder func(*http.Request) goahttp.Encode
 
 var PayloadBodyArrayUserValidateEncodeCode = `// EncodeMethodBodyArrayUserValidateRequest returns an encoder for requests
 // sent to the ServiceBodyArrayUserValidate MethodBodyArrayUserValidate server.
-func EncodeMethodBodyArrayUserValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyArrayUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyarrayuservalidate.MethodBodyArrayUserValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyArrayUserValidate", "MethodBodyArrayUserValidate", "*servicebodyarrayuservalidate.MethodBodyArrayUserValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyArrayUserValidate", "MethodBodyArrayUserValidate", "*servicebodyarrayuservalidate.MethodBodyArrayUserValidatePayload", v)
 		}
 		body := NewMethodBodyArrayUserValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyArrayUserValidate", "MethodBodyArrayUserValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyArrayUserValidate", "MethodBodyArrayUserValidate", err)
 		}
 		return nil
 	}
@@ -1903,15 +1903,15 @@ func EncodeMethodBodyArrayUserValidateRequest(encoder func(*http.Request) goahtt
 
 var PayloadBodyMapStringEncodeCode = `// EncodeMethodBodyMapStringRequest returns an encoder for requests sent to the
 // ServiceBodyMapString MethodBodyMapString server.
-func EncodeMethodBodyMapStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyMapStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodymapstring.MethodBodyMapStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyMapString", "MethodBodyMapString", "*servicebodymapstring.MethodBodyMapStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyMapString", "MethodBodyMapString", "*servicebodymapstring.MethodBodyMapStringPayload", v)
 		}
 		body := NewMethodBodyMapStringRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyMapString", "MethodBodyMapString", err)
+			return loomhttp.ErrEncodingError("ServiceBodyMapString", "MethodBodyMapString", err)
 		}
 		return nil
 	}
@@ -1920,15 +1920,15 @@ func EncodeMethodBodyMapStringRequest(encoder func(*http.Request) goahttp.Encode
 
 var PayloadBodyMapStringValidateEncodeCode = `// EncodeMethodBodyMapStringValidateRequest returns an encoder for requests
 // sent to the ServiceBodyMapStringValidate MethodBodyMapStringValidate server.
-func EncodeMethodBodyMapStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyMapStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodymapstringvalidate.MethodBodyMapStringValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyMapStringValidate", "MethodBodyMapStringValidate", "*servicebodymapstringvalidate.MethodBodyMapStringValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyMapStringValidate", "MethodBodyMapStringValidate", "*servicebodymapstringvalidate.MethodBodyMapStringValidatePayload", v)
 		}
 		body := NewMethodBodyMapStringValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyMapStringValidate", "MethodBodyMapStringValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyMapStringValidate", "MethodBodyMapStringValidate", err)
 		}
 		return nil
 	}
@@ -1937,15 +1937,15 @@ func EncodeMethodBodyMapStringValidateRequest(encoder func(*http.Request) goahtt
 
 var PayloadBodyMapUserEncodeCode = `// EncodeMethodBodyMapUserRequest returns an encoder for requests sent to the
 // ServiceBodyMapUser MethodBodyMapUser server.
-func EncodeMethodBodyMapUserRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyMapUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodymapuser.MethodBodyMapUserPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyMapUser", "MethodBodyMapUser", "*servicebodymapuser.MethodBodyMapUserPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyMapUser", "MethodBodyMapUser", "*servicebodymapuser.MethodBodyMapUserPayload", v)
 		}
 		body := NewMethodBodyMapUserRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyMapUser", "MethodBodyMapUser", err)
+			return loomhttp.ErrEncodingError("ServiceBodyMapUser", "MethodBodyMapUser", err)
 		}
 		return nil
 	}
@@ -1954,15 +1954,15 @@ func EncodeMethodBodyMapUserRequest(encoder func(*http.Request) goahttp.Encoder)
 
 var PayloadBodyMapUserValidateEncodeCode = `// EncodeMethodBodyMapUserValidateRequest returns an encoder for requests sent
 // to the ServiceBodyMapUserValidate MethodBodyMapUserValidate server.
-func EncodeMethodBodyMapUserValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyMapUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodymapuservalidate.MethodBodyMapUserValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyMapUserValidate", "MethodBodyMapUserValidate", "*servicebodymapuservalidate.MethodBodyMapUserValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyMapUserValidate", "MethodBodyMapUserValidate", "*servicebodymapuservalidate.MethodBodyMapUserValidatePayload", v)
 		}
 		body := NewMethodBodyMapUserValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyMapUserValidate", "MethodBodyMapUserValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyMapUserValidate", "MethodBodyMapUserValidate", err)
 		}
 		return nil
 	}
@@ -1972,15 +1972,15 @@ func EncodeMethodBodyMapUserValidateRequest(encoder func(*http.Request) goahttp.
 var PayloadBodyPrimitiveStringValidateEncodeCode = `// EncodeMethodBodyPrimitiveStringValidateRequest returns an encoder for
 // requests sent to the ServiceBodyPrimitiveStringValidate
 // MethodBodyPrimitiveStringValidate server.
-func EncodeMethodBodyPrimitiveStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPrimitiveStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPrimitiveStringValidate", "MethodBodyPrimitiveStringValidate", "string", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveStringValidate", "MethodBodyPrimitiveStringValidate", "string", v)
 		}
 		body := p
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPrimitiveStringValidate", "MethodBodyPrimitiveStringValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveStringValidate", "MethodBodyPrimitiveStringValidate", err)
 		}
 		return nil
 	}
@@ -1990,15 +1990,15 @@ func EncodeMethodBodyPrimitiveStringValidateRequest(encoder func(*http.Request) 
 var PayloadBodyPrimitiveBoolValidateEncodeCode = `// EncodeMethodBodyPrimitiveBoolValidateRequest returns an encoder for requests
 // sent to the ServiceBodyPrimitiveBoolValidate MethodBodyPrimitiveBoolValidate
 // server.
-func EncodeMethodBodyPrimitiveBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPrimitiveBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPrimitiveBoolValidate", "MethodBodyPrimitiveBoolValidate", "bool", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveBoolValidate", "MethodBodyPrimitiveBoolValidate", "bool", v)
 		}
 		body := p
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPrimitiveBoolValidate", "MethodBodyPrimitiveBoolValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveBoolValidate", "MethodBodyPrimitiveBoolValidate", err)
 		}
 		return nil
 	}
@@ -2008,15 +2008,15 @@ func EncodeMethodBodyPrimitiveBoolValidateRequest(encoder func(*http.Request) go
 var PayloadBodyPrimitiveArrayStringValidateEncodeCode = `// EncodeMethodBodyPrimitiveArrayStringValidateRequest returns an encoder for
 // requests sent to the ServiceBodyPrimitiveArrayStringValidate
 // MethodBodyPrimitiveArrayStringValidate server.
-func EncodeMethodBodyPrimitiveArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPrimitiveArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.([]string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPrimitiveArrayStringValidate", "MethodBodyPrimitiveArrayStringValidate", "[]string", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayStringValidate", "MethodBodyPrimitiveArrayStringValidate", "[]string", v)
 		}
 		body := p
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPrimitiveArrayStringValidate", "MethodBodyPrimitiveArrayStringValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveArrayStringValidate", "MethodBodyPrimitiveArrayStringValidate", err)
 		}
 		return nil
 	}
@@ -2026,15 +2026,15 @@ func EncodeMethodBodyPrimitiveArrayStringValidateRequest(encoder func(*http.Requ
 var PayloadBodyPrimitiveArrayBoolValidateEncodeCode = `// EncodeMethodBodyPrimitiveArrayBoolValidateRequest returns an encoder for
 // requests sent to the ServiceBodyPrimitiveArrayBoolValidate
 // MethodBodyPrimitiveArrayBoolValidate server.
-func EncodeMethodBodyPrimitiveArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPrimitiveArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.([]bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPrimitiveArrayBoolValidate", "MethodBodyPrimitiveArrayBoolValidate", "[]bool", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayBoolValidate", "MethodBodyPrimitiveArrayBoolValidate", "[]bool", v)
 		}
 		body := p
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPrimitiveArrayBoolValidate", "MethodBodyPrimitiveArrayBoolValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveArrayBoolValidate", "MethodBodyPrimitiveArrayBoolValidate", err)
 		}
 		return nil
 	}
@@ -2044,15 +2044,15 @@ func EncodeMethodBodyPrimitiveArrayBoolValidateRequest(encoder func(*http.Reques
 var PayloadBodyPrimitiveArrayUserValidateEncodeCode = `// EncodeMethodBodyPrimitiveArrayUserValidateRequest returns an encoder for
 // requests sent to the ServiceBodyPrimitiveArrayUserValidate
 // MethodBodyPrimitiveArrayUserValidate server.
-func EncodeMethodBodyPrimitiveArrayUserValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPrimitiveArrayUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.([]*servicebodyprimitivearrayuservalidate.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPrimitiveArrayUserValidate", "MethodBodyPrimitiveArrayUserValidate", "[]*servicebodyprimitivearrayuservalidate.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayUserValidate", "MethodBodyPrimitiveArrayUserValidate", "[]*servicebodyprimitivearrayuservalidate.PayloadType", v)
 		}
 		body := NewPayloadTypeRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPrimitiveArrayUserValidate", "MethodBodyPrimitiveArrayUserValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveArrayUserValidate", "MethodBodyPrimitiveArrayUserValidate", err)
 		}
 		return nil
 	}
@@ -2062,15 +2062,15 @@ func EncodeMethodBodyPrimitiveArrayUserValidateRequest(encoder func(*http.Reques
 var PayloadBodyPrimitiveFieldArrayUserEncodeCode = `// EncodeMethodBodyPrimitiveArrayUserRequest returns an encoder for requests
 // sent to the ServiceBodyPrimitiveArrayUser MethodBodyPrimitiveArrayUser
 // server.
-func EncodeMethodBodyPrimitiveArrayUserRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPrimitiveArrayUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyprimitivearrayuser.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPrimitiveArrayUser", "MethodBodyPrimitiveArrayUser", "*servicebodyprimitivearrayuser.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayUser", "MethodBodyPrimitiveArrayUser", "*servicebodyprimitivearrayuser.PayloadType", v)
 		}
 		body := p.A
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPrimitiveArrayUser", "MethodBodyPrimitiveArrayUser", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveArrayUser", "MethodBodyPrimitiveArrayUser", err)
 		}
 		return nil
 	}
@@ -2080,15 +2080,15 @@ func EncodeMethodBodyPrimitiveArrayUserRequest(encoder func(*http.Request) goaht
 var PayloadBodyPrimitiveFieldArrayUserValidateEncodeCode = `// EncodeMethodBodyPrimitiveArrayUserValidateRequest returns an encoder for
 // requests sent to the ServiceBodyPrimitiveArrayUserValidate
 // MethodBodyPrimitiveArrayUserValidate server.
-func EncodeMethodBodyPrimitiveArrayUserValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPrimitiveArrayUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyprimitivearrayuservalidate.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPrimitiveArrayUserValidate", "MethodBodyPrimitiveArrayUserValidate", "*servicebodyprimitivearrayuservalidate.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayUserValidate", "MethodBodyPrimitiveArrayUserValidate", "*servicebodyprimitivearrayuservalidate.PayloadType", v)
 		}
 		body := p.A
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPrimitiveArrayUserValidate", "MethodBodyPrimitiveArrayUserValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveArrayUserValidate", "MethodBodyPrimitiveArrayUserValidate", err)
 		}
 		return nil
 	}
@@ -2097,11 +2097,11 @@ func EncodeMethodBodyPrimitiveArrayUserValidateRequest(encoder func(*http.Reques
 
 var PayloadBodyQueryObjectEncodeCode = `// EncodeMethodBodyQueryObjectRequest returns an encoder for requests sent to
 // the ServiceBodyQueryObject MethodBodyQueryObject server.
-func EncodeMethodBodyQueryObjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryObjectRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyqueryobject.MethodBodyQueryObjectPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryObject", "MethodBodyQueryObject", "*servicebodyqueryobject.MethodBodyQueryObjectPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryObject", "MethodBodyQueryObject", "*servicebodyqueryobject.MethodBodyQueryObjectPayload", v)
 		}
 		values := req.URL.Query()
 		if p.B != nil {
@@ -2110,7 +2110,7 @@ func EncodeMethodBodyQueryObjectRequest(encoder func(*http.Request) goahttp.Enco
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryObjectRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryObject", "MethodBodyQueryObject", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryObject", "MethodBodyQueryObject", err)
 		}
 		return nil
 	}
@@ -2120,18 +2120,18 @@ func EncodeMethodBodyQueryObjectRequest(encoder func(*http.Request) goahttp.Enco
 var PayloadBodyQueryObjectValidateEncodeCode = `// EncodeMethodBodyQueryObjectValidateRequest returns an encoder for requests
 // sent to the ServiceBodyQueryObjectValidate MethodBodyQueryObjectValidate
 // server.
-func EncodeMethodBodyQueryObjectValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryObjectValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyqueryobjectvalidate.MethodBodyQueryObjectValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryObjectValidate", "MethodBodyQueryObjectValidate", "*servicebodyqueryobjectvalidate.MethodBodyQueryObjectValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryObjectValidate", "MethodBodyQueryObjectValidate", "*servicebodyqueryobjectvalidate.MethodBodyQueryObjectValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("b", p.B)
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryObjectValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryObjectValidate", "MethodBodyQueryObjectValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryObjectValidate", "MethodBodyQueryObjectValidate", err)
 		}
 		return nil
 	}
@@ -2140,11 +2140,11 @@ func EncodeMethodBodyQueryObjectValidateRequest(encoder func(*http.Request) goah
 
 var PayloadBodyQueryUserEncodeCode = `// EncodeMethodBodyQueryUserRequest returns an encoder for requests sent to the
 // ServiceBodyQueryUser MethodBodyQueryUser server.
-func EncodeMethodBodyQueryUserRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyqueryuser.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryUser", "MethodBodyQueryUser", "*servicebodyqueryuser.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryUser", "MethodBodyQueryUser", "*servicebodyqueryuser.PayloadType", v)
 		}
 		values := req.URL.Query()
 		if p.B != nil {
@@ -2153,7 +2153,7 @@ func EncodeMethodBodyQueryUserRequest(encoder func(*http.Request) goahttp.Encode
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryUserRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryUser", "MethodBodyQueryUser", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryUser", "MethodBodyQueryUser", err)
 		}
 		return nil
 	}
@@ -2162,18 +2162,18 @@ func EncodeMethodBodyQueryUserRequest(encoder func(*http.Request) goahttp.Encode
 
 var PayloadBodyQueryUserValidateEncodeCode = `// EncodeMethodBodyQueryUserValidateRequest returns an encoder for requests
 // sent to the ServiceBodyQueryUserValidate MethodBodyQueryUserValidate server.
-func EncodeMethodBodyQueryUserValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyqueryuservalidate.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryUserValidate", "MethodBodyQueryUserValidate", "*servicebodyqueryuservalidate.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryUserValidate", "MethodBodyQueryUserValidate", "*servicebodyqueryuservalidate.PayloadType", v)
 		}
 		values := req.URL.Query()
 		values.Add("b", p.B)
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryUserValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryUserValidate", "MethodBodyQueryUserValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryUserValidate", "MethodBodyQueryUserValidate", err)
 		}
 		return nil
 	}
@@ -2182,15 +2182,15 @@ func EncodeMethodBodyQueryUserValidateRequest(encoder func(*http.Request) goahtt
 
 var PayloadBodyPathObjectEncodeCode = `// EncodeMethodBodyPathObjectRequest returns an encoder for requests sent to
 // the ServiceBodyPathObject MethodBodyPathObject server.
-func EncodeMethodBodyPathObjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPathObjectRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodypathobject.MethodBodyPathObjectPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPathObject", "MethodBodyPathObject", "*servicebodypathobject.MethodBodyPathObjectPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPathObject", "MethodBodyPathObject", "*servicebodypathobject.MethodBodyPathObjectPayload", v)
 		}
 		body := NewMethodBodyPathObjectRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPathObject", "MethodBodyPathObject", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPathObject", "MethodBodyPathObject", err)
 		}
 		return nil
 	}
@@ -2200,15 +2200,15 @@ func EncodeMethodBodyPathObjectRequest(encoder func(*http.Request) goahttp.Encod
 var PayloadBodyPathObjectValidateEncodeCode = `// EncodeMethodBodyPathObjectValidateRequest returns an encoder for requests
 // sent to the ServiceBodyPathObjectValidate MethodBodyPathObjectValidate
 // server.
-func EncodeMethodBodyPathObjectValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPathObjectValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodypathobjectvalidate.MethodBodyPathObjectValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPathObjectValidate", "MethodBodyPathObjectValidate", "*servicebodypathobjectvalidate.MethodBodyPathObjectValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPathObjectValidate", "MethodBodyPathObjectValidate", "*servicebodypathobjectvalidate.MethodBodyPathObjectValidatePayload", v)
 		}
 		body := NewMethodBodyPathObjectValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPathObjectValidate", "MethodBodyPathObjectValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPathObjectValidate", "MethodBodyPathObjectValidate", err)
 		}
 		return nil
 	}
@@ -2217,15 +2217,15 @@ func EncodeMethodBodyPathObjectValidateRequest(encoder func(*http.Request) goaht
 
 var PayloadBodyPathUserEncodeCode = `// EncodeMethodBodyPathUserRequest returns an encoder for requests sent to the
 // ServiceBodyPathUser MethodBodyPathUser server.
-func EncodeMethodBodyPathUserRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyPathUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodypathuser.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPathUser", "MethodBodyPathUser", "*servicebodypathuser.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPathUser", "MethodBodyPathUser", "*servicebodypathuser.PayloadType", v)
 		}
 		body := NewMethodBodyPathUserRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPathUser", "MethodBodyPathUser", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPathUser", "MethodBodyPathUser", err)
 		}
 		return nil
 	}
@@ -2234,15 +2234,15 @@ func EncodeMethodBodyPathUserRequest(encoder func(*http.Request) goahttp.Encoder
 
 var PayloadBodyPathUserValidateEncodeCode = `// EncodeMethodUserBodyPathValidateRequest returns an encoder for requests sent
 // to the ServiceBodyPathUserValidate MethodUserBodyPathValidate server.
-func EncodeMethodUserBodyPathValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodUserBodyPathValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodypathuservalidate.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyPathUserValidate", "MethodUserBodyPathValidate", "*servicebodypathuservalidate.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyPathUserValidate", "MethodUserBodyPathValidate", "*servicebodypathuservalidate.PayloadType", v)
 		}
 		body := NewMethodUserBodyPathValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyPathUserValidate", "MethodUserBodyPathValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyPathUserValidate", "MethodUserBodyPathValidate", err)
 		}
 		return nil
 	}
@@ -2251,11 +2251,11 @@ func EncodeMethodUserBodyPathValidateRequest(encoder func(*http.Request) goahttp
 
 var PayloadBodyQueryPathObjectEncodeCode = `// EncodeMethodBodyQueryPathObjectRequest returns an encoder for requests sent
 // to the ServiceBodyQueryPathObject MethodBodyQueryPathObject server.
-func EncodeMethodBodyQueryPathObjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryPathObjectRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyquerypathobject.MethodBodyQueryPathObjectPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryPathObject", "MethodBodyQueryPathObject", "*servicebodyquerypathobject.MethodBodyQueryPathObjectPayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryPathObject", "MethodBodyQueryPathObject", "*servicebodyquerypathobject.MethodBodyQueryPathObjectPayload", v)
 		}
 		values := req.URL.Query()
 		if p.B != nil {
@@ -2264,7 +2264,7 @@ func EncodeMethodBodyQueryPathObjectRequest(encoder func(*http.Request) goahttp.
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryPathObjectRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryPathObject", "MethodBodyQueryPathObject", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryPathObject", "MethodBodyQueryPathObject", err)
 		}
 		return nil
 	}
@@ -2274,18 +2274,18 @@ func EncodeMethodBodyQueryPathObjectRequest(encoder func(*http.Request) goahttp.
 var PayloadBodyQueryPathObjectValidateEncodeCode = `// EncodeMethodBodyQueryPathObjectValidateRequest returns an encoder for
 // requests sent to the ServiceBodyQueryPathObjectValidate
 // MethodBodyQueryPathObjectValidate server.
-func EncodeMethodBodyQueryPathObjectValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryPathObjectValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyquerypathobjectvalidate.MethodBodyQueryPathObjectValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryPathObjectValidate", "MethodBodyQueryPathObjectValidate", "*servicebodyquerypathobjectvalidate.MethodBodyQueryPathObjectValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryPathObjectValidate", "MethodBodyQueryPathObjectValidate", "*servicebodyquerypathobjectvalidate.MethodBodyQueryPathObjectValidatePayload", v)
 		}
 		values := req.URL.Query()
 		values.Add("b", p.B)
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryPathObjectValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryPathObjectValidate", "MethodBodyQueryPathObjectValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryPathObjectValidate", "MethodBodyQueryPathObjectValidate", err)
 		}
 		return nil
 	}
@@ -2294,11 +2294,11 @@ func EncodeMethodBodyQueryPathObjectValidateRequest(encoder func(*http.Request) 
 
 var PayloadBodyQueryPathUserEncodeCode = `// EncodeMethodBodyQueryPathUserRequest returns an encoder for requests sent to
 // the ServiceBodyQueryPathUser MethodBodyQueryPathUser server.
-func EncodeMethodBodyQueryPathUserRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryPathUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyquerypathuser.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryPathUser", "MethodBodyQueryPathUser", "*servicebodyquerypathuser.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryPathUser", "MethodBodyQueryPathUser", "*servicebodyquerypathuser.PayloadType", v)
 		}
 		values := req.URL.Query()
 		if p.B != nil {
@@ -2307,7 +2307,7 @@ func EncodeMethodBodyQueryPathUserRequest(encoder func(*http.Request) goahttp.En
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryPathUserRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryPathUser", "MethodBodyQueryPathUser", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryPathUser", "MethodBodyQueryPathUser", err)
 		}
 		return nil
 	}
@@ -2317,18 +2317,18 @@ func EncodeMethodBodyQueryPathUserRequest(encoder func(*http.Request) goahttp.En
 var PayloadBodyQueryPathUserValidateEncodeCode = `// EncodeMethodBodyQueryPathUserValidateRequest returns an encoder for requests
 // sent to the ServiceBodyQueryPathUserValidate MethodBodyQueryPathUserValidate
 // server.
-func EncodeMethodBodyQueryPathUserValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyQueryPathUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodyquerypathuservalidate.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyQueryPathUserValidate", "MethodBodyQueryPathUserValidate", "*servicebodyquerypathuservalidate.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceBodyQueryPathUserValidate", "MethodBodyQueryPathUserValidate", "*servicebodyquerypathuservalidate.PayloadType", v)
 		}
 		values := req.URL.Query()
 		values.Add("b", p.B)
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodBodyQueryPathUserValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyQueryPathUserValidate", "MethodBodyQueryPathUserValidate", err)
+			return loomhttp.ErrEncodingError("ServiceBodyQueryPathUserValidate", "MethodBodyQueryPathUserValidate", err)
 		}
 		return nil
 	}
@@ -2337,11 +2337,11 @@ func EncodeMethodBodyQueryPathUserValidateRequest(encoder func(*http.Request) go
 
 var PayloadMapQueryPrimitivePrimitiveEncodeCode = `// EncodeMapQueryPrimitivePrimitiveRequest returns an encoder for requests sent
 // to the ServiceMapQueryPrimitivePrimitive MapQueryPrimitivePrimitive server.
-func EncodeMapQueryPrimitivePrimitiveRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMapQueryPrimitivePrimitiveRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[string]string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceMapQueryPrimitivePrimitive", "MapQueryPrimitivePrimitive", "map[string]string", v)
+			return loomhttp.ErrInvalidType("ServiceMapQueryPrimitivePrimitive", "MapQueryPrimitivePrimitive", "map[string]string", v)
 		}
 		values := req.URL.Query()
 		for key, value := range p {
@@ -2357,11 +2357,11 @@ func EncodeMapQueryPrimitivePrimitiveRequest(encoder func(*http.Request) goahttp
 
 var PayloadMapQueryPrimitiveArrayEncodeCode = `// EncodeMapQueryPrimitiveArrayRequest returns an encoder for requests sent to
 // the ServiceMapQueryPrimitiveArray MapQueryPrimitiveArray server.
-func EncodeMapQueryPrimitiveArrayRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMapQueryPrimitiveArrayRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[string][]uint)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceMapQueryPrimitiveArray", "MapQueryPrimitiveArray", "map[string][]uint", v)
+			return loomhttp.ErrInvalidType("ServiceMapQueryPrimitiveArray", "MapQueryPrimitiveArray", "map[string][]uint", v)
 		}
 		values := req.URL.Query()
 		for key, value := range p {
@@ -2379,11 +2379,11 @@ func EncodeMapQueryPrimitiveArrayRequest(encoder func(*http.Request) goahttp.Enc
 
 var PayloadMapQueryObjectEncodeCode = `// EncodeMethodMapQueryObjectRequest returns an encoder for requests sent to
 // the ServiceMapQueryObject MethodMapQueryObject server.
-func EncodeMethodMapQueryObjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodMapQueryObjectRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicemapqueryobject.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceMapQueryObject", "MethodMapQueryObject", "*servicemapqueryobject.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceMapQueryObject", "MethodMapQueryObject", "*servicemapqueryobject.PayloadType", v)
 		}
 		values := req.URL.Query()
 		for key, value := range p.C {
@@ -2396,7 +2396,7 @@ func EncodeMethodMapQueryObjectRequest(encoder func(*http.Request) goahttp.Encod
 		req.URL.RawQuery = values.Encode()
 		body := NewMethodMapQueryObjectRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceMapQueryObject", "MethodMapQueryObject", err)
+			return loomhttp.ErrEncodingError("ServiceMapQueryObject", "MethodMapQueryObject", err)
 		}
 		return nil
 	}
@@ -2405,14 +2405,14 @@ func EncodeMethodMapQueryObjectRequest(encoder func(*http.Request) goahttp.Encod
 
 var PayloadMultipartBodyPrimitiveEncodeCode = `// EncodeMethodMultipartPrimitiveRequest returns an encoder for requests sent
 // to the ServiceMultipartPrimitive MethodMultipartPrimitive server.
-func EncodeMethodMultipartPrimitiveRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodMultipartPrimitiveRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceMultipartPrimitive", "MethodMultipartPrimitive", "string", v)
+			return loomhttp.ErrInvalidType("ServiceMultipartPrimitive", "MethodMultipartPrimitive", "string", v)
 		}
 		if err := encoder(req).Encode(p); err != nil {
-			return goahttp.ErrEncodingError("ServiceMultipartPrimitive", "MethodMultipartPrimitive", err)
+			return loomhttp.ErrEncodingError("ServiceMultipartPrimitive", "MethodMultipartPrimitive", err)
 		}
 		return nil
 	}
@@ -2421,14 +2421,14 @@ func EncodeMethodMultipartPrimitiveRequest(encoder func(*http.Request) goahttp.E
 
 var PayloadMultipartBodyUserTypeEncodeCode = `// EncodeMethodMultipartUserTypeRequest returns an encoder for requests sent to
 // the ServiceMultipartUserType MethodMultipartUserType server.
-func EncodeMethodMultipartUserTypeRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodMultipartUserTypeRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicemultipartusertype.MethodMultipartUserTypePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceMultipartUserType", "MethodMultipartUserType", "*servicemultipartusertype.MethodMultipartUserTypePayload", v)
+			return loomhttp.ErrInvalidType("ServiceMultipartUserType", "MethodMultipartUserType", "*servicemultipartusertype.MethodMultipartUserTypePayload", v)
 		}
 		if err := encoder(req).Encode(p); err != nil {
-			return goahttp.ErrEncodingError("ServiceMultipartUserType", "MethodMultipartUserType", err)
+			return loomhttp.ErrEncodingError("ServiceMultipartUserType", "MethodMultipartUserType", err)
 		}
 		return nil
 	}
@@ -2437,14 +2437,14 @@ func EncodeMethodMultipartUserTypeRequest(encoder func(*http.Request) goahttp.En
 
 var PayloadMultipartBodyArrayTypeEncodeCode = `// EncodeMethodMultipartArrayTypeRequest returns an encoder for requests sent
 // to the ServiceMultipartArrayType MethodMultipartArrayType server.
-func EncodeMethodMultipartArrayTypeRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodMultipartArrayTypeRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.([]*servicemultipartarraytype.PayloadType)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceMultipartArrayType", "MethodMultipartArrayType", "[]*servicemultipartarraytype.PayloadType", v)
+			return loomhttp.ErrInvalidType("ServiceMultipartArrayType", "MethodMultipartArrayType", "[]*servicemultipartarraytype.PayloadType", v)
 		}
 		if err := encoder(req).Encode(p); err != nil {
-			return goahttp.ErrEncodingError("ServiceMultipartArrayType", "MethodMultipartArrayType", err)
+			return loomhttp.ErrEncodingError("ServiceMultipartArrayType", "MethodMultipartArrayType", err)
 		}
 		return nil
 	}
@@ -2453,14 +2453,14 @@ func EncodeMethodMultipartArrayTypeRequest(encoder func(*http.Request) goahttp.E
 
 var PayloadMultipartBodyMapTypeEncodeCode = `// EncodeMethodMultipartMapTypeRequest returns an encoder for requests sent to
 // the ServiceMultipartMapType MethodMultipartMapType server.
-func EncodeMethodMultipartMapTypeRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodMultipartMapTypeRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[string]int)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceMultipartMapType", "MethodMultipartMapType", "map[string]int", v)
+			return loomhttp.ErrInvalidType("ServiceMultipartMapType", "MethodMultipartMapType", "map[string]int", v)
 		}
 		if err := encoder(req).Encode(p); err != nil {
-			return goahttp.ErrEncodingError("ServiceMultipartMapType", "MethodMultipartMapType", err)
+			return loomhttp.ErrEncodingError("ServiceMultipartMapType", "MethodMultipartMapType", err)
 		}
 		return nil
 	}
@@ -2469,11 +2469,11 @@ func EncodeMethodMultipartMapTypeRequest(encoder func(*http.Request) goahttp.Enc
 
 var QueryIntAliasEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryIntAlias MethodA server.
-func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryintalias.MethodAPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryIntAlias", "MethodA", "*servicequeryintalias.MethodAPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryIntAlias", "MethodA", "*servicequeryintalias.MethodAPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Int != nil {
@@ -2493,11 +2493,11 @@ func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 
 var QueryIntAliasValidateEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryIntAliasValidate MethodA server.
-func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryintaliasvalidate.MethodAPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryIntAliasValidate", "MethodA", "*servicequeryintaliasvalidate.MethodAPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryIntAliasValidate", "MethodA", "*servicequeryintaliasvalidate.MethodAPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Int != nil {
@@ -2517,11 +2517,11 @@ func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 
 var QueryArrayAliasEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryArrayAlias MethodA server.
-func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayalias.MethodAPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayAlias", "MethodA", "*servicequeryarrayalias.MethodAPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayAlias", "MethodA", "*servicequeryarrayalias.MethodAPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Array {
@@ -2536,11 +2536,11 @@ func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 
 var QueryArrayAliasValidateEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryArrayAliasValidate MethodA server.
-func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayaliasvalidate.MethodAPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayAliasValidate", "MethodA", "*servicequeryarrayaliasvalidate.MethodAPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayAliasValidate", "MethodA", "*servicequeryarrayaliasvalidate.MethodAPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Array {
@@ -2555,11 +2555,11 @@ func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 
 var QueryMapAliasEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryMapAlias MethodA server.
-func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapalias.MethodAPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapAlias", "MethodA", "*servicequerymapalias.MethodAPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapAlias", "MethodA", "*servicequerymapalias.MethodAPayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Map {
@@ -2576,11 +2576,11 @@ func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 
 var QueryMapAliasValidateEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryMapAliasValidate MethodA server.
-func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapaliasvalidate.MethodAPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapAliasValidate", "MethodA", "*servicequerymapaliasvalidate.MethodAPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapAliasValidate", "MethodA", "*servicequerymapaliasvalidate.MethodAPayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Map {
@@ -2597,11 +2597,11 @@ func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 
 var QueryArrayNestedAliasValidateEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryArrayAliasValidate MethodA server.
-func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryarrayaliasvalidate.MethodAPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryArrayAliasValidate", "MethodA", "*servicequeryarrayaliasvalidate.MethodAPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryArrayAliasValidate", "MethodA", "*servicequeryarrayaliasvalidate.MethodAPayload", v)
 		}
 		values := req.URL.Query()
 		for _, value := range p.Array {
@@ -2616,15 +2616,15 @@ func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 
 var PayloadBodyCustomNameEncodeCode = `// EncodeMethodBodyCustomNameRequest returns an encoder for requests sent to
 // the ServiceBodyCustomName MethodBodyCustomName server.
-func EncodeMethodBodyCustomNameRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodBodyCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicebodycustomname.MethodBodyCustomNamePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceBodyCustomName", "MethodBodyCustomName", "*servicebodycustomname.MethodBodyCustomNamePayload", v)
+			return loomhttp.ErrInvalidType("ServiceBodyCustomName", "MethodBodyCustomName", "*servicebodycustomname.MethodBodyCustomNamePayload", v)
 		}
 		body := NewMethodBodyCustomNameRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("ServiceBodyCustomName", "MethodBodyCustomName", err)
+			return loomhttp.ErrEncodingError("ServiceBodyCustomName", "MethodBodyCustomName", err)
 		}
 		return nil
 	}
@@ -2633,11 +2633,11 @@ func EncodeMethodBodyCustomNameRequest(encoder func(*http.Request) goahttp.Encod
 
 var PayloadQueryCustomNameEncodeCode = `// EncodeMethodQueryCustomNameRequest returns an encoder for requests sent to
 // the ServiceQueryCustomName MethodQueryCustomName server.
-func EncodeMethodQueryCustomNameRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerycustomname.MethodQueryCustomNamePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryCustomName", "MethodQueryCustomName", "*servicequerycustomname.MethodQueryCustomNamePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryCustomName", "MethodQueryCustomName", "*servicequerycustomname.MethodQueryCustomNamePayload", v)
 		}
 		values := req.URL.Query()
 		if p.Query != nil {
@@ -2651,11 +2651,11 @@ func EncodeMethodQueryCustomNameRequest(encoder func(*http.Request) goahttp.Enco
 
 var PayloadHeaderCustomNameEncodeCode = `// EncodeMethodHeaderCustomNameRequest returns an encoder for requests sent to
 // the ServiceHeaderCustomName MethodHeaderCustomName server.
-func EncodeMethodHeaderCustomNameRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodHeaderCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceheadercustomname.MethodHeaderCustomNamePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceHeaderCustomName", "MethodHeaderCustomName", "*serviceheadercustomname.MethodHeaderCustomNamePayload", v)
+			return loomhttp.ErrInvalidType("ServiceHeaderCustomName", "MethodHeaderCustomName", "*serviceheadercustomname.MethodHeaderCustomNamePayload", v)
 		}
 		if p.Header != nil {
 			head := *p.Header
@@ -2668,11 +2668,11 @@ func EncodeMethodHeaderCustomNameRequest(encoder func(*http.Request) goahttp.Enc
 
 var PayloadCookieCustomNameEncodeCode = `// EncodeMethodCookieCustomNameRequest returns an encoder for requests sent to
 // the ServiceCookieCustomName MethodCookieCustomName server.
-func EncodeMethodCookieCustomNameRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodCookieCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicecookiecustomname.MethodCookieCustomNamePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceCookieCustomName", "MethodCookieCustomName", "*servicecookiecustomname.MethodCookieCustomNamePayload", v)
+			return loomhttp.ErrInvalidType("ServiceCookieCustomName", "MethodCookieCustomName", "*servicecookiecustomname.MethodCookieCustomNamePayload", v)
 		}
 		if p.Cookie != nil {
 			v := *p.Cookie

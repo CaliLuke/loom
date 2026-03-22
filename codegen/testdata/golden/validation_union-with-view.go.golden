@@ -1,39 +1,39 @@
 func Validate() (err error) {
 	if target.RequiredUnion.Kind() == "" {
-		err = goa.MergeErrors(err, goa.MissingFieldError("required_union", "target"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_union", "target"))
 	}
 	switch string(target.RequiredUnion.Kind()) {
 	case "int":
 		actual, _ := target.RequiredUnion.AsInt()
 		if actual == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("value", "target.required_union.value"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("value", "target.required_union.value"))
 			break
 		}
 		if actual != nil {
 			if err2 := ValidateInteger(actual); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	case "float":
 		actual, _ := target.RequiredUnion.AsFloat()
 		if actual == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("value", "target.required_union.value"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("value", "target.required_union.value"))
 			break
 		}
 		if actual != nil {
 			if err2 := ValidateFloat(actual); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	case "string":
 		actual, _ := target.RequiredUnion.AsString()
 		if actual == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("value", "target.required_union.value"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("value", "target.required_union.value"))
 			break
 		}
 		if actual != nil {
 			if err2 := ValidateString(actual); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	}
@@ -41,34 +41,34 @@ func Validate() (err error) {
 	case "int":
 		actual, _ := target.Union.AsInt()
 		if actual == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("value", "target.union.value"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("value", "target.union.value"))
 			break
 		}
 		if actual != nil {
 			if err2 := ValidateInteger(actual); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	case "float":
 		actual, _ := target.Union.AsFloat()
 		if actual == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("value", "target.union.value"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("value", "target.union.value"))
 			break
 		}
 		if actual != nil {
 			if err2 := ValidateFloat(actual); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	case "string":
 		actual, _ := target.Union.AsString()
 		if actual == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("value", "target.union.value"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("value", "target.union.value"))
 			break
 		}
 		if actual != nil {
 			if err2 := ValidateString(actual); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	}

@@ -53,13 +53,13 @@ func renderServerInit(data *ServiceData) string {
 	b.WriteString("\n")
 	fmt.Fprintf(&b, "func %s(\n", data.ServerInit)
 	fmt.Fprintf(&b, "\te *%s.Endpoints,\n", data.Service.PkgName)
-	b.WriteString("\tmux goahttp.Muxer,\n")
-	b.WriteString("\tdecoder func(*http.Request) goahttp.Decoder,\n")
-	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) goahttp.Encoder,\n")
+	b.WriteString("\tmux loomhttp.Muxer,\n")
+	b.WriteString("\tdecoder func(*http.Request) loomhttp.Decoder,\n")
+	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,\n")
 	b.WriteString("\terrhandler func(context.Context, http.ResponseWriter, error),\n")
-	b.WriteString("\tformatter func(ctx context.Context, err error) goahttp.Statuser,\n")
+	b.WriteString("\tformatter func(ctx context.Context, err error) loomhttp.Statuser,\n")
 	if HasWebSocket(data) {
-		b.WriteString("\tupgrader goahttp.Upgrader,\n")
+		b.WriteString("\tupgrader loomhttp.Upgrader,\n")
 		b.WriteString("\tconfigurer *ConnConfigurer,\n")
 	}
 	for _, endpoint := range data.Endpoints {
@@ -146,7 +146,7 @@ func renderServerMount(data *ServiceData) string {
 	b.WriteString("\n")
 	b.WriteString(comment)
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(mux goahttp.Muxer, h *%s) {\n", data.MountServer, data.ServerStruct)
+	fmt.Fprintf(&b, "func %s(mux loomhttp.Muxer, h *%s) {\n", data.MountServer, data.ServerStruct)
 	for _, endpoint := range data.Endpoints {
 		fmt.Fprintf(&b, "\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
 	}
@@ -172,7 +172,7 @@ func renderServerMount(data *ServiceData) string {
 	b.WriteString("}\n\n")
 	b.WriteString(comment)
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%s) %s(mux goahttp.Muxer) {\n", data.ServerStruct, data.MountServer)
+	fmt.Fprintf(&b, "func (s *%s) %s(mux loomhttp.Muxer) {\n", data.ServerStruct, data.MountServer)
 	fmt.Fprintf(&b, "\t%s(mux, s)\n", data.MountServer)
 	b.WriteString("}\n")
 	return b.String()
@@ -183,7 +183,7 @@ func serverHandlerSection(data *EndpointData) codegen.Section {
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(fmt.Sprintf("%s configures the mux to serve the %q service %q endpoint.", data.MountHandler, data.ServiceName, data.Method.Name)))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(mux goahttp.Muxer, h http.Handler) {\n", data.MountHandler)
+	fmt.Fprintf(&b, "func %s(mux loomhttp.Muxer, h http.Handler) {\n", data.MountHandler)
 	b.WriteString("\tf, ok := h.(http.HandlerFunc)\n")
 	b.WriteString("\tif !ok {\n")
 	b.WriteString("\t\tf = func(w http.ResponseWriter, r *http.Request) {\n\t\t\th.ServeHTTP(w, r)\n\t\t}\n\t}\n")
@@ -221,7 +221,7 @@ func fileServerSection(data *FileServerData) codegen.Section {
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(fmt.Sprintf("%s configures the mux to serve GET request made to %q.", data.MountHandler, strings.Join(data.RequestPaths, ", "))))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(mux goahttp.Muxer, h http.Handler) {\n", data.MountHandler)
+	fmt.Fprintf(&b, "func %s(mux loomhttp.Muxer, h http.Handler) {\n", data.MountHandler)
 	if data.IsDir {
 		for _, requestPath := range data.RequestPaths {
 			suffix := ""

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	clock "example.com/http-ticktock/gen/clock"
+	loom "github.com/CaliLuke/loom/pkg"
 	"goa.design/clue/log"
-	goa "github.com/CaliLuke/loom/pkg"
 )
 
 type (
@@ -40,7 +40,7 @@ func (s *clocksrvc) Tock(ctx context.Context, stream clock.TockServerStream) (er
 func (s *clocksrvc) Guarded(ctx context.Context, p *clock.GuardedPayload, stream clock.GuardedServerStream) error {
 	log.Printf(ctx, "clock.Guarded")
 	if p.Token == nil || *p.Token != "open-sesame" {
-		return goa.PermanentError("unauthorized", "missing or invalid token")
+		return loom.PermanentError("unauthorized", "missing or invalid token")
 	}
 	return emit(ctx, stream.SendWithContext, "guarded", []string{"guarded-1", "guarded-done"})
 }

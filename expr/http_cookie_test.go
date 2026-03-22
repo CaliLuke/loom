@@ -121,7 +121,7 @@ func TestHTTPResponseCookie(t *testing.T) {
 					t.Fatalf("got %d cookies, expected 2", len(cookies))
 				}
 				assertResponseCookie(t, cookies[0], "session", "__Host-ak_session", "/", "", "", true, true, expr.CookieSameSiteLax)
-				assertResponseCookie(t, cookies[1], "refresh", "ak_refresh", "/tokens", "accounts.goa.design", "", false, false, "")
+				assertResponseCookie(t, cookies[1], "refresh", "ak_refresh", "/tokens", "accounts.loom.design", "", false, false, "")
 			},
 		},
 	}

@@ -59,7 +59,7 @@ func TestSSEServerStreamCommitsHeadersOnSend(t *testing.T) {
 	code := codegen.SectionCode(t, sseFile.Section("server-sse")[0])
 	require.Contains(t, code, "s.initHeaders()")
 	require.NotContains(t, code, "func (s *SSEObjectMethodServerStream) open() error")
-	require.Contains(t, code, "if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {")
+	require.Contains(t, code, "if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {")
 }
 
 func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {

@@ -1,6 +1,6 @@
 // DecodeMethodARequest returns a decoder for requests sent to the
 // ServiceQueryArrayAlias MethodA endpoint.
-func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequeryarrayalias.MethodAPayload, error) {
+func DecodeMethodARequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayalias.MethodAPayload, error) {
 	return func(r *http.Request) (*servicequeryarrayalias.MethodAPayload, error) {
 		var payload *servicequeryarrayalias.MethodAPayload
 		var (
@@ -14,7 +14,7 @@ func DecodeMethodARequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 				for i, rv := range arrayRaw {
 					v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
 					if err2 != nil {
-						err = goa.MergeErrors(err, goa.InvalidFieldTypeError("array", arrayRaw, "array of unsigned integers"))
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("array", arrayRaw, "array of unsigned integers"))
 					}
 					array[i] = uint(v)
 				}

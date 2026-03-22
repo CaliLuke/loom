@@ -13,9 +13,9 @@ func clientStructSection(data *EndpointsData) codegen.Section {
 		codegen.Doc(stmt, fmt.Sprintf("%s is the %q service client.", data.ClientVarName, data.Name))
 		stmt.Type().Id(data.ClientVarName).StructFunc(func(group *jen.Group) {
 			for _, method := range data.Methods {
-				group.Id(method.EndpointField).Add(codegen.Expr("goa.Endpoint"))
+				group.Id(method.EndpointField).Add(codegen.Expr("loom.Endpoint"))
 				if method.HasMixedResults {
-					group.Id(method.StreamEndpointField).Add(codegen.Expr("goa.Endpoint"))
+					group.Id(method.StreamEndpointField).Add(codegen.Expr("loom.Endpoint"))
 				}
 			}
 		})
@@ -28,7 +28,7 @@ func clientInitSection(data *EndpointsData) codegen.Section {
 		codegen.Doc(stmt, fmt.Sprintf("New%s initializes a %q service client given the endpoints.", data.ClientVarName, data.Name))
 		stmt.Func().Id("New" + data.ClientVarName).ParamsFunc(func(group *jen.Group) {
 			if data.ClientInitArgs != "" {
-				group.Id(data.ClientInitArgs).Add(codegen.Expr("goa.Endpoint"))
+				group.Id(data.ClientInitArgs).Add(codegen.Expr("loom.Endpoint"))
 				if data.HasClientInterceptors {
 					group.Id("ci").Id("ClientInterceptors")
 				}

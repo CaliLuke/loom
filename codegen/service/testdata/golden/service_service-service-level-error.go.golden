@@ -21,7 +21,7 @@ const ServiceName = "ServiceError"
 // MethodKey key.
 var MethodNames = [1]string{"A"}
 
-// MakeError builds a goa.ServiceError from an error.
-func MakeError(err error) *goa.ServiceError {
-	return goa.NewServiceError(err, "error", false, false, false)
+// MakeError builds a loom.ServiceError from an error.
+func MakeError(err error) *loom.ServiceError {
+	return loom.NewServiceError(err, "error", false, false, false)
 }

@@ -50,7 +50,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		{Path: "strings"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}
@@ -130,7 +130,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 			{Path: "time"},
 			{Path: "github.com/gorilla/websocket"},
 			codegen.LoomImport(""),
-			codegen.LoomNamedImport("http", "goahttp"),
+			codegen.LoomNamedImport("http", "loomhttp"),
 			{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 			{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 		}),

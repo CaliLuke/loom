@@ -1,8 +1,8 @@
 // NewMethodClientStreamingRPCHandler creates a gRPC handler which serves the
 // "ServiceClientStreamingRPC" service "MethodClientStreamingRPC" endpoint.
-func NewMethodClientStreamingRPCHandler(endpoint goa.Endpoint, h goagrpc.StreamHandler) goagrpc.StreamHandler {
+func NewMethodClientStreamingRPCHandler(endpoint loom.Endpoint, h loomgrpc.StreamHandler) loomgrpc.StreamHandler {
 	if h == nil {
-		h = goagrpc.NewStreamHandler(endpoint, nil)
+		h = loomgrpc.NewStreamHandler(endpoint, nil)
 	}
 	return h
 }

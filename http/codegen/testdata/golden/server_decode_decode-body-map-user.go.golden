@@ -1,6 +1,6 @@
 // DecodeMethodBodyMapUserRequest returns a decoder for requests sent to the
 // ServiceBodyMapUser MethodBodyMapUser endpoint.
-func DecodeMethodBodyMapUserRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicebodymapuser.MethodBodyMapUserPayload, error) {
+func DecodeMethodBodyMapUserRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodymapuser.MethodBodyMapUserPayload, error) {
 	return func(r *http.Request) (*servicebodymapuser.MethodBodyMapUserPayload, error) {
 		var payload *servicebodymapuser.MethodBodyMapUserPayload
 		var (
@@ -10,13 +10,13 @@ func DecodeMethodBodyMapUserRequest(mux goahttp.Muxer, decoder func(*http.Reques
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		err = ValidateMethodBodyMapUserRequestBody(&body)
 		if err != nil {

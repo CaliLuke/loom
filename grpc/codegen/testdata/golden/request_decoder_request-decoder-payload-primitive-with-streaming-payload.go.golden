@@ -3,20 +3,20 @@
 // "MethodClientStreamingRPCWithPayload" endpoint.
 func DecodeMethodClientStreamingRPCWithPayloadRequest(ctx context.Context, v any, md metadata.MD) (any, error) {
 	var (
-		goaPayload int
+		loomPayload int
 		err        error
 	)
 	{
-		if vals := md.Get("goa_payload"); len(vals) == 0 {
-			err = goa.MergeErrors(err, goa.MissingFieldError("goa_payload", "metadata"))
+		if vals := md.Get("loom_payload"); len(vals) == 0 {
+			err = loom.MergeErrors(err, loom.MissingFieldError("loom_payload", "metadata"))
 		} else {
-			goaPayloadRaw := vals[0]
+			loomPayloadRaw := vals[0]
 
-			v, err2 := strconv.ParseInt(goaPayloadRaw, 10, strconv.IntSize)
+			v, err2 := strconv.ParseInt(loomPayloadRaw, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("goaPayload", goaPayloadRaw, "integer"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("loomPayload", loomPayloadRaw, "integer"))
 			}
-			goaPayload = int(v)
+			loomPayload = int(v)
 		}
 	}
 	if err != nil {
@@ -24,7 +24,7 @@ func DecodeMethodClientStreamingRPCWithPayloadRequest(ctx context.Context, v any
 	}
 	var payload int
 	{
-		payload = goaPayload
+		payload = loomPayload
 	}
 	return payload, nil
 }

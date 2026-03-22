@@ -34,11 +34,11 @@ type (
 )
 
 // newSchemafier initializes a schemafier.
-func newSchemafier(rand *expr.ExampleGenerator, closeObjects bool) *schemafier {
+func newSchemafier(rand *expr.ExampleGenerator) *schemafier {
 	return &schemafier{
 		analyzer: openapiir.NewAnalyzer(
 			rand,
-			closeObjects,
+			false,
 			openapiir.WithExampleValue(openAPIExampleValue),
 			openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
 		),

@@ -1,6 +1,6 @@
 // NewClient instantiates HTTP clients for all the StreamingResultService
 // service servers.
-func NewClient(scheme string, host string, doer goahttp.Doer, enc func(*http.Request) goahttp.Encoder, dec func(*http.Response) goahttp.Decoder, restoreBody bool, dialer goahttp.Dialer, cfn *ConnConfigurer) *Client {
+func NewClient(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restoreBody bool, dialer loomhttp.Dialer, cfn *ConnConfigurer) *Client {
 	if cfn == nil {
 		cfn = &ConnConfigurer{}
 	}

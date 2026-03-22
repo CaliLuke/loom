@@ -25,7 +25,7 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend lint test test-release integration-test build-loom loom-local loom-remote loom-status goa-local goa-remote goa-status release release-preflight release-loom
+.PHONY: all all-tests ci depend lint test test-release integration-test build-loom loom-local loom-remote loom-status release release-preflight release-loom
 .NOTPARALLEL: release release-loom
 
 # Only list test and build dependencies
@@ -109,19 +109,13 @@ ifneq ($(GOOS),windows)
 endif
 
 loom-local:
-	bash ./scripts/goa_source_mode.sh local
+	bash ./scripts/loom_source_mode.sh local
 
 loom-remote:
-	bash ./scripts/goa_source_mode.sh remote
+	bash ./scripts/loom_source_mode.sh remote
 
 loom-status:
-	bash ./scripts/goa_source_mode.sh status
-
-goa-local: loom-local
-
-goa-remote: loom-remote
-
-goa-status: loom-status
+	bash ./scripts/loom_source_mode.sh status
 
 # Needed for CI to run integration tests
 build-loom:

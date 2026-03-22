@@ -2,7 +2,7 @@
 // ChainedInterceptorService example server interceptors
 //
 // Command:
-// goa
+// loom
 
 package interceptors
 
@@ -10,7 +10,7 @@ import (
 	chainedinterceptorservice "chained_interceptor_service"
 	"context"
 	"fmt"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 	"goa.design/clue/log"
 )
 
@@ -22,7 +22,7 @@ type ChainedInterceptorServiceServerInterceptors struct {
 func NewChainedInterceptorServiceServerInterceptors() *ChainedInterceptorServiceServerInterceptors {
 	return &ChainedInterceptorServiceServerInterceptors{}
 }
-func (i *ChainedInterceptorServiceServerInterceptors) API(ctx context.Context, info *interceptors.APIInfo, next goa.Endpoint) (any, error) {
+func (i *ChainedInterceptorServiceServerInterceptors) API(ctx context.Context, info *interceptors.APIInfo, next loom.Endpoint) (any, error) {
 	log.Printf(ctx, "[API] Processing request: %v", info.RawPayload())
 	resp, err := next(ctx, info.RawPayload())
 	if err != nil {
@@ -32,7 +32,7 @@ func (i *ChainedInterceptorServiceServerInterceptors) API(ctx context.Context, i
 	log.Printf(ctx, "[API] Response: %v", resp)
 	return resp, nil
 }
-func (i *ChainedInterceptorServiceServerInterceptors) Method(ctx context.Context, info *interceptors.MethodInfo, next goa.Endpoint) (any, error) {
+func (i *ChainedInterceptorServiceServerInterceptors) Method(ctx context.Context, info *interceptors.MethodInfo, next loom.Endpoint) (any, error) {
 	log.Printf(ctx, "[Method] Processing request: %v", info.RawPayload())
 	resp, err := next(ctx, info.RawPayload())
 	if err != nil {
@@ -42,7 +42,7 @@ func (i *ChainedInterceptorServiceServerInterceptors) Method(ctx context.Context
 	log.Printf(ctx, "[Method] Response: %v", resp)
 	return resp, nil
 }
-func (i *ChainedInterceptorServiceServerInterceptors) Service(ctx context.Context, info *interceptors.ServiceInfo, next goa.Endpoint) (any, error) {
+func (i *ChainedInterceptorServiceServerInterceptors) Service(ctx context.Context, info *interceptors.ServiceInfo, next loom.Endpoint) (any, error) {
 	log.Printf(ctx, "[Service] Processing request: %v", info.RawPayload())
 	resp, err := next(ctx, info.RawPayload())
 	if err != nil {

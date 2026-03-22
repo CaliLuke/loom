@@ -1,7 +1,7 @@
 // DecodeMethodBodyArrayStringValidateRequest returns a decoder for requests
 // sent to the ServiceBodyArrayStringValidate MethodBodyArrayStringValidate
 // endpoint.
-func DecodeMethodBodyArrayStringValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload, error) {
+func DecodeMethodBodyArrayStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload, error) {
 	return func(r *http.Request) (*servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload, error) {
 		var payload *servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload
 		var (
@@ -11,13 +11,13 @@ func DecodeMethodBodyArrayStringValidateRequest(mux goahttp.Muxer, decoder func(
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		err = ValidateMethodBodyArrayStringValidateRequestBody(&body)
 		if err != nil {

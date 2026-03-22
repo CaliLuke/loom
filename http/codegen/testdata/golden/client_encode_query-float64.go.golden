@@ -1,10 +1,10 @@
 // EncodeMethodQueryFloat64Request returns an encoder for requests sent to the
 // ServiceQueryFloat64 MethodQueryFloat64 server.
-func EncodeMethodQueryFloat64Request(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryFloat64Request(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryfloat64.MethodQueryFloat64Payload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryFloat64", "MethodQueryFloat64", "*servicequeryfloat64.MethodQueryFloat64Payload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryFloat64", "MethodQueryFloat64", "*servicequeryfloat64.MethodQueryFloat64Payload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {

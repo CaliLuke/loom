@@ -1,11 +1,11 @@
 // EncodeMethodQueryMapBoolArrayStringRequest returns an encoder for requests
 // sent to the ServiceQueryMapBoolArrayString MethodQueryMapBoolArrayString
 // server.
-func EncodeMethodQueryMapBoolArrayStringRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapBoolArrayStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapboolarraystring.MethodQueryMapBoolArrayStringPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapBoolArrayString", "MethodQueryMapBoolArrayString", "*servicequerymapboolarraystring.MethodQueryMapBoolArrayStringPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolArrayString", "MethodQueryMapBoolArrayString", "*servicequerymapboolarraystring.MethodQueryMapBoolArrayStringPayload", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p.Q {

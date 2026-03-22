@@ -1,6 +1,6 @@
 // DecodeMethodQueryMapStringStringRequest returns a decoder for requests sent
 // to the ServiceQueryMapStringString MethodQueryMapStringString endpoint.
-func DecodeMethodQueryMapStringStringRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerymapstringstring.MethodQueryMapStringStringPayload, error) {
+func DecodeMethodQueryMapStringStringRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapstringstring.MethodQueryMapStringStringPayload, error) {
 	return func(r *http.Request) (*servicequerymapstringstring.MethodQueryMapStringStringPayload, error) {
 		var payload *servicequerymapstringstring.MethodQueryMapStringStringPayload
 		var (
@@ -20,7 +20,7 @@ func DecodeMethodQueryMapStringStringRequest(mux goahttp.Muxer, decoder func(*ht
 							openIdx := strings.IndexRune(keyRaw, '[')
 							closeIdx := strings.IndexRune(keyRaw, ']')
 							if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-								err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+								err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 							} else {
 								keya = keyRaw[openIdx+1 : closeIdx]
 							}

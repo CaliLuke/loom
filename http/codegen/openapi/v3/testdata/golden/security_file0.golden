@@ -32,13 +32,13 @@
         "description": "Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes \"api:read\" and \"api:write\".",
         "flows": {
           "authorizationCode": {
-            "authorizationUrl": "http://goa.design/authorization",
-            "refreshUrl": "http://goa.design/refresh",
+            "authorizationUrl": "http://loom.design/authorization",
+            "refreshUrl": "http://loom.design/refresh",
             "scopes": {
               "api:read": "Read-only access",
               "api:write": "Read and write access"
             },
-            "tokenUrl": "http://goa.design/token"
+            "tokenUrl": "http://loom.design/token"
           }
         },
         "type": "oauth2"
@@ -47,13 +47,13 @@
         "description": "Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes \"api:read\" and \"api:write\".",
         "flows": {
           "authorizationCode": {
-            "authorizationUrl": "http://goa.design/authorization",
-            "refreshUrl": "http://goa.design/refresh",
+            "authorizationUrl": "http://loom.design/authorization",
+            "refreshUrl": "http://loom.design/refresh",
             "scopes": {
               "api:read": "Read-only access",
               "api:write": "Read and write access"
             },
-            "tokenUrl": "http://goa.design/token"
+            "tokenUrl": "http://loom.design/token"
           }
         },
         "type": "oauth2"

@@ -11,14 +11,14 @@ func DecodeMethodMessageWithValidateRequest(ctx context.Context, v any, md metad
 
 			v, err2 := strconv.ParseInt(inMetadataRaw, 10, strconv.IntSize)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("inMetadata", inMetadataRaw, "integer"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("inMetadata", inMetadataRaw, "integer"))
 			}
 			pv := int(v)
 			inMetadata = &pv
 		}
 		if inMetadata != nil {
 			if *inMetadata > 100 {
-				err = goa.MergeErrors(err, goa.InvalidRangeError("InMetadata", *inMetadata, 100, false))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("InMetadata", *inMetadata, 100, false))
 			}
 		}
 	}
@@ -31,7 +31,7 @@ func DecodeMethodMessageWithValidateRequest(ctx context.Context, v any, md metad
 	)
 	{
 		if message, ok = v.(*service_message_with_validatepb.MethodMessageWithValidateRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*service_message_with_validatepb.MethodMessageWithValidateRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*service_message_with_validatepb.MethodMessageWithValidateRequest", v)
 		}
 		if err = ValidateMethodMessageWithValidateRequest(message); err != nil {
 			return nil, err

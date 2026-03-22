@@ -14,7 +14,7 @@ func clientStructSection(data *ServiceData) gocodegen.Section {
 		stmt.Type().Id(data.ClientStruct).StructFunc(func(group *jen.Group) {
 			for _, endpoint := range data.Endpoints {
 				group.Comment(gocodegen.Comment(fmt.Sprintf("%s Doer is the HTTP client used to make requests to the %s endpoint.", endpoint.Method.VarName, endpoint.Method.Name)))
-				group.Id(endpoint.Method.VarName + "Doer").Id("goahttp").Dot("Doer")
+				group.Id(endpoint.Method.VarName + "Doer").Id("loomhttp").Dot("Doer")
 			}
 
 			group.Comment(gocodegen.Comment("RestoreResponseBody controls whether the response bodies are reset after\ndecoding so they can be read again."))
@@ -23,10 +23,10 @@ func clientStructSection(data *ServiceData) gocodegen.Section {
 
 			group.Id("scheme").String()
 			group.Id("host").String()
-			group.Id("encoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Id("goahttp").Dot("Encoder")
-			group.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Id("goahttp").Dot("Decoder")
+			group.Id("encoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Id("loomhttp").Dot("Encoder")
+			group.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Id("loomhttp").Dot("Decoder")
 			if HasWebSocket(data) {
-				group.Id("dialer").Id("goahttp").Dot("Dialer")
+				group.Id("dialer").Id("loomhttp").Dot("Dialer")
 				group.Id("configurer").Op("*").Id("ConnConfigurer")
 			}
 		})
@@ -40,12 +40,12 @@ func clientInitSection(data *ServiceData) gocodegen.Section {
 		fn := stmt.Func().Id("New" + data.ClientStruct).ParamsFunc(func(args *jen.Group) {
 			args.Id("scheme").String()
 			args.Id("host").String()
-			args.Id("doer").Id("goahttp").Dot("Doer")
-			args.Id("enc").Func().Params(jen.Op("*").Qual("net/http", "Request")).Id("goahttp").Dot("Encoder")
-			args.Id("dec").Func().Params(jen.Op("*").Qual("net/http", "Response")).Id("goahttp").Dot("Decoder")
+			args.Id("doer").Id("loomhttp").Dot("Doer")
+			args.Id("enc").Func().Params(jen.Op("*").Qual("net/http", "Request")).Id("loomhttp").Dot("Encoder")
+			args.Id("dec").Func().Params(jen.Op("*").Qual("net/http", "Response")).Id("loomhttp").Dot("Decoder")
 			args.Id("restoreBody").Bool()
 			if HasWebSocket(data) {
-				args.Id("dialer").Id("goahttp").Dot("Dialer")
+				args.Id("dialer").Id("loomhttp").Dot("Dialer")
 				args.Id("cfn").Op("*").Id("ConnConfigurer")
 			}
 		}).Op("*").Id(data.ClientStruct)
@@ -102,7 +102,7 @@ func clientEndpointSection(endpoint *EndpointData) gocodegen.Section {
 		} else {
 			fn.Params()
 		}
-		fn.Id("goa").Dot("Endpoint").BlockFunc(func(group *jen.Group) {
+		fn.Id("loom").Dot("Endpoint").BlockFunc(func(group *jen.Group) {
 			var defs []jen.Code
 			if endpoint.RequestEncoder != "" {
 				var requestEncoderArg jen.Code = jen.Id("c").Dot("encoder")
@@ -171,7 +171,7 @@ func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
 		)
 		failure.Return(
 			jen.Nil(),
-			jen.Id("goahttp").Dot("ErrRequestError").Call(
+			jen.Id("loomhttp").Dot("ErrRequestError").Call(
 				jen.Lit(endpoint.ServiceName),
 				jen.Lit(endpoint.Method.Name),
 				jen.Err(),
@@ -223,7 +223,7 @@ func renderClientSSEEndpoint(group *jen.Group, endpoint *EndpointData) {
 	group.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(
 			jen.Nil(),
-			jen.Id("goahttp").Dot("ErrRequestError").Call(
+			jen.Id("loomhttp").Dot("ErrRequestError").Call(
 				jen.Lit(endpoint.ServiceName),
 				jen.Lit(endpoint.Method.Name),
 				jen.Err(),
@@ -263,7 +263,7 @@ func renderClientHTTPEndpoint(group *jen.Group, endpoint *EndpointData) {
 	group.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(
 			jen.Nil(),
-			jen.Id("goahttp").Dot("ErrRequestError").Call(
+			jen.Id("loomhttp").Dot("ErrRequestError").Call(
 				jen.Lit(endpoint.ServiceName),
 				jen.Lit(endpoint.Method.Name),
 				jen.Err(),

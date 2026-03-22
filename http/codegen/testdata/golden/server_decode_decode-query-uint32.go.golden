@@ -1,6 +1,6 @@
 // DecodeMethodQueryUInt32Request returns a decoder for requests sent to the
 // ServiceQueryUInt32 MethodQueryUInt32 endpoint.
-func DecodeMethodQueryUInt32Request(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequeryuint32.MethodQueryUInt32Payload, error) {
+func DecodeMethodQueryUInt32Request(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryuint32.MethodQueryUInt32Payload, error) {
 	return func(r *http.Request) (*servicequeryuint32.MethodQueryUInt32Payload, error) {
 		var payload *servicequeryuint32.MethodQueryUInt32Payload
 		var (
@@ -12,7 +12,7 @@ func DecodeMethodQueryUInt32Request(mux goahttp.Muxer, decoder func(*http.Reques
 			if qRaw != "" {
 				v, err2 := strconv.ParseUint(qRaw, 10, 32)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("q", qRaw, "unsigned integer"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "unsigned integer"))
 				}
 				pv := uint32(v)
 				q = &pv

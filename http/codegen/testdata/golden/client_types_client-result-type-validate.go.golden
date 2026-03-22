@@ -20,7 +20,7 @@ func NewMethodResultTypeValidateResultTypeOK(body *MethodResultTypeValidateRespo
 func ValidateMethodResultTypeValidateResponseBody(body *MethodResultTypeValidateResponseBody) (err error) {
 	if body.A != nil {
 		if utf8.RuneCountInString(*body.A) < 5 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("body.a", *body.A, utf8.RuneCountInString(*body.A), 5, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body.a", *body.A, utf8.RuneCountInString(*body.A), 5, true))
 		}
 	}
 	return

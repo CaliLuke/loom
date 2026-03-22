@@ -42,7 +42,7 @@ func NewResultWithSpace(vres *servicewithspacesviews.ResultWithSpace) *ResultWit
 	case "default", "":
 		res = NewResultWithSpaceFromResultWithSpaceView(vres.Projected)
 	default:
-		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+		panic(loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		}))
 	}
@@ -59,7 +59,7 @@ func NewViewedResultWithSpace(res *ResultWithSpace, view string) *servicewithspa
 		p := ProjectResultWithSpace(res)
 		vres = &servicewithspacesviews.ResultWithSpace{Projected: p, View: "default"}
 	default:
-		panic(goa.InvalidEnumValueError("view", view, []any{
+		panic(loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		}))
 	}

@@ -1,11 +1,11 @@
 // EncodeMethodQueryMapIntMapStringArrayIntValidateRequest returns an encoder
 // for requests sent to the ServiceQueryMapIntMapStringArrayIntValidate
 // MethodQueryMapIntMapStringArrayIntValidate server.
-func EncodeMethodQueryMapIntMapStringArrayIntValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapIntMapStringArrayIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[int]map[string][]int)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapIntMapStringArrayIntValidate", "MethodQueryMapIntMapStringArrayIntValidate", "map[int]map[string][]int", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapIntMapStringArrayIntValidate", "MethodQueryMapIntMapStringArrayIntValidate", "map[int]map[string][]int", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p {

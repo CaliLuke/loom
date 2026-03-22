@@ -1,16 +1,16 @@
 // MethodClientStreamingRPC calls the "MethodClientStreamingRPC" function in
 // service_client_streaming_rpcpb.ServiceClientStreamingRPCClient interface.
-func (c *Client) MethodClientStreamingRPC() goa.Endpoint {
+func (c *Client) MethodClientStreamingRPC() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(BuildMethodClientStreamingRPCFunc(c.grpccli, c.opts...), nil, DecodeMethodClientStreamingRPCResponse)
+		inv := loomgrpc.NewInvoker(BuildMethodClientStreamingRPCFunc(c.grpccli, c.opts...), nil, DecodeMethodClientStreamingRPCResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			resp := goagrpc.DecodeError(err)
+			resp := loomgrpc.DecodeError(err)
 			// Try to decode a Loom error response detail before falling back to Fault.
-			if eresp, ok := resp.(*goapb.ErrorResponse); ok {
-				return nil, goagrpc.NewServiceError(eresp)
+			if eresp, ok := resp.(*loompb.ErrorResponse); ok {
+				return nil, loomgrpc.NewServiceError(eresp)
 			}
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}

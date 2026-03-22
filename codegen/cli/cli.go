@@ -610,7 +610,7 @@ func flagType(tname string) string {
 
 // jsonExample generates a json example
 func jsonExample(v any) string {
-	// In JSON, keys must be a string. But goa allows map keys to be anything.
+	// In JSON, keys must be a string. But Loom allows map keys to be anything.
 	r := reflect.ValueOf(v)
 	if r.Kind() == reflect.Map {
 		keys := r.MapKeys()

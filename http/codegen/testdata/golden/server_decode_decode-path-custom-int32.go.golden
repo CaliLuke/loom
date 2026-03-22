@@ -1,6 +1,6 @@
 // DecodeMethodPathCustomInt32Request returns a decoder for requests sent to
 // the ServicePathCustomInt32 MethodPathCustomInt32 endpoint.
-func DecodeMethodPathCustomInt32Request(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicepathcustomint32.MethodPathCustomInt32Payload, error) {
+func DecodeMethodPathCustomInt32Request(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomint32.MethodPathCustomInt32Payload, error) {
 	return func(r *http.Request) (*servicepathcustomint32.MethodPathCustomInt32Payload, error) {
 		var payload *servicepathcustomint32.MethodPathCustomInt32Payload
 		var (
@@ -13,7 +13,7 @@ func DecodeMethodPathCustomInt32Request(mux goahttp.Muxer, decoder func(*http.Re
 			pRaw := params["p"]
 			v, err2 := strconv.ParseInt(pRaw, 10, 32)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("p", pRaw, "integer"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("p", pRaw, "integer"))
 			}
 			p = hide.Int32(v)
 		}

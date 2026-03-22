@@ -24,7 +24,7 @@
   },
   "servers": [
     {
-      "url": "https://{version}.goa.design",
+      "url": "https://{version}.loom.design",
       "variables": {
         "version": {
           "default": "v1"

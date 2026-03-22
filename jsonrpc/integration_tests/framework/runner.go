@@ -128,6 +128,7 @@ func (r *Runner) Run(t *testing.T) {
 			if r.runnerConfig.Parallel {
 				t.Parallel()
 			}
+			t.Logf("Starting scenario transport=%s method=%s", scenario.Transport, scenario.Request.GetMethod(scenario.Method))
 			r.runScenario(t, scenario)
 		})
 	}
@@ -262,7 +263,7 @@ func (r *Runner) runScenario(t *testing.T, scenario Scenario) {
 	opts = append(opts, withWorkDir(r.testDir))
 
 	// Enable debug if requested
-	if os.Getenv("DEBUG") == "true" {
+	if r.runnerConfig.Debug || os.Getenv("DEBUG") == "true" {
 		opts = append(opts, withExecutorDebug(true))
 	}
 

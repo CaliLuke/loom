@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -27,7 +27,7 @@ func TestMiddlewareUsesMatchedRoutePatternAsSpanName(t *testing.T) {
 		require.NoError(t, tp.Shutdown(context.Background()))
 	})
 
-	mux := goahttp.NewMuxer()
+	mux := loomhttp.NewMuxer()
 	mux.Use(Middleware("users-service", otelhttp.WithTracerProvider(tp)))
 	mux.Handle(stdhttp.MethodGet, "/users/{id}", func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		w.WriteHeader(stdhttp.StatusNoContent)
@@ -65,7 +65,9 @@ func TestWrapClientCreatesClientSpan(t *testing.T) {
 
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
 	_, err = io.Copy(io.Discard, resp.Body)
 	require.NoError(t, err)
 

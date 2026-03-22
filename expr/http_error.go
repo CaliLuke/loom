@@ -8,7 +8,7 @@ type (
 	// HTTPErrorExpr defines a HTTP error response including its name,
 	// status, headers and result type.
 	HTTPErrorExpr struct {
-		// ErrorExpr is the underlying goa design error expression.
+		// ErrorExpr is the underlying Loom design error expression.
 		*ErrorExpr
 		// Name of error, we need a separate copy of the name to match it
 		// up with the appropriate ErrorExpr.

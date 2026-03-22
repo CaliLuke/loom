@@ -1,11 +1,11 @@
 // EncodeMethodQueryPrimitiveMapBoolArrayBoolValidateRequest returns an encoder
 // for requests sent to the ServiceQueryPrimitiveMapBoolArrayBoolValidate
 // MethodQueryPrimitiveMapBoolArrayBoolValidate server.
-func EncodeMethodQueryPrimitiveMapBoolArrayBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveMapBoolArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[bool][]bool)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveMapBoolArrayBoolValidate", "MethodQueryPrimitiveMapBoolArrayBoolValidate", "map[bool][]bool", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveMapBoolArrayBoolValidate", "MethodQueryPrimitiveMapBoolArrayBoolValidate", "map[bool][]bool", v)
 		}
 		values := req.URL.Query()
 		for kRaw, value := range p {

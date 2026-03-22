@@ -406,7 +406,7 @@ func renderEnumValidation(data map[string]any) string {
 		fmt.Fprintf(&b, "if %s != nil {\n", data["target"])
 	}
 	fmt.Fprintf(&b, "if !(%s) {\n", oneof(data["targetVal"].(string), data["values"].([]any)))
-	fmt.Fprintf(&b, "\terr = goa.MergeErrors(err, goa.InvalidEnumValueError(%q, %s, %s))\n", data["context"], data["targetVal"], toSlice(data["values"].([]any)))
+	fmt.Fprintf(&b, "\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(%q, %s, %s))\n", data["context"], data["targetVal"], toSlice(data["values"].([]any)))
 	fmt.Fprintf(&b, "}")
 	if data["isPointer"].(bool) {
 		fmt.Fprintf(&b, "\n}")
@@ -416,13 +416,13 @@ func renderEnumValidation(data map[string]any) string {
 
 func renderFormatValidation(data map[string]any) string {
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string),
-		fmt.Sprintf("err = goa.MergeErrors(err, goa.ValidateFormat(%q, %s, %s))",
+		fmt.Sprintf("err = loom.MergeErrors(err, loom.ValidateFormat(%q, %s, %s))",
 			data["context"], data["targetVal"], constant(data["format"].(string))))
 }
 
 func renderPatternValidation(data map[string]any) string {
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string),
-		fmt.Sprintf("err = goa.MergeErrors(err, goa.ValidatePattern(%q, %s, %q))",
+		fmt.Sprintf("err = loom.MergeErrors(err, loom.ValidatePattern(%q, %s, %q))",
 			data["context"], data["targetVal"], data["pattern"]))
 }
 
@@ -441,7 +441,7 @@ func renderExclMinMaxValidation(data map[string]any) string {
 		bound = data["exclMax"]
 		flag = false
 	}
-	body := fmt.Sprintf("if %s %s %v {\n\terr = goa.MergeErrors(err, goa.InvalidRangeError(%q, %s, %v, %t))\n}",
+	body := fmt.Sprintf("if %s %s %v {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(%q, %s, %v, %t))\n}",
 		data["targetVal"], op, bound, data["context"], data["targetVal"], bound, flag)
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string), body)
 }
@@ -461,7 +461,7 @@ func renderMinMaxValidation(data map[string]any) string {
 		bound = data["max"]
 		flag = false
 	}
-	body := fmt.Sprintf("if %s %s %v {\n\terr = goa.MergeErrors(err, goa.InvalidRangeError(%q, %s, %v, %t))\n}",
+	body := fmt.Sprintf("if %s %s %v {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(%q, %s, %v, %t))\n}",
 		data["targetVal"], op, bound, data["context"], data["targetVal"], bound, flag)
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string), body)
 }
@@ -489,7 +489,7 @@ func renderLengthValidation(data map[string]any) string {
 		bound = *data["maxLength"].(*int)
 		flag = false
 	}
-	body := fmt.Sprintf("if %s %s %v {\n\terr = goa.MergeErrors(err, goa.InvalidLengthError(%q, %s, %s, %v, %t))\n}",
+	body := fmt.Sprintf("if %s %s %v {\n\terr = loom.MergeErrors(err, loom.InvalidLengthError(%q, %s, %s, %v, %t))\n}",
 		lengthExpr, op, bound, data["context"], targetExpr, lengthExpr, bound, flag)
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool) && data["string"].(bool), data["target"].(string), body)
 }
@@ -499,11 +499,11 @@ func renderRequiredValidation(data map[string]any) string {
 	field := data["attCtx"].(*AttributeContext).Scope.Field(reqAtt, data["req"].(string), true)
 	if expr.IsUnion(reqAtt.Type) {
 		if _, ok := data["attCtx"].(*AttributeContext).Scope.(*AttributeScope); ok {
-			return fmt.Sprintf("if %s.%s.Kind() == \"\" {\n\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, %q))\n}",
+			return fmt.Sprintf("if %s.%s.Kind() == \"\" {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, %q))\n}",
 				data["target"], field, data["req"], data["context"])
 		}
 	}
-	return fmt.Sprintf("if %s.%s == nil {\n\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, %q))\n}",
+	return fmt.Sprintf("if %s.%s == nil {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, %q))\n}",
 		data["target"], field, data["req"], data["context"])
 }
 
@@ -512,11 +512,11 @@ func renderArrayValidation(target, validation string, nonNullable bool, context 
 	fmt.Fprintf(&b, "for _, e := range %s {\n", target)
 	if nonNullable {
 		fmt.Fprintf(&b, "\tif e == nil {\n")
-		fmt.Fprintf(&b, "\t\terr = goa.MergeErrors(err, goa.MissingFieldError(%q, \"[*]\"))\n", context)
+		fmt.Fprintf(&b, "\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, \"[*]\"))\n", context)
 		fmt.Fprintf(&b, "\t}\n")
 	}
 	if validation != "" {
-		b.WriteString(indentCode(validation, "\t"))
+		b.WriteString(indentCode(validation))
 	}
 	fmt.Fprintf(&b, "}")
 	return b.String()
@@ -534,10 +534,10 @@ func renderMapValidation(target, keyValidation, valueValidation string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "for %s, %s := range %s {\n", keyVar, valueVar, target)
 	if keyValidation != "" {
-		b.WriteString(indentCode(strings.TrimPrefix(keyValidation, "\n"), "\t"))
+		b.WriteString(indentCode(strings.TrimPrefix(keyValidation, "\n")))
 	}
 	if valueValidation != "" {
-		b.WriteString(indentCode(strings.TrimPrefix(valueValidation, "\n"), "\t"))
+		b.WriteString(indentCode(strings.TrimPrefix(valueValidation, "\n")))
 	}
 	fmt.Fprintf(&b, "}")
 	return b.String()
@@ -548,7 +548,7 @@ func renderUnionValidation(target string, types, values []string) string {
 	fmt.Fprintf(&b, "switch v := %s.(type) {\n", target)
 	for i, val := range values {
 		fmt.Fprintf(&b, "case %s:\n", types[i])
-		b.WriteString(indentCode(val, "\t"))
+		b.WriteString(indentCode(val))
 	}
 	fmt.Fprintf(&b, "}")
 	return b.String()
@@ -562,18 +562,18 @@ func renderUnionSumValidation(target string, cases []map[string]any) string {
 		fmt.Fprintf(&b, "\tactual, _ := %s.As%s()\n", target, c["fieldName"])
 		if c["requiresValue"].(bool) {
 			fmt.Fprintf(&b, "\tif actual == nil {\n")
-			fmt.Fprintf(&b, "\t\terr = goa.MergeErrors(err, goa.MissingFieldError(\"value\", %q))\n", c["context"])
+			fmt.Fprintf(&b, "\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"value\", %q))\n", c["context"])
 			fmt.Fprintf(&b, "\t\tbreak\n")
 			fmt.Fprintf(&b, "\t}\n")
 		}
-		b.WriteString(indentCode(c["validation"].(string), "\t"))
+		b.WriteString(indentCode(c["validation"].(string)))
 	}
 	fmt.Fprintf(&b, "}")
 	return b.String()
 }
 
 func renderUserValidation(name, target string) string {
-	return fmt.Sprintf("if err2 := Validate%s(%s); err2 != nil {\n\terr = goa.MergeErrors(err, err2)\n}", name, target)
+	return fmt.Sprintf("if err2 := Validate%s(%s); err2 != nil {\n\terr = loom.MergeErrors(err, err2)\n}", name, target)
 }
 
 func renderSimplePointerWrappedValidation(isPointer bool, target, body string) string {
@@ -581,14 +581,15 @@ func renderSimplePointerWrappedValidation(isPointer bool, target, body string) s
 	if !isPointer {
 		return body
 	}
-	return fmt.Sprintf("if %s != nil {\n%s}", target, indentCode(body, "\t"))
+	return fmt.Sprintf("if %s != nil {\n%s}", target, indentCode(body))
 }
 
-func indentCode(code, indent string) string {
+func indentCode(code string) string {
 	trimmed := strings.Trim(code, "\n")
 	if trimmed == "" {
 		return ""
 	}
+	const indent = "\t"
 	return indent + strings.ReplaceAll(trimmed, "\n", "\n"+indent) + "\n"
 }
 
@@ -702,33 +703,33 @@ func oneof(target string, vals []any) string {
 func constant(formatName string) string {
 	switch formatName {
 	case "date":
-		return "goa.FormatDate"
+		return "loom.FormatDate"
 	case "date-time":
-		return "goa.FormatDateTime"
+		return "loom.FormatDateTime"
 	case "uuid":
-		return "goa.FormatUUID"
+		return "loom.FormatUUID"
 	case "email":
-		return "goa.FormatEmail"
+		return "loom.FormatEmail"
 	case "hostname":
-		return "goa.FormatHostname"
+		return "loom.FormatHostname"
 	case "ipv4":
-		return "goa.FormatIPv4"
+		return "loom.FormatIPv4"
 	case "ipv6":
-		return "goa.FormatIPv6"
+		return "loom.FormatIPv6"
 	case "ip":
-		return "goa.FormatIP"
+		return "loom.FormatIP"
 	case "uri":
-		return "goa.FormatURI"
+		return "loom.FormatURI"
 	case "mac":
-		return "goa.FormatMAC"
+		return "loom.FormatMAC"
 	case "cidr":
-		return "goa.FormatCIDR"
+		return "loom.FormatCIDR"
 	case "regexp":
-		return "goa.FormatRegexp"
+		return "loom.FormatRegexp"
 	case "json":
-		return "goa.FormatJSON"
+		return "loom.FormatJSON"
 	case "rfc1123":
-		return "goa.FormatRFC1123"
+		return "loom.FormatRFC1123"
 	}
 	panic("unknown format") // bug
 }

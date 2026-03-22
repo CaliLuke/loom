@@ -5,18 +5,18 @@ import (
 	"time"
 
 	cli "example.com/http-ticktock/gen/http/cli/ticktock"
-	goahttp "github.com/CaliLuke/loom/http"
-	goa "github.com/CaliLuke/loom/pkg"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
-func doHTTP(scheme, host string, timeout int, debug bool) (goa.Endpoint, any, error) {
+func doHTTP(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, error) {
 	var (
-		doer goahttp.Doer
+		doer loomhttp.Doer
 	)
 	{
 		doer = &http.Client{Timeout: time.Duration(timeout) * time.Second}
 		if debug {
-			doer = goahttp.NewDebugDoer(doer)
+			doer = loomhttp.NewDebugDoer(doer)
 		}
 	}
 
@@ -24,8 +24,8 @@ func doHTTP(scheme, host string, timeout int, debug bool) (goa.Endpoint, any, er
 		scheme,
 		host,
 		doer,
-		goahttp.RequestEncoder,
-		goahttp.ResponseDecoder,
+		loomhttp.RequestEncoder,
+		loomhttp.ResponseDecoder,
 		debug,
 	)
 }

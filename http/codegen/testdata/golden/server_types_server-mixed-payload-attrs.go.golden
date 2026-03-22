@@ -43,19 +43,19 @@ func NewMethodAAPayload(body *MethodARequestBody) *servicemixedpayloadinbody.APa
 // ValidateMethodARequestBody runs the validations defined on MethodARequestBody
 func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
 	if body.Array == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("array", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("array", "body"))
 	}
 	if body.Object == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("object", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("object", "body"))
 	}
 	if body.Object != nil {
 		if err2 := ValidateBPayloadRequestBody(body.Object); err2 != nil {
-			err = goa.MergeErrors(err, err2)
+			err = loom.MergeErrors(err, err2)
 		}
 	}
 	if body.DupObj != nil {
 		if err2 := ValidateBPayloadRequestBody(body.DupObj); err2 != nil {
-			err = goa.MergeErrors(err, err2)
+			err = loom.MergeErrors(err, err2)
 		}
 	}
 	return
@@ -65,7 +65,7 @@ func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
 // BPayloadRequestBody
 func ValidateBPayloadRequestBody(body *BPayloadRequestBody) (err error) {
 	if body.Int == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("int", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("int", "body"))
 	}
 	return
 }

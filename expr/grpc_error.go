@@ -8,7 +8,7 @@ type (
 	// GRPCErrorExpr defines a gRPC error response including its name,
 	// status, and result type.
 	GRPCErrorExpr struct {
-		// ErrorExpr is the underlying goa design error expression.
+		// ErrorExpr is the underlying Loom design error expression.
 		*ErrorExpr
 		// Name of error to match it up with the appropriate ErrorExpr.
 		Name string

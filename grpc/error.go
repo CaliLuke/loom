@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	goapb "github.com/CaliLuke/loom/grpc/pb"
-	goa "github.com/CaliLuke/loom/pkg"
+	loompb "github.com/CaliLuke/loom/grpc/pb"
+	loom "github.com/CaliLuke/loom/pkg"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -33,14 +33,14 @@ type (
 )
 
 // NewErrorResponse creates a new ErrorResponse protocol buffer message from
-// the given error. If the given error is a goa ServiceError, the ErrorResponse
+// the given error. If the given error is a Loom ServiceError, the ErrorResponse
 // message will be set with the corresponding Timeout, Temporary, and Fault
-// characteristics. If the error is not a goa ServiceError, it creates an
+// characteristics. If the error is not a Loom ServiceError, it creates an
 // ErrorResponse message with the Fault field set to true.
-func NewErrorResponse(err error) *goapb.ErrorResponse {
-	var gerr *goa.ServiceError
+func NewErrorResponse(err error) *loompb.ErrorResponse {
+	var gerr *loom.ServiceError
 	if errors.As(err, &gerr) {
-		er := &goapb.ErrorResponse{
+		er := &loompb.ErrorResponse{
 			Name:      gerr.Name,
 			Id:        gerr.ID,
 			Msg:       gerr.Message,
@@ -56,7 +56,7 @@ func NewErrorResponse(err error) *goapb.ErrorResponse {
 				if h == nil {
 					continue
 				}
-				ef := &goapb.ErrorField{Name: h.Name, Msg: h.Message}
+				ef := &loompb.ErrorField{Name: h.Name, Msg: h.Message}
 				if h.Field != nil {
 					ef.Field = *h.Field
 				}
@@ -65,13 +65,13 @@ func NewErrorResponse(err error) *goapb.ErrorResponse {
 		}
 		return er
 	}
-	return NewErrorResponse(goa.Fault("%s", err.Error()))
+	return NewErrorResponse(loom.Fault("%s", err.Error()))
 }
 
-// NewServiceError returns a goa ServiceError type for the given ErrorResponse
+// NewServiceError returns a Loom ServiceError type for the given ErrorResponse
 // message.
-func NewServiceError(resp *goapb.ErrorResponse) *goa.ServiceError {
-	return &goa.ServiceError{
+func NewServiceError(resp *loompb.ErrorResponse) *loom.ServiceError {
+	return &loom.ServiceError{
 		Name:      resp.Name,
 		ID:        resp.Id,
 		Message:   resp.Msg,
@@ -92,7 +92,7 @@ func NewStatusError(code codes.Code, err error, details ...protoiface.MessageV1)
 }
 
 // EncodeError returns a gRPC status error from the given error with the error
-// response encoded in the status details. If error is a goa ServiceError type
+// response encoded in the status details. If error is a Loom ServiceError type
 // it implements a heuristic to compute the status code from the Timeout,
 // Fault, and Temporary characteristics of the ServiceError. If error is not a
 // ServiceError or a gRPC status error it returns a gRPC status error with
@@ -104,24 +104,24 @@ func EncodeError(err error) error {
 		}
 		return st.Err()
 	}
-	var gerr *goa.ServiceError
+	var gerr *loom.ServiceError
 	if errors.As(err, &gerr) {
-		// goa service error type. Compute the status code from the service error
+		// Loom service error type. Compute the status code from the service error
 		// characteristics and create a new detailed gRPC status error.
 		code := codes.Unknown
 		// Prefer well-known validation names for InvalidArgument mapping.
 		switch gerr.Name {
-		case goa.InvalidFieldType,
-			goa.MissingField,
-			goa.InvalidFormat,
-			goa.InvalidLength,
-			goa.InvalidRange,
-			goa.InvalidEnumValue,
-			goa.InvalidPattern:
+		case loom.InvalidFieldType,
+			loom.MissingField,
+			loom.InvalidFormat,
+			loom.InvalidLength,
+			loom.InvalidRange,
+			loom.InvalidEnumValue,
+			loom.InvalidPattern:
 
 			code = codes.InvalidArgument
-		case goa.DecodePayload,
-			goa.MissingPayload:
+		case loom.DecodePayload,
+			loom.MissingPayload:
 
 			code = codes.InvalidArgument
 		default:

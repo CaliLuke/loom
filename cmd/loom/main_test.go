@@ -48,7 +48,7 @@ func TestCmdLine(t *testing.T) {
 	for k, c := range cases {
 		{
 			args := strings.Split(c.CmdLine, " ")
-			os.Args = append([]string{"goa"}, args...)
+			os.Args = append([]string{"loom"}, args...)
 			usageCalled = false
 			cmd = ""
 			path = ""

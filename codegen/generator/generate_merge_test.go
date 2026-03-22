@@ -9,7 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/eval"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // TestGenerateMergesSamePathFiles verifies that when two generators emit content
@@ -289,30 +289,30 @@ func TestGenerateParallelSingleFile(t *testing.T) {
 	}
 }
 
-// assertVersionFile checks that goa.json was emitted with the correct version
-// and returns the remaining outputs (excluding goa.json) for further assertions.
+// assertVersionFile checks that loom.json was emitted with the correct version
+// and returns the remaining outputs (excluding loom.json) for further assertions.
 func assertVersionFile(t *testing.T, dir string, outputs []string) []string {
 	t.Helper()
 
-	versionPath := filepath.Join(codegen.Gendir, "goa.json")
+	versionPath := filepath.Join(codegen.Gendir, "loom.json")
 
-	// Read and validate goa.json content.
+	// Read and validate loom.json content.
 	bs, err := os.ReadFile(filepath.Join(dir, versionPath))
 	if err != nil {
-		t.Fatalf("failed reading goa.json: %v", err)
+		t.Fatalf("failed reading loom.json: %v", err)
 	}
 	var data map[string]string
 	if err := json.Unmarshal(bs, &data); err != nil {
-		t.Fatalf("goa.json is not valid JSON: %v", err)
+		t.Fatalf("loom.json is not valid JSON: %v", err)
 	}
-	if v := data["goa_version"]; v != goa.Version() {
-		t.Fatalf("goa.json version = %q, want %q", v, goa.Version())
+	if v := data["loom_version"]; v != loom.Version() {
+		t.Fatalf("loom.json version = %q, want %q", v, loom.Version())
 	}
 
-	// Filter goa.json out of outputs.
+	// Filter loom.json out of outputs.
 	var rest []string
 	for _, o := range outputs {
-		if filepath.Base(o) != "goa.json" {
+		if filepath.Base(o) != "loom.json" {
 			rest = append(rest, o)
 		}
 	}

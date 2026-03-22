@@ -2,7 +2,7 @@
 // returned by the ServiceHeaderStringImplicit MethodHeaderStringImplicit
 // endpoint. restoreBody controls whether the response body should be restored
 // after having been read.
-func DecodeMethodHeaderStringImplicitResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeMethodHeaderStringImplicitResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -24,16 +24,16 @@ func DecodeMethodHeaderStringImplicitResponse(decoder func(*http.Response) goaht
 			)
 			hRaw := resp.Header.Get("H")
 			if hRaw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("h", "header"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
 			}
 			h = hRaw
 			if err != nil {
-				return nil, goahttp.ErrValidationError("ServiceHeaderStringImplicit", "MethodHeaderStringImplicit", err)
+				return nil, loomhttp.ErrValidationError("ServiceHeaderStringImplicit", "MethodHeaderStringImplicit", err)
 			}
 			return h, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("ServiceHeaderStringImplicit", "MethodHeaderStringImplicit", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("ServiceHeaderStringImplicit", "MethodHeaderStringImplicit", resp.StatusCode, string(body))
 		}
 	}
 }

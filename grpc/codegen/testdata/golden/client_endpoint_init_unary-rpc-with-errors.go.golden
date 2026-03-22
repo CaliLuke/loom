@@ -1,11 +1,11 @@
 // MethodUnaryRPCWithErrors calls the "MethodUnaryRPCWithErrors" function in
 // service_unary_rpc_with_errorspb.ServiceUnaryRPCWithErrorsClient interface.
-func (c *Client) MethodUnaryRPCWithErrors() goa.Endpoint {
+func (c *Client) MethodUnaryRPCWithErrors() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(BuildMethodUnaryRPCWithErrorsFunc(c.grpccli, c.opts...), EncodeMethodUnaryRPCWithErrorsRequest, DecodeMethodUnaryRPCWithErrorsResponse)
+		inv := loomgrpc.NewInvoker(BuildMethodUnaryRPCWithErrorsFunc(c.grpccli, c.opts...), EncodeMethodUnaryRPCWithErrorsRequest, DecodeMethodUnaryRPCWithErrorsResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			resp := goagrpc.DecodeError(err)
+			resp := loomgrpc.DecodeError(err)
 			switch message := resp.(type) {
 			case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsInternalError:
 				if err := ValidateMethodUnaryRPCWithErrorsInternalError(message); err != nil {
@@ -19,10 +19,10 @@ func (c *Client) MethodUnaryRPCWithErrors() goa.Endpoint {
 				return nil, NewMethodUnaryRPCWithErrorsBadRequestError(message)
 			case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsCustomErrorError:
 				return nil, NewMethodUnaryRPCWithErrorsCustomErrorError(message)
-			case *goapb.ErrorResponse:
-				return nil, goagrpc.NewServiceError(message)
+			case *loompb.ErrorResponse:
+				return nil, loomgrpc.NewServiceError(message)
 			default:
-				return nil, goa.Fault("%s", err.Error())
+				return nil, loom.Fault("%s", err.Error())
 			}
 		}
 		return res, nil

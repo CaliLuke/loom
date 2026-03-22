@@ -3,7 +3,7 @@
 func EncodeMethodServerStreamingRPCRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(int)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceServerStreamingRPC", "MethodServerStreamingRPC", "int", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceServerStreamingRPC", "MethodServerStreamingRPC", "int", v)
 	}
 	return NewProtoMethodServerStreamingRPCRequest(payload), nil
 }

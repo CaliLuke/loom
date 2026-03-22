@@ -7,7 +7,7 @@ func DecodeMethodUnaryRPCNoResultRequest(ctx context.Context, v any, md metadata
 	)
 	{
 		if message, ok = v.(*service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceUnaryRPCNoResult", "MethodUnaryRPCNoResult", "*service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceUnaryRPCNoResult", "MethodUnaryRPCNoResult", "*service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultRequest", v)
 		}
 	}
 	var payload []string

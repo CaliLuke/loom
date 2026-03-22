@@ -91,7 +91,7 @@ type (
 // New initializes the configured OpenTelemetry providers and returns the
 // resulting runtime.
 func New(ctx context.Context, cfg Config) (*Runtime, error) {
-	res, err := newResource(ctx, cfg)
+	res, err := newResource(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func New(ctx context.Context, cfg Config) (*Runtime, error) {
 	return rt, nil
 }
 
-func newResource(ctx context.Context, cfg Config) (*resource.Resource, error) {
+func newResource(cfg Config) (*resource.Resource, error) {
 	attrs := append([]attribute.KeyValue{}, cfg.ResourceAttributes...)
 	if cfg.ServiceName != "" {
 		attrs = append(attrs, attribute.String("service.name", cfg.ServiceName))

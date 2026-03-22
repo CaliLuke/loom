@@ -74,7 +74,7 @@ func buildRequestBody(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, r
 	if endpoint == nil || endpoint.Body == nil || endpoint.Body.Type == expr.Empty {
 		return nil
 	}
-	bodyAttr, _ := attributeForSchemaUsage(endpoint.Body, schemaUsageRequest)
+	bodyAttr := attributeForSchemaUsage(endpoint.Body, schemaUsageRequest)
 	contentType := "application/json"
 	if endpoint.MultipartRequest {
 		contentType = "multipart/form-data"
@@ -126,7 +126,7 @@ func buildResponses(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, ran
 }
 
 func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][]*Schema, rand *expr.ExampleGenerator, closeObjects bool) *Response {
-	body, _ := attributeForSchemaUsage(responseDocumentBody(resp), schemaUsageResponse)
+	body := attributeForSchemaUsage(responseDocumentBody(resp), schemaUsageResponse)
 	contentTypes := responseContentTypes(resp)
 	headers := headersFromAttr(resp.Headers, rand, closeObjects)
 	if cookieHeader := responseCookieHeader(resp.Cookies, rand); cookieHeader != nil {
@@ -137,9 +137,10 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 	}
 
 	var content map[string]*MediaType
-	if isWebSocketResponse(resp, statusCode) {
+	switch {
+	case isWebSocketResponse(resp, statusCode):
 		content = nil
-	} else if body != nil && body.Type != expr.Empty {
+	case body != nil && body.Type != expr.Empty:
 		content = make(map[string]*MediaType, len(contentTypes))
 		for _, contentType := range contentTypes {
 			content[contentType] = buildMediaType(body, firstResponseBody(bodies[statusCode]), rand, closeObjects)
@@ -150,7 +151,7 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 				mediaType.Examples = nil
 			}
 		}
-	} else if statusCode != expr.StatusNoContent && isSkipResponseBodyEncodeDecode(resp.Parent) {
+	case statusCode != expr.StatusNoContent && isSkipResponseBodyEncodeDecode(resp.Parent):
 		content = make(map[string]*MediaType, len(contentTypes))
 		for _, contentType := range contentTypes {
 			content[contentType] = &MediaType{
@@ -228,14 +229,6 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 		return nil
 	})
 	return headers
-}
-
-func responseContentType(resp *expr.HTTPResponseExpr) string {
-	contentTypes := responseContentTypes(resp)
-	if len(contentTypes) > 0 {
-		return contentTypes[0]
-	}
-	return "application/json"
 }
 
 func responseContentTypes(resp *expr.HTTPResponseExpr) []string {
@@ -365,7 +358,8 @@ func describeResponseCookie(cookie *expr.HTTPResponseCookieExpr) string {
 }
 
 func describeResponseCookies(cookies []*expr.HTTPResponseCookieExpr) string {
-	lines := []string{"Set-Cookie headers issued by the server:"}
+	lines := make([]string, 0, 1+len(cookies))
+	lines = append(lines, "Set-Cookie headers issued by the server:")
 	for _, cookie := range cookies {
 		lines = append(lines, "- "+describeResponseCookie(cookie))
 	}

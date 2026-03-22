@@ -1,6 +1,6 @@
 // DecodeMethodBodyObjectRequiredRequest returns a decoder for requests sent to
 // the ServiceBodyObjectRequired MethodBodyObjectRequired endpoint.
-func DecodeMethodBodyObjectRequiredRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicebodyobjectrequired.MethodBodyObjectRequiredPayload, error) {
+func DecodeMethodBodyObjectRequiredRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyobjectrequired.MethodBodyObjectRequiredPayload, error) {
 	return func(r *http.Request) (*servicebodyobjectrequired.MethodBodyObjectRequiredPayload, error) {
 		var payload *servicebodyobjectrequired.MethodBodyObjectRequiredPayload
 		var (
@@ -12,16 +12,16 @@ func DecodeMethodBodyObjectRequiredRequest(mux goahttp.Muxer, decoder func(*http
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		if body.B == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("b", "body"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("b", "body"))
 		}
 		if err != nil {
 			return payload, err

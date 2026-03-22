@@ -3,7 +3,7 @@
 func EncodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {
 	result, ok := v.(*servicemessagewithmetadata.ResponseUT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*servicemessagewithmetadata.ResponseUT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*servicemessagewithmetadata.ResponseUT", v)
 	}
 	resp := NewProtoMethodMessageWithMetadataResponse(result)
 

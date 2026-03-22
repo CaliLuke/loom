@@ -71,7 +71,6 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			artifacts := renderOpenAPIArtifacts(t, tc.dsl)
 			spec := decodeOpenAPIJSON(t, artifacts.JSON)
@@ -92,7 +91,6 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
 	}
 	for _, tc := range lintCases {
-		tc := tc
 		t.Run("redocly-"+tc.name, func(t *testing.T) {
 			artifacts := renderOpenAPIArtifacts(t, tc.dsl)
 			workDir := filepath.Join(t.TempDir(), tc.name)

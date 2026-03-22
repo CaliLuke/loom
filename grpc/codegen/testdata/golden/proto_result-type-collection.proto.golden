@@ -1,9 +1,9 @@
-// Code generated with goa, DO NOT EDIT.
+// Code generated with Loom, DO NOT EDIT.
 //
 // ServiceMessageUserTypeWithNestedUserTypes protocol buffer definition
 //
 // Command:
-// goa
+// loom
 
 syntax = "proto3";
 

@@ -2,22 +2,22 @@
 // request and calls the "ServicePayloadNoResult" service
 // "MethodPayloadNoResult" endpoint.
 func NewMethodPayloadNoResultHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	endpoint loom.Endpoint,
+	mux loomhttp.Muxer,
+	decoder func(*http.Request) loomhttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 ) http.Handler {
 	var (
 		decodeRequest  = DecodeMethodPayloadNoResultRequest(mux, decoder)
 		encodeResponse = EncodeMethodPayloadNoResultResponse(encoder)
-		encodeError    = goahttp.ErrorEncoder(encoder, formatter)
+		encodeError    = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "MethodPayloadNoResult")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "ServicePayloadNoResult")
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, loom.MethodKey, "MethodPayloadNoResult")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "ServicePayloadNoResult")
 		payload, err := decodeRequest(r)
 		if err != nil {
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {

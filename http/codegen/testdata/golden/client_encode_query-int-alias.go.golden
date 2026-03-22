@@ -1,10 +1,10 @@
 // EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryIntAlias MethodA server.
-func EncodeMethodARequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryintalias.MethodAPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryIntAlias", "MethodA", "*servicequeryintalias.MethodAPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryIntAlias", "MethodA", "*servicequeryintalias.MethodAPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Int != nil {

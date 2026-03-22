@@ -89,7 +89,7 @@ type (
 // metrics. To take advantage of this, register otelhttp as a mux middleware
 // rather than wrapping the mux externally:
 //
-//	mux := goahttp.NewMuxer()
+//	mux := loomhttp.NewMuxer()
 //	mux.Use(otelhttp.NewMiddleware("service"))
 func NewMuxer() ResolverMuxer {
 	return &mux{

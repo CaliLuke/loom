@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -14,9 +13,9 @@ func exampleCLIStartSection(services []*ServiceData, interceptorsPkg string) cod
 
 func renderExampleCLIStart(services []*ServiceData, interceptorsPkg string) string {
 	var b strings.Builder
-	b.WriteString("func doHTTP(scheme, host string, timeout int, debug bool) (goa.Endpoint, any, error) {\n")
+	b.WriteString("func doHTTP(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, error) {\n")
 	b.WriteString("\tvar (\n")
-	b.WriteString("\t\tdoer goahttp.Doer\n")
+	b.WriteString("\t\tdoer loomhttp.Doer\n")
 	for _, svc := range servicesWithClientInterceptors(services) {
 		fmt.Fprintf(&b, "\t\t%sInterceptors %s.ClientInterceptors\n", svc.Service.VarName, svc.Service.PkgName)
 	}
@@ -24,7 +23,7 @@ func renderExampleCLIStart(services []*ServiceData, interceptorsPkg string) stri
 	b.WriteString("\t{\n")
 	b.WriteString("\t\tdoer = &http.Client{Timeout: time.Duration(timeout) * time.Second}\n")
 	b.WriteString("\t\tif debug {\n")
-	b.WriteString("\t\t\tdoer = goahttp.NewDebugDoer(doer)\n")
+	b.WriteString("\t\t\tdoer = loomhttp.NewDebugDoer(doer)\n")
 	b.WriteString("\t\t}\n")
 	for _, svc := range servicesWithClientInterceptors(services) {
 		fmt.Fprintf(&b, "\t\t%sInterceptors = %s.New%sClientInterceptors()\n", svc.Service.VarName, interceptorsPkg, svc.Service.StructName)
@@ -54,8 +53,8 @@ func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
 	b.WriteString("\t\tscheme,\n")
 	b.WriteString("\t\thost,\n")
 	b.WriteString("\t\tdoer,\n")
-	b.WriteString("\t\tgoahttp.RequestEncoder,\n")
-	b.WriteString("\t\tgoahttp.ResponseDecoder,\n")
+	b.WriteString("\t\tloomhttp.RequestEncoder,\n")
+	b.WriteString("\t\tloomhttp.ResponseDecoder,\n")
 	b.WriteString("\t\tdebug,\n")
 	if NeedDialer(services) {
 		b.WriteString("\t\tdialer,\n")
@@ -99,11 +98,11 @@ func exampleServerStartSection(services []*ServiceData) codegen.Section {
 }
 
 func exampleServerEncodingSection() codegen.Section {
-	return codegen.NewRawSection("server-http-encoding", "\n\t// Provide the transport specific request decoder and response encoder.\n\t// The goa http package has built-in support for JSON, XML and gob.\n\t// Other encodings can be used by providing the corresponding functions,\n\t// see goa.design/implement/encoding.\n\tvar (\n\t\tdec = goahttp.RequestDecoder\n\t\tenc = goahttp.ResponseEncoder\n\t)\n")
+	return codegen.NewRawSection("server-http-encoding", "\n\t// Provide the transport specific request decoder and response encoder.\n\t// The Loom http package has built-in support for JSON, XML and gob.\n\t// Other encodings can be used by providing the corresponding functions.\n\tvar (\n\t\tdec = loomhttp.RequestDecoder\n\t\tenc = loomhttp.ResponseEncoder\n\t)\n")
 }
 
 func exampleServerMuxSection() codegen.Section {
-	return codegen.NewRawSection("server-http-mux", "\n\t// Build the service HTTP request multiplexer and mount debug and profiler\n\t// endpoints in debug mode.\n\tvar mux goahttp.Muxer\n\t{\n\t\tmux = goahttp.NewMuxer()\n\t\tif dbg {\n\t\t\t// Mount pprof handlers for memory profiling under /debug/pprof.\n\t\t\tdebug.MountPprofHandlers(debug.Adapt(mux))\n\t\t\t// Mount /debug endpoint to enable or disable debug logs at runtime.\n\t\t\tdebug.MountDebugLogEnabler(debug.Adapt(mux))\n\t\t}\n\t}\n")
+	return codegen.NewRawSection("server-http-mux", "\n\t// Build the service HTTP request multiplexer and mount debug and profiler\n\t// endpoints in debug mode.\n\tvar mux loomhttp.Muxer\n\t{\n\t\tmux = loomhttp.NewMuxer()\n\t\tif dbg {\n\t\t\t// Mount pprof handlers for memory profiling under /debug/pprof.\n\t\t\tdebug.MountPprofHandlers(debug.Adapt(mux))\n\t\t\t// Mount /debug endpoint to enable or disable debug logs at runtime.\n\t\t\tdebug.MountDebugLogEnabler(debug.Adapt(mux))\n\t\t}\n\t}\n")
 }
 
 func exampleServerConfigureSection(services []*ServiceData, apiPkg string) codegen.Section {
@@ -206,10 +205,6 @@ func renderDummyMultipartRequestEncoder(data *MultipartData) string {
 		data.FuncName,
 		data.Payload.Ref,
 	)
-}
-
-func renderFileServerBasePath(filePath string) string {
-	return "/" + filepath.Base(filePath)
 }
 
 func servicesWithClientInterceptors(services []*ServiceData) []*ServiceData {

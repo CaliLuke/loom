@@ -12,7 +12,7 @@ import (
 // ServerFiles returns all the server files for every gRPC service. The files
 // contain the server which implements the generated gRPC server interface and
 // encoders and decoders to transform protocol buffer types and gRPC metadata
-// into goa types and vice versa.
+// into Loom types and vice versa.
 func ServerFiles(genpkg string, services *ServicesData) []*codegen.File {
 	svcLen := len(services.Root.API.GRPC.Services)
 	fw := make([]*codegen.File, 2*svcLen)
@@ -40,7 +40,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			{Path: "context"},
 			{Path: "errors"},
 			codegen.LoomImport(""),
-			codegen.LoomNamedImport("grpc", "goagrpc"),
+			codegen.LoomNamedImport("grpc", "loomgrpc"),
 			{Path: "google.golang.org/grpc/codes"},
 			{Path: path.Join(genpkg, svcName), Name: data.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
@@ -100,7 +100,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: "google.golang.org/grpc"},
 			{Path: "google.golang.org/grpc/metadata"},
 			codegen.LoomImport(""),
-			codegen.LoomNamedImport("grpc", "goagrpc"),
+			codegen.LoomNamedImport("grpc", "loomgrpc"),
 			{Path: path.Join(genpkg, svcName), Name: data.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},

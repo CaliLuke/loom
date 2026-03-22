@@ -31,7 +31,7 @@ func DecodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md metad
 	)
 	{
 		if message, ok = v.(*service_message_with_securitypb.MethodMessageWithSecurityRequest); !ok {
-			return nil, goagrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*service_message_with_securitypb.MethodMessageWithSecurityRequest", v)
+			return nil, loomgrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*service_message_with_securitypb.MethodMessageWithSecurityRequest", v)
 		}
 	}
 	var payload *servicemessagewithsecurity.RequestUT

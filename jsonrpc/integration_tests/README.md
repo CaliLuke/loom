@@ -29,7 +29,7 @@ The `FILTER` environment variable is useful for running a specific group of test
 By default, the framework now materializes `github.com/CaliLuke/loom` from the current
 Git commit and remote URL into a temp checkout before running `loom gen` /
 `loom example`, so generated test services are reproducible in CI rather than
-silently depending on the local working tree. Set `GOA_REPO=/path/to/repo` only
+silently depending on the local working tree. Set `LOOM_REPO=/path/to/repo` only
 when you intentionally want to override that behavior for local debugging.
 
 ## Persistent Fixtures
@@ -51,8 +51,8 @@ When you intentionally change JSON-RPC SSE generation and need to regenerate the
 ```bash
 mv clock.go clock.go.src
 go mod tidy
-go run /Users/luca/code/loom/cmd/loom gen example.com/ticktock/design
-go run /Users/luca/code/loom/cmd/loom example example.com/ticktock/design
+go run ../../cmd/loom gen example.com/ticktock/design
+go run ../../cmd/loom example example.com/ticktock/design
 mv clock.go.src clock.go
 go mod tidy
 ```

@@ -2,11 +2,11 @@ package testdata
 
 const SingleMethodClient = `// Client is the "SingleEndpoint" service client.
 type Client struct {
-	AEndpoint goa.Endpoint
+	AEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "SingleEndpoint" service client given the endpoints.
-func NewClient(a goa.Endpoint) *Client {
+func NewClient(a loom.Endpoint) *Client {
 	return &Client{
 		AEndpoint: a,
 	}
@@ -21,11 +21,11 @@ func (c *Client) A(ctx context.Context, p *AType) (err error) {
 
 const UseMethodClient = `// Client is the "UseEndpoint" service client.
 type Client struct {
-	UseEndpointEndpoint goa.Endpoint
+	UseEndpointEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "UseEndpoint" service client given the endpoints.
-func NewClient(useEndpoint goa.Endpoint) *Client {
+func NewClient(useEndpoint loom.Endpoint) *Client {
 	return &Client{
 		UseEndpointEndpoint: useEndpoint,
 	}
@@ -40,13 +40,13 @@ func (c *Client) UseEndpoint(ctx context.Context, p string) (err error) {
 
 const MultipleMethodsClient = `// Client is the "MultipleEndpoints" service client.
 type Client struct {
-	BEndpoint goa.Endpoint
-	CEndpoint goa.Endpoint
+	BEndpoint loom.Endpoint
+	CEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "MultipleEndpoints" service client given the
 // endpoints.
-func NewClient(b, c goa.Endpoint) *Client {
+func NewClient(b, c loom.Endpoint) *Client {
 	return &Client{
 		BEndpoint: b,
 		CEndpoint: c,
@@ -68,11 +68,11 @@ func (c *Client) C(ctx context.Context, p *CType) (err error) {
 
 const NoPayloadMethodsClient = `// Client is the "NoPayload" service client.
 type Client struct {
-	NoPayloadEndpoint goa.Endpoint
+	NoPayloadEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "NoPayload" service client given the endpoints.
-func NewClient(noPayload goa.Endpoint) *Client {
+func NewClient(noPayload loom.Endpoint) *Client {
 	return &Client{
 		NoPayloadEndpoint: noPayload,
 	}
@@ -87,11 +87,11 @@ func (c *Client) NoPayload(ctx context.Context) (err error) {
 
 const WithResultMethodClient = `// Client is the "WithResult" service client.
 type Client struct {
-	AEndpoint goa.Endpoint
+	AEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "WithResult" service client given the endpoints.
-func NewClient(a goa.Endpoint) *Client {
+func NewClient(a loom.Endpoint) *Client {
 	return &Client{
 		AEndpoint: a,
 	}
@@ -110,12 +110,12 @@ func (c *Client) A(ctx context.Context) (res *Rtype, err error) {
 
 const StreamingResultMethodClient = `// Client is the "StreamingResultService" service client.
 type Client struct {
-	StreamingResultMethodEndpoint goa.Endpoint
+	StreamingResultMethodEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "StreamingResultService" service client given the
 // endpoints.
-func NewClient(streamingResultMethod goa.Endpoint) *Client {
+func NewClient(streamingResultMethod loom.Endpoint) *Client {
 	return &Client{
 		StreamingResultMethodEndpoint: streamingResultMethod,
 	}
@@ -135,13 +135,13 @@ func (c *Client) StreamingResultMethod(ctx context.Context, p *APayload) (res St
 
 const MixedResultsMethodClient = `// Client is the "MixedResultsEndpoint" service client.
 type Client struct {
-	MixedResultsMethodEndpoint       goa.Endpoint
-	MixedResultsMethodStreamEndpoint goa.Endpoint
+	MixedResultsMethodEndpoint       loom.Endpoint
+	MixedResultsMethodStreamEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "MixedResultsEndpoint" service client given the
 // endpoints.
-func NewClient(mixedResultsMethod, mixedResultsMethodStream goa.Endpoint) *Client {
+func NewClient(mixedResultsMethod, mixedResultsMethodStream loom.Endpoint) *Client {
 	return &Client{
 		MixedResultsMethodEndpoint:       mixedResultsMethod,
 		MixedResultsMethodStreamEndpoint: mixedResultsMethodStream,
@@ -173,12 +173,12 @@ func (c *Client) MixedResultsMethodStream(ctx context.Context, p *Payload) (res 
 
 const StreamingResultNoPayloadMethodClient = `// Client is the "StreamingResultNoPayloadService" service client.
 type Client struct {
-	StreamingResultNoPayloadMethodEndpoint goa.Endpoint
+	StreamingResultNoPayloadMethodEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "StreamingResultNoPayloadService" service client
 // given the endpoints.
-func NewClient(streamingResultNoPayloadMethod goa.Endpoint) *Client {
+func NewClient(streamingResultNoPayloadMethod loom.Endpoint) *Client {
 	return &Client{
 		StreamingResultNoPayloadMethodEndpoint: streamingResultNoPayloadMethod,
 	}
@@ -198,12 +198,12 @@ func (c *Client) StreamingResultNoPayloadMethod(ctx context.Context) (res Stream
 
 const StreamingPayloadMethodClient = `// Client is the "StreamingPayloadService" service client.
 type Client struct {
-	StreamingPayloadMethodEndpoint goa.Endpoint
+	StreamingPayloadMethodEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "StreamingPayloadService" service client given the
 // endpoints.
-func NewClient(streamingPayloadMethod goa.Endpoint) *Client {
+func NewClient(streamingPayloadMethod loom.Endpoint) *Client {
 	return &Client{
 		StreamingPayloadMethodEndpoint: streamingPayloadMethod,
 	}
@@ -223,12 +223,12 @@ func (c *Client) StreamingPayloadMethod(ctx context.Context, p *BPayload) (res S
 
 const StreamingPayloadNoPayloadMethodClient = `// Client is the "StreamingPayloadNoPayloadService" service client.
 type Client struct {
-	StreamingPayloadNoPayloadMethodEndpoint goa.Endpoint
+	StreamingPayloadNoPayloadMethodEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "StreamingPayloadNoPayloadService" service client
 // given the endpoints.
-func NewClient(streamingPayloadNoPayloadMethod goa.Endpoint) *Client {
+func NewClient(streamingPayloadNoPayloadMethod loom.Endpoint) *Client {
 	return &Client{
 		StreamingPayloadNoPayloadMethodEndpoint: streamingPayloadNoPayloadMethod,
 	}
@@ -248,12 +248,12 @@ func (c *Client) StreamingPayloadNoPayloadMethod(ctx context.Context) (res Strea
 
 const StreamingPayloadNoResultMethodClient = `// Client is the "StreamingPayloadNoResultService" service client.
 type Client struct {
-	StreamingPayloadNoResultMethodEndpoint goa.Endpoint
+	StreamingPayloadNoResultMethodEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "StreamingPayloadNoResultService" service client
 // given the endpoints.
-func NewClient(streamingPayloadNoResultMethod goa.Endpoint) *Client {
+func NewClient(streamingPayloadNoResultMethod loom.Endpoint) *Client {
 	return &Client{
 		StreamingPayloadNoResultMethodEndpoint: streamingPayloadNoResultMethod,
 	}
@@ -273,12 +273,12 @@ func (c *Client) StreamingPayloadNoResultMethod(ctx context.Context) (res Stream
 
 const BidirectionalStreamingMethodClient = `// Client is the "BidirectionalStreamingService" service client.
 type Client struct {
-	BidirectionalStreamingMethodEndpoint goa.Endpoint
+	BidirectionalStreamingMethodEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "BidirectionalStreamingService" service client given
 // the endpoints.
-func NewClient(bidirectionalStreamingMethod goa.Endpoint) *Client {
+func NewClient(bidirectionalStreamingMethod loom.Endpoint) *Client {
 	return &Client{
 		BidirectionalStreamingMethodEndpoint: bidirectionalStreamingMethod,
 	}
@@ -298,12 +298,12 @@ func (c *Client) BidirectionalStreamingMethod(ctx context.Context, p *BPayload) 
 
 const BidirectionalStreamingNoPayloadMethodClient = `// Client is the "BidirectionalStreamingNoPayloadService" service client.
 type Client struct {
-	BidirectionalStreamingNoPayloadMethodEndpoint goa.Endpoint
+	BidirectionalStreamingNoPayloadMethodEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "BidirectionalStreamingNoPayloadService" service
 // client given the endpoints.
-func NewClient(bidirectionalStreamingNoPayloadMethod goa.Endpoint) *Client {
+func NewClient(bidirectionalStreamingNoPayloadMethod loom.Endpoint) *Client {
 	return &Client{
 		BidirectionalStreamingNoPayloadMethodEndpoint: bidirectionalStreamingNoPayloadMethod,
 	}
@@ -324,12 +324,12 @@ func (c *Client) BidirectionalStreamingNoPayloadMethod(ctx context.Context) (res
 
 const InterceptorClient = `// Client is the "ServiceWithClientInterceptor" service client.
 type Client struct {
-	MethodEndpoint goa.Endpoint
+	MethodEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "ServiceWithClientInterceptor" service client given
 // the endpoints.
-func NewClient(method goa.Endpoint, ci ClientInterceptors) *Client {
+func NewClient(method loom.Endpoint, ci ClientInterceptors) *Client {
 	return &Client{
 		MethodEndpoint: WrapMethodClientEndpoint(method, ci),
 	}

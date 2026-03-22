@@ -92,6 +92,9 @@ type FieldSpec struct {
 	Type        *TypeSpec
 	Description string
 	Required    bool
+	IsID        bool
+	MinLength   int
+	Minimum     *int
 }
 
 // ImplementationData holds the semantic data for generating service implementations

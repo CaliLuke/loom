@@ -81,9 +81,7 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 			updatedSections = append(updatedSections, codegen.NewRawSection("server-http-start", jsonrpcExampleServerStartSource(httpServices, svcdata)))
 			continue
 		case "server-http-end":
-			source := renderSectionSource(section)
-			source = strings.Replace(source, "\n\t(*wg).Add(1)", "\n"+jsonrpcHTTPMountLogSource(svcdata)+"\n\t(*wg).Add(1)", 1)
-			updatedSections = append(updatedSections, codegen.NewRawSection("server-http-end", source))
+			updatedSections = append(updatedSections, codegen.NewRawSection("server-http-end", jsonrpcExampleServerEndSource(httpServices, svcdata)))
 			continue
 		case "server-http-init":
 			updatedSections = append(updatedSections, codegen.NewRawSection("server-http-init", jsonrpcExampleServerConfigureSource(httpServices, svcdata, apiPkg)))

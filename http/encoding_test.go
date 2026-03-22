@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 var (
@@ -195,7 +195,7 @@ func TestResponseEncoder_ContentTypeHeaderPreservesCharset(t *testing.T) {
 
 func TestResponseEncoder_Encode_ErrorResponse(t *testing.T) {
 	var (
-		serviceError              = goa.NewServiceError(errors.New("foo"), "foo", false, false, false)
+		serviceError              = loom.NewServiceError(errors.New("foo"), "foo", false, false, false)
 		defaultXMLName            = ErrorResponseXMLName
 		backwardCompatibleXMLName = xml.Name{Local: "ErrorResponse"} // Compatible with v3.13.2 and earlier.
 	)
@@ -233,9 +233,9 @@ func TestResponseEncoder_Encode_ErrorResponse(t *testing.T) {
 }
 
 func TestResponseEncoder_Encode_ErrorResponseWithRemedy(t *testing.T) {
-	err := goa.WithErrorRemedy(
-		goa.NewServiceError(errors.New("internal detail"), "bad_request", false, false, false),
-		&goa.ErrorRemedy{
+	err := loom.WithErrorRemedy(
+		loom.NewServiceError(errors.New("internal detail"), "bad_request", false, false, false),
+		&loom.ErrorRemedy{
 			Code:        "bad_request.fix",
 			SafeMessage: "Retry with a valid request.",
 			RetryHint:   "Correct the payload and retry.",

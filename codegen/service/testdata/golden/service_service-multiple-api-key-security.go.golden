@@ -5,8 +5,8 @@ type Service interface {
 	A(context.Context, *APayload) (err error)
 }
 
-// Auther defines the authorization functions to be implemented by the service.
-type Auther interface {
+// Authorizer defines the authorization functions to be implemented by the service.
+type Authorizer interface {
 	// APIKeyAuth implements the authorization logic for the APIKey security scheme.
 	APIKeyAuth(ctx context.Context, key string, schema *security.APIKeyScheme) (context.Context, error)
 }

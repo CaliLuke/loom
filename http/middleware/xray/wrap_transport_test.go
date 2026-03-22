@@ -92,7 +92,7 @@ func TestTransportExample(t *testing.T) {
 
 func TestTransportNoSegmentInContext(t *testing.T) {
 	var (
-		url, _ = url.Parse("https://goa.design/path?query#fragment")
+		url, _ = url.Parse("https://loom.design/path?query#fragment")
 		req, _ = http.NewRequest("GET", url.String(), nil)
 		rw     = httptest.NewRecorder()
 		rt     = &mockRoundTripper{func(*http.Request) (*http.Response, error) {
@@ -135,13 +135,13 @@ func TestTransport(t *testing.T) {
 	var (
 		traceID    = "traceID"
 		spanID     = "spanID"
-		host       = "goa.design"
+		host       = "loom.design"
 		method     = "GET"
 		ip         = "104.18.42.42"
 		remoteAddr = "104.18.43.42:443"
 		remoteHost = "104.18.43.42"
 		agent      = "user agent"
-		url, _     = url.Parse("https://goa.design/path?query#fragment")
+		url, _     = url.Parse("https://loom.design/path?query#fragment")
 	)
 	cases := map[string]struct {
 		Trace    Tra

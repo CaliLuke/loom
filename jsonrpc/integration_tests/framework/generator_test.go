@@ -10,9 +10,11 @@ import (
 
 func TestLocalLoomSourceFromModeFile(t *testing.T) {
 	t.Run("local mode returns configured path", func(t *testing.T) {
+		repoRoot := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.com/loom\n"), 0o644))
 		path := filepath.Join(t.TempDir(), loomSourceModeFile)
-		require.NoError(t, os.WriteFile(path, []byte("local /tmp/loom\n"), 0o644))
-		require.Equal(t, "/tmp/loom", localLoomSourceFromModeFile(path))
+		require.NoError(t, os.WriteFile(path, []byte("local "+repoRoot+"\n"), 0o644))
+		require.Equal(t, repoRoot, localLoomSourceFromModeFile(path))
 	})
 
 	t.Run("remote mode disables local override", func(t *testing.T) {
@@ -26,11 +28,35 @@ func TestLocalLoomSourceFromModeFile(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte("local\n"), 0o644))
 		require.Empty(t, localLoomSourceFromModeFile(path))
 	})
+
+	t.Run("stale path disables local override", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), loomSourceModeFile)
+		require.NoError(t, os.WriteFile(path, []byte("local /tmp/does-not-exist\n"), 0o644))
+		require.Empty(t, localLoomSourceFromModeFile(path))
+	})
 }
 
-func TestGeneratorRepoRootReplacePrefersGOARepoEnv(t *testing.T) {
-	t.Setenv("LOOM_REPO", "/tmp/loom-override")
+func TestGeneratorRepoRootReplacePrefersLOOMRepoEnv(t *testing.T) {
+	repoRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.com/loom\n"), 0o644))
+	t.Setenv("LOOM_REPO", repoRoot)
 
 	g := NewGenerator(t.TempDir(), nil)
-	require.Equal(t, "/tmp/loom-override", g.repoRootReplace())
+	require.Equal(t, repoRoot, g.repoRootReplace())
+}
+
+func TestRenderDesignWritesLoomReplaceDirective(t *testing.T) {
+	repoRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.com/loom\n"), 0o644))
+	t.Setenv("LOOM_REPO", repoRoot)
+
+	workDir := t.TempDir()
+	g := NewGenerator(workDir, nil)
+
+	require.NoError(t, g.renderDesign(g.buildDesignData()))
+
+	content, err := os.ReadFile(filepath.Join(workDir, "go.mod"))
+	require.NoError(t, err)
+	require.Contains(t, string(content), "replace github.com/CaliLuke/loom => "+repoRoot)
+	require.NotContains(t, string(content), "<no value>")
 }

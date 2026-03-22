@@ -64,14 +64,14 @@ func TestMiddleware(t *testing.T) {
 		traceID      = "traceID"
 		spanID       = "spanID"
 		parentID     = "parentID"
-		host         = "goa.design"
+		host         = "loom.design"
 		method       = "GET"
 		ip           = "104.18.42.42"
 		remoteAddr   = "104.18.43.42:443"
 		remoteNoPort = "104.18.43.42"
 		remoteHost   = "104.18.43.42"
 		agent        = "user agent"
-		url, _       = url.Parse("https://goa.design/path?query#fragment")
+		url, _       = url.Parse("https://loom.design/path?query#fragment")
 	)
 	cases := map[string]struct {
 		Trace    Tra

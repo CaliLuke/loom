@@ -61,7 +61,7 @@ func NewMultipleViews(vres *multiplemethodsresultmultipleviewsviews.MultipleView
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	default:
-		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+		panic(loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 		}))
@@ -82,7 +82,7 @@ func NewViewedMultipleViews(res *MultipleViews, view string) *multiplemethodsres
 		p := ProjectMultipleViewsTiny(res)
 		vres = &multiplemethodsresultmultipleviewsviews.MultipleViews{Projected: p, View: "tiny"}
 	default:
-		panic(goa.InvalidEnumValueError("view", view, []any{
+		panic(loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 		}))
@@ -99,7 +99,7 @@ func NewSingleView(vres *multiplemethodsresultmultipleviewsviews.SingleView) *Si
 	case "default", "":
 		res = NewSingleViewFromSingleViewView(vres.Projected)
 	default:
-		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+		panic(loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		}))
 	}
@@ -116,7 +116,7 @@ func NewViewedSingleView(res *SingleView, view string) *multiplemethodsresultmul
 		p := ProjectSingleView(res)
 		vres = &multiplemethodsresultmultipleviewsviews.SingleView{Projected: p, View: "default"}
 	default:
-		panic(goa.InvalidEnumValueError("view", view, []any{
+		panic(loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		}))
 	}

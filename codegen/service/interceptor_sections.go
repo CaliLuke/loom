@@ -19,7 +19,7 @@ func interceptorTypesSection(interceptors []*InterceptorData) codegen.Section {
 	return codegen.NewRawSection("interceptor-types", renderInterceptorTypes(interceptors))
 }
 
-func endpointWrapperSection(server bool, methodVarName, method, service string, interceptors []string) codegen.Section {
+func endpointWrapperSection(server bool, methodVarName, method string, interceptors []string) codegen.Section {
 	name := "client-wrapper"
 	if server {
 		name = "endpoint-wrapper"
@@ -60,7 +60,7 @@ func renderInterceptorsInterface(interceptors []*InterceptorData, server bool) s
 				b.WriteString(codegen.Indent(codegen.Comment(interceptor.Description), "\t"))
 				b.WriteString("\n")
 			}
-			fmt.Fprintf(&b, "\t%s(ctx context.Context, info *%sInfo, next goa.Endpoint) (any, error)\n", interceptor.Name, interceptor.Name)
+			fmt.Fprintf(&b, "\t%s(ctx context.Context, info *%sInfo, next loom.Endpoint) (any, error)\n", interceptor.Name, interceptor.Name)
 		}
 		b.WriteString("}\n")
 		return b.String()
@@ -75,7 +75,7 @@ func renderInterceptorsInterface(interceptors []*InterceptorData, server bool) s
 			b.WriteString(codegen.Indent(codegen.Comment(interceptor.Description), "\t"))
 			b.WriteString("\n")
 		}
-		fmt.Fprintf(&b, "\t%s(ctx context.Context, info *%sInfo, next goa.Endpoint) (any, error)\n", interceptor.Name, interceptor.Name)
+		fmt.Fprintf(&b, "\t%s(ctx context.Context, info *%sInfo, next loom.Endpoint) (any, error)\n", interceptor.Name, interceptor.Name)
 	}
 	b.WriteString("}\n")
 	return b.String()
@@ -88,7 +88,7 @@ func renderInterceptorTypes(interceptors []*InterceptorData) string {
 	for _, interceptor := range interceptors {
 		b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sInfo provides metadata about the current interception.\nIt includes service name, method name, and access to the endpoint.", interceptor.Name)), "\t"))
 		b.WriteString("\n")
-		fmt.Fprintf(&b, "\t%sInfo struct {\n\t\tservice    string\n\t\tmethod     string\n\t\tcallType   goa.InterceptorCallType\n\t\trawPayload any\n\t}\n", interceptor.Name)
+		fmt.Fprintf(&b, "\t%sInfo struct {\n\t\tservice    string\n\t\tmethod     string\n\t\tcallType   loom.InterceptorCallType\n\t\trawPayload any\n\t}\n", interceptor.Name)
 		if interceptor.HasPayloadAccess {
 			b.WriteString("\n")
 			b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sPayload provides type-safe access to the method payload.\nIt allows reading and writing specific fields of the payload as defined\nin the design.", interceptor.Name)), "\t"))
@@ -197,7 +197,7 @@ func renderEndpointWrapper(server bool, methodVarName, method string, intercepto
 	}
 	b.WriteString(codegen.Comment(fmt.Sprintf("%s wraps the %s endpoint with the %s interceptors defined in the design.", wrapName, method, commentTarget)))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(endpoint goa.Endpoint, i %s) goa.Endpoint {\n", wrapName, interfaceName)
+	fmt.Fprintf(&b, "func %s(endpoint loom.Endpoint, i %s) loom.Endpoint {\n", wrapName, interfaceName)
 	b.WriteString("\tif i != nil {\n")
 	for _, interceptor := range interceptors {
 		fmt.Fprintf(&b, "\t\tendpoint = %s%s(endpoint, i)\n", callPrefix, interceptor)
@@ -213,7 +213,7 @@ func renderInterceptors(interceptors []*InterceptorData, server bool) string {
 		b.WriteString("\n")
 		fmt.Fprintf(&b, "// Service returns the name of the service handling the request.\nfunc (info *%sInfo) Service() string {\n\treturn info.service\n}\n\n", interceptor.Name)
 		fmt.Fprintf(&b, "// Method returns the name of the method handling the request.\nfunc (info *%sInfo) Method() string {\n\treturn info.method\n}\n\n", interceptor.Name)
-		fmt.Fprintf(&b, "// CallType returns the type of call the interceptor is handling.\nfunc (info *%sInfo) CallType() goa.InterceptorCallType {\n\treturn info.callType\n}\n\n", interceptor.Name)
+		fmt.Fprintf(&b, "// CallType returns the type of call the interceptor is handling.\nfunc (info *%sInfo) CallType() loom.InterceptorCallType {\n\treturn info.callType\n}\n\n", interceptor.Name)
 		fmt.Fprintf(&b, "// RawPayload returns the raw payload of the request.\nfunc (info *%sInfo) RawPayload() any {\n\treturn info.rawPayload\n}\n", interceptor.Name)
 		if interceptor.HasPayloadAccess {
 			b.WriteString("\n")
@@ -414,32 +414,32 @@ func renderServerInterceptorWrappers(service string, interceptors []*Interceptor
 			b.WriteString("\n")
 			b.WriteString(codegen.Comment(fmt.Sprintf("wrap%s%s applies the %s server interceptor to endpoints.", interceptor.Name, method.MethodName, interceptor.DesignName)))
 			b.WriteString("\n")
-			fmt.Fprintf(&b, "func wrap%s%s(endpoint goa.Endpoint, i ServerInterceptors) goa.Endpoint {\n", method.MethodName, interceptor.Name)
+			fmt.Fprintf(&b, "func wrap%s%s(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {\n", method.MethodName, interceptor.Name)
 			b.WriteString("\treturn func(ctx context.Context, req any) (any, error) {\n")
 			if interceptor.HasStreamingPayloadAccess || interceptor.HasStreamingResultAccess {
 				fmt.Fprintf(&b, "\t\tstream := req.(*%s).Stream\n", method.ServerStream.EndpointStruct)
 				fmt.Fprintf(&b, "\t\treq.(*%s).Stream = &wrapped%s{\n\t\t\tctx:     ctx,\n", method.ServerStream.EndpointStruct, method.ServerStream.Interface)
 				if interceptor.HasStreamingResultAccess {
 					fmt.Fprintf(&b, "\t\t\tsendWithContext: func(ctx context.Context, req %s) error {\n", method.ServerStream.SendTypeRef)
-					fmt.Fprintf(&b, "\t\t\t\tinfo := &%sInfo{\n\t\t\t\t\tservice:    %q,\n\t\t\t\t\tmethod:     %q,\n\t\t\t\t\tcallType:   goa.InterceptorStreamingSend,\n\t\t\t\t\trawPayload: req,\n\t\t\t\t}\n", interceptor.Name, service, method.MethodName)
+					fmt.Fprintf(&b, "\t\t\t\tinfo := &%sInfo{\n\t\t\t\t\tservice:    %q,\n\t\t\t\t\tmethod:     %q,\n\t\t\t\t\tcallType:   loom.InterceptorStreamingSend,\n\t\t\t\t\trawPayload: req,\n\t\t\t\t}\n", interceptor.Name, service, method.MethodName)
 					fmt.Fprintf(&b, "\t\t\t\t_, err := i.%s(ctx, info, func(ctx context.Context, req any) (any, error) {\n", interceptor.Name)
 					fmt.Fprintf(&b, "\t\t\t\t\tcastReq, _ := req.(%s)\n\t\t\t\t\treturn nil, stream.%s(ctx, castReq)\n\t\t\t\t})\n\t\t\t\treturn err\n\t\t\t},\n", method.ServerStream.SendTypeRef, method.ServerStream.SendWithContextName)
 				}
 				if interceptor.HasStreamingPayloadAccess {
 					fmt.Fprintf(&b, "\t\t\trecvWithContext: func(ctx context.Context) (%s, error) {\n", method.ServerStream.RecvTypeRef)
-					fmt.Fprintf(&b, "\t\t\t\tinfo := &%sInfo{\n\t\t\t\t\tservice:  %q,\n\t\t\t\t\tmethod:   %q,\n\t\t\t\t\tcallType: goa.InterceptorStreamingRecv,\n\t\t\t\t}\n", interceptor.Name, service, method.MethodName)
+					fmt.Fprintf(&b, "\t\t\t\tinfo := &%sInfo{\n\t\t\t\t\tservice:  %q,\n\t\t\t\t\tmethod:   %q,\n\t\t\t\t\tcallType: loom.InterceptorStreamingRecv,\n\t\t\t\t}\n", interceptor.Name, service, method.MethodName)
 					fmt.Fprintf(&b, "\t\t\t\tres, err := i.%s(ctx, info, func(ctx context.Context, _ any) (any, error) {\n\t\t\t\t\treturn stream.%s(ctx)\n\t\t\t\t})\n", interceptor.Name, method.ServerStream.RecvWithContextName)
 					fmt.Fprintf(&b, "\t\t\t\tcastRes, _ := res.(%s)\n\t\t\t\treturn castRes, err\n\t\t\t},\n", method.ServerStream.RecvTypeRef)
 				}
 				fmt.Fprintf(&b, "\t\t\tstream: stream,\n\t\t}\n")
 				if interceptor.HasPayloadAccess {
-					fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   goa.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
+					fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
 					fmt.Fprintf(&b, "\t\treturn i.%s(ctx, info, endpoint)\n", interceptor.Name)
 				} else {
 					b.WriteString("\t\treturn endpoint(ctx, req)\n")
 				}
 			} else {
-				fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   goa.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
+				fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
 				fmt.Fprintf(&b, "\t\treturn i.%s(ctx, info, endpoint)\n", interceptor.Name)
 			}
 			b.WriteString("\t}\n}\n")
@@ -456,11 +456,11 @@ func renderClientInterceptorWrappers(service string, interceptors []*Interceptor
 			b.WriteString("\n")
 			b.WriteString(codegen.Comment(fmt.Sprintf("wrapClient%s%s applies the %s client interceptor to endpoints.", interceptor.Name, method.MethodName, interceptor.DesignName)))
 			b.WriteString("\n")
-			fmt.Fprintf(&b, "func wrapClient%s%s(endpoint goa.Endpoint, i ClientInterceptors) goa.Endpoint {\n", method.MethodName, interceptor.Name)
+			fmt.Fprintf(&b, "func wrapClient%s%s(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {\n", method.MethodName, interceptor.Name)
 			b.WriteString("\treturn func(ctx context.Context, req any) (any, error) {\n")
 			if interceptor.HasStreamingPayloadAccess || interceptor.HasStreamingResultAccess {
 				if interceptor.HasPayloadAccess {
-					fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   goa.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
+					fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
 					fmt.Fprintf(&b, "\t\tres, err := i.%s(ctx, info, endpoint)\n", interceptor.Name)
 				} else {
 					b.WriteString("\t\tres, err := endpoint(ctx, req)\n")
@@ -470,19 +470,19 @@ func renderClientInterceptorWrappers(service string, interceptors []*Interceptor
 				fmt.Fprintf(&b, "\t\treturn &wrapped%s{\n\t\t\tctx: ctx,\n", method.ClientStream.Interface)
 				if interceptor.HasStreamingPayloadAccess {
 					fmt.Fprintf(&b, "\t\t\tsendWithContext: func(ctx context.Context, req %s) error {\n", method.ClientStream.SendTypeRef)
-					fmt.Fprintf(&b, "\t\t\t\tinfo := &%sInfo{\n\t\t\t\t\tservice:    %q,\n\t\t\t\t\tmethod:     %q,\n\t\t\t\t\tcallType:   goa.InterceptorStreamingSend,\n\t\t\t\t\trawPayload: req,\n\t\t\t\t}\n", interceptor.Name, service, method.MethodName)
+					fmt.Fprintf(&b, "\t\t\t\tinfo := &%sInfo{\n\t\t\t\t\tservice:    %q,\n\t\t\t\t\tmethod:     %q,\n\t\t\t\t\tcallType:   loom.InterceptorStreamingSend,\n\t\t\t\t\trawPayload: req,\n\t\t\t\t}\n", interceptor.Name, service, method.MethodName)
 					fmt.Fprintf(&b, "\t\t\t\t_, err := i.%s(ctx, info, func(ctx context.Context, req any) (any, error) {\n", interceptor.Name)
 					fmt.Fprintf(&b, "\t\t\t\t\tcastReq, _ := req.(%s)\n\t\t\t\t\treturn nil, stream.%s(ctx, castReq)\n\t\t\t\t})\n\t\t\t\treturn err\n\t\t\t},\n", method.ClientStream.SendTypeRef, method.ClientStream.SendWithContextName)
 				}
 				if interceptor.HasStreamingResultAccess {
 					fmt.Fprintf(&b, "\t\t\trecvWithContext: func(ctx context.Context) (%s, error) {\n", method.ClientStream.RecvTypeRef)
-					fmt.Fprintf(&b, "\t\t\t\tinfo := &%sInfo{\n\t\t\t\t\tservice:  %q,\n\t\t\t\t\tmethod:   %q,\n\t\t\t\t\tcallType: goa.InterceptorStreamingRecv,\n\t\t\t\t}\n", interceptor.Name, service, method.MethodName)
+					fmt.Fprintf(&b, "\t\t\t\tinfo := &%sInfo{\n\t\t\t\t\tservice:  %q,\n\t\t\t\t\tmethod:   %q,\n\t\t\t\t\tcallType: loom.InterceptorStreamingRecv,\n\t\t\t\t}\n", interceptor.Name, service, method.MethodName)
 					fmt.Fprintf(&b, "\t\t\t\tres, err := i.%s(ctx, info, func(ctx context.Context, _ any) (any, error) {\n\t\t\t\t\treturn stream.%s(ctx)\n\t\t\t\t})\n", interceptor.Name, method.ClientStream.RecvWithContextName)
 					fmt.Fprintf(&b, "\t\t\t\tcastRes, _ := res.(%s)\n\t\t\t\treturn castRes, err\n\t\t\t},\n", method.ClientStream.RecvTypeRef)
 				}
 				fmt.Fprintf(&b, "\t\t\tstream: stream,\n\t\t}, nil\n")
 			} else {
-				fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   goa.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
+				fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
 				fmt.Fprintf(&b, "\t\treturn i.%s(ctx, info, endpoint)\n", interceptor.Name)
 			}
 			b.WriteString("\t}\n}\n")

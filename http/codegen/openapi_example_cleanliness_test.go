@@ -171,6 +171,7 @@ func operationResponseMediaTypeFromSpec(t *testing.T, spec []byte, path, method,
 	require.True(t, ok)
 	response = resolveResponseRef(t, doc, response)
 	content, ok := response["content"].(map[string]any)
+	require.True(t, ok)
 	mediaType, ok := content[contentType].(map[string]any)
 	require.True(t, ok, contentType)
 	return mediaType

@@ -69,7 +69,6 @@ func TestAuthErrorResponses(t *testing.T) {
 		}
 
 		for _, tc := range cases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				root := RunHTTPDSL(t, tc.dsl)
 				openapi.Definitions = make(map[string]*openapi.Schema)
@@ -168,7 +167,6 @@ var methodScopedAuthErrorReuseDSL = func() {
 			{name: "first", path: "/method/first"},
 			{name: "second", path: "/method/second"},
 		} {
-			method := method
 			dsl.Method(method.name, func() {
 				dsl.Security(jwt)
 				dsl.Error("unauthorized", unauthorized)
@@ -229,7 +227,6 @@ var serviceScopedAuthErrorReuseDSL = func() {
 			{name: "first", path: "/service/first"},
 			{name: "second", path: "/service/second"},
 		} {
-			method := method
 			dsl.Method(method.name, func() {
 				dsl.Payload(func() {
 					dsl.Token("auth", dsl.String)
@@ -283,7 +280,6 @@ var apiScopedAuthErrorReuseDSL = func() {
 			{name: "first", path: "/api/first"},
 			{name: "second", path: "/api/second"},
 		} {
-			method := method
 			dsl.Method(method.name, func() {
 				dsl.Payload(func() {
 					dsl.Token("auth", dsl.String)

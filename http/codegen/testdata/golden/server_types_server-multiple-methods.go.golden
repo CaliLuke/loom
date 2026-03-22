@@ -42,7 +42,7 @@ func NewMethodBPayloadType(body *MethodBRequestBody) *servicemultiplemethods.Pay
 // ValidateMethodARequestBody runs the validations defined on MethodARequestBody
 func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
 	if body.A != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.a", *body.A, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("body.a", *body.A, "patterna"))
 	}
 	return
 }
@@ -50,20 +50,20 @@ func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
 // ValidateMethodBRequestBody runs the validations defined on MethodBRequestBody
 func ValidateMethodBRequestBody(body *MethodBRequestBody) (err error) {
 	if body.A == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("a", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("a", "body"))
 	}
 	if body.C == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("c", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("c", "body"))
 	}
 	if body.A != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.a", *body.A, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("body.a", *body.A, "patterna"))
 	}
 	if body.B != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.b", *body.B, "patternb"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("body.b", *body.B, "patternb"))
 	}
 	if body.C != nil {
 		if err2 := ValidateAPayloadRequestBody(body.C); err2 != nil {
-			err = goa.MergeErrors(err, err2)
+			err = loom.MergeErrors(err, err2)
 		}
 	}
 	return
@@ -73,7 +73,7 @@ func ValidateMethodBRequestBody(body *MethodBRequestBody) (err error) {
 // APayloadRequestBody
 func ValidateAPayloadRequestBody(body *APayloadRequestBody) (err error) {
 	if body.A != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.a", *body.A, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("body.a", *body.A, "patterna"))
 	}
 	return
 }

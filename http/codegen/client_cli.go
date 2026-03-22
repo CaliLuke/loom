@@ -115,7 +115,7 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 	}
 	for _, sv := range svr.Services {
 		svc := root.Service(sv)
@@ -168,7 +168,7 @@ func payloadBuilders(genpkg string, svc *expr.HTTPServiceExpr, data *cli.Command
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + sd.Service.PathName, Name: sd.Service.PkgName},
 	}
 	sections := []codegen.Section{
@@ -276,7 +276,7 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*
 // streamFlag returns the flag used to specify the upload file for endpoints
 // that use SkipRequestBodyEncodeDecode.
 func streamFlag(svcn, en string) *cli.FlagData {
-	return cli.NewFlagData(svcn, en, "stream", "string", "path to file containing the streamed request body", true, "goa.png", nil)
+	return cli.NewFlagData(svcn, en, "stream", "string", "path to file containing the streamed request body", true, "loom.bin", nil)
 }
 
 // streamingCmdExists returns true if at least one command in the list of commands

@@ -1,7 +1,7 @@
 // DecodeMethodCookiePrimitiveBoolValidateRequest returns a decoder for
 // requests sent to the ServiceCookiePrimitiveBoolValidate
 // MethodCookiePrimitiveBoolValidate endpoint.
-func DecodeMethodCookiePrimitiveBoolValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (bool, error) {
+func DecodeMethodCookiePrimitiveBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (bool, error) {
 	return func(r *http.Request) (bool, error) {
 		var payload bool
 		var (
@@ -16,16 +16,16 @@ func DecodeMethodCookiePrimitiveBoolValidateRequest(mux goahttp.Muxer, decoder f
 				c2Raw = c.Value
 			}
 			if c2Raw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("c", "cookie"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
 			}
 			v, err2 := strconv.ParseBool(c2Raw)
 			if err2 != nil {
-				err = goa.MergeErrors(err, goa.InvalidFieldTypeError("c", c2Raw, "boolean"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("c", c2Raw, "boolean"))
 			}
 			c2 = v
 		}
 		if !(c2 == true) {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("c", c2, []any{true}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("c", c2, []any{true}))
 		}
 		if err != nil {
 			return payload, err

@@ -1,10 +1,10 @@
 // EncodeMethodQueryUIntRequest returns an encoder for requests sent to the
 // ServiceQueryUInt MethodQueryUInt server.
-func EncodeMethodQueryUIntRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryUIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequeryuint.MethodQueryUIntPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryUInt", "MethodQueryUInt", "*servicequeryuint.MethodQueryUIntPayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryUInt", "MethodQueryUInt", "*servicequeryuint.MethodQueryUIntPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Q != nil {

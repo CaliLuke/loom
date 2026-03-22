@@ -23,11 +23,11 @@ func NewMethodStreamingBody(body *MethodStreamingBody) *servicepayloadvalidateda
 // MethodStreamingBody
 func ValidateMethodStreamingBody(body *MethodStreamingBody) (err error) {
 	if body.Name != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", string(*body.Name), "^[a-zA-Z]+$"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("body.name", string(*body.Name), "^[a-zA-Z]+$"))
 	}
 	if body.Name != nil {
 		if utf8.RuneCountInString(string(*body.Name)) < 10 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", string(*body.Name), utf8.RuneCountInString(string(*body.Name)), 10, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body.name", string(*body.Name), utf8.RuneCountInString(string(*body.Name)), 10, true))
 		}
 	}
 	return

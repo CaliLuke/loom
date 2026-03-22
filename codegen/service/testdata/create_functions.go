@@ -142,7 +142,7 @@ func (t *ObjectType) CreateFromObjectExtraT(v *testdata.ObjectExtraT) {
 var CreateAliasConvert = `// Service service type conversion functions
 //
 // Command:
-// goa
+// loom
 
 package service
 
@@ -162,7 +162,7 @@ func (t *StringType) CreateFromConvertModel(v *aliasd.ConvertModel) {
 var MixedCaseConvert = `// Service service type conversion functions
 //
 // Command:
-// goa
+// loom
 
 package service
 

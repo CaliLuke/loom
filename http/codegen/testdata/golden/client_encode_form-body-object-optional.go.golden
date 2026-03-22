@@ -1,15 +1,15 @@
 // EncodeMethodFormBodyObjectOptionalRequest returns an encoder for requests
 // sent to the ServiceFormBodyObjectOptional MethodFormBodyObjectOptional
 // server.
-func EncodeMethodFormBodyObjectOptionalRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodFormBodyObjectOptionalRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceFormBodyObjectOptional", "MethodFormBodyObjectOptional", "*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload", v)
+			return loomhttp.ErrInvalidType("ServiceFormBodyObjectOptional", "MethodFormBodyObjectOptional", "*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload", v)
 		}
 		body := NewMethodFormBodyObjectOptionalRequestBody(p)
-		if err := goahttp.SetFormRequest(req, &body); err != nil {
-			return goahttp.ErrEncodingError("ServiceFormBodyObjectOptional", "MethodFormBodyObjectOptional", err)
+		if err := loomhttp.SetFormRequest(req, &body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceFormBodyObjectOptional", "MethodFormBodyObjectOptional", err)
 		}
 		return nil
 	}

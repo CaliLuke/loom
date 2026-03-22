@@ -10,7 +10,7 @@ import (
 //
 // MultipartRequest must appear in a HTTP endpoint expression.
 //
-// goa generates framework-owned request decoding for supported object payloads
+// Loom generates framework-owned request decoding for supported object payloads
 // so applications do not need handwritten multipart decoder hooks for common
 // file-and-fields uploads. Multipart request encoding still accepts a user
 // provided writer function for now, and unsupported multipart payload shapes
@@ -29,7 +29,7 @@ func MultipartRequest() {
 //
 // FormRequest must appear in a HTTP endpoint expression.
 //
-// goa generates framework-owned request decoding and encoding for supported
+// Loom generates framework-owned request decoding and encoding for supported
 // typed payloads so applications do not need handwritten form parsers.
 func FormRequest() {
 	e, ok := eval.Current().(*expr.HTTPEndpointExpr)
@@ -45,7 +45,7 @@ func FormRequest() {
 //
 // OptionalRequestBody must appear in a HTTP endpoint expression.
 //
-// goa generates EOF-tolerant request decoding only for the explicit
+// Loom generates EOF-tolerant request decoding only for the explicit
 // OptionalRequestBody contract shape so required-body endpoints retain their
 // current strict behavior.
 func OptionalRequestBody() {

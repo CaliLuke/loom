@@ -2,17 +2,17 @@
 // function in
 // service_bidirectional_streaming_rpcpb.ServiceBidirectionalStreamingRPCClient
 // interface.
-func (c *Client) MethodBidirectionalStreamingRPC() goa.Endpoint {
+func (c *Client) MethodBidirectionalStreamingRPC() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(BuildMethodBidirectionalStreamingRPCFunc(c.grpccli, c.opts...), nil, DecodeMethodBidirectionalStreamingRPCResponse)
+		inv := loomgrpc.NewInvoker(BuildMethodBidirectionalStreamingRPCFunc(c.grpccli, c.opts...), nil, DecodeMethodBidirectionalStreamingRPCResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			resp := goagrpc.DecodeError(err)
+			resp := loomgrpc.DecodeError(err)
 			// Try to decode a Loom error response detail before falling back to Fault.
-			if eresp, ok := resp.(*goapb.ErrorResponse); ok {
-				return nil, goagrpc.NewServiceError(eresp)
+			if eresp, ok := resp.(*loompb.ErrorResponse); ok {
+				return nil, loomgrpc.NewServiceError(eresp)
 			}
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}

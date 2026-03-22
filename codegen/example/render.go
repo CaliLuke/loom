@@ -7,7 +7,6 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
-	"github.com/CaliLuke/loom/expr"
 )
 
 type (
@@ -30,7 +29,7 @@ func newRenderSection(name string, code func() string) codegen.Section {
 	return &renderSection{name: name, code: code}
 }
 
-func renderClientMain(server *Data, root *expr.RootExpr, hasJSONRPC, hasHTTP bool) string {
+func renderClientMain(server *Data, hasJSONRPC, hasHTTP bool) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "func main() {\n")
 	fmt.Fprintf(&b, "\tvar (\n")
@@ -89,7 +88,7 @@ func renderClientMain(server *Data, root *expr.RootExpr, hasJSONRPC, hasHTTP boo
 	fmt.Fprintf(&b, "\t}\n\n")
 
 	fmt.Fprintf(&b, "\tvar (\n")
-	fmt.Fprintf(&b, "\t\tendpoint goa.Endpoint\n")
+	fmt.Fprintf(&b, "\t\tendpoint loom.Endpoint\n")
 	fmt.Fprintf(&b, "\t\tpayload any\n")
 	fmt.Fprintf(&b, "\t\terr error\n")
 	fmt.Fprintf(&b, "\t)\n")
@@ -187,7 +186,7 @@ func renderUsage(apiName string, server *Data, hasJSONRPC, hasHTTP bool) string 
 	return b.String()
 }
 
-func renderServerMain(server *Data, svcData []*service.Data, apiPkg, interPkg string, hasInterceptors bool, root *expr.RootExpr) string {
+func renderServerMain(server *Data, svcData []*service.Data, apiPkg, interPkg string, hasInterceptors bool) string {
 	var b strings.Builder
 	usesHostOverrideFlags := serverHasRenderedURIs(server)
 	fmt.Fprintf(&b, "func main() {\n")

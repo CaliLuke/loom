@@ -9,7 +9,7 @@ import (
 
 	"flag"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "version":
-		fmt.Println("Loom version " + goa.Version())
+		fmt.Println("Loom version " + loom.Version())
 		os.Exit(0)
 	case "gen", "example":
 		if len(os.Args) == 2 {

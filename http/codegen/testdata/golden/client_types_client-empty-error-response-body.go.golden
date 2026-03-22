@@ -1,8 +1,8 @@
 // NewMethodEmptyErrorResponseBodyInternalError builds a
 // ServiceEmptyErrorResponseBody service MethodEmptyErrorResponseBody endpoint
 // internal_error error.
-func NewMethodEmptyErrorResponseBodyInternalError(name string, id string, message string, temporary bool, timeout bool, fault bool) *goa.ServiceError {
-	v := &goa.ServiceError{}
+func NewMethodEmptyErrorResponseBodyInternalError(name string, id string, message string, temporary bool, timeout bool, fault bool) *loom.ServiceError {
+	v := &loom.ServiceError{}
 	v.Name = name
 	v.ID = id
 	v.Message = message

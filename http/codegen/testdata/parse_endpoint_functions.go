@@ -4,11 +4,11 @@ var MultiNoPayloadParseCode = `// ParseEndpoint returns the endpoint and payload
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		serviceMultiNoPayload1Flags = flag.NewFlagSet("service-multi-no-payload1", flag.ContinueOnError)
 
@@ -99,7 +99,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -134,11 +134,11 @@ var MultiSimpleParseCode = `// ParseEndpoint returns the endpoint and payload as
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		serviceMultiSimple1Flags = flag.NewFlagSet("service-multi-simple1", flag.ContinueOnError)
 
@@ -231,7 +231,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -268,11 +268,11 @@ var MultiRequiredPayloadParseCode = `// ParseEndpoint returns the endpoint and p
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		serviceMultiRequired1Flags = flag.NewFlagSet("service-multi-required1", flag.ContinueOnError)
 
@@ -359,7 +359,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -394,11 +394,11 @@ var SkipRequestBodyEncodeDecodeParseCode = `// ParseEndpoint returns the endpoin
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		skipRequestBodyEncodeDecodeFlags = flag.NewFlagSet("skip-request-body-encode-decode", flag.ContinueOnError)
 
@@ -462,7 +462,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -488,11 +488,11 @@ var MultiParseCode = `// ParseEndpoint returns the endpoint and payload as speci
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		serviceMultiFlags = flag.NewFlagSet("service-multi", flag.ContinueOnError)
 
@@ -564,7 +564,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -592,14 +592,14 @@ var StreamingParseCode = `// ParseEndpoint returns the endpoint and payload as s
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-	dialer goahttp.Dialer,
+	dialer loomhttp.Dialer,
 	streamingServiceAConfigurer *streamingserviceac.ConnConfigurer,
 	streamingServiceBConfigurer *streamingservicebc.ConnConfigurer,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		streamingServiceAFlags = flag.NewFlagSet("streaming-service-a", flag.ContinueOnError)
 
@@ -678,7 +678,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -831,7 +831,7 @@ func BuildMethodParamValidatePayload(serviceParamValidateMethodParamValidateA st
 				return nil, fmt.Errorf("invalid value for a, must be INT")
 			}
 			if *a < 1 {
-				err = goa.MergeErrors(err, goa.InvalidRangeError("a", *a, 1, true))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("a", *a, 1, true))
 			}
 			if err != nil {
 				return nil, err
@@ -849,11 +849,11 @@ var PayloadPrimitiveTypeParseCode = `// ParseEndpoint returns the endpoint and p
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		serviceBodyPrimitiveBoolValidateFlags = flag.NewFlagSet("service-body-primitive-bool-validate", flag.ContinueOnError)
 
@@ -917,7 +917,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -947,11 +947,11 @@ var PayloadArrayPrimitiveTypeParseCode = `// ParseEndpoint returns the endpoint 
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		serviceBodyPrimitiveArrayStringValidateFlags = flag.NewFlagSet("service-body-primitive-array-string-validate", flag.ContinueOnError)
 
@@ -1015,7 +1015,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -1138,11 +1138,11 @@ var MapQueryParseCode = `// ParseEndpoint returns the endpoint and payload as sp
 // line.
 func ParseEndpoint(
 	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
+	doer loomhttp.Doer,
+	enc func(*http.Request) loomhttp.Encoder,
+	dec func(*http.Response) loomhttp.Decoder,
 	restore bool,
-) (goa.Endpoint, any, error) {
+) (loom.Endpoint, any, error) {
 	var (
 		serviceMapQueryPrimitiveArrayFlags = flag.NewFlagSet("service-map-query-primitive-array", flag.ContinueOnError)
 
@@ -1206,7 +1206,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -1245,7 +1245,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b\": \"patternb\"\n   }'")
 		}
 		if body.B != nil {
-			err = goa.MergeErrors(err, goa.ValidatePattern("body.b", *body.B, "patternb"))
+			err = loom.MergeErrors(err, loom.ValidatePattern("body.b", *body.B, "patternb"))
 		}
 		if err != nil {
 			return nil, err
@@ -1254,7 +1254,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 	var a string
 	{
 		a = serviceMapQueryObjectMethodMapQueryObjectA
-		err = goa.MergeErrors(err, goa.ValidatePattern("a", a, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("a", a, "patterna"))
 		if err != nil {
 			return nil, err
 		}
@@ -1346,7 +1346,7 @@ func BuildMethodQueryStringValidatePayload(serviceQueryStringValidateMethodQuery
 	{
 		q = serviceQueryStringValidateMethodQueryStringValidateQ
 		if !(q == "val") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("q", q, []any{"val"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"val"}))
 		}
 		if err != nil {
 			return nil, err

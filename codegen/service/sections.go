@@ -62,8 +62,8 @@ func renderErrorMethods(data *UserTypeData) string {
 	fmt.Fprintf(&b, "func (e %s) LoomErrorName() string {\n\treturn %s\n}\n", data.Ref, errorName(data))
 	if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
 		b.WriteString("\n// LoomErrorRemedy returns the remediation guidance for the error.\n")
-		fmt.Fprintf(&b, "func (e %s) LoomErrorRemedy() *goa.ErrorRemedy {\n", data.Ref)
-		b.WriteString("\treturn &goa.ErrorRemedy{\n")
+		fmt.Fprintf(&b, "func (e %s) LoomErrorRemedy() *loom.ErrorRemedy {\n", data.Ref)
+		b.WriteString("\treturn &loom.ErrorRemedy{\n")
 		fmt.Fprintf(&b, "\t\tCode:        %q,\n", data.RemedyCode)
 		fmt.Fprintf(&b, "\t\tSafeMessage: %q,\n", data.SafeMessage)
 		fmt.Fprintf(&b, "\t\tRetryHint:   %q,\n", data.RetryHint)
@@ -156,7 +156,7 @@ func renderUnionType(data *UnionTypeData) string {
 	fmt.Fprintf(&b, "// Validate ensures the union discriminant is valid.\nfunc (u %s) Validate() error {\n", data.Name)
 	b.WriteString("\tswitch u.kind {\n")
 	fmt.Fprintf(&b, "\tcase %q:\n", "")
-	fmt.Fprintf(&b, "\t\treturn goa.InvalidEnumValueError(%q, %q, []any{\n", data.TypeKey, "")
+	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, %q, []any{\n", data.TypeKey, "")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
@@ -165,7 +165,7 @@ func renderUnionType(data *UnionTypeData) string {
 		fmt.Fprintf(&b, "\tcase %s:\n\t\treturn nil\n", field.KindConst)
 	}
 	b.WriteString("\tdefault:\n")
-	fmt.Fprintf(&b, "\t\treturn goa.InvalidEnumValueError(%q, u.kind, []any{\n", data.TypeKey)
+	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, u.kind, []any{\n", data.TypeKey)
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
@@ -184,41 +184,41 @@ func renderUnionType(data *UnionTypeData) string {
 
 	fmt.Fprintf(&b, "// MarshalFormValues marshals the union into application/x-www-form-urlencoded\n// values using the discriminator field plus flattened object fields for\n// object-shaped branches and the canonical {type,value} form shape for scalar\n// branches.\nfunc (u %s) MarshalFormValues(values url.Values, prefix string) error {\n", data.Name)
 	b.WriteString("\tif err := u.Validate(); err != nil {\n\t\treturn err\n\t}\n")
-	fmt.Fprintf(&b, "\tvalues.Set(goahttp.FormChildKey(prefix, %q), string(u.kind))\n", data.TypeKey)
+	fmt.Fprintf(&b, "\tvalues.Set(loomhttp.FormChildKey(prefix, %q), string(u.kind))\n", data.TypeKey)
 	b.WriteString("\tswitch u.kind {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase %s:\n", field.KindConst)
 		if field.FlatFormObject {
-			fmt.Fprintf(&b, "\t\t_, err := goahttp.EncodeFormValue(values, prefix, u.%s)\n", field.FieldName)
+			fmt.Fprintf(&b, "\t\t_, err := loomhttp.EncodeFormValue(values, prefix, u.%s)\n", field.FieldName)
 		} else {
-			fmt.Fprintf(&b, "\t\t_, err := goahttp.EncodeFormValue(values, goahttp.FormChildKey(prefix, %q), u.%s)\n", data.ValueKey, field.FieldName)
+			fmt.Fprintf(&b, "\t\t_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, %q), u.%s)\n", data.ValueKey, field.FieldName)
 		}
 		b.WriteString("\t\treturn err\n")
 	}
 	fmt.Fprintf(&b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n}\n\n", data.Name)
 
 	fmt.Fprintf(&b, "// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded\n// values using the discriminator field plus flattened object fields for\n// object-shaped branches and the canonical {type,value} form shape for scalar\n// branches.\nfunc (u *%s) UnmarshalFormValues(values url.Values, prefix string) error {\n", data.Name)
-	fmt.Fprintf(&b, "\ttypeKey := goahttp.FormChildKey(prefix, %q)\n", data.TypeKey)
+	fmt.Fprintf(&b, "\ttypeKey := loomhttp.FormChildKey(prefix, %q)\n", data.TypeKey)
 	if data.HasScalarFormBranch {
-		fmt.Fprintf(&b, "\tvalueKey := goahttp.FormChildKey(prefix, %q)\n", data.ValueKey)
+		fmt.Fprintf(&b, "\tvalueKey := loomhttp.FormChildKey(prefix, %q)\n", data.ValueKey)
 	}
 	b.WriteString("\trawType := values.Get(typeKey)\n")
 	b.WriteString("\tif rawType == \"\" {\n")
-	fmt.Fprintf(&b, "\t\treturn goa.MissingFieldError(%q, \"body\")\n\t}\n", data.TypeKey)
+	fmt.Fprintf(&b, "\t\treturn loom.MissingFieldError(%q, \"body\")\n\t}\n", data.TypeKey)
 	b.WriteString("\tswitch rawType {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
 		if field.FlatFormObject {
-			b.WriteString("\t\tseen, err := goahttp.DecodeFormValue(values, prefix, &v)\n")
+			b.WriteString("\t\tseen, err := loomhttp.DecodeFormValue(values, prefix, &v)\n")
 		} else {
-			b.WriteString("\t\tseen, err := goahttp.DecodeFormValue(values, valueKey, &v)\n")
+			b.WriteString("\t\tseen, err := loomhttp.DecodeFormValue(values, valueKey, &v)\n")
 		}
 		b.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
 		b.WriteString("\t\tif !seen {\n")
 		if field.FlatFormObjectAllowsEmpty {
 			fmt.Fprintf(&b, "\t\t\tv = %s\n", field.EmptyValueExpr)
 		} else {
-			fmt.Fprintf(&b, "\t\t\treturn goa.MissingFieldError(%q, \"body\")\n", data.ValueKey)
+			fmt.Fprintf(&b, "\t\t\treturn loom.MissingFieldError(%q, \"body\")\n", data.ValueKey)
 		}
 		b.WriteString("\t\t}\n")
 		fmt.Fprintf(&b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)

@@ -2,14 +2,14 @@
 // MultipleServicesInterceptorsService2 example server interceptors
 //
 // Command:
-// goa
+// loom
 
 package interceptors
 
 import (
 	"context"
 	"fmt"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 	"goa.design/clue/log"
 	multipleservicesinterceptorsservice2 "multiple_services_interceptors_service2"
 )
@@ -22,7 +22,7 @@ type MultipleServicesInterceptorsService2ServerInterceptors struct {
 func NewMultipleServicesInterceptorsService2ServerInterceptors() *MultipleServicesInterceptorsService2ServerInterceptors {
 	return &MultipleServicesInterceptorsService2ServerInterceptors{}
 }
-func (i *MultipleServicesInterceptorsService2ServerInterceptors) Test(ctx context.Context, info *interceptors.TestInfo, next goa.Endpoint) (any, error) {
+func (i *MultipleServicesInterceptorsService2ServerInterceptors) Test(ctx context.Context, info *interceptors.TestInfo, next loom.Endpoint) (any, error) {
 	log.Printf(ctx, "[Test] Processing request: %v", info.RawPayload())
 	resp, err := next(ctx, info.RawPayload())
 	if err != nil {
@@ -32,7 +32,7 @@ func (i *MultipleServicesInterceptorsService2ServerInterceptors) Test(ctx contex
 	log.Printf(ctx, "[Test] Response: %v", resp)
 	return resp, nil
 }
-func (i *MultipleServicesInterceptorsService2ServerInterceptors) Test3(ctx context.Context, info *interceptors.Test3Info, next goa.Endpoint) (any, error) {
+func (i *MultipleServicesInterceptorsService2ServerInterceptors) Test3(ctx context.Context, info *interceptors.Test3Info, next loom.Endpoint) (any, error) {
 	log.Printf(ctx, "[Test3] Processing request: %v", info.RawPayload())
 	resp, err := next(ctx, info.RawPayload())
 	if err != nil {

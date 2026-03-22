@@ -27,7 +27,7 @@ func TestRecordError(t *testing.T) {
 		Message  string
 		HasCause bool
 	}{
-		"go-error":     {err, errMsg, false},
+		"loom-error":   {err, errMsg, false},
 		"wrapped":      {wrapped, cause + ": " + errMsg, true},
 		"wrappedTwice": {wrappedTwice, inner + ": " + cause + ": " + errMsg, true},
 	}
@@ -112,7 +112,7 @@ func TestRecordRequest(t *testing.T) {
 		remoteAddr = "104.18.43.42:443"
 		remoteHost = "104.18.43.42"
 		userAgent  = "user agent"
-		reqURL, _  = url.Parse("https://goa.design/path?query#fragment")
+		reqURL, _  = url.Parse("https://loom.design/path?query#fragment")
 	)
 
 	type Req struct {
@@ -189,7 +189,7 @@ func TestRecordRequest(t *testing.T) {
 func TestRace(t *testing.T) {
 	var (
 		rErr   = errors.New("oh no")
-		req, _ = http.NewRequest("GET", "https://goa.design", http.NoBody)
+		req, _ = http.NewRequest("GET", "https://loom.design", http.NoBody)
 		resp   = httptest.NewRecorder().Result()
 	)
 

@@ -45,7 +45,7 @@ func main() {
 	}
 
 	var (
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		payload  any
 		err      error
 	)

@@ -1,7 +1,7 @@
 // DecodeMethodQueryStringExtendedPayloadRequest returns a decoder for requests
 // sent to the ServiceQueryStringExtendedPayload
 // MethodQueryStringExtendedPayload endpoint.
-func DecodeMethodQueryStringExtendedPayloadRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerystringextendedpayload.MethodQueryStringExtendedPayloadPayload, error) {
+func DecodeMethodQueryStringExtendedPayloadRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerystringextendedpayload.MethodQueryStringExtendedPayloadPayload, error) {
 	return func(r *http.Request) (*servicequerystringextendedpayload.MethodQueryStringExtendedPayloadPayload, error) {
 		var payload *servicequerystringextendedpayload.MethodQueryStringExtendedPayloadPayload
 		var (

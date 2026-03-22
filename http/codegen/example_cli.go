@@ -47,7 +47,7 @@ func ExampleCLI(genpkg string, svr *expr.ServerExpr, services *ServicesData) *co
 		{Path: "time"},
 		{Path: "github.com/gorilla/websocket"},
 		codegen.LoomImport(""),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/http/cli/" + svrdata.Dir, Name: "cli"},
 	}
 	importScope := codegen.NewNameScope()

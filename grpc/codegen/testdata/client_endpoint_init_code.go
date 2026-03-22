@@ -2,15 +2,15 @@ package testdata
 
 const UnaryRPCsClientEndpointInitCode = `// MethodUnaryRPCA calls the "MethodUnaryRPCA" function in
 // service_unary_rp_cspb.ServiceUnaryRPCsClient interface.
-func (c *Client) MethodUnaryRPCA() goa.Endpoint {
+func (c *Client) MethodUnaryRPCA() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodUnaryRPCAFunc(c.grpccli, c.opts...),
 			EncodeMethodUnaryRPCARequest,
 			DecodeMethodUnaryRPCAResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -18,15 +18,15 @@ func (c *Client) MethodUnaryRPCA() goa.Endpoint {
 
 // MethodUnaryRPCB calls the "MethodUnaryRPCB" function in
 // service_unary_rp_cspb.ServiceUnaryRPCsClient interface.
-func (c *Client) MethodUnaryRPCB() goa.Endpoint {
+func (c *Client) MethodUnaryRPCB() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodUnaryRPCBFunc(c.grpccli, c.opts...),
 			EncodeMethodUnaryRPCBRequest,
 			DecodeMethodUnaryRPCBResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -35,15 +35,15 @@ func (c *Client) MethodUnaryRPCB() goa.Endpoint {
 
 const UnaryRPCNoPayloadClientEndpointInitCode = `// MethodUnaryRPCNoPayload calls the "MethodUnaryRPCNoPayload" function in
 // service_unary_rpc_no_payloadpb.ServiceUnaryRPCNoPayloadClient interface.
-func (c *Client) MethodUnaryRPCNoPayload() goa.Endpoint {
+func (c *Client) MethodUnaryRPCNoPayload() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodUnaryRPCNoPayloadFunc(c.grpccli, c.opts...),
 			nil,
 			DecodeMethodUnaryRPCNoPayloadResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -52,15 +52,15 @@ func (c *Client) MethodUnaryRPCNoPayload() goa.Endpoint {
 
 const UnaryRPCNoResultClientEndpointInitCode = `// MethodUnaryRPCNoResult calls the "MethodUnaryRPCNoResult" function in
 // service_unary_rpc_no_resultpb.ServiceUnaryRPCNoResultClient interface.
-func (c *Client) MethodUnaryRPCNoResult() goa.Endpoint {
+func (c *Client) MethodUnaryRPCNoResult() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodUnaryRPCNoResultFunc(c.grpccli, c.opts...),
 			EncodeMethodUnaryRPCNoResultRequest,
 			nil)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -69,15 +69,15 @@ func (c *Client) MethodUnaryRPCNoResult() goa.Endpoint {
 
 const UnaryRPCWithErrorsClientEndpointInitCode = `// MethodUnaryRPCWithErrors calls the "MethodUnaryRPCWithErrors" function in
 // service_unary_rpc_with_errorspb.ServiceUnaryRPCWithErrorsClient interface.
-func (c *Client) MethodUnaryRPCWithErrors() goa.Endpoint {
+func (c *Client) MethodUnaryRPCWithErrors() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodUnaryRPCWithErrorsFunc(c.grpccli, c.opts...),
 			EncodeMethodUnaryRPCWithErrorsRequest,
 			DecodeMethodUnaryRPCWithErrorsResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			resp := goagrpc.DecodeError(err)
+			resp := loomgrpc.DecodeError(err)
 			switch message := resp.(type) {
 			case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsInternalError:
 				if err := ValidateMethodUnaryRPCWithErrorsInternalError(message); err != nil {
@@ -91,10 +91,10 @@ func (c *Client) MethodUnaryRPCWithErrors() goa.Endpoint {
 				return nil, NewMethodUnaryRPCWithErrorsBadRequestError(message)
 			case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsCustomErrorError:
 				return nil, NewMethodUnaryRPCWithErrorsCustomErrorError(message)
-			case *goapb.ErrorResponse:
-				return nil, goagrpc.NewServiceError(message)
+			case *loompb.ErrorResponse:
+				return nil, loomgrpc.NewServiceError(message)
 			default:
-				return nil, goa.Fault("%s", err.Error())
+				return nil, loom.Fault("%s", err.Error())
 			}
 		}
 		return res, nil
@@ -104,15 +104,15 @@ func (c *Client) MethodUnaryRPCWithErrors() goa.Endpoint {
 
 const UnaryRPCAcronymClientEndpointInitCode = `// MethodUnaryRPCAcronymJWT calls the "MethodUnaryRPCAcronymJWT" function in
 // service_unary_rpc_acronympb.ServiceUnaryRPCAcronymClient interface.
-func (c *Client) MethodUnaryRPCAcronymJWT() goa.Endpoint {
+func (c *Client) MethodUnaryRPCAcronymJWT() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodUnaryRPCAcronymJWTFunc(c.grpccli, c.opts...),
 			nil,
 			nil)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -121,15 +121,15 @@ func (c *Client) MethodUnaryRPCAcronymJWT() goa.Endpoint {
 
 const ServerStreamingRPCClientEndpointInitCode = `// MethodServerStreamingRPC calls the "MethodServerStreamingRPC" function in
 // service_server_streaming_rpcpb.ServiceServerStreamingRPCClient interface.
-func (c *Client) MethodServerStreamingRPC() goa.Endpoint {
+func (c *Client) MethodServerStreamingRPC() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodServerStreamingRPCFunc(c.grpccli, c.opts...),
 			EncodeMethodServerStreamingRPCRequest,
 			DecodeMethodServerStreamingRPCResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -138,15 +138,15 @@ func (c *Client) MethodServerStreamingRPC() goa.Endpoint {
 
 const ClientStreamingRPCClientEndpointInitCode = `// MethodClientStreamingRPC calls the "MethodClientStreamingRPC" function in
 // service_client_streaming_rpcpb.ServiceClientStreamingRPCClient interface.
-func (c *Client) MethodClientStreamingRPC() goa.Endpoint {
+func (c *Client) MethodClientStreamingRPC() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodClientStreamingRPCFunc(c.grpccli, c.opts...),
 			nil,
 			DecodeMethodClientStreamingRPCResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -157,15 +157,15 @@ const ClientStreamingNoResultClientEndpointInitCode = `// MethodClientStreamingN
 // function in
 // service_client_streaming_no_resultpb.ServiceClientStreamingNoResultClient
 // interface.
-func (c *Client) MethodClientStreamingNoResult() goa.Endpoint {
+func (c *Client) MethodClientStreamingNoResult() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodClientStreamingNoResultFunc(c.grpccli, c.opts...),
 			nil,
 			DecodeMethodClientStreamingNoResultResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -176,15 +176,15 @@ const ClientStreamingRPCWithPayloadClientEndpointInitCode = `// MethodClientStre
 // "MethodClientStreamingRPCWithPayload" function in
 // service_client_streaming_rpc_with_payloadpb.ServiceClientStreamingRPCWithPayloadClient
 // interface.
-func (c *Client) MethodClientStreamingRPCWithPayload() goa.Endpoint {
+func (c *Client) MethodClientStreamingRPCWithPayload() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodClientStreamingRPCWithPayloadFunc(c.grpccli, c.opts...),
 			EncodeMethodClientStreamingRPCWithPayloadRequest,
 			DecodeMethodClientStreamingRPCWithPayloadResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -195,15 +195,15 @@ const BidirectionalStreamingRPCClientEndpointInitCode = `// MethodBidirectionalS
 // function in
 // service_bidirectional_streaming_rpcpb.ServiceBidirectionalStreamingRPCClient
 // interface.
-func (c *Client) MethodBidirectionalStreamingRPC() goa.Endpoint {
+func (c *Client) MethodBidirectionalStreamingRPC() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodBidirectionalStreamingRPCFunc(c.grpccli, c.opts...),
 			nil,
 			DecodeMethodBidirectionalStreamingRPCResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -214,15 +214,15 @@ const BidirectionalStreamingRPCWithPayloadClientEndpointInitCode = `// MethodBid
 // "MethodBidirectionalStreamingRPCWithPayload" function in
 // service_bidirectional_streaming_rpc_with_payloadpb.ServiceBidirectionalStreamingRPCWithPayloadClient
 // interface.
-func (c *Client) MethodBidirectionalStreamingRPCWithPayload() goa.Endpoint {
+func (c *Client) MethodBidirectionalStreamingRPCWithPayload() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodBidirectionalStreamingRPCWithPayloadFunc(c.grpccli, c.opts...),
 			EncodeMethodBidirectionalStreamingRPCWithPayloadRequest,
 			DecodeMethodBidirectionalStreamingRPCWithPayloadResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			return nil, goa.Fault("%s", err.Error())
+			return nil, loom.Fault("%s", err.Error())
 		}
 		return res, nil
 	}
@@ -233,20 +233,20 @@ const BidirectionalStreamingRPCWithErrorsClientEndpointInitCode = `// MethodBidi
 // "MethodBidirectionalStreamingRPCWithErrors" function in
 // service_bidirectional_streaming_rpc_with_errorspb.ServiceBidirectionalStreamingRPCWithErrorsClient
 // interface.
-func (c *Client) MethodBidirectionalStreamingRPCWithErrors() goa.Endpoint {
+func (c *Client) MethodBidirectionalStreamingRPCWithErrors() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := goagrpc.NewInvoker(
+		inv := loomgrpc.NewInvoker(
 			BuildMethodBidirectionalStreamingRPCWithErrorsFunc(c.grpccli, c.opts...),
 			nil,
 			DecodeMethodBidirectionalStreamingRPCWithErrorsResponse)
 		res, err := inv.Invoke(ctx, v)
 		if err != nil {
-			resp := goagrpc.DecodeError(err)
+			resp := loomgrpc.DecodeError(err)
 			switch message := resp.(type) {
-			case *goapb.ErrorResponse:
-				return nil, goagrpc.NewServiceError(message)
+			case *loompb.ErrorResponse:
+				return nil, loomgrpc.NewServiceError(message)
 			default:
-				return nil, goa.Fault("%s", err.Error())
+				return nil, loom.Fault("%s", err.Error())
 			}
 		}
 		return res, nil

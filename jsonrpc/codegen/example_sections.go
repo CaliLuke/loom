@@ -29,10 +29,12 @@ func jsonrpcExampleServerStartSource(httpServices, jsonrpcServices []*httpcodege
 		}
 	}
 	for _, svc := range jsonrpcServices {
-		fmt.Fprintf(&b, ", %sSvc %s.Service", svc.Service.VarName, svc.Service.PkgName)
 		if !hasServiceName(httpServices, svc.Service.Name) {
 			fmt.Fprintf(&b, ", %sEndpoints *%s.Endpoints", svc.Service.VarName, svc.Service.PkgName)
 		}
+	}
+	for _, svc := range jsonrpcServices {
+		fmt.Fprintf(&b, ", %sSvc %s.Service", svc.Service.VarName, svc.Service.PkgName)
 	}
 	b.WriteString(", wg *sync.WaitGroup, errc chan error, dbg bool) {\n")
 	return b.String()
@@ -94,6 +96,41 @@ func jsonrpcHTTPMountLogSource(jsonrpcServices []*httpcodegen.ServiceData) strin
 		}
 		b.WriteString("\t}\n")
 	}
+	return b.String()
+}
+
+func jsonrpcExampleServerEndSource(httpServices, jsonrpcServices []*httpcodegen.ServiceData) string {
+	var b strings.Builder
+	b.WriteString("\n\t// Start HTTP server using default configuration, change the code to\n")
+	b.WriteString("\t// configure the server as required by your service.\n")
+	b.WriteString("\tsrv := &http.Server{Addr: u.Host, Handler: handler, ReadHeaderTimeout: time.Second * 60}\n")
+	for _, svc := range httpServices {
+		fmt.Fprintf(&b, "\tfor _, m := range %sServer.Mounts {\n", svc.Service.VarName)
+		b.WriteString("\t\tlog.Printf(ctx, \"HTTP %q mounted on %s %s\", m.Method, m.Verb, m.Pattern)\n")
+		b.WriteString("\t}\n")
+	}
+	if len(jsonrpcServices) > 0 {
+		b.WriteString("\n")
+		b.WriteString(jsonrpcHTTPMountLogSource(jsonrpcServices))
+	}
+	b.WriteString("\n\t(*wg).Add(1)\n")
+	b.WriteString("\tgo func() {\n")
+	b.WriteString("\t\tdefer (*wg).Done()\n\n")
+	b.WriteString("\t\t// Start HTTP server in a separate goroutine.\n")
+	b.WriteString("\t\tgo func() {\n")
+	b.WriteString("\t\t\tlog.Printf(ctx, \"HTTP server listening on %q\", u.Host)\n")
+	b.WriteString("\t\t\terrc <- srv.ListenAndServe()\n")
+	b.WriteString("\t\t}()\n\n")
+	b.WriteString("\t\t<-ctx.Done()\n")
+	b.WriteString("\t\tlog.Printf(ctx, \"shutting down HTTP server at %q\", u.Host)\n\n")
+	b.WriteString("\t\t// Shutdown gracefully with a 30s timeout.\n")
+	b.WriteString("\t\tctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)\n")
+	b.WriteString("\t\tdefer cancel()\n\n")
+	b.WriteString("\t\terr := srv.Shutdown(ctx)\n")
+	b.WriteString("\t\tif err != nil {\n")
+	b.WriteString("\t\t\tlog.Printf(ctx, \"failed to shutdown: %v\", err)\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t}()\n}\n")
 	return b.String()
 }
 

@@ -317,7 +317,7 @@ func TestValidationCodeRequiresObjectUnionBranchValue(t *testing.T) {
 	if !strings.Contains(code, `if actual == nil {`) {
 		t.Errorf("expected missing value guard for object union branch:\n%s", code)
 	}
-	if !strings.Contains(code, `goa.MissingFieldError("value", "target.value")`) {
+	if !strings.Contains(code, `loom.MissingFieldError("value", "target.value")`) {
 		t.Errorf("expected missing value error for object union branch:\n%s", code)
 	}
 }

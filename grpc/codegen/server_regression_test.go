@@ -11,15 +11,15 @@ import (
 )
 
 func TestServerFilesUseLoomGRPCHandlerAliases(t *testing.T) {
-	t.Run("unary handlers use goagrpc alias", func(t *testing.T) {
+	t.Run("unary handlers use loomgrpc alias", func(t *testing.T) {
 		code := renderGRPCServerFile(t, testdata.UnaryRPCsDSL)
-		require.Contains(t, code, "goagrpc.UnaryHandler")
+		require.Contains(t, code, "loomgrpc.UnaryHandler")
 		require.NotContains(t, code, " grpc.UnaryHandler")
 	})
 
-	t.Run("stream handlers use goagrpc alias", func(t *testing.T) {
+	t.Run("stream handlers use loomgrpc alias", func(t *testing.T) {
 		code := renderGRPCServerFile(t, testdata.ServerStreamingRPCDSL)
-		require.Contains(t, code, "goagrpc.StreamHandler")
+		require.Contains(t, code, "loomgrpc.StreamHandler")
 		require.NotContains(t, code, " grpc.StreamHandler")
 	})
 }

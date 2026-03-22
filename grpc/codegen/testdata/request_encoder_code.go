@@ -6,7 +6,7 @@ const PayloadUserTypeRequestEncoderCode = `// EncodeMethodMessageUserTypeWithNes
 func EncodeMethodMessageUserTypeWithNestedUserTypesRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(*servicemessageusertypewithnestedusertypes.UT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "*servicemessageusertypewithnestedusertypes.UT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageUserTypeWithNestedUserTypes", "MethodMessageUserTypeWithNestedUserTypes", "*servicemessageusertypewithnestedusertypes.UT", v)
 	}
 	return NewProtoMethodMessageUserTypeWithNestedUserTypesRequest(payload), nil
 }
@@ -17,7 +17,7 @@ const PayloadArrayRequestEncoderCode = `// EncodeMethodUnaryRPCNoResultRequest e
 func EncodeMethodUnaryRPCNoResultRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.([]string)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceUnaryRPCNoResult", "MethodUnaryRPCNoResult", "[]string", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceUnaryRPCNoResult", "MethodUnaryRPCNoResult", "[]string", v)
 	}
 	return NewProtoMethodUnaryRPCNoResultRequest(payload), nil
 }
@@ -28,7 +28,7 @@ const PayloadMapRequestEncoderCode = `// EncodeMethodMessageMapRequest encodes r
 func EncodeMethodMessageMapRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(map[int]*servicemessagemap.UT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageMap", "MethodMessageMap", "map[int]*servicemessagemap.UT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageMap", "MethodMessageMap", "map[int]*servicemessagemap.UT", v)
 	}
 	return NewProtoMethodMessageMapRequest(payload), nil
 }
@@ -39,7 +39,7 @@ const PayloadPrimitiveRequestEncoderCode = `// EncodeMethodServerStreamingRPCReq
 func EncodeMethodServerStreamingRPCRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(int)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceServerStreamingRPC", "MethodServerStreamingRPC", "int", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceServerStreamingRPC", "MethodServerStreamingRPC", "int", v)
 	}
 	return NewProtoMethodServerStreamingRPCRequest(payload), nil
 }
@@ -51,9 +51,9 @@ const PayloadPrimitiveWithStreamingPayloadRequestEncoderCode = `// EncodeMethodC
 func EncodeMethodClientStreamingRPCWithPayloadRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(int)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceClientStreamingRPCWithPayload", "MethodClientStreamingRPCWithPayload", "int", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceClientStreamingRPCWithPayload", "MethodClientStreamingRPCWithPayload", "int", v)
 	}
-	(*md).Append("goa_payload", fmt.Sprintf("%v", payload))
+	(*md).Append("loom_payload", fmt.Sprintf("%v", payload))
 	return nil, nil
 }
 `
@@ -64,7 +64,7 @@ const PayloadUserTypeWithStreamingPayloadRequestEncoderCode = `// EncodeMethodBi
 func EncodeMethodBidirectionalStreamingRPCWithPayloadRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(*servicebidirectionalstreamingrpcwithpayload.Payload)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceBidirectionalStreamingRPCWithPayload", "MethodBidirectionalStreamingRPCWithPayload", "*servicebidirectionalstreamingrpcwithpayload.Payload", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceBidirectionalStreamingRPCWithPayload", "MethodBidirectionalStreamingRPCWithPayload", "*servicebidirectionalstreamingrpcwithpayload.Payload", v)
 	}
 	if payload.A != nil {
 		(*md).Append("a", fmt.Sprintf("%v", *payload.A))
@@ -81,7 +81,7 @@ const PayloadWithMetadataRequestEncoderCode = `// EncodeMethodMessageWithMetadat
 func EncodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(*servicemessagewithmetadata.RequestUT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*servicemessagewithmetadata.RequestUT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*servicemessagewithmetadata.RequestUT", v)
 	}
 	if payload.InMetadata != nil {
 		(*md).Append("Authorization", fmt.Sprintf("%v", *payload.InMetadata))
@@ -95,7 +95,7 @@ const PayloadWithValidateRequestEncoderCode = `// EncodeMethodMessageWithValidat
 func EncodeMethodMessageWithValidateRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(*servicemessagewithvalidate.RequestUT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*servicemessagewithvalidate.RequestUT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*servicemessagewithvalidate.RequestUT", v)
 	}
 	if payload.InMetadata != nil {
 		(*md).Append("Authorization", fmt.Sprintf("%v", *payload.InMetadata))
@@ -109,7 +109,7 @@ const PayloadWithSecurityAttrsRequestEncoderCode = `// EncodeMethodMessageWithSe
 func EncodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {
 	payload, ok := v.(*servicemessagewithsecurity.RequestUT)
 	if !ok {
-		return nil, goagrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*servicemessagewithsecurity.RequestUT", v)
+		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*servicemessagewithsecurity.RequestUT", v)
 	}
 	if payload.Token != nil {
 		(*md).Append("authorization", *payload.Token)

@@ -138,7 +138,7 @@ func (g *Generator) Write(_ bool) error {
 			codegen.SimpleImport("github.com/CaliLuke/loom/codegen"),
 			codegen.SimpleImport("github.com/CaliLuke/loom/codegen/generator"),
 			codegen.SimpleImport("github.com/CaliLuke/loom/eval"),
-			codegen.NewImport("goa", "github.com/CaliLuke/loom/pkg"),
+			codegen.NewImport("loom", "github.com/CaliLuke/loom/pkg"),
 			codegen.NewImport("_", g.DesignPath),
 		}
 		sections = []*codegen.SectionTemplate{
@@ -337,8 +337,8 @@ const mainT = `func main() {
 		fmt.Fprintf(os.Stderr, "[TIMING]   [binary] Starting generated binary execution\n")
 	}
 
-	if ver > goa.Major {
-		fail("cannot run goa %s on design using goa v%s\n", goa.Version(), *version)
+	if ver > loom.Major {
+		fail("cannot run loom %s on design using loom v%s\n", loom.Version(), *version)
 	}
 
 	startCheckErrors := time.Now()

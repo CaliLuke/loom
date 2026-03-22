@@ -435,7 +435,7 @@ func (r *HTTPResponseExpr) CurrentCookie() *HTTPResponseCookieExpr {
 // mapUnmappedAttrs maps any unmapped attributes in ErrorResult type to the
 // response headers. Unmapped attributes refer to the attributes in ErrorResult
 // type that are not mapped to response body or headers. Such unmapped
-// attributes are mapped to special goa headers in the form of
+// attributes are mapped to special Loom headers in the form of
 // "Loom-Attribute(-<Attribute Name>)".
 func (r *HTTPResponseExpr) mapUnmappedAttrs(svcAtt *AttributeExpr) {
 	if svcAtt.Type != ErrorResult {

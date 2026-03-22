@@ -2,11 +2,11 @@
 // encoder for requests sent to the
 // ServiceQueryPrimitiveMapStringArrayStringValidate
 // MethodQueryPrimitiveMapStringArrayStringValidate server.
-func EncodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(map[string][]string)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryPrimitiveMapStringArrayStringValidate", "MethodQueryPrimitiveMapStringArrayStringValidate", "map[string][]string", v)
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveMapStringArrayStringValidate", "MethodQueryPrimitiveMapStringArrayStringValidate", "map[string][]string", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p {

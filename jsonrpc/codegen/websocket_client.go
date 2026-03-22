@@ -34,7 +34,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: "github.com/gorilla/websocket"},
 		codegen.LoomImport(""),
 		codegen.LoomImport("jsonrpc"),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)

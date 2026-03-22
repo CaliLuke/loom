@@ -389,9 +389,9 @@ func (e *GRPCEndpointExpr) Finalize() {
 		// method payload is not an object type.
 		if e.MethodExpr.StreamingPayload.Type != Empty {
 			// endpoint defines streaming payload. So add the method payload to
-			// request metadata under "goa-payload" field
-			e.Metadata.Type.(*Object).Set("goa_payload", e.MethodExpr.Payload)
-			e.Metadata.Validation.AddRequired("goa_payload")
+			// request metadata under "loom-payload" field
+			e.Metadata.Type.(*Object).Set("loom_payload", e.MethodExpr.Payload)
+			e.Metadata.Validation.AddRequired("loom_payload")
 		} else {
 			initAttrFromDesign(e.Request, e.MethodExpr.Payload)
 		}

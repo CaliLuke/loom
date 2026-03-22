@@ -190,7 +190,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "time"},
 				{Path: "encoding/json"},
 				{Path: "fmt"},
-				{Path: "github.com/CaliLuke/loom/http", Name: "goahttp"},
+				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
 			},

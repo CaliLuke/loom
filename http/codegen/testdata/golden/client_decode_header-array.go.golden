@@ -1,7 +1,7 @@
 // DecodeMethodAResponse returns a decoder for responses returned by the
 // ServiceHeaderArrayResponse MethodA endpoint. restoreBody controls whether
 // the response body should be restored after having been read.
-func DecodeMethodAResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -29,20 +29,20 @@ func DecodeMethodAResponse(decoder func(*http.Response) goahttp.Decoder, restore
 					for i, rv := range arrayRaw {
 						v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
 						if err2 != nil {
-							err = goa.MergeErrors(err, goa.InvalidFieldTypeError("array", arrayRaw, "array of unsigned integers"))
+							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("array", arrayRaw, "array of unsigned integers"))
 						}
 						array[i] = uint(v)
 					}
 				}
 			}
 			if err != nil {
-				return nil, goahttp.ErrValidationError("ServiceHeaderArrayResponse", "MethodA", err)
+				return nil, loomhttp.ErrValidationError("ServiceHeaderArrayResponse", "MethodA", err)
 			}
 			res := NewMethodAResultOK(array)
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("ServiceHeaderArrayResponse", "MethodA", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("ServiceHeaderArrayResponse", "MethodA", resp.StatusCode, string(body))
 		}
 	}
 }

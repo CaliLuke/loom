@@ -135,8 +135,8 @@ func (g *Generator) buildMethodData(info MethodInfo) *MethodData {
 		Transport:        info.Transport,
 		IsStreaming:      info.IsStreaming(),
 	}
-	// Non-streaming payload
-	if info.Modifier != ModifierNotify && info.Action != ActionGenerate && (!info.HasStreamingPayload() || info.IsSSE()) {
+	// SSE request streams still consume the initial request payload, even for notifications.
+	if info.Action != ActionGenerate && (!info.HasStreamingPayload() || info.IsSSE()) && (info.Modifier != ModifierNotify || info.IsSSE()) {
 		data.Payload = g.buildTypeSpec(info.Type, info.Modifier)
 	}
 	// Streaming
@@ -173,7 +173,7 @@ func (g *Generator) buildTypeSpec(typeStr, modifier string) *TypeSpec {
 				Fields: []FieldSpec{
 					{Position: 1, Name: "value", GoName: "Value", Type: val, Required: true},
 					{Position: 2, Name: "id", GoName: "ID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}},
-					{Position: 3, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}},
+					{Position: 3, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, IsID: true},
 				},
 			}
 		}
@@ -205,7 +205,7 @@ func (g *Generator) buildTypeSpec(typeStr, modifier string) *TypeSpec {
 			return &TypeSpec{
 				Kind: "object",
 				Fields: []FieldSpec{
-					{Position: 1, Name: "value", GoName: "Value", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true},
+					{Position: 1, Name: "value", GoName: "Value", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true, MinLength: 1},
 				},
 			}
 		}
@@ -222,13 +222,19 @@ func (g *Generator) buildTypeSpec(typeStr, modifier string) *TypeSpec {
 			},
 		}
 	case TypeObject:
+		fields := []FieldSpec{
+			{Position: 1, Name: "field1", GoName: "Field1", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true},
+			{Position: 2, Name: "field2", GoName: "Field2", Type: &TypeSpec{Kind: "primitive", Primitive: "Int"}, Required: true},
+			{Position: 3, Name: "field3", GoName: "Field3", Type: &TypeSpec{Kind: "primitive", Primitive: "Boolean"}, Required: true},
+		}
+		if modifier == ModifierValidate {
+			minimum := 0
+			fields[0].MinLength = 1
+			fields[1].Minimum = &minimum
+		}
 		return &TypeSpec{
-			Kind: "object",
-			Fields: []FieldSpec{
-				{Position: 1, Name: "field1", GoName: "Field1", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true},
-				{Position: 2, Name: "field2", GoName: "Field2", Type: &TypeSpec{Kind: "primitive", Primitive: "Int"}, Required: true},
-				{Position: 3, Name: "field3", GoName: "Field3", Type: &TypeSpec{Kind: "primitive", Primitive: "Boolean"}, Required: true},
-			},
+			Kind:   "object",
+			Fields: fields,
 		}
 	case TypeMap:
 		return &TypeSpec{
@@ -253,18 +259,22 @@ func (g *Generator) buildStreamingTypeSpec(typeStr string, _ bool, isBidirection
 					NeedsID: true,
 					Fields: []FieldSpec{
 						{Position: 1, Name: "id", GoName: "ID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: false, Description: "Business-level ID"},
-						{Position: 2, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: false, Description: "Mapped JSON-RPC envelope ID"},
+						{Position: 2, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: false, Description: "Mapped JSON-RPC envelope ID", IsID: true},
 						{Position: 3, Name: "value", GoName: "Value", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true, Description: "String value"},
 					},
 				}
 			}
 			// No id mapping: only value field
-			return &TypeSpec{Kind: "object", Fields: []FieldSpec{{Position: 1, Name: "value", GoName: "Value", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true}}}
+			field := FieldSpec{Position: 1, Name: "value", GoName: "Value", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true}
+			if info.Modifier == ModifierValidate {
+				field.MinLength = 1
+			}
+			return &TypeSpec{Kind: "object", Fields: []FieldSpec{field}}
 		case TypeArray:
 			if info.Modifier == ModifierIDMap {
 				return &TypeSpec{Kind: "object", NeedsID: true, Fields: []FieldSpec{
 					{Position: 1, Name: "id", GoName: "ID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}},
-					{Position: 2, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}},
+					{Position: 2, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, IsID: true},
 					{Position: 3, Name: "items", GoName: "Items", Type: &TypeSpec{Kind: "array", ArrayElem: &TypeSpec{Kind: "primitive", Primitive: "String"}}, Required: true},
 				}}
 			}
@@ -273,22 +283,28 @@ func (g *Generator) buildStreamingTypeSpec(typeStr string, _ bool, isBidirection
 			if info.Modifier == ModifierIDMap {
 				return &TypeSpec{Kind: "object", NeedsID: true, Fields: []FieldSpec{
 					{Position: 1, Name: "id", GoName: "ID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}},
-					{Position: 2, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}},
+					{Position: 2, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, IsID: true},
 					{Position: 3, Name: "field1", GoName: "Field1", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true},
 					{Position: 4, Name: "field2", GoName: "Field2", Type: &TypeSpec{Kind: "primitive", Primitive: "Int"}, Required: true},
 					{Position: 5, Name: "field3", GoName: "Field3", Type: &TypeSpec{Kind: "primitive", Primitive: "Boolean"}, Required: true},
 				}}
 			}
-			return &TypeSpec{Kind: "object", Fields: []FieldSpec{
+			fields := []FieldSpec{
 				{Position: 1, Name: "field1", GoName: "Field1", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, Required: true},
 				{Position: 2, Name: "field2", GoName: "Field2", Type: &TypeSpec{Kind: "primitive", Primitive: "Int"}, Required: true},
 				{Position: 3, Name: "field3", GoName: "Field3", Type: &TypeSpec{Kind: "primitive", Primitive: "Boolean"}, Required: true},
-			}}
+			}
+			if info.Modifier == ModifierValidate {
+				minimum := 0
+				fields[0].MinLength = 1
+				fields[1].Minimum = &minimum
+			}
+			return &TypeSpec{Kind: "object", Fields: fields}
 		default:
 			if info.Modifier == ModifierIDMap {
 				return &TypeSpec{Kind: "object", NeedsID: true, Fields: []FieldSpec{
 					{Position: 1, Name: "id", GoName: "ID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}},
-					{Position: 2, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}},
+					{Position: 2, Name: "request_id", GoName: "RequestID", Type: &TypeSpec{Kind: "primitive", Primitive: "String"}, IsID: true},
 					{Position: 3, Name: "data", GoName: "Data", Type: &TypeSpec{Kind: "primitive", Primitive: "Any"}, Required: true},
 				}}
 			}
@@ -296,8 +312,9 @@ func (g *Generator) buildStreamingTypeSpec(typeStr string, _ bool, isBidirection
 		}
 	}
 
-	// For non-bidirectional streaming, wrap primitives in objects
-	spec := g.buildTypeSpec(typeStr, "")
+	// For non-bidirectional streaming, preserve modifier-specific payload semantics
+	// such as validation rules when deriving the streaming request/result shape.
+	spec := g.buildTypeSpec(typeStr, info.Modifier)
 	if spec.Kind == "primitive" {
 		return &TypeSpec{Kind: "object", Fields: []FieldSpec{{Position: 1, Name: "value", GoName: "Value", Type: spec, Required: true, Description: fmt.Sprintf("%s value", spec.Primitive)}}}
 	}
@@ -421,7 +438,7 @@ func (g *Generator) runPostGeneration() error {
 // Prefer LOOM_REPO env var for tests; otherwise fall back to relative path.
 func (g *Generator) repoRootReplace() string {
 	if p := os.Getenv("LOOM_REPO"); p != "" {
-		return p
+		return validatedLocalLoomSource(p)
 	}
 	if p := configuredLocalLoomSource(); p != "" {
 		return p
@@ -470,7 +487,20 @@ func localLoomSourceFromModeFile(path string) string {
 	if len(fields) < 2 {
 		return ""
 	}
-	return fields[1]
+	return validatedLocalLoomSource(fields[1])
+}
+
+func validatedLocalLoomSource(path string) string {
+	if path == "" {
+		return ""
+	}
+	cleaned := filepath.Clean(path)
+	goModPath := filepath.Join(cleaned, "go.mod")
+	info, err := os.Stat(goModPath)
+	if err != nil || info.IsDir() {
+		return ""
+	}
+	return cleaned
 }
 
 func repoTopLevel() (string, error) {
@@ -598,7 +628,7 @@ func (g *Generator) parseServiceMethodPairs(serviceName string) []methodPair {
 	return pairs
 }
 
-// filesImpl returns files needed after goa gen (service implementations)
+// filesImpl returns files needed after loom gen (service implementations)
 func (g *Generator) filesImpl(impl *ImplementationData) []*codegen.File {
 	files := make([]*codegen.File, 0, len(impl.Services))
 	for _, service := range impl.Services {
@@ -610,7 +640,7 @@ func (g *Generator) filesImpl(impl *ImplementationData) []*codegen.File {
 			{Path: "strings"},
 			{Path: "sort"},
 			{Path: "io"},
-			{Name: "goa", Path: "github.com/CaliLuke/loom/pkg"},
+			{Name: "loom", Path: "github.com/CaliLuke/loom/pkg"},
 			{Name: service.ServicePackage, Path: fmt.Sprintf("testservice/gen/%s", service.ServicePackage)},
 		}
 		sections := []codegen.Section{

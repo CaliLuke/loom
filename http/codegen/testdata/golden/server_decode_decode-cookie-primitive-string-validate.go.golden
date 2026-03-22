@@ -1,7 +1,7 @@
 // DecodeMethodCookiePrimitiveStringValidateRequest returns a decoder for
 // requests sent to the ServiceCookiePrimitiveStringValidate
 // MethodCookiePrimitiveStringValidate endpoint.
-func DecodeMethodCookiePrimitiveStringValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (string, error) {
+func DecodeMethodCookiePrimitiveStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (string, error) {
 	return func(r *http.Request) (string, error) {
 		var payload string
 		var (
@@ -11,12 +11,12 @@ func DecodeMethodCookiePrimitiveStringValidateRequest(mux goahttp.Muxer, decoder
 		)
 		c, err = r.Cookie("c")
 		if errors.Is(err, http.ErrNoCookie) {
-			err = goa.MergeErrors(err, goa.MissingFieldError("c", "cookie"))
+			err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
 		} else {
 			c2 = c.Value
 		}
 		if !(c2 == "val") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("c", c2, []any{"val"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("c", c2, []any{"val"}))
 		}
 		if err != nil {
 			return payload, err

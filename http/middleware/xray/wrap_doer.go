@@ -4,20 +4,20 @@ import (
 	"context"
 	"net/http"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/middleware"
 	"github.com/CaliLuke/loom/middleware/xray"
 )
 
-// xrayDoer is a goahttp.Doer middleware that will create xray subsegments for
+// xrayDoer is a loomhttp.Doer middleware that will create xray subsegments for
 // traced requests.
 type xrayDoer struct {
-	wrapped goahttp.Doer
+	wrapped loomhttp.Doer
 }
 
-// WrapDoer wraps a goa HTTP Doer and creates xray subsegments for traced
+// WrapDoer wraps a Loom HTTP Doer and creates xray subsegments for traced
 // requests.
-func WrapDoer(doer goahttp.Doer) goahttp.Doer {
+func WrapDoer(doer loomhttp.Doer) loomhttp.Doer {
 	return &xrayDoer{doer}
 }
 

@@ -3,7 +3,7 @@ package jsonrpc
 import (
 	"errors"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (
@@ -22,7 +22,7 @@ type (
 		// Fault reports whether the error is a server-side fault.
 		Fault bool `json:"fault,omitempty"`
 		// Remedy contains optional remediation guidance.
-		Remedy *goa.ErrorRemedy `json:"remedy,omitempty"`
+		Remedy *loom.ErrorRemedy `json:"remedy,omitempty"`
 	}
 )
 
@@ -35,11 +35,11 @@ func NewErrorData(err error) any {
 	}
 
 	data := &ErrorData{
-		Remedy: goa.ExtractErrorRemedy(err),
+		Remedy: loom.ExtractErrorRemedy(err),
 	}
 	var (
-		serviceError *goa.ServiceError
-		namer        goa.LoomErrorNamer
+		serviceError *loom.ServiceError
+		namer        loom.LoomErrorNamer
 	)
 	if errors.As(err, &serviceError) {
 		data.Name = serviceError.Name

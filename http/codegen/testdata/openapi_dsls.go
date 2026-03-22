@@ -16,7 +16,7 @@ var SimpleDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -46,7 +46,7 @@ var MultipleServicesDSL = func() {
 		Server("test", func() {
 			Services("testService", "anotherTestService")
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -165,7 +165,7 @@ var EmptyDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -201,7 +201,7 @@ var StringValidationDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -229,7 +229,7 @@ var IntValidationDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -274,7 +274,7 @@ var ArrayValidationDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -310,7 +310,7 @@ var ExtensionDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 		Meta("openapi:extension:x-test-api", "API")
@@ -349,7 +349,7 @@ var SecurityDSL = func() {
 	})
 
 	var OAuth2Auth = OAuth2Security("oauth2", func() {
-		AuthorizationCodeFlow("http://goa.design/authorization", "http://goa.design/token", "http://goa.design/refresh")
+		AuthorizationCodeFlow("http://loom.design/authorization", "http://loom.design/token", "http://loom.design/refresh")
 		Description(`Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".`)
 		Scope("api:read", "Read-only access")
 		Scope("api:write", "Read and write access")
@@ -399,7 +399,7 @@ var ServerHostWithVariablesDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://{version}.goa.design")
+				URI("https://{version}.loom.design")
 				Variable("version", String, "API Version", func() {
 					Default("v1")
 				})
@@ -641,7 +641,7 @@ var TypenameDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -1236,7 +1236,7 @@ var NotGenerateServerDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 			Meta("openapi:generate", "false")
 		})
@@ -1255,7 +1255,7 @@ var NotGenerateHostDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 				Meta("openapi:generate", "false")
 			})
 		})
@@ -1274,7 +1274,7 @@ var NotGenerateAttributeDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -1323,7 +1323,7 @@ var JSONPrefixDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 		Meta("openapi:json:prefix", "  ")
@@ -1340,7 +1340,7 @@ var JSONIndentDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 		Meta("openapi:json:indent", "  ")
@@ -1357,7 +1357,7 @@ var JSONPrefixIndentDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 		Meta("openapi:json:prefix", " ")
@@ -1387,7 +1387,7 @@ var AdditionalPropertiesTypeDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -1416,7 +1416,7 @@ var AdditionalPropertiesPayloadResultDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -1439,7 +1439,7 @@ var AdditionalPropertiesEmbeddedPayloadResultDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})
@@ -1490,7 +1490,7 @@ var OpenAPIClosedObjectsDSL = func() {
 		Meta("openapi:closed-objects", "true")
 		Server("test", func() {
 			Host("localhost", func() {
-				URI("https://goa.design")
+				URI("https://loom.design")
 			})
 		})
 	})

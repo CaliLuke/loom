@@ -233,7 +233,7 @@ type (
 		TgtRef string
 		// Inits contain the data required to render the constructor if any
 		// to transform the source type to a target type. If the source or target
-		// type is a goa result type, we generate one constructor for every view
+		// type is a Loom result type, we generate one constructor for every view
 		// defined in the result type.
 		Init *InitData
 		// Validation contains the data required to render the validation function
@@ -910,7 +910,7 @@ func userTypeAttribute(ut expr.UserType) *expr.AttributeExpr {
 func (d *ServicesData) buildRequestConvertData(request, payload *expr.AttributeExpr, md []*MetadataData, e *expr.GRPCEndpointExpr, sd *ServiceData, svr bool) *ConvertData {
 	// Server-side: No need to build convert data if payload is empty or payload
 	// is not an object type and endpoint streams payload (the payload is
-	// encoded in metadata under "goa-payload" in this case).
+	// encoded in metadata under "loom-payload" in this case).
 	if (svr && (isEmpty(payload.Type) || !expr.IsObject(payload.Type) && e.MethodExpr.IsPayloadStreaming())) ||
 		// Client-side: No need to build convert data if streaming payload since
 		// all attributes in method payload is encoded into request metadata.

@@ -1,6 +1,6 @@
 // EncodeMethodBodyPrimitiveAnyResponse returns an encoder for responses
 // returned by the ServiceBodyPrimitiveAny MethodBodyPrimitiveAny endpoint.
-func EncodeMethodBodyPrimitiveAnyResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeMethodBodyPrimitiveAnyResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(any)
 		enc := encoder(ctx, w)

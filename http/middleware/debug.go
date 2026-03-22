@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/middleware"
 )
 
@@ -26,7 +26,7 @@ type responseDupper struct {
 // Debug returns a debug middleware which prints detailed information about
 // incoming requests and outgoing responses including all headers, parameters
 // and bodies.
-func Debug(mux goahttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
+func Debug(mux loomhttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			buf := &bytes.Buffer{}

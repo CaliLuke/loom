@@ -1,6 +1,6 @@
 // DecodeMethodMapQueryObjectRequest returns a decoder for requests sent to the
 // ServiceMapQueryObject MethodMapQueryObject endpoint.
-func DecodeMethodMapQueryObjectRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicemapqueryobject.PayloadType, error) {
+func DecodeMethodMapQueryObjectRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemapqueryobject.PayloadType, error) {
 	return func(r *http.Request) (*servicemapqueryobject.PayloadType, error) {
 		var payload *servicemapqueryobject.PayloadType
 		var (
@@ -10,13 +10,13 @@ func DecodeMethodMapQueryObjectRequest(mux goahttp.Muxer, decoder func(*http.Req
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		err = ValidateMethodMapQueryObjectRequestBody(&body)
 		if err != nil {
@@ -30,11 +30,11 @@ func DecodeMethodMapQueryObjectRequest(mux goahttp.Muxer, decoder func(*http.Req
 			params = mux.Vars(r)
 		)
 		a = params["a"]
-		err = goa.MergeErrors(err, goa.ValidatePattern("a", a, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePattern("a", a, "patterna"))
 		{
 			cRaw := r.URL.Query()
 			if len(cRaw) == 0 {
-				err = goa.MergeErrors(err, goa.MissingFieldError("c", "query string"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("c", "query string"))
 			}
 			if c == nil {
 				c = make(map[int][]string)
@@ -43,7 +43,7 @@ func DecodeMethodMapQueryObjectRequest(mux goahttp.Muxer, decoder func(*http.Req
 				var key int
 				v, err2 := strconv.ParseInt(keyRaw, 10, strconv.IntSize)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", keyRaw, "integer"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keyRaw, "integer"))
 				}
 				key = int(v)
 				c[key] = valRaw

@@ -261,7 +261,7 @@ func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 		}},
 	}
 
-	sf := newSchemafier(expr.NewRandom("union"), false)
+	sf := newSchemafier(expr.NewRandom("union"))
 	schema := sf.schemafy(attr)
 
 	assertUnionSchema(t, schema, sf.schemas, union.GetTypeKey(), union.GetValueKey(), []string{"batch", "single"})
@@ -278,7 +278,7 @@ func TestSchemafyUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 }
 
 func TestSchemafyUserTypeRegistersComponentReferenceByDefault(t *testing.T) {
-	sf := newSchemafier(expr.NewRandom("schemafy-ref"), false)
+	sf := newSchemafier(expr.NewRandom("schemafy-ref"))
 	attr := &expr.AttributeExpr{
 		Type: &expr.UserTypeExpr{
 			AttributeExpr: &expr.AttributeExpr{
@@ -297,7 +297,7 @@ func TestSchemafyUserTypeRegistersComponentReferenceByDefault(t *testing.T) {
 }
 
 func TestSchemafyUserTypeNoRefSkipsReferenceReuse(t *testing.T) {
-	sf := newSchemafier(expr.NewRandom("schemafy-inline"), false)
+	sf := newSchemafier(expr.NewRandom("schemafy-inline"))
 	attr := &expr.AttributeExpr{
 		Type: &expr.UserTypeExpr{
 			AttributeExpr: &expr.AttributeExpr{
@@ -979,7 +979,7 @@ func TestTypesOnlyDifferByEnum(t *testing.T) {
 }
 
 func TestSchemafierUniquifyUsesStableHashSuffix(t *testing.T) {
-	sf := newSchemafier(expr.NewRandom("test"), false)
+	sf := newSchemafier(expr.NewRandom("test"))
 	sf.schemas["CreateThreadRequest"] = openapi.NewSchema()
 	sf.schemas["CreateThreadRequest2"] = openapi.NewSchema()
 
@@ -1000,7 +1000,7 @@ func TestSchemafierUniquifyUsesStableHashSuffix(t *testing.T) {
 }
 
 func TestClaimExplicitNamePanicsOnConflictingSchema(t *testing.T) {
-	sf := newSchemafier(expr.NewRandom("test"), false)
+	sf := newSchemafier(expr.NewRandom("test"))
 	sf.schemaHashes["AuthSessionResponseBody"] = 0x1
 
 	require.PanicsWithValue(t,
@@ -1129,7 +1129,7 @@ func TestHashAttribute(t *testing.T) {
 	}
 
 	h := fnv.New64()
-	sf := newSchemafier(expr.NewRandom("test"), false)
+	sf := newSchemafier(expr.NewRandom("test"))
 
 	for _, group := range cases {
 		t.Run(group.name, func(t *testing.T) {

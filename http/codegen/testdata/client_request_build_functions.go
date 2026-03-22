@@ -10,7 +10,7 @@ func (c *Client) BuildMethodPathStringRequest(ctx context.Context, v any) (*http
 	{
 		p, ok := v.(*servicepathstring.MethodPathStringPayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("ServicePathString", "MethodPathString", "*servicepathstring.MethodPathStringPayload", v)
+			return nil, loomhttp.ErrInvalidType("ServicePathString", "MethodPathString", "*servicepathstring.MethodPathStringPayload", v)
 		}
 		if p.P != nil {
 			p = *p.P
@@ -19,7 +19,7 @@ func (c *Client) BuildMethodPathStringRequest(ctx context.Context, v any) (*http
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringServicePathStringPath(p)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("ServicePathString", "MethodPathString", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("ServicePathString", "MethodPathString", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -39,14 +39,14 @@ func (c *Client) BuildMethodPathStringValidateRequest(ctx context.Context, v any
 	{
 		p, ok := v.(*servicepathstringvalidate.MethodPathStringValidatePayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("ServicePathStringValidate", "MethodPathStringValidate", "*servicepathstringvalidate.MethodPathStringValidatePayload", v)
+			return nil, loomhttp.ErrInvalidType("ServicePathStringValidate", "MethodPathStringValidate", "*servicepathstringvalidate.MethodPathStringValidatePayload", v)
 		}
 		p = p.P
 	}
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringValidateServicePathStringValidatePath(p)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("ServicePathStringValidate", "MethodPathStringValidate", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("ServicePathStringValidate", "MethodPathStringValidate", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -66,14 +66,14 @@ func (c *Client) BuildMethodPathStringDefaultRequest(ctx context.Context, v any)
 	{
 		p, ok := v.(*servicepathstringdefault.MethodPathStringDefaultPayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("ServicePathStringDefault", "MethodPathStringDefault", "*servicepathstringdefault.MethodPathStringDefaultPayload", v)
+			return nil, loomhttp.ErrInvalidType("ServicePathStringDefault", "MethodPathStringDefault", "*servicepathstringdefault.MethodPathStringDefaultPayload", v)
 		}
 		p = p.P
 	}
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringDefaultServicePathStringDefaultPath(p)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("ServicePathStringDefault", "MethodPathStringDefault", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("ServicePathStringDefault", "MethodPathStringDefault", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -93,7 +93,7 @@ func (c *Client) BuildMethodPathObjectRequest(ctx context.Context, v any) (*http
 	{
 		p, ok := v.(*servicepathobject.MethodPathObjectPayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("ServicePathObject", "MethodPathObject", "*servicepathobject.MethodPathObjectPayload", v)
+			return nil, loomhttp.ErrInvalidType("ServicePathObject", "MethodPathObject", "*servicepathobject.MethodPathObjectPayload", v)
 		}
 		if p.ID != nil {
 			id = *p.ID
@@ -102,7 +102,7 @@ func (c *Client) BuildMethodPathObjectRequest(ctx context.Context, v any) (*http
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathObjectServicePathObjectPath(id)}
 	req, err := http.NewRequest("PUT", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("ServicePathObject", "MethodPathObject", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("ServicePathObject", "MethodPathObject", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)

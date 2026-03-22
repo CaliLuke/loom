@@ -45,7 +45,7 @@ func TestJSONRPCCodegenWithSynthesizedService(t *testing.T) {
 
 	services := service.NewServicesData(root)
 	httpServices := httpcodegen.NewServicesData(services, &root.API.JSONRPC.HTTPExpr)
-	files := ServerFiles("goa.design/example", httpServices)
+	files := ServerFiles("loom.design/example", httpServices)
 
 	require.NotEmpty(t, files)
 	require.NotNil(t, httpServices.Get("calc"))

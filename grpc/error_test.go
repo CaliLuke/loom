@@ -8,28 +8,28 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	goapb "github.com/CaliLuke/loom/grpc/pb"
-	goa "github.com/CaliLuke/loom/pkg"
+	loompb "github.com/CaliLuke/loom/grpc/pb"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // TestNewErrorResponseHistory tests that history is correctly included for merged errors
 func TestNewErrorResponseHistory(t *testing.T) {
 	// Test simple error - should not have history
-	simpleErr := goa.MissingFieldError("username", "body")
+	simpleErr := loom.MissingFieldError("username", "body")
 	resp := NewErrorResponse(simpleErr)
 	assert.Nil(t, resp.History)
 
 	// Test merged error - should have history
-	mergedErr := goa.MergeErrors(
-		goa.MissingFieldError("username", "body"),
-		goa.InvalidFormatError("data", "{invalid}", goa.FormatJSON, fmt.Errorf("invalid JSON")),
+	mergedErr := loom.MergeErrors(
+		loom.MissingFieldError("username", "body"),
+		loom.InvalidFormatError("data", "{invalid}", loom.FormatJSON, fmt.Errorf("invalid JSON")),
 	)
 	mergedResp := NewErrorResponse(mergedErr)
 	assert.NotNil(t, mergedResp.History)
 	assert.Len(t, mergedResp.History, 2)
-	assert.Equal(t, goa.MissingField, mergedResp.History[0].Name)
+	assert.Equal(t, loom.MissingField, mergedResp.History[0].Name)
 	assert.Equal(t, "username", mergedResp.History[0].Field)
-	assert.Equal(t, goa.InvalidFormat, mergedResp.History[1].Name)
+	assert.Equal(t, loom.InvalidFormat, mergedResp.History[1].Name)
 	assert.Equal(t, "data", mergedResp.History[1].Field)
 }
 
@@ -42,32 +42,32 @@ func TestEncodeErrorStatusCodes(t *testing.T) {
 	}{
 		{
 			name:         "missing_field",
-			err:          goa.MissingFieldError("username", "body"),
+			err:          loom.MissingFieldError("username", "body"),
 			expectedCode: codes.InvalidArgument,
 		},
 		{
 			name:         "invalid_format",
-			err:          goa.InvalidFormatError("data", "{invalid}", goa.FormatJSON, fmt.Errorf("invalid JSON")),
+			err:          loom.InvalidFormatError("data", "{invalid}", loom.FormatJSON, fmt.Errorf("invalid JSON")),
 			expectedCode: codes.InvalidArgument,
 		},
 		{
 			name:         "decode_payload",
-			err:          &goa.ServiceError{Name: "decode_payload", Message: "failed to decode"},
+			err:          &loom.ServiceError{Name: "decode_payload", Message: "failed to decode"},
 			expectedCode: codes.InvalidArgument,
 		},
 		{
 			name:         "timeout",
-			err:          &goa.ServiceError{Name: "timeout", Message: "timed out", Timeout: true},
+			err:          &loom.ServiceError{Name: "timeout", Message: "timed out", Timeout: true},
 			expectedCode: codes.DeadlineExceeded,
 		},
 		{
 			name:         "fault",
-			err:          goa.Fault("internal error"),
+			err:          loom.Fault("internal error"),
 			expectedCode: codes.Internal,
 		},
 		{
 			name:         "temporary",
-			err:          &goa.ServiceError{Name: "unavailable", Message: "service unavailable", Temporary: true},
+			err:          &loom.ServiceError{Name: "unavailable", Message: "service unavailable", Temporary: true},
 			expectedCode: codes.Unavailable,
 		},
 	}
@@ -82,7 +82,7 @@ func TestEncodeErrorStatusCodes(t *testing.T) {
 			// Check that details are included
 			details := st.Details()
 			assert.Len(t, details, 1)
-			_, ok = details[0].(*goapb.ErrorResponse)
+			_, ok = details[0].(*loompb.ErrorResponse)
 			assert.True(t, ok)
 		})
 	}

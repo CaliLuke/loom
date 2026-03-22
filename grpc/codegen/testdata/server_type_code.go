@@ -27,7 +27,7 @@ func NewProtoMethodPayloadWithNestedTypesResponse() *service_payload_with_nested
 func ValidateMethodPayloadWithNestedTypesRequest(message *service_payload_with_nested_typespb.MethodPayloadWithNestedTypesRequest) (err error) {
 	if message.AParams != nil {
 		if err2 := ValidateAParams(message.AParams); err2 != nil {
-			err = goa.MergeErrors(err, err2)
+			err = loom.MergeErrors(err, err2)
 		}
 	}
 	return
@@ -38,7 +38,7 @@ func ValidateAParams(aParams *service_payload_with_nested_typespb.AParams) (err 
 	for _, v := range aParams.A {
 		if v != nil {
 			if err2 := ValidateArrayOfString(v); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	}
@@ -48,7 +48,7 @@ func ValidateAParams(aParams *service_payload_with_nested_typespb.AParams) (err 
 // ValidateArrayOfString runs the validations defined on ArrayOfString.
 func ValidateArrayOfString(val *service_payload_with_nested_typespb.ArrayOfString) (err error) {
 	if val.Field == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("field", "val"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "val"))
 	}
 	return
 }
@@ -423,7 +423,7 @@ func ValidateMethodElemValidationRequest(message *service_elem_validationpb.Meth
 	for _, v := range message.Foo {
 		if v != nil {
 			if err2 := ValidateArrayOfString(v); err2 != nil {
-				err = goa.MergeErrors(err, err2)
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	}
@@ -433,10 +433,10 @@ func ValidateMethodElemValidationRequest(message *service_elem_validationpb.Meth
 // ValidateArrayOfString runs the validations defined on ArrayOfString.
 func ValidateArrayOfString(val *service_elem_validationpb.ArrayOfString) (err error) {
 	if val.Field == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("field", "val"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "val"))
 	}
 	if len(val.Field) < 1 {
-		err = goa.MergeErrors(err, goa.InvalidLengthError("val.field", val.Field, len(val.Field), 1, true))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("val.field", val.Field, len(val.Field), 1, true))
 	}
 	return
 }
@@ -460,7 +460,7 @@ func NewProtoMethodElemValidationResponse() *service_elem_validationpb.MethodEle
 
 // ValidateUUID runs the validations defined on UUID.
 func ValidateUUID(message *service_elem_validationpb.UUID) (err error) {
-	err = goa.MergeErrors(err, goa.ValidateFormat("message.field", message.Field, goa.FormatUUID))
+	err = loom.MergeErrors(err, loom.ValidateFormat("message.field", message.Field, loom.FormatUUID))
 	return
 }
 `
@@ -553,7 +553,7 @@ func NewProtoMethodResponse(result *usingmetatypes.MethodResult) *using_meta_typ
 // ValidateMethodRequest runs the validations defined on MethodRequest.
 func ValidateMethodRequest(message *using_meta_typespb.MethodRequest) (err error) {
 	if message.B == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("b", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("b", "message"))
 	}
 	return
 }

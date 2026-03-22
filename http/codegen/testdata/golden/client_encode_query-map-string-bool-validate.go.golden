@@ -1,11 +1,11 @@
 // EncodeMethodQueryMapStringBoolValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapStringBoolValidate
 // MethodQueryMapStringBoolValidate server.
-func EncodeMethodQueryMapStringBoolValidateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeMethodQueryMapStringBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("ServiceQueryMapStringBoolValidate", "MethodQueryMapStringBoolValidate", "*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload", v)
+			return loomhttp.ErrInvalidType("ServiceQueryMapStringBoolValidate", "MethodQueryMapStringBoolValidate", "*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
 		for k, value := range p.Q {

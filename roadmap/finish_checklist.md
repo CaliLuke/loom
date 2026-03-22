@@ -73,7 +73,7 @@ The finish line is not "more ideas remain". The finish line is:
 
 ## H. Actual Swap
 
-- [ ] Repin the target downstream repo(s) from `goa` to `loom`.
+- [ ] Repin the target downstream repo(s) from the upstream fork to `loom`.
 - [ ] Regenerate the checked-in `gen/` tree.
 - [ ] Run app tests and integration checks.
 - [ ] Commit the swap as its own isolated change.

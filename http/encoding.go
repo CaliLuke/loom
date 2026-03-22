@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"strings"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 const (
@@ -253,10 +253,10 @@ func ResponseDecoder(resp *http.Response) Decoder {
 }
 
 // ErrorEncoder returns an encoder that encodes errors returned by service
-// methods. The default encoder checks whether the error is a goa ServiceError
+// methods. The default encoder checks whether the error is a Loom ServiceError
 // struct and if so uses the error temporary and timeout fields to infer a
 // proper HTTP status code and marshals the error struct to the body using the
-// provided encoder. If the error is not a goa ServiceError struct then it is
+// provided encoder. If the error is not a Loom ServiceError struct then it is
 // encoded as a permanent internal server error. This behavior as well as the
 // shape of the response can be overridden by providing a non-nil formatter.
 func ErrorEncoder(encoder func(context.Context, http.ResponseWriter) Encoder, formatter func(ctx context.Context, err error) Statuser) func(context.Context, http.ResponseWriter, error) error {
@@ -362,5 +362,5 @@ type unsupportedDecoder struct {
 }
 
 func (e *unsupportedDecoder) Decode(_ any) error {
-	return goa.UnsupportedMediaTypeError(e.ct)
+	return loom.UnsupportedMediaTypeError(e.ct)
 }

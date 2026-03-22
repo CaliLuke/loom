@@ -1,7 +1,7 @@
 // DecodeMethodBodyPrimitiveBoolValidateRequest returns a decoder for requests
 // sent to the ServiceBodyPrimitiveBoolValidate MethodBodyPrimitiveBoolValidate
 // endpoint.
-func DecodeMethodBodyPrimitiveBoolValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (bool, error) {
+func DecodeMethodBodyPrimitiveBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (bool, error) {
 	return func(r *http.Request) (bool, error) {
 		var payload bool
 		var (
@@ -11,16 +11,16 @@ func DecodeMethodBodyPrimitiveBoolValidateRequest(mux goahttp.Muxer, decoder fun
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		if !(body == true) {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body", body, []any{true}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("body", body, []any{true}))
 		}
 		if err != nil {
 			return payload, err

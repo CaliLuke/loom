@@ -1,7 +1,7 @@
 // PayloadWithValidation gRPC client CLI support package
 //
 // Command:
-// goa
+// loom
 
 package client
 
@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // BuildMethodAPayload builds the payload for the PayloadWithValidation
@@ -29,10 +29,10 @@ func BuildMethodAPayload(payloadWithValidationMethodAMetadataInt string, payload
 				return nil, fmt.Errorf("invalid value for metadataInt, must be INT")
 			}
 			if *metadataInt < 0 {
-				err = goa.MergeErrors(err, goa.InvalidRangeError("MetadataInt", *metadataInt, 0, true))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("MetadataInt", *metadataInt, 0, true))
 			}
 			if *metadataInt > 100 {
-				err = goa.MergeErrors(err, goa.InvalidRangeError("MetadataInt", *metadataInt, 100, false))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("MetadataInt", *metadataInt, 100, false))
 			}
 			if err != nil {
 				return nil, err
@@ -44,10 +44,10 @@ func BuildMethodAPayload(payloadWithValidationMethodAMetadataInt string, payload
 		if payloadWithValidationMethodAMetadataString != "" {
 			metadataString = &payloadWithValidationMethodAMetadataString
 			if utf8.RuneCountInString(*metadataString) < 5 {
-				err = goa.MergeErrors(err, goa.InvalidLengthError("MetadataString", *metadataString, utf8.RuneCountInString(*metadataString), 5, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("MetadataString", *metadataString, utf8.RuneCountInString(*metadataString), 5, true))
 			}
 			if utf8.RuneCountInString(*metadataString) > 10 {
-				err = goa.MergeErrors(err, goa.InvalidLengthError("MetadataString", *metadataString, utf8.RuneCountInString(*metadataString), 10, false))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("MetadataString", *metadataString, utf8.RuneCountInString(*metadataString), 10, false))
 			}
 			if err != nil {
 				return nil, err

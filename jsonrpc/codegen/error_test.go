@@ -37,7 +37,7 @@ func TestJSONRPCErrorProjectionUsesCoreHelpers(t *testing.T) {
 		})
 
 		code := jsonrpcGeneratedCode(t, ServerFiles("", CreateJSONRPCServices(root)))
-		assert.Contains(t, code, "goa.ErrorSafeMessage(err)")
+		assert.Contains(t, code, "loom.ErrorSafeMessage(err)")
 		assert.Contains(t, code, "jsonrpc.NewErrorData(err)")
 	})
 
@@ -54,7 +54,7 @@ func TestJSONRPCErrorProjectionUsesCoreHelpers(t *testing.T) {
 				}
 				found = true
 				code := codegen.SectionCode(t, section)
-				assert.Contains(t, code, "goa.ErrorSafeMessage(err)")
+				assert.Contains(t, code, "loom.ErrorSafeMessage(err)")
 				assert.Contains(t, code, "jsonrpc.NewErrorData(err)")
 			}
 		}

@@ -18,7 +18,7 @@ func renderJSONRPCSSEClientStream(ed *httpcodegen.EndpointData) string {
 	fmt.Fprintf(&b, "type %sClientStream struct {\n", ed.Method.VarName)
 	b.WriteString("\tresp    *http.Response\n")
 	b.WriteString("\treader  *bufio.Reader\n")
-	b.WriteString("\tdecoder func(*http.Response) goahttp.Decoder\n")
+	b.WriteString("\tdecoder func(*http.Response) loomhttp.Decoder\n")
 	b.WriteString("\tclosed  bool\n")
 	b.WriteString("\tlock    sync.Mutex\n")
 	b.WriteString("}\n\n")
@@ -56,7 +56,7 @@ func renderJSONRPCSSEClientStream(ed *httpcodegen.EndpointData) string {
 	b.WriteString("\t\t\ts.closed = true\n")
 	b.WriteString("\t\t\treturn zero, err\n")
 	b.WriteString("\t\t}\n\n")
-	b.WriteString("\t\tparsedEvent, err := goahttp.ParseSSEEvent(rawEvent)\n")
+	b.WriteString("\t\tparsedEvent, err := loomhttp.ParseSSEEvent(rawEvent)\n")
 	b.WriteString("\t\tif err != nil {\n")
 	b.WriteString("\t\t\ts.closed = true\n")
 	b.WriteString("\t\t\treturn zero, err\n")
@@ -237,7 +237,7 @@ func renderJSONRPCWebSocketClientStream(ws *httpcodegen.WebSocketData) string {
 	b.WriteString("\tlastError   atomic.Value\n")
 	b.WriteString("\tconfig *jsonrpc.StreamConfig\n")
 	if hasRecv {
-		b.WriteString("\tdecoder        func(*http.Response) goahttp.Decoder\n")
+		b.WriteString("\tdecoder        func(*http.Response) loomhttp.Decoder\n")
 	}
 	b.WriteString("}\n\n")
 	fmt.Fprintf(&b, "type %sPendingRequest struct {\n", ws.VarName)

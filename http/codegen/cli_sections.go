@@ -17,12 +17,12 @@ func renderParseEndpoint(flagsCode string, commands []*commandData) string {
 	b.WriteString("// line.\n")
 	b.WriteString("func ParseEndpoint(\n")
 	b.WriteString("\tscheme, host string,\n")
-	b.WriteString("\tdoer goahttp.Doer,\n")
-	b.WriteString("\tenc func(*http.Request) goahttp.Encoder,\n")
-	b.WriteString("\tdec func(*http.Response) goahttp.Decoder,\n")
+	b.WriteString("\tdoer loomhttp.Doer,\n")
+	b.WriteString("\tenc func(*http.Request) loomhttp.Encoder,\n")
+	b.WriteString("\tdec func(*http.Response) loomhttp.Decoder,\n")
 	b.WriteString("\trestore bool,\n")
 	if streamingCmdExists(commands) {
-		b.WriteString("\tdialer goahttp.Dialer,\n")
+		b.WriteString("\tdialer loomhttp.Dialer,\n")
 		for _, cmd := range commands {
 			if cmd.NeedDialer {
 				fmt.Fprintf(&b, "\t%sConfigurer *%s.ConnConfigurer,\n", cmd.VarName, cmd.PkgName)
@@ -39,11 +39,11 @@ func renderParseEndpoint(flagsCode string, commands []*commandData) string {
 			fmt.Fprintf(&b, "\t%s %s.ClientInterceptors,\n", cmd.Interceptors.VarName, cmd.Interceptors.PkgName)
 		}
 	}
-	b.WriteString(") (goa.Endpoint, any, error) {\n")
+	b.WriteString(") (loom.Endpoint, any, error) {\n")
 	b.WriteString(flagsCode)
 	b.WriteString("\n\tvar (\n")
 	b.WriteString("\t\tdata     any\n")
-	b.WriteString("\t\tendpoint goa.Endpoint\n")
+	b.WriteString("\t\tendpoint loom.Endpoint\n")
 	b.WriteString("\t\terr      error\n")
 	b.WriteString("\t)\n")
 	b.WriteString("\t{\n")

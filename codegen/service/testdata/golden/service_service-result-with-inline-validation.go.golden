@@ -46,7 +46,7 @@ func NewResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlin
 	case "default", "":
 		res = NewResultInlineValidationFromResultInlineValidationView(vres.Projected)
 	default:
-		panic(goa.InvalidEnumValueError("view", vres.View, []any{
+		panic(loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		}))
 	}
@@ -64,7 +64,7 @@ func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) *
 		p := ProjectResultInlineValidation(res)
 		vres = &resultwithinlinevalidationviews.ResultInlineValidation{Projected: p, View: "default"}
 	default:
-		panic(goa.InvalidEnumValueError("view", view, []any{
+		panic(loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		}))
 	}

@@ -113,7 +113,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		&codegen.ImportSpec{Path: "strings"},
 		codegen.LoomImport(""),
 		codegen.LoomImport("jsonrpc"),
-		codegen.LoomNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "loomhttp"),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	)

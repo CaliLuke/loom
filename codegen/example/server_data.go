@@ -107,7 +107,7 @@ type (
 		Services []string
 	}
 
-	// Transport is a type for supported goa transports.
+	// Transport is a type for supported Loom transports.
 	Transport string
 )
 

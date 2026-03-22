@@ -66,18 +66,18 @@ func TestPkgImport(t *testing.T) {
 		gopath = build.Default.GOPATH
 	}
 	cwd := gopath + "/src/github.com/CaliLuke/loom/codegen/service"
-	goModCwd := "/home/user/project/goa/codegen/service"
+	goModCwd := "/home/user/project/loom/codegen/service"
 	cases := []struct {
 		Name           string
 		Cwd            string
 		Pkg            string
 		ExpectedImport string
 	}{
-		{"goa-pkg", cwd, "github.com/CaliLuke/loom/pkg", "github.com/CaliLuke/loom/pkg"},
+		{"loom-pkg", cwd, "github.com/CaliLuke/loom/pkg", "github.com/CaliLuke/loom/pkg"},
 		{"internal-pkg", cwd, "github.com/CaliLuke/loom/codegen", "github.com/CaliLuke/loom/codegen"},
 		{"vendored-pkg", cwd, "github.com/CaliLuke/loom/vendor/github.com/some/pkg", "github.com/some/pkg"},
 		{"external-pkg", cwd, "github.com/some/pkg", "github.com/some/pkg"},
-		{"gomod-goa-pkg", goModCwd, "github.com/CaliLuke/loom/pkg", "github.com/CaliLuke/loom/pkg"},
+		{"gomod-loom-pkg", goModCwd, "github.com/CaliLuke/loom/pkg", "github.com/CaliLuke/loom/pkg"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {

@@ -17,9 +17,9 @@ Options:
   --target-repo PATH      Target application repository. Required.
   --design-package PKG    Design package to generate. Default: <module>/design
   --output-dir PATH       Directory for artifacts. Default:
-                          /tmp/goa-regen-compare-<repo>-<timestamp>
-  --goa-root PATH         Local loom checkout. Default: current repo root
-  --goa-ai-root PATH      Local goa-ai checkout to replace goa.design/goa-ai.
+                          /tmp/loom-regen-compare-<repo>-<timestamp>
+  --loom-root PATH        Local loom checkout. Default: current repo root
+  --loom-mcp-root PATH    Local loom-mcp checkout to replace github.com/CaliLuke/loom-mcp.
                           Default: none
   --baseline-label NAME   Label for pinned dependency output. Default: baseline
   --candidate-label NAME  Label for local loom output. Default: candidate
@@ -56,8 +56,8 @@ repo_name_from_path() {
 }
 
 target_repo=""
-goa_root="$(pwd)"
-goa_ai_root=""
+loom_root="$(pwd)"
+loom_mcp_root=""
 output_dir=""
 design_package=""
 baseline_label="baseline"
@@ -78,12 +78,12 @@ while [[ $# -gt 0 ]]; do
 			output_dir="${2:?missing value for --output-dir}"
 			shift 2
 			;;
-		--goa-root)
-			goa_root="${2:?missing value for --goa-root}"
+		--loom-root)
+			loom_root="${2:?missing value for --loom-root}"
 			shift 2
 			;;
-		--goa-ai-root)
-			goa_ai_root="${2:?missing value for --goa-ai-root}"
+		--loom-mcp-root)
+			loom_mcp_root="${2:?missing value for --loom-mcp-root}"
 			shift 2
 			;;
 		--baseline-label)
@@ -110,16 +110,16 @@ done
 
 [[ -n "$target_repo" ]] || die "--target-repo is required"
 target_repo="$(abs_path "$target_repo")"
-goa_root="$(abs_path "$goa_root")"
-if [[ -n "$goa_ai_root" ]]; then
-	goa_ai_root="$(abs_path "$goa_ai_root")"
+loom_root="$(abs_path "$loom_root")"
+if [[ -n "$loom_mcp_root" ]]; then
+	loom_mcp_root="$(abs_path "$loom_mcp_root")"
 fi
 
 [[ -d "$target_repo" ]] || die "target repo does not exist: $target_repo"
 [[ -f "$target_repo/go.mod" ]] || die "target repo is missing go.mod: $target_repo"
-[[ -f "$goa_root/go.mod" ]] || die "goa root is missing go.mod: $goa_root"
-if [[ -n "$goa_ai_root" ]]; then
-	[[ -f "$goa_ai_root/go.mod" ]] || die "goa-ai root is missing go.mod: $goa_ai_root"
+[[ -f "$loom_root/go.mod" ]] || die "loom root is missing go.mod: $loom_root"
+if [[ -n "$loom_mcp_root" ]]; then
+	[[ -f "$loom_mcp_root/go.mod" ]] || die "loom-mcp root is missing go.mod: $loom_mcp_root"
 fi
 
 target_module="$(cd "$target_repo" && go list -m -f '{{.Path}}')"
@@ -129,7 +129,7 @@ fi
 
 if [[ -z "$output_dir" ]]; then
 	timestamp="$(date +%Y%m%d-%H%M%S)"
-	output_dir="/tmp/goa-regen-compare-$(repo_name_from_path "$target_repo")-${timestamp}"
+	output_dir="/tmp/loom-regen-compare-$(repo_name_from_path "$target_repo")-${timestamp}"
 fi
 output_dir="$(abs_path "$output_dir")"
 
@@ -145,7 +145,7 @@ commands_file="${output_dir}/commands.txt"
 
 mkdir -p "$baseline_root" "$candidate_root"
 
-temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/goa-regen-compare.XXXXXX")"
+temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/loom-regen-compare.XXXXXX")"
 cleanup() {
 	if [[ "$keep_temp" -eq 0 ]]; then
 		rm -rf "$temp_dir"
@@ -161,17 +161,17 @@ if [[ -f "$target_repo/go.sum" ]]; then
 fi
 (
 	cd "$temp_dir"
-	go mod edit -replace "github.com/CaliLuke/loom=${goa_root}"
-	if [[ -n "$goa_ai_root" ]]; then
-		go mod edit -replace "goa.design/goa-ai=${goa_ai_root}"
+	go mod edit -replace "github.com/CaliLuke/loom=${loom_root}"
+	if [[ -n "$loom_mcp_root" ]]; then
+		go mod edit -replace "github.com/CaliLuke/loom-mcp=${loom_mcp_root}"
 	fi
 )
 
 cat >"$commands_file" <<EOF
 target_repo=$target_repo
 design_package=$design_package
-goa_root=$goa_root
-goa_ai_root=$goa_ai_root
+loom_root=$loom_root
+loom_mcp_root=$loom_mcp_root
 baseline_command=(cd $target_repo && env GOWORK=off GOFLAGS=-mod=mod go run github.com/CaliLuke/loom/cmd/loom gen $design_package -o $baseline_root)
 candidate_command=(cd $target_repo && env GOWORK=off GOFLAGS=-mod=mod\ -modfile=$temp_dir/go.mod go run github.com/CaliLuke/loom/cmd/loom gen $design_package -o $candidate_root)
 EOF

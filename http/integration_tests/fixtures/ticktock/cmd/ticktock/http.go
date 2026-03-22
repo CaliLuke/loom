@@ -9,9 +9,9 @@ import (
 
 	clock "example.com/http-ticktock/gen/clock"
 	clocksvr "example.com/http-ticktock/gen/http/clock/server"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"goa.design/clue/debug"
 	"goa.design/clue/log"
-	goahttp "github.com/CaliLuke/loom/http"
 )
 
 // handleHTTPServer starts configures and starts a HTTP server on the given
@@ -21,17 +21,17 @@ func handleHTTPServer(ctx context.Context, u *url.URL, clockEndpoints *clock.End
 	// Provide the transport specific request decoder and response encoder.
 	// The goa http package has built-in support for JSON, XML and gob.
 	// Other encodings can be used by providing the corresponding functions,
-	// see goa.design/implement/encoding.
+	// see loom.design/implement/encoding.
 	var (
-		dec = goahttp.RequestDecoder
-		enc = goahttp.ResponseEncoder
+		dec = loomhttp.RequestDecoder
+		enc = loomhttp.ResponseEncoder
 	)
 
 	// Build the service HTTP request multiplexer and mount debug and profiler
 	// endpoints in debug mode.
-	var mux goahttp.Muxer
+	var mux loomhttp.Muxer
 	{
-		mux = goahttp.NewMuxer()
+		mux = loomhttp.NewMuxer()
 		if dbg {
 			// Mount pprof handlers for memory profiling under /debug/pprof.
 			debug.MountPprofHandlers(debug.Adapt(mux))

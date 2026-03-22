@@ -1,5 +1,5 @@
 // Mount configures the mux to serve the ServiceFileServer endpoints.
-func Mount(mux goahttp.Muxer, h *Server) {
+func Mount(mux loomhttp.Muxer, h *Server) {
 	MountPathToFileJSON(mux, http.StripPrefix("/server_file_server", h.PathToFileJSON))
 	MountPathToFileJSON2(mux, h.PathToFileJSON2)
 	MountFileJSON(mux, http.StripPrefix("/server_file_server", h.FileJSON))
@@ -7,6 +7,6 @@ func Mount(mux goahttp.Muxer, h *Server) {
 }
 
 // Mount configures the mux to serve the ServiceFileServer endpoints.
-func (s *Server) Mount(mux goahttp.Muxer) {
+func (s *Server) Mount(mux loomhttp.Muxer) {
 	Mount(mux, s)
 }

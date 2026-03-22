@@ -1,7 +1,7 @@
 // DecodeMethodQueryArrayUInt32ValidateRequest returns a decoder for requests
 // sent to the ServiceQueryArrayUInt32Validate MethodQueryArrayUInt32Validate
 // endpoint.
-func DecodeMethodQueryArrayUInt32ValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequeryarrayuint32validate.MethodQueryArrayUInt32ValidatePayload, error) {
+func DecodeMethodQueryArrayUInt32ValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayuint32validate.MethodQueryArrayUInt32ValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryarrayuint32validate.MethodQueryArrayUInt32ValidatePayload, error) {
 		var payload *servicequeryarrayuint32validate.MethodQueryArrayUInt32ValidatePayload
 		var (
@@ -11,23 +11,23 @@ func DecodeMethodQueryArrayUInt32ValidateRequest(mux goahttp.Muxer, decoder func
 		{
 			qRaw := r.URL.Query()["q"]
 			if qRaw == nil {
-				err = goa.MergeErrors(err, goa.MissingFieldError("q", "query string"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
 			q = make([]uint32, len(qRaw))
 			for i, rv := range qRaw {
 				v, err2 := strconv.ParseUint(rv, 10, 32)
 				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("q", qRaw, "array of unsigned integers"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "array of unsigned integers"))
 				}
 				q[i] = uint32(v)
 			}
 		}
 		if len(q) < 1 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
 		}
 		for _, e := range q {
 			if e < 1 {
-				err = goa.MergeErrors(err, goa.InvalidRangeError("q[*]", e, 1, true))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("q[*]", e, 1, true))
 			}
 		}
 		if err != nil {

@@ -20,7 +20,7 @@ func renderJSONRPCClientStruct(data *httpcodegen.ServiceData) string {
 	fmt.Fprintf(&b, "type %s struct {\n", data.ClientStruct)
 	b.WriteString("\t")
 	b.WriteString(codegen.Comment(fmt.Sprintf("Doer is the HTTP client used to make requests to the %s service.", data.Service.Name)))
-	b.WriteString("\n\tDoer goahttp.Doer\n")
+	b.WriteString("\n\tDoer loomhttp.Doer\n")
 	for _, endpoint := range data.Endpoints {
 		if !httpcodegen.IsSSEEndpoint(endpoint) {
 			continue
@@ -28,18 +28,18 @@ func renderJSONRPCClientStruct(data *httpcodegen.ServiceData) string {
 		b.WriteString("\t")
 		b.WriteString(codegen.Comment(fmt.Sprintf("%s Doer is the HTTP client used to make requests to the %s endpoint.", endpoint.Method.VarName, endpoint.Method.Name)))
 		b.WriteString("\n")
-		fmt.Fprintf(&b, "\t%sDoer goahttp.Doer\n", endpoint.Method.VarName)
+		fmt.Fprintf(&b, "\t%sDoer loomhttp.Doer\n", endpoint.Method.VarName)
 	}
 	b.WriteString("\t// RestoreResponseBody controls whether the response bodies are reset after\n")
 	b.WriteString("\t// decoding so they can be read again.\n")
 	b.WriteString("\tRestoreResponseBody bool\n\n")
 	b.WriteString("\tscheme     string\n")
 	b.WriteString("\thost       string\n")
-	b.WriteString("\tencoder    func(*http.Request) goahttp.Encoder\n")
-	b.WriteString("\tdecoder    func(*http.Response) goahttp.Decoder\n")
+	b.WriteString("\tencoder    func(*http.Request) loomhttp.Encoder\n")
+	b.WriteString("\tdecoder    func(*http.Response) loomhttp.Decoder\n")
 	if httpcodegen.HasWebSocket(data) {
-		b.WriteString("\tdialer goahttp.Dialer\n")
-		b.WriteString("\tconfigfn goahttp.ConnConfigureFunc\n\n")
+		b.WriteString("\tdialer loomhttp.Dialer\n")
+		b.WriteString("\tconfigfn loomhttp.ConnConfigureFunc\n\n")
 		b.WriteString("\tconnMu sync.RWMutex\n")
 		b.WriteString("\tconn   *websocket.Conn\n")
 		b.WriteString("\tclosed atomic.Bool\n\n")
@@ -68,13 +68,13 @@ func renderJSONRPCClientInit(data *httpcodegen.ServiceData) string {
 	fmt.Fprintf(&b, "func New%s(\n", data.ClientStruct)
 	b.WriteString("\tscheme string,\n")
 	b.WriteString("\thost string,\n")
-	b.WriteString("\tdoer goahttp.Doer,\n")
-	b.WriteString("\tenc func(*http.Request) goahttp.Encoder,\n")
-	b.WriteString("\tdec func(*http.Response) goahttp.Decoder,\n")
+	b.WriteString("\tdoer loomhttp.Doer,\n")
+	b.WriteString("\tenc func(*http.Request) loomhttp.Encoder,\n")
+	b.WriteString("\tdec func(*http.Response) loomhttp.Decoder,\n")
 	b.WriteString("\trestoreBody bool,\n")
 	if httpcodegen.HasWebSocket(data) {
-		b.WriteString("\tdialer goahttp.Dialer,\n")
-		b.WriteString("\tcfn goahttp.ConnConfigureFunc,\n")
+		b.WriteString("\tdialer loomhttp.Dialer,\n")
+		b.WriteString("\tcfn loomhttp.ConnConfigureFunc,\n")
 		b.WriteString("\tstreamOpts ...jsonrpc.StreamConfigOption,\n")
 	}
 	fmt.Fprintf(&b, ") *%s {\n", data.ClientStruct)
@@ -125,7 +125,7 @@ func renderJSONRPCServerStruct(data *httpcodegen.ServiceData) string {
 		if httpcodegen.IsWebSocketEndpoint(endpoint) {
 			fmt.Fprintf(&b, "\t%s func(context.Context, *http.Request, *jsonrpc.RawRequest) (any, error)\n", lowerInitial(endpoint.Method.VarName))
 			if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
-				fmt.Fprintf(&b, "\t%sEndpoint goa.Endpoint\n", lowerInitial(endpoint.Method.VarName))
+				fmt.Fprintf(&b, "\t%sEndpoint loom.Endpoint\n", lowerInitial(endpoint.Method.VarName))
 			}
 			continue
 		}
@@ -134,12 +134,12 @@ func renderJSONRPCServerStruct(data *httpcodegen.ServiceData) string {
 		b.WriteString("\n")
 		fmt.Fprintf(&b, "\t%s func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error\n", endpoint.Method.VarName)
 	}
-	b.WriteString("\n\tdecoder func(*http.Request) goahttp.Decoder\n")
-	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) goahttp.Encoder\n")
+	b.WriteString("\n\tdecoder func(*http.Request) loomhttp.Decoder\n")
+	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder\n")
 	b.WriteString("\terrhandler func(context.Context, http.ResponseWriter, error)\n")
 	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
-		b.WriteString("\tupgrader goahttp.Upgrader\n")
-		b.WriteString("\tconfigfn goahttp.ConnConfigureFunc\n")
+		b.WriteString("\tupgrader loomhttp.Upgrader\n")
+		b.WriteString("\tconfigfn loomhttp.ConnConfigureFunc\n")
 	}
 	b.WriteString("}\n")
 	return b.String()
@@ -159,13 +159,13 @@ func renderJSONRPCServerInit(data *httpcodegen.ServiceData, hasSSE bool) string 
 		fmt.Fprintf(&b, "\tstreamHandler func(context.Context, %s.Stream) error,\n", data.Service.PkgName)
 	}
 	fmt.Fprintf(&b, "\tendpoints *%s.Endpoints,\n", data.Service.PkgName)
-	b.WriteString("\tmux goahttp.Muxer,\n")
-	b.WriteString("\tdecoder func(*http.Request) goahttp.Decoder,\n")
-	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) goahttp.Encoder,\n")
+	b.WriteString("\tmux loomhttp.Muxer,\n")
+	b.WriteString("\tdecoder func(*http.Request) loomhttp.Decoder,\n")
+	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,\n")
 	b.WriteString("\terrhandler func(context.Context, http.ResponseWriter, error),\n")
 	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
-		b.WriteString("\tupgrader goahttp.Upgrader,\n")
-		b.WriteString("\tconfigfn goahttp.ConnConfigureFunc,\n")
+		b.WriteString("\tupgrader loomhttp.Upgrader,\n")
+		b.WriteString("\tconfigfn loomhttp.ConnConfigureFunc,\n")
 	}
 	fmt.Fprintf(&b, ") *%s {\n", data.ServerStruct)
 	fmt.Fprintf(&b, "\ts := &%s{\n", data.ServerStruct)
@@ -195,13 +195,14 @@ func renderJSONRPCServerInit(data *httpcodegen.ServiceData, hasSSE bool) string 
 		b.WriteString("\t\tconfigfn: configfn,\n")
 	}
 	b.WriteString("\t}\n")
-	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
+	switch {
+	case httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]):
 		b.WriteString("\t// WebSocket services implement ServeHTTP for upgrade\n")
 		b.WriteString("\ts.Handler = http.HandlerFunc(s.ServeHTTP)\n")
-	} else if hasSSE {
+	case hasSSE:
 		b.WriteString("\t// SSE-only services route via handleSSE\n")
 		b.WriteString("\ts.Handler = http.HandlerFunc(s.handleSSE)\n")
-	} else {
+	default:
 		b.WriteString("\t// Plain HTTP JSON-RPC\n")
 		b.WriteString("\ts.Handler = http.HandlerFunc(s.ServeHTTP)\n")
 	}
@@ -324,7 +325,7 @@ func renderJSONRPCServerMount(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 	b.WriteString("\n")
 	b.WriteString(comment)
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(mux goahttp.Muxer, h *%s) {\n", data.MountServer, data.ServerStruct)
+	fmt.Fprintf(&b, "func %s(mux loomhttp.Muxer, h *%s) {\n", data.MountServer, data.ServerStruct)
 	switch {
 	case hasMixed:
 		b.WriteString("\t// Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header and JSON-RPC method\n")
@@ -347,10 +348,10 @@ func renderJSONRPCServerMount(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 	b.WriteString("}\n\n")
 	b.WriteString(comment)
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%s) %s(mux goahttp.Muxer) {\n\t%s(mux, s)\n}\n", data.ServerStruct, data.MountServer, data.MountServer)
+	fmt.Fprintf(&b, "func (s *%s) %s(mux loomhttp.Muxer) {\n\t%s(mux, s)\n}\n", data.ServerStruct, data.MountServer, data.MountServer)
 	return b.String()
 }
 
 func jsonrpcServerEncodeErrorSection(serverStruct string) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-encode-error", "\n// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)\nfunc (s *"+serverStruct+") encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any) {\n\tencodeJSONRPCError(ctx, w, req, code, message, data, s.encoder, s.errhandler)\n}\n\n// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)\nfunc encodeJSONRPCError(\n\tctx context.Context,\n\tw http.ResponseWriter,\n\treq *jsonrpc.RawRequest,\n\tcode jsonrpc.Code,\n\tmessage string,\n\tdata any,\n\tencoder func(context.Context, http.ResponseWriter) goahttp.Encoder,\n\terrhandler func(context.Context, http.ResponseWriter, error),\n) {\n\tif req.ID != nil {\n\t\tresponse := jsonrpc.MakeErrorResponse(req.ID, code, message, data)\n\t\tif err := encoder(ctx, w).Encode(response); err != nil {\n\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode JSON-RPC response: %w\", err))\n\t\t}\n\t}\n}\n")
+	return codegen.NewRawSection("jsonrpc-server-encode-error", "\n// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)\nfunc (s *"+serverStruct+") encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any) {\n\tencodeJSONRPCError(ctx, w, req, code, message, data, s.encoder, s.errhandler)\n}\n\n// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)\nfunc encodeJSONRPCError(\n\tctx context.Context,\n\tw http.ResponseWriter,\n\treq *jsonrpc.RawRequest,\n\tcode jsonrpc.Code,\n\tmessage string,\n\tdata any,\n\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,\n\terrhandler func(context.Context, http.ResponseWriter, error),\n) {\n\tif req.ID != nil {\n\t\tresponse := jsonrpc.MakeErrorResponse(req.ID, code, message, data)\n\t\tif err := encoder(ctx, w).Encode(response); err != nil {\n\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode JSON-RPC response: %w\", err))\n\t\t}\n\t}\n}\n")
 }

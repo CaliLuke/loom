@@ -5,7 +5,7 @@ info:
     x-test-api: API
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 servers:
-    - url: https://goa.design
+    - url: https://loom.design
 paths:
     /:
         post:

@@ -1,6 +1,6 @@
 // DecodeMethodPathStringValidateRequest returns a decoder for requests sent to
 // the ServicePathStringValidate MethodPathStringValidate endpoint.
-func DecodeMethodPathStringValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicepathstringvalidate.MethodPathStringValidatePayload, error) {
+func DecodeMethodPathStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathstringvalidate.MethodPathStringValidatePayload, error) {
 	return func(r *http.Request) (*servicepathstringvalidate.MethodPathStringValidatePayload, error) {
 		var payload *servicepathstringvalidate.MethodPathStringValidatePayload
 		var (
@@ -11,7 +11,7 @@ func DecodeMethodPathStringValidateRequest(mux goahttp.Muxer, decoder func(*http
 		)
 		p = params["p"]
 		if !(p == "val") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("p", p, []any{"val"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("p", p, []any{"val"}))
 		}
 		if err != nil {
 			return payload, err

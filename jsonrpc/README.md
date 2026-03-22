@@ -354,8 +354,8 @@ Service("api", func() {
 
 **Client usage:**
 ```go
-client := api.NewClient("http", "localhost:8080", http.DefaultClient, 
-    goahttp.RequestEncoder, goahttp.ResponseDecoder, false)
+client := api.NewClient("http", "localhost:8080", http.DefaultClient,
+    loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
 
 result, err := client.Query(ctx, &api.QueryPayload{SQL: "SELECT * FROM users"})
 ```

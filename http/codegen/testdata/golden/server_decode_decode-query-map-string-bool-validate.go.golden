@@ -1,7 +1,7 @@
 // DecodeMethodQueryMapStringBoolValidateRequest returns a decoder for requests
 // sent to the ServiceQueryMapStringBoolValidate
 // MethodQueryMapStringBoolValidate endpoint.
-func DecodeMethodQueryMapStringBoolValidateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload, error) {
+func DecodeMethodQueryMapStringBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload, error) {
 	return func(r *http.Request) (*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload, error) {
 		var payload *servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload
 		var (
@@ -11,7 +11,7 @@ func DecodeMethodQueryMapStringBoolValidateRequest(mux goahttp.Muxer, decoder fu
 		{
 			qRaw := r.URL.Query()
 			if len(qRaw) == 0 {
-				err = goa.MergeErrors(err, goa.MissingFieldError("q", "query string"))
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
 			for keyRaw, valRaw := range qRaw {
 				if strings.HasPrefix(keyRaw, "q[") {
@@ -23,7 +23,7 @@ func DecodeMethodQueryMapStringBoolValidateRequest(mux goahttp.Muxer, decoder fu
 						openIdx := strings.IndexRune(keyRaw, '[')
 						closeIdx := strings.IndexRune(keyRaw, ']')
 						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							err = goa.MergeErrors(err, goa.DecodePayloadError("invalid query string: malformed brackets"))
+							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
 						} else {
 							keya = keyRaw[openIdx+1 : closeIdx]
 						}
@@ -33,7 +33,7 @@ func DecodeMethodQueryMapStringBoolValidateRequest(mux goahttp.Muxer, decoder fu
 						valaRaw := valRaw[0]
 						v, err2 := strconv.ParseBool(valaRaw)
 						if err2 != nil {
-							err = goa.MergeErrors(err, goa.InvalidFieldTypeError("query", valaRaw, "boolean"))
+							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valaRaw, "boolean"))
 						}
 						vala = v
 					}
@@ -42,14 +42,14 @@ func DecodeMethodQueryMapStringBoolValidateRequest(mux goahttp.Muxer, decoder fu
 			}
 		}
 		if len(q) < 1 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
 		}
 		for k, v := range q {
 			if !(k == "key") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("q.key", k, []any{"key"}))
+				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q.key", k, []any{"key"}))
 			}
 			if !(v == true) {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("q[key]", v, []any{true}))
+				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q[key]", v, []any{true}))
 			}
 		}
 		if err != nil {
