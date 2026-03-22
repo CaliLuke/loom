@@ -1,16 +1,16 @@
 ---
 name: framework-capability
-description: Add a new `goa-light` framework capability end to end. Use this when implementing generator, DSL, transport, OpenAPI, auth/session, or other framework-level behavior that should remove real application glue. Covers scoping the capability, raising the testing bar, validating repo cleanliness, updating roadmap/docs including the Goa skill, and finishing with commit and push.
+description: Add a new `loom` framework capability end to end. Use this when implementing generator, DSL, transport, OpenAPI, auth/session, or other framework-level behavior that should remove real application glue. Covers scoping the capability, raising the testing bar, validating repo cleanliness, updating roadmap/docs including the Loom skill, and finishing with commit and push.
 ---
 # Framework Capability
 
-Use this skill when the task is to add or complete a real `goa-light` framework capability, not just adopt existing behavior in an application.
+Use this skill when the task is to add or complete a real `loom` framework capability, not just adopt existing behavior in an application.
 
 ## Trigger Conditions
 
 Use this skill when the work involves any of:
 
-- new Goa DSL surface area
+- new Loom DSL surface area
 - codegen or transport behavior changes
 - OpenAPI or JSON Schema contract changes
 - auth/session framework semantics
@@ -42,7 +42,7 @@ A framework capability is not done when code compiles. It is done only when:
 - the framework behavior is implemented at the right layer
 - the tests are thorough enough for a maintained fork
 - the roadmap and plan docs reflect reality
-- the Goa skill reflects the new contract or workflow
+- the Loom skill reflects the new contract or workflow
 - the branch is committed and pushed
 
 ## Workflow
@@ -72,7 +72,7 @@ Inspect:
 - the motivating consumer usage or workaround
 - the existing framework path that almost solves it
 - nearby tests and goldens
-- the Goa skill if the change affects contract semantics or recommended usage
+- the Loom skill if the change affects contract semantics or recommended usage
 
 Do not guess where generation stops short.
 
@@ -173,18 +173,18 @@ At minimum inspect:
 - `roadmap/ROADMAP.md`
 - the specific capability plan doc
 
-### Goa skill
+### Loom skill
 
-If the capability changes how an agent should think about Goa-light behavior, update the Goa skill directly.
+If the capability changes how an agent should think about Loom behavior, update the Loom skill directly.
 
 Check:
 
-- `.agents/skills/goa-light/SKILL.md`
-- `.agents/skills/goa-light/references/repo-map.md` if navigation guidance changed
+- `.agents/skills/loom/SKILL.md`
+- `.agents/skills/loom/references/repo-map.md` if navigation guidance changed
 
 Do not hide important repo-specific framework semantics in a hacky sidecar note when they belong in the main skill instructions.
 
-Update the Goa skill when the change affects:
+Update the Loom skill when the change affects:
 
 - contract expectations
 - transport semantics
@@ -199,7 +199,7 @@ Update the Goa skill when the change affects:
 Unless the user explicitly says otherwise:
 
 1. update roadmap docs
-2. update Goa skill docs where needed
+2. update Loom skill docs where needed
 3. verify tests are green
 4. commit with a concrete message
 5. push the branch
