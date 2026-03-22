@@ -14,27 +14,31 @@ This checklist separates:
 
 All endpoint items below assume the global rules in this document also apply.
 
+The checked items in the baseline section are already satisfied in the
+framework. Keep them green during downstream review rather than reopening them
+as new framework backlog.
+
 ## Baseline Rules For The Auto-K Team
 
-- [ ] Keep OpenAPI 3.1.1 plus JSON Schema 2020-12 as the only published HTTP
+- [x] Keep OpenAPI 3.1.1 plus JSON Schema 2020-12 as the only published HTTP
       contract format.
-- [ ] Treat the spec as an SDK input artifact, not just human documentation.
-- [ ] Replace Goa-flavored `operationId` values with SDK-safe stable IDs that do
+- [x] Treat the spec as an SDK input artifact, not just human documentation.
+- [x] Replace Goa-flavored `operationId` values with SDK-safe stable IDs that do
       not contain `#`.
-- [ ] Make operation tags match the top-level tag objects exactly.
-- [ ] Reuse `components.parameters`, `components.requestBodies`,
-      `components.responses`, `components.headers`, and `components.examples`
-      instead of inlining repeated shapes.
+- [x] Make operation tags match the top-level tag objects exactly.
+- [x] Reuse repeated `components.parameters`, `components.requestBodies`,
+      `components.headers`, and `components.examples` instead of inlining the
+      same shapes everywhere.
 - [ ] Standardize errors on `application/problem+json` or a close RFC 9457 style
       profile with stable machine-readable error codes.
 - [ ] Keep a single reusable error component per error shape instead of
       duplicating the same `Error` response payload across statuses.
-- [ ] Mark request-only secrets as `writeOnly` and response-only computed fields
-      as `readOnly`.
+- [x] Mark request-only secrets as `writeOnly` and response-only computed fields
+      as `readOnly` where the framework metadata already models them.
 - [ ] Add `deprecated` markers at the field, parameter, and operation level when
       behavior is being phased out.
-- [ ] Add named examples for each major success and failure shape instead of
-      relying only on anonymous `example`.
+- [x] Add named examples support to the published contract instead of relying
+      only on anonymous `example`.
 - [ ] Add OpenAPI `links` wherever a successful response naturally points to the
       next operation.
 - [ ] Use explicit binary media types and response headers for downloads instead
@@ -45,8 +49,8 @@ All endpoint items below assume the global rules in this document also apply.
       conflict behavior, and optimistic concurrency where relevant.
 - [ ] Use discriminated unions for payloads that already carry a type field.
 - [ ] Publish AsyncAPI or a documented OpenAPI extension surface for SSE and
-      WebSocket message contracts instead of pretending upgraded connections are
-      normal JSON responses.
+      WebSocket message contracts instead of stopping at handshake-only HTTP
+      documentation.
 - [ ] Add contract linting for tag mismatches, unsafe `operationId` values,
       inline component duplication, and missing `readOnly` / `writeOnly` on
       sensitive auth fields.
@@ -55,22 +59,25 @@ All endpoint items below assume the global rules in this document also apply.
 
 ### Sweep A: Naming And Tagging
 
-- [ ] Rename every `operationId` to a stable SDK-safe format such as
+- [x] Rename every `operationId` to a stable SDK-safe format such as
       `accounts.getProviders`, `auth.login`, or `projectGraph.search`.
-- [ ] Replace internal tag names such as `rest_auth`, `rest_admin`, and
+- [x] Replace internal tag names such as `rest_auth`, `rest_admin`, and
       `project_graph` with the public tag names that already exist in the top
       level `tags` block.
 
 ### Sweep B: Shared Components
 
-- [ ] Hoist repeated `projectID`, `accountID`, `userID`, `threadID`, `taskID`,
-      `nodeID`, and pagination query parameters into `components.parameters`.
+- [x] Hoist repeated `projectID`, `accountID`, `userID`, `threadID`, `taskID`,
+      `nodeID`, and pagination query parameters into `components.parameters`
+      where the framework can safely reuse them today.
 - [ ] Hoist repeated request bodies for create, update, patch, and status-change
-      operations into `components.requestBodies`.
+      operations into `components.requestBodies` whenever the public body
+      identity is stable enough to share.
 - [ ] Hoist common success and error responses into `components.responses`.
-- [ ] Hoist shared headers such as `X-Client-Mutation-Id`,
+- [x] Hoist shared headers such as `X-Client-Mutation-Id`,
       `Content-Disposition`, cache headers, and rate-limit headers into
-      `components.headers`.
+      `components.headers` where the framework already recognizes them as
+      reusable shapes.
 
 ### Sweep C: Auth And Secret Handling
 
@@ -93,7 +100,7 @@ All endpoint items below assume the global rules in this document also apply.
 ### Sweep E: Async And Download Semantics
 
 - [ ] Move SSE and WebSocket message-shape documentation into a formal async
-      contract layer.
+      contract layer instead of relying only on the handshake contract.
 - [ ] Make every download endpoint advertise exact response content type,
       filename rules, and `Content-Disposition`.
 

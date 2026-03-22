@@ -83,8 +83,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - prove the cleaned stack against representative downstream generation in temp modules
 - replace remaining real auth/session glue in consumer designs where the new DSL applies
 - finish the direct follow-up test backlog for refactored transport/service-data seams
-- improve the OpenAPI framework layer using the live Auto-K contract as a
-  downstream acceptance surface
+- execute the remaining self-contained OpenAPI units in
+  [OpenAPI Contract](./openapi_contract.md), starting with payload-bearing
+  response reuse, public component naming cleanup, and auth error
+  canonicalization
 - keep new generator work on the shared Go-section architecture and use typed
   Go emission for logic-heavy sections by default
 
@@ -102,20 +104,16 @@ These items are prioritized based on two goals:
    See [OpenAPI Contract](./openapi_contract.md) and
    [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md).
 
-   Prioritize:
+   Remaining units:
 
-   - finish response-component reuse for repeated payload-bearing success and
-     error responses whose schemas are structurally equivalent but emitted from
-     separate endpoints
-   - SDK-safe naming for `operationId`, remaining tag surfaces, and security
-     scheme identifiers
-   - standards-first typed error responses instead of Goa-specific generic error
-     payload reuse
-   - automatic request/response schema splitting on top of the completed
-     `readOnly`, `writeOnly`, and deprecation metadata for auth, session, and
-     secret-bearing schemas
-   - truthful async contract modeling for SSE and WebSocket endpoints
-   - contract linting plus downstream SDK smoke-generation gates
+   - Unit 1: payload-bearing response reuse.
+   - Unit 2: public component naming and adapter hygiene.
+   - Unit 3: auth error canonicalization.
+   - Unit 5: projection controls for public request/response surfaces.
+   - Unit 4: problem-document error contracts.
+   - Unit 7: OpenAPI links DSL.
+   - Unit 6: async contract publication for SSE and WebSocket.
+   - Unit 8: contract linting plus downstream SDK smoke-generation gates.
 
 3. Refactor follow-up test backlog
    The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.

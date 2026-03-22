@@ -2,242 +2,320 @@
 
 ## Goal
 
-Treat the generated OpenAPI 3.1 document as a machine-consumable contract artifact, not just human documentation.
+Treat the generated OpenAPI 3.1 document as a machine-consumable contract
+artifact, not just human documentation.
 
-## Status
+## Canonical Plan
 
-### Completed
+This document is the canonical framework plan for remaining OpenAPI work in
+`goa-light`.
 
-- Remove OpenAPI v2 generation and keep the framework on OpenAPI 3.x only.
-- Upgrade OpenAPI generation to 3.1 / JSON Schema 2020-12.
-- Use `libopenapi` in the test harness for spec parsing and validation.
-- Align cookie documentation with actual wire-format serialization.
-- Use stable hash-based schema collision suffixes.
-- Canonicalize generated `operationId` values into a deterministic normalized form.
-- Emit operation-level security requirements for secured endpoints, and explicit
-  empty `security: []` arrays for `NoSecurity()` operations.
-- Hoist repeated OpenAPI parameters into `components.parameters` and rewrite
-  repeated inline operation/path parameter occurrences to `$ref`s with stable
-  component names.
-- Hoist repeated request bodies, headers, named examples, and structurally
-  identical no-body responses into reusable OpenAPI components with stable
-  names.
-- Inherit service-level OpenAPI tags onto operations when methods and file
-  servers do not declare their own tags, so operation tags match the published
-  top-level tag objects by default.
-- Support attribute-level OpenAPI schema metadata for `readOnly`, `writeOnly`,
-  `deprecated`, `contentEncoding`, and `contentMediaType` in the IR-backed
-  schema-generation paths.
-- Add first-class `ReadOnly()` / `WriteOnly()` DSL helpers and allow
-  documentation-only `OpenAPIBody(...)` declarations for
-  `SkipResponseBodyEncodeDecode()` HTTP responses.
-- Prune unreferenced generated component schemas so the published contract only
-  contains reachable request/response shapes.
-- Suppress invalid closed-object union-wrapper examples, honor
-  `Meta("openapi:example", "false")` on wrapper fields, keep SSE response
-  statuses on normal HTTP success codes, and normalize binary request examples
-  to JSON/OpenAPI string form.
-- Suppress invalid synthesized examples for closed-object direct-union
-  collections, including response/media-type examples for arrays whose element
-  shape contains discriminator-driven closed unions.
-- Omit transport-level media-type examples for streaming responses instead of
-  synthesizing SSE/WebSocket payload examples from partial field examples.
-- Keep a non-trivial specimen API under `http/codegen/testdata` and validate its
-  rendered OpenAPI with both `libopenapi` and Redocly as a closed-loop contract
-  check.
-- Route OpenAPI v3 request/response body and content generation through the
-  typed IR operation path end to end, including direct operation helpers used by
-  tests, and remove the duplicate legacy v3 response/body builder seam.
-- Move OpenAPI parameter analysis, route-level operation metadata
-  (`operationId`, tags, deprecation, security, docs), and reusable component
-  hoisting into the typed IR layer so `http/codegen/openapi/v3` primarily
-  renders IR-owned decisions instead of re-deriving them post-render.
+Do not create parallel plan docs for the same work. Downstream audit notes may
+capture evidence, but backlog state and sequencing belong here.
 
-### Next
+## Completed Foundation
 
-- keep OpenAPI 3.1 / JSON Schema 2020-12 as the canonical output
-- improve contract stability for downstream consumers
-- prefer semantic accuracy over preserving historical document shape
-- use the live Auto-K contract as a forcing function for framework-level OpenAPI
-  improvements
+The following framework work is already done and should not be re-opened as new
+roadmap items unless a regression appears:
+
+- OpenAPI 3.x only, with OpenAPI 3.1 / JSON Schema 2020-12 as the canonical
+  output.
+- `libopenapi`-backed validation in the test harness.
+- Stable schema naming for explicit HTTP body types, with generation failure on
+  conflicting public names instead of hash-suffixed leakage.
+- Canonicalized `operationId` generation.
+- Service-level OpenAPI tag inheritance onto operations and file servers.
+- Operation-level security emission for secured endpoints and explicit
+  `security: []` for `NoSecurity()`.
+- Reusable OpenAPI components for repeated path/query/header/cookie parameters.
+- Reusable OpenAPI components for repeated request bodies, headers, named
+  examples, and structurally identical no-body responses.
+- Attribute-level schema metadata for `readOnly`, `writeOnly`, `deprecated`,
+  `contentEncoding`, and `contentMediaType`.
+- Documentation-only `OpenAPIBody(...)` support for
+  `SkipResponseBodyEncodeDecode()` responses.
+- Pruning of unreferenced generated component schemas.
+- Closed-object union example suppression and related invalid-example cleanup.
+- Streaming example suppression for SSE and WebSocket response media types.
+- Truthful SSE handshake modeling in ordinary HTTP success responses with
+  `text/event-stream`.
+- Typed IR ownership for schema, parameter, operation-metadata, and reusable
+  component analysis, leaving `http/codegen/openapi/v3` mostly as a renderer.
+
+## Not Future Work
+
+The following items sometimes still appear in audit notes, but they are already
+framework capabilities rather than future roadmap units:
+
+- SDK-safe `operationId` cleanup.
+- Public tag alignment.
+- Stable schema naming for explicit body/result projections.
+- Broad `readOnly` / `writeOnly` support in the schema generator.
+- Baseline named-example hoisting support.
+- `OpenAPIBody(...)` for skip-encode/manual-response endpoints.
+- SSE response status and `text/event-stream` contract correctness.
 
 ## Working Rules
 
-### Keep Outsourcing Commodity Validation
+- Keep contract-shape decisions in `goa-light`, not in per-app patches.
+- Prefer semantic accuracy over preserving historical document shape.
+- Do not add DSL surface unless it removes repeated app-local glue or repeated
+  downstream contract drift.
+- For each unit below, add direct seam tests first, then rendered-spec coverage,
+  then `libopenapi` validation where output shape matters.
+- Treat the Auto-K contract as an acceptance surface, not as the source of
+  framework truth.
 
-Continue using libraries for:
+## Open Units
 
-- OpenAPI parsing and validation
-- spec sanity checks
-- protocol-level correctness checks in tests
+Each unit below is intentionally self-contained: it names the framework gap, the
+work it owns, what it does not own, and the acceptance bar.
 
-Avoid reintroducing bespoke parsing or validator logic where standard libraries already do the job well.
+### Unit 1: Payload-Bearing Response Reuse
 
-### Stability Rules
+Status: planned
 
-Keep these policies in `goa-light`, not in plugins:
+Problem:
+Repeated success and error responses that carry equivalent payload schemas still
+remain inline or reuse poorly unless they collapse to the small subset already
+handled today.
 
-- stable `operationId`
-- stable schema naming
-- explicit operation-level security semantics, including public-operation
-  overrides
-- truthful response/body/security modeling
-- no dead generated component schemas in published output
-- stable and accurate examples where possible
-- no transport-level streaming examples unless the generator can prove they
-  match the published schema
-- reusable shared components for repeated parameters, request bodies, responses,
-  headers, and examples
-- standards-first error contracts and auth field annotations that downstream SDK
-  generators can consume directly
+Scope:
 
-## Framework Improvement Tracks
+- Extend response componentization beyond structurally identical no-body
+  responses.
+- Reuse repeated payload-bearing responses when description, headers, content
+  type, and schema shape are equivalent enough for a shared public contract.
+- Cover common array, primitive/text, and equivalent error payload responses.
 
-These are framework changes, not app-local cleanup. They should be implemented
-in `goa-light` so downstream services inherit better OpenAPI contracts by
-default.
+Out of scope:
 
-### 1. Shared Component Deduplication Beyond Schemas
+- Problem-document migration.
+- New DSL naming surface.
 
-The current generator already prunes and deduplicates schemas. Parameters,
-request bodies, headers, named examples, and structurally identical no-body
-responses are now componentized as well.
+Acceptance:
 
-Add framework support to:
+- Repeated payload-bearing responses hoist into `components.responses` when the
+  public contract shape is equivalent.
+- The emitted response components validate through `libopenapi`.
+- Regression tests cover both direct IR/componentization seams and rendered
+  OpenAPI.
 
-- extend response reuse beyond simple no-body duplicates so repeated success and
-  error responses with equivalent schema payloads also hoist cleanly into
-  `components.responses`
-- continue tightening stable naming for hoisted request bodies, headers, and
-  examples across larger specimen APIs
+### Unit 2: Public Component Naming And Adapter Hygiene
 
-The generator should prefer component reuse whenever the public contract shape
-is equivalent and the component name is stable.
+Status: planned
 
-### 2. SDK-Safe Operation And Tag Naming
+Problem:
+Some reusable public components still get operation-derived names or hash
+suffixes where a stable public name should exist, and alias-collapse cleanup
+still needs a final hygiene pass in emitted component maps.
 
-The framework should expose a first-class public naming policy for:
+Scope:
 
-- `operationId`
-- tag names
-- security scheme names
+- Tighten naming for reusable responses, request bodies, parameters, and
+  examples where a stable public name can be inferred safely.
+- Add explicit naming controls where inference is not safe enough.
+- Prune nil or dead component placeholders that survive alias collapse or IR to
+  v3 adaptation.
 
-Requirements:
+Out of scope:
 
-- generated `operationId` values must be stable and SDK-safe
-- default operation tags should inherit service-level tags so they match the
-  top-level tag objects exactly
-- internal transport naming should not leak into published contract names unless
-  the API author opts into it explicitly
+- Banning hash suffixes entirely. Hash fallback remains the collision escape
+  hatch when no stable public name can be claimed safely.
+- Re-opening already solved explicit schema naming for `Body(...)`.
 
-### 3. Standards-First Error Contracts
+Acceptance:
 
-The framework should stop treating Goa-specific error envelopes as the only
-default machine contract for errors.
+- No nil-valued keys appear in emitted `components.*` maps.
+- Operation-derived component names stop leaking into shared public responses
+  when a generic or explicit public name is available.
+- Hash suffixes remain only as a collision fallback, not as the default naming
+  strategy for reusable public components.
 
-Add framework support to:
+### Unit 3: Auth Error Canonicalization
 
-- generate `application/problem+json` or a close RFC 9457-compatible profile
-- keep a stable machine-readable code on every typed error
-- reuse shared error responses from `components.responses`
-- let API authors opt into richer typed errors without handwritten OpenAPI
-  patches
+Status: planned
 
-### 4. Read-Only, Write-Only, And Deprecation Metadata
+Problem:
+`AuthErrorResponses()` still injects framework-owned 401/403 descriptions and
+response variants instead of consistently reusing canonical named auth errors
+already modeled in the design.
 
-The schema model already supports some OpenAPI field metadata, but the DSL and
-generator contract should go further.
+Scope:
 
-Add framework support to:
+- Make `AuthErrorResponses()` reuse existing compatible named auth errors when
+  status, media type, and payload shape line up.
+- Provide an explicit mapping surface if the framework cannot infer the intended
+  canonical auth errors safely.
 
-- keep attribute-level `writeOnly`, `readOnly`, `deprecated`,
-  `contentEncoding`, and `contentMediaType` metadata first-class in the
-  published schema
-- keep documentation-only response body declarations available for manual
-  HTTP response endpoints without leaking into runtime transport code
-- declare parameters alongside fields and operations centrally when a stable DSL
-  surface exists
-- split request and response schemas automatically when the same domain type
-  would otherwise leak secrets or server-managed fields both ways
+Out of scope:
 
-This is especially important for auth, session, secret, and token-heavy APIs.
+- Full problem-document migration.
+- App-specific auth semantics beyond standard 401/403 wiring.
 
-### 5. Better JSON Schema 2020-12 Coverage
+Acceptance:
 
-The framework should lean harder on the 3.1 / 2020-12 feature set it already
-targets.
+- Standard 401 and 403 auth responses reuse canonical named components when the
+  design already has them.
+- Generated auth responses stop diverging only because of framework-owned
+  description text.
+- Seam tests cover method-, service-, and API-scoped auth error reuse.
 
-Add framework support to:
+### Unit 4: Problem-Document Error Contracts
 
-- emit `$id` and other modern JSON Schema identifiers consistently
-- expose `const`, `allOf`, and richer object-composition controls where they
-  materially improve client generation
-- keep discriminated unions first-class for typed event and command envelopes
-- support more explicit binary / encoded payload metadata such as
-  `contentEncoding` and `contentMediaType` where relevant
+Status: planned
 
-### 6. Truthful Async Contract Modeling
+Problem:
+The framework still defaults to `application/vnd.goa.error`, which is not the
+best machine-facing contract for SDKs and automation.
 
-The current OpenAPI output can describe SSE response media types, but WebSocket
-and stream message contracts still need a stronger story.
+Scope:
 
-Add framework support to:
+- Add first-class support for `application/problem+json` or a close
+  RFC 9457-compatible profile.
+- Preserve stable machine-readable error codes in the generated contract.
+- Reuse shared error components and responses where possible.
 
-- keep HTTP handshake documentation in OpenAPI
-- publish message envelopes for SSE and WebSocket endpoints in a framework-owned
-  async contract artifact or documented extension surface
-- avoid fake JSON response bodies on `101` websocket upgrades
-- let downstream consumers generate async clients from a truthful contract
+Out of scope:
 
-### 7. Response Links For Workflow APIs
+- A forced breaking migration for all consumers in one step.
+- Per-application custom error vocabularies outside the framework-owned model.
 
-Auto-K has many workflow-style operations where a successful mutation naturally
-points to the next resource or follow-up operation.
+Acceptance:
 
-Add framework support to:
+- The framework can publish standards-first typed errors without handwritten
+  OpenAPI patches.
+- Reusable problem schemas and responses are generated and validated.
+- Transport and runtime expectations remain coherent with generated contracts.
 
-- define links from create operations to fetch operations
-- define links from queued or asynchronous operations to status operations
-- define links from list results to item-level operations where identifiers are
-  already present in the payload
+### Unit 5: Projection Controls For Public Request/Response Surfaces
 
-### 8. Contract Linting And Consumer Smoke Tests
+Status: planned
 
-The framework should enforce high-signal OpenAPI rules directly in its own test
-suite.
+Problem:
+The framework still lacks a complete public contract story for when a stable
+request body, parameter component, or split request/response schema should be
+published explicitly rather than inferred from repeated inline shapes.
 
-Add checks for:
+Scope:
 
-- tag mismatches between operations and top-level tag objects
-- unsafe `operationId` values
-- repeated inline parameter / request / response shapes that should be
-  componentized
-- missing `readOnly` / `writeOnly` on obvious secret-bearing fields
-- invalid async handshake modeling
+- Add explicit component naming controls for request bodies and parameters where
+  a public identity exists but automatic hoisting is not sufficient.
+- Add automatic request/response schema splitting on top of the existing
+  metadata pass when the same domain type would otherwise leak secrets or
+  server-managed fields both ways.
 
-Pair those checks with downstream SDK smoke generation against at least one
-TypeScript target and one Go target.
+Out of scope:
 
-## Backlog
+- Replacing normal DSL modeling with contract-only DTO sprawl.
+- Re-opening already completed `readOnly` / `writeOnly` metadata support.
 
-- continue improving OpenAPI output where it materially helps machine consumers
-- keep contract-shape decisions centralized in `goa-light`
-- use the Auto-K contract checklist as a real-world acceptance surface:
-  [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md)
-- implement shared-component reuse for parameters, request bodies, responses,
-  headers, and examples
-- extend the completed shared-component pass so repeated payload-bearing
-  responses componentize even when they carry equivalent schema refs generated
-  from separate endpoints
-- add SDK-safe naming policy for operation IDs and remaining tag/security names
-- add standards-first typed error contracts
-- extend the completed schema metadata pass with a first-class DSL story for
-  parameters plus automatic request/response schema splitting where needed
-- add a truthful async contract story for SSE and WebSocket endpoints
-- keep the specimen matrix broad enough to cover:
-  - form and multipart request bodies
-  - closed-object union wrappers and union collections
-  - result views and collections
-  - SSE and WebSocket streaming response shapes
-  - streaming endpoints whose field-level examples are incomplete or
-    intentionally sparse
+Acceptance:
+
+- The framework can publish stable request-body and parameter components without
+  app-specific manual OpenAPI patching.
+- Request/response schema splitting removes real secret/computed-field glue in
+  consuming apps.
+- Tests cover both explicit metadata-driven naming and automatic split-schema
+  behavior.
+
+### Unit 6: Async Contract Publication
+
+Status: planned
+
+Problem:
+OpenAPI can describe the HTTP handshake for SSE and WebSocket endpoints, but it
+still lacks a truthful first-class contract for stream message envelopes.
+
+Scope:
+
+- Keep handshake-level HTTP/OpenAPI behavior accurate.
+- Publish a framework-owned async contract artifact or documented extension for
+  SSE and WebSocket message shapes.
+- Give downstream consumers a stable contract surface for real-time APIs.
+
+Out of scope:
+
+- Pretending upgraded connections are normal JSON request/response exchanges.
+- Handwritten per-app async artifacts as the primary framework story.
+
+Acceptance:
+
+- SSE and WebSocket endpoints can publish message-envelope contracts in a
+  framework-owned way.
+- The framework no longer stops at handshake-only documentation for streaming
+  APIs.
+- Tests cover both handshake correctness and async artifact generation.
+
+### Unit 7: OpenAPI Links DSL
+
+Status: planned
+
+Problem:
+The OpenAPI model and renderer can represent links, but the DSL still has no
+ergonomic first-class way to publish them.
+
+Scope:
+
+- Add a DSL surface for response links.
+- Emit those links in generated OpenAPI responses and reusable components.
+- Cover the common workflow cases that remove repeated app-local OpenAPI glue.
+
+Out of scope:
+
+- General hypermedia runtime behavior.
+- Async-contract publication for stream messages.
+
+Acceptance:
+
+- API authors can declare response links without handwritten OpenAPI patches.
+- Rendered OpenAPI publishes those links in a stable and validated shape.
+- The DSL is narrow and workflow-focused rather than a generic metadata dump.
+
+### Unit 8: Contract Linting And Consumer Smoke Tests
+
+Status: planned
+
+Problem:
+The framework still relies too heavily on human review to catch high-signal
+OpenAPI regressions that should be enforced automatically.
+
+Scope:
+
+- Add contract linting for high-value generator regressions.
+- Add downstream smoke generation against at least one TypeScript target and one
+  Go target.
+- Keep the specimen matrix broad enough to exercise completed and planned
+  contract behavior.
+
+Out of scope:
+
+- Replacing focused seam tests with only end-to-end generation tests.
+- Building a full external SDK toolchain inside the framework repo.
+
+Acceptance:
+
+- The test suite fails on unsafe `operationId`, tag drift, reusable-component
+  regressions, obvious secret-field annotation misses, and invalid async
+  handshake modeling.
+- At least one TypeScript and one Go downstream consumer smoke generation path
+  stay green.
+
+## Execution Order
+
+Land the remaining OpenAPI work in this order unless a concrete downstream bug
+forces reprioritization:
+
+1. Unit 1: Payload-Bearing Response Reuse
+2. Unit 2: Public Component Naming And Adapter Hygiene
+3. Unit 3: Auth Error Canonicalization
+4. Unit 5: Projection Controls For Public Request/Response Surfaces
+5. Unit 4: Problem-Document Error Contracts
+6. Unit 7: OpenAPI Links DSL
+7. Unit 6: Async Contract Publication
+8. Unit 8: Contract Linting And Consumer Smoke Tests
+
+## Downstream Acceptance Surface
+
+Use [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md)
+as the main downstream acceptance surface for these units.
