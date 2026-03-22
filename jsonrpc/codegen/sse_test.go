@@ -225,13 +225,94 @@ func TestJSONRPCMixedHTTPAndSSEHandlerRoutesByMethod(t *testing.T) {
 
 	require.NotEmpty(t, mixedHandlerCode, "jsonrpc-mixed-server-handler section not found")
 	require.Contains(t, mixedHandlerCode, `if !strings.Contains(accept, "text/event-stream") {`)
-	require.Contains(t, mixedHandlerCode, `if r.Method == http.MethodGet {`)
+	require.Contains(t, mixedHandlerCode, `case http.MethodGet:`)
+	require.Contains(t, mixedHandlerCode, `req := &jsonrpc.RawRequest{JSONRPC: "2.0", ID: "events-stream", Method: "events/stream"}`)
 	require.Contains(t, mixedHandlerCode, `var req jsonrpc.RawRequest`)
 	require.Contains(t, mixedHandlerCode, `switch req.Method {`)
 	require.Contains(t, mixedHandlerCode, `case "events/stream":`)
+	require.Contains(t, mixedHandlerCode, `if err := s.EventsStream(r.Context(), r, req, w); err != nil {`)
 	require.Contains(t, mixedHandlerCode, `s.handleSSE(w, r)`)
 	require.Contains(t, mixedHandlerCode, `s.handleHTTP(w, r)`)
 	require.NotContains(t, mixedHandlerCode, "if strings.Contains(accept, \"text/event-stream\") {\n\t\ts.handleSSE(w, r)\n\t\treturn\n\t}")
+}
+
+func TestJSONRPCMixedServerInitUsesServeHTTP(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var serverInitCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-server-init" {
+				continue
+			}
+			serverInitCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, serverInitCode, "jsonrpc-server-init section not found")
+	require.Contains(t, serverInitCode, `Mixed HTTP/SSE services negotiate transports in ServeHTTP`)
+	require.Contains(t, serverInitCode, `s.Handler = http.HandlerFunc(s.ServeHTTP)`)
+	require.NotContains(t, serverInitCode, `s.Handler = http.HandlerFunc(s.handleSSE)`)
+}
+
+func TestJSONRPCMixedServerMountIncludesGET(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var mountCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-server-mount" {
+				continue
+			}
+			mountCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, mountCode, "jsonrpc-server-mount section not found")
+	require.Contains(t, mountCode, `mux.Handle("POST", "/rpc", h.ServeHTTP)`)
+	require.Contains(t, mountCode, `mux.Handle("GET", "/rpc", h.ServeHTTP)`)
+}
+
+func TestJSONRPCMixedHandlerGroupsMultipleSSEMethods(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedMultipleSSEMethodsDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var mixedHandlerCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-mixed-server-handler" {
+				continue
+			}
+			mixedHandlerCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, mixedHandlerCode, "jsonrpc-mixed-server-handler section not found")
+	require.Contains(t, mixedHandlerCode, `case "tools/call", "events/stream":`)
+	require.NotContains(t, mixedHandlerCode, "case \"tools/call\":\n\t\tcase \"events/stream\":")
 }
 
 func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
@@ -277,6 +358,48 @@ var jsonrpcMixedInitializeAndEventsStreamDSL = func() {
 				dsl.Attribute("protocol_version", dsl.String)
 			})
 			dsl.JSONRPC(func() {})
+		})
+		dsl.Method("events/stream", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.StreamingResult(func() {
+				dsl.Attribute("value", dsl.String)
+			})
+			dsl.JSONRPC(func() {
+				dsl.ServerSentEvents()
+			})
+		})
+	})
+}
+
+var jsonrpcMixedMultipleSSEMethodsDSL = func() {
+	dsl.API("jsonrpc-mixed-multiple-sse-test", func() {
+		dsl.JSONRPC(func() {})
+	})
+	dsl.Service("JSONRPCMixedMultipleSSEMethodsService", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		dsl.Method("initialize", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.Result(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Method("tools/call", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.StreamingResult(func() {
+				dsl.Attribute("value", dsl.String)
+			})
+			dsl.JSONRPC(func() {
+				dsl.ServerSentEvents()
+			})
 		})
 		dsl.Method("events/stream", func() {
 			dsl.Payload(func() {

@@ -145,11 +145,11 @@ func renderJSONRPCServerStruct(data *httpcodegen.ServiceData) string {
 	return b.String()
 }
 
-func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE bool) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-init", renderJSONRPCServerInit(data, hasSSE))
+func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
+	return codegen.NewRawSection("jsonrpc-server-init", renderJSONRPCServerInit(data, hasSSE, hasMixed))
 }
 
-func renderJSONRPCServerInit(data *httpcodegen.ServiceData, hasSSE bool) string {
+func renderJSONRPCServerInit(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) string {
 	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(fmt.Sprintf("%s creates a JSON-RPC server which loads HTTP requests and calls the %q service methods.", data.ServerInit, data.Service.Name)))
@@ -198,6 +198,9 @@ func renderJSONRPCServerInit(data *httpcodegen.ServiceData, hasSSE bool) string 
 	switch {
 	case httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]):
 		b.WriteString("\t// WebSocket services implement ServeHTTP for upgrade\n")
+		b.WriteString("\ts.Handler = http.HandlerFunc(s.ServeHTTP)\n")
+	case hasMixed:
+		b.WriteString("\t// Mixed HTTP/SSE services negotiate transports in ServeHTTP\n")
 		b.WriteString("\ts.Handler = http.HandlerFunc(s.ServeHTTP)\n")
 	case hasSSE:
 		b.WriteString("\t// SSE-only services route via handleSSE\n")
@@ -269,13 +272,28 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 	var b strings.Builder
 	b.WriteString("\n// ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.\n")
 	fmt.Fprintf(&b, "func (s *%s) ServeHTTP(w http.ResponseWriter, r *http.Request) {\n", data.ServerStruct)
+	b.WriteString("\tswitch r.Method {\n")
+	b.WriteString("\tcase http.MethodGet:\n")
+	b.WriteString("\t\treq := &jsonrpc.RawRequest{JSONRPC: \"2.0\", ID: \"events-stream\", Method: \"events/stream\"}\n")
+	b.WriteString("\t\tswitch req.Method {\n")
+	for _, endpoint := range data.Endpoints {
+		if endpoint.SSE == nil || endpoint.Method.Name != "events/stream" {
+			continue
+		}
+		fmt.Fprintf(&b, "\t\tcase %q:\n", endpoint.Method.Name)
+		fmt.Fprintf(&b, "\t\t\tif err := s.%s(r.Context(), r, req, w); err != nil {\n", endpoint.Method.VarName)
+		fmt.Fprintf(&b, "\t\t\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"handler error for %s: %%w\", err))\n", endpoint.Method.Name)
+		b.WriteString("\t\t\t}\n")
+		b.WriteString("\t\t\treturn\n")
+	}
+	b.WriteString("\t\tdefault:\n")
+	b.WriteString("\t\t\thttp.NotFound(w, r)\n")
+	b.WriteString("\t\t\treturn\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\tcase http.MethodPost:\n")
 	b.WriteString("\taccept := r.Header.Get(\"Accept\")\n")
 	b.WriteString("\tif !strings.Contains(accept, \"text/event-stream\") {\n")
 	b.WriteString("\t\ts.handleHTTP(w, r)\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n\n")
-	b.WriteString("\tif r.Method == http.MethodGet {\n")
-	b.WriteString("\t\ts.handleSSE(w, r)\n")
 	b.WriteString("\t\treturn\n")
 	b.WriteString("\t}\n\n")
 	b.WriteString("\tbody, err := io.ReadAll(r.Body)\n")
@@ -300,16 +318,23 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 	b.WriteString("\t\treturn\n")
 	b.WriteString("\t}\n")
 	b.WriteString("\tr.Body = io.NopCloser(bytes.NewReader(body))\n\n")
-	b.WriteString("\tswitch req.Method {\n")
+	sseMethods := make([]string, 0, len(data.Endpoints))
 	for _, endpoint := range data.Endpoints {
 		if endpoint.SSE == nil {
 			continue
 		}
-		fmt.Fprintf(&b, "\tcase %q:\n", endpoint.Method.Name)
+		sseMethods = append(sseMethods, fmt.Sprintf("%q", endpoint.Method.Name))
 	}
-	b.WriteString("\t\ts.handleSSE(w, r)\n")
+	b.WriteString("\tswitch req.Method {\n")
+	if len(sseMethods) > 0 {
+		fmt.Fprintf(&b, "\tcase %s:\n", strings.Join(sseMethods, ", "))
+		b.WriteString("\t\ts.handleSSE(w, r)\n")
+	}
 	b.WriteString("\tdefault:\n")
 	b.WriteString("\t\ts.handleHTTP(w, r)\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\tdefault:\n")
+	b.WriteString("\t\thttp.NotFound(w, r)\n")
 	b.WriteString("\t}\n")
 	b.WriteString("}\n")
 	return codegen.NewRawSection("jsonrpc-mixed-server-handler", b.String())
@@ -331,6 +356,7 @@ func renderJSONRPCServerMount(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 		b.WriteString("\t// Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header and JSON-RPC method\n")
 		for _, route := range data.Endpoints[0].Routes {
 			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", route.Verb, route.Path)
+			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", route.Path)
 		}
 	case hasSSE:
 		b.WriteString("\t// SSE only: mount SSE handler\n")

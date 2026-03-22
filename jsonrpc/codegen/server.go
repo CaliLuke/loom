@@ -124,7 +124,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 
 	sections = append(sections,
 		jsonrpcServerStructSection(data),
-		jsonrpcServerInitSection(data, hasJSONRPCSSE(svc, services)),
+		jsonrpcServerInitSection(data, hasJSONRPCSSE(svc, services), hasMixedJSONRPCTransports(svc, services)),
 		jsonrpcServerServiceSection(data),
 		jsonrpcServerUseSection(data),
 		jsonrpcServerMethodNamesSection(data),
