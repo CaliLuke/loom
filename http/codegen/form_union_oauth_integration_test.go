@@ -68,7 +68,7 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 	repoRoot := checkoutPinnedLoomModule(t, dir)
 	goMod := fmt.Sprintf(`module %s
 
-go 1.25.0
+go 1.26.0
 
 require github.com/CaliLuke/loom v1.0.0
 
