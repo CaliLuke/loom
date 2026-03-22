@@ -3,8 +3,8 @@ package codegen
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen/service"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // RunHTTPDSL returns the HTTP DSL root resulting from running the given DSL.

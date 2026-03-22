@@ -3,7 +3,7 @@ package expr
 import (
 	"sort"
 
-	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/eval"
 )
 
 type (

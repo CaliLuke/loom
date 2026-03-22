@@ -3,8 +3,8 @@ package service
 import (
 	"path/filepath"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // InterceptorsFiles returns the interceptors files for the given service.

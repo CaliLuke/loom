@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // Tag allows adding meta data to a single tag that is used by the Operation Object. It is

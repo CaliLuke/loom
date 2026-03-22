@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/codegen"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -31,7 +31,6 @@ type Generator struct {
 	Output string
 
 	// DesignVersion is the major component of the Loom version used by the design DSL.
-	// DesignVersion is either 2 or 3.
 	DesignVersion int
 
 	// bin is the filename of the generated generator.
@@ -54,7 +53,7 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 	var version int
 	var hasVendorDirectory bool
 	{
-		version = 2
+		version = codegen.DesignVersion
 		matched := false
 		startPkgLoad := time.Now()
 		pkgs, _ := packages.Load(&packages.Config{Mode: packages.NeedFiles | packages.NeedModule}, path)
@@ -62,7 +61,7 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 			fmt.Fprintf(os.Stderr, "[TIMING]   packages.Load (design files) took %v\n", time.Since(startPkgLoad))
 		}
 		fset := token.NewFileSet()
-		p := regexp.MustCompile(`github.com/CaliLuke/loom/v(\d+)/dsl`)
+		p := regexp.MustCompile(`github.com/CaliLuke/loom(?:/v(\d+))?/dsl`)
 		for _, pkg := range pkgs {
 			// Nil check in case packages.Load can't get module info
 			if pkg.Module != nil {
@@ -77,7 +76,9 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 							matches := p.FindStringSubmatch(s.Path.Value)
 							if len(matches) == 2 {
 								matched = true
-								version, _ = strconv.Atoi(matches[1]) // We know it's an integer
+								if matches[1] != "" {
+									version, _ = strconv.Atoi(matches[1]) // We know it's an integer
+								}
 							}
 						}
 					}
@@ -125,10 +126,6 @@ func (g *Generator) Write(_ bool) error {
 			"CleanupDirs":   cleanupDirs(g.Command, g.Output),
 			"DesignVersion": g.DesignVersion,
 		}
-		ver := ""
-		if g.DesignVersion > 2 {
-			ver = "v" + strconv.Itoa(g.DesignVersion) + "/"
-		}
 		imports := []*codegen.ImportSpec{
 			codegen.SimpleImport("flag"),
 			codegen.SimpleImport("fmt"),
@@ -138,10 +135,10 @@ func (g *Generator) Write(_ bool) error {
 			codegen.SimpleImport("strconv"),
 			codegen.SimpleImport("strings"),
 			codegen.SimpleImport("time"),
-			codegen.SimpleImport("github.com/CaliLuke/loom/" + ver + "codegen"),
-			codegen.SimpleImport("github.com/CaliLuke/loom/" + ver + "codegen/generator"),
-			codegen.SimpleImport("github.com/CaliLuke/loom/" + ver + "eval"),
-			codegen.NewImport("goa", "github.com/CaliLuke/loom/"+ver+"pkg"),
+			codegen.SimpleImport("github.com/CaliLuke/loom/codegen"),
+			codegen.SimpleImport("github.com/CaliLuke/loom/codegen/generator"),
+			codegen.SimpleImport("github.com/CaliLuke/loom/eval"),
+			codegen.NewImport("goa", "github.com/CaliLuke/loom/pkg"),
 			codegen.NewImport("_", g.DesignPath),
 		}
 		sections = []*codegen.SectionTemplate{
@@ -164,7 +161,15 @@ func (g *Generator) Compile(debug bool) error {
 	// We first need to go get the generated package to make sure that all
 	// dependencies are added to go.sum prior to compiling.
 	startLoad := time.Now()
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName}, fmt.Sprintf(".%c%s", filepath.Separator, g.tmpDir))
+	pkgs, err := packages.Load(&packages.Config{
+		Mode: packages.NeedName,
+		Env: append(
+			os.Environ(),
+			"GO111MODULE=on",
+			"GOWORK=off",
+			"GOFLAGS=-mod=mod",
+		),
+	}, fmt.Sprintf(".%c%s", filepath.Separator, g.tmpDir))
 	if err != nil {
 		return err
 	}
@@ -175,16 +180,6 @@ func (g *Generator) Compile(debug bool) error {
 		fmt.Fprintf(os.Stderr, "[TIMING]   packages.Load (temp dir) took %v\n", time.Since(startLoad))
 	}
 
-	if !g.hasVendorDirectory {
-		startGet := time.Now()
-		if err := g.runGoCmd("get", pkgs[0].PkgPath); err != nil {
-			return err
-		}
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]   go get took %v\n", time.Since(startGet))
-		}
-	}
-
 	startBuild := time.Now()
 	err = g.runGoCmd("build", "-o", g.bin)
 	if debug {
@@ -193,8 +188,8 @@ func (g *Generator) Compile(debug bool) error {
 
 	// If we're in vendor context we check the error string to see if it's an issue of unsatisfied dependencies
 	if err != nil && g.hasVendorDirectory {
-		if strings.Contains(err.Error(), "cannot find package") && strings.Contains(err.Error(), "/github.com/CaliLuke/loom/v3/codegen/generator") {
-			return errors.New("generated code expected `github.com/CaliLuke/loom/v3/codegen/generator` to be present in the vendor directory, see documentation for more details")
+		if strings.Contains(err.Error(), "cannot find package") && strings.Contains(err.Error(), "/github.com/CaliLuke/loom/codegen/generator") {
+			return errors.New("generated code expected `github.com/CaliLuke/loom/codegen/generator` to be present in the vendor directory, see documentation for more details")
 		}
 	}
 
@@ -262,6 +257,12 @@ func (g *Generator) runGoCmd(args ...string) error {
 		Path: gobin,
 		Args: append([]string{gobin}, args...),
 		Dir:  g.tmpDir,
+		Env: append(
+			os.Environ(),
+			"GO111MODULE=on",
+			"GOWORK=off",
+			"GOFLAGS=-mod=mod",
+		),
 	}
 	out, err := c.CombinedOutput()
 	if err != nil {

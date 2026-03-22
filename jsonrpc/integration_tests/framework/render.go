@@ -8,7 +8,7 @@ import (
 func renderDesignSource(design *DesignData) string {
 	var b strings.Builder
 	b.WriteString("package design\n\n")
-	b.WriteString("import . \"github.com/CaliLuke/loom/v3/dsl\"\n\n")
+	b.WriteString("import . \"github.com/CaliLuke/loom/dsl\"\n\n")
 	fmt.Fprintf(&b, "var _ = API(%q, func() {\n", design.APIName)
 	fmt.Fprintf(&b, "\tTitle(%q)\n", design.APITitle)
 	fmt.Fprintf(&b, "\tDescription(%q)\n", design.APIDescription)

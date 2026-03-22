@@ -1,6 +1,6 @@
 package expr
 
-import "github.com/CaliLuke/loom/v3/eval"
+import "github.com/CaliLuke/loom/eval"
 
 type (
 	// ErrorRemedyExpr describes machine-consumable remediation guidance for an

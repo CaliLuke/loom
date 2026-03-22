@@ -11,9 +11,9 @@ import (
 
 	"github.com/gohugoio/hashstructure"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
 )
 
 type (

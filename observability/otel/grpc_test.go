@@ -3,7 +3,7 @@ package otel
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/observability/otel/internal/testkit"
+	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
 	"google.golang.org/grpc"
 	health "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"

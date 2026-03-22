@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/jsonrpc/integration_tests/framework"
-	"github.com/CaliLuke/loom/v3/jsonrpc/integration_tests/harness"
+	"github.com/CaliLuke/loom/jsonrpc/integration_tests/framework"
+	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
 func TestSSEHeadersAreDeferredUntilFirstEvent(t *testing.T) {

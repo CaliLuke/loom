@@ -1,7 +1,7 @@
 package expr
 
 import (
-	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/eval"
 )
 
 type (
@@ -60,7 +60,7 @@ func (*ResultTypesRoot) DependsOn() []eval.Root {
 // Packages returns the Go import path to this and the dsl packages.
 func (*ResultTypesRoot) Packages() []string {
 	return []string{
-		"github.com/CaliLuke/loom/v3/expr",
-		"github.com/CaliLuke/loom/v3/dsl",
+		"github.com/CaliLuke/loom/expr",
+		"github.com/CaliLuke/loom/dsl",
 	}
 }

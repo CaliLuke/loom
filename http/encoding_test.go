@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 var (

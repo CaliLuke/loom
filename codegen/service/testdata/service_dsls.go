@@ -3,7 +3,7 @@ package testdata
 import (
 	"fmt"
 
-	. "github.com/CaliLuke/loom/v3/dsl"
+	. "github.com/CaliLuke/loom/dsl"
 )
 
 var SingleMethodDSL = func() {

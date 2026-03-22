@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // AttributeValidationCode produces Go code that runs the validations defined

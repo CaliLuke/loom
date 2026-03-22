@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	servicecodegen "github.com/CaliLuke/loom/v3/codegen/service"
+	"github.com/CaliLuke/loom/codegen"
+	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 )
 
 func typeDeclSection(name string, data *TypeData) codegen.Section {

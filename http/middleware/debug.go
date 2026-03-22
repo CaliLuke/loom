@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	goahttp "github.com/CaliLuke/loom/v3/http"
-	"github.com/CaliLuke/loom/v3/middleware"
+	goahttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/middleware"
 )
 
 // responseDupper tees the response to a buffer and a response writer.

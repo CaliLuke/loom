@@ -13,8 +13,8 @@ import (
 	"net/http"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/v3/http"
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/http"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 // EncodeTickResponse returns an encoder for responses returned by the clock

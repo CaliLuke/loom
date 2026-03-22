@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/eval"
 )
 
 func TestServerExprEvalName(t *testing.T) {

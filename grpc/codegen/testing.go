@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/codegen/service"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // RunGRPCDSL returns the GRPC DSL root resulting from running the given DSL.

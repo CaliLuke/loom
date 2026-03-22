@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/middleware/xray"
+	"github.com/CaliLuke/loom/middleware/xray"
 	"github.com/pkg/errors"
 )
 

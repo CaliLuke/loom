@@ -5,8 +5,8 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // ServerFiles returns all the server files for every gRPC service. The files

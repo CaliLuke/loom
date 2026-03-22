@@ -5,9 +5,9 @@ import (
 	"hash"
 	"maps"
 
-	"github.com/CaliLuke/loom/v3/expr"
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
-	openapiir "github.com/CaliLuke/loom/v3/http/codegen/openapi/internal/ir"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
 )
 
 type (

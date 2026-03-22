@@ -3,9 +3,9 @@ package codegen
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen/service"
-	"github.com/CaliLuke/loom/v3/expr"
-	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/expr"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 // RunJSONRPCDSL returns the DSL root resulting from running the given DSL.

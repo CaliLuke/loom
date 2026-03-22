@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/eval"
 )
 
 // SchemeKind is a type of security scheme.

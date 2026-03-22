@@ -33,7 +33,7 @@ Define a simple JSON-RPC calculator service:
 // design/design.go
 package design
 
-import . "github.com/CaliLuke/loom/v3/dsl"
+import . "github.com/CaliLuke/loom/dsl"
 
 var _ = API("calculator", func() {
     Title("Calculator Service")

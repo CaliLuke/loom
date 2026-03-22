@@ -4,8 +4,8 @@ import (
 	"context"
 	"net"
 
-	"github.com/CaliLuke/loom/v3/grpc/middleware"
-	"github.com/CaliLuke/loom/v3/middleware/xray"
+	"github.com/CaliLuke/loom/grpc/middleware"
+	"github.com/CaliLuke/loom/middleware/xray"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"

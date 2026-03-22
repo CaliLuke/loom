@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	. "github.com/CaliLuke/loom/v3/dsl"
+	. "github.com/CaliLuke/loom/dsl"
 )
 
 // JSONRPCSSEDuplicateEventDSL defines two JSON-RPC SSE streaming methods that share the

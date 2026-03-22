@@ -5,7 +5,7 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	gocodegen "github.com/CaliLuke/loom/v3/codegen"
+	gocodegen "github.com/CaliLuke/loom/codegen"
 )
 
 func clientStructSection(data *ServiceData) gocodegen.Section {

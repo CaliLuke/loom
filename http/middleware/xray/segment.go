@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/middleware/xray"
+	"github.com/CaliLuke/loom/middleware/xray"
 )
 
 type (

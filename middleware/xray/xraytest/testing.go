@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CaliLuke/loom/v3/middleware/xray"
+	"github.com/CaliLuke/loom/middleware/xray"
 )
 
 // ReadUDP verifies that exactly the expected number of messages are received.

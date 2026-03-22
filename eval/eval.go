@@ -284,10 +284,10 @@ func caller() string {
 			break
 		}
 		name := runtime.FuncForPC(pc).Name()
-		if !strings.HasPrefix(name, "github.com/CaliLuke/loom/v3/dsl.") {
+		if !strings.HasPrefix(name, "github.com/CaliLuke/loom/dsl.") {
 			break
 		}
-		caller := strings.Split(strings.TrimPrefix(name, "github.com/CaliLuke/loom/v3/dsl."), ".")[0]
+		caller := strings.Split(strings.TrimPrefix(name, "github.com/CaliLuke/loom/dsl."), ".")[0]
 		for _, first := range caller {
 			if unicode.IsUpper(first) {
 				latest = caller

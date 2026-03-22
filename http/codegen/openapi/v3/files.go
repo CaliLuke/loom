@@ -7,8 +7,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // Files returns the OpenAPI 3.1 specification files in JSON and YAML formats.

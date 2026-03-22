@@ -49,7 +49,7 @@ func (e *Error) Error() string {
 
 // normalizeFileForPackageMatch strips @version segments from module cache paths
 // so that package matching works regardless of where the module is cached.
-// For example: ".../goa/v3@v3.23.2/dsl/..." becomes ".../goa/v3/dsl/...".
+// For example: ".../loom@v1.0.0/dsl/..." becomes ".../loom/dsl/...".
 func normalizeFileForPackageMatch(file string) string {
 	file = filepath.ToSlash(file)
 	parts := strings.Split(file, "/")

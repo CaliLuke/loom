@@ -3,9 +3,9 @@ package codegen
 import (
 	"path/filepath"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
-	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 // SSEServerFiles returns the generated JSON-RPC SSE server files if any.

@@ -3,7 +3,7 @@ package logrusbridge
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/observability/otel/internal/testkit"
+	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
 	"go.opentelemetry.io/otel/attribute"
 	otellog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"

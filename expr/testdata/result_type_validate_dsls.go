@@ -1,6 +1,6 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/v3/dsl"
+import . "github.com/CaliLuke/loom/dsl"
 
 // DuplicateResultTypeNamesDSL defines two result types that both end up with the
 // same TypeName, which should be rejected by validation.

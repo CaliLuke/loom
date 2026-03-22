@@ -10,7 +10,7 @@ import (
 	chainedinterceptorservice "chained_interceptor_service"
 	"context"
 	"fmt"
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goa "github.com/CaliLuke/loom/pkg"
 	"goa.design/clue/log"
 )
 

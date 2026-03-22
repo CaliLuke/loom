@@ -3,8 +3,8 @@ package generator
 import (
 	"fmt"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/eval"
 )
 
 // Genfunc is the type of the functions invoked to generate code.

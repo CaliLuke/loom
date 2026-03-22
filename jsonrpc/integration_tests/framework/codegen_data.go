@@ -1,7 +1,7 @@
 package framework
 
 import (
-	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/codegen"
 )
 
 // DesignData holds the semantic data for generating the design file

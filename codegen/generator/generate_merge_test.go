@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/eval"
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/eval"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 // TestGenerateMergesSamePathFiles verifies that when two generators emit content

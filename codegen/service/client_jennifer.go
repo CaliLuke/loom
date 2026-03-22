@@ -5,7 +5,7 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/codegen"
 )
 
 func clientStructSection(data *EndpointsData) codegen.Section {

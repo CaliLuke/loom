@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/jsonrpc/codegen/testdata"
+	"github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
 )
 
 // TestJSONRPCSSE_DedupEventTypes verifies the SSE server stream switch contains only

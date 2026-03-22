@@ -2,7 +2,7 @@
 package dsl_test
 
 import (
-	. "github.com/CaliLuke/loom/v3/dsl"
+	. "github.com/CaliLuke/loom/dsl"
 )
 
 // BasicType shows the basic usage for Type.

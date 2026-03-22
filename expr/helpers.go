@@ -1,7 +1,7 @@
 package expr
 
 import (
-	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/eval"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )

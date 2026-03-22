@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"testing"
 
-	grpcm "github.com/CaliLuke/loom/v3/grpc/middleware"
-	"github.com/CaliLuke/loom/v3/middleware"
+	grpcm "github.com/CaliLuke/loom/grpc/middleware"
+	"github.com/CaliLuke/loom/middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )

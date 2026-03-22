@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/v3/http"
+	goahttp "github.com/CaliLuke/loom/http"
 )
 
 // TickClientStream is the interface for reading Server-Sent Events.

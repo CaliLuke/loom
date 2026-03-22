@@ -171,4 +171,4 @@ The package automatically detects and formats content based on file extensions:
 
 ## API Reference
 
-See the [package documentation](https://pkg.go.dev/github.com/CaliLuke/loom/v3/codegen/testutil) for complete API details.
+See the [package documentation](https://pkg.go.dev/github.com/CaliLuke/loom/codegen/testutil) for complete API details.

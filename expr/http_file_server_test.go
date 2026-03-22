@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/expr"
-	"github.com/CaliLuke/loom/v3/expr/testdata"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/expr/testdata"
 )
 
 func TestFilesDSL(t *testing.T) {

@@ -14,8 +14,8 @@ import (
 	"sync"
 
 	clock "example.com/ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/v3/http"
-	"github.com/CaliLuke/loom/v3/jsonrpc"
+	goahttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
 )
 
 // clockSSEStream implements the clock.Stream interface for SSE transport.

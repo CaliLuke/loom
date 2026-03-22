@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/eval"
 )
 
 func TestReportErrorRecordsLocation(t *testing.T) {

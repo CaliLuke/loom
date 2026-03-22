@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // ExtensionsFromExpr generates openapi extensions from the given meta

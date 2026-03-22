@@ -1,8 +1,8 @@
 package openapiv3
 
 import (
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
-	openapiir "github.com/CaliLuke/loom/v3/http/codegen/openapi/internal/ir"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
 )
 
 func reusableComponentsFromIR(components *openapiir.Components) reusableComponents {

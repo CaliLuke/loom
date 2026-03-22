@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen/testdata"
-	"github.com/CaliLuke/loom/v3/codegen/testutil"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen/testdata"
+	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestRecursiveValidationCode(t *testing.T) {

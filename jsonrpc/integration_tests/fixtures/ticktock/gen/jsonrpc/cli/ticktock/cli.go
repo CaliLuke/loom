@@ -14,8 +14,8 @@ import (
 	"os"
 
 	clockc "example.com/ticktock/gen/jsonrpc/clock/client"
-	goahttp "github.com/CaliLuke/loom/v3/http"
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/http"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 // UsageCommands returns the set of commands and sub-commands using the format

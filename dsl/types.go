@@ -1,6 +1,6 @@
 package dsl
 
-import "github.com/CaliLuke/loom/v3/expr"
+import "github.com/CaliLuke/loom/expr"
 
 const (
 	// Boolean is the type for a JSON boolean.

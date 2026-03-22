@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/codegen/testutil"
 )
 
 // Example: Basic usage with AssertString

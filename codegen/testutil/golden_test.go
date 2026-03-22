@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/codegen/testutil"
 )
 
 func TestGoldenFile(t *testing.T) {

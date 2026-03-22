@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/eval"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/eval"
 	"golang.org/x/tools/go/packages"
 )
 

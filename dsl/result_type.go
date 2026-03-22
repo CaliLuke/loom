@@ -5,8 +5,8 @@ import (
 	"mime"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/eval"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // Counter used to create unique result type names for identifier-less result

@@ -6,7 +6,7 @@ import (
 	"io"
 	"path/filepath"
 
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 type (

@@ -13,7 +13,7 @@ The client interceptor works by extracing the segment from the RPC's context
 and creates a new sub-segment. It updates the RPC context with the latest trace
 information.
 
-Deprecated: use github.com/CaliLuke/loom/v3/grpc/middleware/otel instead. This package
+Deprecated: use github.com/CaliLuke/loom/grpc/middleware/otel instead. This package
 will be removed in a future version of Loom.
 */
 package xray

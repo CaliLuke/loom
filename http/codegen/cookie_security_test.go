@@ -9,11 +9,11 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/dsl"
-	"github.com/CaliLuke/loom/v3/expr"
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
-	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 )
 
 func TestCookieAPIKeySecurity(t *testing.T) {

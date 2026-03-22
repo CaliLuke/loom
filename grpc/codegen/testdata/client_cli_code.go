@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 // BuildMethodAPayload builds the payload for the PayloadWithValidation

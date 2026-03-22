@@ -48,14 +48,14 @@ func StartServer(ctx context.Context, workDir string, port int) (*Server, error)
 		return nil, fmt.Errorf("server main.go not found at %s: %w", serverPath, err)
 	}
 
-	downloadCmd := exec.Command("go", "mod", "download")
-	downloadCmd.Dir = workDir
-	downloadCmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
-	if output, err := downloadCmd.CombinedOutput(); err != nil {
+	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd.Dir = workDir
+	tidyCmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
+	if output, err := tidyCmd.CombinedOutput(); err != nil {
 		if closeErr := logFile.Close(); closeErr != nil {
-			return nil, fmt.Errorf("close log file after download failure: %w", closeErr)
+			return nil, fmt.Errorf("close log file after tidy failure: %w", closeErr)
 		}
-		return nil, fmt.Errorf("go mod download failed: %w\n%s", err, output)
+		return nil, fmt.Errorf("go mod tidy failed: %w\n%s", err, output)
 	}
 
 	cmd := exec.CommandContext(ctx, "go", "run", ".", "--http-port", fmt.Sprintf("%d", port))

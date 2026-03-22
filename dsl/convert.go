@@ -1,8 +1,8 @@
 package dsl
 
 import (
-	"github.com/CaliLuke/loom/v3/eval"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // ConvertTo specifies an external type that instances of the generated struct

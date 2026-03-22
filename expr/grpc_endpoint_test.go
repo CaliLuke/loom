@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/eval"
-	"github.com/CaliLuke/loom/v3/expr"
-	"github.com/CaliLuke/loom/v3/expr/testdata"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/expr/testdata"
 )
 
 func TestGRPCEndpointValidation(t *testing.T) {

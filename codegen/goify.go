@@ -5,7 +5,7 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // Goify makes a valid Go identifier out of any string. It does that by removing

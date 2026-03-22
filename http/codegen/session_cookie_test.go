@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/dsl"
-	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/dsl"
+	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 )
 
 func TestSessionCookie(t *testing.T) {

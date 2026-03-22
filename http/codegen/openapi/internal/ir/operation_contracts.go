@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/expr"
 )
 
 const asyncContractExtensionName = "x-loom-async"

@@ -21,7 +21,7 @@ type ResponseCapture struct {
 
 // CaptureResponse creates a ResponseCapture that wraps the given ResponseWriter.
 //
-// Deprecated: use github.com/CaliLuke/loom/v3/http/middleware/otel instead. This
+// Deprecated: use github.com/CaliLuke/loom/http/middleware/otel instead. This
 // function will be removed in a future version of Loom.
 func CaptureResponse(w http.ResponseWriter) *ResponseCapture {
 	return &ResponseCapture{ResponseWriter: w}

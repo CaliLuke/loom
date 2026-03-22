@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/CaliLuke/loom/v3/dsl"
-	"github.com/CaliLuke/loom/v3/expr"
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestIncompatibleDSLIncludesTypeContext(t *testing.T) {

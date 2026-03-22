@@ -58,10 +58,13 @@ func RunCmd(dir string, name string, args ...string) (string, error) {
 	return string(output), nil
 }
 
-// PinLocalReplace rewrites the copied fixture go.mod to point the github.com/CaliLuke/loom/v3
+// PinLocalReplace rewrites the copied fixture go.mod to point the github.com/CaliLuke/loom
 // replace directive at repoRoot.
 func PinLocalReplace(dir string, repoRoot string) error {
-	_, err := RunCmd(dir, "go", "mod", "edit", fmt.Sprintf("-replace=github.com/CaliLuke/loom/v3=%s", repoRoot))
+	if _, err := RunCmd(dir, "go", "mod", "edit", fmt.Sprintf("-replace=github.com/CaliLuke/loom=%s", repoRoot)); err != nil {
+		return err
+	}
+	_, err := RunCmd(dir, "go", "mod", "tidy")
 	return err
 }
 

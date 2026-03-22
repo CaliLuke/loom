@@ -3,7 +3,7 @@ package codegen
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestNameScope_Unique(t *testing.T) {

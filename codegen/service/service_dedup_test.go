@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	stest "github.com/CaliLuke/loom/v3/codegen/service/testdata"
+	"github.com/CaliLuke/loom/codegen"
+	stest "github.com/CaliLuke/loom/codegen/service/testdata"
 )
 
 // TestService_DedupEventMarkers verifies that when multiple streaming methods share the

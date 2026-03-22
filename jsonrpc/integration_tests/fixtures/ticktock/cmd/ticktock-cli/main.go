@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 func main() {

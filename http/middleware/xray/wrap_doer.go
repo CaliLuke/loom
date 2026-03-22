@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	goahttp "github.com/CaliLuke/loom/v3/http"
-	"github.com/CaliLuke/loom/v3/middleware"
-	"github.com/CaliLuke/loom/v3/middleware/xray"
+	goahttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/middleware"
+	"github.com/CaliLuke/loom/middleware/xray"
 )
 
 // xrayDoer is a goahttp.Doer middleware that will create xray subsegments for

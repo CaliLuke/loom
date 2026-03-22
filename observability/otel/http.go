@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	goahttpotel "github.com/CaliLuke/loom/v3/http/middleware/otel"
+	goahttpotel "github.com/CaliLuke/loom/http/middleware/otel"
 	"github.com/felixge/httpsnoop"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"

@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	. "github.com/CaliLuke/loom/v3/dsl"
+	. "github.com/CaliLuke/loom/dsl"
 )
 
 // MixedJSONRPCTransportsAPI defines an API with mixed JSON-RPC transports.

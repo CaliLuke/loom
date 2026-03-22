@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen/testdata"
-	"github.com/CaliLuke/loom/v3/codegen/testutil"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen/testdata"
+	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestGoTransform(t *testing.T) {

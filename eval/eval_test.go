@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/CaliLuke/loom/v3/dsl"
-	"github.com/CaliLuke/loom/v3/eval"
-	"github.com/CaliLuke/loom/v3/expr"
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

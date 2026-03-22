@@ -67,9 +67,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - JSON-RPC SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first SSE frame is actually written, so endpoint setup failures can still surface as the correct HTTP error response. The raw streamable-HTTP `GET /rpc` listener for `events/stream` remains an explicit eager-open exception so clients can observe stream establishment before the first published notification.
 - JSON-RPC integration tests now include a persistent generated `ticktock` SSE fixture plus an external-client interoperability check using `github.com/tmaxmax/go-sse`, so generated streams are verified against a real third-party client as well as the in-repo harness.
 - HTTP SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first application event is written, and `http/integration_tests` carries a persistent generated `ticktock` fixture verified with `github.com/tmaxmax/go-sse`.
-- SSE wire parsing and formatting now flow through shared helpers in `github.com/CaliLuke/loom/v3/http` backed by `github.com/tmaxmax/go-sse`, replacing duplicated hand-rolled frame logic across generated HTTP clients, generated JSON-RPC streams, and the local JSON-RPC SSE harness.
-- First-class OpenTelemetry transport wrappers now live in `github.com/CaliLuke/loom/v3/http/middleware/otel` and `github.com/CaliLuke/loom/v3/grpc/middleware/otel`, using the official `otelhttp` and `otelgrpc` libraries while keeping provider/exporter bootstrap app-owned.
-- OpenTelemetry V2 now adds a framework-owned observability package in `github.com/CaliLuke/loom/v3/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
+- SSE wire parsing and formatting now flow through shared helpers in `github.com/CaliLuke/loom/http` backed by `github.com/tmaxmax/go-sse`, replacing duplicated hand-rolled frame logic across generated HTTP clients, generated JSON-RPC streams, and the local JSON-RPC SSE harness.
+- First-class OpenTelemetry transport wrappers now live in `github.com/CaliLuke/loom/http/middleware/otel` and `github.com/CaliLuke/loom/grpc/middleware/otel`, using the official `otelhttp` and `otelgrpc` libraries while keeping provider/exporter bootstrap app-owned.
+- OpenTelemetry V2 now adds a framework-owned observability package in `github.com/CaliLuke/loom/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
 - Session auth DSL and derived auth/session transport behavior.
   See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
@@ -89,7 +89,7 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   (`codegen.Section`, `codegen.JenniferSection`, `codegen.RawSection`) instead
   of file-backed Go template assets, and non-Go template assets use neutral
   `.tmpl` names.
-- Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `github.com/CaliLuke/loom/v3`.
+- Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `github.com/CaliLuke/loom`.
 - Generic helper consolidation into `loom`.
 
 ### In Progress

@@ -26,7 +26,7 @@ FILTER="^echo_.*" go test -count=1 -v ./...
 
 The `FILTER` environment variable is useful for running a specific group of tests (like all `echo` tests) without typing each full name. It matches the regular expression against the `name` field in your `scenarios.yaml` file.
 
-By default, the framework now materializes `github.com/CaliLuke/loom/v3` from the current
+By default, the framework now materializes `github.com/CaliLuke/loom` from the current
 Git commit and remote URL into a temp checkout before running `loom gen` /
 `loom example`, so generated test services are reproducible in CI rather than
 silently depending on the local working tree. Set `GOA_REPO=/path/to/repo` only

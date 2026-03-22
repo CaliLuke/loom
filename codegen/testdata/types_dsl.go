@@ -3,7 +3,7 @@ package testdata
 import (
 	"encoding/json"
 
-	. "github.com/CaliLuke/loom/v3/dsl"
+	. "github.com/CaliLuke/loom/dsl"
 )
 
 var TestTypesDSL = func() {
@@ -19,14 +19,14 @@ var TestTypesDSL = func() {
 
 		_ = Type("CustomTypes", func() {
 			Attribute("required_string", String, func() {
-				Meta("struct:field:type", "tdtypes.CustomString", "github.com/CaliLuke/loom/v3/codegen/testdata/tdtypes")
+				Meta("struct:field:type", "tdtypes.CustomString", "github.com/CaliLuke/loom/codegen/testdata/tdtypes")
 			})
 			Attribute("default_bool", Boolean, func() {
-				Meta("struct:field:type", "tdtypes.CustomBool", "github.com/CaliLuke/loom/v3/codegen/testdata/tdtypes")
+				Meta("struct:field:type", "tdtypes.CustomBool", "github.com/CaliLuke/loom/codegen/testdata/tdtypes")
 				Default(true)
 			})
 			Attribute("integer", Int, func() {
-				Meta("struct:field:type", "tdtypes.CustomInt", "github.com/CaliLuke/loom/v3/codegen/testdata/tdtypes")
+				Meta("struct:field:type", "tdtypes.CustomInt", "github.com/CaliLuke/loom/codegen/testdata/tdtypes")
 			})
 			Required("required_string")
 		})

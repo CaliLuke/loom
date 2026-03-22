@@ -11,7 +11,7 @@ import (
 	clockjssvr "example.com/ticktock/gen/jsonrpc/clock/server"
 	"goa.design/clue/debug"
 	"goa.design/clue/log"
-	goahttp "github.com/CaliLuke/loom/v3/http"
+	goahttp "github.com/CaliLuke/loom/http"
 )
 
 // handleHTTPServer starts configures and starts a HTTP server on the given

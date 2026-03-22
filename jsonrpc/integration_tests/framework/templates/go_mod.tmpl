@@ -3,8 +3,8 @@ module testservice
 go 1.21
 
 require (
-	github.com/CaliLuke/loom/v3 v3.19.2
+	github.com/CaliLuke/loom v1.0.0
 	goa.design/clue v1.2.0
 )
 
-replace github.com/CaliLuke/loom/v3 => {{ .GoaPath }}
+replace github.com/CaliLuke/loom => {{ .GoaPath }}

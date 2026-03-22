@@ -3,13 +3,13 @@ package codegen
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen/testutil"
+	"github.com/CaliLuke/loom/codegen/testutil"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/codegen/codegentest"
-	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/codegentest"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestServerMount(t *testing.T) {

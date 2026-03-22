@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	sse "github.com/tmaxmax/go-sse"
 
-	"github.com/CaliLuke/loom/v3/internal/testingx"
-	"github.com/CaliLuke/loom/v3/jsonrpc/integration_tests/harness"
+	"github.com/CaliLuke/loom/internal/testingx"
+	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
 func TestJSONRPCSSEExternalClientReceivesDecodeErrorsOnMessageEvent(t *testing.T) {
@@ -87,7 +87,7 @@ func TestJSONRPCSSEFixtureRegeneratesAndBuilds(t *testing.T) {
 	require.NoError(t, testingx.CopyTree(srcDir, workDir))
 	require.NoError(t, testingx.PinLocalReplace(workDir, testingx.RepoRoot()))
 
-	_, err := testingx.RunCmd(workDir, "go", "run", "github.com/CaliLuke/loom/v3/cmd/loom", "gen", "example.com/ticktock/design")
+	_, err := testingx.RunCmd(workDir, "go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/ticktock/design")
 	require.NoError(t, err)
 
 	_, err = testingx.RunCmd(workDir, "go", "test", "./...")

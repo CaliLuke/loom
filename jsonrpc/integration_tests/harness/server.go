@@ -75,15 +75,15 @@ func StartServer(ctx context.Context, workDir string, port int) (*Server, error)
 		return nil, fmt.Errorf("server main.go not found in any expected location")
 	}
 
-	// Ensure dependencies are downloaded before running
-	downloadCmd := exec.Command("go", "mod", "download")
-	downloadCmd.Dir = workDir
-	downloadCmd.Env = append(os.Environ(),
+	// Ensure the fixture module is consistent before running.
+	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd.Dir = workDir
+	tidyCmd.Env = append(os.Environ(),
 		"GO111MODULE=on",
 		"GOWORK=off",
 	)
-	if output, err := downloadCmd.CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("go mod download failed: %w\nOutput: %s", err, output)
+	if output, err := tidyCmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("go mod tidy failed: %w\nOutput: %s", err, output)
 	}
 
 	// Detect whether gRPC is generated (presence of gen/grpc directory)

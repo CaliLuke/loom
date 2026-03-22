@@ -26,7 +26,7 @@ optional arguments, for example these are all valid use of Attribute:
 It is recommended to use "dot" import when importing the DSL package to improve
 the readability of designs:
 
-	import . "github.com/CaliLuke/loom/v3/dsl"
+	import . "github.com/CaliLuke/loom/dsl"
 
 Importing the DSL package this way makes it possible to write the designs as
 shown in the examples above instead of having to prefix each DSL function call

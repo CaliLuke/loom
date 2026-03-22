@@ -5,8 +5,8 @@ import (
 	"time"
 
 	cli "example.com/ticktock/gen/jsonrpc/cli/ticktock"
-	goahttp "github.com/CaliLuke/loom/v3/http"
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/http"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 func doJSONRPC(scheme, host string, timeout int, debug bool) (goa.Endpoint, any, error) {

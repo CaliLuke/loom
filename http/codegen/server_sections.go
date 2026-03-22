@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/codegen"
 )
 
 func serverStructSection(data *ServiceData) codegen.Section {

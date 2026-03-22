@@ -5,8 +5,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 type (
@@ -71,7 +71,7 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 		{Path: "strings"},
 		{Path: path.Join(genpkg, svcName), Name: data.PkgName},
 		{Path: "goa.design/clue/log"},
-		{Path: "github.com/CaliLuke/loom/v3/security"},
+		{Path: "github.com/CaliLuke/loom/security"},
 	}
 	sections := []codegen.Section{
 		codegen.Header("", apipkg, specs),

@@ -1,9 +1,9 @@
 package testdata
 
 import (
-	aliasd "github.com/CaliLuke/loom/v3/codegen/service/testdata/alias-external"
-	"github.com/CaliLuke/loom/v3/codegen/service/testdata/external"
-	. "github.com/CaliLuke/loom/v3/dsl"
+	aliasd "github.com/CaliLuke/loom/codegen/service/testdata/alias-external"
+	"github.com/CaliLuke/loom/codegen/service/testdata/external"
+	. "github.com/CaliLuke/loom/dsl"
 )
 
 var CreateStringDSL = func() {

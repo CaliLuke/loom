@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/codegen/example"
-	ctestdata "github.com/CaliLuke/loom/v3/codegen/example/testdata"
-	"github.com/CaliLuke/loom/v3/codegen/service"
-	"github.com/CaliLuke/loom/v3/codegen/testutil"
-	"github.com/CaliLuke/loom/v3/grpc/codegen/testdata"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/example"
+	ctestdata "github.com/CaliLuke/loom/codegen/example/testdata"
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 	"github.com/stretchr/testify/require"
 )
 

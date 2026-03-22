@@ -3,7 +3,7 @@ package middleware
 import (
 	"context"
 
-	"github.com/CaliLuke/loom/v3/middleware"
+	"github.com/CaliLuke/loom/middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )

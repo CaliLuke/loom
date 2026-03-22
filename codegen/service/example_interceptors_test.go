@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen/service/testdata"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestExampleInterceptorsFiles(t *testing.T) {

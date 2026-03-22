@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/dsl"
 )
 
 func TestJSONRPCSessionSecurityHarness(t *testing.T) {

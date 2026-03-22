@@ -5,9 +5,9 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	codegenpkg "github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/codegen/cli"
-	"github.com/CaliLuke/loom/v3/expr"
+	codegenpkg "github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/cli"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func grpcClientStructSection(data *ServiceData) codegenpkg.Section {
@@ -147,7 +147,7 @@ func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 			if endpoint.ServerStream != nil {
 				handlerType = "StreamHandler"
 			}
-			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Qual("github.com/CaliLuke/loom/v3/grpc", handlerType))
+			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Qual("github.com/CaliLuke/loom/grpc", handlerType))
 		}
 		fields = append(fields, jen.Qual(data.PkgName, "Unimplemented"+data.ServerInterface))
 		stmt.Type().Id(data.ServerStruct).Struct(fields...)
@@ -159,10 +159,10 @@ func grpcServerInitSection(data *ServiceData) codegenpkg.Section {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s instantiates the server struct with the %s service endpoints.", data.ServerInit, data.Service.Name))
 		params := []jen.Code{jen.Id("e").Op("*").Qual(data.Service.PkgName, "Endpoints")}
 		if data.HasUnaryEndpoint() {
-			params = append(params, jen.Id("uh").Qual("github.com/CaliLuke/loom/v3/grpc", "UnaryHandler"))
+			params = append(params, jen.Id("uh").Qual("github.com/CaliLuke/loom/grpc", "UnaryHandler"))
 		}
 		if data.HasStreamingEndpoint() {
-			params = append(params, jen.Id("sh").Qual("github.com/CaliLuke/loom/v3/grpc", "StreamHandler"))
+			params = append(params, jen.Id("sh").Qual("github.com/CaliLuke/loom/grpc", "StreamHandler"))
 		}
 		dict := jen.Dict{}
 		for _, endpoint := range data.Endpoints {

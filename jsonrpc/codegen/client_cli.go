@@ -1,8 +1,8 @@
 package codegen
 
 import (
-	"github.com/CaliLuke/loom/v3/codegen"
-	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
+	"github.com/CaliLuke/loom/codegen"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 // ClientCLIFiles returns the JSON-RPC transport type files.

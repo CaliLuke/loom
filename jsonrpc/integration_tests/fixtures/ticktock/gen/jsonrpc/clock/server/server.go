@@ -14,9 +14,9 @@ import (
 	"net/http"
 
 	clock "example.com/ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/v3/http"
-	"github.com/CaliLuke/loom/v3/jsonrpc"
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 // Server handles JSON-RPC requests for the clock service.

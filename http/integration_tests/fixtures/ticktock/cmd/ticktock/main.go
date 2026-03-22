@@ -13,7 +13,6 @@ import (
 
 	ticktock "example.com/http-ticktock"
 	clock "example.com/http-ticktock/gen/clock"
-	"goa.design/clue/debug"
 	"goa.design/clue/log"
 )
 
@@ -56,8 +55,6 @@ func main() {
 	)
 	{
 		clockEndpoints = clock.NewEndpoints(clockSvc)
-		clockEndpoints.Use(debug.LogPayloads())
-		clockEndpoints.Use(log.Endpoint)
 	}
 
 	// Create channel used by both the signal handler and server goroutines

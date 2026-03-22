@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/observability/otel/internal/testkit"
+	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"

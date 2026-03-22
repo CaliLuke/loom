@@ -1,6 +1,6 @@
 package dsls
 
-import . "github.com/CaliLuke/loom/v3/dsl"
+import . "github.com/CaliLuke/loom/dsl"
 
 var DescOnly = func(svc, met, desc string) func() {
 	return func() {

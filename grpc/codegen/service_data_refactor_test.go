@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen/service"
-	"github.com/CaliLuke/loom/v3/dsl"
-	"github.com/CaliLuke/loom/v3/grpc/codegen/testdata"
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
 func TestAnalyzeCollectsMessagesAndProtoImportsWithoutDuplicates(t *testing.T) {

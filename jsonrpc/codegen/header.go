@@ -3,7 +3,7 @@ package codegen
 import (
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/codegen"
 )
 
 func updateHeader(f *codegen.File) {

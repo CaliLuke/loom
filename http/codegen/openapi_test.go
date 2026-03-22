@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	openapi "github.com/CaliLuke/loom/v3/http/codegen/openapi"
-	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
+	openapi "github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestOpenAPI(t *testing.T) {

@@ -11,11 +11,11 @@ import (
 
 	"github.com/pb33f/libopenapi"
 
-	"github.com/CaliLuke/loom/v3/codegen/testutil"
-	httpgen "github.com/CaliLuke/loom/v3/http/codegen"
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
-	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
-	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/codegen/testutil"
+	httpgen "github.com/CaliLuke/loom/http/codegen"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestFiles(t *testing.T) {

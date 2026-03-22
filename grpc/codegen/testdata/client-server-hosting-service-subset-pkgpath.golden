@@ -3,7 +3,7 @@ import (
 	cli "my/pkg/path/grpc/cli/single_host"
 	"os"
 
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goa "github.com/CaliLuke/loom/pkg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

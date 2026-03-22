@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/codegen/example"
-	ctestdata "github.com/CaliLuke/loom/v3/codegen/example/testdata"
-	"github.com/CaliLuke/loom/v3/codegen/service"
-	"github.com/CaliLuke/loom/v3/codegen/testutil"
-	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/example"
+	ctestdata "github.com/CaliLuke/loom/codegen/example/testdata"
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestExampleServerFiles(t *testing.T) {

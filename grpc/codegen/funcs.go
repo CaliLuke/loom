@@ -3,7 +3,7 @@ package codegen
 import (
 	"fmt"
 
-	"github.com/CaliLuke/loom/v3/dsl"
+	"github.com/CaliLuke/loom/dsl"
 )
 
 // statusCodeToGRPCConst produces the standard name for the given gRPC status

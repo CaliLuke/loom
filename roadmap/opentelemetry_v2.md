@@ -47,13 +47,13 @@ This phase does not attempt to replace:
 
 Add:
 
-- `github.com/CaliLuke/loom/v3/observability/otel`
-- `github.com/CaliLuke/loom/v3/observability/otel/logrusbridge`
+- `github.com/CaliLuke/loom/observability/otel`
+- `github.com/CaliLuke/loom/observability/otel/logrusbridge`
 
 Keep:
 
-- `github.com/CaliLuke/loom/v3/http/middleware/otel`
-- `github.com/CaliLuke/loom/v3/grpc/middleware/otel`
+- `github.com/CaliLuke/loom/http/middleware/otel`
+- `github.com/CaliLuke/loom/grpc/middleware/otel`
 
 The existing transport wrappers remain the low-level escape hatch. The new root
 package becomes the preferred path when users want framework-owned bootstrap and
@@ -136,7 +136,7 @@ Completed on 2026-03-19:
 
 - the plan doc landed first and drove the implementation sequence
 - the harness was built before the feature package
-- `github.com/CaliLuke/loom/v3/observability/otel` now owns bootstrap plus transport
+- `github.com/CaliLuke/loom/observability/otel` now owns bootstrap plus transport
   policy
-- `github.com/CaliLuke/loom/v3/observability/otel/logrusbridge` now provides the
+- `github.com/CaliLuke/loom/observability/otel/logrusbridge` now provides the
   optional logrus bridge

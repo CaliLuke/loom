@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/CaliLuke/loom/releases/latest"><img alt="Release" src="https://img.shields.io/github/release/CaliLuke/loom.svg?style=for-the-badge"></a>
-  <a href="https://pkg.go.dev/github.com/CaliLuke/loom/v3"><img alt="Go Doc" src="https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge"></a>
+  <a href="https://pkg.go.dev/github.com/CaliLuke/loom"><img alt="Go Doc" src="https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge"></a>
   <a href="https://github.com/CaliLuke/loom/actions/workflows/ci.yml"><img alt="GitHub Action: Test" src="https://img.shields.io/github/actions/workflow/status/CaliLuke/loom/ci.yml?branch=main&style=for-the-badge"></a>
   <a href="https://goreportcard.com/report/github.com/CaliLuke/loom"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/CaliLuke/loom?style=for-the-badge"></a>
   <a href="/LICENSE"><img alt="Software License" src="https://img.shields.io/badge/license-MIT-brightgreen.svg?style=for-the-badge"></a>
@@ -91,7 +91,7 @@ This is part of the product, not an afterthought. Loom is intentionally shaped s
 
 ```bash
 # Install Loom
-go install github.com/CaliLuke/loom/v3/cmd/loom@latest
+go install github.com/CaliLuke/loom/cmd/loom@latest
 
 # Create a new module
 mkdir hello && cd hello
@@ -102,7 +102,7 @@ mkdir design
 cat > design/design.go << EOF
 package design
 
-import . "github.com/CaliLuke/loom/v3/dsl"
+import . "github.com/CaliLuke/loom/dsl"
 
 var _ = Service("hello", func() {
     Method("say_hello", func() {

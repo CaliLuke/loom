@@ -1,6 +1,6 @@
 package openapi
 
-import "github.com/CaliLuke/loom/v3/expr"
+import "github.com/CaliLuke/loom/expr"
 
 // ExternalDocs represents an OpenAPI External Documentation object as defined in
 // https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#externalDocumentationObject

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	cg "github.com/CaliLuke/loom/v3/codegen"
-	servicecodegen "github.com/CaliLuke/loom/v3/codegen/service"
-	. "github.com/CaliLuke/loom/v3/dsl"
-	"github.com/CaliLuke/loom/v3/expr"
-	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
+	cg "github.com/CaliLuke/loom/codegen"
+	servicecodegen "github.com/CaliLuke/loom/codegen/service"
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestFormRequestUnionOAuthIntegration(t *testing.T) {
@@ -70,9 +70,9 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 
 go 1.25.0
 
-require github.com/CaliLuke/loom/v3 v3.0.0
+require github.com/CaliLuke/loom v1.0.0
 
-replace github.com/CaliLuke/loom/v3 => %s
+replace github.com/CaliLuke/loom => %s
 `, modulePath, repoRoot)
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
@@ -219,7 +219,7 @@ import (
 	"strings"
 	"testing"
 
-	goahttp "github.com/CaliLuke/loom/v3/http"
+	goahttp "github.com/CaliLuke/loom/http"
 	"golang.org/x/oauth2"
 
 	token "example.com/formunionit/gen/token"

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/codegen"
 )
 
 func exampleCLIStartSection(services []*ServiceData, interceptorsPkg string) codegen.Section {

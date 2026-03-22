@@ -3,8 +3,8 @@ package expr_test
 import (
 	"testing"
 
-	. "github.com/CaliLuke/loom/v3/dsl"
-	"github.com/CaliLuke/loom/v3/expr"
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestHTTPResponseValidation(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/CaliLuke/loom/v3/middleware"
+	"github.com/CaliLuke/loom/middleware"
 )
 
 // RequestID returns a middleware, which initializes the context with a unique
@@ -24,7 +24,7 @@ import (
 //	// enable options for using "Custom-Id" header.
 //	service.Use(middleware.RequestID(middleware.RequestIDHeaderOption("Custom-Id"))
 //
-// Deprecated: use github.com/CaliLuke/loom/v3/http/middleware/otel instead. This
+// Deprecated: use github.com/CaliLuke/loom/http/middleware/otel instead. This
 // function will be removed in a future version of Loom.
 func RequestID(options ...middleware.RequestIDOption) func(http.Handler) http.Handler {
 	o := middleware.NewRequestIDOptions(options...)

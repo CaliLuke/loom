@@ -1,10 +1,10 @@
 package generator
 
 import (
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/eval"
-	"github.com/CaliLuke/loom/v3/expr"
-	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 // OpenAPI iterates through the roots and returns the files needed to render

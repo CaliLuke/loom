@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/CaliLuke/loom/v3/dsl"
-	"github.com/CaliLuke/loom/v3/eval"
-	"github.com/CaliLuke/loom/v3/expr"
-	"github.com/CaliLuke/loom/v3/expr/testdata"
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/expr/testdata"
 )
 
 func TestHTTPRouteValidation(t *testing.T) {

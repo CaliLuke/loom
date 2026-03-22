@@ -1,14 +1,14 @@
 package generator
 
 import (
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/codegen/example"
-	"github.com/CaliLuke/loom/v3/codegen/service"
-	"github.com/CaliLuke/loom/v3/eval"
-	"github.com/CaliLuke/loom/v3/expr"
-	grpccodegen "github.com/CaliLuke/loom/v3/grpc/codegen"
-	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
-	jsonrpccodegen "github.com/CaliLuke/loom/v3/jsonrpc/codegen"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/example"
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
+	grpccodegen "github.com/CaliLuke/loom/grpc/codegen"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
+	jsonrpccodegen "github.com/CaliLuke/loom/jsonrpc/codegen"
 )
 
 // Example iterates through the roots and returns files that implement an

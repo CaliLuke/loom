@@ -36,9 +36,9 @@ func TestPinLocalReplaceUpdatesGoMod(t *testing.T) {
 
 go 1.25.0
 
-require github.com/CaliLuke/loom/v3 v3.0.0
+require github.com/CaliLuke/loom v1.0.0
 
-replace github.com/CaliLuke/loom/v3 => ../stale
+replace github.com/CaliLuke/loom => ../stale
 `
 	require.NoError(t, os.WriteFile(filepath.Join(workDir, "go.mod"), []byte(goMod), 0o644))
 
@@ -47,7 +47,7 @@ replace github.com/CaliLuke/loom/v3 => ../stale
 
 	updated, err := os.ReadFile(filepath.Join(workDir, "go.mod"))
 	require.NoError(t, err)
-	require.Contains(t, string(updated), "replace github.com/CaliLuke/loom/v3 => "+repoRoot)
+	require.Contains(t, string(updated), "replace github.com/CaliLuke/loom => "+repoRoot)
 	require.NotContains(t, string(updated), "../stale")
 }
 
@@ -64,5 +64,5 @@ func TestRepoRootReturnsRepositoryTopLevel(t *testing.T) {
 
 	goMod, err := os.ReadFile(goModPath)
 	require.NoError(t, err)
-	require.Contains(t, string(goMod), "module github.com/CaliLuke/loom/v3")
+	require.Contains(t, string(goMod), "module github.com/CaliLuke/loom")
 }

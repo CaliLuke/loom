@@ -5,8 +5,8 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	codegenpkg "github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
+	codegenpkg "github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func grpcTypeInitSection(init *InitData) codegenpkg.Section {

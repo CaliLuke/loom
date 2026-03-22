@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	grpcm "github.com/CaliLuke/loom/v3/grpc/middleware"
-	"github.com/CaliLuke/loom/v3/middleware"
-	"github.com/CaliLuke/loom/v3/middleware/xray"
+	grpcm "github.com/CaliLuke/loom/grpc/middleware"
+	"github.com/CaliLuke/loom/middleware"
+	"github.com/CaliLuke/loom/middleware/xray"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )

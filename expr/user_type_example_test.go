@@ -3,7 +3,7 @@ package expr_test
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // TestUserTypeWithUserExample tests that when an attribute uses a UserType

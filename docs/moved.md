@@ -11,5 +11,5 @@ streaming, and AI-assisted workflow support, this is it.
 For install instructions, use:
 
 ```bash
-go install github.com/CaliLuke/loom/v3/cmd/loom@latest
+go install github.com/CaliLuke/loom/cmd/loom@latest
 ```

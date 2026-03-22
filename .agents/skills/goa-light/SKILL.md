@@ -132,10 +132,10 @@ build Auto-K without repeating large amounts of app-local glue.
 - JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. The narrow exception is the raw streamable-HTTP `GET /rpc` listener for the `events/stream` method, which must eagerly establish the SSE response so clients can observe readiness before the first domain event.
 - HTTP SSE streams also defer committing `text/event-stream` until the first application event is written.
 - OpenTelemetry transport instrumentation is first-class. Prefer:
-  - `goa.design/goa/v3/observability/otel` when you want framework-owned
+  - `github.com/CaliLuke/loom/observability/otel` when you want framework-owned
     trace, metric, and OTLP log bootstrap plus transport policy.
-  - `goa.design/goa/v3/http/middleware/otel`
-  - `goa.design/goa/v3/grpc/middleware/otel`
+  - `github.com/CaliLuke/loom/http/middleware/otel`
+  - `github.com/CaliLuke/loom/grpc/middleware/otel`
 - The root observability package is the preferred path for services that want to
   replace repeated app-local observability glue. The lower-level HTTP and gRPC
   packages remain the transport-only escape hatch.
@@ -175,8 +175,8 @@ build Auto-K without repeating large amounts of app-local glue.
 ## Command Reminders
 
 ```bash
-go install goa.design/goa/v3/cmd/goa@latest
-goa version
+go install github.com/CaliLuke/loom/cmd/loom@latest
+loom version
 loom gen <module-import-path>/design
 loom example <module-import-path>/design
 ```

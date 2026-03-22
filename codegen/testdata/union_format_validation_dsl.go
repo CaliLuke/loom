@@ -1,6 +1,6 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/v3/dsl"
+import . "github.com/CaliLuke/loom/dsl"
 
 // UnionWithFormatValidationDSL defines a OneOf with format validation to test Issue #3747
 var UnionWithFormatValidationDSL = func() {

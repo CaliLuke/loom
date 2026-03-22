@@ -1,6 +1,6 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/v3/dsl"
+import . "github.com/CaliLuke/loom/dsl"
 
 var SimpleDSL = func() {
 	var PayloadT = Type("Payload", func() {

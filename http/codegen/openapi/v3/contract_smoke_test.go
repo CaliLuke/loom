@@ -13,11 +13,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	httpgen "github.com/CaliLuke/loom/v3/http/codegen"
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
-	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
-	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
-	"github.com/CaliLuke/loom/v3/internal/testingx"
+	httpgen "github.com/CaliLuke/loom/http/codegen"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 const (

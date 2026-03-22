@@ -12,8 +12,8 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // convertData contains the info needed to render convert and create functions.

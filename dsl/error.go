@@ -1,9 +1,9 @@
 package dsl
 
 import (
-	"github.com/CaliLuke/loom/v3/eval"
-	"github.com/CaliLuke/loom/v3/expr"
-	pkg "github.com/CaliLuke/loom/v3/pkg"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
+	pkg "github.com/CaliLuke/loom/pkg"
 )
 
 const (

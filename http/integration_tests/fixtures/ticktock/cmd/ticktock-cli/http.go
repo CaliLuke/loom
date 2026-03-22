@@ -5,8 +5,8 @@ import (
 	"time"
 
 	cli "example.com/http-ticktock/gen/http/cli/ticktock"
-	goahttp "github.com/CaliLuke/loom/v3/http"
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goahttp "github.com/CaliLuke/loom/http"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 func doHTTP(scheme, host string, timeout int, debug bool) (goa.Endpoint, any, error) {

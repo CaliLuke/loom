@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/codegen/example"
-	"github.com/CaliLuke/loom/v3/expr"
-	httpcodegen "github.com/CaliLuke/loom/v3/http/codegen"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/example"
+	"github.com/CaliLuke/loom/expr"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 // ExampleServerFiles returns example JSON-RPC server implementation.

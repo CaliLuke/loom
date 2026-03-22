@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	sse "github.com/tmaxmax/go-sse"
 
-	"github.com/CaliLuke/loom/v3/jsonrpc/integration_tests/harness"
+	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
 func TestJSONRPCSSEInteroperatesWithExternalClient(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/CaliLuke/loom/v3/middleware"
-	"github.com/CaliLuke/loom/v3/middleware/xray"
+	"github.com/CaliLuke/loom/middleware"
+	"github.com/CaliLuke/loom/middleware/xray"
 )
 
 // xrayTransport wraps an http RoundTripper to add a tracing subsegment of the

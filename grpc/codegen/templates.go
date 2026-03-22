@@ -3,7 +3,7 @@ package codegen
 import (
 	"embed"
 
-	"github.com/CaliLuke/loom/v3/codegen/template"
+	"github.com/CaliLuke/loom/codegen/template"
 )
 
 // Client template constants

@@ -6,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/v3/dsl"
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
-	openapiv3 "github.com/CaliLuke/loom/v3/http/codegen/openapi/v3"
-	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestOpenAPIOperationSecurityRequirements(t *testing.T) {

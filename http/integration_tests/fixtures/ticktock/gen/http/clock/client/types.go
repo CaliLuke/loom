@@ -9,7 +9,7 @@ package client
 
 import (
 	clock "example.com/http-ticktock/gen/clock"
-	goa "github.com/CaliLuke/loom/v3/pkg"
+	goa "github.com/CaliLuke/loom/pkg"
 )
 
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP

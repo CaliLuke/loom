@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	"github.com/CaliLuke/loom/v3/expr"
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi"
-	"github.com/CaliLuke/loom/v3/http/codegen/openapi/v3/testdata/dsls"
-	"github.com/CaliLuke/loom/v3/http/codegen/testdata"
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/http/codegen/openapi/v3/testdata/dsls"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestBuildInfo(t *testing.T) {

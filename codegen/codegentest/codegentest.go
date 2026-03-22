@@ -5,7 +5,7 @@ package codegentest
 import (
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/codegen"
+	"github.com/CaliLuke/loom/codegen"
 )
 
 // Sections can be used to extract the code sections that match a path suffix

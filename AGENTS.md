@@ -82,13 +82,13 @@ No commented-out code—delete dead code.
 - When output shape matters, pair direct structural assertions with rendered/golden coverage.
 - For OpenAPI contract work, validate rendered specs with `libopenapi` and lint the specimen outputs with Redocly.
 - Keep the OpenAPI specimen matrix meaningful. Reuse or extend the non-trivial fixtures under `http/codegen/testdata` instead of inventing throwaway one-off examples when a real contract shape is under test.
-- For external temp-module or fake-app generation loops, pin `github.com/CaliLuke/loom/v3` to a pushed GitHub commit, not the local working tree, so CI can reproduce the result.
+- For external temp-module or fake-app generation loops, pin `github.com/CaliLuke/loom` to a pushed GitHub commit, not the local working tree, so CI can reproduce the result.
 - For this repo, the standard JSON-RPC integration toggle is `make loom-local` for local iteration and `make loom-remote` for pinned-remote parity. `make loom-status` shows the current mode. The legacy `goa-*` targets remain as aliases.
 - `make loom-local` writes a repo-local source-mode file for the JSON-RPC temp-module generator; `LOOM_DIR=/absolute/path` still overrides that mode for one-off runs. `GOA_DIR` remains a legacy alias.
 - While developing an unpushed framework change, use local mode or set `LOOM_DIR=/Users/luca/code/goa-light` explicitly so verification exercises the code you just changed rather than the last pushed commit.
 - Distinguish the two SSE verification paths:
-  - the JSON-RPC temp-module generator must honor the local-vs-remote switch (`make goa-local`, `make goa-remote`, or `GOA_REPO=...`)
-  - temp-copy regeneration smoke tests for checked-in fixtures are intentionally local-only and should rewrite the copied fixture `replace github.com/CaliLuke/loom/v3 => ...` to the current repo root before running `loom gen`
+  - the JSON-RPC temp-module generator must honor the local-vs-remote switch (`make loom-local`, `make loom-remote`, or `LOOM_DIR=...`). The legacy `goa-*` targets and `GOA_*` env vars remain compatibility aliases.
+  - temp-copy regeneration smoke tests for checked-in fixtures are intentionally local-only and should rewrite the copied fixture `replace github.com/CaliLuke/loom => ...` to the current repo root before running `loom gen`
 - Treat the checked-in SSE fixtures as part of the transport regression surface, not as demos:
   - `http/integration_tests/fixtures/ticktock`
   - `jsonrpc/integration_tests/fixtures/ticktock`
@@ -114,7 +114,7 @@ cd cmd/loom && go install .  # Install CLI locally
 
 ### Code Generation Behavior
 
-- After modifying goa source, `loom gen` and `loom example` automatically compile and use your changes—no manual rebuild needed.
+- After modifying Loom source, `loom gen` and `loom example` automatically compile and use your changes—no manual rebuild needed.
 - `loom gen` deletes and recreates the entire `gen/` directory.
 - `loom example` only creates new files; it does not overwrite existing `cmd/` files.
 

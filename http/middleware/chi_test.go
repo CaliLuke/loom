@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	goahttp "github.com/CaliLuke/loom/v3/http"
+	goahttp "github.com/CaliLuke/loom/http"
 	"github.com/stretchr/testify/assert"
 )
 

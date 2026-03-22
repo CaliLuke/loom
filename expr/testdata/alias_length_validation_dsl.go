@@ -1,6 +1,6 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/v3/dsl"
+import . "github.com/CaliLuke/loom/dsl"
 
 // AliasLengthValidationDSL defines an alias type with length validation for testing.
 var AliasLengthValidationDSL = func() {

@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CaliLuke/loom/v3/middleware"
-	"github.com/CaliLuke/loom/v3/middleware/xray"
+	"github.com/CaliLuke/loom/middleware"
+	"github.com/CaliLuke/loom/middleware/xray"
 )
 
 // New returns a middleware that sends AWS X-Ray segments to the daemon running

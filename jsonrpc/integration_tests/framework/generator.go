@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CaliLuke/loom/v3/codegen"
-	goatemplate "github.com/CaliLuke/loom/v3/codegen/template"
+	"github.com/CaliLuke/loom/codegen"
+	goatemplate "github.com/CaliLuke/loom/codegen/template"
 
 	goast "go/ast"
 	goparser "go/parser"
@@ -392,22 +392,22 @@ func (g *Generator) getMethodDescription(info MethodInfo) string {
 	return desc
 }
 
-// runPostGeneration runs goa gen and example assuming goa is in PATH.
+// runPostGeneration runs loom gen and example using the current module graph.
 func (g *Generator) runPostGeneration() error {
 	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Dir = g.workDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("go mod tidy failed: %w\nOutput: %s", err, output)
 	}
-	cmd = exec.Command("goa", "gen", "testservice/design", "-o", g.workDir)
+	cmd = exec.Command("go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "testservice/design", "-o", g.workDir)
 	cmd.Dir = g.workDir
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("goa gen failed: %w\nOutput: %s", err, output)
+		return fmt.Errorf("loom gen failed: %w\nOutput: %s", err, output)
 	}
-	cmd = exec.Command("goa", "example", "testservice/design", "-o", g.workDir)
+	cmd = exec.Command("go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "example", "testservice/design", "-o", g.workDir)
 	cmd.Dir = g.workDir
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("goa example failed: %w\nOutput: %s", err, output)
+		return fmt.Errorf("loom example failed: %w\nOutput: %s", err, output)
 	}
 	cmd = exec.Command("go", "mod", "tidy")
 	cmd.Dir = g.workDir
@@ -610,7 +610,7 @@ func (g *Generator) filesImpl(impl *ImplementationData) []*codegen.File {
 			{Path: "strings"},
 			{Path: "sort"},
 			{Path: "io"},
-			{Name: "goa", Path: "github.com/CaliLuke/loom/v3/pkg"},
+			{Name: "goa", Path: "github.com/CaliLuke/loom/pkg"},
 			{Name: service.ServicePackage, Path: fmt.Sprintf("testservice/gen/%s", service.ServicePackage)},
 		}
 		sections := []codegen.Section{

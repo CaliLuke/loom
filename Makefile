@@ -1,20 +1,19 @@
 #! /usr/bin/make
 #
-# Makefile for Loom v3
+# Makefile for Loom
 #
 # Targets:
 # - "depend" retrieves the Go packages needed to run the linter and tests
 # - "lint" runs the linter
 # - "test" runs the tests
 # - "release" creates a new release commit, tags the commit and pushes the tag to GitHub.
-#   "release" also updates the examples and plugins repo and pushes the updates to GitHub.
 #
 # Meta targets:
 # - "all" is the default target, it runs "lint" and "test"
 #
-MAJOR=3
-MINOR=25
-BUILD=3
+MAJOR=1
+MINOR=0
+BUILD=0
 
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
@@ -26,8 +25,8 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend lint test test-release integration-test build-loom loom-local loom-remote loom-status goa-local goa-remote goa-status release release-preflight release-loom release-examples release-plugins
-.NOTPARALLEL: release release-loom release-examples release-plugins
+.PHONY: all all-tests ci depend lint test test-release integration-test build-loom loom-local loom-remote loom-status goa-local goa-remote goa-status release release-preflight release-loom
+.NOTPARALLEL: release release-loom
 
 # Only list test and build dependencies
 # Standard dependencies are installed via go get
@@ -130,7 +129,7 @@ build-loom:
 
 release-preflight: lint test-release integration-test
 
-release: release-loom release-examples release-plugins
+release: release-loom
 	@echo "Release v$(MAJOR).$(MINOR).$(BUILD) complete"
 
 release-loom:
@@ -141,55 +140,18 @@ release-loom:
 		echo "$$status"; \
 		exit 1; \
 	fi
-	cd $(GOPATH)/src/goa.design/examples && \
-		git checkout main && \
-		git pull origin main && \
-		status="$$(git status --porcelain)" && \
-		if [ -n "$$status" ]; then \
-			echo "error: examples repo has uncommitted changes:"; \
-			echo "$$status"; \
-			exit 1; \
-		fi
-	cd $(GOPATH)/src/goa.design/plugins && \
-		git checkout v$(MAJOR) && \
-		git pull origin v$(MAJOR) && \
-		status="$$(git status --porcelain)" && \
-		if [ -n "$$status" ]; then \
-			echo "error: plugins repo has uncommitted changes:"; \
-			echo "$$status"; \
-			exit 1; \
-		fi
 	go mod tidy 
 	# Bump version number, commit and push
 	sed 's/Major = .*/Major = $(MAJOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
 	sed 's/Minor = .*/Minor = $(MINOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
 	sed 's/Build = .*/Build = $(BUILD)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
-	sed 's|github.com/CaliLuke/loom/v3@v.*tab=doc|github.com/CaliLuke/loom/v3@v$(MAJOR).$(MINOR).$(BUILD)/dsl?tab=doc|' README.md > _tmp && mv _tmp README.md
+	sed 's|github.com/CaliLuke/loom@v.*tab=doc|github.com/CaliLuke/loom@v$(MAJOR).$(MINOR).$(BUILD)/dsl?tab=doc|' README.md > _tmp && mv _tmp README.md
 	$(MAKE) release-preflight
 	git add .
 	git commit -m "Release v$(MAJOR).$(MINOR).$(BUILD)"
 	git tag v$(MAJOR).$(MINOR).$(BUILD)
 	cd cmd/loom && go install .
-	git push origin v$(MAJOR)
+	git push origin main
 	git push origin v$(MAJOR).$(MINOR).$(BUILD)
 	# Wait for Go proxy to update
 	sleep 10
-
-release-examples:
-	cd $(GOPATH)/src/goa.design/examples && \
-		make GOA_VERSION=v$(MAJOR).$(MINOR).$(BUILD)&& \
-		git add . && \
-		git commit -m "Release v$(MAJOR).$(MINOR).$(BUILD)" && \
-		git tag v$(MAJOR).$(MINOR).$(BUILD) && \
-		git push origin main && \
-		git push origin v$(MAJOR).$(MINOR).$(BUILD)
-
-release-plugins:
-	cd $(GOPATH)/src/goa.design/plugins && \
-		sed 's/goa.design\/goa\/v.*/goa.design\/goa\/v$(MAJOR) v$(MAJOR).$(MINOR).$(BUILD)/' go.mod > _tmp && mv _tmp go.mod && \
-		make && \
-		git add . && \
-		git commit -m "Release v$(MAJOR).$(MINOR).$(BUILD)" && \
-		git tag v$(MAJOR).$(MINOR).$(BUILD) && \
-		git push origin v$(MAJOR) && \
-		git push origin v$(MAJOR).$(MINOR).$(BUILD)
