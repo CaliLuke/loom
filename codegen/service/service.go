@@ -119,8 +119,8 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	imports := []*codegen.ImportSpec{
 		codegen.SimpleImport("context"),
 		codegen.SimpleImport("io"),
-		codegen.GoaImport(""),
-		codegen.GoaImport("security"),
+		codegen.LoomImport(""),
+		codegen.LoomImport("security"),
 		codegen.NewImport(svc.ViewsPkg, genpkg+"/"+svcName+"/views"),
 	}
 	if len(svc.unions) > 0 {
@@ -128,7 +128,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 			codegen.SimpleImport("encoding/json"),
 			codegen.SimpleImport("fmt"),
 			codegen.SimpleImport("net/url"),
-			codegen.GoaNamedImport("http", "goahttp"),
+			codegen.LoomNamedImport("http", "goahttp"),
 		)
 	}
 	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
@@ -195,13 +195,13 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 		dir, _ := filepath.Split(fullRelPath)
 		imports := []*codegen.ImportSpec{
 			codegen.SimpleImport("fmt"),
-			codegen.GoaImport(""),
+			codegen.LoomImport(""),
 		}
 		if hasUnion {
 			imports = append(imports,
 				codegen.SimpleImport("encoding/json"),
 				codegen.SimpleImport("net/url"),
-				codegen.GoaNamedImport("http", "goahttp"),
+				codegen.LoomNamedImport("http", "goahttp"),
 			)
 		}
 		h := codegen.Header("User types", codegen.Goify(filepath.Base(dir), false), imports)

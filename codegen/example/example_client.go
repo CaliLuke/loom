@@ -45,7 +45,7 @@ func exampleCLIMain(_ string, root *expr.RootExpr, svr *expr.ServerExpr) *codege
 		{Path: "sort"},
 		{Path: "slices"},
 		{Path: "strings"},
-		codegen.GoaImport(""),
+		codegen.LoomImport(""),
 	}
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),

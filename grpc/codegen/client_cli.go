@@ -57,8 +57,8 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 		{Path: "os"},
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
-		codegen.GoaImport(""),
-		codegen.GoaNamedImport("grpc", "goagrpc"),
+		codegen.LoomImport(""),
+		codegen.LoomNamedImport("grpc", "goagrpc"),
 		{Path: "google.golang.org/grpc", Name: "grpc"},
 	}
 	// Add structpb import if Any type is used
@@ -122,7 +122,7 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 		{Path: "fmt"},
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
-		codegen.GoaImport(""),
+		codegen.LoomImport(""),
 		{Path: path.Join(genpkg, svcName), Name: sd.Service.PkgName},
 		{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName},
 	}

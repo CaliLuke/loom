@@ -38,9 +38,9 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: "fmt"},
 		&codegen.ImportSpec{Path: "net/http"},
 		&codegen.ImportSpec{Path: "sync"},
-		codegen.GoaImport(""),
-		codegen.GoaImport("jsonrpc"),
-		codegen.GoaNamedImport("http", "goahttp"),
+		codegen.LoomImport(""),
+		codegen.LoomImport("jsonrpc"),
+		codegen.LoomNamedImport("http", "goahttp"),
 		// Import the service package from the correct location
 		&codegen.ImportSpec{Path: genpkg + "/" + codegen.SnakeCase(data.Service.Name), Name: data.Service.PkgName},
 	)

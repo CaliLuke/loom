@@ -38,8 +38,6 @@ func main() {
 	)
 	{
 		serviceWithSpacesEndpoints = servicewithspaces.NewEndpoints(serviceWithSpacesSvc)
-		serviceWithSpacesEndpoints.Use(debug.LogPayloads())
-		serviceWithSpacesEndpoints.Use(log.Endpoint)
 	}
 
 	// Create channel used by both the signal handler and server goroutines

@@ -114,8 +114,8 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 		{Path: "os"},
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
-		codegen.GoaImport(""),
-		codegen.GoaNamedImport("http", "goahttp"),
+		codegen.LoomImport(""),
+		codegen.LoomNamedImport("http", "goahttp"),
 	}
 	for _, sv := range svr.Services {
 		svc := root.Service(sv)
@@ -167,8 +167,8 @@ func payloadBuilders(genpkg string, svc *expr.HTTPServiceExpr, data *cli.Command
 		{Path: "os"},
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
-		codegen.GoaImport(""),
-		codegen.GoaNamedImport("http", "goahttp"),
+		codegen.LoomImport(""),
+		codegen.LoomNamedImport("http", "goahttp"),
 		{Path: genpkg + "/" + sd.Service.PathName, Name: sd.Service.PkgName},
 	}
 	sections := []codegen.Section{

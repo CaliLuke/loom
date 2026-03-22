@@ -63,7 +63,7 @@ func normalizeFileForPackageMatch(file string) string {
 
 // computeErrorLocation implements a heuristic to find the location in the user
 // code where the error occurred. It walks back the callstack until the file
-// doesn't match "/goa/design/*.go" or one of the DSL package paths.
+// doesn't match "/loom/design/*.go" or one of the DSL package paths.
 // When successful it returns the file name and line number, empty string and
 // 0 otherwise.
 func computeErrorLocation() (file string, line int) {
@@ -71,7 +71,7 @@ func computeErrorLocation() (file string, line int) {
 		if strings.HasSuffix(file, "_test.go") { // Be nice with tests
 			return false
 		}
-		if isGoaSourceFile(file) {
+		if isLoomSourceFile(file) {
 			return true
 		}
 		file = filepath.ToSlash(file)
@@ -108,12 +108,12 @@ func computeErrorLocation() (file string, line int) {
 	return "", 0
 }
 
-// isGoaSourceFile reports whether file points into the Loom module sources.
+// isLoomSourceFile reports whether file points into the Loom module sources.
 //
 // This is used to robustly skip internal Loom frames even when the runtime
 // reports a call location (file:line) inside an inlined Loom function but the
 // corresponding frame Function name does not include an import path.
-func isGoaSourceFile(file string) bool {
+func isLoomSourceFile(file string) bool {
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
 		return false

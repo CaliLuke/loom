@@ -41,11 +41,7 @@ func main() {
 	)
 	{
 		serviceEndpoints = service.NewEndpoints(serviceSvc)
-		serviceEndpoints.Use(debug.LogPayloads())
-		serviceEndpoints.Use(log.Endpoint)
 		anotherServiceEndpoints = anotherservice.NewEndpoints(anotherServiceSvc)
-		anotherServiceEndpoints.Use(debug.LogPayloads())
-		anotherServiceEndpoints.Use(log.Endpoint)
 	}
 
 	// Create channel used by both the signal handler and server goroutines

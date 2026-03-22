@@ -31,9 +31,9 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: "sync"},
 		&codegen.ImportSpec{Path: "time"},
 		&codegen.ImportSpec{Path: "github.com/gorilla/websocket"},
-		codegen.GoaImport(""),
-		codegen.GoaImport("jsonrpc"),
-		codegen.GoaNamedImport("http", "goahttp"),
+		codegen.LoomImport(""),
+		codegen.LoomImport("jsonrpc"),
+		codegen.LoomNamedImport("http", "goahttp"),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)

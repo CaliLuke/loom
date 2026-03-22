@@ -39,10 +39,10 @@ func ExampleServer(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, ser
 		{Path: "os"},
 		{Path: "sync"},
 		{Path: "time"},
-		codegen.GoaNamedImport("http", "goahttp"),
+		codegen.LoomNamedImport("http", "goahttp"),
 		{Path: "goa.design/clue/debug"},
 		{Path: "goa.design/clue/log"},
-		codegen.GoaImport("middleware"),
+		codegen.LoomImport("middleware"),
 		{Path: "github.com/gorilla/websocket"},
 	}
 	specs = append(specs, baseSpecs...)

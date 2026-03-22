@@ -10,7 +10,7 @@ import (
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
-func TestServerFilesUseGoaGRPCHandlerAliases(t *testing.T) {
+func TestServerFilesUseLoomGRPCHandlerAliases(t *testing.T) {
 	t.Run("unary handlers use goagrpc alias", func(t *testing.T) {
 		code := renderGRPCServerFile(t, testdata.UnaryRPCsDSL)
 		require.Contains(t, code, "goagrpc.UnaryHandler")

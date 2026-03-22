@@ -50,3 +50,40 @@ func TestServerFilesOmitUnusedHostOverrideFlags(t *testing.T) {
 		t.Errorf("expected generated server main to omit secure flag when no server URIs are rendered")
 	}
 }
+
+func TestServerFilesDoNotUseLegacyClueEndpointMiddleware(t *testing.T) {
+	t.Cleanup(func() {
+		Servers = make(ServersData)
+	})
+	Servers = make(ServersData)
+
+	root := codegen.RunDSL(t, func() {
+		API("LegacyMiddleware", func() {
+			Server("orchestrator", func() {
+				Services("orchestrator")
+				Host("dev", func() {
+					URI("http://localhost:8080")
+				})
+			})
+		})
+		Service("orchestrator", func() {
+			Method("run", func() {
+				HTTP(func() {
+					POST("/rpc")
+				})
+			})
+		})
+	})
+	services := service.NewServicesData(root)
+	files := ServerFiles(filepath.Join("example.com", "legacy"), root, services)
+	require.Len(t, files, 1)
+
+	var buf bytes.Buffer
+	for _, section := range files[0].AllSections()[1:] {
+		require.NoError(t, section.Write(&buf))
+	}
+	code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
+
+	require.NotContains(t, code, "LogPayloads()")
+	require.NotContains(t, code, "log.Endpoint")
+}

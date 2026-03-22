@@ -65,7 +65,7 @@ func interceptorFile(svc *Data, server bool) *codegen.File {
 	sections := []codegen.Section{
 		codegen.Header(desc, svc.PkgName, []*codegen.ImportSpec{
 			{Path: "context"},
-			codegen.GoaImport(""),
+			codegen.LoomImport(""),
 		}),
 	}
 	if server {
@@ -102,7 +102,7 @@ func wrapperFile(svc *Data) *codegen.File {
 	sections = append(sections, codegen.Header("Interceptor wrappers", svc.PkgName, []*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "fmt"},
-		codegen.GoaImport(""),
+		codegen.LoomImport(""),
 	}))
 
 	// Generate any interceptor stream wrapper struct types first

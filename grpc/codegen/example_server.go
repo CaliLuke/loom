@@ -42,7 +42,7 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr) 
 		{Path: "net"},
 		{Path: "net/url"},
 		{Path: "sync"},
-		codegen.GoaNamedImport("grpc", "goagrpc"),
+		codegen.LoomNamedImport("grpc", "goagrpc"),
 		{Path: "goa.design/clue/debug"},
 		{Path: "goa.design/clue/log"},
 		{Path: "google.golang.org/grpc"},

@@ -44,7 +44,7 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 
 	path := filepath.Join(codegen.Gendir, svc.PathName, "views", "view.go")
 	imports := []*codegen.ImportSpec{
-		codegen.GoaImport(""),
+		codegen.LoomImport(""),
 		{Path: "unicode/utf8"},
 	}
 	if len(unions) > 0 {

@@ -399,8 +399,6 @@ func writeServerEndpointsInit(b *strings.Builder, services []*service.Data) {
 			fmt.Fprintf(b, ", %sInterceptors", svc.VarName)
 		}
 		fmt.Fprintf(b, ")\n")
-		fmt.Fprintf(b, "\t\t%sEndpoints.Use(debug.LogPayloads())\n", svc.VarName)
-		fmt.Fprintf(b, "\t\t%sEndpoints.Use(log.Endpoint)\n", svc.VarName)
 	}
 	fmt.Fprintf(b, "\t}\n\n")
 }

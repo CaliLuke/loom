@@ -221,6 +221,49 @@ func jsonrpcServerMethodNamesSection(data *httpcodegen.ServiceData) codegen.Sect
 	return codegen.NewRawSection("jsonrpc-server-method-names", fmt.Sprintf("\n%s\nfunc (s *%s) MethodNames() []string { return %s.MethodNames[:] }\n", codegen.Comment("MethodNames returns the methods served."), data.ServerStruct, data.Service.PkgName))
 }
 
+func jsonrpcServerResponseCaptureSection() codegen.Section {
+	return codegen.NewRawSection("jsonrpc-server-response-capture", `
+type jsonrpcResponseCapture struct {
+	header     http.Header
+	body       bytes.Buffer
+	statusCode int
+}
+
+func (c *jsonrpcResponseCapture) Header() http.Header {
+	if c.header == nil {
+		c.header = make(http.Header)
+	}
+	return c.header
+}
+
+func (c *jsonrpcResponseCapture) Write(data []byte) (int, error) {
+	if c.statusCode == 0 {
+		c.statusCode = http.StatusOK
+	}
+	return c.body.Write(data)
+}
+
+func (c *jsonrpcResponseCapture) WriteHeader(statusCode int) {
+	if c.statusCode != 0 {
+		return
+	}
+	c.statusCode = statusCode
+}
+
+func copyJSONRPCResponseMetadata(dst http.ResponseWriter, src *jsonrpcResponseCapture) {
+	for key, vals := range src.Header() {
+		switch http.CanonicalHeaderKey(key) {
+		case "Content-Length", "Content-Type", "Transfer-Encoding":
+			continue
+		}
+		for _, val := range vals {
+			dst.Header().Add(key, val)
+		}
+	}
+}
+`)
+}
+
 func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
 	var b strings.Builder
 	b.WriteString("\n// ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.\n")

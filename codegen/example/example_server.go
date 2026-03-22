@@ -43,7 +43,6 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 		{Path: "sync"},
 		{Path: "syscall"},
 		{Path: "time"},
-		{Path: "goa.design/clue/debug"},
 		{Path: "goa.design/clue/log"},
 	}
 

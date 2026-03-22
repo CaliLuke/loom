@@ -22,13 +22,13 @@ var templateFS embed.FS
 // generatorTemplates is the template reader for the test generator
 var generatorTemplates = &goatemplate.TemplateReader{FS: templateFS, Extension: ".tmpl"}
 
-const goaSourceModeFile = ".goa_source_mode"
+const loomSourceModeFile = ".loom_source_mode"
 
 // Generator generates test service code for the integration framework.
 // Flow:
 //  1. Build design data from scenarios
 //  2. Render design (go.mod, design.go)
-//  3. Run goa gen/example
+//  3. Run loom gen/example
 //  4. Build implementation data (align method Go names with generated interface)
 //  5. Render implementations
 //
@@ -52,7 +52,7 @@ func (g *Generator) Generate() error {
 	if err := g.renderDesign(design); err != nil {
 		return err
 	}
-	// 3. Run goa gen/example
+	// 3. Run loom gen/example
 	if err := g.runPostGeneration(); err != nil {
 		return fmt.Errorf("post generation: %w", err)
 	}
@@ -86,7 +86,7 @@ func (g *Generator) buildDesignData() *DesignData {
 	return data
 }
 
-// renderDesign writes the design files required prior to running goa gen/example.
+// renderDesign writes the design files required prior to running loom gen/example.
 func (g *Generator) renderDesign(design *DesignData) error {
 	// go.mod
 	gomod := &codegen.File{
@@ -94,7 +94,7 @@ func (g *Generator) renderDesign(design *DesignData) error {
 		Sections: []codegen.Section{&codegen.SectionTemplate{
 			Name:   "go-mod",
 			Source: generatorTemplates.Read("go_mod"),
-			Data:   map[string]string{"GoaPath": g.repoRootReplace()},
+			Data:   map[string]string{"LoomPath": g.repoRootReplace()},
 		}},
 	}
 	if _, err := gomod.Render(g.workDir); err != nil {
@@ -418,21 +418,21 @@ func (g *Generator) runPostGeneration() error {
 }
 
 // repoRootReplace returns a path suitable for the replace directive in go.mod.
-// Prefer GOA_REPO env var for tests; otherwise fall back to relative path.
+// Prefer LOOM_REPO env var for tests; otherwise fall back to relative path.
 func (g *Generator) repoRootReplace() string {
-	if p := os.Getenv("GOA_REPO"); p != "" {
+	if p := os.Getenv("LOOM_REPO"); p != "" {
 		return p
 	}
-	if p := configuredLocalGoaSource(); p != "" {
+	if p := configuredLocalLoomSource(); p != "" {
 		return p
 	}
-	dest := filepath.Join(g.workDir, ".goa-pinned")
+	dest := filepath.Join(g.workDir, ".loom-pinned")
 	if fi, err := os.Stat(dest); err == nil && fi.IsDir() {
 		return dest
 	}
-	remote, commit, err := resolvePinnedGoaSource()
+	remote, commit, err := resolvePinnedLoomSource()
 	if err == nil {
-		if err := checkoutPinnedGoaSource(dest, remote, commit); err == nil {
+		if err := checkoutPinnedLoomSource(dest, remote, commit); err == nil {
 			return dest
 		}
 	}
@@ -447,15 +447,15 @@ func (g *Generator) repoRootReplace() string {
 	return absPath
 }
 
-func configuredLocalGoaSource() string {
+func configuredLocalLoomSource() string {
 	repoRoot, err := repoTopLevel()
 	if err != nil || repoRoot == "" {
 		return ""
 	}
-	return localGoaSourceFromModeFile(filepath.Join(repoRoot, "jsonrpc", "integration_tests", goaSourceModeFile))
+	return localLoomSourceFromModeFile(filepath.Join(repoRoot, "jsonrpc", "integration_tests", loomSourceModeFile))
 }
 
-func localGoaSourceFromModeFile(path string) string {
+func localLoomSourceFromModeFile(path string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
@@ -481,7 +481,7 @@ func repoTopLevel() (string, error) {
 	return strings.TrimSpace(root), nil
 }
 
-func resolvePinnedGoaSource() (string, string, error) {
+func resolvePinnedLoomSource() (string, string, error) {
 	remoteNames := []string{"fork", "origin"}
 	var remote string
 	for _, name := range remoteNames {
@@ -501,7 +501,7 @@ func resolvePinnedGoaSource() (string, string, error) {
 	return remote, strings.TrimSpace(commit), nil
 }
 
-func checkoutPinnedGoaSource(dest, remote, commit string) error {
+func checkoutPinnedLoomSource(dest, remote, commit string) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}

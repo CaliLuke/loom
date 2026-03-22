@@ -50,8 +50,8 @@ func exampleCLI(genpkg string, services *ServicesData, svr *expr.ServerExpr) *co
 		{Path: "google.golang.org/grpc/credentials/insecure"},
 		{Path: "os"},
 		{Path: "time"},
-		codegen.GoaImport(""),
-		codegen.GoaNamedImport("grpc", "goagrpc"),
+		codegen.LoomImport(""),
+		codegen.LoomNamedImport("grpc", "goagrpc"),
 		{Path: rootPath + "/interceptors"},
 		{Path: path.Join(genpkg, "grpc", "cli", svrdata.Dir), Name: "cli"},
 	}

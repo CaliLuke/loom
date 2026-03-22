@@ -74,7 +74,7 @@ func serverEncodeDecodeSections(f *codegen.File) []codegen.Section {
 func addJSONRPCServerImports(section *codegen.SectionTemplate) {
 	codegen.AddImport(section, &codegen.ImportSpec{Path: "bytes"})
 	codegen.AddImport(section, &codegen.ImportSpec{Path: "io"})
-	codegen.AddImport(section, codegen.GoaImport("jsonrpc"))
+	codegen.AddImport(section, codegen.LoomImport("jsonrpc"))
 }
 
 func rewriteJSONRPCRequestDecoder(section *codegen.SectionTemplate) {
@@ -111,9 +111,9 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		&codegen.ImportSpec{Path: "net/http"},
 		&codegen.ImportSpec{Path: "path"},
 		&codegen.ImportSpec{Path: "strings"},
-		codegen.GoaImport(""),
-		codegen.GoaImport("jsonrpc"),
-		codegen.GoaNamedImport("http", "goahttp"),
+		codegen.LoomImport(""),
+		codegen.LoomImport("jsonrpc"),
+		codegen.LoomNamedImport("http", "goahttp"),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	)
@@ -128,6 +128,7 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		jsonrpcServerServiceSection(data),
 		jsonrpcServerUseSection(data),
 		jsonrpcServerMethodNamesSection(data),
+		jsonrpcServerResponseCaptureSection(),
 	)
 
 	// Use appropriate server handler based on transport

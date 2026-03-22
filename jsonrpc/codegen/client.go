@@ -87,7 +87,7 @@ func addJSONRPCClientImports(section *codegen.SectionTemplate) {
 	codegen.AddImport(section, &codegen.ImportSpec{Path: "sync"})
 	codegen.AddImport(section, &codegen.ImportSpec{Path: "sync/atomic"})
 	codegen.AddImport(section, &codegen.ImportSpec{Path: "github.com/google/uuid"})
-	codegen.AddImport(section, codegen.GoaImport("jsonrpc"))
+	codegen.AddImport(section, codegen.LoomImport("jsonrpc"))
 }
 
 func rewriteJSONRPCRequestEncoder(section *codegen.SectionTemplate) {
@@ -118,9 +118,9 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 			{Path: "sync/atomic"},
 			{Path: "time"},
 			{Path: "github.com/gorilla/websocket"},
-			codegen.GoaImport(""),
-			codegen.GoaImport("jsonrpc"),
-			codegen.GoaNamedImport("http", "goahttp"),
+			codegen.LoomImport(""),
+			codegen.LoomImport("jsonrpc"),
+			codegen.LoomNamedImport("http", "goahttp"),
 			{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 			{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 		}),

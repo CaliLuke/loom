@@ -22,7 +22,7 @@ func ClientFile(_ string, service *expr.ServiceExpr, services *ServicesData) *co
 		imports := []*codegen.ImportSpec{
 			{Path: "context"},
 			{Path: "io"},
-			codegen.GoaImport(""),
+			codegen.LoomImport(""),
 		}
 		header := codegen.Header(service.Name+" client", svc.PkgName, imports)
 		def := clientStructSection(data)

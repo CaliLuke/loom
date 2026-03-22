@@ -65,7 +65,7 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 
 	renderGeneratedFiles(t, dir, files)
 
-	repoRoot := checkoutPinnedGoaModule(t, dir)
+	repoRoot := checkoutPinnedLoomModule(t, dir)
 	goMod := fmt.Sprintf(`module %s
 
 go 1.25.0
@@ -79,16 +79,16 @@ replace github.com/CaliLuke/loom => %s
 	}
 }
 
-func checkoutPinnedGoaModule(t *testing.T, parentDir string) string {
+func checkoutPinnedLoomModule(t *testing.T, parentDir string) string {
 	t.Helper()
 
-	if local := configuredLocalGoaModulePath(); local != "" {
+	if local := configuredLocalLoomModulePath(); local != "" {
 		return local
 	}
 
 	commit := strings.TrimSpace(runCommand(t, "", "git", "rev-parse", "HEAD"))
 	remote := strings.TrimSpace(resolveGitRemoteURL(t))
-	dest := filepath.Join(parentDir, "goa-pinned")
+	dest := filepath.Join(parentDir, "loom-pinned")
 
 	runCommand(t, "", "git", "init", dest)
 	runCommand(t, dest, "git", "remote", "add", "origin", remote)
@@ -98,15 +98,15 @@ func checkoutPinnedGoaModule(t *testing.T, parentDir string) string {
 	return dest
 }
 
-func configuredLocalGoaModulePath() string {
-	if repo := os.Getenv("GOA_REPO"); repo != "" {
+func configuredLocalLoomModulePath() string {
+	if repo := os.Getenv("LOOM_REPO"); repo != "" {
 		return repo
 	}
 	root, err := runCommandAllowFailure("", "git", "rev-parse", "--show-toplevel")
 	if err != nil {
 		return ""
 	}
-	modeFile := filepath.Join(strings.TrimSpace(root), "jsonrpc", "integration_tests", ".goa_source_mode")
+	modeFile := filepath.Join(strings.TrimSpace(root), "jsonrpc", "integration_tests", ".loom_source_mode")
 	data, err := os.ReadFile(modeFile)
 	if err != nil {
 		return ""

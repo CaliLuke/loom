@@ -45,18 +45,18 @@ func SimpleImport(path string) *ImportSpec {
 	return &ImportSpec{Path: path}
 }
 
-// GoaImport creates an import for a Loom package.
-func GoaImport(rel string) *ImportSpec {
+// LoomImport creates an import for a Loom package.
+func LoomImport(rel string) *ImportSpec {
 	name := ""
 	if rel == "" {
 		name = "goa"
 		rel = "pkg"
 	}
-	return GoaNamedImport(rel, name)
+	return LoomNamedImport(rel, name)
 }
 
-// GoaNamedImport creates an import for a Loom package with the given name.
-func GoaNamedImport(rel, name string) *ImportSpec {
+// LoomNamedImport creates an import for a Loom package with the given name.
+func LoomNamedImport(rel, name string) *ImportSpec {
 	root := "github.com/CaliLuke/loom"
 	if rel != "" {
 		rel = "/" + rel

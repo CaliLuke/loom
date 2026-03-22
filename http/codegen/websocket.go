@@ -252,8 +252,8 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 		{Path: "sync"},
 		{Path: "time"},
 		{Path: "github.com/gorilla/websocket"},
-		codegen.GoaImport(""),
-		codegen.GoaNamedImport("http", "goahttp"),
+		codegen.LoomImport(""),
+		codegen.LoomNamedImport("http", "goahttp"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	}
 	structSections := websocketStructSections(data, false)
@@ -289,8 +289,8 @@ func WebsocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 		{Path: "sync"},
 		{Path: "time"},
 		{Path: "github.com/gorilla/websocket"},
-		codegen.GoaImport(""),
-		codegen.GoaNamedImport("http", "goahttp"),
+		codegen.LoomImport(""),
+		codegen.LoomNamedImport("http", "goahttp"),
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	}

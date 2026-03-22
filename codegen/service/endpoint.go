@@ -81,8 +81,8 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 			{Path: "context"},
 			{Path: "io"},
 			{Path: "fmt"},
-			codegen.GoaImport(""),
-			codegen.GoaImport("security"),
+			codegen.LoomImport(""),
+			codegen.LoomImport("security"),
 			{Path: genpkg + "/" + svcName + "/" + "views", Name: svc.ViewsPkg},
 		}
 		header := codegen.Header(service.Name+" endpoints", svc.PkgName, imports)

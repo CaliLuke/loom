@@ -65,7 +65,7 @@ func serverType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		fpath = filepath.Join(codegen.Gendir, "grpc", svcName, "server", "types.go")
 		imports := []*codegen.ImportSpec{
 			{Path: "unicode/utf8"},
-			codegen.GoaImport(""),
+			codegen.LoomImport(""),
 			{Path: path.Join(genpkg, svcName), Name: sd.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: sd.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName},

@@ -295,6 +295,9 @@ func renderJSONRPCServerHandlerInit(e *httpcodegen.EndpointData) string {
 			fmt.Fprintf(&b, "\tdecodeParams := %s(mux, decoder)\n", e.RequestDecoder)
 		}
 	}
+	if !httpcodegen.IsWebSocketEndpoint(e) && needsJSONRPCResponseCapture(e) {
+		fmt.Fprintf(&b, "\tencodeResponse := %s(encoder)\n", e.ResponseEncoder)
+	}
 	fmt.Fprintf(&b, "\treturn func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest")
 	if !httpcodegen.IsWebSocketEndpoint(e) {
 		b.WriteString(", w http.ResponseWriter")
@@ -410,18 +413,18 @@ func renderJSONRPCStandardHandlerInitBody(b *strings.Builder, e *httpcodegen.End
 		return
 	}
 
+	resultVar := "res"
+	assignOp := ":="
 	if e.Result == nil || e.Result.Ref == "" {
-		if e.Payload != nil && e.Payload.Ref != "" {
-			b.WriteString("\t\t_, err = endpoint(ctx, params)\n")
-		} else {
-			b.WriteString("\t\t_, err := endpoint(ctx, nil)\n")
+		if !needsJSONRPCResponseCapture(e) {
+			resultVar = "_"
+			assignOp = "="
 		}
+	}
+	if e.Payload != nil && e.Payload.Ref != "" {
+		fmt.Fprintf(b, "\t\t%s, err %s endpoint(ctx, params)\n", resultVar, assignOp)
 	} else {
-		if e.Payload != nil && e.Payload.Ref != "" {
-			b.WriteString("\t\tres, err := endpoint(ctx, params)\n")
-		} else {
-			b.WriteString("\t\tres, err := endpoint(ctx, nil)\n")
-		}
+		fmt.Fprintf(b, "\t\t%s, err %s endpoint(ctx, nil)\n", resultVar, assignOp)
 	}
 
 	if httpcodegen.IsWebSocketEndpoint(e) {
@@ -467,6 +470,14 @@ func renderJSONRPCStandardHandlerInitBody(b *strings.Builder, e *httpcodegen.End
 		b.WriteString("\t\tif req.ID == nil || req.ID == \"\" {\n")
 		b.WriteString("\t\t\treturn nil\n")
 		b.WriteString("\t\t}\n")
+		if needsJSONRPCResponseCapture(e) {
+			b.WriteString("\t\tcapture := &jsonrpcResponseCapture{}\n")
+			b.WriteString("\t\tif err := encodeResponse(ctx, capture, res); err != nil {\n")
+			b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode transport response: %w\", err))\n")
+			b.WriteString("\t\t\treturn nil\n")
+			b.WriteString("\t\t}\n")
+			b.WriteString("\t\tcopyJSONRPCResponseMetadata(w, capture)\n")
+		}
 		b.WriteString("\t\tresponse := jsonrpc.MakeSuccessResponse(req.ID, nil)\n")
 		b.WriteString("\t\tif err := encoder(ctx, w).Encode(response); err != nil {\n")
 		b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode JSON-RPC response: %w\", err))\n")
@@ -497,6 +508,24 @@ func renderJSONRPCStandardHandlerInitBody(b *strings.Builder, e *httpcodegen.End
 	b.WriteString("\t\tif id == nil || id == \"\" {\n")
 	b.WriteString("\t\t\treturn nil\n")
 	b.WriteString("\t\t}\n")
+	if needsJSONRPCResponseCapture(e) {
+		b.WriteString("\t\tcapture := &jsonrpcResponseCapture{}\n")
+		b.WriteString("\t\tif err := encodeResponse(ctx, capture, res); err != nil {\n")
+		b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode transport response: %w\", err))\n")
+		b.WriteString("\t\t\treturn nil\n")
+		b.WriteString("\t\t}\n")
+		b.WriteString("\t\tcopyJSONRPCResponseMetadata(w, capture)\n")
+		b.WriteString("\t\tvar result any\n")
+		b.WriteString("\t\tif capture.body.Len() > 0 {\n")
+		b.WriteString("\t\t\tresult = json.RawMessage(capture.body.Bytes())\n")
+		b.WriteString("\t\t}\n")
+		b.WriteString("\t\tresponse := jsonrpc.MakeSuccessResponse(id, result)\n")
+		b.WriteString("\t\tif err := encoder(ctx, w).Encode(response); err != nil {\n")
+		b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode JSON-RPC response: %w\", err))\n")
+		b.WriteString("\t\t}\n")
+		b.WriteString("\t\treturn nil\n")
+		return
+	}
 	success := e.Result.Responses[0]
 	if success != nil && len(success.ServerBody) > 0 && success.ServerBody[0].Init != nil {
 		b.WriteString("\t\t// Convert result to response body with proper JSON tags\n")
@@ -514,6 +543,17 @@ func renderJSONRPCStandardHandlerInitBody(b *strings.Builder, e *httpcodegen.End
 	b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode JSON-RPC response: %w\", err))\n")
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t\treturn nil\n")
+}
+
+func needsJSONRPCResponseCapture(e *httpcodegen.EndpointData) bool {
+	if e == nil || e.Result == nil || len(e.Result.Responses) == 0 {
+		return false
+	}
+	success := e.Result.Responses[0]
+	if success == nil {
+		return false
+	}
+	return len(success.Headers) > 0 || len(success.Cookies) > 0
 }
 
 func writePayloadIDInjection(b *strings.Builder, indent string, payload *httpcodegen.PayloadData) {

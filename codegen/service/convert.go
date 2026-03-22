@@ -200,7 +200,7 @@ func generateConvertFileForPath(
 	}
 
 	// Build header section
-	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.GoaImport(""))
+	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.LoomImport(""))
 	sections := []codegen.Section{
 		codegen.Header(service.Name+" service type conversion functions", convertPkgName, pkgs),
 	}
@@ -505,7 +505,7 @@ func ConvertFile(root *expr.RootExpr, service *expr.ServiceExpr, services *Servi
 	}
 
 	// Build header section
-	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.GoaImport(""))
+	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.LoomImport(""))
 	path := filepath.Join(codegen.Gendir, codegen.SnakeCase(service.Name), "convert.go")
 	sections := []codegen.Section{
 		codegen.Header(service.Name+" service type conversion functions", svc.PkgName, pkgs),
