@@ -1,3 +1,4 @@
+---
 name: loom
 description: Build and maintain `loom` services in Go. Use this skill when a user mentions Loom, Loom migration, Loom DSL, `loom gen`, generated `gen/` transport code, OpenAPI/proto generation, service implementation after DSL changes, or refactoring a project with a `design` package.
 ---
