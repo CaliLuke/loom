@@ -33,100 +33,14 @@ type convertData struct {
 // ConvertFiles returns multiple files containing conversion and creation functions,
 // grouped by target package as specified by struct:pkg:path metadata.
 func ConvertFiles(root *expr.RootExpr, service *expr.ServiceExpr, services *ServicesData) ([]*codegen.File, error) {
-	// Filter conversion and creation functions that are relevant for this service
 	svc := services.Get(service.Name)
-	var conversions, creations []*expr.TypeMap
-
-	// Collect relevant conversions
-	for _, c := range root.Conversions {
-		for _, m := range service.Methods {
-			if ut, ok := m.Payload.Type.(expr.UserType); ok {
-				if ut.Name() == c.User.Name() {
-					conversions = append(conversions, c)
-					break
-				}
-			}
-		}
-		for _, m := range service.Methods {
-			if ut, ok := m.Result.Type.(expr.UserType); ok {
-				if ut.Name() == c.User.Name() {
-					conversions = append(conversions, c)
-					break
-				}
-			}
-		}
-		for _, t := range svc.userTypes {
-			if c.User.Name() == t.Name {
-				conversions = append(conversions, c)
-				break
-			}
-		}
-	}
-
-	// Collect relevant creations
-	for _, c := range root.Creations {
-		for _, m := range service.Methods {
-			if ut, ok := m.Payload.Type.(expr.UserType); ok {
-				if ut.Name() == c.User.Name() {
-					creations = append(creations, c)
-					break
-				}
-			}
-		}
-		for _, m := range service.Methods {
-			if ut, ok := m.Result.Type.(expr.UserType); ok {
-				if ut.Name() == c.User.Name() {
-					creations = append(creations, c)
-					break
-				}
-			}
-		}
-		for _, t := range svc.userTypes {
-			if c.User.Name() == t.Name {
-				creations = append(creations, c)
-				break
-			}
-		}
-	}
+	conversions, creations := relevantTypeMaps(root, service, svc)
 
 	if len(conversions) == 0 && len(creations) == 0 {
 		return nil, nil
 	}
 
-	// Group conversions and creations by target package path
-	conversionsByPath := make(map[string][]*expr.TypeMap)
-	creationsByPath := make(map[string][]*expr.TypeMap)
-	allPaths := make(map[string]struct{})
-
-	// Group conversions by path
-	for _, c := range conversions {
-		var path string
-		if loc := codegen.UserTypeLocation(c.User); loc != nil {
-			// Custom package path - use directory containing the type file
-			dir := filepath.Dir(loc.FilePath)
-			path = filepath.Join(codegen.Gendir, dir, "convert.go")
-		} else {
-			// Default to service package
-			path = filepath.Join(codegen.Gendir, codegen.SnakeCase(service.Name), "convert.go")
-		}
-		conversionsByPath[path] = append(conversionsByPath[path], c)
-		allPaths[path] = struct{}{}
-	}
-
-	// Group creations by path
-	for _, c := range creations {
-		var path string
-		if loc := codegen.UserTypeLocation(c.User); loc != nil {
-			// Custom package path - use directory containing the type file
-			dir := filepath.Dir(loc.FilePath)
-			path = filepath.Join(codegen.Gendir, dir, "convert.go")
-		} else {
-			// Default to service package
-			path = filepath.Join(codegen.Gendir, codegen.SnakeCase(service.Name), "convert.go")
-		}
-		creationsByPath[path] = append(creationsByPath[path], c)
-		allPaths[path] = struct{}{}
-	}
+	conversionsByPath, creationsByPath, allPaths := groupTypeMapsByPath(conversions, creations, service)
 
 	// Generate a file for each path
 	var files []*codegen.File
@@ -162,45 +76,11 @@ func generateConvertFileForPath(
 		return nil, nil
 	}
 
-	// Determine package name from path
-	var convertPkgName string
-	if len(conversions) > 0 {
-		if loc := codegen.UserTypeLocation(conversions[0].User); loc != nil {
-			convertPkgName = loc.PackageName()
-		} else {
-			convertPkgName = svc.PkgName
-		}
-	} else if len(creations) > 0 {
-		if loc := codegen.UserTypeLocation(creations[0].User); loc != nil {
-			convertPkgName = loc.PackageName()
-		} else {
-			convertPkgName = svc.PkgName
-		}
+	convertPkgName := convertPackageName(conversions, creations, svc.PkgName)
+	pkgs, err := convertImports(conversions, creations)
+	if err != nil {
+		return nil, err
 	}
-
-	// Retrieve external packages info
-	ppm := make(map[string]string)
-	for _, c := range conversions {
-		pkgImport, alias, err := getExternalTypeInfo(c.External)
-		if err != nil {
-			return nil, err
-		}
-		ppm[pkgImport] = alias
-	}
-	for _, c := range creations {
-		pkgImport, alias, err := getExternalTypeInfo(c.External)
-		if err != nil {
-			return nil, err
-		}
-		ppm[pkgImport] = alias
-	}
-	pkgs := make([]*codegen.ImportSpec, 0, len(ppm)+2)
-	for pp, alias := range ppm {
-		pkgs = append(pkgs, &codegen.ImportSpec{Name: alias, Path: pp})
-	}
-
-	// Build header section
-	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.LoomImport(""))
 	sections := []codegen.Section{
 		codegen.Header(service.Name+" service type conversion functions", convertPkgName, pkgs),
 	}
@@ -210,102 +90,21 @@ func generateConvertFileForPath(
 		transFuncs []*codegen.TransformFunctionData
 	)
 
-	// Build conversion sections if any
 	for _, c := range conversions {
-		var dt expr.DataType
-		if err := buildDesignType(&dt, reflect.TypeOf(c.External), c.User); err != nil {
-			return nil, err
-		}
-		t := reflect.TypeOf(c.External)
-		tgtPkg := t.String()
-		if idx := strings.Index(tgtPkg, "."); idx != -1 {
-			tgtPkg = tgtPkg[:idx]
-		}
-
-		// Use the correct source context based on where the conversion file will be generated
-		var srcCtx *codegen.AttributeContext
-		if loc := codegen.UserTypeLocation(c.User); loc != nil {
-			// Create a context for the custom package with empty default package to avoid qualification
-			srcScope := codegen.NewNameScope()
-			// Register the user type in this scope - this will ensure proper type references
-			srcScope.GoTypeName(&expr.AttributeExpr{Type: c.User})
-			// Use conversion context so types in the same package are not qualified
-			srcCtx = codegen.NewAttributeContextForConversion(false, false, true, convertPkgName, srcScope)
-		} else {
-			srcCtx = typeContext(svc.Scope)
-		}
-		tgtCtx := codegen.NewAttributeContext(false, false, false, tgtPkg, codegen.NewNameScope())
-		srcAtt := &expr.AttributeExpr{Type: c.User}
-		tgtAtt := &expr.AttributeExpr{Type: dt}
-		tgtAtt.AddMeta("struct:type:name", dt.Name()) // Used by transformer to generate the correct type name.
-		code, tf, err := codegen.GoTransform(
-			srcAtt, tgtAtt,
-			"t", "v", srcCtx, tgtCtx, "transform", true)
+		data, tf, err := buildConvertSectionData(c, svc, convertPkgName, names)
 		if err != nil {
 			return nil, err
 		}
 		transFuncs = codegen.AppendHelpers(transFuncs, tf)
-		base := "ConvertTo" + t.Name()
-		name := uniquify(base, names)
-		ref := t.String()
-		if expr.IsObject(c.User) {
-			ref = "*" + ref
-		}
-		data := convertData{
-			Name:            name,
-			ReceiverTypeRef: srcCtx.Scope.Ref(srcAtt, ""),
-			TypeName:        t.Name(),
-			TypeRef:         ref,
-			Code:            code,
-		}
 		sections = append(sections, convertSection("convert-to", data))
 	}
 
-	// Build creation sections if any
 	for _, c := range creations {
-		var dt expr.DataType
-		if err := buildDesignType(&dt, reflect.TypeOf(c.External), c.User); err != nil {
-			return nil, err
-		}
-		t := reflect.TypeOf(c.External)
-		srcPkg := t.String()
-		if idx := strings.Index(srcPkg, "."); idx != -1 {
-			srcPkg = srcPkg[:idx]
-		}
-		srcCtx := codegen.NewAttributeContext(false, false, false, srcPkg, codegen.NewNameScope())
-
-		// Use the correct target context based on where the conversion file will be generated
-		var tgtCtx *codegen.AttributeContext
-		if loc := codegen.UserTypeLocation(c.User); loc != nil {
-			// Create a context for the custom package with empty default package to avoid qualification
-			tgtScope := codegen.NewNameScope()
-			// Register the user type in this scope - this will ensure proper type references
-			tgtScope.GoTypeName(&expr.AttributeExpr{Type: c.User})
-			// Use conversion context so types in the same package are not qualified
-			tgtCtx = codegen.NewAttributeContextForConversion(false, false, true, convertPkgName, tgtScope)
-		} else {
-			tgtCtx = typeContext(svc.Scope)
-		}
-		tgtAtt := &expr.AttributeExpr{Type: c.User}
-		code, tf, err := codegen.GoTransform(
-			&expr.AttributeExpr{Type: dt}, tgtAtt,
-			"v", "temp", srcCtx, tgtCtx, "transform", true)
+		data, tf, err := buildCreateSectionData(c, svc, convertPkgName, names)
 		if err != nil {
 			return nil, err
 		}
 		transFuncs = codegen.AppendHelpers(transFuncs, tf)
-		base := "CreateFrom" + t.Name()
-		name := uniquify(base, names)
-		ref := t.String()
-		if expr.IsObject(c.User) {
-			ref = "*" + ref
-		}
-		data := convertData{
-			Name:            name,
-			ReceiverTypeRef: tgtCtx.Scope.Ref(tgtAtt, ""),
-			TypeRef:         ref,
-			Code:            code,
-		}
 		sections = append(sections, createSection("create-from", data))
 	}
 
@@ -427,85 +226,16 @@ func getExternalTypeInfo(external any) (string, string, error) {
 // ConvertFile returns the file containing the conversion and creation functions
 // if any.
 func ConvertFile(root *expr.RootExpr, service *expr.ServiceExpr, services *ServicesData) (*codegen.File, error) {
-	// Filter conversion and creation functions that are relevant for this
-	// service
 	svc := services.Get(service.Name)
-	var conversions, creations []*expr.TypeMap
-	for _, c := range root.Conversions {
-		for _, m := range service.Methods {
-			if ut, ok := m.Payload.Type.(expr.UserType); ok {
-				if ut.Name() == c.User.Name() {
-					conversions = append(conversions, c)
-					break
-				}
-			}
-		}
-		for _, m := range service.Methods {
-			if ut, ok := m.Result.Type.(expr.UserType); ok {
-				if ut.Name() == c.User.Name() {
-					conversions = append(conversions, c)
-					break
-				}
-			}
-		}
-		for _, t := range svc.userTypes {
-			if c.User.Name() == t.Name {
-				conversions = append(conversions, c)
-				break
-			}
-		}
-	}
-	for _, c := range root.Creations {
-		for _, m := range service.Methods {
-			if ut, ok := m.Payload.Type.(expr.UserType); ok {
-				if ut.Name() == c.User.Name() {
-					creations = append(creations, c)
-					break
-				}
-			}
-		}
-		for _, m := range service.Methods {
-			if ut, ok := m.Result.Type.(expr.UserType); ok {
-				if ut.Name() == c.User.Name() {
-					creations = append(creations, c)
-					break
-				}
-			}
-		}
-		for _, t := range svc.userTypes {
-			if c.User.Name() == t.Name {
-				creations = append(creations, c)
-				break
-			}
-		}
-	}
+	conversions, creations := relevantTypeMaps(root, service, svc)
 	if len(conversions) == 0 && len(creations) == 0 {
 		return nil, nil
 	}
 
-	// Retrieve external packages info
-	ppm := make(map[string]string)
-	for _, c := range conversions {
-		pkgImport, alias, err := getExternalTypeInfo(c.External)
-		if err != nil {
-			return nil, err
-		}
-		ppm[pkgImport] = alias
+	pkgs, err := convertImports(conversions, creations)
+	if err != nil {
+		return nil, err
 	}
-	for _, c := range creations {
-		pkgImport, alias, err := getExternalTypeInfo(c.External)
-		if err != nil {
-			return nil, err
-		}
-		ppm[pkgImport] = alias
-	}
-	pkgs := make([]*codegen.ImportSpec, 0, len(ppm)+2)
-	for pp, alias := range ppm {
-		pkgs = append(pkgs, &codegen.ImportSpec{Name: alias, Path: pp})
-	}
-
-	// Build header section
-	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.LoomImport(""))
 	path := filepath.Join(codegen.Gendir, codegen.SnakeCase(service.Name), "convert.go")
 	sections := []codegen.Section{
 		codegen.Header(service.Name+" service type conversion functions", svc.PkgName, pkgs),
@@ -517,78 +247,21 @@ func ConvertFile(root *expr.RootExpr, service *expr.ServiceExpr, services *Servi
 		transFuncs []*codegen.TransformFunctionData
 	)
 
-	// Build conversion sections if any
 	for _, c := range conversions {
-		var dt expr.DataType
-		if err := buildDesignType(&dt, reflect.TypeOf(c.External), c.User); err != nil {
-			return nil, err
-		}
-		t := reflect.TypeOf(c.External)
-		tgtPkg := t.String()
-		if idx := strings.Index(tgtPkg, "."); idx != -1 {
-			tgtPkg = tgtPkg[:idx]
-		}
-		srcCtx := typeContext(svc.Scope)
-		tgtCtx := codegen.NewAttributeContext(false, false, false, tgtPkg, codegen.NewNameScope())
-		srcAtt := &expr.AttributeExpr{Type: c.User}
-		tgtAtt := &expr.AttributeExpr{Type: dt}
-		tgtAtt.AddMeta("struct:type:name", dt.Name()) // Used by transformer to generate the correct type name.
-		code, tf, err := codegen.GoTransform(
-			srcAtt, tgtAtt,
-			"t", "v", srcCtx, tgtCtx, "transform", true)
+		data, tf, err := buildDefaultConvertSectionData(c, svc, names)
 		if err != nil {
 			return nil, err
 		}
 		transFuncs = codegen.AppendHelpers(transFuncs, tf)
-		base := "ConvertTo" + t.Name()
-		name := uniquify(base, names)
-		ref := t.String()
-		if expr.IsObject(c.User) {
-			ref = "*" + ref
-		}
-		data := convertData{
-			Name:            name,
-			ReceiverTypeRef: svc.Scope.GoTypeRef(srcAtt),
-			TypeName:        t.Name(),
-			TypeRef:         ref,
-			Code:            code,
-		}
 		sections = append(sections, convertSection("convert-to", data))
 	}
 
-	// Build creation sections if any
 	for _, c := range creations {
-		var dt expr.DataType
-		if err := buildDesignType(&dt, reflect.TypeOf(c.External), c.User); err != nil {
-			return nil, err
-		}
-		t := reflect.TypeOf(c.External)
-		srcPkg := t.String()
-		if idx := strings.Index(srcPkg, "."); idx != -1 {
-			srcPkg = srcPkg[:idx]
-		}
-		srcCtx := codegen.NewAttributeContext(false, false, false, srcPkg, codegen.NewNameScope())
-		tgtCtx := typeContext(svc.Scope)
-		tgtAtt := &expr.AttributeExpr{Type: c.User}
-		code, tf, err := codegen.GoTransform(
-			&expr.AttributeExpr{Type: dt}, tgtAtt,
-			"v", "temp", srcCtx, tgtCtx, "transform", true)
+		data, tf, err := buildDefaultCreateSectionData(c, svc, names)
 		if err != nil {
 			return nil, err
 		}
 		transFuncs = codegen.AppendHelpers(transFuncs, tf)
-		base := "CreateFrom" + t.Name()
-		name := uniquify(base, names)
-		ref := t.String()
-		if expr.IsObject(c.User) {
-			ref = "*" + ref
-		}
-		data := convertData{
-			Name:            name,
-			ReceiverTypeRef: codegen.NewNameScope().GoTypeRef(tgtAtt),
-			TypeRef:         ref,
-			Code:            code,
-		}
 		sections = append(sections, createSection("create-from", data))
 	}
 
@@ -680,152 +353,14 @@ func buildDesignType(dt *expr.DataType, t reflect.Type, ref expr.DataType, recs 
 	}
 
 	switch t.Kind() {
-	case reflect.Bool:
-		*dt = expr.Boolean
-
-	case reflect.Int:
-		*dt = expr.Int
-
-	case reflect.Int32:
-		*dt = expr.Int32
-
-	case reflect.Int64:
-		*dt = expr.Int64
-
-	case reflect.Uint:
-		*dt = expr.UInt
-
-	case reflect.Uint32:
-		*dt = expr.UInt32
-
-	case reflect.Uint64:
-		*dt = expr.UInt64
-
-	case reflect.Float32:
-		*dt = expr.Float32
-
-	case reflect.Float64:
-		*dt = expr.Float64
-
-	case reflect.String:
-		*dt = expr.String
-
+	case reflect.Bool, reflect.Int, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64, reflect.String:
+		*dt = primitiveDesignType(t.Kind())
 	case reflect.Slice:
-		e := t.Elem()
-		if e.Kind() == reflect.Uint8 {
-			*dt = expr.Bytes
-			return nil
-		}
-		var eref expr.DataType
-		if ref != nil {
-			eref = expr.AsArray(ref).ElemType.Type
-		}
-		var elem expr.DataType
-		if err := buildDesignType(&elem, e, eref, appendPath(rec, "[0]")); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		*dt = &expr.Array{ElemType: &expr.AttributeExpr{Type: elem}}
-
+		return buildSliceDesignType(dt, t, ref, rec)
 	case reflect.Map:
-		var kref, vref expr.DataType
-		if ref != nil {
-			m := expr.AsMap(ref)
-			kref = m.KeyType.Type
-			vref = m.ElemType.Type
-		}
-		var kt expr.DataType
-		if err := buildDesignType(&kt, t.Key(), kref, appendPath(rec, ".key")); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		var vt expr.DataType
-		if err := buildDesignType(&vt, t.Elem(), vref, appendPath(rec, ".value")); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		*dt = &expr.Map{KeyType: &expr.AttributeExpr{Type: kt}, ElemType: &expr.AttributeExpr{Type: vt}}
-
+		return buildMapDesignType(dt, t, ref, rec)
 	case reflect.Struct:
-		var oref *expr.Object
-		if ref != nil {
-			oref = expr.AsObject(ref)
-		}
-
-		// Build list of fields that should not be ignored.
-		var fields []reflect.StructField
-		for i := 0; i < t.NumField(); i++ {
-			f := t.FieldByIndex([]int{i})
-			atn, _ := attributeName(oref, f.Name)
-			if oref != nil {
-				if at := oref.Attribute(atn); at != nil {
-					if m := at.Meta["struct:field:external"]; len(m) > 0 {
-						if m[0] == "-" {
-							continue
-						}
-					}
-					if m := at.Meta["struct.field.external"]; len(m) > 0 { // Deprecated syntax. Only present for backward compatibility.
-						if m[0] == "-" {
-							continue
-						}
-					}
-				}
-			}
-			fields = append(fields, f)
-		}
-
-		// Avoid infinite recursions
-		obj := expr.Object(make([]*expr.NamedAttributeExpr, len(fields)))
-		ut := &expr.UserTypeExpr{
-			AttributeExpr: &expr.AttributeExpr{Type: &obj},
-			TypeName:      t.Name(),
-			UID:           t.PkgPath() + "#" + t.Name(),
-		}
-		*dt = ut
-		rec.seen[t.Name()] = ut
-		var required []string
-		for i, f := range fields {
-			recf := appendPath(rec, "."+f.Name)
-			atn, fn := attributeName(oref, f.Name)
-			var aref expr.DataType
-			if oref != nil {
-				if at := oref.Attribute(atn); at != nil {
-					aref = at.Type
-				}
-			}
-			var fdt expr.DataType
-			switch f.Type.Kind() {
-			case reflect.Ptr:
-				if err := buildDesignType(&fdt, f.Type.Elem(), aref, recf); err != nil {
-					return fmt.Errorf("%q.%s: %w", t.Name(), f.Name, err)
-				}
-				if expr.IsArray(fdt) {
-					return fmt.Errorf("%s: field of type pointer to slice are not supported, use slice instead", rec.path)
-				}
-				if expr.IsMap(fdt) {
-					return fmt.Errorf("%s: field of type pointer to map are not supported, use map instead", rec.path)
-				}
-			case reflect.Struct:
-				return fmt.Errorf("%s: fields of type struct must use pointers", recf.path)
-			default:
-				if isPrimitive(f.Type) {
-					required = append(required, atn)
-				}
-				if err := buildDesignType(&fdt, f.Type, aref, appendPath(rec, "."+f.Name)); err != nil {
-					return fmt.Errorf("%q.%s: %w", t.Name(), f.Name, err)
-				}
-			}
-			name := atn
-			if fn != "" {
-				name = name + ":" + fn
-			}
-			obj[i] = &expr.NamedAttributeExpr{
-				Name:      name,
-				Attribute: &expr.AttributeExpr{Type: fdt},
-			}
-		}
-		if len(required) > 0 {
-			ut.Validation = &expr.ValidationExpr{Required: required}
-		}
-		return nil
-
+		return buildStructDesignType(dt, t, ref, rec)
 	case reflect.Ptr:
 		rec.path = "*(" + rec.path + ")"
 		if err := buildDesignType(dt, t.Elem(), ref, rec); err != nil {
@@ -838,6 +373,423 @@ func buildDesignType(dt *expr.DataType, t reflect.Type, ref expr.DataType, recs 
 		*dt = expr.Any
 	}
 	return nil
+}
+
+func relevantTypeMaps(root *expr.RootExpr, service *expr.ServiceExpr, svc *Data) ([]*expr.TypeMap, []*expr.TypeMap) {
+	return collectRelevantTypeMaps(root.Conversions, service, svc), collectRelevantTypeMaps(root.Creations, service, svc)
+}
+
+func collectRelevantTypeMaps(maps []*expr.TypeMap, service *expr.ServiceExpr, svc *Data) []*expr.TypeMap {
+	filtered := make([]*expr.TypeMap, 0, len(maps)*3)
+	for _, c := range maps {
+		filtered = append(filtered, collectMethodTypeMapMatches(c, service.Methods, true)...)
+		filtered = append(filtered, collectMethodTypeMapMatches(c, service.Methods, false)...)
+		filtered = append(filtered, collectUserTypeMapMatches(c, svc.userTypes)...)
+	}
+	return filtered
+}
+
+func collectMethodTypeMapMatches(tm *expr.TypeMap, methods []*expr.MethodExpr, payload bool) []*expr.TypeMap {
+	var matches []*expr.TypeMap
+	for _, m := range methods {
+		var dt expr.DataType
+		if payload {
+			dt = m.Payload.Type
+		} else {
+			dt = m.Result.Type
+		}
+		if userTypeMatches(tm.User, dt) {
+			matches = append(matches, tm)
+			break
+		}
+	}
+	return matches
+}
+
+func collectUserTypeMapMatches(tm *expr.TypeMap, userTypes []*UserTypeData) []*expr.TypeMap {
+	for _, t := range userTypes {
+		if tm.User.Name() == t.Name {
+			return []*expr.TypeMap{tm}
+		}
+	}
+	return nil
+}
+
+func userTypeMatches(expected expr.UserType, dt expr.DataType) bool {
+	ut, ok := dt.(expr.UserType)
+	return ok && ut.Name() == expected.Name()
+}
+
+func groupTypeMapsByPath(conversions, creations []*expr.TypeMap, service *expr.ServiceExpr) (map[string][]*expr.TypeMap, map[string][]*expr.TypeMap, map[string]struct{}) {
+	conversionsByPath := make(map[string][]*expr.TypeMap)
+	creationsByPath := make(map[string][]*expr.TypeMap)
+	allPaths := make(map[string]struct{})
+	for _, c := range conversions {
+		path := convertFilePath(c.User, service.Name)
+		conversionsByPath[path] = append(conversionsByPath[path], c)
+		allPaths[path] = struct{}{}
+	}
+	for _, c := range creations {
+		path := convertFilePath(c.User, service.Name)
+		creationsByPath[path] = append(creationsByPath[path], c)
+		allPaths[path] = struct{}{}
+	}
+	return conversionsByPath, creationsByPath, allPaths
+}
+
+func convertFilePath(user expr.UserType, serviceName string) string {
+	if loc := codegen.UserTypeLocation(user); loc != nil {
+		return filepath.Join(codegen.Gendir, filepath.Dir(loc.FilePath), "convert.go")
+	}
+	return filepath.Join(codegen.Gendir, codegen.SnakeCase(serviceName), "convert.go")
+}
+
+func convertPackageName(conversions, creations []*expr.TypeMap, fallback string) string {
+	first := firstTypeMap(conversions, creations)
+	if first == nil {
+		return fallback
+	}
+	if loc := codegen.UserTypeLocation(first.User); loc != nil {
+		return loc.PackageName()
+	}
+	return fallback
+}
+
+func firstTypeMap(groups ...[]*expr.TypeMap) *expr.TypeMap {
+	for _, group := range groups {
+		if len(group) > 0 {
+			return group[0]
+		}
+	}
+	return nil
+}
+
+func convertImports(conversions, creations []*expr.TypeMap) ([]*codegen.ImportSpec, error) {
+	ppm := make(map[string]string)
+	for _, c := range append(append([]*expr.TypeMap{}, conversions...), creations...) {
+		pkgImport, alias, err := getExternalTypeInfo(c.External)
+		if err != nil {
+			return nil, err
+		}
+		ppm[pkgImport] = alias
+	}
+	pkgs := make([]*codegen.ImportSpec, 0, len(ppm)+2)
+	for pp, alias := range ppm {
+		pkgs = append(pkgs, &codegen.ImportSpec{Name: alias, Path: pp})
+	}
+	pkgs = append(pkgs, &codegen.ImportSpec{Path: "context"}, codegen.LoomImport(""))
+	return pkgs, nil
+}
+
+func buildConvertSectionData(c *expr.TypeMap, svc *Data, convertPkgName string, names map[string]struct{}) (convertData, []*codegen.TransformFunctionData, error) {
+	dt, t, err := designTypeFromExternal(c)
+	if err != nil {
+		return convertData{}, nil, err
+	}
+	srcCtx := convertSourceContext(c.User, svc.Scope, convertPkgName)
+	tgtCtx := externalAttributeContext(t)
+	srcAtt := &expr.AttributeExpr{Type: c.User}
+	tgtAtt := &expr.AttributeExpr{Type: dt}
+	tgtAtt.AddMeta("struct:type:name", dt.Name())
+	code, tf, err := codegen.GoTransform(srcAtt, tgtAtt, "t", "v", srcCtx, tgtCtx, "transform", true)
+	if err != nil {
+		return convertData{}, nil, err
+	}
+	return convertData{
+		Name:            uniquify("ConvertTo"+t.Name(), names),
+		ReceiverTypeRef: srcCtx.Scope.Ref(srcAtt, ""),
+		TypeName:        t.Name(),
+		TypeRef:         externalTypeRef(t, c.User),
+		Code:            code,
+	}, tf, nil
+}
+
+func buildCreateSectionData(c *expr.TypeMap, svc *Data, convertPkgName string, names map[string]struct{}) (convertData, []*codegen.TransformFunctionData, error) {
+	dt, t, err := designTypeFromExternal(c)
+	if err != nil {
+		return convertData{}, nil, err
+	}
+	srcCtx := externalAttributeContext(t)
+	tgtCtx := convertSourceContext(c.User, svc.Scope, convertPkgName)
+	tgtAtt := &expr.AttributeExpr{Type: c.User}
+	code, tf, err := codegen.GoTransform(&expr.AttributeExpr{Type: dt}, tgtAtt, "v", "temp", srcCtx, tgtCtx, "transform", true)
+	if err != nil {
+		return convertData{}, nil, err
+	}
+	return convertData{
+		Name:            uniquify("CreateFrom"+t.Name(), names),
+		ReceiverTypeRef: tgtCtx.Scope.Ref(tgtAtt, ""),
+		TypeRef:         externalTypeRef(t, c.User),
+		Code:            code,
+	}, tf, nil
+}
+
+func buildDefaultConvertSectionData(c *expr.TypeMap, svc *Data, names map[string]struct{}) (convertData, []*codegen.TransformFunctionData, error) {
+	dt, t, err := designTypeFromExternal(c)
+	if err != nil {
+		return convertData{}, nil, err
+	}
+	srcCtx := typeContext(svc.Scope)
+	tgtCtx := externalAttributeContext(t)
+	srcAtt := &expr.AttributeExpr{Type: c.User}
+	tgtAtt := &expr.AttributeExpr{Type: dt}
+	tgtAtt.AddMeta("struct:type:name", dt.Name())
+	code, tf, err := codegen.GoTransform(srcAtt, tgtAtt, "t", "v", srcCtx, tgtCtx, "transform", true)
+	if err != nil {
+		return convertData{}, nil, err
+	}
+	return convertData{
+		Name:            uniquify("ConvertTo"+t.Name(), names),
+		ReceiverTypeRef: svc.Scope.GoTypeRef(srcAtt),
+		TypeName:        t.Name(),
+		TypeRef:         externalTypeRef(t, c.User),
+		Code:            code,
+	}, tf, nil
+}
+
+func buildDefaultCreateSectionData(c *expr.TypeMap, svc *Data, names map[string]struct{}) (convertData, []*codegen.TransformFunctionData, error) {
+	dt, t, err := designTypeFromExternal(c)
+	if err != nil {
+		return convertData{}, nil, err
+	}
+	srcCtx := externalAttributeContext(t)
+	tgtCtx := typeContext(svc.Scope)
+	tgtAtt := &expr.AttributeExpr{Type: c.User}
+	code, tf, err := codegen.GoTransform(&expr.AttributeExpr{Type: dt}, tgtAtt, "v", "temp", srcCtx, tgtCtx, "transform", true)
+	if err != nil {
+		return convertData{}, nil, err
+	}
+	return convertData{
+		Name:            uniquify("CreateFrom"+t.Name(), names),
+		ReceiverTypeRef: codegen.NewNameScope().GoTypeRef(tgtAtt),
+		TypeRef:         externalTypeRef(t, c.User),
+		Code:            code,
+	}, tf, nil
+}
+
+func designTypeFromExternal(c *expr.TypeMap) (expr.DataType, reflect.Type, error) {
+	var dt expr.DataType
+	t := reflect.TypeOf(c.External)
+	if err := buildDesignType(&dt, t, c.User); err != nil {
+		return nil, nil, err
+	}
+	return dt, t, nil
+}
+
+func externalAttributeContext(t reflect.Type) *codegen.AttributeContext {
+	pkg := t.String()
+	if idx := strings.Index(pkg, "."); idx != -1 {
+		pkg = pkg[:idx]
+	}
+	return codegen.NewAttributeContext(false, false, false, pkg, codegen.NewNameScope())
+}
+
+func convertSourceContext(user expr.UserType, scope *codegen.NameScope, convertPkgName string) *codegen.AttributeContext {
+	if loc := codegen.UserTypeLocation(user); loc != nil {
+		srcScope := codegen.NewNameScope()
+		srcScope.GoTypeName(&expr.AttributeExpr{Type: user})
+		return codegen.NewAttributeContextForConversion(false, false, true, convertPkgName, srcScope)
+	}
+	return typeContext(scope)
+}
+
+func externalTypeRef(t reflect.Type, user expr.UserType) string {
+	ref := t.String()
+	if expr.IsObject(user) {
+		return "*" + ref
+	}
+	return ref
+}
+
+func primitiveDesignType(kind reflect.Kind) expr.DataType {
+	switch kind {
+	case reflect.Bool:
+		return expr.Boolean
+	case reflect.Int:
+		return expr.Int
+	case reflect.Int32:
+		return expr.Int32
+	case reflect.Int64:
+		return expr.Int64
+	case reflect.Uint:
+		return expr.UInt
+	case reflect.Uint32:
+		return expr.UInt32
+	case reflect.Uint64:
+		return expr.UInt64
+	case reflect.Float32:
+		return expr.Float32
+	case reflect.Float64:
+		return expr.Float64
+	case reflect.String:
+		return expr.String
+	default:
+		return expr.Any
+	}
+}
+
+func buildSliceDesignType(dt *expr.DataType, t reflect.Type, ref expr.DataType, rec dtRec) error {
+	e := t.Elem()
+	if e.Kind() == reflect.Uint8 {
+		*dt = expr.Bytes
+		return nil
+	}
+	var eref expr.DataType
+	if ref != nil {
+		eref = expr.AsArray(ref).ElemType.Type
+	}
+	var elem expr.DataType
+	if err := buildDesignType(&elem, e, eref, appendPath(rec, "[0]")); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	*dt = &expr.Array{ElemType: &expr.AttributeExpr{Type: elem}}
+	return nil
+}
+
+func buildMapDesignType(dt *expr.DataType, t reflect.Type, ref expr.DataType, rec dtRec) error {
+	var kref, vref expr.DataType
+	if ref != nil {
+		m := expr.AsMap(ref)
+		kref = m.KeyType.Type
+		vref = m.ElemType.Type
+	}
+	var kt expr.DataType
+	if err := buildDesignType(&kt, t.Key(), kref, appendPath(rec, ".key")); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	var vt expr.DataType
+	if err := buildDesignType(&vt, t.Elem(), vref, appendPath(rec, ".value")); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	*dt = &expr.Map{KeyType: &expr.AttributeExpr{Type: kt}, ElemType: &expr.AttributeExpr{Type: vt}}
+	return nil
+}
+
+func buildStructDesignType(dt *expr.DataType, t reflect.Type, ref expr.DataType, rec dtRec) error {
+	var oref *expr.Object
+	if ref != nil {
+		oref = expr.AsObject(ref)
+	}
+	fields := externalStructFields(t, oref)
+	obj := expr.Object(make([]*expr.NamedAttributeExpr, len(fields)))
+	ut := &expr.UserTypeExpr{
+		AttributeExpr: &expr.AttributeExpr{Type: &obj},
+		TypeName:      t.Name(),
+		UID:           t.PkgPath() + "#" + t.Name(),
+	}
+	*dt = ut
+	rec.seen[t.Name()] = ut
+	required, err := populateStructDesignFields(&obj, fields, t, oref, rec)
+	if err != nil {
+		return err
+	}
+	if len(required) > 0 {
+		ut.Validation = &expr.ValidationExpr{Required: required}
+	}
+	return nil
+}
+
+func externalStructFields(t reflect.Type, oref *expr.Object) []reflect.StructField {
+	var fields []reflect.StructField
+	for i := 0; i < t.NumField(); i++ {
+		f := t.FieldByIndex([]int{i})
+		atn, _ := attributeName(oref, f.Name)
+		if shouldIgnoreExternalField(oref, atn) {
+			continue
+		}
+		fields = append(fields, f)
+	}
+	return fields
+}
+
+func shouldIgnoreExternalField(oref *expr.Object, attributeName string) bool {
+	if oref == nil {
+		return false
+	}
+	at := oref.Attribute(attributeName)
+	if at == nil {
+		return false
+	}
+	for _, key := range []string{"struct:field:external", "struct.field.external"} {
+		if m := at.Meta[key]; len(m) > 0 && m[0] == "-" {
+			return true
+		}
+	}
+	return false
+}
+
+func populateStructDesignFields(obj *expr.Object, fields []reflect.StructField, t reflect.Type, oref *expr.Object, rec dtRec) ([]string, error) {
+	var required []string
+	for i, f := range fields {
+		nat, isRequired, err := buildStructNamedAttribute(f, t.Name(), oref, rec)
+		if err != nil {
+			return nil, err
+		}
+		if isRequired {
+			required = append(required, nat.Name)
+		}
+		(*obj)[i] = nat
+	}
+	return required, nil
+}
+
+func buildStructNamedAttribute(f reflect.StructField, typeName string, oref *expr.Object, rec dtRec) (*expr.NamedAttributeExpr, bool, error) {
+	recf := appendPath(rec, "."+f.Name)
+	atn, fn := attributeName(oref, f.Name)
+	aref := matchingAttributeRef(oref, atn)
+	fdt, required, err := buildStructFieldDesignType(f, atn, aref, rec, recf)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), recf.path+":") {
+			return nil, false, err
+		}
+		return nil, false, fmt.Errorf("%q.%s: %w", typeName, f.Name, err)
+	}
+	name := atn
+	if fn != "" {
+		name += ":" + fn
+	}
+	return &expr.NamedAttributeExpr{
+		Name:      name,
+		Attribute: &expr.AttributeExpr{Type: fdt},
+	}, required, nil
+}
+
+func matchingAttributeRef(oref *expr.Object, atn string) expr.DataType {
+	if oref == nil {
+		return nil
+	}
+	if at := oref.Attribute(atn); at != nil {
+		return at.Type
+	}
+	return nil
+}
+
+func buildStructFieldDesignType(f reflect.StructField, attributeName string, aref expr.DataType, rec, recf dtRec) (expr.DataType, bool, error) {
+	var (
+		fdt      expr.DataType
+		required bool
+	)
+	switch f.Type.Kind() {
+	case reflect.Ptr:
+		if err := buildDesignType(&fdt, f.Type.Elem(), aref, recf); err != nil {
+			return nil, false, err
+		}
+		if expr.IsArray(fdt) {
+			return nil, false, fmt.Errorf("%s: field of type pointer to slice are not supported, use slice instead", rec.path)
+		}
+		if expr.IsMap(fdt) {
+			return nil, false, fmt.Errorf("%s: field of type pointer to map are not supported, use map instead", rec.path)
+		}
+	case reflect.Struct:
+		return nil, false, fmt.Errorf("%s: fields of type struct must use pointers", recf.path)
+	default:
+		required = isPrimitive(f.Type)
+		if err := buildDesignType(&fdt, f.Type, aref, recf); err != nil {
+			return nil, false, err
+		}
+	}
+	_ = attributeName
+	return fdt, required, nil
 }
 
 // attributeName computes the name of the attribute for the given field name and

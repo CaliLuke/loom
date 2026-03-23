@@ -67,117 +67,7 @@ func renderEndpointAuth(method *EndpointMethodData, payload string) string {
 			if sidx != 0 {
 				b.WriteString("\t\t\tif err == nil {\n")
 			}
-			switch scheme.Type {
-			case "Basic":
-				b.WriteString("\t\t\t\tsc := security.BasicScheme{\n")
-				fmt.Fprintf(&b, "\t\t\t\t\tName: %q,\n", scheme.SchemeName)
-				b.WriteString("\t\t\t\t\tScopes: []string{")
-				for _, scope := range scheme.Scopes {
-					fmt.Fprintf(&b, " %q,", scope)
-				}
-				b.WriteString(" },\n")
-				b.WriteString("\t\t\t\t\tRequiredScopes: []string{")
-				for _, scope := range req.Scopes {
-					fmt.Fprintf(&b, " %q,", scope)
-				}
-				b.WriteString(" },\n\t\t\t\t}\n")
-				if scheme.UsernamePointer {
-					b.WriteString("\t\t\t\tvar user string\n")
-					fmt.Fprintf(&b, "\t\t\t\tif %s.%s != nil {\n\t\t\t\t\tuser = *%s.%s\n\t\t\t\t}\n", payload, scheme.UsernameField, payload, scheme.UsernameField)
-				}
-				if scheme.PasswordPointer {
-					b.WriteString("\t\t\t\tvar pass string\n")
-					fmt.Fprintf(&b, "\t\t\t\tif %s.%s != nil {\n\t\t\t\t\tpass = *%s.%s\n\t\t\t\t}\n", payload, scheme.PasswordField, payload, scheme.PasswordField)
-				}
-				userExpr := payload + "." + scheme.UsernameField
-				passExpr := payload + "." + scheme.PasswordField
-				if scheme.UsernamePointer {
-					userExpr = "user"
-				}
-				if scheme.PasswordPointer {
-					passExpr = "pass"
-				}
-				fmt.Fprintf(&b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, %s, &sc)\n", scheme.Type, userExpr, passExpr)
-			case "APIKey":
-				b.WriteString("\t\t\t\tsc := security.APIKeyScheme{\n")
-				fmt.Fprintf(&b, "\t\t\t\t\tName: %q,\n", scheme.SchemeName)
-				b.WriteString("\t\t\t\t\tScopes: []string{")
-				for _, scope := range scheme.Scopes {
-					fmt.Fprintf(&b, " %q,", scope)
-				}
-				b.WriteString(" },\n")
-				b.WriteString("\t\t\t\t\tRequiredScopes: []string{")
-				for _, scope := range req.Scopes {
-					fmt.Fprintf(&b, " %q,", scope)
-				}
-				b.WriteString(" },\n\t\t\t\t}\n")
-				expr := payload + "." + scheme.CredField
-				if scheme.CredPointer {
-					b.WriteString("\t\t\t\tvar key string\n")
-					fmt.Fprintf(&b, "\t\t\t\tif %s.%s != nil {\n\t\t\t\t\tkey = *%s.%s\n\t\t\t\t}\n", payload, scheme.CredField, payload, scheme.CredField)
-					expr = "key"
-				}
-				fmt.Fprintf(&b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, &sc)\n", scheme.Type, expr)
-			case "JWT":
-				b.WriteString("\t\t\t\tsc := security.JWTScheme{\n")
-				fmt.Fprintf(&b, "\t\t\t\t\tName: %q,\n", scheme.SchemeName)
-				b.WriteString("\t\t\t\t\tScopes: []string{")
-				for _, scope := range scheme.Scopes {
-					fmt.Fprintf(&b, " %q,", scope)
-				}
-				b.WriteString(" },\n")
-				b.WriteString("\t\t\t\t\tRequiredScopes: []string{")
-				for _, scope := range req.Scopes {
-					fmt.Fprintf(&b, " %q,", scope)
-				}
-				b.WriteString(" },\n\t\t\t\t}\n")
-				expr := payload + "." + scheme.CredField
-				if scheme.CredPointer {
-					b.WriteString("\t\t\t\tvar token string\n")
-					fmt.Fprintf(&b, "\t\t\t\tif %s.%s != nil {\n\t\t\t\t\ttoken = *%s.%s\n\t\t\t\t}\n", payload, scheme.CredField, payload, scheme.CredField)
-					expr = "token"
-				}
-				fmt.Fprintf(&b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, &sc)\n", scheme.Type, expr)
-			case "OAuth2":
-				b.WriteString("\t\t\t\tsc := security.OAuth2Scheme{\n")
-				fmt.Fprintf(&b, "\t\t\t\t\tName: %q,\n", scheme.SchemeName)
-				b.WriteString("\t\t\t\t\tScopes: []string{")
-				for _, scope := range scheme.Scopes {
-					fmt.Fprintf(&b, " %q,", scope)
-				}
-				b.WriteString(" },\n")
-				b.WriteString("\t\t\t\t\tRequiredScopes: []string{")
-				for _, scope := range req.Scopes {
-					fmt.Fprintf(&b, " %q,", scope)
-				}
-				b.WriteString(" },\n")
-				if len(scheme.Flows) > 0 {
-					b.WriteString("\t\t\t\t\tFlows: []*security.OAuthFlow{\n")
-					for _, flow := range scheme.Flows {
-						b.WriteString("\t\t\t\t\t\t&security.OAuthFlow{\n")
-						fmt.Fprintf(&b, "\t\t\t\t\t\t\tType: %q,\n", flow.Type())
-						if flow.AuthorizationURL != "" {
-							fmt.Fprintf(&b, "\t\t\t\t\t\t\tAuthorizationURL: %q,\n", flow.AuthorizationURL)
-						}
-						if flow.TokenURL != "" {
-							fmt.Fprintf(&b, "\t\t\t\t\t\t\tTokenURL: %q,\n", flow.TokenURL)
-						}
-						if flow.RefreshURL != "" {
-							fmt.Fprintf(&b, "\t\t\t\t\t\t\tRefreshURL: %q,\n", flow.RefreshURL)
-						}
-						b.WriteString("\t\t\t\t\t\t},\n")
-					}
-					b.WriteString("\t\t\t\t\t},\n")
-				}
-				b.WriteString("\t\t\t\t}\n")
-				expr := payload + "." + scheme.CredField
-				if scheme.CredPointer {
-					b.WriteString("\t\t\t\tvar token string\n")
-					fmt.Fprintf(&b, "\t\t\t\tif %s.%s != nil {\n\t\t\t\t\ttoken = *%s.%s\n\t\t\t\t}\n", payload, scheme.CredField, payload, scheme.CredField)
-					expr = "token"
-				}
-				fmt.Fprintf(&b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, &sc)\n", scheme.Type, expr)
-			}
+			renderSchemeAuth(&b, req, scheme, payload)
 			if sidx != 0 {
 				b.WriteString("\t\t\t}\n")
 			}
@@ -188,6 +78,108 @@ func renderEndpointAuth(method *EndpointMethodData, payload string) string {
 	}
 	b.WriteString("\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n")
 	return b.String()
+}
+
+func renderSchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload string) {
+	switch scheme.Type {
+	case "Basic":
+		renderBasicSchemeAuth(b, req, scheme, payload)
+	case "APIKey":
+		renderCredentialSchemeAuth(b, req, scheme, payload, "APIKey", "key")
+	case "JWT":
+		renderCredentialSchemeAuth(b, req, scheme, payload, "JWT", "token")
+	case "OAuth2":
+		renderOAuth2SchemeAuth(b, req, scheme, payload)
+	}
+}
+
+func renderBasicSchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload string) {
+	renderSchemeHeader(b, "BasicScheme", scheme.SchemeName, scheme.Scopes, req.Scopes)
+	renderPointerStringBinding(b, "user", payload, scheme.UsernameField, scheme.UsernamePointer)
+	renderPointerStringBinding(b, "pass", payload, scheme.PasswordField, scheme.PasswordPointer)
+	userExpr := payload + "." + scheme.UsernameField
+	passExpr := payload + "." + scheme.PasswordField
+	if scheme.UsernamePointer {
+		userExpr = "user"
+	}
+	if scheme.PasswordPointer {
+		passExpr = "pass"
+	}
+	fmt.Fprintf(b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, %s, &sc)\n", scheme.Type, userExpr, passExpr)
+}
+
+func renderCredentialSchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload, schemeStruct, tempVar string) {
+	renderSchemeHeader(b, schemeStruct+"Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes)
+	renderPointerStringBinding(b, tempVar, payload, scheme.CredField, scheme.CredPointer)
+	expr := payload + "." + scheme.CredField
+	if scheme.CredPointer {
+		expr = tempVar
+	}
+	fmt.Fprintf(b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, &sc)\n", scheme.Type, expr)
+}
+
+func renderOAuth2SchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload string) {
+	renderSchemeHeaderStart(b, "OAuth2Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes)
+	renderOAuth2Flows(b, scheme)
+	b.WriteString("\t\t\t\t}\n")
+	renderPointerStringBinding(b, "token", payload, scheme.CredField, scheme.CredPointer)
+	expr := payload + "." + scheme.CredField
+	if scheme.CredPointer {
+		expr = "token"
+	}
+	fmt.Fprintf(b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, &sc)\n", scheme.Type, expr)
+}
+
+func renderSchemeHeader(b *strings.Builder, schemeType, schemeName string, scopes, requiredScopes []string) {
+	renderSchemeHeaderStart(b, schemeType, schemeName, scopes, requiredScopes)
+	b.WriteString("\t\t\t\t}\n")
+}
+
+func renderSchemeHeaderStart(b *strings.Builder, schemeType, schemeName string, scopes, requiredScopes []string) {
+	fmt.Fprintf(b, "\t\t\t\tsc := security.%s{\n", schemeType)
+	fmt.Fprintf(b, "\t\t\t\t\tName: %q,\n", schemeName)
+	renderScopeSlice(b, "\t\t\t\t\tScopes", scopes)
+	renderScopeSlice(b, "\t\t\t\t\tRequiredScopes", requiredScopes)
+}
+
+func renderScopeSlice(b *strings.Builder, field string, scopes []string) {
+	fmt.Fprintf(b, "%s: []string{", field)
+	for _, scope := range scopes {
+		fmt.Fprintf(b, " %q,", scope)
+	}
+	b.WriteString(" },\n")
+}
+
+func renderPointerStringBinding(b *strings.Builder, tempVar, payload, field string, isPointer bool) {
+	if !isPointer {
+		return
+	}
+	fmt.Fprintf(b, "\t\t\t\tvar %s string\n", tempVar)
+	fmt.Fprintf(b, "\t\t\t\tif %s.%s != nil {\n", payload, field)
+	fmt.Fprintf(b, "\t\t\t\t\t%s = *%s.%s\n", tempVar, payload, field)
+	b.WriteString("\t\t\t\t}\n")
+}
+
+func renderOAuth2Flows(b *strings.Builder, scheme *SchemeData) {
+	if len(scheme.Flows) == 0 {
+		return
+	}
+	b.WriteString("\t\t\t\t\tFlows: []*security.OAuthFlow{\n")
+	for _, flow := range scheme.Flows {
+		b.WriteString("\t\t\t\t\t\t&security.OAuthFlow{\n")
+		fmt.Fprintf(b, "\t\t\t\t\t\t\tType: %q,\n", flow.Type())
+		if flow.AuthorizationURL != "" {
+			fmt.Fprintf(b, "\t\t\t\t\t\t\tAuthorizationURL: %q,\n", flow.AuthorizationURL)
+		}
+		if flow.TokenURL != "" {
+			fmt.Fprintf(b, "\t\t\t\t\t\t\tTokenURL: %q,\n", flow.TokenURL)
+		}
+		if flow.RefreshURL != "" {
+			fmt.Fprintf(b, "\t\t\t\t\t\t\tRefreshURL: %q,\n", flow.RefreshURL)
+		}
+		b.WriteString("\t\t\t\t\t\t},\n")
+	}
+	b.WriteString("\t\t\t\t\t},\n")
 }
 
 func renderStreamingEndpointInvocation(method *EndpointMethodData, payload string) string {

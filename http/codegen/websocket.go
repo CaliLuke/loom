@@ -78,136 +78,31 @@ func (sds *ServicesData) initWebSocketData(ed *EndpointData, e *expr.HTTPEndpoin
 	if e.SSE != nil {
 		return
 	}
-	var (
-		svrRecvTypeName        string
-		svrRecvTypeRef         string
-		svrRecvDesc            string
-		svrRecvWithContextDesc string
-		svrPayload             *TypeData
-		cliSendDesc            string
-		cliSendWithContextDesc string
-		cliPayload             *TypeData
-	)
 	md := ed.Method
 	svc := sd.Service
-	svcctx := serviceContext(sd.Service.PkgName, sd.Service.Scope)
-	svrSendTypeName := ed.Result.Name
-	svrSendTypeRef := ed.Result.Ref
-	svrSendDesc := fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection.", md.ServerStream.SendName, svrSendTypeName, md.Name)
-	svrSendWithContextDesc := fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection with context.", md.ServerStream.SendWithContextName, svrSendTypeName, md.Name)
-	cliRecvDesc := fmt.Sprintf("%s reads instances of %q from the %q endpoint websocket connection.", md.ClientStream.RecvName, svrSendTypeName, md.Name)
-	cliRecvWithContextDesc := fmt.Sprintf("%s reads instances of %q from the %q endpoint websocket connection with context.", md.ClientStream.RecvWithContextName, svrSendTypeName, md.Name)
-	if e.MethodExpr.Stream == expr.ClientStreamKind || e.MethodExpr.Stream == expr.BidirectionalStreamKind {
-		svrRecvTypeName = sd.Scope.GoFullTypeName(e.MethodExpr.StreamingPayload, svc.PkgName)
-		svrRecvTypeRef = sd.Scope.GoFullTypeRef(e.MethodExpr.StreamingPayload, svc.PkgName)
-		svrPayload = sds.buildRequestBodyType(e.StreamingBody, e.MethodExpr.StreamingPayload, e, true, sd)
-		if needInit(e.MethodExpr.StreamingPayload.Type) {
-			makeHTTPType(e.StreamingBody)
-			body := e.StreamingBody.Type
-			// generate constructor function to transform request body,
-			// into the method streaming payload type
-			var (
-				name       string
-				desc       string
-				serverArgs []*InitArgData
-				serverCode string
-				err        error
-			)
-			n := codegen.Goify(e.MethodExpr.Name, true)
-			p := codegen.Goify(svrPayload.Name, true)
-			// Raw payload object has type name prefixed with endpoint name. No need to
-			// prefix the type name again.
-			if strings.HasPrefix(p, n) {
-				name = fmt.Sprintf("New%s", p)
-			} else {
-				name = fmt.Sprintf("New%s%s", n, p)
-			}
-			desc = fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, svc.Name, e.MethodExpr.Name)
-			if body != expr.Empty {
-				ref := "body"
-				if expr.IsObject(body) {
-					ref = "&body"
-				}
-				var svcode string
-				if ut, ok := body.(expr.UserType); ok {
-					if val := ut.Attribute().Validation; val != nil {
-						httpctx := httpContext(sd.Scope, true, true)
-						svcode = codegen.ValidationCode(ut.Attribute(), ut, httpctx, true, expr.IsAlias(ut), false, "body")
-					}
-				}
-				serverArgs = []*InitArgData{{
-					Ref: ref,
-					AttributeData: &AttributeData{
-						Name:     "payload",
-						VarName:  "body",
-						TypeName: sd.Scope.GoTypeName(e.StreamingBody),
-						TypeRef:  sd.Scope.GoTypeRef(e.StreamingBody),
-						Type:     e.StreamingBody.Type,
-						Required: true,
-						Example:  e.Body.Example(sds.Root.API.ExampleGenerator),
-						Validate: svcode,
-					},
-				}}
-			}
-			if body != expr.Empty {
-				var helpers []*codegen.TransformFunctionData
-				httpctx := httpContext(sd.Scope, true, true)
-				serverCode, helpers, err = marshal(e.StreamingBody, e.MethodExpr.StreamingPayload, "body", "v", httpctx, svcctx)
-				if err == nil {
-					sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
-				}
-			}
-			if err != nil {
-				fmt.Println(err.Error()) // TBD validate DSL so errors are not possible
-			}
-			svrPayload.Init = &InitData{
-				Name:           name,
-				Description:    desc,
-				ServerArgs:     serverArgs,
-				ReturnTypeName: svc.Scope.GoFullTypeName(e.MethodExpr.StreamingPayload, svc.PkgName),
-				ReturnTypeRef:  svc.Scope.GoFullTypeRef(e.MethodExpr.StreamingPayload, svc.PkgName),
-				ReturnIsStruct: expr.IsObject(e.MethodExpr.StreamingPayload.Type),
-				ReturnTypePkg:  svc.PkgName,
-				ServerCode:     serverCode,
-			}
-		}
-		cliPayload = sds.buildRequestBodyType(e.StreamingBody, e.MethodExpr.StreamingPayload, e, false, sd)
-		if cliPayload != nil {
-			sd.ClientTypeNames[cliPayload.Name] = false
-			sd.ServerTypeNames[cliPayload.Name] = false
-		}
-		if e.MethodExpr.Stream == expr.ClientStreamKind {
-			svrSendDesc = fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection and closes the connection.", md.ServerStream.SendName, svrSendTypeName, md.Name)
-			svrSendWithContextDesc = fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection with context and closes the connection.", md.ServerStream.SendWithContextName, svrSendTypeName, md.Name)
-			cliRecvDesc = fmt.Sprintf("%s stops sending messages to the %q endpoint websocket connection and reads instances of %q from the connection.", md.ClientStream.RecvName, md.Name, svrSendTypeName)
-			cliRecvWithContextDesc = fmt.Sprintf("%s stops sending messages to the %q endpoint websocket connection and reads instances of %q from the connection with context.", md.ClientStream.RecvWithContextName, md.Name, svrSendTypeName)
-		}
-		svrRecvDesc = fmt.Sprintf("%s reads instances of %q from the %q endpoint websocket connection.", md.ServerStream.RecvName, svrRecvTypeName, md.Name)
-		svrRecvWithContextDesc = fmt.Sprintf("%s reads instances of %q from the %q endpoint websocket connection with context.", md.ServerStream.RecvWithContextName, svrRecvTypeName, md.Name)
-		cliSendDesc = fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection.", md.ClientStream.SendName, svrRecvTypeName, md.Name)
-		cliSendWithContextDesc = fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection with context.", md.ClientStream.SendWithContextName, svrRecvTypeName, md.Name)
-	}
+	stream := buildWebSocketStreamData(sds, e, sd)
+	serverMeta, clientMeta := describeWebSocketDirections(ed, e, stream.serverRecvTypeName)
 	ed.ServerWebSocket = &WebSocketData{
 		VarName:             md.ServerStream.VarName,
 		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ServerStream.Interface),
 		Endpoint:            ed,
-		Payload:             svrPayload,
+		Payload:             stream.serverPayload,
 		Response:            ed.Result.Responses[0],
 		PkgName:             svc.PkgName,
 		Type:                "server",
 		Kind:                md.ServerStream.Kind,
 		SendName:            md.ServerStream.SendName,
-		SendDesc:            svrSendDesc,
+		SendDesc:            serverMeta.sendDesc,
 		SendWithContextName: md.ServerStream.SendWithContextName,
-		SendWithContextDesc: svrSendWithContextDesc,
-		SendTypeName:        svrSendTypeName,
-		SendTypeRef:         svrSendTypeRef,
+		SendWithContextDesc: serverMeta.sendWithContextDesc,
+		SendTypeName:        ed.Result.Name,
+		SendTypeRef:         ed.Result.Ref,
 		RecvName:            md.ServerStream.RecvName,
-		RecvDesc:            svrRecvDesc,
+		RecvDesc:            serverMeta.recvDesc,
 		RecvWithContextName: md.ServerStream.RecvWithContextName,
-		RecvWithContextDesc: svrRecvWithContextDesc,
-		RecvTypeName:        svrRecvTypeName,
-		RecvTypeRef:         svrRecvTypeRef,
+		RecvWithContextDesc: serverMeta.recvWithContextDesc,
+		RecvTypeName:        stream.serverRecvTypeName,
+		RecvTypeRef:         stream.serverRecvTypeRef,
 		RecvTypeIsPointer:   expr.IsArray(e.MethodExpr.StreamingPayload.Type) || expr.IsMap(e.MethodExpr.StreamingPayload.Type),
 		MustClose:           md.ServerStream.MustClose,
 	}
@@ -215,25 +110,155 @@ func (sds *ServicesData) initWebSocketData(ed *EndpointData, e *expr.HTTPEndpoin
 		VarName:             md.ClientStream.VarName,
 		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ClientStream.Interface),
 		Endpoint:            ed,
-		Payload:             cliPayload,
+		Payload:             stream.clientPayload,
 		Response:            ed.Result.Responses[0],
 		PkgName:             svc.PkgName,
 		Type:                "client",
 		Kind:                md.ClientStream.Kind,
 		SendName:            md.ClientStream.SendName,
-		SendDesc:            cliSendDesc,
+		SendDesc:            clientMeta.sendDesc,
 		SendWithContextName: md.ClientStream.SendWithContextName,
-		SendWithContextDesc: cliSendWithContextDesc,
-		SendTypeName:        svrRecvTypeName,
-		SendTypeRef:         svrRecvTypeRef,
+		SendWithContextDesc: clientMeta.sendWithContextDesc,
+		SendTypeName:        stream.serverRecvTypeName,
+		SendTypeRef:         stream.serverRecvTypeRef,
 		RecvName:            md.ClientStream.RecvName,
-		RecvDesc:            cliRecvDesc,
+		RecvDesc:            clientMeta.recvDesc,
 		RecvWithContextName: md.ClientStream.RecvWithContextName,
-		RecvWithContextDesc: cliRecvWithContextDesc,
-		RecvTypeName:        svrSendTypeName,
-		RecvTypeRef:         svrSendTypeRef,
+		RecvWithContextDesc: clientMeta.recvWithContextDesc,
+		RecvTypeName:        ed.Result.Name,
+		RecvTypeRef:         ed.Result.Ref,
 		MustClose:           md.ClientStream.MustClose,
 	}
+}
+
+type websocketInitData struct {
+	serverRecvTypeName string
+	serverRecvTypeRef  string
+	serverPayload      *TypeData
+	clientPayload      *TypeData
+}
+
+type websocketDirectionDescriptions struct {
+	sendDesc            string
+	sendWithContextDesc string
+	recvDesc            string
+	recvWithContextDesc string
+}
+
+func buildWebSocketStreamData(sds *ServicesData, e *expr.HTTPEndpointExpr, sd *ServiceData) *websocketInitData {
+	data := &websocketInitData{}
+	if e.MethodExpr.Stream != expr.ClientStreamKind && e.MethodExpr.Stream != expr.BidirectionalStreamKind {
+		return data
+	}
+	data.serverRecvTypeName = sd.Scope.GoFullTypeName(e.MethodExpr.StreamingPayload, sd.Service.PkgName)
+	data.serverRecvTypeRef = sd.Scope.GoFullTypeRef(e.MethodExpr.StreamingPayload, sd.Service.PkgName)
+	data.serverPayload = sds.buildRequestBodyType(e.StreamingBody, e.MethodExpr.StreamingPayload, e, true, sd)
+	if needInit(e.MethodExpr.StreamingPayload.Type) {
+		initWebSocketPayloadConstructor(data.serverPayload, sds, e, sd)
+	}
+	data.clientPayload = sds.buildRequestBodyType(e.StreamingBody, e.MethodExpr.StreamingPayload, e, false, sd)
+	if data.clientPayload != nil {
+		sd.ClientTypeNames[data.clientPayload.Name] = false
+		sd.ServerTypeNames[data.clientPayload.Name] = false
+	}
+	return data
+}
+
+func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, e *expr.HTTPEndpointExpr, sd *ServiceData) {
+	makeHTTPType(e.StreamingBody)
+	body := e.StreamingBody.Type
+	name := websocketPayloadInitName(e.MethodExpr.Name, payload.Name)
+	desc := fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, sd.Service.Name, e.MethodExpr.Name)
+	serverArgs := websocketPayloadInitArgs(sds, e, sd, body)
+	serverCode := ""
+	if body != expr.Empty {
+		var (
+			helpers []*codegen.TransformFunctionData
+			err     error
+		)
+		httpctx := httpContext(sd.Scope, true, true)
+		serverCode, helpers, err = marshal(e.StreamingBody, e.MethodExpr.StreamingPayload, "body", "v", httpctx, serviceContext(sd.Service.PkgName, sd.Service.Scope))
+		if err == nil {
+			sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
+		} else {
+			fmt.Println(err.Error()) // TBD validate DSL so errors are not possible
+		}
+	}
+	payload.Init = &InitData{
+		Name:           name,
+		Description:    desc,
+		ServerArgs:     serverArgs,
+		ReturnTypeName: sd.Service.Scope.GoFullTypeName(e.MethodExpr.StreamingPayload, sd.Service.PkgName),
+		ReturnTypeRef:  sd.Service.Scope.GoFullTypeRef(e.MethodExpr.StreamingPayload, sd.Service.PkgName),
+		ReturnIsStruct: expr.IsObject(e.MethodExpr.StreamingPayload.Type),
+		ReturnTypePkg:  sd.Service.PkgName,
+		ServerCode:     serverCode,
+	}
+}
+
+func websocketPayloadInitName(methodName, payloadName string) string {
+	n := codegen.Goify(methodName, true)
+	p := codegen.Goify(payloadName, true)
+	if strings.HasPrefix(p, n) {
+		return fmt.Sprintf("New%s", p)
+	}
+	return fmt.Sprintf("New%s%s", n, p)
+}
+
+func websocketPayloadInitArgs(sds *ServicesData, e *expr.HTTPEndpointExpr, sd *ServiceData, body expr.DataType) []*InitArgData {
+	if body == expr.Empty {
+		return nil
+	}
+	ref := "body"
+	if expr.IsObject(body) {
+		ref = "&body"
+	}
+	return []*InitArgData{{
+		Ref: ref,
+		AttributeData: &AttributeData{
+			Name:     "payload",
+			VarName:  "body",
+			TypeName: sd.Scope.GoTypeName(e.StreamingBody),
+			TypeRef:  sd.Scope.GoTypeRef(e.StreamingBody),
+			Type:     e.StreamingBody.Type,
+			Required: true,
+			Example:  e.Body.Example(sds.Root.API.ExampleGenerator),
+			Validate: websocketPayloadValidationCode(body, sd),
+		},
+	}}
+}
+
+func websocketPayloadValidationCode(body expr.DataType, sd *ServiceData) string {
+	ut, ok := body.(expr.UserType)
+	if !ok || ut.Attribute().Validation == nil {
+		return ""
+	}
+	httpctx := httpContext(sd.Scope, true, true)
+	return codegen.ValidationCode(ut.Attribute(), ut, httpctx, true, expr.IsAlias(ut), false, "body")
+}
+
+func describeWebSocketDirections(ed *EndpointData, e *expr.HTTPEndpointExpr, serverRecvTypeName string) (*websocketDirectionDescriptions, *websocketDirectionDescriptions) {
+	md := ed.Method
+	resultTypeName := ed.Result.Name
+	server := &websocketDirectionDescriptions{
+		sendDesc:            fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection.", md.ServerStream.SendName, resultTypeName, md.Name),
+		sendWithContextDesc: fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection with context.", md.ServerStream.SendWithContextName, resultTypeName, md.Name),
+		recvDesc:            fmt.Sprintf("%s reads instances of %q from the %q endpoint websocket connection.", md.ServerStream.RecvName, serverRecvTypeName, md.Name),
+		recvWithContextDesc: fmt.Sprintf("%s reads instances of %q from the %q endpoint websocket connection with context.", md.ServerStream.RecvWithContextName, serverRecvTypeName, md.Name),
+	}
+	client := &websocketDirectionDescriptions{
+		sendDesc:            fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection.", md.ClientStream.SendName, serverRecvTypeName, md.Name),
+		sendWithContextDesc: fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection with context.", md.ClientStream.SendWithContextName, serverRecvTypeName, md.Name),
+		recvDesc:            fmt.Sprintf("%s reads instances of %q from the %q endpoint websocket connection.", md.ClientStream.RecvName, resultTypeName, md.Name),
+		recvWithContextDesc: fmt.Sprintf("%s reads instances of %q from the %q endpoint websocket connection with context.", md.ClientStream.RecvWithContextName, resultTypeName, md.Name),
+	}
+	if e.MethodExpr.Stream == expr.ClientStreamKind {
+		server.sendDesc = fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection and closes the connection.", md.ServerStream.SendName, resultTypeName, md.Name)
+		server.sendWithContextDesc = fmt.Sprintf("%s streams instances of %q to the %q endpoint websocket connection with context and closes the connection.", md.ServerStream.SendWithContextName, resultTypeName, md.Name)
+		client.recvDesc = fmt.Sprintf("%s stops sending messages to the %q endpoint websocket connection and reads instances of %q from the connection.", md.ClientStream.RecvName, md.Name, resultTypeName)
+		client.recvWithContextDesc = fmt.Sprintf("%s stops sending messages to the %q endpoint websocket connection and reads instances of %q from the connection with context.", md.ClientStream.RecvWithContextName, md.Name, resultTypeName)
+	}
+	return server, client
 }
 
 // websocketServerFile returns the file implementing the WebSocket server

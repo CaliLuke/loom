@@ -28,6 +28,18 @@ func renderSSEClientSection(ed *EndpointData) string {
 	streamName := ed.Method.VarName + "ClientStream"
 	implName := ed.Method.VarName + "StreamImpl"
 
+	b.WriteString(renderSSEClientTypes(streamName, implName, ed))
+	b.WriteString(renderSSEClientConstructor(streamName, implName, ed))
+	b.WriteString(renderSSEClientRecv(implName, ed))
+	b.WriteString(renderSSEClientReadEvent(implName))
+	b.WriteString(renderSSEClientCheckBuffer(implName))
+	b.WriteString(renderSSEClientClose(implName))
+	b.WriteString(renderSSEClientProcessEvent(implName, ed))
+	return b.String()
+}
+
+func renderSSEClientTypes(streamName, implName string, ed *EndpointData) string {
+	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(streamName + " is the interface for reading Server-Sent Events."))
 	b.WriteString("\n")
@@ -37,7 +49,6 @@ func renderSSEClientSection(ed *EndpointData) string {
 	b.WriteString("\t" + codegen.Comment("Close closes the SSE stream and releases resources.") + "\n")
 	b.WriteString("\tClose() error\n")
 	b.WriteString("}\n\n")
-
 	b.WriteString("type (\n")
 	fmt.Fprintf(&b, "\t%s\n", codegen.Comment(implName+" implements the "+streamName+" interface."))
 	fmt.Fprintf(&b, "\t%s struct {\n", implName)
@@ -48,10 +59,13 @@ func renderSSEClientSection(ed *EndpointData) string {
 	b.WriteString("\t\tclosed bool\n")
 	b.WriteString("\t}\n")
 	b.WriteString(")\n\n")
-
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(implName+" implements the "+streamName+" interface."))
 	fmt.Fprintf(&b, "var _ %s = (*%s)(nil)\n\n", streamName, implName)
+	return b.String()
+}
 
+func renderSSEClientConstructor(streamName, implName string, ed *EndpointData) string {
+	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment("New"+ed.Method.VarName+"Stream creates a new "+streamName+"."))
 	fmt.Fprintf(&b, "func New%sStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) %s {\n", ed.Method.VarName, streamName)
 	fmt.Fprintf(&b, "\treturn &%s{\n", implName)
@@ -60,7 +74,11 @@ func renderSSEClientSection(ed *EndpointData) string {
 	b.WriteString("\t\tbuffer: make([]byte, 0, 4096), // Pre-allocate buffer\n")
 	b.WriteString("\t}\n")
 	b.WriteString("}\n\n")
+	return b.String()
+}
 
+func renderSSEClientRecv(implName string, ed *EndpointData) string {
+	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment("Recv reads and returns the next event from the SSE stream, respecting context cancellation."))
 	fmt.Fprintf(&b, "func (s *%s) Recv(ctx context.Context) (event %s, err error) {\n", implName, ed.SSE.EventTypeRef)
 	b.WriteString("\tvar byts []byte\n")
@@ -77,7 +95,11 @@ func renderSSEClientSection(ed *EndpointData) string {
 	b.WriteString("\t}\n")
 	b.WriteString("\treturn s.processEvent(byts)\n")
 	b.WriteString("}\n\n")
+	return b.String()
+}
 
+func renderSSEClientReadEvent(implName string) string {
+	var b strings.Builder
 	b.WriteString("// readEvent reads a single SSE event from the stream, respecting context\n")
 	b.WriteString("// cancellation.  It first checks the internal buffer for a complete event\n")
 	b.WriteString("// (delimited by double newlines). If no complete event is found, it reads from\n")
@@ -152,7 +174,11 @@ func renderSSEClientSection(ed *EndpointData) string {
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t}\n")
 	b.WriteString("}\n\n")
+	return b.String()
+}
 
+func renderSSEClientCheckBuffer(implName string) string {
+	var b strings.Builder
 	b.WriteString("// checkBuffer examines the internal buffer for a complete SSE event (delimited\n")
 	b.WriteString("// by double newlines).  It returns two values: the event data (or all buffer\n")
 	b.WriteString("// contents if no complete event is found), and a boolean indicating whether a\n")
@@ -185,7 +211,11 @@ func renderSSEClientSection(ed *EndpointData) string {
 	b.WriteString("\ts.buffer = s.buffer[:0] // Clear buffer but keep capacity\n")
 	b.WriteString("\treturn eventData, false\n")
 	b.WriteString("}\n\n")
+	return b.String()
+}
 
+func renderSSEClientClose(implName string) string {
+	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment("Close closes the SSE stream and releases any associated resources."))
 	fmt.Fprintf(&b, "func (s *%s) Close() error {\n", implName)
 	b.WriteString("\ts.lock.Lock()\n")
@@ -196,7 +226,11 @@ func renderSSEClientSection(ed *EndpointData) string {
 	b.WriteString("\ts.closed = true\n")
 	b.WriteString("\treturn s.resp.Body.Close()\n")
 	b.WriteString("}\n\n")
+	return b.String()
+}
 
+func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
+	var b strings.Builder
 	fmt.Fprintf(&b, "// processEvent processes a raw SSE event into the expected type\nfunc (s *%s) processEvent(eventData []byte) (event %s, err error) {\n", implName, ed.SSE.EventTypeRef)
 	b.WriteString("\tparsed, err := loomhttp.ParseSSEEvent(eventData)\n")
 	b.WriteString("\tif err != nil {\n")

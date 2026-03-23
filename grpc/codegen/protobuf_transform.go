@@ -184,37 +184,7 @@ func transformScalarAssignment(source, target *expr.AttributeExpr, sourceVar, ta
 // type to target attribute of object type. It returns an error if source
 // and target are not compatible for transformation.
 func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, error) {
-	var (
-		initCode     string
-		postInitCode string
-	)
-	{
-		// iterate through primitive attributes to initialize the struct
-		walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
-			if !expr.IsPrimitive(srcc.Type) {
-				return
-			}
-			var (
-				exp          string
-				srcField     = sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
-				tgtField     = ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
-				srcPtr       = ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr)
-				tgtPtr       = ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr)
-				srcFieldConv = convertType(srcc, tgtc, srcPtr, tgtPtr, srcField, ta)
-			)
-			var handled bool
-			exp, postInitCode, handled = transformObjectPrimitivePointerCases(
-				srcMatt, srcc, tgtc, srcField, tgtField, srcFieldConv, srcPtr, tgtPtr, targetVar, postInitCode, tgtMatt.ElemName(n), n, ta,
-			)
-			if handled {
-				return
-			}
-			initCode += fmt.Sprintf("\n%s: %s,", tgtField, exp)
-		})
-		if initCode != "" {
-			initCode += "\n"
-		}
-	}
+	initCode, postInitCode := buildPrimitiveObjectInit(source, target, sourceVar, targetVar, ta)
 
 	buffer := &bytes.Buffer{}
 	deref := "&"
@@ -230,129 +200,12 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	fmt.Fprintf(buffer, "%s %s %s%s{%s}\n", targetVar, assign, deref, tname, initCode)
 	buffer.WriteString(postInitCode)
 
-	// iterate through attributes to initialize rest of the struct fields and
-	// handle default values
 	var err error
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
-		srcc = unAlias(srcc)
-		tgtc = unAlias(tgtc)
-		var (
-			code string
-
-			srcVar = sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
-			tgtVar = targetVar + "." + ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
-		)
-		{
-			if err = codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
-				if ta.proto {
-					ta.targetInit = ta.TargetCtx.Scope.Name(tgtc, ta.TargetCtx.Pkg(tgtc), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
-					tgtc = unwrapAttr(tgtc)
-				} else {
-					srcc = unwrapAttr(srcc)
-				}
-				ta.wrapped = true
-				if err = codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
-					return
-				}
-			}
-			_, isUserType := srcc.Type.(expr.UserType)
-			switch {
-			case expr.IsArray(srcc.Type):
-				// Go service types do not use pointer-to-slice fields.
-				// Protobuf messages also do not use pointer slices. Always false.
-				tgtPtr := false
-				// Source array fields are slices (nil when absent), not pointer-to-slice.
-				srcPtr := false
-				code, err = transformArray(expr.AsArray(srcc.Type), expr.AsArray(tgtc.Type), srcVar, tgtVar, false, tgtPtr, srcPtr, ta)
-			case expr.IsMap(srcc.Type):
-				// Never use pointer-to-map on protobuf targets; default to false.
-				code, err = transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, false, ta)
-			case isUserType:
-				if ta.TargetCtx.IsInterface {
-					ref := ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target))
-					tgtVar = targetVar + ".(" + ref + ")." + codegen.GoifyAtt(tgtc, tgtMatt.ElemName(n), true)
-				}
-				if !expr.IsPrimitive(srcc.Type) {
-					code = fmt.Sprintf("%s = %s(%s)\n", tgtVar, transformHelperName(srcc, tgtc, ta), srcVar)
-				}
-			case expr.IsObject(srcc.Type):
-				code, err = transformAttribute(srcc, tgtc, srcVar, tgtVar, false, ta)
-			case expr.IsUnion(srcc.Type):
-				if ta.proto {
-					// Go service union fields are interfaces (nil when absent); do not dereference.
-					code, err = transformUnionToProto(srcc, tgtc, srcVar, tgtVar, false, ta)
-				} else {
-					// Service unions in Loom are represented as interface types, not *interface.
-					// Always assign concrete values to the interface (no pointer-to-interface).
-					code, err = transformUnionFromProto(srcc, tgtc, srcVar, tgtVar, ta)
-				}
-			}
-		}
-		if err != nil {
+		code, fieldErr := buildObjectFieldTransform(target, sourceVar, targetVar, srcMatt, tgtMatt, srcc, tgtc, n, ta)
+		if fieldErr != nil {
+			err = fieldErr
 			return
-		}
-
-		// We need to check for a nil source if it holds a reference (pointer to
-		// primitive or an object, array or map) and is not required. We also want
-		// to always check nil if the attribute is not a primitive; it's a
-		// 1) user type and we want to avoid calling transform helper functions
-		// with nil value
-		// 2) it's an object, map or array to avoid making empty arrays and maps
-		// and to avoid derefencing nil.
-		var checkNil bool
-		{
-			isRef := !expr.IsPrimitive(srcc.Type) && !srcMatt.IsRequired(n) || ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr) && expr.IsPrimitive(srcc.Type)
-			marshalNonPrimitive := !expr.IsPrimitive(srcc.Type)
-			checkNil = isRef || marshalNonPrimitive
-		}
-		if code != "" && checkNil {
-			cond := fmt.Sprintf("if %s != nil {\n", srcVar)
-			if expr.IsUnion(srcc.Type) && ta.proto {
-				cond = fmt.Sprintf("if %s.Kind() != \"\" {\n", srcVar)
-			}
-			code = fmt.Sprintf("%s\t%s}\n", cond, code)
-		}
-
-		// Default value handling. We need to handle default values if the target
-		// type uses default values (i.e. attributes with default values are
-		// non-pointers) and has a default value set.
-		if tdef := tgtMatt.GetDefault(n); tdef != nil && ta.TargetCtx.UseDefault && !ta.TargetCtx.Pointer && !srcMatt.IsRequired(n) {
-			switch {
-			case ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type):
-				// source attribute is a primitive pointer or not a primitive
-				code += fmt.Sprintf("if %s == nil {\n\t", srcVar)
-				if ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {
-					nativeTypeName := codegen.GoNativeTypeName(tgtc.Type)
-					if ta.proto {
-						nativeTypeName = protoBufNativeGoTypeName(tgtc.Type)
-					}
-					code += fmt.Sprintf("var tmp %s = %#v\n\t%s = &tmp\n", nativeTypeName, tdef, tgtVar)
-				} else {
-					// Use the actual default value for collections and other types.
-					// The %#v format will produce the correct Go literal representation
-					// of the default value, preserving type information.
-					code += fmt.Sprintf("%s = %#v\n", tgtVar, tdef)
-				}
-				code += "}\n"
-			case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(n) && ta.SourceCtx.UseDefault:
-				// source attribute is a primitive with default value
-				// (the field is not a pointer in this case)
-				code += "{\n\t"
-				if ta.proto {
-					code += fmt.Sprintf("var zero %s\n\t", protoBufNativeGoTypeName(tgtc.Type))
-				} else {
-					if typeName, _ := codegen.GetMetaType(tgtc); typeName != "" {
-						code += fmt.Sprintf("var zero %s\n\t", typeName)
-					} else if _, ok := tgtc.Type.(expr.UserType); ok {
-						// aliased primitive
-						code += fmt.Sprintf("var zero %s\n\t", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)))
-					} else {
-						code += fmt.Sprintf("var zero %s\n\t", codegen.GoNativeTypeName(tgtc.Type))
-					}
-				}
-				code += fmt.Sprintf("if %s == zero {\n\t%s = %#v\n}\n", tgtVar, tgtVar, tdef)
-				code += "}\n"
-			}
 		}
 		buffer.WriteString(code)
 	})
@@ -361,6 +214,153 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	}
 
 	return buffer.String(), nil
+}
+
+func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *transformAttrs) (string, string) {
+	var (
+		initCode     string
+		postInitCode string
+	)
+	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
+		if !expr.IsPrimitive(srcc.Type) {
+			return
+		}
+		srcField := sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
+		tgtField := ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
+		srcPtr := ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr)
+		tgtPtr := ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr)
+		srcFieldConv := convertType(srcc, tgtc, srcPtr, tgtPtr, srcField, ta)
+		exp, updatedPostInit, handled := transformObjectPrimitivePointerCases(
+			srcMatt, srcc, tgtc, srcField, tgtField, srcFieldConv, srcPtr, tgtPtr, targetVar, postInitCode, tgtMatt.ElemName(n), n, ta,
+		)
+		postInitCode = updatedPostInit
+		if handled {
+			return
+		}
+		initCode += fmt.Sprintf("\n%s: %s,", tgtField, exp)
+	})
+	if initCode != "" {
+		initCode += "\n"
+	}
+	return initCode, postInitCode
+}
+
+func buildObjectFieldTransform(target *expr.AttributeExpr, sourceVar, targetVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
+	srcc = unAlias(srcc)
+	tgtc = unAlias(tgtc)
+	srcValue := sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
+	tgtValue := targetVar + "." + ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
+	compatibleSource, compatibleTarget, err := compatibleTransformAttrs(srcc, tgtc, ta)
+	if err != nil {
+		return "", err
+	}
+	code, err := objectFieldAssignment(target, targetVar, srcValue, tgtValue, tgtMatt, compatibleSource, compatibleTarget, n, ta)
+	if err != nil {
+		return "", err
+	}
+	code = wrapObjectFieldNilCheck(code, srcValue, srcMatt, compatibleSource, n, ta)
+	return applyObjectFieldDefaults(code, srcValue, tgtValue, srcMatt, tgtMatt, compatibleSource, compatibleTarget, n, ta), nil
+}
+
+func compatibleTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
+	if err := codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err == nil {
+		return srcc, tgtc, nil
+	}
+	if ta.proto {
+		ta.targetInit = ta.TargetCtx.Scope.Name(tgtc, ta.TargetCtx.Pkg(tgtc), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+		tgtc = unwrapAttr(tgtc)
+	} else {
+		srcc = unwrapAttr(srcc)
+	}
+	ta.wrapped = true
+	if err := codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
+		return nil, nil, err
+	}
+	return srcc, tgtc, nil
+}
+
+func objectFieldAssignment(target *expr.AttributeExpr, targetVar, srcVar, tgtVar string, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
+	_, isUserType := srcc.Type.(expr.UserType)
+	switch {
+	case expr.IsArray(srcc.Type):
+		return transformArray(expr.AsArray(srcc.Type), expr.AsArray(tgtc.Type), srcVar, tgtVar, false, false, false, ta)
+	case expr.IsMap(srcc.Type):
+		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, false, ta)
+	case isUserType:
+		if ta.TargetCtx.IsInterface {
+			ref := ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target))
+			tgtVar = targetVar + ".(" + ref + ")." + codegen.GoifyAtt(tgtc, tgtMatt.ElemName(n), true)
+		}
+		if !expr.IsPrimitive(srcc.Type) {
+			return fmt.Sprintf("%s = %s(%s)\n", tgtVar, transformHelperName(srcc, tgtc, ta), srcVar), nil
+		}
+		return "", nil
+	case expr.IsObject(srcc.Type):
+		return transformAttribute(srcc, tgtc, srcVar, tgtVar, false, ta)
+	case expr.IsUnion(srcc.Type):
+		if ta.proto {
+			return transformUnionToProto(srcc, tgtc, srcVar, tgtVar, false, ta)
+		}
+		return transformUnionFromProto(srcc, tgtc, srcVar, tgtVar, ta)
+	default:
+		return "", nil
+	}
+}
+
+func wrapObjectFieldNilCheck(code, srcVar string, srcMatt *expr.MappedAttributeExpr, srcc *expr.AttributeExpr, n string, ta *transformAttrs) string {
+	if code == "" {
+		return code
+	}
+	isRef := !expr.IsPrimitive(srcc.Type) && !srcMatt.IsRequired(n) || ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr) && expr.IsPrimitive(srcc.Type)
+	marshalNonPrimitive := !expr.IsPrimitive(srcc.Type)
+	if !(isRef || marshalNonPrimitive) {
+		return code
+	}
+	cond := fmt.Sprintf("if %s != nil {\n", srcVar)
+	if expr.IsUnion(srcc.Type) && ta.proto {
+		cond = fmt.Sprintf("if %s.Kind() != \"\" {\n", srcVar)
+	}
+	return fmt.Sprintf("%s\t%s}\n", cond, code)
+}
+
+func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) string {
+	tdef := tgtMatt.GetDefault(n)
+	if tdef == nil || !ta.TargetCtx.UseDefault || ta.TargetCtx.Pointer || srcMatt.IsRequired(n) {
+		return code
+	}
+	switch {
+	case ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type):
+		code += fmt.Sprintf("if %s == nil {\n\t", srcVar)
+		if ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {
+			nativeTypeName := codegen.GoNativeTypeName(tgtc.Type)
+			if ta.proto {
+				nativeTypeName = protoBufNativeGoTypeName(tgtc.Type)
+			}
+			code += fmt.Sprintf("var tmp %s = %#v\n\t%s = &tmp\n", nativeTypeName, tdef, tgtVar)
+		} else {
+			code += fmt.Sprintf("%s = %#v\n", tgtVar, tdef)
+		}
+		code += "}\n"
+	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(n) && ta.SourceCtx.UseDefault:
+		code += "{\n\t"
+		code += objectFieldZeroValueDecl(tgtc, ta)
+		code += fmt.Sprintf("if %s == zero {\n\t%s = %#v\n}\n", tgtVar, tgtVar, tdef)
+		code += "}\n"
+	}
+	return code
+}
+
+func objectFieldZeroValueDecl(tgtc *expr.AttributeExpr, ta *transformAttrs) string {
+	if ta.proto {
+		return fmt.Sprintf("var zero %s\n\t", protoBufNativeGoTypeName(tgtc.Type))
+	}
+	if typeName, _ := codegen.GetMetaType(tgtc); typeName != "" {
+		return fmt.Sprintf("var zero %s\n\t", typeName)
+	}
+	if _, ok := tgtc.Type.(expr.UserType); ok {
+		return fmt.Sprintf("var zero %s\n\t", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)))
+	}
+	return fmt.Sprintf("var zero %s\n\t", codegen.GoNativeTypeName(tgtc.Type))
 }
 
 func transformObjectPrimitivePointerCases(

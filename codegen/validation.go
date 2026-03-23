@@ -64,14 +64,6 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 
 	flattenValidations(att, make(map[string]struct{}))
 
-	newline := func() {
-		if !first {
-			buf.WriteByte('\n')
-		} else {
-			first = false
-		}
-	}
-
 	// Write validations on attribute if any.
 	validation := validationCode(att, attCtx, req, alias, target, context)
 	if validation != "" {
@@ -82,110 +74,131 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 	// Recurse down depending on attribute type.
 	switch {
 	case expr.IsObject(att.Type):
-		if isUT {
-			put = ut
-		}
-		for _, nat := range *(expr.AsObject(att.Type)) {
-			tgt := fmt.Sprintf("%s.%s", target, attCtx.Scope.Field(nat.Attribute, nat.Name, true))
-			ctx := fmt.Sprintf("%s.%s", context, nat.Name)
-			val := validateAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
-			if val != "" {
-				newline()
-				buf.WriteString(val)
-			}
-		}
+		renderObjectValidation(buf, &first, att, put, ut, isUT, attCtx, view, target, context, seen)
 	case expr.IsArray(att.Type):
-		arr := expr.AsArray(att.Type)
-		elem := arr.ElemType
-		ctx := attCtx
-		if ctx.Pointer && expr.IsPrimitive(elem.Type) {
-			// Array elements of primitive type are never pointers
-			ctx = attCtx.Dup()
-			ctx.Pointer = false
-		}
-		val := validateAttribute(ctx, elem, put, "e", context+"[*]", true, view, seen)
-		if val != "" || arr.NonNullableElems {
-			newline()
-			buf.WriteString(renderArrayValidation(target, val, arr.NonNullableElems, context))
-		}
+		renderArrayValidationCode(buf, &first, expr.AsArray(att.Type), put, attCtx, view, target, context, seen)
 	case expr.IsMap(att.Type):
-		m := expr.AsMap(att.Type)
-		ctx := attCtx.Dup()
-		ctx.Pointer = false
-		keyVal := validateAttribute(ctx, m.KeyType, put, "k", context+".key", true, view, seen)
-		if keyVal != "" {
-			keyVal = "\n" + keyVal
-		}
-		valueVal := validateAttribute(ctx, m.ElemType, put, "v", context+"[key]", true, view, seen)
-		if valueVal != "" {
-			valueVal = "\n" + valueVal
-		}
-		if keyVal != "" || valueVal != "" {
-			newline()
-			buf.WriteString(renderMapValidation(target, keyVal, valueVal))
-		}
+		renderMapValidationCode(buf, &first, expr.AsMap(att.Type), put, attCtx, view, target, context, seen)
 	case expr.IsUnion(att.Type):
-		u := expr.AsUnion(att.Type)
-		if _, ok := attCtx.Scope.(*AttributeScope); ok {
-			cases := make([]map[string]any, 0, len(u.Values))
-			for _, v := range u.Values {
-				// Sum-type unions (struct-based, with Kind/AsX accessors) store each
-				// branch as either a value (primitives, arrays, maps) or a pointer
-				// (object user types). The union validation template binds the branch
-				// value to a local named "actual"; the pointer semantics must match
-				// that local, not the enclosing field context.
-				unionCtx := attCtx.Dup()
-				unionCtx.Pointer = expr.IsObject(v.Attribute.Type)
-				val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view, seen)
-				if val == "" {
-					continue
-				}
-				cases = append(cases, map[string]any{
-					"typeTag":       expr.UnionVariantTag(v),
-					"fieldName":     Goify(v.Name, true),
-					"requiresValue": strings.HasPrefix(strings.TrimSpace(val), "if actual != nil {"),
-					"context":       context + ".value",
-					"validation":    val,
-				})
-			}
-			if len(cases) > 0 {
-				newline()
-				buf.WriteString(renderUnionSumValidation(target, cases))
-			}
-			break
-		}
-
-		// Validate unions represented as interfaces (e.g., protobuf oneof wrappers).
-		var vals []string
-		var types []string
-		for _, v := range u.Values {
-			vatt := v.Attribute
-			if view {
-				// Union values in views are never pointers - they are concrete typed values
-				unionCtx := attCtx.Dup()
-				unionCtx.Pointer = false
-				val := validateAttribute(unionCtx, vatt, put, "v", context+".value", true, view, seen)
-				if val != "" {
-					types = append(types, attCtx.Scope.Ref(vatt, attCtx.DefaultPkg))
-					vals = append(vals, val)
-				}
-			} else {
-				fieldName := attCtx.Scope.Field(vatt, v.Name, true)
-				val := validateAttribute(attCtx, vatt, put, "v."+fieldName, context+".value", true, view, seen)
-				if val != "" {
-					tref := attCtx.Scope.Ref(&expr.AttributeExpr{Type: put}, attCtx.DefaultPkg)
-					types = append(types, tref+"_"+fieldName)
-					vals = append(vals, val)
-				}
-			}
-		}
-		if len(vals) > 0 {
-			newline()
-			buf.WriteString(renderUnionValidation(target, types, vals))
-		}
+		renderUnionValidationCode(buf, &first, expr.AsUnion(att.Type), put, attCtx, view, target, context, seen)
 	}
 
 	return buf
+}
+
+func appendValidationBlock(buf *bytes.Buffer, first *bool, val string) {
+	if val == "" {
+		return
+	}
+	if !*first {
+		buf.WriteByte('\n')
+	} else {
+		*first = false
+	}
+	buf.WriteString(val)
+}
+
+func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeExpr, put, ut expr.UserType, isUT bool, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
+	if isUT {
+		put = ut
+	}
+	for _, nat := range *(expr.AsObject(att.Type)) {
+		tgt := fmt.Sprintf("%s.%s", target, attCtx.Scope.Field(nat.Attribute, nat.Name, true))
+		ctx := fmt.Sprintf("%s.%s", context, nat.Name)
+		val := validateAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
+		appendValidationBlock(buf, first, val)
+	}
+}
+
+func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
+	ctx := attCtx
+	if ctx.Pointer && expr.IsPrimitive(arr.ElemType.Type) {
+		ctx = attCtx.Dup()
+		ctx.Pointer = false
+	}
+	val := validateAttribute(ctx, arr.ElemType, put, "e", context+"[*]", true, view, seen)
+	if val != "" || arr.NonNullableElems {
+		appendValidationBlock(buf, first, renderArrayValidation(target, val, arr.NonNullableElems, context))
+	}
+}
+
+func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
+	ctx := attCtx.Dup()
+	ctx.Pointer = false
+	keyVal := prefixedValidation(validateAttribute(ctx, m.KeyType, put, "k", context+".key", true, view, seen))
+	valueVal := prefixedValidation(validateAttribute(ctx, m.ElemType, put, "v", context+"[key]", true, view, seen))
+	if keyVal != "" || valueVal != "" {
+		appendValidationBlock(buf, first, renderMapValidation(target, keyVal, valueVal))
+	}
+}
+
+func renderUnionValidationCode(buf *bytes.Buffer, first *bool, u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
+	if _, ok := attCtx.Scope.(*AttributeScope); ok {
+		cases := renderUnionSumValidationCases(u, put, attCtx, view, context, seen)
+		if len(cases) > 0 {
+			appendValidationBlock(buf, first, renderUnionSumValidation(target, cases))
+		}
+		return
+	}
+	types, vals := renderUnionInterfaceValidationCases(u, put, attCtx, view, context, seen)
+	if len(vals) > 0 {
+		appendValidationBlock(buf, first, renderUnionValidation(target, types, vals))
+	}
+}
+
+func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string, seen map[string]*bytes.Buffer) []map[string]any {
+	cases := make([]map[string]any, 0, len(u.Values))
+	for _, v := range u.Values {
+		unionCtx := attCtx.Dup()
+		unionCtx.Pointer = expr.IsObject(v.Attribute.Type)
+		val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view, seen)
+		if val == "" {
+			continue
+		}
+		cases = append(cases, map[string]any{
+			"typeTag":       expr.UnionVariantTag(v),
+			"fieldName":     Goify(v.Name, true),
+			"requiresValue": strings.HasPrefix(strings.TrimSpace(val), "if actual != nil {"),
+			"context":       context + ".value",
+			"validation":    val,
+		})
+	}
+	return cases
+}
+
+func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string, seen map[string]*bytes.Buffer) ([]string, []string) {
+	var (
+		vals  []string
+		types []string
+	)
+	for _, v := range u.Values {
+		vatt := v.Attribute
+		if view {
+			unionCtx := attCtx.Dup()
+			unionCtx.Pointer = false
+			val := validateAttribute(unionCtx, vatt, put, "v", context+".value", true, view, seen)
+			if val != "" {
+				types = append(types, attCtx.Scope.Ref(vatt, attCtx.DefaultPkg))
+				vals = append(vals, val)
+			}
+			continue
+		}
+		fieldName := attCtx.Scope.Field(vatt, v.Name, true)
+		val := validateAttribute(attCtx, vatt, put, "v."+fieldName, context+".value", true, view, seen)
+		if val != "" {
+			tref := attCtx.Scope.Ref(&expr.AttributeExpr{Type: put}, attCtx.DefaultPkg)
+			types = append(types, tref+"_"+fieldName)
+			vals = append(vals, val)
+		}
+	}
+	return types, vals
+}
+
+func prefixedValidation(val string) string {
+	if val == "" {
+		return ""
+	}
+	return "\n" + val
 }
 
 func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.UserType, target, context string, req, view bool, seen map[string]*bytes.Buffer) string {

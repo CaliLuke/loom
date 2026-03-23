@@ -381,35 +381,11 @@ func renderSSEHandlerInitBody(b *strings.Builder, e *httpcodegen.EndpointData) {
 
 func renderJSONRPCStandardHandlerInitBody(b *strings.Builder, e *httpcodegen.EndpointData) {
 	if e.Payload != nil && e.Payload.Ref != "" {
-		if httpcodegen.IsWebSocketEndpoint(e) && e.Method.ServerStream != nil && (e.Method.ServerStream.Kind == 3 || e.Method.ServerStream.Kind == 4) {
-			fmt.Fprintf(b, "\t\tdecodeParams := %s(mux, decoder)\n", e.RequestDecoder)
-		}
-		b.WriteString("\t\tparams, err := decodeParams(r, req)\n")
-		b.WriteString("\t\tif err != nil {\n")
-		if httpcodegen.IsWebSocketEndpoint(e) {
-			b.WriteString("\t\t\treturn nil, err\n")
-		} else {
-			b.WriteString("\t\t\tif req.ID != nil && req.ID != \"\" {\n")
-			b.WriteString("\t\t\t\tcode := jsonrpc.InternalError\n")
-			b.WriteString("\t\t\t\tif _, ok := err.(*loom.ServiceError); ok {\n")
-			b.WriteString("\t\t\t\t\tcode = jsonrpc.InvalidParams\n")
-			b.WriteString("\t\t\t\t}\n")
-			b.WriteString("\t\t\t\tencodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)\n")
-			b.WriteString("\t\t\t} else {\n")
-			b.WriteString("\t\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to decode parameters: %w\", err))\n")
-			b.WriteString("\t\t\t}\n")
-			b.WriteString("\t\t\treturn nil\n")
-		}
-		b.WriteString("\t\t}\n")
+		renderJSONRPCParamsDecode(b, e)
 		writePayloadIDInjection(b, "\t\t", e.Payload)
 	}
 
-	if httpcodegen.IsWebSocketEndpoint(e) && e.Method.ServerStream != nil && (e.Method.ServerStream.Kind == 3 || e.Method.ServerStream.Kind == 4) {
-		if e.Payload != nil && e.Payload.Ref != "" {
-			b.WriteString("\t\treturn params, nil\n")
-		} else {
-			b.WriteString("\t\treturn nil, nil\n")
-		}
+	if renderJSONRPCWebSocketInitReturn(b, e) {
 		return
 	}
 
@@ -432,6 +408,52 @@ func renderJSONRPCStandardHandlerInitBody(b *strings.Builder, e *httpcodegen.End
 		return
 	}
 
+	renderJSONRPCEndpointErrorHandling(b, e)
+
+	if e.Result == nil || e.Result.Ref == "" {
+		renderJSONRPCNoResultSuccess(b, e)
+		return
+	}
+
+	renderJSONRPCResultSuccess(b, e)
+}
+
+func renderJSONRPCParamsDecode(b *strings.Builder, e *httpcodegen.EndpointData) {
+	if httpcodegen.IsWebSocketEndpoint(e) && e.Method.ServerStream != nil && (e.Method.ServerStream.Kind == 3 || e.Method.ServerStream.Kind == 4) {
+		fmt.Fprintf(b, "\t\tdecodeParams := %s(mux, decoder)\n", e.RequestDecoder)
+	}
+	b.WriteString("\t\tparams, err := decodeParams(r, req)\n")
+	b.WriteString("\t\tif err != nil {\n")
+	if httpcodegen.IsWebSocketEndpoint(e) {
+		b.WriteString("\t\t\treturn nil, err\n")
+	} else {
+		b.WriteString("\t\t\tif req.ID != nil && req.ID != \"\" {\n")
+		b.WriteString("\t\t\t\tcode := jsonrpc.InternalError\n")
+		b.WriteString("\t\t\t\tif _, ok := err.(*loom.ServiceError); ok {\n")
+		b.WriteString("\t\t\t\t\tcode = jsonrpc.InvalidParams\n")
+		b.WriteString("\t\t\t\t}\n")
+		b.WriteString("\t\t\t\tencodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)\n")
+		b.WriteString("\t\t\t} else {\n")
+		b.WriteString("\t\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to decode parameters: %w\", err))\n")
+		b.WriteString("\t\t\t}\n")
+		b.WriteString("\t\t\treturn nil\n")
+	}
+	b.WriteString("\t\t}\n")
+}
+
+func renderJSONRPCWebSocketInitReturn(b *strings.Builder, e *httpcodegen.EndpointData) bool {
+	if !httpcodegen.IsWebSocketEndpoint(e) || e.Method.ServerStream == nil || (e.Method.ServerStream.Kind != 3 && e.Method.ServerStream.Kind != 4) {
+		return false
+	}
+	if e.Payload != nil && e.Payload.Ref != "" {
+		b.WriteString("\t\treturn params, nil\n")
+	} else {
+		b.WriteString("\t\treturn nil, nil\n")
+	}
+	return true
+}
+
+func renderJSONRPCEndpointErrorHandling(b *strings.Builder, e *httpcodegen.EndpointData) {
 	b.WriteString("\t\tif err != nil {\n")
 	b.WriteString("\t\t\tif req.ID != nil && req.ID != \"\" {\n")
 	b.WriteString("\t\t\t\tvar en loom.LoomErrorNamer\n")
@@ -465,43 +487,41 @@ func renderJSONRPCStandardHandlerInitBody(b *strings.Builder, e *httpcodegen.End
 	b.WriteString("\t\t\t}\n")
 	b.WriteString("\t\t\treturn nil\n")
 	b.WriteString("\t\t}\n\n")
+}
 
-	if e.Result == nil || e.Result.Ref == "" {
-		b.WriteString("\t\tif req.ID == nil || req.ID == \"\" {\n")
+func renderJSONRPCNoResultSuccess(b *strings.Builder, e *httpcodegen.EndpointData) {
+	b.WriteString("\t\tif req.ID == nil || req.ID == \"\" {\n")
+	b.WriteString("\t\t\treturn nil\n")
+	b.WriteString("\t\t}\n")
+	if needsJSONRPCResponseCapture(e) {
+		b.WriteString("\t\tcapture := &jsonrpcResponseCapture{}\n")
+		b.WriteString("\t\tif err := encodeResponse(ctx, capture, res); err != nil {\n")
+		b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode transport response: %w\", err))\n")
 		b.WriteString("\t\t\treturn nil\n")
 		b.WriteString("\t\t}\n")
-		if needsJSONRPCResponseCapture(e) {
-			b.WriteString("\t\tcapture := &jsonrpcResponseCapture{}\n")
-			b.WriteString("\t\tif err := encodeResponse(ctx, capture, res); err != nil {\n")
-			b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode transport response: %w\", err))\n")
-			b.WriteString("\t\t\treturn nil\n")
-			b.WriteString("\t\t}\n")
-			b.WriteString("\t\tcopyJSONRPCResponseMetadata(w, capture)\n")
-		}
-		b.WriteString("\t\tresponse := jsonrpc.MakeSuccessResponse(req.ID, nil)\n")
-		b.WriteString("\t\tif err := encoder(ctx, w).Encode(response); err != nil {\n")
-		b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode JSON-RPC response: %w\", err))\n")
-		b.WriteString("\t\t}\n")
-		b.WriteString("\t\treturn nil\n")
-		return
+		b.WriteString("\t\tcopyJSONRPCResponseMetadata(w, capture)\n")
 	}
+	b.WriteString("\t\tresponse := jsonrpc.MakeSuccessResponse(req.ID, nil)\n")
+	b.WriteString("\t\tif err := encoder(ctx, w).Encode(response); err != nil {\n")
+	b.WriteString("\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode JSON-RPC response: %w\", err))\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t\treturn nil\n")
+}
 
+func renderJSONRPCResultSuccess(b *strings.Builder, e *httpcodegen.EndpointData) {
 	b.WriteString("\t\tvar id any\n")
 	if e.Result.IDAttribute != "" {
 		b.WriteString("\t\tactual := res.(" + e.Result.Ref + ")\n")
 		if e.Result.IDAttributeRequired {
 			fmt.Fprintf(b, "\t\tif actual.%s != \"\" {\n", e.Result.IDAttribute)
 			fmt.Fprintf(b, "\t\t\tid = actual.%s\n", e.Result.IDAttribute)
-			b.WriteString("\t\t} else {\n")
-			b.WriteString("\t\t\tid = req.ID\n")
-			b.WriteString("\t\t}\n")
 		} else {
 			fmt.Fprintf(b, "\t\tif actual.%s != nil && *actual.%s != \"\" {\n", e.Result.IDAttribute, e.Result.IDAttribute)
 			fmt.Fprintf(b, "\t\t\tid = *actual.%s\n", e.Result.IDAttribute)
-			b.WriteString("\t\t} else {\n")
-			b.WriteString("\t\t\tid = req.ID\n")
-			b.WriteString("\t\t}\n")
 		}
+		b.WriteString("\t\t} else {\n")
+		b.WriteString("\t\t\tid = req.ID\n")
+		b.WriteString("\t\t}\n")
 	} else {
 		b.WriteString("\t\tid = req.ID\n")
 	}

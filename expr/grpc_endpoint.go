@@ -274,154 +274,169 @@ func validateGRPCUnionShapes(att *AttributeExpr, parent eval.Expression, verr *e
 // Finalize ensures the request and response attributes are initialized.
 func (e *GRPCEndpointExpr) Finalize() {
 	if pobj := AsObject(e.MethodExpr.Payload.Type); pobj != nil {
-		// addToMetadata adds the given field to metadata. tName maps the attribute
-		// name to the given transport name.
 		addToMetadata := func(field string, tName string) {
-			attr := pobj.Attribute(field)
-			e.Metadata.Type.(*Object).Set(field, attr)
-			if tName != "" {
-				e.Metadata.Map(tName, field)
-			}
-			if e.MethodExpr.Payload.IsRequired(field) {
-				e.Metadata.Validation.AddRequired(field)
-			}
+			e.addPayloadFieldToMetadata(pobj, field, tName)
 		}
-
-		// Initialize any security attributes in request metadata unless it is
-		// specified explicitly in the request message via the DSL.
-		if reqLen := len(e.MethodExpr.Requirements); reqLen > 0 {
-			e.Requirements = make([]*SecurityExpr, 0, reqLen)
-			for _, req := range e.MethodExpr.Requirements {
-				dupReq := DupRequirement(req)
-				for _, sch := range dupReq.Schemes {
-					var field string
-					switch sch.Kind {
-					case NoKind:
-						continue
-					case BasicAuthKind:
-						field = TaggedAttribute(e.MethodExpr.Payload, "security:username")
-						sch.Name, sch.In = findKey(e, field)
-						if sch.Name == "" {
-							addToMetadata(field, "")
-						}
-						field = TaggedAttribute(e.MethodExpr.Payload, "security:password")
-						sch.Name, sch.In = findKey(e, field)
-						if sch.Name == "" {
-							addToMetadata(field, "")
-						}
-						continue
-					case APIKeyKind:
-						field = TaggedAttribute(e.MethodExpr.Payload, "security:apikey:"+sch.SchemeName)
-					case JWTKind:
-						field = TaggedAttribute(e.MethodExpr.Payload, "security:token")
-					case OAuth2Kind:
-						field = TaggedAttribute(e.MethodExpr.Payload, "security:accesstoken")
-					}
-					sch.Name, sch.In = findKey(e, field)
-					if sch.Name == "" {
-						sch.Name = "authorization"
-						addToMetadata(field, sch.Name)
-					}
-				}
-				e.Requirements = append(e.Requirements, dupReq)
-			}
-		}
-
-		// If endpoint defines streaming payload, then add the attributes in method
-		// payload type to request metadata.
-		if e.MethodExpr.StreamingPayload.Type != Empty {
-			for _, nat := range *pobj {
-				addToMetadata(nat.Name, "")
-			}
-		}
-
-		// msgObj contains only the attributes in the method payload that must
-		// be added to the request message type after removing attributes
-		// specified in the request metadata.
-		msgObj := Dup(pobj).(*Object)
-		for _, nat := range *AsObject(e.Metadata.Type) {
-			// initialize metadata attribute from method payload
-			initAttrFromDesign(nat.Attribute, pobj.Attribute(nat.Name))
-			if e.MethodExpr.Payload.IsRequired(nat.Name) {
-				e.Metadata.Validation.AddRequired(nat.Name)
-			}
-			// remove metadata attributes from the message attributes
-			msgObj.Delete(nat.Name)
-		}
-
-		// add any message attributes to request message if not added already
-		if len(*msgObj) > 0 {
-			if e.Request.Type == Empty {
-				e.Request.Type = &Object{}
-			}
-			reqObj := AsObject(e.Request.Type)
-			for _, nat := range *msgObj {
-				if reqObj.Attribute(nat.Name) == nil {
-					reqObj.Set(nat.Name, nat.Attribute)
-				}
-				if e.MethodExpr.Payload.IsRequired(nat.Name) {
-					e.Request.Validation.AddRequired(nat.Name)
-				}
-			}
-		}
-		for _, nat := range *AsObject(e.Request.Type) {
-			// initialize message attribute
-			patt := DupAtt(pobj.Attribute(nat.Name))
-			initAttrFromDesign(nat.Attribute, patt)
-			if nat.Attribute.Meta == nil {
-				nat.Attribute.Meta = patt.Meta
-			} else {
-				nat.Attribute.Meta.Merge(patt.Meta)
-			}
-		}
-		if ut, ok := e.MethodExpr.Payload.Type.(UserType); ok {
-			// propagate the user set protobuf struct name from the user type to
-			// the request message.
-			if proto, ok := ut.Attribute().Meta.Last("struct:name:proto"); ok {
-				if e.Request.Meta == nil {
-					e.Request.Meta = ut.Attribute().Meta
-				} else {
-					e.Request.Meta["struct:name:proto"] = []string{proto}
-				}
-			}
-		}
+		e.finalizeSecurityRequirements(addToMetadata)
+		e.finalizeStreamingPayloadMetadata(pobj, addToMetadata)
+		e.finalizeRequestMessageFromPayload(pobj)
+		e.propagatePayloadProtoStructName()
 	} else {
-		// method payload is not an object type.
-		if e.MethodExpr.StreamingPayload.Type != Empty {
-			// endpoint defines streaming payload. So add the method payload to
-			// request metadata under "loom-payload" field
-			e.Metadata.Type.(*Object).Set("loom_payload", e.MethodExpr.Payload)
-			e.Metadata.Validation.AddRequired("loom_payload")
-		} else {
-			initAttrFromDesign(e.Request, e.MethodExpr.Payload)
-		}
+		e.finalizeNonObjectPayload()
 	}
 
-	// Finalize streaming payload type if defined
-	if e.MethodExpr.StreamingPayload.Type != Empty {
-		attr := e.MethodExpr.StreamingPayload
-		// If streaming payload is a user type, use the underlying attribute
-		// for the grpc streaming request type. This ensures we are consistent
-		// with how message types are finalized for code generation.
-		if ut, ok := attr.Type.(UserType); ok {
-			attr = ut.Attribute()
-		}
-		initAttrFromDesign(e.StreamingRequest, attr)
-		if msgObj := AsObject(e.StreamingRequest.Type); msgObj != nil {
-			for _, nat := range *msgObj {
-				if e.MethodExpr.StreamingPayload.IsRequired(nat.Name) {
-					e.StreamingRequest.Validation.AddRequired(nat.Name)
-				}
-			}
-		}
-	}
-
-	// Finalize response
+	e.finalizeStreamingRequest()
 	e.Response.Finalize(e, e.MethodExpr.Result)
-
-	// Finalize errors
 	for _, gerr := range e.GRPCErrors {
 		gerr.Finalize(e)
+	}
+}
+
+func (e *GRPCEndpointExpr) addPayloadFieldToMetadata(pobj *Object, field string, transportName string) {
+	attr := pobj.Attribute(field)
+	e.Metadata.Type.(*Object).Set(field, attr)
+	if transportName != "" {
+		e.Metadata.Map(transportName, field)
+	}
+	if e.MethodExpr.Payload.IsRequired(field) {
+		e.Metadata.Validation.AddRequired(field)
+	}
+}
+
+func (e *GRPCEndpointExpr) finalizeSecurityRequirements(addToMetadata func(string, string)) {
+	reqLen := len(e.MethodExpr.Requirements)
+	if reqLen == 0 {
+		return
+	}
+	e.Requirements = make([]*SecurityExpr, 0, reqLen)
+	for _, req := range e.MethodExpr.Requirements {
+		dupReq := DupRequirement(req)
+		for _, sch := range dupReq.Schemes {
+			e.finalizeSecurityScheme(sch, addToMetadata)
+		}
+		e.Requirements = append(e.Requirements, dupReq)
+	}
+}
+
+func (e *GRPCEndpointExpr) finalizeSecurityScheme(sch *SchemeExpr, addToMetadata func(string, string)) {
+	switch sch.Kind {
+	case NoKind:
+		return
+	case BasicAuthKind:
+		e.finalizeBasicAuthScheme(sch, addToMetadata)
+		return
+	case APIKeyKind:
+		e.finalizeCredentialScheme(TaggedAttribute(e.MethodExpr.Payload, "security:apikey:"+sch.SchemeName), sch, addToMetadata)
+	case JWTKind:
+		e.finalizeCredentialScheme(TaggedAttribute(e.MethodExpr.Payload, "security:token"), sch, addToMetadata)
+	case OAuth2Kind:
+		e.finalizeCredentialScheme(TaggedAttribute(e.MethodExpr.Payload, "security:accesstoken"), sch, addToMetadata)
+	}
+}
+
+func (e *GRPCEndpointExpr) finalizeBasicAuthScheme(sch *SchemeExpr, addToMetadata func(string, string)) {
+	for _, field := range []string{
+		TaggedAttribute(e.MethodExpr.Payload, "security:username"),
+		TaggedAttribute(e.MethodExpr.Payload, "security:password"),
+	} {
+		sch.Name, sch.In = findKey(e, field)
+		if sch.Name == "" {
+			addToMetadata(field, "")
+		}
+	}
+}
+
+func (e *GRPCEndpointExpr) finalizeCredentialScheme(field string, sch *SchemeExpr, addToMetadata func(string, string)) {
+	sch.Name, sch.In = findKey(e, field)
+	if sch.Name == "" {
+		sch.Name = "authorization"
+		addToMetadata(field, sch.Name)
+	}
+}
+
+func (e *GRPCEndpointExpr) finalizeStreamingPayloadMetadata(pobj *Object, addToMetadata func(string, string)) {
+	if e.MethodExpr.StreamingPayload.Type == Empty {
+		return
+	}
+	for _, nat := range *pobj {
+		addToMetadata(nat.Name, "")
+	}
+}
+
+func (e *GRPCEndpointExpr) finalizeRequestMessageFromPayload(pobj *Object) {
+	msgObj := Dup(pobj).(*Object)
+	for _, nat := range *AsObject(e.Metadata.Type) {
+		initAttrFromDesign(nat.Attribute, pobj.Attribute(nat.Name))
+		if e.MethodExpr.Payload.IsRequired(nat.Name) {
+			e.Metadata.Validation.AddRequired(nat.Name)
+		}
+		msgObj.Delete(nat.Name)
+	}
+	if len(*msgObj) > 0 {
+		if e.Request.Type == Empty {
+			e.Request.Type = &Object{}
+		}
+		reqObj := AsObject(e.Request.Type)
+		for _, nat := range *msgObj {
+			if reqObj.Attribute(nat.Name) == nil {
+				reqObj.Set(nat.Name, nat.Attribute)
+			}
+			if e.MethodExpr.Payload.IsRequired(nat.Name) {
+				e.Request.Validation.AddRequired(nat.Name)
+			}
+		}
+	}
+	for _, nat := range *AsObject(e.Request.Type) {
+		patt := DupAtt(pobj.Attribute(nat.Name))
+		initAttrFromDesign(nat.Attribute, patt)
+		if nat.Attribute.Meta == nil {
+			nat.Attribute.Meta = patt.Meta
+		} else {
+			nat.Attribute.Meta.Merge(patt.Meta)
+		}
+	}
+}
+
+func (e *GRPCEndpointExpr) propagatePayloadProtoStructName() {
+	ut, ok := e.MethodExpr.Payload.Type.(UserType)
+	if !ok {
+		return
+	}
+	proto, ok := ut.Attribute().Meta.Last("struct:name:proto")
+	if !ok {
+		return
+	}
+	if e.Request.Meta == nil {
+		e.Request.Meta = ut.Attribute().Meta
+	} else {
+		e.Request.Meta["struct:name:proto"] = []string{proto}
+	}
+}
+
+func (e *GRPCEndpointExpr) finalizeNonObjectPayload() {
+	if e.MethodExpr.StreamingPayload.Type != Empty {
+		e.Metadata.Type.(*Object).Set("loom_payload", e.MethodExpr.Payload)
+		e.Metadata.Validation.AddRequired("loom_payload")
+		return
+	}
+	initAttrFromDesign(e.Request, e.MethodExpr.Payload)
+}
+
+func (e *GRPCEndpointExpr) finalizeStreamingRequest() {
+	if e.MethodExpr.StreamingPayload.Type == Empty {
+		return
+	}
+	attr := e.MethodExpr.StreamingPayload
+	if ut, ok := attr.Type.(UserType); ok {
+		attr = ut.Attribute()
+	}
+	initAttrFromDesign(e.StreamingRequest, attr)
+	if msgObj := AsObject(e.StreamingRequest.Type); msgObj != nil {
+		for _, nat := range *msgObj {
+			if e.MethodExpr.StreamingPayload.IsRequired(nat.Name) {
+				e.StreamingRequest.Validation.AddRequired(nat.Name)
+			}
+		}
 	}
 }
 

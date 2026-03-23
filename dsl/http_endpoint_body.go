@@ -64,128 +64,13 @@ func body(args []any, openAPIOnly bool) {
 		return
 	}
 
-	var (
-		ref    *expr.AttributeExpr
-		setter func(*expr.AttributeExpr)
-		kind   string
-	)
-
-	switch e := eval.Current().(type) {
-	case *expr.HTTPEndpointExpr:
-		if openAPIOnly {
-			eval.IncompatibleDSL()
-			return
-		}
-		ref = e.MethodExpr.Payload
-		setter = func(att *expr.AttributeExpr) {
-			e.Body = att
-		}
-		kind = "Request"
-	case *expr.HTTPErrorExpr:
-		ref = e.AttributeExpr
-		setter = func(att *expr.AttributeExpr) {
-			if e.Response == nil {
-				e.Response = &expr.HTTPResponseExpr{}
-			}
-			if openAPIOnly {
-				e.Response.OpenAPIBody = att
-			} else {
-				e.Response.Body = att
-			}
-		}
-		kind = "Error"
-		if e.Name != "" {
-			kind += " " + e.Name
-		}
-	case *expr.HTTPResponseExpr:
-		p, ok := e.Parent.(*expr.HTTPEndpointExpr)
-		if !ok {
-			eval.IncompatibleDSL()
-			return
-		}
-		ref = p.MethodExpr.Result
-		setter = func(att *expr.AttributeExpr) {
-			if openAPIOnly {
-				e.OpenAPIBody = att
-			} else {
-				e.Body = att
-			}
-		}
-		kind = "Response"
-	default:
-		eval.IncompatibleDSL()
+	ref, setter, kind, ok := resolveBodyContext(openAPIOnly)
+	if !ok {
 		return
 	}
 
-	var (
-		attr *expr.AttributeExpr
-		fn   func()
-	)
-	switch a := args[0].(type) {
-	case string:
-		if ref == nil {
-			eval.ReportError("Body is set but %s is not defined", kind)
-			return
-		}
-		if !expr.IsObject(ref.Type) {
-			eval.ReportError("%s type must be an object with an attribute with name %#v, got %T", kind, a, ref.Type)
-			return
-		}
-		attr = ref.Find(a)
-		if attr == nil {
-			eval.ReportError("%s type does not have an attribute named %#v", kind, a)
-			return
-		}
-		attr = expr.DupAtt(attr)
-		attr.AddMeta("origin:attribute", a)
-		if rt, ok := attr.Type.(*expr.ResultTypeExpr); ok && expr.IsArray(rt.Type) {
-			expr.GeneratedResultTypes.Append(rt)
-		}
-		if len(args) > 1 {
-			var ok bool
-			fn, ok = args[1].(func())
-			if !ok {
-				eval.InvalidArgError("function", args[1])
-				return
-			}
-		}
-	case expr.UserType:
-		attr = &expr.AttributeExpr{Type: a}
-		if len(args) > 1 {
-			var ok bool
-			fn, ok = args[1].(func())
-			if !ok {
-				eval.InvalidArgError("function", args[1])
-				return
-			}
-		}
-	case expr.DataType:
-		if !openAPIOnly {
-			eval.InvalidArgError("attribute name, user type or DSL", a)
-			return
-		}
-		attr = &expr.AttributeExpr{Type: a}
-		if len(args) > 1 {
-			var ok bool
-			fn, ok = args[1].(func())
-			if !ok {
-				eval.InvalidArgError("function", args[1])
-				return
-			}
-		}
-	case func():
-		fn = a
-		if ref == nil {
-			eval.ReportError("Body is set but Payload is not defined")
-			return
-		}
-		attr = &expr.AttributeExpr{References: []expr.DataType{ref.Type}}
-	default:
-		if openAPIOnly {
-			eval.InvalidArgError("attribute name, data type, user type or DSL", a)
-			return
-		}
-		eval.InvalidArgError("attribute name, user type or DSL", a)
+	attr, fn, ok := resolveBodyAttribute(args, ref, kind, openAPIOnly)
+	if !ok {
 		return
 	}
 
@@ -198,4 +83,116 @@ func body(args []any, openAPIOnly bool) {
 		attr.AddMeta("http:body")
 	}
 	setter(attr)
+}
+
+func resolveBodyContext(openAPIOnly bool) (*expr.AttributeExpr, func(*expr.AttributeExpr), string, bool) {
+	switch e := eval.Current().(type) {
+	case *expr.HTTPEndpointExpr:
+		if openAPIOnly {
+			eval.IncompatibleDSL()
+			return nil, nil, "", false
+		}
+		return e.MethodExpr.Payload, func(att *expr.AttributeExpr) {
+			e.Body = att
+		}, "Request", true
+	case *expr.HTTPErrorExpr:
+		kind := "Error"
+		if e.Name != "" {
+			kind += " " + e.Name
+		}
+		return e.AttributeExpr, func(att *expr.AttributeExpr) {
+			if e.Response == nil {
+				e.Response = &expr.HTTPResponseExpr{}
+			}
+			if openAPIOnly {
+				e.Response.OpenAPIBody = att
+			} else {
+				e.Response.Body = att
+			}
+		}, kind, true
+	case *expr.HTTPResponseExpr:
+		p, ok := e.Parent.(*expr.HTTPEndpointExpr)
+		if !ok {
+			eval.IncompatibleDSL()
+			return nil, nil, "", false
+		}
+		return p.MethodExpr.Result, func(att *expr.AttributeExpr) {
+			if openAPIOnly {
+				e.OpenAPIBody = att
+			} else {
+				e.Body = att
+			}
+		}, "Response", true
+	default:
+		eval.IncompatibleDSL()
+		return nil, nil, "", false
+	}
+}
+
+func resolveBodyAttribute(args []any, ref *expr.AttributeExpr, kind string, openAPIOnly bool) (*expr.AttributeExpr, func(), bool) {
+	fn, ok := bodyDSLFunc(args)
+	if !ok {
+		return nil, nil, false
+	}
+
+	switch a := args[0].(type) {
+	case string:
+		attr, ok := resolveNamedBodyAttribute(ref, kind, a)
+		return attr, fn, ok
+	case expr.UserType:
+		return &expr.AttributeExpr{Type: a}, fn, true
+	case expr.DataType:
+		if !openAPIOnly {
+			eval.InvalidArgError("attribute name, user type or DSL", a)
+			return nil, nil, false
+		}
+		return &expr.AttributeExpr{Type: a}, fn, true
+	case func():
+		if ref == nil {
+			eval.ReportError("Body is set but Payload is not defined")
+			return nil, nil, false
+		}
+		return &expr.AttributeExpr{References: []expr.DataType{ref.Type}}, a, true
+	default:
+		if openAPIOnly {
+			eval.InvalidArgError("attribute name, data type, user type or DSL", a)
+		} else {
+			eval.InvalidArgError("attribute name, user type or DSL", a)
+		}
+		return nil, nil, false
+	}
+}
+
+func bodyDSLFunc(args []any) (func(), bool) {
+	if len(args) == 1 {
+		return nil, true
+	}
+	fn, ok := args[1].(func())
+	if !ok {
+		eval.InvalidArgError("function", args[1])
+		return nil, false
+	}
+	return fn, true
+}
+
+func resolveNamedBodyAttribute(ref *expr.AttributeExpr, kind, name string) (*expr.AttributeExpr, bool) {
+	if ref == nil {
+		eval.ReportError("Body is set but %s is not defined", kind)
+		return nil, false
+	}
+	if !expr.IsObject(ref.Type) {
+		eval.ReportError("%s type must be an object with an attribute with name %#v, got %T", kind, name, ref.Type)
+		return nil, false
+	}
+	attr := ref.Find(name)
+	if attr == nil {
+		eval.ReportError("%s type does not have an attribute named %#v", kind, name)
+		return nil, false
+	}
+	attr = expr.DupAtt(attr)
+	attr.AddMeta("origin:attribute", name)
+	if rt, ok := attr.Type.(*expr.ResultTypeExpr); ok && expr.IsArray(rt.Type) {
+		expr.GeneratedResultTypes.Append(rt)
+	}
+	return attr, true
 }
