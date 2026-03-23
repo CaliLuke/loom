@@ -385,13 +385,7 @@ func newGRPCTransport() *TransportData {
 //   - JSON-RPC service interfaces (in JSONRPC.Services order)
 //   - JSON-RPC service endpoints (for services not already added as HTTP endpoints)
 func computeHandlerArgsForURI(uri *URIData, server *Data, root *expr.RootExpr) []HandlerArg {
-	capHint := len(server.Services)
-	grpcSvcNames := make([]string, 0, capHint)
-	for _, t := range server.Transports {
-		if t.Type == TransportGRPC {
-			grpcSvcNames = append(grpcSvcNames, t.Services...)
-		}
-	}
+	grpcSvcNames := transportServiceNames(server.Transports, TransportGRPC)
 	if uri.Transport.Type == TransportGRPC {
 		out := make([]HandlerArg, 0, len(grpcSvcNames))
 		for _, name := range grpcSvcNames {
@@ -405,53 +399,15 @@ func computeHandlerArgsForURI(uri *URIData, server *Data, root *expr.RootExpr) [
 		jsonrpcServices = root.API.JSONRPC.Services
 	}
 
-	httpSvcSet := make(map[string]struct{}, len(server.Services))
-	for _, t := range server.Transports {
-		if t.Type != TransportHTTP {
-			continue
-		}
-		for _, name := range t.Services {
-			httpSvcSet[name] = struct{}{}
-		}
-	}
-
 	out := make([]HandlerArg, 0, len(server.Services)+len(jsonrpcServices))
 
-	serviceHasHandlers := func(name string) bool {
-		if svc := root.Service(name); len(svc.Methods) > 0 {
-			return true
-		}
-		if hs := root.API.HTTP.Service(name); hs != nil && len(hs.HTTPEndpoints) > 0 {
-			return true
-		}
-		if js := root.API.JSONRPC.Service(name); js != nil && len(js.HTTPEndpoints) > 0 {
-			return true
-		}
-		return false
-	}
+	serviceHasHandlers := func(name string) bool { return serviceHasURIHandlers(name, root) }
 
 	// Build set of services that are in $.Services for the template.
 	// The template data depends on whether there are HTTP services:
 	// - If there are HTTP services: $.Services = HTTP services only
 	// - If there are NO HTTP services: $.Services = all JSON-RPC services
-	servicesInTemplate := make(map[string]struct{})
-	hasHTTPServices := false
-	if root.API != nil && root.API.HTTP != nil && len(root.API.HTTP.Services) > 0 {
-		hasHTTPServices = true
-		for _, hs := range root.API.HTTP.Services {
-			if hs.ServiceExpr != nil {
-				servicesInTemplate[hs.ServiceExpr.Name] = struct{}{}
-			}
-		}
-	}
-	// If no HTTP services, JSON-RPC services populate $.Services
-	if !hasHTTPServices && root.API != nil && root.API.JSONRPC != nil {
-		for _, js := range root.API.JSONRPC.Services {
-			if js.ServiceExpr != nil {
-				servicesInTemplate[js.ServiceExpr.Name] = struct{}{}
-			}
-		}
-	}
+	servicesInTemplate := templateServiceSet(root)
 
 	addedEndpoints := make(map[string]bool, len(server.Services))
 
@@ -482,4 +438,47 @@ func computeHandlerArgsForURI(uri *URIData, server *Data, root *expr.RootExpr) [
 	}
 
 	return out
+}
+
+func transportServiceNames(transports []*TransportData, transportType Transport) []string {
+	names := make([]string, 0, len(transports))
+	for _, t := range transports {
+		if t.Type == transportType {
+			names = append(names, t.Services...)
+		}
+	}
+	return names
+}
+
+func serviceHasURIHandlers(name string, root *expr.RootExpr) bool {
+	if svc := root.Service(name); len(svc.Methods) > 0 {
+		return true
+	}
+	if hs := root.API.HTTP.Service(name); hs != nil && len(hs.HTTPEndpoints) > 0 {
+		return true
+	}
+	if js := root.API.JSONRPC.Service(name); js != nil && len(js.HTTPEndpoints) > 0 {
+		return true
+	}
+	return false
+}
+
+func templateServiceSet(root *expr.RootExpr) map[string]struct{} {
+	servicesInTemplate := make(map[string]struct{})
+	if root.API != nil && root.API.HTTP != nil && len(root.API.HTTP.Services) > 0 {
+		for _, hs := range root.API.HTTP.Services {
+			if hs.ServiceExpr != nil {
+				servicesInTemplate[hs.ServiceExpr.Name] = struct{}{}
+			}
+		}
+		return servicesInTemplate
+	}
+	if root.API != nil && root.API.JSONRPC != nil {
+		for _, js := range root.API.JSONRPC.Services {
+			if js.ServiceExpr != nil {
+				servicesInTemplate[js.ServiceExpr.Name] = struct{}{}
+			}
+		}
+	}
+	return servicesInTemplate
 }

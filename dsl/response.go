@@ -123,58 +123,34 @@ func Response(val any, args ...any) {
 	}
 	switch t := eval.Current().(type) {
 	case *expr.RootExpr:
-		if !ok {
-			eval.InvalidArgError("name of error", val)
-			return
-		}
-		if e := httpOrJSONRPCError(name, t, args...); e != nil {
-			t.API.HTTP.Errors = append(t.API.HTTP.Errors, e)
-		}
+		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
+			t.API.HTTP.Errors = append(t.API.HTTP.Errors, err)
+		})
 	case *expr.HTTPExpr:
-		if !ok {
-			eval.InvalidArgError("name of error", val)
-			return
-		}
-		if e := httpOrJSONRPCError(name, t, args...); e != nil {
-			t.Errors = append(t.Errors, e)
-		}
+		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
+			t.Errors = append(t.Errors, err)
+		})
 	case *expr.GRPCExpr:
-		if !ok {
-			eval.InvalidArgError("name of error", val)
-			return
-		}
-		if e := grpcError(name, t, args...); e != nil {
-			t.Errors = append(t.Errors, e)
-		}
+		appendGRPCError(name, ok, val, args, t, func(err *expr.GRPCErrorExpr) {
+			t.Errors = append(t.Errors, err)
+		})
 	case *expr.JSONRPCExpr:
-		if !ok {
-			eval.InvalidArgError("name of error", val)
-			return
-		}
-		if e := httpOrJSONRPCError(name, t, args...); e != nil {
-			t.Errors = append(t.Errors, e)
-		}
+		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
+			t.Errors = append(t.Errors, err)
+		})
 	case *expr.HTTPServiceExpr:
-		if !ok {
-			eval.InvalidArgError("name of error", val)
-			return
-		}
-		if e := httpOrJSONRPCError(name, t, args...); e != nil {
-			t.HTTPErrors = append(t.HTTPErrors, e)
-		}
+		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
+			t.HTTPErrors = append(t.HTTPErrors, err)
+		})
 	case *expr.GRPCServiceExpr:
-		if !ok {
-			eval.InvalidArgError("name of error", val)
-			return
-		}
-		if e := grpcError(name, t, args...); e != nil {
-			t.GRPCErrors = append(t.GRPCErrors, e)
-		}
+		appendGRPCError(name, ok, val, args, t, func(err *expr.GRPCErrorExpr) {
+			t.GRPCErrors = append(t.GRPCErrors, err)
+		})
 	case *expr.HTTPEndpointExpr:
 		if ok {
-			if e := httpOrJSONRPCError(name, t, args...); e != nil {
-				t.HTTPErrors = append(t.HTTPErrors, e)
-			}
+			appendHTTPOrJSONRPCError(name, true, val, args, t, func(err *expr.HTTPErrorExpr) {
+				t.HTTPErrors = append(t.HTTPErrors, err)
+			})
 			return
 		}
 		code, fn := parseResponseArgs(val, args...)
@@ -224,6 +200,26 @@ func Code(code int) {
 		t.StatusCode = code
 	default:
 		eval.IncompatibleDSL()
+	}
+}
+
+func appendHTTPOrJSONRPCError(name string, ok bool, val any, args []any, parent eval.Expression, appendFn func(*expr.HTTPErrorExpr)) {
+	if !ok {
+		eval.InvalidArgError("name of error", val)
+		return
+	}
+	if e := httpOrJSONRPCError(name, parent, args...); e != nil {
+		appendFn(e)
+	}
+}
+
+func appendGRPCError(name string, ok bool, val any, args []any, parent eval.Expression, appendFn func(*expr.GRPCErrorExpr)) {
+	if !ok {
+		eval.InvalidArgError("name of error", val)
+		return
+	}
+	if e := grpcError(name, parent, args...); e != nil {
+		appendFn(e)
 	}
 }
 

@@ -290,73 +290,26 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	if attr == nil || attr.Type == Empty {
 		return &AttributeExpr{Type: Empty}
 	}
-
-	// 1. Handle the case where the body is set explicitly in the design.
-	// We need to create a type with an endpoint specific response body type
-	// name to handle the case where the same type is used by multiple
-	// methods with potentially different result types.
 	if resp.Body != nil {
-		if !IsObject(resp.Body.Type) {
-			preserveCanonicalOpenAPITypeName(resp.Body)
-			return resp.Body
-		}
-		if len(*AsObject(resp.Body.Type)) == 0 {
-			return &AttributeExpr{Type: Empty}
-		}
-		return cloneExplicitHTTPBody(resp.Body, name, suffix, svc.Name()+"#"+name)
+		return explicitHTTPResponseBody(resp.Body, name, suffix, svc)
 	}
-
-	// 2. If attribute is not an object then check whether there are headers or
-	// cookies defined and if so return empty type (attr encoded in response
-	// header or cookie) otherwise return renamed attr type (attr encoded in
-	// response body).
 	if !IsObject(attr.Type) {
-		if resp.Headers.IsEmpty() && len(resp.Cookies) == 0 {
-			attr = DupAtt(attr)
-			RemovePkgPath(attr)
-			renameType(attr, name, "Response") // Do not use ResponseBody as it could clash with name of element
-			return attr
-		}
-		return &AttributeExpr{Type: Empty}
+		return primitiveHTTPResponseBody(attr, resp, name)
 	}
 	body := NewMappedAttributeExpr(attr)
 	RemovePkgPath(body.AttributeExpr)
 	extendBodyAttribute(body)
-
-	// 4. Remove header and cookie attributes
 	removeAttributes(body, resp.Headers)
 	removeResponseCookieAttributes(body, resp.Cookies)
-
-	// 4. Return empty type if no attribute left
 	if len(*AsObject(body.Type)) == 0 {
 		return &AttributeExpr{Type: Empty}
 	}
-
-	// 5. Build computed user type
 	userType := &UserTypeExpr{
 		AttributeExpr: body.Attribute(),
 		TypeName:      name,
 		UID:           concat(svc.Name(), "#", name),
 	}
-
-	if t, ok := attr.Type.(UserType); ok {
-		// Remember original type name and openapi typename for example
-		// to generate friendly OpenAPI specs.
-		userType.AddMeta("name:original", t.Name())
-		if m, ok := t.Attribute().Meta["openapi:typename"]; ok {
-			userType.AddMeta("openapi:typename", m...)
-		}
-
-		// Remember additionalProperties.
-		if m, ok := t.Attribute().Meta["openapi:additionalProperties"]; ok {
-			userType.AddMeta("openapi:additionalProperties", m...)
-		}
-	}
-	if m, ok := attr.Meta.Last("openapi:typename"); ok {
-		userType.AddMeta("openapi:typename", m)
-		userType.AddMeta("openapi:typename:canonical", "true")
-	}
-
+	copyHTTPResponseBodyMeta(userType, attr)
 	appendSuffix(userType.Attribute().Type, suffix)
 	rt, isrt := attr.Type.(*ResultTypeExpr)
 	if !isrt {
@@ -390,6 +343,43 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		Type:       nmt,
 		Validation: userType.Validation,
 		Meta:       attr.Meta,
+	}
+}
+
+func explicitHTTPResponseBody(body *AttributeExpr, name, suffix string, svc *HTTPServiceExpr) *AttributeExpr {
+	if !IsObject(body.Type) {
+		preserveCanonicalOpenAPITypeName(body)
+		return body
+	}
+	if len(*AsObject(body.Type)) == 0 {
+		return &AttributeExpr{Type: Empty}
+	}
+	return cloneExplicitHTTPBody(body, name, suffix, svc.Name()+"#"+name)
+}
+
+func primitiveHTTPResponseBody(attr *AttributeExpr, resp *HTTPResponseExpr, name string) *AttributeExpr {
+	if !resp.Headers.IsEmpty() || len(resp.Cookies) > 0 {
+		return &AttributeExpr{Type: Empty}
+	}
+	attr = DupAtt(attr)
+	RemovePkgPath(attr)
+	renameType(attr, name, "Response")
+	return attr
+}
+
+func copyHTTPResponseBodyMeta(userType *UserTypeExpr, attr *AttributeExpr) {
+	if t, ok := attr.Type.(UserType); ok {
+		userType.AddMeta("name:original", t.Name())
+		if m, ok := t.Attribute().Meta["openapi:typename"]; ok {
+			userType.AddMeta("openapi:typename", m...)
+		}
+		if m, ok := t.Attribute().Meta["openapi:additionalProperties"]; ok {
+			userType.AddMeta("openapi:additionalProperties", m...)
+		}
+	}
+	if m, ok := attr.Meta.Last("openapi:typename"); ok {
+		userType.AddMeta("openapi:typename", m)
+		userType.AddMeta("openapi:typename:canonical", "true")
 	}
 }
 

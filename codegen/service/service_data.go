@@ -1832,19 +1832,13 @@ func BuildSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr) *SchemeData {
 	if !expr.IsObject(m.Payload.Type) {
 		return nil
 	}
+	scopes := schemeScopeNames(s)
 	switch s.Kind {
 	case expr.BasicAuthKind:
 		userAtt := expr.TaggedAttribute(m.Payload, "security:username")
 		user := codegen.Goify(userAtt, true)
 		passAtt := expr.TaggedAttribute(m.Payload, "security:password")
 		pass := codegen.Goify(passAtt, true)
-		var scopes []string
-		if len(s.Scopes) > 0 {
-			scopes = make([]string, len(s.Scopes))
-			for i, s := range s.Scopes {
-				scopes[i] = s.Name
-			}
-		}
 		return &SchemeData{
 			Type:             s.Kind.String(),
 			SchemeName:       s.SchemeName,
@@ -1859,74 +1853,46 @@ func BuildSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr) *SchemeData {
 			Scopes:           scopes,
 		}
 	case expr.APIKeyKind:
-		if keyAtt := expr.TaggedAttribute(m.Payload, "security:apikey:"+s.SchemeName); keyAtt != "" {
-			key := codegen.Goify(keyAtt, true)
-			var scopes []string
-			if len(s.Scopes) > 0 {
-				scopes = make([]string, len(s.Scopes))
-				for i, s := range s.Scopes {
-					scopes[i] = s.Name
-				}
-			}
-			return &SchemeData{
-				Type:         s.Kind.String(),
-				Name:         s.Name,
-				SchemeName:   s.SchemeName,
-				CredField:    key,
-				CredPointer:  m.Payload.IsPrimitivePointer(keyAtt, true),
-				CredRequired: m.Payload.IsRequired(keyAtt),
-				KeyAttr:      keyAtt,
-				Scopes:       scopes,
-				In:           s.In,
-			}
-		}
+		return buildCredentialSchemeData(s, m, "security:apikey:"+s.SchemeName, scopes)
 	case expr.JWTKind:
-		if keyAtt := expr.TaggedAttribute(m.Payload, "security:token"); keyAtt != "" {
-			key := codegen.Goify(keyAtt, true)
-			var scopes []string
-			if len(s.Scopes) > 0 {
-				scopes = make([]string, len(s.Scopes))
-				for i, s := range s.Scopes {
-					scopes[i] = s.Name
-				}
-			}
-			return &SchemeData{
-				Type:         s.Kind.String(),
-				Name:         s.Name,
-				SchemeName:   s.SchemeName,
-				CredField:    key,
-				CredPointer:  m.Payload.IsPrimitivePointer(keyAtt, true),
-				CredRequired: m.Payload.IsRequired(keyAtt),
-				KeyAttr:      keyAtt,
-				Scopes:       scopes,
-				In:           s.In,
-			}
-		}
+		return buildCredentialSchemeData(s, m, "security:token", scopes)
 	case expr.OAuth2Kind:
-		if keyAtt := expr.TaggedAttribute(m.Payload, "security:accesstoken"); keyAtt != "" {
-			key := codegen.Goify(keyAtt, true)
-			var scopes []string
-			if len(s.Scopes) > 0 {
-				scopes = make([]string, len(s.Scopes))
-				for i, s := range s.Scopes {
-					scopes[i] = s.Name
-				}
-			}
-			return &SchemeData{
-				Type:         s.Kind.String(),
-				Name:         s.Name,
-				SchemeName:   s.SchemeName,
-				CredField:    key,
-				CredPointer:  m.Payload.IsPrimitivePointer(keyAtt, true),
-				CredRequired: m.Payload.IsRequired(keyAtt),
-				KeyAttr:      keyAtt,
-				Scopes:       scopes,
-				Flows:        s.Flows,
-				In:           s.In,
-			}
+		data := buildCredentialSchemeData(s, m, "security:accesstoken", scopes)
+		if data != nil {
+			data.Flows = s.Flows
 		}
+		return data
 	}
 	return nil
+}
+
+func schemeScopeNames(s *expr.SchemeExpr) []string {
+	if len(s.Scopes) == 0 {
+		return nil
+	}
+	scopes := make([]string, len(s.Scopes))
+	for i, scope := range s.Scopes {
+		scopes[i] = scope.Name
+	}
+	return scopes
+}
+
+func buildCredentialSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr, tag string, scopes []string) *SchemeData {
+	keyAtt := expr.TaggedAttribute(m.Payload, tag)
+	if keyAtt == "" {
+		return nil
+	}
+	return &SchemeData{
+		Type:         s.Kind.String(),
+		Name:         s.Name,
+		SchemeName:   s.SchemeName,
+		CredField:    codegen.Goify(keyAtt, true),
+		CredPointer:  m.Payload.IsPrimitivePointer(keyAtt, true),
+		CredRequired: m.Payload.IsRequired(keyAtt),
+		KeyAttr:      keyAtt,
+		Scopes:       scopes,
+		In:           s.In,
+	}
 }
 
 // collectAttributes builds AttributeData from an AttributeExpr

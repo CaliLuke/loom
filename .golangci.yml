@@ -32,7 +32,7 @@ linters:
     gocyclo:
       min-complexity: 50
     maintidx:
-      under: 25
+      under: 30
     nakedret:
       max-func-lines: 30
     misspell:

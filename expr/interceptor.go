@@ -44,103 +44,93 @@ func (i *InterceptorExpr) EvalName() string {
 // validate validates the interceptor.
 func (i *InterceptorExpr) validate(m *MethodExpr) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-
-	if i.ReadPayload != nil || i.WritePayload != nil {
-		if !IsObject(m.Payload.Type) {
-			verr.Add(m, "interceptor %q cannot be applied because the method payload is not an object", i.Name)
-		} else {
-			payload := DupAtt(m.Payload)
-			if m.Payload.Bases != nil {
-				for _, base := range m.Payload.Bases {
-					if ut, ok := base.(UserType); ok {
-						payload.Merge(ut.Attribute())
-					}
-				}
-			}
-			if i.ReadPayload != nil {
-				i.validateAttributeAccess(m, "read payload", verr, payload, i.ReadPayload)
-			}
-			if i.WritePayload != nil {
-				i.validateAttributeAccess(m, "write payload", verr, payload, i.WritePayload)
-			}
-		}
-	}
-
-	if i.ReadResult != nil || i.WriteResult != nil {
-		if m.IsResultStreaming() {
-			verr.Add(m, "interceptor %q cannot be applied because the method result is streaming", i.Name)
-		}
-		if !IsObject(m.Result.Type) {
-			verr.Add(m, "interceptor %q cannot be applied because the method result is not an object", i.Name)
-		} else {
-			result := DupAtt(m.Result)
-			if m.Result.Bases != nil {
-				for _, base := range m.Result.Bases {
-					if ut, ok := base.(UserType); ok {
-						result.Merge(ut.Attribute())
-					}
-				}
-			}
-			if i.ReadResult != nil {
-				i.validateAttributeAccess(m, "read result", verr, result, i.ReadResult)
-			}
-			if i.WriteResult != nil {
-				i.validateAttributeAccess(m, "write result", verr, result, i.WriteResult)
-			}
-		}
-	}
-
-	if i.ReadStreamingPayload != nil || i.WriteStreamingPayload != nil {
-		if !m.IsPayloadStreaming() || m.StreamingPayload == nil {
-			verr.Add(m, "interceptor %q cannot be applied because the method payload is not streaming", i.Name)
-		} else {
-			if !IsObject(m.StreamingPayload.Type) {
-				verr.Add(m, "interceptor %q cannot be applied because the method payload is not an object", i.Name)
-			} else {
-				payload := DupAtt(m.StreamingPayload)
-				if m.StreamingPayload.Bases != nil {
-					for _, base := range m.StreamingPayload.Bases {
-						if ut, ok := base.(UserType); ok {
-							payload.Merge(ut.Attribute())
-						}
-					}
-				}
-				if i.ReadStreamingPayload != nil {
-					i.validateAttributeAccess(m, "read streaming payload", verr, payload, i.ReadStreamingPayload)
-				}
-				if i.WriteStreamingPayload != nil {
-					i.validateAttributeAccess(m, "write streaming payload", verr, payload, i.WriteStreamingPayload)
-				}
-			}
-		}
-	}
-
-	if i.ReadStreamingResult != nil || i.WriteStreamingResult != nil {
-		if !m.IsResultStreaming() {
-			verr.Add(m, "interceptor %q cannot be applied because the method result is not streaming", i.Name)
-		} else {
-			if !IsObject(m.Result.Type) {
-				verr.Add(m, "interceptor %q cannot be applied because the method result is not an object", i.Name)
-			} else {
-				result := DupAtt(m.Result)
-				if m.Result.Bases != nil {
-					for _, base := range m.Result.Bases {
-						if ut, ok := base.(UserType); ok {
-							result.Merge(ut.Attribute())
-						}
-					}
-				}
-				if i.ReadStreamingResult != nil {
-					i.validateAttributeAccess(m, "read streaming result", verr, result, i.ReadStreamingResult)
-				}
-				if i.WriteStreamingResult != nil {
-					i.validateAttributeAccess(m, "write streaming result", verr, result, i.WriteStreamingResult)
-				}
-			}
-		}
-	}
-
+	i.validatePayloadAccess(m, verr)
+	i.validateResultAccess(m, verr)
+	i.validateStreamingPayloadAccess(m, verr)
+	i.validateStreamingResultAccess(m, verr)
 	return verr
+}
+
+func (i *InterceptorExpr) validatePayloadAccess(m *MethodExpr, verr *eval.ValidationErrors) {
+	if i.ReadPayload == nil && i.WritePayload == nil {
+		return
+	}
+	payload := i.objectAccessTarget(m, verr, m.Payload, "payload is not an object")
+	if payload == nil {
+		return
+	}
+	i.validateAccessPair(m, verr, payload, "payload", i.ReadPayload, i.WritePayload)
+}
+
+func (i *InterceptorExpr) validateResultAccess(m *MethodExpr, verr *eval.ValidationErrors) {
+	if i.ReadResult == nil && i.WriteResult == nil {
+		return
+	}
+	if m.IsResultStreaming() {
+		verr.Add(m, "interceptor %q cannot be applied because the method result is streaming", i.Name)
+	}
+	result := i.objectAccessTarget(m, verr, m.Result, "result is not an object")
+	if result == nil {
+		return
+	}
+	i.validateAccessPair(m, verr, result, "result", i.ReadResult, i.WriteResult)
+}
+
+func (i *InterceptorExpr) validateStreamingPayloadAccess(m *MethodExpr, verr *eval.ValidationErrors) {
+	if i.ReadStreamingPayload == nil && i.WriteStreamingPayload == nil {
+		return
+	}
+	if !m.IsPayloadStreaming() || m.StreamingPayload == nil {
+		verr.Add(m, "interceptor %q cannot be applied because the method payload is not streaming", i.Name)
+		return
+	}
+	payload := i.objectAccessTarget(m, verr, m.StreamingPayload, "payload is not an object")
+	if payload == nil {
+		return
+	}
+	i.validateAccessPair(m, verr, payload, "streaming payload", i.ReadStreamingPayload, i.WriteStreamingPayload)
+}
+
+func (i *InterceptorExpr) validateStreamingResultAccess(m *MethodExpr, verr *eval.ValidationErrors) {
+	if i.ReadStreamingResult == nil && i.WriteStreamingResult == nil {
+		return
+	}
+	if !m.IsResultStreaming() {
+		verr.Add(m, "interceptor %q cannot be applied because the method result is not streaming", i.Name)
+		return
+	}
+	result := i.objectAccessTarget(m, verr, m.Result, "result is not an object")
+	if result == nil {
+		return
+	}
+	i.validateAccessPair(m, verr, result, "streaming result", i.ReadStreamingResult, i.WriteStreamingResult)
+}
+
+func (i *InterceptorExpr) objectAccessTarget(m *MethodExpr, verr *eval.ValidationErrors, att *AttributeExpr, objectErr string) *AttributeExpr {
+	if !IsObject(att.Type) {
+		verr.Add(m, "interceptor %q cannot be applied because the method %s", i.Name, objectErr)
+		return nil
+	}
+	return mergeAttributeBases(att)
+}
+
+func mergeAttributeBases(att *AttributeExpr) *AttributeExpr {
+	merged := DupAtt(att)
+	for _, base := range att.Bases {
+		if ut, ok := base.(UserType); ok {
+			merged.Merge(ut.Attribute())
+		}
+	}
+	return merged
+}
+
+func (i *InterceptorExpr) validateAccessPair(m *MethodExpr, verr *eval.ValidationErrors, target *AttributeExpr, suffix string, readAttr, writeAttr *AttributeExpr) {
+	if readAttr != nil {
+		i.validateAttributeAccess(m, "read "+suffix, verr, target, readAttr)
+	}
+	if writeAttr != nil {
+		i.validateAttributeAccess(m, "write "+suffix, verr, target, writeAttr)
+	}
 }
 
 // validateAttributeAccess validates that all attributes in attr exist in obj

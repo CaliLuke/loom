@@ -688,97 +688,128 @@ func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.S
 
 func jsonrpcClientEndpointInitSection(ed *httpcodegen.EndpointData) codegen.Section {
 	var b strings.Builder
-	requestEncoder := ed.RequestEncoder
-	if requestEncoder == "" && !httpcodegen.IsWebSocketEndpoint(ed) {
-		requestEncoder = fmt.Sprintf("Encode%sRequest", ed.Method.VarName)
-	}
+	requestEncoder := jsonrpcRequestEncoderName(ed)
 	fmt.Fprintf(&b, "\n%s\n", codegen.Comment(fmt.Sprintf("%s returns an endpoint that makes JSON-RPC requests to the %s service %s method.", ed.EndpointInit, ed.ServiceName, ed.Method.Name)))
 	fmt.Fprintf(&b, "func (c *%s) %s() loom.Endpoint {\n", ed.ClientStruct, ed.EndpointInit)
-	if !httpcodegen.IsWebSocketEndpoint(ed) {
-		b.WriteString("\tvar (\n")
-		if requestEncoder != "" {
-			fmt.Fprintf(&b, "\t\tencodeRequest  = %s(c.encoder)\n", requestEncoder)
-		}
-		if !httpcodegen.IsSSEEndpoint(ed) {
-			fmt.Fprintf(&b, "\t\tdecodeResponse = %s(c.decoder, c.RestoreResponseBody)\n", ed.ResponseDecoder)
-		}
-		b.WriteString("\t)\n")
-	}
+	writeJSONRPCClientEndpointLocals(&b, ed, requestEncoder)
 	b.WriteString("\treturn func(ctx context.Context, v any) (any, error) {\n")
-	if !httpcodegen.IsWebSocketEndpoint(ed) {
-		b.WriteString("\t\treq, err := c." + ed.RequestInit.Name + "(ctx")
-		if len(ed.RequestInit.ClientArgs) > 0 {
-			b.WriteString(", ")
-			for i, arg := range ed.RequestInit.ClientArgs {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				b.WriteString(arg.Ref)
-			}
-		}
-		b.WriteString(")\n")
-		b.WriteString("\t\tif err != nil {\n")
-		b.WriteString("\t\t\treturn nil, err\n")
-		b.WriteString("\t\t}\n")
-		if requestEncoder != "" {
-			b.WriteString("\t\tif err := encodeRequest(req, v); err != nil {\n")
-			b.WriteString("\t\t\treturn nil, err\n")
-			b.WriteString("\t\t}\n")
-		}
-	}
+	writeJSONRPCClientRequestSetup(&b, ed, requestEncoder)
 	switch {
 	case httpcodegen.IsWebSocketEndpoint(ed):
-		if ed.ClientWebSocket != nil && ed.ClientWebSocket.RecvName != "" && ed.ClientWebSocket.RecvTypeRef != "" {
-			b.WriteString("\t\tdecodeResponse := c.decoder\n")
-		}
-		b.WriteString("\t\tws, err := c.getConn(ctx)\n")
-		b.WriteString("\t\tif err != nil {\n")
-		b.WriteString("\t\t\treturn nil, err\n")
-		b.WriteString("\t\t}\n\n")
-		b.WriteString("\t\tstreamCtx, cancel := context.WithCancel(ctx)\n")
-		fmt.Fprintf(&b, "\t\tstream := &%s{\n", ed.ClientWebSocket.VarName)
-		b.WriteString("\t\t\tws:     ws,\n")
-		b.WriteString("\t\t\tctx:    streamCtx,\n")
-		b.WriteString("\t\t\tcancel: cancel,\n")
-		b.WriteString("\t\t\tdone:   make(chan struct{}),\n")
-		b.WriteString("\t\t\tconfig: c.streamConfig,\n")
-		if ed.ClientWebSocket != nil && ed.ClientWebSocket.RecvName != "" && ed.ClientWebSocket.RecvTypeRef != "" {
-			b.WriteString("\t\t\tdecoder: decodeResponse,\n")
-		}
-		b.WriteString("\t\t}\n")
-		b.WriteString("\t\tgo stream.responseHandler()\n")
-		b.WriteString("\t\treturn stream, nil\n")
+		writeJSONRPCWebSocketEndpointBody(&b, ed)
 	case httpcodegen.IsSSEEndpoint(ed):
-		b.WriteString("\t\tresp, err := c.Doer.Do(req)\n")
-		b.WriteString("\t\tif err != nil {\n")
-		fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrRequestError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
-		b.WriteString("\t\t}\n\n")
-		b.WriteString("\t\tif resp.StatusCode != http.StatusOK {\n")
-		b.WriteString("\t\t\tbody, _ := io.ReadAll(resp.Body)\n")
-		b.WriteString("\t\t\tresp.Body.Close()\n")
-		fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", ed.ServiceName, ed.Method.Name)
-		b.WriteString("\t\t}\n\n")
-		b.WriteString("\t\tcontentType := resp.Header.Get(\"Content-Type\")\n")
-		b.WriteString("\t\tif contentType != \"\" && !strings.HasPrefix(contentType, \"text/event-stream\") {\n")
-		b.WriteString("\t\t\tresp.Body.Close()\n")
-		b.WriteString("\t\t\treturn nil, fmt.Errorf(\"unexpected content type: %s (expected text/event-stream)\", contentType)\n")
-		b.WriteString("\t\t}\n\n")
-		fmt.Fprintf(&b, "\t\tstream := &%sClientStream{\n", ed.Method.VarName)
-		b.WriteString("\t\t\tresp:    resp,\n")
-		b.WriteString("\t\t\treader:  bufio.NewReader(resp.Body),\n")
-		b.WriteString("\t\t\tdecoder: c.decoder,\n")
-		b.WriteString("\t\t}\n")
-		b.WriteString("\t\treturn stream, nil\n")
+		writeJSONRPCSSEEndpointBody(&b, ed)
 	default:
-		b.WriteString("\t\tresp, err := c.Doer.Do(req)\n")
-		b.WriteString("\t\tif err != nil {\n")
-		fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrRequestError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
-		b.WriteString("\t\t}\n")
-		b.WriteString("\t\treturn decodeResponse(resp)\n")
+		writeJSONRPCUnaryEndpointBody(&b, ed)
 	}
 	b.WriteString("\t}\n")
 	b.WriteString("}\n")
 	return codegen.NewRawSection("jsonrpc-client-endpoint-init", b.String())
+}
+
+func jsonrpcRequestEncoderName(ed *httpcodegen.EndpointData) string {
+	if ed.RequestEncoder != "" || httpcodegen.IsWebSocketEndpoint(ed) {
+		return ed.RequestEncoder
+	}
+	return fmt.Sprintf("Encode%sRequest", ed.Method.VarName)
+}
+
+func writeJSONRPCClientEndpointLocals(b *strings.Builder, ed *httpcodegen.EndpointData, requestEncoder string) {
+	if httpcodegen.IsWebSocketEndpoint(ed) {
+		return
+	}
+	b.WriteString("\tvar (\n")
+	if requestEncoder != "" {
+		fmt.Fprintf(b, "\t\tencodeRequest  = %s(c.encoder)\n", requestEncoder)
+	}
+	if !httpcodegen.IsSSEEndpoint(ed) {
+		fmt.Fprintf(b, "\t\tdecodeResponse = %s(c.decoder, c.RestoreResponseBody)\n", ed.ResponseDecoder)
+	}
+	b.WriteString("\t)\n")
+}
+
+func writeJSONRPCClientRequestSetup(b *strings.Builder, ed *httpcodegen.EndpointData, requestEncoder string) {
+	if httpcodegen.IsWebSocketEndpoint(ed) {
+		return
+	}
+	b.WriteString("\t\treq, err := c." + ed.RequestInit.Name + "(ctx")
+	for i, arg := range ed.RequestInit.ClientArgs {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		if i == 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(arg.Ref)
+	}
+	b.WriteString(")\n")
+	b.WriteString("\t\tif err != nil {\n")
+	b.WriteString("\t\t\treturn nil, err\n")
+	b.WriteString("\t\t}\n")
+	if requestEncoder == "" {
+		return
+	}
+	b.WriteString("\t\tif err := encodeRequest(req, v); err != nil {\n")
+	b.WriteString("\t\t\treturn nil, err\n")
+	b.WriteString("\t\t}\n")
+}
+
+func writeJSONRPCWebSocketEndpointBody(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	if ed.ClientWebSocket != nil && ed.ClientWebSocket.RecvName != "" && ed.ClientWebSocket.RecvTypeRef != "" {
+		b.WriteString("\t\tdecodeResponse := c.decoder\n")
+	}
+	b.WriteString("\t\tws, err := c.getConn(ctx)\n")
+	b.WriteString("\t\tif err != nil {\n")
+	b.WriteString("\t\t\treturn nil, err\n")
+	b.WriteString("\t\t}\n\n")
+	b.WriteString("\t\tstreamCtx, cancel := context.WithCancel(ctx)\n")
+	fmt.Fprintf(b, "\t\tstream := &%s{\n", ed.ClientWebSocket.VarName)
+	b.WriteString("\t\t\tws:     ws,\n")
+	b.WriteString("\t\t\tctx:    streamCtx,\n")
+	b.WriteString("\t\t\tcancel: cancel,\n")
+	b.WriteString("\t\t\tdone:   make(chan struct{}),\n")
+	b.WriteString("\t\t\tconfig: c.streamConfig,\n")
+	if ed.ClientWebSocket != nil && ed.ClientWebSocket.RecvName != "" && ed.ClientWebSocket.RecvTypeRef != "" {
+		b.WriteString("\t\t\tdecoder: decodeResponse,\n")
+	}
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t\tgo stream.responseHandler()\n")
+	b.WriteString("\t\treturn stream, nil\n")
+}
+
+func writeJSONRPCSSEEndpointBody(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	writeJSONRPCDoRequest(b, ed)
+	b.WriteString("\t\tif resp.StatusCode != http.StatusOK {\n")
+	b.WriteString("\t\t\tbody, _ := io.ReadAll(resp.Body)\n")
+	b.WriteString("\t\t\tresp.Body.Close()\n")
+	fmt.Fprintf(b, "\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", ed.ServiceName, ed.Method.Name)
+	b.WriteString("\t\t}\n\n")
+	b.WriteString("\t\tcontentType := resp.Header.Get(\"Content-Type\")\n")
+	b.WriteString("\t\tif contentType != \"\" && !strings.HasPrefix(contentType, \"text/event-stream\") {\n")
+	b.WriteString("\t\t\tresp.Body.Close()\n")
+	b.WriteString("\t\t\treturn nil, fmt.Errorf(\"unexpected content type: %s (expected text/event-stream)\", contentType)\n")
+	b.WriteString("\t\t}\n\n")
+	fmt.Fprintf(b, "\t\tstream := &%sClientStream{\n", ed.Method.VarName)
+	b.WriteString("\t\t\tresp:    resp,\n")
+	b.WriteString("\t\t\treader:  bufio.NewReader(resp.Body),\n")
+	b.WriteString("\t\t\tdecoder: c.decoder,\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t\treturn stream, nil\n")
+}
+
+func writeJSONRPCUnaryEndpointBody(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	writeJSONRPCDoRequest(b, ed)
+	b.WriteString("\t\treturn decodeResponse(resp)\n")
+}
+
+func writeJSONRPCDoRequest(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	b.WriteString("\t\tresp, err := c.Doer.Do(req)\n")
+	b.WriteString("\t\tif err != nil {\n")
+	fmt.Fprintf(b, "\t\t\treturn nil, loomhttp.ErrRequestError(%q, %q, err)\n", ed.ServiceName, ed.Method.Name)
+	b.WriteString("\t\t}\n")
+	if httpcodegen.IsSSEEndpoint(ed) {
+		b.WriteString("\n")
+	}
 }
 
 func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Section {

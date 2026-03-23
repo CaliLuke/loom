@@ -84,10 +84,19 @@ func serverSSESections(data *ServiceData) []codegen.Section {
 
 func serverSSESection(ed *EndpointData) codegen.Section {
 	var b strings.Builder
+	writeSSETypeSection(&b, ed)
+	writeSSESendSection(&b, ed)
+	writeSSEInitHeaders(&b, ed)
+	writeSSESendWithContextSection(&b, ed)
+	writeSSECloseSection(&b, ed)
+	return codegen.NewRawSection("server-sse", b.String())
+}
+
+func writeSSETypeSection(b *strings.Builder, ed *EndpointData) {
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(fmt.Sprintf("%s implements the %s interface using Server-Sent Events.", ed.SSE.StructName, ed.SSE.Interface)))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "type %s struct {\n", ed.SSE.StructName)
+	fmt.Fprintf(b, "type %s struct {\n", ed.SSE.StructName)
 	b.WriteString("\t" + codegen.Comment("once ensures the headers are written once.") + "\n")
 	b.WriteString("\tonce sync.Once\n")
 	b.WriteString("\t" + codegen.Comment("w is the HTTP response writer used to send the SSE events.") + "\n")
@@ -95,14 +104,18 @@ func serverSSESection(ed *EndpointData) codegen.Section {
 	b.WriteString("\t" + codegen.Comment("r is the HTTP request.") + "\n")
 	b.WriteString("\tr *http.Request\n")
 	b.WriteString("}\n\n")
+}
 
+func writeSSESendSection(b *strings.Builder, ed *EndpointData) {
 	b.WriteString(codegen.Comment(fmt.Sprintf("%s %s", ed.SSE.SendName, ed.SSE.SendDesc)))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%s) %s(v %s) error {\n", ed.SSE.StructName, ed.SSE.SendName, ed.SSE.EventTypeRef)
-	fmt.Fprintf(&b, "\treturn s.%s(context.Background(), v)\n", ed.SSE.SendWithContextName)
+	fmt.Fprintf(b, "func (s *%s) %s(v %s) error {\n", ed.SSE.StructName, ed.SSE.SendName, ed.SSE.EventTypeRef)
+	fmt.Fprintf(b, "\treturn s.%s(context.Background(), v)\n", ed.SSE.SendWithContextName)
 	b.WriteString("}\n\n")
+}
 
-	fmt.Fprintf(&b, "func (s *%s) initHeaders() {\n", ed.SSE.StructName)
+func writeSSEInitHeaders(b *strings.Builder, ed *EndpointData) {
+	fmt.Fprintf(b, "func (s *%s) initHeaders() {\n", ed.SSE.StructName)
 	b.WriteString("\ts.once.Do(func() {\n")
 	b.WriteString("\t\theader := s.w.Header()\n")
 	b.WriteString("\t\tif header.Get(\"Content-Type\") == \"\" {\n")
@@ -117,69 +130,89 @@ func serverSSESection(ed *EndpointData) codegen.Section {
 	b.WriteString("\t\ts.w.WriteHeader(http.StatusOK)\n")
 	b.WriteString("\t})\n")
 	b.WriteString("}\n\n")
+}
 
+func writeSSESendWithContextSection(b *strings.Builder, ed *EndpointData) {
 	b.WriteString(codegen.Comment(fmt.Sprintf("%s %s", ed.SSE.SendWithContextName, ed.SSE.SendWithContextDesc)))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%s) %s(ctx context.Context, v %s) error {\n", ed.SSE.StructName, ed.SSE.SendWithContextName, ed.SSE.EventTypeRef)
+	fmt.Fprintf(b, "func (s *%s) %s(ctx context.Context, v %s) error {\n", ed.SSE.StructName, ed.SSE.SendWithContextName, ed.SSE.EventTypeRef)
 	b.WriteString("\ts.initHeaders()\n")
+	writeSSEResultSetup(b, ed)
+	writeSSEPayloadSetup(b, ed)
+	writeSSEPayloadEncoding(b)
+	writeSSEMessageSetup(b, ed)
+	b.WriteString("\tif err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {\n\t\treturn err\n\t}\n\n")
+	b.WriteString("\treturn http.NewResponseController(s.w).Flush()\n")
+	b.WriteString("}\n\n")
+}
+
+func writeSSEResultSetup(b *strings.Builder, ed *EndpointData) {
 	if ed.Method.ViewedResult != nil {
-		if ed.Method.ViewedResult.ViewName != "" {
-			fmt.Fprintf(&b, "\tres := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, ed.Method.ViewedResult.ViewName)
-		} else {
-			fmt.Fprintf(&b, "\tres := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, "default")
+		viewName := ed.Method.ViewedResult.ViewName
+		if viewName == "" {
+			viewName = "default"
 		}
-	} else {
-		b.WriteString("\tres := v\n")
+		fmt.Fprintf(b, "\tres := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, viewName)
+		return
 	}
+	b.WriteString("\tres := v\n")
+}
+
+func writeSSEPayloadSetup(b *strings.Builder, ed *EndpointData) {
 	b.WriteString("\n\tvar data string\n\tvar payload any\n")
 	if ed.SSE.HasResponseBody {
-		fmt.Fprintf(&b, "\tbody := New%sResponseBody(res)\n", codegen.Goify(ed.Method.Name, true))
+		fmt.Fprintf(b, "\tbody := New%sResponseBody(res)\n", codegen.Goify(ed.Method.Name, true))
 		if ed.SSE.DataField != "" {
-			fmt.Fprintf(&b, "\tpayload = body.%s\n", ed.SSE.DataField)
-		} else {
-			b.WriteString("\tpayload = body\n")
+			fmt.Fprintf(b, "\tpayload = body.%s\n", ed.SSE.DataField)
+			return
 		}
-	} else {
-		if ed.SSE.DataField != "" {
-			fmt.Fprintf(&b, "\tpayload = res.%s\n", ed.SSE.DataField)
-		} else {
-			b.WriteString("\tpayload = res\n")
-		}
+		b.WriteString("\tpayload = body\n")
+		return
 	}
+	if ed.SSE.DataField != "" {
+		fmt.Fprintf(b, "\tpayload = res.%s\n", ed.SSE.DataField)
+		return
+	}
+	b.WriteString("\tpayload = res\n")
+}
+
+func writeSSEPayloadEncoding(b *strings.Builder) {
 	b.WriteString("\tswitch v := payload.(type) {\n")
 	b.WriteString("\tcase nil:\n\t\tdata = \"null\"\n")
 	b.WriteString("\tcase string:\n\t\tdata = v\n")
 	b.WriteString("\tcase []byte:\n\t\tdata = string(v)\n")
 	b.WriteString("\tcase bool:\n\t\tif v {\n\t\t\tdata = \"true\"\n\t\t} else {\n\t\t\tdata = \"false\"\n\t\t}\n")
 	for _, t := range []string{"int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64"} {
-		fmt.Fprintf(&b, "\tcase %s:\n\t\tdata = fmt.Sprintf(\"%%d\", v)\n", t)
+		fmt.Fprintf(b, "\tcase %s:\n\t\tdata = fmt.Sprintf(\"%%d\", v)\n", t)
 	}
 	for _, t := range []string{"float32", "float64"} {
-		fmt.Fprintf(&b, "\tcase %s:\n\t\tdata = fmt.Sprintf(\"%%g\", v)\n", t)
+		fmt.Fprintf(b, "\tcase %s:\n\t\tdata = fmt.Sprintf(\"%%g\", v)\n", t)
 	}
 	b.WriteString("\tdefault:\n")
 	b.WriteString("\t\tbyts, err := json.Marshal(payload)\n")
 	b.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
 	b.WriteString("\t\tdata = string(byts)\n")
 	b.WriteString("\t}\n\n")
+}
+
+func writeSSEMessageSetup(b *strings.Builder, ed *EndpointData) {
 	b.WriteString("\tmsg := loomhttp.SSEMessage{Data: data}\n")
 	if ed.SSE.IDField != "" {
-		fmt.Fprintf(&b, "\n\tif id := res.%s; id != \"\" {\n\t\tmsg.ID = id\n\t}\n", ed.SSE.IDField)
+		fmt.Fprintf(b, "\n\tif id := res.%s; id != \"\" {\n\t\tmsg.ID = id\n\t}\n", ed.SSE.IDField)
 	}
 	if ed.SSE.EventField != "" {
-		fmt.Fprintf(&b, "\tif event := res.%s; event != \"\" {\n\t\tmsg.Type = event\n\t}\n", ed.SSE.EventField)
+		fmt.Fprintf(b, "\tif event := res.%s; event != \"\" {\n\t\tmsg.Type = event\n\t}\n", ed.SSE.EventField)
 	}
 	if ed.SSE.RetryField != "" {
-		fmt.Fprintf(&b, "\tif retry := res.%s; retry > 0 {\n\t\tmsg.RetryMillis = int64(retry)\n\t}\n", ed.SSE.RetryField)
+		fmt.Fprintf(b, "\tif retry := res.%s; retry > 0 {\n\t\tmsg.RetryMillis = int64(retry)\n\t}\n", ed.SSE.RetryField)
 	}
 	b.WriteString("\n")
-	b.WriteString("\tif err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {\n\t\treturn err\n\t}\n\n")
-	b.WriteString("\treturn http.NewResponseController(s.w).Flush()\n")
-	b.WriteString("}\n\n")
+}
+
+func writeSSECloseSection(b *strings.Builder, ed *EndpointData) {
 	b.WriteString(codegen.Comment("Close is a no-op for SSE. We keep the method for compatibility with other stream types."))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%s) Close() error {\n\treturn nil\n}\n", ed.SSE.StructName)
-	return codegen.NewRawSection("server-sse", b.String())
+	fmt.Fprintf(b, "func (s *%s) Close() error {\n\treturn nil\n}\n", ed.SSE.StructName)
 }
 
 func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat string) string {

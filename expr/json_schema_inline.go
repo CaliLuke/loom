@@ -63,6 +63,30 @@ func buildInlineJSONSchema(attr *AttributeExpr) *InlineSchema {
 	schema := &InlineSchema{
 		Description: attr.Description,
 	}
+	populateInlineSchemaMetadata(schema, attr)
+
+	switch dt := attr.Type.(type) {
+	case Primitive:
+		schema.Type = primitiveToInlineJSONType(dt)
+	case *Array:
+		populateInlineArraySchema(schema, attr, dt)
+	case *Map:
+		populateInlineMapSchema(schema, dt)
+	case *Union:
+		populateInlineUnionSchema(schema, dt)
+	case *Object:
+		populateInlineObjectSchema(schema, attr, dt)
+	case UserType:
+		return buildInlineJSONSchema(dt.Attribute())
+	default:
+		schema.Type = jsonTypeObject
+		schema.AdditionalProperties = false
+	}
+
+	return schema
+}
+
+func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr) {
 	if examples := attr.ExtractUserExamples(); len(examples) > 0 {
 		schema.Examples = make([]any, 0, len(examples))
 		for _, example := range examples {
@@ -98,69 +122,65 @@ func buildInlineJSONSchema(attr *AttributeExpr) *InlineSchema {
 			schema.Format = string(v.Format)
 		}
 	}
+}
 
-	switch dt := attr.Type.(type) {
-	case Primitive:
-		schema.Type = primitiveToInlineJSONType(dt)
-	case *Array:
-		schema.Type = jsonTypeArray
-		if dt.ElemType != nil {
-			schema.Items = buildInlineJSONSchema(dt.ElemType)
-		}
-		if v := attr.Validation; v != nil {
-			if v.MinLength != nil {
-				schema.MinItems = v.MinLength
-				schema.MinLength = nil
-			}
-			if v.MaxLength != nil {
-				schema.MaxItems = v.MaxLength
-				schema.MaxLength = nil
-			}
-		}
-	case *Map:
-		schema.Type = jsonTypeObject
-		if dt.ElemType != nil {
-			schema.AdditionalProperties = buildInlineJSONSchema(dt.ElemType)
-		} else {
-			schema.AdditionalProperties = true
-		}
-	case *Union:
-		typeKey := dt.GetTypeKey()
-		valueKey := dt.GetValueKey()
-		schema.Type = jsonTypeObject
-		schema.OneOf = make([]*InlineSchema, 0, len(dt.Values))
-		for _, val := range dt.Values {
-			schema.OneOf = append(schema.OneOf, &InlineSchema{
-				Type: jsonTypeObject,
-				Properties: map[string]*InlineSchema{
-					typeKey: {
-						Type: jsonTypeString,
-						Enum: []any{UnionVariantTag(val)},
-					},
-					valueKey: buildInlineJSONSchema(val.Attribute),
-				},
-				Required:             []string{typeKey, valueKey},
-				AdditionalProperties: false,
-			})
-		}
-	case *Object:
-		schema.Type = jsonTypeObject
-		schema.Properties = make(map[string]*InlineSchema, len(*dt))
-		for _, nat := range *dt {
-			schema.Properties[nat.Name] = buildInlineJSONSchema(nat.Attribute)
-		}
-		schema.AdditionalProperties = false
-		if attr.Validation != nil && len(attr.Validation.Required) > 0 {
-			schema.Required = attr.Validation.Required
-		}
-	case UserType:
-		return buildInlineJSONSchema(dt.Attribute())
-	default:
-		schema.Type = jsonTypeObject
-		schema.AdditionalProperties = false
+func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Array) {
+	schema.Type = jsonTypeArray
+	if dt.ElemType != nil {
+		schema.Items = buildInlineJSONSchema(dt.ElemType)
 	}
+	if v := attr.Validation; v != nil {
+		if v.MinLength != nil {
+			schema.MinItems = v.MinLength
+			schema.MinLength = nil
+		}
+		if v.MaxLength != nil {
+			schema.MaxItems = v.MaxLength
+			schema.MaxLength = nil
+		}
+	}
+}
 
-	return schema
+func populateInlineMapSchema(schema *InlineSchema, dt *Map) {
+	schema.Type = jsonTypeObject
+	if dt.ElemType != nil {
+		schema.AdditionalProperties = buildInlineJSONSchema(dt.ElemType)
+	} else {
+		schema.AdditionalProperties = true
+	}
+}
+
+func populateInlineUnionSchema(schema *InlineSchema, dt *Union) {
+	typeKey := dt.GetTypeKey()
+	valueKey := dt.GetValueKey()
+	schema.Type = jsonTypeObject
+	schema.OneOf = make([]*InlineSchema, 0, len(dt.Values))
+	for _, val := range dt.Values {
+		schema.OneOf = append(schema.OneOf, &InlineSchema{
+			Type: jsonTypeObject,
+			Properties: map[string]*InlineSchema{
+				typeKey: {
+					Type: jsonTypeString,
+					Enum: []any{UnionVariantTag(val)},
+				},
+				valueKey: buildInlineJSONSchema(val.Attribute),
+			},
+			Required:             []string{typeKey, valueKey},
+			AdditionalProperties: false,
+		})
+	}
+}
+
+func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *Object) {
+	schema.Type = jsonTypeObject
+	schema.Properties = make(map[string]*InlineSchema, len(*dt))
+	for _, nat := range *dt {
+		schema.Properties[nat.Name] = buildInlineJSONSchema(nat.Attribute)
+	}
+	schema.AdditionalProperties = false
+	if attr.Validation != nil && len(attr.Validation.Required) > 0 {
+		schema.Required = attr.Validation.Required
+	}
 }
 
 func primitiveToInlineJSONType(p Primitive) string {

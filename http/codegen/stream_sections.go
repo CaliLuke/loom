@@ -515,108 +515,11 @@ func websocketRecvSection(ws *WebSocketData) codegen.Section {
 	b.WriteString(codegen.Comment(ws.RecvDesc))
 	b.WriteString("\n")
 	fmt.Fprintf(&b, "func (s *%s) %s() (%s, error) {\n", ws.VarName, ws.RecvName, ws.RecvTypeRef)
-	b.WriteString("\tvar (\n")
-	fmt.Fprintf(&b, "\t\trv %s\n", ws.RecvTypeRef)
+	writeWebsocketRecvVars(&b, ws)
 	if ws.Type == "server" {
-		if ws.RecvTypeIsPointer {
-			fmt.Fprintf(&b, "\t\tbody %s\n", ws.Payload.VarName)
-		} else {
-			fmt.Fprintf(&b, "\t\tmsg *%s\n", ws.Payload.VarName)
-		}
+		writeServerWebsocketRecvBody(&b, ws)
 	} else {
-		fmt.Fprintf(&b, "\t\tbody %s\n", ws.Response.ClientBody.VarName)
-	}
-	b.WriteString("\t\terr error\n")
-	b.WriteString("\t)\n")
-	if ws.Type == "server" {
-		b.WriteString(renderWebsocketUpgrade(ws.Endpoint, ws.RecvName, true))
-		if ws.RecvTypeIsPointer {
-			b.WriteString("\tif err = s.conn.ReadJSON(&body); err != nil {\n")
-		} else {
-			b.WriteString("\tif err = s.conn.ReadJSON(&msg); err != nil {\n")
-		}
-		b.WriteString("\t\treturn rv, err\n")
-		b.WriteString("\t}\n")
-		if ws.RecvTypeIsPointer {
-			b.WriteString("\tif body == nil {\n")
-		} else {
-			b.WriteString("\tif msg == nil {\n")
-		}
-		b.WriteString("\t\treturn rv, io.EOF\n")
-		b.WriteString("\t}\n")
-		if ws.Payload != nil && ws.Payload.ValidateRef != "" {
-			if !ws.RecvTypeIsPointer {
-				b.WriteString("\tbody := *msg\n")
-			}
-			fmt.Fprintf(&b, "\t%s\n", ws.Payload.ValidateRef)
-			b.WriteString("\tif err != nil {\n")
-			b.WriteString("\t\treturn rv, err\n")
-			b.WriteString("\t}\n")
-		}
-		switch {
-		case ws.Payload != nil && ws.Payload.Init != nil:
-			if ws.RecvTypeIsPointer {
-				fmt.Fprintf(&b, "\treturn %s(body), nil\n", ws.Payload.Init.Name)
-			} else {
-				fmt.Fprintf(&b, "\treturn %s(msg), nil\n", ws.Payload.Init.Name)
-			}
-		case ws.RecvTypeIsPointer:
-			b.WriteString("\treturn body, nil\n")
-		default:
-			b.WriteString("\treturn *msg, nil\n")
-		}
-	} else {
-		if ws.RecvName == "CloseAndRecv" {
-			b.WriteString("\tdefer s.conn.Close()\n")
-			b.WriteString("\t// Send a nil payload to the server implying end of message\n")
-			b.WriteString("\tif err = s.conn.WriteJSON(nil); err != nil {\n")
-			b.WriteString("\t\treturn rv, err\n")
-			b.WriteString("\t}\n")
-		}
-		b.WriteString("\terr = s.conn.ReadJSON(&body)\n")
-		b.WriteString("\tif websocket.IsCloseError(err, websocket.CloseNormalClosure) {\n")
-		if !ws.MustClose {
-			b.WriteString("\t\ts.conn.Close()\n")
-		}
-		b.WriteString("\t\treturn rv, io.EOF\n")
-		b.WriteString("\t}\n")
-		b.WriteString("\tif err != nil {\n")
-		b.WriteString("\t\treturn rv, err\n")
-		b.WriteString("\t}\n")
-		if ws.Response.ClientBody != nil && ws.Response.ClientBody.ValidateRef != "" && ws.Endpoint.Method.ViewedResult == nil {
-			fmt.Fprintf(&b, "\t%s\n", ws.Response.ClientBody.ValidateRef)
-			b.WriteString("\tif err != nil {\n")
-			b.WriteString("\t\treturn rv, err\n")
-			b.WriteString("\t}\n")
-		}
-		if ws.Response.ResultInit != nil {
-			b.WriteString("\tres := ")
-			fmt.Fprintf(&b, "%s(", ws.Response.ResultInit.Name)
-			for _, arg := range ws.Response.ResultInit.ClientArgs {
-				fmt.Fprintf(&b, "%s,", arg.Ref)
-			}
-			b.WriteString(")\n")
-			if ws.Endpoint.Method.ViewedResult != nil {
-				view := ws.Endpoint.Method.ViewedResult
-				prefix := ""
-				if !view.IsCollection {
-					prefix = "&"
-				}
-				viewArg := fmt.Sprintf("%q", view.ViewName)
-				if view.ViewName == "" {
-					viewArg = "s.view"
-				}
-				fmt.Fprintf(&b, "\tvres := %s%s.%s{res, %s }\n", prefix, view.ViewsPkg, view.VarName, viewArg)
-				fmt.Fprintf(&b, "\tif err := %s.Validate%s(vres); err != nil {\n", view.ViewsPkg, ws.Endpoint.Method.Result)
-				fmt.Fprintf(&b, "\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
-				b.WriteString("\t}\n")
-				fmt.Fprintf(&b, "\treturn %s.%s(vres), nil\n", ws.PkgName, view.ResultInit.Name)
-			} else {
-				b.WriteString("\treturn res, nil\n")
-			}
-		} else {
-			b.WriteString("\treturn body, nil\n")
-		}
+		writeClientWebsocketRecvBody(&b, ws)
 	}
 	b.WriteString("}\n\n")
 	b.WriteString(codegen.Comment(ws.RecvWithContextDesc))
@@ -625,6 +528,137 @@ func websocketRecvSection(ws *WebSocketData) codegen.Section {
 	fmt.Fprintf(&b, "\treturn s.%s()\n", ws.RecvName)
 	b.WriteString("}\n")
 	return codegen.NewRawSection(ws.Type+"-websocket-recv", b.String())
+}
+
+func writeWebsocketRecvVars(b *strings.Builder, ws *WebSocketData) {
+	b.WriteString("\tvar (\n")
+	fmt.Fprintf(b, "\t\trv %s\n", ws.RecvTypeRef)
+	if ws.Type == "server" {
+		if ws.RecvTypeIsPointer {
+			fmt.Fprintf(b, "\t\tbody %s\n", ws.Payload.VarName)
+		} else {
+			fmt.Fprintf(b, "\t\tmsg *%s\n", ws.Payload.VarName)
+		}
+	} else {
+		fmt.Fprintf(b, "\t\tbody %s\n", ws.Response.ClientBody.VarName)
+	}
+	b.WriteString("\t\terr error\n")
+	b.WriteString("\t)\n")
+}
+
+func writeServerWebsocketRecvBody(b *strings.Builder, ws *WebSocketData) {
+	b.WriteString(renderWebsocketUpgrade(ws.Endpoint, ws.RecvName, true))
+	if ws.RecvTypeIsPointer {
+		b.WriteString("\tif err = s.conn.ReadJSON(&body); err != nil {\n")
+	} else {
+		b.WriteString("\tif err = s.conn.ReadJSON(&msg); err != nil {\n")
+	}
+	b.WriteString("\t\treturn rv, err\n")
+	b.WriteString("\t}\n")
+	if ws.RecvTypeIsPointer {
+		b.WriteString("\tif body == nil {\n")
+	} else {
+		b.WriteString("\tif msg == nil {\n")
+	}
+	b.WriteString("\t\treturn rv, io.EOF\n")
+	b.WriteString("\t}\n")
+	writeServerWebsocketRecvValidation(b, ws)
+	writeServerWebsocketRecvReturn(b, ws)
+}
+
+func writeServerWebsocketRecvValidation(b *strings.Builder, ws *WebSocketData) {
+	if ws.Payload == nil || ws.Payload.ValidateRef == "" {
+		return
+	}
+	if !ws.RecvTypeIsPointer {
+		b.WriteString("\tbody := *msg\n")
+	}
+	fmt.Fprintf(b, "\t%s\n", ws.Payload.ValidateRef)
+	b.WriteString("\tif err != nil {\n")
+	b.WriteString("\t\treturn rv, err\n")
+	b.WriteString("\t}\n")
+}
+
+func writeServerWebsocketRecvReturn(b *strings.Builder, ws *WebSocketData) {
+	switch {
+	case ws.Payload != nil && ws.Payload.Init != nil:
+		if ws.RecvTypeIsPointer {
+			fmt.Fprintf(b, "\treturn %s(body), nil\n", ws.Payload.Init.Name)
+		} else {
+			fmt.Fprintf(b, "\treturn %s(msg), nil\n", ws.Payload.Init.Name)
+		}
+	case ws.RecvTypeIsPointer:
+		b.WriteString("\treturn body, nil\n")
+	default:
+		b.WriteString("\treturn *msg, nil\n")
+	}
+}
+
+func writeClientWebsocketRecvBody(b *strings.Builder, ws *WebSocketData) {
+	if ws.RecvName == "CloseAndRecv" {
+		b.WriteString("\tdefer s.conn.Close()\n")
+		b.WriteString("\t// Send a nil payload to the server implying end of message\n")
+		b.WriteString("\tif err = s.conn.WriteJSON(nil); err != nil {\n")
+		b.WriteString("\t\treturn rv, err\n")
+		b.WriteString("\t}\n")
+	}
+	b.WriteString("\terr = s.conn.ReadJSON(&body)\n")
+	b.WriteString("\tif websocket.IsCloseError(err, websocket.CloseNormalClosure) {\n")
+	if !ws.MustClose {
+		b.WriteString("\t\ts.conn.Close()\n")
+	}
+	b.WriteString("\t\treturn rv, io.EOF\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\tif err != nil {\n")
+	b.WriteString("\t\treturn rv, err\n")
+	b.WriteString("\t}\n")
+	writeClientWebsocketRecvValidation(b, ws)
+	writeClientWebsocketRecvReturn(b, ws)
+}
+
+func writeClientWebsocketRecvValidation(b *strings.Builder, ws *WebSocketData) {
+	if ws.Response.ClientBody == nil || ws.Response.ClientBody.ValidateRef == "" || ws.Endpoint.Method.ViewedResult != nil {
+		return
+	}
+	fmt.Fprintf(b, "\t%s\n", ws.Response.ClientBody.ValidateRef)
+	b.WriteString("\tif err != nil {\n")
+	b.WriteString("\t\treturn rv, err\n")
+	b.WriteString("\t}\n")
+}
+
+func writeClientWebsocketRecvReturn(b *strings.Builder, ws *WebSocketData) {
+	if ws.Response.ResultInit == nil {
+		b.WriteString("\treturn body, nil\n")
+		return
+	}
+	b.WriteString("\tres := ")
+	fmt.Fprintf(b, "%s(", ws.Response.ResultInit.Name)
+	for _, arg := range ws.Response.ResultInit.ClientArgs {
+		fmt.Fprintf(b, "%s,", arg.Ref)
+	}
+	b.WriteString(")\n")
+	if ws.Endpoint.Method.ViewedResult == nil {
+		b.WriteString("\treturn res, nil\n")
+		return
+	}
+	writeClientWebsocketViewedResultReturn(b, ws)
+}
+
+func writeClientWebsocketViewedResultReturn(b *strings.Builder, ws *WebSocketData) {
+	view := ws.Endpoint.Method.ViewedResult
+	prefix := ""
+	if !view.IsCollection {
+		prefix = "&"
+	}
+	viewArg := fmt.Sprintf("%q", view.ViewName)
+	if view.ViewName == "" {
+		viewArg = "s.view"
+	}
+	fmt.Fprintf(b, "\tvres := %s%s.%s{res, %s }\n", prefix, view.ViewsPkg, view.VarName, viewArg)
+	fmt.Fprintf(b, "\tif err := %s.Validate%s(vres); err != nil {\n", view.ViewsPkg, ws.Endpoint.Method.Result)
+	fmt.Fprintf(b, "\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
+	b.WriteString("\t}\n")
+	fmt.Fprintf(b, "\treturn %s.%s(vres), nil\n", ws.PkgName, view.ResultInit.Name)
 }
 
 func websocketCloseSection(ws *WebSocketData) codegen.Section {

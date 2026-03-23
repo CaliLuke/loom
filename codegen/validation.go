@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -275,121 +276,116 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 //
 // context is used to produce helpful messages in case of error.
 func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alias bool, target, context string) string {
-	validation := att.Validation
-	if ut, ok := att.Type.(expr.UserType); ok {
-		val := ut.Attribute().Validation
-		if val != nil {
-			if validation == nil {
-				validation = val
-			} else {
-				validation.Merge(val)
-			}
-			att.Validation = validation
-		}
-	}
+	validation := mergedValidation(att)
 	if validation == nil {
 		return ""
 	}
 
-	var (
-		kind            = att.Type.Kind()
-		unaliased       = unalias(att.Type)
-		isNativePointer = unaliased.Kind() == expr.BytesKind || unaliased.Kind() == expr.AnyKind
-		isPointer       = attCtx.Pointer || (!req && (att.DefaultValue == nil || !attCtx.UseDefault))
-		tval            = target
-	)
+	data := validationTemplateData(att, attCtx, req, alias, target, context)
+	res := make([]string, 0, 8) // preallocate with typical validation count
+	if values := validation.Values; values != nil {
+		data["values"] = values
+		appendRenderedValidation(&res, "enum", data)
+	}
+	appendValidationString(&res, string(validation.Format), data, "format", "format")
+	appendValidationString(&res, validation.Pattern, data, "pattern", "pattern")
+	appendValidationNumber(&res, validation.ExclusiveMinimum, data, "exclMin", "isExclMin", true, "exclMinMax")
+	appendValidationNumber(&res, validation.Minimum, data, "min", "isMin", true, "minMax")
+	appendValidationNumber(&res, validation.ExclusiveMaximum, data, "exclMax", "isExclMax", true, "exclMinMax")
+	appendValidationNumber(&res, validation.Maximum, data, "max", "isMin", false, "minMax")
+	appendValidationLength(&res, validation.MinLength, data, "minLength", "maxLength", true)
+	appendValidationLength(&res, validation.MaxLength, data, "maxLength", "minLength", false)
+	appendRequiredValidations(&res, att, attCtx, data)
+	return strings.Join(res, "\n")
+}
+
+func mergedValidation(att *expr.AttributeExpr) *expr.ValidationExpr {
+	validation := att.Validation
+	if ut, ok := att.Type.(expr.UserType); ok {
+		val := ut.Attribute().Validation
+		if val == nil {
+			return validation
+		}
+		if validation == nil {
+			validation = val
+		} else {
+			validation.Merge(val)
+		}
+		att.Validation = validation
+	}
+	return validation
+}
+
+func validationTemplateData(att *expr.AttributeExpr, attCtx *AttributeContext, req, alias bool, target, context string) map[string]any {
+	kind := att.Type.Kind()
+	unaliased := unalias(att.Type)
+	isNativePointer := unaliased.Kind() == expr.BytesKind || unaliased.Kind() == expr.AnyKind
+	isPointer := attCtx.Pointer || (!req && (att.DefaultValue == nil || !attCtx.UseDefault))
+	targetVal := target
 	if isPointer && expr.IsPrimitive(att.Type) && !isNativePointer {
-		tval = "*" + tval
+		targetVal = "*" + targetVal
 	}
 	if alias {
-		tval = fmt.Sprintf("%s(%s)", unaliased.Name(), tval)
-		// When validating alias types, use the underlying type's kind
-		// for string detection (needed for utf8.RuneCountInString usage)
+		targetVal = fmt.Sprintf("%s(%s)", unaliased.Name(), targetVal)
 		kind = unaliased.Kind()
 	}
-	data := map[string]any{
+	return map[string]any{
 		"attribute": att,
 		"attCtx":    attCtx,
 		"isPointer": isPointer,
 		"context":   context,
 		"target":    target,
-		"targetVal": tval,
+		"targetVal": targetVal,
 		"string":    kind == expr.StringKind,
 		"array":     expr.IsArray(att.Type),
 		"map":       expr.IsMap(att.Type),
 	}
-	res := make([]string, 0, 8) // preallocate with typical validation count
-	if values := validation.Values; values != nil {
-		data["values"] = values
-		if val := renderValidationTemplate("enum", data); val != "" {
-			res = append(res, val)
-		}
+}
+
+func appendValidationString(res *[]string, value string, data map[string]any, key, template string) {
+	if value == "" {
+		return
 	}
-	if format := validation.Format; format != "" {
-		data["format"] = string(format)
-		if val := renderValidationTemplate("format", data); val != "" {
-			res = append(res, val)
-		}
+	data[key] = value
+	appendRenderedValidation(res, template, data)
+}
+
+func appendValidationNumber(res *[]string, value any, data map[string]any, valueKey, flagKey string, flagValue bool, template string) {
+	if value == nil {
+		return
 	}
-	if pattern := validation.Pattern; pattern != "" {
-		data["pattern"] = pattern
-		if val := renderValidationTemplate("pattern", data); val != "" {
-			res = append(res, val)
-		}
+	v := reflect.ValueOf(value)
+	if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
+		return
 	}
-	if exclMin := validation.ExclusiveMinimum; exclMin != nil {
-		data["exclMin"] = *exclMin
-		data["isExclMin"] = true
-		if val := renderValidationTemplate("exclMinMax", data); val != "" {
-			res = append(res, val)
-		}
+	data[valueKey] = v.Elem().Interface()
+	data[flagKey] = flagValue
+	appendRenderedValidation(res, template, data)
+}
+
+func appendValidationLength(res *[]string, value *int, data map[string]any, key, otherKey string, isMin bool) {
+	if value == nil {
+		return
 	}
-	if minVal := validation.Minimum; minVal != nil {
-		data["min"] = *minVal
-		data["isMin"] = true
-		if val := renderValidationTemplate("minMax", data); val != "" {
-			res = append(res, val)
-		}
-	}
-	if exclMax := validation.ExclusiveMaximum; exclMax != nil {
-		data["exclMax"] = *exclMax
-		data["isExclMax"] = true
-		if val := renderValidationTemplate("exclMinMax", data); val != "" {
-			res = append(res, val)
-		}
-	}
-	if maxVal := validation.Maximum; maxVal != nil {
-		data["max"] = *maxVal
-		data["isMin"] = false
-		if val := renderValidationTemplate("minMax", data); val != "" {
-			res = append(res, val)
-		}
-	}
-	if minLength := validation.MinLength; minLength != nil {
-		data["minLength"] = minLength
-		data["isMinLength"] = true
-		delete(data, "maxLength")
-		if val := renderValidationTemplate("length", data); val != "" {
-			res = append(res, val)
-		}
-	}
-	if maxLength := validation.MaxLength; maxLength != nil {
-		data["maxLength"] = maxLength
-		data["isMinLength"] = false
-		delete(data, "minLength")
-		if val := renderValidationTemplate("length", data); val != "" {
-			res = append(res, val)
-		}
-	}
-	reqs := generatedRequiredValidation(att, attCtx)
+	data[key] = value
+	data["isMinLength"] = isMin
+	delete(data, otherKey)
+	appendRenderedValidation(res, "length", data)
+}
+
+func appendRequiredValidations(res *[]string, att *expr.AttributeExpr, attCtx *AttributeContext, data map[string]any) {
 	obj := expr.AsObject(att.Type)
-	for _, r := range reqs {
-		reqAtt := obj.Attribute(r)
+	for _, r := range generatedRequiredValidation(att, attCtx) {
 		data["req"] = r
-		data["reqAtt"] = reqAtt
-		res = append(res, renderValidationTemplate("required", data))
+		data["reqAtt"] = obj.Attribute(r)
+		*res = append(*res, renderValidationTemplate("required", data))
 	}
-	return strings.Join(res, "\n")
+}
+
+func appendRenderedValidation(res *[]string, template string, data map[string]any) {
+	if val := renderValidationTemplate(template, data); val != "" {
+		*res = append(*res, val)
+	}
 }
 
 func renderValidationTemplate(kind string, data map[string]any) string {

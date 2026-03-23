@@ -83,104 +83,95 @@ func renderInterceptorsInterface(interceptors []*InterceptorData, server bool) s
 
 func renderInterceptorTypes(interceptors []*InterceptorData) string {
 	var b strings.Builder
-	b.WriteString("\n// Access interfaces for interceptor payloads and results\n")
-	b.WriteString("type (\n")
-	for _, interceptor := range interceptors {
-		b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sInfo provides metadata about the current interception.\nIt includes service name, method name, and access to the endpoint.", interceptor.Name)), "\t"))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "\t%sInfo struct {\n\t\tservice    string\n\t\tmethod     string\n\t\tcallType   loom.InterceptorCallType\n\t\trawPayload any\n\t}\n", interceptor.Name)
-		if interceptor.HasPayloadAccess {
-			b.WriteString("\n")
-			b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sPayload provides type-safe access to the method payload.\nIt allows reading and writing specific fields of the payload as defined\nin the design.", interceptor.Name)), "\t"))
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "\t%sPayload interface {\n", interceptor.Name)
-			for _, field := range interceptor.ReadPayload {
-				fmt.Fprintf(&b, "\t\t%s() %s\n", field.Name, field.TypeRef)
-			}
-			for _, field := range interceptor.WritePayload {
-				fmt.Fprintf(&b, "\t\tSet%s(%s)\n", field.Name, field.TypeRef)
-			}
-			b.WriteString("\t}\n")
-		}
-		if interceptor.HasResultAccess {
-			b.WriteString("\n")
-			b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sResult provides type-safe access to the method result.\nIt allows reading and writing specific fields of the result as defined\nin the design.", interceptor.Name)), "\t"))
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "\t%sResult interface {\n", interceptor.Name)
-			for _, field := range interceptor.ReadResult {
-				fmt.Fprintf(&b, "\t\t%s() %s\n", field.Name, field.TypeRef)
-			}
-			for _, field := range interceptor.WriteResult {
-				fmt.Fprintf(&b, "\t\tSet%s(%s)\n", field.Name, field.TypeRef)
-			}
-			b.WriteString("\t}\n")
-		}
-		if interceptor.HasStreamingPayloadAccess {
-			b.WriteString("\n")
-			b.WriteString("\t// " + interceptor.Name + "StreamingPayload provides type-safe access to the method streaming payload.\n")
-			b.WriteString("\t// It allows reading and writing specific fields of the streaming payload as defined\n")
-			b.WriteString("\t// in the design.\n")
-			fmt.Fprintf(&b, "\t%sStreamingPayload interface {\n", interceptor.Name)
-			for _, field := range interceptor.ReadStreamingPayload {
-				fmt.Fprintf(&b, "\t\t%s() %s\n", field.Name, field.TypeRef)
-			}
-			for _, field := range interceptor.WriteStreamingPayload {
-				fmt.Fprintf(&b, "\t\tSet%s(%s)\n", field.Name, field.TypeRef)
-			}
-			b.WriteString("\t}\n")
-		}
-		if interceptor.HasStreamingResultAccess {
-			b.WriteString("\n")
-			b.WriteString("\t// " + interceptor.Name + "StreamingResult provides type-safe access to the method streaming result.\n")
-			b.WriteString("\t// It allows reading and writing specific fields of the streaming result as defined\n")
-			b.WriteString("\t// in the design.\n")
-			fmt.Fprintf(&b, "\t%sStreamingResult interface {\n", interceptor.Name)
-			for _, field := range interceptor.ReadStreamingResult {
-				fmt.Fprintf(&b, "\t\t%s() %s\n", field.Name, field.TypeRef)
-			}
-			for _, field := range interceptor.WriteStreamingResult {
-				fmt.Fprintf(&b, "\t\tSet%s(%s)\n", field.Name, field.TypeRef)
-			}
-			b.WriteString("\t}\n")
-		}
-	}
-	b.WriteString(")\n")
+	writeInterceptorAccessTypes(&b, interceptors)
 
 	if !hasPrivateImplementationTypes(interceptors) {
 		return b.String()
 	}
-	b.WriteString("\n// Private implementation types\n")
+	writeInterceptorPrivateTypes(&b, interceptors)
+	return b.String()
+}
+
+func writeInterceptorAccessTypes(b *strings.Builder, interceptors []*InterceptorData) {
+	b.WriteString("\n// Access interfaces for interceptor payloads and results\n")
 	b.WriteString("type (\n")
 	for _, interceptor := range interceptors {
-		for _, method := range interceptor.Methods {
-			if method.PayloadAccess != "" {
-				fmt.Fprintf(&b, "\t%s struct {\n\t\tpayload %s\n\t}\n", method.PayloadAccess, method.PayloadRef)
-			}
-		}
-	}
-	for _, interceptor := range interceptors {
-		for _, method := range interceptor.Methods {
-			if method.ResultAccess != "" {
-				fmt.Fprintf(&b, "\t%s struct {\n\t\tresult %s\n\t}\n", method.ResultAccess, method.ResultRef)
-			}
-		}
-	}
-	for _, interceptor := range interceptors {
-		for _, method := range interceptor.Methods {
-			if method.StreamingPayloadAccess != "" {
-				fmt.Fprintf(&b, "\t%s struct {\n\t\tpayload %s\n\t}\n", method.StreamingPayloadAccess, method.StreamingPayloadRef)
-			}
-		}
-	}
-	for _, interceptor := range interceptors {
-		for _, method := range interceptor.Methods {
-			if method.StreamingResultAccess != "" {
-				fmt.Fprintf(&b, "\t%s struct {\n\t\tresult %s\n\t}\n", method.StreamingResultAccess, method.StreamingResultRef)
-			}
-		}
+		writeInterceptorInfoType(b, interceptor)
+		writeInterceptorAccessorInterface(b, interceptor.Name, "Payload", interceptor.HasPayloadAccess, interceptor.ReadPayload, interceptor.WritePayload)
+		writeInterceptorAccessorInterface(b, interceptor.Name, "Result", interceptor.HasResultAccess, interceptor.ReadResult, interceptor.WriteResult)
+		writeInterceptorAccessorInterface(b, interceptor.Name, "StreamingPayload", interceptor.HasStreamingPayloadAccess, interceptor.ReadStreamingPayload, interceptor.WriteStreamingPayload)
+		writeInterceptorAccessorInterface(b, interceptor.Name, "StreamingResult", interceptor.HasStreamingResultAccess, interceptor.ReadStreamingResult, interceptor.WriteStreamingResult)
 	}
 	b.WriteString(")\n")
-	return b.String()
+}
+
+func writeInterceptorInfoType(b *strings.Builder, interceptor *InterceptorData) {
+	b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sInfo provides metadata about the current interception.\nIt includes service name, method name, and access to the endpoint.", interceptor.Name)), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\t%sInfo struct {\n\t\tservice    string\n\t\tmethod     string\n\t\tcallType   loom.InterceptorCallType\n\t\trawPayload any\n\t}\n", interceptor.Name)
+}
+
+func writeInterceptorAccessorInterface(b *strings.Builder, name, suffix string, enabled bool, readFields, writeFields []*AttributeData) {
+	if !enabled {
+		return
+	}
+	b.WriteString("\n")
+	desc := fmt.Sprintf("%s%s provides type-safe access to the method %s.\nIt allows reading and writing specific fields of the %s as defined\nin the design.", name, suffix, interfaceAccessTarget(suffix), interfaceAccessTarget(suffix))
+	if strings.HasPrefix(suffix, "Streaming") {
+		b.WriteString("\t// " + name + suffix + " provides type-safe access to the method " + interfaceAccessTarget(suffix) + ".\n")
+		b.WriteString("\t// It allows reading and writing specific fields of the " + interfaceAccessTarget(suffix) + " as defined\n")
+		b.WriteString("\t// in the design.\n")
+	} else {
+		b.WriteString(codegen.Indent(codegen.Comment(desc), "\t"))
+		b.WriteString("\n")
+	}
+	fmt.Fprintf(b, "\t%s%s interface {\n", name, suffix)
+	for _, field := range readFields {
+		fmt.Fprintf(b, "\t\t%s() %s\n", field.Name, field.TypeRef)
+	}
+	for _, field := range writeFields {
+		fmt.Fprintf(b, "\t\tSet%s(%s)\n", field.Name, field.TypeRef)
+	}
+	b.WriteString("\t}\n")
+}
+
+func interfaceAccessTarget(suffix string) string {
+	switch suffix {
+	case "Payload":
+		return "payload"
+	case "Result":
+		return "result"
+	case "StreamingPayload":
+		return "streaming payload"
+	case "StreamingResult":
+		return "streaming result"
+	default:
+		return "value"
+	}
+}
+
+func writeInterceptorPrivateTypes(b *strings.Builder, interceptors []*InterceptorData) {
+	b.WriteString("\n// Private implementation types\n")
+	b.WriteString("type (\n")
+	writeInterceptorMethodStructs(b, interceptors, func(m *MethodInterceptorData) (string, string) { return m.PayloadAccess, m.PayloadRef }, "payload")
+	writeInterceptorMethodStructs(b, interceptors, func(m *MethodInterceptorData) (string, string) { return m.ResultAccess, m.ResultRef }, "result")
+	writeInterceptorMethodStructs(b, interceptors, func(m *MethodInterceptorData) (string, string) {
+		return m.StreamingPayloadAccess, m.StreamingPayloadRef
+	}, "payload")
+	writeInterceptorMethodStructs(b, interceptors, func(m *MethodInterceptorData) (string, string) { return m.StreamingResultAccess, m.StreamingResultRef }, "result")
+	b.WriteString(")\n")
+}
+
+func writeInterceptorMethodStructs(b *strings.Builder, interceptors []*InterceptorData, pick func(*MethodInterceptorData) (string, string), fieldName string) {
+	for _, interceptor := range interceptors {
+		for _, method := range interceptor.Methods {
+			typeName, typeRef := pick(method)
+			if typeName == "" {
+				continue
+			}
+			fmt.Fprintf(b, "\t%s struct {\n\t\t%s %s\n\t}\n", typeName, fieldName, typeRef)
+		}
+	}
 }
 
 func renderEndpointWrapper(server bool, methodVarName, method string, interceptors []string) string {

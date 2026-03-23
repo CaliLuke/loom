@@ -338,70 +338,8 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 			BlockFunc(func(g *jen.Group) {
 				g.Var().Id("res").Add(codegenpkg.TypeRef(stream.RecvRef))
 				g.List(jen.Id("v"), jen.Err()).Op(":=").Id("s").Dot("stream").Dot(stream.RecvName).Call()
-				g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
-					if stream.Endpoint != nil && len(stream.Endpoint.Errors) > 0 && stream.Type == "client" {
-						eg.Id("resp").Op(":=").Add(codegenpkg.Expr("loomgrpc.DecodeError")).Call(jen.Err())
-						eg.Switch(jen.Id("message").Op(":=").Id("resp").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
-							for _, errData := range stream.Endpoint.Errors {
-								if errData.Response.ClientConvert == nil {
-									continue
-								}
-								caseBody := []jen.Code{}
-								if errData.Response.ClientConvert.Validation != nil {
-									caseBody = append(caseBody,
-										jen.If(
-											jen.Err().Op(":=").Id(errData.Response.ClientConvert.Validation.Name).Call(jen.Id("message")),
-											jen.Err().Op("!=").Nil(),
-										).Block(
-											jen.Return(jen.Id("res"), jen.Err()),
-										),
-									)
-								}
-								initArgs := make([]jen.Code, 0, len(errData.Response.ClientConvert.Init.Args))
-								for _, arg := range errData.Response.ClientConvert.Init.Args {
-									initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
-								}
-								caseBody = append(caseBody,
-									jen.Return(jen.Id("res"), jen.Id(errData.Response.ClientConvert.Init.Name).Call(initArgs...)),
-								)
-								sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(caseBody...)
-							}
-							sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(
-								jen.Return(jen.Id("res"), codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("message"))),
-							)
-							sg.Default().Block(
-								jen.Return(jen.Id("res"), jen.Err()),
-							)
-						})
-						return
-					}
-					eg.Return(jen.Id("res"), jen.Err())
-				})
-				if stream.Endpoint != nil && stream.Endpoint.Method.ViewedResult != nil && stream.Type == "client" {
-					viewArg := fmt.Sprintf("%q", stream.Endpoint.Method.ViewedResult.ViewName)
-					if stream.Endpoint.Method.ViewedResult.ViewName == "" {
-						viewArg = "s.view"
-					}
-					initArgs := make([]jen.Code, 0, len(stream.RecvConvert.Init.Args))
-					for _, arg := range stream.RecvConvert.Init.Args {
-						initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
-					}
-					g.Id("proj").Op(":=").Id(stream.RecvConvert.Init.Name).Call(initArgs...)
-					if !stream.Endpoint.Method.ViewedResult.IsCollection {
-						g.Add(codegenpkg.Expr("vres := &" + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
-					} else {
-						g.Add(codegenpkg.Expr("vres := " + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
-					}
-					g.If(
-						jen.Err().Op(":=").Qual(stream.Endpoint.Method.ViewedResult.ViewsPkg, "Validate"+stream.Endpoint.Method.Result).Call(jen.Id("vres")),
-						jen.Err().Op("!=").Nil(),
-					).Block(
-						jen.Return(jen.Nil(), jen.Err()),
-					)
-					g.Return(
-						jen.Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.ResultInit.Name).Call(jen.Id("vres")),
-						jen.Nil(),
-					)
+				appendGRPCStreamRecvErrorHandling(g, stream)
+				if appendGRPCStreamRecvViewedResult(g, stream) {
 					return
 				}
 				if stream.RecvConvert.Validation != nil {
@@ -428,6 +366,83 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 				jen.Return(jen.Id("s").Dot(stream.RecvName).Call()),
 			)
 	})
+}
+
+func appendGRPCStreamRecvErrorHandling(g *jen.Group, stream *StreamData) {
+	g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
+		if stream.Endpoint != nil && len(stream.Endpoint.Errors) > 0 && stream.Type == "client" {
+			eg.Id("resp").Op(":=").Add(codegenpkg.Expr("loomgrpc.DecodeError")).Call(jen.Err())
+			eg.Switch(jen.Id("message").Op(":=").Id("resp").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
+				for _, errData := range stream.Endpoint.Errors {
+					if errData.Response.ClientConvert == nil {
+						continue
+					}
+					sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(grpcStreamRecvErrorCase(errData)...)
+				}
+				sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(
+					jen.Return(jen.Id("res"), codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("message"))),
+				)
+				sg.Default().Block(
+					jen.Return(jen.Id("res"), jen.Err()),
+				)
+			})
+			return
+		}
+		eg.Return(jen.Id("res"), jen.Err())
+	})
+}
+
+func grpcStreamRecvErrorCase(errData *ErrorData) []jen.Code {
+	caseBody := make([]jen.Code, 0, 2)
+	if errData.Response.ClientConvert.Validation != nil {
+		caseBody = append(caseBody,
+			jen.If(
+				jen.Err().Op(":=").Id(errData.Response.ClientConvert.Validation.Name).Call(jen.Id("message")),
+				jen.Err().Op("!=").Nil(),
+			).Block(
+				jen.Return(jen.Id("res"), jen.Err()),
+			),
+		)
+	}
+	caseBody = append(caseBody,
+		jen.Return(jen.Id("res"), jen.Id(errData.Response.ClientConvert.Init.Name).Call(grpcStreamRecvInitArgs(errData.Response.ClientConvert.Init)...)),
+	)
+	return caseBody
+}
+
+func appendGRPCStreamRecvViewedResult(g *jen.Group, stream *StreamData) bool {
+	if stream.Endpoint == nil || stream.Endpoint.Method.ViewedResult == nil || stream.Type != "client" {
+		return false
+	}
+	viewArg := fmt.Sprintf("%q", stream.Endpoint.Method.ViewedResult.ViewName)
+	if stream.Endpoint.Method.ViewedResult.ViewName == "" {
+		viewArg = "s.view"
+	}
+	g.Id("proj").Op(":=").Id(stream.RecvConvert.Init.Name).Call(grpcStreamRecvInitArgs(stream.RecvConvert.Init)...)
+	if !stream.Endpoint.Method.ViewedResult.IsCollection {
+		g.Add(codegenpkg.Expr("vres := &" + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
+	} else {
+		g.Add(codegenpkg.Expr("vres := " + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
+	}
+	g.If(
+		jen.Err().Op(":=").Qual(stream.Endpoint.Method.ViewedResult.ViewsPkg, "Validate"+stream.Endpoint.Method.Result).Call(jen.Id("vres")),
+		jen.Err().Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Nil(), jen.Err()),
+	)
+	g.Return(
+		jen.Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.ResultInit.Name).Call(jen.Id("vres")),
+		jen.Nil(),
+	)
+	return true
+}
+
+func grpcStreamRecvInitArgs(init *InitData) []jen.Code {
+	args := make([]jen.Code, 0, len(init.Args))
+	for _, arg := range init.Args {
+		args = append(args, codegenpkg.Expr(arg.Name))
+	}
+	return args
 }
 
 func grpcStreamCloseSection(stream *StreamData) codegenpkg.Section {
@@ -677,129 +692,157 @@ func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {
 func grpcExampleServerSection(services []*ServiceData) codegenpkg.Section {
 	return codegenpkg.MustJenniferSection("server-grpc-main", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, "handleGRPCServer starts configures and starts a gRPC server on the given URL. It shuts down the server if any error is received in the error channel.")
-		params := []jen.Code{
-			jen.Id("ctx").Qual("context", "Context"),
-			jen.Id("u").Op("*").Qual("net/url", "URL"),
-		}
-		for _, service := range services {
-			if len(service.Service.Methods) == 0 {
-				continue
-			}
-			params = append(params, jen.Id(service.Service.VarName+"Endpoints").Op("*").Qual(service.Service.PkgName, "Endpoints"))
-		}
-		params = append(params,
-			jen.Id("wg").Op("*").Qual("sync", "WaitGroup"),
-			jen.Id("errc").Chan().Error(),
-			jen.Id("dbg").Bool(),
-		)
-		stmt.Func().Id("handleGRPCServer").Params(params...).BlockFunc(func(g *jen.Group) {
-			g.Comment(codegenpkg.Comment("Wrap the endpoints with the transport specific layers. The generated"))
-			g.Comment(codegenpkg.Comment("server packages contains code generated from the design which maps"))
-			g.Comment(codegenpkg.Comment("the service input and output data structures to gRPC requests and"))
-			g.Comment(codegenpkg.Comment("responses."))
-			g.Var().DefsFunc(func(defs *jen.Group) {
-				for _, service := range services {
-					defs.Id(service.Service.VarName + "Server").Op("*").Id(service.Service.PkgName + "svr").Dot("Server")
-				}
-			})
-			g.BlockFunc(func(bg *jen.Group) {
-				for _, service := range services {
-					newArgs := []jen.Code{jen.Nil()}
-					if len(service.Endpoints) > 0 {
-						newArgs[0] = jen.Id(service.Service.VarName + "Endpoints")
-					}
-					if service.HasUnaryEndpoint() {
-						newArgs = append(newArgs, jen.Nil())
-					}
-					if service.HasStreamingEndpoint() {
-						newArgs = append(newArgs, jen.Nil())
-					}
-					bg.Id(service.Service.VarName + "Server").Op("=").Id(service.Service.PkgName + "svr").Dot("New").Call(newArgs...)
-				}
-			})
-			g.Line()
-			g.Comment(codegenpkg.Comment("Create interceptor which sets up the logger in each request context."))
-			g.Id("chain").Op(":=").Qual("google.golang.org/grpc", "ChainUnaryInterceptor").Call(
-				jen.Qual("goa.design/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
-			)
-			g.If(jen.Id("dbg")).Block(
-				jen.Comment(codegenpkg.Comment("Log request and response content if debug logs are enabled.")),
-				jen.Id("chain").Op("=").Qual("google.golang.org/grpc", "ChainUnaryInterceptor").Call(
-					jen.Qual("goa.design/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
-					jen.Qual("goa.design/clue/debug", "UnaryServerInterceptor").Call(),
-				),
-			)
-			needStream := false
-			for _, service := range services {
-				if needStreamSection(service) {
-					needStream = true
-					break
-				}
-			}
-			if needStream {
-				g.Id("streamchain").Op(":=").Qual("google.golang.org/grpc", "ChainStreamInterceptor").Call(
-					jen.Qual("goa.design/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
-				)
-				g.If(jen.Id("dbg")).Block(
-					jen.Id("streamchain").Op("=").Qual("google.golang.org/grpc", "ChainStreamInterceptor").Call(
-						jen.Qual("goa.design/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
-						jen.Qual("goa.design/clue/debug", "StreamServerInterceptor").Call(),
-					),
-				)
-			}
-			g.Line()
-			g.Comment(codegenpkg.Comment("Initialize gRPC server"))
-			serverArgs := []jen.Code{jen.Id("chain")}
-			if needStream {
-				serverArgs = append(serverArgs, jen.Id("streamchain"))
-			}
-			g.Id("srv").Op(":=").Qual("google.golang.org/grpc", "NewServer").Call(serverArgs...)
-			g.Line()
-			g.Comment(codegenpkg.Comment("Register the servers."))
-			for _, service := range services {
-				g.Id(service.PkgName).Dot("Register"+codegenpkg.Goify(service.Service.VarName, true)+"Server").Call(
-					jen.Id("srv"),
-					jen.Id(service.Service.VarName+"Server"),
-				)
-			}
-			g.Line()
-			g.For(
-				jen.List(jen.Id("svc"), jen.Id("info")).Op(":=").Range().Id("srv").Dot("GetServiceInfo").Call(),
-			).Block(
-				jen.For(jen.List(jen.Id("_"), jen.Id("m")).Op(":=").Range().Id("info").Dot("Methods")).Block(
-					jen.Qual("goa.design/clue/log", "Printf").Call(
-						jen.Id("ctx"),
-						jen.Lit("serving gRPC method %s"),
-						jen.Id("svc").Op("+").Lit("/").Op("+").Id("m").Dot("Name"),
-					),
-				),
-			)
-			g.Line()
-			g.Comment(codegenpkg.Comment("Register the server reflection service on the server."))
-			g.Comment(codegenpkg.Comment("See https://grpc.github.io/grpc/core/md_doc_server-reflection.html."))
-			g.Qual("google.golang.org/grpc/reflection", "Register").Call(jen.Id("srv"))
-			g.Line()
-			g.Parens(jen.Op("*").Id("wg")).Dot("Add").Call(jen.Lit(1))
-			g.Go().Func().Params().Block(
-				jen.Defer().Parens(jen.Op("*").Id("wg")).Dot("Done").Call(),
-				jen.Comment(codegenpkg.Comment("Start gRPC server in a separate goroutine.")),
-				jen.Go().Func().Params().Block(
-					jen.List(jen.Id("lis"), jen.Err()).Op(":=").Qual("net", "Listen").Call(jen.Lit("tcp"), jen.Id("u").Dot("Host")),
-					jen.If(jen.Err().Op("!=").Nil()).Block(
-						jen.Id("errc").Op("<-").Err(),
-					),
-					jen.If(jen.Id("lis").Op("==").Nil()).Block(
-						jen.Id("errc").Op("<-").Qual("fmt", "Errorf").Call(jen.Lit("failed to listen on %q"), jen.Id("u").Dot("Host")),
-					),
-					jen.Qual("goa.design/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("gRPC server listening on %q"), jen.Id("u").Dot("Host")),
-					jen.Id("errc").Op("<-").Id("srv").Dot("Serve").Call(jen.Id("lis")),
-				).Call(),
-				jen.Op("<-").Id("ctx").Dot("Done").Call(),
-				jen.Qual("goa.design/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("shutting down gRPC server at %q"), jen.Id("u").Dot("Host")),
-				jen.Id("srv").Dot("Stop").Call(),
-			).Call()
+		needStream := hasStreamSection(services)
+		stmt.Func().Id("handleGRPCServer").Params(grpcExampleServerParams(services)...).BlockFunc(func(g *jen.Group) {
+			appendGRPCExampleServerInits(g, services)
+			appendGRPCExampleInterceptorSetup(g, needStream)
+			appendGRPCExampleServerSetup(g, services, needStream)
+			appendGRPCExampleServerRun(g)
 		})
 	})
+}
+
+func grpcExampleServerParams(services []*ServiceData) []jen.Code {
+	params := []jen.Code{
+		jen.Id("ctx").Qual("context", "Context"),
+		jen.Id("u").Op("*").Qual("net/url", "URL"),
+	}
+	for _, service := range services {
+		if len(service.Service.Methods) == 0 {
+			continue
+		}
+		params = append(params, jen.Id(service.Service.VarName+"Endpoints").Op("*").Qual(service.Service.PkgName, "Endpoints"))
+	}
+	return append(params,
+		jen.Id("wg").Op("*").Qual("sync", "WaitGroup"),
+		jen.Id("errc").Chan().Error(),
+		jen.Id("dbg").Bool(),
+	)
+}
+
+func appendGRPCExampleServerInits(g *jen.Group, services []*ServiceData) {
+	g.Comment(codegenpkg.Comment("Wrap the endpoints with the transport specific layers. The generated"))
+	g.Comment(codegenpkg.Comment("server packages contains code generated from the design which maps"))
+	g.Comment(codegenpkg.Comment("the service input and output data structures to gRPC requests and"))
+	g.Comment(codegenpkg.Comment("responses."))
+	g.Var().DefsFunc(func(defs *jen.Group) {
+		for _, service := range services {
+			defs.Id(service.Service.VarName + "Server").Op("*").Id(service.Service.PkgName + "svr").Dot("Server")
+		}
+	})
+	g.BlockFunc(func(bg *jen.Group) {
+		for _, service := range services {
+			bg.Id(service.Service.VarName + "Server").Op("=").Id(service.Service.PkgName + "svr").Dot("New").Call(grpcExampleNewServerArgs(service)...)
+		}
+	})
+	g.Line()
+}
+
+func grpcExampleNewServerArgs(service *ServiceData) []jen.Code {
+	newArgs := []jen.Code{jen.Nil()}
+	if len(service.Endpoints) > 0 {
+		newArgs[0] = jen.Id(service.Service.VarName + "Endpoints")
+	}
+	if service.HasUnaryEndpoint() {
+		newArgs = append(newArgs, jen.Nil())
+	}
+	if service.HasStreamingEndpoint() {
+		newArgs = append(newArgs, jen.Nil())
+	}
+	return newArgs
+}
+
+func appendGRPCExampleInterceptorSetup(g *jen.Group, needStream bool) {
+	g.Comment(codegenpkg.Comment("Create interceptor which sets up the logger in each request context."))
+	g.Id("chain").Op(":=").Qual("google.golang.org/grpc", "ChainUnaryInterceptor").Call(
+		jen.Qual("goa.design/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
+	)
+	g.If(jen.Id("dbg")).Block(
+		jen.Comment(codegenpkg.Comment("Log request and response content if debug logs are enabled.")),
+		jen.Id("chain").Op("=").Qual("google.golang.org/grpc", "ChainUnaryInterceptor").Call(
+			jen.Qual("goa.design/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
+			jen.Qual("goa.design/clue/debug", "UnaryServerInterceptor").Call(),
+		),
+	)
+	if !needStream {
+		g.Line()
+		return
+	}
+	g.Id("streamchain").Op(":=").Qual("google.golang.org/grpc", "ChainStreamInterceptor").Call(
+		jen.Qual("goa.design/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
+	)
+	g.If(jen.Id("dbg")).Block(
+		jen.Id("streamchain").Op("=").Qual("google.golang.org/grpc", "ChainStreamInterceptor").Call(
+			jen.Qual("goa.design/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
+			jen.Qual("goa.design/clue/debug", "StreamServerInterceptor").Call(),
+		),
+	)
+	g.Line()
+}
+
+func appendGRPCExampleServerSetup(g *jen.Group, services []*ServiceData, needStream bool) {
+	g.Comment(codegenpkg.Comment("Initialize gRPC server"))
+	serverArgs := []jen.Code{jen.Id("chain")}
+	if needStream {
+		serverArgs = append(serverArgs, jen.Id("streamchain"))
+	}
+	g.Id("srv").Op(":=").Qual("google.golang.org/grpc", "NewServer").Call(serverArgs...)
+	g.Line()
+	g.Comment(codegenpkg.Comment("Register the servers."))
+	for _, service := range services {
+		g.Id(service.PkgName).Dot("Register"+codegenpkg.Goify(service.Service.VarName, true)+"Server").Call(
+			jen.Id("srv"),
+			jen.Id(service.Service.VarName+"Server"),
+		)
+	}
+	g.Line()
+	g.For(
+		jen.List(jen.Id("svc"), jen.Id("info")).Op(":=").Range().Id("srv").Dot("GetServiceInfo").Call(),
+	).Block(
+		jen.For(jen.List(jen.Id("_"), jen.Id("m")).Op(":=").Range().Id("info").Dot("Methods")).Block(
+			jen.Qual("goa.design/clue/log", "Printf").Call(
+				jen.Id("ctx"),
+				jen.Lit("serving gRPC method %s"),
+				jen.Id("svc").Op("+").Lit("/").Op("+").Id("m").Dot("Name"),
+			),
+		),
+	)
+	g.Line()
+	g.Comment(codegenpkg.Comment("Register the server reflection service on the server."))
+	g.Comment(codegenpkg.Comment("See https://grpc.github.io/grpc/core/md_doc_server-reflection.html."))
+	g.Qual("google.golang.org/grpc/reflection", "Register").Call(jen.Id("srv"))
+	g.Line()
+}
+
+func appendGRPCExampleServerRun(g *jen.Group) {
+	g.Parens(jen.Op("*").Id("wg")).Dot("Add").Call(jen.Lit(1))
+	g.Go().Func().Params().Block(
+		jen.Defer().Parens(jen.Op("*").Id("wg")).Dot("Done").Call(),
+		jen.Comment(codegenpkg.Comment("Start gRPC server in a separate goroutine.")),
+		jen.Go().Func().Params().Block(
+			jen.List(jen.Id("lis"), jen.Err()).Op(":=").Qual("net", "Listen").Call(jen.Lit("tcp"), jen.Id("u").Dot("Host")),
+			jen.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Id("errc").Op("<-").Err(),
+			),
+			jen.If(jen.Id("lis").Op("==").Nil()).Block(
+				jen.Id("errc").Op("<-").Qual("fmt", "Errorf").Call(jen.Lit("failed to listen on %q"), jen.Id("u").Dot("Host")),
+			),
+			jen.Qual("goa.design/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("gRPC server listening on %q"), jen.Id("u").Dot("Host")),
+			jen.Id("errc").Op("<-").Id("srv").Dot("Serve").Call(jen.Id("lis")),
+		).Call(),
+		jen.Op("<-").Id("ctx").Dot("Done").Call(),
+		jen.Qual("goa.design/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("shutting down gRPC server at %q"), jen.Id("u").Dot("Host")),
+		jen.Id("srv").Dot("Stop").Call(),
+	).Call()
+}
+
+func hasStreamSection(services []*ServiceData) bool {
+	for _, service := range services {
+		if needStreamSection(service) {
+			return true
+		}
+	}
+	return false
 }
 
 func needStreamSection(service *ServiceData) bool {

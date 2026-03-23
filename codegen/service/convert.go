@@ -897,107 +897,116 @@ func compatible(from expr.DataType, to reflect.Type, recs ...compRec) error {
 	if to.Kind() == reflect.Ptr {
 		return compatible(from, to.Elem(), recs...)
 	}
-
-	toName := to.Name()
-	if toName == "" {
-		toName = to.Kind().String()
-	}
-
-	// handle recursive data structures
-	var rec compRec
-	if recs != nil {
-		rec = recs[0]
-		if _, ok := rec.seen[from.Hash()+"-"+toName]; ok {
-			return nil
-		}
-	} else {
-		rec = compRec{path: "<value>", seen: make(map[string]struct{})}
-	}
-	rec.seen[from.Hash()+"-"+toName] = struct{}{}
-
-	if expr.IsArray(from) {
-		if to.Kind() != reflect.Slice {
-			return fmt.Errorf("types don't match: %s must be a slice", rec.path)
-		}
-		return compatible(
-			expr.AsArray(from).ElemType.Type,
-			to.Elem(),
-			appendCompPath(rec, "[0]"),
-		)
-	}
-
-	if expr.IsMap(from) {
-		if to.Kind() != reflect.Map {
-			return fmt.Errorf("types don't match: %s is not a map", rec.path)
-		}
-		if err := compatible(
-			expr.AsMap(from).ElemType.Type,
-			to.Elem(),
-			appendCompPath(rec, ".value"),
-		); err != nil {
-			return err
-		}
-		return compatible(
-			expr.AsMap(from).KeyType.Type,
-			to.Key(),
-			appendCompPath(rec, ".key"),
-		)
-	}
-
-	if expr.IsObject(from) {
-		if to.Kind() != reflect.Struct {
-			return fmt.Errorf("types don't match: %s is a %s, expected a struct", rec.path, toName)
-		}
-		obj := expr.AsObject(from)
-		ma := expr.NewMappedAttributeExpr(&expr.AttributeExpr{Type: obj})
-		for _, nat := range *obj {
-			var (
-				fname string
-				ok    bool
-				field reflect.StructField
-			)
-			if ef, k := nat.Attribute.Meta["struct:field:external"]; k {
-				fname = ef[0]
-				if fname == "-" {
-					continue
-				}
-				field, ok = to.FieldByName(ef[0])
-			} else if ef, k := nat.Attribute.Meta["struct.field.external"]; k { // Deprecated syntax. Only present for backward compatibility.
-				fname = ef[0]
-				if fname == "-" {
-					continue
-				}
-				field, ok = to.FieldByName(ef[0])
-			} else {
-				ef := codegen.Goify(ma.ElemName(nat.Name), true)
-				fname = ef
-				field, ok = to.FieldByName(ef)
-			}
-			if !ok {
-				return fmt.Errorf("types don't match: could not find field %q of external type %q matching attribute %q of type %q",
-					fname, toName, nat.Name, from.Name())
-			}
-			err := compatible(
-				nat.Attribute.Type,
-				field.Type,
-				appendCompPath(rec, "."+fname),
-			)
-			if err != nil {
-				return err
-			}
-		}
+	toName := compatibleTypeName(to)
+	rec := compatibleRec(from, toName, recs)
+	if rec.seen == nil {
 		return nil
 	}
+	if expr.IsArray(from) {
+		return compatibleArray(from, to, rec)
+	}
+	if expr.IsMap(from) {
+		return compatibleMap(from, to, rec)
+	}
+	if expr.IsObject(from) {
+		return compatibleObject(from, to, toName, rec)
+	}
+	ok, err := compatiblePrimitive(from, to)
+	if err != nil {
+		return err
+	}
+	if ok {
+		return nil
+	}
+	return fmt.Errorf("types don't match: type of %s is %s but type of corresponding attribute is %s", rec.path, toName, from.Name())
+}
 
-	if isPrimitive(to) {
-		var dt expr.DataType
-		if err := buildDesignType(&dt, to, nil); err != nil {
+func compatibleTypeName(to reflect.Type) string {
+	if name := to.Name(); name != "" {
+		return name
+	}
+	return to.Kind().String()
+}
+
+func compatibleRec(from expr.DataType, toName string, recs []compRec) compRec {
+	if recs == nil {
+		rec := compRec{path: "<value>", seen: make(map[string]struct{})}
+		rec.seen[from.Hash()+"-"+toName] = struct{}{}
+		return rec
+	}
+	rec := recs[0]
+	if _, ok := rec.seen[from.Hash()+"-"+toName]; ok {
+		return compRec{}
+	}
+	rec.seen[from.Hash()+"-"+toName] = struct{}{}
+	return rec
+}
+
+func compatibleArray(from expr.DataType, to reflect.Type, rec compRec) error {
+	if to.Kind() != reflect.Slice {
+		return fmt.Errorf("types don't match: %s must be a slice", rec.path)
+	}
+	return compatible(expr.AsArray(from).ElemType.Type, to.Elem(), appendCompPath(rec, "[0]"))
+}
+
+func compatibleMap(from expr.DataType, to reflect.Type, rec compRec) error {
+	if to.Kind() != reflect.Map {
+		return fmt.Errorf("types don't match: %s is not a map", rec.path)
+	}
+	if err := compatible(expr.AsMap(from).ElemType.Type, to.Elem(), appendCompPath(rec, ".value")); err != nil {
+		return err
+	}
+	return compatible(expr.AsMap(from).KeyType.Type, to.Key(), appendCompPath(rec, ".key"))
+}
+
+func compatibleObject(from expr.DataType, to reflect.Type, toName string, rec compRec) error {
+	if to.Kind() != reflect.Struct {
+		return fmt.Errorf("types don't match: %s is a %s, expected a struct", rec.path, toName)
+	}
+	obj := expr.AsObject(from)
+	ma := expr.NewMappedAttributeExpr(&expr.AttributeExpr{Type: obj})
+	for _, nat := range *obj {
+		fname, field, ok := compatibleFieldLookup(ma, nat, to)
+		if fname == "-" {
+			continue
+		}
+		if !ok {
+			return fmt.Errorf("types don't match: could not find field %q of external type %q matching attribute %q of type %q", fname, toName, nat.Name, from.Name())
+		}
+		if err := compatible(nat.Attribute.Type, field.Type, appendCompPath(rec, "."+fname)); err != nil {
 			return err
 		}
-		if expr.Equal(dt, from) {
-			return nil
-		}
 	}
+	return nil
+}
 
-	return fmt.Errorf("types don't match: type of %s is %s but type of corresponding attribute is %s", rec.path, toName, from.Name())
+func compatibleFieldLookup(ma *expr.MappedAttributeExpr, nat *expr.NamedAttributeExpr, to reflect.Type) (string, reflect.StructField, bool) {
+	if ef, ok := nat.Attribute.Meta["struct:field:external"]; ok {
+		if ef[0] == "-" {
+			return "-", reflect.StructField{}, false
+		}
+		field, found := to.FieldByName(ef[0])
+		return ef[0], field, found
+	}
+	if ef, ok := nat.Attribute.Meta["struct.field.external"]; ok { // Deprecated syntax. Only present for backward compatibility.
+		if ef[0] == "-" {
+			return "-", reflect.StructField{}, false
+		}
+		field, found := to.FieldByName(ef[0])
+		return ef[0], field, found
+	}
+	name := codegen.Goify(ma.ElemName(nat.Name), true)
+	field, found := to.FieldByName(name)
+	return name, field, found
+}
+
+func compatiblePrimitive(from expr.DataType, to reflect.Type) (bool, error) {
+	if !isPrimitive(to) {
+		return false, nil
+	}
+	var dt expr.DataType
+	if err := buildDesignType(&dt, to, nil); err != nil {
+		return false, err
+	}
+	return expr.Equal(dt, from), nil
 }

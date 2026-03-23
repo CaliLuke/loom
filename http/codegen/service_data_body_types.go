@@ -82,97 +82,119 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	if body.Type == expr.Empty {
 		return nil
 	}
-	var (
-		name        string
-		varname     string
-		desc        string
-		def         string
-		ref         string
-		validateDef string
-		validateRef string
-		viewName    string
-		mustInit    bool
-
-		svc     = sd.Service
-		httpctx = httpContext(sd.Scope, false, svr)
-		pkg     = pkgWithDefault(loc, sd.Service.PkgName)
-		svcctx  = serviceContext(pkg, sd.Service.Scope)
-	)
-	if svr && view != nil && *view != "" {
-		viewName = *view
-		body = expr.DupAtt(body)
-		if rt, ok := body.Type.(*expr.ResultTypeExpr); ok {
-			var err error
-			rt, err = expr.Project(rt, *view)
-			if err != nil {
-				panic(err)
-			}
-			body.Type = rt
-			sd.ServerTypeNames[rt.Name()] = false
-		}
-	}
-
-	name = body.Type.Name()
-	ref = sd.Scope.GoTypeRef(body)
-	mustInit = att.Type != expr.Empty && needInit(body.Type)
-
+	httpctx := httpContext(sd.Scope, false, svr)
+	pkg := pkgWithDefault(loc, sd.Service.PkgName)
+	svcctx := serviceContext(pkg, sd.Service.Scope)
+	body, viewName := projectResponseBodyView(body, view, svr, sd)
+	data := initResponseBodyTypeData(body, att, sd)
 	addMarshalTags(body, make(map[string]struct{}))
 
 	if ut, ok := body.Type.(expr.UserType); ok {
-		varname = codegen.Goify(ut.Name(), true)
-		def = goTypeDef(sd.Scope, ut.Attribute(), !svr, svr)
-		desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.",
-			varname, svc.Name, e.Name())
-		if !svr && view == nil {
-			validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
-			if validateDef != "" {
-				target := "&body"
-				if expr.IsArray(ut) {
-					target = "body"
-				}
-				validateRef = fmt.Sprintf("err = Validate%s(%s)", varname, target)
-			}
-		}
-	} else if !expr.IsPrimitive(body.Type) && mustInit {
-		if svr {
-			name = codegen.Goify(e.Name(), true) + "ResponseBody"
-			varname = name
-			desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.",
-				varname, svc.Name, e.Name())
-			def = goTypeDef(sd.Scope, body, !svr, svr)
-		} else {
-			varname = sd.Scope.GoTypeRef(body)
-			desc = body.Description
-			def = ""
-		}
-		validateRef = codegen.ValidationCode(body, nil, httpctx, true, expr.IsAlias(body.Type), false, "body")
+		applyUserResponseBodyTypeData(data, body, ut, e, httpctx, sd, svr, view == nil)
+	} else if !expr.IsPrimitive(body.Type) && data.mustInit {
+		applyStructuredResponseBodyTypeData(data, body, e, httpctx, sd, svr)
 	} else {
-		httpctx = httpContext(sd.Scope, false, true)
-		validateRef = codegen.ValidationCode(body, nil, httpctx, true, expr.IsAlias(body.Type), false, "body")
-		varname = sd.Scope.GoTypeRef(body)
-		desc = body.Description
+		applyPrimitiveResponseBodyTypeData(data, body, sd)
 	}
 	if svr {
-		sd.ServerTypeNames[name] = false
-		collectUserTypes(body.Type, func(ut expr.UserType) {
-			if d := sds.attributeTypeData(ut, false, false, true, sd); d != nil {
-				sd.ServerBodyAttributeTypes = append(sd.ServerBodyAttributeTypes, d)
-			}
-		})
+		collectServerResponseBodyTypes(sds, body, data.name, sd)
 	}
-	init := sds.buildResponseBodyInit(body, att, pkg, e, view, mustInit, validateDef, svr, svcctx, httpctx, sd)
+	init := sds.buildResponseBodyInit(body, att, pkg, e, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
 	return &TypeData{
-		Name:        name,
-		VarName:     varname,
-		Description: desc,
-		Def:         def,
-		Ref:         ref,
+		Name:        data.name,
+		VarName:     data.varName,
+		Description: data.desc,
+		Def:         data.def,
+		Ref:         data.ref,
 		Init:        init,
-		ValidateDef: validateDef,
-		ValidateRef: validateRef,
+		ValidateDef: data.validateDef,
+		ValidateRef: data.validateRef,
 		Example:     body.Example(sds.Root.API.ExampleGenerator),
 		View:        viewName,
 	}
+}
+
+type responseBodyTypeData struct {
+	name        string
+	varName     string
+	desc        string
+	def         string
+	ref         string
+	validateDef string
+	validateRef string
+	mustInit    bool
+}
+
+func projectResponseBodyView(body *expr.AttributeExpr, view *string, svr bool, sd *ServiceData) (*expr.AttributeExpr, string) {
+	if !svr || view == nil || *view == "" {
+		return body, ""
+	}
+	viewName := *view
+	body = expr.DupAtt(body)
+	if rt, ok := body.Type.(*expr.ResultTypeExpr); ok {
+		var err error
+		rt, err = expr.Project(rt, *view)
+		if err != nil {
+			panic(err)
+		}
+		body.Type = rt
+		sd.ServerTypeNames[rt.Name()] = false
+	}
+	return body, viewName
+}
+
+func initResponseBodyTypeData(body, att *expr.AttributeExpr, sd *ServiceData) *responseBodyTypeData {
+	return &responseBodyTypeData{
+		name:     body.Type.Name(),
+		ref:      sd.Scope.GoTypeRef(body),
+		mustInit: att.Type != expr.Empty && needInit(body.Type),
+	}
+}
+
+func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, ut expr.UserType, e *expr.HTTPEndpointExpr, httpctx *codegen.AttributeContext, sd *ServiceData, svr, allowValidateDef bool) {
+	data.varName = codegen.Goify(ut.Name(), true)
+	data.def = goTypeDef(sd.Scope, ut.Attribute(), !svr, svr)
+	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, e.Name())
+	if !svr && allowValidateDef {
+		data.validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
+		if data.validateDef == "" {
+			return
+		}
+		target := "&body"
+		if expr.IsArray(ut) {
+			target = "body"
+		}
+		data.validateRef = fmt.Sprintf("err = Validate%s(%s)", data.varName, target)
+	}
+}
+
+func applyStructuredResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, e *expr.HTTPEndpointExpr, httpctx *codegen.AttributeContext, sd *ServiceData, svr bool) {
+	if svr {
+		data.name = codegen.Goify(e.Name(), true) + "ResponseBody"
+		data.varName = data.name
+		data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, e.Name())
+		data.def = goTypeDef(sd.Scope, body, !svr, svr)
+	} else {
+		data.varName = sd.Scope.GoTypeRef(body)
+		data.desc = body.Description
+	}
+	data.validateRef = codegen.ValidationCode(body, nil, httpctx, true, expr.IsAlias(body.Type), false, "body")
+}
+
+func applyPrimitiveResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, sd *ServiceData) {
+	httpctx := httpContext(sd.Scope, false, true)
+	data.validateRef = codegen.ValidationCode(body, nil, httpctx, true, expr.IsAlias(body.Type), false, "body")
+	data.varName = sd.Scope.GoTypeRef(body)
+	data.desc = body.Description
+}
+
+func collectServerResponseBodyTypes(sds *ServicesData, body *expr.AttributeExpr, name string, sd *ServiceData) {
+	sd.ServerTypeNames[name] = false
+	collectUserTypes(body.Type, func(ut expr.UserType) {
+		if d := sds.attributeTypeData(ut, false, false, true, sd); d != nil {
+			sd.ServerBodyAttributeTypes = append(sd.ServerBodyAttributeTypes, d)
+		}
+	})
 }
 
 func (sds *ServicesData) buildRequestBodyInit(

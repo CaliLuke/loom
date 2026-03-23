@@ -528,79 +528,16 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	if err := codegen.IsCompatible(source.KeyType.Type, target.KeyType.Type, sourceVar+"[key]", targetVar+"[key]"); err != nil {
 		return "", err
 	}
-	kt := target.KeyType
-	if ta.proto {
-		kt = unAlias(kt)
+	targetKeyRef, targetElemRef := transformMapTypeRefs(target, ta)
+	code, sourceVar, targetVar, newVar := transformMapTargetSetup(sourceVar, targetVar, newVar, ta)
+	src, tgt, err := transformMapElementAttrs(source, target, ta)
+	if err != nil {
+		return "", err
 	}
-	et := target.ElemType
-	if ta.proto {
-		et = unAlias(et)
-	}
-	targetKeyRef := ta.TargetCtx.Scope.Ref(kt, ta.TargetCtx.Pkg(kt))
-	targetElemRef := ta.TargetCtx.Scope.Ref(et, ta.TargetCtx.Pkg(et))
-
-	var (
-		code string
-		err  error
-	)
-
-	// If targetInit is set, the target map element is in a nested state.
-	// See grpc/docs/FAQ.md.
-	if ta.targetInit != "" {
-		assign := "="
-		if newVar {
-			assign = ":="
-		}
-		code = fmt.Sprintf("%s %s &%s{}\n", targetVar, assign, ta.targetInit)
-		ta.targetInit = ""
-	}
-	if ta.wrapped {
-		if ta.proto {
-			targetVar += ".Field"
-			newVar = false
-		} else {
-			sourceVar += ".Field"
-		}
-		ta.wrapped = false
-	}
-
-	src := source.ElemType
-	tgt := target.ElemType
-	if err = codegen.IsCompatible(src.Type, tgt.Type, "[*]", "[*]"); err != nil {
-		if ta.proto {
-			ta.targetInit = ta.TargetCtx.Scope.Name(tgt, ta.TargetCtx.Pkg(tgt), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
-			tgt = unwrapAttr(expr.DupAtt(tgt))
-		} else {
-			src = unwrapAttr(expr.DupAtt(src))
-		}
-		ta.wrapped = true
-		if err = codegen.IsCompatible(src.Type, tgt.Type, "[*]", "[*]"); err != nil {
-			return "", err
-		}
-	}
-	var (
-		buf     bytes.Buffer
-		loopVar string
-		suffix  string
-		assign  = "="
-		mapVar  = targetVar
-	)
-	if depth := codegen.MapDepth(target); depth > 0 {
-		loopVar = string(rune(97 + depth))
-		suffix = loopVar
-	}
-	if loopVar == "" {
-		loopVar = "a"
-	}
-	if newVar {
-		assign = ":="
-	}
-	if targetPtr {
-		mapVar = fmt.Sprintf("m%s", loopVar)
-		fmt.Fprintf(&buf, "%s := make(map[%s]%s, len(%s))\n", mapVar, targetKeyRef, targetElemRef, sourceVar)
-	} else {
-		fmt.Fprintf(&buf, "%s %s make(map[%s]%s, len(%s))\n", targetVar, assign, targetKeyRef, targetElemRef, sourceVar)
-	}
+	loopVar, suffix := transformMapLoopNames(target)
+	mapVar, initCode := transformMapInit(targetVar, sourceVar, targetPtr, targetKeyRef, targetElemRef, newVar, loopVar)
+	var buf bytes.Buffer
+	buf.WriteString(initCode)
 	fmt.Fprintf(&buf, "for key, val := range %s {\n", sourceVar)
 	keyCode, err := transformAttribute(source.KeyType, target.KeyType, "key", "tk", true, ta)
 	if err != nil {
@@ -619,6 +556,78 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		fmt.Fprintf(&buf, "%s = &%s\n", targetVar, mapVar)
 	}
 	return code + buf.String(), nil
+}
+
+func transformMapTypeRefs(target *expr.Map, ta *transformAttrs) (string, string) {
+	kt := target.KeyType
+	et := target.ElemType
+	if ta.proto {
+		kt = unAlias(kt)
+		et = unAlias(et)
+	}
+	return ta.TargetCtx.Scope.Ref(kt, ta.TargetCtx.Pkg(kt)), ta.TargetCtx.Scope.Ref(et, ta.TargetCtx.Pkg(et))
+}
+
+func transformMapTargetSetup(sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, string, string, bool) {
+	code := ""
+	if ta.targetInit != "" {
+		assign := "="
+		if newVar {
+			assign = ":="
+		}
+		code = fmt.Sprintf("%s %s &%s{}\n", targetVar, assign, ta.targetInit)
+		ta.targetInit = ""
+	}
+	if !ta.wrapped {
+		return code, sourceVar, targetVar, newVar
+	}
+	if ta.proto {
+		targetVar += ".Field"
+		newVar = false
+	} else {
+		sourceVar += ".Field"
+	}
+	ta.wrapped = false
+	return code, sourceVar, targetVar, newVar
+}
+
+func transformMapElementAttrs(source, target *expr.Map, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
+	src := source.ElemType
+	tgt := target.ElemType
+	if err := codegen.IsCompatible(src.Type, tgt.Type, "[*]", "[*]"); err == nil {
+		return src, tgt, nil
+	}
+	if ta.proto {
+		ta.targetInit = ta.TargetCtx.Scope.Name(tgt, ta.TargetCtx.Pkg(tgt), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+		tgt = unwrapAttr(expr.DupAtt(tgt))
+	} else {
+		src = unwrapAttr(expr.DupAtt(src))
+	}
+	ta.wrapped = true
+	if err := codegen.IsCompatible(src.Type, tgt.Type, "[*]", "[*]"); err != nil {
+		return nil, nil, err
+	}
+	return src, tgt, nil
+}
+
+func transformMapLoopNames(target *expr.Map) (string, string) {
+	if depth := codegen.MapDepth(target); depth > 0 {
+		loopVar := string(rune(97 + depth))
+		return loopVar, loopVar
+	}
+	return "a", ""
+}
+
+func transformMapInit(targetVar, sourceVar string, targetPtr bool, targetKeyRef, targetElemRef string, newVar bool, loopVar string) (string, string) {
+	assign := "="
+	if newVar {
+		assign = ":="
+	}
+	if targetPtr {
+		mapVar := fmt.Sprintf("m%s", loopVar)
+		return mapVar, fmt.Sprintf("%s := make(map[%s]%s, len(%s))\n", mapVar, targetKeyRef, targetElemRef, sourceVar)
+	}
+	return targetVar, fmt.Sprintf("%s %s make(map[%s]%s, len(%s))\n", targetVar, assign, targetKeyRef, targetElemRef, sourceVar)
 }
 
 // transformUnionToProto returns the code to transform an attribute of type
@@ -796,110 +805,7 @@ func transformUnionData(source, target *expr.AttributeExpr, ta *transformAttrs) 
 	copy(srcValues, src.Values)
 	tgtValues := make([]*expr.NamedAttributeExpr, len(tgt.Values))
 	copy(tgtValues, tgt.Values)
-
-	sourceValueTypeRefs := make([]string, len(src.Values))
-	targetWrapperRefs := make([]string, len(src.Values))
-	if ta.proto {
-		// Go -> protobuf: when union members are user types, switch on the
-		// actual user type rather than synthetic wrapper types. Only non-user
-		// types (primitives, maps, arrays) require per-branch wrapper types.
-		unionPkg := ta.SourceCtx.Pkg(source)
-		samePkg := true
-		commonPkg := ""
-		for _, v := range src.Values {
-			ut, ok := v.Attribute.Type.(expr.UserType)
-			if !ok {
-				samePkg = false
-				break
-			}
-			if loc := codegen.UserTypeLocation(ut); loc != nil {
-				if commonPkg == "" {
-					commonPkg = loc.PackageName()
-				} else if commonPkg != loc.PackageName() {
-					samePkg = false
-					break
-				}
-			} else {
-				samePkg = false
-				break
-			}
-		}
-		for i, v := range src.Values {
-			if _, ok := v.Attribute.Type.(expr.UserType); ok {
-				sourceValueTypeRefs[i] = ta.SourceCtx.Scope.Ref(v.Attribute, ta.SourceCtx.Pkg(v.Attribute))
-				continue
-			}
-			// Non-user types are represented via per-branch defined wrapper types.
-			w := codegen.Goify(src.Name(), true) + codegen.Goify(v.Name, true)
-			pkg := unionPkg
-			if samePkg && commonPkg != "" {
-				pkg = commonPkg
-			}
-			if pkg != "" {
-				sourceValueTypeRefs[i] = pkg + "." + w
-			} else {
-				sourceValueTypeRefs[i] = w
-			}
-		}
-	} else {
-		// Protobuf -> Go: switch on protobuf oneof variants and cast converted
-		// value into Go-side wrappers when required.
-		for i, v := range src.Values {
-			fieldName := ta.SourceCtx.Scope.Field(v.Attribute, v.Name, true)
-			sourceValueTypeRefs[i] = ta.message + "_" + fieldName
-		}
-		// Determine the union package for the target side. For anonymous
-		// unions embedded in objects the package may be empty. In that case
-		// we must not force per-branch wrappers solely based on package
-		// comparison; instead rely on duplicate-type detection and whether
-		// the member is a non-user type.
-		unionPkg := ta.TargetCtx.Pkg(target)
-		// Prefer a common member package for wrappers if all target values share it (e.g., shared user-type unions).
-		samePkg := true
-		commonPkg := ""
-		for _, tv := range tgt.Values {
-			ut, ok := tv.Attribute.Type.(expr.UserType)
-			if !ok {
-				samePkg = false
-				break
-			}
-			if loc := codegen.UserTypeLocation(ut); loc != nil {
-				if commonPkg == "" {
-					commonPkg = loc.PackageName()
-				} else if commonPkg != loc.PackageName() {
-					samePkg = false
-					break
-				}
-			} else {
-				samePkg = false
-				break
-			}
-		}
-		// For protobuf -> Go transforms, when union members are user types,
-		// prefer assigning the converted user type directly to the union
-		// interface. This avoids generating synthetic per-branch wrapper
-		// types (e.g., DetailsFoo) which do not exist in the target package
-		// unless transport-agnostic codegen created them. Only non-user types
-		// require wrappers.
-		for i, tv := range tgt.Values {
-			useWrapper := false
-			if _, ok := tv.Attribute.Type.(expr.UserType); !ok {
-				useWrapper = true
-			}
-			if useWrapper {
-				w := codegen.Goify(tgt.Name(), true) + codegen.Goify(tv.Name, true)
-				pkg := unionPkg
-				if samePkg && commonPkg != "" {
-					pkg = commonPkg
-				}
-				if pkg != "" {
-					targetWrapperRefs[i] = pkg + "." + w
-				} else {
-					targetWrapperRefs[i] = w
-				}
-			}
-		}
-	}
+	sourceValueTypeRefs, targetWrapperRefs := transformUnionTypeRefs(source, target, ta, src, tgt)
 	return &unionData{
 		Source:              src,
 		Target:              tgt,
@@ -908,6 +814,89 @@ func transformUnionData(source, target *expr.AttributeExpr, ta *transformAttrs) 
 		SourceValueTypeRefs: sourceValueTypeRefs,
 		TargetWrapperRefs:   targetWrapperRefs,
 	}
+}
+
+func transformUnionTypeRefs(source, target *expr.AttributeExpr, ta *transformAttrs, src, tgt *expr.Union) ([]string, []string) {
+	sourceValueTypeRefs := make([]string, len(src.Values))
+	targetWrapperRefs := make([]string, len(src.Values))
+	if ta.proto {
+		buildProtoUnionTypeRefs(source, ta, src, sourceValueTypeRefs)
+		return sourceValueTypeRefs, targetWrapperRefs
+	}
+	buildSourceUnionTypeRefs(ta, src, sourceValueTypeRefs)
+	buildTargetUnionWrapperRefs(target, ta, tgt, targetWrapperRefs)
+	return sourceValueTypeRefs, targetWrapperRefs
+}
+
+func buildProtoUnionTypeRefs(source *expr.AttributeExpr, ta *transformAttrs, src *expr.Union, sourceValueTypeRefs []string) {
+	unionPkg := ta.SourceCtx.Pkg(source)
+	samePkg, commonPkg := unionCommonPkg(src.Values)
+	for i, v := range src.Values {
+		if _, ok := v.Attribute.Type.(expr.UserType); ok {
+			sourceValueTypeRefs[i] = ta.SourceCtx.Scope.Ref(v.Attribute, ta.SourceCtx.Pkg(v.Attribute))
+			continue
+		}
+		w := codegen.Goify(src.Name(), true) + codegen.Goify(v.Name, true)
+		pkg := unionPkg
+		if samePkg && commonPkg != "" {
+			pkg = commonPkg
+		}
+		if pkg != "" {
+			sourceValueTypeRefs[i] = pkg + "." + w
+		} else {
+			sourceValueTypeRefs[i] = w
+		}
+	}
+}
+
+func buildSourceUnionTypeRefs(ta *transformAttrs, src *expr.Union, sourceValueTypeRefs []string) {
+	for i, v := range src.Values {
+		fieldName := ta.SourceCtx.Scope.Field(v.Attribute, v.Name, true)
+		sourceValueTypeRefs[i] = ta.message + "_" + fieldName
+	}
+}
+
+func buildTargetUnionWrapperRefs(target *expr.AttributeExpr, ta *transformAttrs, tgt *expr.Union, targetWrapperRefs []string) {
+	unionPkg := ta.TargetCtx.Pkg(target)
+	samePkg, commonPkg := unionCommonPkg(tgt.Values)
+	for i, tv := range tgt.Values {
+		if _, ok := tv.Attribute.Type.(expr.UserType); ok {
+			continue
+		}
+		w := codegen.Goify(tgt.Name(), true) + codegen.Goify(tv.Name, true)
+		pkg := unionPkg
+		if samePkg && commonPkg != "" {
+			pkg = commonPkg
+		}
+		if pkg != "" {
+			targetWrapperRefs[i] = pkg + "." + w
+		} else {
+			targetWrapperRefs[i] = w
+		}
+	}
+}
+
+func unionCommonPkg(values []*expr.NamedAttributeExpr) (bool, string) {
+	samePkg := true
+	commonPkg := ""
+	for _, v := range values {
+		ut, ok := v.Attribute.Type.(expr.UserType)
+		if !ok {
+			return false, ""
+		}
+		loc := codegen.UserTypeLocation(ut)
+		if loc == nil {
+			return false, ""
+		}
+		if commonPkg == "" {
+			commonPkg = loc.PackageName()
+			continue
+		}
+		if commonPkg != loc.PackageName() {
+			return false, ""
+		}
+	}
+	return samePkg, commonPkg
 }
 
 // transformAttributeHelpers returns the Go transform functions and their definitions
@@ -997,116 +986,152 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *transform
 // collectHelpers recursively traverses the given attributes and return the
 // transform helper functions required to generate the transform code.
 func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
-	var data []*codegen.TransformFunctionData
 	switch {
 	case expr.IsArray(source.Type):
-		helpers, err := transformAttributeHelpers(
-			expr.AsArray(source.Type).ElemType,
-			expr.AsArray(target.Type).ElemType,
-			ta, seen)
-		if err != nil {
-			return nil, err
-		}
-		data = append(data, helpers...)
+		return transformAttributeHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, ta, seen)
 	case expr.IsMap(source.Type):
-		helpers, err := transformAttributeHelpers(
-			expr.AsMap(source.Type).KeyType,
-			expr.AsMap(target.Type).KeyType,
-			ta, seen)
-		if err != nil {
-			return nil, err
-		}
-		data = append(data, helpers...)
-		helpers, err = transformAttributeHelpers(
-			expr.AsMap(source.Type).ElemType,
-			expr.AsMap(target.Type).ElemType,
-			ta, seen)
-		if err != nil {
-			return nil, err
-		}
-		data = append(data, helpers...)
+		return collectMapHelpers(source, target, ta, seen)
 	case expr.IsUnion(source.Type):
-		srcAttrs := expr.AsUnion(source.Type)
-		tgtAttrs := expr.AsUnion(target.Type)
-		if len(srcAttrs.Values) != len(tgtAttrs.Values) {
-			return nil, fmt.Errorf("cannot transform union attribute %s with %d types to union attribute %s with %d types",
-				source.Type.Name(), len(srcAttrs.Values), target.Type.Name(), len(tgtAttrs.Values))
-		}
-		for i, srcVal := range srcAttrs.Values {
-			src := srcVal.Attribute
-			tgt := tgtAttrs.Values[i].Attribute
-			if ta.proto {
-				tgt = unwrapAttr(tgt)
-			} else {
-				src = unwrapAttr(src)
-			}
-			helpers, err := collectHelpers(src, tgt, true, ta, seen)
-			if err != nil {
-				return nil, err
-			}
-			data = append(data, helpers...)
-		}
+		return collectUnionHelpers(source, target, ta, seen)
 	case expr.IsObject(source.Type):
-		if ut, ok := source.Type.(expr.UserType); ok {
-			if ta.proto {
-				if isUnionMessage(target) {
-					ta = dupTransformAttrs(ta)
-					ta.message = ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), false, false)
-				}
-			} else {
-				if isUnionMessage(source) {
-					ta = dupTransformAttrs(ta)
-					ta.message = ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source))
-				}
-			}
-			name := transformHelperName(source, target, ta)
-			if _, ok := seen[name]; ok {
-				return nil, nil
-			}
-			code, err := transformAttribute(ut.Attribute(), target, "v", "res", true, ta)
-			if err != nil {
-				return nil, err
-			}
-			if !req {
-				code = "if v == nil {\n\treturn nil\n}\n" + code
-			}
-			tfd := &codegen.TransformFunctionData{
-				Name:          name,
-				ParamTypeRef:  ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source)),
-				ResultTypeRef: ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)),
-				Code:          code,
-			}
-			seen[name] = tfd
-			data = append(data, tfd)
-		}
+		return collectObjectHelpers(source, target, req, ta, seen)
+	}
+	return nil, nil
+}
 
-		// collect helpers
-		var err error
-		{
-			walkMatches(source, target, func(srcMatt, _ *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
-				if err = codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
-					if ta.proto {
-						tgtc = unwrapAttr(tgtc)
-					} else {
-						srcc = unwrapAttr(srcc)
-					}
-					if err = codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
-						return
-					}
-				}
-				var helpers []*codegen.TransformFunctionData
-				helpers, err = collectHelpers(srcc, tgtc, srcMatt.IsRequired(n), ta, seen)
-				if err != nil {
-					return
-				}
-				data = append(data, helpers...)
-			})
+func collectMapHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	data, err := transformAttributeHelpers(expr.AsMap(source.Type).KeyType, expr.AsMap(target.Type).KeyType, ta, seen)
+	if err != nil {
+		return nil, err
+	}
+	helpers, err := transformAttributeHelpers(expr.AsMap(source.Type).ElemType, expr.AsMap(target.Type).ElemType, ta, seen)
+	if err != nil {
+		return nil, err
+	}
+	return append(data, helpers...), nil
+}
+
+func collectUnionHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	srcAttrs := expr.AsUnion(source.Type)
+	tgtAttrs := expr.AsUnion(target.Type)
+	if len(srcAttrs.Values) != len(tgtAttrs.Values) {
+		return nil, fmt.Errorf("cannot transform union attribute %s with %d types to union attribute %s with %d types", source.Type.Name(), len(srcAttrs.Values), target.Type.Name(), len(tgtAttrs.Values))
+	}
+	var data []*codegen.TransformFunctionData
+	for i, srcVal := range srcAttrs.Values {
+		src := srcVal.Attribute
+		tgt := tgtAttrs.Values[i].Attribute
+		if ta.proto {
+			tgt = unwrapAttr(tgt)
+		} else {
+			src = unwrapAttr(src)
 		}
+		helpers, err := collectHelpers(src, tgt, true, ta, seen)
 		if err != nil {
 			return nil, err
 		}
+		data = append(data, helpers...)
 	}
 	return data, nil
+}
+
+func collectObjectHelpers(source, target *expr.AttributeExpr, req bool, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	var data []*codegen.TransformFunctionData
+	if ut, ok := source.Type.(expr.UserType); ok {
+		tfd, stop, err := buildObjectHelper(source, target, req, ut, ta, seen)
+		if err != nil {
+			return nil, err
+		}
+		if stop {
+			return nil, nil
+		}
+		if tfd != nil {
+			data = append(data, tfd)
+		}
+	}
+	helpers, err := collectObjectFieldHelpers(source, target, ta, seen)
+	if err != nil {
+		return nil, err
+	}
+	return append(data, helpers...), nil
+}
+
+func buildObjectHelper(source, target *expr.AttributeExpr, req bool, ut expr.UserType, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) (*codegen.TransformFunctionData, bool, error) {
+	ta = objectHelperTransformAttrs(source, target, ta)
+	name := transformHelperName(source, target, ta)
+	if _, ok := seen[name]; ok {
+		return nil, true, nil
+	}
+	code, err := transformAttribute(ut.Attribute(), target, "v", "res", true, ta)
+	if err != nil {
+		return nil, false, err
+	}
+	if !req {
+		code = "if v == nil {\n\treturn nil\n}\n" + code
+	}
+	tfd := &codegen.TransformFunctionData{
+		Name:          name,
+		ParamTypeRef:  ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source)),
+		ResultTypeRef: ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)),
+		Code:          code,
+	}
+	seen[name] = tfd
+	return tfd, false, nil
+}
+
+func objectHelperTransformAttrs(source, target *expr.AttributeExpr, ta *transformAttrs) *transformAttrs {
+	if ta.proto && isUnionMessage(target) {
+		dup := dupTransformAttrs(ta)
+		dup.message = dup.TargetCtx.Scope.Name(target, dup.TargetCtx.Pkg(target), false, false)
+		return dup
+	}
+	if !ta.proto && isUnionMessage(source) {
+		dup := dupTransformAttrs(ta)
+		dup.message = dup.SourceCtx.Scope.Ref(source, dup.SourceCtx.Pkg(source))
+		return dup
+	}
+	return ta
+}
+
+func collectObjectFieldHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	var (
+		data []*codegen.TransformFunctionData
+		err  error
+	)
+	walkMatches(source, target, func(srcMatt, _ *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
+		if err != nil {
+			return
+		}
+		srcc, tgtc, err = normalizedTransformAttrs(srcc, tgtc, ta)
+		if err != nil {
+			return
+		}
+		var helpers []*codegen.TransformFunctionData
+		helpers, err = collectHelpers(srcc, tgtc, srcMatt.IsRequired(n), ta, seen)
+		if err != nil {
+			return
+		}
+		data = append(data, helpers...)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func normalizedTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
+	if err := codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err == nil {
+		return srcc, tgtc, nil
+	}
+	if ta.proto {
+		tgtc = unwrapAttr(tgtc)
+	} else {
+		srcc = unwrapAttr(srcc)
+	}
+	if err := codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
+		return nil, nil, err
+	}
+	return srcc, tgtc, nil
 }
 
 // walkMatches iterates through the source attribute expression and executes

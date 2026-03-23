@@ -148,26 +148,14 @@ func (s *NameScope) GoTypeDefWithTargetPkg(att *expr.AttributeExpr, ptr, useDefa
 func (s *NameScope) goTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
-		if t, _ := GetMetaType(att); t != "" {
-			return t
-		}
-		return GoNativeTypeName(actual)
+		return primitiveTypeDef(att, actual)
 	case *expr.Array:
-		d := s.goTypeDefWithPkgOverride(actual.ElemType, ptr, useDefault, pkg, targetPkg)
-		if expr.IsObject(actual.ElemType.Type) {
-			d = "*" + d
-		}
-		return "[]" + d
+		return "[]" + s.collectionElemTypeDef(actual.ElemType, ptr, useDefault, pkg, targetPkg)
 	case *expr.Map:
-		keyDef := s.goTypeDefWithPkgOverride(actual.KeyType, ptr, useDefault, pkg, targetPkg)
-		if expr.IsObject(actual.KeyType.Type) {
-			keyDef = "*" + keyDef
-		}
-		elemDef := s.goTypeDefWithPkgOverride(actual.ElemType, ptr, useDefault, pkg, targetPkg)
-		if expr.IsObject(actual.ElemType.Type) {
-			elemDef = "*" + elemDef
-		}
-		return fmt.Sprintf("map[%s]%s", keyDef, elemDef)
+		return fmt.Sprintf("map[%s]%s",
+			s.collectionElemTypeDef(actual.KeyType, ptr, useDefault, pkg, targetPkg),
+			s.collectionElemTypeDef(actual.ElemType, ptr, useDefault, pkg, targetPkg),
+		)
 	case *expr.Union:
 		// Unions are generated as named sum-type structs. Refer to the named type
 		// here; the concrete definition is emitted separately by the service
@@ -177,63 +165,86 @@ func (s *NameScope) goTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, useDe
 		}
 		return s.GoFullTypeName(att, "")
 	case *expr.Object:
-		ss := []string{"struct {"}
-		for _, nat := range *actual {
-			var (
-				fn   string
-				tdef string
-				desc string
-				tags string
-
-				name = nat.Name
-				at   = nat.Attribute
-			)
-			{
-				fn = GoifyAtt(at, name, true)
-				tdef = s.goTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg)
-				if expr.IsObject(at.Type) ||
-					att.IsPrimitivePointer(name, useDefault) ||
-					(ptr && expr.IsPrimitive(at.Type) && at.Type.Kind() != expr.AnyKind && at.Type.Kind() != expr.BytesKind) {
-					tdef = "*" + tdef
-				}
-				if at.Description != "" {
-					desc = Comment(at.Description) + "\n\t"
-				}
-				tags = AttributeTagsWithName(att, name, at)
-			}
-			ss = append(ss, fmt.Sprintf("\t%s%s %s%s", desc, fn, tdef, tags))
-		}
-		ss = append(ss, "}")
-		return strings.Join(ss, "\n")
+		return s.objectTypeDefWithPkgOverride(att, actual, ptr, useDefault, pkg, targetPkg)
 	case expr.UserType:
-		if actual == expr.Empty {
-			return "struct {}"
-		}
-		var prefix string
-		if loc := UserTypeLocation(actual); loc != nil {
-			if targetPkg != "" {
-				if loc.PackageName() != targetPkg {
-					prefix = loc.PackageName() + "."
-				} else {
-					prefix = targetPkg + "."
-				}
-			} else if loc.PackageName() != pkg {
-				prefix = loc.PackageName() + "."
-			}
-		} else if targetPkg != "" {
-			prefix = targetPkg + "."
-		}
-		// Qualified references (pkg.Type) do not compete in the local identifier
-		// namespace. Never apply local scoping (suffixing) to the type name portion
-		// of an external reference, otherwise we can emit identifiers that do not
-		// exist in the referenced package (e.g., pkg.Foo2).
-		if prefix == "" {
-			return s.GoTypeName(att)
-		}
-		return prefix + Goify(actual.Name(), true)
+		return s.userTypeDefWithPkgOverride(att, actual, pkg, targetPkg)
 	default:
 		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
 	}
+}
+
+func primitiveTypeDef(att *expr.AttributeExpr, actual expr.Primitive) string {
+	if t, _ := GetMetaType(att); t != "" {
+		return t
+	}
+	return GoNativeTypeName(actual)
+}
+
+func (s *NameScope) collectionElemTypeDef(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
+	def := s.goTypeDefWithPkgOverride(att, ptr, useDefault, pkg, targetPkg)
+	if expr.IsObject(att.Type) {
+		return "*" + def
+	}
+	return def
+}
+
+func (s *NameScope) objectTypeDefWithPkgOverride(att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault bool, pkg, targetPkg string) string {
+	ss := make([]string, 0, 1+len(*actual)+1)
+	ss = append(ss, "struct {")
+	for _, nat := range *actual {
+		ss = append(ss, s.objectFieldTypeDef(att, nat.Name, nat.Attribute, ptr, useDefault, pkg, targetPkg))
+	}
+	ss = append(ss, "}")
+	return strings.Join(ss, "\n")
+}
+
+func (s *NameScope) objectFieldTypeDef(parent *expr.AttributeExpr, name string, at *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
+	fn := GoifyAtt(at, name, true)
+	tdef := s.goTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg)
+	if expr.IsObject(at.Type) ||
+		parent.IsPrimitivePointer(name, useDefault) ||
+		(ptr && expr.IsPrimitive(at.Type) && at.Type.Kind() != expr.AnyKind && at.Type.Kind() != expr.BytesKind) {
+		tdef = "*" + tdef
+	}
+	desc := ""
+	if at.Description != "" {
+		desc = Comment(at.Description) + "\n\t"
+	}
+	return fmt.Sprintf("\t%s%s %s%s", desc, fn, tdef, AttributeTagsWithName(parent, name, at))
+}
+
+func (s *NameScope) userTypeDefWithPkgOverride(att *expr.AttributeExpr, actual expr.UserType, pkg, targetPkg string) string {
+	if actual == expr.Empty {
+		return "struct {}"
+	}
+	prefix := userTypePkgPrefix(actual, pkg, targetPkg)
+	// Qualified references (pkg.Type) do not compete in the local identifier
+	// namespace. Never apply local scoping (suffixing) to the type name portion
+	// of an external reference, otherwise we can emit identifiers that do not
+	// exist in the referenced package (e.g., pkg.Foo2).
+	if prefix == "" {
+		return s.GoTypeName(att)
+	}
+	return prefix + Goify(actual.Name(), true)
+}
+
+func userTypePkgPrefix(actual expr.UserType, pkg, targetPkg string) string {
+	if loc := UserTypeLocation(actual); loc != nil {
+		if targetPkg != "" {
+			if loc.PackageName() != targetPkg {
+				return loc.PackageName() + "."
+			}
+			return targetPkg + "."
+		}
+		if loc.PackageName() != pkg {
+			return loc.PackageName() + "."
+		}
+		return ""
+	}
+	if targetPkg != "" {
+		return targetPkg + "."
+	}
+	return ""
 }
 
 func (s *NameScope) goTypeDef(att *expr.AttributeExpr, ptr, useDefault bool, pkg string) string {
