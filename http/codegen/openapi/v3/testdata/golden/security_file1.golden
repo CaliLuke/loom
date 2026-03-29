@@ -17,11 +17,11 @@ paths:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
             security:
-                - api_key_query_k: []
-                  basic_header_Authorization: []
-                  jwt_header_X-Authorization:
+                - api_key: []
+                  basic: []
+                  jwt:
                     - api:read
-                  oauth2_header_Token:
+                  oauth2:
                     - api:read
         post:
             tags:
@@ -32,8 +32,8 @@ paths:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
             security:
-                - api_key_header_Authorization: []
-                - oauth2_query_auth:
+                - api_key: []
+                - oauth2:
                     - api:read
                     - api:write
 components:
@@ -41,36 +41,20 @@ components:
         NoContentResponse:
             description: No Content response.
     securitySchemes:
-        api_key_header_Authorization:
+        api_key:
             type: apiKey
             description: Secures endpoint by requiring an API key.
             name: Authorization
             in: header
-        api_key_query_k:
-            type: apiKey
-            description: Secures endpoint by requiring an API key.
-            name: k
-            in: query
-        basic_header_Authorization:
+        basic:
             type: http
             description: Basic authentication used to authenticate security principal during signin
             scheme: basic
-        jwt_header_X-Authorization:
+        jwt:
             type: http
             description: Secures endpoint by requiring a valid JWT token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".
             scheme: bearer
-        oauth2_header_Token:
-            type: oauth2
-            description: Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".
-            flows:
-                authorizationCode:
-                    authorizationUrl: http://loom.design/authorization
-                    tokenUrl: http://loom.design/token
-                    refreshUrl: http://loom.design/refresh
-                    scopes:
-                        api:read: Read-only access
-                        api:write: Read and write access
-        oauth2_query_auth:
+        oauth2:
             type: oauth2
             description: Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".
             flows:

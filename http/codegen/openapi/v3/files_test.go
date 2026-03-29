@@ -48,6 +48,7 @@ func TestFiles(t *testing.T) {
 		{"ops-socket", testdata.OpsSocketDSL},
 		{"activity-feed", testdata.ActivityFeedDSL},
 		{"streaming-partial-examples", testdata.StreamingPartialExamplesDSL},
+		{"async-session-security", testdata.AsyncSessionSecurityDSL},
 		{"parameter-components", testdata.OpenAPIParameterComponentsDSL},
 		{"reusable-components", testdata.OpenAPIReusableComponentsDSL},
 		{"explicit-reusable-component-names", testdata.OpenAPIExplicitReusableComponentNamesDSL},
@@ -292,6 +293,36 @@ func TestRenderedSpecPublishesProblemLinksAndAsyncContracts(t *testing.T) {
 	requirePattern(`(?m)^\s+direction: bidirectional$`)
 	requirePattern(`(?m)^\s+contentType: text/event-stream$`)
 	requirePattern(`(?m)^\s+status: 101$`)
+}
+
+func TestRenderedSpecPublishesSecuredAsyncSessionContracts(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.AsyncSessionSecurityDSL)
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(`(?m)^\s+browser_session_cookie:$`)
+	requirePattern(`(?m)^\s+in: cookie$`)
+	requirePattern(`(?m)^\s+name: __Host-ak_session$`)
+	requirePattern(`(?m)^    /ws/projects/\{project_id\}:$`)
+	requirePattern(`(?m)^    /events/\{project_id\}:$`)
+	requirePattern(`(?m)^\s+PathProjectID:$`)
+	requirePattern(`(?m)^\s+name: project_id$`)
+	requirePattern(`(?m)^\s+name: last_event_id$`)
+	requirePattern(`(?m)^\s+security:$`)
+	requirePattern(`(?m)^\s+- browser_session_cookie: \[\]$`)
+	requirePattern(`(?m)^\s+x-loom-async:$`)
+	requirePattern(`(?m)^\s+transport: websocket$`)
+	requirePattern(`(?m)^\s+transport: sse$`)
+	requirePattern(`(?m)^\s+direction: bidirectional$`)
+	requirePattern(`(?m)^\s+direction: server$`)
+	requirePattern(`(?m)^\s+status: 101$`)
+	requirePattern(`(?m)^\s+contentType: text/event-stream$`)
 }
 
 func TestRenderedSpecClosedObjectModeClosesObjectsAndUsesUnevaluatedPropertiesForUnions(t *testing.T) {

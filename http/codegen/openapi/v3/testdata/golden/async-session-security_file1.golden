@@ -1,0 +1,161 @@
+openapi: 3.1.1
+info:
+    title: Async Session Security API
+    description: Exercises async streaming contracts secured by cookie-backed session auth.
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: https://api.async-session-security.example.test
+paths:
+    /events/{project_id}:
+        get:
+            operationId: async_session_security.events
+            parameters:
+                - $ref: '#/components/parameters/PathProjectID'
+                - allowEmptyValue: true
+                  example: evt_8
+                  in: query
+                  name: last_event_id
+                  schema:
+                    example: evt_8
+                    type: string
+            responses:
+                "200":
+                    content:
+                        text/event-stream:
+                            schema:
+                                $ref: '#/components/schemas/AsyncSessionRealtimeSSEEvent'
+                    description: OK response.
+            security:
+                - browser_session_cookie: []
+            summary: events asyncSessionSecurity
+            tags:
+                - asyncSessionSecurity
+            x-loom-async:
+                direction: server
+                handshake:
+                    path: /events/{project_id}
+                    request:
+                        method: GET
+                    response:
+                        contentType: text/event-stream
+                        status: 200
+                messages:
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                event:
+                                    type: string
+                                    example: project.updated
+                                id:
+                                    type: string
+                                    example: evt_9
+                                project_id:
+                                    type: string
+                                    example: proj_42
+                            example:
+                                event: project.updated
+                                id: evt_9
+                                project_id: proj_42
+                            required:
+                                - id
+                                - event
+                                - project_id
+                            additionalProperties: false
+                        sse:
+                            dataField: null
+                            eventField: null
+                            idField: id
+                            requestIDField: last_event_id
+                            retryField: null
+                transport: sse
+    /ws/projects/{project_id}:
+        get:
+            operationId: async_session_security.project_socket
+            parameters:
+                - $ref: '#/components/parameters/PathProjectID'
+            responses:
+                "101":
+                    description: Switching Protocols response.
+            security:
+                - browser_session_cookie: []
+            summary: projectSocket asyncSessionSecurity
+            tags:
+                - asyncSessionSecurity
+            x-loom-async:
+                direction: bidirectional
+                handshake:
+                    path: /ws/projects/{project_id}
+                    request:
+                        method: GET
+                    response:
+                        contentType: ""
+                        status: 101
+                messages:
+                    inbound:
+                        contentType: application/json
+                        schema:
+                            type: string
+                            example: Et repellendus molestias eius odio.
+                    outbound:
+                        contentType: application/json
+                        schema:
+                            type: object
+                            properties:
+                                event:
+                                    type: string
+                                    example: project.updated
+                                project_id:
+                                    type: string
+                                    example: proj_42
+                            example:
+                                event: project.updated
+                                project_id: proj_42
+                            required:
+                                - event
+                                - project_id
+                            additionalProperties: false
+                transport: websocket
+components:
+    schemas:
+        AsyncSessionRealtimeSSEEvent:
+            type: object
+            properties:
+                event:
+                    type: string
+                    example: project.updated
+                id:
+                    type: string
+                    example: evt_9
+                project_id:
+                    type: string
+                    example: proj_42
+            example:
+                event: project.updated
+                id: evt_9
+                project_id: proj_42
+            required:
+                - id
+                - event
+                - project_id
+            additionalProperties: false
+    parameters:
+        PathProjectID:
+            name: project_id
+            in: path
+            required: true
+            schema:
+                type: string
+                example: proj_42
+            example: proj_42
+    securitySchemes:
+        browser_session_cookie:
+            type: apiKey
+            description: Browser session cookie used by first-party async clients.
+            name: __Host-ak_session
+            in: cookie
+tags:
+    - name: asyncSessionSecurity
+      description: Async routes protected by the browser session cookie.

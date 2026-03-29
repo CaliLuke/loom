@@ -118,6 +118,10 @@ build Auto-K without repeating large amounts of app-local glue.
   - `CookieTransport(scheme, fieldName, fn...)`
   - `CookieName(name)`
   - `SessionSecurity(contract)`
+- For HTTP WebSocket streaming endpoints, `SessionSecurity(...)` cookie
+  transports can coexist with handshake path/query/header payload mappings
+  without creating a JSON request body; if the payload is fully mapped to
+  cookie/path/query/header inputs, the websocket handshake remains bodyless.
 - Use `AuthErrorResponses()` for standard HTTP auth failures instead of duplicating 401/403 mappings.
 - `AuthErrorResponses()` now reuses compatible canonical 401/403 mappings from
   method, service, or API scope when those auth errors are already modeled,

@@ -414,6 +414,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 	if e.Name() == "" {
 		verr.Add(e, "Endpoint name cannot be empty")
 	}
+	e.inferSessionSecurityMappingsForAuths(e.MethodExpr.validationSessionAuths())
 	e.validateSkipBodyEncoding(verr)
 	e.validateStreamingSSE(verr)
 	e.validateJSONRPCTransport(verr)
@@ -912,7 +913,7 @@ func (e *HTTPEndpointExpr) normalizeJSONRPCServerStreamingPayload() {
 }
 
 func (e *HTTPEndpointExpr) finalizeRequirements() {
-	e.inferSessionSecurityMappings()
+	e.inferSessionSecurityMappingsForAuths(e.MethodExpr.SessionAuths)
 	if len(e.MethodExpr.Requirements) == 0 {
 		return
 	}
@@ -1019,11 +1020,11 @@ func jsonrpcIDAttributeName(att *AttributeExpr) string {
 	return ""
 }
 
-func (e *HTTPEndpointExpr) inferSessionSecurityMappings() {
-	if len(e.MethodExpr.SessionAuths) == 0 {
+func (e *HTTPEndpointExpr) inferSessionSecurityMappingsForAuths(sessionAuths []*SessionAuthExpr) {
+	if len(sessionAuths) == 0 {
 		return
 	}
-	for _, sessionAuth := range e.MethodExpr.SessionAuths {
+	for _, sessionAuth := range sessionAuths {
 		for _, transport := range sessionAuth.Transports {
 			if transport == nil || transport.Scheme == nil {
 				continue

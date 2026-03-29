@@ -1,0 +1,241 @@
+{
+  "components": {
+    "parameters": {
+      "PathProjectID": {
+        "example": "proj_42",
+        "in": "path",
+        "name": "project_id",
+        "required": true,
+        "schema": {
+          "example": "proj_42",
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "AsyncSessionRealtimeSSEEvent": {
+        "additionalProperties": false,
+        "example": {
+          "event": "project.updated",
+          "id": "evt_9",
+          "project_id": "proj_42"
+        },
+        "properties": {
+          "event": {
+            "example": "project.updated",
+            "type": "string"
+          },
+          "id": {
+            "example": "evt_9",
+            "type": "string"
+          },
+          "project_id": {
+            "example": "proj_42",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event",
+          "project_id"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "browser_session_cookie": {
+        "description": "Browser session cookie used by first-party async clients.",
+        "in": "cookie",
+        "name": "__Host-ak_session",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "Exercises async streaming contracts secured by cookie-backed session auth.",
+    "title": "Async Session Security API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/events/{project_id}": {
+      "get": {
+        "operationId": "async_session_security.events",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PathProjectID"
+          },
+          {
+            "allowEmptyValue": true,
+            "example": "evt_8",
+            "in": "query",
+            "name": "last_event_id",
+            "schema": {
+              "example": "evt_8",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncSessionRealtimeSSEEvent"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [
+          {
+            "browser_session_cookie": null
+          }
+        ],
+        "summary": "events asyncSessionSecurity",
+        "tags": [
+          "asyncSessionSecurity"
+        ],
+        "x-loom-async": {
+          "direction": "server",
+          "handshake": {
+            "path": "/events/{project_id}",
+            "request": {
+              "method": "GET"
+            },
+            "response": {
+              "contentType": "text/event-stream",
+              "status": 200
+            }
+          },
+          "messages": {
+            "outbound": {
+              "contentType": "application/json",
+              "schema": {
+                "additionalProperties": false,
+                "example": {
+                  "event": "project.updated",
+                  "id": "evt_9",
+                  "project_id": "proj_42"
+                },
+                "properties": {
+                  "event": {
+                    "example": "project.updated",
+                    "type": "string"
+                  },
+                  "id": {
+                    "example": "evt_9",
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "example": "proj_42",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "event",
+                  "project_id"
+                ],
+                "type": "object"
+              },
+              "sse": {
+                "dataField": null,
+                "eventField": null,
+                "idField": "id",
+                "requestIDField": "last_event_id",
+                "retryField": null
+              }
+            }
+          },
+          "transport": "sse"
+        }
+      }
+    },
+    "/ws/projects/{project_id}": {
+      "get": {
+        "operationId": "async_session_security.project_socket",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PathProjectID"
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols response."
+          }
+        },
+        "security": [
+          {
+            "browser_session_cookie": null
+          }
+        ],
+        "summary": "projectSocket asyncSessionSecurity",
+        "tags": [
+          "asyncSessionSecurity"
+        ],
+        "x-loom-async": {
+          "direction": "bidirectional",
+          "handshake": {
+            "path": "/ws/projects/{project_id}",
+            "request": {
+              "method": "GET"
+            },
+            "response": {
+              "contentType": "",
+              "status": 101
+            }
+          },
+          "messages": {
+            "inbound": {
+              "contentType": "application/json",
+              "schema": {
+                "example": "Et repellendus molestias eius odio.",
+                "type": "string"
+              }
+            },
+            "outbound": {
+              "contentType": "application/json",
+              "schema": {
+                "additionalProperties": false,
+                "example": {
+                  "event": "project.updated",
+                  "project_id": "proj_42"
+                },
+                "properties": {
+                  "event": {
+                    "example": "project.updated",
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "example": "proj_42",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "event",
+                  "project_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "transport": "websocket"
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.async-session-security.example.test"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Async routes protected by the browser session cookie.",
+      "name": "asyncSessionSecurity"
+    }
+  ]
+}

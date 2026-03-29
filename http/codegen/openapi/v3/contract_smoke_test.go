@@ -68,6 +68,45 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 				require.Equal(t, "thread_ops.watch_thread", requireString(t, watch["operationId"], "watch link operationId"))
 			},
 		},
+		{
+			name: "async-session-security",
+			dsl:  testdata.AsyncSessionSecurityDSL,
+			extra: func(t *testing.T, spec map[string]any) {
+				components := requireMap(t, spec["components"], "components")
+				securitySchemes := requireMap(t, components["securitySchemes"], "components.securitySchemes")
+				cookieScheme := requireMap(t, securitySchemes["browser_session_cookie"], "browser session security scheme")
+				require.Equal(t, "apiKey", requireString(t, cookieScheme["type"], "cookie scheme type"))
+				require.Equal(t, "cookie", requireString(t, cookieScheme["in"], "cookie scheme in"))
+				require.Equal(t, "__Host-ak_session", requireString(t, cookieScheme["name"], "cookie scheme name"))
+
+				socketOperation := requireOperation(t, spec, "/ws/projects/{project_id}", "get")
+				require.Nil(t, socketOperation["requestBody"])
+				requireOperationSecurity(t, socketOperation, "browser_session_cookie")
+				requireOperationParameter(t, spec, socketOperation, "project_id", "path")
+				socketAsync := requireMap(t, socketOperation[openAPIAsyncExtension], "websocket async contract")
+				require.Equal(t, "websocket", requireString(t, socketAsync["transport"], "websocket async transport"))
+				require.Equal(t, "bidirectional", requireString(t, socketAsync["direction"], "websocket async direction"))
+				socketHandshake := requireMap(t, socketAsync["handshake"], "websocket handshake")
+				socketRequest := requireMap(t, socketHandshake["request"], "websocket handshake request")
+				require.Equal(t, "GET", requireString(t, socketRequest["method"], "websocket handshake method"))
+				socketMessages := requireMap(t, socketAsync["messages"], "websocket messages")
+				require.Contains(t, socketMessages, "inbound")
+				require.Contains(t, socketMessages, "outbound")
+
+				eventsOperation := requireOperation(t, spec, "/events/{project_id}", "get")
+				require.Nil(t, eventsOperation["requestBody"])
+				requireOperationSecurity(t, eventsOperation, "browser_session_cookie")
+				requireOperationParameter(t, spec, eventsOperation, "project_id", "path")
+				requireOperationParameter(t, spec, eventsOperation, "last_event_id", "query")
+				eventsAsync := requireMap(t, eventsOperation[openAPIAsyncExtension], "sse async contract")
+				require.Equal(t, "sse", requireString(t, eventsAsync["transport"], "sse async transport"))
+				require.Equal(t, "server", requireString(t, eventsAsync["direction"], "sse async direction"))
+				eventsHandshake := requireMap(t, eventsAsync["handshake"], "sse handshake")
+				eventsResponse := requireMap(t, eventsHandshake["response"], "sse handshake response")
+				require.Equal(t, 200, requireInt(t, eventsResponse["status"], "sse handshake status"))
+				require.Equal(t, "text/event-stream", requireString(t, eventsResponse["contentType"], "sse handshake content type"))
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -294,6 +333,62 @@ func requireComponentResponse(t *testing.T, spec map[string]any, name string) ma
 	response, ok := responses[name]
 	require.Truef(t, ok, "missing response component %q", name)
 	return requireMap(t, response, "response component")
+}
+
+func requireOperation(t *testing.T, spec map[string]any, path string, method string) map[string]any {
+	t.Helper()
+
+	paths := requireMap(t, spec["paths"], "paths")
+	pathItem := requireMap(t, paths[path], "path item")
+	return requireMap(t, pathItem[method], "operation")
+}
+
+func requireOperationSecurity(t *testing.T, operation map[string]any, schemeName string) {
+	t.Helper()
+
+	security := requireSlice(t, operation["security"], "operation security")
+	require.NotEmpty(t, security)
+	found := false
+	for _, raw := range security {
+		requirement := requireMap(t, raw, "security requirement")
+		if _, ok := requirement[schemeName]; ok {
+			found = true
+			break
+		}
+	}
+	require.Truef(t, found, "operation security missing scheme %q", schemeName)
+}
+
+func requireOperationParameter(t *testing.T, spec map[string]any, operation map[string]any, name string, in string) {
+	t.Helper()
+
+	parameters := requireSlice(t, operation["parameters"], "operation parameters")
+	for _, raw := range parameters {
+		parameter := requireMap(t, raw, "parameter")
+		if ref, ok := parameter["$ref"].(string); ok {
+			parameter = resolveRefMap(t, spec, ref)
+		}
+		if requireString(t, parameter["name"], "parameter name") != name {
+			continue
+		}
+		require.Equal(t, in, requireString(t, parameter["in"], "parameter in"))
+		return
+	}
+	t.Fatalf("operation missing %s parameter %q", in, name)
+}
+
+func resolveRefMap(t *testing.T, spec map[string]any, ref string) map[string]any {
+	t.Helper()
+
+	if !strings.HasPrefix(ref, "#/") {
+		t.Fatalf("unsupported external ref %q", ref)
+	}
+	current := any(spec)
+	for _, rawToken := range strings.Split(strings.TrimPrefix(ref, "#/"), "/") {
+		token := strings.ReplaceAll(strings.ReplaceAll(rawToken, "~1", "/"), "~0", "~")
+		current = requireMap(t, current, "ref segment")[token]
+	}
+	return requireMap(t, current, "resolved ref")
 }
 
 func requireMap(t *testing.T, value any, label string) map[string]any {

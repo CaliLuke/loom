@@ -676,12 +676,12 @@
       }
     },
     "securitySchemes": {
-      "access_token_header_Authorization": {
+      "access_token": {
         "description": "Bearer token used by web and mobile clients.",
         "scheme": "bearer",
         "type": "http"
       },
-      "browser_session_cookie___Host-mealplanner_session": {
+      "browser_session": {
         "description": "Browser session cookie used by the meal planner web app.",
         "in": "cookie",
         "name": "__Host-mealplanner_session",
@@ -912,10 +912,10 @@
         },
         "security": [
           {
-            "access_token_header_Authorization": null
+            "access_token": null
           },
           {
-            "browser_session_cookie___Host-mealplanner_session": null
+            "browser_session": null
           }
         ],
         "summary": "upsertMealPlan mealPlanner",
@@ -963,10 +963,10 @@
         },
         "security": [
           {
-            "access_token_header_Authorization": null
+            "access_token": null
           },
           {
-            "browser_session_cookie___Host-mealplanner_session": null
+            "browser_session": null
           }
         ],
         "summary": "shareMealPlan mealPlanner",
@@ -1033,10 +1033,10 @@
         },
         "security": [
           {
-            "access_token_header_Authorization": null
+            "access_token": null
           },
           {
-            "browser_session_cookie___Host-mealplanner_session": null
+            "browser_session": null
           }
         ],
         "summary": "importPantry mealPlanner",
@@ -1067,10 +1067,10 @@
         },
         "security": [
           {
-            "access_token_header_Authorization": null
+            "access_token": null
           },
           {
-            "browser_session_cookie___Host-mealplanner_session": null
+            "browser_session": null
           }
         ],
         "summary": "previewSelection mealPlanner",
@@ -1101,10 +1101,10 @@
         },
         "security": [
           {
-            "access_token_header_Authorization": null
+            "access_token": null
           },
           {
-            "browser_session_cookie___Host-mealplanner_session": null
+            "browser_session": null
           }
         ],
         "summary": "previewSelectionSuppressed mealPlanner",
@@ -1194,10 +1194,10 @@
         },
         "security": [
           {
-            "access_token_header_Authorization": null
+            "access_token": null
           },
           {
-            "browser_session_cookie___Host-mealplanner_session": null
+            "browser_session": null
           }
         ],
         "summary": "listRecipes mealPlanner",
@@ -1267,10 +1267,10 @@
         },
         "security": [
           {
-            "access_token_header_Authorization": null
+            "access_token": null
           },
           {
-            "browser_session_cookie___Host-mealplanner_session": null
+            "browser_session": null
           }
         ],
         "summary": "showRecipe mealPlanner",

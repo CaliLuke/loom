@@ -540,7 +540,11 @@ func writeWebsocketRecvVars(b *strings.Builder, ws *WebSocketData) {
 			fmt.Fprintf(b, "\t\tmsg *%s\n", ws.Payload.VarName)
 		}
 	} else {
-		fmt.Fprintf(b, "\t\tbody %s\n", ws.Response.ClientBody.VarName)
+		bodyTypeRef := ws.RecvTypeRef
+		if ws.Response != nil && ws.Response.ClientBody != nil {
+			bodyTypeRef = ws.Response.ClientBody.VarName
+		}
+		fmt.Fprintf(b, "\t\tbody %s\n", bodyTypeRef)
 	}
 	b.WriteString("\t\terr error\n")
 	b.WriteString("\t)\n")

@@ -14,6 +14,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestCookieAPIKeySecurity(t *testing.T) {
@@ -174,6 +175,125 @@ func TestSessionSecurityInfersCookieBinding(t *testing.T) {
 	})
 }
 
+func TestStreamingSessionSecurityWebSocketHandshakeContracts(t *testing.T) {
+	cases := map[string]struct {
+		DSL                 func()
+		Path                string
+		ExpectedParamName   string
+		ExpectedParamIn     string
+		ExpectClientSend    bool
+		ExpectQueryEncoding bool
+	}{
+		"server stream path param": {
+			DSL:               streamingSessionCookiePathDSL,
+			Path:              "/ws/projects/{project_id}",
+			ExpectedParamName: "project_id",
+			ExpectedParamIn:   "path",
+		},
+		"bidirectional path param": {
+			DSL:               bidirectionalSessionCookiePathDSL,
+			Path:              "/ws/projects/{project_id}",
+			ExpectedParamName: "project_id",
+			ExpectedParamIn:   "path",
+			ExpectClientSend:  true,
+		},
+		"server stream query param": {
+			DSL:                 streamingSessionCookieQueryDSL,
+			Path:                "/ws/projects",
+			ExpectedParamName:   "project_id",
+			ExpectedParamIn:     "query",
+			ExpectQueryEncoding: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := RunHTTPDSL(t, tc.DSL)
+			openapi.Definitions = make(map[string]*openapi.Schema)
+
+			v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
+			doc := parseOpenAPIV3Document(t, v3JSON)
+
+			pathItem, ok := doc.Paths.PathItems.Get(tc.Path)
+			require.True(t, ok)
+			require.NotNil(t, pathItem)
+			require.NotNil(t, pathItem.Get)
+			require.Nil(t, pathItem.Get.RequestBody)
+			require.Len(t, pathItem.Get.Parameters, 1)
+
+			param := pathItem.Get.Parameters[0]
+			require.NotNil(t, param)
+			require.Equal(t, tc.ExpectedParamName, param.Name)
+			require.Equal(t, tc.ExpectedParamIn, param.In)
+			require.Len(t, pathItem.Get.Security, 1)
+
+			foundCookie := false
+			for name, scheme := range doc.Components.SecuritySchemes.FromOldest() {
+				if scheme.Type != "apiKey" || scheme.In != "cookie" || scheme.Name != "__Host-ak_session" {
+					continue
+				}
+				_, found := pathItem.Get.Security[0].Requirements.Get(name)
+				if found {
+					foundCookie = true
+					break
+				}
+			}
+			require.True(t, foundCookie)
+
+			services := CreateHTTPServices(root)
+			serverFiles := ServerFiles("", services)
+			serverDecode := renderAllGeneratedFileCode(t, serverFiles)
+			require.Contains(t, serverDecode, `r.Cookie("__Host-ak_session")`)
+			if tc.ExpectQueryEncoding {
+				require.Contains(t, serverDecode, `r.URL.Query()`)
+			} else {
+				require.Contains(t, serverDecode, `params["project_id"]`)
+			}
+
+			clientFiles := ClientFiles("", services)
+			clientEncode := renderAllGeneratedFileCode(t, clientFiles)
+			require.Contains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
+			if tc.ExpectQueryEncoding {
+				require.Contains(t, clientEncode, `values.Add("project_id",p.ProjectID)`)
+			} else {
+				require.Contains(t, clientEncode, `Path(projectID, )`)
+			}
+			if tc.ExpectClientSend {
+				require.Contains(t, clientEncode, `WriteJSON`)
+			}
+		})
+	}
+}
+
+func TestAsyncSessionSecurityTransportCodegenAvoidsDeadAuthBranches(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.AsyncSessionSecurityDSL)
+	services := CreateHTTPServices(root)
+
+	serverCode := renderAllGeneratedFileCode(t, ServerFiles("", services))
+	require.Contains(t, serverCode, `r.Cookie("__Host-ak_session")`)
+	require.Contains(t, serverCode, `params["project_id"]`)
+	require.NotContains(t, serverCode, `"Authorization"`)
+
+	clientCode := renderAllGeneratedFileCode(t, ClientFiles("", services))
+	require.Contains(t, clientCode, `req.AddCookie(&http.Cookie{`)
+	require.Contains(t, clientCode, `values.Add("last_event_id",*p.LastEventID)`)
+	require.NotContains(t, clientCode, `"Authorization"`)
+}
+
+func renderAllGeneratedFileCode(t *testing.T, files []*codegen.File) string {
+	t.Helper()
+
+	var combined bytes.Buffer
+	for _, file := range files {
+		code, err := renderFileToString(file)
+		require.NoError(t, err)
+		combined.WriteString(code)
+		combined.WriteString("\n")
+	}
+
+	return combined.String()
+}
+
 func renderOpenAPIJSON(
 	t *testing.T,
 	build func(*expr.RootExpr) ([]*codegen.File, error),
@@ -294,6 +414,83 @@ var apiLevelSessionCookieSecurityDSL = func() {
 			dsl.Result(dsl.Empty)
 			dsl.HTTP(func() {
 				dsl.GET("/auth/profile")
+				dsl.Response(dsl.StatusOK)
+			})
+		})
+	})
+}
+
+func streamingSessionCookieAuth() any {
+	var browserSessionCookie = dsl.APIKeySecurity("browser_session_cookie", func() {
+		dsl.Description("Browser session cookie")
+	})
+	return dsl.SessionAuth("app_session", func() {
+		dsl.CookieTransport(browserSessionCookie, "browser_session", func() {
+			dsl.CookieName("__Host-ak_session")
+		})
+	})
+}
+
+var streamingSessionEnvelope = dsl.Type("StreamingSessionEnvelope", func() {
+	dsl.Attribute("event", dsl.String)
+	dsl.Required("event")
+})
+
+var streamingSessionCookiePathDSL = func() {
+	appSession := streamingSessionCookieAuth()
+
+	dsl.Service("streamingSessionCookiePath", func() {
+		dsl.Method("connect", func() {
+			dsl.SessionSecurity(appSession)
+			dsl.Payload(func() {
+				dsl.Attribute("project_id", dsl.String)
+				dsl.Required("project_id")
+			})
+			dsl.StreamingResult(streamingSessionEnvelope)
+			dsl.HTTP(func() {
+				dsl.GET("/ws/projects/{project_id}")
+				dsl.Param("project_id")
+				dsl.Response(dsl.StatusOK)
+			})
+		})
+	})
+}
+
+var bidirectionalSessionCookiePathDSL = func() {
+	appSession := streamingSessionCookieAuth()
+
+	dsl.Service("bidirectionalSessionCookiePath", func() {
+		dsl.Method("connect", func() {
+			dsl.SessionSecurity(appSession)
+			dsl.Payload(func() {
+				dsl.Attribute("project_id", dsl.String)
+				dsl.Required("project_id")
+			})
+			dsl.StreamingPayload(dsl.String)
+			dsl.StreamingResult(streamingSessionEnvelope)
+			dsl.HTTP(func() {
+				dsl.GET("/ws/projects/{project_id}")
+				dsl.Param("project_id")
+				dsl.Response(dsl.StatusOK)
+			})
+		})
+	})
+}
+
+var streamingSessionCookieQueryDSL = func() {
+	appSession := streamingSessionCookieAuth()
+
+	dsl.Service("streamingSessionCookieQuery", func() {
+		dsl.Method("connect", func() {
+			dsl.SessionSecurity(appSession)
+			dsl.Payload(func() {
+				dsl.Attribute("project_id", dsl.String)
+				dsl.Required("project_id")
+			})
+			dsl.StreamingResult(streamingSessionEnvelope)
+			dsl.HTTP(func() {
+				dsl.GET("/ws/projects")
+				dsl.Param("project_id")
 				dsl.Response(dsl.StatusOK)
 			})
 		})

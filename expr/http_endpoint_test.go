@@ -538,6 +538,55 @@ func TestHTTPEndpointValidationAdditionalCoverage(t *testing.T) {
 	}
 }
 
+func TestHTTPStreamingSessionSecurityRequestBodyInference(t *testing.T) {
+	cases := map[string]struct {
+		DSL                func()
+		ExpectedRoute      string
+		ExpectedParamField string
+		ExpectStreamingIn  bool
+	}{
+		"server stream path param": {
+			DSL:                websocketSessionCookiePathStreamDSL,
+			ExpectedRoute:      "/ws/projects/{project_id}",
+			ExpectedParamField: "project_id",
+		},
+		"bidirectional path param": {
+			DSL:                websocketSessionCookiePathBidirectionalDSL,
+			ExpectedRoute:      "/ws/projects/{project_id}",
+			ExpectedParamField: "project_id",
+			ExpectStreamingIn:  true,
+		},
+		"server stream query param": {
+			DSL:                websocketSessionCookieQueryStreamDSL,
+			ExpectedRoute:      "/ws/projects",
+			ExpectedParamField: "project_id",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := expr.RunDSL(t, tc.DSL)
+			e := root.API.HTTP.Services[0].HTTPEndpoints[0]
+
+			if e.Body == nil || e.Body.Type != expr.Empty {
+				t.Fatalf("expected websocket handshake request body to be empty, got %#v", e.Body)
+			}
+			if e.Cookies.Find("browser_session") == nil {
+				t.Fatalf("expected inferred browser_session cookie mapping")
+			}
+			if e.Params.Find(tc.ExpectedParamField) == nil {
+				t.Fatalf("expected %q handshake param mapping", tc.ExpectedParamField)
+			}
+			if len(e.Routes) != 1 || e.Routes[0].Path != tc.ExpectedRoute {
+				t.Fatalf("got route %#v, expected %q", e.Routes, tc.ExpectedRoute)
+			}
+			if tc.ExpectStreamingIn && (e.StreamingBody == nil || e.StreamingBody.Type == expr.Empty) {
+				t.Fatalf("expected bidirectional websocket endpoint to retain streaming body")
+			}
+		})
+	}
+}
+
 func TestHTTPAuthorizationMapping(t *testing.T) {
 	cases := []struct {
 		Name           string
@@ -573,6 +622,17 @@ func TestHTTPAuthorizationMapping(t *testing.T) {
 	}
 }
 
+func websocketSessionCookieAuth() any {
+	browserSession := APIKeySecurity("browser_session_cookie", func() {
+		Description("Browser session cookie")
+	})
+	return SessionAuth("app_session", func() {
+		CookieTransport(browserSession, "browser_session", func() {
+			CookieName("__Host-ak_session")
+		})
+	})
+}
+
 var inconsistentRouteParamsDSL = func() {
 	Service("RouteMismatch", func() {
 		Method("Show", func() {
@@ -587,6 +647,51 @@ var inconsistentRouteParamsDSL = func() {
 			})
 		})
 	})
+}
+
+var websocketSessionCookiePathStreamDSL = websocketSessionCookieStreamingDSL(
+	"WebSocketSessionCookiePathStream",
+	"/ws/projects/{project_id}",
+	false,
+)
+
+var websocketSessionCookiePathBidirectionalDSL = websocketSessionCookieStreamingDSL(
+	"WebSocketSessionCookiePathBidirectional",
+	"/ws/projects/{project_id}",
+	true,
+)
+
+var websocketSessionCookieQueryStreamDSL = websocketSessionCookieStreamingDSL(
+	"WebSocketSessionCookieQueryStream",
+	"/ws/projects",
+	false,
+)
+
+func websocketSessionCookieStreamingDSL(serviceName string, route string, bidirectional bool) func() {
+	return func() {
+		appSession := websocketSessionCookieAuth()
+		Service(serviceName, func() {
+			Method("connect", func() {
+				SessionSecurity(appSession)
+				Payload(func() {
+					Attribute("project_id", String)
+					Required("project_id")
+				})
+				if bidirectional {
+					StreamingPayload(String)
+				}
+				StreamingResult(func() {
+					Attribute("event", String)
+					Required("event")
+				})
+				HTTP(func() {
+					GET(route)
+					Param("project_id")
+					Response(StatusOK)
+				})
+			})
+		})
+	}
 }
 
 var mixedResultsWithoutSSEDsl = func() {

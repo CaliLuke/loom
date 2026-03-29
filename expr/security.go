@@ -276,7 +276,10 @@ func (s *SchemeExpr) EvalName() string {
 
 // Hash returns a unique hash value for s.
 func (s *SchemeExpr) Hash() string {
-	return fmt.Sprintf("%s_%s_%s", s.SchemeName, s.In, s.Name)
+	if s.SchemeName != "" {
+		return s.SchemeName
+	}
+	return fmt.Sprintf("%s_%s_%s", s.Type(), s.In, s.Name)
 }
 
 // Validate ensures that the method payload contains attributes required
