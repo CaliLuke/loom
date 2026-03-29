@@ -119,8 +119,11 @@ build Auto-K without repeating large amounts of app-local glue.
   - `CookieName(name)`
   - `SessionSecurity(contract)`
 - `CookieTransport(scheme, "", fn...)` is the transport-owned browser-cookie mode:
-  Loom still decodes the HTTP cookie and emits OpenAPI cookie security, but it
-  does not synthesize a payload credential field or HTTP CLI flag.
+  Loom still emits OpenAPI cookie security, but it does not synthesize a
+  payload credential field, HTTP CLI flag, or HTTP server decode locals. The
+  generated endpoint auth wrapper still runs and calls the API key authorizer
+  with an empty key so applications can resolve browser cookie auth from
+  request-scoped transport metadata instead of payload fields.
 - For HTTP WebSocket streaming endpoints, `SessionSecurity(...)` cookie
   transports can coexist with handshake path/query/header payload mappings
   without creating a JSON request body; if the payload is fully mapped to

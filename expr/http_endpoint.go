@@ -1067,6 +1067,7 @@ func (e *HTTPEndpointExpr) inferSessionSecurityMappingsForAuths(sessionAuths []*
 						continue
 					}
 					attr = &AttributeExpr{Type: String}
+					attr.AddMeta("loom:transport-only-session-cookie", "true")
 				}
 				cookieName := transport.HTTPName
 				if cookieName == "" {

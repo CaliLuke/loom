@@ -1391,6 +1391,9 @@ func (sds *ServicesData) extractHeaders(a *expr.MappedAttributeExpr, svcAtt *exp
 func (sds *ServicesData) extractCookies(a *expr.MappedAttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
 	var cookies []*CookieData
 	codegen.WalkMappedAttr(a, func(name, elem string, required bool, attr *expr.AttributeExpr) error { // nolint: errcheck
+		if _, ok := attr.Meta["loom:transport-only-session-cookie"]; ok {
+			return nil
+		}
 		pointer := a.IsPrimitivePointer(name, true)
 		cookies = append(cookies, sds.cookieData(name, elem, required, pointer, attr, svcAtt, svcCtx, scope))
 		return nil

@@ -500,6 +500,13 @@ func copySessionAuths(sessionAuths []*SessionAuthExpr) []*SessionAuthExpr {
 	return dups
 }
 
+// EffectiveRequirements returns the method security requirements after applying
+// no-security overrides, inherited service/API requirements, and derived
+// session-auth transports.
+func (m *MethodExpr) EffectiveRequirements() []*SecurityExpr {
+	return m.validationRequirements()
+}
+
 func (m *MethodExpr) validationRequirements() []*SecurityExpr {
 	if m.hasNoSecurityRequirement() {
 		return nil
@@ -515,6 +522,13 @@ func (m *MethodExpr) validationRequirements() []*SecurityExpr {
 	}
 	sessionAuths := m.validationSessionAuths()
 	return mergeRequirements(requirements, sessionRequirements(sessionAuths))
+}
+
+// EffectiveSessionAuths returns the session auth contracts that apply to the
+// method after honoring no-security overrides and inherited service/API
+// session-auth declarations.
+func (m *MethodExpr) EffectiveSessionAuths() []*SessionAuthExpr {
+	return m.validationSessionAuths()
 }
 
 func (m *MethodExpr) validationSessionAuths() []*SessionAuthExpr {
@@ -593,6 +607,11 @@ func requirementEqual(left *SecurityExpr, right *SecurityExpr) bool {
 }
 
 func (m *MethodExpr) hasNoSecurityRequirement() bool {
+	if m != nil && m.Meta != nil {
+		if _, ok := m.Meta["security:no"]; ok {
+			return true
+		}
+	}
 	for _, req := range m.Requirements {
 		for _, scheme := range req.Schemes {
 			if scheme.Kind == NoKind {

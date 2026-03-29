@@ -110,6 +110,10 @@ func renderBasicSchemeAuth(b *strings.Builder, req *RequirementData, scheme *Sch
 
 func renderCredentialSchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload, schemeStruct, tempVar string) {
 	renderSchemeHeader(b, schemeStruct+"Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes)
+	if scheme.TransportOwned {
+		fmt.Fprintf(b, "\t\t\t\tctx, err = auth%sFn(ctx, %q, &sc)\n", scheme.Type, "")
+		return
+	}
 	renderPointerStringBinding(b, tempVar, payload, scheme.CredField, scheme.CredPointer)
 	expr := payload + "." + scheme.CredField
 	if scheme.CredPointer {

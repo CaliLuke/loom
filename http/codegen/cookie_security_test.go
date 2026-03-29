@@ -243,7 +243,7 @@ func TestStreamingSessionSecurityWebSocketHandshakeContracts(t *testing.T) {
 			services := CreateHTTPServices(root)
 			serverFiles := ServerFiles("", services)
 			serverDecode := renderAllGeneratedFileCode(t, serverFiles)
-			require.Contains(t, serverDecode, `r.Cookie("__Host-ak_session")`)
+			require.NotContains(t, serverDecode, `r.Cookie("__Host-ak_session")`)
 			if tc.ExpectQueryEncoding {
 				require.Contains(t, serverDecode, `r.URL.Query()`)
 			} else {
@@ -270,7 +270,7 @@ func TestAsyncSessionSecurityTransportCodegenAvoidsDeadAuthBranches(t *testing.T
 	services := CreateHTTPServices(root)
 
 	serverCode := renderAllGeneratedFileCode(t, ServerFiles("", services))
-	require.Contains(t, serverCode, `r.Cookie("__Host-ak_session")`)
+	require.NotContains(t, serverCode, `r.Cookie("__Host-ak_session")`)
 	require.Contains(t, serverCode, `params["project_id"]`)
 	require.NotContains(t, serverCode, `"Authorization"`)
 

@@ -42,6 +42,40 @@ func NewEndpoints(s Service) *Endpoints {
 }
 `
 
+var EndpointInitWithCookieOnlyTransportOwnedSessionSecurityCode = `// NewEndpoints wraps the methods of the
+// "EndpointWithCookieOnlyTransportOwnedSessionSecurity" service with endpoints.
+func NewEndpoints(s Service) *Endpoints {
+	// Casting service to Authorizer interface
+	a := s.(Authorizer)
+	return &Endpoints{
+		Secure: NewSecureEndpoint(s, a.APIKeyAuth),
+	}
+}
+`
+
+var EndpointInitWithServiceCookieOnlyTransportOwnedSessionSecurityCode = `// NewEndpoints wraps the methods of the
+// "EndpointWithServiceCookieOnlyTransportOwnedSessionSecurity" service with
+// endpoints.
+func NewEndpoints(s Service) *Endpoints {
+	// Casting service to Authorizer interface
+	a := s.(Authorizer)
+	return &Endpoints{
+		Secure: NewSecureEndpoint(s, a.APIKeyAuth),
+	}
+}
+`
+
+var EndpointInitWithAPITransportOwnedCookieSessionSecurityCode = `// NewEndpoints wraps the methods of the
+// "EndpointWithAPITransportOwnedCookieSessionSecurity" service with endpoints.
+func NewEndpoints(s Service) *Endpoints {
+	// Casting service to Authorizer interface
+	a := s.(Authorizer)
+	return &Endpoints{
+		Secure: NewSecureEndpoint(s, a.APIKeyAuth),
+	}
+}
+`
+
 var EndpointWithRequiredScopesCode = `// NewSecureWithRequiredScopesEndpoint returns an endpoint function that calls
 // the method "SecureWithRequiredScopes" of service
 // "EndpointWithRequiredScopes".
@@ -149,6 +183,67 @@ func NewSecureWithOAuth2Endpoint(s Service, authOAuth2Fn security.AuthOAuth2Func
 			return nil, err
 		}
 		return nil, s.SecureWithOAuth2(ctx, p)
+	}
+}
+`
+
+var EndpointWithCookieOnlyTransportOwnedSessionSecurityCode = `// NewSecureEndpoint returns an endpoint function that calls the method
+// "Secure" of service "EndpointWithCookieOnlyTransportOwnedSessionSecurity".
+func NewSecureEndpoint(s Service, authAPIKeyFn security.AuthAPIKeyFunc) loom.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*SecurePayload)
+		var err error
+		sc := security.APIKeyScheme{
+			Name:           "browser_session_cookie",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		ctx, err = authAPIKeyFn(ctx, "", &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.Secure(ctx, p)
+	}
+}
+`
+
+var EndpointWithServiceCookieOnlyTransportOwnedSessionSecurityCode = `// NewSecureEndpoint returns an endpoint function that calls the method
+// "Secure" of service
+// "EndpointWithServiceCookieOnlyTransportOwnedSessionSecurity".
+func NewSecureEndpoint(s Service, authAPIKeyFn security.AuthAPIKeyFunc) loom.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*SecurePayload)
+		var err error
+		sc := security.APIKeyScheme{
+			Name:           "service_browser_session_cookie",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		ctx, err = authAPIKeyFn(ctx, "", &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.Secure(ctx, p)
+	}
+}
+`
+
+var EndpointWithAPITransportOwnedCookieSessionSecurityCode = `// NewSecureEndpoint returns an endpoint function that calls the method
+// "Secure" of service "EndpointWithAPITransportOwnedCookieSessionSecurity".
+func NewSecureEndpoint(s Service, authAPIKeyFn security.AuthAPIKeyFunc) loom.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*SecurePayload)
+		var err error
+		sc := security.APIKeyScheme{
+			Name:           "api_browser_session_cookie",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		ctx, err = authAPIKeyFn(ctx, "", &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.Secure(ctx, p)
 	}
 }
 `

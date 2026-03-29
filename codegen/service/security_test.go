@@ -20,6 +20,9 @@ func TestSecureEndpointInit(t *testing.T) {
 		{"endpoints-with-requirements", testdata.EndpointsWithRequirementsDSL, testdata.EndpointInitWithRequirementsCode},
 		{"endpoints-with-service-requirements", testdata.EndpointsWithServiceRequirementsDSL, testdata.EndpointInitWithServiceRequirementsCode},
 		{"endpoints-no-security", testdata.EndpointNoSecurityDSL, testdata.EndpointInitNoSecurityCode},
+		{"cookie-only-transport-owned-session-security", testdata.EndpointWithCookieOnlyTransportOwnedSessionSecurityDSL, testdata.EndpointInitWithCookieOnlyTransportOwnedSessionSecurityCode},
+		{"service-cookie-only-transport-owned-session-security", testdata.EndpointWithServiceCookieOnlyTransportOwnedSessionSecurityDSL, testdata.EndpointInitWithServiceCookieOnlyTransportOwnedSessionSecurityCode},
+		{"api-cookie-only-transport-owned-session-security", testdata.EndpointWithAPITransportOwnedCookieSessionSecurityDSL, testdata.EndpointInitWithAPITransportOwnedCookieSessionSecurityCode},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -118,13 +121,49 @@ func TestSessionSecurityNoSecurityOverrideRemovesGeneratedRequirements(t *testin
 }
 
 func TestCookieOnlyTransportOwnedSessionSecurityOmitsGeneratedCredentialField(t *testing.T) {
-	root := codegen.RunDSL(t, testdata.EndpointWithCookieOnlyTransportOwnedSessionSecurityDSL)
-	services := NewServicesData(root)
-	method := services.Get("EndpointWithCookieOnlyTransportOwnedSessionSecurity").Method("Secure")
-	require.NotNil(t, method)
-	assert.Empty(t, method.Requirements)
-	assert.NotContains(t, method.PayloadDef, "BrowserSession")
-	assert.Contains(t, method.PayloadDef, "Message *string")
+	cases := []struct {
+		name        string
+		dsl         func()
+		serviceName string
+		schemeName  string
+	}{
+		{
+			name:        "method session security",
+			dsl:         testdata.EndpointWithCookieOnlyTransportOwnedSessionSecurityDSL,
+			serviceName: "EndpointWithCookieOnlyTransportOwnedSessionSecurity",
+			schemeName:  "browser_session_cookie",
+		},
+		{
+			name:        "service session security",
+			dsl:         testdata.EndpointWithServiceCookieOnlyTransportOwnedSessionSecurityDSL,
+			serviceName: "EndpointWithServiceCookieOnlyTransportOwnedSessionSecurity",
+			schemeName:  "service_browser_session_cookie",
+		},
+		{
+			name:        "api session security",
+			dsl:         testdata.EndpointWithAPITransportOwnedCookieSessionSecurityDSL,
+			serviceName: "EndpointWithAPITransportOwnedCookieSessionSecurity",
+			schemeName:  "api_browser_session_cookie",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := codegen.RunDSL(t, tc.dsl)
+			services := NewServicesData(root)
+			method := services.Get(tc.serviceName).Method("Secure")
+			require.NotNil(t, method)
+			require.Len(t, method.Requirements, 1)
+			require.Len(t, method.Requirements[0].Schemes, 1)
+			scheme := method.Requirements.Scheme(tc.schemeName)
+			require.NotNil(t, scheme)
+			assert.Equal(t, "APIKey", scheme.Type)
+			assert.True(t, scheme.TransportOwned)
+			assert.Empty(t, scheme.CredField)
+			assert.Empty(t, scheme.KeyAttr)
+			assert.NotContains(t, method.PayloadDef, "BrowserSession")
+			assert.Contains(t, method.PayloadDef, "Message *string")
+		})
+	}
 }
 
 func TestSecureEndpoint(t *testing.T) {
@@ -137,6 +176,9 @@ func TestSecureEndpoint(t *testing.T) {
 		{"with-optional-required-scopes", testdata.EndpointWithOptionalRequiredScopesDSL, testdata.EndpointWithOptionalRequiredScopesCode},
 		{"with-api-key-override", testdata.EndpointWithAPIKeyOverrideDSL, testdata.EndpointWithAPIKeyOverrideCode},
 		{"with-oauth2", testdata.EndpointWithOAuth2DSL, testdata.EndpointWithOAuth2Code},
+		{"with-cookie-only-transport-owned-session-security", testdata.EndpointWithCookieOnlyTransportOwnedSessionSecurityDSL, testdata.EndpointWithCookieOnlyTransportOwnedSessionSecurityCode},
+		{"with-service-cookie-only-transport-owned-session-security", testdata.EndpointWithServiceCookieOnlyTransportOwnedSessionSecurityDSL, testdata.EndpointWithServiceCookieOnlyTransportOwnedSessionSecurityCode},
+		{"with-api-cookie-only-transport-owned-session-security", testdata.EndpointWithAPITransportOwnedCookieSessionSecurityDSL, testdata.EndpointWithAPITransportOwnedCookieSessionSecurityCode},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {

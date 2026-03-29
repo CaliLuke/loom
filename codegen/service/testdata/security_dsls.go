@@ -228,6 +228,25 @@ var EndpointWithCookieOnlyTransportOwnedSessionSecurityDSL = func() {
 	})
 }
 
+var EndpointWithServiceCookieOnlyTransportOwnedSessionSecurityDSL = func() {
+	var BrowserSessionCookie = APIKeySecurity("service_browser_session_cookie", func() {
+		Description("Browser session cookie")
+	})
+	var AppSession = SessionAuth("service_app_session_cookie_only", func() {
+		CookieTransport(BrowserSessionCookie, "", func() {
+			CookieName("__Host-ak_session")
+		})
+	})
+	Service("EndpointWithServiceCookieOnlyTransportOwnedSessionSecurity", func() {
+		SessionSecurity(AppSession)
+		Method("Secure", func() {
+			Payload(func() {
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
 var EndpointWithBearerOrCookieAPISecurityDSL = func() {
 	API("EndpointWithBearerOrCookieAPISecurityAPI", func() {
 		Security(JWTAuth)
@@ -253,6 +272,27 @@ var EndpointWithAPISessionSecurityDSL = func() {
 		SessionSecurity(AppSession)
 	})
 	Service("EndpointWithAPISessionSecurity", func() {
+		Method("Secure", func() {
+			Payload(func() {
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
+var EndpointWithAPITransportOwnedCookieSessionSecurityDSL = func() {
+	var BrowserSessionCookie = APIKeySecurity("api_browser_session_cookie", func() {
+		Description("Browser session cookie")
+	})
+	var AppSession = SessionAuth("api_app_session_cookie_only", func() {
+		CookieTransport(BrowserSessionCookie, "", func() {
+			CookieName("__Host-ak_session")
+		})
+	})
+	API("EndpointWithAPITransportOwnedCookieSessionSecurityAPI", func() {
+		SessionSecurity(AppSession)
+	})
+	Service("EndpointWithAPITransportOwnedCookieSessionSecurity", func() {
 		Method("Secure", func() {
 			Payload(func() {
 				Attribute("message", String)

@@ -560,6 +560,9 @@ type (
 		Flows []*expr.FlowExpr
 		// In indicates the request element that holds the credential.
 		In string
+		// TransportOwned is true when the credential is supplied by transport
+		// state rather than a payload field.
+		TransportOwned bool
 	}
 
 	// ViewedResultTypeData contains the data used to generate a viewed result type
@@ -749,6 +752,7 @@ func (s *SchemeData) Dup() *SchemeData {
 		Scopes:           s.Scopes,
 		Flows:            s.Flows,
 		In:               s.In,
+		TransportOwned:   s.TransportOwned,
 	}
 }
 
@@ -1455,7 +1459,7 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 	_, isJSONRPC = m.Meta["jsonrpc"]
 	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
 
-	reqs, schemes = BuildRequirementsData(m.Requirements, m)
+	reqs, schemes = BuildRequirementsData(m.EffectiveRequirements(), m)
 
 	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode := d.httpSkipBodyFlags(m)
 
@@ -1883,6 +1887,16 @@ func schemeScopeNames(s *expr.SchemeExpr) []string {
 func buildCredentialSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr, tag string, scopes []string) *SchemeData {
 	keyAtt := expr.TaggedAttribute(m.Payload, tag)
 	if keyAtt == "" {
+		if isTransportOwnedCookieSchemeData(s, m) {
+			return &SchemeData{
+				Type:           s.Kind.String(),
+				Name:           s.Name,
+				SchemeName:     s.SchemeName,
+				Scopes:         scopes,
+				In:             s.In,
+				TransportOwned: true,
+			}
+		}
 		return nil
 	}
 	return &SchemeData{
@@ -1896,6 +1910,23 @@ func buildCredentialSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr, tag strin
 		Scopes:       scopes,
 		In:           s.In,
 	}
+}
+
+func isTransportOwnedCookieSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr) bool {
+	if s == nil || m == nil || s.Kind != expr.APIKeyKind {
+		return false
+	}
+	for _, sessionAuth := range m.EffectiveSessionAuths() {
+		for _, transport := range sessionAuth.Transports {
+			if transport == nil || transport.Kind != expr.SessionCookieTransportKind || transport.PayloadOwned() || transport.Scheme == nil {
+				continue
+			}
+			if transport.Scheme.SchemeName == s.SchemeName {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // collectAttributes builds AttributeData from an AttributeExpr
