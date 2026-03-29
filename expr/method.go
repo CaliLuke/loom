@@ -171,6 +171,9 @@ func (m *MethodExpr) validateRequirements() *eval.ValidationErrors {
 				}
 			case APIKeyKind:
 				hasAPIKey = true
+				if m.isTransportOwnedCookieScheme(s) {
+					continue
+				}
 				if !hasTag(m.Payload, "security:apikey:"+s.SchemeName) {
 					verr.Add(m, "payload of method %q of service %q does not define an API key attribute, use APIKey to define one", m.Name, m.Service.Name)
 				}
@@ -227,6 +230,23 @@ func (m *MethodExpr) validateRequirements() *eval.ValidationErrors {
 		}
 	}
 	return verr
+}
+
+func (m *MethodExpr) isTransportOwnedCookieScheme(s *SchemeExpr) bool {
+	if m == nil || s == nil || s.Kind != APIKeyKind {
+		return false
+	}
+	for _, sessionAuth := range m.validationSessionAuths() {
+		for _, transport := range sessionAuth.Transports {
+			if transport == nil || transport.Kind != SessionCookieTransportKind || transport.PayloadOwned() {
+				continue
+			}
+			if transport.Scheme != nil && transport.Scheme.SchemeName == s.SchemeName {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // validateErrors validates the method errors.
@@ -616,6 +636,9 @@ func (m *MethodExpr) injectSessionAuthPayloadFields() *eval.ValidationErrors {
 func (m *MethodExpr) injectSessionTransportField(sessionAuth *SessionAuthExpr, transport *SessionTransportExpr, obj *Object) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	if transport == nil || transport.Scheme == nil {
+		return verr
+	}
+	if !transport.PayloadOwned() {
 		return verr
 	}
 	if terr := transport.Validate(); terr != nil && len(terr.Errors) > 0 {

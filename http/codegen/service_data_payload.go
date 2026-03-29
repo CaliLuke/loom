@@ -363,6 +363,9 @@ func buildPayloadFieldArgs(request *RequestData) []*InitArgData {
 		appendField(header.VarName, header.Name, header.VarName, "", header.FieldName, header.FieldPointer, header.FieldType, header.TypeName, header.TypeRef, header.Type, header.Pointer, header.Required, header.DefaultValue, header.Validate, header.Example)
 	}
 	for _, cookie := range request.Cookies {
+		if cookie.FieldName == "" {
+			continue
+		}
 		appendField(cookie.VarName, cookie.Name, cookie.VarName, "", cookie.FieldName, cookie.FieldPointer, cookie.FieldType, cookie.TypeName, cookie.TypeRef, cookie.Type, cookie.Pointer, cookie.Required, cookie.DefaultValue, cookie.Validate, cookie.Example)
 	}
 	return args

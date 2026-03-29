@@ -209,6 +209,25 @@ var EndpointWithSessionSecurityDSL = func() {
 	})
 }
 
+var EndpointWithCookieOnlyTransportOwnedSessionSecurityDSL = func() {
+	var BrowserSessionCookie = APIKeySecurity("browser_session_cookie", func() {
+		Description("Browser session cookie")
+	})
+	var AppSession = SessionAuth("app_session_cookie_only", func() {
+		CookieTransport(BrowserSessionCookie, "", func() {
+			CookieName("__Host-ak_session")
+		})
+	})
+	Service("EndpointWithCookieOnlyTransportOwnedSessionSecurity", func() {
+		Method("Secure", func() {
+			SessionSecurity(AppSession)
+			Payload(func() {
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
 var EndpointWithBearerOrCookieAPISecurityDSL = func() {
 	API("EndpointWithBearerOrCookieAPISecurityAPI", func() {
 		Security(JWTAuth)

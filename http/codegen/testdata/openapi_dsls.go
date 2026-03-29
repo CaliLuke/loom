@@ -2202,7 +2202,7 @@ var AsyncSessionSecurityDSL = func() {
 		Description("Browser session cookie used by first-party async clients.")
 	})
 	var appSession = SessionAuth("async_session", func() {
-		CookieTransport(browserSession, "browser_session", func() {
+		CookieTransport(browserSession, "", func() {
 			CookieName("__Host-ak_session")
 		})
 	})

@@ -474,14 +474,14 @@ func TestHTTPEndpointPrepareAdditionalCoverage(t *testing.T) {
 	t.Run("implicit session cookie mapping", func(t *testing.T) {
 		root := expr.RunDSL(t, sessionCookieMappingDSL)
 		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
-		if e.MethodExpr.Payload.Find("browser_session") == nil {
-			t.Fatalf("expected session auth to inject browser_session into payload")
+		if e.MethodExpr.Payload.Find("browser_session_key") != nil {
+			t.Fatalf("expected transport-only session cookie auth to avoid payload injection")
 		}
-		if e.Cookies.Find("browser_session") == nil {
-			t.Fatalf("expected implicit session cookie mapping for browser_session")
+		if e.Cookies.Find("browser_session_key") == nil {
+			t.Fatalf("expected implicit session cookie mapping for browser_session_key")
 		}
-		if e.Cookies.ElemName("browser_session") != "__Host-browser_session" {
-			t.Fatalf("got cookie name %q, expected %q", e.Cookies.ElemName("browser_session"), "__Host-browser_session")
+		if e.Cookies.ElemName("browser_session_key") != "__Host-browser_session" {
+			t.Fatalf("got cookie name %q, expected %q", e.Cookies.ElemName("browser_session_key"), "__Host-browser_session")
 		}
 	})
 
@@ -571,8 +571,8 @@ func TestHTTPStreamingSessionSecurityRequestBodyInference(t *testing.T) {
 			if e.Body == nil || e.Body.Type != expr.Empty {
 				t.Fatalf("expected websocket handshake request body to be empty, got %#v", e.Body)
 			}
-			if e.Cookies.Find("browser_session") == nil {
-				t.Fatalf("expected inferred browser_session cookie mapping")
+			if e.Cookies.Find("browser_session_cookie") == nil {
+				t.Fatalf("expected inferred browser_session_cookie cookie mapping")
 			}
 			if e.Params.Find(tc.ExpectedParamField) == nil {
 				t.Fatalf("expected %q handshake param mapping", tc.ExpectedParamField)
@@ -627,7 +627,7 @@ func websocketSessionCookieAuth() any {
 		Description("Browser session cookie")
 	})
 	return SessionAuth("app_session", func() {
-		CookieTransport(browserSession, "browser_session", func() {
+		CookieTransport(browserSession, "", func() {
 			CookieName("__Host-ak_session")
 		})
 	})
@@ -866,7 +866,7 @@ var jsonrpcWebSocketPayloadMigrationDSL = func() {
 var sessionCookieMappingDSL = func() {
 	var browserSession = APIKeySecurity("browser_session_key")
 	var appSession = SessionAuth("app_session", func() {
-		CookieTransport(browserSession, "browser_session", func() {
+		CookieTransport(browserSession, "", func() {
 			CookieName("__Host-browser_session")
 		})
 	})

@@ -252,7 +252,7 @@ func TestStreamingSessionSecurityWebSocketHandshakeContracts(t *testing.T) {
 
 			clientFiles := ClientFiles("", services)
 			clientEncode := renderAllGeneratedFileCode(t, clientFiles)
-			require.Contains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
+			require.NotContains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
 			if tc.ExpectQueryEncoding {
 				require.Contains(t, clientEncode, `values.Add("project_id",p.ProjectID)`)
 			} else {
@@ -275,9 +275,13 @@ func TestAsyncSessionSecurityTransportCodegenAvoidsDeadAuthBranches(t *testing.T
 	require.NotContains(t, serverCode, `"Authorization"`)
 
 	clientCode := renderAllGeneratedFileCode(t, ClientFiles("", services))
-	require.Contains(t, clientCode, `req.AddCookie(&http.Cookie{`)
+	require.NotContains(t, clientCode, `req.AddCookie(&http.Cookie{`)
 	require.Contains(t, clientCode, `values.Add("last_event_id",*p.LastEventID)`)
 	require.NotContains(t, clientCode, `"Authorization"`)
+
+	cliCode := renderAllGeneratedFileCode(t, ClientCLIFiles("", services))
+	require.NotContains(t, cliCode, "browser-session")
+	require.NotContains(t, cliCode, "browser_session")
 }
 
 func renderAllGeneratedFileCode(t *testing.T, files []*codegen.File) string {
@@ -425,7 +429,7 @@ func streamingSessionCookieAuth() any {
 		dsl.Description("Browser session cookie")
 	})
 	return dsl.SessionAuth("app_session", func() {
-		dsl.CookieTransport(browserSessionCookie, "browser_session", func() {
+		dsl.CookieTransport(browserSessionCookie, "", func() {
 			dsl.CookieName("__Host-ak_session")
 		})
 	})

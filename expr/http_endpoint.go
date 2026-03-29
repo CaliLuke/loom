@@ -943,6 +943,13 @@ func (e *HTTPEndpointExpr) finalizeRequirementScheme(sch *SchemeExpr) {
 	case OAuth2Kind:
 		field = TaggedAttribute(e.MethodExpr.Payload, "security:accesstoken")
 	}
+	if sch.Kind == APIKeyKind && field == "" {
+		if cookieName := e.transportOwnedCookieName(sch); cookieName != "" {
+			sch.Name = cookieName
+			sch.In = "cookie"
+			return
+		}
+	}
 	sch.Name, sch.In = findKey(e, field)
 	if sch.Name != "" {
 		return
@@ -959,6 +966,26 @@ func (e *HTTPEndpointExpr) finalizeRequirementScheme(sch *SchemeExpr) {
 		e.Headers.Validation = &ValidationExpr{}
 	}
 	e.Headers.Validation.AddRequired(field)
+}
+
+func (e *HTTPEndpointExpr) transportOwnedCookieName(sch *SchemeExpr) string {
+	if e == nil || e.MethodExpr == nil || sch == nil {
+		return ""
+	}
+	for _, sessionAuth := range e.MethodExpr.validationSessionAuths() {
+		for _, transport := range sessionAuth.Transports {
+			if transport == nil || transport.Kind != SessionCookieTransportKind || transport.PayloadOwned() || transport.Scheme == nil {
+				continue
+			}
+			if transport.Scheme.SchemeName == sch.SchemeName {
+				if transport.HTTPName != "" {
+					return transport.HTTPName
+				}
+				return transport.TransportAttributeName()
+			}
+		}
+	}
+	return ""
 }
 
 func (e *HTTPEndpointExpr) finalizeTransportBodies() {
@@ -1029,25 +1056,29 @@ func (e *HTTPEndpointExpr) inferSessionSecurityMappingsForAuths(sessionAuths []*
 			if transport == nil || transport.Scheme == nil {
 				continue
 			}
-			if name, _ := findKey(e, transport.FieldName); name != "" {
+			attributeName := transport.TransportAttributeName()
+			if name, _ := findKey(e, attributeName); name != "" {
 				continue
 			}
 			if transport.Kind == SessionCookieTransportKind {
-				attr := e.MethodExpr.Payload.Find(transport.FieldName)
+				attr := e.MethodExpr.Payload.Find(attributeName)
 				if attr == nil {
-					continue
+					if transport.PayloadOwned() {
+						continue
+					}
+					attr = &AttributeExpr{Type: String}
 				}
 				cookieName := transport.HTTPName
 				if cookieName == "" {
-					cookieName = transport.FieldName
+					cookieName = attributeName
 				}
-				e.Cookies.Type.(*Object).Set(transport.FieldName, attr)
-				e.Cookies.Map(cookieName, transport.FieldName)
-				if e.MethodExpr.Payload.IsRequired(transport.FieldName) {
+				e.Cookies.Type.(*Object).Set(attributeName, attr)
+				e.Cookies.Map(cookieName, attributeName)
+				if transport.PayloadOwned() && e.MethodExpr.Payload.IsRequired(attributeName) {
 					if e.Cookies.Validation == nil {
 						e.Cookies.Validation = &ValidationExpr{}
 					}
-					e.Cookies.Validation.AddRequired(transport.FieldName)
+					e.Cookies.Validation.AddRequired(attributeName)
 				}
 			}
 		}
@@ -1192,7 +1223,15 @@ func (e *HTTPEndpointExpr) validatePayloadHeaderCookieCompatibility(verr *eval.V
 			}
 			return nil
 		})
-		e.validateMappedAttributesExist(verr, cookies, `cookie %q not found in payload.`)
+		WalkMappedAttr(cookies, func(name, _ string, _ *AttributeExpr) error { // nolint: errcheck
+			if e.isTransportOnlySessionCookie(name) {
+				return nil
+			}
+			if e.MethodExpr.Payload.Find(name) == nil {
+				verr.Add(e, `cookie %q not found in payload.`, name)
+			}
+			return nil
+		})
 	case *Array:
 		if len(*AsObject(headers.Type)) > 1 {
 			verr.Add(e, "Payload type is array but HTTP endpoint defines multiple headers. At most one header must be defined and it must be an array.")
@@ -1202,6 +1241,23 @@ func (e *HTTPEndpointExpr) validatePayloadHeaderCookieCompatibility(verr *eval.V
 			verr.Add(e, "Payload type is map but HTTP endpoint defines headers or cookies. Map payloads can only be decoded from HTTP request bodies or query strings.")
 		}
 	}
+}
+
+func (e *HTTPEndpointExpr) isTransportOnlySessionCookie(name string) bool {
+	if e == nil || e.MethodExpr == nil || e.MethodExpr.Service == nil {
+		return false
+	}
+	for _, sessionAuth := range e.MethodExpr.validationSessionAuths() {
+		for _, transport := range sessionAuth.Transports {
+			if transport == nil || transport.Kind != SessionCookieTransportKind || transport.PayloadOwned() {
+				continue
+			}
+			if transport.TransportAttributeName() == name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (e *HTTPEndpointExpr) validateMappedAttributesExist(verr *eval.ValidationErrors, attrs *MappedAttributeExpr, format string) {

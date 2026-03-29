@@ -754,6 +754,9 @@ func (s *SchemeData) Dup() *SchemeData {
 
 // Append appends a scheme data to schemes only if it doesn't exist.
 func (s SchemesData) Append(d *SchemeData) SchemesData {
+	if d == nil {
+		return s
+	}
 	found := false
 	for _, se := range s {
 		if se.SchemeName == d.SchemeName {

@@ -246,6 +246,15 @@ func TestSessionSecurityInjectsPayloadFields(t *testing.T) {
 	}
 }
 
+func TestTransportOwnedCookieSessionSecuritySkipsPayloadInjection(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidCookieOnlyTransportOwnedSessionSecurityDSL)
+	method := root.Service("ValidCookieOnlyTransportOwnedSessionSecurityService").Method("SecureMethod")
+	assert.Nil(t, method.Payload.Find("browser_session_cookie"))
+	assert.NotEmpty(t, method.Requirements)
+	assert.Equal(t, expr.APIKeyKind, method.Requirements[0].Schemes[0].Kind)
+	assert.Equal(t, "browser_session_cookie", method.Requirements[0].Schemes[0].SchemeName)
+}
+
 func TestMethodExprError(t *testing.T) {
 	var (
 		errorFoo = &expr.ErrorExpr{

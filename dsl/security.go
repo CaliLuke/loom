@@ -204,6 +204,10 @@ func BearerTransport(scheme any, fieldName string, fn ...func()) {
 }
 
 // CookieTransport defines a cookie transport for a session auth contract.
+//
+// An empty field name makes the cookie transport transport-owned: Loom still
+// infers HTTP cookie decoding and OpenAPI security, but does not inject a
+// payload credential field.
 func CookieTransport(scheme any, fieldName string, fn ...func()) {
 	sessionTransport(expr.SessionCookieTransportKind, scheme, fieldName, fn...)
 }

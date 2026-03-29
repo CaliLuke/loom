@@ -170,12 +170,14 @@ func (s *SessionAuthExpr) Validate() *eval.ValidationErrors {
 		} else {
 			seenKinds[transport.Kind] = struct{}{}
 		}
-		if transport.FieldName == "" {
+		if transport.PayloadOwned() {
+			if _, ok := seenFields[transport.FieldName]; ok {
+				verr.Add(s, "session auth %q defines duplicate field name %q", s.Name, transport.FieldName)
+			} else {
+				seenFields[transport.FieldName] = struct{}{}
+			}
+		} else if transport.Kind != SessionCookieTransportKind {
 			verr.Add(s, "session auth %q defines a %s transport with an empty field name", s.Name, transport.Kind)
-		} else if _, ok := seenFields[transport.FieldName]; ok {
-			verr.Add(s, "session auth %q defines duplicate field name %q", s.Name, transport.FieldName)
-		} else {
-			seenFields[transport.FieldName] = struct{}{}
 		}
 		if terr := transport.Validate(); terr != nil {
 			for _, err := range terr.Errors {
@@ -196,6 +198,27 @@ func (s *SessionTransportExpr) SetDescription(d string) {
 	s.Description = d
 }
 
+// PayloadOwned returns true when the transport credential is modeled as a
+// payload field.
+func (s *SessionTransportExpr) PayloadOwned() bool {
+	return s != nil && s.FieldName != ""
+}
+
+// TransportAttributeName returns the attribute name used for transport
+// metadata when the credential is not payload-owned.
+func (s *SessionTransportExpr) TransportAttributeName() string {
+	if s == nil {
+		return ""
+	}
+	if s.FieldName != "" {
+		return s.FieldName
+	}
+	if s.Scheme != nil && s.Scheme.SchemeName != "" {
+		return s.Scheme.SchemeName
+	}
+	return s.Kind.String()
+}
+
 // Validate validates the session transport.
 func (s *SessionTransportExpr) Validate() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
@@ -205,12 +228,18 @@ func (s *SessionTransportExpr) Validate() *eval.ValidationErrors {
 	}
 	switch s.Kind {
 	case SessionBearerTransportKind:
+		if s.FieldName == "" {
+			verr.Add(s, "bearer transport must define a payload field name")
+		}
 		if s.Scheme.Kind != JWTKind && s.Scheme.Kind != OAuth2Kind {
 			verr.Add(s, "bearer transport must use a JWT or OAuth2 security scheme")
 		}
 	case SessionCookieTransportKind:
 		if s.Scheme.Kind != APIKeyKind {
 			verr.Add(s, "cookie transport must use an API key security scheme")
+		}
+		if s.FieldName == "" && s.HTTPName == "" {
+			verr.Add(s, "transport-only cookie transport must define a cookie name")
 		}
 	default:
 		verr.Add(s, "unknown session transport kind %d", s.Kind)

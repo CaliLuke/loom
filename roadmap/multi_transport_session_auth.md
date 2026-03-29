@@ -72,6 +72,9 @@ Semantics:
 - `SessionSecurity(...)` lowers to ordinary security requirements
 - required transport fields are synthesized into payloads when absent
 - HTTP transport binding is inferred from the declared session transports
+- `CookieTransport(..., "")` keeps cookie auth transport-owned: Loom still
+  decodes the HTTP cookie and emits OpenAPI cookie security, but does not
+  synthesize a payload credential field or CLI flag
 
 ## OpenAPI And Transport Behavior
 

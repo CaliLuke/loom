@@ -1249,7 +1249,11 @@ func transportFieldBinding(name string, fieldAttr, svcAtt *expr.AttributeExpr, s
 	if !expr.IsObject(svcAtt.Type) {
 		return "", fieldType, false
 	}
-	fieldType = svcAtt.Find(name).Type
+	svcField := svcAtt.Find(name)
+	if svcField == nil {
+		return "", fieldAttr.Type, false
+	}
+	fieldType = svcField.Type
 	fieldName := codegen.GoifyAtt(fieldAttr, name, true)
 	if svcCtx == nil {
 		return fieldName, fieldType, svcAtt.IsPrimitivePointer(name, true)
@@ -1386,9 +1390,9 @@ func (sds *ServicesData) extractHeaders(a *expr.MappedAttributeExpr, svcAtt *exp
 
 func (sds *ServicesData) extractCookies(a *expr.MappedAttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
 	var cookies []*CookieData
-	codegen.WalkMappedAttr(a, func(name, elem string, required bool, _ *expr.AttributeExpr) error { // nolint: errcheck
+	codegen.WalkMappedAttr(a, func(name, elem string, required bool, attr *expr.AttributeExpr) error { // nolint: errcheck
 		pointer := a.IsPrimitivePointer(name, true)
-		cookies = append(cookies, sds.cookieData(name, elem, required, pointer, svcAtt, svcCtx, scope))
+		cookies = append(cookies, sds.cookieData(name, elem, required, pointer, attr, svcAtt, svcCtx, scope))
 		return nil
 	})
 	return cookies
@@ -1401,7 +1405,7 @@ func (sds *ServicesData) extractResponseCookies(cookiesExpr []*expr.HTTPResponse
 		if name == "" {
 			continue
 		}
-		cookie := sds.cookieData(name, cookieExpr.HTTPName(), cookieExpr.IsRequired(name), cookieExpr.IsPrimitivePointer(name, true), svcAtt, svcCtx, scope)
+		cookie := sds.cookieData(name, cookieExpr.HTTPName(), cookieExpr.IsRequired(name), cookieExpr.IsPrimitivePointer(name, true), nil, svcAtt, svcCtx, scope)
 		cookie.MaxAge = cookieExpr.MaxAge
 		cookie.Path = cookieExpr.Path
 		cookie.Domain = cookieExpr.Domain
@@ -1422,10 +1426,14 @@ func (sds *ServicesData) extractResponseCookies(cookiesExpr []*expr.HTTPResponse
 	return cookies
 }
 
-func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bool, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) *CookieData {
+func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bool, mappedAttr *expr.AttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) *CookieData {
 	var hattr *expr.AttributeExpr
 	if hattr = svcAtt.Find(name); hattr == nil {
-		hattr = svcAtt
+		if mappedAttr != nil {
+			hattr = mappedAttr
+		} else {
+			hattr = svcAtt
+		}
 	}
 	stringSlice := transportStringSlice(hattr)
 	hattr = makeHTTPType(hattr)

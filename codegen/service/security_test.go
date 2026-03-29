@@ -117,6 +117,16 @@ func TestSessionSecurityNoSecurityOverrideRemovesGeneratedRequirements(t *testin
 	assert.Contains(t, method.PayloadDef, "Message *string")
 }
 
+func TestCookieOnlyTransportOwnedSessionSecurityOmitsGeneratedCredentialField(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.EndpointWithCookieOnlyTransportOwnedSessionSecurityDSL)
+	services := NewServicesData(root)
+	method := services.Get("EndpointWithCookieOnlyTransportOwnedSessionSecurity").Method("Secure")
+	require.NotNil(t, method)
+	assert.Empty(t, method.Requirements)
+	assert.NotContains(t, method.PayloadDef, "BrowserSession")
+	assert.Contains(t, method.PayloadDef, "Message *string")
+}
+
 func TestSecureEndpoint(t *testing.T) {
 	cases := []struct {
 		Name string

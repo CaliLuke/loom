@@ -184,6 +184,23 @@ var ValidSessionSecurityAutoPayloadDSL = func() {
 	})
 }
 
+var ValidCookieOnlyTransportOwnedSessionSecurityDSL = func() {
+	var browserSession = APIKeySecurity("browser_session_cookie")
+	var AppSession = SessionAuth("transport_only_cookie_session", func() {
+		CookieTransport(browserSession, "", func() {
+			CookieName("__Host-ak_session")
+		})
+	})
+	Service("ValidCookieOnlyTransportOwnedSessionSecurityService", func() {
+		Method("SecureMethod", func() {
+			SessionSecurity(AppSession)
+			Payload(func() {
+				Attribute("message", String)
+			})
+		})
+	})
+}
+
 var ValidAPISessionSecurityDSL = func() {
 	var JWT = JWTSecurity("jwt")
 	var APIKey = APIKeySecurity("api_key")

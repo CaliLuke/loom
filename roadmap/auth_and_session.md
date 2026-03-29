@@ -16,6 +16,9 @@ Reduce application design-file glue while making the default security posture cl
   - design note: [Multi-Transport Session Auth](./multi_transport_session_auth.md)
 - Auto-inject session auth payload fields.
 - Infer HTTP cookie bindings for session auth.
+- Allow cookie-only session auth to stay transport-owned with
+  `CookieTransport(..., "")`, so browser-cookie routes keep cookie/OpenAPI
+  security wiring without generating explicit payload credential fields.
 - Allow WebSocket HTTP streaming handshakes to use `SessionSecurity(...)`
   cookie transports together with fully mapped path/query params without
   synthesizing an HTTP request body.
