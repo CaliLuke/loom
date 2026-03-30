@@ -41,20 +41,7 @@ func serverType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 }
 
 func collectServerInitData(svc *expr.GRPCServiceExpr, sd *ServiceData) []*InitData {
-	var initData []*InitData
-	seen := make(map[string]struct{})
-	collect := func(c *ConvertData) {
-		if c == nil || c.Init == nil {
-			return
-		}
-		if _, ok := seen[c.Init.Name]; ok {
-			return
-		}
-		seen[c.Init.Name] = struct{}{}
-		initData = append(initData, c.Init)
-	}
-	for _, a := range svc.GRPCEndpoints {
-		ed := sd.Endpoint(a.Name())
+	return collectInitData(svc, sd, func(ed *EndpointData, collect func(*ConvertData)) {
 		collect(ed.Request.ServerConvert)
 		collect(ed.Response.ServerConvert)
 		if ed.ServerStream != nil {
@@ -64,6 +51,5 @@ func collectServerInitData(svc *expr.GRPCServiceExpr, sd *ServiceData) []*InitDa
 		for _, e := range ed.Errors {
 			collect(e.Response.ServerConvert)
 		}
-	}
-	return initData
+	})
 }

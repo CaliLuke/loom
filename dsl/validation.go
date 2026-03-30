@@ -197,35 +197,9 @@ func Pattern(p string) {
 //	    ExclusiveMinimum(100)
 //	})
 func ExclusiveMinimum(val any) {
-	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
-		if a.Type != nil &&
-			a.Type.Kind() != expr.IntKind && a.Type.Kind() != expr.UIntKind &&
-			a.Type.Kind() != expr.Int32Kind && a.Type.Kind() != expr.UInt32Kind &&
-			a.Type.Kind() != expr.Int64Kind && a.Type.Kind() != expr.UInt64Kind &&
-			a.Type.Kind() != expr.Float32Kind && a.Type.Kind() != expr.Float64Kind {
-			incompatibleAttributeType("exclusiveMinimum", a.Type.Name(), "a number")
-		} else {
-			var f float64
-			switch v := val.(type) {
-			case float32, float64, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
-				f = reflect.ValueOf(v).Convert(reflect.TypeOf(float64(0.0))).Float()
-			case string:
-				var err error
-				f, err = strconv.ParseFloat(v, 64)
-				if err != nil {
-					eval.ReportError("invalid number value %#v", v)
-					return
-				}
-			default:
-				eval.ReportError("invalid number value %#v", v)
-				return
-			}
-			if a.Validation == nil {
-				a.Validation = &expr.ValidationExpr{}
-			}
-			a.Validation.ExclusiveMinimum = &f
-		}
-	}
+	setNumericValidation("exclusiveMinimum", "a number", val, func(validation *expr.ValidationExpr, value float64) {
+		validation.ExclusiveMinimum = &value
+	})
 }
 
 // Minimum adds a "minimum" validation to the attribute.
@@ -237,35 +211,9 @@ func ExclusiveMinimum(val any) {
 //	    Minimum(100)
 //	})
 func Minimum(val any) {
-	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
-		if a.Type != nil &&
-			a.Type.Kind() != expr.IntKind && a.Type.Kind() != expr.UIntKind &&
-			a.Type.Kind() != expr.Int32Kind && a.Type.Kind() != expr.UInt32Kind &&
-			a.Type.Kind() != expr.Int64Kind && a.Type.Kind() != expr.UInt64Kind &&
-			a.Type.Kind() != expr.Float32Kind && a.Type.Kind() != expr.Float64Kind {
-			incompatibleAttributeType("minimum", a.Type.Name(), "a number")
-		} else {
-			var f float64
-			switch v := val.(type) {
-			case float32, float64, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
-				f = reflect.ValueOf(v).Convert(reflect.TypeOf(float64(0.0))).Float()
-			case string:
-				var err error
-				f, err = strconv.ParseFloat(v, 64)
-				if err != nil {
-					eval.ReportError("invalid number value %#v", v)
-					return
-				}
-			default:
-				eval.ReportError("invalid number value %#v", v)
-				return
-			}
-			if a.Validation == nil {
-				a.Validation = &expr.ValidationExpr{}
-			}
-			a.Validation.Minimum = &f
-		}
-	}
+	setNumericValidation("minimum", "a number", val, func(validation *expr.ValidationExpr, value float64) {
+		validation.Minimum = &value
+	})
 }
 
 // ExclusiveMaximum adds a "exclusiveMaximum" validation to the attribute.
@@ -277,35 +225,9 @@ func Minimum(val any) {
 //	    ExclusiveMaximum(100)
 //	})
 func ExclusiveMaximum(val any) {
-	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
-		if a.Type != nil &&
-			a.Type.Kind() != expr.IntKind && a.Type.Kind() != expr.UIntKind &&
-			a.Type.Kind() != expr.Int32Kind && a.Type.Kind() != expr.UInt32Kind &&
-			a.Type.Kind() != expr.Int64Kind && a.Type.Kind() != expr.UInt64Kind &&
-			a.Type.Kind() != expr.Float32Kind && a.Type.Kind() != expr.Float64Kind {
-			incompatibleAttributeType("exclusiveMaximum", a.Type.Name(), "a number")
-		} else {
-			var f float64
-			switch v := val.(type) {
-			case float32, float64, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
-				f = reflect.ValueOf(v).Convert(reflect.TypeOf(float64(0.0))).Float()
-			case string:
-				var err error
-				f, err = strconv.ParseFloat(v, 64)
-				if err != nil {
-					eval.ReportError("invalid number value %#v", v)
-					return
-				}
-			default:
-				eval.ReportError("invalid number value %#v", v)
-				return
-			}
-			if a.Validation == nil {
-				a.Validation = &expr.ValidationExpr{}
-			}
-			a.Validation.ExclusiveMaximum = &f
-		}
-	}
+	setNumericValidation("exclusiveMaximum", "a number", val, func(validation *expr.ValidationExpr, value float64) {
+		validation.ExclusiveMaximum = &value
+	})
 }
 
 // Maximum adds a "maximum" validation to the attribute.
@@ -317,34 +239,46 @@ func ExclusiveMaximum(val any) {
 //	    Maximum(100)
 //	})
 func Maximum(val any) {
+	setNumericValidation("maximum", "an integer or a number", val, func(validation *expr.ValidationExpr, value float64) {
+		validation.Maximum = &value
+	})
+}
+
+func setNumericValidation(name, expectedType string, val any, apply func(*expr.ValidationExpr, float64)) {
 	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
 		if a.Type != nil &&
 			a.Type.Kind() != expr.IntKind && a.Type.Kind() != expr.UIntKind &&
 			a.Type.Kind() != expr.Int32Kind && a.Type.Kind() != expr.UInt32Kind &&
 			a.Type.Kind() != expr.Int64Kind && a.Type.Kind() != expr.UInt64Kind &&
 			a.Type.Kind() != expr.Float32Kind && a.Type.Kind() != expr.Float64Kind {
-			incompatibleAttributeType("maximum", a.Type.Name(), "an integer or a number")
+			incompatibleAttributeType(name, a.Type.Name(), expectedType)
 		} else {
-			var f float64
-			switch v := val.(type) {
-			case float32, float64, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
-				f = reflect.ValueOf(v).Convert(reflect.TypeOf(float64(0.0))).Float()
-			case string:
-				var err error
-				f, err = strconv.ParseFloat(v, 64)
-				if err != nil {
-					eval.ReportError("invalid number value %#v", v)
-					return
-				}
-			default:
-				eval.ReportError("invalid number value %#v", v)
+			f, ok := parseNumericValidationValue(val)
+			if !ok {
 				return
 			}
 			if a.Validation == nil {
 				a.Validation = &expr.ValidationExpr{}
 			}
-			a.Validation.Maximum = &f
+			apply(a.Validation, f)
 		}
+	}
+}
+
+func parseNumericValidationValue(val any) (float64, bool) {
+	switch v := val.(type) {
+	case float32, float64, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		return reflect.ValueOf(v).Convert(reflect.TypeOf(float64(0.0))).Float(), true
+	case string:
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			eval.ReportError("invalid number value %#v", v)
+			return 0, false
+		}
+		return f, true
+	default:
+		eval.ReportError("invalid number value %#v", v)
+		return 0, false
 	}
 }
 

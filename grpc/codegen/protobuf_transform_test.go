@@ -12,6 +12,25 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+type protoBufTransformCase struct {
+	Name    string
+	Source  expr.DataType
+	Target  expr.DataType
+	ToProto bool
+	Ctx     *codegen.AttributeContext
+}
+
+type protoBufTransformPair struct {
+	ProtoName     string
+	ServiceName   string
+	ProtoSource   expr.DataType
+	ProtoTarget   expr.DataType
+	ServiceSource expr.DataType
+	ServiceTarget expr.DataType
+	ServiceCtx    *codegen.AttributeContext
+	ProtoCtx      *codegen.AttributeContext
+}
+
 func TestProtoBufTransform(t *testing.T) {
 	root := codegen.RunDSL(t, ctestdata.TestTypesDSL)
 	var (
@@ -68,96 +87,58 @@ func TestProtoBufTransform(t *testing.T) {
 		}
 	}
 
-	tc := map[string][]struct {
-		Name    string
-		Source  expr.DataType
-		Target  expr.DataType
-		ToProto bool
-		Ctx     *codegen.AttributeContext
-	}{
-		// test cases to transform service type to protocol buffer type
-		"to-protobuf-type": {
-			{"primitive-to-primitive", primitive, primitive, true, svcCtx},
-			{"simple-to-simple", simple, simple, true, svcCtx},
-			{"simple-to-required", simple, required, true, svcCtx},
-			{"required-to-simple", required, simple, true, svcCtx},
-			{"simple-to-default", simple, defaultT, true, svcCtx},
-			{"default-to-simple", defaultT, simple, true, svcCtx},
-			{"required-ptr-to-simple", required, simple, true, ptrCtx},
-			{"simple-to-customtype", customtype, simple, true, svcCtx},
-			{"customtype-to-customtype", customtype, customtype, true, svcCtx},
-
-			// maps
-			{"map-to-map", simpleMap, simpleMap, true, svcCtx},
-			{"nested-map-to-nested-map", nestedMap, nestedMap, true, svcCtx},
-			{"array-map-to-array-map", arrayMap, arrayMap, true, svcCtx},
-			{"default-map-to-default-map", defaultMap, defaultMap, true, svcCtx},
-
-			// arrays
-			{"array-to-array", simpleArray, simpleArray, true, svcCtx},
-			{"nested-array-to-nested-array", nestedArray, nestedArray, true, svcCtx},
-			{"type-array-to-type-array", typeArray, typeArray, true, svcCtx},
-			{"map-array-to-map-array", mapArray, mapArray, true, svcCtx},
-			{"default-array-to-default-array", defaultArray, defaultArray, true, svcCtx},
-
-			{"recursive-to-recursive", recursive, recursive, true, svcCtx},
-			{"composite-to-custom-field", composite, customField, true, svcCtx},
-			{"custom-field-to-composite", customField, composite, true, svcCtx},
-			{"result-type-to-result-type", resultType, resultType, true, svcCtx},
-			{"result-type-collection-to-result-type-collection", rtCol, rtCol, true, svcCtx},
-			{"optional-to-optional", optional, optional, true, svcCtx},
-			{"defaults-to-defaults", defaults, defaults, true, svcCtx},
-
-			// oneofs
-			{"oneof-to-oneof", simpleOneOf, simpleOneOf, true, svcCtx},
-			{"embedded-oneof-to-embedded-oneof", embeddedOneOf, embeddedOneOf, true, svcCtx},
-			{"recursive-oneof-to-recursive-oneof", recursiveOneOf, recursiveOneOf, true, svcCtx},
-
-			// package override
-			{"pkg-override-to-pkg-override", pkgOverride, pkgOverride, true, svcCtx},
+	pairs := []protoBufTransformPair{
+		{ProtoName: "primitive-to-primitive", ServiceName: "primitive-to-primitive", ProtoSource: primitive, ProtoTarget: primitive, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "simple-to-simple", ServiceName: "simple-to-simple", ProtoSource: simple, ProtoTarget: simple, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "simple-to-required", ServiceName: "simple-to-required", ProtoSource: simple, ProtoTarget: required, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "required-to-simple", ServiceName: "required-to-simple", ProtoSource: required, ProtoTarget: simple, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "simple-to-default", ServiceName: "simple-to-default", ProtoSource: simple, ProtoTarget: defaultT, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "default-to-simple", ServiceName: "default-to-simple", ProtoSource: defaultT, ProtoTarget: simple, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{
+			ProtoName:     "required-ptr-to-simple",
+			ServiceName:   "simple-to-required-ptr",
+			ProtoSource:   required,
+			ProtoTarget:   simple,
+			ServiceSource: simple,
+			ServiceTarget: required,
+			ServiceCtx:    ptrCtx,
+			ProtoCtx:      ptrCtx,
 		},
-
-		// test cases to transform protocol buffer type to service type
-		"to-service-type": {
-			{"primitive-to-primitive", primitive, primitive, false, svcCtx},
-			{"simple-to-simple", simple, simple, false, svcCtx},
-			{"simple-to-required", simple, required, false, svcCtx},
-			{"required-to-simple", required, simple, false, svcCtx},
-			{"simple-to-default", simple, defaultT, false, svcCtx},
-			{"default-to-simple", defaultT, simple, false, svcCtx},
-			{"simple-to-required-ptr", simple, required, false, ptrCtx},
-			{"simple-to-customtype", simple, customtype, false, svcCtx},
-			{"customtype-to-customtype", customtype, customtype, false, svcCtx},
-
-			// maps
-			{"map-to-map", simpleMap, simpleMap, false, svcCtx},
-			{"nested-map-to-nested-map", nestedMap, nestedMap, false, svcCtx},
-			{"array-map-to-array-map", arrayMap, arrayMap, false, svcCtx},
-			{"default-map-to-default-map", defaultMap, defaultMap, false, svcCtx},
-
-			// arrays
-			{"array-to-array", simpleArray, simpleArray, false, svcCtx},
-			{"nested-array-to-nested-array", nestedArray, nestedArray, false, svcCtx},
-			{"type-array-to-type-array", typeArray, typeArray, false, svcCtx},
-			{"map-array-to-map-array", mapArray, mapArray, false, svcCtx},
-			{"default-array-to-default-array", defaultArray, defaultArray, false, svcCtx},
-
-			{"recursive-to-recursive", recursive, recursive, false, svcCtx},
-			{"composite-to-custom-field", composite, customField, false, svcCtx},
-			{"custom-field-to-composite", customField, composite, false, svcCtx},
-			{"result-type-to-result-type", resultType, resultType, false, svcCtx},
-			{"result-type-collection-to-result-type-collection", rtCol, rtCol, false, svcCtx},
-			{"optional-to-optional", optional, optional, false, svcCtx},
-			{"defaults-to-defaults", defaults, defaults, false, svcCtx},
-
-			// oneofs
-			{"oneof-to-oneof", simpleOneOf, simpleOneOf, false, svcCtx},
-			{"embedded-oneof-to-embedded-oneof", embeddedOneOf, embeddedOneOf, false, svcCtx},
-			{"recursive-oneof-to-recursive-oneof", recursiveOneOf, recursiveOneOf, false, svcCtx},
-
-			// package override
-			{"pkg-override-to-pkg-override", pkgOverride, pkgOverride, false, svcCtx},
+		{
+			ProtoName:     "simple-to-customtype",
+			ServiceName:   "simple-to-customtype",
+			ProtoSource:   customtype,
+			ProtoTarget:   simple,
+			ServiceSource: simple,
+			ServiceTarget: customtype,
+			ServiceCtx:    svcCtx,
+			ProtoCtx:      svcCtx,
 		},
+		{ProtoName: "customtype-to-customtype", ServiceName: "customtype-to-customtype", ProtoSource: customtype, ProtoTarget: customtype, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "map-to-map", ServiceName: "map-to-map", ProtoSource: simpleMap, ProtoTarget: simpleMap, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "nested-map-to-nested-map", ServiceName: "nested-map-to-nested-map", ProtoSource: nestedMap, ProtoTarget: nestedMap, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "array-map-to-array-map", ServiceName: "array-map-to-array-map", ProtoSource: arrayMap, ProtoTarget: arrayMap, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "default-map-to-default-map", ServiceName: "default-map-to-default-map", ProtoSource: defaultMap, ProtoTarget: defaultMap, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "array-to-array", ServiceName: "array-to-array", ProtoSource: simpleArray, ProtoTarget: simpleArray, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "nested-array-to-nested-array", ServiceName: "nested-array-to-nested-array", ProtoSource: nestedArray, ProtoTarget: nestedArray, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "type-array-to-type-array", ServiceName: "type-array-to-type-array", ProtoSource: typeArray, ProtoTarget: typeArray, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "map-array-to-map-array", ServiceName: "map-array-to-map-array", ProtoSource: mapArray, ProtoTarget: mapArray, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "default-array-to-default-array", ServiceName: "default-array-to-default-array", ProtoSource: defaultArray, ProtoTarget: defaultArray, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "recursive-to-recursive", ServiceName: "recursive-to-recursive", ProtoSource: recursive, ProtoTarget: recursive, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "composite-to-custom-field", ServiceName: "composite-to-custom-field", ProtoSource: composite, ProtoTarget: customField, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "custom-field-to-composite", ServiceName: "custom-field-to-composite", ProtoSource: customField, ProtoTarget: composite, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "result-type-to-result-type", ServiceName: "result-type-to-result-type", ProtoSource: resultType, ProtoTarget: resultType, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "result-type-collection-to-result-type-collection", ServiceName: "result-type-collection-to-result-type-collection", ProtoSource: rtCol, ProtoTarget: rtCol, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "optional-to-optional", ServiceName: "optional-to-optional", ProtoSource: optional, ProtoTarget: optional, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "defaults-to-defaults", ServiceName: "defaults-to-defaults", ProtoSource: defaults, ProtoTarget: defaults, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "oneof-to-oneof", ServiceName: "oneof-to-oneof", ProtoSource: simpleOneOf, ProtoTarget: simpleOneOf, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "embedded-oneof-to-embedded-oneof", ServiceName: "embedded-oneof-to-embedded-oneof", ProtoSource: embeddedOneOf, ProtoTarget: embeddedOneOf, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "recursive-oneof-to-recursive-oneof", ServiceName: "recursive-oneof-to-recursive-oneof", ProtoSource: recursiveOneOf, ProtoTarget: recursiveOneOf, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+		{ProtoName: "pkg-override-to-pkg-override", ServiceName: "pkg-override-to-pkg-override", ProtoSource: pkgOverride, ProtoTarget: pkgOverride, ServiceCtx: svcCtx, ProtoCtx: svcCtx},
+	}
+	tc := map[string][]protoBufTransformCase{
+		"to-protobuf-type": buildProtoBufTransformCases(true, pairs),
+		"to-service-type":  buildProtoBufTransformCases(false, pairs),
 	}
 	for name, cases := range tc {
 		t.Run(name, func(t *testing.T) {
@@ -182,6 +163,31 @@ func TestProtoBufTransform(t *testing.T) {
 			}
 		})
 	}
+}
+
+func buildProtoBufTransformCases(toProto bool, pairs []protoBufTransformPair) []protoBufTransformCase {
+	cases := make([]protoBufTransformCase, 0, len(pairs))
+	for _, pair := range pairs {
+		tc := protoBufTransformCase{
+			Source:  pair.ProtoSource,
+			Target:  pair.ProtoTarget,
+			ToProto: toProto,
+			Ctx:     pair.ProtoCtx,
+			Name:    pair.ProtoName,
+		}
+		if !toProto {
+			tc.Name = pair.ServiceName
+			if pair.ServiceSource != nil {
+				tc.Source = pair.ServiceSource
+			}
+			if pair.ServiceTarget != nil {
+				tc.Target = pair.ServiceTarget
+			}
+			tc.Ctx = pair.ServiceCtx
+		}
+		cases = append(cases, tc)
+	}
+	return cases
 }
 
 func TestProtoBufTransformAnyType(t *testing.T) {

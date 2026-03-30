@@ -4,6 +4,7 @@ linters:
     - errorlint     # Better error handling patterns for Go 1.13+
     - errcheck      # Check for unchecked errors
     - staticcheck   # Advanced static analysis
+    - dupl          # Detect duplicated code blocks
     - gocyclo       # Enforce a cyclomatic complexity ceiling
     - maintidx      # Enforce maintainability index floor (Halstead + cyclomatic + LOC)
     - unparam       # Detects unused parameters
@@ -29,6 +30,8 @@ linters:
     staticcheck:
       checks:
         - "-ST1001"   # Dot imports are used intentionally in DSL
+    dupl:
+      threshold: 150
     gocyclo:
       min-complexity: 50
     maintidx:

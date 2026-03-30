@@ -110,43 +110,7 @@ func TestUnaryServerMiddleware(t *testing.T) {
 		agent      = "user agent"
 		unary      = &grpc.UnaryServerInfo{FullMethod: "Test.Test"}
 	)
-	cases := []*testCase{
-		{
-			Name:     "no-trace",
-			Trace:    Tra{"", "", ""},
-			Request:  Req{"", "", ""},
-			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
-		},
-		{
-			Name:     "basic",
-			Trace:    Tra{traceID, spanID, ""},
-			Request:  Req{remoteAddr, clientIP, agent},
-			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
-		},
-		{
-			Name:     "with-parent",
-			Trace:    Tra{traceID, spanID, parentID},
-			Request:  Req{remoteAddr, clientIP, agent},
-			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
-		},
-		{
-			Name:     "error",
-			Trace:    Tra{traceID, spanID, ""},
-			Request:  Req{remoteAddr, clientIP, agent},
-			Response: Res{codes.Unknown},
-			Segment:  Seg{status.Error(codes.Unknown, "error"), true},
-		},
-		{
-			Name:     "fault",
-			Trace:    Tra{traceID, spanID, ""},
-			Request:  Req{remoteAddr, clientIP, agent},
-			Response: Res{codes.InvalidArgument},
-			Segment:  Seg{status.Error(codes.InvalidArgument, "error"), true},
-		},
-	}
+	cases := middlewareTestCases(traceID, spanID, parentID, clientIP, remoteAddr, agent)
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			m, err := NewUnaryServer("service", udplisten)
@@ -224,43 +188,7 @@ func TestStreamServerMiddleware(t *testing.T) {
 		agent      = "user agent"
 		streamInfo = &grpc.StreamServerInfo{FullMethod: "Test.Test"}
 	)
-	cases := []*testCase{
-		{
-			Name:     "no-trace",
-			Trace:    Tra{"", "", ""},
-			Request:  Req{"", "", ""},
-			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
-		},
-		{
-			Name:     "basic",
-			Trace:    Tra{traceID, spanID, ""},
-			Request:  Req{remoteAddr, clientIP, agent},
-			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
-		},
-		{
-			Name:     "with-parent",
-			Trace:    Tra{traceID, spanID, parentID},
-			Request:  Req{remoteAddr, clientIP, agent},
-			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
-		},
-		{
-			Name:     "error",
-			Trace:    Tra{traceID, spanID, ""},
-			Request:  Req{remoteAddr, clientIP, agent},
-			Response: Res{codes.Unknown},
-			Segment:  Seg{status.Error(codes.Unknown, "error"), true},
-		},
-		{
-			Name:     "fault",
-			Trace:    Tra{traceID, spanID, ""},
-			Request:  Req{remoteAddr, clientIP, agent},
-			Response: Res{codes.InvalidArgument},
-			Segment:  Seg{status.Error(codes.InvalidArgument, "error"), true},
-		},
-	}
+	cases := middlewareTestCases(traceID, spanID, parentID, clientIP, remoteAddr, agent)
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			m, err := NewStreamServer("service", udplisten)
@@ -364,6 +292,46 @@ func TestStreamServerMiddleware(t *testing.T) {
 				t.Errorf("Error is invalid, expected %v got %v", c.Segment.Error, s.Error)
 			}
 		})
+	}
+}
+
+func middlewareTestCases(traceID, spanID, parentID, clientIP, remoteAddr, agent string) []*testCase {
+	return []*testCase{
+		{
+			Name:     "no-trace",
+			Trace:    Tra{"", "", ""},
+			Request:  Req{"", "", ""},
+			Response: Res{codes.OK},
+			Segment:  Seg{nil, false},
+		},
+		{
+			Name:     "basic",
+			Trace:    Tra{traceID, spanID, ""},
+			Request:  Req{remoteAddr, clientIP, agent},
+			Response: Res{codes.OK},
+			Segment:  Seg{nil, false},
+		},
+		{
+			Name:     "with-parent",
+			Trace:    Tra{traceID, spanID, parentID},
+			Request:  Req{remoteAddr, clientIP, agent},
+			Response: Res{codes.OK},
+			Segment:  Seg{nil, false},
+		},
+		{
+			Name:     "error",
+			Trace:    Tra{traceID, spanID, ""},
+			Request:  Req{remoteAddr, clientIP, agent},
+			Response: Res{codes.Unknown},
+			Segment:  Seg{status.Error(codes.Unknown, "error"), true},
+		},
+		{
+			Name:     "fault",
+			Trace:    Tra{traceID, spanID, ""},
+			Request:  Req{remoteAddr, clientIP, agent},
+			Response: Res{codes.InvalidArgument},
+			Segment:  Seg{status.Error(codes.InvalidArgument, "error"), true},
+		},
 	}
 }
 

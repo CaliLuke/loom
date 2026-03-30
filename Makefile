@@ -25,7 +25,7 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend lint test test-release integration-test build-loom loom-local loom-remote loom-status release release-preflight release-loom
+.PHONY: all all-tests ci depend install-hooks lint test test-release integration-test build-loom loom-local loom-remote loom-status release release-preflight release-loom
 .NOTPARALLEL: release release-loom
 
 # Only list test and build dependencies
@@ -82,6 +82,11 @@ depend:
 		chmod 0755 "$(PROTOC_DEST)" && \
 		rm -rf $(PROTOC) && \
 		"$(PROTOC_DEST)" --version
+
+install-hooks:
+	git config core.hooksPath .githooks
+	chmod 0755 .githooks/pre-push
+	@echo "Configured git hooks to use .githooks"
 
 lint:
 ifneq ($(GOOS),windows)

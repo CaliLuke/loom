@@ -172,6 +172,16 @@ The repository is the current source of truth for framework code, migration hist
 - **[JSON-RPC Architecture](https://github.com/CaliLuke/loom/blob/main/jsonrpc/ARCHITECTURE.md)**: Transport architecture notes
 - **[Integration Tests](https://github.com/CaliLuke/loom/tree/main/http/integration_tests)**: End-to-end fixture and smoke coverage
 
+## Development
+
+Install the tracked git hooks with:
+
+```bash
+make install-hooks
+```
+
+The repo-managed pre-push hook runs `make lint`, and `make lint` now includes the `dupl` linter so duplicated Go code is blocked before push.
+
 ## Real-World Examples
 
 The examples package is being rebuilt under Loom branding. Until that lands, the checked-in fixtures and integration tests in this repo are the most accurate working references.

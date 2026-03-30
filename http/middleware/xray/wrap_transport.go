@@ -32,10 +32,18 @@ func WrapTransport(rt http.RoundTripper) http.RoundTripper {
 // RoundTrip wraps the original RoundTripper.RoundTrip to create xray tracing
 // segments.
 func (t *xrayTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return withTracedRequest(req, func(tracedReq *http.Request) (*http.Response, error) {
+		return t.wrapped.RoundTrip(tracedReq)
+	}, func() (*http.Response, error) {
+		return t.wrapped.RoundTrip(req)
+	})
+}
+
+func withTracedRequest(req *http.Request, traced func(*http.Request) (*http.Response, error), untraced func() (*http.Response, error)) (*http.Response, error) {
 	ctx := req.Context()
 	seg := ctx.Value(xray.SegKey)
 	if seg == nil {
-		return t.wrapped.RoundTrip(req)
+		return untraced()
 	}
 
 	s := seg.(*xray.Segment)
@@ -48,7 +56,7 @@ func (t *xrayTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// update the context with the latest segment
 	ctx = middleware.WithSpan(ctx, hs.TraceID, hs.ID, hs.ParentID)
 	req = req.WithContext(context.WithValue(ctx, xray.SegKey, hs.Segment))
-	resp, err := t.wrapped.RoundTrip(req)
+	resp, err := traced(req)
 	if err != nil {
 		hs.RecordError(err)
 	} else {

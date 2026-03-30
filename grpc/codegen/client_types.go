@@ -42,6 +42,20 @@ func clientType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 }
 
 func collectClientInitData(svc *expr.GRPCServiceExpr, sd *ServiceData) []*InitData {
+	return collectInitData(svc, sd, func(ed *EndpointData, collect func(*ConvertData)) {
+		collect(ed.Request.ClientConvert)
+		collect(ed.Response.ClientConvert)
+		if ed.ClientStream != nil {
+			collect(ed.ClientStream.RecvConvert)
+			collect(ed.ClientStream.SendConvert)
+		}
+		for _, e := range ed.Errors {
+			collect(e.Response.ClientConvert)
+		}
+	})
+}
+
+func collectInitData(svc *expr.GRPCServiceExpr, sd *ServiceData, gather func(*EndpointData, func(*ConvertData))) []*InitData {
 	var initData []*InitData
 	seen := make(map[string]struct{})
 	collect := func(c *ConvertData) {
@@ -55,16 +69,7 @@ func collectClientInitData(svc *expr.GRPCServiceExpr, sd *ServiceData) []*InitDa
 		initData = append(initData, c.Init)
 	}
 	for _, a := range svc.GRPCEndpoints {
-		ed := sd.Endpoint(a.Name())
-		collect(ed.Request.ClientConvert)
-		collect(ed.Response.ClientConvert)
-		if ed.ClientStream != nil {
-			collect(ed.ClientStream.RecvConvert)
-			collect(ed.ClientStream.SendConvert)
-		}
-		for _, e := range ed.Errors {
-			collect(e.Response.ClientConvert)
-		}
+		gather(sd.Endpoint(a.Name()), collect)
 	}
 	return initData
 }

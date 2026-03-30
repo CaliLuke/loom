@@ -1,12 +1,12 @@
 package codegen
 
 import (
-	"github.com/CaliLuke/loom/codegen/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
@@ -45,61 +45,13 @@ func TestClientEndpointInit(t *testing.T) {
 }
 
 func TestRequestEncoder(t *testing.T) {
-	cases := []struct {
-		Name string
-		DSL  func()
-	}{
-		{"request-encoder-payload-user-type", testdata.MessageUserTypeWithNestedUserTypesDSL},
-		{"request-encoder-payload-array", testdata.UnaryRPCNoResultDSL},
-		{"request-encoder-payload-map", testdata.MessageMapDSL},
-		{"request-encoder-payload-primitive", testdata.ServerStreamingRPCDSL},
-		{"request-encoder-payload-primitive-with-streaming-payload", testdata.ClientStreamingRPCWithPayloadDSL},
-		{"request-encoder-payload-user-type-with-streaming-payload", testdata.BidirectionalStreamingRPCWithPayloadDSL},
-		{"request-encoder-payload-with-metadata", testdata.MessageWithMetadataDSL},
-		{"request-encoder-payload-with-validate", testdata.MessageWithValidateDSL},
-		{"request-encoder-payload-with-security-attributes", testdata.MessageWithSecurityAttrsDSL},
-	}
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			root := RunGRPCDSL(t, c.DSL)
-			services := CreateGRPCServices(root)
-			fs := ClientFiles("", services)
-			require.Len(t, fs, 2)
-			sections := fs[1].Section("request-encoder")
-			require.NotEmpty(t, sections)
-			code := codegen.SectionsCode(t, sections)
-			testutil.AssertGo(t, "testdata/golden/request_encoder_"+c.Name+".go.golden", code)
-		})
-	}
+	assertGRPCSectionGolden(t, grpcCodecCases("request-encoder-", grpcCodecDSLs), func(services *ServicesData) []*codegen.File {
+		return ClientFiles("", services)
+	}, "request-encoder", "request_encoder_")
 }
 
 func TestResponseDecoder(t *testing.T) {
-	cases := []struct {
-		Name string
-		DSL  func()
-	}{
-		{"response-decoder-result-with-views", testdata.MessageResultTypeWithViewsDSL},
-		{"response-decoder-result-with-explicit-view", testdata.MessageResultTypeWithExplicitViewDSL},
-		{"response-decoder-result-array", testdata.MessageArrayDSL},
-		{"response-decoder-result-primitive", testdata.UnaryRPCNoPayloadDSL},
-		{"response-decoder-result-with-metadata", testdata.MessageWithMetadataDSL},
-		{"response-decoder-result-with-validate", testdata.MessageWithValidateDSL},
-		{"response-decoder-result-collection", testdata.MessageResultTypeCollectionDSL},
-		{"response-decoder-server-streaming", testdata.ServerStreamingUserTypeDSL},
-		{"response-decoder-server-streaming-result-with-views", testdata.ServerStreamingResultWithViewsDSL},
-		{"response-decoder-client-streaming", testdata.ClientStreamingRPCDSL},
-		{"response-decoder-bidirectional-streaming", testdata.BidirectionalStreamingRPCDSL},
-	}
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			root := RunGRPCDSL(t, c.DSL)
-			services := CreateGRPCServices(root)
-			fs := ClientFiles("", services)
-			require.Len(t, fs, 2)
-			sections := fs[1].Section("response-decoder")
-			require.NotEmpty(t, sections)
-			code := codegen.SectionsCode(t, sections)
-			testutil.AssertGo(t, "testdata/golden/response_decoder_"+c.Name+".go.golden", code)
-		})
-	}
+	assertGRPCSectionGolden(t, grpcCodecCases("response-decoder-", grpcResultCodecDSLs), func(services *ServicesData) []*codegen.File {
+		return ClientFiles("", services)
+	}, "response-decoder", "response_decoder_")
 }

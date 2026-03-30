@@ -695,44 +695,7 @@ func indentTransformCode(code string) string {
 // seen keeps track of generated transform functions to avoid infinite recursion.
 func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
 	// Do not generate a transform function for the top most user type.
-	var other []*TransformFunctionData
-	switch {
-	case expr.IsArray(source.Type):
-		if other, err = collectHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, true, ta, seen); err == nil {
-			helpers = append(helpers, other...)
-		}
-	case expr.IsMap(source.Type):
-		sm, tm := expr.AsMap(source.Type), expr.AsMap(target.Type)
-		if other, err = collectHelpers(sm.ElemType, tm.ElemType, true, ta, seen); err == nil {
-			helpers = append(helpers, other...)
-			if other, err = collectHelpers(sm.KeyType, tm.KeyType, true, ta, seen); err == nil {
-				helpers = append(helpers, other...)
-			}
-		}
-	case expr.IsUnion(source.Type):
-		tt := expr.AsUnion(target.Type)
-		if tt == nil {
-			return helpers, err
-		}
-		for i, st := range expr.AsUnion(source.Type).Values {
-			if other, err = collectHelpers(st.Attribute, tt.Values[i].Attribute, true, ta, seen); err == nil {
-				helpers = append(helpers, other...)
-			}
-		}
-	case expr.IsObject(source.Type):
-		if expr.IsUnion(target.Type) {
-			return helpers, err
-		}
-		walkMatches(source, target, func(srcMatt, _ *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
-			if err != nil {
-				return
-			}
-			if other, err = collectHelpers(srcc, tgtc, srcMatt.IsRequired(n), ta, seen); err == nil {
-				helpers = append(helpers, other...)
-			}
-		})
-	}
-	return helpers, err
+	return appendNestedHelpers(source, target, true, ta, seen)
 }
 
 // collectHelpers recurses through the given attributes and returns the transform
@@ -747,10 +710,23 @@ func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformA
 	}
 	if _, ok := source.Type.(expr.UserType); ok && expr.IsObject(source.Type) {
 		var h *TransformFunctionData
-		if h, err = generateHelper(source, target, req, ta, seen); h != nil {
+		h, err = generateHelper(source, target, req, ta, seen)
+		if err != nil {
+			return helpers, err
+		}
+		if h != nil {
 			helpers = append(helpers, h)
 		}
 	}
+	var other []*TransformFunctionData
+	if other, err = appendNestedHelpers(source, target, req, ta, seen); err != nil {
+		return helpers, err
+	}
+	helpers = append(helpers, other...)
+	return helpers, err
+}
+
+func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
 	var other []*TransformFunctionData
 	switch {
 	case expr.IsArray(source.Type):

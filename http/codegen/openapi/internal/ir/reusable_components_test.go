@@ -7,36 +7,7 @@ import (
 )
 
 func TestComponentizeResponsesUsesStandardErrorNames(t *testing.T) {
-	doc := &Document{
-		Paths: map[string]*PathItem{
-			"/one": {
-				Operations: map[string]*Operation{
-					"GET": {
-						OperationID: "svc.one",
-						Responses: map[string]*ResponseRef{
-							"401": {Value: &Response{Description: "Unauthorized response."}},
-						},
-					},
-				},
-			},
-			"/two": {
-				Operations: map[string]*Operation{
-					"GET": {
-						OperationID: "svc.two",
-						Responses: map[string]*ResponseRef{
-							"401": {Value: &Response{Description: "Unauthorized response."}},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	componentizeDocument(doc)
-
-	require.Contains(t, doc.Components.Responses, "UnauthorizedError")
-	require.Equal(t, "#/components/responses/UnauthorizedError", doc.Paths["/one"].Operations["GET"].Responses["401"].Ref)
-	require.Equal(t, "#/components/responses/UnauthorizedError", doc.Paths["/two"].Operations["GET"].Responses["401"].Ref)
+	assertSharedNoBodyResponseComponent(t, "GET", "401", "Unauthorized response.", "UnauthorizedError")
 }
 
 func TestComponentizeResponsesReusesEquivalentPayloadResponsesAcrossSchemaAliases(t *testing.T) {
@@ -375,24 +346,29 @@ func TestComponentizeResponsesIncludesLinksInReuseHash(t *testing.T) {
 }
 
 func TestComponentizeResponsesUsesGenericNoContentName(t *testing.T) {
+	assertSharedNoBodyResponseComponent(t, "POST", "204", "No Content response.", "NoContentResponse")
+}
+
+func assertSharedNoBodyResponseComponent(t *testing.T, method, status, description, componentName string) {
+	t.Helper()
 	doc := &Document{
 		Paths: map[string]*PathItem{
 			"/one": {
 				Operations: map[string]*Operation{
-					"POST": {
+					method: {
 						OperationID: "svc.one",
 						Responses: map[string]*ResponseRef{
-							"204": {Value: &Response{Description: "No Content response."}},
+							status: {Value: &Response{Description: description}},
 						},
 					},
 				},
 			},
 			"/two": {
 				Operations: map[string]*Operation{
-					"POST": {
+					method: {
 						OperationID: "svc.two",
 						Responses: map[string]*ResponseRef{
-							"204": {Value: &Response{Description: "No Content response."}},
+							status: {Value: &Response{Description: description}},
 						},
 					},
 				},
@@ -402,7 +378,8 @@ func TestComponentizeResponsesUsesGenericNoContentName(t *testing.T) {
 
 	componentizeDocument(doc)
 
-	require.Contains(t, doc.Components.Responses, "NoContentResponse")
-	require.Equal(t, "#/components/responses/NoContentResponse", doc.Paths["/one"].Operations["POST"].Responses["204"].Ref)
-	require.Equal(t, "#/components/responses/NoContentResponse", doc.Paths["/two"].Operations["POST"].Responses["204"].Ref)
+	require.Contains(t, doc.Components.Responses, componentName)
+	expectedRef := "#/components/responses/" + componentName
+	require.Equal(t, expectedRef, doc.Paths["/one"].Operations[method].Responses[status].Ref)
+	require.Equal(t, expectedRef, doc.Paths["/two"].Operations[method].Responses[status].Ref)
 }
