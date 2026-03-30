@@ -395,16 +395,18 @@ func (m *MethodExpr) Finalize() {
 			rt.Finalize()
 		}
 	}
-	for _, e := range m.Service.Errors {
-		found := false
-		for _, f := range m.Errors {
-			if e.Name == f.Name {
-				found = true
-				break
+	if m.Service != nil {
+		for _, e := range m.Service.Errors {
+			found := false
+			for _, f := range m.Errors {
+				if e.Name == f.Name {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			m.Errors = append(m.Errors, e)
+			if !found {
+				m.Errors = append(m.Errors, e)
+			}
 		}
 	}
 	for _, e := range m.Errors {
@@ -429,18 +431,10 @@ loop:
 		return
 	}
 	if len(m.Requirements) == 0 {
-		if len(m.Service.Requirements) > 0 {
-			m.Requirements = copyReqs(m.Service.Requirements)
-		} else if len(Root.API.Requirements) > 0 {
-			m.Requirements = copyReqs(Root.API.Requirements)
-		}
+		m.Requirements = m.inheritedRequirements()
 	}
 	if len(m.SessionAuths) == 0 {
-		if len(m.Service.SessionAuths) > 0 {
-			m.SessionAuths = copySessionAuths(m.Service.SessionAuths)
-		} else if len(Root.API.SessionAuths) > 0 {
-			m.SessionAuths = copySessionAuths(Root.API.SessionAuths)
-		}
+		m.SessionAuths = m.inheritedSessionAuths()
 	}
 	m.Requirements = mergeRequirements(m.Requirements, sessionRequirements(m.SessionAuths))
 }
@@ -513,12 +507,7 @@ func (m *MethodExpr) validationRequirements() []*SecurityExpr {
 	}
 	requirements := copyReqs(m.Requirements)
 	if len(requirements) == 0 {
-		switch {
-		case len(m.Service.Requirements) > 0:
-			requirements = copyReqs(m.Service.Requirements)
-		case len(Root.API.Requirements) > 0:
-			requirements = copyReqs(Root.API.Requirements)
-		}
+		requirements = m.inheritedRequirements()
 	}
 	sessionAuths := m.validationSessionAuths()
 	return mergeRequirements(requirements, sessionRequirements(sessionAuths))
@@ -537,14 +526,31 @@ func (m *MethodExpr) validationSessionAuths() []*SessionAuthExpr {
 	}
 	sessionAuths := copySessionAuths(m.SessionAuths)
 	if len(sessionAuths) == 0 {
-		switch {
-		case len(m.Service.SessionAuths) > 0:
-			sessionAuths = copySessionAuths(m.Service.SessionAuths)
-		case len(Root.API.SessionAuths) > 0:
-			sessionAuths = copySessionAuths(Root.API.SessionAuths)
-		}
+		sessionAuths = m.inheritedSessionAuths()
 	}
 	return sessionAuths
+}
+
+func (m *MethodExpr) inheritedRequirements() []*SecurityExpr {
+	switch {
+	case m.Service != nil && len(m.Service.Requirements) > 0:
+		return copyReqs(m.Service.Requirements)
+	case Root.API != nil && len(Root.API.Requirements) > 0:
+		return copyReqs(Root.API.Requirements)
+	default:
+		return nil
+	}
+}
+
+func (m *MethodExpr) inheritedSessionAuths() []*SessionAuthExpr {
+	switch {
+	case m.Service != nil && len(m.Service.SessionAuths) > 0:
+		return copySessionAuths(m.Service.SessionAuths)
+	case Root.API != nil && len(Root.API.SessionAuths) > 0:
+		return copySessionAuths(Root.API.SessionAuths)
+	default:
+		return nil
+	}
 }
 
 func sessionRequirements(sessionAuths []*SessionAuthExpr) []*SecurityExpr {

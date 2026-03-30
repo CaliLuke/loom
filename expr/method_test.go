@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/expr/testdata"
@@ -244,6 +245,35 @@ func TestSessionSecurityInjectsPayloadFields(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, expr.String, browserSession.Type)
 	}
+}
+
+func TestMethodSecurityHelpersAllowDetachedMethods(t *testing.T) {
+	t.Run("effective requirements", func(t *testing.T) {
+		method := &expr.MethodExpr{
+			Name: "DetachedMethod",
+		}
+
+		require.NotPanics(t, func() {
+			require.Nil(t, method.EffectiveRequirements())
+			require.Nil(t, method.EffectiveSessionAuths())
+		})
+	})
+
+	t.Run("finalize", func(t *testing.T) {
+		prevRoot := expr.Root
+		expr.Root = &expr.RootExpr{}
+		t.Cleanup(func() {
+			expr.Root = prevRoot
+		})
+
+		method := &expr.MethodExpr{
+			Name:    "DetachedMethod",
+			Payload: &expr.AttributeExpr{Type: expr.Empty},
+			Result:  &expr.AttributeExpr{Type: expr.Empty},
+		}
+
+		require.NotPanics(t, method.Finalize)
+	})
 }
 
 func TestTransportOwnedCookieSessionSecuritySkipsPayloadInjection(t *testing.T) {

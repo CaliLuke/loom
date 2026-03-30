@@ -1,9 +1,9 @@
 module github.com/CaliLuke/loom/http/integration_tests
 
-go 1.26.0
+go 1.26.1
 
 require (
-	github.com/CaliLuke/loom v1.0.0
+	github.com/CaliLuke/loom v1.0.7
 	github.com/stretchr/testify v1.11.1
 	github.com/tmaxmax/go-sse v0.11.0
 )
