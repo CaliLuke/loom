@@ -69,6 +69,11 @@ Default to this shape unless the user explicitly asks for something else.
 - If code inspection shows the behavior already exists, the plan should switch from presumed implementation to explicit verification.
   Good: `Add a frontend test in <repo path> proving node.deleted invalidates promotions.project`
   Bad: `Implement eviction on node.deleted` when the repo already does that
+- Before drafting a non-trivial refactor plan, run a codebase search for the concrete owners, types, or callsites that define the boundary you are changing, record the exact remaining non-test references, and build milestones from that list instead of from memory.
+- When a refactor boundary depends on eliminating or preserving specific owners, include a concise inventory of the current non-test hits in the plan and classify each as `remove`, `preserve wrapper`, or `out-of-scope helper`.
+- Re-run the same codebase search before finalizing the plan if the draft changed substantially, so the inventory and allowlist still match the current code.
+- Reconcile the plan’s inventory against the exact live search output before finalizing. Do not summarize a boundary inventory from memory or from an older search run.
+- For every named file in a refactor plan, mark it implicitly or explicitly as `implementation` or `verification-only` based on the inspected current state. Do not leave already-migrated files looking like implementation work.
 - Acceptance criteria should be stated as observable truths, not intentions.
   Good: `Deleting an artifact with a pending proposal removes both from backend queries`
   Bad: `Backend seems correct`
@@ -89,7 +94,17 @@ Default to this shape unless the user explicitly asks for something else.
   Bad: `Identify the proposal queue`
 - A fresh agent should not have to guess where to start.
   Include file paths, package names, commands, event names, stores, routes, or tests whenever those are already discoverable.
+- If a refactor intentionally allows some remaining usage of a broader type family, state the allowed surviving uses explicitly so the plan does not over-delete legitimate seams.
+- If a preserved wrapper remains, state whether it is a thin signature adapter or still owns behavior. Do not call a behavior-owning wrapper an adapter.
+- If an exported wrapper is preserved, name at least one current non-test caller that keeps it alive. If there is no current non-test caller, do not justify it as a stable-callsite survivor.
+- If a wrapper or helper is removed, name every current caller or test seam that must be updated as part of that removal.
 - For route-sensitive work, record both the client callsite and the server route/handler path when both are knowable.
+- Do not use conditional checklist items such as `verify unless`, `implement if`, or similar branch points. Choose the action and state the exact observation that justifies a verification-only task.
+- Do not defer an architectural choice to a later milestone unless the user must make that choice. A plan should encode one chosen design, not preserve avoidable architecture branches.
+- Do not refer to nonexistent artifact sections such as `implementation notes` or `decision appendix` unless the document actually contains them.
+- Do not use labels like `IR-owned` or `normalized` as replacement descriptions when downstream code depends on concrete fields. Name the exact replacement fields or symbols.
+- Do not name an `existing fixture`, `adjacent test`, or `current helper` unless it is a real reusable symbol, file, or test in the current codebase.
+- Do not use non-repo proof sinks such as `commit message`, `acceptance proof note`, or similar narrative artifacts as checklist outputs.
 
 ## Milestone Contract
 
@@ -122,11 +137,19 @@ Acceptance criteria are exit conditions, not work items. They should answer:
 - Put commit, review, and push steps in the milestone where handoff actually happens.
 - Do not use a generic final milestone like `Validation` as a dumping ground for unrelated steps.
 - If an acceptance criterion depends on a test, the checklist should include writing or updating that test before the implementation step it protects.
+- If an acceptance criterion uses `rg`, `grep`, or another structural search as the exit gate, the criterion must also name the explicit allowlist or exclusion pattern for preserved wrappers, tests, generated adapters, or other intentional survivors.
+- Structural-search exit criteria must name the intended final survivor files or symbols explicitly, not only categories such as `builder implementation` or `allowed wrappers`.
+- Structural-search commands in the plan must themselves be executable and non-duplicative. Prefer one root search or a deduped command/output artifact over overlapping roots that double-count results.
+- Do not put an exit criterion in a milestone unless that criterion can be satisfied by the checklist inside that milestone.
 - If a branch must exist, make it a named decision outside the checklist before writing the plan. Do not leave execution branches inside checklist items.
 - If a fresh reviewer is asked to critique the plan, instruct them to inspect the current code and judge whether each checklist item is executable without hidden context.
 - Preserve current public contracts explicitly when a plan changes internal mechanics.
   If IDs, return values, event payloads, or route behavior already have tests, state whether the plan preserves or changes them.
+- When preserved public wrappers remain, name every downstream caller or dependent test that keeps those wrappers alive before using a structural-search boundary gate.
+- For every preserved wrapper, name every current caller that keeps it alive.
+- Signature-preservation criteria should point at the declaration site, not only at caller files.
 - If the plan preserves an existing outward contract while changing internals, say that explicitly in the milestone acceptance criteria.
+- Verification-only tasks must cite the exact current observation and the exact proof location that keep the work out of implementation scope.
 
 ## Default Document Template
 
@@ -236,7 +259,9 @@ When asking another agent to critique a plan produced with this skill, the promp
 3. Call out vague tasks that do not name a file, package, module, event, command, or test when that detail is already discoverable.
 4. Call out checklist items whose acceptance criteria are not backed by a named verification step.
 5. Call out plan items that assume missing behavior when the inspected code already implements that behavior.
-5. Critique only. No delegation, no implementation, no meta-summary.
+6. Compare any structural-search allowlist in the plan against the current codebase search results and flag mismatches.
+7. Flag any conditional checklist item or verification-only task that does not name the exact observation keeping it out of implementation scope.
+8. Critique only. No delegation, no implementation, no meta-summary.
 
 Use a review pass by default for non-trivial plans. A single planner should not trust themselves to catch all structural defects unaided.
 
@@ -306,6 +331,8 @@ Requirements:
 - Inspect the current code where the plan points. Do not review the plan text in isolation.
 - Judge whether the plan is executable by a fresh agent with no conversation context.
 - Call out vague checklist items, weak acceptance criteria, missing file/module specificity, sequencing defects, wrong behavior loci, and places where the skill still allows weak plans.
+- Compare any structural-search boundary allowlist against the current codebase search results.
+- Flag any conditional checklist item or verification-only task that does not name the exact observation that keeps it out of implementation scope.
 - Critique only. Do not edit files. Do not delegate. Do not spawn sub-agents.
 
 Return exactly these sections:
@@ -327,6 +354,8 @@ Requirements:
 - Check whether each checklist item is directly actionable by a fresh agent without hidden conversation context.
 - Flag any task that does not name a concrete locus of work or a concrete proof artifact when that detail is already discoverable.
 - Flag any acceptance criterion that does not state what makes it true.
+- Compare any structural-search boundary allowlist against the current codebase search results.
+- Flag any conditional checklist item or verification-only task that does not name the exact observation that keeps it out of implementation scope.
 - Critique only. No edits, no delegation, no implementation.
 
 Return exactly these sections:
