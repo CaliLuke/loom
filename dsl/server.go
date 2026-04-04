@@ -34,8 +34,8 @@ import (
 //	         Host("production", func() {
 //	            Description("Production host.")
 //	            // URIs can be parameterized using {param} notation.
-//	            URI("https://{version}.goa.design/calc")
-//	            URI("grpcs://{version}.goa.design")
+//	            URI("https://{version}.loom.dev/calc")
+//	            URI("grpcs://{version}.loom.dev")
 //
 //	            // Variable describes a URI variable.
 //	            Variable("version", String, "API version", func() {
@@ -179,8 +179,8 @@ func URI(uri string) {
 //
 //	var _ = Server("calcsvr", func() {
 //	    Host("production", func() {
-//	        URI("https://{version}.goa.design/calc")
-//	        URI("grpcs://{version}.goa.design")
+//	        URI("https://{version}.loom.dev/calc")
+//	        URI("grpcs://{version}.loom.dev")
 //
 //	        Variable("version", String, "API version", func() {
 //	            Enum("v1", "v2")

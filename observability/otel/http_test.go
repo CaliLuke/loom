@@ -48,7 +48,8 @@ func TestHTTPMiddlewareUsesRoutePatternAndEnrichment(t *testing.T) {
 	})
 	fixture.Mux.Handle("GET", "/projects/{project_id}", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
-		_, _ = w.Write([]byte("ok"))
+		_, err := w.Write([]byte("ok"))
+		require.NoError(t, err)
 	})
 
 	resp, err := fixture.Request(t.Context(), http.MethodGet, "/projects/proj_123", nil)

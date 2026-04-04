@@ -88,14 +88,22 @@ func TestRecordRequest(t *testing.T) {
 
 	cases := map[string]struct {
 		Request  Req
+		ClientIP string
 		Response *xray.Response
 	}{
 		"with-HTTP.Response": {
 			Request:  Req{remoteAddr, userAgent},
+			ClientIP: ip,
 			Response: &xray.Response{Status: int(codes.OK)},
 		},
 		"without-HTTP.Response": {
 			Request:  Req{remoteAddr, userAgent},
+			ClientIP: ip,
+			Response: nil,
+		},
+		"bare-IP-peer": {
+			Request:  Req{RemoteAddr: ip, UserAgent: userAgent},
+			ClientIP: ip,
 			Response: nil,
 		},
 	}
@@ -125,7 +133,7 @@ func TestRecordRequest(t *testing.T) {
 			require.NotNil(t, s.HTTP)
 			require.NotNil(t, s.HTTP.Request)
 			assert.Equal(t, "Test.Test", s.HTTP.Request.URL)
-			assert.Equal(t, ip, s.HTTP.Request.ClientIP)
+			assert.Equal(t, c.ClientIP, s.HTTP.Request.ClientIP)
 			assert.Equal(t, "GRPC", s.HTTP.Request.Method)
 			assert.Equal(t, userAgent, s.HTTP.Request.UserAgent)
 			assert.Greater(t, s.HTTP.Request.ContentLength, int64(0))

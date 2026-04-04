@@ -702,32 +702,39 @@ qp := r.URL.Query()
 {{- end }}
 
 {{- range .Cookies }}
-	c, {{ if not .Required }}_{{ else }}err{{ end }} = r.Cookie("{{ .HTTPName }}")
-	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
-		if errors.Is(err, http.ErrNoCookie) {
-			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
-		} else {
-			{{ .VarName }} = c.Value
-		}
+		{
+			c, cookieErr := r.Cookie("{{ .HTTPName }}")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+					{{- if .Required }}
+					err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
+					{{- end }}
+				} else {
+					return payload, cookieErr
+				}
+			}
+		{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
+			if c != nil {
+				{{ .VarName }} = c.Value
+			}
 
-	{{- else if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
-		var {{ .VarName }}Raw string
-		if c != nil {
-			{{ .VarName }}Raw = c.Value
-		}
-		if {{ .VarName }}Raw != "" {
-			{{ .VarName }} = {{ if and (eq .Type.Name "string") .Pointer }}&{{ end }}{{ .VarName }}Raw
-		}
-		{{- if .DefaultValue }} else {
-			{{ .VarName }} = {{ if eq .Type.Name "string" }}{{ printf "%q" .DefaultValue }}{{ else }}{{ printf "%#v" .DefaultValue }}{{ end }}
-		}
-		{{- end }}
+		{{- else if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
+			var {{ .VarName }}Raw string
+			if c != nil {
+				{{ .VarName }}Raw = c.Value
+			}
+			if {{ .VarName }}Raw != "" {
+				{{ .VarName }} = {{ if and (eq .Type.Name "string") .Pointer }}&{{ end }}{{ .VarName }}Raw
+			}
+			{{- if .DefaultValue }} else {
+				{{ .VarName }} = {{ if eq .Type.Name "string" }}{{ printf "%q" .DefaultValue }}{{ else }}{{ printf "%#v" .DefaultValue }}{{ end }}
+			}
+			{{- end }}
 
-	{{- else }}{{/* not string and not any */}}
-	{
-		var {{ .VarName }}Raw string
-		if c != nil {
-			{{ .VarName }}Raw = c.Value
+		{{- else }}{{/* not string and not any */}}
+			var {{ .VarName }}Raw string
+			if c != nil {
+				{{ .VarName }}Raw = c.Value
 		}
 		{{- if .Required }}
 		if {{ .VarName }}Raw == "" {
@@ -744,14 +751,14 @@ qp := r.URL.Query()
 		if {{ .VarName }}Raw != "" {
 		{{- end }}
 		{{- template "partial_query_type_conversion" . }}
-		{{- if or .DefaultValue (not .Required) }}
-		}
+			{{- if or .DefaultValue (not .Required) }}
+			}
+			{{- end }}
 		{{- end }}
-	}
-	{{- end }}
-	{{- if .Validate }}
-		{{ .Validate }}
-	{{- end }}
+		}
+		{{- if .Validate }}
+			{{ .Validate }}
+		{{- end }}
 {{- end }}
 {{- end }}`},
 		templateSource{name: "slice_item_conversion", source: `		{{- if eq .Type.ElemType.Type.Name "string" }}

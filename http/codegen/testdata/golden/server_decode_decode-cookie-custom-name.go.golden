@@ -7,13 +7,21 @@ func DecodeMethodCookieCustomNameRequest(mux loomhttp.Muxer, decoder func(*http.
 			c2 *string
 			c  *http.Cookie
 		)
-		c, _ = r.Cookie("c")
-		var c2Raw string
-		if c != nil {
-			c2Raw = c.Value
-		}
-		if c2Raw != "" {
-			c2 = &c2Raw
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+				} else {
+					return payload, cookieErr
+				}
+			}
+			var c2Raw string
+			if c != nil {
+				c2Raw = c.Value
+			}
+			if c2Raw != "" {
+				c2 = &c2Raw
+			}
 		}
 		payload = NewMethodCookieCustomNamePayload(c2)
 

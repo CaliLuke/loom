@@ -40,7 +40,7 @@ import (
 //	        Description("Serve home page.")
 //	        Docs(func() {
 //	            Description("Additional documentation")
-//	            URL("https://goa.design")
+//	            URL("https://loom.dev")
 //	        })
 //	    })
 //	    Files("/static/{*path}", "/www/data/static", func() {

@@ -232,9 +232,9 @@ func renderMethodImplementation(service *ServiceImplData, m *MethodImplData) str
 	}
 	if m.ReturnsError {
 		if m.HasResult {
-			return "\treturn nil, &loom.ServiceError{Message: \"test error\"}"
+			return "\treturn nil, &loom.ServiceError{Name: \"test_error\", Message: \"Invalid params\"}"
 		}
-		return "\treturn &loom.ServiceError{Message: \"test error\"}"
+		return "\treturn &loom.ServiceError{Name: \"test_error\", Message: \"Invalid params\"}"
 	}
 	switch m.Info.Action {
 	case ActionEcho:

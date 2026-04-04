@@ -511,6 +511,32 @@ func TestAttributeExprValidate(t *testing.T) {
 			},
 			expected: &eval.ValidationErrors{Errors: []error{errConflictingTypes}},
 		},
+		"array default matches enum value": {
+			typ: &Array{
+				ElemType: &AttributeExpr{Type: String},
+			},
+			validation: &ValidationExpr{
+				Values: []any{
+					[]string{"a", "b"},
+				},
+			},
+			expected: &eval.ValidationErrors{Errors: []error{}},
+		},
+		"array default does not match enum value": {
+			typ: &Array{
+				ElemType: &AttributeExpr{Type: String},
+			},
+			validation: &ValidationExpr{
+				Values: []any{
+					[]string{"a", "b"},
+				},
+			},
+			expected: &eval.ValidationErrors{
+				Errors: []error{
+					fmt.Errorf(`%sdefault value %#v is not one of the accepted values: %#v`, normalizedCtx, []string{"b", "c"}, []any{[]string{"a", "b"}}),
+				},
+			},
+		},
 	}
 
 	for k, tc := range cases {
@@ -518,6 +544,12 @@ func TestAttributeExprValidate(t *testing.T) {
 			Type:       tc.typ,
 			Validation: tc.validation,
 			Meta:       tc.metadata,
+		}
+		switch k {
+		case "array default matches enum value":
+			attribute.DefaultValue = []string{"a", "b"}
+		case "array default does not match enum value":
+			attribute.DefaultValue = []string{"b", "c"}
 		}
 		if actual := attribute.Validate(ctx, nil); tc.expected != actual {
 			if len(tc.expected.Errors) != len(actual.Errors) {

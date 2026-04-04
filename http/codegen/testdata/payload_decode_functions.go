@@ -3519,13 +3519,21 @@ func DecodeMethodCookieStringRequest(mux loomhttp.Muxer, decoder func(*http.Requ
 			c2 *string
 			c  *http.Cookie
 		)
-		c, _ = r.Cookie("c")
-		var c2Raw string
-		if c != nil {
-			c2Raw = c.Value
-		}
-		if c2Raw != "" {
-			c2 = &c2Raw
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+				} else {
+					return payload, cookieErr
+				}
+			}
+			var c2Raw string
+			if c != nil {
+				c2Raw = c.Value
+			}
+			if c2Raw != "" {
+				c2 = &c2Raw
+			}
 		}
 		payload := NewMethodCookieStringPayload(c2)
 
@@ -3543,13 +3551,21 @@ func DecodeMethodCookieStringValidateRequest(mux loomhttp.Muxer, decoder func(*h
 			err error
 			c   *http.Cookie
 		)
-		c, _ = r.Cookie("c")
-		var c2Raw string
-		if c != nil {
-			c2Raw = c.Value
-		}
-		if c2Raw != "" {
-			c2 = &c2Raw
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+				} else {
+					return payload, cookieErr
+				}
+			}
+			var c2Raw string
+			if c != nil {
+				c2Raw = c.Value
+			}
+			if c2Raw != "" {
+				c2 = &c2Raw
+			}
 		}
 		if c2 != nil {
 			err = loom.MergeErrors(err, loom.ValidatePattern("c", *c2, "cookie"))
@@ -3574,11 +3590,18 @@ func DecodeMethodCookiePrimitiveStringValidateRequest(mux loomhttp.Muxer, decode
 			err error
 			c   *http.Cookie
 		)
-		c, err = r.Cookie("c")
-		if errors.Is(err, http.ErrNoCookie) {
-			err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
-		} else {
-			c2 = c.Value
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+					err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
+				} else {
+					return payload, cookieErr
+				}
+			}
+			if c != nil {
+				c2 = c.Value
+			}
 		}
 		if !(c2 == "val") {
 			err = loom.MergeErrors(err, loom.InvalidEnumValueError("c", c2, []any{"val"}))
@@ -3603,8 +3626,15 @@ func DecodeMethodCookiePrimitiveBoolValidateRequest(mux loomhttp.Muxer, decoder 
 			err error
 			c   *http.Cookie
 		)
-		c, err = r.Cookie("c")
 		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+					err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
+				} else {
+					return payload, cookieErr
+				}
+			}
 			var c2Raw string
 			if c != nil {
 				c2Raw = c.Value
@@ -3639,15 +3669,23 @@ func DecodeMethodCookieStringDefaultRequest(mux loomhttp.Muxer, decoder func(*ht
 			c2 string
 			c  *http.Cookie
 		)
-		c, _ = r.Cookie("c")
-		var c2Raw string
-		if c != nil {
-			c2Raw = c.Value
-		}
-		if c2Raw != "" {
-			c2 = c2Raw
-		} else {
-			c2 = "def"
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+				} else {
+					return payload, cookieErr
+				}
+			}
+			var c2Raw string
+			if c != nil {
+				c2Raw = c.Value
+			}
+			if c2Raw != "" {
+				c2 = c2Raw
+			} else {
+				c2 = "def"
+			}
 		}
 		payload := NewMethodCookieStringDefaultPayload(c2)
 
@@ -3666,15 +3704,23 @@ func DecodeMethodCookieStringDefaultValidateRequest(mux loomhttp.Muxer, decoder 
 			err error
 			c   *http.Cookie
 		)
-		c, _ = r.Cookie("c")
-		var c2Raw string
-		if c != nil {
-			c2Raw = c.Value
-		}
-		if c2Raw != "" {
-			c2 = c2Raw
-		} else {
-			c2 = "def"
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+				} else {
+					return payload, cookieErr
+				}
+			}
+			var c2Raw string
+			if c != nil {
+				c2Raw = c.Value
+			}
+			if c2Raw != "" {
+				c2 = c2Raw
+			} else {
+				c2 = "def"
+			}
 		}
 		if !(c2 == "def") {
 			err = loom.MergeErrors(err, loom.InvalidEnumValueError("c", c2, []any{"def"}))
@@ -3699,11 +3745,18 @@ func DecodeMethodCookiePrimitiveStringDefaultRequest(mux loomhttp.Muxer, decoder
 			err error
 			c   *http.Cookie
 		)
-		c, err = r.Cookie("c")
-		if errors.Is(err, http.ErrNoCookie) {
-			err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
-		} else {
-			c2 = c.Value
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+					err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
+				} else {
+					return payload, cookieErr
+				}
+			}
+			if c != nil {
+				c2 = c.Value
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -6192,13 +6245,21 @@ func DecodeMethodCookieCustomNameRequest(mux loomhttp.Muxer, decoder func(*http.
 			c2 *string
 			c  *http.Cookie
 		)
-		c, _ = r.Cookie("c")
-		var c2Raw string
-		if c != nil {
-			c2Raw = c.Value
-		}
-		if c2Raw != "" {
-			c2 = &c2Raw
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+				} else {
+					return payload, cookieErr
+				}
+			}
+			var c2Raw string
+			if c != nil {
+				c2Raw = c.Value
+			}
+			if c2Raw != "" {
+				c2 = &c2Raw
+			}
 		}
 		payload := NewMethodCookieCustomNamePayload(c2)
 

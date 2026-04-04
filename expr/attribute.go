@@ -2,6 +2,7 @@ package expr
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -891,15 +892,14 @@ func debugNamedExprs(label string, values []DataType, tabs, tab string) {
 // validateEnumDefault makes sure that the attribute default value is one of the
 // enum values.
 func (a *AttributeExpr) validateEnumDefault(ctx string, parent eval.Expression) *eval.ValidationErrors {
-	//TODO: We only do the default value and enum check just for primitive types.
-	if _, ok := a.Type.(Primitive); !ok {
-		return nil
-	}
 	verr := new(eval.ValidationErrors)
 	if a.DefaultValue != nil && a.Validation != nil && a.Validation.Values != nil {
 		var found bool
-		if slices.Contains(a.Validation.Values, a.DefaultValue) {
-			found = true
+		for _, value := range a.Validation.Values {
+			if reflect.DeepEqual(value, a.DefaultValue) {
+				found = true
+				break
+			}
 		}
 		if !found {
 			verr.Add(

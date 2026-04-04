@@ -17,7 +17,7 @@ import (
 //	    Description("The add method returns the sum of A and B")
 //	    Docs(func() {
 //	        Description("Add docs")
-//	        URL("http//adder.goa.design/docs/endpoints/add")
+//	        URL("https://adder.loom.dev/docs/endpoints/add")
 //	    })
 //	    Payload(Operands)
 //	    Result(Sum)

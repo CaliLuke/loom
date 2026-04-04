@@ -8,8 +8,8 @@ func TestNormalizeFileForPackageMatch(t *testing.T) {
 		want string
 	}{
 		"no version": {
-			in:   "/home/me/src/goa/eval/error.go",
-			want: "/home/me/src/goa/eval/error.go",
+			in:   "/home/me/src/loom/eval/error.go",
+			want: "/home/me/src/loom/eval/error.go",
 		},
 		"module cache version": {
 			in:   "/home/me/go/pkg/mod/github.com/CaliLuke/loom@v1.0.0/dsl/result_type.go",

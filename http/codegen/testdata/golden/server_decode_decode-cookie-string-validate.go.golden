@@ -8,13 +8,21 @@ func DecodeMethodCookieStringValidateRequest(mux loomhttp.Muxer, decoder func(*h
 			err error
 			c   *http.Cookie
 		)
-		c, _ = r.Cookie("c")
-		var c2Raw string
-		if c != nil {
-			c2Raw = c.Value
-		}
-		if c2Raw != "" {
-			c2 = &c2Raw
+		{
+			c, cookieErr := r.Cookie("c")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+				} else {
+					return payload, cookieErr
+				}
+			}
+			var c2Raw string
+			if c != nil {
+				c2Raw = c.Value
+			}
+			if c2Raw != "" {
+				c2 = &c2Raw
+			}
 		}
 		if c2 != nil {
 			err = loom.MergeErrors(err, loom.ValidatePattern("c", *c2, "cookie"))

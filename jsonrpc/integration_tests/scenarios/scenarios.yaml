@@ -646,7 +646,6 @@ scenarios:
           params:
             value: "generated-3"
 
-  # WebSocket tests - TODO: Fix ID field mapping for bidirectional streaming
   - name: "echo_string_websocket"
     method: "echo_string_ws"
     transport: "websocket"

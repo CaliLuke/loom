@@ -102,26 +102,31 @@ func (e *executor) executeHTTP(ctx context.Context, t *testing.T, scenario Scena
 			result, err := cliClient.CallMethod(ctx, service, methodName, scenario.Request.Params)
 			if err != nil {
 				if scenario.Expect.Error != nil {
-					// Expected error - validate it
-					e.validateError(t, err, scenario.Expect.Error)
-					return
+					// Some invalid-method cases fail in CLI argument parsing before a
+					// transport-level JSON-RPC request is sent. Fall back to HTTP
+					// unless the CLI error already contains a JSON-RPC error object.
+					if _, ok := extractExpectedErrorObject(err); ok {
+						e.validateError(t, err, scenario.Expect.Error)
+						return
+					}
+				} else {
+					require.NoError(t, err, "CLI call failed")
 				}
-				require.NoError(t, err, "CLI call failed")
-			}
-
-			// With verbose flag, CLI now returns the raw transport-level response
-			if result != nil {
-				// Wrap in JSON-RPC envelope
-				response := map[string]any{
-					"jsonrpc": "2.0",
-					"id":      scenario.Request.ID,
-					"result":  result,
+			} else {
+				// With verbose flag, CLI now returns the raw transport-level response
+				if result != nil {
+					// Wrap in JSON-RPC envelope
+					response := map[string]any{
+						"jsonrpc": "2.0",
+						"id":      scenario.Request.ID,
+						"result":  result,
+					}
+					e.validateJSONRPCResponse(t, response, scenario.Expect)
+				} else if !scenario.Expect.NoResponse {
+					assert.Fail(t, "Expected response but got none")
 				}
-				e.validateJSONRPCResponse(t, response, scenario.Expect)
-			} else if !scenario.Expect.NoResponse {
-				assert.Fail(t, "Expected response but got none")
+				return
 			}
-			return
 		}
 	}
 
@@ -628,13 +633,15 @@ func (e *executor) validateRawResponse(t *testing.T, response any, expect Expect
 	}
 }
 
-func (e *executor) validateError(t *testing.T, _ error, _ *ExpectError) {
+func (e *executor) validateError(t *testing.T, err error, expect *ExpectError) {
 	t.Helper()
 
-	// For CLI errors, we need to extract the error details
-	// This is a simplified version - real implementation would parse the error
+	require.Error(t, err, "Expected error")
+	require.NotNil(t, expect, "Expected error expectation")
 
-	// TODO: Parse error and validate code/message
+	errObj, ok := extractExpectedErrorObject(err)
+	require.Truef(t, ok, "Failed to parse JSON-RPC error from %q", err.Error())
+	e.validateErrorObject(t, errObj, expect)
 }
 
 func (e *executor) validateErrorObject(t *testing.T, errObj map[string]any, expect *ExpectError) {
@@ -669,4 +676,40 @@ func (e *executor) compareValues(t *testing.T, actual, expected any, path string
 		// Fall back to direct comparison
 		assert.EqualValues(t, expected, actual, "%s mismatch", path)
 	}
+}
+
+func extractExpectedErrorObject(err error) (map[string]any, bool) {
+	if err == nil {
+		return nil, false
+	}
+	for _, line := range strings.Split(err.Error(), "\n") {
+		errObj, ok := extractExpectedErrorObjectLine(line)
+		if ok {
+			return errObj, true
+		}
+	}
+	return nil, false
+}
+
+func extractExpectedErrorObjectLine(line string) (map[string]any, bool) {
+	line = strings.TrimSpace(line)
+	for start := strings.Index(line, "{"); start >= 0; {
+		var payload map[string]any
+		if json.Unmarshal([]byte(strings.TrimSpace(line[start:])), &payload) == nil {
+			if errObj, ok := payload["error"].(map[string]any); ok {
+				return errObj, true
+			}
+			if _, ok := payload["code"]; ok {
+				if _, ok := payload["message"]; ok {
+					return payload, true
+				}
+			}
+		}
+		next := strings.Index(line[start+1:], "{")
+		if next < 0 {
+			break
+		}
+		start += next + 1
+	}
+	return nil, false
 }

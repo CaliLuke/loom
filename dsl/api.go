@@ -111,8 +111,8 @@ func Version(ver string) {
 //	var _ = API("divider", func() {
 //	    Contact(func() {
 //	        Name("support")
-//	        Email("support@goa.design")
-//	        URL("https://goa.design")
+//	        Email("support@loom.dev")
+//	        URL("https://loom.dev")
 //	    })
 //	})
 func Contact(fn func()) {
@@ -197,7 +197,7 @@ func Randomizer(randomizer expr.Randomizer) {
 //	var _ = API("cellar", func() {
 //	    Docs(func() {
 //	        Description("Additional documentation")
-//	        URL("https://goa.design")
+//	        URL("https://loom.dev")
 //	    })
 //	})
 func Docs(fn func()) {
@@ -275,7 +275,7 @@ func Name(name string) {
 //
 //	var _ = API("divider", func() {
 //	    Contact(func() {
-//	        Email("support@goa.design")
+//	        Email("support@loom.dev")
 //	    })
 //	})
 func Email(email string) {
@@ -294,7 +294,7 @@ func Email(email string) {
 // Example:
 //
 //	Docs(func() {
-//	    URL("https://goa.design")
+//	    URL("https://loom.dev")
 //	})
 func URL(url string) {
 	switch def := eval.Current().(type) {

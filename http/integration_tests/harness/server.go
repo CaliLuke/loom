@@ -3,6 +3,7 @@ package harness
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -77,7 +78,9 @@ func StartServer(ctx context.Context, workDir string, port int) (*Server, error)
 	}
 	if err := server.waitForReady(ctx); err != nil {
 		content := readLogFile(logPath)
-		_ = server.Stop()
+		if stopErr := server.Stop(); stopErr != nil {
+			return nil, fmt.Errorf("%w\nfailed to stop server after startup failure: %w\nServer log:\n%s", err, stopErr, content)
+		}
 		return nil, fmt.Errorf("%w\nServer log:\n%s", err, content)
 	}
 	return server, nil
@@ -90,14 +93,21 @@ func (s *Server) URL() string {
 
 // Stop terminates the server process.
 func (s *Server) Stop() error {
+	var errs []error
 	if s.cmd != nil && s.cmd.Process != nil {
-		_ = s.cmd.Process.Kill()
-		_, _ = s.cmd.Process.Wait()
+		if err := s.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			errs = append(errs, fmt.Errorf("kill server process: %w", err))
+		}
+		if err := s.cmd.Wait(); !isExpectedStopError(err) {
+			errs = append(errs, fmt.Errorf("wait for server process: %w", err))
+		}
 	}
 	if s.logFile != nil {
-		return s.logFile.Close()
+		if err := s.logFile.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close log file: %w", err))
+		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func (s *Server) waitForReady(ctx context.Context) error {
@@ -134,7 +144,10 @@ func (s *Server) waitForReady(ctx context.Context) error {
 				if err != nil {
 					continue
 				}
-				_ = conn.Close()
+				if err := conn.Close(); err != nil {
+					errc <- fmt.Errorf("close readiness probe connection: %w", err)
+					return
+				}
 				ready <- struct{}{}
 				return
 			}
@@ -159,4 +172,12 @@ func readLogFile(path string) string {
 		return fmt.Sprintf("read log file: %v", err)
 	}
 	return string(data)
+}
+
+func isExpectedStopError(err error) bool {
+	if err == nil {
+		return true
+	}
+	var exitErr *exec.ExitError
+	return errors.As(err, &exitErr)
 }

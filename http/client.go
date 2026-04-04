@@ -69,8 +69,26 @@ func NewDebugDoer(d Doer) DebugDoer {
 func (dd *debugDoer) Do(req *http.Request) (*http.Response, error) {
 	var reqb []byte
 	if req.Body != nil {
-		reqb, _ = io.ReadAll(req.Body)
-		req.Body = io.NopCloser(bytes.NewBuffer(reqb))
+		var (
+			body io.ReadCloser
+			err  error
+		)
+		if req.GetBody != nil {
+			body, err = req.GetBody()
+			if err != nil {
+				return nil, fmt.Errorf("capture request body: %w", err)
+			}
+			reqb, err = io.ReadAll(body)
+			if closeErr := body.Close(); closeErr != nil {
+				return nil, fmt.Errorf("close captured request body: %w", closeErr)
+			}
+		} else {
+			reqb, err = io.ReadAll(req.Body)
+			req.Body = io.NopCloser(bytes.NewBuffer(reqb))
+		}
+		if err != nil {
+			return nil, fmt.Errorf("capture request body: %w", err)
+		}
 	}
 
 	resp, err := dd.Doer.Do(req)

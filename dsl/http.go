@@ -446,7 +446,7 @@ func Header(name string, args ...any) {
 //	                    Format(FormatGUID)      // Cookie value validations
 //	                })
 //	                CookieMaxAge(3600)          // Cookie attributes
-//	                CookieDomain("goa.design")
+//	                CookieDomain("loom.dev")
 //	                CookiePath("/session")
 //	                CookieSecure()
 //	                CookieHTTPOnly()
@@ -536,7 +536,7 @@ func CookieMaxAge(n int) {
 //	        HTTP(func() {
 //	            Response(StatusCreated, func() {
 //	                Cookie("session:SID", String)
-//	                CookieDomain("goa.design")
+//	                CookieDomain("loom.dev")
 //	            })
 //	        })
 //	    })

@@ -122,6 +122,9 @@ func TestBuildEndpointJSONRPCSSE(t *testing.T) {
 	require.Equal(t, "sse", endpoint.Stream.Transport)
 	require.Equal(t, "POST", endpoint.Stream.HandshakeMethod)
 	require.Equal(t, expr.StatusOK, endpoint.Stream.HandshakeStatus)
+	require.NotNil(t, endpoint.Stream.SSE)
+	require.Empty(t, endpoint.Stream.SSE.RequestIDField)
+	require.False(t, endpoint.Stream.SSE.RequestIDPointer)
 }
 
 func TestBuildEndpointJSONRPCWebSocket(t *testing.T) {

@@ -35,9 +35,13 @@ func buildStream(endpoint *expr.HTTPEndpointExpr) *Stream {
 		} else {
 			stream.HandshakeStatus = expr.StatusOK
 		}
+		requestIDPointer := false
+		if endpoint.SSE.RequestIDField != "" && endpoint.MethodExpr.Payload != nil {
+			requestIDPointer = endpoint.MethodExpr.Payload.IsPrimitivePointer(endpoint.SSE.RequestIDField, true)
+		}
 		stream.SSE = &SSE{
 			RequestIDField:   endpoint.SSE.RequestIDField,
-			RequestIDPointer: endpoint.MethodExpr.Payload.IsPrimitivePointer(endpoint.SSE.RequestIDField, true),
+			RequestIDPointer: requestIDPointer,
 			DataField:        endpoint.SSE.DataField,
 			IDField:          endpoint.SSE.IDField,
 			EventField:       endpoint.SSE.EventField,

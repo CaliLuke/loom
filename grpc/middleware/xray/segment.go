@@ -99,7 +99,7 @@ func requestData(ctx context.Context, method string, req any) *xray.Request {
 	var ip string
 	{
 		if p, ok := peer.FromContext(ctx); ok {
-			ip, _, _ = net.SplitHostPort(p.Addr.String())
+			ip = clientIPFromAddr(p.Addr)
 		}
 	}
 
@@ -110,6 +110,20 @@ func requestData(ctx context.Context, method string, req any) *xray.Request {
 		ClientIP:      ip,
 		ContentLength: messageLength(req),
 	}
+}
+
+func clientIPFromAddr(addr net.Addr) string {
+	if addr == nil {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(addr.String())
+	if err == nil {
+		return host
+	}
+	if ip := net.ParseIP(addr.String()); ip != nil {
+		return ip.String()
+	}
+	return ""
 }
 
 func messageLength(msg any) int64 {
