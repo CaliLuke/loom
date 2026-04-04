@@ -16,12 +16,30 @@ func jsonrpcResponseDecoderSection(e *httpcodegen.EndpointData) codegen.Section 
 
 func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 	var b strings.Builder
+	writeJSONRPCResponseDecoderHeader(&b, e)
+	writeJSONRPCResponseDecoderBody(&b, e)
+	b.WriteString("\t}\n}\n")
+	return b.String()
+}
+
+func writeJSONRPCResponseDecoderHeader(b *strings.Builder, e *httpcodegen.EndpointData) {
 	comment := fmt.Sprintf("%s returns a decoder for responses returned by the %s service %s JSON-RPC method. restoreBody controls whether the response body should be restored after having been read.", e.ResponseDecoder, e.ServiceName, e.Method.Name)
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(comment))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {\n", e.ResponseDecoder)
+	fmt.Fprintf(b, "func %s(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {\n", e.ResponseDecoder)
 	b.WriteString("\treturn func(resp *http.Response) (any, error) {\n")
+}
+
+func writeJSONRPCResponseDecoderBody(b *strings.Builder, e *httpcodegen.EndpointData) {
+	writeJSONRPCResponseRestoreBody(b)
+	writeJSONRPCResponseStatusCheck(b, e)
+	writeJSONRPCResponseDecodeEnvelope(b, e)
+	writeJSONRPCResponseErrorHandling(b, e)
+	writeJSONRPCResponseSuccessHandling(b, e)
+}
+
+func writeJSONRPCResponseRestoreBody(b *strings.Builder) {
 	b.WriteString("\t\tif restoreBody {\n")
 	b.WriteString("\t\t\tb, err := io.ReadAll(resp.Body)\n")
 	b.WriteString("\t\t\tif err != nil {\n\t\t\t\treturn nil, err\n\t\t\t}\n")
@@ -29,81 +47,108 @@ func renderJSONRPCResponseDecoder(e *httpcodegen.EndpointData) string {
 	b.WriteString("\t\t\tdefer func() {\n\t\t\t\tresp.Body = io.NopCloser(bytes.NewBuffer(b))\n\t\t\t}()\n")
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t\tdefer resp.Body.Close()\n\n")
+}
+
+func writeJSONRPCResponseStatusCheck(b *strings.Builder, e *httpcodegen.EndpointData) {
 	b.WriteString("\t\tif resp.StatusCode != http.StatusOK {\n")
-	fmt.Fprintf(&b, "\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
+	fmt.Fprintf(b, "\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t}\n\n")
+}
+
+func writeJSONRPCResponseDecodeEnvelope(b *strings.Builder, e *httpcodegen.EndpointData) {
 	b.WriteString("\t\tvar jresp jsonrpc.RawResponse\n")
 	b.WriteString("\t\tif err := decoder(resp).Decode(&jresp); err != nil {\n")
-	fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrDecodingError(%q, %q, err)\n", e.ServiceName, e.Method.Name)
+	fmt.Fprintf(b, "\t\t\treturn nil, loomhttp.ErrDecodingError(%q, %q, err)\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t}\n\n")
+}
+
+func writeJSONRPCResponseErrorHandling(b *strings.Builder, e *httpcodegen.EndpointData) {
 	b.WriteString("\t\tif jresp.Error != nil {\n")
 	b.WriteString("\t\t\tswitch jresp.Error.Code {\n")
-	writeJSONRPCErrorDecodeSwitch(&b, e)
+	writeJSONRPCErrorDecodeSwitch(b, e)
 	b.WriteString("\t\t\tdefault:\n")
-	fmt.Fprintf(&b, "\t\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
+	fmt.Fprintf(b, "\t\t\t\tbody, _ := io.ReadAll(resp.Body)\n\t\t\t\treturn nil, loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))\n", e.ServiceName, e.Method.Name)
 	b.WriteString("\t\t\t}\n\t\t}\n\n")
-	if e.Result != nil && len(e.Result.Responses) > 0 {
-		resp := e.Result.Responses[0]
-		b.WriteString("\t\tresp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))\n")
-		renderSingleResponseDecode(&b, resp, e.ServiceName, e.Method)
-		switch {
-		case resp.ResultInit != nil:
-			if resp.ViewedResult != nil {
-				b.WriteString("\t\tp := " + resp.ResultInit.Name + "(")
-				for i, arg := range resp.ResultInit.ClientArgs {
-					if i > 0 {
-						b.WriteString(", ")
-					}
-					b.WriteString(arg.Ref)
-				}
-				b.WriteString(")\n")
-				if resp.TagName != "" {
-					fmt.Fprintf(&b, "\t\ttmp := %q\n\t\tp.%s = &tmp\n", resp.TagValue, resp.TagName)
-				}
-				if e.Method.ViewedResult != nil && e.Method.ViewedResult.ViewName != "" {
-					fmt.Fprintf(&b, "\t\tview := %q\n", e.Method.ViewedResult.ViewName)
-				} else {
-					b.WriteString("\t\tview := resp.Header.Get(\"loom-view\")\n")
-				}
-				fmt.Fprintf(&b, "\t\tvres := %s%s.%s{Projected: p, View: view}\n", viewedResultPrefix(e.Method.ViewedResult), e.Method.ViewedResult.ViewsPkg, e.Method.ViewedResult.VarName)
-				if resp.ClientBody != nil {
-					fmt.Fprintf(&b, "\t\tif err = %s.Validate%s(vres); err != nil {\n", e.Method.ViewedResult.ViewsPkg, e.Method.Result)
-					fmt.Fprintf(&b, "\t\t\treturn nil, loomhttp.ErrValidationError(%q, %q, err)\n", e.ServiceName, e.Method.Name)
-					b.WriteString("\t\t}\n")
-				}
-				fmt.Fprintf(&b, "\t\tres := %s.%s(vres)\n", e.ServicePkgName, e.Method.ViewedResult.ResultInit.Name)
-				b.WriteString("\t\treturn res, nil\n")
-			}
-			b.WriteString("\t\tres := " + resp.ResultInit.Name + "(")
-			for i, arg := range resp.ResultInit.ClientArgs {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				b.WriteString(arg.Ref)
-			}
-			b.WriteString(")\n")
-			if resp.TagName != "" && !isViewedResponse(resp) {
-				if resp.TagPointer {
-					fmt.Fprintf(&b, "\t\ttmp := %q\n\t\tres.%s = &tmp\n", resp.TagValue, resp.TagName)
-				} else {
-					fmt.Fprintf(&b, "\t\tres.%s = %q\n", resp.TagName, resp.TagValue)
-				}
-			}
-			b.WriteString("\t\treturn res, nil\n")
-		case resp.ClientBody != nil:
-			b.WriteString("\t\treturn body, nil\n")
-		case len(resp.Headers) > 0:
-			fmt.Fprintf(&b, "\t\treturn %s, nil\n", resp.Headers[0].VarName)
-		case len(resp.Cookies) > 0:
-			fmt.Fprintf(&b, "\t\treturn %s, nil\n", resp.Cookies[0].VarName)
-		default:
-			b.WriteString("\t\treturn nil, nil\n")
-		}
-	} else {
+}
+
+func writeJSONRPCResponseSuccessHandling(b *strings.Builder, e *httpcodegen.EndpointData) {
+	if e.Result == nil || len(e.Result.Responses) == 0 {
+		b.WriteString("\t\treturn nil, nil\n")
+		return
+	}
+	resp := e.Result.Responses[0]
+	b.WriteString("\t\tresp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))\n")
+	renderSingleResponseDecode(b, resp, e.ServiceName, e.Method)
+	writeJSONRPCDecodedResponseReturn(b, e, resp)
+}
+
+func writeJSONRPCDecodedResponseReturn(b *strings.Builder, e *httpcodegen.EndpointData, resp *httpcodegen.ResponseData) {
+	switch {
+	case resp.ResultInit != nil:
+		writeJSONRPCDecodedInitReturn(b, e, resp)
+	case resp.ClientBody != nil:
+		b.WriteString("\t\treturn body, nil\n")
+	case len(resp.Headers) > 0:
+		fmt.Fprintf(b, "\t\treturn %s, nil\n", resp.Headers[0].VarName)
+	case len(resp.Cookies) > 0:
+		fmt.Fprintf(b, "\t\treturn %s, nil\n", resp.Cookies[0].VarName)
+	default:
 		b.WriteString("\t\treturn nil, nil\n")
 	}
-	b.WriteString("\t}\n}\n")
-	return b.String()
+}
+
+func writeJSONRPCDecodedInitReturn(b *strings.Builder, e *httpcodegen.EndpointData, resp *httpcodegen.ResponseData) {
+	if resp.ViewedResult != nil {
+		writeJSONRPCViewedInitReturn(b, e, resp)
+		return
+	}
+	b.WriteString("\t\tres := " + resp.ResultInit.Name + "(")
+	writeJSONRPCInitArgs(b, resp.ResultInit.ClientArgs)
+	b.WriteString(")\n")
+	writeJSONRPCResponseTagAssignment(b, resp)
+	b.WriteString("\t\treturn res, nil\n")
+}
+
+func writeJSONRPCViewedInitReturn(b *strings.Builder, e *httpcodegen.EndpointData, resp *httpcodegen.ResponseData) {
+	b.WriteString("\t\tp := " + resp.ResultInit.Name + "(")
+	writeJSONRPCInitArgs(b, resp.ResultInit.ClientArgs)
+	b.WriteString(")\n")
+	if resp.TagName != "" {
+		fmt.Fprintf(b, "\t\ttmp := %q\n\t\tp.%s = &tmp\n", resp.TagValue, resp.TagName)
+	}
+	if e.Method.ViewedResult != nil && e.Method.ViewedResult.ViewName != "" {
+		fmt.Fprintf(b, "\t\tview := %q\n", e.Method.ViewedResult.ViewName)
+	} else {
+		b.WriteString("\t\tview := resp.Header.Get(\"loom-view\")\n")
+	}
+	fmt.Fprintf(b, "\t\tvres := %s%s.%s{Projected: p, View: view}\n", viewedResultPrefix(e.Method.ViewedResult), e.Method.ViewedResult.ViewsPkg, e.Method.ViewedResult.VarName)
+	if resp.ClientBody != nil {
+		fmt.Fprintf(b, "\t\tif err = %s.Validate%s(vres); err != nil {\n", e.Method.ViewedResult.ViewsPkg, e.Method.Result)
+		fmt.Fprintf(b, "\t\t\treturn nil, loomhttp.ErrValidationError(%q, %q, err)\n", e.ServiceName, e.Method.Name)
+		b.WriteString("\t\t}\n")
+	}
+	fmt.Fprintf(b, "\t\tres := %s.%s(vres)\n", e.ServicePkgName, e.Method.ViewedResult.ResultInit.Name)
+	b.WriteString("\t\treturn res, nil\n")
+}
+
+func writeJSONRPCInitArgs(b *strings.Builder, args []*httpcodegen.InitArgData) {
+	for i, arg := range args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(arg.Ref)
+	}
+}
+
+func writeJSONRPCResponseTagAssignment(b *strings.Builder, resp *httpcodegen.ResponseData) {
+	if resp.TagName == "" || isViewedResponse(resp) {
+		return
+	}
+	if resp.TagPointer {
+		fmt.Fprintf(b, "\t\ttmp := %q\n\t\tres.%s = &tmp\n", resp.TagValue, resp.TagName)
+		return
+	}
+	fmt.Fprintf(b, "\t\tres.%s = %q\n", resp.TagName, resp.TagValue)
 }
 
 func writeJSONRPCErrorDecodeSwitch(b *strings.Builder, e *httpcodegen.EndpointData) {

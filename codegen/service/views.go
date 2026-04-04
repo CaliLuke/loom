@@ -22,12 +22,17 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 	if len(svc.projectedTypes) == 0 {
 		return nil
 	}
+	unions := collectViewsUnions(svc)
+	sections := make([]codegen.Section, 0, 2+len(svc.viewedResultTypes)+len(svc.projectedTypes)+len(unions))
+	sections = append(sections, viewsHeader(service.Name, unions))
+	sections = append(sections, viewTypeSections(svc, unions)...)
+	sections = append(sections, viewedTypeMapSection(collectViewedTypes(svc)))
+	sections = append(sections, viewValidationSections(svc)...)
+	path := filepath.Join(codegen.Gendir, svc.PathName, "views", "view.go")
+	return &codegen.File{Path: path, Sections: sections}
+}
 
-	// Collect union sum-type definitions for the views package.
-	//
-	// View-projected types cannot import the service package (which already
-	// depends on views), therefore unions must be generated in the views package
-	// when referenced by projected types.
+func collectViewsUnions(svc *Data) []*UnionTypeData {
 	unionByHash := make(map[string]*UnionTypeData)
 	seenUnions := make(map[string]struct{})
 	viewLoc := &codegen.Location{RelImportPath: "views"}
@@ -41,8 +46,10 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 	sort.Slice(unions, func(i, j int) bool {
 		return unions[i].Name < unions[j].Name
 	})
+	return unions
+}
 
-	path := filepath.Join(codegen.Gendir, svc.PathName, "views", "view.go")
+func viewsHeader(serviceName string, unions []*UnionTypeData) codegen.Section {
 	imports := []*codegen.ImportSpec{
 		codegen.LoomImport(""),
 		{Path: "unicode/utf8"},
@@ -53,11 +60,11 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 			codegen.SimpleImport("fmt"),
 		)
 	}
-	header := codegen.Header(service.Name+" views", "views",
-		imports)
-	sections := []codegen.Section{header}
+	return codegen.Header(serviceName+" views", "views", imports)
+}
 
-	// type definitions
+func viewTypeSections(svc *Data, unions []*UnionTypeData) []codegen.Section {
+	sections := make([]codegen.Section, 0, len(svc.viewedResultTypes)+len(svc.projectedTypes)+len(unions))
 	for _, t := range svc.viewedResultTypes {
 		sections = append(sections, userTypeSection("viewed-result-type", t.UserTypeData))
 	}
@@ -67,33 +74,36 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 	for _, u := range unions {
 		sections = append(sections, unionTypeSection("projected-union-type", u))
 	}
+	return sections
+}
 
-	// generate a map for result types with view name as key and the fields
-	// rendered in the view as value.
+func collectViewedTypes(svc *Data) []*viewedType {
 	var (
 		rtdata []*viewedType
 		seen   = make(map[string]struct{})
 	)
-	for _, t := range svc.viewedResultTypes {
-		name := t.Views[0].TypeVarName
-		if _, ok := seen[name]; !ok {
-			rtdata = append(rtdata, &viewedType{Name: name, Views: t.Views})
-			seen[name] = struct{}{}
+	appendViews := func(views []*ViewData) {
+		if len(views) == 0 {
+			return
 		}
+		name := views[0].TypeVarName
+		if _, ok := seen[name]; ok {
+			return
+		}
+		rtdata = append(rtdata, &viewedType{Name: name, Views: views})
+		seen[name] = struct{}{}
+	}
+	for _, t := range svc.viewedResultTypes {
+		appendViews(t.Views)
 	}
 	for _, t := range svc.projectedTypes {
-		if len(t.Views) == 0 {
-			continue
-		}
-		name := t.Views[0].TypeVarName
-		if _, ok := seen[name]; !ok {
-			rtdata = append(rtdata, &viewedType{Name: name, Views: t.Views})
-			seen[name] = struct{}{}
-		}
+		appendViews(t.Views)
 	}
-	sections = append(sections, viewedTypeMapSection(rtdata))
+	return rtdata
+}
 
-	// validations
+func viewValidationSections(svc *Data) []codegen.Section {
+	sections := make([]codegen.Section, 0, len(svc.viewedResultTypes)+len(svc.projectedTypes))
 	for _, t := range svc.viewedResultTypes {
 		sections = append(sections, validateSection("validate-viewed-result-type", t.Validate))
 	}
@@ -102,6 +112,5 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 			sections = append(sections, validateSection("validate-projected-type", v))
 		}
 	}
-
-	return &codegen.File{Path: path, Sections: sections}
+	return sections
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 type (
@@ -63,20 +64,19 @@ type (
 )
 
 // initSSEData initializes the SSE related data in ed.
-func initSSEData(ed *EndpointData, e *expr.HTTPEndpointExpr, sd *ServiceData) {
-	if e.SSE == nil {
+func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *ServiceData) {
+	if endpointIR == nil || endpointIR.Stream == nil || !endpointIR.Stream.IsSSE {
 		return
 	}
-
 	md := ed.Method
 	svc := sd.Service
 
 	// Use streaming result type if different from result
 	var eventType *ResultData
 	var eventAttr *expr.AttributeExpr
-	if e.MethodExpr.HasMixedResults() && e.MethodExpr.StreamingResult != nil {
+	if endpointIR.Response.HasMixedResults && endpointIR.Response.StreamingResult != nil {
 		// For mixed results, use StreamingResult for SSE events
-		eventAttr = e.MethodExpr.StreamingResult
+		eventAttr = endpointIR.Response.StreamingResult
 		eventType = &ResultData{
 			Name:     md.StreamingResult,
 			Ref:      sd.Service.Scope.GoFullTypeRef(eventAttr, svc.PkgName),
@@ -85,7 +85,7 @@ func initSSEData(ed *EndpointData, e *expr.HTTPEndpointExpr, sd *ServiceData) {
 	} else {
 		// Use Result for SSE events (backward compatibility)
 		eventType = ed.Result
-		eventAttr = e.MethodExpr.Result
+		eventAttr = endpointIR.Response.Result
 	}
 
 	sendDesc := fmt.Sprintf("%s streams instances of %q to the %q endpoint SSE connection.", md.ServerStream.SendName, eventType.Name, md.Name)
@@ -97,23 +97,17 @@ func initSSEData(ed *EndpointData, e *expr.HTTPEndpointExpr, sd *ServiceData) {
 	if obj := expr.AsObject(eventAttr.Type); obj != nil {
 		for _, nat := range *obj {
 			switch nat.Name {
-			case e.SSE.IDField:
+			case endpointIR.Stream.SSE.IDField:
 				idFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case e.SSE.EventField:
+			case endpointIR.Stream.SSE.EventField:
 				eventFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case e.SSE.RetryField:
+			case endpointIR.Stream.SSE.RetryField:
 				retryFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case e.SSE.DataField:
+			case endpointIR.Stream.SSE.DataField:
 				dataFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
 				dataFieldTypeRef = sd.Service.Scope.GoFullTypeRef(nat.Attribute, svc.PkgName)
 			}
 		}
-	}
-
-	// Determine if the Last-Event-ID mapped payload attribute is a primitive pointer
-	ridPtr := false
-	if e.SSE.RequestIDField != "" {
-		ridPtr = e.MethodExpr.Payload.IsPrimitivePointer(e.SSE.RequestIDField, true)
 	}
 
 	ed.SSE = &SSEData{
@@ -133,14 +127,14 @@ func initSSEData(ed *EndpointData, e *expr.HTTPEndpointExpr, sd *ServiceData) {
 		IDField:             idFieldVar,
 		EventField:          eventFieldVar,
 		RetryField:          retryFieldVar,
-		RequestIDField:      e.SSE.RequestIDField,
-		RequestIDPointer:    ridPtr,
+		RequestIDField:      endpointIR.Stream.SSE.RequestIDField,
+		RequestIDPointer:    endpointIR.Stream.SSE.RequestIDPointer,
 	}
 
 	// Mixed results SSE uses the streaming result type for events, not the unary
 	// HTTP response body type. Disable HTTP response body conversion in the SSE
 	// stream implementation and marshal the event value directly.
-	if ed.HasMixedResults {
+	if endpointIR.Response.HasMixedResults {
 		ed.SSE.HasResponseBody = false
 		return
 	}

@@ -294,69 +294,93 @@ func byMinMax(a *AttributeExpr, r *ExampleGenerator) any {
 	if !hasMinMaxValidation(a) {
 		return nil
 	}
-	var (
-		minimum float64
-		maximum = math.Inf(1)
-		sign    = 1
-	)
-	if a.Validation.ExclusiveMaximum != nil {
-		maximum = *a.Validation.ExclusiveMaximum
-	} else if a.Validation.Maximum != nil {
-		maximum = *a.Validation.Maximum
+	minimum, maximum, sign := minMaxBounds(a)
+	if math.IsInf(maximum, 1) {
+		return randomMinOnlyValue(a.Type.Kind(), r, minimum, sign)
 	}
-	switch {
-	case a.Validation.ExclusiveMinimum != nil:
-		minimum = *a.Validation.ExclusiveMinimum
-	case a.Validation.Minimum != nil:
-		minimum = *a.Validation.Minimum
-	default:
+	if minimum < maximum {
+		return randomBoundedValue(a.Type.Kind(), r, minimum, maximum)
+	}
+	return minValueForKind(a.Type.Kind(), minimum)
+}
+
+func minMaxBounds(a *AttributeExpr) (float64, float64, int) {
+	minimum := readMinimum(a)
+	maximum := readMaximum(a)
+	sign := 1
+	if a.Validation.ExclusiveMinimum == nil && a.Validation.Minimum == nil {
 		sign = -1
 		minimum = maximum
 		maximum = math.Inf(1)
 	}
+	return minimum, maximum, sign
+}
 
-	if math.IsInf(maximum, 1) {
-		switch a.Type.Kind() {
-		case IntKind:
-			return sign * (r.Int() + int(minimum))
-		case Int32Kind:
-			return int32(sign) * (r.Int32() + int32(minimum))
-		case Int64Kind:
-			return int64(sign) * (r.Int64() + int64(minimum))
-		case UIntKind:
-			return r.UInt() + uint(minimum)
-		case UInt32Kind:
-			return r.UInt32() + uint32(minimum)
-		case UInt64Kind:
-			return r.UInt64() + uint64(minimum)
-		case Float32Kind:
-			return float32(sign) * (r.Float32() + float32(minimum))
-		default:
-			return float64(sign) * (r.Float64() + minimum)
-		}
+func readMaximum(a *AttributeExpr) float64 {
+	if a.Validation.ExclusiveMaximum != nil {
+		return *a.Validation.ExclusiveMaximum
 	}
-	if minimum < maximum {
-		delta := maximum - minimum
-		switch a.Type.Kind() {
-		case IntKind:
-			return r.Int()%int(delta) + int(minimum)
-		case Int32Kind:
-			return r.Int32()%int32(delta) + int32(minimum)
-		case Int64Kind:
-			return r.Int64()%int64(delta) + int64(minimum)
-		case UIntKind:
-			return r.UInt()%uint(delta) + uint(minimum)
-		case UInt32Kind:
-			return r.UInt32()%uint32(delta) + uint32(minimum)
-		case UInt64Kind:
-			return r.UInt64()%uint64(delta) + uint64(minimum)
-		case Float32Kind:
-			return r.Float32()*float32(delta) + float32(minimum)
-		default:
-			return r.Float64()*delta + minimum
-		}
+	if a.Validation.Maximum != nil {
+		return *a.Validation.Maximum
 	}
-	switch a.Type.Kind() {
+	return math.Inf(1)
+}
+
+func readMinimum(a *AttributeExpr) float64 {
+	if a.Validation.ExclusiveMinimum != nil {
+		return *a.Validation.ExclusiveMinimum
+	}
+	if a.Validation.Minimum != nil {
+		return *a.Validation.Minimum
+	}
+	return 0
+}
+
+func randomMinOnlyValue(kind Kind, r *ExampleGenerator, minimum float64, sign int) any {
+	switch kind {
+	case IntKind:
+		return sign * (r.Int() + int(minimum))
+	case Int32Kind:
+		return int32(sign) * (r.Int32() + int32(minimum))
+	case Int64Kind:
+		return int64(sign) * (r.Int64() + int64(minimum))
+	case UIntKind:
+		return r.UInt() + uint(minimum)
+	case UInt32Kind:
+		return r.UInt32() + uint32(minimum)
+	case UInt64Kind:
+		return r.UInt64() + uint64(minimum)
+	case Float32Kind:
+		return float32(sign) * (r.Float32() + float32(minimum))
+	default:
+		return float64(sign) * (r.Float64() + minimum)
+	}
+}
+
+func randomBoundedValue(kind Kind, r *ExampleGenerator, minimum, maximum float64) any {
+	delta := maximum - minimum
+	switch kind {
+	case IntKind:
+		return r.Int()%int(delta) + int(minimum)
+	case Int32Kind:
+		return r.Int32()%int32(delta) + int32(minimum)
+	case Int64Kind:
+		return r.Int64()%int64(delta) + int64(minimum)
+	case UIntKind:
+		return r.UInt()%uint(delta) + uint(minimum)
+	case UInt32Kind:
+		return r.UInt32()%uint32(delta) + uint32(minimum)
+	case UInt64Kind:
+		return r.UInt64()%uint64(delta) + uint64(minimum)
+	case Float32Kind:
+		return r.Float32()*float32(delta) + float32(minimum)
+	default:
+		return r.Float64()*delta + minimum
+	}
+}
+
+func minValueForKind(kind Kind, minimum float64) any {
+	switch kind {
 	case IntKind:
 		return int(minimum)
 	case Int32Kind:

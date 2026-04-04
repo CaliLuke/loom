@@ -11,6 +11,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 type (
@@ -632,6 +633,7 @@ func (svc *ServiceData) Endpoint(name string) *EndpointData {
 // It records the user types needed by the service definition in userTypes.
 func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) *ServiceData {
 	svc := sds.ServicesData.Get(httpSvc.ServiceExpr.Name)
+	irService := transportir.BuildService(httpSvc)
 	scope := codegen.NewNameScope()
 	scope.Unique("c") // 'c' is reserved as the client's receiver name.
 	scope.Unique("v") // 'v' is reserved as the request builder payload argument name.
@@ -652,8 +654,8 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) *ServiceData {
 		Scope:            scope,
 	}
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
-	for _, httpEndpoint := range httpSvc.HTTPEndpoints {
-		sd.Endpoints = append(sd.Endpoints, sds.buildEndpointData(httpEndpoint, svc, sd, scope))
+	for _, httpEndpoint := range irService.Endpoints {
+		sd.Endpoints = append(sd.Endpoints, sds.buildEndpointDataFromIR(httpEndpoint, svc, sd, scope))
 	}
 	for _, httpEndpoint := range httpSvc.HTTPEndpoints {
 		sds.collectEndpointBodyAttributeTypes(httpEndpoint, sd)
@@ -704,11 +706,15 @@ func (sds *ServicesData) buildFileServersData(httpSvc *expr.HTTPServiceExpr, sco
 }
 
 func (sds *ServicesData) buildEndpointData(httpEndpoint *expr.HTTPEndpointExpr, svc *service.Data, sd *ServiceData, scope *codegen.NameScope) *EndpointData {
-	method := svc.Method(httpEndpoint.MethodExpr.Name)
-	routes := sds.buildEndpointRoutes(httpEndpoint, method, svc, sd)
-	payload := sds.buildPayloadData(httpEndpoint, sd)
-	reqs, hsch, bosch, qsch, basch := sds.buildRequirementSchemes(httpEndpoint)
-	requestInit := sds.buildClientRequestInit(httpEndpoint, method, svc, routes)
+	return sds.buildEndpointDataFromIR(transportir.BuildEndpoint(httpEndpoint), svc, sd, scope)
+}
+
+func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoint, svc *service.Data, sd *ServiceData, scope *codegen.NameScope) *EndpointData {
+	method := svc.Method(endpointIR.MethodName)
+	routes := sds.buildEndpointRoutes(endpointIR, method, svc, sd)
+	payload := sds.buildPayloadDataFromIR(endpointIR, sd)
+	reqs, hsch, bosch, qsch, basch := sds.buildRequirementSchemes(endpointIR)
+	requestInit := sds.buildClientRequestInit(endpointIR, method, svc, routes)
 
 	endpoint := &EndpointData{
 		Method:          method,
@@ -716,8 +722,8 @@ func (sds *ServicesData) buildEndpointData(httpEndpoint *expr.HTTPEndpointExpr, 
 		ServiceVarName:  svc.VarName,
 		ServicePkgName:  svc.PkgName,
 		Payload:         payload,
-		Result:          sds.buildResultData(httpEndpoint, sd),
-		Errors:          sds.buildErrorsData(httpEndpoint, sd),
+		Result:          sds.buildResultDataFromIR(endpointIR, sd),
+		Errors:          sds.buildErrorsDataFromIR(endpointIR, sd),
 		HeaderSchemes:   hsch,
 		BodySchemes:     bosch,
 		QuerySchemes:    qsch,
@@ -731,63 +737,55 @@ func (sds *ServicesData) buildEndpointData(httpEndpoint *expr.HTTPEndpointExpr, 
 		ClientStruct:    "Client",
 		EndpointInit:    method.VarName,
 		RequestInit:     requestInit,
-		HasMixedResults: httpEndpoint.MethodExpr.HasMixedResults(),
+		HasMixedResults: endpointIR.Response.HasMixedResults,
 		RequestEncoder:  endpointRequestEncoderName(method, payload, basch),
 		ResponseDecoder: fmt.Sprintf("Decode%sResponse", method.VarName),
 		Requirements:    reqs,
 	}
-	if httpEndpoint.MethodExpr.IsStreaming() {
-		sds.initWebSocketData(endpoint, httpEndpoint, sd)
-		initSSEData(endpoint, httpEndpoint, sd)
+	if endpointIR.Stream.IsStreaming {
+		sds.initWebSocketData(endpoint, endpointIR, sd)
+		initSSEData(endpoint, endpointIR, sd)
 	}
-	sds.initEndpointMultipartData(endpoint, httpEndpoint, method, svc)
-	if httpEndpoint.SkipRequestBodyEncodeDecode {
+	sds.initEndpointMultipartData(endpoint, endpointIR, method, svc)
+	if endpointIR.Request.SkipBodyEncode {
 		endpoint.BuildStreamPayload = scope.Unique("Build" + codegen.Goify(method.Name, true) + "StreamPayload")
 	}
-	if httpEndpoint.Redirect != nil {
+	if endpointIR.Redirect != nil {
 		endpoint.Redirect = &RedirectData{
-			URL:        httpEndpoint.Redirect.URL,
-			StatusCode: statusCodeToHTTPConst(httpEndpoint.Redirect.StatusCode),
+			URL:        endpointIR.Redirect.URL,
+			StatusCode: statusCodeToHTTPConst(endpointIR.Redirect.StatusCode),
 		}
 	}
 	return endpoint
 }
 
-func (sds *ServicesData) buildEndpointRoutes(httpEndpoint *expr.HTTPEndpointExpr, method *service.MethodData, svc *service.Data, sd *ServiceData) []*RouteData {
-	routesCap := 0
-	for _, route := range httpEndpoint.Routes {
-		routesCap += len(route.FullPaths())
-	}
-	routes := make([]*RouteData, 0, routesCap)
-	pathCount := 0
-	for _, route := range httpEndpoint.Routes {
-		for _, path := range route.FullPaths() {
-			routes = append(routes, &RouteData{
-				Verb:     strings.ToUpper(route.Method),
-				Path:     path,
-				PathInit: sds.buildPathInitData(httpEndpoint, method, svc, sd, path, pathCount),
-			})
-			pathCount++
-		}
+func (sds *ServicesData) buildEndpointRoutes(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, sd *ServiceData) []*RouteData {
+	routes := make([]*RouteData, 0, len(endpointIR.Routes))
+	for index, route := range endpointIR.Routes {
+		routes = append(routes, &RouteData{
+			Verb:     route.Method,
+			Path:     route.Path,
+			PathInit: sds.buildPathInitData(endpointIR, method, svc, sd, route.Path, index),
+		})
 	}
 	return routes
 }
 
-func (sds *ServicesData) buildPathInitData(httpEndpoint *expr.HTTPEndpointExpr, method *service.MethodData, svc *service.Data, sd *ServiceData, path string, pathCount int) *InitData {
+func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, sd *ServiceData, path string, pathCount int) *InitData {
 	params := expr.ExtractHTTPWildcards(path)
 	initArgs := make([]*InitArgData, len(params))
-	pathParamsObj := expr.AsObject(httpEndpoint.PathParams().Type)
+	pathParamsObj := pathParametersObject(endpointIR.Request.PathParams)
 	suffix := ""
 	if pathCount > 0 {
 		suffix = strconv.Itoa(pathCount + 1)
 	}
 	name := fmt.Sprintf("%s%sPath%s", method.VarName, svc.StructName, suffix)
 	for j, arg := range params {
-		patt := pathParamsObj.Attribute(arg)
+		patt := parameterAttributeByName(endpointIR.Request.PathParams, arg)
 		att := makeHTTPType(patt)
-		pointer := httpEndpoint.Params.IsPrimitivePointer(arg, true)
-		if expr.IsObject(httpEndpoint.MethodExpr.Payload.Type) {
-			pointer = httpEndpoint.MethodExpr.Payload.IsPrimitivePointer(arg, true)
+		pointer := parameterPrimitivePointerByName(endpointIR.Request.PathParams, arg)
+		if payloadPointer := payloadPrimitivePointerByName(endpointIR.Request.Payload, arg); payloadPointer {
+			pointer = true
 		}
 		varName := sd.Scope.Name(codegen.Goify(arg, false))
 		validate := ""
@@ -826,8 +824,8 @@ func (sds *ServicesData) buildPathInitData(httpEndpoint *expr.HTTPEndpointExpr, 
 	}
 }
 
-func (sds *ServicesData) buildRequirementSchemes(httpEndpoint *expr.HTTPEndpointExpr) (service.RequirementsData, service.SchemesData, service.SchemesData, service.SchemesData, *service.SchemeData) {
-	reqs, allSchemes := service.BuildRequirementsData(httpEndpoint.Requirements, httpEndpoint.MethodExpr)
+func (sds *ServicesData) buildRequirementSchemes(endpointIR *transportir.Endpoint) (service.RequirementsData, service.SchemesData, service.SchemesData, service.SchemesData, *service.SchemeData) {
+	reqs, allSchemes := service.BuildRequirementsData(endpointIR.Security.Requirements, &expr.MethodExpr{Payload: endpointIR.Request.Payload})
 	var (
 		headerSchemes service.SchemesData
 		bodySchemes   service.SchemesData
@@ -863,7 +861,7 @@ func endpointRequestEncoderName(method *service.MethodData, payload *PayloadData
 	return fmt.Sprintf("Encode%sRequest", method.VarName)
 }
 
-func (sds *ServicesData) buildClientRequestInit(httpEndpoint *expr.HTTPEndpointExpr, method *service.MethodData, svc *service.Data, routes []*RouteData) *InitData {
+func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, routes []*RouteData) *InitData {
 	name := fmt.Sprintf("Build%sRequest", method.VarName)
 	scope := codegen.NewNameScope()
 	scope.Unique("c")
@@ -886,22 +884,22 @@ func (sds *ServicesData) buildClientRequestInit(httpEndpoint *expr.HTTPEndpointE
 	}
 	pkg := pkgWithDefault(method.PayloadLoc, svc.PkgName)
 	payloadRef := ""
-	if len(routes[0].PathInit.ClientArgs) > 0 && httpEndpoint.MethodExpr.Payload.Type != expr.Empty {
-		payloadRef = svc.Scope.GoFullTypeRef(httpEndpoint.MethodExpr.Payload, pkg)
+	if len(routes[0].PathInit.ClientArgs) > 0 && endpointIR.Request.Payload.Type != expr.Empty {
+		payloadRef = svc.Scope.GoFullTypeRef(endpointIR.Request.Payload, pkg)
 	}
 	requestStruct := ""
-	if httpEndpoint.SkipRequestBodyEncodeDecode {
+	if endpointIR.Request.SkipBodyEncode {
 		requestStruct = pkg + "." + method.RequestStruct
 	}
 	code := renderRequestInitCode(
 		payloadRef,
-		expr.IsObject(httpEndpoint.MethodExpr.Payload.Type),
+		expr.IsObject(endpointIR.Request.Payload.Type),
 		svc.Name,
 		method.Name,
 		args,
 		routes[0].PathInit,
 		routes[0].Verb,
-		httpEndpoint.MethodExpr.IsStreaming() && httpEndpoint.SSE == nil,
+		endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE,
 		requestStruct,
 	)
 	return &InitData{
@@ -912,8 +910,8 @@ func (sds *ServicesData) buildClientRequestInit(httpEndpoint *expr.HTTPEndpointE
 	}
 }
 
-func (sds *ServicesData) initEndpointMultipartData(endpoint *EndpointData, httpEndpoint *expr.HTTPEndpointExpr, method *service.MethodData, svc *service.Data) {
-	if httpEndpoint.MultipartRequest && !endpoint.Payload.Request.MultipartGenerated {
+func (sds *ServicesData) initEndpointMultipartData(endpoint *EndpointData, endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data) {
+	if endpointIR.Request.Multipart && !endpoint.Payload.Request.MultipartGenerated {
 		endpoint.MultipartRequestDecoder = &MultipartData{
 			FuncName:    fmt.Sprintf("%s%sDecoderFunc", svc.StructName, method.VarName),
 			InitName:    fmt.Sprintf("New%s%sDecoder", svc.StructName, method.VarName),
@@ -923,7 +921,7 @@ func (sds *ServicesData) initEndpointMultipartData(endpoint *EndpointData, httpE
 			Payload:     endpoint.Payload,
 		}
 	}
-	if httpEndpoint.MultipartRequest {
+	if endpointIR.Request.Multipart {
 		endpoint.MultipartRequestEncoder = &MultipartData{
 			FuncName:    fmt.Sprintf("%s%sEncoderFunc", svc.StructName, method.VarName),
 			InitName:    fmt.Sprintf("New%s%sEncoder", svc.StructName, method.VarName),
@@ -933,6 +931,42 @@ func (sds *ServicesData) initEndpointMultipartData(endpoint *EndpointData, httpE
 			Payload:     endpoint.Payload,
 		}
 	}
+}
+
+func parameterAttributeByName(params []*transportir.Parameter, name string) *expr.AttributeExpr {
+	for _, param := range params {
+		if param.Name == name {
+			return param.Attribute
+		}
+	}
+	return nil
+}
+
+func parameterPrimitivePointerByName(params []*transportir.Parameter, name string) bool {
+	for _, param := range params {
+		if param.Name == name {
+			return param.PrimitivePointer
+		}
+	}
+	return false
+}
+
+func payloadPrimitivePointerByName(payload *expr.AttributeExpr, name string) bool {
+	if payload == nil || !expr.IsObject(payload.Type) {
+		return false
+	}
+	return payload.IsPrimitivePointer(name, true)
+}
+
+func pathParametersObject(params []*transportir.Parameter) *expr.Object {
+	object := make(expr.Object, 0, len(params))
+	for _, param := range params {
+		object = append(object, &expr.NamedAttributeExpr{
+			Name:      param.Name,
+			Attribute: param.Attribute,
+		})
+	}
+	return &object
 }
 
 func (sds *ServicesData) collectEndpointBodyAttributeTypes(httpEndpoint *expr.HTTPEndpointExpr, sd *ServiceData) {
@@ -1060,16 +1094,16 @@ func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *e
 	return att
 }
 
-func generatedMultipartRequestData(e *expr.HTTPEndpointExpr) (bool, []*MultipartFileFieldData) {
-	if !e.MultipartRequest || e.Body == nil || e.Body.Type == expr.Empty || !expr.IsObject(e.Body.Type) {
+func generatedMultipartRequestData(request *transportir.Request) (bool, []*MultipartFileFieldData) {
+	if request == nil || !request.Multipart || request.Body == nil || request.Body.Type == expr.Empty || !expr.IsObject(request.Body.Type) {
 		return false, nil
 	}
-	if !supportsGeneratedMultipartObject(e.Body) {
+	if !supportsGeneratedMultipartObject(request.Body) {
 		return false, nil
 	}
-	fileFields := multipartFileFields(e.Body)
+	fileFields := multipartFileFields(request.Body)
 	if len(fileFields) == 1 {
-		bodyObj := expr.AsObject(e.Body.Type)
+		bodyObj := expr.AsObject(request.Body.Type)
 		if attr := bodyObj.Attribute("filename"); attr != nil && attr.Type.Kind() == expr.StringKind {
 			fileFields[0].PopulateFilename = true
 		}
@@ -1178,15 +1212,19 @@ func multipartFileFields(body *expr.AttributeExpr) []*MultipartFileFieldData {
 // used by the request body type recursively if any.
 // buildResultData builds the result data for the given service endpoint.
 func (sds *ServicesData) buildResultData(e *expr.HTTPEndpointExpr, sd *ServiceData) *ResultData {
+	return sds.buildResultDataFromIR(transportir.BuildEndpoint(e), sd)
+}
+
+func (sds *ServicesData) buildResultDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) *ResultData {
 	var (
 		svc    = sd.Service
-		ep     = svc.Method(e.MethodExpr.Name)
+		ep     = svc.Method(endpointIR.MethodName)
 		pkg    = pkgWithDefault(ep.ResultLoc, svc.PkgName)
-		result = e.MethodExpr.Result
+		result = endpointIR.Response.Result
 	)
 	name, ref, view := buildResultMetadata(svc, result, pkg)
-	responses, mustInit, result := sds.buildResultResponsesData(e, ep, result, sd)
-	idAtt, idAttRequired := buildResultIDData(e, result)
+	responses, mustInit, result := sds.buildResultResponsesData(endpointIR, ep, result, sd)
+	idAtt, idAttRequired := buildResultIDData(endpointIR.Response, result)
 	return &ResultData{
 		IsStruct:            expr.IsObject(result.Type),
 		Name:                name,
@@ -1211,7 +1249,7 @@ func buildResultMetadata(svc *service.Data, result *expr.AttributeExpr, pkg stri
 }
 
 func (sds *ServicesData) buildResultResponsesData(
-	e *expr.HTTPEndpointExpr,
+	endpointIR *transportir.Endpoint,
 	ep *service.MethodData,
 	result *expr.AttributeExpr,
 	sd *ServiceData,
@@ -1221,7 +1259,7 @@ func (sds *ServicesData) buildResultResponsesData(
 		result = expr.AsObject(ep.ViewedResult.Type).Attribute("projected")
 		viewed = true
 	}
-	responses := sds.buildResponses(e, result, viewed, sd)
+	responses := sds.buildResponsesFromIR(endpointIR, result, viewed, sd)
 	mustInit := false
 	for _, r := range responses {
 		if len(r.ServerBody) > 0 || len(r.Headers) > 0 || len(r.Cookies) > 0 || r.TagName != "" {
@@ -1232,11 +1270,11 @@ func (sds *ServicesData) buildResultResponsesData(
 	return responses, mustInit, result
 }
 
-func buildResultIDData(e *expr.HTTPEndpointExpr, result *expr.AttributeExpr) (string, bool) {
-	if !e.IsJSONRPC() || e.ResultIDAttribute == "" {
+func buildResultIDData(response *transportir.Response, result *expr.AttributeExpr) (string, bool) {
+	if response == nil || response.IDAttribute == "" {
 		return "", false
 	}
-	return codegen.Goify(e.ResultIDAttribute, true), result.IsRequired(e.ResultIDAttribute)
+	return codegen.Goify(response.IDAttribute, true), result.IsRequired(response.IDAttribute)
 }
 
 func transportStringSlice(att *expr.AttributeExpr) bool {
@@ -1327,47 +1365,6 @@ func (sds *ServicesData) buildTransportElement(
 	}
 }
 
-func (sds *ServicesData) extractPathParams(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, scope *codegen.NameScope) []*ParamData {
-	var params []*ParamData
-	codegen.WalkMappedAttr(a, func(name, elem string, _ bool, c *expr.AttributeExpr) error { // nolint: errcheck
-		stringSlice := transportStringSlice(c)
-		c = makeHTTPType(c)
-		ctx := serviceContext("", scope)
-		fieldName, fieldType, fieldPointer := transportFieldBinding(name, c, service, nil)
-		params = append(params, &ParamData{
-			Map:            false,
-			MapStringSlice: false,
-			Element:        sds.buildTransportElement(name, elem, c, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, scope),
-		})
-		return nil
-	})
-
-	return params
-}
-
-func (sds *ServicesData) extractQueryParams(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, scope *codegen.NameScope) []*ParamData {
-	var params []*ParamData
-	codegen.WalkMappedAttr(a, func(name, elem string, required bool, c *expr.AttributeExpr) error { // nolint: errcheck
-		stringSlice := transportStringSlice(c)
-		c = makeHTTPType(c)
-		mp := expr.AsMap(c.Type)
-		ctx := serviceContext("", scope)
-		pointer := a.IsPrimitivePointer(name, true)
-		fieldName, fieldType, fieldPointer := transportFieldBinding(name, c, service, nil)
-		params = append(params, &ParamData{
-			Map: mp != nil,
-			MapStringSlice: mp != nil &&
-				mp.KeyType.Type.Kind() == expr.StringKind &&
-				mp.ElemType.Type.Kind() == expr.ArrayKind &&
-				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
-			Element: sds.buildTransportElement(name, elem, c, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, ctx, scope),
-		})
-		return nil
-	})
-
-	return params
-}
-
 func (sds *ServicesData) extractHeaders(a *expr.MappedAttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*HeaderData {
 	var headers []*HeaderData
 	codegen.WalkMappedAttr(a, func(name, elem string, required bool, _ *expr.AttributeExpr) error { // nolint: errcheck
@@ -1386,19 +1383,6 @@ func (sds *ServicesData) extractHeaders(a *expr.MappedAttributeExpr, svcAtt *exp
 		return nil
 	})
 	return headers
-}
-
-func (sds *ServicesData) extractCookies(a *expr.MappedAttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
-	var cookies []*CookieData
-	codegen.WalkMappedAttr(a, func(name, elem string, required bool, attr *expr.AttributeExpr) error { // nolint: errcheck
-		if _, ok := attr.Meta["loom:transport-only-session-cookie"]; ok {
-			return nil
-		}
-		pointer := a.IsPrimitivePointer(name, true)
-		cookies = append(cookies, sds.cookieData(name, elem, required, pointer, attr, svcAtt, svcCtx, scope))
-		return nil
-	})
-	return cookies
 }
 
 func (sds *ServicesData) extractResponseCookies(cookiesExpr []*expr.HTTPResponseCookieExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {

@@ -445,6 +445,22 @@ func jsonrpcWebSocketServerRecvSection(data *httpcodegen.ServiceData) codegen.Se
 	b.WriteString("\treturn s.processRequest(ctx, &req)\n")
 	b.WriteString("}\n\n")
 	fmt.Fprintf(&b, "func (s *%s) processRequest(ctx context.Context, req *jsonrpc.RawRequest) error {\n", streamName)
+	writeJSONRPCWebSocketRequestValidation(&b)
+	b.WriteString("\tswitch req.Method {\n")
+	for _, ed := range data.Endpoints {
+		writeJSONRPCWebSocketRequestCase(&b, ed)
+	}
+	b.WriteString("\tdefault:\n")
+	b.WriteString("\t\tif req.HasID {\n")
+	b.WriteString("\t\t\treturn s.sendError(ctx, req.ID, jsonrpc.MethodNotFound, \"Method not found\", nil)\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t\treturn nil\n")
+	b.WriteString("\t}\n")
+	b.WriteString("}\n")
+	return codegen.NewRawSection("jsonrpc-server-websocket-recv", b.String())
+}
+
+func writeJSONRPCWebSocketRequestValidation(b *strings.Builder) {
 	b.WriteString("\tif req.JSONRPC != \"2.0\" {\n")
 	b.WriteString("\t\tif req.HasID {\n")
 	b.WriteString("\t\t\treturn s.sendError(ctx, req.ID, jsonrpc.InvalidRequest, \"Invalid request\", nil)\n")
@@ -457,77 +473,89 @@ func jsonrpcWebSocketServerRecvSection(data *httpcodegen.ServiceData) codegen.Se
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t\treturn nil\n")
 	b.WriteString("\t}\n\n")
-	b.WriteString("\tswitch req.Method {\n")
-	for _, ed := range data.Endpoints {
-		fmt.Fprintf(&b, "\tcase %q:\n", ed.Method.Name)
-		if ed.Method.ServerStream != nil && (ed.Method.ServerStream.Kind == expr.ServerStreamKind || ed.Method.ServerStream.Kind == expr.BidirectionalStreamKind) {
-			if ed.Payload != nil && ed.Payload.Ref != "" {
-				fmt.Fprintf(&b, "\t\tpayload, err := s.%s(ctx, s.r, req)\n", lowerInitial(ed.Method.VarName))
-			} else {
-				fmt.Fprintf(&b, "\t\t_, err := s.%s(ctx, s.r, req)\n", lowerInitial(ed.Method.VarName))
-			}
-			b.WriteString("\t\tif err != nil {\n")
-			b.WriteString("\t\t\tif req.HasID {\n")
-			b.WriteString("\t\t\t\tif sendErr := s.SendError(ctx, req.ID, err); sendErr != nil {\n")
-			b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"failed to send error response: %w\", sendErr)\n")
-			b.WriteString("\t\t\t\t}\n")
-			b.WriteString("\t\t\t\treturn nil\n")
-			b.WriteString("\t\t\t}\n")
-			fmt.Fprintf(&b, "\t\t\treturn fmt.Errorf(\"handler error for %s: %%w\", err)\n", ed.Method.Name)
-			b.WriteString("\t\t}\n")
-			fmt.Fprintf(&b, "\t\tstreamWrapper := &%sStreamWrapper{\n", lowerInitial(ed.Method.VarName))
-			b.WriteString("\t\t\tstream: s,\n")
-			b.WriteString("\t\t\trequestID: req.ID,\n")
-			b.WriteString("\t\t}\n")
-			fmt.Fprintf(&b, "\t\tendpointInput := &%s.%s{\n", ed.ServicePkgName, ed.Method.ServerStream.EndpointStruct)
-			if ed.Payload != nil && ed.Payload.Ref != "" {
-				fmt.Fprintf(&b, "\t\t\tPayload: payload.(%s),\n", ed.Payload.Ref)
-			}
-			b.WriteString("\t\t\tStream: streamWrapper,\n")
-			b.WriteString("\t\t}\n")
-			fmt.Fprintf(&b, "\t\tif _, err := s.%sEndpoint(ctx, endpointInput); err != nil {\n", lowerInitial(ed.Method.VarName))
-			b.WriteString("\t\t\tif req.HasID {\n")
-			b.WriteString("\t\t\t\tif sendErr := streamWrapper.SendError(ctx, err); sendErr != nil {\n")
-			b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"failed to send error response: %w\", sendErr)\n")
-			b.WriteString("\t\t\t\t}\n")
-			b.WriteString("\t\t\t\treturn nil\n")
-			b.WriteString("\t\t\t}\n")
-			b.WriteString("\t\t\treturn nil\n")
-			b.WriteString("\t\t}\n")
-			b.WriteString("\t\treturn nil\n")
-		} else {
-			fmt.Fprintf(&b, "\t\tres, err := s.%s(ctx, s.r, req)\n", lowerInitial(ed.Method.VarName))
-			b.WriteString("\t\tif err != nil {\n")
-			b.WriteString("\t\t\tif req.HasID {\n")
-			b.WriteString("\t\t\t\tif sendErr := s.SendError(ctx, req.ID, err); sendErr != nil {\n")
-			b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"failed to send error response: %w\", sendErr)\n")
-			b.WriteString("\t\t\t\t}\n")
-			b.WriteString("\t\t\t}\n")
-			b.WriteString("\t\t\treturn nil\n")
-			b.WriteString("\t\t}\n")
-			b.WriteString("\t\tif req.HasID {\n")
-			b.WriteString("\t\t\tif res == nil {\n")
-			b.WriteString("\t\t\t\treturn s.sendError(ctx, req.ID, jsonrpc.InternalError, \"Internal error\", nil)\n")
-			b.WriteString("\t\t\t}\n")
-			fmt.Fprintf(&b, "\t\t\tif r, ok := res.(*%s.%sResult); ok {\n", ed.ServicePkgName, ed.Method.VarName)
-			fmt.Fprintf(&b, "\t\t\t\tif err := s.Send%sResponse(ctx, req.ID, r); err != nil {\n", ed.Method.VarName)
-			fmt.Fprintf(&b, "\t\t\t\t\treturn fmt.Errorf(\"send response error for %s: %%w\", err)\n", ed.Method.Name)
-			b.WriteString("\t\t\t\t}\n")
-			b.WriteString("\t\t\t} else {\n")
-			b.WriteString("\t\t\t\treturn s.sendError(ctx, req.ID, jsonrpc.InternalError, \"Internal error\", nil)\n")
-			b.WriteString("\t\t\t}\n")
-			b.WriteString("\t\t}\n")
-			b.WriteString("\t\treturn nil\n")
-		}
+}
+
+func writeJSONRPCWebSocketRequestCase(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	fmt.Fprintf(b, "\tcase %q:\n", ed.Method.Name)
+	if ed.Method.ServerStream != nil && (ed.Method.ServerStream.Kind == expr.ServerStreamKind || ed.Method.ServerStream.Kind == expr.BidirectionalStreamKind) {
+		writeJSONRPCStreamingRequestCase(b, ed)
+		return
 	}
-	b.WriteString("\tdefault:\n")
-	b.WriteString("\t\tif req.HasID {\n")
-	b.WriteString("\t\t\treturn s.sendError(ctx, req.ID, jsonrpc.MethodNotFound, \"Method not found\", nil)\n")
+	writeJSONRPCUnaryRequestCase(b, ed)
+}
+
+func writeJSONRPCStreamingRequestCase(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	writeJSONRPCStreamingPayloadDecode(b, ed)
+	writeJSONRPCStreamingHandlerError(b, ed)
+	writeJSONRPCStreamingEndpointInvoke(b, ed)
+}
+
+func writeJSONRPCStreamingPayloadDecode(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	if ed.Payload != nil && ed.Payload.Ref != "" {
+		fmt.Fprintf(b, "\t\tpayload, err := s.%s(ctx, s.r, req)\n", lowerInitial(ed.Method.VarName))
+	} else {
+		fmt.Fprintf(b, "\t\t_, err := s.%s(ctx, s.r, req)\n", lowerInitial(ed.Method.VarName))
+	}
+}
+
+func writeJSONRPCStreamingHandlerError(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	b.WriteString("\t\tif err != nil {\n")
+	b.WriteString("\t\t\tif req.HasID {\n")
+	b.WriteString("\t\t\t\tif sendErr := s.SendError(ctx, req.ID, err); sendErr != nil {\n")
+	b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"failed to send error response: %w\", sendErr)\n")
+	b.WriteString("\t\t\t\t}\n")
+	b.WriteString("\t\t\t\treturn nil\n")
+	b.WriteString("\t\t\t}\n")
+	fmt.Fprintf(b, "\t\t\treturn fmt.Errorf(\"handler error for %s: %%w\", err)\n", ed.Method.Name)
+	b.WriteString("\t\t}\n")
+}
+
+func writeJSONRPCStreamingEndpointInvoke(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	fmt.Fprintf(b, "\t\tstreamWrapper := &%sStreamWrapper{\n", lowerInitial(ed.Method.VarName))
+	b.WriteString("\t\t\tstream: s,\n")
+	b.WriteString("\t\t\trequestID: req.ID,\n")
+	b.WriteString("\t\t}\n")
+	fmt.Fprintf(b, "\t\tendpointInput := &%s.%s{\n", ed.ServicePkgName, ed.Method.ServerStream.EndpointStruct)
+	if ed.Payload != nil && ed.Payload.Ref != "" {
+		fmt.Fprintf(b, "\t\t\tPayload: payload.(%s),\n", ed.Payload.Ref)
+	}
+	b.WriteString("\t\t\tStream: streamWrapper,\n")
+	b.WriteString("\t\t}\n")
+	fmt.Fprintf(b, "\t\tif _, err := s.%sEndpoint(ctx, endpointInput); err != nil {\n", lowerInitial(ed.Method.VarName))
+	b.WriteString("\t\t\tif req.HasID {\n")
+	b.WriteString("\t\t\t\tif sendErr := streamWrapper.SendError(ctx, err); sendErr != nil {\n")
+	b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"failed to send error response: %w\", sendErr)\n")
+	b.WriteString("\t\t\t\t}\n")
+	b.WriteString("\t\t\t\treturn nil\n")
+	b.WriteString("\t\t\t}\n")
+	b.WriteString("\t\t\treturn nil\n")
 	b.WriteString("\t\t}\n")
 	b.WriteString("\t\treturn nil\n")
-	b.WriteString("\t}\n")
-	b.WriteString("}\n")
-	return codegen.NewRawSection("jsonrpc-server-websocket-recv", b.String())
+}
+
+func writeJSONRPCUnaryRequestCase(b *strings.Builder, ed *httpcodegen.EndpointData) {
+	fmt.Fprintf(b, "\t\tres, err := s.%s(ctx, s.r, req)\n", lowerInitial(ed.Method.VarName))
+	b.WriteString("\t\tif err != nil {\n")
+	b.WriteString("\t\t\tif req.HasID {\n")
+	b.WriteString("\t\t\t\tif sendErr := s.SendError(ctx, req.ID, err); sendErr != nil {\n")
+	b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"failed to send error response: %w\", sendErr)\n")
+	b.WriteString("\t\t\t\t}\n")
+	b.WriteString("\t\t\t}\n")
+	b.WriteString("\t\t\treturn nil\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t\tif req.HasID {\n")
+	b.WriteString("\t\t\tif res == nil {\n")
+	b.WriteString("\t\t\t\treturn s.sendError(ctx, req.ID, jsonrpc.InternalError, \"Internal error\", nil)\n")
+	b.WriteString("\t\t\t}\n")
+	fmt.Fprintf(b, "\t\t\tif r, ok := res.(*%s.%sResult); ok {\n", ed.ServicePkgName, ed.Method.VarName)
+	fmt.Fprintf(b, "\t\t\t\tif err := s.Send%sResponse(ctx, req.ID, r); err != nil {\n", ed.Method.VarName)
+	fmt.Fprintf(b, "\t\t\t\t\treturn fmt.Errorf(\"send response error for %s: %%w\", err)\n", ed.Method.Name)
+	b.WriteString("\t\t\t\t}\n")
+	b.WriteString("\t\t\t} else {\n")
+	b.WriteString("\t\t\t\treturn s.sendError(ctx, req.ID, jsonrpc.InternalError, \"Internal error\", nil)\n")
+	b.WriteString("\t\t\t}\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t\treturn nil\n")
 }
 
 func jsonrpcWebSocketServerCloseSection(data *httpcodegen.ServiceData) codegen.Section {

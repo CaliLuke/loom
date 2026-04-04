@@ -434,14 +434,25 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		elem = unAlias(elem)
 	}
 	targetRef := ta.TargetCtx.Scope.Ref(elem, ta.TargetCtx.Pkg(elem))
+	code, sourceVar, targetVar, newVar := transformArraySetup(sourceVar, targetVar, newVar, ta)
+	src, tgt, err := transformArrayElementAttrs(source.ElemType, elem, ta)
+	if err != nil {
+		return "", err
+	}
+	buf, targetElemVar, loopVar, rangeOn := transformArrayInitBuffer(targetVar, sourceVar, targetRef, targetPtr, sourcePtr, newVar)
+	elemCode, err := transformAttribute(src, tgt, "val", targetElemVar, false, ta)
+	if err != nil {
+		return "", err
+	}
+	writeTransformArrayLoop(&buf, loopVar, rangeOn, transformArrayValueVar(src), elemCode)
+	if targetPtr {
+		fmt.Fprintf(&buf, "%s = &arr%s\n", targetVar, loopVar)
+	}
+	return code + buf.String(), nil
+}
 
-	var (
-		code string
-		err  error
-	)
-
-	// If targetInit is set, the target array element is in a nested state.
-	// See grpc/docs/FAQ.md.
+func transformArraySetup(sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, string, string, bool) {
+	var code string
 	if ta.targetInit != "" {
 		assign := "="
 		if newVar {
@@ -450,73 +461,73 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		code = fmt.Sprintf("%s %s &%s{}\n", targetVar, assign, ta.targetInit)
 		ta.targetInit = ""
 	}
-	if ta.wrapped {
-		if ta.proto {
-			targetVar += ".Field"
-			newVar = false
-		} else {
-			sourceVar += ".Field"
-		}
-		ta.wrapped = false
+	if !ta.wrapped {
+		return code, sourceVar, targetVar, newVar
 	}
+	if ta.proto {
+		targetVar += ".Field"
+		newVar = false
+	} else {
+		sourceVar += ".Field"
+	}
+	ta.wrapped = false
+	return code, sourceVar, targetVar, newVar
+}
 
-	src := source.ElemType
-	tgt := elem
-	if err = codegen.IsCompatible(src.Type, tgt.Type, "[0]", "[0]"); err != nil {
-		if ta.proto {
-			ta.targetInit = ta.TargetCtx.Scope.Name(tgt, ta.TargetCtx.Pkg(tgt), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
-			tgt = unwrapAttr(expr.DupAtt(tgt))
-		} else {
-			src = unwrapAttr(expr.DupAtt(src))
-		}
-		ta.wrapped = true
-		if err = codegen.IsCompatible(src.Type, tgt.Type, "[0]", "[0]"); err != nil {
-			return "", err
-		}
+func transformArrayElementAttrs(src, tgt *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
+	if err := codegen.IsCompatible(src.Type, tgt.Type, "[0]", "[0]"); err == nil {
+		return src, tgt, nil
 	}
-	valVar := "val"
-	if obj := expr.AsObject(src.Type); obj != nil {
-		if len(*obj) == 0 {
-			valVar = ""
-		}
+	if ta.proto {
+		ta.targetInit = ta.TargetCtx.Scope.Name(tgt, ta.TargetCtx.Pkg(tgt), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+		tgt = unwrapAttr(expr.DupAtt(tgt))
+	} else {
+		src = unwrapAttr(expr.DupAtt(src))
 	}
+	ta.wrapped = true
+	if err := codegen.IsCompatible(src.Type, tgt.Type, "[0]", "[0]"); err != nil {
+		return nil, nil, err
+	}
+	return src, tgt, nil
+}
 
-	var (
-		buf     bytes.Buffer
-		loopVar = string(rune(105 + strings.Count(targetVar, "[")))
-		rangeOn = sourceVar
-		assign  = "="
-	)
+func transformArrayInitBuffer(targetVar, sourceVar, targetRef string, targetPtr, sourcePtr, newVar bool) (bytes.Buffer, string, string, string) {
+	var buf bytes.Buffer
+	loopVar := string(rune(105 + strings.Count(targetVar, "[")))
+	rangeOn := sourceVar
 	if sourcePtr {
 		rangeOn = "*" + rangeOn
 	}
+	assign := "="
 	if newVar {
 		assign = ":="
 	}
-	sourceValue := "val"
 	targetElemVar := fmt.Sprintf("%s[%s]", targetVar, loopVar)
 	if targetPtr {
 		arrayVar := fmt.Sprintf("arr%s", loopVar)
 		targetElemVar = fmt.Sprintf("%s[%s]", arrayVar, loopVar)
 		fmt.Fprintf(&buf, "%s := make([]%s, len(%s))\n", arrayVar, targetRef, rangeOn)
-	} else {
-		fmt.Fprintf(&buf, "%s %s make([]%s, len(%s))\n", targetVar, assign, targetRef, rangeOn)
+		return buf, targetElemVar, loopVar, rangeOn
 	}
+	fmt.Fprintf(&buf, "%s %s make([]%s, len(%s))\n", targetVar, assign, targetRef, rangeOn)
+	return buf, targetElemVar, loopVar, rangeOn
+}
+
+func transformArrayValueVar(src *expr.AttributeExpr) string {
+	if obj := expr.AsObject(src.Type); obj != nil && len(*obj) == 0 {
+		return ""
+	}
+	return "val"
+}
+
+func writeTransformArrayLoop(buf *bytes.Buffer, loopVar, rangeOn, valVar, elemCode string) {
 	if valVar != "" {
-		fmt.Fprintf(&buf, "for %s, %s := range %s {\n", loopVar, valVar, rangeOn)
+		fmt.Fprintf(buf, "for %s, %s := range %s {\n", loopVar, valVar, rangeOn)
 	} else {
-		fmt.Fprintf(&buf, "for %s := range %s {\n", loopVar, rangeOn)
-	}
-	elemCode, err := transformAttribute(src, tgt, sourceValue, targetElemVar, false, ta)
-	if err != nil {
-		return "", err
+		fmt.Fprintf(buf, "for %s := range %s {\n", loopVar, rangeOn)
 	}
 	buf.WriteString(codegen.Indent(elemCode, "\t"))
 	buf.WriteString("}\n")
-	if targetPtr {
-		fmt.Fprintf(&buf, "%s = &arr%s\n", targetVar, loopVar)
-	}
-	return code + buf.String(), nil
 }
 
 // transformMap returns the code to transform source attribute of map

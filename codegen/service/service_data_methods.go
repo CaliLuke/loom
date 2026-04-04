@@ -150,87 +150,116 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, vnam
 	if !m.IsStreaming() && !m.HasMixedResults() {
 		return
 	}
-	var (
-		spayloadName string
-		spayloadRef  string
-		spayloadDef  string
-		spayloadDesc string
-		spayloadEx   any
-		srname       = rname
-		srref        = resultRef
-	)
-
-	if m.HasMixedResults() && m.StreamingResult != nil && m.StreamingResult.Type != expr.Empty {
-		srname = scope.GoTypeName(m.StreamingResult)
-		srref = scope.GoTypeRef(m.StreamingResult)
-		data.StreamingResult = srname
-		data.StreamingResultRef = srref
-		if dt, ok := m.StreamingResult.Type.(expr.UserType); ok {
-			data.StreamingResultDef = scope.GoTypeDef(dt.Attribute(), false, true)
-		}
-		data.StreamingResultDesc = m.StreamingResult.Description
-		if data.StreamingResultDesc == "" {
-			data.StreamingResultDesc = fmt.Sprintf("%s is the streaming result type of the %s service %s method.",
-				srname, m.Service.Name, m.Name)
-		}
-		data.StreamingResultEx = m.StreamingResult.Example(d.Root.API.ExampleGenerator)
-	}
-
-	if m.StreamingPayload != nil && m.StreamingPayload.Type != expr.Empty {
-		spayloadName = scope.GoTypeName(m.StreamingPayload)
-		spayloadRef = scope.GoTypeRef(m.StreamingPayload)
-		if dt, ok := m.StreamingPayload.Type.(expr.UserType); ok {
-			spayloadDef = scope.GoTypeDef(dt.Attribute(), false, true)
-		}
-		spayloadDesc = m.StreamingPayload.Description
-		if spayloadDesc == "" {
-			spayloadDesc = fmt.Sprintf("%s is the streaming payload type of the %s service %s method.",
-				spayloadName, m.Service.Name, m.Name)
-		}
-		spayloadEx = m.StreamingPayload.Example(d.Root.API.ExampleGenerator)
-	}
+	sresult := d.buildStreamingResultData(data, m, rname, resultRef, scope)
+	spayload := d.buildStreamingPayloadData(m, scope)
 	streamKind := streamDataKind(m)
-	svrStream, cliStream := buildBaseStreamData(m, vname, srname, srref, scope, data.IsJSONRPC, data.IsJSONRPCSSE)
-	applyJSONRPCStreamAdjustments(svrStream, m, resultRef, srname, data.IsJSONRPCSSE)
-	if streamKind == expr.ClientStreamKind || streamKind == expr.BidirectionalStreamKind {
-		switch streamKind {
-		case expr.ClientStreamKind:
-			if srref != "" {
-				svrStream.SendName = "SendAndClose"
-				svrStream.SendDesc = fmt.Sprintf("SendAndClose streams instances of %q and closes the stream.", srname)
-				svrStream.SendWithContextName = "SendAndCloseWithContext"
-				svrStream.SendWithContextDesc = fmt.Sprintf("SendAndCloseWithContext streams instances of %q and closes the stream with context.", srname)
-				svrStream.MustClose = false
-				cliStream.RecvName = "CloseAndRecv"
-				cliStream.RecvDesc = fmt.Sprintf("CloseAndRecv stops sending messages to the stream and reads instances of %q from the stream.", srname)
-				cliStream.RecvWithContextName = "CloseAndRecvWithContext"
-				cliStream.RecvWithContextDesc = fmt.Sprintf("CloseAndRecvWithContext stops sending messages to the stream and reads instances of %q from the stream with context.", srname)
-			} else {
-				cliStream.MustClose = true
-			}
-		case expr.BidirectionalStreamKind:
-			cliStream.MustClose = true
-		}
-		svrStream.RecvName = "Recv"
-		svrStream.RecvDesc = fmt.Sprintf("Recv reads instances of %q from the stream.", spayloadName)
-		svrStream.RecvWithContextName = "RecvWithContext"
-		svrStream.RecvWithContextDesc = fmt.Sprintf("RecvWithContext reads instances of %q from the stream with context.", spayloadName)
-		svrStream.RecvTypeName = spayloadName
-		svrStream.RecvTypeRef = spayloadRef
-		cliStream.SendName = "Send"
-		cliStream.SendDesc = fmt.Sprintf("Send streams instances of %q.", spayloadName)
-		cliStream.SendWithContextName = "SendWithContext"
-		cliStream.SendWithContextDesc = fmt.Sprintf("SendWithContext streams instances of %q with context.", spayloadName)
-		cliStream.SendTypeName = spayloadName
-		cliStream.SendTypeRef = spayloadRef
-	}
+	svrStream, cliStream := buildBaseStreamData(m, vname, sresult.Name, sresult.Ref, scope, data.IsJSONRPC, data.IsJSONRPCSSE)
+	applyJSONRPCStreamAdjustments(svrStream, m, resultRef, sresult.Name, data.IsJSONRPCSSE)
+	applyStreamDirectionData(streamKind, svrStream, cliStream, sresult, spayload)
 	data.ClientStream = cliStream
 	data.ServerStream = svrStream
-	data.StreamingPayload = spayloadName
-	data.StreamingPayloadDef = spayloadDef
-	data.StreamingPayloadRef = spayloadRef
-	data.StreamingPayloadDesc = spayloadDesc
-	data.StreamingPayloadEx = spayloadEx
+	data.StreamingPayload = spayload.Name
+	data.StreamingPayloadDef = spayload.Def
+	data.StreamingPayloadRef = spayload.Ref
+	data.StreamingPayloadDesc = spayload.Desc
+	data.StreamingPayloadEx = spayload.Example
+}
+
+type streamAttributeData struct {
+	Name    string
+	Ref     string
+	Def     string
+	Desc    string
+	Example any
+}
+
+func (d *ServicesData) buildStreamingResultData(data *MethodData, m *expr.MethodExpr, rname, resultRef string, scope *codegen.NameScope) streamAttributeData {
+	sresult := streamAttributeData{Name: rname, Ref: resultRef}
+	if !m.HasMixedResults() || m.StreamingResult == nil || m.StreamingResult.Type == expr.Empty {
+		return sresult
+	}
+	sresult = buildStreamAttributeData(m.StreamingResult, m, scope, d.Root.API.ExampleGenerator)
+	data.StreamingResult = sresult.Name
+	data.StreamingResultRef = sresult.Ref
+	data.StreamingResultDef = sresult.Def
+	data.StreamingResultDesc = sresult.Desc
+	data.StreamingResultEx = sresult.Example
+	return sresult
+}
+
+func (d *ServicesData) buildStreamingPayloadData(m *expr.MethodExpr, scope *codegen.NameScope) streamAttributeData {
+	if m.StreamingPayload == nil || m.StreamingPayload.Type == expr.Empty {
+		return streamAttributeData{}
+	}
+	return buildStreamAttributeData(m.StreamingPayload, m, scope, d.Root.API.ExampleGenerator)
+}
+
+func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope *codegen.NameScope, examples *expr.ExampleGenerator) streamAttributeData {
+	data := streamAttributeData{
+		Name:    scope.GoTypeName(att),
+		Ref:     scope.GoTypeRef(att),
+		Desc:    att.Description,
+		Example: att.Example(examples),
+	}
+	if dt, ok := att.Type.(expr.UserType); ok {
+		data.Def = scope.GoTypeDef(dt.Attribute(), false, true)
+	}
+	if data.Desc == "" {
+		data.Desc = streamAttributeDescription(data.Name, att, m)
+	}
+	return data
+}
+
+func streamAttributeDescription(name string, att *expr.AttributeExpr, m *expr.MethodExpr) string {
+	role := "result"
+	if att == m.StreamingPayload {
+		role = "payload"
+	}
+	return fmt.Sprintf("%s is the streaming %s type of the %s service %s method.", name, role, m.Service.Name, m.Name)
+}
+
+func applyStreamDirectionData(kind expr.StreamKind, svrStream, cliStream *StreamData, sresult, spayload streamAttributeData) {
+	if kind != expr.ClientStreamKind && kind != expr.BidirectionalStreamKind {
+		return
+	}
+	applyClientOrBidirectionalAdjustments(kind, svrStream, cliStream, sresult)
+	applyStreamingPayloadIO(svrStream, cliStream, spayload)
+}
+
+func applyClientOrBidirectionalAdjustments(kind expr.StreamKind, svrStream, cliStream *StreamData, sresult streamAttributeData) {
+	switch kind {
+	case expr.ClientStreamKind:
+		if sresult.Ref == "" {
+			cliStream.MustClose = true
+			return
+		}
+		svrStream.SendName = "SendAndClose"
+		svrStream.SendDesc = fmt.Sprintf("SendAndClose streams instances of %q and closes the stream.", sresult.Name)
+		svrStream.SendWithContextName = "SendAndCloseWithContext"
+		svrStream.SendWithContextDesc = fmt.Sprintf("SendAndCloseWithContext streams instances of %q and closes the stream with context.", sresult.Name)
+		svrStream.MustClose = false
+		cliStream.RecvName = "CloseAndRecv"
+		cliStream.RecvDesc = fmt.Sprintf("CloseAndRecv stops sending messages to the stream and reads instances of %q from the stream.", sresult.Name)
+		cliStream.RecvWithContextName = "CloseAndRecvWithContext"
+		cliStream.RecvWithContextDesc = fmt.Sprintf("CloseAndRecvWithContext stops sending messages to the stream and reads instances of %q from the stream with context.", sresult.Name)
+	case expr.BidirectionalStreamKind:
+		cliStream.MustClose = true
+	}
+}
+
+func applyStreamingPayloadIO(svrStream, cliStream *StreamData, spayload streamAttributeData) {
+	svrStream.RecvName = "Recv"
+	svrStream.RecvDesc = fmt.Sprintf("Recv reads instances of %q from the stream.", spayload.Name)
+	svrStream.RecvWithContextName = "RecvWithContext"
+	svrStream.RecvWithContextDesc = fmt.Sprintf("RecvWithContext reads instances of %q from the stream with context.", spayload.Name)
+	svrStream.RecvTypeName = spayload.Name
+	svrStream.RecvTypeRef = spayload.Ref
+	cliStream.SendName = "Send"
+	cliStream.SendDesc = fmt.Sprintf("Send streams instances of %q.", spayload.Name)
+	cliStream.SendWithContextName = "SendWithContext"
+	cliStream.SendWithContextDesc = fmt.Sprintf("SendWithContext streams instances of %q with context.", spayload.Name)
+	cliStream.SendTypeName = spayload.Name
+	cliStream.SendTypeRef = spayload.Ref
 }
 
 func streamDataKind(m *expr.MethodExpr) expr.StreamKind {

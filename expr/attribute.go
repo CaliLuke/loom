@@ -756,29 +756,52 @@ func (a *AttributeExpr) ExtractUserExamples() []*ExampleExpr {
 
 // Debug dumps the attribute to STDOUT in a Loom developer friendly way.
 func (a *AttributeExpr) Debug(prefix string) { a.debug(prefix, make(map[*AttributeExpr]int), 0) }
+
 func (a *AttributeExpr) debug(prefix string, seen map[*AttributeExpr]int, indent int) {
 	tab := "    "
 	tabs := strings.Repeat(tab, indent)
 	prefix = tabs + prefix
-	if IsObject(a.Type) {
-		// avoid infinite recursion
-		if c, ok := seen[a]; ok && c > 1 {
-			fmt.Printf("%s: ...\n", prefix)
-			return
-		}
-		seen[a]++
+	if shouldStopDebugRecursion(a, seen, prefix) {
+		return
 	}
-	n := a.Type.Name()
+	debugAttributeHeader(a, prefix)
+	tabs = debugAttributeShape(a, seen, indent, tab, tabs)
+	debugResultTypeViews(a, tabs, tab)
+	debugDefaultValue(a, tabs, tab)
+	debugUserExamples(a, tabs, tab)
+	debugAttributeMeta(a, tabs, tab)
+	debugValidation(a, tabs, tab)
+	debugNamedExprs("bases", a.Bases, tabs, tab)
+	debugNamedExprs("references", a.References, tabs, tab)
+}
+
+func shouldStopDebugRecursion(a *AttributeExpr, seen map[*AttributeExpr]int, prefix string) bool {
+	if !IsObject(a.Type) {
+		return false
+	}
+	if c, ok := seen[a]; ok && c > 1 {
+		fmt.Printf("%s: ...\n", prefix)
+		return true
+	}
+	seen[a]++
+	return false
+}
+
+func debugAttributeHeader(a *AttributeExpr, prefix string) {
+	name := a.Type.Name()
 	if desc := a.Description; desc != "" {
-		fmt.Printf("%s: %s (%s) <%T>\n", prefix, n, desc, a.Type)
-	} else {
-		fmt.Printf("%s: %s <%T>\n", prefix, n, a.Type)
+		fmt.Printf("%s: %s (%s) <%T>\n", prefix, name, desc, a.Type)
+		return
 	}
-	ut, isUT := a.Type.(UserType)
-	switch {
-	case isUT:
+	fmt.Printf("%s: %s <%T>\n", prefix, name, a.Type)
+}
+
+func debugAttributeShape(a *AttributeExpr, seen map[*AttributeExpr]int, indent int, tab, tabs string) string {
+	if ut, ok := a.Type.(UserType); ok {
 		ut.Attribute().debug("att", seen, indent+1)
-		tabs = strings.Repeat(tab, indent+1)
+		return strings.Repeat(tab, indent+1)
+	}
+	switch {
 	case IsObject(a.Type):
 		for _, nat := range *AsObject(a.Type) {
 			nat.Attribute.debug("- "+nat.Name, seen, indent+1)
@@ -786,55 +809,82 @@ func (a *AttributeExpr) debug(prefix string, seen map[*AttributeExpr]int, indent
 	case IsArray(a.Type):
 		AsArray(a.Type).ElemType.debug("elem", seen, indent+1)
 	case IsMap(a.Type):
-		m := AsMap(a.Type)
-		m.KeyType.debug("key", seen, indent+1)
-		m.ElemType.debug("elem", seen, indent+1)
+		debugMapAttribute(AsMap(a.Type), seen, indent+1)
 	case IsUnion(a.Type):
 		for _, nat := range AsUnion(a.Type).Values {
 			nat.Attribute.debug("* "+nat.Name, seen, indent+1)
 		}
 	}
-	if rt, ok := a.Type.(*ResultTypeExpr); ok {
-		fmt.Printf("%s%sviews\n", tabs, tab)
-		for _, v := range rt.Views {
-			nats := *AsObject(v.Type)
-			keys := make([]string, len(nats))
-			for i, n := range nats {
-				keys[i] = n.Name
-			}
-			fmt.Printf("%s%s- %s: %v\n", tabs+tab, tab, v.Name, keys)
-		}
+	return tabs
+}
+
+func debugMapAttribute(m *Map, seen map[*AttributeExpr]int, indent int) {
+	m.KeyType.debug("key", seen, indent)
+	m.ElemType.debug("elem", seen, indent)
+}
+
+func debugResultTypeViews(a *AttributeExpr, tabs, tab string) {
+	rt, ok := a.Type.(*ResultTypeExpr)
+	if !ok {
+		return
 	}
-	if d := a.DefaultValue; d != nil {
-		fmt.Printf("%s%sdefault\n", tabs, tab)
-		fmt.Printf("%s%s%#v\n", tabs+tab, tab, a.DefaultValue)
+	fmt.Printf("%s%sviews\n", tabs, tab)
+	for _, v := range rt.Views {
+		fmt.Printf("%s%s- %s: %v\n", tabs+tab, tab, v.Name, debugViewKeys(v))
 	}
-	if len(a.UserExamples) > 0 {
-		fmt.Printf("%s%sexamples\n", tabs, tab)
-		for _, ex := range a.UserExamples {
-			fmt.Printf("%s%s- %s: %#v\n", tabs+tab, tab, ex.Summary, ex.Value)
-		}
+}
+
+func debugViewKeys(v *ViewExpr) []string {
+	nats := *AsObject(v.Type)
+	keys := make([]string, len(nats))
+	for i, n := range nats {
+		keys[i] = n.Name
 	}
-	if len(a.Meta) > 0 {
-		fmt.Printf("%s%smeta\n", tabs, tab)
-		for k, v := range a.Meta {
-			fmt.Printf("%s%s- %s: %s\n", tabs+tab, tab, k, strings.Join(v, ", "))
-		}
+	return keys
+}
+
+func debugDefaultValue(a *AttributeExpr, tabs, tab string) {
+	if a.DefaultValue == nil {
+		return
 	}
-	if v := a.Validation; v != nil {
-		v.Debug("", tabs+tab, tab)
+	fmt.Printf("%s%sdefault\n", tabs, tab)
+	fmt.Printf("%s%s%#v\n", tabs+tab, tab, a.DefaultValue)
+}
+
+func debugUserExamples(a *AttributeExpr, tabs, tab string) {
+	if len(a.UserExamples) == 0 {
+		return
 	}
-	if len(a.Bases) > 0 {
-		fmt.Printf("%s%sbases\n", tabs, tab)
-		for _, b := range a.Bases {
-			fmt.Printf("%s%s- %s\n", tabs+tab, tab, b.Name())
-		}
+	fmt.Printf("%s%sexamples\n", tabs, tab)
+	for _, ex := range a.UserExamples {
+		fmt.Printf("%s%s- %s: %#v\n", tabs+tab, tab, ex.Summary, ex.Value)
 	}
-	if len(a.References) > 0 {
-		fmt.Printf("%s%sreferences\n", tabs, tab)
-		for _, r := range a.References {
-			fmt.Printf("%s%s- %s\n", tabs+tab, tab, r.Name())
-		}
+}
+
+func debugAttributeMeta(a *AttributeExpr, tabs, tab string) {
+	if len(a.Meta) == 0 {
+		return
+	}
+	fmt.Printf("%s%smeta\n", tabs, tab)
+	for k, v := range a.Meta {
+		fmt.Printf("%s%s- %s: %s\n", tabs+tab, tab, k, strings.Join(v, ", "))
+	}
+}
+
+func debugValidation(a *AttributeExpr, tabs, tab string) {
+	if a.Validation == nil {
+		return
+	}
+	a.Validation.Debug("", tabs+tab, tab)
+}
+
+func debugNamedExprs(label string, values []DataType, tabs, tab string) {
+	if len(values) == 0 {
+		return
+	}
+	fmt.Printf("%s%s%s\n", tabs, tab, label)
+	for _, value := range values {
+		fmt.Printf("%s%s- %s\n", tabs+tab, tab, value.Name())
 	}
 }
 

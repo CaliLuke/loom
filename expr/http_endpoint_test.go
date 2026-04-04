@@ -587,6 +587,72 @@ func TestHTTPStreamingSessionSecurityRequestBodyInference(t *testing.T) {
 	}
 }
 
+func TestHTTPMixedTransportGraphFinalization(t *testing.T) {
+	root := expr.RunDSL(t, mixedTransportIRDSL)
+
+	requireHTTP := func() *expr.HTTPEndpointExpr {
+		t.Helper()
+		for _, svc := range root.API.HTTP.Services {
+			if svc.Name() == "PlainHTTP" {
+				return svc.HTTPEndpoints[0]
+			}
+		}
+		t.Fatal("plain HTTP endpoint not found")
+		return nil
+	}
+	requireJSONRPC := func(service string) *expr.HTTPEndpointExpr {
+		t.Helper()
+		for _, svc := range root.API.JSONRPC.Services {
+			if svc.Name() == service {
+				return svc.HTTPEndpoints[0]
+			}
+		}
+		t.Fatalf("jsonrpc endpoint for service %q not found", service)
+		return nil
+	}
+
+	plain := requireHTTP()
+	if plain.Body == nil || plain.Body.Type == expr.Empty {
+		t.Fatalf("expected plain HTTP endpoint to retain request body")
+	}
+	if len(plain.Routes) != 1 || plain.Routes[0].Method != "POST" || plain.Routes[0].Path != "/plain/{id}" {
+		t.Fatalf("unexpected plain HTTP routes: %#v", plain.Routes)
+	}
+
+	post := requireJSONRPC("RPCPost")
+	if post.PayloadIDAttribute != "id" || post.ResultIDAttribute != "id" {
+		t.Fatalf("expected JSON-RPC POST endpoint to project request/result ids, got payload=%q result=%q", post.PayloadIDAttribute, post.ResultIDAttribute)
+	}
+	if post.MethodExpr.IsStreaming() {
+		t.Fatalf("expected JSON-RPC POST endpoint to remain unary")
+	}
+
+	sse := requireJSONRPC("RPCSSE")
+	if !sse.MethodExpr.HasMixedResults() {
+		t.Fatalf("expected JSON-RPC SSE endpoint to retain mixed results")
+	}
+	if sse.SSE == nil {
+		t.Fatalf("expected JSON-RPC SSE endpoint to finalize SSE transport")
+	}
+	if len(sse.Routes) != 1 || sse.Routes[0].Method != "POST" || sse.Routes[0].Path != "/events" {
+		t.Fatalf("unexpected JSON-RPC SSE routes: %#v", sse.Routes)
+	}
+
+	ws := requireJSONRPC("RPCWebSocket")
+	if ws.Body == nil || ws.Body.Type == expr.Empty {
+		t.Fatalf("expected JSON-RPC websocket endpoint to retain migrated request body")
+	}
+	if ws.StreamingBody == nil || ws.StreamingBody.Type == expr.Empty {
+		t.Fatalf("expected JSON-RPC websocket endpoint to keep streaming payload body")
+	}
+	if ws.Body != ws.StreamingBody {
+		t.Fatalf("expected JSON-RPC websocket endpoint to reuse streaming body for migrated payload")
+	}
+	if len(ws.Routes) != 1 || ws.Routes[0].Method != "GET" || ws.Routes[0].Path != "/ws" {
+		t.Fatalf("unexpected JSON-RPC websocket routes: %#v", ws.Routes)
+	}
+}
+
 func TestHTTPAuthorizationMapping(t *testing.T) {
 	cases := []struct {
 		Name           string
@@ -645,6 +711,82 @@ var inconsistentRouteParamsDSL = func() {
 				GET("/{id}")
 				GET("/{slug}")
 			})
+		})
+	})
+}
+
+var mixedTransportIRDSL = func() {
+	API("mixed-transport-ir", func() {
+		JSONRPC(func() {})
+	})
+
+	Service("PlainHTTP", func() {
+		Method("create", func() {
+			Payload(func() {
+				Attribute("id", String)
+				Attribute("name", String)
+				Required("id", "name")
+			})
+			Result(String)
+			HTTP(func() {
+				POST("/plain/{id}")
+				Body("name")
+			})
+		})
+	})
+
+	Service("RPCPost", func() {
+		JSONRPC(func() {
+			POST("/rpc")
+		})
+		Method("ping", func() {
+			Payload(func() {
+				ID("id", String)
+			})
+			Result(func() {
+				ID("id", String)
+				Attribute("value", String)
+			})
+			JSONRPC(func() {})
+		})
+	})
+
+	Service("RPCSSE", func() {
+		JSONRPC(func() {
+			POST("/events")
+		})
+		Method("events/stream", func() {
+			Payload(func() {
+				ID("id", String)
+				Attribute("filter", String)
+				Required("filter")
+			})
+			Result(func() {
+				Attribute("accepted", Boolean)
+			})
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			JSONRPC(func() {
+				ServerSentEvents()
+			})
+		})
+	})
+
+	Service("RPCWebSocket", func() {
+		JSONRPC(func() {
+			GET("/ws")
+		})
+		Method("stream", func() {
+			StreamingPayload(func() {
+				ID("id", String)
+				Attribute("message", String)
+				Required("message")
+			})
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			JSONRPC(func() {})
 		})
 	})
 }

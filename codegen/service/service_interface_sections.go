@@ -13,6 +13,15 @@ func serviceDefinitionSection(data *Data) codegen.Section {
 
 func renderServiceDefinition(data *Data) string {
 	var b strings.Builder
+	writeServiceInterface(&b, data)
+	writeAuthorizerInterface(&b, data)
+	writeServiceConstants(&b, data)
+	writeMethodStreams(&b, data)
+	writeJSONRPCStreamSupport(&b, data)
+	return b.String()
+}
+
+func writeServiceInterface(b *strings.Builder, data *Data) {
 	b.WriteString("\n")
 	b.WriteString(codegen.Comment(data.Description))
 	b.WriteString("\n")
@@ -23,83 +32,101 @@ func renderServiceDefinition(data *Data) string {
 		b.WriteString("\tHandleStream(context.Context, Stream) error\n")
 	}
 	for _, method := range data.Methods {
-		b.WriteString(codegen.Indent(codegen.Comment(method.Description), "\t"))
-		b.WriteString("\n")
-		if method.SkipResponseBodyEncodeDecode {
-			b.WriteString(codegen.Indent(codegen.Comment("\nIf body implements [io.WriterTo], that implementation will be used instead. Consider [github.com/CaliLuke/loom/pkg.SkipResponseWriter] to adapt existing implementations."), "\t"))
-			b.WriteString("\n")
-		}
-		if method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
-			b.WriteString(codegen.Indent(codegen.Comment("The \"view\" return value must have one of the following views"), "\t"))
-			b.WriteString("\n")
-			for _, view := range method.ViewedResult.Views {
-				if view.Description != "" {
-					fmt.Fprintf(&b, "\t//\t- %q: %s\n", view.Name, view.Description)
-				} else {
-					fmt.Fprintf(&b, "\t//\t- %q\n", view.Name)
-				}
-			}
-		}
-		fmt.Fprintf(&b, "\t%s\n", renderServiceMethodSignature(method))
+		writeServiceMethod(b, method)
 	}
 	b.WriteString("}\n")
+}
 
-	if len(data.Schemes) > 0 {
-		b.WriteString("\n// Authorizer defines the authorization functions to be implemented by the service.\n")
-		b.WriteString("type Authorizer interface {\n")
-		for _, scheme := range data.Schemes.DedupeByType() {
-			b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sAuth implements the authorization logic for the %s security scheme.", scheme.Type, scheme.Type)), "\t"))
-			b.WriteString("\n")
-			argNames := "token"
-			switch scheme.Type {
-			case "Basic":
-				argNames = "user, pass"
-			case "APIKey":
-				argNames = "key"
-			}
-			fmt.Fprintf(&b, "\t%sAuth(ctx context.Context, %s string, schema *security.%sScheme) (context.Context, error)\n", scheme.Type, argNames, scheme.Type)
-		}
-		b.WriteString("}\n")
+func writeServiceMethod(b *strings.Builder, method *MethodData) {
+	b.WriteString(codegen.Indent(codegen.Comment(method.Description), "\t"))
+	b.WriteString("\n")
+	if method.SkipResponseBodyEncodeDecode {
+		b.WriteString(codegen.Indent(codegen.Comment("\nIf body implements [io.WriterTo], that implementation will be used instead. Consider [github.com/CaliLuke/loom/pkg.SkipResponseWriter] to adapt existing implementations."), "\t"))
+		b.WriteString("\n")
 	}
+	writeViewedResultComment(b, method)
+	fmt.Fprintf(b, "\t%s\n", renderServiceMethodSignature(method))
+}
 
-	fmt.Fprintf(&b, "\n// APIName is the name of the API as defined in the design.\nconst APIName = %q\n", data.APIName)
-	fmt.Fprintf(&b, "\n// APIVersion is the version of the API as defined in the design.\nconst APIVersion = %q\n", data.APIVersion)
+func writeViewedResultComment(b *strings.Builder, method *MethodData) {
+	if method.ViewedResult == nil || method.ViewedResult.ViewName != "" {
+		return
+	}
+	b.WriteString(codegen.Indent(codegen.Comment("The \"view\" return value must have one of the following views"), "\t"))
+	b.WriteString("\n")
+	for _, view := range method.ViewedResult.Views {
+		if view.Description != "" {
+			fmt.Fprintf(b, "\t//\t- %q: %s\n", view.Name, view.Description)
+			continue
+		}
+		fmt.Fprintf(b, "\t//\t- %q\n", view.Name)
+	}
+}
+
+func writeAuthorizerInterface(b *strings.Builder, data *Data) {
+	if len(data.Schemes) == 0 {
+		return
+	}
+	b.WriteString("\n// Authorizer defines the authorization functions to be implemented by the service.\n")
+	b.WriteString("type Authorizer interface {\n")
+	for _, scheme := range data.Schemes.DedupeByType() {
+		b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sAuth implements the authorization logic for the %s security scheme.", scheme.Type, scheme.Type)), "\t"))
+		b.WriteString("\n")
+		fmt.Fprintf(b, "\t%sAuth(ctx context.Context, %s string, schema *security.%sScheme) (context.Context, error)\n", scheme.Type, authorizerArgNames(scheme.Type), scheme.Type)
+	}
+	b.WriteString("}\n")
+}
+
+func authorizerArgNames(schemeType string) string {
+	switch schemeType {
+	case "Basic":
+		return "user, pass"
+	case "APIKey":
+		return "key"
+	default:
+		return "token"
+	}
+}
+
+func writeServiceConstants(b *strings.Builder, data *Data) {
+	fmt.Fprintf(b, "\n// APIName is the name of the API as defined in the design.\nconst APIName = %q\n", data.APIName)
+	fmt.Fprintf(b, "\n// APIVersion is the version of the API as defined in the design.\nconst APIVersion = %q\n", data.APIVersion)
 	b.WriteString("\n// ServiceName is the name of the service as defined in the design. This is the\n// same value that is set in the endpoint request contexts under the ServiceKey\n// key.\n")
-	fmt.Fprintf(&b, "const ServiceName = %q\n", data.Name)
+	fmt.Fprintf(b, "const ServiceName = %q\n", data.Name)
 	b.WriteString("\n// MethodNames lists the service method names as defined in the design. These\n// are the same values that are set in the endpoint request contexts under the\n// MethodKey key.\n")
 	b.WriteString("var MethodNames = [")
-	fmt.Fprintf(&b, "%d]string{ ", len(data.Methods))
+	fmt.Fprintf(b, "%d]string{ ", len(data.Methods))
 	for _, method := range data.Methods {
-		fmt.Fprintf(&b, "%q, ", method.Name)
+		fmt.Fprintf(b, "%q, ", method.Name)
 	}
 	b.WriteString("}\n")
+}
 
+func writeMethodStreams(b *strings.Builder, data *Data) {
 	for _, method := range data.Methods {
 		if method.ServerStream == nil {
 			continue
 		}
 		b.WriteString("\n")
 		b.WriteString(renderStreamInterface(streamInterfaceData("server", method, method.ServerStream)))
-		if method.IsJSONRPC {
-			if method.ClientStream != nil {
-				b.WriteString("\n")
-				b.WriteString(renderStreamInterface(streamInterfaceData("client", method, method.ClientStream)))
-			}
-		} else {
-			b.WriteString("\n")
-			b.WriteString(renderStreamInterface(streamInterfaceData("client", method, method.ClientStream)))
+		if method.ClientStream == nil {
+			continue
 		}
-	}
-
-	if hasJSONRPCStreamingData(data) {
 		b.WriteString("\n")
-		if isJSONRPCWebSocketService(data) {
-			b.WriteString(renderJSONRPCWebSocketStream(data))
-		} else {
-			b.WriteString(renderJSONRPCSSEStream(data))
-		}
+		b.WriteString(renderStreamInterface(streamInterfaceData("client", method, method.ClientStream)))
 	}
-	return b.String()
+}
+
+func writeJSONRPCStreamSupport(b *strings.Builder, data *Data) {
+	if !hasJSONRPCStreamingData(data) {
+		return
+	}
+	b.WriteString("\n")
+	if isJSONRPCWebSocketService(data) {
+		b.WriteString(renderJSONRPCWebSocketStream(data))
+		return
+	}
+	b.WriteString(renderJSONRPCSSEStream(data))
 }
 
 type serviceStreamInterfaceData struct {
@@ -192,34 +219,7 @@ func renderStreamInterface(data *serviceStreamInterfaceData) string {
 	var b strings.Builder
 	stream := data.Stream
 	if data.IsJSONRPCSSE && data.Type == "server" {
-		b.WriteString(codegen.Comment(fmt.Sprintf("%sEvent is the interface implemented by the result type for the %s method.", data.MethodVarName, data.Endpoint)))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "type %sEvent interface {\n\tis%sEvent()\n}\n\n", data.MethodVarName, data.MethodVarName)
-		b.WriteString(codegen.Comment(fmt.Sprintf("is%sEvent implements the %sEvent interface.", data.MethodVarName, data.MethodVarName)))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "func (%s) is%sEvent() {}\n\n", stream.SendTypeRef, data.MethodVarName)
-		b.WriteString(codegen.Comment(fmt.Sprintf("%s allows streaming instances of %s over SSE.", stream.Interface, stream.SendTypeRef)))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "type %s interface {\n", stream.Interface)
-		if stream.SendTypeRef != "" {
-			b.WriteString(codegen.Indent(codegen.Comment(stream.SendDesc), "\t"))
-			b.WriteString("\n")
-			b.WriteString(codegen.Indent(codegen.Comment("IMPORTANT: Send only sends JSON-RPC notifications. Use SendAndClose to send a final response."), "\t"))
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "\tSend(ctx context.Context, event %sEvent) error\n", data.MethodVarName)
-			if stream.SendAndCloseName != "" {
-				b.WriteString(codegen.Indent(codegen.Comment(stream.SendAndCloseDesc), "\t"))
-				b.WriteString("\n")
-				b.WriteString(codegen.Indent(codegen.Comment("The result will be sent as a JSON-RPC response with the original request ID."), "\t"))
-				b.WriteString("\n")
-				b.WriteString(codegen.Indent(codegen.Comment("If the result has an ID field populated, that ID will be used instead of the request ID."), "\t"))
-				b.WriteString("\n")
-				fmt.Fprintf(&b, "\t%s(ctx context.Context, event %sEvent) error\n", stream.SendAndCloseName, data.MethodVarName)
-			}
-		}
-		b.WriteString(codegen.Indent(codegen.Comment("SendError sends a JSON-RPC error response."), "\t"))
-		b.WriteString("\n")
-		b.WriteString("\tSendError(ctx context.Context, id string, err error) error\n}\n")
+		writeJSONRPCSSEStreamInterface(&b, data, stream)
 		return b.String()
 	}
 
@@ -231,33 +231,87 @@ func renderStreamInterface(data *serviceStreamInterfaceData) string {
 	b.WriteString("\n")
 	fmt.Fprintf(&b, "type %s interface {\n", stream.Interface)
 	if stream.SendTypeRef != "" {
-		if data.IsJSONRPCWebSocket {
-			b.WriteString(codegen.Indent(codegen.Comment("SendNotification sends a JSON-RPC notification (no response expected)."), "\t"))
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "\tSendNotification(context.Context, %s) error\n", stream.SendTypeRef)
-			b.WriteString(codegen.Indent(codegen.Comment("SendResponse sends a JSON-RPC response with the original request ID."), "\t"))
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "\tSendResponse(context.Context, %s) error\n", stream.SendTypeRef)
-			b.WriteString(codegen.Indent(codegen.Comment("SendError sends a JSON-RPC error response."), "\t"))
-			b.WriteString("\n")
-			b.WriteString("\tSendError(context.Context, error) error\n")
-		} else {
-			b.WriteString(codegen.Indent(codegen.Comment(stream.SendDesc), "\t"))
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "\t%s(%s) error\n", stream.SendName, stream.SendTypeRef)
-			b.WriteString(codegen.Indent(codegen.Comment(stream.SendWithContextDesc), "\t"))
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "\t%s(context.Context, %s) error\n", stream.SendWithContextName, stream.SendTypeRef)
-		}
+		writeStreamSendMethods(&b, data, stream)
 	}
 	if stream.RecvTypeRef != "" && !data.IsJSONRPCWebSocket {
-		b.WriteString(codegen.Indent(codegen.Comment(stream.RecvDesc), "\t"))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "\t%s() (%s, error)\n", stream.RecvName, stream.RecvTypeRef)
-		b.WriteString(codegen.Indent(codegen.Comment(stream.RecvWithContextDesc), "\t"))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "\t%s(context.Context) (%s, error)\n", stream.RecvWithContextName, stream.RecvTypeRef)
+		writeStreamRecvMethods(&b, stream)
 	}
+	writeOptionalStreamMethods(&b, data, stream)
+	b.WriteString("}\n")
+	return b.String()
+}
+
+func writeJSONRPCSSEStreamInterface(b *strings.Builder, data *serviceStreamInterfaceData, stream *StreamData) {
+	b.WriteString(codegen.Comment(fmt.Sprintf("%sEvent is the interface implemented by the result type for the %s method.", data.MethodVarName, data.Endpoint)))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "type %sEvent interface {\n\tis%sEvent()\n}\n\n", data.MethodVarName, data.MethodVarName)
+	b.WriteString(codegen.Comment(fmt.Sprintf("is%sEvent implements the %sEvent interface.", data.MethodVarName, data.MethodVarName)))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "func (%s) is%sEvent() {}\n\n", stream.SendTypeRef, data.MethodVarName)
+	b.WriteString(codegen.Comment(fmt.Sprintf("%s allows streaming instances of %s over SSE.", stream.Interface, stream.SendTypeRef)))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "type %s interface {\n", stream.Interface)
+	if stream.SendTypeRef != "" {
+		writeJSONRPCSSESendMethods(b, data, stream)
+	}
+	b.WriteString(codegen.Indent(codegen.Comment("SendError sends a JSON-RPC error response."), "\t"))
+	b.WriteString("\n")
+	b.WriteString("\tSendError(ctx context.Context, id string, err error) error\n}\n")
+}
+
+func writeJSONRPCSSESendMethods(b *strings.Builder, data *serviceStreamInterfaceData, stream *StreamData) {
+	b.WriteString(codegen.Indent(codegen.Comment(stream.SendDesc), "\t"))
+	b.WriteString("\n")
+	b.WriteString(codegen.Indent(codegen.Comment("IMPORTANT: Send only sends JSON-RPC notifications. Use SendAndClose to send a final response."), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\tSend(ctx context.Context, event %sEvent) error\n", data.MethodVarName)
+	if stream.SendAndCloseName == "" {
+		return
+	}
+	b.WriteString(codegen.Indent(codegen.Comment(stream.SendAndCloseDesc), "\t"))
+	b.WriteString("\n")
+	b.WriteString(codegen.Indent(codegen.Comment("The result will be sent as a JSON-RPC response with the original request ID."), "\t"))
+	b.WriteString("\n")
+	b.WriteString(codegen.Indent(codegen.Comment("If the result has an ID field populated, that ID will be used instead of the request ID."), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\t%s(ctx context.Context, event %sEvent) error\n", stream.SendAndCloseName, data.MethodVarName)
+}
+
+func writeStreamSendMethods(b *strings.Builder, data *serviceStreamInterfaceData, stream *StreamData) {
+	if data.IsJSONRPCWebSocket {
+		writeJSONRPCWebSocketSendMethods(b, stream)
+		return
+	}
+	b.WriteString(codegen.Indent(codegen.Comment(stream.SendDesc), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\t%s(%s) error\n", stream.SendName, stream.SendTypeRef)
+	b.WriteString(codegen.Indent(codegen.Comment(stream.SendWithContextDesc), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\t%s(context.Context, %s) error\n", stream.SendWithContextName, stream.SendTypeRef)
+}
+
+func writeJSONRPCWebSocketSendMethods(b *strings.Builder, stream *StreamData) {
+	b.WriteString(codegen.Indent(codegen.Comment("SendNotification sends a JSON-RPC notification (no response expected)."), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\tSendNotification(context.Context, %s) error\n", stream.SendTypeRef)
+	b.WriteString(codegen.Indent(codegen.Comment("SendResponse sends a JSON-RPC response with the original request ID."), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\tSendResponse(context.Context, %s) error\n", stream.SendTypeRef)
+	b.WriteString(codegen.Indent(codegen.Comment("SendError sends a JSON-RPC error response."), "\t"))
+	b.WriteString("\n")
+	b.WriteString("\tSendError(context.Context, error) error\n")
+}
+
+func writeStreamRecvMethods(b *strings.Builder, stream *StreamData) {
+	b.WriteString(codegen.Indent(codegen.Comment(stream.RecvDesc), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\t%s() (%s, error)\n", stream.RecvName, stream.RecvTypeRef)
+	b.WriteString(codegen.Indent(codegen.Comment(stream.RecvWithContextDesc), "\t"))
+	b.WriteString("\n")
+	fmt.Fprintf(b, "\t%s(context.Context) (%s, error)\n", stream.RecvWithContextName, stream.RecvTypeRef)
+}
+
+func writeOptionalStreamMethods(b *strings.Builder, data *serviceStreamInterfaceData, stream *StreamData) {
 	if data.IsJSONRPCWebSocket || stream.MustClose {
 		b.WriteString(codegen.Indent(codegen.Comment("Close closes the stream."), "\t"))
 		b.WriteString("\n")
@@ -268,8 +322,6 @@ func renderStreamInterface(data *serviceStreamInterfaceData) string {
 		b.WriteString("\n")
 		b.WriteString("\tSetView(view string)\n")
 	}
-	b.WriteString("}\n")
-	return b.String()
 }
 
 func renderJSONRPCWebSocketStream(data *Data) string {

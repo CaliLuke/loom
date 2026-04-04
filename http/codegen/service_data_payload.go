@@ -2,43 +2,52 @@ package codegen
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 // buildPayloadData returns the data structure used to describe the endpoint
 // payload including the HTTP request details. It also returns the user types
 // used by the request body type recursively if any.
 func (sds *ServicesData) buildPayloadData(e *expr.HTTPEndpointExpr, sd *ServiceData) *PayloadData {
-	e.Body = makeHTTPType(e.Body)
+	return sds.buildPayloadDataFromIR(transportir.BuildEndpoint(e), sd)
+}
+
+func (sds *ServicesData) buildPayloadDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) *PayloadData {
 	var (
-		payload    = e.MethodExpr.Payload
-		svc        = sd.Service
-		body       = e.Body.Type
-		ep         = svc.Method(e.MethodExpr.Name)
-		httpsvrctx = httpContext(sd.Scope, true, true)
-		httpclictx = httpContext(sd.Scope, true, false)
-		pkg        = pkgWithDefault(ep.PayloadLoc, svc.PkgName)
-		svcctx     = serviceContext(pkg, sd.Service.Scope)
+		payload                  = endpointIR.Request.Payload
+		svc                      = sd.Service
+		bodyAttr                 = endpointIR.Request.Body
+		body       expr.DataType = expr.Empty
+		ep                       = svc.Method(endpointIR.MethodName)
+		httpsvrctx               = httpContext(sd.Scope, true, true)
+		httpclictx               = httpContext(sd.Scope, true, false)
+		pkg                      = pkgWithDefault(ep.PayloadLoc, svc.PkgName)
+		svcctx                   = serviceContext(pkg, sd.Service.Scope)
 
 		request       *RequestData
 		mapQueryParam *ParamData
 	)
-	request, mapQueryParam = sds.buildPayloadRequestData(e, payload, svcctx, httpsvrctx, sd)
-	init := sds.buildPayloadInit(payload, body, e, ep, pkg, request, svcctx, httpsvrctx, httpclictx, sd)
+	if bodyAttr != nil {
+		body = bodyAttr.Type
+	}
+	request, mapQueryParam = sds.buildPayloadRequestData(endpointIR, bodyAttr, payload, svcctx, httpsvrctx, sd)
+	init := sds.buildPayloadInit(endpointIR, payload, body, ep, pkg, request, svcctx, httpsvrctx, httpclictx, sd)
 	request.PayloadInit = init
 	name, ref := buildPayloadMetadata(svc, payload, pkg)
-	returnValue := buildPayloadDecoderReturnValue(e, init, mapQueryParam)
+	returnValue := buildPayloadDecoderReturnValue(endpointIR.Request, init, mapQueryParam)
 	data := &PayloadData{
 		Name:               name,
 		Ref:                ref,
 		Request:            request,
 		DecoderReturnValue: returnValue,
 	}
-	data.IDAttribute, data.IDAttributeRequired = buildPayloadIDData(e, payload)
+	data.IDAttribute, data.IDAttributeRequired = buildPayloadIDData(endpointIR.Request, payload)
 	return data
 }
 
@@ -49,36 +58,42 @@ func buildPayloadMetadata(svc *service.Data, payload *expr.AttributeExpr, pkg st
 	return svc.Scope.GoFullTypeName(payload, pkg), svc.Scope.GoFullTypeRef(payload, pkg)
 }
 
-func buildPayloadDecoderReturnValue(e *expr.HTTPEndpointExpr, init *InitData, mapQueryParam *ParamData) string {
+func buildPayloadDecoderReturnValue(request *transportir.Request, init *InitData, mapQueryParam *ParamData) string {
 	if init != nil {
 		return ""
 	}
-	if o := expr.AsObject(e.Params.Type); o != nil && len(*o) > 0 {
-		return codegen.Goify((*o)[0].Name, false)
+	if len(request.PathParams) > 0 {
+		return codegen.Goify(request.PathParams[0].Name, false)
 	}
-	if o := expr.AsObject(e.Headers.Type); o != nil && len(*o) > 0 {
-		return codegen.Goify((*o)[0].Name, false)
+	for _, query := range request.QueryParams {
+		if query.MapQueryParams != nil {
+			continue
+		}
+		return codegen.Goify(query.Name, false)
 	}
-	if o := expr.AsObject(e.Cookies.Type); o != nil && len(*o) > 0 {
-		return codegen.Goify((*o)[0].Name, false)
+	if len(request.Headers) > 0 {
+		return codegen.Goify(request.Headers[0].Name, false)
 	}
-	if e.MapQueryParams != nil && *e.MapQueryParams == "" && mapQueryParam != nil {
+	if len(request.Cookies) > 0 {
+		return codegen.Goify(request.Cookies[0].Name, false)
+	}
+	if request.MapQueryParams != nil && *request.MapQueryParams == "" && mapQueryParam != nil {
 		return mapQueryParam.VarName
 	}
 	return ""
 }
 
-func buildPayloadIDData(e *expr.HTTPEndpointExpr, payload *expr.AttributeExpr) (string, bool) {
-	if !e.IsJSONRPC() || e.PayloadIDAttribute == "" {
+func buildPayloadIDData(request *transportir.Request, payload *expr.AttributeExpr) (string, bool) {
+	if request == nil || request.IDAttribute == "" {
 		return "", false
 	}
-	return codegen.Goify(e.PayloadIDAttribute, true), payload.IsRequired(e.PayloadIDAttribute)
+	return codegen.Goify(request.IDAttribute, true), payload.IsRequired(request.IDAttribute)
 }
 
 func (sds *ServicesData) buildPayloadInit(
+	endpointIR *transportir.Endpoint,
 	payload *expr.AttributeExpr,
 	body expr.DataType,
-	e *expr.HTTPEndpointExpr,
 	ep *service.MethodData,
 	pkg string,
 	request *RequestData,
@@ -88,19 +103,15 @@ func (sds *ServicesData) buildPayloadInit(
 	if !needInit(payload.Type) {
 		return nil
 	}
-	return sds.buildPayloadInitData(e, payload, body, ep, pkg, request, svcctx, httpsvrctx, httpclictx, sd)
+	return sds.buildPayloadInitData(endpointIR, payload, body, ep, pkg, request, svcctx, httpsvrctx, httpclictx, sd)
 }
 
-func (sds *ServicesData) buildPayloadRequestData(e *expr.HTTPEndpointExpr, payload *expr.AttributeExpr, svcctx, httpsvrctx *codegen.AttributeContext, sd *ServiceData) (*RequestData, *ParamData) {
-	serverBodyData, clientBodyData := sds.buildPayloadRequestBodies(e, payload, sd)
-	paramsData, queryData, headersData, cookiesData := sds.buildPayloadRequestElements(e, payload, svcctx, sd)
-	multipartGen, multipartFiles := generatedMultipartRequestData(e)
-	mapQueryParam := sds.buildMapQueryParam(e, payload, httpsvrctx, sd)
-	if mapQueryParam != nil {
-		queryData = append(queryData, mapQueryParam)
-	}
+func (sds *ServicesData) buildPayloadRequestData(endpointIR *transportir.Endpoint, body *expr.AttributeExpr, payload *expr.AttributeExpr, svcctx, httpsvrctx *codegen.AttributeContext, sd *ServiceData) (*RequestData, *ParamData) {
+	serverBodyData, clientBodyData := sds.buildPayloadRequestBodies(body, endpointIR, payload, sd)
+	paramsData, queryData, headersData, cookiesData, mapQueryParam := sds.buildPayloadRequestElements(endpointIR, payload, svcctx, httpsvrctx, sd)
+	multipartGen, multipartFiles := generatedMultipartRequestData(endpointIR.Request)
 	registerRequestBodyTypeNames(serverBodyData, sd)
-	origin, mustHaveBody := buildPayloadRequestBodyRequirements(e, payload)
+	origin, mustHaveBody := buildPayloadRequestBodyRequirements(endpointIR.Request)
 	return &RequestData{
 		PathParams:          paramsData,
 		QueryParams:         queryData,
@@ -109,30 +120,37 @@ func (sds *ServicesData) buildPayloadRequestData(e *expr.HTTPEndpointExpr, paylo
 		ServerBody:          serverBodyData,
 		ClientBody:          clientBodyData,
 		PayloadAttr:         codegen.Goify(origin, true),
-		PayloadType:         e.MethodExpr.Payload.Type,
+		PayloadType:         endpointIR.Request.Payload.Type,
 		MustHaveBody:        mustHaveBody,
 		MustValidate:        payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
-		Multipart:           e.MultipartRequest,
+		Multipart:           endpointIR.Request.Multipart,
 		MultipartGenerated:  multipartGen,
 		MultipartFileFields: multipartFiles,
-		FormEncoded:         e.FormRequest,
+		FormEncoded:         endpointIR.Request.FormEncoded,
 	}, mapQueryParam
 }
 
-func (sds *ServicesData) buildPayloadRequestBodies(e *expr.HTTPEndpointExpr, payload *expr.AttributeExpr, sd *ServiceData) (*TypeData, *TypeData) {
-	return sds.buildRequestBodyType(e.Body, payload, e, true, sd), sds.buildRequestBodyType(e.Body, payload, e, false, sd)
+func (sds *ServicesData) buildPayloadRequestBodies(body *expr.AttributeExpr, endpointIR *transportir.Endpoint, payload *expr.AttributeExpr, sd *ServiceData) (*TypeData, *TypeData) {
+	return sds.buildRequestBodyType(body, payload, endpointIR.Name, endpointIR.Request.FormEncoded, true, sd), sds.buildRequestBodyType(body, payload, endpointIR.Name, endpointIR.Request.FormEncoded, false, sd)
 }
 
 func (sds *ServicesData) buildPayloadRequestElements(
-	e *expr.HTTPEndpointExpr,
+	endpointIR *transportir.Endpoint,
 	payload *expr.AttributeExpr,
 	svcctx *codegen.AttributeContext,
+	httpsvrctx *codegen.AttributeContext,
 	sd *ServiceData,
-) ([]*ParamData, []*ParamData, []*HeaderData, []*CookieData) {
-	return sds.extractPathParams(e.PathParams(), payload, sd.Scope),
-		sds.extractQueryParams(e.QueryParams(), payload, sd.Scope),
-		sds.extractHeaders(e.Headers, payload, svcctx, sd.Scope),
-		sds.extractCookies(e.Cookies, payload, svcctx, sd.Scope)
+) ([]*ParamData, []*ParamData, []*HeaderData, []*CookieData, *ParamData) {
+	request := endpointIR.Request
+	paramsData := sds.buildPathParamsFromIR(request.PathParams, payload, sd.Scope)
+	queryData := sds.buildQueryParamsFromIR(request.QueryParams, payload, sd.Scope)
+	headersData := sds.buildHeadersFromIR(request.Headers, payload, svcctx, sd.Scope)
+	cookiesData := sds.buildCookiesFromIR(request.Cookies, payload, svcctx, sd.Scope)
+	mapQueryParam := sds.buildMapQueryParamFromIR(endpointIR.Request, payload, httpsvrctx, sd)
+	if mapQueryParam != nil {
+		queryData = append(queryData, mapQueryParam)
+	}
+	return paramsData, queryData, headersData, cookiesData, mapQueryParam
 }
 
 func registerRequestBodyTypeNames(serverBodyData *TypeData, sd *ServiceData) {
@@ -143,59 +161,128 @@ func registerRequestBodyTypeNames(serverBodyData *TypeData, sd *ServiceData) {
 	sd.ClientTypeNames[serverBodyData.Name] = false
 }
 
-func buildPayloadRequestBodyRequirements(e *expr.HTTPEndpointExpr, payload *expr.AttributeExpr) (string, bool) {
-	origin := ""
-	mustHaveBody := true
-	if e.Body.Type == expr.Empty {
-		return origin, mustHaveBody
+func buildPayloadRequestBodyRequirements(request *transportir.Request) (string, bool) {
+	if request == nil {
+		return "", true
 	}
-	if e.OptionalRequestBody {
-		mustHaveBody = false
-	}
-	if o, ok := e.Body.Meta["origin:attribute"]; ok {
-		origin = o[0]
-		if !payload.IsRequired(o[0]) {
-			mustHaveBody = false
-		}
-	}
-	return origin, mustHaveBody
+	return request.BodyOrigin, request.MustHaveBody
 }
 
-func (sds *ServicesData) buildMapQueryParam(e *expr.HTTPEndpointExpr, payload *expr.AttributeExpr, httpsvrctx *codegen.AttributeContext, sd *ServiceData) *ParamData {
-	if e.MapQueryParams == nil {
-		return nil
-	}
-	fieldName := ""
-	name := "query"
-	required := true
-	pAtt := payload
-	if n := *e.MapQueryParams; n != "" {
-		pAtt = expr.AsObject(payload.Type).Attribute(n)
-		required = payload.IsRequired(n)
-		name = n
-		fieldName = codegen.Goify(name, true)
-	}
-	varName := codegen.Goify(name, false)
-	return &ParamData{
-		MapQueryParams: e.MapQueryParams,
-		Map:            expr.AsMap(payload.Type) != nil,
-		Element: &Element{
-			HTTPName: name,
-			AttributeData: &AttributeData{
-				Name:         name,
-				VarName:      varName,
-				FieldName:    fieldName,
-				FieldType:    pAtt.Type,
-				Required:     required,
-				Type:         pAtt.Type,
-				TypeName:     sd.Scope.GoTypeName(pAtt),
-				TypeRef:      sd.Scope.GoTypeRef(pAtt),
-				Validate:     codegen.AttributeValidationCode(pAtt, nil, httpsvrctx, required, expr.IsAlias(pAtt.Type), varName, name),
-				DefaultValue: pAtt.DefaultValue,
-				Example:      pAtt.Example(sds.Root.API.ExampleGenerator),
+func (sds *ServicesData) buildMapQueryParamFromIR(request *transportir.Request, payload *expr.AttributeExpr, httpsvrctx *codegen.AttributeContext, sd *ServiceData) *ParamData {
+	for _, param := range request.QueryParams {
+		if param.MapQueryParams == nil {
+			continue
+		}
+		fieldName := ""
+		attr := payload
+		if param.Name != "query" || (param.MapQueryParams != nil && *param.MapQueryParams != "") {
+			fieldName = codegen.Goify(param.Name, true)
+			if object := expr.AsObject(payload.Type); object != nil {
+				if payloadAttr := object.Attribute(param.Name); payloadAttr != nil {
+					attr = payloadAttr
+				}
+			}
+		}
+		varName := codegen.Goify(param.Name, false)
+		return &ParamData{
+			MapQueryParams: param.MapQueryParams,
+			Map:            expr.AsMap(payload.Type) != nil,
+			Element: &Element{
+				HTTPName: param.HTTPName,
+				AttributeData: &AttributeData{
+					Name:         param.Name,
+					VarName:      varName,
+					FieldName:    fieldName,
+					FieldType:    attr.Type,
+					Required:     param.Required,
+					Type:         attr.Type,
+					TypeName:     sd.Scope.GoTypeName(attr),
+					TypeRef:      sd.Scope.GoTypeRef(attr),
+					Validate:     codegen.AttributeValidationCode(attr, nil, httpsvrctx, param.Required, expr.IsAlias(attr.Type), varName, param.Name),
+					DefaultValue: attr.DefaultValue,
+					Example:      attr.Example(sds.Root.API.ExampleGenerator),
+				},
 			},
-		},
+		}
 	}
+	return nil
+}
+
+func (sds *ServicesData) buildPathParamsFromIR(params []*transportir.Parameter, service *expr.AttributeExpr, scope *codegen.NameScope) []*ParamData {
+	data := make([]*ParamData, 0, len(params))
+	ctx := serviceContext("", scope)
+	for _, param := range params {
+		attr := makeHTTPType(param.Attribute)
+		stringSlice := transportStringSlice(rawServiceField(service, param.Name, param.Attribute))
+		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, service, nil)
+		data = append(data, &ParamData{
+			Map:            false,
+			MapStringSlice: false,
+			Element:        sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, scope),
+		})
+	}
+	return data
+}
+
+func (sds *ServicesData) buildQueryParamsFromIR(params []*transportir.Parameter, service *expr.AttributeExpr, scope *codegen.NameScope) []*ParamData {
+	data := make([]*ParamData, 0, len(params))
+	ctx := serviceContext("", scope)
+	for _, param := range params {
+		if param.MapQueryParams != nil {
+			continue
+		}
+		attr := makeHTTPType(param.Attribute)
+		mp := expr.AsMap(attr.Type)
+		stringSlice := transportStringSlice(rawServiceField(service, param.Name, param.Attribute))
+		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, service, nil)
+		data = append(data, &ParamData{
+			Map: mp != nil,
+			MapStringSlice: mp != nil &&
+				mp.KeyType.Type.Kind() == expr.StringKind &&
+				mp.ElemType.Type.Kind() == expr.ArrayKind &&
+				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
+			Element: sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, ctx, scope),
+		})
+	}
+	return data
+}
+
+func rawServiceField(service *expr.AttributeExpr, name string, fallback *expr.AttributeExpr) *expr.AttributeExpr {
+	if service != nil {
+		if field := service.Find(name); field != nil {
+			return field
+		}
+	}
+	return fallback
+}
+
+func (sds *ServicesData) buildHeadersFromIR(params []*transportir.Parameter, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*HeaderData {
+	headers := make([]*HeaderData, 0, len(params))
+	for _, param := range params {
+		attr := svcAtt.Find(param.Name)
+		if attr == nil {
+			attr = svcAtt
+		}
+		stringSlice := transportStringSlice(attr)
+		hattr := makeHTTPType(attr)
+		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, svcAtt, svcCtx)
+		headers = append(headers, &HeaderData{
+			CanonicalName: http.CanonicalHeaderKey(param.HTTPName),
+			Element:       sds.buildTransportElement(param.Name, param.HTTPName, hattr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, svcCtx, scope),
+		})
+	}
+	return headers
+}
+
+func (sds *ServicesData) buildCookiesFromIR(params []*transportir.Parameter, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
+	cookies := make([]*CookieData, 0, len(params))
+	for _, param := range params {
+		if _, ok := param.Attribute.Meta["loom:transport-only-session-cookie"]; ok {
+			continue
+		}
+		cookies = append(cookies, sds.cookieData(param.Name, param.HTTPName, param.Required, param.PrimitivePointer, param.Attribute, svcAtt, svcCtx, scope))
+	}
+	return cookies
 }
 
 func payloadRequestNeedsValidation(paramsData []*ParamData, queryData []*ParamData, headersData []*HeaderData, cookiesData []*CookieData) bool {
@@ -223,7 +310,7 @@ func payloadRequestNeedsValidation(paramsData []*ParamData, queryData []*ParamDa
 }
 
 func (sds *ServicesData) buildPayloadInitData(
-	e *expr.HTTPEndpointExpr,
+	endpointIR *transportir.Endpoint,
 	payload *expr.AttributeExpr,
 	body expr.DataType,
 	ep *service.MethodData,
@@ -243,17 +330,17 @@ func (sds *ServicesData) buildPayloadInitData(
 	} else {
 		name = fmt.Sprintf("New%s%s", n, p)
 	}
-	serverArgs, clientArgs := sds.buildPayloadBodyArgs(e, body, argsCap, httpclictx, httpsvrctx, sd)
+	serverArgs, clientArgs := sds.buildPayloadBodyArgs(endpointIR.Request.Body, body, argsCap, httpclictx, httpsvrctx, sd)
 	args := buildPayloadFieldArgs(request)
 	serverArgs = append(serverArgs, args...)
 	clientArgs = append(clientArgs, args...)
-	serverCode, clientCode, origin, pointer := sds.buildPayloadTransformCode(e, payload, body, svcctx, httpsvrctx, httpclictx, sd)
+	serverCode, clientCode, origin, pointer := sds.buildPayloadTransformCode(endpointIR.Request, payload, body, svcctx, httpsvrctx, httpclictx, sd)
 	return &InitData{
 		Name:                     name,
-		Description:              fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, svc.Name, e.Name()),
+		Description:              fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, svc.Name, endpointIR.Name),
 		ServerArgs:               serverArgs,
 		ClientArgs:               clientArgs,
-		CLIArgs:                  buildBasicAuthCLIArgs(ep, e, svc, httpsvrctx, sds.Root.API.ExampleGenerator),
+		CLIArgs:                  buildBasicAuthCLIArgs(ep, endpointIR.Request.Payload, svc, httpsvrctx, sds.Root.API.ExampleGenerator),
 		ReturnTypeName:           svc.Scope.GoFullTypeName(payload, pkg),
 		ReturnTypeRef:            svc.Scope.GoFullTypeRef(payload, pkg),
 		ReturnIsStruct:           expr.IsObject(payload.Type),
@@ -266,7 +353,7 @@ func (sds *ServicesData) buildPayloadInitData(
 }
 
 func (sds *ServicesData) buildPayloadBodyArgs(
-	e *expr.HTTPEndpointExpr,
+	bodyAttr *expr.AttributeExpr,
 	body expr.DataType,
 	argsCap int,
 	httpclictx, httpsvrctx *codegen.AttributeContext,
@@ -290,11 +377,11 @@ func (sds *ServicesData) buildPayloadBodyArgs(
 		AttributeData: &AttributeData{
 			Name:     "body",
 			VarName:  "body",
-			TypeName: sd.Scope.GoTypeName(e.Body),
-			TypeRef:  sd.Scope.GoTypeRef(e.Body),
+			TypeName: sd.Scope.GoTypeName(bodyAttr),
+			TypeRef:  sd.Scope.GoTypeRef(bodyAttr),
 			Type:     body,
 			Required: true,
-			Example:  e.Body.Example(sds.Root.API.ExampleGenerator),
+			Example:  bodyAttr.Example(sds.Root.API.ExampleGenerator),
 			Validate: svcode,
 		},
 	})
@@ -303,11 +390,11 @@ func (sds *ServicesData) buildPayloadBodyArgs(
 		AttributeData: &AttributeData{
 			Name:     "body",
 			VarName:  "body",
-			TypeName: sd.Scope.GoTypeNameWithDefaults(e.Body),
-			TypeRef:  sd.Scope.GoTypeRefWithDefaults(e.Body),
+			TypeName: sd.Scope.GoTypeNameWithDefaults(bodyAttr),
+			TypeRef:  sd.Scope.GoTypeRefWithDefaults(bodyAttr),
 			Type:     body,
 			Required: true,
-			Example:  e.Body.Example(sds.Root.API.ExampleGenerator),
+			Example:  bodyAttr.Example(sds.Root.API.ExampleGenerator),
 			Validate: cvcode,
 		},
 	})
@@ -371,18 +458,18 @@ func buildPayloadFieldArgs(request *RequestData) []*InitArgData {
 	return args
 }
 
-func buildBasicAuthCLIArgs(ep *service.MethodData, e *expr.HTTPEndpointExpr, svc *service.Data, httpsvrctx *codegen.AttributeContext, generator *expr.ExampleGenerator) []*InitArgData {
+func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, svc *service.Data, httpsvrctx *codegen.AttributeContext, generator *expr.ExampleGenerator) []*InitArgData {
 	for _, requirement := range ep.Requirements {
 		for _, scheme := range requirement.Schemes {
 			if scheme.Type != "Basic" {
 				continue
 			}
-			uatt := e.MethodExpr.Payload.Find(scheme.UsernameAttr)
+			uatt := payload.Find(scheme.UsernameAttr)
 			uref := svc.Scope.GoTypeRef(uatt)
 			if scheme.UsernamePointer {
 				uref = "*" + uref
 			}
-			patt := e.MethodExpr.Payload.Find(scheme.PasswordAttr)
+			patt := payload.Find(scheme.PasswordAttr)
 			pref := svc.Scope.GoTypeRef(patt)
 			if scheme.PasswordPointer {
 				pref = "*" + pref
@@ -506,7 +593,7 @@ func responseFieldsNeedValidation(headers []*HeaderData, cookies []*CookieData) 
 }
 
 func (sds *ServicesData) buildPayloadTransformCode(
-	e *expr.HTTPEndpointExpr,
+	request *transportir.Request,
 	payload *expr.AttributeExpr,
 	body expr.DataType,
 	svcctx, httpsvrctx, httpclictx *codegen.AttributeContext,
@@ -519,29 +606,30 @@ func (sds *ServicesData) buildPayloadTransformCode(
 	var err error
 	pAtt := payload
 	if body != expr.Empty {
-		if o, ok := e.Body.Meta["origin:attribute"]; ok {
+		if o, ok := request.Body.Meta["origin:attribute"]; ok {
 			origin = o[0]
 			pAtt = expr.AsObject(payload.Type).Attribute(origin)
 			pointer = !payload.IsRequired(o[0]) && expr.IsPrimitive(pAtt.Type)
 		}
 		var helpers []*codegen.TransformFunctionData
-		serverCode, helpers, err = unmarshal(e.Body, pAtt, "body", httpsvrctx, svcctx)
+		serverCode, helpers, err = unmarshal(request.Body, pAtt, "body", httpsvrctx, svcctx)
 		if err == nil {
 			sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
 		}
-		clientCode, helpers, err = marshal(e.Body, pAtt, "body", "v", httpclictx, svcctx)
+		clientCode, helpers, err = marshal(request.Body, pAtt, "body", "v", httpclictx, svcctx)
 		if err == nil {
 			sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, helpers)
 		}
 	} else if expr.IsArray(payload.Type) || expr.IsMap(payload.Type) {
-		if params := expr.AsObject(e.Params.Type); len(*params) > 0 {
+		if len(request.PathParams) > 0 {
 			var helpers []*codegen.TransformFunctionData
-			source := codegen.Goify((*params)[0].Name, false)
-			serverCode, helpers, err = unmarshal((*params)[0].Attribute, payload, source, httpsvrctx, svcctx)
+			sourceParam := request.PathParams[0]
+			source := codegen.Goify(sourceParam.Name, false)
+			serverCode, helpers, err = unmarshal(sourceParam.Attribute, payload, source, httpsvrctx, svcctx)
 			if err == nil {
 				sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
 			}
-			clientCode, helpers, err = marshal((*params)[0].Attribute, payload, source, "v", httpclictx, svcctx)
+			clientCode, helpers, err = marshal(sourceParam.Attribute, payload, source, "v", httpclictx, svcctx)
 			if err == nil {
 				sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, helpers)
 			}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 )
 
@@ -126,31 +127,32 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
 			continue
 		}
-		serviceBodies := make(map[string]*EndpointBodies, len(svc.HTTPEndpoints))
-		for _, endpoint := range svc.HTTPEndpoints {
-			if !openapi.MustGenerate(endpoint.Meta) || !openapi.MustGenerate(endpoint.MethodExpr.Meta) {
+		serviceIR := transportir.BuildService(svc)
+		serviceBodies := make(map[string]*EndpointBodies, len(serviceIR.Endpoints))
+		for _, endpoint := range serviceIR.Endpoints {
+			if !endpoint.Generate || !endpoint.MethodGenerate {
 				continue
 			}
 
-			reqBodyAttr := attributeForSchemaUsage(endpoint.Body, schemaUsageRequest)
+			reqBodyAttr := attributeForSchemaUsage(endpoint.Request.Body, schemaUsageRequest)
 			req := a.AnalyzeSchema(reqBodyAttr)
-			if endpoint.StreamingBody != nil {
-				streamingAttr := attributeForSchemaUsage(endpoint.StreamingBody, schemaUsageRequest)
+			if endpoint.Request.StreamingBody != nil {
+				streamingAttr := attributeForSchemaUsage(endpoint.Request.StreamingBody, schemaUsageRequest)
 				streaming := a.AnalyzeSchema(streamingAttr)
 				req = mergeStreamingBodyNote(req, streaming)
 			}
 
 			responseBodies := make(map[int][]*Schema)
-			responses := endpoint.Responses
-			for _, errResp := range endpoint.HTTPErrors {
-				responses = append(responses, errResp.Response)
+			for _, resp := range endpoint.Response.Responses {
+				body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
+				responseBodies[resp.StatusCode] = append(responseBodies[resp.StatusCode], a.AnalyzeSchema(body))
 			}
-			for _, resp := range responses {
-				body := attributeForSchemaUsage(responseBodyAttribute(resp), schemaUsageResponse)
+			for _, resp := range endpoint.Response.ErrorResponses {
+				body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
 				responseBodies[resp.StatusCode] = append(responseBodies[resp.StatusCode], a.AnalyzeSchema(body))
 			}
 
-			serviceBodies[endpoint.Name()] = &EndpointBodies{
+			serviceBodies[endpoint.Name] = &EndpointBodies{
 				RequestBody:    req,
 				ResponseBodies: responseBodies,
 			}
@@ -377,30 +379,6 @@ func mergeStreamingBodyNote(req, streaming *Schema) *Schema {
 	}
 	req.Description += fmt.Sprintf("Streaming body: %s", note)
 	return req
-}
-
-func responseBodyAttribute(resp *expr.HTTPResponseExpr) *expr.AttributeExpr {
-	body := resp.Body
-	if resp.OpenAPIBody != nil {
-		body = resp.OpenAPIBody
-	}
-	if body == nil {
-		return &expr.AttributeExpr{Type: expr.Empty}
-	}
-	var view string
-	if v, ok := body.Meta.Last(expr.ViewMetaKey); ok {
-		view = v
-	}
-	if view == "" {
-		return body
-	}
-	rt := expr.Dup(body.Type).(*expr.ResultTypeExpr)
-	projected, err := expr.Project(rt, view)
-	if err != nil {
-		panic(fmt.Sprintf("failed to project %q to view %q", body.Type.Name(), view))
-	}
-	body.Type = projected
-	return body
 }
 
 func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.AttributeExpr {

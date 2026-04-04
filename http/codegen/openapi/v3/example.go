@@ -138,83 +138,104 @@ func isCompleteOpenAPIExample(attr *expr.AttributeExpr, val any) bool {
 	case expr.UserType:
 		return isCompleteOpenAPIExample(actual.Attribute(), val)
 	case *expr.Object:
-		obj, ok := val.(map[string]any)
-		if !ok {
-			return false
-		}
-		if len(obj) == 0 && len(attr.AllRequired()) > 0 {
-			return false
-		}
-		for _, name := range attr.AllRequired() {
-			child := attr.Find(name)
-			if child == nil {
-				continue
-			}
-			if !openapi.MustGenerate(child.Meta) {
-				continue
-			}
-			fieldVal, ok := obj[name]
-			if !ok {
-				return false
-			}
-			if !isCompleteOpenAPIExample(child, fieldVal) {
-				return false
-			}
-		}
-		return true
+		return completeOpenAPIObjectExample(attr, val)
 	case *expr.Array:
-		items, ok := val.([]any)
-		if !ok {
-			return true
-		}
-		for _, item := range items {
-			if !isCompleteOpenAPIExample(actual.ElemType, item) {
-				return false
-			}
-		}
-		return true
+		return completeOpenAPIArrayExample(actual, val)
 	case *expr.Map:
-		m, ok := val.(map[string]any)
-		if !ok {
-			return true
-		}
-		for _, item := range m {
-			if !isCompleteOpenAPIExample(actual.ElemType, item) {
-				return false
-			}
-		}
-		return true
+		return completeOpenAPIMapExample(actual, val)
 	case *expr.Union:
-		example, ok := val.(map[string]any)
-		if !ok {
-			return false
-		}
-		typeKey := actual.GetTypeKey()
-		valueKey := actual.GetValueKey()
-		rawTag, ok := example[typeKey]
-		if !ok {
-			return false
-		}
-		tag, ok := rawTag.(string)
-		if !ok || tag == "" {
-			return false
-		}
-		rawValue, ok := example[valueKey]
-		if !ok {
-			return false
-		}
-		for _, branch := range actual.Values {
-			if branch == nil || branch.Attribute == nil {
-				continue
-			}
-			if expr.UnionVariantTag(branch) == tag {
-				return isCompleteOpenAPIExample(branch.Attribute, rawValue)
-			}
-		}
-		return false
+		return completeOpenAPIUnionExample(actual, val)
 	default:
 		return true
 	}
+}
+
+func completeOpenAPIObjectExample(attr *expr.AttributeExpr, val any) bool {
+	obj, ok := val.(map[string]any)
+	if !ok {
+		return false
+	}
+	required := attr.AllRequired()
+	if len(obj) == 0 && len(required) > 0 {
+		return false
+	}
+	for _, name := range required {
+		if !requiredOpenAPIFieldPresent(attr, obj, name) {
+			return false
+		}
+	}
+	return true
+}
+
+func requiredOpenAPIFieldPresent(attr *expr.AttributeExpr, obj map[string]any, name string) bool {
+	child := attr.Find(name)
+	if child == nil || !openapi.MustGenerate(child.Meta) {
+		return true
+	}
+	fieldVal, ok := obj[name]
+	return ok && isCompleteOpenAPIExample(child, fieldVal)
+}
+
+func completeOpenAPIArrayExample(actual *expr.Array, val any) bool {
+	items, ok := val.([]any)
+	if !ok {
+		return true
+	}
+	for _, item := range items {
+		if !isCompleteOpenAPIExample(actual.ElemType, item) {
+			return false
+		}
+	}
+	return true
+}
+
+func completeOpenAPIMapExample(actual *expr.Map, val any) bool {
+	m, ok := val.(map[string]any)
+	if !ok {
+		return true
+	}
+	for _, item := range m {
+		if !isCompleteOpenAPIExample(actual.ElemType, item) {
+			return false
+		}
+	}
+	return true
+}
+
+func completeOpenAPIUnionExample(actual *expr.Union, val any) bool {
+	example, ok := val.(map[string]any)
+	if !ok {
+		return false
+	}
+	tag, rawValue, ok := openAPIUnionTagAndValue(actual, example)
+	if !ok {
+		return false
+	}
+	for _, branch := range actual.Values {
+		if branch == nil || branch.Attribute == nil {
+			continue
+		}
+		if expr.UnionVariantTag(branch) == tag {
+			return isCompleteOpenAPIExample(branch.Attribute, rawValue)
+		}
+	}
+	return false
+}
+
+func openAPIUnionTagAndValue(actual *expr.Union, example map[string]any) (string, any, bool) {
+	rawTag, ok := example[actual.GetTypeKey()]
+	if !ok {
+		return "", nil, false
+	}
+	tag, ok := rawTag.(string)
+	if !ok || tag == "" {
+		return "", nil, false
+	}
+	rawValue, ok := example[actual.GetValueKey()]
+	if !ok {
+		return "", nil, false
+	}
+	return tag, rawValue, true
 }
 
 func normalizeOpenAPIExample(val any) any {

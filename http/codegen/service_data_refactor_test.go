@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -468,7 +469,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildRequestBodyType flattens form union helper field", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
-		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr, false, svcData)
+		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, false, svcData)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "Values", bodyType.FlatFormUnionField)
 		require.NotNil(t, bodyType.Init)
@@ -478,8 +479,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildRequestBodyType only emits constructors on the client", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
-		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr, false, svcData)
-		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr, true, svcData)
+		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, false, svcData)
+		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, true, svcData)
 		require.NotNil(t, clientBodyType)
 		require.NotNil(t, clientBodyType.Init)
 		require.NotNil(t, serverBodyType)
@@ -490,7 +491,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultWithResultViewDSL)
 		method := svcData.Service.Method(endpointExpr.Name())
 
-		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr, true, stringPtr("full"), svcData)
+		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, stringPtr("full"), svcData)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "full", bodyType.View)
 		require.NotNil(t, bodyType.Init)
@@ -501,8 +502,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultBodyCollectionDSL)
 		method := svcData.Service.Method(endpointExpr.Name())
 
-		serverBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr, true, nil, svcData)
-		clientBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr, false, nil, svcData)
+		serverBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, nil, svcData)
+		clientBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), false, nil, svcData)
 		require.NotNil(t, serverBodyType)
 		require.NotNil(t, serverBodyType.Init)
 		require.NotNil(t, clientBodyType)
@@ -513,12 +514,62 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultBodyCollectionDSL)
 		method := svcData.Service.Method(endpointExpr.Name())
 
-		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr, true, nil, svcData)
+		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, nil, svcData)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "MethodBodyCollectionResponseBody", bodyType.Name)
 		require.Equal(t, "MethodBodyCollectionResponseBody", bodyType.VarName)
 		require.NotNil(t, bodyType.Init)
 		require.Equal(t, "NewMethodBodyCollectionResponseBody", bodyType.Init.Name)
+	})
+
+	t.Run("mixed transport graph stays split across http and jsonrpc service data", func(t *testing.T) {
+		root := RunHTTPDSL(t, mixedTransportServiceDataDSL)
+
+		httpServices := CreateHTTPServices(root)
+		plain := httpServices.Get("PlainHTTP")
+		require.NotNil(t, plain)
+		require.Len(t, plain.Endpoints, 1)
+		require.NotNil(t, plain.Endpoints[0].Payload.Request.ServerBody)
+		require.Equal(t, "EncodeCreateRequest", plain.Endpoints[0].RequestEncoder)
+
+		jsonrpcServices := NewServicesData(service.NewServicesData(root), &root.API.JSONRPC.HTTPExpr)
+		post := jsonrpcServices.Get("RPCPost")
+		require.NotNil(t, post)
+		require.Equal(t, "ID", post.Endpoints[0].Payload.IDAttribute)
+		require.Equal(t, "ID", post.Endpoints[0].Result.IDAttribute)
+
+		sse := jsonrpcServices.Get("RPCSSE")
+		require.NotNil(t, sse)
+		require.True(t, sse.Endpoints[0].HasMixedResults)
+		require.NotNil(t, sse.Endpoints[0].SSE)
+		require.Equal(t, "POST", sse.Endpoints[0].Routes[0].Verb)
+
+		ws := jsonrpcServices.Get("RPCWebSocket")
+		require.NotNil(t, ws)
+		require.NotNil(t, ws.Endpoints[0].ServerWebSocket)
+		require.Equal(t, "GET", ws.Endpoints[0].Routes[0].Verb)
+	})
+
+	t.Run("buildErrorsData uses IR-owned error responses", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, responseInitArgsDSL)
+		endpointIR := transportir.BuildEndpoint(endpointExpr)
+		require.NotNil(t, endpointIR.Response)
+		require.NotEmpty(t, endpointIR.Response.ErrorResponses)
+
+		errorIR := endpointIR.Response.ErrorResponses[0]
+		errors := services.buildErrorsData(endpointExpr, svcData)
+		require.Len(t, errors, 1)
+		require.Len(t, errors[0].Errors, 1)
+
+		errResp := errors[0].Errors[0].Response
+		require.NotNil(t, errResp)
+		require.Equal(t, statusCodeToHTTPConst(errorIR.StatusCode), errors[0].StatusCode)
+		require.Equal(t, statusCodeToHTTPConst(errorIR.StatusCode), errResp.StatusCode)
+		require.Equal(t, errorIR.StatusCode, errResp.Code)
+		require.Equal(t, errorIR.Headers.ElemName("code"), errResp.Headers[0].HTTPName)
+		require.Equal(t, errorIR.Cookies[0].HTTPName(), errResp.Cookies[0].HTTPName)
+		require.NotNil(t, errResp.ClientBody)
+		require.Equal(t, errorIR.ContentType, errResp.ContentType)
 	})
 }
 
@@ -723,6 +774,80 @@ func responseTaglessFirstDSL() {
 					Tag("h", "value")
 				})
 			})
+		})
+	})
+}
+
+func mixedTransportServiceDataDSL() {
+	API("mixed-transport-service-data", func() {
+		JSONRPC(func() {})
+	})
+
+	Service("PlainHTTP", func() {
+		Method("create", func() {
+			Payload(func() {
+				Attribute("id", String)
+				Attribute("name", String)
+				Required("id", "name")
+			})
+			Result(String)
+			HTTP(func() {
+				POST("/plain/{id}")
+				Body("name")
+			})
+		})
+	})
+
+	Service("RPCPost", func() {
+		JSONRPC(func() {
+			POST("/rpc")
+		})
+		Method("ping", func() {
+			Payload(func() {
+				ID("id", String)
+			})
+			Result(func() {
+				ID("id", String)
+				Attribute("value", String)
+			})
+			JSONRPC(func() {})
+		})
+	})
+
+	Service("RPCSSE", func() {
+		JSONRPC(func() {
+			POST("/events")
+		})
+		Method("events/stream", func() {
+			Payload(func() {
+				ID("id", String)
+				Attribute("filter", String)
+			})
+			Result(func() {
+				Attribute("accepted", Boolean)
+			})
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			JSONRPC(func() {
+				ServerSentEvents()
+			})
+		})
+	})
+
+	Service("RPCWebSocket", func() {
+		JSONRPC(func() {
+			GET("/ws")
+		})
+		Method("stream", func() {
+			StreamingPayload(func() {
+				ID("id", String)
+				Attribute("message", String)
+			})
+			StreamingResult(func() {
+				Attribute("event", String)
+			})
+			JSONRPC(func() {})
 		})
 	})
 }

@@ -3,14 +3,13 @@ package ir
 import (
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 	"unicode"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
-	openapiinternal "github.com/CaliLuke/loom/http/codegen/openapi/internal"
 	"github.com/CaliLuke/loom/internal/securityreq"
 )
 
@@ -27,15 +26,29 @@ func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBod
 	if route == nil || route.Endpoint == nil {
 		return nil
 	}
-	endpoint := route.Endpoint
-	method := endpoint.MethodExpr
-	service := endpoint.Service
+	endpointIR := transportir.BuildEndpoint(route.Endpoint)
+	routeIndex := routeIndexInEndpoint(route)
+	for _, routeIR := range endpointIR.Routes {
+		if routeIR.Index == routeIndex && routeIR.SourcePath == route.Path {
+			return buildRouteOperationFromIR(endpointIR, routeIR, path, bodies, rand, apiMeta, closeObjects)
+		}
+	}
+	for _, routeIR := range endpointIR.Routes {
+		if routeIR.Path == path {
+			return buildRouteOperationFromIR(endpointIR, routeIR, path, bodies, rand, apiMeta, closeObjects)
+		}
+	}
+	return buildRouteOperationFromIR(endpointIR, endpointIR.Routes[0], path, bodies, rand, apiMeta, closeObjects)
+}
 
-	summary := fmt.Sprintf("%s %s", endpoint.Name(), service.Name())
-	for _, meta := range []expr.MetaExpr{apiMeta, service.ServiceExpr.Meta, endpoint.Meta, method.Meta} {
+func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transportir.Route, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool) *Operation {
+	service := endpointIR.Service
+
+	summary := fmt.Sprintf("%s %s", endpointIR.Name, service.Name)
+	for _, meta := range []expr.MetaExpr{apiMeta, service.ServiceMeta, endpointIR.Meta, endpointIR.MethodMeta} {
 		if value, ok := meta.Last("openapi:summary"); ok {
 			if value == "{path}" {
-				summary = route.Path
+				summary = routeIR.SourcePath
 			} else {
 				summary = value
 			}
@@ -43,50 +56,42 @@ func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBod
 	}
 
 	operationIDFormat := defaultOperationIDFormat
-	for _, meta := range []expr.MetaExpr{apiMeta, method.Service.Meta, endpoint.Meta, method.Meta} {
+	for _, meta := range []expr.MetaExpr{apiMeta, service.ServiceMeta, endpointIR.Meta, endpointIR.MethodMeta} {
 		if value, ok := meta.Last("openapi:operationId"); ok {
 			operationIDFormat = value
 		}
 	}
 
-	routeIndex := 0
-	for index, current := range endpoint.Routes {
-		if current == route {
-			routeIndex = index
-			break
-		}
-	}
-
-	requestBody := buildRequestBody(endpoint, bodies, rand, closeObjects)
-	responseMap := buildResponses(endpoint, bodies, rand, closeObjects)
+	requestBody := buildRequestBody(endpointIR, bodies, rand, closeObjects)
+	responseMap := buildResponses(endpointIR, bodies, rand, closeObjects)
 	responses := make(map[string]*ResponseRef, len(responseMap))
 	for status, response := range responseMap {
 		responses[status] = &ResponseRef{Value: response}
 	}
 
-	operationID := parseOperationIDTemplate(operationIDFormat, service.Name(), endpoint.Name(), routeIndex)
-	extensions := mergeExtensions(openapi.ExtensionsFromExpr(method.Meta), buildAsyncOperationExtension(endpoint, path, rand, closeObjects))
+	operationID := parseOperationIDTemplate(operationIDFormat, service.Name, endpointIR.Name, routeIR.Index)
+	extensions := mergeExtensions(openapi.ExtensionsFromExpr(endpointIR.MethodMeta), buildAsyncOperationExtension(endpointIR, path, rand, closeObjects))
 
-	_, deprecated := endpoint.Meta.Last("openapi:deprecated")
+	_, deprecated := endpointIR.Meta.Last("openapi:deprecated")
 	return &Operation{
-		Tags:         operationTagNames(endpoint.Meta, service.Meta, service.Name()),
+		Tags:         operationTagNames(endpointIR.Meta, service.Meta, service.Name),
 		Summary:      summary,
-		Description:  endpoint.Description(),
+		Description:  endpointIR.Description,
 		OperationID:  operationID,
-		Parameters:   buildParameters(endpoint, path, rand, closeObjects),
+		Parameters:   buildParameters(endpointIR, rand, closeObjects),
 		RequestBody:  wrapRequestBody(requestBody),
 		Responses:    responses,
 		Deprecated:   deprecated,
-		Security:     buildOperationSecurity(endpoint),
-		ExternalDocs: externalDocs(method.Docs, method.Meta),
+		Security:     buildOperationSecurity(endpointIR),
+		ExternalDocs: externalDocs(endpointIR.MethodDocs, endpointIR.MethodMeta),
 		Extensions:   extensions,
 	}
 }
 
-func buildParameters(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
-	params := append(paramsFromPath(endpoint, path, rand, closeObjects), paramsFromHeadersAndCookies(endpoint, rand, closeObjects)...)
-	if endpoint.MapQueryParams != nil {
-		name := *endpoint.MapQueryParams
+func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
+	params := append(paramsFromPath(endpointIR, rand, closeObjects), paramsFromHeadersAndCookies(endpointIR, rand, closeObjects)...)
+	if endpointIR.Request.MapQueryParams != nil {
+		name := *endpointIR.Request.MapQueryParams
 		if name == "" {
 			name = "payload"
 		}
@@ -95,7 +100,7 @@ func buildParameters(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.Ex
 				Name:        name,
 				Description: "Query parameters",
 				In:          "query",
-				Required:    name == "payload" || endpoint.MethodExpr.Payload.IsRequired(name),
+				Required:    name == "payload" || endpointIR.Request.Payload.IsRequired(name),
 				Schema: &Schema{
 					Type: "object",
 					AdditionalProperties: &BoolOrSchema{
@@ -109,46 +114,38 @@ func buildParameters(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.Ex
 	return params
 }
 
-func paramsFromPath(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
-	var (
-		res       []*ParameterRef
-		params    = endpoint.Params
-		wildcards = expr.ExtractHTTPWildcards(path)
-	)
-	codegen.WalkMappedAttr(params, func(name, parameterName string, required bool, attr *expr.AttributeExpr) error { // nolint: errcheck
-		location := "query"
-		if slices.Contains(wildcards, name) {
-			location = "path"
-			required = true
+func paramsFromPath(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
+	var params []*ParameterRef
+	for _, parameter := range endpointIR.Request.PathParams {
+		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "path", true, rand, closeObjects))
+	}
+	if endpointIR.Request.MapQueryParams != nil {
+		return params
+	}
+	for _, parameter := range endpointIR.Request.QueryParams {
+		if isSecurityParameter(endpointIR.Security, "query", parameter.HTTPName) {
+			continue
 		}
-		if location != "path" && openapiinternal.IsSecurityParameter(endpoint, location, parameterName) {
-			return nil
-		}
-		res = append(res, paramFor(attr, parameterName, location, required, rand, closeObjects))
-		return nil
-	})
-	return res
+		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "query", parameter.Required, rand, closeObjects))
+	}
+	return params
 }
 
-func paramsFromHeadersAndCookies(endpoint *expr.HTTPEndpointExpr, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
+func paramsFromHeadersAndCookies(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
 	var params []*ParameterRef
 
-	expr.WalkMappedAttr(endpoint.Headers, func(name, element string, attr *expr.AttributeExpr) error { // nolint: errcheck
-		if openapiinternal.IsSecurityParameter(endpoint, "header", element) {
-			return nil
+	for _, parameter := range endpointIR.Request.Headers {
+		if isSecurityParameter(endpointIR.Security, "header", parameter.HTTPName) {
+			continue
 		}
-		required := endpoint.Headers.IsRequiredNoDefault(name)
-		params = append(params, paramFor(attr, element, "header", required, rand, closeObjects))
-		return nil
-	})
-	expr.WalkMappedAttr(endpoint.Cookies, func(name, element string, attr *expr.AttributeExpr) error { // nolint: errcheck
-		if openapiinternal.IsSecurityParameter(endpoint, "cookie", element) {
-			return nil
+		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "header", parameter.Required, rand, closeObjects))
+	}
+	for _, parameter := range endpointIR.Request.Cookies {
+		if isSecurityParameter(endpointIR.Security, "cookie", parameter.HTTPName) {
+			continue
 		}
-		required := endpoint.Cookies.IsRequiredNoDefault(name)
-		params = append(params, paramFor(attr, element, "cookie", required, rand, closeObjects))
-		return nil
-	})
+		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "cookie", parameter.Required, rand, closeObjects))
+	}
 
 	return params
 }
@@ -187,17 +184,41 @@ func externalDocs(docs *expr.DocsExpr, meta expr.MetaExpr) *ExternalDocs {
 	}
 }
 
-func buildOperationSecurity(endpoint *expr.HTTPEndpointExpr) []map[string][]string {
-	if endpoint == nil || endpoint.MethodExpr == nil {
+func buildOperationSecurity(endpointIR *transportir.Endpoint) []map[string][]string {
+	if endpointIR == nil {
 		return nil
 	}
-	if _, ok := endpoint.MethodExpr.Meta["security:no"]; ok {
+	if endpointIR.Security.Disabled {
 		return []map[string][]string{}
 	}
-	if len(endpoint.Requirements) == 0 {
+	if len(endpointIR.Security.Requirements) == 0 {
 		return nil
 	}
-	return securityreq.OpenAPI(endpoint.Requirements)
+	return securityreq.OpenAPI(endpointIR.Security.Requirements)
+}
+
+func routeIndexInEndpoint(route *expr.RouteExpr) int {
+	if route == nil || route.Endpoint == nil {
+		return 0
+	}
+	for index, current := range route.Endpoint.Routes {
+		if current == route {
+			return index
+		}
+	}
+	return 0
+}
+
+func isSecurityParameter(security *transportir.Security, in, name string) bool {
+	if security == nil {
+		return false
+	}
+	for _, parameter := range security.Parameters {
+		if parameter.In == in && parameter.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func operationTagNames(endpointMeta, serviceMeta expr.MetaExpr, serviceName string) []string {

@@ -5,20 +5,17 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 const asyncContractExtensionName = "x-loom-async"
 
-func buildResponseLinks(resp *expr.HTTPResponseExpr) map[string]*ResponseLinkRef {
-	if resp == nil || len(resp.Links) == 0 {
+func buildResponseLinks(links []*transportir.ResponseLink, currentService string) map[string]*ResponseLinkRef {
+	if len(links) == 0 {
 		return nil
 	}
-	var currentService string
-	if endpoint, ok := resp.Parent.(*expr.HTTPEndpointExpr); ok && endpoint.Service != nil {
-		currentService = endpoint.Service.Name()
-	}
-	links := make(map[string]*ResponseLinkRef, len(resp.Links))
-	for _, link := range resp.Links {
+	result := make(map[string]*ResponseLinkRef, len(links))
+	for _, link := range links {
 		if link == nil {
 			continue
 		}
@@ -38,12 +35,12 @@ func buildResponseLinks(resp *expr.HTTPResponseExpr) map[string]*ResponseLinkRef
 		if value.OperationID == "" && value.OperationRef == "" {
 			continue
 		}
-		links[link.Name] = &ResponseLinkRef{Value: value}
+		result[link.Name] = &ResponseLinkRef{Value: value}
 	}
-	if len(links) == 0 {
+	if len(result) == 0 {
 		return nil
 	}
-	return links
+	return result
 }
 
 func orderedAsyncLinkParameterNames(parameters map[string]string) []string {
@@ -94,46 +91,46 @@ func resolveLinkedOperationID(target string, currentService string) string {
 	return target
 }
 
-func buildAsyncOperationExtension(endpoint *expr.HTTPEndpointExpr, path string, rand *expr.ExampleGenerator, closeObjects bool) map[string]any {
-	if endpoint == nil || endpoint.MethodExpr == nil || !endpoint.MethodExpr.IsStreaming() {
+func buildAsyncOperationExtension(endpointIR *transportir.Endpoint, path string, rand *expr.ExampleGenerator, closeObjects bool) map[string]any {
+	if endpointIR == nil || endpointIR.Stream == nil || !endpointIR.Stream.IsStreaming {
 		return nil
 	}
 	contract := map[string]any{
-		"transport": asyncTransportName(endpoint),
+		"transport": endpointIR.Stream.Transport,
 		"handshake": map[string]any{
 			"path": path,
 			"request": map[string]any{
-				"method": endpoint.Routes[0].Method,
+				"method": endpointIR.Stream.HandshakeMethod,
 			},
 			"response": map[string]any{
-				"status":      asyncHandshakeStatus(endpoint),
-				"contentType": asyncHandshakeContentType(endpoint),
+				"status":      endpointIR.Stream.HandshakeStatus,
+				"contentType": endpointIR.Stream.HandshakeContent,
 			},
 		},
-		"direction": asyncDirection(endpoint),
+		"direction": endpointIR.Stream.Direction,
 	}
 
 	messages := make(map[string]any)
-	if endpoint.MethodExpr.StreamingPayload != nil && endpoint.StreamingBody != nil {
-		payloadAttr := attributeForSchemaUsage(endpoint.StreamingBody, schemaUsageRequest)
+	if endpointIR.Stream.RequestMessage != nil && endpointIR.Stream.RequestHasBody {
+		payloadAttr := attributeForSchemaUsage(endpointIR.Stream.RequestMessage, schemaUsageRequest)
 		messages["inbound"] = map[string]any{
 			"contentType": "application/json",
 			"schema":      asyncSchemaValue(buildInlineAsyncSchema(payloadAttr, rand, closeObjects)),
 		}
 	}
-	if endpoint.MethodExpr.StreamingResult != nil {
-		resultAttr := attributeForSchemaUsage(endpoint.MethodExpr.StreamingResult, schemaUsageResponse)
+	if endpointIR.Stream.ResponseMessage != nil {
+		resultAttr := attributeForSchemaUsage(endpointIR.Stream.ResponseMessage, schemaUsageResponse)
 		outbound := map[string]any{
 			"contentType": "application/json",
 			"schema":      asyncSchemaValue(buildInlineAsyncSchema(resultAttr, rand, closeObjects)),
 		}
-		if endpoint.SSE != nil {
+		if endpointIR.Stream.SSE != nil {
 			outbound["sse"] = map[string]any{
-				"requestIDField": emptyStringAsNil(endpoint.SSE.RequestIDField),
-				"dataField":      emptyStringAsNil(endpoint.SSE.DataField),
-				"idField":        emptyStringAsNil(endpoint.SSE.IDField),
-				"eventField":     emptyStringAsNil(endpoint.SSE.EventField),
-				"retryField":     emptyStringAsNil(endpoint.SSE.RetryField),
+				"requestIDField": emptyStringAsNil(endpointIR.Stream.SSE.RequestIDField),
+				"dataField":      emptyStringAsNil(endpointIR.Stream.SSE.DataField),
+				"idField":        emptyStringAsNil(endpointIR.Stream.SSE.IDField),
+				"eventField":     emptyStringAsNil(endpointIR.Stream.SSE.EventField),
+				"retryField":     emptyStringAsNil(endpointIR.Stream.SSE.RetryField),
 			}
 		}
 		messages["outbound"] = outbound
@@ -142,46 +139,6 @@ func buildAsyncOperationExtension(endpoint *expr.HTTPEndpointExpr, path string, 
 		contract["messages"] = messages
 	}
 	return map[string]any{asyncContractExtensionName: contract}
-}
-
-func asyncTransportName(endpoint *expr.HTTPEndpointExpr) string {
-	if endpoint != nil && endpoint.SSE != nil {
-		return "sse"
-	}
-	return "websocket"
-}
-
-func asyncDirection(endpoint *expr.HTTPEndpointExpr) string {
-	if endpoint == nil || endpoint.MethodExpr == nil {
-		return ""
-	}
-	switch endpoint.MethodExpr.Stream {
-	case expr.ServerStreamKind:
-		return "server"
-	case expr.ClientStreamKind:
-		return "client"
-	default:
-		return "bidirectional"
-	}
-}
-
-func asyncHandshakeStatus(endpoint *expr.HTTPEndpointExpr) int {
-	if endpoint != nil && endpoint.SSE != nil {
-		for _, resp := range endpoint.Responses {
-			if resp != nil {
-				return resp.StatusCode
-			}
-		}
-		return expr.StatusOK
-	}
-	return expr.StatusSwitchingProtocols
-}
-
-func asyncHandshakeContentType(endpoint *expr.HTTPEndpointExpr) string {
-	if endpoint != nil && endpoint.SSE != nil {
-		return "text/event-stream"
-	}
-	return ""
 }
 
 func asyncSchemaValue(schema *Schema) any {

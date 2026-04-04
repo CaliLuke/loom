@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -671,39 +672,9 @@ func collectMessages(at *expr.AttributeExpr, sd *ServiceData, seen map[string]st
 	if at == nil {
 		return data, imports
 	}
-	if proto := at.Meta["struct:field:proto"]; len(proto) > 1 {
-		if len(proto) > 1 {
-			imp := proto[1]
-			found := false
-			for _, i := range sd.Service.ProtoImports {
-				if i.Path == imp {
-					found = true
-					break
-				}
-			}
-			if !found {
-				imports = append(imports, imp)
-				if len(proto) > 3 {
-					elems := strings.Split(proto[3], "/")
-					sd.Service.ProtoImports = append(sd.Service.ProtoImports, &codegen.ImportSpec{Path: proto[3], Name: elems[len(elems)-1]})
-				}
-			}
-		}
-	}
+	imports = append(imports, collectProtoImports(at, sd)...)
 	if expr.IsPrimitive(at.Type) {
-		// Add google.protobuf.Value import when Any type is used
-		if at.Type.Kind() == expr.AnyKind {
-			found := false
-			for _, imp := range imports {
-				if imp == "google/protobuf/struct.proto" {
-					found = true
-					break
-				}
-			}
-			if !found {
-				imports = append(imports, "google/protobuf/struct.proto")
-			}
-		}
+		imports = append(imports, collectPrimitiveMessageImports(at, imports)...)
 		return data, imports
 	}
 	collect := func(at *expr.AttributeExpr) ([]*service.UserTypeData, []string) {
@@ -711,50 +682,125 @@ func collectMessages(at *expr.AttributeExpr, sd *ServiceData, seen map[string]st
 	}
 	switch dt := at.Type.(type) {
 	case expr.UserType:
-		name := dt.Name()
-		if n := at.Meta["struct:name:proto"]; n != nil {
-			name = n[0]
-		}
-		if _, ok := seen[name]; ok {
-			return data, imports
-		}
-		att := userTypeAttribute(dt)
-		data = append(data, &service.UserTypeData{
-			Name:        name,
-			VarName:     protoBufMessageName(at, sd.Scope),
-			Description: dt.Attribute().Description,
-			Def:         protoBufMessageDef(att, sd),
-			Ref:         protoBufGoFullTypeRef(at, sd.PkgName, sd.Scope),
-			Type:        dt,
-		})
-		seen[name] = struct{}{}
-		d, i := collect(att)
+		d, i := collectUserTypeMessages(at, dt, sd, seen, collect)
 		data = append(data, d...)
 		imports = append(imports, i...)
 	case *expr.Object:
-		for _, nat := range *dt {
-			d, i := collect(nat.Attribute)
-			data = append(data, d...)
-			imports = append(imports, i...)
-		}
+		return collectObjectMessages(dt, collect, data, imports)
 	case *expr.Array:
-		d, i := collect(dt.ElemType)
-		data = append(data, d...)
-		imports = append(imports, i...)
+		childData, childImports := collect(dt.ElemType)
+		return appendCollectedMessages(data, imports, childData, childImports)
 	case *expr.Map:
-		dk, ik := collect(dt.KeyType)
-		data = append(data, dk...)
-		imports = append(imports, ik...)
-		de, ie := collect(dt.ElemType)
-		data = append(data, de...)
-		imports = append(imports, ie...)
+		keyData, keyImports := collect(dt.KeyType)
+		data, imports = appendCollectedMessages(data, imports, keyData, keyImports)
+		elemData, elemImports := collect(dt.ElemType)
+		return appendCollectedMessages(data, imports, elemData, elemImports)
 	case *expr.Union:
-		for _, nat := range dt.Values {
-			d, i := collect(nat.Attribute)
-			data = append(data, d...)
-			imports = append(imports, i...)
+		return collectUnionMessages(dt, collect, data, imports)
+	}
+	return data, imports
+}
+
+func collectProtoImports(at *expr.AttributeExpr, sd *ServiceData) []string {
+	proto := at.Meta["struct:field:proto"]
+	if len(proto) <= 1 {
+		return nil
+	}
+	imp := proto[1]
+	if protoImportExists(sd.Service.ProtoImports, imp) {
+		return nil
+	}
+	if len(proto) > 3 {
+		elems := strings.Split(proto[3], "/")
+		sd.Service.ProtoImports = append(sd.Service.ProtoImports, &codegen.ImportSpec{Path: proto[3], Name: elems[len(elems)-1]})
+	}
+	return []string{imp}
+}
+
+func protoImportExists(imports []*codegen.ImportSpec, path string) bool {
+	for _, i := range imports {
+		if i.Path == path {
+			return true
 		}
 	}
+	return false
+}
+
+func collectPrimitiveMessageImports(at *expr.AttributeExpr, imports []string) []string {
+	if at.Type.Kind() != expr.AnyKind || slices.Contains(imports, "google/protobuf/struct.proto") {
+		return nil
+	}
+	return []string{"google/protobuf/struct.proto"}
+}
+
+func collectUserTypeMessages(
+	at *expr.AttributeExpr,
+	dt expr.UserType,
+	sd *ServiceData,
+	seen map[string]struct{},
+	collect func(*expr.AttributeExpr) ([]*service.UserTypeData, []string),
+) ([]*service.UserTypeData, []string) {
+	name := protoStructName(at, dt)
+	if _, ok := seen[name]; ok {
+		return nil, nil
+	}
+	att := userTypeAttribute(dt)
+	seen[name] = struct{}{}
+	data := make([]*service.UserTypeData, 0, 1)
+	data = append(data, &service.UserTypeData{
+		Name:        name,
+		VarName:     protoBufMessageName(at, sd.Scope),
+		Description: dt.Attribute().Description,
+		Def:         protoBufMessageDef(att, sd),
+		Ref:         protoBufGoFullTypeRef(at, sd.PkgName, sd.Scope),
+		Type:        dt,
+	})
+	childData, childImports := collect(att)
+	return append(data, childData...), childImports
+}
+
+func protoStructName(at *expr.AttributeExpr, dt expr.UserType) string {
+	name := dt.Name()
+	if n := at.Meta["struct:name:proto"]; n != nil {
+		name = n[0]
+	}
+	return name
+}
+
+func collectObjectMessages(
+	dt *expr.Object,
+	collect func(*expr.AttributeExpr) ([]*service.UserTypeData, []string),
+	data []*service.UserTypeData,
+	imports []string,
+) ([]*service.UserTypeData, []string) {
+	for _, nat := range *dt {
+		childData, childImports := collect(nat.Attribute)
+		data, imports = appendCollectedMessages(data, imports, childData, childImports)
+	}
+	return data, imports
+}
+
+func collectUnionMessages(
+	dt *expr.Union,
+	collect func(*expr.AttributeExpr) ([]*service.UserTypeData, []string),
+	data []*service.UserTypeData,
+	imports []string,
+) ([]*service.UserTypeData, []string) {
+	for _, nat := range dt.Values {
+		childData, childImports := collect(nat.Attribute)
+		data, imports = appendCollectedMessages(data, imports, childData, childImports)
+	}
+	return data, imports
+}
+
+func appendCollectedMessages(
+	data []*service.UserTypeData,
+	imports []string,
+	collectedData []*service.UserTypeData,
+	collectedImports []string,
+) ([]*service.UserTypeData, []string) {
+	data = append(data, collectedData...)
+	imports = append(imports, collectedImports...)
 	return data, imports
 }
 

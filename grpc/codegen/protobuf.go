@@ -270,35 +270,7 @@ func protoBufMessageDef(att *expr.AttributeExpr, sd *ServiceData) string {
 	case *expr.Map:
 		return fmt.Sprintf("map<%s, %s>", protoType(actual.KeyType, sd), protoType(actual.ElemType, sd))
 	case *expr.Union:
-		// Compute oneof name and ensure it does not collide with any of the member field names
-		oneofName := codegen.SnakeCase(protoBufify(actual.Name(), false, false))
-		var fieldNames []string
-		for _, nat := range actual.Values {
-			fn := codegen.SnakeCase(protoBufify(nat.Name, false, false))
-			fieldNames = append(fieldNames, fn)
-		}
-		for slices.Contains(fieldNames, oneofName) {
-			oneofName += "_oneof"
-		}
-		def := "\toneof " + oneofName + " {"
-		for i, nat := range actual.Values {
-			fn := fieldNames[i]
-			fnum := rpcTag(nat.Attribute)
-			var typ string
-			if prim := getPrimitive(nat.Attribute); prim != nil {
-				typ = protoType(prim, sd)
-			} else {
-				typ = protoType(nat.Attribute, sd)
-			}
-			var desc string
-			if d := nat.Attribute.Description; d != "" {
-				desc = codegen.Comment(d) + "\n\t"
-			}
-			opt := protoJSONOption(nat.Attribute)
-			def += fmt.Sprintf("\n\t\t%s%s %s = %d%s;", desc, typ, fn, fnum, opt)
-		}
-		def += "\n\t}"
-		return def
+		return protoBufUnionMessageDef(actual, sd)
 	case expr.UserType:
 		if actual == expr.Empty {
 			return " {}"
@@ -308,43 +280,98 @@ func protoBufMessageDef(att *expr.AttributeExpr, sd *ServiceData) string {
 		}
 		return protoBufMessageName(att, sd.Scope)
 	case *expr.Object:
-		var ss []string
-		ss = append(ss, " {")
-		for _, nat := range *actual {
-			if expr.IsUnion(nat.Attribute.Type) {
-				ss = append(ss, protoBufMessageDef(nat.Attribute, sd))
-				continue
-			}
-			var (
-				fn   string
-				fnum uint64
-				typ  string
-				opt  string
-				desc string
-			)
-			{
-				fn = codegen.SnakeCase(protoBufify(nat.Name, false, false))
-				fnum = rpcTag(nat.Attribute)
-				if prim := getPrimitive(nat.Attribute); prim != nil {
-					typ = protoType(prim, sd)
-				} else {
-					typ = protoType(nat.Attribute, sd)
-				}
-				if !att.IsRequired(nat.Name) && expr.IsPrimitive(nat.Attribute.Type) {
-					opt = "optional "
-				}
-				if nat.Attribute.Description != "" {
-					desc = codegen.Comment(nat.Attribute.Description) + "\n\t"
-				}
-			}
-			optJSON := protoJSONOption(nat.Attribute)
-			ss = append(ss, fmt.Sprintf("\t%s%s%s %s = %d%s;", desc, opt, typ, fn, fnum, optJSON))
-		}
-		ss = append(ss, "}")
-		return strings.Join(ss, "\n")
+		return protoBufObjectMessageDef(att, actual, sd)
 	default:
 		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
 	}
+}
+
+func protoBufUnionMessageDef(actual *expr.Union, sd *ServiceData) string {
+	oneofName, fieldNames := protoBufUnionNames(actual)
+	def := "\toneof " + oneofName + " {"
+	for i, nat := range actual.Values {
+		def += fmt.Sprintf("\n\t\t%s", protoBufUnionFieldDef(nat, fieldNames[i], sd))
+	}
+	return def + "\n\t}"
+}
+
+func protoBufUnionNames(actual *expr.Union) (string, []string) {
+	oneofName := codegen.SnakeCase(protoBufify(actual.Name(), false, false))
+	fieldNames := make([]string, 0, len(actual.Values))
+	for _, nat := range actual.Values {
+		fieldNames = append(fieldNames, codegen.SnakeCase(protoBufify(nat.Name, false, false)))
+	}
+	for slices.Contains(fieldNames, oneofName) {
+		oneofName += "_oneof"
+	}
+	return oneofName, fieldNames
+}
+
+func protoBufUnionFieldDef(nat *expr.NamedAttributeExpr, fieldName string, sd *ServiceData) string {
+	fnum := rpcTag(nat.Attribute)
+	typ := protoTypeForAttribute(nat.Attribute, sd)
+	desc := protoCommentPrefix(nat.Attribute.Description)
+	opt := protoJSONOption(nat.Attribute)
+	return fmt.Sprintf("%s%s %s = %d%s;", desc, typ, fieldName, fnum, opt)
+}
+
+func protoBufObjectMessageDef(att *expr.AttributeExpr, actual *expr.Object, sd *ServiceData) string {
+	lines := make([]string, 0, 1+len(*actual)+1)
+	lines = append(lines, " {")
+	for _, nat := range *actual {
+		lines = append(lines, protoBufObjectFieldLine(att, nat, sd))
+	}
+	lines = append(lines, "}")
+	return strings.Join(lines, "\n")
+}
+
+func protoBufObjectFieldLine(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr, sd *ServiceData) string {
+	if expr.IsUnion(nat.Attribute.Type) {
+		return protoBufMessageDef(nat.Attribute, sd)
+	}
+	field := protoBufObjectField(att, nat, sd)
+	return fmt.Sprintf("\t%s%s%s %s = %d%s;", field.Description, field.Optional, field.TypeName, field.Name, field.Number, field.JSONOption)
+}
+
+type protoBufFieldData struct {
+	Name        string
+	Number      uint64
+	TypeName    string
+	Optional    string
+	Description string
+	JSONOption  string
+}
+
+func protoBufObjectField(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr, sd *ServiceData) protoBufFieldData {
+	return protoBufFieldData{
+		Name:        codegen.SnakeCase(protoBufify(nat.Name, false, false)),
+		Number:      rpcTag(nat.Attribute),
+		TypeName:    protoTypeForAttribute(nat.Attribute, sd),
+		Optional:    protoBufOptionalField(att, nat),
+		Description: protoCommentPrefix(nat.Attribute.Description),
+		JSONOption:  protoJSONOption(nat.Attribute),
+	}
+}
+
+func protoTypeForAttribute(att *expr.AttributeExpr, sd *ServiceData) string {
+	if prim := getPrimitive(att); prim != nil {
+		return protoType(prim, sd)
+	}
+	return protoType(att, sd)
+}
+
+func protoBufOptionalField(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr) string {
+	if att.IsRequired(nat.Name) || !expr.IsPrimitive(nat.Attribute.Type) {
+		return ""
+	}
+	return "optional "
+}
+
+func protoCommentPrefix(desc string) string {
+	if desc == "" {
+		return ""
+	}
+	return codegen.Comment(desc) + "\n\t"
 }
 
 func protoJSONOption(att *expr.AttributeExpr) string {

@@ -55,86 +55,116 @@ func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
 						).
 						Params(jen.Any(), jen.Error()).
 						BlockFunc(func(g *jen.Group) {
-							encodeFn := jen.Id("nil")
-							if endpoint.PayloadRef != "" {
-								encodeFn = jen.Id("Encode" + endpoint.Method.VarName + "Request")
-							}
-							decodeFn := jen.Id("nil")
-							if endpoint.ResultRef != "" || endpoint.ClientStream != nil {
-								decodeFn = jen.Id("Decode" + endpoint.Method.VarName + "Response")
-							}
-							g.Id("inv").Op(":=").Add(codegenpkg.Expr("loomgrpc.NewInvoker")).Call(
-								jen.Id("Build"+endpoint.Method.VarName+"Func").Call(jen.Id("c").Dot("grpccli"), jen.Id("c").Dot("opts").Op("...")),
-								encodeFn,
-								decodeFn,
-							)
-							g.List(jen.Id("res"), jen.Err()).Op(":=").Id("inv").Dot("Invoke").Call(jen.Id("ctx"), jen.Id("v"))
-							g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
-								eg.Id("resp").Op(":=").Add(codegenpkg.Expr("loomgrpc.DecodeError")).Call(jen.Err())
-								if len(endpoint.Errors) > 0 {
-									eg.Switch(jen.Id("message").Op(":=").Id("resp").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
-										for _, errData := range endpoint.Errors {
-											if errData.Response.ClientConvert == nil {
-												continue
-											}
-											caseBody := []jen.Code{}
-											if errData.Response.ClientConvert.Validation != nil {
-												caseBody = append(caseBody,
-													jen.If(
-														jen.Err().Op(":=").Id(errData.Response.ClientConvert.Validation.Name).Call(jen.Id("message")),
-														jen.Err().Op("!=").Nil(),
-													).Block(
-														jen.Return(jen.Nil(), jen.Err()),
-													),
-												)
-											}
-											initArgs := make([]jen.Code, 0, len(errData.Response.ClientConvert.Init.Args))
-											for _, arg := range errData.Response.ClientConvert.Init.Args {
-												initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
-											}
-											caseBody = append(caseBody,
-												jen.Return(
-													jen.Nil(),
-													jen.Id(errData.Response.ClientConvert.Init.Name).Call(initArgs...),
-												),
-											)
-											sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(caseBody...)
-										}
-										sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(
-											jen.Return(
-												jen.Nil(),
-												codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("message")),
-											),
-										)
-										sg.Default().Block(
-											jen.Return(
-												jen.Nil(),
-												codegenpkg.Expr("loom.Fault").Call(jen.Lit("%s"), jen.Err().Dot("Error").Call()),
-											),
-										)
-									})
-									return
-								}
-								eg.Comment(codegenpkg.Comment("Try to decode a Loom error response detail before falling back to Fault."))
-								eg.If(
-									jen.List(jen.Id("eresp"), jen.Id("ok")).Op(":=").Id("resp").Assert(jen.Op("*").Id("loompb").Dot("ErrorResponse")),
-									jen.Id("ok"),
-								).Block(
-									jen.Return(
-										jen.Nil(),
-										codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("eresp")),
-									),
-								)
-								eg.Return(
-									jen.Nil(),
-									codegenpkg.Expr("loom.Fault").Call(jen.Lit("%s"), jen.Err().Dot("Error").Call()),
-								)
-							})
+							writeGRPCClientEndpointInvoker(g, endpoint)
+							writeGRPCClientEndpointErrorHandling(g, endpoint)
 							g.Return(jen.Id("res"), jen.Nil())
 						}),
 				),
 			)
 	})
+}
+
+func writeGRPCClientEndpointInvoker(g *jen.Group, endpoint *EndpointData) {
+	g.Id("inv").Op(":=").Add(codegenpkg.Expr("loomgrpc.NewInvoker")).Call(
+		jen.Id("Build"+endpoint.Method.VarName+"Func").Call(jen.Id("c").Dot("grpccli"), jen.Id("c").Dot("opts").Op("...")),
+		grpcClientEndpointEncodeFn(endpoint),
+		grpcClientEndpointDecodeFn(endpoint),
+	)
+	g.List(jen.Id("res"), jen.Err()).Op(":=").Id("inv").Dot("Invoke").Call(jen.Id("ctx"), jen.Id("v"))
+}
+
+func grpcClientEndpointEncodeFn(endpoint *EndpointData) *jen.Statement {
+	if endpoint.PayloadRef == "" {
+		return jen.Id("nil")
+	}
+	return jen.Id("Encode" + endpoint.Method.VarName + "Request")
+}
+
+func grpcClientEndpointDecodeFn(endpoint *EndpointData) *jen.Statement {
+	if endpoint.ResultRef == "" && endpoint.ClientStream == nil {
+		return jen.Id("nil")
+	}
+	return jen.Id("Decode" + endpoint.Method.VarName + "Response")
+}
+
+func writeGRPCClientEndpointErrorHandling(g *jen.Group, endpoint *EndpointData) {
+	g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
+		eg.Id("resp").Op(":=").Add(codegenpkg.Expr("loomgrpc.DecodeError")).Call(jen.Err())
+		if len(endpoint.Errors) > 0 {
+			writeGRPCClientEndpointTypedErrors(eg, endpoint)
+			return
+		}
+		writeGRPCClientEndpointFallbackError(eg)
+	})
+}
+
+func writeGRPCClientEndpointTypedErrors(eg *jen.Group, endpoint *EndpointData) {
+	eg.Switch(jen.Id("message").Op(":=").Id("resp").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
+		for _, errData := range endpoint.Errors {
+			if errData.Response.ClientConvert == nil {
+				continue
+			}
+			sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(grpcClientEndpointErrorCaseBody(errData)...)
+		}
+		sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(
+			jen.Return(
+				jen.Nil(),
+				codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("message")),
+			),
+		)
+		sg.Default().Block(
+			jen.Return(
+				jen.Nil(),
+				codegenpkg.Expr("loom.Fault").Call(jen.Lit("%s"), jen.Err().Dot("Error").Call()),
+			),
+		)
+	})
+}
+
+func grpcClientEndpointErrorCaseBody(errData *ErrorData) []jen.Code {
+	caseBody := make([]jen.Code, 0, 2)
+	if errData.Response.ClientConvert.Validation != nil {
+		caseBody = append(caseBody,
+			jen.If(
+				jen.Err().Op(":=").Id(errData.Response.ClientConvert.Validation.Name).Call(jen.Id("message")),
+				jen.Err().Op("!=").Nil(),
+			).Block(
+				jen.Return(jen.Nil(), jen.Err()),
+			),
+		)
+	}
+	caseBody = append(caseBody,
+		jen.Return(
+			jen.Nil(),
+			jen.Id(errData.Response.ClientConvert.Init.Name).Call(grpcClientEndpointInitArgs(errData)...),
+		),
+	)
+	return caseBody
+}
+
+func grpcClientEndpointInitArgs(errData *ErrorData) []jen.Code {
+	initArgs := make([]jen.Code, 0, len(errData.Response.ClientConvert.Init.Args))
+	for _, arg := range errData.Response.ClientConvert.Init.Args {
+		initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
+	}
+	return initArgs
+}
+
+func writeGRPCClientEndpointFallbackError(eg *jen.Group) {
+	eg.Comment(codegenpkg.Comment("Try to decode a Loom error response detail before falling back to Fault."))
+	eg.If(
+		jen.List(jen.Id("eresp"), jen.Id("ok")).Op(":=").Id("resp").Assert(jen.Op("*").Id("loompb").Dot("ErrorResponse")),
+		jen.Id("ok"),
+	).Block(
+		jen.Return(
+			jen.Nil(),
+			codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("eresp")),
+		),
+	)
+	eg.Return(
+		jen.Nil(),
+		codegenpkg.Expr("loom.Fault").Call(jen.Lit("%s"), jen.Err().Dot("Error").Call()),
+	)
 }
 
 func grpcServerStructSection(data *ServiceData) codegenpkg.Section {

@@ -3,13 +3,12 @@ package ir
 import (
 	"fmt"
 	"net/http"
-	"net/textproto"
 	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 )
 
@@ -30,24 +29,21 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
 			continue
 		}
+		irService := transportir.BuildService(svc)
 		serviceBodies := bodyTypes.Services[svc.Name()]
-		for _, endpoint := range svc.HTTPEndpoints {
-			if !openapi.MustGenerate(endpoint.Meta) || !openapi.MustGenerate(endpoint.MethodExpr.Meta) {
+		for _, endpoint := range irService.Endpoints {
+			if !endpoint.Generate || !endpoint.MethodGenerate {
 				continue
 			}
 			for _, route := range endpoint.Routes {
-				for _, key := range route.FullPaths() {
-					key = expr.HTTPWildcardRegex.ReplaceAllString(key, "/{$1}")
-					operation := BuildRouteOperation(route, key, serviceBodies[endpoint.Name()], api.ExampleGenerator, api.Meta, closeObjects)
-					pathItem := doc.Paths[key]
-					if pathItem == nil {
-						pathItem = &PathItem{
-							Operations: make(map[string]*Operation),
-						}
-						doc.Paths[key] = pathItem
-					}
-					pathItem.Operations[route.Method] = operation
+				key := expr.HTTPWildcardRegex.ReplaceAllString(route.Path, "/{$1}")
+				operation := buildRouteOperationFromIR(endpoint, route, key, serviceBodies[endpoint.Name], api.ExampleGenerator, api.Meta, closeObjects)
+				pathItem := doc.Paths[key]
+				if pathItem == nil {
+					pathItem = &PathItem{Operations: make(map[string]*Operation)}
+					doc.Paths[key] = pathItem
 				}
+				pathItem.Operations[route.Method] = operation
 			}
 		}
 	}
@@ -57,33 +53,33 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 
 // BuildOperation analyzes HTTP body/content-related OpenAPI operation data.
 func BuildOperation(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {
-	return buildOperation(endpoint, bodies, rand, closeObjects)
+	return buildOperation(transportir.BuildEndpoint(endpoint), bodies, rand, closeObjects)
 }
 
-func buildOperation(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {
-	if endpoint == nil {
+func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {
+	if endpointIR == nil {
 		return nil
 	}
 	return &Operation{
-		RequestBody: wrapRequestBody(buildRequestBody(endpoint, bodies, rand, closeObjects)),
-		Responses:   wrapResponses(buildResponses(endpoint, bodies, rand, closeObjects)),
+		RequestBody: wrapRequestBody(buildRequestBody(endpointIR, bodies, rand, closeObjects)),
+		Responses:   wrapResponses(buildResponses(endpointIR, bodies, rand, closeObjects)),
 	}
 }
 
-func buildRequestBody(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *RequestBody {
-	if endpoint == nil || endpoint.Body == nil || endpoint.Body.Type == expr.Empty {
+func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *RequestBody {
+	if endpointIR == nil || endpointIR.Request == nil || endpointIR.Request.Body == nil || endpointIR.Request.Body.Type == expr.Empty {
 		return nil
 	}
-	bodyAttr := attributeForSchemaUsage(endpoint.Body, schemaUsageRequest)
+	bodyAttr := attributeForSchemaUsage(endpointIR.Request.Body, schemaUsageRequest)
 	contentType := "application/json"
-	if endpoint.MultipartRequest {
+	if endpointIR.Request.Multipart {
 		contentType = "multipart/form-data"
-	} else if endpoint.FormRequest {
+	} else if endpointIR.Request.FormEncoded {
 		contentType = "application/x-www-form-urlencoded"
 	}
 	return &RequestBody{
 		Description:   bodyAttr.Description,
-		Required:      !endpoint.OptionalRequestBody,
+		Required:      endpointIR.Request.MustHaveBody,
 		ComponentName: componentMetaValue(bodyAttr, "openapi:component:requestBody"),
 		Content: map[string]*MediaType{
 			contentType: buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects),
@@ -92,42 +88,43 @@ func buildRequestBody(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, r
 	}
 }
 
-func buildResponses(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) map[string]*Response {
-	responses := make(map[string]*Response, len(endpoint.Responses)+len(endpoint.HTTPErrors))
+func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) map[string]*Response {
+	responses := make(map[string]*Response, len(endpointIR.Response.Responses)+len(endpointIR.Response.ErrorResponses))
 	statusBodies := cloneResponseBodies(bodies)
-	for _, resp := range endpoint.Responses {
+	for _, resp := range endpointIR.Response.Responses {
 		statusCode := resp.StatusCode
-		if endpoint.MethodExpr.IsStreaming() && endpoint.SSE == nil {
+		if endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE {
 			if _, ok := responses[strconv.Itoa(expr.StatusSwitchingProtocols)]; !ok {
 				statusBodies[expr.StatusSwitchingProtocols] = statusBodies[resp.StatusCode]
 				delete(statusBodies, resp.StatusCode)
 				statusCode = expr.StatusSwitchingProtocols
 			}
 		}
-		responses[strconv.Itoa(statusCode)] = buildResponse(resp, statusCode, statusBodies, rand, closeObjects)
+		websocketHandshake := endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE && statusCode == expr.StatusSwitchingProtocols
+		responses[strconv.Itoa(statusCode)] = buildResponse(resp, statusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake)
 	}
-	for _, errResp := range endpoint.HTTPErrors {
-		resp := buildResponse(errResp.Response, errResp.Response.StatusCode, statusBodies, rand, closeObjects)
-		desc := errResp.Name
+	for _, errResp := range endpointIR.Response.ErrorResponses {
+		resp := buildResponse(errResp, errResp.StatusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false)
+		desc := errResp.Error.Name
 		if resp.Description != "" {
 			desc += ": " + resp.Description
 		}
-		desc = appendErrorRemedyDescription(desc, errResp)
+		desc = appendErrorRemedyDescription(desc, errResp.Error)
 		resp.Description = desc
-		if errResp.Type == expr.ErrorResult && len(errResp.Response.Body.ExtractUserExamples()) == 0 {
+		if errResp.Error.Type == expr.ErrorResult && len(errResp.Body.ExtractUserExamples()) == 0 {
 			for _, content := range resp.Content {
 				content.Example = nil
 				content.Examples = nil
 			}
 		}
-		responses[strconv.Itoa(errResp.Response.StatusCode)] = resp
+		responses[strconv.Itoa(errResp.StatusCode)] = resp
 	}
 	return responses
 }
 
-func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][]*Schema, rand *expr.ExampleGenerator, closeObjects bool) *Response {
-	body := attributeForSchemaUsage(responseDocumentBody(resp), schemaUsageResponse)
-	contentTypes := responseContentTypes(resp)
+func buildResponse(resp *transportir.ResponseStatus, statusCode int, bodies map[int][]*Schema, rand *expr.ExampleGenerator, closeObjects bool, currentService string, websocketHandshake bool) *Response {
+	body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
+	contentTypes := resp.ContentTypes
 	headers := headersFromAttr(resp.Headers, rand, closeObjects)
 	if cookieHeader := responseCookieHeader(resp.Cookies, rand); cookieHeader != nil {
 		if headers == nil {
@@ -138,20 +135,20 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 
 	var content map[string]*MediaType
 	switch {
-	case isWebSocketResponse(resp, statusCode):
+	case websocketHandshake || resp.IsWebSocket:
 		content = nil
 	case body != nil && body.Type != expr.Empty:
 		content = make(map[string]*MediaType, len(contentTypes))
 		for _, contentType := range contentTypes {
 			content[contentType] = buildMediaType(body, firstResponseBody(bodies[statusCode]), rand, closeObjects)
 		}
-		if !shouldEmitResponseExamples(resp) {
+		if !resp.EmitExamples {
 			for _, mediaType := range content {
 				mediaType.Example = nil
 				mediaType.Examples = nil
 			}
 		}
-	case statusCode != expr.StatusNoContent && isSkipResponseBodyEncodeDecode(resp.Parent):
+	case resp.BinaryBody:
 		content = make(map[string]*MediaType, len(contentTypes))
 		for _, contentType := range contentTypes {
 			content[contentType] = &MediaType{
@@ -172,7 +169,7 @@ func buildResponse(resp *expr.HTTPResponseExpr, statusCode int, bodies map[int][
 		Description: desc,
 		Headers:     headers,
 		Content:     content,
-		Links:       buildResponseLinks(resp),
+		Links:       buildResponseLinks(resp.Links, currentService),
 		Extensions:  openapi.ExtensionsFromExpr(resp.Meta),
 	}
 }
@@ -229,93 +226,6 @@ func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator
 		return nil
 	})
 	return headers
-}
-
-func responseContentTypes(resp *expr.HTTPResponseExpr) []string {
-	if contentTypes := responseContentTypeHeaderEnums(resp); len(contentTypes) > 0 {
-		return contentTypes
-	}
-	body := responseDocumentBody(resp)
-	contentType := resp.ContentType
-	if body != nil {
-		if rt, ok := body.Type.(*expr.ResultTypeExpr); ok && contentType == "" {
-			contentType = rt.ContentType
-		}
-	}
-	if contentType == "" && isSSEResponse(resp) {
-		contentType = "text/event-stream"
-	}
-	if contentType == "" {
-		contentType = "application/json"
-	}
-	return []string{contentType}
-}
-
-func responseDocumentBody(resp *expr.HTTPResponseExpr) *expr.AttributeExpr {
-	if resp == nil {
-		return nil
-	}
-	if resp.OpenAPIBody != nil {
-		return resp.OpenAPIBody
-	}
-	return resp.Body
-}
-
-func shouldEmitResponseExamples(resp *expr.HTTPResponseExpr) bool {
-	if resp == nil {
-		return false
-	}
-	endpoint, ok := resp.Parent.(*expr.HTTPEndpointExpr)
-	if !ok || endpoint.MethodExpr == nil {
-		return true
-	}
-	return !endpoint.MethodExpr.IsStreaming()
-}
-
-func isSSEResponse(resp *expr.HTTPResponseExpr) bool {
-	if resp == nil {
-		return false
-	}
-	endpoint, ok := resp.Parent.(*expr.HTTPEndpointExpr)
-	return ok && endpoint.SSE != nil
-}
-
-func isWebSocketResponse(resp *expr.HTTPResponseExpr, statusCode int) bool {
-	if resp == nil || statusCode != expr.StatusSwitchingProtocols {
-		return false
-	}
-	endpoint, ok := resp.Parent.(*expr.HTTPEndpointExpr)
-	return ok && endpoint.MethodExpr != nil && endpoint.MethodExpr.IsStreaming() && endpoint.SSE == nil
-}
-
-func responseContentTypeHeaderEnums(resp *expr.HTTPResponseExpr) []string {
-	if resp == nil || resp.Headers == nil {
-		return nil
-	}
-	var contentTypes []string
-	seen := map[string]struct{}{}
-	expr.WalkMappedAttr(resp.Headers, func(_, elem string, child *expr.AttributeExpr) error { // nolint: errcheck
-		if textproto.CanonicalMIMEHeaderKey(elem) != "Content-Type" || child == nil || child.Validation == nil {
-			return nil
-		}
-		for _, raw := range child.Validation.Values {
-			value, ok := raw.(string)
-			if !ok {
-				continue
-			}
-			value = strings.TrimSpace(value)
-			if value == "" {
-				continue
-			}
-			if _, ok := seen[value]; ok {
-				continue
-			}
-			seen[value] = struct{}{}
-			contentTypes = append(contentTypes, value)
-		}
-		return nil
-	})
-	return contentTypes
 }
 
 func responseCookieHeader(cookies []*expr.HTTPResponseCookieExpr, rand *expr.ExampleGenerator) *Header {
@@ -443,9 +353,11 @@ func normalizeCookieMaxAge(maxAge int) int {
 	return maxAge
 }
 
-func isSkipResponseBodyEncodeDecode(parent eval.Expression) bool {
-	endpoint, ok := parent.(*expr.HTTPEndpointExpr)
-	return ok && endpoint.SkipResponseBodyEncodeDecode
+func endpointServiceName(endpointIR *transportir.Endpoint) string {
+	if endpointIR == nil || endpointIR.Service == nil {
+		return ""
+	}
+	return endpointIR.Service.Name
 }
 
 func initExamples(target interface {
@@ -630,72 +542,101 @@ func isCompleteOpenAPIExample(attr *expr.AttributeExpr, val any) bool {
 	case expr.UserType:
 		return isCompleteOpenAPIExample(actual.Attribute(), val)
 	case *expr.Object:
-		obj, ok := val.(map[string]any)
-		if !ok {
-			return false
-		}
-		if len(obj) == 0 && len(attr.AllRequired()) > 0 {
-			return false
-		}
-		for _, name := range attr.AllRequired() {
-			child := attr.Find(name)
-			if child == nil || !openapi.MustGenerate(child.Meta) {
-				continue
-			}
-			fieldVal, ok := obj[name]
-			if !ok || !isCompleteOpenAPIExample(child, fieldVal) {
-				return false
-			}
-		}
-		return true
+		return completeOpenAPIObjectExample(attr, val)
 	case *expr.Array:
-		items, ok := val.([]any)
-		if !ok {
-			return true
-		}
-		for _, item := range items {
-			if !isCompleteOpenAPIExample(actual.ElemType, item) {
-				return false
-			}
-		}
-		return true
+		return completeOpenAPIArrayExample(actual, val)
 	case *expr.Map:
-		obj, ok := val.(map[string]any)
-		if !ok {
-			return true
-		}
-		for _, item := range obj {
-			if !isCompleteOpenAPIExample(actual.ElemType, item) {
-				return false
-			}
-		}
-		return true
+		return completeOpenAPIMapExample(actual, val)
 	case *expr.Union:
-		example, ok := val.(map[string]any)
-		if !ok {
-			return false
-		}
-		rawTag, ok := example[actual.GetTypeKey()]
-		if !ok {
-			return false
-		}
-		tag, ok := rawTag.(string)
-		if !ok || tag == "" {
-			return false
-		}
-		rawValue, ok := example[actual.GetValueKey()]
-		if !ok {
-			return false
-		}
-		for _, branch := range actual.Values {
-			if branch != nil && branch.Attribute != nil && expr.UnionVariantTag(branch) == tag {
-				return isCompleteOpenAPIExample(branch.Attribute, rawValue)
-			}
-		}
-		return false
+		return completeOpenAPIUnionExample(actual, val)
 	default:
 		return true
 	}
+}
+
+func completeOpenAPIObjectExample(attr *expr.AttributeExpr, val any) bool {
+	obj, ok := val.(map[string]any)
+	if !ok {
+		return false
+	}
+	required := attr.AllRequired()
+	if len(obj) == 0 && len(required) > 0 {
+		return false
+	}
+	for _, name := range required {
+		if !requiredOpenAPIFieldPresent(attr, obj, name) {
+			return false
+		}
+	}
+	return true
+}
+
+func requiredOpenAPIFieldPresent(attr *expr.AttributeExpr, obj map[string]any, name string) bool {
+	child := attr.Find(name)
+	if child == nil || !openapi.MustGenerate(child.Meta) {
+		return true
+	}
+	fieldVal, ok := obj[name]
+	return ok && isCompleteOpenAPIExample(child, fieldVal)
+}
+
+func completeOpenAPIArrayExample(actual *expr.Array, val any) bool {
+	items, ok := val.([]any)
+	if !ok {
+		return true
+	}
+	for _, item := range items {
+		if !isCompleteOpenAPIExample(actual.ElemType, item) {
+			return false
+		}
+	}
+	return true
+}
+
+func completeOpenAPIMapExample(actual *expr.Map, val any) bool {
+	obj, ok := val.(map[string]any)
+	if !ok {
+		return true
+	}
+	for _, item := range obj {
+		if !isCompleteOpenAPIExample(actual.ElemType, item) {
+			return false
+		}
+	}
+	return true
+}
+
+func completeOpenAPIUnionExample(actual *expr.Union, val any) bool {
+	example, ok := val.(map[string]any)
+	if !ok {
+		return false
+	}
+	tag, rawValue, ok := openAPIUnionTagAndValue(actual, example)
+	if !ok {
+		return false
+	}
+	for _, branch := range actual.Values {
+		if branch != nil && branch.Attribute != nil && expr.UnionVariantTag(branch) == tag {
+			return isCompleteOpenAPIExample(branch.Attribute, rawValue)
+		}
+	}
+	return false
+}
+
+func openAPIUnionTagAndValue(actual *expr.Union, example map[string]any) (string, any, bool) {
+	rawTag, ok := example[actual.GetTypeKey()]
+	if !ok {
+		return "", nil, false
+	}
+	tag, ok := rawTag.(string)
+	if !ok || tag == "" {
+		return "", nil, false
+	}
+	rawValue, ok := example[actual.GetValueKey()]
+	if !ok {
+		return "", nil, false
+	}
+	return tag, rawValue, true
 }
 
 func normalizeOpenAPIExample(val any) any {

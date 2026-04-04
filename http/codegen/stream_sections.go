@@ -424,87 +424,108 @@ func websocketSendSection(ws *WebSocketData) codegen.Section {
 	b.WriteString("\n")
 	fmt.Fprintf(&b, "func (s *%s) %s(v %s) error {\n", ws.VarName, ws.SendName, ws.SendTypeRef)
 	if ws.Type != "server" {
-		if ws.Payload != nil && ws.Payload.Init != nil {
-			fmt.Fprintf(&b, "\tbody := %s(v)\n", ws.Payload.Init.Name)
-			b.WriteString("\treturn s.conn.WriteJSON(body)\n")
-		} else {
-			b.WriteString("\treturn s.conn.WriteJSON(v)\n")
-		}
-		b.WriteString("}\n\n")
-		b.WriteString(codegen.Comment(ws.SendWithContextDesc))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "func (s *%s) %s(ctx context.Context, v %s) error {\n", ws.VarName, ws.SendWithContextName, ws.SendTypeRef)
-		fmt.Fprintf(&b, "\treturn s.%s(v)\n", ws.SendName)
-		b.WriteString("}\n")
-		return codegen.NewRawSection(ws.Type+"-websocket-send", b.String())
+		writeClientWebSocketSend(&b, ws)
+		return websocketSendWithContextSection(&b, ws)
 	}
+	writeServerWebSocketSend(&b, ws)
+	return websocketSendWithContextSection(&b, ws)
+}
 
+func writeClientWebSocketSend(b *strings.Builder, ws *WebSocketData) {
+	if ws.Payload != nil && ws.Payload.Init != nil {
+		fmt.Fprintf(b, "\tbody := %s(v)\n", ws.Payload.Init.Name)
+		b.WriteString("\treturn s.conn.WriteJSON(body)\n")
+	} else {
+		b.WriteString("\treturn s.conn.WriteJSON(v)\n")
+	}
+}
+
+func writeServerWebSocketSend(b *strings.Builder, ws *WebSocketData) {
+	writeServerWebSocketSendPreamble(b, ws)
+	writeServerWebSocketSendResult(b, ws)
+	if !writeServerWebSocketResponseBody(b, ws) {
+		b.WriteString("\treturn s.conn.WriteJSON(res)\n")
+	}
+}
+
+func writeServerWebSocketSendPreamble(b *strings.Builder, ws *WebSocketData) {
 	if ws.SendName == "Send" {
 		b.WriteString("\tvar err error\n")
 		b.WriteString(renderWebsocketUpgrade(ws.Endpoint, ws.SendName, false))
-	} else {
-		b.WriteString("\tdefer s.conn.Close()\n")
+		return
 	}
-	if ws.Endpoint.Method.ViewedResult != nil {
-		if ws.Endpoint.Method.ViewedResult.ViewName != "" {
-			fmt.Fprintf(&b, "\tres := %s.%s(v, %q)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name, ws.Endpoint.Method.ViewedResult.ViewName)
-		} else {
-			fmt.Fprintf(&b, "\tres := %s.%s(v, s.view)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name)
-		}
-	} else {
-		b.WriteString("\tres := v\n")
-	}
+	b.WriteString("\tdefer s.conn.Close()\n")
+}
 
-	if len(ws.Response.ServerBody) > 0 {
-		body := ws.Response.ServerBody[0]
-		if body.Init != nil {
-			if ws.Endpoint.Method.ViewedResult != nil {
-				if ws.Endpoint.Method.ViewedResult.ViewName != "" {
-					if vsb := viewedServerBody(ws.Response.ServerBody, ws.Endpoint.Method.ViewedResult.ViewName); vsb != nil {
-						fmt.Fprintf(&b, "\tbody := %s(", vsb.Init.Name)
-						for _, arg := range vsb.Init.ServerArgs {
-							fmt.Fprintf(&b, "%s, ", arg.Ref)
-						}
-						b.WriteString(")\n")
-					}
-				} else {
-					b.WriteString("\tvar body any\n")
-					b.WriteString("\tswitch s.view {\n")
-					for _, view := range ws.Endpoint.Method.ViewedResult.Views {
-						if view.Name == "default" {
-							fmt.Fprintf(&b, "\tcase %q, \"\":\n", view.Name)
-						} else {
-							fmt.Fprintf(&b, "\tcase %q:\n", view.Name)
-						}
-						if vsb := viewedServerBody(ws.Response.ServerBody, view.Name); vsb != nil {
-							fmt.Fprintf(&b, "\t\tbody = %s(", vsb.Init.Name)
-							for _, arg := range vsb.Init.ServerArgs {
-								fmt.Fprintf(&b, "%s, ", arg.Ref)
-							}
-							b.WriteString(")\n")
-						}
-					}
-					b.WriteString("\t}\n")
-				}
-			} else {
-				fmt.Fprintf(&b, "\tbody := %s(", body.Init.Name)
-				for _, arg := range body.Init.ServerArgs {
-					fmt.Fprintf(&b, "%s, ", arg.Ref)
-				}
-				b.WriteString(")\n")
-			}
-			b.WriteString("\treturn s.conn.WriteJSON(body)\n")
-		} else {
-			b.WriteString("\treturn s.conn.WriteJSON(res)\n")
-		}
-	} else {
-		b.WriteString("\treturn s.conn.WriteJSON(res)\n")
+func writeServerWebSocketSendResult(b *strings.Builder, ws *WebSocketData) {
+	if ws.Endpoint.Method.ViewedResult == nil {
+		b.WriteString("\tres := v\n")
+		return
 	}
+	if ws.Endpoint.Method.ViewedResult.ViewName != "" {
+		fmt.Fprintf(b, "\tres := %s.%s(v, %q)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name, ws.Endpoint.Method.ViewedResult.ViewName)
+		return
+	}
+	fmt.Fprintf(b, "\tres := %s.%s(v, s.view)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name)
+}
+
+func writeServerWebSocketResponseBody(b *strings.Builder, ws *WebSocketData) bool {
+	if len(ws.Response.ServerBody) == 0 {
+		return false
+	}
+	body := ws.Response.ServerBody[0]
+	if body.Init == nil {
+		return false
+	}
+	writeServerWebSocketBodyInit(b, ws, body)
+	b.WriteString("\treturn s.conn.WriteJSON(body)\n")
+	return true
+}
+
+func writeServerWebSocketBodyInit(b *strings.Builder, ws *WebSocketData, body *TypeData) {
+	if ws.Endpoint.Method.ViewedResult == nil {
+		writeServerBodyInitCall(b, body, "\tbody := ")
+		return
+	}
+	if ws.Endpoint.Method.ViewedResult.ViewName != "" {
+		if vsb := viewedServerBody(ws.Response.ServerBody, ws.Endpoint.Method.ViewedResult.ViewName); vsb != nil {
+			writeServerBodyInitCall(b, vsb, "\tbody := ")
+		}
+		return
+	}
+	b.WriteString("\tvar body any\n")
+	b.WriteString("\tswitch s.view {\n")
+	for _, view := range ws.Endpoint.Method.ViewedResult.Views {
+		writeViewedServerBodyCase(b, ws, view.Name)
+	}
+	b.WriteString("\t}\n")
+}
+
+func writeViewedServerBodyCase(b *strings.Builder, ws *WebSocketData, viewName string) {
+	if viewName == "default" {
+		fmt.Fprintf(b, "\tcase %q, \"\":\n", viewName)
+	} else {
+		fmt.Fprintf(b, "\tcase %q:\n", viewName)
+	}
+	if vsb := viewedServerBody(ws.Response.ServerBody, viewName); vsb != nil {
+		writeServerBodyInitCall(b, vsb, "\t\tbody = ")
+	}
+}
+
+func writeServerBodyInitCall(b *strings.Builder, body *TypeData, prefix string) {
+	fmt.Fprintf(b, "%s%s(", prefix, body.Init.Name)
+	for _, arg := range body.Init.ServerArgs {
+		fmt.Fprintf(b, "%s, ", arg.Ref)
+	}
+	b.WriteString(")\n")
+}
+
+func websocketSendWithContextSection(b *strings.Builder, ws *WebSocketData) codegen.Section {
 	b.WriteString("}\n\n")
 	b.WriteString(codegen.Comment(ws.SendWithContextDesc))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%s) %s(ctx context.Context, v %s) error {\n", ws.VarName, ws.SendWithContextName, ws.SendTypeRef)
-	fmt.Fprintf(&b, "\treturn s.%s(v)\n", ws.SendName)
+	fmt.Fprintf(b, "func (s *%s) %s(ctx context.Context, v %s) error {\n", ws.VarName, ws.SendWithContextName, ws.SendTypeRef)
+	fmt.Fprintf(b, "\treturn s.%s(v)\n", ws.SendName)
 	b.WriteString("}\n")
 	return codegen.NewRawSection(ws.Type+"-websocket-send", b.String())
 }

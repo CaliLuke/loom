@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	dsl "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/openapi/v3/testdata/dsls"
@@ -177,6 +178,70 @@ func TestBuildDocumentPublishesResponseLinksAndAsyncContracts(t *testing.T) {
 	require.Contains(t, schema.Properties, "target")
 }
 
+func TestBuildDocumentMixedTransportContracts(t *testing.T) {
+	root := codegen.RunDSL(t, mixedTransportDocumentDSL)
+
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NotNil(t, doc)
+
+	create := doc.Paths["/plain/{id}"].Operations["POST"]
+	require.NotNil(t, create)
+	require.NotNil(t, create.RequestBody)
+	require.NotNil(t, create.RequestBody.Value)
+	require.True(t, create.RequestBody.Value.Required)
+
+	watch := doc.Paths["/events"].Operations["GET"]
+	require.NotNil(t, watch)
+	async, ok := watch.Extensions[asyncContractExtensionName].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "sse", async["transport"])
+
+	socket := doc.Paths["/ws"].Operations["GET"]
+	require.NotNil(t, socket)
+	async, ok = socket.Extensions[asyncContractExtensionName].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "websocket", async["transport"])
+}
+
 func openAPIExampleValueForTest(attr *expr.AttributeExpr, raw any) (any, bool) {
 	return openAPIExampleValue(attr, raw)
+}
+
+func mixedTransportDocumentDSL() {
+	dsl.Service("MixedDocument", func() {
+		dsl.Method("create", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("id", dsl.String)
+				dsl.Attribute("name", dsl.String)
+				dsl.Required("id", "name")
+			})
+			dsl.Result(dsl.String)
+			dsl.HTTP(func() {
+				dsl.POST("/plain/{id}")
+				dsl.Body("name")
+			})
+		})
+
+		dsl.Method("watch", func() {
+			dsl.StreamingResult(func() {
+				dsl.Attribute("event", dsl.String)
+			})
+			dsl.HTTP(func() {
+				dsl.GET("/events")
+				dsl.ServerSentEvents()
+			})
+		})
+
+		dsl.Method("socket", func() {
+			dsl.StreamingPayload(func() {
+				dsl.Attribute("message", dsl.String)
+			})
+			dsl.StreamingResult(func() {
+				dsl.Attribute("event", dsl.String)
+			})
+			dsl.HTTP(func() {
+				dsl.GET("/ws")
+			})
+		})
+	})
 }
