@@ -11,6 +11,7 @@ import (
 
 	"github.com/CaliLuke/loom/middleware/xray"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRecordError(t *testing.T) {
@@ -112,7 +113,7 @@ func TestRecordRequest(t *testing.T) {
 		remoteAddr = "104.18.43.42:443"
 		remoteHost = "104.18.43.42"
 		userAgent  = "user agent"
-		reqURL, _  = url.Parse("https://loom.design/path?query#fragment")
+		reqURL     = mustParseURL(t, "https://loom.design/path?query#fragment")
 	)
 
 	type Req struct {
@@ -137,7 +138,8 @@ func TestRecordRequest(t *testing.T) {
 
 	for k, c := range cases {
 		t.Run(k, func(t *testing.T) {
-			req, _ := http.NewRequest(method, c.Request.URL.String(), http.NoBody)
+			req, err := http.NewRequest(method, c.Request.URL.String(), http.NoBody)
+			require.NoError(t, err)
 			req.Header.Set("User-Agent", c.Request.UserAgent)
 			req.Header.Set("X-Forwarded-For", c.Request.IP)
 			req.RemoteAddr = c.Request.RemoteAddr
@@ -182,6 +184,13 @@ func TestRecordRequest(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mustParseURL(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	parsed, err := url.Parse(raw)
+	require.NoError(t, err)
+	return parsed
 }
 
 // TestRace starts two goroutines and races them to call Segment's public function. In this way, when tests are run

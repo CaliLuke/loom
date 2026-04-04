@@ -11,6 +11,7 @@ import (
 	"github.com/CaliLuke/loom/middleware"
 	"github.com/CaliLuke/loom/middleware/xray"
 	"github.com/CaliLuke/loom/middleware/xray/xraytest"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -71,7 +72,7 @@ func TestMiddleware(t *testing.T) {
 		remoteNoPort = "104.18.43.42"
 		remoteHost   = "104.18.43.42"
 		agent        = "user agent"
-		url, _       = url.Parse("https://loom.design/path?query#fragment")
+		url          = mustParseMiddlewareURL(t, "https://loom.design/path?query#fragment")
 	)
 	cases := map[string]struct {
 		Trace    Tra
@@ -227,4 +228,11 @@ func TestMiddleware(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mustParseMiddlewareURL(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	parsed, err := url.Parse(raw)
+	require.NoError(t, err)
+	return parsed
 }

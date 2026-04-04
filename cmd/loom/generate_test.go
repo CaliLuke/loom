@@ -36,8 +36,9 @@ func (f *fakeGenerator) Run(debug bool) ([]string, error) {
 	return f.runFiles, f.runErr
 }
 
-func (f *fakeGenerator) Remove() {
+func (f *fakeGenerator) Remove() error {
 	f.removed = true
+	return nil
 }
 
 func TestGenerateRemovesTempDirOnSuccessWithoutDebug(t *testing.T) {

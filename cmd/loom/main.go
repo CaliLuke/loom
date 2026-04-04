@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go/build"
 	"os"
@@ -16,7 +17,7 @@ type generatorRunner interface {
 	Write(bool) error
 	Compile(bool) error
 	Run(bool) ([]string, error)
-	Remove()
+	Remove() error
 }
 
 func main() {
@@ -140,12 +141,16 @@ func generate(cmd, path, output string, debug bool) error {
 	}
 	fmt.Println(strings.Join(files, "\n"))
 	if !debug {
-		tmp.Remove()
+		if err := tmp.Remove(); err != nil {
+			return err
+		}
 	}
 	return nil
 fail:
 	if !debug && tmp != nil {
-		tmp.Remove()
+		if removeErr := tmp.Remove(); removeErr != nil {
+			return errors.Join(err, removeErr)
+		}
 	}
 	return err
 }

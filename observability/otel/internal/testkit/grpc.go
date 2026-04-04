@@ -2,6 +2,7 @@ package testkit
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 
@@ -26,7 +27,9 @@ func NewGRPCFixture(tb testing.TB, serverOpts []grpc.ServerOption, dialOpts []gr
 	server := grpc.NewServer(serverOpts...)
 	register(server)
 	go func() {
-		_ = server.Serve(listener)
+		if err := server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			tb.Errorf("serve grpc test server: %v", err)
+		}
 	}()
 	conn, err := grpc.NewClient("passthrough:///bufconn",
 		append([]grpc.DialOption{
@@ -40,9 +43,13 @@ func NewGRPCFixture(tb testing.TB, serverOpts []grpc.ServerOption, dialOpts []gr
 		tb.Fatalf("new grpc client: %v", err)
 	}
 	tb.Cleanup(func() {
-		_ = conn.Close()
+		if err := conn.Close(); err != nil {
+			tb.Errorf("close grpc client conn: %v", err)
+		}
 		server.Stop()
-		_ = listener.Close()
+		if err := listener.Close(); err != nil {
+			tb.Errorf("close grpc listener: %v", err)
+		}
 	})
 	return &GRPCFixture{Listener: listener, Server: server, Conn: conn}
 }

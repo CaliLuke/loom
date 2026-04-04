@@ -57,7 +57,7 @@ func CreateTempFile(t *testing.T, content string) string {
 	}
 	_, err = f.WriteString(content)
 	if err != nil {
-		_ = os.Remove(f.Name())
+		require.NoError(t, os.Remove(f.Name()))
 		t.Fatal(err)
 	}
 	if err := f.Close(); err != nil {

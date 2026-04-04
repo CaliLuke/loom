@@ -38,7 +38,9 @@ func NewMetricHarness(tb testing.TB) *MetricHarness {
 	reader := metric.NewManualReader()
 	provider := metric.NewMeterProvider(metric.WithReader(reader))
 	tb.Cleanup(func() {
-		_ = provider.Shutdown(tb.Context())
+		if err := provider.Shutdown(tb.Context()); err != nil {
+			tb.Errorf("shutdown meter provider: %v", err)
+		}
 	})
 	return &MetricHarness{Provider: provider, Reader: reader}
 }
@@ -46,7 +48,9 @@ func NewMetricHarness(tb testing.TB) *MetricHarness {
 // Collect reads the current metric set.
 func (h *MetricHarness) Collect(ctx context.Context) metricdata.ResourceMetrics {
 	var rm metricdata.ResourceMetrics
-	_ = h.Reader.Collect(ctx, &rm)
+	if err := h.Reader.Collect(ctx, &rm); err != nil {
+		panic(err)
+	}
 	return rm
 }
 

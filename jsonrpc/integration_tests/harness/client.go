@@ -349,9 +349,12 @@ func (c *Client) ConnectWebSocket(ctx context.Context) error {
 				return fmt.Errorf("websocket dial failed (status %d): %w", resp.StatusCode, err)
 			}
 			body, readErr := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
+			closeErr := resp.Body.Close()
 			if readErr != nil {
 				return fmt.Errorf("websocket dial failed (status %d): %w", resp.StatusCode, err)
+			}
+			if closeErr != nil {
+				return fmt.Errorf("websocket dial failed (status %d): close response body: %w", resp.StatusCode, closeErr)
 			}
 			return fmt.Errorf("websocket dial failed (status %d): %w: %s", resp.StatusCode, err, string(body))
 		}

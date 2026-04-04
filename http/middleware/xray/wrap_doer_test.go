@@ -53,7 +53,9 @@ func TestWrapDoer(t *testing.T) {
 				t.Fatalf("error creating UDP listener: %v", err)
 			}
 			addr := l.LocalAddr().(*net.UDPAddr)
-			_ = l.Close()
+			if err := l.Close(); err != nil {
+				t.Fatalf("close UDP listener: %v", err)
+			}
 			dynamicListen := addr.String()
 
 			expMsgs := 0 // expected number of messages to be sent to X-Ray daemon
@@ -73,7 +75,11 @@ func TestWrapDoer(t *testing.T) {
 			messages := xraytest.ReadUDP(t, dynamicListen, expMsgs, func() {
 				resp, err := WrapDoer(doer).Do(req)
 				if resp != nil && resp.Body != nil {
-					defer func() { _ = resp.Body.Close() }()
+					defer func() {
+						if closeErr := resp.Body.Close(); closeErr != nil {
+							t.Errorf("close response body: %v", closeErr)
+						}
+					}()
 				}
 				if err != nil && !tc.Error {
 					t.Fatalf("error executing request: %v", err)

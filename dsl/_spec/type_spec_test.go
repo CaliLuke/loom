@@ -181,14 +181,14 @@ var Validations = Type("Validations", func() {
 		MaxLength(100)
 		// Pattern specifies a regular expression that the value must
 		// validate.
-		Pattern(`^A.*@goa\.design`)
+		Pattern(`^A.*@loom\.design`)
 		// Format specifies a format the string must comply to.
 		// See ValidationFormat constants in design package for the list
 		// of supported formats.
 		Format(FormatEmail)
 		// Enum specifies the list of possible values (a real design
 		// would probably not use other validations together with Enum)
-		Enum("support@goa.design", "info@goa.design")
+		Enum("support@loom.design", "info@loom.design")
 	})
 
 	Attribute("bytes", Bytes, func() {

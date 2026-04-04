@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
-	goatemplate "github.com/CaliLuke/loom/codegen/template"
+	loomtemplate "github.com/CaliLuke/loom/codegen/template"
 
 	goast "go/ast"
 	goparser "go/parser"
@@ -20,7 +20,7 @@ import (
 var templateFS embed.FS
 
 // generatorTemplates is the template reader for the test generator
-var generatorTemplates = &goatemplate.TemplateReader{FS: templateFS, Extension: ".tmpl"}
+var generatorTemplates = &loomtemplate.TemplateReader{FS: templateFS, Extension: ".tmpl"}
 
 const loomSourceModeFile = ".loom_source_mode"
 

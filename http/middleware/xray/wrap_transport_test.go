@@ -13,6 +13,7 @@ import (
 
 	"github.com/CaliLuke/loom/middleware/xray"
 	"github.com/CaliLuke/loom/middleware/xray/xraytest"
+	"github.com/stretchr/testify/require"
 )
 
 type mockRoundTripper struct {
@@ -64,7 +65,11 @@ func TestTransportExample(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to make request - %s", err)
 		}
-		defer resp.Body.Close() //nolint:errcheck
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				t.Errorf("close response body: %v", closeErr)
+			}
+		}()
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("HTTP Response Status is invalid, expected %d got %d", http.StatusOK, resp.StatusCode)
 		}
@@ -78,9 +83,12 @@ func TestTransportExample(t *testing.T) {
 
 	// second message
 	s = xraytest.ExtractSegment(t, messages[1])
-	url, _ := url.Parse(server.URL)
-	if s.Name != url.Host {
-		t.Errorf("unexpected segment name, expected %q - got %q", url.Host, s.Name)
+	parsedURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+	if s.Name != parsedURL.Host {
+		t.Errorf("unexpected segment name, expected %q - got %q", parsedURL.Host, s.Name)
 	}
 	if s.ParentID != parentSegment.ID {
 		t.Errorf("unexpected ParentID, expect %q - got %q", parentSegment.ID, s.ParentID)
@@ -92,10 +100,10 @@ func TestTransportExample(t *testing.T) {
 
 func TestTransportNoSegmentInContext(t *testing.T) {
 	var (
-		url, _ = url.Parse("https://loom.design/path?query#fragment")
-		req, _ = http.NewRequest("GET", url.String(), nil)
-		rw     = httptest.NewRecorder()
-		rt     = &mockRoundTripper{func(*http.Request) (*http.Response, error) {
+		parsedURL = mustParseURL(t, "https://loom.design/path?query#fragment")
+		req       = mustNewTransportRequest(t, "GET", parsedURL.String())
+		rw        = httptest.NewRecorder()
+		rt        = &mockRoundTripper{func(*http.Request) (*http.Response, error) {
 			rw.WriteHeader(http.StatusOK)
 			return rw.Result(), nil
 		}}
@@ -106,7 +114,11 @@ func TestTransportNoSegmentInContext(t *testing.T) {
 		t.Errorf("expected no error got %s", err)
 	}
 	if resp != nil && resp.Body != nil {
-		defer func() { _ = resp.Body.Close() }()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				t.Errorf("close response body: %v", closeErr)
+			}
+		}()
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("response status is invalid, expected %d got %d", http.StatusOK, resp.StatusCode)
@@ -141,7 +153,7 @@ func TestTransport(t *testing.T) {
 		remoteAddr = "104.18.43.42:443"
 		remoteHost = "104.18.43.42"
 		agent      = "user agent"
-		url, _     = url.Parse("https://loom.design/path?query#fragment")
+		url        = mustParseURL(t, "https://loom.design/path?query#fragment")
 	)
 	cases := map[string]struct {
 		Trace    Tra
@@ -183,7 +195,7 @@ func TestTransport(t *testing.T) {
 
 			var (
 				parent = xray.NewSegment(k, c.Trace.TraceID, c.Trace.SpanID, conn)
-				req, _ = http.NewRequest(c.Request.Method, c.Request.URL.String(), nil)
+				req    = mustNewTransportRequest(t, c.Request.Method, c.Request.URL.String())
 				rw     = httptest.NewRecorder()
 				rt     = &mockRoundTripper{func(*http.Request) (*http.Response, error) {
 					if c.Segment.Exception != "" {
@@ -225,7 +237,11 @@ func TestTransport(t *testing.T) {
 			messages := xraytest.ReadUDP(t, udplisten, 2, func() {
 				resp, err := WrapTransport(rt).RoundTrip(req)
 				if resp != nil && resp.Body != nil {
-					defer func() { _ = resp.Body.Close() }()
+					defer func() {
+						if closeErr := resp.Body.Close(); closeErr != nil {
+							t.Errorf("close response body: %v", closeErr)
+						}
+					}()
 				}
 				if c.Segment.Exception == "" && err != nil {
 					t.Errorf("expected no error got %s", err)
@@ -306,4 +322,11 @@ func TestTransport(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mustNewTransportRequest(t *testing.T, method string, rawURL string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequest(method, rawURL, nil)
+	require.NoError(t, err)
+	return req
 }

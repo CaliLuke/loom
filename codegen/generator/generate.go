@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,7 +92,7 @@ func loadRoots(debug bool) ([]eval.Root, error) {
 	return roots, nil
 }
 
-func computeGenPackage(dir string, debug bool) (string, error) {
+func computeGenPackage(dir string, debug bool) (genpkg string, err error) {
 	start := time.Now()
 	base, err := filepath.Abs(dir)
 	if err != nil {
@@ -108,7 +109,9 @@ func computeGenPackage(dir string, debug bool) (string, error) {
 	}
 	dummyName := dummy.Name()
 	defer func() {
-		_ = os.Remove(dummyName)
+		if removeErr := os.Remove(dummyName); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			err = errors.Join(err, fmt.Errorf("remove temporary file %s: %w", dummyName, removeErr))
+		}
 	}()
 	if _, err = dummy.Write([]byte("package gen")); err != nil {
 		return "", err
@@ -122,7 +125,7 @@ func computeGenPackage(dir string, debug bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	genpkg := codegen.Gendir
+	genpkg = codegen.Gendir
 	if !filepath.IsAbs(pkgs[0].PkgPath) {
 		genpkg = pkgs[0].PkgPath
 	}

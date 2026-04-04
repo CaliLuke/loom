@@ -20,20 +20,20 @@ var _ = API("dsl_spec", func() {
 	// API support information.
 	Contact(func() {
 		Name("contact name")
-		Email("contact@goa.design")
-		URL("https://goa.design")
+		Email("contact@loom.design")
+		URL("https://loom.design")
 	})
 
 	// API Licensing information
 	License(func() {
 		Name("License name")
-		URL("https://goa.design/license")
+		URL("https://loom.design/license")
 	})
 
 	// Docs allows linking to external documentation.
 	Docs(func() {
 		Description("Optional description")
-		URL("https://goa.design/getting-started")
+		URL("https://loom.design/getting-started")
 	})
 
 	// Server describes a single API host and may appear more than once.

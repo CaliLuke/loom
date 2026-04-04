@@ -164,7 +164,9 @@ func (s *` + service.ServicePackage + `srvc) HandleStream(ctx context.Context, s
 
 	// Ensure the stream is closed on exit
 	defer func() {
-		_ = stream.Close()
+		if err := stream.Close(); err != nil {
+			log.Printf("HandleStream Close error: %v", err)
+		}
 	}()
 
 	// Loop to handle incoming requests

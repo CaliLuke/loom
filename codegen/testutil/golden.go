@@ -253,7 +253,9 @@ func CompareOrUpdateGolden(t *testing.T, actual, golden string) {
 	absGolden := golden
 	if !filepath.IsAbs(golden) {
 		// If it's already relative, make it absolute from current directory
-		absGolden, _ = filepath.Abs(golden)
+		var err error
+		absGolden, err = filepath.Abs(golden)
+		require.NoError(t, err)
 	}
 	gf.StringContent(actual).Path(absGolden).CompareContent()
 }

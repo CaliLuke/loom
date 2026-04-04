@@ -22,7 +22,9 @@ func NewTraceHarness(tb testing.TB) *TraceHarness {
 	recorder := tracetest.NewSpanRecorder()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
 	tb.Cleanup(func() {
-		_ = provider.Shutdown(tb.Context())
+		if err := provider.Shutdown(tb.Context()); err != nil {
+			tb.Errorf("shutdown trace provider: %v", err)
+		}
 	})
 	return &TraceHarness{Provider: provider, Recorder: recorder}
 }

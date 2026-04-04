@@ -77,7 +77,9 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 							if len(matches) == 2 {
 								matched = true
 								if matches[1] != "" {
-									version, _ = strconv.Atoi(matches[1]) // We know it's an integer
+									if parsedVersion, err := strconv.Atoi(matches[1]); err == nil {
+										version = parsedVersion
+									}
 								}
 							}
 						}
@@ -238,20 +240,20 @@ func (g *Generator) Run(debug bool) ([]string, error) {
 }
 
 // Remove deletes the package files.
-func (g *Generator) Remove() {
+func (g *Generator) Remove() error {
 	if g.tmpDir != "" {
-		_ = os.RemoveAll(g.tmpDir)
+		if err := os.RemoveAll(g.tmpDir); err != nil {
+			return fmt.Errorf("remove temporary generator directory %s: %w", g.tmpDir, err)
+		}
 		g.tmpDir = ""
 	}
+	return nil
 }
 
 func (g *Generator) runGoCmd(args ...string) error {
 	gobin, err := exec.LookPath("go")
 	if err != nil {
 		return fmt.Errorf(`failed to find a go compiler, looked in "%s"`, os.Getenv("PATH"))
-	}
-	if g.DesignVersion > 2 {
-		_ = os.Setenv("GO111MODULE", "on")
 	}
 	c := exec.Cmd{
 		Path: gobin,

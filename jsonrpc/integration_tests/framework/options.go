@@ -67,7 +67,9 @@ func LoadRunnerConfigFromEnv() RunnerConfig {
 
 	// JSONRPC_TEST_PARALLEL controls parallel execution
 	if val := os.Getenv("JSONRPC_TEST_PARALLEL"); val != "" {
-		config.Parallel, _ = strconv.ParseBool(val)
+		if parsed, err := strconv.ParseBool(val); err == nil {
+			config.Parallel = parsed
+		}
 	}
 
 	// FILTER or JSONRPC_TEST_FILTER for test filtering
@@ -89,7 +91,9 @@ func LoadRunnerConfigFromEnv() RunnerConfig {
 
 	// JSONRPC_TEST_DEBUG for debug output
 	if val := os.Getenv("JSONRPC_TEST_DEBUG"); val != "" {
-		config.Debug, _ = strconv.ParseBool(val)
+		if parsed, err := strconv.ParseBool(val); err == nil {
+			config.Debug = parsed
+		}
 	}
 
 	// JSONRPC_TEST_SERVER_URL to use existing server

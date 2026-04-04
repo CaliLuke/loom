@@ -68,13 +68,15 @@ func PinLocalReplace(dir string, repoRoot string) error {
 	return err
 }
 
-func copyFile(src string, dst string, mode fs.FileMode) error {
+func copyFile(src string, dst string, mode fs.FileMode) (err error) {
 	in, err := os.Open(src)
 	if err != nil {
 		return fmt.Errorf("open %s: %w", src, err)
 	}
 	defer func() {
-		_ = in.Close()
+		if closeErr := in.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close %s: %w", src, closeErr)
+		}
 	}()
 
 	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
@@ -86,7 +88,9 @@ func copyFile(src string, dst string, mode fs.FileMode) error {
 		return fmt.Errorf("create %s: %w", dst, err)
 	}
 	defer func() {
-		_ = out.Close()
+		if closeErr := out.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close %s: %w", dst, closeErr)
+		}
 	}()
 
 	if _, err := io.Copy(out, in); err != nil {

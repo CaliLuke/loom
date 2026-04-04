@@ -29,7 +29,8 @@ func TestJSONRPCSSE_DedupEventTypes(t *testing.T) {
 			// Render all sections into a single source string
 			var b strings.Builder
 			for _, s := range f.AllSections() {
-				_ = s.Write(&b)
+				err := s.Write(&b)
+				require.NoError(t, err)
 			}
 			code = b.String()
 			break

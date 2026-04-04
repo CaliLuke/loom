@@ -32,7 +32,9 @@ func NewLogHarness(tb testing.TB) *LogHarness {
 		sdklog.WithProcessor(sdklog.NewSimpleProcessor(exporter)),
 	)
 	tb.Cleanup(func() {
-		_ = provider.Shutdown(tb.Context())
+		if err := provider.Shutdown(tb.Context()); err != nil {
+			tb.Errorf("shutdown log provider: %v", err)
+		}
 	})
 	return &LogHarness{Provider: provider, Exporter: exporter}
 }
