@@ -165,6 +165,38 @@ func TestBuildMethodDataMixedResultsStreamMetadata(t *testing.T) {
 	require.Equal(t, "WatchEvent", method.ClientStream.RecvTypeName)
 }
 
+func TestAnalyzeServiceDataRefactorRegression(t *testing.T) {
+	root := codegen.RunDSL(t, serviceDataRefactorRegressionDSL)
+	services := NewServicesData(root)
+	svc := services.Get("ServiceDataRefactor")
+	require.NotNil(t, svc)
+
+	require.Len(t, svc.unions, 1)
+	require.Len(t, svc.ServerInterceptors, 1)
+	require.Len(t, svc.ClientInterceptors, 1)
+	require.Len(t, svc.viewedResultTypes, 1)
+
+	var remedyType *UserTypeData
+	for _, ut := range svc.errorTypes {
+		if ut.RemedyCode == "service_bad.fix" {
+			remedyType = ut
+			break
+		}
+	}
+	require.NotNil(t, remedyType)
+	require.Equal(t, "The service request is invalid.", remedyType.SafeMessage)
+	require.Equal(t, "Correct the payload and retry.", remedyType.RetryHint)
+
+	method := svc.Method("Watch")
+	require.NotNil(t, method)
+	require.True(t, method.HasMixedResults)
+
+	viewed := svc.viewedResultTypes[0]
+	require.Len(t, viewed.Views, 2)
+	require.Equal(t, "default", viewed.Views[0].Name)
+	require.Equal(t, "tiny", viewed.Views[1].Name)
+}
+
 func hasServiceUserType(types []*UserTypeData, name string) bool {
 	for _, ut := range types {
 		if ut.Name == name {
@@ -263,6 +295,57 @@ func mixedResultsStreamMetadataDSL() {
 			dsl.Result(func() {
 				dsl.Attribute("done", dsl.Boolean)
 			})
+			dsl.StreamingResult(watchEvent)
+			dsl.HTTP(func() {
+				dsl.GET("/")
+				dsl.ServerSentEvents()
+			})
+		})
+	})
+}
+
+func serviceDataRefactorRegressionDSL() {
+	var unionPayload = dsl.Type("UnionPayload", func() {
+		dsl.OneOf("value", func() {
+			dsl.Attribute("id", dsl.Int)
+			dsl.Attribute("name", dsl.String)
+		})
+	})
+	var watchResult = dsl.ResultType("application/vnd.service-data-refactor.watch", func() {
+		dsl.TypeName("WatchResult")
+		dsl.Attributes(func() {
+			dsl.Attribute("name", dsl.String)
+			dsl.Attribute("count", dsl.Int)
+			dsl.Required("name", "count")
+		})
+		dsl.View("default", func() {
+			dsl.Attribute("name")
+			dsl.Attribute("count")
+		})
+		dsl.View("tiny", func() {
+			dsl.Attribute("name")
+		})
+	})
+	var watchEvent = dsl.Type("WatchEvent", func() {
+		dsl.Attribute("event", dsl.String)
+	})
+
+	dsl.Interceptor("logging")
+	dsl.Interceptor("tracing")
+	dsl.Service("ServiceDataRefactor", func() {
+		dsl.Error("service_bad", func() {
+			dsl.Remedy(func() {
+				dsl.RemedyCode("service_bad.fix")
+				dsl.SafeMessage("The service request is invalid.")
+				dsl.RetryHint("Correct the payload and retry.")
+			})
+		})
+		dsl.ServerInterceptor("logging")
+		dsl.ClientInterceptor("tracing")
+
+		dsl.Method("Watch", func() {
+			dsl.Payload(unionPayload)
+			dsl.Result(watchResult)
 			dsl.StreamingResult(watchEvent)
 			dsl.HTTP(func() {
 				dsl.GET("/")
