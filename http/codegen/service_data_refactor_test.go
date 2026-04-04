@@ -436,8 +436,9 @@ func TestHTTPErrorBodyDescriptionRewrite(t *testing.T) {
 func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildEndpointData preserves mixed result assembly", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.MixedResultsDSL)
+		endpointIR := transportir.BuildEndpoint(endpointExpr)
 
-		endpoint := services.buildEndpointData(endpointExpr, svcData.Service, svcData, codegen.NewNameScope())
+		endpoint := services.buildEndpointDataFromIR(endpointIR, svcData.Service, svcData, codegen.NewNameScope())
 		require.True(t, endpoint.HasMixedResults)
 		require.NotNil(t, endpoint.SSE)
 		require.Equal(t, "EncodeCreateRequest", endpoint.RequestEncoder)
@@ -446,8 +447,9 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 
 	t.Run("buildPayloadData projects jsonrpc ids", func(t *testing.T) {
 		services, endpointExpr, svcData := firstJSONRPCBuildContext(t, jsonrpcIDProjectionDSL)
+		endpointIR := transportir.BuildEndpoint(endpointExpr)
 
-		payload := services.buildPayloadData(endpointExpr, svcData)
+		payload := services.buildPayloadDataFromIR(endpointIR, svcData)
 		require.Equal(t, "ID", payload.IDAttribute)
 		require.True(t, payload.IDAttributeRequired)
 		require.NotNil(t, payload.Request)
@@ -457,8 +459,9 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 
 	t.Run("buildResultData keeps default view and jsonrpc ids", func(t *testing.T) {
 		services, endpointExpr, svcData := firstJSONRPCBuildContext(t, jsonrpcIDProjectionDSL)
+		endpointIR := transportir.BuildEndpoint(endpointExpr)
 
-		result := services.buildResultData(endpointExpr, svcData)
+		result := services.buildResultDataFromIR(endpointIR, svcData)
 		require.Equal(t, expr.DefaultView, result.View)
 		require.Equal(t, "ID", result.IDAttribute)
 		require.True(t, result.IDAttributeRequired)
@@ -557,7 +560,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.NotEmpty(t, endpointIR.Response.ErrorResponses)
 
 		errorIR := endpointIR.Response.ErrorResponses[0]
-		errors := services.buildErrorsData(endpointExpr, svcData)
+		errors := services.buildErrorsDataFromIR(endpointIR, svcData)
 		require.Len(t, errors, 1)
 		require.Len(t, errors[0].Errors, 1)
 
@@ -566,10 +569,18 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.Equal(t, statusCodeToHTTPConst(errorIR.StatusCode), errors[0].StatusCode)
 		require.Equal(t, statusCodeToHTTPConst(errorIR.StatusCode), errResp.StatusCode)
 		require.Equal(t, errorIR.StatusCode, errResp.Code)
-		require.Equal(t, errorIR.Headers.ElemName("code"), errResp.Headers[0].HTTPName)
-		require.Equal(t, errorIR.Cookies[0].HTTPName(), errResp.Cookies[0].HTTPName)
+		require.Equal(t, errorIR.Headers[0].HTTPName, errResp.Headers[0].HTTPName)
+		require.Equal(t, errorIR.Cookies[0].HTTPName, errResp.Cookies[0].HTTPName)
 		require.NotNil(t, errResp.ClientBody)
 		require.Equal(t, errorIR.ContentType, errResp.ContentType)
+	})
+
+	t.Run("websocket payload init stays available through IR service data", func(t *testing.T) {
+		endpoint := firstEndpointData(t, testdata.StreamingAliasedArrayDSL)
+		require.NotNil(t, endpoint.ClientWebSocket)
+		require.NotNil(t, endpoint.ClientWebSocket.Payload)
+		require.NotNil(t, endpoint.ClientWebSocket.Payload.Init)
+		require.Equal(t, "NewStreamStreamingBody", endpoint.ClientWebSocket.Payload.Init.Name)
 	})
 }
 

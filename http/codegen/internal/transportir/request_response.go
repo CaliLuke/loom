@@ -15,7 +15,7 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 	}
 	payload := endpoint.MethodExpr.Payload
 	body := normalizeHTTPAttribute(endpoint.Body)
-	streamingBody := normalizeHTTPAttribute(endpoint.StreamingBody)
+	streamingBody := endpoint.StreamingBody
 	bodyOrigin := attributeOrigin(body)
 	mustHaveBody := body != nil && body.Type != expr.Empty
 	if endpoint.OptionalRequestBody {
@@ -29,7 +29,6 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 		Body:                body,
 		RawBody:             endpoint.Body,
 		StreamingBody:       streamingBody,
-		RawStreamingBody:    endpoint.StreamingBody,
 		BodyOrigin:          bodyOrigin,
 		PathParams:          buildPathParameters(endpoint),
 		QueryParams:         buildQueryParameters(endpoint),
@@ -54,7 +53,6 @@ func buildResponse(endpoint *expr.HTTPEndpointExpr) *Response {
 	response := &Response{
 		Result:              result,
 		StreamingResult:     endpoint.MethodExpr.StreamingResult,
-		Errors:              endpoint.HTTPErrors,
 		HasMixedResults:     endpoint.MethodExpr.HasMixedResults(),
 		SkipBodyEncode:      endpoint.SkipResponseBodyEncodeDecode,
 		IDAttribute:         endpoint.ResultIDAttribute,
@@ -79,19 +77,20 @@ func buildRedirect(endpoint *expr.HTTPEndpointExpr) *Redirect {
 	}
 }
 
-func buildResponseStatus(status *expr.HTTPResponseExpr, httpError *expr.HTTPErrorExpr) *ResponseStatus {
+func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTPErrorExpr) *ResponseStatus {
 	if status == nil {
 		return nil
 	}
 	documentBody := responseDocumentBody(status)
+	httpError := buildError(httpErrorExpr)
 	return &ResponseStatus{
 		Error:        httpError,
 		StatusCode:   status.StatusCode,
 		Description:  status.Description,
 		ContentType:  status.ContentType,
 		ContentTypes: responseContentTypes(status),
-		Headers:      status.Headers,
-		Cookies:      status.Cookies,
+		Headers:      buildHeaders(status.Headers),
+		Cookies:      buildCookies(status.Cookies),
 		Body:         normalizeHTTPAttribute(status.Body),
 		DocumentBody: documentBody,
 		BodyOrigin:   attributeOrigin(status.Body),
@@ -192,16 +191,16 @@ func isWebSocketResponse(resp *expr.HTTPResponseExpr, statusCode int) bool {
 }
 
 func responseContentTypeHeaderEnums(resp *expr.HTTPResponseExpr) []string {
-	if resp == nil || resp.Headers == nil {
+	if resp == nil {
 		return nil
 	}
 	var contentTypes []string
 	seen := map[string]struct{}{}
-	expr.WalkMappedAttr(resp.Headers, func(_, elem string, child *expr.AttributeExpr) error { // nolint: errcheck
-		if textproto.CanonicalMIMEHeaderKey(elem) != "Content-Type" || child == nil || child.Validation == nil {
-			return nil
+	for _, header := range buildHeaders(resp.Headers) {
+		if textproto.CanonicalMIMEHeaderKey(header.HTTPName) != "Content-Type" || header.Attribute == nil || header.Attribute.Validation == nil {
+			continue
 		}
-		for _, raw := range child.Validation.Values {
+		for _, raw := range header.Attribute.Validation.Values {
 			value, ok := raw.(string)
 			if !ok {
 				continue
@@ -216,8 +215,7 @@ func responseContentTypeHeaderEnums(resp *expr.HTTPResponseExpr) []string {
 			seen[value] = struct{}{}
 			contentTypes = append(contentTypes, value)
 		}
-		return nil
-	})
+	}
 	return contentTypes
 }
 
@@ -259,6 +257,74 @@ func cloneLinkParameters(parameters map[string]string) map[string]string {
 		cloned[key] = value
 	}
 	return cloned
+}
+
+func buildError(httpError *expr.HTTPErrorExpr) *Error {
+	if httpError == nil || httpError.ErrorExpr == nil {
+		return nil
+	}
+	return &Error{
+		Name:      httpError.Name,
+		Attribute: httpError.AttributeExpr,
+		Type:      httpError.Type,
+		Remedy:    buildErrorRemedy(httpError.ErrorExpr.Remedy),
+	}
+}
+
+func buildErrorRemedy(remedy *expr.ErrorRemedyExpr) *ErrorRemedy {
+	if remedy == nil {
+		return nil
+	}
+	return &ErrorRemedy{
+		Code:        remedy.Code,
+		SafeMessage: remedy.SafeMessage,
+		RetryHint:   remedy.RetryHint,
+	}
+}
+
+func buildHeaders(mapped *expr.MappedAttributeExpr) []*Header {
+	if mapped == nil {
+		return nil
+	}
+	headers := make([]*Header, 0)
+	expr.WalkMappedAttr(mapped, func(name, element string, attr *expr.AttributeExpr) error { // nolint: errcheck
+		headers = append(headers, &Header{
+			Name:             name,
+			HTTPName:         element,
+			Attribute:        attr,
+			Required:         mapped.IsRequired(name),
+			PrimitivePointer: mapped.IsPrimitivePointer(name, true),
+		})
+		return nil
+	})
+	return headers
+}
+
+func buildCookies(cookiesExpr []*expr.HTTPResponseCookieExpr) []*Cookie {
+	if len(cookiesExpr) == 0 {
+		return nil
+	}
+	cookies := make([]*Cookie, 0, len(cookiesExpr))
+	for _, cookieExpr := range cookiesExpr {
+		if cookieExpr == nil {
+			continue
+		}
+		name := cookieExpr.AttributeName()
+		cookies = append(cookies, &Cookie{
+			Name:             name,
+			HTTPName:         cookieExpr.HTTPName(),
+			Attribute:        cookieExpr.Attribute(),
+			Required:         cookieExpr.IsRequired(name),
+			PrimitivePointer: cookieExpr.IsPrimitivePointer(name, true),
+			Path:             cookieExpr.Path,
+			Domain:           cookieExpr.Domain,
+			MaxAge:           cookieExpr.MaxAge,
+			Secure:           cookieExpr.Secure,
+			HTTPOnly:         cookieExpr.HTTPOnly,
+			SameSite:         cookieExpr.SameSite,
+		})
+	}
+	return cookies
 }
 
 func normalizeHTTPAttribute(attr *expr.AttributeExpr) *expr.AttributeExpr {

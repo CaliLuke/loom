@@ -165,6 +165,103 @@ func TestBuildEndpointMixedResults(t *testing.T) {
 	require.Len(t, endpoint.Response.Responses, 1)
 }
 
+func TestBuildEndpointResponseMetadata(t *testing.T) {
+	root := testcodegen.RunDSL(t, func() {
+		dsl.Service("widgets", func() {
+			dsl.Method("show", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("id", dsl.String)
+					dsl.Required("id")
+				})
+				dsl.Result(func() {
+					dsl.Attribute("body", dsl.String)
+					dsl.Attribute("version", dsl.String)
+					dsl.Attribute("session", dsl.String)
+					dsl.Required("body", "version", "session")
+				})
+				dsl.Error("bad_request", func() {
+					dsl.Attribute("body", dsl.String)
+					dsl.Attribute("code", dsl.Int)
+					dsl.Attribute("session", dsl.String)
+					dsl.Required("body", "code", "session")
+					dsl.Remedy(func() {
+						dsl.RemedyCode("bad.fix")
+						dsl.SafeMessage("Retry with a valid request.")
+						dsl.RetryHint("Correct the payload and retry.")
+					})
+				})
+				dsl.HTTP(func() {
+					dsl.GET("/widgets/{id}")
+					dsl.Response(expr.StatusOK, func() {
+						dsl.Body("body")
+						dsl.Header("version:X-Version")
+						dsl.ContentType("application/problem+json")
+						dsl.SessionCookie("session:widget_session")
+						dsl.CookiePath("/")
+						dsl.CookieHTTPOnly()
+						dsl.CookieSecure()
+					})
+					dsl.Response("bad_request", expr.StatusBadRequest, func() {
+						dsl.Body("body")
+						dsl.Header("code:X-Code")
+						dsl.SessionCookie("session:widget_session")
+					})
+				})
+			})
+		})
+	})
+
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+	require.Len(t, endpoint.Response.Responses, 1)
+	require.Len(t, endpoint.Response.ErrorResponses, 1)
+
+	success := endpoint.Response.Responses[0]
+	require.Equal(t, expr.StatusOK, success.StatusCode)
+	require.Equal(t, "application/problem+json", success.ContentType)
+	require.Equal(t, "version", success.Headers[0].Name)
+	require.Equal(t, "X-Version", success.Headers[0].HTTPName)
+	require.Equal(t, "widget_session", success.Cookies[0].HTTPName)
+	require.True(t, success.Cookies[0].Secure)
+	require.True(t, success.Cookies[0].HTTPOnly)
+
+	failure := endpoint.Response.ErrorResponses[0]
+	require.NotNil(t, failure.Error)
+	require.Equal(t, "bad_request", failure.Error.Name)
+	require.Equal(t, "bad.fix", failure.Error.Remedy.Code)
+	require.Equal(t, "Retry with a valid request.", failure.Error.Remedy.SafeMessage)
+	require.Equal(t, "Correct the payload and retry.", failure.Error.Remedy.RetryHint)
+	require.Equal(t, "X-Code", failure.Headers[0].HTTPName)
+	require.Equal(t, "widget_session", failure.Cookies[0].HTTPName)
+}
+
+func TestRouteForExprPrefersRouteIdentity(t *testing.T) {
+	root := testcodegen.RunDSL(t, func() {
+		dsl.Service("widgets", func() {
+			dsl.Method("show", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("id", dsl.String)
+					dsl.Required("id")
+				})
+				dsl.Result(dsl.String)
+				dsl.HTTP(func() {
+					dsl.GET("/widgets/{id}")
+					dsl.GET("/widgets/by-id/{id}")
+				})
+			})
+		})
+	})
+
+	endpointExpr := root.API.HTTP.Services[0].HTTPEndpoints[0]
+	endpoint := transportir.BuildEndpoint(endpointExpr)
+	require.Len(t, endpoint.Routes, 2)
+
+	route := transportir.RouteForExpr(endpoint, endpointExpr.Routes[1], "/widgets/by-id/{id}")
+	require.NotNil(t, route)
+	require.Equal(t, 1, route.Index)
+	require.Equal(t, "/widgets/by-id/{id}", route.Path)
+	require.Equal(t, "/widgets/by-id/{id}", route.SourcePath)
+}
+
 func firstJSONRPCEndpoint(t *testing.T, dslFn func()) *transportir.Endpoint {
 	t.Helper()
 	root := testcodegen.RunDSL(t, dslFn)

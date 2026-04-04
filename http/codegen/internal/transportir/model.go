@@ -36,7 +36,6 @@ type (
 		Body                *expr.AttributeExpr
 		RawBody             *expr.AttributeExpr
 		StreamingBody       *expr.AttributeExpr
-		RawStreamingBody    *expr.AttributeExpr
 		BodyOrigin          string
 		PathParams          []*Parameter
 		QueryParams         []*Parameter
@@ -57,7 +56,6 @@ type (
 		StreamingResult     *expr.AttributeExpr
 		Responses           []*ResponseStatus
 		ErrorResponses      []*ResponseStatus
-		Errors              []*expr.HTTPErrorExpr
 		HasMixedResults     bool
 		SkipBodyEncode      bool
 		IDAttribute         string
@@ -65,13 +63,13 @@ type (
 	}
 
 	ResponseStatus struct {
-		Error        *expr.HTTPErrorExpr
+		Error        *Error
 		StatusCode   int
 		Description  string
 		ContentType  string
 		ContentTypes []string
-		Headers      *expr.MappedAttributeExpr
-		Cookies      []*expr.HTTPResponseCookieExpr
+		Headers      []*Header
+		Cookies      []*Cookie
 		Body         *expr.AttributeExpr
 		DocumentBody *expr.AttributeExpr
 		BodyOrigin   string
@@ -148,6 +146,41 @@ type (
 		Name       string
 		In         string
 		SchemeName string
+	}
+
+	Error struct {
+		Name      string
+		Attribute *expr.AttributeExpr
+		Type      expr.DataType
+		Remedy    *ErrorRemedy
+	}
+
+	ErrorRemedy struct {
+		Code        string
+		SafeMessage string
+		RetryHint   string
+	}
+
+	Header struct {
+		Name             string
+		HTTPName         string
+		Attribute        *expr.AttributeExpr
+		Required         bool
+		PrimitivePointer bool
+	}
+
+	Cookie struct {
+		Name             string
+		HTTPName         string
+		Attribute        *expr.AttributeExpr
+		Required         bool
+		PrimitivePointer bool
+		Path             string
+		Domain           string
+		MaxAge           string
+		Secure           bool
+		HTTPOnly         bool
+		SameSite         expr.CookieSameSiteValue
 	}
 
 	ResponseLink struct {

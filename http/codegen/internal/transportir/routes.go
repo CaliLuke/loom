@@ -24,3 +24,43 @@ func buildRoutes(endpoint *expr.HTTPEndpointExpr) []*Route {
 	}
 	return routes
 }
+
+func RouteForExpr(endpoint *Endpoint, route *expr.RouteExpr, renderedPath string) *Route {
+	if endpoint == nil || len(endpoint.Routes) == 0 {
+		return nil
+	}
+	routeIndex, sourcePath := routeIdentity(route)
+	for _, routeIR := range endpoint.Routes {
+		if routeIR.matches(routeIndex, sourcePath, renderedPath) {
+			return routeIR
+		}
+	}
+	for _, routeIR := range endpoint.Routes {
+		if routeIR.Path == renderedPath {
+			return routeIR
+		}
+	}
+	return endpoint.Routes[0]
+}
+
+func routeIdentity(route *expr.RouteExpr) (int, string) {
+	if route == nil || route.Endpoint == nil {
+		return 0, ""
+	}
+	for index, current := range route.Endpoint.Routes {
+		if current == route {
+			return index, route.Path
+		}
+	}
+	return 0, route.Path
+}
+
+func (r *Route) matches(index int, sourcePath string, renderedPath string) bool {
+	if r == nil {
+		return false
+	}
+	if r.Index == index && r.SourcePath == sourcePath {
+		return true
+	}
+	return r.Path == renderedPath
+}

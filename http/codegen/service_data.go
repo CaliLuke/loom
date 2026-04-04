@@ -657,8 +657,8 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) *ServiceData {
 	for _, httpEndpoint := range irService.Endpoints {
 		sd.Endpoints = append(sd.Endpoints, sds.buildEndpointDataFromIR(httpEndpoint, svc, sd, scope))
 	}
-	for _, httpEndpoint := range httpSvc.HTTPEndpoints {
-		sds.collectEndpointBodyAttributeTypes(httpEndpoint, sd)
+	for _, endpointIR := range irService.Endpoints {
+		sds.collectEndpointBodyAttributeTypes(endpointIR, sd)
 	}
 	sd.UnionTypes = sds.collectEndpointUnionTypes(httpSvc, sd.Scope)
 
@@ -703,10 +703,6 @@ func (sds *ServicesData) buildFileServersData(httpSvc *expr.HTTPServiceExpr, sco
 		})
 	}
 	return fileServers
-}
-
-func (sds *ServicesData) buildEndpointData(httpEndpoint *expr.HTTPEndpointExpr, svc *service.Data, sd *ServiceData, scope *codegen.NameScope) *EndpointData {
-	return sds.buildEndpointDataFromIR(transportir.BuildEndpoint(httpEndpoint), svc, sd, scope)
 }
 
 func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoint, svc *service.Data, sd *ServiceData, scope *codegen.NameScope) *EndpointData {
@@ -969,11 +965,11 @@ func pathParametersObject(params []*transportir.Parameter) *expr.Object {
 	return &object
 }
 
-func (sds *ServicesData) collectEndpointBodyAttributeTypes(httpEndpoint *expr.HTTPEndpointExpr, sd *ServiceData) {
+func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transportir.Endpoint, sd *ServiceData) {
 	unionBranchTypes := make(map[string]struct{})
-	collectUnionBranchUserTypes(httpEndpoint.Body, unionBranchTypes)
-	if httpEndpoint.MethodExpr.StreamingPayload.Type != expr.Empty {
-		collectUnionBranchUserTypes(httpEndpoint.StreamingBody, unionBranchTypes)
+	collectUnionBranchUserTypes(endpointIR.Request.RawBody, unionBranchTypes)
+	if endpointIR.Stream.RequestPayload != nil && endpointIR.Stream.RequestPayload.Type != expr.Empty {
+		collectUnionBranchUserTypes(endpointIR.Request.StreamingBody, unionBranchTypes)
 	}
 
 	appendTypeData := func(att *expr.AttributeExpr, ptr, server bool, target *[]*TypeData) {
@@ -989,16 +985,16 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(httpEndpoint *expr.HT
 			}
 		})
 	}
-	appendTypeData(httpEndpoint.Body, true, true, &sd.ServerBodyAttributeTypes)
-	appendTypeData(httpEndpoint.Body, false, false, &sd.ClientBodyAttributeTypes)
+	appendTypeData(endpointIR.Request.RawBody, true, true, &sd.ServerBodyAttributeTypes)
+	appendTypeData(endpointIR.Request.RawBody, false, false, &sd.ClientBodyAttributeTypes)
 
-	if httpEndpoint.MethodExpr.StreamingPayload.Type != expr.Empty {
-		appendTypeData(httpEndpoint.StreamingBody, true, true, &sd.ServerBodyAttributeTypes)
-		appendTypeData(httpEndpoint.StreamingBody, false, false, &sd.ClientBodyAttributeTypes)
+	if endpointIR.Stream.RequestPayload != nil && endpointIR.Stream.RequestPayload.Type != expr.Empty {
+		appendTypeData(endpointIR.Request.StreamingBody, true, true, &sd.ServerBodyAttributeTypes)
+		appendTypeData(endpointIR.Request.StreamingBody, false, false, &sd.ClientBodyAttributeTypes)
 	}
 
-	if httpEndpoint.MethodExpr.Result != nil {
-		for _, response := range httpEndpoint.Responses {
+	if endpointIR.Response.Result != nil {
+		for _, response := range endpointIR.Response.Responses {
 			collectUserTypes(response.Body.Type, func(ut expr.UserType) {
 				if d := sds.attributeTypeData(ut, false, true, false, sd); d != nil {
 					sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
@@ -1006,8 +1002,8 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(httpEndpoint *expr.HT
 			})
 		}
 	}
-	for _, httpError := range httpEndpoint.HTTPErrors {
-		collectUserTypes(httpError.Response.Body.Type, func(ut expr.UserType) {
+	for _, httpError := range endpointIR.Response.ErrorResponses {
+		collectUserTypes(httpError.Body.Type, func(ut expr.UserType) {
 			if d := sds.attributeTypeData(ut, false, true, false, sd); d != nil {
 				sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
 			}
@@ -1207,14 +1203,6 @@ func multipartFileFields(body *expr.AttributeExpr) []*MultipartFileFieldData {
 	return fields
 }
 
-// buildPayloadData returns the data structure used to describe the endpoint
-// payload including the HTTP request details. It also returns the user types
-// used by the request body type recursively if any.
-// buildResultData builds the result data for the given service endpoint.
-func (sds *ServicesData) buildResultData(e *expr.HTTPEndpointExpr, sd *ServiceData) *ResultData {
-	return sds.buildResultDataFromIR(transportir.BuildEndpoint(e), sd)
-}
-
 func (sds *ServicesData) buildResultDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) *ResultData {
 	var (
 		svc    = sd.Service
@@ -1365,40 +1353,41 @@ func (sds *ServicesData) buildTransportElement(
 	}
 }
 
-func (sds *ServicesData) extractHeaders(a *expr.MappedAttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*HeaderData {
+func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*HeaderData {
 	var headers []*HeaderData
-	codegen.WalkMappedAttr(a, func(name, elem string, required bool, _ *expr.AttributeExpr) error { // nolint: errcheck
+	for _, headerIR := range headersIR {
+		name := headerIR.Name
+		elem := headerIR.HTTPName
 		var attr *expr.AttributeExpr
 		if attr = svcAtt.Find(name); attr == nil {
 			attr = svcAtt
 		}
 		stringSlice := transportStringSlice(attr)
 		hattr := makeHTTPType(attr)
-		pointer := a.IsPrimitivePointer(name, true)
+		pointer := headerIR.PrimitivePointer
 		fieldName, fieldType, fieldPointer := transportFieldBinding(name, attr, svcAtt, svcCtx)
 		headers = append(headers, &HeaderData{
 			CanonicalName: http.CanonicalHeaderKey(elem),
-			Element:       sds.buildTransportElement(name, elem, hattr, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope),
+			Element:       sds.buildTransportElement(name, elem, hattr, stringSlice, headerIR.Required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope),
 		})
-		return nil
-	})
+	}
 	return headers
 }
 
-func (sds *ServicesData) extractResponseCookies(cookiesExpr []*expr.HTTPResponseCookieExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
-	cookies := make([]*CookieData, 0, len(cookiesExpr))
-	for _, cookieExpr := range cookiesExpr {
-		name := cookieExpr.AttributeName()
+func (sds *ServicesData) extractResponseCookies(cookiesIR []*transportir.Cookie, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
+	cookies := make([]*CookieData, 0, len(cookiesIR))
+	for _, cookieIR := range cookiesIR {
+		name := cookieIR.Name
 		if name == "" {
 			continue
 		}
-		cookie := sds.cookieData(name, cookieExpr.HTTPName(), cookieExpr.IsRequired(name), cookieExpr.IsPrimitivePointer(name, true), nil, svcAtt, svcCtx, scope)
-		cookie.MaxAge = cookieExpr.MaxAge
-		cookie.Path = cookieExpr.Path
-		cookie.Domain = cookieExpr.Domain
-		cookie.Secure = cookieExpr.Secure
-		cookie.HTTPOnly = cookieExpr.HTTPOnly
-		switch cookieExpr.SameSite {
+		cookie := sds.cookieData(name, cookieIR.HTTPName, cookieIR.Required, cookieIR.PrimitivePointer, cookieIR.Attribute, svcAtt, svcCtx, scope)
+		cookie.MaxAge = cookieIR.MaxAge
+		cookie.Path = cookieIR.Path
+		cookie.Domain = cookieIR.Domain
+		cookie.Secure = cookieIR.Secure
+		cookie.HTTPOnly = cookieIR.HTTPOnly
+		switch cookieIR.SameSite {
 		case expr.CookieSameSiteLax:
 			cookie.SameSite = "http.SameSiteLaxMode"
 		case expr.CookieSameSiteStrict:

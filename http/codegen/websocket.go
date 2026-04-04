@@ -153,11 +153,11 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 	}
 	data.serverRecvTypeName = sd.Scope.GoFullTypeName(endpointIR.Stream.RequestPayload, sd.Service.PkgName)
 	data.serverRecvTypeRef = sd.Scope.GoFullTypeRef(endpointIR.Stream.RequestPayload, sd.Service.PkgName)
-	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.RawStreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, true, sd)
+	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, true, sd)
 	if needInit(endpointIR.Stream.RequestPayload.Type) {
 		initWebSocketPayloadConstructor(data.serverPayload, sds, endpointIR, sd)
 	}
-	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.RawStreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, sd)
+	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, sd)
 	if data.clientPayload != nil {
 		sd.ClientTypeNames[data.clientPayload.Name] = false
 		sd.ServerTypeNames[data.clientPayload.Name] = false
@@ -166,10 +166,10 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 }
 
 func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData) {
-	body := endpointIR.Request.RawStreamingBody.Type
+	body := endpointIR.Request.StreamingBody.Type
 	name := websocketPayloadInitName(endpointIR.MethodName, payload.Name)
 	desc := fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, sd.Service.Name, endpointIR.MethodName)
-	serverArgs := websocketPayloadInitArgs(sds, endpointIR.Request.RawStreamingBody, sd, body)
+	serverArgs := websocketPayloadInitArgs(sds, endpointIR.Request.StreamingBody, sd, body)
 	serverCode := ""
 	if body != expr.Empty {
 		var (
@@ -177,7 +177,7 @@ func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpo
 			err     error
 		)
 		httpctx := httpContext(sd.Scope, true, true)
-		streamBody := makeHTTPType(endpointIR.Request.RawStreamingBody)
+		streamBody := makeHTTPType(endpointIR.Request.StreamingBody)
 		serverCode, helpers, err = marshal(streamBody, endpointIR.Stream.RequestPayload, "body", "v", httpctx, serviceContext(sd.Service.PkgName, sd.Service.Scope))
 		if err == nil {
 			sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)

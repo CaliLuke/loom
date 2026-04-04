@@ -11,13 +11,6 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
-// buildPayloadData returns the data structure used to describe the endpoint
-// payload including the HTTP request details. It also returns the user types
-// used by the request body type recursively if any.
-func (sds *ServicesData) buildPayloadData(e *expr.HTTPEndpointExpr, sd *ServiceData) *PayloadData {
-	return sds.buildPayloadDataFromIR(transportir.BuildEndpoint(e), sd)
-}
-
 func (sds *ServicesData) buildPayloadDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) *PayloadData {
 	var (
 		payload                  = endpointIR.Request.Payload

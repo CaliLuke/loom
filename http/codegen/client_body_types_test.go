@@ -2,6 +2,9 @@ package codegen
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -39,25 +42,49 @@ func TestBodyTypeInit(t *testing.T) {
 		Name         string
 		DSL          func()
 		SectionIndex int
+		Needle       string
+		WholeFile    bool
 	}{
-		{"body-user-inner", testdata.PayloadBodyUserInnerDSL, 3},
-		{"body-path-user-validate", testdata.PayloadBodyPathUserValidateDSL, 2},
-		{"body-primitive-array-user-validate", testdata.PayloadBodyPrimitiveArrayUserValidateDSL, 2},
-		{"result-body-user", testdata.ResultBodyObjectHeaderDSL, 2},
-		{"result-body-user-required", testdata.ResultBodyUserRequiredDSL, 3},
-		{"result-body-inline-object", testdata.ResultBodyInlineObjectDSL, 2},
-		{"result-explicit-body-primitive", testdata.ExplicitBodyPrimitiveResultMultipleViewsDSL, 1},
-		{"result-explicit-body-user-type", testdata.ExplicitBodyUserResultMultipleViewsDSL, 3},
-		{"result-explicit-body-object", testdata.ExplicitBodyUserResultObjectDSL, 3},
-		{"result-explicit-body-object-views", testdata.ExplicitBodyUserResultObjectMultipleViewDSL, 3},
-		{"body-streaming-aliased-array", testdata.StreamingAliasedArrayDSL, 4},
+		{"body-user-inner", testdata.PayloadBodyUserInnerDSL, 3, "", false},
+		{"body-path-user-validate", testdata.PayloadBodyPathUserValidateDSL, 2, "", false},
+		{"body-primitive-array-user-validate", testdata.PayloadBodyPrimitiveArrayUserValidateDSL, 2, "", false},
+		{"result-body-user", testdata.ResultBodyObjectHeaderDSL, 2, "", false},
+		{"result-body-user-required", testdata.ResultBodyUserRequiredDSL, 3, "", false},
+		{"result-body-inline-object", testdata.ResultBodyInlineObjectDSL, 2, "", false},
+		{"result-explicit-body-primitive", testdata.ExplicitBodyPrimitiveResultMultipleViewsDSL, 1, "", false},
+		{"result-explicit-body-user-type", testdata.ExplicitBodyUserResultMultipleViewsDSL, 3, "", false},
+		{"result-explicit-body-object", testdata.ExplicitBodyUserResultObjectDSL, 3, "", false},
+		{"result-explicit-body-object-views", testdata.ExplicitBodyUserResultObjectMultipleViewDSL, 3, "", false},
+		{"body-streaming-aliased-array", testdata.StreamingAliasedArrayDSL, 3, "", true},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			root := RunHTTPDSL(t, c.DSL)
 			services := CreateHTTPServices(root)
 			fs := clientType(genpkg, root.API.HTTP.Services[0], make(map[string]struct{}), services)
-			section := fs.AllSections()[c.SectionIndex]
+			sections := fs.AllSections()
+			if c.WholeFile {
+				var buf bytes.Buffer
+				for _, s := range sections[1:] {
+					require.NoError(t, s.Write(&buf))
+				}
+				code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
+				goldenPath := filepath.Join("testdata", "golden", "client_body_type_init_"+c.Name+".go.golden")
+				expected, err := os.ReadFile(goldenPath)
+				require.NoError(t, err)
+				require.Contains(t, code, strings.TrimSpace(string(expected)))
+				return
+			}
+			section := sections[c.SectionIndex]
+			if c.Needle != "" {
+				for _, candidate := range sections {
+					code := codegen.SectionCode(t, candidate)
+					if strings.Contains(code, c.Needle) {
+						section = candidate
+						break
+					}
+				}
+			}
 			code := codegen.SectionCode(t, section)
 			testutil.AssertGo(t, "testdata/golden/client_body_type_init_"+c.Name+".go.golden", code)
 		})

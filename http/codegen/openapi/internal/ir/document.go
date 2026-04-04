@@ -51,11 +51,6 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 	return doc
 }
 
-// BuildOperation analyzes HTTP body/content-related OpenAPI operation data.
-func BuildOperation(endpoint *expr.HTTPEndpointExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {
-	return buildOperation(transportir.BuildEndpoint(endpoint), bodies, rand, closeObjects)
-}
-
 func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {
 	if endpointIR == nil {
 		return nil
@@ -125,7 +120,7 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 func buildResponse(resp *transportir.ResponseStatus, statusCode int, bodies map[int][]*Schema, rand *expr.ExampleGenerator, closeObjects bool, currentService string, websocketHandshake bool) *Response {
 	body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
 	contentTypes := resp.ContentTypes
-	headers := headersFromAttr(resp.Headers, rand, closeObjects)
+	headers := headersFromIR(resp.Headers, rand, closeObjects)
 	if cookieHeader := responseCookieHeader(resp.Cookies, rand); cookieHeader != nil {
 		if headers == nil {
 			headers = make(map[string]*HeaderRef)
@@ -174,19 +169,19 @@ func buildResponse(resp *transportir.ResponseStatus, statusCode int, bodies map[
 	}
 }
 
-func appendErrorRemedyDescription(desc string, errResp *expr.HTTPErrorExpr) string {
-	if errResp == nil || errResp.ErrorExpr == nil || errResp.ErrorExpr.Remedy == nil {
+func appendErrorRemedyDescription(desc string, errResp *transportir.Error) string {
+	if errResp == nil || errResp.Remedy == nil {
 		return desc
 	}
 	parts := []string{desc}
-	if errResp.ErrorExpr.Remedy.Code != "" {
-		parts = append(parts, "Remedy code: "+errResp.ErrorExpr.Remedy.Code+".")
+	if errResp.Remedy.Code != "" {
+		parts = append(parts, "Remedy code: "+errResp.Remedy.Code+".")
 	}
-	if errResp.ErrorExpr.Remedy.SafeMessage != "" {
-		parts = append(parts, "Safe message: "+trimSentence(errResp.ErrorExpr.Remedy.SafeMessage)+".")
+	if errResp.Remedy.SafeMessage != "" {
+		parts = append(parts, "Safe message: "+trimSentence(errResp.Remedy.SafeMessage)+".")
 	}
-	if errResp.ErrorExpr.Remedy.RetryHint != "" {
-		parts = append(parts, "Retry hint: "+trimSentence(errResp.ErrorExpr.Remedy.RetryHint)+".")
+	if errResp.Remedy.RetryHint != "" {
+		parts = append(parts, "Retry hint: "+trimSentence(errResp.Remedy.RetryHint)+".")
 	}
 	return strings.Join(parts, " ")
 }
@@ -204,31 +199,30 @@ func buildMediaType(attr *expr.AttributeExpr, schema *Schema, rand *expr.Example
 	return mediaType
 }
 
-func headersFromAttr(attr *expr.MappedAttributeExpr, rand *expr.ExampleGenerator, closeObjects bool) map[string]*HeaderRef {
-	if attr == nil {
-		return nil
-	}
-	object := expr.AsObject(attr.Type)
-	if len(*object) == 0 {
+func headersFromIR(headersIR []*transportir.Header, rand *expr.ExampleGenerator, closeObjects bool) map[string]*HeaderRef {
+	if len(headersIR) == 0 {
 		return nil
 	}
 	analyzer := NewAnalyzer(rand, closeObjects)
-	headers := make(map[string]*HeaderRef, len(*object))
-	expr.WalkMappedAttr(attr, func(name, elem string, child *expr.AttributeExpr) error { // nolint: errcheck
+	headers := make(map[string]*HeaderRef, len(headersIR))
+	for _, headerIR := range headersIR {
+		child := headerIR.Attribute
+		if child == nil {
+			continue
+		}
 		header := &Header{
 			Description: child.Description,
-			Required:    child.IsRequiredNoDefault(name),
+			Required:    child.IsRequiredNoDefault(headerIR.Name),
 			Schema:      analyzer.AnalyzeSchema(child),
 			Extensions:  openapi.ExtensionsFromExpr(child.Meta),
 		}
 		initExamples(header, child, rand, closeObjects)
-		headers[elem] = &HeaderRef{Value: header}
-		return nil
-	})
+		headers[headerIR.HTTPName] = &HeaderRef{Value: header}
+	}
 	return headers
 }
 
-func responseCookieHeader(cookies []*expr.HTTPResponseCookieExpr, rand *expr.ExampleGenerator) *Header {
+func responseCookieHeader(cookies []*transportir.Cookie, rand *expr.ExampleGenerator) *Header {
 	if len(cookies) == 0 {
 		return nil
 	}
@@ -241,24 +235,24 @@ func responseCookieHeader(cookies []*expr.HTTPResponseCookieExpr, rand *expr.Exa
 	if len(cookies) == 1 {
 		cookie := cookies[0]
 		header.Description = describeResponseCookie(cookie)
-		header.Example = serializeResponseCookieExample(cookie, cookie.Attribute().Example(rand))
+		header.Example = serializeResponseCookieExample(cookie, cookie.Attribute.Example(rand))
 		return header
 	}
 	header.Description = describeResponseCookies(cookies)
 	header.Examples = make(map[string]*ExampleRef, len(cookies))
 	for _, cookie := range cookies {
-		header.Examples[cookie.HTTPName()] = &ExampleRef{Value: &Example{
-			Summary:     fmt.Sprintf("%s cookie", cookie.HTTPName()),
+		header.Examples[cookie.HTTPName] = &ExampleRef{Value: &Example{
+			Summary:     fmt.Sprintf("%s cookie", cookie.HTTPName),
 			Description: describeResponseCookie(cookie),
-			Value:       serializeResponseCookieExample(cookie, cookie.Attribute().Example(rand)),
+			Value:       serializeResponseCookieExample(cookie, cookie.Attribute.Example(rand)),
 		}}
 	}
 	return header
 }
 
-func describeResponseCookie(cookie *expr.HTTPResponseCookieExpr) string {
-	parts := []string{fmt.Sprintf("Sets the %q cookie.", cookie.HTTPName())}
-	if attr := cookie.Attribute(); attr != nil && attr.Description != "" {
+func describeResponseCookie(cookie *transportir.Cookie) string {
+	parts := []string{fmt.Sprintf("Sets the %q cookie.", cookie.HTTPName)}
+	if attr := cookie.Attribute; attr != nil && attr.Description != "" {
 		parts = append(parts, attr.Description)
 	}
 	if policy := responseCookiePolicy(cookie); policy != "" {
@@ -267,7 +261,7 @@ func describeResponseCookie(cookie *expr.HTTPResponseCookieExpr) string {
 	return strings.Join(parts, " ")
 }
 
-func describeResponseCookies(cookies []*expr.HTTPResponseCookieExpr) string {
+func describeResponseCookies(cookies []*transportir.Cookie) string {
 	lines := make([]string, 0, 1+len(cookies))
 	lines = append(lines, "Set-Cookie headers issued by the server:")
 	for _, cookie := range cookies {
@@ -276,7 +270,7 @@ func describeResponseCookies(cookies []*expr.HTTPResponseCookieExpr) string {
 	return strings.Join(lines, "\n")
 }
 
-func responseCookiePolicy(cookie *expr.HTTPResponseCookieExpr) string {
+func responseCookiePolicy(cookie *transportir.Cookie) string {
 	parts := make([]string, 0, 6)
 	httpCookie := buildResponseHTTPCookie(cookie, "")
 	if httpCookie.Path != "" {
@@ -300,13 +294,13 @@ func responseCookiePolicy(cookie *expr.HTTPResponseCookieExpr) string {
 	return strings.Join(parts, "; ")
 }
 
-func serializeResponseCookieExample(cookie *expr.HTTPResponseCookieExpr, value any) string {
+func serializeResponseCookieExample(cookie *transportir.Cookie, value any) string {
 	return buildResponseHTTPCookie(cookie, fmt.Sprintf("%v", value)).String()
 }
 
-func buildResponseHTTPCookie(cookie *expr.HTTPResponseCookieExpr, value string) *http.Cookie {
+func buildResponseHTTPCookie(cookie *transportir.Cookie, value string) *http.Cookie {
 	httpCookie := &http.Cookie{
-		Name:     cookie.HTTPName(),
+		Name:     cookie.HTTPName,
 		Value:    value,
 		Path:     cookie.Path,
 		Domain:   cookie.Domain,

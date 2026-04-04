@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/openapi/v3/testdata/dsls"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -74,7 +75,7 @@ func TestBuildOperationAddsResponseCookieHeader(t *testing.T) {
 	}
 	require.NotNil(t, endpoint)
 
-	operation := BuildOperation(endpoint, bodyTypes.Services[serviceName]["other"], root.API.ExampleGenerator, false)
+	operation := buildOperation(transportir.BuildEndpoint(endpoint), bodyTypes.Services[serviceName]["other"], root.API.ExampleGenerator, false)
 	require.NotNil(t, operation)
 	require.Contains(t, operation.Responses, "200")
 	require.NotNil(t, operation.Responses["200"])
@@ -104,7 +105,7 @@ func TestBuildOperationSuppressesStreamingResponseExamples(t *testing.T) {
 	}
 	require.NotNil(t, endpoint)
 
-	operation := BuildOperation(endpoint, bodyTypes.Services[serviceName][methodName], root.API.ExampleGenerator, false)
+	operation := buildOperation(transportir.BuildEndpoint(endpoint), bodyTypes.Services[serviceName][methodName], root.API.ExampleGenerator, false)
 	require.NotNil(t, operation)
 	require.Contains(t, operation.Responses, "101")
 	response := operation.Responses["101"]

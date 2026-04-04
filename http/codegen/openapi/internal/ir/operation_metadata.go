@@ -27,18 +27,7 @@ func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBod
 		return nil
 	}
 	endpointIR := transportir.BuildEndpoint(route.Endpoint)
-	routeIndex := routeIndexInEndpoint(route)
-	for _, routeIR := range endpointIR.Routes {
-		if routeIR.Index == routeIndex && routeIR.SourcePath == route.Path {
-			return buildRouteOperationFromIR(endpointIR, routeIR, path, bodies, rand, apiMeta, closeObjects)
-		}
-	}
-	for _, routeIR := range endpointIR.Routes {
-		if routeIR.Path == path {
-			return buildRouteOperationFromIR(endpointIR, routeIR, path, bodies, rand, apiMeta, closeObjects)
-		}
-	}
-	return buildRouteOperationFromIR(endpointIR, endpointIR.Routes[0], path, bodies, rand, apiMeta, closeObjects)
+	return buildRouteOperationFromIR(endpointIR, transportir.RouteForExpr(endpointIR, route, path), path, bodies, rand, apiMeta, closeObjects)
 }
 
 func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transportir.Route, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool) *Operation {
@@ -195,18 +184,6 @@ func buildOperationSecurity(endpointIR *transportir.Endpoint) []map[string][]str
 		return nil
 	}
 	return securityreq.OpenAPI(endpointIR.Security.Requirements)
-}
-
-func routeIndexInEndpoint(route *expr.RouteExpr) int {
-	if route == nil || route.Endpoint == nil {
-		return 0
-	}
-	for index, current := range route.Endpoint.Routes {
-		if current == route {
-			return index
-		}
-	}
-	return 0
 }
 
 func isSecurityParameter(security *transportir.Security, in, name string) bool {

@@ -123,6 +123,12 @@ func (s *clientTypeSections) appendTypeData(section string, data *TypeData, trac
 		return
 	}
 	if _, ok := seen[data.Ref]; ok {
+		if trackInit {
+			s.appendInitData(data.Init)
+		}
+		if data.ValidateDef != "" {
+			recordValidatedType(data, s.seenValidated, &s.validatedTypes)
+		}
 		return
 	}
 	seen[data.Ref] = struct{}{}
