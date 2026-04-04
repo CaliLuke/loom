@@ -1354,7 +1354,7 @@ func (sds *ServicesData) buildTransportElement(
 }
 
 func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*HeaderData {
-	var headers []*HeaderData
+	headers := make([]*HeaderData, 0, len(headersIR))
 	for _, headerIR := range headersIR {
 		name := headerIR.Name
 		elem := headerIR.HTTPName
