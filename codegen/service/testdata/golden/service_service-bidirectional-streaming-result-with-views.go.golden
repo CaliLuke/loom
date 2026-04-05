@@ -5,8 +5,8 @@ type Service interface {
 	// BidirectionalStreamingResultWithViewsMethod implements
 	// BidirectionalStreamingResultWithViewsMethod.
 	// The "view" return value must have one of the following views
-	//	- "default"
-	//	- "tiny"
+	//   - "default"
+	//   - "tiny"
 	BidirectionalStreamingResultWithViewsMethod(context.Context, BidirectionalStreamingResultWithViewsMethodServerStream) (err error)
 }
 

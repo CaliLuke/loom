@@ -1,3 +1,4 @@
+//nolint:errcheck // Generator helpers write only to in-memory buffers/builders.
 package codegen
 
 import (
@@ -68,7 +69,7 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 	// Write validations on attribute if any.
 	validation := validationCode(att, attCtx, req, alias, target, context)
 	if validation != "" {
-		buf.WriteString(validation)
+		fmt.Fprint(buf, validation)
 		first = false
 	}
 
@@ -96,7 +97,7 @@ func appendValidationBlock(buf *bytes.Buffer, first *bool, val string) {
 	} else {
 		*first = false
 	}
-	buf.WriteString(val)
+	fmt.Fprint(buf, val)
 }
 
 func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeExpr, put, ut expr.UserType, isUT bool, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
@@ -252,7 +253,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	// protocol buffer-reserved names that include a trailing underscore
 	// (e.g., Message_). Applying Goify here would drop underscores and
 	// cause mismatches between function declarations and call sites.
-	buf.WriteString(renderUserValidation(name, target))
+	fmt.Fprint(&buf, renderUserValidation(name, target))
 	return fmt.Sprintf("if %s != nil {\n\t%s\n}", target, buf.String())
 }
 
@@ -410,15 +411,15 @@ func renderValidationTemplate(kind string, data map[string]any) string {
 }
 
 func renderEnumValidation(data map[string]any) string {
-	var b strings.Builder
+	var b sourceBuilder
 	if data["isPointer"].(bool) {
-		fmt.Fprintf(&b, "if %s != nil {\n", data["target"])
+		b.Add(fmt.Sprintf("if %s != nil {\n", data["target"]))
 	}
-	fmt.Fprintf(&b, "if !(%s) {\n", oneof(data["targetVal"].(string), data["values"].([]any)))
-	fmt.Fprintf(&b, "\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(%q, %s, %s))\n", data["context"], data["targetVal"], toSlice(data["values"].([]any)))
-	fmt.Fprintf(&b, "}")
+	b.Add(fmt.Sprintf("if !(%s) {\n", oneof(data["targetVal"].(string), data["values"].([]any))))
+	b.Add(fmt.Sprintf("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(%q, %s, %s))\n", data["context"], data["targetVal"], toSlice(data["values"].([]any))))
+	b.Add("}")
 	if data["isPointer"].(bool) {
-		fmt.Fprintf(&b, "\n}")
+		b.Add("\n}")
 	}
 	return strings.Trim(b.String(), "\n")
 }
@@ -517,17 +518,17 @@ func renderRequiredValidation(data map[string]any) string {
 }
 
 func renderArrayValidation(target, validation string, nonNullable bool, context string) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "for _, e := range %s {\n", target)
+	var b sourceBuilder
+	b.Add(fmt.Sprintf("for _, e := range %s {\n", target))
 	if nonNullable {
-		fmt.Fprintf(&b, "\tif e == nil {\n")
-		fmt.Fprintf(&b, "\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, \"[*]\"))\n", context)
-		fmt.Fprintf(&b, "\t}\n")
+		b.Add("\tif e == nil {\n")
+		b.Add(fmt.Sprintf("\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, \"[*]\"))\n", context))
+		b.Add("\t}\n")
 	}
 	if validation != "" {
-		b.WriteString(indentCode(validation))
+		b.Add(indentCode(validation))
 	}
-	fmt.Fprintf(&b, "}")
+	b.Add("}")
 	return b.String()
 }
 
@@ -540,31 +541,31 @@ func renderMapValidation(target, keyValidation, valueValidation string) string {
 	if valueValidation != "" {
 		valueVar = "v"
 	}
-	var b strings.Builder
+	var b sourceBuilder
 	fmt.Fprintf(&b, "for %s, %s := range %s {\n", keyVar, valueVar, target)
 	if keyValidation != "" {
-		b.WriteString(indentCode(strings.TrimPrefix(keyValidation, "\n")))
+		b.Add(indentCode(strings.TrimPrefix(keyValidation, "\n")))
 	}
 	if valueValidation != "" {
-		b.WriteString(indentCode(strings.TrimPrefix(valueValidation, "\n")))
+		b.Add(indentCode(strings.TrimPrefix(valueValidation, "\n")))
 	}
-	fmt.Fprintf(&b, "}")
+	b.Add("}")
 	return b.String()
 }
 
 func renderUnionValidation(target string, types, values []string) string {
-	var b strings.Builder
+	var b sourceBuilder
 	fmt.Fprintf(&b, "switch v := %s.(type) {\n", target)
 	for i, val := range values {
 		fmt.Fprintf(&b, "case %s:\n", types[i])
-		b.WriteString(indentCode(val))
+		b.Add(indentCode(val))
 	}
 	fmt.Fprintf(&b, "}")
 	return b.String()
 }
 
 func renderUnionSumValidation(target string, cases []map[string]any) string {
-	var b strings.Builder
+	var b sourceBuilder
 	fmt.Fprintf(&b, "switch string(%s.Kind()) {\n", target)
 	for _, c := range cases {
 		fmt.Fprintf(&b, "case %q:\n", c["typeTag"])
@@ -575,7 +576,7 @@ func renderUnionSumValidation(target string, cases []map[string]any) string {
 			fmt.Fprintf(&b, "\t\tbreak\n")
 			fmt.Fprintf(&b, "\t}\n")
 		}
-		b.WriteString(indentCode(c["validation"].(string)))
+		b.Add(indentCode(c["validation"].(string)))
 	}
 	fmt.Fprintf(&b, "}")
 	return b.String()

@@ -1,3 +1,4 @@
+//nolint:errcheck // Generator helpers write only to in-memory buffers/builders.
 package codegen
 
 import (
@@ -198,7 +199,7 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	}
 	tname := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
 	fmt.Fprintf(buffer, "%s %s %s%s{%s}\n", targetVar, assign, deref, tname, initCode)
-	buffer.WriteString(postInitCode)
+	fmt.Fprint(buffer, postInitCode)
 
 	var err error
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
@@ -207,7 +208,7 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 			err = fieldErr
 			return
 		}
-		buffer.WriteString(code)
+		fmt.Fprint(buffer, code)
 	})
 	if err != nil {
 		return "", err
@@ -526,8 +527,8 @@ func writeTransformArrayLoop(buf *bytes.Buffer, loopVar, rangeOn, valVar, elemCo
 	} else {
 		fmt.Fprintf(buf, "for %s := range %s {\n", loopVar, rangeOn)
 	}
-	buf.WriteString(codegen.Indent(elemCode, "\t"))
-	buf.WriteString("}\n")
+	fmt.Fprint(buf, codegen.Indent(elemCode, "\t"))
+	fmt.Fprint(buf, "}\n")
 }
 
 // transformMap returns the code to transform source attribute of map
@@ -548,21 +549,21 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	loopVar, suffix := transformMapLoopNames(target)
 	mapVar, initCode := transformMapInit(targetVar, sourceVar, targetPtr, targetKeyRef, targetElemRef, newVar, loopVar)
 	var buf bytes.Buffer
-	buf.WriteString(initCode)
+	fmt.Fprint(&buf, initCode)
 	fmt.Fprintf(&buf, "for key, val := range %s {\n", sourceVar)
 	keyCode, err := transformAttribute(source.KeyType, target.KeyType, "key", "tk", true, ta)
 	if err != nil {
 		return "", err
 	}
-	buf.WriteString(codegen.Indent(keyCode, "\t"))
+	fmt.Fprint(&buf, codegen.Indent(keyCode, "\t"))
 	elemTmp := fmt.Sprintf("tv%s", suffix)
 	elemCode, err := transformAttribute(src, tgt, "val", elemTmp, true, ta)
 	if err != nil {
 		return "", err
 	}
-	buf.WriteString(codegen.Indent(elemCode, "\t"))
+	fmt.Fprint(&buf, codegen.Indent(elemCode, "\t"))
 	fmt.Fprintf(&buf, "\t%s[tk] = %s\n", mapVar, elemTmp)
-	buf.WriteString("}\n")
+	fmt.Fprint(&buf, "}\n")
 	if targetPtr {
 		fmt.Fprintf(&buf, "%s = &%s\n", targetVar, mapVar)
 	}
@@ -675,7 +676,7 @@ func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, target
 		val := convertType(c["sourceAttr"].(*expr.AttributeExpr), c["targetAttr"].(*expr.AttributeExpr), false, false, "actual", ta)
 		fmt.Fprintf(&buf, "\t%s = &%s{%s: %s}\n", targetVar, c["targetWrapperType"], c["targetFieldName"], val)
 	}
-	buf.WriteString("}\n")
+	fmt.Fprint(&buf, "}\n")
 	return buf.String(), nil
 }
 
@@ -706,13 +707,13 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 		fmt.Fprintf(&buf, "case %s:\n", c["sourceValueTypeRef"])
 		field := "val." + c["sourceFieldName"].(string)
 		tmp := convertType(c["sourceAttr"].(*expr.AttributeExpr), c["targetAttr"].(*expr.AttributeExpr), false, false, field, ta)
-		buf.WriteString("\t{\n")
+		fmt.Fprint(&buf, "\t{\n")
 		fmt.Fprintf(&buf, "\t\tu := %s\n", targetVar)
 		fmt.Fprintf(&buf, "\t\tu.Set%s(%s)\n", c["targetFieldName"], tmp)
 		fmt.Fprintf(&buf, "\t\t%s = u\n", targetVar)
-		buf.WriteString("\t}\n")
+		fmt.Fprint(&buf, "\t}\n")
 	}
-	buf.WriteString("}\n")
+	fmt.Fprint(&buf, "}\n")
 	return buf.String(), nil
 }
 

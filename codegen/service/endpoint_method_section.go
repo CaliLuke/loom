@@ -2,342 +2,395 @@ package service
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
 )
 
 func endpointMethodSection(method *EndpointMethodData) codegen.Section {
-	return codegen.NewRawSection("endpoint-method", renderEndpointMethod(method))
+	return codegen.MustJenniferSection("endpoint-method", func(stmt *jen.Statement) {
+		stmt.Line()
+		codegen.Doc(stmt, fmt.Sprintf("New%sEndpoint returns an endpoint function that calls the method %q of service %q.", method.VarName, method.Name, method.ServiceName))
+		stmt.Func().Id("New" + method.VarName + "Endpoint").ParamsFunc(func(group *jen.Group) {
+			group.Id("s").Id(method.ServiceVarName)
+			for _, scheme := range method.Schemes.DedupeByType() {
+				group.Id("auth" + scheme.Type + "Fn").Add(codegen.Expr("security.Auth" + scheme.Type + "Func"))
+			}
+		}).Add(codegen.Expr("loom.Endpoint")).Block(
+			jen.Return(
+				jen.Func().Params(
+					jen.Id("ctx").Qual("context", "Context"),
+					jen.Id("req").Any(),
+				).Params(
+					jen.Any(),
+					jen.Error(),
+				).BlockFunc(func(group *jen.Group) {
+					switch {
+					case method.ServerStream != nil:
+						if method.ServerStream.EndpointStruct != "" {
+							group.Id("ep").Op(":=").Id("req").Assert(jen.Op("*").Id(method.ServerStream.EndpointStruct))
+						}
+					case method.SkipRequestBodyEncodeDecode:
+						group.Id("ep").Op(":=").Id("req").Assert(jen.Op("*").Id(method.RequestStruct))
+					case method.PayloadRef != "":
+						group.Id("p").Op(":=").Id("req").Assert(codegen.TypeRef(method.PayloadRef))
+					}
+
+					payload := payloadVar(method)
+					if len(method.Requirements) > 0 {
+						buildEndpointAuth(group, method, payload)
+					}
+
+					switch {
+					case method.ServerStream != nil:
+						buildStreamingEndpointInvocation(group, method, payload)
+					case method.SkipRequestBodyEncodeDecode:
+						buildSkipRequestEndpointInvocation(group, method)
+					case method.ViewedResult != nil:
+						buildViewedResultEndpointInvocation(group, method, payload)
+					case method.SkipResponseBodyEncodeDecode:
+						buildSkipResponseEndpointInvocation(group, method, payload)
+					default:
+						buildDefaultEndpointInvocation(group, method, payload)
+					}
+				}),
+			),
+		)
+		stmt.Line()
+	})
 }
 
-func renderEndpointMethod(method *EndpointMethodData) string {
-	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(codegen.Comment(fmt.Sprintf("New%sEndpoint returns an endpoint function that calls the method %q of service %q.", method.VarName, method.Name, method.ServiceName)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func New%sEndpoint(s %s", method.VarName, method.ServiceVarName)
-	for _, scheme := range method.Schemes.DedupeByType() {
-		fmt.Fprintf(&b, ", auth%sFn security.Auth%sFunc", scheme.Type, scheme.Type)
-	}
-	b.WriteString(") loom.Endpoint {\n")
-	b.WriteString("\treturn func(ctx context.Context, req any) (any, error) {\n")
-
-	switch {
-	case method.ServerStream != nil:
-		if method.ServerStream.EndpointStruct != "" {
-			fmt.Fprintf(&b, "\t\tep := req.(*%s)\n", method.ServerStream.EndpointStruct)
-		}
-	case method.SkipRequestBodyEncodeDecode:
-		fmt.Fprintf(&b, "\t\tep := req.(*%s)\n", method.RequestStruct)
-	case method.PayloadRef != "":
-		fmt.Fprintf(&b, "\t\tp := req.(%s)\n", method.PayloadRef)
-	}
-
-	payload := payloadVar(method)
-	if len(method.Requirements) > 0 {
-		b.WriteString(renderEndpointAuth(method, payload))
-	}
-
-	switch {
-	case method.ServerStream != nil:
-		b.WriteString(renderStreamingEndpointInvocation(method, payload))
-	case method.SkipRequestBodyEncodeDecode:
-		b.WriteString(renderSkipRequestEndpointInvocation(method))
-	case method.ViewedResult != nil:
-		b.WriteString(renderViewedResultEndpointInvocation(method, payload))
-	case method.SkipResponseBodyEncodeDecode:
-		b.WriteString(renderSkipResponseEndpointInvocation(method, payload))
-	default:
-		b.WriteString(renderDefaultEndpointInvocation(method, payload))
-	}
-
-	b.WriteString("\t}\n}\n")
-	return b.String()
-}
-
-func renderEndpointAuth(method *EndpointMethodData, payload string) string {
-	var b strings.Builder
-	b.WriteString("\t\tvar err error\n")
+func buildEndpointAuth(group *jen.Group, method *EndpointMethodData, payload string) {
+	group.Var().Id("err").Error()
 	for ridx, req := range method.Requirements {
 		if ridx != 0 {
-			b.WriteString("\t\tif err != nil {\n")
+			group.If(jen.Id("err").Op("!=").Nil()).BlockFunc(func(nested *jen.Group) {
+				buildRequirementSchemes(nested, req, payload)
+			})
+			continue
 		}
-		for sidx, scheme := range req.Schemes {
-			if sidx != 0 {
-				b.WriteString("\t\t\tif err == nil {\n")
-			}
-			renderSchemeAuth(&b, req, scheme, payload)
-			if sidx != 0 {
-				b.WriteString("\t\t\t}\n")
-			}
-		}
-		if ridx != 0 {
-			b.WriteString("\t\t}\n")
-		}
+		buildRequirementSchemes(group, req, payload)
 	}
-	b.WriteString("\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n")
-	return b.String()
+	group.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id("err")),
+	)
 }
 
-func renderSchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload string) {
+func buildRequirementSchemes(group *jen.Group, req *RequirementData, payload string) {
+	for sidx, scheme := range req.Schemes {
+		if sidx != 0 {
+			group.If(jen.Id("err").Op("==").Nil()).BlockFunc(func(nested *jen.Group) {
+				buildSchemeAuth(nested, req, scheme, payload)
+			})
+			continue
+		}
+		buildSchemeAuth(group, req, scheme, payload)
+	}
+}
+
+func buildSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload string) {
 	switch scheme.Type {
 	case "Basic":
-		renderBasicSchemeAuth(b, req, scheme, payload)
+		buildBasicSchemeAuth(group, req, scheme, payload)
 	case "APIKey":
-		renderCredentialSchemeAuth(b, req, scheme, payload, "APIKey", "key")
+		buildCredentialSchemeAuth(group, req, scheme, payload, "APIKey", "key")
 	case "JWT":
-		renderCredentialSchemeAuth(b, req, scheme, payload, "JWT", "token")
+		buildCredentialSchemeAuth(group, req, scheme, payload, "JWT", "token")
 	case "OAuth2":
-		renderOAuth2SchemeAuth(b, req, scheme, payload)
+		buildOAuth2SchemeAuth(group, req, scheme, payload)
 	}
 }
 
-func renderBasicSchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload string) {
-	renderSchemeHeader(b, "BasicScheme", scheme.SchemeName, scheme.Scopes, req.Scopes)
-	renderPointerStringBinding(b, "user", payload, scheme.UsernameField, scheme.UsernamePointer)
-	renderPointerStringBinding(b, "pass", payload, scheme.PasswordField, scheme.PasswordPointer)
-	userExpr := payload + "." + scheme.UsernameField
-	passExpr := payload + "." + scheme.PasswordField
-	if scheme.UsernamePointer {
-		userExpr = "user"
-	}
-	if scheme.PasswordPointer {
-		passExpr = "pass"
-	}
-	fmt.Fprintf(b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, %s, &sc)\n", scheme.Type, userExpr, passExpr)
+func buildBasicSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload string) {
+	buildSchemeStruct(group, "BasicScheme", scheme.SchemeName, scheme.Scopes, req.Scopes, nil)
+	buildPointerStringBinding(group, "user", payload, scheme.UsernameField, scheme.UsernamePointer)
+	buildPointerStringBinding(group, "pass", payload, scheme.PasswordField, scheme.PasswordPointer)
+	userExpr := payloadFieldExpr(payload, scheme.UsernameField, scheme.UsernamePointer, "user")
+	passExpr := payloadFieldExpr(payload, scheme.PasswordField, scheme.PasswordPointer, "pass")
+	group.List(jen.Id("ctx"), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
+		jen.Id("ctx"),
+		userExpr,
+		passExpr,
+		jen.Op("&").Id("sc"),
+	)
 }
 
-func renderCredentialSchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload, schemeStruct, tempVar string) {
-	renderSchemeHeader(b, schemeStruct+"Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes)
+func buildCredentialSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, schemeStruct, tempVar string) {
+	buildSchemeStruct(group, schemeStruct+"Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes, nil)
 	if scheme.TransportOwned {
-		fmt.Fprintf(b, "\t\t\t\tctx, err = auth%sFn(ctx, %q, &sc)\n", scheme.Type, "")
+		group.List(jen.Id("ctx"), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
+			jen.Id("ctx"),
+			jen.Lit(""),
+			jen.Op("&").Id("sc"),
+		)
 		return
 	}
-	renderPointerStringBinding(b, tempVar, payload, scheme.CredField, scheme.CredPointer)
-	expr := payload + "." + scheme.CredField
-	if scheme.CredPointer {
-		expr = tempVar
-	}
-	fmt.Fprintf(b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, &sc)\n", scheme.Type, expr)
+	buildPointerStringBinding(group, tempVar, payload, scheme.CredField, scheme.CredPointer)
+	expr := payloadFieldExpr(payload, scheme.CredField, scheme.CredPointer, tempVar)
+	group.List(jen.Id("ctx"), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
+		jen.Id("ctx"),
+		expr,
+		jen.Op("&").Id("sc"),
+	)
 }
 
-func renderOAuth2SchemeAuth(b *strings.Builder, req *RequirementData, scheme *SchemeData, payload string) {
-	renderSchemeHeaderStart(b, "OAuth2Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes)
-	renderOAuth2Flows(b, scheme)
-	b.WriteString("\t\t\t\t}\n")
-	renderPointerStringBinding(b, "token", payload, scheme.CredField, scheme.CredPointer)
-	expr := payload + "." + scheme.CredField
-	if scheme.CredPointer {
-		expr = "token"
-	}
-	fmt.Fprintf(b, "\t\t\t\tctx, err = auth%sFn(ctx, %s, &sc)\n", scheme.Type, expr)
+func buildOAuth2SchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload string) {
+	buildSchemeStruct(group, "OAuth2Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes, func(values *jen.Group) {
+		if len(scheme.Flows) == 0 {
+			return
+		}
+		values.Id("Flows").Op(":").Index().Op("*").Add(codegen.Expr("security.OAuthFlow")).CustomFunc(multilineValues, func(flows *jen.Group) {
+			for _, flow := range scheme.Flows {
+				flows.Op("&").Add(codegen.Expr("security.OAuthFlow")).CustomFunc(multilineValues, func(fields *jen.Group) {
+					fields.Id("Type").Op(":").Lit(flow.Type())
+					if flow.AuthorizationURL != "" {
+						fields.Id("AuthorizationURL").Op(":").Lit(flow.AuthorizationURL)
+					}
+					if flow.TokenURL != "" {
+						fields.Id("TokenURL").Op(":").Lit(flow.TokenURL)
+					}
+					if flow.RefreshURL != "" {
+						fields.Id("RefreshURL").Op(":").Lit(flow.RefreshURL)
+					}
+				})
+			}
+		})
+	})
+	buildPointerStringBinding(group, "token", payload, scheme.CredField, scheme.CredPointer)
+	expr := payloadFieldExpr(payload, scheme.CredField, scheme.CredPointer, "token")
+	group.List(jen.Id("ctx"), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
+		jen.Id("ctx"),
+		expr,
+		jen.Op("&").Id("sc"),
+	)
 }
 
-func renderSchemeHeader(b *strings.Builder, schemeType, schemeName string, scopes, requiredScopes []string) {
-	renderSchemeHeaderStart(b, schemeType, schemeName, scopes, requiredScopes)
-	b.WriteString("\t\t\t\t}\n")
+func buildSchemeStruct(group *jen.Group, schemeType, schemeName string, scopes, requiredScopes []string, extra func(*jen.Group)) {
+	group.Id("sc").Op(":=").Add(codegen.Expr("security."+schemeType)).CustomFunc(multilineValues, func(values *jen.Group) {
+		values.Id("Name").Op(":").Lit(schemeName)
+		values.Id("Scopes").Op(":").Index().String().ValuesFunc(func(items *jen.Group) {
+			for _, scope := range scopes {
+				items.Lit(scope)
+			}
+		})
+		values.Id("RequiredScopes").Op(":").Index().String().ValuesFunc(func(items *jen.Group) {
+			for _, scope := range requiredScopes {
+				items.Lit(scope)
+			}
+		})
+		if extra != nil {
+			extra(values)
+		}
+	})
 }
 
-func renderSchemeHeaderStart(b *strings.Builder, schemeType, schemeName string, scopes, requiredScopes []string) {
-	fmt.Fprintf(b, "\t\t\t\tsc := security.%s{\n", schemeType)
-	fmt.Fprintf(b, "\t\t\t\t\tName: %q,\n", schemeName)
-	renderScopeSlice(b, "\t\t\t\t\tScopes", scopes)
-	renderScopeSlice(b, "\t\t\t\t\tRequiredScopes", requiredScopes)
-}
-
-func renderScopeSlice(b *strings.Builder, field string, scopes []string) {
-	fmt.Fprintf(b, "%s: []string{", field)
-	for _, scope := range scopes {
-		fmt.Fprintf(b, " %q,", scope)
-	}
-	b.WriteString(" },\n")
-}
-
-func renderPointerStringBinding(b *strings.Builder, tempVar, payload, field string, isPointer bool) {
+func buildPointerStringBinding(group *jen.Group, tempVar, payload, field string, isPointer bool) {
 	if !isPointer {
 		return
 	}
-	fmt.Fprintf(b, "\t\t\t\tvar %s string\n", tempVar)
-	fmt.Fprintf(b, "\t\t\t\tif %s.%s != nil {\n", payload, field)
-	fmt.Fprintf(b, "\t\t\t\t\t%s = *%s.%s\n", tempVar, payload, field)
-	b.WriteString("\t\t\t\t}\n")
+	group.Var().Id(tempVar).String()
+	group.If(jen.Add(codegen.Expr(payload)).Dot(field).Op("!=").Nil()).Block(
+		jen.Id(tempVar).Op("=").Op("*").Add(codegen.Expr(payload)).Dot(field),
+	)
 }
 
-func renderOAuth2Flows(b *strings.Builder, scheme *SchemeData) {
-	if len(scheme.Flows) == 0 {
-		return
+func payloadFieldExpr(payload, field string, isPointer bool, tempVar string) *jen.Statement {
+	if isPointer {
+		return jen.Id(tempVar)
 	}
-	b.WriteString("\t\t\t\t\tFlows: []*security.OAuthFlow{\n")
-	for _, flow := range scheme.Flows {
-		b.WriteString("\t\t\t\t\t\t&security.OAuthFlow{\n")
-		fmt.Fprintf(b, "\t\t\t\t\t\t\tType: %q,\n", flow.Type())
-		if flow.AuthorizationURL != "" {
-			fmt.Fprintf(b, "\t\t\t\t\t\t\tAuthorizationURL: %q,\n", flow.AuthorizationURL)
-		}
-		if flow.TokenURL != "" {
-			fmt.Fprintf(b, "\t\t\t\t\t\t\tTokenURL: %q,\n", flow.TokenURL)
-		}
-		if flow.RefreshURL != "" {
-			fmt.Fprintf(b, "\t\t\t\t\t\t\tRefreshURL: %q,\n", flow.RefreshURL)
-		}
-		b.WriteString("\t\t\t\t\t\t},\n")
-	}
-	b.WriteString("\t\t\t\t\t},\n")
+	return jen.Add(codegen.Expr(payload)).Dot(field)
 }
 
-func renderStreamingEndpointInvocation(method *EndpointMethodData, payload string) string {
-	var b strings.Builder
+func buildStreamingEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
 	if method.ServerStream.EndpointStruct != "" {
 		if method.HasMixedResults {
-			b.WriteString("\t\t")
+			lhs := []jen.Code{}
 			if method.ResultRef != "" {
-				b.WriteString("res, ")
+				lhs = append(lhs, jen.Id("res"))
 			}
 			if method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
-				b.WriteString("view, ")
+				lhs = append(lhs, jen.Id("view"))
 			}
-			b.WriteString("err := s." + method.VarName + "(ctx")
-			if method.PayloadRef != "" {
-				b.WriteString(", " + payload)
-			}
-			b.WriteString(", ep.Stream)\n")
-			b.WriteString("\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n")
-			if method.ViewedResult != nil {
-				viewExpr := fmt.Sprintf("%q", method.ViewedResult.ViewName)
-				if method.ViewedResult.ViewName == "" {
-					viewExpr = "view"
+			lhs = append(lhs, jen.Id("err"))
+			group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+				args.Id("ctx")
+				if method.PayloadRef != "" {
+					args.Add(codegen.Expr(payload))
 				}
-				fmt.Fprintf(&b, "\t\tvres := %s(res, %s)\n\t\treturn vres, nil\n", method.ViewedResult.Init.Name, viewExpr)
-			} else {
-				b.WriteString("\t\treturn res, nil\n")
+				args.Id("ep").Dot("Stream")
+			})
+			group.If(jen.Id("err").Op("!=").Nil()).Block(
+				jen.Return(jen.Nil(), jen.Id("err")),
+			)
+			if method.ViewedResult != nil {
+				viewExpr := jen.Lit(method.ViewedResult.ViewName)
+				if method.ViewedResult.ViewName == "" {
+					viewExpr = jen.Id("view")
+				}
+				group.Id("vres").Op(":=").Id(method.ViewedResult.Init.Name).Call(
+					jen.Id("res"),
+					viewExpr,
+				)
+				group.Return(jen.Id("vres"), jen.Nil())
+				return
 			}
-			return b.String()
+			group.Return(jen.Id("res"), jen.Nil())
+			return
 		}
-		b.WriteString("\t\treturn nil, s." + method.VarName + "(ctx")
-		if method.PayloadRef != "" {
-			b.WriteString(", " + payload)
-		}
-		b.WriteString(", ep.Stream)\n")
-		return b.String()
+		group.Return(
+			jen.Nil(),
+			jen.Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+				args.Id("ctx")
+				if method.PayloadRef != "" {
+					args.Add(codegen.Expr(payload))
+				}
+				args.Id("ep").Dot("Stream")
+			}),
+		)
+		return
 	}
 	if method.PayloadRef != "" {
-		fmt.Fprintf(&b, "\t\tp := req.(%s)\n", method.PayloadRef)
+		group.Id("p").Op(":=").Id("req").Assert(codegen.TypeRef(method.PayloadRef))
 		if method.ResultRef != "" {
-			fmt.Fprintf(&b, "\t\treturn s.%s(ctx, p)\n", method.VarName)
-		} else {
-			fmt.Fprintf(&b, "\t\treturn nil, s.%s(ctx, p)\n", method.VarName)
+			group.Return(jen.Id("s").Dot(method.VarName).Call(jen.Id("ctx"), jen.Id("p")))
+			return
 		}
-		return b.String()
+		group.Return(jen.Nil(), jen.Id("s").Dot(method.VarName).Call(jen.Id("ctx"), jen.Id("p")))
+		return
 	}
 	if method.ResultRef != "" {
-		fmt.Fprintf(&b, "\t\treturn s.%s(ctx)\n", method.VarName)
-	} else {
-		fmt.Fprintf(&b, "\t\treturn nil, s.%s(ctx)\n", method.VarName)
+		group.Return(jen.Id("s").Dot(method.VarName).Call(jen.Id("ctx")))
+		return
 	}
-	return b.String()
+	group.Return(jen.Nil(), jen.Id("s").Dot(method.VarName).Call(jen.Id("ctx")))
 }
 
-func renderSkipRequestEndpointInvocation(method *EndpointMethodData) string {
-	var b strings.Builder
+func buildSkipRequestEndpointInvocation(group *jen.Group, method *EndpointMethodData) {
 	if method.SkipResponseBodyEncodeDecode {
-		b.WriteString("\t\t")
+		lhs := []jen.Code{}
 		if method.ResultRef != "" {
-			b.WriteString("res, ")
+			lhs = append(lhs, jen.Id("res"))
 		}
-		b.WriteString("body, err := s." + method.VarName + "(ctx")
-		if method.PayloadRef != "" {
-			b.WriteString(", ep.Payload")
-		}
-		b.WriteString(", ep.Body)\n")
-		b.WriteString("\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n")
-		fmt.Fprintf(&b, "\t\treturn &%s{ ", method.ResponseStruct)
-		if method.ResultRef != "" {
-			b.WriteString("Result: res, ")
-		}
-		b.WriteString("Body: body }, nil\n")
-		return b.String()
+		lhs = append(lhs, jen.Id("body"), jen.Id("err"))
+		group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+			args.Id("ctx")
+			if method.PayloadRef != "" {
+				args.Id("ep").Dot("Payload")
+			}
+			args.Id("ep").Dot("Body")
+		})
+		group.If(jen.Id("err").Op("!=").Nil()).Block(
+			jen.Return(jen.Nil(), jen.Id("err")),
+		)
+		group.Return(
+			jen.Op("&").Id(method.ResponseStruct).ValuesFunc(func(values *jen.Group) {
+				if method.ResultRef != "" {
+					values.Id("Result").Op(":").Id("res")
+				}
+				values.Id("Body").Op(":").Id("body")
+			}),
+			jen.Nil(),
+		)
+		return
 	}
 	if method.ViewedResult != nil {
-		b.WriteString("\t\tres, ")
+		lhs := []jen.Code{jen.Id("res")}
 		if method.ViewedResult.ViewName == "" {
-			b.WriteString("view, ")
+			lhs = append(lhs, jen.Id("view"))
 		}
-		b.WriteString("err := s." + method.VarName + "(ctx")
+		lhs = append(lhs, jen.Id("err"))
+		group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+			args.Id("ctx")
+			if method.PayloadRef != "" {
+				args.Id("ep").Dot("Payload")
+			}
+			args.Id("ep").Dot("Body")
+		})
+		group.If(jen.Id("err").Op("!=").Nil()).Block(
+			jen.Return(jen.Nil(), jen.Id("err")),
+		)
+		viewExpr := jen.Lit(method.ViewedResult.ViewName)
+		if method.ViewedResult.ViewName == "" {
+			viewExpr = jen.Id("view")
+		}
+		group.Id("vres").Op(":=").Id(method.ViewedResult.Init.Name).Call(jen.Id("res"), viewExpr)
+		group.Return(jen.Id("vres"), jen.Nil())
+		return
+	}
+	returnExprs := []jen.Code{}
+	if method.ResultRef == "" {
+		returnExprs = append(returnExprs, jen.Nil())
+	}
+	returnExprs = append(returnExprs, jen.Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+		args.Id("ctx")
 		if method.PayloadRef != "" {
-			b.WriteString(", ep.Payload")
+			args.Id("ep").Dot("Payload")
 		}
-		b.WriteString(", ep.Body)\n")
-		b.WriteString("\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n")
-		viewExpr := fmt.Sprintf("%q", method.ViewedResult.ViewName)
-		if method.ViewedResult.ViewName == "" {
-			viewExpr = "view"
+		args.Id("ep").Dot("Body")
+	}))
+	group.Return(returnExprs...)
+}
+
+func buildViewedResultEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
+	lhs := []jen.Code{jen.Id("res")}
+	if method.ViewedResult.ViewName == "" {
+		lhs = append(lhs, jen.Id("view"))
+	}
+	lhs = append(lhs, jen.Id("err"))
+	group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+		args.Id("ctx")
+		if method.PayloadRef != "" {
+			args.Add(codegen.Expr(payload))
 		}
-		fmt.Fprintf(&b, "\t\tvres := %s(res, %s)\n\t\treturn vres, nil\n", method.ViewedResult.Init.Name, viewExpr)
-		return b.String()
-	}
-	b.WriteString("\t\treturn ")
-	if method.ResultRef == "" {
-		b.WriteString("nil, ")
-	}
-	b.WriteString("s." + method.VarName + "(ctx")
-	if method.PayloadRef != "" {
-		b.WriteString(", ep.Payload")
-	}
-	b.WriteString(", ep.Body)\n")
-	return b.String()
-}
-
-func renderViewedResultEndpointInvocation(method *EndpointMethodData, payload string) string {
-	var b strings.Builder
-	b.WriteString("\t\tres, ")
+	})
+	group.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id("err")),
+	)
+	viewExpr := jen.Lit(method.ViewedResult.ViewName)
 	if method.ViewedResult.ViewName == "" {
-		b.WriteString("view, ")
+		viewExpr = jen.Id("view")
 	}
-	b.WriteString("err := s." + method.VarName + "(ctx")
-	if method.PayloadRef != "" {
-		b.WriteString(", " + payload)
-	}
-	b.WriteString(")\n")
-	b.WriteString("\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n")
-	viewExpr := fmt.Sprintf("%q", method.ViewedResult.ViewName)
-	if method.ViewedResult.ViewName == "" {
-		viewExpr = "view"
-	}
-	fmt.Fprintf(&b, "\t\tvres := %s(res, %s)\n\t\treturn vres, nil\n", method.ViewedResult.Init.Name, viewExpr)
-	return b.String()
+	group.Id("vres").Op(":=").Id(method.ViewedResult.Init.Name).Call(jen.Id("res"), viewExpr)
+	group.Return(jen.Id("vres"), jen.Nil())
 }
 
-func renderSkipResponseEndpointInvocation(method *EndpointMethodData, payload string) string {
-	var b strings.Builder
-	b.WriteString("\t\t")
+func buildSkipResponseEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
+	lhs := []jen.Code{}
 	if method.ResultRef != "" {
-		b.WriteString("res, ")
+		lhs = append(lhs, jen.Id("res"))
 	}
-	b.WriteString("body, err := s." + method.VarName + "(ctx")
-	if method.PayloadRef != "" {
-		b.WriteString(", " + payload)
-	}
-	b.WriteString(")\n")
-	b.WriteString("\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n")
-	fmt.Fprintf(&b, "\t\treturn &%s{ ", method.ResponseStruct)
-	if method.ResultRef != "" {
-		b.WriteString("Result: res, ")
-	}
-	b.WriteString("Body: body }, nil\n")
-	return b.String()
+	lhs = append(lhs, jen.Id("body"), jen.Id("err"))
+	group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+		args.Id("ctx")
+		if method.PayloadRef != "" {
+			args.Add(codegen.Expr(payload))
+		}
+	})
+	group.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id("err")),
+	)
+	group.Return(
+		jen.Op("&").Id(method.ResponseStruct).ValuesFunc(func(values *jen.Group) {
+			if method.ResultRef != "" {
+				values.Id("Result").Op(":").Id("res")
+			}
+			values.Id("Body").Op(":").Id("body")
+		}),
+		jen.Nil(),
+	)
 }
 
-func renderDefaultEndpointInvocation(method *EndpointMethodData, payload string) string {
-	var b strings.Builder
-	b.WriteString("\t\treturn ")
+func buildDefaultEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
+	returnExprs := []jen.Code{}
 	if method.ResultRef == "" {
-		b.WriteString("nil, ")
+		returnExprs = append(returnExprs, jen.Nil())
 	}
-	b.WriteString("s." + method.VarName + "(ctx")
-	if method.PayloadRef != "" {
-		b.WriteString(", " + payload)
-	}
-	b.WriteString(")\n")
-	return b.String()
+	returnExprs = append(returnExprs, jen.Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+		args.Id("ctx")
+		if method.PayloadRef != "" {
+			args.Add(codegen.Expr(payload))
+		}
+	}))
+	group.Return(returnExprs...)
 }

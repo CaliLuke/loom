@@ -3,9 +3,9 @@
 type Service interface {
 	// A implements A.
 	// The "view" return value must have one of the following views
-	//	- "default"
-	//	- "extended"
-	//	- "tiny"
+	//   - "default"
+	//   - "extended"
+	//   - "tiny"
 	A(context.Context) (res *RT, view string, err error)
 }
 

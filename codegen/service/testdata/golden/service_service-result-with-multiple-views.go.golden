@@ -3,8 +3,8 @@
 type Service interface {
 	// A implements A.
 	// The "view" return value must have one of the following views
-	//	- "default"
-	//	- "tiny"
+	//   - "default"
+	//   - "tiny"
 	A(context.Context, *APayload) (res *MultipleViews, view string, err error)
 	// B implements B.
 	B(context.Context) (res *SingleView, err error)

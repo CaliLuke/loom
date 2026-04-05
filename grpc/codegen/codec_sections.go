@@ -1,3 +1,4 @@
+//nolint:errcheck // Generator helpers write only to in-memory builders.
 package codegen
 
 import (
@@ -36,79 +37,79 @@ func grpcRequestDecoderSection(endpoint *EndpointData) codegen.Section {
 }
 
 func renderGRPCRequestEncoder(endpoint *EndpointData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("Encode%sRequest encodes requests sent to %s %s endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name)))
 	fmt.Fprintf(&b, "func Encode%sRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	fmt.Fprintf(&b, "\tpayload, ok := v.(%s)\n", endpoint.PayloadRef)
-	b.WriteString("\tif !ok {\n")
+	b.Add("\tif !ok {\n")
 	fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.PayloadRef)
-	b.WriteString("\t}\n")
+	b.Add("\t}\n")
 	for _, md := range endpoint.Request.Metadata {
-		b.WriteString(renderGRPCMetadataAppend(md, "payload", endpoint.MetadataSchemes))
+		b.Add(renderGRPCMetadataAppend(md, "payload", endpoint.MetadataSchemes))
 	}
 	if endpoint.Request.ClientConvert != nil {
 		fmt.Fprintf(&b, "\treturn %s(%s), nil\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
 	} else {
-		b.WriteString("\treturn nil, nil\n")
+		b.Add("\treturn nil, nil\n")
 	}
-	b.WriteString("}\n")
+	b.Add("}\n")
 	return b.String()
 }
 
 func renderGRPCResponseDecoder(endpoint *EndpointData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("Decode%sResponse decodes responses from the %s %s endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name)))
 	fmt.Fprintf(&b, "func Decode%sResponse(ctx context.Context, v any, hdr, trlr metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	if len(endpoint.Response.Headers) > 0 || len(endpoint.Response.Trailers) > 0 {
-		b.WriteString("\tvar (\n")
+		b.Add("\tvar (\n")
 		for _, md := range endpoint.Response.Headers {
 			fmt.Fprintf(&b, "\t\t%s %s\n", md.VarName, md.TypeRef)
 		}
 		for _, md := range endpoint.Response.Trailers {
 			fmt.Fprintf(&b, "\t\t%s %s\n", md.VarName, md.TypeRef)
 		}
-		b.WriteString("\t\terr error\n")
-		b.WriteString("\t)\n")
-		b.WriteString("\t{\n")
+		b.Add("\t\terr error\n")
+		b.Add("\t)\n")
+		b.Add("\t{\n")
 		for _, md := range endpoint.Response.Headers {
-			b.WriteString("\n")
-			b.WriteString(renderGRPCMetadataDecode(md, "hdr"))
+			b.Add("\n")
+			b.Add(renderGRPCMetadataDecode(md, "hdr"))
 			if md.Validate != "" {
 				fmt.Fprintf(&b, "\t\t%s\n", md.Validate)
 			}
 		}
 		for _, md := range endpoint.Response.Trailers {
-			b.WriteString("\n")
-			b.WriteString(renderGRPCMetadataDecode(md, "trlr"))
+			b.Add("\n")
+			b.Add(renderGRPCMetadataDecode(md, "trlr"))
 			if md.Validate != "" {
 				fmt.Fprintf(&b, "\t\t%s\n", md.Validate)
 			}
 		}
-		b.WriteString("\t}\n")
-		b.WriteString("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+		b.Add("\t}\n")
+		b.Add("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
 	}
 	if endpoint.ViewedResultRef != "" {
-		b.WriteString("\tvar view string\n")
-		b.WriteString("\t{\n")
-		b.WriteString("\t\tif vals := hdr.Get(\"loom-view\"); len(vals) > 0 {\n")
-		b.WriteString("\t\t\tview = vals[0]\n")
-		b.WriteString("\t\t}\n")
-		b.WriteString("\t}\n")
+		b.Add("\tvar view string\n")
+		b.Add("\t{\n")
+		b.Add("\t\tif vals := hdr.Get(\"loom-view\"); len(vals) > 0 {\n")
+		b.Add("\t\t\tview = vals[0]\n")
+		b.Add("\t\t}\n")
+		b.Add("\t}\n")
 	}
 	if endpoint.ClientStream != nil {
 		fmt.Fprintf(&b, "\treturn &%s{\n", endpoint.ClientStream.VarName)
 		fmt.Fprintf(&b, "\t\tstream: v.(%s),\n", endpoint.ClientStream.Interface)
 		if endpoint.ViewedResultRef != "" {
-			b.WriteString("\t\tview: view,\n")
+			b.Add("\t\tview: view,\n")
 		}
-		b.WriteString("\t}, nil\n")
-		b.WriteString("}\n")
+		b.Add("\t}, nil\n")
+		b.Add("}\n")
 		return b.String()
 	}
 	fmt.Fprintf(&b, "\tmessage, ok := v.(%s)\n", endpoint.Response.ClientConvert.SrcRef)
-	b.WriteString("\tif !ok {\n")
+	b.Add("\tif !ok {\n")
 	fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Response.ClientConvert.SrcRef)
-	b.WriteString("\t}\n")
+	b.Add("\t}\n")
 	if endpoint.Response.ClientConvert.Validation != nil && endpoint.ViewedResultRef == "" {
 		assign := ":="
 		if len(endpoint.Response.Headers) > 0 || len(endpoint.Response.Trailers) > 0 {
@@ -126,39 +127,39 @@ func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 		fmt.Fprintf(&b, "\tif err := %s.Validate%s(vres); err != nil {\n\t\treturn nil, err\n\t}\n", endpoint.Method.ViewedResult.ViewsPkg, endpoint.Method.Result)
 		fmt.Fprintf(&b, "\treturn %s.%s(%s), nil\n", endpoint.ServicePkgName, endpoint.Method.ViewedResult.ResultInit.Name, renderServiceInitArgList(endpoint.Method.ViewedResult.ResultInit.Args))
 	} else {
-		b.WriteString("\treturn res, nil\n")
+		b.Add("\treturn res, nil\n")
 	}
-	b.WriteString("}\n")
+	b.Add("}\n")
 	return b.String()
 }
 
 func renderGRPCRequestDecoder(endpoint *EndpointData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("Decode%sRequest decodes requests sent to %q service %q endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name)))
 	fmt.Fprintf(&b, "func Decode%sRequest(ctx context.Context, v any, md metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	if len(endpoint.Request.Metadata) > 0 {
-		b.WriteString("\tvar (\n")
+		b.Add("\tvar (\n")
 		for _, md := range endpoint.Request.Metadata {
 			fmt.Fprintf(&b, "\t\t%s %s\n", md.VarName, md.TypeRef)
 		}
-		b.WriteString("\t\terr error\n")
-		b.WriteString("\t)\n")
-		b.WriteString("\t{\n")
+		b.Add("\t\terr error\n")
+		b.Add("\t)\n")
+		b.Add("\t{\n")
 		for _, md := range endpoint.Request.Metadata {
-			b.WriteString(renderGRPCRequestMetadataDecode(md))
+			b.Add(renderGRPCRequestMetadataDecode(md))
 			if md.Validate != "" {
 				fmt.Fprintf(&b, "\t\t%s\n", md.Validate)
 			}
 		}
-		b.WriteString("\t}\n")
-		b.WriteString("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+		b.Add("\t}\n")
+		b.Add("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
 	}
 	if endpoint.Method.StreamingPayload == "" && !isEmpty(endpoint.Request.Message.Type) {
 		fmt.Fprintf(&b, "\tvar (\n\t\tmessage %s\n\t\tok bool\n\t)\n", endpoint.Request.ServerConvert.SrcRef)
-		b.WriteString("\t{\n")
+		b.Add("\t{\n")
 		fmt.Fprintf(&b, "\t\tif message, ok = v.(%s); !ok {\n", endpoint.Request.ServerConvert.SrcRef)
 		fmt.Fprintf(&b, "\t\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Request.Message.Ref)
-		b.WriteString("\t\t}\n")
+		b.Add("\t\t}\n")
 		if endpoint.Request.ServerConvert.Validation != nil {
 			assign := ":="
 			if len(endpoint.Request.Metadata) > 0 {
@@ -166,10 +167,10 @@ func renderGRPCRequestDecoder(endpoint *EndpointData) string {
 			}
 			fmt.Fprintf(&b, "\t\tif err %s %s(message); err != nil {\n\t\t\treturn nil, err\n\t\t}\n", assign, endpoint.Request.ServerConvert.Validation.Name)
 		}
-		b.WriteString("\t}\n")
+		b.Add("\t}\n")
 	}
 	fmt.Fprintf(&b, "\tvar payload %s\n", endpoint.PayloadRef)
-	b.WriteString("\t{\n")
+	b.Add("\t{\n")
 	if endpoint.Request.ServerConvert != nil {
 		fmt.Fprintf(&b, "\t\tpayload = %s(%s)\n", endpoint.Request.ServerConvert.Init.Name, renderInitArgList(endpoint.Request.ServerConvert.Init.Args))
 	} else if len(endpoint.Request.Metadata) > 0 {
@@ -183,64 +184,64 @@ func renderGRPCRequestDecoder(endpoint *EndpointData) string {
 			fmt.Fprintf(&b, "\t\tif payload.%s != nil {\n", scheme.CredField)
 		}
 		fmt.Fprintf(&b, "\t\tif strings.Contains(%spayload.%s, \" \") {\n", pointerPrefix(scheme.CredPointer), scheme.CredField)
-		b.WriteString("\t\t\t// Remove authorization scheme prefix (e.g. \"Bearer\")\n")
+		b.Add("\t\t\t// Remove authorization scheme prefix (e.g. \"Bearer\")\n")
 		fmt.Fprintf(&b, "\t\t\tcred := strings.SplitN(%spayload.%s, \" \", 2)[1]\n", pointerPrefix(scheme.CredPointer), scheme.CredField)
 		fmt.Fprintf(&b, "\t\t\tpayload.%s = %scred\n", scheme.CredField, addrPrefix(scheme.CredPointer))
-		b.WriteString("\t\t}\n")
+		b.Add("\t\t}\n")
 		if !scheme.CredRequired {
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t}\n")
 		}
 	}
-	b.WriteString("\t}\n")
-	b.WriteString("\treturn payload, nil\n")
-	b.WriteString("}\n")
+	b.Add("\t}\n")
+	b.Add("\treturn payload, nil\n")
+	b.Add("}\n")
 	return b.String()
 }
 
 func renderGRPCResponseEncoder(endpoint *EndpointData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("Encode%sResponse encodes responses from the %q service %q endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name)))
 	fmt.Fprintf(&b, "func Encode%sResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	if endpoint.ViewedResultRef != "" {
 		fmt.Fprintf(&b, "\tvres, ok := v.(%s)\n", endpoint.ViewedResultRef)
-		b.WriteString("\tif !ok {\n")
+		b.Add("\tif !ok {\n")
 		fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ViewedResultRef)
-		b.WriteString("\t}\n")
-		b.WriteString("\tresult := vres.Projected\n")
-		b.WriteString("\t(*hdr).Append(\"loom-view\", vres.View)\n")
+		b.Add("\t}\n")
+		b.Add("\tresult := vres.Projected\n")
+		b.Add("\t(*hdr).Append(\"loom-view\", vres.View)\n")
 	} else if endpoint.ResultRef != "" {
 		fmt.Fprintf(&b, "\tresult, ok := v.(%s)\n", endpoint.ResultRef)
-		b.WriteString("\tif !ok {\n")
+		b.Add("\tif !ok {\n")
 		fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ResultRef)
-		b.WriteString("\t}\n")
+		b.Add("\t}\n")
 	}
 	fmt.Fprintf(&b, "\tresp := %s(%s)\n", endpoint.Response.ServerConvert.Init.Name, renderInitArgList(endpoint.Response.ServerConvert.Init.Args))
 	for _, md := range endpoint.Response.Headers {
-		b.WriteString("\n")
-		b.WriteString(renderGRPCMetadataEncode(md, "(*hdr)"))
+		b.Add("\n")
+		b.Add(renderGRPCMetadataEncode(md, "(*hdr)"))
 	}
 	for _, md := range endpoint.Response.Trailers {
-		b.WriteString("\n")
-		b.WriteString(renderGRPCMetadataEncode(md, "(*trlr)"))
+		b.Add("\n")
+		b.Add(renderGRPCMetadataEncode(md, "(*trlr)"))
 	}
-	b.WriteString("\treturn resp, nil\n")
-	b.WriteString("}\n")
+	b.Add("\treturn resp, nil\n")
+	b.Add("}\n")
 	return b.String()
 }
 
 func renderGRPCMetadataAppend(md *MetadataData, root string, schemes []*service.SchemeData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	value := fieldSelector(root, md.FieldName)
 	switch {
 	case md.StringSlice:
 		fmt.Fprintf(&b, "\tfor _, value := range %s {\n", value)
 		fmt.Fprintf(&b, "\t\t(*md).Append(%q, value)\n", md.Name)
-		b.WriteString("\t}\n")
+		b.Add("\t}\n")
 	case md.Slice:
 		fmt.Fprintf(&b, "\tfor _, value := range %s {\n", value)
-		b.WriteString(indent(renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, "valueStr", "value"), 2))
+		b.Add(indent(renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, "valueStr", "value"), 2))
 		fmt.Fprintf(&b, "\t\t(*md).Append(%q, valueStr)\n", md.Name)
-		b.WriteString("\t}\n")
+		b.Add("\t}\n")
 	default:
 		if md.Pointer {
 			fmt.Fprintf(&b, "\tif %s != nil {\n", value)
@@ -248,42 +249,42 @@ func renderGRPCMetadataAppend(md *MetadataData, root string, schemes []*service.
 		if md.Name == "Authorization" && isBearer(schemes) {
 			fmt.Fprintf(&b, "\t\tif !strings.Contains(%s%s, \" \") {\n", pointerPrefix(md.Pointer), value)
 			fmt.Fprintf(&b, "\t\t\t(*md).Append(%q, \"Bearer \"+%s%s)\n", md.Name, pointerPrefix(md.Pointer), value)
-			b.WriteString("\t\t} else {\n")
+			b.Add("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t(*md).Append(%q, %s)\n", md.Name, renderMetadataSingleValue(md, value))
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\t(*md).Append(%q, %s)\n", md.Name, renderMetadataSingleValue(md, value))
 		}
 		if md.Pointer {
-			b.WriteString("\t}\n")
+			b.Add("\t}\n")
 		}
 	}
 	return b.String()
 }
 
 func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
-	var b strings.Builder
+	var b sourceBuilder
 	name := fmt.Sprintf("%q", md.Name)
 	switch {
 	case md.TypeName == "string" || md.Type.Name() == "any":
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
+			b.Add("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
 			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t}\n")
 		}
 	case md.StringSlice:
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
+			b.Add("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals\n", md.VarName)
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\t%s = %s.Get(%s)\n", md.VarName, mdVar, name)
 		}
@@ -292,46 +293,46 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif %s := %s.Get(%s); len(%s) == 0 {\n", rawVar, mdVar, name, rawVar)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
-			b.WriteString(indent(renderGRPCSliceConversion(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t} else {\n")
+			b.Add(indent(renderGRPCSliceConversion(md, rawVar), 3))
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\tif %s := %s.Get(%s); len(%s) > 0 {\n", rawVar, mdVar, name, rawVar)
-			b.WriteString(indent(renderGRPCSliceConversion(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			b.Add(indent(renderGRPCSliceConversion(md, rawVar), 3))
+			b.Add("\t\t}\n")
 		}
 	default:
 		rawVar := md.VarName + "Raw"
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
+			b.Add("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", rawVar)
-			b.WriteString("\n")
-			b.WriteString(indent(renderGRPCStringParse(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			b.Add("\n")
+			b.Add(indent(renderGRPCStringParse(md, rawVar), 3))
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
 			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", rawVar)
-			b.WriteString("\n")
-			b.WriteString(indent(renderGRPCStringParse(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			b.Add("\n")
+			b.Add(indent(renderGRPCStringParse(md, rawVar), 3))
+			b.Add("\t\t}\n")
 		}
 	}
 	return b.String()
 }
 
 func renderGRPCRequestMetadataDecode(md *MetadataData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	name := fmt.Sprintf("%q", md.Name)
 	switch {
 	case md.TypeName == "string" || md.Type.Name() == "any":
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := md.Get(%s); len(vals) == 0 {\n", name)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
+			b.Add("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\tif vals := md.Get(%s); len(vals) > 0 {\n", name)
 			if md.Pointer {
@@ -339,15 +340,15 @@ func renderGRPCRequestMetadataDecode(md *MetadataData) string {
 			} else {
 				fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
 			}
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t}\n")
 		}
 	case md.StringSlice:
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := md.Get(%s); len(vals) == 0 {\n", name)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
+			b.Add("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s = vals\n", md.VarName)
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\t%s = md.Get(%s)\n", md.VarName, name)
 		}
@@ -356,52 +357,52 @@ func renderGRPCRequestMetadataDecode(md *MetadataData) string {
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif %s := md.Get(%s); len(%s) == 0 {\n", rawVar, name, rawVar)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
-			b.WriteString(indent(renderGRPCSliceConversion(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			b.Add("\t\t} else {\n")
+			b.Add(indent(renderGRPCSliceConversion(md, rawVar), 3))
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\tif %s := md.Get(%s); len(%s) > 0 {\n", rawVar, name, rawVar)
-			b.WriteString(indent(renderGRPCSliceConversion(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			b.Add(indent(renderGRPCSliceConversion(md, rawVar), 3))
+			b.Add("\t\t}\n")
 		}
 	default:
 		rawVar := md.VarName + "Raw"
 		if md.Required {
 			fmt.Fprintf(&b, "\t\tif vals := md.Get(%s); len(vals) == 0 {\n", name)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
+			b.Add("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t%s := vals[0]\n", rawVar)
-			b.WriteString("\n")
-			b.WriteString(indent(renderGRPCStringParse(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			b.Add("\n")
+			b.Add(indent(renderGRPCStringParse(md, rawVar), 3))
+			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\tif vals := md.Get(%s); len(vals) > 0 {\n", name)
 			fmt.Fprintf(&b, "\t\t\t%s := vals[0]\n", rawVar)
-			b.WriteString("\n")
-			b.WriteString(indent(renderGRPCStringParse(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			b.Add("\n")
+			b.Add(indent(renderGRPCStringParse(md, rawVar), 3))
+			b.Add("\t\t}\n")
 		}
 	}
 	return b.String()
 }
 
 func renderGRPCMetadataEncode(md *MetadataData, targetVar string) string {
-	var b strings.Builder
+	var b sourceBuilder
 	switch {
 	case md.StringSlice:
 		fmt.Fprintf(&b, "\t%s.Append(%q, res.%s...)\n", targetVar, md.Name, md.FieldName)
 	case md.Slice:
 		fmt.Fprintf(&b, "\tfor _, value := range res.%s {\n", md.FieldName)
-		b.WriteString(indent(renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, "valueStr", "value"), 2))
+		b.Add(indent(renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, "valueStr", "value"), 2))
 		fmt.Fprintf(&b, "\t\t%s.Append(%q, valueStr)\n", targetVar, md.Name)
-		b.WriteString("\t}\n")
+		b.Add("\t}\n")
 	default:
 		if md.Pointer {
 			fmt.Fprintf(&b, "\tif res.%s != nil {\n", md.FieldName)
 		}
 		fmt.Fprintf(&b, "\t\t%s.Append(%q, %s)\n", targetVar, md.Name, renderTemplateMetadataValue(md))
 		if md.Pointer {
-			b.WriteString("\t}\n")
+			b.Add("\t}\n")
 		}
 	}
 	return b.String()
@@ -506,11 +507,11 @@ func renderDirectOrValueAssign(md *MetadataData) string {
 }
 
 func renderGRPCSliceConversion(md *MetadataData, rawVar string) string {
-	var b strings.Builder
+	var b sourceBuilder
 	fmt.Fprintf(&b, "%s = make(%s, len(%s))\n", md.VarName, md.TypeRef, rawVar)
 	fmt.Fprintf(&b, "for i, rv := range %s {\n", rawVar)
-	b.WriteString(indent(renderGRPCSliceItemConversion(md), 1))
-	b.WriteString("}\n")
+	b.Add(indent(renderGRPCSliceItemConversion(md), 1))
+	b.Add("}\n")
 	return b.String()
 }
 

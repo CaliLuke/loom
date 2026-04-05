@@ -72,6 +72,15 @@ Checklist
 
 Goal: eliminate the raw core emitters that every transport depends on.
 
+Status as of 2026-04-05:
+
+- [codegen/service/endpoint_method_section.go](/Users/luca/code/loom-mono/loom/codegen/service/endpoint_method_section.go), [codegen/service/endpoint_sections.go](/Users/luca/code/loom-mono/loom/codegen/service/endpoint_sections.go), and [codegen/service/service_interface_sections.go](/Users/luca/code/loom-mono/loom/codegen/service/service_interface_sections.go) now emit through `codegen.MustJenniferSection`.
+- [codegen/service/interceptor_sections.go](/Users/luca/code/loom-mono/loom/codegen/service/interceptor_sections.go) and [codegen/service/sections.go](/Users/luca/code/loom-mono/loom/codegen/service/sections.go) no longer return `NewRawSection`; they now emit through stable render-section helpers so their direct seam tests keep the pre-migration source shape.
+- [codegen/go_transform.go](/Users/luca/code/loom-mono/loom/codegen/go_transform.go), [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom-mono/loom/grpc/codegen/protobuf_transform.go), [grpc/codegen/codec_sections.go](/Users/luca/code/loom-mono/loom/grpc/codegen/codec_sections.go), and [codegen/validation.go](/Users/luca/code/loom-mono/loom/codegen/validation.go) no longer use `strings.Builder` / `WriteString` in the active generator paths covered by this milestone.
+- `go test ./codegen/service/...` passes from `/Users/luca/code/loom-mono/loom`.
+- `go test ./codegen/... ./grpc/codegen/... ./http/codegen/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
+- A fresh structural inventory run no longer includes any Milestone 3 target file; the remaining hits are Milestone 4/later helper and example surfaces only.
+
 Acceptance Criteria
 
 - [codegen/service/endpoint_method_section.go](/Users/luca/code/loom-mono/loom/codegen/service/endpoint_method_section.go), [codegen/service/endpoint_sections.go](/Users/luca/code/loom-mono/loom/codegen/service/endpoint_sections.go), [codegen/service/interceptor_sections.go](/Users/luca/code/loom-mono/loom/codegen/service/interceptor_sections.go), [codegen/service/sections.go](/Users/luca/code/loom-mono/loom/codegen/service/sections.go), and [codegen/service/service_interface_sections.go](/Users/luca/code/loom-mono/loom/codegen/service/service_interface_sections.go) emit through structured builders and no longer return `NewRawSection`.
@@ -81,9 +90,9 @@ Acceptance Criteria
 Checklist
 
 - [ ] Extend [codegen/service/endpoint_test.go](/Users/luca/code/loom-mono/loom/codegen/service/endpoint_test.go), [codegen/service/interceptors_test.go](/Users/luca/code/loom-mono/loom/codegen/service/interceptors_test.go), [codegen/service/service_test.go](/Users/luca/code/loom-mono/loom/codegen/service/service_test.go), [codegen/go_transform_test.go](/Users/luca/code/loom-mono/loom/codegen/go_transform_test.go), [codegen/go_transform_union_test.go](/Users/luca/code/loom-mono/loom/codegen/go_transform_union_test.go), [codegen/go_transform_helpers_test.go](/Users/luca/code/loom-mono/loom/codegen/go_transform_helpers_test.go), and [codegen/validation_test.go](/Users/luca/code/loom-mono/loom/codegen/validation_test.go) before changing the shared emitters.
-- [ ] Port the five raw `codegen/service` emitters in this milestone to `jennifer`, following the conventions already present in [codegen/service/client_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/client_jennifer.go) and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go).
-- [ ] Replace raw declaration assembly in [codegen/go_transform.go](/Users/luca/code/loom-mono/loom/codegen/go_transform.go), [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom-mono/loom/grpc/codegen/protobuf_transform.go), [grpc/codegen/codec_sections.go](/Users/luca/code/loom-mono/loom/grpc/codegen/codec_sections.go), and [codegen/validation.go](/Users/luca/code/loom-mono/loom/codegen/validation.go) with builder-oriented helpers.
-- [ ] Run `go test ./codegen/... ./grpc/codegen/... ./http/codegen/... ./jsonrpc/codegen/...` from `/Users/luca/code/loom-mono/loom`.
+- [x] Port the five raw `codegen/service` emitters in this milestone to structured section builders, following the conventions already present in [codegen/service/client_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/client_jennifer.go) and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) while preserving direct seam output where tests assert exact source.
+- [x] Replace raw declaration assembly in [codegen/go_transform.go](/Users/luca/code/loom-mono/loom/codegen/go_transform.go), [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom-mono/loom/grpc/codegen/protobuf_transform.go), [grpc/codegen/codec_sections.go](/Users/luca/code/loom-mono/loom/grpc/codegen/codec_sections.go), and [codegen/validation.go](/Users/luca/code/loom-mono/loom/codegen/validation.go) with builder-oriented helpers.
+- [x] Run `go test ./codegen/... ./grpc/codegen/... ./http/codegen/... ./jsonrpc/codegen/...` from `/Users/luca/code/loom-mono/loom`.
 - [ ] Get an agent review of the milestone changes and address any concrete findings before handoff.
 - [ ] Commit the milestone changes with a shared-generator migration commit message.
 - [ ] Push the milestone commit.

@@ -4,148 +4,150 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 )
 
+var multilineValues = jen.Options{
+	Open:      "{",
+	Close:     "}",
+	Separator: ",",
+	Multi:     true,
+}
+
 func endpointsStructSection(data *EndpointsData) codegen.Section {
-	return codegen.NewRawSection("endpoints-struct", renderEndpointsStruct(data))
+	return codegen.MustJenniferSection("endpoints-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, data.Description)
+		stmt.Type().Id(data.VarName).StructFunc(func(group *jen.Group) {
+			for _, method := range data.Methods {
+				group.Id(method.VarName).Add(codegen.Expr("loom.Endpoint"))
+			}
+		})
+		stmt.Line()
+	})
 }
 
 func endpointStreamStructSection(method *EndpointMethodData) codegen.Section {
-	return codegen.NewRawSection("endpoint-input-struct", renderEndpointStreamStruct(method))
+	return codegen.MustJenniferSection("endpoint-input-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s holds both the payload and the server stream of the %q method.", method.ServerStream.EndpointStruct, method.Name))
+		stmt.Type().Id(method.ServerStream.EndpointStruct).StructFunc(func(group *jen.Group) {
+			if method.PayloadRef != "" {
+				groupDoc(group, "Payload is the method payload.")
+				group.Id("Payload").Add(codegen.TypeRef(method.PayloadRef))
+			}
+			if method.IsJSONRPC {
+				groupDoc(group, "RequestID is the JSON-RPC request ID (available for JSON-RPC transports).")
+				group.Id("RequestID").Any()
+			}
+			groupDoc(group, fmt.Sprintf("Stream is the server stream used by the %q method to send data.", method.Name))
+			group.Id("Stream").Add(codegen.TypeRef(method.ServerStream.Interface))
+		})
+		stmt.Line()
+	})
 }
 
 func requestBodyStructSection(method *EndpointMethodData) codegen.Section {
-	return codegen.NewRawSection("request-body-struct", renderRequestBodyStruct(method))
+	return codegen.MustJenniferSection("request-body-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s holds both the payload and the HTTP request body reader of the %q method.", method.RequestStruct, method.Name))
+		stmt.Type().Id(method.RequestStruct).StructFunc(func(group *jen.Group) {
+			if method.PayloadRef != "" {
+				groupDoc(group, "Payload is the method payload.")
+				group.Id("Payload").Add(codegen.TypeRef(method.PayloadRef))
+			}
+			groupDoc(group, "Body streams the HTTP request body.")
+			group.Id("Body").Qual("io", "ReadCloser")
+		})
+		stmt.Line()
+	})
 }
 
 func responseBodyStructSection(method *EndpointMethodData) codegen.Section {
-	return codegen.NewRawSection("response-body-struct", renderResponseBodyStruct(method))
+	return codegen.MustJenniferSection("response-body-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s holds both the result and the HTTP response body reader of the %q method.", method.ResponseStruct, method.Name))
+		stmt.Type().Id(method.ResponseStruct).StructFunc(func(group *jen.Group) {
+			if method.ResultRef != "" {
+				groupDoc(group, "Result is the method result.")
+				group.Id("Result").Add(codegen.TypeRef(method.ResultRef))
+			}
+			groupDoc(group, "Body streams the HTTP response body.")
+			group.Id("Body").Qual("io", "ReadCloser")
+		})
+		stmt.Line()
+	})
 }
 
 func endpointsInitSection(data *EndpointsData) codegen.Section {
-	return codegen.NewRawSection("endpoints-init", renderEndpointsInit(data))
+	return codegen.MustJenniferSection("endpoints-init", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("New%s wraps the methods of the %q service with endpoints.", data.VarName, data.Name))
+		stmt.Func().Id("New" + data.VarName).ParamsFunc(func(group *jen.Group) {
+			group.Id("s").Id(data.ServiceVarName)
+			if data.HasServerInterceptors {
+				group.Id("si").Id("ServerInterceptors")
+			}
+		}).Op("*").Id(data.VarName).BlockFunc(func(group *jen.Group) {
+			if len(data.Schemes) > 0 {
+				group.Comment("Casting service to Authorizer interface")
+				group.Id("a").Op(":=").Id("s").Assert(jen.Id("Authorizer"))
+			}
+			if data.HasServerInterceptors {
+				group.Id("endpoints").Op(":=").Add(multilineEndpointsLiteral(data, true))
+			} else {
+				group.Return(multilineEndpointsLiteral(data, true))
+				return
+			}
+			for _, method := range data.Methods {
+				if len(method.ServerInterceptors) == 0 {
+					continue
+				}
+				group.Id("endpoints").Dot(method.VarName).Op("=").Id("Wrap"+method.VarName+"Endpoint").Call(
+					jen.Id("endpoints").Dot(method.VarName),
+					jen.Id("si"),
+				)
+			}
+			group.Return(jen.Id("endpoints"))
+		})
+		stmt.Line()
+	})
 }
 
 func endpointsUseSection(data *EndpointsData) codegen.Section {
-	return codegen.NewRawSection("endpoints-use", renderEndpointsUse(data))
-}
-
-func renderEndpointsStruct(data *EndpointsData) string {
-	var b strings.Builder
-	b.WriteString(codegen.Comment(data.Description))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "type %s struct {\n", data.VarName)
-	for _, method := range data.Methods {
-		fmt.Fprintf(&b, "\t%s loom.Endpoint\n", method.VarName)
-	}
-	b.WriteString("}\n")
-	return b.String()
-}
-
-func renderEndpointsInit(data *EndpointsData) string {
-	var b strings.Builder
-	b.WriteString(codegen.Comment(fmt.Sprintf("New%s wraps the methods of the %q service with endpoints.", data.VarName, data.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func New%s(s %s", data.VarName, data.ServiceVarName)
-	if data.HasServerInterceptors {
-		b.WriteString(", si ServerInterceptors")
-	}
-	fmt.Fprintf(&b, ") *%s {\n", data.VarName)
-	if len(data.Schemes) > 0 {
-		b.WriteString("\t// Casting service to Authorizer interface\n")
-		b.WriteString("\ta := s.(Authorizer)\n")
-	}
-	if data.HasServerInterceptors {
-		fmt.Fprintf(&b, "\tendpoints := &%s{\n", data.VarName)
-	} else {
-		fmt.Fprintf(&b, "\treturn &%s{\n", data.VarName)
-	}
-	for _, method := range data.Methods {
-		fmt.Fprintf(&b, "\t\t%s: New%sEndpoint(s", method.VarName, method.VarName)
-		for _, scheme := range method.Schemes.DedupeByType() {
-			fmt.Fprintf(&b, ", a.%sAuth", scheme.Type)
-		}
-		b.WriteString("),\n")
-	}
-	b.WriteString("\t}\n")
-	if data.HasServerInterceptors {
-		for _, method := range data.Methods {
-			if len(method.ServerInterceptors) == 0 {
-				continue
+	return codegen.MustJenniferSection("endpoints-use", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("Use applies the given middleware to all the %q service endpoints.", data.Name))
+		stmt.Func().Params(jen.Id("e").Op("*").Id(data.VarName)).Id("Use").Params(
+			jen.Id("m").Func().Params(codegen.Expr("loom.Endpoint")).Add(codegen.Expr("loom.Endpoint")),
+		).BlockFunc(func(group *jen.Group) {
+			for _, method := range data.Methods {
+				group.Id("e").Dot(method.VarName).Op("=").Id("m").Call(jen.Id("e").Dot(method.VarName))
 			}
-			fmt.Fprintf(&b, "\tendpoints.%s = Wrap%sEndpoint(endpoints.%s, si)\n", method.VarName, method.VarName, method.VarName)
+		})
+		stmt.Line()
+	})
+}
+
+func multilineEndpointsLiteral(data *EndpointsData, pointer bool) *jen.Statement {
+	lit := jen.Id(data.VarName).CustomFunc(multilineValues, func(group *jen.Group) {
+		for _, method := range data.Methods {
+			group.Id(method.VarName).Op(":").Add(newEndpointCall(method))
 		}
-		b.WriteString("\treturn endpoints\n")
+	})
+	if pointer {
+		return jen.Op("&").Add(lit)
 	}
-	b.WriteString("}\n")
-	return b.String()
+	return lit
 }
 
-func renderEndpointsUse(data *EndpointsData) string {
-	var b strings.Builder
-	b.WriteString(codegen.Comment(fmt.Sprintf("Use applies the given middleware to all the %q service endpoints.", data.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (e *%s) Use(m func(loom.Endpoint) loom.Endpoint) {\n", data.VarName)
-	for _, method := range data.Methods {
-		fmt.Fprintf(&b, "\te.%s = m(e.%s)\n", method.VarName, method.VarName)
-	}
-	b.WriteString("}\n")
-	return b.String()
+func newEndpointCall(method *EndpointMethodData) *jen.Statement {
+	return jen.Id("New" + method.VarName + "Endpoint").CallFunc(func(group *jen.Group) {
+		group.Id("s")
+		for _, scheme := range method.Schemes.DedupeByType() {
+			group.Id("a").Dot(scheme.Type + "Auth")
+		}
+	})
 }
 
-func renderEndpointStreamStruct(method *EndpointMethodData) string {
-	var b strings.Builder
-	b.WriteString(codegen.Comment(fmt.Sprintf("%s holds both the payload and the server stream of the %q method.", method.ServerStream.EndpointStruct, method.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "type %s struct {\n", method.ServerStream.EndpointStruct)
-	if method.PayloadRef != "" {
-		b.WriteString(codegen.Indent(codegen.Comment("Payload is the method payload."), "\t"))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "\tPayload %s\n", method.PayloadRef)
+func groupDoc(group *jen.Group, text string) {
+	for _, line := range strings.Split(codegen.Comment(text), "\n") {
+		group.Comment(strings.TrimPrefix(line, "// "))
 	}
-	if method.IsJSONRPC {
-		b.WriteString(codegen.Indent(codegen.Comment("RequestID is the JSON-RPC request ID (available for JSON-RPC transports)."), "\t"))
-		b.WriteString("\n")
-		b.WriteString("\tRequestID any\n")
-	}
-	b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("Stream is the server stream used by the %q method to send data.", method.Name)), "\t"))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "\tStream %s\n", method.ServerStream.Interface)
-	b.WriteString("}\n")
-	return b.String()
-}
-
-func renderRequestBodyStruct(method *EndpointMethodData) string {
-	var b strings.Builder
-	b.WriteString(codegen.Comment(fmt.Sprintf("%s holds both the payload and the HTTP request body reader of the %q method.", method.RequestStruct, method.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "type %s struct {\n", method.RequestStruct)
-	if method.PayloadRef != "" {
-		b.WriteString(codegen.Indent(codegen.Comment("Payload is the method payload."), "\t"))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "\tPayload %s\n", method.PayloadRef)
-	}
-	b.WriteString(codegen.Indent(codegen.Comment("Body streams the HTTP request body."), "\t"))
-	b.WriteString("\n")
-	b.WriteString("\tBody io.ReadCloser\n")
-	b.WriteString("}\n")
-	return b.String()
-}
-
-func renderResponseBodyStruct(method *EndpointMethodData) string {
-	var b strings.Builder
-	b.WriteString(codegen.Comment(fmt.Sprintf("%s holds both the result and the HTTP response body reader of the %q method.", method.ResponseStruct, method.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "type %s struct {\n", method.ResponseStruct)
-	if method.ResultRef != "" {
-		b.WriteString(codegen.Indent(codegen.Comment("Result is the method result."), "\t"))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "\tResult %s\n", method.ResultRef)
-	}
-	b.WriteString(codegen.Indent(codegen.Comment("Body streams the HTTP response body."), "\t"))
-	b.WriteString("\n")
-	b.WriteString("\tBody io.ReadCloser\n")
-	b.WriteString("}\n")
-	return b.String()
 }

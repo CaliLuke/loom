@@ -1,7 +1,9 @@
 package codegen
 
 import (
+	"bytes"
 	"io"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 )
@@ -25,6 +27,14 @@ type (
 		// Source is written as-is.
 		Source string
 	}
+
+	// RenderSection renders an exact file section by calling a source builder.
+	RenderSection struct {
+		// Name is the stable section identifier used by tests and merge logic.
+		Name string
+		// Render computes the section source when written.
+		Render func() string
+	}
 )
 
 // SectionName returns the stable section identifier.
@@ -38,7 +48,16 @@ func (s *JenniferSection) Write(w io.Writer) error {
 	if s.Build != nil {
 		s.Build(stmt)
 	}
-	return stmt.Render(w)
+	var buf bytes.Buffer
+	if err := stmt.Render(&buf); err != nil {
+		return err
+	}
+	lines := strings.Split(buf.String(), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(strings.TrimPrefix(line, "\t"), " ")
+	}
+	_, err := io.WriteString(w, strings.Join(lines, "\n"))
+	return err
 }
 
 // SectionName returns the stable section identifier.
@@ -49,5 +68,19 @@ func (s *RawSection) SectionName() string {
 // Write writes the raw section source to the given writer.
 func (s *RawSection) Write(w io.Writer) error {
 	_, err := io.WriteString(w, s.Source)
+	return err
+}
+
+// SectionName returns the stable section identifier.
+func (s *RenderSection) SectionName() string {
+	return s.Name
+}
+
+// Write writes the rendered section source to the given writer.
+func (s *RenderSection) Write(w io.Writer) error {
+	if s.Render == nil {
+		return nil
+	}
+	_, err := io.WriteString(w, s.Render())
 	return err
 }

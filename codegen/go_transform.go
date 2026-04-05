@@ -1,3 +1,4 @@
+//nolint:errcheck // Generator helpers write only to in-memory buffers/builders.
 package codegen
 
 import (
@@ -118,13 +119,13 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	}
 	name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
 	fmt.Fprintf(buffer, "%s %s %s%s{%s}\n", targetVar, assign, deref, name, initCode)
-	buffer.WriteString(postInitCode)
+	fmt.Fprint(buffer, postInitCode)
 
 	fieldCode, err := buildTransformObjectFieldCode(source, target, sourceVar, targetVar, ta)
 	if err != nil {
 		return "", err
 	}
-	buffer.WriteString(fieldCode)
+	fmt.Fprint(buffer, fieldCode)
 
 	return buffer.String(), nil
 }
@@ -220,7 +221,7 @@ func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar
 			err = codeErr
 			return
 		}
-		buffer.WriteString(code)
+		fmt.Fprint(&buffer, code)
 	})
 	return buffer.String(), err
 }
@@ -582,7 +583,7 @@ func renderTransformGoArray(data map[string]any) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		buf.WriteString("\t" + indentTransformCode(code))
+		fmt.Fprint(&buf, "\t"+indentTransformCode(code))
 	}
 	fmt.Fprintf(&buf, "}\n")
 	return buf.String(), nil
@@ -610,7 +611,7 @@ func renderTransformGoMap(data map[string]any) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		buf.WriteString("\t" + indentTransformCode(code))
+		fmt.Fprint(&buf, "\t"+indentTransformCode(code))
 	}
 	if data["IsElemStruct"].(bool) {
 		fmt.Fprintf(&buf, "\tif val == nil {\n")
@@ -624,7 +625,7 @@ func renderTransformGoMap(data map[string]any) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		buf.WriteString("\t" + indentTransformCode(code))
+		fmt.Fprint(&buf, "\t"+indentTransformCode(code))
 		fmt.Fprintf(&buf, "\t%s[tk] = %s\n", targetVar, temp)
 	}
 	fmt.Fprintf(&buf, "}\n")
@@ -656,7 +657,7 @@ func renderTransformGoUnion(data map[string]any) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			buf.WriteString("\t" + indentTransformCode(code))
+			fmt.Fprint(&buf, "\t"+indentTransformCode(code))
 		}
 		if newVar {
 			fmt.Fprintf(&buf, "\tvar u %s\n", valueTypeRef)

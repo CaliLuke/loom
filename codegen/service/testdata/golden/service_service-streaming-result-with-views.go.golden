@@ -3,8 +3,8 @@
 type Service interface {
 	// StreamingResultWithViewsMethod implements StreamingResultWithViewsMethod.
 	// The "view" return value must have one of the following views
-	//	- "default"
-	//	- "tiny"
+	//   - "default"
+	//   - "tiny"
 	StreamingResultWithViewsMethod(context.Context, string, StreamingResultWithViewsMethodServerStream) (err error)
 }
 

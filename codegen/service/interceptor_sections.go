@@ -1,3 +1,4 @@
+//nolint:errcheck // Generator helpers write only to in-memory builders.
 package service
 
 import (
@@ -8,15 +9,21 @@ import (
 )
 
 func serverInterceptorsInterfaceSection(svc *Data) codegen.Section {
-	return codegen.NewRawSection("server-interceptors-type", renderInterceptorsInterface(svc.ServerInterceptors, true))
+	return codegen.MustRenderSection("server-interceptors-type", func() string {
+		return renderInterceptorsInterface(svc.ServerInterceptors, true)
+	})
 }
 
 func clientInterceptorsInterfaceSection(svc *Data) codegen.Section {
-	return codegen.NewRawSection("client-interceptors-type", renderInterceptorsInterface(svc.ClientInterceptors, false))
+	return codegen.MustRenderSection("client-interceptors-type", func() string {
+		return renderInterceptorsInterface(svc.ClientInterceptors, false)
+	})
 }
 
 func interceptorTypesSection(interceptors []*InterceptorData) codegen.Section {
-	return codegen.NewRawSection("interceptor-types", renderInterceptorTypes(interceptors))
+	return codegen.MustRenderSection("interceptor-types", func() string {
+		return renderInterceptorTypes(interceptors)
+	})
 }
 
 func endpointWrapperSection(server bool, methodVarName, method string, interceptors []string) codegen.Section {
@@ -24,65 +31,77 @@ func endpointWrapperSection(server bool, methodVarName, method string, intercept
 	if server {
 		name = "endpoint-wrapper"
 	}
-	return codegen.NewRawSection(name, renderEndpointWrapper(server, methodVarName, method, interceptors))
+	return codegen.MustRenderSection(name, func() string {
+		return renderEndpointWrapper(server, methodVarName, method, interceptors)
+	})
 }
 
 func interceptorsSection(interceptors []*InterceptorData, server bool) codegen.Section {
-	return codegen.NewRawSection("interceptors", renderInterceptors(interceptors, server))
+	return codegen.MustRenderSection("interceptors", func() string {
+		return renderInterceptors(interceptors, server)
+	})
 }
 
 func streamWrapperTypesSection(name string, streams []*StreamInterceptorData, server bool) codegen.Section {
-	return codegen.NewRawSection(name, renderStreamWrapperTypes(streams, server))
+	return codegen.MustRenderSection(name, func() string {
+		return renderStreamWrapperTypes(streams, server)
+	})
 }
 
 func serverInterceptorWrappersSection(service string, interceptors []*InterceptorData) codegen.Section {
-	return codegen.NewRawSection("server-interceptor-wrappers", renderServerInterceptorWrappers(service, interceptors))
+	return codegen.MustRenderSection("server-interceptor-wrappers", func() string {
+		return renderServerInterceptorWrappers(service, interceptors)
+	})
 }
 
 func clientInterceptorWrappersSection(service string, interceptors []*InterceptorData) codegen.Section {
-	return codegen.NewRawSection("client-interceptor-wrappers", renderClientInterceptorWrappers(service, interceptors))
+	return codegen.MustRenderSection("client-interceptor-wrappers", func() string {
+		return renderClientInterceptorWrappers(service, interceptors)
+	})
 }
 
 func streamWrappersSection(name string, streams []*StreamInterceptorData, server bool) codegen.Section {
-	return codegen.NewRawSection(name, renderStreamWrappers(streams, server))
+	return codegen.MustRenderSection(name, func() string {
+		return renderStreamWrappers(streams, server)
+	})
 }
 
 func renderInterceptorsInterface(interceptors []*InterceptorData, server bool) string {
-	var b strings.Builder
+	var b sourceBuilder
 	if server {
-		b.WriteString("// ServerInterceptors defines the interface for all server-side interceptors.\n")
-		b.WriteString("// Server interceptors execute after the request is decoded and before the\n")
-		b.WriteString("// payload is sent to the service. The implementation is responsible for calling\n")
-		b.WriteString("// next to complete the request.\n")
-		b.WriteString("type ServerInterceptors interface {\n")
+		b.Add("// ServerInterceptors defines the interface for all server-side interceptors.\n")
+		b.Add("// Server interceptors execute after the request is decoded and before the\n")
+		b.Add("// payload is sent to the service. The implementation is responsible for calling\n")
+		b.Add("// next to complete the request.\n")
+		b.Add("type ServerInterceptors interface {\n")
 		for _, interceptor := range interceptors {
 			if interceptor.Description != "" {
-				b.WriteString(codegen.Indent(codegen.Comment(interceptor.Description), "\t"))
-				b.WriteString("\n")
+				b.Add(codegen.Indent(codegen.Comment(interceptor.Description), "\t"))
+				b.Add("\n")
 			}
 			fmt.Fprintf(&b, "\t%s(ctx context.Context, info *%sInfo, next loom.Endpoint) (any, error)\n", interceptor.Name, interceptor.Name)
 		}
-		b.WriteString("}\n")
+		b.Add("}\n")
 		return b.String()
 	}
-	b.WriteString("// ClientInterceptors defines the interface for all client-side interceptors.\n")
-	b.WriteString("// Client interceptors execute after the payload is encoded and before the request\n")
-	b.WriteString("// is sent to the server. The implementation is responsible for calling next to\n")
-	b.WriteString("// complete the request.\n")
-	b.WriteString("type ClientInterceptors interface {\n")
+	b.Add("// ClientInterceptors defines the interface for all client-side interceptors.\n")
+	b.Add("// Client interceptors execute after the payload is encoded and before the request\n")
+	b.Add("// is sent to the server. The implementation is responsible for calling next to\n")
+	b.Add("// complete the request.\n")
+	b.Add("type ClientInterceptors interface {\n")
 	for _, interceptor := range interceptors {
 		if interceptor.Description != "" {
-			b.WriteString(codegen.Indent(codegen.Comment(interceptor.Description), "\t"))
-			b.WriteString("\n")
+			b.Add(codegen.Indent(codegen.Comment(interceptor.Description), "\t"))
+			b.Add("\n")
 		}
 		fmt.Fprintf(&b, "\t%s(ctx context.Context, info *%sInfo, next loom.Endpoint) (any, error)\n", interceptor.Name, interceptor.Name)
 	}
-	b.WriteString("}\n")
+	b.Add("}\n")
 	return b.String()
 }
 
 func renderInterceptorTypes(interceptors []*InterceptorData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	writeInterceptorAccessTypes(&b, interceptors)
 
 	if !hasPrivateImplementationTypes(interceptors) {
@@ -92,9 +111,9 @@ func renderInterceptorTypes(interceptors []*InterceptorData) string {
 	return b.String()
 }
 
-func writeInterceptorAccessTypes(b *strings.Builder, interceptors []*InterceptorData) {
-	b.WriteString("\n// Access interfaces for interceptor payloads and results\n")
-	b.WriteString("type (\n")
+func writeInterceptorAccessTypes(b *sourceBuilder, interceptors []*InterceptorData) {
+	b.Add("\n// Access interfaces for interceptor payloads and results\n")
+	b.Add("type (\n")
 	for _, interceptor := range interceptors {
 		writeInterceptorInfoType(b, interceptor)
 		writeInterceptorAccessorInterface(b, interceptor.Name, "Payload", interceptor.HasPayloadAccess, interceptor.ReadPayload, interceptor.WritePayload)
@@ -102,28 +121,28 @@ func writeInterceptorAccessTypes(b *strings.Builder, interceptors []*Interceptor
 		writeInterceptorAccessorInterface(b, interceptor.Name, "StreamingPayload", interceptor.HasStreamingPayloadAccess, interceptor.ReadStreamingPayload, interceptor.WriteStreamingPayload)
 		writeInterceptorAccessorInterface(b, interceptor.Name, "StreamingResult", interceptor.HasStreamingResultAccess, interceptor.ReadStreamingResult, interceptor.WriteStreamingResult)
 	}
-	b.WriteString(")\n")
+	b.Add(")\n")
 }
 
-func writeInterceptorInfoType(b *strings.Builder, interceptor *InterceptorData) {
-	b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sInfo provides metadata about the current interception.\nIt includes service name, method name, and access to the endpoint.", interceptor.Name)), "\t"))
-	b.WriteString("\n")
+func writeInterceptorInfoType(b *sourceBuilder, interceptor *InterceptorData) {
+	b.Add(codegen.Indent(codegen.Comment(fmt.Sprintf("%sInfo provides metadata about the current interception.\nIt includes service name, method name, and access to the endpoint.", interceptor.Name)), "\t"))
+	b.Add("\n")
 	fmt.Fprintf(b, "\t%sInfo struct {\n\t\tservice    string\n\t\tmethod     string\n\t\tcallType   loom.InterceptorCallType\n\t\trawPayload any\n\t}\n", interceptor.Name)
 }
 
-func writeInterceptorAccessorInterface(b *strings.Builder, name, suffix string, enabled bool, readFields, writeFields []*AttributeData) {
+func writeInterceptorAccessorInterface(b *sourceBuilder, name, suffix string, enabled bool, readFields, writeFields []*AttributeData) {
 	if !enabled {
 		return
 	}
-	b.WriteString("\n")
+	b.Add("\n")
 	desc := fmt.Sprintf("%s%s provides type-safe access to the method %s.\nIt allows reading and writing specific fields of the %s as defined\nin the design.", name, suffix, interfaceAccessTarget(suffix), interfaceAccessTarget(suffix))
 	if strings.HasPrefix(suffix, "Streaming") {
-		b.WriteString("\t// " + name + suffix + " provides type-safe access to the method " + interfaceAccessTarget(suffix) + ".\n")
-		b.WriteString("\t// It allows reading and writing specific fields of the " + interfaceAccessTarget(suffix) + " as defined\n")
-		b.WriteString("\t// in the design.\n")
+		b.Add("\t// " + name + suffix + " provides type-safe access to the method " + interfaceAccessTarget(suffix) + ".\n")
+		b.Add("\t// It allows reading and writing specific fields of the " + interfaceAccessTarget(suffix) + " as defined\n")
+		b.Add("\t// in the design.\n")
 	} else {
-		b.WriteString(codegen.Indent(codegen.Comment(desc), "\t"))
-		b.WriteString("\n")
+		b.Add(codegen.Indent(codegen.Comment(desc), "\t"))
+		b.Add("\n")
 	}
 	fmt.Fprintf(b, "\t%s%s interface {\n", name, suffix)
 	for _, field := range readFields {
@@ -132,7 +151,7 @@ func writeInterceptorAccessorInterface(b *strings.Builder, name, suffix string, 
 	for _, field := range writeFields {
 		fmt.Fprintf(b, "\t\tSet%s(%s)\n", field.Name, field.TypeRef)
 	}
-	b.WriteString("\t}\n")
+	b.Add("\t}\n")
 }
 
 func interfaceAccessTarget(suffix string) string {
@@ -150,19 +169,19 @@ func interfaceAccessTarget(suffix string) string {
 	}
 }
 
-func writeInterceptorPrivateTypes(b *strings.Builder, interceptors []*InterceptorData) {
-	b.WriteString("\n// Private implementation types\n")
-	b.WriteString("type (\n")
+func writeInterceptorPrivateTypes(b *sourceBuilder, interceptors []*InterceptorData) {
+	b.Add("\n// Private implementation types\n")
+	b.Add("type (\n")
 	writeInterceptorMethodStructs(b, interceptors, func(m *MethodInterceptorData) (string, string) { return m.PayloadAccess, m.PayloadRef }, "payload")
 	writeInterceptorMethodStructs(b, interceptors, func(m *MethodInterceptorData) (string, string) { return m.ResultAccess, m.ResultRef }, "result")
 	writeInterceptorMethodStructs(b, interceptors, func(m *MethodInterceptorData) (string, string) {
 		return m.StreamingPayloadAccess, m.StreamingPayloadRef
 	}, "payload")
 	writeInterceptorMethodStructs(b, interceptors, func(m *MethodInterceptorData) (string, string) { return m.StreamingResultAccess, m.StreamingResultRef }, "result")
-	b.WriteString(")\n")
+	b.Add(")\n")
 }
 
-func writeInterceptorMethodStructs(b *strings.Builder, interceptors []*InterceptorData, pick func(*MethodInterceptorData) (string, string), fieldName string) {
+func writeInterceptorMethodStructs(b *sourceBuilder, interceptors []*InterceptorData, pick func(*MethodInterceptorData) (string, string), fieldName string) {
 	for _, interceptor := range interceptors {
 		for _, method := range interceptor.Methods {
 			typeName, typeRef := pick(method)
@@ -175,7 +194,7 @@ func writeInterceptorMethodStructs(b *strings.Builder, interceptors []*Intercept
 }
 
 func renderEndpointWrapper(server bool, methodVarName, method string, interceptors []string) string {
-	var b strings.Builder
+	var b sourceBuilder
 	wrapName := "Wrap" + methodVarName + "Endpoint"
 	commentTarget := "server-side"
 	callPrefix := "wrap" + methodVarName
@@ -186,65 +205,65 @@ func renderEndpointWrapper(server bool, methodVarName, method string, intercepto
 		callPrefix = "wrapClient" + methodVarName
 		interfaceName = "ClientInterceptors"
 	}
-	b.WriteString(codegen.Comment(fmt.Sprintf("%s wraps the %s endpoint with the %s interceptors defined in the design.", wrapName, method, commentTarget)))
-	b.WriteString("\n")
+	b.Add(codegen.Comment(fmt.Sprintf("%s wraps the %s endpoint with the %s interceptors defined in the design.", wrapName, method, commentTarget)))
+	b.Add("\n")
 	fmt.Fprintf(&b, "func %s(endpoint loom.Endpoint, i %s) loom.Endpoint {\n", wrapName, interfaceName)
-	b.WriteString("\tif i != nil {\n")
+	b.Add("\tif i != nil {\n")
 	for _, interceptor := range interceptors {
 		fmt.Fprintf(&b, "\t\tendpoint = %s%s(endpoint, i)\n", callPrefix, interceptor)
 	}
-	b.WriteString("\t}\n\treturn endpoint\n}\n")
+	b.Add("\t}\n\treturn endpoint\n}\n")
 	return b.String()
 }
 
 func renderInterceptors(interceptors []*InterceptorData, server bool) string {
-	var b strings.Builder
-	b.WriteString("// Public accessor methods for Info types\n")
+	var b sourceBuilder
+	b.Add("// Public accessor methods for Info types\n")
 	for _, interceptor := range interceptors {
-		b.WriteString("\n")
+		b.Add("\n")
 		fmt.Fprintf(&b, "// Service returns the name of the service handling the request.\nfunc (info *%sInfo) Service() string {\n\treturn info.service\n}\n\n", interceptor.Name)
 		fmt.Fprintf(&b, "// Method returns the name of the method handling the request.\nfunc (info *%sInfo) Method() string {\n\treturn info.method\n}\n\n", interceptor.Name)
 		fmt.Fprintf(&b, "// CallType returns the type of call the interceptor is handling.\nfunc (info *%sInfo) CallType() loom.InterceptorCallType {\n\treturn info.callType\n}\n\n", interceptor.Name)
 		fmt.Fprintf(&b, "// RawPayload returns the raw payload of the request.\nfunc (info *%sInfo) RawPayload() any {\n\treturn info.rawPayload\n}\n", interceptor.Name)
 		if interceptor.HasPayloadAccess {
-			b.WriteString("\n")
+			b.Add("\n")
 			fmt.Fprintf(&b, "// Payload returns a type-safe accessor for the method payload.\nfunc (info *%sInfo) Payload() %sPayload {\n", interceptor.Name, interceptor.Name)
-			b.WriteString(renderPayloadAccessSwitch(interceptor, server))
-			b.WriteString("}\n")
+			b.Add(renderPayloadAccessSwitch(interceptor, server))
+			b.Add("}\n")
 		}
 		if interceptor.HasResultAccess {
-			b.WriteString("\n")
+			b.Add("\n")
 			fmt.Fprintf(&b, "// Result returns a type-safe accessor for the method result.\nfunc (info *%sInfo) Result(res any) %sResult {\n", interceptor.Name, interceptor.Name)
-			b.WriteString(renderResultAccessSwitch(interceptor))
-			b.WriteString("}\n")
+			b.Add(renderResultAccessSwitch(interceptor))
+			b.Add("}\n")
 		}
 		if interceptor.HasStreamingPayloadAccess {
-			b.WriteString("\n")
+			b.Add("\n")
 			fmt.Fprintf(&b, "// ClientStreamingPayload returns a type-safe accessor for the method streaming payload for a client-side interceptor.\nfunc (info *%sInfo) ClientStreamingPayload() %sStreamingPayload {\n", interceptor.Name, interceptor.Name)
-			b.WriteString(renderStreamingPayloadAccess(interceptor, true))
-			b.WriteString("}\n")
+			b.Add(renderStreamingPayloadAccess(interceptor, true))
+			b.Add("}\n")
 		}
 		if interceptor.HasStreamingResultAccess {
-			b.WriteString("\n")
+			b.Add("\n")
 			fmt.Fprintf(&b, "// ClientStreamingResult returns a type-safe accessor for the method streaming result for a client-side interceptor.\nfunc (info *%sInfo) ClientStreamingResult(res any) %sStreamingResult {\n", interceptor.Name, interceptor.Name)
-			b.WriteString(renderStreamingResultAccess(interceptor, true))
-			b.WriteString("}\n")
+			b.Add(renderStreamingResultAccess(interceptor, true))
+			b.Add("}\n")
 		}
 		if interceptor.HasStreamingPayloadAccess {
-			b.WriteString("\n")
+			b.Add("\n")
 			fmt.Fprintf(&b, "// ServerStreamingPayload returns a type-safe accessor for the method streaming payload for a server-side interceptor.\nfunc (info *%sInfo) ServerStreamingPayload(pay any) %sStreamingPayload {\n", interceptor.Name, interceptor.Name)
-			b.WriteString(renderStreamingPayloadAccess(interceptor, false))
-			b.WriteString("}\n")
+			b.Add(renderStreamingPayloadAccess(interceptor, false))
+			b.Add("}\n")
 		}
 		if interceptor.HasStreamingResultAccess {
-			b.WriteString("\n")
+			b.Add("\n")
 			fmt.Fprintf(&b, "// ServerStreamingResult returns a type-safe accessor for the method streaming result for a server-side interceptor.\nfunc (info *%sInfo) ServerStreamingResult() %sStreamingResult {\n", interceptor.Name, interceptor.Name)
-			b.WriteString(renderStreamingResultAccess(interceptor, false))
-			b.WriteString("}\n")
+			b.Add(renderStreamingResultAccess(interceptor, false))
+			b.Add("}\n")
 		}
 	}
 	if hasPrivateImplementationTypes(interceptors) {
-		b.WriteString("\n// Private implementation methods\n")
+		b.Add("\n// Private implementation methods\n")
 		first := true
 		for _, interceptor := range interceptors {
 			for _, method := range interceptor.Methods {
@@ -266,8 +285,8 @@ func renderPayloadAccessSwitch(interceptor *InterceptorData, server bool) string
 		}
 		return fmt.Sprintf("\treturn &%s{payload: info.RawPayload().(%s)}\n", method.PayloadAccess, method.PayloadRef)
 	}
-	var b strings.Builder
-	b.WriteString("\tswitch info.Method() {\n")
+	var b sourceBuilder
+	b.Add("\tswitch info.Method() {\n")
 	for _, method := range interceptor.Methods {
 		fmt.Fprintf(&b, "\tcase %q:\n", method.MethodName)
 		if server && hasEndpointStruct(true)(method) {
@@ -276,7 +295,7 @@ func renderPayloadAccessSwitch(interceptor *InterceptorData, server bool) string
 			fmt.Fprintf(&b, "\t\treturn &%s{payload: info.RawPayload().(%s)}\n", method.PayloadAccess, method.PayloadRef)
 		}
 	}
-	b.WriteString("\tdefault:\n\t\treturn nil\n\t}\n")
+	b.Add("\tdefault:\n\t\treturn nil\n\t}\n")
 	return b.String()
 }
 
@@ -285,12 +304,12 @@ func renderResultAccessSwitch(interceptor *InterceptorData) string {
 		method := interceptor.Methods[0]
 		return fmt.Sprintf("\treturn &%s{result: res.(%s)}\n", method.ResultAccess, method.ResultRef)
 	}
-	var b strings.Builder
-	b.WriteString("\tswitch info.Method() {\n")
+	var b sourceBuilder
+	b.Add("\tswitch info.Method() {\n")
 	for _, method := range interceptor.Methods {
 		fmt.Fprintf(&b, "\tcase %q:\n\t\treturn &%s{result: res.(%s)}\n", method.MethodName, method.ResultAccess, method.ResultRef)
 	}
-	b.WriteString("\tdefault:\n\t\treturn nil\n\t}\n")
+	b.Add("\tdefault:\n\t\treturn nil\n\t}\n")
 	return b.String()
 }
 
@@ -303,8 +322,8 @@ func renderStreamingPayloadAccess(interceptor *InterceptorData, client bool) str
 		}
 		return fmt.Sprintf("\treturn &%s{payload: %s.(%s)}\n", method.StreamingPayloadAccess, arg, method.StreamingPayloadRef)
 	}
-	var b strings.Builder
-	b.WriteString("\tswitch info.Method() {\n")
+	var b sourceBuilder
+	b.Add("\tswitch info.Method() {\n")
 	for _, method := range interceptor.Methods {
 		arg := "info.RawPayload()"
 		if !client {
@@ -312,7 +331,7 @@ func renderStreamingPayloadAccess(interceptor *InterceptorData, client bool) str
 		}
 		fmt.Fprintf(&b, "\tcase %q:\n\t\treturn &%s{payload: %s.(%s)}\n", method.MethodName, method.StreamingPayloadAccess, arg, method.StreamingPayloadRef)
 	}
-	b.WriteString("\tdefault:\n\t\treturn nil\n\t}\n")
+	b.Add("\tdefault:\n\t\treturn nil\n\t}\n")
 	return b.String()
 }
 
@@ -324,8 +343,8 @@ func renderStreamingResultAccess(interceptor *InterceptorData, client bool) stri
 		}
 		return fmt.Sprintf("\treturn &%s{result: info.RawPayload().(%s)}\n", method.StreamingResultAccess, method.StreamingResultRef)
 	}
-	var b strings.Builder
-	b.WriteString("\tswitch info.Method() {\n")
+	var b sourceBuilder
+	b.Add("\tswitch info.Method() {\n")
 	for _, method := range interceptor.Methods {
 		if client {
 			fmt.Fprintf(&b, "\tcase %q:\n\t\treturn &%s{result: res.(%s)}\n", method.MethodName, method.StreamingResultAccess, method.StreamingResultRef)
@@ -333,11 +352,11 @@ func renderStreamingResultAccess(interceptor *InterceptorData, client bool) stri
 			fmt.Fprintf(&b, "\tcase %q:\n\t\treturn &%s{result: info.RawPayload().(%s)}\n", method.MethodName, method.StreamingResultAccess, method.StreamingResultRef)
 		}
 	}
-	b.WriteString("\tdefault:\n\t\treturn nil\n\t}\n")
+	b.Add("\tdefault:\n\t\treturn nil\n\t}\n")
 	return b.String()
 }
 
-func renderAccessorMethods(b *strings.Builder, accessName, fieldName string, readers, writers []*AttributeData, first bool) bool {
+func renderAccessorMethods(b *sourceBuilder, accessName, fieldName string, readers, writers []*AttributeData, first bool) bool {
 	if accessName == "" {
 		return first
 	}
@@ -347,7 +366,7 @@ func renderAccessorMethods(b *strings.Builder, accessName, fieldName string, rea
 	}
 	if len(readers) > 0 || len(writers) > 0 {
 		if first {
-			b.WriteString("\n")
+			b.Add("\n")
 			first = false
 		}
 	}
@@ -358,7 +377,7 @@ func renderAccessorMethods(b *strings.Builder, accessName, fieldName string, rea
 		} else {
 			fmt.Fprintf(b, "\treturn %s.%s.%s\n", receiver, fieldName, field.Name)
 		}
-		b.WriteString("}\n")
+		b.Add("}\n")
 	}
 	for _, field := range writers {
 		fmt.Fprintf(b, "func (%s *%s) Set%s(v %s) {\n", receiver, accessName, field.Name, field.TypeRef)
@@ -367,24 +386,24 @@ func renderAccessorMethods(b *strings.Builder, accessName, fieldName string, rea
 		} else {
 			fmt.Fprintf(b, "\t%s.%s.%s = v\n", receiver, fieldName, field.Name)
 		}
-		b.WriteString("}\n")
+		b.Add("}\n")
 	}
 	return first
 }
 
 func renderStreamWrapperTypes(streams []*StreamInterceptorData, server bool) string {
-	var b strings.Builder
+	var b sourceBuilder
 	for i, stream := range streams {
-		b.WriteString("\n")
+		b.Add("\n")
 		if i == 0 {
-			b.WriteString("\n")
+			b.Add("\n")
 		}
 		target := "client"
 		if server {
 			target = "server"
 		}
-		b.WriteString(codegen.Comment(fmt.Sprintf("wrapped%s is a %s interceptor wrapper for the %s stream.", stream.Interface, target, stream.Interface)))
-		b.WriteString("\n")
+		b.Add(codegen.Comment(fmt.Sprintf("wrapped%s is a %s interceptor wrapper for the %s stream.", stream.Interface, target, stream.Interface)))
+		b.Add("\n")
 		fmt.Fprintf(&b, "type wrapped%s struct {\n\tctx context.Context\n", stream.Interface)
 		if stream.SendTypeRef != "" {
 			fmt.Fprintf(&b, "\tsendWithContext func(context.Context, %s) error\n", stream.SendTypeRef)
@@ -398,15 +417,15 @@ func renderStreamWrapperTypes(streams []*StreamInterceptorData, server bool) str
 }
 
 func renderServerInterceptorWrappers(service string, interceptors []*InterceptorData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	for _, interceptor := range interceptors {
 		for _, method := range interceptor.Methods {
-			b.WriteString("\n")
-			b.WriteString("\n")
-			b.WriteString(codegen.Comment(fmt.Sprintf("wrap%s%s applies the %s server interceptor to endpoints.", interceptor.Name, method.MethodName, interceptor.DesignName)))
-			b.WriteString("\n")
+			b.Add("\n")
+			b.Add("\n")
+			b.Add(codegen.Comment(fmt.Sprintf("wrap%s%s applies the %s server interceptor to endpoints.", interceptor.Name, method.MethodName, interceptor.DesignName)))
+			b.Add("\n")
 			fmt.Fprintf(&b, "func wrap%s%s(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {\n", method.MethodName, interceptor.Name)
-			b.WriteString("\treturn func(ctx context.Context, req any) (any, error) {\n")
+			b.Add("\treturn func(ctx context.Context, req any) (any, error) {\n")
 			if interceptor.HasStreamingPayloadAccess || interceptor.HasStreamingResultAccess {
 				fmt.Fprintf(&b, "\t\tstream := req.(*%s).Stream\n", method.ServerStream.EndpointStruct)
 				fmt.Fprintf(&b, "\t\treq.(*%s).Stream = &wrapped%s{\n\t\t\tctx:     ctx,\n", method.ServerStream.EndpointStruct, method.ServerStream.Interface)
@@ -427,36 +446,36 @@ func renderServerInterceptorWrappers(service string, interceptors []*Interceptor
 					fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
 					fmt.Fprintf(&b, "\t\treturn i.%s(ctx, info, endpoint)\n", interceptor.Name)
 				} else {
-					b.WriteString("\t\treturn endpoint(ctx, req)\n")
+					b.Add("\t\treturn endpoint(ctx, req)\n")
 				}
 			} else {
 				fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
 				fmt.Fprintf(&b, "\t\treturn i.%s(ctx, info, endpoint)\n", interceptor.Name)
 			}
-			b.WriteString("\t}\n}\n")
+			b.Add("\t}\n}\n")
 		}
 	}
 	return b.String()
 }
 
 func renderClientInterceptorWrappers(service string, interceptors []*InterceptorData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	for _, interceptor := range interceptors {
 		for _, method := range interceptor.Methods {
-			b.WriteString("\n")
-			b.WriteString("\n")
-			b.WriteString(codegen.Comment(fmt.Sprintf("wrapClient%s%s applies the %s client interceptor to endpoints.", interceptor.Name, method.MethodName, interceptor.DesignName)))
-			b.WriteString("\n")
+			b.Add("\n")
+			b.Add("\n")
+			b.Add(codegen.Comment(fmt.Sprintf("wrapClient%s%s applies the %s client interceptor to endpoints.", interceptor.Name, method.MethodName, interceptor.DesignName)))
+			b.Add("\n")
 			fmt.Fprintf(&b, "func wrapClient%s%s(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {\n", method.MethodName, interceptor.Name)
-			b.WriteString("\treturn func(ctx context.Context, req any) (any, error) {\n")
+			b.Add("\treturn func(ctx context.Context, req any) (any, error) {\n")
 			if interceptor.HasStreamingPayloadAccess || interceptor.HasStreamingResultAccess {
 				if interceptor.HasPayloadAccess {
 					fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
 					fmt.Fprintf(&b, "\t\tres, err := i.%s(ctx, info, endpoint)\n", interceptor.Name)
 				} else {
-					b.WriteString("\t\tres, err := endpoint(ctx, req)\n")
+					b.Add("\t\tres, err := endpoint(ctx, req)\n")
 				}
-				b.WriteString("\t\tif err != nil {\n\t\t\treturn res, err\n\t\t}\n")
+				b.Add("\t\tif err != nil {\n\t\t\treturn res, err\n\t\t}\n")
 				fmt.Fprintf(&b, "\t\tstream := res.(%s)\n", method.ClientStream.Interface)
 				fmt.Fprintf(&b, "\t\treturn &wrapped%s{\n\t\t\tctx: ctx,\n", method.ClientStream.Interface)
 				if interceptor.HasStreamingPayloadAccess {
@@ -476,43 +495,43 @@ func renderClientInterceptorWrappers(service string, interceptors []*Interceptor
 				fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorUnary,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
 				fmt.Fprintf(&b, "\t\treturn i.%s(ctx, info, endpoint)\n", interceptor.Name)
 			}
-			b.WriteString("\t}\n}\n")
+			b.Add("\t}\n}\n")
 		}
 	}
 	return b.String()
 }
 
 func renderStreamWrappers(streams []*StreamInterceptorData, server bool) string {
-	var b strings.Builder
+	var b sourceBuilder
 	for _, stream := range streams {
-		b.WriteString("\n")
+		b.Add("\n")
 		if server || stream.SendTypeRef != "" {
-			b.WriteString(codegen.Comment("Unwrap returns the underlying stream type."))
-			b.WriteString("\n")
+			b.Add(codegen.Comment("Unwrap returns the underlying stream type."))
+			b.Add("\n")
 			fmt.Fprintf(&b, "func (w *wrapped%s) Unwrap() any {\n\treturn w.stream\n}\n", stream.Interface)
 		}
 		if stream.SendTypeRef != "" {
-			b.WriteString("\n")
-			b.WriteString(codegen.Comment(fmt.Sprintf("%s streams instances of %q after executing the applied interceptor.", stream.SendName, stream.Interface)))
-			b.WriteString("\n")
+			b.Add("\n")
+			b.Add(codegen.Comment(fmt.Sprintf("%s streams instances of %q after executing the applied interceptor.", stream.SendName, stream.Interface)))
+			b.Add("\n")
 			fmt.Fprintf(&b, "func (w *wrapped%s) %s(v %s) error {\n\treturn w.%s(w.ctx, v)\n}\n\n", stream.Interface, stream.SendName, stream.SendTypeRef, stream.SendWithContextName)
-			b.WriteString(codegen.Comment(fmt.Sprintf("%s streams instances of %q after executing the applied interceptor with context.", stream.SendWithContextName, stream.Interface)))
-			b.WriteString("\n")
+			b.Add(codegen.Comment(fmt.Sprintf("%s streams instances of %q after executing the applied interceptor with context.", stream.SendWithContextName, stream.Interface)))
+			b.Add("\n")
 			fmt.Fprintf(&b, "func (w *wrapped%s) %s(ctx context.Context, v %s) error {\n", stream.Interface, stream.SendWithContextName, stream.SendTypeRef)
 			fmt.Fprintf(&b, "\tif w.sendWithContext == nil {\n\t\treturn w.stream.%s(ctx, v)\n\t}\n\treturn w.sendWithContext(ctx, v)\n}\n", stream.SendWithContextName)
 		}
 		if stream.RecvTypeRef != "" {
-			b.WriteString("\n")
-			b.WriteString(codegen.Comment(fmt.Sprintf("%s reads instances of %q from the stream after executing the applied interceptor.", stream.RecvName, stream.Interface)))
-			b.WriteString("\n")
+			b.Add("\n")
+			b.Add(codegen.Comment(fmt.Sprintf("%s reads instances of %q from the stream after executing the applied interceptor.", stream.RecvName, stream.Interface)))
+			b.Add("\n")
 			fmt.Fprintf(&b, "func (w *wrapped%s) %s() (%s, error) {\n\treturn w.%s(w.ctx)\n}\n\n", stream.Interface, stream.RecvName, stream.RecvTypeRef, stream.RecvWithContextName)
-			b.WriteString(codegen.Comment(fmt.Sprintf("%s reads instances of %q from the stream after executing the applied interceptor with context.", stream.RecvWithContextName, stream.Interface)))
-			b.WriteString("\n")
+			b.Add(codegen.Comment(fmt.Sprintf("%s reads instances of %q from the stream after executing the applied interceptor with context.", stream.RecvWithContextName, stream.Interface)))
+			b.Add("\n")
 			fmt.Fprintf(&b, "func (w *wrapped%s) %s(ctx context.Context) (%s, error) {\n", stream.Interface, stream.RecvWithContextName, stream.RecvTypeRef)
 			fmt.Fprintf(&b, "\tif w.recvWithContext == nil {\n\t\treturn w.stream.%s(ctx)\n\t}\n\treturn w.recvWithContext(ctx)\n}\n", stream.RecvWithContextName)
 		}
 		if stream.MustClose {
-			b.WriteString("\n// Close closes the stream.\n")
+			b.Add("\n// Close closes the stream.\n")
 			fmt.Fprintf(&b, "func (w *wrapped%s) Close() error {\n\treturn w.stream.Close()\n}\n", stream.Interface)
 		}
 	}

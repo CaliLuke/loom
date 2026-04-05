@@ -16,9 +16,19 @@ func NewRawSection(name, source string) Section {
 	return &RawSection{Name: name, Source: source}
 }
 
+// NewRenderSection builds a source-backed section from a render callback.
+func NewRenderSection(name string, render func() string) Section {
+	return &RenderSection{Name: name, Render: render}
+}
+
 // MustJenniferSection builds a Jennifer-backed section.
 func MustJenniferSection(name string, build func(*jen.Statement)) Section {
 	return NewJenniferSection(name, build)
+}
+
+// MustRenderSection builds a source-backed section from a render callback.
+func MustRenderSection(name string, render func() string) Section {
+	return NewRenderSection(name, render)
 }
 
 // Doc appends a wrapped Go doc comment followed by a blank line.
