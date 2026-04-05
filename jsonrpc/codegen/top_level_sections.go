@@ -159,6 +159,7 @@ func jsonrpcServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
 	})
 }
 
+//nolint:maintidx // Server constructor wiring intentionally aggregates transport-setup branches.
 func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
 	return codegen.MustJenniferSection("jsonrpc-server-init", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s creates a JSON-RPC server which loads HTTP requests and calls the %q service methods.", data.ServerInit, data.Service.Name))
@@ -345,6 +346,7 @@ func jsonrpcServerResponseCaptureSection() codegen.Section {
 	})
 }
 
+//nolint:maintidx // Mixed HTTP/SSE negotiation is intentionally centralized here.
 func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.MustJenniferSection("jsonrpc-mixed-server-handler", func(stmt *jen.Statement) {
 		stmt.Comment("ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.").Line()

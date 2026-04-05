@@ -9,6 +9,7 @@ import (
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
+//nolint:maintidx // Generator entrypoint intentionally keeps JSON-RPC handler branches together.
 func jsonrpcServerHandlerSection(data *httpcodegen.ServiceData, mixed bool) codegen.Section {
 	return codegen.MustJenniferSection("jsonrpc-server-handler", func(stmt *jen.Statement) {
 		if !httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) && !mixed {
@@ -262,6 +263,7 @@ func writeJSONRPCMethodDispatch(g *jen.Group, endpoints []*httpcodegen.EndpointD
 	}
 }
 
+//nolint:maintidx // Generator entrypoint intentionally keeps SSE routing branches together.
 func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.MustJenniferSection("jsonrpc-sse-server-handler", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "SSEStream"
@@ -519,6 +521,7 @@ func jsonrpcHandlerClosureReturns(e *httpcodegen.EndpointData) []jen.Code {
 	return []jen.Code{jen.Error()}
 }
 
+//nolint:maintidx // Transport initialization must encode several protocol branches in one place.
 func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.Id("strm").Op(":=").Op("&").Id(e.SSE.StructName).Values(jen.Dict{
 		jen.Id("w"):         jen.Id("w"),
@@ -845,6 +848,7 @@ func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.Return(jen.Nil())
 }
 
+//nolint:maintidx // Result encoding path is branch-heavy by generated transport shape.
 func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.Var().Id("id").Any()
 	if e.Result.IDAttribute != "" {

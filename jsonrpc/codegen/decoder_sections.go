@@ -337,17 +337,6 @@ func writeResponseHeaderDecode(g *jen.Group, h *httpcodegen.HeaderData) {
 }
 
 func writeResponseCookieBlock(g *jen.Group, data *httpcodegen.ResponseData) {
-	defs := []jen.Code{}
-	for _, cookie := range data.Cookies {
-		defs = append(defs,
-			jen.Id(cookie.VarName).Add(codegen.TypeRef(cookie.TypeRef)),
-			jen.Id(cookie.VarName+"Raw").String(),
-		)
-	}
-	defs = append(defs, jen.Id("cookies").Op(":=").Id("resp").Dot("Cookies").Call())
-	if data.ClientBody == nil && data.MustValidate && len(data.Headers) == 0 {
-		defs = append(defs, jen.Id("err").Error())
-	}
 	g.Add(codegen.Expr("var ("))
 	for _, cookie := range data.Cookies {
 		g.Add(codegen.Expr(fmt.Sprintf("%s %s", cookie.VarName, cookie.TypeRef)))

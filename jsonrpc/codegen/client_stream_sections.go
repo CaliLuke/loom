@@ -504,6 +504,7 @@ case <-s.done:
 }`))
 }
 
+//nolint:maintidx // Stream helper generation intentionally centralizes protocol-handling branches.
 func writeJSONRPCWebSocketClientHelpers(stmt *jen.Statement, ws *httpcodegen.WebSocketData, hasRecv bool) {
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
 		Id("responseHandler").
@@ -892,6 +893,7 @@ func writeJSONRPCDoRequest(g *jen.Group, ed *httpcodegen.EndpointData) {
 	}
 }
 
+//nolint:maintidx // Connection bootstrap and reconnection logic are intentionally emitted together.
 func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.MustJenniferSection("jsonrpc-client-websocket-conn", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, "getConn returns the current WebSocket connection or creates a new one.")
