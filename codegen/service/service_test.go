@@ -198,8 +198,8 @@ func TestStructPkgPath_UnionJSONFieldBranchesGenerateAliases(t *testing.T) {
 		require.NoError(t, s.Write(buf))
 	}
 	code := buf.String()
-	require.Contains(t, code, "A ValuesA", "expected union field A to use generated alias type:\n%s", code)
-	require.Contains(t, code, "B ValuesB", "expected union field B to use generated alias type:\n%s", code)
+	require.Regexp(t, `(?m)^\s*A\s+ValuesA$`, code, "expected union field A to use generated alias type:\n%s", code)
+	require.Regexp(t, `(?m)^\s*B\s+ValuesB$`, code, "expected union field B to use generated alias type:\n%s", code)
 
 	var hasValuesAFile, hasValuesBFile bool
 	for _, f := range files {

@@ -110,3 +110,40 @@ func TestExampleInterceptorSectionStructuredDeclaration(t *testing.T) {
 	require.Contains(t, code, "func NewWidgetServerInterceptors() *WidgetServerInterceptors {")
 	require.Contains(t, code, "func (i *WidgetServerInterceptors) Trace(ctx context.Context, info *widgetsvc.TraceInfo, next loom.Endpoint) (any, error) {")
 }
+
+func TestUnionSectionStructuredDeclarations(t *testing.T) {
+	code := codegen.SectionCode(t, unionTypeSection("service-union-type", &UnionTypeData{
+		Name:     "Selection",
+		KindName: "SelectionKind",
+		TypeKey:  "type",
+		ValueKey: "value",
+		Fields: []*UnionFieldData{
+			{
+				Name:               "text",
+				KindConst:          "SelectionKindText",
+				FieldName:          "Text",
+				FieldType:          "SelectionText",
+				EmitPrimitiveAlias: true,
+				PrimitiveAliasType: "string",
+				TypeTag:            "text",
+			},
+			{
+				Name:               "count",
+				KindConst:          "SelectionKindCount",
+				FieldName:          "Count",
+				FieldType:          "SelectionCount",
+				EmitPrimitiveAlias: true,
+				PrimitiveAliasType: "int",
+				TypeTag:            "count",
+			},
+		},
+	}))
+
+	require.Contains(t, code, "type SelectionText string")
+	require.Contains(t, code, "type SelectionCount int")
+	require.Contains(t, code, "type Selection struct {")
+	require.Contains(t, code, "func NewSelectionText(v SelectionText) Selection {")
+	require.Contains(t, code, "func (u Selection) Validate() error {")
+	require.Contains(t, code, "func (u Selection) MarshalJSON() ([]byte, error) {")
+	require.Contains(t, code, "func (u *Selection) UnmarshalJSON(data []byte) error {")
+}

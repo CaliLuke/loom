@@ -49,66 +49,182 @@ func typeDeclSection(name string, data *TypeData) codegen.Section {
 }
 
 func unionTypeSection(name string, data *servicecodegen.UnionTypeData) codegen.Section {
-	return codegen.MustRenderSection(name, func() string {
-		return renderHTTPUnionType(data)
+	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+		addHTTPUnionTypeSection(stmt, data)
 	})
 }
 
-func renderHTTPUnionType(data *servicecodegen.UnionTypeData) string {
-	var b sourceBuilder
-	b.Add("\n")
-	writeHTTPUnionTypeScaffold(&b, data)
-	writeHTTPUnionVariantMethods(&b, data)
-	writeHTTPUnionValidationMethods(&b, data)
-	writeHTTPUnionMarshalJSONMethod(&b, data)
-	writeHTTPUnionFormMethods(&b, data)
-	writeHTTPUnionUnmarshalJSONMethod(&b, data)
-	return b.String()
+func addHTTPUnionTypeSection(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	addHTTPUnionAliasTypes(stmt, data)
+	addHTTPUnionStructType(stmt, data)
+	addHTTPUnionKindType(stmt, data)
+	addHTTPUnionKindConsts(stmt, data)
+	addHTTPUnionKindMethod(stmt, data)
+	addHTTPUnionVariantMethods(stmt, data)
+	addHTTPUnionValidateMethod(stmt, data)
+	addHTTPUnionMarshalJSONMethod(stmt, data)
+	addHTTPUnionMarshalFormMethod(stmt, data)
+	addHTTPUnionUnmarshalFormMethod(stmt, data)
+	addHTTPUnionUnmarshalJSONMethod(stmt, data)
 }
 
-func writeHTTPUnionTypeScaffold(b *sourceBuilder, data *servicecodegen.UnionTypeData) {
+func addHTTPUnionAliasTypes(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
 	for _, field := range data.Fields {
 		if !field.EmitPrimitiveAlias {
 			continue
 		}
-		b.Addf("type %s %s\n\n", field.FieldType, field.PrimitiveAliasType)
-	}
-	b.Addf("// %s is a sum-type union.\n", data.Name)
-	b.Addf("type %s struct {\n", data.Name)
-	b.Addf("\tkind %s\n", data.KindName)
-	for _, field := range data.Fields {
-		b.Addf("\t%s %s\n", field.FieldName, field.FieldType)
-	}
-	b.Add("}\n\n")
-	b.Addf("// %s enumerates the union variants for %s.\n", data.KindName, data.Name)
-	b.Addf("type %s string\n\n", data.KindName)
-	b.Add("const (\n")
-	for _, field := range data.Fields {
-		b.Addf("\t// %s identifies the %s branch of the union.\n", field.KindConst, field.Name)
-		b.Addf("\t%s %s = %q\n", field.KindConst, data.KindName, field.TypeTag)
-	}
-	b.Add(")\n\n")
-	b.Addf("// Kind returns the discriminator value of the union.\nfunc (u %s) Kind() %s {\n\treturn u.kind\n}\n\n", data.Name, data.KindName)
-}
-
-func writeHTTPUnionVariantMethods(b *sourceBuilder, data *servicecodegen.UnionTypeData) {
-	for _, field := range data.Fields {
-		b.Addf("// New%s%s constructs a %s with the %s branch set.\n", data.Name, field.FieldName, data.Name, field.Name)
-		b.Addf("func New%s%s(v %s) %s {\n", data.Name, field.FieldName, field.FieldType, data.Name)
-		b.Addf("\treturn %s{\n\t\tkind:      %s,\n\t\t%s: v,\n\t}\n}\n\n", data.Name, field.KindConst, field.FieldName)
-		b.Addf("// As%s returns the value of the %s branch if set.\n", field.FieldName, field.Name)
-		b.Addf("func (u %s) As%s() (_ %s, ok bool) {\n", data.Name, field.FieldName, field.FieldType)
-		b.Addf("\tif u.kind != %s {\n\t\treturn\n\t}\n", field.KindConst)
-		b.Addf("\treturn u.%s, true\n}\n\n", field.FieldName)
-		b.Addf("// Set%s sets the %s branch of the union.\n", field.FieldName, field.Name)
-		b.Addf("func (u *%s) Set%s(v %s) {\n", data.Name, field.FieldName, field.FieldType)
-		b.Addf("\tu.kind = %s\n\tu.%s = v\n}\n\n", field.KindConst, field.FieldName)
+		stmt.Type().Id(field.FieldType).Add(codegen.Expr(field.PrimitiveAliasType))
+		stmt.Line()
 	}
 }
 
-func writeHTTPUnionValidationMethods(b *sourceBuilder, data *servicecodegen.UnionTypeData) {
-	b.Addf("// Validate ensures the union discriminant is valid.\nfunc (u %s) Validate() error {\n", data.Name)
-	b.Add("\tswitch u.kind {\n")
+func addHTTPUnionStructType(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	codegen.Doc(stmt, fmt.Sprintf("%s is a sum-type union.", data.Name))
+	stmt.Type().Id(data.Name).StructFunc(func(group *jen.Group) {
+		group.Id("kind").Id(data.KindName)
+		for _, field := range data.Fields {
+			group.Id(field.FieldName).Id(field.FieldType)
+		}
+	})
+	stmt.Line()
+}
+
+func addHTTPUnionKindType(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	codegen.Doc(stmt, fmt.Sprintf("%s enumerates the union variants for %s.", data.KindName, data.Name))
+	stmt.Type().Id(data.KindName).String()
+	stmt.Line()
+}
+
+func addHTTPUnionKindConsts(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	stmt.Const().DefsFunc(func(group *jen.Group) {
+		for _, field := range data.Fields {
+			group.Comment(fmt.Sprintf("%s identifies the %s branch of the union.", field.KindConst, field.Name))
+			group.Id(field.KindConst).Id(data.KindName).Op("=").Lit(field.TypeTag)
+		}
+	})
+	stmt.Line()
+}
+
+func addHTTPUnionKindMethod(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	codegen.Doc(stmt, "Kind returns the discriminator value of the union.")
+	stmt.Func().
+		Params(jen.Id("u").Id(data.Name)).
+		Id("Kind").
+		Params().
+		Id(data.KindName).
+		Block(
+			jen.Return(jen.Id("u").Dot("kind")),
+		)
+	stmt.Line()
+}
+
+func addHTTPUnionVariantMethods(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	for _, field := range data.Fields {
+		codegen.Doc(stmt, fmt.Sprintf("New%s%s constructs a %s with the %s branch set.", data.Name, field.FieldName, data.Name, field.Name))
+		stmt.Func().
+			Id("New" + data.Name + field.FieldName).
+			Params(jen.Id("v").Id(field.FieldType)).
+			Id(data.Name).
+			BlockFunc(func(group *jen.Group) {
+				addRawHTTPUnionBlock(group, fmt.Sprintf("return %s{\n\tkind: %s,\n\t%s: v,\n}", data.Name, field.KindConst, field.FieldName))
+			})
+		stmt.Line()
+
+		codegen.Doc(stmt, fmt.Sprintf("As%s returns the value of the %s branch if set.", field.FieldName, field.Name))
+		stmt.Func().
+			Params(jen.Id("u").Id(data.Name)).
+			Id("As"+field.FieldName).
+			Params().
+			Params(jen.Id("_").Id(field.FieldType), jen.Id("ok").Bool()).
+			Block(
+				jen.If(jen.Id("u").Dot("kind").Op("!=").Id(field.KindConst)).Block(
+					jen.Return(),
+				),
+				jen.Return(jen.Id("u").Dot(field.FieldName), jen.True()),
+			)
+		stmt.Line()
+
+		codegen.Doc(stmt, fmt.Sprintf("Set%s sets the %s branch of the union.", field.FieldName, field.Name))
+		stmt.Func().
+			Params(jen.Id("u").Op("*").Id(data.Name)).
+			Id("Set"+field.FieldName).
+			Params(jen.Id("v").Id(field.FieldType)).
+			Block(
+				jen.Id("u").Dot("kind").Op("=").Id(field.KindConst),
+				jen.Id("u").Dot(field.FieldName).Op("=").Id("v"),
+			)
+		stmt.Line()
+	}
+}
+
+func addHTTPUnionValidateMethod(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	codegen.Doc(stmt, "Validate ensures the union discriminant is valid.")
+	stmt.Func().
+		Params(jen.Id("u").Id(data.Name)).
+		Id("Validate").
+		Params().
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawHTTPUnionBlock(group, renderHTTPUnionValidateBody(data))
+		})
+	stmt.Line()
+}
+
+func addHTTPUnionMarshalJSONMethod(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	codegen.Doc(stmt, "MarshalJSON marshals the union into the canonical {type,value} JSON shape.")
+	stmt.Func().
+		Params(jen.Id("u").Id(data.Name)).
+		Id("MarshalJSON").
+		Params().
+		Params(jen.Index().Byte(), jen.Error()).
+		BlockFunc(func(group *jen.Group) {
+			addRawHTTPUnionBlock(group, renderHTTPUnionMarshalJSONBody(data))
+		})
+	stmt.Line()
+}
+
+func addHTTPUnionMarshalFormMethod(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	addHTTPUnionFormMethodComment(stmt, "MarshalFormValues", "marshals")
+	stmt.Func().
+		Params(jen.Id("u").Id(data.Name)).
+		Id("MarshalFormValues").
+		Params(jen.Id("values").Qual("net/url", "Values"), jen.Id("prefix").String()).
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawHTTPUnionBlock(group, renderHTTPUnionMarshalFormBody(data))
+		})
+	stmt.Line()
+}
+
+func addHTTPUnionUnmarshalFormMethod(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	addHTTPUnionFormMethodComment(stmt, "UnmarshalFormValues", "unmarshals")
+	stmt.Func().
+		Params(jen.Id("u").Op("*").Id(data.Name)).
+		Id("UnmarshalFormValues").
+		Params(jen.Id("values").Qual("net/url", "Values"), jen.Id("prefix").String()).
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawHTTPUnionBlock(group, renderHTTPUnionUnmarshalFormBody(data))
+		})
+	stmt.Line()
+}
+
+func addHTTPUnionUnmarshalJSONMethod(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
+	stmt.Comment("UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.").Line()
+	stmt.Func().
+		Params(jen.Id("u").Op("*").Id(data.Name)).
+		Id("UnmarshalJSON").
+		Params(jen.Id("data").Index().Byte()).
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawHTTPUnionBlock(group, renderHTTPUnionUnmarshalJSONBody(data))
+		})
+	stmt.Line()
+}
+
+func renderHTTPUnionValidateBody(data *servicecodegen.UnionTypeData) string {
+	var b sourceBuilder
+	b.Add("switch u.kind {\n")
 	b.Addf("\tcase %q:\n", "")
 	b.Addf("\t\treturn loom.InvalidEnumValueError(%q, %q, []any{\n", data.TypeKey, "")
 	for _, field := range data.Fields {
@@ -123,40 +239,29 @@ func writeHTTPUnionValidationMethods(b *sourceBuilder, data *servicecodegen.Unio
 	for _, field := range data.Fields {
 		b.Addf("\t\t\tstring(%s),\n", field.KindConst)
 	}
-	b.Add("\t\t})\n\t}\n}\n\n")
+	b.Add("\t\t})\n\t}")
+	return b.String()
 }
 
-func writeHTTPUnionMarshalJSONMethod(b *sourceBuilder, data *servicecodegen.UnionTypeData) {
-	b.Addf("// MarshalJSON marshals the union into the canonical {type,value} JSON shape.\nfunc (u %s) MarshalJSON() ([]byte, error) {\n", data.Name)
-	b.Add("\tif err := u.Validate(); err != nil {\n\t\treturn nil, err\n\t}\n")
-	b.Add("\tvar (\n\t\tvalue any\n\t)\n")
-	b.Add("\tswitch u.kind {\n")
+func renderHTTPUnionMarshalJSONBody(data *servicecodegen.UnionTypeData) string {
+	var b sourceBuilder
+	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
+	b.Add("var (\n\tvalue any\n)\n")
+	b.Add("switch u.kind {\n")
 	for _, field := range data.Fields {
 		b.Addf("\tcase %s:\n\t\tvalue = u.%s\n", field.KindConst, field.FieldName)
 	}
 	b.Addf("\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
-	b.Addf("\treturn json.Marshal(struct {\n\t\tType  string `json:\"%s\"`\n\t\tValue any    `json:\"%s\"`\n\t}{\n", data.TypeKey, data.ValueKey)
-	b.Add("\t\tType:  string(u.kind),\n\t\tValue: value,\n\t})\n}\n\n")
+	b.Addf("return json.Marshal(struct {\n\tType  string `json:\"%s\"`\n\tValue any    `json:\"%s\"`\n}{\n", data.TypeKey, data.ValueKey)
+	b.Add("\tType:  string(u.kind),\n\tValue: value,\n})")
+	return b.String()
 }
 
-func writeHTTPUnionUnmarshalJSONMethod(b *sourceBuilder, data *servicecodegen.UnionTypeData) {
-	b.Addf("// UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.\nfunc (u *%s) UnmarshalJSON(data []byte) error {\n", data.Name)
-	b.Addf("\tvar raw struct {\n\t\tType  string          `json:\"%s\"`\n\t\tValue json.RawMessage `json:\"%s\"`\n\t}\n", data.TypeKey, data.ValueKey)
-	b.Add("\tif err := json.Unmarshal(data, &raw); err != nil {\n\t\treturn err\n\t}\n")
-	b.Add("\tswitch raw.Type {\n")
-	for _, field := range data.Fields {
-		b.Addf("\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
-		b.Add("\t\tif err := json.Unmarshal(raw.Value, &v); err != nil {\n\t\t\treturn err\n\t\t}\n")
-		b.Addf("\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
-	}
-	b.Addf("\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", raw.Type)\n\t}\n\treturn nil\n}\n", data.Name)
-}
-
-func writeHTTPUnionFormMethods(b *sourceBuilder, data *servicecodegen.UnionTypeData) {
-	b.Addf("// MarshalFormValues marshals the union into application/x-www-form-urlencoded\n// values using the discriminator field plus flattened object fields for\n// object-shaped branches and the canonical {type,value} form shape for scalar\n// branches.\nfunc (u %s) MarshalFormValues(values url.Values, prefix string) error {\n", data.Name)
-	b.Add("\tif err := u.Validate(); err != nil {\n\t\treturn err\n\t}\n")
-	b.Addf("\tvalues.Set(loomhttp.FormChildKey(prefix, %q), string(u.kind))\n", data.TypeKey)
-	b.Add("\tswitch u.kind {\n")
+func renderHTTPUnionMarshalFormBody(data *servicecodegen.UnionTypeData) string {
+	var b sourceBuilder
+	b.Add("if err := u.Validate(); err != nil {\n\treturn err\n}\n")
+	b.Addf("values.Set(loomhttp.FormChildKey(prefix, %q), string(u.kind))\n", data.TypeKey)
+	b.Add("switch u.kind {\n")
 	for _, field := range data.Fields {
 		b.Addf("\tcase %s:\n", field.KindConst)
 		if field.FlatFormObject {
@@ -166,16 +271,20 @@ func writeHTTPUnionFormMethods(b *sourceBuilder, data *servicecodegen.UnionTypeD
 		}
 		b.Add("\t\treturn err\n")
 	}
-	b.Addf("\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n}\n\n", data.Name)
-	b.Addf("// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded\n// values using the discriminator field plus flattened object fields for\n// object-shaped branches and the canonical {type,value} form shape for scalar\n// branches.\nfunc (u *%s) UnmarshalFormValues(values url.Values, prefix string) error {\n", data.Name)
-	b.Addf("\ttypeKey := loomhttp.FormChildKey(prefix, %q)\n", data.TypeKey)
+	b.Addf("\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}", data.Name)
+	return b.String()
+}
+
+func renderHTTPUnionUnmarshalFormBody(data *servicecodegen.UnionTypeData) string {
+	var b sourceBuilder
+	b.Addf("typeKey := loomhttp.FormChildKey(prefix, %q)\n", data.TypeKey)
 	if data.HasScalarFormBranch {
-		b.Addf("\tvalueKey := loomhttp.FormChildKey(prefix, %q)\n", data.ValueKey)
+		b.Addf("valueKey := loomhttp.FormChildKey(prefix, %q)\n", data.ValueKey)
 	}
-	b.Add("\trawType := values.Get(typeKey)\n")
-	b.Add("\tif rawType == \"\" {\n")
-	b.Addf("\t\treturn loom.MissingFieldError(%q, \"body\")\n\t}\n", data.TypeKey)
-	b.Add("\tswitch rawType {\n")
+	b.Add("rawType := values.Get(typeKey)\n")
+	b.Add("if rawType == \"\" {\n")
+	b.Addf("\treturn loom.MissingFieldError(%q, \"body\")\n}\n", data.TypeKey)
+	b.Add("switch rawType {\n")
 	for _, field := range data.Fields {
 		b.Addf("\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
 		if field.FlatFormObject {
@@ -193,7 +302,40 @@ func writeHTTPUnionFormMethods(b *sourceBuilder, data *servicecodegen.UnionTypeD
 		b.Add("\t\t}\n")
 		b.Addf("\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
 	}
-	b.Addf("\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", rawType)\n\t}\n\treturn nil\n}\n\n", data.Name)
+	b.Addf("\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", rawType)\n\t}\nreturn nil", data.Name)
+	return b.String()
+}
+
+func renderHTTPUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData) string {
+	var b sourceBuilder
+	b.Addf("var raw struct {\n\tType  string          `json:\"%s\"`\n\tValue json.RawMessage `json:\"%s\"`\n}\n", data.TypeKey, data.ValueKey)
+	b.Add("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
+	b.Add("switch raw.Type {\n")
+	for _, field := range data.Fields {
+		b.Addf("\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
+		b.Add("\t\tif err := json.Unmarshal(raw.Value, &v); err != nil {\n\t\t\treturn err\n\t\t}\n")
+		b.Addf("\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
+	}
+	b.Addf("\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", raw.Type)\n\t}\nreturn nil", data.Name)
+	return b.String()
+}
+
+func addRawHTTPUnionBlock(group *jen.Group, code string) {
+	if strings.TrimSpace(code) == "" {
+		return
+	}
+	group.Add(codegen.Expr(strings.TrimRight(code, "\n")))
+}
+
+func addHTTPUnionFormMethodComment(stmt *jen.Statement, methodName, verb string) {
+	preposition := "into"
+	if verb == "unmarshals" {
+		preposition = "from"
+	}
+	stmt.Comment(methodName + " " + verb + " the union " + preposition + " application/x-www-form-urlencoded").Line()
+	stmt.Comment("values using the discriminator field plus flattened object fields for").Line()
+	stmt.Comment("object-shaped branches and the canonical {type,value} form shape for scalar").Line()
+	stmt.Comment("branches.").Line()
 }
 
 func bodyInitSection(name string, init *InitData, client bool) codegen.Section {

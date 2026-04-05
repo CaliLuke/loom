@@ -72,8 +72,8 @@ func viewedTypeMapSection(rtdata []*viewedType) codegen.Section {
 }
 
 func unionTypeSection(name string, data *UnionTypeData) codegen.Section {
-	return codegen.MustRenderSection(name, func() string {
-		return renderUnionType(data)
+	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+		addUnionTypeSection(stmt, data)
 	})
 }
 
@@ -118,129 +118,239 @@ func renderViewedTypeMap(rtdata []*viewedType) string {
 	return b.String()
 }
 
-func renderUnionType(data *UnionTypeData) string {
-	var b sourceBuilder
-	writeUnionTypeScaffold(&b, data)
-	writeUnionVariantMethods(&b, data)
-	writeUnionValidationMethods(&b, data)
-	writeUnionMarshalJSONMethod(&b, data)
-	writeUnionFormMethods(&b, data)
-	writeUnionUnmarshalJSONMethod(&b, data)
-	return b.String()
+func addUnionTypeSection(stmt *jen.Statement, data *UnionTypeData) {
+	addUnionAliasTypes(stmt, data)
+	addUnionStructType(stmt, data)
+	addUnionKindType(stmt, data)
+	addUnionKindConsts(stmt, data)
+	addUnionKindMethod(stmt, data)
+	addUnionVariantMethods(stmt, data)
+	addUnionValidateMethod(stmt, data)
+	addUnionMarshalJSONMethod(stmt, data)
+	addUnionMarshalFormMethod(stmt, data)
+	addUnionUnmarshalFormMethod(stmt, data)
+	addUnionUnmarshalJSONMethod(stmt, data)
 }
 
-func writeUnionTypeScaffold(b *sourceBuilder, data *UnionTypeData) {
+func addUnionAliasTypes(stmt *jen.Statement, data *UnionTypeData) {
 	for _, field := range data.Fields {
 		if !field.EmitPrimitiveAlias {
 			continue
 		}
-		fmt.Fprintf(b, "type %s %s\n\n", field.FieldType, field.PrimitiveAliasType)
-	}
-	fmt.Fprintf(b, "// %s is a sum-type union.\n", data.Name)
-	fmt.Fprintf(b, "type %s struct {\n", data.Name)
-	fmt.Fprintf(b, "\tkind %s\n", data.KindName)
-	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\t%s %s\n", field.FieldName, field.FieldType)
-	}
-	b.Add("}\n\n")
-	fmt.Fprintf(b, "// %s enumerates the union variants for %s.\n", data.KindName, data.Name)
-	fmt.Fprintf(b, "type %s string\n\n", data.KindName)
-	b.Add("const (\n")
-	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\t// %s identifies the %s branch of the union.\n", field.KindConst, field.Name)
-		fmt.Fprintf(b, "\t%s %s = %q\n", field.KindConst, data.KindName, field.TypeTag)
-	}
-	b.Add(")\n\n")
-	fmt.Fprintf(b, "// Kind returns the discriminator value of the union.\nfunc (u %s) Kind() %s {\n\treturn u.kind\n}\n\n", data.Name, data.KindName)
-}
-
-func writeUnionVariantMethods(b *sourceBuilder, data *UnionTypeData) {
-	for _, field := range data.Fields {
-		fmt.Fprintf(b, "// New%s%s constructs a %s with the %s branch set.\n", data.Name, field.FieldName, data.Name, field.Name)
-		fmt.Fprintf(b, "func New%s%s(v %s) %s {\n", data.Name, field.FieldName, field.FieldType, data.Name)
-		fmt.Fprintf(b, "\treturn %s{\n\t\tkind:      %s,\n\t\t%s: v,\n\t}\n}\n\n", data.Name, field.KindConst, field.FieldName)
-		fmt.Fprintf(b, "// As%s returns the value of the %s branch if set.\n", field.FieldName, field.Name)
-		fmt.Fprintf(b, "func (u %s) As%s() (_ %s, ok bool) {\n", data.Name, field.FieldName, field.FieldType)
-		fmt.Fprintf(b, "\tif u.kind != %s {\n\t\treturn\n\t}\n", field.KindConst)
-		fmt.Fprintf(b, "\treturn u.%s, true\n}\n\n", field.FieldName)
-		fmt.Fprintf(b, "// Set%s sets the %s branch of the union.\n", field.FieldName, field.Name)
-		fmt.Fprintf(b, "func (u *%s) Set%s(v %s) {\n", data.Name, field.FieldName, field.FieldType)
-		fmt.Fprintf(b, "\tu.kind = %s\n\tu.%s = v\n}\n\n", field.KindConst, field.FieldName)
+		stmt.Type().Id(field.FieldType).Add(codegen.Expr(field.PrimitiveAliasType))
+		stmt.Line()
 	}
 }
 
-func writeUnionValidationMethods(b *sourceBuilder, data *UnionTypeData) {
-	fmt.Fprintf(b, "// Validate ensures the union discriminant is valid.\nfunc (u %s) Validate() error {\n", data.Name)
-	b.Add("\tswitch u.kind {\n")
-	fmt.Fprintf(b, "\tcase %q:\n", "")
-	fmt.Fprintf(b, "\t\treturn loom.InvalidEnumValueError(%q, %q, []any{\n", data.TypeKey, "")
+func addUnionStructType(stmt *jen.Statement, data *UnionTypeData) {
+	codegen.Doc(stmt, fmt.Sprintf("%s is a sum-type union.", data.Name))
+	stmt.Type().Id(data.Name).StructFunc(func(group *jen.Group) {
+		group.Id("kind").Id(data.KindName)
+		for _, field := range data.Fields {
+			group.Id(field.FieldName).Id(field.FieldType)
+		}
+	})
+	stmt.Line()
+}
+
+func addUnionKindType(stmt *jen.Statement, data *UnionTypeData) {
+	codegen.Doc(stmt, fmt.Sprintf("%s enumerates the union variants for %s.", data.KindName, data.Name))
+	stmt.Type().Id(data.KindName).String()
+	stmt.Line()
+}
+
+func addUnionKindConsts(stmt *jen.Statement, data *UnionTypeData) {
+	stmt.Const().DefsFunc(func(group *jen.Group) {
+		for _, field := range data.Fields {
+			group.Comment(fmt.Sprintf("%s identifies the %s branch of the union.", field.KindConst, field.Name))
+			group.Id(field.KindConst).Id(data.KindName).Op("=").Lit(field.TypeTag)
+		}
+	})
+	stmt.Line()
+}
+
+func addUnionKindMethod(stmt *jen.Statement, data *UnionTypeData) {
+	codegen.Doc(stmt, "Kind returns the discriminator value of the union.")
+	stmt.Func().
+		Params(jen.Id("u").Id(data.Name)).
+		Id("Kind").
+		Params().
+		Id(data.KindName).
+		Block(
+			jen.Return(jen.Id("u").Dot("kind")),
+		)
+	stmt.Line()
+}
+
+func addUnionVariantMethods(stmt *jen.Statement, data *UnionTypeData) {
 	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\t\t\tstring(%s),\n", field.KindConst)
+		codegen.Doc(stmt, fmt.Sprintf("New%s%s constructs a %s with the %s branch set.", data.Name, field.FieldName, data.Name, field.Name))
+		stmt.Func().
+			Id("New" + data.Name + field.FieldName).
+			Params(jen.Id("v").Id(field.FieldType)).
+			Id(data.Name).
+			BlockFunc(func(group *jen.Group) {
+				addRawUnionBlock(group, fmt.Sprintf("return %s{\n\tkind: %s,\n\t%s: v,\n}", data.Name, field.KindConst, field.FieldName))
+			})
+		stmt.Line()
+
+		codegen.Doc(stmt, fmt.Sprintf("As%s returns the value of the %s branch if set.", field.FieldName, field.Name))
+		stmt.Func().
+			Params(jen.Id("u").Id(data.Name)).
+			Id("As"+field.FieldName).
+			Params().
+			Params(jen.Id("_").Id(field.FieldType), jen.Id("ok").Bool()).
+			Block(
+				jen.If(jen.Id("u").Dot("kind").Op("!=").Id(field.KindConst)).Block(
+					jen.Return(),
+				),
+				jen.Return(jen.Id("u").Dot(field.FieldName), jen.True()),
+			)
+		stmt.Line()
+
+		codegen.Doc(stmt, fmt.Sprintf("Set%s sets the %s branch of the union.", field.FieldName, field.Name))
+		stmt.Func().
+			Params(jen.Id("u").Op("*").Id(data.Name)).
+			Id("Set"+field.FieldName).
+			Params(jen.Id("v").Id(field.FieldType)).
+			Block(
+				jen.Id("u").Dot("kind").Op("=").Id(field.KindConst),
+				jen.Id("u").Dot(field.FieldName).Op("=").Id("v"),
+			)
+		stmt.Line()
+	}
+}
+
+func addUnionValidateMethod(stmt *jen.Statement, data *UnionTypeData) {
+	codegen.Doc(stmt, "Validate ensures the union discriminant is valid.")
+	stmt.Func().
+		Params(jen.Id("u").Id(data.Name)).
+		Id("Validate").
+		Params().
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawUnionBlock(group, renderUnionValidateBody(data))
+		})
+	stmt.Line()
+}
+
+func addUnionMarshalJSONMethod(stmt *jen.Statement, data *UnionTypeData) {
+	codegen.Doc(stmt, "MarshalJSON marshals the union into the canonical {type,value} JSON shape.")
+	stmt.Func().
+		Params(jen.Id("u").Id(data.Name)).
+		Id("MarshalJSON").
+		Params().
+		Params(jen.Index().Byte(), jen.Error()).
+		BlockFunc(func(group *jen.Group) {
+			addRawUnionBlock(group, renderUnionMarshalJSONBody(data))
+		})
+	stmt.Line()
+}
+
+func addUnionMarshalFormMethod(stmt *jen.Statement, data *UnionTypeData) {
+	addUnionFormMethodComment(stmt, "MarshalFormValues", "marshals")
+	stmt.Func().
+		Params(jen.Id("u").Id(data.Name)).
+		Id("MarshalFormValues").
+		Params(jen.Id("values").Qual("net/url", "Values"), jen.Id("prefix").String()).
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawUnionBlock(group, renderUnionMarshalFormBody(data))
+		})
+	stmt.Line()
+}
+
+func addUnionUnmarshalFormMethod(stmt *jen.Statement, data *UnionTypeData) {
+	addUnionFormMethodComment(stmt, "UnmarshalFormValues", "unmarshals")
+	stmt.Func().
+		Params(jen.Id("u").Op("*").Id(data.Name)).
+		Id("UnmarshalFormValues").
+		Params(jen.Id("values").Qual("net/url", "Values"), jen.Id("prefix").String()).
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawUnionBlock(group, renderUnionUnmarshalFormBody(data))
+		})
+	stmt.Line()
+}
+
+func addUnionUnmarshalJSONMethod(stmt *jen.Statement, data *UnionTypeData) {
+	stmt.Comment("UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.").Line()
+	stmt.Func().
+		Params(jen.Id("u").Op("*").Id(data.Name)).
+		Id("UnmarshalJSON").
+		Params(jen.Id("data").Index().Byte()).
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawUnionBlock(group, renderUnionUnmarshalJSONBody(data))
+		})
+	stmt.Line()
+}
+
+func renderUnionValidateBody(data *UnionTypeData) string {
+	var b sourceBuilder
+	b.Add("switch u.kind {\n")
+	fmt.Fprintf(&b, "\tcase %q:\n", "")
+	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, %q, []any{\n", data.TypeKey, "")
+	for _, field := range data.Fields {
+		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
 	b.Add("\t\t})\n")
 	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\tcase %s:\n\t\treturn nil\n", field.KindConst)
+		fmt.Fprintf(&b, "\tcase %s:\n\t\treturn nil\n", field.KindConst)
 	}
 	b.Add("\tdefault:\n")
-	fmt.Fprintf(b, "\t\treturn loom.InvalidEnumValueError(%q, u.kind, []any{\n", data.TypeKey)
+	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, u.kind, []any{\n", data.TypeKey)
 	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\t\t\tstring(%s),\n", field.KindConst)
+		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
-	b.Add("\t\t})\n\t}\n}\n\n")
+	b.Add("\t\t})\n\t}")
+	return b.String()
 }
 
-func writeUnionMarshalJSONMethod(b *sourceBuilder, data *UnionTypeData) {
-	fmt.Fprintf(b, "// MarshalJSON marshals the union into the canonical {type,value} JSON shape.\nfunc (u %s) MarshalJSON() ([]byte, error) {\n", data.Name)
-	b.Add("\tif err := u.Validate(); err != nil {\n\t\treturn nil, err\n\t}\n")
-	b.Add("\tvar (\n\t\tvalue any\n\t)\n")
-	b.Add("\tswitch u.kind {\n")
+func renderUnionMarshalJSONBody(data *UnionTypeData) string {
+	var b sourceBuilder
+	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
+	b.Add("var (\n\tvalue any\n)\n")
+	b.Add("switch u.kind {\n")
 	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\tcase %s:\n\t\tvalue = u.%s\n", field.KindConst, field.FieldName)
+		fmt.Fprintf(&b, "\tcase %s:\n\t\tvalue = u.%s\n", field.KindConst, field.FieldName)
 	}
-	fmt.Fprintf(b, "\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
-	fmt.Fprintf(b, "\treturn json.Marshal(struct {\n\t\tType  string `json:\"%s\"`\n\t\tValue any    `json:\"%s\"`\n\t}{\n", data.TypeKey, data.ValueKey)
-	b.Add("\t\tType:  string(u.kind),\n\t\tValue: value,\n\t})\n}\n\n")
+	fmt.Fprintf(&b, "\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
+	fmt.Fprintf(&b, "return json.Marshal(struct {\n\tType  string `json:\"%s\"`\n\tValue any    `json:\"%s\"`\n}{\n", data.TypeKey, data.ValueKey)
+	b.Add("\tType:  string(u.kind),\n\tValue: value,\n})")
+	return b.String()
 }
 
-func writeUnionUnmarshalJSONMethod(b *sourceBuilder, data *UnionTypeData) {
-	fmt.Fprintf(b, "// UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.\nfunc (u *%s) UnmarshalJSON(data []byte) error {\n", data.Name)
-	fmt.Fprintf(b, "\tvar raw struct {\n\t\tType  string          `json:\"%s\"`\n\t\tValue json.RawMessage `json:\"%s\"`\n\t}\n", data.TypeKey, data.ValueKey)
-	b.Add("\tif err := json.Unmarshal(data, &raw); err != nil {\n\t\treturn err\n\t}\n")
-	b.Add("\tswitch raw.Type {\n")
+func renderUnionMarshalFormBody(data *UnionTypeData) string {
+	var b sourceBuilder
+	b.Add("if err := u.Validate(); err != nil {\n\treturn err\n}\n")
+	fmt.Fprintf(&b, "values.Set(loomhttp.FormChildKey(prefix, %q), string(u.kind))\n", data.TypeKey)
+	b.Add("switch u.kind {\n")
 	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
-		b.Add("\t\tif err := json.Unmarshal(raw.Value, &v); err != nil {\n\t\t\treturn err\n\t\t}\n")
-		fmt.Fprintf(b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
-	}
-	fmt.Fprintf(b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", raw.Type)\n\t}\n\treturn nil\n}\n", data.Name)
-}
-
-func writeUnionFormMethods(b *sourceBuilder, data *UnionTypeData) {
-	fmt.Fprintf(b, "// MarshalFormValues marshals the union into application/x-www-form-urlencoded\n// values using the discriminator field plus flattened object fields for\n// object-shaped branches and the canonical {type,value} form shape for scalar\n// branches.\nfunc (u %s) MarshalFormValues(values url.Values, prefix string) error {\n", data.Name)
-	b.Add("\tif err := u.Validate(); err != nil {\n\t\treturn err\n\t}\n")
-	fmt.Fprintf(b, "\tvalues.Set(loomhttp.FormChildKey(prefix, %q), string(u.kind))\n", data.TypeKey)
-	b.Add("\tswitch u.kind {\n")
-	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\tcase %s:\n", field.KindConst)
+		fmt.Fprintf(&b, "\tcase %s:\n", field.KindConst)
 		if field.FlatFormObject {
-			fmt.Fprintf(b, "\t\t_, err := loomhttp.EncodeFormValue(values, prefix, u.%s)\n", field.FieldName)
+			fmt.Fprintf(&b, "\t\t_, err := loomhttp.EncodeFormValue(values, prefix, u.%s)\n", field.FieldName)
 		} else {
-			fmt.Fprintf(b, "\t\t_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, %q), u.%s)\n", data.ValueKey, field.FieldName)
+			fmt.Fprintf(&b, "\t\t_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, %q), u.%s)\n", data.ValueKey, field.FieldName)
 		}
 		b.Add("\t\treturn err\n")
 	}
-	fmt.Fprintf(b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n}\n\n", data.Name)
-	fmt.Fprintf(b, "// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded\n// values using the discriminator field plus flattened object fields for\n// object-shaped branches and the canonical {type,value} form shape for scalar\n// branches.\nfunc (u *%s) UnmarshalFormValues(values url.Values, prefix string) error {\n", data.Name)
-	fmt.Fprintf(b, "\ttypeKey := loomhttp.FormChildKey(prefix, %q)\n", data.TypeKey)
+	fmt.Fprintf(&b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}", data.Name)
+	return b.String()
+}
+
+func renderUnionUnmarshalFormBody(data *UnionTypeData) string {
+	var b sourceBuilder
+	fmt.Fprintf(&b, "typeKey := loomhttp.FormChildKey(prefix, %q)\n", data.TypeKey)
 	if data.HasScalarFormBranch {
-		fmt.Fprintf(b, "\tvalueKey := loomhttp.FormChildKey(prefix, %q)\n", data.ValueKey)
+		fmt.Fprintf(&b, "valueKey := loomhttp.FormChildKey(prefix, %q)\n", data.ValueKey)
 	}
-	b.Add("\trawType := values.Get(typeKey)\n")
-	b.Add("\tif rawType == \"\" {\n")
-	fmt.Fprintf(b, "\t\treturn loom.MissingFieldError(%q, \"body\")\n\t}\n", data.TypeKey)
-	b.Add("\tswitch rawType {\n")
+	b.Add("rawType := values.Get(typeKey)\n")
+	b.Add("if rawType == \"\" {\n")
+	fmt.Fprintf(&b, "\treturn loom.MissingFieldError(%q, \"body\")\n}\n", data.TypeKey)
+	b.Add("switch rawType {\n")
 	for _, field := range data.Fields {
-		fmt.Fprintf(b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
+		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
 		if field.FlatFormObject {
 			b.Add("\t\tseen, err := loomhttp.DecodeFormValue(values, prefix, &v)\n")
 		} else {
@@ -249,12 +359,45 @@ func writeUnionFormMethods(b *sourceBuilder, data *UnionTypeData) {
 		b.Add("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
 		b.Add("\t\tif !seen {\n")
 		if field.FlatFormObjectAllowsEmpty {
-			fmt.Fprintf(b, "\t\t\tv = %s\n", field.EmptyValueExpr)
+			fmt.Fprintf(&b, "\t\t\tv = %s\n", field.EmptyValueExpr)
 		} else {
-			fmt.Fprintf(b, "\t\t\treturn loom.MissingFieldError(%q, \"body\")\n", data.ValueKey)
+			fmt.Fprintf(&b, "\t\t\treturn loom.MissingFieldError(%q, \"body\")\n", data.ValueKey)
 		}
 		b.Add("\t\t}\n")
-		fmt.Fprintf(b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
+		fmt.Fprintf(&b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
 	}
-	fmt.Fprintf(b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", rawType)\n\t}\n\treturn nil\n}\n\n", data.Name)
+	fmt.Fprintf(&b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", rawType)\n\t}\nreturn nil", data.Name)
+	return b.String()
+}
+
+func renderUnionUnmarshalJSONBody(data *UnionTypeData) string {
+	var b sourceBuilder
+	fmt.Fprintf(&b, "var raw struct {\n\tType  string          `json:\"%s\"`\n\tValue json.RawMessage `json:\"%s\"`\n}\n", data.TypeKey, data.ValueKey)
+	b.Add("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
+	b.Add("switch raw.Type {\n")
+	for _, field := range data.Fields {
+		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
+		b.Add("\t\tif err := json.Unmarshal(raw.Value, &v); err != nil {\n\t\t\treturn err\n\t\t}\n")
+		fmt.Fprintf(&b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
+	}
+	fmt.Fprintf(&b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", raw.Type)\n\t}\nreturn nil", data.Name)
+	return b.String()
+}
+
+func addRawUnionBlock(group *jen.Group, code string) {
+	if strings.TrimSpace(code) == "" {
+		return
+	}
+	group.Add(codegen.Expr(strings.TrimRight(code, "\n")))
+}
+
+func addUnionFormMethodComment(stmt *jen.Statement, methodName, verb string) {
+	preposition := "into"
+	if verb == "unmarshals" {
+		preposition = "from"
+	}
+	stmt.Comment(methodName + " " + verb + " the union " + preposition + " application/x-www-form-urlencoded").Line()
+	stmt.Comment("values using the discriminator field plus flattened object fields for").Line()
+	stmt.Comment("object-shaped branches and the canonical {type,value} form shape for scalar").Line()
+	stmt.Comment("branches.").Line()
 }
