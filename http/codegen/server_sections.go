@@ -5,74 +5,82 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 )
 
 func serverStructSection(data *ServiceData) codegen.Section {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(fmt.Sprintf("%s lists the %s service endpoint HTTP handlers.", data.ServerStruct, data.Service.Name)))
-	b.Add("\n")
-	b.Addf("type %s struct {\n", data.ServerStruct)
-	b.Addf("\tMounts []*%s\n", data.MountPointStruct)
-	for _, endpoint := range data.Endpoints {
-		b.Addf("\t%s http.Handler\n", endpoint.Method.VarName)
-	}
-	for _, fs := range data.FileServers {
-		b.Addf("\t%s http.Handler\n", fs.VarName)
-	}
-	b.Add("}\n")
-	return codegen.MustRenderSection("server-struct", b.String)
-}
-
-func mountPointStructSection(data *ServiceData) codegen.Section {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(fmt.Sprintf("%s holds information about the mounted endpoints.", data.MountPointStruct)))
-	b.Add("\n")
-	b.Addf("type %s struct {\n", data.MountPointStruct)
-	b.Add("\t" + codegen.Comment("Method is the name of the service method served by the mounted HTTP handler.") + "\n")
-	b.Add("\tMethod string\n")
-	b.Add("\t" + codegen.Comment("Verb is the HTTP method used to match requests to the mounted handler.") + "\n")
-	b.Add("\tVerb string\n")
-	b.Add("\t" + codegen.Comment("Pattern is the HTTP request path pattern used to match requests to the mounted handler.") + "\n")
-	b.Add("\tPattern string\n")
-	b.Add("}\n")
-	return codegen.MustRenderSection("server-mountpoint", b.String)
-}
-
-func serverInitSection(data *ServiceData) codegen.Section {
-	return codegen.MustRenderSection("server-init", func() string {
-		return renderServerInit(data)
+	return codegen.MustJenniferSection("server-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s lists the %s service endpoint HTTP handlers.", data.ServerStruct, data.Service.Name))
+		stmt.Type().Id(data.ServerStruct).StructFunc(func(group *jen.Group) {
+			group.Id("Mounts").Index().Op("*").Id(data.MountPointStruct)
+			for _, endpoint := range data.Endpoints {
+				group.Id(endpoint.Method.VarName).Qual("net/http", "Handler")
+			}
+			for _, fs := range data.FileServers {
+				group.Id(fs.VarName).Qual("net/http", "Handler")
+			}
+		})
 	})
 }
 
-func renderServerInit(data *ServiceData) string {
+func mountPointStructSection(data *ServiceData) codegen.Section {
+	return codegen.MustJenniferSection("server-mountpoint", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s holds information about the mounted endpoints.", data.MountPointStruct))
+		stmt.Type().Id(data.MountPointStruct).StructFunc(func(group *jen.Group) {
+			group.Comment("Method is the name of the service method served by the mounted HTTP handler.").Line()
+			group.Id("Method").String()
+			group.Comment("Verb is the HTTP method used to match requests to the mounted handler.").Line()
+			group.Id("Verb").String()
+			group.Comment("Pattern is the HTTP request path pattern used to match requests to the mounted handler.").Line()
+			group.Id("Pattern").String()
+		})
+	})
+}
+
+func serverInitSection(data *ServiceData) codegen.Section {
+	return codegen.MustJenniferSection("server-init", func(stmt *jen.Statement) {
+		comment := fmt.Sprintf("%s instantiates HTTP handlers for all the %s service endpoints using the provided encoder and decoder. The handlers are mounted on the given mux using the HTTP verb and path defined in the design. errhandler is called whenever a response fails to be encoded. formatter is used to format errors returned by the service methods prior to encoding. Both errhandler and formatter are optional and can be nil.", data.ServerInit, data.Service.Name)
+		codegen.Doc(stmt, comment)
+		stmt.Func().
+			Id(data.ServerInit).
+			ParamsFunc(func(group *jen.Group) {
+				group.Id("e").Op("*").Add(codegen.TypeRef(data.Service.PkgName + ".Endpoints"))
+				group.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer"))
+				group.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Decoder"))
+				group.Id("encoder").Func().Params(
+					jen.Id("ctx").Qual("context", "Context"),
+					jen.Id("w").Qual("net/http", "ResponseWriter"),
+				).Add(codegen.TypeRef("loomhttp.Encoder"))
+				group.Id("errhandler").Func().Params(
+					jen.Id("ctx").Qual("context", "Context"),
+					jen.Id("w").Qual("net/http", "ResponseWriter"),
+					jen.Id("err").Error(),
+				)
+				group.Id("formatter").Func().Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("err").Error()).Add(codegen.TypeRef("loomhttp.Statuser"))
+				if HasWebSocket(data) {
+					group.Id("upgrader").Add(codegen.TypeRef("loomhttp.Upgrader"))
+					group.Id("configurer").Add(codegen.TypeRef("*ConnConfigurer"))
+				}
+				for _, endpoint := range data.Endpoints {
+					if endpoint.MultipartRequestDecoder != nil {
+						group.Id(endpoint.MultipartRequestDecoder.VarName).Add(codegen.TypeRef(endpoint.MultipartRequestDecoder.FuncName))
+					}
+				}
+				for _, fs := range data.FileServers {
+					group.Id(fs.ArgName).Qual("net/http", "FileSystem")
+				}
+			}).
+			Op("*").Id(data.ServerStruct).
+			BlockFunc(func(group *jen.Group) {
+				appendHTTPRawBlock(group, renderServerInitBody(data))
+			})
+	})
+}
+
+func renderServerInitBody(data *ServiceData) string {
 	var b sourceBuilder
-	comment := fmt.Sprintf("%s instantiates HTTP handlers for all the %s service endpoints using the provided encoder and decoder. The handlers are mounted on the given mux using the HTTP verb and path defined in the design. errhandler is called whenever a response fails to be encoded. formatter is used to format errors returned by the service methods prior to encoding. Both errhandler and formatter are optional and can be nil.", data.ServerInit, data.Service.Name)
-	b.Add("\n")
-	b.Add(codegen.Comment(comment))
-	b.Add("\n")
-	b.Addf("func %s(\n", data.ServerInit)
-	b.Addf("\te *%s.Endpoints,\n", data.Service.PkgName)
-	b.Add("\tmux loomhttp.Muxer,\n")
-	b.Add("\tdecoder func(*http.Request) loomhttp.Decoder,\n")
-	b.Add("\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,\n")
-	b.Add("\terrhandler func(context.Context, http.ResponseWriter, error),\n")
-	b.Add("\tformatter func(ctx context.Context, err error) loomhttp.Statuser,\n")
-	if HasWebSocket(data) {
-		b.Add("\tupgrader loomhttp.Upgrader,\n")
-		b.Add("\tconfigurer *ConnConfigurer,\n")
-	}
-	for _, endpoint := range data.Endpoints {
-		if endpoint.MultipartRequestDecoder != nil {
-			b.Addf("\t%s %s,\n", endpoint.MultipartRequestDecoder.VarName, endpoint.MultipartRequestDecoder.FuncName)
-		}
-	}
-	for _, fs := range data.FileServers {
-		b.Addf("\t%s http.FileSystem,\n", fs.ArgName)
-	}
-	b.Addf(") *%s {\n", data.ServerStruct)
 	if HasWebSocket(data) {
 		b.Add("\tif configurer == nil {\n\t\tconfigurer = &ConnConfigurer{}\n\t}\n")
 	}
@@ -113,123 +121,178 @@ func renderServerInit(data *ServiceData) string {
 	for _, fs := range data.FileServers {
 		b.Addf("\t\t%s: http.FileServer(%s),\n", fs.VarName, fs.ArgName)
 	}
-	b.Add("\t}\n}\n")
+	b.Add("\t}\n")
 	return b.String()
 }
 
 func serverServiceSection(data *ServiceData) codegen.Section {
-	return codegen.MustRenderSection("server-service", func() string {
-		return fmt.Sprintf("\n%s\nfunc (s *%s) %s() string { return %q }\n", codegen.Comment(fmt.Sprintf("%s returns the name of the service served.", data.ServerService)), data.ServerStruct, data.ServerService, data.Service.Name)
+	return codegen.MustJenniferSection("server-service", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s returns the name of the service served.", data.ServerService))
+		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).Id(data.ServerService).Params().String().Block(
+			jen.Return(jen.Lit(data.Service.Name)),
+		)
 	})
 }
 
 func serverUseSection(data *ServiceData) codegen.Section {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment("Use wraps the server handlers with the given middleware."))
-	b.Add("\n")
-	b.Addf("func (s *%s) Use(m func(http.Handler) http.Handler) {\n", data.ServerStruct)
-	for _, endpoint := range data.Endpoints {
-		b.Addf("\ts.%s = m(s.%s)\n", endpoint.Method.VarName, endpoint.Method.VarName)
-	}
-	b.Add("}\n")
-	return codegen.MustRenderSection("server-use", b.String)
+	return codegen.MustJenniferSection("server-use", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, "Use wraps the server handlers with the given middleware.")
+		stmt.Func().
+			Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id("Use").
+			Params(jen.Id("m").Func().Params(jen.Qual("net/http", "Handler")).Qual("net/http", "Handler")).
+			BlockFunc(func(group *jen.Group) {
+				for _, endpoint := range data.Endpoints {
+					group.Id("s").Dot(endpoint.Method.VarName).Op("=").Id("m").Call(jen.Id("s").Dot(endpoint.Method.VarName))
+				}
+			})
+	})
 }
 
 func serverMethodNamesSection(data *ServiceData) codegen.Section {
-	return codegen.MustRenderSection("server-method-names", func() string {
-		return fmt.Sprintf("\n%s\nfunc (s *%s) MethodNames() []string { return %s.MethodNames[:] }\n", codegen.Comment("MethodNames returns the methods served."), data.ServerStruct, data.Service.PkgName)
+	return codegen.MustJenniferSection("server-method-names", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, "MethodNames returns the methods served.")
+		stmt.Func().
+			Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id("MethodNames").
+			Params().
+			Index().String().
+			Block(
+				jen.Return(codegen.Expr(data.Service.PkgName + ".MethodNames[:]")),
+			)
 	})
 }
 
 func serverMountSection(data *ServiceData) codegen.Section {
-	return codegen.MustRenderSection("server-mount", func() string {
-		return renderServerMount(data)
+	return codegen.MustJenniferSection("server-mount", func(stmt *jen.Statement) {
+		comment := fmt.Sprintf("%s configures the mux to serve the %s endpoints.", data.MountServer, data.Service.Name)
+		codegen.Doc(stmt, comment)
+		stmt.Func().
+			Id(data.MountServer).
+			Params(jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer")), jen.Id("h").Op("*").Id(data.ServerStruct)).
+			BlockFunc(func(group *jen.Group) {
+				appendHTTPRawBlock(group, renderServerMountBody(data, true))
+			})
+		stmt.Line()
+		codegen.Doc(stmt, comment)
+		stmt.Func().
+			Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id(data.MountServer).
+			Params(jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer"))).
+			BlockFunc(func(group *jen.Group) {
+				appendHTTPRawBlock(group, renderServerMountBody(data, false))
+			})
 	})
 }
 
-func renderServerMount(data *ServiceData) string {
+func renderServerMountBody(data *ServiceData, standalone bool) string {
 	var b sourceBuilder
-	comment := codegen.Comment(fmt.Sprintf("%s configures the mux to serve the %s endpoints.", data.MountServer, data.Service.Name))
-	b.Add("\n")
-	b.Add(comment)
-	b.Add("\n")
-	b.Addf("func %s(mux loomhttp.Muxer, h *%s) {\n", data.MountServer, data.ServerStruct)
-	for _, endpoint := range data.Endpoints {
-		b.Addf("\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
-	}
-	for _, fs := range data.FileServers {
-		if fs.Redirect != nil {
-			b.Addf("\t%s(mux, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n", fs.MountHandler)
-			b.Addf("\t\thttp.Redirect(w, r, %q, %s)\n", fs.Redirect.URL, fs.Redirect.StatusCode)
-			b.Add("\t}))\n")
-			continue
+	if standalone {
+		for _, endpoint := range data.Endpoints {
+			b.Addf("\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
 		}
-		for _, requestPath := range fs.RequestPaths {
-			stripped := addLeadingSlash(requestPath)
-			if !fs.IsDir {
-				stripped = filepath.Dir(stripped)
+		for _, fs := range data.FileServers {
+			if fs.Redirect != nil {
+				b.Addf("\t%s(mux, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n", fs.MountHandler)
+				b.Addf("\t\thttp.Redirect(w, r, %q, %s)\n", fs.Redirect.URL, fs.Redirect.StatusCode)
+				b.Add("\t}))\n")
+				continue
 			}
-			if stripped == "/" {
-				b.Addf("\t%s(mux, h.%s)\n", fs.MountHandler, fs.VarName)
-			} else {
-				b.Addf("\t%s(mux, http.StripPrefix(%q, h.%s))\n", fs.MountHandler, stripped, fs.VarName)
+			for _, requestPath := range fs.RequestPaths {
+				stripped := addLeadingSlash(requestPath)
+				if !fs.IsDir {
+					stripped = filepath.Dir(stripped)
+				}
+				if stripped == "/" {
+					b.Addf("\t%s(mux, h.%s)\n", fs.MountHandler, fs.VarName)
+				} else {
+					b.Addf("\t%s(mux, http.StripPrefix(%q, h.%s))\n", fs.MountHandler, stripped, fs.VarName)
+				}
 			}
 		}
+		return b.String()
 	}
-	b.Add("}\n\n")
-	b.Add(comment)
-	b.Add("\n")
-	b.Addf("func (s *%s) %s(mux loomhttp.Muxer) {\n", data.ServerStruct, data.MountServer)
 	b.Addf("\t%s(mux, s)\n", data.MountServer)
-	b.Add("}\n")
 	return b.String()
 }
 
 func serverHandlerSection(data *EndpointData) codegen.Section {
+	return codegen.MustJenniferSection("server-handler", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s configures the mux to serve the %q service %q endpoint.", data.MountHandler, data.ServiceName, data.Method.Name))
+		stmt.Func().
+			Id(data.MountHandler).
+			Params(jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer")), jen.Id("h").Qual("net/http", "Handler")).
+			BlockFunc(func(group *jen.Group) {
+				appendHTTPRawBlock(group, renderServerHandlerBody(data))
+			})
+	})
+}
+
+func renderServerHandlerBody(data *EndpointData) string {
 	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(fmt.Sprintf("%s configures the mux to serve the %q service %q endpoint.", data.MountHandler, data.ServiceName, data.Method.Name)))
-	b.Add("\n")
-	b.Addf("func %s(mux loomhttp.Muxer, h http.Handler) {\n", data.MountHandler)
 	b.Add("\tf, ok := h.(http.HandlerFunc)\n")
 	b.Add("\tif !ok {\n")
 	b.Add("\t\tf = func(w http.ResponseWriter, r *http.Request) {\n\t\t\th.ServeHTTP(w, r)\n\t\t}\n\t}\n")
 	for _, route := range data.Routes {
 		b.Addf("\tmux.Handle(%q, %q, f)\n", route.Verb, route.Path)
 	}
-	b.Add("}\n")
-	return codegen.MustRenderSection("server-handler", b.String)
+	return b.String()
 }
 
 func appendFSSection(mappedFiles map[string]string) codegen.Section {
+	return codegen.MustJenniferSection("append-fs", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, "appendFS is a custom implementation of fs.FS that appends a specified prefix to the file paths before delegating the Open call to the underlying fs.FS.")
+		stmt.Type().Id("appendFS").Struct(
+			jen.Id("prefix").String(),
+			jen.Id("fs").Qual("net/http", "FileSystem"),
+		)
+		stmt.Line()
+		codegen.Doc(stmt, "Open opens the named file, appending the prefix to the file path before passing it to the underlying fs.FS.")
+		stmt.Func().
+			Params(jen.Id("s").Id("appendFS")).
+			Id("Open").
+			Params(jen.Id("name").String()).
+			Params(jen.Qual("net/http", "File"), jen.Error()).
+			BlockFunc(func(group *jen.Group) {
+				appendHTTPRawBlock(group, renderAppendFSOpenBody(mappedFiles))
+			})
+		stmt.Line()
+		codegen.Doc(stmt, "appendPrefix returns a new fs.FS that appends the specified prefix to file paths before delegating to the provided embed.FS.")
+		stmt.Func().
+			Id("appendPrefix").
+			Params(jen.Id("fsys").Qual("net/http", "FileSystem"), jen.Id("prefix").String()).
+			Qual("net/http", "FileSystem").
+			Block(
+				jen.Return(jen.Id("appendFS").Values(jen.Id("prefix").Op(":").Id("prefix"), jen.Id("fs").Op(":").Id("fsys"))),
+			)
+	})
+}
+
+func renderAppendFSOpenBody(mappedFiles map[string]string) string {
 	var b sourceBuilder
-	b.Add("\n// appendFS is a custom implementation of fs.FS that appends a specified prefix\n")
-	b.Add("// to the file paths before delegating the Open call to the underlying fs.FS.\n")
-	b.Add("type appendFS struct {\n\tprefix string\n\tfs     http.FileSystem\n}\n\n")
-	b.Add("// Open opens the named file, appending the prefix to the file path before\n")
-	b.Add("// passing it to the underlying fs.FS.\n")
-	b.Add("func (s appendFS) Open(name string) (http.File, error) {\n")
 	b.Add("\tswitch name {\n")
 	for requested, embedded := range mappedFiles {
 		b.Addf("\tcase %q:\n\t\tname = %q\n", requested, embedded)
 	}
 	b.Add("\t}\n")
 	b.Add("\treturn s.fs.Open(path.Join(s.prefix, name))\n")
-	b.Add("}\n\n")
-	b.Add("// appendPrefix returns a new fs.FS that appends the specified prefix to file paths\n")
-	b.Add("// before delegating to the provided embed.FS.\n")
-	b.Add("func appendPrefix(fsys http.FileSystem, prefix string) http.FileSystem {\n")
-	b.Add("\treturn appendFS{prefix: prefix, fs: fsys}\n}\n")
-	return codegen.MustRenderSection("append-fs", b.String)
+	return b.String()
 }
 
 func fileServerSection(data *FileServerData) codegen.Section {
+	return codegen.MustJenniferSection("server-files", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s configures the mux to serve GET request made to %q.", data.MountHandler, strings.Join(data.RequestPaths, ", ")))
+		stmt.Func().
+			Id(data.MountHandler).
+			Params(jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer")), jen.Id("h").Qual("net/http", "Handler")).
+			BlockFunc(func(group *jen.Group) {
+				appendHTTPRawBlock(group, renderFileServerBody(data))
+			})
+	})
+}
+
+func renderFileServerBody(data *FileServerData) string {
 	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(fmt.Sprintf("%s configures the mux to serve GET request made to %q.", data.MountHandler, strings.Join(data.RequestPaths, ", "))))
-	b.Add("\n")
-	b.Addf("func %s(mux loomhttp.Muxer, h http.Handler) {\n", data.MountHandler)
 	if data.IsDir {
 		for _, requestPath := range data.RequestPaths {
 			suffix := ""
@@ -244,6 +307,5 @@ func fileServerSection(data *FileServerData) codegen.Section {
 			b.Addf("\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath)
 		}
 	}
-	b.Add("}\n")
-	return codegen.MustRenderSection("server-files", b.String)
+	return b.String()
 }

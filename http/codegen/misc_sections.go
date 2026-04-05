@@ -53,35 +53,50 @@ func appendRawBlock(group *jen.Group, code string) {
 }
 
 func multipartRequestEncoderSection(data *MultipartData) codegen.Section {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(fmt.Sprintf("%s returns an encoder to encode the multipart request for the %q service %q endpoint.", data.InitName, data.ServiceName, data.MethodName)))
-	b.Add("\n")
-	b.Addf("func %s(encoderFn %s) func(r *http.Request) loomhttp.Encoder {\n", data.InitName, data.FuncName)
-	b.Add("\treturn func(r *http.Request) loomhttp.Encoder {\n")
-	b.Add("\t\tbody := &bytes.Buffer{}\n")
-	b.Add("\t\tmw := multipart.NewWriter(body)\n")
-	b.Add("\t\treturn loomhttp.EncodingFunc(func(v any) error {\n")
-	b.Addf("\t\t\tp := v.(%s)\n", data.Payload.Ref)
-	b.Add("\t\t\tif err := encoderFn(mw, p); err != nil {\n")
-	b.Add("\t\t\t\treturn err\n")
-	b.Add("\t\t\t}\n")
-	b.Add("\t\t\tr.Body = io.NopCloser(body)\n")
-	b.Add("\t\t\tr.Header.Set(\"Content-Type\", mw.FormDataContentType())\n")
-	b.Add("\t\t\treturn mw.Close()\n")
-	b.Add("\t\t})\n")
-	b.Add("\t}\n")
-	b.Add("}\n")
-	return codegen.MustRenderSection("multipart-request-encoder", b.String)
+	return codegen.MustJenniferSection("multipart-request-encoder", func(stmt *jen.Statement) {
+		stmt.Line()
+		codegen.Doc(stmt, fmt.Sprintf("%s returns an encoder to encode the multipart request for the %q service %q endpoint.", data.InitName, data.ServiceName, data.MethodName))
+		stmt.Func().
+			Id(data.InitName).
+			Params(jen.Id("encoderFn").Id(data.FuncName)).
+			Func().
+			Params(jen.Id("r").Op("*").Qual("net/http", "Request")).
+			Add(codegen.TypeRef("loomhttp.Encoder")).
+			Block(
+				jen.Return(
+					jen.Func().
+						Params(jen.Id("r").Op("*").Qual("net/http", "Request")).
+						Add(codegen.TypeRef("loomhttp.Encoder")).
+						Block(
+							jen.Id("body").Op(":=").Op("&").Qual("bytes", "Buffer").Values(),
+							jen.Id("mw").Op(":=").Qual("mime/multipart", "NewWriter").Call(jen.Id("body")),
+							jen.Return(
+								codegen.Expr("loomhttp.EncodingFunc").Call(
+									jen.Func().
+										Params(jen.Id("v").Any()).
+										Error().
+										BlockFunc(func(group *jen.Group) {
+											addRawWebSocketGroup(group, fmt.Sprintf("p := v.(%s)\nif err := encoderFn(mw, p); err != nil {\n\treturn err\n}\nr.Body = io.NopCloser(body)\nr.Header.Set(\"Content-Type\", mw.FormDataContentType())\nreturn mw.Close()", data.Payload.Ref))
+										}),
+								),
+							),
+						),
+				),
+			)
+		stmt.Line()
+	})
 }
 
 func multipartRequestDecoderTypeSection(data *MultipartData) codegen.Section {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(fmt.Sprintf("%s is the type to decode multipart request for the %q service %q endpoint.", data.FuncName, data.ServiceName, data.MethodName)))
-	b.Add("\n")
-	b.Addf("type %s func(*multipart.Reader, *%s) error\n", data.FuncName, data.Payload.Ref)
-	return codegen.MustRenderSection("multipart-request-decoder-type", b.String)
+	return codegen.MustJenniferSection("multipart-request-decoder-type", func(stmt *jen.Statement) {
+		stmt.Line()
+		codegen.Doc(stmt, fmt.Sprintf("%s is the type to decode multipart request for the %q service %q endpoint.", data.FuncName, data.ServiceName, data.MethodName))
+		stmt.Type().Id(data.FuncName).Func().Params(
+			jen.Op("*").Qual("mime/multipart", "Reader"),
+			jen.Op("*").Add(codegen.TypeRef(data.Payload.Ref)),
+		).Error()
+		stmt.Line()
+	})
 }
 
 func serverSSESections(data *ServiceData) []codegen.Section {
@@ -95,13 +110,9 @@ func serverSSESections(data *ServiceData) []codegen.Section {
 }
 
 func serverSSESection(ed *EndpointData) codegen.Section {
-	var b sourceBuilder
-	writeSSETypeSection(&b, ed)
-	writeSSESendSection(&b, ed)
-	writeSSEInitHeaders(&b, ed)
-	writeSSESendWithContextSection(&b, ed)
-	writeSSECloseSection(&b, ed)
-	return codegen.MustRenderSection("server-sse", b.String)
+	return codegen.MustJenniferSection("server-sse", func(stmt *jen.Statement) {
+		addServerSSESection(stmt, ed)
+	})
 }
 
 func writeSSETypeSection(b *sourceBuilder, ed *EndpointData) {
@@ -225,6 +236,89 @@ func writeSSECloseSection(b *sourceBuilder, ed *EndpointData) {
 	b.Add(codegen.Comment("Close is a no-op for SSE. We keep the method for compatibility with other stream types."))
 	b.Add("\n")
 	b.Addf("func (s *%s) Close() error {\n\treturn nil\n}\n", ed.SSE.StructName)
+}
+
+func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
+	stmt.Line()
+	codegen.Doc(stmt, fmt.Sprintf("%s implements the %s interface using Server-Sent Events.", ed.SSE.StructName, ed.SSE.Interface))
+	stmt.Type().Id(ed.SSE.StructName).Struct(
+		jen.Comment("once ensures the headers are written once."),
+		jen.Id("once").Qual("sync", "Once"),
+		jen.Comment("w is the HTTP response writer used to send the SSE events."),
+		jen.Id("w").Qual("net/http", "ResponseWriter"),
+		jen.Comment("r is the HTTP request."),
+		jen.Id("r").Op("*").Qual("net/http", "Request"),
+	)
+	stmt.Line()
+	codegen.Doc(stmt, fmt.Sprintf("%s %s", ed.SSE.SendName, ed.SSE.SendDesc))
+	stmt.Func().
+		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
+		Id(ed.SSE.SendName).
+		Params(jen.Id("v").Add(codegen.TypeRef(ed.SSE.EventTypeRef))).
+		Error().
+		Block(
+			jen.Return(jen.Id("s").Dot(ed.SSE.SendWithContextName).Call(jen.Qual("context", "Background").Call(), jen.Id("v"))),
+		)
+	stmt.Line()
+	stmt.Line()
+	stmt.Func().
+		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
+		Id("initHeaders").
+		Params().
+		BlockFunc(func(group *jen.Group) {
+			addRawWebSocketGroup(group, renderSSEInitHeadersBody())
+		})
+	stmt.Line()
+	codegen.Doc(stmt, fmt.Sprintf("%s %s", ed.SSE.SendWithContextName, ed.SSE.SendWithContextDesc))
+	stmt.Func().
+		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
+		Id(ed.SSE.SendWithContextName).
+		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(ed.SSE.EventTypeRef))).
+		Error().
+		BlockFunc(func(group *jen.Group) {
+			addRawWebSocketGroup(group, renderServerSSESendWithContextBody(ed))
+		})
+	stmt.Line()
+	codegen.Doc(stmt, "Close is a no-op for SSE. We keep the method for compatibility with other stream types.")
+	stmt.Func().
+		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
+		Id("Close").
+		Params().
+		Error().
+		Block(
+			jen.Return(jen.Nil()),
+		)
+	stmt.Line()
+}
+
+func renderServerSSESendWithContextBody(ed *EndpointData) string {
+	var b sourceBuilder
+	b.Add("s.initHeaders()\n")
+	writeSSEResultSetup(&b, ed)
+	writeSSEPayloadSetup(&b, ed)
+	writeSSEPayloadEncoding(&b)
+	writeSSEMessageSetup(&b, ed)
+	b.Add("if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {\n\treturn err\n}\n\n")
+	b.Add("return http.NewResponseController(s.w).Flush()")
+	return b.String()
+}
+
+func renderSSEInitHeadersBody() string {
+	var b sourceBuilder
+	b.Add("s.once.Do(func() {\n")
+	b.Add("\theader := s.w.Header()\n")
+	b.Add("\tif header.Get(\"Content-Type\") == \"\" {\n")
+	b.Add("\t\theader.Set(\"Content-Type\", \"text/event-stream\")\n")
+	b.Add("\t}\n")
+	b.Add("\tif header.Get(\"Cache-Control\") == \"\" {\n")
+	b.Add("\t\theader.Set(\"Cache-Control\", \"no-cache\")\n")
+	b.Add("\t}\n")
+	b.Add("\tif header.Get(\"Connection\") == \"\" {\n")
+	b.Add("\t\theader.Set(\"Connection\", \"keep-alive\")\n")
+	b.Add("\t}\n")
+	b.Add("\ts.w.WriteHeader(http.StatusOK)\n")
+	b.Add("})")
+	return b.String()
 }
 
 func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat string) string {

@@ -4,13 +4,47 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 )
 
 func typeDeclSection(name string, data *TypeData) codegen.Section {
-	return codegen.MustRenderSection(name, func() string {
-		return renderTypeDecl(data)
+	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+		addHTTPDocOrBlank(stmt, data.Description)
+		stmt.Type().Id(data.VarName).Add(codegen.Expr(data.Def))
+		if data.FlatFormUnionField == "" {
+			stmt.Line()
+			return
+		}
+
+		stmt.Line()
+		codegen.CommentBlock(stmt, "MarshalFormValues marshals the synthetic request body wrapper using the wrapped union field at the top level.")
+		stmt.Func().
+			Params(jen.Id("body").Id(data.VarName)).
+			Id("MarshalFormValues").
+			Params(jen.Id("values").Qual("net/url", "Values"), jen.Id("prefix").String()).
+			Params(jen.Error()).
+			Block(
+				jen.Return(jen.Id("body").Dot(data.FlatFormUnionField).Dot("MarshalFormValues").Call(jen.Id("values"), jen.Id("prefix"))),
+			)
+
+		stmt.Line()
+		codegen.CommentBlock(stmt, "UnmarshalFormValues unmarshals the synthetic request body wrapper using the wrapped union field at the top level.")
+		stmt.Func().
+			Params(jen.Id("body").Op("*").Id(data.VarName)).
+			Id("UnmarshalFormValues").
+			Params(jen.Id("values").Qual("net/url", "Values"), jen.Id("prefix").String()).
+			Params(jen.Error()).
+			Block(
+				jen.Return(
+					jen.Op("(&").Id("body").Dot(data.FlatFormUnionField).Op(")").
+						Dot("UnmarshalFormValues").
+						Call(jen.Id("values"), jen.Id("prefix")),
+				),
+			)
+		stmt.Line()
 	})
 }
 
@@ -186,8 +220,25 @@ func writeHTTPUnionFormMethods(b *sourceBuilder, data *servicecodegen.UnionTypeD
 }
 
 func bodyInitSection(name string, init *InitData, client bool) codegen.Section {
-	return codegen.MustRenderSection(name, func() string {
-		return renderBodyInit(init, client)
+	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+		args, code := initRenderData(init, client)
+		stmt.Line()
+		codegen.Doc(stmt, init.Description)
+		stmt.Func().
+			Id(init.Name).
+			ParamsFunc(func(group *jen.Group) {
+				for _, arg := range args {
+					group.Id(arg.VarName).Add(codegen.TypeRef(arg.TypeRef))
+				}
+			}).
+			Add(codegen.TypeRef(init.ReturnTypeRef)).
+			BlockFunc(func(group *jen.Group) {
+				if code != "" {
+					appendHTTPRawBlock(group, code)
+				}
+				group.Return(jen.Id("body"))
+			})
+		stmt.Line()
 	})
 }
 
@@ -210,8 +261,56 @@ func renderBodyInit(init *InitData, client bool) string {
 }
 
 func typeInitSection(name string, init *InitData, client bool) codegen.Section {
-	return codegen.MustRenderSection(name, func() string {
-		return renderTypeInit(init, client)
+	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+		args, code := initRenderData(init, client)
+		typ := initRenderTarget(client)
+		fieldInitCode := strings.TrimRight(fieldCode(init, typ), "\n\t ")
+
+		stmt.Line()
+		codegen.Doc(stmt, init.Description)
+		stmt.Func().
+			Id(init.Name).
+			ParamsFunc(func(group *jen.Group) {
+				for _, arg := range args {
+					group.Id(arg.VarName).Add(codegen.TypeRef(arg.TypeRef))
+				}
+			}).
+			Add(codegen.TypeRef(init.ReturnTypeRef)).
+			BlockFunc(func(group *jen.Group) {
+				if code != "" {
+					appendHTTPRawBlock(group, code)
+					if init.ReturnTypeAttribute != "" {
+						valueExpr := "v"
+						if init.ReturnIsPrimitivePointer {
+							valueExpr = "&v"
+						}
+						appendHTTPRawBlock(group, fmt.Sprintf(
+							"res := &%s{\n\t%s: %s,\n}",
+							init.ReturnTypeName,
+							init.ReturnTypeAttribute,
+							valueExpr,
+						))
+					}
+				} else if init.ReturnIsStruct {
+					if init.ReturnTypeAttribute != "" {
+						group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
+					} else {
+						group.Id("v").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
+					}
+				}
+				if fieldInitCode != "" {
+					appendHTTPRawBlock(group, fieldInitCode)
+				}
+				if code != "" || fieldInitCode != "" {
+					group.Line()
+				}
+				if init.ReturnTypeAttribute != "" {
+					group.Return(jen.Id("res"))
+					return
+				}
+				group.Return(jen.Id("v"))
+			})
+		stmt.Line()
 	})
 }
 
@@ -263,8 +362,20 @@ func renderTypeInit(init *InitData, client bool) string {
 }
 
 func validateSection(name string, data *TypeData) codegen.Section {
-	return codegen.MustRenderSection(name, func() string {
-		return renderHTTPValidate(data)
+	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+		stmt.Line()
+		codegen.Doc(stmt, fmt.Sprintf("Validate%s runs the validations defined on %s", data.VarName, data.Name))
+		stmt.Func().
+			Id("Validate" + data.VarName).
+			Params(jen.Id("body").Add(codegen.TypeRef(data.Ref))).
+			Params(jen.Id("err").Error()).
+			BlockFunc(func(group *jen.Group) {
+				if data.ValidateDef != "" {
+					appendHTTPRawBlock(group, data.ValidateDef)
+				}
+				group.Return()
+			})
+		stmt.Line()
 	})
 }
 
@@ -297,4 +408,12 @@ func initRenderTarget(client bool) string {
 
 func stripBlankLineBeforeBodyReturn(code string) string {
 	return strings.ReplaceAll(code, "\n\n\treturn body", "\n\treturn body")
+}
+
+func addHTTPDocOrBlank(stmt *jen.Statement, description string) {
+	if strings.TrimSpace(description) == "" {
+		stmt.Line()
+		return
+	}
+	codegen.Doc(stmt, description)
 }

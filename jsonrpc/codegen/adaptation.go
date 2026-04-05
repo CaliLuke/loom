@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	jsonrpcCLIConfigurerDeclPattern = regexp.MustCompile(`([A-Za-z0-9_]+)Configurer \*([A-Za-z0-9_]+)\.ConnConfigurer,`)
+	jsonrpcCLIConfigurerDeclPattern = regexp.MustCompile(`([A-Za-z0-9_]+)Configurer \*([A-Za-z0-9_]+)\.ConnConfigurer([,)])`)
 	jsonrpcCLIConfigurerUsePattern  = regexp.MustCompile(`, ([A-Za-z0-9_]+)Configurer([,)])`)
 )
 
@@ -61,7 +61,7 @@ func rewriteJSONRPCCLIParseEndpointSource(source string) string {
 	source = strings.ReplaceAll(source,
 		", {{ .VarName }}Configurer{{ end }}",
 		", {{ .VarName }}ConfigFn{{ end }}")
-	source = jsonrpcCLIConfigurerDeclPattern.ReplaceAllString(source, `${1}ConfigFn loomhttp.ConnConfigureFunc,`)
+	source = jsonrpcCLIConfigurerDeclPattern.ReplaceAllString(source, `${1}ConfigFn loomhttp.ConnConfigureFunc${3}`)
 	source = jsonrpcCLIConfigurerUsePattern.ReplaceAllString(source, `, ${1}ConfigFn${2}`)
 	return source
 }

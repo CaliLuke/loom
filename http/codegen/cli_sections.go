@@ -3,19 +3,36 @@ package codegen
 import (
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 )
 
 func parseEndpointSection(flagsCode string, commands []*commandData) codegen.Section {
-	return codegen.MustRenderSection("parse-endpoint", func() string {
-		return renderParseEndpoint(flagsCode, commands)
+	return codegen.MustJenniferSection("parse-endpoint", func(stmt *jen.Statement) {
+		stmt.Comment("ParseEndpoint returns the endpoint and payload as specified on the command").Line()
+		stmt.Comment("line.").Line()
+		stmt.Func().
+			Id("ParseEndpoint").
+			ParamsFunc(func(group *jen.Group) {
+				group.Id("scheme").String()
+				group.Id("host").String()
+				group.Id("doer").Add(codegen.TypeRef("loomhttp.Doer"))
+				group.Id("enc").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Encoder"))
+				group.Id("dec").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder"))
+				group.Id("restore").Bool()
+				appendParseEndpointStreamingParams(group, commands)
+				appendParseEndpointCommandParams(group, commands)
+			}).
+			Params(codegen.TypeRef("loom.Endpoint"), jen.Any(), jen.Error()).
+			BlockFunc(func(group *jen.Group) {
+				appendHTTPRawBlock(group, renderParseEndpointBody(flagsCode, commands))
+			})
 	})
 }
 
-func renderParseEndpoint(flagsCode string, commands []*commandData) string {
+func renderParseEndpointBody(flagsCode string, commands []*commandData) string {
 	var b sourceBuilder
-	writeParseEndpointHeader(&b, commands)
-	b.Add(") (loom.Endpoint, any, error) {\n")
 	b.Add(flagsCode)
 	b.Add("\n\tvar (\n")
 	b.Add("\t\tdata     any\n")
@@ -33,44 +50,30 @@ func renderParseEndpoint(flagsCode string, commands []*commandData) string {
 	b.Add("\t\treturn nil, nil, err\n")
 	b.Add("\t}\n\n")
 	b.Add("\treturn endpoint, data, nil\n")
-	b.Add("}\n")
 	return b.String()
 }
 
-func writeParseEndpointHeader(b *sourceBuilder, commands []*commandData) {
-	b.Add("\n// ParseEndpoint returns the endpoint and payload as specified on the command\n")
-	b.Add("// line.\n")
-	b.Add("func ParseEndpoint(\n")
-	b.Add("\tscheme, host string,\n")
-	b.Add("\tdoer loomhttp.Doer,\n")
-	b.Add("\tenc func(*http.Request) loomhttp.Encoder,\n")
-	b.Add("\tdec func(*http.Response) loomhttp.Decoder,\n")
-	b.Add("\trestore bool,\n")
-	writeParseEndpointStreamingParams(b, commands)
-	writeParseEndpointCommandParams(b, commands)
-}
-
-func writeParseEndpointStreamingParams(b *sourceBuilder, commands []*commandData) {
+func appendParseEndpointStreamingParams(group *jen.Group, commands []*commandData) {
 	if !streamingCmdExists(commands) {
 		return
 	}
-	b.Add("\tdialer loomhttp.Dialer,\n")
+	group.Id("dialer").Add(codegen.TypeRef("loomhttp.Dialer"))
 	for _, cmd := range commands {
 		if cmd.NeedDialer {
-			b.Addf("\t%sConfigurer *%s.ConnConfigurer,\n", cmd.VarName, cmd.PkgName)
+			group.Id(cmd.VarName + "Configurer").Add(codegen.TypeRef("*" + cmd.PkgName + ".ConnConfigurer"))
 		}
 	}
 }
 
-func writeParseEndpointCommandParams(b *sourceBuilder, commands []*commandData) {
+func appendParseEndpointCommandParams(group *jen.Group, commands []*commandData) {
 	for _, cmd := range commands {
 		for _, sub := range cmd.Subcommands {
 			if sub.MultipartVarName != "" {
-				b.Addf("\t%s %s.%s,\n", sub.MultipartVarName, cmd.PkgName, sub.MultipartFuncName)
+				group.Id(sub.MultipartVarName).Add(codegen.TypeRef(cmd.PkgName + "." + sub.MultipartFuncName))
 			}
 		}
 		if cmd.Interceptors != nil {
-			b.Addf("\t%s %s.ClientInterceptors,\n", cmd.Interceptors.VarName, cmd.Interceptors.PkgName)
+			group.Id(cmd.Interceptors.VarName).Add(codegen.TypeRef(cmd.Interceptors.PkgName + ".ClientInterceptors"))
 		}
 	}
 }
@@ -142,29 +145,34 @@ func writeParseEndpointStreamPayloadInit(b *sourceBuilder, cmd *commandData, sub
 }
 
 func pathSection(data *EndpointData) codegen.Section {
-	return codegen.MustRenderSection("path", func() string {
-		return renderPathSection(data)
+	return codegen.MustJenniferSection("path", func(stmt *jen.Statement) {
+		for _, route := range data.Routes {
+			if route.PathInit == nil {
+				continue
+			}
+			stmt.Comment(route.PathInit.Description).Line()
+			stmt.Func().
+				Id(route.PathInit.Name).
+				ParamsFunc(func(group *jen.Group) {
+					for _, arg := range route.PathInit.ServerArgs {
+						group.Id(arg.VarName).Add(codegen.TypeRef(arg.TypeRef))
+					}
+				}).
+				Add(codegen.TypeRef(route.PathInit.ReturnTypeRef)).
+				BlockFunc(func(group *jen.Group) {
+					appendHTTPRawBlock(group, strings.TrimLeft(route.PathInit.ServerCode, "\n"))
+				})
+			stmt.Line()
+		}
 	})
 }
 
-func renderPathSection(data *EndpointData) string {
-	var b sourceBuilder
-	for _, route := range data.Routes {
-		if route.PathInit == nil {
-			continue
-		}
-		b.Add("// " + route.PathInit.Description + "\n")
-		b.Addf("func %s(", route.PathInit.Name)
-		for _, arg := range route.PathInit.ServerArgs {
-			b.Addf("%s %s, ", arg.VarName, arg.TypeRef)
-		}
-		b.Addf(") %s {\n", route.PathInit.ReturnTypeRef)
-		code := strings.TrimLeft(route.PathInit.ServerCode, "\n")
-		b.Add(code)
-		if !strings.HasSuffix(code, "\n") {
-			b.Add("\n")
-		}
-		b.Add("}\n")
+func appendHTTPRawBlock(group *jen.Group, code string) {
+	if strings.TrimSpace(code) == "" {
+		return
 	}
-	return b.String()
+	if strings.HasPrefix(code, "\n") {
+		group.Line()
+	}
+	group.Add(codegen.Expr(strings.TrimRight(code, "\n")))
 }

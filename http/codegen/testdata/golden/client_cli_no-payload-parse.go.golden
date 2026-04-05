@@ -1,12 +1,6 @@
 // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
-func ParseEndpoint(
-	scheme, host string,
-	doer loomhttp.Doer,
-	enc func(*http.Request) loomhttp.Encoder,
-	dec func(*http.Response) loomhttp.Decoder,
-	restore bool,
-) (loom.Endpoint, any, error) {
+func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
 		serviceMultiNoPayload1Flags = flag.NewFlagSet("service-multi-no-payload1", flag.ContinueOnError)
 

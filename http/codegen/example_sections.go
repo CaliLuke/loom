@@ -3,6 +3,8 @@ package codegen
 import (
 	"fmt"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 )
 
@@ -84,8 +86,17 @@ func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
 }
 
 func exampleCLIUsageSection() codegen.Section {
-	return codegen.MustRenderSection("cli-http-usage", func() string {
-		return "\nfunc httpUsageCommands() []string {\n\treturn cli.UsageCommands()\n}\n\nfunc httpUsageExamples() string {\n\treturn cli.UsageExamples()\n}\n"
+	return codegen.MustJenniferSection("cli-http-usage", func(stmt *jen.Statement) {
+		stmt.Line()
+		stmt.Func().Id("httpUsageCommands").Params().Index().String().Block(
+			jen.Return(jen.Id("cli").Dot("UsageCommands").Call()),
+		)
+		stmt.Line()
+		stmt.Line()
+		stmt.Func().Id("httpUsageExamples").Params().String().Block(
+			jen.Return(jen.Id("cli").Dot("UsageExamples").Call()),
+		)
+		stmt.Line()
 	})
 }
 
@@ -197,14 +208,51 @@ func renderExampleServerEnd(services []*ServiceData) string {
 }
 
 func exampleServerErrorHandlerSection() codegen.Section {
-	return codegen.MustRenderSection("server-http-errorhandler", func() string {
-		return "\n// errorHandler returns a function that writes and logs the given error.\n// The function also writes and logs the error unique ID so that it's possible\n// to correlate.\nfunc errorHandler(logCtx context.Context) func(context.Context, http.ResponseWriter, error) {\n\treturn func(ctx context.Context, w http.ResponseWriter, err error) {\n\t\tlog.Printf(logCtx, \"ERROR: %s\", err.Error())\n\t}\n}\n"
+	return codegen.MustJenniferSection("server-http-errorhandler", func(stmt *jen.Statement) {
+		stmt.Line()
+		codegen.CommentBlock(stmt, "errorHandler returns a function that writes and logs the given error.\nThe function also writes and logs the error unique ID so that it's possible\nto correlate.")
+		stmt.Func().
+			Id("errorHandler").
+			Params(jen.Id("logCtx").Qual("context", "Context")).
+			Func().
+			Params(
+				jen.Qual("context", "Context"),
+				jen.Qual("net/http", "ResponseWriter"),
+				jen.Error(),
+			).
+			Block(
+				jen.Return(
+					jen.Func().
+						Params(
+							jen.Id("ctx").Qual("context", "Context"),
+							jen.Id("w").Qual("net/http", "ResponseWriter"),
+							jen.Id("err").Error(),
+						).
+						Block(
+							jen.Id("log").Dot("Printf").Call(jen.Id("logCtx"), jen.Lit("ERROR: %s"), jen.Id("err").Dot("Error").Call()),
+						),
+				),
+			)
+		stmt.Line()
 	})
 }
 
 func dummyMultipartRequestDecoderSection(data *MultipartData) codegen.Section {
-	return codegen.MustRenderSection("dummy-multipart-request-decoder", func() string {
-		return renderDummyMultipartRequestDecoder(data)
+	return codegen.MustJenniferSection("dummy-multipart-request-decoder", func(stmt *jen.Statement) {
+		stmt.Line()
+		codegen.Doc(stmt, fmt.Sprintf("%s implements the multipart decoder for service %q endpoint %q. The decoder must populate the argument p after encoding.", data.FuncName, data.ServiceName, data.MethodName))
+		stmt.Func().
+			Id(data.FuncName).
+			Params(
+				jen.Id("mr").Op("*").Qual("mime/multipart", "Reader"),
+				jen.Id("p").Op("*").Add(codegen.TypeRef(data.Payload.Ref)),
+			).
+			Params(jen.Error()).
+			Block(
+				jen.Comment("Add multipart request decoder logic here").Line(),
+				jen.Return(jen.Nil()),
+			)
+		stmt.Line()
 	})
 }
 
@@ -217,8 +265,21 @@ func renderDummyMultipartRequestDecoder(data *MultipartData) string {
 }
 
 func dummyMultipartRequestEncoderSection(data *MultipartData) codegen.Section {
-	return codegen.MustRenderSection("dummy-multipart-request-encoder", func() string {
-		return renderDummyMultipartRequestEncoder(data)
+	return codegen.MustJenniferSection("dummy-multipart-request-encoder", func(stmt *jen.Statement) {
+		stmt.Line()
+		codegen.Doc(stmt, fmt.Sprintf("%s implements the multipart encoder for service %q endpoint %q.", data.FuncName, data.ServiceName, data.MethodName))
+		stmt.Func().
+			Id(data.FuncName).
+			Params(
+				jen.Id("mw").Op("*").Qual("mime/multipart", "Writer"),
+				jen.Id("p").Add(codegen.TypeRef(data.Payload.Ref)),
+			).
+			Params(jen.Error()).
+			Block(
+				jen.Comment("Add multipart request encoder logic here").Line(),
+				jen.Return(jen.Nil()),
+			)
+		stmt.Line()
 	})
 }
 

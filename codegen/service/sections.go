@@ -5,12 +5,20 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 )
 
 func typeDefinitionSection(name, description, typeName, def string) codegen.Section {
-	return codegen.MustRenderSection(name, func() string {
-		return renderTypeDefinition(description, typeName, def)
+	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+		if strings.TrimSpace(description) != "" {
+			codegen.Doc(stmt, description)
+		} else {
+			stmt.Line()
+		}
+		stmt.Type().Id(typeName).Add(codegen.Expr(def))
+		stmt.Line()
 	})
 }
 
@@ -31,20 +39,35 @@ func userTypeSection(name string, data *UserTypeData) codegen.Section {
 }
 
 func errorSection(data *UserTypeData) codegen.Section {
-	return codegen.MustRenderSection("service-error", func() string {
-		return renderErrorMethods(data)
+	return codegen.MustJenniferSection("service-error", func(stmt *jen.Statement) {
+		stmt.Add(codegen.Expr(strings.TrimSpace(renderErrorMethods(data))))
+		stmt.Line()
 	})
 }
 
 func validateSection(name string, data *ValidateData) codegen.Section {
-	return codegen.MustRenderSection(name, func() string {
-		return renderValidateFunction(data)
+	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+		codegen.Doc(stmt, data.Description)
+		stmt.Func().
+			Id(data.Name).
+			Params(jen.Id("result").Add(codegen.TypeRef(data.Ref))).
+			Params(jen.Id("err").Error()).
+			BlockFunc(func(group *jen.Group) {
+				if data.Validate != "" {
+					group.Add(codegen.Expr(strings.TrimRight(codegen.Indent(data.Validate, "\t"), "\n")))
+				} else {
+					group.Line()
+				}
+				group.Return()
+			})
+		stmt.Line()
 	})
 }
 
 func viewedTypeMapSection(rtdata []*viewedType) codegen.Section {
-	return codegen.MustRenderSection("viewed-type-map", func() string {
-		return renderViewedTypeMap(rtdata)
+	return codegen.MustJenniferSection("viewed-type-map", func(stmt *jen.Statement) {
+		stmt.Add(codegen.Expr(strings.TrimSpace(renderViewedTypeMap(rtdata))))
+		stmt.Line()
 	})
 }
 
