@@ -38,7 +38,7 @@ func NewMetricHarness(tb testing.TB) *MetricHarness {
 	reader := metric.NewManualReader()
 	provider := metric.NewMeterProvider(metric.WithReader(reader))
 	tb.Cleanup(func() {
-		if err := provider.Shutdown(tb.Context()); err != nil {
+		if err := provider.Shutdown(context.Background()); err != nil {
 			tb.Errorf("shutdown meter provider: %v", err)
 		}
 	})

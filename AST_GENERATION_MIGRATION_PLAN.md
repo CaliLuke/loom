@@ -123,12 +123,19 @@ Checklist
 - [x] Port the six HTTP emitter files, [jsonrpc/codegen/example_server.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_server.go), [jsonrpc/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_sections.go), [codegen/example/render.go](/Users/luca/code/loom-mono/loom/codegen/example/render.go), [codegen/cli/cli.go](/Users/luca/code/loom-mono/loom/codegen/cli/cli.go), and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) to structured builders.
 - [x] Run `go test ./http/codegen/... ./codegen/example/...` from `/Users/luca/code/loom-mono/loom`.
 - [x] Get an agent review of the milestone changes and address any concrete findings before handoff.
-- [ ] Commit the milestone changes with an HTTP/example migration commit message.
-- [ ] Push the milestone commit.
+- [x] Commit the milestone changes with an HTTP/example migration commit message.
+- [x] Push the milestone commit.
 
 ### Milestone 5: Close The Boundary
 
 Goal: leave the repo with one Go-generator style and an explicit allowlist of the remaining helper survivors.
+
+Status as of 2026-04-05:
+
+- A fresh structural inventory run now returns only the helper allowlist survivors: [codegen/jennifer.go](/Users/luca/code/loom-mono/loom/codegen/jennifer.go), [codegen/sections.go](/Users/luca/code/loom-mono/loom/codegen/sections.go), [jsonrpc/codegen/adaptation.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation.go), and [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go).
+- `go fmt ./...` passes from `/Users/luca/code/loom-mono/loom`.
+- `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
+- `make test` passes from `/Users/luca/code/loom-mono/loom` after switching the OpenTelemetry test harness cleanup helpers to use fresh background contexts for provider shutdown.
 
 Acceptance Criteria
 
@@ -138,11 +145,11 @@ Acceptance Criteria
 
 Checklist
 
-- [ ] Re-run the structural inventory command and rewrite the inventory so each remaining hit is either removed or explicitly justified as a helper survivor.
-- [ ] Remove any temporary adapter or compatibility code introduced only to ease the migration.
-- [ ] Run `go fmt ./...`.
-- [ ] Run `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...`.
-- [ ] Run `make test`.
+- [x] Re-run the structural inventory command and rewrite the inventory so each remaining hit is either removed or explicitly justified as a helper survivor.
+- [x] Remove any temporary adapter or compatibility code introduced only to ease the migration.
+- [x] Run `go fmt ./...`.
+- [x] Run `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...`.
+- [x] Run `make test`.
 - [ ] Get a final agent review of the milestone changes and address any concrete findings before handoff.
 - [ ] Commit the milestone changes with a boundary-closure commit message.
 - [ ] Push the milestone commit.

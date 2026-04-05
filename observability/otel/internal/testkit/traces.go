@@ -1,6 +1,7 @@
 package testkit
 
 import (
+	"context"
 	"testing"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -22,7 +23,7 @@ func NewTraceHarness(tb testing.TB) *TraceHarness {
 	recorder := tracetest.NewSpanRecorder()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
 	tb.Cleanup(func() {
-		if err := provider.Shutdown(tb.Context()); err != nil {
+		if err := provider.Shutdown(context.Background()); err != nil {
 			tb.Errorf("shutdown trace provider: %v", err)
 		}
 	})
