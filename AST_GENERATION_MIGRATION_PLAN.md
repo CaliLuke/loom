@@ -93,7 +93,7 @@ Checklist
 - [x] Port the five raw `codegen/service` emitters in this milestone to structured section builders, following the conventions already present in [codegen/service/client_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/client_jennifer.go) and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) while preserving direct seam output where tests assert exact source.
 - [x] Replace raw declaration assembly in [codegen/go_transform.go](/Users/luca/code/loom-mono/loom/codegen/go_transform.go), [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom-mono/loom/grpc/codegen/protobuf_transform.go), [grpc/codegen/codec_sections.go](/Users/luca/code/loom-mono/loom/grpc/codegen/codec_sections.go), and [codegen/validation.go](/Users/luca/code/loom-mono/loom/codegen/validation.go) with builder-oriented helpers.
 - [x] Run `go test ./codegen/... ./grpc/codegen/... ./http/codegen/... ./jsonrpc/codegen/...` from `/Users/luca/code/loom-mono/loom`.
-- [ ] Get an agent review of the milestone changes and address any concrete findings before handoff.
+- [x] Get an agent review of the milestone changes and address any concrete findings before handoff.
 - [ ] Commit the milestone changes with a shared-generator migration commit message.
 - [ ] Push the milestone commit.
 
