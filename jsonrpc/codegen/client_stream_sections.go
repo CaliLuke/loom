@@ -2,544 +2,1034 @@ package codegen
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 func jsonrpcSSEClientStreamSection(ed *httpcodegen.EndpointData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-sse-client-stream", renderJSONRPCSSEClientStream(ed))
+	return codegen.MustJenniferSection("jsonrpc-sse-client-stream", func(stmt *jen.Statement) {
+		writeJSONRPCSSEClientStreamType(stmt, ed)
+		stmt.Line()
+		writeJSONRPCSSERecv(stmt, ed)
+		if ed.Method.Result != "" {
+			stmt.Line()
+			writeJSONRPCSSEDecodeResult(stmt, ed)
+		}
+		stmt.Line()
+		writeJSONRPCSSEClose(stmt, ed)
+	})
 }
 
-func renderJSONRPCSSEClientStream(ed *httpcodegen.EndpointData) string {
-	var b strings.Builder
-	b.WriteString(renderJSONRPCSSEClientStreamType(ed))
-	b.WriteString(renderJSONRPCSSERecv(ed))
+func writeJSONRPCSSEClientStreamType(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
+	codegen.Doc(stmt, fmt.Sprintf("%sClientStream implements the %s.%sClientStream interface using Server-Sent Events.", ed.Method.VarName, ed.ServicePkgName, ed.Method.VarName))
+	stmt.Type().Id(ed.Method.VarName+"ClientStream").Struct(
+		jen.Id("resp").Op("*").Qual("net/http", "Response"),
+		jen.Id("reader").Op("*").Qual("bufio", "Reader"),
+		jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
+		jen.Id("closed").Bool(),
+		jen.Id("lock").Qual("sync", "Mutex"),
+	)
+	stmt.Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
+		Id("readSSEEvent").
+		Params().
+		Params(jen.Index().Byte(), jen.Error()).
+		Block(
+			jen.Var().Id("event").Qual("bytes", "Buffer"),
+			jen.Line(),
+			jen.For().Block(
+				jen.List(jen.Id("line"), jen.Err()).Op(":=").Id("s").Dot("reader").Dot("ReadString").Call(jen.LitByte('\n')),
+				jen.If(jen.Err().Op("!=").Nil()).Block(
+					jen.If(jen.Err().Op("==").Qual("io", "EOF").Op("&&").Id("event").Dot("Len").Call().Op(">").Lit(0)).Block(
+						jen.Return(jen.Id("event").Dot("Bytes").Call(), jen.Nil()),
+					),
+					jen.Return(jen.Nil(), jen.Err()),
+				),
+				jen.Line(),
+				jen.Id("event").Dot("WriteString").Call(jen.Id("line")),
+				jen.Line(),
+				jen.Id("line").Op("=").Qual("strings", "TrimRight").Call(jen.Id("line"), jen.Lit("\r\n")),
+				jen.If(jen.Id("line").Op("==").Lit("")).Block(
+					jen.If(jen.Id("event").Dot("Len").Call().Op(">").Lit(0)).Block(
+						jen.Return(jen.Id("event").Dot("Bytes").Call(), jen.Nil()),
+					),
+					jen.Continue(),
+				),
+			),
+		)
+}
+
+func writeJSONRPCSSERecv(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
+	codegen.Doc(stmt, ed.Method.ClientStream.RecvDesc)
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
+		Id(ed.Method.ClientStream.RecvName).
+		Params(jen.Id("ctx").Qual("context", "Context")).
+		Params(codegen.TypeRef(ed.Result.Ref), jen.Error()).
+		BlockFunc(func(g *jen.Group) {
+			g.Id("s").Dot("lock").Dot("Lock").Call()
+			g.Defer().Id("s").Dot("lock").Dot("Unlock").Call()
+			g.Line()
+			g.Var().Id("zero").Add(codegen.TypeRef(ed.Result.Ref))
+			g.Line()
+			g.If(jen.Id("s").Dot("closed")).Block(
+				jen.Return(jen.Id("zero"), jen.Qual("io", "EOF")),
+			)
+			g.Line()
+			g.For().Block(
+				jen.List(jen.Id("rawEvent"), jen.Err()).Op(":=").Id("s").Dot("readSSEEvent").Call(),
+				jen.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Id("s").Dot("closed").Op("=").True(),
+					jen.Return(jen.Id("zero"), jen.Err()),
+				),
+				jen.Line(),
+				jen.List(jen.Id("parsedEvent"), jen.Err()).Op(":=").Add(codegen.Expr("loomhttp.ParseSSEEvent")).Call(jen.Id("rawEvent")),
+				jen.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Id("s").Dot("closed").Op("=").True(),
+					jen.Return(jen.Id("zero"), jen.Err()),
+				),
+				jen.Line(),
+				jen.List(jen.Id("eventType"), jen.Id("data")).Op(":=").List(
+					jen.Id("parsedEvent").Dot("Type"),
+					jen.Index().Byte().Call(jen.Id("parsedEvent").Dot("Data")),
+				),
+				jen.Line(),
+				jen.Switch(jen.Id("eventType")).BlockFunc(func(sg *jen.Group) {
+					sg.Case(jen.Lit("notification")).BlockFunc(func(cg *jen.Group) {
+						writeSSEClientNotificationCase(cg, ed)
+					})
+					sg.Case(jen.Lit("response")).BlockFunc(func(cg *jen.Group) {
+						writeSSEClientResponseCase(cg, ed, false)
+					})
+					sg.Case(jen.Lit("error")).BlockFunc(func(cg *jen.Group) {
+						writeSSEClientErrorCase(cg)
+					})
+					sg.Case(jen.Lit(""), jen.Lit("message")).BlockFunc(func(cg *jen.Group) {
+						writeSSEClientMessageCase(cg, ed)
+					})
+					sg.Default().Block(
+						jen.Continue(),
+					)
+				}),
+			)
+		})
+}
+
+func writeSSEClientNotificationCase(g *jen.Group, ed *httpcodegen.EndpointData) {
+	g.Var().Id("notification").Struct(
+		jen.Id("JSONRPC").String().Tag(map[string]string{"json": "jsonrpc"}),
+		jen.Id("Method").String().Tag(map[string]string{"json": "method"}),
+		jen.Id("Params").Qual("encoding/json", "RawMessage").Tag(map[string]string{"json": "params"}),
+	)
+	g.If(
+		jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("notification")),
+		jen.Err().Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse notification: %w"), jen.Err())),
+	)
+	g.If(jen.Id("notification").Dot("JSONRPC").Op("!=").Lit("2.0")).Block(
+		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("invalid JSON-RPC version: %s"), jen.Id("notification").Dot("JSONRPC"))),
+	)
+	g.If(jen.Id("notification").Dot("Method").Op("!=").Lit(ed.Method.Name)).Block(
+		jen.Continue(),
+	)
 	if ed.Method.Result != "" {
-		b.WriteString(renderJSONRPCSSEDecodeResult(ed))
+		g.List(jen.Id("result"), jen.Err()).Op(":=").Id("s").Dot("decodeResult").Call(jen.Id("notification").Dot("Params"))
+		g.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode result: %w"), jen.Err())),
+		)
+		g.Return(jen.Id("result"), jen.Nil())
+		return
 	}
-	b.WriteString(renderJSONRPCSSEClose(ed))
-	return b.String()
+	g.Return(jen.Id("zero"), jen.Nil())
 }
 
-func renderJSONRPCSSEClientStreamType(ed *httpcodegen.EndpointData) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "\n%s\n", codegen.Comment(fmt.Sprintf("%sClientStream implements the %s.%sClientStream interface using Server-Sent Events.", ed.Method.VarName, ed.ServicePkgName, ed.Method.VarName)))
-	fmt.Fprintf(&b, "type %sClientStream struct {\n", ed.Method.VarName)
-	b.WriteString("\tresp    *http.Response\n")
-	b.WriteString("\treader  *bufio.Reader\n")
-	b.WriteString("\tdecoder func(*http.Response) loomhttp.Decoder\n")
-	b.WriteString("\tclosed  bool\n")
-	b.WriteString("\tlock    sync.Mutex\n")
-	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "func (s *%sClientStream) readSSEEvent() ([]byte, error) {\n", ed.Method.VarName)
-	b.WriteString("\tvar event bytes.Buffer\n\n")
-	b.WriteString("\tfor {\n")
-	b.WriteString("\t\tline, err := s.reader.ReadString('\\n')\n")
-	b.WriteString("\t\tif err != nil {\n")
-	b.WriteString("\t\t\tif err == io.EOF && event.Len() > 0 {\n")
-	b.WriteString("\t\t\t\treturn event.Bytes(), nil\n")
-	b.WriteString("\t\t\t}\n")
-	b.WriteString("\t\t\treturn nil, err\n")
-	b.WriteString("\t\t}\n\n")
-	b.WriteString("\t\tevent.WriteString(line)\n\n")
-	b.WriteString("\t\tline = strings.TrimRight(line, \"\\r\\n\")\n")
-	b.WriteString("\t\tif line == \"\" {\n")
-	b.WriteString("\t\t\tif event.Len() > 0 {\n")
-	b.WriteString("\t\t\t\treturn event.Bytes(), nil\n")
-	b.WriteString("\t\t\t}\n")
-	b.WriteString("\t\t\tcontinue\n")
-	b.WriteString("\t\t}\n")
-	b.WriteString("\t}\n")
-	b.WriteString("}\n\n")
-	return b.String()
-}
-
-func renderJSONRPCSSERecv(ed *httpcodegen.EndpointData) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(ed.Method.ClientStream.RecvDesc))
-	fmt.Fprintf(&b, "func (s *%sClientStream) %s(ctx context.Context) (%s, error) {\n", ed.Method.VarName, ed.Method.ClientStream.RecvName, ed.Result.Ref)
-	b.WriteString("\ts.lock.Lock()\n")
-	b.WriteString("\tdefer s.lock.Unlock()\n\n")
-	fmt.Fprintf(&b, "\tvar zero %s\n\n", ed.Result.Ref)
-	b.WriteString("\tif s.closed {\n")
-	b.WriteString("\t\treturn zero, io.EOF\n")
-	b.WriteString("\t}\n\n")
-	b.WriteString("\tfor {\n")
-	b.WriteString("\t\trawEvent, err := s.readSSEEvent()\n")
-	b.WriteString("\t\tif err != nil {\n")
-	b.WriteString("\t\t\ts.closed = true\n")
-	b.WriteString("\t\t\treturn zero, err\n")
-	b.WriteString("\t\t}\n\n")
-	b.WriteString("\t\tparsedEvent, err := loomhttp.ParseSSEEvent(rawEvent)\n")
-	b.WriteString("\t\tif err != nil {\n")
-	b.WriteString("\t\t\ts.closed = true\n")
-	b.WriteString("\t\t\treturn zero, err\n")
-	b.WriteString("\t\t}\n\n")
-	b.WriteString("\t\teventType, data := parsedEvent.Type, []byte(parsedEvent.Data)\n\n")
-	b.WriteString("\t\tswitch eventType {\n")
-	b.WriteString("\t\tcase \"notification\":\n")
-	b.WriteString("\t\t\tvar notification struct {\n")
-	b.WriteString("\t\t\t\tJSONRPC string          `json:\"jsonrpc\"`\n")
-	b.WriteString("\t\t\t\tMethod  string          `json:\"method\"`\n")
-	b.WriteString("\t\t\t\tParams  json.RawMessage `json:\"params\"`\n")
-	b.WriteString("\t\t\t}\n")
-	b.WriteString("\t\t\tif err := json.Unmarshal(data, &notification); err != nil {\n")
-	b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"failed to parse notification: %w\", err)\n")
-	b.WriteString("\t\t\t}\n")
-	b.WriteString("\t\t\tif notification.JSONRPC != \"2.0\" {\n")
-	b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"invalid JSON-RPC version: %s\", notification.JSONRPC)\n")
-	b.WriteString("\t\t\t}\n")
-	fmt.Fprintf(&b, "\t\t\tif notification.Method != %q {\n", ed.Method.Name)
-	b.WriteString("\t\t\t\tcontinue\n")
-	b.WriteString("\t\t\t}\n")
+func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, closeOnSuccess bool) {
+	g.Var().Id("response").Add(codegen.TypeRef("jsonrpc.Response"))
+	g.If(
+		jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("response")),
+		jen.Err().Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse response: %w"), jen.Err())),
+	)
+	g.If(jen.Id("response").Dot("Error").Op("!=").Nil()).Block(
+		func() jen.Code {
+			if closeOnSuccess {
+				return jen.Block(
+					jen.Id("s").Dot("closed").Op("=").True(),
+					jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("JSON-RPC error %d: %s"), jen.Id("response").Dot("Error").Dot("Code"), jen.Id("response").Dot("Error").Dot("Message"))),
+				)
+			}
+			return jen.Block(
+				jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("JSON-RPC error %d: %s"), jen.Id("response").Dot("Error").Dot("Code"), jen.Id("response").Dot("Error").Dot("Message"))),
+			)
+		}(),
+	)
 	if ed.Method.Result != "" {
-		b.WriteString("\t\t\tresult, err := s.decodeResult(notification.Params)\n")
-		b.WriteString("\t\t\tif err != nil {\n")
-		b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"failed to decode result: %w\", err)\n")
-		b.WriteString("\t\t\t}\n")
-		b.WriteString("\t\t\treturn result, nil\n")
-	} else {
-		b.WriteString("\t\t\treturn zero, nil\n")
-	}
-	b.WriteString("\t\tcase \"response\":\n")
-	b.WriteString("\t\t\tvar response jsonrpc.Response\n")
-	b.WriteString("\t\t\tif err := json.Unmarshal(data, &response); err != nil {\n")
-	b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"failed to parse response: %w\", err)\n")
-	b.WriteString("\t\t\t}\n")
-	b.WriteString("\t\t\tif response.Error != nil {\n")
-	b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"JSON-RPC error %d: %s\", response.Error.Code, response.Error.Message)\n")
-	b.WriteString("\t\t\t}\n")
-	if ed.Method.Result != "" {
-		b.WriteString("\t\t\tif response.Result == nil {\n")
-		b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"missing result in response\")\n")
-		b.WriteString("\t\t\t}\n")
-		b.WriteString("\t\t\tresultBytes, err := json.Marshal(response.Result)\n")
-		b.WriteString("\t\t\tif err != nil {\n")
-		b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"failed to marshal result: %w\", err)\n")
-		b.WriteString("\t\t\t}\n")
-		b.WriteString("\t\t\tresult, err := s.decodeResult(json.RawMessage(resultBytes))\n")
-		b.WriteString("\t\t\tif err != nil {\n")
-		b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"failed to decode final result: %w\", err)\n")
-		b.WriteString("\t\t\t}\n")
-		b.WriteString("\t\t\ts.closed = true\n")
-		b.WriteString("\t\t\treturn result, nil\n")
-	} else {
-		b.WriteString("\t\t\ts.closed = true\n")
-		b.WriteString("\t\t\treturn zero, nil\n")
-	}
-	b.WriteString("\t\tcase \"error\":\n")
-	b.WriteString("\t\t\tvar response jsonrpc.Response\n")
-	b.WriteString("\t\t\tif err := json.Unmarshal(data, &response); err != nil {\n")
-	b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"failed to parse error response: %w\", err)\n")
-	b.WriteString("\t\t\t}\n")
-	b.WriteString("\t\t\ts.closed = true\n")
-	b.WriteString("\t\t\tif response.Error != nil {\n")
-	b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"JSON-RPC error %d: %s\", response.Error.Code, response.Error.Message)\n")
-	b.WriteString("\t\t\t}\n")
-	b.WriteString("\t\t\treturn zero, fmt.Errorf(\"unexpected error response\")\n")
-	b.WriteString("\t\tcase \"\", \"message\":\n")
-	b.WriteString(renderJSONRPCSSEMessageCase(ed))
-	b.WriteString("\t\tdefault:\n")
-	b.WriteString("\t\t\tcontinue\n")
-	b.WriteString("\t\t}\n")
-	b.WriteString("\t}\n")
-	b.WriteString("}\n\n")
-	return b.String()
-}
-
-func renderJSONRPCSSEMessageCase(ed *httpcodegen.EndpointData) string {
-	var b strings.Builder
-	b.WriteString("\t\t\tvar envelope map[string]json.RawMessage\n")
-	b.WriteString("\t\t\tif err := json.Unmarshal(data, &envelope); err != nil {\n")
-	b.WriteString("\t\t\t\treturn zero, fmt.Errorf(\"failed to parse message event: %w\", err)\n")
-	b.WriteString("\t\t\t}\n")
-	b.WriteString("\t\t\tif _, ok := envelope[\"method\"]; ok {\n")
-	b.WriteString(renderJSONRPCSSENotificationBranch(ed, "\t\t\t\t", true))
-	b.WriteString("\t\t\t}\n")
-	b.WriteString(renderJSONRPCSSEResponseBranch(ed, "\t\t\t", true))
-	return b.String()
-}
-
-func renderJSONRPCSSENotificationBranch(ed *httpcodegen.EndpointData, indent string, continueOnMismatch bool) string {
-	var b strings.Builder
-	b.WriteString(indent + "var notification struct {\n")
-	b.WriteString(indent + "\tJSONRPC string          `json:\"jsonrpc\"`\n")
-	b.WriteString(indent + "\tMethod  string          `json:\"method\"`\n")
-	b.WriteString(indent + "\tParams  json.RawMessage `json:\"params\"`\n")
-	b.WriteString(indent + "}\n")
-	b.WriteString(indent + "if err := json.Unmarshal(data, &notification); err != nil {\n")
-	b.WriteString(indent + "\treturn zero, fmt.Errorf(\"failed to parse notification: %w\", err)\n")
-	b.WriteString(indent + "}\n")
-	b.WriteString(indent + "if notification.JSONRPC != \"2.0\" {\n")
-	b.WriteString(indent + "\treturn zero, fmt.Errorf(\"invalid JSON-RPC version: %s\", notification.JSONRPC)\n")
-	b.WriteString(indent + "}\n")
-	fmt.Fprintf(&b, "%sif notification.Method != %q {\n", indent, ed.Method.Name)
-	if continueOnMismatch {
-		b.WriteString(indent + "\tcontinue\n")
-	} else {
-		b.WriteString(indent + "\treturn zero, nil\n")
-	}
-	b.WriteString(indent + "}\n")
-	if ed.Method.Result != "" {
-		b.WriteString(indent + "result, err := s.decodeResult(notification.Params)\n")
-		b.WriteString(indent + "if err != nil {\n")
-		b.WriteString(indent + "\treturn zero, fmt.Errorf(\"failed to decode result: %w\", err)\n")
-		b.WriteString(indent + "}\n")
-		b.WriteString(indent + "return result, nil\n")
-	} else {
-		b.WriteString(indent + "return zero, nil\n")
-	}
-	return b.String()
-}
-
-func renderJSONRPCSSEResponseBranch(ed *httpcodegen.EndpointData, indent string, closeOnSuccess bool) string {
-	var b strings.Builder
-	b.WriteString(indent + "var response jsonrpc.Response\n")
-	b.WriteString(indent + "if err := json.Unmarshal(data, &response); err != nil {\n")
-	b.WriteString(indent + "\treturn zero, fmt.Errorf(\"failed to parse response: %w\", err)\n")
-	b.WriteString(indent + "}\n")
-	b.WriteString(indent + "if response.Error != nil {\n")
-	if closeOnSuccess {
-		b.WriteString(indent + "\ts.closed = true\n")
-	}
-	b.WriteString(indent + "\treturn zero, fmt.Errorf(\"JSON-RPC error %d: %s\", response.Error.Code, response.Error.Message)\n")
-	b.WriteString(indent + "}\n")
-	if ed.Method.Result != "" {
-		b.WriteString(indent + "if response.Result == nil {\n")
-		b.WriteString(indent + "\treturn zero, fmt.Errorf(\"missing result in response\")\n")
-		b.WriteString(indent + "}\n")
-		b.WriteString(indent + "resultBytes, err := json.Marshal(response.Result)\n")
-		b.WriteString(indent + "if err != nil {\n")
-		b.WriteString(indent + "\treturn zero, fmt.Errorf(\"failed to marshal result: %w\", err)\n")
-		b.WriteString(indent + "}\n")
-		b.WriteString(indent + "result, err := s.decodeResult(json.RawMessage(resultBytes))\n")
-		b.WriteString(indent + "if err != nil {\n")
-		b.WriteString(indent + "\treturn zero, fmt.Errorf(\"failed to decode final result: %w\", err)\n")
-		b.WriteString(indent + "}\n")
+		g.If(jen.Id("response").Dot("Result").Op("==").Nil()).Block(
+			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("missing result in response"))),
+		)
+		g.List(jen.Id("resultBytes"), jen.Err()).Op(":=").Qual("encoding/json", "Marshal").Call(jen.Id("response").Dot("Result"))
+		g.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to marshal result: %w"), jen.Err())),
+		)
+		g.List(jen.Id("result"), jen.Err()).Op(":=").Id("s").Dot("decodeResult").Call(jen.Qual("encoding/json", "RawMessage").Call(jen.Id("resultBytes")))
+		g.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode final result: %w"), jen.Err())),
+		)
+		if closeOnSuccess {
+			g.Id("s").Dot("closed").Op("=").True()
+		}
+		g.Return(jen.Id("result"), jen.Nil())
+		return
 	}
 	if closeOnSuccess {
-		b.WriteString(indent + "s.closed = true\n")
+		g.Id("s").Dot("closed").Op("=").True()
 	}
-	if ed.Method.Result != "" {
-		b.WriteString(indent + "return result, nil\n")
-	} else {
-		b.WriteString(indent + "return zero, nil\n")
-	}
-	return b.String()
+	g.Return(jen.Id("zero"), jen.Nil())
 }
 
-func renderJSONRPCSSEDecodeResult(ed *httpcodegen.EndpointData) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "func (s *%sClientStream) decodeResult(data json.RawMessage) (%s, error) {\n", ed.Method.VarName, ed.Result.Ref)
-	b.WriteString("\tresp := &http.Response{\n")
-	b.WriteString("\t\tStatusCode: http.StatusOK,\n")
-	b.WriteString("\t\tBody:       io.NopCloser(bytes.NewReader(data)),\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\tdecoder := s.decoder(resp)\n")
-	fmt.Fprintf(&b, "\tvar result %s\n", ed.Result.Ref)
-	b.WriteString("\tif err := decoder.Decode(&result); err != nil {\n")
-	b.WriteString("\t\treturn result, err\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\treturn result, nil\n")
-	b.WriteString("}\n\n")
-	return b.String()
+func writeSSEClientErrorCase(g *jen.Group) {
+	g.Var().Id("response").Add(codegen.TypeRef("jsonrpc.Response"))
+	g.If(
+		jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("response")),
+		jen.Err().Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse error response: %w"), jen.Err())),
+	)
+	g.Id("s").Dot("closed").Op("=").True()
+	g.If(jen.Id("response").Dot("Error").Op("!=").Nil()).Block(
+		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("JSON-RPC error %d: %s"), jen.Id("response").Dot("Error").Dot("Code"), jen.Id("response").Dot("Error").Dot("Message"))),
+	)
+	g.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("unexpected error response")))
 }
 
-func renderJSONRPCSSEClose(ed *httpcodegen.EndpointData) string {
-	var b strings.Builder
-	b.WriteString(codegen.Comment("Close closes the stream."))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%sClientStream) Close() error {\n", ed.Method.VarName)
-	b.WriteString("\ts.lock.Lock()\n")
-	b.WriteString("\tdefer s.lock.Unlock()\n\n")
-	b.WriteString("\tif !s.closed {\n")
-	b.WriteString("\t\ts.closed = true\n")
-	b.WriteString("\t\tif s.resp != nil && s.resp.Body != nil {\n")
-	b.WriteString("\t\t\treturn s.resp.Body.Close()\n")
-	b.WriteString("\t\t}\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\treturn nil\n")
-	b.WriteString("}\n")
-	return b.String()
+func writeSSEClientMessageCase(g *jen.Group, ed *httpcodegen.EndpointData) {
+	g.Var().Id("envelope").Map(jen.String()).Qual("encoding/json", "RawMessage")
+	g.If(
+		jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("envelope")),
+		jen.Err().Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse message event: %w"), jen.Err())),
+	)
+	g.If(
+		jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("envelope").Index(jen.Lit("method")),
+		jen.Id("ok"),
+	).BlockFunc(func(cg *jen.Group) {
+		writeSSEClientNotificationCase(cg, ed)
+	})
+	writeSSEClientResponseCase(g, ed, true)
+}
+
+func writeJSONRPCSSEDecodeResult(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
+		Id("decodeResult").
+		Params(jen.Id("data").Qual("encoding/json", "RawMessage")).
+		Params(codegen.TypeRef(ed.Result.Ref), jen.Error()).
+		Block(
+			jen.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{
+				jen.Id("StatusCode"): jen.Qual("net/http", "StatusOK"),
+				jen.Id("Body"):       jen.Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("data"))),
+			}),
+			jen.Id("decoder").Op(":=").Id("s").Dot("decoder").Call(jen.Id("resp")),
+			jen.Var().Id("result").Add(codegen.TypeRef(ed.Result.Ref)),
+			jen.If(
+				jen.Err().Op(":=").Id("decoder").Dot("Decode").Call(jen.Op("&").Id("result")),
+				jen.Err().Op("!=").Nil(),
+			).Block(
+				jen.Return(jen.Id("result"), jen.Err()),
+			),
+			jen.Return(jen.Id("result"), jen.Nil()),
+		)
+}
+
+func writeJSONRPCSSEClose(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
+	codegen.Doc(stmt, "Close closes the stream.")
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
+		Id("Close").
+		Params().
+		Error().
+		Block(
+			jen.Id("s").Dot("lock").Dot("Lock").Call(),
+			jen.Defer().Id("s").Dot("lock").Dot("Unlock").Call(),
+			jen.Line(),
+			jen.If(jen.Op("!").Id("s").Dot("closed")).Block(
+				jen.Id("s").Dot("closed").Op("=").True(),
+				jen.If(jen.Id("s").Dot("resp").Op("!=").Nil().Op("&&").Id("s").Dot("resp").Dot("Body").Op("!=").Nil()).Block(
+					jen.Return(jen.Id("s").Dot("resp").Dot("Body").Dot("Close").Call()),
+				),
+			),
+			jen.Return(jen.Nil()),
+		)
 }
 
 func jsonrpcWebSocketClientStreamSection(ws *httpcodegen.WebSocketData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-websocket-client-stream", renderJSONRPCWebSocketClientStream(ws))
+	return codegen.MustJenniferSection("jsonrpc-websocket-client-stream", func(stmt *jen.Statement) {
+		hasRecv := ws.RecvName != "" && ws.RecvTypeRef != ""
+		hasSend := ws.SendName != ""
+		isBidirectional := hasSend && hasRecv
+
+		writeJSONRPCWebSocketClientTypes(stmt, ws, hasRecv)
+		stmt.Line()
+		writeJSONRPCWebSocketSend(stmt, ws, isBidirectional)
+		if hasRecv {
+			stmt.Line()
+			writeJSONRPCWebSocketRecv(stmt, ws, isBidirectional)
+		}
+		stmt.Line()
+		writeJSONRPCWebSocketClientHelpers(stmt, ws, hasRecv)
+	})
 }
 
-func renderJSONRPCWebSocketClientStream(ws *httpcodegen.WebSocketData) string {
-	var b strings.Builder
-	hasRecv := ws.RecvName != "" && ws.RecvTypeRef != ""
-	hasSend := ws.SendName != ""
-	isBidirectional := hasSend && hasRecv
-	b.WriteString(renderJSONRPCWebSocketClientTypes(ws, hasRecv))
-	b.WriteString(renderJSONRPCWebSocketSend(ws, isBidirectional))
-	b.WriteString(renderJSONRPCWebSocketRecv(ws, hasRecv, isBidirectional))
-	b.WriteString(renderJSONRPCWebSocketClientHelpers(ws, hasRecv))
-	return b.String()
+func writeJSONRPCWebSocketClientTypes(stmt *jen.Statement, ws *httpcodegen.WebSocketData, hasRecv bool) {
+	codegen.Doc(stmt, fmt.Sprintf("%s implements the %s client stream with direct WebSocket handling.", ws.VarName, ws.Endpoint.Method.Name))
+	stmt.Type().Id(ws.VarName).StructFunc(func(g *jen.Group) {
+		g.Id("ws").Op("*").Qual("github.com/gorilla/websocket", "Conn")
+		g.Id("writeMu").Qual("sync", "Mutex")
+		g.Id("pending").Qual("sync", "Map")
+		g.Id("idGenerator").Qual("sync/atomic", "Uint64")
+		g.Id("ctx").Qual("context", "Context")
+		g.Id("cancel").Qual("context", "CancelFunc")
+		g.Id("done").Chan().Struct()
+		g.Id("closeOnce").Qual("sync", "Once")
+		g.Id("errorOnce").Qual("sync", "Once")
+		g.Id("lastError").Qual("sync/atomic", "Value")
+		g.Id("config").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "StreamConfig")
+		if hasRecv {
+			g.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder"))
+		}
+	})
+	stmt.Line()
+	stmt.Type().Id(ws.VarName+"PendingRequest").Struct(
+		jen.Id("userID").String(),
+		jen.Id("resultChan").Chan().Id(ws.VarName+"StreamResult"),
+		jen.Id("timeout").Op("*").Qual("time", "Timer"),
+	)
+	stmt.Line()
+	stmt.Type().Id(ws.VarName + "StreamResult").StructFunc(func(g *jen.Group) {
+		if hasRecv {
+			g.Id("result").Add(codegen.TypeRef(ws.RecvTypeRef))
+		}
+		g.Id("err").Error()
+	})
 }
 
-func renderJSONRPCWebSocketClientTypes(ws *httpcodegen.WebSocketData, hasRecv bool) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "\n%s\n", codegen.Comment(fmt.Sprintf("%s implements the %s client stream with direct WebSocket handling.", ws.VarName, ws.Endpoint.Method.Name)))
-	fmt.Fprintf(&b, "type %s struct {\n", ws.VarName)
-	b.WriteString("\tws          *websocket.Conn\n")
-	b.WriteString("\twriteMu     sync.Mutex\n")
-	b.WriteString("\tpending     sync.Map\n")
-	b.WriteString("\tidGenerator atomic.Uint64\n")
-	b.WriteString("\tctx         context.Context\n")
-	b.WriteString("\tcancel      context.CancelFunc\n")
-	b.WriteString("\tdone        chan struct{}\n")
-	b.WriteString("\tcloseOnce   sync.Once\n")
-	b.WriteString("\terrorOnce   sync.Once\n")
-	b.WriteString("\tlastError   atomic.Value\n")
-	b.WriteString("\tconfig *jsonrpc.StreamConfig\n")
-	if hasRecv {
-		b.WriteString("\tdecoder        func(*http.Response) loomhttp.Decoder\n")
-	}
-	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "type %sPendingRequest struct {\n", ws.VarName)
-	b.WriteString("\tuserID      string\n")
-	fmt.Fprintf(&b, "\tresultChan  chan %sStreamResult\n", ws.VarName)
-	b.WriteString("\ttimeout     *time.Timer\n")
-	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "type %sStreamResult struct {\n", ws.VarName)
-	if hasRecv {
-		fmt.Fprintf(&b, "\tresult      %s\n", ws.RecvTypeRef)
-	}
-	b.WriteString("\terr         error\n")
-	b.WriteString("}\n\n")
-	return b.String()
-}
-
-func renderJSONRPCWebSocketSend(ws *httpcodegen.WebSocketData, isBidirectional bool) string {
+func writeJSONRPCWebSocketSend(stmt *jen.Statement, ws *httpcodegen.WebSocketData, isBidirectional bool) {
 	if ws.SendName == "" {
-		return ""
+		return
 	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("%s sends streaming data to the %s endpoint with dual ID correlation.", ws.SendName, ws.Endpoint.Method.Name)))
-	fmt.Fprintf(&b, "func (s *%s) %s(v %s) error {\n", ws.VarName, ws.SendName, ws.SendTypeRef)
-	fmt.Fprintf(&b, "\treturn s.%s(s.ctx, v)\n", ws.SendWithContextName)
-	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("%s sends streaming data to the %s endpoint with context.", ws.SendWithContextName, ws.Endpoint.Method.Name)))
-	fmt.Fprintf(&b, "func (s *%s) %s(ctx context.Context, v %s) error {\n", ws.VarName, ws.SendWithContextName, ws.SendTypeRef)
-	b.WriteString("\tif err := s.getError(); err != nil {\n\t\treturn err\n\t}\n")
-	if isBidirectional {
-		b.WriteString(renderJSONRPCWebSocketBidirectionalSend(ws))
-	} else {
-		b.WriteString(renderJSONRPCWebSocketSimpleSend(ws))
+	codegen.Doc(stmt, fmt.Sprintf("%s sends streaming data to the %s endpoint with dual ID correlation.", ws.SendName, ws.Endpoint.Method.Name))
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id(ws.SendName).
+		Params(jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
+		Error().
+		Block(
+			jen.Return(jen.Id("s").Dot(ws.SendWithContextName).Call(jen.Id("s").Dot("ctx"), jen.Id("v"))),
+		)
+	stmt.Line()
+	codegen.Doc(stmt, fmt.Sprintf("%s sends streaming data to the %s endpoint with context.", ws.SendWithContextName, ws.Endpoint.Method.Name))
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id(ws.SendWithContextName).
+		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
+		Error().
+		BlockFunc(func(g *jen.Group) {
+			g.If(
+				jen.Err().Op(":=").Id("s").Dot("getError").Call(),
+				jen.Err().Op("!=").Nil(),
+			).Block(
+				jen.Return(jen.Err()),
+			)
+			if isBidirectional {
+				writeJSONRPCWebSocketBidirectionalSend(g, ws)
+				return
+			}
+			writeJSONRPCWebSocketSimpleSend(g, ws)
+		})
+}
+
+func writeJSONRPCWebSocketBidirectionalSend(g *jen.Group, ws *httpcodegen.WebSocketData) {
+	g.Id("userID").Op(":=").Id("s").Dot("generateUserID").Call()
+	g.Id("jsonrpcID").Op(":=").Qual("strconv", "FormatUint").Call(jen.Id("s").Dot("idGenerator").Dot("Add").Call(jen.Lit(1)), jen.Lit(10))
+	g.Id("pending").Op(":=").Op("&").Id(ws.VarName + "PendingRequest").Values(jen.Dict{
+		jen.Id("userID"):     jen.Id("userID"),
+		jen.Id("resultChan"): jen.Make(jen.Chan().Id(ws.VarName+"StreamResult"), jen.Id("s").Dot("config").Dot("ResultChannelBuffer")),
+		jen.Id("timeout"):    jen.Qual("time", "NewTimer").Call(jen.Id("s").Dot("config").Dot("RequestTimeout")),
+	})
+	g.Id("s").Dot("pending").Dot("Store").Call(jen.Id("jsonrpcID"), jen.Id("pending"))
+	writeJSONRPCWriteRequest(g, ws, true, "v")
+	g.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Id("s").Dot("pending").Dot("Delete").Call(jen.Id("jsonrpcID")),
+		jen.Id("pending").Dot("timeout").Dot("Stop").Call(),
+		jen.Id("s").Dot("setError").Call(jen.Id("err")),
+		jen.Id("s").Dot("handleError").Call(codegen.Expr("jsonrpc.StreamErrorConnection"), jen.Id("err"), jen.Nil()),
+		jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send request: %w"), jen.Id("err"))),
+	)
+	g.Return(jen.Nil())
+}
+
+func writeJSONRPCWebSocketSimpleSend(g *jen.Group, ws *httpcodegen.WebSocketData) {
+	writeJSONRPCWriteRequest(g, ws, false, "v")
+	g.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Id("s").Dot("setError").Call(jen.Id("err")),
+		jen.Id("s").Dot("handleError").Call(codegen.Expr("jsonrpc.StreamErrorConnection"), jen.Id("err"), jen.Nil()),
+		jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send request: %w"), jen.Id("err"))),
+	)
+	g.Return(jen.Nil())
+}
+
+func writeJSONRPCWriteRequest(g *jen.Group, ws *httpcodegen.WebSocketData, includeID bool, paramsExpr string) {
+	dict := jen.Dict{
+		jen.Id("JSONRPC"): jen.Lit("2.0"),
+		jen.Id("Method"):  jen.Lit(ws.Endpoint.Method.Name),
+		jen.Id("Params"):  codegen.Expr(paramsExpr),
 	}
-	b.WriteString("}\n\n")
-	return b.String()
-}
-
-func renderJSONRPCWebSocketBidirectionalSend(ws *httpcodegen.WebSocketData) string {
-	var b strings.Builder
-	b.WriteString("\tuserID := s.generateUserID()\n")
-	b.WriteString("\tjsonrpcID := strconv.FormatUint(s.idGenerator.Add(1), 10)\n")
-	fmt.Fprintf(&b, "\tpending := &%sPendingRequest{\n", ws.VarName)
-	b.WriteString("\t\tuserID:     userID,\n")
-	fmt.Fprintf(&b, "\t\tresultChan: make(chan %sStreamResult, s.config.ResultChannelBuffer),\n", ws.VarName)
-	b.WriteString("\t\ttimeout:    time.NewTimer(s.config.RequestTimeout),\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\ts.pending.Store(jsonrpcID, pending)\n")
-	b.WriteString(renderJSONRPCWriteRequest(ws, true, "v"))
-	b.WriteString("\tif err != nil {\n")
-	b.WriteString("\t\ts.pending.Delete(jsonrpcID)\n")
-	b.WriteString("\t\tpending.timeout.Stop()\n")
-	b.WriteString("\t\ts.setError(err)\n")
-	b.WriteString("\t\ts.handleError(jsonrpc.StreamErrorConnection, err, nil)\n")
-	b.WriteString("\t\treturn fmt.Errorf(\"failed to send request: %w\", err)\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\treturn nil\n")
-	return b.String()
-}
-
-func renderJSONRPCWebSocketSimpleSend(ws *httpcodegen.WebSocketData) string {
-	var b strings.Builder
-	b.WriteString(renderJSONRPCWriteRequest(ws, false, "v"))
-	b.WriteString("\tif err != nil {\n")
-	b.WriteString("\t\ts.setError(err)\n")
-	b.WriteString("\t\ts.handleError(jsonrpc.StreamErrorConnection, err, nil)\n")
-	b.WriteString("\t\treturn fmt.Errorf(\"failed to send request: %w\", err)\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\treturn nil\n")
-	return b.String()
-}
-
-func renderJSONRPCWriteRequest(ws *httpcodegen.WebSocketData, includeID bool, paramsExpr string) string {
-	var b strings.Builder
-	b.WriteString("\trequest := &jsonrpc.Request{\n")
-	b.WriteString("\t\tJSONRPC: \"2.0\",\n")
-	fmt.Fprintf(&b, "\t\tMethod:  %q,\n", ws.Endpoint.Method.Name)
-	fmt.Fprintf(&b, "\t\tParams:  %s,\n", paramsExpr)
 	if includeID {
-		b.WriteString("\t\tID:      &jsonrpcID,\n")
+		dict[jen.Id("ID")] = jen.Op("&").Id("jsonrpcID")
 	}
-	b.WriteString("\t}\n")
-	b.WriteString("\ts.writeMu.Lock()\n")
-	b.WriteString("\terr := s.ws.WriteJSON(request)\n")
-	b.WriteString("\ts.writeMu.Unlock()\n")
-	return b.String()
+	g.Id("request").Op(":=").Op("&").Add(codegen.TypeRef("jsonrpc.Request")).Values(dict)
+	g.Id("s").Dot("writeMu").Dot("Lock").Call()
+	g.Id("err").Op(":=").Id("s").Dot("ws").Dot("WriteJSON").Call(jen.Id("request"))
+	g.Id("s").Dot("writeMu").Dot("Unlock").Call()
 }
 
-func renderJSONRPCWebSocketRecv(ws *httpcodegen.WebSocketData, hasRecv, isBidirectional bool) string {
-	if !hasRecv {
-		return ""
+func writeJSONRPCWebSocketRecv(stmt *jen.Statement, ws *httpcodegen.WebSocketData, isBidirectional bool) {
+	codegen.Doc(stmt, fmt.Sprintf("%s receives streaming data from the %s endpoint.", ws.RecvName, ws.Endpoint.Method.Name))
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id(ws.RecvName).
+		Params().
+		Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
+		Block(
+			jen.Return(jen.Id("s").Dot(ws.RecvWithContextName).Call(jen.Id("s").Dot("ctx"))),
+		)
+	stmt.Line()
+	codegen.Doc(stmt, fmt.Sprintf("%s receives streaming data from the %s endpoint with context.", ws.RecvWithContextName, ws.Endpoint.Method.Name))
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id(ws.RecvWithContextName).
+		Params(jen.Id("ctx").Qual("context", "Context")).
+		Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
+		BlockFunc(func(g *jen.Group) {
+			g.Var().Id("zero").Add(codegen.TypeRef(ws.RecvTypeRef))
+			g.If(
+				jen.Err().Op(":=").Id("s").Dot("getError").Call(),
+				jen.Err().Op("!=").Nil(),
+			).Block(
+				jen.Return(jen.Id("zero"), jen.Err()),
+			)
+			if isBidirectional {
+				writeJSONRPCWebSocketBidirectionalRecv(g, ws)
+				return
+			}
+			writeJSONRPCWebSocketSimpleRecv(g, ws)
+		})
+}
+
+func writeJSONRPCWebSocketBidirectionalRecv(g *jen.Group, ws *httpcodegen.WebSocketData) {
+	g.Var().Id("oldestPending").Op("*").Id(ws.VarName + "PendingRequest")
+	g.Var().Id("oldestKey").String()
+	g.Id("s").Dot("pending").Dot("Range").Call(
+		jen.Func().Params(jen.Id("key"), jen.Id("value").Any()).Bool().Block(
+			jen.Id("pending").Op(":=").Id("value").Assert(jen.Op("*").Id(ws.VarName+"PendingRequest")),
+			jen.If(jen.Id("oldestPending").Op("==").Nil()).Block(
+				jen.Id("oldestPending").Op("=").Id("pending"),
+				jen.Id("oldestKey").Op("=").Id("key").Assert(jen.String()),
+			),
+			jen.Return(jen.False()),
+		),
+	)
+	g.If(jen.Id("oldestPending").Op("==").Nil()).Block(
+		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit(fmt.Sprintf("no pending requests - call %s() first", ws.SendName)))),
+	)
+	g.Switch().Block(
+		jen.Case(jen.Id("result").Op(":=").Op("<-").Id("oldestPending").Dot("resultChan")).Block(
+			jen.Id("s").Dot("pending").Dot("Delete").Call(jen.Id("oldestKey")),
+			jen.Id("oldestPending").Dot("timeout").Dot("Stop").Call(),
+			jen.Return(jen.Id("result").Dot("result"), jen.Id("result").Dot("err")),
+		),
+	)
+	g.Add(codegen.Expr(`select {
+case result := <-oldestPending.resultChan:
+	s.pending.Delete(oldestKey)
+	oldestPending.timeout.Stop()
+	return result.result, result.err
+case <-oldestPending.timeout.C:
+	s.pending.Delete(oldestKey)
+	timeoutErr := fmt.Errorf("request timeout after %v", s.config.RequestTimeout)
+	s.handleError(jsonrpc.StreamErrorTimeout, timeoutErr, nil)
+	return zero, timeoutErr
+case <-ctx.Done():
+	return zero, ctx.Err()
+case <-s.done:
+	if err := s.getError(); err != nil {
+		return zero, err
 	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("%s receives streaming data from the %s endpoint.", ws.RecvName, ws.Endpoint.Method.Name)))
-	fmt.Fprintf(&b, "func (s *%s) %s() (%s, error) {\n", ws.VarName, ws.RecvName, ws.RecvTypeRef)
-	fmt.Fprintf(&b, "\treturn s.%s(s.ctx)\n", ws.RecvWithContextName)
-	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("%s receives streaming data from the %s endpoint with context.", ws.RecvWithContextName, ws.Endpoint.Method.Name)))
-	fmt.Fprintf(&b, "func (s *%s) %s(ctx context.Context) (%s, error) {\n", ws.VarName, ws.RecvWithContextName, ws.RecvTypeRef)
-	fmt.Fprintf(&b, "\tvar zero %s\n", ws.RecvTypeRef)
-	b.WriteString("\tif err := s.getError(); err != nil {\n\t\treturn zero, err\n\t}\n")
-	if isBidirectional {
-		b.WriteString(renderJSONRPCWebSocketBidirectionalRecv(ws))
-	} else {
-		b.WriteString(renderJSONRPCWebSocketSimpleRecv(ws))
+	return zero, fmt.Errorf("stream closed")
+}`))
+}
+
+func writeJSONRPCWebSocketSimpleRecv(g *jen.Group, ws *httpcodegen.WebSocketData) {
+	g.Id("jsonrpcID").Op(":=").Qual("strconv", "FormatUint").Call(jen.Id("s").Dot("idGenerator").Dot("Add").Call(jen.Lit(1)), jen.Lit(10))
+	g.Id("resultChan").Op(":=").Make(jen.Chan().Id(ws.VarName+"StreamResult"), jen.Id("s").Dot("config").Dot("ResultChannelBuffer"))
+	g.Id("pending").Op(":=").Op("&").Id(ws.VarName + "PendingRequest").Values(jen.Dict{
+		jen.Id("userID"):     jen.Id("jsonrpcID"),
+		jen.Id("resultChan"): jen.Id("resultChan"),
+		jen.Id("timeout"):    jen.Qual("time", "NewTimer").Call(jen.Id("s").Dot("config").Dot("RequestTimeout")),
+	})
+	g.Id("s").Dot("pending").Dot("Store").Call(jen.Id("jsonrpcID"), jen.Id("pending"))
+	g.Defer().Func().Params().Block(
+		jen.Id("s").Dot("pending").Dot("Delete").Call(jen.Id("jsonrpcID")),
+		jen.Id("pending").Dot("timeout").Dot("Stop").Call(),
+	).Call()
+	writeJSONRPCWriteRequest(g, ws, true, "nil")
+	g.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Id("s").Dot("setError").Call(jen.Id("err")),
+		jen.Id("s").Dot("handleError").Call(codegen.Expr("jsonrpc.StreamErrorConnection"), jen.Id("err"), jen.Nil()),
+		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send request: %w"), jen.Id("err"))),
+	)
+	g.Add(codegen.Expr(`select {
+case result := <-resultChan:
+	return result.result, result.err
+case <-pending.timeout.C:
+	timeoutErr := fmt.Errorf("request timeout after %v", s.config.RequestTimeout)
+	s.handleError(jsonrpc.StreamErrorTimeout, timeoutErr, nil)
+	return zero, timeoutErr
+case <-ctx.Done():
+	return zero, ctx.Err()
+case <-s.done:
+	if err := s.getError(); err != nil {
+		return zero, err
 	}
-	b.WriteString("}\n\n")
-	return b.String()
+	return zero, fmt.Errorf("stream closed")
+}`))
 }
 
-func renderJSONRPCWebSocketBidirectionalRecv(ws *httpcodegen.WebSocketData) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "\tvar oldestPending *%sPendingRequest\n", ws.VarName)
-	b.WriteString("\tvar oldestKey string\n")
-	b.WriteString("\ts.pending.Range(func(key, value any) bool {\n")
-	fmt.Fprintf(&b, "\t\tpending := value.(*%sPendingRequest)\n", ws.VarName)
-	b.WriteString("\t\tif oldestPending == nil {\n\t\t\toldestPending = pending\n\t\t\toldestKey = key.(string)\n\t\t}\n\t\treturn false\n\t})\n")
-	b.WriteString("\tif oldestPending == nil {\n")
-	fmt.Fprintf(&b, "\t\treturn zero, fmt.Errorf(%q)\n", fmt.Sprintf("no pending requests - call %s() first", ws.SendName))
-	b.WriteString("\t}\n")
-	b.WriteString("\tselect {\n")
-	b.WriteString("\tcase result := <-oldestPending.resultChan:\n")
-	b.WriteString("\t\ts.pending.Delete(oldestKey)\n\t\toldestPending.timeout.Stop()\n\t\treturn result.result, result.err\n")
-	b.WriteString("\tcase <-oldestPending.timeout.C:\n")
-	b.WriteString("\t\ts.pending.Delete(oldestKey)\n")
-	b.WriteString("\t\ttimeoutErr := fmt.Errorf(\"request timeout after %v\", s.config.RequestTimeout)\n")
-	b.WriteString("\t\ts.handleError(jsonrpc.StreamErrorTimeout, timeoutErr, nil)\n\t\treturn zero, timeoutErr\n")
-	b.WriteString("\tcase <-ctx.Done():\n\t\treturn zero, ctx.Err()\n")
-	b.WriteString("\tcase <-s.done:\n")
-	b.WriteString("\t\tif err := s.getError(); err != nil {\n\t\t\treturn zero, err\n\t\t}\n")
-	b.WriteString("\t\treturn zero, fmt.Errorf(\"stream closed\")\n")
-	b.WriteString("\t}\n")
-	return b.String()
-}
-
-func renderJSONRPCWebSocketSimpleRecv(ws *httpcodegen.WebSocketData) string {
-	var b strings.Builder
-	b.WriteString("\tjsonrpcID := strconv.FormatUint(s.idGenerator.Add(1), 10)\n")
-	fmt.Fprintf(&b, "\tresultChan := make(chan %sStreamResult, s.config.ResultChannelBuffer)\n", ws.VarName)
-	fmt.Fprintf(&b, "\tpending := &%sPendingRequest{\n", ws.VarName)
-	b.WriteString("\t\tuserID:     jsonrpcID,\n\t\tresultChan: resultChan,\n\t\ttimeout:    time.NewTimer(s.config.RequestTimeout),\n\t}\n")
-	b.WriteString("\ts.pending.Store(jsonrpcID, pending)\n")
-	b.WriteString("\tdefer func() {\n\t\ts.pending.Delete(jsonrpcID)\n\t\tpending.timeout.Stop()\n\t}()\n")
-	b.WriteString(renderJSONRPCWriteRequest(ws, true, "nil"))
-	b.WriteString("\tif err != nil {\n\t\ts.setError(err)\n\t\ts.handleError(jsonrpc.StreamErrorConnection, err, nil)\n\t\treturn zero, fmt.Errorf(\"failed to send request: %w\", err)\n\t}\n")
-	b.WriteString("\tselect {\n")
-	b.WriteString("\tcase result := <-resultChan:\n\t\treturn result.result, result.err\n")
-	b.WriteString("\tcase <-pending.timeout.C:\n")
-	b.WriteString("\t\ttimeoutErr := fmt.Errorf(\"request timeout after %v\", s.config.RequestTimeout)\n")
-	b.WriteString("\t\ts.handleError(jsonrpc.StreamErrorTimeout, timeoutErr, nil)\n\t\treturn zero, timeoutErr\n")
-	b.WriteString("\tcase <-ctx.Done():\n\t\treturn zero, ctx.Err()\n")
-	b.WriteString("\tcase <-s.done:\n")
-	b.WriteString("\t\tif err := s.getError(); err != nil {\n\t\t\treturn zero, err\n\t\t}\n")
-	b.WriteString("\t\treturn zero, fmt.Errorf(\"stream closed\")\n")
-	b.WriteString("\t}\n")
-	return b.String()
-}
-
-func renderJSONRPCWebSocketClientHelpers(ws *httpcodegen.WebSocketData, hasRecv bool) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "func (s *%s) responseHandler() {\n", ws.VarName)
-	b.WriteString("\tdefer close(s.done)\n\tfor {\n\t\tselect {\n\t\tcase <-s.ctx.Done():\n")
-	b.WriteString("\t\t\ts.cleanupPendingRequests(s.ctx.Err())\n\t\t\treturn\n\t\tdefault:\n")
-	b.WriteString("\t\t\tvar response jsonrpc.RawResponse\n")
-	b.WriteString("\t\t\tif err := s.ws.ReadJSON(&response); err != nil {\n")
-	b.WriteString("\t\t\t\tconnectionErr := fmt.Errorf(\"failed to read response: %w\", err)\n")
-	b.WriteString("\t\t\t\ts.setError(connectionErr)\n")
-	b.WriteString("\t\t\t\ts.handleError(jsonrpc.StreamErrorConnection, connectionErr, nil)\n")
-	b.WriteString("\t\t\t\ts.cleanupPendingRequests(connectionErr)\n\t\t\t\treturn\n\t\t\t}\n")
-	b.WriteString("\t\t\ts.handleResponse(&response)\n\t\t}\n\t}\n}\n\n")
-	fmt.Fprintf(&b, "func (s *%s) handleResponse(response *jsonrpc.RawResponse) {\n", ws.VarName)
-	b.WriteString("\tif response.ID == nil {\n")
-	b.WriteString("\t\tif s.config.ErrorHandler != nil {\n")
-	b.WriteString("\t\t\ts.config.ErrorHandler(s.ctx, jsonrpc.StreamErrorNotification, fmt.Errorf(\"received server notification\"), response)\n")
-	b.WriteString("\t\t}\n\t\treturn\n\t}\n")
-	b.WriteString("\tjsonrpcID := response.ID\n")
-	b.WriteString("\tpendingInterface, exists := s.pending.LoadAndDelete(jsonrpcID)\n")
-	b.WriteString("\tif !exists {\n\t\ts.handleError(jsonrpc.StreamErrorOrphaned, fmt.Errorf(\"received response for unknown ID: %s\", jsonrpcID), response)\n\t\treturn\n\t}\n")
-	fmt.Fprintf(&b, "\tpending := pendingInterface.(*%sPendingRequest)\n", ws.VarName)
-	b.WriteString("\tpending.timeout.Stop()\n")
-	fmt.Fprintf(&b, "\tvar result %sStreamResult\n", ws.VarName)
-	b.WriteString("\tif response.Error != nil {\n")
-	b.WriteString("\t\tresult.err = response.Error\n")
-	b.WriteString("\t\ts.handleError(jsonrpc.StreamErrorProtocol, response.Error, response)\n")
-	b.WriteString("\t} else {\n")
+func writeJSONRPCWebSocketClientHelpers(stmt *jen.Statement, ws *httpcodegen.WebSocketData, hasRecv bool) {
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id("responseHandler").
+		Params().
+		Block(
+			jen.Defer().Close(jen.Id("s").Dot("done")),
+			codegen.Expr(`for {
+		select {
+		case <-s.ctx.Done():
+			s.cleanupPendingRequests(s.ctx.Err())
+			return
+		default:
+			var response jsonrpc.RawResponse
+			if err := s.ws.ReadJSON(&response); err != nil {
+				connectionErr := fmt.Errorf("failed to read response: %w", err)
+				s.setError(connectionErr)
+				s.handleError(jsonrpc.StreamErrorConnection, connectionErr, nil)
+				s.cleanupPendingRequests(connectionErr)
+				return
+			}
+			s.handleResponse(&response)
+		}
+	}`),
+		)
+	stmt.Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id("handleResponse").
+		Params(jen.Id("response").Op("*").Add(codegen.TypeRef("jsonrpc.RawResponse"))).
+		Block(
+			codegen.Expr(`if response.ID == nil {
+	if s.config.ErrorHandler != nil {
+		s.config.ErrorHandler(s.ctx, jsonrpc.StreamErrorNotification, fmt.Errorf("received server notification"), response)
+	}
+	return
+}`),
+			jen.Id("jsonrpcID").Op(":=").Id("response").Dot("ID"),
+			jen.List(jen.Id("pendingInterface"), jen.Id("exists")).Op(":=").Id("s").Dot("pending").Dot("LoadAndDelete").Call(jen.Id("jsonrpcID")),
+			jen.If(jen.Op("!").Id("exists")).Block(
+				jen.Id("s").Dot("handleError").Call(codegen.Expr("jsonrpc.StreamErrorOrphaned"), jen.Qual("fmt", "Errorf").Call(jen.Lit("received response for unknown ID: %s"), jen.Id("jsonrpcID")), jen.Id("response")),
+				jen.Return(),
+			),
+			jen.Id("pending").Op(":=").Id("pendingInterface").Assert(jen.Op("*").Id(ws.VarName+"PendingRequest")),
+			jen.Id("pending").Dot("timeout").Dot("Stop").Call(),
+			jen.Var().Id("result").Id(ws.VarName+"StreamResult"),
+			jen.If(jen.Id("response").Dot("Error").Op("!=").Nil()).Block(
+				jen.Id("result").Dot("err").Op("=").Id("response").Dot("Error"),
+				jen.Id("s").Dot("handleError").Call(codegen.Expr("jsonrpc.StreamErrorProtocol"), jen.Id("response").Dot("Error"), jen.Id("response")),
+			).Else().BlockFunc(func(g *jen.Group) {
+				if hasRecv {
+					writeJSONRPCWebSocketDecodeResponseSuccess(g, ws)
+				}
+			}),
+			codegen.Expr(`select {
+case pending.resultChan <- result:
+default:
+}`),
+		)
+	stmt.Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id("generateUserID").
+		Params().
+		String().
+		Block(
+			jen.Return(jen.Qual("fmt", "Sprintf").Call(jen.Lit("user-%d-%d"), jen.Qual("time", "Now").Call().Dot("UnixNano").Call(), jen.Id("s").Dot("idGenerator").Dot("Load").Call())),
+		)
+	stmt.Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id("handleError").
+		Params(
+			jen.Id("errorType").Add(codegen.TypeRef("jsonrpc.StreamErrorType")),
+			jen.Id("err").Error(),
+			jen.Id("response").Op("*").Add(codegen.TypeRef("jsonrpc.RawResponse")),
+		).
+		Block(
+			jen.If(jen.Id("s").Dot("config").Dot("ErrorHandler").Op("!=").Nil()).Block(
+				jen.Id("s").Dot("config").Dot("ErrorHandler").Call(jen.Id("s").Dot("ctx"), jen.Id("errorType"), jen.Id("err"), jen.Id("response")),
+			),
+		)
 	if hasRecv {
-		b.WriteString(renderJSONRPCWebSocketDecodeResponseSuccess(ws))
+		stmt.Line()
+		stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+			Id("decodeResponse").
+			Params(jen.Id("data").Qual("encoding/json", "RawMessage")).
+			Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
+			Block(
+				jen.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{
+					jen.Id("StatusCode"): jen.Qual("net/http", "StatusOK"),
+					jen.Id("Body"):       jen.Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("data"))),
+				}),
+				jen.Id("dec").Op(":=").Id("s").Dot("decoder").Call(jen.Id("resp")),
+				jen.Var().Id("out").Add(codegen.TypeRef(ws.RecvTypeRef)),
+				jen.If(
+					jen.Err().Op(":=").Id("dec").Dot("Decode").Call(jen.Op("&").Id("out")),
+					jen.Err().Op("!=").Nil(),
+				).Block(
+					jen.Return(jen.Nil(), jen.Err()),
+				),
+				jen.Return(jen.Id("out"), jen.Nil()),
+			)
 	}
-	b.WriteString("\t}\n")
-	b.WriteString("\tselect {\n\tcase pending.resultChan <- result:\n\tdefault:\n\t}\n}\n\n")
-	fmt.Fprintf(&b, "func (s *%s) generateUserID() string {\n", ws.VarName)
-	b.WriteString("\treturn fmt.Sprintf(\"user-%d-%d\", time.Now().UnixNano(), s.idGenerator.Load())\n}\n\n")
-	fmt.Fprintf(&b, "func (s *%s) handleError(errorType jsonrpc.StreamErrorType, err error, response *jsonrpc.RawResponse) {\n", ws.VarName)
-	b.WriteString("\tif s.config.ErrorHandler != nil {\n\t\ts.config.ErrorHandler(s.ctx, errorType, err, response)\n\t}\n}\n\n")
-	if hasRecv {
-		fmt.Fprintf(&b, "func (s *%s) decodeResponse(data json.RawMessage) (%s, error) {\n", ws.VarName, ws.RecvTypeRef)
-		b.WriteString("\tresp := &http.Response{\n\t\tStatusCode: http.StatusOK,\n\t\tBody: io.NopCloser(bytes.NewReader(data)),\n\t}\n")
-		b.WriteString("\tdec := s.decoder(resp)\n")
-		fmt.Fprintf(&b, "\tvar out %s\n", ws.RecvTypeRef)
-		b.WriteString("\tif err := dec.Decode(&out); err != nil {\n\t\treturn nil, err\n\t}\n")
-		b.WriteString("\treturn out, nil\n}\n\n")
-	}
-	fmt.Fprintf(&b, "func (s *%s) setError(err error) {\n", ws.VarName)
-	b.WriteString("\ts.errorOnce.Do(func() {\n\t\ts.lastError.Store(err)\n\t\ts.cancel()\n\t})\n}\n\n")
-	fmt.Fprintf(&b, "func (s *%s) getError() error {\n", ws.VarName)
-	b.WriteString("\tif err, ok := s.lastError.Load().(error); ok {\n\t\treturn err\n\t}\n\treturn nil\n}\n\n")
-	fmt.Fprintf(&b, "func (s *%s) cleanupPendingRequests(err error) {\n", ws.VarName)
-	b.WriteString("\ts.pending.Range(func(key, value any) bool {\n")
-	fmt.Fprintf(&b, "\t\tpending := value.(*%sPendingRequest)\n", ws.VarName)
-	b.WriteString("\t\tpending.timeout.Stop()\n")
-	fmt.Fprintf(&b, "\t\tselect {\n\t\tcase pending.resultChan <- %sStreamResult{err: err}:\n\t\tdefault:\n\t\t}\n", ws.VarName)
-	b.WriteString("\t\ts.pending.Delete(key)\n\t\treturn true\n\t})\n}\n\n")
-	b.WriteString(codegen.Comment("Close closes the stream and cleans up resources."))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%s) Close() error {\n", ws.VarName)
-	b.WriteString("\tvar err error\n")
-	b.WriteString("\ts.closeOnce.Do(func() {\n\t\ts.cancel()\n")
-	b.WriteString("\t\tselect {\n\t\tcase <-s.done:\n\t\tcase <-time.After(s.config.CloseTimeout):\n\t\t}\n")
-	b.WriteString("\t\ts.cleanupPendingRequests(fmt.Errorf(\"stream closed\"))\n")
-	b.WriteString("\t\tif s.ws != nil {\n\t\t\terr = s.ws.Close()\n\t\t}\n\t})\n\treturn err\n}\n")
-	return b.String()
+	stmt.Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id("setError").
+		Params(jen.Id("err").Error()).
+		Block(
+			jen.Id("s").Dot("errorOnce").Dot("Do").Call(
+				jen.Func().Params().Block(
+					jen.Id("s").Dot("lastError").Dot("Store").Call(jen.Id("err")),
+					jen.Id("s").Dot("cancel").Call(),
+				),
+			),
+		)
+	stmt.Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id("getError").
+		Params().
+		Error().
+		Block(
+			jen.If(
+				jen.List(jen.Id("err"), jen.Id("ok")).Op(":=").Id("s").Dot("lastError").Dot("Load").Call().Assert(jen.Error()),
+				jen.Id("ok"),
+			).Block(
+				jen.Return(jen.Id("err")),
+			),
+			jen.Return(jen.Nil()),
+		)
+	stmt.Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id("cleanupPendingRequests").
+		Params(jen.Id("err").Error()).
+		Block(
+			jen.Id("s").Dot("pending").Dot("Range").Call(
+				jen.Func().Params(jen.Id("key"), jen.Id("value").Any()).Bool().Block(
+					jen.Id("pending").Op(":=").Id("value").Assert(jen.Op("*").Id(ws.VarName+"PendingRequest")),
+					jen.Id("pending").Dot("timeout").Dot("Stop").Call(),
+					codegen.Expr(fmt.Sprintf(`select {
+case pending.resultChan <- %sStreamResult{err: err}:
+default:
+}`, ws.VarName)),
+					jen.Id("s").Dot("pending").Dot("Delete").Call(jen.Id("key")),
+					jen.Return(jen.True()),
+				),
+			),
+		)
+	stmt.Line()
+	codegen.Doc(stmt, "Close closes the stream and cleans up resources.")
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
+		Id("Close").
+		Params().
+		Error().
+		Block(
+			jen.Var().Id("err").Error(),
+			jen.Id("s").Dot("closeOnce").Dot("Do").Call(
+				jen.Func().Params().Block(
+					jen.Id("s").Dot("cancel").Call(),
+					codegen.Expr(`select {
+case <-s.done:
+case <-time.After(s.config.CloseTimeout):
+}`),
+					jen.Id("s").Dot("cleanupPendingRequests").Call(jen.Qual("fmt", "Errorf").Call(jen.Lit("stream closed"))),
+					jen.If(jen.Id("s").Dot("ws").Op("!=").Nil()).Block(
+						jen.Id("err").Op("=").Id("s").Dot("ws").Dot("Close").Call(),
+					),
+				),
+			),
+			jen.Return(jen.Id("err")),
+		)
 }
 
-func renderJSONRPCWebSocketDecodeResponseSuccess(ws *httpcodegen.WebSocketData) string {
-	var b strings.Builder
-	b.WriteString("\t\tparsedResult, err := s.decodeResponse(response.Result)\n")
-	b.WriteString("\t\tif err != nil {\n")
-	b.WriteString("\t\t\tresult.err = fmt.Errorf(\"failed to decode response: %w\", err)\n")
-	b.WriteString("\t\t\ts.handleError(jsonrpc.StreamErrorParsing, err, response)\n")
-	b.WriteString("\t\t} else {\n")
-	if ws.Endpoint.Result.IDAttribute != "" {
-		if ws.Endpoint.Result.IDAttributeRequired {
-			fmt.Fprintf(&b, "\t\t\tif parsedResult.%s == \"\" {\n", ws.Endpoint.Result.IDAttribute)
-			fmt.Fprintf(&b, "\t\t\t\tparsedResult.%s = jsonrpc.IDToString(response.ID)\n", ws.Endpoint.Result.IDAttribute)
-			b.WriteString("\t\t\t}\n")
-		} else {
-			fmt.Fprintf(&b, "\t\t\tif parsedResult.%s == nil || *parsedResult.%s == \"\" {\n", ws.Endpoint.Result.IDAttribute, ws.Endpoint.Result.IDAttribute)
-			b.WriteString("\t\t\t\tidCopy := jsonrpc.IDToString(response.ID)\n")
-			fmt.Fprintf(&b, "\t\t\t\tparsedResult.%s = &idCopy\n", ws.Endpoint.Result.IDAttribute)
-			b.WriteString("\t\t\t}\n")
+func writeJSONRPCWebSocketDecodeResponseSuccess(g *jen.Group, ws *httpcodegen.WebSocketData) {
+	g.List(jen.Id("parsedResult"), jen.Id("err")).Op(":=").Id("s").Dot("decodeResponse").Call(jen.Id("response").Dot("Result"))
+	g.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Id("result").Dot("err").Op("=").Qual("fmt", "Errorf").Call(jen.Lit("failed to decode response: %w"), jen.Id("err")),
+		jen.Id("s").Dot("handleError").Call(codegen.Expr("jsonrpc.StreamErrorParsing"), jen.Id("err"), jen.Id("response")),
+	).Else().BlockFunc(func(eg *jen.Group) {
+		if ws.Endpoint.Result.IDAttribute != "" {
+			if ws.Endpoint.Result.IDAttributeRequired {
+				eg.If(jen.Id("parsedResult").Dot(ws.Endpoint.Result.IDAttribute).Op("==").Lit("")).Block(
+					jen.Id("parsedResult").Dot(ws.Endpoint.Result.IDAttribute).Op("=").Add(codegen.Expr("jsonrpc.IDToString(response.ID)")),
+				)
+			} else {
+				eg.If(
+					jen.Id("parsedResult").Dot(ws.Endpoint.Result.IDAttribute).Op("==").Nil().Op("||").Op("*").Id("parsedResult").Dot(ws.Endpoint.Result.IDAttribute).Op("==").Lit(""),
+				).Block(
+					jen.Id("idCopy").Op(":=").Add(codegen.Expr("jsonrpc.IDToString(response.ID)")),
+					jen.Id("parsedResult").Dot(ws.Endpoint.Result.IDAttribute).Op("=").Op("&").Id("idCopy"),
+				)
+			}
+		}
+		eg.Id("result").Dot("result").Op("=").Id("parsedResult")
+	})
+}
+
+func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.Section {
+	return codegen.MustJenniferSection("jsonrpc-minimal-request-encoder", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("Encode%sRequest returns an encoder for requests sent to the %s service %s JSON-RPC method.", ed.Method.VarName, ed.ServiceName, ed.Method.Name))
+		stmt.Func().
+			Id("Encode" + ed.Method.VarName + "Request").
+			Params(
+				jen.Id("encoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Encoder")),
+			).
+			Params(
+				jen.Func().Params(jen.Op("*").Qual("net/http", "Request"), jen.Any()).Error(),
+			).
+			Block(
+				jen.Return(
+					jen.Func().
+						Params(jen.Id("req").Op("*").Qual("net/http", "Request"), jen.Id("v").Any()).
+						Error().
+						Block(
+							jen.Id("id").Op(":=").Qual("github.com/google/uuid", "New").Call().Dot("String").Call(),
+							jen.Id("body").Op(":=").Op("&").Qual("github.com/CaliLuke/loom/jsonrpc", "Request").Values(jen.Dict{
+								jen.Id("JSONRPC"): jen.Lit("2.0"),
+								jen.Id("Method"):  jen.Lit(ed.Method.Name),
+								jen.Id("ID"):      jen.Id("id"),
+							}),
+							jen.If(
+								jen.Err().Op(":=").Id("encoder").Call(jen.Id("req")).Dot("Encode").Call(jen.Id("body")),
+								jen.Err().Op("!=").Nil(),
+							).Block(
+								jen.Return(
+									jen.Qual("github.com/CaliLuke/loom/http", "ErrEncodingError").Call(
+										jen.Lit(ed.ServiceName),
+										jen.Lit(ed.Method.Name),
+										jen.Err(),
+									),
+								),
+							),
+							jen.Return(jen.Nil()),
+						),
+				),
+			)
+	})
+}
+
+func jsonrpcClientEndpointInitSection(ed *httpcodegen.EndpointData) codegen.Section {
+	return codegen.MustJenniferSection("jsonrpc-client-endpoint-init", func(stmt *jen.Statement) {
+		requestEncoder := jsonrpcRequestEncoderName(ed)
+		codegen.Doc(stmt, fmt.Sprintf("%s returns an endpoint that makes JSON-RPC requests to the %s service %s method.", ed.EndpointInit, ed.ServiceName, ed.Method.Name))
+		stmt.Func().
+			Params(jen.Id("c").Op("*").Id(ed.ClientStruct)).
+			Id(ed.EndpointInit).
+			Params().
+			Add(codegen.TypeRef("loom.Endpoint")).
+			BlockFunc(func(g *jen.Group) {
+				writeJSONRPCClientEndpointLocals(g, ed, requestEncoder)
+				g.Return(
+					jen.Func().
+						Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Any()).
+						Params(jen.Any(), jen.Error()).
+						BlockFunc(func(eg *jen.Group) {
+							writeJSONRPCClientRequestSetup(eg, ed, requestEncoder)
+							switch {
+							case httpcodegen.IsWebSocketEndpoint(ed):
+								writeJSONRPCWebSocketEndpointBody(eg, ed)
+							case httpcodegen.IsSSEEndpoint(ed):
+								writeJSONRPCSSEEndpointBody(eg, ed)
+							default:
+								writeJSONRPCUnaryEndpointBody(eg, ed)
+							}
+						}),
+				)
+			})
+	})
+}
+
+func jsonrpcRequestEncoderName(ed *httpcodegen.EndpointData) string {
+	if ed.RequestEncoder != "" || httpcodegen.IsWebSocketEndpoint(ed) {
+		return ed.RequestEncoder
+	}
+	return fmt.Sprintf("Encode%sRequest", ed.Method.VarName)
+}
+
+func writeJSONRPCClientEndpointLocals(g *jen.Group, ed *httpcodegen.EndpointData, requestEncoder string) {
+	if httpcodegen.IsWebSocketEndpoint(ed) {
+		return
+	}
+	g.Var().DefsFunc(func(defs *jen.Group) {
+		if requestEncoder != "" {
+			defs.Id("encodeRequest").Op("=").Id(requestEncoder).Call(jen.Id("c").Dot("encoder"))
+		}
+		if !httpcodegen.IsSSEEndpoint(ed) {
+			defs.Id("decodeResponse").Op("=").Id(ed.ResponseDecoder).Call(jen.Id("c").Dot("decoder"), jen.Id("c").Dot("RestoreResponseBody"))
+		}
+	})
+	g.Line()
+}
+
+func writeJSONRPCClientRequestSetup(g *jen.Group, ed *httpcodegen.EndpointData, requestEncoder string) {
+	if httpcodegen.IsWebSocketEndpoint(ed) {
+		return
+	}
+	args := []jen.Code{jen.Id("ctx")}
+	for _, arg := range ed.RequestInit.ClientArgs {
+		args = append(args, codegen.Expr(arg.Ref))
+	}
+	g.List(jen.Id("req"), jen.Err()).Op(":=").Id("c").Dot(ed.RequestInit.Name).Call(args...)
+	g.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Err()),
+	)
+	if requestEncoder == "" {
+		return
+	}
+	g.If(jen.Err().Op(":=").Id("encodeRequest").Call(jen.Id("req"), jen.Id("v")), jen.Err().Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Err()),
+	)
+}
+
+func writeJSONRPCWebSocketEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {
+	if ed.ClientWebSocket != nil && ed.ClientWebSocket.RecvName != "" && ed.ClientWebSocket.RecvTypeRef != "" {
+		g.Id("decodeResponse").Op(":=").Id("c").Dot("decoder")
+	}
+	g.List(jen.Id("ws"), jen.Err()).Op(":=").Id("c").Dot("getConn").Call(jen.Id("ctx"))
+	g.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Err()),
+	)
+	g.Line()
+	g.List(jen.Id("streamCtx"), jen.Id("cancel")).Op(":=").Qual("context", "WithCancel").Call(jen.Id("ctx"))
+	dict := jen.Dict{
+		jen.Id("ws"):     jen.Id("ws"),
+		jen.Id("ctx"):    jen.Id("streamCtx"),
+		jen.Id("cancel"): jen.Id("cancel"),
+		jen.Id("done"):   jen.Make(jen.Chan().Struct()),
+		jen.Id("config"): jen.Id("c").Dot("streamConfig"),
+	}
+	if ed.ClientWebSocket != nil && ed.ClientWebSocket.RecvName != "" && ed.ClientWebSocket.RecvTypeRef != "" {
+		dict[jen.Id("decoder")] = jen.Id("decodeResponse")
+	}
+	g.Id("stream").Op(":=").Op("&").Id(ed.ClientWebSocket.VarName).Values(dict)
+	g.Go().Id("stream").Dot("responseHandler").Call()
+	g.Return(jen.Id("stream"), jen.Nil())
+}
+
+func writeJSONRPCSSEEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {
+	writeJSONRPCDoRequest(g, ed)
+	g.If(jen.Id("resp").Dot("StatusCode").Op("!=").Qual("net/http", "StatusOK")).Block(
+		jen.List(jen.Id("body"), jen.Id("_")).Op(":=").Qual("io", "ReadAll").Call(jen.Id("resp").Dot("Body")),
+		jen.Id("resp").Dot("Body").Dot("Close").Call(),
+		jen.Return(
+			jen.Nil(),
+			jen.Qual("github.com/CaliLuke/loom/http", "ErrInvalidResponse").Call(
+				jen.Lit(ed.ServiceName),
+				jen.Lit(ed.Method.Name),
+				jen.Id("resp").Dot("StatusCode"),
+				jen.String().Call(jen.Id("body")),
+			),
+		),
+	)
+	g.Line()
+	g.Id("contentType").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("Content-Type"))
+	g.If(
+		jen.Id("contentType").Op("!=").Lit("").Op("&&").
+			Op("!").Qual("strings", "HasPrefix").Call(jen.Id("contentType"), jen.Lit("text/event-stream")),
+	).Block(
+		jen.Id("resp").Dot("Body").Dot("Close").Call(),
+		jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("unexpected content type: %s (expected text/event-stream)"), jen.Id("contentType"))),
+	)
+	g.Line()
+	g.Id("stream").Op(":=").Op("&").Id(ed.Method.VarName + "ClientStream").Values(jen.Dict{
+		jen.Id("resp"):    jen.Id("resp"),
+		jen.Id("reader"):  jen.Qual("bufio", "NewReader").Call(jen.Id("resp").Dot("Body")),
+		jen.Id("decoder"): jen.Id("c").Dot("decoder"),
+	})
+	g.Return(jen.Id("stream"), jen.Nil())
+}
+
+func writeJSONRPCUnaryEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {
+	writeJSONRPCDoRequest(g, ed)
+	g.Return(jen.Id("decodeResponse").Call(jen.Id("resp")))
+}
+
+func writeJSONRPCDoRequest(g *jen.Group, ed *httpcodegen.EndpointData) {
+	g.List(jen.Id("resp"), jen.Err()).Op(":=").Id("c").Dot("Doer").Dot("Do").Call(jen.Id("req"))
+	g.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Return(
+			jen.Nil(),
+			jen.Qual("github.com/CaliLuke/loom/http", "ErrRequestError").Call(
+				jen.Lit(ed.ServiceName),
+				jen.Lit(ed.Method.Name),
+				jen.Err(),
+			),
+		),
+	)
+	if httpcodegen.IsSSEEndpoint(ed) {
+		g.Line()
+	}
+}
+
+func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Section {
+	return codegen.MustJenniferSection("jsonrpc-client-websocket-conn", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, "getConn returns the current WebSocket connection or creates a new one.")
+		stmt.Func().
+			Params(jen.Id("c").Op("*").Id(data.ClientStruct)).
+			Id("getConn").
+			Params(jen.Id("ctx").Qual("context", "Context")).
+			Params(jen.Op("*").Qual("github.com/gorilla/websocket", "Conn"), jen.Error()).
+			BlockFunc(func(g *jen.Group) {
+				g.Id("c").Dot("connMu").Dot("RLock").Call()
+				g.Id("conn").Op(":=").Id("c").Dot("conn")
+				g.If(jen.Id("conn").Op("!=").Nil()).Block(
+					jen.If(
+						jen.Err().Op(":=").Id("conn").Dot("WriteControl").Call(
+							jen.Qual("github.com/gorilla/websocket", "PingMessage"),
+							jen.Index().Byte().Values(),
+							jen.Qual("time", "Now").Call().Add(jen.Lit(5).Op("*").Qual("time", "Second")),
+						),
+						jen.Err().Op("==").Nil(),
+					).Block(
+						jen.Id("c").Dot("connMu").Dot("RUnlock").Call(),
+						jen.Return(jen.Id("conn"), jen.Nil()),
+					),
+				)
+				g.Id("c").Dot("connMu").Dot("RUnlock").Call()
+				g.Line()
+				g.Id("c").Dot("connMu").Dot("Lock").Call()
+				g.Defer().Id("c").Dot("connMu").Dot("Unlock").Call()
+				g.Line()
+				g.If(jen.Id("c").Dot("conn").Op("!=").Nil()).Block(
+					jen.If(
+						jen.Err().Op(":=").Id("c").Dot("conn").Dot("WriteControl").Call(
+							jen.Qual("github.com/gorilla/websocket", "PingMessage"),
+							jen.Index().Byte().Values(),
+							jen.Qual("time", "Now").Call().Add(jen.Lit(5).Op("*").Qual("time", "Second")),
+						),
+						jen.Err().Op("==").Nil(),
+					).Block(
+						jen.Return(jen.Id("c").Dot("conn"), jen.Nil()),
+					),
+					jen.Id("c").Dot("conn").Dot("Close").Call(),
+				)
+				g.Line()
+				g.Id("wsScheme").Op(":=").Lit("ws")
+				g.If(jen.Id("c").Dot("scheme").Op("==").Lit("https")).Block(
+					jen.Id("wsScheme").Op("=").Lit("wss"),
+				)
+				g.Line()
+				g.Id("url").Op(":=").Id("wsScheme").Op("+").Lit("://").Op("+").Id("c").Dot("host")
+				if path := jsonrpcWebSocketClientPath(data); path != "" {
+					g.Id("url").Op("=").Id("url").Op("+").Lit(path)
+				}
+				g.Line()
+				g.List(jen.Id("ws"), jen.Id("_"), jen.Err()).Op(":=").Id("c").Dot("dialer").Dot("DialContext").Call(jen.Id("ctx"), jen.Id("url"), jen.Nil())
+				g.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Return(
+						jen.Nil(),
+						jen.Qual("github.com/CaliLuke/loom/http", "ErrRequestError").Call(
+							jen.Lit(data.Service.Name),
+							jen.Lit("connect"),
+							jen.Err(),
+						),
+					),
+				)
+				g.Line()
+				g.If(jen.Id("c").Dot("configfn").Op("!=").Nil()).Block(
+					jen.Id("ws").Op("=").Id("c").Dot("configfn").Call(jen.Id("ws"), jen.Nil()),
+				)
+				g.Line()
+				g.Id("c").Dot("conn").Op("=").Id("ws")
+				g.Return(jen.Id("c").Dot("conn"), jen.Nil())
+			})
+		stmt.Line()
+		codegen.Doc(stmt, "Close closes the WebSocket connection and marks the client as closed.")
+		stmt.Func().
+			Params(jen.Id("c").Op("*").Id(data.ClientStruct)).
+			Id("Close").
+			Params().
+			Error().
+			Block(
+				jen.If(jen.Id("c").Dot("closed").Dot("Swap").Call(jen.True())).Block(
+					jen.Return(jen.Nil()),
+				),
+				jen.Line(),
+				jen.Id("c").Dot("connMu").Dot("Lock").Call(),
+				jen.Defer().Id("c").Dot("connMu").Dot("Unlock").Call(),
+				jen.Line(),
+				jen.If(jen.Id("c").Dot("conn").Op("!=").Nil()).Block(
+					jen.Id("err").Op(":=").Id("c").Dot("conn").Dot("Close").Call(),
+					jen.Id("c").Dot("conn").Op("=").Nil(),
+					jen.Return(jen.Id("err")),
+				),
+				jen.Return(jen.Nil()),
+			)
+		stmt.Line()
+		codegen.Doc(stmt, "IsClosed returns true if the client connection has been closed.")
+		stmt.Func().
+			Params(jen.Id("c").Op("*").Id(data.ClientStruct)).
+			Id("IsClosed").
+			Params().
+			Bool().
+			Block(
+				jen.Return(jen.Id("c").Dot("closed").Dot("Load").Call()),
+			)
+	})
+}
+
+func jsonrpcWebSocketStreamErrorTypesSection() codegen.Section {
+	return codegen.MustJenniferSection("jsonrpc-websocket-stream-error-types", func(stmt *jen.Statement) {
+		stmt.Comment("Stream error types for comprehensive error reporting.").Line()
+		stmt.Type().Id("StreamErrorType").Int()
+		stmt.Line()
+		stmt.Const().Defs(
+			jen.Id("StreamErrorConnection").Id("StreamErrorType").Op("=").Iota().Comment("WebSocket connection errors"),
+			jen.Id("StreamErrorProtocol").Comment("Invalid JSON-RPC protocol"),
+			jen.Id("StreamErrorParsing").Comment("Failed to parse/decode response"),
+			jen.Id("StreamErrorOrphaned").Comment("Response with no matching request"),
+			jen.Id("StreamErrorTimeout").Comment("Request timeout"),
+		)
+		stmt.Line()
+		codegen.Doc(stmt, "StreamErrorHandler allows users to handle stream errors.")
+		stmt.Type().Id("StreamErrorHandler").Func().
+			Params(
+				jen.Id("ctx").Qual("context", "Context"),
+				jen.Id("errorType").Id("StreamErrorType"),
+				jen.Id("err").Error(),
+				jen.Id("response").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawResponse"),
+			)
+	})
+}
+
+func jsonrpcWebSocketClientPath(data *httpcodegen.ServiceData) string {
+	for _, ed := range data.Endpoints {
+		for _, route := range ed.Routes {
+			if route.Verb == "GET" && route.Path != "/" {
+				return route.Path
+			}
 		}
 	}
-	b.WriteString("\t\t\tresult.result = parsedResult\n")
-	b.WriteString("\t\t}\n")
-	return b.String()
+	return ""
 }

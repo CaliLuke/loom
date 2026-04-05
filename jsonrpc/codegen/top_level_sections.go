@@ -2,382 +2,569 @@ package codegen
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 func jsonrpcClientStructSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-client-struct", renderJSONRPCClientStruct(data))
-}
-
-func renderJSONRPCClientStruct(data *httpcodegen.ServiceData) string {
-	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(codegen.Comment(fmt.Sprintf("%s lists the %s service endpoint HTTP clients.", data.ClientStruct, data.Service.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "type %s struct {\n", data.ClientStruct)
-	b.WriteString("\t")
-	b.WriteString(codegen.Comment(fmt.Sprintf("Doer is the HTTP client used to make requests to the %s service.", data.Service.Name)))
-	b.WriteString("\n\tDoer loomhttp.Doer\n")
-	for _, endpoint := range data.Endpoints {
-		if !httpcodegen.IsSSEEndpoint(endpoint) {
-			continue
+	return codegen.MustJenniferSection("jsonrpc-client-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s lists the %s service endpoint HTTP clients.", data.ClientStruct, data.Service.Name))
+		stmt.Type().Id(data.ClientStruct).StructFunc(func(g *jen.Group) {
+			g.Comment(codegen.Comment(fmt.Sprintf("Doer is the HTTP client used to make requests to the %s service.", data.Service.Name)))
+			g.Id("Doer").Add(codegen.TypeRef("loomhttp.Doer"))
+			for _, endpoint := range data.Endpoints {
+				if !httpcodegen.IsSSEEndpoint(endpoint) {
+					continue
+				}
+				g.Comment(codegen.Comment(fmt.Sprintf("%s Doer is the HTTP client used to make requests to the %s endpoint.", endpoint.Method.VarName, endpoint.Method.Name)))
+				g.Id(endpoint.Method.VarName + "Doer").Add(codegen.TypeRef("loomhttp.Doer"))
+			}
+			g.Comment("RestoreResponseBody controls whether the response bodies are reset after")
+			g.Comment("decoding so they can be read again.")
+			g.Id("RestoreResponseBody").Bool()
+			g.Line()
+			g.Id("scheme").String()
+			g.Id("host").String()
+			g.Id("encoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Encoder"))
+			g.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder"))
+			if httpcodegen.HasWebSocket(data) {
+				g.Id("dialer").Add(codegen.TypeRef("loomhttp.Dialer"))
+				g.Id("configfn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc"))
+				g.Line()
+				g.Id("connMu").Qual("sync", "RWMutex")
+				g.Id("conn").Op("*").Qual("github.com/gorilla/websocket", "Conn")
+				g.Id("closed").Qual("sync/atomic", "Bool")
+				g.Line()
+				g.Comment("Stream configuration (shared by all WebSocket streams)")
+				g.Id("streamConfig").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "StreamConfig")
+			}
+		})
+		if !httpcodegen.HasWebSocket(data) {
+			stmt.Line()
+			stmt.Comment("bufferPool is a pool of bytes.Buffers for encoding requests.").Line()
+			stmt.Var().Id("bufferPool").Op("=").Qual("sync", "Pool").Values(jen.Dict{
+				jen.Id("New"): jen.Func().Params().Any().Block(
+					jen.Return(jen.New(jen.Qual("bytes", "Buffer"))),
+				),
+			})
 		}
-		b.WriteString("\t")
-		b.WriteString(codegen.Comment(fmt.Sprintf("%s Doer is the HTTP client used to make requests to the %s endpoint.", endpoint.Method.VarName, endpoint.Method.Name)))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "\t%sDoer loomhttp.Doer\n", endpoint.Method.VarName)
-	}
-	b.WriteString("\t// RestoreResponseBody controls whether the response bodies are reset after\n")
-	b.WriteString("\t// decoding so they can be read again.\n")
-	b.WriteString("\tRestoreResponseBody bool\n\n")
-	b.WriteString("\tscheme     string\n")
-	b.WriteString("\thost       string\n")
-	b.WriteString("\tencoder    func(*http.Request) loomhttp.Encoder\n")
-	b.WriteString("\tdecoder    func(*http.Response) loomhttp.Decoder\n")
-	if httpcodegen.HasWebSocket(data) {
-		b.WriteString("\tdialer loomhttp.Dialer\n")
-		b.WriteString("\tconfigfn loomhttp.ConnConfigureFunc\n\n")
-		b.WriteString("\tconnMu sync.RWMutex\n")
-		b.WriteString("\tconn   *websocket.Conn\n")
-		b.WriteString("\tclosed atomic.Bool\n\n")
-		b.WriteString("\t// Stream configuration (shared by all WebSocket streams)\n")
-		b.WriteString("\tstreamConfig *jsonrpc.StreamConfig\n")
-	}
-	b.WriteString("}\n")
-	if !httpcodegen.HasWebSocket(data) {
-		b.WriteString("\n// bufferPool is a pool of bytes.Buffers for encoding requests.\n")
-		b.WriteString("var bufferPool = sync.Pool{\n")
-		b.WriteString("\tNew: func() any { return new(bytes.Buffer) },\n")
-		b.WriteString("}\n")
-	}
-	return b.String()
+		stmt.Line()
+	})
 }
 
 func jsonrpcClientInitSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-client-init", renderJSONRPCClientInit(data))
-}
-
-func renderJSONRPCClientInit(data *httpcodegen.ServiceData) string {
-	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(codegen.Comment(fmt.Sprintf("New%s instantiates HTTP clients for all the %s service servers.", data.ClientStruct, data.Service.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func New%s(\n", data.ClientStruct)
-	b.WriteString("\tscheme string,\n")
-	b.WriteString("\thost string,\n")
-	b.WriteString("\tdoer loomhttp.Doer,\n")
-	b.WriteString("\tenc func(*http.Request) loomhttp.Encoder,\n")
-	b.WriteString("\tdec func(*http.Response) loomhttp.Decoder,\n")
-	b.WriteString("\trestoreBody bool,\n")
-	if httpcodegen.HasWebSocket(data) {
-		b.WriteString("\tdialer loomhttp.Dialer,\n")
-		b.WriteString("\tcfn loomhttp.ConnConfigureFunc,\n")
-		b.WriteString("\tstreamOpts ...jsonrpc.StreamConfigOption,\n")
-	}
-	fmt.Fprintf(&b, ") *%s {\n", data.ClientStruct)
-	if httpcodegen.HasWebSocket(data) {
-		b.WriteString("\t// Create stream configuration from options\n")
-		b.WriteString("\tstreamConfig := jsonrpc.NewStreamConfig(streamOpts...)\n\n")
-	}
-	fmt.Fprintf(&b, "\treturn &%s{\n", data.ClientStruct)
-	b.WriteString("\t\tDoer:                doer,\n")
-	for _, endpoint := range data.Endpoints {
-		if !httpcodegen.IsSSEEndpoint(endpoint) {
-			continue
+	return codegen.MustJenniferSection("jsonrpc-client-init", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("New%s instantiates HTTP clients for all the %s service servers.", data.ClientStruct, data.Service.Name))
+		params := []jen.Code{
+			jen.Id("scheme").String(),
+			jen.Id("host").String(),
+			jen.Id("doer").Add(codegen.TypeRef("loomhttp.Doer")),
+			jen.Id("enc").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Encoder")),
+			jen.Id("dec").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
+			jen.Id("restoreBody").Bool(),
 		}
-		fmt.Fprintf(&b, "\t\t%sDoer: %s,\n", endpoint.Method.VarName, "doer")
-	}
-	b.WriteString("\t\tRestoreResponseBody: restoreBody,\n")
-	b.WriteString("\t\tscheme:              scheme,\n")
-	b.WriteString("\t\thost:                host,\n")
-	b.WriteString("\t\tdecoder:             dec,\n")
-	b.WriteString("\t\tencoder:             enc,\n")
-	if httpcodegen.HasWebSocket(data) {
-		b.WriteString("\t\tdialer:              dialer,\n")
-		b.WriteString("\t\tconfigfn:            cfn,\n")
-		b.WriteString("\t\tstreamConfig:        streamConfig,\n")
-	}
-	b.WriteString("\t}\n}\n")
-	return b.String()
+		if httpcodegen.HasWebSocket(data) {
+			params = append(params,
+				jen.Id("dialer").Add(codegen.TypeRef("loomhttp.Dialer")),
+				jen.Id("cfn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc")),
+				jen.Id("streamOpts").Op("...").Qual("github.com/CaliLuke/loom/jsonrpc", "StreamConfigOption"),
+			)
+		}
+		stmt.Func().Id("New" + data.ClientStruct).
+			Params(params...).
+			Op("*").Id(data.ClientStruct).
+			BlockFunc(func(g *jen.Group) {
+				if httpcodegen.HasWebSocket(data) {
+					g.Comment("Create stream configuration from options")
+					g.Id("streamConfig").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "NewStreamConfig").Call(jen.Id("streamOpts").Op("..."))
+					g.Line()
+				}
+				dict := jen.Dict{
+					jen.Id("Doer"):                jen.Id("doer"),
+					jen.Id("RestoreResponseBody"): jen.Id("restoreBody"),
+					jen.Id("scheme"):              jen.Id("scheme"),
+					jen.Id("host"):                jen.Id("host"),
+					jen.Id("decoder"):             jen.Id("dec"),
+					jen.Id("encoder"):             jen.Id("enc"),
+				}
+				for _, endpoint := range data.Endpoints {
+					if !httpcodegen.IsSSEEndpoint(endpoint) {
+						continue
+					}
+					dict[jen.Id(endpoint.Method.VarName+"Doer")] = jen.Id("doer")
+				}
+				if httpcodegen.HasWebSocket(data) {
+					dict[jen.Id("dialer")] = jen.Id("dialer")
+					dict[jen.Id("configfn")] = jen.Id("cfn")
+					dict[jen.Id("streamConfig")] = jen.Id("streamConfig")
+				}
+				g.Return(jen.Op("&").Id(data.ClientStruct).Values(dict))
+			})
+		stmt.Line()
+	})
 }
 
 func jsonrpcServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-struct", renderJSONRPCServerStruct(data))
-}
-
-func renderJSONRPCServerStruct(data *httpcodegen.ServiceData) string {
-	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(codegen.Comment(fmt.Sprintf("%s handles JSON-RPC requests for the %s service.", data.ServerStruct, data.Service.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "type %s struct {\n", data.ServerStruct)
-	b.WriteString("\thttp.Handler\n")
-	b.WriteString("\t// Methods is the list of methods served by this server.\n")
-	b.WriteString("\tMethods []string\n")
-	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
-		b.WriteString("\t// StreamHandler is the handler for the streaming service.\n")
-		fmt.Fprintf(&b, "\tStreamHandler func(context.Context, %s.Stream) error\n", data.Service.PkgName)
-	}
-	for _, endpoint := range data.Endpoints {
-		if httpcodegen.IsWebSocketEndpoint(endpoint) {
-			fmt.Fprintf(&b, "\t%s func(context.Context, *http.Request, *jsonrpc.RawRequest) (any, error)\n", lowerInitial(endpoint.Method.VarName))
-			if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
-				fmt.Fprintf(&b, "\t%sEndpoint loom.Endpoint\n", lowerInitial(endpoint.Method.VarName))
+	return codegen.MustJenniferSection("jsonrpc-server-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s handles JSON-RPC requests for the %s service.", data.ServerStruct, data.Service.Name))
+		stmt.Type().Id(data.ServerStruct).StructFunc(func(g *jen.Group) {
+			g.Qual("net/http", "Handler")
+			g.Comment("Methods is the list of methods served by this server.")
+			g.Id("Methods").Index().String()
+			if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
+				g.Comment("StreamHandler is the handler for the streaming service.")
+				g.Id("StreamHandler").Func().
+					Params(jen.Qual("context", "Context"), codegen.TypeRef(data.Service.PkgName+".Stream")).
+					Error()
 			}
-			continue
-		}
-		b.WriteString("\t")
-		b.WriteString(codegen.Comment(fmt.Sprintf("%s is the handler for the %s method.", endpoint.Method.VarName, endpoint.Method.Name)))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "\t%s func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error\n", endpoint.Method.VarName)
-	}
-	b.WriteString("\n\tdecoder func(*http.Request) loomhttp.Decoder\n")
-	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder\n")
-	b.WriteString("\terrhandler func(context.Context, http.ResponseWriter, error)\n")
-	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
-		b.WriteString("\tupgrader loomhttp.Upgrader\n")
-		b.WriteString("\tconfigfn loomhttp.ConnConfigureFunc\n")
-	}
-	b.WriteString("}\n")
-	return b.String()
+			for _, endpoint := range data.Endpoints {
+				if httpcodegen.IsWebSocketEndpoint(endpoint) {
+					g.Id(lowerInitial(endpoint.Method.VarName)).
+						Func().
+						Params(
+							jen.Qual("context", "Context"),
+							jen.Op("*").Qual("net/http", "Request"),
+							jen.Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
+						).
+						Params(jen.Any(), jen.Error())
+					if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
+						g.Id(lowerInitial(endpoint.Method.VarName) + "Endpoint").Add(codegen.TypeRef("loom.Endpoint"))
+					}
+					continue
+				}
+				g.Comment(codegen.Comment(fmt.Sprintf("%s is the handler for the %s method.", endpoint.Method.VarName, endpoint.Method.Name)))
+				g.Id(endpoint.Method.VarName).
+					Func().
+					Params(
+						jen.Qual("context", "Context"),
+						jen.Op("*").Qual("net/http", "Request"),
+						jen.Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
+						jen.Qual("net/http", "ResponseWriter"),
+					).
+					Error()
+			}
+			g.Line()
+			g.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Decoder"))
+			g.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder"))
+			g.Id("errhandler").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter"), jen.Error())
+			if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
+				g.Id("upgrader").Add(codegen.TypeRef("loomhttp.Upgrader"))
+				g.Id("configfn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc"))
+			}
+		})
+		stmt.Line()
+	})
 }
 
 func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-init", renderJSONRPCServerInit(data, hasSSE, hasMixed))
-}
-
-func renderJSONRPCServerInit(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) string {
-	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(codegen.Comment(fmt.Sprintf("%s creates a JSON-RPC server which loads HTTP requests and calls the %q service methods.", data.ServerInit, data.Service.Name)))
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(\n", data.ServerInit)
-	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
-		fmt.Fprintf(&b, "\tstreamHandler func(context.Context, %s.Stream) error,\n", data.Service.PkgName)
-	}
-	fmt.Fprintf(&b, "\tendpoints *%s.Endpoints,\n", data.Service.PkgName)
-	b.WriteString("\tmux loomhttp.Muxer,\n")
-	b.WriteString("\tdecoder func(*http.Request) loomhttp.Decoder,\n")
-	b.WriteString("\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,\n")
-	b.WriteString("\terrhandler func(context.Context, http.ResponseWriter, error),\n")
-	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
-		b.WriteString("\tupgrader loomhttp.Upgrader,\n")
-		b.WriteString("\tconfigfn loomhttp.ConnConfigureFunc,\n")
-	}
-	fmt.Fprintf(&b, ") *%s {\n", data.ServerStruct)
-	fmt.Fprintf(&b, "\ts := &%s{\n", data.ServerStruct)
-	b.WriteString("\t\tMethods: []string{\n")
-	for _, endpoint := range data.Endpoints {
-		fmt.Fprintf(&b, "\t\t\t%q,\n", endpoint.Method.Name)
-	}
-	b.WriteString("\t\t},\n")
-	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
-		b.WriteString("\t\tStreamHandler: streamHandler,\n")
-	}
-	for _, endpoint := range data.Endpoints {
-		if httpcodegen.IsWebSocketEndpoint(endpoint) {
-			fmt.Fprintf(&b, "\t\t%s: %s(endpoints.%s, mux, decoder),\n", lowerInitial(endpoint.Method.VarName), endpoint.HandlerInit, endpoint.Method.VarName)
-			if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
-				fmt.Fprintf(&b, "\t\t%sEndpoint: endpoints.%s,\n", lowerInitial(endpoint.Method.VarName), endpoint.Method.VarName)
-			}
-			continue
+	return codegen.MustJenniferSection("jsonrpc-server-init", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s creates a JSON-RPC server which loads HTTP requests and calls the %q service methods.", data.ServerInit, data.Service.Name))
+		params := []jen.Code{}
+		if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
+			params = append(params, jen.Id("streamHandler").Func().Params(jen.Qual("context", "Context"), codegen.TypeRef(data.Service.PkgName+".Stream")).Error())
 		}
-		fmt.Fprintf(&b, "\t\t%s: %s(endpoints.%s, mux, decoder, encoder, errhandler),\n", endpoint.Method.VarName, endpoint.HandlerInit, endpoint.Method.VarName)
-	}
-	b.WriteString("\t\tdecoder: decoder,\n")
-	b.WriteString("\t\tencoder: encoder,\n")
-	b.WriteString("\t\terrhandler: errhandler,\n")
-	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
-		b.WriteString("\t\tupgrader: upgrader,\n")
-		b.WriteString("\t\tconfigfn: configfn,\n")
-	}
-	b.WriteString("\t}\n")
-	switch {
-	case httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]):
-		b.WriteString("\t// WebSocket services implement ServeHTTP for upgrade\n")
-		b.WriteString("\ts.Handler = http.HandlerFunc(s.ServeHTTP)\n")
-	case hasMixed:
-		b.WriteString("\t// Mixed HTTP/SSE services negotiate transports in ServeHTTP\n")
-		b.WriteString("\ts.Handler = http.HandlerFunc(s.ServeHTTP)\n")
-	case hasSSE:
-		b.WriteString("\t// SSE-only services route via handleSSE\n")
-		b.WriteString("\ts.Handler = http.HandlerFunc(s.handleSSE)\n")
-	default:
-		b.WriteString("\t// Plain HTTP JSON-RPC\n")
-		b.WriteString("\ts.Handler = http.HandlerFunc(s.ServeHTTP)\n")
-	}
-	b.WriteString("\treturn s\n}\n")
-	return b.String()
+		params = append(params,
+			jen.Id("endpoints").Op("*").Qual(data.Service.PkgName, "Endpoints"),
+			jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer")),
+			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Decoder")),
+			jen.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder")),
+			jen.Id("errhandler").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter"), jen.Error()),
+		)
+		if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
+			params = append(params,
+				jen.Id("upgrader").Add(codegen.TypeRef("loomhttp.Upgrader")),
+				jen.Id("configfn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc")),
+			)
+		}
+		stmt.Func().Id(data.ServerInit).
+			Params(params...).
+			Op("*").Id(data.ServerStruct).
+			BlockFunc(func(g *jen.Group) {
+				dict := jen.Dict{
+					jen.Id("Methods"): jen.Index().String().ValuesFunc(func(values *jen.Group) {
+						for _, endpoint := range data.Endpoints {
+							values.Lit(endpoint.Method.Name)
+						}
+					}),
+					jen.Id("decoder"):    jen.Id("decoder"),
+					jen.Id("encoder"):    jen.Id("encoder"),
+					jen.Id("errhandler"): jen.Id("errhandler"),
+				}
+				if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
+					dict[jen.Id("StreamHandler")] = jen.Id("streamHandler")
+					dict[jen.Id("upgrader")] = jen.Id("upgrader")
+					dict[jen.Id("configfn")] = jen.Id("configfn")
+				}
+				for _, endpoint := range data.Endpoints {
+					if httpcodegen.IsWebSocketEndpoint(endpoint) {
+						dict[jen.Id(lowerInitial(endpoint.Method.VarName))] = jen.Id(endpoint.HandlerInit).Call(
+							jen.Id("endpoints").Dot(endpoint.Method.VarName),
+							jen.Id("mux"),
+							jen.Id("decoder"),
+						)
+						if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
+							dict[jen.Id(lowerInitial(endpoint.Method.VarName)+"Endpoint")] = jen.Id("endpoints").Dot(endpoint.Method.VarName)
+						}
+						continue
+					}
+					dict[jen.Id(endpoint.Method.VarName)] = jen.Id(endpoint.HandlerInit).Call(
+						jen.Id("endpoints").Dot(endpoint.Method.VarName),
+						jen.Id("mux"),
+						jen.Id("decoder"),
+						jen.Id("encoder"),
+						jen.Id("errhandler"),
+					)
+				}
+				g.Id("s").Op(":=").Op("&").Id(data.ServerStruct).Values(dict)
+				switch {
+				case httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]):
+					g.Comment("WebSocket services implement ServeHTTP for upgrade")
+					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
+				case hasMixed:
+					g.Comment("Mixed HTTP/SSE services negotiate transports in ServeHTTP")
+					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
+				case hasSSE:
+					g.Comment("SSE-only services route via handleSSE")
+					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("handleSSE"))
+				default:
+					g.Comment("Plain HTTP JSON-RPC")
+					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
+				}
+				g.Return(jen.Id("s"))
+			})
+		stmt.Line()
+	})
 }
 
 func jsonrpcServerServiceSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-service", fmt.Sprintf("\n%s\nfunc (s *%s) %s() string { return %q }\n", codegen.Comment(fmt.Sprintf("%s returns the name of the service served.", data.ServerService)), data.ServerStruct, data.ServerService, data.Service.Name))
+	return codegen.MustJenniferSection("jsonrpc-server-service", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s returns the name of the service served.", data.ServerService))
+		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id(data.ServerService).
+			Params().
+			String().
+			Block(
+				jen.Return(jen.Lit(data.Service.Name)),
+			)
+		stmt.Line()
+	})
 }
 
 func jsonrpcServerUseSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-use", fmt.Sprintf("\n%s\nfunc (s *%s) Use(m func(http.Handler) http.Handler) {\n\ts.Handler = m(s.Handler)\n}\n", codegen.Comment("Use wraps the server handlers with the given middleware."), data.ServerStruct))
+	return codegen.MustJenniferSection("jsonrpc-server-use", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, "Use wraps the server handlers with the given middleware.")
+		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id("Use").
+			Params(jen.Id("m").Func().Params(jen.Qual("net/http", "Handler")).Qual("net/http", "Handler")).
+			Block(
+				jen.Id("s").Dot("Handler").Op("=").Id("m").Call(jen.Id("s").Dot("Handler")),
+			)
+		stmt.Line()
+	})
 }
 
 func jsonrpcServerMethodNamesSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-method-names", fmt.Sprintf("\n%s\nfunc (s *%s) MethodNames() []string { return %s.MethodNames[:] }\n", codegen.Comment("MethodNames returns the methods served."), data.ServerStruct, data.Service.PkgName))
+	return codegen.MustJenniferSection("jsonrpc-server-method-names", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, "MethodNames returns the methods served.")
+		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id("MethodNames").
+			Params().
+			Index().String().
+			Block(
+				jen.Return(codegen.Expr(data.Service.PkgName + ".MethodNames[:]")),
+			)
+		stmt.Line()
+	})
 }
 
 func jsonrpcServerResponseCaptureSection() codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-response-capture", `
-type jsonrpcResponseCapture struct {
-	header     http.Header
-	body       bytes.Buffer
-	statusCode int
-}
-
-func (c *jsonrpcResponseCapture) Header() http.Header {
-	if c.header == nil {
-		c.header = make(http.Header)
-	}
-	return c.header
-}
-
-func (c *jsonrpcResponseCapture) Write(data []byte) (int, error) {
-	if c.statusCode == 0 {
-		c.statusCode = http.StatusOK
-	}
-	return c.body.Write(data)
-}
-
-func (c *jsonrpcResponseCapture) WriteHeader(statusCode int) {
-	if c.statusCode != 0 {
-		return
-	}
-	c.statusCode = statusCode
-}
-
-func copyJSONRPCResponseMetadata(dst http.ResponseWriter, src *jsonrpcResponseCapture) {
-	for key, vals := range src.Header() {
-		switch http.CanonicalHeaderKey(key) {
-		case "Content-Length", "Content-Type", "Transfer-Encoding":
-			continue
-		}
-		for _, val := range vals {
-			dst.Header().Add(key, val)
-		}
-	}
-}
-`)
+	return codegen.MustJenniferSection("jsonrpc-server-response-capture", func(stmt *jen.Statement) {
+		stmt.Type().Id("jsonrpcResponseCapture").Struct(
+			jen.Id("header").Qual("net/http", "Header"),
+			jen.Id("body").Qual("bytes", "Buffer"),
+			jen.Id("statusCode").Int(),
+		)
+		stmt.Line()
+		stmt.Func().Params(jen.Id("c").Op("*").Id("jsonrpcResponseCapture")).
+			Id("Header").
+			Params().
+			Qual("net/http", "Header").
+			Block(
+				jen.If(jen.Id("c").Dot("header").Op("==").Nil()).Block(
+					jen.Id("c").Dot("header").Op("=").Make(jen.Qual("net/http", "Header")),
+				),
+				jen.Return(jen.Id("c").Dot("header")),
+			)
+		stmt.Line()
+		stmt.Func().Params(jen.Id("c").Op("*").Id("jsonrpcResponseCapture")).
+			Id("Write").
+			Params(jen.Id("data").Index().Byte()).
+			Params(jen.Int(), jen.Error()).
+			Block(
+				jen.If(jen.Id("c").Dot("statusCode").Op("==").Lit(0)).Block(
+					jen.Id("c").Dot("statusCode").Op("=").Qual("net/http", "StatusOK"),
+				),
+				jen.Return(jen.Id("c").Dot("body").Dot("Write").Call(jen.Id("data"))),
+			)
+		stmt.Line()
+		stmt.Func().Params(jen.Id("c").Op("*").Id("jsonrpcResponseCapture")).
+			Id("WriteHeader").
+			Params(jen.Id("statusCode").Int()).
+			Block(
+				jen.If(jen.Id("c").Dot("statusCode").Op("!=").Lit(0)).Block(
+					jen.Return(),
+				),
+				jen.Id("c").Dot("statusCode").Op("=").Id("statusCode"),
+			)
+		stmt.Line()
+		stmt.Func().Id("copyJSONRPCResponseMetadata").
+			Params(
+				jen.Id("dst").Qual("net/http", "ResponseWriter"),
+				jen.Id("src").Op("*").Id("jsonrpcResponseCapture"),
+			).
+			Block(
+				jen.For(
+					jen.List(jen.Id("key"), jen.Id("vals")).Op(":=").Range().Id("src").Dot("Header").Call(),
+				).Block(
+					jen.Switch(jen.Qual("net/http", "CanonicalHeaderKey").Call(jen.Id("key"))).Block(
+						jen.Case(jen.Lit("Content-Length"), jen.Lit("Content-Type"), jen.Lit("Transfer-Encoding")).Block(
+							jen.Continue(),
+						),
+					),
+					jen.For(
+						jen.List(jen.Id("_"), jen.Id("val")).Op(":=").Range().Id("vals"),
+					).Block(
+						jen.Id("dst").Dot("Header").Call().Dot("Add").Call(jen.Id("key"), jen.Id("val")),
+					),
+				),
+			)
+		stmt.Line()
+	})
 }
 
 func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
-	var b strings.Builder
-	b.WriteString("\n// ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.\n")
-	fmt.Fprintf(&b, "func (s *%s) ServeHTTP(w http.ResponseWriter, r *http.Request) {\n", data.ServerStruct)
-	b.WriteString("\tswitch r.Method {\n")
-	b.WriteString("\tcase http.MethodGet:\n")
-	b.WriteString("\t\treq := &jsonrpc.RawRequest{JSONRPC: \"2.0\", ID: \"events-stream\", Method: \"events/stream\"}\n")
-	b.WriteString("\t\tswitch req.Method {\n")
-	for _, endpoint := range data.Endpoints {
-		if endpoint.SSE == nil || endpoint.Method.Name != "events/stream" {
-			continue
-		}
-		fmt.Fprintf(&b, "\t\tcase %q:\n", endpoint.Method.Name)
-		fmt.Fprintf(&b, "\t\t\tif err := s.%s(r.Context(), r, req, w); err != nil {\n", endpoint.Method.VarName)
-		fmt.Fprintf(&b, "\t\t\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"handler error for %s: %%w\", err))\n", endpoint.Method.Name)
-		b.WriteString("\t\t\t}\n")
-		b.WriteString("\t\t\treturn\n")
-	}
-	b.WriteString("\t\tdefault:\n")
-	b.WriteString("\t\t\thttp.NotFound(w, r)\n")
-	b.WriteString("\t\t\treturn\n")
-	b.WriteString("\t\t}\n")
-	b.WriteString("\tcase http.MethodPost:\n")
-	b.WriteString("\taccept := r.Header.Get(\"Accept\")\n")
-	b.WriteString("\tif !strings.Contains(accept, \"text/event-stream\") {\n")
-	b.WriteString("\t\ts.handleHTTP(w, r)\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n\n")
-	b.WriteString("\tbody, err := io.ReadAll(r.Body)\n")
-	b.WriteString("\tif err != nil {\n")
-	b.WriteString("\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to read request body: %w\", err))\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\tif err := r.Body.Close(); err != nil {\n")
-	b.WriteString("\t\ts.errhandler(r.Context(), w, fmt.Errorf(\"failed to close request body: %w\", err))\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\tr.Body = io.NopCloser(bytes.NewReader(body))\n\n")
-	b.WriteString("\ttrimmed := bytes.TrimLeft(body, \" \\t\\r\\n\")\n")
-	b.WriteString("\tif len(trimmed) == 0 || trimmed[0] == '[' {\n")
-	b.WriteString("\t\ts.handleHTTP(w, r)\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n\n")
-	b.WriteString("\tvar req jsonrpc.RawRequest\n")
-	b.WriteString("\tif err := s.decoder(r).Decode(&req); err != nil {\n")
-	b.WriteString("\t\tr.Body = io.NopCloser(bytes.NewReader(body))\n")
-	b.WriteString("\t\ts.handleSSE(w, r)\n")
-	b.WriteString("\t\treturn\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\tr.Body = io.NopCloser(bytes.NewReader(body))\n\n")
-	sseMethods := make([]string, 0, len(data.Endpoints))
-	for _, endpoint := range data.Endpoints {
-		if endpoint.SSE == nil {
-			continue
-		}
-		sseMethods = append(sseMethods, fmt.Sprintf("%q", endpoint.Method.Name))
-	}
-	b.WriteString("\tswitch req.Method {\n")
-	if len(sseMethods) > 0 {
-		fmt.Fprintf(&b, "\tcase %s:\n", strings.Join(sseMethods, ", "))
-		b.WriteString("\t\ts.handleSSE(w, r)\n")
-	}
-	b.WriteString("\tdefault:\n")
-	b.WriteString("\t\ts.handleHTTP(w, r)\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\tdefault:\n")
-	b.WriteString("\t\thttp.NotFound(w, r)\n")
-	b.WriteString("\t}\n")
-	b.WriteString("}\n")
-	return codegen.NewRawSection("jsonrpc-mixed-server-handler", b.String())
+	return codegen.MustJenniferSection("jsonrpc-mixed-server-handler", func(stmt *jen.Statement) {
+		stmt.Comment("ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.").Line()
+		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id("ServeHTTP").
+			Params(
+				jen.Id("w").Qual("net/http", "ResponseWriter"),
+				jen.Id("r").Op("*").Qual("net/http", "Request"),
+			).
+			BlockFunc(func(g *jen.Group) {
+				g.Switch(jen.Id("r").Dot("Method")).BlockFunc(func(sg *jen.Group) {
+					sg.Case(jen.Qual("net/http", "MethodGet")).BlockFunc(func(getg *jen.Group) {
+						getg.Id("req").Op(":=").Add(codegen.Expr(`&jsonrpc.RawRequest{JSONRPC: "2.0", ID: "events-stream", Method: "events/stream"}`))
+						getg.Switch(jen.Id("req").Dot("Method")).BlockFunc(func(dispatch *jen.Group) {
+							for _, endpoint := range data.Endpoints {
+								if endpoint.SSE == nil || endpoint.Method.Name != "events/stream" {
+									continue
+								}
+								dispatch.Case(jen.Lit(endpoint.Method.Name)).Block(
+									jen.If(
+										jen.Err().Op(":=").Id("s").Dot(endpoint.Method.VarName).Call(jen.Id("r").Dot("Context").Call(), jen.Id("r"), jen.Id("req"), jen.Id("w")),
+										jen.Err().Op("!=").Nil(),
+									).Block(
+										jen.Id("s").Dot("errhandler").Call(
+											jen.Id("r").Dot("Context").Call(),
+											jen.Id("w"),
+											jen.Qual("fmt", "Errorf").Call(jen.Lit("handler error for "+endpoint.Method.Name+": %w"), jen.Err()),
+										),
+									),
+									jen.Return(),
+								)
+							}
+							dispatch.Default().Block(
+								jen.Qual("net/http", "NotFound").Call(jen.Id("w"), jen.Id("r")),
+								jen.Return(),
+							)
+						})
+					})
+					sg.Case(jen.Qual("net/http", "MethodPost")).BlockFunc(func(postg *jen.Group) {
+						postg.Id("accept").Op(":=").Id("r").Dot("Header").Dot("Get").Call(jen.Lit("Accept"))
+						postg.If(
+							jen.Op("!").Qual("strings", "Contains").Call(jen.Id("accept"), jen.Lit("text/event-stream")),
+						).Block(
+							jen.Id("s").Dot("handleHTTP").Call(jen.Id("w"), jen.Id("r")),
+							jen.Return(),
+						)
+						postg.Line()
+						postg.List(jen.Id("body"), jen.Err()).Op(":=").Qual("io", "ReadAll").Call(jen.Id("r").Dot("Body"))
+						postg.If(jen.Err().Op("!=").Nil()).Block(
+							jen.Id("s").Dot("errhandler").Call(
+								jen.Id("r").Dot("Context").Call(),
+								jen.Id("w"),
+								jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to read request body: %w"), jen.Err()),
+							),
+							jen.Return(),
+						)
+						postg.If(jen.Err().Op(":=").Id("r").Dot("Body").Dot("Close").Call(), jen.Err().Op("!=").Nil()).Block(
+							jen.Id("s").Dot("errhandler").Call(
+								jen.Id("r").Dot("Context").Call(),
+								jen.Id("w"),
+								jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to close request body: %w"), jen.Err()),
+							),
+							jen.Return(),
+						)
+						postg.Id("r").Dot("Body").Op("=").Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("body")))
+						postg.Line()
+						postg.Id("trimmed").Op(":=").Qual("bytes", "TrimLeft").Call(jen.Id("body"), jen.Lit(" \t\r\n"))
+						postg.If(
+							jen.Len(jen.Id("trimmed")).Op("==").Lit(0).Op("||").Id("trimmed").Index(jen.Lit(0)).Op("==").LitByte('['),
+						).Block(
+							jen.Id("s").Dot("handleHTTP").Call(jen.Id("w"), jen.Id("r")),
+							jen.Return(),
+						)
+						postg.Line()
+						postg.Var().Id("req").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest")
+						postg.If(
+							jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("r")).Dot("Decode").Call(jen.Op("&").Id("req")),
+							jen.Err().Op("!=").Nil(),
+						).Block(
+							jen.Id("r").Dot("Body").Op("=").Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("body"))),
+							jen.Id("s").Dot("handleSSE").Call(jen.Id("w"), jen.Id("r")),
+							jen.Return(),
+						)
+						postg.Id("r").Dot("Body").Op("=").Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("body")))
+						postg.Line()
+						postg.Switch(jen.Id("req").Dot("Method")).BlockFunc(func(dispatch *jen.Group) {
+							hasSSECase := false
+							for _, endpoint := range data.Endpoints {
+								if endpoint.SSE == nil {
+									continue
+								}
+								if !hasSSECase {
+									hasSSECase = true
+									dispatch.CaseFunc(func(caseg *jen.Group) {
+										for _, candidate := range data.Endpoints {
+											if candidate.SSE == nil {
+												continue
+											}
+											caseg.Lit(candidate.Method.Name)
+										}
+									}).Block(
+										jen.Id("s").Dot("handleSSE").Call(jen.Id("w"), jen.Id("r")),
+									)
+								}
+							}
+							dispatch.Default().Block(
+								jen.Id("s").Dot("handleHTTP").Call(jen.Id("w"), jen.Id("r")),
+							)
+						})
+					})
+					sg.Default().Block(
+						jen.Qual("net/http", "NotFound").Call(jen.Id("w"), jen.Id("r")),
+					)
+				})
+			})
+		stmt.Line()
+	})
 }
 
 func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-mount", renderJSONRPCServerMount(data, hasSSE, hasMixed))
-}
-
-func renderJSONRPCServerMount(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) string {
-	var b strings.Builder
-	comment := codegen.Comment(fmt.Sprintf("%s configures the mux to serve the JSON-RPC %s service methods.", data.MountServer, data.Service.Name))
-	b.WriteString("\n")
-	b.WriteString(comment)
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func %s(mux loomhttp.Muxer, h *%s) {\n", data.MountServer, data.ServerStruct)
-	switch {
-	case hasMixed:
-		b.WriteString("\t// Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header and JSON-RPC method\n")
-		for _, route := range data.Endpoints[0].Routes {
-			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", route.Verb, route.Path)
-			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", route.Path)
-		}
-	case hasSSE:
-		b.WriteString("\t// SSE only: mount SSE handler\n")
-		for _, endpoint := range data.Endpoints {
-			for _, route := range endpoint.Routes {
-				fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.handleSSE)\n", route.Verb, route.Path)
-			}
-		}
-	default:
-		b.WriteString("\t// HTTP only\n")
-		for _, route := range data.Endpoints[0].Routes {
-			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", route.Verb, route.Path)
-		}
-	}
-	b.WriteString("}\n\n")
-	b.WriteString(comment)
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "func (s *%s) %s(mux loomhttp.Muxer) {\n\t%s(mux, s)\n}\n", data.ServerStruct, data.MountServer, data.MountServer)
-	return b.String()
+	return codegen.MustJenniferSection("jsonrpc-server-mount", func(stmt *jen.Statement) {
+		comment := fmt.Sprintf("%s configures the mux to serve the JSON-RPC %s service methods.", data.MountServer, data.Service.Name)
+		codegen.Doc(stmt, comment)
+		stmt.Func().Id(data.MountServer).
+			Params(
+				jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer")),
+				jen.Id("h").Op("*").Id(data.ServerStruct),
+			).
+			BlockFunc(func(g *jen.Group) {
+				switch {
+				case hasMixed:
+					g.Comment("Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header and JSON-RPC method")
+					for _, route := range data.Endpoints[0].Routes {
+						g.Id("mux").Dot("Handle").Call(jen.Lit(route.Verb), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
+						g.Id("mux").Dot("Handle").Call(jen.Lit("GET"), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
+					}
+				case hasSSE:
+					g.Comment("SSE only: mount SSE handler")
+					for _, endpoint := range data.Endpoints {
+						for _, route := range endpoint.Routes {
+							g.Id("mux").Dot("Handle").Call(jen.Lit(route.Verb), jen.Lit(route.Path), jen.Id("h").Dot("handleSSE"))
+						}
+					}
+				default:
+					g.Comment("HTTP only")
+					for _, route := range data.Endpoints[0].Routes {
+						g.Id("mux").Dot("Handle").Call(jen.Lit(route.Verb), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
+					}
+				}
+			})
+		stmt.Line()
+		codegen.Doc(stmt, comment)
+		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id(data.MountServer).
+			Params(jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer"))).
+			Block(
+				jen.Id(data.MountServer).Call(jen.Id("mux"), jen.Id("s")),
+			)
+		stmt.Line()
+	})
 }
 
 func jsonrpcServerEncodeErrorSection(serverStruct string) codegen.Section {
-	return codegen.NewRawSection("jsonrpc-server-encode-error", "\n// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)\nfunc (s *"+serverStruct+") encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any) {\n\tencodeJSONRPCError(ctx, w, req, code, message, data, s.encoder, s.errhandler)\n}\n\n// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)\nfunc encodeJSONRPCError(\n\tctx context.Context,\n\tw http.ResponseWriter,\n\treq *jsonrpc.RawRequest,\n\tcode jsonrpc.Code,\n\tmessage string,\n\tdata any,\n\tencoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,\n\terrhandler func(context.Context, http.ResponseWriter, error),\n) {\n\tif req.ID != nil {\n\t\tresponse := jsonrpc.MakeErrorResponse(req.ID, code, message, data)\n\t\tif err := encoder(ctx, w).Encode(response); err != nil {\n\t\t\terrhandler(ctx, w, fmt.Errorf(\"failed to encode JSON-RPC response: %w\", err))\n\t\t}\n\t}\n}\n")
+	return codegen.MustJenniferSection("jsonrpc-server-encode-error", func(stmt *jen.Statement) {
+		stmt.Comment("encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)").Line()
+		stmt.Func().Params(jen.Id("s").Op("*").Id(serverStruct)).
+			Id("encodeJSONRPCError").
+			Params(
+				jen.Id("ctx").Qual("context", "Context"),
+				jen.Id("w").Qual("net/http", "ResponseWriter"),
+				jen.Id("req").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
+				jen.Id("code").Qual("github.com/CaliLuke/loom/jsonrpc", "Code"),
+				jen.Id("message").String(),
+				jen.Id("data").Any(),
+			).
+			Block(
+				jen.Id("encodeJSONRPCError").Call(
+					jen.Id("ctx"),
+					jen.Id("w"),
+					jen.Id("req"),
+					jen.Id("code"),
+					jen.Id("message"),
+					jen.Id("data"),
+					jen.Id("s").Dot("encoder"),
+					jen.Id("s").Dot("errhandler"),
+				),
+			)
+		stmt.Line()
+		stmt.Comment("encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)").Line()
+		stmt.Func().Id("encodeJSONRPCError").
+			Params(
+				jen.Id("ctx").Qual("context", "Context"),
+				jen.Id("w").Qual("net/http", "ResponseWriter"),
+				jen.Id("req").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
+				jen.Id("code").Qual("github.com/CaliLuke/loom/jsonrpc", "Code"),
+				jen.Id("message").String(),
+				jen.Id("data").Any(),
+				jen.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder")),
+				jen.Id("errhandler").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter"), jen.Error()),
+			).
+			Block(
+				jen.If(jen.Id("req").Dot("ID").Op("!=").Nil()).Block(
+					jen.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeErrorResponse").Call(
+						jen.Id("req").Dot("ID"),
+						jen.Id("code"),
+						jen.Id("message"),
+						jen.Id("data"),
+					),
+					jen.If(
+						jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
+						jen.Err().Op("!=").Nil(),
+					).Block(
+						jen.Id("errhandler").Call(
+							jen.Id("ctx"),
+							jen.Id("w"),
+							jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
+						),
+					),
+				),
+			)
+		stmt.Line()
+	})
 }
