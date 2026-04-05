@@ -9,6 +9,25 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 )
 
+type exampleEndpointBuilder struct {
+	parts []string
+}
+
+func (b *exampleEndpointBuilder) Add(s string) {
+	if s == "" {
+		return
+	}
+	b.parts = append(b.parts, s)
+}
+
+func (b *exampleEndpointBuilder) Addf(format string, args ...any) {
+	b.Add(fmt.Sprintf(format, args...))
+}
+
+func (b *exampleEndpointBuilder) String() string {
+	return strings.Join(b.parts, "")
+}
+
 func exampleServiceStructSection(data *Data) codegen.Section {
 	return codegen.NewJenniferSection("basic-service-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s service example implementation.\nThe example methods log the requests and return zero values.", data.Name))
@@ -88,83 +107,83 @@ default:
 }
 
 func renderExampleEndpoint(data *basicEndpointData) string {
-	var signature strings.Builder
-	signature.WriteString("func (s *")
-	signature.WriteString(data.ServiceVarName)
-	signature.WriteString("srvc) ")
-	signature.WriteString(data.VarName)
-	signature.WriteString("(ctx context.Context")
+	var signature exampleEndpointBuilder
+	signature.Add("func (s *")
+	signature.Add(data.ServiceVarName)
+	signature.Add("srvc) ")
+	signature.Add(data.VarName)
+	signature.Add("(ctx context.Context")
 	if data.PayloadFullRef != "" {
-		signature.WriteString(", p ")
-		signature.WriteString(data.PayloadFullRef)
+		signature.Add(", p ")
+		signature.Add(data.PayloadFullRef)
 	}
 	if data.ServerStream != nil {
-		signature.WriteString(", stream ")
-		signature.WriteString(data.StreamInterface)
-		signature.WriteString(") (err error)")
+		signature.Add(", stream ")
+		signature.Add(data.StreamInterface)
+		signature.Add(") (err error)")
 	} else {
 		if data.SkipRequestBodyEncodeDecode {
-			signature.WriteString(", req io.ReadCloser")
+			signature.Add(", req io.ReadCloser")
 		}
-		signature.WriteString(") (")
+		signature.Add(") (")
 		if data.Result != "" {
-			signature.WriteString("res ")
-			signature.WriteString(data.ResultFullRef)
-			signature.WriteString(", ")
+			signature.Add("res ")
+			signature.Add(data.ResultFullRef)
+			signature.Add(", ")
 		}
 		if data.SkipResponseBodyEncodeDecode {
-			signature.WriteString("resp io.ReadCloser, ")
+			signature.Add("resp io.ReadCloser, ")
 		}
 		if data.ViewedResult != nil && data.ViewedResult.ViewName == "" {
-			signature.WriteString("view string, ")
+			signature.Add("view string, ")
 		}
-		signature.WriteString("err error)")
+		signature.Add("err error)")
 	}
 
-	var body strings.Builder
-	body.WriteString(signature.String())
-	body.WriteString(" {\n")
+	var body exampleEndpointBuilder
+	body.Add(signature.String())
+	body.Add(" {\n")
 	if data.SkipRequestBodyEncodeDecode {
-		body.WriteString("// req is the HTTP request body stream.\n")
-		body.WriteString("defer req.Close()\n")
+		body.Add("// req is the HTTP request body stream.\n")
+		body.Add("defer req.Close()\n")
 	}
 	if data.Result != "" && data.ResultIsStruct && data.ServerStream == nil {
-		body.WriteString("res = &")
-		body.WriteString(data.ResultFullName)
-		body.WriteString("{}\n")
+		body.Add("res = &")
+		body.Add(data.ResultFullName)
+		body.Add("{}\n")
 	}
 	if data.SkipResponseBodyEncodeDecode {
-		body.WriteString("// resp is the HTTP response body stream.\n")
-		body.WriteString(`resp = io.NopCloser(strings.NewReader("`)
-		body.WriteString(data.Name)
-		body.WriteString(`"))` + "\n")
+		body.Add("// resp is the HTTP response body stream.\n")
+		body.Add(`resp = io.NopCloser(strings.NewReader("`)
+		body.Add(data.Name)
+		body.Add(`"))` + "\n")
 	}
 	if data.ViewedResult != nil && data.ViewedResult.ViewName == "" {
 		if data.ServerStream != nil {
-			body.WriteString("stream.SetView(")
-			body.WriteString(fmt.Sprintf("%q", data.ResultView))
-			body.WriteString(")\n")
+			body.Add("stream.SetView(")
+			body.Addf("%q", data.ResultView)
+			body.Add(")\n")
 		} else {
-			body.WriteString("view = ")
-			body.WriteString(fmt.Sprintf("%q", data.ResultView))
-			body.WriteString("\n")
+			body.Add("view = ")
+			body.Addf("%q", data.ResultView)
+			body.Add("\n")
 		}
 	}
-	body.WriteString(`log.Printf(ctx, "`)
-	body.WriteString(data.ServiceVarName)
-	body.WriteString(".")
-	body.WriteString(data.Name)
-	body.WriteString("\")\n")
+	body.Add(`log.Printf(ctx, "`)
+	body.Add(data.ServiceVarName)
+	body.Add(".")
+	body.Add(data.Name)
+	body.Add("\")\n")
 	if data.ServerStream != nil && data.IsJSONRPC && data.ResultFullName != "" {
-		body.WriteString("// Minimal example: emit one progress notification and one final response\n{\n")
-		body.WriteString("notif := ")
-		body.WriteString(exampleStreamValue(data, "progress"))
-		body.WriteString("\nif err := stream.Send(ctx, notif); err != nil {\nreturn err\n}\n")
-		body.WriteString("final := ")
-		body.WriteString(exampleStreamValue(data, "done"))
-		body.WriteString("\nreturn stream.SendAndClose(ctx, final)\n}\n")
+		body.Add("// Minimal example: emit one progress notification and one final response\n{\n")
+		body.Add("notif := ")
+		body.Add(exampleStreamValue(data, "progress"))
+		body.Add("\nif err := stream.Send(ctx, notif); err != nil {\nreturn err\n}\n")
+		body.Add("final := ")
+		body.Add(exampleStreamValue(data, "done"))
+		body.Add("\nreturn stream.SendAndClose(ctx, final)\n}\n")
 	}
-	body.WriteString("return\n}")
+	body.Add("return\n}")
 	return body.String()
 }
 

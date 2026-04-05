@@ -4,7 +4,6 @@
 package cli
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -19,6 +18,10 @@ import (
 )
 
 type (
+	sourceBuilder struct {
+		parts []string
+	}
+
 	// CommandData contains the data needed to render a command.
 	CommandData struct {
 		// Name of command e.g. "cellar-storage"
@@ -157,6 +160,21 @@ type (
 		Args []*codegen.InitArgData
 	}
 )
+
+func (b *sourceBuilder) Add(s string) {
+	if s == "" {
+		return
+	}
+	b.parts = append(b.parts, s)
+}
+
+func (b *sourceBuilder) Addf(format string, args ...any) {
+	b.Add(fmt.Sprintf(format, args...))
+}
+
+func (b *sourceBuilder) String() string {
+	return strings.Join(b.parts, "")
+}
 
 // BuildCommandData builds the data needed by CLI code generators to render the
 // parsing of the service command.
@@ -314,13 +332,13 @@ func UsageExamples(data []*CommandData) codegen.Section {
 // arguments (method payload) invoked by the tool. It panics if any error
 // occurs during the generation of flag parsing code.
 func FlagsCode(data []*CommandData) string {
-	var flagsCode bytes.Buffer
-	flagsCode.WriteString("var (\n")
+	var flagsCode sourceBuilder
+	flagsCode.Add("var (\n")
 	for _, cmd := range data {
-		fmt.Fprintf(&flagsCode, "\t%sFlags = flag.NewFlagSet(%q, flag.ContinueOnError)\n", cmd.VarName, cmd.Name)
-		flagsCode.WriteString("\n")
+		flagsCode.Addf("\t%sFlags = flag.NewFlagSet(%q, flag.ContinueOnError)\n", cmd.VarName, cmd.Name)
+		flagsCode.Add("\n")
 		for _, sub := range cmd.Subcommands {
-			fmt.Fprintf(&flagsCode, "\t%sFlags = flag.NewFlagSet(%q, flag.ExitOnError)\n", sub.FullName, sub.Name)
+			flagsCode.Addf("\t%sFlags = flag.NewFlagSet(%q, flag.ExitOnError)\n", sub.FullName, sub.Name)
 			for _, flag := range sub.Flags {
 				defaultValue := ""
 				if flag.Default != nil {
@@ -328,22 +346,22 @@ func FlagsCode(data []*CommandData) string {
 				} else if flag.Required {
 					defaultValue = "REQUIRED"
 				}
-				fmt.Fprintf(&flagsCode, "\t%sFlag = %sFlags.String(%q, %q, %q)\n", flag.FullName, sub.FullName, flag.Name, defaultValue, flag.Description)
+				flagsCode.Addf("\t%sFlag = %sFlags.String(%q, %q, %q)\n", flag.FullName, sub.FullName, flag.Name, defaultValue, flag.Description)
 			}
-			flagsCode.WriteString("\n")
+			flagsCode.Add("\n")
 		}
 	}
-	flagsCode.WriteString(")\n")
+	flagsCode.Add(")\n")
 
 	for _, cmd := range data {
-		fmt.Fprintf(&flagsCode, "%sFlags.Usage = %sUsage\n", cmd.VarName, cmd.VarName)
+		flagsCode.Addf("%sFlags.Usage = %sUsage\n", cmd.VarName, cmd.VarName)
 		for _, sub := range cmd.Subcommands {
-			fmt.Fprintf(&flagsCode, "%sFlags.Usage = %sUsage\n", sub.FullName, sub.FullName)
+			flagsCode.Addf("%sFlags.Usage = %sUsage\n", sub.FullName, sub.FullName)
 		}
-		flagsCode.WriteString("\n")
+		flagsCode.Add("\n")
 	}
 
-	flagsCode.WriteString(`if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
+	flagsCode.Add(`if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 	return nil, nil, err
 }
 
@@ -360,9 +378,9 @@ var (
 	switch svcn {
 `)
 	for _, cmd := range data {
-		fmt.Fprintf(&flagsCode, "\tcase %q:\n\t\tsvcf = %sFlags\n", cmd.Name, cmd.VarName)
+		flagsCode.Addf("\tcase %q:\n\t\tsvcf = %sFlags\n", cmd.Name, cmd.VarName)
 	}
-	flagsCode.WriteString(`	default:
+	flagsCode.Add(`	default:
 		return nil, nil, fmt.Errorf("unknown service %q", svcn)
 	}
 }
@@ -379,14 +397,14 @@ var (
 	switch svcn {
 `)
 	for _, cmd := range data {
-		fmt.Fprintf(&flagsCode, "\tcase %q:\n\t\tswitch epn {\n", cmd.Name)
+		flagsCode.Addf("\tcase %q:\n\t\tswitch epn {\n", cmd.Name)
 		for _, sub := range cmd.Subcommands {
-			fmt.Fprintf(&flagsCode, "\t\tcase %q:\n\t\t\tepf = %sFlags\n", sub.Name, sub.FullName)
-			flagsCode.WriteString("\n")
+			flagsCode.Addf("\t\tcase %q:\n\t\t\tepf = %sFlags\n", sub.Name, sub.FullName)
+			flagsCode.Add("\n")
 		}
-		flagsCode.WriteString("\t\t}\n\n")
+		flagsCode.Add("\t\t}\n\n")
 	}
-	flagsCode.WriteString(`	}
+	flagsCode.Add(`	}
 }
 if epf == nil {
 	return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)

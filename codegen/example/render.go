@@ -1,6 +1,7 @@
 package example
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -21,7 +22,7 @@ func (s *renderSection) SectionName() string {
 }
 
 func (s *renderSection) Write(w io.Writer) error {
-	_, err := io.WriteString(w, s.code())
+	_, err := w.Write([]byte(s.code()))
 	return err
 }
 
@@ -30,7 +31,7 @@ func newRenderSection(name string, code func() string) codegen.Section {
 }
 
 func renderClientMain(server *Data, hasJSONRPC, hasHTTP bool) string {
-	var b strings.Builder
+	var b bytes.Buffer
 	fmt.Fprintf(&b, "func main() {\n")
 	writeClientFlagBlock(&b, server, hasJSONRPC && hasHTTP)
 	fmt.Fprintf(&b, "\tflag.Usage = usage\n")
@@ -62,7 +63,7 @@ func renderClientMain(server *Data, hasJSONRPC, hasHTTP bool) string {
 }
 
 func renderUsage(apiName string, server *Data, hasJSONRPC, hasHTTP bool) string {
-	var b strings.Builder
+	var b bytes.Buffer
 	defaultUsage := string(server.DefaultTransport().Type)
 	if server.DefaultTransport().Type == "http" && !hasHTTP && hasJSONRPC {
 		defaultUsage = "jsonrpc"
@@ -108,7 +109,7 @@ func renderUsage(apiName string, server *Data, hasJSONRPC, hasHTTP bool) string 
 }
 
 func renderServerMain(server *Data, svcData []*service.Data, apiPkg, interPkg string, hasInterceptors bool) string {
-	var b strings.Builder
+	var b bytes.Buffer
 	usesHostOverrideFlags := serverHasRenderedURIs(server)
 	fmt.Fprintf(&b, "func main() {\n")
 	fmt.Fprintf(&b, "\t%s\n", codegen.Comment("Define command line flags, add any other flag required to configure the service."))
@@ -147,7 +148,7 @@ func renderServerMain(server *Data, svcData []*service.Data, apiPkg, interPkg st
 	return b.String()
 }
 
-func writeClientFlagBlock(b *strings.Builder, server *Data, includeJSONRPCFlags bool) {
+func writeClientFlagBlock(b *bytes.Buffer, server *Data, includeJSONRPCFlags bool) {
 	fmt.Fprintf(b, "\tvar (\n")
 	fmt.Fprintf(b, "\t\thostF = flag.String(%q, %q, %q)\n", "host", server.DefaultHost().Name, fmt.Sprintf("Server host (valid values: %s)", strings.Join(server.AvailableHosts(), ", ")))
 	fmt.Fprintf(b, "\t\taddrF = flag.String(%q, %q, %q)\n", "url", "", "URL to service host")
@@ -165,7 +166,7 @@ func writeClientFlagBlock(b *strings.Builder, server *Data, includeJSONRPCFlags 
 	fmt.Fprintf(b, "\t)\n")
 }
 
-func writeClientAddressSetup(b *strings.Builder, server *Data) {
+func writeClientAddressSetup(b *bytes.Buffer, server *Data) {
 	fmt.Fprintf(b, "\tvar (\n")
 	fmt.Fprintf(b, "\t\taddr string\n")
 	fmt.Fprintf(b, "\t\ttimeout int\n")
@@ -190,7 +191,7 @@ func writeClientAddressSetup(b *strings.Builder, server *Data) {
 	fmt.Fprintf(b, "\t}\n\n")
 }
 
-func writeClientURLParse(b *strings.Builder) {
+func writeClientURLParse(b *bytes.Buffer) {
 	fmt.Fprintf(b, "\tvar (\n")
 	fmt.Fprintf(b, "\t\tscheme string\n")
 	fmt.Fprintf(b, "\t\thost string\n")
@@ -206,7 +207,7 @@ func writeClientURLParse(b *strings.Builder) {
 	fmt.Fprintf(b, "\t}\n\n")
 }
 
-func writeClientEndpointSelection(b *strings.Builder, server *Data, hasJSONRPC, hasHTTP bool) {
+func writeClientEndpointSelection(b *bytes.Buffer, server *Data, hasJSONRPC, hasHTTP bool) {
 	fmt.Fprintf(b, "\tvar (\n")
 	fmt.Fprintf(b, "\t\tendpoint loom.Endpoint\n")
 	fmt.Fprintf(b, "\t\tpayload any\n")
@@ -225,7 +226,7 @@ func writeClientEndpointSelection(b *strings.Builder, server *Data, hasJSONRPC, 
 	fmt.Fprintf(b, "\t}\n")
 }
 
-func writeClientTransportSelection(b *strings.Builder, t *TransportData, hasJSONRPC, hasHTTP bool) {
+func writeClientTransportSelection(b *bytes.Buffer, t *TransportData, hasJSONRPC, hasHTTP bool) {
 	if t.Type == "http" && hasJSONRPC {
 		if hasHTTP {
 			fmt.Fprintf(b, "\t\t\tif *jsonrpcF || *jF {\n")
@@ -244,7 +245,7 @@ func writeClientTransportSelection(b *strings.Builder, t *TransportData, hasJSON
 	fmt.Fprintf(b, "\t\t\tendpoint, payload, err = do%s(scheme, host, timeout, debug)\n", strings.ToUpper(t.Name))
 }
 
-func writeServerFlagBlock(b *strings.Builder, server *Data, usesHostOverrideFlags bool) {
+func writeServerFlagBlock(b *bytes.Buffer, server *Data, usesHostOverrideFlags bool) {
 	fmt.Fprintf(b, "\tvar(\n")
 	fmt.Fprintf(b, "\t\thostF = flag.String(%q, %q, %q)\n", "host", server.DefaultHost().Name, fmt.Sprintf("Server host (valid values: %s)", strings.Join(server.AvailableHosts(), ", ")))
 	if usesHostOverrideFlags {
@@ -267,7 +268,7 @@ func writeServerFlagBlock(b *strings.Builder, server *Data, usesHostOverrideFlag
 	fmt.Fprintf(b, "\t)\n")
 }
 
-func writeServerLoggerInit(b *strings.Builder, server *Data) {
+func writeServerLoggerInit(b *bytes.Buffer, server *Data) {
 	fmt.Fprintf(b, "\t%s\n", codegen.Comment("Setup logger. Replace logger with your own log package of choice."))
 	fmt.Fprintf(b, "\tformat := log.FormatJSON\n")
 	fmt.Fprintf(b, "\tif log.IsTerminal() {\n\t\tformat = log.FormatTerminal\n\t}\n")
@@ -279,7 +280,7 @@ func writeServerLoggerInit(b *strings.Builder, server *Data) {
 	fmt.Fprintf(b, "\n")
 }
 
-func writeServerHostSwitch(b *strings.Builder, server *Data, usesHostOverrideFlags bool) {
+func writeServerHostSwitch(b *bytes.Buffer, server *Data, usesHostOverrideFlags bool) {
 	fmt.Fprintf(b, "\tswitch *hostF {\n")
 	for _, h := range server.Hosts {
 		fmt.Fprintf(b, "\tcase %q:\n", h.Name)
@@ -295,7 +296,7 @@ func writeServerHostSwitch(b *strings.Builder, server *Data, usesHostOverrideFla
 	fmt.Fprintf(b, "\t}\n\n")
 }
 
-func writeServerHostURIBlock(b *strings.Builder, h *HostData, u *URIData, usesHostOverrideFlags bool) {
+func writeServerHostURIBlock(b *bytes.Buffer, h *HostData, u *URIData, usesHostOverrideFlags bool) {
 	fmt.Fprintf(b, "\t\t{\n")
 	fmt.Fprintf(b, "\t\t\taddr := %q\n", u.URL)
 	writeVariableReplacement(b, h.Variables, true)
@@ -336,7 +337,7 @@ func serverHasRenderedURIs(server *Data) bool {
 	return false
 }
 
-func writeVariableReplacement(b *strings.Builder, vars []*VariableData, fatal bool) {
+func writeVariableReplacement(b *bytes.Buffer, vars []*VariableData, fatal bool) {
 	for _, v := range vars {
 		if len(v.Values) > 0 {
 			fmt.Fprintf(b, "\t\t\t\tvar %sSeen bool\n", v.VarName)
@@ -365,7 +366,7 @@ func writeVariableReplacement(b *strings.Builder, vars []*VariableData, fatal bo
 	}
 }
 
-func writeServiceInit(b *strings.Builder, apiPkg string, services []*service.Data) {
+func writeServiceInit(b *bytes.Buffer, apiPkg string, services []*service.Data) {
 	if !mustInitServices(services) {
 		return
 	}
@@ -388,7 +389,7 @@ func writeServiceInit(b *strings.Builder, apiPkg string, services []*service.Dat
 	fmt.Fprintf(b, "\t}\n\n")
 }
 
-func writeServerInterceptorInit(b *strings.Builder, interPkg string, services []*service.Data, hasInterceptors bool) {
+func writeServerInterceptorInit(b *bytes.Buffer, interPkg string, services []*service.Data, hasInterceptors bool) {
 	if !mustInitServices(services) || !hasInterceptors {
 		return
 	}
@@ -411,7 +412,7 @@ func writeServerInterceptorInit(b *strings.Builder, interPkg string, services []
 	fmt.Fprintf(b, "\t}\n\n")
 }
 
-func writeServerEndpointsInit(b *strings.Builder, services []*service.Data) {
+func writeServerEndpointsInit(b *bytes.Buffer, services []*service.Data) {
 	if !mustInitServices(services) {
 		return
 	}

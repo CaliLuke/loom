@@ -1,167 +1,170 @@
 package codegen
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 )
 
 func parseEndpointSection(flagsCode string, commands []*commandData) codegen.Section {
-	return codegen.NewRawSection("parse-endpoint", renderParseEndpoint(flagsCode, commands))
+	return codegen.MustRenderSection("parse-endpoint", func() string {
+		return renderParseEndpoint(flagsCode, commands)
+	})
 }
 
 func renderParseEndpoint(flagsCode string, commands []*commandData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	writeParseEndpointHeader(&b, commands)
-	b.WriteString(") (loom.Endpoint, any, error) {\n")
-	b.WriteString(flagsCode)
-	b.WriteString("\n\tvar (\n")
-	b.WriteString("\t\tdata     any\n")
-	b.WriteString("\t\tendpoint loom.Endpoint\n")
-	b.WriteString("\t\terr      error\n")
-	b.WriteString("\t)\n")
-	b.WriteString("\t{\n")
-	b.WriteString("\t\tswitch svcn {\n")
+	b.Add(") (loom.Endpoint, any, error) {\n")
+	b.Add(flagsCode)
+	b.Add("\n\tvar (\n")
+	b.Add("\t\tdata     any\n")
+	b.Add("\t\tendpoint loom.Endpoint\n")
+	b.Add("\t\terr      error\n")
+	b.Add("\t)\n")
+	b.Add("\t{\n")
+	b.Add("\t\tswitch svcn {\n")
 	for _, cmd := range commands {
 		writeParseEndpointCommandCase(&b, cmd)
 	}
-	b.WriteString("\t\t}\n")
-	b.WriteString("\t}\n")
-	b.WriteString("\tif err != nil {\n")
-	b.WriteString("\t\treturn nil, nil, err\n")
-	b.WriteString("\t}\n\n")
-	b.WriteString("\treturn endpoint, data, nil\n")
-	b.WriteString("}\n")
+	b.Add("\t\t}\n")
+	b.Add("\t}\n")
+	b.Add("\tif err != nil {\n")
+	b.Add("\t\treturn nil, nil, err\n")
+	b.Add("\t}\n\n")
+	b.Add("\treturn endpoint, data, nil\n")
+	b.Add("}\n")
 	return b.String()
 }
 
-func writeParseEndpointHeader(b *strings.Builder, commands []*commandData) {
-	b.WriteString("\n// ParseEndpoint returns the endpoint and payload as specified on the command\n")
-	b.WriteString("// line.\n")
-	b.WriteString("func ParseEndpoint(\n")
-	b.WriteString("\tscheme, host string,\n")
-	b.WriteString("\tdoer loomhttp.Doer,\n")
-	b.WriteString("\tenc func(*http.Request) loomhttp.Encoder,\n")
-	b.WriteString("\tdec func(*http.Response) loomhttp.Decoder,\n")
-	b.WriteString("\trestore bool,\n")
+func writeParseEndpointHeader(b *sourceBuilder, commands []*commandData) {
+	b.Add("\n// ParseEndpoint returns the endpoint and payload as specified on the command\n")
+	b.Add("// line.\n")
+	b.Add("func ParseEndpoint(\n")
+	b.Add("\tscheme, host string,\n")
+	b.Add("\tdoer loomhttp.Doer,\n")
+	b.Add("\tenc func(*http.Request) loomhttp.Encoder,\n")
+	b.Add("\tdec func(*http.Response) loomhttp.Decoder,\n")
+	b.Add("\trestore bool,\n")
 	writeParseEndpointStreamingParams(b, commands)
 	writeParseEndpointCommandParams(b, commands)
 }
 
-func writeParseEndpointStreamingParams(b *strings.Builder, commands []*commandData) {
+func writeParseEndpointStreamingParams(b *sourceBuilder, commands []*commandData) {
 	if !streamingCmdExists(commands) {
 		return
 	}
-	b.WriteString("\tdialer loomhttp.Dialer,\n")
+	b.Add("\tdialer loomhttp.Dialer,\n")
 	for _, cmd := range commands {
 		if cmd.NeedDialer {
-			fmt.Fprintf(b, "\t%sConfigurer *%s.ConnConfigurer,\n", cmd.VarName, cmd.PkgName)
+			b.Addf("\t%sConfigurer *%s.ConnConfigurer,\n", cmd.VarName, cmd.PkgName)
 		}
 	}
 }
 
-func writeParseEndpointCommandParams(b *strings.Builder, commands []*commandData) {
+func writeParseEndpointCommandParams(b *sourceBuilder, commands []*commandData) {
 	for _, cmd := range commands {
 		for _, sub := range cmd.Subcommands {
 			if sub.MultipartVarName != "" {
-				fmt.Fprintf(b, "\t%s %s.%s,\n", sub.MultipartVarName, cmd.PkgName, sub.MultipartFuncName)
+				b.Addf("\t%s %s.%s,\n", sub.MultipartVarName, cmd.PkgName, sub.MultipartFuncName)
 			}
 		}
 		if cmd.Interceptors != nil {
-			fmt.Fprintf(b, "\t%s %s.ClientInterceptors,\n", cmd.Interceptors.VarName, cmd.Interceptors.PkgName)
+			b.Addf("\t%s %s.ClientInterceptors,\n", cmd.Interceptors.VarName, cmd.Interceptors.PkgName)
 		}
 	}
 }
 
-func writeParseEndpointCommandCase(b *strings.Builder, cmd *commandData) {
-	fmt.Fprintf(b, "\t\tcase %q:\n", cmd.Name)
+func writeParseEndpointCommandCase(b *sourceBuilder, cmd *commandData) {
+	b.Addf("\t\tcase %q:\n", cmd.Name)
 	writeParseEndpointClientInit(b, cmd)
-	b.WriteString("\t\t\tswitch epn {\n")
+	b.Add("\t\t\tswitch epn {\n")
 	for _, sub := range cmd.Subcommands {
 		writeParseEndpointSubcommandCase(b, cmd, sub)
 	}
-	b.WriteString("\t\t\t}\n")
+	b.Add("\t\t\t}\n")
 }
 
-func writeParseEndpointClientInit(b *strings.Builder, cmd *commandData) {
-	fmt.Fprintf(b, "\t\t\tc := %s.NewClient(scheme, host, doer, enc, dec, restore", cmd.PkgName)
+func writeParseEndpointClientInit(b *sourceBuilder, cmd *commandData) {
+	b.Addf("\t\t\tc := %s.NewClient(scheme, host, doer, enc, dec, restore", cmd.PkgName)
 	if cmd.NeedDialer {
-		fmt.Fprintf(b, ", dialer, %sConfigurer", cmd.VarName)
+		b.Addf(", dialer, %sConfigurer", cmd.VarName)
 	}
-	b.WriteString(")\n")
+	b.Add(")\n")
 }
 
-func writeParseEndpointSubcommandCase(b *strings.Builder, cmd *commandData, sub *subcommandData) {
-	fmt.Fprintf(b, "\t\t\tcase %q:\n", sub.Name)
+func writeParseEndpointSubcommandCase(b *sourceBuilder, cmd *commandData, sub *subcommandData) {
+	b.Addf("\t\t\tcase %q:\n", sub.Name)
 	writeParseEndpointEndpointInit(b, cmd, sub)
 	writeParseEndpointPayloadInit(b, cmd, sub)
 	writeParseEndpointStreamPayloadInit(b, cmd, sub)
 }
 
-func writeParseEndpointEndpointInit(b *strings.Builder, cmd *commandData, sub *subcommandData) {
-	fmt.Fprintf(b, "\t\t\t\tendpoint = c.%s(", sub.MethodVarName)
+func writeParseEndpointEndpointInit(b *sourceBuilder, cmd *commandData, sub *subcommandData) {
+	b.Addf("\t\t\t\tendpoint = c.%s(", sub.MethodVarName)
 	if sub.MultipartVarName != "" {
-		b.WriteString(sub.MultipartVarName)
+		b.Add(sub.MultipartVarName)
 	}
-	b.WriteString(")\n")
+	b.Add(")\n")
 	if sub.Interceptors != nil {
-		fmt.Fprintf(b, "\t\t\t\tendpoint = %s.Wrap%sClientEndpoint(endpoint, %s)\n", sub.Interceptors.PkgName, sub.MethodVarName, cmd.Interceptors.VarName)
+		b.Addf("\t\t\t\tendpoint = %s.Wrap%sClientEndpoint(endpoint, %s)\n", sub.Interceptors.PkgName, sub.MethodVarName, cmd.Interceptors.VarName)
 	}
 }
 
-func writeParseEndpointPayloadInit(b *strings.Builder, cmd *commandData, sub *subcommandData) {
+func writeParseEndpointPayloadInit(b *sourceBuilder, cmd *commandData, sub *subcommandData) {
 	switch {
 	case sub.BuildFunction != nil:
-		fmt.Fprintf(b, "\t\t\t\tdata, err = %s.%s(", cmd.PkgName, sub.BuildFunction.Name)
+		b.Addf("\t\t\t\tdata, err = %s.%s(", cmd.PkgName, sub.BuildFunction.Name)
 		for _, param := range sub.BuildFunction.ActualParams {
-			fmt.Fprintf(b, "*%sFlag, ", param)
+			b.Addf("*%sFlag, ", param)
 		}
-		b.WriteString(")\n")
+		b.Add(")\n")
 	case sub.Conversion != "":
-		fmt.Fprintf(b, "\t\t\t\t%s\n", sub.Conversion)
+		b.Addf("\t\t\t\t%s\n", sub.Conversion)
 	}
 }
 
-func writeParseEndpointStreamPayloadInit(b *strings.Builder, cmd *commandData, sub *subcommandData) {
+func writeParseEndpointStreamPayloadInit(b *sourceBuilder, cmd *commandData, sub *subcommandData) {
 	if sub.StreamFlag == nil {
 		return
 	}
 	if sub.BuildFunction != nil {
-		b.WriteString("\t\t\t\tif err == nil {\n")
+		b.Add("\t\t\t\tif err == nil {\n")
 	}
-	fmt.Fprintf(b, "\t\t\t\t\tdata, err = %s.%s(", cmd.PkgName, sub.BuildStreamPayload)
+	b.Addf("\t\t\t\t\tdata, err = %s.%s(", cmd.PkgName, sub.BuildStreamPayload)
 	if sub.BuildFunction != nil || sub.Conversion != "" {
-		b.WriteString("data, ")
+		b.Add("data, ")
 	}
-	fmt.Fprintf(b, "*%sFlag)\n", sub.StreamFlag.FullName)
+	b.Addf("*%sFlag)\n", sub.StreamFlag.FullName)
 	if sub.BuildFunction != nil {
-		b.WriteString("\t\t\t\t}\n")
+		b.Add("\t\t\t\t}\n")
 	}
 }
 
 func pathSection(data *EndpointData) codegen.Section {
-	return codegen.NewRawSection("path", renderPathSection(data))
+	return codegen.MustRenderSection("path", func() string {
+		return renderPathSection(data)
+	})
 }
 
 func renderPathSection(data *EndpointData) string {
-	var b strings.Builder
+	var b sourceBuilder
 	for _, route := range data.Routes {
 		if route.PathInit == nil {
 			continue
 		}
-		b.WriteString("// " + route.PathInit.Description + "\n")
-		fmt.Fprintf(&b, "func %s(", route.PathInit.Name)
+		b.Add("// " + route.PathInit.Description + "\n")
+		b.Addf("func %s(", route.PathInit.Name)
 		for _, arg := range route.PathInit.ServerArgs {
-			fmt.Fprintf(&b, "%s %s, ", arg.VarName, arg.TypeRef)
+			b.Addf("%s %s, ", arg.VarName, arg.TypeRef)
 		}
-		fmt.Fprintf(&b, ") %s {\n", route.PathInit.ReturnTypeRef)
+		b.Addf(") %s {\n", route.PathInit.ReturnTypeRef)
 		code := strings.TrimLeft(route.PathInit.ServerCode, "\n")
-		b.WriteString(code)
+		b.Add(code)
 		if !strings.HasSuffix(code, "\n") {
-			b.WriteString("\n")
+			b.Add("\n")
 		}
-		b.WriteString("}\n")
+		b.Add("}\n")
 	}
 	return b.String()
 }

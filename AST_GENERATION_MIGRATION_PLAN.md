@@ -94,12 +94,22 @@ Checklist
 - [x] Replace raw declaration assembly in [codegen/go_transform.go](/Users/luca/code/loom-mono/loom/codegen/go_transform.go), [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom-mono/loom/grpc/codegen/protobuf_transform.go), [grpc/codegen/codec_sections.go](/Users/luca/code/loom-mono/loom/grpc/codegen/codec_sections.go), and [codegen/validation.go](/Users/luca/code/loom-mono/loom/codegen/validation.go) with builder-oriented helpers.
 - [x] Run `go test ./codegen/... ./grpc/codegen/... ./http/codegen/... ./jsonrpc/codegen/...` from `/Users/luca/code/loom-mono/loom`.
 - [x] Get an agent review of the milestone changes and address any concrete findings before handoff.
-- [ ] Commit the milestone changes with a shared-generator migration commit message.
-- [ ] Push the milestone commit.
+- [x] Commit the milestone changes with a shared-generator migration commit message.
+- [x] Push the milestone commit.
 
 ### Milestone 4: Convert HTTP And Example Emitters
 
 Goal: finish the remaining in-scope HTTP and example generators so the repo exits the migration in one style.
+
+Status as of 2026-04-05:
+
+- [http/codegen/server_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/server_sections.go), [http/codegen/type_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/type_sections.go), [http/codegen/stream_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/stream_sections.go), [http/codegen/cli_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/cli_sections.go), [http/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/example_sections.go), and [http/codegen/misc_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/misc_sections.go) now emit through render-section builders and no longer hit the structural inventory.
+- [jsonrpc/codegen/example_server.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_server.go) no longer swaps HTTP example sections through `NewRawSection`, and [jsonrpc/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_sections.go) no longer assembles the overlay sections with `strings.Builder`.
+- [codegen/cli/cli.go](/Users/luca/code/loom-mono/loom/codegen/cli/cli.go), [codegen/example/render.go](/Users/luca/code/loom-mono/loom/codegen/example/render.go), and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) no longer use raw declaration assembly in the active generator paths covered by this milestone.
+- `go test ./http/codegen/... ./codegen/example/... ./codegen/cli/... ./codegen/service/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
+- `golangci-lint run ./http/codegen/... ./codegen/example/... ./codegen/cli/... ./codegen/service/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
+- A fresh structural inventory run now returns only the helper allowlist survivors: [codegen/jennifer.go](/Users/luca/code/loom-mono/loom/codegen/jennifer.go), [codegen/sections.go](/Users/luca/code/loom-mono/loom/codegen/sections.go), [jsonrpc/codegen/adaptation.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation.go), and [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go).
+- Agent review returned `No findings.` for the Milestone 4 HTTP/example tranche; residual risk is limited to deeper branch-matrix coverage for `parse-endpoint` and request-builder generation plus the lack of a tiny direct test for [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go).
 
 Acceptance Criteria
 
@@ -110,9 +120,9 @@ Acceptance Criteria
 Checklist
 
 - [ ] Extend [http/codegen/client_cli_test.go](/Users/luca/code/loom-mono/loom/http/codegen/client_cli_test.go), [http/codegen/client_init_test.go](/Users/luca/code/loom-mono/loom/http/codegen/client_init_test.go), [http/codegen/server_init_test.go](/Users/luca/code/loom-mono/loom/http/codegen/server_init_test.go), [http/codegen/server_handler_test.go](/Users/luca/code/loom-mono/loom/http/codegen/server_handler_test.go), [http/codegen/sse_server_test.go](/Users/luca/code/loom-mono/loom/http/codegen/sse_server_test.go), [http/codegen/example_cli_test.go](/Users/luca/code/loom-mono/loom/http/codegen/example_cli_test.go), [http/codegen/example_server_test.go](/Users/luca/code/loom-mono/loom/http/codegen/example_server_test.go), [jsonrpc/codegen/adaptation_test.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation_test.go), [jsonrpc/codegen/adaptation_pipeline_test.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation_pipeline_test.go), [codegen/example/render_test.go](/Users/luca/code/loom-mono/loom/codegen/example/render_test.go), [codegen/example/example_server_test.go](/Users/luca/code/loom-mono/loom/codegen/example/example_server_test.go), and [codegen/example/example_client_test.go](/Users/luca/code/loom-mono/loom/codegen/example/example_client_test.go) before changing the remaining emitters.
-- [ ] Port the six HTTP emitter files, [jsonrpc/codegen/example_server.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_server.go), [jsonrpc/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_sections.go), [codegen/example/render.go](/Users/luca/code/loom-mono/loom/codegen/example/render.go), [codegen/cli/cli.go](/Users/luca/code/loom-mono/loom/codegen/cli/cli.go), and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) to structured builders.
-- [ ] Run `go test ./http/codegen/... ./codegen/example/...` from `/Users/luca/code/loom-mono/loom`.
-- [ ] Get an agent review of the milestone changes and address any concrete findings before handoff.
+- [x] Port the six HTTP emitter files, [jsonrpc/codegen/example_server.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_server.go), [jsonrpc/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_sections.go), [codegen/example/render.go](/Users/luca/code/loom-mono/loom/codegen/example/render.go), [codegen/cli/cli.go](/Users/luca/code/loom-mono/loom/codegen/cli/cli.go), and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) to structured builders.
+- [x] Run `go test ./http/codegen/... ./codegen/example/...` from `/Users/luca/code/loom-mono/loom`.
+- [x] Get an agent review of the milestone changes and address any concrete findings before handoff.
 - [ ] Commit the milestone changes with an HTTP/example migration commit message.
 - [ ] Push the milestone commit.
 
