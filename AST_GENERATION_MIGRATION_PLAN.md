@@ -101,25 +101,29 @@ Checklist
 
 Goal: finish the remaining in-scope HTTP and example generators so the repo exits the migration in one style.
 
-Status as of 2026-04-05:
+Audit update as of 2026-04-05:
 
-- [http/codegen/server_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/server_sections.go), [http/codegen/type_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/type_sections.go), [http/codegen/stream_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/stream_sections.go), [http/codegen/cli_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/cli_sections.go), [http/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/example_sections.go), and [http/codegen/misc_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/misc_sections.go) now emit through render-section builders and no longer hit the structural inventory.
-- [jsonrpc/codegen/example_server.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_server.go) no longer swaps HTTP example sections through `NewRawSection`, and [jsonrpc/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_sections.go) no longer assembles the overlay sections with `strings.Builder`.
-- [codegen/cli/cli.go](/Users/luca/code/loom-mono/loom/codegen/cli/cli.go), [codegen/example/render.go](/Users/luca/code/loom-mono/loom/codegen/example/render.go), and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) no longer use raw declaration assembly in the active generator paths covered by this milestone.
-- `go test ./http/codegen/... ./codegen/example/... ./codegen/cli/... ./codegen/service/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
-- `golangci-lint run ./http/codegen/... ./codegen/example/... ./codegen/cli/... ./codegen/service/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
-- A fresh structural inventory run now returns only the helper allowlist survivors: [codegen/jennifer.go](/Users/luca/code/loom-mono/loom/codegen/jennifer.go), [codegen/sections.go](/Users/luca/code/loom-mono/loom/codegen/sections.go), [jsonrpc/codegen/adaptation.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation.go), and [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go).
-- Agent review returned `No findings.` for the Milestone 4 HTTP/example tranche; residual risk is limited to deeper branch-matrix coverage for `parse-endpoint` and request-builder generation plus the lack of a tiny direct test for [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go).
+- The structural inventory gate for the frozen Milestone 4 boundary is green: it still returns only the helper allowlist survivors [codegen/jennifer.go](/Users/luca/code/loom-mono/loom/codegen/jennifer.go), [codegen/sections.go](/Users/luca/code/loom-mono/loom/codegen/sections.go), [jsonrpc/codegen/adaptation.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation.go), and [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go).
+- The missed declaration emitters are now converted: [http/codegen/misc_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/misc_sections.go), [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go), [codegen/service/service.go](/Users/luca/code/loom-mono/loom/codegen/service/service.go), [codegen/service/convert.go](/Users/luca/code/loom-mono/loom/codegen/service/convert.go), and [codegen/service/example_interceptors.go](/Users/luca/code/loom-mono/loom/codegen/service/example_interceptors.go) now declare functions through Jennifer builders instead of full raw declaration strings.
+- The broad verification gates are green: `go test ./http/codegen/... ./codegen/example/...`, `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...`, and `make test` all pass from `/Users/luca/code/loom-mono/loom`.
+- Direct seam coverage now exists for the five missed files via [http/codegen/misc_sections_test.go](/Users/luca/code/loom-mono/loom/http/codegen/misc_sections_test.go) and [codegen/service/ast_generation_sections_test.go](/Users/luca/code/loom-mono/loom/codegen/service/ast_generation_sections_test.go), plus the updated cookie-security regression in [http/codegen/cookie_security_test.go](/Users/luca/code/loom-mono/loom/http/codegen/cookie_security_test.go).
+- The older broad test-expansion checklist items below are still unexecuted follow-up work; the migration no longer depends on them for boundary closure because the newly added seam tests lock the converted declaration emitters directly.
 
 Acceptance Criteria
 
 - [http/codegen/cli_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/cli_sections.go), [http/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/example_sections.go), [http/codegen/misc_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/misc_sections.go), [http/codegen/server_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/server_sections.go), [http/codegen/stream_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/stream_sections.go), [http/codegen/type_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/type_sections.go), [jsonrpc/codegen/example_server.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_server.go), [jsonrpc/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_sections.go), [codegen/example/render.go](/Users/luca/code/loom-mono/loom/codegen/example/render.go), [codegen/cli/cli.go](/Users/luca/code/loom-mono/loom/codegen/cli/cli.go), and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) are converted or removed from the in-scope inventory because they no longer emit declarations through raw sections or embedded raw declaration strings.
+- The remaining declaration emitters missed by the original boundary lock, [codegen/service/service.go](/Users/luca/code/loom-mono/loom/codegen/service/service.go), [codegen/service/convert.go](/Users/luca/code/loom-mono/loom/codegen/service/convert.go), and [codegen/service/example_interceptors.go](/Users/luca/code/loom-mono/loom/codegen/service/example_interceptors.go), are also converted so the repo actually exits this migration in one Go-generator style.
 - `go test ./http/codegen/... ./codegen/example/...` passes from `/Users/luca/code/loom-mono/loom`.
 - A fresh run of the structural inventory command defined at the top of this file shows only the allowlisted helper survivors.
 
 Checklist
 
+- [x] Convert [http/codegen/misc_sections.go](/Users/luca/code/loom-mono/loom/http/codegen/misc_sections.go) so `requestBuilderSection` and `transformHelperSection` stop emitting declaration-bearing Go through raw string builders or `codegen.Expr("func ...")`.
+- [x] Convert [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) so the auth helpers, example endpoint, and JSON-RPC stream handler stop embedding full declarations through `codegen.Expr(...)`.
+- [x] Add the missed declaration emitters to the migration boundary and convert them: [codegen/service/service.go](/Users/luca/code/loom-mono/loom/codegen/service/service.go), [codegen/service/convert.go](/Users/luca/code/loom-mono/loom/codegen/service/convert.go), and [codegen/service/example_interceptors.go](/Users/luca/code/loom-mono/loom/codegen/service/example_interceptors.go).
+- [x] After converting the five missed files above, rerun the effective declaration-emitter inventory, not just the original `NewRawSection|strings.Builder|WriteString` scan, and update this document so the boundary matches reality.
 - [ ] Extend [http/codegen/client_cli_test.go](/Users/luca/code/loom-mono/loom/http/codegen/client_cli_test.go), [http/codegen/client_init_test.go](/Users/luca/code/loom-mono/loom/http/codegen/client_init_test.go), [http/codegen/server_init_test.go](/Users/luca/code/loom-mono/loom/http/codegen/server_init_test.go), [http/codegen/server_handler_test.go](/Users/luca/code/loom-mono/loom/http/codegen/server_handler_test.go), [http/codegen/sse_server_test.go](/Users/luca/code/loom-mono/loom/http/codegen/sse_server_test.go), [http/codegen/example_cli_test.go](/Users/luca/code/loom-mono/loom/http/codegen/example_cli_test.go), [http/codegen/example_server_test.go](/Users/luca/code/loom-mono/loom/http/codegen/example_server_test.go), [jsonrpc/codegen/adaptation_test.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation_test.go), [jsonrpc/codegen/adaptation_pipeline_test.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation_pipeline_test.go), [codegen/example/render_test.go](/Users/luca/code/loom-mono/loom/codegen/example/render_test.go), [codegen/example/example_server_test.go](/Users/luca/code/loom-mono/loom/codegen/example/example_server_test.go), and [codegen/example/example_client_test.go](/Users/luca/code/loom-mono/loom/codegen/example/example_client_test.go) before changing the remaining emitters.
+- [x] Add direct seam coverage for the five missed files above so the post-conversion source shape is locked at the section level where practical instead of relying only on package-wide green tests.
 - [x] Port the six HTTP emitter files, [jsonrpc/codegen/example_server.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_server.go), [jsonrpc/codegen/example_sections.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/example_sections.go), [codegen/example/render.go](/Users/luca/code/loom-mono/loom/codegen/example/render.go), [codegen/cli/cli.go](/Users/luca/code/loom-mono/loom/codegen/cli/cli.go), and [codegen/service/example_jennifer.go](/Users/luca/code/loom-mono/loom/codegen/service/example_jennifer.go) to structured builders.
 - [x] Run `go test ./http/codegen/... ./codegen/example/...` from `/Users/luca/code/loom-mono/loom`.
 - [x] Get an agent review of the milestone changes and address any concrete findings before handoff.
@@ -130,27 +134,31 @@ Checklist
 
 Goal: leave the repo with one Go-generator style and an explicit allowlist of the remaining helper survivors.
 
-Status as of 2026-04-05:
+Status as of 2026-04-05 after follow-up conversion:
 
-- A fresh structural inventory run now returns only the helper allowlist survivors: [codegen/jennifer.go](/Users/luca/code/loom-mono/loom/codegen/jennifer.go), [codegen/sections.go](/Users/luca/code/loom-mono/loom/codegen/sections.go), [jsonrpc/codegen/adaptation.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation.go), and [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go).
-- `go fmt ./...` passes from `/Users/luca/code/loom-mono/loom`.
-- `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
-- `make test` passes from `/Users/luca/code/loom-mono/loom` after switching the OpenTelemetry test harness cleanup helpers to use fresh background contexts for provider shutdown.
-- Final closure review found one concrete follow-up and it is now resolved by using bounded timeout contexts for the OpenTelemetry test harness shutdown path instead of unbounded background contexts.
+- The original closure evidence now holds for both the frozen inventory and the broader declaration-emitter audit: `go fmt ./...` passes, `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...` passes, and `make test` passes from `/Users/luca/code/loom-mono/loom`.
+- The structural inventory command now returns only helper infrastructure survivors: [codegen/jennifer.go](/Users/luca/code/loom-mono/loom/codegen/jennifer.go), [codegen/sections.go](/Users/luca/code/loom-mono/loom/codegen/sections.go), [jsonrpc/codegen/adaptation.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation.go), and [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go).
+- The broader declaration-emitter audit command used for closure was:
+  `rg -n 'codegen\.Expr\(("func |fmt\.Sprintf\(`func )|codegen\.Expr\(("type |fmt\.Sprintf\(`type )|NewRawSection\(|strings\.Builder|WriteString\(' codegen http/codegen grpc/codegen jsonrpc/codegen -g'*.go' -g'!**/*_test.go' -g'!http/codegen/openapi/**' -g'!codegen/testing.go'`
+- That audit reports only helper infrastructure hits in [codegen/jennifer.go](/Users/luca/code/loom-mono/loom/codegen/jennifer.go), [jsonrpc/codegen/adaptation.go](/Users/luca/code/loom-mono/loom/jsonrpc/codegen/adaptation.go), [http/codegen/source_builder.go](/Users/luca/code/loom-mono/loom/http/codegen/source_builder.go), and [codegen/sections.go](/Users/luca/code/loom-mono/loom/codegen/sections.go); it no longer reports active declaration emitters in the migration boundary.
 
 Acceptance Criteria
 
 - The final structural inventory command output contains only the allowlisted helper files still named in this document.
+- A follow-up declaration-emitter audit across `codegen`, `http/codegen`, `grpc/codegen`, and `jsonrpc/codegen` finds no active generator file that still assembles full Go declarations through raw string helpers or `codegen.Expr("func ...")`, except for any explicitly justified helper survivor named in this document.
 - `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
 - `make test` passes from `/Users/luca/code/loom-mono/loom`.
 
 Checklist
 
-- [x] Re-run the structural inventory command and rewrite the inventory so each remaining hit is either removed or explicitly justified as a helper survivor.
+- [x] Re-run the structural inventory command and rewrite the original frozen inventory so each remaining hit is either removed or explicitly justified as a helper survivor.
 - [x] Remove any temporary adapter or compatibility code introduced only to ease the migration.
+- [x] Finish the missed conversions tracked in Milestone 4 so the actual declaration-emitter surface matches the migration goal.
+- [x] Define and run a broader declaration-emitter audit command that catches raw `codegen.Expr("func ...")` and equivalent full-declaration emission paths, then record its output in this file.
+- [x] Reconfirm that only the intended helper survivors remain after the missed conversions land.
 - [x] Run `go fmt ./...`.
 - [x] Run `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...`.
 - [x] Run `make test`.
-- [x] Get a final agent review of the milestone changes and address any concrete findings before handoff.
-- [x] Commit the milestone changes with a boundary-closure commit message.
-- [x] Push the milestone commit.
+- [ ] Get a final agent review of the follow-up conversion set and address any concrete findings before handoff.
+- [ ] Commit the true boundary-closure follow-up with a boundary-closure commit message.
+- [ ] Push the follow-up commit.

@@ -15,8 +15,7 @@ import (
 )
 
 // MultipleServicesInterceptorsService2ClientInterceptors implements the client interceptors for the MultipleServicesInterceptorsService2 service.
-type MultipleServicesInterceptorsService2ClientInterceptors struct {
-}
+type MultipleServicesInterceptorsService2ClientInterceptors struct{}
 
 // NewMultipleServicesInterceptorsService2ClientInterceptors creates a new client interceptor for the MultipleServicesInterceptorsService2 service.
 func NewMultipleServicesInterceptorsService2ClientInterceptors() *MultipleServicesInterceptorsService2ClientInterceptors {

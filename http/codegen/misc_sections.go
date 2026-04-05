@@ -11,35 +11,45 @@ import (
 )
 
 func requestBuilderSection(endpoint *EndpointData) codegen.Section {
-	return codegen.MustRenderSection("request-builder", func() string {
-		return renderRequestBuilderSection(endpoint)
+	return codegen.MustJenniferSection("request-builder", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, endpoint.RequestInit.Description)
+		stmt.Func().
+			Params(jen.Id("c").Op("*").Id(endpoint.ClientStruct)).
+			Id(endpoint.RequestInit.Name).
+			ParamsFunc(func(group *jen.Group) {
+				group.Id("ctx").Add(codegen.TypeRef("context.Context"))
+				for _, arg := range endpoint.RequestInit.ClientArgs {
+					group.Id(arg.VarName).Add(codegen.TypeRef(arg.TypeRef))
+				}
+			}).
+			Params(jen.Op("*").Qual("net/http", "Request"), jen.Error()).
+			BlockFunc(func(group *jen.Group) {
+				appendRawBlock(group, endpoint.RequestInit.ClientCode)
+			})
+		stmt.Line()
 	})
-}
-
-func renderRequestBuilderSection(endpoint *EndpointData) string {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(endpoint.RequestInit.Description))
-	b.Add("\n")
-	b.Addf("func (c *%s) %s(ctx context.Context", endpoint.ClientStruct, endpoint.RequestInit.Name)
-	for _, arg := range endpoint.RequestInit.ClientArgs {
-		b.Addf(", %s %s", arg.VarName, arg.TypeRef)
-	}
-	b.Add(") (*http.Request, error) {\n")
-	b.Add(strings.TrimLeft(endpoint.RequestInit.ClientCode, "\n"))
-	if !strings.HasSuffix(endpoint.RequestInit.ClientCode, "\n") {
-		b.Add("\n")
-	}
-	b.Add("}\n")
-	return b.String()
 }
 
 func transformHelperSection(name string, data *codegen.TransformFunctionData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s builds a value of type %s from a value of type %s.", data.Name, data.ResultTypeRef, data.ParamTypeRef))
-		stmt.Add(codegen.Expr("func " + data.Name + "(v " + data.ParamTypeRef + ") " + data.ResultTypeRef + " {\n" + data.Code + "\nreturn res\n}"))
+		stmt.Func().
+			Id(data.Name).
+			Params(jen.Id("v").Add(codegen.TypeRef(data.ParamTypeRef))).
+			Add(codegen.TypeRef(data.ResultTypeRef)).
+			BlockFunc(func(group *jen.Group) {
+				appendRawBlock(group, data.Code)
+				group.Line()
+				group.Return(jen.Id("res"))
+			})
 		stmt.Line()
 	})
+}
+
+func appendRawBlock(group *jen.Group, code string) {
+	if trimmed := strings.TrimSpace(code); trimmed != "" {
+		group.Add(codegen.Expr(trimmed))
+	}
 }
 
 func multipartRequestEncoderSection(data *MultipartData) codegen.Section {

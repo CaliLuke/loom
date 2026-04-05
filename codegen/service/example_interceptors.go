@@ -95,10 +95,15 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 			action = "Processing request"
 			interceptors = data["ServerInterceptors"].([]*InterceptorData)
 		}
+		receiverType := structName + strings.Title(mode) + "Interceptors"
 
-		stmt.Add(codegen.Expr(fmt.Sprintf("// %s%sInterceptors implements the %s for the %s service.\ntype %s%sInterceptors struct {\n}", structName, strings.Title(mode), implements, serviceName, structName, strings.Title(mode))))
+		stmt.Comment(fmt.Sprintf("%s implements the %s for the %s service.", receiverType, implements, serviceName)).Line()
+		stmt.Type().Id(receiverType).StructFunc(func(*jen.Group) {})
 		stmt.Line()
-		stmt.Add(codegen.Expr(fmt.Sprintf("// New%s%sInterceptors creates a new %s interceptor for the %s service.\nfunc New%s%sInterceptors() *%s%sInterceptors {\nreturn &%s%sInterceptors{}\n}", structName, strings.Title(mode), mode, serviceName, structName, strings.Title(mode), structName, strings.Title(mode), structName, strings.Title(mode))))
+		stmt.Comment(fmt.Sprintf("New%s creates a new %s interceptor for the %s service.", receiverType, mode, serviceName)).Line()
+		stmt.Func().Id("New" + receiverType).Params().Op("*").Id(receiverType).Block(
+			jen.Return(jen.Op("&").Id(receiverType).Values()),
+		)
 		stmt.Line()
 		for _, interceptor := range interceptors {
 			if interceptor.Description != "" {
@@ -108,16 +113,25 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 			if server {
 				responseAction = "Response"
 			}
-			stmt.Add(codegen.Expr(fmt.Sprintf(`func (i *%s%sInterceptors) %s(ctx context.Context, info *%s.%sInfo, next loom.Endpoint) (any, error) {
-log.Printf(ctx, "[%s] %s: %%v", info.RawPayload())
-resp, err := next(ctx, info.RawPayload())
-if err != nil {
-	log.Printf(ctx, "[%s] Error: %%v", err)
-	return nil, err
-}
-log.Printf(ctx, "[%s] %s: %%v", resp)
-return resp, nil
-}`, structName, strings.Title(mode), interceptor.Name, pkgName, interceptor.Name, interceptor.Name, action, interceptor.Name, interceptor.Name, responseAction)))
+			stmt.Func().
+				Params(jen.Id("i").Op("*").Id(receiverType)).
+				Id(interceptor.Name).
+				Params(
+					jen.Id("ctx").Add(codegen.TypeRef("context.Context")),
+					jen.Id("info").Add(codegen.TypeRef("*"+pkgName+"."+interceptor.Name+"Info")),
+					jen.Id("next").Add(codegen.TypeRef("loom.Endpoint")),
+				).
+				Params(jen.Any(), jen.Error()).
+				BlockFunc(func(group *jen.Group) {
+					group.Add(codegen.Expr(fmt.Sprintf(`log.Printf(ctx, "[%s] %s: %%v", info.RawPayload())`, interceptor.Name, action)))
+					group.Id("resp").Op(",").Id("err").Op(":=").Id("next").Call(jen.Id("ctx"), jen.Id("info").Dot("RawPayload").Call())
+					group.If(jen.Id("err").Op("!=").Nil()).Block(
+						codegen.Expr(fmt.Sprintf(`log.Printf(ctx, "[%s] Error: %%v", err)`, interceptor.Name)),
+						jen.Return(jen.Nil(), jen.Id("err")),
+					)
+					group.Add(codegen.Expr(fmt.Sprintf(`log.Printf(ctx, "[%s] %s: %%v", resp)`, interceptor.Name, responseAction)))
+					group.Return(jen.Id("resp"), jen.Nil())
+				})
 			stmt.Line()
 		}
 	})

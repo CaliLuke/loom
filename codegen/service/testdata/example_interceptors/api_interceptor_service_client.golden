@@ -15,8 +15,7 @@ import (
 )
 
 // APIInterceptorServiceClientInterceptors implements the client interceptors for the APIInterceptorService service.
-type APIInterceptorServiceClientInterceptors struct {
-}
+type APIInterceptorServiceClientInterceptors struct{}
 
 // NewAPIInterceptorServiceClientInterceptors creates a new client interceptor for the APIInterceptorService service.
 func NewAPIInterceptorServiceClientInterceptors() *APIInterceptorServiceClientInterceptors {

@@ -15,8 +15,7 @@ import (
 )
 
 // ServerInterceptorServiceServerInterceptors implements the server interceptor for the ServerInterceptorService service.
-type ServerInterceptorServiceServerInterceptors struct {
-}
+type ServerInterceptorServiceServerInterceptors struct{}
 
 // NewServerInterceptorServiceServerInterceptors creates a new server interceptor for the ServerInterceptorService service.
 func NewServerInterceptorServiceServerInterceptors() *ServerInterceptorServiceServerInterceptors {

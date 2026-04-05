@@ -15,8 +15,7 @@ import (
 )
 
 // ChainedInterceptorServiceServerInterceptors implements the server interceptor for the ChainedInterceptorService service.
-type ChainedInterceptorServiceServerInterceptors struct {
-}
+type ChainedInterceptorServiceServerInterceptors struct{}
 
 // NewChainedInterceptorServiceServerInterceptors creates a new server interceptor for the ChainedInterceptorService service.
 func NewChainedInterceptorServiceServerInterceptors() *ChainedInterceptorServiceServerInterceptors {

@@ -256,7 +256,7 @@ func TestStreamingSessionSecurityWebSocketHandshakeContracts(t *testing.T) {
 			if tc.ExpectQueryEncoding {
 				require.Contains(t, clientEncode, `values.Add("project_id",p.ProjectID)`)
 			} else {
-				require.Contains(t, clientEncode, `Path(projectID, )`)
+				require.Contains(t, clientEncode, `Path(projectID`)
 			}
 			if tc.ExpectClientSend {
 				require.Contains(t, clientEncode, `WriteJSON`)

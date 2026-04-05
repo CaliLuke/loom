@@ -281,23 +281,57 @@ func ConvertFile(root *expr.RootExpr, service *expr.ServiceExpr, services *Servi
 func convertSection(name string, data convertData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s creates an instance of %s initialized from t.", data.Name, data.TypeName))
-		stmt.Add(codegen.Expr("func (t " + data.ReceiverTypeRef + ") " + data.Name + "() " + data.TypeRef + " {\n" + data.Code + "\nreturn v\n}"))
+		stmt.Func().
+			Params(jen.Id("t").Add(codegen.TypeRef(data.ReceiverTypeRef))).
+			Id(data.Name).
+			Params().
+			Add(codegen.TypeRef(data.TypeRef)).
+			BlockFunc(func(group *jen.Group) {
+				appendConvertRawBlock(group, data.Code)
+				group.Line()
+				group.Return(jen.Id("v"))
+			})
 	})
 }
 
 func createSection(name string, data convertData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s initializes t from the fields of v", data.Name))
-		stmt.Add(codegen.Expr("func (t " + data.ReceiverTypeRef + ") " + data.Name + "(v " + data.TypeRef + ") {\n" + data.Code + "\n*t = *temp\n}"))
+		stmt.Func().
+			Params(jen.Id("t").Add(codegen.TypeRef(data.ReceiverTypeRef))).
+			Id(data.Name).
+			Params(jen.Id("v").Add(codegen.TypeRef(data.TypeRef))).
+			BlockFunc(func(group *jen.Group) {
+				appendConvertRawBlock(group, data.Code)
+				group.Op("*").Id("t").Op("=").Op("*").Id("temp")
+			})
 	})
 }
 
 func transformHelperSection(name string, data *codegen.TransformFunctionData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s builds a value of type %s from a value of type %s.", data.Name, data.ResultTypeRef, data.ParamTypeRef))
-		stmt.Add(codegen.Expr("func " + data.Name + "(v " + data.ParamTypeRef + ") " + data.ResultTypeRef + " {\n" + data.Code + "\nreturn res\n}"))
+		stmt.Func().
+			Id(data.Name).
+			Params(jen.Id("v").Add(codegen.TypeRef(data.ParamTypeRef))).
+			Add(codegen.TypeRef(data.ResultTypeRef)).
+			BlockFunc(func(group *jen.Group) {
+				appendConvertRawBlock(group, data.Code)
+				group.Line()
+				group.Return(jen.Id("res"))
+			})
 		stmt.Line()
 	})
+}
+
+func appendConvertRawBlock(group *jen.Group, code string) {
+	if strings.TrimSpace(code) == "" {
+		return
+	}
+	if strings.HasPrefix(code, "\n") {
+		group.Line()
+	}
+	group.Add(codegen.Expr(strings.TrimSpace(code)))
 }
 
 // uniquify checks if base is a key of taken and if not returns it. Otherwise

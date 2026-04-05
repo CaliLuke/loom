@@ -314,7 +314,17 @@ func AddUserTypeImports(genpkg string, header *codegen.SectionTemplate, d *Data)
 func typeInitSection(name string, data *InitData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, data.Description)
-		stmt.Add(codegen.Expr("func " + data.Name + "(" + initArgsString(data.Args) + ") " + data.ReturnTypeRef + " {\n" + data.Code + "\n}"))
+		stmt.Func().
+			Id(data.Name).
+			ParamsFunc(func(group *jen.Group) {
+				for _, arg := range data.Args {
+					group.Id(arg.Name).Add(codegen.TypeRef(arg.Ref))
+				}
+			}).
+			Add(codegen.TypeRef(data.ReturnTypeRef)).
+			BlockFunc(func(group *jen.Group) {
+				appendServiceRawBlock(group, data.Code)
+			})
 		stmt.Line()
 	})
 }
@@ -353,15 +363,14 @@ func errorInitSection(data *ErrorInitData) codegen.Section {
 	})
 }
 
-func initArgsString(args []*InitArgData) string {
-	if len(args) == 0 {
-		return ""
+func appendServiceRawBlock(group *jen.Group, code string) {
+	if strings.TrimSpace(code) == "" {
+		return
 	}
-	parts := make([]string, 0, len(args))
-	for _, arg := range args {
-		parts = append(parts, arg.Name+" "+arg.Ref)
+	if strings.HasPrefix(code, "\n") {
+		group.Line()
 	}
-	return strings.Join(parts, ", ")
+	group.Add(codegen.Expr(strings.TrimSpace(code)))
 }
 
 func errorName(et *UserTypeData) string {
