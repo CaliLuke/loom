@@ -37,8 +37,8 @@ Checklist
 - [x] Run `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...` from `/Users/luca/code/loom-mono/loom`.
 - [x] Record the structural exit gate in this file: no `convert now` or `convert after boundary lock` file returns `NewRawSection` or constructs declaration-bearing Go source with ad hoc string assembly.
 - [x] Get an agent review of the milestone changes and fold in any concrete findings before handoff.
-- [ ] Commit the milestone changes with a milestone-specific commit message.
-- [ ] Push the milestone commit.
+- [x] Commit the milestone changes with a milestone-specific commit message.
+- [x] Push the milestone commit.
 
 ### Milestone 2: Convert JSON-RPC Emitters
 
@@ -65,8 +65,8 @@ Checklist
 - [x] Run `go test ./jsonrpc/codegen/...` from `/Users/luca/code/loom-mono/loom`.
 - [x] Run `go test ./...` from `/Users/luca/code/loom-mono/loom/jsonrpc/integration_tests`.
 - [x] Get an agent review of the milestone changes and address any concrete findings before handoff.
-- [ ] Commit the milestone changes with a JSON-RPC migration commit message.
-- [ ] Push the milestone commit.
+- [x] Commit the milestone changes with a JSON-RPC migration commit message.
+- [x] Push the milestone commit.
 
 ### Milestone 3: Convert Shared Service And Transform Emitters
 
@@ -136,6 +136,7 @@ Status as of 2026-04-05:
 - `go fmt ./...` passes from `/Users/luca/code/loom-mono/loom`.
 - `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...` passes from `/Users/luca/code/loom-mono/loom`.
 - `make test` passes from `/Users/luca/code/loom-mono/loom` after switching the OpenTelemetry test harness cleanup helpers to use fresh background contexts for provider shutdown.
+- Final closure review found one concrete follow-up and it is now resolved by using bounded timeout contexts for the OpenTelemetry test harness shutdown path instead of unbounded background contexts.
 
 Acceptance Criteria
 
@@ -150,6 +151,6 @@ Checklist
 - [x] Run `go fmt ./...`.
 - [x] Run `go test ./codegen/... ./http/codegen/... ./grpc/codegen/... ./jsonrpc/codegen/...`.
 - [x] Run `make test`.
-- [ ] Get a final agent review of the milestone changes and address any concrete findings before handoff.
-- [ ] Commit the milestone changes with a boundary-closure commit message.
-- [ ] Push the milestone commit.
+- [x] Get a final agent review of the milestone changes and address any concrete findings before handoff.
+- [x] Commit the milestone changes with a boundary-closure commit message.
+- [x] Push the milestone commit.
