@@ -256,14 +256,6 @@ func dummyMultipartRequestDecoderSection(data *MultipartData) codegen.Section {
 	})
 }
 
-func renderDummyMultipartRequestDecoder(data *MultipartData) string {
-	return fmt.Sprintf("\n%s\nfunc %s(mr *multipart.Reader, p *%s) error {\n\t// Add multipart request decoder logic here\n\treturn nil\n}\n",
-		codegen.Comment(fmt.Sprintf("%s implements the multipart decoder for service %q endpoint %q. The decoder must populate the argument p after encoding.", data.FuncName, data.ServiceName, data.MethodName)),
-		data.FuncName,
-		data.Payload.Ref,
-	)
-}
-
 func dummyMultipartRequestEncoderSection(data *MultipartData) codegen.Section {
 	return codegen.MustJenniferSection("dummy-multipart-request-encoder", func(stmt *jen.Statement) {
 		stmt.Line()
@@ -281,14 +273,6 @@ func dummyMultipartRequestEncoderSection(data *MultipartData) codegen.Section {
 			)
 		stmt.Line()
 	})
-}
-
-func renderDummyMultipartRequestEncoder(data *MultipartData) string {
-	return fmt.Sprintf("\n%s\nfunc %s(mw *multipart.Writer, p %s) error {\n\t// Add multipart request encoder logic here\n\treturn nil\n}\n",
-		codegen.Comment(fmt.Sprintf("%s implements the multipart encoder for service %q endpoint %q.", data.FuncName, data.ServiceName, data.MethodName)),
-		data.FuncName,
-		data.Payload.Ref,
-	)
 }
 
 func servicesWithClientInterceptors(services []*ServiceData) []*ServiceData {

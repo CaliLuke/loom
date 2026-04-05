@@ -48,29 +48,6 @@ func typeDeclSection(name string, data *TypeData) codegen.Section {
 	})
 }
 
-func renderTypeDecl(data *TypeData) string {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(data.Description))
-	b.Add("\n")
-	b.Addf("type %s %s\n", data.VarName, data.Def)
-	if data.FlatFormUnionField == "" {
-		return b.String()
-	}
-	b.Add("\n")
-	b.Add("// MarshalFormValues marshals the synthetic request body wrapper using the\n")
-	b.Add("// wrapped union field at the top level.\n")
-	b.Addf("func (body %s) MarshalFormValues(values url.Values, prefix string) error {\n", data.VarName)
-	b.Addf("\treturn body.%s.MarshalFormValues(values, prefix)\n", data.FlatFormUnionField)
-	b.Add("}\n\n")
-	b.Add("// UnmarshalFormValues unmarshals the synthetic request body wrapper using the\n")
-	b.Add("// wrapped union field at the top level.\n")
-	b.Addf("func (body *%s) UnmarshalFormValues(values url.Values, prefix string) error {\n", data.VarName)
-	b.Addf("\treturn (&body.%s).UnmarshalFormValues(values, prefix)\n", data.FlatFormUnionField)
-	b.Add("}\n")
-	return b.String()
-}
-
 func unionTypeSection(name string, data *servicecodegen.UnionTypeData) codegen.Section {
 	return codegen.MustRenderSection(name, func() string {
 		return renderHTTPUnionType(data)
@@ -242,24 +219,6 @@ func bodyInitSection(name string, init *InitData, client bool) codegen.Section {
 	})
 }
 
-func renderBodyInit(init *InitData, client bool) string {
-	args, code := initRenderData(init, client)
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(init.Description))
-	b.Add("\n")
-	b.Addf("func %s(", init.Name)
-	for _, arg := range args {
-		b.Addf("%s %s, ", arg.VarName, arg.TypeRef)
-	}
-	b.Addf(") %s {\n", init.ReturnTypeRef)
-	if code != "" {
-		b.Addf("\t%s\n", code)
-	}
-	b.Add("\treturn body\n}\n")
-	return stripBlankLineBeforeBodyReturn(b.String())
-}
-
 func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
 		args, code := initRenderData(init, client)
@@ -314,53 +273,6 @@ func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 	})
 }
 
-func renderTypeInit(init *InitData, client bool) string {
-	args, code := initRenderData(init, client)
-	typ := initRenderTarget(client)
-
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(init.Description))
-	b.Add("\n")
-	b.Addf("func %s(", init.Name)
-	for _, arg := range args {
-		b.Addf("%s %s, ", arg.VarName, arg.TypeRef)
-	}
-	b.Addf(") %s {\n", init.ReturnTypeRef)
-	if code != "" {
-		b.Addf("\t%s\n", code)
-		if init.ReturnTypeAttribute != "" {
-			b.Addf("\tres := &%s{\n", init.ReturnTypeName)
-			if init.ReturnIsPrimitivePointer {
-				b.Addf("\t\t%s: &v,\n", init.ReturnTypeAttribute)
-			} else {
-				b.Addf("\t\t%s: v,\n", init.ReturnTypeAttribute)
-			}
-			b.Add("\t}\n")
-		}
-	}
-	if init.ReturnIsStruct && code == "" {
-		if init.ReturnTypeAttribute != "" {
-			b.Addf("\tres := &%s{}\n", init.ReturnTypeName)
-		} else {
-			b.Addf("\tv := &%s{}\n", init.ReturnTypeName)
-		}
-	}
-	fieldInitCode := strings.TrimRight(fieldCode(init, typ), "\n\t ")
-	if fieldInitCode != "" {
-		b.Addf("\t%s\n", fieldInitCode)
-	}
-	if code != "" || fieldInitCode != "" {
-		b.Add("\n")
-	}
-	if init.ReturnTypeAttribute != "" {
-		b.Add("\treturn res\n}\n")
-	} else {
-		b.Add("\treturn v\n}\n")
-	}
-	return b.String()
-}
-
 func validateSection(name string, data *TypeData) codegen.Section {
 	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
 		stmt.Line()
@@ -379,19 +291,6 @@ func validateSection(name string, data *TypeData) codegen.Section {
 	})
 }
 
-func renderHTTPValidate(data *TypeData) string {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(fmt.Sprintf("Validate%s runs the validations defined on %s", data.VarName, data.Name)))
-	b.Add("\n")
-	b.Addf("func Validate%s(body %s) (err error) {\n", data.VarName, data.Ref)
-	if data.ValidateDef != "" {
-		b.Addf("\t%s\n", data.ValidateDef)
-	}
-	b.Add("\treturn\n}\n")
-	return b.String()
-}
-
 func initRenderData(init *InitData, client bool) ([]*InitArgData, string) {
 	if client {
 		return init.ClientArgs, strings.TrimRight(init.ClientCode, "\n\t ")
@@ -404,10 +303,6 @@ func initRenderTarget(client bool) string {
 		return "client"
 	}
 	return "server"
-}
-
-func stripBlankLineBeforeBodyReturn(code string) string {
-	return strings.ReplaceAll(code, "\n\n\treturn body", "\n\treturn body")
 }
 
 func addHTTPDocOrBlank(stmt *jen.Statement, description string) {

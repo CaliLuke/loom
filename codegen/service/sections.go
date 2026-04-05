@@ -77,14 +77,6 @@ func unionTypeSection(name string, data *UnionTypeData) codegen.Section {
 	})
 }
 
-func renderTypeDefinition(description, typeName, def string) string {
-	var b sourceBuilder
-	b.Add(codegen.Comment(description))
-	b.Add("\n")
-	fmt.Fprintf(&b, "type %s %s\n", typeName, def)
-	return b.String()
-}
-
 func renderErrorMethods(data *UserTypeData) string {
 	var b sourceBuilder
 	b.Add("// Error returns an error description.\n")
@@ -103,23 +95,6 @@ func renderErrorMethods(data *UserTypeData) string {
 		fmt.Fprintf(&b, "\t\tRetryHint:   %q,\n", data.RetryHint)
 		b.Add("\t}\n}\n")
 	}
-	return b.String()
-}
-
-func renderValidateFunction(data *ValidateData) string {
-	var b sourceBuilder
-	b.Add(codegen.Comment(data.Description))
-	b.Add("\n")
-	fmt.Fprintf(&b, "func %s(result %s) (err error) {\n", data.Name, data.Ref)
-	if data.Validate != "" {
-		b.Add(codegen.Indent(data.Validate, "\t"))
-		if !strings.HasSuffix(data.Validate, "\n") {
-			b.Add("\n")
-		}
-	} else {
-		b.Add("\n")
-	}
-	b.Add("\treturn\n}\n")
 	return b.String()
 }
 

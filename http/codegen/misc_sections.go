@@ -115,60 +115,6 @@ func serverSSESection(ed *EndpointData) codegen.Section {
 	})
 }
 
-func writeSSETypeSection(b *sourceBuilder, ed *EndpointData) {
-	b.Add("\n")
-	b.Add(codegen.Comment(fmt.Sprintf("%s implements the %s interface using Server-Sent Events.", ed.SSE.StructName, ed.SSE.Interface)))
-	b.Add("\n")
-	b.Addf("type %s struct {\n", ed.SSE.StructName)
-	b.Add("\t" + codegen.Comment("once ensures the headers are written once.") + "\n")
-	b.Add("\tonce sync.Once\n")
-	b.Add("\t" + codegen.Comment("w is the HTTP response writer used to send the SSE events.") + "\n")
-	b.Add("\tw http.ResponseWriter\n")
-	b.Add("\t" + codegen.Comment("r is the HTTP request.") + "\n")
-	b.Add("\tr *http.Request\n")
-	b.Add("}\n\n")
-}
-
-func writeSSESendSection(b *sourceBuilder, ed *EndpointData) {
-	b.Add(codegen.Comment(fmt.Sprintf("%s %s", ed.SSE.SendName, ed.SSE.SendDesc)))
-	b.Add("\n")
-	b.Addf("func (s *%s) %s(v %s) error {\n", ed.SSE.StructName, ed.SSE.SendName, ed.SSE.EventTypeRef)
-	b.Addf("\treturn s.%s(context.Background(), v)\n", ed.SSE.SendWithContextName)
-	b.Add("}\n\n")
-}
-
-func writeSSEInitHeaders(b *sourceBuilder, ed *EndpointData) {
-	b.Addf("func (s *%s) initHeaders() {\n", ed.SSE.StructName)
-	b.Add("\ts.once.Do(func() {\n")
-	b.Add("\t\theader := s.w.Header()\n")
-	b.Add("\t\tif header.Get(\"Content-Type\") == \"\" {\n")
-	b.Add("\t\t\theader.Set(\"Content-Type\", \"text/event-stream\")\n")
-	b.Add("\t\t}\n")
-	b.Add("\t\tif header.Get(\"Cache-Control\") == \"\" {\n")
-	b.Add("\t\t\theader.Set(\"Cache-Control\", \"no-cache\")\n")
-	b.Add("\t\t}\n")
-	b.Add("\t\tif header.Get(\"Connection\") == \"\" {\n")
-	b.Add("\t\t\theader.Set(\"Connection\", \"keep-alive\")\n")
-	b.Add("\t\t}\n")
-	b.Add("\t\ts.w.WriteHeader(http.StatusOK)\n")
-	b.Add("\t})\n")
-	b.Add("}\n\n")
-}
-
-func writeSSESendWithContextSection(b *sourceBuilder, ed *EndpointData) {
-	b.Add(codegen.Comment(fmt.Sprintf("%s %s", ed.SSE.SendWithContextName, ed.SSE.SendWithContextDesc)))
-	b.Add("\n")
-	b.Addf("func (s *%s) %s(ctx context.Context, v %s) error {\n", ed.SSE.StructName, ed.SSE.SendWithContextName, ed.SSE.EventTypeRef)
-	b.Add("\ts.initHeaders()\n")
-	writeSSEResultSetup(b, ed)
-	writeSSEPayloadSetup(b, ed)
-	writeSSEPayloadEncoding(b)
-	writeSSEMessageSetup(b, ed)
-	b.Add("\tif err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {\n\t\treturn err\n\t}\n\n")
-	b.Add("\treturn http.NewResponseController(s.w).Flush()\n")
-	b.Add("}\n\n")
-}
-
 func writeSSEResultSetup(b *sourceBuilder, ed *EndpointData) {
 	if ed.Method.ViewedResult != nil {
 		viewName := ed.Method.ViewedResult.ViewName
@@ -230,12 +176,6 @@ func writeSSEMessageSetup(b *sourceBuilder, ed *EndpointData) {
 		b.Addf("\tif retry := res.%s; retry > 0 {\n\t\tmsg.RetryMillis = int64(retry)\n\t}\n", ed.SSE.RetryField)
 	}
 	b.Add("\n")
-}
-
-func writeSSECloseSection(b *sourceBuilder, ed *EndpointData) {
-	b.Add(codegen.Comment("Close is a no-op for SSE. We keep the method for compatibility with other stream types."))
-	b.Add("\n")
-	b.Addf("func (s *%s) Close() error {\n\treturn nil\n}\n", ed.SSE.StructName)
 }
 
 func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {

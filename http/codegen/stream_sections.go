@@ -27,81 +27,6 @@ func sseClientSection(ed *EndpointData) codegen.Section {
 	})
 }
 
-func renderSSEClientSection(ed *EndpointData) string {
-	var b sourceBuilder
-	streamName := ed.Method.VarName + "ClientStream"
-	implName := ed.Method.VarName + "StreamImpl"
-
-	b.Add(renderSSEClientTypes(streamName, implName, ed))
-	b.Add(renderSSEClientConstructor(streamName, implName, ed))
-	b.Add(renderSSEClientRecv(implName, ed))
-	b.Add(renderSSEClientReadEvent(implName))
-	b.Add(renderSSEClientCheckBuffer(implName))
-	b.Add(renderSSEClientClose(implName))
-	b.Add(renderSSEClientProcessEvent(implName, ed))
-	return b.String()
-}
-
-func renderSSEClientTypes(streamName, implName string, ed *EndpointData) string {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment(streamName + " is the interface for reading Server-Sent Events."))
-	b.Add("\n")
-	b.Addf("type %s interface {\n", streamName)
-	b.Add("\t" + codegen.Comment("Recv reads and returns the next event from the SSE stream.") + "\n")
-	b.Addf("\tRecv(context.Context) (%s, error)\n", ed.SSE.EventTypeRef)
-	b.Add("\t" + codegen.Comment("Close closes the SSE stream and releases resources.") + "\n")
-	b.Add("\tClose() error\n")
-	b.Add("}\n\n")
-	b.Add("type (\n")
-	b.Addf("\t%s\n", codegen.Comment(implName+" implements the "+streamName+" interface."))
-	b.Addf("\t%s struct {\n", implName)
-	b.Add("\t\tresp *http.Response\n")
-	b.Add("\t\tdecoder func(*http.Response) loomhttp.Decoder\n")
-	b.Add("\t\tbuffer []byte // Buffer for unprocessed data\n")
-	b.Add("\t\tlock sync.Mutex\n")
-	b.Add("\t\tclosed bool\n")
-	b.Add("\t}\n")
-	b.Add(")\n\n")
-	b.Addf("%s\n", codegen.Comment(implName+" implements the "+streamName+" interface."))
-	b.Addf("var _ %s = (*%s)(nil)\n\n", streamName, implName)
-	return b.String()
-}
-
-func renderSSEClientConstructor(streamName, implName string, ed *EndpointData) string {
-	var b sourceBuilder
-	b.Addf("%s\n", codegen.Comment("New"+ed.Method.VarName+"Stream creates a new "+streamName+"."))
-	b.Addf("func New%sStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) %s {\n", ed.Method.VarName, streamName)
-	b.Addf("\treturn &%s{\n", implName)
-	b.Add("\t\tresp: resp,\n")
-	b.Add("\t\tdecoder: decoder,\n")
-	b.Add("\t\tbuffer: make([]byte, 0, 4096), // Pre-allocate buffer\n")
-	b.Add("\t}\n")
-	b.Add("}\n\n")
-	return b.String()
-}
-
-func renderSSEClientRecv(implName string, ed *EndpointData) string {
-	var b sourceBuilder
-	b.Addf("%s\n", codegen.Comment("Recv reads and returns the next event from the SSE stream, respecting context cancellation."))
-	b.Addf("func (s *%s) Recv(ctx context.Context) (event %s, err error) {\n", implName, ed.SSE.EventTypeRef)
-	b.Add("\tvar byts []byte\n")
-	b.Add("\tbyts, err = s.readEvent(ctx)\n")
-	b.Add("\tif err != nil {\n")
-	b.Add("\t\tif errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {\n")
-	b.Add("\t\t\t// Clean up on EOF or context cancellation\n")
-	b.Add("\t\t\ts.Close()\n")
-	b.Add("\t\t\tif errors.Is(err, io.EOF) {\n")
-	b.Add("\t\t\t\terr = nil\n")
-	b.Add("\t\t\t}\n")
-	b.Add("\t\t}\n")
-	b.Add("\t\treturn\n")
-	b.Add("\t}\n")
-	b.Add("\treturn s.processEvent(byts)\n")
-	b.Add("}\n\n")
-	return b.String()
-}
-
 func renderSSEClientReadEvent(implName string) string {
 	var b sourceBuilder
 	b.Add("// readEvent reads a single SSE event from the stream, respecting context\n")
@@ -214,21 +139,6 @@ func renderSSEClientCheckBuffer(implName string) string {
 	b.Add("\teventData := s.buffer\n")
 	b.Add("\ts.buffer = s.buffer[:0] // Clear buffer but keep capacity\n")
 	b.Add("\treturn eventData, false\n")
-	b.Add("}\n\n")
-	return b.String()
-}
-
-func renderSSEClientClose(implName string) string {
-	var b sourceBuilder
-	b.Addf("%s\n", codegen.Comment("Close closes the SSE stream and releases any associated resources."))
-	b.Addf("func (s *%s) Close() error {\n", implName)
-	b.Add("\ts.lock.Lock()\n")
-	b.Add("\tdefer s.lock.Unlock()\n")
-	b.Add("\tif s.closed {\n")
-	b.Add("\t\treturn nil\n")
-	b.Add("\t}\n")
-	b.Add("\ts.closed = true\n")
-	b.Add("\treturn s.resp.Body.Close()\n")
 	b.Add("}\n\n")
 	return b.String()
 }
@@ -886,7 +796,7 @@ func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.Id("event").Add(codegen.TypeRef(ed.SSE.EventTypeRef)), jen.Id("err").Error()).
 		BlockFunc(func(group *jen.Group) {
-			addRawWebSocketGroup(group, renderSSEClientRecvBody(ed))
+			addRawWebSocketGroup(group, renderSSEClientRecvBody())
 		})
 	stmt.Line()
 	stmt.Add(codegen.Expr(strings.TrimSpace(renderSSEClientReadEvent(implName))))
@@ -907,7 +817,7 @@ func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {
 	stmt.Line()
 }
 
-func renderSSEClientRecvBody(ed *EndpointData) string {
+func renderSSEClientRecvBody() string {
 	var b sourceBuilder
 	b.Add("var byts []byte\n")
 	b.Add("byts, err = s.readEvent(ctx)\n")
