@@ -441,13 +441,6 @@ func writeJSONRPCWebSocketBidirectionalRecv(g *jen.Group, ws *httpcodegen.WebSoc
 	g.If(jen.Id("oldestPending").Op("==").Nil()).Block(
 		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit(fmt.Sprintf("no pending requests - call %s() first", ws.SendName)))),
 	)
-	g.Switch().Block(
-		jen.Case(jen.Id("result").Op(":=").Op("<-").Id("oldestPending").Dot("resultChan")).Block(
-			jen.Id("s").Dot("pending").Dot("Delete").Call(jen.Id("oldestKey")),
-			jen.Id("oldestPending").Dot("timeout").Dot("Stop").Call(),
-			jen.Return(jen.Id("result").Dot("result"), jen.Id("result").Dot("err")),
-		),
-	)
 	g.Add(codegen.Expr(`select {
 case result := <-oldestPending.resultChan:
 	s.pending.Delete(oldestKey)
@@ -914,7 +907,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 						jen.Err().Op(":=").Id("conn").Dot("WriteControl").Call(
 							jen.Qual("github.com/gorilla/websocket", "PingMessage"),
 							jen.Index().Byte().Values(),
-							jen.Qual("time", "Now").Call().Add(jen.Lit(5).Op("*").Qual("time", "Second")),
+							jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Lit(5).Op("*").Qual("time", "Second")),
 						),
 						jen.Err().Op("==").Nil(),
 					).Block(
@@ -932,7 +925,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 						jen.Err().Op(":=").Id("c").Dot("conn").Dot("WriteControl").Call(
 							jen.Qual("github.com/gorilla/websocket", "PingMessage"),
 							jen.Index().Byte().Values(),
-							jen.Qual("time", "Now").Call().Add(jen.Lit(5).Op("*").Qual("time", "Second")),
+							jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Lit(5).Op("*").Qual("time", "Second")),
 						),
 						jen.Err().Op("==").Nil(),
 					).Block(

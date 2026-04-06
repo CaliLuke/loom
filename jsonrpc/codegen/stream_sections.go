@@ -537,7 +537,7 @@ func jsonrpcWebSocketServerCloseSection(data *httpcodegen.ServiceData) codegen.S
 							jen.Qual("github.com/gorilla/websocket", "CloseNormalClosure"),
 							jen.Lit("server closing connection"),
 						),
-						jen.Qual("time", "Now").Call().Add(jen.Qual("time", "Second")),
+						jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Qual("time", "Second")),
 					),
 					jen.Id("err").Op("!=").Nil(),
 				).Block(
@@ -612,7 +612,7 @@ func writeStreamResultBodyInit(g *jen.Group, targetName, resultVar string, ed *h
 func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, targetID jen.Code) {
 	writeDefault := func(group *jen.Group) {
 		group.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
-		group.If(jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("err").Assert(jen.Op("*").Qual("github.com/CaliLuke/loom/pkg", "ServiceError")), jen.Id("ok")).Block(
+		group.If(jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("err").Assert(jen.Op("*").Id("loom").Dot("ServiceError")), jen.Id("ok")).Block(
 			jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
 		)
 		group.Return(
@@ -620,7 +620,7 @@ func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, tar
 				jen.Id("ctx"),
 				targetID,
 				jen.Id("code"),
-				jen.Qual("github.com/CaliLuke/loom/pkg", "ErrorSafeMessage").Call(jen.Id("err")),
+				jen.Id("loom").Dot("ErrorSafeMessage").Call(jen.Id("err")),
 				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "NewErrorData").Call(jen.Id("err")),
 			),
 		)
@@ -642,7 +642,7 @@ func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, tar
 						jen.Id("ctx"),
 						targetID,
 						jen.Lit(e.Response.Code),
-						jen.Qual("github.com/CaliLuke/loom/pkg", "ErrorSafeMessage").Call(jen.Id("err")),
+						jen.Id("loom").Dot("ErrorSafeMessage").Call(jen.Id("err")),
 						jen.Qual("github.com/CaliLuke/loom/jsonrpc", "NewErrorData").Call(jen.Id("err")),
 					),
 				),
