@@ -34,7 +34,8 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) *ServiceData {
 	for _, endpointIR := range irService.Endpoints {
 		prepareEndpointProtoMessages(endpointIR, sd)
 		md := svc.Method(endpointIR.Name)
-		payloadRef, resultRef, viewedResultRef := endpointRefs(endpointIR, svc, md)
+		payloadDesc := service.BuildPayloadDescriptor(svc, md, endpointIR.Request.Payload)
+		resultDesc := service.BuildResultDescriptor(svc, md, endpointIR.Response.Result)
 		errors := d.buildErrorsData(endpointIR, sd)
 		collector.collectErrorMessages(endpointIR)
 		request := d.buildRequestData(endpointIR, svc, sd, collector)
@@ -46,9 +47,9 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) *ServiceData {
 			ServicePkgName:   svc.PkgName,
 			Method:           md,
 			PayloadType:      endpointIR.Request.Payload.Type,
-			PayloadRef:       payloadRef,
-			ResultRef:        resultRef,
-			ViewedResultRef:  viewedResultRef,
+			PayloadRef:       payloadDesc.Ref,
+			ResultRef:        resultDesc.Declared.Ref,
+			ViewedResultRef:  resultDesc.ViewedRef,
 			Request:          request,
 			Response:         response,
 			MessageSchemes:   msgSch,
@@ -141,20 +142,6 @@ func prepareEndpointProtoMessages(endpoint *transportir.Endpoint, sd *ServiceDat
 		}
 		grpcErr.Response.ProtoMessage = makeProtoBufMessage(grpcErr.Response.Message, protoBufify(endpoint.Name+"_"+grpcErr.Name+"_error", true, true), sd)
 	}
-}
-
-func endpointRefs(endpoint *transportir.Endpoint, svc *service.Data, md *service.MethodData) (string, string, string) {
-	var payloadRef, resultRef, viewedResultRef string
-	if endpoint.Request.Payload.Type != expr.Empty {
-		payloadRef = svc.Scope.GoFullTypeRef(endpoint.Request.Payload, pkgWithDefault(md.PayloadLoc, svc.PkgName))
-	}
-	if endpoint.Response.Result.Type != expr.Empty {
-		resultRef = svc.Scope.GoFullTypeRef(endpoint.Response.Result, pkgWithDefault(md.ResultLoc, svc.PkgName))
-	}
-	if md.ViewedResult != nil {
-		viewedResultRef = md.ViewedResult.FullRef
-	}
-	return payloadRef, resultRef, viewedResultRef
 }
 
 func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *service.Data, sd *ServiceData, collector *messageCollector) *RequestData {

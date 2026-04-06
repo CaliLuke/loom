@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/internal/transportir"
 )
@@ -30,7 +31,7 @@ func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, m
 	}
 
 	svc := sd.Service
-	pkg := pkgWithDefault(svc.Method(endpoint.Name).PayloadLoc, svc.PkgName)
+	pkg := service.DefaultPackageName(svc.Method(endpoint.Name).PayloadLoc, svc.PkgName)
 	svcCtx := serviceTypeContext(pkg, svc.Scope)
 	if svr {
 		// server side
@@ -209,6 +210,7 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 // inferred from the method's error expression if not specified explicitly.
 func (d *ServicesData) buildErrorsData(endpoint *transportir.Endpoint, sd *ServiceData) []*ErrorData {
 	svc := sd.Service
+	method := svc.Method(endpoint.Name)
 	errors := make([]*ErrorData, 0, len(endpoint.Errors))
 	for _, v := range endpoint.Errors {
 		responseData := &ResponseData{
@@ -217,10 +219,10 @@ func (d *ServicesData) buildErrorsData(endpoint *transportir.Endpoint, sd *Servi
 			ServerConvert: d.buildErrorConvertData(v, endpoint, sd, true),
 			ClientConvert: d.buildErrorConvertData(v, endpoint, sd, false),
 		}
-		errorLoc := svc.Method(endpoint.Name).ErrorLocs[v.Name]
+		errorDesc := service.BuildErrorDescriptor(svc, method, v.Name, v.Attribute)
 		errors = append(errors, &ErrorData{
 			Name:     v.Name,
-			Ref:      svc.Scope.GoFullTypeRef(v.Attribute, pkgWithDefault(errorLoc, svc.PkgName)),
+			Ref:      errorDesc.Type.Ref,
 			Response: responseData,
 		})
 	}

@@ -5,13 +5,13 @@ The `loom` framework's core strength is its "design-first" approach, providing a
 
 Recent refactoring efforts have made significant progress in breaking down massive "God Files" into smaller, more focused files, and migrating code generation from brittle string concatenation towards safer AST-based generation (`jennifer`). 
 
-However, this review needs one important correction: the repo is no longer uniformly missing an IR boundary. HTTP generation now has a real `transportir` layer, and JSON-RPC already reuses large portions of HTTP codegen data and rendering. The highest-value remaining architectural gap is now narrower and more actionable: gRPC still lacks the same IR boundary and still performs substantial endpoint shaping directly against `expr` structures, including in-place mutation of generated message state. That transport-analysis duplication is now the best target for improving development speed.
+Additionally, the framework has successfully introduced a `transportir` (Intermediate Representation) boundary across both HTTP and gRPC transport layers! This separates the AST extraction from the code shaping, drastically narrowing the architectural gap. The next highest-value architectural target is sharing transport analysis capabilities across these IR-driven boundaries.
 
 ## 2. Issue Checklist
 
 ### Structural Coupling & Abstraction
-- [~] **MEDIUM** - The "God File" & Missing Abstractions (HTTP improved; gRPC still lacks IR boundary)
-- [ ] **CRITICAL** - Parallel Architecture Duplication (Primary gap now HTTP/JSON-RPC analysis model vs. gRPC)
+- [x] **LOW** - The "God File" & Missing Abstractions (IR boundaries implemented across HTTP and gRPC)
+- [~] **HIGH** - Parallel Architecture Duplication (Shared transport analysis kernel implemented; transport-specific shaping intentionally remains local)
 - [~] **LOW** - Deeply Coupled Template Logic & String Concatenation (Migration to AST generation almost complete)
 
 ### State Management & Observability
@@ -26,23 +26,22 @@ However, this review needs one important correction: the repo is no longer unifo
 ## 3. Detailed Findings & Roadmap
 
 ### Finding 1: The "God File" & Missing Abstractions
-- **Severity:** MEDIUM
+- **Severity:** LOW (Reduced from CRITICAL)
 - **Location:** `http/codegen/service_data*.go`, `grpc/codegen/service_data*.go`.
-- **Architectural Failure Mode:** These files used to be massive 1,800+ line God Files. Recent refactoring has physically split them into smaller, focused files, which is a major improvement. HTTP has progressed further than this document originally captured: `http/codegen/service_data_analysis.go` now starts from `http/codegen/internal/transportir`, and OpenAPI code also consumes that IR. The remaining abstraction gap is concentrated in gRPC, where `grpc/codegen/service_data_analysis.go` still mixes service naming, message conversion, request/response shaping, security partitioning, and stream handling directly against `expr.GRPCEndpointExpr`.
+- **Architectural Failure Mode:** These files used to be massive 1,800+ line God Files. Recent refactoring has physically split them into smaller, focused files, which is a major improvement. Furthermore, both HTTP and gRPC now utilize a unified `transportir` (Intermediate Representation) boundary to separate AST extraction from Go-specific template shaping. 
 - **Suggestion:**
-  1. **Split Phase / Extract Class:** Keep the HTTP/OpenAPI `transportir` direction. Do not restart this work generically.
-  2. **Apply Same Boundary to gRPC:** Introduce `grpc/codegen/internal/transportir` and make gRPC analysis build endpoint data from IR rather than from live `expr` mutation.
-- **Status:** [~] In Progress (HTTP/OpenAPI done; gRPC pending)
+  1. **Split Phase / Extract Class:** The extraction of the AST into an Intermediate Representation (IR) is now fully separated from the code that shapes it for Go templates across major transport layers.
+- **Status:** [x] Complete
 
 ### Finding 2: Parallel Architecture Duplication
-- **Severity:** CRITICAL
+- **Severity:** HIGH (Reduced from CRITICAL)
 - **Location:** `http/codegen/...`, `grpc/codegen/...`, and `jsonrpc/codegen/...`.
-- **Architectural Failure Mode:** This finding also needs refinement. JSON-RPC is not a fully separate parallel implementation anymore; it already leans heavily on `http/codegen` service data, section reuse, and source rewriting. The remaining expensive duplication is between the HTTP/JSON-RPC analysis path and the gRPC analysis path. Adding a capability that affects endpoint shaping, request/result mapping, or stream metadata still risks parallel work in two different architectural styles.
+- **Architectural Failure Mode:** JSON-RPC already leans heavily on `http/codegen` service data, section reuse, and source rewriting. The expensive duplication used to be capability selection logic spread across HTTP/JSON-RPC and gRPC analysis. That duplication is now materially reduced: both transports consume shared service-layer descriptors for package selection, payload/result resolution, viewed-result projection, error type resolution, stream capability facts, and request/response wrapper capability checks. The remaining duplication is now mostly transport-specific by design: HTTP body/status/header/cookie shaping and gRPC protobuf/metadata shaping.
 - **Suggestion:**
-  1. **Do Not Start with Generic IoC:** A full plugin architecture is too broad for first move and would create high churn.
-  2. **Create Shared Transport Analysis Kernel:** Standardize on `transportir`-style analysis first, then share capability builders across HTTP, OpenAPI, JSON-RPC, and gRPC where transport concepts actually match.
-  3. **Top Refactor for Speed:** Prioritize gRPC adoption of the IR boundary. This is best leverage point for reducing repeated feature work.
-- **Status:** [ ] Pending (problem narrowed; recommended first step changed)
+  1. **Do Not Start with Generic IoC:** A full plugin architecture is still too broad and still wrong as a first move.
+  2. **Keep Growing the Shared Transport Analysis Kernel:** Future cross-transport capability work should start in `codegen/service/transport_descriptors.go` and only fall back to transport-specific code where the concepts truly diverge.
+  3. **Leave Transport-Specific Shaping Local:** HTTP response/body/status logic and gRPC protobuf/metadata logic should remain local unless a second concrete consumer appears.
+- **Status:** [~] In Progress (shared kernel implemented and used by HTTP/gRPC; transport-specific shaping remains intentionally local)
 
 ### Finding 3: Global State in the Generator
 - **Severity:** CRITICAL
@@ -82,11 +81,11 @@ Treating the framework as a compiler (Frontend -> AST -> Backend), these pure ar
 
 ### 4.2 Isolate the Intermediate Representation (IR)
 - **The Problem:** Generator data structures attempt to hold broad cross-output state, creating deep coupling (Feature Envy) between templates and the global AST.
-- **The Fix:** Continue current direction. HTTP already has this boundary via `transportir`; next step is to extend same pattern to gRPC and make shared capability logic depend on IR, not on transport-specific `expr` mutation.
+- **The Fix:** Both HTTP and gRPC now implement this boundary via `transportir`, and the shared capability logic now lives in `codegen/service` over `service.Data`, `service.MethodData`, and concrete attrs rather than transport-specific `expr` traversal.
 
 ### 4.3 Inversion of Control (IoC) via a Plugin Architecture
 - **The Problem:** The core generation engine is tightly coupled to specific target outputs (HTTP, gRPC, OpenAPI).
-- **The Fix:** Keep this as a later-stage cleanup, not first refactor. Current generator/plugin state has debt, but immediate speed gains come from converging transports onto shared analysis structures before broadening the execution model.
+- **The Fix:** Keep this as a later-stage cleanup, not first refactor. Immediate speed gains come from converging transports onto shared analysis structures before broadening the execution model.
 
 ### 4.4 Separate Semantic Analysis from AST Definitions
 - **The Problem:** The `expr` package violates the Single Responsibility Principle by defining both AST data shape and complex validation/evaluation logic.
@@ -100,13 +99,17 @@ Treating the framework as a compiler (Frontend -> AST -> Backend), these pure ar
 
 ## 5. Updated Highest-Value Refactor
 
-### Recommendation: Bring gRPC onto `transportir`, then share transport analysis helpers
+### Recommendation: Share transport analysis helpers across `transportir` boundaries
 
-- **Why this is best move now:** HTTP has already proven the pattern. JSON-RPC already benefits from HTTP reuse. gRPC is remaining outlier.
-- **Expected speed gain:** New transport-level features stop requiring one implementation in IR-driven HTTP/OpenAPI/JSON-RPC style and another in direct-`expr` gRPC style.
-- **Concrete first slice:**
-  1. Add `grpc/codegen/internal/transportir` with only fields gRPC needs.
-  2. Replace in-place endpoint message mutation with IR construction.
-  3. Refactor `grpc/codegen/service_data_analysis.go` to `BuildServiceIR -> buildEndpointDataFromIR -> render`.
-  4. Add seam tests around IR builders before changing broad golden coverage.
-- **Do not do first:** full plugin/IoC rewrite, repo-wide `slog` sweep, or global-state purge.
+- **Why this is best move now:** Both HTTP and gRPC have successfully adopted the `transportir` intermediate representation, and they now share a real analysis kernel in `codegen/service`.
+- **Implemented shared entrypoints:**
+  1. `service.DefaultPackageName`
+  2. `service.BuildPayloadDescriptor`
+  3. `service.BuildResultDescriptor`
+  4. `service.BuildErrorDescriptor`
+  5. `service.BuildStreamDescriptor`
+  6. `service.DescribeStream`
+  7. `service.DescribeMethodCapabilities`
+- **Current payoff:** New cross-transport capability work starts in one shared place for package/type/view/stream/error/wrapper decisions before fanning out into HTTP or gRPC rendering.
+- **Deliberate survivors:** HTTP body/status shaping, SSE/WebSocket envelope details, and gRPC protobuf/metadata shaping remain local.
+- **Do not do next:** full plugin/IoC rewrite, repo-wide `slog` sweep, or global-state purge.

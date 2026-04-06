@@ -115,13 +115,14 @@ func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint
 		}
 		args = append(args, arg)
 	}
-	pkg := pkgWithDefault(method.PayloadLoc, svc.PkgName)
+	caps := service.DescribeMethodCapabilities(method)
+	pkg := service.DefaultPackageName(method.PayloadLoc, svc.PkgName)
 	payloadRef := ""
 	if len(routes[0].PathInit.ClientArgs) > 0 && endpointIR.Request.Payload.Type != expr.Empty {
 		payloadRef = svc.Scope.GoFullTypeRef(endpointIR.Request.Payload, pkg)
 	}
 	requestStruct := ""
-	if endpointIR.Request.SkipBodyEncode {
+	if caps.HasRequestStruct {
 		requestStruct = pkg + "." + method.RequestStruct
 	}
 	code := renderRequestInitCode(

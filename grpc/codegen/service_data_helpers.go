@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/internal/transportir"
 )
@@ -78,21 +79,11 @@ func serviceTypeContext(pkg string, scope *codegen.NameScope) *codegen.Attribute
 func resultContext(endpoint *transportir.Endpoint, sd *ServiceData) (*expr.AttributeExpr, *codegen.AttributeContext) {
 	svc := sd.Service
 	md := svc.Method(endpoint.Name)
-	if md.ViewedResult != nil {
-		vresAtt := expr.AsObject(md.ViewedResult.Type).Attribute("projected")
-		// return projected type context
-		return vresAtt, codegen.NewAttributeContext(true, false, true, svc.ViewsPkg, svc.ViewScope)
+	desc := service.BuildResultDescriptor(svc, md, endpoint.Response.Result)
+	if desc.UsesViewedResult {
+		return desc.Effective.Attribute, codegen.NewAttributeContext(true, false, true, desc.Effective.Package, svc.ViewScope)
 	}
-	pkg := pkgWithDefault(md.ResultLoc, svc.PkgName)
-	return endpoint.Response.Result, serviceTypeContext(pkg, svc.Scope)
-}
-
-// pkgWithDefault returns the package name of the given location if not nil, def otherwise.
-func pkgWithDefault(loc *codegen.Location, def string) string {
-	if loc == nil {
-		return def
-	}
-	return loc.PackageName()
+	return desc.Effective.Attribute, serviceTypeContext(desc.Effective.Package, svc.Scope)
 }
 
 // getPrimitive returns the primitive expression if the given expression is an alias to one

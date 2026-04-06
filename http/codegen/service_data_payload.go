@@ -34,7 +34,7 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 	payload := endpointIR.Request.Payload
 	svc := sd.Service
 	ep := svc.Method(endpointIR.MethodName)
-	pkg := pkgWithDefault(ep.PayloadLoc, svc.PkgName)
+	pkg := service.DefaultPackageName(ep.PayloadLoc, svc.PkgName)
 	bodyAttr := endpointIR.Request.Body
 	body := expr.DataType(expr.Empty)
 	if bodyAttr != nil {
@@ -60,23 +60,16 @@ func (b *payloadBuilder) build() *PayloadData {
 	request, mapQueryParam := b.buildRequestData()
 	init := b.buildInit(request)
 	request.PayloadInit = init
-	name, ref := buildPayloadMetadata(b.svc, b.payload, b.pkg)
+	payloadDesc := service.BuildPayloadDescriptor(b.svc, b.ep, b.payload)
 	returnValue := buildPayloadDecoderReturnValue(b.endpointIR.Request, init, mapQueryParam)
 	data := &PayloadData{
-		Name:               name,
-		Ref:                ref,
+		Name:               payloadDesc.Name,
+		Ref:                payloadDesc.Ref,
 		Request:            request,
 		DecoderReturnValue: returnValue,
 	}
 	data.IDAttribute, data.IDAttributeRequired = buildPayloadIDData(b.endpointIR.Request, b.payload)
 	return data
-}
-
-func buildPayloadMetadata(svc *service.Data, payload *expr.AttributeExpr, pkg string) (string, string) {
-	if payload.Type == expr.Empty {
-		return "", ""
-	}
-	return svc.Scope.GoFullTypeName(payload, pkg), svc.Scope.GoFullTypeRef(payload, pkg)
 }
 
 func buildPayloadDecoderReturnValue(request *transportir.Request, init *InitData, mapQueryParam *ParamData) string {

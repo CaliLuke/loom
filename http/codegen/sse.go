@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
@@ -70,22 +71,21 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 	}
 	md := ed.Method
 	svc := sd.Service
+	caps := service.DescribeMethodCapabilities(md)
 
 	// Use streaming result type if different from result
-	var eventType *ResultData
-	var eventAttr *expr.AttributeExpr
-	if endpointIR.Response.HasMixedResults && endpointIR.Response.StreamingResult != nil {
-		// For mixed results, use StreamingResult for SSE events
+	eventAttr := endpointIR.Response.Result
+	if caps.HasMixedResults && endpointIR.Response.StreamingResult != nil {
 		eventAttr = endpointIR.Response.StreamingResult
-		eventType = &ResultData{
-			Name:     md.StreamingResult,
-			Ref:      sd.Service.Scope.GoFullTypeRef(eventAttr, svc.PkgName),
-			IsStruct: expr.IsObject(eventAttr.Type),
-		}
-	} else {
-		// Use Result for SSE events (backward compatibility)
+	}
+	streamDesc := service.BuildStreamDescriptor(svc, md, nil, eventAttr)
+	eventType := &ResultData{
+		Name:     streamDesc.Result.Declared.Name,
+		Ref:      streamDesc.Result.Declared.Ref,
+		IsStruct: expr.IsObject(eventAttr.Type),
+	}
+	if !caps.HasMixedResults {
 		eventType = ed.Result
-		eventAttr = endpointIR.Response.Result
 	}
 
 	sendDesc := fmt.Sprintf("%s streams instances of %q to the %q endpoint SSE connection.", md.ServerStream.SendName, eventType.Name, md.Name)
@@ -134,7 +134,7 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 	// Mixed results SSE uses the streaming result type for events, not the unary
 	// HTTP response body type. Disable HTTP response body conversion in the SSE
 	// stream implementation and marshal the event value directly.
-	if endpointIR.Response.HasMixedResults {
+	if caps.HasMixedResults {
 		ed.SSE.HasResponseBody = false
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -27,7 +28,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		svc     = sd.Service
 		httpctx = httpContext(sd.Scope, true, svr)
 		ep      = sd.Service.Method(endpointName)
-		pkg     = pkgWithDefault(ep.PayloadLoc, sd.Service.PkgName)
+		pkg     = service.DefaultPackageName(ep.PayloadLoc, sd.Service.PkgName)
 		svcctx  = serviceContext(pkg, sd.Service.Scope)
 	)
 	name = body.Type.Name()
@@ -83,7 +84,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		return nil
 	}
 	httpctx := httpContext(sd.Scope, false, svr)
-	pkg := pkgWithDefault(loc, sd.Service.PkgName)
+	pkg := service.DefaultPackageName(loc, sd.Service.PkgName)
 	svcctx := serviceContext(pkg, sd.Service.Scope)
 	body, viewName := projectResponseBodyView(body, view, svr, sd)
 	data := initResponseBodyTypeData(body, att, sd)

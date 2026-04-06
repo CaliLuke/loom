@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
@@ -81,7 +82,8 @@ func (sds *ServicesData) initWebSocketData(ed *EndpointData, endpointIR *transpo
 	}
 	md := ed.Method
 	svc := sd.Service
-	stream := buildWebSocketStreamData(sds, endpointIR, sd)
+	streamDesc := service.BuildStreamDescriptor(svc, md, endpointIR.Stream.RequestPayload, endpointIR.Response.Result)
+	stream := buildWebSocketStreamData(sds, endpointIR, sd, streamDesc)
 	serverMeta, clientMeta := describeWebSocketDirections(ed, endpointIR, stream.serverRecvTypeName)
 	ed.ServerWebSocket = &WebSocketData{
 		VarName:             md.ServerStream.VarName,
@@ -146,13 +148,13 @@ type websocketDirectionDescriptions struct {
 	recvWithContextDesc string
 }
 
-func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData) *websocketInitData {
+func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData, streamDesc service.StreamDescriptor) *websocketInitData {
 	data := &websocketInitData{}
-	if endpointIR.Stream.Kind != expr.ClientStreamKind && endpointIR.Stream.Kind != expr.BidirectionalStreamKind {
+	if !streamDesc.HasPayload {
 		return data
 	}
-	data.serverRecvTypeName = sd.Scope.GoFullTypeName(endpointIR.Stream.RequestPayload, sd.Service.PkgName)
-	data.serverRecvTypeRef = sd.Scope.GoFullTypeRef(endpointIR.Stream.RequestPayload, sd.Service.PkgName)
+	data.serverRecvTypeName = streamDesc.Payload.Name
+	data.serverRecvTypeRef = streamDesc.Payload.Ref
 	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, true, sd)
 	if needInit(endpointIR.Stream.RequestPayload.Type) {
 		initWebSocketPayloadConstructor(data.serverPayload, sds, endpointIR, sd)

@@ -44,45 +44,30 @@ func newResultBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *S
 		sd:       sd,
 		svc:      svc,
 		method:   method,
-		pkg:      pkgWithDefault(method.ResultLoc, svc.PkgName),
+		pkg:      service.DefaultPackageName(method.ResultLoc, svc.PkgName),
 		result:   endpointIR.Response.Result,
 	}
 }
 
 func (b *resultBuilder) build() *ResultData {
-	name, ref, view := buildResultMetadata(b.svc, b.result, b.pkg)
-	responses, mustInit, result := b.buildResponsesData()
+	resultDesc := service.BuildResultDescriptor(b.svc, b.method, b.result)
+	responses, mustInit, result := b.buildResponsesData(resultDesc)
 	idAtt, idAttRequired := buildResultIDData(b.endpoint.Response, result)
 	return &ResultData{
 		IsStruct:            expr.IsObject(result.Type),
-		Name:                name,
-		Ref:                 ref,
+		Name:                resultDesc.Declared.Name,
+		Ref:                 resultDesc.Declared.Ref,
 		IDAttribute:         idAtt,
 		IDAttributeRequired: idAttRequired,
 		Responses:           responses,
-		View:                view,
+		View:                resultDesc.View,
 		MustInit:            mustInit,
 	}
 }
 
-func buildResultMetadata(svc *service.Data, result *expr.AttributeExpr, pkg string) (string, string, string) {
-	view := expr.DefaultView
-	if v, ok := result.Meta.Last(expr.ViewMetaKey); ok {
-		view = v
-	}
-	if result.Type == expr.Empty {
-		return "", "", view
-	}
-	return svc.Scope.GoFullTypeName(result, pkg), svc.Scope.GoFullTypeRef(result, pkg), view
-}
-
-func (b *resultBuilder) buildResponsesData() ([]*ResponseData, bool, *expr.AttributeExpr) {
-	result := b.result
-	viewed := false
-	if b.method.ViewedResult != nil {
-		result = expr.AsObject(b.method.ViewedResult.Type).Attribute("projected")
-		viewed = true
-	}
+func (b *resultBuilder) buildResponsesData(resultDesc service.ResultDescriptor) ([]*ResponseData, bool, *expr.AttributeExpr) {
+	result := resultDesc.Effective.Attribute
+	viewed := resultDesc.UsesViewedResult
 	responses := b.sds.buildResponsesFromIR(b.endpoint, result, viewed, b.sd)
 	mustInit := false
 	for _, r := range responses {
@@ -150,11 +135,12 @@ func (b *errorBuilder) build() []*ErrorGroupData {
 
 func (b *errorBuilder) buildSingle(errorResponse *transportir.ResponseStatus) (string, *ErrorData) {
 	httpError := errorResponse.Error
-	pkg := pkgWithDefault(b.method.ErrorLocs[httpError.Name], b.svc.PkgName)
+	errorDesc := service.BuildErrorDescriptor(b.svc, b.method, httpError.Name, httpError.Attribute)
+	pkg := errorDesc.Type.Package
 	errctx := serviceContext(pkg, b.sd.Service.Scope)
 	init := b.buildResultInit(errorResponse, pkg, errctx)
 	responseData := b.buildResponseData(errorResponse, errctx, init)
-	ref := b.svc.Scope.GoFullTypeRef(httpError.Attribute, pkg)
+	ref := errorDesc.Type.Ref
 	return ref, &ErrorData{Name: httpError.Name, Response: responseData, Ref: ref}
 }
 
@@ -246,7 +232,7 @@ func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, 
 
 		svc        = sd.Service
 		md         = svc.Method(endpointIR.Name)
-		pkg        = pkgWithDefault(md.ResultLoc, svc.PkgName)
+		pkg        = service.DefaultPackageName(md.ResultLoc, svc.PkgName)
 		httpclictx = httpContext(sd.Scope, false, false)
 		scope      = svc.Scope
 		svcctx     = serviceContext(pkg, sd.Service.Scope)

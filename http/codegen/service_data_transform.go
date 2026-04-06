@@ -33,14 +33,6 @@ func viewContext(pkg string, scope *codegen.NameScope) *codegen.AttributeContext
 	return codegen.NewAttributeContext(true, false, true, pkg, scope)
 }
 
-// pkgWithDefault returns the package name of the given location if not nil, def otherwise.
-func pkgWithDefault(loc *codegen.Location, def string) string {
-	if loc == nil {
-		return def
-	}
-	return loc.PackageName()
-}
-
 // unmarshal initializes a data structure defined by target type from a data
 // structure defined by source type. The attributes in the source data
 // structure are pointers and the attributes in the target data structure that

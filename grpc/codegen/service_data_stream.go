@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/internal/transportir"
 )
@@ -15,24 +16,25 @@ func (d *ServicesData) buildStreamData(endpoint *transportir.Endpoint, sd *Servi
 	svc := sd.Service
 	ed := sd.Endpoint(endpoint.Name)
 	md := ed.Method
+	streamDesc := service.BuildStreamDescriptor(svc, md, endpoint.Request.StreamingPayload, endpoint.Response.Result)
 	svcCtx := serviceTypeContext(svc.PkgName, svc.Scope)
 	result, resCtx := resultContext(endpoint, sd)
 	resVar := "result"
-	if md.ViewedResult != nil {
+	if streamDesc.Result.UsesViewedResult {
 		resVar = "vresult"
 	}
 
 	var data *StreamData
 	if svr {
-		data = d.buildServerStreamData(endpoint, sd, svcCtx, resCtx, result, resVar)
+		data = d.buildServerStreamData(endpoint, sd, svcCtx, resCtx, result, resVar, streamDesc)
 	} else {
-		data = d.buildClientStreamData(endpoint, sd, svcCtx, resCtx, result, resVar)
+		data = d.buildClientStreamData(endpoint, sd, svcCtx, resCtx, result, resVar, streamDesc)
 	}
 	describeStreamData(data, md.Name)
 	return data
 }
 
-func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd *ServiceData, svcCtx, resCtx *codegen.AttributeContext, result *expr.AttributeExpr, resVar string) *StreamData {
+func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd *ServiceData, svcCtx, resCtx *codegen.AttributeContext, result *expr.AttributeExpr, resVar string, streamDesc service.StreamDescriptor) *StreamData {
 	ed := sd.Endpoint(endpoint.Name)
 	md := ed.Method
 	data := &StreamData{
@@ -43,7 +45,7 @@ func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd 
 		Endpoint:         ed,
 		MustClose:        md.ServerStream.MustClose,
 	}
-	if endpoint.Response.Result.Type != expr.Empty {
+	if streamDesc.HasResult {
 		data.SendName = md.ServerStream.SendName
 		data.SendWithContextName = md.ServerStream.SendWithContextName
 		data.SendRef = ed.ResultRef
@@ -55,10 +57,10 @@ func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd 
 			Init:    d.buildInitData(result, endpoint.Response.ProtoMessage, resVar, "v", resCtx, true, true, true, sd),
 		}
 	}
-	if endpoint.Request.StreamingPayload.Type != expr.Empty {
+	if streamDesc.HasPayload {
 		data.RecvName = md.ServerStream.RecvName
 		data.RecvWithContextName = md.ServerStream.RecvWithContextName
-		data.RecvRef = svcCtx.Scope.Ref(endpoint.Request.StreamingPayload, svcCtx.Pkg(endpoint.Request.StreamingPayload))
+		data.RecvRef = streamDesc.Payload.Ref
 		data.RecvConvert = &ConvertData{
 			SrcName:    protoBufGoFullTypeName(endpoint.Request.ProtoStreamingInput, sd.PkgName, sd.Scope),
 			SrcRef:     protoBufGoFullTypeRef(endpoint.Request.ProtoStreamingInput, sd.PkgName, sd.Scope),
@@ -71,7 +73,7 @@ func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd 
 	return data
 }
 
-func (d *ServicesData) buildClientStreamData(endpoint *transportir.Endpoint, sd *ServiceData, svcCtx, resCtx *codegen.AttributeContext, result *expr.AttributeExpr, resVar string) *StreamData {
+func (d *ServicesData) buildClientStreamData(endpoint *transportir.Endpoint, sd *ServiceData, svcCtx, resCtx *codegen.AttributeContext, result *expr.AttributeExpr, resVar string, streamDesc service.StreamDescriptor) *StreamData {
 	ed := sd.Endpoint(endpoint.Name)
 	md := ed.Method
 	data := &StreamData{
@@ -82,10 +84,10 @@ func (d *ServicesData) buildClientStreamData(endpoint *transportir.Endpoint, sd 
 		Endpoint:         ed,
 		MustClose:        md.ClientStream.MustClose,
 	}
-	if endpoint.Request.StreamingPayload.Type != expr.Empty {
+	if streamDesc.HasPayload {
 		data.SendName = md.ClientStream.SendName
 		data.SendWithContextName = md.ClientStream.SendWithContextName
-		data.SendRef = svcCtx.Scope.Ref(endpoint.Request.StreamingPayload, svcCtx.Pkg(endpoint.Request.StreamingPayload))
+		data.SendRef = streamDesc.Payload.Ref
 		data.SendConvert = &ConvertData{
 			SrcName: svcCtx.Scope.Name(endpoint.Request.StreamingPayload, svcCtx.Pkg(endpoint.Request.StreamingPayload), svcCtx.Pointer, svcCtx.UseDefault),
 			SrcRef:  data.SendRef,
@@ -94,7 +96,7 @@ func (d *ServicesData) buildClientStreamData(endpoint *transportir.Endpoint, sd 
 			Init:    d.buildInitData(endpoint.Request.StreamingPayload, endpoint.Request.ProtoStreamingInput, "spayload", "v", svcCtx, true, false, true, sd),
 		}
 	}
-	if endpoint.Response.Result.Type != expr.Empty {
+	if streamDesc.HasResult {
 		data.RecvName = md.ClientStream.RecvName
 		data.RecvWithContextName = md.ClientStream.RecvWithContextName
 		data.RecvRef = ed.ResultRef
