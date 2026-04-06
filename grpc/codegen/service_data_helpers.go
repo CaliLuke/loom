@@ -3,6 +3,7 @@ package codegen
 import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/grpc/codegen/internal/transportir"
 )
 
 // extractMetadata collects the request/response metadata from the given
@@ -74,16 +75,16 @@ func serviceTypeContext(pkg string, scope *codegen.NameScope) *codegen.Attribute
 
 // resultContext returns the method result attribute and the result context for the given
 // endpoint.
-func resultContext(e *expr.GRPCEndpointExpr, sd *ServiceData) (*expr.AttributeExpr, *codegen.AttributeContext) {
+func resultContext(endpoint *transportir.Endpoint, sd *ServiceData) (*expr.AttributeExpr, *codegen.AttributeContext) {
 	svc := sd.Service
-	md := svc.Method(e.Name())
+	md := svc.Method(endpoint.Name)
 	if md.ViewedResult != nil {
 		vresAtt := expr.AsObject(md.ViewedResult.Type).Attribute("projected")
 		// return projected type context
 		return vresAtt, codegen.NewAttributeContext(true, false, true, svc.ViewsPkg, svc.ViewScope)
 	}
 	pkg := pkgWithDefault(md.ResultLoc, svc.PkgName)
-	return e.MethodExpr.Result, serviceTypeContext(pkg, svc.Scope)
+	return endpoint.Response.Result, serviceTypeContext(pkg, svc.Scope)
 }
 
 // pkgWithDefault returns the package name of the given location if not nil, def otherwise.

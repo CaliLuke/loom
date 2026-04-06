@@ -77,27 +77,9 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 
 func (sds *ServicesData) buildRequirementSchemes(endpointIR *transportir.Endpoint) (service.RequirementsData, service.SchemesData, service.SchemesData, service.SchemesData, *service.SchemeData) {
 	reqs, allSchemes := service.BuildRequirementsData(endpointIR.Security.Requirements, &expr.MethodExpr{Payload: endpointIR.Request.Payload})
-	var (
-		headerSchemes service.SchemesData
-		bodySchemes   service.SchemesData
-		querySchemes  service.SchemesData
-		basicScheme   *service.SchemeData
-	)
-	for _, scheme := range allSchemes {
-		switch scheme.Type {
-		case "Basic":
-			basicScheme = scheme
-		default:
-			switch scheme.In {
-			case "query":
-				querySchemes = querySchemes.Append(scheme)
-			case "header":
-				headerSchemes = headerSchemes.Append(scheme)
-			default:
-				bodySchemes = bodySchemes.Append(scheme)
-			}
-		}
-	}
+	basicScheme, grouped, bodySchemes := service.PartitionSchemesByIn(allSchemes)
+	headerSchemes := grouped["header"]
+	querySchemes := grouped["query"]
 	return reqs, headerSchemes, bodySchemes, querySchemes, basicScheme
 }
 

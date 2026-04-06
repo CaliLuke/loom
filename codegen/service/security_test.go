@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestSecureEndpointInit(t *testing.T) {
@@ -37,6 +38,47 @@ func TestSecureEndpointInit(t *testing.T) {
 			assert.Equal(t, c.Code, code)
 		})
 	}
+}
+
+func TestExpandRequirementSchemesPreservesTransportLocation(t *testing.T) {
+	base := RequirementsData{
+		&RequirementData{
+			Schemes: SchemesData{
+				&SchemeData{SchemeName: "jwt", Type: "JWT", In: "header"},
+				&SchemeData{SchemeName: "oauth2", Type: "OAuth2", In: "query"},
+			},
+		},
+	}
+	requirements := []*expr.SecurityExpr{
+		{Schemes: []*expr.SchemeExpr{
+			{SchemeName: "jwt", In: "metadata"},
+			{SchemeName: "oauth2", In: "message"},
+		}},
+	}
+
+	schemes := ExpandRequirementSchemes(requirements, base)
+	require.Len(t, schemes, 2)
+	assert.Equal(t, "metadata", schemes[0].In)
+	assert.Equal(t, "message", schemes[1].In)
+}
+
+func TestPartitionSchemesByIn(t *testing.T) {
+	schemes := SchemesData{
+		&SchemeData{SchemeName: "basic", Type: "Basic"},
+		&SchemeData{SchemeName: "jwt", Type: "JWT", In: "header"},
+		&SchemeData{SchemeName: "oauth", Type: "OAuth2", In: "query"},
+		&SchemeData{SchemeName: "session", Type: "APIKey"},
+	}
+
+	basic, grouped, fallback := PartitionSchemesByIn(schemes)
+	require.NotNil(t, basic)
+	assert.Equal(t, "basic", basic.SchemeName)
+	require.Len(t, grouped["header"], 1)
+	assert.Equal(t, "jwt", grouped["header"][0].SchemeName)
+	require.Len(t, grouped["query"], 1)
+	assert.Equal(t, "oauth", grouped["query"][0].SchemeName)
+	require.Len(t, fallback, 1)
+	assert.Equal(t, "session", fallback[0].SchemeName)
 }
 
 func TestSessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {

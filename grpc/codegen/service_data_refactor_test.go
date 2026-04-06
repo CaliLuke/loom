@@ -7,6 +7,8 @@ import (
 
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/grpc/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
@@ -76,6 +78,37 @@ func TestAnalyzeAttachesStreamDataToStreamingEndpoints(t *testing.T) {
 	require.Equal(t, endpoint, endpoint.ClientStream.Endpoint)
 	require.NotEmpty(t, endpoint.ServerStream.VarName)
 	require.NotEmpty(t, endpoint.ClientStream.VarName)
+}
+
+func TestAnalyzeDoesNotMutateEndpointExprMessages(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.UnaryRPCWithErrorsDSL)
+	grpcEndpoint := root.API.GRPC.Services[0].GRPCEndpoints[0]
+
+	require.Equal(t, expr.StringKind, grpcEndpoint.Request.Type.Kind())
+	require.Equal(t, expr.StringKind, grpcEndpoint.Response.Message.Type.Kind())
+
+	services := CreateGRPCServices(root)
+	require.NotNil(t, services.Get("ServiceUnaryRPCWithErrors"))
+
+	require.Equal(t, expr.StringKind, grpcEndpoint.Request.Type.Kind())
+	require.Equal(t, expr.StringKind, grpcEndpoint.Response.Message.Type.Kind())
+}
+
+func TestPrepareEndpointProtoMessagesBuildsStableProtoNames(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.UnaryRPCWithErrorsDSL)
+	services := CreateGRPCServices(root)
+	sd := services.Get("ServiceUnaryRPCWithErrors")
+	require.NotNil(t, sd)
+
+	endpointIR := transportir.BuildService(root.API.GRPC.Services[0]).Endpoints[0]
+	prepareEndpointProtoMessages(endpointIR, sd)
+
+	require.Equal(t, "MethodUnaryRPCWithErrorsRequest", protoBufGoTypeName(endpointIR.Request.ProtoMessage, sd.Scope))
+	require.Equal(t, "MethodUnaryRPCWithErrorsResponse", protoBufGoTypeName(endpointIR.Response.ProtoMessage, sd.Scope))
+	require.Nil(t, endpointIR.Request.ProtoStreamingInput)
+	require.Equal(t, "timeout", endpointIR.Errors[0].Name)
+	require.Nil(t, endpointIR.Errors[0].Response.ProtoMessage)
+	require.Equal(t, "MethodUnaryRPCWithErrorsInternalError", protoBufGoTypeName(endpointIR.Errors[1].Response.ProtoMessage, sd.Scope))
 }
 
 func countMessageByName(messages []*service.UserTypeData, name string) int {
