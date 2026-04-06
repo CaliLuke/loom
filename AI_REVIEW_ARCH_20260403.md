@@ -3,14 +3,14 @@
 ## 1. Summary
 The `loom` framework's core strength is its "design-first" approach, providing a single source of truth for APIs (the DSL). This naturally aligns with AI-assisted development by preventing transport-layer logic duplication. 
 
-Recent refactoring efforts have successfully addressed the most critical architectural smells: massive "God Files" have been broken down, a `transportir` (Intermediate Representation) boundary was introduced across both HTTP and gRPC, and shared transport analysis capabilities were implemented. Furthermore, the core code generation engine has been almost entirely migrated from brittle string concatenation to safer AST-based generation (`jennifer`).
+Recent refactoring efforts have successfully addressed the most critical architectural smells: massive "God Files" have been broken down, a `transportir` (Intermediate Representation) boundary was introduced across both HTTP and gRPC, shared transport analysis capabilities were implemented, and pervasive global state in the generator and DSL runtime has been eliminated. Furthermore, the core code generation engine has been almost entirely migrated from brittle string concatenation to safer AST-based generation (`jennifer`).
 
-However, the framework still suffers from a few architectural smells that hinder maintainability, testability, and observability. These include pervasive global state in the generator and the lack of structured logging and context propagation.
+However, the framework still suffers from a few architectural smells that hinder maintainability and observability. These include pockets of legacy string/buffer-based code emission in a few generator paths and the lack of structured logging and context propagation across the top-level generation pipeline.
 
 ## 2. Issue Checklist
 
 ### State Management & Observability
-- [ ] **CRITICAL** - Global State in the Generator Engine
+- [x] **LOW** - Global State in the Generator Engine (State has been refactored and encapsulated)
 - [ ] **MEDIUM** - Lack of Structured Logging (`slog`) and Context Propagation
 
 ### Structural Coupling & Abstraction
@@ -23,21 +23,14 @@ However, the framework still suffers from a few architectural smells that hinder
 
 ## 3. Detailed Findings & Roadmap
 
-### Finding 1: Global State in the Generator
-- **Severity:** CRITICAL
-- **Location:** `codegen/example/server_data.go` (`var Servers = make(ServersData)`), `codegen/plugin.go` (`var plugins []*plugin`), and others.
-- **Architectural Failure Mode:** Generators should be pure functions (`Input AST -> Output Code`). Global state prevents safely running multiple generations in parallel (e.g., watch mode, language server) and causes tests to randomly pollute each other.
-- **Suggestion:**
-  1. **Encapsulate Variable / Parameterize Function:** State must be passed down via a `GeneratorContext` struct. Eliminate all global variables holding generation state.
-- **Status:** [ ] Pending
-
 ### Finding 2: Deeply Coupled Template Logic
 - **Severity:** LOW (Reduced from MEDIUM)
-- **Location:** `codegen/cli/cli.go` (and legacy custom rendering functions).
-- **Architectural Failure Mode:** Code generation previously relied entirely on massive string concatenations and deep nesting. Incredible progress has been made migrating generators to use the `jennifer` AST library. The core `go_transform.go` has been fully migrated to Jennifer and no longer relies on `fmt.Sprintf` for code assembly. The only remaining significant usage of string concatenation for code emission is inside the CLI generator (`cli.go`).
+- **Location:** Remaining legacy generator helpers such as `grpc/codegen/codec_sections.go`, `jsonrpc/codegen/stream_sections.go`, `codegen/service/sections.go`, and parts of `codegen/validation.go`.
+- **Architectural Failure Mode:** Code generation previously relied entirely on massive string concatenations and deep nesting. Incredible progress has been made migrating generators to use the `jennifer` AST library, and the CLI generator is no longer the primary concern. The remaining maintainability risk is now concentrated in a smaller set of helpers that still assemble emitted code through strings, buffers, or mixed rendering styles, which makes targeted refactors and regression diagnosis harder than in the Jennifer-based paths.
 - **Suggestion:**
-  1. **Replace Inline Code with Function Call:** Finish the final stretch of the migration by converting `cli.go` to use `jennifer`, completely eliminating `fmt.Sprintf` code assembly from the codebase.
-- **Status:** [~] Almost Complete (Migration to `jennifer` mostly done, `cli.go` remains)
+  1. Continue opportunistic migration of the remaining string-emission hotspots to structured AST generation when touching those areas for real feature or bug work.
+  2. Avoid broad rewrites for their own sake; prioritize the hotspots with the worst branch density or lowest test clarity.
+- **Status:** [~] Almost Complete (Most generators are Jennifer-based; a few targeted hotspots remain)
 
 ### Finding 3: Lack of Structured Logging (`slog`) and Context Propagation
 - **Severity:** MEDIUM
@@ -54,9 +47,9 @@ However, the framework still suffers from a few architectural smells that hinder
 
 Treating the framework as a compiler (Frontend -> AST -> Backend), these pure architecture recommendations will dramatically improve modularity:
 
-### 4.1 Introduce the Visitor Pattern for AST Traversal
-- **The Problem:** The code generator relies heavily on deep type assertions and massive `switch` statements to traverse the syntax tree.
-- **The Fix:** Implement an `ExprVisitor` interface inside the `expr` package. All code generators should implement this interface, allowing the Go compiler to enforce exhaustiveness.
+### 4.1 Consolidate Attribute Traversal and Type Dispatch
+- **The Problem:** Parts of the generator still repeat ad hoc recursion and `switch` logic over `expr.AttributeExpr.Type` (`Object`, `Array`, `Map`, `Union`, `UserType`), which scatters traversal rules across packages.
+- **The Fix:** Do not introduce a classic visitor hierarchy in `expr`. Loom's type model is intentionally open via interfaces such as `expr.DataType` and `expr.UserType`, and the repo already has walker-style helpers (`codegen.Walk`, `codegen.WalkMappedAttr`, `expr.AsObject` / `AsArray` / `AsMap` / `AsUnion`). Instead, strengthen those shared traversal utilities and extract focused dispatch helpers for recurring structural cases so generators share one recursion model without forcing a closed AST visitor pattern.
 
 ### 4.2 Inversion of Control (IoC) via a Plugin Architecture
 - **The Problem:** The core generation engine is tightly coupled to specific target outputs (HTTP, gRPC, OpenAPI).
@@ -74,11 +67,20 @@ Treating the framework as a compiler (Frontend -> AST -> Backend), these pure ar
 
 ## 5. Updated Highest-Value Refactor
 
-### Recommendation: Eliminate Global State in the Generator Engine
+### Recommendation: Fix Top-Level Logging and Context Propagation
 
-- **Why this is best move now:** With the major structural abstractions (IR and AST generation) largely complete, the next biggest blocker for modernizing the framework (e.g., language server support, parallel generation, reliable testing) is the pervasive use of global state.
+- **Why this is best move now:** The framework's current debugging surface is still weak at the orchestration layer where generator failures are discovered. The CLI and generation pipeline already emit ad hoc timing output, which provides a natural insertion point for structured `slog` logging and request-scoped `context.Context`. This is a higher-leverage next step than further architectural abstraction because it improves diagnosis immediately without requiring a broad rewrite.
 - **Concrete first slice:**
-  1. Introduce a `GeneratorContext` or similar structure to hold state.
-  2. Refactor the plugin registry (`codegen/plugin.go`) to be instance-based rather than a global slice.
-  3. Plumb the context through the code generation pipeline to replace global variables like `var Servers` in the example generators.
-- **Do not do first:** full plugin/IoC rewrite, repo-wide `slog` sweep.
+  1. Start at the top-level generation boundaries:
+     - `cmd/loom/main.go`
+     - `cmd/loom/gen.go`
+     - `codegen/generator/generate.go`
+  2. Replace ad hoc stderr timing prints with structured `log/slog` events that record:
+     - generation stage name
+     - duration
+     - generator identity
+     - file counts / output paths where relevant
+     - wrapped errors with stage metadata
+  3. Introduce a generation-scoped `context.Context` and thread it through the orchestration path before attempting package-wide propagation into every helper.
+  4. After the top-level pipeline is instrumented, expand inward only where logs show persistent blind spots.
+- **Do not do first:** repo-wide logger plumbing across every generator helper, plugin/IoC rewrites, or broad package moves in `expr`. The first step should be a narrow orchestration-layer observability pass.
