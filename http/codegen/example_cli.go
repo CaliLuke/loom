@@ -14,8 +14,9 @@ import (
 // server expression.
 func ExampleCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 	var files []*codegen.File
+	servers := example.NewServersData()
 	for _, svr := range services.Root.API.Servers {
-		if f := ExampleCLI(genpkg, svr, services); f != nil {
+		if f := exampleCLIWithCache(genpkg, svr, services, servers); f != nil {
 			files = append(files, f)
 		}
 	}
@@ -25,7 +26,11 @@ func ExampleCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 // ExampleCLI returns an example client tool HTTP implementation for the given
 // server expression.
 func ExampleCLI(genpkg string, svr *expr.ServerExpr, services *ServicesData) *codegen.File {
-	svrdata := example.Servers.Get(svr, services.Root)
+	return exampleCLIWithCache(genpkg, svr, services, example.NewServersData())
+}
+
+func exampleCLIWithCache(genpkg string, svr *expr.ServerExpr, services *ServicesData, servers example.ServersData) *codegen.File {
+	svrdata := servers.Get(svr, services.Root)
 	path := filepath.Join("cmd", svrdata.Dir+"-cli", "http.go")
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		return nil // file already exists, skip it.

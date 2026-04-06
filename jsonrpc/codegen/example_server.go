@@ -14,16 +14,17 @@ import (
 // ExampleServerFiles returns example JSON-RPC server implementation.
 func ExampleServerFiles(genpkg string, data *httpcodegen.ServicesData, files []*codegen.File) []*codegen.File {
 	var fw []*codegen.File
+	servers := example.NewServersData()
 	for _, svr := range data.Root.API.Servers {
-		if m := exampleServer(genpkg, data, svr, files); m != nil {
+		if m := exampleServer(genpkg, data, svr, files, servers); m != nil {
 			fw = append(fw, m)
 		}
 	}
 	return fw
 }
 
-func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File) *codegen.File {
-	svrdata := example.Servers.Get(svr, data.Root)
+func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, servers example.ServersData) *codegen.File {
+	svrdata := servers.Get(svr, data.Root)
 	httppath := filepath.Join("cmd", svrdata.Dir, "http.go")
 
 	// Retrieve existing HTTP server file or create a new one

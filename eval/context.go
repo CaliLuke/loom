@@ -47,15 +47,32 @@ func Reset() {
 // Register appends a root expression to the current Context root expressions.
 // Each root expression may only be registered once.
 func Register(r Root) error {
-	for _, o := range Context.roots {
+	return Context.Register(r)
+}
+
+// Register appends a root expression to the context root expressions. Each
+// root expression may only be registered once.
+func (c *DSLContext) Register(r Root) error {
+	for _, o := range c.roots {
 		if r.EvalName() == o.EvalName() {
 			return fmt.Errorf("duplicate DSL %s", r.EvalName())
 		}
 	}
-	Context.dslPackages = append(Context.dslPackages, r.Packages()...)
-	Context.roots = append(Context.roots, r)
+	c.dslPackages = append(c.dslPackages, r.Packages()...)
+	c.roots = append(c.roots, r)
 
 	return nil
+}
+
+// HasRoot reports whether a root with the given eval name is already
+// registered in the context.
+func (c *DSLContext) HasRoot(name string) bool {
+	for _, root := range c.roots {
+		if root.EvalName() == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Current returns current evaluation context, i.e. object being currently built

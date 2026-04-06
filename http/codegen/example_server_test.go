@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/codegen/example"
 	ctestdata "github.com/CaliLuke/loom/codegen/example/testdata"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -29,8 +28,6 @@ func TestExampleServerFiles(t *testing.T) {
 		}
 		for _, c := range cases {
 			t.Run(c.Name, func(t *testing.T) {
-				// reset global variable
-				example.Servers = make(example.ServersData)
 				root := codegen.RunDSL(t, c.DSL)
 				require.Len(t, root.Services, 3)
 				httpServices := NewServicesData(service.NewServicesData(root), root.API.HTTP)

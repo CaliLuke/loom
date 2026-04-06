@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/codegen/example"
 	"github.com/CaliLuke/loom/dsl"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
@@ -28,8 +27,6 @@ func TestJSONRPCClientCLIFilesUseAdaptationPipeline(t *testing.T) {
 }
 
 func TestJSONRPCExampleCLIFilesUseAdaptationPipeline(t *testing.T) {
-	example.Servers = make(example.ServersData)
-
 	root := RunJSONRPCDSL(t, jsonrpcAdaptationPipelineDSL)
 	files := ExampleCLIFiles("", CreateJSONRPCServices(root))
 
@@ -44,8 +41,6 @@ func TestJSONRPCExampleCLIFilesUseAdaptationPipeline(t *testing.T) {
 }
 
 func TestJSONRPCExampleServerFilesUseAdaptationPipeline(t *testing.T) {
-	example.Servers = make(example.ServersData)
-
 	root := RunJSONRPCDSL(t, jsonrpcAdaptationPipelineDSL)
 	services := CreateJSONRPCServices(root)
 	httpFiles := httpcodegen.ExampleServerFiles("", services)

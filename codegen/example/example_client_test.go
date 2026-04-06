@@ -24,8 +24,6 @@ func TestExampleCLIFiles(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			// reset global variable
-			Servers = make(ServersData)
 			root := codegen.RunDSL(t, c.DSL)
 			fs := CLIFiles("", root)
 			require.Len(t, fs, 1)

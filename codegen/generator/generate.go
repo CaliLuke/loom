@@ -12,6 +12,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -21,6 +22,8 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	if debug {
 		fmt.Fprintf(os.Stderr, "[TIMING]     [generate] Starting generator.Generate()\n")
 	}
+
+	registry := codegen.DefaultRegistrySnapshot()
 
 	roots, err := loadRoots(debug)
 	if err != nil {
@@ -37,7 +40,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		return nil, err
 	}
 
-	if err := runPreparePlugins(cmd, genpkg, roots, debug); err != nil {
+	if err := runPreparePlugins(registry, cmd, genpkg, roots, debug); err != nil {
 		return nil, err
 	}
 
@@ -46,7 +49,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		return nil, err
 	}
 
-	genfiles, err = runPostGenerationPlugins(cmd, genpkg, roots, genfiles, debug)
+	genfiles, err = runPostGenerationPlugins(registry, cmd, genpkg, roots, genfiles, debug)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +85,9 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 
 func loadRoots(debug bool) ([]eval.Root, error) {
 	start := time.Now()
+	if err := expr.RegisterDefaultRoots(); err != nil {
+		return nil, err
+	}
 	roots, err := eval.Context.Roots()
 	if err != nil {
 		return nil, err
@@ -148,9 +154,9 @@ func loadGenerators(cmd string, debug bool) ([]Genfunc, error) {
 	return genfuncs, nil
 }
 
-func runPreparePlugins(cmd, genpkg string, roots []eval.Root, debug bool) error {
+func runPreparePlugins(registry *codegen.Registry, cmd, genpkg string, roots []eval.Root, debug bool) error {
 	start := time.Now()
-	if err := codegen.RunPluginsPrepare(cmd, genpkg, roots); err != nil {
+	if err := registry.RunPluginsPrepare(cmd, genpkg, roots); err != nil {
 		return err
 	}
 	if debug {
@@ -179,9 +185,9 @@ func generateInitialFiles(genpkg string, roots []eval.Root, genfuncs []Genfunc, 
 	return genfiles, nil
 }
 
-func runPostGenerationPlugins(cmd, genpkg string, roots []eval.Root, genfiles []*codegen.File, debug bool) ([]*codegen.File, error) {
+func runPostGenerationPlugins(registry *codegen.Registry, cmd, genpkg string, roots []eval.Root, genfiles []*codegen.File, debug bool) ([]*codegen.File, error) {
 	start := time.Now()
-	files, err := codegen.RunPlugins(cmd, genpkg, roots, genfiles)
+	files, err := registry.RunPlugins(cmd, genpkg, roots, genfiles)
 	if err != nil {
 		return nil, err
 	}

@@ -14,11 +14,6 @@ import (
 )
 
 func TestServerFilesOmitUnusedHostOverrideFlags(t *testing.T) {
-	t.Cleanup(func() {
-		Servers = make(ServersData)
-	})
-	Servers = make(ServersData)
-
 	root := codegen.RunDSL(t, func() {
 		API("Quickstart", func() {
 			Server("orchestrator", func() {
@@ -52,11 +47,6 @@ func TestServerFilesOmitUnusedHostOverrideFlags(t *testing.T) {
 }
 
 func TestServerFilesDoNotUseLegacyClueEndpointMiddleware(t *testing.T) {
-	t.Cleanup(func() {
-		Servers = make(ServersData)
-	})
-	Servers = make(ServersData)
-
 	root := codegen.RunDSL(t, func() {
 		API("LegacyMiddleware", func() {
 			Server("orchestrator", func() {

@@ -10,7 +10,7 @@ import (
 )
 
 func TestRunDSL_ReportErrorLocation(t *testing.T) {
-	eval.Reset()
+	eval.SetupTestContext(t)
 
 	var expectedFile string
 	var expectedLine int
@@ -54,7 +54,7 @@ func TestRunDSL_ReportErrorLocation(t *testing.T) {
 }
 
 func TestRunDSL_ValidationErrorLocation(t *testing.T) {
-	eval.Reset()
+	eval.SetupTestContext(t)
 
 	dsl := func() {}
 	expr := &runDSLExpr{

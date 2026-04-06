@@ -10,7 +10,7 @@ import (
 )
 
 func TestReportErrorRecordsLocation(t *testing.T) {
-	eval.Reset()
+	eval.SetupTestContext(t)
 
 	file, line := reportErrorHere(t)
 

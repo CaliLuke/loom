@@ -12,8 +12,9 @@ import (
 // expression in the design.
 func CLIFiles(genpkg string, root *expr.RootExpr) []*codegen.File {
 	var fw []*codegen.File
+	servers := NewServersData()
 	for _, svr := range root.API.Servers {
-		if m := exampleCLIMain(genpkg, root, svr); m != nil {
+		if m := exampleCLIMain(genpkg, root, svr, servers); m != nil {
 			fw = append(fw, m)
 		}
 	}
@@ -22,8 +23,8 @@ func CLIFiles(genpkg string, root *expr.RootExpr) []*codegen.File {
 
 // exampleCLIMain returns an example client tool main implementation for the
 // given server expression.
-func exampleCLIMain(_ string, root *expr.RootExpr, svr *expr.ServerExpr) *codegen.File {
-	svrdata := Servers.Get(svr, root)
+func exampleCLIMain(_ string, root *expr.RootExpr, svr *expr.ServerExpr, servers ServersData) *codegen.File {
+	svrdata := servers.Get(svr, root)
 
 	// Skip CLI generation for servers with no transports (e.g., agent-only services)
 	if svrdata.DefaultTransport() == nil {

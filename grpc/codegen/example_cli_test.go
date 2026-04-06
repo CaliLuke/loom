@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/codegen/example"
 	ctestdata "github.com/CaliLuke/loom/codegen/example/testdata"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/codegen/testutil"
@@ -30,8 +29,6 @@ func TestExampleCLIFiles(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			// reset global variable
-			example.Servers = make(example.ServersData)
 			root := codegen.RunDSL(t, c.DSL)
 			services := NewServicesData(service.NewServicesData(root))
 			fs := ExampleCLIFiles(c.PkgPath, services)

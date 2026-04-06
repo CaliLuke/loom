@@ -26,7 +26,7 @@ func TestMetaData(t *testing.T) {
 
 	for k, tc := range cases {
 		t.Run(k, func(t *testing.T) {
-			eval.Context = &eval.DSLContext{}
+			eval.SetupTestContext(t)
 			for i := tc.Invocations; i > 0; i-- {
 				eval.Execute(func() {
 					Meta(tc.Name, tc.Values...)

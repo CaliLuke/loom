@@ -59,7 +59,6 @@ func TestExampleServerFiles(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			Servers = make(ServersData)
 			root := codegen.RunDSL(t, c.DSL)
 			services := service.NewServicesData(root)
 			fs := ServerFiles("", root, services)

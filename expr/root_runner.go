@@ -13,15 +13,12 @@ func PrepareValidateFinalize(root *RootExpr) error {
 		return fmt.Errorf("root cannot be nil")
 	}
 
-	originalRoot := Root
-	originalContext := eval.Context
-
-	Root = root
-	eval.Context = eval.NewContext()
-	defer func() {
-		Root = originalRoot
-		eval.Context = originalContext
-	}()
+	restore := installDSLSessionState(dslSessionState{
+		root:                 root,
+		generatedResultTypes: GeneratedResultTypes,
+		context:              eval.NewContext(),
+	})
+	defer restore()
 
 	return eval.PrepareValidateFinalize(root)
 }

@@ -14,8 +14,9 @@ import (
 // ExampleServerFiles returns an example gRPC server implementation.
 func ExampleServerFiles(genpkg string, services *ServicesData) []*codegen.File {
 	var fw []*codegen.File
+	servers := example.NewServersData()
 	for _, svr := range services.Root.API.Servers {
-		if m := exampleServer(genpkg, services, svr); m != nil {
+		if m := exampleServer(genpkg, services, svr, servers); m != nil {
 			fw = append(fw, m)
 		}
 	}
@@ -23,11 +24,11 @@ func ExampleServerFiles(genpkg string, services *ServicesData) []*codegen.File {
 }
 
 // exampleServer returns an example gRPC server implementation.
-func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr) *codegen.File {
+func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr, servers example.ServersData) *codegen.File {
 	var (
 		mainPath string
 
-		svrdata = example.Servers.Get(svr, services.Root)
+		svrdata = servers.Get(svr, services.Root)
 	)
 	mainPath = filepath.Join("cmd", svrdata.Dir, "grpc.go")
 	if _, err := os.Stat(mainPath); !os.IsNotExist(err) {

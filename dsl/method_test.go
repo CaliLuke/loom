@@ -95,7 +95,7 @@ func TestMethod(t *testing.T) {
 	// Run our tests
 	for k, tc := range cases {
 		t.Run(k, func(t *testing.T) {
-			eval.Context = &eval.DSLContext{}
+			eval.SetupTestContext(t)
 			serviceExpr := &expr.ServiceExpr{}
 			eval.Execute(tc.DSL, serviceExpr)
 			if eval.Context.Errors != nil {

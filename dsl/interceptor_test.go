@@ -151,11 +151,10 @@ func TestInterceptor(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			eval.Context = &eval.DSLContext{}
-			expr.Root = new(expr.RootExpr)
+			root := expr.SetupTestDSL(t)
 			tc.DSL()
-			if len(expr.Root.Interceptors) > 0 {
-				tc.Assert(t, expr.Root.Interceptors[0])
+			if len(root.Interceptors) > 0 {
+				tc.Assert(t, root.Interceptors[0])
 			}
 		})
 	}
@@ -218,11 +217,12 @@ func TestServerInterceptor(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			eval.Context = &eval.DSLContext{}
-			expr.Root = new(expr.RootExpr)
-			tc.DSL()
 			root, err := runDSL(t, tc.DSL)
-			tc.Assert(t, root.Services[0], err)
+			var svc *expr.ServiceExpr
+			if len(root.Services) > 0 {
+				svc = root.Services[0]
+			}
+			tc.Assert(t, svc, err)
 		})
 	}
 }
@@ -282,11 +282,12 @@ func TestClientInterceptor(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			eval.Context = &eval.DSLContext{}
-			expr.Root = new(expr.RootExpr)
-			tc.DSL()
 			root, err := runDSL(t, tc.DSL)
-			tc.Assert(t, root.Services[0], err)
+			var svc *expr.ServiceExpr
+			if len(root.Services) > 0 {
+				svc = root.Services[0]
+			}
+			tc.Assert(t, svc, err)
 		})
 	}
 }
@@ -294,16 +295,10 @@ func TestClientInterceptor(t *testing.T) {
 // runDSL returns the DSL root resulting from running the given DSL.
 func runDSL(t *testing.T, dsl func()) (*expr.RootExpr, error) {
 	t.Helper()
-	eval.Reset()
-	expr.Root = new(expr.RootExpr)
-	expr.GeneratedResultTypes = new(expr.ResultTypesRoot)
-	require.NoError(t, eval.Register(expr.Root))
-	require.NoError(t, eval.Register(expr.GeneratedResultTypes))
-	expr.Root.API = expr.NewAPIExpr("test api", func() {})
-	expr.Root.API.Servers = []*expr.ServerExpr{expr.Root.API.DefaultServer()}
+	root := expr.SetupTestDSL(t)
 	if eval.Execute(dsl, nil) {
-		return expr.Root, eval.RunDSL()
+		return root, eval.RunDSL()
 	} else {
-		return expr.Root, errors.New(eval.Context.Error())
+		return root, errors.New(eval.Context.Error())
 	}
 }

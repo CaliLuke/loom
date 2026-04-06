@@ -11,9 +11,10 @@ import (
 
 func TestPrepareValidateFinalize(t *testing.T) {
 	t.Run("finalizes temporary root with isolated globals", func(t *testing.T) {
-		ResetDSL(t)
+		SetupTestDSL(t)
 
 		originalRoot := Root
+		originalGeneratedResultTypes := GeneratedResultTypes
 		originalContext := eval.Context
 
 		root := &RootExpr{
@@ -29,6 +30,7 @@ func TestPrepareValidateFinalize(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Same(t, originalRoot, Root)
+		require.Same(t, originalGeneratedResultTypes, GeneratedResultTypes)
 		require.Same(t, originalContext, eval.Context)
 		require.Equal(t, "calc", root.API.Name)
 		require.Equal(t, "0.0.1", root.API.Version)
@@ -36,9 +38,10 @@ func TestPrepareValidateFinalize(t *testing.T) {
 	})
 
 	t.Run("returns validation errors without mutating caller context", func(t *testing.T) {
-		ResetDSL(t)
+		SetupTestDSL(t)
 
 		originalRoot := Root
+		originalGeneratedResultTypes := GeneratedResultTypes
 		originalContext := eval.Context
 		originalContext.Record(&eval.Error{GoError: errors.New("existing")})
 
@@ -65,13 +68,14 @@ func TestPrepareValidateFinalize(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), `type "Conflict" defined twice`)
 		require.Same(t, originalRoot, Root)
+		require.Same(t, originalGeneratedResultTypes, GeneratedResultTypes)
 		require.Same(t, originalContext, eval.Context)
 		require.Len(t, eval.Context.Errors, 1)
 		require.Equal(t, "existing", eval.Context.Errors[0].GoError.Error())
 	})
 
 	t.Run("rejects nil root", func(t *testing.T) {
-		ResetDSL(t)
+		SetupTestDSL(t)
 
 		err := PrepareValidateFinalize(nil)
 

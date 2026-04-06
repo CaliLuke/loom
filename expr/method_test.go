@@ -260,11 +260,7 @@ func TestMethodSecurityHelpersAllowDetachedMethods(t *testing.T) {
 	})
 
 	t.Run("finalize", func(t *testing.T) {
-		prevRoot := expr.Root
-		expr.Root = &expr.RootExpr{}
-		t.Cleanup(func() {
-			expr.Root = prevRoot
-		})
+		expr.SetupTestDSL(t)
 
 		method := &expr.MethodExpr{
 			Name:    "DetachedMethod",

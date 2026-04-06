@@ -10,10 +10,6 @@ type (
 	ResultTypesRoot []*ResultTypeExpr
 )
 
-// GeneratedResultTypes records the generated result types and is a DSL
-// root evaluated after Root.
-var GeneratedResultTypes = new(ResultTypesRoot)
-
 // GeneratedResultType returns the generated result type expression with the given
 // id, nil if there isn't one.
 func GeneratedResultType(id string) *ResultTypeExpr {

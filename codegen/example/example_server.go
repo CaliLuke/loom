@@ -15,8 +15,9 @@ import (
 // expression in the service design.
 func ServerFiles(genpkg string, root *expr.RootExpr, services *service.ServicesData) []*codegen.File {
 	var fw []*codegen.File
+	servers := NewServersData()
 	for _, svr := range root.API.Servers {
-		if m := exampleSvrMain(genpkg, root, svr, services); m != nil {
+		if m := exampleSvrMain(genpkg, root, svr, services, servers); m != nil {
 			fw = append(fw, m)
 		}
 	}
@@ -25,8 +26,8 @@ func ServerFiles(genpkg string, root *expr.RootExpr, services *service.ServicesD
 
 // exampleSvrMain returns the default main function for the given server
 // expression.
-func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, services *service.ServicesData) *codegen.File {
-	svrdata := Servers.Get(svr, root)
+func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, services *service.ServicesData, servers ServersData) *codegen.File {
+	svrdata := servers.Get(svr, root)
 	mainPath := filepath.Join("cmd", svrdata.Dir, "main.go")
 	if _, err := os.Stat(mainPath); !os.IsNotExist(err) {
 		return nil // file already exists, skip it.

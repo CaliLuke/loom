@@ -9,10 +9,6 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-// Servers holds the server data needed to generate the example service and
-// client. It is computed from the Server expressions in the service design.
-var Servers = make(ServersData)
-
 type (
 	// ServersData holds the server data from the service design indexed by
 	// server name.
@@ -117,6 +113,11 @@ const (
 	// TransportGRPC is the gRPC transport.
 	TransportGRPC = "grpc"
 )
+
+// NewServersData creates a fresh per-generation server cache.
+func NewServersData() ServersData {
+	return make(ServersData)
+}
 
 // Get returns the server data for the given server expression. It builds the
 // server data if the server name does not exist in the map.

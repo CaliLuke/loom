@@ -15,16 +15,10 @@ import (
 // RunDSL returns the DSL root resulting from running the given DSL.
 func RunDSL(t *testing.T, dsl func()) *expr.RootExpr {
 	t.Helper()
-	eval.Reset()
-	expr.Root = new(expr.RootExpr)
-	expr.GeneratedResultTypes = new(expr.ResultTypesRoot)
-	require.NoError(t, eval.Register(expr.Root))
-	require.NoError(t, eval.Register(expr.GeneratedResultTypes))
-	expr.Root.API = expr.NewAPIExpr("test api", func() {})
-	expr.Root.API.Servers = []*expr.ServerExpr{expr.Root.API.DefaultServer()}
+	root := expr.SetupTestDSL(t)
 	require.True(t, eval.Execute(dsl, nil), eval.Context.Error())
 	require.NoError(t, eval.RunDSL())
-	return expr.Root
+	return root
 }
 
 // SectionCode generates and formats the code for the given section.

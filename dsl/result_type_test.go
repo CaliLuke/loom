@@ -59,7 +59,7 @@ func TestView(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			eval.Context = &eval.DSLContext{}
+			eval.SetupTestContext(t)
 			rt := expr.Dup(c.rt).(*expr.ResultTypeExpr)
 			eval.Execute(c.dsl, rt)
 			err := eval.Context.Errors

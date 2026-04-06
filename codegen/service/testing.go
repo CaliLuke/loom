@@ -11,16 +11,8 @@ import (
 
 // initDSL initializes the DSL environment and returns the root.
 func initDSL(t *testing.T) *expr.RootExpr {
-	// reset all roots and codegen data structures
-	eval.Reset()
-	expr.Root = new(expr.RootExpr)
-	expr.GeneratedResultTypes = new(expr.ResultTypesRoot)
-	expr.Root.API = expr.NewAPIExpr("test api", func() {})
-	expr.Root.API.Servers = []*expr.ServerExpr{expr.Root.API.DefaultServer()}
-	root := expr.Root
-	require.NoError(t, eval.Register(root))
-	require.NoError(t, eval.Register(expr.GeneratedResultTypes))
-	return root
+	t.Helper()
+	return expr.SetupTestDSL(t)
 }
 
 // runDSL returns the DSL root resulting from running the given DSL.

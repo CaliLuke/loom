@@ -30,9 +30,9 @@ func TestRegisterPlugin(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			plugins = tc.existingPs
-			RegisterPlugin(pIns.name, "", nil, nil)
-			if !reflect.DeepEqual(plugins, tc.expectedPs) {
+			registry := &Registry{plugins: tc.existingPs}
+			registry.RegisterPlugin(pIns.name, "", nil, nil)
+			if !reflect.DeepEqual(registry.plugins, tc.expectedPs) {
 				t.Errorf("invalid plugin registration order")
 			}
 		})
@@ -65,9 +65,9 @@ func TestRegisterPluginFirst(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			plugins = tc.existingPs
-			RegisterPluginFirst(pIns.name, "", nil, nil)
-			if !reflect.DeepEqual(plugins, tc.expectedPs) {
+			registry := &Registry{plugins: tc.existingPs}
+			registry.RegisterPluginFirst(pIns.name, "", nil, nil)
+			if !reflect.DeepEqual(registry.plugins, tc.expectedPs) {
 				t.Errorf("invalid plugin registration order")
 			}
 		})
@@ -100,9 +100,9 @@ func TestRegisterPluginLast(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			plugins = tc.existingPs
-			RegisterPluginLast(pIns.name, "", nil, nil)
-			if !reflect.DeepEqual(plugins, tc.expectedPs) {
+			registry := &Registry{plugins: tc.existingPs}
+			registry.RegisterPluginLast(pIns.name, "", nil, nil)
+			if !reflect.DeepEqual(registry.plugins, tc.expectedPs) {
 				t.Errorf("invalid plugin registration order")
 			}
 		})

@@ -23,7 +23,7 @@ func TestDescription(t *testing.T) {
 	}
 
 	for k, tc := range cases {
-		eval.Context = &eval.DSLContext{}
+		eval.SetupTestContext(t)
 
 		eval.Execute(func() { Description(tc.Desc) }, tc.Expr)
 

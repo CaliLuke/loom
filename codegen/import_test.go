@@ -162,7 +162,7 @@ func TestGetMetaTypeImports(t *testing.T) {
 	}
 	for _, tt := range testdata {
 		t.Run(tt.name, func(t *testing.T) {
-			eval.Context = &eval.DSLContext{}
+			eval.SetupTestContext(t)
 			serviceExpr := &expr.ServiceExpr{}
 			eval.Execute(tt.dsl, serviceExpr)
 			if eval.Context.Errors != nil {

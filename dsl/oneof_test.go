@@ -52,7 +52,7 @@ func TestOneOfCustomKeys(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			eval.Context = &eval.DSLContext{}
+			eval.SetupTestContext(t)
 
 			ut := &expr.UserTypeExpr{
 				AttributeExpr: &expr.AttributeExpr{
@@ -107,7 +107,7 @@ func TestOneOfCustomKeys(t *testing.T) {
 }
 
 func TestOneOfCustomKeysSameKeyError(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
+	eval.SetupTestContext(t)
 
 	ut := &expr.UserTypeExpr{
 		AttributeExpr: &expr.AttributeExpr{
@@ -130,8 +130,7 @@ func TestOneOfCustomKeysSameKeyError(t *testing.T) {
 }
 
 func TestOneOfTypeConstructor(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
-	expr.Root = &expr.RootExpr{}
+	expr.SetupTestDSL(t)
 
 	circle := Type("Circle", func() {
 		Attribute("radius", Int)
@@ -166,8 +165,7 @@ func TestOneOfTypeConstructor(t *testing.T) {
 }
 
 func TestOneOfTypeConstructorDuplicateNames(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
-	expr.Root = &expr.RootExpr{}
+	expr.SetupTestDSL(t)
 
 	dt := OneOf(String, String)
 	if eval.Context.Errors != nil {
@@ -192,8 +190,7 @@ func TestOneOfTypeConstructorDuplicateNames(t *testing.T) {
 }
 
 func TestOneOfTypeConstructorReservesExplicitNames(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
-	expr.Root = &expr.RootExpr{}
+	expr.SetupTestDSL(t)
 
 	typeA := Type("TypeA", func() {
 		Attribute("value", String)
@@ -229,8 +226,7 @@ func TestOneOfTypeConstructorReservesExplicitNames(t *testing.T) {
 
 func TestOneOfTypeConstructorNormalizesDuplicateNamesDeterministicallyAcrossOrder(t *testing.T) {
 	buildNames := func(firstName, secondName string) map[string]string {
-		eval.Context = &eval.DSLContext{}
-		expr.Root = &expr.RootExpr{}
+		expr.SetupTestDSL(t)
 
 		first := Type(firstName, func() {
 			Attribute("text", String)
@@ -257,8 +253,7 @@ func TestOneOfTypeConstructorNormalizesDuplicateNamesDeterministicallyAcrossOrde
 
 func TestOneOfTypeConstructorTypeNameStableAcrossOrder(t *testing.T) {
 	buildTypeName := func(firstName, secondName string) string {
-		eval.Context = &eval.DSLContext{}
-		expr.Root = &expr.RootExpr{}
+		expr.SetupTestDSL(t)
 
 		first := Type(firstName, func() {
 			Attribute("text", String)
@@ -277,8 +272,7 @@ func TestOneOfTypeConstructorTypeNameStableAcrossOrder(t *testing.T) {
 }
 
 func TestOneOfTypeConstructorUsesDeclaredNamesForDiscriminators(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
-	expr.Root = &expr.RootExpr{}
+	expr.SetupTestDSL(t)
 
 	alpha := Type("AlphaPayload", String, func() {
 		TypeName("RenamedAlphaPayload")
@@ -298,8 +292,7 @@ func TestOneOfTypeConstructorUsesDeclaredNamesForDiscriminators(t *testing.T) {
 }
 
 func TestOneOfTypeConstructorAllowsNamedComplexAliases(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
-	expr.Root = &expr.RootExpr{}
+	expr.SetupTestDSL(t)
 
 	ids := Type("IDs", ArrayOf(String))
 	counts := Type("Counts", MapOf(String, Int))
@@ -315,8 +308,7 @@ func TestOneOfTypeConstructorAllowsNamedComplexAliases(t *testing.T) {
 }
 
 func TestOneOfTypeConstructorRejectsInvalidVariant(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
-	expr.Root = &expr.RootExpr{}
+	expr.SetupTestDSL(t)
 
 	dt := OneOf(String, 42)
 	union, ok := dt.(*expr.Union)
@@ -332,8 +324,7 @@ func TestOneOfTypeConstructorRejectsInvalidVariant(t *testing.T) {
 }
 
 func TestOneOfTypeConstructorResolvesNamedUserTypes(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
-	expr.Root = &expr.RootExpr{}
+	expr.SetupTestDSL(t)
 
 	Type("CustomType", func() {
 		Attribute("value", String)
@@ -392,8 +383,7 @@ func TestOneOfTypeConstructorInsideAttributeWithNamedUserType(t *testing.T) {
 }
 
 func TestOneOfTypeConstructorRejectsUnnamedComplexVariants(t *testing.T) {
-	eval.Context = &eval.DSLContext{}
-	expr.Root = &expr.RootExpr{}
+	expr.SetupTestDSL(t)
 
 	dt := OneOf(ArrayOf(String), ArrayOf(Int))
 	union, ok := dt.(*expr.Union)

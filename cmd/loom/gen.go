@@ -140,6 +140,7 @@ func (g *Generator) Write(_ bool) error {
 			codegen.SimpleImport("github.com/CaliLuke/loom/codegen"),
 			codegen.SimpleImport("github.com/CaliLuke/loom/codegen/generator"),
 			codegen.SimpleImport("github.com/CaliLuke/loom/eval"),
+			codegen.SimpleImport("github.com/CaliLuke/loom/expr"),
 			codegen.NewImport("loom", "github.com/CaliLuke/loom/pkg"),
 			codegen.NewImport("_", g.DesignPath),
 		}
@@ -352,6 +353,9 @@ const mainT = `func main() {
 	}
 
 	startRunDSL := time.Now()
+	if err := expr.RegisterDefaultRoots(); err != nil {
+		fail(err.Error())
+	}
 	if err := eval.RunDSL(); err != nil {
 		fail(err.Error())
 	}

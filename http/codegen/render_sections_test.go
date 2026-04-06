@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/codegen/example"
 	ctestdata "github.com/CaliLuke/loom/codegen/example/testdata"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -96,7 +95,6 @@ func TestConvertedCLIRenderSections(t *testing.T) {
 }
 
 func TestConvertedExampleRenderSections(t *testing.T) {
-	example.Servers = make(example.ServersData)
 	root := codegen.RunDSL(t, ctestdata.ServerHostingMultipleServicesDSL)
 	services := NewServicesData(service.NewServicesData(root), root.API.HTTP)
 

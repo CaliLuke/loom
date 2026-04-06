@@ -14,8 +14,9 @@ import (
 // ExampleServerFiles returns an example http service implementation.
 func ExampleServerFiles(genpkg string, data *ServicesData) []*codegen.File {
 	var fw []*codegen.File
+	servers := example.NewServersData()
 	for _, svr := range data.Root.API.Servers {
-		if m := ExampleServer(genpkg, data.Root, svr, data); m != nil {
+		if m := exampleServerWithCache(genpkg, data.Root, svr, data, servers); m != nil {
 			fw = append(fw, m)
 		}
 	}
@@ -29,7 +30,11 @@ func ExampleServerFiles(genpkg string, data *ServicesData) []*codegen.File {
 
 // ExampleServer returns an example HTTP server implementation.
 func ExampleServer(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, services *ServicesData) *codegen.File {
-	svrdata := example.Servers.Get(svr, root)
+	return exampleServerWithCache(genpkg, root, svr, services, example.NewServersData())
+}
+
+func exampleServerWithCache(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, services *ServicesData, servers example.ServersData) *codegen.File {
+	svrdata := servers.Get(svr, root)
 	fpath := filepath.Join("cmd", svrdata.Dir, "http.go")
 	specs := make([]*codegen.ImportSpec, 0, 12+2*len(root.API.HTTP.Services))
 	baseSpecs := []*codegen.ImportSpec{

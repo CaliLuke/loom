@@ -29,7 +29,7 @@ func TestFormat(t *testing.T) {
 	}
 
 	for k, tc := range cases {
-		eval.Context = &eval.DSLContext{}
+		eval.SetupTestContext(t)
 		expr := &expr.AttributeExpr{}
 		eval.Execute(func() { Format(tc.Format) }, expr)
 		if eval.Context.Errors != nil {
@@ -55,7 +55,7 @@ func TestRequired(t *testing.T) {
 			TypeName: "Foo",
 		},
 	}
-	eval.Context = &eval.DSLContext{}
+	eval.SetupTestContext(t)
 	eval.Execute(func() { Required("foo") }, att)
 	if eval.Context.Errors != nil {
 		t.Errorf("Required failed unexpectedly with %s", eval.Context.Errors)

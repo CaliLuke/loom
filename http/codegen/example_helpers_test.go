@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/codegen/example"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/codegen/testutil"
 )
@@ -28,7 +27,6 @@ func assertExampleCodeGolden(
 	t.Helper()
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			example.Servers = make(example.ServersData)
 			root := codegen.RunDSL(t, c.DSL)
 			httpServices := NewServicesData(service.NewServicesData(root), root.API.HTTP)
 			fs := build(httpServices)
