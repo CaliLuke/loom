@@ -38,7 +38,7 @@ func grpcRequestDecoderSection(endpoint *EndpointData) codegen.Section {
 
 func renderGRPCRequestEncoder(endpoint *EndpointData) string {
 	var b sourceBuilder
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("Encode%sRequest encodes requests sent to %s %s endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name)))
+	fmt.Fprintf(&b, "%s\n", codegen.Comment("Encode"+endpoint.Method.VarName+"Request encodes requests sent to "+endpoint.ServiceName+" "+endpoint.Method.Name+" endpoint."))
 	fmt.Fprintf(&b, "func Encode%sRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	fmt.Fprintf(&b, "\tpayload, ok := v.(%s)\n", endpoint.PayloadRef)
 	b.Add("\tif !ok {\n")
@@ -58,7 +58,7 @@ func renderGRPCRequestEncoder(endpoint *EndpointData) string {
 
 func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 	var b sourceBuilder
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("Decode%sResponse decodes responses from the %s %s endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name)))
+	fmt.Fprintf(&b, "%s\n", codegen.Comment("Decode"+endpoint.Method.VarName+"Response decodes responses from the "+endpoint.ServiceName+" "+endpoint.Method.Name+" endpoint."))
 	fmt.Fprintf(&b, "func Decode%sResponse(ctx context.Context, v any, hdr, trlr metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	if len(endpoint.Response.Headers) > 0 || len(endpoint.Response.Trailers) > 0 {
 		b.Add("\tvar (\n")
@@ -135,7 +135,7 @@ func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 
 func renderGRPCRequestDecoder(endpoint *EndpointData) string {
 	var b sourceBuilder
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("Decode%sRequest decodes requests sent to %q service %q endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name)))
+	fmt.Fprintf(&b, "%s\n", codegen.Comment(`Decode`+endpoint.Method.VarName+`Request decodes requests sent to "`+endpoint.ServiceName+`" service "`+endpoint.Method.Name+`" endpoint.`))
 	fmt.Fprintf(&b, "func Decode%sRequest(ctx context.Context, v any, md metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	if len(endpoint.Request.Metadata) > 0 {
 		b.Add("\tvar (\n")
@@ -200,7 +200,7 @@ func renderGRPCRequestDecoder(endpoint *EndpointData) string {
 
 func renderGRPCResponseEncoder(endpoint *EndpointData) string {
 	var b sourceBuilder
-	fmt.Fprintf(&b, "%s\n", codegen.Comment(fmt.Sprintf("Encode%sResponse encodes responses from the %q service %q endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name)))
+	fmt.Fprintf(&b, "%s\n", codegen.Comment(`Encode`+endpoint.Method.VarName+`Response encodes responses from the "`+endpoint.ServiceName+`" service "`+endpoint.Method.Name+`" endpoint.`))
 	fmt.Fprintf(&b, "func Encode%sResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	if endpoint.ViewedResultRef != "" {
 		fmt.Fprintf(&b, "\tvres, ok := v.(%s)\n", endpoint.ViewedResultRef)
@@ -264,7 +264,7 @@ func renderGRPCMetadataAppend(md *MetadataData, root string, schemes []*service.
 
 func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 	var b sourceBuilder
-	name := fmt.Sprintf("%q", md.Name)
+	name := renderJen(jen.Lit(md.Name))
 	switch {
 	case md.TypeName == "string" || md.Type.Name() == "any":
 		if md.Required {
@@ -324,7 +324,7 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 
 func renderGRPCRequestMetadataDecode(md *MetadataData) string {
 	var b sourceBuilder
-	name := fmt.Sprintf("%q", md.Name)
+	name := renderJen(jen.Lit(md.Name))
 	switch {
 	case md.TypeName == "string" || md.Type.Name() == "any":
 		if md.Required {
@@ -415,7 +415,7 @@ func renderMetadataSingleValue(md *MetadataData, value string) string {
 	case "string":
 		return pointerPrefix(md.Pointer) + value
 	default:
-		return "fmt.Sprintf(\"%v\", " + pointerPrefix(md.Pointer) + value + ")"
+		return renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), exprCode(pointerPrefix(md.Pointer)+value)))
 	}
 }
 
@@ -429,81 +429,96 @@ func renderTemplateMetadataValue(md *MetadataData) string {
 		}
 		return "p." + md.FieldName
 	default:
-		return "fmt.Sprintf(\"%v\", *p." + md.FieldName + ")"
+		return renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), exprCode("*p."+md.FieldName)))
 	}
 }
 
 func renderGRPCStringConversion(dt expr.DataType, varName, target string) string {
+	stmt := &jen.Statement{}
 	switch dt.Name() {
 	case "boolean":
-		return fmt.Sprintf("%s := strconv.FormatBool(%s)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "FormatBool").Call(exprCode(target))
 	case "int":
-		return fmt.Sprintf("%s := strconv.Itoa(%s)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "Itoa").Call(exprCode(target))
 	case "int32":
-		return fmt.Sprintf("%s := strconv.FormatInt(int64(%s), 10)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "FormatInt").Call(jen.Int64().Call(exprCode(target)), jen.Lit(10))
 	case "int64":
-		return fmt.Sprintf("%s := strconv.FormatInt(%s, 10)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "FormatInt").Call(exprCode(target), jen.Lit(10))
 	case "uint":
-		return fmt.Sprintf("%s := strconv.FormatUint(uint64(%s), 10)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "FormatUint").Call(jen.Uint64().Call(exprCode(target)), jen.Lit(10))
 	case "uint32":
-		return fmt.Sprintf("%s := strconv.FormatUint(uint64(%s), 10)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "FormatUint").Call(jen.Uint64().Call(exprCode(target)), jen.Lit(10))
 	case "uint64":
-		return fmt.Sprintf("%s := strconv.FormatUint(%s, 10)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "FormatUint").Call(exprCode(target), jen.Lit(10))
 	case "float32":
-		return fmt.Sprintf("%s := strconv.FormatFloat(float64(%s), 'f', -1, 32)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "FormatFloat").Call(jen.Float64().Call(exprCode(target)), jen.LitByte('f'), jen.Lit(-1), jen.Lit(32))
 	case "float64":
-		return fmt.Sprintf("%s := strconv.FormatFloat(%s, 'f', -1, 64)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("strconv", "FormatFloat").Call(exprCode(target), jen.LitByte('f'), jen.Lit(-1), jen.Lit(64))
 	case "string":
-		return fmt.Sprintf("%s := %s\n", varName, target)
+		stmt.Id(varName).Op(":=").Add(exprCode(target))
 	case "bytes":
-		return fmt.Sprintf("%s := string(%s)\n", varName, target)
+		stmt.Id(varName).Op(":=").String().Call(exprCode(target))
 	case "any":
-		return fmt.Sprintf("%s := fmt.Sprintf(\"%%v\", %s)\n", varName, target)
+		stmt.Id(varName).Op(":=").Qual("fmt", "Sprintf").Call(jen.Lit("%v"), exprCode(target))
 	default:
-		return fmt.Sprintf("// unsupported type %s for field %s\n", dt.Name(), varName)
+		return renderJenLine(jen.Commentf("unsupported type %s for field %s", dt.Name(), varName))
 	}
+	return renderJenLine(stmt)
 }
 
 func renderGRPCStringParse(md *MetadataData, rawVar string) string {
-	name := fmt.Sprintf("%q", md.VarName)
+	name := renderJen(jen.Lit(md.VarName))
+	stmt := &jen.Statement{}
 	switch md.Type.Name() {
 	case "bytes":
-		return fmt.Sprintf("%s = []byte(%s)\n", md.VarName, rawVar)
+		stmt.Add(exprCode(md.VarName)).Op("=").Index().Byte().Call(exprCode(rawVar))
 	case "int":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, strconv.IntSize)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "int(v)"))
+		stmt.Add(renderParseBlock("ParseInt", rawVar, name, "integer", exprCode("strconv.IntSize"), renderParsedAssign(md, "int(v)")))
 	case "int32":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "int32(v)"))
+		stmt.Add(renderParseBlock("ParseInt", rawVar, name, "integer", jen.Lit(32), renderParsedAssign(md, "int32(v)")))
 	case "int64":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(%s, 10, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"integer\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md))
+		stmt.Add(renderParseBlock("ParseInt", rawVar, name, "integer", jen.Lit(64), renderDirectOrValueAssign(md)))
 	case "uint":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, strconv.IntSize)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "uint(v)"))
+		stmt.Add(renderParseBlock("ParseUint", rawVar, name, "unsigned integer", exprCode("strconv.IntSize"), renderParsedAssign(md, "uint(v)")))
 	case "uint32":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "uint32(v)"))
+		stmt.Add(renderParseBlock("ParseUint", rawVar, name, "unsigned integer", jen.Lit(32), renderParsedAssign(md, "uint32(v)")))
 	case "uint64":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(%s, 10, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"unsigned integer\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md))
+		stmt.Add(renderParseBlock("ParseUint", rawVar, name, "unsigned integer", jen.Lit(64), renderDirectOrValueAssign(md)))
 	case "float32":
-		return fmt.Sprintf("v, err2 := strconv.ParseFloat(%s, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"float\"))\n}\n%s", rawVar, name, rawVar, renderParsedAssign(md, "float32(v)"))
+		stmt.Add(renderFloatParseBlock(rawVar, name, "float", jen.Lit(32), renderParsedAssign(md, "float32(v)")))
 	case "float64":
-		return fmt.Sprintf("v, err2 := strconv.ParseFloat(%s, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"float\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md))
+		stmt.Add(renderFloatParseBlock(rawVar, name, "float", jen.Lit(64), renderDirectOrValueAssign(md)))
 	case "boolean":
-		return fmt.Sprintf("v, err2 := strconv.ParseBool(%s)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %s, \"boolean\"))\n}\n%s", rawVar, name, rawVar, renderDirectOrValueAssign(md))
+		stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", "ParseBool").Call(exprCode(rawVar)).Line()
+		stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
+			exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + rawVar + `, "boolean"))`),
+		).Line()
+		stmt.Add(exprCode(renderDirectOrValueAssign(md)))
 	default:
-		return fmt.Sprintf("// unsupported type %s for var %s\n", md.Type.Name(), md.VarName)
+		return renderJenLine(jen.Commentf("unsupported type %s for var %s", md.Type.Name(), md.VarName))
 	}
+	return renderJenLine(stmt)
 }
 
 func renderParsedAssign(md *MetadataData, value string) string {
+	stmt := &jen.Statement{}
 	if md.Pointer {
-		return fmt.Sprintf("pv := %s\n%s = &pv\n", value, md.VarName)
+		stmt.Id("pv").Op(":=").Add(exprCode(value)).Line()
+		stmt.Add(exprCode(md.VarName)).Op("=").Op("&").Id("pv")
+		return renderJenLine(stmt)
 	}
-	return fmt.Sprintf("%s = %s\n", md.VarName, value)
+	stmt.Add(exprCode(md.VarName)).Op("=").Add(exprCode(value))
+	return renderJenLine(stmt)
 }
 
 func renderDirectOrValueAssign(md *MetadataData) string {
+	stmt := &jen.Statement{}
 	if md.Pointer {
-		return fmt.Sprintf("%s = &v\n", md.VarName)
+		stmt.Add(exprCode(md.VarName)).Op("=").Op("&").Id("v")
+		return renderJenLine(stmt)
 	}
-	return fmt.Sprintf("%s = v\n", md.VarName)
+	stmt.Add(exprCode(md.VarName)).Op("=").Id("v")
+	return renderJenLine(stmt)
 }
 
 func renderGRPCSliceConversion(md *MetadataData, rawVar string) string {
@@ -516,36 +531,82 @@ func renderGRPCSliceConversion(md *MetadataData, rawVar string) string {
 }
 
 func renderGRPCSliceItemConversion(md *MetadataData) string {
-	name := fmt.Sprintf("%q", md.VarName)
+	name := renderJen(jen.Lit(md.VarName))
 	elemName := expr.AsArray(md.Type).ElemType.Type.Name()
+	stmt := &jen.Statement{}
 	switch elemName {
 	case "string":
-		return fmt.Sprintf("%s[i] = rv\n", md.VarName)
+		stmt.Add(exprCode(md.VarName)).Index(jen.Id("i")).Op("=").Id("rv")
 	case "bytes":
-		return fmt.Sprintf("%s[i] = []byte(rv)\n", md.VarName)
+		stmt.Add(exprCode(md.VarName)).Index(jen.Id("i")).Op("=").Index().Byte().Call(jen.Id("rv"))
 	case "int":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = int(v)\n", name, md.VarName, md.VarName)
+		stmt.Add(renderSliceParseBlock("ParseInt", name, md.VarName, "array of integers", exprCode("strconv.IntSize"), "int(v)"))
 	case "int32":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = int32(v)\n", name, md.VarName, md.VarName)
+		stmt.Add(renderSliceParseBlock("ParseInt", name, md.VarName, "array of integers", jen.Lit(32), "int32(v)"))
 	case "int64":
-		return fmt.Sprintf("v, err2 := strconv.ParseInt(rv, 10, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of integers\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
+		stmt.Add(renderSliceParseBlock("ParseInt", name, md.VarName, "array of integers", jen.Lit(64), "v"))
 	case "uint":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = uint(v)\n", name, md.VarName, md.VarName)
+		stmt.Add(renderSliceParseBlock("ParseUint", name, md.VarName, "array of unsigned integers", exprCode("strconv.IntSize"), "uint(v)"))
 	case "uint32":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = int32(v)\n", name, md.VarName, md.VarName)
+		stmt.Add(renderSliceParseBlock("ParseUint", name, md.VarName, "array of unsigned integers", jen.Lit(32), "int32(v)"))
 	case "uint64":
-		return fmt.Sprintf("v, err2 := strconv.ParseUint(rv, 10, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of unsigned integers\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
+		stmt.Add(renderSliceParseBlock("ParseUint", name, md.VarName, "array of unsigned integers", jen.Lit(64), "v"))
 	case "float32":
-		return fmt.Sprintf("v, err2 := strconv.ParseFloat(rv, 32)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of floats\"))\n}\n%s[i] = float32(v)\n", name, md.VarName, md.VarName)
+		stmt.Add(renderSliceFloatParseBlock(name, md.VarName, "array of floats", jen.Lit(32), "float32(v)"))
 	case "float64":
-		return fmt.Sprintf("v, err2 := strconv.ParseFloat(rv, 64)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of floats\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
+		stmt.Add(renderSliceFloatParseBlock(name, md.VarName, "array of floats", jen.Lit(64), "v"))
 	case "boolean":
-		return fmt.Sprintf("v, err2 := strconv.ParseBool(rv)\nif err2 != nil {\n\terr = loom.MergeErrors(err, loom.InvalidFieldTypeError(%s, %sRaw, \"array of booleans\"))\n}\n%s[i] = v\n", name, md.VarName, md.VarName)
+		stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", "ParseBool").Call(jen.Id("rv")).Line()
+		stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
+			exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + md.VarName + `Raw, "array of booleans"))`),
+		).Line()
+		stmt.Add(exprCode(md.VarName)).Index(jen.Id("i")).Op("=").Id("v")
 	case "any":
-		return fmt.Sprintf("%s[i] = rv\n", md.VarName)
+		stmt.Add(exprCode(md.VarName)).Index(jen.Id("i")).Op("=").Id("rv")
 	default:
-		return fmt.Sprintf("// unsupported slice type %s for var %s\n", elemName, md.VarName)
+		return renderJenLine(jen.Commentf("unsupported slice type %s for var %s", elemName, md.VarName))
 	}
+	return renderJenLine(stmt)
+}
+
+func renderParseBlock(fn, rawVar, name, kind string, bits *jen.Statement, assign string) *jen.Statement {
+	stmt := &jen.Statement{}
+	stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", fn).Call(exprCode(rawVar), jen.Lit(10), bits).Line()
+	stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
+		exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + rawVar + `, "` + kind + `"))`),
+	).Line()
+	stmt.Add(exprCode(assign))
+	return stmt
+}
+
+func renderFloatParseBlock(rawVar, name, kind string, bits *jen.Statement, assign string) *jen.Statement {
+	stmt := &jen.Statement{}
+	stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", "ParseFloat").Call(exprCode(rawVar), bits).Line()
+	stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
+		exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + rawVar + `, "` + kind + `"))`),
+	).Line()
+	stmt.Add(exprCode(assign))
+	return stmt
+}
+
+func renderSliceParseBlock(fn, name, varName, kind string, bits *jen.Statement, assign string) *jen.Statement {
+	stmt := &jen.Statement{}
+	stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", fn).Call(jen.Id("rv"), jen.Lit(10), bits).Line()
+	stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
+		exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + varName + `Raw, "` + kind + `"))`),
+	).Line()
+	stmt.Add(exprCode(varName)).Index(jen.Id("i")).Op("=").Add(exprCode(assign))
+	return stmt
+}
+
+func renderSliceFloatParseBlock(name, varName, kind string, bits *jen.Statement, assign string) *jen.Statement {
+	stmt := &jen.Statement{}
+	stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", "ParseFloat").Call(jen.Id("rv"), bits).Line()
+	stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
+		exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + varName + `Raw, "` + kind + `"))`),
+	).Line()
+	stmt.Add(exprCode(varName)).Index(jen.Id("i")).Op("=").Add(exprCode(assign))
+	return stmt
 }
 
 func renderInitArgList(args []*InitArgData) string {

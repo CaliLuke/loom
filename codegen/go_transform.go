@@ -376,12 +376,12 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 		stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
 			switch {
 			case ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type):
-				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + fmt.Sprintf("%#v", tdef)))
+				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + formatGoLiteral(tdef)))
 				group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
 			case expr.IsArray(tgtc.Type):
 				group.Add(transformObjectArrayDefaultValueCode(tgtc, tgtVar, tdef, ta))
 			default:
-				group.Add(Expr(tgtVar)).Op("=").Add(Expr(fmt.Sprintf("%#v", tdef)))
+				group.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
 			}
 		})
 		return stmt
@@ -408,7 +408,7 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 				condition = tgtVar + " == nil"
 			}
 			group.If(Expr(condition)).BlockFunc(func(ifGroup *jen.Group) {
-				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(fmt.Sprintf("%#v", tdef)))
+				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
 			})
 		})
 		return stmt
@@ -421,7 +421,7 @@ func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar strin
 	arr := expr.AsArray(tgtc.Type)
 	stmt := &jen.Statement{}
 	if !expr.IsAlias(arr.ElemType.Type) {
-		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(fmt.Sprintf("%#v", tdef)))
+		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
 		return stmt
 	}
 
@@ -429,7 +429,7 @@ func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar strin
 	var items []string
 	appendItems := func(values []any) {
 		for _, value := range values {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, value))
+			items = append(items, elemRef+"("+formatGoLiteral(value)+")")
 		}
 	}
 
@@ -440,46 +440,46 @@ func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar strin
 		appendItems(dv)
 	case []string:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []int:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []int32:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []int64:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []uint:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []uint32:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []uint64:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []float32:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []float64:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	case []bool:
 		for _, de := range dv {
-			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
+			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
 		}
 	default:
-		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(fmt.Sprintf("%#v", tdef)))
+		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
 		return stmt
 	}
 
@@ -730,7 +730,7 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 				Call(Expr("val"))
 			return
 		}
-		code, err := transformAttributeStmt(data.SourceElem, data.TargetElem, "val", fmt.Sprintf("%s[%s]", data.TargetVar, data.LoopVar), false, data.TransformAttrs)
+		code, err := transformAttributeStmt(data.SourceElem, data.TargetElem, "val", data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
 		if err != nil {
 			group.Add(Expr(`panic("unreachable transform render error")`))
 			return
@@ -745,7 +745,7 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 	if data.NewVar {
 		assign = ":="
 	}
-	typeName := fmt.Sprintf("map[%s]%s", data.KeyTypeRef, data.ElemTypeRef)
+	typeName := "map[" + data.KeyTypeRef + "]" + data.ElemTypeRef
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
 	}
@@ -841,6 +841,12 @@ func renderJenniferSnippet(stmt *jen.Statement) string {
 		rendered += "\n"
 	}
 	return rendered
+}
+
+func formatGoLiteral(v any) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%#v", v)
+	return b.String()
 }
 
 // transformAttributeHelpers returns the Go transform functions and their definitions

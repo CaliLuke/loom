@@ -389,9 +389,9 @@ func addAccessorMethods(stmt *jen.Statement, accessName, fieldName string, reade
 			Add(codegen.TypeRef(field.TypeRef)).
 			BlockFunc(func(group *jen.Group) {
 				if field.Pointer {
-					addRawGroup(group, fmt.Sprintf("if %s.%s.%s == nil {\n\tvar zero %s\n\treturn zero\n}\nreturn *%s.%s.%s", receiver, fieldName, field.Name, field.TypeRef, receiver, fieldName, field.Name))
+					addRawGroup(group, "if "+receiver+"."+fieldName+"."+field.Name+" == nil {\n\tvar zero "+field.TypeRef+"\n\treturn zero\n}\nreturn *"+receiver+"."+fieldName+"."+field.Name)
 				} else {
-					addRawGroup(group, fmt.Sprintf("return %s.%s.%s", receiver, fieldName, field.Name))
+					addRawGroup(group, "return "+receiver+"."+fieldName+"."+field.Name)
 				}
 			})
 		stmt.Line()
@@ -403,9 +403,9 @@ func addAccessorMethods(stmt *jen.Statement, accessName, fieldName string, reade
 			Params(jen.Id("v").Add(codegen.TypeRef(field.TypeRef))).
 			BlockFunc(func(group *jen.Group) {
 				if field.Pointer {
-					addRawGroup(group, fmt.Sprintf("%s.%s.%s = &v", receiver, fieldName, field.Name))
+					addRawGroup(group, receiver+"."+fieldName+"."+field.Name+" = &v")
 				} else {
-					addRawGroup(group, fmt.Sprintf("%s.%s.%s = v", receiver, fieldName, field.Name))
+					addRawGroup(group, receiver+"."+fieldName+"."+field.Name+" = v")
 				}
 			})
 		stmt.Line()
@@ -417,9 +417,9 @@ func renderPayloadAccessSwitch(interceptor *InterceptorData, server bool) string
 	if len(interceptor.Methods) == 1 {
 		method := interceptor.Methods[0]
 		if server && hasEndpointStruct(true)(method) {
-			return fmt.Sprintf("\tswitch pay := info.RawPayload().(type) {\n\tcase *%s:\n\t\treturn &%s{payload: pay.Payload}\n\tdefault:\n\t\treturn &%s{payload: pay.(%s)}\n\t}\n", method.ServerStream.EndpointStruct, method.PayloadAccess, method.PayloadAccess, method.PayloadRef)
+			return "\tswitch pay := info.RawPayload().(type) {\n\tcase *" + method.ServerStream.EndpointStruct + ":\n\t\treturn &" + method.PayloadAccess + "{payload: pay.Payload}\n\tdefault:\n\t\treturn &" + method.PayloadAccess + "{payload: pay.(" + method.PayloadRef + ")}\n\t}\n"
 		}
-		return fmt.Sprintf("\treturn &%s{payload: info.RawPayload().(%s)}\n", method.PayloadAccess, method.PayloadRef)
+		return "\treturn &" + method.PayloadAccess + "{payload: info.RawPayload().(" + method.PayloadRef + ")}\n"
 	}
 	var b sourceBuilder
 	b.Add("\tswitch info.Method() {\n")
@@ -438,7 +438,7 @@ func renderPayloadAccessSwitch(interceptor *InterceptorData, server bool) string
 func renderResultAccessSwitch(interceptor *InterceptorData) string {
 	if len(interceptor.Methods) == 1 {
 		method := interceptor.Methods[0]
-		return fmt.Sprintf("\treturn &%s{result: res.(%s)}\n", method.ResultAccess, method.ResultRef)
+		return "\treturn &" + method.ResultAccess + "{result: res.(" + method.ResultRef + ")}\n"
 	}
 	var b sourceBuilder
 	b.Add("\tswitch info.Method() {\n")
@@ -456,7 +456,7 @@ func renderStreamingPayloadAccess(interceptor *InterceptorData, client bool) str
 		if !client {
 			arg = "pay"
 		}
-		return fmt.Sprintf("\treturn &%s{payload: %s.(%s)}\n", method.StreamingPayloadAccess, arg, method.StreamingPayloadRef)
+		return "\treturn &" + method.StreamingPayloadAccess + "{payload: " + arg + ".(" + method.StreamingPayloadRef + ")}\n"
 	}
 	var b sourceBuilder
 	b.Add("\tswitch info.Method() {\n")
@@ -475,9 +475,9 @@ func renderStreamingResultAccess(interceptor *InterceptorData, client bool) stri
 	if len(interceptor.Methods) == 1 {
 		method := interceptor.Methods[0]
 		if client {
-			return fmt.Sprintf("\treturn &%s{result: res.(%s)}\n", method.StreamingResultAccess, method.StreamingResultRef)
+			return "\treturn &" + method.StreamingResultAccess + "{result: res.(" + method.StreamingResultRef + ")}\n"
 		}
-		return fmt.Sprintf("\treturn &%s{result: info.RawPayload().(%s)}\n", method.StreamingResultAccess, method.StreamingResultRef)
+		return "\treturn &" + method.StreamingResultAccess + "{result: info.RawPayload().(" + method.StreamingResultRef + ")}\n"
 	}
 	var b sourceBuilder
 	b.Add("\tswitch info.Method() {\n")
@@ -668,7 +668,7 @@ func addStreamWrappersSection(stmt *jen.Statement, streams []*StreamInterceptorD
 				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(stream.SendTypeRef))).
 				Error().
 				BlockFunc(func(group *jen.Group) {
-					addRawGroup(group, fmt.Sprintf("if w.sendWithContext == nil {\n\treturn w.stream.%s(ctx, v)\n}\nreturn w.sendWithContext(ctx, v)", stream.SendWithContextName))
+					addRawGroup(group, "if w.sendWithContext == nil {\n\treturn w.stream."+stream.SendWithContextName+"(ctx, v)\n}\nreturn w.sendWithContext(ctx, v)")
 				})
 		}
 		if stream.RecvTypeRef != "" {
@@ -690,7 +690,7 @@ func addStreamWrappersSection(stmt *jen.Statement, streams []*StreamInterceptorD
 				Params(jen.Id("ctx").Qual("context", "Context")).
 				Params(codegen.TypeRef(stream.RecvTypeRef), jen.Error()).
 				BlockFunc(func(group *jen.Group) {
-					addRawGroup(group, fmt.Sprintf("if w.recvWithContext == nil {\n\treturn w.stream.%s(ctx)\n}\nreturn w.recvWithContext(ctx)", stream.RecvWithContextName))
+					addRawGroup(group, "if w.recvWithContext == nil {\n\treturn w.stream."+stream.RecvWithContextName+"(ctx)\n}\nreturn w.recvWithContext(ctx)")
 				})
 		}
 		if stream.MustClose {

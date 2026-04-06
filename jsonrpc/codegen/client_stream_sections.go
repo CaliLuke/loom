@@ -640,10 +640,14 @@ default:
 				jen.Func().Params(jen.Id("key"), jen.Id("value").Any()).Bool().Block(
 					jen.Id("pending").Op(":=").Id("value").Assert(jen.Op("*").Id(ws.VarName+"PendingRequest")),
 					jen.Id("pending").Dot("timeout").Dot("Stop").Call(),
-					codegen.Expr(fmt.Sprintf(`select {
-case pending.resultChan <- %sStreamResult{err: err}:
-default:
-}`, ws.VarName)),
+					jen.Select().Block(
+						jen.Case(
+							jen.Id("pending").Dot("resultChan").Op("<-").Id(ws.VarName+"StreamResult").ValuesFunc(func(values *jen.Group) {
+								values.Id("err").Op(":").Id("err")
+							}),
+						).Block(),
+						jen.Default().Block(),
+					),
 					jen.Id("s").Dot("pending").Dot("Delete").Call(jen.Id("key")),
 					jen.Return(jen.True()),
 				),

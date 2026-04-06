@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -341,11 +342,19 @@ func errorInitSection(data *ErrorInitData) codegen.Section {
 					jen.Lit(data.Temporary),
 					jen.Lit(data.Fault),
 				)
-				group.Add(codegen.Expr(fmt.Sprintf(`loom.WithErrorRemedy(serr, &loom.ErrorRemedy{
-	Code:        %q,
-	SafeMessage: %q,
-	RetryHint:   %q,
-})`, data.RemedyCode, data.SafeMessage, data.RetryHint)))
+				group.Add(codegen.Expr("loom.WithErrorRemedy")).Call(
+					jen.Id("serr"),
+					jen.Op("&").Qual("github.com/CaliLuke/loom", "ErrorRemedy").CustomFunc(jen.Options{
+						Open:      "{",
+						Close:     "}",
+						Separator: ",",
+						Multi:     true,
+					}, func(values *jen.Group) {
+						values.Id("Code").Op(":").Lit(data.RemedyCode)
+						values.Id("SafeMessage").Op(":").Lit(data.SafeMessage)
+						values.Id("RetryHint").Op(":").Lit(data.RetryHint)
+					}),
+				)
 				group.Return(jen.Id("serr"))
 				return
 			}
@@ -378,7 +387,7 @@ func errorName(et *UserTypeData) string {
 	if obj != nil {
 		for _, att := range *obj {
 			if _, ok := att.Attribute.Meta["struct:error:name"]; ok {
-				return fmt.Sprintf("e.%s", codegen.GoifyAtt(att.Attribute, att.Name, true))
+				return "e." + codegen.GoifyAtt(att.Attribute, att.Name, true)
 			}
 		}
 	}
@@ -386,9 +395,9 @@ func errorName(et *UserTypeData) string {
 	// error Finalize should have added "struct:error:name" to the user type
 	// attribute's meta.
 	if v, ok := et.Type.Attribute().Meta["struct:error:name"]; ok {
-		return fmt.Sprintf("%q", v[0])
+		return strconv.Quote(v[0])
 	}
-	return fmt.Sprintf("%q", et.Name)
+	return strconv.Quote(et.Name)
 }
 
 // isJSONRPCSSE returns true if the service uses SSE for JSON-RPC streaming.

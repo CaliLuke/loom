@@ -123,13 +123,25 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 				).
 				Params(jen.Any(), jen.Error()).
 				BlockFunc(func(group *jen.Group) {
-					group.Add(codegen.Expr(fmt.Sprintf(`log.Printf(ctx, "[%s] %s: %%v", info.RawPayload())`, interceptor.Name, action)))
+					group.Qual("goa.design/clue/log", "Printf").Call(
+						jen.Id("ctx"),
+						jen.Lit("["+interceptor.Name+"] "+action+": %v"),
+						jen.Id("info").Dot("RawPayload").Call(),
+					)
 					group.Id("resp").Op(",").Id("err").Op(":=").Id("next").Call(jen.Id("ctx"), jen.Id("info").Dot("RawPayload").Call())
 					group.If(jen.Id("err").Op("!=").Nil()).Block(
-						codegen.Expr(fmt.Sprintf(`log.Printf(ctx, "[%s] Error: %%v", err)`, interceptor.Name)),
+						jen.Qual("goa.design/clue/log", "Printf").Call(
+							jen.Id("ctx"),
+							jen.Lit("["+interceptor.Name+"] Error: %v"),
+							jen.Id("err"),
+						),
 						jen.Return(jen.Nil(), jen.Id("err")),
 					)
-					group.Add(codegen.Expr(fmt.Sprintf(`log.Printf(ctx, "[%s] %s: %%v", resp)`, interceptor.Name, responseAction)))
+					group.Qual("goa.design/clue/log", "Printf").Call(
+						jen.Id("ctx"),
+						jen.Lit("["+interceptor.Name+"] "+responseAction+": %v"),
+						jen.Id("resp"),
+					)
 					group.Return(jen.Id("resp"), jen.Nil())
 				})
 			stmt.Line()

@@ -645,7 +645,7 @@ func websocketSetViewSection(ws *WebSocketData) codegen.Section {
 func renderWebsocketUpgrade(endpoint *EndpointData, function string, recv bool) string {
 	var b sourceBuilder
 	b.Add("\t")
-	b.Add(codegen.Comment(fmt.Sprintf("Upgrade the HTTP connection to a websocket connection only once. Connection upgrade is done here so that authorization logic in the endpoint is executed before calling the actual service method which may call %s().", function)))
+	b.Add(codegen.Comment("Upgrade the HTTP connection to a websocket connection only once. Connection upgrade is done here so that authorization logic in the endpoint is executed before calling the actual service method which may call " + function + "()."))
 	b.Add("\n")
 	b.Add("\ts.once.Do(func() {\n")
 	if endpoint.Method.ViewedResult != nil && function == "Send" && endpoint.Method.ViewedResult.ViewName == "" {
@@ -786,7 +786,13 @@ func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {
 		).
 		Id(streamName).
 		BlockFunc(func(group *jen.Group) {
-			addRawWebSocketGroup(group, fmt.Sprintf("return &%s{\n\tresp: resp,\n\tdecoder: decoder,\n\tbuffer: make([]byte, 0, 4096), // Pre-allocate buffer\n}", implName))
+			group.Return(
+				jen.Op("&").Id(implName).Values(jen.Dict{
+					jen.Id("resp"):    jen.Id("resp"),
+					jen.Id("decoder"): jen.Id("decoder"),
+					jen.Id("buffer"):  jen.Make(jen.Index().Byte(), jen.Lit(0), jen.Lit(4096)),
+				}),
+			)
 		})
 	stmt.Line()
 	codegen.Doc(stmt, "Recv reads and returns the next event from the SSE stream, respecting context cancellation.")

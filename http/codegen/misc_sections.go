@@ -76,7 +76,7 @@ func multipartRequestEncoderSection(data *MultipartData) codegen.Section {
 										Params(jen.Id("v").Any()).
 										Error().
 										BlockFunc(func(group *jen.Group) {
-											addRawWebSocketGroup(group, fmt.Sprintf("p := v.(%s)\nif err := encoderFn(mw, p); err != nil {\n\treturn err\n}\nr.Body = io.NopCloser(body)\nr.Header.Set(\"Content-Type\", mw.FormDataContentType())\nreturn mw.Close()", data.Payload.Ref))
+											addRawWebSocketGroup(group, "p := v.("+data.Payload.Ref+")\nif err := encoderFn(mw, p); err != nil {\n\treturn err\n}\nr.Body = io.NopCloser(body)\nr.Header.Set(\"Content-Type\", mw.FormDataContentType())\nreturn mw.Close()")
 										}),
 								),
 							),
@@ -152,10 +152,10 @@ func writeSSEPayloadEncoding(b *sourceBuilder) {
 	b.Add("\tcase []byte:\n\t\tdata = string(v)\n")
 	b.Add("\tcase bool:\n\t\tif v {\n\t\t\tdata = \"true\"\n\t\t} else {\n\t\t\tdata = \"false\"\n\t\t}\n")
 	for _, t := range []string{"int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64"} {
-		b.Addf("\tcase %s:\n\t\tdata = fmt.Sprintf(\"%%d\", v)\n", t)
+		b.Addf("\tcase %s:\n\t\tdata = %s\n", t, renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%d"), jen.Id("v"))))
 	}
 	for _, t := range []string{"float32", "float64"} {
-		b.Addf("\tcase %s:\n\t\tdata = fmt.Sprintf(\"%%g\", v)\n", t)
+		b.Addf("\tcase %s:\n\t\tdata = %s\n", t, renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%g"), jen.Id("v"))))
 	}
 	b.Add("\tdefault:\n")
 	b.Add("\t\tbyts, err := json.Marshal(payload)\n")
@@ -273,20 +273,20 @@ func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat
 				b.Add("\t}\n")
 			}
 		}
-		b.Addf("\treturn fmt.Sprintf(%q, ", pathFormat)
+		b.Add("\treturn " + renderJen(jen.Qual("fmt", "Sprintf")) + "(" + renderJen(jen.Lit(pathFormat)))
 		for i, arg := range args {
 			typ := (*pathParams)[i].Attribute.Type
+			b.Add(", ")
 			if typ.Name() == "array" {
-				b.Addf("strings.Join(%sSlice, \",\")", arg.VarName)
+				b.Add("strings.Join(" + arg.VarName + "Slice, \",\")")
 			} else {
 				b.Add(arg.VarName)
 			}
-			b.Add(", ")
 		}
 		b.Add(")\n")
 		return b.String()
 	}
-	return fmt.Sprintf("\treturn %q\n", pathFormat)
+	return "\treturn " + renderJen(jen.Lit(pathFormat)) + "\n"
 }
 
 func renderQuerySliceConversion(dt expr.DataType) string {
@@ -310,7 +310,7 @@ func renderQuerySliceConversion(dt expr.DataType) string {
 	case "bytes":
 		return "url.QueryEscape(string(v))"
 	default:
-		return "url.QueryEscape(fmt.Sprintf(\"%v\", v))"
+		return "url.QueryEscape(" + renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), jen.Id("v"))) + ")"
 	}
 }
 

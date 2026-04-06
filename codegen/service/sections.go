@@ -190,7 +190,17 @@ func addUnionVariantMethods(stmt *jen.Statement, data *UnionTypeData) {
 			Params(jen.Id("v").Id(field.FieldType)).
 			Id(data.Name).
 			BlockFunc(func(group *jen.Group) {
-				addRawUnionBlock(group, fmt.Sprintf("return %s{\n\tkind: %s,\n\t%s: v,\n}", data.Name, field.KindConst, field.FieldName))
+				group.Return(
+					jen.Id(data.Name).CustomFunc(jen.Options{
+						Open:      "{",
+						Close:     "}",
+						Separator: ",",
+						Multi:     true,
+					}, func(values *jen.Group) {
+						values.Id("kind").Op(":").Id(field.KindConst)
+						values.Id(field.FieldName).Op(":").Id("v")
+					}),
+				)
 			})
 		stmt.Line()
 

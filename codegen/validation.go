@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -105,8 +106,8 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		put = ut
 	}
 	for _, nat := range *(expr.AsObject(att.Type)) {
-		tgt := fmt.Sprintf("%s.%s", target, attCtx.Scope.Field(nat.Attribute, nat.Name, true))
-		ctx := fmt.Sprintf("%s.%s", context, nat.Name)
+		tgt := target + "." + attCtx.Scope.Field(nat.Attribute, nat.Name, true)
+		ctx := context + "." + nat.Name
 		val := validateAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
 		appendValidationBlock(buf, first, val)
 	}
@@ -216,11 +217,11 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		if !ctx.Pointer && (req || (att.DefaultValue != nil && ctx.UseDefault)) {
 			return code
 		}
-		cond := fmt.Sprintf("if %s != nil {\n", target)
+		cond := "if " + target + " != nil {\n"
 		if strings.HasPrefix(code, cond) {
 			return code
 		}
-		return fmt.Sprintf("%s%s\n}", cond, code)
+		return cond + code + "\n}"
 	}
 	// Alias user types: validate underlying attribute with alias flag so that
 	// validation operates on the base value type while preserving pointer
@@ -238,11 +239,11 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		if !ctx.Pointer && (req || (att.DefaultValue != nil && ctx.UseDefault)) {
 			return code
 		}
-		cond := fmt.Sprintf("if %s != nil {\n", target)
+		cond := "if " + target + " != nil {\n"
 		if strings.HasPrefix(code, cond) {
 			return code
 		}
-		return fmt.Sprintf("%s%s\n}", cond, code)
+		return cond + code + "\n}"
 	}
 	if !hasValidations(ctx, ut) {
 		return ""
@@ -254,7 +255,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	// (e.g., Message_). Applying Goify here would drop underscores and
 	// cause mismatches between function declarations and call sites.
 	fmt.Fprint(&buf, renderUserValidation(name, target))
-	return fmt.Sprintf("if %s != nil {\n\t%s\n}", target, buf.String())
+	return "if " + target + " != nil {\n\t" + buf.String() + "\n}"
 }
 
 // validationCode produces Go code that runs the validations defined in the
@@ -327,7 +328,7 @@ func validationTemplateData(att *expr.AttributeExpr, attCtx *AttributeContext, r
 		targetVal = "*" + targetVal
 	}
 	if alias {
-		targetVal = fmt.Sprintf("%s(%s)", unaliased.Name(), targetVal)
+		targetVal = unaliased.Name() + "(" + targetVal + ")"
 		kind = unaliased.Kind()
 	}
 	return map[string]any{
@@ -413,10 +414,10 @@ func renderValidationTemplate(kind string, data map[string]any) string {
 func renderEnumValidation(data map[string]any) string {
 	var b sourceBuilder
 	if data["isPointer"].(bool) {
-		b.Add(fmt.Sprintf("if %s != nil {\n", data["target"]))
+		b.Add("if " + data["target"].(string) + " != nil {\n")
 	}
-	b.Add(fmt.Sprintf("if !(%s) {\n", oneof(data["targetVal"].(string), data["values"].([]any))))
-	b.Add(fmt.Sprintf("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(%q, %s, %s))\n", data["context"], data["targetVal"], toSlice(data["values"].([]any))))
+	b.Add("if !(" + oneof(data["targetVal"].(string), data["values"].([]any)) + ") {\n")
+	b.Add("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(" + quoteString(data["context"].(string)) + ", " + data["targetVal"].(string) + ", " + toSlice(data["values"].([]any)) + "))\n")
 	b.Add("}")
 	if data["isPointer"].(bool) {
 		b.Add("\n}")
@@ -426,14 +427,12 @@ func renderEnumValidation(data map[string]any) string {
 
 func renderFormatValidation(data map[string]any) string {
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string),
-		fmt.Sprintf("err = loom.MergeErrors(err, loom.ValidateFormat(%q, %s, %s))",
-			data["context"], data["targetVal"], constant(data["format"].(string))))
+		"err = loom.MergeErrors(err, loom.ValidateFormat("+quoteString(data["context"].(string))+", "+data["targetVal"].(string)+", "+constant(data["format"].(string))+"))")
 }
 
 func renderPatternValidation(data map[string]any) string {
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string),
-		fmt.Sprintf("err = loom.MergeErrors(err, loom.ValidatePattern(%q, %s, %q))",
-			data["context"], data["targetVal"], data["pattern"]))
+		"err = loom.MergeErrors(err, loom.ValidatePattern("+quoteString(data["context"].(string))+", "+data["targetVal"].(string)+", "+quoteString(data["pattern"].(string))+"))")
 }
 
 func renderExclMinMaxValidation(data map[string]any) string {
@@ -451,8 +450,7 @@ func renderExclMinMaxValidation(data map[string]any) string {
 		bound = data["exclMax"]
 		flag = false
 	}
-	body := fmt.Sprintf("if %s %s %v {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(%q, %s, %v, %t))\n}",
-		data["targetVal"], op, bound, data["context"], data["targetVal"], bound, flag)
+	body := "if " + data["targetVal"].(string) + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(" + quoteString(data["context"].(string)) + ", " + data["targetVal"].(string) + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string), body)
 }
 
@@ -471,8 +469,7 @@ func renderMinMaxValidation(data map[string]any) string {
 		bound = data["max"]
 		flag = false
 	}
-	body := fmt.Sprintf("if %s %s %v {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(%q, %s, %v, %t))\n}",
-		data["targetVal"], op, bound, data["context"], data["targetVal"], bound, flag)
+	body := "if " + data["targetVal"].(string) + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(" + quoteString(data["context"].(string)) + ", " + data["targetVal"].(string) + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool), data["target"].(string), body)
 }
 
@@ -481,9 +478,9 @@ func renderLengthValidation(data map[string]any) string {
 	if ((data["array"] == true || data["map"] == true) || data["nonzero"] == true) && data["target"] != nil {
 		targetExpr = data["target"].(string)
 	}
-	lengthExpr := fmt.Sprintf("len(%s)", targetExpr)
+	lengthExpr := "len(" + targetExpr + ")"
 	if data["string"].(bool) {
-		lengthExpr = fmt.Sprintf("utf8.RuneCountInString(%s)", targetExpr)
+		lengthExpr = "utf8.RuneCountInString(" + targetExpr + ")"
 	}
 	var (
 		op    string
@@ -499,8 +496,7 @@ func renderLengthValidation(data map[string]any) string {
 		bound = *data["maxLength"].(*int)
 		flag = false
 	}
-	body := fmt.Sprintf("if %s %s %v {\n\terr = loom.MergeErrors(err, loom.InvalidLengthError(%q, %s, %s, %v, %t))\n}",
-		lengthExpr, op, bound, data["context"], targetExpr, lengthExpr, bound, flag)
+	body := "if " + lengthExpr + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidLengthError(" + quoteString(data["context"].(string)) + ", " + targetExpr + ", " + lengthExpr + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
 	return renderSimplePointerWrappedValidation(data["isPointer"].(bool) && data["string"].(bool), data["target"].(string), body)
 }
 
@@ -509,20 +505,18 @@ func renderRequiredValidation(data map[string]any) string {
 	field := data["attCtx"].(*AttributeContext).Scope.Field(reqAtt, data["req"].(string), true)
 	if expr.IsUnion(reqAtt.Type) {
 		if _, ok := data["attCtx"].(*AttributeContext).Scope.(*AttributeScope); ok {
-			return fmt.Sprintf("if %s.%s.Kind() == \"\" {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, %q))\n}",
-				data["target"], field, data["req"], data["context"])
+			return "if " + data["target"].(string) + "." + field + ".Kind() == \"\" {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data["req"].(string)) + ", " + quoteString(data["context"].(string)) + "))\n}"
 		}
 	}
-	return fmt.Sprintf("if %s.%s == nil {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, %q))\n}",
-		data["target"], field, data["req"], data["context"])
+	return "if " + data["target"].(string) + "." + field + " == nil {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data["req"].(string)) + ", " + quoteString(data["context"].(string)) + "))\n}"
 }
 
 func renderArrayValidation(target, validation string, nonNullable bool, context string) string {
 	var b sourceBuilder
-	b.Add(fmt.Sprintf("for _, e := range %s {\n", target))
+	b.Add("for _, e := range " + target + " {\n")
 	if nonNullable {
 		b.Add("\tif e == nil {\n")
-		b.Add(fmt.Sprintf("\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%q, \"[*]\"))\n", context))
+		b.Add("\t\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(context) + ", \"[*]\"))\n")
 		b.Add("\t}\n")
 	}
 	if validation != "" {
@@ -583,7 +577,7 @@ func renderUnionSumValidation(target string, cases []map[string]any) string {
 }
 
 func renderUserValidation(name, target string) string {
-	return fmt.Sprintf("if err2 := Validate%s(%s); err2 != nil {\n\terr = loom.MergeErrors(err, err2)\n}", name, target)
+	return "if err2 := Validate" + name + "(" + target + "); err2 != nil {\n\terr = loom.MergeErrors(err, err2)\n}"
 }
 
 func renderSimplePointerWrappedValidation(isPointer bool, target, body string) string {
@@ -591,7 +585,7 @@ func renderSimplePointerWrappedValidation(isPointer bool, target, body string) s
 	if !isPointer {
 		return body
 	}
-	return fmt.Sprintf("if %s != nil {\n%s}", target, indentCode(body))
+	return "if " + target + " != nil {\n" + indentCode(body) + "}"
 }
 
 func indentCode(code string) string {
@@ -694,9 +688,9 @@ func flattenValidations(att *expr.AttributeExpr, seen map[string]struct{}) {
 func toSlice(val []any) string {
 	elems := make([]string, len(val))
 	for i, v := range val {
-		elems[i] = fmt.Sprintf("%#v", v)
+		elems[i] = validationGoLiteral(v)
 	}
-	return fmt.Sprintf("[]any{%s}", strings.Join(elems, ", "))
+	return "[]any{" + strings.Join(elems, ", ") + "}"
 }
 
 // oneof produces code that compares target with each element of vals and ORs
@@ -704,9 +698,19 @@ func toSlice(val []any) string {
 func oneof(target string, vals []any) string {
 	elems := make([]string, len(vals))
 	for i, v := range vals {
-		elems[i] = fmt.Sprintf("%s == %#v", target, v)
+		elems[i] = target + " == " + validationGoLiteral(v)
 	}
 	return strings.Join(elems, " || ")
+}
+
+func quoteString(v string) string {
+	return strconv.Quote(v)
+}
+
+func validationGoLiteral(v any) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%#v", v)
+	return b.String()
 }
 
 // constant returns the Go constant name of the format with the given value.

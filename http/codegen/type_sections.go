@@ -126,7 +126,17 @@ func addHTTPUnionVariantMethods(stmt *jen.Statement, data *servicecodegen.UnionT
 			Params(jen.Id("v").Id(field.FieldType)).
 			Id(data.Name).
 			BlockFunc(func(group *jen.Group) {
-				addRawHTTPUnionBlock(group, fmt.Sprintf("return %s{\n\tkind: %s,\n\t%s: v,\n}", data.Name, field.KindConst, field.FieldName))
+				group.Return(
+					jen.Id(data.Name).CustomFunc(jen.Options{
+						Open:      "{",
+						Close:     "}",
+						Separator: ",",
+						Multi:     true,
+					}, func(values *jen.Group) {
+						values.Id("kind").Op(":").Id(field.KindConst)
+						values.Id(field.FieldName).Op(":").Id("v")
+					}),
+				)
 			})
 		stmt.Line()
 
@@ -385,12 +395,14 @@ func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 						if init.ReturnIsPrimitivePointer {
 							valueExpr = "&v"
 						}
-						appendHTTPRawBlock(group, fmt.Sprintf(
-							"res := &%s{\n\t%s: %s,\n}",
-							init.ReturnTypeName,
-							init.ReturnTypeAttribute,
-							valueExpr,
-						))
+						group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).CustomFunc(jen.Options{
+							Open:      "{",
+							Close:     "}",
+							Separator: ",",
+							Multi:     true,
+						}, func(values *jen.Group) {
+							values.Id(init.ReturnTypeAttribute).Op(":").Add(codegen.Expr(valueExpr))
+						})
 					}
 				} else if init.ReturnIsStruct {
 					if init.ReturnTypeAttribute != "" {

@@ -67,7 +67,7 @@ func writeJSONRPCResponseStatusCheck(g *jen.Group, e *httpcodegen.EndpointData) 
 		jen.List(jen.Id("body"), jen.Id("_")).Op(":=").Qual("io", "ReadAll").Call(jen.Id("resp").Dot("Body")),
 		jen.Return(
 			jen.Nil(),
-			codegen.Expr(fmt.Sprintf("loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))", e.ServiceName, e.Method.Name)),
+			errInvalidResponseExpr(e.ServiceName, e.Method.Name, jen.Id("resp").Dot("StatusCode"), jen.String().Call(jen.Id("body"))),
 		),
 	)
 	g.Line()
@@ -81,7 +81,7 @@ func writeJSONRPCResponseDecodeEnvelope(g *jen.Group, e *httpcodegen.EndpointDat
 	).Block(
 		jen.Return(
 			jen.Nil(),
-			codegen.Expr(fmt.Sprintf("loomhttp.ErrDecodingError(%q, %q, err)", e.ServiceName, e.Method.Name)),
+			errDecodingExpr(e.ServiceName, e.Method.Name, jen.Id("err")),
 		),
 	)
 	g.Line()
@@ -95,7 +95,7 @@ func writeJSONRPCResponseErrorHandling(g *jen.Group, e *httpcodegen.EndpointData
 				jen.List(jen.Id("body"), jen.Id("_")).Op(":=").Qual("io", "ReadAll").Call(jen.Id("resp").Dot("Body")),
 				jen.Return(
 					jen.Nil(),
-					codegen.Expr(fmt.Sprintf("loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(body))", e.ServiceName, e.Method.Name)),
+					errInvalidResponseExpr(e.ServiceName, e.Method.Name, jen.Id("resp").Dot("StatusCode"), jen.String().Call(jen.Id("body"))),
 				),
 			)
 		})
@@ -150,16 +150,16 @@ func writeJSONRPCViewedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, res
 	} else {
 		g.Id("view").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("loom-view"))
 	}
-	g.Id("vres").Op(":=").Add(codegen.Expr(fmt.Sprintf("%s%s.%s{Projected: p, View: view}", viewedResultPrefix(e.Method.ViewedResult), e.Method.ViewedResult.ViewsPkg, e.Method.ViewedResult.VarName)))
+	g.Id("vres").Op(":=").Add(codegen.Expr(viewedResultPrefix(e.Method.ViewedResult) + e.Method.ViewedResult.ViewsPkg + "." + e.Method.ViewedResult.VarName + "{Projected: p, View: view}"))
 	if resp.ClientBody != nil {
 		g.If(
-			jen.Id("err").Op("=").Add(codegen.Expr(fmt.Sprintf("%s.Validate%s(vres)", e.Method.ViewedResult.ViewsPkg, e.Method.Result))),
+			jen.Id("err").Op("=").Add(codegen.Expr(e.Method.ViewedResult.ViewsPkg+".Validate"+e.Method.Result+"(vres)")),
 			jen.Id("err").Op("!=").Nil(),
 		).Block(
-			jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrValidationError(%q, %q, err)", e.ServiceName, e.Method.Name))),
+			jen.Return(jen.Nil(), errValidationExpr(e.ServiceName, e.Method.Name, jen.Id("err"))),
 		)
 	}
-	g.Id("res").Op(":=").Add(codegen.Expr(fmt.Sprintf("%s.%s(vres)", e.ServicePkgName, e.Method.ViewedResult.ResultInit.Name)))
+	g.Id("res").Op(":=").Add(codegen.Expr(e.ServicePkgName + "." + e.Method.ViewedResult.ResultInit.Name + "(vres)"))
 	g.Return(jen.Id("res"), jen.Nil())
 }
 
@@ -206,7 +206,7 @@ func writeJSONRPCNamedErrorDecode(g *jen.Group, group *httpcodegen.ErrorGroupDat
 			jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("jresp").Dot("Error").Dot("Data"), jen.Op("&").Id("jerrData")),
 			jen.Err().Op("!=").Nil(),
 		).Block(
-			jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrDecodingError(%q, %q, err)", e.ServiceName, e.Method.Name))),
+			jen.Return(jen.Nil(), errDecodingExpr(e.ServiceName, e.Method.Name, jen.Id("err"))),
 		),
 	)
 	g.Switch(jen.Id("jerrData").Dot("Name")).BlockFunc(func(sg *jen.Group) {
@@ -220,7 +220,7 @@ func writeJSONRPCNamedErrorDecode(g *jen.Group, group *httpcodegen.ErrorGroupDat
 			})
 		}
 		sg.Default().Block(
-			jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrInvalidResponse(%q, %q, resp.StatusCode, string(jresp.Error.Data))", e.ServiceName, e.Method.Name))),
+			jen.Return(jen.Nil(), errInvalidResponseExpr(e.ServiceName, e.Method.Name, jen.Id("resp").Dot("StatusCode"), jen.String().Call(jen.Id("jresp").Dot("Error").Dot("Data")))),
 		)
 	})
 }
@@ -249,12 +249,12 @@ func writeSingleResponseDecode(g *jen.Group, data *httpcodegen.ResponseData, ser
 		)
 		g.Id("err").Op("=").Id("decoder").Call(jen.Id("resp")).Dot("Decode").Call(jen.Op("&").Id("body"))
 		g.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrDecodingError(%q, %q, err)", serviceName, method.Name))),
+			jen.Return(jen.Nil(), errDecodingExpr(serviceName, method.Name, jen.Id("err"))),
 		)
 		if data.ClientBody.ValidateRef != "" {
 			g.Add(codegen.Expr(data.ClientBody.ValidateRef))
 			g.If(jen.Id("err").Op("!=").Nil()).Block(
-				jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrValidationError(%q, %q, err)", serviceName, method.Name))),
+				jen.Return(jen.Nil(), errValidationExpr(serviceName, method.Name, jen.Id("err"))),
 			)
 		}
 	}
@@ -266,7 +266,7 @@ func writeSingleResponseDecode(g *jen.Group, data *httpcodegen.ResponseData, ser
 	}
 	if data.MustValidate {
 		g.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrValidationError(%q, %q, err)", serviceName, method.Name))),
+			jen.Return(jen.Nil(), errValidationExpr(serviceName, method.Name, jen.Id("err"))),
 		)
 	}
 }
@@ -294,7 +294,7 @@ func writeResponseHeaderDecode(g *jen.Group, h *httpcodegen.HeaderData) {
 		g.Id(h.VarName + "Raw").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit(h.CanonicalName))
 		if h.Required {
 			g.If(jen.Id(h.VarName + "Raw").Op("==").Lit("")).Block(
-				jen.Id("err").Op("=").Add(codegen.Expr(fmt.Sprintf("loom.MergeErrors(err, loom.MissingFieldError(%q, \"header\"))", h.Name))),
+				jen.Id("err").Op("=").Add(missingFieldMergeExpr(jen.Id("err"), h.Name, "header")),
 			)
 			g.Id(h.VarName).Op("=").Add(codegen.Expr(stringPointerPrefix(h.Type.Name(), h.Pointer) + h.VarName + "Raw"))
 		} else {
@@ -310,7 +310,7 @@ func writeResponseHeaderDecode(g *jen.Group, h *httpcodegen.HeaderData) {
 		g.Id(h.VarName).Op("=").Id("resp").Dot("Header").Index(jen.Lit(h.CanonicalName))
 		if h.Required {
 			g.If(jen.Id(h.VarName).Op("==").Nil()).Block(
-				jen.Id("err").Op("=").Add(codegen.Expr(fmt.Sprintf("loom.MergeErrors(err, loom.MissingFieldError(%q, \"header\"))", h.Name))),
+				jen.Id("err").Op("=").Add(missingFieldMergeExpr(jen.Id("err"), h.Name, "header")),
 			)
 		}
 	case h.Slice:
@@ -318,7 +318,7 @@ func writeResponseHeaderDecode(g *jen.Group, h *httpcodegen.HeaderData) {
 			bg.Id(h.VarName + "Raw").Op(":=").Id("resp").Dot("Header").Index(jen.Lit(h.CanonicalName))
 			if h.Required {
 				bg.If(jen.Id(h.VarName + "Raw").Op("==").Nil()).Block(
-					jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrValidationError(%q, %q, loom.MissingFieldError(%q, \"header\"))", "", "", h.Name))),
+					jen.Return(jen.Nil(), errValidationExpr("", "", missingFieldExpr(h.Name, "header"))),
 				)
 			}
 			writeElementSliceConversion(bg, h.AttributeData)
@@ -328,7 +328,7 @@ func writeResponseHeaderDecode(g *jen.Group, h *httpcodegen.HeaderData) {
 			bg.Id(h.VarName + "Raw").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit(h.CanonicalName))
 			if h.Required {
 				bg.If(jen.Id(h.VarName + "Raw").Op("==").Lit("")).Block(
-					jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrValidationError(%q, %q, loom.MissingFieldError(%q, \"header\"))", "", "", h.Name))),
+					jen.Return(jen.Nil(), errValidationExpr("", "", missingFieldExpr(h.Name, "header"))),
 				)
 			}
 			writeQueryTypeConversion(bg, h.AttributeData)
@@ -339,8 +339,8 @@ func writeResponseHeaderDecode(g *jen.Group, h *httpcodegen.HeaderData) {
 func writeResponseCookieBlock(g *jen.Group, data *httpcodegen.ResponseData) {
 	g.Add(codegen.Expr("var ("))
 	for _, cookie := range data.Cookies {
-		g.Add(codegen.Expr(fmt.Sprintf("%s %s", cookie.VarName, cookie.TypeRef)))
-		g.Add(codegen.Expr(fmt.Sprintf("%sRaw string", cookie.VarName)))
+		g.Add(codegen.Expr(cookie.VarName + " " + cookie.TypeRef))
+		g.Add(codegen.Expr(cookie.VarName + "Raw string"))
 	}
 	g.Add(codegen.Expr("cookies = resp.Cookies()"))
 	if data.ClientBody == nil && data.MustValidate && len(data.Headers) == 0 {
@@ -370,7 +370,7 @@ func writeResponseCookieDecode(g *jen.Group, c *httpcodegen.CookieData) {
 	if c.Type.Name() == "string" || c.Type.Name() == "any" {
 		if c.Required {
 			g.If(jen.Id(c.VarName + "Raw").Op("==").Lit("")).Block(
-				jen.Id("err").Op("=").Add(codegen.Expr(fmt.Sprintf("loom.MergeErrors(err, loom.MissingFieldError(%q, \"cookie\"))", c.Name))),
+				jen.Id("err").Op("=").Add(missingFieldMergeExpr(jen.Id("err"), c.Name, "cookie")),
 			)
 			g.Id(c.VarName).Op("=").Add(codegen.Expr(stringPointerPrefix(c.Type.Name(), c.Pointer) + c.VarName + "Raw"))
 		} else {
@@ -383,7 +383,7 @@ func writeResponseCookieDecode(g *jen.Group, c *httpcodegen.CookieData) {
 	g.BlockFunc(func(bg *jen.Group) {
 		if c.Required {
 			bg.If(jen.Id(c.VarName + "Raw").Op("==").Lit("")).Block(
-				jen.Return(jen.Nil(), codegen.Expr(fmt.Sprintf("loomhttp.ErrValidationError(%q, %q, loom.MissingFieldError(%q, \"cookie\"))", "", "", c.Name))),
+				jen.Return(jen.Nil(), errValidationExpr("", "", missingFieldExpr(c.Name, "cookie"))),
 			)
 		}
 		writeQueryTypeConversion(bg, c.AttributeData)
@@ -411,40 +411,58 @@ func writeSliceItemConversion(g *jen.Group, a *httpcodegen.AttributeData) {
 	case "bytes":
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Index().Byte().Call(jen.Id("rv"))
 	case "int":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of integers")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of integers")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Int().Call(jen.Id("v"))
 	case "int32":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseInt(rv, 10, 32)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of integers")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(rv, 10, 32)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of integers")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Int32().Call(jen.Id("v"))
 	case "int64":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseInt(rv, 10, 64)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of integers")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(rv, 10, 64)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of integers")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("v")
 	case "uint":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of unsigned integers")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of unsigned integers")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Uint().Call(jen.Id("v"))
 	case "uint32":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseUint(rv, 10, 32)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of unsigned integers")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(rv, 10, 32)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of unsigned integers")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Uint32().Call(jen.Id("v"))
 	case "uint64":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseUint(rv, 10, 64)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of unsigned integers")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(rv, 10, 64)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of unsigned integers")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("v")
 	case "float32":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseFloat(rv, 32)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of floats")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseFloat(rv, 32)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of floats")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Float32().Call(jen.Id("v"))
 	case "float64":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseFloat(rv, 64)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of floats")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseFloat(rv, 64)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of floats")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("v")
 	case "boolean":
-		g.Add(codegen.Expr("\tv, err2 := strconv.ParseBool(rv)"))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "array of booleans")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseBool(rv)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of booleans")),
+		)
 		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("v")
 	}
 }
@@ -454,40 +472,58 @@ func writeQueryTypeConversion(g *jen.Group, a *httpcodegen.AttributeData) {
 	case "bytes":
 		g.Id(a.VarName).Op("=").Index().Byte().Call(jen.Id(a.VarName + "Raw"))
 	case "int":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseInt(%sRaw, 10, strconv.IntSize)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "integer")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, strconv.IntSize)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "integer")),
+		)
 		assignConverted(g, a, "int")
 	case "int32":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseInt(%sRaw, 10, 32)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "integer")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, 32)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "integer")),
+		)
 		assignConverted(g, a, "int32")
 	case "int64":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseInt(%sRaw, 10, 64)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "integer")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, 64)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "integer")),
+		)
 		assignDirectOrCast(g, a, "int64")
 	case "uint":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseUint(%sRaw, 10, strconv.IntSize)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "unsigned integer")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, strconv.IntSize)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "unsigned integer")),
+		)
 		assignConverted(g, a, "uint")
 	case "uint32":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseUint(%sRaw, 10, 32)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "unsigned integer")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, 32)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "unsigned integer")),
+		)
 		assignConverted(g, a, "uint32")
 	case "uint64":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseUint(%sRaw, 10, 64)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "unsigned integer")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, 64)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "unsigned integer")),
+		)
 		assignDirectOrCast(g, a, "uint64")
 	case "float32":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseFloat(%sRaw, 32)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "float")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseFloat(" + a.VarName + "Raw, 32)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "float")),
+		)
 		assignConverted(g, a, "float32")
 	case "float64":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseFloat(%sRaw, 64)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "float")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseFloat(" + a.VarName + "Raw, 64)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "float")),
+		)
 		assignDirectOrCast(g, a, "float64")
 	case "boolean":
-		g.Add(codegen.Expr(fmt.Sprintf("v, err2 := strconv.ParseBool(%sRaw)", a.VarName)))
-		g.Add(codegen.Expr(fmt.Sprintf(`if err2 != nil { err = loom.MergeErrors(err, loom.InvalidFieldTypeError(%q, %sRaw, "boolean")) }`, a.Name, a.VarName)))
+		g.Add(codegen.Expr("v, err2 := strconv.ParseBool(" + a.VarName + "Raw)"))
+		g.If(jen.Id("err2").Op("!=").Nil()).Block(
+			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "boolean")),
+		)
 		assignDirectOrCast(g, a, "bool")
 	default:
 		g.Comment("unsupported type " + a.Type.Name() + " for var " + a.VarName)
@@ -546,4 +582,54 @@ func viewedResultPrefix(v *service.ViewedResultTypeData) string {
 		return ""
 	}
 	return "&"
+}
+
+func errInvalidResponseExpr(serviceName, methodName string, statusCode, body jen.Code) jen.Code {
+	return jen.Qual("github.com/CaliLuke/loom/http", "ErrInvalidResponse").Call(
+		jen.Lit(serviceName),
+		jen.Lit(methodName),
+		statusCode,
+		body,
+	)
+}
+
+func errDecodingExpr(serviceName, methodName string, errExpr jen.Code) jen.Code {
+	return jen.Qual("github.com/CaliLuke/loom/http", "ErrDecodingError").Call(
+		jen.Lit(serviceName),
+		jen.Lit(methodName),
+		errExpr,
+	)
+}
+
+func errValidationExpr(serviceName, methodName string, errExpr jen.Code) jen.Code {
+	return jen.Qual("github.com/CaliLuke/loom/http", "ErrValidationError").Call(
+		jen.Lit(serviceName),
+		jen.Lit(methodName),
+		errExpr,
+	)
+}
+
+func missingFieldExpr(name, location string) jen.Code {
+	return jen.Qual("github.com/CaliLuke/loom", "MissingFieldError").Call(
+		jen.Lit(name),
+		jen.Lit(location),
+	)
+}
+
+func missingFieldMergeExpr(currentErr jen.Code, name, location string) jen.Code {
+	return jen.Qual("github.com/CaliLuke/loom", "MergeErrors").Call(
+		currentErr,
+		missingFieldExpr(name, location),
+	)
+}
+
+func invalidFieldTypeMergeExpr(currentErr jen.Code, name string, actual jen.Code, expected string) jen.Code {
+	return jen.Qual("github.com/CaliLuke/loom", "MergeErrors").Call(
+		currentErr,
+		jen.Qual("github.com/CaliLuke/loom", "InvalidFieldTypeError").Call(
+			jen.Lit(name),
+			actual,
+			jen.Lit(expected),
+		),
+	)
 }

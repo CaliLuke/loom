@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/transformassign"
@@ -114,7 +116,7 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 	if err := codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
 		if ta.proto {
 			name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
-			initCode += fmt.Sprintf("%s := &%s{}\n", targetVar, name)
+			initCode += renderJenLine(exprCode(targetVar).Op(":=").Op("&").Id(name).Values())
 			targetVar += ".Field"
 			newVar = false
 			target = unwrapAttr(expr.DupAtt(target))
@@ -178,7 +180,7 @@ func transformScalarAssignment(source, target *expr.AttributeExpr, sourceVar, ta
 		assign = ":="
 	}
 	srcField := convertType(source, target, false, false, sourceVar, ta)
-	return fmt.Sprintf("%s %s %s\n", targetVar, assign, srcField)
+	return renderJenLine(exprCode(targetVar).Op(assign).Add(exprCode(srcField)))
 }
 
 // transformObject returns the code to transform source attribute of object
@@ -238,7 +240,7 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		if handled {
 			return
 		}
-		initCode += fmt.Sprintf("\n%s: %s,", tgtField, exp)
+		initCode += "\n" + tgtField + ": " + exp + ","
 	})
 	if initCode != "" {
 		initCode += "\n"
@@ -293,7 +295,7 @@ func objectFieldAssignment(target *expr.AttributeExpr, targetVar, srcVar, tgtVar
 			tgtVar = targetVar + ".(" + ref + ")." + codegen.GoifyAtt(tgtc, tgtMatt.ElemName(n), true)
 		}
 		if !expr.IsPrimitive(srcc.Type) {
-			return fmt.Sprintf("%s = %s(%s)\n", tgtVar, transformHelperName(srcc, tgtc, ta), srcVar), nil
+			return renderJenLine(exprCode(tgtVar).Op("=").Id(transformHelperName(srcc, tgtc, ta)).Call(exprCode(srcVar))), nil
 		}
 		return "", nil
 	case expr.IsObject(srcc.Type):
@@ -317,11 +319,11 @@ func wrapObjectFieldNilCheck(code, srcVar string, srcMatt *expr.MappedAttributeE
 	if !(isRef || marshalNonPrimitive) {
 		return code
 	}
-	cond := fmt.Sprintf("if %s != nil {\n", srcVar)
+	cond := "if " + srcVar + " != nil {\n"
 	if expr.IsUnion(srcc.Type) && ta.proto {
-		cond = fmt.Sprintf("if %s.Kind() != \"\" {\n", srcVar)
+		cond = "if " + srcVar + `.Kind() != "" {` + "\n"
 	}
-	return fmt.Sprintf("%s\t%s}\n", cond, code)
+	return cond + "\t" + code + "}\n"
 }
 
 func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) string {
@@ -331,21 +333,21 @@ func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *exp
 	}
 	switch {
 	case ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type):
-		code += fmt.Sprintf("if %s == nil {\n\t", srcVar)
+		code += "if " + srcVar + " == nil {\n\t"
 		if ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {
 			nativeTypeName := codegen.GoNativeTypeName(tgtc.Type)
 			if ta.proto {
 				nativeTypeName = protoBufNativeGoTypeName(tgtc.Type)
 			}
-			code += fmt.Sprintf("var tmp %s = %#v\n\t%s = &tmp\n", nativeTypeName, tdef, tgtVar)
+			code += "var tmp " + nativeTypeName + " = " + formatGoLiteral(tdef) + "\n\t" + tgtVar + " = &tmp\n"
 		} else {
-			code += fmt.Sprintf("%s = %#v\n", tgtVar, tdef)
+			code += tgtVar + " = " + formatGoLiteral(tdef) + "\n"
 		}
 		code += "}\n"
 	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(n) && ta.SourceCtx.UseDefault:
 		code += "{\n\t"
 		code += objectFieldZeroValueDecl(tgtc, ta)
-		code += fmt.Sprintf("if %s == zero {\n\t%s = %#v\n}\n", tgtVar, tgtVar, tdef)
+		code += "if " + tgtVar + " == zero {\n\t" + tgtVar + " = " + formatGoLiteral(tdef) + "\n}\n"
 		code += "}\n"
 	}
 	return code
@@ -353,15 +355,15 @@ func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *exp
 
 func objectFieldZeroValueDecl(tgtc *expr.AttributeExpr, ta *transformAttrs) string {
 	if ta.proto {
-		return fmt.Sprintf("var zero %s\n\t", protoBufNativeGoTypeName(tgtc.Type))
+		return "var zero " + protoBufNativeGoTypeName(tgtc.Type) + "\n\t"
 	}
 	if typeName, _ := codegen.GetMetaType(tgtc); typeName != "" {
-		return fmt.Sprintf("var zero %s\n\t", typeName)
+		return "var zero " + typeName + "\n\t"
 	}
 	if _, ok := tgtc.Type.(expr.UserType); ok {
-		return fmt.Sprintf("var zero %s\n\t", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)))
+		return "var zero " + ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)) + "\n\t"
 	}
-	return fmt.Sprintf("var zero %s\n\t", codegen.GoNativeTypeName(tgtc.Type))
+	return "var zero " + codegen.GoNativeTypeName(tgtc.Type) + "\n\t"
 }
 
 func transformObjectPrimitivePointerCases(
@@ -421,7 +423,7 @@ func convertedPrimitiveObjectFieldExpr(srcc, tgtc *expr.AttributeExpr, srcField,
 	}
 	exp := srcFieldConv
 	if _, isSrcUT := srcc.Type.(expr.UserType); isSrcUT && !ta.proto {
-		exp = fmt.Sprintf("%s(%s%s)", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)), deref, srcField)
+		exp = ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)) + "(" + deref + srcField + ")"
 	}
 	return exp
 }
@@ -459,7 +461,7 @@ func transformArraySetup(sourceVar, targetVar string, newVar bool, ta *transform
 		if newVar {
 			assign = ":="
 		}
-		code = fmt.Sprintf("%s %s &%s{}\n", targetVar, assign, ta.targetInit)
+		code = renderJenLine(exprCode(targetVar).Op(assign).Op("&").Id(ta.targetInit).Values())
 		ta.targetInit = ""
 	}
 	if !ta.wrapped {
@@ -503,10 +505,10 @@ func transformArrayInitBuffer(targetVar, sourceVar, targetRef string, targetPtr,
 	if newVar {
 		assign = ":="
 	}
-	targetElemVar := fmt.Sprintf("%s[%s]", targetVar, loopVar)
+	targetElemVar := targetVar + "[" + loopVar + "]"
 	if targetPtr {
-		arrayVar := fmt.Sprintf("arr%s", loopVar)
-		targetElemVar = fmt.Sprintf("%s[%s]", arrayVar, loopVar)
+		arrayVar := "arr" + loopVar
+		targetElemVar = arrayVar + "[" + loopVar + "]"
 		fmt.Fprintf(&buf, "%s := make([]%s, len(%s))\n", arrayVar, targetRef, rangeOn)
 		return buf, targetElemVar, loopVar, rangeOn
 	}
@@ -556,7 +558,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		return "", err
 	}
 	fmt.Fprint(&buf, codegen.Indent(keyCode, "\t"))
-	elemTmp := fmt.Sprintf("tv%s", suffix)
+	elemTmp := "tv" + suffix
 	elemCode, err := transformAttribute(src, tgt, "val", elemTmp, true, ta)
 	if err != nil {
 		return "", err
@@ -587,7 +589,7 @@ func transformMapTargetSetup(sourceVar, targetVar string, newVar bool, ta *trans
 		if newVar {
 			assign = ":="
 		}
-		code = fmt.Sprintf("%s %s &%s{}\n", targetVar, assign, ta.targetInit)
+		code = renderJenLine(exprCode(targetVar).Op(assign).Op("&").Id(ta.targetInit).Values())
 		ta.targetInit = ""
 	}
 	if !ta.wrapped {
@@ -636,10 +638,10 @@ func transformMapInit(targetVar, sourceVar string, targetPtr bool, targetKeyRef,
 		assign = ":="
 	}
 	if targetPtr {
-		mapVar := fmt.Sprintf("m%s", loopVar)
-		return mapVar, fmt.Sprintf("%s := make(map[%s]%s, len(%s))\n", mapVar, targetKeyRef, targetElemRef, sourceVar)
+		mapVar := "m" + loopVar
+		return mapVar, renderJenLine(exprCode(mapVar).Op(":=").Make(exprCode("map["+targetKeyRef+"]"+targetElemRef), jen.Len(exprCode(sourceVar))))
 	}
-	return targetVar, fmt.Sprintf("%s %s make(map[%s]%s, len(%s))\n", targetVar, assign, targetKeyRef, targetElemRef, sourceVar)
+	return targetVar, renderJenLine(exprCode(targetVar).Op(assign).Make(exprCode("map["+targetKeyRef+"]"+targetElemRef), jen.Len(exprCode(sourceVar))))
 }
 
 // transformUnionToProto returns the code to transform an attribute of type
@@ -728,11 +730,11 @@ func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar 
 			}
 			return convertPrimitiveFromProto(srcp, tgt, srcPtr, tgtPtr, srcVar, ta)
 		}
-		return fmt.Sprintf("%s(%s)", transformHelperName(src, tgt, ta), srcVar)
+		return renderJen(jen.Id(transformHelperName(src, tgt, ta)).Call(exprCode(srcVar)))
 	}
 
 	if _, ok := src.Type.(expr.UserType); ok {
-		return fmt.Sprintf("%s(%s)", transformHelperName(src, tgt, ta), srcVar)
+		return renderJen(jen.Id(transformHelperName(src, tgt, ta)).Call(exprCode(srcVar)))
 	}
 
 	srcType, _ := codegen.GetMetaType(src)
@@ -750,20 +752,20 @@ func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar 
 
 const convertGoAnyToProtobufValueFunc = `func() *structpb.Value {
 	// Convert Go any to protobuf Value directly
-	if %s == nil {
+	if %SRC% == nil {
 		return structpb.NewNullValue()
 	}
-	value, err := structpb.NewValue(%s)
+	value, err := structpb.NewValue(%SRC%)
 	if err != nil {
-		panic(fmt.Sprintf("failed to convert value to structpb.Value: %%v", err))
+		panic(%FMT_SPRINTF%("failed to convert value to structpb.Value: %v", err))
 	}
 	return value
 }()`
 
 const convertProtobufValueToGoAnyFunc = `func() any {
 	// Convert protobuf Value to Go any directly
-	if %s != nil {
-		return %s.AsInterface()
+	if %SRC% != nil {
+		return %SRC%.AsInterface()
 	}
 	return nil
 }()`
@@ -779,14 +781,14 @@ func convertPrimitiveToProto(_, tgt *expr.AttributeExpr, srcPtr, _ bool, srcVar 
 			srcVar = "*" + srcVar
 		}
 
-		return fmt.Sprintf(convertGoAnyToProtobufValueFunc, srcVar, srcVar)
+		return strings.NewReplacer("%SRC%", srcVar, "%FMT_SPRINTF%", "fmt."+"Sprintf").Replace(convertGoAnyToProtobufValueFunc)
 	}
 
 	tgtType := protoBufNativeGoTypeName(tgt.Type)
 	if srcPtr {
 		srcVar = "*" + srcVar
 	}
-	return fmt.Sprintf("%s(%s)", tgtType, srcVar)
+	return renderJen(exprCode(tgtType).Call(exprCode(srcVar)))
 }
 
 func convertPrimitiveFromProto(_, tgt *expr.AttributeExpr, srcPtr, _ bool, srcVar string, ta *transformAttrs) string {
@@ -796,7 +798,7 @@ func convertPrimitiveFromProto(_, tgt *expr.AttributeExpr, srcPtr, _ bool, srcVa
 			srcVar = "*" + srcVar
 		}
 
-		return fmt.Sprintf(convertProtobufValueToGoAnyFunc, srcVar, srcVar)
+		return strings.NewReplacer("%SRC%", srcVar).Replace(convertProtobufValueToGoAnyFunc)
 	}
 
 	tgtType, _ := codegen.GetMetaType(tgt)
@@ -806,7 +808,7 @@ func convertPrimitiveFromProto(_, tgt *expr.AttributeExpr, srcPtr, _ bool, srcVa
 	if srcPtr {
 		srcVar = "*" + srcVar
 	}
-	return fmt.Sprintf("%s(%s)", tgtType, srcVar)
+	return renderJen(exprCode(tgtType).Call(exprCode(srcVar)))
 }
 
 // transformUnionData returns data needed by both transformUnion functions.
@@ -1225,4 +1227,10 @@ func dupTransformAttrs(ta *transformAttrs) *transformAttrs {
 		wrapped:        ta.wrapped,
 		message:        ta.message,
 	}
+}
+
+func formatGoLiteral(v any) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%#v", v)
+	return b.String()
 }
