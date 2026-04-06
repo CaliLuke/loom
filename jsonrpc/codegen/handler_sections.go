@@ -725,81 +725,18 @@ func writeJSONRPCEndpointErrorHandling(g *jen.Group, e *httpcodegen.EndpointData
 		eg.If(jen.Id("req").Dot("ID").Op("!=").Nil().Op("&&").Id("req").Dot("ID").Op("!=").Lit("")).BlockFunc(func(idg *jen.Group) {
 			idg.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer"))
 			idg.If(jen.Op("!").Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).Block(
-				jen.Id("encodeJSONRPCError").Call(
-					jen.Id("ctx"),
-					jen.Id("w"),
-					jen.Id("req"),
-					jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
-					codegen.Expr("loom.ErrorSafeMessage(err)"),
-					codegen.Expr("jsonrpc.NewErrorData(err)"),
-					jen.Id("encoder"),
-					jen.Id("errhandler"),
-				),
+				writeJSONRPCEncodeErrorCall(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")),
 				jen.Return(jen.Nil()),
 			)
 			idg.Switch(jen.Id("en").Dot("LoomErrorName").Call()).BlockFunc(func(sg *jen.Group) {
-				for _, gerr := range e.Errors {
-					for _, item := range gerr.Errors {
-						if item.Response == nil {
-							continue
-						}
-						sg.Case(jen.Lit(item.Name)).Block(
-							jen.Id("encodeJSONRPCError").Call(
-								jen.Id("ctx"),
-								jen.Id("w"),
-								jen.Id("req"),
-								jen.Lit(item.Response.Code),
-								codegen.Expr("loom.ErrorSafeMessage(err)"),
-								codegen.Expr("jsonrpc.NewErrorData(err)"),
-								jen.Id("encoder"),
-								jen.Id("errhandler"),
-							),
-						)
-					}
-				}
+				writeJSONRPCKnownErrorCases(sg, e)
 				sg.Case(jen.Lit("invalid_params")).Block(
-					jen.Id("encodeJSONRPCError").Call(
-						jen.Id("ctx"),
-						jen.Id("w"),
-						jen.Id("req"),
-						jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
-						codegen.Expr("loom.ErrorSafeMessage(err)"),
-						codegen.Expr("jsonrpc.NewErrorData(err)"),
-						jen.Id("encoder"),
-						jen.Id("errhandler"),
-					),
+					writeJSONRPCEncodeErrorCall(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams")),
 				)
 				sg.Case(jen.Lit("method_not_found")).Block(
-					jen.Id("encodeJSONRPCError").Call(
-						jen.Id("ctx"),
-						jen.Id("w"),
-						jen.Id("req"),
-						jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound"),
-						codegen.Expr("loom.ErrorSafeMessage(err)"),
-						codegen.Expr("jsonrpc.NewErrorData(err)"),
-						jen.Id("encoder"),
-						jen.Id("errhandler"),
-					),
+					writeJSONRPCEncodeErrorCall(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound")),
 				)
-				sg.Default().Block(
-					jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
-					jen.If(
-						jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("err").Assert(jen.Op("*").Add(codegen.TypeRef("loom.ServiceError"))),
-						jen.Id("ok"),
-					).Block(
-						jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
-					),
-					jen.Id("encodeJSONRPCError").Call(
-						jen.Id("ctx"),
-						jen.Id("w"),
-						jen.Id("req"),
-						jen.Id("code"),
-						codegen.Expr("loom.ErrorSafeMessage(err)"),
-						codegen.Expr("jsonrpc.NewErrorData(err)"),
-						jen.Id("encoder"),
-						jen.Id("errhandler"),
-					),
-				)
+				sg.Default().BlockFunc(writeJSONRPCDefaultEndpointError)
 			})
 		}).Else().Block(
 			jen.Id("errhandler").Call(
@@ -811,6 +748,43 @@ func writeJSONRPCEndpointErrorHandling(g *jen.Group, e *httpcodegen.EndpointData
 		eg.Return(jen.Nil())
 	})
 	g.Line()
+}
+
+func writeJSONRPCKnownErrorCases(g *jen.Group, e *httpcodegen.EndpointData) {
+	for _, gerr := range e.Errors {
+		for _, item := range gerr.Errors {
+			if item.Response == nil {
+				continue
+			}
+			g.Case(jen.Lit(item.Name)).Block(
+				writeJSONRPCEncodeErrorCall(jen.Lit(item.Response.Code)),
+			)
+		}
+	}
+}
+
+func writeJSONRPCEncodeErrorCall(code jen.Code) jen.Code {
+	return jen.Id("encodeJSONRPCError").Call(
+		jen.Id("ctx"),
+		jen.Id("w"),
+		jen.Id("req"),
+		code,
+		codegen.Expr("loom.ErrorSafeMessage(err)"),
+		codegen.Expr("jsonrpc.NewErrorData(err)"),
+		jen.Id("encoder"),
+		jen.Id("errhandler"),
+	)
+}
+
+func writeJSONRPCDefaultEndpointError(g *jen.Group) {
+	g.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
+	g.If(
+		jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("err").Assert(jen.Op("*").Add(codegen.TypeRef("loom.ServiceError"))),
+		jen.Id("ok"),
+	).Block(
+		jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
+	)
+	g.Add(writeJSONRPCEncodeErrorCall(jen.Id("code")))
 }
 
 func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {

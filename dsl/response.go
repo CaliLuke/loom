@@ -112,15 +112,7 @@ import (
 //	    })
 //	})
 func Response(val any, args ...any) {
-	name, ok := val.(string)
-	if !ok && len(args) > 0 {
-		name, ok = args[0].(string)
-		if ok {
-			arg := args[0]
-			args = append([]any{val}, args[1:]...)
-			val = arg
-		}
-	}
+	name, ok, val, args := responseNameArgs(val, args)
 	switch t := eval.Current().(type) {
 	case *expr.RootExpr:
 		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
@@ -153,18 +145,7 @@ func Response(val any, args ...any) {
 			})
 			return
 		}
-		code, fn := parseResponseArgs(val, args...)
-		if code == 0 {
-			code = expr.StatusOK
-		}
-		resp := &expr.HTTPResponseExpr{
-			StatusCode: code,
-			Parent:     t,
-		}
-		if fn != nil {
-			eval.Execute(fn, resp)
-		}
-		t.Responses = append(t.Responses, resp)
+		t.Responses = append(t.Responses, httpEndpointResponse(t, val, args...))
 	case *expr.GRPCEndpointExpr:
 		if ok {
 			// error response
@@ -173,15 +154,7 @@ func Response(val any, args ...any) {
 			}
 			return
 		}
-		code, fn := parseResponseArgs(val, args...)
-		resp := &expr.GRPCResponseExpr{
-			StatusCode: code,
-			Parent:     t,
-		}
-		if fn != nil {
-			eval.Execute(fn, resp)
-		}
-		t.Response = resp
+		t.Response = grpcEndpointResponse(t, val, args...)
 	default:
 		eval.IncompatibleDSL()
 	}
@@ -223,6 +196,41 @@ func appendGRPCError(name string, ok bool, val any, args []any, parent eval.Expr
 	}
 }
 
+func responseNameArgs(val any, args []any) (string, bool, any, []any) {
+	name, ok := val.(string)
+	if ok || len(args) == 0 {
+		return name, ok, val, args
+	}
+	name, ok = args[0].(string)
+	if !ok {
+		return "", false, val, args
+	}
+	return name, true, args[0], append([]any{val}, args[1:]...)
+}
+
+func httpEndpointResponse(parent *expr.HTTPEndpointExpr, val any, args ...any) *expr.HTTPResponseExpr {
+	code, fn := parseResponseArgs(val, args...)
+	if code == 0 {
+		code = expr.StatusOK
+	}
+	resp := &expr.HTTPResponseExpr{
+		StatusCode: code,
+		Parent:     parent,
+	}
+	executeResponseDSL(fn, resp)
+	return resp
+}
+
+func grpcEndpointResponse(parent *expr.GRPCEndpointExpr, val any, args ...any) *expr.GRPCResponseExpr {
+	code, fn := parseResponseArgs(val, args...)
+	resp := &expr.GRPCResponseExpr{
+		StatusCode: code,
+		Parent:     parent,
+	}
+	executeResponseDSL(fn, resp)
+	return resp
+}
+
 func grpcError(n string, p eval.Expression, args ...any) *expr.GRPCErrorExpr {
 	if len(args) == 0 {
 		eval.TooFewArgError()
@@ -243,9 +251,7 @@ func grpcError(n string, p eval.Expression, args ...any) *expr.GRPCErrorExpr {
 		StatusCode: code,
 		Parent:     p,
 	}
-	if fn != nil {
-		eval.Execute(fn, resp)
-	}
+	executeResponseDSL(fn, resp)
 	return &expr.GRPCErrorExpr{
 		Name:     n,
 		Response: resp,
@@ -301,11 +307,15 @@ func httpOrJSONRPCError(n string, p eval.Expression, args ...any) *expr.HTTPErro
 		StatusCode: code,
 		Parent:     p,
 	}
-	if fn != nil {
-		eval.Execute(fn, resp)
-	}
+	executeResponseDSL(fn, resp)
 	return &expr.HTTPErrorExpr{
 		Name:     n,
 		Response: resp,
+	}
+}
+
+func executeResponseDSL(fn func(), target eval.Expression) {
+	if fn != nil {
+		eval.Execute(fn, target)
 	}
 }

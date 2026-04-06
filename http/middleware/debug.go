@@ -30,78 +30,82 @@ func Debug(mux loomhttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			buf := &bytes.Buffer{}
-			// Request ID
-			reqID := r.Context().Value(middleware.RequestIDKey)
-			if reqID == nil {
-				reqID = shortID()
-			}
-
-			// Request URL
-			fmt.Fprintf(buf, "> [%s] %s %s", reqID, r.Method, r.URL.String())
-
-			// Request Headers
-			keys := make([]string, len(r.Header))
-			i := 0
-			for k := range r.Header {
-				keys[i] = k
-				i++
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				fmt.Fprintf(buf, "\n> [%s] %s: %s", reqID, k, strings.Join(r.Header[k], ", "))
-			}
-
-			// Request parameters
-			params := mux.Vars(r)
-			keys = make([]string, len(params))
-			i = 0
-			for k := range params {
-				keys[i] = k
-				i++
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				fmt.Fprintf(buf, "\n> [%s] %s: %s", reqID, k, params[k])
-			}
-
-			// Request body
-			b, err := io.ReadAll(r.Body)
-			if err != nil {
-				b = []byte("failed to read body: " + err.Error())
-			}
-			if len(b) > 0 {
-				buf.WriteByte('\n')
-				lines := strings.Split(string(b), "\n")
-				for _, line := range lines {
-					fmt.Fprintf(buf, "[%s] %s\n", reqID, line)
-				}
-			}
-			r.Body = io.NopCloser(bytes.NewBuffer(b))
+			reqID := requestID(r)
+			writeDebugRequest(buf, mux, reqID, r)
 
 			dupper := &responseDupper{ResponseWriter: rw, Buffer: &bytes.Buffer{}}
 			h.ServeHTTP(dupper, r)
-
-			fmt.Fprintf(buf, "\n< [%s] %s", reqID, http.StatusText(dupper.Status))
-			keys = make([]string, len(dupper.Header()))
-			i = 0
-			for k := range dupper.Header() {
-				keys[i] = k
-				i++
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				fmt.Fprintf(buf, "\n< [%s] %s: %s", reqID, k, strings.Join(dupper.Header()[k], ", "))
-			}
-			if dupper.Buffer.Len() > 0 {
-				buf.WriteByte('\n')
-				lines := strings.Split(dupper.Buffer.String(), "\n")
-				for _, line := range lines {
-					fmt.Fprintf(buf, "[%s] %s\n", reqID, line)
-				}
-			}
+			writeDebugResponse(buf, reqID, dupper)
 			buf.WriteByte('\n')
 			w.Write(buf.Bytes()) // nolint: errcheck
 		})
+	}
+}
+
+func requestID(r *http.Request) any {
+	reqID := r.Context().Value(middleware.RequestIDKey)
+	if reqID == nil {
+		return shortID()
+	}
+	return reqID
+}
+
+func writeDebugRequest(buf *bytes.Buffer, mux loomhttp.Muxer, reqID any, r *http.Request) {
+	fmt.Fprintf(buf, "> [%s] %s %s", reqID, r.Method, r.URL.String())
+	writeDebugMap(buf, reqID, ">", stringMap(r.Header))
+	writeDebugMap(buf, reqID, ">", mux.Vars(r))
+	body := readDebugBody(r)
+	writeDebugBody(buf, reqID, body)
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+}
+
+func writeDebugResponse(buf *bytes.Buffer, reqID any, dupper *responseDupper) {
+	fmt.Fprintf(buf, "\n< [%s] %s", reqID, http.StatusText(dupper.Status))
+	writeDebugMap(buf, reqID, "<", stringMap(dupper.Header()))
+	if dupper.Buffer.Len() > 0 {
+		writeDebugBody(buf, reqID, []byte(dupper.Buffer.String()))
+	}
+}
+
+func stringMap(values map[string][]string) map[string]string {
+	flat := make(map[string]string, len(values))
+	for key, value := range values {
+		flat[key] = strings.Join(value, ", ")
+	}
+	return flat
+}
+
+func writeDebugMap(buf *bytes.Buffer, reqID any, prefix string, values map[string]string) {
+	keys := sortedDebugKeys(values)
+	for _, key := range keys {
+		fmt.Fprintf(buf, "\n%s [%s] %s: %s", prefix, reqID, key, values[key])
+	}
+}
+
+func sortedDebugKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func readDebugBody(r *http.Request) []byte {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return []byte("failed to read body: " + err.Error())
+	}
+	return body
+}
+
+func writeDebugBody(buf *bytes.Buffer, reqID any, body []byte) {
+	if len(body) == 0 {
+		return
+	}
+	buf.WriteByte('\n')
+	for _, line := range strings.Split(string(body), "\n") {
+		fmt.Fprintf(buf, "[%s] %s\n", reqID, line)
 	}
 }
 

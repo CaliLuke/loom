@@ -20,71 +20,58 @@ func Example(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		if !ok {
 			continue // could be a plugin root expression
 		}
-
-		// Create service data
 		services := service.NewServicesData(r)
+		files = append(files, baseExampleFiles(genpkg, r, services)...)
+		files = append(files, httpExampleFiles(genpkg, r, services)...)
+		files = append(files, jsonrpcExampleFiles(genpkg, r, services, files)...)
+		files = append(files, grpcExampleFiles(genpkg, r, services)...)
+		addExampleMetaTypeImports(files, r, services)
+	}
+	return files, nil
+}
 
-		// example service implementation
-		if fs := service.ExampleServiceFiles(genpkg, r, services); len(fs) != 0 {
-			files = append(files, fs...)
-		}
+func baseExampleFiles(genpkg string, root *expr.RootExpr, services *service.ServicesData) []*codegen.File {
+	files := make([]*codegen.File, 0, 4)
+	files = append(files, service.ExampleServiceFiles(genpkg, root, services)...)
+	files = append(files, service.ExampleInterceptorsFiles(genpkg, root, services)...)
+	files = append(files, example.ServerFiles(genpkg, root, services)...)
+	files = append(files, example.CLIFiles(genpkg, root)...)
+	return files
+}
 
-		// example interceptors implementation
-		if fs := service.ExampleInterceptorsFiles(genpkg, r, services); len(fs) != 0 {
-			files = append(files, fs...)
-		}
+func httpExampleFiles(genpkg string, root *expr.RootExpr, services *service.ServicesData) []*codegen.File {
+	if len(root.API.HTTP.Services) == 0 {
+		return nil
+	}
+	httpServices := httpcodegen.NewServicesData(services, root.API.HTTP)
+	files := httpcodegen.ExampleServerFiles(genpkg, httpServices)
+	return append(files, httpcodegen.ExampleCLIFiles(genpkg, httpServices)...)
+}
 
-		// server main
-		if fs := example.ServerFiles(genpkg, r, services); len(fs) != 0 {
-			files = append(files, fs...)
-		}
+func jsonrpcExampleFiles(genpkg string, root *expr.RootExpr, services *service.ServicesData, existing []*codegen.File) []*codegen.File {
+	if len(root.API.JSONRPC.Services) == 0 {
+		return nil
+	}
+	jsonrpcServices := httpcodegen.NewServicesData(services, &root.API.JSONRPC.HTTPExpr)
+	files := jsonrpccodegen.ExampleServerFiles(genpkg, jsonrpcServices, existing)
+	return append(files, jsonrpccodegen.ExampleCLIFiles(genpkg, jsonrpcServices)...)
+}
 
-		// CLI main
-		if fs := example.CLIFiles(genpkg, r); len(fs) != 0 {
-			files = append(files, fs...)
-		}
+func grpcExampleFiles(genpkg string, root *expr.RootExpr, services *service.ServicesData) []*codegen.File {
+	if len(root.API.GRPC.Services) == 0 {
+		return nil
+	}
+	grpcServices := grpccodegen.NewServicesData(services)
+	files := grpccodegen.ExampleServerFiles(genpkg, grpcServices)
+	return append(files, grpccodegen.ExampleCLIFiles(genpkg, grpcServices)...)
+}
 
-		// HTTP
-		if len(r.API.HTTP.Services) > 0 {
-			httpServices := httpcodegen.NewServicesData(services, r.API.HTTP)
-			if fs := httpcodegen.ExampleServerFiles(genpkg, httpServices); len(fs) != 0 {
-				files = append(files, fs...)
-			}
-			if fs := httpcodegen.ExampleCLIFiles(genpkg, httpServices); len(fs) != 0 {
-				files = append(files, fs...)
-			}
-		}
-
-		// JSON-RPC
-		if len(r.API.JSONRPC.Services) > 0 {
-			jsonrpcServices := httpcodegen.NewServicesData(services, &r.API.JSONRPC.HTTPExpr)
-			if fs := jsonrpccodegen.ExampleServerFiles(genpkg, jsonrpcServices, files); len(fs) > 0 {
-				files = append(files, fs...)
-			}
-			if fs := jsonrpccodegen.ExampleCLIFiles(genpkg, jsonrpcServices); len(fs) > 0 {
-				files = append(files, fs...)
-			}
-		}
-
-		// GRPC
-		if len(r.API.GRPC.Services) > 0 {
-			grpcServices := grpccodegen.NewServicesData(services)
-			if fs := grpccodegen.ExampleServerFiles(genpkg, grpcServices); len(fs) > 0 {
-				files = append(files, fs...)
-			}
-			if fs := grpccodegen.ExampleCLIFiles(genpkg, grpcServices); len(fs) > 0 {
-				files = append(files, fs...)
-			}
-		}
-
-		// Add imports defined via struct:field:type
-		for _, f := range files {
-			if header := f.HeaderTemplate(); header != nil {
-				for _, s := range r.Services {
-					service.AddServiceDataMetaTypeImports(header, s, services.Get(s.Name))
-				}
+func addExampleMetaTypeImports(files []*codegen.File, root *expr.RootExpr, services *service.ServicesData) {
+	for _, f := range files {
+		if header := f.HeaderTemplate(); header != nil {
+			for _, s := range root.Services {
+				service.AddServiceDataMetaTypeImports(header, s, services.Get(s.Name))
 			}
 		}
 	}
-	return files, nil
 }

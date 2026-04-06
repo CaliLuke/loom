@@ -259,50 +259,8 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 		verr.Merge(v.Validate(ctx, parent))
 	}
 	verr.Merge(a.validateExamples(ctx, parent))
-	if o := AsObject(a.Type); o != nil {
-		for _, n := range a.AllRequired() {
-			if a.Find(n) == nil {
-				verr.Add(parent, `%srequired field %q does not exist in type %s`, ctx, n, a.Type.Name())
-			}
-		}
-		var pkgPath string
-		if ut, ok := a.Type.(UserType); ok {
-			if meta, ok := ut.Attribute().Meta["struct:pkg:path"]; ok {
-				pkgPath = meta[0]
-			}
-		}
-		for _, nat := range *o {
-			verr.Merge(a.validatePkgPath(pkgPath, nat.Attribute.Type))
-			ctx = fmt.Sprintf("field %s", nat.Name)
-			verr.Merge(nat.Attribute.Validate(ctx, parent))
-		}
-	} else if ar := AsArray(a.Type); ar != nil {
-		elemType := ar.ElemType
-		verr.Merge(elemType.Validate(ctx, a))
-	} else if u := AsUnion(a.Type); u != nil {
-		for _, ut := range u.Values {
-			verr.Merge(ut.Attribute.Validate(ctx, parent))
-		}
-	}
-
-	if view, ok := a.Meta.Last(ViewMetaKey); ok {
-		rt, ok := a.Type.(*ResultTypeExpr)
-		if !ok {
-			verr.Add(parent, "%s uses view %q but %q is not a result type", ctx, view, a.Type.Name())
-		}
-		if view != DefaultView && rt != nil {
-			found := false
-			for _, v := range rt.Views {
-				if v.Name == view {
-					found = true
-					break
-				}
-			}
-			if !found {
-				verr.Add(parent, "%s: type %q does not define view %q", ctx, a.Type.Name(), view)
-			}
-		}
-	}
+	verr.Merge(a.validateChildTypes(ctx, parent))
+	verr.Merge(a.validateViewReference(ctx, parent))
 
 	return verr
 }
@@ -343,6 +301,79 @@ func (a *AttributeExpr) validatePkgPath(pkgPath string, t DataType) *eval.Valida
 		return verr
 	}
 	return nil
+}
+
+func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	if o := AsObject(a.Type); o != nil {
+		verr.Merge(a.validateObjectChildren(ctx, parent, o))
+		return verr
+	}
+	if ar := AsArray(a.Type); ar != nil {
+		verr.Merge(ar.ElemType.Validate(ctx, a))
+		return verr
+	}
+	if u := AsUnion(a.Type); u != nil {
+		for _, ut := range u.Values {
+			verr.Merge(ut.Attribute.Validate(ctx, parent))
+		}
+	}
+	return verr
+}
+
+func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expression, obj *Object) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	for _, n := range a.AllRequired() {
+		if a.Find(n) == nil {
+			verr.Add(parent, `%srequired field %q does not exist in type %s`, ctx, n, a.Type.Name())
+		}
+	}
+	pkgPath := attributePkgPath(a.Type)
+	for _, nat := range *obj {
+		verr.Merge(a.validatePkgPath(pkgPath, nat.Attribute.Type))
+		fieldCtx := fmt.Sprintf("field %s", nat.Name)
+		verr.Merge(nat.Attribute.Validate(fieldCtx, parent))
+	}
+	return verr
+}
+
+func attributePkgPath(dt DataType) string {
+	ut, ok := dt.(UserType)
+	if !ok {
+		return ""
+	}
+	meta, ok := ut.Attribute().Meta["struct:pkg:path"]
+	if !ok || len(meta) == 0 {
+		return ""
+	}
+	return meta[0]
+}
+
+func (a *AttributeExpr) validateViewReference(ctx string, parent eval.Expression) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	view, ok := a.Meta.Last(ViewMetaKey)
+	if !ok {
+		return verr
+	}
+	rt, ok := a.Type.(*ResultTypeExpr)
+	if !ok {
+		verr.Add(parent, "%s uses view %q but %q is not a result type", ctx, view, a.Type.Name())
+		return verr
+	}
+	if view == DefaultView || resultTypeHasView(rt, view) {
+		return verr
+	}
+	verr.Add(parent, "%s: type %q does not define view %q", ctx, a.Type.Name(), view)
+	return verr
+}
+
+func resultTypeHasView(rt *ResultTypeExpr, view string) bool {
+	for _, candidate := range rt.Views {
+		if candidate.Name == view {
+			return true
+		}
+	}
+	return false
 }
 
 // Finalize merges base and reference type attributes and finalizes the Type

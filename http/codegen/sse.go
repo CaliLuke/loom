@@ -73,52 +73,18 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 	svc := sd.Service
 	caps := service.DescribeMethodCapabilities(md)
 
-	// Use streaming result type if different from result
-	eventAttr := endpointIR.Response.Result
-	if caps.HasMixedResults && endpointIR.Response.StreamingResult != nil {
-		eventAttr = endpointIR.Response.StreamingResult
-	}
-	streamDesc := service.BuildStreamDescriptor(svc, md, nil, eventAttr)
-	eventType := &ResultData{
-		Name:     streamDesc.Result.Declared.Name,
-		Ref:      streamDesc.Result.Declared.Ref,
-		IsStruct: expr.IsObject(eventAttr.Type),
-	}
-	if !caps.HasMixedResults {
-		eventType = ed.Result
-	}
-
-	sendDesc := fmt.Sprintf("%s streams instances of %q to the %q endpoint SSE connection.", md.ServerStream.SendName, eventType.Name, md.Name)
-	sendWithContextDesc := fmt.Sprintf("%s streams instances of %q to the %q endpoint SSE connection with context.", md.ServerStream.SendWithContextName, eventType.Name, md.Name)
-	recvDesc := fmt.Sprintf("%s connects to the %q SSE endpoint and streams events.", md.ServerStream.RecvName, md.Name)
-
-	// Convert attribute names to Go field names
-	var dataFieldVar, dataFieldTypeRef, idFieldVar, eventFieldVar, retryFieldVar string
-	if obj := expr.AsObject(eventAttr.Type); obj != nil {
-		for _, nat := range *obj {
-			switch nat.Name {
-			case endpointIR.Stream.SSE.IDField:
-				idFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case endpointIR.Stream.SSE.EventField:
-				eventFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case endpointIR.Stream.SSE.RetryField:
-				retryFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case endpointIR.Stream.SSE.DataField:
-				dataFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-				dataFieldTypeRef = sd.Service.Scope.GoFullTypeRef(nat.Attribute, svc.PkgName)
-			}
-		}
-	}
+	eventAttr, eventType := sseEventType(ed, endpointIR, sd, caps)
+	dataFieldVar, dataFieldTypeRef, idFieldVar, eventFieldVar, retryFieldVar := sseEventFieldData(endpointIR, sd, svc, eventAttr)
 
 	ed.SSE = &SSEData{
 		StructName:          md.ServerStream.VarName,
 		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ServerStream.Interface),
 		SendName:            md.ServerStream.SendName,
-		SendDesc:            sendDesc,
+		SendDesc:            sseSendDescription(md.ServerStream.SendName, eventType.Name, md.Name),
 		SendWithContextName: md.ServerStream.SendWithContextName,
-		SendWithContextDesc: sendWithContextDesc,
+		SendWithContextDesc: sseSendWithContextDescription(md.ServerStream.SendWithContextName, eventType.Name, md.Name),
 		RecvName:            md.ClientStream.RecvName,
-		RecvDesc:            recvDesc,
+		RecvDesc:            sseRecvDescription(md.ClientStream.RecvName, md.Name),
 		EventTypeRef:        eventType.Ref,
 		EventTypeName:       eventType.Name,
 		EventIsStruct:       eventType.IsStruct,
@@ -147,6 +113,54 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 			}
 		}
 	}
+}
+
+func sseEventType(ed *EndpointData, endpointIR *transportir.Endpoint, sd *ServiceData, caps service.MethodCapabilityDescriptor) (*expr.AttributeExpr, *ResultData) {
+	eventAttr := endpointIR.Response.Result
+	if caps.HasMixedResults && endpointIR.Response.StreamingResult != nil {
+		eventAttr = endpointIR.Response.StreamingResult
+	}
+	if !caps.HasMixedResults {
+		return eventAttr, ed.Result
+	}
+	streamDesc := service.BuildStreamDescriptor(sd.Service, ed.Method, nil, eventAttr)
+	return eventAttr, &ResultData{
+		Name:     streamDesc.Result.Declared.Name,
+		Ref:      streamDesc.Result.Declared.Ref,
+		IsStruct: expr.IsObject(eventAttr.Type),
+	}
+}
+
+func sseEventFieldData(endpointIR *transportir.Endpoint, sd *ServiceData, svc *service.Data, eventAttr *expr.AttributeExpr) (string, string, string, string, string) {
+	var dataFieldVar, dataFieldTypeRef, idFieldVar, eventFieldVar, retryFieldVar string
+	if obj := expr.AsObject(eventAttr.Type); obj != nil {
+		for _, nat := range *obj {
+			switch nat.Name {
+			case endpointIR.Stream.SSE.IDField:
+				idFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
+			case endpointIR.Stream.SSE.EventField:
+				eventFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
+			case endpointIR.Stream.SSE.RetryField:
+				retryFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
+			case endpointIR.Stream.SSE.DataField:
+				dataFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
+				dataFieldTypeRef = sd.Service.Scope.GoFullTypeRef(nat.Attribute, svc.PkgName)
+			}
+		}
+	}
+	return dataFieldVar, dataFieldTypeRef, idFieldVar, eventFieldVar, retryFieldVar
+}
+
+func sseSendDescription(sendName, eventTypeName, methodName string) string {
+	return fmt.Sprintf("%s streams instances of %q to the %q endpoint SSE connection.", sendName, eventTypeName, methodName)
+}
+
+func sseSendWithContextDescription(sendName, eventTypeName, methodName string) string {
+	return fmt.Sprintf("%s streams instances of %q to the %q endpoint SSE connection with context.", sendName, eventTypeName, methodName)
+}
+
+func sseRecvDescription(recvName, methodName string) string {
+	return fmt.Sprintf("%s connects to the %q SSE endpoint and streams events.", recvName, methodName)
 }
 
 // sseServerFile returns the file implementing the SSE server

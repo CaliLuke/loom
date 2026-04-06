@@ -311,58 +311,15 @@ func mergeFilesByPath(files []*codegen.File) []*codegen.File {
 
 	byPath := make(map[string]*codegen.File)
 	namesByPath := make(map[string]map[string]struct{})
-
-	// First pass: build merged file per path
 	for _, f := range files {
 		if f == nil {
 			continue
 		}
-		path := f.Path
-		if existing, ok := byPath[path]; ok {
-			existingSections := append([]codegen.Section{}, existing.AllSections()...)
-			incomingSections := f.AllSections()
-
-			// Merge headers (index 0) imports
-			if len(existingSections) > 0 && len(incomingSections) > 0 {
-				mergeHeaderImports(sectionTemplate(existingSections[0]), sectionTemplate(incomingSections[0]))
-			}
-			// Initialize seen section names for this path
-			if namesByPath[path] == nil {
-				namesByPath[path] = make(map[string]struct{})
-				for _, section := range existingSections {
-					namesByPath[path][section.SectionName()] = struct{}{}
-				}
-			}
-			// Append unique sections (skip header at index 0)
-			for i, section := range incomingSections {
-				if i == 0 {
-					continue
-				}
-				if _, seen := namesByPath[path][section.SectionName()]; seen {
-					continue
-				}
-				existingSections = append(existingSections, section)
-				namesByPath[path][section.SectionName()] = struct{}{}
-			}
-			existing.SetSections(existingSections)
-			// Preserve a finalize function if destination does not have one
-			if existing.FinalizeFunc == nil && f.FinalizeFunc != nil {
-				existing.FinalizeFunc = f.FinalizeFunc
-			}
-			// Skip adding a duplicate File entry
+		if mergeFileByPath(byPath, namesByPath, f) {
 			continue
 		}
-
-		// New path: record and initialize seen names
-		byPath[path] = f
-		m := make(map[string]struct{})
-		for _, section := range f.AllSections() {
-			m[section.SectionName()] = struct{}{}
-		}
-		namesByPath[path] = m
+		recordFileByPath(byPath, namesByPath, f)
 	}
-
-	// Second pass: preserve original order by first occurrence of each path
 	merged := make([]*codegen.File, 0, len(byPath))
 	seenPaths := make(map[string]struct{})
 	for _, f := range files {
@@ -378,6 +335,58 @@ func mergeFilesByPath(files []*codegen.File) []*codegen.File {
 		}
 	}
 	return merged
+}
+
+func mergeFileByPath(byPath map[string]*codegen.File, namesByPath map[string]map[string]struct{}, f *codegen.File) bool {
+	existing, ok := byPath[f.Path]
+	if !ok {
+		return false
+	}
+	existingSections := append([]codegen.Section{}, existing.AllSections()...)
+	incomingSections := f.AllSections()
+	mergeHeaderSections(existingSections, incomingSections)
+	initSectionNames(namesByPath, f.Path, existingSections)
+	existing.SetSections(appendUniqueSections(existingSections, incomingSections, namesByPath[f.Path]))
+	if existing.FinalizeFunc == nil && f.FinalizeFunc != nil {
+		existing.FinalizeFunc = f.FinalizeFunc
+	}
+	return true
+}
+
+func mergeHeaderSections(existingSections, incomingSections []codegen.Section) {
+	if len(existingSections) == 0 || len(incomingSections) == 0 {
+		return
+	}
+	mergeHeaderImports(sectionTemplate(existingSections[0]), sectionTemplate(incomingSections[0]))
+}
+
+func initSectionNames(namesByPath map[string]map[string]struct{}, path string, sections []codegen.Section) {
+	if namesByPath[path] != nil {
+		return
+	}
+	namesByPath[path] = make(map[string]struct{}, len(sections))
+	for _, section := range sections {
+		namesByPath[path][section.SectionName()] = struct{}{}
+	}
+}
+
+func appendUniqueSections(existingSections, incomingSections []codegen.Section, seen map[string]struct{}) []codegen.Section {
+	for i, section := range incomingSections {
+		if i == 0 {
+			continue
+		}
+		if _, ok := seen[section.SectionName()]; ok {
+			continue
+		}
+		existingSections = append(existingSections, section)
+		seen[section.SectionName()] = struct{}{}
+	}
+	return existingSections
+}
+
+func recordFileByPath(byPath map[string]*codegen.File, namesByPath map[string]map[string]struct{}, f *codegen.File) {
+	byPath[f.Path] = f
+	initSectionNames(namesByPath, f.Path, f.AllSections())
 }
 
 func sectionTemplate(section codegen.Section) *codegen.SectionTemplate {

@@ -36,7 +36,20 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "http", svcName, "client", "encode_decode.go")
 	title := fmt.Sprintf("%s HTTP client encoders and decoders", svc.Name())
-	imports := []*codegen.ImportSpec{
+	sections := make([]codegen.Section, 0, 1+len(data.Endpoints)*4+len(data.ClientTransformHelpers))
+	sections = append(sections, codegen.Header(title, "client", clientEncodeDecodeImports(genpkg, svcName, data)))
+	for _, e := range data.Endpoints {
+		sections = append(sections, clientEncodeDecodeSections(svc, services, e)...)
+	}
+	for _, h := range data.ClientTransformHelpers {
+		sections = append(sections, transformHelperSection("client-transform-helper", h))
+	}
+
+	return &codegen.File{Path: path, Sections: sections}
+}
+
+func clientEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {
+	return []*codegen.ImportSpec{
 		{Path: "bytes"},
 		{Path: "context"},
 		{Path: "encoding/json"},
@@ -54,62 +67,75 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}
-	sections := []codegen.Section{codegen.Header(title, "client", imports)}
+}
 
-	for _, e := range data.Endpoints {
-		sections = append(sections, requestBuilderSection(e))
-		if e.RequestEncoder != "" && e.Payload.Ref != "" {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "request-encoder",
-				Source: requestEncoderSource,
-				FuncMap: map[string]any{
-					"typeConversionData": typeConversionData,
-					"mapConversionData":  mapConversionData,
-					"goTypeRef": func(dt expr.DataType) string {
-						return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
-					},
-					"isBearer":    isBearer,
-					"aliasedType": fieldType,
-					"isAlias": func(dt expr.DataType) bool {
-						_, ok := dt.(expr.UserType)
-						return ok
-					},
-					"underlyingType": func(dt expr.DataType) expr.DataType {
-						if ut, ok := dt.(expr.UserType); ok {
-							return ut.Attribute().Type
-						}
-						return dt
-					},
-					"requestStructPkg": requestStructPkg,
-				},
-				Data: e,
-			})
-		}
-		if e.MultipartRequestEncoder != nil {
-			sections = append(sections, multipartRequestEncoderSection(e.MultipartRequestEncoder))
-		}
-		if e.Result != nil || len(e.Errors) > 0 {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:   "response-decoder",
-				Source: responseDecoderSource,
-				Data:   e,
-				FuncMap: map[string]any{
-					"goTypeRef": func(dt expr.DataType) string {
-						return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
-					},
-					"buildResponseData": buildResponseData,
-				},
-			})
-		}
-		if e.Method.SkipRequestBodyEncodeDecode {
-			sections = append(sections, buildStreamRequestSection(e))
-		}
+func clientEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesData, e *EndpointData) []codegen.Section {
+	sections := []codegen.Section{requestBuilderSection(e)}
+	if section := clientRequestEncoderSection(svc, services, e); section != nil {
+		sections = append(sections, section)
 	}
-	for _, h := range data.ClientTransformHelpers {
-		sections = append(sections, transformHelperSection("client-transform-helper", h))
+	if e.MultipartRequestEncoder != nil {
+		sections = append(sections, multipartRequestEncoderSection(e.MultipartRequestEncoder))
 	}
+	if section := clientResponseDecoderSection(svc, services, e); section != nil {
+		sections = append(sections, section)
+	}
+	if e.Method.SkipRequestBodyEncodeDecode {
+		sections = append(sections, buildStreamRequestSection(e))
+	}
+	return sections
+}
 
-	return &codegen.File{Path: path, Sections: sections}
+func clientRequestEncoderSection(svc *expr.HTTPServiceExpr, services *ServicesData, e *EndpointData) codegen.Section {
+	if e.RequestEncoder == "" || e.Payload.Ref == "" {
+		return nil
+	}
+	return &codegen.SectionTemplate{
+		Name:    "request-encoder",
+		Source:  requestEncoderSource,
+		FuncMap: clientRequestTemplateFuncs(svc, services),
+		Data:    e,
+	}
+}
+
+func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesData) map[string]any {
+	return map[string]any{
+		"typeConversionData": typeConversionData,
+		"mapConversionData":  mapConversionData,
+		"goTypeRef": func(dt expr.DataType) string {
+			return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
+		},
+		"isBearer":    isBearer,
+		"aliasedType": fieldType,
+		"isAlias": func(dt expr.DataType) bool {
+			_, ok := dt.(expr.UserType)
+			return ok
+		},
+		"underlyingType": func(dt expr.DataType) expr.DataType {
+			if ut, ok := dt.(expr.UserType); ok {
+				return ut.Attribute().Type
+			}
+			return dt
+		},
+		"requestStructPkg": requestStructPkg,
+	}
+}
+
+func clientResponseDecoderSection(svc *expr.HTTPServiceExpr, services *ServicesData, e *EndpointData) codegen.Section {
+	if e.Result == nil && len(e.Errors) == 0 {
+		return nil
+	}
+	return &codegen.SectionTemplate{
+		Name:   "response-decoder",
+		Source: responseDecoderSource,
+		Data:   e,
+		FuncMap: map[string]any{
+			"goTypeRef": func(dt expr.DataType) string {
+				return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
+			},
+			"buildResponseData": buildResponseData,
+		},
+	}
 }
 
 // clientFile returns the client HTTP transport file

@@ -411,76 +411,99 @@ func (a *Analyzer) analyzeInlineType(attr *expr.AttributeExpr) (*Schema, string)
 	s := &Schema{}
 	switch t := attr.Type.(type) {
 	case expr.Primitive:
-		switch t.Kind() {
-		case expr.IntKind, expr.UIntKind, expr.Int64Kind, expr.UInt64Kind:
-			s.Type = "integer"
-			s.Format = "int64"
-		case expr.Int32Kind, expr.UInt32Kind:
-			s.Type = "integer"
-			s.Format = "int32"
-		case expr.Float32Kind:
-			s.Type = "number"
-			s.Format = "float"
-		case expr.Float64Kind:
-			s.Type = "number"
-			s.Format = "double"
-		case expr.BytesKind:
-			if bases := attr.Bases; len(bases) > 0 {
-				for _, b := range bases {
-					s.AnyOf = append(s.AnyOf, a.AnalyzeSchema(&expr.AttributeExpr{Type: b}, false))
-				}
-			} else {
-				s.Type = "string"
-				s.Format = "binary"
-			}
-		case expr.AnyKind:
-			s.Type = ""
-		default:
-			s.Type = t.Name()
-		}
+		a.analyzeInlinePrimitive(s, attr, t)
 	case *expr.Array:
-		s.Type = string(openapi.Array)
-		s.Items = a.AnalyzeSchema(t.ElemType)
+		a.analyzeInlineArray(s, t)
 	case *expr.Object:
-		s.Type = string(openapi.Object)
-		if len(*t) > 0 {
-			s.Properties = make(map[string]*Schema)
-		}
-		for _, nat := range *t {
-			if !openapi.MustGenerate(nat.Attribute.Meta) {
-				continue
-			}
-			s.Properties[nat.Name] = a.AnalyzeSchema(nat.Attribute)
-		}
-		if a.closeObjects && openapi.AdditionalPropertiesFromExpr(attr.Meta) == nil {
-			s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(false)}
-		}
+		a.analyzeInlineObject(s, attr, t)
 	case *expr.Map:
-		s.Type = string(openapi.Object)
-		if t.ElemType.Type == expr.Any {
-			s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(true)}
-		} else {
-			s.AdditionalProperties = &BoolOrSchema{Schema: a.AnalyzeSchema(t.ElemType)}
-		}
+		a.analyzeInlineMap(s, t)
 	case *expr.Union:
-		values := sortedUnionValues(t)
-		s.Type = string(openapi.Object)
-		s.Discriminator = &Discriminator{
-			PropertyName: t.GetTypeKey(),
-			Mapping:      make(map[string]string, len(values)),
-		}
-		if a.closeObjects {
-			s.UnevaluatedProperties = &BoolOrSchema{Bool: boolPtr(false)}
-		}
-		for _, val := range values {
-			ref := a.ensureUnionBranchSchema(t, val)
-			s.OneOf = append(s.OneOf, &Schema{Ref: ref})
-			s.Discriminator.Mapping[expr.UnionVariantTag(val)] = ref
-		}
+		a.analyzeInlineUnion(s, t)
 	default:
 		panic(fmt.Sprintf("unknown type %T", t))
 	}
 	return s, ""
+}
+
+func (a *Analyzer) analyzeInlinePrimitive(s *Schema, attr *expr.AttributeExpr, primitive expr.Primitive) {
+	switch primitive.Kind() {
+	case expr.IntKind, expr.UIntKind, expr.Int64Kind, expr.UInt64Kind:
+		s.Type = "integer"
+		s.Format = "int64"
+	case expr.Int32Kind, expr.UInt32Kind:
+		s.Type = "integer"
+		s.Format = "int32"
+	case expr.Float32Kind:
+		s.Type = "number"
+		s.Format = "float"
+	case expr.Float64Kind:
+		s.Type = "number"
+		s.Format = "double"
+	case expr.BytesKind:
+		a.analyzeInlineBytes(s, attr)
+	case expr.AnyKind:
+		s.Type = ""
+	default:
+		s.Type = primitive.Name()
+	}
+}
+
+func (a *Analyzer) analyzeInlineBytes(s *Schema, attr *expr.AttributeExpr) {
+	if bases := attr.Bases; len(bases) > 0 {
+		for _, base := range bases {
+			s.AnyOf = append(s.AnyOf, a.AnalyzeSchema(&expr.AttributeExpr{Type: base}, false))
+		}
+		return
+	}
+	s.Type = "string"
+	s.Format = "binary"
+}
+
+func (a *Analyzer) analyzeInlineArray(s *Schema, arr *expr.Array) {
+	s.Type = string(openapi.Array)
+	s.Items = a.AnalyzeSchema(arr.ElemType)
+}
+
+func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj *expr.Object) {
+	s.Type = string(openapi.Object)
+	if len(*obj) > 0 {
+		s.Properties = make(map[string]*Schema)
+	}
+	for _, nat := range *obj {
+		if openapi.MustGenerate(nat.Attribute.Meta) {
+			s.Properties[nat.Name] = a.AnalyzeSchema(nat.Attribute)
+		}
+	}
+	if a.closeObjects && openapi.AdditionalPropertiesFromExpr(attr.Meta) == nil {
+		s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(false)}
+	}
+}
+
+func (a *Analyzer) analyzeInlineMap(s *Schema, m *expr.Map) {
+	s.Type = string(openapi.Object)
+	if m.ElemType.Type == expr.Any {
+		s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(true)}
+		return
+	}
+	s.AdditionalProperties = &BoolOrSchema{Schema: a.AnalyzeSchema(m.ElemType)}
+}
+
+func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union) {
+	values := sortedUnionValues(union)
+	s.Type = string(openapi.Object)
+	s.Discriminator = &Discriminator{
+		PropertyName: union.GetTypeKey(),
+		Mapping:      make(map[string]string, len(values)),
+	}
+	if a.closeObjects {
+		s.UnevaluatedProperties = &BoolOrSchema{Bool: boolPtr(false)}
+	}
+	for _, val := range values {
+		ref := a.ensureUnionBranchSchema(union, val)
+		s.OneOf = append(s.OneOf, &Schema{Ref: ref})
+		s.Discriminator.Mapping[expr.UnionVariantTag(val)] = ref
+	}
 }
 
 func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, noRef bool) *Schema {

@@ -426,59 +426,8 @@ func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar strin
 	}
 
 	elemRef := ta.TargetCtx.Scope.Ref(arr.ElemType, ta.TargetCtx.Pkg(arr.ElemType))
-	var items []string
-	appendItems := func(values []any) {
-		for _, value := range values {
-			items = append(items, elemRef+"("+formatGoLiteral(value)+")")
-		}
-	}
-
-	switch dv := tdef.(type) {
-	case expr.ArrayVal:
-		appendItems([]any(dv))
-	case []any:
-		appendItems(dv)
-	case []string:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []int:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []int32:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []int64:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []uint:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []uint32:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []uint64:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []float32:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []float64:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	case []bool:
-		for _, de := range dv {
-			items = append(items, elemRef+"("+formatGoLiteral(de)+")")
-		}
-	default:
+	items, ok := aliasDefaultArrayItems(elemRef, tdef)
+	if !ok {
 		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
 		return stmt
 	}
@@ -488,6 +437,53 @@ func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar strin
 	}
 	stmt.Add(Expr(tgtVar)).Op("=").Add(Expr("[]" + elemRef + "{" + strings.Join(items, ", ") + "}"))
 	return stmt
+}
+
+func aliasDefaultArrayItems(elemRef string, tdef any) ([]string, bool) {
+	switch dv := tdef.(type) {
+	case expr.ArrayVal:
+		return formatAliasArrayItems(elemRef, []any(dv)), true
+	case []any:
+		return formatAliasArrayItems(elemRef, dv), true
+	case []string:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []int:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []int32:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []int64:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []uint:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []uint32:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []uint64:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []float32:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []float64:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	case []bool:
+		return formatAliasTypedArrayItems(elemRef, dv), true
+	default:
+		return nil, false
+	}
+}
+
+func formatAliasArrayItems(elemRef string, values []any) []string {
+	items := make([]string, 0, len(values))
+	for _, value := range values {
+		items = append(items, elemRef+"("+formatGoLiteral(value)+")")
+	}
+	return items
+}
+
+func formatAliasTypedArrayItems[T any](elemRef string, values []T) []string {
+	items := make([]string, 0, len(values))
+	for _, value := range values {
+		items = append(items, elemRef+"("+formatGoLiteral(value)+")")
+	}
+	return items
 }
 
 func buildConditionalPrimitiveAssignmentStmt(sourceField, targetVar, targetField string, expression *jen.Statement, targetPointer bool, tempVar string) *jen.Statement {

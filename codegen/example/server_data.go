@@ -183,68 +183,9 @@ func (h *HostData) DefaultURL(transport Transport) string {
 
 // buildServerData builds the server data for the given server expression.
 func buildServerData(svr *expr.ServerExpr, root *expr.RootExpr) *Data {
-	hosts := make([]*HostData, 0, len(svr.Hosts))
-	for _, h := range svr.Hosts {
-		hosts = append(hosts, buildHostData(h))
-	}
-
-	var (
-		variables []*VariableData
-
-		foundVars = make(map[string]struct{})
-	)
-	// collect all the URL variables defined in host expressions
-	for _, h := range hosts {
-		for _, v := range h.Variables {
-			if _, ok := foundVars[v.Name]; ok {
-				continue
-			}
-			variables = append(variables, v)
-			foundVars[v.Name] = struct{}{}
-		}
-	}
-
-	var (
-		transports   []*TransportData
-		httpServices []string
-		grpcServices []string
-
-		foundTrans = make(map[Transport]struct{})
-	)
-	for _, svc := range svr.Services {
-		_, seenHTTP := foundTrans[TransportHTTP]
-		_, seenGRPC := foundTrans[TransportGRPC]
-		if root.API.HTTP.Service(svc) != nil {
-			httpServices = append(httpServices, svc)
-			if !seenHTTP {
-				transports = append(transports, newHTTPTransport())
-				foundTrans[TransportHTTP] = struct{}{}
-			}
-			seenHTTP = true
-		}
-		if root.API.JSONRPC.Service(svc) != nil {
-			// JSON-RPC implies HTTP transport; ensure HTTP transport exists
-			if !seenHTTP {
-				transports = append(transports, newHTTPTransport())
-				foundTrans[TransportHTTP] = struct{}{}
-			}
-		}
-		if root.API.GRPC.Service(svc) != nil {
-			grpcServices = append(grpcServices, svc)
-			if !seenGRPC {
-				transports = append(transports, newGRPCTransport())
-				foundTrans[TransportGRPC] = struct{}{}
-			}
-		}
-	}
-	for _, transport := range transports {
-		switch transport.Type {
-		case TransportHTTP:
-			transport.Services = httpServices
-		case TransportGRPC:
-			transport.Services = grpcServices
-		}
-	}
+	hosts := buildServerHosts(svr)
+	variables := collectServerVariables(hosts)
+	transports := collectServerTransports(svr, root)
 	sd := &Data{
 		Name:        svr.Name,
 		Description: svr.Description,
@@ -255,13 +196,100 @@ func buildServerData(svr *expr.ServerExpr, root *expr.RootExpr) *Data {
 		Transports:  transports,
 		Dir:         codegen.SnakeCase(codegen.Goify(svr.Name, true)),
 	}
-	// Precompute handler args for each URI of each host
+	populateHandlerArgs(sd, root)
+	return sd
+}
+
+func buildServerHosts(svr *expr.ServerExpr) []*HostData {
+	hosts := make([]*HostData, 0, len(svr.Hosts))
+	for _, h := range svr.Hosts {
+		hosts = append(hosts, buildHostData(h))
+	}
+	return hosts
+}
+
+func collectServerVariables(hosts []*HostData) []*VariableData {
+	variables := make([]*VariableData, 0)
+	foundVars := make(map[string]struct{})
+	for _, h := range hosts {
+		for _, v := range h.Variables {
+			if _, ok := foundVars[v.Name]; ok {
+				continue
+			}
+			variables = append(variables, v)
+			foundVars[v.Name] = struct{}{}
+		}
+	}
+	return variables
+}
+
+func collectServerTransports(svr *expr.ServerExpr, root *expr.RootExpr) []*TransportData {
+	transports := make([]*TransportData, 0, 2)
+	httpServices := make([]string, 0, len(svr.Services))
+	grpcServices := make([]string, 0, len(svr.Services))
+	foundTrans := make(map[Transport]struct{})
+	for _, svc := range svr.Services {
+		var seenHTTP bool
+		transports, seenHTTP = ensureHTTPTransport(transports, foundTrans, root, svc, &httpServices)
+		transports = ensureJSONRPCTransport(transports, foundTrans, root, svc, seenHTTP)
+		transports = ensureGRPCTransport(transports, foundTrans, root, svc, &grpcServices)
+	}
+	assignTransportServices(transports, httpServices, grpcServices)
+	return transports
+}
+
+func ensureHTTPTransport(transports []*TransportData, foundTrans map[Transport]struct{}, root *expr.RootExpr, svc string, httpServices *[]string) ([]*TransportData, bool) {
+	if root.API.HTTP.Service(svc) == nil {
+		return transports, false
+	}
+	*httpServices = append(*httpServices, svc)
+	if _, ok := foundTrans[TransportHTTP]; !ok {
+		transports = append(transports, newHTTPTransport())
+		foundTrans[TransportHTTP] = struct{}{}
+	}
+	return transports, true
+}
+
+func ensureJSONRPCTransport(transports []*TransportData, foundTrans map[Transport]struct{}, root *expr.RootExpr, svc string, seenHTTP bool) []*TransportData {
+	if root.API.JSONRPC.Service(svc) == nil || seenHTTP {
+		return transports
+	}
+	if _, ok := foundTrans[TransportHTTP]; !ok {
+		transports = append(transports, newHTTPTransport())
+		foundTrans[TransportHTTP] = struct{}{}
+	}
+	return transports
+}
+
+func ensureGRPCTransport(transports []*TransportData, foundTrans map[Transport]struct{}, root *expr.RootExpr, svc string, grpcServices *[]string) []*TransportData {
+	if root.API.GRPC.Service(svc) == nil {
+		return transports
+	}
+	*grpcServices = append(*grpcServices, svc)
+	if _, ok := foundTrans[TransportGRPC]; !ok {
+		transports = append(transports, newGRPCTransport())
+		foundTrans[TransportGRPC] = struct{}{}
+	}
+	return transports
+}
+
+func assignTransportServices(transports []*TransportData, httpServices, grpcServices []string) {
+	for _, transport := range transports {
+		switch transport.Type {
+		case TransportHTTP:
+			transport.Services = httpServices
+		case TransportGRPC:
+			transport.Services = grpcServices
+		}
+	}
+}
+
+func populateHandlerArgs(sd *Data, root *expr.RootExpr) {
 	for _, h := range sd.Hosts {
 		for _, u := range h.URIs {
 			u.HandlerArgs = computeHandlerArgsForURI(u, sd, root)
 		}
 	}
-	return sd
 }
 
 // buildHostData builds the host data for the given host expression.

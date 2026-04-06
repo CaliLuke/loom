@@ -127,61 +127,19 @@ func defaultRequestHeaderAttributes(e *HTTPEndpointExpr) map[string]bool {
 // parameters.
 func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 	const suffix = "RequestBody"
-	var (
-		name = concat(a.Name(), "Request", "Body")
-	)
+	name := concat(a.Name(), "Request", "Body")
 	if a.Body != nil {
 		a.Body = cloneExplicitHTTPBody(a.Body, name, suffix, a.Service.Name()+"#"+name)
 		return a.Body
 	}
-
-	var (
-		payload  = a.MethodExpr.Payload
-		headers  = a.Headers
-		cookies  = a.Cookies
-		params   = a.Params
-		bodyOnly = headers.IsEmpty() && params.IsEmpty() && cookies.IsEmpty() && a.MapQueryParams == nil
-	)
-
-	// 1. If Payload is not an object then check whether there are
-	// 2. If Payload is not an object then check whether there are
-	// params, cookies or headers defined and if so return empty type
-	// (payload encoded in request params or headers) otherwise return
-	// payload type (payload encoded in request body).
+	payload := a.MethodExpr.Payload
 	if !IsObject(payload.Type) {
-		if bodyOnly {
-			payload = DupAtt(payload)
-			RemovePkgPath(payload)
-			if m, ok := payload.Meta.Last("openapi:typename"); ok {
-				payload.AddMeta("openapi:typename", m)
-				payload.AddMeta("openapi:typename:canonical", "true")
-			}
-			renameType(payload, name, suffix)
-			return payload
-		}
-		return &AttributeExpr{Type: Empty}
+		return scalarHTTPBody(a, payload, name, suffix)
 	}
-
-	// 3. Remove header, param and cookies attributes
-	body := NewMappedAttributeExpr(payload)
-	RemovePkgPath(body.AttributeExpr)
-	extendBodyAttribute(body)
-	removeAttributes(body, headers)
-	removeAttributes(body, cookies)
-	removeAttributes(body, params)
-	if a.MapQueryParams != nil && *a.MapQueryParams != "" {
-		removeAttribute(body, *a.MapQueryParams)
-	}
-	for att := range defaultRequestHeaderAttributes(a) {
-		removeAttribute(body, att)
-	}
-
-	// 4. Return empty type if no attribute left
+	body := objectHTTPBody(a, payload)
 	if len(*AsObject(body.Type)) == 0 {
 		return &AttributeExpr{Type: Empty}
 	}
-
-	// 5. Build computed user type
 	att := body.Attribute()
 	ut := &UserTypeExpr{
 		AttributeExpr: att,
@@ -211,6 +169,40 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		Validation:   att.Validation,
 		UserExamples: att.UserExamples,
 	}
+}
+
+func scalarHTTPBody(a *HTTPEndpointExpr, payload *AttributeExpr, name, suffix string) *AttributeExpr {
+	if !httpBodyOnly(a) {
+		return &AttributeExpr{Type: Empty}
+	}
+	payload = DupAtt(payload)
+	RemovePkgPath(payload)
+	if m, ok := payload.Meta.Last("openapi:typename"); ok {
+		payload.AddMeta("openapi:typename", m)
+		payload.AddMeta("openapi:typename:canonical", "true")
+	}
+	renameType(payload, name, suffix)
+	return payload
+}
+
+func httpBodyOnly(a *HTTPEndpointExpr) bool {
+	return a.Headers.IsEmpty() && a.Params.IsEmpty() && a.Cookies.IsEmpty() && a.MapQueryParams == nil
+}
+
+func objectHTTPBody(a *HTTPEndpointExpr, payload *AttributeExpr) *MappedAttributeExpr {
+	body := NewMappedAttributeExpr(payload)
+	RemovePkgPath(body.AttributeExpr)
+	extendBodyAttribute(body)
+	removeAttributes(body, a.Headers)
+	removeAttributes(body, a.Cookies)
+	removeAttributes(body, a.Params)
+	if a.MapQueryParams != nil && *a.MapQueryParams != "" {
+		removeAttribute(body, *a.MapQueryParams)
+	}
+	for att := range defaultRequestHeaderAttributes(a) {
+		removeAttribute(body, att)
+	}
+	return body
 }
 
 // httpStreamingBody returns an attribute representing the structs being

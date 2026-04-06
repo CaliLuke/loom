@@ -100,73 +100,70 @@ func RequestDecoder(r *http.Request) Decoder {
 // ContentTypeKey value does not match any of the supported mime types or is
 // missing altogether.
 func ResponseEncoder(ctx context.Context, w http.ResponseWriter) Encoder {
-	negotiate := func(a string) (Encoder, string) {
-		switch a {
-		case "", "application/json":
-			// default to JSON
-			return json.NewEncoder(w), "application/json"
-		case "application/xml":
-			return xml.NewEncoder(w), "application/xml"
-		case "application/gob":
-			return gob.NewEncoder(w), "application/gob"
-		case "text/html", "text/plain":
-			return newTextEncoder(w, a), a
-		}
-		return nil, ""
+	accept := stringContextValue(ctx, AcceptTypeKey)
+	ct := stringContextValue(ctx, ContentTypeKey)
+	if ct != "" {
+		enc := responseEncoderFromContentType(w, ct)
+		SetContentType(w, ct)
+		return enc
 	}
-	var accept string
-	{
-		if a := ctx.Value(AcceptTypeKey); a != nil {
-			accept = a.(string)
-		}
-	}
-	var ct string
-	{
-		if a := ctx.Value(ContentTypeKey); a != nil {
-			ct = a.(string)
-		}
-	}
-	var (
-		enc Encoder
-		mt  string
-		err error
-	)
-	{
-		if ct != "" {
-			// If content type explicitly set in the DSL, infer the response encoder
-			// from the content type context key.
-			if mt, _, err = mime.ParseMediaType(ct); err == nil {
-				switch {
-				case mt == "application/json" || strings.HasSuffix(mt, "+json"):
-					enc = json.NewEncoder(w)
-				case mt == "application/xml" || strings.HasSuffix(mt, "+xml"):
-					enc = xml.NewEncoder(w)
-				case mt == "application/gob" || strings.HasSuffix(mt, "+gob"):
-					enc = gob.NewEncoder(w)
-				case mt == "text/html" || mt == "text/plain" ||
-					strings.HasSuffix(mt, "+html") || strings.HasSuffix(mt, "+txt"):
-					enc = newTextEncoder(w, mt)
-				default:
-					enc = json.NewEncoder(w)
-				}
-			}
-			SetContentType(w, ct)
-			return enc
-		}
-		// If Accept header exists in the request, infer the response encoder
-		// from the header value.
-		if enc, mt = negotiate(accept); enc == nil {
-			// attempt to normalize
-			if mt, _, err = mime.ParseMediaType(accept); err == nil {
-				enc, mt = negotiate(mt)
-			}
-		}
-		if enc == nil {
-			enc, mt = negotiate("")
-		}
-	}
+	enc, mt := negotiatedResponseEncoder(w, accept)
 	SetContentType(w, mt)
 	return enc
+}
+
+func stringContextValue(ctx context.Context, key any) string {
+	if value := ctx.Value(key); value != nil {
+		return value.(string)
+	}
+	return ""
+}
+
+func responseEncoderFromContentType(w http.ResponseWriter, ct string) Encoder {
+	mt, _, err := mime.ParseMediaType(ct)
+	if err != nil {
+		return nil
+	}
+	switch {
+	case mt == "application/json" || strings.HasSuffix(mt, "+json"):
+		return json.NewEncoder(w)
+	case mt == "application/xml" || strings.HasSuffix(mt, "+xml"):
+		return xml.NewEncoder(w)
+	case mt == "application/gob" || strings.HasSuffix(mt, "+gob"):
+		return gob.NewEncoder(w)
+	case mt == "text/html" || mt == "text/plain" || strings.HasSuffix(mt, "+html") || strings.HasSuffix(mt, "+txt"):
+		return newTextEncoder(w, mt)
+	default:
+		return json.NewEncoder(w)
+	}
+}
+
+func negotiatedResponseEncoder(w http.ResponseWriter, accept string) (Encoder, string) {
+	if enc, mt := responseEncoderByAccept(w, accept); enc != nil {
+		return enc, mt
+	}
+	mt, _, err := mime.ParseMediaType(accept)
+	if err == nil {
+		if enc, normalized := responseEncoderByAccept(w, mt); enc != nil {
+			return enc, normalized
+		}
+	}
+	return responseEncoderByAccept(w, "")
+}
+
+func responseEncoderByAccept(w http.ResponseWriter, accept string) (Encoder, string) {
+	switch accept {
+	case "", "application/json":
+		return json.NewEncoder(w), "application/json"
+	case "application/xml":
+		return xml.NewEncoder(w), "application/xml"
+	case "application/gob":
+		return gob.NewEncoder(w), "application/gob"
+	case "text/html", "text/plain":
+		return newTextEncoder(w, accept), accept
+	default:
+		return nil, ""
+	}
 }
 
 // RequestEncoder returns a HTTP request encoder.

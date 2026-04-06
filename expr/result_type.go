@@ -333,55 +333,78 @@ func projectSingle(rt *ResultTypeExpr, view string, seen map[string]*AttributeEx
 		return nil, fmt.Errorf("unknown view %#v", view)
 	}
 	viewObj := v.Type.(*Object)
-
-	// Compute validations - view may not have all fields
-	var val *ValidationExpr
-	if rt.Validation != nil {
-		var required []string
-		for _, n := range rt.Validation.Required {
-			if att := viewObj.Attribute(n); att != nil {
-				required = append(required, n)
-			}
+	id := rt.projectIdentifier(view)
+	ut := projectedUserType(rt, view, id, seen, v)
+	if ut == nil {
+		ut = &UserTypeExpr{
+			AttributeExpr: &AttributeExpr{
+				Description: projectedResultDescription(rt, view),
+				Validation:  projectedResultValidation(rt, viewObj),
+			},
 		}
-		val = rt.Validation.Dup()
-		val.Required = required
 	}
+	ut.TypeName = projectedResultTypeName(rt, view)
+	ut.UID = id
+	ut.Type = Dup(v.Type)
+	ut.UserExamples = v.UserExamples
+	projected := newProjectedResultType(id, ut, v)
+	if err := populateProjectedResultFields(projected.Type.(*Object), AsObject(rt.Type), viewObj, view, seen); err != nil {
+		return nil, err
+	}
+	return projected, nil
+}
 
-	// Compute description
+func projectedResultValidation(rt *ResultTypeExpr, viewObj *Object) *ValidationExpr {
+	if rt.Validation == nil {
+		return nil
+	}
+	required := make([]string, 0, len(rt.Validation.Required))
+	for _, name := range rt.Validation.Required {
+		if viewObj.Attribute(name) != nil {
+			required = append(required, name)
+		}
+	}
+	val := rt.Validation.Dup()
+	val.Required = required
+	return val
+}
+
+func projectedResultDescription(rt *ResultTypeExpr, view string) string {
 	desc := rt.Description
 	if desc == "" {
 		desc = rt.TypeName + " result type"
 	}
-	desc += " (" + view + " view)"
+	return desc + " (" + view + " view)"
+}
 
-	// Compute type name
+func projectedResultTypeName(rt *ResultTypeExpr, view string) string {
 	typeName := rt.TypeName
 	if view != DefaultView {
 		typeName += Title(view)
 	}
+	return typeName
+}
 
-	var ut *UserTypeExpr
-	if att, ok := seen[hashAttrAndView(rt.Attribute(), view)]; ok {
-		if rt, ok2 := att.Type.(*ResultTypeExpr); ok2 {
-			ut = &UserTypeExpr{
-				AttributeExpr: DupAtt(rt.Attribute()),
-				TypeName:      rt.TypeName,
-			}
-		}
+func projectedUserType(rt *ResultTypeExpr, view, id string, seen map[string]*AttributeExpr, v *ViewExpr) *UserTypeExpr {
+	att, ok := seen[hashAttrAndView(rt.Attribute(), view)]
+	if !ok {
+		return nil
 	}
-	id := rt.projectIdentifier(view)
-	if ut == nil {
-		ut = &UserTypeExpr{
-			AttributeExpr: &AttributeExpr{
-				Description: desc,
-				Validation:  val,
-			},
-		}
+	projectedRT, ok := att.Type.(*ResultTypeExpr)
+	if !ok {
+		return nil
 	}
-	ut.TypeName = typeName
-	ut.UID = id
-	ut.Type = Dup(v.Type)
-	ut.UserExamples = v.UserExamples
+	return &UserTypeExpr{
+		AttributeExpr: &AttributeExpr{
+			Type:         Dup(v.Type),
+			UserExamples: v.UserExamples,
+		},
+		TypeName: projectedRT.TypeName,
+		UID:      id,
+	}
+}
+
+func newProjectedResultType(id string, ut *UserTypeExpr, v *ViewExpr) *ResultTypeExpr {
 	projected := &ResultTypeExpr{
 		Identifier:   id,
 		UserTypeExpr: ut,
@@ -391,19 +414,22 @@ func projectSingle(rt *ResultTypeExpr, view string, seen map[string]*AttributeEx
 		AttributeExpr: DupAtt(v.AttributeExpr),
 		Parent:        projected,
 	}}
+	return projected
+}
 
-	projectedObj := projected.Type.(*Object)
-	mtObj := AsObject(rt.Type)
+func populateProjectedResultFields(projectedObj, sourceObj, viewObj *Object, view string, seen map[string]*AttributeExpr) error {
 	for _, nat := range *viewObj {
-		if at := mtObj.Attribute(nat.Name); at != nil {
-			pat, err := projectRecursive(at, nat, view, seen)
-			if err != nil {
-				return nil, err
-			}
-			projectedObj.Set(nat.Name, pat)
+		at := sourceObj.Attribute(nat.Name)
+		if at == nil {
+			continue
 		}
+		pat, err := projectRecursive(at, nat, view, seen)
+		if err != nil {
+			return err
+		}
+		projectedObj.Set(nat.Name, pat)
 	}
-	return projected, nil
+	return nil
 }
 
 func projectCollection(rt *ResultTypeExpr, view string, seen map[string]*AttributeExpr) (*ResultTypeExpr, error) {

@@ -61,86 +61,15 @@ func (e *GRPCEndpointExpr) EvalName() string {
 
 // Prepare initializes the Request and Response if nil.
 func (e *GRPCEndpointExpr) Prepare() {
-	if e.Request == nil {
-		e.Request = &AttributeExpr{Type: Empty}
-	}
-	if e.Request.Validation == nil {
-		e.Request.Validation = &ValidationExpr{}
-	}
-	if e.StreamingRequest == nil {
-		e.StreamingRequest = &AttributeExpr{Type: Empty}
-	}
-	if e.StreamingRequest.Validation == nil {
-		e.StreamingRequest.Validation = &ValidationExpr{}
-	}
-	if e.Metadata == nil {
-		e.Metadata = NewEmptyMappedAttributeExpr()
-	}
-	if e.Metadata.Validation == nil {
-		e.Metadata.Validation = &ValidationExpr{}
-	}
-
-	// Make sure there's a default response if none define explicitly
-	if e.Response == nil {
-		e.Response = &GRPCResponseExpr{StatusCode: 0}
-	}
+	e.Request = ensureValidatedAttribute(e.Request)
+	e.StreamingRequest = ensureValidatedAttribute(e.StreamingRequest)
+	e.Metadata = ensureValidatedMappedAttribute(e.Metadata)
+	e.Response = ensureGRPCResponse(e.Response)
 	e.Response.Prepare()
-
-	// Error -> ResponseError
-	methodErrors := map[string]struct{}{}
-	for _, v := range e.GRPCErrors {
-		methodErrors[v.Name] = struct{}{}
-	}
-	for _, me := range e.MethodExpr.Errors {
-		if _, ok := methodErrors[me.Name]; ok {
-			continue
-		}
-		methodErrors[me.Name] = struct{}{}
-		var found bool
-		for _, v := range e.Service.GRPCErrors {
-			if me.Name == v.Name {
-				e.GRPCErrors = append(e.GRPCErrors, v.Dup())
-				found = true
-				break
-			}
-		}
-		if found {
-			continue
-		}
-		// Lookup undefined GRPC errors in API.
-		for _, v := range Root.API.GRPC.Errors {
-			if me.Name == v.Name {
-				e.GRPCErrors = append(e.GRPCErrors, v.Dup())
-			}
-		}
-	}
-	// Inherit GRPC errors from service if the error has not added.
-	for _, se := range e.Service.ServiceExpr.Errors {
-		if _, ok := methodErrors[se.Name]; ok {
-			continue
-		}
-		var found bool
-		for _, resp := range e.Service.GRPCErrors {
-			if se.Name == resp.Name {
-				found = true
-				e.GRPCErrors = append(e.GRPCErrors, resp.Dup())
-				break
-			}
-		}
-		if !found {
-			for _, ae := range Root.API.GRPC.Errors {
-				if se.Name == ae.Name {
-					e.GRPCErrors = append(e.GRPCErrors, ae.Dup())
-					break
-				}
-			}
-		}
-	}
-
-	// Prepare responses
-	for _, er := range e.GRPCErrors {
-		er.Response.Prepare()
-	}
+	methodErrors := grpcMethodErrorNames(e.GRPCErrors)
+	e.appendMethodGRPCErrors(methodErrors)
+	e.appendServiceGRPCErrors(methodErrors)
+	e.prepareGRPCErrorResponses()
 }
 
 // Validate validates the endpoint expression by checking if the request
@@ -151,77 +80,186 @@ func (e *GRPCEndpointExpr) Validate() error {
 	if e.Name() == "" {
 		verr.Add(e, "Endpoint name cannot be empty")
 	}
+	e.validateGRPCUnionShapes(verr)
+	verr.Merge(e.validateRequestShape())
+	verr.Merge(e.Response.Validate(e))
+	verr.Merge(e.validateGRPCErrors())
+	return verr
+}
 
+func ensureValidatedAttribute(att *AttributeExpr) *AttributeExpr {
+	if att == nil {
+		att = &AttributeExpr{Type: Empty}
+	}
+	if att.Validation == nil {
+		att.Validation = &ValidationExpr{}
+	}
+	return att
+}
+
+func ensureValidatedMappedAttribute(att *MappedAttributeExpr) *MappedAttributeExpr {
+	if att == nil {
+		att = NewEmptyMappedAttributeExpr()
+	}
+	if att.Validation == nil {
+		att.Validation = &ValidationExpr{}
+	}
+	return att
+}
+
+func ensureGRPCResponse(resp *GRPCResponseExpr) *GRPCResponseExpr {
+	if resp == nil {
+		return &GRPCResponseExpr{StatusCode: 0}
+	}
+	return resp
+}
+
+func grpcMethodErrorNames(errors []*GRPCErrorExpr) map[string]struct{} {
+	names := map[string]struct{}{}
+	for _, err := range errors {
+		names[err.Name] = struct{}{}
+	}
+	return names
+}
+
+func (e *GRPCEndpointExpr) appendMethodGRPCErrors(methodErrors map[string]struct{}) {
+	for _, methodErr := range e.MethodExpr.Errors {
+		if _, ok := methodErrors[methodErr.Name]; ok {
+			continue
+		}
+		methodErrors[methodErr.Name] = struct{}{}
+		if resp := dupNamedGRPCError(methodErr.Name, e.Service.GRPCErrors); resp != nil {
+			e.GRPCErrors = append(e.GRPCErrors, resp)
+			continue
+		}
+		if resp := dupNamedGRPCError(methodErr.Name, Root.API.GRPC.Errors); resp != nil {
+			e.GRPCErrors = append(e.GRPCErrors, resp)
+		}
+	}
+}
+
+func (e *GRPCEndpointExpr) appendServiceGRPCErrors(methodErrors map[string]struct{}) {
+	for _, serviceErr := range e.Service.ServiceExpr.Errors {
+		if _, ok := methodErrors[serviceErr.Name]; ok {
+			continue
+		}
+		if resp := dupNamedGRPCError(serviceErr.Name, e.Service.GRPCErrors); resp != nil {
+			e.GRPCErrors = append(e.GRPCErrors, resp)
+			continue
+		}
+		if resp := dupNamedGRPCError(serviceErr.Name, Root.API.GRPC.Errors); resp != nil {
+			e.GRPCErrors = append(e.GRPCErrors, resp)
+		}
+	}
+}
+
+func dupNamedGRPCError(name string, errors []*GRPCErrorExpr) *GRPCErrorExpr {
+	for _, err := range errors {
+		if err.Name == name {
+			return err.Dup()
+		}
+	}
+	return nil
+}
+
+func (e *GRPCEndpointExpr) prepareGRPCErrorResponses() {
+	for _, err := range e.GRPCErrors {
+		err.Response.Prepare()
+	}
+}
+
+func (e *GRPCEndpointExpr) validateGRPCUnionShapes(verr *eval.ValidationErrors) {
 	seenUnions := make(map[*Union]struct{})
 	seenAttrs := make(map[*AttributeExpr]struct{})
 	validateGRPCUnionShapes(e.MethodExpr.Payload, e.MethodExpr, verr, seenUnions, seenAttrs)
 	validateGRPCUnionShapes(e.MethodExpr.StreamingPayload, e.MethodExpr, verr, seenUnions, seenAttrs)
 	validateGRPCUnionShapes(e.MethodExpr.Result, e.MethodExpr, verr, seenUnions, seenAttrs)
 	validateGRPCUnionShapes(e.MethodExpr.StreamingResult, e.MethodExpr, verr, seenUnions, seenAttrs)
-	for _, er := range e.MethodExpr.Errors {
-		validateGRPCUnionShapes(er.AttributeExpr, e.MethodExpr, verr, seenUnions, seenAttrs)
+	for _, err := range e.MethodExpr.Errors {
+		validateGRPCUnionShapes(err.AttributeExpr, e.MethodExpr, verr, seenUnions, seenAttrs)
 	}
+}
 
-	var hasMessage, hasMetadata bool
-	// Validate request
-	if e.Request.Type != Empty {
-		hasMessage = true
+func (e *GRPCEndpointExpr) validateRequestShape() *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	hasMessage, hasMetadata := e.validateRequestComponents(verr)
+	payloadObj := AsObject(e.MethodExpr.Payload.Type)
+	if payloadObj == nil {
+		if hasMessage && hasMetadata {
+			verr.Add(e, "Both request message and metadata are defined, but payload is not an object. Define either metadata or message or make payload an object type.")
+		}
+		return verr
+	}
+	verr.Merge(e.validateRequestObjectUsage(payloadObj, hasMessage, hasMetadata))
+	return verr
+}
+
+func (e *GRPCEndpointExpr) validateRequestComponents(verr *eval.ValidationErrors) (bool, bool) {
+	hasMessage := e.Request.Type != Empty
+	if hasMessage {
 		verr.Merge(e.Request.Validate("gRPC request message", e))
 		verr.Merge(validateMessage(e.Request, e.MethodExpr.Payload, e, true))
 	}
-	if !e.Metadata.IsEmpty() {
-		hasMetadata = true
+	hasMetadata := !e.Metadata.IsEmpty()
+	if hasMetadata {
 		verr.Merge(e.Metadata.Validate("gRPC request metadata", e))
 		verr.Merge(validateMetadata(e.Metadata, e.MethodExpr.Payload, e, true))
 	}
+	return hasMessage, hasMetadata
+}
 
-	if pobj := AsObject(e.MethodExpr.Payload.Type); pobj != nil {
-		secAttrs := getSecurityAttributes(e.MethodExpr)
-		switch {
-		case hasMessage && hasMetadata:
-			// ensure the attributes defined in message are not defined in metadata.
-			msgObj := AsObject(e.Request.Type)
-			metObj := AsObject(e.Metadata.Type)
-			for _, msgnat := range *msgObj {
-				for _, metnat := range *metObj {
-					if metnat.Name == msgnat.Name {
-						verr.Add(e, "Attribute %q defined in both request message and metadata. Define the attribute in either message or metadata.", metnat.Name)
-						break
-					}
-				}
-			}
-		case !hasMessage && !hasMetadata:
-			// no request message or metadata is defined. Ensure that the method
-			// payload attributes have "rpc:tag" set (except for security attributes
-			// as they are added to request metadata by default)
-			msgFields := &Object{}
-			if len(secAttrs) > 0 {
-				// add attributes to msgFields from the payload that are not
-				// security attributes
-				var found bool
-				for _, nat := range *pobj {
-					found = slices.Contains(secAttrs, nat.Name)
-					if !found {
-						msgFields.Set(nat.Name, nat.Attribute)
-					}
-				}
-			} else {
-				msgFields = pobj
-			}
-			if len(*msgFields) > 0 {
-				verr.Merge(validateRPCTags(msgFields, e))
+func (e *GRPCEndpointExpr) validateRequestObjectUsage(payloadObj *Object, hasMessage, hasMetadata bool) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	switch {
+	case hasMessage && hasMetadata:
+		verr.Merge(e.validateDistinctRequestMessageAndMetadata())
+	case !hasMessage && !hasMetadata:
+		verr.Merge(e.validateImplicitRequestRPCTags(payloadObj))
+	}
+	return verr
+}
+
+func (e *GRPCEndpointExpr) validateDistinctRequestMessageAndMetadata() *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	msgObj := AsObject(e.Request.Type)
+	metObj := AsObject(e.Metadata.Type)
+	for _, msgnat := range *msgObj {
+		for _, metnat := range *metObj {
+			if metnat.Name == msgnat.Name {
+				verr.Add(e, "Attribute %q defined in both request message and metadata. Define the attribute in either message or metadata.", metnat.Name)
+				break
 			}
 		}
-	} else if hasMessage && hasMetadata {
-		verr.Add(e, "Both request message and metadata are defined, but payload is not an object. Define either metadata or message or make payload an object type.")
 	}
+	return verr
+}
 
-	// Validate response
-	verr.Merge(e.Response.Validate(e))
+func (e *GRPCEndpointExpr) validateImplicitRequestRPCTags(payloadObj *Object) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	msgFields := nonSecurityRPCFields(payloadObj, getSecurityAttributes(e.MethodExpr))
+	if len(*msgFields) > 0 {
+		verr.Merge(validateRPCTags(msgFields, e))
+	}
+	return verr
+}
 
-	// Validate errors
-	for _, er := range e.GRPCErrors {
-		verr.Merge(er.Validate())
+func nonSecurityRPCFields(payloadObj *Object, securityAttrs []string) *Object {
+	if len(securityAttrs) == 0 {
+		return payloadObj
+	}
+	msgFields := &Object{}
+	for _, nat := range *payloadObj {
+		if !slices.Contains(securityAttrs, nat.Name) {
+			msgFields.Set(nat.Name, nat.Attribute)
+		}
+	}
+	return msgFields
+}
+
+func (e *GRPCEndpointExpr) validateGRPCErrors() *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	for _, err := range e.GRPCErrors {
+		verr.Merge(err.Validate())
 	}
 	return verr
 }

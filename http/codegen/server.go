@@ -37,17 +37,49 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	svcName := data.Service.PathName
 	fpath := filepath.Join(codegen.Gendir, "http", svcName, "server", "server.go")
 	title := fmt.Sprintf("%s HTTP server", svc.Name())
-	funcs := map[string]any{
-		"join":                strings.Join,
-		"hasWebSocket":        HasWebSocket,
-		"isWebSocketEndpoint": IsWebSocketEndpoint,
-		"isSSEEndpoint":       IsSSEEndpoint,
-		"viewedServerBody":    viewedServerBody,
-		"mustDecodeRequest":   mustDecodeRequest,
-		"addLeadingSlash":     addLeadingSlash,
-		"dir":                 path.Dir,
-		"isObject":            expr.IsObject,
+	sections := []codegen.Section{
+		codegen.Header(title, "server", serverImports(genpkg, svcName, data)),
 	}
+	sections = append(sections, serverBaseSections(data)...)
+	for _, e := range data.Endpoints {
+		sections = append(sections, serverEndpointSections(e)...)
+	}
+	if section := mappedFilesSection(data); section != nil {
+		sections = append(sections, section)
+	}
+	for _, s := range data.FileServers {
+		sections = append(sections, fileServerSection(s))
+	}
+
+	return &codegen.File{Path: fpath, Sections: sections}
+}
+
+// ServerEncodeDecodeFile returns the file defining the HTTP server encoding and
+// decoding logic.
+func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
+	data := services.Get(svc.Name())
+	svcName := data.Service.PathName
+	path := filepath.Join(codegen.Gendir, "http", svcName, "server", "encode_decode.go")
+	title := fmt.Sprintf("%s HTTP server encoders and decoders", svc.Name())
+	sections := make([]codegen.Section, 0, 1+len(data.Endpoints)*4+len(data.ServerTransformHelpers))
+	sections = append(sections, codegen.Header(title, "server", serverEncodeDecodeImports(genpkg, svcName, data)))
+	for _, e := range data.Endpoints {
+		sections = append(sections, serverEncodeDecodeSections(svc, services, e)...)
+	}
+	for _, h := range data.ServerTransformHelpers {
+		sections = append(sections, transformHelperSection("server-transform-helper", h))
+	}
+
+	// If all endpoints use skip encoding and decoding of both payloads and
+	// results and define no error then this file is irrelevant.
+	if len(sections) == 1 {
+		return nil
+	}
+
+	return &codegen.File{Path: path, Sections: sections}
+}
+
+func serverImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {
 	imports := []*codegen.ImportSpec{
 		{Path: "bufio"},
 		{Path: "context"},
@@ -65,62 +97,70 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	if hasCustomMultipartDecoder(data) {
 		imports = append(imports, &codegen.ImportSpec{Path: "mime/multipart"})
 	}
+	return imports
+}
+
+func serverBaseSections(data *ServiceData) []codegen.Section {
 	sections := []codegen.Section{
-		codegen.Header(title, "server", imports),
-	}
-
-	sections = append(sections,
 		serverStructSection(data),
-		mountPointStructSection(data))
-
+		mountPointStructSection(data),
+	}
 	for _, e := range data.Endpoints {
 		if e.MultipartRequestDecoder != nil {
 			sections = append(sections, multipartRequestDecoderTypeSection(e.MultipartRequestDecoder))
 		}
 	}
-
-	sections = append(sections,
+	return append(sections,
 		serverInitSection(data),
 		serverServiceSection(data),
 		serverUseSection(data),
 		serverMethodNamesSection(data),
-		serverMountSection(data))
-
-	for _, e := range data.Endpoints {
-		sections = append(sections,
-			serverHandlerSection(e),
-			&codegen.SectionTemplate{Name: "server-handler-init", Source: serverHandlerInitSource, FuncMap: funcs, Data: e})
-	}
-	if len(data.FileServers) > 0 {
-		mappedFiles := make(map[string]string)
-		for _, fs := range data.FileServers {
-			if !fs.IsDir {
-				for _, p := range fs.RequestPaths {
-					baseFilePath := "/" + filepath.Base(fs.FilePath)
-					baseRequestPath := "/" + filepath.Base(p)
-					if baseFilePath == baseRequestPath {
-						continue
-					}
-					mappedFiles[baseRequestPath] = baseFilePath
-				}
-			}
-		}
-		sections = append(sections, appendFSSection(mappedFiles))
-	}
-	for _, s := range data.FileServers {
-		sections = append(sections, fileServerSection(s))
-	}
-
-	return &codegen.File{Path: fpath, Sections: sections}
+		serverMountSection(data),
+	)
 }
 
-// ServerEncodeDecodeFile returns the file defining the HTTP server encoding and
-// decoding logic.
-func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
-	data := services.Get(svc.Name())
-	svcName := data.Service.PathName
-	path := filepath.Join(codegen.Gendir, "http", svcName, "server", "encode_decode.go")
-	title := fmt.Sprintf("%s HTTP server encoders and decoders", svc.Name())
+func serverEndpointSections(e *EndpointData) []codegen.Section {
+	return []codegen.Section{
+		serverHandlerSection(e),
+		&codegen.SectionTemplate{Name: "server-handler-init", Source: serverHandlerInitSource, FuncMap: serverTemplateFuncs(), Data: e},
+	}
+}
+
+func serverTemplateFuncs() map[string]any {
+	return map[string]any{
+		"join":                strings.Join,
+		"hasWebSocket":        HasWebSocket,
+		"isWebSocketEndpoint": IsWebSocketEndpoint,
+		"isSSEEndpoint":       IsSSEEndpoint,
+		"viewedServerBody":    viewedServerBody,
+		"mustDecodeRequest":   mustDecodeRequest,
+		"addLeadingSlash":     addLeadingSlash,
+		"dir":                 path.Dir,
+		"isObject":            expr.IsObject,
+	}
+}
+
+func mappedFilesSection(data *ServiceData) codegen.Section {
+	if len(data.FileServers) == 0 {
+		return nil
+	}
+	mappedFiles := map[string]string{}
+	for _, fs := range data.FileServers {
+		if fs.IsDir {
+			continue
+		}
+		for _, p := range fs.RequestPaths {
+			baseFilePath := "/" + filepath.Base(fs.FilePath)
+			baseRequestPath := "/" + filepath.Base(p)
+			if baseFilePath != baseRequestPath {
+				mappedFiles[baseRequestPath] = baseFilePath
+			}
+		}
+	}
+	return appendFSSection(mappedFiles)
+}
+
+func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {
 	imports := []*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "errors"},
@@ -139,57 +179,52 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 	if hasCustomMultipartDecoder(data) {
 		imports = append(imports, &codegen.ImportSpec{Path: "mime/multipart"})
 	}
-	sections := []codegen.Section{codegen.Header(title, "server", imports)}
+	return imports
+}
 
-	for _, e := range data.Endpoints {
-		if e.Redirect == nil && (!IsWebSocketEndpoint(e) || e.Method.IsJSONRPC) {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:    "response-encoder",
-				FuncMap: transTmplFuncs(svc, services),
-				Source:  responseEncoderSource,
-				Data:    e,
-			})
-		}
-		if mustDecodeRequest(e) {
-			fm := transTmplFuncs(svc, services)
-			fm["mapQueryDecodeData"] = mapQueryDecodeData
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:    "request-decoder",
-				Source:  requestDecoderSource,
-				FuncMap: fm,
-				Data:    e,
-			})
-		}
-		if e.MultipartRequestDecoder != nil {
-			fm := transTmplFuncs(svc, services)
-			fm["mapQueryDecodeData"] = mapQueryDecodeData
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:    "multipart-request-decoder",
-				Source:  multipartRequestDecoderSource,
-				FuncMap: fm,
-				Data:    e.MultipartRequestDecoder,
-			})
-		}
-		if len(e.Errors) > 0 {
-			sections = append(sections, &codegen.SectionTemplate{
-				Name:    "error-encoder",
-				Source:  errorEncoderSource,
-				FuncMap: transTmplFuncs(svc, services),
-				Data:    e,
-			})
-		}
+func serverEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesData, e *EndpointData) []codegen.Section {
+	sections := []codegen.Section{}
+	if e.Redirect == nil && (!IsWebSocketEndpoint(e) || e.Method.IsJSONRPC) {
+		sections = append(sections, &codegen.SectionTemplate{
+			Name:    "response-encoder",
+			FuncMap: transTmplFuncs(svc, services),
+			Source:  responseEncoderSource,
+			Data:    e,
+		})
 	}
-	for _, h := range data.ServerTransformHelpers {
-		sections = append(sections, transformHelperSection("server-transform-helper", h))
+	if mustDecodeRequest(e) {
+		fm := transDecoderTmplFuncs(svc, services)
+		sections = append(sections, &codegen.SectionTemplate{
+			Name:    "request-decoder",
+			Source:  requestDecoderSource,
+			FuncMap: fm,
+			Data:    e,
+		})
 	}
+	if e.MultipartRequestDecoder != nil {
+		fm := transDecoderTmplFuncs(svc, services)
+		sections = append(sections, &codegen.SectionTemplate{
+			Name:    "multipart-request-decoder",
+			Source:  multipartRequestDecoderSource,
+			FuncMap: fm,
+			Data:    e.MultipartRequestDecoder,
+		})
+	}
+	if len(e.Errors) > 0 {
+		sections = append(sections, &codegen.SectionTemplate{
+			Name:    "error-encoder",
+			Source:  errorEncoderSource,
+			FuncMap: transTmplFuncs(svc, services),
+			Data:    e,
+		})
+	}
+	return sections
+}
 
-	// If all endpoints use skip encoding and decoding of both payloads and
-	// results and define no error then this file is irrelevant.
-	if len(sections) == 1 {
-		return nil
-	}
-
-	return &codegen.File{Path: path, Sections: sections}
+func transDecoderTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]any {
+	fm := transTmplFuncs(s, services)
+	fm["mapQueryDecodeData"] = mapQueryDecodeData
+	return fm
 }
 
 func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]any {

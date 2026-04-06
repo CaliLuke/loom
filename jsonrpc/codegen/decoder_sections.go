@@ -405,128 +405,71 @@ func writeSliceItemConversion(g *jen.Group, a *httpcodegen.AttributeData) {
 		g.Comment("unsupported non-array type for var " + a.VarName)
 		return
 	}
-	switch arr.ElemType.Type.Name() {
-	default:
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("rv")
-	case "bytes":
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Index().Byte().Call(jen.Id("rv"))
-	case "int":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of integers")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Int().Call(jen.Id("v"))
-	case "int32":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(rv, 10, 32)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of integers")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Int32().Call(jen.Id("v"))
-	case "int64":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(rv, 10, 64)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of integers")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("v")
-	case "uint":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of unsigned integers")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Uint().Call(jen.Id("v"))
-	case "uint32":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(rv, 10, 32)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of unsigned integers")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Uint32().Call(jen.Id("v"))
-	case "uint64":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(rv, 10, 64)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of unsigned integers")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("v")
-	case "float32":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseFloat(rv, 32)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of floats")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Float32().Call(jen.Id("v"))
-	case "float64":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseFloat(rv, 64)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of floats")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("v")
-	case "boolean":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseBool(rv)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of booleans")),
-		)
-		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("v")
+	if writeScalarSliceItemConversion(g, a, arr.ElemType.Type.Name()) {
+		return
 	}
+	g.Id(a.VarName).Index(jen.Id("i")).Op("=").Id("rv")
 }
 
 func writeQueryTypeConversion(g *jen.Group, a *httpcodegen.AttributeData) {
-	switch a.Type.Name() {
-	case "bytes":
+	if writeScalarQueryTypeConversion(g, a, a.Type.Name()) {
+		return
+	}
+	g.Comment("unsupported type " + a.Type.Name() + " for var " + a.VarName)
+}
+
+type scalarParseSpec struct {
+	expr        string
+	description string
+	assignType  string
+	assignFn    func(*jen.Group, *httpcodegen.AttributeData, string)
+}
+
+func writeScalarSliceItemConversion(g *jen.Group, a *httpcodegen.AttributeData, typeName string) bool {
+	if typeName == "bytes" {
+		g.Id(a.VarName).Index(jen.Id("i")).Op("=").Index().Byte().Call(jen.Id("rv"))
+		return true
+	}
+	spec, ok := scalarParseSpecs()[typeName]
+	if !ok {
+		return false
+	}
+	g.Add(codegen.Expr(spec.expr))
+	g.If(jen.Id("err2").Op("!=").Nil()).Block(
+		jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "array of "+spec.description+"s")),
+	)
+	g.Id(a.VarName).Index(jen.Id("i")).Op("=").Add(codegen.Expr(spec.assignType + "(v)"))
+	return true
+}
+
+func writeScalarQueryTypeConversion(g *jen.Group, a *httpcodegen.AttributeData, typeName string) bool {
+	if typeName == "bytes" {
 		g.Id(a.VarName).Op("=").Index().Byte().Call(jen.Id(a.VarName + "Raw"))
-	case "int":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, strconv.IntSize)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "integer")),
-		)
-		assignConverted(g, a, "int")
-	case "int32":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, 32)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "integer")),
-		)
-		assignConverted(g, a, "int32")
-	case "int64":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseInt(" + a.VarName + "Raw, 10, 64)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "integer")),
-		)
-		assignDirectOrCast(g, a, "int64")
-	case "uint":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, strconv.IntSize)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "unsigned integer")),
-		)
-		assignConverted(g, a, "uint")
-	case "uint32":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, 32)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "unsigned integer")),
-		)
-		assignConverted(g, a, "uint32")
-	case "uint64":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseUint(" + a.VarName + "Raw, 10, 64)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "unsigned integer")),
-		)
-		assignDirectOrCast(g, a, "uint64")
-	case "float32":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseFloat(" + a.VarName + "Raw, 32)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "float")),
-		)
-		assignConverted(g, a, "float32")
-	case "float64":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseFloat(" + a.VarName + "Raw, 64)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "float")),
-		)
-		assignDirectOrCast(g, a, "float64")
-	case "boolean":
-		g.Add(codegen.Expr("v, err2 := strconv.ParseBool(" + a.VarName + "Raw)"))
-		g.If(jen.Id("err2").Op("!=").Nil()).Block(
-			jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), "boolean")),
-		)
-		assignDirectOrCast(g, a, "bool")
-	default:
-		g.Comment("unsupported type " + a.Type.Name() + " for var " + a.VarName)
+		return true
+	}
+	spec, ok := scalarParseSpecs()[typeName]
+	if !ok {
+		return false
+	}
+	g.Add(codegen.Expr(strings.ReplaceAll(spec.expr, "rv", a.VarName+"Raw")))
+	g.If(jen.Id("err2").Op("!=").Nil()).Block(
+		jen.Id("err").Op("=").Add(invalidFieldTypeMergeExpr(jen.Id("err"), a.Name, jen.Id(a.VarName+"Raw"), spec.description)),
+	)
+	spec.assignFn(g, a, spec.assignType)
+	return true
+}
+
+func scalarParseSpecs() map[string]scalarParseSpec {
+	return map[string]scalarParseSpec{
+		"int":     {expr: "v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)", description: "integer", assignType: "int", assignFn: assignConverted},
+		"int32":   {expr: "v, err2 := strconv.ParseInt(rv, 10, 32)", description: "integer", assignType: "int32", assignFn: assignConverted},
+		"int64":   {expr: "v, err2 := strconv.ParseInt(rv, 10, 64)", description: "integer", assignType: "int64", assignFn: assignDirectOrCast},
+		"uint":    {expr: "v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)", description: "unsigned integer", assignType: "uint", assignFn: assignConverted},
+		"uint32":  {expr: "v, err2 := strconv.ParseUint(rv, 10, 32)", description: "unsigned integer", assignType: "uint32", assignFn: assignConverted},
+		"uint64":  {expr: "v, err2 := strconv.ParseUint(rv, 10, 64)", description: "unsigned integer", assignType: "uint64", assignFn: assignDirectOrCast},
+		"float32": {expr: "v, err2 := strconv.ParseFloat(rv, 32)", description: "float", assignType: "float32", assignFn: assignConverted},
+		"float64": {expr: "v, err2 := strconv.ParseFloat(rv, 64)", description: "float", assignType: "float64", assignFn: assignDirectOrCast},
+		"boolean": {expr: "v, err2 := strconv.ParseBool(rv)", description: "boolean", assignType: "bool", assignFn: assignDirectOrCast},
 	}
 }
 

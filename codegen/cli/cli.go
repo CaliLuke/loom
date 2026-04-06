@@ -188,63 +188,9 @@ func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunctio
 	en := m.Name
 	name := codegen.KebabCase(en)
 	fullName := goifyTerms(data.Name, en)
-	description := m.Description
-	if description == "" {
-		description = fmt.Sprintf("Make request to the %q endpoint", m.Name)
-	}
-
-	var conversion *jen.Statement
-	if m.Payload != "" && buildFunction == nil && len(flags) > 0 {
-		// No build function, just convert the arg to the body type
-		var convPre, convSuff string
-		target := "data"
-		if flagType(m.Payload) == "JSON" {
-			target = "val"
-			convPre = "var val " + m.Payload + "\n"
-			convSuff = "\ndata = val"
-		}
-		conv, _, check := conversionCode(
-			"*"+flags[0].FullName+"Flag",
-			target,
-			m.Payload,
-			false,
-		)
-		conversion = codegen.Expr(convPre).Add(conv).Add(codegen.Expr(convSuff))
-		if check {
-			conversion = codegen.Expr("var err error\n").Add(conversion).Line()
-			conversion.If(jen.Err().Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
-				var ret *jen.Statement
-				if flagType(m.Payload) == "JSON" {
-					ret = jen.Return(
-						jen.Nil(),
-						jen.Nil(),
-						jen.Qual("fmt", "Errorf").Call(
-							jen.Lit("invalid JSON for "+flags[0].FullName+"Flag, \nerror: %s, \nexample of valid JSON:\n%s"),
-							jen.Err(),
-							jen.Lit(flags[0].Example),
-						),
-					)
-				} else {
-					ret = jen.Return(
-						jen.Nil(),
-						jen.Nil(),
-						jen.Qual("fmt", "Errorf").Call(
-							jen.Lit("invalid value for "+flags[0].FullName+"Flag, must be "+flags[0].Type),
-						),
-					)
-				}
-				group.Add(ret)
-			})
-		}
-	}
-
-	var interceptors *InterceptorData
-	if len(m.ClientInterceptors) > 0 {
-		interceptors = &InterceptorData{
-			VarName: codegen.Goify(data.Name, false) + "Inter",
-			PkgName: data.PkgName,
-		}
-	}
+	description := subcommandDescription(m)
+	conversion := buildSubcommandConversion(m, buildFunction, flags)
+	interceptors := buildSubcommandInterceptors(data, m)
 	sub := &SubcommandData{
 		Name:          name,
 		FullName:      fullName,
@@ -258,6 +204,67 @@ func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunctio
 	generateExample(sub, data.Name)
 
 	return sub
+}
+
+func subcommandDescription(m *service.MethodData) string {
+	if m.Description != "" {
+		return m.Description
+	}
+	return fmt.Sprintf("Make request to the %q endpoint", m.Name)
+}
+
+func buildSubcommandConversion(m *service.MethodData, buildFunction *BuildFunctionData, flags []*FlagData) *jen.Statement {
+	if m.Payload == "" || buildFunction != nil || len(flags) == 0 {
+		return nil
+	}
+	flag := flags[0]
+	target, prefix, suffix := subcommandConversionTarget(m.Payload)
+	conv, _, check := conversionCode("*"+flag.FullName+"Flag", target, m.Payload, false)
+	conversion := codegen.Expr(prefix).Add(conv).Add(codegen.Expr(suffix))
+	if !check {
+		return conversion
+	}
+	return codegen.Expr("var err error\n").Add(conversion).Line().If(jen.Err().Op("!=").Nil()).Block(
+		buildSubcommandConversionError(flag, m.Payload),
+	)
+}
+
+func subcommandConversionTarget(payload string) (target, prefix, suffix string) {
+	if flagType(payload) != "JSON" {
+		return "data", "", ""
+	}
+	return "val", "var val " + payload + "\n", "\ndata = val"
+}
+
+func buildSubcommandConversionError(flag *FlagData, payload string) *jen.Statement {
+	if flagType(payload) == "JSON" {
+		return jen.Return(
+			jen.Nil(),
+			jen.Nil(),
+			jen.Qual("fmt", "Errorf").Call(
+				jen.Lit("invalid JSON for "+flag.FullName+"Flag, \nerror: %s, \nexample of valid JSON:\n%s"),
+				jen.Err(),
+				jen.Lit(flag.Example),
+			),
+		)
+	}
+	return jen.Return(
+		jen.Nil(),
+		jen.Nil(),
+		jen.Qual("fmt", "Errorf").Call(
+			jen.Lit("invalid value for "+flag.FullName+"Flag, must be "+flag.Type),
+		),
+	)
+}
+
+func buildSubcommandInterceptors(data *service.Data, m *service.MethodData) *InterceptorData {
+	if len(m.ClientInterceptors) == 0 {
+		return nil
+	}
+	return &InterceptorData{
+		VarName: codegen.Goify(data.Name, false) + "Inter",
+		PkgName: data.PkgName,
+	}
 }
 
 // UsageCommands builds a section that generates a help text showing
@@ -461,67 +468,21 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 		declErr bool
 	)
 	if argTypeName == codegen.GoNativeTypeName(expr.String) {
-		ref := "&"
-		if f.Required || defaultValue != nil {
-			ref = ""
-		}
-		code = codegen.Expr(argName + " = " + ref + f.FullName)
+		code = codegen.Expr(argName + " = " + fieldLoadStringPrefix(f, defaultValue) + f.FullName)
 		declErr = validate != ""
 	} else {
 		var checkErr bool
 		code, declErr, checkErr = conversionCode(f.FullName, argName, argTypeName, !f.Required && defaultValue == nil)
 		if checkErr {
-			code.Line().If(jen.Err().Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
-				nilVal := "nil"
-				if expr.IsPrimitive(payload) {
-					group.Add(codegen.Expr("var zero " + payloadRef))
-					nilVal = "zero"
-				}
-				if flagType(argTypeName) == "JSON" {
-					group.Return(
-						codegen.Expr(nilVal),
-						jen.Qual("fmt", "Errorf").Call(
-							jen.Lit("invalid JSON for "+argName+", \nerror: %s, \nexample of valid JSON:\n%s"),
-							jen.Err(),
-							jen.Lit(f.Example),
-						),
-					)
-				} else {
-					group.Return(
-						codegen.Expr(nilVal),
-						jen.Qual("fmt", "Errorf").Call(
-							jen.Lit("invalid value for "+argName+", must be "+f.Type),
-						),
-					)
-				}
-			})
+			code.Line().If(jen.Err().Op("!=").Nil()).Block(buildFieldLoadConversionError(f, argName, argTypeName, payload, payloadRef))
 		}
 	}
 	if validate != "" {
-		nilCheck := "if " + argName + " != nil {"
-		if strings.HasPrefix(validate, nilCheck) {
-			// hackety hack... the validation code is generated for the client and needs to
-			// account for the fact that the field could be nil in this case. We are reusing
-			// that code to validate a CLI flag which can never be nil.  Lint tools complain
-			// about that so remove the if statements. Ideally we'd have a better way to do
-			// this but that requires a lot of changes and the added complexity might not be
-			// worth it.
-			var lines []string
-			ls := strings.Split(validate, "\n")
-			for i := 1; i < len(ls)-1; i++ {
-				if ls[i+1] == nilCheck {
-					i++ // skip both closing brace on previous line and check
-					continue
-				}
-				lines = append(lines, ls[i])
-			}
-			validate = strings.Join(lines, "\n")
-		}
+		validate = stripNilGuardValidation(validate, argName)
 		code.Line().Add(codegen.Expr(validate)).Line()
-		nilVal := "nil"
-		if expr.IsPrimitive(payload) {
-			code.Add(codegen.Expr("var zero " + payloadRef)).Line()
-			nilVal = "zero"
+		nilVal, declareZero := fieldLoadReturnZero(payload, payloadRef)
+		if declareZero != "" {
+			code.Add(codegen.Expr(declareZero)).Line()
 		}
 		code.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(codegen.Expr(nilVal), jen.Err()),
@@ -531,6 +492,66 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 		return jen.If(codegen.Expr(f.FullName).Op("!=").Lit("")).Block(code), declErr
 	}
 	return code, declErr
+}
+
+func fieldLoadStringPrefix(f *FlagData, defaultValue any) string {
+	if f.Required || defaultValue != nil {
+		return ""
+	}
+	return "&"
+}
+
+func buildFieldLoadConversionError(f *FlagData, argName, argTypeName string, payload expr.DataType, payloadRef string) *jen.Statement {
+	nilVal, declareZero := fieldLoadReturnZero(payload, payloadRef)
+	stmt := new(jen.Statement)
+	if declareZero != "" {
+		stmt.Add(codegen.Expr(declareZero))
+	}
+	stmt.Add(buildFieldLoadErrorReturn(f, argName, argTypeName, nilVal))
+	return stmt
+}
+
+func buildFieldLoadErrorReturn(f *FlagData, argName, argTypeName, nilVal string) *jen.Statement {
+	if flagType(argTypeName) == "JSON" {
+		return jen.Return(
+			codegen.Expr(nilVal),
+			jen.Qual("fmt", "Errorf").Call(
+				jen.Lit("invalid JSON for "+argName+", \nerror: %s, \nexample of valid JSON:\n%s"),
+				jen.Err(),
+				jen.Lit(f.Example),
+			),
+		)
+	}
+	return jen.Return(
+		codegen.Expr(nilVal),
+		jen.Qual("fmt", "Errorf").Call(
+			jen.Lit("invalid value for "+argName+", must be "+f.Type),
+		),
+	)
+}
+
+func stripNilGuardValidation(validate, argName string) string {
+	nilCheck := "if " + argName + " != nil {"
+	if !strings.HasPrefix(validate, nilCheck) {
+		return validate
+	}
+	lines := make([]string, 0, strings.Count(validate, "\n"))
+	ls := strings.Split(validate, "\n")
+	for i := 1; i < len(ls)-1; i++ {
+		if ls[i+1] == nilCheck {
+			i++
+			continue
+		}
+		lines = append(lines, ls[i])
+	}
+	return strings.Join(lines, "\n")
+}
+
+func fieldLoadReturnZero(payload expr.DataType, payloadRef string) (nilVal, declareZero string) {
+	if !expr.IsPrimitive(payload) {
+		return "nil", ""
+	}
+	return "zero", "var zero " + payloadRef
 }
 
 // flagType calculates the type of a flag
@@ -615,62 +636,9 @@ var (
 // value indicates whether the generated code can produce errors (i.e.
 // initialize the err variable).
 func conversionCode(from, to, typeName string, pointer bool) (*jen.Statement, bool, bool) {
-	var (
-		parse *jen.Statement
-		cast  *jen.Statement
-
-		target   = to
-		needCast = typeName != stringN && typeName != bytesN && flagType(typeName) != "JSON"
-		declErr  = true
-		checkErr = true
-		decl     = ""
-	)
-	if needCast && pointer {
-		target = "val"
-		decl = ":"
-	}
-	switch typeName {
-	case boolN:
-		parse = new(jen.Statement)
-		if pointer {
-			parse = codegen.Expr("var " + target + " bool\n")
-		}
-		parse.Add(codegen.Expr(target + ", err = strconv.ParseBool(" + from + ")"))
-	case intN:
-		parse = codegen.Expr("var v int64\nv, err = strconv.ParseInt(" + from + ", 10, strconv.IntSize)")
-		cast = codegen.Expr(target + " " + decl + "= int(v)")
-	case int32N:
-		parse = codegen.Expr("var v int64\nv, err = strconv.ParseInt(" + from + ", 10, 32)")
-		cast = codegen.Expr(target + " " + decl + "= int32(v)")
-	case int64N:
-		parse = codegen.Expr(target + ", err " + decl + "= strconv.ParseInt(" + from + ", 10, 64)")
-		declErr = decl == ""
-	case uintN:
-		parse = codegen.Expr("var v uint64\nv, err = strconv.ParseUint(" + from + ", 10, strconv.IntSize)")
-		cast = codegen.Expr(target + " " + decl + "= uint(v)")
-	case uint32N:
-		parse = codegen.Expr("var v uint64\nv, err = strconv.ParseUint(" + from + ", 10, 32)")
-		cast = codegen.Expr(target + " " + decl + "= uint32(v)")
-	case uint64N:
-		parse = codegen.Expr(target + ", err " + decl + "= strconv.ParseUint(" + from + ", 10, 64)")
-		declErr = decl == ""
-	case float32N:
-		parse = codegen.Expr("var v float64\nv, err = strconv.ParseFloat(" + from + ", 32)")
-		cast = codegen.Expr(target + " " + decl + "= float32(v)")
-	case float64N:
-		parse = codegen.Expr(target + ", err " + decl + "= strconv.ParseFloat(" + from + ", 64)")
-		declErr = decl == ""
-	case stringN:
-		parse = codegen.Expr(target + " " + decl + "= " + from)
-		declErr = false
-		checkErr = false
-	case bytesN:
-		parse = codegen.Expr(target + " " + decl + "= []byte(" + from + ")")
-		declErr = false
-		checkErr = false
-	default:
-		parse = codegen.Expr("err = json.Unmarshal([]byte(" + from + "), &" + target + ")")
-	}
+	target, decl := conversionTarget(to, typeName, pointer)
+	needCast := typeName != stringN && typeName != bytesN && flagType(typeName) != "JSON"
+	parse, cast, declErr, checkErr := conversionStatements(from, target, typeName, pointer, decl)
 	if !needCast {
 		return parse, declErr, checkErr
 	}
@@ -685,6 +653,87 @@ func conversionCode(from, to, typeName string, pointer bool) (*jen.Statement, bo
 		parse.Line().Add(codegen.Expr(to + " = " + ref + target))
 	}
 	return parse, declErr, checkErr
+}
+
+func conversionTarget(to, typeName string, pointer bool) (target, decl string) {
+	target = to
+	if (typeName == stringN || typeName == bytesN || flagType(typeName) == "JSON") || !pointer {
+		return target, ""
+	}
+	return "val", ":"
+}
+
+func conversionStatements(from, target, typeName string, pointer bool, decl string) (parse, cast *jen.Statement, declErr, checkErr bool) {
+	declErr = true
+	checkErr = true
+	switch typeName {
+	case boolN:
+		parse = boolConversionParse(from, target, pointer)
+	case intN:
+		parse, cast = integerConversionParse(from, target, decl, "strconv.IntSize", "int")
+	case int32N:
+		parse, cast = integerConversionParse(from, target, decl, "32", "int32")
+	case int64N:
+		parse = integerDirectParseExpr("strconv.ParseInt", from, target, decl, "64")
+		declErr = decl == ""
+	case uintN:
+		parse, cast = unsignedConversionParse(from, target, decl, "strconv.IntSize", "uint")
+	case uint32N:
+		parse, cast = unsignedConversionParse(from, target, decl, "32", "uint32")
+	case uint64N:
+		parse = integerDirectParseExpr("strconv.ParseUint", from, target, decl, "64")
+		declErr = decl == ""
+	case float32N:
+		parse, cast = floatConversionParse(from, target, decl, "32", "float32")
+	case float64N:
+		parse = floatDirectParseExpr(from, target, decl, "64")
+		declErr = decl == ""
+	case stringN:
+		parse = codegen.Expr(target + " " + decl + "= " + from)
+		declErr = false
+		checkErr = false
+	case bytesN:
+		parse = codegen.Expr(target + " " + decl + "= []byte(" + from + ")")
+		declErr = false
+		checkErr = false
+	default:
+		parse = codegen.Expr("err = json.Unmarshal([]byte(" + from + "), &" + target + ")")
+	}
+	return parse, cast, declErr, checkErr
+}
+
+func boolConversionParse(from, target string, pointer bool) *jen.Statement {
+	parse := new(jen.Statement)
+	if pointer {
+		parse = codegen.Expr("var " + target + " bool\n")
+	}
+	return parse.Add(codegen.Expr(target + ", err = strconv.ParseBool(" + from + ")"))
+}
+
+func integerConversionParse(from, target, decl, bits, castType string) (*jen.Statement, *jen.Statement) {
+	parse := codegen.Expr("var v int64\nv, err = strconv.ParseInt(" + from + ", 10, " + bits + ")")
+	cast := codegen.Expr(target + " " + decl + "= " + castType + "(v)")
+	return parse, cast
+}
+
+func unsignedConversionParse(from, target, decl, bits, castType string) (*jen.Statement, *jen.Statement) {
+	parse := codegen.Expr("var v uint64\nv, err = strconv.ParseUint(" + from + ", 10, " + bits + ")")
+	cast := codegen.Expr(target + " " + decl + "= " + castType + "(v)")
+	return parse, cast
+}
+
+func floatConversionParse(from, target, decl, bits, castType string) (*jen.Statement, *jen.Statement) {
+	parse := codegen.Expr("var v float64\nv, err = strconv.ParseFloat(" + from + ", " + bits + ")")
+	cast := codegen.Expr(target + " " + decl + "= " + castType + "(v)")
+	return parse, cast
+}
+
+func integerDirectParseExpr(parseFn, from, target, decl, bits string) *jen.Statement {
+	return codegen.Expr(target + ", err " + decl + "= " + parseFn + "(" + from + ", 10, " + bits + ")")
+}
+
+func floatDirectParseExpr(from, target, decl, bits string) *jen.Statement {
+	return codegen.Expr(target + ", err " + decl + "= strconv.ParseFloat(" + from + ", " + bits + ")")
 }
 
 // goifyTerms makes valid go identifiers out of the supplied terms

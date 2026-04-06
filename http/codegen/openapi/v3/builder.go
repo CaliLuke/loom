@@ -513,68 +513,8 @@ func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) ma
 		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
 			continue
 		}
-		exts := openapi.ExtensionsFromExpr(svc.Meta)
-
-		// endpoints
-		for _, e := range svc.HTTPEndpoints {
-			if !openapi.MustGenerate(e.Meta) || !openapi.MustGenerate(e.MethodExpr.Meta) {
-				continue
-			}
-			for _, r := range e.Routes {
-				for _, key := range r.FullPaths() {
-					// Remove any wildcards that is defined in path as a workaround to
-					// https://github.com/OAI/OpenAPI-Specification/issues/291
-					key = expr.HTTPWildcardRegex.ReplaceAllString(key, "/{$1}")
-					operation := buildOperationFromIR(irOperation(doc, key, r.Method))
-					path, ok := paths[key]
-					if !ok {
-						path = new(PathItem)
-						paths[key] = path
-					}
-					switch r.Method {
-					case "GET":
-						path.Get = operation
-					case "PUT":
-						path.Put = operation
-					case "POST":
-						path.Post = operation
-					case "DELETE":
-						path.Delete = operation
-					case "OPTIONS":
-						path.Options = operation
-					case "HEAD":
-						path.Head = operation
-					case "PATCH":
-						path.Patch = operation
-					}
-					path.Extensions = openapi.ExtensionsFromExpr(r.Endpoint.Meta)
-					if len(exts) > 0 {
-						path.Extensions = make(map[string]any)
-						maps.Copy(path.Extensions, exts)
-					}
-				}
-			}
-		}
-
-		// file servers
-		for _, f := range svc.FileServers {
-			if !openapi.MustGenerate(f.Meta) || !openapi.MustGenerate(f.Service.Meta) {
-				continue
-			}
-
-			for _, key := range f.RequestPaths {
-				// Replace wildcards in the path to OpenAPI path parameter form
-				// e.g. "/ui/{*filepath}" -> "/ui/{filepath}"
-				key = expr.HTTPWildcardRegex.ReplaceAllString(key, "/{$1}")
-				operation := buildFileServerOperation(key, f, api)
-				path, ok := paths[key]
-				if !ok {
-					path = new(PathItem)
-					paths[key] = path
-				}
-				path.Get = operation
-			}
-		}
+		buildServiceEndpointPaths(paths, doc, svc, openapi.ExtensionsFromExpr(svc.Meta))
+		buildServiceFileServerPaths(paths, api, svc)
 	}
 	return paths
 }
@@ -621,89 +561,141 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 	wildcards := expr.ExtractHTTPWildcards(key)
 	svc := fs.Service
 
-	// parameters
-	var params []*ParameterRef
-	if len(wildcards) > 0 {
-		pref := ParameterRef{
-			Value: &Parameter{
-				// Use the literal wildcard (including leading '*') as name to match path if needed
-				// Note: HTTPWildcardRegex already strips '*' in ExtractHTTPWildcards; however
-				// the path key has been normalized to "/{name}" so the correct parameter name
-				// is the bare wildcard identifier.
-				Name:        wildcards[0],
-				Description: "Relative file path",
-				In:          "path",
-				Required:    true,
-				Schema: &openapi.Schema{ // string schema makes validators happy
-					Type: openapi.String,
-				},
-			},
-		}
-		params = []*ParameterRef{&pref}
-	}
-
-	// responses
-	var responses map[string]*ResponseRef
-	{
-		desc200 := "File downloaded"
-		rref := ResponseRef{
-			Value: &Response{
-				Description: &desc200,
-			},
-		}
-		responses = map[string]*ResponseRef{
-			"200": &rref,
-		}
-		if len(wildcards) > 0 {
-			desc404 := "File not found"
-			responses["404"] = &ResponseRef{
-				Value: &Response{
-					Description: &desc404,
-				},
-			}
-		}
-	}
-
-	// OpenAPI summary
-	var summary string
-	summary = fmt.Sprintf("Download %s", fs.FilePath)
-	for n, mdata := range fs.Meta {
-		if n == "openapi:summary" && len(mdata) > 0 {
-			summary = mdata[0]
-		}
-	}
-
-	// OpenAPI operationId
-	var operationIDFormat string
-	setOperationIDFormat := func(meta expr.MetaExpr) {
-		for n, mdata := range meta {
-			if n == "openapi:operationId" && len(mdata) > 0 {
-				operationIDFormat = mdata[0]
-			}
-		}
-	}
-
-	operationIDFormat = defaultOperationIDFormat
-	setOperationIDFormat(api.Meta)
-	setOperationIDFormat(svc.Meta)
-	setOperationIDFormat(fs.Meta)
-
-	// tag names
-	var tagNames []string
-	tagNames = operationTagNames(fs.Meta, svc.Meta, svc.Name())
-
 	return &Operation{
-		OperationID:  parseOperationIDTemplate(operationIDFormat, svc.Name(), key, 0),
+		OperationID:  parseOperationIDTemplate(fileServerOperationIDFormat(api, svc, fs), svc.Name(), key, 0),
 		Description:  fs.Description,
-		Summary:      summary,
-		Parameters:   params,
-		Responses:    responses,
-		Tags:         tagNames,
+		Summary:      fileServerSummary(fs),
+		Parameters:   fileServerParameters(wildcards),
+		Responses:    fileServerResponses(wildcards),
+		Tags:         operationTagNames(fs.Meta, svc.Meta, svc.Name()),
 		Security:     securityreq.OpenAPI(securityreq.Effective(api.Requirements, api.SessionAuths)),
 		Deprecated:   false,
 		ExternalDocs: openapi.DocsFromExpr(fs.Docs, fs.Meta),
 		Extensions:   openapi.ExtensionsFromExpr(fs.Meta),
 	}
+}
+
+func buildServiceEndpointPaths(paths map[string]*PathItem, doc *openapiir.Document, svc *expr.HTTPServiceExpr, exts map[string]any) {
+	for _, endpoint := range svc.HTTPEndpoints {
+		if !openapi.MustGenerate(endpoint.Meta) || !openapi.MustGenerate(endpoint.MethodExpr.Meta) {
+			continue
+		}
+		for _, route := range endpoint.Routes {
+			for _, key := range route.FullPaths() {
+				normalizedKey := normalizeOpenAPIPath(key)
+				assignPathOperation(paths, normalizedKey, route.Method, buildOperationFromIR(irOperation(doc, normalizedKey, route.Method)))
+				assignPathExtensions(paths[normalizedKey], route.Endpoint.Meta, exts)
+			}
+		}
+	}
+}
+
+func buildServiceFileServerPaths(paths map[string]*PathItem, api *expr.APIExpr, svc *expr.HTTPServiceExpr) {
+	for _, fileServer := range svc.FileServers {
+		if !openapi.MustGenerate(fileServer.Meta) || !openapi.MustGenerate(fileServer.Service.Meta) {
+			continue
+		}
+		for _, key := range fileServer.RequestPaths {
+			normalizedKey := normalizeOpenAPIPath(key)
+			assignPathOperation(paths, normalizedKey, "GET", buildFileServerOperation(normalizedKey, fileServer, api))
+		}
+	}
+}
+
+func normalizeOpenAPIPath(key string) string {
+	return expr.HTTPWildcardRegex.ReplaceAllString(key, "/{$1}")
+}
+
+func assignPathOperation(paths map[string]*PathItem, key, method string, operation *Operation) {
+	path := paths[key]
+	if path == nil {
+		path = new(PathItem)
+		paths[key] = path
+	}
+	switch method {
+	case "GET":
+		path.Get = operation
+	case "PUT":
+		path.Put = operation
+	case "POST":
+		path.Post = operation
+	case "DELETE":
+		path.Delete = operation
+	case "OPTIONS":
+		path.Options = operation
+	case "HEAD":
+		path.Head = operation
+	case "PATCH":
+		path.Patch = operation
+	}
+}
+
+func assignPathExtensions(path *PathItem, endpointMeta expr.MetaExpr, serviceExts map[string]any) {
+	path.Extensions = openapi.ExtensionsFromExpr(endpointMeta)
+	if len(serviceExts) > 0 {
+		path.Extensions = make(map[string]any)
+		maps.Copy(path.Extensions, serviceExts)
+	}
+}
+
+func fileServerParameters(wildcards []string) []*ParameterRef {
+	if len(wildcards) == 0 {
+		return nil
+	}
+	pref := ParameterRef{
+		Value: &Parameter{
+			Name:        wildcards[0],
+			Description: "Relative file path",
+			In:          "path",
+			Required:    true,
+			Schema: &openapi.Schema{
+				Type: openapi.String,
+			},
+		},
+	}
+	return []*ParameterRef{&pref}
+}
+
+func fileServerResponses(wildcards []string) map[string]*ResponseRef {
+	desc200 := "File downloaded"
+	responses := map[string]*ResponseRef{
+		"200": &ResponseRef{
+			Value: &Response{Description: &desc200},
+		},
+	}
+	if len(wildcards) > 0 {
+		desc404 := "File not found"
+		responses["404"] = &ResponseRef{
+			Value: &Response{Description: &desc404},
+		}
+	}
+	return responses
+}
+
+func fileServerSummary(fs *expr.HTTPFileServerExpr) string {
+	summary := fmt.Sprintf("Download %s", fs.FilePath)
+	if override := metaFirst(fs.Meta, "openapi:summary"); override != "" {
+		return override
+	}
+	return summary
+}
+
+func fileServerOperationIDFormat(api *expr.APIExpr, svc *expr.HTTPServiceExpr, fs *expr.HTTPFileServerExpr) string {
+	operationIDFormat := defaultOperationIDFormat
+	for _, meta := range []expr.MetaExpr{api.Meta, svc.Meta, fs.Meta} {
+		if override := metaFirst(meta, "openapi:operationId"); override != "" {
+			operationIDFormat = override
+		}
+	}
+	return operationIDFormat
+}
+
+func metaFirst(meta expr.MetaExpr, key string) string {
+	values := meta[key]
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }
 
 func cloneOperationSecurity(requirements []map[string][]string) []map[string][]string {

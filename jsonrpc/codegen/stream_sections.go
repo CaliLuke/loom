@@ -229,34 +229,9 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 	return codegen.MustJenniferSection("jsonrpc-server-sse-stream-impl", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "SSEStream"
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the %s.Stream interface for SSE transport.", streamName, data.Service.PkgName))
-		stmt.Type().Id(streamName).Struct(
-			jen.Comment("once ensures the headers are written once."),
-			jen.Id("once").Qual("sync", "Once"),
-			jen.Comment("w is the HTTP response writer used to send the SSE events."),
-			jen.Id("w").Qual("net/http", "ResponseWriter"),
-			jen.Comment("r is the HTTP request."),
-			jen.Id("r").Op("*").Qual("net/http", "Request"),
-			jen.Comment("encoder is the response encoder."),
-			jen.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder")),
-			jen.Comment("decoder is the request decoder."),
-			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Decoder")),
-		)
+		stmt.Type().Id(streamName).Struct(jsonrpcSSEStreamFields()...)
 		stmt.Line()
-		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
-			Id("initSSEHeaders").
-			Params().
-			Block(
-				jen.Id("s").Dot("once").Dot("Do").Call(
-					jen.Func().Params().Block(
-						jen.Id("header").Op(":=").Id("s").Dot("w").Dot("Header").Call(),
-						jen.Id("header").Dot("Set").Call(jen.Lit("Content-Type"), jen.Lit("text/event-stream")),
-						jen.Id("header").Dot("Set").Call(jen.Lit("Cache-Control"), jen.Lit("no-cache")),
-						jen.Id("header").Dot("Set").Call(jen.Lit("Connection"), jen.Lit("keep-alive")),
-						jen.Id("header").Dot("Set").Call(jen.Lit("X-Accel-Buffering"), jen.Lit("no")),
-						jen.Id("s").Dot("w").Dot("WriteHeader").Call(jen.Qual("net/http", "StatusOK")),
-					),
-				),
-			)
+		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).Id("initSSEHeaders").Params().Block(jsonrpcSSEInitHeadersBody()...)
 		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 			Id("sendSSEEvent").
@@ -398,30 +373,7 @@ func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Se
 			if ed.Result == nil || ed.Result.Ref == "" {
 				continue
 			}
-			codegen.Doc(stmt, fmt.Sprintf("Send%sNotification sends a JSON-RPC notification for the %s method.", ed.Method.VarName, ed.Method.Name))
-			stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
-				Id("Send"+ed.Method.VarName+"Notification").
-				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref))).
-				Error().
-				BlockFunc(func(g *jen.Group) {
-					writeStreamResultBodyInit(g, "body", "result", ed)
-					g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
-						jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
-					))
-				})
-			stmt.Line()
-			codegen.Doc(stmt, fmt.Sprintf("Send%sResponse sends a JSON-RPC response for the %s method.", ed.Method.VarName, ed.Method.Name))
-			stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
-				Id("Send"+ed.Method.VarName+"Response").
-				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("id").Any(), jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref))).
-				Error().
-				BlockFunc(func(g *jen.Group) {
-					writeStreamResultBodyInit(g, "body", "result", ed)
-					g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
-						jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
-					))
-				})
-			stmt.Line()
+			addJSONRPCWebSocketResultSendMethods(stmt, streamName, ed)
 		}
 		codegen.Doc(stmt, "SendError streams JSON-RPC errors.")
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
@@ -460,6 +412,78 @@ func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Se
 				jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Id("response"))),
 			)
 	})
+}
+
+func jsonrpcSSEStreamFields() []jen.Code {
+	return []jen.Code{
+		jen.Comment("once ensures the headers are written once."),
+		jen.Id("once").Qual("sync", "Once"),
+		jen.Comment("w is the HTTP response writer used to send the SSE events."),
+		jen.Id("w").Qual("net/http", "ResponseWriter"),
+		jen.Comment("r is the HTTP request."),
+		jen.Id("r").Op("*").Qual("net/http", "Request"),
+		jen.Comment("encoder is the response encoder."),
+		jen.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder")),
+		jen.Comment("decoder is the request decoder."),
+		jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Decoder")),
+	}
+}
+
+func jsonrpcSSEInitHeadersBody() []jen.Code {
+	return []jen.Code{
+		jen.Id("s").Dot("once").Dot("Do").Call(
+			jen.Func().Params().Block(
+				jen.Id("header").Op(":=").Id("s").Dot("w").Dot("Header").Call(),
+				jen.Id("header").Dot("Set").Call(jen.Lit("Content-Type"), jen.Lit("text/event-stream")),
+				jen.Id("header").Dot("Set").Call(jen.Lit("Cache-Control"), jen.Lit("no-cache")),
+				jen.Id("header").Dot("Set").Call(jen.Lit("Connection"), jen.Lit("keep-alive")),
+				jen.Id("header").Dot("Set").Call(jen.Lit("X-Accel-Buffering"), jen.Lit("no")),
+				jen.Id("s").Dot("w").Dot("WriteHeader").Call(jen.Qual("net/http", "StatusOK")),
+			),
+		),
+	}
+}
+
+func addJSONRPCWebSocketResultSendMethods(stmt *jen.Statement, streamName string, ed *httpcodegen.EndpointData) {
+	addJSONRPCWebSocketSendMethod(stmt, streamName, ed, true)
+	stmt.Line()
+	addJSONRPCWebSocketSendMethod(stmt, streamName, ed, false)
+	stmt.Line()
+}
+
+func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *httpcodegen.EndpointData, notification bool) {
+	methodName, doc := jsonrpcWebSocketSendMethodMeta(ed, notification)
+	fn := stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).Id(methodName)
+	if notification {
+		codegen.Doc(stmt, doc)
+		fn.Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref))).Error().BlockFunc(func(g *jen.Group) {
+			writeStreamResultBodyInit(g, "body", "result", ed)
+			g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
+				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
+			))
+		})
+		return
+	}
+	codegen.Doc(stmt, doc)
+	fn.Params(
+		jen.Id("ctx").Qual("context", "Context"),
+		jen.Id("id").Any(),
+		jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref)),
+	).Error().BlockFunc(func(g *jen.Group) {
+		writeStreamResultBodyInit(g, "body", "result", ed)
+		g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
+			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
+		))
+	})
+}
+
+func jsonrpcWebSocketSendMethodMeta(ed *httpcodegen.EndpointData, notification bool) (string, string) {
+	if notification {
+		return "Send" + ed.Method.VarName + "Notification",
+			fmt.Sprintf("Send%sNotification sends a JSON-RPC notification for the %s method.", ed.Method.VarName, ed.Method.Name)
+	}
+	return "Send" + ed.Method.VarName + "Response",
+		fmt.Sprintf("Send%sResponse sends a JSON-RPC response for the %s method.", ed.Method.VarName, ed.Method.Name)
 }
 
 func jsonrpcWebSocketServerRecvSection(data *httpcodegen.ServiceData) codegen.Section {

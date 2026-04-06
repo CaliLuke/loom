@@ -300,53 +300,14 @@ func View(name string, adsl ...func()) {
 //	    })
 //	})
 func CollectionOf(v any, adsl ...func()) *expr.ResultTypeExpr {
-	var m *expr.ResultTypeExpr
-	var ok bool
-	m, ok = v.(*expr.ResultTypeExpr)
-	if !ok {
-		if id, ok := v.(string); ok {
-			// Check if a result type exists with the given type name
-			if dt := expr.Root.UserType(id); dt != nil {
-				if mt, ok := dt.(*expr.ResultTypeExpr); ok {
-					m = mt
-				}
-			} else {
-				// Check if a result type exists with the given identifier
-				id, typeName, err := mediaTypeToResultType(id)
-				if dt := expr.Root.UserType(typeName); dt != nil {
-					if mt, ok := dt.(*expr.ResultTypeExpr); ok {
-						m = mt
-					}
-				}
-				if err != nil {
-					eval.ReportError("invalid result type identifier %#v in CollectionOf: %s", id, err)
-				}
-			}
-		}
-	}
+	m := collectionResultType(v)
 	if m == nil {
-		eval.ReportError("invalid CollectionOf argument: not a result type and not a known result type identifier")
-		// don't return nil to avoid panics, the error will get reported at the end
-		return expr.NewResultTypeExpr("InvalidCollection", "text/plain", nil)
+		return invalidCollectionResultType("invalid CollectionOf argument: not a result type and not a known result type identifier")
 	}
-	id := m.Identifier
-	rtype, params, err := mime.ParseMediaType(id)
+	id, err := collectionIdentifier(m.Identifier)
 	if err != nil {
-		eval.ReportError("invalid result type identifier %#v: %s", id, err)
-		// don't return nil to avoid panics, the error will get reported at the end
-		return expr.NewResultTypeExpr("InvalidCollection", "text/plain", nil)
+		return invalidCollectionResultType("invalid result type identifier %#v: %s", m.Identifier, err)
 	}
-	hasType := false
-	for param := range params {
-		if param == "type" {
-			hasType = true
-			break
-		}
-	}
-	if !hasType {
-		params["type"] = "collection"
-	}
-	id = mime.FormatMediaType(rtype, params)
 	canonical := expr.CanonicalIdentifier(id)
 	if mt := expr.GeneratedResultType(canonical); mt != nil {
 		// Already have a type for this collection, reuse it.
@@ -358,26 +319,79 @@ func CollectionOf(v any, adsl ...func()) *expr.ResultTypeExpr {
 			eval.IncompatibleDSL()
 			return
 		}
-		// Cannot compute collection type name before element result type
-		// DSL has executed since the DSL may modify element type name
-		// via the TypeName function.
-		rt.TypeName = m.TypeName + "Collection"
-		rt.AttributeExpr = &expr.AttributeExpr{Type: ArrayOf(m)}
-		if len(adsl) > 0 {
-			eval.Execute(adsl[0], rt)
-		}
-		if rt.Views == nil {
-			// If the DSL didn't create any view (or there is no DSL
-			// at all) then inherit the views from the collection
-			// element.
-			rt.Views = make([]*expr.ViewExpr, len(m.Views))
-			copy(rt.Views, m.Views)
-		}
+		initCollectionResultType(rt, m, adsl)
 	})
 	// do not execute the DSL right away, will be done last to make sure
 	// the element DSL has run first.
 	expr.GeneratedResultTypes.Append(rt)
 	return rt
+}
+
+func collectionResultType(v any) *expr.ResultTypeExpr {
+	if m, ok := v.(*expr.ResultTypeExpr); ok {
+		return m
+	}
+	id, ok := v.(string)
+	if !ok {
+		return nil
+	}
+	if m := namedCollectionResultType(id); m != nil {
+		return m
+	}
+	return identifiedCollectionResultType(id)
+}
+
+func namedCollectionResultType(id string) *expr.ResultTypeExpr {
+	if dt := expr.Root.UserType(id); dt != nil {
+		if mt, ok := dt.(*expr.ResultTypeExpr); ok {
+			return mt
+		}
+	}
+	return nil
+}
+
+func identifiedCollectionResultType(id string) *expr.ResultTypeExpr {
+	identifier, typeName, err := mediaTypeToResultType(id)
+	if err != nil {
+		eval.ReportError("invalid result type identifier %#v in CollectionOf: %s", identifier, err)
+	}
+	if dt := expr.Root.UserType(typeName); dt != nil {
+		if mt, ok := dt.(*expr.ResultTypeExpr); ok {
+			return mt
+		}
+	}
+	return nil
+}
+
+func invalidCollectionResultType(format string, args ...any) *expr.ResultTypeExpr {
+	eval.ReportError(format, args...)
+	return expr.NewResultTypeExpr("InvalidCollection", "text/plain", nil)
+}
+
+func collectionIdentifier(id string) (string, error) {
+	rtype, params, err := mime.ParseMediaType(id)
+	if err != nil {
+		return "", err
+	}
+	if _, ok := params["type"]; !ok {
+		params["type"] = "collection"
+	}
+	return mime.FormatMediaType(rtype, params), nil
+}
+
+func initCollectionResultType(rt, elem *expr.ResultTypeExpr, adsl []func()) {
+	// Cannot compute collection type name before element result type
+	// DSL has executed since the DSL may modify element type name
+	// via the TypeName function.
+	rt.TypeName = elem.TypeName + "Collection"
+	rt.AttributeExpr = &expr.AttributeExpr{Type: ArrayOf(elem)}
+	if len(adsl) > 0 {
+		eval.Execute(adsl[0], rt)
+	}
+	if rt.Views == nil {
+		rt.Views = make([]*expr.ViewExpr, len(elem.Views))
+		copy(rt.Views, elem.Views)
+	}
 }
 
 // Reference sets a type or result type reference. The value itself can be a

@@ -273,67 +273,73 @@ func oneOfAttribute(name string, args ...any) {
 		}
 	}
 	Attribute(name, &expr.Union{TypeName: name}, desc, fn)
+	applyOneOfAttributeMeta(name)
+}
 
-	// Extract and validate oneof:type:field and oneof:value:field meta tags
-	var parent *expr.AttributeExpr
-	switch def := eval.Current().(type) {
-	case *expr.AttributeExpr:
-		parent = def
-	case expr.CompositeExpr:
-		parent = def.Attribute()
-	default:
-		return
-	}
-	if parent == nil {
-		return
-	}
-
-	// Find the union attribute we just created
-	attr := parent.Find(name)
+func applyOneOfAttributeMeta(name string) {
+	attr := currentOneOfAttribute(name)
 	if attr == nil || attr.Meta == nil {
 		return
 	}
-
 	union, ok := attr.Type.(*expr.Union)
 	if !ok {
 		return
 	}
-
-	// Extract type name from meta
-	if typeNames, ok := attr.Meta["oneof:typename"]; ok && len(typeNames) > 0 {
-		typeName := typeNames[0]
-		if typeName == "" {
-			eval.ReportError("oneof:typename meta cannot be empty")
-			return
-		}
-		union.TypeName = typeName
-		union.ExplicitTypeName = true
+	if !applyOneOfTypeNameMeta(attr, union) {
+		return
 	}
-
-	// Extract type key from meta
-	if typeKeys, ok := attr.Meta["oneof:type:field"]; ok && len(typeKeys) > 0 {
-		typeKey := typeKeys[0]
-		if typeKey == "" {
-			eval.ReportError("oneof:type:field meta cannot be empty")
-			return
-		}
-		union.TypeKey = typeKey
+	if !applyOneOfFieldMeta(attr.Meta, "oneof:type:field", func(value string) {
+		union.TypeKey = value
+	}) {
+		return
 	}
-
-	// Extract value key from meta
-	if valueKeys, ok := attr.Meta["oneof:value:field"]; ok && len(valueKeys) > 0 {
-		valueKey := valueKeys[0]
-		if valueKey == "" {
-			eval.ReportError("oneof:value:field meta cannot be empty")
-			return
-		}
-		union.ValueKey = valueKey
+	if !applyOneOfFieldMeta(attr.Meta, "oneof:value:field", func(value string) {
+		union.ValueKey = value
+	}) {
+		return
 	}
-
-	// Validate that type and value keys are different
 	if union.TypeKey != "" && union.ValueKey != "" && union.TypeKey == union.ValueKey {
 		eval.ReportError("oneof:type:field and oneof:value:field cannot be the same (%q)", union.TypeKey)
 	}
+}
+
+func currentOneOfAttribute(name string) *expr.AttributeExpr {
+	parent := currentOneOfParent()
+	if parent == nil {
+		return nil
+	}
+	return parent.Find(name)
+}
+
+func currentOneOfParent() *expr.AttributeExpr {
+	switch def := eval.Current().(type) {
+	case *expr.AttributeExpr:
+		return def
+	case expr.CompositeExpr:
+		return def.Attribute()
+	default:
+		return nil
+	}
+}
+
+func applyOneOfTypeNameMeta(attr *expr.AttributeExpr, union *expr.Union) bool {
+	return applyOneOfFieldMeta(attr.Meta, "oneof:typename", func(value string) {
+		union.TypeName = value
+		union.ExplicitTypeName = true
+	})
+}
+
+func applyOneOfFieldMeta(meta expr.MetaExpr, key string, apply func(string)) bool {
+	values, ok := meta[key]
+	if !ok || len(values) == 0 {
+		return true
+	}
+	if values[0] == "" {
+		eval.ReportError("%s meta cannot be empty", key)
+		return false
+	}
+	apply(values[0])
+	return true
 }
 
 // Default sets the default value for an attribute.

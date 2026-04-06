@@ -12,27 +12,63 @@ import (
 // analyze creates the data necessary to render the code of the given service.
 // It records the user types needed by the service definition in userTypes.
 func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
-	var (
-		types      []*UserTypeData
-		errTypes   []*UserTypeData
-		errorInits []*ErrorInitData
-		projTypes  []*ProjectedTypeData
-		viewedRTs  []*ViewedResultTypeData
-	)
+	scope, viewScope, pkgName, viewspkg := newServiceScopes(service)
+	state := d.collectServiceAnalysisData(service, scope, viewScope, viewspkg)
+	seen := analysisSeenTypes(state.types, state.errTypes)
+	wrapRawObjectMethods(service, scope, seen)
+	state.types = append(state.types, d.collectForcedServiceTypes(service, scope, seen)...)
+	methods, schemes, viewedRTs := d.buildServiceMethods(service, scope, viewScope, viewspkg, state.seenProj, state.seenViewed, state.viewedRTs)
+	assignEndpointFields(methods, scope)
+	unions := collectServiceUnions(service, state.types, state.errTypes, scope)
+	data := newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions)
+	d.Services[service.Name] = data
+	return data
+}
+
+func newServiceScopes(service *expr.ServiceExpr) (*codegen.NameScope, *codegen.NameScope, string, string) {
 	scope := codegen.NewNameScope()
-	scope.Unique("Use")       // Reserve "Use" for Endpoints struct Use method.
-	scope.Unique("websocket") // Reserve "websocket" to avoid collision with gorilla/websocket
+	scope.Unique("Use")
+	scope.Unique("websocket")
 	viewScope := codegen.NewNameScope()
 	pkgName := scope.HashedUnique(service, strings.ToLower(codegen.Goify(service.Name, false)), "svc")
-	viewspkg := pkgName + "views"
+	return scope, viewScope, pkgName, pkgName + "views"
+}
+
+type serviceAnalysisState struct {
+	types      []*UserTypeData
+	errTypes   []*UserTypeData
+	errorInits []*ErrorInitData
+	projTypes  []*ProjectedTypeData
+	viewedRTs  []*ViewedResultTypeData
+	seenProj   map[string]*ProjectedTypeData
+	seenViewed map[string]*ViewedResultTypeData
+}
+
+func (d *ServicesData) collectServiceAnalysisData(service *expr.ServiceExpr, scope, viewScope *codegen.NameScope, viewspkg string) *serviceAnalysisState {
 	seen := make(map[string]struct{})
 	seenErrors := make(map[string]struct{})
-	seenProj := make(map[string]*ProjectedTypeData)
-	seenViewed := make(map[string]*ViewedResultTypeData)
-	errTypes, errorInits = d.collectServiceErrorData(service.Errors, scope, seen, seenErrors, errTypes, errorInits)
-	types, projTypes, errTypes, errorInits = d.collectMethodTypeData(service, scope, viewScope, viewspkg, seen, seenProj, seenErrors, types, projTypes, errTypes, errorInits)
-	wrapRawObjectMethods(service, scope, seen)
+	state := &serviceAnalysisState{
+		seenProj:   make(map[string]*ProjectedTypeData),
+		seenViewed: make(map[string]*ViewedResultTypeData),
+	}
+	state.errTypes, state.errorInits = d.collectServiceErrorData(service.Errors, scope, seen, seenErrors, state.errTypes, state.errorInits)
+	state.types, state.projTypes, state.errTypes, state.errorInits = d.collectMethodTypeData(service, scope, viewScope, viewspkg, seen, state.seenProj, seenErrors, state.types, state.projTypes, state.errTypes, state.errorInits)
+	return state
+}
 
+func analysisSeenTypes(types, errTypes []*UserTypeData) map[string]struct{} {
+	seen := make(map[string]struct{}, len(types)+len(errTypes))
+	for _, t := range types {
+		seen[t.Type.ID()] = struct{}{}
+	}
+	for _, t := range errTypes {
+		seen[t.Type.ID()] = struct{}{}
+	}
+	return seen
+}
+
+func (d *ServicesData) collectForcedServiceTypes(service *expr.ServiceExpr, scope *codegen.NameScope, seen map[string]struct{}) []*UserTypeData {
+	var types []*UserTypeData
 	for _, t := range d.Root.Types {
 		svcs, ok := t.Attribute().Meta["type:generate:force"]
 		if !ok {
@@ -47,22 +83,32 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 		}
 		types = append(types, collectTypes(att, scope, seen, nil)...)
 	}
+	return types
+}
 
-	var (
-		methods []*MethodData
-		schemes SchemesData
-	)
-	methods, schemes, viewedRTs = d.buildServiceMethods(service, scope, viewScope, viewspkg, seenProj, seenViewed, viewedRTs)
-
+func assignEndpointFields(methods []*MethodData, scope *codegen.NameScope) {
 	for _, m := range methods {
 		m.EndpointField = scope.Unique(m.VarName+"Endpoint", "")
 		if m.HasMixedResults {
 			m.StreamEndpointField = scope.Unique(m.VarName+"StreamEndpoint", "")
 		}
 	}
+}
 
-	unions := collectServiceUnions(service, types, errTypes, scope)
-
+func newServiceData(
+	d *ServicesData,
+	service *expr.ServiceExpr,
+	scope, viewScope *codegen.NameScope,
+	pkgName, viewspkg string,
+	methods []*MethodData,
+	schemes SchemesData,
+	types []*UserTypeData,
+	projTypes []*ProjectedTypeData,
+	errTypes []*UserTypeData,
+	errorInits []*ErrorInitData,
+	viewedRTs []*ViewedResultTypeData,
+	unions []*UnionTypeData,
+) *Data {
 	desc := service.Description
 	if desc == "" {
 		desc = fmt.Sprintf("Service is the %s service interface.", service.Name)
@@ -92,9 +138,6 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 		viewedResultTypes:  viewedRTs,
 		unions:             unions,
 	}
-
-	d.Services[service.Name] = data
-
 	return data
 }
 

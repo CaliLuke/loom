@@ -342,69 +342,102 @@ func (r *HTTPResponseExpr) Finalize(a *HTTPEndpointExpr, svcAtt *AttributeExpr) 
 	r.Parent = a
 
 	if r.Body != nil && r.Body.Type != Empty {
-		bodyAtt := svcAtt
-		if o, ok := r.Body.Meta["origin:attribute"]; ok {
-			bodyAtt = svcAtt.Find(o[0])
-		}
-		bodyObj := AsObject(bodyAtt.Type)
-		if body := AsObject(r.Body.Type); body != nil {
-			for _, nat := range *body {
-				n := nat.Name
-				n = strings.Split(n, ":")[0]
-				var att, patt *AttributeExpr
-				var required bool
-				if bodyObj != nil {
-					att = bodyObj.Attribute(n)
-					required = bodyAtt.IsRequired(n)
-				} else {
-					att = bodyAtt
-					required = bodyAtt.Type != Empty
-				}
-				initAttrFromDesign(att, patt)
-				if required {
-					if r.Body.Validation == nil {
-						r.Body.Validation = &ValidationExpr{}
-					}
-					r.Body.Validation.AddRequired(n)
-				}
-			}
-			// Remember original name for example to generate friendlier OpenAPI specs.
-			if t, ok := r.Body.Type.(UserType); ok {
-				t.Attribute().AddMeta("name:original", t.Name())
-			}
-			// Wrap object with user type to simplify response rendering code.
-			r.Body.Type = &UserTypeExpr{
-				AttributeExpr: DupAtt(r.Body),
-				TypeName:      fmt.Sprintf("%s%sResponseBody", a.Service.Name(), a.Name()),
-			}
-			if ut, ok := bodyAtt.Type.(UserType); ok {
-				if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok && strings.TrimSpace(m) != "" {
-					r.Body.AddMeta("openapi:typename", m)
-					utBody, ok := r.Body.Type.(UserType)
-					if ok {
-						utBody.Attribute().AddMeta("openapi:typename", m)
-					}
-				}
-			}
-		}
-		if r.Body.Meta == nil {
-			r.Body.Meta = bodyAtt.Meta
-		}
+		r.finalizeBody(a, svcAtt)
 	}
 	if r.OpenAPIBody != nil {
-		r.OpenAPIBody = httpOpenAPIResponseBody(a, r)
-		r.OpenAPIBody.Finalize()
+		r.finalizeOpenAPIBody(a)
 	}
-
-	// Set response content type if empty and if set in the result type
-	if r.ContentType == "" {
-		if rt, ok := svcAtt.Type.(*ResultTypeExpr); ok && rt.ContentType != "" {
-			r.ContentType = rt.ContentType
-		}
-	}
-
+	r.inheritContentType(svcAtt)
 	initAttr(r.Headers, svcAtt)
 	initResponseCookies(r.Cookies, svcAtt)
+}
+
+func (r *HTTPResponseExpr) finalizeBody(a *HTTPEndpointExpr, svcAtt *AttributeExpr) {
+	bodyAtt := responseBodyAttribute(r.Body, svcAtt)
+	if body := AsObject(r.Body.Type); body != nil {
+		r.finalizeObjectBody(a, bodyAtt, body)
+	}
+	if r.Body.Meta == nil {
+		r.Body.Meta = bodyAtt.Meta
+	}
+}
+
+func responseBodyAttribute(body, svcAtt *AttributeExpr) *AttributeExpr {
+	if origin, ok := body.Meta["origin:attribute"]; ok {
+		return svcAtt.Find(origin[0])
+	}
+	return svcAtt
+}
+
+func (r *HTTPResponseExpr) finalizeObjectBody(a *HTTPEndpointExpr, bodyAtt *AttributeExpr, body *Object) {
+	bodyObj := AsObject(bodyAtt.Type)
+	for _, nat := range *body {
+		name := strings.Split(nat.Name, ":")[0]
+		source, required := responseBodyFieldSource(bodyAtt, bodyObj, name)
+		initAttrFromDesign(nat.Attribute, source)
+		if required {
+			ensureValidation(r.Body).AddRequired(name)
+		}
+	}
+	r.rememberOriginalBodyName()
+	r.wrapBodyUserType(a)
+	r.propagateOpenAPITypename(bodyAtt)
+}
+
+func responseBodyFieldSource(bodyAtt *AttributeExpr, bodyObj *Object, name string) (*AttributeExpr, bool) {
+	if bodyObj != nil {
+		return bodyObj.Attribute(name), bodyAtt.IsRequired(name)
+	}
+	return bodyAtt, bodyAtt.Type != Empty
+}
+
+func (r *HTTPResponseExpr) rememberOriginalBodyName() {
+	if t, ok := r.Body.Type.(UserType); ok {
+		t.Attribute().AddMeta("name:original", t.Name())
+	}
+}
+
+func (r *HTTPResponseExpr) wrapBodyUserType(a *HTTPEndpointExpr) {
+	r.Body.Type = &UserTypeExpr{
+		AttributeExpr: DupAtt(r.Body),
+		TypeName:      fmt.Sprintf("%s%sResponseBody", a.Service.Name(), a.Name()),
+	}
+}
+
+func (r *HTTPResponseExpr) propagateOpenAPITypename(bodyAtt *AttributeExpr) {
+	ut, ok := bodyAtt.Type.(UserType)
+	if !ok {
+		return
+	}
+	name, ok := ut.Attribute().Meta.Last("openapi:typename")
+	if !ok || strings.TrimSpace(name) == "" {
+		return
+	}
+	r.Body.AddMeta("openapi:typename", name)
+	if utBody, ok := r.Body.Type.(UserType); ok {
+		utBody.Attribute().AddMeta("openapi:typename", name)
+	}
+}
+
+func ensureValidation(att *AttributeExpr) *ValidationExpr {
+	if att.Validation == nil {
+		att.Validation = &ValidationExpr{}
+	}
+	return att.Validation
+}
+
+func (r *HTTPResponseExpr) finalizeOpenAPIBody(a *HTTPEndpointExpr) {
+	r.OpenAPIBody = httpOpenAPIResponseBody(a, r)
+	r.OpenAPIBody.Finalize()
+}
+
+func (r *HTTPResponseExpr) inheritContentType(svcAtt *AttributeExpr) {
+	if r.ContentType != "" {
+		return
+	}
+	if rt, ok := svcAtt.Type.(*ResultTypeExpr); ok && rt.ContentType != "" {
+		r.ContentType = rt.ContentType
+	}
 }
 
 // Dup creates a copy of the response expression.

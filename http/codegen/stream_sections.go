@@ -753,47 +753,9 @@ func addRawWebSocketGroup(group *jen.Group, code string) {
 func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {
 	streamName := ed.Method.VarName + "ClientStream"
 	implName := ed.Method.VarName + "StreamImpl"
-
-	stmt.Line()
-	codegen.Doc(stmt, streamName+" is the interface for reading Server-Sent Events.")
-	stmt.Type().Id(streamName).Interface(
-		jen.Comment("Recv reads and returns the next event from the SSE stream."),
-		jen.Id("Recv").Params(jen.Qual("context", "Context")).Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()),
-		jen.Comment("Close closes the SSE stream and releases resources."),
-		jen.Id("Close").Params().Error(),
-	)
-	stmt.Line()
-	stmt.Type().DefsFunc(func(group *jen.Group) {
-		group.Comment(implName + " implements the " + streamName + " interface.")
-		group.Id(implName).Struct(
-			jen.Id("resp").Op("*").Qual("net/http", "Response"),
-			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
-			jen.Id("buffer").Index().Byte().Comment("Buffer for unprocessed data"),
-			jen.Id("lock").Qual("sync", "Mutex"),
-			jen.Id("closed").Bool(),
-		)
-	})
-	stmt.Line()
-	codegen.Doc(stmt, implName+" implements the "+streamName+" interface.")
-	stmt.Var().Id("_").Id(streamName).Op("=").Parens(jen.Op("*").Id(implName)).Call(jen.Nil())
-	stmt.Line()
-	codegen.Doc(stmt, "New"+ed.Method.VarName+"Stream creates a new "+streamName+".")
-	stmt.Func().
-		Id("New"+ed.Method.VarName+"Stream").
-		Params(
-			jen.Id("resp").Op("*").Qual("net/http", "Response"),
-			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
-		).
-		Id(streamName).
-		BlockFunc(func(group *jen.Group) {
-			group.Return(
-				jen.Op("&").Id(implName).Values(jen.Dict{
-					jen.Id("resp"):    jen.Id("resp"),
-					jen.Id("decoder"): jen.Id("decoder"),
-					jen.Id("buffer"):  jen.Make(jen.Index().Byte(), jen.Lit(0), jen.Lit(4096)),
-				}),
-			)
-		})
+	addSSEClientInterface(stmt, ed, streamName)
+	addSSEClientImplStruct(stmt, streamName, implName)
+	addSSEClientConstructor(stmt, ed, streamName, implName)
 	stmt.Line()
 	codegen.Doc(stmt, "Recv reads and returns the next event from the SSE stream, respecting context cancellation.")
 	stmt.Func().
@@ -821,6 +783,55 @@ func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {
 	stmt.Line()
 	stmt.Add(codegen.Expr(strings.TrimSpace(renderSSEClientProcessEvent(implName, ed))))
 	stmt.Line()
+}
+
+func addSSEClientInterface(stmt *jen.Statement, ed *EndpointData, streamName string) {
+	stmt.Line()
+	codegen.Doc(stmt, streamName+" is the interface for reading Server-Sent Events.")
+	stmt.Type().Id(streamName).Interface(
+		jen.Comment("Recv reads and returns the next event from the SSE stream."),
+		jen.Id("Recv").Params(jen.Qual("context", "Context")).Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()),
+		jen.Comment("Close closes the SSE stream and releases resources."),
+		jen.Id("Close").Params().Error(),
+	)
+}
+
+func addSSEClientImplStruct(stmt *jen.Statement, streamName, implName string) {
+	stmt.Line()
+	stmt.Type().DefsFunc(func(group *jen.Group) {
+		group.Comment(implName + " implements the " + streamName + " interface.")
+		group.Id(implName).Struct(
+			jen.Id("resp").Op("*").Qual("net/http", "Response"),
+			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
+			jen.Id("buffer").Index().Byte().Comment("Buffer for unprocessed data"),
+			jen.Id("lock").Qual("sync", "Mutex"),
+			jen.Id("closed").Bool(),
+		)
+	})
+	stmt.Line()
+	codegen.Doc(stmt, implName+" implements the "+streamName+" interface.")
+	stmt.Var().Id("_").Id(streamName).Op("=").Parens(jen.Op("*").Id(implName)).Call(jen.Nil())
+}
+
+func addSSEClientConstructor(stmt *jen.Statement, ed *EndpointData, streamName, implName string) {
+	stmt.Line()
+	codegen.Doc(stmt, "New"+ed.Method.VarName+"Stream creates a new "+streamName+".")
+	stmt.Func().
+		Id("New"+ed.Method.VarName+"Stream").
+		Params(
+			jen.Id("resp").Op("*").Qual("net/http", "Response"),
+			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
+		).
+		Id(streamName).
+		BlockFunc(func(group *jen.Group) {
+			group.Return(
+				jen.Op("&").Id(implName).Values(jen.Dict{
+					jen.Id("resp"):    jen.Id("resp"),
+					jen.Id("decoder"): jen.Id("decoder"),
+					jen.Id("buffer"):  jen.Make(jen.Index().Byte(), jen.Lit(0), jen.Lit(4096)),
+				}),
+			)
+		})
 }
 
 func renderSSEClientRecvBody() string {

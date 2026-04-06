@@ -68,57 +68,7 @@ func appendHTTPParseEndpointBody(group *jen.Group, commands []*commandData) {
 		block.Switch(jen.Id("svcn")).BlockFunc(func(switchGroup *jen.Group) {
 			for _, cmd := range commands {
 				switchGroup.Case(jen.Lit(cmd.Name)).BlockFunc(func(caseGroup *jen.Group) {
-					args := []jen.Code{
-						jen.Id("scheme"),
-						jen.Id("host"),
-						jen.Id("doer"),
-						jen.Id("enc"),
-						jen.Id("dec"),
-						jen.Id("restore"),
-					}
-					if cmd.NeedDialer {
-						args = append(args, jen.Id("dialer"), jen.Id(cmd.VarName+"Configurer"))
-					}
-					caseGroup.Id("c").Op(":=").Id(cmd.PkgName).Dot("NewClient").Call(args...)
-					caseGroup.Switch(jen.Id("epn")).BlockFunc(func(endpointSwitch *jen.Group) {
-						for _, sub := range cmd.Subcommands {
-							endpointSwitch.Case(jen.Lit(sub.Name)).BlockFunc(func(subGroup *jen.Group) {
-								callArgs := []jen.Code{}
-								if sub.MultipartVarName != "" {
-									callArgs = append(callArgs, jen.Id(sub.MultipartVarName))
-								}
-								subGroup.Id("endpoint").Op("=").Id("c").Dot(sub.MethodVarName).Call(callArgs...)
-								if sub.Interceptors != nil {
-									subGroup.Id("endpoint").Op("=").Id(sub.Interceptors.PkgName).
-										Dot("Wrap"+sub.MethodVarName+"ClientEndpoint").
-										Call(jen.Id("endpoint"), jen.Id(cmd.Interceptors.VarName))
-								}
-								switch {
-								case sub.BuildFunction != nil:
-									args := make([]jen.Code, 0, len(sub.BuildFunction.ActualParams))
-									for _, param := range sub.BuildFunction.ActualParams {
-										args = append(args, jen.Op("*").Id(param+"Flag"))
-									}
-									subGroup.List(jen.Id("data"), jen.Err()).Op("=").Id(cmd.PkgName).Dot(sub.BuildFunction.Name).Call(args...)
-								case sub.Conversion != nil:
-									subGroup.Add(sub.Conversion)
-								}
-								if sub.StreamFlag != nil {
-									streamArgs := []jen.Code{}
-									if sub.BuildFunction != nil || sub.Conversion != nil {
-										streamArgs = append(streamArgs, jen.Id("data"))
-									}
-									streamArgs = append(streamArgs, jen.Op("*").Id(sub.StreamFlag.FullName+"Flag"))
-									call := jen.List(jen.Id("data"), jen.Err()).Op("=").Id(cmd.PkgName).Dot(sub.BuildStreamPayload).Call(streamArgs...)
-									if sub.BuildFunction != nil {
-										subGroup.If(jen.Err().Op("==").Nil()).Block(call)
-									} else {
-										subGroup.Add(call)
-									}
-								}
-							})
-						}
-					})
+					appendHTTPCommandCase(caseGroup, cmd)
 				})
 			}
 		})
@@ -127,6 +77,93 @@ func appendHTTPParseEndpointBody(group *jen.Group, commands []*commandData) {
 		jen.Return(jen.Nil(), jen.Nil(), jen.Err()),
 	)
 	group.Return(jen.Id("endpoint"), jen.Id("data"), jen.Nil())
+}
+
+func appendHTTPCommandCase(group *jen.Group, cmd *commandData) {
+	group.Id("c").Op(":=").Id(cmd.PkgName).Dot("NewClient").Call(httpCommandClientArgs(cmd)...)
+	group.Switch(jen.Id("epn")).BlockFunc(func(endpointSwitch *jen.Group) {
+		for _, sub := range cmd.Subcommands {
+			endpointSwitch.Case(jen.Lit(sub.Name)).BlockFunc(func(subGroup *jen.Group) {
+				appendHTTPEndpointCase(subGroup, cmd, sub)
+			})
+		}
+	})
+}
+
+func httpCommandClientArgs(cmd *commandData) []jen.Code {
+	args := []jen.Code{
+		jen.Id("scheme"),
+		jen.Id("host"),
+		jen.Id("doer"),
+		jen.Id("enc"),
+		jen.Id("dec"),
+		jen.Id("restore"),
+	}
+	if cmd.NeedDialer {
+		args = append(args, jen.Id("dialer"), jen.Id(cmd.VarName+"Configurer"))
+	}
+	return args
+}
+
+func appendHTTPEndpointCase(group *jen.Group, cmd *commandData, sub *subcommandData) {
+	group.Id("endpoint").Op("=").Id("c").Dot(sub.MethodVarName).Call(httpEndpointCallArgs(sub)...)
+	appendHTTPInterceptors(group, cmd, sub)
+	appendHTTPBuildData(group, cmd, sub)
+	appendHTTPBuildStreamPayload(group, cmd, sub)
+}
+
+func httpEndpointCallArgs(sub *subcommandData) []jen.Code {
+	if sub.MultipartVarName == "" {
+		return nil
+	}
+	return []jen.Code{jen.Id(sub.MultipartVarName)}
+}
+
+func appendHTTPInterceptors(group *jen.Group, cmd *commandData, sub *subcommandData) {
+	if sub.Interceptors == nil {
+		return
+	}
+	group.Id("endpoint").Op("=").Id(sub.Interceptors.PkgName).
+		Dot("Wrap"+sub.MethodVarName+"ClientEndpoint").
+		Call(jen.Id("endpoint"), jen.Id(cmd.Interceptors.VarName))
+}
+
+func appendHTTPBuildData(group *jen.Group, cmd *commandData, sub *subcommandData) {
+	switch {
+	case sub.BuildFunction != nil:
+		group.List(jen.Id("data"), jen.Err()).Op("=").Id(cmd.PkgName).Dot(sub.BuildFunction.Name).Call(httpBuildFunctionArgs(sub)...)
+	case sub.Conversion != nil:
+		group.Add(sub.Conversion)
+	}
+}
+
+func httpBuildFunctionArgs(sub *subcommandData) []jen.Code {
+	args := make([]jen.Code, 0, len(sub.BuildFunction.ActualParams))
+	for _, param := range sub.BuildFunction.ActualParams {
+		args = append(args, jen.Op("*").Id(param+"Flag"))
+	}
+	return args
+}
+
+func appendHTTPBuildStreamPayload(group *jen.Group, cmd *commandData, sub *subcommandData) {
+	if sub.StreamFlag == nil {
+		return
+	}
+	call := jen.List(jen.Id("data"), jen.Err()).Op("=").Id(cmd.PkgName).Dot(sub.BuildStreamPayload).Call(httpStreamPayloadArgs(sub)...)
+	if sub.BuildFunction != nil {
+		group.If(jen.Err().Op("==").Nil()).Block(call)
+		return
+	}
+	group.Add(call)
+}
+
+func httpStreamPayloadArgs(sub *subcommandData) []jen.Code {
+	streamArgs := []jen.Code{}
+	if sub.BuildFunction != nil || sub.Conversion != nil {
+		streamArgs = append(streamArgs, jen.Id("data"))
+	}
+	streamArgs = append(streamArgs, jen.Op("*").Id(sub.StreamFlag.FullName+"Flag"))
+	return streamArgs
 }
 
 func pathSection(data *EndpointData) codegen.Section {

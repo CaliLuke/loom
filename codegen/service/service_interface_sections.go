@@ -43,59 +43,76 @@ func buildServiceMethod(group *jen.Group, method *MethodData) {
 		groupDoc(group, "If body implements [io.WriterTo], that implementation will be used instead. Consider [github.com/CaliLuke/loom/pkg.SkipResponseWriter] to adapt existing implementations.")
 	}
 	addViewedResultComment(group, method)
-	group.Id(method.VarName).ParamsFunc(func(params *jen.Group) {
-		params.Qual("context", "Context")
-		if method.Payload != "" {
-			params.Add(codegen.TypeRef(method.PayloadRef))
-		}
-		if method.ServerStream != nil {
-			switch {
-			case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 2:
-			case method.HasMixedResults:
-				params.Add(codegen.TypeRef(method.ServerStream.Interface))
-			case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 3 && method.PayloadRef != "":
-				params.Add(codegen.TypeRef(method.PayloadRef))
-				params.Add(codegen.TypeRef(method.ServerStream.Interface))
-			default:
-				params.Add(codegen.TypeRef(method.ServerStream.Interface))
-			}
-			return
-		}
-		if method.SkipRequestBodyEncodeDecode {
-			params.Qual("io", "ReadCloser")
-		}
-	}).ParamsFunc(func(results *jen.Group) {
-		if method.ServerStream != nil {
-			switch {
-			case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 2:
-				if method.Result != "" {
-					results.Id("res").Add(codegen.TypeRef(method.ResultRef))
-				}
-				results.Id("err").Error()
-			case method.HasMixedResults:
-				if method.Result != "" {
-					results.Id("res").Add(codegen.TypeRef(method.ResultRef))
-				}
-				if method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
-					results.Id("view").String()
-				}
-				results.Id("err").Error()
-			default:
-				results.Id("err").Error()
-			}
-			return
-		}
-		if method.Result != "" {
-			results.Id("res").Add(codegen.TypeRef(method.ResultRef))
-		}
-		if method.SkipResponseBodyEncodeDecode {
-			results.Id("body").Qual("io", "ReadCloser")
-		}
-		if method.Result != "" && method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
-			results.Id("view").String()
-		}
+	group.Id(method.VarName).
+		ParamsFunc(func(params *jen.Group) { addServiceMethodParams(params, method) }).
+		ParamsFunc(func(results *jen.Group) { addServiceMethodResults(results, method) })
+}
+
+func addServiceMethodParams(params *jen.Group, method *MethodData) {
+	params.Qual("context", "Context")
+	if method.Payload != "" {
+		params.Add(codegen.TypeRef(method.PayloadRef))
+	}
+	if method.ServerStream != nil {
+		addStreamingServiceMethodParams(params, method)
+		return
+	}
+	if method.SkipRequestBodyEncodeDecode {
+		params.Qual("io", "ReadCloser")
+	}
+}
+
+func addStreamingServiceMethodParams(params *jen.Group, method *MethodData) {
+	switch {
+	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 2:
+		return
+	case method.HasMixedResults:
+		params.Add(codegen.TypeRef(method.ServerStream.Interface))
+	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 3 && method.PayloadRef != "":
+		params.Add(codegen.TypeRef(method.PayloadRef))
+		params.Add(codegen.TypeRef(method.ServerStream.Interface))
+	default:
+		params.Add(codegen.TypeRef(method.ServerStream.Interface))
+	}
+}
+
+func addServiceMethodResults(results *jen.Group, method *MethodData) {
+	if method.ServerStream != nil {
+		addStreamingServiceMethodResults(results, method)
+		return
+	}
+	addServiceMethodResultValue(results, method)
+	if method.SkipResponseBodyEncodeDecode {
+		results.Id("body").Qual("io", "ReadCloser")
+	}
+	addServiceMethodViewResult(results, method)
+	results.Id("err").Error()
+}
+
+func addStreamingServiceMethodResults(results *jen.Group, method *MethodData) {
+	switch {
+	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 2:
+		addServiceMethodResultValue(results, method)
 		results.Id("err").Error()
-	})
+	case method.HasMixedResults:
+		addServiceMethodResultValue(results, method)
+		addServiceMethodViewResult(results, method)
+		results.Id("err").Error()
+	default:
+		results.Id("err").Error()
+	}
+}
+
+func addServiceMethodResultValue(results *jen.Group, method *MethodData) {
+	if method.Result != "" {
+		results.Id("res").Add(codegen.TypeRef(method.ResultRef))
+	}
+}
+
+func addServiceMethodViewResult(results *jen.Group, method *MethodData) {
+	if method.Result != "" && method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
+		results.Id("view").String()
+	}
 }
 
 func addViewedResultComment(group *jen.Group, method *MethodData) {

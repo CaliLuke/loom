@@ -923,76 +923,95 @@ func unionCommonPkg(values []*expr.NamedAttributeExpr) (bool, string) {
 //
 // seen keeps track of generated transform functions to avoid recursion
 func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
-	var (
-		helpers []*codegen.TransformFunctionData
-		err     error
-	)
-	{
-		if err = codegen.IsCompatible(source.Type, target.Type, "", ""); err != nil {
-			if ta.proto {
-				target = unwrapAttr(expr.DupAtt(target))
-			} else {
-				source = unwrapAttr(expr.DupAtt(source))
-			}
-			if err = codegen.IsCompatible(source.Type, target.Type, "", ""); err != nil {
-				return nil, err
-			}
-		}
-		// Do not generate a transform function for the top most user type.
-		switch {
-		case expr.IsArray(source.Type):
-			source = expr.AsArray(source.Type).ElemType
-			target = expr.AsArray(target.Type).ElemType
-			helpers, err = transformAttributeHelpers(source, target, ta, seen)
-		case expr.IsMap(source.Type):
-			sm := expr.AsMap(source.Type)
-			tm := expr.AsMap(target.Type)
-			helpers, err = transformAttributeHelpers(sm.ElemType, tm.ElemType, ta, seen)
-			if err == nil {
-				var other []*codegen.TransformFunctionData
-				other, err = transformAttributeHelpers(sm.KeyType, tm.KeyType, ta, seen)
-				helpers = append(helpers, other...)
-			}
-		case expr.IsUnion(source.Type):
-			srcAttrs := expr.AsUnion(source.Type)
-			tgtAttrs := expr.AsUnion(target.Type)
-			if len(srcAttrs.Values) != len(tgtAttrs.Values) {
-				return nil, fmt.Errorf("cannot transform union attribute %s with %d types to union attribute %s with %d types",
-					source.Type.Name(), len(srcAttrs.Values), target.Type.Name(), len(tgtAttrs.Values))
-			}
-			for i, srcAtt := range srcAttrs.Values {
-				tgtAtt := tgtAttrs.Values[i]
-				h, err := collectHelpers(srcAtt.Attribute, tgtAtt.Attribute, true, ta, seen)
-				if err == nil {
-					helpers = append(helpers, h...)
-				}
-			}
-		case expr.IsObject(source.Type):
-			walkMatches(source, target, func(srcMatt, _ *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
-				if err != nil {
-					return
-				}
-				if err = codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
-					if ta.proto {
-						tgtc = unwrapAttr(tgtc)
-					} else {
-						srcc = unwrapAttr(srcc)
-					}
-					if err = codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
-						return
-					}
-				}
-				h, err2 := collectHelpers(srcc, tgtc, srcMatt.IsRequired(n), ta, seen)
-				if err2 != nil {
-					err = err2
-					return
-				}
-				helpers = append(helpers, h...)
-			})
-		}
-	}
+	source, target, err := compatibleTransformAttributes(source, target, ta)
 	if err != nil {
 		return nil, err
+	}
+	switch {
+	case expr.IsArray(source.Type):
+		return transformArrayAttributeHelpers(source, target, ta, seen)
+	case expr.IsMap(source.Type):
+		return transformMapAttributeHelpers(source, target, ta, seen)
+	case expr.IsUnion(source.Type):
+		return transformUnionAttributeHelpers(source, target, ta, seen)
+	case expr.IsObject(source.Type):
+		return transformObjectAttributeHelpers(source, target, ta, seen)
+	default:
+		return nil, nil
+	}
+}
+
+func compatibleTransformAttributes(source, target *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
+	if err := codegen.IsCompatible(source.Type, target.Type, "", ""); err == nil {
+		return source, target, nil
+	}
+	if ta.proto {
+		target = unwrapAttr(expr.DupAtt(target))
+	} else {
+		source = unwrapAttr(expr.DupAtt(source))
+	}
+	if err := codegen.IsCompatible(source.Type, target.Type, "", ""); err != nil {
+		return nil, nil, err
+	}
+	return source, target, nil
+}
+
+func transformArrayAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	return transformAttributeHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, ta, seen)
+}
+
+func transformMapAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	sm := expr.AsMap(source.Type)
+	tm := expr.AsMap(target.Type)
+	helpers, err := transformAttributeHelpers(sm.ElemType, tm.ElemType, ta, seen)
+	if err != nil {
+		return nil, err
+	}
+	other, err := transformAttributeHelpers(sm.KeyType, tm.KeyType, ta, seen)
+	if err != nil {
+		return nil, err
+	}
+	return append(helpers, other...), nil
+}
+
+func transformUnionAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	srcAttrs := expr.AsUnion(source.Type)
+	tgtAttrs := expr.AsUnion(target.Type)
+	if len(srcAttrs.Values) != len(tgtAttrs.Values) {
+		return nil, fmt.Errorf("cannot transform union attribute %s with %d types to union attribute %s with %d types",
+			source.Type.Name(), len(srcAttrs.Values), target.Type.Name(), len(tgtAttrs.Values))
+	}
+	helpers := []*codegen.TransformFunctionData{}
+	for i, srcAtt := range srcAttrs.Values {
+		h, err := collectHelpers(srcAtt.Attribute, tgtAttrs.Values[i].Attribute, true, ta, seen)
+		if err != nil {
+			return nil, err
+		}
+		helpers = append(helpers, h...)
+	}
+	return helpers, nil
+}
+
+func transformObjectAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	helpers := []*codegen.TransformFunctionData{}
+	var walkErr error
+	walkMatches(source, target, func(srcMatt, _ *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
+		if walkErr != nil {
+			return
+		}
+		srcc, tgtc, walkErr = compatibleTransformAttributes(srcc, tgtc, ta)
+		if walkErr != nil {
+			return
+		}
+		var current []*codegen.TransformFunctionData
+		current, walkErr = collectHelpers(srcc, tgtc, srcMatt.IsRequired(n), ta, seen)
+		if walkErr != nil {
+			return
+		}
+		helpers = append(helpers, current...)
+	})
+	if walkErr != nil {
+		return nil, walkErr
 	}
 	return helpers, nil
 }

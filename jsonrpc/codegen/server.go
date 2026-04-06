@@ -99,6 +99,30 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	svcName := data.Service.PathName
 	fpath := filepath.Join(codegen.Gendir, "jsonrpc", svcName, "server", "server.go")
 	title := fmt.Sprintf("%s JSON-RPC server", svc.Name())
+	imports := jsonrpcServerImports(genpkg, svcName, data)
+	sections := []codegen.Section{
+		codegen.Header(title, "server", imports),
+	}
+
+	hasSSE := hasJSONRPCSSE(svc, services)
+	hasMixed := hasMixedJSONRPCTransports(svc, services)
+	sections = append(sections, jsonrpcServerBaseSections(data, hasSSE, hasMixed)...)
+
+	sections = append(sections, jsonrpcServerTransportSections(data, hasSSE, hasMixed)...)
+	sections = append(sections, jsonrpcServerMountSection(data, hasSSE, hasMixed))
+
+	for _, e := range data.Endpoints {
+		sections = append(sections, jsonrpcServerHandlerInitSection(e))
+	}
+
+	if !httpcodegen.HasWebSocket(data) {
+		sections = append(sections, jsonrpcServerEncodeErrorSection(data.ServerStruct))
+	}
+
+	return &codegen.File{Path: fpath, Sections: sections}
+}
+
+func jsonrpcServerImports(genpkg, svcName string, data *httpcodegen.ServiceData) []*codegen.ImportSpec {
 	imports := make([]*codegen.ImportSpec, 0, 15+len(data.Service.UserTypeImports))
 	imports = append(imports,
 		&codegen.ImportSpec{Path: "bufio"},
@@ -117,61 +141,35 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	)
-	imports = append(imports, data.Service.UserTypeImports...)
-	sections := []codegen.Section{
-		codegen.Header(title, "server", imports),
-	}
+	return append(imports, data.Service.UserTypeImports...)
+}
 
-	sections = append(sections,
+func jsonrpcServerBaseSections(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) []codegen.Section {
+	return []codegen.Section{
 		jsonrpcServerStructSection(data),
-		jsonrpcServerInitSection(data, hasJSONRPCSSE(svc, services), hasMixedJSONRPCTransports(svc, services)),
+		jsonrpcServerInitSection(data, hasSSE, hasMixed),
 		jsonrpcServerServiceSection(data),
 		jsonrpcServerUseSection(data),
 		jsonrpcServerMethodNamesSection(data),
 		jsonrpcServerResponseCaptureSection(),
-	)
+	}
+}
 
-	// Use appropriate server handler based on transport
+func jsonrpcServerTransportSections(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) []codegen.Section {
 	switch {
-	case hasMixedJSONRPCTransports(svc, services):
-		// For mixed transports, we need a unified handler with content negotiation
-		sections = append(sections, jsonrpcMixedServerHandlerSection(data))
-		// Include the standard HTTP handlers that the mixed handler delegates to
-		sections = append(sections, jsonrpcServerHandlerSection(data, true))
-		// Also include SSE handler for SSE-specific logic
-		sections = append(sections, jsonrpcSSEServerHandlerSection(data))
-	case hasJSONRPCSSE(svc, services):
-		sections = append(sections, jsonrpcSSEServerHandlerSection(data))
+	case hasMixed:
+		return []codegen.Section{
+			jsonrpcMixedServerHandlerSection(data),
+			jsonrpcServerHandlerSection(data, true),
+			jsonrpcSSEServerHandlerSection(data),
+		}
+	case hasSSE:
+		return []codegen.Section{jsonrpcSSEServerHandlerSection(data)}
 	case httpcodegen.HasWebSocket(data):
-		sections = append(sections, jsonrpcWebSocketServerHandlerSection(data))
+		return []codegen.Section{jsonrpcWebSocketServerHandlerSection(data)}
 	default:
-		sections = append(sections, jsonrpcServerHandlerSection(data, false))
+		return []codegen.Section{jsonrpcServerHandlerSection(data, false)}
 	}
-
-	// Add transport flags to data
-	mountData := struct {
-		*httpcodegen.ServiceData
-		HasSSE   bool
-		HasMixed bool
-	}{
-		ServiceData: data,
-		HasSSE:      hasJSONRPCSSE(svc, services),
-		HasMixed:    hasMixedJSONRPCTransports(svc, services),
-	}
-
-	sections = append(sections,
-		jsonrpcServerMountSection(data, mountData.HasSSE, mountData.HasMixed),
-	)
-
-	for _, e := range data.Endpoints {
-		sections = append(sections, jsonrpcServerHandlerInitSection(e))
-	}
-
-	if !httpcodegen.HasWebSocket(data) {
-		sections = append(sections, jsonrpcServerEncodeErrorSection(data.ServerStruct))
-	}
-
-	return &codegen.File{Path: fpath, Sections: sections}
 }
 
 // lowerInitial returns the string with the first letter in lowercase.

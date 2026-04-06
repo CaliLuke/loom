@@ -330,77 +330,15 @@ func TypeSchemaWithPrefix(api *expr.APIExpr, t expr.DataType, prefix string) *Sc
 	s := NewSchema()
 	switch actual := t.(type) {
 	case expr.Primitive:
-		s.Type = Type(actual.Name())
-		switch actual.Kind() {
-		case expr.AnyKind:
-			// A schema without a type matches any data type.
-			// See https://swagger.io/docs/specification/data-models/data-types/#any.
-			s.Type = Type("")
-		case expr.IntKind, expr.Int64Kind,
-			expr.UIntKind, expr.UInt64Kind:
-			// Use int64 format for IntKind and UIntKind because the OpenAPI
-			// generator produced int32 by default.
-			s.Type = Type("integer")
-			s.Format = "int64"
-		case expr.Int32Kind, expr.UInt32Kind:
-			s.Type = Type("integer")
-			s.Format = "int32"
-		case expr.Float32Kind:
-			s.Type = Type("number")
-			s.Format = "float"
-		case expr.Float64Kind:
-			s.Type = Type("number")
-			s.Format = "double"
-		case expr.BytesKind:
-			s.Type = Type("string")
-			s.Format = "byte"
-		}
+		buildPrimitiveTypeSchema(s, actual)
 	case *expr.Array:
-		s.Type = Array
-		s.Items = NewSchema()
-		buildAttributeSchema(api, s.Items, actual.ElemType)
+		buildArrayTypeSchema(api, s, actual)
 	case *expr.Object:
-		s.Type = Object
-		for _, nat := range *actual {
-			if !MustGenerate(nat.Attribute.Meta) {
-				continue
-			}
-			prop := NewSchema()
-			buildAttributeSchema(api, prop, nat.Attribute)
-			s.Properties[nat.Name] = prop
-		}
+		buildObjectTypeSchema(api, s, actual)
 	case *expr.Map:
-		s.Type = Object
-		if actual.KeyType.Type == expr.String && actual.ElemType.Type != expr.Any {
-			// Use free-form objects when elements are of type "Any"
-			additionalProperties := NewSchema()
-			s.AdditionalProperties = buildAttributeSchema(api, additionalProperties, actual.ElemType)
-		} else {
-			s.AdditionalProperties = true
-		}
+		buildMapTypeSchema(api, s, actual)
 	case *expr.Union:
-		// Unions are represented as wrapper objects with a discriminator field and
-		// a typed value field. Emit one wrapper branch per variant so OpenAPI
-		// consumers can select the branch from the discriminator directly.
-		typeKey := actual.GetTypeKey()
-		valueKey := actual.GetValueKey()
-
-		s.Type = Object
-		s.Discriminator = &Discriminator{PropertyName: typeKey}
-		for _, val := range actual.Values {
-			tag := expr.UnionVariantTag(val)
-			branch := NewSchema()
-			branch.Type = Object
-			branch.Properties = map[string]*Schema{
-				typeKey: {
-					Type: String,
-					Enum: []any{tag},
-				},
-				valueKey: AttributeTypeSchemaWithPrefix(api, val.Attribute, prefix),
-			}
-			branch.Required = []string{typeKey, valueKey}
-			s.OneOf = append(s.OneOf, branch)
-		}
+		buildUnionTypeSchema(api, s, actual, prefix)
 	case *expr.UserTypeExpr:
 		s.Ref = TypeRefWithPrefix(api, actual, prefix)
 	case *expr.ResultTypeExpr:
@@ -408,6 +346,82 @@ func TypeSchemaWithPrefix(api *expr.APIExpr, t expr.DataType, prefix string) *Sc
 		s.Ref = ResultTypeRefWithPrefix(api, actual, expr.DefaultView, prefix)
 	}
 	return s
+}
+
+func buildPrimitiveTypeSchema(s *Schema, primitive expr.Primitive) {
+	s.Type = Type(primitive.Name())
+	switch primitive.Kind() {
+	case expr.AnyKind:
+		s.Type = Type("")
+	case expr.IntKind, expr.Int64Kind, expr.UIntKind, expr.UInt64Kind:
+		s.Type = Type("integer")
+		s.Format = "int64"
+	case expr.Int32Kind, expr.UInt32Kind:
+		s.Type = Type("integer")
+		s.Format = "int32"
+	case expr.Float32Kind:
+		s.Type = Type("number")
+		s.Format = "float"
+	case expr.Float64Kind:
+		s.Type = Type("number")
+		s.Format = "double"
+	case expr.BytesKind:
+		s.Type = Type("string")
+		s.Format = "byte"
+	}
+}
+
+func buildArrayTypeSchema(api *expr.APIExpr, s *Schema, arr *expr.Array) {
+	s.Type = Array
+	s.Items = NewSchema()
+	buildAttributeSchema(api, s.Items, arr.ElemType)
+}
+
+func buildObjectTypeSchema(api *expr.APIExpr, s *Schema, obj *expr.Object) {
+	s.Type = Object
+	for _, nat := range *obj {
+		if !MustGenerate(nat.Attribute.Meta) {
+			continue
+		}
+		prop := NewSchema()
+		buildAttributeSchema(api, prop, nat.Attribute)
+		s.Properties[nat.Name] = prop
+	}
+}
+
+func buildMapTypeSchema(api *expr.APIExpr, s *Schema, m *expr.Map) {
+	s.Type = Object
+	if m.KeyType.Type == expr.String && m.ElemType.Type != expr.Any {
+		additionalProperties := NewSchema()
+		s.AdditionalProperties = buildAttributeSchema(api, additionalProperties, m.ElemType)
+		return
+	}
+	s.AdditionalProperties = true
+}
+
+func buildUnionTypeSchema(api *expr.APIExpr, s *Schema, union *expr.Union, prefix string) {
+	typeKey := union.GetTypeKey()
+	valueKey := union.GetValueKey()
+	s.Type = Object
+	s.Discriminator = &Discriminator{PropertyName: typeKey}
+	for _, val := range union.Values {
+		s.OneOf = append(s.OneOf, buildUnionBranchSchema(api, typeKey, valueKey, val, prefix))
+	}
+}
+
+func buildUnionBranchSchema(api *expr.APIExpr, typeKey, valueKey string, val *expr.NamedAttributeExpr, prefix string) *Schema {
+	tag := expr.UnionVariantTag(val)
+	branch := NewSchema()
+	branch.Type = Object
+	branch.Properties = map[string]*Schema{
+		typeKey: {
+			Type: String,
+			Enum: []any{tag},
+		},
+		valueKey: AttributeTypeSchemaWithPrefix(api, val.Attribute, prefix),
+	}
+	branch.Required = []string{typeKey, valueKey}
+	return branch
 }
 
 // AttributeTypeSchema produces the JSON schema corresponding to the given attribute.

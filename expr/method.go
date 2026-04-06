@@ -424,76 +424,83 @@ func hasTagPrefix(p *AttributeExpr, prefix string) bool {
 // projects the result if it is a result type and a view is explicitly set in
 // the design or a result type having at most one view.
 func (m *MethodExpr) Finalize() {
-	if m.Payload == nil {
-		m.Payload = &AttributeExpr{Type: Empty}
-	} else {
-		m.Payload.Finalize()
-	}
-	if m.StreamingPayload == nil {
-		m.StreamingPayload = &AttributeExpr{Type: Empty}
-	} else {
-		m.StreamingPayload.Finalize()
-	}
-
-	// Handle StreamingResult finalization
-	if m.StreamingResult != nil {
-		m.StreamingResult.Finalize()
-		if rt, ok := m.StreamingResult.Type.(*ResultTypeExpr); ok {
-			rt.Finalize()
-		}
-	}
-
-	// Handle Result finalization (may be same as StreamingResult for backward compat)
-	if m.Result == nil {
-		m.Result = &AttributeExpr{Type: Empty}
-	} else {
-		m.Result.Finalize()
-		if rt, ok := m.Result.Type.(*ResultTypeExpr); ok {
-			rt.Finalize()
-		}
-	}
-	if m.Service != nil {
-		for _, e := range m.Service.Errors {
-			found := false
-			for _, f := range m.Errors {
-				if e.Name == f.Name {
-					found = true
-					break
-				}
-			}
-			if !found {
-				m.Errors = append(m.Errors, e)
-			}
-		}
-	}
-	for _, e := range m.Errors {
-		e.Finalize()
-	}
-
-	// Inherit security requirements
-	noreq := false
-loop:
-	for _, r := range m.Requirements {
-		// Handle special case of no security
-		for _, s := range r.Schemes {
-			if s.Kind == NoKind {
-				noreq = true
-				break loop
-			}
-		}
-	}
-	if noreq {
+	m.Payload = finalizeMethodAttribute(m.Payload)
+	m.StreamingPayload = finalizeMethodAttribute(m.StreamingPayload)
+	m.finalizeMethodResult(&m.StreamingResult)
+	m.Result = finalizeMethodResultAttr(m.Result)
+	m.inheritServiceErrors()
+	m.finalizeErrors()
+	if m.hasNoSecurityRequirement() {
 		m.Requirements = nil
 		m.SessionAuths = nil
 		return
 	}
+	m.inheritSecurityRequirements()
+	m.Requirements = mergeRequirements(m.Requirements, sessionRequirements(m.SessionAuths))
+}
+
+func finalizeMethodAttribute(att *AttributeExpr) *AttributeExpr {
+	if att == nil {
+		return &AttributeExpr{Type: Empty}
+	}
+	att.Finalize()
+	return att
+}
+
+func (m *MethodExpr) finalizeMethodResult(result **AttributeExpr) {
+	if *result == nil {
+		return
+	}
+	(*result).Finalize()
+	if rt, ok := (*result).Type.(*ResultTypeExpr); ok {
+		rt.Finalize()
+	}
+}
+
+func finalizeMethodResultAttr(att *AttributeExpr) *AttributeExpr {
+	if att == nil {
+		return &AttributeExpr{Type: Empty}
+	}
+	att.Finalize()
+	if rt, ok := att.Type.(*ResultTypeExpr); ok {
+		rt.Finalize()
+	}
+	return att
+}
+
+func (m *MethodExpr) inheritServiceErrors() {
+	if m.Service == nil {
+		return
+	}
+	for _, serviceErr := range m.Service.Errors {
+		if !methodHasError(m.Errors, serviceErr.Name) {
+			m.Errors = append(m.Errors, serviceErr)
+		}
+	}
+}
+
+func methodHasError(errors []*ErrorExpr, name string) bool {
+	for _, err := range errors {
+		if err.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *MethodExpr) finalizeErrors() {
+	for _, err := range m.Errors {
+		err.Finalize()
+	}
+}
+
+func (m *MethodExpr) inheritSecurityRequirements() {
 	if len(m.Requirements) == 0 {
 		m.Requirements = m.inheritedRequirements()
 	}
 	if len(m.SessionAuths) == 0 {
 		m.SessionAuths = m.inheritedSessionAuths()
 	}
-	m.Requirements = mergeRequirements(m.Requirements, sessionRequirements(m.SessionAuths))
 }
 
 // IsStreaming determines whether the method streams payload or result.

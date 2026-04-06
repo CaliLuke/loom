@@ -53,59 +53,64 @@ func buildInterceptorData(svc *expr.ServiceExpr, methods []*MethodData, i *expr.
 	}
 	attributesCollected := false
 	for _, m := range svc.Methods {
-		applies := false
-		intExprs := m.ServerInterceptors
-		if !server {
-			intExprs = m.ClientInterceptors
-		}
-		for _, in := range intExprs {
-			if in.Name == i.Name {
-				if !attributesCollected {
-					payload, result, streamingPayload := m.Payload, m.Result, m.StreamingPayload
-					data.ReadPayload = collectAttributes(i.ReadPayload, payload, scope)
-					data.WritePayload = collectAttributes(i.WritePayload, payload, scope)
-					data.ReadResult = collectAttributes(i.ReadResult, result, scope)
-					data.WriteResult = collectAttributes(i.WriteResult, result, scope)
-					data.ReadStreamingPayload = collectAttributes(i.ReadStreamingPayload, streamingPayload, scope)
-					data.WriteStreamingPayload = collectAttributes(i.WriteStreamingPayload, streamingPayload, scope)
-					data.ReadStreamingResult = collectAttributes(i.ReadStreamingResult, result, scope)
-					data.WriteStreamingResult = collectAttributes(i.WriteStreamingResult, result, scope)
-					if len(data.ReadPayload) > 0 || len(data.WritePayload) > 0 {
-						data.HasPayloadAccess = true
-					}
-					if len(data.ReadResult) > 0 || len(data.WriteResult) > 0 {
-						data.HasResultAccess = true
-					}
-					if len(data.ReadStreamingPayload) > 0 || len(data.WriteStreamingPayload) > 0 {
-						data.HasStreamingPayloadAccess = true
-					}
-					if len(data.ReadStreamingResult) > 0 || len(data.WriteStreamingResult) > 0 {
-						data.HasStreamingResultAccess = true
-					}
-					attributesCollected = true
-				}
-				applies = true
-				break
-			}
-		}
-		if !applies {
+		if !interceptorAppliesToMethod(m, i, server) {
 			continue
 		}
-		var md *MethodData
-		for _, mt := range methods {
-			if m.Name == mt.Name {
-				md = mt
-				break
-			}
+		if !attributesCollected {
+			populateInterceptorAttributes(data, i, m, scope)
+			attributesCollected = true
 		}
+		md := findMethodData(methods, m.Name)
 		data.Methods = append(data.Methods, buildInterceptorMethodData(i, md))
-		if server {
-			md.ServerInterceptors = append(md.ServerInterceptors, i.Name)
-		} else {
-			md.ClientInterceptors = append(md.ClientInterceptors, i.Name)
-		}
+		appendInterceptorName(md, i.Name, server)
 	}
 	return data
+}
+
+func interceptorAppliesToMethod(m *expr.MethodExpr, i *expr.InterceptorExpr, server bool) bool {
+	intExprs := m.ServerInterceptors
+	if !server {
+		intExprs = m.ClientInterceptors
+	}
+	for _, in := range intExprs {
+		if in.Name == i.Name {
+			return true
+		}
+	}
+	return false
+}
+
+func populateInterceptorAttributes(data *InterceptorData, i *expr.InterceptorExpr, m *expr.MethodExpr, scope *codegen.NameScope) {
+	payload, result, streamingPayload := m.Payload, m.Result, m.StreamingPayload
+	data.ReadPayload = collectAttributes(i.ReadPayload, payload, scope)
+	data.WritePayload = collectAttributes(i.WritePayload, payload, scope)
+	data.ReadResult = collectAttributes(i.ReadResult, result, scope)
+	data.WriteResult = collectAttributes(i.WriteResult, result, scope)
+	data.ReadStreamingPayload = collectAttributes(i.ReadStreamingPayload, streamingPayload, scope)
+	data.WriteStreamingPayload = collectAttributes(i.WriteStreamingPayload, streamingPayload, scope)
+	data.ReadStreamingResult = collectAttributes(i.ReadStreamingResult, result, scope)
+	data.WriteStreamingResult = collectAttributes(i.WriteStreamingResult, result, scope)
+	data.HasPayloadAccess = len(data.ReadPayload) > 0 || len(data.WritePayload) > 0
+	data.HasResultAccess = len(data.ReadResult) > 0 || len(data.WriteResult) > 0
+	data.HasStreamingPayloadAccess = len(data.ReadStreamingPayload) > 0 || len(data.WriteStreamingPayload) > 0
+	data.HasStreamingResultAccess = len(data.ReadStreamingResult) > 0 || len(data.WriteStreamingResult) > 0
+}
+
+func findMethodData(methods []*MethodData, name string) *MethodData {
+	for _, method := range methods {
+		if method.Name == name {
+			return method
+		}
+	}
+	return nil
+}
+
+func appendInterceptorName(md *MethodData, name string, server bool) {
+	if server {
+		md.ServerInterceptors = append(md.ServerInterceptors, name)
+		return
+	}
+	md.ClientInterceptors = append(md.ClientInterceptors, name)
 }
 
 // buildInterceptorMethodData creates the data needed to generate interceptor

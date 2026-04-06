@@ -248,61 +248,86 @@ func grpcHandlerInitSection(endpoint *EndpointData) codegenpkg.Section {
 func grpcServerInterfaceSection(endpoint *EndpointData) codegenpkg.Section {
 	return codegenpkg.MustJenniferSection("server-grpc-interface", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %q method in %s.%s interface.", endpoint.Method.VarName, endpoint.Method.VarName, endpoint.PkgName, endpoint.ServerInterface))
-		params := []jen.Code{}
-		if endpoint.ServerStream == nil {
-			params = append(params, jen.Id("ctx").Qual("context", "Context"))
-		}
-		if endpoint.Method.StreamingPayload == "" {
-			params = append(params, jen.Id("message").Add(codegenpkg.TypeRef(endpoint.Request.Message.Ref)))
-		}
-		if endpoint.ServerStream != nil {
-			params = append(params, jen.Id("stream").Add(codegenpkg.TypeRef(endpoint.ServerStream.Interface)))
-		}
-		results := []jen.Code{jen.Error()}
-		if endpoint.ServerStream == nil && endpoint.Response.Message != nil {
-			results = []jen.Code{codegenpkg.TypeRef(endpoint.Response.Message.Ref), jen.Error()}
-		}
+		params := grpcServerInterfaceParams(endpoint)
+		results := grpcServerInterfaceResults(endpoint)
 		stmt.Func().Params(jen.Id("s").Op("*").Id(endpoint.ServerStruct)).
 			Id(endpoint.Method.VarName).
 			Params(params...).
 			Params(results...).
 			BlockFunc(func(g *jen.Group) {
-				if endpoint.ServerStream != nil {
-					g.Id("ctx").Op(":=").Id("stream").Dot("Context").Call()
-				}
-				g.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), codegenpkg.Expr("loom.MethodKey"), jen.Lit(endpoint.Method.Name))
-				g.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), codegenpkg.Expr("loom.ServiceKey"), jen.Lit(endpoint.ServiceName))
-				if endpoint.ServerStream != nil {
-					decodeTarget := "_"
-					if endpoint.PayloadRef != "" {
-						decodeTarget = "p"
-					}
-					decodeArg := jen.Id("message")
-					if endpoint.Method.StreamingPayload != "" {
-						decodeArg = jen.Nil()
-					}
-					g.List(jen.Id(decodeTarget), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Decode").Call(jen.Id("ctx"), decodeArg)
-					appendGRPCServerErrorHandler(g, endpoint, true)
-					g.Id("ep").Op(":=").Op("&").Qual(endpoint.ServicePkgName, endpoint.Method.VarName+"EndpointInput").ValuesFunc(func(dict *jen.Group) {
-						dict.Id("Stream").Op(":").Op("&").Id(endpoint.ServerStream.VarName).Values(jen.Dict{
-							jen.Id("stream"): jen.Id("stream"),
-						})
-						if endpoint.PayloadRef != "" {
-							dict.Id("Payload").Op(":").Id("p").Assert(codegenpkg.Expr(endpoint.PayloadRef))
-						}
-					})
-					g.Err().Op("=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Handle").Call(jen.Id("ctx"), jen.Id("ep"))
-				} else {
-					g.List(jen.Id("resp"), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Handle").Call(jen.Id("ctx"), jen.Id("message"))
-				}
+				addGRPCServerContext(g, endpoint)
+				addGRPCServerHandleCall(g, endpoint)
 				appendGRPCServerErrorHandler(g, endpoint, endpoint.ServerStream != nil)
-				if endpoint.ServerStream == nil {
-					g.Return(jen.Id("resp").Assert(codegenpkg.Expr(endpoint.Response.ServerConvert.TgtRef)), jen.Nil())
-					return
-				}
-				g.Return(jen.Nil())
+				addGRPCServerReturn(g, endpoint)
 			})
 	})
+}
+
+func grpcServerInterfaceParams(endpoint *EndpointData) []jen.Code {
+	params := []jen.Code{}
+	if endpoint.ServerStream == nil {
+		params = append(params, jen.Id("ctx").Qual("context", "Context"))
+	}
+	if endpoint.Method.StreamingPayload == "" {
+		params = append(params, jen.Id("message").Add(codegenpkg.TypeRef(endpoint.Request.Message.Ref)))
+	}
+	if endpoint.ServerStream != nil {
+		params = append(params, jen.Id("stream").Add(codegenpkg.TypeRef(endpoint.ServerStream.Interface)))
+	}
+	return params
+}
+
+func grpcServerInterfaceResults(endpoint *EndpointData) []jen.Code {
+	if endpoint.ServerStream == nil && endpoint.Response.Message != nil {
+		return []jen.Code{codegenpkg.TypeRef(endpoint.Response.Message.Ref), jen.Error()}
+	}
+	return []jen.Code{jen.Error()}
+}
+
+func addGRPCServerContext(g *jen.Group, endpoint *EndpointData) {
+	if endpoint.ServerStream != nil {
+		g.Id("ctx").Op(":=").Id("stream").Dot("Context").Call()
+	}
+	g.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), codegenpkg.Expr("loom.MethodKey"), jen.Lit(endpoint.Method.Name))
+	g.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), codegenpkg.Expr("loom.ServiceKey"), jen.Lit(endpoint.ServiceName))
+}
+
+func addGRPCServerHandleCall(g *jen.Group, endpoint *EndpointData) {
+	if endpoint.ServerStream != nil {
+		addGRPCStreamHandleCall(g, endpoint)
+		return
+	}
+	g.List(jen.Id("resp"), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Handle").Call(jen.Id("ctx"), jen.Id("message"))
+}
+
+func addGRPCStreamHandleCall(g *jen.Group, endpoint *EndpointData) {
+	decodeTarget := "_"
+	if endpoint.PayloadRef != "" {
+		decodeTarget = "p"
+	}
+	decodeArg := jen.Id("message")
+	if endpoint.Method.StreamingPayload != "" {
+		decodeArg = jen.Nil()
+	}
+	g.List(jen.Id(decodeTarget), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Decode").Call(jen.Id("ctx"), decodeArg)
+	appendGRPCServerErrorHandler(g, endpoint, true)
+	g.Id("ep").Op(":=").Op("&").Qual(endpoint.ServicePkgName, endpoint.Method.VarName+"EndpointInput").ValuesFunc(func(dict *jen.Group) {
+		dict.Id("Stream").Op(":").Op("&").Id(endpoint.ServerStream.VarName).Values(jen.Dict{
+			jen.Id("stream"): jen.Id("stream"),
+		})
+		if endpoint.PayloadRef != "" {
+			dict.Id("Payload").Op(":").Id("p").Assert(codegenpkg.Expr(endpoint.PayloadRef))
+		}
+	})
+	g.Err().Op("=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Handle").Call(jen.Id("ctx"), jen.Id("ep"))
+}
+
+func addGRPCServerReturn(g *jen.Group, endpoint *EndpointData) {
+	if endpoint.ServerStream == nil {
+		g.Return(jen.Id("resp").Assert(codegenpkg.Expr(endpoint.Response.ServerConvert.TgtRef)), jen.Nil())
+		return
+	}
+	g.Return(jen.Nil())
 }
 
 func grpcStreamStructSection(stream *StreamData) codegenpkg.Section {
