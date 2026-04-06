@@ -6,11 +6,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/transformassign"
 )
 
 type (
+	objectInitField struct {
+		Name string
+		Expr *jen.Statement
+	}
+
 	transformArrayRenderData struct {
 		ElemTypeRef    string
 		SourceElem     *expr.AttributeExpr
@@ -121,30 +127,37 @@ func GoTransform(source, target *expr.AttributeExpr, sourceVar, targetVar string
 // attribute. It returns an error if source and target are not compatible for
 // transformation.
 func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (code string, err error) {
-	if err = IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
-		return
+	stmt, err := transformAttributeStmt(source, target, sourceVar, targetVar, newVar, ta)
+	if err != nil {
+		return "", err
+	}
+	return renderJenniferSnippet(stmt), nil
+}
+
+func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
+	if err := IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
+		return nil, err
 	}
 	switch {
 	case expr.IsArray(source.Type):
-		code, err = transformArray(expr.AsArray(source.Type), expr.AsArray(target.Type), sourceVar, targetVar, newVar, ta)
+		return transformArray(expr.AsArray(source.Type), expr.AsArray(target.Type), sourceVar, targetVar, newVar, ta)
 	case expr.IsMap(source.Type):
-		code, err = transformMap(expr.AsMap(source.Type), expr.AsMap(target.Type), sourceVar, targetVar, newVar, ta)
+		return transformMap(expr.AsMap(source.Type), expr.AsMap(target.Type), sourceVar, targetVar, newVar, ta)
 	case expr.IsUnion(source.Type):
-		code, err = transformUnion(source, target, sourceVar, targetVar, newVar, ta)
+		return transformUnion(source, target, sourceVar, targetVar, newVar, ta)
 	case expr.IsObject(source.Type):
-		code, err = transformObject(source, target, sourceVar, targetVar, newVar, ta)
+		return transformObject(source, target, sourceVar, targetVar, newVar, ta)
 	default:
-		code, err = transformPrimitive(source, target, sourceVar, targetVar, newVar, ta)
+		return transformPrimitive(source, target, sourceVar, targetVar, newVar, ta)
 	}
-	return
 }
 
 // transformPrimitive returns the code to transform source primtive type to
 // target primitive type. It returns an error if source and target are not
 // compatible for transformation.
-func transformPrimitive(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (string, error) {
+func transformPrimitive(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
-		return "", err
+		return nil, err
 	}
 	assign := "="
 	if newVar {
@@ -153,43 +166,56 @@ func transformPrimitive(source, target *expr.AttributeExpr, sourceVar, targetVar
 
 	srcRef := ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source))
 	tgtRef := ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target))
+	stmt := &jen.Statement{}
 	if srcRef != tgtRef {
-		return fmt.Sprintf("%s %s %s(%s)\n", targetVar, assign, tgtRef, sourceVar), nil
+		stmt.Add(Expr(targetVar)).Op(assign).Add(Expr(tgtRef + "(" + sourceVar + ")"))
+		return stmt, nil
 	}
-	return fmt.Sprintf("%s %s %s\n", targetVar, assign, sourceVar), nil
+	stmt.Add(Expr(targetVar)).Op(assign).Add(Expr(sourceVar))
+	return stmt, nil
 }
 
 // transformObject generates Go code to transform source object to target
 // object.
-func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (string, error) {
-	initCode, postInitCode, err := buildTransformObjectInit(source, target, sourceVar, targetVar, ta)
+func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
+	initFields, postInitCode, err := buildTransformObjectInit(source, target, sourceVar, targetVar, ta)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	buffer := &bytes.Buffer{}
 	deref := "&"
 	assign := "="
 	if newVar {
 		assign = ":="
 	}
 	name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
-	fmt.Fprintf(buffer, "%s %s %s%s{%s}\n", targetVar, assign, deref, name, initCode)
-	fmt.Fprint(buffer, postInitCode)
+	stmt := &jen.Statement{}
+	stmt.Add(Expr(targetVar)).Op(assign).Add(buildObjectLiteralExpr(name, deref == "&", initFields))
 
 	fieldCode, err := buildTransformObjectFieldCode(source, target, sourceVar, targetVar, ta)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	fmt.Fprint(buffer, fieldCode)
-
-	return buffer.String(), nil
+	appendStatementsWithSpacing(stmt, postInitCode, fieldCode)
+	return stmt, nil
 }
 
-func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *TransformAttrs) (string, string, error) {
+func appendStatementsWithSpacing(dst *jen.Statement, groups ...[]*jen.Statement) {
+	for _, group := range groups {
+		for _, stmt := range group {
+			if stmt == nil {
+				continue
+			}
+			dst.Line()
+			dst.Add(stmt)
+		}
+	}
+}
+
+func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *TransformAttrs) ([]objectInitField, []*jen.Statement, error) {
 	var (
-		initCode     string
-		postInitCode string
+		initFields   []objectInitField
+		postInitCode []*jen.Statement
 		err          error
 	)
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
@@ -200,20 +226,19 @@ func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 			return
 		}
 		exp, postAssign := transformObjectPrimitiveInitExpression(srcMatt, tgtMatt, srcc, tgtc, sourceVar, targetVar, n, ta)
-		postInitCode += postAssign
-		if exp == "" {
+		if postAssign != nil {
+			postInitCode = append(postInitCode, postAssign)
+		}
+		if exp == nil {
 			return
 		}
 		tgtField := GoifyAtt(tgtc, tgtMatt.ElemName(n), true)
-		initCode += fmt.Sprintf("\n%s: %s,", tgtField, exp)
+		initFields = append(initFields, objectInitField{Name: tgtField, Expr: exp})
 	})
-	if initCode != "" {
-		initCode += "\n"
-	}
-	return initCode, postInitCode, err
+	return initFields, postInitCode, err
 }
 
-func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (string, string) {
+func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, *jen.Statement) {
 	srcPtr := ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr)
 	tgtPtr := ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr)
 	srcField := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)
@@ -223,50 +248,35 @@ func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttribu
 
 	switch {
 	case isSrcUT || isTgtUT:
-		deref := ""
+		baseExpr := srcField
 		if srcPtr {
-			deref = "*"
+			baseExpr = "*" + srcField
 		}
-		exp := fmt.Sprintf("%s(%s%s)", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)), deref, srcField)
-		initExp, postAssign, handled := transformassign.BuildPrimitiveObjectAssignment(transformassign.PrimitiveObjectPlan{
-			SourceField:    srcField,
-			TargetVar:      targetVar,
-			TargetField:    tgtField,
-			Expression:     exp,
-			TempVar:        Goify(tgtMatt.ElemName(name), false),
-			SourcePointer:  srcPtr,
-			TargetPointer:  tgtPtr,
-			SourceRequired: srcMatt.IsRequired(name),
-		})
-		if handled {
-			return "", postAssign
+		exp := Expr(ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)) + "(" + baseExpr + ")")
+		if srcPtr && !srcMatt.IsRequired(name) {
+			return nil, buildConditionalPrimitiveAssignmentStmt(srcField, targetVar, tgtField, exp, tgtPtr, Goify(tgtMatt.ElemName(name), false))
 		}
-		return initExp, ""
+		if tgtPtr {
+			return nil, buildPointerPrimitiveAssignmentStmt(targetVar, tgtField, exp, Goify(tgtMatt.ElemName(name), false))
+		}
+		return exp, nil
 	case srcPtr && !tgtPtr:
-		exp := "*" + srcField
+		exp := Expr("*" + srcField)
 		if srcMatt.IsRequired(name) {
-			return exp, ""
+			return exp, nil
 		}
-		_, postAssign, _ := transformassign.BuildPrimitiveObjectAssignment(transformassign.PrimitiveObjectPlan{
-			SourceField:    srcField,
-			TargetVar:      targetVar,
-			TargetField:    tgtField,
-			Expression:     exp,
-			SourcePointer:  true,
-			SourceRequired: false,
-		})
-		return "", postAssign
+		return nil, buildConditionalPrimitiveAssignmentStmt(srcField, targetVar, tgtField, exp, false, "")
 	case !srcPtr && tgtPtr:
-		return "&" + srcField, ""
+		return Expr("&" + srcField), nil
 	default:
-		return srcField, ""
+		return Expr(srcField), nil
 	}
 }
 
-func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *TransformAttrs) (string, error) {
+func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *TransformAttrs) ([]*jen.Statement, error) {
 	var (
-		buffer bytes.Buffer
-		err    error
+		stmts []*jen.Statement
+		err   error
 	)
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
 		if err != nil {
@@ -277,28 +287,30 @@ func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar
 			err = codeErr
 			return
 		}
-		fmt.Fprint(&buffer, code)
+		if code != nil {
+			stmts = append(stmts, code)
+		}
 	})
-	return buffer.String(), err
+	return stmts, err
 }
 
-func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc, target *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (string, error) {
+func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc, target *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(srcc.Type, tgtc.Type, sourceVar, targetVar); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	srcFieldVar := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)
 	tgtFieldVar := targetVar + "." + GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
 	code, err := transformObjectFieldAssignment(srcc, tgtc, target, tgtMatt, srcFieldVar, tgtFieldVar, targetVar, name, ta)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	code = wrapTransformObjectFieldCode(code, srcc, tgtc, srcMatt, srcFieldVar, tgtFieldVar, name, ta)
-	code += transformObjectDefaultValueCode(srcc, tgtc, srcMatt, tgtMatt, srcFieldVar, tgtFieldVar, name, ta)
+	code = appendTransformStatements(code, transformObjectDefaultValueCode(srcc, tgtc, srcMatt, tgtMatt, srcFieldVar, tgtFieldVar, name, ta))
 	return code, nil
 }
 
-func transformObjectFieldAssignment(srcc, tgtc, target *expr.AttributeExpr, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, targetVar, name string, ta *TransformAttrs) (string, error) {
+func transformObjectFieldAssignment(srcc, tgtc, target *expr.AttributeExpr, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
 	_, isUserType := srcc.Type.(expr.UserType)
 	switch {
 	case expr.IsArray(srcc.Type):
@@ -313,30 +325,37 @@ func transformObjectFieldAssignment(srcc, tgtc, target *expr.AttributeExpr, tgtM
 			tgtVar = targetVar + ".(" + ref + ")." + GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
 		}
 		if expr.IsPrimitive(srcc.Type) {
-			return "", nil
+			return nil, nil
 		}
-		return fmt.Sprintf("%s = %s(%s)\n", tgtVar, transformHelperName(srcc, tgtc, ta), srcVar), nil
+		stmt := &jen.Statement{}
+		stmt.Add(Expr(tgtVar)).Op("=").Id(transformHelperName(srcc, tgtc, ta)).Call(Expr(srcVar))
+		return stmt, nil
 	case expr.IsObject(srcc.Type):
-		return transformAttribute(srcc, tgtc, srcVar, tgtVar, false, ta)
+		return transformAttributeStmt(srcc, tgtc, srcVar, tgtVar, false, ta)
 	default:
-		return "", nil
+		return nil, nil
 	}
 }
 
-func wrapTransformObjectFieldCode(code string, srcc, tgtc *expr.AttributeExpr, srcMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) string {
-	if code == "" || !shouldWrapTransformObjectField(srcc, srcMatt, name, ta) {
+func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.AttributeExpr, srcMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) *jen.Statement {
+	if code == nil || !shouldWrapTransformObjectField(srcc, srcMatt, name, ta) {
 		return code
 	}
-	cond := fmt.Sprintf("if %s != nil {\n", srcVar)
+	condition := Expr(srcVar + " != nil")
 	if expr.IsUnion(srcc.Type) {
-		cond = fmt.Sprintf("if %s.Kind() != \"\" {\n\n", srcVar)
+		condition = Expr(srcVar + `.Kind() != ""`)
 	}
-	code = fmt.Sprintf("%s\t%s}", cond, code)
+	stmt := &jen.Statement{}
+	stmt.If(condition).BlockFunc(func(group *jen.Group) {
+		group.Add(code)
+	})
 	if expr.IsArray(srcc.Type) && srcMatt.IsRequired(name) {
-		code += fmt.Sprintf("else {\n\t%s = []%s{}\n}\n", tgtVar, ta.TargetCtx.Scope.Ref(expr.AsArray(tgtc.Type).ElemType, ta.TargetCtx.Pkg(expr.AsArray(tgtc.Type).ElemType)))
-		return code
+		elemRef := ta.TargetCtx.Scope.Ref(expr.AsArray(tgtc.Type).ElemType, ta.TargetCtx.Pkg(expr.AsArray(tgtc.Type).ElemType))
+		stmt.Else().BlockFunc(func(group *jen.Group) {
+			group.Add(Expr(tgtVar)).Op("=").Add(Expr("[]" + elemRef + "{}"))
+		})
 	}
-	return code + "\n"
+	return stmt
 }
 
 func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.MappedAttributeExpr, name string, ta *TransformAttrs) bool {
@@ -345,51 +364,65 @@ func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.Mapp
 	return isRef || marshalNonPrimitive
 }
 
-func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) string {
+func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) *jen.Statement {
 	tdef := tgtMatt.GetDefault(name)
 	if tdef == nil || !ta.TargetCtx.UseDefault || ta.TargetCtx.Pointer || srcMatt.IsRequired(name) {
-		return ""
+		return nil
 	}
 
-	var code string
 	switch {
 	case ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type):
-		code += fmt.Sprintf("if %s == nil {\n\t", srcVar)
-		switch {
-		case ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type):
-			code += fmt.Sprintf("var tmp %s = %#v\n\t%s = &tmp\n", GoNativeTypeName(tgtc.Type), tdef, tgtVar)
-		case expr.IsArray(tgtc.Type):
-			code += transformObjectArrayDefaultValueCode(tgtc, tgtVar, tdef, ta)
-		default:
-			code += fmt.Sprintf("%s = %#v\n", tgtVar, tdef)
-		}
-		code += "}\n"
-	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(name) && ta.SourceCtx.UseDefault:
-		code += "{\n\t"
-		if typeName, _ := GetMetaType(tgtc); typeName != "" {
-			if !typeStringIsNilable(typeName) {
-				code += fmt.Sprintf("var zero %s\n\t", typeName)
+		stmt := &jen.Statement{}
+		stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
+			switch {
+			case ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type):
+				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + fmt.Sprintf("%#v", tdef)))
+				group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
+			case expr.IsArray(tgtc.Type):
+				group.Add(transformObjectArrayDefaultValueCode(tgtc, tgtVar, tdef, ta))
+			default:
+				group.Add(Expr(tgtVar)).Op("=").Add(Expr(fmt.Sprintf("%#v", tdef)))
 			}
-		} else if _, ok := tgtc.Type.(expr.UserType); ok {
-			code += fmt.Sprintf("var zero %s\n\t", ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)))
-		} else {
-			code += fmt.Sprintf("var zero %s\n\t", GoNativeTypeName(tgtc.Type))
-		}
-		if typeName, _ := GetMetaType(tgtc); typeName != "" && typeStringIsNilable(typeName) {
-			code += fmt.Sprintf("if %s == nil ", tgtVar)
-		} else {
-			code += fmt.Sprintf("if %s == zero ", tgtVar)
-		}
-		code += fmt.Sprintf("{\n\t%s = %#v\n}\n", tgtVar, tdef)
-		code += "}\n"
+		})
+		return stmt
+	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(name) && ta.SourceCtx.UseDefault:
+		stmt := &jen.Statement{}
+		stmt.BlockFunc(func(group *jen.Group) {
+			zeroType := ""
+			nilable := false
+			if typeName, _ := GetMetaType(tgtc); typeName != "" {
+				nilable = typeStringIsNilable(typeName)
+				if !nilable {
+					zeroType = typeName
+				}
+			} else if _, ok := tgtc.Type.(expr.UserType); ok {
+				zeroType = ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc))
+			} else {
+				zeroType = GoNativeTypeName(tgtc.Type)
+			}
+			if zeroType != "" {
+				group.Var().Id("zero").Id(zeroType)
+			}
+			condition := tgtVar + " == zero"
+			if typeName, _ := GetMetaType(tgtc); typeName != "" && typeStringIsNilable(typeName) {
+				condition = tgtVar + " == nil"
+			}
+			group.If(Expr(condition)).BlockFunc(func(ifGroup *jen.Group) {
+				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(fmt.Sprintf("%#v", tdef)))
+			})
+		})
+		return stmt
+	default:
+		return nil
 	}
-	return code
 }
 
-func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar string, tdef any, ta *TransformAttrs) string {
+func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar string, tdef any, ta *TransformAttrs) *jen.Statement {
 	arr := expr.AsArray(tgtc.Type)
+	stmt := &jen.Statement{}
 	if !expr.IsAlias(arr.ElemType.Type) {
-		return fmt.Sprintf("%s = %#v\n", tgtVar, tdef)
+		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(fmt.Sprintf("%#v", tdef)))
+		return stmt
 	}
 
 	elemRef := ta.TargetCtx.Scope.Ref(arr.ElemType, ta.TargetCtx.Pkg(arr.ElemType))
@@ -446,13 +479,72 @@ func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar strin
 			items = append(items, fmt.Sprintf("%s(%#v)", elemRef, de))
 		}
 	default:
-		return fmt.Sprintf("%s = %#v\n", tgtVar, tdef)
+		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(fmt.Sprintf("%#v", tdef)))
+		return stmt
 	}
 
 	if len(items) == 0 {
-		return ""
+		return nil
 	}
-	return fmt.Sprintf("%s = []%s{%s}\n", tgtVar, elemRef, strings.Join(items, ", "))
+	stmt.Add(Expr(tgtVar)).Op("=").Add(Expr("[]" + elemRef + "{" + strings.Join(items, ", ") + "}"))
+	return stmt
+}
+
+func buildConditionalPrimitiveAssignmentStmt(sourceField, targetVar, targetField string, expression *jen.Statement, targetPointer bool, tempVar string) *jen.Statement {
+	stmt := &jen.Statement{}
+	stmt.If(Expr(sourceField + " != nil")).BlockFunc(func(group *jen.Group) {
+		if targetPointer {
+			group.Add(buildPointerPrimitiveAssignmentStmt(targetVar, targetField, expression, tempVar))
+			return
+		}
+		group.Add(Expr(targetVar)).Dot(targetField).Op("=").Add(expression)
+	})
+	return stmt
+}
+
+func buildPointerPrimitiveAssignmentStmt(targetVar, targetField string, expression *jen.Statement, tempVar string) *jen.Statement {
+	stmt := &jen.Statement{}
+	stmt.Id(tempVar).Op(":=").Add(expression).Line()
+	stmt.Add(Expr(targetVar)).Dot(targetField).Op("=").Op("&").Id(tempVar)
+	return stmt
+}
+
+func appendTransformStatements(left, right *jen.Statement) *jen.Statement {
+	if left == nil {
+		return right
+	}
+	if right == nil {
+		return left
+	}
+	stmt := &jen.Statement{}
+	stmt.Add(left).Line()
+	stmt.Add(right)
+	return stmt
+}
+
+func buildObjectLiteralExpr(name string, pointer bool, fields []objectInitField) *jen.Statement {
+	prefix := ""
+	if pointer {
+		prefix = "&"
+	}
+	if len(fields) == 0 {
+		return Expr(prefix + name + "{}")
+	}
+	stmt := &jen.Statement{}
+	if pointer {
+		stmt.Op("&")
+	}
+	stmt.Id(name).CustomFunc(jen.Options{
+		Open:      "{",
+		Close:     "}",
+		Separator: ",",
+		Multi:     true,
+	}, func(group *jen.Group) {
+		for _, field := range fields {
+			group.Id(field.Name).Op(":").Add(field.Expr)
+		}
+	})
+	return stmt
 }
 
 // typeStringIsNilable takes a go type as a string and checks for a '[]' or
@@ -462,9 +554,9 @@ func typeStringIsNilable(typeName string) bool {
 }
 
 // transformArray generates Go code to transform source array to target array.
-func transformArray(source, target *expr.Array, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (string, error) {
+func transformArray(source, target *expr.Array, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(source.ElemType.Type, target.ElemType.Type, sourceVar+"[0]", targetVar+"[0]"); err != nil {
-		return "", err
+		return nil, err
 	}
 	data := transformArrayRenderData{
 		ElemTypeRef:    ta.TargetCtx.Scope.Ref(target.ElemType, ta.TargetCtx.Pkg(target.ElemType)),
@@ -481,12 +573,12 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 }
 
 // transformMap generates Go code to transform source map to target map.
-func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (string, error) {
+func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(source.KeyType.Type, target.KeyType.Type, sourceVar+"[key]", targetVar+"[key]"); err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := IsCompatible(source.ElemType.Type, target.ElemType.Type, sourceVar+"[*]", targetVar+"[*]"); err != nil {
-		return "", err
+		return nil, err
 	}
 	data := transformMapRenderData{
 		KeyTypeRef:     ta.TargetCtx.Scope.Ref(target.KeyType, ta.TargetCtx.Pkg(target.KeyType)),
@@ -513,10 +605,10 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 // Note: transport to/from service transforms are always object to union or
 // union to object. The only case a transform is union to union is when
 // converting a projected type from/to a service type.
-func transformUnion(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (string, error) {
+func transformUnion(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
 	srcUnion, tgtUnion, err := validateTransformUnion(source, target, sourceVar, targetVar)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	unionPkg := ta.TargetCtx.Pkg(target)
 	typeRef := ta.TargetCtx.Scope.Ref(target, unionPkg)
@@ -612,8 +704,7 @@ func transformUnionUsesHelper(sourceAttr, targetAttr *expr.AttributeExpr) bool {
 	return srcIsUserType && expr.IsObject(sourceAttr.Type) && tgtIsUserType && expr.IsObject(targetAttr.Type)
 }
 
-func renderTransformGoArray(data transformArrayRenderData) (string, error) {
-	var buf bytes.Buffer
+func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, error) {
 	assign := "="
 	if data.NewVar {
 		assign = ":="
@@ -622,27 +713,34 @@ func renderTransformGoArray(data transformArrayRenderData) (string, error) {
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
 	}
-	fmt.Fprintf(&buf, "%s %s make(%s, len(%s))\n", data.TargetVar, assign, typeName, data.SourceVar)
-	fmt.Fprintf(&buf, "for %s, val := range %s {\n", data.LoopVar, data.SourceVar)
-	if data.IsStruct {
-		fmt.Fprintf(&buf, "\tif val == nil {\n")
-		fmt.Fprintf(&buf, "\t\t%s[%s] = nil\n", data.TargetVar, data.LoopVar)
-		fmt.Fprintf(&buf, "\t\tcontinue\n")
-		fmt.Fprintf(&buf, "\t}\n")
-		fmt.Fprintf(&buf, "\t%s[%s] = %s(val)\n", data.TargetVar, data.LoopVar, transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs))
-	} else {
-		code, err := transformAttribute(data.SourceElem, data.TargetElem, "val", fmt.Sprintf("%s[%s]", data.TargetVar, data.LoopVar), false, data.TransformAttrs)
-		if err != nil {
-			return "", err
+	stmt := &jen.Statement{}
+	stmt.Add(Expr(data.TargetVar)).Op(assign).Make(TypeRef(typeName), jen.Len(Expr(data.SourceVar))).Line()
+	stmt.For(
+		jen.List(Expr(data.LoopVar), jen.Id("val")).Op(":=").Range().Add(Expr(data.SourceVar)),
+	).BlockFunc(func(group *jen.Group) {
+		if data.IsStruct {
+			group.If(Expr("val == nil")).BlockFunc(func(ifGroup *jen.Group) {
+				ifGroup.Add(Expr(data.TargetVar)).Index(Expr(data.LoopVar)).Op("=").Nil()
+				ifGroup.Continue()
+			})
+			group.Add(Expr(data.TargetVar)).
+				Index(Expr(data.LoopVar)).
+				Op("=").
+				Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
+				Call(Expr("val"))
+			return
 		}
-		fmt.Fprint(&buf, "\t"+indentTransformCode(code))
-	}
-	fmt.Fprintf(&buf, "}\n")
-	return buf.String(), nil
+		code, err := transformAttributeStmt(data.SourceElem, data.TargetElem, "val", fmt.Sprintf("%s[%s]", data.TargetVar, data.LoopVar), false, data.TransformAttrs)
+		if err != nil {
+			group.Add(Expr(`panic("unreachable transform render error")`))
+			return
+		}
+		group.Add(code)
+	})
+	return stmt, nil
 }
 
-func renderTransformGoMap(data transformMapRenderData) (string, error) {
-	var buf bytes.Buffer
+func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 	assign := "="
 	if data.NewVar {
 		assign = ":="
@@ -651,76 +749,98 @@ func renderTransformGoMap(data transformMapRenderData) (string, error) {
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
 	}
-	fmt.Fprintf(&buf, "%s %s make(%s, len(%s))\n", data.TargetVar, assign, typeName, data.SourceVar)
-	fmt.Fprintf(&buf, "for key, val := range %s {\n", data.SourceVar)
-	if data.IsKeyStruct {
-		fmt.Fprintf(&buf, "\ttk := %s(key)\n", transformHelperName(data.SourceKey, data.TargetKey, data.TransformAttrs))
-	} else {
-		code, err := transformAttribute(data.SourceKey, data.TargetKey, "key", "tk", true, data.TransformAttrs)
-		if err != nil {
-			return "", err
-		}
-		fmt.Fprint(&buf, "\t"+indentTransformCode(code))
-	}
-	if data.IsElemStruct {
-		fmt.Fprintf(&buf, "\tif val == nil {\n")
-		fmt.Fprintf(&buf, "\t\t%s[tk] = nil\n", data.TargetVar)
-		fmt.Fprintf(&buf, "\t\tcontinue\n")
-		fmt.Fprintf(&buf, "\t}\n")
-		fmt.Fprintf(&buf, "\t%s[tk] = %s(val)\n", data.TargetVar, transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs))
-	} else {
-		temp := "tv" + data.LoopVar
-		code, err := transformAttribute(data.SourceElem, data.TargetElem, "val", temp, true, data.TransformAttrs)
-		if err != nil {
-			return "", err
-		}
-		fmt.Fprint(&buf, "\t"+indentTransformCode(code))
-		fmt.Fprintf(&buf, "\t%s[tk] = %s\n", data.TargetVar, temp)
-	}
-	fmt.Fprintf(&buf, "}\n")
-	return buf.String(), nil
-}
-
-func renderTransformGoUnion(data transformUnionRenderData) (string, error) {
-	var buf bytes.Buffer
-	if data.NewVar {
-		fmt.Fprintf(&buf, "var %s %s\n", data.TargetVar, data.TypeRef)
-	}
-	fmt.Fprintf(&buf, "switch string(%s.Kind()) {\n", data.SourceVar)
-	for _, c := range data.Cases {
-		fmt.Fprintf(&buf, "case %q:\n", c.CaseTag)
-		fmt.Fprintf(&buf, "\tactual, _ := %s.As%s()\n", data.SourceVar, c.SourceFieldName)
-		if c.UseHelper {
-			fmt.Fprintf(&buf, "\t%s := %s(actual)\n", data.TempVarName, c.HelperName)
-			fmt.Fprintf(&buf, "\n")
+	stmt := &jen.Statement{}
+	stmt.Add(Expr(data.TargetVar)).Op(assign).Make(TypeRef(typeName), jen.Len(Expr(data.SourceVar))).Line()
+	stmt.For(
+		jen.List(jen.Id("key"), jen.Id("val")).Op(":=").Range().Add(Expr(data.SourceVar)),
+	).BlockFunc(func(group *jen.Group) {
+		if data.IsKeyStruct {
+			group.Id("tk").Op(":=").Id(transformHelperName(data.SourceKey, data.TargetKey, data.TransformAttrs)).Call(Expr("key"))
 		} else {
-			code, err := transformAttribute(c.SourceAttr, c.TargetAttr, "actual", data.TempVarName, true, data.TransformAttrs)
+			code, err := transformAttributeStmt(data.SourceKey, data.TargetKey, "key", "tk", true, data.TransformAttrs)
 			if err != nil {
-				return "", err
+				group.Add(Expr(`panic("unreachable transform render error")`))
+				return
 			}
-			fmt.Fprint(&buf, "\t"+indentTransformCode(code))
+			group.Add(code)
 		}
-		if data.NewVar {
-			fmt.Fprintf(&buf, "\tvar u %s\n", data.ValueTypeRef)
-			fmt.Fprintf(&buf, "\tu.Set%s((%s)(%s))\n", c.TargetFieldName, c.TargetCastType, data.TempVarName)
-			if data.TargetIsPointer {
-				fmt.Fprintf(&buf, "\t%s = &u\n", data.TargetVar)
-			} else {
-				fmt.Fprintf(&buf, "\t%s = u\n", data.TargetVar)
-			}
-		} else {
-			fmt.Fprintf(&buf, "\tu := %s\n", data.TargetVar)
-			fmt.Fprintf(&buf, "\tu.Set%s((%s)(%s))\n", c.TargetFieldName, c.TargetCastType, data.TempVarName)
-			fmt.Fprintf(&buf, "\t%s = u\n", data.TargetVar)
+		if data.IsElemStruct {
+			group.If(Expr("val == nil")).BlockFunc(func(ifGroup *jen.Group) {
+				ifGroup.Add(Expr(data.TargetVar)).Index(Expr("tk")).Op("=").Nil()
+				ifGroup.Continue()
+			})
+			group.Add(Expr(data.TargetVar)).
+				Index(Expr("tk")).
+				Op("=").
+				Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
+				Call(Expr("val"))
+			return
 		}
-	}
-	fmt.Fprintf(&buf, "}\n")
-	return buf.String(), nil
+		temp := "tv" + data.LoopVar
+		code, err := transformAttributeStmt(data.SourceElem, data.TargetElem, "val", temp, true, data.TransformAttrs)
+		if err != nil {
+			group.Add(Expr(`panic("unreachable transform render error")`))
+			return
+		}
+		group.Add(code)
+		group.Add(Expr(data.TargetVar)).Index(Expr("tk")).Op("=").Add(Expr(temp))
+	})
+	return stmt, nil
 }
 
-func indentTransformCode(code string) string {
-	trimmed := strings.TrimSuffix(code, "\n")
-	return strings.ReplaceAll(trimmed, "\n", "\n\t") + "\n"
+func renderTransformGoUnion(data transformUnionRenderData) (*jen.Statement, error) {
+	stmt := &jen.Statement{}
+	if data.NewVar {
+		stmt.Var().Add(Expr(data.TargetVar)).Add(TypeRef(data.TypeRef)).Line()
+	} else {
+		stmt.Line()
+	}
+	stmt.Switch(jen.String().Call(Expr(data.SourceVar).Dot("Kind").Call())).BlockFunc(func(group *jen.Group) {
+		for _, c := range data.Cases {
+			group.Case(jen.Lit(c.CaseTag)).BlockFunc(func(caseGroup *jen.Group) {
+				caseGroup.List(jen.Id("actual"), jen.Id("_")).Op(":=").Add(Expr(data.SourceVar)).Dot("As" + c.SourceFieldName).Call()
+				if c.UseHelper {
+					caseGroup.Id(data.TempVarName).Op(":=").Id(c.HelperName).Call(Expr("actual"))
+					caseGroup.Line()
+				} else {
+					code, err := transformAttributeStmt(c.SourceAttr, c.TargetAttr, "actual", data.TempVarName, true, data.TransformAttrs)
+					if err != nil {
+						caseGroup.Add(Expr(`panic("unreachable transform render error")`))
+						return
+					}
+					caseGroup.Add(code)
+				}
+				if data.NewVar {
+					caseGroup.Var().Id("u").Add(TypeRef(data.ValueTypeRef))
+					caseGroup.Id("u").Dot("Set" + c.TargetFieldName).Call(
+						jen.Parens(TypeRef(c.TargetCastType)).Call(Expr(data.TempVarName)),
+					)
+					if data.TargetIsPointer {
+						caseGroup.Add(Expr(data.TargetVar)).Op("=").Op("&").Id("u")
+					} else {
+						caseGroup.Add(Expr(data.TargetVar)).Op("=").Id("u")
+					}
+					return
+				}
+				caseGroup.Id("u").Op(":=").Add(Expr(data.TargetVar))
+				caseGroup.Id("u").Dot("Set" + c.TargetFieldName).Call(
+					jen.Parens(TypeRef(c.TargetCastType)).Call(Expr(data.TempVarName)),
+				)
+				caseGroup.Add(Expr(data.TargetVar)).Op("=").Id("u")
+			})
+		}
+	})
+	return stmt, nil
+}
+
+func renderJenniferSnippet(stmt *jen.Statement) string {
+	var buf bytes.Buffer
+	_ = stmt.Render(&buf)
+	rendered := buf.String()
+	if rendered != "" && !strings.HasSuffix(rendered, "\n") {
+		rendered += "\n"
+	}
+	return rendered
 }
 
 // transformAttributeHelpers returns the Go transform functions and their definitions
