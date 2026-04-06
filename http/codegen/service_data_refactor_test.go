@@ -445,6 +445,50 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.Equal(t, "BuildCreateRequest", endpoint.RequestInit.Name)
 	})
 
+	t.Run("buildPathInitData keeps wildcard arguments in route order", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PathMultipleParamsDSL)
+		endpointIR := transportir.BuildEndpoint(endpointExpr)
+		method := svcData.Service.Method(endpointIR.MethodName)
+		require.NotNil(t, method)
+
+		pathInit := services.buildPathInitData(endpointIR, method, svcData.Service, svcData, endpointIR.Routes[0].Path, 0)
+		require.Contains(t, pathInit.Name, method.VarName)
+		require.Contains(t, pathInit.Name, svcData.Service.StructName)
+		require.Contains(t, pathInit.Name, "Path")
+		require.Len(t, pathInit.ClientArgs, 2)
+		require.Equal(t, "a", pathInit.ClientArgs[0].Name)
+		require.Equal(t, "b", pathInit.ClientArgs[1].Name)
+		require.Contains(t, pathInit.ClientCode, `fmt.Sprintf("/one/%v/two/%v/three"`)
+	})
+
+	t.Run("buildRequirementSchemes partitions transports by location", func(t *testing.T) {
+		t.Run("query bearer token", func(t *testing.T) {
+			services, endpointExpr, _ := firstHTTPBuildContext(t, testdata.PayloadJWTAuthorizationQueryDSL)
+			endpointIR := transportir.BuildEndpoint(endpointExpr)
+
+			reqs, headerSchemes, bodySchemes, querySchemes, basicScheme := services.buildRequirementSchemes(endpointIR)
+			require.NotEmpty(t, reqs)
+			require.Empty(t, headerSchemes)
+			require.Empty(t, bodySchemes)
+			require.Len(t, querySchemes, 1)
+			require.Equal(t, "query", querySchemes[0].In)
+			require.Nil(t, basicScheme)
+		})
+
+		t.Run("custom header bearer token", func(t *testing.T) {
+			services, endpointExpr, _ := firstHTTPBuildContext(t, testdata.PayloadJWTAuthorizationCustomHeaderDSL)
+			endpointIR := transportir.BuildEndpoint(endpointExpr)
+
+			reqs, headerSchemes, bodySchemes, querySchemes, basicScheme := services.buildRequirementSchemes(endpointIR)
+			require.NotEmpty(t, reqs)
+			require.Len(t, headerSchemes, 1)
+			require.Equal(t, "header", headerSchemes[0].In)
+			require.Empty(t, bodySchemes)
+			require.Empty(t, querySchemes)
+			require.Nil(t, basicScheme)
+		})
+	})
+
 	t.Run("buildPayloadData projects jsonrpc ids", func(t *testing.T) {
 		services, endpointExpr, svcData := firstJSONRPCBuildContext(t, jsonrpcIDProjectionDSL)
 		endpointIR := transportir.BuildEndpoint(endpointExpr)
@@ -455,6 +499,17 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.NotNil(t, payload.Request)
 		require.NotNil(t, payload.Request.PayloadInit)
 		require.Empty(t, payload.DecoderReturnValue)
+	})
+
+	t.Run("buildEndpointData wires multipart encoder and decoder helpers", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadMultipartPrimitiveDSL)
+		endpointIR := transportir.BuildEndpoint(endpointExpr)
+
+		endpoint := services.buildEndpointDataFromIR(endpointIR, svcData.Service, svcData, codegen.NewNameScope())
+		require.NotNil(t, endpoint.MultipartRequestDecoder)
+		require.NotNil(t, endpoint.MultipartRequestEncoder)
+		require.Equal(t, "NewServiceMultipartPrimitiveMethodMultipartPrimitiveDecoder", endpoint.MultipartRequestDecoder.InitName)
+		require.Equal(t, "NewServiceMultipartPrimitiveMethodMultipartPrimitiveEncoder", endpoint.MultipartRequestEncoder.InitName)
 	})
 
 	t.Run("buildResultData keeps default view and jsonrpc ids", func(t *testing.T) {

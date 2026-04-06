@@ -12,6 +12,234 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
+type resultBuilder struct {
+	sds      *ServicesData
+	endpoint *transportir.Endpoint
+	sd       *ServiceData
+	svc      *service.Data
+	method   *service.MethodData
+	pkg      string
+	result   *expr.AttributeExpr
+}
+
+type errorBuilder struct {
+	sds        *ServicesData
+	endpoint   *transportir.Endpoint
+	sd         *ServiceData
+	svc        *service.Data
+	method     *service.MethodData
+	httpclictx *codegen.AttributeContext
+}
+
+func (sds *ServicesData) buildResultDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) *ResultData {
+	return newResultBuilder(sds, endpointIR, sd).build()
+}
+
+func newResultBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData) *resultBuilder {
+	svc := sd.Service
+	method := svc.Method(endpointIR.MethodName)
+	return &resultBuilder{
+		sds:      sds,
+		endpoint: endpointIR,
+		sd:       sd,
+		svc:      svc,
+		method:   method,
+		pkg:      pkgWithDefault(method.ResultLoc, svc.PkgName),
+		result:   endpointIR.Response.Result,
+	}
+}
+
+func (b *resultBuilder) build() *ResultData {
+	name, ref, view := buildResultMetadata(b.svc, b.result, b.pkg)
+	responses, mustInit, result := b.buildResponsesData()
+	idAtt, idAttRequired := buildResultIDData(b.endpoint.Response, result)
+	return &ResultData{
+		IsStruct:            expr.IsObject(result.Type),
+		Name:                name,
+		Ref:                 ref,
+		IDAttribute:         idAtt,
+		IDAttributeRequired: idAttRequired,
+		Responses:           responses,
+		View:                view,
+		MustInit:            mustInit,
+	}
+}
+
+func buildResultMetadata(svc *service.Data, result *expr.AttributeExpr, pkg string) (string, string, string) {
+	view := expr.DefaultView
+	if v, ok := result.Meta.Last(expr.ViewMetaKey); ok {
+		view = v
+	}
+	if result.Type == expr.Empty {
+		return "", "", view
+	}
+	return svc.Scope.GoFullTypeName(result, pkg), svc.Scope.GoFullTypeRef(result, pkg), view
+}
+
+func (b *resultBuilder) buildResponsesData() ([]*ResponseData, bool, *expr.AttributeExpr) {
+	result := b.result
+	viewed := false
+	if b.method.ViewedResult != nil {
+		result = expr.AsObject(b.method.ViewedResult.Type).Attribute("projected")
+		viewed = true
+	}
+	responses := b.sds.buildResponsesFromIR(b.endpoint, result, viewed, b.sd)
+	mustInit := false
+	for _, r := range responses {
+		if len(r.ServerBody) > 0 || len(r.Headers) > 0 || len(r.Cookies) > 0 || r.TagName != "" {
+			mustInit = true
+			break
+		}
+	}
+	return responses, mustInit, result
+}
+
+func buildResultIDData(response *transportir.Response, result *expr.AttributeExpr) (string, bool) {
+	if response == nil || response.IDAttribute == "" {
+		return "", false
+	}
+	return codegen.Goify(response.IDAttribute, true), result.IsRequired(response.IDAttribute)
+}
+
+func (sds *ServicesData) buildErrorsDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) []*ErrorGroupData {
+	return newErrorBuilder(sds, endpointIR, sd).build()
+}
+
+func newErrorBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData) *errorBuilder {
+	svc := sd.Service
+	return &errorBuilder{
+		sds:        sds,
+		endpoint:   endpointIR,
+		sd:         sd,
+		svc:        svc,
+		method:     svc.Method(endpointIR.Name),
+		httpclictx: httpContext(sd.Scope, false, false),
+	}
+}
+
+func (b *errorBuilder) build() []*ErrorGroupData {
+	data := make(map[string][]*ErrorData)
+	for _, errorResponse := range b.endpoint.Response.ErrorResponses {
+		ref, errorData := b.buildSingle(errorResponse)
+		data[ref] = append(data[ref], errorData)
+	}
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var vals []*ErrorGroupData
+	for _, k := range keys {
+		es := data[k]
+		for _, e := range es {
+			found := false
+			for _, eg := range vals {
+				if eg.StatusCode == e.Response.StatusCode {
+					eg.Errors = append(eg.Errors, e)
+					found = true
+					break
+				}
+			}
+			if !found {
+				vals = append(vals, &ErrorGroupData{StatusCode: e.Response.StatusCode, Errors: []*ErrorData{e}})
+			}
+		}
+	}
+	return vals
+}
+
+func (b *errorBuilder) buildSingle(errorResponse *transportir.ResponseStatus) (string, *ErrorData) {
+	httpError := errorResponse.Error
+	pkg := pkgWithDefault(b.method.ErrorLocs[httpError.Name], b.svc.PkgName)
+	errctx := serviceContext(pkg, b.sd.Service.Scope)
+	init := b.buildResultInit(errorResponse, pkg, errctx)
+	responseData := b.buildResponseData(errorResponse, errctx, init)
+	ref := b.svc.Scope.GoFullTypeRef(httpError.Attribute, pkg)
+	return ref, &ErrorData{Name: httpError.Name, Response: responseData, Ref: ref}
+}
+
+func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus, pkg string, errctx *codegen.AttributeContext) *InitData {
+	httpError := errorResponse.Error
+	body := responseStatusBody(errorResponse).Type
+	if !needInit(httpError.Type) {
+		return nil
+	}
+	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope)
+	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope)
+	args := make([]*InitArgData, 0, len(headers)+len(cookies)+1)
+	if body != expr.Empty {
+		args = append(args, buildBodyInitArg(b.sd.Scope, responseStatusBody(errorResponse), true))
+	}
+	args = append(args, buildHeaderInitArgs(headers)...)
+	args = append(args, buildCookieInitArgs(cookies)...)
+	code, origin := b.buildResultInitCode(errorResponse, errctx)
+	name := fmt.Sprintf("New%s%s", codegen.Goify(b.method.Name, true), codegen.Goify(httpError.Name, true))
+	return &InitData{
+		Name:                name,
+		Description:         fmt.Sprintf("%s builds a %s service %s endpoint %s error.", name, b.svc.Name, b.endpoint.Name, httpError.Name),
+		ClientArgs:          args,
+		ReturnTypeName:      b.svc.Scope.GoFullTypeName(httpError.Attribute, pkg),
+		ReturnTypeRef:       b.svc.Scope.GoFullTypeRef(httpError.Attribute, pkg),
+		ReturnIsStruct:      expr.IsObject(httpError.Type),
+		ReturnTypeAttribute: codegen.Goify(origin, true),
+		ReturnTypePkg:       pkg,
+		ClientCode:          code,
+	}
+}
+
+func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext) (string, string) {
+	origin := ""
+	httpError := errorResponse.Error
+	body := responseStatusBody(errorResponse)
+	errAtt := httpError.Attribute
+	if o, ok := body.Meta["origin:attribute"]; ok {
+		origin = o[0]
+		errAtt = expr.AsObject(httpError.Type).Attribute(origin)
+	}
+	code, err := b.sds.buildClientResultTransformCode(body, errAtt, httpError.Attribute, b.endpoint.Request, b.httpclictx, errctx, b.sd)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	return code, origin
+}
+
+func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext, init *InitData) *ResponseData {
+	httpError := errorResponse.Error
+	serverBodyData, clientBodyData := b.buildResponseBodyData(errorResponse)
+	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope)
+	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope)
+	contentType := ""
+	if errorResponse.ContentType != expr.ErrorResultIdentifier {
+		contentType = errorResponse.ContentType
+	}
+	return newResponseData(
+		"",
+		ResponseData{
+			StatusCode:   statusCodeToHTTPConst(errorResponse.StatusCode),
+			Code:         errorResponse.StatusCode,
+			Headers:      headers,
+			ContentType:  contentType,
+			Cookies:      cookies,
+			ErrorHeader:  httpError.Name,
+			ServerBody:   serverBodyData,
+			ClientBody:   clientBodyData,
+			ResultInit:   init,
+			MustValidate: responseFieldsNeedValidation(headers, cookies),
+		},
+	)
+}
+
+func (b *errorBuilder) buildResponseBodyData(errorResponse *transportir.ResponseStatus) ([]*TypeData, *TypeData) {
+	httpError := errorResponse.Error
+	errorLoc := b.method.ErrorLocs[httpError.Name]
+	serverBodyData, clientBodyData := b.sds.buildResponseBodyPair(responseStatusBody(errorResponse), httpError.Attribute, errorLoc, b.endpoint.Name, b.sd)
+	if clientBodyData != nil {
+		clientBodyData.Description = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body for the %q error.", clientBodyData.VarName, b.svc.Name, b.endpoint.Name, httpError.Name)
+		serverBodyData[0].Description = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body for the %q error.", serverBodyData[0].VarName, b.svc.Name, b.endpoint.Name, httpError.Name)
+	}
+	return serverBodyData, clientBodyData
+}
+
 func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, result *expr.AttributeExpr, viewed bool, sd *ServiceData) []*ResponseData {
 	var (
 		responses []*ResponseData
@@ -274,122 +502,6 @@ func responseTagData(resp *transportir.ResponseStatus, result *expr.AttributeExp
 	return codegen.Goify(resp.TagName, true), resp.TagValue, viewed || result.IsPrimitivePointer(resp.TagName, true)
 }
 
-func (sds *ServicesData) buildErrorsDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) []*ErrorGroupData {
-	var (
-		svc        = sd.Service
-		ep         = svc.Method(endpointIR.Name)
-		httpclictx = httpContext(sd.Scope, false, false)
-	)
-
-	data := make(map[string][]*ErrorData)
-	for _, errorResponse := range endpointIR.Response.ErrorResponses {
-		ref, errorData := sds.buildSingleErrorDataFromIR(endpointIR, errorResponse, ep, svc, httpclictx, sd)
-		data[ref] = append(data[ref], errorData)
-	}
-	keys := make([]string, len(data))
-	i := 0
-	for k := range data {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-	var vals []*ErrorGroupData
-	for _, k := range keys {
-		es := data[k]
-		for _, e := range es {
-			found := false
-			for _, eg := range vals {
-				if eg.StatusCode == e.Response.StatusCode {
-					eg.Errors = append(eg.Errors, e)
-					found = true
-					break
-				}
-			}
-			if !found {
-				vals = append(vals, &ErrorGroupData{StatusCode: e.Response.StatusCode, Errors: []*ErrorData{e}})
-			}
-		}
-	}
-	return vals
-}
-
-func (sds *ServicesData) buildSingleErrorDataFromIR(
-	endpointIR *transportir.Endpoint,
-	errorResponse *transportir.ResponseStatus,
-	ep *service.MethodData,
-	svc *service.Data,
-	httpclictx *codegen.AttributeContext,
-	sd *ServiceData,
-) (string, *ErrorData) {
-	httpError := errorResponse.Error
-	pkg := pkgWithDefault(ep.ErrorLocs[httpError.Name], svc.PkgName)
-	errctx := serviceContext(pkg, sd.Service.Scope)
-	init := sds.buildErrorResultInit(endpointIR, errorResponse, ep, pkg, httpclictx, errctx, svc, sd)
-	responseData := sds.buildErrorResponseData(endpointIR, errorResponse, ep, errctx, init, svc, sd)
-	ref := svc.Scope.GoFullTypeRef(httpError.Attribute, pkg)
-	return ref, &ErrorData{Name: httpError.Name, Response: responseData, Ref: ref}
-}
-
-func (sds *ServicesData) buildErrorResultInit(
-	endpointIR *transportir.Endpoint,
-	errorResponse *transportir.ResponseStatus,
-	ep *service.MethodData,
-	pkg string,
-	httpclictx *codegen.AttributeContext,
-	errctx *codegen.AttributeContext,
-	svc *service.Data,
-	sd *ServiceData,
-) *InitData {
-	httpError := errorResponse.Error
-	body := responseStatusBody(errorResponse).Type
-	if !needInit(httpError.Type) {
-		return nil
-	}
-	headers := sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, sd.Scope)
-	cookies := sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, sd.Scope)
-	args := make([]*InitArgData, 0, len(headers)+len(cookies)+1)
-	if body != expr.Empty {
-		args = append(args, buildBodyInitArg(sd.Scope, responseStatusBody(errorResponse), true))
-	}
-	args = append(args, buildHeaderInitArgs(headers)...)
-	args = append(args, buildCookieInitArgs(cookies)...)
-	code, origin := sds.buildErrorResultInitCode(endpointIR, errorResponse, httpclictx, errctx, sd)
-	name := fmt.Sprintf("New%s%s", codegen.Goify(ep.Name, true), codegen.Goify(httpError.Name, true))
-	return &InitData{
-		Name:                name,
-		Description:         fmt.Sprintf("%s builds a %s service %s endpoint %s error.", name, svc.Name, endpointIR.Name, httpError.Name),
-		ClientArgs:          args,
-		ReturnTypeName:      svc.Scope.GoFullTypeName(httpError.Attribute, pkg),
-		ReturnTypeRef:       svc.Scope.GoFullTypeRef(httpError.Attribute, pkg),
-		ReturnIsStruct:      expr.IsObject(httpError.Type),
-		ReturnTypeAttribute: codegen.Goify(origin, true),
-		ReturnTypePkg:       pkg,
-		ClientCode:          code,
-	}
-}
-
-func (sds *ServicesData) buildErrorResultInitCode(
-	endpointIR *transportir.Endpoint,
-	errorResponse *transportir.ResponseStatus,
-	httpclictx *codegen.AttributeContext,
-	errctx *codegen.AttributeContext,
-	sd *ServiceData,
-) (string, string) {
-	origin := ""
-	httpError := errorResponse.Error
-	body := responseStatusBody(errorResponse)
-	errAtt := httpError.Attribute
-	if o, ok := body.Meta["origin:attribute"]; ok {
-		origin = o[0]
-		errAtt = expr.AsObject(httpError.Type).Attribute(origin)
-	}
-	code, err := sds.buildClientResultTransformCode(body, errAtt, httpError.Attribute, endpointIR.Request, httpclictx, errctx, sd)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	return code, origin
-}
-
 func validationCodeForBodyArg(body *expr.AttributeExpr, httpclictx *codegen.AttributeContext) string {
 	ut, ok := body.Type.(expr.UserType)
 	if !ok || ut.Attribute().Validation == nil {
@@ -446,57 +558,6 @@ func buildQueryFallbackSource(request *transportir.Request) (*expr.AttributeExpr
 	}
 	query := request.QueryParams[0]
 	return query.Attribute, codegen.Goify(query.Name, false)
-}
-
-func (sds *ServicesData) buildErrorResponseData(
-	endpointIR *transportir.Endpoint,
-	errorResponse *transportir.ResponseStatus,
-	ep *service.MethodData,
-	errctx *codegen.AttributeContext,
-	init *InitData,
-	svc *service.Data,
-	sd *ServiceData,
-) *ResponseData {
-	httpError := errorResponse.Error
-	serverBodyData, clientBodyData := sds.buildErrorResponseBodyData(endpointIR, errorResponse, ep, svc, sd)
-	headers := sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, sd.Scope)
-	cookies := sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, sd.Scope)
-	contentType := ""
-	if errorResponse.ContentType != expr.ErrorResultIdentifier {
-		contentType = errorResponse.ContentType
-	}
-	return newResponseData(
-		"",
-		ResponseData{
-			StatusCode:   statusCodeToHTTPConst(errorResponse.StatusCode),
-			Code:         errorResponse.StatusCode,
-			Headers:      headers,
-			ContentType:  contentType,
-			Cookies:      cookies,
-			ErrorHeader:  httpError.Name,
-			ServerBody:   serverBodyData,
-			ClientBody:   clientBodyData,
-			ResultInit:   init,
-			MustValidate: responseFieldsNeedValidation(headers, cookies),
-		},
-	)
-}
-
-func (sds *ServicesData) buildErrorResponseBodyData(
-	endpointIR *transportir.Endpoint,
-	errorResponse *transportir.ResponseStatus,
-	ep *service.MethodData,
-	svc *service.Data,
-	sd *ServiceData,
-) ([]*TypeData, *TypeData) {
-	httpError := errorResponse.Error
-	errorLoc := ep.ErrorLocs[httpError.Name]
-	serverBodyData, clientBodyData := sds.buildResponseBodyPair(responseStatusBody(errorResponse), httpError.Attribute, errorLoc, endpointIR.Name, sd)
-	if clientBodyData != nil {
-		clientBodyData.Description = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body for the %q error.", clientBodyData.VarName, svc.Name, endpointIR.Name, httpError.Name)
-		serverBodyData[0].Description = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body for the %q error.", serverBodyData[0].VarName, svc.Name, endpointIR.Name, httpError.Name)
-	}
-	return serverBodyData, clientBodyData
 }
 
 func responseStatusBody(resp *transportir.ResponseStatus) *expr.AttributeExpr {
