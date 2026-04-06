@@ -585,7 +585,7 @@ func viewedResultPrefix(v *service.ViewedResultTypeData) string {
 }
 
 func errInvalidResponseExpr(serviceName, methodName string, statusCode, body jen.Code) jen.Code {
-	return jen.Qual("github.com/CaliLuke/loom/http", "ErrInvalidResponse").Call(
+	return jen.Id("loomhttp").Dot("ErrInvalidResponse").Call(
 		jen.Lit(serviceName),
 		jen.Lit(methodName),
 		statusCode,
@@ -594,7 +594,7 @@ func errInvalidResponseExpr(serviceName, methodName string, statusCode, body jen
 }
 
 func errDecodingExpr(serviceName, methodName string, errExpr jen.Code) jen.Code {
-	return jen.Qual("github.com/CaliLuke/loom/http", "ErrDecodingError").Call(
+	return jen.Id("loomhttp").Dot("ErrDecodingError").Call(
 		jen.Lit(serviceName),
 		jen.Lit(methodName),
 		errExpr,
@@ -602,7 +602,7 @@ func errDecodingExpr(serviceName, methodName string, errExpr jen.Code) jen.Code 
 }
 
 func errValidationExpr(serviceName, methodName string, errExpr jen.Code) jen.Code {
-	return jen.Qual("github.com/CaliLuke/loom/http", "ErrValidationError").Call(
+	return jen.Id("loomhttp").Dot("ErrValidationError").Call(
 		jen.Lit(serviceName),
 		jen.Lit(methodName),
 		errExpr,

@@ -265,9 +265,9 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 			Block(
 				jen.Id("s").Dot("initSSEHeaders").Call(),
 				jen.If(
-					jen.Err().Op(":=").Qual("github.com/CaliLuke/loom/http", "WriteJSONSSEEvent").Call(
+					jen.Err().Op(":=").Id("loomhttp").Dot("WriteJSONSSEEvent").Call(
 						jen.Id("s").Dot("w"),
-						jen.Qual("github.com/CaliLuke/loom/http", "SSEMessage").Values(jen.Dict{jen.Id("Type"): jen.Id("eventType")}),
+						jen.Id("loomhttp").Dot("SSEMessage").Values(jen.Dict{jen.Id("Type"): jen.Id("eventType")}),
 						jen.Id("v"),
 					),
 					jen.Err().Op("!=").Nil(),

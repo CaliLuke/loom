@@ -730,7 +730,7 @@ func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.S
 								jen.Err().Op("!=").Nil(),
 							).Block(
 								jen.Return(
-									jen.Qual("github.com/CaliLuke/loom/http", "ErrEncodingError").Call(
+									jen.Id("loomhttp").Dot("ErrEncodingError").Call(
 										jen.Lit(ed.ServiceName),
 										jen.Lit(ed.Method.Name),
 										jen.Err(),
@@ -849,7 +849,7 @@ func writeJSONRPCSSEEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {
 		jen.Id("resp").Dot("Body").Dot("Close").Call(),
 		jen.Return(
 			jen.Nil(),
-			jen.Qual("github.com/CaliLuke/loom/http", "ErrInvalidResponse").Call(
+			jen.Id("loomhttp").Dot("ErrInvalidResponse").Call(
 				jen.Lit(ed.ServiceName),
 				jen.Lit(ed.Method.Name),
 				jen.Id("resp").Dot("StatusCode"),
@@ -885,7 +885,7 @@ func writeJSONRPCDoRequest(g *jen.Group, ed *httpcodegen.EndpointData) {
 	g.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(
 			jen.Nil(),
-			jen.Qual("github.com/CaliLuke/loom/http", "ErrRequestError").Call(
+			jen.Id("loomhttp").Dot("ErrRequestError").Call(
 				jen.Lit(ed.ServiceName),
 				jen.Lit(ed.Method.Name),
 				jen.Err(),
@@ -955,7 +955,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 				g.If(jen.Err().Op("!=").Nil()).Block(
 					jen.Return(
 						jen.Nil(),
-						jen.Qual("github.com/CaliLuke/loom/http", "ErrRequestError").Call(
+						jen.Id("loomhttp").Dot("ErrRequestError").Call(
 							jen.Lit(data.Service.Name),
 							jen.Lit("connect"),
 							jen.Err(),
