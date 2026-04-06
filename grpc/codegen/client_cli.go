@@ -4,6 +4,8 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/cli"
 	"github.com/CaliLuke/loom/expr"
@@ -102,7 +104,7 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 		codegen.Header(title, "cli", specs),
 		cli.UsageCommands(data),
 		cli.UsageExamples(data),
-		grpcParseEndpointSection(cli.FlagsCode(data), data),
+		grpcParseEndpointSection(data),
 	)
 	for _, cmd := range data {
 		sections = append(sections, cli.CommandUsage(cmd))
@@ -197,8 +199,12 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 		return flags, nil
 	}
 	if e.Request.ServerConvert != nil {
+		var initCode *jen.Statement
+		if e.Request.ServerConvert.Init.Code != "" {
+			initCode = codegen.Expr(e.Request.ServerConvert.Init.Code)
+		}
 		pinit = &cli.PayloadInitData{
-			Code:           e.Request.ServerConvert.Init.Code,
+			Code:           initCode,
 			ReturnIsStruct: e.Request.ServerConvert.Init.ReturnIsStruct,
 			ReturnTypePkg:  e.Request.ServerConvert.Init.ReturnTypePkg,
 			Args:           pInitArgs,

@@ -611,7 +611,7 @@ func grpcExampleCLISection(defaultTransportType string, services []*ServiceData,
 	})
 }
 
-func grpcParseEndpointSection(flagsCode string, commands []*cli.CommandData) codegenpkg.Section {
+func grpcParseEndpointSection(commands []*cli.CommandData) codegenpkg.Section {
 	return codegenpkg.MustJenniferSection("parse-endpoint-grpc", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, "ParseEndpoint returns the endpoint and payload as specified on the command line.")
 		params := []jen.Code{
@@ -629,7 +629,7 @@ func grpcParseEndpointSection(flagsCode string, commands []*cli.CommandData) cod
 			Params(params...).
 			Params(codegenpkg.TypeRef("loom.Endpoint"), jen.Any(), jen.Error()).
 			BlockFunc(func(g *jen.Group) {
-				g.Add(codegenpkg.Expr(flagsCode))
+				g.Add(cli.FlagsCodeStatement(commands))
 				g.Var().Defs(
 					jen.Id("data").Any(),
 					jen.Id("endpoint").Add(codegenpkg.TypeRef("loom.Endpoint")),
@@ -657,8 +657,8 @@ func grpcParseEndpointSection(flagsCode string, commands []*cli.CommandData) cod
 													args = append(args, jen.Op("*").Id(param+"Flag"))
 												}
 												scg.List(jen.Id("data"), jen.Err()).Op("=").Id(command.PkgName).Dot(subcommand.BuildFunction.Name).Call(args...)
-											case subcommand.Conversion != "":
-												scg.Add(codegenpkg.Expr(subcommand.Conversion))
+											case subcommand.Conversion != nil:
+												scg.Add(subcommand.Conversion)
 											}
 										})
 									}

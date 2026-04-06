@@ -2,8 +2,7 @@
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		serviceBodyPrimitiveBoolValidateFlags = flag.NewFlagSet("service-body-primitive-bool-validate", flag.ContinueOnError)
-
+		serviceBodyPrimitiveBoolValidateFlags                                = flag.NewFlagSet("service-body-primitive-bool-validate", flag.ContinueOnError)
 		serviceBodyPrimitiveBoolValidateMethodBodyPrimitiveBoolValidateFlags = flag.NewFlagSet("method-body-primitive-bool-validate", flag.ExitOnError)
 		serviceBodyPrimitiveBoolValidateMethodBodyPrimitiveBoolValidatePFlag = serviceBodyPrimitiveBoolValidateMethodBodyPrimitiveBoolValidateFlags.String("p", "REQUIRED", "bool is the payload type of the ServiceBodyPrimitiveBoolValidate service MethodBodyPrimitiveBoolValidate method.")
 	)
@@ -13,11 +12,9 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
 	}
-
-	if flag.NArg() < 2 { // two non flag args are required: SERVICE and ENDPOINT (aka COMMAND)
+	if flag.NArg() < 2 {
 		return nil, nil, fmt.Errorf("not enough arguments")
 	}
-
 	var (
 		svcn string
 		svcf *flag.FlagSet
@@ -34,7 +31,6 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 	if err := svcf.Parse(flag.Args()[1:]); err != nil {
 		return nil, nil, err
 	}
-
 	var (
 		epn string
 		epf *flag.FlagSet
@@ -46,16 +42,12 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 			switch epn {
 			case "method-body-primitive-bool-validate":
 				epf = serviceBodyPrimitiveBoolValidateMethodBodyPrimitiveBoolValidateFlags
-
 			}
-
 		}
 	}
 	if epf == nil {
 		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
 	}
-
-	// Parse endpoint flags if any
 	if svcf.NArg() > 1 {
 		if err := epf.Parse(svcf.Args()[1:]); err != nil {
 			return nil, nil, err
@@ -85,6 +77,5 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return endpoint, data, nil
 }

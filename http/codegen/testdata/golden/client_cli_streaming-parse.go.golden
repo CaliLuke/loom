@@ -2,28 +2,22 @@
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool, dialer loomhttp.Dialer, streamingServiceAConfigurer *streamingserviceac.ConnConfigurer, streamingServiceBConfigurer *streamingservicebc.ConnConfigurer) (loom.Endpoint, any, error) {
 	var (
-		streamingServiceAFlags = flag.NewFlagSet("streaming-service-a", flag.ContinueOnError)
-
+		streamingServiceAFlags       = flag.NewFlagSet("streaming-service-a", flag.ContinueOnError)
 		streamingServiceAMethodFlags = flag.NewFlagSet("method", flag.ExitOnError)
-
-		streamingServiceBFlags = flag.NewFlagSet("streaming-service-b", flag.ContinueOnError)
-
+		streamingServiceBFlags       = flag.NewFlagSet("streaming-service-b", flag.ContinueOnError)
 		streamingServiceBMethodFlags = flag.NewFlagSet("method", flag.ExitOnError)
 	)
 	streamingServiceAFlags.Usage = streamingServiceAUsage
 	streamingServiceAMethodFlags.Usage = streamingServiceAMethodUsage
-
 	streamingServiceBFlags.Usage = streamingServiceBUsage
 	streamingServiceBMethodFlags.Usage = streamingServiceBMethodUsage
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
 	}
-
-	if flag.NArg() < 2 { // two non flag args are required: SERVICE and ENDPOINT (aka COMMAND)
+	if flag.NArg() < 2 {
 		return nil, nil, fmt.Errorf("not enough arguments")
 	}
-
 	var (
 		svcn string
 		svcf *flag.FlagSet
@@ -42,7 +36,6 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 	if err := svcf.Parse(flag.Args()[1:]); err != nil {
 		return nil, nil, err
 	}
-
 	var (
 		epn string
 		epf *flag.FlagSet
@@ -54,23 +47,17 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 			switch epn {
 			case "method":
 				epf = streamingServiceAMethodFlags
-
 			}
-
 		case "streaming-service-b":
 			switch epn {
 			case "method":
 				epf = streamingServiceBMethodFlags
-
 			}
-
 		}
 	}
 	if epf == nil {
 		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
 	}
-
-	// Parse endpoint flags if any
 	if svcf.NArg() > 1 {
 		if err := epf.Parse(svcf.Args()[1:]); err != nil {
 			return nil, nil, err
@@ -101,6 +88,5 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return endpoint, data, nil
 }

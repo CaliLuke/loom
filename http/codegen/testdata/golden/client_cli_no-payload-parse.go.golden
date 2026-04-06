@@ -2,22 +2,16 @@
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		serviceMultiNoPayload1Flags = flag.NewFlagSet("service-multi-no-payload1", flag.ContinueOnError)
-
+		serviceMultiNoPayload1Flags                         = flag.NewFlagSet("service-multi-no-payload1", flag.ContinueOnError)
 		serviceMultiNoPayload1MethodServiceNoPayload11Flags = flag.NewFlagSet("method-service-no-payload11", flag.ExitOnError)
-
 		serviceMultiNoPayload1MethodServiceNoPayload12Flags = flag.NewFlagSet("method-service-no-payload12", flag.ExitOnError)
-
-		serviceMultiNoPayload2Flags = flag.NewFlagSet("service-multi-no-payload2", flag.ContinueOnError)
-
+		serviceMultiNoPayload2Flags                         = flag.NewFlagSet("service-multi-no-payload2", flag.ContinueOnError)
 		serviceMultiNoPayload2MethodServiceNoPayload21Flags = flag.NewFlagSet("method-service-no-payload21", flag.ExitOnError)
-
 		serviceMultiNoPayload2MethodServiceNoPayload22Flags = flag.NewFlagSet("method-service-no-payload22", flag.ExitOnError)
 	)
 	serviceMultiNoPayload1Flags.Usage = serviceMultiNoPayload1Usage
 	serviceMultiNoPayload1MethodServiceNoPayload11Flags.Usage = serviceMultiNoPayload1MethodServiceNoPayload11Usage
 	serviceMultiNoPayload1MethodServiceNoPayload12Flags.Usage = serviceMultiNoPayload1MethodServiceNoPayload12Usage
-
 	serviceMultiNoPayload2Flags.Usage = serviceMultiNoPayload2Usage
 	serviceMultiNoPayload2MethodServiceNoPayload21Flags.Usage = serviceMultiNoPayload2MethodServiceNoPayload21Usage
 	serviceMultiNoPayload2MethodServiceNoPayload22Flags.Usage = serviceMultiNoPayload2MethodServiceNoPayload22Usage
@@ -25,11 +19,9 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
 	}
-
-	if flag.NArg() < 2 { // two non flag args are required: SERVICE and ENDPOINT (aka COMMAND)
+	if flag.NArg() < 2 {
 		return nil, nil, fmt.Errorf("not enough arguments")
 	}
-
 	var (
 		svcn string
 		svcf *flag.FlagSet
@@ -48,7 +40,6 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 	if err := svcf.Parse(flag.Args()[1:]); err != nil {
 		return nil, nil, err
 	}
-
 	var (
 		epn string
 		epf *flag.FlagSet
@@ -60,29 +51,21 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 			switch epn {
 			case "method-service-no-payload11":
 				epf = serviceMultiNoPayload1MethodServiceNoPayload11Flags
-
 			case "method-service-no-payload12":
 				epf = serviceMultiNoPayload1MethodServiceNoPayload12Flags
-
 			}
-
 		case "service-multi-no-payload2":
 			switch epn {
 			case "method-service-no-payload21":
 				epf = serviceMultiNoPayload2MethodServiceNoPayload21Flags
-
 			case "method-service-no-payload22":
 				epf = serviceMultiNoPayload2MethodServiceNoPayload22Flags
-
 			}
-
 		}
 	}
 	if epf == nil {
 		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
 	}
-
-	// Parse endpoint flags if any
 	if svcf.NArg() > 1 {
 		if err := epf.Parse(svcf.Args()[1:]); err != nil {
 			return nil, nil, err
@@ -117,6 +100,5 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return endpoint, data, nil
 }

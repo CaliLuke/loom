@@ -18,10 +18,6 @@ import (
 )
 
 type (
-	sourceBuilder struct {
-		parts []string
-	}
-
 	// CommandData contains the data needed to render a command.
 	CommandData struct {
 		// Name of command e.g. "cellar-storage"
@@ -60,7 +56,7 @@ type (
 		BuildFunction *BuildFunctionData
 		// Conversion contains the flag value to payload conversion function if
 		// any. Exclusive with BuildFunction.
-		Conversion string
+		Conversion *jen.Statement
 		// Example is a valid command invocation, starting with the command name.
 		Example string
 		// Interceptors contains the data for client interceptors if any apply to the endpoint method.
@@ -135,7 +131,7 @@ type (
 		// TypeRef is the reference to the type.
 		TypeRef string
 		// Init is the code initializing the variable.
-		Init string
+		Init *jen.Statement
 	}
 
 	// PayloadInitData contains the data needed to generate a constructor
@@ -143,7 +139,7 @@ type (
 	// command-ling arguments.
 	PayloadInitData struct {
 		// Code is the payload initialization code.
-		Code string
+		Code *jen.Statement
 		// ReturnTypeAttribute if non-empty returns an attribute in the payload
 		// type that describes the shape of the method payload.
 		ReturnTypeAttribute string
@@ -160,21 +156,6 @@ type (
 		Args []*codegen.InitArgData
 	}
 )
-
-func (b *sourceBuilder) Add(s string) {
-	if s == "" {
-		return
-	}
-	b.parts = append(b.parts, s)
-}
-
-func (b *sourceBuilder) Addf(format string, args ...any) {
-	b.Add(fmt.Sprintf(format, args...))
-}
-
-func (b *sourceBuilder) String() string {
-	return strings.Join(b.parts, "")
-}
 
 // BuildCommandData builds the data needed by CLI code generators to render the
 // parsing of the service command.
@@ -212,14 +193,14 @@ func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunctio
 		description = fmt.Sprintf("Make request to the %q endpoint", m.Name)
 	}
 
-	var conversion string
+	var conversion *jen.Statement
 	if m.Payload != "" && buildFunction == nil && len(flags) > 0 {
 		// No build function, just convert the arg to the body type
 		var convPre, convSuff string
 		target := "data"
 		if flagType(m.Payload) == "JSON" {
 			target = "val"
-			convPre = fmt.Sprintf("var val %s\n", m.Payload)
+			convPre = "var val " + m.Payload + "\n"
 			convSuff = "\ndata = val"
 		}
 		conv, _, check := conversionCode(
@@ -228,18 +209,32 @@ func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunctio
 			m.Payload,
 			false,
 		)
-		conversion = convPre + conv + convSuff
+		conversion = codegen.Expr(convPre).Add(conv).Add(codegen.Expr(convSuff))
 		if check {
-			conversion = "var err error\n" + conversion
-			conversion += "\nif err != nil {\n"
-			if flagType(m.Payload) == "JSON" {
-				conversion += fmt.Sprintf(`return nil, nil, fmt.Errorf("invalid JSON for %s, \nerror: %%s, \nexample of valid JSON:\n%%s", err, %q)`,
-					flags[0].FullName+"Flag", flags[0].Example)
-			} else {
-				conversion += fmt.Sprintf(`return nil, nil, fmt.Errorf("invalid value for %s, must be %s")`,
-					flags[0].FullName+"Flag", flags[0].Type)
-			}
-			conversion += "\n}"
+			conversion = codegen.Expr("var err error\n").Add(conversion).Line()
+			conversion.If(jen.Err().Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+				var ret *jen.Statement
+				if flagType(m.Payload) == "JSON" {
+					ret = jen.Return(
+						jen.Nil(),
+						jen.Nil(),
+						jen.Qual("fmt", "Errorf").Call(
+							jen.Lit("invalid JSON for "+flags[0].FullName+"Flag, \nerror: %s, \nexample of valid JSON:\n%s"),
+							jen.Err(),
+							jen.Lit(flags[0].Example),
+						),
+					)
+				} else {
+					ret = jen.Return(
+						jen.Nil(),
+						jen.Nil(),
+						jen.Qual("fmt", "Errorf").Call(
+							jen.Lit("invalid value for "+flags[0].FullName+"Flag, must be "+flags[0].Type),
+						),
+					)
+				}
+				group.Add(ret)
+			})
 		}
 	}
 
@@ -332,93 +327,7 @@ func UsageExamples(data []*CommandData) codegen.Section {
 // arguments (method payload) invoked by the tool. It panics if any error
 // occurs during the generation of flag parsing code.
 func FlagsCode(data []*CommandData) string {
-	var flagsCode sourceBuilder
-	flagsCode.Add("var (\n")
-	for _, cmd := range data {
-		flagsCode.Addf("\t%sFlags = flag.NewFlagSet(%q, flag.ContinueOnError)\n", cmd.VarName, cmd.Name)
-		flagsCode.Add("\n")
-		for _, sub := range cmd.Subcommands {
-			flagsCode.Addf("\t%sFlags = flag.NewFlagSet(%q, flag.ExitOnError)\n", sub.FullName, sub.Name)
-			for _, flag := range sub.Flags {
-				defaultValue := ""
-				if flag.Default != nil {
-					defaultValue = fmt.Sprint(flag.Default)
-				} else if flag.Required {
-					defaultValue = "REQUIRED"
-				}
-				flagsCode.Addf("\t%sFlag = %sFlags.String(%q, %q, %q)\n", flag.FullName, sub.FullName, flag.Name, defaultValue, flag.Description)
-			}
-			flagsCode.Add("\n")
-		}
-	}
-	flagsCode.Add(")\n")
-
-	for _, cmd := range data {
-		flagsCode.Addf("%sFlags.Usage = %sUsage\n", cmd.VarName, cmd.VarName)
-		for _, sub := range cmd.Subcommands {
-			flagsCode.Addf("%sFlags.Usage = %sUsage\n", sub.FullName, sub.FullName)
-		}
-		flagsCode.Add("\n")
-	}
-
-	flagsCode.Add(`if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-	return nil, nil, err
-}
-
-if flag.NArg() < 2 { // two non flag args are required: SERVICE and ENDPOINT (aka COMMAND)
-	return nil, nil, fmt.Errorf("not enough arguments")
-}
-
-var (
-	svcn string
-	svcf *flag.FlagSet
-)
-{
-	svcn = flag.Arg(0)
-	switch svcn {
-`)
-	for _, cmd := range data {
-		flagsCode.Addf("\tcase %q:\n\t\tsvcf = %sFlags\n", cmd.Name, cmd.VarName)
-	}
-	flagsCode.Add(`	default:
-		return nil, nil, fmt.Errorf("unknown service %q", svcn)
-	}
-}
-if err := svcf.Parse(flag.Args()[1:]); err != nil {
-	return nil, nil, err
-}
-
-var (
-	epn string
-	epf *flag.FlagSet
-)
-{
-	epn = svcf.Arg(0)
-	switch svcn {
-`)
-	for _, cmd := range data {
-		flagsCode.Addf("\tcase %q:\n\t\tswitch epn {\n", cmd.Name)
-		for _, sub := range cmd.Subcommands {
-			flagsCode.Addf("\t\tcase %q:\n\t\t\tepf = %sFlags\n", sub.Name, sub.FullName)
-			flagsCode.Add("\n")
-		}
-		flagsCode.Add("\t\t}\n\n")
-	}
-	flagsCode.Add(`	}
-}
-if epf == nil {
-	return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
-}
-
-// Parse endpoint flags if any
-if svcf.NArg() > 1 {
-	if err := epf.Parse(svcf.Args()[1:]); err != nil {
-		return nil, nil, err
-	}
-}
-`)
-
-	return flagsCode.String()
+	return renderJenniferStatement(FlagsCodeStatement(data))
 }
 
 // CommandUsage builds the section that can be used to generate the
@@ -484,29 +393,30 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData) codegen.Section {
 					continue
 				}
 				group.Var().Id(field.VarName).Add(codegen.TypeRef(field.TypeRef))
-				group.Block(codegen.Expr(field.Init))
+				group.Block(field.Init)
 			}
 			if buildFunction.PayloadInit != nil {
-				if buildFunction.PayloadInit.Code != "" {
-					group.Add(codegen.Expr(buildFunction.PayloadInit.Code))
+				if buildFunction.PayloadInit.Code != nil {
+					group.Add(buildFunction.PayloadInit.Code)
 					if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
-						value := buildFunction.PayloadInit.ReturnTypeAttribute + ": "
-						if buildFunction.PayloadInit.ReturnTypeAttributePointer {
-							value += "&"
-						}
-						value += "v,\n"
-						group.Add(codegen.Expr("res := &" + buildFunction.PayloadInit.ReturnTypeName + "{\n" + value + "}"))
+						group.Id("res").Op(":=").Op("&").Add(codegen.TypeRef(buildFunction.PayloadInit.ReturnTypeName)).ValuesFunc(func(values *jen.Group) {
+							value := values.Id(buildFunction.PayloadInit.ReturnTypeAttribute).Op(":")
+							if buildFunction.PayloadInit.ReturnTypeAttributePointer {
+								value.Op("&")
+							}
+							value.Id("v")
+						})
 					}
 				}
 				if buildFunction.PayloadInit.ReturnIsStruct {
-					if buildFunction.PayloadInit.Code == "" {
+					if buildFunction.PayloadInit.Code == nil {
 						target := "v"
 						if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
 							target = "res"
 						}
-						group.Add(codegen.Expr(target + " := &" + buildFunction.PayloadInit.ReturnTypeName + "{}"))
+						group.Id(target).Op(":=").Op("&").Add(codegen.TypeRef(buildFunction.PayloadInit.ReturnTypeName)).Values()
 					}
-					group.Add(codegen.Expr(fieldCode(buildFunction.PayloadInit)))
+					group.Add(fieldCode(buildFunction.PayloadInit))
 				}
 				resultVar := "v"
 				if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
@@ -545,42 +455,46 @@ func NewFlagData(svcn, en, name, typeName, description string, required bool, ex
 // FieldLoadCode returns the code used in the build payload function that
 // initializes one of the payload object fields. It returns the initialization
 // code and a boolean indicating whether the code requires an "err" variable.
-func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultValue any, payload expr.DataType, payloadRef string) (string, bool) {
+func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultValue any, payload expr.DataType, payloadRef string) (*jen.Statement, bool) {
 	var (
-		code    string
+		code    *jen.Statement
 		declErr bool
-		startIf string
-		endIf   string
 	)
-	if !f.Required {
-		startIf = fmt.Sprintf("if %s != \"\" {\n", f.FullName)
-		endIf = "\n}"
-	}
 	if argTypeName == codegen.GoNativeTypeName(expr.String) {
 		ref := "&"
 		if f.Required || defaultValue != nil {
 			ref = ""
 		}
-		code = argName + " = " + ref + f.FullName
+		code = codegen.Expr(argName + " = " + ref + f.FullName)
 		declErr = validate != ""
 	} else {
 		var checkErr bool
 		code, declErr, checkErr = conversionCode(f.FullName, argName, argTypeName, !f.Required && defaultValue == nil)
 		if checkErr {
-			code += "\nif err != nil {\n"
-			nilVal := "nil"
-			if expr.IsPrimitive(payload) {
-				code += fmt.Sprintf("var zero %s\n", payloadRef)
-				nilVal = "zero"
-			}
-			if flagType(argTypeName) == "JSON" {
-				code += fmt.Sprintf(`return %s, fmt.Errorf("invalid JSON for %s, \nerror: %%s, \nexample of valid JSON:\n%%s", err, %q)`,
-					nilVal, argName, f.Example)
-			} else {
-				code += fmt.Sprintf(`return %s, fmt.Errorf("invalid value for %s, must be %s")`,
-					nilVal, argName, f.Type)
-			}
-			code += "\n}"
+			code.Line().If(jen.Err().Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+				nilVal := "nil"
+				if expr.IsPrimitive(payload) {
+					group.Add(codegen.Expr("var zero " + payloadRef))
+					nilVal = "zero"
+				}
+				if flagType(argTypeName) == "JSON" {
+					group.Return(
+						codegen.Expr(nilVal),
+						jen.Qual("fmt", "Errorf").Call(
+							jen.Lit("invalid JSON for "+argName+", \nerror: %s, \nexample of valid JSON:\n%s"),
+							jen.Err(),
+							jen.Lit(f.Example),
+						),
+					)
+				} else {
+					group.Return(
+						codegen.Expr(nilVal),
+						jen.Qual("fmt", "Errorf").Call(
+							jen.Lit("invalid value for "+argName+", must be "+f.Type),
+						),
+					)
+				}
+			})
 		}
 	}
 	if validate != "" {
@@ -603,15 +517,20 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 			}
 			validate = strings.Join(lines, "\n")
 		}
-		code += "\n" + validate + "\n"
+		code.Line().Add(codegen.Expr(validate)).Line()
 		nilVal := "nil"
 		if expr.IsPrimitive(payload) {
-			code += fmt.Sprintf("var zero %s\n", payloadRef)
+			code.Add(codegen.Expr("var zero " + payloadRef)).Line()
 			nilVal = "zero"
 		}
-		code += fmt.Sprintf("if err != nil {\n\treturn %s, err\n}", nilVal)
+		code.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Return(codegen.Expr(nilVal), jen.Err()),
+		)
 	}
-	return fmt.Sprintf("%s%s%s", startIf, code, endIf), declErr
+	if !f.Required {
+		return jen.If(codegen.Expr(f.FullName).Op("!=").Lit("")).Block(code), declErr
+	}
+	return code, declErr
 }
 
 // flagType calculates the type of a flag
@@ -695,10 +614,10 @@ var (
 // be declared prior to the conversion code being rendered. The last return
 // value indicates whether the generated code can produce errors (i.e.
 // initialize the err variable).
-func conversionCode(from, to, typeName string, pointer bool) (string, bool, bool) {
+func conversionCode(from, to, typeName string, pointer bool) (*jen.Statement, bool, bool) {
 	var (
-		parse string
-		cast  string
+		parse *jen.Statement
+		cast  *jen.Statement
 
 		target   = to
 		needCast = typeName != stringN && typeName != bytesN && flagType(typeName) != "JSON"
@@ -712,57 +631,58 @@ func conversionCode(from, to, typeName string, pointer bool) (string, bool, bool
 	}
 	switch typeName {
 	case boolN:
+		parse = new(jen.Statement)
 		if pointer {
-			parse = fmt.Sprintf("var %s bool\n", target)
+			parse = codegen.Expr("var " + target + " bool\n")
 		}
-		parse += fmt.Sprintf("%s, err = strconv.ParseBool(%s)", target, from)
+		parse.Add(codegen.Expr(target + ", err = strconv.ParseBool(" + from + ")"))
 	case intN:
-		parse = fmt.Sprintf("var v int64\nv, err = strconv.ParseInt(%s, 10, strconv.IntSize)", from)
-		cast = fmt.Sprintf("%s %s= int(v)", target, decl)
+		parse = codegen.Expr("var v int64\nv, err = strconv.ParseInt(" + from + ", 10, strconv.IntSize)")
+		cast = codegen.Expr(target + " " + decl + "= int(v)")
 	case int32N:
-		parse = fmt.Sprintf("var v int64\nv, err = strconv.ParseInt(%s, 10, 32)", from)
-		cast = fmt.Sprintf("%s %s= int32(v)", target, decl)
+		parse = codegen.Expr("var v int64\nv, err = strconv.ParseInt(" + from + ", 10, 32)")
+		cast = codegen.Expr(target + " " + decl + "= int32(v)")
 	case int64N:
-		parse = fmt.Sprintf("%s, err %s= strconv.ParseInt(%s, 10, 64)", target, decl, from)
+		parse = codegen.Expr(target + ", err " + decl + "= strconv.ParseInt(" + from + ", 10, 64)")
 		declErr = decl == ""
 	case uintN:
-		parse = fmt.Sprintf("var v uint64\nv, err = strconv.ParseUint(%s, 10, strconv.IntSize)", from)
-		cast = fmt.Sprintf("%s %s= uint(v)", target, decl)
+		parse = codegen.Expr("var v uint64\nv, err = strconv.ParseUint(" + from + ", 10, strconv.IntSize)")
+		cast = codegen.Expr(target + " " + decl + "= uint(v)")
 	case uint32N:
-		parse = fmt.Sprintf("var v uint64\nv, err = strconv.ParseUint(%s, 10, 32)", from)
-		cast = fmt.Sprintf("%s %s= uint32(v)", target, decl)
+		parse = codegen.Expr("var v uint64\nv, err = strconv.ParseUint(" + from + ", 10, 32)")
+		cast = codegen.Expr(target + " " + decl + "= uint32(v)")
 	case uint64N:
-		parse = fmt.Sprintf("%s, err %s= strconv.ParseUint(%s, 10, 64)", target, decl, from)
+		parse = codegen.Expr(target + ", err " + decl + "= strconv.ParseUint(" + from + ", 10, 64)")
 		declErr = decl == ""
 	case float32N:
-		parse = fmt.Sprintf("var v float64\nv, err = strconv.ParseFloat(%s, 32)", from)
-		cast = fmt.Sprintf("%s %s= float32(v)", target, decl)
+		parse = codegen.Expr("var v float64\nv, err = strconv.ParseFloat(" + from + ", 32)")
+		cast = codegen.Expr(target + " " + decl + "= float32(v)")
 	case float64N:
-		parse = fmt.Sprintf("%s, err %s= strconv.ParseFloat(%s, 64)", target, decl, from)
+		parse = codegen.Expr(target + ", err " + decl + "= strconv.ParseFloat(" + from + ", 64)")
 		declErr = decl == ""
 	case stringN:
-		parse = fmt.Sprintf("%s %s= %s", target, decl, from)
+		parse = codegen.Expr(target + " " + decl + "= " + from)
 		declErr = false
 		checkErr = false
 	case bytesN:
-		parse = fmt.Sprintf("%s %s= []byte(%s)", target, decl, from)
+		parse = codegen.Expr(target + " " + decl + "= []byte(" + from + ")")
 		declErr = false
 		checkErr = false
 	default:
-		parse = fmt.Sprintf("err = json.Unmarshal([]byte(%s), &%s)", from, target)
+		parse = codegen.Expr("err = json.Unmarshal([]byte(" + from + "), &" + target + ")")
 	}
 	if !needCast {
 		return parse, declErr, checkErr
 	}
-	if cast != "" {
-		parse = parse + "\n" + cast
+	if cast != nil {
+		parse.Line().Add(cast)
 	}
 	if to != target {
 		ref := ""
 		if pointer {
 			ref = "&"
 		}
-		parse += fmt.Sprintf("\n%s = %s%s", to, ref, target)
+		parse.Line().Add(codegen.Expr(to + " = " + ref + target))
 	}
 	return parse, declErr, checkErr
 }
@@ -795,7 +715,7 @@ func generateExample(sub *SubcommandData, svc string) {
 
 // fieldCode generates code to initialize the data structures fields
 // from the given args. It is used only in templates.
-func fieldCode(init *PayloadInitData) string {
+func fieldCode(init *PayloadInitData) *jen.Statement {
 	varn := "res"
 	if init.ReturnTypeAttribute == "" {
 		varn = "v"
@@ -806,5 +726,131 @@ func fieldCode(init *PayloadInitData) string {
 	if err != nil {
 		panic(err) // bug
 	}
-	return c
+	return codegen.Expr(c)
+}
+
+// FlagsCodeStatement builds the CLI flag parsing statements.
+func FlagsCodeStatement(data []*CommandData) *jen.Statement {
+	stmt := new(jen.Statement)
+	stmt.Var().DefsFunc(func(group *jen.Group) {
+		for _, cmd := range data {
+			group.Id(cmd.VarName+"Flags").Op("=").Qual("flag", "NewFlagSet").Call(jen.Lit(cmd.Name), jen.Qual("flag", "ContinueOnError"))
+			for _, sub := range cmd.Subcommands {
+				group.Id(sub.FullName+"Flags").Op("=").Qual("flag", "NewFlagSet").Call(jen.Lit(sub.Name), jen.Qual("flag", "ExitOnError"))
+				for _, flag := range sub.Flags {
+					defaultValue := ""
+					if flag.Default != nil {
+						defaultValue = fmt.Sprint(flag.Default)
+					} else if flag.Required {
+						defaultValue = "REQUIRED"
+					}
+					group.Id(flag.FullName+"Flag").Op("=").Id(sub.FullName+"Flags").Dot("String").Call(
+						jen.Lit(flag.Name),
+						jen.Lit(defaultValue),
+						jen.Lit(flag.Description),
+					)
+				}
+			}
+		}
+	}).Line()
+	for _, cmd := range data {
+		stmt.Id(cmd.VarName + "Flags").Dot("Usage").Op("=").Id(cmd.VarName + "Usage")
+		stmt.Line()
+		for _, sub := range cmd.Subcommands {
+			stmt.Id(sub.FullName + "Flags").Dot("Usage").Op("=").Id(sub.FullName + "Usage")
+			stmt.Line()
+		}
+	}
+	stmt.Line()
+	stmt.If(
+		jen.Err().Op(":=").Qual("flag", "CommandLine").Dot("Parse").Call(jen.Qual("os", "Args").Index(jen.Lit(1), jen.Empty())),
+		jen.Err().Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Nil(), jen.Nil(), jen.Err()),
+	)
+	stmt.Line()
+	stmt.If(jen.Qual("flag", "NArg").Call().Op("<").Lit(2)).Block(
+		jen.Return(jen.Nil(), jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("not enough arguments"))),
+	)
+	stmt.Line()
+	stmt.Var().Defs(
+		jen.Id("svcn").String(),
+		jen.Id("svcf").Op("*").Qual("flag", "FlagSet"),
+	)
+	stmt.Line()
+	stmt.Block(
+		jen.Id("svcn").Op("=").Qual("flag", "Arg").Call(jen.Lit(0)),
+		jen.Switch(jen.Id("svcn")).BlockFunc(func(group *jen.Group) {
+			for _, cmd := range data {
+				group.Case(jen.Lit(cmd.Name)).Block(
+					jen.Id("svcf").Op("=").Id(cmd.VarName + "Flags"),
+				)
+			}
+			group.Default().Block(
+				jen.Return(jen.Nil(), jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("unknown service %q"), jen.Id("svcn"))),
+			)
+		}),
+	)
+	stmt.Line()
+	stmt.If(
+		jen.Err().Op(":=").Id("svcf").Dot("Parse").Call(codegen.Expr("flag.Args()[1:]")),
+		jen.Err().Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Nil(), jen.Nil(), jen.Err()),
+	)
+	stmt.Line()
+	stmt.Var().Defs(
+		jen.Id("epn").String(),
+		jen.Id("epf").Op("*").Qual("flag", "FlagSet"),
+	)
+	stmt.Line()
+	stmt.Block(
+		jen.Id("epn").Op("=").Id("svcf").Dot("Arg").Call(jen.Lit(0)),
+		jen.Switch(jen.Id("svcn")).BlockFunc(func(group *jen.Group) {
+			for _, cmd := range data {
+				group.Case(jen.Lit(cmd.Name)).Block(
+					jen.Switch(jen.Id("epn")).BlockFunc(func(subs *jen.Group) {
+						for _, sub := range cmd.Subcommands {
+							subs.Case(jen.Lit(sub.Name)).Block(
+								jen.Id("epf").Op("=").Id(sub.FullName + "Flags"),
+							)
+						}
+					}),
+				)
+			}
+		}),
+	)
+	stmt.Line()
+	stmt.If(jen.Id("epf").Op("==").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("unknown %q endpoint %q"), jen.Id("svcn"), jen.Id("epn"))),
+	)
+	stmt.Line()
+	stmt.If(jen.Id("svcf").Dot("NArg").Call().Op(">").Lit(1)).Block(
+		jen.If(
+			jen.Err().Op(":=").Id("epf").Dot("Parse").Call(jen.Id("svcf").Dot("Args").Call().Index(jen.Lit(1), jen.Empty())),
+			jen.Err().Op("!=").Nil(),
+		).Block(
+			jen.Return(jen.Nil(), jen.Nil(), jen.Err()),
+		),
+	)
+	stmt.Line()
+	return stmt
+}
+
+func renderJenniferStatement(stmt *jen.Statement) string {
+	file := jen.NewFile("cli")
+	file.Func().Id("render").Params().Params(jen.Any(), jen.Any(), jen.Error()).Block(stmt)
+	var b strings.Builder
+	if err := file.Render(&b); err != nil {
+		panic(err)
+	}
+	src := b.String()
+	marker := "func render() {\n"
+	idx := strings.Index(src, marker)
+	if idx == -1 {
+		return src
+	}
+	body := src[idx+len(marker):]
+	body = strings.TrimSuffix(body, "}\n")
+	return body
 }
