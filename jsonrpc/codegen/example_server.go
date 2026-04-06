@@ -78,17 +78,17 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 	for _, section := range sections {
 		switch section.SectionName() {
 		case "server-http-start":
-			updatedSections = append(updatedSections, codegen.MustRenderSection("server-http-start", func() string {
+			updatedSections = append(updatedSections, codegen.NewRenderSection("server-http-start", func() string {
 				return jsonrpcExampleServerStartSource(httpServices, svcdata)
 			}))
 			continue
 		case "server-http-end":
-			updatedSections = append(updatedSections, codegen.MustRenderSection("server-http-end", func() string {
+			updatedSections = append(updatedSections, codegen.NewRenderSection("server-http-end", func() string {
 				return jsonrpcExampleServerEndSource(httpServices, svcdata)
 			}))
 			continue
 		case "server-http-init":
-			updatedSections = append(updatedSections, codegen.MustRenderSection("server-http-init", func() string {
+			updatedSections = append(updatedSections, codegen.NewRenderSection("server-http-init", func() string {
 				return jsonrpcExampleServerConfigureSource(httpServices, svcdata, apiPkg)
 			}))
 			continue

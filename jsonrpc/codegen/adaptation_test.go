@@ -37,7 +37,7 @@ func TestJSONRPCAdaptationHelpers(t *testing.T) {
 		sections := []codegen.Section{
 			&codegen.SectionTemplate{Name: "source-header", Source: "header"},
 			&codegen.SectionTemplate{Name: "parse-endpoint", Source: "doHTTP"},
-			codegen.NewRawSection("usage", "httpUsage"),
+			codegen.NewRenderSection("usage", func() string { return "httpUsage" }),
 		}
 		updated := rewriteJSONRPCSectionSources(sections, rewriteJSONRPCExampleCLISource)
 		require.Len(t, updated, 3)

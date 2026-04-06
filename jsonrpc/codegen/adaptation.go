@@ -26,20 +26,56 @@ func rewriteJSONRPCExampleServerPath(path string) string {
 }
 
 func cloneSection(section codegen.Section) codegen.Section {
-	if template, ok := section.(*codegen.SectionTemplate); ok {
-		cloned := *template
+	switch s := section.(type) {
+	case *codegen.SectionTemplate:
+		cloned := *s
 		return &cloned
+	case *codegen.JenniferSection:
+		cloned := *s
+		return &cloned
+	case *codegen.RenderSection:
+		cloned := *s
+		return &cloned
+	case *codegen.RawSection:
+		cloned := *s
+		return &cloned
+	default:
+		return codegen.NewRenderSection(section.SectionName(), func() string {
+			return renderSectionSource(section)
+		})
 	}
-	return codegen.NewRawSection(section.SectionName(), renderSectionSource(section))
 }
 
 func rewriteJSONRPCSectionSource(section codegen.Section, rewrite func(string) string) codegen.Section {
-	if template, ok := section.(*codegen.SectionTemplate); ok {
-		cloned := *template
+	switch s := section.(type) {
+	case *codegen.SectionTemplate:
+		cloned := *s
 		cloned.Source = rewrite(cloned.Source)
 		return &cloned
+	case *codegen.RawSection:
+		cloned := *s
+		cloned.Source = rewrite(cloned.Source)
+		return &cloned
+	case *codegen.RenderSection:
+		cloned := *s
+		original := cloned.Render
+		cloned.Render = func() string {
+			if original == nil {
+				return ""
+			}
+			return rewrite(original())
+		}
+		return &cloned
+	case *codegen.JenniferSection:
+		cloned := *s
+		return codegen.NewRenderSection(cloned.SectionName(), func() string {
+			return rewrite(renderSectionSource(&cloned))
+		})
+	default:
+		return codegen.NewRenderSection(section.SectionName(), func() string {
+			return rewrite(renderSectionSource(section))
+		})
 	}
-	return codegen.NewRawSection(section.SectionName(), rewrite(renderSectionSource(section)))
 }
 
 func rewriteJSONRPCSectionSources(sections []codegen.Section, rewrite func(string) string) []codegen.Section {

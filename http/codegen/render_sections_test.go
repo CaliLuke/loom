@@ -101,12 +101,12 @@ func TestConvertedExampleRenderSections(t *testing.T) {
 	services := NewServicesData(service.NewServicesData(root), root.API.HTTP)
 
 	cliFile := findFileWithSection(t, ExampleCLIFiles("", services), "cli-http-start")
-	cliStart := rawSectionCode(t, cliFile.Section("cli-http-start")[0])
+	cliStart := renderedSectionSource(t, cliFile.Section("cli-http-start")[0])
 	require.Contains(t, cliStart, "func doHTTP(")
 	require.Contains(t, cliStart, "doer loomhttp.Doer")
 
 	serverFile := findFileWithSection(t, ExampleServerFiles("", services), "server-http-start")
-	serverStart := rawSectionCode(t, serverFile.Section("server-http-start")[0])
+	serverStart := renderedSectionSource(t, serverFile.Section("server-http-start")[0])
 	require.Contains(t, serverStart, "func handleHTTPServer(")
 	require.Contains(t, serverStart, "errc chan error")
 }
@@ -152,7 +152,7 @@ func findFileWithSuffix(t *testing.T, files []*codegen.File, suffix string) *cod
 	return nil
 }
 
-func rawSectionCode(t *testing.T, section codegen.Section) string {
+func renderedSectionSource(t *testing.T, section codegen.Section) string {
 	t.Helper()
 	var buf bytes.Buffer
 	require.NoError(t, section.Write(&buf))

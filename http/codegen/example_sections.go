@@ -9,7 +9,7 @@ import (
 )
 
 func exampleCLIStartSection(services []*ServiceData, interceptorsPkg string) codegen.Section {
-	return codegen.MustRenderSection("cli-http-start", func() string {
+	return codegen.NewRenderSection("cli-http-start", func() string {
 		return renderExampleCLIStart(services, interceptorsPkg)
 	})
 }
@@ -36,7 +36,7 @@ func renderExampleCLIStart(services []*ServiceData, interceptorsPkg string) stri
 }
 
 func exampleCLIStreamingSection(services []*ServiceData) codegen.Section {
-	return codegen.MustRenderSection("cli-http-streaming", func() string {
+	return codegen.NewRenderSection("cli-http-streaming", func() string {
 		return renderExampleCLIStreaming(services)
 	})
 }
@@ -49,7 +49,7 @@ func renderExampleCLIStreaming(services []*ServiceData) string {
 }
 
 func exampleCLIEndSection(services []*ServiceData, apiPkg string) codegen.Section {
-	return codegen.MustRenderSection("cli-http-end", func() string {
+	return codegen.NewRenderSection("cli-http-end", func() string {
 		return renderExampleCLIEnd(services, apiPkg)
 	})
 }
@@ -101,34 +101,25 @@ func exampleCLIUsageSection() codegen.Section {
 }
 
 func exampleServerStartSection(services []*ServiceData) codegen.Section {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment("handleHTTPServer starts configures and starts a HTTP server on the given URL. It shuts down the server if any error is received in the error channel."))
-	b.Add("\n")
-	b.Add("func handleHTTPServer(ctx context.Context, u *url.URL")
-	for _, svc := range services {
-		if len(svc.Service.Methods) > 0 {
-			b.Addf(", %sEndpoints *%s.Endpoints", svc.Service.VarName, svc.Service.PkgName)
-		}
-	}
-	b.Add(", wg *sync.WaitGroup, errc chan error, dbg bool) {\n")
-	return codegen.MustRenderSection("server-http-start", b.String)
+	return codegen.NewRenderSection("server-http-start", func() string {
+		return renderExampleServerStart(services)
+	})
 }
 
 func exampleServerEncodingSection() codegen.Section {
-	return codegen.MustRenderSection("server-http-encoding", func() string {
+	return codegen.NewRenderSection("server-http-encoding", func() string {
 		return "\n\t// Provide the transport specific request decoder and response encoder.\n\t// The Loom http package has built-in support for JSON, XML and gob.\n\t// Other encodings can be used by providing the corresponding functions.\n\tvar (\n\t\tdec = loomhttp.RequestDecoder\n\t\tenc = loomhttp.ResponseEncoder\n\t)\n"
 	})
 }
 
 func exampleServerMuxSection() codegen.Section {
-	return codegen.MustRenderSection("server-http-mux", func() string {
+	return codegen.NewRenderSection("server-http-mux", func() string {
 		return "\n\t// Build the service HTTP request multiplexer and mount debug and profiler\n\t// endpoints in debug mode.\n\tvar mux loomhttp.Muxer\n\t{\n\t\tmux = loomhttp.NewMuxer()\n\t\tif dbg {\n\t\t\t// Mount pprof handlers for memory profiling under /debug/pprof.\n\t\t\tdebug.MountPprofHandlers(debug.Adapt(mux))\n\t\t\t// Mount /debug endpoint to enable or disable debug logs at runtime.\n\t\t\tdebug.MountDebugLogEnabler(debug.Adapt(mux))\n\t\t}\n\t}\n"
 	})
 }
 
 func exampleServerConfigureSection(services []*ServiceData, apiPkg string) codegen.Section {
-	return codegen.MustRenderSection("server-http-init", func() string {
+	return codegen.NewRenderSection("server-http-init", func() string {
 		return renderExampleServerConfigure(services, apiPkg)
 	})
 }
@@ -161,15 +152,30 @@ func renderExampleServerConfigure(services []*ServiceData, apiPkg string) string
 }
 
 func exampleServerMiddlewareSection() codegen.Section {
-	return codegen.MustRenderSection("server-http-middleware", func() string {
+	return codegen.NewRenderSection("server-http-middleware", func() string {
 		return "\n\tvar handler http.Handler = mux\n\tif dbg {\n\t\t// Log query and response bodies if debug logs are enabled.\n\t\thandler = debug.HTTP()(handler)\n\t}\n\thandler = log.HTTP(ctx)(handler)\n"
 	})
 }
 
 func exampleServerEndSection(services []*ServiceData) codegen.Section {
-	return codegen.MustRenderSection("server-http-end", func() string {
+	return codegen.NewRenderSection("server-http-end", func() string {
 		return renderExampleServerEnd(services)
 	})
+}
+
+func renderExampleServerStart(services []*ServiceData) string {
+	var b sourceBuilder
+	b.Add("\n")
+	b.Add(codegen.Comment("handleHTTPServer starts configures and starts a HTTP server on the given URL. It shuts down the server if any error is received in the error channel."))
+	b.Add("\n")
+	b.Add("func handleHTTPServer(ctx context.Context, u *url.URL")
+	for _, svc := range services {
+		if len(svc.Service.Methods) > 0 {
+			b.Addf(", %sEndpoints *%s.Endpoints", svc.Service.VarName, svc.Service.PkgName)
+		}
+	}
+	b.Add(", wg *sync.WaitGroup, errc chan error, dbg bool) {\n")
+	return b.String()
 }
 
 func renderExampleServerEnd(services []*ServiceData) string {
