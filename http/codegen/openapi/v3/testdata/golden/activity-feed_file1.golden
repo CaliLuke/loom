@@ -71,13 +71,13 @@ components:
                     type: object
                     unevaluatedProperties: false
                     oneOf:
-                        - $ref: '#/components/schemas/EntrycommentAddedEnvelope'
-                        - $ref: '#/components/schemas/EntrytaskClosedEnvelope'
+                        - $ref: '#/components/schemas/EntryCommentAddedEnvelope'
+                        - $ref: '#/components/schemas/EntryTaskClosedEnvelope'
                     discriminator:
                         propertyName: type
                         mapping:
-                            comment_added: '#/components/schemas/EntrycommentAddedEnvelope'
-                            task_closed: '#/components/schemas/EntrytaskClosedEnvelope'
+                            comment_added: '#/components/schemas/EntryCommentAddedEnvelope'
+                            task_closed: '#/components/schemas/EntryTaskClosedEnvelope'
             additionalProperties: false
         ActivityValidationError:
             type: object
@@ -116,7 +116,7 @@ components:
                 - thread_id
                 - author
             additionalProperties: false
-        EntrycommentAddedEnvelope:
+        EntryCommentAddedEnvelope:
             type: object
             properties:
                 type:
@@ -125,10 +125,11 @@ components:
                         - comment_added
                 value:
                     $ref: '#/components/schemas/CommentAddedActivity'
+            description: Synthetic wrapper for union variant "comment_added".
             required:
                 - type
                 - value
-        EntrytaskClosedEnvelope:
+        EntryTaskClosedEnvelope:
             type: object
             properties:
                 type:
@@ -137,6 +138,7 @@ components:
                         - task_closed
                 value:
                     $ref: '#/components/schemas/TaskClosedActivity'
+            description: Synthetic wrapper for union variant "task_closed".
             required:
                 - type
                 - value

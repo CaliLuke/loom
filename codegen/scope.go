@@ -320,7 +320,7 @@ func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
 	case *expr.Object:
 		return s.GoTypeDef(att, false, false)
 	case expr.UserType, *expr.Union:
-		if actual == expr.ErrorResult {
+		if expr.IsDefaultErrorResult(actual) {
 			return "loom.ServiceError"
 		}
 		// Qualified type references (pkg.Type) do not compete in the local

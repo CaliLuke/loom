@@ -25,66 +25,59 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) loo
 			return nil, nil
 		case http.StatusInternalServerError:
 			var (
-				name      string
-				id        string
-				message   string
-				temporary bool
-				timeout   bool
-				fault     bool
+				code      string
+				type_     string
+				title     string
+				status    int
+				detail    string
+				instance  string
+				retryHint *string
 				err       error
 			)
-			nameRaw := resp.Header.Get("Error-Name")
-			if nameRaw == "" {
-				err = loom.MergeErrors(err, loom.MissingFieldError("name", "header"))
+			codeRaw := resp.Header.Get("Error-Code")
+			if codeRaw == "" {
+				err = loom.MergeErrors(err, loom.MissingFieldError("code", "header"))
 			}
-			name = nameRaw
-			idRaw := resp.Header.Get("Loom-Attribute-Id")
-			if idRaw == "" {
-				err = loom.MergeErrors(err, loom.MissingFieldError("id", "header"))
+			code = codeRaw
+			type_Raw := resp.Header.Get("Loom-Attribute-Type")
+			if type_Raw == "" {
+				err = loom.MergeErrors(err, loom.MissingFieldError("type", "header"))
 			}
-			id = idRaw
-			messageRaw := resp.Header.Get("Loom-Attribute-Message")
-			if messageRaw == "" {
-				err = loom.MergeErrors(err, loom.MissingFieldError("message", "header"))
+			type_ = type_Raw
+			titleRaw := resp.Header.Get("Loom-Attribute-Title")
+			if titleRaw == "" {
+				err = loom.MergeErrors(err, loom.MissingFieldError("title", "header"))
 			}
-			message = messageRaw
+			title = titleRaw
 			{
-				temporaryRaw := resp.Header.Get("Loom-Attribute-Temporary")
-				if temporaryRaw == "" {
-					return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("temporary", "header"))
+				statusRaw := resp.Header.Get("Loom-Attribute-Status")
+				if statusRaw == "" {
+					return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("status", "header"))
 				}
-				v, err2 := strconv.ParseBool(temporaryRaw)
+				v, err2 := strconv.ParseInt(statusRaw, 10, strconv.IntSize)
 				if err2 != nil {
-					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("temporary", temporaryRaw, "boolean"))
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("status", statusRaw, "integer"))
 				}
-				temporary = v
+				status = int(v)
 			}
-			{
-				timeoutRaw := resp.Header.Get("Loom-Attribute-Timeout")
-				if timeoutRaw == "" {
-					return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("timeout", "header"))
-				}
-				v, err2 := strconv.ParseBool(timeoutRaw)
-				if err2 != nil {
-					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("timeout", timeoutRaw, "boolean"))
-				}
-				timeout = v
+			detailRaw := resp.Header.Get("Loom-Attribute-Detail")
+			if detailRaw == "" {
+				err = loom.MergeErrors(err, loom.MissingFieldError("detail", "header"))
 			}
-			{
-				faultRaw := resp.Header.Get("Loom-Attribute-Fault")
-				if faultRaw == "" {
-					return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("fault", "header"))
-				}
-				v, err2 := strconv.ParseBool(faultRaw)
-				if err2 != nil {
-					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("fault", faultRaw, "boolean"))
-				}
-				fault = v
+			detail = detailRaw
+			instanceRaw := resp.Header.Get("Loom-Attribute-Instance")
+			if instanceRaw == "" {
+				err = loom.MergeErrors(err, loom.MissingFieldError("instance", "header"))
+			}
+			instance = instanceRaw
+			retryHintRaw := resp.Header.Get("Loom-Attribute-Retry_hint")
+			if retryHintRaw != "" {
+				retryHint = &retryHintRaw
 			}
 			if err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", err)
 			}
-			return nil, NewMethodEmptyErrorResponseBodyInternalError(name, id, message, temporary, timeout, fault)
+			return nil, NewMethodEmptyErrorResponseBodyInternalError(code, type_, title, status, detail, instance, retryHint)
 		case http.StatusNotFound:
 			var (
 				inHeader string

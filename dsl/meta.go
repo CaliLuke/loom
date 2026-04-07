@@ -15,8 +15,8 @@ const DefaultProtoc = expr.DefaultProtoc
 // value consists of a slice of strings so that multiple invocation of the Meta
 // function on the same target using the same key builds up the slice.
 //
-// Meta may appear in attributes, result types, endpoints, responses, services
-// and API definitions.
+// Meta may appear in attributes, examples, result types, endpoints, responses,
+// services and API definitions.
 //
 // While keys can have any value the following names have special meanings:
 //
@@ -351,20 +351,50 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:typename", "Bar")
 //	})
 //
-// - "openapi:component:requestBody" sets the public component name used when a
-// repeated request body is hoisted into `components.requestBodies`. Applicable
-// to payload/body attributes and their underlying user types.
+// - "openapi:component:requestBody" sets the public component name used for a
+// reusable OpenAPI request body. Explicit names force hoisting into
+// `components.requestBodies`, even for single-use request bodies. Applicable to
+// payload/body attributes and their underlying user types.
 //
 //	var SearchFilters = Type("SearchFilters", func() {
 //	    Meta("openapi:component:requestBody", "SearchFiltersRequest")
 //	})
 //
-// - "openapi:component:parameter" sets the public component name used when a
-// repeated path/query/header/cookie parameter is hoisted into
-// `components.parameters`. Applicable to attributes.
+// - "openapi:description:requestBody" sets the OpenAPI requestBody description
+// used for an HTTP request body and for any reusable
+// `components.requestBodies` entry derived from it. Applicable to payload/body
+// attributes and their underlying user types.
+//
+//	var SearchFilters = Type("SearchFilters", func() {
+//	    Meta("openapi:description:requestBody", "Filters used when searching the catalog.")
+//	})
+//
+// - "openapi:component:parameter" sets the public component name used for a
+// reusable OpenAPI parameter. Explicit names force hoisting into
+// `components.parameters`, even for single-use parameters. Applicable to
+// attributes.
 //
 //	Attribute("cursor", String, func() {
 //	    Meta("openapi:component:parameter", "CursorParam")
+//	})
+//
+// - "openapi:component:response" sets the public component name used for a
+// reusable OpenAPI response. Explicit names force hoisting into
+// `components.responses`, even for single-use responses. Applicable to HTTP
+// response blocks.
+//
+//	Response(StatusOK, func() {
+//	    Meta("openapi:component:response", "ThreadResponse")
+//	})
+//
+// - "openapi:component:example" sets public component name used for OpenAPI
+// reusable example object. Explicit names force hoisting into
+// `components.examples`, even for single-use named examples. Applicable to
+// Example blocks.
+//
+//	Example("artifact-thread", func() {
+//	    Meta("openapi:component:example", "ArtifactThreadExample")
+//	    Value(Val{"type": "artifact"})
 //	})
 func Meta(name string, value ...string) {
 	switch e := eval.Current().(type) {

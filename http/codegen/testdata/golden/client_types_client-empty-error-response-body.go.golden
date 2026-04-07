@@ -1,14 +1,8 @@
 // NewMethodEmptyErrorResponseBodyInternalError builds a
 // ServiceEmptyErrorResponseBody service MethodEmptyErrorResponseBody endpoint
 // internal_error error.
-func NewMethodEmptyErrorResponseBodyInternalError(name string, id string, message string, temporary bool, timeout bool, fault bool) *loom.ServiceError {
-	v := &loom.ServiceError{}
-	v.Name = name
-	v.ID = id
-	v.Message = message
-	v.Temporary = temporary
-	v.Timeout = timeout
-	v.Fault = fault
+func NewMethodEmptyErrorResponseBodyInternalError(code string, type_ string, title string, status int, detail string, instance string, retryHint *string) *loom.ServiceError {
+	v := loomhttp.ProblemErrorFromBody(code, 500, detail, instance, retryHint)
 
 	return v
 }

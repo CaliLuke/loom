@@ -258,10 +258,11 @@ func ResponseDecoder(resp *http.Response) Decoder {
 // shape of the response can be overridden by providing a non-nil formatter.
 func ErrorEncoder(encoder func(context.Context, http.ResponseWriter) Encoder, formatter func(ctx context.Context, err error) Statuser) func(context.Context, http.ResponseWriter, error) error {
 	return func(ctx context.Context, w http.ResponseWriter, err error) error {
-		enc := encoder(ctx, w)
 		if formatter == nil {
 			formatter = NewErrorResponse
+			ctx = context.WithValue(ctx, ContentTypeKey, ProblemJSONContentType)
 		}
+		enc := encoder(ctx, w)
 		resp := formatter(ctx, err)
 		w.WriteHeader(resp.StatusCode())
 		return enc.Encode(resp)

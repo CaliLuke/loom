@@ -338,6 +338,9 @@ func normalizeHTTPAttribute(attr *expr.AttributeExpr) *expr.AttributeExpr {
 func normalizeHTTPAttributeRecursive(attr *expr.AttributeExpr, seen map[string]struct{}) *expr.AttributeExpr {
 	switch actual := attr.Type.(type) {
 	case expr.UserType:
+		if len(attr.UserExamples) == 0 {
+			attr.UserExamples = actual.Attribute().ExtractUserExamples()
+		}
 		if _, ok := actual.(*expr.ResultTypeExpr); !ok && !expr.IsObject(actual) {
 			attr.Type = actual.Attribute().Type
 			if validation := actual.Attribute().Validation; validation != nil {
@@ -348,7 +351,6 @@ func normalizeHTTPAttributeRecursive(attr *expr.AttributeExpr, seen map[string]s
 				}
 			}
 			attr.DefaultValue = actual.Attribute().DefaultValue
-			attr.UserExamples = actual.Attribute().UserExamples
 		}
 		if _, ok := seen[actual.ID()]; ok {
 			return attr

@@ -85,11 +85,12 @@ type (
 
 	// Response describes an IR response.
 	Response struct {
-		Description string
-		Headers     map[string]*HeaderRef
-		Content     map[string]*MediaType
-		Links       map[string]*ResponseLinkRef
-		Extensions  map[string]any
+		Description   string
+		ComponentName string `json:"-"`
+		Headers       map[string]*HeaderRef
+		Content       map[string]*MediaType
+		Links         map[string]*ResponseLinkRef
+		Extensions    map[string]any
 	}
 
 	// ResponseLinkRef is a response link reference or value.
@@ -140,9 +141,10 @@ type (
 
 	// Example describes an IR example object.
 	Example struct {
-		Summary     string
-		Description string
-		Value       any
+		Summary       string
+		Description   string
+		ComponentName string
+		Value         any
 	}
 
 	// ExternalDocs describes operation-level external documentation.

@@ -84,6 +84,7 @@ components:
                         - AlphaSchemaDedup
                 value:
                     $ref: '#/components/schemas/AlphaSchemaDedup'
+            description: Synthetic wrapper for union variant "AlphaSchemaDedup".
             required:
                 - type
                 - value
@@ -96,6 +97,7 @@ components:
                         - BetaSchemaDedup
                 value:
                     $ref: '#/components/schemas/BetaSchemaDedup'
+            description: Synthetic wrapper for union variant "BetaSchemaDedup".
             required:
                 - type
                 - value

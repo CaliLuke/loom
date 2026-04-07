@@ -53,9 +53,15 @@ build Auto-K without repeating large amounts of app-local glue.
 - Generated OpenAPI also hoists repeated request bodies, headers, named
   examples, and structurally identical no-body responses into reusable
   components where the public contract shape is stable enough to share safely.
-- Use `ProblemResult` / `ProblemResultIdentifier` when you want
-  RFC 9457-style `application/problem+json` error contracts with a stable
-  machine-readable `code` field instead of the legacy upstream error media type.
+- Loom HTTP default errors now use RFC 9457-style
+  `application/problem+json` documents with a stable machine-readable `code`
+  field instead of the legacy upstream error media type.
+- Use `ProblemResult` / `ProblemResultIdentifier` explicitly when you want to
+  model that same problem-document contract yourself in custom result/error
+  shapes.
+- Use `ProblemType(...)` and `ProblemTitle(...)` inside `Error(...)` blocks
+  when a specific error needs a public RFC 9457 `type` URI or `title`
+  override instead of the framework-generated default.
 - Shared reusable request bodies and responses now prefer schema-derived or
   generic public component names when that contract identity can be inferred
   safely, instead of defaulting to operation-derived names; hash suffixes
@@ -64,6 +70,11 @@ build Auto-K without repeating large amounts of app-local glue.
   request body needs an explicit public component name, and
   `Meta("openapi:component:parameter", "...")` when a hoisted reusable
   path/query/header/cookie parameter needs one.
+- Use `Meta("openapi:component:response", "...")` for reusable response
+  components, `Meta("openapi:component:example", "...")` for reusable named
+  examples, and `Meta("openapi:description:requestBody", "...")` when the
+  public OpenAPI request-body description should differ from the underlying
+  type description.
 - When the same domain type is used on both request and response paths,
   `readOnly` and `writeOnly` metadata now trigger automatic request/response
   schema splitting so server-managed and secret fields do not share one public

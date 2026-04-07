@@ -136,7 +136,7 @@ func TestRenderedUnionSchemasIncludeDiscriminatorMappingsAndEnvelopeRefs(t *test
 			typeKey:   "statusType",
 			valueKey:  "statusDetails",
 			wantTags:  []string{"failure", "success"},
-			envelopes: []string{"StatusfailureEnvelope", "StatussuccessEnvelope"},
+			envelopes: []string{"StatusFailureEnvelope", "StatusSuccessEnvelope"},
 		},
 	}
 
@@ -247,6 +247,44 @@ func TestRenderedSpecUsesExplicitReusableRequestBodyAndParameterNames(t *testing
 	requirePattern(`(?m)^\s+SearchFiltersRequest:$`)
 	requirePattern(`(?m)^\s+- \$ref: '#/components/parameters/WidgetIDParam'$`)
 	requirePattern(`(?m)^\s+\$ref: '#/components/requestBodies/SearchFiltersRequest'$`)
+}
+
+func TestRenderedSpecPreservesNamedRequestBodyExamples(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPINamedRequestBodyExamplesDSL)
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(`(?m)^\s+SearchFiltersRequest:$`)
+	requirePattern(`(?m)^\s+examples:$`)
+	requirePattern(`(?m)^\s+simple:$`)
+	requirePattern(`(?m)^\s+advanced:$`)
+	requirePattern(`(?m)^\s+query: soup$`)
+	requirePattern(`(?m)^\s+query: stew$`)
+}
+
+func TestRenderedSpecPreservesNamedExamplesForExplicitBodyWrapperTypes(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPIExplicitBodyWrapperExamplesDSL)
+
+	requirePattern := func(pattern string) {
+		t.Helper()
+		re := regexp.MustCompile(pattern)
+		if !re.MatchString(spec) {
+			t.Fatalf("spec did not match pattern %q\nspec:\n%s", pattern, spec)
+		}
+	}
+
+	requirePattern(`(?m)^\s+SearchFiltersRequestBody:$`)
+	requirePattern(`(?m)^\s+examples:$`)
+	requirePattern(`(?m)^\s+simple:$`)
+	requirePattern(`(?m)^\s+advanced:$`)
+	requirePattern(`(?m)^\s+query: soup$`)
+	requirePattern(`(?m)^\s+query: stew$`)
 }
 
 func TestRenderedSpecSplitsRequestAndResponseSchemasFromDirectionalMetadata(t *testing.T) {

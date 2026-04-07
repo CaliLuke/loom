@@ -73,7 +73,7 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		contentType = "application/x-www-form-urlencoded"
 	}
 	return &RequestBody{
-		Description:   bodyAttr.Description,
+		Description:   requestBodyDescription(bodyAttr),
 		Required:      endpointIR.Request.MustHaveBody,
 		ComponentName: componentMetaValue(bodyAttr, "openapi:component:requestBody"),
 		Content: map[string]*MediaType{
@@ -81,6 +81,19 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		},
 		Extensions: openapi.ExtensionsFromExpr(bodyAttr.Meta),
 	}
+}
+
+func requestBodyDescription(bodyAttr *expr.AttributeExpr) string {
+	if bodyAttr == nil {
+		return ""
+	}
+	if desc := componentMetaValue(bodyAttr, "openapi:description:requestBody"); desc != "" {
+		return strings.TrimSpace(desc)
+	}
+	if desc := strings.TrimSpace(bodyAttr.Description); desc != "" {
+		return desc
+	}
+	return ""
 }
 
 func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) map[string]*Response {
@@ -161,11 +174,12 @@ func buildResponse(resp *transportir.ResponseStatus, statusCode int, bodies map[
 		desc = fmt.Sprintf("%s response.", http.StatusText(statusCode))
 	}
 	return &Response{
-		Description: desc,
-		Headers:     headers,
-		Content:     content,
-		Links:       buildResponseLinks(resp.Links, currentService),
-		Extensions:  openapi.ExtensionsFromExpr(resp.Meta),
+		Description:   desc,
+		ComponentName: metaValue(resp.Meta, "openapi:component:response"),
+		Headers:       headers,
+		Content:       content,
+		Links:         buildResponseLinks(resp.Links, currentService),
+		Extensions:    openapi.ExtensionsFromExpr(resp.Meta),
 	}
 }
 
@@ -383,9 +397,10 @@ func initExamples(target interface {
 				continue
 			}
 			refs[example.Summary] = &ExampleRef{Value: &Example{
-				Summary:     example.Summary,
-				Description: example.Description,
-				Value:       val,
+				Summary:       example.Summary,
+				Description:   example.Description,
+				ComponentName: metaValue(example.Meta, "openapi:component:example"),
+				Value:         val,
 			}}
 		}
 		if len(refs) > 0 {
@@ -393,6 +408,17 @@ func initExamples(target interface {
 		}
 	case len(examples) == 1:
 		if val, ok := openAPIExampleValue(attr, examples[0].Value); ok {
+			if componentName := metaValue(examples[0].Meta, "openapi:component:example"); componentName != "" {
+				target.setExamples(map[string]*ExampleRef{
+					examples[0].Summary: {Value: &Example{
+						Summary:       examples[0].Summary,
+						Description:   examples[0].Description,
+						ComponentName: componentName,
+						Value:         val,
+					}},
+				})
+				return
+			}
 			target.setExample(val)
 		}
 	default:
@@ -424,6 +450,13 @@ func componentMetaValue(attr *expr.AttributeExpr, key string) string {
 		if value, ok := userType.Attribute().Meta.Last(key); ok && strings.TrimSpace(value) != "" {
 			return value
 		}
+	}
+	return ""
+}
+
+func metaValue(meta expr.MetaExpr, key string) string {
+	if value, ok := meta.Last(key); ok && strings.TrimSpace(value) != "" {
+		return value
 	}
 	return ""
 }

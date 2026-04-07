@@ -9,30 +9,34 @@ import (
 )
 
 func TestLocalLoomSourceFromModeFile(t *testing.T) {
+	const modeFileName = ".loom_source_mode"
+
 	t.Run("local mode returns configured path", func(t *testing.T) {
 		repoRoot := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.com/loom\n"), 0o644))
-		path := filepath.Join(t.TempDir(), loomSourceModeFile)
+		path := filepath.Join(t.TempDir(), modeFileName)
 		require.NoError(t, os.WriteFile(path, []byte("local "+repoRoot+"\n"), 0o644))
-		require.Equal(t, repoRoot, localLoomSourceFromModeFile(path))
+		require.Equal(t, repoRoot, localLoomSourceFromModeFile(path, ""))
 	})
 
 	t.Run("remote mode disables local override", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), loomSourceModeFile)
+		path := filepath.Join(t.TempDir(), modeFileName)
 		require.NoError(t, os.WriteFile(path, []byte("remote\n"), 0o644))
-		require.Empty(t, localLoomSourceFromModeFile(path))
+		require.Empty(t, localLoomSourceFromModeFile(path, ""))
 	})
 
-	t.Run("missing path disables local override", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), loomSourceModeFile)
+	t.Run("implicit local mode uses default source", func(t *testing.T) {
+		repoRoot := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.com/loom\n"), 0o644))
+		path := filepath.Join(t.TempDir(), modeFileName)
 		require.NoError(t, os.WriteFile(path, []byte("local\n"), 0o644))
-		require.Empty(t, localLoomSourceFromModeFile(path))
+		require.Equal(t, repoRoot, localLoomSourceFromModeFile(path, repoRoot))
 	})
 
 	t.Run("stale path disables local override", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), loomSourceModeFile)
+		path := filepath.Join(t.TempDir(), modeFileName)
 		require.NoError(t, os.WriteFile(path, []byte("local /tmp/does-not-exist\n"), 0o644))
-		require.Empty(t, localLoomSourceFromModeFile(path))
+		require.Empty(t, localLoomSourceFromModeFile(path, ""))
 	})
 }
 

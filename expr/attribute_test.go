@@ -103,6 +103,59 @@ func TestTaggedAttribute(t *testing.T) {
 	}
 }
 
+func TestExtractUserExamplesFromExtendedType(t *testing.T) {
+	base := &UserTypeExpr{
+		TypeName: "BaseRequest",
+		AttributeExpr: &AttributeExpr{
+			Type: &Object{
+				&NamedAttributeExpr{
+					Name:      "query",
+					Attribute: &AttributeExpr{Type: String},
+				},
+			},
+			UserExamples: []*ExampleExpr{
+				{Summary: "simple", Value: map[string]any{"query": "soup"}},
+				{Summary: "advanced", Value: map[string]any{"query": "stew"}},
+			},
+		},
+	}
+
+	wrapper := &AttributeExpr{
+		Type: &UserTypeExpr{
+			TypeName: "BaseRequestBody",
+			AttributeExpr: &AttributeExpr{
+				Type: &Object{},
+				Bases: []DataType{
+					base,
+				},
+			},
+		},
+	}
+
+	examples := wrapper.ExtractUserExamples()
+	if len(examples) != 2 {
+		t.Fatalf("got %d examples, expected 2", len(examples))
+	}
+	if examples[0].Summary != "simple" {
+		t.Fatalf("got first example %q, expected simple", examples[0].Summary)
+	}
+	if examples[1].Summary != "advanced" {
+		t.Fatalf("got second example %q, expected advanced", examples[1].Summary)
+	}
+}
+
+func TestExampleExprMeta(t *testing.T) {
+	example := &ExampleExpr{}
+	example.AddMeta("openapi:component:example", "ArtifactThreadExample")
+	if got := example.Meta["openapi:component:example"]; len(got) != 1 || got[0] != "ArtifactThreadExample" {
+		t.Fatalf("got %#v", got)
+	}
+	example.DeleteMeta("openapi:component:example")
+	if _, ok := example.Meta["openapi:component:example"]; ok {
+		t.Fatal("expected metadata to be removed")
+	}
+}
+
 func TestAttributeExprValidate(t *testing.T) {
 	var (
 		ctx           = "ctx"

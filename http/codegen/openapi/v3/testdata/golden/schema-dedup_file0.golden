@@ -61,6 +61,7 @@
         "type": "object"
       },
       "AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope": {
+        "description": "Synthetic wrapper for union variant \"AlphaSchemaDedup\".",
         "properties": {
           "type": {
             "enum": [
@@ -79,6 +80,7 @@
         "type": "object"
       },
       "AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope": {
+        "description": "Synthetic wrapper for union variant \"BetaSchemaDedup\".",
         "properties": {
           "type": {
             "enum": [

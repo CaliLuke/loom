@@ -222,7 +222,7 @@ func recordServiceError(
 			break
 		}
 	}
-	if errExpr.Type == expr.ErrorResult {
+	if expr.IsDefaultErrorResult(errExpr.Type) {
 		if _, ok := seenErrors[errExpr.Name]; !ok {
 			seenErrors[errExpr.Name] = struct{}{}
 			errorInits = append(errorInits, buildErrorInitData(errExpr, scope))

@@ -13,6 +13,26 @@
       }
     },
     "responses": {
+      "ConflictError": {
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        },
+        "description": "conflict: Conflict response."
+      },
+      "NotFoundError": {
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        },
+        "description": "not_found: Not Found response."
+      },
       "OpenAPIThreadAcceptedStatus202Response": {
         "content": {
           "application/json": {
@@ -40,6 +60,16 @@
             }
           }
         }
+      },
+      "TooManyRequestsError": {
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        },
+        "description": "busy: Too Many Requests response."
       }
     },
     "schemas": {
@@ -159,11 +189,9 @@
         "example": {
           "code": "bad_request",
           "detail": "parameter 'p' must be an integer",
-          "fault": true,
           "instance": "urn:loom:error:123abc",
+          "retry_hint": "Correct the payload and retry.",
           "status": 400,
-          "temporary": false,
-          "timeout": false,
           "title": "Bad Request",
           "type": "https://github.com/CaliLuke/loom/problems/bad-request"
         },
@@ -178,14 +206,14 @@
             "example": "parameter 'p' must be an integer",
             "type": "string"
           },
-          "fault": {
-            "description": "Fault indicates whether the problem represents a server-side fault.",
-            "example": true,
-            "type": "boolean"
-          },
           "instance": {
             "description": "Instance identifies this specific occurrence of the problem.",
             "example": "urn:loom:error:123abc",
+            "type": "string"
+          },
+          "retry_hint": {
+            "description": "Retry hint is concise guidance on how to correct the request or retry the operation.",
+            "example": "Correct the payload and retry.",
             "type": "string"
           },
           "status": {
@@ -193,16 +221,6 @@
             "example": 400,
             "format": "int64",
             "type": "integer"
-          },
-          "temporary": {
-            "description": "Temporary indicates whether retrying later may succeed.",
-            "example": false,
-            "type": "boolean"
-          },
-          "timeout": {
-            "description": "Timeout indicates whether the problem was caused by a timeout.",
-            "example": true,
-            "type": "boolean"
           },
           "title": {
             "description": "Title is a short, human-readable summary of the problem type.",
@@ -216,9 +234,12 @@
           }
         },
         "required": [
-          "code",
+          "type",
           "title",
-          "detail"
+          "status",
+          "detail",
+          "instance",
+          "code"
         ],
         "type": "object"
       }
@@ -253,67 +274,13 @@
             "$ref": "#/components/responses/OpenAPIThreadAcceptedStatus202Response"
           },
           "404": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": true,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": true,
-                  "timeout": true,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "not_found: Not Found response."
+            "$ref": "#/components/responses/NotFoundError"
           },
           "409": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": false,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": false,
-                  "timeout": true,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "conflict: Conflict response."
+            "$ref": "#/components/responses/ConflictError"
           },
           "429": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": false,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": false,
-                  "timeout": true,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "busy: Too Many Requests response."
+            "$ref": "#/components/responses/TooManyRequestsError"
           }
         },
         "security": [],
@@ -347,67 +314,13 @@
             "description": "OK response."
           },
           "404": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": false,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": false,
-                  "timeout": true,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "not_found: Not Found response."
+            "$ref": "#/components/responses/NotFoundError"
           },
           "409": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": true,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": true,
-                  "timeout": false,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "conflict: Conflict response."
+            "$ref": "#/components/responses/ConflictError"
           },
           "429": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": true,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": true,
-                  "timeout": true,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "busy: Too Many Requests response."
+            "$ref": "#/components/responses/TooManyRequestsError"
           }
         },
         "security": [],
@@ -430,67 +343,13 @@
             "description": "No Content response."
           },
           "404": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": false,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": true,
-                  "timeout": false,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "not_found: Not Found response."
+            "$ref": "#/components/responses/NotFoundError"
           },
           "409": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": false,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": false,
-                  "timeout": false,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "conflict: Conflict response."
+            "$ref": "#/components/responses/ConflictError"
           },
           "429": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": false,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": true,
-                  "timeout": false,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "busy: Too Many Requests response."
+            "$ref": "#/components/responses/TooManyRequestsError"
           }
         },
         "security": [],
@@ -530,34 +389,13 @@
             "description": "OK response."
           },
           "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "not_found: Not Found response."
+            "$ref": "#/components/responses/NotFoundError"
           },
           "409": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "conflict: Conflict response."
+            "$ref": "#/components/responses/ConflictError"
           },
           "429": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "busy: Too Many Requests response."
+            "$ref": "#/components/responses/TooManyRequestsError"
           }
         },
         "security": [],
@@ -655,67 +493,13 @@
             "$ref": "#/components/responses/OpenAPIThreadAcceptedStatus202Response"
           },
           "404": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": true,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": true,
-                  "timeout": false,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "not_found: Not Found response."
+            "$ref": "#/components/responses/NotFoundError"
           },
           "409": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": false,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": true,
-                  "timeout": false,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "conflict: Conflict response."
+            "$ref": "#/components/responses/ConflictError"
           },
           "429": {
-            "content": {
-              "application/problem+json": {
-                "example": {
-                  "code": "bad_request",
-                  "detail": "parameter 'p' must be an integer",
-                  "fault": false,
-                  "instance": "urn:loom:error:123abc",
-                  "status": 400,
-                  "temporary": true,
-                  "timeout": true,
-                  "title": "Bad Request",
-                  "type": "https://github.com/CaliLuke/loom/problems/bad-request"
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "busy: Too Many Requests response."
+            "$ref": "#/components/responses/TooManyRequestsError"
           }
         },
         "security": [],

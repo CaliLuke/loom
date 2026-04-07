@@ -651,7 +651,8 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 	a.unionBranchSchemas[key] = name
 
 	branchSchema := &Schema{
-		Type: string(openapi.Object),
+		Type:        string(openapi.Object),
+		Description: syntheticUnionBranchSchemaDescription(val),
 		Properties: map[string]*Schema{
 			union.GetTypeKey(): {
 				Type: string(openapi.String),
@@ -723,6 +724,11 @@ func sortedUnionValues(union *expr.Union) []*expr.NamedAttributeExpr {
 }
 
 func deterministicUnionBranchSchemaName(union *expr.Union, val *expr.NamedAttributeExpr) string {
+	if explicit, ok := val.Attribute.Meta.Last("openapi:component:unionEnvelope"); ok {
+		if explicit = strings.TrimSpace(explicit); explicit != "" {
+			return normalizedOpenAPINamePart(explicit)
+		}
+	}
 	unionName := strings.TrimSpace(union.TypeName)
 	if unionName == "" {
 		unionName = "Union"
@@ -731,7 +737,44 @@ func deterministicUnionBranchSchemaName(union *expr.Union, val *expr.NamedAttrib
 	if branchName == "" {
 		branchName = "Value"
 	}
-	return codegen.Goify(fmt.Sprintf("%s%sEnvelope", unionName, branchName), true)
+	return normalizedOpenAPINamePart(unionName) + normalizedOpenAPINamePart(branchName) + "Envelope"
+}
+
+func normalizedOpenAPINamePart(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return !(r >= '0' && r <= '9' || r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z')
+	})
+	if len(parts) == 0 {
+		return codegen.Goify(raw, true)
+	}
+	var out strings.Builder
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		out.WriteString(codegen.Goify(part, true))
+	}
+	if out.Len() == 0 {
+		return codegen.Goify(raw, true)
+	}
+	return out.String()
+}
+
+func syntheticUnionBranchSchemaDescription(val *expr.NamedAttributeExpr) string {
+	if explicit, ok := val.Attribute.Meta.Last("openapi:description:unionEnvelope"); ok {
+		if explicit = strings.TrimSpace(explicit); explicit != "" {
+			return explicit
+		}
+	}
+	tag := strings.TrimSpace(expr.UnionVariantTag(val))
+	if tag == "" {
+		return "Synthetic wrapper for union variant."
+	}
+	return fmt.Sprintf(`Synthetic wrapper for union variant %q.`, tag)
 }
 
 func findMatchingSchemaRef(refs []schemaRef, metaRef string, explicit bool) string {

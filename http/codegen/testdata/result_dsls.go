@@ -863,7 +863,7 @@ var EmptyErrorResponseBodyDSL = func() {
 				Response(StatusOK)
 				Response("internal_error", StatusInternalServerError, func() {
 					Body(Empty)
-					Header("name:Error-Name")
+					Header("code:Error-Code")
 				})
 				Response("not_found", StatusNotFound, func() {
 					Body(Empty)

@@ -25,7 +25,11 @@ set_local() {
     echo "local Loom checkout not found at ${LOCAL_LOOM_DIR}" >&2
     exit 1
   fi
-  printf 'local %s\n' "${LOCAL_LOOM_DIR}" > "${MODE_FILE}"
+  if [[ "${LOCAL_LOOM_DIR}" == "${ROOT_DIR}" ]]; then
+    printf 'local\n' > "${MODE_FILE}"
+  else
+    printf 'local %s\n' "${LOCAL_LOOM_DIR}" > "${MODE_FILE}"
+  fi
   echo "loom source mode: local (${LOCAL_LOOM_DIR})"
 }
 
@@ -41,7 +45,11 @@ show_status() {
   fi
   case "$(cut -d' ' -f1 < "${MODE_FILE}")" in
     local)
-      echo "loom source mode: $(cat "${MODE_FILE}")"
+      if [[ "$(wc -w < "${MODE_FILE}")" -ge 2 ]]; then
+        echo "loom source mode: $(cat "${MODE_FILE}")"
+      else
+        echo "loom source mode: local ${ROOT_DIR}"
+      fi
       ;;
     remote)
       echo "loom source mode: remote"

@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -290,16 +291,16 @@ func TestHTTPFileServerPathNormalizationAndWildcardExtraction(t *testing.T) {
 	}
 }
 
-func TestHTTPErrorResponseContentTypeSuppression(t *testing.T) {
+func TestHTTPErrorResponseContentTypeDefaulting(t *testing.T) {
 	cases := []struct {
 		name string
 		dsl  func()
 		want string
 	}{
 		{
-			name: "default error response suppresses sentinel",
+			name: "default error response uses problem json",
 			dsl:  testdata.DefaultErrorResponseDSL,
-			want: "",
+			want: "application/problem+json",
 		},
 		{
 			name: "explicit error response content type preserved",
@@ -317,6 +318,16 @@ func TestHTTPErrorResponseContentTypeSuppression(t *testing.T) {
 			require.Equal(t, c.want, endpoint.Errors[0].Errors[0].Response.ContentType)
 		})
 	}
+}
+
+func TestBuildProblemClientResultTransformCodeWithoutBody(t *testing.T) {
+	args := []*InitArgData{
+		{AttributeData: &AttributeData{Name: "code", VarName: "code"}},
+	}
+
+	got := buildProblemClientResultTransformCode(&transportir.ResponseStatus{StatusCode: http.StatusInternalServerError}, false, args)
+
+	require.Equal(t, `v := loomhttp.ProblemErrorFromBody(code, 500, "", "", nil)`, got)
 }
 
 func TestHTTPResultAndErrorInitArgAssembly(t *testing.T) {

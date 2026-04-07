@@ -35,17 +35,17 @@
           "entry": {
             "discriminator": {
               "mapping": {
-                "comment_added": "#/components/schemas/EntrycommentAddedEnvelope",
-                "task_closed": "#/components/schemas/EntrytaskClosedEnvelope"
+                "comment_added": "#/components/schemas/EntryCommentAddedEnvelope",
+                "task_closed": "#/components/schemas/EntryTaskClosedEnvelope"
               },
               "propertyName": "type"
             },
             "oneOf": [
               {
-                "$ref": "#/components/schemas/EntrycommentAddedEnvelope"
+                "$ref": "#/components/schemas/EntryCommentAddedEnvelope"
               },
               {
-                "$ref": "#/components/schemas/EntrytaskClosedEnvelope"
+                "$ref": "#/components/schemas/EntryTaskClosedEnvelope"
               }
             ],
             "type": "object",
@@ -104,7 +104,8 @@
         ],
         "type": "object"
       },
-      "EntrycommentAddedEnvelope": {
+      "EntryCommentAddedEnvelope": {
+        "description": "Synthetic wrapper for union variant \"comment_added\".",
         "properties": {
           "type": {
             "enum": [
@@ -122,7 +123,8 @@
         ],
         "type": "object"
       },
-      "EntrytaskClosedEnvelope": {
+      "EntryTaskClosedEnvelope": {
+        "description": "Synthetic wrapper for union variant \"task_closed\".",
         "properties": {
           "type": {
             "enum": [

@@ -28,9 +28,9 @@
     "responses": {
       "BadRequestError": {
         "content": {
-          "application/vnd.loom.error": {
+          "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "$ref": "#/components/schemas/Problem"
             }
           }
         },
@@ -38,9 +38,9 @@
       },
       "ForbiddenError": {
         "content": {
-          "application/vnd.loom.error": {
+          "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "$ref": "#/components/schemas/Problem"
             }
           }
         },
@@ -51,9 +51,9 @@
       },
       "TooManyRequestsError": {
         "content": {
-          "application/vnd.loom.error": {
+          "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "$ref": "#/components/schemas/Problem"
             }
           }
         },
@@ -61,9 +61,9 @@
       },
       "UnauthorizedError": {
         "content": {
-          "application/vnd.loom.error": {
+          "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "$ref": "#/components/schemas/Problem"
             }
           }
         },
@@ -71,58 +71,6 @@
       }
     },
     "schemas": {
-      "Error": {
-        "additionalProperties": false,
-        "example": {
-          "fault": false,
-          "id": "123abc",
-          "message": "parameter 'p' must be an integer",
-          "name": "bad_request",
-          "temporary": true,
-          "timeout": true
-        },
-        "properties": {
-          "fault": {
-            "description": "Is the error a server-side fault?",
-            "example": false,
-            "type": "boolean"
-          },
-          "id": {
-            "description": "ID is a unique identifier for this particular occurrence of the problem.",
-            "example": "123abc",
-            "type": "string"
-          },
-          "message": {
-            "description": "Message is a human-readable explanation specific to this occurrence of the problem.",
-            "example": "parameter 'p' must be an integer",
-            "type": "string"
-          },
-          "name": {
-            "description": "Name is the name of this class of errors.",
-            "example": "bad_request",
-            "type": "string"
-          },
-          "temporary": {
-            "description": "Is the error temporary?",
-            "example": true,
-            "type": "boolean"
-          },
-          "timeout": {
-            "description": "Is the error a timeout?",
-            "example": true,
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "name",
-          "id",
-          "message",
-          "temporary",
-          "timeout",
-          "fault"
-        ],
-        "type": "object"
-      },
       "HealthResponseBody": {
         "additionalProperties": false,
         "example": {
@@ -152,23 +100,23 @@
       "ImportPantryRequestBody": {
         "additionalProperties": false,
         "example": {
-          "content_type": "Vel qui.",
-          "file": "Eligendi non ut.",
-          "filename": "Quos ut libero quaerat et est.",
+          "content_type": "Quos ut libero quaerat et est.",
+          "file": "Odit accusantium aut qui.",
+          "filename": "Eligendi non ut.",
           "label": "scan-weekly"
         },
         "properties": {
           "content_type": {
-            "example": "Odit accusantium aut qui.",
+            "example": "Et dolore qui.",
             "type": "string"
           },
           "file": {
-            "example": "Quia iste recusandae suscipit doloremque earum numquam.",
+            "example": "Odit ut mollitia molestias vero quidem quia.",
             "format": "binary",
             "type": "string"
           },
           "filename": {
-            "example": "Et dolore qui.",
+            "example": "Recusandae suscipit doloremque earum numquam.",
             "type": "string"
           },
           "label": {
@@ -436,6 +384,65 @@
         ],
         "type": "object"
       },
+      "Problem": {
+        "additionalProperties": false,
+        "example": {
+          "code": "bad_request",
+          "detail": "parameter 'p' must be an integer",
+          "instance": "urn:loom:error:123abc",
+          "retry_hint": "Correct the payload and retry.",
+          "status": 400,
+          "title": "Bad Request",
+          "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+        },
+        "properties": {
+          "code": {
+            "description": "Code is the stable machine-readable problem code.",
+            "example": "bad_request",
+            "type": "string"
+          },
+          "detail": {
+            "description": "Detail is a human-readable explanation specific to this occurrence of the problem.",
+            "example": "parameter 'p' must be an integer",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Instance identifies this specific occurrence of the problem.",
+            "example": "urn:loom:error:123abc",
+            "type": "string"
+          },
+          "retry_hint": {
+            "description": "Retry hint is concise guidance on how to correct the request or retry the operation.",
+            "example": "Correct the payload and retry.",
+            "type": "string"
+          },
+          "status": {
+            "description": "Status is the HTTP status code generated for this occurrence of the problem.",
+            "example": 400,
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Title is a short, human-readable summary of the problem type.",
+            "example": "Bad Request",
+            "type": "string"
+          },
+          "type": {
+            "description": "Type identifies the problem category using a URI reference.",
+            "example": "https://github.com/CaliLuke/loom/problems/bad-request",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code"
+        ],
+        "type": "object"
+      },
       "RecipePairSelection": {
         "additionalProperties": false,
         "example": {
@@ -520,12 +527,6 @@
             "id": "recipe_42",
             "minutes": 30,
             "title": "Sheet Pan Gnocchi"
-          },
-          {
-            "difficulty": "easy",
-            "id": "recipe_42",
-            "minutes": 30,
-            "title": "Sheet Pan Gnocchi"
           }
         ],
         "items": {
@@ -539,17 +540,17 @@
           "selection": {
             "discriminator": {
               "mapping": {
-                "pair": "#/components/schemas/SelectionpairEnvelope",
-                "single": "#/components/schemas/SelectionsingleEnvelope"
+                "pair": "#/components/schemas/SelectionPairEnvelope",
+                "single": "#/components/schemas/SelectionSingleEnvelope"
               },
               "propertyName": "mode"
             },
             "oneOf": [
               {
-                "$ref": "#/components/schemas/SelectionpairEnvelope"
+                "$ref": "#/components/schemas/SelectionPairEnvelope"
               },
               {
-                "$ref": "#/components/schemas/SelectionsingleEnvelope"
+                "$ref": "#/components/schemas/SelectionSingleEnvelope"
               }
             ],
             "type": "object",
@@ -558,7 +559,8 @@
         },
         "type": "object"
       },
-      "SelectionpairEnvelope": {
+      "SelectionPairEnvelope": {
+        "description": "Synthetic wrapper for union variant \"pair\".",
         "properties": {
           "mode": {
             "enum": [
@@ -576,7 +578,8 @@
         ],
         "type": "object"
       },
-      "SelectionsingleEnvelope": {
+      "SelectionSingleEnvelope": {
+        "description": "Synthetic wrapper for union variant \"single\".",
         "properties": {
           "mode": {
             "enum": [
@@ -850,11 +853,6 @@
                     "day": "monday",
                     "recipe_id": "recipe_42",
                     "slot": "dinner"
-                  },
-                  {
-                    "day": "monday",
-                    "recipe_id": "recipe_42",
-                    "slot": "dinner"
                   }
                 ]
               },
@@ -870,11 +868,6 @@
               "application/json": {
                 "example": {
                   "meals": [
-                    {
-                      "day": "monday",
-                      "recipe_id": "recipe_42",
-                      "slot": "dinner"
-                    },
                     {
                       "day": "monday",
                       "recipe_id": "recipe_42",
@@ -994,9 +987,9 @@
           "content": {
             "multipart/form-data": {
               "example": {
-                "content_type": "Iure aliquid quae vero.",
-                "file": "Quis nihil quis amet.",
-                "filename": "Ut ut dicta aliquid possimus voluptas.",
+                "content_type": "Harum rerum a.",
+                "file": "Illo iusto.",
+                "filename": "Magni architecto aliquid.",
                 "label": "scan-weekly"
               },
               "schema": {
@@ -1167,12 +1160,6 @@
                     "id": "recipe_42",
                     "minutes": 30,
                     "title": "Sheet Pan Gnocchi"
-                  },
-                  {
-                    "difficulty": "easy",
-                    "id": "recipe_42",
-                    "minutes": 30,
-                    "title": "Sheet Pan Gnocchi"
                   }
                 ],
                 "schema": {
@@ -1256,9 +1243,9 @@
           },
           "404": {
             "content": {
-              "application/vnd.loom.error": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },

@@ -375,7 +375,10 @@ func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
 		args, code := initRenderData(init, client)
 		typ := initRenderTarget(client)
-		fieldInitCode := strings.TrimRight(fieldCode(init, typ), "\n\t ")
+		fieldInitCode := ""
+		if !init.SkipFieldInit {
+			fieldInitCode = strings.TrimRight(fieldCode(init, typ), "\n\t ")
+		}
 
 		stmt.Line()
 		codegen.Doc(stmt, init.Description)

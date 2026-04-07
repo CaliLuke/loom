@@ -1,57 +1,6 @@
 {
   "components": {
     "schemas": {
-      "Error": {
-        "example": {
-          "fault": true,
-          "id": "123abc",
-          "message": "parameter 'p' must be an integer",
-          "name": "bad_request",
-          "temporary": true,
-          "timeout": true
-        },
-        "properties": {
-          "fault": {
-            "description": "Is the error a server-side fault?",
-            "example": true,
-            "type": "boolean"
-          },
-          "id": {
-            "description": "ID is a unique identifier for this particular occurrence of the problem.",
-            "example": "123abc",
-            "type": "string"
-          },
-          "message": {
-            "description": "Message is a human-readable explanation specific to this occurrence of the problem.",
-            "example": "parameter 'p' must be an integer",
-            "type": "string"
-          },
-          "name": {
-            "description": "Name is the name of this class of errors.",
-            "example": "bad_request",
-            "type": "string"
-          },
-          "temporary": {
-            "description": "Is the error temporary?",
-            "example": true,
-            "type": "boolean"
-          },
-          "timeout": {
-            "description": "Is the error a timeout?",
-            "example": false,
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "name",
-          "id",
-          "message",
-          "temporary",
-          "timeout",
-          "fault"
-        ],
-        "type": "object"
-      },
       "LoomCustomError": {
         "example": {
           "message": "error message",
@@ -70,6 +19,64 @@
         "required": [
           "name",
           "message"
+        ],
+        "type": "object"
+      },
+      "Problem": {
+        "example": {
+          "code": "bad_request",
+          "detail": "parameter 'p' must be an integer",
+          "instance": "urn:loom:error:123abc",
+          "retry_hint": "Correct the payload and retry.",
+          "status": 400,
+          "title": "Bad Request",
+          "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+        },
+        "properties": {
+          "code": {
+            "description": "Code is the stable machine-readable problem code.",
+            "example": "bad_request",
+            "type": "string"
+          },
+          "detail": {
+            "description": "Detail is a human-readable explanation specific to this occurrence of the problem.",
+            "example": "parameter 'p' must be an integer",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Instance identifies this specific occurrence of the problem.",
+            "example": "urn:loom:error:123abc",
+            "type": "string"
+          },
+          "retry_hint": {
+            "description": "Retry hint is concise guidance on how to correct the request or retry the operation.",
+            "example": "Correct the payload and retry.",
+            "type": "string"
+          },
+          "status": {
+            "description": "Status is the HTTP status code generated for this occurrence of the problem.",
+            "example": 400,
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Title is a short, human-readable summary of the problem type.",
+            "example": "Bad Request",
+            "type": "string"
+          },
+          "type": {
+            "description": "Type identifies the problem category using a URI reference.",
+            "example": "https://github.com/CaliLuke/loom/problems/bad-request",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code"
         ],
         "type": "object"
       }
@@ -91,17 +98,9 @@
           },
           "400": {
             "content": {
-              "application/vnd.loom.error": {
-                "example": {
-                  "fault": false,
-                  "id": "foo",
-                  "message": "request is invalid",
-                  "name": "bad_request",
-                  "temporary": false,
-                  "timeout": false
-                },
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
@@ -109,9 +108,9 @@
           },
           "404": {
             "content": {
-              "application/vnd.loom.error": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },

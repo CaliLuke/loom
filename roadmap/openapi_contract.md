@@ -187,25 +187,30 @@ Acceptance:
 Status: completed
 
 Problem:
-The framework still defaults to `application/vnd.loom.error`, which is not the
-best machine-facing contract for SDKs and automation.
+The framework needed a standards-first default HTTP error contract that still
+preserved stable machine-readable Loom error codes for SDKs and automation.
 
 Scope:
 
-- Add first-class support for `application/problem+json` or a close
-  RFC 9457-compatible profile.
+- Make `application/problem+json` the default HTTP error contract and keep the
+  RFC 9457 profile first-class across transport generation and runtime helpers.
 - Preserve stable machine-readable error codes in the generated contract.
+- Allow error-local RFC 9457 `type` and `title` overrides where the framework
+  default is not the right public contract.
 - Reuse shared error components and responses where possible.
 
 Out of scope:
 
-- A forced breaking migration for all consumers in one step.
 - Per-application custom error vocabularies outside the framework-owned model.
 
 Acceptance:
 
 - The framework can publish standards-first typed errors without handwritten
   OpenAPI patches.
+- Default Loom HTTP errors now render as RFC 9457 problem documents with
+  stable `code`, `instance`, and `retry_hint` fields where applicable.
+- Error-local `ProblemType(...)` and `ProblemTitle(...)` metadata can override
+  the generated public problem contract.
 - Reusable problem schemas and responses are generated and validated.
 - Transport and runtime expectations remain coherent with generated contracts.
 
@@ -222,6 +227,9 @@ Scope:
 
 - Add explicit component naming controls for request bodies and parameters where
   a public identity exists but automatic hoisting is not sufficient.
+- Add explicit component naming controls for reusable responses and named
+  examples, plus explicit request-body descriptions where the public contract
+  wording should differ from the model description.
 - Add automatic request/response schema splitting on top of the existing
   metadata pass when the same domain type would otherwise leak secrets or
   server-managed fields both ways.
@@ -235,6 +243,8 @@ Acceptance:
 
 - The framework can publish stable request-body and parameter components without
   app-specific manual OpenAPI patching.
+- The framework can publish stable reusable response/example components and
+  request-body descriptions without app-specific manual OpenAPI patching.
 - Request/response schema splitting removes real secret/computed-field glue in
   consuming apps.
 - Tests cover both explicit metadata-driven naming and automatic split-schema

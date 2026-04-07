@@ -375,17 +375,20 @@ func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Se
 			}
 			addJSONRPCWebSocketResultSendMethods(stmt, streamName, ed)
 		}
-		codegen.Doc(stmt, "SendError streams JSON-RPC errors.")
-		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
+		sendErrorDecl := &jen.Statement{}
+		codegen.Doc(sendErrorDecl, "SendError streams JSON-RPC errors.")
+		sendErrorDecl.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 			Id("SendError").
 			Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("id").Any(), jen.Id("err").Error()).
 			Error().
 			BlockFunc(func(g *jen.Group) {
 				writeStreamErrorDataSwitch(g, allErrors(data), jen.Id("id"))
 			})
+		stmt.Add(sendErrorDecl)
 		stmt.Line()
-		codegen.Doc(stmt, "send writes a JSON-RPC response to the websocket connection.")
-		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
+		sendDecl := &jen.Statement{}
+		codegen.Doc(sendDecl, "send writes a JSON-RPC response to the websocket connection.")
+		sendDecl.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 			Id("send").
 			Params(jen.Id("id").Any(), jen.Id("method").String(), jen.Id("result").Any()).
 			Error().
@@ -395,9 +398,11 @@ func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Se
 				),
 				jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("result")))),
 			)
+		stmt.Add(sendDecl)
 		stmt.Line()
-		codegen.Doc(stmt, "sendError sends a JSON-RPC error response to the websocket connection.")
-		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
+		sendErrorResponseDecl := &jen.Statement{}
+		codegen.Doc(sendErrorResponseDecl, "sendError sends a JSON-RPC error response to the websocket connection.")
+		sendErrorResponseDecl.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 			Id("sendError").
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
@@ -411,6 +416,7 @@ func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Se
 				jen.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeErrorResponse").Call(jen.Id("id"), jen.Id("code"), jen.Id("message"), jen.Id("data")),
 				jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Id("response"))),
 			)
+		stmt.Add(sendErrorResponseDecl)
 	})
 }
 
@@ -453,28 +459,41 @@ func addJSONRPCWebSocketResultSendMethods(stmt *jen.Statement, streamName string
 
 func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *httpcodegen.EndpointData, notification bool) {
 	methodName, doc := jsonrpcWebSocketSendMethodMeta(ed, notification)
-	fn := stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).Id(methodName)
+	decl := &jen.Statement{}
+	codegen.Doc(decl, doc)
 	if notification {
-		codegen.Doc(stmt, doc)
-		fn.Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref))).Error().BlockFunc(func(g *jen.Group) {
-			writeStreamResultBodyInit(g, "body", "result", ed)
-			g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
-				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
-			))
-		})
+		decl.
+			Func().
+			Params(jen.Id("s").Op("*").Id(streamName)).
+			Id(methodName).
+			Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref))).
+			Error().
+			BlockFunc(func(g *jen.Group) {
+				writeStreamResultBodyInit(g, "body", "result", ed)
+				g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
+					jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
+				))
+			})
+		stmt.Add(decl)
 		return
 	}
-	codegen.Doc(stmt, doc)
-	fn.Params(
-		jen.Id("ctx").Qual("context", "Context"),
-		jen.Id("id").Any(),
-		jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref)),
-	).Error().BlockFunc(func(g *jen.Group) {
-		writeStreamResultBodyInit(g, "body", "result", ed)
-		g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
-			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
-		))
-	})
+	decl.
+		Func().
+		Params(jen.Id("s").Op("*").Id(streamName)).
+		Id(methodName).
+		Params(
+			jen.Id("ctx").Qual("context", "Context"),
+			jen.Id("id").Any(),
+			jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref)),
+		).
+		Error().
+		BlockFunc(func(g *jen.Group) {
+			writeStreamResultBodyInit(g, "body", "result", ed)
+			g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
+				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
+			))
+		})
+	stmt.Add(decl)
 }
 
 func jsonrpcWebSocketSendMethodMeta(ed *httpcodegen.EndpointData, notification bool) (string, string) {

@@ -38,6 +38,38 @@ func TestBuildDocumentIncludesRequestBodyAndResponses(t *testing.T) {
 	require.Equal(t, "No Content response.", operation.Responses["204"].Value.Description)
 }
 
+func TestBuildDocumentUsesExplicitRequestBodyDescriptionMeta(t *testing.T) {
+	const (
+		serviceName = "test service"
+		methodName  = "explicit_request_body_description"
+	)
+
+	root := codegen.RunDSL(t, func() {
+		bodyType := dsl.Type("NamedBody", func() {
+			dsl.Description("Type description that should not implicitly become the request body description.")
+			dsl.Meta("openapi:description:requestBody", "Human-friendly request body description.")
+			dsl.Attribute("name", dsl.String)
+		})
+		dsl.Service(serviceName, func() {
+			dsl.Method(methodName, func() {
+				dsl.Payload(bodyType)
+				dsl.HTTP(func() {
+					dsl.POST("/")
+					dsl.Body(bodyType)
+				})
+			})
+		})
+	})
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+
+	path := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0].FullPaths()[0]
+	operation := doc.Paths[path].Operations["POST"]
+	require.NotNil(t, operation)
+	require.NotNil(t, operation.RequestBody)
+	require.NotNil(t, operation.RequestBody.Value)
+	require.Equal(t, "Human-friendly request body description.", operation.RequestBody.Value.Description)
+}
+
 func TestBuildDocumentCarriesErrorRemedyDescriptions(t *testing.T) {
 	const (
 		serviceName = "test service"

@@ -87,7 +87,7 @@ func componentizeParameters(paths map[string]*PathItem) map[string]*ParameterRef
 			continue
 		}
 		hash, err := parameterHash(ref.Value)
-		if err != nil || counts[hash] < 2 {
+		if err != nil || (!shouldForceComponentizeParameter(ref.Value) && counts[hash] < 2) {
 			continue
 		}
 		name, ok := namesByHash[hash]
@@ -124,6 +124,10 @@ func componentizeExamples(paths map[string]*PathItem) map[string]*ExampleRef {
 			ref.Value = nil
 		},
 		func(value *Example) *ExampleRef { return &ExampleRef{Value: value} },
+		func(usage componentUsage[Example, *ExampleRef]) bool {
+			example := valueOfExampleRef(usage.ref)
+			return example != nil && strings.TrimSpace(example.ComponentName) != ""
+		},
 	)
 }
 
@@ -145,6 +149,7 @@ func componentizeHeaders(paths map[string]*PathItem) map[string]*HeaderRef {
 			ref.Value = nil
 		},
 		func(value *Header) *HeaderRef { return &HeaderRef{Value: value} },
+		func(componentUsage[Header, *HeaderRef]) bool { return false },
 	)
 }
 
@@ -170,6 +175,9 @@ func componentizeRequestBodies(paths map[string]*PathItem, schemas map[string]*S
 			ref.Value = nil
 		},
 		func(value *RequestBody) *RequestBodyRef { return &RequestBodyRef{Value: value} },
+		func(usage componentUsage[RequestBody, *RequestBodyRef]) bool {
+			return shouldForceComponentizeRequestBody(requestBodyValue(usage.ref))
+		},
 	)
 }
 
@@ -191,16 +199,14 @@ func componentizeResponses(paths map[string]*PathItem, schemas map[string]*Schem
 			continue
 		}
 		hash, err := responseHash(usage.ref, schemas)
-		if err != nil || counts[hash] < 2 {
+		if err != nil || (!shouldForceComponentizeResponse(usage.ref.Value) && counts[hash] < 2) {
 			continue
 		}
 		name, ok := namesByHash[hash]
 		if !ok {
 			base := usage.base
-			if standardErrorResponseComponentBase(usage.status) == "" {
-				if inferred := reusableResponseComponentBase(usage.ref, usage.status, schemas); inferred != "" {
-					base = inferred
-				}
+			if inferred := reusableResponseComponentBase(usage.ref, usage.status, schemas); inferred != "" {
+				base = inferred
 			}
 			name = uniqueReusableComponentName(base, hash, hashesByName)
 			namesByHash[hash] = name
@@ -458,6 +464,15 @@ func reusableResponseComponentBase(ref *ResponseRef, status string, schemas map[
 	if ref == nil || ref.Value == nil {
 		return ""
 	}
+	if strings.TrimSpace(ref.Value.ComponentName) != "" {
+		return strings.TrimSpace(ref.Value.ComponentName)
+	}
+	if base := reusableErrorResponseComponentBase(ref.Value, status, schemas); base != "" {
+		return base
+	}
+	if base := standardErrorResponseComponentBase(status); base != "" {
+		return base
+	}
 	if base := genericEmptyResponseComponentBase(ref.Value, status); base != "" {
 		return base
 	}
@@ -471,6 +486,61 @@ func reusableResponseComponentBase(ref *ResponseRef, status string, schemas map[
 		return ""
 	}
 	return schemaName + mediaTypeComponentSuffix(contentType) + responseStatusComponentSuffix(status) + "Response"
+}
+
+func reusableErrorResponseComponentBase(response *Response, status string, schemas map[string]*Schema) string {
+	if response == nil || !isErrorSchemaResponse(response, schemas) {
+		return ""
+	}
+	if code := responseErrorCode(response.Description); code != "" {
+		if generic := genericErrorCodeForStatus(status); generic != "" && code == generic {
+			return standardErrorResponseComponentBase(status)
+		}
+		return semanticErrorComponentBase(code)
+	}
+	return ""
+}
+
+func isErrorSchemaResponse(response *Response, schemas map[string]*Schema) bool {
+	if response == nil || len(response.Content) != 1 {
+		return false
+	}
+	contentType := orderedStringKeys(response.Content)[0]
+	mediaType := response.Content[contentType]
+	schemaName, ok := componentSchemaNameFromMediaType(mediaType, schemas)
+	return ok && schemaName == "Error"
+}
+
+func responseErrorCode(description string) string {
+	desc := strings.TrimSpace(description)
+	if desc == "" {
+		return ""
+	}
+	code, _, ok := strings.Cut(desc, ":")
+	if !ok {
+		return ""
+	}
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return ""
+	}
+	for _, r := range code {
+		if !(r == '_' || r == '-' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
+			return ""
+		}
+	}
+	return code
+}
+
+func semanticErrorComponentBase(code string) string {
+	base := codegen.Goify(code, true)
+	if base == "" {
+		return "Error"
+	}
+	if strings.HasSuffix(base, "Error") {
+		return base
+	}
+	return base + "Error"
 }
 
 func genericEmptyResponseComponentBase(response *Response, status string) string {
@@ -551,6 +621,27 @@ func standardErrorResponseComponentBase(status string) string {
 	}
 }
 
+func genericErrorCodeForStatus(status string) string {
+	switch strings.TrimSpace(status) {
+	case "400":
+		return "bad_request"
+	case "401":
+		return "unauthorized"
+	case "403":
+		return "forbidden"
+	case "404":
+		return "not_found"
+	case "409":
+		return "conflict"
+	case "422":
+		return "unprocessable_entity"
+	case "429":
+		return "rate_limited"
+	default:
+		return ""
+	}
+}
+
 func orderedPathKeys(paths map[string]*PathItem) []string {
 	keys := make([]string, 0, len(paths))
 	for path := range paths {
@@ -602,6 +693,7 @@ func componentizeReusableRefs[U any, V any, R any](
 	valueOf func(R) *V,
 	setRef func(R, string),
 	newRef func(*V) R,
+	shouldForce func(componentUsage[V, R]) bool,
 ) map[string]R {
 	if len(usages) == 0 {
 		return nil
@@ -626,12 +718,16 @@ func componentizeReusableRefs[U any, V any, R any](
 	for _, usage := range mapped {
 		value := valueOf(usage.ref)
 		hash, err := hashReusableValue(value)
-		if err != nil || counts[hash] < 2 {
+		if err != nil || (!shouldForce(usage) && counts[hash] < 2) {
 			continue
 		}
 		name, ok := namesByHash[hash]
 		if !ok {
-			name = uniqueReusableComponentName(usage.base, hash, hashesByName)
+			if explicit := explicitReusableComponentName(any(value)); explicit != "" {
+				name = uniqueReusableComponentName(explicit, hash, hashesByName)
+			} else {
+				name = uniqueReusableComponentName(usage.base, hash, hashesByName)
+			}
 			namesByHash[hash] = name
 			hashesByName[name] = hash
 			components[name] = newRef(value)
@@ -644,8 +740,46 @@ func componentizeReusableRefs[U any, V any, R any](
 	return components
 }
 
+func valueOfExampleRef(ref *ExampleRef) *Example {
+	if ref == nil {
+		return nil
+	}
+	return ref.Value
+}
+
+func explicitReusableComponentName(value any) string {
+	switch v := value.(type) {
+	case *Example:
+		if v == nil {
+			return ""
+		}
+		return strings.TrimSpace(v.ComponentName)
+	default:
+		return ""
+	}
+}
+
 func parameterHash(parameter *Parameter) (string, error) {
 	return hashReusableValue(parameter)
+}
+
+func requestBodyValue(ref *RequestBodyRef) *RequestBody {
+	if ref == nil {
+		return nil
+	}
+	return ref.Value
+}
+
+func shouldForceComponentizeParameter(parameter *Parameter) bool {
+	return parameter != nil && strings.TrimSpace(parameter.ComponentName) != ""
+}
+
+func shouldForceComponentizeRequestBody(body *RequestBody) bool {
+	return body != nil && strings.TrimSpace(body.ComponentName) != ""
+}
+
+func shouldForceComponentizeResponse(response *Response) bool {
+	return response != nil && strings.TrimSpace(response.ComponentName) != ""
 }
 
 func responseHash(ref *ResponseRef, schemas map[string]*Schema) (string, error) {

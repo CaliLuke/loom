@@ -39,14 +39,18 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - `AuthErrorResponses()` now reuses compatible canonical 401/403 auth mappings
   across method, service, and API scopes instead of forcing helper-owned auth
   response descriptions when the design already defines those contract shapes.
-- OpenAPI now supports explicit public names for hoisted reusable request-body
-  and parameter components, and automatically splits request vs response
-  schemas when `readOnly`/`writeOnly` metadata would otherwise leak
-  server-managed or secret fields across both directions.
-- OpenAPI now supports standards-first problem error contracts via
-  `ProblemResult`, first-class response links, framework-owned async streaming
-  contracts under `x-loom-async`, and representative Redocly plus downstream
-  TypeScript/Go smoke-generation gates.
+- OpenAPI now supports explicit public names for hoisted reusable request-body,
+  parameter, response, and named-example components, explicit request-body
+  descriptions, and automatic request vs response schema splitting when
+  `readOnly`/`writeOnly` metadata would otherwise leak server-managed or
+  secret fields across both directions.
+- OpenAPI and HTTP transport generation now default Loom errors to
+  RFC 9457-style `application/problem+json` contracts with stable `code`,
+  `instance`, and optional `retry_hint` fields, support error-local
+  `ProblemType(...)` / `ProblemTitle(...)` overrides, and keep first-class
+  response links, framework-owned async streaming contracts under
+  `x-loom-async`, plus representative Redocly and downstream TypeScript/Go
+  smoke-generation gates.
 - OpenAPI operations now inherit service-level tag declarations by default, so
   operation tags line up with published top-level tag objects without
   duplicating method-level metadata.
@@ -100,6 +104,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 ### Next
 
 - prove the cleaned stack against representative downstream generation in temp modules
+- centralize temp-module local-source toggles across harnesses and release
+  tooling so worktree switches use shared git-common-dir state instead of any
+  tracked repo files
 - finish the direct follow-up test backlog for refactored transport/service-data seams
 - keep new generator work on the shared Go-section architecture and use typed
   Go emission for logic-heavy sections by default

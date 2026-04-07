@@ -375,6 +375,15 @@ type (
 		TagPointer bool
 		// MustValidate is true if at least one header requires validation.
 		MustValidate bool
+		// HeaderSourceVar selects the source variable used when rendering
+		// response headers and cookies. It defaults to "res".
+		HeaderSourceVar string
+		// ProblemTypeOverride carries the explicit RFC 9457 problem type override
+		// used when HeaderSourceVar is "problem".
+		ProblemTypeOverride string
+		// ProblemTitleOverride carries the explicit RFC 9457 problem title
+		// override used when HeaderSourceVar is "problem".
+		ProblemTitleOverride string
 		// ResultAttr sets the response body from the specified result
 		// type attribute. This field is set when the design uses
 		// Body("name") syntax to set the response body and the result
@@ -426,6 +435,9 @@ type (
 		// ReturnIsPrimitivePointer indicates whether the payload, result or error
 		// type is a primitive pointer.
 		ReturnIsPrimitivePointer bool
+		// SkipFieldInit disables the generic struct-field assignment path when
+		// a constructor already builds the full return value itself.
+		SkipFieldInit bool
 	}
 
 	// AttributeData contains the information needed to generate the code

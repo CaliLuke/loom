@@ -46,78 +46,32 @@ type (
 )
 
 var (
-	// ErrorResultIdentifier is the result type identifier used for error
-	// responses.
-	ErrorResultIdentifier = "application/vnd.loom.error"
-
 	// ProblemResultIdentifier is the standards-first result type identifier used
 	// for RFC 9457-style problem responses.
 	ProblemResultIdentifier = "application/problem+json"
+
+	// ErrorResultIdentifier is the result type identifier used for default HTTP
+	// error responses. It intentionally matches ProblemResultIdentifier so the
+	// framework defaults to RFC 9457 problem documents.
+	ErrorResultIdentifier = ProblemResultIdentifier
 
 	// ErrorResult is the built-in result type for error responses.
 	ErrorResult = &ResultTypeExpr{
 		UserTypeExpr: &UserTypeExpr{
 			AttributeExpr: &AttributeExpr{
-				Type:        errorResultType,
-				Description: "Error response result type",
-				Validation:  &ValidationExpr{Required: []string{"name", "id", "message", "temporary", "timeout", "fault"}},
+				Type:        problemResultType,
+				Description: "Problem response result type",
+				Validation:  &ValidationExpr{Required: []string{"type", "title", "status", "detail", "instance", "code"}},
 			},
-			TypeName: "error",
+			TypeName: "problem",
 		},
 		Identifier: ErrorResultIdentifier,
-		Views:      []*ViewExpr{errorResultView},
+		Views:      []*ViewExpr{problemResultView},
 	}
 
 	// ProblemResult is the built-in result type for problem-document error
 	// responses.
-	ProblemResult = &ResultTypeExpr{
-		UserTypeExpr: &UserTypeExpr{
-			AttributeExpr: &AttributeExpr{
-				Type:        problemResultType,
-				Description: "Problem response result type",
-				Validation:  &ValidationExpr{Required: []string{"code", "title", "detail"}},
-			},
-			TypeName: "problem",
-		},
-		Identifier: ProblemResultIdentifier,
-		Views:      []*ViewExpr{problemResultView},
-	}
-
-	errorResultType = &Object{
-		{"name", &AttributeExpr{
-			Type:         String,
-			Description:  "Name is the name of this class of errors.",
-			Meta:         MetaExpr{"struct:error:name": nil},
-			UserExamples: []*ExampleExpr{{Value: "bad_request"}},
-		}},
-		{"id", &AttributeExpr{
-			Type:         String,
-			Description:  "ID is a unique identifier for this particular occurrence of the problem.",
-			UserExamples: []*ExampleExpr{{Value: "123abc"}},
-		}},
-		{"message", &AttributeExpr{
-			Type:         String,
-			Description:  "Message is a human-readable explanation specific to this occurrence of the problem.",
-			UserExamples: []*ExampleExpr{{Value: "parameter 'p' must be an integer"}},
-		}},
-		{"temporary", &AttributeExpr{
-			Type:        Boolean,
-			Description: "Is the error temporary?",
-		}},
-		{"timeout", &AttributeExpr{
-			Type:        Boolean,
-			Description: "Is the error a timeout?",
-		}},
-		{"fault", &AttributeExpr{
-			Type:        Boolean,
-			Description: "Is the error a server-side fault?",
-		}},
-	}
-
-	errorResultView = &ViewExpr{
-		AttributeExpr: &AttributeExpr{Type: errorResultType},
-		Name:          DefaultView,
-	}
+	ProblemResult = ErrorResult
 
 	problemResultType = &Object{
 		{"type", &AttributeExpr{
@@ -161,17 +115,12 @@ var (
 			Meta:         MetaExpr{"struct:error:name": nil},
 			UserExamples: []*ExampleExpr{{Value: "bad_request"}},
 		}},
-		{"temporary", &AttributeExpr{
-			Type:        Boolean,
-			Description: "Temporary indicates whether retrying later may succeed.",
-		}},
-		{"timeout", &AttributeExpr{
-			Type:        Boolean,
-			Description: "Timeout indicates whether the problem was caused by a timeout.",
-		}},
-		{"fault", &AttributeExpr{
-			Type:        Boolean,
-			Description: "Fault indicates whether the problem represents a server-side fault.",
+		{"retry_hint", &AttributeExpr{
+			Type:        String,
+			Description: "Retry hint is concise guidance on how to correct the request or retry the operation.",
+			UserExamples: []*ExampleExpr{{
+				Value: "Correct the payload and retry.",
+			}},
 		}},
 	}
 
@@ -180,6 +129,12 @@ var (
 		Name:          DefaultView,
 	}
 )
+
+// IsDefaultErrorResult returns true when dt is one of the built-in problem
+// document result types used for default HTTP error contracts.
+func IsDefaultErrorResult(dt DataType) bool {
+	return dt == ErrorResult || dt == ProblemResult
+}
 
 // NewResultTypeExpr creates a result type definition but does not
 // execute the DSL.

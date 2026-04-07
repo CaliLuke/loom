@@ -12,23 +12,19 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 		case "internal_error":
 			var res *loom.ServiceError
 			errors.As(v, &res)
-			w.Header().Set("Error-Name", res.Name)
-			w.Header().Set("Loom-Attribute-Id", res.ID)
-			w.Header().Set("Loom-Attribute-Message", res.Message)
+			problem := loomhttp.NewProblemResponse(ctx, res, 500, "", "")
+			w.Header().Set("Error-Code", problem.Code)
+			w.Header().Set("Loom-Attribute-Type", problem.Type)
+			w.Header().Set("Loom-Attribute-Title", problem.Title)
 			{
-				val := res.Temporary
-				temporarys := strconv.FormatBool(val)
-				w.Header().Set("Loom-Attribute-Temporary", temporarys)
+				val := problem.Status
+				statuss := strconv.Itoa(val)
+				w.Header().Set("Loom-Attribute-Status", statuss)
 			}
-			{
-				val := res.Timeout
-				timeouts := strconv.FormatBool(val)
-				w.Header().Set("Loom-Attribute-Timeout", timeouts)
-			}
-			{
-				val := res.Fault
-				faults := strconv.FormatBool(val)
-				w.Header().Set("Loom-Attribute-Fault", faults)
+			w.Header().Set("Loom-Attribute-Detail", problem.Detail)
+			w.Header().Set("Loom-Attribute-Instance", problem.Instance)
+			if problem.RetryHint != nil {
+				w.Header().Set("Loom-Attribute-Retry_hint", *problem.RetryHint)
 			}
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)

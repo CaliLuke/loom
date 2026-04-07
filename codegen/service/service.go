@@ -93,7 +93,7 @@ func collectErrorTypeSections(svc *Data, svcPath string, addTypeDefSection func(
 	var errorTypes []*UserTypeData
 	seenErrs := make(map[string]struct{})
 	for _, errorType := range svc.errorTypes {
-		if errorType.Type == expr.ErrorResult {
+		if expr.IsDefaultErrorResult(errorType.Type) {
 			continue
 		}
 		if _, ok := seenErrs[errorType.Name]; ok {

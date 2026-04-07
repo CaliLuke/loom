@@ -3,7 +3,6 @@ package http
 import (
 	"bytes"
 	"context"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -194,40 +193,46 @@ func TestResponseEncoder_ContentTypeHeaderPreservesCharset(t *testing.T) {
 }
 
 func TestResponseEncoder_Encode_ErrorResponse(t *testing.T) {
-	var (
-		serviceError              = loom.NewServiceError(errors.New("foo"), "foo", false, false, false)
-		defaultXMLName            = ErrorResponseXMLName
-		backwardCompatibleXMLName = xml.Name{Local: "ErrorResponse"} // Compatible with v3.13.2 and earlier.
-	)
+	serviceError := loom.NewServiceError(errors.New("foo"), "foo", false, false, false)
 
 	cases := []struct {
+		name       string
 		acceptType string
-		xmlName    xml.Name
 		encoded    string
+		wantCT     string
 	}{
-		{"application/json", defaultXMLName, fmt.Sprintf(`{"name":"foo","id":"%s","message":"foo","temporary":false,"timeout":false,"fault":false}`, serviceError.ID)},
-		{"application/json", backwardCompatibleXMLName, fmt.Sprintf(`{"name":"foo","id":"%s","message":"foo","temporary":false,"timeout":false,"fault":false}`, serviceError.ID)},
-		{"application/xml", defaultXMLName, fmt.Sprintf(`<error><name>foo</name><id>%s</id><message>foo</message><temporary>false</temporary><timeout>false</timeout><fault>false</fault></error>`, serviceError.ID)},
-		{"application/xml", backwardCompatibleXMLName, fmt.Sprintf(`<ErrorResponse><name>foo</name><id>%s</id><message>foo</message><temporary>false</temporary><timeout>false</timeout><fault>false</fault></ErrorResponse>`, serviceError.ID)},
+		{
+			name:       "generic-json",
+			acceptType: "application/json",
+			encoded:    fmt.Sprintf(`{"type":"https://github.com/CaliLuke/loom/problems/foo","title":"Foo","status":400,"detail":"foo","instance":"urn:loom:error:%s","code":"foo"}`, serviceError.ID),
+			wantCT:     ProblemJSONContentType,
+		},
+		{
+			name:       "explicit-xml",
+			acceptType: "application/xml",
+			encoded:    fmt.Sprintf(`<ProblemResponse><type>https://github.com/CaliLuke/loom/problems/foo</type><title>Foo</title><status>400</status><detail>foo</detail><instance>urn:loom:error:%s</instance><code>foo</code></ProblemResponse>`, serviceError.ID),
+			wantCT:     "application/xml",
+		},
 	}
 
 	for _, c := range cases {
-		name := c.acceptType
-		if c.xmlName.Local != "" {
-			name += "/" + c.xmlName.Local
-		}
-		t.Run(name, func(t *testing.T) {
+		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, AcceptTypeKey, c.acceptType)
 			w := httptest.NewRecorder()
-			ErrorResponseXMLName = c.xmlName
-			encoder := ResponseEncoder(ctx, w)
-
-			err := encoder.Encode(NewErrorResponse(ctx, serviceError))
+			var err error
+			if c.name == "generic-json" {
+				encoder := ErrorEncoder(ResponseEncoder, nil)
+				err = encoder(ctx, w, serviceError)
+			} else {
+				ctx = context.WithValue(ctx, ContentTypeKey, c.acceptType)
+				encoder := ResponseEncoder(ctx, w)
+				err = encoder.Encode(NewProblemResponse(ctx, serviceError, http.StatusBadRequest, "", ""))
+			}
 
 			assert.NoError(t, err)
 			body := strings.TrimSpace(w.Body.String())
 			assert.Equal(t, c.encoded, body)
+			assert.Equal(t, c.wantCT, w.Header().Get("Content-Type"))
 		})
 	}
 }
@@ -241,37 +246,33 @@ func TestResponseEncoder_Encode_ErrorResponseWithRemedy(t *testing.T) {
 			RetryHint:   "Correct the payload and retry.",
 		},
 	)
-	previousXMLName := ErrorResponseXMLName
-	ErrorResponseXMLName = xml.Name{Local: "error"}
-	defer func() {
-		ErrorResponseXMLName = previousXMLName
-	}()
 
 	cases := []struct {
-		name       string
-		acceptType string
-		wantBody   string
+		name     string
+		wantBody string
 	}{
 		{
-			name:       "json",
-			acceptType: "application/json",
-			wantBody:   fmt.Sprintf(`{"name":"bad_request","id":"%s","message":"Retry with a valid request.","remedy":{"code":"bad_request.fix","safe_message":"Retry with a valid request.","retry_hint":"Correct the payload and retry."},"temporary":false,"timeout":false,"fault":false}`, err.ID),
+			name:     "problem-json",
+			wantBody: fmt.Sprintf(`{"type":"about:blank","title":"Bad Request","status":400,"detail":"Retry with a valid request.","instance":"urn:loom:error:%s","code":"bad_request","retry_hint":"Correct the payload and retry."}`, err.ID),
 		},
 		{
-			name:       "xml",
-			acceptType: "application/xml",
-			wantBody:   fmt.Sprintf(`<error><name>bad_request</name><id>%s</id><message>Retry with a valid request.</message><remedy><code>bad_request.fix</code><safe_message>Retry with a valid request.</safe_message><retry_hint>Correct the payload and retry.</retry_hint></remedy><temporary>false</temporary><timeout>false</timeout><fault>false</fault></error>`, err.ID),
+			name:     "problem-helper",
+			wantBody: fmt.Sprintf(`{"type":"about:blank","title":"Bad Request","status":400,"detail":"Retry with a valid request.","instance":"urn:loom:error:%s","code":"bad_request","retry_hint":"Correct the payload and retry."}`, err.ID),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, AcceptTypeKey, tc.acceptType)
 			w := httptest.NewRecorder()
-
-			encoder := ErrorEncoder(ResponseEncoder, nil)
-			require.NoError(t, encoder(ctx, w, err))
+			if tc.name == "problem-json" {
+				encoder := ErrorEncoder(ResponseEncoder, nil)
+				require.NoError(t, encoder(ctx, w, err))
+			} else {
+				ctx = context.WithValue(ctx, ContentTypeKey, ProblemJSONContentType)
+				encoder := ResponseEncoder(ctx, w)
+				require.NoError(t, encoder.Encode(NewProblemResponse(ctx, err, http.StatusBadRequest, "", "")))
+			}
 			assert.Equal(t, tc.wantBody, strings.TrimSpace(w.Body.String()))
 		})
 	}
@@ -316,6 +317,31 @@ func TestResponseDecoder(t *testing.T) {
 			assert.Equal(t, c.decoderType, fmt.Sprintf("%T", decoder))
 		})
 	}
+}
+
+func TestResolveProblemTypeAndTitle(t *testing.T) {
+	t.Run("generic status uses about blank", func(t *testing.T) {
+		problemType, title := ResolveProblemTypeAndTitle("bad_request", http.StatusBadRequest, "", "")
+		require.Equal(t, "about:blank", problemType)
+		require.Equal(t, "Bad Request", title)
+	})
+
+	t.Run("specialized code gets deterministic uri", func(t *testing.T) {
+		problemType, title := ResolveProblemTypeAndTitle("wrong_token_type", http.StatusUnauthorized, "", "")
+		require.Equal(t, "https://github.com/CaliLuke/loom/problems/wrong-token-type", problemType)
+		require.Equal(t, "Wrong Token Type", title)
+	})
+
+	t.Run("explicit overrides win", func(t *testing.T) {
+		problemType, title := ResolveProblemTypeAndTitle(
+			"wrong_token_type",
+			http.StatusUnauthorized,
+			"https://api.example.com/problems/wrong-token-type",
+			"Wrong token type",
+		)
+		require.Equal(t, "https://api.example.com/problems/wrong-token-type", problemType)
+		require.Equal(t, "Wrong token type", title)
+	})
 }
 
 func TestTextEncoder_Encode(t *testing.T) {

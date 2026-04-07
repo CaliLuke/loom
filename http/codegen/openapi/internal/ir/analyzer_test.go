@@ -63,6 +63,70 @@ func TestAnalyzerDeduplicatesUnionEnvelopeSchemas(t *testing.T) {
 	require.Len(t, analyzer.Components(), 2)
 }
 
+func TestAnalyzerUsesReadableSyntheticUnionEnvelopeNamesAndDescriptions(t *testing.T) {
+	t.Parallel()
+
+	created := &expr.NamedAttributeExpr{
+		Name: "edge.created",
+		Attribute: &expr.AttributeExpr{
+			Type: &expr.Object{{Name: "payload", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+		},
+	}
+	updated := &expr.NamedAttributeExpr{
+		Name: "persona_story.links.updated",
+		Attribute: &expr.AttributeExpr{
+			Type: &expr.Object{{Name: "payload", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+		},
+	}
+	union := &expr.Union{
+		TypeName: "Event",
+		TypeKey:  "type",
+		ValueKey: "payload",
+		Values:   []*expr.NamedAttributeExpr{created, updated},
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+
+	schema := analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: union})
+
+	require.Equal(t, "#/components/schemas/EventEdgeCreatedEnvelope", schema.Discriminator.Mapping["edge.created"])
+	require.Equal(t, "#/components/schemas/EventPersonaStoryLinksUpdatedEnvelope", schema.Discriminator.Mapping["persona_story.links.updated"])
+
+	components := analyzer.Components()
+	require.Contains(t, components, "EventEdgeCreatedEnvelope")
+	require.Contains(t, components, "EventPersonaStoryLinksUpdatedEnvelope")
+	require.Equal(t, `Synthetic wrapper for union variant "edge.created".`, components["EventEdgeCreatedEnvelope"].Description)
+	require.Equal(t, `Synthetic wrapper for union variant "persona_story.links.updated".`, components["EventPersonaStoryLinksUpdatedEnvelope"].Description)
+}
+
+func TestAnalyzerUsesExplicitSyntheticUnionEnvelopeOverrides(t *testing.T) {
+	t.Parallel()
+
+	created := &expr.NamedAttributeExpr{
+		Name: "edge.created",
+		Attribute: &expr.AttributeExpr{
+			Meta: expr.MetaExpr{
+				"openapi:component:unionEnvelope":   []string{"RealtimeEdgeCreated"},
+				"openapi:description:unionEnvelope": []string{"Realtime event envelope for edge creation."},
+			},
+			Type: &expr.Object{{Name: "payload", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+		},
+	}
+	union := &expr.Union{
+		TypeName: "Event",
+		TypeKey:  "type",
+		ValueKey: "payload",
+		Values:   []*expr.NamedAttributeExpr{created},
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+
+	schema := analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: union})
+
+	require.Equal(t, "#/components/schemas/RealtimeEdgeCreated", schema.Discriminator.Mapping["edge.created"])
+	components := analyzer.Components()
+	require.Contains(t, components, "RealtimeEdgeCreated")
+	require.Equal(t, "Realtime event envelope for edge creation.", components["RealtimeEdgeCreated"].Description)
+}
+
 func TestAnalyzerClaimExplicitNamePanicsOnConflict(t *testing.T) {
 	t.Parallel()
 

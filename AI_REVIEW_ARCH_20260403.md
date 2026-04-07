@@ -84,3 +84,34 @@ Treating the framework as a compiler (Frontend -> AST -> Backend), these pure ar
   3. Introduce a generation-scoped `context.Context` and thread it through the orchestration path before attempting package-wide propagation into every helper.
   4. After the top-level pipeline is instrumented, expand inward only where logs show persistent blind spots.
 - **Do not do first:** repo-wide logger plumbing across every generator helper, plugin/IoC rewrites, or broad package moves in `expr`. The first step should be a narrow orchestration-layer observability pass.
+
+---
+
+## 6. Deep Codebase Review Findings (2026-04-07)
+
+A recent automated architectural investigation identified the following areas that continue to add friction to long-term maintainability and development speed:
+
+### 6.1 Global State & Multi-pass Evaluation (`eval` package)
+- **Issue:** The DSL execution engine relies on a global `Context` and a multi-pass evaluation strategy (Run, Prepare, Validate, Finalize).
+- **Impact:** Makes execution flow hard to trace, complicates concurrent execution (e.g., for language servers), and prevents isolated unit testing of DSL components without mocking global state.
+- **Recommendation:** Refactor `eval.Context` to be explicitly passed as an argument or managed via an instance-based factory. Transition towards a more functional, localized evaluation model.
+
+### 6.2 Monolithic Expression Tree (`expr.RootExpr`)
+- **Issue:** `expr.RootExpr` is a monolithic container for all API definitions. `WalkSets` manually handles evaluation order and couples various transports (HTTP, gRPC, JSON-RPC).
+- **Impact:** The framework is rigid. Adding new protocols requires touching deeply coupled packages, risking regressions.
+- **Recommendation:** Modularize `RootExpr` and `WalkSets` to use a plugin or registration-based approach for different transports.
+
+### 6.3 Complex Transformation Layer (`codegen/service/`)
+- **Issue:** The intermediate step of converting `expr` objects into `*Data` objects (e.g., `ServiceData`) has become a monolithic bottleneck. 
+- **Impact:** Files like `codegen/service/service_data.go` and `codegen/service/convert.go` contain too much generation knowledge, making them massive, hard to navigate, and difficult to extend.
+- **Recommendation:** Decompose the generation layer. Break down large `*Data` generation files into smaller, focused helpers based on traits or components.
+
+### 6.4 Code "Gravity" and Large Files
+- **Issue:** Critical files in `expr` and `codegen` exceed 1,000 lines (e.g., `codegen/service/convert.go` is 30KB+).
+- **Impact:** These files attract more code, are difficult to review, increase merge conflicts, and heighten the risk of accidental side effects.
+- **Recommendation:** Actively split these large files during upcoming refactors to distribute the complexity.
+
+### 6.5 Coupling of DSL to Expression Structures
+- **Issue:** DSL functions directly manipulate the `expr.Root` global state.
+- **Impact:** Makes the DSL non-reentrant and difficult to use programmatically outside of the standard `loom gen` CLI flow, limiting extensibility.
+- **Recommendation:** Evolve DSL functions to return configurable structures that are then evaluated, rather than directly mutating a global AST.

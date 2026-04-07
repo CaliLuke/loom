@@ -22,8 +22,6 @@ var templateFS embed.FS
 // generatorTemplates is the template reader for the test generator
 var generatorTemplates = &loomtemplate.TemplateReader{FS: templateFS, Extension: ".tmpl"}
 
-const loomSourceModeFile = ".loom_source_mode"
-
 // Generator generates test service code for the integration framework.
 // Flow:
 //  1. Build design data from scenarios
@@ -469,10 +467,10 @@ func configuredLocalLoomSource() string {
 	if err != nil || repoRoot == "" {
 		return ""
 	}
-	return localLoomSourceFromModeFile(filepath.Join(repoRoot, "jsonrpc", "integration_tests", loomSourceModeFile))
+	return localLoomSourceFromModeFile(filepath.Join(repoRoot, "jsonrpc", "integration_tests", ".loom_source_mode"), repoRoot)
 }
 
-func localLoomSourceFromModeFile(path string) string {
+func localLoomSourceFromModeFile(path string, defaultLocalSource string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
@@ -485,7 +483,7 @@ func localLoomSourceFromModeFile(path string) string {
 		return ""
 	}
 	if len(fields) < 2 {
-		return ""
+		return validatedLocalLoomSource(defaultLocalSource)
 	}
 	return validatedLocalLoomSource(fields[1])
 }

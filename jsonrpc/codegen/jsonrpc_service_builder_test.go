@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -134,6 +135,40 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		require.Contains(t, clientCode, "streamConfig *jsonrpc.StreamConfig")
 		require.Contains(t, clientCode, "streamConfig := jsonrpc.NewStreamConfig(streamOpts...)")
 	})
+
+	t.Run("websocket stream send helpers keep doc comments above signatures", func(t *testing.T) {
+		root := RunJSONRPCDSL(t, func() {
+			dsl.API("jsonrpc-top-level-websocket-send-doc-test", func() {
+				dsl.JSONRPC(func() {})
+			})
+			dsl.Service("stream", func() {
+				dsl.JSONRPC(func() {})
+				dsl.Method("echo", func() {
+					dsl.StreamingPayload(func() {
+						dsl.ID("id", dsl.String)
+						dsl.Attribute("msg", dsl.String)
+					})
+					dsl.StreamingResult(func() {
+						dsl.ID("id", dsl.String)
+						dsl.Attribute("echo", dsl.String)
+					})
+					dsl.JSONRPC(func() {})
+				})
+			})
+		})
+
+		services := CreateJSONRPCServices(root)
+		code := fileSectionCode(t, ServerFiles("", services), "websocket.go", "jsonrpc-server-websocket-send")
+
+		require.Contains(t, code, "// SendEchoNotification sends a JSON-RPC notification for the echo method.")
+		require.Contains(t, code, "func (s *streamStream) SendEchoNotification(")
+		require.NotContains(t, code, "SendEchoNotification //")
+		require.Contains(t, code, "// SendEchoResponse sends a JSON-RPC response for the echo method.")
+		require.Contains(t, code, "func (s *streamStream) SendEchoResponse(")
+		require.NotContains(t, code, "SendEchoResponse //")
+		require.True(t, strings.Index(code, "// SendEchoNotification sends a JSON-RPC notification for the echo method.") < strings.Index(code, "func (s *streamStream) SendEchoNotification("))
+		require.True(t, strings.Index(code, "// SendEchoResponse sends a JSON-RPC response for the echo method.") < strings.Index(code, "func (s *streamStream) SendEchoResponse("))
+	})
 }
 
 func topLevelSectionCode(t *testing.T, files []*codegen.File, sectionNames ...string) string {
@@ -160,4 +195,22 @@ func topLevelSectionCode(t *testing.T, files []*codegen.File, sectionNames ...st
 		rendered += codegen.SectionCode(t, section)
 	}
 	return rendered
+}
+
+func fileSectionCode(t *testing.T, files []*codegen.File, baseName string, sectionName string) string {
+	t.Helper()
+
+	for _, file := range files {
+		if filepath.Base(file.Path) != baseName {
+			continue
+		}
+		for _, section := range file.AllSections() {
+			if section.SectionName() == sectionName {
+				return codegen.SectionCode(t, section)
+			}
+		}
+	}
+
+	t.Fatalf("section %q not found in %q", sectionName, baseName)
+	return ""
 }

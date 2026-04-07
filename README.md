@@ -47,7 +47,7 @@ Loom currently emphasizes:
 - **Stronger OpenAPI 3.1 as a product surface**: Loom treats the OpenAPI document as a machine contract, not a byproduct. The generator validates with `libopenapi`, lints with Redocly, and smoke-tests downstream generation with `openapi-typescript` and `oapi-codegen`
 - **Better reusable public contracts**: repeated parameters, request bodies, responses, examples, and schemas are hoisted and named more deliberately so generated specs are easier to consume and diff
 - **More truthful request/response schema publication**: `readOnly` and `writeOnly` metadata split public request and response schemas when they should not share one shape
-- **Standards-oriented error contracts**: first-class `application/problem+json` support via `ProblemResult`, rather than forcing everything through the legacy error media type
+- **Standards-oriented error contracts**: Loom HTTP defaults now use RFC 9457-style `application/problem+json` problem documents with stable machine-readable codes, and the DSL can still override public problem `type`/`title` metadata when needed
 - **First-class async contract publication**: SSE and WebSocket endpoints publish framework-owned async metadata in OpenAPI so downstream tooling can reason about stream payloads and handshake behavior
 - **JSON-RPC as a real transport, not an afterthought**: Loom treats JSON-RPC and JSON-RPC SSE as framework-owned behavior with dedicated generation and integration coverage
 - **Less application glue**: session auth, auth error reuse, response links, form and multipart request support, observability hooks, and transport-specific contract controls live in the framework instead of being repeatedly rebuilt in services

@@ -114,3 +114,13 @@ func (r *HTTPResponseExpr) AddMeta(name string, value ...string) {
 func (r *HTTPResponseExpr) DeleteMeta(name string) {
 	delete(r.Meta, name)
 }
+
+// AddMeta appends metadata values to example expression.
+func (e *ExampleExpr) AddMeta(name string, value ...string) {
+	e.Meta = appendMeta(e.Meta, name, value...)
+}
+
+// DeleteMeta removes metadata entry from example expression.
+func (e *ExampleExpr) DeleteMeta(name string) {
+	delete(e.Meta, name)
+}

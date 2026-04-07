@@ -11,6 +11,7 @@ func EncodeMethodDefaultErrorResponseError(encoder func(context.Context, http.Re
 		case "bad_request":
 			var res *loom.ServiceError
 			errors.As(v, &res)
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {

@@ -448,6 +448,7 @@ func renameType(att *AttributeExpr, name, suffix string) {
 
 func cloneExplicitHTTPBody(body *AttributeExpr, name, suffix, uid string) *AttributeExpr {
 	cloned := DupAtt(body)
+	cloned.UserExamples = cloned.ExtractUserExamples()
 	preserveCanonicalOpenAPITypeName(cloned)
 	renameType(cloned, name, suffix)
 	setTypeUID(cloned.Type, uid)
@@ -552,6 +553,7 @@ func extendBodyAttribute(body *MappedAttributeExpr) {
 	// unset bases so that they don't get added back to the body type during
 	// finalize
 	att.Bases = nil
+	att.UserExamples = att.ExtractUserExamples()
 }
 
 // walk traverses the given data type and invokes the given function for each

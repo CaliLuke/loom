@@ -55,7 +55,7 @@ const (
 // Error describes a method error return value. The description includes a
 // unique name (in the scope of the method), an optional type, description and
 // DSL that further describes the type. If no type is specified then the
-// built-in ErrorResult type is used. The DSL syntax is identical to the
+// built-in RFC 9457 problem-document result type is used. The DSL syntax is identical to the
 // Attribute DSL.
 //
 // Error must appear in the Service (to define error responses that apply to all
@@ -111,6 +111,32 @@ func Error(name string, args ...any) {
 	default:
 		eval.IncompatibleDSL()
 	}
+}
+
+// ProblemType overrides the RFC 9457 problem "type" URI generated for the
+// enclosing error.
+//
+// ProblemType must appear in an Error expression.
+func ProblemType(uri string) {
+	errExpr, ok := currentErrorExpr()
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	errExpr.AddMeta("http:problem:type", uri)
+}
+
+// ProblemTitle overrides the RFC 9457 problem "title" generated for the
+// enclosing error.
+//
+// ProblemTitle must appear in an Error expression.
+func ProblemTitle(title string) {
+	errExpr, ok := currentErrorExpr()
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	errExpr.AddMeta("http:problem:title", title)
 }
 
 // ErrorName identifies the attribute of a custom error type used to select the

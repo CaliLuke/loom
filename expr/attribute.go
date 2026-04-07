@@ -44,6 +44,8 @@ type (
 		Summary string
 		// Description is an optional long description.
 		Description string
+		// Meta holds design-time metadata attached to the example.
+		Meta MetaExpr
 		// Value is the example value.
 		Value any
 	}
@@ -776,14 +778,44 @@ func (a *AttributeExpr) DeleteMeta(name string) {
 // ExtractUserExamples return the examples defined in the design directly on the
 // attribute or on its type.
 func (a *AttributeExpr) ExtractUserExamples() []*ExampleExpr {
+	return a.extractUserExamples(make(map[string]struct{}))
+}
+
+func (a *AttributeExpr) extractUserExamples(seen map[string]struct{}) []*ExampleExpr {
+	if a == nil {
+		return nil
+	}
 	if len(a.UserExamples) > 0 {
 		return a.UserExamples
+	}
+	for _, ref := range a.References {
+		if examples := extractUserExamplesFromType(ref, seen); len(examples) > 0 {
+			return examples
+		}
+	}
+	for _, base := range a.Bases {
+		if examples := extractUserExamplesFromType(base, seen); len(examples) > 0 {
+			return examples
+		}
 	}
 	ut, ok := a.Type.(UserType)
 	if !ok {
 		return nil
 	}
-	return ut.Attribute().ExtractUserExamples()
+	return extractUserExamplesFromType(ut, seen)
+}
+
+func extractUserExamplesFromType(dt DataType, seen map[string]struct{}) []*ExampleExpr {
+	ut, ok := dt.(UserType)
+	if !ok {
+		return nil
+	}
+	id := ut.ID()
+	if _, ok := seen[id]; ok {
+		return nil
+	}
+	seen[id] = struct{}{}
+	return ut.Attribute().extractUserExamples(seen)
 }
 
 // Debug dumps the attribute to STDOUT in a Loom developer friendly way.

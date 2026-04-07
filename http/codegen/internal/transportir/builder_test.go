@@ -237,6 +237,42 @@ func TestBuildEndpointResponseMetadata(t *testing.T) {
 	require.Equal(t, "widget_session", failure.Cookies[0].HTTPName)
 }
 
+func TestBuildEndpointPreservesNamedExamplesOnObjectRequestBodies(t *testing.T) {
+	root := testcodegen.RunDSL(t, func() {
+		var SearchFilters = dsl.Type("SearchFilters", func() {
+			dsl.Attribute("query", dsl.String)
+			dsl.Required("query")
+			dsl.Example("simple", func() {
+				dsl.Value(map[string]any{"query": "soup"})
+			})
+			dsl.Example("advanced", func() {
+				dsl.Value(map[string]any{"query": "stew"})
+			})
+		})
+		dsl.Service("widgets", func() {
+			dsl.Method("search", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("body", SearchFilters)
+					dsl.Required("body")
+				})
+				dsl.Result(dsl.String)
+				dsl.HTTP(func() {
+					dsl.POST("/widgets/search")
+					dsl.Body("body")
+					dsl.Response(expr.StatusOK)
+				})
+			})
+		})
+	})
+
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+	require.NotNil(t, endpoint.Request.Body)
+	examples := endpoint.Request.Body.ExtractUserExamples()
+	require.Len(t, examples, 2)
+	require.Equal(t, "simple", examples[0].Summary)
+	require.Equal(t, "advanced", examples[1].Summary)
+}
+
 func TestRouteForExprPrefersRouteIdentity(t *testing.T) {
 	root := testcodegen.RunDSL(t, func() {
 		dsl.Service("widgets", func() {
