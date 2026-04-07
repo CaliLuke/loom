@@ -1,0 +1,25 @@
+package testdata
+
+
+var PayloadQueryPrimitiveMapStringArrayStringValidateEncodeCode = `// EncodeMethodQueryPrimitiveMapStringArrayStringValidateRequest returns an
+// encoder for requests sent to the
+// ServiceQueryPrimitiveMapStringArrayStringValidate
+// MethodQueryPrimitiveMapStringArrayStringValidate server.
+func EncodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(map[string][]string)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveMapStringArrayStringValidate", "MethodQueryPrimitiveMapStringArrayStringValidate", "map[string][]string", v)
+		}
+		values := req.URL.Query()
+		for k, value := range p {
+			key := fmt.Sprintf("q[%s]", k)
+			values[key] = value
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+`
+
+

@@ -1,0 +1,25 @@
+package testdata
+
+
+var QueryStringRequiredBuildCode = `// BuildMethodQueryStringValidatePayload builds the payload for the
+// ServiceQueryStringValidate MethodQueryStringValidate endpoint from CLI flags.
+func BuildMethodQueryStringValidatePayload(serviceQueryStringValidateMethodQueryStringValidateQ string) (*servicequerystringvalidate.MethodQueryStringValidatePayload, error) {
+	var err error
+	var q string
+	{
+		q = serviceQueryStringValidateMethodQueryStringValidateQ
+		if !(q == "val") {
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"val"}))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	v := &servicequerystringvalidate.MethodQueryStringValidatePayload{}
+	v.Q = q
+
+	return v, nil
+}
+`
+
+

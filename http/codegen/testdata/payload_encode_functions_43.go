@@ -1,0 +1,18 @@
+package testdata
+
+
+var PayloadHeaderPrimitiveStringDefaultEncodeCode = `// EncodeMethodHeaderPrimitiveStringDefaultRequest returns an encoder for
+// requests sent to the ServiceHeaderPrimitiveStringDefault
+// MethodHeaderPrimitiveStringDefault server.
+func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(string)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "string", v)
+		}
+		return nil
+	}
+}
+`
+
+

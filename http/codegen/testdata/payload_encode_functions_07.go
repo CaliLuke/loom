@@ -1,0 +1,25 @@
+package testdata
+
+
+var PayloadQueryMapBoolBoolEncodeCode = `// EncodeMethodQueryMapBoolBoolRequest returns an encoder for requests sent to
+// the ServiceQueryMapBoolBool MethodQueryMapBoolBool server.
+func EncodeMethodQueryMapBoolBoolRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicequerymapboolbool.MethodQueryMapBoolBoolPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolBool", "MethodQueryMapBoolBool", "*servicequerymapboolbool.MethodQueryMapBoolBoolPayload", v)
+		}
+		values := req.URL.Query()
+		for kRaw, value := range p.Q {
+			k := strconv.FormatBool(kRaw)
+			key := fmt.Sprintf("q[%s]", k)
+			valueStr := strconv.FormatBool(value)
+			values.Add(key, valueStr)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+`
+
+

@@ -1,0 +1,20 @@
+package testdata
+
+
+var PayloadMultipartBodyArrayTypeEncodeCode = `// EncodeMethodMultipartArrayTypeRequest returns an encoder for requests sent
+// to the ServiceMultipartArrayType MethodMultipartArrayType server.
+func EncodeMethodMultipartArrayTypeRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.([]*servicemultipartarraytype.PayloadType)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceMultipartArrayType", "MethodMultipartArrayType", "[]*servicemultipartarraytype.PayloadType", v)
+		}
+		if err := encoder(req).Encode(p); err != nil {
+			return loomhttp.ErrEncodingError("ServiceMultipartArrayType", "MethodMultipartArrayType", err)
+		}
+		return nil
+	}
+}
+`
+
+

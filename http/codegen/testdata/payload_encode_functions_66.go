@@ -1,0 +1,25 @@
+package testdata
+
+
+var PayloadBodyQueryObjectValidateEncodeCode = `// EncodeMethodBodyQueryObjectValidateRequest returns an encoder for requests
+// sent to the ServiceBodyQueryObjectValidate MethodBodyQueryObjectValidate
+// server.
+func EncodeMethodBodyQueryObjectValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicebodyqueryobjectvalidate.MethodBodyQueryObjectValidatePayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyQueryObjectValidate", "MethodBodyQueryObjectValidate", "*servicebodyqueryobjectvalidate.MethodBodyQueryObjectValidatePayload", v)
+		}
+		values := req.URL.Query()
+		values.Add("b", p.B)
+		req.URL.RawQuery = values.Encode()
+		body := NewMethodBodyQueryObjectValidateRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyQueryObjectValidate", "MethodBodyQueryObjectValidate", err)
+		}
+		return nil
+	}
+}
+`
+
+

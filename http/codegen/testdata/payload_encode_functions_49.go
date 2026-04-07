@@ -1,0 +1,21 @@
+package testdata
+
+
+var PayloadBodyUserValidateEncodeCode = `// EncodeMethodBodyUserValidateRequest returns an encoder for requests sent to
+// the ServiceBodyUserValidate MethodBodyUserValidate server.
+func EncodeMethodBodyUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicebodyuservalidate.PayloadType)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyUserValidate", "MethodBodyUserValidate", "*servicebodyuservalidate.PayloadType", v)
+		}
+		body := p.A
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyUserValidate", "MethodBodyUserValidate", err)
+		}
+		return nil
+	}
+}
+`
+
+

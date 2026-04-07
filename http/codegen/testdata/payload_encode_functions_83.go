@@ -1,0 +1,20 @@
+package testdata
+
+
+var PayloadMultipartBodyMapTypeEncodeCode = `// EncodeMethodMultipartMapTypeRequest returns an encoder for requests sent to
+// the ServiceMultipartMapType MethodMultipartMapType server.
+func EncodeMethodMultipartMapTypeRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(map[string]int)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceMultipartMapType", "MethodMultipartMapType", "map[string]int", v)
+		}
+		if err := encoder(req).Encode(p); err != nil {
+			return loomhttp.ErrEncodingError("ServiceMultipartMapType", "MethodMultipartMapType", err)
+		}
+		return nil
+	}
+}
+`
+
+

@@ -1,0 +1,16 @@
+package testdata
+
+
+var PayloadBodyUserInnerConstructorCode = `// NewMethodBodyUserInnerPayloadType builds a ServiceBodyUserInner service
+// MethodBodyUserInner endpoint payload.
+func NewMethodBodyUserInnerPayloadType(body *MethodBodyUserInnerRequestBody) *servicebodyuserinner.PayloadType {
+	v := &servicebodyuserinner.PayloadType{}
+	if body.Inner != nil {
+		v.Inner = unmarshalInnerTypeRequestBodyToServicebodyuserinnerInnerType(body.Inner)
+	}
+
+	return v
+}
+`
+
+

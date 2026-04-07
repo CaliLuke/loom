@@ -1,0 +1,45 @@
+package testdata
+
+
+var PayloadQueryArrayUIntValidateDecodeCode = `// DecodeMethodQueryArrayUIntValidateRequest returns a decoder for requests
+// sent to the ServiceQueryArrayUIntValidate MethodQueryArrayUIntValidate
+// endpoint.
+func DecodeMethodQueryArrayUIntValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			q   []uint
+			err error
+		)
+		{
+			qRaw := r.URL.Query()["q"]
+			if qRaw == nil {
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
+			}
+			q = make([]uint, len(qRaw))
+			for i, rv := range qRaw {
+				v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "array of unsigned integers"))
+				}
+				q[i] = uint(v)
+			}
+		}
+		if len(q) < 1 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
+		}
+		for _, e := range q {
+			if e < 1 {
+				err = loom.MergeErrors(err, loom.InvalidRangeError("q[*]", e, 1, true))
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewMethodQueryArrayUIntValidatePayload(q)
+
+		return payload, nil
+	}
+}
+`
+
+

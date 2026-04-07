@@ -1,0 +1,45 @@
+package testdata
+
+
+var PayloadQueryArrayFloat64ValidateDecodeCode = `// DecodeMethodQueryArrayFloat64ValidateRequest returns a decoder for requests
+// sent to the ServiceQueryArrayFloat64Validate MethodQueryArrayFloat64Validate
+// endpoint.
+func DecodeMethodQueryArrayFloat64ValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			q   []float64
+			err error
+		)
+		{
+			qRaw := r.URL.Query()["q"]
+			if qRaw == nil {
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
+			}
+			q = make([]float64, len(qRaw))
+			for i, rv := range qRaw {
+				v, err2 := strconv.ParseFloat(rv, 64)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "array of floats"))
+				}
+				q[i] = v
+			}
+		}
+		if len(q) < 1 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
+		}
+		for _, e := range q {
+			if e < 1 {
+				err = loom.MergeErrors(err, loom.InvalidRangeError("q[*]", e, 1, true))
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewMethodQueryArrayFloat64ValidatePayload(q)
+
+		return payload, nil
+	}
+}
+`
+
+

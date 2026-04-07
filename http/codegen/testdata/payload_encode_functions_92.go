@@ -1,0 +1,22 @@
+package testdata
+
+
+var PayloadQueryCustomNameEncodeCode = `// EncodeMethodQueryCustomNameRequest returns an encoder for requests sent to
+// the ServiceQueryCustomName MethodQueryCustomName server.
+func EncodeMethodQueryCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicequerycustomname.MethodQueryCustomNamePayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceQueryCustomName", "MethodQueryCustomName", "*servicequerycustomname.MethodQueryCustomNamePayload", v)
+		}
+		values := req.URL.Query()
+		if p.Query != nil {
+			values.Add("q", *p.Query)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+`
+
+

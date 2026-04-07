@@ -1,0 +1,20 @@
+package testdata
+
+
+var PayloadBodyInlineMapUserConstructorCode = `// NewMethodBodyInlineMapUserMapKeyTypeElemType builds a
+// ServiceBodyInlineMapUser service MethodBodyInlineMapUser endpoint payload.
+func NewMethodBodyInlineMapUserMapKeyTypeElemType(body map[*KeyTypeRequestBody]*ElemTypeRequestBody) map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType {
+	v := make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
+	for key, val := range body {
+		tk := unmarshalKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
+		if val == nil {
+			v[tk] = nil
+			continue
+		}
+		v[tk] = unmarshalElemTypeRequestBodyToServicebodyinlinemapuserElemType(val)
+	}
+	return v
+}
+`
+
+

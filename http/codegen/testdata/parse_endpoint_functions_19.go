@@ -1,0 +1,20 @@
+package testdata
+
+
+var PayloadHeaderCustomNameBuildCode = `// BuildMethodHeaderCustomNamePayload builds the payload for the
+// ServiceHeaderCustomName MethodHeaderCustomName endpoint from CLI flags.
+func BuildMethodHeaderCustomNamePayload(serviceHeaderCustomNameMethodHeaderCustomNameH string) (*serviceheadercustomname.MethodHeaderCustomNamePayload, error) {
+	var h *string
+	{
+		if serviceHeaderCustomNameMethodHeaderCustomNameH != "" {
+			h = &serviceHeaderCustomNameMethodHeaderCustomNameH
+		}
+	}
+	v := &serviceheadercustomname.MethodHeaderCustomNamePayload{}
+	v.Header = h
+
+	return v, nil
+}
+`
+
+

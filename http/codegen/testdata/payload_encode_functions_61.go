@@ -1,0 +1,22 @@
+package testdata
+
+
+var PayloadBodyPrimitiveArrayBoolValidateEncodeCode = `// EncodeMethodBodyPrimitiveArrayBoolValidateRequest returns an encoder for
+// requests sent to the ServiceBodyPrimitiveArrayBoolValidate
+// MethodBodyPrimitiveArrayBoolValidate server.
+func EncodeMethodBodyPrimitiveArrayBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.([]bool)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayBoolValidate", "MethodBodyPrimitiveArrayBoolValidate", "[]bool", v)
+		}
+		body := p
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveArrayBoolValidate", "MethodBodyPrimitiveArrayBoolValidate", err)
+		}
+		return nil
+	}
+}
+`
+
+

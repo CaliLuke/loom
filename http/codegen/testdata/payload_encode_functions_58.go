@@ -1,0 +1,22 @@
+package testdata
+
+
+var PayloadBodyPrimitiveStringValidateEncodeCode = `// EncodeMethodBodyPrimitiveStringValidateRequest returns an encoder for
+// requests sent to the ServiceBodyPrimitiveStringValidate
+// MethodBodyPrimitiveStringValidate server.
+func EncodeMethodBodyPrimitiveStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(string)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveStringValidate", "MethodBodyPrimitiveStringValidate", "string", v)
+		}
+		body := p
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveStringValidate", "MethodBodyPrimitiveStringValidate", err)
+		}
+		return nil
+	}
+}
+`
+
+

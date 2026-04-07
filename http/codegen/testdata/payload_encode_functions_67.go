@@ -1,0 +1,26 @@
+package testdata
+
+
+var PayloadBodyQueryUserEncodeCode = `// EncodeMethodBodyQueryUserRequest returns an encoder for requests sent to the
+// ServiceBodyQueryUser MethodBodyQueryUser server.
+func EncodeMethodBodyQueryUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicebodyqueryuser.PayloadType)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyQueryUser", "MethodBodyQueryUser", "*servicebodyqueryuser.PayloadType", v)
+		}
+		values := req.URL.Query()
+		if p.B != nil {
+			values.Add("b", *p.B)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewMethodBodyQueryUserRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyQueryUser", "MethodBodyQueryUser", err)
+		}
+		return nil
+	}
+}
+`
+
+

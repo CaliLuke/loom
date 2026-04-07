@@ -1,0 +1,26 @@
+package testdata
+
+
+var PayloadBodyQueryPathObjectEncodeCode = `// EncodeMethodBodyQueryPathObjectRequest returns an encoder for requests sent
+// to the ServiceBodyQueryPathObject MethodBodyQueryPathObject server.
+func EncodeMethodBodyQueryPathObjectRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicebodyquerypathobject.MethodBodyQueryPathObjectPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyQueryPathObject", "MethodBodyQueryPathObject", "*servicebodyquerypathobject.MethodBodyQueryPathObjectPayload", v)
+		}
+		values := req.URL.Query()
+		if p.B != nil {
+			values.Add("b", *p.B)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewMethodBodyQueryPathObjectRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyQueryPathObject", "MethodBodyQueryPathObject", err)
+		}
+		return nil
+	}
+}
+`
+
+

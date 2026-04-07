@@ -1,0 +1,22 @@
+package testdata
+
+
+var PayloadBodyArrayStringValidateEncodeCode = `// EncodeMethodBodyArrayStringValidateRequest returns an encoder for requests
+// sent to the ServiceBodyArrayStringValidate MethodBodyArrayStringValidate
+// server.
+func EncodeMethodBodyArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyArrayStringValidate", "MethodBodyArrayStringValidate", "*servicebodyarraystringvalidate.MethodBodyArrayStringValidatePayload", v)
+		}
+		body := NewMethodBodyArrayStringValidateRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyArrayStringValidate", "MethodBodyArrayStringValidate", err)
+		}
+		return nil
+	}
+}
+`
+
+

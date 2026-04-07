@@ -25,7 +25,7 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend install-hooks lint test test-release integration-test build-loom loom-local loom-remote loom-status release release-preflight release-loom
+.PHONY: all all-tests ci depend install-hooks lint lint-filesize test test-release integration-test build-loom loom-local loom-remote loom-status release release-preflight release-loom
 .NOTPARALLEL: release release-loom
 
 # Only list test and build dependencies
@@ -90,8 +90,12 @@ install-hooks:
 
 lint:
 ifneq ($(GOOS),windows)
+	@bash ./scripts/lint_filesize.sh || (echo "^ - file size lint errors!" && echo && exit 1)
 	@$(GOLANGCI_LINT) run ./... || (echo "^ - lint errors!" && echo && exit 1)
 endif
+
+lint-filesize:
+	@bash ./scripts/lint_filesize.sh
 
 test:
 ifneq ($(GOOS),windows)

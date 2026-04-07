@@ -1,0 +1,20 @@
+package testdata
+
+
+var QueryStringDefaultBuildCode = `// BuildMethodQueryStringDefaultPayload builds the payload for the
+// ServiceQueryStringDefault MethodQueryStringDefault endpoint from CLI flags.
+func BuildMethodQueryStringDefaultPayload(serviceQueryStringDefaultMethodQueryStringDefaultQ string) (*servicequerystringdefault.MethodQueryStringDefaultPayload, error) {
+	var q string
+	{
+		if serviceQueryStringDefaultMethodQueryStringDefaultQ != "" {
+			q = serviceQueryStringDefaultMethodQueryStringDefaultQ
+		}
+	}
+	v := &servicequerystringdefault.MethodQueryStringDefaultPayload{}
+	v.Q = q
+
+	return v, nil
+}
+`
+
+

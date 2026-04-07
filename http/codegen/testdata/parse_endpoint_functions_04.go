@@ -1,0 +1,28 @@
+package testdata
+
+
+var PayloadMapUserTypeBuildCode = `// BuildMethodBodyInlineMapUserPayload builds the payload for the
+// ServiceBodyInlineMapUser MethodBodyInlineMapUser endpoint from CLI flags.
+func BuildMethodBodyInlineMapUserPayload(serviceBodyInlineMapUserMethodBodyInlineMapUserBody string) (map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, error) {
+	var err error
+	var body map[*KeyTypeRequestBody]*ElemTypeRequestBody
+	{
+		err = json.Unmarshal([]byte(serviceBodyInlineMapUserMethodBodyInlineMapUserBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "null")
+		}
+	}
+	v := make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
+	for key, val := range body {
+		tk := marshalKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
+		if val == nil {
+			v[tk] = nil
+			continue
+		}
+		v[tk] = marshalElemTypeRequestBodyToServicebodyinlinemapuserElemType(val)
+	}
+	return v, nil
+}
+`
+
+

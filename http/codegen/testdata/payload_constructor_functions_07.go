@@ -1,0 +1,18 @@
+package testdata
+
+
+var PayloadBodyUserOriginConstructorCode = `// NewMethodBodyUserOriginDefaultPayload builds a ServiceBodyUserOriginDefault
+// service MethodBodyUserOriginDefault endpoint payload.
+func NewMethodBodyUserOriginDefaultPayload(body *MethodBodyUserOriginDefaultRequestBody) *servicebodyuserorigindefault.MethodBodyUserOriginDefaultPayload {
+	v := &servicebodyuserorigindefault.PayloadType{
+		A: *body.A,
+	}
+	res := &servicebodyuserorigindefault.MethodBodyUserOriginDefaultPayload{
+		Body: v,
+	}
+
+	return res
+}
+`
+
+

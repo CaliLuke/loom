@@ -1,0 +1,26 @@
+package testdata
+
+
+var PayloadMapQueryPrimitiveArrayEncodeCode = `// EncodeMapQueryPrimitiveArrayRequest returns an encoder for requests sent to
+// the ServiceMapQueryPrimitiveArray MapQueryPrimitiveArray server.
+func EncodeMapQueryPrimitiveArrayRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(map[string][]uint)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceMapQueryPrimitiveArray", "MapQueryPrimitiveArray", "map[string][]uint", v)
+		}
+		values := req.URL.Query()
+		for key, value := range p {
+			keyStr := key
+			for _, val := range value {
+				valStr := strconv.FormatUint(uint64(val), 10)
+				values.Add(keyStr, valStr)
+			}
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+`
+
+

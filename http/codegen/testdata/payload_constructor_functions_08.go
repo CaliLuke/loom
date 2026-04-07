@@ -1,0 +1,15 @@
+package testdata
+
+
+var PayloadBodyInlineArrayUserConstructorCode = `// NewMethodBodyInlineArrayUserElemType builds a ServiceBodyInlineArrayUser
+// service MethodBodyInlineArrayUser endpoint payload.
+func NewMethodBodyInlineArrayUserElemType(body []*ElemTypeRequestBody) []*servicebodyinlinearrayuser.ElemType {
+	v := make([]*servicebodyinlinearrayuser.ElemType, len(body))
+	for i, val := range body {
+		v[i] = unmarshalElemTypeRequestBodyToServicebodyinlinearrayuserElemType(val)
+	}
+	return v
+}
+`
+
+

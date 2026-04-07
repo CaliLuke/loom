@@ -1,0 +1,21 @@
+package testdata
+
+
+var PayloadQueryPrimitiveStringDefaultEncodeCode = `// EncodeMethodQueryPrimitiveStringDefaultRequest returns an encoder for
+// requests sent to the ServiceQueryPrimitiveStringDefault
+// MethodQueryPrimitiveStringDefault server.
+func EncodeMethodQueryPrimitiveStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(string)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveStringDefault", "MethodQueryPrimitiveStringDefault", "string", v)
+		}
+		values := req.URL.Query()
+		values.Add("q", p)
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+`
+
+

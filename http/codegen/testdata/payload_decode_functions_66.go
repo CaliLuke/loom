@@ -1,0 +1,45 @@
+package testdata
+
+
+var PayloadHeaderPrimitiveArrayBoolValidateDecodeCode = `// DecodeMethodHeaderPrimitiveArrayBoolValidateRequest returns a decoder for
+// requests sent to the ServiceHeaderPrimitiveArrayBoolValidate
+// MethodHeaderPrimitiveArrayBoolValidate endpoint.
+func DecodeMethodHeaderPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			h   []bool
+			err error
+		)
+		{
+			hRaw := r.Header["H"]
+			if hRaw == nil {
+				err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
+			}
+			h = make([]bool, len(hRaw))
+			for i, rv := range hRaw {
+				v, err2 := strconv.ParseBool(rv)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("h", hRaw, "array of booleans"))
+				}
+				h[i] = v
+			}
+		}
+		if len(h) < 1 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("h", h, len(h), 1, true))
+		}
+		for _, e := range h {
+			if !(e == true) {
+				err = loom.MergeErrors(err, loom.InvalidEnumValueError("h[*]", e, []any{true}))
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := h
+
+		return payload, nil
+	}
+}
+`
+
+

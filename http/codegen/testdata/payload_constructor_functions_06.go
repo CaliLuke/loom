@@ -1,0 +1,17 @@
+package testdata
+
+
+var PayloadBodyUserInnerDefaultConstructorCode = `// NewMethodBodyUserInnerDefaultPayloadType builds a
+// ServiceBodyUserInnerDefault service MethodBodyUserInnerDefault endpoint
+// payload.
+func NewMethodBodyUserInnerDefaultPayloadType(body *MethodBodyUserInnerDefaultRequestBody) *servicebodyuserinnerdefault.PayloadType {
+	v := &servicebodyuserinnerdefault.PayloadType{}
+	if body.Inner != nil {
+		v.Inner = unmarshalInnerTypeRequestBodyToServicebodyuserinnerdefaultInnerType(body.Inner)
+	}
+
+	return v
+}
+`
+
+

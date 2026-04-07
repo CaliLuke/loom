@@ -1,0 +1,45 @@
+package testdata
+
+
+var PayloadQueryArrayInt64ValidateDecodeCode = `// DecodeMethodQueryArrayInt64ValidateRequest returns a decoder for requests
+// sent to the ServiceQueryArrayInt64Validate MethodQueryArrayInt64Validate
+// endpoint.
+func DecodeMethodQueryArrayInt64ValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			q   []int64
+			err error
+		)
+		{
+			qRaw := r.URL.Query()["q"]
+			if qRaw == nil {
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
+			}
+			q = make([]int64, len(qRaw))
+			for i, rv := range qRaw {
+				v, err2 := strconv.ParseInt(rv, 10, 64)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "array of integers"))
+				}
+				q[i] = v
+			}
+		}
+		if len(q) < 1 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
+		}
+		for _, e := range q {
+			if e < 1 {
+				err = loom.MergeErrors(err, loom.InvalidRangeError("q[*]", e, 1, true))
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewMethodQueryArrayInt64ValidatePayload(q)
+
+		return payload, nil
+	}
+}
+`
+
+

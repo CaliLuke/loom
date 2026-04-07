@@ -1,0 +1,23 @@
+package testdata
+
+
+var PayloadCookieCustomNameEncodeCode = `// EncodeMethodCookieCustomNameRequest returns an encoder for requests sent to
+// the ServiceCookieCustomName MethodCookieCustomName server.
+func EncodeMethodCookieCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicecookiecustomname.MethodCookieCustomNamePayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceCookieCustomName", "MethodCookieCustomName", "*servicecookiecustomname.MethodCookieCustomNamePayload", v)
+		}
+		if p.Cookie != nil {
+			v := *p.Cookie
+			req.AddCookie(&http.Cookie{
+				Name:  "c",
+				Value: v,
+			})
+		}
+		return nil
+	}
+}
+`
+

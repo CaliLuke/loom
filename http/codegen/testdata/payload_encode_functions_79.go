@@ -1,0 +1,30 @@
+package testdata
+
+
+var PayloadMapQueryObjectEncodeCode = `// EncodeMethodMapQueryObjectRequest returns an encoder for requests sent to
+// the ServiceMapQueryObject MethodMapQueryObject server.
+func EncodeMethodMapQueryObjectRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicemapqueryobject.PayloadType)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceMapQueryObject", "MethodMapQueryObject", "*servicemapqueryobject.PayloadType", v)
+		}
+		values := req.URL.Query()
+		for key, value := range p.C {
+			keyStr := strconv.Itoa(key)
+			for _, val := range value {
+				valStr := val
+				values.Add(keyStr, valStr)
+			}
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewMethodMapQueryObjectRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceMapQueryObject", "MethodMapQueryObject", err)
+		}
+		return nil
+	}
+}
+`
+
+

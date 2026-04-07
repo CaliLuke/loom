@@ -1,0 +1,40 @@
+package testdata
+
+
+var QueryArrayNestedAliasValidateDecodeCode = `// DecodeMethodARequest returns a decoder for requests sent to the
+// ServiceQueryArrayAliasValidate MethodA endpoint.
+func DecodeMethodARequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			array []float64
+			err   error
+		)
+		{
+			arrayRaw := r.URL.Query()["array"]
+			if arrayRaw != nil {
+				array = make([]float64, len(arrayRaw))
+				for i, rv := range arrayRaw {
+					v, err2 := strconv.ParseFloat(rv, 64)
+					if err2 != nil {
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("array", arrayRaw, "array of floats"))
+					}
+					array[i] = v
+				}
+			}
+		}
+		for _, e := range array {
+			if e < 10 {
+				err = loom.MergeErrors(err, loom.InvalidRangeError("array[*]", e, 10, true))
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewMethodAPayload(array)
+
+		return payload, nil
+	}
+}
+`
+
+

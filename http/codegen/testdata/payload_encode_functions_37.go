@@ -1,0 +1,25 @@
+package testdata
+
+
+var PayloadHeaderArrayIntValidateEncodeCode = `// EncodeMethodHeaderArrayIntValidateRequest returns an encoder for requests
+// sent to the ServiceHeaderArrayIntValidate MethodHeaderArrayIntValidate
+// server.
+func EncodeMethodHeaderArrayIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*serviceheaderarrayintvalidate.MethodHeaderArrayIntValidatePayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayIntValidate", "MethodHeaderArrayIntValidate", "*serviceheaderarrayintvalidate.MethodHeaderArrayIntValidatePayload", v)
+		}
+		{
+			head := p.H
+			for _, val := range head {
+				valStr := strconv.Itoa(val)
+				req.Header.Add("h", valStr)
+			}
+		}
+		return nil
+	}
+}
+`
+
+

@@ -1,0 +1,25 @@
+package testdata
+
+
+var PayloadQueryMapBoolArrayStringValidateEncodeCode = `// EncodeMethodQueryMapBoolArrayStringValidateRequest returns an encoder for
+// requests sent to the ServiceQueryMapBoolArrayStringValidate
+// MethodQueryMapBoolArrayStringValidate server.
+func EncodeMethodQueryMapBoolArrayStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceQueryMapBoolArrayStringValidate", "MethodQueryMapBoolArrayStringValidate", "*servicequerymapboolarraystringvalidate.MethodQueryMapBoolArrayStringValidatePayload", v)
+		}
+		values := req.URL.Query()
+		for kRaw, value := range p.Q {
+			k := strconv.FormatBool(kRaw)
+			key := fmt.Sprintf("q[%s]", k)
+			values[key] = value
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+`
+
+

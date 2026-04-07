@@ -1,0 +1,30 @@
+package testdata
+
+import (
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+// The DSL function names follow the following pattern:
+//
+// Result(Header|Body)(Type)(Required|Default)?DSL
+//
+// Where Type is the type of the result or result.
+
+
+var ExplicitContentTypeResultDSL = func() {
+	var ResultType = ResultType("ResultType", func() {
+		ContentType("application/custom+json")
+		Attribute("a", String)
+		Attribute("b", String)
+	})
+	Service("ServiceExplicitContentTypeResult", func() {
+		Method("MethodExplicitContentTypeResult", func() {
+			Result(ResultType)
+			HTTP(func() {
+				POST("/")
+			})
+		})
+	})
+}
+
+

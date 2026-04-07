@@ -1,0 +1,25 @@
+package testdata
+
+
+var QueryMapAliasValidateEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
+// ServiceQueryMapAliasValidate MethodA server.
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicequerymapaliasvalidate.MethodAPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceQueryMapAliasValidate", "MethodA", "*servicequerymapaliasvalidate.MethodAPayload", v)
+		}
+		values := req.URL.Query()
+		for kRaw, value := range p.Map {
+			k := strconv.FormatFloat(float64(kRaw), 'f', -1, 32)
+			key := fmt.Sprintf("map[%s]", k)
+			valueStr := strconv.FormatBool(value)
+			values.Add(key, valueStr)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+`
+
+

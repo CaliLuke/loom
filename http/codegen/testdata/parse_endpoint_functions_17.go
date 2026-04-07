@@ -1,0 +1,18 @@
+package testdata
+
+
+var PayloadPathCustomNameBuildCode = `// BuildMethodPathCustomNamePayload builds the payload for the
+// ServicePathCustomName MethodPathCustomName endpoint from CLI flags.
+func BuildMethodPathCustomNamePayload(servicePathCustomNameMethodPathCustomNameP string) (*servicepathcustomname.MethodPathCustomNamePayload, error) {
+	var p string
+	{
+		p = servicePathCustomNameMethodPathCustomNameP
+	}
+	v := &servicepathcustomname.MethodPathCustomNamePayload{}
+	v.Path = p
+
+	return v, nil
+}
+`
+
+

@@ -1,0 +1,18 @@
+package testdata
+
+
+var PayloadHeaderPrimitiveStringValidateEncodeCode = `// EncodeMethodHeaderPrimitiveStringValidateRequest returns an encoder for
+// requests sent to the ServiceHeaderPrimitiveStringValidate
+// MethodHeaderPrimitiveStringValidate server.
+func EncodeMethodHeaderPrimitiveStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(string)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveStringValidate", "MethodHeaderPrimitiveStringValidate", "string", v)
+		}
+		return nil
+	}
+}
+`
+
+

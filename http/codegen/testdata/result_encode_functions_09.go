@@ -1,0 +1,14 @@
+package testdata
+
+
+var ResponseEncoderSkipResponseBodyEncodeDecodeCode = `// EncodeMethodResponseEncoderSkipResponse returns an encoder for responses
+// returned by the ServiceResponseEncoderSkip MethodResponseEncoderSkip
+// endpoint.
+func EncodeMethodResponseEncoderSkipResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		return nil
+	}
+}
+`
+
+

@@ -1,0 +1,71 @@
+package testdata
+
+
+var PayloadQueryMapStringMapIntStringValidateDecodeCode = `// DecodeMethodQueryMapStringMapIntStringValidateRequest returns a decoder for
+// requests sent to the ServiceQueryMapStringMapIntStringValidate
+// MethodQueryMapStringMapIntStringValidate endpoint.
+func DecodeMethodQueryMapStringMapIntStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			q   map[string]map[int]string
+			err error
+		)
+		{
+			qRaw := r.URL.Query()
+			if len(qRaw) == 0 {
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
+			}
+			for keyRaw, valRaw := range qRaw {
+				if strings.HasPrefix(keyRaw, "q[") {
+					if q == nil {
+						q = make(map[string]map[int]string)
+					}
+					var keya string
+					{
+						openIdx := strings.IndexRune(keyRaw, '[')
+						closeIdx := strings.IndexRune(keyRaw, ']')
+						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
+							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
+						} else {
+							keya = keyRaw[openIdx+1 : closeIdx]
+							keyRaw = keyRaw[closeIdx+1:]
+						}
+					}
+					if q[keya] == nil {
+						q[keya] = make(map[int]string)
+					}
+					var keyb int
+					{
+						openIdx := strings.IndexRune(keyRaw, '[')
+						closeIdx := strings.IndexRune(keyRaw, ']')
+						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
+							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
+						} else {
+							keybRaw := keyRaw[openIdx+1 : closeIdx]
+							v, err2 := strconv.ParseInt(keybRaw, 10, strconv.IntSize)
+							if err2 != nil {
+								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keybRaw, "integer"))
+							}
+							keyb = int(v)
+						}
+					}
+					q[keya][keyb] = valRaw[0]
+				}
+			}
+		}
+		for k, _ := range q {
+			if !(k == "foo") {
+				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q.key", k, []any{"foo"}))
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := q
+
+		return payload, nil
+	}
+}
+`
+
+

@@ -1,0 +1,21 @@
+package testdata
+
+
+var PayloadBodyArrayUserEncodeCode = `// EncodeMethodBodyArrayUserRequest returns an encoder for requests sent to the
+// ServiceBodyArrayUser MethodBodyArrayUser server.
+func EncodeMethodBodyArrayUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicebodyarrayuser.MethodBodyArrayUserPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyArrayUser", "MethodBodyArrayUser", "*servicebodyarrayuser.MethodBodyArrayUserPayload", v)
+		}
+		body := NewMethodBodyArrayUserRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyArrayUser", "MethodBodyArrayUser", err)
+		}
+		return nil
+	}
+}
+`
+
+

@@ -1,0 +1,82 @@
+package testdata
+
+
+var PayloadQueryMapIntMapStringArrayIntValidateDecodeCode = `// DecodeMethodQueryMapIntMapStringArrayIntValidateRequest returns a decoder
+// for requests sent to the ServiceQueryMapIntMapStringArrayIntValidate
+// MethodQueryMapIntMapStringArrayIntValidate endpoint.
+func DecodeMethodQueryMapIntMapStringArrayIntValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			q   map[int]map[string][]int
+			err error
+		)
+		{
+			qRaw := r.URL.Query()
+			if len(qRaw) == 0 {
+				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
+			}
+			for keyRaw, valRaw := range qRaw {
+				if strings.HasPrefix(keyRaw, "q[") {
+					if q == nil {
+						q = make(map[int]map[string][]int)
+					}
+					var keya int
+					{
+						openIdx := strings.IndexRune(keyRaw, '[')
+						closeIdx := strings.IndexRune(keyRaw, ']')
+						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
+							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
+						} else {
+							keyaRaw := keyRaw[openIdx+1 : closeIdx]
+							v, err2 := strconv.ParseInt(keyaRaw, 10, strconv.IntSize)
+							if err2 != nil {
+								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keyaRaw, "integer"))
+							}
+							keya = int(v)
+							keyRaw = keyRaw[closeIdx+1:]
+						}
+					}
+					if q[keya] == nil {
+						q[keya] = make(map[string][]int)
+					}
+					var keyb string
+					{
+						openIdx := strings.IndexRune(keyRaw, '[')
+						closeIdx := strings.IndexRune(keyRaw, ']')
+						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
+							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
+						} else {
+							keyb = keyRaw[openIdx+1 : closeIdx]
+						}
+					}
+					var val []int
+					{
+						val = make([]int, len(valRaw))
+						for i, rv := range valRaw {
+							v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
+							if err2 != nil {
+								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valRaw, "array of integers"))
+							}
+							val[i] = int(v)
+						}
+					}
+					q[keya][keyb] = val
+				}
+			}
+		}
+		for k, _ := range q {
+			if !(k == 1 || k == 2 || k == 3) {
+				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q.key", k, []any{1, 2, 3}))
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := q
+
+		return payload, nil
+	}
+}
+`
+
+

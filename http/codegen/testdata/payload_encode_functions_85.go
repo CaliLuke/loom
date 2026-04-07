@@ -1,0 +1,28 @@
+package testdata
+
+
+var QueryIntAliasValidateEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
+// ServiceQueryIntAliasValidate MethodA server.
+func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicequeryintaliasvalidate.MethodAPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceQueryIntAliasValidate", "MethodA", "*servicequeryintaliasvalidate.MethodAPayload", v)
+		}
+		values := req.URL.Query()
+		if p.Int != nil {
+			values.Add("int", fmt.Sprintf("%v", *p.Int))
+		}
+		if p.Int32 != nil {
+			values.Add("int32", fmt.Sprintf("%v", *p.Int32))
+		}
+		if p.Int64 != nil {
+			values.Add("int64", fmt.Sprintf("%v", *p.Int64))
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+`
+
+

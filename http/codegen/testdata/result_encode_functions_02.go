@@ -1,0 +1,20 @@
+package testdata
+
+
+var ResultBodyHeaderObjectEncodeCode = `// EncodeMethodBodyHeaderObjectResponse returns an encoder for responses
+// returned by the ServiceBodyHeaderObject MethodBodyHeaderObject endpoint.
+func EncodeMethodBodyHeaderObjectResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*servicebodyheaderobject.MethodBodyHeaderObjectResult)
+		enc := encoder(ctx, w)
+		body := NewMethodBodyHeaderObjectResponseBody(res)
+		if res.B != nil {
+			w.Header().Set("B", *res.B)
+		}
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+`
+
+

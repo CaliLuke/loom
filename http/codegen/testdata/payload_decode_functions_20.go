@@ -1,0 +1,45 @@
+package testdata
+
+
+var PayloadQueryMapStringStringDecodeCode = `// DecodeMethodQueryMapStringStringRequest returns a decoder for requests sent
+// to the ServiceQueryMapStringString MethodQueryMapStringString endpoint.
+func DecodeMethodQueryMapStringStringRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			q   map[string]string
+			err error
+		)
+		{
+			qRaw := r.URL.Query()
+			if len(qRaw) != 0 {
+				for keyRaw, valRaw := range qRaw {
+					if strings.HasPrefix(keyRaw, "q[") {
+						if q == nil {
+							q = make(map[string]string)
+						}
+						var keya string
+						{
+							openIdx := strings.IndexRune(keyRaw, '[')
+							closeIdx := strings.IndexRune(keyRaw, ']')
+							if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
+								err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
+							} else {
+								keya = keyRaw[openIdx+1 : closeIdx]
+							}
+						}
+						q[keya] = valRaw[0]
+					}
+				}
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewMethodQueryMapStringStringPayload(q)
+
+		return payload, nil
+	}
+}
+`
+
+
