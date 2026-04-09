@@ -72,6 +72,13 @@ No commented-out code—delete dead code.
 - Treat `origin` as the canonical `CaliLuke/loom` remote unless the user explicitly reconfigures remotes.
 - Check `git remote -v` before pushing if there is any ambiguity.
 
+### Releases
+
+- For Loom release work, use the repo-local [`release` skill](/Users/luca/code/loom-mono/loom/.agents/skills/release/SKILL.md).
+- Cut releases with `make release VERSION=vX.Y.Z`. Do not rely on implicit or hardcoded version defaults.
+- Treat the GitHub Release object as part of the release contract, not an optional follow-up after tag push.
+- If a `v*` tag does not result in a matching GitHub Release entry, stop and fix the automation before cutting another release.
+
 ### Testing
 
 - Write table-driven tests in `*_test.go`.

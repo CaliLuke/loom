@@ -91,6 +91,9 @@ This is part of the product, not an afterthought. Loom is intentionally shaped s
 # Install Loom
 go install github.com/CaliLuke/loom/cmd/loom@latest
 
+# Install the current stable release explicitly
+go install github.com/CaliLuke/loom/cmd/loom@v1.0.9
+
 # Create a new module
 mkdir hello && cd hello
 go mod init hello

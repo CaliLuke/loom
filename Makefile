@@ -6,14 +6,21 @@
 # - "depend" retrieves the Go packages needed to run the linter and tests
 # - "lint" runs the linter
 # - "test" runs the tests
-# - "release" creates a new release commit, tags the commit and pushes the tag to GitHub.
+# - "release" creates a new release commit, tags the commit, and pushes the tag to GitHub.
+#   It requires VERSION=vX.Y.Z and GitHub Actions publishes the matching GitHub Release.
 #
 # Meta targets:
 # - "all" is the default target, it runs "lint" and "test"
 #
-MAJOR=1
-MINOR=0
-BUILD=4
+CURRENT_MAJOR=$(shell awk '/Major = / {print $$3; exit}' pkg/version.go)
+CURRENT_MINOR=$(shell awk '/Minor = / {print $$3; exit}' pkg/version.go)
+CURRENT_BUILD=$(shell awk '/Build = / {print $$3; exit}' pkg/version.go)
+CURRENT_VERSION=v$(CURRENT_MAJOR).$(CURRENT_MINOR).$(CURRENT_BUILD)
+VERSION?=
+VERSION_PARTS=$(subst ., ,$(patsubst v%,%,$(VERSION)))
+RELEASE_MAJOR=$(word 1,$(VERSION_PARTS))
+RELEASE_MINOR=$(word 2,$(VERSION_PARTS))
+RELEASE_BUILD=$(word 3,$(VERSION_PARTS))
 
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
@@ -133,7 +140,8 @@ build-loom:
 release-preflight: lint test-release integration-test
 
 release: release-loom
-	@echo "Release v$(MAJOR).$(MINOR).$(BUILD) complete"
+	@echo "Release $(VERSION) pushed"
+	@echo "GitHub Actions will publish the matching GitHub Release for tag $(VERSION)"
 
 release-loom:
 	# First make sure all is clean
@@ -143,18 +151,30 @@ release-loom:
 		echo "$$status"; \
 		exit 1; \
 	fi
+	@if [ -z "$(VERSION)" ]; then \
+		echo "error: missing VERSION (example: make release VERSION=v1.0.10)"; \
+		exit 1; \
+	fi
+	@if ! printf '%s\n' "$(VERSION)" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "error: VERSION must match vX.Y.Z"; \
+		exit 1; \
+	fi
+	@if [ "$(VERSION)" = "$(CURRENT_VERSION)" ]; then \
+		echo "error: VERSION $(VERSION) matches current version $(CURRENT_VERSION)"; \
+		exit 1; \
+	fi
 	go mod tidy 
 	# Bump version number, commit and push
-	sed 's/Major = .*/Major = $(MAJOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
-	sed 's/Minor = .*/Minor = $(MINOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
-	sed 's/Build = .*/Build = $(BUILD)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
-	sed 's|github.com/CaliLuke/loom@v.*tab=doc|github.com/CaliLuke/loom@v$(MAJOR).$(MINOR).$(BUILD)/dsl?tab=doc|' README.md > _tmp && mv _tmp README.md
+	sed 's/Major = .*/Major = $(RELEASE_MAJOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
+	sed 's/Minor = .*/Minor = $(RELEASE_MINOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
+	sed 's/Build = .*/Build = $(RELEASE_BUILD)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
+	sed 's|go install github.com/CaliLuke/loom/cmd/loom@v[0-9][0-9.]*|go install github.com/CaliLuke/loom/cmd/loom@$(VERSION)|' README.md > _tmp && mv _tmp README.md
 	$(MAKE) release-preflight
 	git add .
-	git commit -m "Release v$(MAJOR).$(MINOR).$(BUILD)"
-	git tag v$(MAJOR).$(MINOR).$(BUILD)
+	git commit -m "Release $(VERSION)"
+	git tag $(VERSION)
 	cd cmd/loom && go install .
 	git push origin main
-	git push origin v$(MAJOR).$(MINOR).$(BUILD)
+	git push origin $(VERSION)
 	# Wait for Go proxy to update
 	sleep 10
