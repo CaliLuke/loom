@@ -69,10 +69,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		return nil, err
 	}
 
-	outputs, err = computeOutputs(written, debug)
-	if err != nil {
-		return nil, err
-	}
+	outputs = computeOutputs(written, debug)
 	sort.Strings(outputs)
 
 	debugStage(debug, "total", startGenerate, "outputs=%d", len(outputs))
@@ -228,7 +225,7 @@ func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]st
 	}()
 
 	written := make(map[string]struct{})
-	firstErr := collectWriteResults(written, resultChan, debug)
+	firstErr := collectWriteResults(written, resultChan)
 	if firstErr != nil {
 		return nil, firstErr
 	}
@@ -236,7 +233,7 @@ func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]st
 	return written, nil
 }
 
-func collectWriteResults(written map[string]struct{}, resultChan <-chan fileRenderResult, debug bool) error {
+func collectWriteResults(written map[string]struct{}, resultChan <-chan fileRenderResult) error {
 	var firstErr error
 	for res := range resultChan {
 		if res.err != nil && firstErr == nil {
@@ -253,7 +250,7 @@ func collectWriteResults(written map[string]struct{}, resultChan <-chan fileRend
 	return firstErr
 }
 
-func computeOutputs(written map[string]struct{}, debug bool) ([]string, error) {
+func computeOutputs(written map[string]struct{}, debug bool) []string {
 	start := time.Now()
 	outputs := make([]string, 0, len(written))
 	cwd, err := os.Getwd()
@@ -268,7 +265,7 @@ func computeOutputs(written map[string]struct{}, debug bool) ([]string, error) {
 		outputs = append(outputs, rel)
 	}
 	debugStage(debug, "compute-outputs", start, "outputs=%d", len(outputs))
-	return outputs, nil
+	return outputs
 }
 
 // mergeFilesByPath coalesces files that share the same output path by
