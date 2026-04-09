@@ -3,7 +3,7 @@
 // HTTP request path constructors for the clock service.
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package server
 

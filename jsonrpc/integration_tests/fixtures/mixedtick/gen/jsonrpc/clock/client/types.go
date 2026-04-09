@@ -3,7 +3,7 @@
 // clock HTTP client types
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package client
 

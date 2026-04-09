@@ -3,14 +3,14 @@
 // clock service
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package clock
 
 import (
 	"context"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Service is the clock service interface.
@@ -109,7 +109,7 @@ type TickTockEvent struct {
 	Data  string `json:"data"`
 }
 
-// MakeUnauthorized builds a goa.ServiceError from an error.
-func MakeUnauthorized(err error) *goa.ServiceError {
-	return goa.NewServiceError(err, "unauthorized", false, false, false)
+// MakeUnauthorized builds a loom.ServiceError from an error.
+func MakeUnauthorized(err error) *loom.ServiceError {
+	return loom.NewServiceError(err, "unauthorized", false, false, false)
 }

@@ -3,7 +3,7 @@
 // clock JSON-RPC client encoders and decoders
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package client
 
@@ -15,7 +15,7 @@ import (
 	"net/url"
 
 	clock "example.com/mixedtick/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
 )
 
@@ -25,7 +25,7 @@ func (c *Client) BuildInitializeRequest(ctx context.Context, v any) (*http.Reque
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: InitializeClockPath()}
 	req, err := http.NewRequest("POST", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("clock", "Initialize", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("clock", "Initialize", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -36,11 +36,11 @@ func (c *Client) BuildInitializeRequest(ctx context.Context, v any) (*http.Reque
 
 // EncodeInitializeRequest returns an encoder for requests sent to the clock
 // Initialize server.
-func EncodeInitializeRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeInitializeRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*clock.InitializePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("clock", "Initialize", "*clock.InitializePayload", v)
+			return loomhttp.ErrInvalidType("clock", "Initialize", "*clock.InitializePayload", v)
 		}
 		b := NewInitializeRequestBody(p)
 		body := &jsonrpc.Request{
@@ -53,7 +53,7 @@ func EncodeInitializeRequest(encoder func(*http.Request) goahttp.Encoder) func(*
 		}
 		// If ID is nil or empty, this is a notification - no ID field
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("clock", "Initialize", err)
+			return loomhttp.ErrEncodingError("clock", "Initialize", err)
 		}
 		return nil
 	}
@@ -62,7 +62,7 @@ func EncodeInitializeRequest(encoder func(*http.Request) goahttp.Encoder) func(*
 // DecodeInitializeResponse returns a decoder for responses returned by the
 // clock service Initialize JSON-RPC method. restoreBody controls whether the
 // response body should be restored after having been read.
-func DecodeInitializeResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeInitializeResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -78,19 +78,19 @@ func DecodeInitializeResponse(decoder func(*http.Response) goahttp.Decoder, rest
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("clock", "Initialize", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("clock", "Initialize", resp.StatusCode, string(body))
 		}
 
 		var jresp jsonrpc.RawResponse
 		if err := decoder(resp).Decode(&jresp); err != nil {
-			return nil, goahttp.ErrDecodingError("clock", "Initialize", err)
+			return nil, loomhttp.ErrDecodingError("clock", "Initialize", err)
 		}
 
 		if jresp.Error != nil {
 			switch jresp.Error.Code {
 			default:
 				body, _ := io.ReadAll(resp.Body)
-				return nil, goahttp.ErrInvalidResponse("clock", "Initialize", resp.StatusCode, string(body))
+				return nil, loomhttp.ErrInvalidResponse("clock", "Initialize", resp.StatusCode, string(body))
 			}
 		}
 
@@ -101,20 +101,18 @@ func DecodeInitializeResponse(decoder func(*http.Response) goahttp.Decoder, rest
 		)
 		err = decoder(resp).Decode(&body)
 		if err != nil {
-			return nil, goahttp.ErrDecodingError("clock", "Initialize", err)
+			return nil, loomhttp.ErrDecodingError("clock", "Initialize", err)
 		}
 		res := NewInitializeResultOK(&body)
 		return res, nil
 	}
-}
-
-// BuildTickRequest instantiates a HTTP request object with method and path set
+} // BuildTickRequest instantiates a HTTP request object with method and path set
 // to call the "clock" service "Tick" endpoint
 func (c *Client) BuildTickRequest(ctx context.Context, v any) (*http.Request, error) {
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: TickClockPath()}
 	req, err := http.NewRequest("POST", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("clock", "Tick", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("clock", "Tick", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -125,11 +123,11 @@ func (c *Client) BuildTickRequest(ctx context.Context, v any) (*http.Request, er
 
 // EncodeTickRequest returns an encoder for requests sent to the clock Tick
 // server.
-func EncodeTickRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeTickRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*clock.TickPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("clock", "Tick", "*clock.TickPayload", v)
+			return loomhttp.ErrInvalidType("clock", "Tick", "*clock.TickPayload", v)
 		}
 		b := NewTickRequestBody(p)
 		body := &jsonrpc.Request{
@@ -142,7 +140,7 @@ func EncodeTickRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.R
 		}
 		// If ID is nil or empty, this is a notification - no ID field
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("clock", "Tick", err)
+			return loomhttp.ErrEncodingError("clock", "Tick", err)
 		}
 		return nil
 	}
@@ -151,7 +149,7 @@ func EncodeTickRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.R
 // DecodeTickResponse returns a decoder for responses returned by the clock
 // service Tick JSON-RPC method. restoreBody controls whether the response body
 // should be restored after having been read.
-func DecodeTickResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -167,19 +165,19 @@ func DecodeTickResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
 		}
 
 		var jresp jsonrpc.RawResponse
 		if err := decoder(resp).Decode(&jresp); err != nil {
-			return nil, goahttp.ErrDecodingError("clock", "Tick", err)
+			return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
 		}
 
 		if jresp.Error != nil {
 			switch jresp.Error.Code {
 			default:
 				body, _ := io.ReadAll(resp.Body)
-				return nil, goahttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
+				return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
 			}
 		}
 
@@ -190,7 +188,7 @@ func DecodeTickResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 		)
 		err = decoder(resp).Decode(&body)
 		if err != nil {
-			return nil, goahttp.ErrDecodingError("clock", "Tick", err)
+			return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
 		}
 		res := NewTickResultOK(&body)
 		return res, nil

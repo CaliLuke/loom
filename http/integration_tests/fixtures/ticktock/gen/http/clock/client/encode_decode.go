@@ -3,7 +3,7 @@
 // clock HTTP client encoders and decoders
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package client
 
@@ -15,7 +15,7 @@ import (
 	"net/url"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 // BuildTickRequest instantiates a HTTP request object with method and path set
@@ -24,7 +24,7 @@ func (c *Client) BuildTickRequest(ctx context.Context, v any) (*http.Request, er
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: TickClockPath()}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("clock", "Tick", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("clock", "Tick", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -36,7 +36,7 @@ func (c *Client) BuildTickRequest(ctx context.Context, v any) (*http.Request, er
 // DecodeTickResponse returns a decoder for responses returned by the clock
 // Tick endpoint. restoreBody controls whether the response body should be
 // restored after having been read.
-func DecodeTickResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -58,17 +58,17 @@ func DecodeTickResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("clock", "Tick", err)
+				return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
 			}
 			err = ValidateTickResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("clock", "Tick", err)
+				return nil, loomhttp.ErrValidationError("clock", "Tick", err)
 			}
 			res := NewTickTockEventOK(&body)
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
 		}
 	}
 }
@@ -79,7 +79,7 @@ func (c *Client) BuildTockRequest(ctx context.Context, v any) (*http.Request, er
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: TockClockPath()}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("clock", "Tock", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("clock", "Tock", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -91,7 +91,7 @@ func (c *Client) BuildTockRequest(ctx context.Context, v any) (*http.Request, er
 // DecodeTockResponse returns a decoder for responses returned by the clock
 // Tock endpoint. restoreBody controls whether the response body should be
 // restored after having been read.
-func DecodeTockResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeTockResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -113,17 +113,17 @@ func DecodeTockResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("clock", "Tock", err)
+				return nil, loomhttp.ErrDecodingError("clock", "Tock", err)
 			}
 			err = ValidateTockResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("clock", "Tock", err)
+				return nil, loomhttp.ErrValidationError("clock", "Tock", err)
 			}
 			res := NewTockTickTockEventOK(&body)
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("clock", "Tock", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("clock", "Tock", resp.StatusCode, string(body))
 		}
 	}
 }
@@ -134,7 +134,7 @@ func (c *Client) BuildGuardedRequest(ctx context.Context, v any) (*http.Request,
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GuardedClockPath()}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("clock", "Guarded", u.String(), err)
+		return nil, loomhttp.ErrInvalidURL("clock", "Guarded", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -145,11 +145,11 @@ func (c *Client) BuildGuardedRequest(ctx context.Context, v any) (*http.Request,
 
 // EncodeGuardedRequest returns an encoder for requests sent to the clock
 // Guarded server.
-func EncodeGuardedRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+func EncodeGuardedRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		p, ok := v.(*clock.GuardedPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("clock", "Guarded", "*clock.GuardedPayload", v)
+			return loomhttp.ErrInvalidType("clock", "Guarded", "*clock.GuardedPayload", v)
 		}
 		values := req.URL.Query()
 		if p.Token != nil {
@@ -164,9 +164,9 @@ func EncodeGuardedRequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 // Guarded endpoint. restoreBody controls whether the response body should be
 // restored after having been read.
 // DecodeGuardedResponse may return the following errors:
-//   - "unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
+//   - "unauthorized" (type *loom.ServiceError): http.StatusUnauthorized
 //   - error: internal error
-func DecodeGuardedResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeGuardedResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -188,11 +188,11 @@ func DecodeGuardedResponse(decoder func(*http.Response) goahttp.Decoder, restore
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("clock", "Guarded", err)
+				return nil, loomhttp.ErrDecodingError("clock", "Guarded", err)
 			}
 			err = ValidateGuardedResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("clock", "Guarded", err)
+				return nil, loomhttp.ErrValidationError("clock", "Guarded", err)
 			}
 			res := NewGuardedTickTockEventOK(&body)
 			return res, nil
@@ -203,16 +203,16 @@ func DecodeGuardedResponse(decoder func(*http.Response) goahttp.Decoder, restore
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("clock", "Guarded", err)
+				return nil, loomhttp.ErrDecodingError("clock", "Guarded", err)
 			}
 			err = ValidateGuardedUnauthorizedResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("clock", "Guarded", err)
+				return nil, loomhttp.ErrValidationError("clock", "Guarded", err)
 			}
 			return nil, NewGuardedUnauthorized(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("clock", "Guarded", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("clock", "Guarded", resp.StatusCode, string(body))
 		}
 	}
 }

@@ -3,7 +3,7 @@
 // sse-client
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package client
 
@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 // TickClientStream is the interface for reading Server-Sent Events.
@@ -25,12 +25,11 @@ type TickClientStream interface {
 	// Close closes the SSE stream and releases resources.
 	Close() error
 }
-
 type (
 	// TickStreamImpl implements the TickClientStream interface.
 	TickStreamImpl struct {
 		resp    *http.Response
-		decoder func(*http.Response) goahttp.Decoder
+		decoder func(*http.Response) loomhttp.Decoder
 		buffer  []byte // Buffer for unprocessed data
 		lock    sync.Mutex
 		closed  bool
@@ -41,11 +40,11 @@ type (
 var _ TickClientStream = (*TickStreamImpl)(nil)
 
 // NewTickStream creates a new TickClientStream.
-func NewTickStream(resp *http.Response, decoder func(*http.Response) goahttp.Decoder) TickClientStream {
+func NewTickStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TickClientStream {
 	return &TickStreamImpl{
-		resp:    resp,
+		buffer:  make([]byte, 0, 4096),
 		decoder: decoder,
-		buffer:  make([]byte, 0, 4096), // Pre-allocate buffer
+		resp:    resp,
 	}
 }
 
@@ -203,7 +202,7 @@ func (s *TickStreamImpl) Close() error {
 
 // processEvent processes a raw SSE event into the expected type
 func (s *TickStreamImpl) processEvent(eventData []byte) (event *clock.TickTockEvent, err error) {
-	parsed, err := goahttp.ParseSSEEvent(eventData)
+	parsed, err := loomhttp.ParseSSEEvent(eventData)
 	if err != nil {
 		return event, err
 	}
@@ -221,12 +220,11 @@ type TockClientStream interface {
 	// Close closes the SSE stream and releases resources.
 	Close() error
 }
-
 type (
 	// TockStreamImpl implements the TockClientStream interface.
 	TockStreamImpl struct {
 		resp    *http.Response
-		decoder func(*http.Response) goahttp.Decoder
+		decoder func(*http.Response) loomhttp.Decoder
 		buffer  []byte // Buffer for unprocessed data
 		lock    sync.Mutex
 		closed  bool
@@ -237,11 +235,11 @@ type (
 var _ TockClientStream = (*TockStreamImpl)(nil)
 
 // NewTockStream creates a new TockClientStream.
-func NewTockStream(resp *http.Response, decoder func(*http.Response) goahttp.Decoder) TockClientStream {
+func NewTockStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TockClientStream {
 	return &TockStreamImpl{
-		resp:    resp,
+		buffer:  make([]byte, 0, 4096),
 		decoder: decoder,
-		buffer:  make([]byte, 0, 4096), // Pre-allocate buffer
+		resp:    resp,
 	}
 }
 
@@ -399,7 +397,7 @@ func (s *TockStreamImpl) Close() error {
 
 // processEvent processes a raw SSE event into the expected type
 func (s *TockStreamImpl) processEvent(eventData []byte) (event *clock.TickTockEvent, err error) {
-	parsed, err := goahttp.ParseSSEEvent(eventData)
+	parsed, err := loomhttp.ParseSSEEvent(eventData)
 	if err != nil {
 		return event, err
 	}
@@ -417,12 +415,11 @@ type GuardedClientStream interface {
 	// Close closes the SSE stream and releases resources.
 	Close() error
 }
-
 type (
 	// GuardedStreamImpl implements the GuardedClientStream interface.
 	GuardedStreamImpl struct {
 		resp    *http.Response
-		decoder func(*http.Response) goahttp.Decoder
+		decoder func(*http.Response) loomhttp.Decoder
 		buffer  []byte // Buffer for unprocessed data
 		lock    sync.Mutex
 		closed  bool
@@ -433,11 +430,11 @@ type (
 var _ GuardedClientStream = (*GuardedStreamImpl)(nil)
 
 // NewGuardedStream creates a new GuardedClientStream.
-func NewGuardedStream(resp *http.Response, decoder func(*http.Response) goahttp.Decoder) GuardedClientStream {
+func NewGuardedStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) GuardedClientStream {
 	return &GuardedStreamImpl{
-		resp:    resp,
+		buffer:  make([]byte, 0, 4096),
 		decoder: decoder,
-		buffer:  make([]byte, 0, 4096), // Pre-allocate buffer
+		resp:    resp,
 	}
 }
 
@@ -595,7 +592,7 @@ func (s *GuardedStreamImpl) Close() error {
 
 // processEvent processes a raw SSE event into the expected type
 func (s *GuardedStreamImpl) processEvent(eventData []byte) (event *clock.TickTockEvent, err error) {
-	parsed, err := goahttp.ParseSSEEvent(eventData)
+	parsed, err := loomhttp.ParseSSEEvent(eventData)
 	if err != nil {
 		return event, err
 	}

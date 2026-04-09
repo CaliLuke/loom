@@ -3,7 +3,7 @@
 // sse
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package server
 
@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 // TickServerStream implements the clock.TickServerStream interface using
@@ -106,12 +106,12 @@ func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 		data = string(byts)
 	}
 
-	msg := goahttp.SSEMessage{Data: data}
+	msg := loomhttp.SSEMessage{Data: data}
 	if event := res.Event; event != "" {
 		msg.Type = event
 	}
 
-	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
 		return err
 	}
 
@@ -212,12 +212,12 @@ func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 		data = string(byts)
 	}
 
-	msg := goahttp.SSEMessage{Data: data}
+	msg := loomhttp.SSEMessage{Data: data}
 	if event := res.Event; event != "" {
 		msg.Type = event
 	}
 
-	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
 		return err
 	}
 
@@ -318,12 +318,12 @@ func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.Tick
 		data = string(byts)
 	}
 
-	msg := goahttp.SSEMessage{Data: data}
+	msg := loomhttp.SSEMessage{Data: data}
 	if event := res.Event; event != "" {
 		msg.Type = event
 	}
 
-	if err := goahttp.WriteSSEEvent(s.w, msg); err != nil {
+	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
 		return err
 	}
 

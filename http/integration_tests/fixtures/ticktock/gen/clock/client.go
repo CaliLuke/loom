@@ -3,25 +3,25 @@
 // clock client
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package clock
 
 import (
 	"context"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Client is the "clock" service client.
 type Client struct {
-	TickEndpoint    goa.Endpoint
-	TockEndpoint    goa.Endpoint
-	GuardedEndpoint goa.Endpoint
+	TickEndpoint    loom.Endpoint
+	TockEndpoint    loom.Endpoint
+	GuardedEndpoint loom.Endpoint
 }
 
 // NewClient initializes a "clock" service client given the endpoints.
-func NewClient(tick, tock, guarded goa.Endpoint) *Client {
+func NewClient(tick, tock, guarded loom.Endpoint) *Client {
 	return &Client{TickEndpoint: tick, TockEndpoint: tock, GuardedEndpoint: guarded}
 }
 
@@ -47,7 +47,7 @@ func (c *Client) Tock(ctx context.Context) (res TockClientStream, err error) {
 
 // Guarded calls the "Guarded" endpoint of the "clock" service.
 // Guarded may return the following errors:
-// - "unauthorized" (type *goa.ServiceError)
+// - "unauthorized" (type *loom.ServiceError)
 // - error: internal error
 func (c *Client) Guarded(ctx context.Context, p *GuardedPayload) (res GuardedClientStream, err error) {
 	var ires any

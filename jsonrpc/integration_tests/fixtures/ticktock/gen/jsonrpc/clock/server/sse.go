@@ -3,7 +3,7 @@
 // clock SSE server streaming
 //
 // Command:
-// $ loom gen example.com/ticktock/design
+// $ loom gen example.com/ticktock/design -o .
 
 package server
 
@@ -14,7 +14,7 @@ import (
 	"sync"
 
 	clock "example.com/ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
 )
 
@@ -27,9 +27,9 @@ type clockSSEStream struct {
 	// r is the HTTP request.
 	r *http.Request
 	// encoder is the response encoder.
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder
 	// decoder is the request decoder.
-	decoder func(*http.Request) goahttp.Decoder
+	decoder func(*http.Request) loomhttp.Decoder
 }
 
 func (s *clockSSEStream) initSSEHeaders() {
@@ -42,15 +42,13 @@ func (s *clockSSEStream) initSSEHeaders() {
 		s.w.WriteHeader(http.StatusOK)
 	})
 }
-
 func (s *clockSSEStream) sendSSEEvent(eventType string, v any) error {
 	s.initSSEHeaders()
-	if err := goahttp.WriteJSONSSEEvent(s.w, goahttp.SSEMessage{Type: eventType}, v); err != nil {
+	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
 		return err
 	}
 	return http.NewResponseController(s.w).Flush()
 }
-
 func (s *clockSSEStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
 	return s.sendSSEEvent("message", response)
@@ -70,8 +68,8 @@ func (s *clockSSEStream) Send(ctx context.Context, event clock.Event) error {
 		if isResponse {
 			resp := jsonrpc.MakeSuccessResponse(id, body)
 			message = map[string]any{
-				"jsonrpc": resp.JSONRPC,
 				"id":      resp.ID,
+				"jsonrpc": resp.JSONRPC,
 				"result":  resp.Result,
 			}
 			eventType = "response"
@@ -93,8 +91,8 @@ func (s *clockSSEStream) Send(ctx context.Context, event clock.Event) error {
 		if isResponse {
 			resp := jsonrpc.MakeSuccessResponse(id, body)
 			message = map[string]any{
-				"jsonrpc": resp.JSONRPC,
 				"id":      resp.ID,
+				"jsonrpc": resp.JSONRPC,
 				"result":  resp.Result,
 			}
 			eventType = "response"

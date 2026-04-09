@@ -3,7 +3,7 @@
 // stream
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package client
 
@@ -19,7 +19,7 @@ import (
 	"sync"
 
 	clock "example.com/mixedtick/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
 )
 
@@ -28,7 +28,7 @@ import (
 type TickClientStream struct {
 	resp    *http.Response
 	reader  *bufio.Reader
-	decoder func(*http.Response) goahttp.Decoder
+	decoder func(*http.Response) loomhttp.Decoder
 	closed  bool
 	lock    sync.Mutex
 }
@@ -37,7 +37,7 @@ func (s *TickClientStream) readSSEEvent() ([]byte, error) {
 	var event bytes.Buffer
 
 	for {
-		line, err := s.reader.ReadString('\n')
+		line, err := s.reader.ReadString(byte(0xa))
 		if err != nil {
 			if err == io.EOF && event.Len() > 0 {
 				return event.Bytes(), nil
@@ -75,7 +75,7 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 			return zero, err
 		}
 
-		parsedEvent, err := goahttp.ParseSSEEvent(rawEvent)
+		parsedEvent, err := loomhttp.ParseSSEEvent(rawEvent)
 		if err != nil {
 			s.closed = true
 			return zero, err
@@ -110,7 +110,9 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 				return zero, fmt.Errorf("failed to parse response: %w", err)
 			}
 			if response.Error != nil {
-				return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+				{
+					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+				}
 			}
 			if response.Result == nil {
 				return zero, fmt.Errorf("missing result in response")
@@ -123,7 +125,6 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 			if err != nil {
 				return zero, fmt.Errorf("failed to decode final result: %w", err)
 			}
-			s.closed = true
 			return result, nil
 		case "error":
 			var response jsonrpc.Response
@@ -166,8 +167,10 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 				return zero, fmt.Errorf("failed to parse response: %w", err)
 			}
 			if response.Error != nil {
-				s.closed = true
-				return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+				{
+					s.closed = true
+					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+				}
 			}
 			if response.Result == nil {
 				return zero, fmt.Errorf("missing result in response")
@@ -187,11 +190,10 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 		}
 	}
 }
-
 func (s *TickClientStream) decodeResult(data json.RawMessage) (*clock.TickResult, error) {
 	resp := &http.Response{
-		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewReader(data)),
+		StatusCode: http.StatusOK,
 	}
 	decoder := s.decoder(resp)
 	var result *clock.TickResult

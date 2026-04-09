@@ -3,20 +3,20 @@
 // clock endpoints
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package clock
 
 import (
 	"context"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Endpoints wraps the "clock" service endpoints.
 type Endpoints struct {
-	Initialize goa.Endpoint
-	Tick       goa.Endpoint
+	Initialize loom.Endpoint
+	Tick       loom.Endpoint
 }
 
 // TickEndpointInput holds both the payload and the server stream of the "Tick"
@@ -39,14 +39,14 @@ func NewEndpoints(s Service) *Endpoints {
 }
 
 // Use applies the given middleware to all the "clock" service endpoints.
-func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
+func (e *Endpoints) Use(m func(loom.Endpoint) loom.Endpoint) {
 	e.Initialize = m(e.Initialize)
 	e.Tick = m(e.Tick)
 }
 
 // NewInitializeEndpoint returns an endpoint function that calls the method
 // "Initialize" of service "clock".
-func NewInitializeEndpoint(s Service) goa.Endpoint {
+func NewInitializeEndpoint(s Service) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		p := req.(*InitializePayload)
 		return s.Initialize(ctx, p)
@@ -55,7 +55,7 @@ func NewInitializeEndpoint(s Service) goa.Endpoint {
 
 // NewTickEndpoint returns an endpoint function that calls the method "Tick" of
 // service "clock".
-func NewTickEndpoint(s Service) goa.Endpoint {
+func NewTickEndpoint(s Service) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		ep := req.(*TickEndpointInput)
 		return nil, s.Tick(ctx, ep.Payload, ep.Stream)

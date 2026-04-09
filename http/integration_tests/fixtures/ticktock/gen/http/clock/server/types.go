@@ -3,13 +3,14 @@
 // clock HTTP server types
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package server
 
 import (
 	clock "example.com/http-ticktock/gen/clock"
-	goa "github.com/CaliLuke/loom/pkg"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
@@ -36,19 +37,22 @@ type GuardedResponseBody struct {
 // GuardedUnauthorizedResponseBody is the type of the "clock" service "Guarded"
 // endpoint HTTP response body for the "unauthorized" error.
 type GuardedUnauthorizedResponseBody struct {
-	// Name is the name of this class of errors.
-	Name string `form:"name" json:"name" xml:"name"`
-	// ID is a unique identifier for this particular occurrence of the problem.
-	ID string `form:"id" json:"id" xml:"id"`
-	// Message is a human-readable explanation specific to this occurrence of the
+	// Type identifies the problem category using a URI reference.
+	Type string `form:"type" json:"type" xml:"type"`
+	// Title is a short, human-readable summary of the problem type.
+	Title string `form:"title" json:"title" xml:"title"`
+	// Status is the HTTP status code generated for this occurrence of the problem.
+	Status int `form:"status" json:"status" xml:"status"`
+	// Detail is a human-readable explanation specific to this occurrence of the
 	// problem.
-	Message string `form:"message" json:"message" xml:"message"`
-	// Is the error temporary?
-	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
-	// Is the error a timeout?
-	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
-	// Is the error a server-side fault?
-	Fault bool `form:"fault" json:"fault" xml:"fault"`
+	Detail string `form:"detail" json:"detail" xml:"detail"`
+	// Instance identifies this specific occurrence of the problem.
+	Instance string `form:"instance" json:"instance" xml:"instance"`
+	// Code is the stable machine-readable problem code.
+	Code string `form:"code" json:"code" xml:"code"`
+	// Retry hint is concise guidance on how to correct the request or retry the
+	// operation.
+	RetryHint *string `form:"retry_hint,omitempty" json:"retry_hint,omitempty" xml:"retry_hint,omitempty"`
 }
 
 // NewTickResponseBody builds the HTTP response body from the result of the
@@ -83,14 +87,18 @@ func NewGuardedResponseBody(res *clock.TickTockEvent) *GuardedResponseBody {
 
 // NewGuardedUnauthorizedResponseBody builds the HTTP response body from the
 // result of the "Guarded" endpoint of the "clock" service.
-func NewGuardedUnauthorizedResponseBody(res *goa.ServiceError) *GuardedUnauthorizedResponseBody {
+func NewGuardedUnauthorizedResponseBody(res *loom.ServiceError) *GuardedUnauthorizedResponseBody {
+	problemType, problemTitle := loomhttp.ResolveProblemTypeAndTitle(res.Name, 401, "", "")
 	body := &GuardedUnauthorizedResponseBody{
-		Name:      res.Name,
-		ID:        res.ID,
-		Message:   res.Message,
-		Temporary: res.Temporary,
-		Timeout:   res.Timeout,
-		Fault:     res.Fault,
+		Type:     problemType,
+		Title:    problemTitle,
+		Status:   401,
+		Detail:   loom.ErrorSafeMessage(res),
+		Instance: loomhttp.ProblemInstanceURI(res.ID),
+		Code:     res.Name,
+	}
+	if retryHint := loom.ErrorRetryHint(res); retryHint != "" {
+		body.RetryHint = &retryHint
 	}
 	return body
 }

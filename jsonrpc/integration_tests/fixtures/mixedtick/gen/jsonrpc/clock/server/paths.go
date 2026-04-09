@@ -3,7 +3,7 @@
 // JSON-RPC request path constructors for the clock service.
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package server
 

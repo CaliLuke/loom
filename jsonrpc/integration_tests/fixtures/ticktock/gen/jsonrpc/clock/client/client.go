@@ -3,7 +3,7 @@
 // clock client JSON-RPC transport
 //
 // Command:
-// $ loom gen example.com/ticktock/design
+// $ loom gen example.com/ticktock/design -o .
 
 package client
 
@@ -17,60 +17,54 @@ import (
 	"strings"
 	"sync"
 
-	goahttp "github.com/CaliLuke/loom/http"
-	goa "github.com/CaliLuke/loom/pkg"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Client lists the clock service endpoint HTTP clients.
 type Client struct {
 	// Doer is the HTTP client used to make requests to the clock service.
-	Doer goahttp.Doer
+	Doer loomhttp.Doer
 	// Tick Doer is the HTTP client used to make requests to the Tick endpoint.
-	TickDoer goahttp.Doer
+	TickDoer loomhttp.Doer
 	// Tock Doer is the HTTP client used to make requests to the Tock endpoint.
-	TockDoer goahttp.Doer
+	TockDoer loomhttp.Doer
 	// RestoreResponseBody controls whether the response bodies are reset after
 	// decoding so they can be read again.
 	RestoreResponseBody bool
 
 	scheme  string
 	host    string
-	encoder func(*http.Request) goahttp.Encoder
-	decoder func(*http.Response) goahttp.Decoder
+	encoder func(*http.Request) loomhttp.Encoder
+	decoder func(*http.Response) loomhttp.Decoder
 }
 
 // bufferPool is a pool of bytes.Buffers for encoding requests.
-var bufferPool = sync.Pool{
-	New: func() any { return new(bytes.Buffer) },
-}
+var bufferPool = sync.Pool{New: func() any {
+	return new(bytes.Buffer)
+}}
 
 // NewClient instantiates HTTP clients for all the clock service servers.
-func NewClient(
-	scheme string,
-	host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
-	restoreBody bool,
-) *Client {
+func NewClient(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restoreBody bool) *Client {
 	return &Client{
 		Doer:                doer,
+		RestoreResponseBody: restoreBody,
 		TickDoer:            doer,
 		TockDoer:            doer,
-		RestoreResponseBody: restoreBody,
-		scheme:              scheme,
-		host:                host,
 		decoder:             dec,
 		encoder:             enc,
+		host:                host,
+		scheme:              scheme,
 	}
 }
 
 // Tick returns an endpoint that makes JSON-RPC requests to the clock service
 // Tick method.
-func (c *Client) Tick() goa.Endpoint {
+func (c *Client) Tick() loom.Endpoint {
 	var (
 		encodeRequest = EncodeTickRequest(c.encoder)
 	)
+
 	return func(ctx context.Context, v any) (any, error) {
 		req, err := c.BuildTickRequest(ctx, v)
 		if err != nil {
@@ -81,13 +75,13 @@ func (c *Client) Tick() goa.Endpoint {
 		}
 		resp, err := c.Doer.Do(req)
 		if err != nil {
-			return nil, goahttp.ErrRequestError("clock", "Tick", err)
+			return nil, loomhttp.ErrRequestError("clock", "Tick", err)
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			return nil, goahttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
 		}
 
 		contentType := resp.Header.Get("Content-Type")
@@ -97,20 +91,19 @@ func (c *Client) Tick() goa.Endpoint {
 		}
 
 		stream := &TickClientStream{
-			resp:    resp,
-			reader:  bufio.NewReader(resp.Body),
 			decoder: c.decoder,
+			reader:  bufio.NewReader(resp.Body),
+			resp:    resp,
 		}
 		return stream, nil
 	}
-}
-
-// Tock returns an endpoint that makes JSON-RPC requests to the clock service
+} // Tock returns an endpoint that makes JSON-RPC requests to the clock service
 // Tock method.
-func (c *Client) Tock() goa.Endpoint {
+func (c *Client) Tock() loom.Endpoint {
 	var (
 		encodeRequest = EncodeTockRequest(c.encoder)
 	)
+
 	return func(ctx context.Context, v any) (any, error) {
 		req, err := c.BuildTockRequest(ctx, v)
 		if err != nil {
@@ -121,13 +114,13 @@ func (c *Client) Tock() goa.Endpoint {
 		}
 		resp, err := c.Doer.Do(req)
 		if err != nil {
-			return nil, goahttp.ErrRequestError("clock", "Tock", err)
+			return nil, loomhttp.ErrRequestError("clock", "Tock", err)
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			return nil, goahttp.ErrInvalidResponse("clock", "Tock", resp.StatusCode, string(body))
+			return nil, loomhttp.ErrInvalidResponse("clock", "Tock", resp.StatusCode, string(body))
 		}
 
 		contentType := resp.Header.Get("Content-Type")
@@ -137,9 +130,9 @@ func (c *Client) Tock() goa.Endpoint {
 		}
 
 		stream := &TockClientStream{
-			resp:    resp,
-			reader:  bufio.NewReader(resp.Body),
 			decoder: c.decoder,
+			reader:  bufio.NewReader(resp.Body),
+			resp:    resp,
 		}
 		return stream, nil
 	}

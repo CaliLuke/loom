@@ -3,7 +3,7 @@
 // clock JSON-RPC server types
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package server
 

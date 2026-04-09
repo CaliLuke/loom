@@ -3,21 +3,21 @@
 // clock endpoints
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package clock
 
 import (
 	"context"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Endpoints wraps the "clock" service endpoints.
 type Endpoints struct {
-	Tick    goa.Endpoint
-	Tock    goa.Endpoint
-	Guarded goa.Endpoint
+	Tick    loom.Endpoint
+	Tock    loom.Endpoint
+	Guarded loom.Endpoint
 }
 
 // TickEndpointInput holds both the payload and the server stream of the "Tick"
@@ -53,7 +53,7 @@ func NewEndpoints(s Service) *Endpoints {
 }
 
 // Use applies the given middleware to all the "clock" service endpoints.
-func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
+func (e *Endpoints) Use(m func(loom.Endpoint) loom.Endpoint) {
 	e.Tick = m(e.Tick)
 	e.Tock = m(e.Tock)
 	e.Guarded = m(e.Guarded)
@@ -61,7 +61,7 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 
 // NewTickEndpoint returns an endpoint function that calls the method "Tick" of
 // service "clock".
-func NewTickEndpoint(s Service) goa.Endpoint {
+func NewTickEndpoint(s Service) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		ep := req.(*TickEndpointInput)
 		return nil, s.Tick(ctx, ep.Stream)
@@ -70,7 +70,7 @@ func NewTickEndpoint(s Service) goa.Endpoint {
 
 // NewTockEndpoint returns an endpoint function that calls the method "Tock" of
 // service "clock".
-func NewTockEndpoint(s Service) goa.Endpoint {
+func NewTockEndpoint(s Service) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		ep := req.(*TockEndpointInput)
 		return nil, s.Tock(ctx, ep.Stream)
@@ -79,7 +79,7 @@ func NewTockEndpoint(s Service) goa.Endpoint {
 
 // NewGuardedEndpoint returns an endpoint function that calls the method
 // "Guarded" of service "clock".
-func NewGuardedEndpoint(s Service) goa.Endpoint {
+func NewGuardedEndpoint(s Service) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		ep := req.(*GuardedEndpointInput)
 		return nil, s.Guarded(ctx, ep.Payload, ep.Stream)

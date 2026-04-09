@@ -3,7 +3,7 @@
 // clock service
 //
 // Command:
-// $ loom gen example.com/ticktock/design
+// $ loom gen example.com/ticktock/design -o .
 
 package clock
 
@@ -50,14 +50,14 @@ type TickServerStream interface {
 	// expect a response.
 	// IMPORTANT: Send only sends JSON-RPC notifications. Use SendAndClose to send
 	// a final response.
-	Send(ctx context.Context, event TickEvent) error
+	Send(context.Context, TickEvent) error
 	// SendAndClose sends a final response with "TickResult" and closes the stream.
 	// The result will be sent as a JSON-RPC response with the original request ID.
 	// If the result has an ID field populated, that ID will be used instead of the
 	// request ID.
-	SendAndClose(ctx context.Context, event TickEvent) error
+	SendAndClose(context.Context, TickEvent) error
 	// SendError sends a JSON-RPC error response.
-	SendError(ctx context.Context, id string, err error) error
+	SendError(context.Context, string, error) error
 }
 
 // TickClientStream allows streaming instances of *TickResult to the client.
@@ -83,14 +83,14 @@ type TockServerStream interface {
 	// expect a response.
 	// IMPORTANT: Send only sends JSON-RPC notifications. Use SendAndClose to send
 	// a final response.
-	Send(ctx context.Context, event TockEvent) error
+	Send(context.Context, TockEvent) error
 	// SendAndClose sends a final response with "TockResult" and closes the stream.
 	// The result will be sent as a JSON-RPC response with the original request ID.
 	// If the result has an ID field populated, that ID will be used instead of the
 	// request ID.
-	SendAndClose(ctx context.Context, event TockEvent) error
+	SendAndClose(context.Context, TockEvent) error
 	// SendError sends a JSON-RPC error response.
-	SendError(ctx context.Context, id string, err error) error
+	SendError(context.Context, string, error) error
 }
 
 // TockClientStream allows streaming instances of *TockResult to the client.
@@ -110,7 +110,7 @@ type Stream interface {
 	// For notifications, the result should not have an ID field.
 	// For responses, the result must have an ID field.
 	// Accepted types: *TickResult, *TockResult
-	Send(ctx context.Context, event Event) error
+	Send(context.Context, Event) error
 }
 
 // Event is the interface implemented by all result types that can be sent via

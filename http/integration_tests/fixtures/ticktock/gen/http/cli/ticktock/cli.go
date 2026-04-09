@@ -3,7 +3,7 @@
 // ticktock HTTP client CLI support package
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package cli
 
@@ -14,8 +14,8 @@ import (
 	"os"
 
 	clockc "example.com/http-ticktock/gen/http/clock/client"
-	goahttp "github.com/CaliLuke/loom/http"
-	goa "github.com/CaliLuke/loom/pkg"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // UsageCommands returns the set of commands and sub-commands using the format
@@ -26,24 +26,13 @@ func UsageCommands() []string {
 } // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
 	return os.Args[0] + " clock tick\\n"
-}
-
-// ParseEndpoint returns the endpoint and payload as specified on the command
+} // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
-func ParseEndpoint(
-	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
-	restore bool,
-) (goa.Endpoint, any, error) {
+func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		clockFlags = flag.NewFlagSet("clock", flag.ContinueOnError)
-
-		clockTickFlags = flag.NewFlagSet("tick", flag.ExitOnError)
-
-		clockTockFlags = flag.NewFlagSet("tock", flag.ExitOnError)
-
+		clockFlags            = flag.NewFlagSet("clock", flag.ContinueOnError)
+		clockTickFlags        = flag.NewFlagSet("tick", flag.ExitOnError)
+		clockTockFlags        = flag.NewFlagSet("tock", flag.ExitOnError)
 		clockGuardedFlags     = flag.NewFlagSet("guarded", flag.ExitOnError)
 		clockGuardedTokenFlag = clockGuardedFlags.String("token", "", "")
 	)
@@ -55,11 +44,9 @@ func ParseEndpoint(
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
 	}
-
-	if flag.NArg() < 2 { // two non flag args are required: SERVICE and ENDPOINT (aka COMMAND)
+	if flag.NArg() < 2 {
 		return nil, nil, fmt.Errorf("not enough arguments")
 	}
-
 	var (
 		svcn string
 		svcf *flag.FlagSet
@@ -76,7 +63,6 @@ func ParseEndpoint(
 	if err := svcf.Parse(flag.Args()[1:]); err != nil {
 		return nil, nil, err
 	}
-
 	var (
 		epn string
 		epf *flag.FlagSet
@@ -88,22 +74,16 @@ func ParseEndpoint(
 			switch epn {
 			case "tick":
 				epf = clockTickFlags
-
 			case "tock":
 				epf = clockTockFlags
-
 			case "guarded":
 				epf = clockGuardedFlags
-
 			}
-
 		}
 	}
 	if epf == nil {
 		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
 	}
-
-	// Parse endpoint flags if any
 	if svcf.NArg() > 1 {
 		if err := epf.Parse(svcf.Args()[1:]); err != nil {
 			return nil, nil, err
@@ -112,7 +92,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -133,11 +113,8 @@ func ParseEndpoint(
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return endpoint, data, nil
-}
-
-// clockUsage displays the usage of the clock command and its subcommands.
+} // clockUsage displays the usage of the clock command and its subcommands.
 func clockUsage() {
 	fmt.Fprintln(os.Stderr, "Service is the clock service interface.")
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] clock COMMAND [flags]\n\n", os.Args[0])

@@ -3,7 +3,7 @@
 // mixedtick JSON-RPC client CLI support package
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package cli
 
@@ -14,8 +14,8 @@ import (
 	"os"
 
 	clockc "example.com/mixedtick/gen/jsonrpc/clock/client"
-	goahttp "github.com/CaliLuke/loom/http"
-	goa "github.com/CaliLuke/loom/pkg"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // UsageCommands returns the set of commands and sub-commands using the format
@@ -26,25 +26,15 @@ func UsageCommands() []string {
 } // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
 	return os.Args[0] + " clock initialize --body '{\n      \"id\": \"Doloribus quia vel.\"\n   }'\\n"
-}
-
-// ParseEndpoint returns the endpoint and payload as specified on the command
+} // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
-func ParseEndpoint(
-	scheme, host string,
-	doer goahttp.Doer,
-	enc func(*http.Request) goahttp.Encoder,
-	dec func(*http.Response) goahttp.Decoder,
-	restore bool,
-) (goa.Endpoint, any, error) {
+func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		clockFlags = flag.NewFlagSet("clock", flag.ContinueOnError)
-
+		clockFlags              = flag.NewFlagSet("clock", flag.ContinueOnError)
 		clockInitializeFlags    = flag.NewFlagSet("initialize", flag.ExitOnError)
 		clockInitializeBodyFlag = clockInitializeFlags.String("body", "REQUIRED", "")
-
-		clockTickFlags    = flag.NewFlagSet("tick", flag.ExitOnError)
-		clockTickBodyFlag = clockTickFlags.String("body", "REQUIRED", "")
+		clockTickFlags          = flag.NewFlagSet("tick", flag.ExitOnError)
+		clockTickBodyFlag       = clockTickFlags.String("body", "REQUIRED", "")
 	)
 	clockFlags.Usage = clockUsage
 	clockInitializeFlags.Usage = clockInitializeUsage
@@ -53,11 +43,9 @@ func ParseEndpoint(
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
 	}
-
-	if flag.NArg() < 2 { // two non flag args are required: SERVICE and ENDPOINT (aka COMMAND)
+	if flag.NArg() < 2 {
 		return nil, nil, fmt.Errorf("not enough arguments")
 	}
-
 	var (
 		svcn string
 		svcf *flag.FlagSet
@@ -74,7 +62,6 @@ func ParseEndpoint(
 	if err := svcf.Parse(flag.Args()[1:]); err != nil {
 		return nil, nil, err
 	}
-
 	var (
 		epn string
 		epf *flag.FlagSet
@@ -86,19 +73,14 @@ func ParseEndpoint(
 			switch epn {
 			case "initialize":
 				epf = clockInitializeFlags
-
 			case "tick":
 				epf = clockTickFlags
-
 			}
-
 		}
 	}
 	if epf == nil {
 		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
 	}
-
-	// Parse endpoint flags if any
 	if svcf.NArg() > 1 {
 		if err := epf.Parse(svcf.Args()[1:]); err != nil {
 			return nil, nil, err
@@ -107,7 +89,7 @@ func ParseEndpoint(
 
 	var (
 		data     any
-		endpoint goa.Endpoint
+		endpoint loom.Endpoint
 		err      error
 	)
 	{
@@ -127,11 +109,8 @@ func ParseEndpoint(
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return endpoint, data, nil
-}
-
-// clockUsage displays the usage of the clock command and its subcommands.
+} // clockUsage displays the usage of the clock command and its subcommands.
 func clockUsage() {
 	fmt.Fprintln(os.Stderr, "Service is the clock service interface.")
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] clock COMMAND [flags]\n\n", os.Args[0])

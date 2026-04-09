@@ -3,7 +3,7 @@
 // stream
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package server
 
@@ -14,9 +14,9 @@ import (
 	"sync"
 
 	clock "example.com/mixedtick/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // TickServerStream implements the clock.TickServerStream interface using
@@ -25,7 +25,7 @@ type TickServerStream struct {
 	// once ensures headers are written once
 	once sync.Once
 	// encoder is the SSE event encoder
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder
+	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder
 	// w is the HTTP response writer
 	w http.ResponseWriter
 	// r is the HTTP request
@@ -123,10 +123,10 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 func (s *TickServerStream) SendError(ctx context.Context, id string, err error) error {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
 	code := jsonrpc.InternalError
-	if _, ok := err.(*goa.ServiceError); ok {
+	if _, ok := err.(*loom.ServiceError); ok {
 		code = jsonrpc.InvalidParams
 	}
-	return s.sendError(ctx, id, code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+	return s.sendError(ctx, id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 }
 
 // sendError sends a JSON-RPC error response via SSE.
@@ -138,7 +138,7 @@ func (s *TickServerStream) sendError(ctx context.Context, id any, code jsonrpc.C
 // sendSSEEvent sends a single SSE event.
 func (s *TickServerStream) sendSSEEvent(eventType string, v any) error {
 	s.initSSEHeaders()
-	if err := goahttp.WriteJSONSSEEvent(s.w, goahttp.SSEMessage{Type: eventType}, v); err != nil {
+	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
 		return err
 	}
 	return http.NewResponseController(s.w).Flush()

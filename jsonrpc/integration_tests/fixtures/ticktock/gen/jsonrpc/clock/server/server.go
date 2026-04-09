@@ -3,7 +3,7 @@
 // clock JSON-RPC server
 //
 // Command:
-// $ loom gen example.com/ticktock/design
+// $ loom gen example.com/ticktock/design -o .
 
 package server
 
@@ -15,9 +15,9 @@ import (
 	"net/http"
 
 	clock "example.com/ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Server handles JSON-RPC requests for the clock service.
@@ -30,25 +30,16 @@ type Server struct {
 	// Tock is the handler for the Tock method.
 	Tock func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error
 
-	decoder    func(*http.Request) goahttp.Decoder
-	encoder    func(context.Context, http.ResponseWriter) goahttp.Encoder
+	decoder    func(*http.Request) loomhttp.Decoder
+	encoder    func(context.Context, http.ResponseWriter) loomhttp.Encoder
 	errhandler func(context.Context, http.ResponseWriter, error)
 }
 
 // New creates a JSON-RPC server which loads HTTP requests and calls the
 // "clock" service methods.
-func New(
-	endpoints *clock.Endpoints,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-) *Server {
+func New(endpoints *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
 	s := &Server{
-		Methods: []string{
-			"Tick",
-			"Tock",
-		},
+		Methods:    []string{"Tick", "Tock"},
 		Tick:       NewTickHandler(endpoints.Tick, mux, decoder, encoder, errhandler),
 		Tock:       NewTockHandler(endpoints.Tock, mux, decoder, encoder, errhandler),
 		decoder:    decoder,
@@ -61,7 +52,9 @@ func New(
 }
 
 // Service returns the name of the service served.
-func (s *Server) Service() string { return "clock" }
+func (s *Server) Service() string {
+	return "clock"
+}
 
 // Use wraps the server handlers with the given middleware.
 func (s *Server) Use(m func(http.Handler) http.Handler) {
@@ -69,7 +62,9 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 }
 
 // MethodNames returns the methods served.
-func (s *Server) MethodNames() []string { return clock.MethodNames[:] }
+func (s *Server) MethodNames() []string {
+	return clock.MethodNames[:]
+}
 
 type jsonrpcResponseCapture struct {
 	header     http.Header
@@ -83,21 +78,18 @@ func (c *jsonrpcResponseCapture) Header() http.Header {
 	}
 	return c.header
 }
-
 func (c *jsonrpcResponseCapture) Write(data []byte) (int, error) {
 	if c.statusCode == 0 {
 		c.statusCode = http.StatusOK
 	}
 	return c.body.Write(data)
 }
-
 func (c *jsonrpcResponseCapture) WriteHeader(statusCode int) {
 	if c.statusCode != 0 {
 		return
 	}
 	c.statusCode = statusCode
 }
-
 func copyJSONRPCResponseMetadata(dst http.ResponseWriter, src *jsonrpcResponseCapture) {
 	for key, vals := range src.Header() {
 		switch http.CanonicalHeaderKey(key) {
@@ -116,8 +108,13 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 	var req jsonrpc.RawRequest
 	if err := s.decoder(r).Decode(&req); err != nil {
-		stream := &clockSSEStream{w: w, r: r, encoder: s.encoder, decoder: s.decoder}
-		_ = stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil)
+		stream := &clockSSEStream{
+			decoder: s.decoder,
+			encoder: s.encoder,
+			r:       r,
+			w:       w,
+		}
+		stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil)
 		return
 	}
 
@@ -126,8 +123,13 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		stream := &clockSSEStream{w: w, r: r, encoder: s.encoder, decoder: s.decoder}
-		_ = stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil)
+		stream := &clockSSEStream{
+			decoder: s.decoder,
+			encoder: s.encoder,
+			r:       r,
+			w:       w,
+		}
+		stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil)
 		return
 	}
 
@@ -136,8 +138,13 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		stream := &clockSSEStream{w: w, r: r, encoder: s.encoder, decoder: s.decoder}
-		_ = stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil)
+		stream := &clockSSEStream{
+			decoder: s.decoder,
+			encoder: s.encoder,
+			r:       r,
+			w:       w,
+		}
+		stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil)
 		return
 	}
 
@@ -152,8 +159,13 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		stream := &clockSSEStream{w: w, r: r, encoder: s.encoder, decoder: s.decoder}
-		_ = stream.sendError(ctx, req.ID, jsonrpc.MethodNotFound, "Method not found", nil)
+		stream := &clockSSEStream{
+			decoder: s.decoder,
+			encoder: s.encoder,
+			r:       r,
+			w:       w,
+		}
+		stream.sendError(ctx, req.ID, jsonrpc.MethodNotFound, "Method not found", nil)
 		return
 	}
 
@@ -164,38 +176,30 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 	switch req.Method {
 	}
-}
-
-// Mount configures the mux to serve the JSON-RPC clock service methods.
-func Mount(mux goahttp.Muxer, h *Server) {
+} // Mount configures the mux to serve the JSON-RPC clock service methods.
+func Mount(mux loomhttp.Muxer, h *Server) {
 	// SSE only: mount SSE handler
 	mux.Handle("POST", "/rpc", h.handleSSE)
 	mux.Handle("POST", "/rpc", h.handleSSE)
 }
 
 // Mount configures the mux to serve the JSON-RPC clock service methods.
-func (s *Server) Mount(mux goahttp.Muxer) {
+func (s *Server) Mount(mux loomhttp.Muxer) {
 	Mount(mux, s)
 }
 
 // NewTickHandler creates a JSON-RPC handler which calls the "clock" service
 // "Tick" endpoint.
-func NewTickHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-) func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error {
+func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
-		ctx = context.WithValue(ctx, goa.MethodKey, "Tick")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "clock")
+		ctx = context.WithValue(ctx, loom.MethodKey, "Tick")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
 
 		strm := &TickServerStream{
-			w:         w,
-			r:         r,
 			encoder:   encoder,
+			r:         r,
 			requestID: req.ID,
+			w:         w,
 		}
 		if r.Method == http.MethodGet && req.Method == "events/stream" {
 			if err := strm.open(); err != nil {
@@ -215,50 +219,42 @@ func NewTickHandler(
 			params.ID = &idStr
 		}
 		v := &clock.TickEndpointInput{
-			Stream:  strm,
 			Payload: params,
+			Stream:  strm,
 		}
 		if _, err := endpoint(ctx, v); err != nil {
 			if req.ID != nil && req.ID != "" {
-				var en goa.LoomErrorNamer
+				var en loom.LoomErrorNamer
 				if errors.As(err, &en) {
 					switch en.LoomErrorName() {
 					case "invalid_params":
-						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 					case "method_not_found":
-						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.MethodNotFound, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 					}
 				}
 				code := jsonrpc.InternalError
-				if _, ok := err.(*goa.ServiceError); ok {
+				if _, ok := err.(*loom.ServiceError); ok {
 					code = jsonrpc.InvalidParams
 				}
-				return strm.sendError(ctx, jsonrpc.IDToString(req.ID), code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+				return strm.sendError(ctx, jsonrpc.IDToString(req.ID), code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
 			return nil
 		}
 		return nil
 	}
-}
-
-// NewTockHandler creates a JSON-RPC handler which calls the "clock" service
+} // NewTockHandler creates a JSON-RPC handler which calls the "clock" service
 // "Tock" endpoint.
-func NewTockHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-) func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error {
+func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
-		ctx = context.WithValue(ctx, goa.MethodKey, "Tock")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "clock")
+		ctx = context.WithValue(ctx, loom.MethodKey, "Tock")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
 
 		strm := &TockServerStream{
-			w:         w,
-			r:         r,
 			encoder:   encoder,
+			r:         r,
 			requestID: req.ID,
+			w:         w,
 		}
 		if r.Method == http.MethodGet && req.Method == "events/stream" {
 			if err := strm.open(); err != nil {
@@ -278,48 +274,37 @@ func NewTockHandler(
 			params.ID = &idStr
 		}
 		v := &clock.TockEndpointInput{
-			Stream:  strm,
 			Payload: params,
+			Stream:  strm,
 		}
 		if _, err := endpoint(ctx, v); err != nil {
 			if req.ID != nil && req.ID != "" {
-				var en goa.LoomErrorNamer
+				var en loom.LoomErrorNamer
 				if errors.As(err, &en) {
 					switch en.LoomErrorName() {
 					case "invalid_params":
-						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 					case "method_not_found":
-						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.MethodNotFound, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 					}
 				}
 				code := jsonrpc.InternalError
-				if _, ok := err.(*goa.ServiceError); ok {
+				if _, ok := err.(*loom.ServiceError); ok {
 					code = jsonrpc.InvalidParams
 				}
-				return strm.sendError(ctx, jsonrpc.IDToString(req.ID), code, goa.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+				return strm.sendError(ctx, jsonrpc.IDToString(req.ID), code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
 			return nil
 		}
 		return nil
 	}
-}
-
-// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
+} // encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
 func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any) {
 	encodeJSONRPCError(ctx, w, req, code, message, data, s.encoder, s.errhandler)
 }
 
 // encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
-func encodeJSONRPCError(
-	ctx context.Context,
-	w http.ResponseWriter,
-	req *jsonrpc.RawRequest,
-	code jsonrpc.Code,
-	message string,
-	data any,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-) {
+func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) {
 	if req.ID != nil {
 		response := jsonrpc.MakeErrorResponse(req.ID, code, message, data)
 		if err := encoder(ctx, w).Encode(response); err != nil {

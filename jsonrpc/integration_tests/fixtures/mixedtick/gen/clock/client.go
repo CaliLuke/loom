@@ -3,24 +3,24 @@
 // clock client
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package clock
 
 import (
 	"context"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Client is the "clock" service client.
 type Client struct {
-	InitializeEndpoint goa.Endpoint
-	TickEndpoint       goa.Endpoint
+	InitializeEndpoint loom.Endpoint
+	TickEndpoint       loom.Endpoint
 }
 
 // NewClient initializes a "clock" service client given the endpoints.
-func NewClient(initialize, tick goa.Endpoint) *Client {
+func NewClient(initialize, tick loom.Endpoint) *Client {
 	return &Client{InitializeEndpoint: initialize, TickEndpoint: tick}
 }
 

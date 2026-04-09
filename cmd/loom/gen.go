@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/build"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,9 +59,7 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 		matched := false
 		startPkgLoad := time.Now()
 		pkgs, _ := packages.Load(&packages.Config{Mode: packages.NeedFiles | packages.NeedModule}, path)
-		if debug {
-			fmt.Fprintf(os.Stderr, "[TIMING]   packages.Load (design files) took %v\n", time.Since(startPkgLoad))
-		}
+		debugStage(debug, "design-package-load", startPkgLoad, "path=%s packages=%d", path, len(pkgs))
 		fset := token.NewFileSet()
 		p := regexp.MustCompile(`github.com/CaliLuke/loom(?:/v(\d+))?/dsl`)
 		for _, pkg := range pkgs {
@@ -179,15 +179,11 @@ func (g *Generator) Compile(debug bool) error {
 	if len(pkgs) != 1 {
 		return fmt.Errorf("expected to find one package in %s", g.tmpDir)
 	}
-	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING]   packages.Load (temp dir) took %v\n", time.Since(startLoad))
-	}
+	debugStage(debug, "temp-package-load", startLoad, "tmpDir=%s packages=%d", g.tmpDir, len(pkgs))
 
 	startBuild := time.Now()
 	err = g.runGoCmd("build", "-o", g.bin)
-	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING]   go build took %v\n", time.Since(startBuild))
-	}
+	debugStage(debug, "go-build", startBuild, "binary=%s", g.bin)
 
 	// If we're in vendor context we check the error string to see if it's an issue of unsatisfied dependencies
 	if err != nil && g.hasVendorDirectory {
@@ -229,11 +225,18 @@ func (g *Generator) Run(debug bool) ([]string, error) {
 
 	args := []string{"--version=" + strconv.Itoa(g.DesignVersion), "--output=" + g.Output, "--cmd=" + cmdl, "--debug=" + strconv.FormatBool(debug)}
 	cmd := exec.Command(filepath.Join(g.tmpDir, g.bin), args...)
-	out, err := cmd.CombinedOutput()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("%w\n%s", err, string(out))
+		if stderr.Len() > 0 {
+			return nil, fmt.Errorf("%w\n%s", err, strings.TrimRight(stderr.String(), "\n"))
+		}
+		return nil, err
 	}
-	res := strings.Split(string(out), "\n")
+	res := strings.Split(stdout.String(), "\n")
 	for (len(res) > 0) && (res[len(res)-1] == "") {
 		res = res[:len(res)-1]
 	}
@@ -337,7 +340,7 @@ const mainT = `func main() {
 
 	startBinary := time.Now()
 	if *debug {
-		fmt.Fprintf(os.Stderr, "[TIMING]   [binary] Starting generated binary execution\n")
+		debugStage(*debug, "binary-startup", startBinary, "cmd=%s output=%s", *cmdl, *out)
 	}
 
 	if ver > loom.Major {
@@ -346,22 +349,18 @@ const mainT = `func main() {
 
 	startCheckErrors := time.Now()
 	if err := eval.Context.Errors; err != nil {
-		fail(err.Error())
+		failStage("eval.Context.Errors", err)
 	}
-	if *debug {
-		fmt.Fprintf(os.Stderr, "[TIMING]   [binary] Check eval.Context.Errors took %v\n", time.Since(startCheckErrors))
-	}
+	debugStage(*debug, "eval.Context.Errors", startCheckErrors, "status=ok")
 
 	startRunDSL := time.Now()
 	if err := expr.RegisterDefaultRoots(); err != nil {
-		fail(err.Error())
+		failStage("eval.RunDSL", err)
 	}
 	if err := eval.RunDSL(); err != nil {
-		fail(err.Error())
+		failStage("eval.RunDSL", err)
 	}
-	if *debug {
-		fmt.Fprintf(os.Stderr, "[TIMING]   [binary] eval.RunDSL() took %v\n", time.Since(startRunDSL))
-	}
+	debugStage(*debug, "eval.RunDSL", startRunDSL, "status=ok")
 
 {{- range .CleanupDirs }}
 	if err := os.RemoveAll({{ printf "%q" . }}); err != nil {
@@ -375,17 +374,30 @@ const mainT = `func main() {
 	startGenerate := time.Now()
 	outputs, err := generator.Generate(*out, {{ printf "%q" .Command }}, *debug)
 	if err != nil {
-		fail(err.Error())
+		failStage("generator.Generate", err)
 	}
-	if *debug {
-		fmt.Fprintf(os.Stderr, "[TIMING]   [binary] generator.Generate() took %v\n", time.Since(startGenerate))
-		fmt.Fprintf(os.Stderr, "[TIMING]   [binary] Total binary execution took %v\n", time.Since(startBinary))
-	}
+	debugStage(*debug, "generator.Generate", startGenerate, "outputs=%d", len(outputs))
+	debugStage(*debug, "total", startBinary, "outputs=%d", len(outputs))
 	fmt.Println(strings.Join(outputs, "\n"))
 }
 
 func fail(msg string, vals ...any) {
 	fmt.Fprintf(os.Stderr, msg, vals...)
 	os.Exit(1)
+}
+
+func failStage(stage string, err error) {
+	fail("stage %s: %s", stage, err)
+}
+
+func debugStage(debug bool, stage string, start time.Time, format string, vals ...any) {
+	if !debug {
+		return
+	}
+	msg := ""
+	if format != "" {
+		msg = " " + fmt.Sprintf(format, vals...)
+	}
+	fmt.Fprintf(os.Stderr, "[loom-debug] stage=%s duration=%s%s\n", stage, time.Since(start), msg)
 }
 `

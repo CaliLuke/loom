@@ -3,13 +3,14 @@
 // clock HTTP client types
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package client
 
 import (
 	clock "example.com/http-ticktock/gen/clock"
-	goa "github.com/CaliLuke/loom/pkg"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
@@ -36,19 +37,22 @@ type GuardedResponseBody struct {
 // GuardedUnauthorizedResponseBody is the type of the "clock" service "Guarded"
 // endpoint HTTP response body for the "unauthorized" error.
 type GuardedUnauthorizedResponseBody struct {
-	// Name is the name of this class of errors.
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// ID is a unique identifier for this particular occurrence of the problem.
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Message is a human-readable explanation specific to this occurrence of the
+	// Type identifies the problem category using a URI reference.
+	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
+	// Title is a short, human-readable summary of the problem type.
+	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
+	// Status is the HTTP status code generated for this occurrence of the problem.
+	Status *int `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
+	// Detail is a human-readable explanation specific to this occurrence of the
 	// problem.
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-	// Is the error temporary?
-	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
-	// Is the error a timeout?
-	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
-	// Is the error a server-side fault?
-	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+	Detail *string `form:"detail,omitempty" json:"detail,omitempty" xml:"detail,omitempty"`
+	// Instance identifies this specific occurrence of the problem.
+	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
+	// Code is the stable machine-readable problem code.
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Retry hint is concise guidance on how to correct the request or retry the
+	// operation.
+	RetryHint *string `form:"retry_hint,omitempty" json:"retry_hint,omitempty" xml:"retry_hint,omitempty"`
 }
 
 // NewTickTockEventOK builds a "clock" service "Tick" endpoint result from a
@@ -86,15 +90,20 @@ func NewGuardedTickTockEventOK(body *GuardedResponseBody) *clock.TickTockEvent {
 
 // NewGuardedUnauthorized builds a clock service Guarded endpoint unauthorized
 // error.
-func NewGuardedUnauthorized(body *GuardedUnauthorizedResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
+func NewGuardedUnauthorized(body *GuardedUnauthorizedResponseBody) *loom.ServiceError {
+	code := ""
+	if body.Code != nil {
+		code = *body.Code
 	}
+	detail := ""
+	if body.Detail != nil {
+		detail = *body.Detail
+	}
+	instance := ""
+	if body.Instance != nil {
+		instance = *body.Instance
+	}
+	v := loomhttp.ProblemErrorFromBody(code, 401, detail, instance, body.RetryHint)
 
 	return v
 }
@@ -102,10 +111,10 @@ func NewGuardedUnauthorized(body *GuardedUnauthorizedResponseBody) *goa.ServiceE
 // ValidateTickResponseBody runs the validations defined on TickResponseBody
 func ValidateTickResponseBody(body *TickResponseBody) (err error) {
 	if body.Event == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("event", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("event", "body"))
 	}
 	if body.Data == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("data", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("data", "body"))
 	}
 	return
 }
@@ -113,10 +122,10 @@ func ValidateTickResponseBody(body *TickResponseBody) (err error) {
 // ValidateTockResponseBody runs the validations defined on TockResponseBody
 func ValidateTockResponseBody(body *TockResponseBody) (err error) {
 	if body.Event == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("event", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("event", "body"))
 	}
 	if body.Data == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("data", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("data", "body"))
 	}
 	return
 }
@@ -125,10 +134,10 @@ func ValidateTockResponseBody(body *TockResponseBody) (err error) {
 // GuardedResponseBody
 func ValidateGuardedResponseBody(body *GuardedResponseBody) (err error) {
 	if body.Event == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("event", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("event", "body"))
 	}
 	if body.Data == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("data", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("data", "body"))
 	}
 	return
 }
@@ -136,23 +145,23 @@ func ValidateGuardedResponseBody(body *GuardedResponseBody) (err error) {
 // ValidateGuardedUnauthorizedResponseBody runs the validations defined on
 // Guarded_unauthorized_Response_Body
 func ValidateGuardedUnauthorizedResponseBody(body *GuardedUnauthorizedResponseBody) (err error) {
-	if body.Name == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	if body.Type == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("type", "body"))
 	}
-	if body.ID == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	if body.Title == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("title", "body"))
 	}
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	if body.Status == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("status", "body"))
 	}
-	if body.Temporary == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	if body.Detail == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("detail", "body"))
 	}
-	if body.Timeout == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	if body.Instance == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("instance", "body"))
 	}
-	if body.Fault == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	if body.Code == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("code", "body"))
 	}
 	return
 }

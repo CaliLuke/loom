@@ -3,7 +3,7 @@
 // clock JSON-RPC server encoders and decoders
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package server
 
@@ -15,14 +15,14 @@ import (
 	"net/http"
 
 	clock "example.com/mixedtick/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // EncodeInitializeResponse returns an encoder for responses returned by the
 // clock Initialize endpoint.
-func EncodeInitializeResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeInitializeResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(*clock.InitializeResult)
 		enc := encoder(ctx, w)
@@ -34,7 +34,7 @@ func EncodeInitializeResponse(encoder func(context.Context, http.ResponseWriter)
 
 // DecodeInitializeRequest returns a decoder for requests sent to the clock
 // Initialize endpoint.
-func DecodeInitializeRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.InitializePayload, error) {
+func DecodeInitializeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.InitializePayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.InitializePayload, error) {
 		r.Body = io.NopCloser(bytes.NewReader(req.Params))
 		var payload *clock.InitializePayload
@@ -45,13 +45,13 @@ func DecodeInitializeRequest(mux goahttp.Muxer, decoder func(*http.Request) goah
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		payload = NewInitializePayload(&body)
 
@@ -61,7 +61,7 @@ func DecodeInitializeRequest(mux goahttp.Muxer, decoder func(*http.Request) goah
 
 // EncodeTickResponse returns an encoder for responses returned by the clock
 // Tick endpoint.
-func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(*clock.TickResult)
 		enc := encoder(ctx, w)
@@ -73,7 +73,7 @@ func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) goaht
 
 // DecodeTickRequest returns a decoder for requests sent to the clock Tick
 // endpoint.
-func DecodeTickRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
+func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 		r.Body = io.NopCloser(bytes.NewReader(req.Params))
 		var payload *clock.TickPayload
@@ -84,13 +84,13 @@ func DecodeTickRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.De
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		payload = NewTickPayload(&body)
 

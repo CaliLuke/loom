@@ -12,20 +12,20 @@ paths:
             operationId: clock.guarded
             parameters:
                 - allowEmptyValue: true
-                  example: Similique et.
+                  example: Quia nam eum sit similique excepturi.
                   in: query
                   name: token
                   schema:
-                    example: Provident et in.
+                    example: Deserunt voluptas nisi.
                     type: string
             responses:
                 "200":
                     $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
                 "401":
                     content:
-                        application/vnd.loom.error:
+                        application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/Error'
+                                $ref: '#/components/schemas/Problem'
                     description: 'unauthorized: Unauthorized response.'
             summary: Guarded clock
             tags:
@@ -47,13 +47,13 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Deserunt voluptas nisi.
+                                    example: Ut beatae doloribus quae commodi magni.
                                 event:
                                     type: string
-                                    example: Exercitationem praesentium.
+                                    example: Corrupti aliquid quis fuga vero consequatur.
                             example:
-                                data: Eos cumque fugiat ut suscipit.
-                                event: Quia nam eum sit similique excepturi.
+                                data: Nobis aliquid est exercitationem praesentium.
+                                event: Autem praesentium dolorem.
                             required:
                                 - event
                                 - data
@@ -90,13 +90,13 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Fuga nihil et modi.
+                                    example: Numquam quidem magni quia earum magni.
                                 event:
                                     type: string
-                                    example: Dolorem illum libero vel aut eos natus.
+                                    example: Et sunt velit sed expedita et.
                             example:
-                                data: Corporis expedita dolores ipsam ut sit.
-                                event: Id doloremque.
+                                data: Nihil et modi quo id doloremque non.
+                                event: Illum libero vel aut eos natus deleniti.
                             required:
                                 - event
                                 - data
@@ -133,13 +133,13 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Maiores harum corrupti aliquid quis fuga vero.
+                                    example: Ut sit nemo aut voluptatem.
                                 event:
                                     type: string
-                                    example: Aut voluptatem ratione et accusamus saepe.
+                                    example: Expedita dolores.
                             example:
-                                data: Eveniet autem praesentium dolorem rem nobis aliquid.
-                                event: Pariatur ut beatae doloribus quae commodi.
+                                data: Tempore maiores.
+                                event: Et accusamus.
                             required:
                                 - event
                                 - data
@@ -152,59 +152,65 @@ paths:
                 transport: sse
 components:
     schemas:
-        Error:
+        Problem:
             type: object
             properties:
-                fault:
-                    type: boolean
-                    description: Is the error a server-side fault?
-                    example: true
-                id:
+                code:
                     type: string
-                    description: ID is a unique identifier for this particular occurrence of the problem.
-                    example: 123abc
-                message:
-                    type: string
-                    description: Message is a human-readable explanation specific to this occurrence of the problem.
-                    example: parameter 'p' must be an integer
-                name:
-                    type: string
-                    description: Name is the name of this class of errors.
+                    description: Code is the stable machine-readable problem code.
                     example: bad_request
-                temporary:
-                    type: boolean
-                    description: Is the error temporary?
-                    example: false
-                timeout:
-                    type: boolean
-                    description: Is the error a timeout?
-                    example: false
+                detail:
+                    type: string
+                    description: Detail is a human-readable explanation specific to this occurrence of the problem.
+                    example: parameter 'p' must be an integer
+                instance:
+                    type: string
+                    description: Instance identifies this specific occurrence of the problem.
+                    example: urn:loom:error:123abc
+                retry_hint:
+                    type: string
+                    description: Retry hint is concise guidance on how to correct the request or retry the operation.
+                    example: Correct the payload and retry.
+                status:
+                    type: integer
+                    description: Status is the HTTP status code generated for this occurrence of the problem.
+                    example: 400
+                    format: int64
+                title:
+                    type: string
+                    description: Title is a short, human-readable summary of the problem type.
+                    example: Bad Request
+                type:
+                    type: string
+                    description: Type identifies the problem category using a URI reference.
+                    example: https://github.com/CaliLuke/loom/problems/bad-request
             example:
-                fault: false
-                id: 123abc
-                message: parameter 'p' must be an integer
-                name: bad_request
-                temporary: true
-                timeout: false
+                code: bad_request
+                detail: parameter 'p' must be an integer
+                instance: urn:loom:error:123abc
+                retry_hint: Correct the payload and retry.
+                status: 400
+                title: Bad Request
+                type: https://github.com/CaliLuke/loom/problems/bad-request
             required:
-                - name
-                - id
-                - message
-                - temporary
-                - timeout
-                - fault
+                - type
+                - title
+                - status
+                - detail
+                - instance
+                - code
         TickTockEvent:
             type: object
             properties:
                 data:
                     type: string
-                    example: Eum voluptatum quisquam non ea debitis.
+                    example: Porro voluptatum omnis et.
                 event:
                     type: string
-                    example: Porro voluptatum omnis et.
+                    example: Sint voluptas ut ab officia.
             example:
-                data: Et sunt velit sed expedita et.
-                event: Architecto amet.
+                data: Architecto amet.
+                event: Eum voluptatum quisquam non ea debitis.
             required:
                 - event
                 - data

@@ -40,7 +40,7 @@ var _ = API("dsl_spec", func() {
 	// URL must include the protocol and hostname and may include a port.
 	// The hostname and port may use parameters to define possible
 	// alternative values.
-	Server("https://{param}.goa.design:443", func() {
+	Server("https://{param}.loom.design:443", func() {
 		Description("Optional description")
 
 		// Param describes a single parameter used in the server URL.
@@ -73,14 +73,14 @@ var _ = Service("service", func() {
 
 	// Server definitions that appear in the Service DSL override all the API
 	// level definitions.
-	Server("https://service.goa.design:443", func() {
+	Server("https://service.loom.design:443", func() {
 		Description("Service specific server description")
 	})
 
 	// Docs allows linking to external documentation.
 	Docs(func() {
 		Description("Optional description")
-		URL("https://goa.design")
+		URL("https://loom.design")
 	})
 
 	// Error defines a common error to all the service methods.
@@ -107,7 +107,7 @@ var _ = Service("service", func() {
 		// Docs allows linking to external documentation.
 		Docs(func() {
 			Description("Optional description")
-			URL("https://goa.design")
+			URL("https://loom.design")
 		})
 
 		// Payload describes the payload attributes. There can only be

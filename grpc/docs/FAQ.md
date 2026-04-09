@@ -3,14 +3,14 @@
 Non-nil default values are not supported in protocol buffers
 (see https://developers.google.com/protocol-buffers/docs/proto3#default).
 Hence, there is no way to figure out whether a field was explicitly set to
-the default value or just not set at all. So goa does not initialize such
+the default value or just not set at all. So Loom does not initialize such
 fields with their default values.
 
-# How goa deals with nested maps and arrays in protocol buffers?
+# How does Loom deal with nested maps and arrays in protocol buffers?
 
 proto3 syntax for protocol buffer does not support nested maps and arrays
 (see https://github.com/protocolbuffers/protobuf/issues/4596). In such cases,
-goa wraps the inner map/array into a user type having a single attribute named
+Loom wraps the inner map/array into a user type having a single attribute named
 "field" with RPC tag number 1.
 
 Example:
@@ -50,7 +50,7 @@ type ArrayOfBool struct {
 }
 ```
 
-# How does goa handle the Any type in gRPC?
+# How does Loom handle the Any type in gRPC?
 
 Loom supports the `Any` type in gRPC by mapping it to `google.protobuf.Value`, which is specifically designed to represent dynamic JSON-like values. This is simpler and more efficient than using `google.protobuf.Any`.
 

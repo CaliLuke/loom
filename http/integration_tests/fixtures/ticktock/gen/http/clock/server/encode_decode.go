@@ -3,7 +3,7 @@
 // clock HTTP server encoders and decoders
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package server
 
@@ -13,13 +13,13 @@ import (
 	"net/http"
 
 	clock "example.com/http-ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
-	goa "github.com/CaliLuke/loom/pkg"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // EncodeTickResponse returns an encoder for responses returned by the clock
 // Tick endpoint.
-func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(*clock.TickTockEvent)
 		enc := encoder(ctx, w)
@@ -31,7 +31,7 @@ func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) goaht
 
 // EncodeTockResponse returns an encoder for responses returned by the clock
 // Tock endpoint.
-func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(*clock.TickTockEvent)
 		enc := encoder(ctx, w)
@@ -43,7 +43,7 @@ func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) goaht
 
 // EncodeGuardedResponse returns an encoder for responses returned by the clock
 // Guarded endpoint.
-func EncodeGuardedResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeGuardedResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(*clock.TickTockEvent)
 		enc := encoder(ctx, w)
@@ -55,7 +55,7 @@ func EncodeGuardedResponse(encoder func(context.Context, http.ResponseWriter) go
 
 // DecodeGuardedRequest returns a decoder for requests sent to the clock
 // Guarded endpoint.
-func DecodeGuardedRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*clock.GuardedPayload, error) {
+func DecodeGuardedRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*clock.GuardedPayload, error) {
 	return func(r *http.Request) (*clock.GuardedPayload, error) {
 		var payload *clock.GuardedPayload
 		var (
@@ -73,17 +73,18 @@ func DecodeGuardedRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 
 // EncodeGuardedError returns an encoder for errors returned by the Guarded
 // clock endpoint.
-func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.LoomErrorNamer
+		var en loom.LoomErrorNamer
 		if !errors.As(v, &en) {
 			return encodeError(ctx, w, v)
 		}
 		switch en.LoomErrorName() {
 		case "unauthorized":
-			var res *goa.ServiceError
+			var res *loom.ServiceError
 			errors.As(v, &res)
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {

@@ -3,7 +3,7 @@
 // clock client HTTP transport
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package client
 
@@ -13,33 +13,33 @@ import (
 	"net/http"
 	"strings"
 
-	goahttp "github.com/CaliLuke/loom/http"
-	goa "github.com/CaliLuke/loom/pkg"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // Client lists the clock service endpoint HTTP clients.
 type Client struct {
 	// Tick Doer is the HTTP client used to make requests to the Tick endpoint.
-	TickDoer goahttp.Doer
+	TickDoer loomhttp.Doer
 	// Tock Doer is the HTTP client used to make requests to the Tock endpoint.
-	TockDoer goahttp.Doer
+	TockDoer loomhttp.Doer
 	// Guarded Doer is the HTTP client used to make requests to the Guarded
 	// endpoint.
-	GuardedDoer goahttp.Doer
+	GuardedDoer loomhttp.Doer
 	// RestoreResponseBody controls whether the response bodies are reset after
 	// decoding so they can be read again.
 	RestoreResponseBody bool
 
 	scheme  string
 	host    string
-	encoder func(*http.Request) goahttp.Encoder
-	decoder func(*http.Response) goahttp.Decoder
+	encoder func(*http.Request) loomhttp.Encoder
+	decoder func(*http.Response) loomhttp.Decoder
 } // NewClient instantiates HTTP clients for all the clock service servers.
-func NewClient(scheme string, host string, doer goahttp.Doer, enc func(*http.Request) goahttp.Encoder, dec func(*http.Response) goahttp.Decoder, restoreBody bool) *Client {
+func NewClient(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restoreBody bool) *Client {
 	return &Client{TickDoer: doer, TockDoer: doer, GuardedDoer: doer, RestoreResponseBody: restoreBody, scheme: scheme, host: host, decoder: dec, encoder: enc}
 } // Tick returns an endpoint that makes HTTP requests to the clock service Tick
 // server.
-func (c *Client) Tick() goa.Endpoint {
+func (c *Client) Tick() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
 		req, err := c.BuildTickRequest(ctx, v)
 		if err != nil {
@@ -48,7 +48,7 @@ func (c *Client) Tick() goa.Endpoint {
 		// For SSE endpoints, connect and return a stream
 		resp, err := c.TickDoer.Do(req)
 		if err != nil {
-			return nil, goahttp.ErrRequestError("clock", "Tick", err)
+			return nil, loomhttp.ErrRequestError("clock", "Tick", err)
 		}
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
@@ -63,7 +63,7 @@ func (c *Client) Tick() goa.Endpoint {
 	}
 } // Tock returns an endpoint that makes HTTP requests to the clock service Tock
 // server.
-func (c *Client) Tock() goa.Endpoint {
+func (c *Client) Tock() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
 		req, err := c.BuildTockRequest(ctx, v)
 		if err != nil {
@@ -72,7 +72,7 @@ func (c *Client) Tock() goa.Endpoint {
 		// For SSE endpoints, connect and return a stream
 		resp, err := c.TockDoer.Do(req)
 		if err != nil {
-			return nil, goahttp.ErrRequestError("clock", "Tock", err)
+			return nil, loomhttp.ErrRequestError("clock", "Tock", err)
 		}
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
@@ -87,7 +87,7 @@ func (c *Client) Tock() goa.Endpoint {
 	}
 } // Guarded returns an endpoint that makes HTTP requests to the clock service
 // Guarded server.
-func (c *Client) Guarded() goa.Endpoint {
+func (c *Client) Guarded() loom.Endpoint {
 	var (
 		encodeRequest = EncodeGuardedRequest(c.encoder)
 	)
@@ -103,7 +103,7 @@ func (c *Client) Guarded() goa.Endpoint {
 		// For SSE endpoints, connect and return a stream
 		resp, err := c.GuardedDoer.Do(req)
 		if err != nil {
-			return nil, goahttp.ErrRequestError("clock", "Guarded", err)
+			return nil, loomhttp.ErrRequestError("clock", "Guarded", err)
 		}
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()

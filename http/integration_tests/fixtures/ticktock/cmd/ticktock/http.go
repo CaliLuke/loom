@@ -19,7 +19,7 @@ import (
 func handleHTTPServer(ctx context.Context, u *url.URL, clockEndpoints *clock.Endpoints, wg *sync.WaitGroup, errc chan error, dbg bool) {
 
 	// Provide the transport specific request decoder and response encoder.
-	// The goa http package has built-in support for JSON, XML and gob.
+	// The Loom HTTP package has built-in support for JSON, XML and gob.
 	// Other encodings can be used by providing the corresponding functions,
 	// see loom.design/implement/encoding.
 	var (

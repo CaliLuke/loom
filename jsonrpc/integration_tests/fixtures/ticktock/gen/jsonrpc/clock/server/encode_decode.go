@@ -3,7 +3,7 @@
 // clock JSON-RPC server encoders and decoders
 //
 // Command:
-// $ loom gen example.com/ticktock/design
+// $ loom gen example.com/ticktock/design -o .
 
 package server
 
@@ -15,14 +15,14 @@ import (
 	"net/http"
 
 	clock "example.com/ticktock/gen/clock"
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // EncodeTickResponse returns an encoder for responses returned by the clock
 // Tick endpoint.
-func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(*clock.TickResult)
 		enc := encoder(ctx, w)
@@ -34,7 +34,7 @@ func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) goaht
 
 // DecodeTickRequest returns a decoder for requests sent to the clock Tick
 // endpoint.
-func DecodeTickRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
+func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 		r.Body = io.NopCloser(bytes.NewReader(req.Params))
 		var payload *clock.TickPayload
@@ -45,13 +45,13 @@ func DecodeTickRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.De
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		payload = NewTickPayload(&body)
 
@@ -61,7 +61,7 @@ func DecodeTickRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.De
 
 // EncodeTockResponse returns an encoder for responses returned by the clock
 // Tock endpoint.
-func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		res, _ := v.(*clock.TockResult)
 		enc := encoder(ctx, w)
@@ -73,7 +73,7 @@ func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) goaht
 
 // DecodeTockRequest returns a decoder for requests sent to the clock Tock
 // endpoint.
-func DecodeTockRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TockPayload, error) {
+func DecodeTockRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TockPayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.TockPayload, error) {
 		r.Body = io.NopCloser(bytes.NewReader(req.Params))
 		var payload *clock.TockPayload
@@ -84,13 +84,13 @@ func DecodeTockRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.De
 		err = decoder(r).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return payload, goa.MissingPayloadError()
+				return payload, loom.MissingPayloadError()
 			}
-			var gerr *goa.ServiceError
+			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, goa.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(err.Error())
 		}
 		payload = NewTockPayload(&body)
 

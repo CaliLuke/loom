@@ -89,56 +89,42 @@ var (
 
 func generate(cmd, path, output string, debug bool) error {
 	var (
-		files []string
-		err   error
-		tmp   generatorRunner
-		startTotal, startImport, startNewGen,
-		startWrite, startCompile, startRun time.Time
+		files                                                                    []string
+		err                                                                      error
+		tmp                                                                      generatorRunner
+		startTotal, startImport, startNewGen, startWrite, startCompile, startRun time.Time
 	)
 
 	startTotal = time.Now()
-	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING] Starting loom generation\n")
-	}
 
 	startImport = time.Now()
 	if _, err = build.Import(path, ".", 0); err != nil {
-		goto fail
+		return cleanupGenerator(tmp, debug, wrapStageError("build.Import", err))
 	}
-	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING] build.Import took %v\n", time.Since(startImport))
-	}
+	debugStage(debug, "build.Import", startImport, "path=%s", path)
 
 	startNewGen = time.Now()
 	tmp = newGenerator(cmd, path, output, debug)
-	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING] NewGenerator took %v\n", time.Since(startNewGen))
-	}
+	debugStage(debug, "NewGenerator", startNewGen, "command=%s output=%s", cmd, output)
 
 	startWrite = time.Now()
 	if err = tmp.Write(debug); err != nil {
-		goto fail
+		return cleanupGenerator(tmp, debug, wrapStageError("Write", err))
 	}
-	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING] Write (generate main.go) took %v\n", time.Since(startWrite))
-	}
+	debugStage(debug, "Write", startWrite, "command=%s", cmd)
 
 	startCompile = time.Now()
 	if err = tmp.Compile(debug); err != nil {
-		goto fail
+		return cleanupGenerator(tmp, debug, wrapStageError("Compile", err))
 	}
-	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING] Compile (go get + go build) took %v\n", time.Since(startCompile))
-	}
+	debugStage(debug, "Compile", startCompile, "command=%s", cmd)
 
 	startRun = time.Now()
 	if files, err = tmp.Run(debug); err != nil {
-		goto fail
+		return cleanupGenerator(tmp, debug, wrapStageError("Run", err))
 	}
-	if debug {
-		fmt.Fprintf(os.Stderr, "[TIMING] Run (execute binary) took %v\n", time.Since(startRun))
-		fmt.Fprintf(os.Stderr, "[TIMING] Total generation time: %v\n", time.Since(startTotal))
-	}
+	debugStage(debug, "Run", startRun, "files=%d", len(files))
+	debugStage(debug, "total", startTotal, "command=%s output=%s", cmd, output)
 	fmt.Println(strings.Join(files, "\n"))
 	if !debug {
 		if err := tmp.Remove(); err != nil {
@@ -146,13 +132,6 @@ func generate(cmd, path, output string, debug bool) error {
 		}
 	}
 	return nil
-fail:
-	if !debug && tmp != nil {
-		if removeErr := tmp.Remove(); removeErr != nil {
-			return errors.Join(err, removeErr)
-		}
-	}
-	return err
 }
 
 func help() {
@@ -188,4 +167,28 @@ Example:
   loom gen github.com/CaliLuke/loom-examples/cellar/design -o gendir
 
 `)
+}
+
+func cleanupGenerator(tmp generatorRunner, debug bool, err error) error {
+	if !debug && tmp != nil {
+		if removeErr := tmp.Remove(); removeErr != nil {
+			return errors.Join(err, removeErr)
+		}
+	}
+	return err
+}
+
+func wrapStageError(stage string, err error) error {
+	return fmt.Errorf("stage %s: %w", stage, err)
+}
+
+func debugStage(debug bool, stage string, start time.Time, format string, args ...any) {
+	if !debug {
+		return
+	}
+	msg := ""
+	if format != "" {
+		msg = " " + fmt.Sprintf(format, args...)
+	}
+	fmt.Fprintf(os.Stderr, "[loom-debug] stage=%s duration=%s%s\n", stage, time.Since(start), msg)
 }

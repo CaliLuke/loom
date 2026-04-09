@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -77,6 +79,62 @@ func TestGenerateKeepsTempDirInDebugMode(t *testing.T) {
 	require.True(t, fake.runDebug)
 }
 
+func TestGenerateStdoutAndStderrContract(t *testing.T) {
+	cases := map[string]struct {
+		debug          bool
+		wantStdout     string
+		wantStderr     []string
+		wantNoStderr   bool
+		wantKeepTmpDir bool
+	}{
+		"normal": {
+			debug:        false,
+			wantStdout:   "gen/service.go\ngen/client.go\n",
+			wantNoStderr: true,
+		},
+		"debug": {
+			debug:      true,
+			wantStdout: "gen/service.go\ngen/client.go\n",
+			wantStderr: []string{
+				"[loom-debug]",
+				"stage=build.Import",
+				"stage=NewGenerator",
+				"stage=Write",
+				"stage=Compile",
+				"stage=Run",
+				"stage=total",
+			},
+			wantKeepTmpDir: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			fake := &fakeGenerator{runFiles: []string{"gen/service.go", "gen/client.go"}}
+			origNewGenerator := newGenerator
+			newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
+				require.Equal(t, tc.debug, debug)
+				return fake
+			}
+			defer func() { newGenerator = origNewGenerator }()
+
+			stdout, stderr, err := captureOutput(t, func() error {
+				return generate("gen", "archive/tar", ".", tc.debug)
+			})
+
+			require.NoError(t, err)
+			require.Equal(t, tc.wantStdout, stdout)
+			if tc.wantNoStderr {
+				require.Empty(t, stderr)
+			}
+			for _, want := range tc.wantStderr {
+				require.Contains(t, stderr, want)
+			}
+			require.Equal(t, tc.wantKeepTmpDir, !fake.removed)
+		})
+	}
+}
+
 func TestGenerateRemovesTempDirOnCompileFailureWithoutDebug(t *testing.T) {
 	fake := &fakeGenerator{compileErr: errors.New("compile failed")}
 	origNewGenerator := newGenerator
@@ -86,8 +144,118 @@ func TestGenerateRemovesTempDirOnCompileFailureWithoutDebug(t *testing.T) {
 	defer func() { newGenerator = origNewGenerator }()
 
 	err := generate("gen", "archive/tar", ".", false)
-	require.EqualError(t, err, "compile failed")
+	require.EqualError(t, err, "stage Compile: compile failed")
 	require.True(t, fake.removed)
+}
+
+func TestGenerateWrapsStageFailures(t *testing.T) {
+	cases := map[string]struct {
+		fake    *fakeGenerator
+		wantErr string
+	}{
+		"write": {
+			fake:    &fakeGenerator{writeErr: errors.New("write failed")},
+			wantErr: "stage Write: write failed",
+		},
+		"compile": {
+			fake:    &fakeGenerator{compileErr: errors.New("compile failed")},
+			wantErr: "stage Compile: compile failed",
+		},
+		"run": {
+			fake:    &fakeGenerator{runErr: errors.New("run failed")},
+			wantErr: "stage Run: run failed",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			origNewGenerator := newGenerator
+			newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
+				return tc.fake
+			}
+			defer func() { newGenerator = origNewGenerator }()
+
+			err := generate("gen", "archive/tar", ".", false)
+			require.EqualError(t, err, tc.wantErr)
+		})
+	}
+}
+
+func TestGenerateRealBinaryDebugContract(t *testing.T) {
+	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
+	require.NoError(t, err)
+
+	origWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(fixtureDir))
+	defer func() {
+		require.NoError(t, os.Chdir(origWD))
+	}()
+
+	outputDir := t.TempDir()
+	stdout, stderr, err := captureOutput(t, func() error {
+		return generate("gen", "example.com/ticktock/design", outputDir, true)
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, stdout)
+	require.NotContains(t, stdout, "[loom-debug]")
+	require.NotContains(t, stdout, "[TIMING]")
+	for _, want := range []string{
+		"stage=build.Import",
+		"stage=NewGenerator",
+		"stage=design-package-load",
+		"stage=Write",
+		"stage=temp-package-load",
+		"stage=go-build",
+		"stage=Compile",
+		"stage=Run",
+		"stage=binary-startup",
+		"stage=eval.Context.Errors",
+		"stage=eval.RunDSL",
+		"stage=generator.Generate",
+		"stage=load-roots",
+		"stage=compute-gen-package",
+		"stage=load-generators",
+		"stage=prepare-plugins",
+		"stage=generate-initial-files",
+		"stage=post-generation-plugins",
+		"stage=merge-files",
+		"stage=write-files",
+		"stage=compute-outputs",
+		"stage=total",
+	} {
+		require.Contains(t, stderr, want)
+	}
+	require.NotContains(t, stderr, "[TIMING]")
+}
+
+func TestGenerateRealBinaryFailurePreservesStageContext(t *testing.T) {
+	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
+	require.NoError(t, err)
+
+	origWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(fixtureDir))
+	defer func() {
+		require.NoError(t, os.Chdir(origWD))
+	}()
+
+	outputRoot := t.TempDir()
+	outputPath := filepath.Join(outputRoot, "not-a-dir")
+	require.NoError(t, os.WriteFile(outputPath, []byte("x"), 0o644))
+
+	stdout, stderr, err := captureOutput(t, func() error {
+		return generate("gen", "example.com/ticktock/design", outputPath, true)
+	})
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "stage Run: exit status 1")
+	require.ErrorContains(t, err, "stage generator.Generate: stage compute-gen-package path "+filepath.Join(outputPath, "gen"))
+	require.Empty(t, stdout)
+	require.NotContains(t, stdout, "[loom-debug]")
+	require.Contains(t, stderr, "stage=binary-startup")
+	require.Contains(t, stderr, "stage generator.Generate: stage compute-gen-package path "+filepath.Join(outputPath, "gen"))
 }
 
 func TestCleanupDirsReturnsSubdirectoriesOnly(t *testing.T) {
@@ -137,4 +305,40 @@ func TestHelpIncludesCommandsAndFlags(t *testing.T) {
 	require.Contains(t, text, "-output DIRECTORY")
 	require.Contains(t, text, "-debug")
 	require.True(t, strings.Contains(text, "Loom framework") || strings.Contains(text, "Loom"))
+}
+
+func captureOutput(t *testing.T, fn func() error) (stdout string, stderr string, err error) {
+	t.Helper()
+
+	origStdout := os.Stdout
+	origStderr := os.Stderr
+
+	stdoutReader, stdoutWriter, pipeErr := os.Pipe()
+	require.NoError(t, pipeErr)
+	stderrReader, stderrWriter, pipeErr := os.Pipe()
+	require.NoError(t, pipeErr)
+
+	os.Stdout = stdoutWriter
+	os.Stderr = stderrWriter
+	defer func() {
+		os.Stdout = origStdout
+		os.Stderr = origStderr
+	}()
+
+	runErr := fn()
+
+	require.NoError(t, stdoutWriter.Close())
+	require.NoError(t, stderrWriter.Close())
+
+	var stdoutBuf bytes.Buffer
+	_, pipeErr = io.Copy(&stdoutBuf, stdoutReader)
+	require.NoError(t, pipeErr)
+	require.NoError(t, stdoutReader.Close())
+
+	var stderrBuf bytes.Buffer
+	_, pipeErr = io.Copy(&stderrBuf, stderrReader)
+	require.NoError(t, pipeErr)
+	require.NoError(t, stderrReader.Close())
+
+	return stdoutBuf.String(), stderrBuf.String(), runErr
 }
