@@ -88,10 +88,7 @@ func (d *ServicesData) collectForcedServiceTypes(service *expr.ServiceExpr, scop
 
 func assignEndpointFields(methods []*MethodData, scope *codegen.NameScope) {
 	for _, m := range methods {
-		m.EndpointField = scope.Unique(m.VarName+"Endpoint", "")
-		if m.HasMixedResults {
-			m.StreamEndpointField = scope.Unique(m.VarName+"StreamEndpoint", "")
-		}
+		m.AssignEndpointFields(scope)
 	}
 }
 
@@ -284,7 +281,7 @@ func (d *ServicesData) buildServiceMethods(
 			view = v
 		}
 		if vrt, ok := seenViewed[method.Result+"::"+view]; ok {
-			method.ViewedResult = vrt
+			method.SetViewedResult(vrt)
 			continue
 		}
 		projected := seenProj[rt.ID()]
@@ -293,7 +290,7 @@ func (d *ServicesData) buildServiceMethods(
 		if !containsViewedResultType(viewedRTs, vrt) {
 			viewedRTs = append(viewedRTs, vrt)
 		}
-		method.ViewedResult = vrt
+		method.SetViewedResult(vrt)
 		seenViewed[vrt.Name+"::"+view] = vrt
 	}
 	return methods, schemes, viewedRTs

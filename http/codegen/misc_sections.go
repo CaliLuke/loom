@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/ssecodegen"
 )
 
 func requestBuilderSection(endpoint *EndpointData) codegen.Section {
@@ -238,27 +239,12 @@ func renderServerSSESendWithContextBody(ed *EndpointData) string {
 	writeSSEPayloadSetup(&b, ed)
 	writeSSEPayloadEncoding(&b)
 	writeSSEMessageSetup(&b, ed)
-	b.Add("if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {\n\treturn err\n}\n\n")
-	b.Add("return http.NewResponseController(s.w).Flush()")
+	b.Add(ssecodegen.WriteAndFlushSource("loomhttp.WriteSSEEvent(s.w, msg)", "s.w"))
 	return b.String()
 }
 
 func renderSSEInitHeadersBody() string {
-	var b sourceBuilder
-	b.Add("s.once.Do(func() {\n")
-	b.Add("\theader := s.w.Header()\n")
-	b.Add("\tif header.Get(\"Content-Type\") == \"\" {\n")
-	b.Add("\t\theader.Set(\"Content-Type\", \"text/event-stream\")\n")
-	b.Add("\t}\n")
-	b.Add("\tif header.Get(\"Cache-Control\") == \"\" {\n")
-	b.Add("\t\theader.Set(\"Cache-Control\", \"no-cache\")\n")
-	b.Add("\t}\n")
-	b.Add("\tif header.Get(\"Connection\") == \"\" {\n")
-	b.Add("\t\theader.Set(\"Connection\", \"keep-alive\")\n")
-	b.Add("\t}\n")
-	b.Add("\ts.w.WriteHeader(http.StatusOK)\n")
-	b.Add("})")
-	return b.String()
+	return ssecodegen.InitHeadersSource("s.w", ssecodegen.HeaderOptions{PreserveExisting: true})
 }
 
 func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat string) string {

@@ -73,11 +73,15 @@ func TestExampleSectionsStructuredDeclarations(t *testing.T) {
 
 	endpointCode := codegen.SectionCode(t, exampleEndpointSection(&basicEndpointData{
 		MethodData: &MethodData{
-			Name:                         "Do",
-			VarName:                      "Do",
-			Description:                  "Do runs the widget method.",
-			Result:                       "Widget",
-			SkipResponseBodyEncodeDecode: true,
+			Name:        "Do",
+			VarName:     "Do",
+			Description: "Do runs the widget method.",
+			MethodResultData: MethodResultData{
+				Result: "Widget",
+			},
+			MethodTransportData: MethodTransportData{
+				SkipResponseBodyEncodeDecode: true,
+			},
 		},
 		ServiceVarName: "widget",
 		ResultFullName: "Widget",

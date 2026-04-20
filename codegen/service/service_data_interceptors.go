@@ -106,11 +106,7 @@ func findMethodData(methods []*MethodData, name string) *MethodData {
 }
 
 func appendInterceptorName(md *MethodData, name string, server bool) {
-	if server {
-		md.ServerInterceptors = append(md.ServerInterceptors, name)
-		return
-	}
-	md.ClientInterceptors = append(md.ClientInterceptors, name)
+	md.AppendInterceptorName(name, server)
 }
 
 // buildInterceptorMethodData creates the data needed to generate interceptor

@@ -19,10 +19,6 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 
 		errors    []*ErrorInitData
 		errorLocs map[string]*codegen.Location
-
-		isJSONRPC bool
-		reqs      RequirementsData
-		schemes   SchemesData
 	)
 	vname = scope.Unique(codegen.Goify(m.Name, true), "Endpoint")
 	desc = m.Description
@@ -33,47 +29,78 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 	resultData = buildMethodAttributeProjection(m.Result, "result", m.Service.Name, m.Name, d.Root.API.ExampleGenerator, scope)
 	errors, errorLocs = buildMethodErrorData(m.Errors, scope)
 
-	_, isJSONRPC = m.Meta["jsonrpc"]
-	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
-
-	reqs, schemes = BuildRequirementsData(m.EffectiveRequirements(), m)
-
-	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode := d.httpSkipBodyFlags(m)
-
 	data := &MethodData{
-		Name:                         m.Name,
-		VarName:                      vname,
-		Description:                  desc,
-		Payload:                      payloadData.Name,
-		PayloadLoc:                   payloadData.Location,
-		PayloadDef:                   payloadData.Definition,
-		PayloadRef:                   payloadData.Reference,
-		PayloadDesc:                  payloadData.Description,
-		PayloadEx:                    payloadData.Example,
-		PayloadDefault:               m.Payload.DefaultValue,
-		Result:                       resultData.Name,
-		ResultLoc:                    resultData.Location,
-		ResultDef:                    resultData.Definition,
-		ResultRef:                    resultData.Reference,
-		ResultDesc:                   resultData.Description,
-		ResultEx:                     resultData.Example,
-		Errors:                       errors,
-		ErrorLocs:                    errorLocs,
+		Name:                m.Name,
+		VarName:             vname,
+		Description:         desc,
+		MethodPayloadData:   buildMethodPayloadData(m, payloadData),
+		MethodResultData:    buildMethodResultData(resultData),
+		MethodSecurityData:  buildMethodSecurityData(m, errors, errorLocs),
+		MethodTransportData: d.buildMethodTransportData(m, vname),
+		MethodStreamingData: buildMethodStreamingData(m),
+	}
+
+	d.initStreamData(data, m, vname, resultData.Name, resultData.Reference, scope)
+	return data
+}
+
+func buildMethodPayloadData(m *expr.MethodExpr, payloadData methodAttributeProjection) MethodPayloadData {
+	var payloadDefault any
+	if m.Payload != nil {
+		payloadDefault = m.Payload.DefaultValue
+	}
+	return MethodPayloadData{
+		Payload:        payloadData.Name,
+		PayloadLoc:     payloadData.Location,
+		PayloadDef:     payloadData.Definition,
+		PayloadRef:     payloadData.Reference,
+		PayloadDesc:    payloadData.Description,
+		PayloadEx:      payloadData.Example,
+		PayloadDefault: payloadDefault,
+	}
+}
+
+func buildMethodResultData(resultData methodAttributeProjection) MethodResultData {
+	return MethodResultData{
+		Result:     resultData.Name,
+		ResultLoc:  resultData.Location,
+		ResultDef:  resultData.Definition,
+		ResultRef:  resultData.Reference,
+		ResultDesc: resultData.Description,
+		ResultEx:   resultData.Example,
+	}
+}
+
+func buildMethodSecurityData(m *expr.MethodExpr, errors []*ErrorInitData, errorLocs map[string]*codegen.Location) MethodSecurityData {
+	reqs, schemes := BuildRequirementsData(m.EffectiveRequirements(), m)
+	return MethodSecurityData{
+		Errors:       errors,
+		ErrorLocs:    errorLocs,
+		Requirements: reqs,
+		Schemes:      schemes,
+	}
+}
+
+func (d *ServicesData) buildMethodTransportData(m *expr.MethodExpr, vname string) MethodTransportData {
+	_, isJSONRPC := m.Meta["jsonrpc"]
+	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
+	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode := d.httpSkipBodyFlags(m)
+	return MethodTransportData{
 		IsJSONRPC:                    isJSONRPC,
 		IsJSONRPCSSE:                 isJSONRPCSSE,
 		IsJSONRPCWebSocket:           isJSONRPCWebSocket,
-		Requirements:                 reqs,
-		Schemes:                      schemes,
-		StreamKind:                   m.Stream,
-		HasMixedResults:              m.HasMixedResults(),
 		SkipRequestBodyEncodeDecode:  skipRequestBodyEncodeDecode,
 		SkipResponseBodyEncodeDecode: skipResponseBodyEncodeDecode,
 		RequestStruct:                vname + "RequestData",
 		ResponseStruct:               vname + "ResponseData",
 	}
+}
 
-	d.initStreamData(data, m, vname, resultData.Name, resultData.Reference, scope)
-	return data
+func buildMethodStreamingData(m *expr.MethodExpr) MethodStreamingData {
+	return MethodStreamingData{
+		StreamKind:      m.Stream,
+		HasMixedResults: m.HasMixedResults(),
+	}
 }
 
 func buildMethodAttributeProjection(att *expr.AttributeExpr, kind, serviceName, methodName string, gen *expr.ExampleGenerator, scope *codegen.NameScope) methodAttributeProjection {

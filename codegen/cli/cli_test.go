@@ -37,10 +37,14 @@ func TestBuildCommandDataDefaultsDescriptionAndInterceptors(t *testing.T) {
 func TestBuildSubcommandDataBuildsJSONConversionAndExample(t *testing.T) {
 	data := &service.Data{Name: "Storage", PkgName: "storage"}
 	method := &service.MethodData{
-		Name:               "Create Widget",
-		VarName:            "CreateWidget",
-		Payload:            "WidgetPayload",
-		ClientInterceptors: []string{"Audit"},
+		Name:    "Create Widget",
+		VarName: "CreateWidget",
+		MethodPayloadData: service.MethodPayloadData{
+			Payload: "WidgetPayload",
+		},
+		MethodSecurityData: service.MethodSecurityData{
+			ClientInterceptors: []string{"Audit"},
+		},
 	}
 	flags := []*FlagData{{
 		Name:     "payload",

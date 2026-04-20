@@ -277,6 +277,74 @@ func TestValidationCodeUsesExplicitUnionVariantTagsForSumUnions(t *testing.T) {
 	}
 }
 
+func TestNewValidationRenderDataHandlesAliasPointersAndDefaults(t *testing.T) {
+	t.Parallel()
+
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, false, "", scope)
+	alias := &expr.UserTypeExpr{
+		TypeName: "AliasString",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: expr.String,
+		},
+	}
+
+	t.Run("optional primitive pointer uses dereference", func(t *testing.T) {
+		att := &expr.AttributeExpr{Type: expr.String}
+		data := newValidationRenderData(att, ctx, false, false, "target", "target")
+		if !data.IsPointer {
+			t.Fatal("expected optional primitive to be pointer-like")
+		}
+		if data.TargetValue != "*target" {
+			t.Fatalf("expected dereferenced target value, got %q", data.TargetValue)
+		}
+	})
+
+	t.Run("alias uses underlying type cast", func(t *testing.T) {
+		att := &expr.AttributeExpr{Type: alias}
+		data := newValidationRenderData(att, ctx, true, true, "target", "target")
+		if data.TargetValue != "string(target)" {
+			t.Fatalf("expected alias cast target value, got %q", data.TargetValue)
+		}
+		if !data.IsString {
+			t.Fatal("expected alias over string to be treated as string")
+		}
+	})
+}
+
+func TestValidationCodePreservesLegacyExclusiveRangeEmission(t *testing.T) {
+	t.Parallel()
+
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, false, "", scope)
+	min := 1.0
+	max := 100.0
+	att := &expr.AttributeExpr{
+		Type: expr.Int,
+		Validation: &expr.ValidationExpr{
+			ExclusiveMinimum: &min,
+			ExclusiveMaximum: &max,
+		},
+	}
+
+	code := validationCode(att, ctx, false, false, "target", "target")
+	expected := strings.Join([]string{
+		"if target != nil {",
+		"\tif *target <= 1 {",
+		"\t\terr = loom.MergeErrors(err, loom.InvalidRangeError(\"target\", *target, 1, true))",
+		"\t}",
+		"}",
+		"if target != nil {",
+		"\tif *target <= 1 {",
+		"\t\terr = loom.MergeErrors(err, loom.InvalidRangeError(\"target\", *target, 1, true))",
+		"\t}",
+		"}",
+	}, "\n")
+	if code != expected {
+		t.Fatalf("unexpected validation code:\n%s", code)
+	}
+}
+
 func TestValidationCodeRequiresObjectUnionBranchValue(t *testing.T) {
 	t.Parallel()
 

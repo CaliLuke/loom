@@ -165,6 +165,34 @@ func TestBuildMethodDataMixedResultsStreamMetadata(t *testing.T) {
 	require.Equal(t, "WatchEvent", method.ClientStream.RecvTypeName)
 }
 
+func TestBuildMethodDataPartitionsConcernFields(t *testing.T) {
+	root := codegen.RunDSL(t, serviceDataRefactorRegressionDSL)
+	services := NewServicesData(root)
+	svc := services.Get("ServiceDataRefactor")
+	require.NotNil(t, svc)
+
+	method := svc.Method("Watch")
+	require.NotNil(t, method)
+
+	require.Equal(t, "UnionPayload", method.MethodPayloadData.Payload)
+	require.Equal(t, "*UnionPayload", method.MethodPayloadData.PayloadRef)
+	require.Equal(t, "WatchResult", method.MethodResultData.Result)
+	require.Equal(t, "*WatchResult", method.MethodResultData.ResultRef)
+	require.False(t, method.MethodTransportData.IsJSONRPC)
+	require.False(t, method.MethodTransportData.IsJSONRPCSSE)
+	require.Equal(t, "WatchRequestData", method.MethodTransportData.RequestStruct)
+	require.Equal(t, "WatchResponseData", method.MethodTransportData.ResponseStruct)
+	require.True(t, method.MethodStreamingData.HasMixedResults)
+	require.Equal(t, expr.ServerStreamKind, method.MethodStreamingData.StreamKind)
+	require.NotNil(t, method.MethodStreamingData.ServerStream)
+	require.NotNil(t, method.MethodStreamingData.ClientStream)
+	require.Len(t, method.MethodSecurityData.Errors, 1)
+	require.Empty(t, method.MethodSecurityData.Schemes)
+	require.NotEmpty(t, method.MethodTransportData.EndpointField)
+	require.NotEmpty(t, method.MethodTransportData.StreamEndpointField)
+	require.NotNil(t, method.MethodResultData.ViewedResult)
+}
+
 func TestAnalyzeServiceDataRefactorRegression(t *testing.T) {
 	root := codegen.RunDSL(t, serviceDataRefactorRegressionDSL)
 	services := NewServicesData(root)
@@ -190,6 +218,11 @@ func TestAnalyzeServiceDataRefactorRegression(t *testing.T) {
 	method := svc.Method("Watch")
 	require.NotNil(t, method)
 	require.True(t, method.HasMixedResults)
+	require.Len(t, method.ServerInterceptors, 1)
+	require.Len(t, method.ClientInterceptors, 1)
+	require.NotEmpty(t, method.EndpointField)
+	require.NotEmpty(t, method.StreamEndpointField)
+	require.NotNil(t, method.ViewedResult)
 
 	viewed := svc.viewedResultTypes[0]
 	require.Len(t, viewed.Views, 2)

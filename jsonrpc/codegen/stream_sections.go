@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
+	"github.com/CaliLuke/loom/internal/ssecodegen"
 )
 
 func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section {
@@ -216,13 +217,11 @@ func renderSSEEndpointSendSSEEventSource(ed *httpcodegen.EndpointData) string {
 	return fmt.Sprintf(`%s
 func (s *%s) sendSSEEvent(eventType string, v any) error {
 	s.initSSEHeaders()
-	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
-		return err
-	}
-	return http.NewResponseController(s.w).Flush()
+	%s
 }
 `, codegen.Comment("sendSSEEvent sends a single SSE event."),
-		ed.SSE.StructName)
+		ed.SSE.StructName,
+		indentGeneratedCode(compactGeneratedCode(ssecodegen.WriteAndFlushSource(`loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v)`, "s.w")), "\t"))
 }
 
 func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section {
@@ -237,20 +236,16 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 			Id("sendSSEEvent").
 			Params(jen.Id("eventType").String(), jen.Id("v").Any()).
 			Error().
-			Block(
+			Block(append([]jen.Code{
 				jen.Id("s").Dot("initSSEHeaders").Call(),
-				jen.If(
-					jen.Err().Op(":=").Id("loomhttp").Dot("WriteJSONSSEEvent").Call(
-						jen.Id("s").Dot("w"),
-						jen.Id("loomhttp").Dot("SSEMessage").Values(jen.Dict{jen.Id("Type"): jen.Id("eventType")}),
-						jen.Id("v"),
-					),
-					jen.Err().Op("!=").Nil(),
-				).Block(
-					jen.Return(jen.Err()),
+			}, ssecodegen.WriteAndFlushBody(
+				jen.Id("loomhttp").Dot("WriteJSONSSEEvent").Call(
+					jen.Id("s").Dot("w"),
+					jen.Id("loomhttp").Dot("SSEMessage").Values(jen.Dict{jen.Id("Type"): jen.Id("eventType")}),
+					jen.Id("v"),
 				),
-				jen.Return(jen.Qual("net/http", "NewResponseController").Call(jen.Id("s").Dot("w")).Dot("Flush").Call()),
-			)
+				"s.w",
+			)...)...)
 		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 			Id("sendError").
@@ -436,18 +431,22 @@ func jsonrpcSSEStreamFields() []jen.Code {
 }
 
 func jsonrpcSSEInitHeadersBody() []jen.Code {
-	return []jen.Code{
-		jen.Id("s").Dot("once").Dot("Do").Call(
-			jen.Func().Params().Block(
-				jen.Id("header").Op(":=").Id("s").Dot("w").Dot("Header").Call(),
-				jen.Id("header").Dot("Set").Call(jen.Lit("Content-Type"), jen.Lit("text/event-stream")),
-				jen.Id("header").Dot("Set").Call(jen.Lit("Cache-Control"), jen.Lit("no-cache")),
-				jen.Id("header").Dot("Set").Call(jen.Lit("Connection"), jen.Lit("keep-alive")),
-				jen.Id("header").Dot("Set").Call(jen.Lit("X-Accel-Buffering"), jen.Lit("no")),
-				jen.Id("s").Dot("w").Dot("WriteHeader").Call(jen.Qual("net/http", "StatusOK")),
-			),
-		),
+	return ssecodegen.InitHeadersBody("s.w", ssecodegen.HeaderOptions{IncludeAccelBuffering: true})
+}
+
+func indentGeneratedCode(code, indent string) string {
+	lines := strings.Split(code, "\n")
+	for i, line := range lines {
+		if line == "" {
+			continue
+		}
+		lines[i] = indent + line
 	}
+	return strings.Join(lines, "\n")
+}
+
+func compactGeneratedCode(code string) string {
+	return strings.Replace(code, "\n\nreturn", "\nreturn", 1)
 }
 
 func addJSONRPCWebSocketResultSendMethods(stmt *jen.Statement, streamName string, ed *httpcodegen.EndpointData) {

@@ -120,6 +120,20 @@ type (
 		Description string
 		// VarName is the Go method name.
 		VarName string
+		// Payload contains the payload type metadata.
+		MethodPayloadData
+		// Result contains the result and viewed-result metadata.
+		MethodResultData
+		// Security contains the error, auth, and interceptor metadata.
+		MethodSecurityData
+		// Transport contains the transport and client endpoint-field metadata.
+		MethodTransportData
+		// Streaming contains the streaming type and stream-interface metadata.
+		MethodStreamingData
+	}
+
+	// MethodPayloadData contains the request payload type metadata for a method.
+	MethodPayloadData struct {
 		// Payload is the name of the payload type if any,
 		Payload string
 		// PayloadLoc defines the file and Go package of the payload type
@@ -135,26 +149,10 @@ type (
 		PayloadEx any
 		// PayloadDefault is the default value of the payload if any.
 		PayloadDefault any
-		// StreamingPayload is the name of the streaming payload type if any.
-		StreamingPayload string
-		// StreamingPayloadDef is the streaming payload type definition if any.
-		StreamingPayloadDef string
-		// StreamingPayloadRef is a reference to the streaming payload type if any.
-		StreamingPayloadRef string
-		// StreamingPayloadDesc is the streaming payload type description if any.
-		StreamingPayloadDesc string
-		// StreamingPayloadEx is an example of a valid streaming payload value.
-		StreamingPayloadEx any
-		// StreamingResult is the name of the streaming result type if any (when different from Result).
-		StreamingResult string
-		// StreamingResultDef is the streaming result type definition if any.
-		StreamingResultDef string
-		// StreamingResultRef is the reference to the streaming result type if any.
-		StreamingResultRef string
-		// StreamingResultDesc is the streaming result type description if any.
-		StreamingResultDesc string
-		// StreamingResultEx is an example of a valid streaming result value.
-		StreamingResultEx any
+	}
+
+	// MethodResultData contains the result type metadata for a method.
+	MethodResultData struct {
 		// Result is the name of the result type if any.
 		Result string
 		// ResultLoc defines the file and Go package of the result type
@@ -168,17 +166,18 @@ type (
 		ResultDesc string
 		// ResultEx is an example of a valid result value.
 		ResultEx any
+		// ViewedResult contains the data required to generate the code handling
+		// views if any.
+		ViewedResult *ViewedResultTypeData
+	}
+
+	// MethodSecurityData contains error, auth, and interceptor metadata.
+	MethodSecurityData struct {
 		// Errors list the possible errors defined in the design if any.
 		Errors []*ErrorInitData
 		// ErrorLocs lists the file and Go package of the error type
 		// if overridden via Meta indexed by error name.
 		ErrorLocs map[string]*codegen.Location
-		// IsJSONRPC indicates if the endpoint is a JSON-RPC endpoint.
-		IsJSONRPC bool
-		// IsJSONRPCSSE indicates if the JSON-RPC endpoint uses SSE transport.
-		IsJSONRPCSSE bool
-		// IsJSONRPCWebSocket indicates if the JSON-RPC endpoint uses WebSocket transport.
-		IsJSONRPCWebSocket bool
 		// Requirements contains the security requirements for the
 		// method.
 		Requirements RequirementsData
@@ -191,22 +190,16 @@ type (
 		// ClientInterceptors list the client interceptors that apply to this
 		// method.
 		ClientInterceptors []string
-		// ViewedResult contains the data required to generate the code handling
-		// views if any.
-		ViewedResult *ViewedResultTypeData
-		// ServerStream indicates that the service method receives a payload
-		// stream or sends a result stream or both.
-		ServerStream *StreamData
-		// ClientStream indicates that the service method receives a result
-		// stream or sends a payload result or both.
-		ClientStream *StreamData
-		// StreamKind is the kind of the stream (payload or result or
-		// bidirectional).
-		StreamKind expr.StreamKind
-		// HasMixedResults indicates whether the method defines both Result and
-		// StreamingResult with different types, enabling content negotiation at
-		// the transport layer (e.g. JSON vs SSE over HTTP).
-		HasMixedResults bool
+	}
+
+	// MethodTransportData contains transport and client-endpoint metadata.
+	MethodTransportData struct {
+		// IsJSONRPC indicates if the endpoint is a JSON-RPC endpoint.
+		IsJSONRPC bool
+		// IsJSONRPCSSE indicates if the JSON-RPC endpoint uses SSE transport.
+		IsJSONRPCSSE bool
+		// IsJSONRPCWebSocket indicates if the JSON-RPC endpoint uses WebSocket transport.
+		IsJSONRPCWebSocket bool
 		// SkipRequestBodyEncodeDecode is true if the method payload includes
 		// the raw HTTP request body reader.
 		SkipRequestBodyEncodeDecode bool
@@ -232,6 +225,43 @@ type (
 		//
 		// It is only set when HasMixedResults is true.
 		StreamEndpointField string
+	}
+
+	// MethodStreamingData contains streaming type and stream-interface metadata.
+	MethodStreamingData struct {
+		// StreamingPayload is the name of the streaming payload type if any.
+		StreamingPayload string
+		// StreamingPayloadDef is the streaming payload type definition if any.
+		StreamingPayloadDef string
+		// StreamingPayloadRef is a reference to the streaming payload type if any.
+		StreamingPayloadRef string
+		// StreamingPayloadDesc is the streaming payload type description if any.
+		StreamingPayloadDesc string
+		// StreamingPayloadEx is an example of a valid streaming payload value.
+		StreamingPayloadEx any
+		// StreamingResult is the name of the streaming result type if any (when different from Result).
+		StreamingResult string
+		// StreamingResultDef is the streaming result type definition if any.
+		StreamingResultDef string
+		// StreamingResultRef is the reference to the streaming result type if any.
+		StreamingResultRef string
+		// StreamingResultDesc is the streaming result type description if any.
+		StreamingResultDesc string
+		// StreamingResultEx is an example of a valid streaming result value.
+		StreamingResultEx any
+		// ServerStream indicates that the service method receives a payload
+		// stream or sends a result stream or both.
+		ServerStream *StreamData
+		// ClientStream indicates that the service method receives a result
+		// stream or sends a payload result or both.
+		ClientStream *StreamData
+		// StreamKind is the kind of the stream (payload or result or
+		// bidirectional).
+		StreamKind expr.StreamKind
+		// HasMixedResults indicates whether the method defines both Result and
+		// StreamingResult with different types, enabling content negotiation at
+		// the transport layer (e.g. JSON vs SSE over HTTP).
+		HasMixedResults bool
 	}
 
 	// StreamData is the data used to generate client and server interfaces that
@@ -712,6 +742,30 @@ func (d *Data) Method(name string) *MethodData {
 		}
 	}
 	return nil
+}
+
+// SetViewedResult records the viewed-result wrapper metadata for the method.
+func (m *MethodData) SetViewedResult(viewed *ViewedResultTypeData) {
+	m.MethodResultData.ViewedResult = viewed
+}
+
+// AssignEndpointFields computes the generated client endpoint field names for
+// the method.
+func (m *MethodData) AssignEndpointFields(scope *codegen.NameScope) {
+	m.MethodTransportData.EndpointField = scope.Unique(m.VarName+"Endpoint", "")
+	if m.HasMixedResults {
+		m.MethodTransportData.StreamEndpointField = scope.Unique(m.VarName+"StreamEndpoint", "")
+	}
+}
+
+// AppendInterceptorName records an interceptor name on the server or client
+// side of the method.
+func (m *MethodData) AppendInterceptorName(name string, server bool) {
+	if server {
+		m.MethodSecurityData.ServerInterceptors = append(m.MethodSecurityData.ServerInterceptors, name)
+		return
+	}
+	m.MethodSecurityData.ClientInterceptors = append(m.MethodSecurityData.ClientInterceptors, name)
 }
 
 // Scheme returns the scheme data with the given scheme name.

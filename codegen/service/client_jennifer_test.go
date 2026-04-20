@@ -15,9 +15,13 @@ func TestClientJenniferRequestExpr(t *testing.T) {
 	t.Run("skip request body wraps payload and body", func(t *testing.T) {
 		method := &EndpointMethodData{
 			MethodData: &MethodData{
-				PayloadRef:                  "*Payload",
-				SkipRequestBodyEncodeDecode: true,
-				RequestStruct:               "MethodRequestData",
+				MethodPayloadData: MethodPayloadData{
+					PayloadRef: "*Payload",
+				},
+				MethodTransportData: MethodTransportData{
+					SkipRequestBodyEncodeDecode: true,
+					RequestStruct:               "MethodRequestData",
+				},
 			},
 		}
 		rendered := renderJenniferExpr(t, requestExpr(method))
@@ -26,7 +30,9 @@ func TestClientJenniferRequestExpr(t *testing.T) {
 
 	t.Run("payload only uses payload value", func(t *testing.T) {
 		method := &EndpointMethodData{
-			MethodData: &MethodData{PayloadRef: "*Payload"},
+			MethodData: &MethodData{
+				MethodPayloadData: MethodPayloadData{PayloadRef: "*Payload"},
+			},
 		}
 		rendered := renderJenniferExpr(t, requestExpr(method))
 		assert.Contains(t, rendered, "var _ = p")
@@ -51,8 +57,10 @@ func TestClientJenniferWrappedEndpointExpr(t *testing.T) {
 			ArgName:       "endpoint",
 			StreamArgName: "streamEndpoint",
 			MethodData: &MethodData{
-				VarName:            "Method",
-				ClientInterceptors: []string{"logging"},
+				VarName: "Method",
+				MethodSecurityData: MethodSecurityData{
+					ClientInterceptors: []string{"logging"},
+				},
 			},
 		}
 		rendered := renderJenniferExpr(t, wrappedClientEndpointExpr(method, true))
@@ -66,12 +74,16 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 			ClientVarName: "Client",
 			ServiceName:   "UploadService",
 			MethodData: &MethodData{
-				Name:                        "Upload",
-				VarName:                     "Upload",
-				PayloadRef:                  "*UploadPayload",
-				SkipRequestBodyEncodeDecode: true,
-				RequestStruct:               "UploadRequestData",
-				EndpointField:               "UploadEndpoint",
+				Name:    "Upload",
+				VarName: "Upload",
+				MethodPayloadData: MethodPayloadData{
+					PayloadRef: "*UploadPayload",
+				},
+				MethodTransportData: MethodTransportData{
+					SkipRequestBodyEncodeDecode: true,
+					RequestStruct:               "UploadRequestData",
+					EndpointField:               "UploadEndpoint",
+				},
 			},
 		}
 		code := codegen.SectionCode(t, methodSection(method))
@@ -84,12 +96,16 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 			ClientVarName: "Client",
 			ServiceName:   "DownloadService",
 			MethodData: &MethodData{
-				Name:                         "Download",
-				VarName:                      "Download",
-				ResultRef:                    "*DownloadResult",
-				SkipResponseBodyEncodeDecode: true,
-				ResponseStruct:               "DownloadResponseData",
-				EndpointField:                "DownloadEndpoint",
+				Name:    "Download",
+				VarName: "Download",
+				MethodResultData: MethodResultData{
+					ResultRef: "*DownloadResult",
+				},
+				MethodTransportData: MethodTransportData{
+					SkipResponseBodyEncodeDecode: true,
+					ResponseStruct:               "DownloadResponseData",
+					EndpointField:                "DownloadEndpoint",
+				},
 			},
 		}
 		code := codegen.SectionCode(t, methodSection(method))
@@ -108,12 +124,18 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 				ArgName:       "method",
 				StreamArgName: "methodStream",
 				MethodData: &MethodData{
-					Name:                "Method",
-					VarName:             "Method",
-					EndpointField:       "MethodEndpoint",
-					StreamEndpointField: "MethodStreamEndpoint",
-					HasMixedResults:     true,
-					ClientInterceptors:  []string{"logging"},
+					Name:    "Method",
+					VarName: "Method",
+					MethodSecurityData: MethodSecurityData{
+						ClientInterceptors: []string{"logging"},
+					},
+					MethodTransportData: MethodTransportData{
+						EndpointField:       "MethodEndpoint",
+						StreamEndpointField: "MethodStreamEndpoint",
+					},
+					MethodStreamingData: MethodStreamingData{
+						HasMixedResults: true,
+					},
 				},
 			}},
 		}
@@ -127,15 +149,19 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 			ClientVarName: "Client",
 			ServiceName:   "AccountService",
 			MethodData: &MethodData{
-				Name:          "ListAccounts",
-				VarName:       "ListAccounts",
-				Description:   "ListAccounts retrieves accounts.",
-				EndpointField: "ListAccountsEndpoint",
-				Errors: []*ErrorInitData{{
-					ErrName:     "quota_exceeded",
-					TypeRef:     "*QuotaExceededError",
-					Description: "Returned when quota is exhausted.",
-				}},
+				Name:        "ListAccounts",
+				VarName:     "ListAccounts",
+				Description: "ListAccounts retrieves accounts.",
+				MethodSecurityData: MethodSecurityData{
+					Errors: []*ErrorInitData{{
+						ErrName:     "quota_exceeded",
+						TypeRef:     "*QuotaExceededError",
+						Description: "Returned when quota is exhausted.",
+					}},
+				},
+				MethodTransportData: MethodTransportData{
+					EndpointField: "ListAccountsEndpoint",
+				},
 			},
 		}
 		code := codegen.SectionCode(t, methodSection(method))
