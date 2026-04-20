@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
@@ -352,4 +353,36 @@ func TestConvertFiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAppendTransformHelperSectionsDedupesByName(t *testing.T) {
+	sections := appendTransformHelperSections(nil, []*codegen.TransformFunctionData{
+		{
+			Name:          "widgetAlias",
+			ParamTypeRef:  "*Widget",
+			ResultTypeRef: "*Alias",
+			Code: `
+res := &Alias{Name: v.Name}`,
+		},
+		{
+			Name:          "widgetAlias",
+			ParamTypeRef:  "*Widget",
+			ResultTypeRef: "*Alias",
+			Code: `
+res := &Alias{Name: v.Name}`,
+		},
+		{
+			Name:          "widgetMeta",
+			ParamTypeRef:  "*Widget",
+			ResultTypeRef: "*Meta",
+			Code: `
+res := &Meta{ID: v.ID}`,
+		},
+	})
+
+	require.Len(t, sections, 2)
+	require.Equal(t, "convert-create-helper", sections[0].SectionName())
+	require.Equal(t, "convert-create-helper", sections[1].SectionName())
+	require.Contains(t, codegen.SectionCode(t, sections[0]), "func widgetAlias(v *Widget) *Alias {")
+	require.Contains(t, codegen.SectionCode(t, sections[1]), "func widgetMeta(v *Widget) *Meta {")
 }
