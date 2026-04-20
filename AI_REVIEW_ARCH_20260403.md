@@ -1,117 +1,211 @@
-# AI Readiness Review - Loom Framework Architecture & Maintainability - 2026-04-03
+# AI Readiness Review - Loom Framework Architecture & Maintainability - 2026-04-09
 
-## 1. Summary
-The `loom` framework's core strength is its "design-first" approach, providing a single source of truth for APIs (the DSL). This naturally aligns with AI-assisted development by preventing transport-layer logic duplication. 
+## Summary
 
-Recent refactoring efforts have successfully addressed the most critical architectural smells: massive "God Files" have been broken down, a `transportir` (Intermediate Representation) boundary was introduced across both HTTP and gRPC, shared transport analysis capabilities were implemented, and pervasive global state in the generator and DSL runtime has been eliminated. Furthermore, the core code generation engine has been almost entirely migrated from brittle string concatenation to safer AST-based generation (`jennifer`).
+Loom is in better shape than this review said on 2026-04-03. The top-level
+generation diagnostics gap is now closed, `generator.Generate` has a stable
+debug contract, and the service-data refactor has already reduced one of the
+previous bottlenecks by splitting analysis logic across focused files.
 
-However, the framework still suffers from a few architectural smells that hinder maintainability and observability. These include pockets of legacy string/buffer-based code emission in a few generator paths and the lack of structured logging and context propagation across the top-level generation pipeline.
+The next obstacles to fast, bug-resistant development are narrower:
 
-## 2. Issue Checklist
+1. the CLI generator is still a single, mixed-responsibility file with only
+   light seam coverage
+2. the shared `service.Data` / `service.MethodData` model still centralizes too
+   much transport-specific state, which keeps new feature work in shotgun
+   surgery territory
+3. SSE generation logic is still implemented in large, parallel string-building
+   files across HTTP and JSON-RPC, which creates real drift risk
+4. the validation generator remains one of the densest string-emission cores in
+   the repo, though strong tests keep it from being the top priority
 
-### State Management & Observability
-- [x] **LOW** - Global State in the Generator Engine (State has been refactored and encapsulated)
-- [ ] **MEDIUM** - Lack of Structured Logging (`slog`) and Context Propagation
+The right next move is not a rewrite. It is another round of targeted
+partitioning and seam-test expansion in the places where a small behavior
+change still requires too much whole-file reasoning.
 
-### Structural Coupling & Abstraction
-- [~] **LOW** - Deeply Coupled Template Logic & String Concatenation (Migration to AST generation almost complete)
+## What Improved Since The Last Review
+
+- Top-level generation diagnostics are now stage-scoped and stable in:
+  - `cmd/loom/main.go`
+  - `cmd/loom/gen.go`
+  - `codegen/generator/generate.go`
+- The service-data layer is no longer concentrated in one file. The analysis
+  work is already split across:
+  - `codegen/service/service_data_analysis.go`
+  - `codegen/service/service_data_methods.go`
+  - `codegen/service/service_data_types.go`
+  - `codegen/service/service_data_views.go`
+  - `codegen/service/service_data_interceptors.go`
+- SSE and mixed-transport behavior now has materially stronger regression
+  coverage than before, especially in:
+  - `http/codegen/sse_server_test.go`
+  - `http/codegen/streaming_test.go`
+  - `jsonrpc/codegen/sse_test.go`
+  - `jsonrpc/codegen/sse_integration_test.go`
+
+That means the old “instrument top-level generation first” recommendation is
+done and should no longer drive prioritization.
+
+## Issue Checklist
+
+### DRY & Partitioning
+
+- [ ] HIGH - CLI generation is still a monolithic mixed-responsibility file.
+- [ ] HIGH - `service.MethodData` still centralizes too much transport and
+      streaming state.
+- [ ] MEDIUM - SSE generation behavior still lives in parallel HTTP and
+      JSON-RPC string builders.
 
 ### Test Velocity & Verification
-- [ ] **HIGH** - Over-reliance on End-to-End Generation Tests
 
----
+- [ ] MEDIUM - CLI generation still lacks the kind of seam tests that make
+      small generator changes cheap to verify.
 
-## 3. Detailed Findings & Roadmap
+### Mixed Emission Hotspots
 
-### Finding 2: Deeply Coupled Template Logic
-- **Severity:** LOW (Reduced from MEDIUM)
-- **Location:** Remaining legacy generator helpers such as `grpc/codegen/codec_sections.go`, `jsonrpc/codegen/stream_sections.go`, `codegen/service/sections.go`, and parts of `codegen/validation.go`.
-- **Architectural Failure Mode:** Code generation previously relied entirely on massive string concatenations and deep nesting. Incredible progress has been made migrating generators to use the `jennifer` AST library, and the CLI generator is no longer the primary concern. The remaining maintainability risk is now concentrated in a smaller set of helpers that still assemble emitted code through strings, buffers, or mixed rendering styles, which makes targeted refactors and regression diagnosis harder than in the Jennifer-based paths.
-- **Suggestion:**
-  1. Continue opportunistic migration of the remaining string-emission hotspots to structured AST generation when touching those areas for real feature or bug work.
-  2. Avoid broad rewrites for their own sake; prioritize the hotspots with the worst branch density or lowest test clarity.
-- **Status:** [~] Almost Complete (Most generators are Jennifer-based; a few targeted hotspots remain)
+- [ ] MEDIUM - Validation generation is still driven by recursive string/buffer
+      composition.
 
-### Finding 3: Lack of Structured Logging (`slog`) and Context Propagation
-- **Severity:** MEDIUM
-- **Location:** Project-wide.
-- **Architectural Failure Mode:** If the code generation pipeline fails deep inside a nested template or AST traversal, the error returned is often just a string. Without structured logs or `context.Context` propagating a request/correlation ID, an autonomous agent (or human) cannot trace the failure back to the specific DSL line that caused it.
-- **Suggestion:**
-  1. Audit the `eval` and `codegen` packages to ensure `context.Context` is passed through all major pipeline boundaries.
-  2. Integrate `log/slog` for structured logging, especially in the CLI entry points and codegen pipeline.
-- **Status:** [ ] Pending
+## Detailed Findings
 
----
+### 1. CLI Generation Is Still A Monolithic Mixed-Responsibility File
 
-## 4. Pure Architecture Recommendations (Fowler Refactoring)
+- **Severity**: HIGH
+- **Location**:
+  - `codegen/cli/cli.go:160`
+  - `codegen/cli/cli.go:332`
+  - `codegen/cli/cli.go:462`
+  - `codegen/cli/cli.go:638`
+  - `codegen/cli/cli_test.go:12`
+- **Why it matters**: `codegen/cli/cli.go` is still about 950 lines and mixes:
+  command metadata shaping, usage rendering, payload building, flag parsing,
+  default handling, example generation, and scalar/JSON conversion rules.
+- **Agentic Failure Mode**: An agent adds a new flag behavior or payload-loading
+  rule, updates `FieldLoadCode` or `conversionCode`, and misses the matching
+  usage, example, or error-path branch elsewhere in the same file. The change
+  compiles, but the generated CLI becomes inconsistent across parsing, help
+  text, and conversion errors.
+- **Suggestion**:
+  1. Split `cli.go` into focused files such as `command_data.go`,
+     `usage_sections.go`, `flag_parsing.go`, and `conversion.go`.
+  2. Add table-driven seam tests for `conversionCode`, `FieldLoadCode`,
+     `FlagsCodeStatement`, and the error/default branches that currently hide in
+     the monolith.
+  3. Keep generated-section rendering tests, but make direct helper tests the
+     fast inner loop.
+- **Status**: [ ] Pending
 
-Treating the framework as a compiler (Frontend -> AST -> Backend), these pure architecture recommendations will dramatically improve modularity:
+### 2. `service.Data` And `service.MethodData` Still Centralize Too Much State
 
-### 4.1 Consolidate Attribute Traversal and Type Dispatch
-- **The Problem:** Parts of the generator still repeat ad hoc recursion and `switch` logic over `expr.AttributeExpr.Type` (`Object`, `Array`, `Map`, `Union`, `UserType`), which scatters traversal rules across packages.
-- **The Fix:** Do not introduce a classic visitor hierarchy in `expr`. Loom's type model is intentionally open via interfaces such as `expr.DataType` and `expr.UserType`, and the repo already has walker-style helpers (`codegen.Walk`, `codegen.WalkMappedAttr`, `expr.AsObject` / `AsArray` / `AsMap` / `AsUnion`). Instead, strengthen those shared traversal utilities and extract focused dispatch helpers for recurring structural cases so generators share one recursion model without forcing a closed AST visitor pattern.
+- **Severity**: HIGH
+- **Location**:
+  - `codegen/service/service_data.go:57`
+  - `codegen/service/service_data.go:115`
+  - `codegen/service/service_data_analysis.go:13`
+- **Why it matters**: The analysis pipeline itself is now better partitioned,
+  but the central output structs are still giant cross-domain bags of state.
+  `MethodData` in particular mixes payload/result metadata, security, error
+  locations, JSON-RPC classification, stream wiring, raw body bypass flags, and
+  client endpoint-field naming.
+- **Agentic Failure Mode**: An agent adds a new transport capability or method
+  flag, threads it through some builders, but forgets one of the many places
+  that consumes or initializes `MethodData`. The feature appears to work in one
+  transport while silently missing a field, naming rule, or zero-value behavior
+  in another.
+- **Suggestion**:
+  1. Keep the current split analysis files, but carve `MethodData` into nested
+     substructures by concern: core method identity, transport metadata,
+     streaming metadata, and client/server codegen hints.
+  2. Add small constructor helpers so new fields are initialized in one place
+     instead of being spread across the analysis pipeline.
+  3. Prefer transport-specific attachments over adding more top-level booleans
+     to `MethodData`.
+- **Status**: [ ] Pending
 
-### 4.2 Inversion of Control (IoC) via a Plugin Architecture
-- **The Problem:** The core generation engine is tightly coupled to specific target outputs (HTTP, gRPC, OpenAPI).
-- **The Fix:** Define a clean `Generator` interface (e.g., `Generate(ast *expr.RootExpr) ([]*File, error)`). Implement HTTP, gRPC, and OpenAPI generators as entirely decoupled plugins.
+### 3. SSE Generation Still Has Cross-Transport Drift Risk
 
-### 4.3 Separate Semantic Analysis from AST Definitions
-- **The Problem:** The `expr` package violates the Single Responsibility Principle by defining both AST data shape and complex validation/evaluation logic.
-- **The Fix:** Treat the AST purely as a data structure. Move all semantic analysis into a dedicated `analyzer` or `validator` package.
+- **Severity**: MEDIUM
+- **Location**:
+  - `http/codegen/stream_sections.go:30`
+  - `http/codegen/stream_sections.go:109`
+  - `http/codegen/stream_sections.go:146`
+  - `jsonrpc/codegen/stream_sections.go:21`
+  - `jsonrpc/codegen/stream_sections.go:77`
+  - `jsonrpc/codegen/stream_sections.go:121`
+  - `jsonrpc/codegen/stream_sections.go:193`
+  - `jsonrpc/codegen/stream_sections.go:215`
+- **Why it matters**: The tests around SSE behavior are strong now, but the
+  implementation is still spread across two large, branchy, string-assembled
+  generators with parallel lifecycle ideas: header init, stream open/flush,
+  event encoding, error framing, and event parsing.
+- **Agentic Failure Mode**: An agent fixes SSE framing, flush timing, or
+  response/error behavior in the HTTP generator and misses the equivalent
+  JSON-RPC path, or vice versa. The repo keeps compiling, one transport’s tests
+  pass, and the other transport drifts until a broader integration loop catches
+  it later.
+- **Suggestion**:
+  1. Extract shared SSE lifecycle primitives where the behavior is genuinely the
+     same: header commit, event flush, buffer scanning, and common error/event
+     framing helpers.
+  2. Keep transport-specific protocol wrapping local to each package.
+  3. Add a small cross-transport contract test matrix for the truly shared
+     pieces so the next SSE behavior change does not rely on whole-file review.
+- **Status**: [ ] Pending
 
-### 4.4 Encapsulate Magic with the Strategy Pattern
-- **The Problem:** Complex rules for type mapping and formatting (e.g., Go types to OpenAPI types) are scattered across templates or buried in massive utility files (`go_transform.go`).
-- **The Fix:** Implement the Strategy Pattern via a `TypeTransformer` interface. Concrete strategies encapsulate specific transformation rules, allowing templates to delegate complex logic.
+### 4. Validation Generation Remains A Dense String-Emission Core
 
----
+- **Severity**: MEDIUM
+- **Location**:
+  - `codegen/validation.go:1`
+  - `codegen/validation.go:47`
+  - `codegen/validation.go:138`
+  - `codegen/validation.go:207`
+  - `codegen/validation_test.go:12`
+- **Why it matters**: This file is not the most urgent problem because it is
+  well covered, but it is still one of the least mechanically friendly places
+  to change. Behavior is built from recursive buffer composition and string
+  stitching rather than smaller typed emitters.
+- **Agentic Failure Mode**: An agent changes alias, pointer, union, or nested
+  collection validation rules and keeps the common golden tests green, but
+  breaks a shape combination that emerges from the recursive string assembly
+  path rather than from an explicit typed intermediate representation.
+- **Suggestion**:
+  1. Do not prioritize a broad rewrite.
+  2. When validation work is touched again, continue splitting object, array,
+     map, and union emitters into narrower helpers with smaller contracts.
+  3. Preserve the strong golden coverage while adding direct helper tests around
+     the next changed branch.
+- **Status**: [ ] Pending
 
-## 5. Updated Highest-Value Refactor
+## What Not To Prioritize Now
 
-### Recommendation: Fix Top-Level Logging and Context Propagation
+- another broad diagnostics push at the top-level generator boundary
+- a wholesale rewrite of the service-data pipeline that ignores the progress
+  already made
+- converting every remaining string-based generator in one pass
+- repo-wide logging abstractions unrelated to actual debug blind spots
+- blanket new test suites without first targeting the remaining hot seams
 
-- **Why this is best move now:** The framework's current debugging surface is still weak at the orchestration layer where generator failures are discovered. The CLI and generation pipeline already emit ad hoc timing output, which provides a natural insertion point for structured `slog` logging and request-scoped `context.Context`. This is a higher-leverage next step than further architectural abstraction because it improves diagnosis immediately without requiring a broad rewrite.
-- **Concrete first slice:**
-  1. Start at the top-level generation boundaries:
-     - `cmd/loom/main.go`
-     - `cmd/loom/gen.go`
-     - `codegen/generator/generate.go`
-  2. Replace ad hoc stderr timing prints with structured `log/slog` events that record:
-     - generation stage name
-     - duration
-     - generator identity
-     - file counts / output paths where relevant
-     - wrapped errors with stage metadata
-  3. Introduce a generation-scoped `context.Context` and thread it through the orchestration path before attempting package-wide propagation into every helper.
-  4. After the top-level pipeline is instrumented, expand inward only where logs show persistent blind spots.
-- **Do not do first:** repo-wide logger plumbing across every generator helper, plugin/IoC rewrites, or broad package moves in `expr`. The first step should be a narrow orchestration-layer observability pass.
+## Recommended Execution Order
 
----
+1. Decompose `codegen/cli/cli.go` and add direct seam tests around conversion,
+   field loading, and flag parsing.
+2. Partition `service.MethodData` and related shared transport state into
+   smaller substructures with single-point initialization.
+3. Extract the truly shared SSE lifecycle helpers and add cross-transport
+   contract tests for them.
+4. Keep validation-generator cleanup opportunistic and local to changed
+   branches.
 
-## 6. Deep Codebase Review Findings (2026-04-07)
+## Bottom Line
 
-A recent automated architectural investigation identified the following areas that continue to add friction to long-term maintainability and development speed:
+Loom no longer needs the top-level diagnostics work that dominated the last
+review. The next maintenance wins are smaller and more concrete:
 
-### 6.1 Global State & Multi-pass Evaluation (`eval` package)
-- **Issue:** The DSL execution engine relies on a global `Context` and a multi-pass evaluation strategy (Run, Prepare, Validate, Finalize).
-- **Impact:** Makes execution flow hard to trace, complicates concurrent execution (e.g., for language servers), and prevents isolated unit testing of DSL components without mocking global state.
-- **Recommendation:** Refactor `eval.Context` to be explicitly passed as an argument or managed via an instance-based factory. Transition towards a more functional, localized evaluation model.
+- reduce the CLI generator monolith
+- shrink the shared method/service metadata surface
+- remove the remaining SSE drift points across transports
+- keep pushing mixed string-emission cores behind tighter seams
 
-### 6.2 Monolithic Expression Tree (`expr.RootExpr`)
-- **Issue:** `expr.RootExpr` is a monolithic container for all API definitions. `WalkSets` manually handles evaluation order and couples various transports (HTTP, gRPC, JSON-RPC).
-- **Impact:** The framework is rigid. Adding new protocols requires touching deeply coupled packages, risking regressions.
-- **Recommendation:** Modularize `RootExpr` and `WalkSets` to use a plugin or registration-based approach for different transports.
-
-### 6.3 Complex Transformation Layer (`codegen/service/`)
-- **Issue:** The intermediate step of converting `expr` objects into `*Data` objects (e.g., `ServiceData`) has become a monolithic bottleneck. 
-- **Impact:** Files like `codegen/service/service_data.go` and `codegen/service/convert.go` contain too much generation knowledge, making them massive, hard to navigate, and difficult to extend.
-- **Recommendation:** Decompose the generation layer. Break down large `*Data` generation files into smaller, focused helpers based on traits or components.
-
-### 6.4 Code "Gravity" and Large Files
-- **Issue:** Critical files in `expr` and `codegen` exceed 1,000 lines (e.g., `codegen/service/convert.go` is 30KB+).
-- **Impact:** These files attract more code, are difficult to review, increase merge conflicts, and heighten the risk of accidental side effects.
-- **Recommendation:** Actively split these large files during upcoming refactors to distribute the complexity.
-
-### 6.5 Coupling of DSL to Expression Structures
-- **Issue:** DSL functions directly manipulate the `expr.Root` global state.
-- **Impact:** Makes the DSL non-reentrant and difficult to use programmatically outside of the standard `loom gen` CLI flow, limiting extensibility.
-- **Recommendation:** Evolve DSL functions to return configurable structures that are then evaluated, rather than directly mutating a global AST.
+That work will improve agent autonomy and human development speed more than a
+large architectural rewrite would.
