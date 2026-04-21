@@ -30,6 +30,7 @@
 ### File Organization
 
 Order declarations as:
+
 1. Types (public, then private) in a single `type (...)` block when practical
 2. Constants (public, then private)
 3. Variables (public, then private)
@@ -115,10 +116,16 @@ No commented-out code—delete dead code.
 ### Build & Test
 
 ```bash
-make lint          # Run linters
+make lint          # Run linters (filesize, namescope, golangci-lint)
 make test          # Run tests
+./check.sh         # Thin wrapper: make lint + make test
+./check.sh --fix   # Auto-fix imports/formatting, then check
+./check.sh --full  # Adds integration-test (slow)
 cd cmd/loom && go install .  # Install CLI locally
 ```
+
+Gate logic lives in `Makefile`, `.golangci.yml`, and `scripts/lint_*.sh`.
+Do not duplicate it into `check.sh` — `check.sh` forwards only.
 
 ### Code Generation Behavior
 
