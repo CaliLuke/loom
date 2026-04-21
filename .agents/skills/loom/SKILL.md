@@ -2,6 +2,7 @@
 name: loom
 description: Build and maintain `loom` services in Go. Use this skill when a user mentions Loom, Loom migration, Loom DSL, `loom gen`, generated `gen/` transport code, OpenAPI/proto generation, service implementation after DSL changes, or refactoring a project with a `design` package.
 ---
+
 # Loom
 
 Use this skill when building or changing a service that uses `loom`. It is for framework users: service designers and implementers working from the Loom DSL and generated code.
@@ -206,6 +207,18 @@ loom example <module-import-path>/design
 
 - Correct: `loom gen example.com/myapi/design`
 - Incorrect: `loom gen ./design`
+
+## Diagnosing Codegen Failures
+
+- Set `DEBUG_LOOM=1` when running `loom gen` to stream structured debug
+  traces of codegen decision points (service/method being analyzed, endpoint
+  shape, etc.) to stderr. Silent by default; intended for tracing "why did
+  codegen emit X for endpoint Y?" without patching the framework.
+- When `loom gen` panics or errors, the message now leads with the DSL
+  source position and the service/method being processed, e.g.
+  `[design.go:42] service Foo, method Bar: <underlying error>`. Jump to
+  that file:line first rather than grepping the design for candidate
+  endpoints.
 
 ## References
 
