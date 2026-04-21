@@ -72,16 +72,16 @@ func (s *ClientStreamObjectClientStream) CloseAndRecvWithContext(ctx context.Con
 	return s.CloseAndRecv()
 }
 
-// Send streams instances of "testservice.ClientStreamObjectStreamingPayload"
-// to the "ClientStreamObject" endpoint websocket connection.
-func (s *ClientStreamObjectClientStream) Send(v *testservice.ClientStreamObjectStreamingPayload) error {
-	body := NewClientStreamObjectStreamingBody(v)
-	return s.conn.WriteJSON(body)
-}
-
 // SendWithContext streams instances of
 // "testservice.ClientStreamObjectStreamingPayload" to the "ClientStreamObject"
 // endpoint websocket connection with context.
 func (s *ClientStreamObjectClientStream) SendWithContext(ctx context.Context, v *testservice.ClientStreamObjectStreamingPayload) error {
-	return s.Send(v)
+	body := NewClientStreamObjectStreamingBody(v)
+	return s.conn.WriteJSON(body)
+}
+
+// Send streams instances of "testservice.ClientStreamObjectStreamingPayload"
+// to the "ClientStreamObject" endpoint websocket connection.
+func (s *ClientStreamObjectClientStream) Send(v *testservice.ClientStreamObjectStreamingPayload) error {
+	return s.SendWithContext(context.Background(), v)
 }

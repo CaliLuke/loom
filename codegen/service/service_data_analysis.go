@@ -11,7 +11,26 @@ import (
 
 // analyze creates the data necessary to render the code of the given service.
 // It records the user types needed by the service definition in userTypes.
-func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
+//
+// Panics encountered during analysis are wrapped with DSL attribution (service,
+// method, and source location when available) and re-panicked, turning opaque
+// "index out of range" style failures into navigable error messages.
+func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
+	if d.Ctx == nil {
+		d.Ctx = codegen.NewSilentContext()
+	}
+	svcCtx := d.Ctx.WithService(service)
+	svcCtx.Debug("analyzing service",
+		"methods", len(service.Methods),
+		"errors", len(service.Errors),
+	)
+	d.Ctx = svcCtx
+	defer func() {
+		if err := codegen.RecoverPanic(recover()); err != nil {
+			panic(codegen.NewError(d.Ctx, nil, err))
+		}
+	}()
+
 	scope, viewScope, pkgName, viewspkg := newServiceScopes(service)
 	state := d.collectServiceAnalysisData(service, scope, viewScope, viewspkg)
 	seen := analysisSeenTypes(state.types, state.errTypes)
@@ -20,8 +39,15 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) *Data {
 	methods, schemes, viewedRTs := d.buildServiceMethods(service, scope, viewScope, viewspkg, state.seenProj, state.seenViewed, state.viewedRTs)
 	assignEndpointFields(methods, scope)
 	unions := collectServiceUnions(service, state.types, state.errTypes, scope)
-	data := newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions)
+	data = newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions)
 	d.Services[service.Name] = data
+	svcCtx.Debug("analyzed service",
+		"user_types", len(state.types),
+		"error_types", len(state.errTypes),
+		"projected_types", len(state.projTypes),
+		"viewed_result_types", len(viewedRTs),
+		"unions", len(unions),
+	)
 	return data
 }
 
@@ -267,6 +293,12 @@ func (d *ServicesData) buildServiceMethods(
 	methods := make([]*MethodData, len(service.Methods))
 	var schemes SchemesData
 	for i, methodExpr := range service.Methods {
+		mCtx := d.Ctx.WithMethod(methodExpr)
+		mCtx.Debug("analyzing method",
+			"streaming", methodExpr.Stream,
+			"has_payload", methodExpr.Payload != nil && methodExpr.Payload.Type != expr.Empty,
+			"has_result", methodExpr.Result != nil && methodExpr.Result.Type != expr.Empty,
+		)
 		method := d.buildMethodData(methodExpr, scope)
 		methods[i] = method
 		for _, scheme := range method.Schemes {

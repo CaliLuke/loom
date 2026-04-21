@@ -87,7 +87,7 @@ func grpcTypeImports(genpkg string, svc *expr.GRPCServiceExpr, sd *ServiceData) 
 		imports = append(imports, &codegen.ImportSpec{Path: "fmt"})
 		imports = append(imports, &codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"})
 	}
-	imports = append(imports, sd.Service.ProtoImports...)
+	imports = append(imports, sd.ProtoGoImports...)
 	return imports
 }
 

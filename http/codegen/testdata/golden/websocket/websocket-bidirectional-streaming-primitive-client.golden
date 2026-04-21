@@ -65,16 +65,16 @@ func (s *BidirectionalPrimitiveClientStream) RecvWithContext(ctx context.Context
 	return s.Recv()
 }
 
-// Send streams instances of "string" to the "BidirectionalPrimitive" endpoint
-// websocket connection.
-func (s *BidirectionalPrimitiveClientStream) Send(v string) error {
-	return s.conn.WriteJSON(v)
-}
-
 // SendWithContext streams instances of "string" to the
 // "BidirectionalPrimitive" endpoint websocket connection with context.
 func (s *BidirectionalPrimitiveClientStream) SendWithContext(ctx context.Context, v string) error {
-	return s.Send(v)
+	return s.conn.WriteJSON(v)
+}
+
+// Send streams instances of "string" to the "BidirectionalPrimitive" endpoint
+// websocket connection.
+func (s *BidirectionalPrimitiveClientStream) Send(v string) error {
+	return s.SendWithContext(context.Background(), v)
 }
 
 // Close closes the "BidirectionalPrimitive" endpoint websocket connection.

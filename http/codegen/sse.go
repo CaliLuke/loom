@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"slices"
-
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
@@ -78,7 +76,7 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 
 	ed.SSE = &SSEData{
 		StructName:          md.ServerStream.VarName,
-		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ServerStream.Interface),
+		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ServerStream.Interface), // nolint: namescope -- svc.PkgName is the exact import alias used in the emitted server file
 		SendName:            md.ServerStream.SendName,
 		SendDesc:            sseSendDescription(md.ServerStream.SendName, eventType.Name, md.Name),
 		SendWithContextName: md.ServerStream.SendWithContextName,
@@ -216,7 +214,3 @@ func IsSSEEndpoint(ed *EndpointData) bool {
 	return ed.SSE != nil
 }
 
-// HasSSE returns true if at least one endpoint in the service uses SSE.
-func HasSSE(data *ServiceData) bool {
-	return slices.ContainsFunc(data.Endpoints, IsSSEEndpoint)
-}

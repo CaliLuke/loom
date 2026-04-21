@@ -32,7 +32,7 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend install-hooks lint lint-filesize test test-release integration-test build-loom loom-local loom-remote loom-status release release-preflight release-loom
+.PHONY: all all-tests ci depend install-hooks lint lint-filesize lint-namescope test test-release integration-test integration-test-fast build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight release-loom
 .NOTPARALLEL: release release-loom
 
 # Only list test and build dependencies
@@ -98,11 +98,15 @@ install-hooks:
 lint:
 ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_filesize.sh || (echo "^ - file size lint errors!" && echo && exit 1)
+	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
 	@$(GOLANGCI_LINT) run ./... || (echo "^ - lint errors!" && echo && exit 1)
 endif
 
 lint-filesize:
 	@bash ./scripts/lint_filesize.sh
+
+lint-namescope:
+	@bash ./scripts/lint_name_scope.sh
 
 test:
 ifneq ($(GOOS),windows)
@@ -124,6 +128,31 @@ ifneq ($(GOOS),windows)
 	cd http/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 10m ./...
 endif
 
+# integration-test-fast is the iteration loop for codegen work. Differences
+# from `integration-test`:
+#
+#   1. Uses `build-loom-cached` so the loom binary is only rebuilt when cmd/loom
+#      or the transport codegens actually changed. On no-op re-runs the build
+#      step is skipped entirely.
+#   2. Respects the SERVICE variable so a single fixture is exercised:
+#
+#          make integration-test-fast SERVICE=ticktock
+#
+#      Without SERVICE the target defaults to running just the ticktock
+#      fixtures (the fastest useful coverage surface). Override with
+#      SERVICE=... to pick a specific fixture, or RUN=... to pass a custom
+#      `-run` regex to `go test`.
+#
+# This target is intentionally NOT wired into `all` or CI — it is an explicit
+# developer shortcut. `integration-test` remains the canonical target.
+SERVICE?=ticktock
+RUN?=.
+integration-test-fast: build-loom-cached
+ifneq ($(GOOS),windows)
+	cd jsonrpc/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 5m -run '$(RUN)' ./fixtures/$(SERVICE)/...
+	cd http/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 5m -run '$(RUN)' ./fixtures/$(SERVICE)/...
+endif
+
 loom-local:
 	bash ./scripts/loom_source_mode.sh local
 
@@ -135,6 +164,17 @@ loom-status:
 
 # Needed for CI to run integration tests
 build-loom:
+	cd cmd/loom && GOBIN="$(GOBIN_DIR)" go install .
+
+# Cached build for fast dev iteration. Rebuild only when the loom CLI source
+# or codegen tree has actually changed, using the binary's mtime as the
+# cache key. The comparison scans cmd/loom and every */codegen directory
+# because those are the trees whose edits change the emitted output.
+build-loom-cached: $(GOBIN_DIR)/loom
+
+CODEGEN_SOURCES := $(shell find cmd/loom codegen http/codegen grpc/codegen jsonrpc/codegen -name '*.go' -not -path '*/testdata/*' 2>/dev/null)
+$(GOBIN_DIR)/loom: $(CODEGEN_SOURCES)
+	@echo "rebuilding loom (codegen/cli source changed)"
 	cd cmd/loom && GOBIN="$(GOBIN_DIR)" go install .
 
 release-preflight: lint test-release integration-test

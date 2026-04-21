@@ -1,9 +1,10 @@
 package testdata
 
 
-var BidirectionalStreamingPrimitiveArrayServerStreamSendCode = `// Send streams instances of "[]string" to the
-// "BidirectionalStreamingPrimitiveArrayMethod" endpoint websocket connection.
-func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) Send(v []string) error {
+var BidirectionalStreamingPrimitiveArrayServerStreamSendCode = `// SendWithContext streams instances of "[]string" to the
+// "BidirectionalStreamingPrimitiveArrayMethod" endpoint websocket connection
+// with context.
+func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) SendWithContext(ctx context.Context, v []string) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -27,11 +28,10 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) Send(v []string
 	return s.conn.WriteJSON(res)
 }
 
-// SendWithContext streams instances of "[]string" to the
-// "BidirectionalStreamingPrimitiveArrayMethod" endpoint websocket connection
-// with context.
-func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) SendWithContext(ctx context.Context, v []string) error {
-	return s.Send(v)
+// Send streams instances of "[]string" to the
+// "BidirectionalStreamingPrimitiveArrayMethod" endpoint websocket connection.
+func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) Send(v []string) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 

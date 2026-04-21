@@ -1,10 +1,11 @@
 package testdata
 
 
-var BidirectionalStreamingResultWithViewsServerStreamSendCode = `// Send streams instances of
+var BidirectionalStreamingResultWithViewsServerStreamSendCode = `// SendWithContext streams instances of
 // "bidirectionalstreamingresultwithviewsservice.Usertype" to the
-// "BidirectionalStreamingResultWithViewsMethod" endpoint websocket connection.
-func (s *BidirectionalStreamingResultWithViewsMethodServerStream) Send(v *bidirectionalstreamingresultwithviewsservice.Usertype) error {
+// "BidirectionalStreamingResultWithViewsMethod" endpoint websocket connection
+// with context.
+func (s *BidirectionalStreamingResultWithViewsMethodServerStream) SendWithContext(ctx context.Context, v *bidirectionalstreamingresultwithviewsservice.Usertype) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -39,12 +40,11 @@ func (s *BidirectionalStreamingResultWithViewsMethodServerStream) Send(v *bidire
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of
+// Send streams instances of
 // "bidirectionalstreamingresultwithviewsservice.Usertype" to the
-// "BidirectionalStreamingResultWithViewsMethod" endpoint websocket connection
-// with context.
-func (s *BidirectionalStreamingResultWithViewsMethodServerStream) SendWithContext(ctx context.Context, v *bidirectionalstreamingresultwithviewsservice.Usertype) error {
-	return s.Send(v)
+// "BidirectionalStreamingResultWithViewsMethod" endpoint websocket connection.
+func (s *BidirectionalStreamingResultWithViewsMethodServerStream) Send(v *bidirectionalstreamingresultwithviewsservice.Usertype) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 

@@ -72,14 +72,14 @@ func (s *ClientStreamPrimitiveClientStream) CloseAndRecvWithContext(ctx context.
 	return s.CloseAndRecv()
 }
 
-// Send streams instances of "string" to the "ClientStreamPrimitive" endpoint
-// websocket connection.
-func (s *ClientStreamPrimitiveClientStream) Send(v string) error {
-	return s.conn.WriteJSON(v)
-}
-
 // SendWithContext streams instances of "string" to the "ClientStreamPrimitive"
 // endpoint websocket connection with context.
 func (s *ClientStreamPrimitiveClientStream) SendWithContext(ctx context.Context, v string) error {
-	return s.Send(v)
+	return s.conn.WriteJSON(v)
+}
+
+// Send streams instances of "string" to the "ClientStreamPrimitive" endpoint
+// websocket connection.
+func (s *ClientStreamPrimitiveClientStream) Send(v string) error {
+	return s.SendWithContext(context.Background(), v)
 }

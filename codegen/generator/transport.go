@@ -22,6 +22,13 @@ func Transport(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 
 		// Create service data
 		services := service.NewServicesData(r)
+		services.Ctx.Debug("transport codegen starting",
+			"api", r.API.Name,
+			"services", len(r.Services),
+			"http_services", len(r.API.HTTP.Services),
+			"grpc_services", len(r.API.GRPC.Services),
+			"jsonrpc_services", len(r.API.JSONRPC.Services),
+		)
 
 		// HTTP
 		httpServices := httpcodegen.NewServicesData(services, r.API.HTTP)

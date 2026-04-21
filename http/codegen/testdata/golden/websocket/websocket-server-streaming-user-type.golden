@@ -54,9 +54,9 @@ func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {
 	}
 }
 
-// Send streams instances of "testservice.User" to the "StreamUser" endpoint
-// websocket connection.
-func (s *StreamUserServerStream) Send(v *testservice.User) error {
+// SendWithContext streams instances of "testservice.User" to the "StreamUser"
+// endpoint websocket connection with context.
+func (s *StreamUserServerStream) SendWithContext(ctx context.Context, v *testservice.User) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -81,10 +81,10 @@ func (s *StreamUserServerStream) Send(v *testservice.User) error {
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of "testservice.User" to the "StreamUser"
-// endpoint websocket connection with context.
-func (s *StreamUserServerStream) SendWithContext(ctx context.Context, v *testservice.User) error {
-	return s.Send(v)
+// Send streams instances of "testservice.User" to the "StreamUser" endpoint
+// websocket connection.
+func (s *StreamUserServerStream) Send(v *testservice.User) error {
+	return s.SendWithContext(context.Background(), v)
 }
 
 // Close closes the "StreamUser" endpoint websocket connection.

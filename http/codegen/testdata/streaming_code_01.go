@@ -180,9 +180,9 @@ func (s *discardCreateServerStream) Close() error {
 }
 `
 
-var StreamingResultServerStreamSendCode = `// Send streams instances of "streamingresultservice.UserType" to the
-// "StreamingResultMethod" endpoint websocket connection.
-func (s *StreamingResultMethodServerStream) Send(v *streamingresultservice.UserType) error {
+var StreamingResultServerStreamSendCode = `// SendWithContext streams instances of "streamingresultservice.UserType" to
+// the "StreamingResultMethod" endpoint websocket connection with context.
+func (s *StreamingResultMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultservice.UserType) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -207,10 +207,10 @@ func (s *StreamingResultMethodServerStream) Send(v *streamingresultservice.UserT
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of "streamingresultservice.UserType" to
-// the "StreamingResultMethod" endpoint websocket connection with context.
-func (s *StreamingResultMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultservice.UserType) error {
-	return s.Send(v)
+// Send streams instances of "streamingresultservice.UserType" to the
+// "StreamingResultMethod" endpoint websocket connection.
+func (s *StreamingResultMethodServerStream) Send(v *streamingresultservice.UserType) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 
@@ -231,9 +231,10 @@ func (s *StreamingResultMethodServerStream) Close() error {
 }
 `
 
-var StreamingResultWithViewsServerStreamSendCode = `// Send streams instances of "streamingresultwithviewsservice.Usertype" to the
-// "StreamingResultWithViewsMethod" endpoint websocket connection.
-func (s *StreamingResultWithViewsMethodServerStream) Send(v *streamingresultwithviewsservice.Usertype) error {
+var StreamingResultWithViewsServerStreamSendCode = `// SendWithContext streams instances of
+// "streamingresultwithviewsservice.Usertype" to the
+// "StreamingResultWithViewsMethod" endpoint websocket connection with context.
+func (s *StreamingResultWithViewsMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultwithviewsservice.Usertype) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -268,11 +269,10 @@ func (s *StreamingResultWithViewsMethodServerStream) Send(v *streamingresultwith
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of
-// "streamingresultwithviewsservice.Usertype" to the
-// "StreamingResultWithViewsMethod" endpoint websocket connection with context.
-func (s *StreamingResultWithViewsMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultwithviewsservice.Usertype) error {
-	return s.Send(v)
+// Send streams instances of "streamingresultwithviewsservice.Usertype" to the
+// "StreamingResultWithViewsMethod" endpoint websocket connection.
+func (s *StreamingResultWithViewsMethodServerStream) Send(v *streamingresultwithviewsservice.Usertype) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 
@@ -564,9 +564,11 @@ func (s *StreamingResultWithExplicitViewMethodClientStream) RecvWithContext(ctx 
 }
 `
 
-var StreamingResultWithExplicitViewServerStreamSendCode = `// Send streams instances of "streamingresultwithexplicitviewservice.Usertype"
-// to the "StreamingResultWithExplicitViewMethod" endpoint websocket connection.
-func (s *StreamingResultWithExplicitViewMethodServerStream) Send(v *streamingresultwithexplicitviewservice.Usertype) error {
+var StreamingResultWithExplicitViewServerStreamSendCode = `// SendWithContext streams instances of
+// "streamingresultwithexplicitviewservice.Usertype" to the
+// "StreamingResultWithExplicitViewMethod" endpoint websocket connection with
+// context.
+func (s *StreamingResultWithExplicitViewMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultwithexplicitviewservice.Usertype) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -591,19 +593,18 @@ func (s *StreamingResultWithExplicitViewMethodServerStream) Send(v *streamingres
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of
-// "streamingresultwithexplicitviewservice.Usertype" to the
-// "StreamingResultWithExplicitViewMethod" endpoint websocket connection with
-// context.
-func (s *StreamingResultWithExplicitViewMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultwithexplicitviewservice.Usertype) error {
-	return s.Send(v)
+// Send streams instances of "streamingresultwithexplicitviewservice.Usertype"
+// to the "StreamingResultWithExplicitViewMethod" endpoint websocket connection.
+func (s *StreamingResultWithExplicitViewMethodServerStream) Send(v *streamingresultwithexplicitviewservice.Usertype) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 
-var StreamingResultCollectionWithViewsServerStreamSendCode = `// Send streams instances of
+var StreamingResultCollectionWithViewsServerStreamSendCode = `// SendWithContext streams instances of
 // "streamingresultcollectionwithviewsservice.UsertypeCollection" to the
-// "StreamingResultCollectionWithViewsMethod" endpoint websocket connection.
-func (s *StreamingResultCollectionWithViewsMethodServerStream) Send(v streamingresultcollectionwithviewsservice.UsertypeCollection) error {
+// "StreamingResultCollectionWithViewsMethod" endpoint websocket connection
+// with context.
+func (s *StreamingResultCollectionWithViewsMethodServerStream) SendWithContext(ctx context.Context, v streamingresultcollectionwithviewsservice.UsertypeCollection) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -638,12 +639,11 @@ func (s *StreamingResultCollectionWithViewsMethodServerStream) Send(v streamingr
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of
+// Send streams instances of
 // "streamingresultcollectionwithviewsservice.UsertypeCollection" to the
-// "StreamingResultCollectionWithViewsMethod" endpoint websocket connection
-// with context.
-func (s *StreamingResultCollectionWithViewsMethodServerStream) SendWithContext(ctx context.Context, v streamingresultcollectionwithviewsservice.UsertypeCollection) error {
-	return s.Send(v)
+// "StreamingResultCollectionWithViewsMethod" endpoint websocket connection.
+func (s *StreamingResultCollectionWithViewsMethodServerStream) Send(v streamingresultcollectionwithviewsservice.UsertypeCollection) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 
@@ -697,11 +697,11 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) SetView(view stri
 }
 `
 
-var StreamingResultCollectionWithExplicitViewServerStreamSendCode = `// Send streams instances of
+var StreamingResultCollectionWithExplicitViewServerStreamSendCode = `// SendWithContext streams instances of
 // "streamingresultcollectionwithexplicitviewservice.UsertypeCollection" to the
 // "StreamingResultCollectionWithExplicitViewMethod" endpoint websocket
-// connection.
-func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) Send(v streamingresultcollectionwithexplicitviewservice.UsertypeCollection) error {
+// connection with context.
+func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithContext(ctx context.Context, v streamingresultcollectionwithexplicitviewservice.UsertypeCollection) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -726,12 +726,12 @@ func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) Send(v str
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of
+// Send streams instances of
 // "streamingresultcollectionwithexplicitviewservice.UsertypeCollection" to the
 // "StreamingResultCollectionWithExplicitViewMethod" endpoint websocket
-// connection with context.
-func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithContext(ctx context.Context, v streamingresultcollectionwithexplicitviewservice.UsertypeCollection) error {
-	return s.Send(v)
+// connection.
+func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) Send(v streamingresultcollectionwithexplicitviewservice.UsertypeCollection) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 var StreamingResultCollectionWithExplicitViewClientEndpointCode = `// StreamingResultCollectionWithExplicitViewMethod returns an endpoint that
@@ -804,9 +804,9 @@ func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) RecvWithCo
 }
 `
 
-var StreamingResultPrimitiveServerStreamSendCode = `// Send streams instances of "string" to the "StreamingResultPrimitiveMethod"
-// endpoint websocket connection.
-func (s *StreamingResultPrimitiveMethodServerStream) Send(v string) error {
+var StreamingResultPrimitiveServerStreamSendCode = `// SendWithContext streams instances of "string" to the
+// "StreamingResultPrimitiveMethod" endpoint websocket connection with context.
+func (s *StreamingResultPrimitiveMethodServerStream) SendWithContext(ctx context.Context, v string) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -830,10 +830,10 @@ func (s *StreamingResultPrimitiveMethodServerStream) Send(v string) error {
 	return s.conn.WriteJSON(res)
 }
 
-// SendWithContext streams instances of "string" to the
-// "StreamingResultPrimitiveMethod" endpoint websocket connection with context.
-func (s *StreamingResultPrimitiveMethodServerStream) SendWithContext(ctx context.Context, v string) error {
-	return s.Send(v)
+// Send streams instances of "string" to the "StreamingResultPrimitiveMethod"
+// endpoint websocket connection.
+func (s *StreamingResultPrimitiveMethodServerStream) Send(v string) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 
@@ -863,9 +863,10 @@ func (s *StreamingResultPrimitiveMethodClientStream) RecvWithContext(ctx context
 }
 `
 
-var StreamingResultPrimitiveArrayServerStreamSendCode = `// Send streams instances of "[]int32" to the
-// "StreamingResultPrimitiveArrayMethod" endpoint websocket connection.
-func (s *StreamingResultPrimitiveArrayMethodServerStream) Send(v []int32) error {
+var StreamingResultPrimitiveArrayServerStreamSendCode = `// SendWithContext streams instances of "[]int32" to the
+// "StreamingResultPrimitiveArrayMethod" endpoint websocket connection with
+// context.
+func (s *StreamingResultPrimitiveArrayMethodServerStream) SendWithContext(ctx context.Context, v []int32) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -889,11 +890,10 @@ func (s *StreamingResultPrimitiveArrayMethodServerStream) Send(v []int32) error 
 	return s.conn.WriteJSON(res)
 }
 
-// SendWithContext streams instances of "[]int32" to the
-// "StreamingResultPrimitiveArrayMethod" endpoint websocket connection with
-// context.
-func (s *StreamingResultPrimitiveArrayMethodServerStream) SendWithContext(ctx context.Context, v []int32) error {
-	return s.Send(v)
+// Send streams instances of "[]int32" to the
+// "StreamingResultPrimitiveArrayMethod" endpoint websocket connection.
+func (s *StreamingResultPrimitiveArrayMethodServerStream) Send(v []int32) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 

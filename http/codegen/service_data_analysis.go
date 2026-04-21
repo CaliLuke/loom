@@ -12,13 +12,34 @@ import (
 
 // analyze creates the data necessary to render the code of the given service.
 // It records the user types needed by the service definition in userTypes.
-func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) *ServiceData {
+// Panics are wrapped with DSL attribution (service, endpoint, source location)
+// and re-panicked so opaque failures surface with navigable context.
+func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData) {
 	svc := sds.ServicesData.Get(httpSvc.ServiceExpr.Name)
+	ctx := sds.ServicesData.Ctx.WithService(httpSvc.ServiceExpr)
+	defer func() {
+		if err := codegen.RecoverPanic(recover()); err != nil {
+			panic(codegen.NewError(ctx, nil, err))
+		}
+	}()
+	ctx.Debug("analyzing HTTP service",
+		"endpoints", len(httpSvc.HTTPEndpoints),
+		"file_servers", len(httpSvc.FileServers),
+	)
 	irService := transportir.BuildService(httpSvc)
 	scope := newHTTPAnalysisScope(svc)
-	sd := newHTTPServiceData(svc, scope)
+	sd = newHTTPServiceData(svc, scope)
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
 	for _, httpEndpoint := range irService.Endpoints {
+		epCtx := ctx.WithMethod(httpSvc.ServiceExpr.Method(httpEndpoint.MethodName))
+		epCtx.Debug("analyzing HTTP endpoint",
+			"verb", endpointVerb(httpEndpoint),
+			"path", endpointPath(httpEndpoint),
+			"has_body", httpEndpoint.Request != nil && httpEndpoint.Request.Body != nil && httpEndpoint.Request.Body.Type != expr.Empty,
+			"path_params", len(httpEndpoint.Request.PathParams),
+			"query_params", len(httpEndpoint.Request.QueryParams),
+			"error_responses", len(httpEndpoint.Response.ErrorResponses),
+		)
 		sd.Endpoints = append(sd.Endpoints, sds.buildEndpointDataFromIR(httpEndpoint, svc, sd, scope))
 	}
 	for _, endpointIR := range irService.Endpoints {
@@ -27,6 +48,20 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) *ServiceData {
 	sd.UnionTypes = sds.collectEndpointUnionTypes(httpSvc, sd.Scope)
 
 	return sd
+}
+
+func endpointVerb(ep *transportir.Endpoint) string {
+	if ep == nil || len(ep.Routes) == 0 {
+		return ""
+	}
+	return ep.Routes[0].Method
+}
+
+func endpointPath(ep *transportir.Endpoint) string {
+	if ep == nil || len(ep.Routes) == 0 {
+		return ""
+	}
+	return ep.Routes[0].Path
 }
 
 func newHTTPAnalysisScope(svc *service.Data) *codegen.NameScope {

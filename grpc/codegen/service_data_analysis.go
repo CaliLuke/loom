@@ -10,13 +10,21 @@ import (
 )
 
 // analyze creates the data necessary to render the code of the given service.
-func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) *ServiceData {
+// Panics are wrapped with DSL attribution (service, method, source location)
+// and re-panicked so opaque failures surface with navigable context.
+func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 	svc := d.ServicesData.Get(gs.Name())
+	ctx := d.ServicesData.Ctx.WithService(gs.ServiceExpr)
+	defer func() {
+		if err := codegen.RecoverPanic(recover()); err != nil {
+			panic(codegen.NewError(ctx, nil, err))
+		}
+	}()
 	irService := transportir.BuildService(gs)
 	scope := codegen.NewNameScope()
 	pkg := codegen.SnakeCase(codegen.Goify(svc.Name, false)) + pbPkgName
 	svcVarN := scope.HashedUnique(gs.ServiceExpr, codegen.Goify(svc.Name, true))
-	sd := &ServiceData{
+	sd = &ServiceData{
 		Service:             svc,
 		Name:                svcVarN,
 		Description:         svc.Description,

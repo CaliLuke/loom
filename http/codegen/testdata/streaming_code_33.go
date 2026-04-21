@@ -1,11 +1,11 @@
 package testdata
 
 
-var StreamingPayloadResultCollectionWithViewsServerStreamSendCode = `// SendAndClose streams instances of
+var StreamingPayloadResultCollectionWithViewsServerStreamSendCode = `// SendAndCloseWithContext streams instances of
 // "streamingpayloadresultcollectionwithviewsservice.UsertypeCollection" to the
 // "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
-// connection and closes the connection.
-func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndClose(v streamingpayloadresultcollectionwithviewsservice.UsertypeCollection) error {
+// connection with context and closes the connection.
+func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndCloseWithContext(ctx context.Context, v streamingpayloadresultcollectionwithviewsservice.UsertypeCollection) error {
 	defer s.conn.Close()
 	res := streamingpayloadresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
 	var body any
@@ -20,12 +20,12 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndClo
 	return s.conn.WriteJSON(body)
 }
 
-// SendAndCloseWithContext streams instances of
+// SendAndClose streams instances of
 // "streamingpayloadresultcollectionwithviewsservice.UsertypeCollection" to the
 // "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
-// connection with context and closes the connection.
-func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndCloseWithContext(ctx context.Context, v streamingpayloadresultcollectionwithviewsservice.UsertypeCollection) error {
-	return s.SendAndClose(v)
+// connection and closes the connection.
+func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndClose(v streamingpayloadresultcollectionwithviewsservice.UsertypeCollection) error {
+	return s.SendAndCloseWithContext(context.Background(), v)
 }
 `
 

@@ -21,8 +21,16 @@ type (
 		Service *service.Data
 		// PkgName is the name of the generated package in *.pb.go.
 		PkgName string
-		// ProtoImports is the list of proto package imports.
+		// ProtoImports is the list of proto file paths imported by this
+		// service's .proto definition (e.g. "example/common.proto"). These
+		// populate the `Imports` section of the generated .proto file.
 		ProtoImports []string
+		// ProtoGoImports is the list of Go import specs for custom proto
+		// types referenced by this service. These imports are added to the
+		// generated Go pb and client type files. Previously lived on the
+		// transport-neutral service.Data; moved here because only gRPC
+		// codegen populates or consumes them.
+		ProtoGoImports []*codegen.ImportSpec
 		// Name is the service name.
 		Name string
 		// Description is the service description.

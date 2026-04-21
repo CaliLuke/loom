@@ -1,10 +1,11 @@
 package testdata
 
 
-var StreamingResultUserTypeMapServerStreamSendCode = `// Send streams instances of
+var StreamingResultUserTypeMapServerStreamSendCode = `// SendWithContext streams instances of
 // "map[string]*streamingresultusertypemapservice.UserType" to the
-// "StreamingResultUserTypeMapMethod" endpoint websocket connection.
-func (s *StreamingResultUserTypeMapMethodServerStream) Send(v map[string]*streamingresultusertypemapservice.UserType) error {
+// "StreamingResultUserTypeMapMethod" endpoint websocket connection with
+// context.
+func (s *StreamingResultUserTypeMapMethodServerStream) SendWithContext(ctx context.Context, v map[string]*streamingresultusertypemapservice.UserType) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -29,12 +30,11 @@ func (s *StreamingResultUserTypeMapMethodServerStream) Send(v map[string]*stream
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of
+// Send streams instances of
 // "map[string]*streamingresultusertypemapservice.UserType" to the
-// "StreamingResultUserTypeMapMethod" endpoint websocket connection with
-// context.
-func (s *StreamingResultUserTypeMapMethodServerStream) SendWithContext(ctx context.Context, v map[string]*streamingresultusertypemapservice.UserType) error {
-	return s.Send(v)
+// "StreamingResultUserTypeMapMethod" endpoint websocket connection.
+func (s *StreamingResultUserTypeMapMethodServerStream) Send(v map[string]*streamingresultusertypemapservice.UserType) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 

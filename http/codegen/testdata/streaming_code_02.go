@@ -1,9 +1,10 @@
 package testdata
 
 
-var StreamingResultPrimitiveMapServerStreamSendCode = `// Send streams instances of "map[int32]string" to the
-// "StreamingResultPrimitiveMapMethod" endpoint websocket connection.
-func (s *StreamingResultPrimitiveMapMethodServerStream) Send(v map[int32]string) error {
+var StreamingResultPrimitiveMapServerStreamSendCode = `// SendWithContext streams instances of "map[int32]string" to the
+// "StreamingResultPrimitiveMapMethod" endpoint websocket connection with
+// context.
+func (s *StreamingResultPrimitiveMapMethodServerStream) SendWithContext(ctx context.Context, v map[int32]string) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -27,11 +28,10 @@ func (s *StreamingResultPrimitiveMapMethodServerStream) Send(v map[int32]string)
 	return s.conn.WriteJSON(res)
 }
 
-// SendWithContext streams instances of "map[int32]string" to the
-// "StreamingResultPrimitiveMapMethod" endpoint websocket connection with
-// context.
-func (s *StreamingResultPrimitiveMapMethodServerStream) SendWithContext(ctx context.Context, v map[int32]string) error {
-	return s.Send(v)
+// Send streams instances of "map[int32]string" to the
+// "StreamingResultPrimitiveMapMethod" endpoint websocket connection.
+func (s *StreamingResultPrimitiveMapMethodServerStream) Send(v map[int32]string) error {
+	return s.SendWithContext(context.Background(), v)
 }
 `
 

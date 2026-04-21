@@ -70,17 +70,17 @@ func (s *BidirectionalComplexClientStream) RecvWithContext(ctx context.Context) 
 	return s.Recv()
 }
 
-// Send streams instances of "testservice.Request" to the
-// "BidirectionalComplex" endpoint websocket connection.
-func (s *BidirectionalComplexClientStream) Send(v *testservice.Request) error {
+// SendWithContext streams instances of "testservice.Request" to the
+// "BidirectionalComplex" endpoint websocket connection with context.
+func (s *BidirectionalComplexClientStream) SendWithContext(ctx context.Context, v *testservice.Request) error {
 	body := NewBidirectionalComplexStreamingBody(v)
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of "testservice.Request" to the
-// "BidirectionalComplex" endpoint websocket connection with context.
-func (s *BidirectionalComplexClientStream) SendWithContext(ctx context.Context, v *testservice.Request) error {
-	return s.Send(v)
+// Send streams instances of "testservice.Request" to the
+// "BidirectionalComplex" endpoint websocket connection.
+func (s *BidirectionalComplexClientStream) Send(v *testservice.Request) error {
+	return s.SendWithContext(context.Background(), v)
 }
 
 // Close closes the "BidirectionalComplex" endpoint websocket connection.

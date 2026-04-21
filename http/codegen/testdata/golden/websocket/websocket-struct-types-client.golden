@@ -66,18 +66,18 @@ func (s *StructStreamClientStream) RecvWithContext(ctx context.Context) (*testse
 	return s.Recv()
 }
 
-// Send streams instances of "testservice.StructStreamStreamingPayload" to the
-// "StructStream" endpoint websocket connection.
-func (s *StructStreamClientStream) Send(v *testservice.StructStreamStreamingPayload) error {
-	body := NewStructStreamStreamingBody(v)
-	return s.conn.WriteJSON(body)
-}
-
 // SendWithContext streams instances of
 // "testservice.StructStreamStreamingPayload" to the "StructStream" endpoint
 // websocket connection with context.
 func (s *StructStreamClientStream) SendWithContext(ctx context.Context, v *testservice.StructStreamStreamingPayload) error {
-	return s.Send(v)
+	body := NewStructStreamStreamingBody(v)
+	return s.conn.WriteJSON(body)
+}
+
+// Send streams instances of "testservice.StructStreamStreamingPayload" to the
+// "StructStream" endpoint websocket connection.
+func (s *StructStreamClientStream) Send(v *testservice.StructStreamStreamingPayload) error {
+	return s.SendWithContext(context.Background(), v)
 }
 
 // Close closes the "StructStream" endpoint websocket connection.

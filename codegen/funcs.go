@@ -307,7 +307,7 @@ func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg strin
 			if !arg.Pointer && arg.FieldPointer && expr.IsPrimitive(arg.FieldType) {
 				deref = "&"
 			}
-			code += fmt.Sprintf("%s.%s = %s%s\n", targetVar, arg.FieldName, deref, arg.Name)
+			code += fmt.Sprintf("%s.%s = %s%s\n", targetVar, arg.FieldName, deref, arg.Name) // nolint: namescope -- target.field assignment, not a type ref
 		case expr.IsPrimitive(arg.FieldType):
 			// aliased primitive type
 			pkg := targetPkg
@@ -324,7 +324,7 @@ func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg strin
 			case arg.FieldPointer:
 				code += fmt.Sprintf("tmp%s := %s\n%s.%s = &tmp%s\n", arg.Name, cast, targetVar, arg.FieldName, arg.Name)
 			case arg.FieldName != "":
-				code += fmt.Sprintf("%s.%s = %s\n", targetVar, arg.FieldName, cast)
+				code += fmt.Sprintf("%s.%s = %s\n", targetVar, arg.FieldName, cast) // nolint: namescope -- target.field assignment, not a type ref
 			default:
 				code += fmt.Sprintf("%s := %s\n", targetVar, cast)
 			}
@@ -336,7 +336,7 @@ func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg strin
 			tgtctx := NewAttributeContext(arg.FieldPointer, false, true, targetPkg, scope)
 			c, h, err := GoTransform(
 				&expr.AttributeExpr{Type: arg.Type}, &expr.AttributeExpr{Type: arg.FieldType},
-				arg.Name, fmt.Sprintf("%s.%s", targetVar, arg.FieldName), srcctx, tgtctx, "", false)
+				arg.Name, fmt.Sprintf("%s.%s", targetVar, arg.FieldName), srcctx, tgtctx, "", false) // nolint: namescope -- target.field lvalue, not a type ref
 			if err != nil {
 				return "", helpers, err
 			}

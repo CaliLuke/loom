@@ -126,11 +126,21 @@ func isLoomSourceFile(file string) bool {
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
-// validationErrorLocation returns the location of the DSL that declared the
-// given expression when available.
+// ExpressionLocation returns the DSL file and line that declared the given
+// expression. It returns ok=false when the expression does not carry DSL
+// provenance (e.g., expressions synthesized by the evaluator rather than
+// declared by user DSL).
 //
-// The location is derived from the expression DSL function pointer and is used
-// to annotate validation errors (i.e. errors returned by Validate()).
+// The location is derived from the expression's DSL function pointer. Callers
+// use it to annotate validation errors and codegen errors with the source
+// position of the responsible DSL declaration.
+func ExpressionLocation(expr Expression) (file string, line int, ok bool) {
+	return validationErrorLocation(expr)
+}
+
+// validationErrorLocation is retained as the package-internal entry point for
+// callers that predate [ExpressionLocation]. New code should call the exported
+// form.
 func validationErrorLocation(expr Expression) (file string, line int, ok bool) {
 	source, ok := expr.(Source)
 	if !ok {

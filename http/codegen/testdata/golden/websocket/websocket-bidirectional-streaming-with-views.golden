@@ -57,9 +57,9 @@ func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {
 	}
 }
 
-// Send streams instances of "testservice.Response" to the
-// "BidirectionalWithViews" endpoint websocket connection.
-func (s *BidirectionalWithViewsServerStream) Send(v *testservice.Response) error {
+// SendWithContext streams instances of "testservice.Response" to the
+// "BidirectionalWithViews" endpoint websocket connection with context.
+func (s *BidirectionalWithViewsServerStream) SendWithContext(ctx context.Context, v *testservice.Response) error {
 	var err error
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
@@ -92,10 +92,10 @@ func (s *BidirectionalWithViewsServerStream) Send(v *testservice.Response) error
 	return s.conn.WriteJSON(body)
 }
 
-// SendWithContext streams instances of "testservice.Response" to the
-// "BidirectionalWithViews" endpoint websocket connection with context.
-func (s *BidirectionalWithViewsServerStream) SendWithContext(ctx context.Context, v *testservice.Response) error {
-	return s.Send(v)
+// Send streams instances of "testservice.Response" to the
+// "BidirectionalWithViews" endpoint websocket connection.
+func (s *BidirectionalWithViewsServerStream) Send(v *testservice.Response) error {
+	return s.SendWithContext(context.Background(), v)
 }
 
 // Recv reads instances of "testservice.Request" from the

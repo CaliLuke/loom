@@ -102,12 +102,17 @@ func writeServerBodyInitCall(b *sourceBuilder, body *TypeData, prefix string) {
 }
 
 func addWebsocketSendSection(stmt *jen.Statement, ws *WebSocketData) {
+	// Emit SendWithContext with the real body, and Send as a thin forwarder
+	// to keep the no-context convenience method available without duplicating
+	// the send logic in two places. The ctx parameter is currently unused by
+	// the body; this layout means future work to honor it only touches
+	// SendWithContext.
 	stmt.Line()
-	codegen.Doc(stmt, ws.SendDesc)
+	codegen.Doc(stmt, ws.SendWithContextDesc)
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ws.VarName)).
-		Id(ws.SendName).
-		Params(jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
+		Id(ws.SendWithContextName).
+		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
 		Error().
 		BlockFunc(func(group *jen.Group) {
 			if ws.Type != "server" {
@@ -121,14 +126,14 @@ func addWebsocketSendSection(stmt *jen.Statement, ws *WebSocketData) {
 			addRawWebSocketGroup(group, b.String())
 		})
 	stmt.Line()
-	codegen.Doc(stmt, ws.SendWithContextDesc)
+	codegen.Doc(stmt, ws.SendDesc)
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ws.VarName)).
-		Id(ws.SendWithContextName).
-		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
+		Id(ws.SendName).
+		Params(jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
 		Error().
 		Block(
-			jen.Return(jen.Id("s").Dot(ws.SendName).Call(jen.Id("v"))),
+			jen.Return(jen.Id("s").Dot(ws.SendWithContextName).Call(jen.Qual("context", "Background").Call(), jen.Id("v"))),
 		)
 	stmt.Line()
 }

@@ -2,11 +2,8 @@ package service
 
 import (
 	"bytes"
-	"flag"
 	"go/format"
-	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -15,10 +12,9 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/expr"
 )
-
-var updateGolden = flag.Bool("update-interceptors", false, "update golden files for interceptor tests")
 
 func TestInterceptors(t *testing.T) {
 	cases := []struct {
@@ -217,17 +213,9 @@ func TestCollectAttributes(t *testing.T) {
 	}
 }
 
+// compareOrUpdateGolden delegates to the shared testutil helper. Pass -update
+// (or -u) on the go-test command line to rewrite golden files.
 func compareOrUpdateGolden(t *testing.T, code, golden string) {
 	t.Helper()
-	if *updateGolden {
-		require.NoError(t, os.MkdirAll(filepath.Dir(golden), 0750))
-		require.NoError(t, os.WriteFile(golden, []byte(code), 0640))
-		return
-	}
-	data, err := os.ReadFile(golden)
-	require.NoError(t, err)
-	if runtime.GOOS == "windows" {
-		data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
-	}
-	assert.Equal(t, string(data), code)
+	testutil.CompareOrUpdateGolden(t, code, golden)
 }

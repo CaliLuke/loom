@@ -72,14 +72,14 @@ func (s *ClientStreamArrayClientStream) CloseAndRecvWithContext(ctx context.Cont
 	return s.CloseAndRecv()
 }
 
-// Send streams instances of "[]int" to the "ClientStreamArray" endpoint
-// websocket connection.
-func (s *ClientStreamArrayClientStream) Send(v []int) error {
-	return s.conn.WriteJSON(v)
-}
-
 // SendWithContext streams instances of "[]int" to the "ClientStreamArray"
 // endpoint websocket connection with context.
 func (s *ClientStreamArrayClientStream) SendWithContext(ctx context.Context, v []int) error {
-	return s.Send(v)
+	return s.conn.WriteJSON(v)
+}
+
+// Send streams instances of "[]int" to the "ClientStreamArray" endpoint
+// websocket connection.
+func (s *ClientStreamArrayClientStream) Send(v []int) error {
+	return s.SendWithContext(context.Background(), v)
 }

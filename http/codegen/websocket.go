@@ -87,7 +87,7 @@ func (sds *ServicesData) initWebSocketData(ed *EndpointData, endpointIR *transpo
 	serverMeta, clientMeta := describeWebSocketDirections(ed, endpointIR, stream.serverRecvTypeName)
 	ed.ServerWebSocket = &WebSocketData{
 		VarName:             md.ServerStream.VarName,
-		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ServerStream.Interface),
+		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ServerStream.Interface), // nolint: namescope -- svc.PkgName is the exact import alias in the emitted server file
 		Endpoint:            ed,
 		Payload:             stream.serverPayload,
 		Response:            ed.Result.Responses[0],
@@ -111,7 +111,7 @@ func (sds *ServicesData) initWebSocketData(ed *EndpointData, endpointIR *transpo
 	}
 	ed.ClientWebSocket = &WebSocketData{
 		VarName:             md.ClientStream.VarName,
-		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ClientStream.Interface),
+		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ClientStream.Interface), // nolint: namescope -- svc.PkgName is the exact import alias in the emitted client file
 		Endpoint:            ed,
 		Payload:             stream.clientPayload,
 		Response:            ed.Result.Responses[0],
@@ -301,9 +301,9 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 	}
 }
 
-// WebsocketClientFile returns the file implementing the WebSocket client
+// websocketClientFile returns the file implementing the WebSocket client
 // streaming implementation if any.
-func WebsocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
+func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
 	data := services.Get(svc.Name())
 	if !HasWebSocket(data) {
 		return nil

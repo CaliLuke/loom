@@ -49,12 +49,12 @@ func collectProtoImports(at *expr.AttributeExpr, sd *ServiceData) []string {
 		return nil
 	}
 	imp := proto[1]
-	if protoImportExists(sd.Service.ProtoImports, imp) {
+	if protoImportExists(sd.ProtoGoImports, imp) {
 		return nil
 	}
 	if len(proto) > 3 {
 		elems := strings.Split(proto[3], "/")
-		sd.Service.ProtoImports = append(sd.Service.ProtoImports, &codegen.ImportSpec{Path: proto[3], Name: elems[len(elems)-1]})
+		sd.ProtoGoImports = append(sd.ProtoGoImports, &codegen.ImportSpec{Path: proto[3], Name: elems[len(elems)-1]})
 	}
 	return []string{imp}
 }

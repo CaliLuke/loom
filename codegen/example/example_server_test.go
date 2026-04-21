@@ -2,40 +2,22 @@ package example
 
 import (
 	"bytes"
-	"flag"
-	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/example/testdata"
 	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/codegen/testutil"
 )
 
-// updateGolden is true when -w is passed to `go test`, e.g. `go test ./... -w`
-var updateGolden = false
-
-func init() {
-	flag.BoolVar(&updateGolden, "w", false, "update golden files")
-}
-
+// compareOrUpdateGolden delegates to the shared testutil helper. Pass -update
+// (or -u) on the go-test command line to rewrite golden files.
 func compareOrUpdateGolden(t *testing.T, code, golden string) {
 	t.Helper()
-	if updateGolden {
-		require.NoError(t, os.MkdirAll(filepath.Dir(golden), 0750))
-		require.NoError(t, os.WriteFile(golden, []byte(code), 0640))
-		return
-	}
-	data, err := os.ReadFile(golden)
-	require.NoError(t, err)
-	if runtime.GOOS == "windows" {
-		data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
-	}
-	assert.Equal(t, string(data), code)
+	testutil.CompareOrUpdateGolden(t, code, golden)
 }
 
 func TestExampleServerFiles(t *testing.T) {
