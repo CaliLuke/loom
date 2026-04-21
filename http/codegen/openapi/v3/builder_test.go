@@ -310,6 +310,70 @@ func TestCollapseSchemaAliasesRewritesOperationRefs(t *testing.T) {
 	}
 }
 
+func TestPruneUnusedComponentSchemasKeepsReachableNestedRefs(t *testing.T) {
+	paths := map[string]*PathItem{
+		"/sessions": {
+			Get: &Operation{
+				Responses: map[string]*ResponseRef{
+					"200": {
+						Value: &Response{
+							Content: map[string]*MediaType{
+								"application/json": {
+									Schema: &openapi.Schema{Ref: "#/components/schemas/SessionEnvelope"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	schemas := map[string]*openapi.Schema{
+		"SessionEnvelope": {
+			Type: openapi.Object,
+			Properties: map[string]*openapi.Schema{
+				"session": {Ref: "#/components/schemas/Session"},
+			},
+		},
+		"Session": {
+			Type: openapi.Object,
+			Properties: map[string]*openapi.Schema{
+				"user": {Ref: "#/components/schemas/User"},
+			},
+		},
+		"User": {
+			Type: openapi.Object,
+			Properties: map[string]*openapi.Schema{
+				"id": {Type: openapi.String},
+			},
+		},
+		"Unused": {
+			Type: openapi.Object,
+			Properties: map[string]*openapi.Schema{
+				"note": {Type: openapi.String},
+			},
+		},
+	}
+
+	pruned := pruneUnusedComponentSchemas(paths, schemas, reusableComponents{})
+
+	if len(pruned) != 3 {
+		t.Fatalf("got %d schemas after pruning, want 3", len(pruned))
+	}
+	if _, ok := pruned["SessionEnvelope"]; !ok {
+		t.Fatal("expected root response schema to remain")
+	}
+	if _, ok := pruned["Session"]; !ok {
+		t.Fatal("expected nested schema to remain")
+	}
+	if _, ok := pruned["User"]; !ok {
+		t.Fatal("expected transitive nested schema to remain")
+	}
+	if _, ok := pruned["Unused"]; ok {
+		t.Fatal("expected unreferenced schema to be pruned")
+	}
+}
+
 func TestNewBuildsReusableContractComponentsAndServiceTags(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.OpenAPIReusableComponentsDSL)
 

@@ -163,3 +163,53 @@ func TestAnalyzerAppliesSchemaOpenAPIMetadata(t *testing.T) {
 	require.Equal(t, "base64", schema.ContentEncoding)
 	require.Equal(t, "application/json", schema.ContentMediaType)
 }
+
+func TestAttributeForSchemaUsagePrunesRequestAndResponseFields(t *testing.T) {
+	t.Parallel()
+
+	attr := &expr.AttributeExpr{
+		Type: &expr.UserTypeExpr{
+			TypeName: "SessionBody",
+			UID:      "session-body",
+			AttributeExpr: &expr.AttributeExpr{
+				Type: &expr.Object{
+					{Name: "id", Attribute: &expr.AttributeExpr{Type: expr.String}},
+					{Name: "server_only", Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+						Meta: expr.MetaExpr{"openapi:readOnly": []string{"true"}},
+					}},
+					{Name: "secret", Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+						Meta: expr.MetaExpr{"openapi:writeOnly": []string{"true"}},
+					}},
+				},
+				Validation: &expr.ValidationExpr{Required: []string{"id", "server_only", "secret"}},
+			},
+		},
+	}
+
+	requestAttr := attributeForSchemaUsage(attr, schemaUsageRequest)
+	responseAttr := attributeForSchemaUsage(attr, schemaUsageResponse)
+
+	requestType, ok := requestAttr.Type.(*expr.UserTypeExpr)
+	require.True(t, ok)
+	responseType, ok := responseAttr.Type.(*expr.UserTypeExpr)
+	require.True(t, ok)
+
+	requestObject := expr.AsObject(requestType.Attribute().Type)
+	responseObject := expr.AsObject(responseType.Attribute().Type)
+	require.NotNil(t, requestObject)
+	require.NotNil(t, responseObject)
+
+	require.Nil(t, requestObject.Attribute("server_only"))
+	require.NotNil(t, requestObject.Attribute("secret"))
+	require.Equal(t, []string{"id", "secret"}, requestType.Attribute().Validation.Required)
+	require.Equal(t, "SessionBodyRequest", requestType.TypeName)
+	require.Equal(t, "session-body#Request", requestType.UID)
+
+	require.NotNil(t, responseObject.Attribute("server_only"))
+	require.Nil(t, responseObject.Attribute("secret"))
+	require.Equal(t, []string{"id", "server_only"}, responseType.Attribute().Validation.Required)
+	require.Equal(t, "SessionBodyResponse", responseType.TypeName)
+	require.Equal(t, "session-body#Response", responseType.UID)
+}
