@@ -1,5 +1,9 @@
 github.com/aws/smithy-go v1.24.2 h1:FzA3bu/nt/vDvmnkg+R8Xl46gmzEDam6mZ1hzmwXFng=
 github.com/aws/smithy-go v1.24.2/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
+github.com/bahlo/generic-list-go v0.2.0 h1:5sz/EEAK+ls5wF+NeqDpk5+iNdMDXrh3z3nPnH1Wvgk=
+github.com/bahlo/generic-list-go v0.2.0/go.mod h1:2KvAjgMlE5NNynlg/5iLrrCCZ2+5xWbdbCW3pNTGyYg=
+github.com/buger/jsonparser v1.1.2 h1:frqHqw7otoVbk5M8LlE/L7HTnIq2v9RX6EJ48i9AxJk=
+github.com/buger/jsonparser v1.1.2/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/dave/jennifer v1.7.1 h1:B4jJJDHelWcDhlRQxWeo0Npa/pYKBLrirAQoTN45txo=
@@ -28,6 +32,12 @@ github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d h1:Zj+PHjnhRYWBK6RqC
 github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d/go.mod h1:WZy8Q5coAB1zhY9AOBJP0O6J4BuDfbupUDavKY+I3+s=
 github.com/manveru/gobdd v0.0.0-20131210092515-f1a17fdd710b h1:3E44bLeN8uKYdfQqVQycPnaVviZdBLbizFhU49mtbe4=
 github.com/manveru/gobdd v0.0.0-20131210092515-f1a17fdd710b/go.mod h1:Bj8LjjP0ReT1eKt5QlKjwgi5AFm5mI6O1A2G4ChI0Ag=
+github.com/pb33f/jsonpath v0.8.2 h1:Ou4C7zjYClBm97dfZjDCjdZGusJoynv/vrtiEKNfj2Y=
+github.com/pb33f/jsonpath v0.8.2/go.mod h1:zBV5LJW4OQOPatmQE2QdKpGQJvhDTlE5IEj6ASaRNTo=
+github.com/pb33f/libopenapi v0.36.1 h1:CNZ52e+/W9fA1kAgL8EePDQQrKPfN9+HdLR6XAxUEpw=
+github.com/pb33f/libopenapi v0.36.1/go.mod h1:MsDdUlQ1CdrIDO5v26JfgBxQs7kcaOUEpMP3EqU6bI4=
+github.com/pb33f/ordered-map/v2 v2.3.1 h1:5319HDO0aw4DA4gzi+zv4FXU9UlSs3xGZ40wcP1nBjY=
+github.com/pb33f/ordered-map/v2 v2.3.1/go.mod h1:qxFQgd0PkVUtOMCkTapqotNgzRhMPL7VvaHKbd1HnmQ=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
@@ -48,6 +58,8 @@ go.opentelemetry.io/otel/sdk/metric v1.43.0 h1:S88dyqXjJkuBNLeMcVPRFXpRw2fuwdvfC
 go.opentelemetry.io/otel/sdk/metric v1.43.0/go.mod h1:C/RJtwSEJ5hzTiUz5pXF1kILHStzb9zFlIEe85bhj6A=
 go.opentelemetry.io/otel/trace v1.43.0 h1:BkNrHpup+4k4w+ZZ86CZoHHEkohws8AY+WTX09nk+3A=
 go.opentelemetry.io/otel/trace v1.43.0/go.mod h1:/QJhyVBUUswCphDVxq+8mld+AvhXZLhe+8WVFxiFff0=
+go.yaml.in/yaml/v4 v4.0.0-rc.4 h1:UP4+v6fFrBIb1l934bDl//mmnoIZEDK0idg1+AIvX5U=
+go.yaml.in/yaml/v4 v4.0.0-rc.4/go.mod h1:aZqd9kCMsGL7AuUv/m/PvWLdg5sjJsZ4oHDEnfPPfY0=
 goa.design/clue v1.2.5 h1:rlOHMt7GuOrDeJPsf56D4i+RMPK42Emgcw8XxhJKeyM=
 goa.design/clue v1.2.5/go.mod h1:2fsAYnmzaaBOum+k2lOBu80Wr2S1F7J/NaViYOifj+c=
 goa.design/goa/v3 v3.25.3 h1:gnOm2Vu0HMvveKpcqL6aWYQTP2puiwrEJWLQc79/294=
