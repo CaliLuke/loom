@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pre-commit hook.
+#
+# Keep this fast (<15s) so contributors never reach for `--no-verify`. The
+# full lint suite runs in pre-push (`make lint`); pre-commit only enforces
+# the cheapest high-signal gate: Go file size.
+#
+# If this check fails, split the offending file before committing. Raising
+# MAX_GO_FILE_LINES is not the right answer.
+
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+bash ./scripts/lint_filesize.sh
