@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	cg "github.com/CaliLuke/loom/codegen"
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
@@ -83,26 +84,30 @@ func checkoutPinnedLoomModule(t *testing.T, parentDir string) string {
 	t.Helper()
 
 	if local := configuredLocalLoomModulePath(); local != "" {
+		t.Logf("using locally configured loom module: %s", local)
 		return local
 	}
 
 	commit := strings.TrimSpace(runCommand(t, "", "git", "rev-parse", "HEAD"))
 	remote := strings.TrimSpace(resolveGitRemoteURL(t))
 	dest := filepath.Join(parentDir, "loom-pinned")
+	t.Logf("checking out pinned loom module into %s from %s at %s", dest, remote, commit)
 
-	if _, err := runCommandAllowFailure("", "git", "init", dest); err == nil {
-		if _, err := runCommandAllowFailure(dest, "git", "remote", "add", "origin", remote); err == nil {
-			if _, err := runCommandAllowFailure(dest, "git", "fetch", "--depth", "1", "origin", commit); err == nil {
-				if _, err := runCommandAllowFailure(dest, "git", "checkout", "--detach", "FETCH_HEAD"); err == nil {
+	if _, err := runLoggedCommandAllowFailure(t, "", "git", "init", dest); err == nil {
+		if _, err := runLoggedCommandAllowFailure(t, dest, "git", "remote", "add", "origin", remote); err == nil {
+			if _, err := runLoggedCommandAllowFailure(t, dest, "git", "fetch", "--depth", "1", "origin", commit); err == nil {
+				if _, err := runLoggedCommandAllowFailure(t, dest, "git", "checkout", "--detach", "FETCH_HEAD"); err == nil {
 					return dest
 				}
 			}
 		}
 	}
 
-	root, err := runCommandAllowFailure("", "git", "rev-parse", "--show-toplevel")
+	t.Log("falling back to local repository root resolution")
+	root, err := runLoggedCommandAllowFailure(t, "", "git", "rev-parse", "--show-toplevel")
 	if err == nil {
 		if local := validatedLocalLoomModulePath(strings.TrimSpace(root)); local != "" {
+			t.Logf("using current repository root as loom module: %s", local)
 			return local
 		}
 	}
@@ -147,9 +152,10 @@ func resolveGitRemoteURL(t *testing.T) string {
 	t.Helper()
 
 	for _, name := range []string{"origin", "fork"} {
-		if out, err := runCommandAllowFailure("", "git", "remote", "get-url", name); err == nil {
+		if out, err := runLoggedCommandAllowFailure(t, "", "git", "remote", "get-url", name); err == nil {
 			url := strings.TrimSpace(out)
 			if url != "" {
+				t.Logf("resolved git remote %q to %s", name, url)
 				return url
 			}
 		}
@@ -177,11 +183,32 @@ func runGoCommand(t *testing.T, dir string, args ...string) {
 func runCommand(t *testing.T, dir, name string, args ...string) string {
 	t.Helper()
 
-	out, err := runCommandAllowFailure(dir, name, args...)
+	out, err := runLoggedCommandAllowFailure(t, dir, name, args...)
 	if err != nil {
 		t.Fatalf("%s %v failed: %v\n%s", name, args, err, out)
 	}
 	return out
+}
+
+func runLoggedCommandAllowFailure(t *testing.T, dir, name string, args ...string) (string, error) {
+	t.Helper()
+
+	cmdText := strings.Join(append([]string{name}, args...), " ")
+	if dir == "" {
+		t.Logf("running command: %s", cmdText)
+	} else {
+		t.Logf("running command in %s: %s", dir, cmdText)
+	}
+
+	start := time.Now()
+	out, err := runCommandAllowFailure(dir, name, args...)
+	duration := time.Since(start)
+	if err != nil {
+		t.Logf("command failed after %s: %s: %v", duration.Round(time.Millisecond), cmdText, err)
+	} else {
+		t.Logf("command completed in %s: %s", duration.Round(time.Millisecond), cmdText)
+	}
+	return out, err
 }
 
 func runCommandAllowFailure(dir, name string, args ...string) (string, error) {
