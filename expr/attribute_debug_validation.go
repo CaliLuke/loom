@@ -3,6 +3,7 @@ package expr
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -259,6 +260,11 @@ func (v *ValidationExpr) Validate(ctx string, parent eval.Expression) *eval.Vali
 	}
 	if v.MinLength != nil && v.MaxLength != nil && *v.MinLength > *v.MaxLength {
 		verr.Add(parent, "%smin length is greater than max length", ctx)
+	}
+	if v.Pattern != "" {
+		if _, err := regexp.Compile(v.Pattern); err != nil {
+			verr.Add(parent, "%sinvalid pattern %q: %s", ctx, v.Pattern, err)
+		}
 	}
 	return verr
 }

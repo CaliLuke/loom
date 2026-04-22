@@ -107,7 +107,7 @@ func NewLength(a *AttributeExpr, r *ExampleGenerator) int {
 		case minlength == maxlength:
 			count = int(minlength)
 		default:
-			panic("Validation: MinLength > MaxLength")
+			panic("unreachable: MinLength > MaxLength should have been caught by ValidationExpr.Validate")
 		}
 		if count > maxLength {
 			count = maxLength
@@ -407,7 +407,7 @@ func checkPattern(a *AttributeExpr, example any) bool {
 	pattern := a.Validation.Pattern
 	re, err := regexp.Compile(pattern)
 	if err != nil {
-		panic("Validation: invalid pattern '" + pattern + "'")
+		panic("unreachable: invalid pattern '" + pattern + "' should have been caught by ValidationExpr.Validate")
 	}
 	if !re.MatchString(fmt.Sprint(example)) {
 		return false

@@ -573,6 +573,7 @@ func TestAttributeExprValidationValidate(t *testing.T) {
 	cases := map[string]struct {
 		min, max, exclMin, exclMax *float64
 		minLen, maxLen             *int
+		pattern                    string
 		expected                   string
 	}{
 		"min and max":         {min: &min, max: &max, expected: "attribute: minimum is greater than maximum"},
@@ -582,6 +583,7 @@ func TestAttributeExprValidationValidate(t *testing.T) {
 		"max and exclMax":     {max: &max, exclMax: &exclMax, expected: "attribute: both maximum and exclusive maximum are defined"},
 		"min and exclMin":     {min: &min, exclMin: &ExclMin, expected: "attribute: both minimum and exclusive minimum are defined"},
 		"minLen and maxLen":   {minLen: &MinLength, maxLen: &MaxLength, expected: "attribute: min length is greater than max length"},
+		"invalid pattern":     {pattern: "[invalid(", expected: `attribute: invalid pattern "[invalid(": error parsing regexp: missing closing ]: ` + "`[invalid(`"},
 	}
 	for k, tc := range cases {
 		validation := &ValidationExpr{
@@ -591,6 +593,7 @@ func TestAttributeExprValidationValidate(t *testing.T) {
 			ExclusiveMaximum: tc.exclMax,
 			MinLength:        tc.minLen,
 			MaxLength:        tc.maxLen,
+			Pattern:          tc.pattern,
 		}
 		if actual := validation.Validate("", parent); actual.Error() != tc.expected {
 			t.Errorf("%s: got %#v, expected %#v", k, actual.Error(), tc.expected)
