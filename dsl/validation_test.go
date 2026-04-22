@@ -1,6 +1,7 @@
 package dsl_test
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/CaliLuke/loom/dsl"
@@ -77,5 +78,21 @@ func TestRequired(t *testing.T) {
 	}
 	if uattr.Validation.Required[0] != "foo" {
 		t.Errorf("Required invalid on %+v, expected foo, got %+v", uattr, uattr.Validation.Required)
+	}
+}
+
+func TestPatternInvalidRegexReportsAttributedError(t *testing.T) {
+	eval.SetupTestContext(t)
+	att := &expr.AttributeExpr{Type: expr.String}
+	eval.Execute(func() { Pattern("[invalid(") }, att)
+
+	if eval.Context.Errors == nil {
+		t.Fatalf("expected DSL error for invalid regex pattern, got none")
+	}
+	if got := eval.Context.Error(); !strings.Contains(got, "invalid pattern") {
+		t.Errorf("expected error to mention 'invalid pattern', got %q", got)
+	}
+	if att.Validation != nil && att.Validation.Pattern != "" {
+		t.Errorf("invalid pattern should not be stored on attribute, got %q", att.Validation.Pattern)
 	}
 }
