@@ -64,7 +64,7 @@ done < <(find "${ROOT_DIR}" \
   -type f \
   -name '*.go' \
   -not -path "${ROOT_DIR}/.git/*" \
-  -not -path "${ROOT_DIR}/gen/*" \
+  -not -path '*/gen/*' \
   -not -path "*/testdata/*" \
   -print0)
 
