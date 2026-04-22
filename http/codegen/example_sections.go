@@ -182,7 +182,14 @@ func renderExampleServerEnd(services []*ServiceData) string {
 	var b sourceBuilder
 	b.Add("\n\t// Start HTTP server using default configuration, change the code to\n")
 	b.Add("\t// configure the server as required by your service.\n")
-	b.Add("\tsrv := &http.Server{Addr: u.Host, Handler: handler, ReadHeaderTimeout: time.Second * 60}\n")
+	b.Add("\tsrv := &http.Server{\n")
+	b.Add("\t\tAddr:              u.Host,\n")
+	b.Add("\t\tHandler:           handler,\n")
+	b.Add("\t\tReadHeaderTimeout: time.Second * 60,\n")
+	b.Add("\t\tReadTimeout:       time.Second * 15,\n")
+	b.Add("\t\tWriteTimeout:      time.Second * 30,\n")
+	b.Add("\t\tIdleTimeout:       time.Second * 60,\n")
+	b.Add("\t}\n")
 	for _, svc := range services {
 		b.Addf("\tfor _, m := range %sServer.Mounts {\n", svc.Service.VarName)
 		b.Add("\t\tlog.Printf(ctx, \"HTTP %q mounted on %s %s\", m.Method, m.Verb, m.Pattern)\n")

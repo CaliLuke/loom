@@ -63,7 +63,14 @@ func handleHTTPServer(ctx context.Context, u *url.URL, clockEndpoints *clock.End
 
 	// Start HTTP server using default configuration, change the code to
 	// configure the server as required by your service.
-	srv := &http.Server{Addr: u.Host, Handler: handler, ReadHeaderTimeout: time.Second * 60}
+	srv := &http.Server{
+		Addr:              u.Host,
+		Handler:           handler,
+		ReadHeaderTimeout: time.Second * 60,
+		ReadTimeout:       time.Second * 15,
+		WriteTimeout:      time.Second * 30,
+		IdleTimeout:       time.Second * 60,
+	}
 	for _, m := range clockJSONRPCServer.Methods {
 		log.Printf(ctx, "JSON-RPC method %q mounted on POST /rpc", m)
 	}
