@@ -200,7 +200,10 @@ func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
 		u.kind = ValuesKindB
 		u.B = v
 	default:
-		return fmt.Errorf("unexpected Values type %q", rawType)
+		return loom.InvalidEnumValueError("type", rawType, []any{
+			string(ValuesKindA),
+			string(ValuesKindB),
+		})
 	}
 	return nil
 }
@@ -217,6 +220,9 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 	switch raw.Type {
 	case string(ValuesKindA):
 		var v *TypeA
+		if len(raw.Value) == 0 {
+			return loom.MissingFieldError("value", "body")
+		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
 			return err
 		}
@@ -224,13 +230,19 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 		u.A = v
 	case string(ValuesKindB):
 		var v *TypeB
+		if len(raw.Value) == 0 {
+			return loom.MissingFieldError("value", "body")
+		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
 			return err
 		}
 		u.kind = ValuesKindB
 		u.B = v
 	default:
-		return fmt.Errorf("unexpected Values type %q", raw.Type)
+		return loom.InvalidEnumValueError("type", raw.Type, []any{
+			string(ValuesKindA),
+			string(ValuesKindB),
+		})
 	}
 	return nil
 }

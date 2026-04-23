@@ -83,6 +83,27 @@ func TestBuildHTTPUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
 	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
 }
 
+func TestRenderHTTPUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
+	scope := cg.NewNameScope()
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
+
+	body := renderHTTPUnionUnmarshalJSONBody(data)
+
+	require.Contains(t, body, `return loom.MissingFieldError("value", "body")`)
+	require.Contains(t, body, `return loom.InvalidEnumValueError("type", raw.Type, []any{`)
+	require.NotContains(t, body, `unexpected Selection type`)
+}
+
+func TestRenderHTTPUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
+	scope := cg.NewNameScope()
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
+
+	body := renderHTTPUnionUnmarshalFormBody(data)
+
+	require.Contains(t, body, `return loom.InvalidEnumValueError("type", rawType, []any{`)
+	require.NotContains(t, body, `unexpected Selection type`)
+}
+
 func collectHTTPUnionTypeNames(att *expr.AttributeExpr) map[string]string {
 	scope := cg.NewNameScope()
 	seen := make(map[string]struct{})

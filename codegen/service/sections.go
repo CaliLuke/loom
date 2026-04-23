@@ -376,7 +376,12 @@ func renderUnionUnmarshalFormBody(data *UnionTypeData) string {
 		b.Add("\t\t}\n")
 		fmt.Fprintf(&b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
 	}
-	fmt.Fprintf(&b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", rawType)\n\t}\nreturn nil", data.Name)
+	b.Add("\tdefault:\n")
+	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, rawType, []any{\n", data.TypeKey)
+	for _, field := range data.Fields {
+		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
+	}
+	b.Add("\t\t})\n\t}\nreturn nil")
 	return b.String()
 }
 
@@ -387,10 +392,17 @@ func renderUnionUnmarshalJSONBody(data *UnionTypeData) string {
 	b.Add("switch raw.Type {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
+		b.Add("\t\tif len(raw.Value) == 0 {\n")
+		fmt.Fprintf(&b, "\t\t\treturn loom.MissingFieldError(%q, \"body\")\n\t\t}\n", data.ValueKey)
 		b.Add("\t\tif err := json.Unmarshal(raw.Value, &v); err != nil {\n\t\t\treturn err\n\t\t}\n")
 		fmt.Fprintf(&b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
 	}
-	fmt.Fprintf(&b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s type %%q\", raw.Type)\n\t}\nreturn nil", data.Name)
+	b.Add("\tdefault:\n")
+	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, raw.Type, []any{\n", data.TypeKey)
+	for _, field := range data.Fields {
+		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
+	}
+	b.Add("\t\t})\n\t}\nreturn nil")
 	return b.String()
 }
 

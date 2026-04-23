@@ -193,7 +193,10 @@ func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
 		u.kind = ValuesKindMetric
 		u.Metric = v
 	default:
-		return fmt.Errorf("unexpected Values type %q", rawType)
+		return loom.InvalidEnumValueError("type", rawType, []any{
+			string(ValuesKindDevice),
+			string(ValuesKindMetric),
+		})
 	}
 	return nil
 }
@@ -210,6 +213,9 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 	switch raw.Type {
 	case string(ValuesKindDevice):
 		var v alias.Alias
+		if len(raw.Value) == 0 {
+			return loom.MissingFieldError("value", "body")
+		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
 			return err
 		}
@@ -217,13 +223,19 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 		u.Device = v
 	case string(ValuesKindMetric):
 		var v alias.Alias
+		if len(raw.Value) == 0 {
+			return loom.MissingFieldError("value", "body")
+		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
 			return err
 		}
 		u.kind = ValuesKindMetric
 		u.Metric = v
 	default:
-		return fmt.Errorf("unexpected Values type %q", raw.Type)
+		return loom.InvalidEnumValueError("type", raw.Type, []any{
+			string(ValuesKindDevice),
+			string(ValuesKindMetric),
+		})
 	}
 	return nil
 }

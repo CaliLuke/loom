@@ -71,6 +71,29 @@ func TestAsError(t *testing.T) {
 	}
 }
 
+func TestGeneratedValidationErrorSafeMessages(t *testing.T) {
+	t.Run("missing field", func(t *testing.T) {
+		err := MissingFieldError("value", "body")
+		if got := ErrorSafeMessage(err); got != "Missing required field: value" {
+			t.Errorf("got safe message %q", got)
+		}
+		if got := err.Error(); got != `"value" is missing from body` {
+			t.Errorf("got error %q", got)
+		}
+	})
+
+	t.Run("invalid enum", func(t *testing.T) {
+		err := InvalidEnumValueError("action", "GetActive", []any{"list", "get_active"})
+		want := `invalid value for "action": got "GetActive", expected one of "list", "get_active"`
+		if got := ErrorSafeMessage(err); got != want {
+			t.Errorf("got safe message %q", got)
+		}
+		if got := err.Error(); got != want {
+			t.Errorf("got error %q", got)
+		}
+	})
+}
+
 func TestExtractErrorRemedy(t *testing.T) {
 	t.Run("service error with remedy", func(t *testing.T) {
 		err := WithErrorRemedy(NewServiceError(errors.New("boom"), "boom", false, false, false), &ErrorRemedy{

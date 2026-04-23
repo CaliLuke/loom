@@ -171,8 +171,10 @@ func InvalidFieldTypeError(name string, val any, expected string) error {
 // MissingFieldError is the error produced by the generated code when a payload
 // is missing a required field.
 func MissingFieldError(name, context string) error {
-	return validationError(withField(name, PermanentError(
-		MissingField, "%q is missing from %s", name, context)))
+	return validationErrorWithSafe(
+		withField(name, PermanentError(MissingField, "%q is missing from %s", name, context)),
+		fmt.Sprintf("Missing required field: %s", name),
+	)
 }
 
 // InvalidEnumValueError is the error produced by the generated code when the
@@ -183,8 +185,11 @@ func InvalidEnumValueError(name string, val any, allowed []any) error {
 	for i, a := range allowed {
 		elems[i] = fmt.Sprintf("%#v", a)
 	}
-	return validationError(withField(name, PermanentError(
-		InvalidEnumValue, "value of %s must be one of %s but got value %#v", name, strings.Join(elems, ", "), val)))
+	message := fmt.Sprintf("invalid value for %q: got %#v, expected one of %s", name, val, strings.Join(elems, ", "))
+	return validationErrorWithSafe(
+		withField(name, PermanentError(InvalidEnumValue, "%s", message)),
+		message,
+	)
 }
 
 // InvalidFormatError is the error produced by the generated code when the value
@@ -229,6 +234,10 @@ func InvalidLengthError(name string, target any, ln, value int, min bool) error 
 
 func validationError(err *ServiceError) *ServiceError {
 	return WithErrorRemedy(err, &ErrorRemedy{SafeMessage: "validation error"})
+}
+
+func validationErrorWithSafe(err *ServiceError, safeMessage string) *ServiceError {
+	return WithErrorRemedy(err, &ErrorRemedy{SafeMessage: safeMessage})
 }
 
 // NewErrorID creates a unique 8 character ID that is well suited to use as an

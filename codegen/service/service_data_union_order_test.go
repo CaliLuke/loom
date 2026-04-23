@@ -118,6 +118,33 @@ func TestBuildViewUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
 	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
 }
 
+func TestRenderUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
+	scope := codegen.NewNameScope()
+	loc := &codegen.Location{
+		RelImportPath: "gen/service",
+	}
+	data := buildUnionTypeData(makeTaggedUnionForTagTest(), scope, loc)
+
+	body := renderUnionUnmarshalJSONBody(data)
+
+	require.Contains(t, body, `return loom.MissingFieldError("value", "body")`)
+	require.Contains(t, body, `return loom.InvalidEnumValueError("type", raw.Type, []any{`)
+	require.NotContains(t, body, `unexpected Selection type`)
+}
+
+func TestRenderUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
+	scope := codegen.NewNameScope()
+	loc := &codegen.Location{
+		RelImportPath: "gen/service",
+	}
+	data := buildUnionTypeData(makeTaggedUnionForTagTest(), scope, loc)
+
+	body := renderUnionUnmarshalFormBody(data)
+
+	require.Contains(t, body, `return loom.InvalidEnumValueError("type", rawType, []any{`)
+	require.NotContains(t, body, `unexpected Selection type`)
+}
+
 func collectServiceUnionTypeNames(att *expr.AttributeExpr, loc *codegen.Location) map[string]string {
 	scope := codegen.NewNameScope()
 	seen := make(map[string]struct{})
