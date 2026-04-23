@@ -287,4 +287,3 @@ func TestAttributeExprIsPrimitivePointer(t *testing.T) {
 		}()
 	}
 }
-

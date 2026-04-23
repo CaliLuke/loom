@@ -28,8 +28,9 @@ func UnionToObject(att *AttributeExpr) *AttributeExpr {
 	vals := make([]string, len(values))
 	bases := make([]DataType, len(values))
 	for i, nat := range values {
-		names[i] = nat.Name
-		vals[i] = fmt.Sprintf("- %q", nat.Name)
+		tag := UnionVariantTag(nat)
+		names[i] = tag
+		vals[i] = fmt.Sprintf("- %q", tag)
 		bases[i] = nat.Attribute.Type
 	}
 	obj := Object([]*NamedAttributeExpr{

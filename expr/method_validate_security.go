@@ -162,4 +162,3 @@ func (m *MethodExpr) isTransportOwnedCookieScheme(s *SchemeExpr) bool {
 	}
 	return false
 }
-

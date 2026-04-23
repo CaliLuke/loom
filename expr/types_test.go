@@ -391,4 +391,3 @@ func TestIsMap(t *testing.T) {
 		}
 	}
 }
-

@@ -70,6 +70,7 @@ func TestInlineJSONSchema(t *testing.T) {
 		data := mustInlineJSONSchema(t, union)
 
 		require.Equal(t, "object", data["type"])
+		require.Equal(t, map[string]any{"propertyName": "type"}, data["discriminator"])
 		oneOf := data["oneOf"].([]any)
 		require.Len(t, oneOf, 2)
 
@@ -203,6 +204,48 @@ func TestInlineJSONSchema(t *testing.T) {
 		labels := props["labels"].(map[string]any)
 		require.Equal(t, "object", labels["type"])
 		require.Equal(t, "boolean", labels["additionalProperties"].(map[string]any)["type"])
+	})
+
+	t.Run("preserves wrapper metadata for user types", func(t *testing.T) {
+		userType := &UserTypeExpr{
+			TypeName: "Wrapped",
+			AttributeExpr: &AttributeExpr{
+				Type: &Object{
+					&NamedAttributeExpr{Name: "id", Attribute: &AttributeExpr{Type: String}},
+				},
+			},
+		}
+		attr := &AttributeExpr{
+			Type:        userType,
+			Description: "wrapper description",
+			Validation: &ValidationExpr{
+				Required: []string{"id"},
+			},
+		}
+
+		data := mustInlineJSONSchema(t, attr)
+
+		require.Equal(t, "wrapper description", data["description"])
+		require.ElementsMatch(t, []any{"id"}, data["required"].([]any))
+	})
+
+	t.Run("rejects recursive user types", func(t *testing.T) {
+		recursive := &UserTypeExpr{TypeName: "Node"}
+		recursive.AttributeExpr = &AttributeExpr{
+			Type: &Object{
+				&NamedAttributeExpr{
+					Name: "next",
+					Attribute: &AttributeExpr{
+						Type: recursive,
+					},
+				},
+			},
+		}
+
+		_, err := InlineJSONSchema(&AttributeExpr{Type: recursive})
+
+		require.Error(t, err)
+		require.ErrorContains(t, err, "recursive")
 	})
 }
 

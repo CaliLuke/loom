@@ -6,7 +6,6 @@ import (
 	"github.com/CaliLuke/loom/eval"
 )
 
-
 // Validate tests whether the attribute required fields exist.  Since attributes
 // are unaware of their context, additional context information can be provided
 // to be used in error messages.  The parent definition context is automatically

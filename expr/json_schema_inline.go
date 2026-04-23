@@ -1,6 +1,9 @@
 package expr
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type (
 	// InlineSchema represents a fully inlined JSON Schema document derived from
@@ -16,6 +19,7 @@ type (
 		Properties           map[string]*InlineSchema `json:"properties,omitempty"`
 		OneOf                []*InlineSchema          `json:"oneOf,omitempty"`
 		AnyOf                []*InlineSchema          `json:"anyOf,omitempty"`
+		Discriminator        *InlineDiscriminator     `json:"discriminator,omitempty"`
 		Items                *InlineSchema            `json:"items,omitempty"`
 		AdditionalProperties any                      `json:"additionalProperties,omitempty"`
 		Enum                 []any                    `json:"enum,omitempty"`
@@ -28,6 +32,13 @@ type (
 		Format               string                   `json:"format,omitempty"`
 		MinItems             *int                     `json:"minItems,omitempty"`
 		MaxItems             *int                     `json:"maxItems,omitempty"`
+	}
+
+	// InlineDiscriminator mirrors the JSON Schema/OpenAPI discriminator object.
+	//
+	//nolint:tagliatelle // JSON Schema uses camelCase field names.
+	InlineDiscriminator struct {
+		PropertyName string `json:"propertyName,omitempty"`
 	}
 )
 
@@ -49,15 +60,19 @@ func InlineJSONSchema(attr *AttributeExpr) ([]byte, error) {
 			AdditionalProperties: false,
 		})
 	}
-	return json.Marshal(buildInlineJSONSchema(attr))
+	schema, err := buildInlineJSONSchema(attr, make(map[any]struct{}))
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(schema)
 }
 
-func buildInlineJSONSchema(attr *AttributeExpr) *InlineSchema {
+func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}) (*InlineSchema, error) {
 	if attr == nil || attr.Type == nil {
 		return &InlineSchema{
 			Type:                 jsonTypeObject,
 			AdditionalProperties: false,
-		}
+		}, nil
 	}
 
 	schema := &InlineSchema{
@@ -69,21 +84,29 @@ func buildInlineJSONSchema(attr *AttributeExpr) *InlineSchema {
 	case Primitive:
 		schema.Type = primitiveToInlineJSONType(dt)
 	case *Array:
-		populateInlineArraySchema(schema, attr, dt)
+		if err := populateInlineArraySchema(schema, attr, dt, visited); err != nil {
+			return nil, err
+		}
 	case *Map:
-		populateInlineMapSchema(schema, dt)
+		if err := populateInlineMapSchema(schema, dt, visited); err != nil {
+			return nil, err
+		}
 	case *Union:
-		populateInlineUnionSchema(schema, dt)
+		if err := populateInlineUnionSchema(schema, dt, visited); err != nil {
+			return nil, err
+		}
 	case *Object:
-		populateInlineObjectSchema(schema, attr, dt)
+		if err := populateInlineObjectSchema(schema, attr, dt, visited); err != nil {
+			return nil, err
+		}
 	case UserType:
-		return buildInlineJSONSchema(dt.Attribute())
+		return inlineWrappedJSONSchema(attr, dt.Attribute(), visited, dt, dt.Name())
 	default:
 		schema.Type = jsonTypeObject
 		schema.AdditionalProperties = false
 	}
 
-	return schema
+	return schema, nil
 }
 
 func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr) {
@@ -124,10 +147,14 @@ func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr) {
 	}
 }
 
-func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Array) {
+func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Array, visited map[any]struct{}) error {
 	schema.Type = jsonTypeArray
 	if dt.ElemType != nil {
-		schema.Items = buildInlineJSONSchema(dt.ElemType)
+		items, err := buildInlineJSONSchema(dt.ElemType, visited)
+		if err != nil {
+			return err
+		}
+		schema.Items = items
 	}
 	if v := attr.Validation; v != nil {
 		if v.MinLength != nil {
@@ -139,23 +166,34 @@ func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Ar
 			schema.MaxLength = nil
 		}
 	}
+	return nil
 }
 
-func populateInlineMapSchema(schema *InlineSchema, dt *Map) {
+func populateInlineMapSchema(schema *InlineSchema, dt *Map, visited map[any]struct{}) error {
 	schema.Type = jsonTypeObject
 	if dt.ElemType != nil {
-		schema.AdditionalProperties = buildInlineJSONSchema(dt.ElemType)
+		properties, err := buildInlineJSONSchema(dt.ElemType, visited)
+		if err != nil {
+			return err
+		}
+		schema.AdditionalProperties = properties
 	} else {
 		schema.AdditionalProperties = true
 	}
+	return nil
 }
 
-func populateInlineUnionSchema(schema *InlineSchema, dt *Union) {
+func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]struct{}) error {
 	typeKey := dt.GetTypeKey()
 	valueKey := dt.GetValueKey()
 	schema.Type = jsonTypeObject
 	schema.OneOf = make([]*InlineSchema, 0, len(dt.Values))
+	schema.Discriminator = &InlineDiscriminator{PropertyName: typeKey}
 	for _, val := range dt.Values {
+		valueSchema, err := buildInlineJSONSchema(val.Attribute, visited)
+		if err != nil {
+			return err
+		}
 		schema.OneOf = append(schema.OneOf, &InlineSchema{
 			Type: jsonTypeObject,
 			Properties: map[string]*InlineSchema{
@@ -163,23 +201,94 @@ func populateInlineUnionSchema(schema *InlineSchema, dt *Union) {
 					Type: jsonTypeString,
 					Enum: []any{UnionVariantTag(val)},
 				},
-				valueKey: buildInlineJSONSchema(val.Attribute),
+				valueKey: valueSchema,
 			},
 			Required:             []string{typeKey, valueKey},
 			AdditionalProperties: false,
 		})
 	}
+	return nil
 }
 
-func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *Object) {
+func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *Object, visited map[any]struct{}) error {
 	schema.Type = jsonTypeObject
 	schema.Properties = make(map[string]*InlineSchema, len(*dt))
 	for _, nat := range *dt {
-		schema.Properties[nat.Name] = buildInlineJSONSchema(nat.Attribute)
+		property, err := buildInlineJSONSchema(nat.Attribute, visited)
+		if err != nil {
+			return err
+		}
+		schema.Properties[nat.Name] = property
 	}
 	schema.AdditionalProperties = false
 	if attr.Validation != nil && len(attr.Validation.Required) > 0 {
 		schema.Required = attr.Validation.Required
+	}
+	return nil
+}
+
+func inlineWrappedJSONSchema(wrapper *AttributeExpr, inner *AttributeExpr, visited map[any]struct{}, identity any, typeName string) (*InlineSchema, error) {
+	if _, ok := visited[identity]; ok {
+		return nil, fmt.Errorf("recursive user type %q cannot be converted to inline JSON Schema", typeName)
+	}
+	visited[identity] = struct{}{}
+	defer delete(visited, identity)
+
+	schema, err := buildInlineJSONSchema(inner, visited)
+	if err != nil {
+		return nil, err
+	}
+	applyInlineWrapperMetadata(schema, wrapper)
+	return schema, nil
+}
+
+func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) {
+	if schema == nil || attr == nil {
+		return
+	}
+	if attr.Description != "" {
+		schema.Description = attr.Description
+	}
+	if attr.DefaultValue != nil {
+		schema.Default = CanonicalizeExample(attr, attr.DefaultValue)
+	}
+	if attr.Validation == nil {
+		return
+	}
+	v := attr.Validation
+	if len(v.Values) > 0 {
+		schema.Enum = v.Values
+	}
+	if v.Minimum != nil {
+		schema.Minimum = v.Minimum
+	}
+	if v.Maximum != nil {
+		schema.Maximum = v.Maximum
+	}
+	if v.MinLength != nil {
+		schema.MinLength = v.MinLength
+	}
+	if v.MaxLength != nil {
+		schema.MaxLength = v.MaxLength
+	}
+	if v.Pattern != "" {
+		schema.Pattern = v.Pattern
+	}
+	if v.Format != "" {
+		schema.Format = string(v.Format)
+	}
+	if len(v.Required) > 0 {
+		schema.Required = v.Required
+	}
+	if schema.Type == jsonTypeArray {
+		if v.MinLength != nil {
+			schema.MinItems = v.MinLength
+			schema.MinLength = nil
+		}
+		if v.MaxLength != nil {
+			schema.MaxItems = v.MaxLength
+			schema.MaxLength = nil
+		}
 	}
 }
 

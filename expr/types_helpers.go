@@ -107,4 +107,3 @@ func Equal(dt, dt2 DataType) bool {
 }
 
 // DataType implementation
-
