@@ -187,21 +187,7 @@ The repo-managed pre-push hook runs `make lint`, and `make lint` now includes th
 
 ## Real-World Examples
 
-The examples package is being rebuilt under Loom branding. Until that lands, the checked-in fixtures and integration tests in this repo are the most accurate working references.
-
-- **Basic**: Simple service showcasing core Loom concepts
-- **Cellar**: A more complete REST API example
-- **Cookies**: HTTP cookie management
-- **Encodings**: Working with different content types
-- **Error**: Comprehensive error handling strategies
-- **Files & Upload/Download**: File handling capabilities
-- **HTTP Status**: Custom status code handling
-- **Interceptors**: Request/response processing middleware
-- **Multipart**: Handling multipart form submissions
-- **Security**: Authentication and authorization examples
-- **Streaming**: Implementing streaming endpoints (HTTP, WebSocket, JSON-RPC SSE)
-- **Tracing**: Integrating with observability tools
-- **TUS**: Resumable file uploads implementation
+Coming soon...
 
 ## Community & Support
 
