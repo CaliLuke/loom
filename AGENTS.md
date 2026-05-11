@@ -57,6 +57,9 @@ No commented-out code—delete dead code.
 ### Documentation
 
 - Every exported type, function, method, and field must have a GoDoc comment explaining its contract—like Go stdlib documentation.
+- Public user documentation belongs under `docs/`.
+- Active framework plans belong under `roadmap/`; keep only live, framework-owned work there.
+- Do not add dated root-level review or improvement notes. Fold durable guidance into `roadmap/` or `docs/`, then remove the temporary note.
 
 ### Safety & Forbidden Operations
 
@@ -107,7 +110,7 @@ No commented-out code—delete dead code.
   - event-type compatibility for protocol-level errors
   - compile-after-generation of the emitted fixture app
   - any branch-specific connection timing semantics the fixture actually supports
-- For new or changed `loom` framework capabilities, use the [`framework-capability` skill](/Users/luca/code/loom/.agents/skills/framework-capability/SKILL.md).
+- For new or changed `loom` framework capabilities, use the [`framework-capability` skill](/Users/luca/code/loom-mono/loom/.agents/skills/framework-capability/SKILL.md).
 
 ---
 

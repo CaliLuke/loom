@@ -13,7 +13,6 @@ Reduce application design-file glue while making the default security posture cl
   - `BearerTransport(...)`
   - `CookieTransport(...)`
   - `SessionSecurity(...)`
-  - design note: [Multi-Transport Session Auth](./multi_transport_session_auth.md)
 - Auto-inject session auth payload fields.
 - Infer HTTP cookie bindings for session auth.
 - Allow cookie-only session auth to stay transport-owned with

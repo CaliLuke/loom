@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"regexp"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (
@@ -103,15 +103,15 @@ func HTTP(logCtx context.Context, opts ...HTTPLogOption) func(http.Handler) http
 	}
 }
 
-// Endpoint is a Goa endpoint middleware that adds the service and method names
+// Endpoint is a Loom endpoint middleware that adds the service and method names
 // to the logged key/value pairs.
-func Endpoint(e goa.Endpoint) goa.Endpoint {
+func Endpoint(e loom.Endpoint) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
-		if s := ctx.Value(goa.ServiceKey); s != nil {
-			ctx = With(ctx, KV{K: GoaServiceKey, V: s})
+		if s := ctx.Value(loom.ServiceKey); s != nil {
+			ctx = With(ctx, KV{K: LoomServiceKey, V: s})
 		}
-		if m := ctx.Value(goa.MethodKey); m != nil {
-			ctx = With(ctx, KV{K: GoaMethodKey, V: m})
+		if m := ctx.Value(loom.MethodKey); m != nil {
+			ctx = With(ctx, KV{K: LoomMethodKey, V: m})
 		}
 		return e(ctx, req)
 	}

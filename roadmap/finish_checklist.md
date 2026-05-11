@@ -40,7 +40,7 @@ The finish line is not "more ideas remain". The finish line is:
 
 - [ ] Point a temporary downstream generation run at the cleaned `loom`.
 - [ ] Regenerate outside the repo tree, not into checked-in `gen/`.
-- [ ] Compare the result against the current pinned output with `/Users/luca/code/loom/scripts/compare_regen.sh`.
+- [ ] Compare the result against the current pinned output with `/Users/luca/code/loom-mono/loom/scripts/compare_regen.sh`.
 - [ ] Confirm the remaining drift is intentional contract drift, not transport or codegen regression.
 
 ## E. Replace Real Design Glue In A Consumer
@@ -73,7 +73,7 @@ The finish line is not "more ideas remain". The finish line is:
 
 ## H. Actual Swap
 
-- [ ] Repin the target downstream repo(s) from the upstream fork to `loom`.
+- [ ] Repin the target downstream repo(s) to `loom`.
 - [ ] Regenerate the checked-in `gen/` tree.
 - [ ] Run app tests and integration checks.
 - [ ] Commit the swap as its own isolated change.

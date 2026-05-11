@@ -77,7 +77,6 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenTelemetry V2 now adds a framework-owned observability package in `github.com/CaliLuke/loom/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
 - Session auth DSL and derived auth/session transport behavior.
-  See [Multi-Transport Session Auth](./multi_transport_session_auth.md).
 - Per-cookie response model and improved `Set-Cookie` OpenAPI output.
 - Stable OpenAPI schema naming and canonical `operationId` generation.
 - `http/codegen/openapi/v3` now carries a non-trivial `meal-planner` specimen that closes the loop with rendered-spec assertions plus Redocly lint for auth, forms, multipart, union wrappers, views, and SSE.
@@ -121,9 +120,8 @@ These items are prioritized based on two goals:
 1. Generated projection parity tests and guardrails
    See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
 
-2. OpenAPI framework contract improvements
-   See [OpenAPI Contract](./openapi_contract.md) and
-   [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md).
+2. Generated transport observability
+   See [Generated Transport Observability](./generated_transport_observability.md).
 
 3. Refactor follow-up test backlog
    The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.
@@ -151,20 +149,10 @@ These items are prioritized based on two goals:
 ## Roadmap Index
 
 - [Finish Checklist](./finish_checklist.md)
-- [OpenAPI Contract](./openapi_contract.md)
-- [Auto-K OpenAPI Contract Checklist](./autok_openapi_contract_checklist.md)
-- [OpenAPI Union Discriminators](./openapi_union_discriminators.md)
-- [OpenAPI Schema Deduplication](./openapi_schema_dedup.md)
-- [OpenAPI Closed Object Mode](./openapi_closed_object_mode.md)
 - [Auth and Session](./auth_and_session.md)
-- [Multi-Transport Session Auth](./multi_transport_session_auth.md)
-- [Multipart Object Decoding](./multipart_object_decoding.md)
-- [Optional JSON Bodies](./optional_json_bodies.md)
-- [Form URL Encoded Decoding](./form_urlencoded_decoding.md)
-- [Generated Transport Projections](./generated_transport_projections.md)
+- [Generated Transport Observability](./generated_transport_observability.md)
 - [Generated Projection Parity Tests](./generated_projection_parity_tests.md)
-- [OpenTelemetry Instrumentation](./opentelemetry.md)
-- [OpenTelemetry V2](./opentelemetry_v2.md)
+- [Refactor Checklist](./refactor_checklist.md)
 
 ## Definition Of Finished
 

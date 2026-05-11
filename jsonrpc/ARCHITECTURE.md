@@ -37,7 +37,7 @@ f := httpcodegen.ServerEncodeDecodeFile(genpkg, svc, data)
 for _, s := range f.SectionTemplates {
     // Add JSON-RPC imports
     if s.Name == "source-header" {
-        codegen.AddImport(s, codegen.GoaImport("jsonrpc"))
+        codegen.AddImport(s, codegen.LoomImport("jsonrpc"))
     }
     
     // Modify signatures for JSON-RPC context

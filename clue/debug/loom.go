@@ -3,12 +3,12 @@ package debug
 import (
 	"net/http"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
-// muxAdapter is a debug.Muxer adapter for goahttp.Muxer.
+// muxAdapter is a debug.Muxer adapter for loomhttp.Muxer.
 type muxAdapter struct {
-	muxer goahttp.Muxer
+	muxer loomhttp.Muxer
 }
 
 // HTTP methods supported by the adapter.
@@ -24,8 +24,8 @@ var httpMethods = []string{
 	http.MethodTrace,
 }
 
-// Adapt returns a debug.Muxer adapter for the given goahttp.Muxer.
-func Adapt(m goahttp.Muxer) Muxer {
+// Adapt returns a debug.Muxer adapter for the given loomhttp.Muxer.
+func Adapt(m loomhttp.Muxer) Muxer {
 	return muxAdapter{muxer: m}
 }
 

@@ -1,0 +1,590 @@
+---
+title: Code Generation
+weight: 3
+description: "Complete guide to Loom's code generation - commands, process, generated code structure, and customization options."
+llm_optimized: true
+aliases:
+---
+
+Loom's code generation transforms your design into production-ready service
+interfaces, endpoints, transport adapters, clients, and API contracts. The
+`loom example` command can scaffold runnable starter implementations, but the
+business logic stays in files you own.
+
+
+
+## Command Line Tools
+
+### Installation
+
+```bash
+go install github.com/CaliLuke/loom/cmd/loom@latest
+```
+
+### Commands
+
+All commands expect Go package import paths, not filesystem paths:
+
+```bash
+# Correct: using Go package import path
+loom gen github.com/CaliLuke/loom-examples/calc/design
+
+# Incorrect: using filesystem path
+loom gen ./design
+```
+
+#### Generate Code (`loom gen`)
+
+```bash
+loom gen <design-package-import-path> [-o <output-dir>] [--debug]
+```
+
+The primary command for code generation:
+- Processes your design package and generates implementation code
+- Recreates the entire `gen/` directory from scratch each time
+- Run after every design change
+
+#### Create Example (`loom example`)
+
+```bash
+loom example <design-package-import-path> [-o <output-dir>] [--debug]
+```
+
+A scaffolding command:
+- Creates a one-time example implementation
+- Generates handler stubs with example logic
+- Run once when starting a new project
+- Will NOT overwrite existing custom implementation
+
+#### Show Version
+
+```bash
+loom version
+```
+
+### Development Workflow
+
+1. Create initial design
+2. Run `loom gen` to generate base code
+3. Run `loom example` to create implementation stubs
+4. Implement your service logic
+5. Run `loom gen` after every design change
+
+**Best Practice:** Commit generated code to version control rather than generating during CI/CD. This ensures reproducible builds and allows tracking changes in generated code.
+
+---
+
+## Generation Process
+
+When you run `loom gen`, Loom follows a systematic process:
+
+### 1. Bootstrap Phase
+
+Loom creates a temporary `main.go` that:
+- Imports Loom packages and your design package
+- Runs DSL evaluation
+- Triggers code generation
+
+### 2. Design Evaluation
+
+- DSL functions execute to create expression objects
+- Expressions combine into a complete API model
+- Relationships between expressions are established
+- Design rules and constraints are validated
+
+### 3. Code Generation
+
+- Validated expressions pass to code generators
+- Templates render to produce code files
+- Output writes to the `gen/` directory
+
+---
+
+## Generated Project Structure
+
+A typical project after `loom gen` and `loom example` depends on the transports
+used in the design. A service with HTTP and gRPC enabled looks like this:
+
+```
+myservice/
+├── cmd/                    # Example commands you can customize
+│   └── calc/
+│       ├── grpc.go
+│       └── http.go
+├── design/                 # Your design files
+│   └── design.go
+├── gen/                    # Generated code (don't edit)
+│   ├── calc/               # Service-specific code
+│   │   ├── client.go
+│   │   ├── endpoints.go
+│   │   └── service.go
+│   ├── http/               # HTTP transport layer
+│   │   ├── calc/
+│   │   │   ├── client/
+│   │   │   └── server/
+│   │   ├── openapi.json
+│   │   └── openapi.yaml
+│   └── grpc/               # gRPC transport layer
+│       └── calc/
+│           ├── client/
+│           ├── server/
+│           └── pb/
+└── myservice.go            # Your service implementation
+```
+
+### Service Interfaces
+
+Generated in `gen/<service>/service.go`:
+
+```go
+// Service interface defines the API contract
+type Service interface {
+    Add(context.Context, *AddPayload) (res int, err error)
+    Multiply(context.Context, *MultiplyPayload) (res int, err error)
+}
+
+// Payload types
+type AddPayload struct {
+    A int32
+    B int32
+}
+
+// Constants for observability
+const ServiceName = "calc"
+var MethodNames = [2]string{"add", "multiply"}
+```
+
+### Endpoint Layer
+
+Generated in `gen/<service>/endpoints.go`:
+
+```go
+// Endpoints wraps service methods in transport-agnostic endpoints
+type Endpoints struct {
+    Add      loom.Endpoint
+    Multiply loom.Endpoint
+}
+
+// NewEndpoints creates endpoints from service implementation
+func NewEndpoints(s Service) *Endpoints {
+    return &Endpoints{
+        Add:      NewAddEndpoint(s),
+        Multiply: NewMultiplyEndpoint(s),
+    }
+}
+
+// Use applies middleware to all endpoints
+func (e *Endpoints) Use(m func(loom.Endpoint) loom.Endpoint) {
+    e.Add = m(e.Add)
+    e.Multiply = m(e.Multiply)
+}
+```
+
+Endpoint middleware example:
+
+```go
+func LoggingMiddleware(next loom.Endpoint) loom.Endpoint {
+    return func(ctx context.Context, req any) (res any, err error) {
+        log.Printf("request: %v", req)
+        res, err = next(ctx, req)
+        log.Printf("response: %v", res)
+        return
+    }
+}
+
+endpoints.Use(LoggingMiddleware)
+```
+
+### Client Code
+
+Generated in `gen/<service>/client.go`:
+
+```go
+// Client provides typed methods for service calls
+type Client struct {
+    AddEndpoint      loom.Endpoint
+    MultiplyEndpoint loom.Endpoint
+}
+
+func NewClient(add, multiply loom.Endpoint) *Client {
+    return &Client{
+        AddEndpoint:      add,
+        MultiplyEndpoint: multiply,
+    }
+}
+
+func (c *Client) Add(ctx context.Context, p *AddPayload) (res int, err error) {
+    ires, err := c.AddEndpoint(ctx, p)
+    if err != nil {
+        return
+    }
+    return ires.(int), nil
+}
+```
+
+---
+
+## HTTP Code Generation
+
+### Server Implementation
+
+Generated in `gen/http/<service>/server/server.go`:
+
+```go
+func New(
+    e *calc.Endpoints,
+    mux loomhttp.Muxer,
+    decoder func(*http.Request) loomhttp.Decoder,
+    encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
+    errhandler func(context.Context, http.ResponseWriter, error),
+    formatter func(ctx context.Context, err error) loomhttp.Statuser,
+) *Server
+
+// Server exposes handlers for modification
+type Server struct {
+    Mounts   []*MountPoint
+    Add      http.Handler
+    Multiply http.Handler
+}
+
+// Use applies HTTP middleware to all handlers
+func (s *Server) Use(m func(http.Handler) http.Handler)
+```
+
+Complete server setup:
+
+```go
+func main() {
+    svc := calc.New()
+    endpoints := gencalc.NewEndpoints(svc)
+    mux := loomhttp.NewMuxer()
+    server := genhttp.New(
+        endpoints,
+        mux,
+        loomhttp.RequestDecoder,
+        loomhttp.ResponseEncoder,
+        nil, nil)
+    genhttp.Mount(mux, server)
+    http.ListenAndServe(":8080", mux)
+}
+```
+
+### Client Implementation
+
+Generated in `gen/http/<service>/client/client.go`:
+
+```go
+func NewClient(
+    scheme string,
+    host string,
+    doer loomhttp.Doer,
+    enc func(*http.Request) loomhttp.Encoder,
+    dec func(*http.Response) loomhttp.Decoder,
+    restoreBody bool,
+) *Client
+```
+
+Complete client setup:
+
+```go
+func main() {
+    httpClient := genclient.NewClient(
+        "http",
+        "localhost:8080",
+        http.DefaultClient,
+        loomhttp.RequestEncoder,
+        loomhttp.ResponseDecoder,
+        false,
+    )
+
+    client := gencalc.NewClient(
+        httpClient.Add(),
+        httpClient.Multiply(),
+    )
+
+    result, err := client.Add(context.Background(), &gencalc.AddPayload{A: 1, B: 2})
+}
+```
+
+---
+
+## gRPC Code Generation
+
+### Protobuf Definition
+
+Generated in `gen/grpc/<service>/pb/`:
+
+```protobuf
+syntax = "proto3";
+package calc;
+
+service Calc {
+    rpc Add (AddRequest) returns (AddResponse);
+    rpc Multiply (MultiplyRequest) returns (MultiplyResponse);
+}
+
+message AddRequest {
+    int64 a = 1;
+    int64 b = 2;
+}
+```
+
+### Server Implementation
+
+```go
+func main() {
+    svc := calc.New()
+    endpoints := gencalc.NewEndpoints(svc)
+    svr := grpc.NewServer()
+    gensvr := gengrpc.New(endpoints, nil)
+    genpb.RegisterCalcServer(svr, gensvr)
+    lis, _ := net.Listen("tcp", ":8080")
+    svr.Serve(lis)
+}
+```
+
+### Client Implementation
+
+```go
+func main() {
+    conn, _ := grpc.Dial("localhost:8080",
+        grpc.WithTransportCredentials(insecure.NewCredentials()))
+    defer conn.Close()
+
+    grpcClient := genclient.NewClient(conn)
+    client := gencalc.NewClient(
+        grpcClient.Add(),
+        grpcClient.Multiply(),
+    )
+
+    result, _ := client.Add(context.Background(), &gencalc.AddPayload{A: 1, B: 2})
+}
+```
+
+---
+
+## Customization
+
+### Type Generation Control
+
+Force generation of types not directly referenced by methods:
+
+```go
+var MyType = Type("MyType", func() {
+    // Force generation in specific services
+    Meta("type:generate:force", "service1", "service2")
+    
+    // Or force generation in all services
+    Meta("type:generate:force")
+    
+    Attribute("name", String)
+})
+```
+
+### Package Organization
+
+Generate types in a shared package:
+
+```go
+var CommonType = Type("CommonType", func() {
+    Meta("struct:pkg:path", "types")
+    Attribute("id", String)
+})
+```
+
+Creates:
+```
+gen/
+└── types/
+    └── common_type.go
+```
+
+### Field Customization
+
+```go
+var Message = Type("Message", func() {
+    Attribute("id", String, func() {
+        // Override field name
+        Meta("struct:field:name", "ID")
+        
+        // Add custom struct tags
+        Meta("struct:tag:json", "id,omitempty")
+        Meta("struct:tag:msgpack", "id,omitempty")
+        
+        // Override type
+        Meta("struct:field:type", "bson.ObjectId", "github.com/globalsign/mgo/bson", "bson")
+    })
+})
+```
+
+### Protocol Buffer Customization
+
+```go
+var MyType = Type("MyType", func() {
+    // Override protobuf message name
+    Meta("struct:name:proto", "CustomProtoType")
+    
+    Field(1, "status", Int32, func() {
+        // Override protobuf field type
+        Meta("struct:field:proto", "int32")
+    })
+
+    // Use Google's timestamp type
+    Field(2, "created_at", String, func() {
+        Meta("struct:field:proto", 
+            "google.protobuf.Timestamp",
+            "google/protobuf/timestamp.proto",
+            "Timestamp",
+            "google.golang.org/protobuf/types/known/timestamppb")
+    })
+})
+
+// Specify protoc include paths
+var _ = API("calc", func() {
+    Meta("protoc:include", "/usr/include", "/usr/local/include")
+})
+
+// Override the protoc command for one gRPC service
+var _ = Service("calc", func() {
+    Meta("protoc:cmd", "/usr/bin/protoc", "--fatal_warnings")
+})
+```
+
+### OpenAPI Customization
+
+```go
+var _ = API("MyAPI", func() {
+    // Control generation
+    Meta("openapi:generate", "false")
+    
+    // Format JSON output
+    Meta("openapi:json:prefix", "  ")
+    Meta("openapi:json:indent", "  ")
+    
+    // Disable example generation
+    Meta("openapi:example", "false")
+})
+
+var _ = Service("UserService", func() {
+    // Add tags
+    HTTP(func() {
+        Meta("openapi:tag:Users")
+        Meta("openapi:tag:Backend:desc", "Backend API Operations")
+    })
+    
+    Method("CreateUser", func() {
+        // Custom operation ID
+        Meta("openapi:operationId", "{service}.{method}")
+        
+        // Custom summary
+        Meta("openapi:summary", "Create a new user")
+        
+        HTTP(func() {
+            // Add extensions
+            Meta("openapi:extension:x-rate-limit", `{"rate": 100}`)
+            POST("/users")
+        })
+    })
+})
+
+var User = Type("User", func() {
+    // Override type name in OpenAPI spec
+    Meta("openapi:typename", "CustomUser")
+})
+```
+
+---
+
+## Types and Validation
+
+### Validation Enforcement
+
+Loom validates data at system boundaries:
+- **Server-side**: Validates incoming requests
+- **Client-side**: Validates incoming responses
+- **Internal code**: Trusted to maintain invariants
+
+### Pointer Rules for Struct Fields
+
+| Properties | Payload/Result | Request Body (Server) | Response Body (Server) |
+|------------|---------------|----------------------|---------------------|
+| Required OR Default | Direct (-) | Pointer (*) | Direct (-) |
+| Not Required, No Default | Pointer (*) | Pointer (*) | Pointer (*) |
+
+Special types:
+- **Objects (structs)**: Always use pointers
+- **Arrays and Maps**: Never use pointers (already reference types)
+
+Example:
+```go
+type Person struct {
+    Name     string             // required, direct value
+    Age      *int               // optional, pointer
+    Hobbies  []string           // array, no pointer
+    Metadata map[string]string  // map, no pointer
+}
+```
+
+### Default Value Handling
+
+- **Marshaling**: Default values initialize nil arrays/maps
+- **Unmarshaling**: Default values apply to missing optional fields (not missing required fields)
+
+---
+
+## Views and Result Types
+
+Views control how result types are rendered in responses.
+
+### How Views Work
+
+1. Service method includes a view parameter
+2. A views package is generated at the service level
+3. View-specific validation is automatically generated
+
+### Server-Side Response
+
+1. Viewed result type is marshalled
+2. Nil attributes are omitted
+3. View name is passed in "loom-view" header
+
+### Client-Side Response
+
+1. Response is unmarshalled
+2. Transformed into viewed result type
+3. View name extracted from "loom-view" header
+4. View-specific validation performed
+5. Converted back to service result type
+
+### Projection Helpers
+
+For `ResultType` and `View` designs, Loom generates exported projection helpers
+in the service package. These helpers convert canonical result values to view
+types and view values back to canonical result types. They are used by generated
+wrappers such as `NewViewed...` and by transport encoders/decoders, which keeps
+HTTP, gRPC, and JSON-RPC projections aligned with the canonical result model.
+Projection generation is recursive across nested structs, slices, maps, unions,
+collections, and optional fields.
+
+### Default View
+
+If no views are defined, Loom adds a "default" view that includes all basic fields.
+
+---
+
+## Extension Points
+
+Loom's active extension points are the DSL, transport code generators, template
+sections, and runtime middleware. The old external plugin examples are not
+part of this repository. Add new generated behavior in the relevant generator
+package (`http/codegen`, `grpc/codegen`, `jsonrpc/codegen`, or shared
+`codegen`) and keep generated files reproducible from the design package.
+
+---
+
+## See Also
+
+- [DSL Reference](dsl-reference.md) — Complete DSL reference for design files
+- [HTTP Guide](http-guide.md) — HTTP transport features and customization
+- [gRPC Guide](grpc-guide.md) — gRPC transport features and Protocol Buffers
+- [Quickstart](quickstart.md) — Getting started with code generation

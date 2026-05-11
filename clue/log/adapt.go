@@ -27,8 +27,8 @@ type (
 		context.Context
 	}
 
-	// goaLogger is a Goa middleware compatible logger.
-	goaLogger struct {
+	// middlewareLogger is a Loom middleware compatible logger.
+	middlewareLogger struct {
 		context.Context
 	}
 
@@ -42,17 +42,17 @@ type (
 // NameKey is the key used to log the name of the logger.
 const NameKey = "log"
 
-// AsGoaMiddlewareLogger creates a middleware-compatible logger that can be used
+// AsLoomMiddlewareLogger creates a middleware-compatible logger that can be used
 // when configuring generated HTTP or gRPC servers.
 //
 // Usage:
 //
 //	// HTTP server:
-//	import goahttp "github.com/CaliLuke/loom/http"
+//	import loomhttp "github.com/CaliLuke/loom/http"
 //	import httpmdlwr "github.com/CaliLuke/loom/http/middleware"
 //	...
-//	mux := goahttp.NewMuxer()
-//	handler := httpmdlwr.LogContext(log.AsGoaMiddlewareLogger)(mux)
+//	mux := loomhttp.NewMuxer()
+//	handler := httpmdlwr.LogContext(log.AsLoomMiddlewareLogger)(mux)
 //
 //	// gRPC server:
 //	import "google.golang.org/grpc"
@@ -60,13 +60,13 @@ const NameKey = "log"
 //	import grpcmdlwr "github.com/CaliLuke/loom/grpc/middleware"
 //	...
 //	srv := grpc.NewServer(
-//	    grpcmiddleware.WithUnaryServerChain(grpcmdlwr.UnaryServerLogContext(log.AsGoaMiddlewareLogger)),
+//	    grpcmiddleware.WithUnaryServerChain(grpcmdlwr.UnaryServerLogContext(log.AsLoomMiddlewareLogger)),
 //	)
-func AsGoaMiddlewareLogger(ctx context.Context) MiddlewareLogger {
-	return goaLogger{ctx}
+func AsLoomMiddlewareLogger(ctx context.Context) MiddlewareLogger {
+	return middlewareLogger{ctx}
 }
 
-// AsStdLogger adapts a Goa logger to a stdlib compatible logger.
+// AsStdLogger adapts a Loom logger to a stdlib compatible logger.
 func AsStdLogger(ctx context.Context) *StdLogger {
 	return &StdLogger{ctx}
 }
@@ -212,7 +212,7 @@ func (l *LogrSink) WithName(name string) logr.LogSink {
 }
 
 // Log creates a log entry using a sequence of key/value pairs.
-func (l goaLogger) Log(keyvals ...any) error {
+func (l middlewareLogger) Log(keyvals ...any) error {
 	n := (len(keyvals) + 1) / 2
 	if len(keyvals)%2 != 0 {
 		keyvals = append(keyvals, "MISSING")

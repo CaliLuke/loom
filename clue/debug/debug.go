@@ -7,7 +7,7 @@ import (
 	"net/http/pprof"
 	"strings"
 
-	goa "github.com/CaliLuke/loom/pkg"
+	loom "github.com/CaliLuke/loom/pkg"
 
 	"github.com/CaliLuke/loom/clue/log"
 )
@@ -104,13 +104,13 @@ func MountPprofHandlers(mux Muxer, opts ...PprofOption) {
 	mux.Handle(o.prefix+"allocs", pprof.Handler("allocs"))
 }
 
-// LogPayloads returns a Goa endpoint middleware that logs request payloads and
+// LogPayloads returns a Loom endpoint middleware that logs request payloads and
 // response results using debug log entries.
 //
 // Note: this middleware marshals the request and response data using the
 // standard JSON marshaller. It only marshals if debug logs are enabled.
-func LogPayloads(opts ...LogPayloadsOption) func(goa.Endpoint) goa.Endpoint {
-	return func(next goa.Endpoint) goa.Endpoint {
+func LogPayloads(opts ...LogPayloadsOption) func(loom.Endpoint) loom.Endpoint {
+	return func(next loom.Endpoint) loom.Endpoint {
 		options := defaultLogPayloadsOptions()
 		for _, opt := range opts {
 			if opt != nil {

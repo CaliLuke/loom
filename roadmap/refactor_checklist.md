@@ -28,7 +28,7 @@ do not merge passes, and do not change behavior intentionally.
 
 ## Pass 1: Split HTTP Endpoint Validation
 
-Target: [expr/http_endpoint.go](/Users/luca/code/loom/expr/http_endpoint.go#L411)
+Target: [expr/http_endpoint.go](/Users/luca/code/loom-mono/loom/expr/http_endpoint.go#L411)
 
 ### Required coverage
 
@@ -67,7 +67,7 @@ Target: [expr/http_endpoint.go](/Users/luca/code/loom/expr/http_endpoint.go#L411
 
 ## Pass 2: Decouple Generic Service Codegen From Transport Policy
 
-Target: [codegen/service/service_data.go](/Users/luca/code/loom/codegen/service/service_data.go#L1420)
+Target: [codegen/service/service_data.go](/Users/luca/code/loom-mono/loom/codegen/service/service_data.go#L1420)
 
 ### Required coverage
 
@@ -102,7 +102,7 @@ Target: [codegen/service/service_data.go](/Users/luca/code/loom/codegen/service/
 
 ## Pass 3: Decompose gRPC Service Analysis
 
-Target: [grpc/codegen/service_data.go](/Users/luca/code/loom/grpc/codegen/service_data.go#L444)
+Target: [grpc/codegen/service_data.go](/Users/luca/code/loom-mono/loom/grpc/codegen/service_data.go#L444)
 
 ### Required coverage
 
@@ -141,7 +141,7 @@ Target: [grpc/codegen/service_data.go](/Users/luca/code/loom/grpc/codegen/servic
 
 ## Pass 4: Simplify Protobuf Transform Generation
 
-Target: [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom/grpc/codegen/protobuf_transform.go#L106)
+Target: [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom-mono/loom/grpc/codegen/protobuf_transform.go#L106)
 
 ### Required coverage
 
@@ -174,7 +174,7 @@ Target: [grpc/codegen/protobuf_transform.go](/Users/luca/code/loom/grpc/codegen/
 
 ## Follow-On Cleanup: Split `dsl/http.go`
 
-Target: [dsl/http.go](/Users/luca/code/loom/dsl/http.go)
+Target: [dsl/http.go](/Users/luca/code/loom-mono/loom/dsl/http.go)
 
 This happens only after Passes 1-4 are complete and green.
 
@@ -209,6 +209,119 @@ This happens only after Passes 1-4 are complete and green.
   - [ ] `make lint`
 - [ ] Review `git diff` to confirm the work stayed behavior-preserving and did
       not accidentally edit generated `gen/` artifacts.
+
+## Opportunistic Follow-Up Triggers
+
+These are not active sweep work. Revisit them only when nearby code changes
+make the cost and value clear.
+
+### Shared Stream IR Across Transports
+
+Current state:
+
+- Partial sharing exists through `internal/ssecodegen` for SSE header emission
+  and write-and-flush helpers used by HTTP and JSON-RPC.
+- WebSocket codegen still duplicates frame-boundary logic, buffered reads, and
+  cancellation handling across HTTP and JSON-RPC.
+
+Trigger:
+
+- If a concrete SSE or WebSocket bug forces touching both HTTP and JSON-RPC
+  stream codegen in the same change, extract the shared fix into an internal
+  stream IR/helper package instead of applying it twice.
+
+Starting points:
+
+- `http/codegen/stream_sections_websocket_send.go`
+- `http/codegen/stream_sections_websocket_recv.go`
+- `jsonrpc/codegen/client_stream_sections_websocket.go`
+- `jsonrpc/codegen/stream_sections.go`
+
+### Template Source Composition
+
+Current state:
+
+- The HTTP `template_sources*.go` files are still below the rough 1000-line
+  ceiling.
+- A preemptive template registry would risk composition-order churn without a
+  concrete payoff.
+
+Trigger:
+
+- If a template source file crosses the ceiling, or request/response generation
+  gains a non-trivial shared partial, split that specific file with
+  `joinHTTPTemplateSource` instead of introducing a broad registry.
+
+### Base Service-Data Ownership
+
+Current state:
+
+- `ProtoImports` moved out of base `service.Data` into
+  `grpc/codegen.ServiceData.ProtoGoImports`.
+- No clearly transport-specific fields remain on base `service.Data` today.
+
+Trigger:
+
+- If a second transport-specific field accumulates on `service.Data`, revisit
+  whether transports should implement a smaller data interface rather than
+  continuing to embed and extend one base struct.
+
+### Codegen Helper Visibility
+
+Current state:
+
+- Some dead or in-package-only exported helpers have been downcased, but many
+  exported identifiers remain across `http/codegen`, `grpc/codegen`, and
+  `jsonrpc/codegen`.
+
+Trigger:
+
+- When touching an area of codegen for another reason, audit nearby exports and
+  downcase the ones that are provably in-package only. Avoid a broad sweep
+  until plugin/public API boundaries are explicitly classified.
+
+### DSL Evaluation Context Isolation
+
+Current state:
+
+- DSL evaluation still uses process-global `eval.Context`.
+- This is acceptable for the one-shot `loom gen` CLI flow, but it limits
+  concurrent independent evaluation and cleaner embedded/programmatic use.
+
+Trigger:
+
+- If Loom needs concurrent DSL runs, long-running embedded generation, or
+  stronger evaluator isolation in tests, introduce explicit evaluation context
+  plumbing instead of adding more behavior to the global context.
+
+Starting points:
+
+- `eval/context.go`
+- `eval/eval.go`
+- callers of `eval.Register`, `eval.RunDSL`, and `eval.Reset`
+
+### Import Alias Determinism
+
+Current state:
+
+- Import alias collision safety has direct regression coverage in
+  `codegen/import_alias_safety_test.go`.
+- Generated code still depends on readable deterministic aliases for trust and
+  reviewability when package names overlap.
+
+Trigger:
+
+- When generated imports or external type conversion code changes, add or
+  tighten cases that prove alias selection stays deterministic,
+  collision-free, and readable. Prefer stable aliases over opaque hash-heavy
+  names where a clear alias is available.
+
+Starting points:
+
+- `codegen/import_cleanup.go`
+- `codegen/service/convert_paths.go`
+- `codegen/service/convert_types.go`
+- `codegen/import_alias_safety_test.go`
 
 ## Done Criteria
 

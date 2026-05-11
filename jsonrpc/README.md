@@ -985,7 +985,7 @@ Service("universal", func() {
 
 - [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)
 - [Loom Repository](https://github.com/CaliLuke/loom)
-- [Example Services](https://github.com/goadesign/examples)
+- [Example Services](https://github.com/CaliLuke/loom-examples)
 - [Integration Tests](../jsonrpc/integration_tests)
 
 ## Summary

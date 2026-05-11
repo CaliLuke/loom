@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	goahttp "github.com/CaliLuke/loom/http"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 // Handler returns a HTTP handler that serves health check requests. The
@@ -13,9 +13,9 @@ import (
 // HTTP Accept header. The response status is 200 if chk.Check() returns
 // a nil error, 503 otherwise.
 func Handler(chk Checker) http.HandlerFunc {
-	encoder := goahttp.ResponseEncoder
+	encoder := loomhttp.ResponseEncoder
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		enc := encoder(ctx, w)
 		h, healthy := chk.Check(ctx)
 		if healthy {

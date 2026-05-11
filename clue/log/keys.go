@@ -20,6 +20,6 @@ var (
 	GRPCCodeKey     = "grpc.code"
 	GRPCStatusKey   = "grpc.status"
 	GRPCDurationKey = "grpc.time_ms"
-	GoaServiceKey   = "goa.service"
-	GoaMethodKey    = "goa.method"
+	LoomServiceKey  = "loom.service"
+	LoomMethodKey   = "loom.method"
 )
