@@ -10,8 +10,8 @@ import (
 	clock "example.com/http-ticktock/gen/clock"
 	clocksvr "example.com/http-ticktock/gen/http/clock/server"
 	loomhttp "github.com/CaliLuke/loom/http"
-	"goa.design/clue/debug"
-	"goa.design/clue/log"
+	"github.com/CaliLuke/loom/clue/debug"
+	"github.com/CaliLuke/loom/clue/log"
 )
 
 // handleHTTPServer starts configures and starts a HTTP server on the given

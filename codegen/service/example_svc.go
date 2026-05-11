@@ -70,7 +70,7 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 		{Path: "fmt"},
 		{Path: "strings"},
 		{Path: path.Join(genpkg, svcName), Name: data.PkgName},
-		{Path: "goa.design/clue/log"},
+		{Path: "github.com/CaliLuke/loom/clue/log"},
 		{Path: "github.com/CaliLuke/loom/security"},
 	}
 	sections := []codegen.Section{

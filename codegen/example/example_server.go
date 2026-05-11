@@ -44,7 +44,7 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 		{Path: "sync"},
 		{Path: "syscall"},
 		{Path: "time"},
-		{Path: "goa.design/clue/log"},
+		{Path: "github.com/CaliLuke/loom/clue/log"},
 	}
 
 	// Iterate through services listed in the server expression.

@@ -6,7 +6,7 @@ import (
 
 	clock "example.com/http-ticktock/gen/clock"
 	loom "github.com/CaliLuke/loom/pkg"
-	"goa.design/clue/log"
+	"github.com/CaliLuke/loom/clue/log"
 )
 
 type (

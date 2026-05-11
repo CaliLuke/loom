@@ -72,13 +72,13 @@ func grpcExampleNewServerArgs(service *ServiceData) []jen.Code {
 func appendGRPCExampleInterceptorSetup(g *jen.Group, needStream bool) {
 	g.Comment(codegenpkg.Comment("Create interceptor which sets up the logger in each request context."))
 	g.Id("chain").Op(":=").Qual("google.golang.org/grpc", "ChainUnaryInterceptor").Call(
-		jen.Qual("goa.design/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
+		jen.Qual("github.com/CaliLuke/loom/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
 	)
 	g.If(jen.Id("dbg")).Block(
 		jen.Comment(codegenpkg.Comment("Log request and response content if debug logs are enabled.")),
 		jen.Id("chain").Op("=").Qual("google.golang.org/grpc", "ChainUnaryInterceptor").Call(
-			jen.Qual("goa.design/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
-			jen.Qual("goa.design/clue/debug", "UnaryServerInterceptor").Call(),
+			jen.Qual("github.com/CaliLuke/loom/clue/log", "UnaryServerInterceptor").Call(jen.Id("ctx")),
+			jen.Qual("github.com/CaliLuke/loom/clue/debug", "UnaryServerInterceptor").Call(),
 		),
 	)
 	if !needStream {
@@ -86,12 +86,12 @@ func appendGRPCExampleInterceptorSetup(g *jen.Group, needStream bool) {
 		return
 	}
 	g.Id("streamchain").Op(":=").Qual("google.golang.org/grpc", "ChainStreamInterceptor").Call(
-		jen.Qual("goa.design/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
+		jen.Qual("github.com/CaliLuke/loom/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
 	)
 	g.If(jen.Id("dbg")).Block(
 		jen.Id("streamchain").Op("=").Qual("google.golang.org/grpc", "ChainStreamInterceptor").Call(
-			jen.Qual("goa.design/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
-			jen.Qual("goa.design/clue/debug", "StreamServerInterceptor").Call(),
+			jen.Qual("github.com/CaliLuke/loom/clue/log", "StreamServerInterceptor").Call(jen.Id("ctx")),
+			jen.Qual("github.com/CaliLuke/loom/clue/debug", "StreamServerInterceptor").Call(),
 		),
 	)
 	g.Line()
@@ -117,7 +117,7 @@ func appendGRPCExampleServerSetup(g *jen.Group, services []*ServiceData, needStr
 		jen.List(jen.Id("svc"), jen.Id("info")).Op(":=").Range().Id("srv").Dot("GetServiceInfo").Call(),
 	).Block(
 		jen.For(jen.List(jen.Id("_"), jen.Id("m")).Op(":=").Range().Id("info").Dot("Methods")).Block(
-			jen.Qual("goa.design/clue/log", "Printf").Call(
+			jen.Qual("github.com/CaliLuke/loom/clue/log", "Printf").Call(
 				jen.Id("ctx"),
 				jen.Lit("serving gRPC method %s"),
 				jen.Id("svc").Op("+").Lit("/").Op("+").Id("m").Dot("Name"),
@@ -144,11 +144,11 @@ func appendGRPCExampleServerRun(g *jen.Group) {
 			jen.If(jen.Id("lis").Op("==").Nil()).Block(
 				jen.Id("errc").Op("<-").Qual("fmt", "Errorf").Call(jen.Lit("failed to listen on %q"), jen.Id("u").Dot("Host")),
 			),
-			jen.Qual("goa.design/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("gRPC server listening on %q"), jen.Id("u").Dot("Host")),
+			jen.Qual("github.com/CaliLuke/loom/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("gRPC server listening on %q"), jen.Id("u").Dot("Host")),
 			jen.Id("errc").Op("<-").Id("srv").Dot("Serve").Call(jen.Id("lis")),
 		).Call(),
 		jen.Op("<-").Id("ctx").Dot("Done").Call(),
-		jen.Qual("goa.design/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("shutting down gRPC server at %q"), jen.Id("u").Dot("Host")),
+		jen.Qual("github.com/CaliLuke/loom/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("shutting down gRPC server at %q"), jen.Id("u").Dot("Host")),
 		jen.Id("srv").Dot("Stop").Call(),
 	).Call()
 }

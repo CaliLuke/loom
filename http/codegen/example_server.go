@@ -45,8 +45,8 @@ func exampleServerWithCache(genpkg string, root *expr.RootExpr, svr *expr.Server
 		{Path: "sync"},
 		{Path: "time"},
 		codegen.LoomNamedImport("http", "loomhttp"),
-		{Path: "goa.design/clue/debug"},
-		{Path: "goa.design/clue/log"},
+		{Path: "github.com/CaliLuke/loom/clue/debug"},
+		{Path: "github.com/CaliLuke/loom/clue/log"},
 		codegen.LoomImport("middleware"),
 		{Path: "github.com/gorilla/websocket"},
 	}

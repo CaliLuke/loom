@@ -13,7 +13,7 @@ import (
 
 	ticktock "example.com/ticktock"
 	clock "example.com/ticktock/gen/clock"
-	"goa.design/clue/log"
+	"github.com/CaliLuke/loom/clue/log"
 )
 
 func main() {

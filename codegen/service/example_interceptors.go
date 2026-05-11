@@ -47,7 +47,7 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 					codegen.Header(fmt.Sprintf("%s example server interceptors", sdata.Name), "interceptors", []*codegen.ImportSpec{
 						{Path: "context"},
 						{Path: "fmt"},
-						{Path: "goa.design/clue/log"},
+						{Path: "github.com/CaliLuke/loom/clue/log"},
 						codegen.LoomImport(""),
 						{Path: path.Join(genpkg, sdata.PathName), Name: sdata.PkgName},
 					}),
@@ -67,7 +67,7 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 					codegen.Header(fmt.Sprintf("%s example client interceptors", sdata.Name), "interceptors", []*codegen.ImportSpec{
 						{Path: "context"},
 						{Path: "fmt"},
-						{Path: "goa.design/clue/log"},
+						{Path: "github.com/CaliLuke/loom/clue/log"},
 						codegen.LoomImport(""),
 						{Path: path.Join(genpkg, sdata.PathName), Name: sdata.PkgName},
 					}),
@@ -123,21 +123,21 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 				).
 				Params(jen.Any(), jen.Error()).
 				BlockFunc(func(group *jen.Group) {
-					group.Qual("goa.design/clue/log", "Printf").Call(
+					group.Qual("github.com/CaliLuke/loom/clue/log", "Printf").Call(
 						jen.Id("ctx"),
 						jen.Lit("["+interceptor.Name+"] "+action+": %v"),
 						jen.Id("info").Dot("RawPayload").Call(),
 					)
 					group.Id("resp").Op(",").Id("err").Op(":=").Id("next").Call(jen.Id("ctx"), jen.Id("info").Dot("RawPayload").Call())
 					group.If(jen.Id("err").Op("!=").Nil()).Block(
-						jen.Qual("goa.design/clue/log", "Printf").Call(
+						jen.Qual("github.com/CaliLuke/loom/clue/log", "Printf").Call(
 							jen.Id("ctx"),
 							jen.Lit("["+interceptor.Name+"] Error: %v"),
 							jen.Id("err"),
 						),
 						jen.Return(jen.Nil(), jen.Id("err")),
 					)
-					group.Qual("goa.design/clue/log", "Printf").Call(
+					group.Qual("github.com/CaliLuke/loom/clue/log", "Printf").Call(
 						jen.Id("ctx"),
 						jen.Lit("["+interceptor.Name+"] "+responseAction+": %v"),
 						jen.Id("resp"),

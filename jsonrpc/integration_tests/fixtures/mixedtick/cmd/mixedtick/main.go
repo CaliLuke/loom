@@ -13,7 +13,7 @@ import (
 
 	mixedtick "example.com/mixedtick"
 	clock "example.com/mixedtick/gen/clock"
-	"goa.design/clue/log"
+	"github.com/CaliLuke/loom/clue/log"
 )
 
 func main() {
