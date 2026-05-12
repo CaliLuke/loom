@@ -48,7 +48,16 @@ func renderGRPCRequestEncoder(endpoint *EndpointData) string {
 		b.Add(renderGRPCMetadataAppend(md, "payload", endpoint.MetadataSchemes))
 	}
 	if endpoint.Request.ClientConvert != nil {
-		fmt.Fprintf(&b, "\treturn %s(%s), nil\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+		if endpoint.Request.StreamEnvelope != nil {
+			fmt.Fprintf(&b, "\tmessage := %s(%s)\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+			fmt.Fprintf(&b, "\treturn &%s.%s{\n", endpoint.PkgName, endpoint.Request.Message.VarName)
+			fmt.Fprintf(&b, "\t\t%s: &%s{\n", endpoint.Request.StreamEnvelope.FieldName, endpoint.Request.StreamEnvelope.InitialWrapperRef)
+			fmt.Fprintf(&b, "\t\t\t%s: message,\n", endpoint.Request.StreamEnvelope.InitialFieldName)
+			b.Add("\t\t},\n")
+			b.Add("\t}, nil\n")
+		} else {
+			fmt.Fprintf(&b, "\treturn %s(%s), nil\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+		}
 	} else {
 		b.Add("\treturn nil, nil\n")
 	}
@@ -85,7 +94,7 @@ func renderGRPCRequestDecoder(endpoint *EndpointData) string {
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(`Decode`+endpoint.Method.VarName+`Request decodes requests sent to "`+endpoint.ServiceName+`" service "`+endpoint.Method.Name+`" endpoint.`))
 	fmt.Fprintf(&b, "func Decode%sRequest(ctx context.Context, v any, md metadata.MD) (any, error) {\n", endpoint.Method.VarName)
 	addGRPCRequestMetadataDecode(&b, endpoint)
-	if endpoint.Method.StreamingPayload == "" && !isEmpty(endpoint.Request.Message.Type) {
+	if endpoint.Request.PayloadMessage != nil || (endpoint.Method.StreamingPayload == "" && !isEmpty(endpoint.Request.Message.Type)) {
 		addGRPCRequestMessageDecode(&b, endpoint)
 	}
 	fmt.Fprintf(&b, "\tvar payload %s\n", endpoint.PayloadRef)
@@ -194,11 +203,37 @@ func addGRPCRequestMetadataDecode(b *sourceBuilder, endpoint *EndpointData) {
 }
 
 func addGRPCRequestMessageDecode(b *sourceBuilder, endpoint *EndpointData) {
-	fmt.Fprintf(b, "\tvar (\n\t\tmessage %s\n\t\tok bool\n\t)\n", endpoint.Request.ServerConvert.SrcRef)
+	messageRef := endpoint.Request.ServerConvert.SrcRef
+	if endpoint.Request.PayloadMessage != nil {
+		messageRef = endpoint.Request.PayloadMessage.Ref
+	}
+	fmt.Fprintf(b, "\tvar (\n\t\tmessage %s\n\t\tok bool\n\t)\n", messageRef)
 	b.Add("\t{\n")
-	fmt.Fprintf(b, "\t\tif message, ok = v.(%s); !ok {\n", endpoint.Request.ServerConvert.SrcRef)
-	fmt.Fprintf(b, "\t\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Request.Message.Ref)
-	b.Add("\t\t}\n")
+	if endpoint.Request.StreamEnvelope != nil {
+		envRef := endpoint.Request.Message.Ref
+		b.Add("\t\tif v == nil {\n")
+		b.Add("\t\t\treturn nil, loom.MissingFieldError(\"initial_payload\", \"stream\")\n")
+		b.Add("\t\t}\n")
+		fmt.Fprintf(b, "\t\tvar envelope %s\n", envRef)
+		fmt.Fprintf(b, "\t\tif envelope, ok = v.(%s); !ok {\n", envRef)
+		fmt.Fprintf(b, "\t\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, envRef)
+		b.Add("\t\t}\n")
+		fmt.Fprintf(b, "\t\tswitch body := envelope.%s.(type) {\n", endpoint.Request.StreamEnvelope.FieldName)
+		fmt.Fprintf(b, "\t\tcase *%s:\n", endpoint.Request.StreamEnvelope.InitialWrapperRef)
+		fmt.Fprintf(b, "\t\t\tif body.%s == nil {\n", endpoint.Request.StreamEnvelope.InitialFieldName)
+		b.Add("\t\t\t\treturn nil, loom.MissingFieldError(\"initial_payload\", \"stream\")\n")
+		b.Add("\t\t\t}\n")
+		fmt.Fprintf(b, "\t\t\tmessage = body.%s\n", endpoint.Request.StreamEnvelope.InitialFieldName)
+		fmt.Fprintf(b, "\t\tcase *%s:\n", endpoint.Request.StreamEnvelope.StreamItemWrapperRef)
+		b.Add("\t\t\treturn nil, loom.InvalidFieldTypeError(\"body\", \"stream_item\", \"initial_payload\")\n")
+		b.Add("\t\tdefault:\n")
+		b.Add("\t\t\treturn nil, loom.MissingFieldError(\"initial_payload\", \"stream\")\n")
+		b.Add("\t\t}\n")
+	} else {
+		fmt.Fprintf(b, "\t\tif message, ok = v.(%s); !ok {\n", messageRef)
+		fmt.Fprintf(b, "\t\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Request.Message.Ref)
+		b.Add("\t\t}\n")
+	}
 	if endpoint.Request.ServerConvert.Validation != nil {
 		assign := ":="
 		if len(endpoint.Request.Metadata) > 0 {

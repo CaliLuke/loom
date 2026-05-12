@@ -3,28 +3,32 @@
 // "MethodClientStreamingRPCWithPayload" endpoint.
 func DecodeMethodClientStreamingRPCWithPayloadRequest(ctx context.Context, v any, md metadata.MD) (any, error) {
 	var (
-		loomPayload int
-		err        error
+		message *service_client_streaming_rpc_with_payloadpb.MethodClientStreamingRPCWithPayloadRequest
+		ok      bool
 	)
 	{
-		if vals := md.Get("loom_payload"); len(vals) == 0 {
-			err = loom.MergeErrors(err, loom.MissingFieldError("loom_payload", "metadata"))
-		} else {
-			loomPayloadRaw := vals[0]
-
-			v, err2 := strconv.ParseInt(loomPayloadRaw, 10, strconv.IntSize)
-			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("loomPayload", loomPayloadRaw, "integer"))
-			}
-			loomPayload = int(v)
+		if v == nil {
+			return nil, loom.MissingFieldError("initial_payload", "stream")
 		}
-	}
-	if err != nil {
-		return nil, err
+		var envelope *service_client_streaming_rpc_with_payloadpb.MethodClientStreamingRPCWithPayloadStreamingRequest
+		if envelope, ok = v.(*service_client_streaming_rpc_with_payloadpb.MethodClientStreamingRPCWithPayloadStreamingRequest); !ok {
+			return nil, loomgrpc.ErrInvalidType("ServiceClientStreamingRPCWithPayload", "MethodClientStreamingRPCWithPayload", "*service_client_streaming_rpc_with_payloadpb.MethodClientStreamingRPCWithPayloadStreamingRequest", v)
+		}
+		switch body := envelope.Body.(type) {
+		case *service_client_streaming_rpc_with_payloadpb.MethodClientStreamingRPCWithPayloadStreamingRequest_InitialPayload:
+			if body.InitialPayload == nil {
+				return nil, loom.MissingFieldError("initial_payload", "stream")
+			}
+			message = body.InitialPayload
+		case *service_client_streaming_rpc_with_payloadpb.MethodClientStreamingRPCWithPayloadStreamingRequest_StreamItem:
+			return nil, loom.InvalidFieldTypeError("body", "stream_item", "initial_payload")
+		default:
+			return nil, loom.MissingFieldError("initial_payload", "stream")
+		}
 	}
 	var payload int
 	{
-		payload = loomPayload
+		payload = NewMethodClientStreamingRPCWithPayloadPayload(message)
 	}
 	return payload, nil
 }

@@ -37,10 +37,19 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 			)
 			sendArg = "vres.Projected"
 		}
-		body = append(body,
-			jen.Id("v").Op(":=").Id(stream.SendConvert.Init.Name).Call(codegenpkg.Expr(sendArg)),
-			jen.Return(jen.Id("s").Dot("stream").Dot(stream.SendName).Call(jen.Id("v"))),
-		)
+		body = append(body, jen.Id("v").Op(":=").Id(stream.SendConvert.Init.Name).Call(codegenpkg.Expr(sendArg)))
+		if stream.Type == "client" && stream.Endpoint.Request.StreamEnvelope != nil {
+			env := stream.Endpoint.Request.StreamEnvelope
+			body = append(body, jen.Return(jen.Id("s").Dot("stream").Dot(stream.SendName).Call(
+				jen.Op("&").Qual(stream.Endpoint.PkgName, stream.Endpoint.Request.Message.VarName).Values(jen.Dict{
+					jen.Id(env.FieldName): jen.Op("&").Add(codegenpkg.TypeRef(env.StreamItemWrapperRef)).Values(jen.Dict{
+						jen.Id(env.StreamItemFieldName): jen.Id("v"),
+					}),
+				}),
+			)))
+		} else {
+			body = append(body, jen.Return(jen.Id("s").Dot("stream").Dot(stream.SendName).Call(jen.Id("v"))))
+		}
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
 			Id(stream.SendName).
 			Params(jen.Id("res").Add(codegenpkg.TypeRef(stream.SendRef))).
@@ -70,8 +79,15 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 			Params(codegenpkg.TypeRef(stream.RecvRef), jen.Error()).
 			BlockFunc(func(g *jen.Group) {
 				g.Var().Id("res").Add(codegenpkg.TypeRef(stream.RecvRef))
-				g.List(jen.Id("v"), jen.Err()).Op(":=").Id("s").Dot("stream").Dot(stream.RecvName).Call()
+				if stream.Type == "server" && stream.Endpoint.Request.StreamEnvelope != nil {
+					g.List(jen.Id("message"), jen.Err()).Op(":=").Id("s").Dot("stream").Dot(stream.RecvName).Call()
+				} else {
+					g.List(jen.Id("v"), jen.Err()).Op(":=").Id("s").Dot("stream").Dot(stream.RecvName).Call()
+				}
 				appendGRPCStreamRecvErrorHandling(g, stream)
+				if stream.Type == "server" && stream.Endpoint.Request.StreamEnvelope != nil {
+					appendGRPCStreamRecvEnvelopeUnpack(g, stream.Endpoint.Request.StreamEnvelope)
+				}
 				if appendGRPCStreamRecvViewedResult(g, stream) {
 					return
 				}
@@ -99,6 +115,24 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 				jen.Return(jen.Id("s").Dot(stream.RecvName).Call()),
 			)
 	})
+}
+
+func appendGRPCStreamRecvEnvelopeUnpack(g *jen.Group, env *StreamEnvelopeData) {
+	g.List(jen.Id("body"), jen.Id("ok")).Op(":=").Id("message").Dot(env.FieldName).Assert(jen.Op("*").Add(codegenpkg.TypeRef(env.StreamItemWrapperRef)))
+	g.If(jen.Op("!").Id("ok")).Block(
+		jen.Switch(jen.Id("message").Dot(env.FieldName).Assert(jen.Type())).Block(
+			jen.Case(jen.Op("*").Add(codegenpkg.TypeRef(env.InitialWrapperRef))).Block(
+				jen.Return(jen.Id("res"), codegenpkg.Expr(`loom.InvalidFieldTypeError("body", "initial_payload", "stream_item")`)),
+			),
+			jen.Default().Block(
+				jen.Return(jen.Id("res"), codegenpkg.Expr(`loom.MissingFieldError("stream_item", "stream")`)),
+			),
+		),
+	)
+	g.If(jen.Id("body").Dot(env.StreamItemFieldName).Op("==").Nil()).Block(
+		jen.Return(jen.Id("res"), codegenpkg.Expr(`loom.MissingFieldError("stream_item", "stream")`)),
+	)
+	g.Id("v").Op(":=").Id("body").Dot(env.StreamItemFieldName)
 }
 
 func appendGRPCStreamRecvErrorHandling(g *jen.Group, stream *StreamData) {

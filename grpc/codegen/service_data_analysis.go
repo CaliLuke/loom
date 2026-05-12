@@ -139,9 +139,22 @@ func (c *messageCollector) collectErrorMessages(endpoint *transportir.Endpoint) 
 }
 
 func prepareEndpointProtoMessages(endpoint *transportir.Endpoint, sd *ServiceData) {
+	useEnvelope := usesStreamEnvelope(endpoint)
 	endpoint.Request.ProtoMessage = makeProtoBufMessage(endpoint.Request.Message, protoBufify(endpoint.Name+"_request", true, true), sd)
 	if endpoint.Request.StreamingPayload.Type != expr.Empty {
-		endpoint.Request.ProtoStreamingInput = makeProtoBufMessage(endpoint.Request.StreamingMessage, protoBufify(endpoint.Name+"_streaming_request", true, true), sd)
+		streamName := protoBufify(endpoint.Name+"_streaming_request", true, true)
+		if useEnvelope {
+			streamName = protoBufify(endpoint.Name+"_stream_item", true, true)
+		}
+		endpoint.Request.ProtoStreamingInput = makeProtoBufMessage(endpoint.Request.StreamingMessage, streamName, sd)
+	}
+	if useEnvelope {
+		endpoint.Request.ProtoStreamEnvelope = makeProtoBufStreamEnvelope(
+			endpoint.Request.ProtoMessage,
+			endpoint.Request.ProtoStreamingInput,
+			protoBufify(endpoint.Name+"_streaming_request", true, true),
+			sd,
+		)
 	}
 	endpoint.Response.ProtoMessage = makeProtoBufMessage(endpoint.Response.Message, protoBufify(endpoint.Name+"_response", true, true), sd)
 	for _, grpcErr := range endpoint.Errors {
@@ -160,6 +173,7 @@ func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *ser
 		ServerConvert: d.buildRequestConvertData(endpoint, reqMD, sd, true),
 		ClientConvert: d.buildRequestConvertData(endpoint, reqMD, sd, false),
 	}
+	hasRequestMessage := !isEmpty(endpoint.Request.Message.Type)
 	if obj := expr.AsObject(endpoint.Request.ProtoMessage.Type); (obj != nil && len(*obj) > 0) || expr.IsUnion(endpoint.Request.ProtoMessage.Type) {
 		request.CLIArgs = append(request.CLIArgs, &InitArgData{
 			Name:     "message",
@@ -185,9 +199,16 @@ func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *ser
 			DefaultValue: m.DefaultValue,
 		})
 	}
-	if endpoint.Request.ProtoStreamingInput != nil && endpoint.Request.ProtoStreamingInput.Type != expr.Empty {
+	if hasRequestMessage {
+		request.PayloadMessage = collector.collect(endpoint.Request.ProtoMessage)
+	}
+	switch {
+	case endpoint.Request.ProtoStreamEnvelope != nil:
+		request.Message = collector.collect(endpoint.Request.ProtoStreamEnvelope)
+		request.StreamEnvelope = buildStreamEnvelopeData(endpoint.Request.ProtoStreamEnvelope, request.Message, sd)
+	case endpoint.Request.ProtoStreamingInput != nil && endpoint.Request.ProtoStreamingInput.Type != expr.Empty:
 		request.Message = collector.collect(endpoint.Request.ProtoStreamingInput)
-	} else {
+	default:
 		request.Message = collector.collect(endpoint.Request.ProtoMessage)
 	}
 	return request

@@ -183,8 +183,17 @@ type (
 	RequestData struct {
 		// Description is the request description.
 		Description string
-		// Message is the gRPC request message.
+		// Message is the gRPC request message used by the transport. For
+		// streaming payload methods with an initial payload frame, this is
+		// the synthesized stream envelope.
 		Message *service.UserTypeData
+		// PayloadMessage is the gRPC message that carries the one-shot
+		// method payload fields before any stream envelope wrapping.
+		PayloadMessage *service.UserTypeData
+		// StreamEnvelope describes the synthesized stream envelope when
+		// the transport must carry both the one-shot payload and streaming
+		// payload items through the same streamed protobuf message.
+		StreamEnvelope *StreamEnvelopeData
 		// Metadata is the request metadata.
 		Metadata []*MetadataData
 		// ServerConvert is the request data with constructor function to
@@ -198,6 +207,27 @@ type (
 		// CLIArgs is the list of arguments for the command-line client.
 		// This is set only for the client side.
 		CLIArgs []*InitArgData
+	}
+
+	// StreamEnvelopeData describes a synthesized streamed protobuf envelope
+	// that carries both the one-shot method payload and streaming payload
+	// items through the same gRPC message channel.
+	StreamEnvelopeData struct {
+		// FieldName is the protobuf oneof field name on the envelope
+		// message.
+		FieldName string
+		// InitialFieldName is the name of the initial payload branch
+		// field.
+		InitialFieldName string
+		// InitialWrapperRef is the fully qualified protobuf wrapper type
+		// for the initial payload branch.
+		InitialWrapperRef string
+		// StreamItemFieldName is the name of the streaming payload item
+		// branch field.
+		StreamItemFieldName string
+		// StreamItemWrapperRef is the fully qualified protobuf wrapper
+		// type for the streaming payload item branch.
+		StreamItemWrapperRef string
 	}
 
 	// ResponseData describes a gRPC success or error response.

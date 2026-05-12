@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/expr/testdata"
@@ -83,4 +85,22 @@ service "Service" method "MethodUnion": union type choice has map elements, not 
 			}
 		})
 	}
+}
+
+// TestGRPCEndpointStreamingPayloadKeepsInitialRequest regresses Finalize so
+// that methods declaring both Payload and StreamingPayload keep the ordinary
+// payload fields on the request message rather than rewriting them into
+// gRPC metadata.
+func TestGRPCEndpointStreamingPayloadKeepsInitialRequest(t *testing.T) {
+	root := expr.RunDSL(t, testdata.GRPCEndpointWithStreamingPayloadInitialRequest)
+	grpcSvc := root.API.GRPC.Service("Service")
+	require.NotNil(t, grpcSvc)
+	require.Len(t, grpcSvc.GRPCEndpoints, 1)
+
+	endpoint := grpcSvc.GRPCEndpoints[0]
+	req := expr.AsObject(endpoint.Request.Type)
+	require.NotNil(t, req)
+	require.NotNil(t, req.Attribute("repository_id"))
+	require.NotNil(t, req.Attribute("version_ref"))
+	require.True(t, endpoint.Metadata.IsEmpty())
 }

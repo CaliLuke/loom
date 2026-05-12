@@ -11,22 +11,22 @@ import (
 
 // buildRequestConvertData builds the convert data for the server and client
 // requests.
-//   - server side - converts generated gRPC request type in *.pb.go and the
-//     gRPC  metadata to method payload type.
-//   - client side - converts method payload type to generated gRPC request
-//     type in *.pb.go.
+//   - server side - converts the one-shot gRPC request message (if any) and
+//     gRPC metadata to the method payload type.
+//   - client side - converts the method payload type to the one-shot gRPC
+//     request message sent before any stream items.
 //
 // svr param indicates that the convert data is generated for server side.
 func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, md []*MetadataData, sd *ServiceData, svr bool) *ConvertData {
 	request := endpoint.Request.ProtoMessage
 	payload := endpoint.Request.Payload
-	// Server-side: No need to build convert data if payload is empty or payload
-	// is not an object type and endpoint streams payload (the payload is
-	// encoded in metadata under "loom-payload" in this case).
-	if (svr && (isEmpty(payload.Type) || !expr.IsObject(payload.Type) && endpoint.Stream.IsPayloadStreaming)) ||
-		// Client-side: No need to build convert data if streaming payload since
-		// all attributes in method payload is encoded into request metadata.
-		(!svr && endpoint.Stream.IsPayloadStreaming) {
+	if svr && isEmpty(payload.Type) {
+		return nil
+	}
+	if !svr && endpoint.Stream.IsPayloadStreaming && isEmpty(endpoint.Request.Message.Type) {
+		return nil
+	}
+	if svr && endpoint.Stream.IsPayloadStreaming && isEmpty(endpoint.Request.Message.Type) && !expr.IsObject(payload.Type) {
 		return nil
 	}
 

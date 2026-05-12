@@ -305,9 +305,25 @@ func addGRPCStreamHandleCall(g *jen.Group, endpoint *EndpointData) {
 	if endpoint.PayloadRef != "" {
 		decodeTarget = "p"
 	}
-	decodeArg := jen.Id("message")
-	if endpoint.Method.StreamingPayload != "" {
+	var decodeArg jen.Code
+	switch {
+	case endpoint.Request.StreamEnvelope != nil:
+		g.Var().Id("reqpb").Any()
+		g.List(jen.Id("message"), jen.Err()).Op(":=").Id("stream").Dot("Recv").Call()
+		g.If(jen.Err().Op("!=").Nil()).Block(
+			jen.If(jen.Qual("errors", "Is").Call(jen.Err(), jen.Qual("io", "EOF"))).Block(
+				jen.Id("reqpb").Op("=").Nil(),
+			).Else().Block(
+				jen.Return(codegenpkg.Expr("loomgrpc.EncodeError").Call(jen.Err())),
+			),
+		).Else().Block(
+			jen.Id("reqpb").Op("=").Id("message"),
+		)
+		decodeArg = jen.Id("reqpb")
+	case endpoint.Method.StreamingPayload != "":
 		decodeArg = jen.Nil()
+	default:
+		decodeArg = jen.Id("message")
 	}
 	g.List(jen.Id(decodeTarget), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Decode").Call(jen.Id("ctx"), decodeArg)
 	appendGRPCServerErrorHandler(g, endpoint, true)
@@ -467,6 +483,22 @@ func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {
 							).Block(
 								jen.Id("opts").Op("=").Append(jen.Id("opts"), jen.Id("opt")),
 							)
+							if endpoint.Request.StreamEnvelope != nil {
+								g.List(jen.Id("stream"), jen.Err()).Op(":=").Id("grpccli").Dot(endpoint.ClientMethodName).Call(jen.Id("ctx"), jen.Id("opts").Op("..."))
+								g.If(jen.Err().Op("!=").Nil()).Block(
+									jen.Return(jen.Nil(), jen.Err()),
+								)
+								g.If(jen.Id("reqpb").Op("!=").Nil()).Block(
+									jen.If(
+										jen.Err().Op(":=").Id("stream").Dot("Send").Call(jen.Id("reqpb").Assert(codegenpkg.Expr(endpoint.Request.Message.Ref))),
+										jen.Err().Op("!=").Nil(),
+									).Block(
+										jen.Return(jen.Nil(), jen.Err()),
+									),
+								)
+								g.Return(jen.Id("stream"), jen.Nil())
+								return
+							}
 							callArgs := []jen.Code{jen.Id("ctx")}
 							if endpoint.Method.StreamingPayload == "" {
 								callArgs = append(callArgs, jen.Id("reqpb").Assert(codegenpkg.Expr(endpoint.Request.ClientConvert.TgtRef)))

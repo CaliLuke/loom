@@ -29,6 +29,11 @@ type (
 		StreamingPayload    *expr.AttributeExpr
 		StreamingMessage    *expr.AttributeExpr
 		ProtoStreamingInput *expr.AttributeExpr
+		// ProtoStreamEnvelope is the synthesized envelope message that
+		// carries both the one-shot payload and streaming payload items
+		// through a single gRPC stream when a method declares both
+		// Payload(...) and StreamingPayload(...).
+		ProtoStreamEnvelope *expr.AttributeExpr
 		Metadata            *expr.MappedAttributeExpr
 	}
 

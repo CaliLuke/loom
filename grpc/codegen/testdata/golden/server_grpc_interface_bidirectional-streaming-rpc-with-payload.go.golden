@@ -6,7 +6,18 @@ func (s *Server) MethodBidirectionalStreamingRPCWithPayload(stream service_bidir
 	ctx := stream.Context()
 	ctx = context.WithValue(ctx, loom.MethodKey, "MethodBidirectionalStreamingRPCWithPayload")
 	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceBidirectionalStreamingRPCWithPayload")
-	p, err := s.MethodBidirectionalStreamingRPCWithPayloadH.Decode(ctx, nil)
+	var reqpb any
+	message, err := stream.Recv()
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			reqpb = nil
+		} else {
+			return loomgrpc.EncodeError(err)
+		}
+	} else {
+		reqpb = message
+	}
+	p, err := s.MethodBidirectionalStreamingRPCWithPayloadH.Decode(ctx, reqpb)
 	if err != nil {
 		return loomgrpc.EncodeError(err)
 	}

@@ -7,7 +7,6 @@ func (e *GRPCEndpointExpr) Finalize() {
 			e.addPayloadFieldToMetadata(pobj, field, tName)
 		}
 		e.finalizeSecurityRequirements(addToMetadata)
-		e.finalizeStreamingPayloadMetadata(pobj, addToMetadata)
 		e.finalizeRequestMessageFromPayload(pobj)
 		e.propagatePayloadProtoStructName()
 	} else {
@@ -83,15 +82,6 @@ func (e *GRPCEndpointExpr) finalizeCredentialScheme(field string, sch *SchemeExp
 	}
 }
 
-func (e *GRPCEndpointExpr) finalizeStreamingPayloadMetadata(pobj *Object, addToMetadata func(string, string)) {
-	if e.MethodExpr.StreamingPayload.Type == Empty {
-		return
-	}
-	for _, nat := range *pobj {
-		addToMetadata(nat.Name, "")
-	}
-}
-
 func (e *GRPCEndpointExpr) finalizeRequestMessageFromPayload(pobj *Object) {
 	msgObj := Dup(pobj).(*Object)
 	for _, nat := range *AsObject(e.Metadata.Type) {
@@ -143,11 +133,6 @@ func (e *GRPCEndpointExpr) propagatePayloadProtoStructName() {
 }
 
 func (e *GRPCEndpointExpr) finalizeNonObjectPayload() {
-	if e.MethodExpr.StreamingPayload.Type != Empty {
-		e.Metadata.Type.(*Object).Set("loom_payload", e.MethodExpr.Payload)
-		e.Metadata.Validation.AddRequired("loom_payload")
-		return
-	}
 	initAttrFromDesign(e.Request, e.MethodExpr.Payload)
 }
 
