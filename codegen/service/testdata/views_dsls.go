@@ -295,3 +295,52 @@ var ResultWithOneOfInResultTypeDSL = func() {
 		})
 	})
 }
+
+var ProjectionParityNestedViewsDSL = func() {
+	var Child = ResultType("application/vnd.projection.child", func() {
+		TypeName("ProjectionChild")
+		Attributes(func() {
+			Attribute("id", String)
+			Attribute("label", String)
+			Attribute("details", String)
+			Required("id", "label")
+		})
+		View("default", func() {
+			Attribute("id")
+			Attribute("label")
+		})
+		View("tiny", func() {
+			Attribute("id")
+		})
+		View("extended", func() {
+			Attribute("id")
+			Attribute("label")
+			Attribute("details")
+		})
+	})
+	var Parent = ResultType("application/vnd.projection.parent", func() {
+		TypeName("ProjectionParent")
+		Attributes(func() {
+			Attribute("name", String)
+			Attribute("child", Child)
+			Required("name", "child")
+		})
+		View("default", func() {
+			Attribute("name")
+			Attribute("child", func() {
+				View("tiny")
+			})
+		})
+		View("extended", func() {
+			Attribute("name")
+			Attribute("child", func() {
+				View("extended")
+			})
+		})
+	})
+	Service("ProjectionParityNestedViews", func() {
+		Method("Show", func() {
+			Result(Parent)
+		})
+	})
+}

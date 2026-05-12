@@ -6,11 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	projectiontestutil "github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestViews(t *testing.T) {
@@ -49,4 +51,52 @@ func TestViews(t *testing.T) {
 			assert.Equal(t, c.Code, code)
 		})
 	}
+}
+
+func TestProjectionParity(t *testing.T) {
+	cases := []struct {
+		Name string
+		DSL  func()
+	}{
+		{"result-with-multiple-views", testdata.ResultWithMultipleViewsDSL},
+		{"result-with-result-type", testdata.ResultWithResultTypeDSL},
+		{"projection-parity-nested-views", testdata.ProjectionParityNestedViewsDSL},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			root := codegen.RunDSL(t, c.DSL)
+			services := NewServicesData(root)
+			require.Len(t, root.Services, 1)
+			svc := services.Get(root.Services[0].Name)
+			require.NotNil(t, svc)
+			assertServiceProjectionParity(t, root.Services[0], svc)
+		})
+	}
+}
+
+func assertServiceProjectionParity(t *testing.T, service *expr.ServiceExpr, data *Data) {
+	t.Helper()
+	for _, method := range service.Methods {
+		rt, ok := method.Result.Type.(*expr.ResultTypeExpr)
+		if !ok {
+			continue
+		}
+		projected := projectedTypeDataFor(t, data, rt)
+		projectedAttr := &expr.AttributeExpr{Type: projected.Type, Validation: projected.Type.Attribute().Validation}
+		projectiontestutil.AssertProjectionParity(t, method.Result, projectedAttr)
+		for _, view := range rt.Views {
+			projectiontestutil.AssertProjectionViewParity(t, rt, view.Name, projectedAttr)
+		}
+	}
+}
+
+func projectedTypeDataFor(t *testing.T, data *Data, rt *expr.ResultTypeExpr) *ProjectedTypeData {
+	t.Helper()
+	for _, projected := range data.projectedTypes {
+		if projected.Type.ID() == rt.ID() {
+			return projected
+		}
+	}
+	t.Fatalf("missing projected type data for result type %q", rt.TypeName)
+	return nil
 }

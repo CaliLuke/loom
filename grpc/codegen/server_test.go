@@ -6,7 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
@@ -88,4 +90,33 @@ func TestResponseEncoder(t *testing.T) {
 	}, func(services *ServicesData) []*codegen.File {
 		return ServerFiles("", services)
 	}, "response-encoder", "response_encoder_")
+}
+
+func TestGRPCProjectionParity(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.MessageResultTypeWithViewsDSL)
+	services := CreateGRPCServices(root)
+	svc := services.Get("ServiceMessageResultTypeWithViews")
+	require.NotNil(t, svc)
+	endpoint := svc.Endpoint("MethodMessageResultTypeWithViews")
+	require.NotNil(t, endpoint)
+	require.NotNil(t, endpoint.Method.ViewedResult)
+	require.NotNil(t, endpoint.Response.ServerConvert)
+
+	projected := expr.AsObject(endpoint.Method.ViewedResult.Type).Attribute("projected")
+	require.NotNil(t, projected)
+	projectedName := svc.Service.ViewScope.GoFullTypeName(projected, endpoint.Method.ViewedResult.ViewsPkg)
+	projectedRef := svc.Service.ViewScope.GoFullTypeRef(projected, endpoint.Method.ViewedResult.ViewsPkg)
+
+	require.Equal(t, endpoint.Method.ViewedResult.FullRef, endpoint.ViewedResultRef)
+	require.Equal(t, projectedName, endpoint.Response.ServerConvert.SrcName)
+	require.Equal(t, projectedRef, endpoint.Response.ServerConvert.SrcRef)
+	require.Equal(t, []string{"default", "tiny"}, grpcViewNames(endpoint.Method.ViewedResult.Views))
+}
+
+func grpcViewNames(views []*service.ViewData) []string {
+	names := make([]string, len(views))
+	for i, view := range views {
+		names[i] = view.Name
+	}
+	return names
 }

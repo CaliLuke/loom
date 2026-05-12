@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -426,6 +427,19 @@ func TestHTTPResponseBodyGenerationCoverage(t *testing.T) {
 	})
 }
 
+func TestHTTPProjectionParity(t *testing.T) {
+	endpoint := firstEndpointData(t, testdata.ExplicitBodyUserResultObjectMultipleViewDSL)
+	require.NotNil(t, endpoint.Method.ViewedResult)
+	require.NotNil(t, endpoint.Result)
+	require.NotEmpty(t, endpoint.Result.Responses)
+
+	resp := endpoint.Result.Responses[0]
+	require.NotNil(t, resp.ViewedResult)
+	require.Equal(t, endpoint.Method.ViewedResult.FullRef, resp.ViewedResult.FullRef)
+	require.Equal(t, []string{"default", "tiny"}, bodyViews(resp.ServerBody))
+	require.Equal(t, []string{"default", "tiny"}, viewNames(resp.ViewedResult.Views))
+}
+
 func TestHTTPErrorBodyDescriptionRewrite(t *testing.T) {
 	endpoint := firstEndpointData(t, testdata.WithErrorCustomPkgDSL)
 	require.NotEmpty(t, endpoint.Errors)
@@ -439,4 +453,12 @@ func TestHTTPErrorBodyDescriptionRewrite(t *testing.T) {
 	require.Contains(t, errResp.ClientBody.Description, `"error_name" error`)
 	require.NotEmpty(t, errResp.ServerBody)
 	require.Contains(t, errResp.ServerBody[0].Description, `"ServiceWithErrorCustomPkg" service`)
+}
+
+func viewNames(views []*service.ViewData) []string {
+	names := make([]string, len(views))
+	for i, view := range views {
+		names[i] = view.Name
+	}
+	return names
 }
