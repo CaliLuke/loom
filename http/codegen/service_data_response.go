@@ -202,14 +202,64 @@ func viewedResponseBodyViews(origin string, md *service.MethodData, methodResult
 		return []*string{&vname}, clientView
 	}
 	if v, ok := methodResult.Meta.Last(expr.ViewMetaKey); ok {
-		return []*string{&v}, clientView
+		serverView := v
+		clientName := v
+		return []*string{&serverView}, &clientName
 	}
 	views := make([]*string, 0, len(md.ViewedResult.Views))
 	for _, view := range md.ViewedResult.Views {
 		viewName := view.Name
 		views = append(views, &viewName)
 	}
+	if len(md.ViewedResult.Views) == 1 {
+		single := md.ViewedResult.Views[0].Name
+		clientView = &single
+	}
 	return views, clientView
+}
+
+// clientResponseViewName returns the response view used by client code
+// generation when the design fixes the response to a single view. An empty
+// string means the client must keep the unprojected transport body because the
+// server may render multiple views.
+func clientResponseViewName(methodResult *expr.AttributeExpr, md *service.MethodData) string {
+	if md == nil || md.ViewedResult == nil {
+		return ""
+	}
+	if methodResult != nil {
+		if v, ok := methodResult.Meta.Last(expr.ViewMetaKey); ok {
+			return v
+		}
+	}
+	if len(md.ViewedResult.Views) == 1 {
+		return md.ViewedResult.Views[0].Name
+	}
+	return ""
+}
+
+// effectiveClientResponseBody returns the response body shape used by client
+// code generation. When the design fixes the response to a single view, the
+// returned attribute uses that projected ResultType so type collection, union
+// collection, and client decode/init all agree on one transport body.
+func effectiveClientResponseBody(body, methodResult *expr.AttributeExpr, md *service.MethodData) *expr.AttributeExpr {
+	if body == nil {
+		return body
+	}
+	view := clientResponseViewName(methodResult, md)
+	if view == "" {
+		return body
+	}
+	body = expr.DupAtt(body)
+	rt, ok := body.Type.(*expr.ResultTypeExpr)
+	if !ok {
+		return body
+	}
+	projected, err := expr.Project(rt, view)
+	if err != nil {
+		panic(err) // bug
+	}
+	body.Type = projected
+	return body
 }
 
 func (sds *ServicesData) buildResponseBodyPair(
@@ -269,7 +319,7 @@ func (sds *ServicesData) buildResponseResultInit(
 	if strings.HasPrefix(codegen.Goify(md.Result, true), n) {
 		name = fmt.Sprintf("New%s%s", r, status)
 	}
-	code, pointer, clientArgs := sds.buildResponseResultInitCode(resp, result, resAttr, origin, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
+	code, pointer, clientArgs := sds.buildResponseResultInitCode(resp, result, resAttr, origin, md, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
 	return &InitData{
 		Name:                     name,
 		Description:              fmt.Sprintf("%s builds a %q service %q endpoint result from a HTTP %q response.", name, sd.Service.Name, endpointIR.Name, status),
@@ -289,6 +339,7 @@ func (sds *ServicesData) buildResponseResultInitCode(
 	result *expr.AttributeExpr,
 	resAttr *expr.AttributeExpr,
 	origin string,
+	md *service.MethodData,
 	httpclictx *codegen.AttributeContext,
 	svcctx *codegen.AttributeContext,
 	headersData []*HeaderData,
@@ -296,8 +347,9 @@ func (sds *ServicesData) buildResponseResultInitCode(
 	endpointIR *transportir.Endpoint,
 	sd *ServiceData,
 ) (string, bool, []*InitArgData) {
-	clientArgs := buildResponseResultInitArgs(resp, httpclictx, headersData, cookiesData, sd)
-	code, err := sds.buildClientResultTransformCode(resp.Body, resAttr, result, endpointIR.Request, httpclictx, svcctx, sd)
+	body := effectiveClientResponseBody(resp.Body, endpointIR.Response.Result, md)
+	clientArgs := buildResponseResultInitArgs(resp, body, httpclictx, headersData, cookiesData, sd)
+	code, err := sds.buildClientResultTransformCode(body, resAttr, result, endpointIR.Request, httpclictx, svcctx, sd)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -308,6 +360,7 @@ func (sds *ServicesData) buildResponseResultInitCode(
 
 func buildResponseResultInitArgs(
 	resp *transportir.ResponseStatus,
+	body *expr.AttributeExpr,
 	httpclictx *codegen.AttributeContext,
 	headersData []*HeaderData,
 	cookiesData []*CookieData,
@@ -317,8 +370,8 @@ func buildResponseResultInitArgs(
 	if resp.Body.Type == expr.Empty {
 		return clientArgs
 	}
-	bodyArg := buildBodyInitArg(sd.Scope, resp.Body, true)
-	bodyArg.AttributeData.Validate = validationCodeForBodyArg(resp.Body, httpclictx)
+	bodyArg := buildBodyInitArg(sd.Scope, body, true)
+	bodyArg.AttributeData.Validate = validationCodeForBodyArg(body, httpclictx)
 	return append(clientArgs, bodyArg)
 }
 

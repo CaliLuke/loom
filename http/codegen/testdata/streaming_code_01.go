@@ -790,7 +790,7 @@ var StreamingResultCollectionWithExplicitViewClientStreamRecvCode = `// Recv rea
 func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) Recv() (streamingresultcollectionwithexplicitviewservice.UsertypeCollection, error) {
 	var (
 		rv   streamingresultcollectionwithexplicitviewservice.UsertypeCollection
-		body StreamingResultCollectionWithExplicitViewMethodResponseBody
+		body UsertypeResponseTinyCollection
 		err  error
 	)
 	err = s.conn.ReadJSON(&body)

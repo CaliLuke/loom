@@ -127,7 +127,7 @@ type responseBodyTypeData struct {
 }
 
 func projectResponseBodyView(body *expr.AttributeExpr, view *string, svr bool, sd *ServiceData) (*expr.AttributeExpr, string) {
-	if !svr || view == nil || *view == "" {
+	if view == nil || *view == "" {
 		return body, ""
 	}
 	viewName := *view
@@ -139,7 +139,11 @@ func projectResponseBodyView(body *expr.AttributeExpr, view *string, svr bool, s
 			panic(err)
 		}
 		body.Type = rt
-		sd.ServerTypeNames[rt.Name()] = false
+		if svr {
+			sd.ServerTypeNames[rt.Name()] = false
+		} else {
+			sd.ClientTypeNames[rt.Name()] = false
+		}
 	}
 	return body, viewName
 }

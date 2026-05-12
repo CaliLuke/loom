@@ -137,8 +137,11 @@ func (sds *ServicesData) collectEndpointUnionTypes(httpSvc *expr.HTTPServiceExpr
 			collectHTTPUnionTypes(endpoint.StreamingBody, scope, unionByHash, seenUnionTypes)
 		}
 		if endpoint.MethodExpr.Result != nil {
+			svcData := sds.ServicesData.Get(httpSvc.ServiceExpr.Name)
+			md := svcData.Method(endpoint.MethodExpr.Name)
 			for _, response := range endpoint.Responses {
-				collectHTTPUnionTypes(response.Body, scope, unionByHash, seenUnionTypes)
+				body := effectiveClientResponseBody(response.Body, endpoint.MethodExpr.Result, md)
+				collectHTTPUnionTypes(body, scope, unionByHash, seenUnionTypes)
 			}
 		}
 		for _, httpError := range endpoint.HTTPErrors {

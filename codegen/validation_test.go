@@ -212,7 +212,10 @@ func TestValidationCodeUsesExplicitUnionVariantTagsForSumUnions(t *testing.T) {
 	t.Parallel()
 
 	scope := NewNameScope()
-	ctx := NewAttributeContext(false, false, false, "", scope)
+	// Pointer context exercises both union branches because object union
+	// branches in value context only emit cases when the inner attribute
+	// produces non-empty validation; this test focuses on tag selection.
+	ctx := NewAttributeContext(true, false, false, "", scope)
 	single := &expr.UserTypeExpr{
 		TypeName: "SingleAction",
 		AttributeExpr: &expr.AttributeExpr{
@@ -345,47 +348,66 @@ func TestValidationCodePreservesLegacyExclusiveRangeEmission(t *testing.T) {
 	}
 }
 
-func TestValidationCodeRequiresObjectUnionBranchValue(t *testing.T) {
+// TestUnionValidationPreservesValueContextForRequiredOnlyObjectBranches
+// regresses union validation code generation when sum-type object branches are
+// validated in value contexts such as HTTP request bodies. Object branches
+// should only receive pointer-wrapped validation when the enclosing attribute
+// context is itself pointer-based.
+func TestUnionValidationPreservesValueContextForRequiredOnlyObjectBranches(t *testing.T) {
 	t.Parallel()
 
 	scope := NewNameScope()
-	ctx := NewAttributeContext(false, false, false, "", scope)
-	single := &expr.UserTypeExpr{
-		TypeName: "SingleAction",
+	someType := &expr.UserTypeExpr{
+		TypeName: "SomeType",
 		AttributeExpr: &expr.AttributeExpr{
 			Type: &expr.Object{
 				{
-					Name: "value",
-					Attribute: &expr.AttributeExpr{
-						Type: expr.String,
-					},
+					Name:      "a",
+					Attribute: &expr.AttributeExpr{Type: expr.String},
 				},
 			},
-			Validation: &expr.ValidationExpr{Required: []string{"value"}},
-			Meta:       expr.MetaExpr{"oneof:type:tag": []string{"single"}},
+			Validation: &expr.ValidationExpr{Required: []string{"a"}},
+		},
+	}
+	someOtherType := &expr.UserTypeExpr{
+		TypeName: "SomeOtherType",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{
+				{
+					Name:      "b",
+					Attribute: &expr.AttributeExpr{Type: expr.String},
+				},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"b"}},
 		},
 	}
 	union := &expr.Union{
-		TypeName: "Selection",
+		TypeName: "UnionUserValidate",
 		Values: []*expr.NamedAttributeExpr{
-			{
-				Name: "Single",
-				Attribute: &expr.AttributeExpr{
-					Type: single,
-				},
-			},
+			{Name: "SomeType", Attribute: &expr.AttributeExpr{Type: someType}},
+			{Name: "SomeOtherType", Attribute: &expr.AttributeExpr{Type: someOtherType}},
 		},
 	}
+	att := &expr.AttributeExpr{Type: union}
 
-	code := ValidationCode(&expr.AttributeExpr{Type: union}, nil, ctx, true, false, false, "target")
+	valueCtx := NewAttributeContext(false, false, false, "", scope)
+	valueCode := ValidationCode(att, nil, valueCtx, true, false, false, "target")
+	if strings.Contains(valueCode, "ValidateSomeType(actual)") {
+		t.Errorf("value context must not pointer-wrap ValidateSomeType call:\n%s", valueCode)
+	}
+	if strings.Contains(valueCode, "ValidateSomeOtherType(actual)") {
+		t.Errorf("value context must not pointer-wrap ValidateSomeOtherType call:\n%s", valueCode)
+	}
+	if strings.Contains(valueCode, "if actual != nil") {
+		t.Errorf("value context must not emit pointer-presence guard:\n%s", valueCode)
+	}
 
-	if !strings.Contains(code, `case "single":`) {
-		t.Errorf("expected explicit tag in validation code:\n%s", code)
+	pointerCtx := NewAttributeContext(true, false, false, "", scope)
+	pointerCode := ValidationCode(att, nil, pointerCtx, true, false, false, "target")
+	if !strings.Contains(pointerCode, "ValidateSomeType(actual)") {
+		t.Errorf("pointer context must emit ValidateSomeType call:\n%s", pointerCode)
 	}
-	if !strings.Contains(code, `if actual == nil {`) {
-		t.Errorf("expected missing value guard for object union branch:\n%s", code)
-	}
-	if !strings.Contains(code, `loom.MissingFieldError("value", "target.value")`) {
-		t.Errorf("expected missing value error for object union branch:\n%s", code)
+	if !strings.Contains(pointerCode, "ValidateSomeOtherType(actual)") {
+		t.Errorf("pointer context must emit ValidateSomeOtherType call:\n%s", pointerCode)
 	}
 }

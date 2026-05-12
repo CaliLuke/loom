@@ -37,8 +37,10 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 	}
 
 	if endpointIR.Response.Result != nil {
+		md := sd.Service.Method(endpointIR.MethodName)
 		for _, response := range endpointIR.Response.Responses {
-			collectUserTypes(response.Body.Type, func(ut expr.UserType) {
+			body := effectiveClientResponseBody(response.Body, endpointIR.Response.Result, md)
+			collectUserTypes(body.Type, func(ut expr.UserType) {
 				if d := sds.attributeTypeData(ut, false, true, false, sd); d != nil {
 					sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
 				}

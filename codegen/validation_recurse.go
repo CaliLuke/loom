@@ -117,8 +117,13 @@ func renderUnionValidationCode(buf *bytes.Buffer, first *bool, u *expr.Union, pu
 func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string, seen map[string]*bytes.Buffer) []unionValidationCase {
 	cases := make([]unionValidationCase, 0, len(u.Values))
 	for _, v := range u.Values {
+		// Sum-type unions (struct-based, with Kind/AsX accessors) store each
+		// branch as either a value (primitives, arrays, maps) or a pointer
+		// (object user types). Request-body validation may already use value
+		// semantics for nested objects, so preserve the enclosing context and
+		// only keep pointer semantics when both layers use pointers.
 		unionCtx := attCtx.Dup()
-		unionCtx.Pointer = expr.IsObject(v.Attribute.Type)
+		unionCtx.Pointer = unionCtx.Pointer && expr.IsObject(v.Attribute.Type)
 		val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view, seen)
 		if val == "" {
 			continue

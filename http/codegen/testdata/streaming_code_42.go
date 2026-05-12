@@ -9,7 +9,7 @@ var StreamingPayloadResultCollectionWithExplicitViewClientStreamRecvCode = `// C
 func (s *StreamingPayloadResultCollectionWithExplicitViewMethodClientStream) CloseAndRecv() (streamingpayloadresultcollectionwithexplicitviewservice.UsertypeCollection, error) {
 	var (
 		rv   streamingpayloadresultcollectionwithexplicitviewservice.UsertypeCollection
-		body StreamingPayloadResultCollectionWithExplicitViewMethodResponseBody
+		body UsertypeResponseTinyCollection
 		err  error
 	)
 	defer s.conn.Close()

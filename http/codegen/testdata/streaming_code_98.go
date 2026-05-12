@@ -8,7 +8,7 @@ var BidirectionalStreamingResultCollectionWithExplicitViewClientStreamRecvCode =
 func (s *BidirectionalStreamingResultCollectionWithExplicitViewMethodClientStream) Recv() (bidirectionalstreamingresultcollectionwithexplicitviewservice.UsertypeCollection, error) {
 	var (
 		rv   bidirectionalstreamingresultcollectionwithexplicitviewservice.UsertypeCollection
-		body BidirectionalStreamingResultCollectionWithExplicitViewMethodResponseBody
+		body UsertypeResponseTinyCollection
 		err  error
 	)
 	err = s.conn.ReadJSON(&body)

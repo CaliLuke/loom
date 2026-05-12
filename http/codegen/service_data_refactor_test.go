@@ -410,7 +410,7 @@ func TestHTTPResponseBodyGenerationCoverage(t *testing.T) {
 		require.Len(t, resp.ServerBody, 1)
 		require.NotNil(t, resp.ViewedResult)
 		require.Equal(t, "full", resp.ServerBody[0].View)
-		require.Equal(t, "", resp.ClientBody.View)
+		require.Equal(t, "full", resp.ClientBody.View)
 	})
 
 	t.Run("inline object body on multi-view result fans out server bodies per view", func(t *testing.T) {
