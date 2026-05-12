@@ -138,6 +138,7 @@ func jsonrpcServerImports(genpkg, svcName string, data *httpcodegen.ServiceData)
 		codegen.LoomImport(""),
 		codegen.LoomImport("jsonrpc"),
 		codegen.LoomNamedImport("http", "loomhttp"),
+		codegen.LoomNamedImport("observability/transport", "loomtransport"),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	)

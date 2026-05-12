@@ -197,6 +197,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "encoding/json"},
 				{Path: "fmt"},
 				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
+				codegen.LoomNamedImport("observability/transport", "loomtransport"),
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
 			},

@@ -25,6 +25,7 @@ func addJSONRPCServeHTTPSection(stmt *jen.Statement, data *httpcodegen.ServiceDa
 }
 
 func addJSONRPCHandleHTTPSection(stmt *jen.Statement, data *httpcodegen.ServiceData) {
+	serviceName := data.Service.Name
 	stmt.Comment("handleHTTP handles JSON-RPC requests.").Line()
 	stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
 		Id("handleHTTP").
@@ -32,8 +33,33 @@ func addJSONRPCHandleHTTPSection(stmt *jen.Statement, data *httpcodegen.ServiceD
 			jen.Id("w").Qual("net/http", "ResponseWriter"),
 			jen.Id("r").Op("*").Qual("net/http", "Request"),
 		).
-		BlockFunc(writeBufferedRequestHandling)
+		BlockFunc(func(g *jen.Group) {
+			writeJSONRPCObserverPrelude(g, serviceName)
+			writeBufferedRequestHandling(g)
+		})
 	stmt.Line()
+}
+
+// writeJSONRPCObserverPrelude emits the observer lifecycle setup at the top
+// of the generated `handleHTTP`: BeginJSONRPCRequest captures the response
+// writer, defer obs.End() emits the terminal event (or ReasonPanic on
+// recovered panics), and the observer is injected into the request context
+// so deeper layers (processRequest, dispatch, encoders) can mark failures
+// without threading a new parameter through every signature.
+func writeJSONRPCObserverPrelude(g *jen.Group, serviceName string) {
+	g.List(jen.Id("obs"), jen.Id("w")).Op(":=").Add(loomtransportRef("BeginJSONRPCRequest")).Call(
+		jen.Id("r").Dot("Context").Call(),
+		jen.Id("w"),
+		jen.Lit(serviceName),
+		jen.Id("r"),
+	)
+	g.Defer().Id("obs").Dot("End").Call()
+	g.Id("r").Op("=").Id("r").Dot("WithContext").Call(
+		loomtransportRef("WithRequestObserver").Call(
+			jen.Id("r").Dot("Context").Call(),
+			jen.Id("obs"),
+		),
+	)
 }
 
 func writeBufferedRequestHandling(g *jen.Group) {
@@ -44,6 +70,7 @@ func writeBufferedRequestHandling(g *jen.Group) {
 		jen.Err().Op("!=").Nil().Op("&&").Err().Op("!=").Qual("io", "EOF"),
 	).Block(
 		jen.Id("r").Dot("Body").Dot("Close").Call(),
+		jen.Id("obs").Dot("Fail").Call(loomtransportRef("ReasonRequestDecodeFailed")),
 		jen.Id("s").Dot("errhandler").Call(
 			jen.Id("r").Dot("Context").Call(),
 			jen.Id("w"),

@@ -38,8 +38,11 @@ func NewStreamingResultMethodHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingResultMethod")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingResultService")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "StreamingResultService", "StreamingResultMethod", r)
+		defer obs.End()
 		payload, err := decodeRequest(r)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -59,6 +62,7 @@ func NewStreamingResultMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *StreamingResultMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*StreamingResultMethodServerStream)
@@ -100,6 +104,8 @@ func NewCreateHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "Create")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "MixedResultsService")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "MixedResultsService", "Create", r)
+		defer obs.End()
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
 		acceptHeader := r.Header.Get("Accept")
@@ -107,6 +113,7 @@ func NewCreateHandler(
 			// Handle SSE request
 			payload, err := decodeRequest(r)
 			if err != nil {
+				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -122,6 +129,7 @@ func NewCreateHandler(
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
+				obs.Fail(loomtransport.ReasonHandlerError)
 				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -130,6 +138,7 @@ func NewCreateHandler(
 			// Handle standard HTTP request
 			payload, err := decodeRequest(r)
 			if err != nil {
+				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -144,12 +153,14 @@ func NewCreateHandler(
 			}
 			res, err := endpoint(ctx, v)
 			if err != nil {
+				obs.Fail(loomtransport.ReasonHandlerError)
 				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
 				return
 			}
 			if err := encodeResponse(ctx, w, res); err != nil {
+				obs.Fail(loomtransport.ReasonResponseWriteFailed)
 				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -304,6 +315,8 @@ func NewStreamingResultNoPayloadMethodHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingResultNoPayloadMethod")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingResultNoPayloadService")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "StreamingResultNoPayloadService", "StreamingResultNoPayloadMethod", r)
+		defer obs.End()
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -318,6 +331,7 @@ func NewStreamingResultNoPayloadMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *StreamingResultNoPayloadMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*StreamingResultNoPayloadMethodServerStream)

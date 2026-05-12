@@ -22,8 +22,11 @@ func NewStreamingPayloadMethodHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingPayloadMethod")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingPayloadService")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "StreamingPayloadService", "StreamingPayloadMethod", r)
+		defer obs.End()
 		payload, err := decodeRequest(r)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -43,6 +46,7 @@ func NewStreamingPayloadMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *StreamingPayloadMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*StreamingPayloadMethodServerStream)

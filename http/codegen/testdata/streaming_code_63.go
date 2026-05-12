@@ -22,8 +22,11 @@ func NewBidirectionalStreamingMethodHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "BidirectionalStreamingMethod")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "BidirectionalStreamingService")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "BidirectionalStreamingService", "BidirectionalStreamingMethod", r)
+		defer obs.End()
 		payload, err := decodeRequest(r)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -43,6 +46,7 @@ func NewBidirectionalStreamingMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *BidirectionalStreamingMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*BidirectionalStreamingMethodServerStream)

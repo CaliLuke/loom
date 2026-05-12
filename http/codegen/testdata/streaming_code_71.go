@@ -22,6 +22,8 @@ func NewBidirectionalStreamingNoPayloadMethodHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "BidirectionalStreamingNoPayloadMethod")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "BidirectionalStreamingNoPayloadService")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "BidirectionalStreamingNoPayloadService", "BidirectionalStreamingNoPayloadMethod", r)
+		defer obs.End()
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -36,6 +38,7 @@ func NewBidirectionalStreamingNoPayloadMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *BidirectionalStreamingNoPayloadMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*BidirectionalStreamingNoPayloadMethodServerStream)

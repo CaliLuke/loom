@@ -47,27 +47,100 @@ func InitHeadersBody(writerExpr string, opts HeaderOptions) []jen.Code {
 	}
 }
 
+// ObserveOption configures generated observer emissions for SSE write and
+// flush failures. When CtxExpr is set to an in-scope Go expression that
+// yields a context.Context (typically "ctx"), the generated code emits
+// stream-failure events via loomtransport.Observe; leaving it empty keeps
+// the legacy bare write+flush code shape.
+type ObserveOption struct {
+	// CtxExpr is the in-scope expression that yields the request context.
+	CtxExpr string
+	// Transport is the loomtransport.TransportKind constant identifier
+	// (e.g. "loomtransport.TransportHTTP") that classifies emitted events.
+	// When empty, "loomtransport.TransportHTTP" is used.
+	Transport string
+}
+
 // WriteAndFlushSource renders source that writes an SSE event with the given
-// call expression and flushes the response controller.
-func WriteAndFlushSource(writeCall string, writerExpr string) string {
+// call expression and flushes the response controller. When opts.CtxExpr is
+// non-empty the generated code also reports stream write and flush failures
+// through loomtransport.Observe before returning the error.
+func WriteAndFlushSource(writeCall string, writerExpr string, opts ...ObserveOption) string {
+	ctxExpr, transport := observeArgs(opts)
 	var b strings.Builder
-	b.WriteString("if err := " + writeCall + "; err != nil {\n\treturn err\n}\n\n")
-	b.WriteString("return http.NewResponseController(" + writerExpr + ").Flush()")
+	b.WriteString("if err := " + writeCall + "; err != nil {\n")
+	if ctxExpr != "" {
+		b.WriteString("\tloomtransport.Observe(" + ctxExpr + ", loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: " + transport + "})\n")
+	}
+	b.WriteString("\treturn err\n}\n\n")
+	if ctxExpr == "" {
+		b.WriteString("return http.NewResponseController(" + writerExpr + ").Flush()")
+		return b.String()
+	}
+	b.WriteString("if err := http.NewResponseController(" + writerExpr + ").Flush(); err != nil {\n")
+	b.WriteString("\tloomtransport.Observe(" + ctxExpr + ", loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: " + transport + "})\n")
+	b.WriteString("\treturn err\n}\n")
+	b.WriteString("return nil")
 	return b.String()
 }
 
 // WriteAndFlushBody returns Jennifer statements that write an SSE event using
 // the provided call and then flush the response controller for the writer.
-func WriteAndFlushBody(writeCall jen.Code, writerExpr string) []jen.Code {
-	return []jen.Code{
+//
+// When ObserveOption.CtxExpr is provided, the emitted observer references use
+// the `loomtransport` alias so the generated code shares the import
+// registered in the surrounding server file header. We deliberately avoid
+// jen.Qual on observability/transport here to keep
+// TestGeneratorFilesDoNotMixNamedLoomImportsWithJenQual passing.
+func WriteAndFlushBody(writeCall jen.Code, writerExpr string, opts ...ObserveOption) []jen.Code {
+	ctxExpr, transport := observeArgs(opts)
+	emit := func(reason string) jen.Code {
+		return jen.Id("loomtransport.Observe").Call(
+			renderExpr(ctxExpr),
+			jen.Id("loomtransport.Event").Values(jen.Dict{
+				jen.Id("Kind"):      jen.Id("loomtransport.EventKindStreamFailure"),
+				jen.Id("Reason"):    jen.Id("loomtransport." + reason),
+				jen.Id("Transport"): jen.Id(transport),
+			}),
+		)
+	}
+	emitWrite := func() jen.Code { return emit("ReasonStreamWriteFailed") }
+	emitFlush := func() jen.Code { return emit("ReasonStreamFlushFailed") }
+	writeFail := []jen.Code{jen.Return(jen.Err())}
+	if ctxExpr != "" {
+		writeFail = []jen.Code{emitWrite(), jen.Return(jen.Err())}
+	}
+	stmts := []jen.Code{
 		jen.If(
 			jen.Err().Op(":=").Add(writeCall),
 			jen.Err().Op("!=").Nil(),
-		).Block(
-			jen.Return(jen.Err()),
-		),
-		jen.Return(jen.Qual("net/http", "NewResponseController").Call(renderExpr(writerExpr)).Dot("Flush").Call()),
+		).Block(writeFail...),
 	}
+	if ctxExpr == "" {
+		stmts = append(stmts, jen.Return(jen.Qual("net/http", "NewResponseController").Call(renderExpr(writerExpr)).Dot("Flush").Call()))
+		return stmts
+	}
+	flushFail := []jen.Code{emitFlush(), jen.Return(jen.Err())}
+	stmts = append(stmts,
+		jen.If(
+			jen.Err().Op(":=").Qual("net/http", "NewResponseController").Call(renderExpr(writerExpr)).Dot("Flush").Call(),
+			jen.Err().Op("!=").Nil(),
+		).Block(flushFail...),
+		jen.Return(jen.Nil()),
+	)
+	return stmts
+}
+
+func observeArgs(opts []ObserveOption) (string, string) {
+	if len(opts) == 0 {
+		return "", ""
+	}
+	ctxExpr := opts[0].CtxExpr
+	transport := opts[0].Transport
+	if ctxExpr != "" && transport == "" {
+		transport = "loomtransport.TransportHTTP"
+	}
+	return ctxExpr, transport
 }
 
 func appendHeaderBodyLines(g *jen.Group, opts HeaderOptions) {

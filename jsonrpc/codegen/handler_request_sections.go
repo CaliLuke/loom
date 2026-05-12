@@ -6,6 +6,17 @@ import (
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
+// loomtransportRef renders an in-scope reference to a symbol from the
+// `loomtransport` package alias. The observability/transport import is
+// registered with that alias in the JSON-RPC server file header (see
+// jsonrpcServerImports), so generated references must use the same alias
+// instead of jen.Qual to satisfy the LoomNamedImport-versus-jen.Qual
+// safety check enforced by
+// TestGeneratorFilesDoNotMixNamedLoomImportsWithJenQual.
+func loomtransportRef(symbol string) *jen.Statement {
+	return jen.Id("loomtransport." + symbol)
+}
+
 func addJSONRPCHandleSingleSection(stmt *jen.Statement, data *httpcodegen.ServiceData) {
 	stmt.Comment("handleSingle handles a single JSON-RPC request.").Line()
 	stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
@@ -20,6 +31,7 @@ func addJSONRPCHandleSingleSection(stmt *jen.Statement, data *httpcodegen.Servic
 				jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("r")).Dot("Decode").Call(jen.Op("&").Id("req")),
 				jen.Err().Op("!=").Nil(),
 			).BlockFunc(func(g *jen.Group) {
+				g.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("r").Dot("Context").Call()).Dot("Fail").Call(loomtransportRef("ReasonInvalidJSONRPCEnvelope"))
 				writeParseErrorResponse(g, jen.Id("r").Dot("Context").Call())
 				g.Return()
 			}),
@@ -42,9 +54,16 @@ func addJSONRPCHandleBatchSection(stmt *jen.Statement, data *httpcodegen.Service
 				jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("r")).Dot("Decode").Call(jen.Op("&").Id("reqs")),
 				jen.Err().Op("!=").Nil(),
 			).BlockFunc(func(g *jen.Group) {
+				g.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("r").Dot("Context").Call()).Dot("Fail").Call(loomtransportRef("ReasonInvalidJSONRPCBatch"))
 				writeParseErrorResponse(g, jen.Id("r").Dot("Context").Call())
 				g.Return()
 			}),
+			loomtransportRef("RequestObserverFromContext").Call(jen.Id("r").Dot("Context").Call()).Dot("SetJSONRPC").Call(
+				jen.Lit(""),
+				jen.Lit(""),
+				jen.Len(jen.Id("reqs")),
+				jen.False(),
+			),
 			jen.Id("w").Dot("Header").Call().Dot("Set").Call(jen.Lit("Content-Type"), jen.Lit("application/json")),
 			jen.Id("writer").Op(":=").Op("&").Id("batchWriter").Values(jen.Dict{
 				jen.Id("Writer"): jen.Id("w"),
@@ -78,11 +97,22 @@ func addJSONRPCProcessRequestSection(stmt *jen.Statement, data *httpcodegen.Serv
 }
 
 func writeJSONRPCProcessRequestBody(g *jen.Group, endpoints []*httpcodegen.EndpointData) {
-	writeJSONRPCInvalidRequestCheck(g, jen.Id("req").Dot("JSONRPC").Op("!=").Lit("2.0"), jen.Lit("Invalid request"))
-	writeJSONRPCInvalidRequestCheck(g, jen.Id("req").Dot("Method").Op("==").Lit(""), jen.Lit("Missing method field"))
+	// Record JSON-RPC envelope fields on the request observer as soon as the
+	// envelope has been decoded. Pre-decode rejection events emitted earlier
+	// already left these fields empty, satisfying the plan's contract that
+	// JSON-RPC fields are present only after a successful decode.
+	g.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("ctx")).Dot("SetJSONRPC").Call(
+		jen.Id("req").Dot("Method"),
+		jen.Qual("github.com/CaliLuke/loom/jsonrpc", "IDToString").Call(jen.Id("req").Dot("ID")),
+		jen.Lit(0),
+		jen.Op("!").Id("req").Dot("HasID"),
+	)
+	writeJSONRPCInvalidRequestCheck(g, jen.Id("req").Dot("JSONRPC").Op("!=").Lit("2.0"), jen.Lit("Invalid request"), "ReasonInvalidJSONRPCEnvelope")
+	writeJSONRPCInvalidRequestCheck(g, jen.Id("req").Dot("Method").Op("==").Lit(""), jen.Lit("Missing method field"), "ReasonInvalidJSONRPCMethod")
 	g.Switch(jen.Id("req").Dot("Method")).BlockFunc(func(sg *jen.Group) {
 		writeJSONRPCMethodDispatch(sg, endpoints)
 		sg.Default().Block(
+			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonUnsupportedMethod")),
 			jen.Id("s").Dot("encodeJSONRPCError").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
@@ -95,8 +125,9 @@ func writeJSONRPCProcessRequestBody(g *jen.Group, endpoints []*httpcodegen.Endpo
 	})
 }
 
-func writeJSONRPCInvalidRequestCheck(g *jen.Group, condition jen.Code, message jen.Code) {
+func writeJSONRPCInvalidRequestCheck(g *jen.Group, condition jen.Code, message jen.Code, reason string) {
 	g.If(condition).Block(
+		loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef(reason)),
 		jen.Id("s").Dot("encodeJSONRPCError").Call(
 			jen.Id("ctx"),
 			jen.Id("w"),
@@ -135,6 +166,7 @@ func writeJSONRPCMethodDispatch(g *jen.Group, endpoints []*httpcodegen.EndpointD
 				jen.Err().Op(":=").Id("s").Dot(endpoint.Method.VarName).Call(jen.Id("ctx"), jen.Id("r"), jen.Id("req"), jen.Id("w")),
 				jen.Err().Op("!=").Nil(),
 			).Block(
+				loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonHandlerError")),
 				jen.Id("s").Dot("errhandler").Call(
 					jen.Id("ctx"),
 					jen.Id("w"),

@@ -218,7 +218,7 @@ func (s *%s) sendSSEEvent(eventType string, v any) error {
 }
 `, codegen.Comment("sendSSEEvent sends a single SSE event."),
 		ed.SSE.StructName,
-		indentGeneratedCode(compactGeneratedCode(ssecodegen.WriteAndFlushSource(`loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v)`, "s.w")), "\t"))
+		indentGeneratedCode(compactGeneratedCode(ssecodegen.WriteAndFlushSource(`loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v)`, "s.w", ssecodegen.ObserveOption{CtxExpr: "s.r.Context()", Transport: "loomtransport.TransportJSONRPC"})), "\t"))
 }
 
 func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section {
@@ -242,6 +242,7 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 					jen.Id("v"),
 				),
 				"s.w",
+				ssecodegen.ObserveOption{CtxExpr: "s.r.Context()", Transport: "loomtransport.TransportJSONRPC"},
 			)...)...)
 		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).

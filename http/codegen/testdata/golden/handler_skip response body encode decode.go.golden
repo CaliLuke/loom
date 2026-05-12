@@ -17,9 +17,12 @@ func NewMethodSkipResponseBodyEncodeDecodeHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "MethodSkipResponseBodyEncodeDecode")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceSkipResponseBodyEncodeDecode")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "ServiceSkipResponseBodyEncodeDecode", "MethodSkipResponseBodyEncodeDecode", r)
+		defer obs.End()
 		var err error
 		res, err := endpoint(ctx, nil)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -29,6 +32,7 @@ func NewMethodSkipResponseBodyEncodeDecodeHandler(
 		defer o.Body.Close()
 		if wt, ok := o.Body.(io.WriterTo); ok {
 			if err := encodeResponse(ctx, w, res); err != nil {
+				obs.Fail(loomtransport.ReasonResponseWriteFailed)
 				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -37,6 +41,7 @@ func NewMethodSkipResponseBodyEncodeDecodeHandler(
 			n, err := wt.WriteTo(w)
 			if err != nil {
 				if n == 0 {
+					obs.Fail(loomtransport.ReasonResponseWriteFailed)
 					if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 						errhandler(ctx, w, err)
 					}
@@ -50,12 +55,14 @@ func NewMethodSkipResponseBodyEncodeDecodeHandler(
 		// handle immediate read error like a returned error
 		buf := bufio.NewReader(o.Body)
 		if _, err := buf.Peek(1); err != nil && err != io.EOF {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
 			return
 		}
 		if err := encodeResponse(ctx, w, res); err != nil {
+			obs.Fail(loomtransport.ReasonResponseWriteFailed)
 			if errhandler != nil {
 				errhandler(ctx, w, err)
 			}

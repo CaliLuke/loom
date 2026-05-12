@@ -55,6 +55,8 @@ func {{ .HandlerInit }}(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, {{ printf "%q" .Method.Name }})
 		ctx = context.WithValue(ctx, loom.ServiceKey, {{ printf "%q" .ServiceName }})
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, {{ printf "%q" .ServiceName }}, {{ printf "%q" .Method.Name }}, r)
+		defer obs.End()
 	{{- if .HasMixedResults }}
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
@@ -64,6 +66,7 @@ func {{ .HandlerInit }}(
 		{{- if mustDecodeRequest . }}
 			payload, err := decodeRequest(r)
 			if err != nil {
+				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -99,6 +102,7 @@ func {{ .HandlerInit }}(
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
+				obs.Fail(loomtransport.ReasonHandlerError)
 				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -108,6 +112,7 @@ func {{ .HandlerInit }}(
 		{{- if mustDecodeRequest . }}
 			payload, err := decodeRequest(r)
 			if err != nil {
+				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -132,6 +137,7 @@ func {{ .HandlerInit }}(
 			res, err := endpoint(ctx, v)
 		{{- end }}
 			if err != nil {
+				obs.Fail(loomtransport.ReasonHandlerError)
 				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -142,6 +148,7 @@ func {{ .HandlerInit }}(
 			defer o.Body.Close()
 			if wt, ok := o.Body.(io.WriterTo); ok {
 				if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
+					obs.Fail(loomtransport.ReasonResponseWriteFailed)
 					if errhandler != nil {
 						errhandler(ctx, w, err)
 					}
@@ -150,6 +157,7 @@ func {{ .HandlerInit }}(
 				n, err := wt.WriteTo(w)
 				if err != nil {
 					if n == 0 {
+						obs.Fail(loomtransport.ReasonResponseWriteFailed)
 						if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 							errhandler(ctx, w, err)
 						}
@@ -163,12 +171,14 @@ func {{ .HandlerInit }}(
 			// handle immediate read error like a returned error
 			buf := bufio.NewReader(o.Body)
 			if _, err := buf.Peek(1); err != nil && err != io.EOF {
+				obs.Fail(loomtransport.ReasonHandlerError)
 				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
 				return
 			}
 			if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
+				obs.Fail(loomtransport.ReasonResponseWriteFailed)
 				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -180,6 +190,7 @@ func {{ .HandlerInit }}(
 			}
 		{{- else }}
 			if err := encodeResponse(ctx, w, res); err != nil {
+				obs.Fail(loomtransport.ReasonResponseWriteFailed)
 				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -190,6 +201,7 @@ func {{ .HandlerInit }}(
 		{{- if mustDecodeRequest . }}
 			{{ if .Redirect }}_{{ else }}payload{{ end }}, err := decodeRequest(r)
 			if err != nil {
+				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -250,6 +262,7 @@ func {{ .HandlerInit }}(
 	{{- end }}
 		{{- if not .Redirect }}
 			if err != nil {
+				obs.Fail(loomtransport.ReasonHandlerError)
 				{{- if isWebSocketEndpoint . }}
 			var stream *{{ .ServerWebSocket.VarName }}
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
@@ -277,6 +290,7 @@ func {{ .HandlerInit }}(
 		if wt, ok := o.Body.(io.WriterTo); ok {
 			{{- if not (or .Redirect (isWebSocketEndpoint .)) }}
 			if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
+				obs.Fail(loomtransport.ReasonResponseWriteFailed)
 				if errhandler != nil {
 					errhandler(ctx, w, err)
 				}
@@ -286,6 +300,7 @@ func {{ .HandlerInit }}(
 			n, err := wt.WriteTo(w)
 			if err != nil {
 				if n == 0 {
+					obs.Fail(loomtransport.ReasonResponseWriteFailed)
 					if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 						errhandler(ctx, w, err)
 					}
@@ -299,6 +314,7 @@ func {{ .HandlerInit }}(
 		// handle immediate read error like a returned error
 		buf := bufio.NewReader(o.Body)
 		if _, err := buf.Peek(1); err != nil && err != io.EOF {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -307,6 +323,7 @@ func {{ .HandlerInit }}(
 	{{- end }}
 	{{- if not (or .Redirect (isWebSocketEndpoint .) (isSSEEndpoint .)) }}
 		if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
+			obs.Fail(loomtransport.ReasonResponseWriteFailed)
 			if errhandler != nil {
 				errhandler(ctx, w, err)
 			}

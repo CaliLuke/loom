@@ -13,6 +13,8 @@ func NewMethodNoPayloadNoResultHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "MethodNoPayloadNoResult")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceNoPayloadNoResult")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "ServiceNoPayloadNoResult", "MethodNoPayloadNoResult", r)
+		defer obs.End()
 		http.Redirect(w, r, "/redirect/dest", http.StatusMovedPermanently)
 	})
 }

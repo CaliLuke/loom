@@ -17,15 +17,19 @@ func NewMethodNoPayloadResultHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "MethodNoPayloadResult")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceNoPayloadResult")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "ServiceNoPayloadResult", "MethodNoPayloadResult", r)
+		defer obs.End()
 		var err error
 		res, err := endpoint(ctx, nil)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
 			return
 		}
 		if err := encodeResponse(ctx, w, res); err != nil {
+			obs.Fail(loomtransport.ReasonResponseWriteFailed)
 			if errhandler != nil {
 				errhandler(ctx, w, err)
 			}

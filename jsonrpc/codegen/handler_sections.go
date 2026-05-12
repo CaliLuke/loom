@@ -296,6 +296,7 @@ func writeJSONRPCParamsDecode(g *jen.Group, e *httpcodegen.EndpointData) {
 	}
 	g.List(jen.Id("params"), jen.Id("err")).Op(":=").Id("decodeParams").Call(jen.Id("r"), jen.Id("req"))
 	g.If(jen.Id("err").Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
+		eg.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonInvalidJSONRPCParams"))
 		if httpcodegen.IsWebSocketEndpoint(e) {
 			eg.Return(jen.Nil(), jen.Id("err"))
 			return
@@ -343,6 +344,7 @@ func writeJSONRPCWebSocketInitReturn(g *jen.Group, e *httpcodegen.EndpointData) 
 
 func writeJSONRPCEndpointErrorHandling(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.If(jen.Id("err").Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
+		eg.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonHandlerError"))
 		eg.If(jen.Id("req").Dot("ID").Op("!=").Nil().Op("&&").Id("req").Dot("ID").Op("!=").Lit("")).BlockFunc(func(idg *jen.Group) {
 			idg.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer"))
 			idg.If(jen.Op("!").Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).Block(
@@ -420,6 +422,7 @@ func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Err().Op(":=").Id("encodeResponse").Call(jen.Id("ctx"), jen.Id("capture"), jen.Id("res")),
 			jen.Err().Op("!=").Nil(),
 		).Block(
+			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
 			jen.Id("errhandler").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
@@ -477,6 +480,7 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Err().Op(":=").Id("encodeResponse").Call(jen.Id("ctx"), jen.Id("capture"), jen.Id("res")),
 			jen.Err().Op("!=").Nil(),
 		).Block(
+			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
 			jen.Id("errhandler").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
@@ -494,6 +498,7 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
 			jen.Err().Op("!=").Nil(),
 		).Block(
+			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
 			jen.Id("errhandler").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
@@ -517,6 +522,7 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
 			jen.Err().Op("!=").Nil(),
 		).Block(
+			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
 			jen.Id("errhandler").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
@@ -531,6 +537,7 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 		jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
 		jen.Err().Op("!=").Nil(),
 	).Block(
+		loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
 		jen.Id("errhandler").Call(
 			jen.Id("ctx"),
 			jen.Id("w"),

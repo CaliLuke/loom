@@ -21,6 +21,8 @@ func NewStreamingPayloadNoPayloadMethodHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingPayloadNoPayloadMethod")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingPayloadNoPayloadService")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "StreamingPayloadNoPayloadService", "StreamingPayloadNoPayloadMethod", r)
+		defer obs.End()
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -35,6 +37,7 @@ func NewStreamingPayloadNoPayloadMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *StreamingPayloadNoPayloadMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*StreamingPayloadNoPayloadMethodServerStream)

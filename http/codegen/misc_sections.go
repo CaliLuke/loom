@@ -239,7 +239,7 @@ func renderServerSSESendWithContextBody(ed *EndpointData) string {
 	writeSSEPayloadSetup(&b, ed)
 	writeSSEPayloadEncoding(&b)
 	writeSSEMessageSetup(&b, ed)
-	b.Add(ssecodegen.WriteAndFlushSource("loomhttp.WriteSSEEvent(s.w, msg)", "s.w"))
+	b.Add(ssecodegen.WriteAndFlushSource("loomhttp.WriteSSEEvent(s.w, msg)", "s.w", ssecodegen.ObserveOption{CtxExpr: "ctx", Transport: "loomtransport.TransportHTTP"}))
 	return b.String()
 }
 

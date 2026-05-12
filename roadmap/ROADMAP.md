@@ -122,6 +122,13 @@ These items are prioritized based on two goals:
 
 2. Generated transport observability
    See [Generated Transport Observability](./generated_transport_observability.md).
+   Completed 2026-05-12: implementation landed without raw payload emission.
+   The `loom/observability/transport` observer contract, generated HTTP,
+   JSON-RPC, and Loom-MCP emission sites, and the doc.go boundary with
+   `observability/otel` are all in place. Non-local `loom-mcp` releases
+   must bump `github.com/CaliLuke/loom` in `loom-mcp/go.mod` to a Loom tag
+   that contains `observability/transport` before dropping the local
+   replace directive; this is the only remaining release prerequisite.
 
 3. Refactor follow-up test backlog
    The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.

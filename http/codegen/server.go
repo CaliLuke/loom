@@ -88,9 +88,11 @@ func serverImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportS
 		{Path: "net/http"},
 		{Path: "path"},
 		{Path: "strings"},
+		{Path: "time"},
 		{Path: "github.com/gorilla/websocket"},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
+		codegen.LoomNamedImport("observability/transport", "loomtransport"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}

@@ -58,6 +58,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 				codegen.LoomImport(""),
 				codegen.LoomImport("jsonrpc"),
 				codegen.LoomNamedImport("http", "loomhttp"),
+				codegen.LoomNamedImport("observability/transport", "loomtransport"),
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 			},
 		),

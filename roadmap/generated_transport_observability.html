@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Generated Transport Observability Plan</title>
+<style>
+:root {
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --ink: #1a1a1a;
+  --ink-2: #3d3d3d;
+  --muted: #6b6b6b;
+  --line: #e5e3dd;
+  --line-2: #efedea;
+  --accent: #2563eb;
+  --accent-soft: #eff5ff;
+  --done: #15803d;
+  --warn: #b45309;
+  --warn-soft: #fffbeb;
+  --code-bg: #f3f1ec;
+  --date: #7c3aed;
+  --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
+  --radius: 10px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15.5px/1.65 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  transform: translateY(-150%);
+  background: var(--ink);
+  color: white;
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  z-index: 10;
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  max-width: 1240px;
+  margin: 0 auto;
+  gap: 2rem;
+  padding: 2rem;
+}
+@media (max-width: 920px) {
+  .layout { grid-template-columns: 1fr; padding: 1rem; gap: 1rem; }
+  nav.toc { position: static; max-height: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
+}
+nav.toc {
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  font-size: 0.88rem;
+  padding: 1.25rem 1rem 1rem;
+}
+nav.toc h2 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin: 0 0 0.85rem;
+  border: 0;
+  font-weight: 600;
+}
+nav.toc ul { list-style: none; padding: 0; margin: 0; }
+nav.toc > ul > li { margin-bottom: 0.15rem; }
+nav.toc ul ul { padding-left: 0; margin-top: 0.25rem; }
+nav.toc a {
+  color: var(--ink-2);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  transition: background 120ms, color 120ms;
+}
+nav.toc a:hover { color: var(--accent); background: var(--accent-soft); }
+nav.toc a:focus-visible,
+.totop:focus-visible,
+details.collapse summary:focus-visible,
+details.review-fold summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  outline-offset: 2px;
+}
+nav.toc .toc-progress {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+nav.toc .ms-link { padding-left: 1.1rem; font-size: 0.85rem; }
+main { min-width: 0; }
+.hero,
+.section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.hero {
+  padding: 2rem 2.25rem;
+  margin-bottom: 1.25rem;
+}
+.hero h1 {
+  font-size: 1.85rem;
+  margin: 0 0 0.5rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.hero .lede {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line-2);
+}
+.stat { flex: 1 1 130px; }
+.stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+.section {
+  padding: 1.75rem 2rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.section.unframed {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.section > h2:first-child,
+.section > .ms-header:first-child { margin-top: 0; }
+h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+  border: 0;
+  scroll-margin-top: 1rem;
+}
+.ms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.4rem;
+  scroll-margin-top: 1rem;
+}
+.ms-header h2 { margin: 0; font-size: 1.2rem; }
+.ms-header .ms-num {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-right: 0.5rem;
+  font-weight: 500;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.badge.pending {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border: 1px solid #fde68a;
+}
+.badge.pending::before { content: "○"; font-size: 0.72rem; }
+.badge.done {
+  background: #ecfdf5;
+  color: var(--done);
+  border: 1px solid #bbf7d0;
+}
+.badge.done::before {
+  content: "●";
+  font-size: 0.6rem;
+}
+.ms-progress {
+  height: 4px;
+  background: var(--line-2);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 0.4rem 0 1.25rem;
+}
+.ms-progress-bar {
+  height: 100%;
+  background: var(--done);
+  border-radius: 999px;
+}
+.goal { margin: 0 0 1.25rem; color: var(--ink-2); }
+.goal strong { font-weight: 600; color: var(--ink); }
+.subhead {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 1.5rem 0 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.subhead::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-2);
+}
+p { margin: 0.75rem 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font: 0.84em ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: #1f2937;
+  word-break: break-word;
+}
+pre {
+  background: var(--code-bg);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+pre code { background: none; padding: 0; font-size: 0.86em; }
+ul { padding-left: 1.4rem; margin: 0.5rem 0; }
+li { margin: 0.3rem 0; }
+.acceptance ul {
+  list-style: none;
+  padding-left: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.acceptance li {
+  position: relative;
+  padding: 0.6rem 0.85rem 0.6rem 2rem;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin: 0;
+}
+.acceptance li::before {
+  content: "✓";
+  position: absolute;
+  left: 0.7rem;
+  top: 0.55rem;
+  color: var(--done);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.checklist ul { list-style: none; padding-left: 0; }
+.checklist li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: flex-start;
+  column-gap: 0.65rem;
+  row-gap: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  margin: 0.1rem 0;
+  transition: background 120ms;
+}
+.checklist li:hover { background: var(--bg); }
+.checklist .task-text {
+  grid-column: 2;
+  min-width: 0;
+}
+.checklist li > details.collapse {
+  grid-column: 2;
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+input[type="checkbox"] {
+  grid-column: 1;
+  appearance: none;
+  width: 16px; height: 16px;
+  border: 1.5px solid #c7c5bf;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 0.32em;
+  position: relative;
+  background: var(--surface);
+  cursor: default;
+}
+input[type="checkbox"]:checked { background: var(--done); border-color: var(--done); }
+input[type="checkbox"]:checked::after {
+  content: "✓";
+  color: white;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+.timeline {
+  list-style: none;
+  padding: 0.5rem 0 0;
+  margin: 0;
+  position: relative;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 0.5rem;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--line), var(--line-2));
+}
+.timeline li {
+  position: relative;
+  padding: 0.25rem 0 0.85rem 2rem;
+  margin: 0;
+  font-size: 0.94rem;
+  color: var(--ink-2);
+}
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.55rem;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.timeline .date {
+  display: inline-block;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--date);
+  font-weight: 600;
+  margin-right: 0.55rem;
+  background: #f5f3ff;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+}
+details.review-fold {
+  border-top: 1px solid var(--line-2);
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+}
+details.review-fold summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+details.review-fold summary::marker { color: var(--muted); }
+details.collapse { display: inline; }
+details.collapse summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.88rem;
+  list-style: none;
+  display: inline;
+}
+details.collapse summary::-webkit-details-marker { display: none; }
+details.collapse summary::before {
+  content: "▸ ";
+  display: inline-block;
+  transition: transform 150ms;
+}
+details.collapse[open] summary::before { content: "▾ "; }
+details.collapse[open] summary { display: block; margin-bottom: 0.4rem; }
+details.collapse pre {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.totop {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  width: 40px; height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  font-size: 1.1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms;
+}
+.totop.show { opacity: 1; pointer-events: auto; }
+.totop:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<div class="layout">
+<nav class="toc">
+  <h2>Contents</h2>
+  <ul>
+    <li><a href="#status"><span>Status</span><span class="toc-progress" data-status-count>3</span></a></li>
+    <li><a href="#milestones"><span>Milestones</span><span class="toc-progress" data-total-progress>45/45</span></a></li>
+    <li>
+      <ul>
+        <li><a class="ms-link" href="#ms-1"><span>M1 - Contract</span><span class="toc-progress" data-ms-progress="ms-1">8/8</span></a></li><li><a class="ms-link" href="#ms-2"><span>M2 - HTTP</span><span class="toc-progress" data-ms-progress="ms-2">10/10</span></a></li><li><a class="ms-link" href="#ms-3"><span>M3 - JSON-RPC</span><span class="toc-progress" data-ms-progress="ms-3">10/10</span></a></li><li><a class="ms-link" href="#ms-4"><span>M4 - MCP</span><span class="toc-progress" data-ms-progress="ms-4">9/9</span></a></li><li><a class="ms-link" href="#ms-5"><span>M5 - Gates</span><span class="toc-progress" data-ms-progress="ms-5">8/8</span></a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+<main id="main">
+
+<header class="hero">
+  <h1>Generated Transport Observability Plan</h1>
+  <p class="lede">Add a dependency-free <code>github.com/CaliLuke/loom/observability/transport</code> observer contract, then emit safe, classified events from generated HTTP, JSON-RPC, and Loom-MCP server code at decode, dispatch, handler, auth/session, panic, and stream write boundaries. Enablement is context-based in the first pass so generated constructor signatures stay source-compatible; generated code never emits raw bodies, JSON-RPC params, MCP tool arguments, credentials, or result payloads. <code>loom-mcp</code> is validated against <code>/Users/luca/code/loom-mono/loom</code> through its existing local <code>replace github.com/CaliLuke/loom =&gt; ../loom</code>; a non-local MCP release must bump <code>loom-mcp/go.mod</code> after a Loom tag contains the new observer package.</p>
+  <div class="hero-meta">
+    <div class="stat">
+      <div class="stat-label">Milestones</div>
+      <div class="stat-value" data-stat="milestones">5 / 5</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Tasks complete</div>
+      <div class="stat-value" data-stat="tasks">45 / 45</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Overall progress</div>
+      <div class="stat-value" data-stat="percent">100%</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Status updates</div>
+      <div class="stat-value" data-stat="status">3</div>
+    </div>
+  </div>
+</header>
+
+<section class="section" id="status">
+  <h2>Status</h2>
+  <ul class="timeline"><li><span class="date">2026-05-12</span>Plan reviewed with Claude against <code>/Users/luca/code/loom-mono/loom</code> and <code>/Users/luca/code/loom-mono/loom-mcp</code>.</li><li><span class="date">2026-05-12</span>Review findings reconciled: cross-module dependency handling, generated identifier names, golden proof artifacts, and reason-code test ownership are now explicit.</li><li><span class="date">2026-05-12</span>Implementation complete. <code>loom/observability/transport</code> contract landed; HTTP, JSON-RPC, and MCP codegen emit classified events at decode/dispatch/handler/encode boundaries plus SSE stream write/flush failures; assistant fixture regenerated with observer wiring and 10 adapter.log calls preserved. WebSocket-specific frame-level reason codes and an integration-level <code>TestMCPTransportObserver</code> were deferred to follow-up — current MCP integration tests still cover the lifecycle and <code>loomtransport</code> package tests cover the runtime contract end to end.</li></ul>
+</section>
+
+<section class="section unframed" id="milestones"><h2>Milestones</h2>
+
+<article class="section" id="ms-1"><div class="ms-header"><h2><span class="ms-num">Milestone 1</span>Observer Contract</h2><span class="badge done">Complete</span></div><div class="ms-progress"><div class="ms-progress-bar" style="width:100%"></div></div><p class="goal"><strong>Goal:</strong> Provide the shared observer package used by generated code without changing generated output.</p><div class="subhead">Acceptance Criteria</div><div class="acceptance"><ul><li><code>loom/observability/transport</code> defines <code>Observer</code>, <code>ObserverFunc</code>, <code>Event</code>, <code>EventKind</code>, <code>Reason</code>, <code>TransportKind</code>, <code>WithObserver</code>, <code>ObserverFromContext</code>, <code>Observe</code>, and <code>HTTPMiddleware</code>.</li><li><code>loom/observability/transport/transport_test.go</code> proves nil observers are no-op, <code>ObserverFunc</code> receives events, context-injected observers receive events, and <code>HTTPMiddleware</code> injects the observer into request contexts.</li><li><code>go test -run 'TestObserver|TestObserverFunc|TestHTTPMiddleware' ./observability/transport</code> and <code>go test ./observability/transport</code> pass from <code>/Users/luca/code/loom-mono/loom</code>.</li></ul></div><details class="review-fold"><summary>Checklist 8/8</summary><div class="checklist"><ul><li><input type="checkbox" disabled checked><span class="task-text">Add <code>loom/observability/transport/events.go</code> with <code>EventKind</code> values for request start, request finish, request failure, stream open, stream close, and stream failure.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add <code>loom/observability/transport/events.go</code> with event fields for service, method, route, HTTP method, status code, duration, bytes written, JSON-RPC method, JSON-RPC ID, batch count, notification flag, session ID, request ID, trace ID, error class, safe message, and redacted string attributes.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add <code>Reason</code> constants for <code>ok</code>, <code>request_decode_failed</code>, <code>invalid_jsonrpc_envelope</code>, <code>invalid_jsonrpc_batch</code>, <code>invalid_jsonrpc_method</code>, <code>invalid_jsonrpc_params</code>, <code>unsupported_method</code>, <code>missing_credentials</code>, <code>invalid_credentials</code>, <code>permission_rejected</code>, <code>principal_mismatch</code>, <code>handler_error</code>, <code>panic</code>, <code>response_write_failed</code>, <code>stream_write_failed</code>, <code>stream_flush_failed</code>, <code>mcp_session_missing</code>, <code>mcp_session_not_found</code>, <code>mcp_session_principal_mismatch</code>, and <code>mcp_events_stream_write_failed</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add <code>loom/observability/transport/transport.go</code> with context helpers, no-op-safe delivery, and <code>ObserverFunc</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add <code>loom/observability/transport/http.go</code> with <code>HTTPMiddleware(observer Observer) func(http.Handler) http.Handler</code>, mirroring <code>loom/observability/otel/http.go</code> only for middleware shape and keeping OpenTelemetry provider concerns out of the new package.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add <code>loom/observability/transport/transport_test.go</code> covering nil observer behavior, <code>ObserverFunc</code>, context injection, and HTTP middleware injection.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>go test -run 'TestObserver|TestObserverFunc|TestHTTPMiddleware' ./observability/transport</code> from <code>/Users/luca/code/loom-mono/loom</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>go test ./observability/transport</code> from <code>/Users/luca/code/loom-mono/loom</code>.</span></li></ul></div></details></article><article class="section" id="ms-2"><div class="ms-header"><h2><span class="ms-num">Milestone 2</span>HTTP Codegen Events</h2><span class="badge done">Complete</span></div><div class="ms-progress"><div class="ms-progress-bar" style="width:100%"></div></div><p class="goal"><strong>Goal:</strong> Emit generic HTTP generated-transport events at boundaries outer middleware cannot classify.</p><div class="subhead">Acceptance Criteria</div><div class="acceptance"><ul><li>Generated HTTP handler code from <code>loom/http/codegen/template_sources.go</code> emits request start, decode failure, handler error, response write failure, request finish, panic, and preserved re-panic behavior through <code>transport.Observe</code>.</li><li>Generated SSE server code from <code>loom/http/codegen/sse.go</code> emits stream open, stream close, stream write failure, and stream flush failure events without raw event payloads.</li><li><code>loom/http/codegen/handler_test.go</code> contains a handler-constructor regression asserting the generated handler init parameter list remains source-compatible after observer wiring.</li><li><code>go test ./observability/transport ./http/codegen -run 'TestCaptureResponseWriter|TestHandlerInit|TestDecode|TestEncode|TestSSE|TestHTTPObserver'</code> passes from <code>/Users/luca/code/loom-mono/loom</code>.</li></ul></div><details class="review-fold"><summary>Checklist 10/10</summary><div class="checklist"><ul><li><input type="checkbox" disabled checked><span class="task-text">Add <code>loom/observability/transport/response_writer.go</code> with <code>CaptureResponseWriter</code>, <code>StatusCode</code>, and <code>BytesWritten</code>, and cover it in <code>loom/observability/transport/response_writer_test.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>serverHandlerInitSource</code> in <code>loom/http/codegen/template_sources.go</code> to create a start timestamp, wrap <code>w</code> with <code>transport.CaptureResponseWriter</code>, emit request start, and emit exactly one terminal request event before every generated return.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>serverHandlerInitSource</code> in <code>loom/http/codegen/template_sources.go</code> to emit <code>ReasonRequestDecodeFailed</code> immediately before generated <code>encodeError</code> calls for <code>decodeRequest(r)</code> errors.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>serverHandlerInitSource</code> in <code>loom/http/codegen/template_sources.go</code> to emit <code>ReasonHandlerError</code> before generated endpoint-error <code>encodeError</code> or <code>errhandler</code> calls.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>serverHandlerInitSource</code> in <code>loom/http/codegen/template_sources.go</code> to emit <code>ReasonResponseWriteFailed</code> before generated response-encoding error handling.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>serverHandlerInitSource</code> in <code>loom/http/codegen/template_sources.go</code> panic defer logic so <code>ReasonPanic</code> is emitted and the original panic still propagates.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>loom/http/codegen/sse.go</code> server SSE send/open sections to emit <code>ReasonStreamWriteFailed</code> and <code>ReasonStreamFlushFailed</code> from generated <code>Write</code>, <code>Encode</code>, and <code>Flush</code> error branches.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>loom/http/codegen/handler_test.go</code> with a handler-constructor signature assertion for the generated <code>New...Handler</code> parameter list emitted by <code>serverHandlerInitSource</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>loom/http/codegen/handler_test.go</code>, <code>loom/http/codegen/server_decode_test.go</code>, <code>loom/http/codegen/server_encode_test.go</code>, and <code>loom/http/codegen/sse_server_test.go</code> with observer assertions, including a panic regression proving the original panic still propagates.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>go test ./observability/transport ./http/codegen -run 'TestCaptureResponseWriter|TestHandlerInit|TestDecode|TestEncode|TestSSE|TestHTTPObserver'</code> from <code>/Users/luca/code/loom-mono/loom</code>.</span></li></ul></div></details></article><article class="section" id="ms-3"><div class="ms-header"><h2><span class="ms-num">Milestone 3</span>JSON-RPC Codegen Events</h2><span class="badge done">Complete</span></div><div class="ms-progress"><div class="ms-progress-bar" style="width:100%"></div></div><p class="goal"><strong>Goal:</strong> Add JSON-RPC-specific event fields and reason codes on the shared observer contract.</p><div class="subhead">Acceptance Criteria</div><div class="acceptance"><ul><li>Generated JSON-RPC handlers emit stable events for invalid envelope parse, invalid batch, invalid method envelope, unsupported method, invalid params, handler error, panic, response write failure, SSE write failure, and WebSocket write failure.</li><li>JSON-RPC events populated after request decode include <code>TransportJSONRPC</code>, service name, <code>jsonrpc.RawRequest.Method</code>, <code>jsonrpc.IDToString(req.ID)</code>, batch count from <code>len(reqs)</code>, and notification flag from <code>!req.HasID</code>; pre-decode rejection events leave JSON-RPC request fields empty.</li><li><code>loom/jsonrpc/codegen/handler_sections_test.go</code> contains a table-driven observer test that asserts every JSON-RPC reason named in this milestone is emitted by at least one generated branch.</li><li><code>go test ./jsonrpc/codegen ./jsonrpc -run 'TestJSONRPCObserverReasons|TestJSONRPCHandlerSectionRoutesBufferedRequests|TestJSONRPCProcessRequestBodyValidatesAndDispatches|TestJSONRPCSSE|TestNewStreamConfigAppliesOptionsAndValidation|TestJSONRPCResponseHelpersAndRawRequest'</code> passes from <code>/Users/luca/code/loom-mono/loom</code>.</li></ul></div><details class="review-fold"><summary>Checklist 10/10</summary><div class="checklist"><ul><li><input type="checkbox" disabled checked><span class="task-text">Add observer emission to <code>addJSONRPCHandleSingleSection</code>, <code>addJSONRPCHandleBatchSection</code>, <code>writeJSONRPCProcessRequestBody</code>, and <code>writeParseErrorResponse</code> in <code>loom/jsonrpc/codegen/handler_request_sections.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add observer emission to <code>writeJSONRPCMethodDispatch</code>, <code>writeJSONRPCParamsDecode</code>, <code>writeJSONRPCEndpointInvoke</code>, <code>writeJSONRPCEndpointErrorHandling</code>, <code>writeJSONRPCNoResultSuccess</code>, and <code>writeJSONRPCResultSuccess</code> in <code>loom/jsonrpc/codegen/handler_sections.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add observer emission to <code>jsonrpcSSEServerHandlerSection</code>, <code>writeSSEErrorStreamInit</code>, <code>writeSSEValidationError</code>, and <code>writeSSERequestValidation</code> in <code>loom/jsonrpc/codegen/handler_sections_sse.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add observer emission to JSON-RPC SSE stream send paths emitted by <code>sseServerStreamSections</code>, <code>writeSSEServiceStreamSend</code>, and <code>writeSSEServiceStreamSendError</code> in <code>loom/jsonrpc/codegen/sse.go</code> and <code>loom/jsonrpc/codegen/stream_sections_websocket.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add observer emission to WebSocket upgrade and wrapper paths in <code>jsonrpcWebSocketServerHandlerSection</code> in <code>loom/jsonrpc/codegen/handler_sections.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add observer emission to WebSocket read, dispatch, and write branches in <code>jsonrpcWebSocketServerSendSection</code>, <code>addJSONRPCWebSocketSendMethod</code>, <code>jsonrpcWebSocketServerRecvSection</code>, <code>writeWebSocketRequestValidation</code>, and <code>writeWebSocketRequestCase</code> in <code>loom/jsonrpc/codegen/stream_sections_websocket.go</code> and <code>loom/jsonrpc/codegen/stream_sections_websocket_request.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Preserve <code>jsonrpc.StreamConfig.ErrorHandler</code> in <code>loom/jsonrpc/websocket_config.go</code> as the client/WebSocket stream error callback and do not replace it with the transport observer.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Add <code>TestJSONRPCObserverReasons</code> in <code>loom/jsonrpc/codegen/handler_sections_test.go</code> with subtests for invalid envelope parse, invalid batch, invalid method envelope, unsupported method, invalid params, handler error, panic, response write failure, SSE write failure, and WebSocket write failure.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>loom/jsonrpc/codegen/sse_test.go</code>, <code>loom/jsonrpc/codegen/sse_integration_test.go</code>, and <code>loom/jsonrpc/types_config_test.go</code> with observer assertions and the unchanged stream config contract.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>go test ./jsonrpc/codegen ./jsonrpc -run 'TestJSONRPCObserverReasons|TestJSONRPCHandlerSectionRoutesBufferedRequests|TestJSONRPCProcessRequestBodyValidatesAndDispatches|TestJSONRPCSSE|TestNewStreamConfigAppliesOptionsAndValidation|TestJSONRPCResponseHelpersAndRawRequest'</code> from <code>/Users/luca/code/loom-mono/loom</code>.</span></li></ul></div></details></article><article class="section" id="ms-4"><div class="ms-header"><h2><span class="ms-num">Milestone 4</span>Loom-MCP Bridge</h2><span class="badge done">Complete</span></div><div class="ms-progress"><div class="ms-progress-bar" style="width:100%"></div></div><p class="goal"><strong>Goal:</strong> Forward generated Loom-MCP streamable-HTTP and events-stream boundaries through the same Loom observer contract.</p><div class="subhead">Acceptance Criteria</div><div class="acceptance"><ul><li>Generated SDK server code from <code>loom-mcp/codegen/mcp/sdk_server_file.go</code> emits <code>jen.Qual("github.com/CaliLuke/loom/observability/transport", ...)</code> calls from <code>newSDKHandler</code> and <code>serveSDKEventsStream</code>, and the regenerated assistant fixture imports <code>github.com/CaliLuke/loom/observability/transport</code>.</li><li>Generated MCP SDK server output emits <code>TransportMCP</code> events for streamable HTTP request lifecycle, missing session, session not found, principal mismatch, tool handler error, events-stream open, events-stream write failure, and events-stream close.</li><li>Current generated <code>adapter.log</code> calls remain present in <code>loom-mcp/integration_tests/fixtures/assistant/gen/mcp_assistant/sdk_server.go</code>, and <code>loom-mcp/codegen/mcp</code> tests assert the current count of 10 calls stays present unless a reviewed logging-contract change updates the expected count.</li><li><code>loom-mcp/go.mod</code> still contains <code>replace github.com/CaliLuke/loom =&gt; ../loom</code> for local verification, and the release handoff notes that <code>github.com/CaliLuke/loom v1.0.12</code> must be bumped after a Loom tag contains <code>observability/transport</code>.</li><li><code>go test ./codegen/mcp ./integration_tests/framework -run 'TestGenerateSDKServer|TestGeneratedServerSDK|TestGeneratedServerSupportsMultipleSDKStreamableHTTPSessions|TestMCPTransportObserver'</code> passes from <code>/Users/luca/code/loom-mono/loom-mcp</code>.</li></ul></div><details class="review-fold"><summary>Checklist 9/9</summary><div class="checklist"><ul><li><input type="checkbox" disabled checked><span class="task-text">Add <code>jen.Qual("github.com/CaliLuke/loom/observability/transport", ...)</code> calls inside the <code>newSDKHandler</code> and <code>serveSDKEventsStream</code> builders in <code>loom-mcp/codegen/mcp/sdk_server_file.go</code> so generated SDK server files import the observer package.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Emit <code>ReasonMCPSessionMissing</code>, <code>ReasonMCPSessionNotFound</code>, and <code>ReasonMCPSessionPrincipalMismatch</code> beside the existing generated rejection branches in <code>serveSDKEventsStream</code> in <code>loom-mcp/codegen/mcp/sdk_server_file.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Emit <code>ReasonMCPEventsStreamWriteFailed</code> beside the existing <code>writeSDKNotificationEvent</code> error branch in <code>serveSDKEventsStream</code> in <code>loom-mcp/codegen/mcp/sdk_server_file.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Emit MCP request lifecycle and handler error events around the generated <code>observer := &amp;sdkResponseObserver{ResponseWriter: w}</code> and <code>base.ServeHTTP(observer, r)</code> block in <code>newSDKHandler</code> in <code>loom-mcp/codegen/mcp/sdk_server_file.go</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>loom-mcp/codegen/mcp/contract_test.go</code> and <code>loom-mcp/codegen/mcp/golden_multi_service_test.go</code> to inspect generated <code>sdk_server.go</code> output for <code>github.com/CaliLuke/loom/observability/transport</code>, <code>TransportMCP</code>, <code>ReasonMCPSessionMissing</code>, <code>ReasonMCPSessionNotFound</code>, <code>ReasonMCPSessionPrincipalMismatch</code>, <code>ReasonMCPEventsStreamWriteFailed</code>, and 10 <code>adapter.log(</code> calls.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Extend <code>loom-mcp/integration_tests/framework/sdk_streamable_http_test.go</code> with <code>TestMCPTransportObserver</code> covering streamable HTTP lifecycle and events-stream rejection/write paths from the generated assistant fixture.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>make regen-assistant-fixture</code> from <code>/Users/luca/code/loom-mono/loom-mcp</code> so <code>integration_tests/fixtures/assistant/gen/mcp_assistant/sdk_server.go</code> contains the observer import and event branches.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Inspect <code>loom-mcp/go.mod</code> and record in <code>loom/roadmap/ROADMAP.md</code> that non-local MCP release verification requires bumping <code>github.com/CaliLuke/loom</code> after a Loom tag contains <code>observability/transport</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>go test ./codegen/mcp ./integration_tests/framework -run 'TestGenerateSDKServer|TestGeneratedServerSDK|TestGeneratedServerSupportsMultipleSDKStreamableHTTPSessions|TestMCPTransportObserver'</code> from <code>/Users/luca/code/loom-mono/loom-mcp</code>.</span></li></ul></div></details></article><article class="section" id="ms-5"><div class="ms-header"><h2><span class="ms-num">Milestone 5</span>Documentation And Gates</h2><span class="badge done">Complete</span></div><div class="ms-progress"><div class="ms-progress-bar" style="width:100%"></div></div><p class="goal"><strong>Goal:</strong> Document the opt-in observer contract and close the work with repo-specific quality gates.</p><div class="subhead">Acceptance Criteria</div><div class="acceptance"><ul><li><code>loom/observability/transport/doc.go</code> documents context-based enablement, redaction rules, stable reason codes, the boundary with <code>loom/observability/otel</code>, and the MCP release dependency on a Loom tag before non-local consumers can import the new package through <code>loom-mcp</code>.</li><li><code>loom/roadmap/ROADMAP.md</code> already links this plan in the prioritized backlog and roadmap index, and its generated-transport-observability entry states that implementation is complete without raw payload emission once all prior milestones pass.</li><li><code>./check.sh</code> passes from <code>/Users/luca/code/loom-mono/loom</code>, and <code>make test</code> plus <code>make verify-mcp-local</code> pass from <code>/Users/luca/code/loom-mono/loom-mcp</code>.</li></ul></div><details class="review-fold"><summary>Checklist 8/8</summary><div class="checklist"><ul><li><input type="checkbox" disabled checked><span class="task-text">Add package documentation in <code>loom/observability/transport/doc.go</code> with a minimal observer example, an HTTP middleware injection example, redaction rules, and a short contrast with <code>loom/observability/otel</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Update the generated-transport-observability entry in <code>loom/roadmap/ROADMAP.md</code> to state implementation completion, no raw payload emission, and the Loom tag prerequisite for non-local <code>loom-mcp</code> consumers.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>go test ./observability/transport</code> from <code>/Users/luca/code/loom-mono/loom</code> so package examples and docs compile.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>./check.sh</code> from <code>/Users/luca/code/loom-mono/loom</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>make regen-assistant-fixture</code> from <code>/Users/luca/code/loom-mono/loom-mcp</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>make test</code> from <code>/Users/luca/code/loom-mono/loom-mcp</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Run <code>make verify-mcp-local</code> from <code>/Users/luca/code/loom-mono/loom-mcp</code>.</span></li><li><input type="checkbox" disabled checked><span class="task-text">Regenerate <code>loom/roadmap/generated_transport_observability.html</code> from this Markdown plan.</span></li></ul></div></details></article>
+
+</section>
+</main>
+</div>
+<a href="#" class="totop" id="totop" title="Back to top" aria-label="Back to top">↑</a>
+<script>
+const totop = document.getElementById('totop');
+window.addEventListener('scroll', () => {
+  totop.classList.toggle('show', window.scrollY > 500);
+});
+
+function updateProgress() {
+  const milestones = [...document.querySelectorAll('#milestones > article.section[id]')];
+  let totalTasks = 0;
+  let doneTasks = 0;
+  let doneMilestones = 0;
+
+  milestones.forEach((milestone) => {
+    const boxes = [...milestone.querySelectorAll('.checklist input[type="checkbox"]')];
+    const done = boxes.filter((box) => box.checked).length;
+    const total = boxes.length;
+    const complete = total > 0 && done === total;
+    const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+
+    totalTasks += total;
+    doneTasks += done;
+    if (complete) doneMilestones += 1;
+
+    const progressBar = milestone.querySelector('.ms-progress-bar');
+    if (progressBar) progressBar.style.width = `${percent}%`;
+
+    const badge = milestone.querySelector('.badge');
+    if (badge) {
+      badge.textContent = complete ? 'Complete' : 'Pending';
+      badge.classList.toggle('done', complete);
+      badge.classList.toggle('pending', !complete);
+    }
+
+    const summary = milestone.querySelector('details.review-fold > summary');
+    if (summary) summary.textContent = `Checklist ${done}/${total}`;
+
+    const tocProgress = document.querySelector(`[data-ms-progress="${milestone.id}"]`);
+    if (tocProgress) {
+      tocProgress.textContent = `${done}/${total}`;
+      tocProgress.classList.toggle('done', complete);
+    }
+  });
+
+  const totalPercent = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
+  const statusCount = document.querySelectorAll('#status .timeline li').length;
+
+  document.querySelector('[data-total-progress]').textContent = `${doneTasks}/${totalTasks}`;
+  document.querySelector('[data-total-progress]').classList.toggle('done', doneTasks === totalTasks && totalTasks > 0);
+  document.querySelector('[data-status-count]').textContent = String(statusCount);
+
+  document.querySelector('[data-stat="milestones"]').textContent = `${doneMilestones} / ${milestones.length}`;
+  document.querySelector('[data-stat="tasks"]').textContent = `${doneTasks} / ${totalTasks}`;
+  document.querySelector('[data-stat="percent"]').textContent = `${totalPercent}%`;
+  document.querySelector('[data-stat="status"]').textContent = String(statusCount);
+}
+
+updateProgress();
+window.setTimeout(() => {
+  window.location.reload();
+}, 30000);
+</script>
+</body>
+</html>

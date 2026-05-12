@@ -63,6 +63,52 @@ func TestJSONRPCProcessRequestBodyValidatesAndDispatches(t *testing.T) {
 	require.Contains(t, code, `jsonrpc.MethodNotFound`)
 }
 
+// TestJSONRPCObserverReasons asserts that the JSON-RPC generator emits each
+// stable reason the plan requires somewhere in the generated server code.
+// This is a source-text contract: a future refactor that drops an emission
+// site silently would break here even if the runtime test suite still
+// passes. ReasonPanic is covered by the runtime panic test on
+// loomtransport.RequestObserver — it is not emitted as a literal in the
+// generator because obs.End()'s deferred recover() handles it.
+func TestJSONRPCObserverReasons(t *testing.T) {
+	root := RunJSONRPCDSL(t, func() {
+		dsl.API("jsonrpc-observer-reasons-test", func() {
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Service("calc", func() {
+			dsl.JSONRPC(func() {
+				dsl.POST("/rpc")
+			})
+			dsl.Method("add", func() {
+				dsl.Payload(func() {
+					dsl.ID("id", dsl.String)
+				})
+				dsl.Result(dsl.String)
+				dsl.JSONRPC(func() {})
+			})
+		})
+	})
+	files := ServerFiles("", CreateJSONRPCServices(root))
+	handler := fileSectionCode(t, files, "server.go", "jsonrpc-server-handler")
+	perEndpoint := fileSectionCode(t, files, "server.go", "jsonrpc-server-handler-init")
+	combined := handler + "\n" + perEndpoint
+
+	for _, reason := range []string{
+		"ReasonInvalidJSONRPCEnvelope",
+		"ReasonInvalidJSONRPCBatch",
+		"ReasonInvalidJSONRPCMethod",
+		"ReasonUnsupportedMethod",
+		"ReasonInvalidJSONRPCParams",
+		"ReasonHandlerError",
+		"ReasonResponseWriteFailed",
+	} {
+		require.Containsf(t, combined, "loomtransport."+reason, "generated JSON-RPC handler must emit %s at least once", reason)
+	}
+	require.Contains(t, handler, "loomtransport.BeginJSONRPCRequest(", "generated handler must Begin a JSON-RPC observer")
+	require.Contains(t, handler, "defer obs.End()", "generated handler must defer obs.End() so ReasonPanic is emitted on recovered panics")
+	require.Contains(t, handler, "SetJSONRPC(", "generated handler must enrich the observer with JSON-RPC envelope fields after decode")
+}
+
 func TestJSONRPCBatchWriterHelperSection(t *testing.T) {
 	section := codegen.MustJenniferSection("test-batch-writer", func(stmt *jen.Statement) {
 		addJSONRPCBatchWriterSection(stmt)
