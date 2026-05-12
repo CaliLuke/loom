@@ -134,6 +134,55 @@ If the application already owns OpenTelemetry providers, use
 `github.com/CaliLuke/loom/grpc/middleware/otel` directly as thin wrappers around
 the official OpenTelemetry HTTP and gRPC instrumentation.
 
+### Generated Transport Observer
+
+Generated HTTP, JSON-RPC, and Loom-MCP servers emit safe, classified events
+at decode, dispatch, handler, panic, response-write, and stream-write
+boundaries through the dependency-free
+`github.com/CaliLuke/loom/observability/transport` contract. Enablement is
+context-based, so generated constructor signatures stay unchanged — turning
+observability on or off is purely a wiring choice at the application
+boundary. Generated code never emits raw bodies, JSON-RPC params, MCP tool
+arguments, credentials, or result payloads; events carry only
+low-cardinality classification fields safe for metric labels and log
+enrichment.
+
+```go
+import (
+    loomhttp "github.com/CaliLuke/loom/http"
+    "github.com/CaliLuke/loom/observability/transport"
+)
+
+func main() {
+    obs := transport.ObserverFunc(func(_ context.Context, e transport.Event) {
+        log.Printf("%s/%s %s reason=%s status=%d bytes=%d duration=%s",
+            e.Transport, e.Kind, e.Method, e.Reason,
+            e.StatusCode, e.BytesWritten, e.Duration)
+    })
+
+    mux := loomhttp.NewMuxer()
+    mux.Use(transport.HTTPMiddleware(obs))
+}
+```
+
+`transport.HTTPMiddleware` only injects the observer into the request
+context; span/trace setup, propagation, and metric recording remain in
+`observability/otel`. The two are composable — stack them in any order;
+neither package depends on the other.
+
+`Event.Reason` is a stable enumeration suitable for metric labels:
+`ok`, `request_decode_failed`, `invalid_jsonrpc_envelope`,
+`invalid_jsonrpc_batch`, `invalid_jsonrpc_method`,
+`invalid_jsonrpc_params`, `unsupported_method`, `missing_credentials`,
+`invalid_credentials`, `permission_rejected`, `principal_mismatch`,
+`handler_error`, `panic`, `response_write_failed`, `stream_write_failed`,
+`stream_flush_failed`, `mcp_session_missing`, `mcp_session_not_found`,
+`mcp_session_principal_mismatch`, and `mcp_events_stream_write_failed`.
+
+For non-HTTP entry points (e.g. a JSON-RPC consumer reading frames from a
+queue) use `transport.WithObserver(ctx, obs)` to inject the observer into
+the request context before invoking the generated handler.
+
 ### Health Checks
 
 ```go
@@ -241,7 +290,7 @@ var _ = API("myapi", func() {
 // Service level - override API default
 var _ = Service("users", func() {
     Security(APIKeyAuth)
-    
+
     Method("list", func() {
         // Uses service-level APIKeyAuth
         Payload(func() {
@@ -249,7 +298,7 @@ var _ = Service("users", func() {
             Required("key")
         })
     })
-    
+
     Method("admin", func() {
         // Override with JWT for this method
         Security(JWTAuth)
@@ -258,7 +307,7 @@ var _ = Service("users", func() {
             Required("token")
         })
     })
-    
+
     Method("public", func() {
         // No security for this method
         NoSecurity()
@@ -286,13 +335,13 @@ var _ = Service("users", func() {
 ```go
 func main() {
     ctx, cancel := context.WithCancel(context.Background())
-    
+
     // Create server
     server := &http.Server{
         Addr:    ":8080",
         Handler: mux,
     }
-    
+
     // Start server in goroutine
     var wg sync.WaitGroup
     wg.Add(1)
@@ -302,20 +351,20 @@ func main() {
             log.Errorf(ctx, err, "server error")
         }
     }()
-    
+
     // Wait for interrupt signal
     sigChan := make(chan os.Signal, 1)
     signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
     <-sigChan
-    
+
     // Graceful shutdown with timeout
     shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer shutdownCancel()
-    
+
     if err := server.Shutdown(shutdownCtx); err != nil {
         log.Errorf(ctx, err, "shutdown error")
     }
-    
+
     cancel()
     wg.Wait()
 }
@@ -338,7 +387,7 @@ func main() {
     if err := envconfig.Process("", &cfg); err != nil {
         log.Fatal(err)
     }
-    
+
     server := &http.Server{
         Addr:         cfg.HTTPAddr,
         Handler:      mux,

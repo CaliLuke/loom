@@ -2,6 +2,7 @@
 name: loom-mcp
 description: Build and maintain Loom-MCP services in Go. Use this skill when a user mentions Loom-MCP, Loom-MCP DSL, generated `gen/` transport code, OpenAPI/proto generation, service implementation after DSL changes, or refactoring a project with a `design` package.
 ---
+
 # Loom-MCP
 
 Use this skill for Loom-MCP work only.
@@ -20,6 +21,9 @@ Use this skill for Loom-MCP work only.
 - SSE server streams do not expose a generated `Open()` hook. Loom writes SSE headers on the first `Send`, so idle subscriptions that must complete the HTTP handshake before the first business event need a non-generated transport/runtime flush path or an explicit bootstrap event in the contract.
 - Never repair SSE or cookie behavior by editing generated files. Keep the fix in `design/*.go` or non-generated transport/runtime code.
 - For responses that need multiple `Set-Cookie` headers, prefer idiomatic framework cookies in the DSL. If a flow still depends on raw cookie header strings, write them from non-generated transport code against the live `http.ResponseWriter` rather than patching generated encoders.
+- Generated SDK server code emits `github.com/CaliLuke/loom/observability/transport` events alongside the existing `adapter.log(...)` calls; the two channels are complementary and intentionally additive. Treat the `adapter.log` call count in `gen/mcp_<service>/sdk_server.go` as part of the logging contract — `TestMCPTransportObserverEmissions` pins both that count and the observer wiring, so a deliberate change requires updating both.
+- The MCP-specific reasons emitted from `serveSDKEventsStream` are `mcp_session_missing`, `mcp_session_not_found`, `mcp_session_principal_mismatch`, and `mcp_events_stream_write_failed`; the streamable-HTTP path classifies 4xx+ responses as `handler_error`. Wire an observer at the HTTP entry point using `transport.HTTPMiddleware(observer)` to receive these events.
+- Loom-MCP currently consumes `observability/transport` through the `replace github.com/CaliLuke/loom => ../loom` directive in `go.mod`. A non-local release that drops the replace must bump `github.com/CaliLuke/loom` to a Loom tag containing the `observability/transport` package — otherwise generated SDK server code will not compile against the public Loom module.
 
 ## Default Workflow
 
@@ -102,6 +106,7 @@ Use this skill for Loom-MCP work only.
 - `references/user-guides/interceptors/http-and-grpc-middleware.md`: HTTP middleware and gRPC interceptor patterns
 
 ### Production
+
 - `references/user-guides/production/index.md`: production topic index (model rate limiting, prompt overrides, Temporal, streaming UI, reminders)
 - `references/user-guides/production/model-rate-limiting.md`: adaptive AIMD model rate limiting and runtime integration
 - `references/user-guides/production/prompt-overrides.md`: prompt override scope resolution and Mongo-backed storage
@@ -145,21 +150,24 @@ Use this when you need to jump directly to a bounded chunk of Loom-MCP content w
 
 Full transcripts are grouped by document boundary:
 
-#### Core design and architecture
+### Core design and architecture
+
 - `references/user-guides/quickstart.md`
 - `references/user-guides/dsl-reference.md`
 - `references/user-guides/runtime.md`
 - `references/user-guides/composition.md`
 - `references/user-guides/toolsets.md`
 
-#### Service surface and transport
+### Service surface and transport
+
 - `references/user-guides/code-generation.md`
 - `references/user-guides/http-guide.md`
 - `references/user-guides/grpc-guide.md`
 - `references/user-guides/error-handling.md`
 - `references/user-guides/interceptors.md`
 
-#### Execution and operations
+### Execution and operations
+
 - `references/user-guides/mcp-integration.md`
 - `references/user-guides/memory.md`
 - `references/user-guides/internal-tool-registry.md`

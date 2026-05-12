@@ -179,6 +179,29 @@ build Auto-K without repeating large amounts of app-local glue.
   expected.
 - For gRPC, prefer `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`
   over the legacy trace/X-Ray middleware.
+- Generated transport observability is a separate, dependency-free contract
+  in `github.com/CaliLuke/loom/observability/transport`. Generated HTTP,
+  JSON-RPC, and Loom-MCP servers emit start/finish/failure events plus SSE
+  stream open/close/failure events at decode, dispatch, handler, panic,
+  response-write, and stream-write boundaries.
+  - Wire it with `transport.HTTPMiddleware(observer)` for HTTP entry
+    points or `transport.WithObserver(ctx, observer)` for non-HTTP entry
+    points; generated constructor signatures stay unchanged.
+  - `Event.Reason` is a stable, low-cardinality enumeration safe for
+    metric labels: `ok`, `request_decode_failed`,
+    `invalid_jsonrpc_envelope`, `invalid_jsonrpc_batch`,
+    `invalid_jsonrpc_method`, `invalid_jsonrpc_params`,
+    `unsupported_method`, `missing_credentials`, `invalid_credentials`,
+    `permission_rejected`, `principal_mismatch`, `handler_error`,
+    `panic`, `response_write_failed`, `stream_write_failed`,
+    `stream_flush_failed`, `mcp_session_missing`, `mcp_session_not_found`,
+    `mcp_session_principal_mismatch`, `mcp_events_stream_write_failed`.
+  - Generated code never emits raw bodies, JSON-RPC params, MCP tool
+    arguments, credentials, or result payloads — keep that invariant
+    when adding new emission sites.
+  - This package is composable with `observability/otel`: span/trace
+    setup, propagation, and metric recording stay in the otel package;
+    `observability/transport` only carries request-level classification.
 
 ## Practical Checks
 
