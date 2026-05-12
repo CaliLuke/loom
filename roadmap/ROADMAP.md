@@ -120,17 +120,7 @@ These items are prioritized based on two goals:
 1. Generated projection parity tests and guardrails
    See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
 
-2. Generated transport observability
-   See [Generated Transport Observability](./generated_transport_observability.md).
-   Completed 2026-05-12: implementation landed without raw payload emission.
-   The `loom/observability/transport` observer contract, generated HTTP,
-   JSON-RPC, and Loom-MCP emission sites, and the doc.go boundary with
-   `observability/otel` are all in place. Non-local `loom-mcp` releases
-   must bump `github.com/CaliLuke/loom` in `loom-mcp/go.mod` to a Loom tag
-   that contains `observability/transport` before dropping the local
-   replace directive; this is the only remaining release prerequisite.
-
-3. Refactor follow-up test backlog
+2. Refactor follow-up test backlog
    The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.
    Started 2026-03-18:
    Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, file-server path normalization/wildcard extraction, aliased path-param request init, result-init and error-init arg assembly, response-body generation for explicit origin/view fanout, error content-type suppression, and multipart decoder/encoder gating.
@@ -157,7 +147,6 @@ These items are prioritized based on two goals:
 
 - [Finish Checklist](./finish_checklist.md)
 - [Auth and Session](./auth_and_session.md)
-- [Generated Transport Observability](./generated_transport_observability.md)
 - [Generated Projection Parity Tests](./generated_projection_parity_tests.md)
 - [Refactor Checklist](./refactor_checklist.md)
 
