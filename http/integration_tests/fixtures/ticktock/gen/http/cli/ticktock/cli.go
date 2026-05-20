@@ -15,6 +15,7 @@ import (
 
 	clockc "example.com/http-ticktock/gen/http/clock/client"
 	loomhttp "github.com/CaliLuke/loom/http"
+	loomhttpcli "github.com/CaliLuke/loom/http/cli"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -26,67 +27,48 @@ func UsageCommands() []string {
 } // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
 	return os.Args[0] + " clock tick\\n"
-} // ParseEndpoint returns the endpoint and payload as specified on the command
+}
+
+type commandLine struct {
+	Clock struct {
+		Tick    struct{} `cmd:"" help:"Tick implements Tick." name:"tick"`
+		Tock    struct{} `cmd:"" help:"Tock implements Tock." name:"tock"`
+		Guarded struct {
+			Token string `help:"" name:"token"`
+		} `cmd:"" help:"Guarded implements Guarded." name:"guarded"`
+	} `cmd:"" help:"Service is the clock service interface." name:"clock"`
+}
+
+// ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		clockFlags            = flag.NewFlagSet("clock", flag.ContinueOnError)
-		clockTickFlags        = flag.NewFlagSet("tick", flag.ExitOnError)
-		clockTockFlags        = flag.NewFlagSet("tock", flag.ExitOnError)
-		clockGuardedFlags     = flag.NewFlagSet("guarded", flag.ExitOnError)
-		clockGuardedTokenFlag = clockGuardedFlags.String("token", "", "")
-	)
-	clockFlags.Usage = clockUsage
-	clockTickFlags.Usage = clockTickUsage
-	clockTockFlags.Usage = clockTockUsage
-	clockGuardedFlags.Usage = clockGuardedUsage
-
-	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-		return nil, nil, err
-	}
-	if flag.NArg() < 2 {
-		return nil, nil, fmt.Errorf("not enough arguments")
-	}
-	var (
-		svcn string
-		svcf *flag.FlagSet
+		command               commandLine
+		args                  []string
+		svcn                  string
+		epn                   string
+		clockGuardedTokenFlag *string
 	)
 	{
-		svcn = flag.Arg(0)
-		switch svcn {
-		case "clock":
-			svcf = clockFlags
-		default:
-			return nil, nil, fmt.Errorf("unknown service %q", svcn)
+		args = flag.Args()
+		if len(args) == 0 {
+			args = os.Args[1:]
 		}
-	}
-	if err := svcf.Parse(flag.Args()[1:]); err != nil {
-		return nil, nil, err
-	}
-	var (
-		epn string
-		epf *flag.FlagSet
-	)
-	{
-		epn = svcf.Arg(0)
-		switch svcn {
-		case "clock":
-			switch epn {
-			case "tick":
-				epf = clockTickFlags
-			case "tock":
-				epf = clockTockFlags
-			case "guarded":
-				epf = clockGuardedFlags
-			}
-		}
-	}
-	if epf == nil {
-		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
-	}
-	if svcf.NArg() > 1 {
-		if err := epf.Parse(svcf.Args()[1:]); err != nil {
+		path, err := loomhttpcli.Parse(&command, os.Args[0], args)
+		if err != nil {
 			return nil, nil, err
+		}
+		clockGuardedTokenFlag = &command.Clock.Guarded.Token
+		switch path {
+		case "clock tick":
+			svcn = "clock"
+			epn = "tick"
+		case "clock tock":
+			svcn = "clock"
+			epn = "tock"
+		case "clock guarded":
+			svcn = "clock"
+			epn = "guarded"
 		}
 	}
 

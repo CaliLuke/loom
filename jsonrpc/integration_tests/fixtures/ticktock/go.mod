@@ -5,6 +5,7 @@ go 1.26.1
 require github.com/CaliLuke/loom v1.0.7
 
 require (
+	github.com/alecthomas/kong v1.15.0 // indirect
 	github.com/aws/smithy-go v1.25.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dave/jennifer v1.7.1 // indirect

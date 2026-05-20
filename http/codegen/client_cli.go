@@ -109,14 +109,12 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 	path := filepath.Join(codegen.Gendir, "http", "cli", pkg, "cli.go")
 	title := fmt.Sprintf("%s HTTP client CLI support package", svr.Name)
 	specs := []*codegen.ImportSpec{
-		{Path: "encoding/json"},
 		{Path: "flag"},
 		{Path: "fmt"},
 		{Path: "net/http"},
 		{Path: "os"},
-		{Path: "strconv"},
-		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
+		codegen.LoomNamedImport("http/cli", "loomhttpcli"),
 		codegen.LoomNamedImport("http", "loomhttp"),
 	}
 	for _, sv := range svr.Services {

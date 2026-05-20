@@ -1,66 +1,37 @@
+type commandLine struct {
+	StreamingServiceA struct {
+		Method struct{} `cmd:"" help:"Method implements Method." name:"method"`
+	} `cmd:"" help:"Service is the StreamingServiceA service interface." name:"streaming-service-a"`
+	StreamingServiceB struct {
+		Method struct{} `cmd:"" help:"Method implements Method." name:"method"`
+	} `cmd:"" help:"Service is the StreamingServiceB service interface." name:"streaming-service-b"`
+}
+
 // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool, dialer loomhttp.Dialer, streamingServiceAConfigurer *streamingserviceac.ConnConfigurer, streamingServiceBConfigurer *streamingservicebc.ConnConfigurer) (loom.Endpoint, any, error) {
 	var (
-		streamingServiceAFlags       = flag.NewFlagSet("streaming-service-a", flag.ContinueOnError)
-		streamingServiceAMethodFlags = flag.NewFlagSet("method", flag.ExitOnError)
-		streamingServiceBFlags       = flag.NewFlagSet("streaming-service-b", flag.ContinueOnError)
-		streamingServiceBMethodFlags = flag.NewFlagSet("method", flag.ExitOnError)
-	)
-	streamingServiceAFlags.Usage = streamingServiceAUsage
-	streamingServiceAMethodFlags.Usage = streamingServiceAMethodUsage
-	streamingServiceBFlags.Usage = streamingServiceBUsage
-	streamingServiceBMethodFlags.Usage = streamingServiceBMethodUsage
-
-	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-		return nil, nil, err
-	}
-	if flag.NArg() < 2 {
-		return nil, nil, fmt.Errorf("not enough arguments")
-	}
-	var (
-		svcn string
-		svcf *flag.FlagSet
+		command commandLine
+		args    []string
+		svcn    string
+		epn     string
 	)
 	{
-		svcn = flag.Arg(0)
-		switch svcn {
-		case "streaming-service-a":
-			svcf = streamingServiceAFlags
-		case "streaming-service-b":
-			svcf = streamingServiceBFlags
-		default:
-			return nil, nil, fmt.Errorf("unknown service %q", svcn)
+		args = flag.Args()
+		if len(args) == 0 {
+			args = os.Args[1:]
 		}
-	}
-	if err := svcf.Parse(flag.Args()[1:]); err != nil {
-		return nil, nil, err
-	}
-	var (
-		epn string
-		epf *flag.FlagSet
-	)
-	{
-		epn = svcf.Arg(0)
-		switch svcn {
-		case "streaming-service-a":
-			switch epn {
-			case "method":
-				epf = streamingServiceAMethodFlags
-			}
-		case "streaming-service-b":
-			switch epn {
-			case "method":
-				epf = streamingServiceBMethodFlags
-			}
-		}
-	}
-	if epf == nil {
-		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
-	}
-	if svcf.NArg() > 1 {
-		if err := epf.Parse(svcf.Args()[1:]); err != nil {
+		path, err := loomhttpcli.Parse(&command, os.Args[0], args)
+		if err != nil {
 			return nil, nil, err
+		}
+		switch path {
+		case "streaming-service-a method":
+			svcn = "streaming-service-a"
+			epn = "method"
+		case "streaming-service-b method":
+			svcn = "streaming-service-b"
+			epn = "method"
 		}
 	}
 

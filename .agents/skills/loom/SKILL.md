@@ -177,6 +177,10 @@ build Auto-K without repeating large amounts of app-local glue.
 - For generated HTTP clients, wrap an `*http.Client` with
   `otel.WrapHTTPClient(...)` before passing it anywhere a Loom HTTP Doer is
   expected.
+- Generated HTTP and JSON-RPC CLI clients use a Kong-backed parser through
+  `github.com/CaliLuke/loom/http/cli`. Keep command parsing framework-owned;
+  generated CLI code should continue to build typed Loom endpoints and payloads
+  instead of duplicating transport request construction.
 - For gRPC, prefer `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`
   over the legacy trace/X-Ray middleware.
 - Generated transport observability is a separate, dependency-free contract

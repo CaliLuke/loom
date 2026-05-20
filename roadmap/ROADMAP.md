@@ -76,6 +76,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - First-class OpenTelemetry transport wrappers now live in `github.com/CaliLuke/loom/http/middleware/otel` and `github.com/CaliLuke/loom/grpc/middleware/otel`, using the official `otelhttp` and `otelgrpc` libraries while keeping provider/exporter bootstrap app-owned.
 - OpenTelemetry V2 now adds a framework-owned observability package in `github.com/CaliLuke/loom/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
+- Generated HTTP and JSON-RPC CLI clients now use a Kong-backed command parser
+  through a Loom-owned HTTP CLI runtime wrapper, replacing generated
+  `flag.FlagSet` endpoint parsing while keeping typed Loom endpoint and payload
+  construction in generated code.
 - Session auth DSL and derived auth/session transport behavior.
 - Per-cookie response model and improved `Set-Cookie` OpenAPI output.
 - Stable OpenAPI schema naming and canonical `operationId` generation.

@@ -183,7 +183,8 @@ Congratulations! You've built your first Loom service.
 
 #### Using the Generated CLI Client
 
-Loom also generated a command-line client. Try it:
+Loom also generated a command-line client from the same design metadata used for
+the HTTP transport and OpenAPI contract. Try it:
 
 ```bash
 go run ./cmd/hello-cli --url=http://localhost:8080 hello say-hello -p=Alice
@@ -193,6 +194,7 @@ Explore available commands:
 
 ```bash
 go run ./cmd/hello-cli --help
+go run ./cmd/hello-cli hello say-hello --help
 ```
 
 ---

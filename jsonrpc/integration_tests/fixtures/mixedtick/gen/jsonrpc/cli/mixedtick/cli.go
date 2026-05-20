@@ -15,6 +15,7 @@ import (
 
 	clockc "example.com/mixedtick/gen/jsonrpc/clock/client"
 	loomhttp "github.com/CaliLuke/loom/http"
+	loomhttpcli "github.com/CaliLuke/loom/http/cli"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -26,64 +27,48 @@ func UsageCommands() []string {
 } // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
 	return os.Args[0] + " clock initialize --body '{\n      \"id\": \"Doloribus quia vel.\"\n   }'\\n"
-} // ParseEndpoint returns the endpoint and payload as specified on the command
+}
+
+type commandLine struct {
+	Clock struct {
+		Initialize struct {
+			Body string `help:"" name:"body" required:""`
+		} `cmd:"" help:"Initialize implements Initialize." name:"initialize"`
+		Tick struct {
+			Body string `help:"" name:"body" required:""`
+		} `cmd:"" help:"Tick implements Tick." name:"tick"`
+	} `cmd:"" help:"Service is the clock service interface." name:"clock"`
+}
+
+// ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		clockFlags              = flag.NewFlagSet("clock", flag.ContinueOnError)
-		clockInitializeFlags    = flag.NewFlagSet("initialize", flag.ExitOnError)
-		clockInitializeBodyFlag = clockInitializeFlags.String("body", "REQUIRED", "")
-		clockTickFlags          = flag.NewFlagSet("tick", flag.ExitOnError)
-		clockTickBodyFlag       = clockTickFlags.String("body", "REQUIRED", "")
-	)
-	clockFlags.Usage = clockUsage
-	clockInitializeFlags.Usage = clockInitializeUsage
-	clockTickFlags.Usage = clockTickUsage
-
-	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-		return nil, nil, err
-	}
-	if flag.NArg() < 2 {
-		return nil, nil, fmt.Errorf("not enough arguments")
-	}
-	var (
-		svcn string
-		svcf *flag.FlagSet
+		command                 commandLine
+		args                    []string
+		svcn                    string
+		epn                     string
+		clockInitializeBodyFlag *string
+		clockTickBodyFlag       *string
 	)
 	{
-		svcn = flag.Arg(0)
-		switch svcn {
-		case "clock":
-			svcf = clockFlags
-		default:
-			return nil, nil, fmt.Errorf("unknown service %q", svcn)
+		args = flag.Args()
+		if len(args) == 0 {
+			args = os.Args[1:]
 		}
-	}
-	if err := svcf.Parse(flag.Args()[1:]); err != nil {
-		return nil, nil, err
-	}
-	var (
-		epn string
-		epf *flag.FlagSet
-	)
-	{
-		epn = svcf.Arg(0)
-		switch svcn {
-		case "clock":
-			switch epn {
-			case "initialize":
-				epf = clockInitializeFlags
-			case "tick":
-				epf = clockTickFlags
-			}
-		}
-	}
-	if epf == nil {
-		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
-	}
-	if svcf.NArg() > 1 {
-		if err := epf.Parse(svcf.Args()[1:]); err != nil {
+		path, err := loomhttpcli.Parse(&command, os.Args[0], args)
+		if err != nil {
 			return nil, nil, err
+		}
+		clockInitializeBodyFlag = &command.Clock.Initialize.Body
+		clockTickBodyFlag = &command.Clock.Tick.Body
+		switch path {
+		case "clock initialize":
+			svcn = "clock"
+			epn = "initialize"
+		case "clock tick":
+			svcn = "clock"
+			epn = "tick"
 		}
 	}
 

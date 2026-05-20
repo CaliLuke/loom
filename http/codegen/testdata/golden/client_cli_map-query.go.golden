@@ -1,56 +1,35 @@
+type commandLine struct {
+	ServiceMapQueryPrimitiveArray struct {
+		MapQueryPrimitiveArray struct {
+			P string `help:"map[string][]uint is the payload type of the ServiceMapQueryPrimitiveArray service MapQueryPrimitiveArray method." name:"p" required:"" short:"p"`
+		} `cmd:"" help:"MapQueryPrimitiveArray implements MapQueryPrimitiveArray." name:"map-query-primitive-array"`
+	} `cmd:"" help:"Service is the ServiceMapQueryPrimitiveArray service interface." name:"service-map-query-primitive-array"`
+}
+
 // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		serviceMapQueryPrimitiveArrayFlags                       = flag.NewFlagSet("service-map-query-primitive-array", flag.ContinueOnError)
-		serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayFlags = flag.NewFlagSet("map-query-primitive-array", flag.ExitOnError)
-		serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayPFlag = serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayFlags.String("p", "REQUIRED", "map[string][]uint is the payload type of the ServiceMapQueryPrimitiveArray service MapQueryPrimitiveArray method.")
-	)
-	serviceMapQueryPrimitiveArrayFlags.Usage = serviceMapQueryPrimitiveArrayUsage
-	serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayFlags.Usage = serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayUsage
-
-	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-		return nil, nil, err
-	}
-	if flag.NArg() < 2 {
-		return nil, nil, fmt.Errorf("not enough arguments")
-	}
-	var (
-		svcn string
-		svcf *flag.FlagSet
+		command                                                  commandLine
+		args                                                     []string
+		svcn                                                     string
+		epn                                                      string
+		serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayPFlag *string
 	)
 	{
-		svcn = flag.Arg(0)
-		switch svcn {
-		case "service-map-query-primitive-array":
-			svcf = serviceMapQueryPrimitiveArrayFlags
-		default:
-			return nil, nil, fmt.Errorf("unknown service %q", svcn)
+		args = flag.Args()
+		if len(args) == 0 {
+			args = os.Args[1:]
 		}
-	}
-	if err := svcf.Parse(flag.Args()[1:]); err != nil {
-		return nil, nil, err
-	}
-	var (
-		epn string
-		epf *flag.FlagSet
-	)
-	{
-		epn = svcf.Arg(0)
-		switch svcn {
-		case "service-map-query-primitive-array":
-			switch epn {
-			case "map-query-primitive-array":
-				epf = serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayFlags
-			}
-		}
-	}
-	if epf == nil {
-		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
-	}
-	if svcf.NArg() > 1 {
-		if err := epf.Parse(svcf.Args()[1:]); err != nil {
+		path, err := loomhttpcli.Parse(&command, os.Args[0], args)
+		if err != nil {
 			return nil, nil, err
+		}
+		serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayPFlag = &command.ServiceMapQueryPrimitiveArray.MapQueryPrimitiveArray.P
+		switch path {
+		case "service-map-query-primitive-array map-query-primitive-array":
+			svcn = "service-map-query-primitive-array"
+			epn = "map-query-primitive-array"
 		}
 	}
 

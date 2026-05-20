@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -11,6 +12,8 @@ import (
 
 func parseEndpointSection(common []*cli.CommandData, commands []*commandData) codegen.Section {
 	return codegen.MustJenniferSection("parse-endpoint", func(stmt *jen.Statement) {
+		appendKongCommandLineStruct(stmt, common)
+		stmt.Line()
 		stmt.Comment("ParseEndpoint returns the endpoint and payload as specified on the command").Line()
 		stmt.Comment("line.").Line()
 		stmt.Func().
@@ -27,10 +30,114 @@ func parseEndpointSection(common []*cli.CommandData, commands []*commandData) co
 			}).
 			Params(codegen.TypeRef("loom.Endpoint"), jen.Any(), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
-				group.Add(cli.FlagsCodeStatement(common))
+				appendKongParseCommand(group, commands)
 				appendHTTPParseEndpointBody(group, commands)
 			})
 	})
+}
+
+func appendKongCommandLineStruct(stmt *jen.Statement, commands []*cli.CommandData) {
+	stmt.Line().Type().Id("commandLine").StructFunc(func(group *jen.Group) {
+		for _, cmd := range commands {
+			group.Id(kongFieldName(cmd.Name)).StructFunc(func(serviceGroup *jen.Group) {
+				for _, sub := range cmd.Subcommands {
+					serviceGroup.Id(kongFieldName(sub.Name)).StructFunc(func(methodGroup *jen.Group) {
+						for _, flag := range sub.Flags {
+							methodGroup.Id(kongFieldName(flag.Name)).String().Tag(kongFlagTags(flag))
+						}
+					}).Tag(map[string]string{
+						"cmd":  "",
+						"help": sub.Description,
+						"name": sub.Name,
+					})
+				}
+			}).Tag(map[string]string{
+				"cmd":  "",
+				"help": cmd.Description,
+				"name": cmd.Name,
+			})
+		}
+	})
+}
+
+func appendKongParseCommand(group *jen.Group, commands []*commandData) {
+	group.Var().DefsFunc(func(defs *jen.Group) {
+		defs.Id("command").Id("commandLine")
+		defs.Id("args").Index().String()
+		defs.Id("svcn").String()
+		defs.Id("epn").String()
+		appendKongFlagVars(defs, commands)
+	})
+	group.BlockFunc(func(block *jen.Group) {
+		block.Id("args").Op("=").Qual("flag", "Args").Call()
+		block.If(jen.Len(jen.Id("args")).Op("==").Lit(0)).Block(
+			jen.Id("args").Op("=").Qual("os", "Args").Index(jen.Lit(1), jen.Empty()),
+		)
+		block.List(jen.Id("path"), jen.Err()).Op(":=").Id("loomhttpcli").Dot("Parse").Call(
+			jen.Op("&").Id("command"),
+			jen.Qual("os", "Args").Index(jen.Lit(0)),
+			jen.Id("args"),
+		)
+		block.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Return(jen.Nil(), jen.Nil(), jen.Err()),
+		)
+		appendKongFlagAssignments(block, commands)
+		block.Switch(jen.Id("path")).BlockFunc(func(switchGroup *jen.Group) {
+			for _, cmd := range commands {
+				for _, sub := range cmd.Subcommands {
+					switchGroup.Case(jen.Lit(cmd.Name+" "+sub.Name)).Block(
+						jen.Id("svcn").Op("=").Lit(cmd.Name),
+						jen.Id("epn").Op("=").Lit(sub.Name),
+					)
+				}
+			}
+		})
+	})
+	group.Line()
+}
+
+func appendKongFlagVars(group *jen.Group, commands []*commandData) {
+	for _, cmd := range commands {
+		for _, sub := range cmd.Subcommands {
+			for _, flag := range sub.Flags {
+				group.Id(flag.FullName + "Flag").Op("*").String()
+			}
+		}
+	}
+}
+
+func appendKongFlagAssignments(group *jen.Group, commands []*commandData) {
+	for _, cmd := range commands {
+		for _, sub := range cmd.Subcommands {
+			for _, flag := range sub.Flags {
+				group.Id(flag.FullName + "Flag").Op("=").Op("&").Id("command").
+					Dot(kongFieldName(cmd.Name)).
+					Dot(kongFieldName(sub.Name)).
+					Dot(kongFieldName(flag.Name))
+			}
+		}
+	}
+}
+
+func kongFlagTags(flag *cli.FlagData) map[string]string {
+	tags := map[string]string{
+		"help": flag.Description,
+		"name": flag.Name,
+	}
+	if len(flag.Name) == 1 {
+		tags["short"] = flag.Name
+	}
+	if flag.Required {
+		tags["required"] = ""
+	}
+	if flag.Default != nil {
+		tags["default"] = fmt.Sprint(flag.Default)
+	}
+	return tags
+}
+
+func kongFieldName(name string) string {
+	return codegen.Goify(name, true)
 }
 
 func appendParseEndpointStreamingParams(group *jen.Group, commands []*commandData) {

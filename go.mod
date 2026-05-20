@@ -3,6 +3,7 @@ module github.com/CaliLuke/loom
 go 1.26.1
 
 require (
+	github.com/alecthomas/kong v1.15.0
 	github.com/aws/smithy-go v1.25.1
 	github.com/dave/jennifer v1.7.1
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598

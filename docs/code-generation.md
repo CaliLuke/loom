@@ -306,6 +306,22 @@ func main() {
 }
 ```
 
+### Generated CLI Client
+
+HTTP generation also emits command-line client support under
+`gen/http/cli/<server>/cli.go` and per-service payload builders under
+`gen/http/<service>/client/cli.go`. The generated parser is Kong-backed, so
+service and method descriptions from the design become command help, while
+Loom-owned generated code still constructs the typed endpoint and payload.
+
+`loom example` wires that support into `cmd/<server>-cli` so local testing can
+call any generated endpoint without hand-writing a test client:
+
+```bash
+go run ./cmd/calc-cli --url=http://localhost:8080 calc add --a=1 --b=2
+go run ./cmd/calc-cli calc add --help
+```
+
 ---
 
 ## gRPC Code Generation

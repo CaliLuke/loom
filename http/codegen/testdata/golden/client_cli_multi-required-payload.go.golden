@@ -1,72 +1,49 @@
+type commandLine struct {
+	ServiceMultiRequired1 struct {
+		MethodMultiRequiredPayload struct {
+			Body string `help:"" name:"body" required:""`
+		} `cmd:"" help:"MethodMultiRequiredPayload implements MethodMultiRequiredPayload." name:"method-multi-required-payload"`
+	} `cmd:"" help:"Service is the ServiceMultiRequired1 service interface." name:"service-multi-required1"`
+	ServiceMultiRequired2 struct {
+		MethodMultiRequiredNoPayload struct{} `cmd:"" help:"MethodMultiRequiredNoPayload implements MethodMultiRequiredNoPayload." name:"method-multi-required-no-payload"`
+		MethodMultiRequiredPayload   struct {
+			A string `help:"" name:"a" required:"" short:"a"`
+		} `cmd:"" help:"MethodMultiRequiredPayload implements MethodMultiRequiredPayload." name:"method-multi-required-payload"`
+	} `cmd:"" help:"Service is the ServiceMultiRequired2 service interface." name:"service-multi-required2"`
+}
+
 // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		serviceMultiRequired1Flags                              = flag.NewFlagSet("service-multi-required1", flag.ContinueOnError)
-		serviceMultiRequired1MethodMultiRequiredPayloadFlags    = flag.NewFlagSet("method-multi-required-payload", flag.ExitOnError)
-		serviceMultiRequired1MethodMultiRequiredPayloadBodyFlag = serviceMultiRequired1MethodMultiRequiredPayloadFlags.String("body", "REQUIRED", "")
-		serviceMultiRequired2Flags                              = flag.NewFlagSet("service-multi-required2", flag.ContinueOnError)
-		serviceMultiRequired2MethodMultiRequiredNoPayloadFlags  = flag.NewFlagSet("method-multi-required-no-payload", flag.ExitOnError)
-		serviceMultiRequired2MethodMultiRequiredPayloadFlags    = flag.NewFlagSet("method-multi-required-payload", flag.ExitOnError)
-		serviceMultiRequired2MethodMultiRequiredPayloadAFlag    = serviceMultiRequired2MethodMultiRequiredPayloadFlags.String("a", "REQUIRED", "")
-	)
-	serviceMultiRequired1Flags.Usage = serviceMultiRequired1Usage
-	serviceMultiRequired1MethodMultiRequiredPayloadFlags.Usage = serviceMultiRequired1MethodMultiRequiredPayloadUsage
-	serviceMultiRequired2Flags.Usage = serviceMultiRequired2Usage
-	serviceMultiRequired2MethodMultiRequiredNoPayloadFlags.Usage = serviceMultiRequired2MethodMultiRequiredNoPayloadUsage
-	serviceMultiRequired2MethodMultiRequiredPayloadFlags.Usage = serviceMultiRequired2MethodMultiRequiredPayloadUsage
-
-	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-		return nil, nil, err
-	}
-	if flag.NArg() < 2 {
-		return nil, nil, fmt.Errorf("not enough arguments")
-	}
-	var (
-		svcn string
-		svcf *flag.FlagSet
+		command                                                 commandLine
+		args                                                    []string
+		svcn                                                    string
+		epn                                                     string
+		serviceMultiRequired1MethodMultiRequiredPayloadBodyFlag *string
+		serviceMultiRequired2MethodMultiRequiredPayloadAFlag    *string
 	)
 	{
-		svcn = flag.Arg(0)
-		switch svcn {
-		case "service-multi-required1":
-			svcf = serviceMultiRequired1Flags
-		case "service-multi-required2":
-			svcf = serviceMultiRequired2Flags
-		default:
-			return nil, nil, fmt.Errorf("unknown service %q", svcn)
+		args = flag.Args()
+		if len(args) == 0 {
+			args = os.Args[1:]
 		}
-	}
-	if err := svcf.Parse(flag.Args()[1:]); err != nil {
-		return nil, nil, err
-	}
-	var (
-		epn string
-		epf *flag.FlagSet
-	)
-	{
-		epn = svcf.Arg(0)
-		switch svcn {
-		case "service-multi-required1":
-			switch epn {
-			case "method-multi-required-payload":
-				epf = serviceMultiRequired1MethodMultiRequiredPayloadFlags
-			}
-		case "service-multi-required2":
-			switch epn {
-			case "method-multi-required-no-payload":
-				epf = serviceMultiRequired2MethodMultiRequiredNoPayloadFlags
-			case "method-multi-required-payload":
-				epf = serviceMultiRequired2MethodMultiRequiredPayloadFlags
-			}
-		}
-	}
-	if epf == nil {
-		return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)
-	}
-	if svcf.NArg() > 1 {
-		if err := epf.Parse(svcf.Args()[1:]); err != nil {
+		path, err := loomhttpcli.Parse(&command, os.Args[0], args)
+		if err != nil {
 			return nil, nil, err
+		}
+		serviceMultiRequired1MethodMultiRequiredPayloadBodyFlag = &command.ServiceMultiRequired1.MethodMultiRequiredPayload.Body
+		serviceMultiRequired2MethodMultiRequiredPayloadAFlag = &command.ServiceMultiRequired2.MethodMultiRequiredPayload.A
+		switch path {
+		case "service-multi-required1 method-multi-required-payload":
+			svcn = "service-multi-required1"
+			epn = "method-multi-required-payload"
+		case "service-multi-required2 method-multi-required-no-payload":
+			svcn = "service-multi-required2"
+			epn = "method-multi-required-no-payload"
+		case "service-multi-required2 method-multi-required-payload":
+			svcn = "service-multi-required2"
+			epn = "method-multi-required-payload"
 		}
 	}
 
