@@ -91,7 +91,7 @@
         },
         "security": [
           {
-            "browser_session_cookie": null
+            "browser_session_cookie": []
           }
         ],
         "summary": "events asyncSessionSecurity",
@@ -169,7 +169,7 @@
         },
         "security": [
           {
-            "browser_session_cookie": null
+            "browser_session_cookie": []
           }
         ],
         "summary": "projectSocket asyncSessionSecurity",

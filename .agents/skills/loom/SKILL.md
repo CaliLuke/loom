@@ -46,6 +46,10 @@ build Auto-K without repeating large amounts of app-local glue.
 - Treat that failure as a modeling conflict, not as a cue to add more aliases. It usually means one DSL type is being asked to represent both the semantic service/result shape and a transport-only projection (for example, “same object minus cookie/header fields”).
 - If some fields are transport-only, keep them in HTTP headers/cookies and out of the canonical body/result type. Do not rely on OpenAPI naming to paper over service-shape vs transport-shape drift.
 - Generated OpenAPI emits operation-level security for secured endpoints, including inherited service/API requirements; `NoSecurity()` emits explicit `security: []` on the operation instead of relying on omission.
+- Generated OpenAPI security requirement values for HTTP bearer, API key,
+  basic, and cookie schemes are empty arrays. Only OAuth2 requirements publish
+  scope names in OpenAPI; JWT/bearer scopes stay available to generated auth
+  code without becoming OpenAPI scope arrays.
 - Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
 - Generated OpenAPI now also hoists repeated path, query, header, and cookie
   parameters into `components.parameters` with stable component names; repeated
@@ -116,6 +120,11 @@ build Auto-K without repeating large amounts of app-local glue.
   - `Project<ResultType>[ViewSuffix](...)` to project a canonical result into the generated view type
   - `New<ResultType>From<ProjectedType>[ViewSuffix](...)` to rebuild the canonical result from a projected view
 - Use `FormRequest()` on HTTP endpoints when the request body contract is `application/x-www-form-urlencoded`.
+- String-backed path, query, header, and cookie fields with
+  `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
+  If the DSL field also has `Format(...)`, generated HTTP decoders do not emit
+  a second string format check; the custom Go type owns parse/format
+  validation.
 - `FormRequest()` is for typed object payloads and constructor unions only; incompatible body/param mixes are rejected during design validation instead of silently falling back to app-local parsing.
 - Form-encoded unions keep scalar branches on the canonical wrapper shape (`type` + `value`) but flatten object branches onto normal form fields; direct top-level union form payloads do not add an extra synthetic wrapper key, and all-optional object branches may be selected by discriminator alone without synthetic `value` fields.
 - `MultipartRequest()` now generates server-side decoding for supported object payloads, including common file-plus-fields uploads, instead of requiring a handwritten decoder hook.
@@ -234,6 +243,15 @@ loom example <module-import-path>/design
 
 - Correct: `loom gen example.com/myapi/design`
 - Incorrect: `loom gen ./design`
+
+## DSL Authoring Notes
+
+- Use literal integer field tags in Loom design. For each non-`Extend` type,
+  payload, or result definition, start `Field` tags at `1` and increment by
+  `1` within that definition. For definitions that call `Extend`, start fields
+  introduced by that definition at `100` and increment by `1`. Do not carry
+  field counters across methods or types, and do not hide field tags behind
+  variables or helper calls.
 
 ## Diagnosing Codegen Failures
 

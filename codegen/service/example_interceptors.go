@@ -5,7 +5,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -95,7 +94,7 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 			action = "Processing request"
 			interceptors = data["ServerInterceptors"].([]*InterceptorData)
 		}
-		receiverType := structName + strings.Title(mode) + "Interceptors"
+		receiverType := structName + codegen.Goify(mode, true) + "Interceptors"
 
 		stmt.Comment(fmt.Sprintf("%s implements the %s for the %s service.", receiverType, implements, serviceName)).Line()
 		stmt.Type().Id(receiverType).StructFunc(func(*jen.Group) {})

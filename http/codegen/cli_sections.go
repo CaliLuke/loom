@@ -79,7 +79,7 @@ func appendKongParseCommand(group *jen.Group, commands []*commandData) {
 			jen.Id("args"),
 		)
 		block.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Return(jen.Nil(), jen.Nil(), jen.Err()),
+			jen.Return(jen.Nil(), jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("parse command: %w"), jen.Err())),
 		)
 		appendKongFlagAssignments(block, commands)
 		block.Switch(jen.Id("path")).BlockFunc(func(switchGroup *jen.Group) {

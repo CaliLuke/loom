@@ -6,5 +6,5 @@ repo_root=$(git rev-parse --show-toplevel)
 
 cd "$repo_root"
 
-echo "Running pre-push lint checks..."
-make lint
+echo "Running pre-push checks..."
+./check.sh

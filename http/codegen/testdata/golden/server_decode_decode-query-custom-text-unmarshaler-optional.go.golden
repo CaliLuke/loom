@@ -1,0 +1,27 @@
+// DecodeMethodQueryCustomTextUnmarshalerOptionalRequest returns a decoder for
+// requests sent to the ServiceQueryCustomTextUnmarshalerOptional
+// MethodQueryCustomTextUnmarshalerOptional endpoint.
+func DecodeMethodQueryCustomTextUnmarshalerOptionalRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomtextunmarshaleroptional.MethodQueryCustomTextUnmarshalerOptionalPayload, error) {
+	return func(r *http.Request) (*servicequerycustomtextunmarshaleroptional.MethodQueryCustomTextUnmarshalerOptionalPayload, error) {
+		var payload *servicequerycustomtextunmarshaleroptional.MethodQueryCustomTextUnmarshalerOptionalPayload
+		var (
+			id  *uuid.UUID
+			err error
+		)
+		idRaw := r.URL.Query().Get("id")
+		if idRaw != "" {
+			var idVal uuid.UUID
+			if err2 := idVal.UnmarshalText([]byte(idRaw)); err2 != nil {
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+			} else {
+				id = &idVal
+			}
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewMethodQueryCustomTextUnmarshalerOptionalPayload(id)
+
+		return payload, nil
+	}
+}

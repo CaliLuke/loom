@@ -195,7 +195,7 @@ func buildStructFieldDesignType(f reflect.StructField, attributeName string, are
 		required bool
 	)
 	switch f.Type.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if err := buildDesignType(&fdt, f.Type.Elem(), aref, recf); err != nil {
 			return nil, false, err
 		}
@@ -319,7 +319,7 @@ func appendCompPath(r compRec, p string) compRec {
 // returns nil if they do, an error otherwise.
 func compatible(from expr.DataType, to reflect.Type, recs ...compRec) error {
 	// deference if needed
-	if to.Kind() == reflect.Ptr {
+	if to.Kind() == reflect.Pointer {
 		return compatible(from, to.Elem(), recs...)
 	}
 	toName := compatibleTypeName(to)

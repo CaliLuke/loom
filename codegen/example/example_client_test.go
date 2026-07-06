@@ -38,3 +38,18 @@ func TestExampleCLIFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestExampleCLIHelpUsesErrorsIs(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.NoServerDSL)
+	fs := CLIFiles("", root)
+	require.Len(t, fs, 1)
+	require.Greater(t, len(fs[0].AllSections()), 0)
+	var buf bytes.Buffer
+	for _, s := range fs[0].AllSections()[1:] {
+		require.NoError(t, s.Write(&buf))
+	}
+	code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
+
+	require.Contains(t, code, "errors.Is(err, flag.ErrHelp)")
+	require.NotContains(t, code, "err == flag.ErrHelp")
+}

@@ -26,10 +26,21 @@ linters:
       - path: _test\.go
         linters:
           - maintidx
+      - path: _test\.go
+        text: "SA1019: .*SectionTemplates"
+        linters:
+          - staticcheck
+      - path: codegen/service/client_test\.go
+        text: "SA1019: ast\\.(Object|Scope)"
+        linters:
+          - staticcheck
   settings:
     staticcheck:
       checks:
-        - "-ST1001"   # Dot imports are used intentionally in DSL
+        - "all"
+        - "-S*"       # Keep style/simplification churn out of the gate.
+        - "-ST*"      # Dot imports and docs are intentionally varied in DSL code.
+        - "-QF*"      # Quick-fixes are useful locally but too noisy as a gate.
     dupl:
       threshold: 150
     gocyclo:

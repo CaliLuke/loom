@@ -23,6 +23,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
 - OpenAPI schema deduplication now reuses structurally identical generated components while treating explicit HTTP `Body(...)` `openapi:typename` declarations as authoritative public names; conflicting non-equivalent claims now fail generation instead of leaking hash-suffixed public schemas.
 - OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.
+- OpenAPI security requirement values for HTTP bearer, API key, basic, and
+  cookie schemes now render as empty arrays; only OAuth2 publishes scope names
+  in requirement arrays.
 - OpenAPI now hoists repeated path/query/header/cookie parameters into
   `components.parameters` with stable component names and rewrites repeated
   inline occurrences to parameter refs.
@@ -67,6 +70,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
 - Multipart object request decoding without handwritten decoder hooks, including shared validation flow when multipart bodies are combined with generated request-element decoding.
 - Request-body validator parity and transform helper parity for downstream consumers.
+- HTTP request decoders now support string-backed custom
+  `struct:field:type` path, query, header, and cookie fields through
+  `encoding.TextUnmarshaler`.
 - JSON-RPC SSE server generation now emits `message` events for streamed payloads and JSON-RPC error envelopes, while final success envelopes still use `response`; generated SSE clients and the integration harness preserve and validate those event types while remaining backward compatible with legacy/default frames.
 - JSON-RPC SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first SSE frame is actually written, so endpoint setup failures can still surface as the correct HTTP error response. The raw streamable-HTTP `GET /rpc` listener for `events/stream` remains an explicit eager-open exception so clients can observe stream establishment before the first published notification.
 - Mixed JSON-RPC HTTP/SSE servers now inspect the decoded JSON-RPC method before routing `Accept: text/event-stream` requests into SSE handling, so MCP-style `initialize` calls can still return normal JSON while `events/stream` keeps the streamable HTTP behavior.

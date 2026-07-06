@@ -1,0 +1,38 @@
+// DecodeMethodCookieCustomTextUnmarshalerDefaultRequest returns a decoder for
+// requests sent to the ServiceCookieCustomTextUnmarshalerDefault
+// MethodCookieCustomTextUnmarshalerDefault endpoint.
+func DecodeMethodCookieCustomTextUnmarshalerDefaultRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload, error) {
+	return func(r *http.Request) (*servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload, error) {
+		var payload *servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload
+		var (
+			id  uuid.UUID
+			err error
+			c   *http.Cookie
+		)
+		{
+			c, cookieErr := r.Cookie("id")
+			if cookieErr != nil {
+				if errors.Is(cookieErr, http.ErrNoCookie) {
+				} else {
+					return payload, cookieErr
+				}
+			}
+			var idRaw string
+			if c != nil {
+				idRaw = c.Value
+			}
+			if idRaw == "" {
+				idRaw = "00000000-0000-0000-0000-000000000000"
+			}
+			if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil {
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+			}
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewMethodCookieCustomTextUnmarshalerDefaultPayload(id)
+
+		return payload, nil
+	}
+}

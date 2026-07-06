@@ -2,10 +2,10 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ "v3" ]
+    branches: [ "main" ]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "v3" ]
+    branches: [ "main" ]
   schedule:
     - cron: '23 12 * * 4'
 
@@ -58,7 +58,7 @@ jobs:
     #   If the Autobuild fails above, remove it and uncomment the following three lines. 
     #   modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
 
-    - run: make depend; go build goa.design/goa/v3/cmd/goa
+    - run: make depend; go build github.com/CaliLuke/loom/cmd/loom
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

@@ -32,21 +32,30 @@ var requestDecoderPartials = []templateSource{
 		{{- end }}
 		)
 
-{{- range .PathParams }}
-	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
+	{{- range .PathParams }}
+		{{- if .IsTextUnmarshaler }}
+			{
+				{{ .VarName }}Raw := params["{{ .HTTPName }}"]
+				{{- template "partial_path_conversion" . }}
+				{{- if .Validate }}
+				{{ .Validate }}
+				{{- end }}
+			}
+
+	{{- else if and (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
 		{{ .VarName }} = params["{{ .HTTPName }}"]
 
-	{{- else }}{{/* not string and not any */}}
-		{
-			{{ .VarName }}Raw := params["{{ .HTTPName }}"]
-			{{- template "partial_path_conversion" . }}
-		}
+		{{- else }}{{/* not string and not any */}}
+			{
+				{{ .VarName }}Raw := params["{{ .HTTPName }}"]
+				{{- template "partial_path_conversion" . }}
+			}
 
-	{{- end }}
-		{{- if .Validate }}
-		{{ .Validate }}
 		{{- end }}
-{{- end }}
+			{{- if and .Validate (not .IsTextUnmarshaler) }}
+			{{ .Validate }}
+			{{- end }}
+	{{- end }}
 
 {{- $qpVar := "r.URL.Query()" }}
 {{- if gt (len .QueryParams) 1 }}
@@ -54,7 +63,32 @@ var requestDecoderPartials = []templateSource{
 qp := r.URL.Query()
 {{- end }}
 {{- range .QueryParams }}
-	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
+	{{- if .IsTextUnmarshaler }}
+		{{ .VarName }}Raw := {{$qpVar}}.Get("{{ .HTTPName }}")
+		{{- if .Required }}
+		if {{ .VarName }}Raw == "" {
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
+		}
+		{{- else if .DefaultValue }}
+		if {{ .VarName }}Raw == "" {
+			{{ .VarName }}Raw = {{ printf "%q" .DefaultValue }}
+		}
+		{{- end }}
+		{{- if or .DefaultValue .Required }}
+		{{- template "partial_query_type_conversion" . }}
+			{{- if .Validate }}
+			{{ .Validate }}
+			{{- end }}
+		{{- else }}
+		if {{ .VarName }}Raw != "" {
+			{{- template "partial_query_type_conversion" . }}
+			{{- if .Validate }}
+			{{ .Validate }}
+			{{- end }}
+		}
+		{{- end }}
+
+	{{- else if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
 		{{ .VarName }} = {{$qpVar}}.Get("{{ .HTTPName }}")
 		if {{ .VarName }} == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
@@ -215,13 +249,38 @@ qp := r.URL.Query()
 	}
 
 	{{- end }}
-		{{- if .Validate }}
-		{{ .Validate }}
-		{{- end }}
-{{- end }}
+			{{- if and .Validate (not .IsTextUnmarshaler) }}
+			{{ .Validate }}
+			{{- end }}
+	{{- end }}
 
 {{- range .Headers }}
-	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
+	{{- if .IsTextUnmarshaler }}
+		{{ .VarName }}Raw := r.Header.Get("{{ .HTTPName }}")
+		{{- if .Required }}
+		if {{ .VarName }}Raw == "" {
+			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
+		}
+		{{- else if .DefaultValue }}
+		if {{ .VarName }}Raw == "" {
+			{{ .VarName }}Raw = {{ printf "%q" .DefaultValue }}
+		}
+		{{- end }}
+		{{- if or .DefaultValue .Required }}
+		{{- template "partial_query_type_conversion" . }}
+			{{- if .Validate }}
+			{{ .Validate }}
+			{{- end }}
+		{{- else }}
+		if {{ .VarName }}Raw != "" {
+			{{- template "partial_query_type_conversion" . }}
+			{{- if .Validate }}
+			{{ .Validate }}
+			{{- end }}
+		}
+		{{- end }}
+
+	{{- else if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
 		{{ .VarName }} = r.Header.Get("{{ .HTTPName }}")
 		if {{ .VarName }} == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
@@ -294,10 +353,10 @@ qp := r.URL.Query()
 		{{- end }}
 	}
 	{{- end }}
-	{{- if .Validate }}
-		{{ .Validate }}
+		{{- if and .Validate (not .IsTextUnmarshaler) }}
+			{{ .Validate }}
+		{{- end }}
 	{{- end }}
-{{- end }}
 
 {{- range .Cookies }}
 		{
@@ -311,7 +370,31 @@ qp := r.URL.Query()
 					return payload, cookieErr
 				}
 			}
-		{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
+		{{- if .IsTextUnmarshaler }}
+			var {{ .VarName }}Raw string
+			if c != nil {
+				{{ .VarName }}Raw = c.Value
+			}
+			{{- if .DefaultValue }}
+			if {{ .VarName }}Raw == "" {
+				{{ .VarName }}Raw = {{ printf "%q" .DefaultValue }}
+			}
+			{{- end }}
+			{{- if or .DefaultValue .Required }}
+			{{- template "partial_query_type_conversion" . }}
+				{{- if .Validate }}
+				{{ .Validate }}
+				{{- end }}
+			{{- else }}
+			if {{ .VarName }}Raw != "" {
+				{{- template "partial_query_type_conversion" . }}
+				{{- if .Validate }}
+				{{ .Validate }}
+				{{- end }}
+			}
+			{{- end }}
+
+		{{- else if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
 			if c != nil {
 				{{ .VarName }} = c.Value
 			}
@@ -354,9 +437,9 @@ qp := r.URL.Query()
 			{{- end }}
 		{{- end }}
 		}
-		{{- if .Validate }}
-			{{ .Validate }}
-		{{- end }}
+			{{- if and .Validate (not .IsTextUnmarshaler) }}
+				{{ .Validate }}
+			{{- end }}
 {{- end }}
 {{- end }}`},
 	{name: "slice_item_conversion", source: `		{{- if eq .Type.ElemType.Type.Name "string" }}
@@ -437,7 +520,20 @@ qp := r.URL.Query()
 	{{- else if eq . "bytes" }} url.QueryEscape(string(v))
 	{{- else }} url.QueryEscape(fmt.Sprintf("%v", v))
 	{{- end }}`},
-	{name: "query_type_conversion", source: `	{{- if eq .Type.Name "bytes" }}
+	{name: "query_type_conversion", source: `	{{- if .IsTextUnmarshaler }}
+		{{- if .Pointer }}
+		var {{ .VarName }}Val {{ .TypeName }}
+		if err2 := {{ .VarName }}Val.UnmarshalText([]byte({{ .VarName }}Raw)); err2 != nil {
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName }}Raw, {{ printf "%q" .TypeName }}))
+		} else {
+			{{ .VarName }} = &{{ .VarName }}Val
+		}
+		{{- else }}
+		if err2 := {{ .VarName }}.UnmarshalText([]byte({{ .VarName }}Raw)); err2 != nil {
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName }}Raw, {{ printf "%q" .TypeName }}))
+		}
+		{{- end }}
+	{{- else if eq .Type.Name "bytes" }}
 		{{ .VarName }} = []byte({{.VarName}}Raw)
 	{{- else if eq .Type.Name "int" }}
 		v, err2 := strconv.ParseInt({{ .VarName }}Raw, 10, strconv.IntSize)

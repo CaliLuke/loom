@@ -3,17 +3,16 @@ name: Run Static Checks and Tests
 on:
   push:
     branches:
-      - v3
+      - main
   pull_request:
     branches:
-      - v3
+      - main
 
 jobs:
   ci:
     strategy:
       fail-fast: true
       matrix:
-        go: ['1.24', '1.25']
         os: ['ubuntu-latest', 'windows-latest']
     runs-on: ${{ matrix.os }}
 
@@ -21,17 +20,17 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v6
 
-      - name: Set up Go ${{ matrix.go }}
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
         id: go
 
       - name: Build
         run: make ci
 
       - name: Upload test coverage for deep source
-        if: matrix.go == '1.25' && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v7
         with:
           name: coverage

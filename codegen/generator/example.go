@@ -24,7 +24,7 @@ func Example(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		for _, s := range r.Services {
 			service.SetUserTypeImports(genpkg, services.Get(s.Name))
 		}
-		var rootFiles []*codegen.File
+		rootFiles := make([]*codegen.File, 0, 16)
 		rootFiles = append(rootFiles, baseExampleFiles(genpkg, r, services)...)
 		rootFiles = append(rootFiles, httpExampleFiles(genpkg, r, services)...)
 		rootFiles = append(rootFiles, jsonrpcExampleFiles(genpkg, r, services, rootFiles)...)

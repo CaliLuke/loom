@@ -905,10 +905,10 @@
         },
         "security": [
           {
-            "access_token": null
+            "access_token": []
           },
           {
-            "browser_session": null
+            "browser_session": []
           }
         ],
         "summary": "upsertMealPlan mealPlanner",
@@ -956,10 +956,10 @@
         },
         "security": [
           {
-            "access_token": null
+            "access_token": []
           },
           {
-            "browser_session": null
+            "browser_session": []
           }
         ],
         "summary": "shareMealPlan mealPlanner",
@@ -1026,10 +1026,10 @@
         },
         "security": [
           {
-            "access_token": null
+            "access_token": []
           },
           {
-            "browser_session": null
+            "browser_session": []
           }
         ],
         "summary": "importPantry mealPlanner",
@@ -1060,10 +1060,10 @@
         },
         "security": [
           {
-            "access_token": null
+            "access_token": []
           },
           {
-            "browser_session": null
+            "browser_session": []
           }
         ],
         "summary": "previewSelection mealPlanner",
@@ -1094,10 +1094,10 @@
         },
         "security": [
           {
-            "access_token": null
+            "access_token": []
           },
           {
-            "browser_session": null
+            "browser_session": []
           }
         ],
         "summary": "previewSelectionSuppressed mealPlanner",
@@ -1181,10 +1181,10 @@
         },
         "security": [
           {
-            "access_token": null
+            "access_token": []
           },
           {
-            "browser_session": null
+            "browser_session": []
           }
         ],
         "summary": "listRecipes mealPlanner",
@@ -1254,10 +1254,10 @@
         },
         "security": [
           {
-            "access_token": null
+            "access_token": []
           },
           {
-            "browser_session": null
+            "browser_session": []
           }
         ],
         "summary": "showRecipe mealPlanner",

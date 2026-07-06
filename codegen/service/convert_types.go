@@ -72,7 +72,7 @@ func buildDesignType(dt *expr.DataType, t reflect.Type, ref expr.DataType, recs 
 		return buildMapDesignType(dt, t, ref, rec)
 	case reflect.Struct:
 		return buildStructDesignType(dt, t, ref, rec)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		rec.path = "*(" + rec.path + ")"
 		if err := buildDesignType(dt, t.Elem(), ref, rec); err != nil {
 			return err

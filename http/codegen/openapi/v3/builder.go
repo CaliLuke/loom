@@ -304,7 +304,7 @@ func cloneOperationSecurity(requirements []map[string][]string) []map[string][]s
 	for i, requirement := range requirements {
 		current := make(map[string][]string, len(requirement))
 		for name, scopes := range requirement {
-			current[name] = append([]string(nil), scopes...)
+			current[name] = append(make([]string, 0, len(scopes)), scopes...)
 		}
 		cloned[i] = current
 	}

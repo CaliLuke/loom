@@ -19,7 +19,7 @@ func Transport(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		if !ok {
 			continue // could be a plugin root expression
 		}
-		var rootFiles []*codegen.File
+		rootFiles := make([]*codegen.File, 0, 32)
 
 		// Create service data
 		services := service.NewServicesData(r)

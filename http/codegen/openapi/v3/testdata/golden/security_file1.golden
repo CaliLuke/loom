@@ -19,8 +19,7 @@ paths:
             security:
                 - api_key: []
                   basic: []
-                  jwt:
-                    - api:read
+                  jwt: []
                   oauth2:
                     - api:read
         post:

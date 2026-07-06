@@ -1,0 +1,26 @@
+// DecodeMethodPathCustomTextUnmarshalerRequest returns a decoder for requests
+// sent to the ServicePathCustomTextUnmarshaler MethodPathCustomTextUnmarshaler
+// endpoint.
+func DecodeMethodPathCustomTextUnmarshalerRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomtextunmarshaler.MethodPathCustomTextUnmarshalerPayload, error) {
+	return func(r *http.Request) (*servicepathcustomtextunmarshaler.MethodPathCustomTextUnmarshalerPayload, error) {
+		var payload *servicepathcustomtextunmarshaler.MethodPathCustomTextUnmarshalerPayload
+		var (
+			id  uuid.UUID
+			err error
+
+			params = mux.Vars(r)
+		)
+		{
+			idRaw := params["id"]
+			if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil {
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+			}
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewMethodPathCustomTextUnmarshalerPayload(id)
+
+		return payload, nil
+	}
+}

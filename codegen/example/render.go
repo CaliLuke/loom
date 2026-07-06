@@ -41,7 +41,7 @@ func renderClientMain(server *Data, hasJSONRPC, hasHTTP bool) string {
 	writeClientURLParse(&b)
 	writeClientEndpointSelection(&b, server, hasJSONRPC, hasHTTP)
 	fmt.Fprintf(&b, "\tif err != nil {\n")
-	fmt.Fprintf(&b, "\t\tif err == flag.ErrHelp {\n")
+	fmt.Fprintf(&b, "\t\tif errors.Is(err, flag.ErrHelp) {\n")
 	fmt.Fprintf(&b, "\t\t\tos.Exit(0)\n")
 	fmt.Fprintf(&b, "\t\t}\n")
 	fmt.Fprintf(&b, "\t\tfmt.Fprintln(os.Stderr, err.Error())\n")

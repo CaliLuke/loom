@@ -30,6 +30,8 @@ Reduce application design-file glue while making the default security posture cl
 - Simplify the representative `meal-planner` consumer specimen by lifting
   `SessionSecurity(...)` to service scope while preserving explicit
   `NoSecurity()` overrides on public endpoints.
+- Render non-OAuth OpenAPI security requirement values as empty arrays while
+  keeping scopes available to generated auth runtime data.
 
 ### Next
 

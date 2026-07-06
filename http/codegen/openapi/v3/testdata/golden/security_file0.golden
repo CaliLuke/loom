@@ -56,11 +56,9 @@
         },
         "security": [
           {
-            "api_key": null,
-            "basic": null,
-            "jwt": [
-              "api:read"
-            ],
+            "api_key": [],
+            "basic": [],
+            "jwt": [],
             "oauth2": [
               "api:read"
             ]
@@ -80,7 +78,7 @@
         },
         "security": [
           {
-            "api_key": null
+            "api_key": []
           },
           {
             "oauth2": [

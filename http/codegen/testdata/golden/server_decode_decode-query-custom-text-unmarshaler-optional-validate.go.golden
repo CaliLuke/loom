@@ -1,0 +1,31 @@
+// DecodeMethodQueryCustomTextUnmarshalerOptionalValidateRequest returns a
+// decoder for requests sent to the
+// ServiceQueryCustomTextUnmarshalerOptionalValidate
+// MethodQueryCustomTextUnmarshalerOptionalValidate endpoint.
+func DecodeMethodQueryCustomTextUnmarshalerOptionalValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload, error) {
+	return func(r *http.Request) (*servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload, error) {
+		var payload *servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload
+		var (
+			id  *uuid.UUID
+			err error
+		)
+		idRaw := r.URL.Query().Get("id")
+		if idRaw != "" {
+			var idVal uuid.UUID
+			if err2 := idVal.UnmarshalText([]byte(idRaw)); err2 != nil {
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+			} else {
+				id = &idVal
+			}
+			if utf8.RuneCountInString(idRaw) < 1 {
+				err = loom.MergeErrors(err, loom.InvalidLengthError("id", idRaw, utf8.RuneCountInString(idRaw), 1, true))
+			}
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewMethodQueryCustomTextUnmarshalerOptionalValidatePayload(id)
+
+		return payload, nil
+	}
+}

@@ -23,6 +23,11 @@ func TestDecode(t *testing.T) {
 		{"decode-path-custom-uint", testdata.PayloadPathCustomUIntDSL},
 		{"decode-path-custom-uint32", testdata.PayloadPathCustomUInt32DSL},
 		{"decode-path-custom-uint64", testdata.PayloadPathCustomUInt64DSL},
+		{"decode-path-custom-text-unmarshaler", testdata.PayloadPathCustomTextUnmarshalerDSL},
+		{"decode-path-custom-text-unmarshaler-validate", testdata.PayloadPathCustomTextUnmarshalerValidateDSL},
+		{"decode-query-custom-text-unmarshaler", testdata.PayloadQueryCustomTextUnmarshalerDSL},
+		{"decode-query-custom-text-unmarshaler-optional", testdata.PayloadQueryCustomTextUnmarshalerOptionalDSL},
+		{"decode-query-custom-text-unmarshaler-optional-validate", testdata.PayloadQueryCustomTextUnmarshalerOptionalValidateDSL},
 		{"decode-query-bool", testdata.PayloadQueryBoolDSL},
 		{"decode-query-bool-validate", testdata.PayloadQueryBoolValidateDSL},
 		{"decode-query-int", testdata.PayloadQueryIntDSL},
@@ -131,6 +136,8 @@ func TestDecode(t *testing.T) {
 		{"decode-header-string-default", testdata.PayloadHeaderStringDefaultDSL},
 		{"decode-header-string-default-validate", testdata.PayloadHeaderStringDefaultValidateDSL},
 		{"decode-header-primitive-string-default", testdata.PayloadHeaderPrimitiveStringDefaultDSL},
+		{"decode-header-custom-text-unmarshaler", testdata.PayloadHeaderCustomTextUnmarshalerDSL},
+		{"decode-header-custom-text-unmarshaler-optional-validate", testdata.PayloadHeaderCustomTextUnmarshalerOptionalValidateDSL},
 
 		{"decode-cookie-string", testdata.PayloadCookieStringDSL},
 		{"decode-cookie-string-validate", testdata.PayloadCookieStringValidateDSL},
@@ -141,6 +148,8 @@ func TestDecode(t *testing.T) {
 		{"decode-cookie-string-default", testdata.PayloadCookieStringDefaultDSL},
 		{"decode-cookie-string-default-validate", testdata.PayloadCookieStringDefaultValidateDSL},
 		{"decode-cookie-primitive-string-default", testdata.PayloadCookiePrimitiveStringDefaultDSL},
+		{"decode-cookie-custom-text-unmarshaler", testdata.PayloadCookieCustomTextUnmarshalerDSL},
+		{"decode-cookie-custom-text-unmarshaler-default", testdata.PayloadCookieCustomTextUnmarshalerDefaultDSL},
 
 		{"decode-body-string", testdata.PayloadBodyStringDSL},
 		{"decode-body-string-validate", testdata.PayloadBodyStringValidateDSL},
@@ -240,4 +249,47 @@ func TestDecode(t *testing.T) {
 			testutil.AssertGo(t, "testdata/golden/server_decode_"+c.Name+".go.golden", code)
 		})
 	}
+}
+
+func TestTextUnmarshalerDecodeValidationPlacement(t *testing.T) {
+	t.Run("path validation can see raw value", func(t *testing.T) {
+		code := decodeSectionCode(t, testdata.PayloadPathCustomTextUnmarshalerValidateDSL)
+
+		require.Contains(t, code, "idRaw := params[\"id\"]")
+		require.Contains(t, code, "utf8.RuneCountInString(idRaw)")
+		require.NotContains(t, code, "}\n\t\tif utf8.RuneCountInString(idRaw) < 1")
+	})
+
+	t.Run("optional query validation stays presence guarded", func(t *testing.T) {
+		code := decodeSectionCode(t, testdata.PayloadQueryCustomTextUnmarshalerOptionalValidateDSL)
+
+		require.Contains(t, code, "if idRaw != \"\" {\n\t\t\tvar idVal uuid.UUID\n\t\t\tif err2 := idVal.UnmarshalText")
+		require.Contains(t, code, "utf8.RuneCountInString(idRaw)")
+		require.NotContains(t, code, "}\n\t\tif utf8.RuneCountInString(idRaw) < 1")
+	})
+
+	t.Run("header text unmarshaler path is generated", func(t *testing.T) {
+		code := decodeSectionCode(t, testdata.PayloadHeaderCustomTextUnmarshalerDSL)
+
+		require.Contains(t, code, "idRaw := r.Header.Get(\"id\")")
+		require.Contains(t, code, "if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil")
+	})
+
+	t.Run("cookie text unmarshaler default path is generated", func(t *testing.T) {
+		code := decodeSectionCode(t, testdata.PayloadCookieCustomTextUnmarshalerDefaultDSL)
+
+		require.Contains(t, code, "idRaw = \"00000000-0000-0000-0000-000000000000\"")
+		require.Contains(t, code, "if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil")
+	})
+}
+
+func decodeSectionCode(t *testing.T, dsl func()) string {
+	t.Helper()
+	root := RunHTTPDSL(t, dsl)
+	services := CreateHTTPServices(root)
+	fs := ServerFiles("", services)
+	require.Len(t, fs, 2)
+	sections := fs[1].AllSections()
+	require.Greater(t, len(sections), 2)
+	return codegen.SectionCode(t, sections[2])
 }

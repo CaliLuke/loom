@@ -56,7 +56,7 @@ func exampleCLIEndSection(services []*ServiceData, apiPkg string) codegen.Sectio
 
 func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
 	var b sourceBuilder
-	b.Add("\nreturn cli.ParseEndpoint(\n")
+	b.Add("\nendpoint, payload, err := cli.ParseEndpoint(\n")
 	b.Add("\t\tscheme,\n")
 	b.Add("\t\thost,\n")
 	b.Add("\t\tdoer,\n")
@@ -81,7 +81,12 @@ func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
 	for _, svc := range servicesWithClientInterceptors(services) {
 		b.Addf("\t\t%sInterceptors,\n", svc.Service.VarName)
 	}
-	b.Add("\t)\n}\n")
+	b.Add("\t)\n")
+	b.Add("\tif err != nil {\n")
+	b.Add("\t\treturn nil, nil, fmt.Errorf(\"parse endpoint: %w\", err)\n")
+	b.Add("\t}\n")
+	b.Add("\treturn endpoint, payload, nil\n")
+	b.Add("}\n")
 	return b.String()
 }
 

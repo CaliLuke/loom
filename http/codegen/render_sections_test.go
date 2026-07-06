@@ -84,6 +84,7 @@ func TestConvertedCLIRenderSections(t *testing.T) {
 	parseSection := codegen.SectionCode(t, parseFile.Section("parse-endpoint")[0])
 	require.Contains(t, parseSection, "func ParseEndpoint(")
 	require.Contains(t, parseSection, "return endpoint, data, nil")
+	require.Contains(t, parseSection, `fmt.Errorf("parse command: %w", err)`)
 	require.Contains(t, parseSection, "dialer loomhttp.Dialer")
 
 	pathRoot := RunHTTPDSL(t, testdata.PathMultipleParamsDSL)
@@ -102,6 +103,9 @@ func TestConvertedExampleRenderSections(t *testing.T) {
 	cliStart := renderedSectionSource(t, cliFile.Section("cli-http-start")[0])
 	require.Contains(t, cliStart, "func doHTTP(")
 	require.Contains(t, cliStart, "doer loomhttp.Doer")
+
+	cliEnd := renderedSectionSource(t, cliFile.Section("cli-http-end")[0])
+	require.Contains(t, cliEnd, `fmt.Errorf("parse endpoint: %w", err)`)
 
 	serverFile := findFileWithSection(t, ExampleServerFiles("", services), "server-http-start")
 	serverStart := renderedSectionSource(t, serverFile.Section("server-http-start")[0])

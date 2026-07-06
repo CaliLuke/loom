@@ -253,6 +253,12 @@ var Person = Type("Person", func() {
 })
 ```
 
+Use literal integer `Field` tags. For each standalone type, payload, or result,
+start at `1` and increment by `1` inside that definition. When a definition uses
+`Extend`, start fields introduced by the extending definition at `100` and
+increment by `1`. Do not carry counters across unrelated definitions or hide
+field tags behind variables/helper calls.
+
 ### Examples
 
 Provide sample values for documentation:
@@ -322,6 +328,11 @@ single schema component and reuses it by `$ref`. Explicit names from
 `openapi:typename` are treated as public component names: equivalent schemas may
 reuse the name, but different schemas claiming the same explicit name fail
 generation instead of receiving hash-suffixed public names.
+
+OpenAPI security requirement values are empty arrays for HTTP bearer, API key,
+basic, and cookie security schemes. OAuth2 is the only scheme kind that
+publishes required scopes in those arrays; JWT and bearer scopes remain part of
+generated auth data without being advertised as OpenAPI OAuth-style scopes.
 
 When `Meta("openapi:closed-objects", "true")` is set at API scope, normal object
 schemas are emitted as closed JSON Schema objects with
@@ -1131,6 +1142,15 @@ malformed JSON still returns a decode error.
 Use `SkipRequestBodyEncodeDecode` and `SkipResponseBodyEncodeDecode` for raw
 HTTP body streaming with `io.Reader` values. These flags are HTTP-only and are
 incompatible with gRPC and method streaming.
+
+### Custom HTTP Field Types
+
+Use `Meta("struct:field:type", "pkg.Type", "import/path")` when a generated
+struct field needs a custom Go type. For string-backed path, query, header, and
+cookie request fields, generated HTTP decoders call `UnmarshalText` on that
+custom type. If the DSL field also uses `Format(...)`, Loom skips the duplicate
+generated string format check and lets the custom type's parser own that
+validation.
 
 ---
 

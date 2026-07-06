@@ -34,8 +34,7 @@ func OpenAPI(requirements []*expr.SecurityExpr) []map[string][]string {
 		schemes := make(map[string][]string, len(requirement.Schemes))
 		for _, scheme := range requirement.Schemes {
 			scopes := make([]string, 0)
-			switch scheme.Kind {
-			case expr.OAuth2Kind, expr.JWTKind:
+			if scheme.Kind == expr.OAuth2Kind {
 				if len(requirement.Scopes) > 0 {
 					scopes = requirement.Scopes
 				}

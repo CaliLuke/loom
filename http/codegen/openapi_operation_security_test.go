@@ -52,6 +52,20 @@ func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 		require.Empty(t, security.([]any))
 	})
 
+	t.Run("HTTP bearer requirements do not publish scopes", func(t *testing.T) {
+		root := RunHTTPDSL(t, scopedBearerOperationDSL)
+		openapi.Definitions = make(map[string]*openapi.Schema)
+
+		spec := renderOpenAPIJSON(t, openapiv3.Files, root)
+		parseOpenAPIV3Document(t, spec)
+
+		op := operationFromSpec(t, spec, "/scoped", "get")
+		security, ok := op["security"].([]any)
+		require.True(t, ok)
+		require.Len(t, security, 1)
+		require.Equal(t, map[string]any{"jwt": []any{}}, security[0])
+	})
+
 	t.Run("service session security applies to secured meal planner operations only", func(t *testing.T) {
 		root := RunHTTPDSL(t, testdata.MealPlannerDSL)
 		openapi.Definitions = make(map[string]*openapi.Schema)
@@ -118,6 +132,28 @@ var noSecurityOperationDSL = func() {
 			dsl.Result(dsl.Empty)
 			dsl.HTTP(func() {
 				dsl.GET("/public")
+				dsl.Response(dsl.StatusOK)
+			})
+		})
+	})
+}
+
+var scopedBearerOperationDSL = func() {
+	var jwt = dsl.JWTSecurity("jwt", func() {
+		dsl.Scope("api:read", "Read API data")
+	})
+
+	dsl.Service("scopedBearer", func() {
+		dsl.Method("show", func() {
+			dsl.Security(jwt, func() {
+				dsl.Scope("api:read")
+			})
+			dsl.Payload(func() {
+				dsl.Token("token", dsl.String)
+			})
+			dsl.Result(dsl.Empty)
+			dsl.HTTP(func() {
+				dsl.GET("/scoped")
 				dsl.Response(dsl.StatusOK)
 			})
 		})

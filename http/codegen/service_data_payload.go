@@ -287,22 +287,22 @@ func (b *payloadBuilder) buildCookies(params []*transportir.Parameter) []*Cookie
 
 func payloadRequestNeedsValidation(paramsData []*ParamData, queryData []*ParamData, headersData []*HeaderData, cookiesData []*CookieData) bool {
 	for _, cookie := range cookiesData {
-		if cookie.Required || cookie.Validate != "" || needConversion(cookie.Type) {
+		if cookie.Required || cookie.Validate != "" || needConversion(cookie.Type) || cookie.IsTextUnmarshaler {
 			return true
 		}
 	}
 	for _, param := range paramsData {
-		if param.Validate != "" || needConversion(param.Type) {
+		if param.Validate != "" || needConversion(param.Type) || param.IsTextUnmarshaler {
 			return true
 		}
 	}
 	for _, query := range queryData {
-		if query.Map || query.Validate != "" || query.Required || needConversion(query.Type) {
+		if query.Map || query.Validate != "" || query.Required || needConversion(query.Type) || query.IsTextUnmarshaler {
 			return true
 		}
 	}
 	for _, header := range headersData {
-		if header.Validate != "" || header.Required || needConversion(header.Type) {
+		if header.Validate != "" || header.Required || needConversion(header.Type) || header.IsTextUnmarshaler {
 			return true
 		}
 	}

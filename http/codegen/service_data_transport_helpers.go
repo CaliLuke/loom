@@ -46,22 +46,51 @@ func (sds *ServicesData) buildTransportAttributeData(
 	if pointer {
 		typeRef = "*" + typeRef
 	}
-	return &AttributeData{
-		Name:         name,
-		Description:  attr.Description,
-		FieldName:    fieldName,
-		FieldPointer: fieldPointer,
-		FieldType:    fieldType,
-		VarName:      varName,
-		Required:     required,
-		Type:         attr.Type,
-		TypeName:     scope.GoTypeName(attr),
-		TypeRef:      typeRef,
-		Pointer:      pointer,
-		Validate:     codegen.AttributeValidationCode(attr, nil, validateCtx, required, expr.IsAlias(attr.Type), varName, name),
-		DefaultValue: attr.DefaultValue,
-		Example:      attr.Example(sds.Root.API.ExampleGenerator),
+	validateAttr := attr
+	validateTarget := varName
+	validateRequired := required
+	textUnmarshaler := isStringMetaType(attr)
+	if textUnmarshaler {
+		validateAttr = attributeWithoutFormatValidation(attr)
+		validateTarget = varName + "Raw"
+		validateRequired = true
 	}
+	return &AttributeData{
+		Name:              name,
+		Description:       attr.Description,
+		FieldName:         fieldName,
+		FieldPointer:      fieldPointer,
+		FieldType:         fieldType,
+		VarName:           varName,
+		Required:          required,
+		Type:              attr.Type,
+		TypeName:          scope.GoTypeName(attr),
+		TypeRef:           typeRef,
+		Pointer:           pointer,
+		Validate:          codegen.AttributeValidationCode(validateAttr, nil, validateCtx, validateRequired, expr.IsAlias(attr.Type), validateTarget, name),
+		IsTextUnmarshaler: textUnmarshaler,
+		DefaultValue:      attr.DefaultValue,
+		Example:           attr.Example(sds.Root.API.ExampleGenerator),
+	}
+}
+
+func isStringMetaType(attr *expr.AttributeExpr) bool {
+	if attr == nil || attr.Type == nil || attr.Type.Kind() != expr.StringKind {
+		return false
+	}
+	typeName, _ := codegen.GetMetaType(attr)
+	return typeName != ""
+}
+
+func attributeWithoutFormatValidation(attr *expr.AttributeExpr) *expr.AttributeExpr {
+	if attr == nil || attr.Validation == nil || attr.Validation.Format == "" {
+		return attr
+	}
+	copyAttr := *attr
+	copyValidation := *attr.Validation
+	copyValidation.Format = ""
+	copyAttr.Validation = &copyValidation
+	return &copyAttr
 }
 
 func (sds *ServicesData) buildTransportElement(

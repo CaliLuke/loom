@@ -25,7 +25,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 		}
 		path, err := loomhttpcli.Parse(&command, os.Args[0], args)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("parse command: %w", err)
 		}
 		switch path {
 		case "service-multi-no-payload1 method-service-no-payload11":

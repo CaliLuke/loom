@@ -32,11 +32,11 @@ type (
 		// intentionally with updated goldens.
 		ExclusiveMinimumValue any
 		HasExclusiveMinimum   bool
-		MinLength    *int
-		MaxLength    *int
-		IsMinLength  bool
-		RequiredName string
-		RequiredAttr *expr.AttributeExpr
+		MinLength             *int
+		MaxLength             *int
+		IsMinLength           bool
+		RequiredName          string
+		RequiredAttr          *expr.AttributeExpr
 	}
 
 	unionValidationCase struct {
@@ -185,7 +185,7 @@ func appendValidationNumber(res *[]string, value any, render func(any) string) {
 		return
 	}
 	v := reflect.ValueOf(value)
-	if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
+	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
 		return
 	}
 	appendRenderedValidation(res, render(v.Elem().Interface()))

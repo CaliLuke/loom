@@ -472,6 +472,9 @@ type (
 		DefaultValue any
 		// Validate contains the validation code for the attribute value if any.
 		Validate string
+		// IsTextUnmarshaler is true when the field has a custom string-backed
+		// type that should be decoded through encoding.TextUnmarshaler.
+		IsTextUnmarshaler bool
 		// Example is an example attribute value
 		Example any
 		// IsAliased is true if the field type is a user-defined type (alias).
@@ -486,7 +489,6 @@ type (
 		// Reference to the argument, e.g. "&body".
 		Ref string
 	}
-
 )
 
 // NewServicesData creates a new ServicesData instance for the given service data.

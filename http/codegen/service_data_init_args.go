@@ -185,12 +185,12 @@ func buildCookieInitArgs(cookies []*CookieData) []*InitArgData {
 
 func responseFieldsNeedValidation(headers []*HeaderData, cookies []*CookieData) bool {
 	for _, header := range headers {
-		if header.Validate != "" || header.Required || needConversion(header.Type) {
+		if header.Validate != "" || header.Required || needConversion(header.Type) || header.IsTextUnmarshaler {
 			return true
 		}
 	}
 	for _, cookie := range cookies {
-		if cookie.Validate != "" || cookie.Required || needConversion(cookie.Type) {
+		if cookie.Validate != "" || cookie.Required || needConversion(cookie.Type) || cookie.IsTextUnmarshaler {
 			return true
 		}
 	}

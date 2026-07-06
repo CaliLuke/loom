@@ -1,0 +1,25 @@
+// DecodeMethodHeaderCustomTextUnmarshalerRequest returns a decoder for
+// requests sent to the ServiceHeaderCustomTextUnmarshaler
+// MethodHeaderCustomTextUnmarshaler endpoint.
+func DecodeMethodHeaderCustomTextUnmarshalerRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload, error) {
+	return func(r *http.Request) (*serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload, error) {
+		var payload *serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload
+		var (
+			id  uuid.UUID
+			err error
+		)
+		idRaw := r.Header.Get("id")
+		if idRaw == "" {
+			err = loom.MergeErrors(err, loom.MissingFieldError("id", "header"))
+		}
+		if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil {
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewMethodHeaderCustomTextUnmarshalerPayload(id)
+
+		return payload, nil
+	}
+}
