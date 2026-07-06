@@ -281,6 +281,9 @@ func (s *Sink) deleteConsumerGroup(ctx context.Context, stream *Stream) error {
 
 // isBusyGroupErr returns true if the error is a busy group error.
 func isBusyGroupErr(err error) bool {
+	if err == nil {
+		return false
+	}
 	return strings.Contains(err.Error(), "BUSYGROUP")
 }
 
