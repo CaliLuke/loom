@@ -204,6 +204,7 @@ func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *ser
 			Name:         m.VarName,
 			Ref:          m.VarName,
 			FieldName:    m.FieldName,
+			FieldPointer: endpoint.Request.Payload.IsPrimitivePointer(m.AttributeName, true),
 			FieldType:    m.FieldType,
 			TypeName:     m.TypeName,
 			TypeRef:      m.TypeRef,

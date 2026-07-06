@@ -41,17 +41,18 @@ func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, m
 		for _, m := range md {
 			// pass the metadata as arguments to payload constructor in server
 			data.Args = append(data.Args, &InitArgData{
-				Name:      m.VarName,
-				Ref:       m.VarName,
-				FieldName: m.FieldName,
-				FieldType: m.FieldType,
-				TypeName:  m.TypeName,
-				TypeRef:   m.TypeRef,
-				Type:      m.Type,
-				Pointer:   m.Pointer,
-				Required:  m.Required,
-				Validate:  m.Validate,
-				Example:   m.Example,
+				Name:         m.VarName,
+				Ref:          m.VarName,
+				FieldName:    m.FieldName,
+				FieldPointer: payload.IsPrimitivePointer(m.AttributeName, true),
+				FieldType:    m.FieldType,
+				TypeName:     m.TypeName,
+				TypeRef:      m.TypeRef,
+				Type:         m.Type,
+				Pointer:      m.Pointer,
+				Required:     m.Required,
+				Validate:     m.Validate,
+				Example:      m.Example,
 			})
 		}
 		return &ConvertData{
@@ -110,33 +111,35 @@ func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, 
 	for _, m := range hdrs {
 		// pass the headers as arguments to result constructor in client
 		data.Args = append(data.Args, &InitArgData{
-			Name:      m.VarName,
-			Ref:       m.VarName,
-			FieldName: m.FieldName,
-			FieldType: m.FieldType,
-			TypeName:  m.TypeName,
-			TypeRef:   m.TypeRef,
-			Type:      m.Type,
-			Pointer:   m.Pointer,
-			Required:  m.Required,
-			Validate:  m.Validate,
-			Example:   m.Example,
+			Name:         m.VarName,
+			Ref:          m.VarName,
+			FieldName:    m.FieldName,
+			FieldPointer: svcCtx.IsPrimitivePointer(m.AttributeName, result),
+			FieldType:    m.FieldType,
+			TypeName:     m.TypeName,
+			TypeRef:      m.TypeRef,
+			Type:         m.Type,
+			Pointer:      m.Pointer,
+			Required:     m.Required,
+			Validate:     m.Validate,
+			Example:      m.Example,
 		})
 	}
 	for _, m := range trlrs {
 		// pass the trailers as arguments to result constructor in client
 		data.Args = append(data.Args, &InitArgData{
-			Name:      m.VarName,
-			Ref:       m.VarName,
-			FieldName: m.FieldName,
-			FieldType: m.FieldType,
-			TypeName:  m.TypeName,
-			TypeRef:   m.TypeRef,
-			Type:      m.Type,
-			Pointer:   m.Pointer,
-			Required:  m.Required,
-			Validate:  m.Validate,
-			Example:   m.Example,
+			Name:         m.VarName,
+			Ref:          m.VarName,
+			FieldName:    m.FieldName,
+			FieldPointer: svcCtx.IsPrimitivePointer(m.AttributeName, result),
+			FieldType:    m.FieldType,
+			TypeName:     m.TypeName,
+			TypeRef:      m.TypeRef,
+			Type:         m.Type,
+			Pointer:      m.Pointer,
+			Required:     m.Required,
+			Validate:     m.Validate,
+			Example:      m.Example,
 		})
 	}
 	return &ConvertData{

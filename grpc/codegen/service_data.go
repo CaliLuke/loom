@@ -327,6 +327,8 @@ type (
 		// FieldName is the name of the data structure field that should
 		// be initialized with the argument if any.
 		FieldName string
+		// FieldPointer is true if the data structure field is a primitive pointer.
+		FieldPointer bool
 		// FieldType is the type of the data structure field that should be
 		// initialized with the argument if any.
 		FieldType expr.DataType

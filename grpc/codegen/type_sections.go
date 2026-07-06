@@ -30,6 +30,12 @@ func grpcTypeInitSection(init *InitData) codegenpkg.Section {
 						if expr.IsAlias(arg.FieldType) {
 							fieldValue = fullTypeName(arg.FieldType) + "(" + fieldValue + ")"
 						}
+						if !arg.Pointer && arg.FieldPointer && expr.IsPrimitive(arg.FieldType) {
+							fieldValueVar := codegenpkg.Goify(arg.FieldName+"Value", false)
+							g.Id(fieldValueVar).Op(":=").Add(codegenpkg.Expr(fieldValue))
+							g.Id(init.ReturnVarName).Dot(arg.FieldName).Op("=").Op("&").Id(fieldValueVar)
+							continue
+						}
 						g.Id(init.ReturnVarName).Dot(arg.FieldName).Op("=").Add(codegenpkg.Expr(fieldValue))
 					}
 				}

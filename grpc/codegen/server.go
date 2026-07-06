@@ -94,6 +94,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 		title := fmt.Sprintf("%s gRPC server encoders and decoders", svc.Name())
 		imports := []*codegen.ImportSpec{
 			{Path: "context"},
+			{Path: "fmt"},
 			{Path: "strings"},
 			{Path: "strconv"},
 			{Path: "unicode/utf8"},

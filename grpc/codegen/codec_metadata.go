@@ -88,13 +88,13 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
 			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
 			b.Add("\t\t} else {\n")
-			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", rawVar)
+			fmt.Fprintf(&b, "\t\t\t%s := vals[0]\n", rawVar)
 			b.Add("\n")
 			b.Add(indent(renderGRPCStringParse(md, rawVar), 3))
 			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", rawVar)
+			fmt.Fprintf(&b, "\t\t\t%s := vals[0]\n", rawVar)
 			b.Add("\n")
 			b.Add(indent(renderGRPCStringParse(md, rawVar), 3))
 			b.Add("\t\t}\n")
@@ -169,19 +169,20 @@ func renderGRPCRequestMetadataDecode(md *MetadataData) string {
 
 func renderGRPCMetadataEncode(md *MetadataData, targetVar string) string {
 	var b sourceBuilder
+	value := fieldSelector("result", md.FieldName)
 	switch {
 	case md.StringSlice:
-		fmt.Fprintf(&b, "\t%s.Append(%q, res.%s...)\n", targetVar, md.Name, md.FieldName)
+		fmt.Fprintf(&b, "\t%s.Append(%q, %s...)\n", targetVar, md.Name, value)
 	case md.Slice:
-		fmt.Fprintf(&b, "\tfor _, value := range res.%s {\n", md.FieldName)
+		fmt.Fprintf(&b, "\tfor _, value := range %s {\n", value)
 		b.Add(indent(renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, "valueStr", "value"), 2))
 		fmt.Fprintf(&b, "\t\t%s.Append(%q, valueStr)\n", targetVar, md.Name)
 		b.Add("\t}\n")
 	default:
 		if md.Pointer {
-			fmt.Fprintf(&b, "\tif res.%s != nil {\n", md.FieldName)
+			fmt.Fprintf(&b, "\tif %s != nil {\n", value)
 		}
-		fmt.Fprintf(&b, "\t\t%s.Append(%q, %s)\n", targetVar, md.Name, renderTemplateMetadataValue(md))
+		fmt.Fprintf(&b, "\t\t%s.Append(%q, %s)\n", targetVar, md.Name, renderMetadataSingleValue(md, value))
 		if md.Pointer {
 			b.Add("\t}\n")
 		}
@@ -197,19 +198,5 @@ func renderMetadataSingleValue(md *MetadataData, value string) string {
 		return pointerPrefix(md.Pointer) + value
 	default:
 		return renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), exprCode(pointerPrefix(md.Pointer)+value)))
-	}
-}
-
-func renderTemplateMetadataValue(md *MetadataData) string {
-	switch md.Type.Name() {
-	case "bytes":
-		return "string(*p." + md.FieldName + ")"
-	case "string":
-		if md.Pointer {
-			return "*p." + md.FieldName
-		}
-		return "p." + md.FieldName
-	default:
-		return renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), exprCode("*p."+md.FieldName)))
 	}
 }

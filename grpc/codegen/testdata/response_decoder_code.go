@@ -83,7 +83,7 @@ func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 	{
 
 		if vals := hdr.Get("Location"); len(vals) > 0 {
-			inHeaderRaw = vals[0]
+			inHeaderRaw := vals[0]
 
 			v, err2 := strconv.ParseInt(inHeaderRaw, 10, strconv.IntSize)
 			if err2 != nil {
@@ -94,7 +94,7 @@ func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 		}
 
 		if vals := trlr.Get("InTrailer"); len(vals) > 0 {
-			inTrailerRaw = vals[0]
+			inTrailerRaw := vals[0]
 
 			v, err2 := strconv.ParseBool(inTrailerRaw)
 			if err2 != nil {
@@ -126,7 +126,7 @@ func DecodeMethodMessageWithValidateResponse(ctx context.Context, v any, hdr, tr
 	{
 
 		if vals := hdr.Get("Location"); len(vals) > 0 {
-			inHeaderRaw = vals[0]
+			inHeaderRaw := vals[0]
 
 			v, err2 := strconv.ParseInt(inHeaderRaw, 10, strconv.IntSize)
 			if err2 != nil {
@@ -142,7 +142,7 @@ func DecodeMethodMessageWithValidateResponse(ctx context.Context, v any, hdr, tr
 		}
 
 		if vals := trlr.Get("InTrailer"); len(vals) > 0 {
-			inTrailerRaw = vals[0]
+			inTrailerRaw := vals[0]
 
 			v, err2 := strconv.ParseBool(inTrailerRaw)
 			if err2 != nil {

@@ -71,12 +71,12 @@ func EncodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 	}
 	resp := NewProtoMethodMessageWithMetadataResponse(result)
 
-	if res.InHeader != nil {
-		(*hdr).Append("Location", fmt.Sprintf("%v", *p.InHeader))
+	if result.InHeader != nil {
+		(*hdr).Append("Location", fmt.Sprintf("%v", *result.InHeader))
 	}
 
-	if res.InTrailer != nil {
-		(*trlr).Append("InTrailer", fmt.Sprintf("%v", *p.InTrailer))
+	if result.InTrailer != nil {
+		(*trlr).Append("InTrailer", fmt.Sprintf("%v", *result.InTrailer))
 	}
 	return resp, nil
 }
@@ -91,12 +91,12 @@ func EncodeMethodMessageWithValidateResponse(ctx context.Context, v any, hdr, tr
 	}
 	resp := NewProtoMethodMessageWithValidateResponse(result)
 
-	if res.InHeader != nil {
-		(*hdr).Append("Location", fmt.Sprintf("%v", *p.InHeader))
+	if result.InHeader != nil {
+		(*hdr).Append("Location", fmt.Sprintf("%v", *result.InHeader))
 	}
 
-	if res.InTrailer != nil {
-		(*trlr).Append("InTrailer", fmt.Sprintf("%v", *p.InTrailer))
+	if result.InTrailer != nil {
+		(*trlr).Append("InTrailer", fmt.Sprintf("%v", *result.InTrailer))
 	}
 	return resp, nil
 }
