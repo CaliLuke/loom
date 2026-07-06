@@ -308,6 +308,28 @@ type (
 		// FormEncoded if true indicates the request uses
 		// application/x-www-form-urlencoded.
 		FormEncoded bool
+		// DecodePlan contains precomputed decisions used by the server request
+		// decoder template.
+		DecodePlan *RequestDecodePlan
+	}
+
+	// RequestDecodePlan contains the derived control flow decisions for
+	// rendering a server request decoder.
+	RequestDecodePlan struct {
+		// HasElements is true when the request binds at least one path, query,
+		// header, or cookie element.
+		HasElements bool
+		// HasPathParams is true when the request binds path parameters.
+		HasPathParams bool
+		// HasQueryParams is true when the request binds query parameters.
+		HasQueryParams bool
+		// HasHeaders is true when the request binds headers.
+		HasHeaders bool
+		// HasCookies is true when the request binds cookies.
+		HasCookies bool
+		// MustValidate is true when decoded request elements may accumulate
+		// validation errors.
+		MustValidate bool
 	}
 
 	// MultipartFileFieldData describes a multipart file field handled by the
@@ -392,6 +414,29 @@ type (
 		// ViewedResult indicates whether the response body type is a
 		// result type.
 		ViewedResult *service.ViewedResultTypeData
+		// EncodePlan contains precomputed decisions used by the server response
+		// encoder template.
+		EncodePlan *ResponseEncodePlan
+	}
+
+	// ResponseEncodePlan contains the derived control flow decisions for
+	// rendering a server response encoder.
+	ResponseEncodePlan struct {
+		// BodyCount is the number of server response body variants.
+		BodyCount int
+		// HasBody is true when the response writes a body.
+		HasBody bool
+		// FirstBody is the first server response body variant, if any.
+		FirstBody *TypeData
+		// HasMultipleBodies is true when the response may render several body
+		// variants.
+		HasMultipleBodies bool
+		// UseViewedBodySwitch is true when the response selects a body variant
+		// from the requested result view.
+		UseViewedBodySwitch bool
+		// NeedsProblemSource is true when generated headers or cookies need a
+		// problem response adapter.
+		NeedsProblemSource bool
 	}
 
 	// InitData contains the data required to render a constructor.

@@ -26,6 +26,7 @@ trap 'rm -rf "$TMP_BASE"' EXIT
 
 fixtures=(
   "http-ticktock|http/integration_tests/fixtures/ticktock|example.com/http-ticktock"
+  "http-quality|http/integration_tests/fixtures/quality|example.com/http-quality"
   "jsonrpc-ticktock|jsonrpc/integration_tests/fixtures/ticktock|example.com/ticktock"
   "jsonrpc-mixedtick|jsonrpc/integration_tests/fixtures/mixedtick|example.com/mixedtick"
 )

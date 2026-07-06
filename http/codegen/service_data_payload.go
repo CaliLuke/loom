@@ -117,7 +117,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 	multipartGen, multipartFiles := generatedMultipartRequestData(b.endpointIR.Request)
 	registerRequestBodyTypeNames(serverBodyData, b.sd)
 	origin, mustHaveBody := buildPayloadRequestBodyRequirements(b.endpointIR.Request)
-	return &RequestData{
+	request := &RequestData{
 		PathParams:          paramsData,
 		QueryParams:         queryData,
 		Headers:             headersData,
@@ -132,7 +132,24 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		MultipartGenerated:  multipartGen,
 		MultipartFileFields: multipartFiles,
 		FormEncoded:         b.endpointIR.Request.FormEncoded,
-	}, mapQueryParam
+	}
+	request.DecodePlan = newRequestDecodePlan(request)
+	return request, mapQueryParam
+}
+
+func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
+	hasPathParams := len(request.PathParams) > 0
+	hasQueryParams := len(request.QueryParams) > 0
+	hasHeaders := len(request.Headers) > 0
+	hasCookies := len(request.Cookies) > 0
+	return &RequestDecodePlan{
+		HasElements:    hasPathParams || hasQueryParams || hasHeaders || hasCookies,
+		HasPathParams:  hasPathParams,
+		HasQueryParams: hasQueryParams,
+		HasHeaders:     hasHeaders,
+		HasCookies:     hasCookies,
+		MustValidate:   request.MustValidate,
+	}
 }
 
 func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {

@@ -459,5 +459,24 @@ func responseStatusBody(resp *transportir.ResponseStatus) *expr.AttributeExpr {
 
 func newResponseData(description string, data ResponseData) *ResponseData {
 	data.Description = description
+	data.EncodePlan = newResponseEncodePlan(&data)
 	return &data
+}
+
+func newResponseEncodePlan(response *ResponseData) *ResponseEncodePlan {
+	bodyCount := len(response.ServerBody)
+	var firstBody *TypeData
+	if bodyCount > 0 {
+		firstBody = response.ServerBody[0]
+	}
+	return &ResponseEncodePlan{
+		BodyCount:         bodyCount,
+		HasBody:           bodyCount > 0,
+		FirstBody:         firstBody,
+		HasMultipleBodies: bodyCount > 1,
+		UseViewedBodySwitch: bodyCount > 1 &&
+			response.ViewedResult != nil,
+		NeedsProblemSource: response.HeaderSourceVar == "problem" &&
+			(len(response.Headers) > 0 || len(response.Cookies) > 0),
+	}
 }

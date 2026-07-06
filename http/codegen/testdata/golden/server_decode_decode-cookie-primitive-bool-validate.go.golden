@@ -7,7 +7,6 @@ func DecodeMethodCookiePrimitiveBoolValidateRequest(mux loomhttp.Muxer, decoder 
 		var (
 			c2  bool
 			err error
-			c   *http.Cookie
 		)
 		{
 			c, cookieErr := r.Cookie("c")

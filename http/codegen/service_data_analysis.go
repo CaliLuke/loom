@@ -40,7 +40,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 			"query_params", len(httpEndpoint.Request.QueryParams),
 			"error_responses", len(httpEndpoint.Response.ErrorResponses),
 		)
-		sd.Endpoints = append(sd.Endpoints, sds.buildEndpointDataFromIR(httpEndpoint, svc, sd, scope))
+		sd.Endpoints = append(sd.Endpoints, sds.buildEndpointDataWithContext(epCtx, httpEndpoint, svc, sd, scope))
 	}
 	for _, endpointIR := range irService.Endpoints {
 		sds.collectEndpointBodyAttributeTypes(endpointIR, sd)
@@ -48,6 +48,21 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	sd.UnionTypes = sds.collectEndpointUnionTypes(httpSvc, sd.Scope)
 
 	return sd
+}
+
+func (sds *ServicesData) buildEndpointDataWithContext(
+	ctx *codegen.Context,
+	endpointIR *transportir.Endpoint,
+	svc *service.Data,
+	sd *ServiceData,
+	scope *codegen.NameScope,
+) (endpoint *EndpointData) {
+	defer func() {
+		if err := codegen.RecoverPanic(recover()); err != nil {
+			panic(codegen.NewError(ctx, nil, err))
+		}
+	}()
+	return sds.buildEndpointDataFromIR(endpointIR, svc, sd, scope)
 }
 
 func endpointVerb(ep *transportir.Endpoint) string {

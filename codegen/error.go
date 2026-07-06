@@ -33,6 +33,10 @@ func NewError(ctx *Context, expr eval.Expression, err error) error {
 	if err == nil {
 		return nil
 	}
+	var existing *Error
+	if errors.As(err, &existing) {
+		return err
+	}
 	e := &Error{Expr: expr, Err: err}
 	if svc := ctx.CurrentService(); svc != nil {
 		e.Service = svc.Name

@@ -5,7 +5,6 @@ func DecodeMethodCookieStringDefaultRequest(mux loomhttp.Muxer, decoder func(*ht
 		var payload *servicecookiestringdefault.MethodCookieStringDefaultPayload
 		var (
 			c2 string
-			c  *http.Cookie
 		)
 		{
 			c, cookieErr := r.Cookie("c")

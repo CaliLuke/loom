@@ -128,8 +128,10 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, decoder func(*http.Request) loomh
 	{{- end }}
 {{- end }}
 {{- if not .MultipartRequestDecoder }}
-	{{- template "partial_request_elements" .Payload.Request }}
-	{{- if .Payload.Request.MustValidate }}
+	{{- if .Payload.Request.DecodePlan.HasElements }}
+		{{- template "partial_request_elements" .Payload.Request }}
+	{{- end }}
+	{{- if .Payload.Request.DecodePlan.MustValidate }}
 		if err != nil {
 			return payload, err
 		}
