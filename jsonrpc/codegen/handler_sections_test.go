@@ -63,6 +63,31 @@ func TestJSONRPCProcessRequestBodyValidatesAndDispatches(t *testing.T) {
 	require.Contains(t, code, `jsonrpc.MethodNotFound`)
 }
 
+func TestJSONRPCHandlerInitDecodesParamsWithGeneratedDecoderSignature(t *testing.T) {
+	root := RunJSONRPCDSL(t, func() {
+		dsl.API("jsonrpc-handler-decode-test", func() {
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Service("calc", func() {
+			dsl.JSONRPC(func() {
+				dsl.POST("/rpc")
+			})
+			dsl.Method("add", func() {
+				dsl.Payload(func() {
+					dsl.ID("id", dsl.String)
+				})
+				dsl.Result(dsl.String)
+				dsl.JSONRPC(func() {})
+			})
+		})
+	})
+
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler-init")
+
+	require.Contains(t, code, `decodeParams := DecodeAddRequest(mux, decoder)`)
+	require.Contains(t, code, `params, err := decodeParams(r, req)`)
+}
+
 // TestJSONRPCObserverReasons asserts that the JSON-RPC generator emits each
 // stable reason the plan requires somewhere in the generated server code.
 // This is a source-text contract: a future refactor that drops an emission

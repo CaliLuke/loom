@@ -20,7 +20,6 @@ func jsonrpcServerHandlerSection(data *httpcodegen.ServiceData, mixed bool) code
 	})
 }
 
-
 func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.MustJenniferSection("jsonrpc-websocket-server-handler", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"

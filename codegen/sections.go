@@ -3,7 +3,9 @@ package codegen
 import (
 	"bytes"
 	"io"
+	"maps"
 	"strings"
+	"text/template"
 
 	"github.com/dave/jennifer/jen"
 )
@@ -34,6 +36,18 @@ type (
 		Name string
 		// Render computes the section source when written.
 		Render func() string
+	}
+
+	// TextTemplateSection renders a section from a text/template source.
+	TextTemplateSection struct {
+		// Name is the stable section identifier used by tests and merge logic.
+		Name string
+		// Source is the text/template source.
+		Source string
+		// FuncMap lists section-local template functions.
+		FuncMap map[string]any
+		// Data is passed to the template during execution.
+		Data any
 	}
 )
 
@@ -83,4 +97,20 @@ func (s *RenderSection) Write(w io.Writer) error {
 	}
 	_, err := io.WriteString(w, s.Render())
 	return err
+}
+
+// SectionName returns the stable section identifier.
+func (s *TextTemplateSection) SectionName() string {
+	return s.Name
+}
+
+// Write renders the template-backed section to w.
+func (s *TextTemplateSection) Write(w io.Writer) error {
+	funcs := TemplateFuncs()
+	maps.Copy(funcs, s.FuncMap)
+	tmpl, err := template.New(s.Name).Funcs(funcs).Parse(s.Source)
+	if err != nil {
+		return err
+	}
+	return tmpl.Execute(w, s.Data)
 }

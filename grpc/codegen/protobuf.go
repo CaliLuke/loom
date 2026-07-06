@@ -210,7 +210,7 @@ func protoBufFullMessageName(att *expr.AttributeExpr, pkg string, s *codegen.Nam
 	case expr.CompositeExpr:
 		return protoBufFullMessageName(actual.Attribute(), pkg, s)
 	default:
-		panic(fmt.Sprintf("data type is not a user type or union: received type %T", actual)) // bug
+		panic(codegen.NewError(nil, att, fmt.Errorf("data type is not a user type or union: received type %T", actual)))
 	}
 }
 
@@ -246,7 +246,7 @@ func protoBufGoFullTypeName(att *expr.AttributeExpr, pkg string, s *codegen.Name
 	case *expr.Object:
 		return s.GoTypeDef(att, false, false)
 	default:
-		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
+		panic(codegen.NewError(nil, att, fmt.Errorf("unknown protocol buffer Go type %T", actual)))
 	}
 }
 
@@ -282,7 +282,7 @@ func protoBufMessageDef(att *expr.AttributeExpr, sd *ServiceData) string {
 	case *expr.Object:
 		return protoBufObjectMessageDef(att, actual, sd)
 	default:
-		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
+		panic(codegen.NewError(nil, att, fmt.Errorf("unknown protocol buffer message type %T", actual)))
 	}
 }
 
@@ -526,7 +526,7 @@ func rpcTag(a *expr.AttributeExpr) uint64 {
 	if t, ok := a.FieldTag(); ok {
 		tn, err := strconv.ParseUint(t, 10, 64)
 		if err != nil {
-			panic(err) // bug (should catch invalid field numbers in validation)
+			panic(codegen.NewError(nil, a, fmt.Errorf("invalid protocol buffer field tag %q: %w", t, err)))
 		}
 		tag = tn
 	}

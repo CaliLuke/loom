@@ -246,7 +246,7 @@ func ResultTypeRef(api *expr.APIExpr, mt *expr.ResultTypeExpr, view string) stri
 func ResultTypeRefWithPrefix(api *expr.APIExpr, mt *expr.ResultTypeExpr, view, prefix string) string {
 	projected, err := expr.Project(mt, view)
 	if err != nil {
-		panic(fmt.Sprintf("failed to project media type %#v: %s", mt.Identifier, err)) // bug
+		panic(codegen.NewError(nil, mt, fmt.Errorf("failed to project media type %#v: %w", mt.Identifier, err)))
 	}
 	var metaName string
 	if n, ok := mt.Meta["openapi:typename"]; ok {
@@ -593,7 +593,7 @@ func buildResultTypeSchema(api *expr.APIExpr, mt *expr.ResultTypeExpr, view stri
 	s.Media = &Media{Type: mt.Identifier}
 	projected, err := expr.Project(mt, view)
 	if err != nil {
-		panic(fmt.Sprintf("failed to project media type %#v: %s", mt.Identifier, err)) // bug
+		panic(codegen.NewError(nil, mt, fmt.Errorf("failed to project media type %#v: %w", mt.Identifier, err)))
 	}
 	buildAttributeSchema(api, s, projected.AttributeExpr)
 }

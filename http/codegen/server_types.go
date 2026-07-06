@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -198,7 +199,7 @@ func fieldCode(init *InitData, typ string) string {
 	// because the headers and params cannot be user types.
 	c, _, err := codegen.InitStructFields(initArgs, varn, "", init.ReturnTypePkg)
 	if err != nil {
-		panic(err) // bug
+		panic(fmt.Errorf("build HTTP field init for %s: %w", init.Name, err))
 	}
 	return c
 }

@@ -202,7 +202,7 @@ func fieldCode(init *PayloadInitData) *jen.Statement {
 	// because the args cannot be user types.
 	c, _, err := codegen.InitStructFields(init.Args, varn, "", init.ReturnTypePkg)
 	if err != nil {
-		panic(err) // bug
+		panic(fmt.Errorf("build CLI payload field init for %s: %w", init.ReturnTypeName, err))
 	}
 	return codegen.Expr(c)
 }

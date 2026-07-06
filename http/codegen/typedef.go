@@ -36,7 +36,7 @@ func goTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefaul
 	case expr.UserType, *expr.Union:
 		return scope.GoTypeName(att)
 	default:
-		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
+		panic(codegen.NewError(nil, att, fmt.Errorf("unknown HTTP type definition %T", actual)))
 	}
 }
 

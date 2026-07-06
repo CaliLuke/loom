@@ -21,6 +21,16 @@ func NewRenderSection(name string, render func() string) Section {
 	return &RenderSection{Name: name, Render: render}
 }
 
+// NewTextTemplateSection builds a section rendered from a text/template source.
+func NewTextTemplateSection(name, source string, funcs map[string]any, data any) Section {
+	return &TextTemplateSection{
+		Name:    name,
+		Source:  source,
+		FuncMap: funcs,
+		Data:    data,
+	}
+}
+
 // MustJenniferSection builds a Jennifer-backed section.
 func MustJenniferSection(name string, build func(*jen.Statement)) Section {
 	return NewJenniferSection(name, build)

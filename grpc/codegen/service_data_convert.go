@@ -184,7 +184,7 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 	name += n
 	code, helpers, err := protoBufTransform(source, target, sourceVar, targetVar, srcCtx, tgtCtx, proto, true)
 	if err != nil {
-		panic(err) // bug
+		panic(codegen.NewError(d.ServicesData.Ctx, target, fmt.Errorf("build gRPC transform %s to %s: %w", source.Type.Name(), target.Type.Name(), err)))
 	}
 	sd.transformHelpers = codegen.AppendHelpers(sd.transformHelpers, helpers)
 	var args []*InitArgData

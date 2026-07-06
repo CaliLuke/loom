@@ -47,26 +47,22 @@ func serverEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *http
 func serverEncodeDecodeSections(f *codegen.File) []codegen.Section {
 	sections := make([]codegen.Section, 0, len(f.AllSections()))
 	for _, section := range f.AllSections() {
-		s, ok := section.(*codegen.SectionTemplate)
-		if !ok {
-			sections = append(sections, section)
-			continue
-		}
-		switch s.Name {
+		switch section.SectionName() {
 		case "source-header":
-			addJSONRPCServerImports(s)
+			if s, ok := section.(*codegen.SectionTemplate); ok {
+				addJSONRPCServerImports(s)
+			}
 		case "request-decoder":
-			rewriteJSONRPCRequestDecoder(s)
-			s.Name = "jsonrpc-request-decoder"
-			sections = append(sections, s)
+			section = rewriteJSONRPCSectionSource(section, rewriteJSONRPCRequestDecoderSource)
+			sections = append(sections, renameJSONRPCSection(section, "jsonrpc-request-decoder"))
 			continue
 		case "error-encoder":
 			continue
 		}
-		if s.Name != "source-header" {
-			s.Name = "jsonrpc-" + s.Name
+		if section.SectionName() != "source-header" {
+			section = renameJSONRPCSection(section, "jsonrpc-"+section.SectionName())
 		}
-		sections = append(sections, s)
+		sections = append(sections, section)
 	}
 	return sections
 }
@@ -77,17 +73,17 @@ func addJSONRPCServerImports(section *codegen.SectionTemplate) {
 	codegen.AddImport(section, codegen.LoomImport("jsonrpc"))
 }
 
-func rewriteJSONRPCRequestDecoder(section *codegen.SectionTemplate) {
-	section.Source = strings.Replace(section.Source,
+func rewriteJSONRPCRequestDecoderSource(source string) string {
+	source = strings.Replace(source,
 		"func(*http.Request) (",
 		"func(*http.Request, *jsonrpc.RawRequest) (", 1)
 
-	section.Source = strings.Replace(section.Source,
+	source = strings.Replace(source,
 		"return func(r *http.Request) ({{ .Payload.Ref }}, error) {",
 		`return func(r *http.Request, req *jsonrpc.RawRequest) ({{ .Payload.Ref }}, error) {
 		r.Body = io.NopCloser(bytes.NewReader(req.Params))`, 1)
 
-	section.Source = strings.ReplaceAll(section.Source,
+	return strings.ReplaceAll(source,
 		"return nil, ",
 		`var zero {{ .Payload.Ref }}
 		return zero, `)

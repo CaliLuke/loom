@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 var (
@@ -30,6 +31,9 @@ func cloneSection(section codegen.Section) codegen.Section {
 	case *codegen.SectionTemplate:
 		cloned := *s
 		return &cloned
+	case *codegen.TextTemplateSection:
+		cloned := *s
+		return &cloned
 	case *codegen.JenniferSection:
 		cloned := *s
 		return &cloned
@@ -49,6 +53,10 @@ func cloneSection(section codegen.Section) codegen.Section {
 func rewriteJSONRPCSectionSource(section codegen.Section, rewrite func(string) string) codegen.Section {
 	switch s := section.(type) {
 	case *codegen.SectionTemplate:
+		cloned := *s
+		cloned.Source = rewrite(cloned.Source)
+		return &cloned
+	case *codegen.TextTemplateSection:
 		cloned := *s
 		cloned.Source = rewrite(cloned.Source)
 		return &cloned
@@ -75,6 +83,48 @@ func rewriteJSONRPCSectionSource(section codegen.Section, rewrite func(string) s
 		return codegen.NewRenderSection(section.SectionName(), func() string {
 			return rewrite(renderSectionSource(section))
 		})
+	}
+}
+
+func renameJSONRPCSection(section codegen.Section, name string) codegen.Section {
+	switch s := section.(type) {
+	case *codegen.SectionTemplate:
+		cloned := *s
+		cloned.Name = name
+		return &cloned
+	case *codegen.TextTemplateSection:
+		cloned := *s
+		cloned.Name = name
+		return &cloned
+	case *codegen.RawSection:
+		cloned := *s
+		cloned.Name = name
+		return &cloned
+	case *codegen.RenderSection:
+		cloned := *s
+		cloned.Name = name
+		return &cloned
+	case *codegen.JenniferSection:
+		cloned := *s
+		cloned.Name = name
+		return &cloned
+	default:
+		return codegen.NewRenderSection(name, func() string {
+			return renderSectionSource(section)
+		})
+	}
+}
+
+func endpointDataForSection(section codegen.Section) (*httpcodegen.EndpointData, bool) {
+	switch s := section.(type) {
+	case *codegen.SectionTemplate:
+		data, ok := s.Data.(*httpcodegen.EndpointData)
+		return data, ok
+	case *codegen.TextTemplateSection:
+		data, ok := s.Data.(*httpcodegen.EndpointData)
+		return data, ok
+	default:
+		return nil, false
 	}
 }
 

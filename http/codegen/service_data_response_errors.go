@@ -122,7 +122,7 @@ func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseSt
 	}
 	code, err := b.sds.buildClientResultTransformCode(body, errAtt, httpError.Attribute, b.endpoint.Request, b.httpclictx, errctx, b.sd)
 	if err != nil {
-		fmt.Println(err.Error())
+		panic(codegen.NewError(b.sds.Ctx, body, fmt.Errorf("build HTTP error response transform for %s: %w", httpError.Name, err)))
 	}
 	return code, origin, false
 }

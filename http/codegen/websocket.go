@@ -184,7 +184,7 @@ func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpo
 		if err == nil {
 			sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
 		} else {
-			fmt.Println(err.Error()) // TBD validate DSL so errors are not possible
+			panic(codegen.NewError(sds.Ctx, endpointIR.Request.StreamingBody, fmt.Errorf("build WebSocket payload transform for %s: %w", endpointIR.MethodName, err)))
 		}
 	}
 	payload.Init = &InitData{

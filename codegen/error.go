@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
 )
 
 // Error is the codegen-layer error type. It wraps an underlying error with
@@ -35,24 +36,47 @@ func NewError(ctx *Context, expr eval.Expression, err error) error {
 	}
 	var existing *Error
 	if errors.As(err, &existing) {
+		enrichError(existing, ctx, expr)
 		return err
 	}
 	e := &Error{Expr: expr, Err: err}
-	if svc := ctx.CurrentService(); svc != nil {
+	enrichError(e, ctx, expr)
+	return e
+}
+
+func enrichError(e *Error, ctx *Context, fallback eval.Expression) {
+	if e == nil {
+		return
+	}
+	if e.Expr == nil {
+		e.Expr = fallback
+	}
+	if svc, ok := e.Expr.(*expr.ServiceExpr); ok && e.Service == "" {
 		e.Service = svc.Name
 	}
-	if m := ctx.CurrentMethod(); m != nil {
-		e.Method = m.Name
+	if method, ok := e.Expr.(*expr.MethodExpr); ok && e.Method == "" {
+		e.Method = method.Name
 	}
-	if expr == nil {
-		// Prefer ctx's current method as the attributed expression.
+	if ctx != nil {
+		if svc := ctx.CurrentService(); svc != nil {
+			if e.Service == "" {
+				e.Service = svc.Name
+			}
+		}
 		if m := ctx.CurrentMethod(); m != nil {
-			e.Expr = m
-		} else if svc := ctx.CurrentService(); svc != nil {
-			e.Expr = svc
+			if e.Method == "" {
+				e.Method = m.Name
+			}
+		}
+		if e.Expr == nil {
+			// Prefer ctx's current method as the attributed expression.
+			if m := ctx.CurrentMethod(); m != nil {
+				e.Expr = m
+			} else if svc := ctx.CurrentService(); svc != nil {
+				e.Expr = svc
+			}
 		}
 	}
-	return e
 }
 
 // Error renders the codegen error with DSL attribution when available.

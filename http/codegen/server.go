@@ -124,7 +124,7 @@ func serverBaseSections(data *ServiceData) []codegen.Section {
 func serverEndpointSections(e *EndpointData) []codegen.Section {
 	return []codegen.Section{
 		serverHandlerSection(e),
-		&codegen.SectionTemplate{Name: "server-handler-init", Source: serverHandlerInitSource, FuncMap: serverTemplateFuncs(), Data: e},
+		codegen.NewTextTemplateSection("server-handler-init", serverHandlerInitSource, serverTemplateFuncs(), e),
 	}
 }
 
@@ -187,38 +187,18 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 func serverEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesData, e *EndpointData) []codegen.Section {
 	sections := []codegen.Section{}
 	if e.Redirect == nil && (!IsWebSocketEndpoint(e) || e.Method.IsJSONRPC) {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:    "response-encoder",
-			FuncMap: transTmplFuncs(svc, services),
-			Source:  responseEncoderSource,
-			Data:    e,
-		})
+		sections = append(sections, codegen.NewTextTemplateSection("response-encoder", responseEncoderSource, transTmplFuncs(svc, services), e))
 	}
 	if mustDecodeRequest(e) {
 		fm := transDecoderTmplFuncs(svc, services)
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:    "request-decoder",
-			Source:  requestDecoderSource,
-			FuncMap: fm,
-			Data:    e,
-		})
+		sections = append(sections, codegen.NewTextTemplateSection("request-decoder", requestDecoderSource, fm, e))
 	}
 	if e.MultipartRequestDecoder != nil {
 		fm := transDecoderTmplFuncs(svc, services)
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:    "multipart-request-decoder",
-			Source:  multipartRequestDecoderSource,
-			FuncMap: fm,
-			Data:    e.MultipartRequestDecoder,
-		})
+		sections = append(sections, codegen.NewTextTemplateSection("multipart-request-decoder", multipartRequestDecoderSource, fm, e.MultipartRequestDecoder))
 	}
 	if len(e.Errors) > 0 {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:    "error-encoder",
-			Source:  errorEncoderSource,
-			FuncMap: transTmplFuncs(svc, services),
-			Data:    e,
-		})
+		sections = append(sections, codegen.NewTextTemplateSection("error-encoder", errorEncoderSource, transTmplFuncs(svc, services), e))
 	}
 	return sections
 }

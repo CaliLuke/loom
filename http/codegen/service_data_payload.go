@@ -441,7 +441,7 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool) {
 		}
 	}
 	if err != nil {
-		fmt.Println(err.Error())
+		panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP payload transform for %s: %w", b.endpointIR.MethodName, err)))
 	}
 	return serverCode, clientCode, origin, pointer
 }

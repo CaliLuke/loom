@@ -256,7 +256,7 @@ func effectiveClientResponseBody(body, methodResult *expr.AttributeExpr, md *ser
 	}
 	projected, err := expr.Project(rt, view)
 	if err != nil {
-		panic(err) // bug
+		panic(codegen.NewError(nil, body, fmt.Errorf("project response body view %q: %w", view, err)))
 	}
 	body.Type = projected
 	return body
@@ -351,7 +351,7 @@ func (sds *ServicesData) buildResponseResultInitCode(
 	clientArgs := buildResponseResultInitArgs(resp, body, httpclictx, headersData, cookiesData, sd)
 	code, err := sds.buildClientResultTransformCode(body, resAttr, result, endpointIR.Request, httpclictx, svcctx, sd)
 	if err != nil {
-		fmt.Println(err.Error())
+		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response result transform: %w", err)))
 	}
 	clientArgs = append(clientArgs, buildHeaderInitArgs(headersData)...)
 	clientArgs = append(clientArgs, buildCookieInitArgs(cookiesData)...)

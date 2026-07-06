@@ -47,28 +47,25 @@ func clientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *http
 func clientEncodeDecodeSections(f *codegen.File, svcData *httpcodegen.ServiceData) []codegen.Section {
 	sections := make([]codegen.Section, 0, len(f.AllSections())+len(svcData.Endpoints))
 	for _, section := range f.AllSections() {
-		s, ok := section.(*codegen.SectionTemplate)
-		if !ok {
-			sections = append(sections, section)
-			continue
-		}
-		switch s.Name {
+		switch section.SectionName() {
 		case "source-header":
-			addJSONRPCClientImports(s)
+			if s, ok := section.(*codegen.SectionTemplate); ok {
+				addJSONRPCClientImports(s)
+			}
 		case "request-encoder":
-			rewriteJSONRPCRequestEncoder(s)
+			section = rewriteJSONRPCSectionSource(section, rewriteJSONRPCRequestEncoderSource)
 		case "response-decoder":
-			ed, ok := s.Data.(*httpcodegen.EndpointData)
+			ed, ok := endpointDataForSection(section)
 			if !ok {
 				continue
 			}
 			sections = append(sections, jsonrpcResponseDecoderSection(svcData.Endpoint(ed.Method.Name)))
 			continue
 		}
-		if s.Name != "source-header" {
-			s.Name = "jsonrpc-" + s.Name
+		if section.SectionName() != "source-header" {
+			section = renameJSONRPCSection(section, "jsonrpc-"+section.SectionName())
 		}
-		sections = append(sections, s)
+		sections = append(sections, section)
 	}
 
 	for _, endpoint := range svcData.Endpoints {
@@ -90,9 +87,9 @@ func addJSONRPCClientImports(section *codegen.SectionTemplate) {
 	codegen.AddImport(section, codegen.LoomImport("jsonrpc"))
 }
 
-func rewriteJSONRPCRequestEncoder(section *codegen.SectionTemplate) {
+func rewriteJSONRPCRequestEncoderSource(source string) string {
 	re := regexp.MustCompile(`body := (.*)\n`)
-	section.Source = re.ReplaceAllStringFunc(section.Source, func(match string) string {
+	return re.ReplaceAllStringFunc(source, func(match string) string {
 		matches := re.FindStringSubmatch(match)
 		return strings.Replace(newJSONRPCBody, "{{ .NewBody }}", matches[1], 1)
 	})

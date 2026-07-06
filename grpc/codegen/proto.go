@@ -46,38 +46,22 @@ func protoFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData)
 	sections := make([]codegen.Section, 0, 3+len(data.Messages))
 	sections = append(sections,
 		// header comments
-		&codegen.SectionTemplate{
-			Name:   "proto-header",
-			Source: grpcTemplates.Read(grpcProtoHeaderT),
-			Data: map[string]any{
-				"Title": fmt.Sprintf("%s protocol buffer definition", svc.Name()),
-			},
-		},
+		codegen.NewTextTemplateSection("proto-header", grpcTemplates.Read(grpcProtoHeaderT), nil, map[string]any{
+			"Title": fmt.Sprintf("%s protocol buffer definition", svc.Name()),
+		}),
 		// proto syntax and package
-		&codegen.SectionTemplate{
-			Name:   "proto-start",
-			Source: grpcTemplates.Read(grpcProtoStartT),
-			Data: map[string]any{
-				"ProtoVersion": ProtoVersion,
-				"Pkg":          pkgName(svc, svcName),
-				"Imports":      data.ProtoImports,
-			},
-		},
+		codegen.NewTextTemplateSection("proto-start", grpcTemplates.Read(grpcProtoStartT), nil, map[string]any{
+			"ProtoVersion": ProtoVersion,
+			"Pkg":          pkgName(svc, svcName),
+			"Imports":      data.ProtoImports,
+		}),
 		// service definition
-		&codegen.SectionTemplate{
-			Name:   "grpc-service",
-			Source: grpcTemplates.Read(grpcServiceT),
-			Data:   data,
-		},
+		codegen.NewTextTemplateSection("grpc-service", grpcTemplates.Read(grpcServiceT), nil, data),
 	)
 
 	// message definition
 	for _, m := range data.Messages {
-		sections = append(sections, &codegen.SectionTemplate{
-			Name:   "grpc-message",
-			Source: grpcTemplates.Read(grpcMessageT),
-			Data:   m,
-		})
+		sections = append(sections, codegen.NewTextTemplateSection("grpc-message", grpcTemplates.Read(grpcMessageT), nil, m))
 	}
 
 	runProtoc := func(path string) error {

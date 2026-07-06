@@ -37,10 +37,11 @@ func TestJSONRPCAdaptationHelpers(t *testing.T) {
 		sections := []codegen.Section{
 			&codegen.SectionTemplate{Name: "source-header", Source: "header"},
 			&codegen.SectionTemplate{Name: "parse-endpoint", Source: "doHTTP"},
+			codegen.NewTextTemplateSection("client-request", "doHTTP {{ .Name }}", nil, map[string]string{"Name": "template"}),
 			codegen.NewRenderSection("usage", func() string { return "httpUsage" }),
 		}
 		updated := rewriteJSONRPCSectionSources(sections, rewriteJSONRPCExampleCLISource)
-		require.Len(t, updated, 3)
+		require.Len(t, updated, 4)
 
 		header, ok := updated[0].(*codegen.SectionTemplate)
 		require.True(t, ok)
@@ -50,7 +51,12 @@ func TestJSONRPCAdaptationHelpers(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "doJSONRPC", parse.Source)
 
-		assert.Equal(t, "usage", updated[2].SectionName())
-		assert.Contains(t, renderSectionSource(updated[2]), "jsonrpcUsage")
+		templateSection, ok := updated[2].(*codegen.TextTemplateSection)
+		require.True(t, ok)
+		assert.Equal(t, "doJSONRPC {{ .Name }}", templateSection.Source)
+		assert.Contains(t, renderSectionSource(templateSection), "doJSONRPC template")
+
+		assert.Equal(t, "usage", updated[3].SectionName())
+		assert.Contains(t, renderSectionSource(updated[3]), "jsonrpcUsage")
 	})
 }

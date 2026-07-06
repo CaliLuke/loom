@@ -90,12 +90,7 @@ func clientRequestEncoderSection(svc *expr.HTTPServiceExpr, services *ServicesDa
 	if e.RequestEncoder == "" || e.Payload.Ref == "" {
 		return nil
 	}
-	return &codegen.SectionTemplate{
-		Name:    "request-encoder",
-		Source:  requestEncoderSource,
-		FuncMap: clientRequestTemplateFuncs(svc, services),
-		Data:    e,
-	}
+	return codegen.NewTextTemplateSection("request-encoder", requestEncoderSource, clientRequestTemplateFuncs(svc, services), e)
 }
 
 func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesData) map[string]any {
@@ -125,17 +120,17 @@ func clientResponseDecoderSection(svc *expr.HTTPServiceExpr, services *ServicesD
 	if e.Result == nil && len(e.Errors) == 0 {
 		return nil
 	}
-	return &codegen.SectionTemplate{
-		Name:   "response-decoder",
-		Source: responseDecoderSource,
-		Data:   e,
-		FuncMap: map[string]any{
+	return codegen.NewTextTemplateSection(
+		"response-decoder",
+		responseDecoderSource,
+		map[string]any{
 			"goTypeRef": func(dt expr.DataType) string {
 				return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
 			},
 			"buildResponseData": buildResponseData,
 		},
-	}
+		e,
+	)
 }
 
 // clientFile returns the client HTTP transport file

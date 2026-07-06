@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -41,7 +42,7 @@ func ExampleServiceFiles(genpkg string, root *expr.RootExpr, services *ServicesD
 	for _, svc := range root.Services {
 		s := services.Get(svc.Name)
 		if s == nil {
-			panic("unknown service, " + svc.Name) // bug
+			panic(codegen.NewError(nil, svc, fmt.Errorf("unknown service %q", svc.Name)))
 		}
 		scope.Unique(s.PkgName)
 	}

@@ -146,11 +146,7 @@ func (g *Generator) Write(_ bool) error {
 		}
 		sections = []codegen.Section{
 			codegen.Header("Code Generator", "main", imports),
-			&codegen.SectionTemplate{
-				Name:   "main",
-				Source: mainT,
-				Data:   data,
-			},
+			codegen.NewTextTemplateSection("main", mainT, nil, data),
 		}
 	}
 

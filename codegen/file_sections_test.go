@@ -35,7 +35,7 @@ func TestProductionFilesUseGenericSections(t *testing.T) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if rel == "codegen/file.go" {
+		if rel == "codegen/file.go" || rel == "codegen/header.go" {
 			return nil
 		}
 
@@ -44,7 +44,11 @@ func TestProductionFilesUseGenericSections(t *testing.T) {
 			return err
 		}
 		source := string(b)
-		if strings.Contains(source, "SectionTemplates:") || strings.Contains(source, ".SectionTemplates") {
+		if strings.Contains(source, "SectionTemplates:") ||
+			strings.Contains(source, ".SectionTemplates") ||
+			strings.Contains(source, "NewTemplateSection(") ||
+			strings.Contains(source, "&codegen.SectionTemplate{") ||
+			strings.Contains(source, "&SectionTemplate{") {
 			offenders = append(offenders, rel)
 		}
 		return nil

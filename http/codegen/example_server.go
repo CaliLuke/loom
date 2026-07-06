@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -120,10 +121,10 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, svc *expr.HTTPServic
 	for _, httpSvc := range root.API.HTTP.Services {
 		s := services.Get(httpSvc.Name())
 		if s == nil {
-			panic("unknown http service, " + httpSvc.Name()) // bug
+			panic(codegen.NewError(nil, httpSvc.ServiceExpr, fmt.Errorf("unknown HTTP service %q", httpSvc.Name())))
 		}
 		if s.Service == nil {
-			panic("unknown service, " + httpSvc.Name()) // bug
+			panic(codegen.NewError(nil, httpSvc.ServiceExpr, fmt.Errorf("unknown service %q", httpSvc.Name())))
 		}
 		scope.Unique(s.Service.PkgName)
 	}

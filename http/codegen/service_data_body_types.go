@@ -136,7 +136,7 @@ func projectResponseBodyView(body *expr.AttributeExpr, view *string, svr bool, s
 		var err error
 		rt, err = expr.Project(rt, *view)
 		if err != nil {
-			panic(err)
+			panic(codegen.NewError(nil, body, fmt.Errorf("project response body view %q: %w", *view, err)))
 		}
 		body.Type = rt
 		if svr {
@@ -230,7 +230,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 	}
 	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
 	if err != nil {
-		fmt.Println(err.Error())
+		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP request body transform: %w", err)))
 	}
 	sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, helpers)
 
@@ -296,7 +296,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 	}
 	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
 	if err != nil {
-		panic(err)
+		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response body transform: %w", err)))
 	}
 	sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
 

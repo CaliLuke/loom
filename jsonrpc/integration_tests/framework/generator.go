@@ -1,11 +1,13 @@
 package framework
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/CaliLuke/loom/codegen"
 	loomtemplate "github.com/CaliLuke/loom/codegen/template"
@@ -86,13 +88,13 @@ func (g *Generator) buildDesignData() *DesignData {
 // renderDesign writes the design files required prior to running loom gen/example.
 func (g *Generator) renderDesign(design *DesignData) error {
 	// go.mod
+	goModSource, err := renderGoModSource(g.repoRootReplace())
+	if err != nil {
+		return fmt.Errorf("render go.mod source: %w", err)
+	}
 	gomod := &codegen.File{
-		Path: "go.mod",
-		Sections: []codegen.Section{&codegen.SectionTemplate{
-			Name:   "go-mod",
-			Source: generatorTemplates.Read("go_mod"),
-			Data:   map[string]string{"LoomPath": g.repoRootReplace()},
-		}},
+		Path:     "go.mod",
+		Sections: []codegen.Section{codegen.NewRawSection("go-mod", goModSource)},
 	}
 	if _, err := gomod.Render(g.workDir); err != nil {
 		return fmt.Errorf("render go.mod: %w", err)
@@ -106,6 +108,18 @@ func (g *Generator) renderDesign(design *DesignData) error {
 		return fmt.Errorf("render design.go: %w", err)
 	}
 	return nil
+}
+
+func renderGoModSource(loomPath string) (string, error) {
+	tmpl, err := template.New("go-mod").Parse(generatorTemplates.Read("go_mod"))
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, map[string]string{"LoomPath": loomPath}); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // renderImplementation writes the service implementation files.
