@@ -35,3 +35,41 @@ jobs:
         with:
           name: coverage
           path: cover.out
+
+  openapi-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: OpenAPI contract smoke
+        run: make openapi-contract
+
+  generated-code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Install dependencies
+        run: make depend
+
+      - name: Generated code quality
+        run: make generated-code-quality

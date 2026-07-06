@@ -32,7 +32,7 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend install-hooks lint lint-filesize lint-namescope test test-release integration-test integration-test-fast build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight release-loom
+.PHONY: all all-tests ci depend install-hooks lint lint-filesize lint-namescope test test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight release-loom
 .NOTPARALLEL: release release-loom
 
 # Only list test and build dependencies
@@ -153,6 +153,16 @@ ifneq ($(GOOS),windows)
 	cd http/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 5m -run '$(RUN)' ./fixtures/$(SERVICE)/...
 endif
 
+generated-code-quality: build-loom-cached
+ifneq ($(GOOS),windows)
+	GOLANGCI_LINT="$(GOLANGCI_LINT)" LOOM_BIN="$(GOBIN_DIR)/loom" bash ./scripts/generated_code_quality.sh
+endif
+
+openapi-contract:
+ifneq ($(GOOS),windows)
+	PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -run 'Test(RenderedSpecsPassContractLint|RepresentativeSpecsPassRedoclyLintAndConsumerSmoke)$$' ./http/codegen/openapi/v3
+endif
+
 loom-local:
 	bash ./scripts/loom_source_mode.sh local
 
@@ -177,7 +187,7 @@ $(GOBIN_DIR)/loom: $(CODEGEN_SOURCES)
 	@echo "rebuilding loom (codegen/cli source changed)"
 	cd cmd/loom && GOBIN="$(GOBIN_DIR)" go install .
 
-release-preflight: lint test-release integration-test
+release-preflight: lint test-release integration-test openapi-contract generated-code-quality
 
 release: release-loom
 	@echo "Release $(VERSION) pushed"
