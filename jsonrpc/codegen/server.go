@@ -49,9 +49,7 @@ func serverEncodeDecodeSections(f *codegen.File) []codegen.Section {
 	for _, section := range f.AllSections() {
 		switch section.SectionName() {
 		case "source-header":
-			if s, ok := section.(*codegen.SectionTemplate); ok {
-				addJSONRPCServerImports(s)
-			}
+			addJSONRPCServerImports(section)
 		case "request-decoder":
 			section = rewriteJSONRPCSectionSource(section, rewriteJSONRPCRequestDecoderSource)
 			sections = append(sections, renameJSONRPCSection(section, "jsonrpc-request-decoder"))
@@ -67,10 +65,10 @@ func serverEncodeDecodeSections(f *codegen.File) []codegen.Section {
 	return sections
 }
 
-func addJSONRPCServerImports(section *codegen.SectionTemplate) {
-	codegen.AddImport(section, &codegen.ImportSpec{Path: "bytes"})
-	codegen.AddImport(section, &codegen.ImportSpec{Path: "io"})
-	codegen.AddImport(section, codegen.LoomImport("jsonrpc"))
+func addJSONRPCServerImports(section codegen.Section) {
+	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "bytes"})
+	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "io"})
+	codegen.AddSectionImport(section, codegen.LoomImport("jsonrpc"))
 }
 
 func rewriteJSONRPCRequestDecoderSource(source string) string {

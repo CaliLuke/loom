@@ -81,7 +81,7 @@ func (b *errorBuilder) buildSingle(errorResponse *transportir.ResponseStatus) (s
 func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus, pkg string, errctx *codegen.AttributeContext) *InitData {
 	httpError := errorResponse.Error
 	body := responseStatusBody(errorResponse).Type
-	if !needInit(httpError.Type) {
+	if !needInit(httpError.Attribute) {
 		return nil
 	}
 	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope)

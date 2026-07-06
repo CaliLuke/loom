@@ -89,6 +89,26 @@ func TestMessageDefSection(t *testing.T) {
 	}
 }
 
+func TestProtoFilesExposeStableServiceAndMessageShape(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.BidirectionalStreamingRPCDSL)
+	services := CreateGRPCServices(root)
+	files := ProtoFiles("example.com/quality/gen", services)
+	require.Len(t, files, 1)
+
+	sections := files[0].AllSections()
+	require.GreaterOrEqual(t, len(sections), 4)
+	code := sectionCode(t, sections[1:]...)
+
+	require.Contains(t, code, `syntax = "proto3";`)
+	require.Contains(t, code, `package service_bidirectional_streaming_rpc;`)
+	require.Contains(t, code, `service ServiceBidirectionalStreamingRPC {`)
+	require.Contains(t, code, `rpc MethodBidirectionalStreamingRPC (stream MethodBidirectionalStreamingRPCStreamingRequest) returns (stream MethodBidirectionalStreamingRPCResponse);`)
+	require.Contains(t, code, `message MethodBidirectionalStreamingRPCStreamingRequest {`)
+	require.Contains(t, code, `message MethodBidirectionalStreamingRPCResponse {`)
+	require.NotContains(t, code, `interface{}`)
+	require.NotContains(t, code, `map<string, google.protobuf.Value> payload = 1;`)
+}
+
 func TestProtoc(t *testing.T) {
 	const code = testdata.UnaryRPCsProtoCode
 

@@ -26,6 +26,7 @@ func TestJSONRPCClientEncodeDecodeFileRewrite(t *testing.T) {
 	code := renderCodegenFile(t, file)
 	assert.Contains(t, code, `"github.com/google/uuid"`)
 	assert.Contains(t, code, `github.com/CaliLuke/loom/jsonrpc`)
+	assert.Contains(t, code, `sync/atomic`)
 	assert.Contains(t, code, `body := &jsonrpc.Request{`)
 	assert.Contains(t, code, `Method:  "sum",`)
 }
@@ -43,6 +44,8 @@ func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
 
 	code := renderCodegenFile(t, file)
 	assert.Contains(t, code, `github.com/CaliLuke/loom/jsonrpc`)
+	assert.Contains(t, code, `"bytes"`)
+	assert.Contains(t, code, `"io"`)
 	assert.Contains(t, code, `func(r *http.Request, req *jsonrpc.RawRequest)`)
 	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(req.Params))`)
 }

@@ -152,7 +152,7 @@ func initResponseBodyTypeData(body, att *expr.AttributeExpr, sd *ServiceData) *r
 	return &responseBodyTypeData{
 		name:     body.Type.Name(),
 		ref:      sd.Scope.GoTypeRef(body),
-		mustInit: att.Type != expr.Empty && needInit(body.Type),
+		mustInit: att.Type != expr.Empty && needInit(body),
 	}
 }
 
@@ -210,7 +210,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 	svcctx, httpctx *codegen.AttributeContext,
 	sd *ServiceData,
 ) *InitData {
-	if svr || att.Type == expr.Empty || !needInit(body.Type) {
+	if svr || att.Type == expr.Empty || !needInit(body) {
 		return nil
 	}
 

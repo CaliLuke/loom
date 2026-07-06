@@ -43,10 +43,15 @@ func VersionFile() *File {
 // AddImport adds imports to a section template that was generated with
 // Header.
 func AddImport(section *SectionTemplate, imprts ...*ImportSpec) {
+	AddSectionImport(section, imprts...)
+}
+
+// AddSectionImport adds imports to a generated header section.
+func AddSectionImport(section Section, imprts ...*ImportSpec) {
 	if len(imprts) == 0 {
 		return
 	}
-	if data := HeaderSectionData(section); data != nil {
+	if data := HeaderDataForSection(section); data != nil {
 		seen := make(map[ImportSpec]struct{}, len(data.Imports)+len(imprts))
 		for _, spec := range data.Imports {
 			if spec == nil {
@@ -72,19 +77,30 @@ func AddFileImport(file *File, imprts ...*ImportSpec) {
 	if file == nil {
 		return
 	}
-	AddImport(file.HeaderTemplate(), imprts...)
+	AddSectionImport(file.HeaderSection(), imprts...)
 }
 
 // HeaderSectionData returns the typed header data if the section is a generated header.
 func HeaderSectionData(section *SectionTemplate) *HeaderData {
+	return HeaderDataForSection(section)
+}
+
+// HeaderDataForSection returns typed header data for a generated header
+// section, independent of the concrete Section implementation.
+func HeaderDataForSection(section Section) *HeaderData {
 	if section == nil {
 		return nil
 	}
-	data, ok := section.Data.(*HeaderData)
-	if !ok {
+	switch s := section.(type) {
+	case *SectionTemplate:
+		data, ok := s.Data.(*HeaderData)
+		if !ok {
+			return nil
+		}
+		return data
+	default:
 		return nil
 	}
-	return data
 }
 
 func renderHeaderSection(w io.Writer, data *HeaderData) error {

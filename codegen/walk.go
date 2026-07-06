@@ -1,6 +1,10 @@
 package codegen
 
-import "github.com/CaliLuke/loom/expr"
+import (
+	"fmt"
+
+	"github.com/CaliLuke/loom/expr"
+)
 
 // MappedAttributeWalker is the type of functions given to WalkMappedAttr. name
 // is the name of the attribute, elem the name of the corresponding transport
@@ -73,7 +77,7 @@ func walk(at *expr.AttributeExpr, walker func(*expr.AttributeExpr) error, seen m
 	case *expr.ResultTypeExpr:
 		return walkUt(actual.UserTypeExpr)
 	default:
-		panic("unknown attribute type") // bug
+		panic(NewError(nil, at, fmt.Errorf("unknown attribute type %T", actual)))
 	}
 	return nil
 }

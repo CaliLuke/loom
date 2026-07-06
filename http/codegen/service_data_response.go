@@ -300,7 +300,7 @@ func (sds *ServicesData) buildResponseResultInit(
 	endpointIR *transportir.Endpoint,
 	sd *ServiceData,
 ) *InitData {
-	if !needInit(result.Type) {
+	if !needInit(result) {
 		return nil
 	}
 	tname := sd.Service.Scope.GoFullTypeName(result, pkg)

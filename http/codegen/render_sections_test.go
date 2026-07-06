@@ -136,6 +136,21 @@ func TestConvertedMiscRenderSections(t *testing.T) {
 	require.Contains(t, decoderType, "func(*multipart.Reader, *string) error")
 }
 
+func TestHTTPEncodeDecodeSectionsUseGenericTemplateSections(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.PayloadBodyObjectDSL)
+	services := CreateHTTPServices(root)
+	files := ClientFiles("gen", services)
+
+	encodeFile := findFileWithSection(t, files, "request-encoder")
+	requestEncoder := encodeFile.Section("request-encoder")[0]
+	require.IsType(t, &codegen.TextTemplateSection{}, requestEncoder)
+
+	serverFiles := ServerFiles("gen", services)
+	decodeFile := findFileWithSection(t, serverFiles, "request-decoder")
+	requestDecoder := decodeFile.Section("request-decoder")[0]
+	require.IsType(t, &codegen.TextTemplateSection{}, requestDecoder)
+}
+
 func findFileWithSection(t *testing.T, files []*codegen.File, sectionName string) *codegen.File {
 	t.Helper()
 	for _, f := range files {

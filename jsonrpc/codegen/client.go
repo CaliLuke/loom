@@ -49,9 +49,7 @@ func clientEncodeDecodeSections(f *codegen.File, svcData *httpcodegen.ServiceDat
 	for _, section := range f.AllSections() {
 		switch section.SectionName() {
 		case "source-header":
-			if s, ok := section.(*codegen.SectionTemplate); ok {
-				addJSONRPCClientImports(s)
-			}
+			addJSONRPCClientImports(section)
 		case "request-encoder":
 			section = rewriteJSONRPCSectionSource(section, rewriteJSONRPCRequestEncoderSource)
 		case "response-decoder":
@@ -78,13 +76,13 @@ func clientEncodeDecodeSections(f *codegen.File, svcData *httpcodegen.ServiceDat
 	return sections
 }
 
-func addJSONRPCClientImports(section *codegen.SectionTemplate) {
-	codegen.AddImport(section, &codegen.ImportSpec{Path: "bufio"})
-	codegen.AddImport(section, &codegen.ImportSpec{Path: "bytes"})
-	codegen.AddImport(section, &codegen.ImportSpec{Path: "sync"})
-	codegen.AddImport(section, &codegen.ImportSpec{Path: "sync/atomic"})
-	codegen.AddImport(section, &codegen.ImportSpec{Path: "github.com/google/uuid"})
-	codegen.AddImport(section, codegen.LoomImport("jsonrpc"))
+func addJSONRPCClientImports(section codegen.Section) {
+	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "bufio"})
+	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "bytes"})
+	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "sync"})
+	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "sync/atomic"})
+	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "github.com/google/uuid"})
+	codegen.AddSectionImport(section, codegen.LoomImport("jsonrpc"))
 }
 
 func rewriteJSONRPCRequestEncoderSource(source string) string {

@@ -102,12 +102,21 @@ func (f *File) SetSections(sections []Section) {
 
 // HeaderTemplate returns the first section when it is a template-backed header.
 func (f *File) HeaderTemplate() *SectionTemplate {
-	sections := f.AllSections()
-	if len(sections) == 0 {
+	header := f.HeaderSection()
+	if header == nil {
 		return nil
 	}
-	header, _ := sections[0].(*SectionTemplate)
-	return header
+	template, _ := header.(*SectionTemplate)
+	return template
+}
+
+// HeaderSection returns the first section when it is a generated source header.
+func (f *File) HeaderSection() Section {
+	sections := f.AllSections()
+	if len(sections) == 0 || sections[0].SectionName() != "source-header" {
+		return nil
+	}
+	return sections[0]
 }
 
 // Render executes the file section templates and writes the resulting bytes to

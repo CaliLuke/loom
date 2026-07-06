@@ -154,9 +154,16 @@ func containsUnionTypeRecursive(dt expr.DataType, seen map[string]struct{}) bool
 	return false
 }
 
-// needInit returns true if and only if the given type is or makes use of user
-// types.
-func needInit(dt expr.DataType) bool {
+// needInit returns true if and only if the given attribute type is or makes use
+// of user types.
+func needInit(att *expr.AttributeExpr) bool {
+	if att == nil {
+		return false
+	}
+	return needInitType(att, att.Type)
+}
+
+func needInitType(root *expr.AttributeExpr, dt expr.DataType) bool {
 	if dt == expr.Empty {
 		return false
 	}
@@ -164,13 +171,13 @@ func needInit(dt expr.DataType) bool {
 	case expr.Primitive:
 		return false
 	case *expr.Array:
-		return needInit(actual.ElemType.Type)
+		return needInitType(root, actual.ElemType.Type)
 	case *expr.Map:
-		return needInit(actual.KeyType.Type) ||
-			needInit(actual.ElemType.Type)
+		return needInitType(root, actual.KeyType.Type) ||
+			needInitType(root, actual.ElemType.Type)
 	case *expr.Object:
 		for _, nat := range *actual {
-			if needInit(nat.Attribute.Type) {
+			if needInitType(root, nat.Attribute.Type) {
 				return true
 			}
 		}
@@ -178,6 +185,6 @@ func needInit(dt expr.DataType) bool {
 	case expr.UserType:
 		return true
 	default:
-		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
+		panic(codegen.NewError(nil, root, fmt.Errorf("unknown transform initialization data type %T", actual)))
 	}
 }

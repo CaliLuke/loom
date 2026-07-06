@@ -7,11 +7,11 @@ import (
 )
 
 func updateHeader(f *codegen.File) {
-	header := f.HeaderTemplate()
+	header := f.HeaderSection()
 	if header == nil {
 		return
 	}
-	data := codegen.HeaderSectionData(header)
+	data := codegen.HeaderDataForSection(header)
 	if data == nil {
 		return
 	}

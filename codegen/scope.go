@@ -169,7 +169,7 @@ func (s *NameScope) goTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, useDe
 	case expr.UserType:
 		return s.userTypeDefWithPkgOverride(att, actual, pkg, targetPkg)
 	default:
-		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
+		panic(NewError(nil, att, fmt.Errorf("unknown Go type definition data type %T", actual)))
 	}
 }
 
@@ -349,7 +349,7 @@ func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
 	case expr.CompositeExpr:
 		return s.GoFullTypeName(actual.Attribute(), pkgWithDefault(actual.Attribute().Type, pkg))
 	default:
-		panic(fmt.Sprintf("unknown data type %T", actual)) // bug
+		panic(NewError(nil, att, fmt.Errorf("unknown collection element data type %T", actual)))
 	}
 }
 

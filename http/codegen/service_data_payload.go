@@ -105,7 +105,7 @@ func buildPayloadIDData(request *transportir.Request, payload *expr.AttributeExp
 }
 
 func (b *payloadBuilder) buildInit(request *RequestData) *InitData {
-	if !needInit(b.payload.Type) {
+	if !needInit(b.payload) {
 		return nil
 	}
 	return b.buildInitData(request)

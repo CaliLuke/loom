@@ -220,6 +220,13 @@ func TestRenderedSpecReusesRequestBodiesResponsesHeadersExamplesAndServiceTags(t
 	requirePattern(`(?m)profile:$`)
 	requirePattern(`(?m)contentEncoding: base64`)
 	requirePattern(`(?m)contentMediaType: application/json`)
+
+	if count := len(regexp.MustCompile(`(?m)^\s+\$ref: '#/components/requestBodies/CredentialsRequestBody'$`).FindAllString(spec, -1)); count != 2 {
+		t.Fatalf("expected CredentialsRequestBody to be reused exactly twice, got %d\nspec:\n%s", count, spec)
+	}
+	if count := len(regexp.MustCompile(`(?m)^\s+\$ref: '#/components/responses/Session_d5d120e942d17641Status200Response'$`).FindAllString(spec, -1)); count != 2 {
+		t.Fatalf("expected shared session response component to be reused exactly twice, got %d\nspec:\n%s", count, spec)
+	}
 }
 
 func TestRenderedSpecUsesExplicitReusableRequestBodyAndParameterNames(t *testing.T) {
@@ -321,6 +328,9 @@ func TestRenderedSpecPublishesProblemLinksAndAsyncContracts(t *testing.T) {
 	requirePattern(`(?m)^\s+direction: bidirectional$`)
 	requirePattern(`(?m)^\s+contentType: text/event-stream$`)
 	requirePattern(`(?m)^\s+status: 101$`)
+	requirePattern(`(?m)^\s+messages:$`)
+	requirePattern(`(?m)^\s+schema:$`)
+	requirePattern(`(?m)^\s+\$ref: '#/components/schemas/OpenAPIThreadEvent'$`)
 }
 
 func TestRenderedSpecPublishesSecuredAsyncSessionContracts(t *testing.T) {
