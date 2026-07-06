@@ -2,8 +2,8 @@ package openapiv3
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
-	"text/template"
 
 	"gopkg.in/yaml.v3"
 
@@ -14,32 +14,28 @@ import (
 // Files returns the OpenAPI 3.1 specification files in JSON and YAML formats.
 func Files(root *expr.RootExpr) ([]*codegen.File, error) {
 	spec := New(root)
-	jsonSection := &codegen.SectionTemplate{
-		Name:    "openapi_v3",
-		FuncMap: template.FuncMap{"toJSON": toJSON(root.API.Meta)},
-		Source:  "{{ toJSON .}}",
-		Data:    spec,
+	jsonSource, err := toJSON(root.API.Meta, spec)
+	if err != nil {
+		return nil, err
 	}
-	yamlSection := &codegen.SectionTemplate{
-		Name:    "openapi_v3",
-		FuncMap: template.FuncMap{"toYAML": toYAML},
-		Source:  "{{ toYAML .}}",
-		Data:    spec,
+	yamlSource, err := toYAML(spec)
+	if err != nil {
+		return nil, err
 	}
 
 	return []*codegen.File{
 		{
-			Path:             filepath.Join(codegen.Gendir, "http", "openapi.json"),
-			SectionTemplates: []*codegen.SectionTemplate{jsonSection},
+			Path:     filepath.Join(codegen.Gendir, "http", "openapi.json"),
+			Sections: []codegen.Section{codegen.NewRawSection("openapi_v3", jsonSource)},
 		},
 		{
-			Path:             filepath.Join(codegen.Gendir, "http", "openapi.yaml"),
-			SectionTemplates: []*codegen.SectionTemplate{yamlSection},
+			Path:     filepath.Join(codegen.Gendir, "http", "openapi.yaml"),
+			Sections: []codegen.Section{codegen.NewRawSection("openapi_v3", yamlSource)},
 		},
 	}, nil
 }
 
-func toJSON(meta expr.MetaExpr) func(any) string {
+func toJSON(meta expr.MetaExpr, d any) (string, error) {
 	prefix, p := meta.Last("openapi:json:prefix")
 	indent, i := meta.Last("openapi:json:indent")
 	marshal := json.Marshal
@@ -48,19 +44,17 @@ func toJSON(meta expr.MetaExpr) func(any) string {
 			return json.MarshalIndent(v, prefix, indent)
 		}
 	}
-	return func(d any) string {
-		b, err := marshal(d)
-		if err != nil {
-			panic("openapi: " + err.Error()) // bug
-		}
-		return string(b)
+	b, err := marshal(d)
+	if err != nil {
+		return "", fmt.Errorf("openapi json: %w", err)
 	}
+	return string(b), nil
 }
 
-func toYAML(d any) string {
+func toYAML(d any) (string, error) {
 	b, err := yaml.Marshal(d)
 	if err != nil {
-		panic("openapi: " + err.Error()) // bug
+		return "", fmt.Errorf("openapi yaml: %w", err)
 	}
-	return string(b)
+	return string(b), nil
 }

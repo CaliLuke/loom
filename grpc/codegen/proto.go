@@ -43,7 +43,7 @@ func protoFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData)
 	fname := fmt.Sprintf("%s_%s_%s.proto", ProtoPrefix, repoName, svcName)
 	path := filepath.Join(codegen.Gendir, "grpc", svcName, pbPkgName, fname)
 
-	sections := make([]*codegen.SectionTemplate, 0, 3+len(data.Messages))
+	sections := make([]codegen.Section, 0, 3+len(data.Messages))
 	sections = append(sections,
 		// header comments
 		&codegen.SectionTemplate{
@@ -99,9 +99,9 @@ func protoFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData)
 	}
 
 	return &codegen.File{
-		Path:             path,
-		SectionTemplates: sections,
-		FinalizeFunc:     runProtoc,
+		Path:         path,
+		Sections:     sections,
+		FinalizeFunc: runProtoc,
 	}
 }
 

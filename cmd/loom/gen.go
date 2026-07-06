@@ -121,7 +121,7 @@ func (g *Generator) Write(_ bool) error {
 	}
 	g.tmpDir = tmpDir
 
-	var sections []*codegen.SectionTemplate
+	var sections []codegen.Section
 	{
 		data := map[string]any{
 			"Command":       g.Command,
@@ -144,9 +144,9 @@ func (g *Generator) Write(_ bool) error {
 			codegen.NewImport("loom", "github.com/CaliLuke/loom/pkg"),
 			codegen.NewImport("_", g.DesignPath),
 		}
-		sections = []*codegen.SectionTemplate{
+		sections = []codegen.Section{
 			codegen.Header("Code Generator", "main", imports),
-			{
+			&codegen.SectionTemplate{
 				Name:   "main",
 				Source: mainT,
 				Data:   data,
@@ -154,7 +154,7 @@ func (g *Generator) Write(_ bool) error {
 		}
 	}
 
-	f := &codegen.File{Path: "main.go", SectionTemplates: sections}
+	f := &codegen.File{Path: "main.go", Sections: sections}
 	_, err := f.Render(tmpDir)
 	return err
 }

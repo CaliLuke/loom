@@ -22,7 +22,7 @@ func CreateGRPCServices(root *expr.RootExpr) *ServicesData {
 	return NewServicesData(service.NewServicesData(root))
 }
 
-func sectionCode(t *testing.T, section ...*codegen.SectionTemplate) string {
+func sectionCode(t *testing.T, section ...codegen.Section) string {
 	t.Helper()
 	var code bytes.Buffer
 	for _, s := range section {

@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"text/template"
 
 	"github.com/stretchr/testify/require"
 
@@ -179,11 +178,11 @@ func renderOpenAPIArtifacts(t *testing.T, dsl func()) renderedOpenAPIArtifacts {
 
 	var artifacts renderedOpenAPIArtifacts
 	for _, file := range oFiles {
-		require.Len(t, file.SectionTemplates, 1)
-		section := file.SectionTemplates[0]
+		sections := file.AllSections()
+		require.Len(t, sections, 1)
+		section := sections[0]
 		var buf bytes.Buffer
-		tmpl := template.Must(template.New("openapi").Funcs(section.FuncMap).Parse(section.Source))
-		require.NoError(t, tmpl.Execute(&buf, section.Data))
+		require.NoError(t, section.Write(&buf))
 		validateOpenAPI(t, buf.Bytes())
 		switch filepath.Ext(file.Path) {
 		case ".json":

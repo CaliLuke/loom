@@ -44,7 +44,7 @@ func TestProtoFiles(t *testing.T) {
 			if len(fs) != 1 {
 				t.Fatalf("got %d files, expected one", len(fs))
 			}
-			sections := fs[0].SectionTemplates
+			sections := fs[0].AllSections()
 			require.GreaterOrEqual(t, len(sections), 3)
 			code := sectionCode(t, sections[1:]...)
 			// testutil.AssertString handles line ending normalization internally
@@ -77,7 +77,7 @@ func TestMessageDefSection(t *testing.T) {
 			services := CreateGRPCServices(root)
 			fs := ProtoFiles("", services)
 			require.Len(t, fs, 1)
-			sections := fs[0].SectionTemplates
+			sections := fs[0].AllSections()
 			require.GreaterOrEqual(t, len(sections), 3)
 			code := sectionCode(t, sections[:2]...)
 			msgCode := sectionCode(t, sections[3:]...)

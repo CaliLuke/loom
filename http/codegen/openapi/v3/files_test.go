@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"slices"
 	"testing"
-	"text/template"
 
 	"github.com/pb33f/libopenapi"
 
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	httpgen "github.com/CaliLuke/loom/http/codegen"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
@@ -83,22 +83,12 @@ func TestFiles(t *testing.T) {
 			}
 			for i, o := range oFiles {
 				tname := fmt.Sprintf("file%d", i)
-				s := o.SectionTemplates
+				sections := o.AllSections()
 				t.Run(tname, func(t *testing.T) {
-					if len(s) != 1 {
-						t.Fatalf("expected 1 section, got %d", len(s))
+					if len(sections) != 1 {
+						t.Fatalf("expected 1 section, got %d", len(sections))
 					}
-					if s[0].Source == "" {
-						t.Fatalf("empty section template")
-					}
-					if s[0].Data == nil {
-						t.Fatalf("nil data")
-					}
-					var buf bytes.Buffer
-					tmpl := template.Must(template.New("openapi").Funcs(s[0].FuncMap).Parse(s[0].Source))
-					if err := tmpl.Execute(&buf, s[0].Data); err != nil {
-						t.Fatalf("failed to render template: %s", err)
-					}
+					buf := renderSection(t, sections[0])
 					validateOpenAPI(t, buf.Bytes())
 
 					golden := filepath.Join(goldenPath, fmt.Sprintf("%s_%s.golden", c.Name, tname))
@@ -413,21 +403,27 @@ func renderYAMLOpenAPI(t *testing.T, dsl func()) string {
 		if filepath.Ext(o.Path) != ".yaml" {
 			continue
 		}
-		if len(o.SectionTemplates) != 1 {
-			t.Fatalf("expected 1 section for %s, got %d", o.Path, len(o.SectionTemplates))
+		sections := o.AllSections()
+		if len(sections) != 1 {
+			t.Fatalf("expected 1 section for %s, got %d", o.Path, len(sections))
 		}
-		var buf bytes.Buffer
-		section := o.SectionTemplates[0]
-		tmpl := template.Must(template.New("openapi").Funcs(section.FuncMap).Parse(section.Source))
-		if err := tmpl.Execute(&buf, section.Data); err != nil {
-			t.Fatalf("failed to render template: %s", err)
-		}
+		buf := renderSection(t, sections[0])
 		validateOpenAPI(t, buf.Bytes())
 		return buf.String()
 	}
 
 	t.Fatal("missing YAML OpenAPI output")
 	return ""
+}
+
+func renderSection(t *testing.T, section codegen.Section) bytes.Buffer {
+	t.Helper()
+
+	var buf bytes.Buffer
+	if err := section.Write(&buf); err != nil {
+		t.Fatalf("failed to render section %q: %s", section.SectionName(), err)
+	}
+	return buf
 }
 
 func assertRenderedUnionContract(t *testing.T, spec, typeKey, valueKey string, wantTags, envelopePrefixes []string) {
