@@ -40,42 +40,58 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 	}
 	collector := newMessageCollector(sd)
 	for _, endpointIR := range irService.Endpoints {
-		prepareEndpointProtoMessages(endpointIR, sd)
-		md := svc.Method(endpointIR.Name)
-		payloadDesc := service.BuildPayloadDescriptor(svc, md, endpointIR.Request.Payload)
-		resultDesc := service.BuildResultDescriptor(svc, md, endpointIR.Response.Result)
-		errors := d.buildErrorsData(endpointIR, sd)
-		collector.collectErrorMessages(endpointIR)
-		request := d.buildRequestData(endpointIR, svc, sd, collector)
-		response := d.buildResponseData(endpointIR, svc, sd, collector)
-		msgSch, metSch := partitionSecuritySchemes(endpointIR, md)
-		ed := &EndpointData{
-			ServiceName:      svc.Name,
-			PkgName:          sd.PkgName,
-			ServicePkgName:   svc.PkgName,
-			Method:           md,
-			PayloadType:      endpointIR.Request.Payload.Type,
-			PayloadRef:       payloadDesc.Ref,
-			ResultRef:        resultDesc.Declared.Ref,
-			ViewedResultRef:  resultDesc.ViewedRef,
-			Request:          request,
-			Response:         response,
-			MessageSchemes:   msgSch,
-			MetadataSchemes:  metSch,
-			Errors:           errors,
-			ServerStruct:     sd.ServerStruct,
-			ServerInterface:  sd.ServerInterface,
-			ClientMethodName: protoBufify(md.VarName, true, true),
-			ClientStruct:     sd.ClientStruct,
-			ClientInterface:  sd.ClientInterface,
-		}
-		sd.Endpoints = append(sd.Endpoints, ed)
-		if endpointIR.Stream.IsStreaming {
-			ed.ServerStream = d.buildStreamData(endpointIR, sd, true)
-			ed.ClientStream = d.buildStreamData(endpointIR, sd, false)
-		}
+		epCtx := ctx.WithMethod(gs.ServiceExpr.Method(endpointIR.Name))
+		d.buildEndpointDataWithContext(epCtx, endpointIR, svc, sd, collector)
 	}
 	return sd
+}
+
+func (d *ServicesData) buildEndpointDataWithContext(
+	ctx *codegen.Context,
+	endpointIR *transportir.Endpoint,
+	svc *service.Data,
+	sd *ServiceData,
+	collector *messageCollector,
+) {
+	defer func() {
+		if err := codegen.RecoverPanic(recover()); err != nil {
+			panic(codegen.NewError(ctx, nil, err))
+		}
+	}()
+	prepareEndpointProtoMessages(endpointIR, sd)
+	md := svc.Method(endpointIR.Name)
+	payloadDesc := service.BuildPayloadDescriptor(svc, md, endpointIR.Request.Payload)
+	resultDesc := service.BuildResultDescriptor(svc, md, endpointIR.Response.Result)
+	errors := d.buildErrorsData(endpointIR, sd)
+	collector.collectErrorMessages(endpointIR)
+	request := d.buildRequestData(endpointIR, svc, sd, collector)
+	response := d.buildResponseData(endpointIR, svc, sd, collector)
+	msgSch, metSch := partitionSecuritySchemes(endpointIR, md)
+	ed := &EndpointData{
+		ServiceName:      svc.Name,
+		PkgName:          sd.PkgName,
+		ServicePkgName:   svc.PkgName,
+		Method:           md,
+		PayloadType:      endpointIR.Request.Payload.Type,
+		PayloadRef:       payloadDesc.Ref,
+		ResultRef:        resultDesc.Declared.Ref,
+		ViewedResultRef:  resultDesc.ViewedRef,
+		Request:          request,
+		Response:         response,
+		MessageSchemes:   msgSch,
+		MetadataSchemes:  metSch,
+		Errors:           errors,
+		ServerStruct:     sd.ServerStruct,
+		ServerInterface:  sd.ServerInterface,
+		ClientMethodName: protoBufify(md.VarName, true, true),
+		ClientStruct:     sd.ClientStruct,
+		ClientInterface:  sd.ClientInterface,
+	}
+	sd.Endpoints = append(sd.Endpoints, ed)
+	if endpointIR.Stream.IsStreaming {
+		ed.ServerStream = d.buildStreamData(endpointIR, sd, true)
+		ed.ClientStream = d.buildStreamData(endpointIR, sd, false)
+	}
 }
 
 type messageCollector struct {

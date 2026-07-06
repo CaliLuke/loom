@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	loomcodegen "github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
@@ -78,6 +79,36 @@ func TestAnalyzeAttachesStreamDataToStreamingEndpoints(t *testing.T) {
 	require.Equal(t, endpoint, endpoint.ClientStream.Endpoint)
 	require.NotEmpty(t, endpoint.ServerStream.VarName)
 	require.NotEmpty(t, endpoint.ClientStream.VarName)
+}
+
+func TestBuildEndpointDataWrapsPanicWithMethodContext(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.ServerStreamingRPCDSL)
+	services := CreateGRPCServices(root)
+	grpcSvc := root.API.GRPC.Services[0]
+	svc := services.ServicesData.Get(grpcSvc.Name())
+	sd := services.Get(grpcSvc.Name())
+	require.NotNil(t, svc)
+	require.NotNil(t, sd)
+
+	endpointIR := transportir.BuildService(grpcSvc).Endpoints[0]
+	ctx := services.ServicesData.Ctx.
+		WithService(grpcSvc.ServiceExpr).
+		WithMethod(grpcSvc.ServiceExpr.Method(endpointIR.Name))
+
+	var recovered any
+	func() {
+		defer func() {
+			recovered = recover()
+		}()
+		services.buildEndpointDataWithContext(ctx, endpointIR, svc, sd, nil)
+	}()
+
+	err := loomcodegen.RecoverPanic(recovered)
+	require.NotNil(t, err)
+	require.Regexp(t,
+		`\[.*dsls_01\.go:\d+\] service ServiceServerStreamingRPC, method MethodServerStreamingRPC: `,
+		err.Error(),
+	)
 }
 
 func TestAnalyzeDoesNotMutateEndpointExprMessages(t *testing.T) {
