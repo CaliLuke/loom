@@ -47,7 +47,23 @@ func AddImport(section *SectionTemplate, imprts ...*ImportSpec) {
 		return
 	}
 	if data := HeaderSectionData(section); data != nil {
-		data.Imports = append(data.Imports, imprts...)
+		seen := make(map[ImportSpec]struct{}, len(data.Imports)+len(imprts))
+		for _, spec := range data.Imports {
+			if spec == nil {
+				continue
+			}
+			seen[*spec] = struct{}{}
+		}
+		for _, spec := range imprts {
+			if spec == nil {
+				continue
+			}
+			if _, ok := seen[*spec]; ok {
+				continue
+			}
+			seen[*spec] = struct{}{}
+			data.Imports = append(data.Imports, spec)
+		}
 	}
 }
 

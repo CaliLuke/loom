@@ -107,6 +107,10 @@ func TestConvertedExampleRenderSections(t *testing.T) {
 	serverStart := renderedSectionSource(t, serverFile.Section("server-http-start")[0])
 	require.Contains(t, serverStart, "func handleHTTPServer(")
 	require.Contains(t, serverStart, "errc chan error")
+
+	serverEnd := renderedSectionSource(t, serverFile.Section("server-http-end")[0])
+	require.Contains(t, serverEnd, "context.WithoutCancel(ctx)")
+	require.NotContains(t, serverEnd, "context.WithTimeout(context.Background()")
 }
 
 func TestConvertedMiscRenderSections(t *testing.T) {

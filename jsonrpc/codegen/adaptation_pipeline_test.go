@@ -53,6 +53,8 @@ func TestJSONRPCExampleServerFilesUseAdaptationPipeline(t *testing.T) {
 	assert.Contains(t, code, "calcJSONRPCServer")
 	assert.Contains(t, code, "calcjssvr.Mount(mux, calcJSONRPCServer)")
 	assert.Contains(t, code, "calcJSONRPCServer = calcjssvr.New(")
+	assert.Contains(t, code, "context.WithoutCancel(ctx)")
+	assert.NotContains(t, code, "context.WithTimeout(context.Background()")
 }
 
 func sectionSourceByName(t *testing.T, file *codegen.File, name string) string {

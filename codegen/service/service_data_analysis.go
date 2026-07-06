@@ -161,6 +161,7 @@ func newServiceData(
 		viewedResultTypes:  viewedRTs,
 		unions:             unions,
 	}
+	data.metaTypeImports = metaTypeImports(service, data)
 	return data
 }
 

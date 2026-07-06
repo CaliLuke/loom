@@ -71,6 +71,9 @@ type (
 		unions []*UnionTypeData
 		// viewedResultTypes lists all the viewed method result types.
 		viewedResultTypes []*ViewedResultTypeData
+		// metaTypeImports lists the imports derived from struct:field:type
+		// metadata for the service.
+		metaTypeImports []*codegen.ImportSpec
 	}
 
 	// MethodData describes a single service method.

@@ -21,11 +21,16 @@ func Example(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 			continue // could be a plugin root expression
 		}
 		services := service.NewServicesData(r)
-		files = append(files, baseExampleFiles(genpkg, r, services)...)
-		files = append(files, httpExampleFiles(genpkg, r, services)...)
-		files = append(files, jsonrpcExampleFiles(genpkg, r, services, files)...)
-		files = append(files, grpcExampleFiles(genpkg, r, services)...)
-		addExampleMetaTypeImports(files, r, services)
+		for _, s := range r.Services {
+			service.SetUserTypeImports(genpkg, services.Get(s.Name))
+		}
+		var rootFiles []*codegen.File
+		rootFiles = append(rootFiles, baseExampleFiles(genpkg, r, services)...)
+		rootFiles = append(rootFiles, httpExampleFiles(genpkg, r, services)...)
+		rootFiles = append(rootFiles, jsonrpcExampleFiles(genpkg, r, services, rootFiles)...)
+		rootFiles = append(rootFiles, grpcExampleFiles(genpkg, r, services)...)
+		addServicesMetaTypeImports(rootFiles, services, r.Services)
+		files = append(files, rootFiles...)
 	}
 	return files, nil
 }
@@ -64,14 +69,4 @@ func grpcExampleFiles(genpkg string, root *expr.RootExpr, services *service.Serv
 	grpcServices := grpccodegen.NewServicesData(services)
 	files := grpccodegen.ExampleServerFiles(genpkg, grpcServices)
 	return append(files, grpccodegen.ExampleCLIFiles(genpkg, grpcServices)...)
-}
-
-func addExampleMetaTypeImports(files []*codegen.File, root *expr.RootExpr, services *service.ServicesData) {
-	for _, f := range files {
-		if header := f.HeaderTemplate(); header != nil {
-			for _, s := range root.Services {
-				service.AddServiceDataMetaTypeImports(header, s, services.Get(s.Name))
-			}
-		}
-	}
 }

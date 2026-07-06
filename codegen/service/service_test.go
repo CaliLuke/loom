@@ -12,6 +12,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/dsl"
 )
 
 func TestService(t *testing.T) {
@@ -212,4 +213,48 @@ func TestStructPkgPath_UnionJSONFieldBranchesGenerateAliases(t *testing.T) {
 	}
 	require.True(t, hasValuesAFile, "expected generated alias file in struct:pkg:path package: gen/types/values_a.go")
 	require.True(t, hasValuesBFile, "expected generated alias file in struct:pkg:path package: gen/types/values_b.go")
+}
+
+func TestServiceDataImportsAreCachedAndDeduped(t *testing.T) {
+	root := codegen.RunDSL(t, serviceDataImportCacheDSL)
+	services := NewServicesData(root)
+	require.Len(t, root.Services, 1)
+
+	data := services.Get(root.Services[0].Name)
+	SetUserTypeImports("github.com/CaliLuke/loom/example", data)
+	SetUserTypeImports("github.com/CaliLuke/loom/example", data)
+	require.Len(t, data.UserTypeImports, 1)
+
+	header := codegen.Header("cached imports", "cache", nil)
+	AddServiceDataMetaTypeImports(header, data)
+	AddServiceDataMetaTypeImports(header, data)
+	AddUserTypeImports(header, data)
+	AddUserTypeImports(header, data)
+
+	imports := codegen.HeaderSectionData(header).Imports
+	seen := make(map[codegen.ImportSpec]struct{}, len(imports))
+	for _, imp := range imports {
+		if _, ok := seen[*imp]; ok {
+			t.Fatalf("duplicate import %#v in %v", *imp, imports)
+		}
+		seen[*imp] = struct{}{}
+	}
+	require.Contains(t, seen, codegen.ImportSpec{Path: "encoding/json"})
+	require.Contains(t, seen, codegen.ImportSpec{Name: "types", Path: "github.com/CaliLuke/loom/example/types"})
+}
+
+var serviceDataImportCacheDSL = func() {
+	var CachedPayload = dsl.Type("CachedPayload", func() {
+		dsl.Meta("struct:pkg:path", "types")
+		dsl.Attribute("raw", dsl.String, func() {
+			dsl.Meta("struct:field:type", "json.RawMessage", "encoding/json")
+		})
+	})
+
+	dsl.Service("cache", func() {
+		dsl.Method("show", func() {
+			dsl.Payload(CachedPayload)
+			dsl.Result(CachedPayload)
+		})
+	})
 }
