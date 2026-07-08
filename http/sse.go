@@ -145,7 +145,9 @@ func (r *SSEStreamReader) appendChunk(eventData []byte, wasNewline bool, chunk [
 		if b == '\n' && wasNewline {
 			if i+1 < len(chunk) {
 				r.lock.Lock()
-				r.buffer = append(r.buffer[:0], chunk[i+1:]...)
+				// Copy the leftover into a fresh slice so r.buffer never shares
+				// a backing array with the returned event accumulator.
+				r.buffer = append([]byte(nil), chunk[i+1:]...)
 				r.lock.Unlock()
 			}
 			return eventData, wasNewline, true
@@ -177,7 +179,10 @@ func (r *SSEStreamReader) checkBuffer() ([]byte, bool) {
 	for i := 0; i < len(r.buffer)-1; i++ {
 		if r.buffer[i] == '\n' && r.buffer[i+1] == '\n' {
 			eventEnd := i + 2
-			eventData := r.buffer[:eventEnd]
+			// Copy the event out before compacting: the compaction below
+			// rewrites the same backing array and would otherwise corrupt the
+			// slice we just returned.
+			eventData := append([]byte(nil), r.buffer[:eventEnd]...)
 			if eventEnd < len(r.buffer) {
 				r.buffer = append(r.buffer[:0], r.buffer[eventEnd:]...)
 			} else {
@@ -186,7 +191,9 @@ func (r *SSEStreamReader) checkBuffer() ([]byte, bool) {
 			return eventData, true
 		}
 	}
-	eventData := r.buffer
+	// Copy the partial event out so a later r.buffer mutation cannot alias the
+	// returned accumulator.
+	eventData := append([]byte(nil), r.buffer...)
 	r.buffer = r.buffer[:0]
 	return eventData, false
 }

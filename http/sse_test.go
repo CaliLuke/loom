@@ -106,6 +106,52 @@ func TestSSEStreamReader(t *testing.T) {
 	require.NoError(t, reader.Close())
 }
 
+func TestSSEStreamReaderNoBufferAliasing(t *testing.T) {
+	const (
+		eventOne   = "event: one\ndata: first\n\n"
+		eventTwo   = "event: two\ndata: second\n\n"
+		partialTwo = "event: two\ndata: sec"
+		restTwo    = "ond\n\n"
+		partial    = "event: three\ndata: thi"
+	)
+
+	cases := []struct {
+		name   string
+		chunks []string
+		want   []string
+	}{
+		{
+			name:   "two complete events in one read chunk",
+			chunks: []string{eventOne + eventTwo},
+			want:   []string{eventOne, eventTwo},
+		},
+		{
+			name:   "two complete events plus partial third in one chunk",
+			chunks: []string{eventOne + eventTwo + partial},
+			want:   []string{eventOne, eventTwo},
+		},
+		{
+			name:   "event split across multiple small reads",
+			chunks: []string{eventOne, partialTwo, restTwo},
+			want:   []string{eventOne, eventTwo},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reader := NewSSEStreamReader(io.NopCloser(&chunkedReader{chunks: tc.chunks}))
+			got := make([]string, 0, len(tc.want))
+			for range tc.want {
+				event, err := reader.ReadEvent(context.Background())
+				require.NoError(t, err)
+				got = append(got, string(event))
+			}
+			require.Equal(t, tc.want, got)
+			require.NoError(t, reader.Close())
+		})
+	}
+}
+
 func TestSSEStreamReaderContextErrorWinsOverCloseError(t *testing.T) {
 	closeErr := errors.New("close failed")
 	body := newBlockingSSEBody(closeErr)
@@ -178,6 +224,27 @@ func TestParseSSEStream(t *testing.T) {
 		{Type: "message", Data: `{"step":1}`},
 		{Type: "response", Data: `{"step":2}`},
 	}, events)
+}
+
+// chunkedReader returns each configured chunk on a separate Read call so tests
+// can control how event boundaries land across reads.
+type chunkedReader struct {
+	chunks []string
+}
+
+func (c *chunkedReader) Read(p []byte) (int, error) {
+	if len(c.chunks) == 0 {
+		return 0, io.EOF
+	}
+	chunk := c.chunks[0]
+	if len(p) < len(chunk) {
+		n := copy(p, chunk)
+		c.chunks[0] = chunk[n:]
+		return n, nil
+	}
+	n := copy(p, chunk)
+	c.chunks = c.chunks[1:]
+	return n, nil
 }
 
 type blockingSSEBody struct {
