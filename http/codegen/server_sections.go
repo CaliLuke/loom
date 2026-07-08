@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -22,6 +23,7 @@ func serverStructSection(data *ServiceData) codegen.Section {
 				group.Id(fs.VarName).Qual("net/http", "Handler")
 			}
 		})
+		stmt.Line()
 	})
 }
 
@@ -29,13 +31,14 @@ func mountPointStructSection(data *ServiceData) codegen.Section {
 	return codegen.MustJenniferSection("server-mountpoint", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s holds information about the mounted endpoints.", data.MountPointStruct))
 		stmt.Type().Id(data.MountPointStruct).StructFunc(func(group *jen.Group) {
-			group.Comment("Method is the name of the service method served by the mounted HTTP handler.").Line()
+			group.Comment("Method is the name of the service method served by the mounted HTTP handler.")
 			group.Id("Method").String()
-			group.Comment("Verb is the HTTP method used to match requests to the mounted handler.").Line()
+			group.Comment("Verb is the HTTP method used to match requests to the mounted handler.")
 			group.Id("Verb").String()
-			group.Comment("Pattern is the HTTP request path pattern used to match requests to the mounted handler.").Line()
+			group.Comment("Pattern is the HTTP request path pattern used to match requests to the mounted handler.")
 			group.Id("Pattern").String()
 		})
+		stmt.Line()
 	})
 }
 
@@ -76,6 +79,7 @@ func serverInitSection(data *ServiceData) codegen.Section {
 			BlockFunc(func(group *jen.Group) {
 				appendHTTPRawBlock(group, renderServerInitBody(data))
 			})
+		stmt.Line()
 	})
 }
 
@@ -131,6 +135,7 @@ func serverServiceSection(data *ServiceData) codegen.Section {
 		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).Id(data.ServerService).Params().String().Block(
 			jen.Return(jen.Lit(data.Service.Name)),
 		)
+		stmt.Line()
 	})
 }
 
@@ -146,6 +151,7 @@ func serverUseSection(data *ServiceData) codegen.Section {
 					group.Id("s").Dot(endpoint.Method.VarName).Op("=").Id("m").Call(jen.Id("s").Dot(endpoint.Method.VarName))
 				}
 			})
+		stmt.Line()
 	})
 }
 
@@ -160,6 +166,7 @@ func serverMethodNamesSection(data *ServiceData) codegen.Section {
 			Block(
 				jen.Return(codegen.Expr(data.Service.PkgName + ".MethodNames[:]")),
 			)
+		stmt.Line()
 	})
 }
 
@@ -182,6 +189,7 @@ func serverMountSection(data *ServiceData) codegen.Section {
 			BlockFunc(func(group *jen.Group) {
 				appendHTTPRawBlock(group, renderServerMountBody(data, false))
 			})
+		stmt.Line()
 	})
 }
 
@@ -225,6 +233,7 @@ func serverHandlerSection(data *EndpointData) codegen.Section {
 			BlockFunc(func(group *jen.Group) {
 				appendHTTPRawBlock(group, renderServerHandlerBody(data))
 			})
+		stmt.Line()
 	})
 }
 
@@ -265,13 +274,20 @@ func appendFSSection(mappedFiles map[string]string) codegen.Section {
 			Block(
 				jen.Return(jen.Id("appendFS").Values(jen.Id("prefix").Op(":").Id("prefix"), jen.Id("fs").Op(":").Id("fsys"))),
 			)
+		stmt.Line()
 	})
 }
 
 func renderAppendFSOpenBody(mappedFiles map[string]string) string {
 	var b sourceBuilder
 	b.Add("\tswitch name {\n")
-	for requested, embedded := range mappedFiles {
+	requestedPaths := make([]string, 0, len(mappedFiles))
+	for requested := range mappedFiles {
+		requestedPaths = append(requestedPaths, requested)
+	}
+	sort.Strings(requestedPaths)
+	for _, requested := range requestedPaths {
+		embedded := mappedFiles[requested]
 		b.Addf("\tcase %q:\n\t\tname = %q\n", requested, embedded)
 	}
 	b.Add("\t}\n")
@@ -288,6 +304,7 @@ func fileServerSection(data *FileServerData) codegen.Section {
 			BlockFunc(func(group *jen.Group) {
 				appendHTTPRawBlock(group, renderFileServerBody(data))
 			})
+		stmt.Line()
 	})
 }
 

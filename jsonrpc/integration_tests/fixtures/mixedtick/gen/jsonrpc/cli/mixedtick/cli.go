@@ -58,7 +58,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 		}
 		path, err := loomhttpcli.Parse(&command, os.Args[0], args)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("parse command: %w", err)
 		}
 		clockInitializeBodyFlag = &command.Clock.Initialize.Body
 		clockTickBodyFlag = &command.Clock.Tick.Body

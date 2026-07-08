@@ -16,6 +16,7 @@ import (
 
 	clock "example.com/http-ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 )
 
 // TickServerStream implements the clock.TickServerStream interface using
@@ -32,7 +33,7 @@ type TickServerStream struct {
 // Send Send streams instances of "clock.TickTockEvent" to the "Tick" endpoint
 // SSE connection.
 func (s *TickServerStream) Send(v *clock.TickTockEvent) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 
 func (s *TickServerStream) initHeaders() {
@@ -54,6 +55,12 @@ func (s *TickServerStream) initHeaders() {
 // SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
 // to the "Tick" endpoint SSE connection with context.
 func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.r.Context().Err(); err != nil {
+		return err
+	}
 	s.initHeaders()
 	res := v
 
@@ -112,10 +119,15 @@ func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 	}
 
 	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
+		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportHTTP})
 		return err
 	}
 
-	return http.NewResponseController(s.w).Flush()
+	if err := http.NewResponseController(s.w).Flush(); err != nil {
+		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportHTTP})
+		return err
+	}
+	return nil
 }
 
 // Close is a no-op for SSE. We keep the method for compatibility with other
@@ -138,7 +150,7 @@ type TockServerStream struct {
 // Send Send streams instances of "clock.TickTockEvent" to the "Tock" endpoint
 // SSE connection.
 func (s *TockServerStream) Send(v *clock.TickTockEvent) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 
 func (s *TockServerStream) initHeaders() {
@@ -160,6 +172,12 @@ func (s *TockServerStream) initHeaders() {
 // SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
 // to the "Tock" endpoint SSE connection with context.
 func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.r.Context().Err(); err != nil {
+		return err
+	}
 	s.initHeaders()
 	res := v
 
@@ -218,10 +236,15 @@ func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 	}
 
 	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
+		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportHTTP})
 		return err
 	}
 
-	return http.NewResponseController(s.w).Flush()
+	if err := http.NewResponseController(s.w).Flush(); err != nil {
+		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportHTTP})
+		return err
+	}
+	return nil
 }
 
 // Close is a no-op for SSE. We keep the method for compatibility with other
@@ -244,7 +267,7 @@ type GuardedServerStream struct {
 // Send Send streams instances of "clock.TickTockEvent" to the "Guarded"
 // endpoint SSE connection.
 func (s *GuardedServerStream) Send(v *clock.TickTockEvent) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 
 func (s *GuardedServerStream) initHeaders() {
@@ -266,6 +289,12 @@ func (s *GuardedServerStream) initHeaders() {
 // SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
 // to the "Guarded" endpoint SSE connection with context.
 func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.r.Context().Err(); err != nil {
+		return err
+	}
 	s.initHeaders()
 	res := v
 
@@ -324,10 +353,15 @@ func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.Tick
 	}
 
 	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
+		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportHTTP})
 		return err
 	}
 
-	return http.NewResponseController(s.w).Flush()
+	if err := http.NewResponseController(s.w).Flush(); err != nil {
+		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportHTTP})
+		return err
+	}
+	return nil
 }
 
 // Close is a no-op for SSE. We keep the method for compatibility with other

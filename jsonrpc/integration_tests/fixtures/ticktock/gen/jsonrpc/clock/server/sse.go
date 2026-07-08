@@ -16,6 +16,7 @@ import (
 	clock "example.com/ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 )
 
 // clockSSEStream implements the clock.Stream interface for SSE transport.
@@ -45,9 +46,22 @@ func (s *clockSSEStream) initSSEHeaders() {
 func (s *clockSSEStream) sendSSEEvent(eventType string, v any) error {
 	s.initSSEHeaders()
 	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
+		loomtransport.Observe(s.r.Context(), loomtransport.Event{
+			Kind:      loomtransport.EventKindStreamFailure,
+			Reason:    loomtransport.ReasonStreamWriteFailed,
+			Transport: loomtransport.TransportJSONRPC,
+		})
 		return err
 	}
-	return http.NewResponseController(s.w).Flush()
+	if err := http.NewResponseController(s.w).Flush(); err != nil {
+		loomtransport.Observe(s.r.Context(), loomtransport.Event{
+			Kind:      loomtransport.EventKindStreamFailure,
+			Reason:    loomtransport.ReasonStreamFlushFailed,
+			Transport: loomtransport.TransportJSONRPC,
+		})
+		return err
+	}
+	return nil
 }
 func (s *clockSSEStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)

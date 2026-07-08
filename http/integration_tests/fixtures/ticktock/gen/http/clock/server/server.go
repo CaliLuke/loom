@@ -13,6 +13,7 @@ import (
 
 	clock "example.com/http-ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -22,18 +23,19 @@ type Server struct {
 	Tick    http.Handler
 	Tock    http.Handler
 	Guarded http.Handler
-} // MountPoint holds information about the mounted endpoints.
+}
+
+// MountPoint holds information about the mounted endpoints.
 type MountPoint struct {
 	// Method is the name of the service method served by the mounted HTTP handler.
-
 	Method string
 	// Verb is the HTTP method used to match requests to the mounted handler.
-
 	Verb string
 	// Pattern is the HTTP request path pattern used to match requests to the mounted handler.
-
 	Pattern string
-} // New instantiates HTTP handlers for all the clock service endpoints using the
+}
+
+// New instantiates HTTP handlers for all the clock service endpoints using the
 // provided encoder and decoder. The handlers are mounted on the given mux
 // using the HTTP verb and path defined in the design. errhandler is called
 // whenever a response fails to be encoded. formatter is used to format errors
@@ -50,18 +52,26 @@ func New(e *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loo
 		Tock:    NewTockHandler(e.Tock, mux, decoder, encoder, errhandler, formatter),
 		Guarded: NewGuardedHandler(e.Guarded, mux, decoder, encoder, errhandler, formatter),
 	}
-} // Service returns the name of the service served.
+}
+
+// Service returns the name of the service served.
 func (s *Server) Service() string {
 	return "clock"
-} // Use wraps the server handlers with the given middleware.
+}
+
+// Use wraps the server handlers with the given middleware.
 func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.Tick = m(s.Tick)
 	s.Tock = m(s.Tock)
 	s.Guarded = m(s.Guarded)
-} // MethodNames returns the methods served.
+}
+
+// MethodNames returns the methods served.
 func (s *Server) MethodNames() []string {
 	return clock.MethodNames[:]
-} // Mount configures the mux to serve the clock endpoints.
+}
+
+// Mount configures the mux to serve the clock endpoints.
 func Mount(mux loomhttp.Muxer, h *Server) {
 	MountTickHandler(mux, h.Tick)
 	MountTockHandler(mux, h.Tock)
@@ -71,7 +81,9 @@ func Mount(mux loomhttp.Muxer, h *Server) {
 // Mount configures the mux to serve the clock endpoints.
 func (s *Server) Mount(mux loomhttp.Muxer) {
 	Mount(mux, s)
-} // MountTickHandler configures the mux to serve the "clock" service "Tick"
+}
+
+// MountTickHandler configures the mux to serve the "clock" service "Tick"
 // endpoint.
 func MountTickHandler(mux loomhttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
@@ -81,7 +93,9 @@ func MountTickHandler(mux loomhttp.Muxer, h http.Handler) {
 		}
 	}
 	mux.Handle("GET", "/tick", f)
-} // NewTickHandler creates a HTTP handler which loads the HTTP request and calls
+}
+
+// NewTickHandler creates a HTTP handler which loads the HTTP request and calls
 // the "clock" service "Tick" endpoint.
 func NewTickHandler(
 	endpoint loom.Endpoint,
@@ -98,6 +112,8 @@ func NewTickHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "Tick")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "clock", "Tick", r)
+		defer obs.End()
 		var err error
 		stream := &TickServerStream{
 			w: w,
@@ -108,6 +124,7 @@ func NewTickHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -126,7 +143,9 @@ func MountTockHandler(mux loomhttp.Muxer, h http.Handler) {
 		}
 	}
 	mux.Handle("GET", "/tock", f)
-} // NewTockHandler creates a HTTP handler which loads the HTTP request and calls
+}
+
+// NewTockHandler creates a HTTP handler which loads the HTTP request and calls
 // the "clock" service "Tock" endpoint.
 func NewTockHandler(
 	endpoint loom.Endpoint,
@@ -143,6 +162,8 @@ func NewTockHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "Tock")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "clock", "Tock", r)
+		defer obs.End()
 		var err error
 		stream := &TockServerStream{
 			w: w,
@@ -153,6 +174,7 @@ func NewTockHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -171,7 +193,9 @@ func MountGuardedHandler(mux loomhttp.Muxer, h http.Handler) {
 		}
 	}
 	mux.Handle("GET", "/guarded", f)
-} // NewGuardedHandler creates a HTTP handler which loads the HTTP request and
+}
+
+// NewGuardedHandler creates a HTTP handler which loads the HTTP request and
 // calls the "clock" service "Guarded" endpoint.
 func NewGuardedHandler(
 	endpoint loom.Endpoint,
@@ -189,8 +213,11 @@ func NewGuardedHandler(
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, "Guarded")
 		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
+		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "clock", "Guarded", r)
+		defer obs.End()
 		payload, err := decodeRequest(r)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonRequestDecodeFailed)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -206,6 +233,7 @@ func NewGuardedHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
+			obs.Fail(loomtransport.ReasonHandlerError)
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}

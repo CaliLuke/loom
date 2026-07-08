@@ -16,6 +16,7 @@ import (
 	clock "example.com/ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -139,9 +140,15 @@ func (s *TickServerStream) sendError(ctx context.Context, id any, code jsonrpc.C
 func (s *TickServerStream) sendSSEEvent(eventType string, v any) error {
 	s.initSSEHeaders()
 	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
+		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportJSONRPC})
 		return err
 	}
-	return http.NewResponseController(s.w).Flush()
+
+	if err := http.NewResponseController(s.w).Flush(); err != nil {
+		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportJSONRPC})
+		return err
+	}
+	return nil
 }
 
 // TockServerStream implements the clock.TockServerStream interface using
@@ -264,7 +271,13 @@ func (s *TockServerStream) sendError(ctx context.Context, id any, code jsonrpc.C
 func (s *TockServerStream) sendSSEEvent(eventType string, v any) error {
 	s.initSSEHeaders()
 	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
+		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportJSONRPC})
 		return err
 	}
-	return http.NewResponseController(s.w).Flush()
+
+	if err := http.NewResponseController(s.w).Flush(); err != nil {
+		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportJSONRPC})
+		return err
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -41,6 +42,49 @@ func TestConvertedServerRenderSections(t *testing.T) {
 	appendFS := codegen.SectionCode(t, serverFile.Section("append-fs")[0])
 	require.Contains(t, appendFS, "type appendFS struct {")
 	require.Contains(t, appendFS, "func appendPrefix(fsys http.FileSystem, prefix string) http.FileSystem {")
+}
+
+func TestServerFileRendersSeparatedDeclarationsAndAttachedFieldDocs(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.ServerFileServerDSL)
+	services := CreateHTTPServices(root)
+	serverFile := findFileWithSuffix(t, ServerFiles("gen", services), filepath.Join("server", "server.go"))
+
+	renderedPath, err := serverFile.Render(t.TempDir())
+	require.NoError(t, err)
+
+	source, err := os.ReadFile(renderedPath)
+	require.NoError(t, err)
+	code := string(source)
+
+	require.NotContains(t, code, "} //")
+	require.Contains(t, code, "// Method is the name of the service method served by the mounted HTTP handler.\n\tMethod string")
+	require.Contains(t, code, "// Verb is the HTTP method used to match requests to the mounted handler.\n\tVerb string")
+	require.Contains(t, code, "// Pattern is the HTTP request path pattern used to match requests to the mounted handler.\n\tPattern string")
+}
+
+func TestRenderAppendFSOpenBodySortsMappedFiles(t *testing.T) {
+	code := renderAppendFSOpenBody(map[string]string{
+		"/z": "/z.json",
+		"/y": "/y.json",
+		"/x": "/x.json",
+		"/w": "/w.json",
+		"/v": "/v.json",
+		"/u": "/u.json",
+		"/t": "/t.json",
+		"/s": "/s.json",
+	})
+
+	require.Equal(t, "\tswitch name {\n"+
+		"\tcase \"/s\":\n\t\tname = \"/s.json\"\n"+
+		"\tcase \"/t\":\n\t\tname = \"/t.json\"\n"+
+		"\tcase \"/u\":\n\t\tname = \"/u.json\"\n"+
+		"\tcase \"/v\":\n\t\tname = \"/v.json\"\n"+
+		"\tcase \"/w\":\n\t\tname = \"/w.json\"\n"+
+		"\tcase \"/x\":\n\t\tname = \"/x.json\"\n"+
+		"\tcase \"/y\":\n\t\tname = \"/y.json\"\n"+
+		"\tcase \"/z\":\n\t\tname = \"/z.json\"\n"+
+		"\t}\n"+
+		"\treturn s.fs.Open(path.Join(s.prefix, name))\n", code)
 }
 
 func TestConvertedTypeRenderSections(t *testing.T) {

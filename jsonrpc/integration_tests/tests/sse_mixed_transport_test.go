@@ -94,8 +94,9 @@ func startMixedTickServer(t *testing.T) *harness.Server {
 	require.NoError(t, testingx.CopyTree(srcDir, workDir))
 	require.NoError(t, testingx.PinLocalReplace(workDir, testingx.RepoRoot()))
 
-	_, err := testingx.RunCmd(workDir, "go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/mixedtick/design")
+	_, err := testingx.RunCmd(workDir, "go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/mixedtick/design", "-o", ".")
 	require.NoError(t, err)
+	testingx.RequireTreeMatches(t, filepath.Join(srcDir, "gen"), filepath.Join(workDir, "gen"))
 
 	serverCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

@@ -87,8 +87,9 @@ func TestJSONRPCSSEFixtureRegeneratesAndBuilds(t *testing.T) {
 	require.NoError(t, testingx.CopyTree(srcDir, workDir))
 	require.NoError(t, testingx.PinLocalReplace(workDir, testingx.RepoRoot()))
 
-	_, err := testingx.RunCmd(workDir, "go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/ticktock/design")
+	_, err := testingx.RunCmd(workDir, "go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/ticktock/design", "-o", ".")
 	require.NoError(t, err)
+	testingx.RequireTreeMatches(t, filepath.Join(srcDir, "gen"), filepath.Join(workDir, "gen"))
 
 	_, err = testingx.RunCmd(workDir, "go", "test", "./...")
 	require.NoError(t, err)
