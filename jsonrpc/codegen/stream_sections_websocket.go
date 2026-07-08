@@ -51,8 +51,8 @@ func jsonrpcWebSocketServerStructSection(data *httpcodegen.ServiceData) codegen.
 			g.Id("w").Qual("net/http", "ResponseWriter")
 			g.Comment("r is the HTTP request.")
 			g.Id("r").Op("*").Qual("net/http", "Request")
-			g.Comment("conn is the underlying websocket connection.")
-			g.Id("conn").Op("*").Qual("github.com/gorilla/websocket", "Conn")
+			g.Comment("conn owns the websocket connection lifecycle.")
+			g.Id("conn").Op("*").Id("loomhttp.WebSocketStream")
 		})
 	})
 }
@@ -139,9 +139,9 @@ func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Se
 			Error().
 			Block(
 				jen.If(jen.Id("id").Op("==").Nil().Op("||").Id("id").Op("==").Lit("")).Block(
-					jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Id("method"), jen.Id("result")))),
+					jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Id("s").Dot("r").Dot("Context").Call(), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Id("method"), jen.Id("result")))),
 				),
-				jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("result")))),
+				jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Id("s").Dot("r").Dot("Context").Call(), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("result")))),
 			)
 		stmt.Add(sendDecl)
 		stmt.Line()
@@ -159,7 +159,7 @@ func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Se
 			Error().
 			Block(
 				jen.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeErrorResponse").Call(jen.Id("id"), jen.Id("code"), jen.Id("message"), jen.Id("data")),
-				jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Id("response"))),
+				jen.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Id("ctx"), jen.Id("response"))),
 			)
 		stmt.Add(sendErrorResponseDecl)
 	})
@@ -220,6 +220,7 @@ func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *h
 			BlockFunc(func(g *jen.Group) {
 				writeStreamResultBodyInit(g, "body", "result", ed)
 				g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
+					jen.Id("ctx"),
 					jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
 				))
 			})
@@ -239,6 +240,7 @@ func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *h
 		BlockFunc(func(g *jen.Group) {
 			writeStreamResultBodyInit(g, "body", "result", ed)
 			g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
+				jen.Id("ctx"),
 				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
 			))
 		})
@@ -265,7 +267,7 @@ func jsonrpcWebSocketServerRecvSection(data *httpcodegen.ServiceData) codegen.Se
 			Block(
 				jen.Var().Id("req").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
 				jen.If(
-					jen.Err().Op(":=").Id("s").Dot("conn").Dot("ReadJSON").Call(jen.Op("&").Id("req")),
+					jen.Err().Op(":=").Id("s").Dot("conn").Dot("ReadJSON").Call(jen.Id("ctx"), jen.Op("&").Id("req")),
 					jen.Err().Op("!=").Nil(),
 				).Block(
 					jen.If(
@@ -323,14 +325,7 @@ func jsonrpcWebSocketServerCloseSection(data *httpcodegen.ServiceData) codegen.S
 					jen.Return(jen.Nil()),
 				),
 				jen.If(
-					jen.Id("err").Op("=").Id("s").Dot("conn").Dot("WriteControl").Call(
-						jen.Qual("github.com/gorilla/websocket", "CloseMessage"),
-						jen.Qual("github.com/gorilla/websocket", "FormatCloseMessage").Call(
-							jen.Qual("github.com/gorilla/websocket", "CloseNormalClosure"),
-							jen.Lit("server closing connection"),
-						),
-						jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Qual("time", "Second")),
-					),
+					jen.Id("err").Op("=").Id("s").Dot("conn").Dot("WriteClose").Call(jen.Lit("server closing connection")),
 					jen.Id("err").Op("!=").Nil(),
 				).Block(
 					jen.Return(jen.Id("err")),

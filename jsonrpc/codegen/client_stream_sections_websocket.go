@@ -30,8 +30,7 @@ func jsonrpcWebSocketClientStreamSection(ws *httpcodegen.WebSocketData) codegen.
 func writeJSONRPCWebSocketClientTypes(stmt *jen.Statement, ws *httpcodegen.WebSocketData, hasRecv bool) {
 	codegen.Doc(stmt, fmt.Sprintf("%s implements the %s client stream with direct WebSocket handling.", ws.VarName, ws.Endpoint.Method.Name))
 	stmt.Type().Id(ws.VarName).StructFunc(func(g *jen.Group) {
-		g.Id("ws").Op("*").Qual("github.com/gorilla/websocket", "Conn")
-		g.Id("writeMu").Qual("sync", "Mutex")
+		g.Id("ws").Op("*").Id("loomhttp.WebSocketStream")
 		g.Id("pending").Qual("sync", "Map")
 		g.Id("idGenerator").Qual("sync/atomic", "Uint64")
 		g.Id("ctx").Qual("context", "Context")
@@ -102,7 +101,7 @@ func writeJSONRPCWebSocketBidirectionalSend(g *jen.Group, ws *httpcodegen.WebSoc
 		jen.Id("timeout"):    jen.Qual("time", "NewTimer").Call(jen.Id("s").Dot("config").Dot("RequestTimeout")),
 	})
 	g.Id("s").Dot("pending").Dot("Store").Call(jen.Id("jsonrpcID"), jen.Id("pending"))
-	writeJSONRPCWriteRequest(g, ws, true, "v")
+	writeJSONRPCWriteRequest(g, ws, true, "v", "ctx")
 	g.If(jen.Id("err").Op("!=").Nil()).Block(
 		jen.Id("s").Dot("pending").Dot("Delete").Call(jen.Id("jsonrpcID")),
 		jen.Id("pending").Dot("timeout").Dot("Stop").Call(),
@@ -114,7 +113,7 @@ func writeJSONRPCWebSocketBidirectionalSend(g *jen.Group, ws *httpcodegen.WebSoc
 }
 
 func writeJSONRPCWebSocketSimpleSend(g *jen.Group, ws *httpcodegen.WebSocketData) {
-	writeJSONRPCWriteRequest(g, ws, false, "v")
+	writeJSONRPCWriteRequest(g, ws, false, "v", "ctx")
 	g.If(jen.Id("err").Op("!=").Nil()).Block(
 		jen.Id("s").Dot("setError").Call(jen.Id("err")),
 		jen.Id("s").Dot("handleError").Call(codegen.Expr("jsonrpc.StreamErrorConnection"), jen.Id("err"), jen.Nil()),
@@ -123,7 +122,7 @@ func writeJSONRPCWebSocketSimpleSend(g *jen.Group, ws *httpcodegen.WebSocketData
 	g.Return(jen.Nil())
 }
 
-func writeJSONRPCWriteRequest(g *jen.Group, ws *httpcodegen.WebSocketData, includeID bool, paramsExpr string) {
+func writeJSONRPCWriteRequest(g *jen.Group, ws *httpcodegen.WebSocketData, includeID bool, paramsExpr string, ctxExpr string) {
 	dict := jen.Dict{
 		jen.Id("JSONRPC"): jen.Lit("2.0"),
 		jen.Id("Method"):  jen.Lit(ws.Endpoint.Method.Name),
@@ -133,9 +132,7 @@ func writeJSONRPCWriteRequest(g *jen.Group, ws *httpcodegen.WebSocketData, inclu
 		dict[jen.Id("ID")] = jen.Op("&").Id("jsonrpcID")
 	}
 	g.Id("request").Op(":=").Op("&").Add(codegen.TypeRef("jsonrpc.Request")).Values(dict)
-	g.Id("s").Dot("writeMu").Dot("Lock").Call()
-	g.Id("err").Op(":=").Id("s").Dot("ws").Dot("WriteJSON").Call(jen.Id("request"))
-	g.Id("s").Dot("writeMu").Dot("Unlock").Call()
+	g.Id("err").Op(":=").Id("s").Dot("ws").Dot("WriteJSON").Call(codegen.Expr(ctxExpr), jen.Id("request"))
 }
 
 func writeJSONRPCWebSocketRecv(stmt *jen.Statement, ws *httpcodegen.WebSocketData, isBidirectional bool) {
@@ -218,7 +215,7 @@ func writeJSONRPCWebSocketSimpleRecv(g *jen.Group, ws *httpcodegen.WebSocketData
 		jen.Id("s").Dot("pending").Dot("Delete").Call(jen.Id("jsonrpcID")),
 		jen.Id("pending").Dot("timeout").Dot("Stop").Call(),
 	).Call()
-	writeJSONRPCWriteRequest(g, ws, true, "nil")
+	writeJSONRPCWriteRequest(g, ws, true, "nil", "ctx")
 	g.If(jen.Id("err").Op("!=").Nil()).Block(
 		jen.Id("s").Dot("setError").Call(jen.Id("err")),
 		jen.Id("s").Dot("handleError").Call(codegen.Expr("jsonrpc.StreamErrorConnection"), jen.Id("err"), jen.Nil()),

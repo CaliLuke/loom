@@ -23,7 +23,7 @@ func writeJSONRPCWebSocketClientHelpers(stmt *jen.Statement, ws *httpcodegen.Web
 			return
 		default:
 			var response jsonrpc.RawResponse
-			if err := s.ws.ReadJSON(&response); err != nil {
+			if err := s.ws.ReadJSON(s.ctx, &response); err != nil {
 				connectionErr := fmt.Errorf("failed to read response: %w", err)
 				s.setError(connectionErr)
 				s.handleError(jsonrpc.StreamErrorConnection, connectionErr, nil)
@@ -336,7 +336,7 @@ func writeJSONRPCWebSocketEndpointBody(g *jen.Group, ed *httpcodegen.EndpointDat
 	g.Line()
 	g.List(jen.Id("streamCtx"), jen.Id("cancel")).Op(":=").Qual("context", "WithCancel").Call(jen.Id("ctx"))
 	dict := jen.Dict{
-		jen.Id("ws"):     jen.Id("ws"),
+		jen.Id("ws"):     jen.Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("ws")),
 		jen.Id("ctx"):    jen.Id("streamCtx"),
 		jen.Id("cancel"): jen.Id("cancel"),
 		jen.Id("done"):   jen.Make(jen.Chan().Struct()),

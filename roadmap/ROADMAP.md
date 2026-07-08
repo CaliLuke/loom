@@ -90,6 +90,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   close idempotence, context-cancel unblocking, close-control writes, and
   JSON frame read/write lifecycle behavior live in the shared HTTP runtime
   instead of per-endpoint generated methods.
+- JSON-RPC WebSocket generated streams now also wrap raw Gorilla connections
+  in `loomhttp.WebSocketStream`, sharing context-bound JSON frame I/O and
+  close-control behavior with the HTTP WebSocket generator while retaining
+  JSON-RPC pending-request correlation in generated code.
 - First-class OpenTelemetry transport wrappers now live in `github.com/CaliLuke/loom/http/middleware/otel` and `github.com/CaliLuke/loom/grpc/middleware/otel`, using the official `otelhttp` and `otelgrpc` libraries while keeping provider/exporter bootstrap app-owned.
 - OpenTelemetry V2 now adds a framework-owned observability package in `github.com/CaliLuke/loom/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
 - CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.

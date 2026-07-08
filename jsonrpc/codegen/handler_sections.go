@@ -47,11 +47,12 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 					jen.Id("conn").Op("=").Id("s").Dot("configfn").Call(jen.Id("conn"), jen.Id("cancel")),
 				)
 				g.Defer().Id("conn").Dot("Close").Call()
+				g.Id("wsconn").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("conn"))
 				g.Line()
 				streamDict := jen.Dict{
 					jen.Id("r"):      jen.Id("r"),
 					jen.Id("w"):      jen.Id("w"),
-					jen.Id("conn"):   jen.Id("conn"),
+					jen.Id("conn"):   jen.Id("wsconn"),
 					jen.Id("cancel"): jen.Id("cancel"),
 				}
 				for _, endpoint := range data.Endpoints {

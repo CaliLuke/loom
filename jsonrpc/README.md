@@ -610,6 +610,9 @@ func (s *chatSvc) Echo(ctx context.Context, p *chat.EchoPayload,
   - The generated server upgrades the HTTP request to a WebSocket and
     constructs a `Stream` implementation, then calls your
     `HandleStream(ctx, stream)`.
+  - Generated client and server streams wrap the raw Gorilla socket in
+    `loomhttp.WebSocketStream`, which owns context-bound JSON frame I/O,
+    close-control writes, and idempotent close behavior.
   - Your `HandleStream` should defer `stream.Close()` and typically loop on
     `stream.Recv(ctx)`, which reads a JSON-RPC message and dispatches it to
     the appropriate generated handler based on its `method`.

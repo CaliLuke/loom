@@ -234,6 +234,10 @@ build Auto-K without repeating large amounts of app-local glue.
   connection lifecycle and context-bound JSON frame I/O. Keep new WebSocket
   fixes in that runtime wrapper or a similarly shared transport core instead
   of adding per-endpoint read/write/close loops.
+- JSON-RPC WebSocket generated streams use the same runtime wrapper for raw
+  frame I/O and close-control behavior. Keep JSON-RPC-specific pending request
+  correlation in generated code, but route socket lifecycle fixes through the
+  shared runtime.
 - If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
