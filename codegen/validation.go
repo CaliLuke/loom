@@ -87,11 +87,15 @@ func hasValidations(attCtx *AttributeContext, ut expr.UserType) bool {
 // the validation is a required validation that applies to attributes that
 // cannot be nil i.e. primitive types.
 func generatedRequiredValidation(att *expr.AttributeExpr, attCtx *AttributeContext) (res []string) {
-	if att.Validation == nil {
+	return generatedRequiredValidationFrom(att, att.Validation, attCtx)
+}
+
+func generatedRequiredValidationFrom(att *expr.AttributeExpr, validation *expr.ValidationExpr, attCtx *AttributeContext) (res []string) {
+	if validation == nil {
 		return
 	}
 	obj := expr.AsObject(att.Type)
-	for _, req := range att.Validation.Required {
+	for _, req := range validation.Required {
 		reqAtt := obj.Attribute(req)
 		if reqAtt == nil {
 			continue
@@ -129,19 +133,6 @@ func flattenValidations(att *expr.AttributeExpr, seen map[string]struct{}) {
 			return
 		}
 		seen[actual.ID()] = struct{}{}
-		v := att.Validation
-		ut, ok := actual.Attribute().Type.(expr.UserType)
-		for ok {
-			if val := ut.Attribute().Validation; val != nil {
-				if v == nil {
-					v = val
-				} else {
-					v.Merge(val)
-				}
-			}
-			ut, ok = ut.Attribute().Type.(expr.UserType)
-		}
-		att.Validation = v
 		flattenValidations(actual.Attribute(), seen)
 	}
 }

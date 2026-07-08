@@ -112,7 +112,7 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 		data.IsMinLength = false
 		return renderLengthValidation(data)
 	})
-	appendRequiredValidations(&res, att, attCtx, data)
+	appendRequiredValidations(&res, att, validation, attCtx, data)
 	return strings.Join(res, "\n")
 }
 
@@ -124,11 +124,11 @@ func mergedValidation(att *expr.AttributeExpr) *expr.ValidationExpr {
 			return validation
 		}
 		if validation == nil {
-			validation = val
+			validation = val.Dup()
 		} else {
+			validation = validation.Dup()
 			validation.Merge(val)
 		}
-		att.Validation = validation
 	}
 	return validation
 }
@@ -184,9 +184,9 @@ func appendValidationLength(res *[]string, value *int, render func(*int) string)
 	appendRenderedValidation(res, render(value))
 }
 
-func appendRequiredValidations(res *[]string, att *expr.AttributeExpr, attCtx *AttributeContext, data validationRenderData) {
+func appendRequiredValidations(res *[]string, att *expr.AttributeExpr, validation *expr.ValidationExpr, attCtx *AttributeContext, data validationRenderData) {
 	obj := expr.AsObject(att.Type)
-	for _, r := range generatedRequiredValidation(att, attCtx) {
+	for _, r := range generatedRequiredValidationFrom(att, validation, attCtx) {
 		data.RequiredName = r
 		data.RequiredAttr = obj.Attribute(r)
 		appendRenderedValidation(res, renderRequiredValidation(data))

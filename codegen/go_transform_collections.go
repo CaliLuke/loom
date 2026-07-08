@@ -4,6 +4,8 @@ package codegen
 import (
 	"bytes"
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -69,7 +71,12 @@ func transformUnion(source, target *expr.AttributeExpr, sourceVar, targetVar str
 	}
 	unionPkg := ta.TargetCtx.Pkg(target)
 	typeRef := ta.TargetCtx.Scope.Ref(target, unionPkg)
+	tempVarName := transformUnionTempVarName(targetVar)
 
+	cases, err := buildTransformUnionCases(srcUnion, tgtUnion, unionPkg, tempVarName, ta)
+	if err != nil {
+		return nil, err
+	}
 	data := transformUnionRenderData{
 		SourceVar:       sourceVar,
 		TargetVar:       targetVar,
@@ -77,8 +84,8 @@ func transformUnion(source, target *expr.AttributeExpr, sourceVar, targetVar str
 		TypeRef:         typeRef,
 		TargetIsPointer: strings.HasPrefix(typeRef, "*"),
 		ValueTypeRef:    strings.TrimPrefix(typeRef, "*"),
-		TempVarName:     transformUnionTempVarName(targetVar),
-		Cases:           buildTransformUnionCases(srcUnion, tgtUnion, unionPkg, ta),
+		TempVarName:     tempVarName,
+		Cases:           cases,
 		TransformAttrs:  ta,
 	}
 
@@ -110,16 +117,20 @@ func transformUnionTempVarName(targetVar string) string {
 	return "obj"
 }
 
-func buildTransformUnionCases(srcUnion, tgtUnion *expr.Union, unionPkg string, ta *TransformAttrs) []transformUnionRenderCase {
+func buildTransformUnionCases(srcUnion, tgtUnion *expr.Union, unionPkg, tempVarName string, ta *TransformAttrs) ([]transformUnionRenderCase, error) {
 	cases := make([]transformUnionRenderCase, 0, len(srcUnion.Values))
 	for i, srcValue := range srcUnion.Values {
 		targetValue, ok := matchingTransformUnionValue(srcValue, tgtUnion, i)
 		if !ok {
 			continue
 		}
-		cases = append(cases, transformUnionCaseData(srcValue, targetValue, unionPkg, ta))
+		c, err := transformUnionCaseData(srcValue, targetValue, unionPkg, tempVarName, ta)
+		if err != nil {
+			return nil, err
+		}
+		cases = append(cases, c)
 	}
-	return cases
+	return cases, nil
 }
 
 func matchingTransformUnionValue(srcValue *expr.NamedAttributeExpr, tgtUnion *expr.Union, index int) (*expr.NamedAttributeExpr, bool) {
@@ -133,8 +144,8 @@ func matchingTransformUnionValue(srcValue *expr.NamedAttributeExpr, tgtUnion *ex
 	return targetValue, true
 }
 
-func transformUnionCaseData(srcValue, targetValue *expr.NamedAttributeExpr, unionPkg string, ta *TransformAttrs) transformUnionRenderCase {
-	return transformUnionRenderCase{
+func transformUnionCaseData(srcValue, targetValue *expr.NamedAttributeExpr, unionPkg, tempVarName string, ta *TransformAttrs) (transformUnionRenderCase, error) {
+	c := transformUnionRenderCase{
 		CaseName:        srcValue.Name,
 		CaseTag:         expr.UnionVariantTag(srcValue),
 		SourceFieldName: Goify(srcValue.Name, true),
@@ -145,6 +156,15 @@ func transformUnionCaseData(srcValue, targetValue *expr.NamedAttributeExpr, unio
 		UseHelper:       transformUnionUsesHelper(srcValue.Attribute, targetValue.Attribute),
 		HelperName:      transformHelperName(srcValue.Attribute, targetValue.Attribute, ta),
 	}
+	if c.UseHelper {
+		return c, nil
+	}
+	code, err := transformAttributeStmt(c.SourceAttr, c.TargetAttr, "actual", tempVarName, true, ta)
+	if err != nil {
+		return transformUnionRenderCase{}, err
+	}
+	c.TransformCode = code
+	return c, nil
 }
 
 func transformUnionCastPkg(targetAttr *expr.AttributeExpr, unionPkg string, ta *TransformAttrs) string {
@@ -170,6 +190,14 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
 	}
+	var elemCode *jen.Statement
+	if !data.IsStruct {
+		var err error
+		elemCode, err = transformAttributeStmt(data.SourceElem, data.TargetElem, "val", data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
+		if err != nil {
+			return nil, err
+		}
+	}
 	stmt := &jen.Statement{}
 	stmt.Add(Expr(data.TargetVar)).Op(assign).Make(TypeRef(typeName), jen.Len(Expr(data.SourceVar))).Line()
 	stmt.For(
@@ -187,12 +215,7 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 				Call(Expr("val"))
 			return
 		}
-		code, err := transformAttributeStmt(data.SourceElem, data.TargetElem, "val", data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
-		if err != nil {
-			group.Add(Expr(`panic("unreachable transform render error")`))
-			return
-		}
-		group.Add(code)
+		group.Add(elemCode)
 	})
 	return stmt, nil
 }
@@ -206,6 +229,23 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
 	}
+	var keyCode *jen.Statement
+	if !data.IsKeyStruct {
+		var err error
+		keyCode, err = transformAttributeStmt(data.SourceKey, data.TargetKey, "key", "tk", true, data.TransformAttrs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var elemCode *jen.Statement
+	if !data.IsElemStruct {
+		var err error
+		temp := "tv" + data.LoopVar
+		elemCode, err = transformAttributeStmt(data.SourceElem, data.TargetElem, "val", temp, true, data.TransformAttrs)
+		if err != nil {
+			return nil, err
+		}
+	}
 	stmt := &jen.Statement{}
 	stmt.Add(Expr(data.TargetVar)).Op(assign).Make(TypeRef(typeName), jen.Len(Expr(data.SourceVar))).Line()
 	stmt.For(
@@ -214,12 +254,7 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 		if data.IsKeyStruct {
 			group.Id("tk").Op(":=").Id(transformHelperName(data.SourceKey, data.TargetKey, data.TransformAttrs)).Call(Expr("key"))
 		} else {
-			code, err := transformAttributeStmt(data.SourceKey, data.TargetKey, "key", "tk", true, data.TransformAttrs)
-			if err != nil {
-				group.Add(Expr(`panic("unreachable transform render error")`))
-				return
-			}
-			group.Add(code)
+			group.Add(keyCode)
 		}
 		if data.IsElemStruct {
 			group.If(Expr("val == nil")).BlockFunc(func(ifGroup *jen.Group) {
@@ -234,12 +269,7 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 			return
 		}
 		temp := "tv" + data.LoopVar
-		code, err := transformAttributeStmt(data.SourceElem, data.TargetElem, "val", temp, true, data.TransformAttrs)
-		if err != nil {
-			group.Add(Expr(`panic("unreachable transform render error")`))
-			return
-		}
-		group.Add(code)
+		group.Add(elemCode)
 		group.Add(Expr(data.TargetVar)).Index(Expr("tk")).Op("=").Add(Expr(temp))
 	})
 	return stmt, nil
@@ -260,12 +290,7 @@ func renderTransformGoUnion(data transformUnionRenderData) (*jen.Statement, erro
 					caseGroup.Id(data.TempVarName).Op(":=").Id(c.HelperName).Call(Expr("actual"))
 					caseGroup.Line()
 				} else {
-					code, err := transformAttributeStmt(c.SourceAttr, c.TargetAttr, "actual", data.TempVarName, true, data.TransformAttrs)
-					if err != nil {
-						caseGroup.Add(Expr(`panic("unreachable transform render error")`))
-						return
-					}
-					caseGroup.Add(code)
+					caseGroup.Add(c.TransformCode)
 				}
 				if data.NewVar {
 					caseGroup.Var().Id("u").Add(TypeRef(data.ValueTypeRef))
@@ -304,6 +329,56 @@ func formatGoLiteral(v any) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%#v", v)
 	return b.String()
+}
+
+func typedDefaultLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
+	switch actual := att.Type.(type) {
+	case *expr.Map:
+		return typedMapDefaultLiteral(actual, value, ta)
+	default:
+		return formatGoLiteral(value), true
+	}
+}
+
+func typedMapDefaultLiteral(m *expr.Map, value any, ta *TransformAttrs) (string, bool) {
+	items, ok := mapDefaultLiteralItems(m, value, ta)
+	if !ok {
+		return "", false
+	}
+	keyRef := ta.TargetCtx.Scope.Ref(m.KeyType, ta.TargetCtx.Pkg(m.KeyType))
+	elemRef := ta.TargetCtx.Scope.Ref(m.ElemType, ta.TargetCtx.Pkg(m.ElemType))
+	return "map[" + keyRef + "]" + elemRef + "{" + strings.Join(items, ", ") + "}", true
+}
+
+func mapDefaultLiteralItems(m *expr.Map, value any, ta *TransformAttrs) ([]string, bool) {
+	actual := reflect.ValueOf(value)
+	if !actual.IsValid() || actual.Kind() != reflect.Map {
+		return nil, false
+	}
+	keys := actual.MapKeys()
+	sort.Slice(keys, func(i, j int) bool {
+		return fmt.Sprint(keys[i].Interface()) < fmt.Sprint(keys[j].Interface())
+	})
+	items := make([]string, 0, len(keys))
+	for _, key := range keys {
+		keyLiteral, ok := typedDefaultValueLiteral(m.KeyType, key.Interface(), ta)
+		if !ok {
+			return nil, false
+		}
+		elemLiteral, ok := typedDefaultValueLiteral(m.ElemType, actual.MapIndex(key).Interface(), ta)
+		if !ok {
+			return nil, false
+		}
+		items = append(items, keyLiteral+": "+elemLiteral)
+	}
+	return items, true
+}
+
+func typedDefaultValueLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
+	if expr.IsMap(att.Type) {
+		return typedMapDefaultLiteral(expr.AsMap(att.Type), value, ta)
+	}
+	return formatGoLiteral(value), true
 }
 
 // transformAttributeHelpers returns the Go transform functions and their definitions

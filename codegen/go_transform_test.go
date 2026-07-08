@@ -195,3 +195,40 @@ func TestGoTransform(t *testing.T) {
 		})
 	}
 }
+
+func TestGoTransformPropagatesNestedCollectionErrors(t *testing.T) {
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, true, "", scope)
+	source := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}}}
+	target := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.Int}}}}}
+
+	code, _, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+
+	require.Error(t, err)
+	require.Empty(t, code)
+	require.NotContains(t, code, "unreachable transform render error")
+}
+
+func TestGoTransformRendersTypedMapDefaultFromMapVal(t *testing.T) {
+	scope := NewNameScope()
+	sourceCtx := NewAttributeContext(true, false, false, "", scope)
+	targetCtx := NewAttributeContext(false, false, true, "", scope)
+	source := &expr.AttributeExpr{Type: &expr.Object{
+		{Name: "settings", Attribute: &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: expr.Int}}}},
+	}}
+	target := &expr.AttributeExpr{Type: &expr.Object{
+		{
+			Name: "settings",
+			Attribute: &expr.AttributeExpr{
+				Type:         &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: expr.Int}},
+				DefaultValue: expr.MapVal{"size": 1},
+			},
+		},
+	}}
+
+	code, _, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+
+	require.NoError(t, err)
+	require.Contains(t, code, `map[string]int{"size": 1}`)
+	require.NotContains(t, code, "map[interface {}]interface {}")
+}

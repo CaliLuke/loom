@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"strings"
+	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -17,12 +18,17 @@ type (
 		localName string
 		used      bool
 	}
+
+	importKey struct {
+		localName string
+		path      string
+	}
 )
 
 // buildImportMap creates a map of package names to import information.
 // It handles standard imports, named imports, and excludes blank/dot imports.
-func buildImportMap(file *ast.File) map[string]*importInfo {
-	imports := make(map[string]*importInfo)
+func buildImportMap(file *ast.File) map[importKey]*importInfo {
+	imports := make(map[importKey]*importInfo)
 
 	for _, impDecl := range file.Imports {
 		path := strings.Trim(impDecl.Path.Value, `"`)
@@ -35,7 +41,7 @@ func buildImportMap(file *ast.File) map[string]*importInfo {
 				continue
 			default:
 				// Named import: use the alias as the local name
-				imports[impDecl.Name.Name] = &importInfo{
+				imports[importKey{localName: impDecl.Name.Name, path: path}] = &importInfo{
 					spec:      impDecl,
 					path:      path,
 					localName: impDecl.Name.Name,
@@ -45,11 +51,11 @@ func buildImportMap(file *ast.File) map[string]*importInfo {
 		} else {
 			// Standard import: infer package name from path
 			localName := inferPackageName(path)
-			imports[localName] = &importInfo{
+			imports[importKey{localName: localName, path: path}] = &importInfo{
 				spec:      impDecl,
 				path:      path,
 				localName: localName,
-				used:      false,
+				used:      !isValidImportIdentifier(localName),
 			}
 		}
 	}
@@ -57,12 +63,27 @@ func buildImportMap(file *ast.File) map[string]*importInfo {
 	return imports
 }
 
+func isValidImportIdentifier(name string) bool {
+	for i, r := range name {
+		if i == 0 {
+			if r != '_' && !unicode.IsLetter(r) {
+				return false
+			}
+			continue
+		}
+		if r != '_' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return name != ""
+}
+
 // detectUsedImports performs a single AST walk to mark which imports are used.
 // It looks for qualified identifiers (pkg.Name).
 //
 // Important: Do NOT treat identifiers that are part of import specs as usage,
 // otherwise named imports will be falsely marked as used.
-func detectUsedImports(file *ast.File, imports map[string]*importInfo) {
+func detectUsedImports(file *ast.File, imports map[importKey]*importInfo) {
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.ImportSpec:
@@ -72,8 +93,10 @@ func detectUsedImports(file *ast.File, imports map[string]*importInfo) {
 		case *ast.SelectorExpr:
 			// Handle qualified identifiers like fmt.Println, pkg.Type, etc.
 			if ident, ok := x.X.(*ast.Ident); ok {
-				if imp, exists := imports[ident.Name]; exists {
-					imp.used = true
+				for _, imp := range imports {
+					if imp.localName == ident.Name {
+						imp.used = true
+					}
 				}
 			}
 		}
@@ -83,7 +106,7 @@ func detectUsedImports(file *ast.File, imports map[string]*importInfo) {
 }
 
 // removeUnusedImports deletes import specs that weren't marked as used.
-func removeUnusedImports(fset *token.FileSet, file *ast.File, imports map[string]*importInfo) {
+func removeUnusedImports(fset *token.FileSet, file *ast.File, imports map[importKey]*importInfo) {
 	for _, imp := range imports {
 		if !imp.used {
 			if imp.spec.Name != nil {

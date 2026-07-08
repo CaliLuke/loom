@@ -55,6 +55,7 @@ type (
 		TargetCastType  string
 		UseHelper       bool
 		HelperName      string
+		TransformCode   *jen.Statement
 	}
 
 	transformUnionRenderData struct {
@@ -378,6 +379,8 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 				group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
 			case expr.IsArray(tgtc.Type):
 				group.Add(transformObjectArrayDefaultValueCode(tgtc, tgtVar, tdef, ta))
+			case expr.IsMap(tgtc.Type):
+				group.Add(transformObjectMapDefaultValueCode(tgtc, tgtVar, tdef, ta))
 			default:
 				group.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
 			}
@@ -434,6 +437,17 @@ func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar strin
 		return nil
 	}
 	stmt.Add(Expr(tgtVar)).Op("=").Add(Expr("[]" + elemRef + "{" + strings.Join(items, ", ") + "}"))
+	return stmt
+}
+
+func transformObjectMapDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar string, tdef any, ta *TransformAttrs) *jen.Statement {
+	literal, ok := typedDefaultLiteral(tgtc, tdef, ta)
+	stmt := &jen.Statement{}
+	if !ok {
+		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
+		return stmt
+	}
+	stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(literal))
 	return stmt
 }
 

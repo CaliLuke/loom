@@ -4,8 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -90,6 +93,31 @@ func TestRecursiveValidationCode(t *testing.T) {
 		code = FormatTestCode(t, "package foo\nfunc Validate() (err error){\n"+code+"}")
 		testutil.AssertGo(t, "testdata/golden/validation_union-with-format-validation.go.golden", code)
 	})
+}
+
+func TestValidationCodeDoesNotMutateSharedUserTypeValidation(t *testing.T) {
+	root := RunDSL(t, func() {
+		alias := dsl.Type("Status", dsl.String, func() {
+			dsl.MinLength(2)
+		})
+		dsl.Type("Holder", func() {
+			dsl.Attribute("status", alias, func() {
+				dsl.Enum("ready")
+			})
+		})
+	})
+	aliasValidation := root.UserType("Status").Attribute().Validation
+	field := expr.AsObject(root.UserType("Holder").Attribute().Type).Attribute("status")
+	fieldValidation := field.Validation
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, false, "", scope)
+
+	_ = ValidationCode(field, nil, ctx, true, false, false, "target")
+
+	require.Same(t, fieldValidation, field.Validation)
+	require.Nil(t, fieldValidation.MinLength)
+	require.NotNil(t, aliasValidation.MinLength)
+	require.Equal(t, 2, *aliasValidation.MinLength)
 }
 
 // TestRecursiveValidationWithCycleGuard tests that recursive types are
