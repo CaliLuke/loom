@@ -219,6 +219,14 @@ release-loom:
 	sed 's/Minor = .*/Minor = $(RELEASE_MINOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
 	sed 's/Build = .*/Build = $(RELEASE_BUILD)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
 	sed 's|go install github.com/CaliLuke/loom/cmd/loom@v[0-9][0-9.]*|go install github.com/CaliLuke/loom/cmd/loom@$(VERSION)|' README.md > _tmp && mv _tmp README.md
+	# Bump version-stamped integration fixtures. Generated loom.json embeds
+	# loom_version, so the checked-in fixtures must move with pkg/version.go or
+	# the fixture-comparison integration tests fail in release-preflight (which
+	# regenerates and diffs against these files using the just-bumped version).
+	@for f in $$(find . -path '*/integration_tests/fixtures/*/gen/loom.json'); do \
+		sed 's|"loom_version": "v[0-9][0-9.]*"|"loom_version": "$(VERSION)"|' "$$f" > _tmp && mv _tmp "$$f"; \
+		echo "bumped $$f -> $(VERSION)"; \
+	done
 	$(MAKE) release-preflight
 	git add .
 	git commit -m "Release $(VERSION)"
