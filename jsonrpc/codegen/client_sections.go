@@ -208,7 +208,7 @@ func writeJSONRPCWebSocketDecodeResponseSuccess(g *jen.Group, ws *httpcodegen.We
 }
 
 func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-minimal-request-encoder", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-minimal-request-encoder", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("Encode%sRequest returns an encoder for requests sent to the %s service %s JSON-RPC method.", ed.Method.VarName, ed.ServiceName, ed.Method.Name))
 		stmt.Func().
 			Id("Encode" + ed.Method.VarName + "Request").
@@ -250,7 +250,7 @@ func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.S
 }
 
 func jsonrpcClientEndpointInitSection(ed *httpcodegen.EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-client-endpoint-init", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-client-endpoint-init", func(stmt *jen.Statement) {
 		requestEncoder := jsonrpcRequestEncoderName(ed)
 		codegen.Doc(stmt, fmt.Sprintf("%s returns an endpoint that makes JSON-RPC requests to the %s service %s method.", ed.EndpointInit, ed.ServiceName, ed.Method.Name))
 		stmt.Func().
@@ -407,7 +407,7 @@ func writeJSONRPCDoRequest(g *jen.Group, ed *httpcodegen.EndpointData) {
 
 //nolint:maintidx // Connection bootstrap and reconnection logic are intentionally emitted together.
 func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-client-websocket-conn", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-client-websocket-conn", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, "getConn returns the current WebSocket connection or creates a new one.")
 		stmt.Func().
 			Params(jen.Id("c").Op("*").Id(data.ClientStruct)).
@@ -514,7 +514,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 }
 
 func jsonrpcWebSocketStreamErrorTypesSection() codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-websocket-stream-error-types", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-websocket-stream-error-types", func(stmt *jen.Statement) {
 		stmt.Comment("Stream error types for comprehensive error reporting.").Line()
 		stmt.Type().Id("StreamErrorType").Int()
 		stmt.Line()

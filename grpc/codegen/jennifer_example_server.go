@@ -7,7 +7,7 @@ import (
 )
 
 func grpcExampleServerSection(services []*ServiceData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("server-grpc-main", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("server-grpc-main", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, "handleGRPCServer starts configures and starts a gRPC server on the given URL. It shuts down the server if any error is received in the error channel.")
 		needStream := hasStreamSection(services)
 		stmt.Func().Id("handleGRPCServer").Params(grpcExampleServerParams(services)...).BlockFunc(func(g *jen.Group) {

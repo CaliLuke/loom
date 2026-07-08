@@ -10,7 +10,7 @@ import (
 )
 
 func jsonrpcSSEClientStreamSection(ed *httpcodegen.EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-sse-client-stream", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-sse-client-stream", func(stmt *jen.Statement) {
 		writeJSONRPCSSEClientStreamType(stmt, ed)
 		stmt.Line()
 		writeJSONRPCSSERecv(stmt, ed)

@@ -11,19 +11,19 @@ import (
 )
 
 func serverInterceptorsInterfaceSection(svc *Data) codegen.Section {
-	return codegen.MustJenniferSection("server-interceptors-type", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-interceptors-type", func(stmt *jen.Statement) {
 		addInterceptorsInterfaceSection(stmt, svc.ServerInterceptors, true)
 	})
 }
 
 func clientInterceptorsInterfaceSection(svc *Data) codegen.Section {
-	return codegen.MustJenniferSection("client-interceptors-type", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("client-interceptors-type", func(stmt *jen.Statement) {
 		addInterceptorsInterfaceSection(stmt, svc.ClientInterceptors, false)
 	})
 }
 
 func interceptorTypesSection(interceptors []*InterceptorData) codegen.Section {
-	return codegen.MustJenniferSection("interceptor-types", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("interceptor-types", func(stmt *jen.Statement) {
 		addInterceptorTypesSection(stmt, interceptors)
 	})
 }
@@ -33,37 +33,37 @@ func endpointWrapperSection(server bool, methodVarName, method string, intercept
 	if server {
 		name = "endpoint-wrapper"
 	}
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		addEndpointWrapperSection(stmt, server, methodVarName, method, interceptors)
 	})
 }
 
 func interceptorsSection(interceptors []*InterceptorData, server bool) codegen.Section {
-	return codegen.MustJenniferSection("interceptors", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("interceptors", func(stmt *jen.Statement) {
 		addInterceptorsSection(stmt, interceptors, server)
 	})
 }
 
 func streamWrapperTypesSection(name string, streams []*StreamInterceptorData, server bool) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		addStreamWrapperTypesSection(stmt, streams, server)
 	})
 }
 
 func serverInterceptorWrappersSection(service string, interceptors []*InterceptorData) codegen.Section {
-	return codegen.MustJenniferSection("server-interceptor-wrappers", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-interceptor-wrappers", func(stmt *jen.Statement) {
 		addServerInterceptorWrappersSection(stmt, service, interceptors)
 	})
 }
 
 func clientInterceptorWrappersSection(service string, interceptors []*InterceptorData) codegen.Section {
-	return codegen.MustJenniferSection("client-interceptor-wrappers", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("client-interceptor-wrappers", func(stmt *jen.Statement) {
 		addClientInterceptorWrappersSection(stmt, service, interceptors)
 	})
 }
 
 func streamWrappersSection(name string, streams []*StreamInterceptorData, server bool) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		addStreamWrappersSection(stmt, streams, server)
 	})
 }

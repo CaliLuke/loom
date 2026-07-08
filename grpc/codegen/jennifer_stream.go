@@ -9,7 +9,7 @@ import (
 )
 
 func grpcStreamStructSection(stream *StreamData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection(stream.Type+"-stream-struct-type", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection(stream.Type+"-stream-struct-type", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %s interface.", stream.VarName, stream.ServiceInterface))
 		fields := []jen.Code{
 			jen.Id("stream").Add(codegenpkg.TypeRef(stream.Interface)),
@@ -22,7 +22,7 @@ func grpcStreamStructSection(stream *StreamData) codegenpkg.Section {
 }
 
 func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection(stream.Type+"-stream-send", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection(stream.Type+"-stream-send", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, stream.SendDesc)
 		body := []jen.Code{}
 		sendArg := "res"
@@ -74,7 +74,7 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 }
 
 func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection(stream.Type+"-stream-recv", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection(stream.Type+"-stream-recv", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, stream.RecvDesc)
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
 			Id(stream.RecvName).
@@ -217,7 +217,7 @@ func grpcStreamRecvInitArgs(init *InitData) []jen.Code {
 }
 
 func grpcStreamCloseSection(stream *StreamData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection(stream.Type+"-stream-close", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection(stream.Type+"-stream-close", func(stmt *jen.Statement) {
 		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).Id("Close").Params().Error().BlockFunc(func(g *jen.Group) {
 			if stream.Type == "client" {
@@ -296,7 +296,7 @@ func appendGRPCServerErrorHandler(g *jen.Group, endpoint *EndpointData, serverSt
 }
 
 func grpcStreamSetViewSection(stream *StreamData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection(stream.Type+"-stream-set-view", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection(stream.Type+"-stream-set-view", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, "SetView sets the view.")
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
 			Id("SetView").

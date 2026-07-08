@@ -31,16 +31,6 @@ func NewTextTemplateSection(name, source string, funcs map[string]any, data any)
 	}
 }
 
-// MustJenniferSection builds a Jennifer-backed section.
-func MustJenniferSection(name string, build func(*jen.Statement)) Section {
-	return NewJenniferSection(name, build)
-}
-
-// MustRenderSection builds a source-backed section from a render callback.
-func MustRenderSection(name string, render func() string) Section {
-	return NewRenderSection(name, render)
-}
-
 // Doc appends a wrapped Go doc comment followed by a blank line.
 func Doc(stmt *jen.Statement, text string) *jen.Statement {
 	return stmt.Comment(Comment(text)).Line()

@@ -10,7 +10,7 @@ import (
 )
 
 func grpcClientStructSection(data *ServiceData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("client-struct", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("client-struct", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s lists the service endpoint gRPC clients.", data.ClientStruct))
 		stmt.Type().Id(data.ClientStruct).Struct(
 			jen.Id("grpccli").Add(codegenpkg.TypeRef(data.PkgName+"."+data.ClientInterface)),
@@ -20,7 +20,7 @@ func grpcClientStructSection(data *ServiceData) codegenpkg.Section {
 }
 
 func grpcClientInitSection(data *ServiceData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("grpc-client-init", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("grpc-client-init", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("New%s instantiates gRPC client for all the %s service servers.", data.ClientStruct, data.Service.Name))
 		stmt.Func().Id("New"+data.ClientStruct).
 			Params(
@@ -40,7 +40,7 @@ func grpcClientInitSection(data *ServiceData) codegenpkg.Section {
 }
 
 func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("client-endpoint-init", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("client-endpoint-init", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s calls the %q function in %s.%s interface.", endpoint.Method.VarName, endpoint.Method.VarName, endpoint.PkgName, endpoint.ClientInterface))
 		stmt.Func().Params(jen.Id("c").Op("*").Id(endpoint.ClientStruct)).
 			Id(endpoint.Method.VarName).
@@ -168,7 +168,7 @@ func writeGRPCClientEndpointFallbackError(eg *jen.Group) {
 }
 
 func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("server-struct", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("server-struct", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %s.%s interface.", data.ServerStruct, data.PkgName, data.ServerInterface))
 		fields := make([]jen.Code, 0, len(data.Endpoints)+1)
 		for _, endpoint := range data.Endpoints {
@@ -184,7 +184,7 @@ func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 }
 
 func grpcServerInitSection(data *ServiceData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("server-init", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("server-init", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s instantiates the server struct with the %s service endpoints.", data.ServerInit, data.Service.Name))
 		params := []jen.Code{jen.Id("e").Op("*").Qual(data.Service.PkgName, "Endpoints")}
 		if data.HasUnaryEndpoint() {
@@ -215,7 +215,7 @@ func grpcServerInitSection(data *ServiceData) codegenpkg.Section {
 }
 
 func grpcHandlerInitSection(endpoint *EndpointData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("grpc-handler-init", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("grpc-handler-init", func(stmt *jen.Statement) {
 		handlerKind := "Unary"
 		decodeArg := jen.Id("nil")
 		encodeArgs := []jen.Code{decodeArg, jen.Id("Encode" + endpoint.Method.VarName + "Response")}
@@ -246,7 +246,7 @@ func grpcHandlerInitSection(endpoint *EndpointData) codegenpkg.Section {
 }
 
 func grpcServerInterfaceSection(endpoint *EndpointData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("server-grpc-interface", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("server-grpc-interface", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %q method in %s.%s interface.", endpoint.Method.VarName, endpoint.Method.VarName, endpoint.PkgName, endpoint.ServerInterface))
 		params := grpcServerInterfaceParams(endpoint)
 		results := grpcServerInterfaceResults(endpoint)
@@ -347,7 +347,7 @@ func addGRPCServerReturn(g *jen.Group, endpoint *EndpointData) {
 }
 
 func grpcExampleCLISection(defaultTransportType string, services []*ServiceData, interceptorsPkg string) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("do-grpc-cli", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("do-grpc-cli", func(stmt *jen.Statement) {
 		stmt.Func().Id("doGRPC").Params(
 			jen.List(jen.Id("_"), jen.Id("host")).String(),
 			jen.Id("_").Int(),
@@ -396,7 +396,7 @@ func grpcExampleCLISection(defaultTransportType string, services []*ServiceData,
 }
 
 func grpcParseEndpointSection(commands []*cli.CommandData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("parse-endpoint-grpc", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("parse-endpoint-grpc", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, "ParseEndpoint returns the endpoint and payload as specified on the command line.")
 		params := []jen.Code{
 			jen.Id("cc").Op("*").Qual("google.golang.org/grpc", "ClientConn"),
@@ -460,7 +460,7 @@ func grpcParseEndpointSection(commands []*cli.CommandData) codegenpkg.Section {
 }
 
 func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("remote-method-builder", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("remote-method-builder", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("Build%sFunc builds the remote method to invoke for %q service %q endpoint.", endpoint.Method.VarName, endpoint.ServiceName, endpoint.Method.Name))
 		stmt.Func().Id("Build"+endpoint.Method.VarName+"Func").
 			Params(

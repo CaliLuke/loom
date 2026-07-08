@@ -17,7 +17,7 @@ var multilineValues = jen.Options{
 }
 
 func endpointsStructSection(data *EndpointsData) codegen.Section {
-	return codegen.MustJenniferSection("endpoints-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("endpoints-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, data.Description)
 		stmt.Type().Id(data.VarName).StructFunc(func(group *jen.Group) {
 			for _, method := range data.Methods {
@@ -29,7 +29,7 @@ func endpointsStructSection(data *EndpointsData) codegen.Section {
 }
 
 func endpointStreamStructSection(method *EndpointMethodData) codegen.Section {
-	return codegen.MustJenniferSection("endpoint-input-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("endpoint-input-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s holds both the payload and the server stream of the %q method.", method.ServerStream.EndpointStruct, method.Name))
 		stmt.Type().Id(method.ServerStream.EndpointStruct).StructFunc(func(group *jen.Group) {
 			if method.PayloadRef != "" {
@@ -48,7 +48,7 @@ func endpointStreamStructSection(method *EndpointMethodData) codegen.Section {
 }
 
 func requestBodyStructSection(method *EndpointMethodData) codegen.Section {
-	return codegen.MustJenniferSection("request-body-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("request-body-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s holds both the payload and the HTTP request body reader of the %q method.", method.RequestStruct, method.Name))
 		stmt.Type().Id(method.RequestStruct).StructFunc(func(group *jen.Group) {
 			if method.PayloadRef != "" {
@@ -63,7 +63,7 @@ func requestBodyStructSection(method *EndpointMethodData) codegen.Section {
 }
 
 func responseBodyStructSection(method *EndpointMethodData) codegen.Section {
-	return codegen.MustJenniferSection("response-body-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("response-body-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s holds both the result and the HTTP response body reader of the %q method.", method.ResponseStruct, method.Name))
 		stmt.Type().Id(method.ResponseStruct).StructFunc(func(group *jen.Group) {
 			if method.ResultRef != "" {
@@ -78,7 +78,7 @@ func responseBodyStructSection(method *EndpointMethodData) codegen.Section {
 }
 
 func endpointsInitSection(data *EndpointsData) codegen.Section {
-	return codegen.MustJenniferSection("endpoints-init", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("endpoints-init", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("New%s wraps the methods of the %q service with endpoints.", data.VarName, data.Name))
 		stmt.Func().Id("New" + data.VarName).ParamsFunc(func(group *jen.Group) {
 			group.Id("s").Id(data.ServiceVarName)
@@ -112,7 +112,7 @@ func endpointsInitSection(data *EndpointsData) codegen.Section {
 }
 
 func endpointsUseSection(data *EndpointsData) codegen.Section {
-	return codegen.MustJenniferSection("endpoints-use", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("endpoints-use", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("Use applies the given middleware to all the %q service endpoints.", data.Name))
 		stmt.Func().Params(jen.Id("e").Op("*").Id(data.VarName)).Id("Use").Params(
 			jen.Id("m").Func().Params(codegen.Expr("loom.Endpoint")).Add(codegen.Expr("loom.Endpoint")),

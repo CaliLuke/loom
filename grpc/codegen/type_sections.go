@@ -10,7 +10,7 @@ import (
 )
 
 func grpcTypeInitSection(init *InitData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("type-init", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("type-init", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, init.Description)
 		params := make([]jen.Code, 0, len(init.Args))
 		for _, arg := range init.Args {
@@ -46,7 +46,7 @@ func grpcTypeInitSection(init *InitData) codegenpkg.Section {
 }
 
 func grpcValidateSection(data *ValidationData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("validate", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("validate", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s runs the validations defined on %s.", data.Name, data.SrcName))
 		stmt.Func().Id(data.Name).
 			Params(jen.Id(data.ArgName).Add(codegenpkg.TypeRef(data.SrcRef))).
@@ -60,7 +60,7 @@ func grpcValidateSection(data *ValidationData) codegenpkg.Section {
 }
 
 func grpcTransformHelperSection(data *codegenpkg.TransformFunctionData) codegenpkg.Section {
-	return codegenpkg.MustJenniferSection("transform-helper", func(stmt *jen.Statement) {
+	return codegenpkg.NewJenniferSection("transform-helper", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s builds a value of type %s from a value of type %s.", data.Name, data.ResultTypeRef, data.ParamTypeRef))
 		stmt.Func().Id(data.Name).
 			Params(jen.Id("v").Add(codegenpkg.TypeRef(data.ParamTypeRef))).

@@ -10,7 +10,7 @@ import (
 )
 
 func jsonrpcWebSocketClientStreamSection(ws *httpcodegen.WebSocketData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-websocket-client-stream", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-websocket-client-stream", func(stmt *jen.Statement) {
 		hasRecv := ws.RecvName != "" && ws.RecvTypeRef != ""
 		hasSend := ws.SendName != ""
 		isBidirectional := hasSend && hasRecv

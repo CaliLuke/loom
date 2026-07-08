@@ -13,7 +13,7 @@ import (
 // PayloadBuilderSection builds the section that can be used to
 // generate the payload builder code.
 func PayloadBuilderSection(buildFunction *BuildFunctionData) codegen.Section {
-	return codegen.MustJenniferSection("cli-build-payload", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("cli-build-payload", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s builds the payload for the %s %s endpoint from CLI flags.", buildFunction.Name, buildFunction.ServiceName, buildFunction.MethodName))
 		fn := stmt.Func().Id(buildFunction.Name).ParamsFunc(func(group *jen.Group) {
 			for _, formal := range buildFunction.FormalParams {

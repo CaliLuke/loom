@@ -9,7 +9,7 @@ import (
 )
 
 func clientStructSection(data *ServiceData) gocodegen.Section {
-	return gocodegen.MustJenniferSection("client-struct", func(stmt *jen.Statement) {
+	return gocodegen.NewJenniferSection("client-struct", func(stmt *jen.Statement) {
 		gocodegen.Doc(stmt, fmt.Sprintf("%s lists the %s service endpoint HTTP clients.", data.ClientStruct, data.Service.Name))
 		stmt.Type().Id(data.ClientStruct).StructFunc(func(group *jen.Group) {
 			for _, endpoint := range data.Endpoints {
@@ -34,7 +34,7 @@ func clientStructSection(data *ServiceData) gocodegen.Section {
 }
 
 func clientInitSection(data *ServiceData) gocodegen.Section {
-	return gocodegen.MustJenniferSection("http-client-init", func(stmt *jen.Statement) {
+	return gocodegen.NewJenniferSection("http-client-init", func(stmt *jen.Statement) {
 		gocodegen.Doc(stmt, fmt.Sprintf("New%s instantiates HTTP clients for all the %s service servers.", data.ClientStruct, data.Service.Name))
 
 		fn := stmt.Func().Id("New" + data.ClientStruct).ParamsFunc(func(args *jen.Group) {
@@ -93,7 +93,7 @@ func clientEndpointSections(endpoint *EndpointData) []gocodegen.Section {
 }
 
 func clientEndpointSection(endpoint *EndpointData) gocodegen.Section {
-	return gocodegen.MustJenniferSection("client-endpoint-init", func(stmt *jen.Statement) {
+	return gocodegen.NewJenniferSection("client-endpoint-init", func(stmt *jen.Statement) {
 		gocodegen.Doc(stmt, fmt.Sprintf("%s returns an endpoint that makes HTTP requests to the %s service %s server.", endpoint.EndpointInit, endpoint.ServiceName, endpoint.Method.Name))
 
 		fn := stmt.Func().Params(jen.Id("c").Op("*").Id(endpoint.ClientStruct)).Id(endpoint.EndpointInit)

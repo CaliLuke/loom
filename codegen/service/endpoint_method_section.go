@@ -9,7 +9,7 @@ import (
 )
 
 func endpointMethodSection(method *EndpointMethodData) codegen.Section {
-	return codegen.MustJenniferSection("endpoint-method", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("endpoint-method", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("New%sEndpoint returns an endpoint function that calls the method %q of service %q.", method.VarName, method.Name, method.ServiceName))
 		stmt.Func().Id("New" + method.VarName + "Endpoint").ParamsFunc(func(group *jen.Group) {

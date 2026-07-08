@@ -70,7 +70,7 @@ func websocketConnConfigurerStructSection(data *ServiceData, client bool) codege
 	if client {
 		prefix = "client"
 	}
-	return codegen.MustJenniferSection(prefix+"-websocket-conn-configurer-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(prefix+"-websocket-conn-configurer-struct", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("ConnConfigurer holds the websocket connection configurer functions for the streaming endpoints in %q service.", data.Service.Name))
 		stmt.Type().Id("ConnConfigurer").StructFunc(func(group *jen.Group) {
@@ -89,7 +89,7 @@ func websocketConnConfigurerInitSection(data *ServiceData, client bool) codegen.
 	if client {
 		prefix = "client"
 	}
-	return codegen.MustJenniferSection(prefix+"-websocket-conn-configurer-struct-init", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(prefix+"-websocket-conn-configurer-struct-init", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("NewConnConfigurer initializes the websocket connection configurer function with fn for all the streaming endpoints in %q service.", data.Service.Name))
 		stmt.Func().
@@ -113,7 +113,7 @@ func websocketConnConfigurerInitSection(data *ServiceData, client bool) codegen.
 
 func websocketStructTypeSection(ws *WebSocketData) codegen.Section {
 	prefix := ws.Type
-	return codegen.MustJenniferSection(prefix+"-websocket-struct-type", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(prefix+"-websocket-struct-type", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the %s interface.", ws.VarName, ws.Interface))
 		stmt.Type().Id(ws.VarName).StructFunc(func(group *jen.Group) {

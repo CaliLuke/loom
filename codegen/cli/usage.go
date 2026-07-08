@@ -26,7 +26,7 @@ func UsageCommands(data []*CommandData) codegen.Section {
 		usages[i] = fmt.Sprintf("%s %s%s%s", cmd.Name, lp, strings.Join(subs, "|"), rp)
 	}
 
-	return codegen.MustJenniferSection("cli-usage-commands", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("cli-usage-commands", func(stmt *jen.Statement) {
 		stmt.Comment("UsageCommands returns the set of commands and sub-commands using the format").Line()
 		stmt.Comment("").Line()
 		stmt.Comment("   command (subcommand1|subcommand2|...)").Line()
@@ -50,7 +50,7 @@ func UsageExamples(data []*CommandData) codegen.Section {
 		}
 	}
 
-	return codegen.MustJenniferSection("cli-usage-examples", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("cli-usage-examples", func(stmt *jen.Statement) {
 		stmt.Comment("UsageExamples produces an example of a valid invocation of the CLI tool.").Line()
 		stmt.Func().Id("UsageExamples").Params().String().BlockFunc(func(group *jen.Group) {
 			if len(examples) == 0 {
@@ -74,7 +74,7 @@ func UsageExamples(data []*CommandData) codegen.Section {
 // CommandUsage builds the section that can be used to generate the
 // endpoint command usage code.
 func CommandUsage(data *CommandData) codegen.Section {
-	return codegen.MustJenniferSection("cli-command-usage", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("cli-command-usage", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%sUsage displays the usage of the %s command and its subcommands.", data.VarName, data.Name))
 		stmt.Func().Id(data.VarName + "Usage").Params().BlockFunc(func(group *jen.Group) {
 			group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit(printDescription(data.Description)))

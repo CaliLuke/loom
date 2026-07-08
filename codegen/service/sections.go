@@ -11,7 +11,7 @@ import (
 )
 
 func typeDefinitionSection(name, description, typeName, def string) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		if strings.TrimSpace(description) != "" {
 			codegen.Doc(stmt, description)
 		} else {
@@ -39,14 +39,14 @@ func userTypeSection(name string, data *UserTypeData) codegen.Section {
 }
 
 func errorSection(data *UserTypeData) codegen.Section {
-	return codegen.MustJenniferSection("service-error", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("service-error", func(stmt *jen.Statement) {
 		stmt.Add(codegen.Expr(strings.TrimSpace(renderErrorMethods(data))))
 		stmt.Line()
 	})
 }
 
 func validateSection(name string, data *ValidateData) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, data.Description)
 		stmt.Func().
 			Id(data.Name).
@@ -65,14 +65,14 @@ func validateSection(name string, data *ValidateData) codegen.Section {
 }
 
 func viewedTypeMapSection(rtdata []*viewedType) codegen.Section {
-	return codegen.MustJenniferSection("viewed-type-map", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("viewed-type-map", func(stmt *jen.Statement) {
 		stmt.Add(codegen.Expr(strings.TrimSpace(renderViewedTypeMap(rtdata))))
 		stmt.Line()
 	})
 }
 
 func unionTypeSection(name string, data *UnionTypeData) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		addUnionTypeSection(stmt, data)
 	})
 }

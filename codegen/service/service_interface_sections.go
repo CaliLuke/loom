@@ -11,7 +11,7 @@ import (
 )
 
 func serviceDefinitionSection(data *Data) codegen.Section {
-	return codegen.MustJenniferSection("service", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("service", func(stmt *jen.Statement) {
 		stmt.Line()
 		buildServiceInterface(stmt, data)
 		buildAuthorizerInterface(stmt, data)
@@ -449,10 +449,6 @@ func hasJSONRPCStreamingData(data *Data) bool {
 		}
 	}
 	return false
-}
-
-func hasJSONRPCStreaming(data *Data) bool {
-	return hasJSONRPCStreamingData(data)
 }
 
 func isJSONRPCWebSocketService(data *Data) bool {

@@ -10,7 +10,7 @@ import (
 )
 
 func websocketRecvSection(ws *WebSocketData) codegen.Section {
-	return codegen.MustJenniferSection(ws.Type+"-websocket-recv", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(ws.Type+"-websocket-recv", func(stmt *jen.Statement) {
 		addWebsocketRecvSection(stmt, ws)
 	})
 }

@@ -12,7 +12,7 @@ import (
 )
 
 func requestBuilderSection(endpoint *EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("request-builder", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("request-builder", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, endpoint.RequestInit.Description)
 		stmt.Func().
 			Params(jen.Id("c").Op("*").Id(endpoint.ClientStruct)).
@@ -54,7 +54,7 @@ func appendRawBlock(group *jen.Group, code string) {
 }
 
 func multipartRequestEncoderSection(data *MultipartData) codegen.Section {
-	return codegen.MustJenniferSection("multipart-request-encoder", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("multipart-request-encoder", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s returns an encoder to encode the multipart request for the %q service %q endpoint.", data.InitName, data.ServiceName, data.MethodName))
 		stmt.Func().
@@ -89,7 +89,7 @@ func multipartRequestEncoderSection(data *MultipartData) codegen.Section {
 }
 
 func multipartRequestDecoderTypeSection(data *MultipartData) codegen.Section {
-	return codegen.MustJenniferSection("multipart-request-decoder-type", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("multipart-request-decoder-type", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s is the type to decode multipart request for the %q service %q endpoint.", data.FuncName, data.ServiceName, data.MethodName))
 		stmt.Type().Id(data.FuncName).Func().Params(
@@ -111,7 +111,7 @@ func serverSSESections(data *ServiceData) []codegen.Section {
 }
 
 func serverSSESection(ed *EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("server-sse", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-sse", func(stmt *jen.Statement) {
 		addServerSSESection(stmt, ed)
 	})
 }

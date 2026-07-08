@@ -158,7 +158,7 @@ func TestJSONRPCObserverReasons(t *testing.T) {
 }
 
 func TestJSONRPCBatchWriterHelperSection(t *testing.T) {
-	section := codegen.MustJenniferSection("test-batch-writer", func(stmt *jen.Statement) {
+	section := codegen.NewJenniferSection("test-batch-writer", func(stmt *jen.Statement) {
 		addJSONRPCBatchWriterSection(stmt)
 	})
 	code := codegen.SectionCode(t, section)

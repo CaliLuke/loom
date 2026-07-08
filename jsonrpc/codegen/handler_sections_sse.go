@@ -9,7 +9,7 @@ import (
 
 //nolint:maintidx // Generator entrypoint intentionally keeps SSE routing branches together.
 func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-sse-server-handler", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-sse-server-handler", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "SSEStream"
 
 		stmt.Comment("handleSSE handles JSON-RPC SSE requests by dispatching to the appropriate method.").Line()

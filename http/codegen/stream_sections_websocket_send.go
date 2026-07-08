@@ -7,7 +7,7 @@ import (
 )
 
 func websocketSendSection(ws *WebSocketData) codegen.Section {
-	return codegen.MustJenniferSection(ws.Type+"-websocket-send", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(ws.Type+"-websocket-send", func(stmt *jen.Statement) {
 		addWebsocketSendSection(stmt, ws)
 	})
 }

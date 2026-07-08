@@ -11,7 +11,7 @@ import (
 )
 
 func parseEndpointSection(common []*cli.CommandData, commands []*commandData) codegen.Section {
-	return codegen.MustJenniferSection("parse-endpoint", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("parse-endpoint", func(stmt *jen.Statement) {
 		appendKongCommandLineStruct(stmt, common)
 		stmt.Line()
 		stmt.Comment("ParseEndpoint returns the endpoint and payload as specified on the command").Line()
@@ -274,7 +274,7 @@ func httpStreamPayloadArgs(sub *subcommandData) []jen.Code {
 }
 
 func pathSection(data *EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("path", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("path", func(stmt *jen.Statement) {
 		for _, route := range data.Routes {
 			if route.PathInit == nil {
 				continue

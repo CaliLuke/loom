@@ -13,7 +13,7 @@ import (
 )
 
 func jsonrpcResponseDecoderSection(e *httpcodegen.EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-response-decoder", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-response-decoder", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s returns a decoder for responses returned by the %s service %s JSON-RPC method. restoreBody controls whether the response body should be restored after having been read.", e.ResponseDecoder, e.ServiceName, e.Method.Name)
 		codegen.Doc(stmt, comment)
 		stmt.Func().Id(e.ResponseDecoder).

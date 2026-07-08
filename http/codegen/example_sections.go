@@ -91,7 +91,7 @@ func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
 }
 
 func exampleCLIUsageSection() codegen.Section {
-	return codegen.MustJenniferSection("cli-http-usage", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("cli-http-usage", func(stmt *jen.Statement) {
 		stmt.Line()
 		stmt.Func().Id("httpUsageCommands").Params().Index().String().Block(
 			jen.Return(jen.Id("cli").Dot("UsageCommands").Call()),
@@ -230,7 +230,7 @@ func renderExampleServerEnd(services []*ServiceData) string {
 }
 
 func exampleServerErrorHandlerSection() codegen.Section {
-	return codegen.MustJenniferSection("server-http-errorhandler", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-http-errorhandler", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.CommentBlock(stmt, "errorHandler returns a function that writes and logs the given error.\nThe function also writes and logs the error unique ID so that it's possible\nto correlate.")
 		stmt.Func().
@@ -260,7 +260,7 @@ func exampleServerErrorHandlerSection() codegen.Section {
 }
 
 func dummyMultipartRequestDecoderSection(data *MultipartData) codegen.Section {
-	return codegen.MustJenniferSection("dummy-multipart-request-decoder", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("dummy-multipart-request-decoder", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the multipart decoder for service %q endpoint %q. The decoder must populate the argument p after encoding.", data.FuncName, data.ServiceName, data.MethodName))
 		stmt.Func().
@@ -279,7 +279,7 @@ func dummyMultipartRequestDecoderSection(data *MultipartData) codegen.Section {
 }
 
 func dummyMultipartRequestEncoderSection(data *MultipartData) codegen.Section {
-	return codegen.MustJenniferSection("dummy-multipart-request-encoder", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("dummy-multipart-request-encoder", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the multipart encoder for service %q endpoint %q.", data.FuncName, data.ServiceName, data.MethodName))
 		stmt.Func().

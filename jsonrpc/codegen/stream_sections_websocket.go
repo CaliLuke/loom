@@ -25,13 +25,13 @@ func jsonrpcWebSocketServerSections(data *httpcodegen.ServiceData) []codegen.Sec
 }
 
 func jsonrpcWebSocketServerServiceErrorClassifierSection() codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-websocket-service-error-classifier", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-websocket-service-error-classifier", func(stmt *jen.Statement) {
 		writeJSONRPCServiceErrorClassifier(stmt)
 	})
 }
 
 func jsonrpcWebSocketServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-websocket-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-websocket-struct", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the Stream interface.", streamName))
 		stmt.Type().Id(streamName).StructFunc(func(g *jen.Group) {
@@ -58,7 +58,7 @@ func jsonrpcWebSocketServerStructSection(data *httpcodegen.ServiceData) codegen.
 }
 
 func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-websocket-stream-wrapper", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-websocket-stream-wrapper", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"
 		first := true
 		for _, ed := range data.Endpoints {
@@ -112,7 +112,7 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 }
 
 func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-websocket-send", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-websocket-send", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"
 		for _, ed := range data.Endpoints {
 			if ed.Result == nil || ed.Result.Ref == "" {
@@ -255,7 +255,7 @@ func jsonrpcWebSocketSendMethodMeta(ed *httpcodegen.EndpointData, notification b
 }
 
 func jsonrpcWebSocketServerRecvSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-websocket-recv", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-websocket-recv", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"
 		codegen.Doc(stmt, fmt.Sprintf("Recv reads JSON-RPC requests from the %s service stream.", data.Service.Name))
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
@@ -310,7 +310,7 @@ func jsonrpcWebSocketServerRecvSection(data *httpcodegen.ServiceData) codegen.Se
 }
 
 func jsonrpcWebSocketServerCloseSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-websocket-close", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-websocket-close", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"
 		codegen.Doc(stmt, fmt.Sprintf("Close closes the %s service websocket connection.", data.Service.Name))
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).

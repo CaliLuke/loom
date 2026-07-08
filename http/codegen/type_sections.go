@@ -11,7 +11,7 @@ import (
 )
 
 func typeDeclSection(name string, data *TypeData) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		addHTTPDocOrBlank(stmt, data.Description)
 		stmt.Type().Id(data.VarName).Add(codegen.Expr(data.Def))
 		if data.FlatFormUnionField == "" {
@@ -49,7 +49,7 @@ func typeDeclSection(name string, data *TypeData) codegen.Section {
 }
 
 func unionTypeSection(name string, data *servicecodegen.UnionTypeData) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		addHTTPUnionTypeSection(stmt, data)
 	})
 }
@@ -361,7 +361,7 @@ func addHTTPUnionFormMethodComment(stmt *jen.Statement, methodName, verb string)
 }
 
 func bodyInitSection(name string, init *InitData, client bool) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		args, code := initRenderData(init, client)
 		stmt.Line()
 		codegen.Doc(stmt, init.Description)
@@ -384,7 +384,7 @@ func bodyInitSection(name string, init *InitData, client bool) codegen.Section {
 }
 
 func typeInitSection(name string, init *InitData, client bool) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		args, code := initRenderData(init, client)
 		typ := initRenderTarget(client)
 		fieldInitCode := ""
@@ -443,7 +443,7 @@ func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 }
 
 func validateSection(name string, data *TypeData) codegen.Section {
-	return codegen.MustJenniferSection(name, func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("Validate%s runs the validations defined on %s", data.VarName, data.Name))
 		stmt.Func().

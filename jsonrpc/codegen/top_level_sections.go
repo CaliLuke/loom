@@ -10,7 +10,7 @@ import (
 )
 
 func jsonrpcClientStructSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-client-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-client-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s lists the %s service endpoint HTTP clients.", data.ClientStruct, data.Service.Name))
 		stmt.Type().Id(data.ClientStruct).StructFunc(func(g *jen.Group) {
 			g.Comment(codegen.Comment(fmt.Sprintf("Doer is the HTTP client used to make requests to the %s service.", data.Service.Name)))
@@ -47,7 +47,7 @@ func jsonrpcClientStructSection(data *httpcodegen.ServiceData) codegen.Section {
 }
 
 func jsonrpcClientInitSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-client-init", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-client-init", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("New%s instantiates HTTP clients for all the %s service servers.", data.ClientStruct, data.Service.Name))
 		params := []jen.Code{
 			jen.Id("scheme").String(),
@@ -99,7 +99,7 @@ func jsonrpcClientInitSection(data *httpcodegen.ServiceData) codegen.Section {
 }
 
 func jsonrpcServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s handles JSON-RPC requests for the %s service.", data.ServerStruct, data.Service.Name))
 		stmt.Type().Id(data.ServerStruct).StructFunc(func(g *jen.Group) {
 			g.Qual("net/http", "Handler")
@@ -152,7 +152,7 @@ func jsonrpcServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
 
 //nolint:maintidx // Server constructor wiring intentionally aggregates transport-setup branches.
 func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-init", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-init", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s creates a JSON-RPC server which loads HTTP requests and calls the %q service methods.", data.ServerInit, data.Service.Name))
 		params := []jen.Code{}
 		if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
@@ -240,7 +240,7 @@ func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 }
 
 func jsonrpcServerServiceSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-service", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-service", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s returns the name of the service served.", data.ServerService))
 		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
 			Id(data.ServerService).
@@ -254,7 +254,7 @@ func jsonrpcServerServiceSection(data *httpcodegen.ServiceData) codegen.Section 
 }
 
 func jsonrpcServerUseSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-use", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-use", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, "Use wraps the server handlers with the given middleware.")
 		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
 			Id("Use").
@@ -267,7 +267,7 @@ func jsonrpcServerUseSection(data *httpcodegen.ServiceData) codegen.Section {
 }
 
 func jsonrpcServerMethodNamesSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-method-names", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-method-names", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, "MethodNames returns the methods served.")
 		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
 			Id("MethodNames").
@@ -281,7 +281,7 @@ func jsonrpcServerMethodNamesSection(data *httpcodegen.ServiceData) codegen.Sect
 }
 
 func jsonrpcServerResponseCaptureSection() codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-response-capture", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-response-capture", func(stmt *jen.Statement) {
 		stmt.Type().Id("jsonrpcResponseCapture").Struct(
 			jen.Id("header").Qual("net/http", "Header"),
 			jen.Id("body").Qual("bytes", "Buffer"),
@@ -347,7 +347,7 @@ func jsonrpcServerResponseCaptureSection() codegen.Section {
 
 //nolint:maintidx // Mixed HTTP/SSE negotiation is intentionally centralized here.
 func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-mixed-server-handler", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-mixed-server-handler", func(stmt *jen.Statement) {
 		stmt.Comment("ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.").Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
 			Id("ServeHTTP").
@@ -512,7 +512,7 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 }
 
 func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-mount", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-mount", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s configures the mux to serve the JSON-RPC %s service methods.", data.MountServer, data.Service.Name)
 		codegen.Doc(stmt, comment)
 		stmt.Func().Id(data.MountServer).
@@ -574,7 +574,7 @@ func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed b
 }
 
 func jsonrpcServerEncodeErrorSection(serverStruct string) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-encode-error", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-encode-error", func(stmt *jen.Statement) {
 		writeJSONRPCEncodeErrorMethod(stmt, serverStruct)
 		writeJSONRPCEncodeErrorFunction(stmt)
 		writeJSONRPCServiceErrorClassifier(stmt)

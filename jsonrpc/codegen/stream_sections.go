@@ -11,7 +11,7 @@ import (
 )
 
 func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-sse-server-stream", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-sse-server-stream", func(stmt *jen.Statement) {
 		stmt.Add(codegen.Expr(renderSSEServerStreamSource(ed)))
 	})
 }
@@ -209,7 +209,7 @@ func (s *%s) sendSSEEvent(eventType string, v any) error {
 }
 
 func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-sse-stream-impl", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-sse-stream-impl", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "SSEStream"
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the %s.Stream interface for SSE transport.", streamName, data.Service.PkgName))
 		stmt.Type().Id(streamName).Struct(jsonrpcSSEStreamFields()...)

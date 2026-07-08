@@ -12,7 +12,7 @@ import (
 )
 
 func serverStructSection(data *ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("server-struct", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s lists the %s service endpoint HTTP handlers.", data.ServerStruct, data.Service.Name))
 		stmt.Type().Id(data.ServerStruct).StructFunc(func(group *jen.Group) {
 			group.Id("Mounts").Index().Op("*").Id(data.MountPointStruct)
@@ -28,7 +28,7 @@ func serverStructSection(data *ServiceData) codegen.Section {
 }
 
 func mountPointStructSection(data *ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("server-mountpoint", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-mountpoint", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s holds information about the mounted endpoints.", data.MountPointStruct))
 		stmt.Type().Id(data.MountPointStruct).StructFunc(func(group *jen.Group) {
 			group.Comment("Method is the name of the service method served by the mounted HTTP handler.")
@@ -43,7 +43,7 @@ func mountPointStructSection(data *ServiceData) codegen.Section {
 }
 
 func serverInitSection(data *ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("server-init", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-init", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s instantiates HTTP handlers for all the %s service endpoints using the provided encoder and decoder. The handlers are mounted on the given mux using the HTTP verb and path defined in the design. errhandler is called whenever a response fails to be encoded. formatter is used to format errors returned by the service methods prior to encoding. Both errhandler and formatter are optional and can be nil.", data.ServerInit, data.Service.Name)
 		codegen.Doc(stmt, comment)
 		stmt.Func().
@@ -130,7 +130,7 @@ func renderServerInitBody(data *ServiceData) string {
 }
 
 func serverServiceSection(data *ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("server-service", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-service", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s returns the name of the service served.", data.ServerService))
 		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).Id(data.ServerService).Params().String().Block(
 			jen.Return(jen.Lit(data.Service.Name)),
@@ -140,7 +140,7 @@ func serverServiceSection(data *ServiceData) codegen.Section {
 }
 
 func serverUseSection(data *ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("server-use", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-use", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, "Use wraps the server handlers with the given middleware.")
 		stmt.Func().
 			Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
@@ -156,7 +156,7 @@ func serverUseSection(data *ServiceData) codegen.Section {
 }
 
 func serverMethodNamesSection(data *ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("server-method-names", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-method-names", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, "MethodNames returns the methods served.")
 		stmt.Func().
 			Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
@@ -171,7 +171,7 @@ func serverMethodNamesSection(data *ServiceData) codegen.Section {
 }
 
 func serverMountSection(data *ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("server-mount", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-mount", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s configures the mux to serve the %s endpoints.", data.MountServer, data.Service.Name)
 		codegen.Doc(stmt, comment)
 		stmt.Func().
@@ -225,7 +225,7 @@ func renderServerMountBody(data *ServiceData, standalone bool) string {
 }
 
 func serverHandlerSection(data *EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("server-handler", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-handler", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s configures the mux to serve the %q service %q endpoint.", data.MountHandler, data.ServiceName, data.Method.Name))
 		stmt.Func().
 			Id(data.MountHandler).
@@ -249,7 +249,7 @@ func renderServerHandlerBody(data *EndpointData) string {
 }
 
 func appendFSSection(mappedFiles map[string]string) codegen.Section {
-	return codegen.MustJenniferSection("append-fs", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("append-fs", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, "appendFS is a custom implementation of fs.FS that appends a specified prefix to the file paths before delegating the Open call to the underlying fs.FS.")
 		stmt.Type().Id("appendFS").Struct(
 			jen.Id("prefix").String(),
@@ -296,7 +296,7 @@ func renderAppendFSOpenBody(mappedFiles map[string]string) string {
 }
 
 func fileServerSection(data *FileServerData) codegen.Section {
-	return codegen.MustJenniferSection("server-files", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("server-files", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s configures the mux to serve GET request made to %q.", data.MountHandler, strings.Join(data.RequestPaths, ", ")))
 		stmt.Func().
 			Id(data.MountHandler).

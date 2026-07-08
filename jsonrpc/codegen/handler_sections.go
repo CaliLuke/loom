@@ -10,7 +10,7 @@ import (
 )
 
 func jsonrpcServerHandlerSection(data *httpcodegen.ServiceData, mixed bool) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-handler", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-handler", func(stmt *jen.Statement) {
 		addJSONRPCServeHTTPSection(stmt, data, mixed)
 		addJSONRPCHandleHTTPSection(stmt, data)
 		addJSONRPCHandleSingleSection(stmt, data)
@@ -21,7 +21,7 @@ func jsonrpcServerHandlerSection(data *httpcodegen.ServiceData, mixed bool) code
 }
 
 func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-websocket-server-handler", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-websocket-server-handler", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"
 
 		stmt.Comment("ServeHTTP handles WebSocket JSON-RPC requests.").Line()
@@ -67,7 +67,7 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 }
 
 func jsonrpcServerHandlerInitSection(e *httpcodegen.EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("jsonrpc-server-handler-init", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("jsonrpc-server-handler-init", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s creates a JSON-RPC handler which calls the %q service %q endpoint.", e.HandlerInit, e.ServiceName, e.Method.Name)
 		codegen.Doc(stmt, comment)
 		stmt.Func().Id(e.HandlerInit).

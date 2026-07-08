@@ -20,13 +20,13 @@ func sseClientSections(data *ServiceData) []codegen.Section {
 }
 
 func sseClientSection(ed *EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("client-sse", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("client-sse", func(stmt *jen.Statement) {
 		addSSEClientSection(stmt, ed)
 	})
 }
 
 func websocketCloseSection(ws *WebSocketData) codegen.Section {
-	return codegen.MustJenniferSection(ws.Type+"-websocket-close", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(ws.Type+"-websocket-close", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("Close closes the %q endpoint websocket connection.", ws.Endpoint.Method.Name))
 		stmt.Func().
@@ -42,7 +42,7 @@ func websocketCloseSection(ws *WebSocketData) codegen.Section {
 }
 
 func websocketSetViewSection(ws *WebSocketData) codegen.Section {
-	return codegen.MustJenniferSection(ws.Type+"-websocket-set-view", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection(ws.Type+"-websocket-set-view", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("SetView sets the view to render the %s type before sending to the %q endpoint websocket connection.", ws.SendTypeName, ws.Endpoint.Method.Name))
 		stmt.Func().
@@ -57,7 +57,7 @@ func websocketSetViewSection(ws *WebSocketData) codegen.Section {
 }
 
 func buildStreamRequestSection(endpoint *EndpointData) codegen.Section {
-	return codegen.MustJenniferSection("build-stream-request", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("build-stream-request", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s creates a streaming endpoint request payload from the method payload and the path to the file to be streamed", endpoint.BuildStreamPayload))
 		stmt.Func().
@@ -77,7 +77,7 @@ func buildStreamRequestSection(endpoint *EndpointData) codegen.Section {
 }
 
 func multipartRequestEncoderTypeSection(data *MultipartData) codegen.Section {
-	return codegen.MustJenniferSection("multipart-request-encoder-type", func(stmt *jen.Statement) {
+	return codegen.NewJenniferSection("multipart-request-encoder-type", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s is the type to encode multipart request for the %q service %q endpoint.", data.FuncName, data.ServiceName, data.MethodName))
 		stmt.Type().Id(data.FuncName).Func().Params(
