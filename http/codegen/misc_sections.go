@@ -130,7 +130,7 @@ func writeSSEResultSetup(b *sourceBuilder, ed *EndpointData) {
 }
 
 func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
-	b.Add("\n\tvar data string\n\tvar payload any\n")
+	b.Add("\n\tvar payload any\n")
 	if ed.SSE.HasResponseBody {
 		b.Addf("\tbody := New%sResponseBody(res)\n", codegen.Goify(ed.Method.Name, true))
 		if ed.SSE.DataField != "" {
@@ -148,22 +148,8 @@ func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
 }
 
 func writeSSEPayloadEncoding(b *sourceBuilder) {
-	b.Add("\tswitch v := payload.(type) {\n")
-	b.Add("\tcase nil:\n\t\tdata = \"null\"\n")
-	b.Add("\tcase string:\n\t\tdata = v\n")
-	b.Add("\tcase []byte:\n\t\tdata = string(v)\n")
-	b.Add("\tcase bool:\n\t\tif v {\n\t\t\tdata = \"true\"\n\t\t} else {\n\t\t\tdata = \"false\"\n\t\t}\n")
-	for _, t := range []string{"int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64"} {
-		b.Addf("\tcase %s:\n\t\tdata = %s\n", t, renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%d"), jen.Id("v"))))
-	}
-	for _, t := range []string{"float32", "float64"} {
-		b.Addf("\tcase %s:\n\t\tdata = %s\n", t, renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%g"), jen.Id("v"))))
-	}
-	b.Add("\tdefault:\n")
-	b.Add("\t\tbyts, err := json.Marshal(payload)\n")
-	b.Add("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
-	b.Add("\t\tdata = string(byts)\n")
-	b.Add("\t}\n\n")
+	b.Add("\tdata, err := loomhttp.EncodeSSEData(payload)\n")
+	b.Add("\tif err != nil {\n\t\treturn err\n\t}\n\n")
 }
 
 func writeSSEMessageSetup(b *sourceBuilder, ed *EndpointData) {

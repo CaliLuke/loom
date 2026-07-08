@@ -9,8 +9,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"sync"
 
@@ -76,53 +74,12 @@ func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 	s.initHeaders()
 	res := v
 
-	var data string
 	var payload any
 	body := NewTickResponseBody(res)
 	payload = body.Data
-	switch v := payload.(type) {
-	case nil:
-		data = "null"
-	case string:
-		data = v
-	case []byte:
-		data = string(v)
-	case bool:
-		if v {
-			data = "true"
-		} else {
-			data = "false"
-		}
-	case int:
-		data = fmt.Sprintf("%d", v)
-	case int8:
-		data = fmt.Sprintf("%d", v)
-	case int16:
-		data = fmt.Sprintf("%d", v)
-	case int32:
-		data = fmt.Sprintf("%d", v)
-	case int64:
-		data = fmt.Sprintf("%d", v)
-	case uint:
-		data = fmt.Sprintf("%d", v)
-	case uint8:
-		data = fmt.Sprintf("%d", v)
-	case uint16:
-		data = fmt.Sprintf("%d", v)
-	case uint32:
-		data = fmt.Sprintf("%d", v)
-	case uint64:
-		data = fmt.Sprintf("%d", v)
-	case float32:
-		data = fmt.Sprintf("%g", v)
-	case float64:
-		data = fmt.Sprintf("%g", v)
-	default:
-		byts, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-		data = string(byts)
+	data, err := loomhttp.EncodeSSEData(payload)
+	if err != nil {
+		return err
 	}
 
 	msg := loomhttp.SSEMessage{Data: data}
@@ -205,53 +162,12 @@ func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 	s.initHeaders()
 	res := v
 
-	var data string
 	var payload any
 	body := NewTockResponseBody(res)
 	payload = body.Data
-	switch v := payload.(type) {
-	case nil:
-		data = "null"
-	case string:
-		data = v
-	case []byte:
-		data = string(v)
-	case bool:
-		if v {
-			data = "true"
-		} else {
-			data = "false"
-		}
-	case int:
-		data = fmt.Sprintf("%d", v)
-	case int8:
-		data = fmt.Sprintf("%d", v)
-	case int16:
-		data = fmt.Sprintf("%d", v)
-	case int32:
-		data = fmt.Sprintf("%d", v)
-	case int64:
-		data = fmt.Sprintf("%d", v)
-	case uint:
-		data = fmt.Sprintf("%d", v)
-	case uint8:
-		data = fmt.Sprintf("%d", v)
-	case uint16:
-		data = fmt.Sprintf("%d", v)
-	case uint32:
-		data = fmt.Sprintf("%d", v)
-	case uint64:
-		data = fmt.Sprintf("%d", v)
-	case float32:
-		data = fmt.Sprintf("%g", v)
-	case float64:
-		data = fmt.Sprintf("%g", v)
-	default:
-		byts, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-		data = string(byts)
+	data, err := loomhttp.EncodeSSEData(payload)
+	if err != nil {
+		return err
 	}
 
 	msg := loomhttp.SSEMessage{Data: data}
@@ -334,53 +250,12 @@ func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.Tick
 	s.initHeaders()
 	res := v
 
-	var data string
 	var payload any
 	body := NewGuardedResponseBody(res)
 	payload = body.Data
-	switch v := payload.(type) {
-	case nil:
-		data = "null"
-	case string:
-		data = v
-	case []byte:
-		data = string(v)
-	case bool:
-		if v {
-			data = "true"
-		} else {
-			data = "false"
-		}
-	case int:
-		data = fmt.Sprintf("%d", v)
-	case int8:
-		data = fmt.Sprintf("%d", v)
-	case int16:
-		data = fmt.Sprintf("%d", v)
-	case int32:
-		data = fmt.Sprintf("%d", v)
-	case int64:
-		data = fmt.Sprintf("%d", v)
-	case uint:
-		data = fmt.Sprintf("%d", v)
-	case uint8:
-		data = fmt.Sprintf("%d", v)
-	case uint16:
-		data = fmt.Sprintf("%d", v)
-	case uint32:
-		data = fmt.Sprintf("%d", v)
-	case uint64:
-		data = fmt.Sprintf("%d", v)
-	case float32:
-		data = fmt.Sprintf("%g", v)
-	case float64:
-		data = fmt.Sprintf("%g", v)
-	default:
-		byts, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-		data = string(byts)
+	data, err := loomhttp.EncodeSSEData(payload)
+	if err != nil {
+		return err
 	}
 
 	msg := loomhttp.SSEMessage{Data: data}

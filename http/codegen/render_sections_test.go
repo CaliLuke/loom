@@ -115,7 +115,8 @@ func TestConvertedStreamRenderSections(t *testing.T) {
 	sseSection := codegen.SectionCode(t, sseFile.Section("client-sse")[0])
 	require.Contains(t, sseSection, "type SSEObjectMethodClientStream interface {")
 	require.Contains(t, sseSection, "func NewSSEObjectMethodStream(")
-	require.Contains(t, sseSection, "func (s *SSEObjectMethodStreamImpl) checkBuffer() ([]byte, bool) {")
+	require.Contains(t, sseSection, "loomhttp.NewSSEStreamReader(resp.Body)")
+	require.NotContains(t, sseSection, "func (s *SSEObjectMethodStreamImpl) checkBuffer() ([]byte, bool) {")
 }
 
 func TestConvertedCLIRenderSections(t *testing.T) {

@@ -138,11 +138,7 @@ func addSSEClientImplStruct(stmt *jen.Statement, ed *EndpointData, streamName, i
 	stmt.Type().DefsFunc(func(group *jen.Group) {
 		group.Comment(implName + " implements the " + streamName + " interface.")
 		fields := []jen.Code{
-			jen.Id("resp").Op("*").Qual("net/http", "Response"),
-			jen.Id("buffer").Index().Byte().Comment("Buffer for unprocessed data"),
-			jen.Id("readLock").Qual("sync", "Mutex"),
-			jen.Id("lock").Qual("sync", "Mutex"),
-			jen.Id("closed").Bool(),
+			jen.Id("reader").Op("*").Add(codegen.TypeRef("loomhttp.SSEStreamReader")),
 		}
 		if sseClientNeedsDecoder(ed) {
 			fields = append(fields, jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")))
@@ -166,8 +162,7 @@ func addSSEClientConstructor(stmt *jen.Statement, ed *EndpointData, streamName, 
 		Id(streamName).
 		BlockFunc(func(group *jen.Group) {
 			values := jen.Dict{
-				jen.Id("resp"):   jen.Id("resp"),
-				jen.Id("buffer"): jen.Make(jen.Index().Byte(), jen.Lit(0), jen.Lit(4096)),
+				jen.Id("reader"): jen.Id("loomhttp").Dot("NewSSEStreamReader").Call(jen.Id("resp").Dot("Body")),
 			}
 			if sseClientNeedsDecoder(ed) {
 				values[jen.Id("decoder")] = jen.Id("decoder")
@@ -181,14 +176,18 @@ func addSSEClientConstructor(stmt *jen.Statement, ed *EndpointData, streamName, 
 func renderSSEClientRecvBody() string {
 	var b sourceBuilder
 	b.Add("var byts []byte\n")
-	b.Add("byts, err = s.readEvent(ctx)\n")
+	b.Add("byts, err = s.reader.ReadEvent(ctx)\n")
 	b.Add("if err != nil {\n")
 	b.Add("\tif errors.Is(err, io.EOF) {\n")
-	b.Add("\t\ts.Close()\n")
+	b.Add("\t\tif closeErr := s.Close(); closeErr != nil {\n")
+	b.Add("\t\t\treturn event, errors.Join(io.EOF, closeErr)\n")
+	b.Add("\t\t}\n")
 	b.Add("\t\treturn event, io.EOF\n")
 	b.Add("\t}\n")
 	b.Add("\tif errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {\n")
-	b.Add("\t\ts.Close()\n")
+	b.Add("\t\tif closeErr := s.Close(); closeErr != nil {\n")
+	b.Add("\t\t\treturn event, err\n")
+	b.Add("\t\t}\n")
 	b.Add("\t}\n")
 	b.Add("\treturn\n")
 	b.Add("}\n")
@@ -197,12 +196,5 @@ func renderSSEClientRecvBody() string {
 }
 
 func renderSSEClientCloseBody() string {
-	var b sourceBuilder
-	b.Add("s.lock.Lock()\n")
-	b.Add("if s.closed {\n\ts.lock.Unlock()\n\treturn nil\n}\n")
-	b.Add("s.closed = true\n")
-	b.Add("body := s.resp.Body\n")
-	b.Add("s.lock.Unlock()\n\n")
-	b.Add("return body.Close()")
-	return b.String()
+	return "return s.reader.Close()"
 }

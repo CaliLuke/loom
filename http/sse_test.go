@@ -2,8 +2,13 @@ package http
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"io"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -53,6 +58,82 @@ func TestWriteJSONSSEEvent(t *testing.T) {
 	}, "\n"), buf.String())
 }
 
+func TestEncodeSSEData(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload any
+		want    string
+	}{
+		{"nil", nil, "null"},
+		{"string", "hello", "hello"},
+		{"bytes", []byte("hello"), "hello"},
+		{"bool", true, "true"},
+		{"int", int8(3), "3"},
+		{"float", 1.5, "1.5"},
+		{"object", map[string]string{"hello": "world"}, `{"hello":"world"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := EncodeSSEData(tc.payload)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestSSEStreamReader(t *testing.T) {
+	reader := NewSSEStreamReader(io.NopCloser(strings.NewReader(strings.Join([]string{
+		"event: one",
+		"data: first",
+		"",
+		"event: two",
+		"data: second",
+		"",
+		"",
+	}, "\n"))))
+
+	first, err := reader.ReadEvent(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "event: one\ndata: first\n\n", string(first))
+
+	second, err := reader.ReadEvent(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "event: two\ndata: second\n\n", string(second))
+
+	_, err = reader.ReadEvent(context.Background())
+	require.ErrorIs(t, err, io.EOF)
+	require.NoError(t, reader.Close())
+	require.NoError(t, reader.Close())
+}
+
+func TestSSEStreamReaderContextErrorWinsOverCloseError(t *testing.T) {
+	closeErr := errors.New("close failed")
+	body := newBlockingSSEBody(closeErr)
+	reader := NewSSEStreamReader(body)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	readc := make(chan error, 1)
+	go func() {
+		_, err := reader.ReadEvent(ctx)
+		readc <- err
+	}()
+
+	select {
+	case <-body.readStarted:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for reader to start reading")
+	}
+	cancel()
+
+	select {
+	case err := <-readc:
+		require.ErrorIs(t, err, context.Canceled)
+		require.NotErrorIs(t, err, closeErr)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for canceled read")
+	}
+}
+
 func TestParseSSEEvent(t *testing.T) {
 	t.Run("parses a single event frame", func(t *testing.T) {
 		event, err := ParseSSEEvent([]byte(strings.Join([]string{
@@ -97,4 +178,32 @@ func TestParseSSEStream(t *testing.T) {
 		{Type: "message", Data: `{"step":1}`},
 		{Type: "response", Data: `{"step":2}`},
 	}, events)
+}
+
+type blockingSSEBody struct {
+	readStarted chan struct{}
+	closed      chan struct{}
+	closeOnce   sync.Once
+	closeErr    error
+}
+
+func newBlockingSSEBody(closeErr error) *blockingSSEBody {
+	return &blockingSSEBody{
+		readStarted: make(chan struct{}),
+		closed:      make(chan struct{}),
+		closeErr:    closeErr,
+	}
+}
+
+func (b *blockingSSEBody) Read([]byte) (int, error) {
+	close(b.readStarted)
+	<-b.closed
+	return 0, io.EOF
+}
+
+func (b *blockingSSEBody) Close() error {
+	b.closeOnce.Do(func() {
+		close(b.closed)
+	})
+	return b.closeErr
 }

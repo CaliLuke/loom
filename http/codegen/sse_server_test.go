@@ -65,6 +65,8 @@ func TestSSEServerStreamCommitsHeadersOnSend(t *testing.T) {
 	require.NotContains(t, code, "func (s *SSEObjectMethodServerStream) open() error")
 	require.Contains(t, code, "return s.SendWithContext(s.r.Context(), v)")
 	require.NotContains(t, code, "return s.SendWithContext(context.Background(), v)")
+	require.Contains(t, code, "data, err := loomhttp.EncodeSSEData(payload)")
+	require.NotContains(t, code, "switch v := payload.(type)")
 	require.Contains(t, code, "if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {")
 	require.Contains(t, code, "if err := ctx.Err(); err != nil {")
 	require.Contains(t, code, "if err := s.r.Context().Err(); err != nil {")

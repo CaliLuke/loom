@@ -1,7 +1,6 @@
 package codegen
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -33,7 +32,7 @@ func TestRenderSSEParseAssignment(t *testing.T) {
 	})
 }
 
-func TestSSEClientEmitterSectionStillRendersCoreHelpers(t *testing.T) {
+func TestSSEClientEmitterDelegatesCoreReader(t *testing.T) {
 	root := RunHTTPDSL(t, func() {
 		testdata.SSEObjectDSL()
 	})
@@ -42,13 +41,16 @@ func TestSSEClientEmitterSectionStillRendersCoreHelpers(t *testing.T) {
 	sseFile := findFileWithSection(t, files, "client-sse")
 	code := renderedSectionSource(t, sseFile.Section("client-sse")[0])
 
-	require.Contains(t, code, "func (s *SSEObjectMethodStreamImpl) readEvent(ctx context.Context) ([]byte, error) {")
-	require.Contains(t, code, "func (s *SSEObjectMethodStreamImpl) checkBuffer() ([]byte, bool) {")
+	require.Contains(t, code, "SSEStreamReader")
+	require.Contains(t, code, "reader:  loomhttp.NewSSEStreamReader(resp.Body)")
+	require.Contains(t, code, "byts, err = s.reader.ReadEvent(ctx)")
+	require.Contains(t, code, "return s.reader.Close()")
+	require.NotContains(t, code, "func (s *SSEObjectMethodStreamImpl) readEvent")
+	require.NotContains(t, code, "func (s *SSEObjectMethodStreamImpl) checkBuffer")
 	require.Contains(t, code, "func (s *SSEObjectMethodStreamImpl) processEvent(eventData []byte)")
-	require.True(t, strings.Index(code, "func (s *SSEObjectMethodStreamImpl) readEvent") < strings.Index(code, "func (s *SSEObjectMethodStreamImpl) processEvent"))
 }
 
-func TestSSEClientEmitterDoesNotHoldLockAcrossBlockingRead(t *testing.T) {
+func TestSSEClientEmitterDoesNotEmitBlockingReadLoop(t *testing.T) {
 	root := RunHTTPDSL(t, func() {
 		testdata.SSEObjectDSL()
 	})
@@ -57,27 +59,11 @@ func TestSSEClientEmitterDoesNotHoldLockAcrossBlockingRead(t *testing.T) {
 	sseFile := findFileWithSection(t, files, "client-sse")
 	code := renderedSectionSource(t, sseFile.Section("client-sse")[0])
 
-	require.Contains(t, code, "readLock sync.Mutex")
-	require.Contains(t, code, "s.readLock.Lock()\n\tdefer s.readLock.Unlock()")
-	require.Contains(t, code, "case <-ctx.Done():\n\t\t\treturn nil, ctx.Err()")
-	require.NotContains(t, code, "case <-ctx.Done():\n\t\t\tif len(eventData) > 0 {")
-	require.Contains(t, code, "body := s.resp.Body")
-	require.Contains(t, code, "n, err := body.Read(buf)")
-	require.Contains(t, code, "case <-ctx.Done():\n\t\t\tselect {\n\t\t\tcase result := <-readc:")
-	require.Contains(t, code, "default:\n\t\t\t\t_ = s.Close()\n\t\t\t\treturn nil, ctx.Err()")
-	require.NotContains(t, code, "if ctx.Err() != nil {\n\t\t\treturn nil, ctx.Err()\n\t\t}")
+	require.NotContains(t, code, "readLock sync.Mutex")
+	require.NotContains(t, code, "s.readLock.Lock()")
+	require.NotContains(t, code, "body := s.resp.Body")
+	require.NotContains(t, code, "readc := make(chan readResult")
 	require.NotContains(t, code, "n, err := s.resp.Body.Read(buf)")
-
-	read := strings.Index(code, "n, err := body.Read(buf)")
-	unlock := strings.LastIndex(code[:read], "s.lock.Unlock()")
-	lock := strings.LastIndex(code[:read], "s.lock.Lock()")
-	require.Greater(t, unlock, lock, "readEvent must release the mutex before blocking on Body.Read")
-
-	closeBody := strings.Index(code, "return body.Close()")
-	require.NotEqual(t, -1, closeBody)
-	closeUnlock := strings.LastIndex(code[:closeBody], "s.lock.Unlock()")
-	closeLock := strings.LastIndex(code[:closeBody], "s.lock.Lock()")
-	require.Greater(t, closeUnlock, closeLock, "Close must release the mutex before closing the body")
 }
 
 func TestSSEClientEmitterReturnsEOFFromRecv(t *testing.T) {
@@ -89,6 +75,6 @@ func TestSSEClientEmitterReturnsEOFFromRecv(t *testing.T) {
 	sseFile := findFileWithSection(t, files, "client-sse")
 	code := renderedSectionSource(t, sseFile.Section("client-sse")[0])
 
-	require.Contains(t, code, "if errors.Is(err, io.EOF) {\n\t\t\ts.Close()\n\t\t\treturn event, io.EOF\n\t\t}")
+	require.Contains(t, code, "if errors.Is(err, io.EOF) {\n\t\t\tif closeErr := s.Close(); closeErr != nil {\n\t\t\t\treturn event, errors.Join(io.EOF, closeErr)\n\t\t\t}\n\t\t\treturn event, io.EOF\n\t\t}")
 	require.NotContains(t, code, "err = nil")
 }

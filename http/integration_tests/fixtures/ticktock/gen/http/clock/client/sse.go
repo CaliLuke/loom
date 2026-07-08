@@ -12,7 +12,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"sync"
 
 	clock "example.com/http-ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
@@ -28,11 +27,7 @@ type TickClientStream interface {
 type (
 	// TickStreamImpl implements the TickClientStream interface.
 	TickStreamImpl struct {
-		resp     *http.Response
-		buffer   []byte // Buffer for unprocessed data
-		readLock sync.Mutex
-		lock     sync.Mutex
-		closed   bool
+		reader *loomhttp.SSEStreamReader
 	}
 )
 
@@ -41,191 +36,34 @@ var _ TickClientStream = (*TickStreamImpl)(nil)
 
 // NewTickStream creates a new TickClientStream.
 func NewTickStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TickClientStream {
-	return &TickStreamImpl{
-		buffer: make([]byte, 0, 4096),
-		resp:   resp,
-	}
+	return &TickStreamImpl{reader: loomhttp.NewSSEStreamReader(resp.Body)}
 }
 
 // Recv reads and returns the next event from the SSE stream, respecting
 // context cancellation.
 func (s *TickStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
 	var byts []byte
-	byts, err = s.readEvent(ctx)
+	byts, err = s.reader.ReadEvent(ctx)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			s.Close()
+			if closeErr := s.Close(); closeErr != nil {
+				return event, errors.Join(io.EOF, closeErr)
+			}
 			return event, io.EOF
 		}
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			s.Close()
+			if closeErr := s.Close(); closeErr != nil {
+				return event, err
+			}
 		}
 		return
 	}
 	return s.processEvent(byts)
 }
 
-// readEvent reads a single SSE event from the stream, respecting context
-// cancellation.  It first checks the internal buffer for a complete event
-// (delimited by double newlines). If no complete event is found, it reads from
-// the HTTP response body until it either finds an event boundary, reaches EOF,
-// or encounters an error. Any data after the event boundary is saved in the
-// buffer for the next call.
-func (s *TickStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
-	const bufSize = 4096 // 4KB buffer size
-
-	s.readLock.Lock()
-	defer s.readLock.Unlock()
-
-	// Check for event in existing buffer
-	event, ok := s.checkBuffer()
-	if ok {
-		return event, nil
-	}
-
-	// Initialize with any data from buffer
-	eventData := event
-	wasNewline := len(eventData) > 0 && eventData[len(eventData)-1] == '\n'
-	buf := make([]byte, bufSize)
-
-	// Read data in chunks until we find an event or hit EOF
-	for {
-		// Check if context is done
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			// Continue processing
-		}
-
-		// Check if stream is closed
-		s.lock.Lock()
-		if s.closed {
-			s.lock.Unlock()
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
-			return nil, io.EOF
-		}
-		body := s.resp.Body
-		s.lock.Unlock()
-
-		// Read next chunk
-		type readResult struct {
-			n   int
-			err error
-		}
-		readc := make(chan readResult, 1)
-		go func() {
-			n, err := body.Read(buf)
-			readc <- readResult{n: n, err: err}
-		}()
-
-		var n int
-		var err error
-		select {
-		case result := <-readc:
-			n = result.n
-			err = result.err
-		case <-ctx.Done():
-			select {
-			case result := <-readc:
-				n = result.n
-				err = result.err
-			default:
-				_ = s.Close()
-				return nil, ctx.Err()
-			}
-		}
-
-		// Handle read errors
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-
-		// Process data if we got any
-		if n > 0 {
-			// Look for event boundary in this chunk
-			for i := 0; i < n; i++ {
-				b := buf[i]
-				eventData = append(eventData, b)
-
-				// Check for double newlines (event boundary)
-				if b == '\n' && wasNewline {
-					// Save any remaining data for next read
-					if i+1 < n {
-						s.lock.Lock()
-						s.buffer = append(s.buffer[:0], buf[i+1:n]...)
-						s.lock.Unlock()
-					}
-					return eventData, nil
-				}
-
-				// Update newline tracking
-				wasNewline = (b == '\n')
-			}
-		}
-
-		// Return partial data at EOF
-		if errors.Is(err, io.EOF) {
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
-			return nil, io.EOF
-		}
-	}
-}
-
-// checkBuffer examines the internal buffer for a complete SSE event (delimited
-// by double newlines).  It returns two values: the event data (or all buffer
-// contents if no complete event is found), and a boolean indicating whether a
-// complete event was found. If a complete event is found, any remaining data
-// after the event is kept in the buffer for the next call.
-func (s *TickStreamImpl) checkBuffer() ([]byte, bool) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	// Quick return if buffer is empty
-	if len(s.buffer) == 0 {
-		return nil, false
-	}
-
-	// Look for double newline in buffer
-	for i := 0; i < len(s.buffer)-1; i++ {
-		if s.buffer[i] == '\n' && s.buffer[i+1] == '\n' {
-			// Found complete event
-			eventEnd := i + 2 // Include both newlines
-			eventData := s.buffer[:eventEnd]
-
-			// Save remaining data for next time
-			if eventEnd < len(s.buffer) {
-				s.buffer = append(s.buffer[:0], s.buffer[eventEnd:]...)
-			} else {
-				s.buffer = s.buffer[:0]
-			}
-
-			return eventData, true
-		}
-	}
-
-	// No complete event found, return buffer contents
-	eventData := s.buffer
-	s.buffer = s.buffer[:0] // Clear buffer but keep capacity
-	return eventData, false
-}
-
 // Close closes the SSE stream and releases any associated resources.
 func (s *TickStreamImpl) Close() error {
-	s.lock.Lock()
-	if s.closed {
-		s.lock.Unlock()
-		return nil
-	}
-	s.closed = true
-	body := s.resp.Body
-	s.lock.Unlock()
-
-	return body.Close()
+	return s.reader.Close()
 }
 
 // processEvent processes a raw SSE event into the expected type
@@ -251,11 +89,7 @@ type TockClientStream interface {
 type (
 	// TockStreamImpl implements the TockClientStream interface.
 	TockStreamImpl struct {
-		resp     *http.Response
-		buffer   []byte // Buffer for unprocessed data
-		readLock sync.Mutex
-		lock     sync.Mutex
-		closed   bool
+		reader *loomhttp.SSEStreamReader
 	}
 )
 
@@ -264,191 +98,34 @@ var _ TockClientStream = (*TockStreamImpl)(nil)
 
 // NewTockStream creates a new TockClientStream.
 func NewTockStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TockClientStream {
-	return &TockStreamImpl{
-		buffer: make([]byte, 0, 4096),
-		resp:   resp,
-	}
+	return &TockStreamImpl{reader: loomhttp.NewSSEStreamReader(resp.Body)}
 }
 
 // Recv reads and returns the next event from the SSE stream, respecting
 // context cancellation.
 func (s *TockStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
 	var byts []byte
-	byts, err = s.readEvent(ctx)
+	byts, err = s.reader.ReadEvent(ctx)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			s.Close()
+			if closeErr := s.Close(); closeErr != nil {
+				return event, errors.Join(io.EOF, closeErr)
+			}
 			return event, io.EOF
 		}
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			s.Close()
+			if closeErr := s.Close(); closeErr != nil {
+				return event, err
+			}
 		}
 		return
 	}
 	return s.processEvent(byts)
 }
 
-// readEvent reads a single SSE event from the stream, respecting context
-// cancellation.  It first checks the internal buffer for a complete event
-// (delimited by double newlines). If no complete event is found, it reads from
-// the HTTP response body until it either finds an event boundary, reaches EOF,
-// or encounters an error. Any data after the event boundary is saved in the
-// buffer for the next call.
-func (s *TockStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
-	const bufSize = 4096 // 4KB buffer size
-
-	s.readLock.Lock()
-	defer s.readLock.Unlock()
-
-	// Check for event in existing buffer
-	event, ok := s.checkBuffer()
-	if ok {
-		return event, nil
-	}
-
-	// Initialize with any data from buffer
-	eventData := event
-	wasNewline := len(eventData) > 0 && eventData[len(eventData)-1] == '\n'
-	buf := make([]byte, bufSize)
-
-	// Read data in chunks until we find an event or hit EOF
-	for {
-		// Check if context is done
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			// Continue processing
-		}
-
-		// Check if stream is closed
-		s.lock.Lock()
-		if s.closed {
-			s.lock.Unlock()
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
-			return nil, io.EOF
-		}
-		body := s.resp.Body
-		s.lock.Unlock()
-
-		// Read next chunk
-		type readResult struct {
-			n   int
-			err error
-		}
-		readc := make(chan readResult, 1)
-		go func() {
-			n, err := body.Read(buf)
-			readc <- readResult{n: n, err: err}
-		}()
-
-		var n int
-		var err error
-		select {
-		case result := <-readc:
-			n = result.n
-			err = result.err
-		case <-ctx.Done():
-			select {
-			case result := <-readc:
-				n = result.n
-				err = result.err
-			default:
-				_ = s.Close()
-				return nil, ctx.Err()
-			}
-		}
-
-		// Handle read errors
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-
-		// Process data if we got any
-		if n > 0 {
-			// Look for event boundary in this chunk
-			for i := 0; i < n; i++ {
-				b := buf[i]
-				eventData = append(eventData, b)
-
-				// Check for double newlines (event boundary)
-				if b == '\n' && wasNewline {
-					// Save any remaining data for next read
-					if i+1 < n {
-						s.lock.Lock()
-						s.buffer = append(s.buffer[:0], buf[i+1:n]...)
-						s.lock.Unlock()
-					}
-					return eventData, nil
-				}
-
-				// Update newline tracking
-				wasNewline = (b == '\n')
-			}
-		}
-
-		// Return partial data at EOF
-		if errors.Is(err, io.EOF) {
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
-			return nil, io.EOF
-		}
-	}
-}
-
-// checkBuffer examines the internal buffer for a complete SSE event (delimited
-// by double newlines).  It returns two values: the event data (or all buffer
-// contents if no complete event is found), and a boolean indicating whether a
-// complete event was found. If a complete event is found, any remaining data
-// after the event is kept in the buffer for the next call.
-func (s *TockStreamImpl) checkBuffer() ([]byte, bool) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	// Quick return if buffer is empty
-	if len(s.buffer) == 0 {
-		return nil, false
-	}
-
-	// Look for double newline in buffer
-	for i := 0; i < len(s.buffer)-1; i++ {
-		if s.buffer[i] == '\n' && s.buffer[i+1] == '\n' {
-			// Found complete event
-			eventEnd := i + 2 // Include both newlines
-			eventData := s.buffer[:eventEnd]
-
-			// Save remaining data for next time
-			if eventEnd < len(s.buffer) {
-				s.buffer = append(s.buffer[:0], s.buffer[eventEnd:]...)
-			} else {
-				s.buffer = s.buffer[:0]
-			}
-
-			return eventData, true
-		}
-	}
-
-	// No complete event found, return buffer contents
-	eventData := s.buffer
-	s.buffer = s.buffer[:0] // Clear buffer but keep capacity
-	return eventData, false
-}
-
 // Close closes the SSE stream and releases any associated resources.
 func (s *TockStreamImpl) Close() error {
-	s.lock.Lock()
-	if s.closed {
-		s.lock.Unlock()
-		return nil
-	}
-	s.closed = true
-	body := s.resp.Body
-	s.lock.Unlock()
-
-	return body.Close()
+	return s.reader.Close()
 }
 
 // processEvent processes a raw SSE event into the expected type
@@ -474,11 +151,7 @@ type GuardedClientStream interface {
 type (
 	// GuardedStreamImpl implements the GuardedClientStream interface.
 	GuardedStreamImpl struct {
-		resp     *http.Response
-		buffer   []byte // Buffer for unprocessed data
-		readLock sync.Mutex
-		lock     sync.Mutex
-		closed   bool
+		reader *loomhttp.SSEStreamReader
 	}
 )
 
@@ -487,191 +160,34 @@ var _ GuardedClientStream = (*GuardedStreamImpl)(nil)
 
 // NewGuardedStream creates a new GuardedClientStream.
 func NewGuardedStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) GuardedClientStream {
-	return &GuardedStreamImpl{
-		buffer: make([]byte, 0, 4096),
-		resp:   resp,
-	}
+	return &GuardedStreamImpl{reader: loomhttp.NewSSEStreamReader(resp.Body)}
 }
 
 // Recv reads and returns the next event from the SSE stream, respecting
 // context cancellation.
 func (s *GuardedStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
 	var byts []byte
-	byts, err = s.readEvent(ctx)
+	byts, err = s.reader.ReadEvent(ctx)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			s.Close()
+			if closeErr := s.Close(); closeErr != nil {
+				return event, errors.Join(io.EOF, closeErr)
+			}
 			return event, io.EOF
 		}
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			s.Close()
+			if closeErr := s.Close(); closeErr != nil {
+				return event, err
+			}
 		}
 		return
 	}
 	return s.processEvent(byts)
 }
 
-// readEvent reads a single SSE event from the stream, respecting context
-// cancellation.  It first checks the internal buffer for a complete event
-// (delimited by double newlines). If no complete event is found, it reads from
-// the HTTP response body until it either finds an event boundary, reaches EOF,
-// or encounters an error. Any data after the event boundary is saved in the
-// buffer for the next call.
-func (s *GuardedStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
-	const bufSize = 4096 // 4KB buffer size
-
-	s.readLock.Lock()
-	defer s.readLock.Unlock()
-
-	// Check for event in existing buffer
-	event, ok := s.checkBuffer()
-	if ok {
-		return event, nil
-	}
-
-	// Initialize with any data from buffer
-	eventData := event
-	wasNewline := len(eventData) > 0 && eventData[len(eventData)-1] == '\n'
-	buf := make([]byte, bufSize)
-
-	// Read data in chunks until we find an event or hit EOF
-	for {
-		// Check if context is done
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			// Continue processing
-		}
-
-		// Check if stream is closed
-		s.lock.Lock()
-		if s.closed {
-			s.lock.Unlock()
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
-			return nil, io.EOF
-		}
-		body := s.resp.Body
-		s.lock.Unlock()
-
-		// Read next chunk
-		type readResult struct {
-			n   int
-			err error
-		}
-		readc := make(chan readResult, 1)
-		go func() {
-			n, err := body.Read(buf)
-			readc <- readResult{n: n, err: err}
-		}()
-
-		var n int
-		var err error
-		select {
-		case result := <-readc:
-			n = result.n
-			err = result.err
-		case <-ctx.Done():
-			select {
-			case result := <-readc:
-				n = result.n
-				err = result.err
-			default:
-				_ = s.Close()
-				return nil, ctx.Err()
-			}
-		}
-
-		// Handle read errors
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-
-		// Process data if we got any
-		if n > 0 {
-			// Look for event boundary in this chunk
-			for i := 0; i < n; i++ {
-				b := buf[i]
-				eventData = append(eventData, b)
-
-				// Check for double newlines (event boundary)
-				if b == '\n' && wasNewline {
-					// Save any remaining data for next read
-					if i+1 < n {
-						s.lock.Lock()
-						s.buffer = append(s.buffer[:0], buf[i+1:n]...)
-						s.lock.Unlock()
-					}
-					return eventData, nil
-				}
-
-				// Update newline tracking
-				wasNewline = (b == '\n')
-			}
-		}
-
-		// Return partial data at EOF
-		if errors.Is(err, io.EOF) {
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
-			return nil, io.EOF
-		}
-	}
-}
-
-// checkBuffer examines the internal buffer for a complete SSE event (delimited
-// by double newlines).  It returns two values: the event data (or all buffer
-// contents if no complete event is found), and a boolean indicating whether a
-// complete event was found. If a complete event is found, any remaining data
-// after the event is kept in the buffer for the next call.
-func (s *GuardedStreamImpl) checkBuffer() ([]byte, bool) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	// Quick return if buffer is empty
-	if len(s.buffer) == 0 {
-		return nil, false
-	}
-
-	// Look for double newline in buffer
-	for i := 0; i < len(s.buffer)-1; i++ {
-		if s.buffer[i] == '\n' && s.buffer[i+1] == '\n' {
-			// Found complete event
-			eventEnd := i + 2 // Include both newlines
-			eventData := s.buffer[:eventEnd]
-
-			// Save remaining data for next time
-			if eventEnd < len(s.buffer) {
-				s.buffer = append(s.buffer[:0], s.buffer[eventEnd:]...)
-			} else {
-				s.buffer = s.buffer[:0]
-			}
-
-			return eventData, true
-		}
-	}
-
-	// No complete event found, return buffer contents
-	eventData := s.buffer
-	s.buffer = s.buffer[:0] // Clear buffer but keep capacity
-	return eventData, false
-}
-
 // Close closes the SSE stream and releases any associated resources.
 func (s *GuardedStreamImpl) Close() error {
-	s.lock.Lock()
-	if s.closed {
-		s.lock.Unlock()
-		return nil
-	}
-	s.closed = true
-	body := s.resp.Body
-	s.lock.Unlock()
-
-	return body.Close()
+	return s.reader.Close()
 }
 
 // processEvent processes a raw SSE event into the expected type
