@@ -31,34 +31,106 @@ func writeJSONRPCSSEClientStreamType(stmt *jen.Statement, ed *httpcodegen.Endpoi
 		jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
 		jen.Id("closed").Bool(),
 		jen.Id("lock").Qual("sync", "Mutex"),
+		jen.Id("readLock").Qual("sync", "Mutex"),
 	)
 	stmt.Line()
+	writeJSONRPCSSEReadEvent(stmt, ed)
+	stmt.Line()
+	writeJSONRPCSSEReadLine(stmt, ed)
+	stmt.Line()
+	writeJSONRPCSSEMarkClosed(stmt, ed)
+}
+
+func writeJSONRPCSSEReadEvent(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
 		Id("readSSEEvent").
-		Params().
+		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.Index().Byte(), jen.Error()).
-		Block(
-			jen.Var().Id("event").Qual("bytes", "Buffer"),
-			jen.Line(),
-			jen.For().Block(
-				jen.List(jen.Id("line"), jen.Err()).Op(":=").Id("s").Dot("reader").Dot("ReadString").Call(jen.LitByte('\n')),
-				jen.If(jen.Err().Op("!=").Nil()).Block(
+		BlockFunc(func(g *jen.Group) {
+			g.Var().Id("event").Qual("bytes", "Buffer")
+			g.Line()
+			g.Id("s").Dot("lock").Dot("Lock").Call()
+			g.If(jen.Id("s").Dot("closed")).Block(
+				jen.Id("s").Dot("lock").Dot("Unlock").Call(),
+				jen.Return(jen.Nil(), jen.Qual("io", "EOF")),
+			)
+			g.Id("reader").Op(":=").Id("s").Dot("reader")
+			g.Id("s").Dot("lock").Dot("Unlock").Call()
+			g.Line()
+			g.For().BlockFunc(func(fg *jen.Group) {
+				fg.List(jen.Id("line"), jen.Err()).Op(":=").Id("s").Dot("readSSELine").Call(jen.Id("ctx"), jen.Id("reader"))
+				fg.If(jen.Err().Op("!=").Nil()).Block(
 					jen.If(jen.Err().Op("==").Qual("io", "EOF").Op("&&").Id("event").Dot("Len").Call().Op(">").Lit(0)).Block(
 						jen.Return(jen.Id("event").Dot("Bytes").Call(), jen.Nil()),
 					),
 					jen.Return(jen.Nil(), jen.Err()),
-				),
-				jen.Line(),
-				jen.Id("event").Dot("WriteString").Call(jen.Id("line")),
-				jen.Line(),
-				jen.Id("line").Op("=").Qual("strings", "TrimRight").Call(jen.Id("line"), jen.Lit("\r\n")),
-				jen.If(jen.Id("line").Op("==").Lit("")).Block(
+				)
+				fg.Line()
+				fg.Id("event").Dot("WriteString").Call(jen.Id("line"))
+				fg.Line()
+				fg.Id("line").Op("=").Qual("strings", "TrimRight").Call(jen.Id("line"), jen.Lit("\r\n"))
+				fg.If(jen.Id("line").Op("==").Lit("")).Block(
 					jen.If(jen.Id("event").Dot("Len").Call().Op(">").Lit(0)).Block(
 						jen.Return(jen.Id("event").Dot("Bytes").Call(), jen.Nil()),
 					),
 					jen.Continue(),
+				)
+			})
+		})
+}
+
+func writeJSONRPCSSEReadLine(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
+		Id("readSSELine").
+		Params(
+			jen.Id("ctx").Qual("context", "Context"),
+			jen.Id("reader").Op("*").Qual("bufio", "Reader"),
+		).
+		Params(jen.String(), jen.Error()).
+		BlockFunc(func(g *jen.Group) {
+			g.Type().Id("readLineResult").Struct(
+				jen.Id("line").String(),
+				jen.Id("err").Error(),
+			)
+			g.Line()
+			g.If(jen.Err().Op(":=").Id("ctx").Dot("Err").Call(), jen.Err().Op("!=").Nil()).Block(
+				jen.Return(jen.Lit(""), jen.Err()),
+			)
+			g.Line()
+			g.Id("readc").Op(":=").Make(jen.Chan().Id("readLineResult"), jen.Lit(1))
+			g.Go().Func().Params().Block(
+				jen.List(jen.Id("line"), jen.Err()).Op(":=").Id("reader").Dot("ReadString").Call(jen.LitByte('\n')),
+				jen.Id("readc").Op("<-").Id("readLineResult").Values(jen.Dict{
+					jen.Id("line"): jen.Id("line"),
+					jen.Id("err"):  jen.Err(),
+				}),
+			).Call()
+			g.Line()
+			g.Var().Id("result").Id("readLineResult")
+			g.Select().Block(
+				jen.Case(jen.Id("result").Op("=").Op("<-").Id("readc")).Block(),
+				jen.Case(jen.Op("<-").Id("ctx").Dot("Done").Call()).Block(
+					jen.Select().Block(
+						jen.Case(jen.Id("result").Op("=").Op("<-").Id("readc")).Block(),
+						jen.Default().Block(
+							jen.Id("_").Op("=").Id("s").Dot("Close").Call(),
+							jen.Return(jen.Lit(""), jen.Id("ctx").Dot("Err").Call()),
+						),
+					),
 				),
-			),
+			)
+			g.Return(jen.Id("result").Dot("line"), jen.Id("result").Dot("err"))
+		})
+}
+
+func writeJSONRPCSSEMarkClosed(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
+		Id("markClosed").
+		Params().
+		Block(
+			jen.Id("s").Dot("lock").Dot("Lock").Call(),
+			jen.Id("s").Dot("closed").Op("=").True(),
+			jen.Id("s").Dot("lock").Dot("Unlock").Call(),
 		)
 }
 
@@ -69,25 +141,28 @@ func writeJSONRPCSSERecv(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(codegen.TypeRef(ed.Result.Ref), jen.Error()).
 		BlockFunc(func(g *jen.Group) {
-			g.Id("s").Dot("lock").Dot("Lock").Call()
-			g.Defer().Id("s").Dot("lock").Dot("Unlock").Call()
+			g.Id("s").Dot("readLock").Dot("Lock").Call()
+			g.Defer().Id("s").Dot("readLock").Dot("Unlock").Call()
 			g.Line()
 			g.Var().Id("zero").Add(codegen.TypeRef(ed.Result.Ref))
 			g.Line()
+			g.Id("s").Dot("lock").Dot("Lock").Call()
 			g.If(jen.Id("s").Dot("closed")).Block(
+				jen.Id("s").Dot("lock").Dot("Unlock").Call(),
 				jen.Return(jen.Id("zero"), jen.Qual("io", "EOF")),
 			)
+			g.Id("s").Dot("lock").Dot("Unlock").Call()
 			g.Line()
 			g.For().Block(
-				jen.List(jen.Id("rawEvent"), jen.Err()).Op(":=").Id("s").Dot("readSSEEvent").Call(),
+				jen.List(jen.Id("rawEvent"), jen.Err()).Op(":=").Id("s").Dot("readSSEEvent").Call(jen.Id("ctx")),
 				jen.If(jen.Err().Op("!=").Nil()).Block(
-					jen.Id("s").Dot("closed").Op("=").True(),
+					jen.Id("s").Dot("markClosed").Call(),
 					jen.Return(jen.Id("zero"), jen.Err()),
 				),
 				jen.Line(),
 				jen.List(jen.Id("parsedEvent"), jen.Err()).Op(":=").Add(codegen.Expr("loomhttp.ParseSSEEvent")).Call(jen.Id("rawEvent")),
 				jen.If(jen.Err().Op("!=").Nil()).Block(
-					jen.Id("s").Dot("closed").Op("=").True(),
+					jen.Id("s").Dot("markClosed").Call(),
 					jen.Return(jen.Id("zero"), jen.Err()),
 				),
 				jen.Line(),
@@ -158,7 +233,7 @@ func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, clos
 		func() jen.Code {
 			if closeOnSuccess {
 				return jen.Block(
-					jen.Id("s").Dot("closed").Op("=").True(),
+					jen.Id("s").Dot("markClosed").Call(),
 					jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("JSON-RPC error %d: %s"), jen.Id("response").Dot("Error").Dot("Code"), jen.Id("response").Dot("Error").Dot("Message"))),
 				)
 			}
@@ -180,13 +255,13 @@ func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, clos
 			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode final result: %w"), jen.Err())),
 		)
 		if closeOnSuccess {
-			g.Id("s").Dot("closed").Op("=").True()
+			g.Id("s").Dot("markClosed").Call()
 		}
 		g.Return(jen.Id("result"), jen.Nil())
 		return
 	}
 	if closeOnSuccess {
-		g.Id("s").Dot("closed").Op("=").True()
+		g.Id("s").Dot("markClosed").Call()
 	}
 	g.Return(jen.Id("zero"), jen.Nil())
 }
@@ -199,7 +274,7 @@ func writeSSEClientErrorCase(g *jen.Group) {
 	).Block(
 		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse error response: %w"), jen.Err())),
 	)
-	g.Id("s").Dot("closed").Op("=").True()
+	g.Id("s").Dot("markClosed").Call()
 	g.If(jen.Id("response").Dot("Error").Op("!=").Nil()).Block(
 		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("JSON-RPC error %d: %s"), jen.Id("response").Dot("Error").Dot("Code"), jen.Id("response").Dot("Error").Dot("Message"))),
 	)
@@ -247,20 +322,27 @@ func writeJSONRPCSSEDecodeResult(stmt *jen.Statement, ed *httpcodegen.EndpointDa
 
 func writeJSONRPCSSEClose(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
 	codegen.Doc(stmt, "Close closes the stream.")
-	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName + "ClientStream")).
 		Id("Close").
 		Params().
 		Error().
-		Block(
-			jen.Id("s").Dot("lock").Dot("Lock").Call(),
-			jen.Defer().Id("s").Dot("lock").Dot("Unlock").Call(),
-			jen.Line(),
-			jen.If(jen.Op("!").Id("s").Dot("closed")).Block(
-				jen.Id("s").Dot("closed").Op("=").True(),
-				jen.If(jen.Id("s").Dot("resp").Op("!=").Nil().Op("&&").Id("s").Dot("resp").Dot("Body").Op("!=").Nil()).Block(
-					jen.Return(jen.Id("s").Dot("resp").Dot("Body").Dot("Close").Call()),
-				),
-			),
-			jen.Return(jen.Nil()),
-		)
+		BlockFunc(func(g *jen.Group) {
+			g.Var().Id("body").Qual("io", "Closer")
+			g.Line()
+			g.Id("s").Dot("lock").Dot("Lock").Call()
+			g.If(jen.Id("s").Dot("closed")).Block(
+				jen.Id("s").Dot("lock").Dot("Unlock").Call(),
+				jen.Return(jen.Nil()),
+			)
+			g.Id("s").Dot("closed").Op("=").True()
+			g.If(jen.Id("s").Dot("resp").Op("!=").Nil()).Block(
+				jen.Id("body").Op("=").Id("s").Dot("resp").Dot("Body"),
+			)
+			g.Id("s").Dot("lock").Dot("Unlock").Call()
+			g.Line()
+			g.If(jen.Id("body").Op("!=").Nil()).Block(
+				jen.Return(jen.Id("body").Dot("Close").Call()),
+			)
+			g.Return(jen.Nil())
+		})
 }

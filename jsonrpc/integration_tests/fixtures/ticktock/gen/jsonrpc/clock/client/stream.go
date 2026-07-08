@@ -26,18 +26,27 @@ import (
 // TickClientStream implements the clock.TickClientStream interface using
 // Server-Sent Events.
 type TickClientStream struct {
-	resp    *http.Response
-	reader  *bufio.Reader
-	decoder func(*http.Response) loomhttp.Decoder
-	closed  bool
-	lock    sync.Mutex
+	resp     *http.Response
+	reader   *bufio.Reader
+	decoder  func(*http.Response) loomhttp.Decoder
+	closed   bool
+	lock     sync.Mutex
+	readLock sync.Mutex
 }
 
-func (s *TickClientStream) readSSEEvent() ([]byte, error) {
+func (s *TickClientStream) readSSEEvent(ctx context.Context) ([]byte, error) {
 	var event bytes.Buffer
 
+	s.lock.Lock()
+	if s.closed {
+		s.lock.Unlock()
+		return nil, io.EOF
+	}
+	reader := s.reader
+	s.lock.Unlock()
+
 	for {
-		line, err := s.reader.ReadString(byte(0xa))
+		line, err := s.readSSELine(ctx, reader)
 		if err != nil {
 			if err == io.EOF && event.Len() > 0 {
 				return event.Bytes(), nil
@@ -56,28 +65,68 @@ func (s *TickClientStream) readSSEEvent() ([]byte, error) {
 		}
 	}
 }
+func (s *TickClientStream) readSSELine(ctx context.Context, reader *bufio.Reader) (string, error) {
+	type readLineResult struct {
+		line string
+		err  error
+	}
+
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
+	readc := make(chan readLineResult, 1)
+	go func() {
+		line, err := reader.ReadString(byte(0xa))
+		readc <- readLineResult{
+			err:  err,
+			line: line,
+		}
+	}()
+
+	var result readLineResult
+	select {
+	case result = <-readc:
+	case <-ctx.Done():
+		select {
+		case result = <-readc:
+		default:
+			_ = s.Close()
+			return "", ctx.Err()
+		}
+	}
+	return result.line, result.err
+}
+func (s *TickClientStream) markClosed() {
+	s.lock.Lock()
+	s.closed = true
+	s.lock.Unlock()
+}
 
 // Recv reads instances of "TickResult" from the stream.
 func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.readLock.Lock()
+	defer s.readLock.Unlock()
 
 	var zero *clock.TickResult
 
+	s.lock.Lock()
 	if s.closed {
+		s.lock.Unlock()
 		return zero, io.EOF
 	}
+	s.lock.Unlock()
 
 	for {
-		rawEvent, err := s.readSSEEvent()
+		rawEvent, err := s.readSSEEvent(ctx)
 		if err != nil {
-			s.closed = true
+			s.markClosed()
 			return zero, err
 		}
 
 		parsedEvent, err := loomhttp.ParseSSEEvent(rawEvent)
 		if err != nil {
-			s.closed = true
+			s.markClosed()
 			return zero, err
 		}
 
@@ -131,7 +180,7 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 			if err := json.Unmarshal(data, &response); err != nil {
 				return zero, fmt.Errorf("failed to parse error response: %w", err)
 			}
-			s.closed = true
+			s.markClosed()
 			if response.Error != nil {
 				return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
 			}
@@ -168,7 +217,7 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 			}
 			if response.Error != nil {
 				{
-					s.closed = true
+					s.markClosed()
 					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
 				}
 			}
@@ -183,7 +232,7 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 			if err != nil {
 				return zero, fmt.Errorf("failed to decode final result: %w", err)
 			}
-			s.closed = true
+			s.markClosed()
 			return result, nil
 		default:
 			continue
@@ -205,31 +254,47 @@ func (s *TickClientStream) decodeResult(data json.RawMessage) (*clock.TickResult
 
 // Close closes the stream.
 func (s *TickClientStream) Close() error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	var body io.Closer
 
-	if !s.closed {
-		s.closed = true
-		if s.resp != nil && s.resp.Body != nil {
-			return s.resp.Body.Close()
-		}
+	s.lock.Lock()
+	if s.closed {
+		s.lock.Unlock()
+		return nil
+	}
+	s.closed = true
+	if s.resp != nil {
+		body = s.resp.Body
+	}
+	s.lock.Unlock()
+
+	if body != nil {
+		return body.Close()
 	}
 	return nil
 } // TockClientStream implements the clock.TockClientStream interface using
 // Server-Sent Events.
 type TockClientStream struct {
-	resp    *http.Response
-	reader  *bufio.Reader
-	decoder func(*http.Response) loomhttp.Decoder
-	closed  bool
-	lock    sync.Mutex
+	resp     *http.Response
+	reader   *bufio.Reader
+	decoder  func(*http.Response) loomhttp.Decoder
+	closed   bool
+	lock     sync.Mutex
+	readLock sync.Mutex
 }
 
-func (s *TockClientStream) readSSEEvent() ([]byte, error) {
+func (s *TockClientStream) readSSEEvent(ctx context.Context) ([]byte, error) {
 	var event bytes.Buffer
 
+	s.lock.Lock()
+	if s.closed {
+		s.lock.Unlock()
+		return nil, io.EOF
+	}
+	reader := s.reader
+	s.lock.Unlock()
+
 	for {
-		line, err := s.reader.ReadString(byte(0xa))
+		line, err := s.readSSELine(ctx, reader)
 		if err != nil {
 			if err == io.EOF && event.Len() > 0 {
 				return event.Bytes(), nil
@@ -248,28 +313,68 @@ func (s *TockClientStream) readSSEEvent() ([]byte, error) {
 		}
 	}
 }
+func (s *TockClientStream) readSSELine(ctx context.Context, reader *bufio.Reader) (string, error) {
+	type readLineResult struct {
+		line string
+		err  error
+	}
+
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
+	readc := make(chan readLineResult, 1)
+	go func() {
+		line, err := reader.ReadString(byte(0xa))
+		readc <- readLineResult{
+			err:  err,
+			line: line,
+		}
+	}()
+
+	var result readLineResult
+	select {
+	case result = <-readc:
+	case <-ctx.Done():
+		select {
+		case result = <-readc:
+		default:
+			_ = s.Close()
+			return "", ctx.Err()
+		}
+	}
+	return result.line, result.err
+}
+func (s *TockClientStream) markClosed() {
+	s.lock.Lock()
+	s.closed = true
+	s.lock.Unlock()
+}
 
 // Recv reads instances of "TockResult" from the stream.
 func (s *TockClientStream) Recv(ctx context.Context) (*clock.TockResult, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.readLock.Lock()
+	defer s.readLock.Unlock()
 
 	var zero *clock.TockResult
 
+	s.lock.Lock()
 	if s.closed {
+		s.lock.Unlock()
 		return zero, io.EOF
 	}
+	s.lock.Unlock()
 
 	for {
-		rawEvent, err := s.readSSEEvent()
+		rawEvent, err := s.readSSEEvent(ctx)
 		if err != nil {
-			s.closed = true
+			s.markClosed()
 			return zero, err
 		}
 
 		parsedEvent, err := loomhttp.ParseSSEEvent(rawEvent)
 		if err != nil {
-			s.closed = true
+			s.markClosed()
 			return zero, err
 		}
 
@@ -323,7 +428,7 @@ func (s *TockClientStream) Recv(ctx context.Context) (*clock.TockResult, error) 
 			if err := json.Unmarshal(data, &response); err != nil {
 				return zero, fmt.Errorf("failed to parse error response: %w", err)
 			}
-			s.closed = true
+			s.markClosed()
 			if response.Error != nil {
 				return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
 			}
@@ -360,7 +465,7 @@ func (s *TockClientStream) Recv(ctx context.Context) (*clock.TockResult, error) 
 			}
 			if response.Error != nil {
 				{
-					s.closed = true
+					s.markClosed()
 					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
 				}
 			}
@@ -375,7 +480,7 @@ func (s *TockClientStream) Recv(ctx context.Context) (*clock.TockResult, error) 
 			if err != nil {
 				return zero, fmt.Errorf("failed to decode final result: %w", err)
 			}
-			s.closed = true
+			s.markClosed()
 			return result, nil
 		default:
 			continue
@@ -397,14 +502,21 @@ func (s *TockClientStream) decodeResult(data json.RawMessage) (*clock.TockResult
 
 // Close closes the stream.
 func (s *TockClientStream) Close() error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	var body io.Closer
 
-	if !s.closed {
-		s.closed = true
-		if s.resp != nil && s.resp.Body != nil {
-			return s.resp.Body.Close()
-		}
+	s.lock.Lock()
+	if s.closed {
+		s.lock.Unlock()
+		return nil
+	}
+	s.closed = true
+	if s.resp != nil {
+		body = s.resp.Body
+	}
+	s.lock.Unlock()
+
+	if body != nil {
+		return body.Close()
 	}
 	return nil
 }
