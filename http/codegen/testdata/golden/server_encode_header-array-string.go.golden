@@ -2,7 +2,10 @@
 // returned by the ServiceHeaderArrayString MethodHeaderArrayString endpoint.
 func EncodeMethodHeaderArrayStringResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceheaderarraystring.MethodHeaderArrayStringResult)
+		res, ok := v.(*serviceheaderarraystring.MethodHeaderArrayStringResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayString", "MethodHeaderArrayString", "*serviceheaderarraystring.MethodHeaderArrayStringResult", v)
+		}
 		if res.H != nil {
 			val := res.H
 			hs := strings.Join(val, ", ")

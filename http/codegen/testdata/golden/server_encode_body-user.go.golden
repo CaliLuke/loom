@@ -2,7 +2,10 @@
 // the ServiceBodyUser MethodBodyUser endpoint.
 func EncodeMethodBodyUserResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*servicebodyuser.ResultType)
+		res, ok := v.(*servicebodyuser.ResultType)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyUser", "MethodBodyUser", "*servicebodyuser.ResultType", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewMethodBodyUserResponseBody(res)
 		w.WriteHeader(http.StatusOK)

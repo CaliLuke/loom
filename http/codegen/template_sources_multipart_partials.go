@@ -1,9 +1,6 @@
 package codegen
 
-// requestDecoderPartials holds the helper templates composed into
-// requestDecoderSource. Declared in a separate file to keep the main
-// template source file under the file-size ceiling.
-var requestDecoderConversionPartials = []templateSource{
+var multipartRequestDecoderConversionPartials = []templateSource{
 	{name: "slice_item_conversion", source: `		{{- if eq .Type.ElemType.Type.Name "string" }}
 			{{ .VarName }}[i] = rv
 		{{- else if eq .Type.ElemType.Type.Name "bytes" }}
@@ -71,31 +68,7 @@ var requestDecoderConversionPartials = []templateSource{
 	for i, rv := range {{ .VarName }}Raw {
 		{{- template "partial_slice_item_conversion" . }}
 	}`},
-	{name: "query_slice_conversion", source: `	{{- if eq . "string" }} url.QueryEscape(v)
-	{{- else if eq . "int" "int32" }} strconv.FormatInt(int64(v), 10)
-	{{- else if eq . "int64" }} strconv.FormatInt(v, 10)
-	{{- else if eq . "uint" "uint32" }} strconv.FormatUint(uint64(v), 10)
-	{{- else if eq . "uint64" }} strconv.FormatUint(v, 10)
-	{{- else if eq . "float32" }} strconv.FormatFloat(float64(v), 'f', -1, 32)
-	{{- else if eq . "float64" }} strconv.FormatFloat(v, 'f', -1, 64)
-	{{- else if eq . "boolean" }} strconv.FormatBool(v)
-	{{- else if eq . "bytes" }} url.QueryEscape(string(v))
-	{{- else }} url.QueryEscape(fmt.Sprintf("%v", v))
-	{{- end }}`},
-	{name: "query_type_conversion", source: `	{{- if .IsTextUnmarshaler }}
-		{{- if .Pointer }}
-		var {{ .VarName }}Val {{ .TypeName }}
-		if err2 := {{ .VarName }}Val.UnmarshalText([]byte({{ .VarName }}Raw)); err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName }}Raw, {{ printf "%q" .TypeName }}))
-		} else {
-			{{ .VarName }} = &{{ .VarName }}Val
-		}
-		{{- else }}
-		if err2 := {{ .VarName }}.UnmarshalText([]byte({{ .VarName }}Raw)); err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName }}Raw, {{ printf "%q" .TypeName }}))
-		}
-		{{- end }}
-	{{- else if eq .Type.Name "bytes" }}
+	{name: "query_type_conversion", source: `	{{- if eq .Type.Name "bytes" }}
 		{{ .VarName }} = []byte({{.VarName}}Raw)
 	{{- else if eq .Type.Name "int" }}
 		v, err2 := strconv.ParseInt({{ .VarName }}Raw, 10, strconv.IntSize)
@@ -304,10 +277,7 @@ var requestDecoderConversionPartials = []templateSource{
 	{{- end }}`},
 }
 
-func requestDecoderPartialSources() []templateSource {
-	partials := make([]templateSource, 0, len(requestDecoderElementPartials)+len(requestDecoderConversionPartials))
-	partials = append(partials, requestDecoderElementPartials...)
-	return append(partials, requestDecoderConversionPartials...)
+func joinMultipartRequestDecoderSource(source string, partials ...templateSource) string {
+	partials = append(partials, multipartRequestDecoderConversionPartials...)
+	return joinHTTPTemplateSource(source, partials...)
 }
-
-var requestDecoderPartials = requestDecoderPartialSources()

@@ -14,7 +14,7 @@ var (
 func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
-			b, err := io.ReadAll(resp.Body)
+			b, err := loomhttp.ReadResponseBody(resp)
 			if err != nil {
 				return nil, err
 			}
@@ -90,7 +90,10 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 				{{- end }}
 			{{- end }}
 		default:
-			body, _ := io.ReadAll(resp.Body)
+			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+			if err != nil {
+				return nil, err
+			}
 			return nil, loomhttp.ErrInvalidResponse({{ printf "%q" $.ServiceName }}, {{ printf "%q" $.Method.Name }}, resp.StatusCode, string(body))
 		}
 		{{- else }}
@@ -107,7 +110,10 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 		{{- end }}
 	{{- end }}
 		default:
-			body, _ := io.ReadAll(resp.Body)
+			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+			if err != nil {
+				return nil, err
+			}
 			return nil, loomhttp.ErrInvalidResponse({{ printf "%q" .ServiceName }}, {{ printf "%q" .Method.Name }}, resp.StatusCode, string(body))
 		}
 	}

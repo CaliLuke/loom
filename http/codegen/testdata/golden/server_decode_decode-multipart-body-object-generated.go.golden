@@ -14,7 +14,7 @@ func DecodeMethodMultipartObjectGeneratedRequest(mux loomhttp.Muxer, decoder fun
 			if errors.As(multipartErr, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(multipartErr.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 		}
 		multipartForm, multipartErr := loomhttp.ReadMultipartForm(mr)
 		if multipartErr != nil {
@@ -22,7 +22,7 @@ func DecodeMethodMultipartObjectGeneratedRequest(mux loomhttp.Muxer, decoder fun
 			if errors.As(multipartErr, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(multipartErr.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 		}
 		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
 			return payload, loom.MissingPayloadError()
@@ -47,7 +47,7 @@ func DecodeMethodMultipartObjectGeneratedRequest(mux loomhttp.Muxer, decoder fun
 				if errors.As(multipartErr, &gerr) {
 					return payload, gerr
 				}
-				return payload, loom.DecodePayloadError(multipartErr.Error())
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 			}
 		}
 		err = ValidateMethodMultipartObjectGeneratedRequestBody(&body)

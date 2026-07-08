@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingResultPrimitiveMapClientStreamRecvCode = `// Recv reads instances of "map[int32]string" from the
 // "StreamingResultPrimitiveMapMethod" endpoint websocket connection.
 func (s *StreamingResultPrimitiveMapMethodClientStream) Recv() (map[int32]string, error) {
@@ -11,7 +10,14 @@ func (s *StreamingResultPrimitiveMapMethodClientStream) Recv() (map[int32]string
 	)
 	err = s.conn.ReadJSON(&body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.conn.Close()
+		s.closeOnce.Do(func() {
+			if s.done != nil {
+				close(s.done)
+			}
+		})
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return rv, closeErr
+		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -46,5 +52,3 @@ func (s *StreamingResultPrimitiveMapMethodClientStream) RecvWithContext(ctx cont
 	return v, err
 }
 `
-
-

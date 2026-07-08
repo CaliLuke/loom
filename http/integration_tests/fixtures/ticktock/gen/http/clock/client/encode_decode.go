@@ -39,7 +39,7 @@ func (c *Client) BuildTickRequest(ctx context.Context, v any) (*http.Request, er
 func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
-			b, err := io.ReadAll(resp.Body)
+			b, err := loomhttp.ReadResponseBody(resp)
 			if err != nil {
 				return nil, err
 			}
@@ -67,7 +67,10 @@ func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 			res := NewTickTockEventOK(&body)
 			return res, nil
 		default:
-			body, _ := io.ReadAll(resp.Body)
+			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+			if err != nil {
+				return nil, err
+			}
 			return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
 		}
 	}
@@ -94,7 +97,7 @@ func (c *Client) BuildTockRequest(ctx context.Context, v any) (*http.Request, er
 func DecodeTockResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
-			b, err := io.ReadAll(resp.Body)
+			b, err := loomhttp.ReadResponseBody(resp)
 			if err != nil {
 				return nil, err
 			}
@@ -122,7 +125,10 @@ func DecodeTockResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 			res := NewTockTickTockEventOK(&body)
 			return res, nil
 		default:
-			body, _ := io.ReadAll(resp.Body)
+			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+			if err != nil {
+				return nil, err
+			}
 			return nil, loomhttp.ErrInvalidResponse("clock", "Tock", resp.StatusCode, string(body))
 		}
 	}
@@ -169,7 +175,7 @@ func EncodeGuardedRequest(encoder func(*http.Request) loomhttp.Encoder) func(*ht
 func DecodeGuardedResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
-			b, err := io.ReadAll(resp.Body)
+			b, err := loomhttp.ReadResponseBody(resp)
 			if err != nil {
 				return nil, err
 			}
@@ -211,7 +217,10 @@ func DecodeGuardedResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 			}
 			return nil, NewGuardedUnauthorized(&body)
 		default:
-			body, _ := io.ReadAll(resp.Body)
+			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+			if err != nil {
+				return nil, err
+			}
 			return nil, loomhttp.ErrInvalidResponse("clock", "Guarded", resp.StatusCode, string(body))
 		}
 	}

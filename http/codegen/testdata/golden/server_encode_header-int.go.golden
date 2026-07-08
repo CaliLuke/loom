@@ -2,7 +2,10 @@
 // the ServiceHeaderInt MethodHeaderInt endpoint.
 func EncodeMethodHeaderIntResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceheaderint.MethodHeaderIntResult)
+		res, ok := v.(*serviceheaderint.MethodHeaderIntResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderInt", "MethodHeaderInt", "*serviceheaderint.MethodHeaderIntResult", v)
+		}
 		if res.H != nil {
 			val := res.H
 			hs := strconv.Itoa(*val)

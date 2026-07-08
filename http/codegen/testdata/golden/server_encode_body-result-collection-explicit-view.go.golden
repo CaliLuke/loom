@@ -3,7 +3,10 @@
 // MethodBodyCollectionExplicitView endpoint.
 func EncodeMethodBodyCollectionExplicitViewResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res := v.(servicebodycollectionexplicitviewviews.ResulttypecollectionCollection)
+		res, ok := v.(servicebodycollectionexplicitviewviews.ResulttypecollectionCollection)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyCollectionExplicitView", "MethodBodyCollectionExplicitView", "servicebodycollectionexplicitviewviews.ResulttypecollectionCollection", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewResulttypecollectionResponseTinyCollection(res.Projected)
 		w.WriteHeader(http.StatusOK)

@@ -143,19 +143,26 @@ qp := r.URL.Query()
 	{{- else if .Map }}
 	{
 		{{ .VarName }}Raw := {{$qpVar}}
+		{{ .VarName }}HasValues := false
+		for keyRaw := range {{ .VarName }}Raw {
+			if strings.HasPrefix(keyRaw, "{{ .HTTPName }}[") {
+				{{ .VarName }}HasValues = true
+				break
+			}
+		}
 		{{- if .Required }}
-		if len({{ .VarName }}Raw) == 0 {
+		if !{{ .VarName }}HasValues {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
-		if len({{ .VarName }}Raw) == 0 {
+		if !{{ .VarName }}HasValues {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
 		{{- if .DefaultValue }}else {
 		{{- else if not .Required }}
-		if len({{ .VarName }}Raw) != 0 {
+		if {{ .VarName }}HasValues {
 		{{- end }}
 		for keyRaw, valRaw := range {{ .VarName }}Raw {
 			if strings.HasPrefix(keyRaw, "{{ .HTTPName }}[") {
@@ -189,11 +196,81 @@ qp := r.URL.Query()
 		}
 		for keyRaw, valRaw := range {{ .VarName }}Raw {
 			var key {{ goTypeRef .Type.KeyType.Type }}
+			var keyErr error
 			{{- if eq .Type.KeyType.Type.Name "string" }}
 			key = keyRaw
 			{{- else }}
-				{{- template "partial_query_type_conversion" (conversionData "key" "query" .Type.KeyType.Type) }}
+				{{- if eq .Type.KeyType.Type.Name "int" }}
+			v, err2 := strconv.ParseInt(keyRaw, 10, strconv.IntSize)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "integer")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else if eq .Type.KeyType.Type.Name "int32" }}
+			v, err2 := strconv.ParseInt(keyRaw, 10, 32)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "integer")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else if eq .Type.KeyType.Type.Name "int64" }}
+			v, err2 := strconv.ParseInt(keyRaw, 10, 64)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "integer")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else if eq .Type.KeyType.Type.Name "uint" }}
+			v, err2 := strconv.ParseUint(keyRaw, 10, strconv.IntSize)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "unsigned integer")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else if eq .Type.KeyType.Type.Name "uint32" }}
+			v, err2 := strconv.ParseUint(keyRaw, 10, 32)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "unsigned integer")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else if eq .Type.KeyType.Type.Name "uint64" }}
+			v, err2 := strconv.ParseUint(keyRaw, 10, 64)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "unsigned integer")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else if eq .Type.KeyType.Type.Name "float32" }}
+			v, err2 := strconv.ParseFloat(keyRaw, 32)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "float")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else if eq .Type.KeyType.Type.Name "float64" }}
+			v, err2 := strconv.ParseFloat(keyRaw, 64)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "float")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else if eq .Type.KeyType.Type.Name "boolean" }}
+			v, err2 := strconv.ParseBool(keyRaw)
+			if err2 != nil {
+				keyErr = loom.InvalidFieldTypeError("query", keyRaw, "boolean")
+				err = loom.MergeErrors(err, keyErr)
+			}
+			key = {{ goTypeRef .Type.KeyType.Type }}(v)
+				{{- else }}
+			keyErr = loom.InvalidFieldTypeError("query", keyRaw, {{ printf "%q" .Type.KeyType.Type.Name }})
+			err = loom.MergeErrors(err, keyErr)
+				{{- end }}
 			{{- end }}
+			if keyErr != nil {
+				continue
+			}
 			{{- if eq .Type.ElemType.Type.Name "string" }}
 				{{ .VarName }}[key] = valRaw[0]
 			{{- else if eq .Type.ElemType.Type.Name "array" }}

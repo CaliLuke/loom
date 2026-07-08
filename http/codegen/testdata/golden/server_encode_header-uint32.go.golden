@@ -2,7 +2,10 @@
 // by the ServiceHeaderUInt32 MethodHeaderUInt32 endpoint.
 func EncodeMethodHeaderUInt32Response(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceheaderuint32.MethodHeaderUInt32Result)
+		res, ok := v.(*serviceheaderuint32.MethodHeaderUInt32Result)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderUInt32", "MethodHeaderUInt32", "*serviceheaderuint32.MethodHeaderUInt32Result", v)
+		}
 		if res.H != nil {
 			val := res.H
 			hs := strconv.FormatUint(uint64(*val), 10)

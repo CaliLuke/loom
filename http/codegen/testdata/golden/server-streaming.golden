@@ -56,7 +56,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, streamingServiceAEndpoint
 		Handler:           handler,
 		ReadHeaderTimeout: time.Second * 60,
 		ReadTimeout:       time.Second * 15,
-		WriteTimeout:      time.Second * 30,
+		WriteTimeout:      0,
 		IdleTimeout:       time.Second * 60,
 	}
 	for _, m := range streamingServiceAServer.Mounts {

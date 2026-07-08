@@ -24,6 +24,10 @@ import (
 type TickServerStream struct {
 	// once ensures the headers are written once.
 	once sync.Once
+	// lock protects started.
+	lock sync.Mutex
+	// started records whether the event stream has been committed.
+	streamStarted bool
 	// w is the HTTP response writer used to send the SSE events.
 	w http.ResponseWriter
 	// r is the HTTP request.
@@ -50,6 +54,14 @@ func (s *TickServerStream) initHeaders() {
 		}
 		s.w.WriteHeader(http.StatusOK)
 	})
+	s.lock.Lock()
+	s.streamStarted = true
+	s.lock.Unlock()
+}
+func (s *TickServerStream) started() bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.streamStarted
 }
 
 // SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
@@ -141,6 +153,10 @@ func (s *TickServerStream) Close() error {
 type TockServerStream struct {
 	// once ensures the headers are written once.
 	once sync.Once
+	// lock protects started.
+	lock sync.Mutex
+	// started records whether the event stream has been committed.
+	streamStarted bool
 	// w is the HTTP response writer used to send the SSE events.
 	w http.ResponseWriter
 	// r is the HTTP request.
@@ -167,6 +183,14 @@ func (s *TockServerStream) initHeaders() {
 		}
 		s.w.WriteHeader(http.StatusOK)
 	})
+	s.lock.Lock()
+	s.streamStarted = true
+	s.lock.Unlock()
+}
+func (s *TockServerStream) started() bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.streamStarted
 }
 
 // SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
@@ -258,6 +282,10 @@ func (s *TockServerStream) Close() error {
 type GuardedServerStream struct {
 	// once ensures the headers are written once.
 	once sync.Once
+	// lock protects started.
+	lock sync.Mutex
+	// started records whether the event stream has been committed.
+	streamStarted bool
 	// w is the HTTP response writer used to send the SSE events.
 	w http.ResponseWriter
 	// r is the HTTP request.
@@ -284,6 +312,14 @@ func (s *GuardedServerStream) initHeaders() {
 		}
 		s.w.WriteHeader(http.StatusOK)
 	})
+	s.lock.Lock()
+	s.streamStarted = true
+	s.lock.Unlock()
+}
+func (s *GuardedServerStream) started() bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.streamStarted
 }
 
 // SendWithContext SendWithContext streams instances of "clock.TickTockEvent"

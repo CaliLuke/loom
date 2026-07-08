@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingResultNoPayloadClientEndpointCode = `// StreamingResultNoPayloadMethod returns an endpoint that makes HTTP requests
 // to the StreamingResultNoPayloadService service
 // StreamingResultNoPayloadMethod server.
@@ -25,15 +24,25 @@ func (c *Client) StreamingResultNoPayloadMethod() loom.Endpoint {
 			ctx, cancel = context.WithCancel(ctx)
 			conn = c.configurer.StreamingResultNoPayloadMethodFn(conn, cancel)
 		}
+		done := make(chan struct{})
 		go func() {
-			<-ctx.Done()
-			conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"), time.Now().Add(time.Second))
-			conn.Close()
+			select {
+			case <-ctx.Done():
+				if err := conn.WriteControl(
+					websocket.CloseMessage,
+					websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
+					time.Now().Add(time.Second),
+				); err != nil {
+					return
+				}
+				if err := conn.Close(); err != nil {
+					return
+				}
+			case <-done:
+			}
 		}()
-		stream := &StreamingResultNoPayloadMethodClientStream{conn: conn}
+		stream := &StreamingResultNoPayloadMethodClientStream{conn: conn, done: done}
 		return stream, nil
 	}
 }
 `
-
-

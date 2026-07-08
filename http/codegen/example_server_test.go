@@ -63,3 +63,15 @@ func TestExampleServerFiles(t *testing.T) {
 		}, 1, "server")
 	})
 }
+
+func TestExampleServerDisablesWriteTimeoutForStreamingServices(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.StreamingMultipleServicesDSL)
+	services := CreateHTTPServices(root)
+	files := ExampleServerFiles("", services)
+	require.Len(t, files, 1)
+
+	code := renderedSectionSource(t, files[0].Section("server-http-end")[0])
+
+	require.Contains(t, code, "WriteTimeout:      0,")
+	require.NotContains(t, code, "WriteTimeout:      time.Second * 30,")
+}

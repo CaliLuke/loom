@@ -78,7 +78,7 @@ func {{ .HandlerInit }}(
 		{{- if .SSE.RequestIDField }}
 			// Set Last-Event-ID header if present
 			if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {
-				ctx = context.WithValue(ctx, "last-event-id", lastEventID)
+				ctx = context.WithValue(ctx, loomhttp.LastEventIDKey, lastEventID)
 			{{- if .Payload.Ref }}
 			{{- if isObject .Payload.Request.PayloadType }}
 				{{- if .SSE.RequestIDPointer }}
@@ -229,7 +229,7 @@ func {{ .HandlerInit }}(
 	{{- else if and (isSSEEndpoint .) (not .HasMixedResults) }}
 		{{- if .SSE.RequestIDField }}
 		if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {
-			ctx = context.WithValue(ctx, "last-event-id", lastEventID)
+			ctx = context.WithValue(ctx, loomhttp.LastEventIDKey, lastEventID)
 			{{- if .Payload.Ref }}
 			{{- if isObject .Payload.Request.PayloadType }}
 				{{- if .SSE.RequestIDPointer }}
@@ -272,6 +272,14 @@ func {{ .HandlerInit }}(
 			}
 				if stream != nil && stream.conn != nil {
 					// Response writer has been hijacked, do not encode the error
+					if errhandler != nil {
+						errhandler(ctx, w, err)
+					}
+					return
+				}
+				{{- end }}
+				{{- if isSSEEndpoint . }}
+				if stream.started() {
 					if errhandler != nil {
 						errhandler(ctx, w, err)
 					}

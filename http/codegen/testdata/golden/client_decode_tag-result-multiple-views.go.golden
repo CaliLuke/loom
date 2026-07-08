@@ -5,7 +5,7 @@
 func DecodeMethodTagMultipleViewsResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
-			b, err := io.ReadAll(resp.Body)
+			b, err := loomhttp.ReadResponseBody(resp)
 			if err != nil {
 				return nil, err
 			}
@@ -61,7 +61,10 @@ func DecodeMethodTagMultipleViewsResponse(decoder func(*http.Response) loomhttp.
 			res := servicetagmultipleviews.NewResulttypemultipleviews(vres)
 			return res, nil
 		default:
-			body, _ := io.ReadAll(resp.Body)
+			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+			if err != nil {
+				return nil, err
+			}
 			return nil, loomhttp.ErrInvalidResponse("ServiceTagMultipleViews", "MethodTagMultipleViews", resp.StatusCode, string(body))
 		}
 	}

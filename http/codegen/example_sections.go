@@ -192,7 +192,11 @@ func renderExampleServerEnd(services []*ServiceData) string {
 	b.Add("\t\tHandler:           handler,\n")
 	b.Add("\t\tReadHeaderTimeout: time.Second * 60,\n")
 	b.Add("\t\tReadTimeout:       time.Second * 15,\n")
-	b.Add("\t\tWriteTimeout:      time.Second * 30,\n")
+	if HasStreamingEndpoint(services) {
+		b.Add("\t\tWriteTimeout:      0,\n")
+	} else {
+		b.Add("\t\tWriteTimeout:      time.Second * 30,\n")
+	}
 	b.Add("\t\tIdleTimeout:       time.Second * 60,\n")
 	b.Add("\t}\n")
 	for _, svc := range services {

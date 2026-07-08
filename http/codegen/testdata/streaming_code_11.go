@@ -62,8 +62,12 @@ func (s *StreamingPayloadMethodServerStream) RecvWithContext(ctx context.Context
 	if msg == nil {
 		return rv, io.EOF
 	}
+	body := *msg
+	err = ValidateStreamingPayloadMethodStreamingBody(&body)
+	if err != nil {
+		return rv, err
+	}
 	return NewStreamingPayloadMethodStreamingBody(msg), nil
 }
 `
-
 

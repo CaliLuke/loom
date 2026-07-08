@@ -16,7 +16,7 @@ func DecodeMethodUserBodyPathValidateRequest(mux loomhttp.Muxer, decoder func(*h
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		err = ValidateMethodUserBodyPathValidateRequestBody(&body)
 		if err != nil {

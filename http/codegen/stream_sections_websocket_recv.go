@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -60,16 +61,35 @@ func writeServerWebsocketRecvBody(b *sourceBuilder, ws *WebSocketData, withConte
 }
 
 func writeServerWebsocketRecvValidation(b *sourceBuilder, ws *WebSocketData) {
-	if ws.Payload == nil || ws.Payload.ValidateRef == "" {
+	validate := serverWebSocketPayloadValidation(ws)
+	if validate == "" {
 		return
 	}
 	if !ws.RecvTypeIsPointer {
 		b.Add("\tbody := *msg\n")
 	}
-	b.Addf("\t%s\n", ws.Payload.ValidateRef)
+	b.Addf("\t%s\n", validate)
 	b.Add("\tif err != nil {\n")
 	b.Add("\t\treturn rv, err\n")
 	b.Add("\t}\n")
+}
+
+func serverWebSocketPayloadValidation(ws *WebSocketData) string {
+	if ws.Payload != nil && ws.Payload.ValidateRef != "" {
+		return ws.Payload.ValidateRef
+	}
+	if ws.Payload == nil || ws.Payload.Init == nil {
+		return ""
+	}
+	for _, arg := range ws.Payload.Init.ServerArgs {
+		if arg.AttributeData != nil && arg.AttributeData.Validate != "" {
+			return arg.AttributeData.Validate
+		}
+	}
+	if ws.Payload.Def != "" && strings.HasPrefix(ws.Payload.Ref, "*") {
+		return fmt.Sprintf("err = Validate%s(&body)", ws.Payload.VarName)
+	}
+	return ""
 }
 
 func writeServerWebsocketRecvReturn(b *sourceBuilder, ws *WebSocketData) {
@@ -97,7 +117,10 @@ func writeClientWebsocketRecvBody(b *sourceBuilder, ws *WebSocketData) {
 	}
 	b.Add("\terr = s.conn.ReadJSON(&body)\n")
 	b.Add("\tif websocket.IsCloseError(err, websocket.CloseNormalClosure) {\n")
-	if !ws.MustClose {
+	if ws.Type == "client" && ws.SendName == "" {
+		b.Add("\t\ts.closeOnce.Do(func() {\n\t\t\tif s.done != nil {\n\t\t\t\tclose(s.done)\n\t\t\t}\n\t\t})\n")
+		b.Add("\t\tif closeErr := s.conn.Close(); closeErr != nil {\n\t\t\treturn rv, closeErr\n\t\t}\n")
+	} else if !ws.MustClose {
 		b.Add("\t\ts.conn.Close()\n")
 	}
 	b.Add("\t\treturn rv, io.EOF\n")

@@ -9,9 +9,9 @@ import (
 
 	clock "example.com/http-ticktock/gen/clock"
 	clocksvr "example.com/http-ticktock/gen/http/clock/server"
-	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/clue/debug"
 	"github.com/CaliLuke/loom/clue/log"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 // handleHTTPServer starts configures and starts a HTTP server on the given
@@ -69,7 +69,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, clockEndpoints *clock.End
 		Handler:           handler,
 		ReadHeaderTimeout: time.Second * 60,
 		ReadTimeout:       time.Second * 15,
-		WriteTimeout:      time.Second * 30,
+		WriteTimeout:      0,
 		IdleTimeout:       time.Second * 60,
 	}
 	for _, m := range clockServer.Mounts {

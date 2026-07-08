@@ -16,7 +16,7 @@ func DecodeMethodBodyUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.
 				if errors.As(err, &gerr) {
 					return payload, gerr
 				}
-				return payload, loom.DecodePayloadError(err.Error())
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
 		err = loom.MergeErrors(err, loom.ValidatePattern("body", body, "apattern"))

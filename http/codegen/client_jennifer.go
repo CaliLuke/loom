@@ -103,60 +103,65 @@ func clientEndpointSection(endpoint *EndpointData) gocodegen.Section {
 			fn.Params()
 		}
 		fn.Id("loom").Dot("Endpoint").BlockFunc(func(group *jen.Group) {
-			var defs []jen.Code
-			if endpoint.RequestEncoder != "" {
-				var requestEncoderArg jen.Code = jen.Id("c").Dot("encoder")
-				if endpoint.MultipartRequestEncoder != nil {
-					requestEncoderArg = jen.Id(endpoint.MultipartRequestEncoder.InitName).Call(jen.Id(endpoint.MultipartRequestEncoder.VarName))
-				}
-				defs = append(defs,
-					jen.Id("encodeRequest").Op("=").Id(endpoint.RequestEncoder).Call(requestEncoderArg),
-				)
-			}
-			if !IsSSEEndpoint(endpoint) {
-				defs = append(defs,
-					jen.Id("decodeResponse").Op("=").Id(endpoint.ResponseDecoder).Call(
-						jen.Id("c").Dot("decoder"),
-						jen.Id("c").Dot("RestoreResponseBody"),
-					),
-				)
-			}
-			if len(defs) > 0 {
-				group.Var().Defs(defs...)
-			}
-
+			writeClientEndpointDefinitions(group, endpoint)
 			group.Return().Func().
 				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Any()).
 				Params(jen.Any(), jen.Error()).
-				BlockFunc(func(body *jen.Group) {
-					body.List(jen.Id("req"), jen.Err()).Op(":=").Id("c").Dot(endpoint.RequestInit.Name).CallFunc(func(args *jen.Group) {
-						args.Id("ctx")
-						for _, arg := range endpoint.RequestInit.ClientArgs {
-							args.Id(arg.Ref)
-						}
-					})
-					body.If(jen.Err().Op("!=").Nil()).Block(
-						jen.Return(jen.Nil(), jen.Err()),
-					)
-
-					if endpoint.RequestEncoder != "" {
-						body.Err().Op("=").Id("encodeRequest").Call(jen.Id("req"), jen.Id("v"))
-						body.If(jen.Err().Op("!=").Nil()).Block(
-							jen.Return(jen.Nil(), jen.Err()),
-						)
-					}
-
-					switch {
-					case IsWebSocketEndpoint(endpoint):
-						renderClientWebSocketEndpoint(body, endpoint)
-					case IsSSEEndpoint(endpoint):
-						renderClientSSEEndpoint(body, endpoint)
-					default:
-						renderClientHTTPEndpoint(body, endpoint)
-					}
-				})
+				BlockFunc(func(body *jen.Group) { writeClientEndpointBody(body, endpoint) })
 		})
 	})
+}
+
+func writeClientEndpointDefinitions(group *jen.Group, endpoint *EndpointData) {
+	var defs []jen.Code
+	if endpoint.RequestEncoder != "" {
+		var requestEncoderArg jen.Code = jen.Id("c").Dot("encoder")
+		if endpoint.MultipartRequestEncoder != nil {
+			requestEncoderArg = jen.Id(endpoint.MultipartRequestEncoder.InitName).Call(jen.Id(endpoint.MultipartRequestEncoder.VarName))
+		}
+		defs = append(defs,
+			jen.Id("encodeRequest").Op("=").Id(endpoint.RequestEncoder).Call(requestEncoderArg),
+		)
+	}
+	if !IsSSEEndpoint(endpoint) || len(endpoint.Errors) > 0 {
+		defs = append(defs,
+			jen.Id("decodeResponse").Op("=").Id(endpoint.ResponseDecoder).Call(
+				jen.Id("c").Dot("decoder"),
+				jen.Id("c").Dot("RestoreResponseBody"),
+			),
+		)
+	}
+	if len(defs) > 0 {
+		group.Var().Defs(defs...)
+	}
+}
+
+func writeClientEndpointBody(body *jen.Group, endpoint *EndpointData) {
+	body.List(jen.Id("req"), jen.Err()).Op(":=").Id("c").Dot(endpoint.RequestInit.Name).CallFunc(func(args *jen.Group) {
+		args.Id("ctx")
+		for _, arg := range endpoint.RequestInit.ClientArgs {
+			args.Id(arg.Ref)
+		}
+	})
+	body.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Err()),
+	)
+
+	if endpoint.RequestEncoder != "" {
+		body.Err().Op("=").Id("encodeRequest").Call(jen.Id("req"), jen.Id("v"))
+		body.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Return(jen.Nil(), jen.Err()),
+		)
+	}
+
+	switch {
+	case IsWebSocketEndpoint(endpoint):
+		renderClientWebSocketEndpoint(body, endpoint)
+	case IsSSEEndpoint(endpoint):
+		renderClientSSEEndpoint(body, endpoint)
+	default:
+		renderClientHTTPEndpoint(body, endpoint)
+	}
 }
 
 func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
@@ -190,21 +195,31 @@ func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
 	})
 
 	if endpoint.ClientWebSocket.SendName == "" {
-		group.Go().Func().Params().Block(
-			jen.Op("<-").Id("ctx").Dot("Done").Call(),
-			jen.Id("conn").Dot("WriteControl").Call(
-				jen.Id("websocket").Dot("CloseMessage"),
-				jen.Id("websocket").Dot("FormatCloseMessage").Call(
-					jen.Id("websocket").Dot("CloseNormalClosure"),
-					jen.Lit("client closing connection"),
-				),
-				jen.Id("time").Dot("Now").Call().Dot("Add").Call(jen.Id("time").Dot("Second")),
-			),
-			jen.Id("conn").Dot("Close").Call(),
-		).Call()
+		group.Id("done").Op(":=").Make(jen.Chan().Struct())
+		addRawWebSocketGroup(group, `go func() {
+	select {
+	case <-ctx.Done():
+		if err := conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
+			time.Now().Add(time.Second),
+		); err != nil {
+			return
+		}
+		if err := conn.Close(); err != nil {
+			return
+		}
+	case <-done:
+	}
+}()`)
 	}
 
-	group.Id("stream").Op(":=").Op("&").Id(endpoint.ClientWebSocket.VarName).Values(jen.Id("conn").Op(":").Id("conn"))
+	group.Id("stream").Op(":=").Op("&").Id(endpoint.ClientWebSocket.VarName).ValuesFunc(func(values *jen.Group) {
+		values.Id("conn").Op(":").Id("conn")
+		if endpoint.ClientWebSocket.SendName == "" {
+			values.Id("done").Op(":").Id("done")
+		}
+	})
 	if endpoint.Method.ViewedResult != nil && endpoint.Method.ViewedResult.ViewName == "" {
 		group.Id("view").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("loom-view"))
 		group.Id("stream").Dot("SetView").Call(jen.Id("view"))
@@ -231,13 +246,17 @@ func renderClientSSEEndpoint(group *jen.Group, endpoint *EndpointData) {
 		),
 	)
 
-	group.If(jen.Id("resp").Dot("StatusCode").Op("!=").Id("http").Dot("StatusOK")).Block(
-		jen.Id("resp").Dot("Body").Dot("Close").Call(),
-		jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(
+	group.If(jen.Id("resp").Dot("StatusCode").Op("!=").Id("http").Dot("StatusOK")).BlockFunc(func(status *jen.Group) {
+		if len(endpoint.Errors) > 0 {
+			status.Return(jen.Id("decodeResponse").Call(jen.Id("resp")))
+			return
+		}
+		status.Id("resp").Dot("Body").Dot("Close").Call()
+		status.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(
 			jen.Lit("unexpected status from SSE endpoint: %d"),
 			jen.Id("resp").Dot("StatusCode"),
-		)),
-	)
+		))
+	})
 
 	group.Id("contentType").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("Content-Type"))
 	group.If(

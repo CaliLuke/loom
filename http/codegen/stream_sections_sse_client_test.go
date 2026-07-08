@@ -79,3 +79,16 @@ func TestSSEClientEmitterDoesNotHoldLockAcrossBlockingRead(t *testing.T) {
 	closeLock := strings.LastIndex(code[:closeBody], "s.lock.Lock()")
 	require.Greater(t, closeUnlock, closeLock, "Close must release the mutex before closing the body")
 }
+
+func TestSSEClientEmitterReturnsEOFFromRecv(t *testing.T) {
+	root := RunHTTPDSL(t, func() {
+		testdata.SSEObjectDSL()
+	})
+	services := CreateHTTPServices(root)
+	files := ClientFiles("gen", services)
+	sseFile := findFileWithSection(t, files, "client-sse")
+	code := renderedSectionSource(t, sseFile.Section("client-sse")[0])
+
+	require.Contains(t, code, "if errors.Is(err, io.EOF) {\n\t\t\ts.Close()\n\t\t\treturn event, io.EOF\n\t\t}")
+	require.NotContains(t, code, "err = nil")
+}

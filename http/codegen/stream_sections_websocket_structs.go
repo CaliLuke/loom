@@ -134,6 +134,12 @@ func websocketStructTypeSection(ws *WebSocketData) codegen.Section {
 			}
 			group.Comment("conn is the underlying websocket connection.")
 			group.Id("conn").Op("*").Qual("github.com/gorilla/websocket", "Conn")
+			if ws.Type == "client" && ws.SendName == "" {
+				group.Comment("done is closed when the client stream is closed.")
+				group.Id("done").Chan().Struct()
+				group.Comment("closeOnce closes done at most once.")
+				group.Id("closeOnce").Qual("sync", "Once")
+			}
 			if ws.Endpoint.Method.ViewedResult != nil && ws.Endpoint.Method.ViewedResult.ViewName == "" {
 				addWrappedGroupComment(group, fmt.Sprintf("view is the view to render %s result type before sending to the websocket connection.", ws.SendTypeName))
 				group.Id("view").String()

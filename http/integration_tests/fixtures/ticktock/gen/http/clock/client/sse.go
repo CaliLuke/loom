@@ -55,12 +55,12 @@ func (s *TickStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, 
 	var byts []byte
 	byts, err = s.readEvent(ctx)
 	if err != nil {
-		if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			// Clean up on EOF or context cancellation
+		if errors.Is(err, io.EOF) {
 			s.Close()
-			if errors.Is(err, io.EOF) {
-				err = nil
-			}
+			return event, io.EOF
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			s.Close()
 		}
 		return
 	}
@@ -280,12 +280,12 @@ func (s *TockStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, 
 	var byts []byte
 	byts, err = s.readEvent(ctx)
 	if err != nil {
-		if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			// Clean up on EOF or context cancellation
+		if errors.Is(err, io.EOF) {
 			s.Close()
-			if errors.Is(err, io.EOF) {
-				err = nil
-			}
+			return event, io.EOF
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			s.Close()
 		}
 		return
 	}
@@ -505,12 +505,12 @@ func (s *GuardedStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEven
 	var byts []byte
 	byts, err = s.readEvent(ctx)
 	if err != nil {
-		if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			// Clean up on EOF or context cancellation
+		if errors.Is(err, io.EOF) {
 			s.Close()
-			if errors.Is(err, io.EOF) {
-				err = nil
-			}
+			return event, io.EOF
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			s.Close()
 		}
 		return
 	}

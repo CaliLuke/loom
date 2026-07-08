@@ -3,7 +3,10 @@
 // MethodHeaderArrayStringRequiredDefault endpoint.
 func EncodeMethodHeaderArrayStringRequiredDefaultResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceheaderarraystringrequireddefault.MethodHeaderArrayStringRequiredDefaultResult)
+		res, ok := v.(*serviceheaderarraystringrequireddefault.MethodHeaderArrayStringRequiredDefaultResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayStringRequiredDefault", "MethodHeaderArrayStringRequiredDefault", "*serviceheaderarraystringrequireddefault.MethodHeaderArrayStringRequiredDefaultResult", v)
+		}
 		if res.H != nil {
 			val := res.H
 			hs := strings.Join(val, ", ")

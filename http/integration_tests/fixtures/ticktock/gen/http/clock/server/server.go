@@ -125,6 +125,12 @@ func NewTickHandler(
 		_, err = endpoint(ctx, v)
 		if err != nil {
 			obs.Fail(loomtransport.ReasonHandlerError)
+			if stream.started() {
+				if errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				return
+			}
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -175,6 +181,12 @@ func NewTockHandler(
 		_, err = endpoint(ctx, v)
 		if err != nil {
 			obs.Fail(loomtransport.ReasonHandlerError)
+			if stream.started() {
+				if errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				return
+			}
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}
@@ -234,6 +246,12 @@ func NewGuardedHandler(
 		_, err = endpoint(ctx, v)
 		if err != nil {
 			obs.Fail(loomtransport.ReasonHandlerError)
+			if stream.started() {
+				if errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				return
+			}
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)
 			}

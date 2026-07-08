@@ -10,7 +10,14 @@ func DecodeMethodQueryMapIntMapStringArrayIntValidateRequest(mux loomhttp.Muxer,
 		)
 		{
 			qRaw := r.URL.Query()
-			if len(qRaw) == 0 {
+			qHasValues := false
+			for keyRaw := range qRaw {
+				if strings.HasPrefix(keyRaw, "q[") {
+					qHasValues = true
+					break
+				}
+			}
+			if !qHasValues {
 				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
 			for keyRaw, valRaw := range qRaw {
@@ -19,33 +26,44 @@ func DecodeMethodQueryMapIntMapStringArrayIntValidateRequest(mux loomhttp.Muxer,
 						q = make(map[int]map[string][]int)
 					}
 					var keya int
+					var keyaErr error
 					{
 						openIdx := strings.IndexRune(keyRaw, '[')
 						closeIdx := strings.IndexRune(keyRaw, ']')
 						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
+							keyaErr = loom.DecodePayloadError("invalid query string: malformed brackets")
+							err = loom.MergeErrors(err, keyaErr)
 						} else {
 							keyaRaw := keyRaw[openIdx+1 : closeIdx]
 							v, err2 := strconv.ParseInt(keyaRaw, 10, strconv.IntSize)
 							if err2 != nil {
-								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keyaRaw, "integer"))
+								keyaErr = loom.InvalidFieldTypeError("query", keyaRaw, "integer")
+								err = loom.MergeErrors(err, keyaErr)
 							}
 							keya = int(v)
 							keyRaw = keyRaw[closeIdx+1:]
 						}
 					}
+					if keyaErr != nil {
+						continue
+					}
 					if q[keya] == nil {
 						q[keya] = make(map[string][]int)
 					}
 					var keyb string
+					var keybErr error
 					{
 						openIdx := strings.IndexRune(keyRaw, '[')
 						closeIdx := strings.IndexRune(keyRaw, ']')
 						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
+							keybErr = loom.DecodePayloadError("invalid query string: malformed brackets")
+							err = loom.MergeErrors(err, keybErr)
 						} else {
 							keyb = keyRaw[openIdx+1 : closeIdx]
 						}
+					}
+					if keybErr != nil {
+						continue
 					}
 					var val []int
 					{

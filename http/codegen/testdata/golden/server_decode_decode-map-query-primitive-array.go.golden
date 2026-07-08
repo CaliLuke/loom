@@ -9,7 +9,14 @@ func DecodeMapQueryPrimitiveArrayRequest(mux loomhttp.Muxer, decoder func(*http.
 		)
 		{
 			queryRaw := r.URL.Query()
-			if len(queryRaw) == 0 {
+			queryHasValues := false
+			for keyRaw := range queryRaw {
+				if strings.HasPrefix(keyRaw, "query[") {
+					queryHasValues = true
+					break
+				}
+			}
+			if !queryHasValues {
 				err = loom.MergeErrors(err, loom.MissingFieldError("query", "query string"))
 			}
 			for keyRaw, valRaw := range queryRaw {
@@ -18,14 +25,19 @@ func DecodeMapQueryPrimitiveArrayRequest(mux loomhttp.Muxer, decoder func(*http.
 						query = make(map[string][]uint)
 					}
 					var keya string
+					var keyaErr error
 					{
 						openIdx := strings.IndexRune(keyRaw, '[')
 						closeIdx := strings.IndexRune(keyRaw, ']')
 						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							err = loom.MergeErrors(err, loom.DecodePayloadError("invalid query string: malformed brackets"))
+							keyaErr = loom.DecodePayloadError("invalid query string: malformed brackets")
+							err = loom.MergeErrors(err, keyaErr)
 						} else {
 							keya = keyRaw[openIdx+1 : closeIdx]
 						}
+					}
+					if keyaErr != nil {
+						continue
 					}
 					var val []uint
 					{

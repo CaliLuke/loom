@@ -90,5 +90,47 @@ func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {
 	require.NotEqual(t, -1, use, "raw SSE handlers must encode pre-stream endpoint failures")
 	require.Less(t, decl, use, "encodeError must be declared before the endpoint failure path uses it")
 	require.Contains(t, code, "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
-	require.NotContains(t, code, "if errhandler != nil {\n\t\t\t\t\terrhandler(ctx, w, err)\n\t\t\t\t}")
+}
+
+func TestSSEHandlerDoesNotEncodeErrorAfterStreamStarts(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.SSEObjectDSL)
+	services := CreateHTTPServices(root)
+	files := ServerFiles("", services)
+
+	var serverFile *codegen.File
+	for _, f := range files {
+		if strings.HasSuffix(f.Path, filepath.Join("server", "server.go")) {
+			serverFile = f
+			break
+		}
+	}
+	require.NotNil(t, serverFile)
+
+	code := codegen.SectionCode(t, serverFile.Section("server-handler-init")[0])
+	require.Contains(t, code, "if stream.started() {")
+	require.Contains(t, code, "errhandler(ctx, w, err)")
+
+	started := strings.Index(code, "if stream.started() {")
+	encode := strings.Index(code[started:], "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
+	require.NotEqual(t, -1, started)
+	require.NotEqual(t, -1, encode)
+}
+
+func TestSSEHandlerUsesTypedLastEventIDContextKey(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.SSERequestIDDSL)
+	services := CreateHTTPServices(root)
+	files := ServerFiles("", services)
+
+	var serverFile *codegen.File
+	for _, f := range files {
+		if strings.HasSuffix(f.Path, filepath.Join("server", "server.go")) {
+			serverFile = f
+			break
+		}
+	}
+	require.NotNil(t, serverFile)
+
+	code := codegen.SectionCode(t, serverFile.Section("server-handler-init")[0])
+	require.Contains(t, code, "context.WithValue(ctx, loomhttp.LastEventIDKey, lastEventID)")
+	require.NotContains(t, code, `context.WithValue(ctx, "last-event-id", lastEventID)`)
 }

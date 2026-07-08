@@ -8,7 +8,7 @@ func DecodeMethodFormBodyObjectRequest(mux loomhttp.Muxer, decoder func(*http.Re
 			err  error
 		)
 		if err = r.ParseForm(); err != nil {
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		if len(r.PostForm) == 0 {
 			return payload, loom.MissingPayloadError()
@@ -18,7 +18,7 @@ func DecodeMethodFormBodyObjectRequest(mux loomhttp.Muxer, decoder func(*http.Re
 				if errors.As(err, &gerr) {
 					return payload, gerr
 				}
-				return payload, loom.DecodePayloadError(err.Error())
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
 		err = ValidateMethodFormBodyObjectRequestBody(&body)

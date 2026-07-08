@@ -3,7 +3,10 @@
 // endpoint.
 func EncodeMethodBodyPrimitiveArrayUserResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.([]*servicebodyprimitivearrayuser.ResultType)
+		res, ok := v.([]*servicebodyprimitivearrayuser.ResultType)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayUser", "MethodBodyPrimitiveArrayUser", "[]*servicebodyprimitivearrayuser.ResultType", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewMethodBodyPrimitiveArrayUserResponseBody(res)
 		w.WriteHeader(http.StatusOK)

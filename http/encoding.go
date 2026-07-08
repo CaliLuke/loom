@@ -26,6 +26,18 @@ const (
 	// response Content-Type header when explicitly set in the DSL. The value
 	// may be used by encoders to set the header appropriately.
 	ContentTypeKey
+
+	// LastEventIDKey is the context key used to store the Last-Event-ID
+	// request header for Server-Sent Events endpoints.
+	LastEventIDKey
+
+	// DefaultMaxRequestBodyBytes is the default maximum number of request-body
+	// bytes decoded by Loom's built-in HTTP decoders.
+	DefaultMaxRequestBodyBytes = 32 << 20
+
+	// DefaultMaxErrorBodyBytes is the default maximum number of unexpected
+	// response-body bytes included in client-side response errors.
+	DefaultMaxErrorBodyBytes = 64 << 10
 )
 
 type (
@@ -75,11 +87,11 @@ func RequestDecoder(r *http.Request) Decoder {
 	}
 	switch contentType {
 	case "application/json":
-		return json.NewDecoder(r.Body)
+		return newLimitedDecoder(r.Body, decodeJSON)
 	case "application/gob":
-		return gob.NewDecoder(r.Body)
+		return newLimitedDecoder(r.Body, decodeGOB)
 	case "application/xml":
-		return xml.NewDecoder(r.Body)
+		return newLimitedDecoder(r.Body, decodeXML)
 	case "text/html", "text/plain":
 		return newTextDecoder(r.Body, contentType)
 	default:
@@ -191,6 +203,8 @@ type jsonEncoder struct {
 
 var errEncodeNotCalled = errors.New("RequestEncoder: Encode must be called prior to reading")
 
+var errRequestBodyTooLarge = errors.New("request body too large")
+
 func (je *jsonEncoder) Read(b []byte) (n int, err error) {
 	if len(je.b) == 0 {
 		return 0, errEncodeNotCalled
@@ -229,23 +243,23 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 func ResponseDecoder(resp *http.Response) Decoder {
 	ct := resp.Header.Get("Content-Type")
 	if ct == "" {
-		return json.NewDecoder(resp.Body)
+		return newLimitedDecoder(resp.Body, decodeJSON)
 	}
 	if mediaType, _, err := mime.ParseMediaType(ct); err == nil {
 		ct = mediaType
 	}
 	switch {
 	case ct == "application/json" || strings.HasSuffix(ct, "+json"):
-		return json.NewDecoder(resp.Body)
+		return newLimitedDecoder(resp.Body, decodeJSON)
 	case ct == "application/xml" || strings.HasSuffix(ct, "+xml"):
-		return xml.NewDecoder(resp.Body)
+		return newLimitedDecoder(resp.Body, decodeXML)
 	case ct == "application/gob" || strings.HasSuffix(ct, "+gob"):
-		return gob.NewDecoder(resp.Body)
+		return newLimitedDecoder(resp.Body, decodeGOB)
 	case ct == "text/html" || ct == "text/plain" ||
 		strings.HasSuffix(ct, "+html") || strings.HasSuffix(ct, "+txt"):
 		return newTextDecoder(resp.Body, ct)
 	default:
-		return json.NewDecoder(resp.Body)
+		return newLimitedDecoder(resp.Body, decodeJSON)
 	}
 }
 
@@ -257,9 +271,12 @@ func ResponseDecoder(resp *http.Response) Decoder {
 // encoded as a permanent internal server error. This behavior as well as the
 // shape of the response can be overridden by providing a non-nil formatter.
 func ErrorEncoder(encoder func(context.Context, http.ResponseWriter) Encoder, formatter func(ctx context.Context, err error) Statuser) func(context.Context, http.ResponseWriter, error) error {
+	defaultFormatter := formatter == nil
+	if formatter == nil {
+		formatter = NewErrorResponse
+	}
 	return func(ctx context.Context, w http.ResponseWriter, err error) error {
-		if formatter == nil {
-			formatter = NewErrorResponse
+		if defaultFormatter {
 			ctx = context.WithValue(ctx, ContentTypeKey, ProblemJSONContentType)
 		}
 		enc := encoder(ctx, w)
@@ -267,6 +284,34 @@ func ErrorEncoder(encoder func(context.Context, http.ResponseWriter) Encoder, fo
 		w.WriteHeader(resp.StatusCode())
 		return enc.Encode(resp)
 	}
+}
+
+// ReadUnexpectedResponseBody reads the bounded body text used in generated
+// client-side invalid-response errors.
+func ReadUnexpectedResponseBody(resp *http.Response) (string, error) {
+	if resp == nil || resp.Body == nil {
+		return "", nil
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, DefaultMaxErrorBodyBytes))
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+// ReadResponseBody reads the bounded response body used when generated clients
+// restore the response body after decoding.
+func ReadResponseBody(resp *http.Response) ([]byte, error) {
+	if resp == nil || resp.Body == nil {
+		return nil, nil
+	}
+	return readAllLimited(resp.Body, DefaultMaxRequestBodyBytes)
+}
+
+// SafeDecodePayloadMessage returns a stable client-facing description for a
+// request body decode failure without exposing Go decoder internals.
+func SafeDecodePayloadMessage(error) string {
+	return "invalid request body"
 }
 
 // Decode implements the Decoder interface. It simply calls f(v).
@@ -328,13 +373,30 @@ func newTextDecoder(r io.Reader, ct string) Decoder {
 	return &textDecoder{r, ct}
 }
 
+func newLimitedDecoder(r io.Reader, decode func(io.Reader, any) error) Decoder {
+	return &limitedDecoder{r: r, decode: decode}
+}
+
 type textDecoder struct {
 	r  io.Reader
 	ct string
 }
 
+type limitedDecoder struct {
+	r      io.Reader
+	decode func(io.Reader, any) error
+}
+
+func (d *limitedDecoder) Decode(v any) error {
+	b, err := readAllLimited(d.r, DefaultMaxRequestBodyBytes)
+	if err != nil {
+		return err
+	}
+	return d.decode(bytes.NewReader(b), v)
+}
+
 func (e *textDecoder) Decode(v any) error {
-	b, err := io.ReadAll(e.r)
+	b, err := readAllLimited(e.r, DefaultMaxRequestBodyBytes)
 	if err != nil {
 		return err
 	}
@@ -347,6 +409,30 @@ func (e *textDecoder) Decode(v any) error {
 		return fmt.Errorf("can't decode %s to %T", e.ct, c)
 	}
 	return nil
+}
+
+func decodeJSON(r io.Reader, v any) error {
+	return json.NewDecoder(r).Decode(v)
+}
+
+func decodeXML(r io.Reader, v any) error {
+	return xml.NewDecoder(r).Decode(v)
+}
+
+func decodeGOB(r io.Reader, v any) error {
+	return gob.NewDecoder(r).Decode(v)
+}
+
+func readAllLimited(r io.Reader, limit int64) ([]byte, error) {
+	limited := io.LimitReader(r, limit+1)
+	b, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > limit {
+		return nil, errRequestBodyTooLarge
+	}
+	return b, nil
 }
 
 // newUnsupportedDecoder returns a decoder that returns an error indicating that

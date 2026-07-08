@@ -4,7 +4,10 @@
 // MethodExplicitBodyPrimitiveResultMultipleView endpoint.
 func EncodeMethodExplicitBodyPrimitiveResultMultipleViewResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res := v.(*serviceexplicitbodyprimitiveresultmultipleviewviews.Resulttypemultipleviews)
+		res, ok := v.(*serviceexplicitbodyprimitiveresultmultipleviewviews.Resulttypemultipleviews)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", "*serviceexplicitbodyprimitiveresultmultipleviewviews.Resulttypemultipleviews", v)
+		}
 		w.Header().Set("loom-view", res.View)
 		enc := encoder(ctx, w)
 		body := res.Projected.A

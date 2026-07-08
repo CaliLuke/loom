@@ -16,7 +16,7 @@ func DecodeMethodBodyMapStringRequest(mux loomhttp.Muxer, decoder func(*http.Req
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		payload = NewMethodBodyMapStringPayload(&body)
 

@@ -2,7 +2,10 @@
 // returned by the ServiceBodyArrayString MethodBodyArrayString endpoint.
 func EncodeMethodBodyArrayStringResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*servicebodyarraystring.MethodBodyArrayStringResult)
+		res, ok := v.(*servicebodyarraystring.MethodBodyArrayStringResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyArrayString", "MethodBodyArrayString", "*servicebodyarraystring.MethodBodyArrayStringResult", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewMethodBodyArrayStringResponseBody(res)
 		w.WriteHeader(http.StatusOK)

@@ -16,7 +16,7 @@ func DecodeMethodBodyArrayUserRequest(mux loomhttp.Muxer, decoder func(*http.Req
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		err = ValidateMethodBodyArrayUserRequestBody(&body)
 		if err != nil {

@@ -21,7 +21,10 @@ import (
 // Tick endpoint.
 func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*clock.TickTockEvent)
+		res, ok := v.(*clock.TickTockEvent)
+		if !ok {
+			return loomhttp.ErrInvalidType("clock", "Tick", "*clock.TickTockEvent", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewTickResponseBody(res)
 		w.WriteHeader(http.StatusOK)
@@ -33,7 +36,10 @@ func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomh
 // Tock endpoint.
 func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*clock.TickTockEvent)
+		res, ok := v.(*clock.TickTockEvent)
+		if !ok {
+			return loomhttp.ErrInvalidType("clock", "Tock", "*clock.TickTockEvent", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewTockResponseBody(res)
 		w.WriteHeader(http.StatusOK)
@@ -45,7 +51,10 @@ func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) loomh
 // Guarded endpoint.
 func EncodeGuardedResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*clock.TickTockEvent)
+		res, ok := v.(*clock.TickTockEvent)
+		if !ok {
+			return loomhttp.ErrInvalidType("clock", "Guarded", "*clock.TickTockEvent", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewGuardedResponseBody(res)
 		w.WriteHeader(http.StatusOK)

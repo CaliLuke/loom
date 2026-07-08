@@ -129,3 +129,23 @@ func TestEncodeMarshallingAndUnmarshalling(t *testing.T) {
 		})
 	}
 }
+
+func TestResponseEncoderRejectsWrongResultType(t *testing.T) {
+	code := serverEncodeSectionCode(t, testdata.ResultBodyUserDSL)
+
+	require.Contains(t, code, "res, ok := v.(*servicebodyuser.ResultType)")
+	require.Contains(t, code, `if !ok {`)
+	require.Contains(t, code, `return loomhttp.ErrInvalidType("ServiceBodyUser", "MethodBodyUser", "*servicebodyuser.ResultType", v)`)
+	require.NotContains(t, code, "res, _ := v.(*servicebodyuser.ResultType)")
+}
+
+func serverEncodeSectionCode(t *testing.T, dsl func()) string {
+	t.Helper()
+	root := RunHTTPDSL(t, dsl)
+	services := CreateHTTPServices(root)
+	fs := ServerFiles("", services)
+	require.Len(t, fs, 2)
+	sections := fs[1].AllSections()
+	require.Greater(t, len(sections), 1)
+	return codegen.SectionCode(t, sections[1])
+}

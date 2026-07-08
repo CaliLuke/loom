@@ -2,7 +2,10 @@
 // returned by the ServiceHeaderArrayFloat64 MethodHeaderArrayFloat64 endpoint.
 func EncodeMethodHeaderArrayFloat64Response(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceheaderarrayfloat64.MethodHeaderArrayFloat64Result)
+		res, ok := v.(*serviceheaderarrayfloat64.MethodHeaderArrayFloat64Result)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderArrayFloat64", "MethodHeaderArrayFloat64", "*serviceheaderarrayfloat64.MethodHeaderArrayFloat64Result", v)
+		}
 		if res.H != nil {
 			val := res.H
 			hsSlice := make([]string, len(val))

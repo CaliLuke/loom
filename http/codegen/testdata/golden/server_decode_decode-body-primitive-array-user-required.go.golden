@@ -17,7 +17,7 @@ func DecodeMethodBodyPrimitiveArrayUserRequiredRequest(mux loomhttp.Muxer, decod
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		for _, e := range body {
 			if e != nil {

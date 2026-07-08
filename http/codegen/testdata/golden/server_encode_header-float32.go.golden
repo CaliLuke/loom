@@ -2,7 +2,10 @@
 // by the ServiceHeaderFloat32 MethodHeaderFloat32 endpoint.
 func EncodeMethodHeaderFloat32Response(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceheaderfloat32.MethodHeaderFloat32Result)
+		res, ok := v.(*serviceheaderfloat32.MethodHeaderFloat32Result)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderFloat32", "MethodHeaderFloat32", "*serviceheaderfloat32.MethodHeaderFloat32Result", v)
+		}
 		if res.H != nil {
 			val := res.H
 			hs := strconv.FormatFloat(float64(*val), 'f', -1, 32)

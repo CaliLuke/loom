@@ -17,7 +17,7 @@ func DecodeMethodBodyPrimitiveArrayUserRequest(mux loomhttp.Muxer, decoder func(
 				if errors.As(err, &gerr) {
 					return payload, gerr
 				}
-				return payload, loom.DecodePayloadError(err.Error())
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
 		payload = NewMethodBodyPrimitiveArrayUserPayloadType(body)

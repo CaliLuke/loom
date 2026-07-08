@@ -91,6 +91,9 @@ func multipartRequestEncoderTypeSection(data *MultipartData) codegen.Section {
 func renderWebSocketCloseBody(ws *WebSocketData) string {
 	var b sourceBuilder
 	b.Add("var err error\n")
+	if ws.Type == "client" && ws.SendName == "" {
+		b.Add("s.closeOnce.Do(func() {\n\tif s.done != nil {\n\t\tclose(s.done)\n\t}\n})\n")
+	}
 	if ws.Type == "server" {
 		b.Add("if s.conn == nil {\n\treturn nil\n}\n")
 		b.Add("if err = s.conn.WriteControl(\n")
@@ -174,12 +177,12 @@ func renderSSEClientRecvBody() string {
 	b.Add("var byts []byte\n")
 	b.Add("byts, err = s.readEvent(ctx)\n")
 	b.Add("if err != nil {\n")
-	b.Add("\tif errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {\n")
-	b.Add("\t\t// Clean up on EOF or context cancellation\n")
+	b.Add("\tif errors.Is(err, io.EOF) {\n")
 	b.Add("\t\ts.Close()\n")
-	b.Add("\t\tif errors.Is(err, io.EOF) {\n")
-	b.Add("\t\t\terr = nil\n")
-	b.Add("\t\t}\n")
+	b.Add("\t\treturn event, io.EOF\n")
+	b.Add("\t}\n")
+	b.Add("\tif errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {\n")
+	b.Add("\t\ts.Close()\n")
 	b.Add("\t}\n")
 	b.Add("\treturn\n")
 	b.Add("}\n")

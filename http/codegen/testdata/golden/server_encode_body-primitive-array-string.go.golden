@@ -3,7 +3,10 @@
 // MethodBodyPrimitiveArrayString endpoint.
 func EncodeMethodBodyPrimitiveArrayStringResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.([]string)
+		res, ok := v.([]string)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayString", "MethodBodyPrimitiveArrayString", "[]string", v)
+		}
 		enc := encoder(ctx, w)
 		body := res
 		w.WriteHeader(http.StatusOK)

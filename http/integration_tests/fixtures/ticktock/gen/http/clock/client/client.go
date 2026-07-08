@@ -89,7 +89,8 @@ func (c *Client) Tock() loom.Endpoint {
 // Guarded server.
 func (c *Client) Guarded() loom.Endpoint {
 	var (
-		encodeRequest = EncodeGuardedRequest(c.encoder)
+		encodeRequest  = EncodeGuardedRequest(c.encoder)
+		decodeResponse = DecodeGuardedResponse(c.decoder, c.RestoreResponseBody)
 	)
 	return func(ctx context.Context, v any) (any, error) {
 		req, err := c.BuildGuardedRequest(ctx, v)
@@ -106,8 +107,7 @@ func (c *Client) Guarded() loom.Endpoint {
 			return nil, loomhttp.ErrRequestError("clock", "Guarded", err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unexpected status from SSE endpoint: %d", resp.StatusCode)
+			return decodeResponse(resp)
 		}
 		contentType := resp.Header.Get("Content-Type")
 		if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {

@@ -3,7 +3,10 @@
 // MethodEmptyServerResponseWithTags endpoint.
 func EncodeMethodEmptyServerResponseWithTagsResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceemptyserverresponsewithtags.MethodEmptyServerResponseWithTagsResult)
+		res, ok := v.(*serviceemptyserverresponsewithtags.MethodEmptyServerResponseWithTagsResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceEmptyServerResponseWithTags", "MethodEmptyServerResponseWithTags", "*serviceemptyserverresponsewithtags.MethodEmptyServerResponseWithTagsResult", v)
+		}
 		if res.H == "true" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil

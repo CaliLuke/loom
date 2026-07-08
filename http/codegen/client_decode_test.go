@@ -46,3 +46,29 @@ func TestClientDecode(t *testing.T) {
 		})
 	}
 }
+
+func TestClientDecodeUnexpectedResponseBodyIsBounded(t *testing.T) {
+	code := clientDecodeSectionCode(t, testdata.EmptyServerResponseDSL)
+
+	require.Contains(t, code, "body, err := loomhttp.ReadUnexpectedResponseBody(resp)")
+	require.Contains(t, code, "if err != nil {")
+	require.NotContains(t, code, "body, _ := io.ReadAll(resp.Body)")
+}
+
+func TestClientDecodeRestoreBodyIsBounded(t *testing.T) {
+	code := clientDecodeSectionCode(t, testdata.EmptyServerResponseDSL)
+
+	require.Contains(t, code, "b, err := loomhttp.ReadResponseBody(resp)")
+	require.NotContains(t, code, "b, err := io.ReadAll(resp.Body)")
+}
+
+func clientDecodeSectionCode(t *testing.T, dsl func()) string {
+	t.Helper()
+	root := RunHTTPDSL(t, dsl)
+	services := CreateHTTPServices(root)
+	fs := ClientFiles("", services)
+	require.Len(t, fs, 2)
+	sections := fs[1].AllSections()
+	require.Greater(t, len(sections), 2)
+	return codegen.SectionCode(t, sections[2])
+}

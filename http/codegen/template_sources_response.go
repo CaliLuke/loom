@@ -6,12 +6,18 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 	{{- if .Result.MustInit }}
 		{{- if .Method.ViewedResult }}
-			res := v.({{ .Method.ViewedResult.FullRef }})
+			res, ok := v.({{ .Method.ViewedResult.FullRef }})
+			if !ok {
+				return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Method.ViewedResult.FullRef }}", v)
+			}
 			{{- if not .Method.ViewedResult.ViewName }}
 				w.Header().Set("loom-view", res.View)
 			{{- end }}
 		{{- else }}
-			res, _ := v.({{ .Result.Ref }})
+			res, ok := v.({{ .Result.Ref }})
+			if !ok {
+				return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Result.Ref }}", v)
+			}
 		{{- end }}
 		{{- range .Result.Responses }}
 			{{- if .ContentType }}

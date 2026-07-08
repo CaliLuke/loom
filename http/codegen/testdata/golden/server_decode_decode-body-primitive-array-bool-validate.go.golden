@@ -17,7 +17,7 @@ func DecodeMethodBodyPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, decod
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		if len(body) < 1 {
 			err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, len(body), 1, true))

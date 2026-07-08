@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -83,9 +86,9 @@ func TestRequestDecoder(t *testing.T) {
 		ctXML        = "application/xml"
 		ctGob        = "application/gob"
 		unsupportedT = "*http.unsupportedDecoder"
-		jsonT        = "*json.Decoder"
-		xmlT         = "*xml.Decoder"
-		gobT         = "*gob.Decoder"
+		jsonT        = "*http.limitedDecoder"
+		xmlT         = "*http.limitedDecoder"
+		gobT         = "*http.limitedDecoder"
 	)
 	cases := []struct {
 		name      string
@@ -278,27 +281,109 @@ func TestResponseEncoder_Encode_ErrorResponseWithRemedy(t *testing.T) {
 	}
 }
 
+func TestResponseEncoder_Encode_InternalErrorHidesRawDetail(t *testing.T) {
+	encoder := ErrorEncoder(ResponseEncoder, nil)
+	w := httptest.NewRecorder()
+
+	err := encoder(context.Background(), w, errors.New("database password appeared in driver error"))
+
+	require.NoError(t, err)
+	require.Equal(t, http.StatusInternalServerError, w.Code)
+	body := strings.TrimSpace(w.Body.String())
+	require.Contains(t, body, `"detail":"internal server error"`)
+	require.NotContains(t, body, "database password")
+}
+
+func TestErrorEncoderConcurrentDefaultFormatter(t *testing.T) {
+	encoder := ErrorEncoder(ResponseEncoder, nil)
+	var wg sync.WaitGroup
+	for range 20 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w := httptest.NewRecorder()
+			err := encoder(context.Background(), w, errors.New("boom"))
+			require.NoError(t, err)
+			require.Equal(t, http.StatusInternalServerError, w.Code)
+		}()
+	}
+	wg.Wait()
+}
+
+func TestReadUnexpectedResponseBodyCapsAndReportsReadError(t *testing.T) {
+	resp := &http.Response{Body: io.NopCloser(strings.NewReader(strings.Repeat("x", DefaultMaxErrorBodyBytes+10)))}
+	body, err := ReadUnexpectedResponseBody(resp)
+	require.NoError(t, err)
+	require.Len(t, body, DefaultMaxErrorBodyBytes)
+
+	resp.Body = errReader{}
+	body, err = ReadUnexpectedResponseBody(resp)
+	require.Error(t, err)
+	require.Empty(t, body)
+}
+
+func TestReadResponseBodyUsesDecodeLimit(t *testing.T) {
+	resp := &http.Response{Body: io.NopCloser(strings.NewReader(strings.Repeat("x", DefaultMaxErrorBodyBytes+10)))}
+	body, err := ReadResponseBody(resp)
+	require.NoError(t, err)
+	require.Len(t, body, DefaultMaxErrorBodyBytes+10)
+
+	resp.Body = io.NopCloser(strings.NewReader(strings.Repeat("x", DefaultMaxRequestBodyBytes+1)))
+	body, err = ReadResponseBody(resp)
+	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	require.Nil(t, body)
+}
+
+func TestRequestDecoderCapsJSONBody(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "oversized prefix",
+			body: strings.Repeat(" ", DefaultMaxRequestBodyBytes+1) + `{"value":"ok"}`,
+		},
+		{
+			name: "valid payload with oversized suffix",
+			body: `{"value":"ok"}` + strings.Repeat(" ", DefaultMaxRequestBodyBytes),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequest("POST", "/", strings.NewReader(c.body))
+			var out struct {
+				Value string `json:"value"`
+			}
+
+			err := RequestDecoder(req).Decode(&out)
+
+			require.ErrorIs(t, err, errRequestBodyTooLarge)
+			require.Empty(t, out.Value)
+		})
+	}
+}
+
 func TestResponseDecoder(t *testing.T) {
 	cases := []struct {
 		contentType string
 		decoderType string
 	}{
-		{"application/json", "*json.Decoder"},
-		{"+json", "*json.Decoder"},
-		{"application/xml", "*xml.Decoder"},
-		{"+xml", "*xml.Decoder"},
-		{"application/gob", "*gob.Decoder"},
-		{"+gob", "*gob.Decoder"},
+		{"application/json", "*http.limitedDecoder"},
+		{"+json", "*http.limitedDecoder"},
+		{"application/xml", "*http.limitedDecoder"},
+		{"+xml", "*http.limitedDecoder"},
+		{"application/gob", "*http.limitedDecoder"},
+		{"+gob", "*http.limitedDecoder"},
 		{"text/html", "*http.textDecoder"},
 		{"+html", "*http.textDecoder"},
 		{"text/plain", "*http.textDecoder"},
 		{"+txt", "*http.textDecoder"},
-		{"application/json; charset=utf-8", "*json.Decoder"},
-		{"+json; charset=utf-8", "*json.Decoder"},
-		{"application/xml; charset=utf-8", "*xml.Decoder"},
-		{"+xml; charset=utf-8", "*xml.Decoder"},
-		{"application/gob; charset=utf-8", "*gob.Decoder"},
-		{"+gob; charset=utf-8", "*gob.Decoder"},
+		{"application/json; charset=utf-8", "*http.limitedDecoder"},
+		{"+json; charset=utf-8", "*http.limitedDecoder"},
+		{"application/xml; charset=utf-8", "*http.limitedDecoder"},
+		{"+xml; charset=utf-8", "*http.limitedDecoder"},
+		{"application/gob; charset=utf-8", "*http.limitedDecoder"},
+		{"+gob; charset=utf-8", "*http.limitedDecoder"},
 		{"text/html; charset=utf-8", "*http.textDecoder"},
 		{"+html; charset=utf-8", "*http.textDecoder"},
 		{"text/plain; charset=utf-8", "*http.textDecoder"},
@@ -401,6 +486,94 @@ func TestTextPlainDecoder_Decode_Other(t *testing.T) {
 	err := decoder.Decode(&value)
 
 	assert.Error(t, err, expectedErr)
+}
+
+func TestTextPlainDecoderCapsBody(t *testing.T) {
+	req := httptest.NewRequest("POST", "/", strings.NewReader(strings.Repeat("x", DefaultMaxRequestBodyBytes+1)))
+	req.Header.Set("Content-Type", "text/plain")
+	decoder := RequestDecoder(req)
+	var value string
+
+	err := decoder.Decode(&value)
+
+	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	require.Empty(t, value)
+}
+
+func TestReadMultipartFormCapsPartData(t *testing.T) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "payload.txt")
+	require.NoError(t, err)
+	_, err = io.Copy(part, strings.NewReader(strings.Repeat("x", DefaultMaxRequestBodyBytes+1)))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	req := httptest.NewRequest("POST", "/", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	mr, err := req.MultipartReader()
+	require.NoError(t, err)
+
+	form, err := ReadMultipartForm(mr)
+
+	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	require.Nil(t, form)
+}
+
+func TestReadMultipartFormCapsAggregateData(t *testing.T) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for i := 0; i < 2; i++ {
+		part, err := writer.CreateFormField(fmt.Sprintf("field%d", i))
+		require.NoError(t, err)
+		_, err = io.Copy(part, strings.NewReader(strings.Repeat("x", DefaultMaxRequestBodyBytes/2+1)))
+		require.NoError(t, err)
+	}
+	require.NoError(t, writer.Close())
+
+	req := httptest.NewRequest("POST", "/", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	mr, err := req.MultipartReader()
+	require.NoError(t, err)
+
+	form, err := ReadMultipartForm(mr)
+
+	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	require.Nil(t, form)
+}
+
+func TestReadMultipartFormCapsNamelessPartData(t *testing.T) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreatePart(textproto.MIMEHeader{})
+	require.NoError(t, err)
+	_, err = io.Copy(part, strings.NewReader(strings.Repeat("x", DefaultMaxRequestBodyBytes+1)))
+	require.NoError(t, err)
+	field, err := writer.CreateFormField("field")
+	require.NoError(t, err)
+	_, err = io.WriteString(field, "value")
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	req := httptest.NewRequest("POST", "/", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	mr, err := req.MultipartReader()
+	require.NoError(t, err)
+
+	form, err := ReadMultipartForm(mr)
+
+	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	require.Nil(t, form)
+}
+
+type errReader struct{}
+
+func (errReader) Read([]byte) (int, error) {
+	return 0, errors.New("read failed")
+}
+
+func (errReader) Close() error {
+	return nil
 }
 
 func makeTextDecoder() Decoder {

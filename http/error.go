@@ -53,8 +53,10 @@ func NewErrorResponse(ctx context.Context, err error) Statuser {
 // status and optional explicit type/title overrides.
 func NewProblemResponse(_ context.Context, err error, status int, problemType, problemTitle string) *ProblemResponse {
 	var gerr *loom.ServiceError
+	detailErr := err
 	if !errors.As(err, &gerr) {
-		return NewProblemResponse(context.Background(), loom.Fault("%s", err.Error()), status, problemType, problemTitle)
+		gerr = loom.Fault("internal server error")
+		detailErr = gerr
 	}
 	if status == 0 {
 		status = inferProblemStatus(gerr)
@@ -64,7 +66,7 @@ func NewProblemResponse(_ context.Context, err error, status int, problemType, p
 		Type:     problemType,
 		Title:    problemTitle,
 		Status:   status,
-		Detail:   loom.ErrorSafeMessage(err),
+		Detail:   loom.ErrorSafeMessage(detailErr),
 		Instance: ProblemInstanceURI(gerr.ID),
 		Code:     gerr.Name,
 	}

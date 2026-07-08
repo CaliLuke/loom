@@ -8,7 +8,7 @@ func DecodeMethodMultipartMapTypeRequest(mux loomhttp.Muxer, decoder func(*http.
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 
 		return payload, nil

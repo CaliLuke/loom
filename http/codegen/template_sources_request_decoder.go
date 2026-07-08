@@ -11,7 +11,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, decoder func(*http.Request) loomh
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 {{- else if .Payload.Request.ServerBody }}
 		var (
@@ -25,7 +25,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, decoder func(*http.Request) loomh
 			if errors.As(multipartErr, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(multipartErr.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 		}
 		multipartForm, multipartErr := loomhttp.ReadMultipartForm(mr)
 		if multipartErr != nil {
@@ -33,7 +33,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, decoder func(*http.Request) loomh
 			if errors.As(multipartErr, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(multipartErr.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 		}
 		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
 		{{- if .Payload.Request.MustHaveBody }}
@@ -68,12 +68,12 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, decoder func(*http.Request) loomh
 				if errors.As(multipartErr, &gerr) {
 					return payload, gerr
 				}
-				return payload, loom.DecodePayloadError(multipartErr.Error())
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 			}
 		}
 	{{- else if .Payload.Request.FormEncoded }}
 		if err = r.ParseForm(); err != nil {
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		if len(r.PostForm) == 0 {
 		{{- if .Payload.Request.MustHaveBody }}
@@ -85,7 +85,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, decoder func(*http.Request) loomh
 				if errors.As(err, &gerr) {
 					return payload, gerr
 				}
-				return payload, loom.DecodePayloadError(err.Error())
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
 	{{- else }}
@@ -104,7 +104,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, decoder func(*http.Request) loomh
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		{{- if not .Payload.Request.MustHaveBody }}
 			}
 		{{- end }}

@@ -2,7 +2,10 @@
 // the ServiceTagString MethodTagString endpoint.
 func EncodeMethodTagStringResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*servicetagstring.MethodTagStringResult)
+		res, ok := v.(*servicetagstring.MethodTagStringResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceTagString", "MethodTagString", "*servicetagstring.MethodTagStringResult", v)
+		}
 		if res.H != nil && *res.H == "value" {
 			w.Header().Set("H", *res.H)
 			w.WriteHeader(http.StatusAccepted)

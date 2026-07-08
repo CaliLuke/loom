@@ -185,6 +185,10 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 	stmt.Type().Id(ed.SSE.StructName).Struct(
 		jen.Comment("once ensures the headers are written once."),
 		jen.Id("once").Qual("sync", "Once"),
+		jen.Comment("lock protects started."),
+		jen.Id("lock").Qual("sync", "Mutex"),
+		jen.Comment("started records whether the event stream has been committed."),
+		jen.Id("streamStarted").Bool(),
 		jen.Comment("w is the HTTP response writer used to send the SSE events."),
 		jen.Id("w").Qual("net/http", "ResponseWriter"),
 		jen.Comment("r is the HTTP request."),
@@ -209,6 +213,17 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 		BlockFunc(func(group *jen.Group) {
 			addRawWebSocketGroup(group, renderSSEInitHeadersBody())
 		})
+	stmt.Line()
+	stmt.Func().
+		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
+		Id("started").
+		Params().
+		Bool().
+		Block(
+			jen.Id("s").Dot("lock").Dot("Lock").Call(),
+			jen.Defer().Id("s").Dot("lock").Dot("Unlock").Call(),
+			jen.Return(jen.Id("s").Dot("streamStarted")),
+		)
 	stmt.Line()
 	codegen.Doc(stmt, fmt.Sprintf("%s %s", ed.SSE.SendWithContextName, ed.SSE.SendWithContextDesc))
 	stmt.Func().
@@ -246,7 +261,10 @@ func renderServerSSESendWithContextBody(ed *EndpointData) string {
 }
 
 func renderSSEInitHeadersBody() string {
-	return ssecodegen.InitHeadersSource("s.w", ssecodegen.HeaderOptions{PreserveExisting: true})
+	var b sourceBuilder
+	b.Add(ssecodegen.InitHeadersSource("s.w", ssecodegen.HeaderOptions{PreserveExisting: true}))
+	b.Add("\ns.lock.Lock()\ns.streamStarted = true\ns.lock.Unlock()")
+	return b.String()
 }
 
 func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat string) string {

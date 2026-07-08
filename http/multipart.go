@@ -39,6 +39,7 @@ func ReadMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
 		Values: url.Values{},
 		Files:  make(map[string][]MultipartFile),
 	}
+	remaining := int64(DefaultMaxRequestBodyBytes)
 	for {
 		part, err := mr.NextPart()
 		if err != nil {
@@ -49,19 +50,28 @@ func ReadMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
 		}
 		name := part.FormName()
 		if name == "" {
+			data, readErr := readAllLimited(part, remaining)
+			if readErr != nil {
+				return nil, readErr
+			}
+			remaining -= int64(len(data))
 			if closeErr := part.Close(); closeErr != nil {
 				return nil, closeErr
 			}
 			continue
 		}
-		data, readErr := io.ReadAll(part)
-		closeErr := part.Close()
+		if remaining <= 0 {
+			return nil, errRequestBodyTooLarge
+		}
+		data, readErr := readAllLimited(part, remaining)
 		if readErr != nil {
 			return nil, readErr
 		}
+		closeErr := part.Close()
 		if closeErr != nil {
 			return nil, closeErr
 		}
+		remaining -= int64(len(data))
 		if filename := part.FileName(); filename != "" {
 			form.Files[name] = append(form.Files[name], MultipartFile{
 				Filename:    filename,

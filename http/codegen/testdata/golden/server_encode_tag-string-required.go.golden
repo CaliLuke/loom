@@ -2,7 +2,10 @@
 // returned by the ServiceTagStringRequired MethodTagStringRequired endpoint.
 func EncodeMethodTagStringRequiredResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*servicetagstringrequired.MethodTagStringRequiredResult)
+		res, ok := v.(*servicetagstringrequired.MethodTagStringRequiredResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceTagStringRequired", "MethodTagStringRequired", "*servicetagstringrequired.MethodTagStringRequiredResult", v)
+		}
 		if res.H == "value" {
 			w.Header().Set("H", res.H)
 			w.WriteHeader(http.StatusAccepted)

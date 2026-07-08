@@ -3,7 +3,10 @@
 // MethodEmptyBodyResultMultipleView endpoint.
 func EncodeMethodEmptyBodyResultMultipleViewResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res := v.(*serviceemptybodyresultmultipleviewviews.Resulttypemultipleviews)
+		res, ok := v.(*serviceemptybodyresultmultipleviewviews.Resulttypemultipleviews)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceEmptyBodyResultMultipleView", "MethodEmptyBodyResultMultipleView", "*serviceemptybodyresultmultipleviewviews.Resulttypemultipleviews", v)
+		}
 		w.Header().Set("loom-view", res.View)
 		if res.Projected.C != nil {
 			w.Header().Set("Location", *res.Projected.C)

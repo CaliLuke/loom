@@ -2,7 +2,10 @@
 // by the ServiceHeaderString MethodHeaderString endpoint.
 func EncodeMethodHeaderStringResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceheaderstring.MethodHeaderStringResult)
+		res, ok := v.(*serviceheaderstring.MethodHeaderStringResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderString", "MethodHeaderString", "*serviceheaderstring.MethodHeaderStringResult", v)
+		}
 		if res.H != nil {
 			w.Header().Set("H", *res.H)
 		}

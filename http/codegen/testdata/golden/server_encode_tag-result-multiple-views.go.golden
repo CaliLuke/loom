@@ -2,7 +2,10 @@
 // returned by the ServiceTagMultipleViews MethodTagMultipleViews endpoint.
 func EncodeMethodTagMultipleViewsResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res := v.(*servicetagmultipleviewsviews.Resulttypemultipleviews)
+		res, ok := v.(*servicetagmultipleviewsviews.Resulttypemultipleviews)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceTagMultipleViews", "MethodTagMultipleViews", "*servicetagmultipleviewsviews.Resulttypemultipleviews", v)
+		}
 		w.Header().Set("loom-view", res.View)
 		if res.Projected.B != nil && *res.Projected.B == "value" {
 			enc := encoder(ctx, w)

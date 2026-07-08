@@ -2,7 +2,10 @@
 // the ServiceHeaderBool MethodHeaderBool endpoint.
 func EncodeMethodHeaderBoolResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceheaderbool.MethodHeaderBoolResult)
+		res, ok := v.(*serviceheaderbool.MethodHeaderBoolResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderBool", "MethodHeaderBool", "*serviceheaderbool.MethodHeaderBoolResult", v)
+		}
 		if res.H != nil {
 			val := res.H
 			hs := strconv.FormatBool(*val)

@@ -578,3 +578,11 @@ func (svc *ServiceData) Endpoint(name string) *EndpointData {
 func NeedDialer(data []*ServiceData) bool {
 	return slices.ContainsFunc(data, HasWebSocket)
 }
+
+// HasStreamingEndpoint returns true if at least one method in the defined
+// services uses a long-lived streaming transport.
+func HasStreamingEndpoint(data []*ServiceData) bool {
+	return slices.ContainsFunc(data, func(sd *ServiceData) bool {
+		return HasWebSocket(sd) || slices.ContainsFunc(sd.Endpoints, IsSSEEndpoint)
+	})
+}

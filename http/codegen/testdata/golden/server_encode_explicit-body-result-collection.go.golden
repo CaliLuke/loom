@@ -3,7 +3,10 @@
 // MethodExplicitBodyResultCollection endpoint.
 func EncodeMethodExplicitBodyResultCollectionResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceexplicitbodyresultcollection.MethodExplicitBodyResultCollectionResult)
+		res, ok := v.(*serviceexplicitbodyresultcollection.MethodExplicitBodyResultCollectionResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceExplicitBodyResultCollection", "MethodExplicitBodyResultCollection", "*serviceexplicitbodyresultcollection.MethodExplicitBodyResultCollectionResult", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewResulttypeCollection(res)
 		w.WriteHeader(http.StatusOK)

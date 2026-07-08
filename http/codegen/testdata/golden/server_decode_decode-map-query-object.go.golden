@@ -16,7 +16,7 @@ func DecodeMethodMapQueryObjectRequest(mux loomhttp.Muxer, decoder func(*http.Re
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		err = ValidateMethodMapQueryObjectRequestBody(&body)
 		if err != nil {
@@ -41,11 +41,16 @@ func DecodeMethodMapQueryObjectRequest(mux loomhttp.Muxer, decoder func(*http.Re
 			}
 			for keyRaw, valRaw := range cRaw {
 				var key int
+				var keyErr error
 				v, err2 := strconv.ParseInt(keyRaw, 10, strconv.IntSize)
 				if err2 != nil {
-					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", keyRaw, "integer"))
+					keyErr = loom.InvalidFieldTypeError("query", keyRaw, "integer")
+					err = loom.MergeErrors(err, keyErr)
 				}
 				key = int(v)
+				if keyErr != nil {
+					continue
+				}
 				c[key] = valRaw
 			}
 		}

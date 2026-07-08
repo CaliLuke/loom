@@ -79,7 +79,21 @@ func TestGeneratedSSEClientCloseUnblocksBlockedRecv(t *testing.T) {
 	}()
 
 	require.NoError(t, receiveSoon(t, closec, "Close"))
-	require.NoError(t, receiveSoon(t, recvc, "Recv"))
+	require.ErrorIs(t, receiveSoon(t, recvc, "Recv"), io.EOF)
+}
+
+func TestGeneratedSSEClientRecvReturnsEOFAtEndOfStream(t *testing.T) {
+	body := newBlockingBody()
+	stream := clockclient.NewTickStream(&http.Response{Body: body}, nil)
+
+	err := stream.Close()
+	require.NoError(t, err)
+
+	_, err = stream.Recv(context.Background())
+	require.ErrorIs(t, err, io.EOF)
+
+	_, err = stream.Recv(context.Background())
+	require.ErrorIs(t, err, io.EOF)
 }
 
 func TestGeneratedSSEClientRecvHonorsContextWhileReadBlocked(t *testing.T) {

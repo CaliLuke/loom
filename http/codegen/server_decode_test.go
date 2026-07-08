@@ -283,6 +283,38 @@ func TestTextUnmarshalerDecodeValidationPlacement(t *testing.T) {
 	})
 }
 
+func TestRequestDecoderSanitizesBodyDecodeErrors(t *testing.T) {
+	code := decodeSectionCode(t, testdata.PayloadBodyUserDSL)
+
+	require.Contains(t, code, "loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))")
+	require.NotContains(t, code, "loom.DecodePayloadError(err.Error())")
+}
+
+func TestRequestDecoderMapQueryPresenceIsScopedToMapParam(t *testing.T) {
+	code := decodeSectionCode(t, testdata.PayloadMapQueryPrimitivePrimitiveDSL)
+
+	require.Contains(t, code, "queryHasValues := false")
+	require.Contains(t, code, `if strings.HasPrefix(keyRaw, "query[") {`)
+	require.Contains(t, code, "if !queryHasValues {")
+	require.NotContains(t, code, "if len(queryRaw) == 0 {")
+}
+
+func TestRequestDecoderSkipsMapEntryAfterInvalidKeyParse(t *testing.T) {
+	code := decodeSectionCode(t, testdata.PayloadQueryMapBoolBoolDSL)
+
+	require.Contains(t, code, "var keyaErr error")
+	require.Contains(t, code, "err = loom.MergeErrors(err, keyaErr)")
+	require.Contains(t, code, "if keyaErr != nil {")
+	require.Contains(t, code, "continue")
+	require.NotContains(t, code, "beforeKeyaErr")
+
+	directCode := decodeSectionCode(t, testdata.PayloadMapQueryObjectDSL)
+	require.Contains(t, directCode, "var keyErr error")
+	require.Contains(t, directCode, "err = loom.MergeErrors(err, keyErr)")
+	require.Contains(t, directCode, "if keyErr != nil {")
+	require.Contains(t, directCode, "continue")
+}
+
 func decodeSectionCode(t *testing.T, dsl func()) string {
 	t.Helper()
 	root := RunHTTPDSL(t, dsl)

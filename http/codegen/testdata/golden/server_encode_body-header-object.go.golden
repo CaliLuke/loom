@@ -2,7 +2,10 @@
 // returned by the ServiceBodyHeaderObject MethodBodyHeaderObject endpoint.
 func EncodeMethodBodyHeaderObjectResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*servicebodyheaderobject.MethodBodyHeaderObjectResult)
+		res, ok := v.(*servicebodyheaderobject.MethodBodyHeaderObjectResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceBodyHeaderObject", "MethodBodyHeaderObject", "*servicebodyheaderobject.MethodBodyHeaderObjectResult", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewMethodBodyHeaderObjectResponseBody(res)
 		if res.B != nil {

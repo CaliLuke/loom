@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -45,4 +46,42 @@ func TestClientEndpointSectionsMixedResults(t *testing.T) {
 	require.NotContains(t, standard, `req.Header.Set("Accept", "text/event-stream")`)
 	require.Contains(t, stream, "func (c *Client) CreateStream() loom.Endpoint")
 	require.Contains(t, stream, `req.Header.Set("Accept", "text/event-stream")`)
+}
+
+func TestClientEndpointSectionSSEDecodesTypedErrorResponses(t *testing.T) {
+	root := RunHTTPDSL(t, func() {
+		Service("SSEErrorService", func() {
+			Method("SSEErrorMethod", func() {
+				StreamingResult(String)
+				Error("unauthorized")
+				HTTP(func() {
+					GET("/sse-error")
+					Response(StatusOK)
+					Response("unauthorized", StatusUnauthorized)
+					ServerSentEvents()
+				})
+			})
+		})
+	})
+	services := CreateHTTPServices(root)
+	endpoint := services.Get("SSEErrorService").Endpoints[0]
+
+	code := codegen.SectionCode(t, clientEndpointSection(endpoint))
+
+	require.Contains(t, code, "decodeResponse = DecodeSSEErrorMethodResponse(c.decoder, c.RestoreResponseBody)")
+	require.Contains(t, code, "return decodeResponse(resp)")
+	require.NotContains(t, code, "unexpected status from SSE endpoint")
+}
+
+func TestClientWebSocketServerStreamingEndpointDoesNotLeakContextWatcher(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.StreamingResultDSL)
+	services := CreateHTTPServices(root)
+	endpoint := services.Get("StreamingResultService").Endpoints[0]
+
+	code := codegen.SectionCode(t, clientEndpointSection(endpoint))
+
+	require.Contains(t, code, "done := make(chan struct{})")
+	require.Contains(t, code, "case <-done:")
+	require.Contains(t, code, "done: done")
+	require.NotContains(t, code, "<-ctx.Done()\n\t\t\tconn.WriteControl")
 }

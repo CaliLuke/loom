@@ -224,6 +224,12 @@ func TestWebSocketStreamsHonorContextInGeneratedMethods(t *testing.T) {
 	require.Contains(t, recv, "s.upgradeErr = err")
 	require.Contains(t, recv, "if ctxErr := ctx.Err(); ctxErr != nil {")
 	require.Contains(t, recv, "return rv, ctxErr")
+	complexRoot := RunHTTPDSL(t, bidirectionalStreamingComplexDSL)
+	complexServices := CreateHTTPServices(complexRoot)
+	complexServerFiles := ServerFiles("", complexServices)
+	require.Greater(t, len(complexServerFiles), 1)
+	complexRecv := codegen.SectionCode(t, complexServerFiles[1].Section("server-websocket-recv")[0])
+	require.Contains(t, complexRecv, "ValidateBidirectionalComplexStreamingBody(&body)")
 
 	send := codegen.SectionCode(t, serverFiles[1].Section("server-websocket-send")[0])
 	require.Contains(t, send, "return s.SendWithContext(s.r.Context(), v)")

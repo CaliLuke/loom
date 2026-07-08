@@ -3,7 +3,10 @@
 // MethodResultWithEmbeddedCustomPkgTypeDSL endpoint.
 func EncodeMethodResultWithEmbeddedCustomPkgTypeDSLResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*serviceresultwithembeddedcustompkgtypedsl.ContainedFoo)
+		res, ok := v.(*serviceresultwithembeddedcustompkgtypedsl.ContainedFoo)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceResultWithEmbeddedCustomPkgTypeDSL", "MethodResultWithEmbeddedCustomPkgTypeDSL", "*serviceresultwithembeddedcustompkgtypedsl.ContainedFoo", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewMethodResultWithEmbeddedCustomPkgTypeDSLResponseBody(res)
 		w.WriteHeader(http.StatusOK)
