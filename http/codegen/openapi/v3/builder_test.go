@@ -8,6 +8,7 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/openapi/v3/testdata/dsls"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildInfo(t *testing.T) {
@@ -86,6 +87,22 @@ func TestBuildInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildPathsIncludesCORSExtension(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ServerCORSPolicyDSL)
+	doc := New(root)
+	require.NotNil(t, doc)
+	path := doc.Paths["/items"]
+	require.NotNil(t, path)
+	cors, ok := path.Extensions["x-loom-cors"].(map[string]any)
+	require.True(t, ok)
+	origins, ok := cors["origins"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, origins, 1)
+	require.Equal(t, "https://app.example.com", origins[0]["origin"])
+	require.Equal(t, true, origins[0]["credentials"])
+	require.Equal(t, 600, origins[0]["maxAge"])
 }
 
 type param struct {

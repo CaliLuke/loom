@@ -183,6 +183,15 @@ For non-HTTP entry points (e.g. a JSON-RPC consumer reading frames from a
 queue) use `transport.WithObserver(ctx, obs)` to inject the observer into
 the request context before invoking the generated handler.
 
+### CORS
+
+Model browser cross-origin policy in the HTTP design with `CORS` rather than
+wrapping generated handlers in application-local middleware. Generated HTTP
+servers mount route-local `OPTIONS` preflight handlers and write
+`Access-Control-Allow-*` headers from the shared `loom/http` runtime helper.
+Service-level CORS overrides API-level CORS, and OpenAPI publishes the
+effective route policy under `x-loom-cors`.
+
 ### Health Checks
 
 ```go

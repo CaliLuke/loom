@@ -67,6 +67,8 @@ type (
 		// UnionTypes lists the sum-type unions referenced by the HTTP request and
 		// response body types.
 		UnionTypes []*service.UnionTypeData
+		// CORS contains the generated service CORS policy, if any.
+		CORS *CORSData
 		// Scope initialized with all the server and client types.
 		Scope *codegen.NameScope
 	}
@@ -106,6 +108,8 @@ type (
 		// Requirements contains the security requirements for the
 		// method.
 		Requirements service.RequirementsData
+		// CORS contains the generated service CORS policy, if any.
+		CORS *CORSData
 
 		// server
 

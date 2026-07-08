@@ -29,6 +29,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	irService := transportir.BuildService(httpSvc)
 	scope := newHTTPAnalysisScope(svc)
 	sd = newHTTPServiceData(svc, scope)
+	sd.CORS = buildCORSData(httpSvc)
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
 	for _, httpEndpoint := range irService.Endpoints {
 		epCtx := ctx.WithMethod(httpSvc.ServiceExpr.Method(httpEndpoint.MethodName))
@@ -48,6 +49,29 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	sd.UnionTypes = sds.collectEndpointUnionTypes(httpSvc, sd.Scope)
 
 	return sd
+}
+
+func buildCORSData(httpSvc *expr.HTTPServiceExpr) *CORSData {
+	cors := httpSvc.CORS
+	if cors == nil {
+		cors = httpSvc.Root.CORS
+	}
+	if cors == nil {
+		return nil
+	}
+	out := &CORSData{Origins: make([]*CORSOriginData, 0, len(cors.Origins))}
+	for _, origin := range cors.Origins {
+		out.Origins = append(out.Origins, &CORSOriginData{
+			Pattern:     origin.Pattern,
+			Regex:       origin.Regex,
+			Methods:     append([]string(nil), origin.Methods...),
+			Headers:     append([]string(nil), origin.Headers...),
+			Expose:      append([]string(nil), origin.Expose...),
+			MaxAge:      origin.MaxAge,
+			Credentials: origin.Credentials,
+		})
+	}
+	return out
 }
 
 func (sds *ServicesData) buildEndpointDataWithContext(
@@ -168,6 +192,7 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 		RequestEncoder:  endpointRequestEncoderName(method, payload, basch),
 		ResponseDecoder: fmt.Sprintf("Decode%sResponse", method.VarName),
 		Requirements:    reqs,
+		CORS:            sd.CORS,
 	}
 	sds.applyStreamingEndpointData(endpoint, endpointIR, sd)
 	sds.applyMultipartEndpointData(endpoint, endpointIR, method, svc, scope)

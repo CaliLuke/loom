@@ -196,6 +196,13 @@ func serverMountSection(data *ServiceData) codegen.Section {
 func renderServerMountBody(data *ServiceData, standalone bool) string {
 	var b sourceBuilder
 	if standalone {
+		if data.CORS != nil {
+			for _, route := range corsPreflightRoutes(data) {
+				b.Addf("\tmux.Handle(%q, %q, func(w http.ResponseWriter, r *http.Request) {\n", "OPTIONS", route.Path)
+				b.Addf("\t\tloomhttp.HandleCORSPreflight(w, r, %s, []string{%s})\n", renderCORSPolicy(data.CORS), quotedStringList(route.Methods))
+				b.Add("\t})\n")
+			}
+		}
 		for _, endpoint := range data.Endpoints {
 			b.Addf("\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
 		}
@@ -242,10 +249,85 @@ func renderServerHandlerBody(data *EndpointData) string {
 	b.Add("\tf, ok := h.(http.HandlerFunc)\n")
 	b.Add("\tif !ok {\n")
 	b.Add("\t\tf = func(w http.ResponseWriter, r *http.Request) {\n\t\t\th.ServeHTTP(w, r)\n\t\t}\n\t}\n")
+	if data.CORS != nil {
+		b.Addf("\tf = loomhttp.CORSHandler(%s, f)\n", renderCORSPolicy(data.CORS))
+	}
 	for _, route := range data.Routes {
 		b.Addf("\tmux.Handle(%q, %q, f)\n", route.Verb, route.Path)
 	}
 	return b.String()
+}
+
+type corsPreflightRoute struct {
+	Path    string
+	Methods []string
+}
+
+func corsPreflightRoutes(data *ServiceData) []corsPreflightRoute {
+	byPath := make(map[string]map[string]struct{})
+	for _, endpoint := range data.Endpoints {
+		for _, route := range endpoint.Routes {
+			methods := byPath[route.Path]
+			if methods == nil {
+				methods = make(map[string]struct{})
+				byPath[route.Path] = methods
+			}
+			methods[route.Verb] = struct{}{}
+		}
+	}
+	paths := make([]string, 0, len(byPath))
+	for path := range byPath {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	routes := make([]corsPreflightRoute, 0, len(paths))
+	for _, path := range paths {
+		methods := make([]string, 0, len(byPath[path]))
+		for method := range byPath[path] {
+			methods = append(methods, method)
+		}
+		sort.Strings(methods)
+		routes = append(routes, corsPreflightRoute{Path: path, Methods: methods})
+	}
+	return routes
+}
+
+func renderCORSPolicy(cors *CORSData) string {
+	var b sourceBuilder
+	b.Add("loomhttp.CORSPolicy{Origins: []loomhttp.CORSOrigin{")
+	for _, origin := range cors.Origins {
+		b.Add("{")
+		b.Addf("Pattern: %q,", origin.Pattern)
+		if origin.Regex {
+			b.Add("Regex: true,")
+		}
+		if len(origin.Methods) > 0 {
+			b.Addf("Methods: []string{%s},", quotedStringList(origin.Methods))
+		}
+		if len(origin.Headers) > 0 {
+			b.Addf("Headers: []string{%s},", quotedStringList(origin.Headers))
+		}
+		if len(origin.Expose) > 0 {
+			b.Addf("Expose: []string{%s},", quotedStringList(origin.Expose))
+		}
+		if origin.MaxAge > 0 {
+			b.Addf("MaxAge: %d,", origin.MaxAge)
+		}
+		if origin.Credentials {
+			b.Add("Credentials: true,")
+		}
+		b.Add("},")
+	}
+	b.Add("}}")
+	return b.String()
+}
+
+func quotedStringList(values []string) string {
+	quoted := make([]string, len(values))
+	for i, value := range values {
+		quoted[i] = fmt.Sprintf("%q", value)
+	}
+	return strings.Join(quoted, ", ")
 }
 
 func appendFSSection(mappedFiles map[string]string) codegen.Section {

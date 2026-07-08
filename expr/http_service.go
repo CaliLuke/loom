@@ -45,6 +45,9 @@ type (
 		// SSE defines the Server-Sent Events configuration for all streaming endpoints
 		// in this service. If nil, streaming endpoints use WebSockets by default.
 		SSE *HTTPSSEExpr
+		// CORS defines the service-level Cross-Origin Resource Sharing policy.
+		// If nil, the API-level CORS policy applies.
+		CORS *HTTPCORSExpr
 		// JSONRPCRoute is the route used for all JSON-RPC endpoints in this service.
 		// Only applicable to JSON-RPC services.
 		JSONRPCRoute *RouteExpr
@@ -221,6 +224,10 @@ func (svc *HTTPServiceExpr) Validate() error {
 
 	// Validate transport compatibility
 	svc.validateTransports(verr)
+
+	if svc.CORS != nil {
+		verr.Merge(svc.CORS.Validate())
+	}
 
 	return verr
 }

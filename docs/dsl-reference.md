@@ -912,6 +912,32 @@ mappings, and use `SessionCookie(...)` in HTTP response scope when setting a
 session cookie with secure defaults: `Path("/")`, `Secure`, `HttpOnly`, and
 `SameSite=Lax`.
 
+### CORS
+
+Use `CORS` in API or service `HTTP` scope to define browser cross-origin
+policy. Service-level policy overrides API-level policy for that service.
+
+```go
+API("tasks", func() {
+    HTTP(func() {
+        CORS(func() {
+            Origin("https://app.example.com", func() {
+                Methods("GET", "POST")
+                Headers("Authorization", "Content-Type")
+                Expose("X-Request-Id")
+                MaxAge(600)
+                Credentials()
+            })
+            OriginRegex(`^https://preview-[^.]+\.example\.com$`)
+        })
+    })
+})
+```
+
+Generated HTTP servers mount preflight `OPTIONS` handlers and write actual
+request CORS headers. `Origin("*")` is valid only without `Credentials()`.
+OpenAPI path items include the effective policy as `x-loom-cors`.
+
 ### Error Properties
 
 Mark errors with semantic properties:

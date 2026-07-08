@@ -2,6 +2,8 @@ package expr
 
 import (
 	"regexp"
+
+	"github.com/CaliLuke/loom/eval"
 )
 
 type (
@@ -32,6 +34,8 @@ type (
 		// SSE contains the Server-Sent Events configuration for all
 		// streaming endpoints in the API.
 		SSE *HTTPSSEExpr
+		// CORS contains the API-level Cross-Origin Resource Sharing policy.
+		CORS *HTTPCORSExpr
 	}
 )
 
@@ -77,6 +81,15 @@ func (h *HTTPExpr) ServiceFor(s *ServiceExpr, root *HTTPExpr) *HTTPServiceExpr {
 // EvalName returns the name printed in case of evaluation error.
 func (*HTTPExpr) EvalName() string {
 	return "API HTTP"
+}
+
+// Validate validates the API-level HTTP expression.
+func (h *HTTPExpr) Validate() error {
+	verr := new(eval.ValidationErrors)
+	if h.CORS != nil {
+		verr.Merge(h.CORS.Validate())
+	}
+	return verr
 }
 
 // Finalize initializes Consumes and Produces with defaults if not set.

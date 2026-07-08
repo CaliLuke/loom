@@ -171,6 +171,7 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 }
 
 func buildServiceEndpointPaths(paths map[string]*PathItem, doc *openapiir.Document, svc *expr.HTTPServiceExpr, exts map[string]any) {
+	corsExt := corsExtension(effectiveCORS(svc))
 	for _, endpoint := range svc.HTTPEndpoints {
 		if !openapi.MustGenerate(endpoint.Meta) || !openapi.MustGenerate(endpoint.MethodExpr.Meta) {
 			continue
@@ -180,9 +181,57 @@ func buildServiceEndpointPaths(paths map[string]*PathItem, doc *openapiir.Docume
 				normalizedKey := normalizeOpenAPIPath(key)
 				assignPathOperation(paths, normalizedKey, route.Method, buildOperationFromIR(irOperation(doc, normalizedKey, route.Method)))
 				assignPathExtensions(paths[normalizedKey], route.Endpoint.Meta, exts)
+				assignCORSExtension(paths[normalizedKey], corsExt)
 			}
 		}
 	}
+}
+
+func effectiveCORS(svc *expr.HTTPServiceExpr) *expr.HTTPCORSExpr {
+	if svc.CORS != nil {
+		return svc.CORS
+	}
+	return svc.Root.CORS
+}
+
+func corsExtension(cors *expr.HTTPCORSExpr) map[string]any {
+	if cors == nil {
+		return nil
+	}
+	origins := make([]map[string]any, 0, len(cors.Origins))
+	for _, origin := range cors.Origins {
+		item := map[string]any{"origin": origin.Pattern}
+		if origin.Regex {
+			item["regex"] = true
+		}
+		if len(origin.Methods) > 0 {
+			item["methods"] = append([]string(nil), origin.Methods...)
+		}
+		if len(origin.Headers) > 0 {
+			item["headers"] = append([]string(nil), origin.Headers...)
+		}
+		if len(origin.Expose) > 0 {
+			item["expose"] = append([]string(nil), origin.Expose...)
+		}
+		if origin.MaxAge > 0 {
+			item["maxAge"] = origin.MaxAge
+		}
+		if origin.Credentials {
+			item["credentials"] = true
+		}
+		origins = append(origins, item)
+	}
+	return map[string]any{"origins": origins}
+}
+
+func assignCORSExtension(path *PathItem, cors map[string]any) {
+	if path == nil || len(cors) == 0 {
+		return
+	}
+	if path.Extensions == nil {
+		path.Extensions = make(map[string]any)
+	}
+	path.Extensions["x-loom-cors"] = cors
 }
 
 func buildServiceFileServerPaths(paths map[string]*PathItem, api *expr.APIExpr, svc *expr.HTTPServiceExpr) {

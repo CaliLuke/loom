@@ -577,11 +577,32 @@ eventSource.onerror = (error) => {
 
 ## Cross-Origin Requests
 
-This repository does not currently include a Loom CORS DSL package. Configure
-CORS in application-owned HTTP middleware around the generated server handler.
-The generated HTTP code is standard `net/http` compatible, so existing
-middleware such as Chi middleware or a small custom wrapper can set
-`Access-Control-Allow-*` headers before requests reach generated handlers.
+Use `CORS` in API or service HTTP scope to make browser access part of the
+design. Service-level CORS overrides the API-level policy for that service.
+Generated servers mount `OPTIONS` preflight handlers for designed routes and
+write actual-request CORS headers through the shared `loomhttp` runtime helper.
+
+```go
+var _ = API("tasks", func() {
+    HTTP(func() {
+        CORS(func() {
+            Origin("https://app.example.com", func() {
+                Methods("GET", "POST")
+                Headers("Authorization", "Content-Type")
+                Expose("X-Request-Id")
+                MaxAge(600)
+                Credentials()
+            })
+            OriginRegex(`^https://preview-[^.]+\.example\.com$`)
+        })
+    })
+})
+```
+
+Use `Origin("*")` only for non-credentialed APIs. Designs that combine
+`Origin("*")` with `Credentials()` are rejected because browsers do not accept
+that combination. OpenAPI output records the effective route policy under the
+`x-loom-cors` extension.
 
 ---
 
@@ -650,6 +671,6 @@ var _ = Service("spa", func() {
 
 ### Security
 - Always use HTTPS in production
-- Configure CORS in application middleware when browsers call the API
+- Model browser CORS policy in HTTP design with `CORS`
 - Validate all input parameters
 - Set appropriate timeouts for long-lived connections

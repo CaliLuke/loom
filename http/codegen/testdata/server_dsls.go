@@ -14,6 +14,34 @@ var ServerNoPayloadNoResultDSL = func() {
 	})
 }
 
+var ServerCORSPolicyDSL = func() {
+	API("cors", func() {
+		HTTP(func() {
+			CORS(func() {
+				Origin("https://app.example.com", func() {
+					Methods("GET", "POST")
+					Headers("Authorization", "Content-Type")
+					Expose("X-Request-Id")
+					MaxAge(600)
+					Credentials()
+				})
+			})
+		})
+	})
+	Service("ServiceCORS", func() {
+		Method("List", func() {
+			HTTP(func() {
+				GET("/items")
+			})
+		})
+		Method("Create", func() {
+			HTTP(func() {
+				POST("/items")
+			})
+		})
+	})
+}
+
 var ServerNoPayloadNoResultWithRedirectDSL = func() {
 	Service("ServiceNoPayloadNoResult", func() {
 		Method("MethodNoPayloadNoResult", func() {

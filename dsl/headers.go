@@ -57,10 +57,25 @@ import (
 //	        })
 //	    })
 //	})
-func Headers(args any) {
-	fn, ok := args.(func())
-	if !ok {
+func Headers(args ...any) {
+	if o, ok := eval.Current().(*expr.HTTPCORSOriginExpr); ok {
+		for _, arg := range args {
+			header, ok := arg.(string)
+			if !ok {
+				eval.InvalidArgError("string", arg)
+				return
+			}
+			o.Headers = append(o.Headers, header)
+		}
+		return
+	}
+	if len(args) != 1 {
 		eval.InvalidArgError("function", args)
+		return
+	}
+	fn, ok := args[0].(func())
+	if !ok {
+		eval.InvalidArgError("function", args[0])
 		return
 	}
 	switch e := eval.Current().(type) {

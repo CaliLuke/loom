@@ -219,6 +219,10 @@ build Auto-K without repeating large amounts of app-local glue.
 ## Practical Checks
 
 - If a design hand-models bearer-or-cookie auth, duplicated auth responses, or raw `Set-Cookie` headers, check whether the newer session and cookie DSL should replace that glue first.
+- If browser clients need cross-origin access, model it with HTTP `CORS` in
+  API or service scope instead of app-local middleware. Service-level CORS
+  overrides API-level CORS; generated HTTP servers mount preflight `OPTIONS`
+  handlers and OpenAPI path items include `x-loom-cors`.
 - If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
