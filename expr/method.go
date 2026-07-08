@@ -182,12 +182,12 @@ func (m *MethodExpr) validateErrors() *eval.ValidationErrors {
 // validateInterceptors validates the method interceptors.
 func (m *MethodExpr) validateInterceptors() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	m.ClientInterceptors = mergeInterceptors(m.ClientInterceptors, m.Service.ClientInterceptors, Root.API.ClientInterceptors)
-	for _, i := range m.ClientInterceptors {
+	clientInterceptors := mergeInterceptors(m.ClientInterceptors, m.Service.ClientInterceptors, Root.API.ClientInterceptors)
+	for _, i := range clientInterceptors {
 		verr.Merge(i.validate(m))
 	}
-	m.ServerInterceptors = mergeInterceptors(m.ServerInterceptors, m.Service.ServerInterceptors, Root.API.ServerInterceptors)
-	for _, i := range m.ServerInterceptors {
+	serverInterceptors := mergeInterceptors(m.ServerInterceptors, m.Service.ServerInterceptors, Root.API.ServerInterceptors)
+	for _, i := range serverInterceptors {
 		verr.Merge(i.validate(m))
 	}
 	return verr
@@ -269,6 +269,7 @@ func (m *MethodExpr) Finalize() {
 	m.StreamingPayload = finalizeMethodAttribute(m.StreamingPayload)
 	m.finalizeMethodResult(&m.StreamingResult)
 	m.Result = finalizeMethodResultAttr(m.Result)
+	m.finalizeInterceptors()
 	m.inheritServiceErrors()
 	m.finalizeErrors()
 	if m.hasNoSecurityRequirement() {
@@ -278,6 +279,14 @@ func (m *MethodExpr) Finalize() {
 	}
 	m.inheritSecurityRequirements()
 	m.Requirements = mergeRequirements(m.Requirements, sessionRequirements(m.SessionAuths))
+}
+
+func (m *MethodExpr) finalizeInterceptors() {
+	if m.Service == nil {
+		return
+	}
+	m.ClientInterceptors = mergeInterceptors(m.ClientInterceptors, m.Service.ClientInterceptors, Root.API.ClientInterceptors)
+	m.ServerInterceptors = mergeInterceptors(m.ServerInterceptors, m.Service.ServerInterceptors, Root.API.ServerInterceptors)
 }
 
 func finalizeMethodAttribute(att *AttributeExpr) *AttributeExpr {

@@ -13,7 +13,6 @@ func (e *HTTPEndpointExpr) Validate() error {
 	if e.Name() == "" {
 		verr.Add(e, "Endpoint name cannot be empty")
 	}
-	e.inferSessionSecurityMappingsForAuths(e.MethodExpr.validationSessionAuths())
 	e.validateSkipBodyEncoding(verr)
 	e.validateStreamingSSE(verr)
 	e.validateJSONRPCTransport(verr)

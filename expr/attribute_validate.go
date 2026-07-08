@@ -71,6 +71,47 @@ func isIntegerKind(kind Kind) bool {
 // Prepare resolves any deferred named type references before validation.
 func (a *AttributeExpr) Prepare() {
 	a.prepareTypeRefs(make(map[*AttributeExpr]struct{}))
+	a.preparePkgPath(a.pkgPath(), a.Type, make(map[*AttributeExpr]struct{}))
+}
+
+func (a *AttributeExpr) preparePkgPath(pkgPath string, t DataType, seen map[*AttributeExpr]struct{}) {
+	switch actual := t.(type) {
+	case *Array:
+		a.preparePkgPath(pkgPath, actual.ElemType.Type, seen)
+	case *Map:
+		a.preparePkgPath(pkgPath, actual.KeyType.Type, seen)
+		a.preparePkgPath(pkgPath, actual.ElemType.Type, seen)
+	case *Union:
+		for _, nat := range actual.Values {
+			if nat == nil || nat.Attribute == nil {
+				continue
+			}
+			a.preparePkgPath(pkgPath, nat.Attribute.Type, seen)
+		}
+	case *Object:
+		for _, nat := range *actual {
+			if nat == nil || nat.Attribute == nil {
+				continue
+			}
+			a.preparePkgPath(pkgPath, nat.Attribute.Type, seen)
+		}
+	}
+	ut, ok := t.(UserType)
+	if pkgPath == "" || !ok {
+		return
+	}
+	att := ut.Attribute()
+	if att == nil {
+		return
+	}
+	if _, done := seen[att]; done {
+		return
+	}
+	seen[att] = struct{}{}
+	if _, ok := att.Meta.Last("struct:pkg:path"); !ok {
+		att.AddMeta("struct:pkg:path", pkgPath)
+	}
+	a.preparePkgPath(pkgPath, att.Type, seen)
 }
 
 func (a *AttributeExpr) validatePkgPath(pkgPath string, t DataType) *eval.ValidationErrors {
@@ -98,7 +139,6 @@ func (a *AttributeExpr) validatePkgPath(pkgPath string, t DataType) *eval.Valida
 			ut.Attribute().Meta["struct:pkg:path"][0] != pkgPath {
 			verr.Add(a, "type \"%s\" has conflicting packages %s and %s", ut.Name(), ut.Attribute().Meta["struct:pkg:path"][0], pkgPath)
 		}
-		ut.Attribute().AddMeta("struct:pkg:path", pkgPath)
 	}
 	if len(verr.Errors) > 0 {
 		return verr
@@ -131,13 +171,20 @@ func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expressio
 			verr.Add(parent, `%srequired field %q does not exist in type %s`, ctx, n, a.Type.Name())
 		}
 	}
-	pkgPath := attributePkgPath(a.Type)
+	pkgPath := a.pkgPath()
 	for _, nat := range *obj {
 		verr.Merge(a.validatePkgPath(pkgPath, nat.Attribute.Type))
 		fieldCtx := fmt.Sprintf("field %s", nat.Name)
 		verr.Merge(nat.Attribute.Validate(fieldCtx, parent))
 	}
 	return verr
+}
+
+func (a *AttributeExpr) pkgPath() string {
+	if meta, ok := a.Meta.Last("struct:pkg:path"); ok {
+		return meta
+	}
+	return attributePkgPath(a.Type)
 }
 
 func attributePkgPath(dt DataType) string {
