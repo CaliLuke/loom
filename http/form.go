@@ -337,7 +337,8 @@ func decodeFormMap(values url.Values, prefix string, target reflect.Value) (bool
 			entries[child] = url.Values{}
 		}
 		if nested != "" {
-			entries[child][nested] = append(entries[child][nested], vals...)
+			key := child + nested
+			entries[child][key] = append(entries[child][key], vals...)
 		} else {
 			entries[child][child] = append(entries[child][child], vals...)
 		}

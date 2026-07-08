@@ -16,6 +16,14 @@ type (
 		Active   *bool    `form:"active,omitempty"`
 	}
 
+	testFormItem struct {
+		Sub string `form:"sub"`
+	}
+
+	testFormMapPayload struct {
+		Items map[string]testFormItem `form:"items"`
+	}
+
 	testGrant struct {
 		kind         string
 		Code         string
@@ -104,6 +112,22 @@ func TestDecodeFormValuesUnion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "authorization_code", grant.kind)
 	require.Equal(t, "abc123", grant.Code)
+}
+
+func TestFormValuesRoundTripMapOfObject(t *testing.T) {
+	in := testFormMapPayload{
+		Items: map[string]testFormItem{
+			"k": {Sub: "hello"},
+		},
+	}
+	values, err := EncodeFormValues(in)
+	require.NoError(t, err)
+	require.Equal(t, "hello", values.Get("items[k][sub]"))
+
+	var out testFormMapPayload
+	err = DecodeFormValues(values, &out)
+	require.NoError(t, err)
+	require.Equal(t, in, out)
 }
 
 func TestSetFormRequest(t *testing.T) {
