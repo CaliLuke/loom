@@ -140,9 +140,11 @@ func appendGRPCExampleServerRun(g *jen.Group) {
 			jen.List(jen.Id("lis"), jen.Err()).Op(":=").Qual("net", "Listen").Call(jen.Lit("tcp"), jen.Id("u").Dot("Host")),
 			jen.If(jen.Err().Op("!=").Nil()).Block(
 				jen.Id("errc").Op("<-").Err(),
+				jen.Return(),
 			),
 			jen.If(jen.Id("lis").Op("==").Nil()).Block(
 				jen.Id("errc").Op("<-").Qual("fmt", "Errorf").Call(jen.Lit("failed to listen on %q"), jen.Id("u").Dot("Host")),
+				jen.Return(),
 			),
 			jen.Qual("github.com/CaliLuke/loom/clue/log", "Printf").Call(jen.Id("ctx"), jen.Lit("gRPC server listening on %q"), jen.Id("u").Dot("Host")),
 			jen.Id("errc").Op("<-").Id("srv").Dot("Serve").Call(jen.Id("lis")),
