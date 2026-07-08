@@ -2,6 +2,7 @@ package expr
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/CaliLuke/loom/eval"
 )
@@ -30,12 +31,41 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 	verr.Merge(a.validateEnumDefault(ctx, parent))
 	if v := a.Validation; v != nil {
 		verr.Merge(v.Validate(ctx, parent))
+		verr.Merge(a.validateNumericBounds(ctx, parent))
 	}
 	verr.Merge(a.validateExamples(ctx, parent))
 	verr.Merge(a.validateChildTypes(ctx, parent))
 	verr.Merge(a.validateViewReference(ctx, parent))
 
 	return verr
+}
+
+func (a *AttributeExpr) validateNumericBounds(ctx string, parent eval.Expression) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	if !isIntegerKind(a.Type.Kind()) {
+		return verr
+	}
+	for _, bound := range []*float64{
+		a.Validation.Minimum,
+		a.Validation.Maximum,
+		a.Validation.ExclusiveMinimum,
+		a.Validation.ExclusiveMaximum,
+	} {
+		if bound != nil && math.Trunc(*bound) != *bound {
+			verr.Add(parent, "%sinteger bounds must be whole numbers", ctx)
+			return verr
+		}
+	}
+	return verr
+}
+
+func isIntegerKind(kind Kind) bool {
+	switch kind {
+	case IntKind, Int32Kind, Int64Kind, UIntKind, UInt32Kind, UInt64Kind:
+		return true
+	default:
+		return false
+	}
 }
 
 // Prepare resolves any deferred named type references before validation.

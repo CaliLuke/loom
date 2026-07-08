@@ -471,3 +471,59 @@ func TestAttributeExprValidate(t *testing.T) {
 		}
 	}
 }
+
+func TestAttributeExprValidateRejectsFractionalIntegerBounds(t *testing.T) {
+	cases := map[string]struct {
+		kind       DataType
+		validation func(*float64, *float64) *ValidationExpr
+	}{
+		"int minimum maximum": {
+			kind: Int,
+			validation: func(minimum, maximum *float64) *ValidationExpr {
+				return &ValidationExpr{Minimum: minimum, Maximum: maximum}
+			},
+		},
+		"uint exclusive minimum maximum": {
+			kind: UInt,
+			validation: func(minimum, maximum *float64) *ValidationExpr {
+				return &ValidationExpr{ExclusiveMinimum: minimum, ExclusiveMaximum: maximum}
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			minimum := 0.2
+			maximum := 0.7
+			attribute := AttributeExpr{
+				Type:       tc.kind,
+				Validation: tc.validation(&minimum, &maximum),
+			}
+
+			actual := attribute.Validate("ctx", nil)
+			if actual == nil || len(actual.Errors) == 0 {
+				t.Fatalf("expected fractional integer bounds to fail validation")
+			}
+			if got := actual.Errors[0].Error(); got != "ctx - integer bounds must be whole numbers" {
+				t.Fatalf("expected integer bounds error, got %q", got)
+			}
+		})
+	}
+}
+
+func TestAttributeExprValidateAllowsFractionalFloatBounds(t *testing.T) {
+	minimum := 0.2
+	maximum := 0.7
+	attribute := AttributeExpr{
+		Type: Float64,
+		Validation: &ValidationExpr{
+			Minimum: &minimum,
+			Maximum: &maximum,
+		},
+	}
+
+	actual := attribute.Validate("ctx", nil)
+	if actual != nil && len(actual.Errors) > 0 {
+		t.Fatalf("expected fractional float bounds to pass validation, got %v", actual.Errors)
+	}
+}

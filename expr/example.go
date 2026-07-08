@@ -361,22 +361,29 @@ func randomBoundedValue(kind Kind, r *ExampleGenerator, minimum, maximum float64
 	delta := maximum - minimum
 	switch kind {
 	case IntKind:
-		return r.Int()%int(delta) + int(minimum)
+		return r.Int()%positiveIntDelta(delta) + int(minimum)
 	case Int32Kind:
-		return r.Int32()%int32(delta) + int32(minimum)
+		return r.Int32()%int32(positiveIntDelta(delta)) + int32(minimum)
 	case Int64Kind:
-		return r.Int64()%int64(delta) + int64(minimum)
+		return r.Int64()%int64(positiveIntDelta(delta)) + int64(minimum)
 	case UIntKind:
-		return r.UInt()%uint(delta) + uint(minimum)
+		return r.UInt()%uint(positiveIntDelta(delta)) + uint(minimum)
 	case UInt32Kind:
-		return r.UInt32()%uint32(delta) + uint32(minimum)
+		return r.UInt32()%uint32(positiveIntDelta(delta)) + uint32(minimum)
 	case UInt64Kind:
-		return r.UInt64()%uint64(delta) + uint64(minimum)
+		return r.UInt64()%uint64(positiveIntDelta(delta)) + uint64(minimum)
 	case Float32Kind:
 		return r.Float32()*float32(delta) + float32(minimum)
 	default:
 		return r.Float64()*delta + minimum
 	}
+}
+
+func positiveIntDelta(delta float64) int {
+	if delta < 1 {
+		return 1
+	}
+	return int(delta)
 }
 
 func minValueForKind(kind Kind, minimum float64) any {

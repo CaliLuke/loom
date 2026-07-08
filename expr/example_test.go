@@ -49,6 +49,23 @@ func TestByFormatUUID(t *testing.T) {
 	}
 }
 
+func TestExampleDoesNotPanicForFractionalIntegerBounds(t *testing.T) {
+	minimum := 0.2
+	maximum := 0.7
+	attribute := expr.AttributeExpr{
+		Type: expr.Int,
+		Validation: &expr.ValidationExpr{
+			Minimum: &minimum,
+			Maximum: &maximum,
+		},
+	}
+
+	example := attribute.Example(expr.NewRandom("test"))
+	if _, ok := example.(int); !ok {
+		t.Fatalf("expected integer example, got %T", example)
+	}
+}
+
 func TestExample(t *testing.T) {
 	cases := []struct {
 		Name     string
