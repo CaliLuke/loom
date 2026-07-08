@@ -23,6 +23,7 @@ func TestServerGRPCInterface(t *testing.T) {
 		{"unary-rpc-with-errors", testdata.UnaryRPCWithErrorsDSL},
 		{"unary-rpc-with-overriding-errors", testdata.UnaryRPCWithOverridingErrorsDSL},
 		{"server-streaming-rpc", testdata.ServerStreamingRPCDSL},
+		{"server-streaming-rpc-with-custom-errors", testdata.ServerStreamingWithCustomErrorsDSL},
 		{"client-streaming-rpc", testdata.ClientStreamingRPCDSL},
 		{"client-streaming-rpc-with-payload", testdata.ClientStreamingRPCWithPayloadDSL},
 		{"bidirectional-streaming-rpc", testdata.BidirectionalStreamingRPCDSL},

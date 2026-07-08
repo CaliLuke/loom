@@ -1,0 +1,55 @@
+// ServerStream implements the "ServerStream" method in
+// streaming_error_servicepb.StreamingErrorServiceServer interface.
+func (s *Server) ServerStream(message *streaming_error_servicepb.ServerStreamRequest, stream streaming_error_servicepb.StreamingErrorService_ServerStreamServer) error {
+	ctx := stream.Context()
+	ctx = context.WithValue(ctx, loom.MethodKey, "ServerStream")
+	ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingErrorService")
+	p, err := s.ServerStreamH.Decode(ctx, message)
+	if err != nil {
+		var en loom.LoomErrorNamer
+		if errors.As(err, &en) {
+			switch en.LoomErrorName() {
+			case "custom_error":
+				var er *streamingerrorservice.CustomError
+				if !errors.As(err, &er) {
+					return loomgrpc.EncodeError(err)
+				}
+				return loomgrpc.NewStatusError(codes.InvalidArgument, err, NewServerStreamCustomErrorError(er))
+			case "validation_error":
+				var er *streamingerrorservice.ValidationError
+				if !errors.As(err, &er) {
+					return loomgrpc.EncodeError(err)
+				}
+				return loomgrpc.NewStatusError(codes.FailedPrecondition, err, NewServerStreamValidationErrorError(er))
+			case "internal_error":
+				return loomgrpc.NewStatusError(codes.Internal, err, loomgrpc.NewErrorResponse(err))
+			}
+		}
+		return loomgrpc.EncodeError(err)
+	}
+	ep := &streamingerrorservice.ServerStreamEndpointInput{Stream: &ServerStreamServerStream{stream: stream}, Payload: p.(string)}
+	err = s.ServerStreamH.Handle(ctx, ep)
+	if err != nil {
+		var en loom.LoomErrorNamer
+		if errors.As(err, &en) {
+			switch en.LoomErrorName() {
+			case "custom_error":
+				var er *streamingerrorservice.CustomError
+				if !errors.As(err, &er) {
+					return loomgrpc.EncodeError(err)
+				}
+				return loomgrpc.NewStatusError(codes.InvalidArgument, err, NewServerStreamCustomErrorError(er))
+			case "validation_error":
+				var er *streamingerrorservice.ValidationError
+				if !errors.As(err, &er) {
+					return loomgrpc.EncodeError(err)
+				}
+				return loomgrpc.NewStatusError(codes.FailedPrecondition, err, NewServerStreamValidationErrorError(er))
+			case "internal_error":
+				return loomgrpc.NewStatusError(codes.Internal, err, loomgrpc.NewErrorResponse(err))
+			}
+		}
+		return loomgrpc.EncodeError(err)
+	}
+	return nil
+}

@@ -13,7 +13,9 @@ func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.
 		switch en.LoomErrorName() {
 		case "bad_request":
 			var res serviceprimitiveerrorresponse.BadRequest
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			body := res
 			w.Header().Set("loom-error", res.LoomErrorName())
@@ -21,7 +23,9 @@ func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.
 			return enc.Encode(body)
 		case "internal_error":
 			var res serviceprimitiveerrorresponse.InternalError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			body := res
 			w.Header().Set("loom-error", res.LoomErrorName())
@@ -47,7 +51,9 @@ func EncodeMethodPrimitiveErrorInResponseHeaderError(encoder func(context.Contex
 		switch en.LoomErrorName() {
 		case "bad_request":
 			var res serviceprimitiveerrorinresponseheader.BadRequest
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			{
 				val := string(res)
 				string_s := val
@@ -58,7 +64,9 @@ func EncodeMethodPrimitiveErrorInResponseHeaderError(encoder func(context.Contex
 			return nil
 		case "internal_error":
 			var res serviceprimitiveerrorinresponseheader.InternalError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			{
 				val := int(res)
 				int_s := strconv.Itoa(val)
@@ -87,7 +95,9 @@ func EncodeMethodAPIPrimitiveErrorResponseError(encoder func(context.Context, ht
 		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -100,7 +110,9 @@ func EncodeMethodAPIPrimitiveErrorResponseError(encoder func(context.Context, ht
 			return enc.Encode(body)
 		case "bad_request":
 			var res serviceapiprimitiveerrorresponse.BadRequest
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			body := res
 			w.Header().Set("loom-error", res.LoomErrorName())
@@ -125,7 +137,9 @@ func EncodeMethodDefaultErrorResponseError(encoder func(context.Context, http.Re
 		switch en.LoomErrorName() {
 		case "bad_request":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -155,7 +169,9 @@ func EncodeMethodDefaultErrorResponseError(encoder func(context.Context, http.Re
 		switch en.LoomErrorName() {
 		case "bad_request":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/xml")
 			enc := encoder(ctx, w)
 			var body any
@@ -186,7 +202,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -199,7 +217,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 			return enc.Encode(body)
 		case "bad_request":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -229,7 +249,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -242,7 +264,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 			return enc.Encode(body)
 		case "bad_request":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/xml")
 			enc := encoder(ctx, w)
 			var body any
@@ -273,7 +297,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 		switch en.LoomErrorName() {
 		case "bad_request":
 			var res *servicenobodyerrorresponse.StringError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			if res.Header != nil {
 				w.Header().Set("Header", *res.Header)
 			}
@@ -299,7 +325,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 		switch en.LoomErrorName() {
 		case "bad_request":
 			var res *servicenobodyerrorresponse.StringError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/xml")
 			if res.Header != nil {
 				w.Header().Set("Header", *res.Header)
@@ -327,7 +355,9 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			w.Header().Set("Error-Name", res.Name)
 			w.Header().Set("Loom-Attribute-Id", res.ID)
 			w.Header().Set("Loom-Attribute-Message", res.Message)
@@ -351,7 +381,9 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 			return nil
 		case "not_found":
 			var res serviceemptyerrorresponsebody.NotFound
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			{
 				val := string(res)
 				inHeaders := val
@@ -380,7 +412,9 @@ func EncodeMethodEmptyCustomErrorResponseBodyError(encoder func(context.Context,
 		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *serviceemptycustomerrorresponsebody.Error
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return nil

@@ -11,7 +11,9 @@ func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.
 		switch en.LoomErrorName() {
 		case "bad_request":
 			var res serviceprimitiveerrorresponse.BadRequest
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			body := res
 			w.Header().Set("loom-error", res.LoomErrorName())
@@ -19,7 +21,9 @@ func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.
 			return enc.Encode(body)
 		case "internal_error":
 			var res serviceprimitiveerrorresponse.InternalError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			enc := encoder(ctx, w)
 			body := res
 			w.Header().Set("loom-error", res.LoomErrorName())

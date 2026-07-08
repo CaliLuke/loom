@@ -10,7 +10,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
 			var body any
@@ -24,7 +26,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 			return enc.Encode(body)
 		case "bad_request":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
 			var body any

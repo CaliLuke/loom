@@ -12,15 +12,21 @@ func (s *Server) MethodUnaryRPCWithErrors(ctx context.Context, message *service_
 				return nil, loomgrpc.NewStatusError(codes.Canceled, err, loomgrpc.NewErrorResponse(err))
 			case "internal":
 				var er *serviceunaryrpcwitherrors.AnotherError
-				errors.As(err, &er)
+				if !errors.As(err, &er) {
+					return nil, loomgrpc.EncodeError(err)
+				}
 				return nil, loomgrpc.NewStatusError(codes.Unknown, err, NewMethodUnaryRPCWithErrorsInternalError(er))
 			case "bad_request":
 				var er *serviceunaryrpcwitherrors.AnotherError
-				errors.As(err, &er)
+				if !errors.As(err, &er) {
+					return nil, loomgrpc.EncodeError(err)
+				}
 				return nil, loomgrpc.NewStatusError(codes.InvalidArgument, err, NewMethodUnaryRPCWithErrorsBadRequestError(er))
 			case "custom_error":
 				var er *serviceunaryrpcwitherrors.ErrorType
-				errors.As(err, &er)
+				if !errors.As(err, &er) {
+					return nil, loomgrpc.EncodeError(err)
+				}
 				return nil, loomgrpc.NewStatusError(codes.Unknown, err, NewMethodUnaryRPCWithErrorsCustomErrorError(er))
 			}
 		}

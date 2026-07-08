@@ -61,7 +61,9 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- range $err := .Errors }}
 		case {{ printf "%q" .Name }}:
 			var res {{ $err.Ref }}
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			{{- with .Response}}
 				{{- if .ContentType }}
 					ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "{{ .ContentType }}")

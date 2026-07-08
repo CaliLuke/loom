@@ -11,7 +11,9 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			problem := loomhttp.NewProblemResponse(ctx, res, 500, "", "")
 			w.Header().Set("Error-Code", problem.Code)
 			w.Header().Set("Loom-Attribute-Type", problem.Type)
@@ -31,7 +33,9 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 			return nil
 		case "not_found":
 			var res serviceemptyerrorresponsebody.NotFound
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			{
 				val := string(res)
 				inHeaders := val

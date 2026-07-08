@@ -11,7 +11,9 @@ func EncodeMethodEmptyCustomErrorResponseBodyError(encoder func(context.Context,
 		switch en.LoomErrorName() {
 		case "internal_error":
 			var res *serviceemptycustomerrorresponsebody.Error
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return nil

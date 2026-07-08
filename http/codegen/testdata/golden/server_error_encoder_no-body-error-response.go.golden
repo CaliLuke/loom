@@ -10,7 +10,9 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 		switch en.LoomErrorName() {
 		case "bad_request":
 			var res *servicenobodyerrorresponse.StringError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			if res.Header != nil {
 				w.Header().Set("Header", *res.Header)
 			}

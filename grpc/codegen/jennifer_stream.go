@@ -253,7 +253,11 @@ func appendGRPCServerErrorHandler(g *jen.Group, endpoint *EndpointData, serverSt
 						if errData.Response.ServerConvert != nil {
 							body = append(body,
 								jen.Var().Id("er").Add(codegenpkg.TypeRef(errData.Response.ServerConvert.SrcRef)),
-								jen.Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("er")),
+								jen.If(
+									jen.Op("!").Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("er")),
+								).Block(
+									jen.Return(append(prefix, codegenpkg.Expr("loomgrpc.EncodeError").Call(jen.Err()))...),
+								),
 							)
 						}
 						statusArg := codegenpkg.Expr("loomgrpc.NewErrorResponse(err)")

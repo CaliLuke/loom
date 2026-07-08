@@ -83,7 +83,9 @@ func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) loomh
 		switch en.LoomErrorName() {
 		case "unauthorized":
 			var res *loom.ServiceError
-			errors.As(v, &res)
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
 			var body any
