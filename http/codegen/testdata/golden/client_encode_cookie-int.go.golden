@@ -1,0 +1,19 @@
+// EncodeMethodCookieIntRequest returns an encoder for requests sent to the
+// ServiceCookieInt MethodCookieInt server.
+func EncodeMethodCookieIntRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicecookieint.MethodCookieIntPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceCookieInt", "MethodCookieInt", "*servicecookieint.MethodCookieIntPayload", v)
+		}
+		if p.C != nil {
+			vraw := *p.C
+			v := strconv.Itoa(vraw)
+			req.AddCookie(&http.Cookie{
+				Name:  "c",
+				Value: v,
+			})
+		}
+		return nil
+	}
+}

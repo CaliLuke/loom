@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadCookieStringDSL = func() {
 	Service("ServiceCookieString", func() {
 		Method("MethodCookieString", func() {
@@ -25,4 +24,16 @@ var PayloadCookieStringDSL = func() {
 	})
 }
 
-
+var PayloadCookieIntDSL = func() {
+	Service("ServiceCookieInt", func() {
+		Method("MethodCookieInt", func() {
+			Payload(func() {
+				Attribute("c", Int)
+			})
+			HTTP(func() {
+				GET("/")
+				Cookie("c")
+			})
+		})
+	})
+}

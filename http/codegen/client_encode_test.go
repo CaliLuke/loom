@@ -179,6 +179,7 @@ func TestClientEncode(t *testing.T) {
 		{"query-custom-name", testdata.PayloadQueryCustomNameDSL},
 		{"header-custom-name", testdata.PayloadHeaderCustomNameDSL},
 		{"cookie-custom-name", testdata.PayloadCookieCustomNameDSL},
+		{"cookie-int", testdata.PayloadCookieIntDSL},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {

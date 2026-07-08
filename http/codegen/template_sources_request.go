@@ -63,7 +63,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- end }}
 			v{{ if not (eq .Type.Name "string") }}raw{{ end }} := {{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
 			{{- if not (eq .Type.Name "string" ) }}
-			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "vraw" "v") }}
+			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "v" "vraw") }}
 			{{- end }}
 			req.AddCookie(&http.Cookie{
 				Name: {{ printf "%q" .HTTPName }},
