@@ -203,7 +203,7 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 
 	var err error
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
-		code, fieldErr := buildObjectFieldTransform(target, sourceVar, targetVar, srcMatt, tgtMatt, srcc, tgtc, n, ta)
+		code, fieldErr := buildObjectFieldTransform(sourceVar, targetVar, srcMatt, tgtMatt, srcc, tgtc, n, ta)
 		if fieldErr != nil {
 			err = fieldErr
 			return
@@ -246,7 +246,7 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 	return initCode, postInitCode
 }
 
-func buildObjectFieldTransform(target *expr.AttributeExpr, sourceVar, targetVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
+func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
 	srcc = unAlias(srcc)
 	tgtc = unAlias(tgtc)
 	srcValue := sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
@@ -255,7 +255,7 @@ func buildObjectFieldTransform(target *expr.AttributeExpr, sourceVar, targetVar 
 	if err != nil {
 		return "", err
 	}
-	code, err := objectFieldAssignment(target, targetVar, srcValue, tgtValue, tgtMatt, compatibleSource, compatibleTarget, n, ta)
+	code, err := objectFieldAssignment(srcValue, tgtValue, compatibleSource, compatibleTarget, ta)
 	if err != nil {
 		return "", err
 	}
@@ -280,7 +280,7 @@ func compatibleTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs
 	return srcc, tgtc, nil
 }
 
-func objectFieldAssignment(target *expr.AttributeExpr, targetVar, srcVar, tgtVar string, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
+func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr, ta *transformAttrs) (string, error) {
 	_, isUserType := srcc.Type.(expr.UserType)
 	switch {
 	case expr.IsArray(srcc.Type):
@@ -288,10 +288,6 @@ func objectFieldAssignment(target *expr.AttributeExpr, targetVar, srcVar, tgtVar
 	case expr.IsMap(srcc.Type):
 		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, false, ta)
 	case isUserType:
-		if ta.TargetCtx.IsInterface {
-			ref := ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target))
-			tgtVar = targetVar + ".(" + ref + ")." + codegen.GoifyAtt(tgtc, tgtMatt.ElemName(n), true)
-		}
 		if !expr.IsPrimitive(srcc.Type) {
 			return renderJenLine(exprCode(tgtVar).Op("=").Id(transformHelperName(srcc, tgtc, ta)).Call(exprCode(srcVar))), nil
 		}

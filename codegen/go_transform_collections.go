@@ -477,9 +477,6 @@ func generateHelper(source, target *expr.AttributeExpr, req bool, ta *TransformA
 		return nil, nil
 	}
 
-	// Reset need for type assertion for union types because we are
-	// generating the code to transform the concrete type.
-	ta.TargetCtx.IsInterface = false
 	// When transforming into a user type defined in an external package, assume
 	// nested anonymous types (e.g., union sum types) belong to the same target
 	// package unless they explicitly specify a different location.

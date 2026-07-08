@@ -43,9 +43,6 @@ type (
 		// DefaultPkg is the default package name where the attribute
 		// type is found. it can be overridden via struct:pkg:path meta.
 		DefaultPkg string
-		// IsInterface is true if the attribute is an interface (union type).
-		// In this case assigning child attributes requires a type assertion.
-		IsInterface bool
 		// SamePackageConversion if true indicates that this context is being used
 		// for conversion code generation within the same package as the types.
 		SamePackageConversion bool

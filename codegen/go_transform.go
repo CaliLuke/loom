@@ -281,7 +281,7 @@ func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar
 		if err != nil {
 			return
 		}
-		code, codeErr := transformObjectFieldCode(srcMatt, tgtMatt, srcc, tgtc, target, sourceVar, targetVar, n, ta)
+		code, codeErr := transformObjectFieldCode(srcMatt, tgtMatt, srcc, tgtc, sourceVar, targetVar, n, ta)
 		if codeErr != nil {
 			err = codeErr
 			return
@@ -293,14 +293,14 @@ func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar
 	return stmts, err
 }
 
-func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc, target *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
+func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(srcc.Type, tgtc.Type, sourceVar, targetVar); err != nil {
 		return nil, err
 	}
 
 	srcFieldVar := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)
 	tgtFieldVar := targetVar + "." + GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
-	code, err := transformObjectFieldAssignment(srcc, tgtc, target, tgtMatt, srcFieldVar, tgtFieldVar, targetVar, name, ta)
+	code, err := transformObjectFieldAssignment(srcc, tgtc, srcFieldVar, tgtFieldVar, ta)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 	return code, nil
 }
 
-func transformObjectFieldAssignment(srcc, tgtc, target *expr.AttributeExpr, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
+func transformObjectFieldAssignment(srcc, tgtc *expr.AttributeExpr, srcVar, tgtVar string, ta *TransformAttrs) (*jen.Statement, error) {
 	_, isUserType := srcc.Type.(expr.UserType)
 	switch {
 	case expr.IsArray(srcc.Type):
@@ -319,10 +319,6 @@ func transformObjectFieldAssignment(srcc, tgtc, target *expr.AttributeExpr, tgtM
 	case expr.IsUnion(srcc.Type):
 		return transformUnion(srcc, tgtc, srcVar, tgtVar, false, ta)
 	case isUserType:
-		if ta.TargetCtx.IsInterface {
-			ref := ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target))
-			tgtVar = targetVar + ".(" + ref + ")." + GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
-		}
 		if expr.IsPrimitive(srcc.Type) {
 			return nil, nil
 		}
