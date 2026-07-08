@@ -112,6 +112,9 @@ func NewLength(a *AttributeExpr, r *ExampleGenerator) int {
 		if count > maxLength {
 			count = maxLength
 		}
+		if count < 0 {
+			count = 0
+		}
 		return count
 	}
 	return r.ArrayLength()

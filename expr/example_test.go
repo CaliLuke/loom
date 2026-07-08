@@ -66,6 +66,59 @@ func TestExampleDoesNotPanicForFractionalIntegerBounds(t *testing.T) {
 	}
 }
 
+func TestNewLengthWithOnlySmallMaxLengthDoesNotGoNegative(t *testing.T) {
+	maxLength := 1
+	attribute := expr.AttributeExpr{
+		Type: expr.String,
+		Validation: &expr.ValidationExpr{
+			MaxLength: &maxLength,
+		},
+	}
+	random := &expr.ExampleGenerator{Randomizer: intRandomizer{Value: 2}}
+
+	if got := expr.NewLength(&attribute, random); got != 0 {
+		t.Fatalf("expected length to clamp to zero, got %d", got)
+	}
+}
+
+func TestExampleWithOnlySmallMaxLengthDoesNotPanic(t *testing.T) {
+	maxLength := 1
+	cases := map[string]struct {
+		typ      expr.DataType
+		expected any
+	}{
+		"string": {typ: expr.String, expected: ""},
+		"bytes":  {typ: expr.Bytes, expected: []byte{}},
+		"array": {
+			typ:      &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+			expected: []string{},
+		},
+		"map": {
+			typ: &expr.Map{
+				KeyType:  &expr.AttributeExpr{Type: expr.String},
+				ElemType: &expr.AttributeExpr{Type: expr.String},
+			},
+			expected: map[string]string{},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			attribute := expr.AttributeExpr{
+				Type: tc.typ,
+				Validation: &expr.ValidationExpr{
+					MaxLength: &maxLength,
+				},
+			}
+
+			example := attribute.Example(&expr.ExampleGenerator{Randomizer: intRandomizer{Value: 2}})
+			if !reflect.DeepEqual(example, tc.expected) {
+				t.Fatalf("expected %#v, got %#v", tc.expected, example)
+			}
+		})
+	}
+}
+
 func TestExample(t *testing.T) {
 	cases := []struct {
 		Name     string
@@ -102,6 +155,19 @@ func TestExample(t *testing.T) {
 			}
 		})
 	}
+}
+
+type intRandomizer struct {
+	expr.DeterministicRandomizer
+	Value int
+}
+
+func (r intRandomizer) Int() int {
+	return r.Value
+}
+
+func (r intRandomizer) Characters(n int) string {
+	return strings.Repeat("a", n)
 }
 
 // TestByLengthWithAliasType tests that alias types with length validations
