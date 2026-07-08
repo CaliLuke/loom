@@ -63,6 +63,49 @@ func TestServiceErrorUnwrap(t *testing.T) {
 	}
 }
 
+func TestMergeErrorsPreservesHistoryEntryMessages(t *testing.T) {
+	first := MissingFieldError("username", "body")
+	second := InvalidFieldTypeError("age", "old", "integer")
+	firstMessage := first.Error()
+	secondMessage := second.Error()
+
+	err := MergeErrors(first, second)
+	var serviceErr *ServiceError
+	if !errors.As(err, &serviceErr) {
+		t.Fatalf("got %T, want *ServiceError", err)
+	}
+	history := serviceErr.History()
+	if len(history) != 2 {
+		t.Fatalf("got history length %d, want 2", len(history))
+	}
+	if history[0].Message != firstMessage {
+		t.Errorf("got first history message %q, want %q", history[0].Message, firstMessage)
+	}
+	if history[1].Message != secondMessage {
+		t.Errorf("got second history message %q, want %q", history[1].Message, secondMessage)
+	}
+}
+
+func TestWithErrorHistoryPreservesSingleEntry(t *testing.T) {
+	top := NewServiceError(errors.New("top"), "top", false, false, false)
+	var entry *ServiceError
+	if !errors.As(MissingFieldError("username", "body"), &entry) {
+		t.Fatal("missing field error did not produce ServiceError")
+	}
+
+	got := WithErrorHistory(top, entry)
+	history := got.History()
+	if len(history) != 1 {
+		t.Fatalf("got history length %d, want 1", len(history))
+	}
+	if history[0].Message != entry.Error() {
+		t.Errorf("got history message %q, want %q", history[0].Message, entry.Error())
+	}
+	if got.Message != "top" {
+		t.Errorf("got top-level message %q, want top", got.Message)
+	}
+}
+
 func TestAsError(t *testing.T) {
 	err := MissingFieldError("foo", "bar")
 	se := asError(err)

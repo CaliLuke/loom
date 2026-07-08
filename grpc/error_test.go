@@ -36,6 +36,52 @@ func TestNewErrorResponseHistory(t *testing.T) {
 	assert.Equal(t, "data", mergedResp.History[1].Field)
 }
 
+func TestNewServiceErrorPreservesHistory(t *testing.T) {
+	mergedErr := loom.MergeErrors(
+		loom.MissingFieldError("username", "body"),
+		loom.InvalidFormatError("data", "{invalid}", loom.FormatJSON, fmt.Errorf("invalid JSON")),
+	)
+	resp := NewErrorResponse(mergedErr)
+	require.Len(t, resp.History, 2)
+
+	got := NewServiceError(resp)
+	history := got.History()
+	require.Len(t, history, 2)
+	assert.Equal(t, resp.Name, got.Name)
+	assert.Equal(t, resp.Id, got.ID)
+	assert.Equal(t, resp.Msg, got.Message)
+	assert.Equal(t, loom.MissingField, history[0].Name)
+	assert.Equal(t, resp.History[0].Msg, history[0].Message)
+	require.NotNil(t, history[0].Field)
+	assert.Equal(t, "username", *history[0].Field)
+	assert.Equal(t, loom.InvalidFormat, history[1].Name)
+	assert.Equal(t, resp.History[1].Msg, history[1].Message)
+	require.NotNil(t, history[1].Field)
+	assert.Equal(t, "data", *history[1].Field)
+}
+
+func TestNewServiceErrorPreservesSingleHistoryEntry(t *testing.T) {
+	resp := &loompb.ErrorResponse{
+		Name: "top_level",
+		Id:   "top-id",
+		Msg:  "top message",
+		History: []*loompb.ErrorField{
+			{Name: loom.MissingField, Field: "username", Msg: `"username" is missing from body`},
+		},
+	}
+
+	got := NewServiceError(resp)
+	history := got.History()
+	require.Len(t, history, 1)
+	assert.Equal(t, resp.Name, got.Name)
+	assert.Equal(t, resp.Id, got.ID)
+	assert.Equal(t, resp.Msg, got.Message)
+	assert.Equal(t, loom.MissingField, history[0].Name)
+	assert.Equal(t, `"username" is missing from body`, history[0].Message)
+	require.NotNil(t, history[0].Field)
+	assert.Equal(t, "username", *history[0].Field)
+}
+
 // TestEncodeErrorStatusCodes tests that validation errors get mapped to InvalidArgument
 func TestEncodeErrorStatusCodes(t *testing.T) {
 	cases := []struct {

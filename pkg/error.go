@@ -284,7 +284,7 @@ func MergeErrors(err, other error) error {
 	// don't need to worry about gaining intermediate merges.
 	//
 	// Do this before we modify ourselves, as History() may include us!
-	e.history = append(e.History(), o.History()...)
+	e.history = append(cloneServiceErrorHistory(e.History()), cloneServiceErrorHistory(o.History())...)
 	e.err = errors.Join(e.err, o.err)
 
 	e.Message = e.Message + "; " + o.Message
@@ -302,6 +302,34 @@ func (e *ServiceError) History() []*ServiceError {
 	}
 
 	return []*ServiceError{e}
+}
+
+// WithErrorHistory returns err with the provided original error history.
+func WithErrorHistory(err *ServiceError, history ...*ServiceError) *ServiceError {
+	if err == nil {
+		return nil
+	}
+	err.history = cloneServiceErrorHistory(history)
+	return err
+}
+
+func cloneServiceErrorHistory(history []*ServiceError) []*ServiceError {
+	if len(history) == 0 {
+		return nil
+	}
+	clones := make([]*ServiceError, 0, len(history))
+	for _, entry := range history {
+		if entry == nil {
+			continue
+		}
+		clone := *entry
+		if entry.Field != nil {
+			field := *entry.Field
+			clone.Field = &field
+		}
+		clones = append(clones, &clone)
+	}
+	return clones
 }
 
 // Error returns the error message.

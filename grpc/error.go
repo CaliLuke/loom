@@ -71,7 +71,7 @@ func NewErrorResponse(err error) *loompb.ErrorResponse {
 // NewServiceError returns a Loom ServiceError type for the given ErrorResponse
 // message.
 func NewServiceError(resp *loompb.ErrorResponse) *loom.ServiceError {
-	return &loom.ServiceError{
+	err := &loom.ServiceError{
 		Name:      resp.Name,
 		ID:        resp.Id,
 		Message:   resp.Msg,
@@ -79,6 +79,30 @@ func NewServiceError(resp *loompb.ErrorResponse) *loom.ServiceError {
 		Temporary: resp.Temporary,
 		Fault:     resp.Fault,
 	}
+	history := serviceErrorHistory(resp.History)
+	if len(history) == 0 {
+		return err
+	}
+	return loom.WithErrorHistory(err, history...)
+}
+
+func serviceErrorHistory(history []*loompb.ErrorField) []*loom.ServiceError {
+	entries := make([]*loom.ServiceError, 0, len(history))
+	for _, h := range history {
+		if h == nil {
+			continue
+		}
+		entry := &loom.ServiceError{
+			Name:    h.Name,
+			Message: h.Msg,
+		}
+		if h.Field != "" {
+			field := h.Field
+			entry.Field = &field
+		}
+		entries = append(entries, entry)
+	}
+	return entries
 }
 
 // NewStatusError creates a gRPC status error with the error response
