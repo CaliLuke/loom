@@ -477,7 +477,7 @@ var _ = API("calc", func() {
     cors.Origin("http://127.0.0.1", func() {
         cors.Headers("X-Shared-Secret")
         cors.Methods("GET", "POST")
-        cors.Expose("X-Time")
+        cors.ExposeHeaders("X-Time")
         cors.MaxAge(600)
         cors.Credentials()
     })
@@ -505,7 +505,7 @@ var _ = Service("calc", func() {
     cors.Origin("/.*domain.*/", func() {
         cors.Headers("*")
         cors.Methods("GET", "POST")
-        cors.Expose("X-Time")
+        cors.ExposeHeaders("X-Time")
     })
 })
 ```

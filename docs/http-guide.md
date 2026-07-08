@@ -595,7 +595,7 @@ var _ = API("tasks", func() {
             Origin("https://app.example.com", func() {
                 Methods("GET", "POST")
                 Headers("Authorization", "Content-Type")
-                Expose("X-Request-Id")
+                ExposeHeaders("X-Request-Id")
                 MaxAge(600)
                 Credentials()
             })

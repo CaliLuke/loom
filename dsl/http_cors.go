@@ -41,9 +41,11 @@ func Methods(methods ...string) {
 	eval.IncompatibleDSL()
 }
 
-// Expose sets the response headers exposed to browser clients for the current
-// CORS origin.
-func Expose(headers ...string) {
+// ExposeHeaders sets the response headers exposed to browser clients for the
+// current CORS origin (Access-Control-Expose-Headers). It is deliberately not
+// named Expose so the name stays collision-free with downstream plugin DSLs
+// that are dot-imported alongside this package.
+func ExposeHeaders(headers ...string) {
 	if o, ok := eval.Current().(*expr.HTTPCORSOriginExpr); ok {
 		o.Expose = append(o.Expose, headers...)
 		return
