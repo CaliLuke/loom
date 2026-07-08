@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"strings"
+	"sync/atomic"
 
 	loom "github.com/CaliLuke/loom/pkg"
 
@@ -21,7 +22,7 @@ type Muxer interface {
 
 var (
 	// debugLogs is true if debug logs should be enabled.
-	debugLogs bool
+	debugLogs atomic.Bool
 )
 
 // MountDebugLogEnabler mounts an endpoint under "/debug" that manages the
@@ -47,11 +48,11 @@ func MountDebugLogEnabler(mux Muxer, opts ...DebugLogEnablerOption) {
 	}
 	mux.Handle(o.path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if q := r.URL.Query().Get(o.query); q == o.onval {
-			debugLogs = true
+			debugLogs.Store(true)
 		} else if q == o.offval {
-			debugLogs = false
+			debugLogs.Store(false)
 		}
-		if debugLogs {
+		if debugLogs.Load() {
 			fmt.Fprintf(w, `{"%s":"%s"}`, o.query, o.onval) // nolint: errcheck
 		} else {
 			fmt.Fprintf(w, `{"%s":"%s"}`, o.query, o.offval) // nolint: errcheck

@@ -18,7 +18,7 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		_ *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (any, error) {
-		if debugLogs {
+		if debugLogs.Load() {
 			ctx = log.Context(ctx, log.WithDebug())
 		} else {
 			ctx = log.Context(ctx, log.WithNoDebug())
@@ -39,7 +39,7 @@ func StreamServerInterceptor() grpc.StreamServerInterceptor {
 		handler grpc.StreamHandler,
 	) error {
 		ctx := stream.Context()
-		if debugLogs {
+		if debugLogs.Load() {
 			ctx = log.Context(ctx, log.WithDebug())
 		} else {
 			ctx = log.Context(ctx, log.WithNoDebug())

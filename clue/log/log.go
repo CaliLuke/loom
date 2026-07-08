@@ -216,7 +216,7 @@ func log(ctx context.Context, sev Severity, buffer bool, fielders []Fielder) {
 	for _, fn := range l.options.kvfuncs {
 		keyvals = append(keyvals, fn(ctx)...)
 	}
-	truncate(keyvals, l.options.maxsize)
+	keyvals = truncate(keyvals, l.options.maxsize)
 
 	e := &Entry{timeNow().UTC(), sev, keyvals}
 	if l.flushed || !buffer {
@@ -286,7 +286,7 @@ var errTruncated = errors.New("truncated value")
 // max values for strings and slices, it could compute total size for slices vs.
 // size for each element, could recurse further etc.) - the point is to protect
 // against obvious mistakes - not to implement a bullet-proof solution.
-func truncate(keyvals []KV, maxsize int) {
+func truncate(keyvals []KV, maxsize int) []KV {
 	if len(keyvals) > maxsize {
 		keyvals = keyvals[:maxsize]
 		keyvals = append(keyvals, KV{"log", truncationSuffix})
@@ -312,6 +312,7 @@ func truncate(keyvals []KV, maxsize int) {
 			}
 		}
 	}
+	return keyvals
 }
 
 type limitWriter struct {

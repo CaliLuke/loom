@@ -176,6 +176,6 @@ func (l *tracedLogger) Log(keyvals ...any) error {
 		return nil
 	}
 	keyvals = append([]any{"trace", l.traceID}, keyvals...)
-	l.logger.Log(keyvals) // nolint: errcheck
+	l.logger.Log(keyvals...) // nolint: errcheck
 	return nil
 }

@@ -12,7 +12,7 @@ import (
 func HTTP() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if debugLogs {
+			if debugLogs.Load() {
 				ctx := log.Context(r.Context(), log.WithDebug())
 				r = r.WithContext(ctx)
 			} else {

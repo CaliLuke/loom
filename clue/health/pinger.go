@@ -37,11 +37,18 @@ type (
 	}
 )
 
+const defaultPingerTimeout = 5 * time.Second
+
 // NewPinger returns a new health-check client for the given service. It panics
 // if the given host address is malformed.  The default scheme is "http" and the
 // default path is "/livez". Both can be overridden via options.
 func NewPinger(name, addr string, opts ...Option) Pinger {
-	options := &options{scheme: "http", path: "/livez", transport: otelhttp.NewTransport(http.DefaultTransport)}
+	options := &options{
+		scheme:    "http",
+		path:      "/livez",
+		timeout:   defaultPingerTimeout,
+		transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
 	for _, o := range opts {
 		o(options)
 	}
@@ -97,7 +104,7 @@ func WithTransport(transport http.RoundTripper) Option {
 }
 
 // WithTimeout sets the timeout used to ping the service.
-// Default is no timeout.
+// Default is 5 seconds.
 func WithTimeout(timeout time.Duration) Option {
 	return func(o *options) {
 		o.timeout = timeout

@@ -4,6 +4,8 @@ import (
 	"math"
 	"regexp"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewTraceOptions(t *testing.T) {
@@ -111,4 +113,21 @@ func TestNewTraceOptions(t *testing.T) {
 			}()
 		}
 	}
+}
+
+func TestTracedLoggerSpreadsKeyvals(t *testing.T) {
+	logger := &recordingLogger{}
+
+	err := WrapLogger(logger, "trace-id").Log("msg", "hello")
+	require.NoError(t, err)
+	require.Equal(t, []any{"trace", "trace-id", "msg", "hello"}, logger.keyvals)
+}
+
+type recordingLogger struct {
+	keyvals []any
+}
+
+func (l *recordingLogger) Log(keyvals ...any) error {
+	l.keyvals = append([]any(nil), keyvals...)
+	return nil
 }

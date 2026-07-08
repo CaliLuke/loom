@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/CaliLuke/loom/eval"
@@ -126,6 +127,95 @@ func TestRunDSLExecutesRootsRegisteredDuringExecution(t *testing.T) {
 	}
 }
 
+func TestRunDSLRecoversPanicAsError(t *testing.T) {
+	eval.SetupTestContext(t)
+
+	expr := &runDSLExpr{
+		name: "panicking-expr",
+		dsl: func() {
+			panic("boom")
+		},
+	}
+	if err := eval.Register(&runDSLRoot{name: "panicking", expr: expr}); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	err := eval.RunDSL()
+	if err == nil {
+		t.Fatal("expected panic to be reported as an error, got nil")
+	}
+	if got := err.Error(); !strings.Contains(got, "panic: boom in panicking-expr") {
+		t.Fatalf("expected panic diagnostic, got %q", got)
+	}
+}
+
+func TestRunDSLRecoversLifecyclePanicsAsErrors(t *testing.T) {
+	var prepareValidateRan bool
+	cases := []struct {
+		name string
+		expr *runDSLExpr
+		want string
+	}{
+		{
+			name: "prepare",
+			expr: &runDSLExpr{
+				name: "prepare-expr",
+				dsl:  func() {},
+				prepare: func() {
+					panic("prepare boom")
+				},
+				validateFunc: func() error {
+					prepareValidateRan = true
+					return nil
+				},
+			},
+			want: "panic: prepare boom in prepare-expr",
+		},
+		{
+			name: "validate",
+			expr: &runDSLExpr{
+				name: "validate-expr",
+				dsl:  func() {},
+				validateFunc: func() error {
+					panic("validate boom")
+				},
+			},
+			want: "panic: validate boom in validate-expr",
+		},
+		{
+			name: "finalize",
+			expr: &runDSLExpr{
+				name: "finalize-expr",
+				dsl:  func() {},
+				finalize: func() {
+					panic("finalize boom")
+				},
+			},
+			want: "panic: finalize boom in finalize-expr",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			eval.SetupTestContext(t)
+			if err := eval.Register(&runDSLRoot{name: c.name, expr: c.expr}); err != nil {
+				t.Fatalf("Register failed: %v", err)
+			}
+
+			err := eval.RunDSL()
+
+			if err == nil {
+				t.Fatal("expected panic to be reported as an error, got nil")
+			}
+			if got := err.Error(); !strings.Contains(got, c.want) {
+				t.Fatalf("expected panic diagnostic %q, got %q", c.want, got)
+			}
+		})
+	}
+	if prepareValidateRan {
+		t.Fatal("validation ran after prepare panic")
+	}
+}
+
 type runDSLRoot struct {
 	name string
 	expr eval.Expression
@@ -148,14 +238,32 @@ func (r *runDSLRoot) WalkSets(walk eval.SetWalker) {
 }
 
 type runDSLExpr struct {
-	name     string
-	dsl      func()
-	validate error
+	name         string
+	dsl          func()
+	prepare      func()
+	validate     error
+	validateFunc func() error
+	finalize     func()
 }
 
 func (e *runDSLExpr) EvalName() string { return e.name }
 func (e *runDSLExpr) DSL() func()      { return e.dsl }
-func (e *runDSLExpr) Validate() error  { return e.validate }
+func (e *runDSLExpr) Prepare() {
+	if e.prepare != nil {
+		e.prepare()
+	}
+}
+func (e *runDSLExpr) Validate() error {
+	if e.validateFunc != nil {
+		return e.validateFunc()
+	}
+	return e.validate
+}
+func (e *runDSLExpr) Finalize() {
+	if e.finalize != nil {
+		e.finalize()
+	}
+}
 
 func dslDeclLocation(t *testing.T, fn func()) (file string, line int) {
 	t.Helper()

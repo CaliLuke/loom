@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/CaliLuke/loom/clue/log"
@@ -99,27 +100,49 @@ func (c *checker) Check(ctx context.Context) (*Health, bool) {
 	// Extract tracing information from parent context for use in new contexts.
 	spanCtx := trace.SpanFromContext(ctx).SpanContext()
 	tracer := trace.SpanFromContext(ctx).TracerProvider().Tracer("github.com/CaliLuke/loom/clue/health")
+	type pingResult struct {
+		name string
+		err  error
+	}
+	results := make(chan pingResult, len(c.deps))
+	var wg sync.WaitGroup
 	for _, dep := range c.deps {
-		// Note: need to create a new context for each dependency So that one
-		// dependency canceling the context will not affect the other checks.
-		logCtx := trace.ContextWithSpanContext(context.Background(), spanCtx)
-		logCtx = log.With(logCtx, log.KV{K: "dep", V: dep.Name()})
-		spanName := fmt.Sprintf("health.ping.%s", dep.Name())
-		logCtx, span := tracer.Start(logCtx, spanName,
-			trace.WithSpanKind(trace.SpanKindClient),
-			trace.WithAttributes(attribute.KeyValue{Key: "name", Value: attribute.StringValue(spanName)}),
-		)
-		defer span.End()
+		wg.Add(1)
+		go func(dep Pinger) {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					err := fmt.Errorf("health ping panic: %v", r)
+					results <- pingResult{name: dep.Name(), err: err}
+				}
+			}()
+			logCtx := trace.ContextWithSpanContext(ctx, spanCtx)
+			logCtx = log.With(logCtx, log.KV{K: "dep", V: dep.Name()})
+			spanName := fmt.Sprintf("health.ping.%s", dep.Name())
+			logCtx, span := tracer.Start(logCtx, spanName,
+				trace.WithSpanKind(trace.SpanKindClient),
+				trace.WithAttributes(attribute.KeyValue{Key: "name", Value: attribute.StringValue(spanName)}),
+			)
+			defer span.End()
 
-		res.Status[dep.Name()] = "OK"
-		if err := dep.Ping(logCtx); err != nil {
-			res.Status[dep.Name()] = "NOT OK"
-			healthy = false
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "ping failed")
-			log.Error(ctx, err, log.KV{K: "msg", V: "ping failed"})
-		} else {
+			if err := dep.Ping(logCtx); err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "ping failed")
+				log.Error(ctx, err, log.KV{K: "msg", V: "ping failed"})
+				results <- pingResult{name: dep.Name(), err: err}
+				return
+			}
 			span.SetStatus(codes.Ok, "ping successful")
+			results <- pingResult{name: dep.Name()}
+		}(dep)
+	}
+	wg.Wait()
+	close(results)
+	for result := range results {
+		res.Status[result.name] = "OK"
+		if result.err != nil {
+			res.Status[result.name] = "NOT OK"
+			healthy = false
 		}
 	}
 	return res, healthy

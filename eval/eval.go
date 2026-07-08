@@ -48,6 +48,9 @@ func RunDSL() error {
 		prepareSet(ExpressionSet{root})
 		root.WalkSets(prepareSet)
 	}
+	if Context.Errors != nil {
+		return Context.Errors
+	}
 	for _, root := range roots {
 		validateSet(ExpressionSet{root})
 		root.WalkSets(validateSet)
@@ -58,6 +61,9 @@ func RunDSL() error {
 	for _, root := range roots {
 		finalizeSet(ExpressionSet{root})
 		root.WalkSets(finalizeSet)
+	}
+	if Context.Errors != nil {
+		return Context.Errors
 	}
 
 	return nil
@@ -74,6 +80,9 @@ func PrepareValidateFinalize(root Root) error {
 
 	prepareSet(ExpressionSet{root})
 	root.WalkSets(prepareSet)
+	if Context.Errors != nil {
+		return Context.Errors
+	}
 
 	validateSet(ExpressionSet{root})
 	root.WalkSets(validateSet)
@@ -83,6 +92,9 @@ func PrepareValidateFinalize(root Root) error {
 
 	finalizeSet(ExpressionSet{root})
 	root.WalkSets(finalizeSet)
+	if Context.Errors != nil {
+		return Context.Errors
+	}
 
 	return nil
 }
@@ -94,7 +106,7 @@ func PrepareValidateFinalize(root Root) error {
 // declaration time rather than store the DSL for execution by the dsl engine
 // (usually simple independent expressions). The DSL should use ReportError to
 // record DSL execution errors.
-func Execute(fn func(), def Expression) bool {
+func Execute(fn func(), def Expression) (ok bool) {
 	if fn == nil {
 		return true
 	}
@@ -103,8 +115,23 @@ func Execute(fn func(), def Expression) bool {
 		startCount = len(Context.Errors)
 	}
 	Context.Stack = append(Context.Stack, def)
+	defer func() {
+		if r := recover(); r != nil {
+			name := "<unknown>"
+			if def != nil {
+				name = def.EvalName()
+			}
+			file, line := computeErrorLocation()
+			Context.Record(&Error{
+				GoError: fmt.Errorf("panic: %v in %s", r, name),
+				File:    file,
+				Line:    line,
+			})
+			ok = false
+		}
+		Context.Stack = Context.Stack[:len(Context.Stack)-1]
+	}()
 	fn()
-	Context.Stack = Context.Stack[:len(Context.Stack)-1]
 	var endCount int
 	if Context.Errors != nil {
 		endCount = len(Context.Errors)
@@ -244,7 +271,7 @@ func prepareSet(set ExpressionSet) {
 			continue
 		}
 		if p, ok := def.(Preparer); ok {
-			p.Prepare()
+			Execute(p.Prepare, def)
 		}
 	}
 }
@@ -257,7 +284,11 @@ func validateSet(set ExpressionSet) {
 			continue
 		}
 		if validate, ok := def.(Validator); ok {
-			if err := validate.Validate(); err != nil {
+			var err error
+			Execute(func() {
+				err = validate.Validate()
+			}, def)
+			if err != nil {
 				errors.AddError(def, err)
 			}
 		}
@@ -274,7 +305,7 @@ func finalizeSet(set ExpressionSet) {
 			continue
 		}
 		if f, ok := def.(Finalizer); ok {
-			f.Finalize()
+			Execute(f.Finalize, def)
 		}
 	}
 }
