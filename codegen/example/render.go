@@ -274,8 +274,8 @@ func writeServerLoggerInit(b *bytes.Buffer, server *Data) {
 	fmt.Fprintf(b, "\tif log.IsTerminal() {\n\t\tformat = log.FormatTerminal\n\t}\n")
 	fmt.Fprintf(b, "\tctx := log.Context(context.Background(), log.WithFormat(format))\n")
 	fmt.Fprintf(b, "\tif *dbgF {\n\t\tctx = log.Context(ctx, log.WithDebug())\n\t\tlog.Debugf(ctx, \"debug logs enabled\")\n\t}\n")
-	if len(server.Transports) > 0 {
-		fmt.Fprintf(b, "\tlog.Print(ctx, log.KV{K: %q, V: *httpPortF})\n", "http-port")
+	for _, t := range server.Transports {
+		fmt.Fprintf(b, "\tlog.Print(ctx, log.KV{K: %q, V: *%sPortF})\n", string(t.Type)+"-port", t.Type)
 	}
 	fmt.Fprintf(b, "\n")
 }
