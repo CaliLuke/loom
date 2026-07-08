@@ -315,7 +315,7 @@ func TestNewValidationRenderDataHandlesAliasPointersAndDefaults(t *testing.T) {
 	})
 }
 
-func TestValidationCodePreservesLegacyExclusiveRangeEmission(t *testing.T) {
+func TestValidationCodeEmitsExclusiveMaximumWithExclusiveMinimum(t *testing.T) {
 	t.Parallel()
 
 	scope := NewNameScope()
@@ -338,8 +338,8 @@ func TestValidationCodePreservesLegacyExclusiveRangeEmission(t *testing.T) {
 		"\t}",
 		"}",
 		"if target != nil {",
-		"\tif *target <= 1 {",
-		"\t\terr = loom.MergeErrors(err, loom.InvalidRangeError(\"target\", *target, 1, true))",
+		"\tif *target >= 100 {",
+		"\t\terr = loom.MergeErrors(err, loom.InvalidRangeError(\"target\", *target, 100, false))",
 		"\t}",
 		"}",
 	}, "\n")

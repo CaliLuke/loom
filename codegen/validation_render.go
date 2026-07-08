@@ -25,18 +25,11 @@ type (
 		Pattern      string
 		Number       any
 		NumberFlag   bool
-		// Preserve legacy generator behavior: when both exclusive minimum and
-		// exclusive maximum were present, the old shared-map renderer leaked the
-		// exclusive-min flag into the exclusive-max branch and emitted the
-		// exclusive-min check twice. Keep that contract until behavior changes
-		// intentionally with updated goldens.
-		ExclusiveMinimumValue any
-		HasExclusiveMinimum   bool
-		MinLength             *int
-		MaxLength             *int
-		IsMinLength           bool
-		RequiredName          string
-		RequiredAttr          *expr.AttributeExpr
+		MinLength    *int
+		MaxLength    *int
+		IsMinLength  bool
+		RequiredName string
+		RequiredAttr *expr.AttributeExpr
 	}
 
 	unionValidationCase struct {
@@ -90,8 +83,6 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 	appendValidationNumber(&res, validation.ExclusiveMinimum, func(v any) string {
 		data.Number = v
 		data.NumberFlag = true
-		data.ExclusiveMinimumValue = v
-		data.HasExclusiveMinimum = true
 		return renderExclMinMaxValidation(data)
 	})
 	appendValidationNumber(&res, validation.Minimum, func(v any) string {
@@ -100,13 +91,8 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 		return renderMinMaxValidation(data)
 	})
 	appendValidationNumber(&res, validation.ExclusiveMaximum, func(v any) string {
-		if data.HasExclusiveMinimum {
-			data.Number = data.ExclusiveMinimumValue
-			data.NumberFlag = true
-		} else {
-			data.Number = v
-			data.NumberFlag = false
-		}
+		data.Number = v
+		data.NumberFlag = false
 		return renderExclMinMaxValidation(data)
 	})
 	appendValidationNumber(&res, validation.Maximum, func(v any) string {
