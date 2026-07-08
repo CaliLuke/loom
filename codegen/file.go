@@ -121,9 +121,9 @@ func (f *File) HeaderSection() Section {
 
 // Render executes the file section templates and writes the resulting bytes to
 // an output file. The path of the output file is computed by appending the file
-// path to dir. If a file already exists with the computed path then Render
-// happens the smallest integer value greater than 1 to make it unique. Renders
-// returns the computed path.
+// path to dir. If SkipExist is true and a file already exists with the computed
+// path, Render skips writing and returns an empty path. Otherwise, Render
+// overwrites the computed path and returns it.
 func (f *File) Render(dir string) (string, error) {
 	base, err := filepath.Abs(dir)
 	if err != nil {

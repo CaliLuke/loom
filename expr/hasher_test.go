@@ -91,3 +91,59 @@ func TestObjectHash(t *testing.T) {
 		})
 	}
 }
+
+func TestObjectHashSortsStructFieldMetadata(t *testing.T) {
+	first := &Object{
+		{Name: "field", Attribute: &AttributeExpr{
+			Type: String,
+			Meta: MetaExpr{
+				"struct:field:z": []string{"z"},
+				"struct:field:a": []string{"a"},
+			},
+		}},
+	}
+	second := &Object{
+		{Name: "field", Attribute: &AttributeExpr{
+			Type: String,
+			Meta: MetaExpr{
+				"struct:field:a": []string{"a"},
+				"struct:field:z": []string{"z"},
+			},
+		}},
+	}
+
+	firstHash := Hash(first, false, false, false)
+	secondHash := Hash(second, false, false, false)
+	if firstHash != secondHash {
+		t.Fatalf("hash changed with metadata insertion order:\nfirst:  %s\nsecond: %s", firstHash, secondHash)
+	}
+}
+
+func TestUserTypeHashSortsStructFieldMetadata(t *testing.T) {
+	first := &UserTypeExpr{
+		TypeName: "Person",
+		AttributeExpr: &AttributeExpr{
+			Type: String,
+			Meta: MetaExpr{
+				"struct:field:z": []string{"z"},
+				"struct:field:a": []string{"a"},
+			},
+		},
+	}
+	second := &UserTypeExpr{
+		TypeName: "Person",
+		AttributeExpr: &AttributeExpr{
+			Type: String,
+			Meta: MetaExpr{
+				"struct:field:a": []string{"a"},
+				"struct:field:z": []string{"z"},
+			},
+		},
+	}
+
+	firstHash := Hash(first, false, false, false)
+	secondHash := Hash(second, false, false, false)
+	if firstHash != secondHash {
+		t.Fatalf("hash changed with metadata insertion order:\nfirst:  %s\nsecond: %s", firstHash, secondHash)
+	}
+}

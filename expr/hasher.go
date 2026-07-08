@@ -90,11 +90,8 @@ func hashUserType(ut UserType, ignoreFields, ignoreNames, ignoreTags bool, seen 
 	}
 	att := ut.Attribute()
 	if !ignoreTags {
-		for k, v := range att.Meta {
-			if !strings.HasPrefix(k, "struct:field:") {
-				continue
-			}
-			h += fmt.Sprintf("%s%s%s", tagPrefix, k, v)
+		for _, k := range sortedStructFieldMetaKeys(att.Meta) {
+			h += fmt.Sprintf("%s%s%s", tagPrefix, k, att.Meta[k])
 		}
 	}
 	h += userTypeHashPrefix + *hash(att.Type, ignoreFields, ignoreNames, ignoreTags, seen)
@@ -112,15 +109,23 @@ func hashObject(o *Object, ignoreFields, ignoreNames, ignoreTags bool, seen map[
 		*ph += attributePrefix + a.Name +
 			attributeTypePrefix + *hash(a.Attribute.Type, ignoreFields, ignoreNames, ignoreTags, seen)
 		if !ignoreTags {
-			for k, v := range a.Attribute.Meta {
-				if !strings.HasPrefix(k, "struct:field:") {
-					continue
-				}
-				*ph += fmt.Sprintf("%s%s%s", tagPrefix, k, v)
+			for _, k := range sortedStructFieldMetaKeys(a.Attribute.Meta) {
+				*ph += fmt.Sprintf("%s%s%s", tagPrefix, k, a.Attribute.Meta[k])
 			}
 		}
 	}
 	return ph
+}
+
+func sortedStructFieldMetaKeys(meta MetaExpr) []string {
+	keys := make([]string, 0, len(meta))
+	for k := range meta {
+		if strings.HasPrefix(k, "struct:field:") {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func sorted(o *Object) Object {

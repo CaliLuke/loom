@@ -252,6 +252,9 @@ func SnakeCase(name string) string {
 func KebabCase(name string) string {
 	name = SnakeCase(name)
 	ln := len(name)
+	if ln == 0 {
+		return ""
+	}
 	if name[ln-1] == '_' {
 		name = name[:ln-1]
 	}

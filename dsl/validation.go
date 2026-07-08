@@ -69,6 +69,10 @@ const (
 //	})
 func Enum(vals ...any) {
 	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
+		if len(vals) == 0 {
+			eval.TooFewArgError()
+			return
+		}
 		for i, v := range vals {
 			// When can a.Type be nil? glad you asked
 			// There are two ways to write an Attribute declaration with the DSL that

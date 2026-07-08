@@ -32,6 +32,10 @@ func RunDSL() error {
 		for _, root := range roots[start:] {
 			root.WalkSets(runSet)
 		}
+		roots, err = Context.Roots()
+		if err != nil {
+			return err
+		}
 		if recursed > 100 {
 			// Let's cross that bridge once we get there
 			return fmt.Errorf("too many generated roots, infinite loop?")

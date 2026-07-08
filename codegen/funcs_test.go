@@ -90,6 +90,7 @@ func TestKebabCase(t *testing.T) {
 		"underscores 2":         {"aa_AAaaAA_Aaa", "aa-a-aaa-aa-aaa"},
 		"dashes":                {"aa-Aaa-Aaa", "aa-aaa-aaa"},
 		"dashes 2":              {"aa-AAaaAA-Aaa", "aa-a-aaa-aa-aaa"},
+		"empty":                 {"", ""},
 		"numbers":               {"aa1", "aa1"},
 	}
 	for k, tc := range cases {

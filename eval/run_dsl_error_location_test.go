@@ -95,11 +95,48 @@ func TestRunDSL_ValidationErrorLocation(t *testing.T) {
 	}
 }
 
+func TestRunDSLExecutesRootsRegisteredDuringExecution(t *testing.T) {
+	eval.SetupTestContext(t)
+
+	var generatedRan bool
+	generated := &runDSLExpr{
+		name: "generated-expr",
+		dsl: func() {
+			generatedRan = true
+		},
+	}
+	initial := &runDSLExpr{
+		name: "initial-expr",
+		dsl: func() {
+			if err := eval.Register(&runDSLRoot{name: "generated", expr: generated}); err != nil {
+				t.Fatalf("Register generated root failed: %v", err)
+			}
+		},
+	}
+
+	if err := eval.Register(&runDSLRoot{name: "initial", expr: initial}); err != nil {
+		t.Fatalf("Register initial root failed: %v", err)
+	}
+
+	if err := eval.RunDSL(); err != nil {
+		t.Fatalf("RunDSL failed: %v", err)
+	}
+	if !generatedRan {
+		t.Fatal("generated root DSL was not executed")
+	}
+}
+
 type runDSLRoot struct {
+	name string
 	expr eval.Expression
 }
 
-func (*runDSLRoot) EvalName() string { return "test" }
+func (r *runDSLRoot) EvalName() string {
+	if r.name == "" {
+		return "test"
+	}
+	return r.name
+}
 func (*runDSLRoot) DependsOn() []eval.Root {
 	return nil
 }

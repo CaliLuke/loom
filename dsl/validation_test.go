@@ -44,6 +44,22 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+func TestEnumRequiresAtLeastOneValue(t *testing.T) {
+	eval.SetupTestContext(t)
+	att := &expr.AttributeExpr{Type: String}
+
+	ok := eval.Execute(func() { Enum() }, att)
+	if ok {
+		t.Fatal("Enum() succeeded unexpectedly")
+	}
+	if eval.Context.Errors == nil {
+		t.Fatal("Enum() did not report an error")
+	}
+	if att.Validation != nil && att.Validation.Values != nil {
+		t.Fatalf("Enum() initialized empty values: %+v", att.Validation.Values)
+	}
+}
+
 func TestRequired(t *testing.T) {
 	att := &expr.AttributeExpr{
 		Type: &expr.UserTypeExpr{

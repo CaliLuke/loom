@@ -241,9 +241,10 @@ func TestUnionGetValueKey(t *testing.T) {
 
 func TestUnionDupPreservesCustomKeys(t *testing.T) {
 	original := &Union{
-		TypeName: "TestUnion",
-		TypeKey:  "kind",
-		ValueKey: "data",
+		TypeName:         "TestUnion",
+		ExplicitTypeName: true,
+		TypeKey:          "kind",
+		ValueKey:         "data",
 		Values: []*NamedAttributeExpr{
 			{
 				Name: "String",
@@ -266,6 +267,9 @@ func TestUnionDupPreservesCustomKeys(t *testing.T) {
 	}
 	if dup.ValueKey != original.ValueKey {
 		t.Errorf("ValueKey: got %q, expected %q", dup.ValueKey, original.ValueKey)
+	}
+	if dup.ExplicitTypeName != original.ExplicitTypeName {
+		t.Errorf("ExplicitTypeName: got %t, expected %t", dup.ExplicitTypeName, original.ExplicitTypeName)
 	}
 	if dup.GetTypeKey() != original.GetTypeKey() {
 		t.Errorf("GetTypeKey(): got %q, expected %q", dup.GetTypeKey(), original.GetTypeKey())
