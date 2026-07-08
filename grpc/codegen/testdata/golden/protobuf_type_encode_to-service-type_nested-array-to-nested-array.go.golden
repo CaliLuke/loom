@@ -6,9 +6,7 @@ func transform() {
 			target.NestedArray[i] = make([][]float64, len(val.Field))
 			for j, val := range val.Field {
 				target.NestedArray[i][j] = make([]float64, len(val.Field))
-				for k, val := range val.Field {
-					target.NestedArray[i][j][k] = val
-				}
+				copy(target.NestedArray[i][j], val.Field)
 			}
 		}
 	}

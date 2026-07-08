@@ -25,16 +25,13 @@ func transform() {
 	}
 	if source.Array != nil {
 		target.Array = make([]string, len(source.Array))
-		for i, val := range source.Array {
-			target.Array[i] = val
-		}
+		copy(target.Array, source.Array)
 	}
 	if source.Map != nil {
 		target.Map_ = make(map[int64]string, len(source.Map))
 		for key, val := range source.Map {
 			tk := int64(key)
-			tv := val
-			target.Map_[tk] = tv
+			target.Map_[tk] = val
 		}
 	}
 	if source.UserType != nil {

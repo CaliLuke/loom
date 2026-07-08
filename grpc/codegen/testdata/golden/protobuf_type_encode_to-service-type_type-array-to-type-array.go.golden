@@ -6,9 +6,7 @@ func transform() {
 			target.TypeArray[i] = &proto.SimpleArray{}
 			if val.StringArray != nil {
 				target.TypeArray[i].StringArray = make([]string, len(val.StringArray))
-				for j, val := range val.StringArray {
-					target.TypeArray[i].StringArray[j] = val
-				}
+				copy(target.TypeArray[i].StringArray, val.StringArray)
 			}
 		}
 	}

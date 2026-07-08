@@ -3,9 +3,8 @@ func transform() {
 	if source.Simple != nil {
 		target.Simple = make(map[string]int64, len(source.Simple))
 		for key, val := range source.Simple {
-			tk := key
 			tv := int64(val)
-			target.Simple[tk] = tv
+			target.Simple[key] = tv
 		}
 	}
 	if source.Simple == nil {

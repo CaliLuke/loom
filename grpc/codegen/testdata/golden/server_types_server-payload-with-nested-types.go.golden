@@ -62,12 +62,9 @@ func protobufServicePayloadWithNestedTypespbAParamsToServicepayloadwithnestedtyp
 	if v.A != nil {
 		res.A = make(map[string][]string, len(v.A))
 		for key, val := range v.A {
-			tk := key
 			tv := make([]string, len(val.Field))
-			for i, val := range val.Field {
-				tv[i] = val
-			}
-			res.A[tk] = tv
+			copy(tv, val.Field)
+			res.A[key] = tv
 		}
 	}
 
@@ -85,9 +82,7 @@ func protobufServicePayloadWithNestedTypespbBParamsToServicepayloadwithnestedtyp
 	if v.B != nil {
 		res.B = make(map[string]string, len(v.B))
 		for key, val := range v.B {
-			tk := key
-			tv := val
-			res.B[tk] = tv
+			res.B[key] = val
 		}
 	}
 

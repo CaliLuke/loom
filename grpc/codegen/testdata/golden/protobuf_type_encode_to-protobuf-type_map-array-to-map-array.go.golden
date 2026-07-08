@@ -7,8 +7,7 @@ func transform() {
 			target.MapArray[i].Field = make(map[int64]string, len(val))
 			for key, val := range val {
 				tk := int64(key)
-				tv := val
-				target.MapArray[i].Field[tk] = tv
+				target.MapArray[i].Field[tk] = val
 			}
 		}
 	}

@@ -13,8 +13,7 @@ func transform() {
 				target.Collection.Field[i].Map_ = make(map[int64]string, len(val.Map))
 				for key, val := range val.Map {
 					tk := int64(key)
-					tv := val
-					target.Collection.Field[i].Map_[tk] = tv
+					target.Collection.Field[i].Map_[tk] = val
 				}
 			}
 		}

@@ -8,9 +8,7 @@ func transform() {
 			for j, val := range val {
 				target.NestedArray[i].Field[j] = &proto.ArrayOfDouble{}
 				target.NestedArray[i].Field[j].Field = make([]float64, len(val))
-				for k, val := range val {
-					target.NestedArray[i].Field[j].Field[k] = val
-				}
+				copy(target.NestedArray[i].Field[j].Field, val)
 			}
 		}
 	}

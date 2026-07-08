@@ -13,6 +13,7 @@ var Account = ResultType("application/vnd.loom.grpc.quality.account", func() {
 	})
 	Field(3, "display_name", String)
 	Field(4, "revision", Int64)
+	Field(5, "etag", String)
 	Required("id", "email", "display_name", "revision")
 
 	View("default", func() {
@@ -28,6 +29,21 @@ var Account = ResultType("application/vnd.loom.grpc.quality.account", func() {
 	})
 })
 
+var RequestContext = Type("RequestContext", func() {
+	Field(1, "tenant_id", String)
+	Field(2, "locale", String)
+	Required("tenant_id")
+})
+
+var AccountSelector = Type("AccountSelector", func() {
+	OneOf("account_selector", func() {
+		Field(1, "account_id", String)
+		Field(2, "email", String, func() {
+			Format(FormatEmail)
+		})
+	})
+})
+
 var AccountRequest = Type("AccountRequest", func() {
 	Field(1, "account_id", String)
 	Field(2, "include_inactive", Boolean)
@@ -36,7 +52,10 @@ var AccountRequest = Type("AccountRequest", func() {
 		Minimum(0)
 		Maximum(5)
 	})
-	Required("account_id", "request_id")
+	Field(5, "shard_ids", ArrayOf(UInt32))
+	Field(6, "context", RequestContext)
+	Field(7, "selector", AccountSelector)
+	Required("account_id", "request_id", "context", "selector")
 })
 
 var AccountUpdate = Type("AccountUpdate", func() {
@@ -70,10 +89,12 @@ var _ = Service("accounts", func() {
 			Metadata(func() {
 				Attribute("request_id:X-Request-ID")
 				Attribute("trace_level:X-Trace-Level")
+				Attribute("shard_ids:X-Shard-Ids")
 			})
 			Response(CodeOK, func() {
 				Headers(func() {
 					Attribute("revision:X-Account-Revision")
+					Attribute("etag:X-Account-ETag")
 				})
 			})
 			Response(CodeNotFound, "not_found")

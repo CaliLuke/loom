@@ -3,6 +3,7 @@ package codegen
 import (
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -149,7 +150,43 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 			sections = append(sections, cli.PayloadBuilderSection(sub.BuildFunction))
 		}
 	}
+	for _, helper := range clientCLIPayloadTransformHelpers(svc, sd) {
+		sections = append(sections, grpcTransformHelperSection(helper.TransformFunctionData))
+	}
 	return &codegen.File{Path: fpath, Sections: sections}
+}
+
+func clientCLIPayloadTransformHelpers(svc *expr.GRPCServiceExpr, sd *ServiceData) []*TransformHelperData {
+	byName := make(map[string]*TransformHelperData, len(sd.transformHelpers))
+	for _, helper := range sd.transformHelpers {
+		if helper.Kind != validateServer {
+			continue
+		}
+		byName[helper.Name] = helper
+	}
+
+	var selected []*TransformHelperData
+	seen := make(map[string]struct{}, len(byName))
+	var collectFromCode func(string)
+	collectFromCode = func(src string) {
+		for name, helper := range byName {
+			if _, ok := seen[name]; ok || !strings.Contains(src, name+"(") {
+				continue
+			}
+			seen[name] = struct{}{}
+			selected = append(selected, helper)
+			collectFromCode(helper.Code)
+		}
+	}
+
+	for _, grpcEndpoint := range svc.GRPCEndpoints {
+		endpoint := sd.Endpoint(grpcEndpoint.Name())
+		if endpoint == nil || endpoint.Request == nil || endpoint.Request.ServerConvert == nil || endpoint.Request.ServerConvert.Init == nil {
+			continue
+		}
+		collectFromCode(endpoint.Request.ServerConvert.Init.Code)
+	}
+	return selected
 }
 
 func buildFlags(e *EndpointData) ([]*cli.FlagData, *cli.BuildFunctionData) {

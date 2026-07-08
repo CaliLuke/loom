@@ -2,9 +2,7 @@ func transform() {
 	target := &proto.DefaultArray{}
 	if source.StringArray != nil {
 		target.StringArray = make([]string, len(source.StringArray))
-		for i, val := range source.StringArray {
-			target.StringArray[i] = val
-		}
+		copy(target.StringArray, source.StringArray)
 	}
 	if source.StringArray == nil {
 		target.StringArray = []string{"foo", "bar"}

@@ -3,7 +3,6 @@ func transform() {
 	if source.NestedMap != nil {
 		target.NestedMap = make(map[float64]*proto.MapOfSint64MapOfDoubleUint64, len(source.NestedMap))
 		for key, val := range source.NestedMap {
-			tk := key
 			tvc := &proto.MapOfSint64MapOfDoubleUint64{}
 			tvc.Field = make(map[int64]*proto.MapOfDoubleUint64, len(val))
 			for key, val := range val {
@@ -11,13 +10,11 @@ func transform() {
 				tvb := &proto.MapOfDoubleUint64{}
 				tvb.Field = make(map[float64]uint64, len(val))
 				for key, val := range val {
-					tk := key
-					tv := val
-					tvb.Field[tk] = tv
+					tvb.Field[key] = val
 				}
 				tvc.Field[tk] = tvb
 			}
-			target.NestedMap[tk] = tvc
+			target.NestedMap[key] = tvc
 		}
 	}
 }

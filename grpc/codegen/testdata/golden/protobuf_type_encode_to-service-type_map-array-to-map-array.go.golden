@@ -6,8 +6,7 @@ func transform() {
 			target.MapArray[i] = make(map[int]string, len(val.Field))
 			for key, val := range val.Field {
 				tk := int(key)
-				tv := val
-				target.MapArray[i][tk] = tv
+				target.MapArray[i][tk] = val
 			}
 		}
 	}

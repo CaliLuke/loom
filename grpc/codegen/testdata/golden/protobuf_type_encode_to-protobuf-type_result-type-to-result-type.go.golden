@@ -8,8 +8,7 @@ func transform() {
 		target.Map_ = make(map[int64]string, len(source.Map))
 		for key, val := range source.Map {
 			tk := int64(key)
-			tv := val
-			target.Map_[tk] = tv
+			target.Map_[tk] = val
 		}
 	}
 }

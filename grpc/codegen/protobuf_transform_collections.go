@@ -28,6 +28,17 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 	if err != nil {
 		return "", err
 	}
+	if canDirectAssignPrimitive(src, tgt, ta) {
+		copyTarget := targetVar
+		if targetPtr {
+			copyTarget = "arr" + loopVar
+		}
+		fmt.Fprintf(&buf, "copy(%s, %s)\n", copyTarget, rangeOn)
+		if targetPtr {
+			fmt.Fprintf(&buf, "%s = &arr%s\n", targetVar, loopVar)
+		}
+		return code + buf.String(), nil
+	}
 	writeTransformArrayLoop(&buf, loopVar, rangeOn, transformArrayValueVar(src), elemCode)
 	if targetPtr {
 		fmt.Fprintf(&buf, "%s = &arr%s\n", targetVar, loopVar)
@@ -134,18 +145,25 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	var buf bytes.Buffer
 	fmt.Fprint(&buf, initCode)
 	fmt.Fprintf(&buf, "for key, val := range %s {\n", sourceVar)
-	keyCode, err := transformAttribute(source.KeyType, target.KeyType, "key", "tk", true, ta)
-	if err != nil {
-		return "", err
+	keyVar := "key"
+	if !canDirectAssignPrimitive(source.KeyType, target.KeyType, ta) {
+		keyVar = "tk"
+		keyCode, err := transformAttribute(source.KeyType, target.KeyType, "key", keyVar, true, ta)
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprint(&buf, codegen.Indent(keyCode, "\t"))
 	}
-	fmt.Fprint(&buf, codegen.Indent(keyCode, "\t"))
-	elemTmp := "tv" + suffix
-	elemCode, err := transformAttribute(src, tgt, "val", elemTmp, true, ta)
-	if err != nil {
-		return "", err
+	elemVar := "val"
+	if !canDirectAssignPrimitive(src, tgt, ta) {
+		elemVar = "tv" + suffix
+		elemCode, err := transformAttribute(src, tgt, "val", elemVar, true, ta)
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprint(&buf, codegen.Indent(elemCode, "\t"))
 	}
-	fmt.Fprint(&buf, codegen.Indent(elemCode, "\t"))
-	fmt.Fprintf(&buf, "\t%s[tk] = %s\n", mapVar, elemTmp)
+	fmt.Fprintf(&buf, "\t%s[%s] = %s\n", mapVar, keyVar, elemVar)
 	fmt.Fprint(&buf, "}\n")
 	if targetPtr {
 		fmt.Fprintf(&buf, "%s = &%s\n", targetVar, mapVar)
@@ -211,6 +229,15 @@ func transformMapLoopNames(target *expr.Map) (string, string) {
 		return loopVar, loopVar
 	}
 	return "a", ""
+}
+
+func canDirectAssignPrimitive(source, target *expr.AttributeExpr, ta *transformAttrs) bool {
+	if !expr.IsPrimitive(source.Type) || !expr.IsPrimitive(target.Type) {
+		return false
+	}
+	sourceRef := ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source))
+	targetRef := ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target))
+	return sourceRef == targetRef
 }
 
 func transformMapInit(targetVar, sourceVar string, targetPtr bool, targetKeyRef, targetElemRef string, newVar bool, loopVar string) (string, string) {

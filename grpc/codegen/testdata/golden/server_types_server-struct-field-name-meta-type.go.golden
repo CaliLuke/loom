@@ -10,9 +10,7 @@ func NewMethodPayload(message *using_meta_typespb.MethodRequest) *usingmetatypes
 	}
 	if message.B != nil {
 		v.Bar = make([]int64, len(message.B))
-		for i, val := range message.B {
-			v.Bar[i] = val
-		}
+		copy(v.Bar, message.B)
 	}
 	return v
 }
@@ -25,9 +23,7 @@ func NewProtoMethodResponse(result *usingmetatypes.MethodResult) *using_meta_typ
 	}
 	if result.Bar != nil {
 		message.B = make([]int64, len(result.Bar))
-		for i, val := range result.Bar {
-			message.B[i] = val
-		}
+		copy(message.B, result.Bar)
 	}
 	return message
 }

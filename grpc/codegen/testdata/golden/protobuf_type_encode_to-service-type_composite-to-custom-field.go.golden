@@ -16,14 +16,11 @@ func transform() {
 		target.MyMap = make(map[int]string, len(source.Map_))
 		for key, val := range source.Map_ {
 			tk := int(key)
-			tv := val
-			target.MyMap[tk] = tv
+			target.MyMap[tk] = val
 		}
 	}
 	if source.Array != nil {
 		target.MyArray = make([]string, len(source.Array))
-		for i, val := range source.Array {
-			target.MyArray[i] = val
-		}
+		copy(target.MyArray, source.Array)
 	}
 }

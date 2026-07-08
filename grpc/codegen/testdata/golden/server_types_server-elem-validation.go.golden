@@ -6,12 +6,9 @@ func NewMethodElemValidationPayload(message *service_elem_validationpb.MethodEle
 	if message.Foo != nil {
 		v.Foo = make(map[string][]string, len(message.Foo))
 		for key, val := range message.Foo {
-			tk := key
 			tv := make([]string, len(val.Field))
-			for i, val := range val.Field {
-				tv[i] = val
-			}
-			v.Foo[tk] = tv
+			copy(tv, val.Field)
+			v.Foo[key] = tv
 		}
 	}
 	return v
