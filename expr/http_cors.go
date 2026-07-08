@@ -53,6 +53,10 @@ func (c *HTTPCORSExpr) Validate() *eval.ValidationErrors {
 			verr.Add(origin, "CORS credentials are incompatible with wildcard origin")
 		}
 		if origin.Regex {
+			// Validate only that the pattern compiles. The runtime matcher
+			// anchors patterns to the full origin string (\A(?:...)\z), so
+			// unanchored patterns cannot cause cross-origin bypass; no
+			// anchoring is required or enforced at design time.
 			if _, err := regexp.Compile(origin.Pattern); err != nil {
 				verr.Add(origin, "CORS origin regex %q is invalid: %s", origin.Pattern, err)
 			}

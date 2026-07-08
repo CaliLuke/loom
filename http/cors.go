@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type (
@@ -27,6 +28,12 @@ type (
 		Credentials bool
 	}
 )
+
+// corsRegexCache memoizes compiled, anchored origin regexps keyed by the raw
+// user pattern. Generated code rebuilds CORSPolicy struct literals per request,
+// so caching on the struct value would not persist; a package-level cache keeps
+// compilation to once per distinct pattern across all requests.
+var corsRegexCache sync.Map // map[string]*regexp.Regexp
 
 // CORSHandler wraps next and writes CORS response headers for matching actual
 // browser requests. Non-CORS requests and disallowed origins pass through
@@ -100,7 +107,7 @@ func (p CORSPolicy) match(origin string) (CORSOrigin, bool) {
 		case allowed.Pattern == "*":
 			return allowed, true
 		case allowed.Regex:
-			if ok, _ := regexp.MatchString(allowed.Pattern, origin); ok {
+			if re := corsRegex(allowed.Pattern); re != nil && re.MatchString(origin) {
 				return allowed, true
 			}
 		case allowed.Pattern == origin:
@@ -108,6 +115,24 @@ func (p CORSPolicy) match(origin string) (CORSOrigin, bool) {
 		}
 	}
 	return CORSOrigin{}, false
+}
+
+// corsRegex returns the compiled, full-string-anchored regexp for a CORS origin
+// pattern. Origin patterns are wrapped as \A(?:pattern)\z so a partial match can
+// never allow an unintended origin (e.g. "https://.*\.example\.com" must not
+// match "https://api.example.com.evil.io"). Compiled expressions are cached by
+// pattern so repeated requests do not recompile. It returns nil when the pattern
+// fails to compile, in which case the origin is treated as not matching.
+func corsRegex(pattern string) *regexp.Regexp {
+	if cached, ok := corsRegexCache.Load(pattern); ok {
+		return cached.(*regexp.Regexp)
+	}
+	re, err := regexp.Compile(`\A(?:` + pattern + `)\z`)
+	if err != nil {
+		re = nil
+	}
+	corsRegexCache.Store(pattern, re)
+	return re
 }
 
 func writeCORSOriginHeaders(header http.Header, requestOrigin string, origin CORSOrigin) {
