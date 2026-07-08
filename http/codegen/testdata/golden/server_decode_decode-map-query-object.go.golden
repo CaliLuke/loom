@@ -32,7 +32,7 @@ func DecodeMethodMapQueryObjectRequest(mux loomhttp.Muxer, decoder func(*http.Re
 			params = mux.Vars(r)
 		)
 		a = params["a"]
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("a", a, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("a", a, loomPatternTest0))
 		{
 			cRaw := r.URL.Query()
 			if len(cRaw) == 0 {
@@ -65,4 +65,4 @@ func DecodeMethodMapQueryObjectRequest(mux loomhttp.Muxer, decoder func(*http.Re
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("patterna")
+var loomPatternTest0 = regexp.MustCompile("patterna")

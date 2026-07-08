@@ -14,7 +14,7 @@ func DecodeMethodHeaderStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 			h = &hRaw
 		}
 		if h != nil {
-			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("h", *h, loomPattern0))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("h", *h, loomPatternTest0))
 		}
 		if err != nil {
 			return payload, err
@@ -25,4 +25,4 @@ func DecodeMethodHeaderStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("header")
+var loomPatternTest0 = regexp.MustCompile("header")

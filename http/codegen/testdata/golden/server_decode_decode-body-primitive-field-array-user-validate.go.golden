@@ -25,7 +25,7 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decod
 			err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, len(body), 1, true))
 		}
 		for _, e := range body {
-			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body[*]", e, loomPattern0))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body[*]", e, loomPatternTest0))
 		}
 		if err != nil {
 			return payload, err
@@ -36,4 +36,4 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decod
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("pattern")
+var loomPatternTest0 = regexp.MustCompile("pattern")

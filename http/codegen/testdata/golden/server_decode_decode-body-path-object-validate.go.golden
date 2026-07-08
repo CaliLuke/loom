@@ -32,7 +32,7 @@ func DecodeMethodBodyPathObjectValidateRequest(mux loomhttp.Muxer, decoder func(
 			params = mux.Vars(r)
 		)
 		b = params["b"]
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPatternTest0))
 		if err != nil {
 			return payload, err
 		}
@@ -42,4 +42,4 @@ func DecodeMethodBodyPathObjectValidateRequest(mux loomhttp.Muxer, decoder func(
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("patternb")
+var loomPatternTest0 = regexp.MustCompile("patternb")

@@ -25,7 +25,7 @@ func NewMethodStreamingBody(body *MethodStreamingBody) *servicepayloadvalidateda
 // MethodStreamingBody
 func ValidateMethodStreamingBody(body *MethodStreamingBody) (err error) {
 	if body.Name != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.name", string(*body.Name), loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.name", string(*body.Name), loomPatternTest0))
 	}
 	if body.Name != nil {
 		if utf8.RuneCountInString(string(*body.Name)) < 10 {
@@ -35,4 +35,4 @@ func ValidateMethodStreamingBody(body *MethodStreamingBody) (err error) {
 	return
 }
 
-var loomPattern0 = regexp.MustCompile("^[a-zA-Z]+$")
+var loomPatternTest0 = regexp.MustCompile("^[a-zA-Z]+$")

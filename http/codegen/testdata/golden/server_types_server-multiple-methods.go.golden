@@ -44,7 +44,7 @@ func NewMethodBPayloadType(body *MethodBRequestBody) *servicemultiplemethods.Pay
 // ValidateMethodARequestBody runs the validations defined on MethodARequestBody
 func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
 	}
 	return
 }
@@ -58,10 +58,10 @@ func ValidateMethodBRequestBody(body *MethodBRequestBody) (err error) {
 		err = loom.MergeErrors(err, loom.MissingFieldError("c", "body"))
 	}
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
 	}
 	if body.B != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", *body.B, loomPattern1))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", *body.B, loomPatternTest1))
 	}
 	if body.C != nil {
 		if err2 := ValidateAPayloadRequestBody(body.C); err2 != nil {
@@ -75,12 +75,12 @@ func ValidateMethodBRequestBody(body *MethodBRequestBody) (err error) {
 // APayloadRequestBody
 func ValidateAPayloadRequestBody(body *APayloadRequestBody) (err error) {
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
 	}
 	return
 }
 
 var (
-	loomPattern0 = regexp.MustCompile("patterna")
-	loomPattern1 = regexp.MustCompile("patternb")
+	loomPatternTest0 = regexp.MustCompile("patterna")
+	loomPatternTest1 = regexp.MustCompile("patternb")
 )

@@ -21,7 +21,7 @@ func DecodeMethodBodyUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body", body, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body", body, loomPatternTest0))
 		if err != nil {
 			return payload, err
 		}
@@ -31,4 +31,4 @@ func DecodeMethodBodyUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("apattern")
+var loomPatternTest0 = regexp.MustCompile("apattern")

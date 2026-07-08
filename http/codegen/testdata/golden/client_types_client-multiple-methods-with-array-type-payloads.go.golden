@@ -43,7 +43,7 @@ func NewPayloadBRequestBody(p []*servicemultiplemethods.PayloadB) []*PayloadBReq
 // PayloadARequestBody
 func ValidatePayloadARequestBody(body *PayloadARequestBody) (err error) {
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
 	}
 	return
 }
@@ -51,12 +51,12 @@ func ValidatePayloadARequestBody(body *PayloadARequestBody) (err error) {
 // ValidatePayloadBRequestBody runs the validations defined on
 // PayloadBRequestBody
 func ValidatePayloadBRequestBody(body *PayloadBRequestBody) (err error) {
-	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", body.A, loomPattern0))
-	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", body.B, loomPattern1))
+	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", body.A, loomPatternTest0))
+	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", body.B, loomPatternTest1))
 	return
 }
 
 var (
-	loomPattern0 = regexp.MustCompile("patterna")
-	loomPattern1 = regexp.MustCompile("patternb")
+	loomPatternTest0 = regexp.MustCompile("patterna")
+	loomPatternTest1 = regexp.MustCompile("patternb")
 )

@@ -11,7 +11,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b\": \"patternb\"\n   }'")
 		}
 		if body.B != nil {
-			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", *body.B, loomPattern0))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", *body.B, loomPatternTest0))
 		}
 		if err != nil {
 			return nil, err
@@ -20,7 +20,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 	var a string
 	{
 		a = serviceMapQueryObjectMethodMapQueryObjectA
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("a", a, loomPattern1))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("a", a, loomPatternTest1))
 		if err != nil {
 			return nil, err
 		}
@@ -42,6 +42,6 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 }
 
 var (
-	loomPattern0 = regexp.MustCompile("patternb")
-	loomPattern1 = regexp.MustCompile("patterna")
+	loomPatternTest0 = regexp.MustCompile("patternb")
+	loomPatternTest1 = regexp.MustCompile("patterna")
 )

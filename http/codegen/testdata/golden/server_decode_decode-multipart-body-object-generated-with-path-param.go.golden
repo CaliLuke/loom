@@ -69,7 +69,7 @@ func DecodeMethodMultipartObjectGeneratedWithPathParamRequest(mux loomhttp.Muxer
 			params = mux.Vars(r)
 		)
 		projectID = params["project_id"]
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("project_id", projectID, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("project_id", projectID, loomPatternTest0))
 		if err != nil {
 			return payload, err
 		}
@@ -79,4 +79,4 @@ func DecodeMethodMultipartObjectGeneratedWithPathParamRequest(mux loomhttp.Muxer
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("project-[a-z]+")
+var loomPatternTest0 = regexp.MustCompile("project-[a-z]+")

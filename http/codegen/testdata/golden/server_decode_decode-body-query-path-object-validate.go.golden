@@ -33,12 +33,12 @@ func DecodeMethodBodyQueryPathObjectValidateRequest(mux loomhttp.Muxer, decoder 
 			params = mux.Vars(r)
 		)
 		c2 = params["c"]
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("c", c2, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("c", c2, loomPatternTest0))
 		b = r.URL.Query().Get("b")
 		if b == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("b", "query string"))
 		}
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPattern1))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPatternTest1))
 		if err != nil {
 			return payload, err
 		}
@@ -49,6 +49,6 @@ func DecodeMethodBodyQueryPathObjectValidateRequest(mux loomhttp.Muxer, decoder 
 }
 
 var (
-	loomPattern0 = regexp.MustCompile("patternc")
-	loomPattern1 = regexp.MustCompile("patternb")
+	loomPatternTest0 = regexp.MustCompile("patternc")
+	loomPatternTest1 = regexp.MustCompile("patternb")
 )

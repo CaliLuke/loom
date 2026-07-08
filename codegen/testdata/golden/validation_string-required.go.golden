@@ -1,7 +1,7 @@
 import "regexp"
 
 func Validate() (err error) {
-	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.required_string", target.RequiredString, loomPattern0))
+	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.required_string", target.RequiredString, loomPatternTest0))
 	if utf8.RuneCountInString(target.RequiredString) < 1 {
 		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", target.RequiredString, utf8.RuneCountInString(target.RequiredString), 1, true))
 	}
@@ -18,4 +18,4 @@ func Validate() (err error) {
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("^[A-z].*[a-z]$")
+var loomPatternTest0 = regexp.MustCompile("^[A-z].*[a-z]$")

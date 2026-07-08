@@ -1,7 +1,7 @@
 import "regexp"
 
 func Validate() (err error) {
-	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.required_alias", string(target.RequiredAlias), loomPattern0))
+	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.required_alias", string(target.RequiredAlias), loomPatternTest0))
 	if utf8.RuneCountInString(string(target.RequiredAlias)) < 1 {
 		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_alias", string(target.RequiredAlias), utf8.RuneCountInString(string(target.RequiredAlias)), 1, true))
 	}
@@ -9,7 +9,7 @@ func Validate() (err error) {
 		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_alias", string(target.RequiredAlias), utf8.RuneCountInString(string(target.RequiredAlias)), 10, false))
 	}
 	if target.Alias != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.alias", string(*target.Alias), loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.alias", string(*target.Alias), loomPatternTest0))
 	}
 	if target.Alias != nil {
 		if utf8.RuneCountInString(string(*target.Alias)) < 1 {
@@ -23,4 +23,4 @@ func Validate() (err error) {
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("^[A-z].*[a-z]$")
+var loomPatternTest0 = regexp.MustCompile("^[A-z].*[a-z]$")

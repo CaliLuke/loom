@@ -59,7 +59,7 @@ func DecodeMethodQueryPrimitiveMapStringBoolValidateRequest(mux loomhttp.Muxer, 
 			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
 		}
 		for k, v := range q {
-			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("q.key", k, loomPattern0))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("q.key", k, loomPatternTest0))
 			if !(v == true) {
 				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q[key]", v, []any{true}))
 			}
@@ -73,4 +73,4 @@ func DecodeMethodQueryPrimitiveMapStringBoolValidateRequest(mux loomhttp.Muxer, 
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("key")
+var loomPatternTest0 = regexp.MustCompile("key")

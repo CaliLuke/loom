@@ -45,9 +45,9 @@ func NewMethodBRequestBody(p *servicemultiplemethods.PayloadType) *MethodBReques
 // APayloadRequestBody
 func ValidateAPayloadRequestBody(body *APayloadRequestBody) (err error) {
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPattern0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
 	}
 	return
 }
 
-var loomPattern0 = regexp.MustCompile("patterna")
+var loomPatternTest0 = regexp.MustCompile("patterna")

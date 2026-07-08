@@ -13,7 +13,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"text/template"
+	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
@@ -201,7 +203,7 @@ func finalizeGoSource(path string, content []byte) ([]byte, error) {
 		return nil, fmt.Errorf("%s\n========\nContent:\n%s", buf.String(), content)
 	}
 
-	compilePatternValidations(fset, file)
+	compilePatternValidations(fset, file, path)
 
 	// Clean unused imports using optimized single-pass detection
 	impMap := buildImportMap(file)
@@ -228,7 +230,8 @@ func finalizeGoSource(path string, content []byte) ([]byte, error) {
 	return result, nil
 }
 
-func compilePatternValidations(fset *token.FileSet, file *ast.File) {
+func compilePatternValidations(fset *token.FileSet, file *ast.File, path string) {
+	prefix := patternVarPrefix(path)
 	usedNames := topLevelNames(file)
 	patternVars := make(map[string]string)
 	var patternOrder []string
@@ -248,7 +251,7 @@ func compilePatternValidations(fset *token.FileSet, file *ast.File) {
 		}
 		name, ok := patternVars[pattern.Value]
 		if !ok {
-			name = uniquePatternVarName(len(patternVars), usedNames)
+			name = uniquePatternVarName(prefix, len(patternVars), usedNames)
 			patternVars[pattern.Value] = name
 			patternOrder = append(patternOrder, pattern.Value)
 		}
@@ -289,9 +292,30 @@ func isLoomValidatePatternCall(call *ast.CallExpr) bool {
 	return ok && ident.Name == "loom"
 }
 
-func uniquePatternVarName(index int, used map[string]struct{}) string {
+// patternVarPrefix derives a per-file identifier prefix so pattern variables
+// hoisted in different files of the same package cannot collide.
+func patternVarPrefix(path string) string {
+	base := strings.TrimSuffix(filepath.Base(path), ".go")
+	var b strings.Builder
+	b.WriteString("loomPattern")
+	upper := true
+	for _, r := range base {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			upper = true
+			continue
+		}
+		if upper {
+			r = unicode.ToUpper(r)
+			upper = false
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+func uniquePatternVarName(prefix string, index int, used map[string]struct{}) string {
 	for {
-		name := fmt.Sprintf("loomPattern%d", index)
+		name := fmt.Sprintf("%s%d", prefix, index)
 		if _, ok := used[name]; !ok {
 			used[name] = struct{}{}
 			return name

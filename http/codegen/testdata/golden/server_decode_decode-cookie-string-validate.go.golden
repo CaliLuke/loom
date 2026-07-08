@@ -26,7 +26,7 @@ func DecodeMethodCookieStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 			}
 		}
 		if c2 != nil {
-			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("c", *c2, loomPattern0))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("c", *c2, loomPatternTest0))
 		}
 		if err != nil {
 			return payload, err
@@ -37,4 +37,4 @@ func DecodeMethodCookieStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 	}
 }
 
-var loomPattern0 = regexp.MustCompile("cookie")
+var loomPatternTest0 = regexp.MustCompile("cookie")
