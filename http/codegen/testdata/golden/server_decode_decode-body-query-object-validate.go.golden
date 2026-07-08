@@ -1,3 +1,5 @@
+import "regexp"
+
 // DecodeMethodBodyQueryObjectValidateRequest returns a decoder for requests
 // sent to the ServiceBodyQueryObjectValidate MethodBodyQueryObjectValidate
 // endpoint.
@@ -31,7 +33,7 @@ func DecodeMethodBodyQueryObjectValidateRequest(mux loomhttp.Muxer, decoder func
 		if b == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("b", "query string"))
 		}
-		err = loom.MergeErrors(err, loom.ValidatePattern("b", b, "patternb"))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPattern0))
 		if err != nil {
 			return payload, err
 		}
@@ -40,3 +42,5 @@ func DecodeMethodBodyQueryObjectValidateRequest(mux loomhttp.Muxer, decoder func
 		return payload, nil
 	}
 }
+
+var loomPattern0 = regexp.MustCompile("patternb")

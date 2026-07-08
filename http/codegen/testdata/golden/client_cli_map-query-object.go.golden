@@ -1,3 +1,5 @@
+import "regexp"
+
 // BuildMethodMapQueryObjectPayload builds the payload for the
 // ServiceMapQueryObject MethodMapQueryObject endpoint from CLI flags.
 func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectBody string, serviceMapQueryObjectMethodMapQueryObjectA string, serviceMapQueryObjectMethodMapQueryObjectC string) (*servicemapqueryobject.PayloadType, error) {
@@ -9,7 +11,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b\": \"patternb\"\n   }'")
 		}
 		if body.B != nil {
-			err = loom.MergeErrors(err, loom.ValidatePattern("body.b", *body.B, "patternb"))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", *body.B, loomPattern0))
 		}
 		if err != nil {
 			return nil, err
@@ -18,7 +20,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 	var a string
 	{
 		a = serviceMapQueryObjectMethodMapQueryObjectA
-		err = loom.MergeErrors(err, loom.ValidatePattern("a", a, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("a", a, loomPattern1))
 		if err != nil {
 			return nil, err
 		}
@@ -38,3 +40,8 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 
 	return v, nil
 }
+
+var (
+	loomPattern0 = regexp.MustCompile("patternb")
+	loomPattern1 = regexp.MustCompile("patterna")
+)

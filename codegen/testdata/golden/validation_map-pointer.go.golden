@@ -1,3 +1,5 @@
+import "regexp"
+
 func Validate() (err error) {
 	if target.RequiredMap == nil {
 		err = loom.MergeErrors(err, loom.MissingFieldError("required_map", "target"))
@@ -9,9 +11,11 @@ func Validate() (err error) {
 		err = loom.MergeErrors(err, loom.InvalidLengthError("target.default_map", target.DefaultMap, len(target.DefaultMap), 3, false))
 	}
 	for k, v := range target.Map {
-		err = loom.MergeErrors(err, loom.ValidatePattern("target.map.key", k, "^[A-Z]"))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.map.key", k, loomPattern0))
 		if v > 5 {
 			err = loom.MergeErrors(err, loom.InvalidRangeError("target.map[key]", v, 5, false))
 		}
 	}
 }
+
+var loomPattern0 = regexp.MustCompile("^[A-Z]")

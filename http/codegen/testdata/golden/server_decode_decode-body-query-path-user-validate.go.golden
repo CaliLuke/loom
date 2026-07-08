@@ -1,3 +1,5 @@
+import "regexp"
+
 // DecodeMethodBodyQueryPathUserValidateRequest returns a decoder for requests
 // sent to the ServiceBodyQueryPathUserValidate MethodBodyQueryPathUserValidate
 // endpoint.
@@ -31,12 +33,12 @@ func DecodeMethodBodyQueryPathUserValidateRequest(mux loomhttp.Muxer, decoder fu
 			params = mux.Vars(r)
 		)
 		c2 = params["c"]
-		err = loom.MergeErrors(err, loom.ValidatePattern("c", c2, "patternc"))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("c", c2, loomPattern0))
 		b = r.URL.Query().Get("b")
 		if b == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("b", "query string"))
 		}
-		err = loom.MergeErrors(err, loom.ValidatePattern("b", b, "patternb"))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPattern1))
 		if err != nil {
 			return payload, err
 		}
@@ -45,3 +47,8 @@ func DecodeMethodBodyQueryPathUserValidateRequest(mux loomhttp.Muxer, decoder fu
 		return payload, nil
 	}
 }
+
+var (
+	loomPattern0 = regexp.MustCompile("patternc")
+	loomPattern1 = regexp.MustCompile("patternb")
+)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"regexp"
 	"regexp/syntax"
 	"testing"
 	"time"
@@ -129,6 +130,27 @@ func TestValidatePattern(t *testing.T) {
 			if actual == nil || tc.expected == nil || actual.Error() != tc.expected.Error() {
 				t.Errorf("%s: got %#v, expected %#v", k, actual, tc.expected)
 			}
+		}
+	}
+}
+
+func TestValidatePatternCompiled(t *testing.T) {
+	var (
+		name      = "foo"
+		pattern   = regexp.MustCompile("^loom$")
+		matched   = "loom"
+		unmatched = "foo["
+	)
+
+	if actual := ValidatePatternCompiled(name, matched, pattern); actual != nil {
+		t.Fatalf("matched value: got %#v, expected nil", actual)
+	}
+
+	actual := ValidatePatternCompiled(name, unmatched, pattern)
+	expected := InvalidPatternError(name, unmatched, pattern.String())
+	if !errors.Is(actual, expected) {
+		if actual == nil || actual.Error() != expected.Error() {
+			t.Fatalf("unmatched value: got %#v, expected %#v", actual, expected)
 		}
 	}
 }

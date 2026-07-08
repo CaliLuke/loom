@@ -12,8 +12,10 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strconv"
 	"text/template"
 
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
 )
 
@@ -199,6 +201,8 @@ func finalizeGoSource(path string, content []byte) ([]byte, error) {
 		return nil, fmt.Errorf("%s\n========\nContent:\n%s", buf.String(), content)
 	}
 
+	compilePatternValidations(fset, file)
+
 	// Clean unused imports using optimized single-pass detection
 	impMap := buildImportMap(file)
 	detectUsedImports(file, impMap)
@@ -222,4 +226,100 @@ func finalizeGoSource(path string, content []byte) ([]byte, error) {
 	}
 
 	return result, nil
+}
+
+func compilePatternValidations(fset *token.FileSet, file *ast.File) {
+	usedNames := topLevelNames(file)
+	patternVars := make(map[string]string)
+	var patternOrder []string
+	changed := false
+
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || !isLoomValidatePatternCall(call) || len(call.Args) != 3 {
+			return true
+		}
+		pattern, ok := call.Args[2].(*ast.BasicLit)
+		if !ok || pattern.Kind != token.STRING {
+			return true
+		}
+		if _, err := strconv.Unquote(pattern.Value); err != nil {
+			return true
+		}
+		name, ok := patternVars[pattern.Value]
+		if !ok {
+			name = uniquePatternVarName(len(patternVars), usedNames)
+			patternVars[pattern.Value] = name
+			patternOrder = append(patternOrder, pattern.Value)
+		}
+		call.Fun.(*ast.SelectorExpr).Sel.Name = "ValidatePatternCompiled"
+		call.Args[2] = ast.NewIdent(name)
+		changed = true
+		return true
+	})
+
+	if !changed {
+		return
+	}
+
+	astutil.AddImport(fset, file, "regexp")
+	specs := make([]ast.Spec, 0, len(patternOrder))
+	for _, pattern := range patternOrder {
+		specs = append(specs, &ast.ValueSpec{
+			Names: []*ast.Ident{ast.NewIdent(patternVars[pattern])},
+			Values: []ast.Expr{&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("regexp"),
+					Sel: ast.NewIdent("MustCompile"),
+				},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: pattern}},
+			}},
+		})
+	}
+	decl := &ast.GenDecl{Tok: token.VAR, Specs: specs}
+	file.Decls = append(file.Decls, decl)
+}
+
+func isLoomValidatePatternCall(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "ValidatePattern" {
+		return false
+	}
+	ident, ok := sel.X.(*ast.Ident)
+	return ok && ident.Name == "loom"
+}
+
+func uniquePatternVarName(index int, used map[string]struct{}) string {
+	for {
+		name := fmt.Sprintf("loomPattern%d", index)
+		if _, ok := used[name]; !ok {
+			used[name] = struct{}{}
+			return name
+		}
+		index++
+	}
+}
+
+func topLevelNames(file *ast.File) map[string]struct{} {
+	used := make(map[string]struct{})
+	for _, decl := range file.Decls {
+		switch actual := decl.(type) {
+		case *ast.FuncDecl:
+			if actual.Name != nil {
+				used[actual.Name.Name] = struct{}{}
+			}
+		case *ast.GenDecl:
+			for _, spec := range actual.Specs {
+				switch typed := spec.(type) {
+				case *ast.TypeSpec:
+					used[typed.Name.Name] = struct{}{}
+				case *ast.ValueSpec:
+					for _, name := range typed.Names {
+						used[name.Name] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+	return used
 }

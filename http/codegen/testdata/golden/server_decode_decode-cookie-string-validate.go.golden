@@ -1,3 +1,5 @@
+import "regexp"
+
 // DecodeMethodCookieStringValidateRequest returns a decoder for requests sent
 // to the ServiceCookieStringValidate MethodCookieStringValidate endpoint.
 func DecodeMethodCookieStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiestringvalidate.MethodCookieStringValidatePayload, error) {
@@ -24,7 +26,7 @@ func DecodeMethodCookieStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 			}
 		}
 		if c2 != nil {
-			err = loom.MergeErrors(err, loom.ValidatePattern("c", *c2, "cookie"))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("c", *c2, loomPattern0))
 		}
 		if err != nil {
 			return payload, err
@@ -34,3 +36,5 @@ func DecodeMethodCookieStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 		return payload, nil
 	}
 }
+
+var loomPattern0 = regexp.MustCompile("cookie")

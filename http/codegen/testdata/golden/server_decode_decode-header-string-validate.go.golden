@@ -1,3 +1,5 @@
+import "regexp"
+
 // DecodeMethodHeaderStringValidateRequest returns a decoder for requests sent
 // to the ServiceHeaderStringValidate MethodHeaderStringValidate endpoint.
 func DecodeMethodHeaderStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstringvalidate.MethodHeaderStringValidatePayload, error) {
@@ -12,7 +14,7 @@ func DecodeMethodHeaderStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 			h = &hRaw
 		}
 		if h != nil {
-			err = loom.MergeErrors(err, loom.ValidatePattern("h", *h, "header"))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("h", *h, loomPattern0))
 		}
 		if err != nil {
 			return payload, err
@@ -22,3 +24,5 @@ func DecodeMethodHeaderStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 		return payload, nil
 	}
 }
+
+var loomPattern0 = regexp.MustCompile("header")

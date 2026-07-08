@@ -1,3 +1,5 @@
+import "regexp"
+
 // DecodeMethodBodyPrimitiveArrayUserValidateRequest returns a decoder for
 // requests sent to the ServiceBodyPrimitiveArrayUserValidate
 // MethodBodyPrimitiveArrayUserValidate endpoint.
@@ -23,7 +25,7 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decod
 			err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, len(body), 1, true))
 		}
 		for _, e := range body {
-			err = loom.MergeErrors(err, loom.ValidatePattern("body[*]", e, "pattern"))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body[*]", e, loomPattern0))
 		}
 		if err != nil {
 			return payload, err
@@ -33,3 +35,5 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decod
 		return payload, nil
 	}
 }
+
+var loomPattern0 = regexp.MustCompile("pattern")

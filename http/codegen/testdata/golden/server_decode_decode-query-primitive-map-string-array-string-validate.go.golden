@@ -1,3 +1,5 @@
+import "regexp"
+
 // DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest returns a
 // decoder for requests sent to the
 // ServiceQueryPrimitiveMapStringArrayStringValidate
@@ -49,12 +51,12 @@ func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux loomhttp.
 			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
 		}
 		for k, v := range q {
-			err = loom.MergeErrors(err, loom.ValidatePattern("q.key", k, "key"))
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("q.key", k, loomPattern0))
 			if len(v) < 2 {
 				err = loom.MergeErrors(err, loom.InvalidLengthError("q[key]", v, len(v), 2, true))
 			}
 			for _, e := range v {
-				err = loom.MergeErrors(err, loom.ValidatePattern("q[key][*]", e, "val"))
+				err = loom.MergeErrors(err, loom.ValidatePatternCompiled("q[key][*]", e, loomPattern1))
 			}
 		}
 		if err != nil {
@@ -65,3 +67,8 @@ func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux loomhttp.
 		return payload, nil
 	}
 }
+
+var (
+	loomPattern0 = regexp.MustCompile("key")
+	loomPattern1 = regexp.MustCompile("val")
+)

@@ -1,3 +1,5 @@
+import "regexp"
+
 // DecodeMethodMultipartObjectGeneratedWithPathParamRequest returns a decoder
 // for requests sent to the ServiceMultipartObjectGeneratedWithPathParam
 // MethodMultipartObjectGeneratedWithPathParam endpoint.
@@ -67,7 +69,7 @@ func DecodeMethodMultipartObjectGeneratedWithPathParamRequest(mux loomhttp.Muxer
 			params = mux.Vars(r)
 		)
 		projectID = params["project_id"]
-		err = loom.MergeErrors(err, loom.ValidatePattern("project_id", projectID, "project-[a-z]+"))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("project_id", projectID, loomPattern0))
 		if err != nil {
 			return payload, err
 		}
@@ -76,3 +78,5 @@ func DecodeMethodMultipartObjectGeneratedWithPathParamRequest(mux loomhttp.Muxer
 		return payload, nil
 	}
 }
+
+var loomPattern0 = regexp.MustCompile("project-[a-z]+")

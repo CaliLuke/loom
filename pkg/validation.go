@@ -7,7 +7,6 @@ import (
 	"net/mail"
 	"net/url"
 	"regexp"
-	"sync"
 	"time"
 
 	googleuuid "github.com/google/uuid"
@@ -136,29 +135,17 @@ func ValidateFormat(name string, val string, f Format) error {
 	return nil
 }
 
-// knownPatterns records the compiled patterns.
-// TBD: refactor all this so that the generated code initializes the map on start to get rid of the
-// need for a RW mutex.
-var knownPatterns = make(map[string]*regexp.Regexp)
-
-// knownPatternsLock is the mutex used to access knownPatterns
-var knownPatternsLock = &sync.RWMutex{}
-
 // ValidatePattern returns an error if val does not match the regular expression
-// p. It makes an effort to minimize the number of times the regular expression
-// needs to be compiled. name is the name of the variable used in error messages.
+// p. name is the name of the variable used in error messages.
 func ValidatePattern(name, val, p string) error {
-	knownPatternsLock.RLock()
-	r, ok := knownPatterns[p]
-	knownPatternsLock.RUnlock()
-	if !ok {
-		r = regexp.MustCompile(p) // DSL validation makes sure regexp is valid
-		knownPatternsLock.Lock()
-		knownPatterns[p] = r
-		knownPatternsLock.Unlock()
-	}
+	return ValidatePatternCompiled(name, val, regexp.MustCompile(p)) // DSL validation makes sure regexp is valid
+}
+
+// ValidatePatternCompiled returns an error if val does not match r. name is the
+// name of the variable used in error messages.
+func ValidatePatternCompiled(name, val string, r *regexp.Regexp) error {
 	if !r.MatchString(val) {
-		return InvalidPatternError(name, val, p)
+		return InvalidPatternError(name, val, r.String())
 	}
 	return nil
 }

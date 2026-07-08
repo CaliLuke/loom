@@ -1,3 +1,5 @@
+import "regexp"
+
 // DecodeMethodBodyUserValidateRequest returns a decoder for requests sent to
 // the ServiceBodyUserValidate MethodBodyUserValidate endpoint.
 func DecodeMethodBodyUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyuservalidate.PayloadType, error) {
@@ -19,7 +21,7 @@ func DecodeMethodBodyUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
-		err = loom.MergeErrors(err, loom.ValidatePattern("body", body, "apattern"))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body", body, loomPattern0))
 		if err != nil {
 			return payload, err
 		}
@@ -28,3 +30,5 @@ func DecodeMethodBodyUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.
 		return payload, nil
 	}
 }
+
+var loomPattern0 = regexp.MustCompile("apattern")

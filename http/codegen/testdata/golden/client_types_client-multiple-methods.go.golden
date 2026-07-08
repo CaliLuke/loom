@@ -1,3 +1,5 @@
+import "regexp"
+
 // MethodARequestBody is the type of the "ServiceMultipleMethods" service
 // "MethodA" endpoint HTTP request body.
 type MethodARequestBody struct {
@@ -43,7 +45,9 @@ func NewMethodBRequestBody(p *servicemultiplemethods.PayloadType) *MethodBReques
 // APayloadRequestBody
 func ValidateAPayloadRequestBody(body *APayloadRequestBody) (err error) {
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePattern("body.a", *body.A, "patterna"))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPattern0))
 	}
 	return
 }
+
+var loomPattern0 = regexp.MustCompile("patterna")
