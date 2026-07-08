@@ -170,6 +170,30 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		require.True(t, strings.Index(code, "// SendEchoNotification sends a JSON-RPC notification for the echo method.") < strings.Index(code, "func (s *streamStream) SendEchoNotification("))
 		require.True(t, strings.Index(code, "// SendEchoResponse sends a JSON-RPC response for the echo method.") < strings.Index(code, "func (s *streamStream) SendEchoResponse("))
 	})
+
+	t.Run("websocket server emits service error classifier", func(t *testing.T) {
+		root := RunJSONRPCDSL(t, func() {
+			dsl.API("jsonrpc-websocket-error-classifier-test", func() {
+				dsl.JSONRPC(func() {})
+			})
+			dsl.Service("stream", func() {
+				dsl.JSONRPC(func() {})
+				dsl.Method("echo", func() {
+					dsl.StreamingPayload(dsl.String)
+					dsl.StreamingResult(dsl.String)
+					dsl.JSONRPC(func() {})
+				})
+			})
+		})
+
+		services := CreateJSONRPCServices(root)
+		files := ServerFiles("", services)
+		sendCode := fileSectionCode(t, files, "websocket.go", "jsonrpc-server-websocket-send")
+		classifierCode := fileSectionCode(t, files, "websocket.go", "jsonrpc-server-websocket-service-error-classifier")
+
+		require.Contains(t, sendCode, "code = jsonrpcErrorCodeForServiceError(serviceError)")
+		require.Contains(t, classifierCode, "func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code")
+	})
 }
 
 func topLevelSectionCode(t *testing.T, files []*codegen.File, sectionNames ...string) string {

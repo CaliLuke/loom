@@ -26,6 +26,8 @@ type ServiceData struct {
 	Description string
 	// JSONRPCPath is the JSON-RPC endpoint path
 	JSONRPCPath string
+	// JSONRPCMethod is the HTTP method for the JSON-RPC endpoint route.
+	JSONRPCMethod string
 	// Methods contains the method definitions
 	Methods []*MethodData
 	// HasErrors indicates if any method returns errors

@@ -177,7 +177,7 @@ scenarios:
     expect:
       id: "err-1"
       error:
-        code: -32602
+        code: -32603
         message: "Invalid params"
 
 
@@ -450,7 +450,7 @@ scenarios:
           jsonrpc: "2.0"
           id: "sse-err-1"
           error:
-            code: -32602
+            code: -32603
             message: "Streaming error occurred"
 
   # SSE with no ID (pure notifications)
@@ -952,7 +952,7 @@ scenarios:
           jsonrpc: "2.0"
           id: "ws-error-1"
           error:
-            code: -32602
+            code: -32603
             message: "Invalid params"
       - type: "close"
 
@@ -985,7 +985,7 @@ scenarios:
           jsonrpc: "2.0"
           id: "ws-stream-error-1"
           error:
-            code: -32602
+            code: -32603
             message: "Streaming error occurred"
       - type: "close"
 
@@ -1351,7 +1351,9 @@ scenarios:
       params: "notify"
       # No id -> notification
     expect:
-      no_response: true
+      error:
+        code: -32600
+        message: "Invalid request"
 
   - name: "http_missing_method_notification"
     transport: "http"
@@ -1360,7 +1362,9 @@ scenarios:
       # No method field (invalid request) but notification (no id)
       params: "notify"
     expect:
-      no_response: true
+      error:
+        code: -32600
+        message: "Missing method field"
 
   - name: "http_missing_method_with_id_raw"
     transport: "http"

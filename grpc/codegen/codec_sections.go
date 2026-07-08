@@ -178,7 +178,9 @@ func addGRPCViewedResponseReturn(b *sourceBuilder, endpoint *EndpointData) {
 	}
 	fmt.Fprintf(b, "\tvres := %s%s{Projected: res, View: view}\n", prefix, endpoint.Method.ViewedResult.FullName)
 	fmt.Fprintf(b, "\tif err := %s.Validate%s(vres); err != nil {\n\t\treturn nil, err\n\t}\n", endpoint.Method.ViewedResult.ViewsPkg, endpoint.Method.Result)
-	fmt.Fprintf(b, "\treturn %s.%s(%s), nil\n", endpoint.ServicePkgName, endpoint.Method.ViewedResult.ResultInit.Name, renderServiceInitArgList(endpoint.Method.ViewedResult.ResultInit.Args))
+	fmt.Fprintf(b, "\tout, err := %s.%s(%s)\n", endpoint.ServicePkgName, endpoint.Method.ViewedResult.ResultInit.Name, renderServiceInitArgList(endpoint.Method.ViewedResult.ResultInit.Args))
+	b.Add("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+	b.Add("\treturn out, nil\n")
 }
 
 func addGRPCRequestMetadataDecode(b *sourceBuilder, endpoint *EndpointData) {

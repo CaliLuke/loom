@@ -71,7 +71,14 @@ func (g *Generator) buildDesignData() *DesignData {
 	for _, info := range g.methods {
 		serviceName := g.getServiceName(info)
 		if _, exists := serviceMap[serviceName]; !exists {
-			serviceMap[serviceName] = &ServiceData{Name: serviceName, Title: goify(serviceName), Description: fmt.Sprintf("Test service for %s", serviceName), JSONRPCPath: g.getJSONRPCPath(serviceName), Methods: make([]*MethodData, 0)}
+			serviceMap[serviceName] = &ServiceData{
+				Name:          serviceName,
+				Title:         goify(serviceName),
+				Description:   fmt.Sprintf("Test service for %s", serviceName),
+				JSONRPCPath:   g.getJSONRPCPath(serviceName),
+				JSONRPCMethod: g.getJSONRPCMethod(serviceName),
+				Methods:       make([]*MethodData, 0),
+			}
 		}
 		md := g.buildMethodData(info)
 		serviceMap[serviceName].Methods = append(serviceMap[serviceName].Methods, md)
@@ -397,6 +404,14 @@ func (g *Generator) getServiceName(info MethodInfo) string {
 		return "testws"
 	}
 	return "test"
+}
+
+// getJSONRPCMethod returns the HTTP method for a JSON-RPC service route.
+func (g *Generator) getJSONRPCMethod(serviceName string) string {
+	if serviceName == "testws" {
+		return "GET"
+	}
+	return "POST"
 }
 
 // getJSONRPCPath returns the JSON-RPC base path for a service.

@@ -20,7 +20,14 @@ func jsonrpcWebSocketServerSections(data *httpcodegen.ServiceData) []codegen.Sec
 		jsonrpcWebSocketServerSendSection(data),
 		jsonrpcWebSocketServerRecvSection(data),
 		jsonrpcWebSocketServerCloseSection(data),
+		jsonrpcWebSocketServerServiceErrorClassifierSection(),
 	}
+}
+
+func jsonrpcWebSocketServerServiceErrorClassifierSection() codegen.Section {
+	return codegen.MustJenniferSection("jsonrpc-server-websocket-service-error-classifier", func(stmt *jen.Statement) {
+		writeJSONRPCServiceErrorClassifier(stmt)
+	})
 }
 
 func jsonrpcWebSocketServerStructSection(data *httpcodegen.ServiceData) codegen.Section {

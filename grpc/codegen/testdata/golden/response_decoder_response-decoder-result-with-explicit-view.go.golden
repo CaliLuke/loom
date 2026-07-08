@@ -17,5 +17,9 @@ func DecodeMethodMessageResultTypeWithExplicitViewResponse(ctx context.Context, 
 	if err := servicemessageresulttypewithexplicitviewviews.ValidateRT(vres); err != nil {
 		return nil, err
 	}
-	return servicemessageresulttypewithexplicitview.NewRT(vres), nil
+	out, err := servicemessageresulttypewithexplicitview.NewRT(vres)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }

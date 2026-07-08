@@ -16,5 +16,9 @@ func DecodeMethodMessageResultTypeWithViewsResponse(ctx context.Context, v any, 
 	if err := servicemessageresulttypewithviewsviews.ValidateRT(vres); err != nil {
 		return nil, err
 	}
-	return servicemessageresulttypewithviews.NewRT(vres), nil
+	out, err := servicemessageresulttypewithviews.NewRT(vres)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }

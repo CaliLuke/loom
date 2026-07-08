@@ -19,7 +19,7 @@ func renderDesignSource(design *DesignData) string {
 		fmt.Fprintf(&b, "\tDescription(%q)\n\n", svc.Description)
 		b.WriteString("\t// Enable JSON-RPC\n")
 		b.WriteString("\tJSONRPC(func() {\n")
-		fmt.Fprintf(&b, "\t\tPOST(%q)\n", svc.JSONRPCPath)
+		fmt.Fprintf(&b, "\t\t%s(%q)\n", svc.JSONRPCMethod, svc.JSONRPCPath)
 		b.WriteString("\t})\n")
 		for _, m := range svc.Methods {
 			if m.IsNotification && !m.IsStreaming {

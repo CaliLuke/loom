@@ -32,8 +32,11 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 				viewArg = "s.view"
 			}
 			body = append(body,
-				jen.Id("vres").Op(":=").Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.Init.Name).
+				jen.List(jen.Id("vres"), jen.Err()).Op(":=").Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.Init.Name).
 					Call(jen.Id("res"), codegenpkg.Expr(viewArg)),
+				jen.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Return(jen.Err()),
+				),
 			)
 			sendArg = "vres.Projected"
 		}
@@ -197,10 +200,11 @@ func appendGRPCStreamRecvViewedResult(g *jen.Group, stream *StreamData) bool {
 	).Block(
 		jen.Return(jen.Nil(), jen.Err()),
 	)
-	g.Return(
-		jen.Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.ResultInit.Name).Call(jen.Id("vres")),
-		jen.Nil(),
+	g.List(jen.Id("out"), jen.Err()).Op(":=").Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.ResultInit.Name).Call(jen.Id("vres"))
+	g.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Err()),
 	)
+	g.Return(jen.Id("out"), jen.Nil())
 	return true
 }
 

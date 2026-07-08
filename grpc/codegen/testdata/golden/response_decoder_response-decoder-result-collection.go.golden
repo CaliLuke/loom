@@ -17,5 +17,9 @@ func DecodeMethodMessageUserTypeWithNestedUserTypesResponse(ctx context.Context,
 	if err := servicemessageusertypewithnestedusertypesviews.ValidateRTCollection(vres); err != nil {
 		return nil, err
 	}
-	return servicemessageusertypewithnestedusertypes.NewRTCollection(vres), nil
+	out, err := servicemessageusertypewithnestedusertypes.NewRTCollection(vres)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
