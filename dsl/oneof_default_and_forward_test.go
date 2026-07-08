@@ -269,6 +269,19 @@ func TestOneOfTypeConstructorReportsUnresolvedForwardType(t *testing.T) {
 	require.Contains(t, err.Error(), `unknown type reference "Missing"`)
 }
 
+func TestOneOfTypeConstructorWithAttributeDSLReportsUnresolvedForwardType(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		Type("Envelope", func() {
+			Attribute("choice", OneOf("Missing", Int), func() {
+				Description("choice")
+			})
+		})
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `unknown type reference "Missing"`)
+}
+
 func TestOneOfDeclarationFormUsedAsPayloadTypeFails(t *testing.T) {
 	err := expr.RunInvalidDSL(t, func() {
 		Service("Shapes", func() {

@@ -166,6 +166,7 @@ func ArrayOf(v any, fn ...func()) *expr.Array {
 	}
 	at := expr.AttributeExpr{Type: t}
 	if len(fn) == 1 {
+		at.Type = localAttributeType(at.Type, currentAttribute())
 		eval.Execute(fn[0], &at)
 	}
 	return &expr.Array{ElemType: &at}
@@ -251,6 +252,8 @@ func MapOf(k, v any, fn ...func()) *expr.Map {
 	vat := expr.AttributeExpr{Type: tv}
 	m := &expr.Map{KeyType: &kat, ElemType: &vat}
 	if len(fn) == 1 {
+		m.KeyType.Type = localAttributeType(m.KeyType.Type, currentAttribute())
+		m.ElemType.Type = localAttributeType(m.ElemType.Type, currentAttribute())
 		mat := expr.AttributeExpr{Type: m}
 		eval.Execute(fn[0], &mat)
 	}

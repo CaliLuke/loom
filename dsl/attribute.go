@@ -156,6 +156,7 @@ func Attribute(name string, args ...any) {
 			}
 		}
 		if fn != nil {
+			attr.Type = localAttributeType(attr.Type, parent)
 			eval.Execute(fn, attr)
 		}
 		applyUnionMetaFromAttribute(attr)
@@ -177,6 +178,59 @@ func Attribute(name string, args ...any) {
 	union.Values = append(union.Values, &expr.NamedAttributeExpr{Name: name, Attribute: attr})
 }
 
+func localAttributeType(dataType expr.DataType, parent *expr.AttributeExpr) expr.DataType {
+	if dataType == nil {
+		return nil
+	}
+	if referencesAttribute(dataType, parent) {
+		return dataType
+	}
+	return expr.Dup(dataType)
+}
+
+func referencesAttribute(dataType expr.DataType, target *expr.AttributeExpr) bool {
+	if target == nil {
+		return false
+	}
+	switch actual := dataType.(type) {
+	case expr.UserType:
+		if actual.Attribute().Type == nil {
+			if _, ok := actual.Attribute().Meta.Last("dsl:type:ref"); ok {
+				return true
+			}
+		}
+		return actual.Attribute() == target
+	case *expr.Array:
+		return referencesAttribute(actual.ElemType.Type, target)
+	case *expr.Map:
+		return referencesAttribute(actual.KeyType.Type, target) || referencesAttribute(actual.ElemType.Type, target)
+	case *expr.Union:
+		for _, value := range actual.Values {
+			if referencesAttribute(value.Attribute.Type, target) {
+				return true
+			}
+		}
+	case *expr.Object:
+		for _, nat := range *actual {
+			if referencesAttribute(nat.Attribute.Type, target) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func currentAttribute() *expr.AttributeExpr {
+	switch def := eval.Current().(type) {
+	case *expr.AttributeExpr:
+		return def
+	case expr.CompositeExpr:
+		return def.Attribute()
+	default:
+		return nil
+	}
+}
+
 // Field is syntactic sugar to define an attribute that defines a tag, e.g. for
 // protobuf.  The result is the same as calling Attribute with the "rpc:tag"
 // meta set with the value of the first argument.
@@ -192,15 +246,21 @@ func Attribute(name string, args ...any) {
 //	    Pattern("[0-9]+")
 //	})
 func Field(tag any, name string, args ...any) {
-	fn := func() { Meta("rpc:tag", fmt.Sprintf("%v", tag)) }
-	if len(args) > 0 {
-		if d, ok := args[len(args)-1].(func()); ok {
-			old := fn
-			fn = func() { d(); old() }
-			args = args[:len(args)-1]
+	parent := currentAttribute()
+	Attribute(name, args...)
+	if parent == nil {
+		return
+	}
+	if attr := parent.Find(name); attr != nil {
+		attr.AddMeta("rpc:tag", fmt.Sprintf("%v", tag))
+		return
+	}
+	if union := expr.AsUnion(parent.Type); union != nil && len(union.Values) > 0 {
+		value := union.Values[len(union.Values)-1]
+		if value.Name == name {
+			value.Attribute.AddMeta("rpc:tag", fmt.Sprintf("%v", tag))
 		}
 	}
-	Attribute(name, append(args, fn)...)
 }
 
 // Default sets the default value for an attribute.
