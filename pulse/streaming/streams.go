@@ -124,9 +124,6 @@ func (s *Stream) NewSink(ctx context.Context, name string, opts ...options.Sink)
 // is omitted or when NewSink is called.
 func (s *Stream) Add(ctx context.Context, name string, payload []byte, opts ...options.AddEvent) (string, error) {
 	o := options.ParseAddEventOptions(opts...)
-	for _, option := range opts {
-		option(&o)
-	}
 	values := []any{nameKey, name, payloadKey, payload}
 	if o.Topic != "" {
 		values = append(values, topicKey, o.Topic)

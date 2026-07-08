@@ -240,12 +240,9 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 		}
 	}
 	startID := s.startID
-	options := options.ParseAddStreamOptions(opts...)
-	for _, option := range opts {
-		option(&options)
-	}
-	if options.LastEventID != "" {
-		startID = options.LastEventID
+	addStreamOptions := options.ParseAddStreamOptions(opts...)
+	if addStreamOptions.LastEventID != "" {
+		startID = addStreamOptions.LastEventID
 	}
 
 	cm, err := rmap.Join(ctx, consumersMapName(stream), stream.rdb, consumersMapOptions(stream, stream.logger)...)
