@@ -751,6 +751,8 @@ var MessageWithMetadataDSL = func() {
 		Field(1, "InTrailer", Boolean)
 		Field(2, "InHeader", Int)
 		Field(3, "UTLevel1", UTLevel1)
+		Field(4, "StringHeader", String)
+		Field(5, "StringTrailer", String)
 	})
 	Service("ServiceMessageWithMetadata", func() {
 		Method("MethodMessageWithMetadata", func() {
@@ -765,9 +767,11 @@ var MessageWithMetadataDSL = func() {
 				Response(CodeOK, func() {
 					Headers(func() {
 						Attribute("InHeader:Location")
+						Attribute("StringHeader:X-String-Header")
 					})
 					Trailers(func() {
 						Attribute("InTrailer")
+						Attribute("StringTrailer:X-String-Trailer")
 					})
 				})
 			})

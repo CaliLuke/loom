@@ -56,7 +56,11 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 			b.Add("\t\t}\n")
 		} else {
 			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
+			if md.Pointer {
+				fmt.Fprintf(&b, "\t\t\t%s = &vals[0]\n", md.VarName)
+			} else {
+				fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
+			}
 			b.Add("\t\t}\n")
 		}
 	case md.StringSlice:

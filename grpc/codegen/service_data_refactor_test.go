@@ -47,10 +47,12 @@ func TestAnalyzeBuildsResponseMetadataData(t *testing.T) {
 
 	endpoint := svc.Endpoint("MethodMessageWithMetadata")
 	require.NotNil(t, endpoint)
-	require.Len(t, endpoint.Response.Headers, 1)
-	require.Len(t, endpoint.Response.Trailers, 1)
+	require.Len(t, endpoint.Response.Headers, 2)
+	require.Len(t, endpoint.Response.Trailers, 2)
 	require.Equal(t, "Location", endpoint.Response.Headers[0].Name)
+	require.Equal(t, "X-String-Header", endpoint.Response.Headers[1].Name)
 	require.Equal(t, "InTrailer", endpoint.Response.Trailers[0].Name)
+	require.Equal(t, "X-String-Trailer", endpoint.Response.Trailers[1].Name)
 }
 
 func TestAnalyzePartitionsSecuritySchemesBetweenMessageAndMetadata(t *testing.T) {

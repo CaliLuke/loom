@@ -2,9 +2,11 @@
 // ServiceMessageWithMetadata MethodMessageWithMetadata endpoint.
 func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, trlr metadata.MD) (any, error) {
 	var (
-		inHeader  *int
-		inTrailer *bool
-		err       error
+		inHeader      *int
+		stringHeader  *string
+		inTrailer     *bool
+		stringTrailer *string
+		err           error
 	)
 	{
 
@@ -19,6 +21,10 @@ func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 			inHeader = &pv
 		}
 
+		if vals := hdr.Get("X-String-Header"); len(vals) > 0 {
+			stringHeader = &vals[0]
+		}
+
 		if vals := trlr.Get("InTrailer"); len(vals) > 0 {
 			inTrailerRaw := vals[0]
 
@@ -28,6 +34,10 @@ func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 			}
 			inTrailer = &v
 		}
+
+		if vals := trlr.Get("X-String-Trailer"); len(vals) > 0 {
+			stringTrailer = &vals[0]
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -36,6 +46,6 @@ func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 	if !ok {
 		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*service_message_with_metadatapb.MethodMessageWithMetadataResponse", v)
 	}
-	res := NewMethodMessageWithMetadataResult(message, inHeader, inTrailer)
+	res := NewMethodMessageWithMetadataResult(message, inHeader, stringHeader, inTrailer, stringTrailer)
 	return res, nil
 }

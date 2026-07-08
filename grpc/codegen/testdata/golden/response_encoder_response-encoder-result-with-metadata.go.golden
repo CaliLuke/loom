@@ -11,8 +11,16 @@ func EncodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 		(*hdr).Append("Location", fmt.Sprintf("%v", *result.InHeader))
 	}
 
+	if result.StringHeader != nil {
+		(*hdr).Append("X-String-Header", *result.StringHeader)
+	}
+
 	if result.InTrailer != nil {
 		(*trlr).Append("InTrailer", fmt.Sprintf("%v", *result.InTrailer))
+	}
+
+	if result.StringTrailer != nil {
+		(*trlr).Append("X-String-Trailer", *result.StringTrailer)
 	}
 	return resp, nil
 }
