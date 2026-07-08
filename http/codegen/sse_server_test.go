@@ -57,6 +57,10 @@ func TestSSEServerStreamCommitsHeadersOnSend(t *testing.T) {
 	require.NotNil(t, sseFile)
 
 	code := codegen.SectionCode(t, sseFile.Section("server-sse")[0])
+	require.Contains(t, code, "// Send streams instances of")
+	require.Contains(t, code, "// SendWithContext streams instances of")
+	require.NotContains(t, code, "// Send Send streams")
+	require.NotContains(t, code, "// SendWithContext SendWithContext streams")
 	require.Contains(t, code, "s.initHeaders()")
 	require.NotContains(t, code, "func (s *SSEObjectMethodServerStream) open() error")
 	require.Contains(t, code, "return s.SendWithContext(s.r.Context(), v)")

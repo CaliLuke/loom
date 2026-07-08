@@ -7,6 +7,7 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func serviceDefinitionSection(data *Data) codegen.Section {
@@ -64,11 +65,11 @@ func addServiceMethodParams(params *jen.Group, method *MethodData) {
 
 func addStreamingServiceMethodParams(params *jen.Group, method *MethodData) {
 	switch {
-	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 2:
+	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == expr.ClientStreamKind:
 		return
 	case method.HasMixedResults:
 		params.Add(codegen.TypeRef(method.ServerStream.Interface))
-	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 3 && method.PayloadRef != "":
+	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == expr.ServerStreamKind && method.PayloadRef != "":
 		params.Add(codegen.TypeRef(method.PayloadRef))
 		params.Add(codegen.TypeRef(method.ServerStream.Interface))
 	default:
@@ -91,7 +92,7 @@ func addServiceMethodResults(results *jen.Group, method *MethodData) {
 
 func addStreamingServiceMethodResults(results *jen.Group, method *MethodData) {
 	switch {
-	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == 2:
+	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == expr.ClientStreamKind:
 		addServiceMethodResultValue(results, method)
 		results.Id("err").Error()
 	case method.HasMixedResults:

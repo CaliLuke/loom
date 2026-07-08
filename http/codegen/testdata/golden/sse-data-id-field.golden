@@ -14,9 +14,8 @@ type SSEDataIDFieldMethodServerStream struct {
 	r *http.Request
 }
 
-// Send Send streams instances of
-// "ssedataidfieldservice.SSEDataIDFieldMethodResult" to the
-// "SSEDataIDFieldMethod" endpoint SSE connection.
+// Send streams instances of "ssedataidfieldservice.SSEDataIDFieldMethodResult"
+// to the "SSEDataIDFieldMethod" endpoint SSE connection.
 func (s *SSEDataIDFieldMethodServerStream) Send(v *ssedataidfieldservice.SSEDataIDFieldMethodResult) error {
 	return s.SendWithContext(s.r.Context(), v)
 }
@@ -45,7 +44,7 @@ func (s *SSEDataIDFieldMethodServerStream) started() bool {
 	return s.streamStarted
 }
 
-// SendWithContext SendWithContext streams instances of
+// SendWithContext streams instances of
 // "ssedataidfieldservice.SSEDataIDFieldMethodResult" to the
 // "SSEDataIDFieldMethod" endpoint SSE connection with context.
 func (s *SSEDataIDFieldMethodServerStream) SendWithContext(ctx context.Context, v *ssedataidfieldservice.SSEDataIDFieldMethodResult) error {

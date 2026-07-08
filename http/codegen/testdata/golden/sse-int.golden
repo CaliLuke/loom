@@ -13,7 +13,7 @@ type SSEIntMethodServerStream struct {
 	r *http.Request
 }
 
-// Send Send streams instances of "int" to the "SSEIntMethod" endpoint SSE
+// Send streams instances of "int" to the "SSEIntMethod" endpoint SSE
 // connection.
 func (s *SSEIntMethodServerStream) Send(v int) error {
 	return s.SendWithContext(s.r.Context(), v)
@@ -43,8 +43,8 @@ func (s *SSEIntMethodServerStream) started() bool {
 	return s.streamStarted
 }
 
-// SendWithContext SendWithContext streams instances of "int" to the
-// "SSEIntMethod" endpoint SSE connection with context.
+// SendWithContext streams instances of "int" to the "SSEIntMethod" endpoint
+// SSE connection with context.
 func (s *SSEIntMethodServerStream) SendWithContext(ctx context.Context, v int) error {
 	if err := ctx.Err(); err != nil {
 		return err

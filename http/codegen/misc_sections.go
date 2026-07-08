@@ -196,7 +196,7 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 		jen.Id("r").Op("*").Qual("net/http", "Request"),
 	)
 	stmt.Line()
-	codegen.Doc(stmt, fmt.Sprintf("%s %s", ed.SSE.SendName, ed.SSE.SendDesc))
+	codegen.Doc(stmt, ed.SSE.SendDesc)
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
 		Id(ed.SSE.SendName).
@@ -226,7 +226,7 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 			jen.Return(jen.Id("s").Dot("streamStarted")),
 		)
 	stmt.Line()
-	codegen.Doc(stmt, fmt.Sprintf("%s %s", ed.SSE.SendWithContextName, ed.SSE.SendWithContextDesc))
+	codegen.Doc(stmt, ed.SSE.SendWithContextDesc)
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
 		Id(ed.SSE.SendWithContextName).

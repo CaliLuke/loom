@@ -14,8 +14,8 @@ type SSEObjectMethodServerStream struct {
 	r *http.Request
 }
 
-// Send Send streams instances of "sseobjectservice.SSEObjectMethodResult" to
-// the "SSEObjectMethod" endpoint SSE connection.
+// Send streams instances of "sseobjectservice.SSEObjectMethodResult" to the
+// "SSEObjectMethod" endpoint SSE connection.
 func (s *SSEObjectMethodServerStream) Send(v *sseobjectservice.SSEObjectMethodResult) error {
 	return s.SendWithContext(s.r.Context(), v)
 }
@@ -44,7 +44,7 @@ func (s *SSEObjectMethodServerStream) started() bool {
 	return s.streamStarted
 }
 
-// SendWithContext SendWithContext streams instances of
+// SendWithContext streams instances of
 // "sseobjectservice.SSEObjectMethodResult" to the "SSEObjectMethod" endpoint
 // SSE connection with context.
 func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *sseobjectservice.SSEObjectMethodResult) error {

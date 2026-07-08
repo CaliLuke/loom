@@ -14,9 +14,8 @@ type SSEAllFieldsMethodServerStream struct {
 	r *http.Request
 }
 
-// Send Send streams instances of
-// "sseallfieldsservice.SSEAllFieldsMethodResult" to the "SSEAllFieldsMethod"
-// endpoint SSE connection.
+// Send streams instances of "sseallfieldsservice.SSEAllFieldsMethodResult" to
+// the "SSEAllFieldsMethod" endpoint SSE connection.
 func (s *SSEAllFieldsMethodServerStream) Send(v *sseallfieldsservice.SSEAllFieldsMethodResult) error {
 	return s.SendWithContext(s.r.Context(), v)
 }
@@ -45,7 +44,7 @@ func (s *SSEAllFieldsMethodServerStream) started() bool {
 	return s.streamStarted
 }
 
-// SendWithContext SendWithContext streams instances of
+// SendWithContext streams instances of
 // "sseallfieldsservice.SSEAllFieldsMethodResult" to the "SSEAllFieldsMethod"
 // endpoint SSE connection with context.
 func (s *SSEAllFieldsMethodServerStream) SendWithContext(ctx context.Context, v *sseallfieldsservice.SSEAllFieldsMethodResult) error {

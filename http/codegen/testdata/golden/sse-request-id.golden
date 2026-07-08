@@ -14,8 +14,8 @@ type SSERequestIDMethodServerStream struct {
 	r *http.Request
 }
 
-// Send Send streams instances of "string" to the "SSERequestIDMethod" endpoint
-// SSE connection.
+// Send streams instances of "string" to the "SSERequestIDMethod" endpoint SSE
+// connection.
 func (s *SSERequestIDMethodServerStream) Send(v string) error {
 	return s.SendWithContext(s.r.Context(), v)
 }
@@ -44,8 +44,8 @@ func (s *SSERequestIDMethodServerStream) started() bool {
 	return s.streamStarted
 }
 
-// SendWithContext SendWithContext streams instances of "string" to the
-// "SSERequestIDMethod" endpoint SSE connection with context.
+// SendWithContext streams instances of "string" to the "SSERequestIDMethod"
+// endpoint SSE connection with context.
 func (s *SSERequestIDMethodServerStream) SendWithContext(ctx context.Context, v string) error {
 	if err := ctx.Err(); err != nil {
 		return err
