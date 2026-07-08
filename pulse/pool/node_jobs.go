@@ -118,7 +118,6 @@ func (node *Node) dispatchJob(ctx context.Context, key string, job []byte) error
 	}
 
 	node.pendingJobChannels.Delete(eventID)
-	close(cherr)
 
 	// Clean up pending entry
 	node.releaseDispatchPending(key, pendingTS)
@@ -340,6 +339,11 @@ func (node *Node) close(ctx context.Context, shutdown bool) error {
 		return true
 	})
 	wg.Wait()
+
+	node.localSchedulers.Range(func(_, value any) bool {
+		value.(*scheduler).stopSchedule()
+		return true
+	})
 
 	// Stop all goroutines
 	close(node.stop)

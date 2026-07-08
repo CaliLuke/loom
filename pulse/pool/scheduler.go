@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/CaliLuke/loom/pulse/pulse"
@@ -57,9 +58,25 @@ type (
 		// ticker is the ticker used to run the scheduler.
 		ticker *Ticker
 		// jobMap is the map of jobs keyed by job key.
-		jobMap *rmap.Map
+		jobMap schedulerJobMap
 		// logger is the logger used by the scheduler.
 		logger pulse.Logger
+		// stop is closed when the local scheduler should stop planning.
+		stop chan struct{}
+		// stopOnce makes scheduler stop idempotent.
+		stopOnce sync.Once
+		// closeOnce makes scheduler map cleanup idempotent.
+		closeOnce sync.Once
+	}
+
+	schedulerJobMap interface {
+		Keys() []string
+		Set(ctx context.Context, key, value string) (string, error)
+		Delete(ctx context.Context, key string) (string, error)
+		Reset(ctx context.Context) error
+		Subscribe() <-chan rmap.EventKind
+		Unsubscribe(c <-chan rmap.EventKind)
+		Close()
 	}
 )
 
@@ -73,38 +90,84 @@ var ErrScheduleStop = fmt.Errorf("stop")
 // scheduled the same producer.
 func (node *Node) Schedule(ctx context.Context, producer JobProducer, interval time.Duration) error {
 	name := node.PoolName + ":" + producer.Name()
-	jobMap, err := rmap.Join(ctx, name, node.rdb, rmap.WithLogger(node.logger))
-	if err != nil {
-		return fmt.Errorf("failed to join job map %s: %w", name, err)
-	}
-	ticker, err := node.NewTicker(ctx, producer.Name(), interval)
-	if err != nil {
-		return fmt.Errorf("failed to create ticker %s: %w", name, err)
-	}
 	sched := &scheduler{
 		name:     name,
 		interval: interval,
 		producer: producer,
 		node:     node,
-		ticker:   ticker,
-		jobMap:   jobMap,
 		logger:   node.logger,
+		stop:     make(chan struct{}),
 	}
-	plan, err := producer.Plan()
+	if err := node.reserveScheduler(sched); err != nil {
+		return err
+	}
+	jobMap, err := rmap.Join(ctx, name, node.rdb, rmap.WithLogger(node.logger))
 	if err != nil {
-		return fmt.Errorf("failed to compute schedule: %w", err)
+		sched.unregister()
+		return fmt.Errorf("failed to join job map %s: %w", name, err)
 	}
-	sched.startJobs(ctx, plan.Start)
-	sched.stopJobs(ctx, plan)
+	sched.jobMap = jobMap
+	ticker, err := node.NewTicker(ctx, producer.Name(), interval)
+	if err != nil {
+		sched.unregister()
+		sched.closeJobMap()
+		return fmt.Errorf("failed to create ticker %s: %w", name, err)
+	}
+	sched.ticker = ticker
+	if err := node.startScheduler(sched); err != nil {
+		ticker.Close()
+		sched.closeJobMap()
+		return err
+	}
+	pulse.Go(sched.logger, func() {
+		defer node.wg.Done()
+		sched.scheduleJobs(ctx, ticker, producer)
+	})
+	pulse.Go(sched.logger, func() {
+		defer node.wg.Done()
+		sched.handleStop()
+	})
+	return nil
+}
 
-	pulse.Go(sched.logger, func() { sched.scheduleJobs(ctx, ticker, producer) })
-	pulse.Go(sched.logger, func() { sched.handleStop() })
+func (node *Node) reserveScheduler(sched *scheduler) error {
+	node.lock.Lock()
+	defer node.lock.Unlock()
+	if node.closing {
+		return fmt.Errorf("Schedule: pool %q is closed", node.PoolName)
+	}
+	if _, loaded := node.localSchedulers.LoadOrStore(sched.name, sched); loaded {
+		return fmt.Errorf("Schedule: producer %q is already scheduled on pool %q", sched.producer.Name(), node.PoolName)
+	}
+	return nil
+}
+
+func (node *Node) startScheduler(sched *scheduler) error {
+	node.lock.Lock()
+	defer node.lock.Unlock()
+	if node.closing {
+		sched.unregister()
+		return fmt.Errorf("Schedule: pool %q is closed", node.PoolName)
+	}
+	current, ok := node.localSchedulers.Load(sched.name)
+	if !ok || current != sched {
+		return fmt.Errorf("Schedule: producer %q is not reserved on pool %q", sched.producer.Name(), node.PoolName)
+	}
+	node.wg.Add(2)
 	return nil
 }
 
 // scheduleJobs calls Plan on ticks and starts and stops jobs as needed.
 func (sched *scheduler) scheduleJobs(ctx context.Context, ticker *Ticker, producer JobProducer) {
-	for range ticker.C {
+	for {
+		select {
+		case <-sched.stop:
+			return
+		case _, ok := <-ticker.C:
+			if !ok {
+				return
+			}
+		}
 		plan, err := producer.Plan()
 		if err != nil {
 			if errors.Is(err, ErrScheduleStop) {
@@ -112,6 +175,7 @@ func (sched *scheduler) scheduleJobs(ctx context.Context, ticker *Ticker, produc
 					sched.logger.Error(err, "failed to reset job map", "scheduler", sched.name)
 					continue
 				}
+				sched.stopScheduleGlobally()
 				return
 			}
 			sched.logger.Error(err, "failed to compute schedule", "scheduler", sched.name)
@@ -169,11 +233,67 @@ func (sched *scheduler) stopJobs(ctx context.Context, plan *JobPlan) {
 // handleStop handles the scheduler stop signal.
 func (sched *scheduler) handleStop() {
 	ch := sched.jobMap.Subscribe()
-	for ev := range ch {
-		if ev == rmap.EventReset {
+	if ch == nil {
+		sched.stopSchedule()
+		return
+	}
+	defer sched.jobMap.Unsubscribe(ch)
+	for {
+		select {
+		case <-sched.stop:
+			return
+		case ev, ok := <-ch:
+			if !ok {
+				sched.stopSchedule()
+				return
+			}
+			if ev != rmap.EventReset {
+				continue
+			}
 			sched.logger.Info("stopping scheduler", "scheduler", sched.name)
-			sched.ticker.Stop()
+			sched.stopScheduleGlobally()
 			return
 		}
 	}
+}
+
+func (sched *scheduler) stopSchedule() {
+	sched.signalStop()
+	if sched.ticker != nil {
+		sched.ticker.Close()
+	}
+	sched.unregister()
+	sched.closeJobMap()
+}
+
+func (sched *scheduler) stopScheduleGlobally() {
+	sched.signalStop()
+	if sched.ticker != nil {
+		sched.ticker.Stop()
+	}
+	sched.unregister()
+	sched.closeJobMap()
+}
+
+func (sched *scheduler) signalStop() {
+	sched.stopOnce.Do(func() {
+		close(sched.stop)
+	})
+}
+
+func (sched *scheduler) unregister() {
+	if sched.node != nil {
+		current, ok := sched.node.localSchedulers.Load(sched.name)
+		if ok && current == sched {
+			sched.node.localSchedulers.Delete(sched.name)
+		}
+	}
+}
+
+func (sched *scheduler) closeJobMap() {
+	sched.closeOnce.Do(func() {
+		if sched.jobMap != nil {
+			sched.jobMap.Close()
+		}
+	})
 }

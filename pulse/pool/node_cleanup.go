@@ -568,6 +568,9 @@ func (node *Node) cleanupNode(ctx context.Context) {
 			m.Close()
 		}
 	}
+	if node.nodeStream == nil {
+		return
+	}
 	if err := node.nodeStream.Destroy(ctx); err != nil {
 		node.logger.Error(fmt.Errorf("cleanupNode: failed to destroy node stream: %w", err))
 	}

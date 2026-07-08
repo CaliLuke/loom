@@ -50,6 +50,7 @@ type (
 		rdb                *redis.Client
 
 		localWorkers       sync.Map // workers created by this node
+		localSchedulers    sync.Map // schedulers created by this node
 		workerStreams      sync.Map // worker streams indexed by ID
 		nodeStreams        sync.Map // streams for worker acks indexed by ID
 		pendingJobChannels sync.Map // channels used to send DispatchJob results, nil if event is requeued
@@ -156,7 +157,7 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		poolSink   *streaming.Sink
 		nodeStream *streaming.Stream
 		nodeReader *streaming.Reader
-		closed     chan struct{}
+		closed     = make(chan struct{})
 	)
 
 	if !o.clientOnly {
@@ -204,7 +205,6 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to create events sink for stream %q: %w", poolStreamName(poolName), err)
 		}
-		closed = make(chan struct{})
 	}
 
 	nodeStream, err = streaming.NewStream(nodeStreamName(poolName, nodeID), rdb, options.WithStreamLogger(logger))

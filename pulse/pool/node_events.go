@@ -176,22 +176,26 @@ func (node *Node) ackWorkerEvent(ev *streaming.Event) {
 // returnDispatchStatus returns the start job result to the caller.
 func (node *Node) returnDispatchStatus(ev *streaming.Event) {
 	ack := unmarshalAck(ev.Payload)
-	val, ok := node.pendingJobChannels.Load(ack.EventID)
+	val, ok := node.pendingJobChannels.LoadAndDelete(ack.EventID)
 	if !ok {
 		node.logger.Error(fmt.Errorf("returnDispatchStatus: received dispatch return for unknown event"), "id", ack.EventID)
 		return
 	}
 	node.logger.Debug("dispatch return", "event", ev.EventName, "id", ev.ID, "ack-id", ack.EventID)
 	if val == nil {
-		// Event was requeued, just clean up
-		node.pendingJobChannels.Delete(ack.EventID)
 		return
 	}
 	var err error
 	if ack.Error != "" {
 		err = errors.New(ack.Error)
 	}
-	val.(chan error) <- err
+	cherr := val.(chan error)
+	defer func() {
+		if r := recover(); r != nil {
+			node.logger.Error(fmt.Errorf("returnDispatchStatus: dispatch return channel for event %s is closed: %v", ack.EventID, r))
+		}
+	}()
+	cherr <- err
 }
 
 // watches monitors the workers replicated map and triggers job rebalancing

@@ -19,6 +19,11 @@ import (
 )
 
 type (
+	requeueResult struct {
+		key string
+		err error
+	}
+
 	// Worker is a worker that handles jobs with a given payload type.
 	Worker struct {
 		// Unique worker ID
@@ -439,49 +444,53 @@ func (w *Worker) requeueJobs(ctx context.Context) error {
 // attemptRequeue attempts to requeue the jobs in the given map.
 // It returns any job that failed to be requeued.
 func (w *Worker) attemptRequeue(ctx context.Context, jobsToRequeue map[string]*Job) map[string]*Job {
-	var wg sync.WaitGroup
-	type result struct {
-		key string
-		err error
-	}
-	resultChan := make(chan result, len(jobsToRequeue))
-	defer close(resultChan)
+	resultChan := make(chan requeueResult, len(jobsToRequeue))
+	attemptCtx, cancel := context.WithTimeout(ctx, w.workerShutdownTTL)
+	defer cancel()
 
-	wg.Add(len(jobsToRequeue))
 	for key, job := range jobsToRequeue {
 		pulse.Go(w.logger, func() {
-			defer wg.Done()
-			err := w.requeueJob(ctx, job)
+			err := w.requeueJob(attemptCtx, job)
 			if err != nil {
 				w.logger.Error(fmt.Errorf("failed to requeue job: %w", err), "job", key)
 			} else {
 				w.logger.Debug("requeueJobs: requeued", "job", key)
 			}
-			resultChan <- result{key: key, err: err}
+			resultChan <- requeueResult{key: key, err: err}
 		})
 	}
-	wg.Wait()
 
-	remainingJobs := make(map[string]*Job)
-	for {
+	return drainRequeueResults(w.logger, jobsToRequeue, resultChan, len(jobsToRequeue), attemptCtx.Done())
+}
+
+func drainRequeueResults(logger pulse.Logger, jobsToRequeue map[string]*Job, resultChan <-chan requeueResult, count int, done <-chan struct{}) map[string]*Job {
+	remainingJobs := make(map[string]*Job, len(jobsToRequeue))
+	for key, job := range jobsToRequeue {
+		remainingJobs[key] = job
+	}
+	for range count {
+		var res requeueResult
 		select {
-		case res := <-resultChan:
-			if res.err != nil {
-				w.logger.Error(fmt.Errorf("requeueJobs: failed to requeue job %q: %w", res.key, res.err))
-				remainingJobs[res.key] = jobsToRequeue[res.key]
-				continue
-			}
-			delete(remainingJobs, res.key)
-			w.logger.Info("requeued", "job", res.key)
-			if len(remainingJobs) == 0 {
-				w.logger.Debug("requeueJobs: all jobs requeued")
+		case res = <-resultChan:
+		default:
+			select {
+			case res = <-resultChan:
+			case <-done:
+				logger.Error(fmt.Errorf("requeueJobs: timeout reached, some jobs may not have been processed"))
 				return remainingJobs
 			}
-		case <-time.After(w.workerShutdownTTL):
-			w.logger.Error(fmt.Errorf("requeueJobs: timeout reached, some jobs may not have been processed"))
-			return remainingJobs
 		}
+		if res.err != nil {
+			logger.Error(fmt.Errorf("requeueJobs: failed to requeue job %q: %w", res.key, res.err))
+			continue
+		}
+		delete(remainingJobs, res.key)
+		logger.Info("requeued", "job", res.key)
 	}
+	if len(remainingJobs) == 0 {
+		logger.Debug("requeueJobs: all jobs requeued")
+	}
+	return remainingJobs
 }
 
 // requeueJob requeues a job.
