@@ -202,7 +202,13 @@ func (r *RootExpr) Validate() error {
 	seen := make(map[string]struct{})
 	for _, rt := range r.ResultTypes {
 		if _, declared := rt.Meta["openapi:typename"]; !declared {
-			continue // skip generated result types
+			if err := rt.validateExplicitViewMeta(); err != nil {
+				verr.Add(r, "%s", err.Error())
+			}
+			continue // skip generated result type name checks
+		}
+		if err := rt.validateExplicitViewMeta(); err != nil {
+			verr.Add(r, "%s", err.Error())
 		}
 		name := rt.Name()
 		if _, ok := seen[name]; ok {

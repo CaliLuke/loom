@@ -1,6 +1,7 @@
 package dsl
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/CaliLuke/loom/eval"
@@ -55,7 +56,7 @@ func TestView(t *testing.T) {
 		{"view", baseRT, viewDSL, []string{viewName}, map[string][]string{viewName: {"att"}}, ""},
 		{"view2", baseRT, view2DSL, []string{view2Name}, map[string][]string{view2Name: {"att2"}}, ""},
 		{"all views", baseRT, allViewsDSL, []string{viewName, view2Name}, map[string][]string{viewName: {"att"}, view2Name: {"att2"}}, ""},
-		{"duplicate view", baseRT, func() { viewDSL(); viewDSL() }, nil, nil, `[result_type_test.go:29] view "test" is defined multiple times in result type "test" in attribute`},
+		{"duplicate view", baseRT, func() { viewDSL(); viewDSL() }, nil, nil, `[result_type_test.go:30] view "test" is defined multiple times in result type "test" in attribute`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -101,5 +102,28 @@ func TestView(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCollectionOfUnknownViewReturnsValidationError(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		_ = ResultType("application/vnd.person+json", func() {
+			Attributes(func() {
+				Attribute("name", String)
+			})
+			View("summary", func() {
+				Attribute("name")
+			})
+		})
+		_ = CollectionOf("application/vnd.person+json", func() {
+			View("bogus")
+		})
+	})
+
+	if err == nil {
+		t.Fatalf("expected unknown view validation error")
+	}
+	if got, want := err.Error(), `unknown view "bogus"`; !strings.Contains(got, want) {
+		t.Fatalf("expected error to contain %q, got %q", want, got)
 	}
 }

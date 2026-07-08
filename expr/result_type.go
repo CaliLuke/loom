@@ -208,6 +208,17 @@ func (rt *ResultTypeExpr) ViewHasAttribute(view, attr string) bool {
 	return v.Find(attr) != nil
 }
 
+func (rt *ResultTypeExpr) validateExplicitViewMeta() error {
+	view, ok := rt.Meta.Last(ViewMetaKey)
+	if !ok || view == DefaultView {
+		return nil
+	}
+	if _, err := Project(rt, view); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Finalize builds the default view if not explicitly defined and finalizes
 // the underlying UserTypeExpr.
 func (rt *ResultTypeExpr) Finalize() {
@@ -231,9 +242,13 @@ func (rt *ResultTypeExpr) Finalize() {
 // attribute if any.
 func (rt *ResultTypeExpr) useExplicitView() {
 	if view, ok := rt.Meta.Last(ViewMetaKey); ok {
+		if view == DefaultView {
+			return
+		}
 		p, err := Project(rt, view)
 		if err != nil {
-			panic(err) // bug - presence of view meta should have been validated before
+			eval.ReportError(err.Error())
+			return
 		}
 		*rt = *p
 	}
