@@ -75,22 +75,11 @@ func (s *clockSSEStream) Send(ctx context.Context, event clock.Event) error {
 	switch v := event.(type) {
 	case *clock.TickResult:
 		body := NewTickResponseBody(v)
-		var id string
-		var isResponse bool
 		var message map[string]any
-		if isResponse {
-			resp := jsonrpc.MakeSuccessResponse(id, body)
-			message = map[string]any{
-				"id":      resp.ID,
-				"jsonrpc": resp.JSONRPC,
-				"result":  resp.Result,
-			}
-		} else {
-			message = map[string]any{
-				"jsonrpc": "2.0",
-				"method":  "Tick",
-				"params":  body,
-			}
+		message = map[string]any{
+			"jsonrpc": "2.0",
+			"method":  "Tick",
+			"params":  body,
 		}
 		return s.sendSSEEvent("message", message)
 	default:

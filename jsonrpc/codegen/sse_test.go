@@ -239,6 +239,22 @@ func TestJSONRPCMixedHTTPAndSSEHandlerRoutesByMethod(t *testing.T) {
 	require.NotContains(t, mixedHandlerCode, "if strings.Contains(accept, \"text/event-stream\") {\n\t\ts.handleSSE(w, r)\n\t\treturn\n\t}")
 }
 
+func TestJSONRPCSSEOnlyHandlerOmitsEmptyNotificationSwitch(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-sse-server-handler")
+
+	require.NotContains(t, code, "switch req.Method {\n\t}")
+}
+
+func TestJSONRPCSSEServiceStreamSendOmitsResponseBranchWithoutID(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEStringDSL)
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "sse.go", "jsonrpc-server-sse-stream-impl")
+
+	require.NotContains(t, code, "var isResponse bool")
+	require.NotContains(t, code, "jsonrpc.MakeSuccessResponse")
+	require.Contains(t, code, `"method":  "Stream",`)
+}
+
 func TestJSONRPCMixedServerInitUsesServeHTTP(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
 	services := CreateJSONRPCServices(root)

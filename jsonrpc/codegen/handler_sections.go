@@ -74,7 +74,7 @@ func jsonrpcServerHandlerInitSection(e *httpcodegen.EndpointData) codegen.Sectio
 			Params(jsonrpcHandlerInitParams(e)...).
 			Add(jsonrpcHandlerInitType(e)).
 			BlockFunc(func(g *jen.Group) {
-				if !httpcodegen.IsSSEEndpoint(e) && e.Payload != nil && e.Payload.Ref != "" {
+				if e.Payload != nil && e.Payload.Ref != "" {
 					if !(httpcodegen.IsWebSocketEndpoint(e) && e.Method.ServerStream != nil && (e.Method.ServerStream.Kind == 3 || e.Method.ServerStream.Kind == 4)) {
 						g.Id("decodeParams").Op(":=").Id(e.RequestDecoder).Call(jen.Id("mux"), jen.Id("decoder"))
 					}
@@ -161,7 +161,6 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 		),
 	)
 	if e.Payload != nil && e.Payload.Ref != "" {
-		g.Id("decodeParams").Op(":=").Id(e.RequestDecoder).Call(jen.Id("mux"), jen.Id("decoder"))
 		g.List(jen.Id("params"), jen.Id("err")).Op(":=").Id("decodeParams").Call(jen.Id("r"), jen.Id("req"))
 		g.If(jen.Id("err").Op("!=").Nil()).Block(
 			jen.If(jen.Id("req").Dot("HasID")).BlockFunc(func(eg *jen.Group) {
@@ -546,6 +545,15 @@ func needsJSONRPCResponseCapture(e *httpcodegen.EndpointData) bool {
 		return false
 	}
 	return len(success.Headers) > 0 || len(success.Cookies) > 0
+}
+
+func serviceNeedsJSONRPCResponseCapture(data *httpcodegen.ServiceData) bool {
+	for _, endpoint := range data.Endpoints {
+		if needsJSONRPCResponseCapture(endpoint) {
+			return true
+		}
+	}
+	return false
 }
 
 func writePayloadIDInjection(g *jen.Group, payload *httpcodegen.PayloadData) {

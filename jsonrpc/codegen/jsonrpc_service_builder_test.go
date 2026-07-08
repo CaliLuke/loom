@@ -87,8 +87,9 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		require.Contains(t, serverCode, "Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))")
 		require.NotContains(t, serverCode, "StreamHandler func")
 		require.Contains(t, clientCode, "type Client struct")
-		require.Contains(t, clientCode, "var bufferPool = sync.Pool")
+		require.NotContains(t, clientCode, "var bufferPool = sync.Pool")
 		require.NotContains(t, clientCode, "streamConfig *jsonrpc.StreamConfig")
+		require.NotContains(t, allRenderedSections(t, ServerFiles("", CreateJSONRPCServices(root))), "type jsonrpcResponseCapture struct")
 	})
 
 	t.Run("mixed SSE service keeps top-level mixed transport wiring", func(t *testing.T) {
@@ -238,4 +239,19 @@ func fileSectionCode(t *testing.T, files []*codegen.File, baseName string, secti
 
 	t.Fatalf("section %q not found in %q", sectionName, baseName)
 	return ""
+}
+
+func allRenderedSections(t *testing.T, files []*codegen.File) string {
+	t.Helper()
+
+	var rendered string
+	for _, file := range files {
+		for _, section := range file.AllSections() {
+			if section.SectionName() == "source-header" {
+				continue
+			}
+			rendered += codegen.SectionCode(t, section)
+		}
+	}
+	return rendered
 }

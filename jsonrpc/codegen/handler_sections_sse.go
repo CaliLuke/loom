@@ -33,13 +33,7 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 					jen.Err().Op("!=").Nil(),
 				).BlockFunc(func(eg *jen.Group) {
 					writeSSEErrorStreamInit(eg, streamName)
-					eg.Id("stream").Dot("sendError").Call(
-						jen.Id("ctx"),
-						jen.Nil(),
-						jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ParseError"),
-						jen.Lit("Parse error"),
-						jen.Nil(),
-					)
+					writeSSESendErrorCall(eg, "stream", jen.Nil(), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ParseError"), "Parse error")
 					eg.Return()
 				})
 				g.Line()
@@ -72,13 +66,7 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 							jen.Id("encoder"): jen.Id("s").Dot("encoder"),
 							jen.Id("decoder"): jen.Id("s").Dot("decoder"),
 						})
-						dg.Id("stream").Dot("sendError").Call(
-							jen.Id("ctx"),
-							jen.Id("req").Dot("ID"),
-							jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound"),
-							jen.Lit("Method not found"),
-							jen.Nil(),
-						)
+						writeSSESendErrorCall(dg, "stream", jen.Id("req").Dot("ID"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound"), "Method not found")
 						dg.Return()
 					})
 				})
@@ -95,18 +83,20 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 					jen.Return(),
 				)
 				g.Line()
-				g.Switch(jen.Id("req").Dot("Method")).BlockFunc(func(sg *jen.Group) {
-					for _, endpoint := range data.Endpoints {
-						if endpoint.SSE == nil || endpoint.Method.ServerStream != nil {
-							continue
+				if hasUnarySSEEndpoint(data) {
+					g.Switch(jen.Id("req").Dot("Method")).BlockFunc(func(sg *jen.Group) {
+						for _, endpoint := range data.Endpoints {
+							if endpoint.SSE == nil || endpoint.Method.ServerStream != nil {
+								continue
+							}
+							sg.Case(jen.Lit(endpoint.Method.Name)).Block(
+								jen.If(jen.Op("!").Id("req").Dot("HasID")).Block(
+									jen.Id("w").Dot("WriteHeader").Call(jen.Qual("net/http", "StatusNoContent")),
+								),
+							)
 						}
-						sg.Case(jen.Lit(endpoint.Method.Name)).Block(
-							jen.If(jen.Op("!").Id("req").Dot("HasID")).Block(
-								jen.Id("w").Dot("WriteHeader").Call(jen.Qual("net/http", "StatusNoContent")),
-							),
-						)
-					}
-				})
+					})
+				}
 			})
 	})
 }
@@ -128,14 +118,32 @@ func writeSSEValidationError(g *jen.Group, streamName, message string) {
 		jen.Return(),
 	)
 	writeSSEErrorStreamInit(g, streamName)
-	g.Id("stream").Dot("sendError").Call(
-		jen.Id("ctx"),
-		jen.Id("req").Dot("ID"),
-		jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidRequest"),
-		jen.Lit(message),
-		jen.Nil(),
-	)
+	writeSSESendErrorCall(g, "stream", jen.Id("req").Dot("ID"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidRequest"), message)
 	g.Return()
+}
+
+func writeSSESendErrorCall(g *jen.Group, streamName string, id jen.Code, code jen.Code, message string) {
+	g.If(
+		jen.Err().Op(":=").Id(streamName).Dot("sendError").Call(
+			jen.Id("ctx"),
+			id,
+			code,
+			jen.Lit(message),
+			jen.Nil(),
+		),
+		jen.Err().Op("!=").Nil(),
+	).Block(
+		jen.Id("s").Dot("errhandler").Call(jen.Id("ctx"), jen.Id("w"), jen.Err()),
+	)
+}
+
+func hasUnarySSEEndpoint(data *httpcodegen.ServiceData) bool {
+	for _, endpoint := range data.Endpoints {
+		if endpoint.SSE != nil && endpoint.Method.ServerStream == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func writeSSERequestValidation(g *jen.Group, streamName string) {

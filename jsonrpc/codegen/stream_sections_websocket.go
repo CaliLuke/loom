@@ -467,24 +467,32 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 					}
 					sg.Case(codegen.Expr(ed.SSE.EventTypeRef)).BlockFunc(func(cg *jen.Group) {
 						writeStreamResultBodyInit(cg, "body", "v", ed)
-						cg.Var().Id("id").String()
-						cg.Var().Id("isResponse").Bool()
-						writeSSEServiceResponseIDResolution(cg, ed)
 						cg.Var().Id("message").Map(jen.String()).Any()
-						cg.If(jen.Id("isResponse")).Block(
-							jen.Id("resp").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
-							jen.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
-								jen.Lit("jsonrpc"): jen.Id("resp").Dot("JSONRPC"),
-								jen.Lit("id"):      jen.Id("resp").Dot("ID"),
-								jen.Lit("result"):  jen.Id("resp").Dot("Result"),
-							}),
-						).Else().Block(
-							jen.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
+						if sseEventCanBeResponse(ed) {
+							cg.Var().Id("id").String()
+							cg.Var().Id("isResponse").Bool()
+							writeSSEServiceResponseIDResolution(cg, ed)
+							cg.If(jen.Id("isResponse")).Block(
+								jen.Id("resp").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
+								jen.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
+									jen.Lit("jsonrpc"): jen.Id("resp").Dot("JSONRPC"),
+									jen.Lit("id"):      jen.Id("resp").Dot("ID"),
+									jen.Lit("result"):  jen.Id("resp").Dot("Result"),
+								}),
+							).Else().Block(
+								jen.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
+									jen.Lit("jsonrpc"): jen.Lit("2.0"),
+									jen.Lit("method"):  jen.Lit(ed.Method.Name),
+									jen.Lit("params"):  jen.Id("body"),
+								}),
+							)
+						} else {
+							cg.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
 								jen.Lit("jsonrpc"): jen.Lit("2.0"),
 								jen.Lit("method"):  jen.Lit(ed.Method.Name),
 								jen.Lit("params"):  jen.Id("body"),
-							}),
-						)
+							})
+						}
 						cg.Return(jen.Id("s").Dot("sendSSEEvent").Call(jen.Lit("message"), jen.Id("message")))
 					})
 				}
@@ -515,6 +523,10 @@ func writeSSEServiceResponseIDResolution(g *jen.Group, ed *httpcodegen.EndpointD
 		jen.Id("isResponse").Op("=").True(),
 		jen.Id("v").Dot(ed.Result.IDAttribute).Op("=").Nil(),
 	)
+}
+
+func sseEventCanBeResponse(ed *httpcodegen.EndpointData) bool {
+	return ed.Result != nil && ed.Result.IDAttribute != ""
 }
 
 func writeSSEServiceStreamSendError(stmt *jen.Statement, data *httpcodegen.ServiceData, streamName string) {

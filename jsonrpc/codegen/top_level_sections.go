@@ -42,15 +42,6 @@ func jsonrpcClientStructSection(data *httpcodegen.ServiceData) codegen.Section {
 				g.Id("streamConfig").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "StreamConfig")
 			}
 		})
-		if !httpcodegen.HasWebSocket(data) {
-			stmt.Line()
-			stmt.Comment("bufferPool is a pool of bytes.Buffers for encoding requests.").Line()
-			stmt.Var().Id("bufferPool").Op("=").Qual("sync", "Pool").Values(jen.Dict{
-				jen.Id("New"): jen.Func().Params().Any().Block(
-					jen.Return(jen.New(jen.Qual("bytes", "Buffer"))),
-				),
-			})
-		}
 		stmt.Line()
 	})
 }

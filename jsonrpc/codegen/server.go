@@ -141,14 +141,17 @@ func jsonrpcServerImports(genpkg, svcName string, data *httpcodegen.ServiceData)
 }
 
 func jsonrpcServerBaseSections(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) []codegen.Section {
-	return []codegen.Section{
+	sections := []codegen.Section{
 		jsonrpcServerStructSection(data),
 		jsonrpcServerInitSection(data, hasSSE, hasMixed),
 		jsonrpcServerServiceSection(data),
 		jsonrpcServerUseSection(data),
 		jsonrpcServerMethodNamesSection(data),
-		jsonrpcServerResponseCaptureSection(),
 	}
+	if serviceNeedsJSONRPCResponseCapture(data) {
+		sections = append(sections, jsonrpcServerResponseCaptureSection())
+	}
+	return sections
 }
 
 func jsonrpcServerTransportSections(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) []codegen.Section {

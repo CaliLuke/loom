@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
 )
 
 func TestJSONRPCHandlerSectionRoutesBufferedRequests(t *testing.T) {
@@ -96,6 +97,18 @@ func TestJSONRPCHandlerInitDecodesParamsWithGeneratedDecoderSignature(t *testing
 
 	require.Contains(t, code, `decodeParams := DecodeAddRequest(mux, decoder)`)
 	require.Contains(t, code, `params, err := decodeParams(r, req)`)
+}
+
+func TestJSONRPCSSEHandlerInitHoistsRequestDecoder(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler-init")
+
+	decodeDecl := findIndex(t, code, `decodeParams := DecodeStreamRequest(mux, decoder)`)
+	closure := findIndex(t, code, `return func(ctx context.Context`)
+	decodeUse := findIndex(t, code, `params, err := decodeParams(r, req)`)
+
+	require.Less(t, decodeDecl, closure)
+	require.Less(t, closure, decodeUse)
 }
 
 // TestJSONRPCObserverReasons asserts that the JSON-RPC generator emits each
