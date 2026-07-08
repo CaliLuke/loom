@@ -223,6 +223,10 @@ build Auto-K without repeating large amounts of app-local glue.
   API or service scope instead of app-local middleware. Service-level CORS
   overrides API-level CORS; generated HTTP servers mount preflight `OPTIONS`
   handlers and OpenAPI path items include `x-loom-cors`.
+- Large generated HTTP/JSON-RPC transport type packages may split into
+  `types_requests.go`, `types_responses.go`, `types_unions.go`,
+  `types_validation.go`, and `types_helpers.go`; do not assume all wire
+  structs live in `types.go`.
 - If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.

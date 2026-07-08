@@ -132,6 +132,13 @@ myservice/
 └── myservice.go            # Your service implementation
 ```
 
+Small HTTP and JSON-RPC services keep compact `types.go` files. When a
+generated transport package grows beyond the type-section split threshold,
+Loom writes deterministic concern files such as `types_requests.go`,
+`types_responses.go`, `types_unions.go`, `types_validation.go`, and
+`types_helpers.go` in the same package. The exported Go API is unchanged; the
+split only keeps large generated packages navigable and diff-friendly.
+
 ### Service Interfaces
 
 Generated in `gen/<service>/service.go`:
