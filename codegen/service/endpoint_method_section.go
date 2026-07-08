@@ -30,6 +30,8 @@ func endpointMethodSection(method *EndpointMethodData) codegen.Section {
 					case method.ServerStream != nil:
 						if method.ServerStream.EndpointStruct != "" {
 							group.Id("ep").Op(":=").Id("req").Assert(jen.Op("*").Id(method.ServerStream.EndpointStruct))
+						} else if len(method.Requirements) > 0 && method.PayloadRef != "" {
+							group.Id("p").Op(":=").Id("req").Assert(codegen.TypeRef(method.PayloadRef))
 						}
 					case method.SkipRequestBodyEncodeDecode:
 						group.Id("ep").Op(":=").Id("req").Assert(jen.Op("*").Id(method.RequestStruct))
@@ -204,54 +206,68 @@ func payloadFieldExpr(payload, field string, isPointer bool, tempVar string) *je
 
 func buildStreamingEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
 	if method.ServerStream.EndpointStruct != "" {
-		if method.HasMixedResults {
-			lhs := []jen.Code{}
-			if method.ResultRef != "" {
-				lhs = append(lhs, jen.Id("res"))
-			}
-			if method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
-				lhs = append(lhs, jen.Id("view"))
-			}
-			lhs = append(lhs, jen.Id("err"))
-			group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
-				args.Id("ctx")
-				if method.PayloadRef != "" {
-					args.Add(codegen.Expr(payload))
-				}
-				args.Id("ep").Dot("Stream")
-			})
-			group.If(jen.Id("err").Op("!=").Nil()).Block(
-				jen.Return(jen.Nil(), jen.Id("err")),
-			)
-			if method.ViewedResult != nil {
-				viewExpr := jen.Lit(method.ViewedResult.ViewName)
-				if method.ViewedResult.ViewName == "" {
-					viewExpr = jen.Id("view")
-				}
-				group.Id("vres").Op(":=").Id(method.ViewedResult.Init.Name).Call(
-					jen.Id("res"),
-					viewExpr,
-				)
-				group.Return(jen.Id("vres"), jen.Nil())
-				return
-			}
-			group.Return(jen.Id("res"), jen.Nil())
-			return
-		}
-		group.Return(
-			jen.Nil(),
-			jen.Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
-				args.Id("ctx")
-				if method.PayloadRef != "" {
-					args.Add(codegen.Expr(payload))
-				}
-				args.Id("ep").Dot("Stream")
-			}),
-		)
+		buildEndpointStructStreamingInvocation(group, method, payload)
 		return
 	}
+	buildDirectStreamingInvocation(group, method)
+}
+
+func buildEndpointStructStreamingInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
+	if method.HasMixedResults {
+		buildMixedStreamingEndpointInvocation(group, method, payload)
+		return
+	}
+	group.Return(
+		jen.Nil(),
+		jen.Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+			args.Id("ctx")
+			if method.PayloadRef != "" {
+				args.Add(codegen.Expr(payload))
+			}
+			args.Id("ep").Dot("Stream")
+		}),
+	)
+}
+
+func buildMixedStreamingEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
+	lhs := []jen.Code{}
+	if method.ResultRef != "" {
+		lhs = append(lhs, jen.Id("res"))
+	}
+	if method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
+		lhs = append(lhs, jen.Id("view"))
+	}
+	lhs = append(lhs, jen.Id("err"))
+	group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+		args.Id("ctx")
+		if method.PayloadRef != "" {
+			args.Add(codegen.Expr(payload))
+		}
+		args.Id("ep").Dot("Stream")
+	})
+	group.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id("err")),
+	)
+	if method.ViewedResult != nil {
+		viewExpr := jen.Lit(method.ViewedResult.ViewName)
+		if method.ViewedResult.ViewName == "" {
+			viewExpr = jen.Id("view")
+		}
+		group.Id("vres").Op(":=").Id(method.ViewedResult.Init.Name).Call(
+			jen.Id("res"),
+			viewExpr,
+		)
+		group.Return(jen.Id("vres"), jen.Nil())
+		return
+	}
+	group.Return(jen.Id("res"), jen.Nil())
+}
+
+func buildDirectStreamingInvocation(group *jen.Group, method *EndpointMethodData) {
 	if method.PayloadRef != "" {
-		group.Id("p").Op(":=").Id("req").Assert(codegen.TypeRef(method.PayloadRef))
+		if len(method.Requirements) == 0 {
+			group.Id("p").Op(":=").Id("req").Assert(codegen.TypeRef(method.PayloadRef))
+		}
 		if method.ResultRef != "" {
 			group.Return(jen.Id("s").Dot(method.VarName).Call(jen.Id("ctx"), jen.Id("p")))
 			return

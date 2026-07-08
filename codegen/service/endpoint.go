@@ -157,7 +157,10 @@ func payloadVar(e *EndpointMethodData) string {
 		if e.ServerStream.EndpointStruct != "" {
 			return "ep.Payload"
 		}
-		// JSON-RPC WebSocket has no payload for server streaming
+		if e.PayloadRef != "" {
+			return "p"
+		}
+		// JSON-RPC WebSocket has no payload for server streaming.
 		return ""
 	}
 	if e.SkipRequestBodyEncodeDecode {

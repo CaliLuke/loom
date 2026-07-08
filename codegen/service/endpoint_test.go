@@ -56,3 +56,46 @@ func TestEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestStreamingEndpointAuthUsesPayloadWhenEndpointStructIsOmitted(t *testing.T) {
+	method := &EndpointMethodData{
+		MethodData: &MethodData{
+			Name:    "Stream",
+			VarName: "Stream",
+			MethodPayloadData: MethodPayloadData{
+				PayloadRef: "*Payload",
+			},
+			MethodSecurityData: MethodSecurityData{
+				Requirements: RequirementsData{
+					&RequirementData{
+						Schemes: []*SchemeData{
+							{
+								Type:       "JWT",
+								SchemeName: "jwt",
+								CredField:  "Token",
+							},
+						},
+					},
+				},
+				Schemes: SchemesData{
+					&SchemeData{
+						Type:       "JWT",
+						SchemeName: "jwt",
+					},
+				},
+			},
+			MethodStreamingData: MethodStreamingData{
+				ServerStream: &StreamData{},
+			},
+		},
+		ServiceName:    "Streaming",
+		ServiceVarName: "Service",
+	}
+
+	code := codegen.SectionCode(t, endpointMethodSection(method))
+
+	require.Contains(t, code, "p := req.(*Payload)")
+	require.Contains(t, code, "authJWTFn(ctx, p.Token, &sc)")
+	require.NotContains(t, code, "authJWTFn(ctx, .Token")
+	require.NotContains(t, code, " .")
+}
