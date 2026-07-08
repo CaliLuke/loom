@@ -2,7 +2,8 @@ package codegen
 
 var (
 	requestDecoderSource = joinHTTPTemplateSource(`{{ printf "%s returns a decoder for requests sent to the %s %s endpoint." .RequestDecoder .ServiceName .Method.Name | comment }}
-func {{ .RequestDecoder }}(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) ({{ .Payload.Ref }}, error) {
+{{- $usesDecoder := or .MultipartRequestDecoder (and .Payload.Request.ServerBody (not .Payload.Request.MultipartGenerated) (not .Payload.Request.FormEncoded)) }}
+func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ else }}_{{ end }} func(*http.Request) loomhttp.Decoder) func(*http.Request) ({{ .Payload.Ref }}, error) {
 	return func(r *http.Request) ({{ .Payload.Ref }}, error) {
 		var payload {{ .Payload.Ref }}
 {{- if .MultipartRequestDecoder }}

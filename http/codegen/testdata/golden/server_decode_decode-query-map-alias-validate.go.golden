@@ -1,6 +1,6 @@
 // DecodeMethodARequest returns a decoder for requests sent to the
 // ServiceQueryMapAliasValidate MethodA endpoint.
-func DecodeMethodARequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapaliasvalidate.MethodAPayload, error) {
+func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapaliasvalidate.MethodAPayload, error) {
 	return func(r *http.Request) (*servicequerymapaliasvalidate.MethodAPayload, error) {
 		var payload *servicequerymapaliasvalidate.MethodAPayload
 		var (

@@ -2,7 +2,7 @@
 // decoder for requests sent to the
 // ServiceQueryCustomTextUnmarshalerOptionalValidate
 // MethodQueryCustomTextUnmarshalerOptionalValidate endpoint.
-func DecodeMethodQueryCustomTextUnmarshalerOptionalValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload, error) {
+func DecodeMethodQueryCustomTextUnmarshalerOptionalValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload, error) {
 	return func(r *http.Request) (*servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload, error) {
 		var payload *servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload
 		var (

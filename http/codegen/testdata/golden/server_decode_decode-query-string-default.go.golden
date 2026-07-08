@@ -1,6 +1,6 @@
 // DecodeMethodQueryStringDefaultRequest returns a decoder for requests sent to
 // the ServiceQueryStringDefault MethodQueryStringDefault endpoint.
-func DecodeMethodQueryStringDefaultRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerystringdefault.MethodQueryStringDefaultPayload, error) {
+func DecodeMethodQueryStringDefaultRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerystringdefault.MethodQueryStringDefaultPayload, error) {
 	return func(r *http.Request) (*servicequerystringdefault.MethodQueryStringDefaultPayload, error) {
 		var payload *servicequerystringdefault.MethodQueryStringDefaultPayload
 		var (

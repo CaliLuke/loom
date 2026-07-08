@@ -1,6 +1,6 @@
 // DecodeMethodPathCustomInt32Request returns a decoder for requests sent to
 // the ServicePathCustomInt32 MethodPathCustomInt32 endpoint.
-func DecodeMethodPathCustomInt32Request(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomint32.MethodPathCustomInt32Payload, error) {
+func DecodeMethodPathCustomInt32Request(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomint32.MethodPathCustomInt32Payload, error) {
 	return func(r *http.Request) (*servicepathcustomint32.MethodPathCustomInt32Payload, error) {
 		var payload *servicepathcustomint32.MethodPathCustomInt32Payload
 		var (

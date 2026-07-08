@@ -1,7 +1,7 @@
 // DecodeMethodQueryMapIntMapStringArrayIntValidateRequest returns a decoder
 // for requests sent to the ServiceQueryMapIntMapStringArrayIntValidate
 // MethodQueryMapIntMapStringArrayIntValidate endpoint.
-func DecodeMethodQueryMapIntMapStringArrayIntValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[int]map[string][]int, error) {
+func DecodeMethodQueryMapIntMapStringArrayIntValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[int]map[string][]int, error) {
 	return func(r *http.Request) (map[int]map[string][]int, error) {
 		var payload map[int]map[string][]int
 		var (

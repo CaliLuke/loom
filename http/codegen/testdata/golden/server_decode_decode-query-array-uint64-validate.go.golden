@@ -1,7 +1,7 @@
 // DecodeMethodQueryArrayUInt64ValidateRequest returns a decoder for requests
 // sent to the ServiceQueryArrayUInt64Validate MethodQueryArrayUInt64Validate
 // endpoint.
-func DecodeMethodQueryArrayUInt64ValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload, error) {
+func DecodeMethodQueryArrayUInt64ValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload, error) {
 		var payload *servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload
 		var (

@@ -1,7 +1,7 @@
 // DecodeMethodHeaderArrayStringValidateRequest returns a decoder for requests
 // sent to the ServiceHeaderArrayStringValidate MethodHeaderArrayStringValidate
 // endpoint.
-func DecodeMethodHeaderArrayStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload, error) {
+func DecodeMethodHeaderArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload, error) {
 	return func(r *http.Request) (*serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload, error) {
 		var payload *serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload
 		var (

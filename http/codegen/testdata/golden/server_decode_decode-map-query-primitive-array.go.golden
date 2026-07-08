@@ -1,6 +1,6 @@
 // DecodeMapQueryPrimitiveArrayRequest returns a decoder for requests sent to
 // the ServiceMapQueryPrimitiveArray MapQueryPrimitiveArray endpoint.
-func DecodeMapQueryPrimitiveArrayRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string][]uint, error) {
+func DecodeMapQueryPrimitiveArrayRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string][]uint, error) {
 	return func(r *http.Request) (map[string][]uint, error) {
 		var payload map[string][]uint
 		var (

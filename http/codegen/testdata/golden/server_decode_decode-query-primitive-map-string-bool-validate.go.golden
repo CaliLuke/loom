@@ -1,7 +1,7 @@
 // DecodeMethodQueryPrimitiveMapStringBoolValidateRequest returns a decoder for
 // requests sent to the ServiceQueryPrimitiveMapStringBoolValidate
 // MethodQueryPrimitiveMapStringBoolValidate endpoint.
-func DecodeMethodQueryPrimitiveMapStringBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string]bool, error) {
+func DecodeMethodQueryPrimitiveMapStringBoolValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string]bool, error) {
 	return func(r *http.Request) (map[string]bool, error) {
 		var payload map[string]bool
 		var (

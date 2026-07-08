@@ -1,6 +1,6 @@
 // DecodeMethodQueryInt32Request returns a decoder for requests sent to the
 // ServiceQueryInt32 MethodQueryInt32 endpoint.
-func DecodeMethodQueryInt32Request(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryint32.MethodQueryInt32Payload, error) {
+func DecodeMethodQueryInt32Request(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryint32.MethodQueryInt32Payload, error) {
 	return func(r *http.Request) (*servicequeryint32.MethodQueryInt32Payload, error) {
 		var payload *servicequeryint32.MethodQueryInt32Payload
 		var (

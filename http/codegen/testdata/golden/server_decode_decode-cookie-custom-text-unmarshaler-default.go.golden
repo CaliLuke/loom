@@ -1,7 +1,7 @@
 // DecodeMethodCookieCustomTextUnmarshalerDefaultRequest returns a decoder for
 // requests sent to the ServiceCookieCustomTextUnmarshalerDefault
 // MethodCookieCustomTextUnmarshalerDefault endpoint.
-func DecodeMethodCookieCustomTextUnmarshalerDefaultRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload, error) {
+func DecodeMethodCookieCustomTextUnmarshalerDefaultRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload, error) {
 	return func(r *http.Request) (*servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload, error) {
 		var payload *servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload
 		var (

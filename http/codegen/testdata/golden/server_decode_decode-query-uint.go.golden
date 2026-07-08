@@ -1,6 +1,6 @@
 // DecodeMethodQueryUIntRequest returns a decoder for requests sent to the
 // ServiceQueryUInt MethodQueryUInt endpoint.
-func DecodeMethodQueryUIntRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryuint.MethodQueryUIntPayload, error) {
+func DecodeMethodQueryUIntRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryuint.MethodQueryUIntPayload, error) {
 	return func(r *http.Request) (*servicequeryuint.MethodQueryUIntPayload, error) {
 		var payload *servicequeryuint.MethodQueryUIntPayload
 		var (

@@ -1,6 +1,6 @@
 // DecodeMethodFormBodyUnionRequest returns a decoder for requests sent to the
 // ServiceFormBodyUnion MethodFormBodyUnion endpoint.
-func DecodeMethodFormBodyUnionRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceformbodyunion.FormGrant, error) {
+func DecodeMethodFormBodyUnionRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceformbodyunion.FormGrant, error) {
 	return func(r *http.Request) (*serviceformbodyunion.FormGrant, error) {
 		var payload *serviceformbodyunion.FormGrant
 		var (

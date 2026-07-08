@@ -1,6 +1,6 @@
 // DecodeMethodQueryUInt32ValidateRequest returns a decoder for requests sent
 // to the ServiceQueryUInt32Validate MethodQueryUInt32Validate endpoint.
-func DecodeMethodQueryUInt32ValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryuint32validate.MethodQueryUInt32ValidatePayload, error) {
+func DecodeMethodQueryUInt32ValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryuint32validate.MethodQueryUInt32ValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryuint32validate.MethodQueryUInt32ValidatePayload, error) {
 		var payload *servicequeryuint32validate.MethodQueryUInt32ValidatePayload
 		var (

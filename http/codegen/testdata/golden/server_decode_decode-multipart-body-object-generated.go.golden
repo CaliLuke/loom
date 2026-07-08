@@ -1,7 +1,7 @@
 // DecodeMethodMultipartObjectGeneratedRequest returns a decoder for requests
 // sent to the ServiceMultipartObjectGenerated MethodMultipartObjectGenerated
 // endpoint.
-func DecodeMethodMultipartObjectGeneratedRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartobjectgenerated.MethodMultipartObjectGeneratedPayload, error) {
+func DecodeMethodMultipartObjectGeneratedRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartobjectgenerated.MethodMultipartObjectGeneratedPayload, error) {
 	return func(r *http.Request) (*servicemultipartobjectgenerated.MethodMultipartObjectGeneratedPayload, error) {
 		var payload *servicemultipartobjectgenerated.MethodMultipartObjectGeneratedPayload
 		var (

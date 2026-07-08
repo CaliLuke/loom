@@ -1,6 +1,6 @@
 // DecodeMethodPathStringRequest returns a decoder for requests sent to the
 // ServicePathString MethodPathString endpoint.
-func DecodeMethodPathStringRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathstring.MethodPathStringPayload, error) {
+func DecodeMethodPathStringRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathstring.MethodPathStringPayload, error) {
 	return func(r *http.Request) (*servicepathstring.MethodPathStringPayload, error) {
 		var payload *servicepathstring.MethodPathStringPayload
 		var (

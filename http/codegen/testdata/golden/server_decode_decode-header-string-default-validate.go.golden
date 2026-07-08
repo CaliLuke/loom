@@ -1,7 +1,7 @@
 // DecodeMethodHeaderStringDefaultValidateRequest returns a decoder for
 // requests sent to the ServiceHeaderStringDefaultValidate
 // MethodHeaderStringDefaultValidate endpoint.
-func DecodeMethodHeaderStringDefaultValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstringdefaultvalidate.MethodHeaderStringDefaultValidatePayload, error) {
+func DecodeMethodHeaderStringDefaultValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstringdefaultvalidate.MethodHeaderStringDefaultValidatePayload, error) {
 	return func(r *http.Request) (*serviceheaderstringdefaultvalidate.MethodHeaderStringDefaultValidatePayload, error) {
 		var payload *serviceheaderstringdefaultvalidate.MethodHeaderStringDefaultValidatePayload
 		var (

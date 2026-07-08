@@ -1,6 +1,6 @@
 // DecodeMethodQueryAnyValidateRequest returns a decoder for requests sent to
 // the ServiceQueryAnyValidate MethodQueryAnyValidate endpoint.
-func DecodeMethodQueryAnyValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryanyvalidate.MethodQueryAnyValidatePayload, error) {
+func DecodeMethodQueryAnyValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryanyvalidate.MethodQueryAnyValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryanyvalidate.MethodQueryAnyValidatePayload, error) {
 		var payload *servicequeryanyvalidate.MethodQueryAnyValidatePayload
 		var (

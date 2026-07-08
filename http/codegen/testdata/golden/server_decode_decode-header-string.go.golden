@@ -1,6 +1,6 @@
 // DecodeMethodHeaderStringRequest returns a decoder for requests sent to the
 // ServiceHeaderString MethodHeaderString endpoint.
-func DecodeMethodHeaderStringRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstring.MethodHeaderStringPayload, error) {
+func DecodeMethodHeaderStringRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstring.MethodHeaderStringPayload, error) {
 	return func(r *http.Request) (*serviceheaderstring.MethodHeaderStringPayload, error) {
 		var payload *serviceheaderstring.MethodHeaderStringPayload
 		var (

@@ -1,6 +1,6 @@
 // DecodeMethodQueryMapBoolArrayBoolRequest returns a decoder for requests sent
 // to the ServiceQueryMapBoolArrayBool MethodQueryMapBoolArrayBool endpoint.
-func DecodeMethodQueryMapBoolArrayBoolRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload, error) {
+func DecodeMethodQueryMapBoolArrayBoolRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload, error) {
 	return func(r *http.Request) (*servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload, error) {
 		var payload *servicequerymapboolarraybool.MethodQueryMapBoolArrayBoolPayload
 		var (

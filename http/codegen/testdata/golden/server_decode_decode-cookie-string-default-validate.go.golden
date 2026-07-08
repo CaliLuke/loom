@@ -1,7 +1,7 @@
 // DecodeMethodCookieStringDefaultValidateRequest returns a decoder for
 // requests sent to the ServiceCookieStringDefaultValidate
 // MethodCookieStringDefaultValidate endpoint.
-func DecodeMethodCookieStringDefaultValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiestringdefaultvalidate.MethodCookieStringDefaultValidatePayload, error) {
+func DecodeMethodCookieStringDefaultValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiestringdefaultvalidate.MethodCookieStringDefaultValidatePayload, error) {
 	return func(r *http.Request) (*servicecookiestringdefaultvalidate.MethodCookieStringDefaultValidatePayload, error) {
 		var payload *servicecookiestringdefaultvalidate.MethodCookieStringDefaultValidatePayload
 		var (

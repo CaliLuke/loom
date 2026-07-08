@@ -1,7 +1,7 @@
 // DecodeMethodHeaderPrimitiveBoolValidateRequest returns a decoder for
 // requests sent to the ServiceHeaderPrimitiveBoolValidate
 // MethodHeaderPrimitiveBoolValidate endpoint.
-func DecodeMethodHeaderPrimitiveBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (bool, error) {
+func DecodeMethodHeaderPrimitiveBoolValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (bool, error) {
 	return func(r *http.Request) (bool, error) {
 		var payload bool
 		var (

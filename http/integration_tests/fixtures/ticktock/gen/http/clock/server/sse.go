@@ -34,8 +34,8 @@ type TickServerStream struct {
 	r *http.Request
 }
 
-// Send Send streams instances of "clock.TickTockEvent" to the "Tick" endpoint
-// SSE connection.
+// Send streams instances of "clock.TickTockEvent" to the "Tick" endpoint SSE
+// connection.
 func (s *TickServerStream) Send(v *clock.TickTockEvent) error {
 	return s.SendWithContext(s.r.Context(), v)
 }
@@ -64,8 +64,8 @@ func (s *TickServerStream) started() bool {
 	return s.streamStarted
 }
 
-// SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
-// to the "Tick" endpoint SSE connection with context.
+// SendWithContext streams instances of "clock.TickTockEvent" to the "Tick"
+// endpoint SSE connection with context.
 func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -163,8 +163,8 @@ type TockServerStream struct {
 	r *http.Request
 }
 
-// Send Send streams instances of "clock.TickTockEvent" to the "Tock" endpoint
-// SSE connection.
+// Send streams instances of "clock.TickTockEvent" to the "Tock" endpoint SSE
+// connection.
 func (s *TockServerStream) Send(v *clock.TickTockEvent) error {
 	return s.SendWithContext(s.r.Context(), v)
 }
@@ -193,8 +193,8 @@ func (s *TockServerStream) started() bool {
 	return s.streamStarted
 }
 
-// SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
-// to the "Tock" endpoint SSE connection with context.
+// SendWithContext streams instances of "clock.TickTockEvent" to the "Tock"
+// endpoint SSE connection with context.
 func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -292,8 +292,8 @@ type GuardedServerStream struct {
 	r *http.Request
 }
 
-// Send Send streams instances of "clock.TickTockEvent" to the "Guarded"
-// endpoint SSE connection.
+// Send streams instances of "clock.TickTockEvent" to the "Guarded" endpoint
+// SSE connection.
 func (s *GuardedServerStream) Send(v *clock.TickTockEvent) error {
 	return s.SendWithContext(s.r.Context(), v)
 }
@@ -322,8 +322,8 @@ func (s *GuardedServerStream) started() bool {
 	return s.streamStarted
 }
 
-// SendWithContext SendWithContext streams instances of "clock.TickTockEvent"
-// to the "Guarded" endpoint SSE connection with context.
+// SendWithContext streams instances of "clock.TickTockEvent" to the "Guarded"
+// endpoint SSE connection with context.
 func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.TickTockEvent) error {
 	if err := ctx.Err(); err != nil {
 		return err

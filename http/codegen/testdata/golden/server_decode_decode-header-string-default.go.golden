@@ -1,6 +1,6 @@
 // DecodeMethodHeaderStringDefaultRequest returns a decoder for requests sent
 // to the ServiceHeaderStringDefault MethodHeaderStringDefault endpoint.
-func DecodeMethodHeaderStringDefaultRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstringdefault.MethodHeaderStringDefaultPayload, error) {
+func DecodeMethodHeaderStringDefaultRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstringdefault.MethodHeaderStringDefaultPayload, error) {
 	return func(r *http.Request) (*serviceheaderstringdefault.MethodHeaderStringDefaultPayload, error) {
 		var payload *serviceheaderstringdefault.MethodHeaderStringDefaultPayload
 		var (

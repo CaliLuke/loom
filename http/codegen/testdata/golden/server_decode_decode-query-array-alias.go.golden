@@ -1,6 +1,6 @@
 // DecodeMethodARequest returns a decoder for requests sent to the
 // ServiceQueryArrayAlias MethodA endpoint.
-func DecodeMethodARequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayalias.MethodAPayload, error) {
+func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayalias.MethodAPayload, error) {
 	return func(r *http.Request) (*servicequeryarrayalias.MethodAPayload, error) {
 		var payload *servicequeryarrayalias.MethodAPayload
 		var (

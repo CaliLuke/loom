@@ -1,6 +1,6 @@
 // DecodeMethodQueryArrayIntValidateRequest returns a decoder for requests sent
 // to the ServiceQueryArrayIntValidate MethodQueryArrayIntValidate endpoint.
-func DecodeMethodQueryArrayIntValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayintvalidate.MethodQueryArrayIntValidatePayload, error) {
+func DecodeMethodQueryArrayIntValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayintvalidate.MethodQueryArrayIntValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryarrayintvalidate.MethodQueryArrayIntValidatePayload, error) {
 		var payload *servicequeryarrayintvalidate.MethodQueryArrayIntValidatePayload
 		var (

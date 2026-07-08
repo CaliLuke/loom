@@ -1,7 +1,7 @@
 // DecodeMethodMultipartObjectGeneratedWithPathParamRequest returns a decoder
 // for requests sent to the ServiceMultipartObjectGeneratedWithPathParam
 // MethodMultipartObjectGeneratedWithPathParam endpoint.
-func DecodeMethodMultipartObjectGeneratedWithPathParamRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartobjectgeneratedwithpathparam.MethodMultipartObjectGeneratedWithPathParamPayload, error) {
+func DecodeMethodMultipartObjectGeneratedWithPathParamRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartobjectgeneratedwithpathparam.MethodMultipartObjectGeneratedWithPathParamPayload, error) {
 	return func(r *http.Request) (*servicemultipartobjectgeneratedwithpathparam.MethodMultipartObjectGeneratedWithPathParamPayload, error) {
 		var payload *servicemultipartobjectgeneratedwithpathparam.MethodMultipartObjectGeneratedWithPathParamPayload
 		var (

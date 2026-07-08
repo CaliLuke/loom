@@ -1,7 +1,7 @@
 // DecodeMethodQueryStringNotRequiredValidateRequest returns a decoder for
 // requests sent to the ServiceQueryStringNotRequiredValidate
 // MethodQueryStringNotRequiredValidate endpoint.
-func DecodeMethodQueryStringNotRequiredValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerystringnotrequiredvalidate.MethodQueryStringNotRequiredValidatePayload, error) {
+func DecodeMethodQueryStringNotRequiredValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerystringnotrequiredvalidate.MethodQueryStringNotRequiredValidatePayload, error) {
 	return func(r *http.Request) (*servicequerystringnotrequiredvalidate.MethodQueryStringNotRequiredValidatePayload, error) {
 		var payload *servicequerystringnotrequiredvalidate.MethodQueryStringNotRequiredValidatePayload
 		var (

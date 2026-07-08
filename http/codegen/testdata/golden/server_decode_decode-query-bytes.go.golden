@@ -1,6 +1,6 @@
 // DecodeMethodQueryBytesRequest returns a decoder for requests sent to the
 // ServiceQueryBytes MethodQueryBytes endpoint.
-func DecodeMethodQueryBytesRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerybytes.MethodQueryBytesPayload, error) {
+func DecodeMethodQueryBytesRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerybytes.MethodQueryBytesPayload, error) {
 	return func(r *http.Request) (*servicequerybytes.MethodQueryBytesPayload, error) {
 		var payload *servicequerybytes.MethodQueryBytesPayload
 		var (

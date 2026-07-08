@@ -1,6 +1,6 @@
 // DecodeMethodPathArrayStringRequest returns a decoder for requests sent to
 // the ServicePathArrayString MethodPathArrayString endpoint.
-func DecodeMethodPathArrayStringRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepatharraystring.MethodPathArrayStringPayload, error) {
+func DecodeMethodPathArrayStringRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepatharraystring.MethodPathArrayStringPayload, error) {
 	return func(r *http.Request) (*servicepatharraystring.MethodPathArrayStringPayload, error) {
 		var payload *servicepatharraystring.MethodPathArrayStringPayload
 		var (

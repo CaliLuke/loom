@@ -1,6 +1,6 @@
 // DecodeMethodCookieCustomNameRequest returns a decoder for requests sent to
 // the ServiceCookieCustomName MethodCookieCustomName endpoint.
-func DecodeMethodCookieCustomNameRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiecustomname.MethodCookieCustomNamePayload, error) {
+func DecodeMethodCookieCustomNameRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiecustomname.MethodCookieCustomNamePayload, error) {
 	return func(r *http.Request) (*servicecookiecustomname.MethodCookieCustomNamePayload, error) {
 		var payload *servicecookiecustomname.MethodCookieCustomNamePayload
 		var (

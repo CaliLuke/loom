@@ -133,18 +133,21 @@ func addSSEClientInterface(stmt *jen.Statement, ed *EndpointData, streamName str
 	)
 }
 
-func addSSEClientImplStruct(stmt *jen.Statement, streamName, implName string) {
+func addSSEClientImplStruct(stmt *jen.Statement, ed *EndpointData, streamName, implName string) {
 	stmt.Line()
 	stmt.Type().DefsFunc(func(group *jen.Group) {
 		group.Comment(implName + " implements the " + streamName + " interface.")
-		group.Id(implName).Struct(
+		fields := []jen.Code{
 			jen.Id("resp").Op("*").Qual("net/http", "Response"),
-			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
 			jen.Id("buffer").Index().Byte().Comment("Buffer for unprocessed data"),
 			jen.Id("readLock").Qual("sync", "Mutex"),
 			jen.Id("lock").Qual("sync", "Mutex"),
 			jen.Id("closed").Bool(),
-		)
+		}
+		if sseClientNeedsDecoder(ed) {
+			fields = append(fields, jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")))
+		}
+		group.Id(implName).Struct(fields...)
 	})
 	stmt.Line()
 	codegen.Doc(stmt, implName+" implements the "+streamName+" interface.")
@@ -162,12 +165,15 @@ func addSSEClientConstructor(stmt *jen.Statement, ed *EndpointData, streamName, 
 		).
 		Id(streamName).
 		BlockFunc(func(group *jen.Group) {
+			values := jen.Dict{
+				jen.Id("resp"):   jen.Id("resp"),
+				jen.Id("buffer"): jen.Make(jen.Index().Byte(), jen.Lit(0), jen.Lit(4096)),
+			}
+			if sseClientNeedsDecoder(ed) {
+				values[jen.Id("decoder")] = jen.Id("decoder")
+			}
 			group.Return(
-				jen.Op("&").Id(implName).Values(jen.Dict{
-					jen.Id("resp"):    jen.Id("resp"),
-					jen.Id("decoder"): jen.Id("decoder"),
-					jen.Id("buffer"):  jen.Make(jen.Index().Byte(), jen.Lit(0), jen.Lit(4096)),
-				}),
+				jen.Op("&").Id(implName).Values(values),
 			)
 		})
 }

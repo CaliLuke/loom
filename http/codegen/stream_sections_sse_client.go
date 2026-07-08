@@ -8,6 +8,22 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 )
 
+func sseClientNeedsDecoder(ed *EndpointData) bool {
+	if ed.SSE.DataField != "" {
+		return sseParseAssignmentNeedsDecoder(ed.SSE.DataFieldTypeRef)
+	}
+	return ed.SSE.EventIsStruct || sseParseAssignmentNeedsDecoder(ed.SSE.EventTypeRef)
+}
+
+func sseParseAssignmentNeedsDecoder(typeRef string) bool {
+	switch typeRef {
+	case "string", "[]byte", "int":
+		return false
+	default:
+		return true
+	}
+}
+
 func renderSSEClientReadEvent(implName string) string {
 	var b sourceBuilder
 	b.Add("// readEvent reads a single SSE event from the stream, respecting context\n")
@@ -231,7 +247,7 @@ func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {
 	streamName := ed.Method.VarName + "ClientStream"
 	implName := ed.Method.VarName + "StreamImpl"
 	addSSEClientInterface(stmt, ed, streamName)
-	addSSEClientImplStruct(stmt, streamName, implName)
+	addSSEClientImplStruct(stmt, ed, streamName, implName)
 	addSSEClientConstructor(stmt, ed, streamName, implName)
 	stmt.Line()
 	codegen.Doc(stmt, "Recv reads and returns the next event from the SSE stream, respecting context cancellation.")

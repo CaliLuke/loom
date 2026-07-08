@@ -1,6 +1,6 @@
 // DecodeMethodPathCustomIntRequest returns a decoder for requests sent to the
 // ServicePathCustomInt MethodPathCustomInt endpoint.
-func DecodeMethodPathCustomIntRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomint.MethodPathCustomIntPayload, error) {
+func DecodeMethodPathCustomIntRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomint.MethodPathCustomIntPayload, error) {
 	return func(r *http.Request) (*servicepathcustomint.MethodPathCustomIntPayload, error) {
 		var payload *servicepathcustomint.MethodPathCustomIntPayload
 		var (

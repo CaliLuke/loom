@@ -1,7 +1,7 @@
 // DecodeMethodQueryPrimitiveStringDefaultRequest returns a decoder for
 // requests sent to the ServiceQueryPrimitiveStringDefault
 // MethodQueryPrimitiveStringDefault endpoint.
-func DecodeMethodQueryPrimitiveStringDefaultRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (string, error) {
+func DecodeMethodQueryPrimitiveStringDefaultRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (string, error) {
 	return func(r *http.Request) (string, error) {
 		var payload string
 		var (

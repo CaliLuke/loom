@@ -1,6 +1,6 @@
 // DecodeMethodQueryCustomNameRequest returns a decoder for requests sent to
 // the ServiceQueryCustomName MethodQueryCustomName endpoint.
-func DecodeMethodQueryCustomNameRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomname.MethodQueryCustomNamePayload, error) {
+func DecodeMethodQueryCustomNameRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomname.MethodQueryCustomNamePayload, error) {
 	return func(r *http.Request) (*servicequerycustomname.MethodQueryCustomNamePayload, error) {
 		var payload *servicequerycustomname.MethodQueryCustomNamePayload
 		var (

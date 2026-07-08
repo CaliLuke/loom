@@ -2,7 +2,7 @@
 // decoder for requests sent to the
 // ServiceQueryPrimitiveMapStringArrayStringValidate
 // MethodQueryPrimitiveMapStringArrayStringValidate endpoint.
-func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string][]string, error) {
+func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string][]string, error) {
 	return func(r *http.Request) (map[string][]string, error) {
 		var payload map[string][]string
 		var (

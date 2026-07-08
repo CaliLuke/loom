@@ -1,6 +1,6 @@
 // DecodeMethodQueryArrayStringRequest returns a decoder for requests sent to
 // the ServiceQueryArrayString MethodQueryArrayString endpoint.
-func DecodeMethodQueryArrayStringRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarraystring.MethodQueryArrayStringPayload, error) {
+func DecodeMethodQueryArrayStringRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarraystring.MethodQueryArrayStringPayload, error) {
 	return func(r *http.Request) (*servicequeryarraystring.MethodQueryArrayStringPayload, error) {
 		var payload *servicequeryarraystring.MethodQueryArrayStringPayload
 		var (

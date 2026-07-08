@@ -1,6 +1,6 @@
 // DecodeMethodQueryFloat64ValidateRequest returns a decoder for requests sent
 // to the ServiceQueryFloat64Validate MethodQueryFloat64Validate endpoint.
-func DecodeMethodQueryFloat64ValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryfloat64validate.MethodQueryFloat64ValidatePayload, error) {
+func DecodeMethodQueryFloat64ValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryfloat64validate.MethodQueryFloat64ValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryfloat64validate.MethodQueryFloat64ValidatePayload, error) {
 		var payload *servicequeryfloat64validate.MethodQueryFloat64ValidatePayload
 		var (

@@ -1,7 +1,7 @@
 // DecodeMethodHeaderCustomTextUnmarshalerRequest returns a decoder for
 // requests sent to the ServiceHeaderCustomTextUnmarshaler
 // MethodHeaderCustomTextUnmarshaler endpoint.
-func DecodeMethodHeaderCustomTextUnmarshalerRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload, error) {
+func DecodeMethodHeaderCustomTextUnmarshalerRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload, error) {
 	return func(r *http.Request) (*serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload, error) {
 		var payload *serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload
 		var (

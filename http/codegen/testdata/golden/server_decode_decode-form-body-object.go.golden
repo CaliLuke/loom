@@ -1,6 +1,6 @@
 // DecodeMethodFormBodyObjectRequest returns a decoder for requests sent to the
 // ServiceFormBodyObject MethodFormBodyObject endpoint.
-func DecodeMethodFormBodyObjectRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceformbodyobject.MethodFormBodyObjectPayload, error) {
+func DecodeMethodFormBodyObjectRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceformbodyobject.MethodFormBodyObjectPayload, error) {
 	return func(r *http.Request) (*serviceformbodyobject.MethodFormBodyObjectPayload, error) {
 		var payload *serviceformbodyobject.MethodFormBodyObjectPayload
 		var (

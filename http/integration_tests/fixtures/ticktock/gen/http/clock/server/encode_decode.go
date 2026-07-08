@@ -64,7 +64,7 @@ func EncodeGuardedResponse(encoder func(context.Context, http.ResponseWriter) lo
 
 // DecodeGuardedRequest returns a decoder for requests sent to the clock
 // Guarded endpoint.
-func DecodeGuardedRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*clock.GuardedPayload, error) {
+func DecodeGuardedRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*clock.GuardedPayload, error) {
 	return func(r *http.Request) (*clock.GuardedPayload, error) {
 		var payload *clock.GuardedPayload
 		var (

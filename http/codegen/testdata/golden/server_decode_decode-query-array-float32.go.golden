@@ -1,6 +1,6 @@
 // DecodeMethodQueryArrayFloat32Request returns a decoder for requests sent to
 // the ServiceQueryArrayFloat32 MethodQueryArrayFloat32 endpoint.
-func DecodeMethodQueryArrayFloat32Request(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload, error) {
+func DecodeMethodQueryArrayFloat32Request(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload, error) {
 	return func(r *http.Request) (*servicequeryarrayfloat32.MethodQueryArrayFloat32Payload, error) {
 		var payload *servicequeryarrayfloat32.MethodQueryArrayFloat32Payload
 		var (

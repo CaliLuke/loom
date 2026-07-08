@@ -29,7 +29,6 @@ type (
 	// TickStreamImpl implements the TickClientStream interface.
 	TickStreamImpl struct {
 		resp     *http.Response
-		decoder  func(*http.Response) loomhttp.Decoder
 		buffer   []byte // Buffer for unprocessed data
 		readLock sync.Mutex
 		lock     sync.Mutex
@@ -43,9 +42,8 @@ var _ TickClientStream = (*TickStreamImpl)(nil)
 // NewTickStream creates a new TickClientStream.
 func NewTickStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TickClientStream {
 	return &TickStreamImpl{
-		buffer:  make([]byte, 0, 4096),
-		decoder: decoder,
-		resp:    resp,
+		buffer: make([]byte, 0, 4096),
+		resp:   resp,
 	}
 }
 
@@ -254,7 +252,6 @@ type (
 	// TockStreamImpl implements the TockClientStream interface.
 	TockStreamImpl struct {
 		resp     *http.Response
-		decoder  func(*http.Response) loomhttp.Decoder
 		buffer   []byte // Buffer for unprocessed data
 		readLock sync.Mutex
 		lock     sync.Mutex
@@ -268,9 +265,8 @@ var _ TockClientStream = (*TockStreamImpl)(nil)
 // NewTockStream creates a new TockClientStream.
 func NewTockStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TockClientStream {
 	return &TockStreamImpl{
-		buffer:  make([]byte, 0, 4096),
-		decoder: decoder,
-		resp:    resp,
+		buffer: make([]byte, 0, 4096),
+		resp:   resp,
 	}
 }
 
@@ -479,7 +475,6 @@ type (
 	// GuardedStreamImpl implements the GuardedClientStream interface.
 	GuardedStreamImpl struct {
 		resp     *http.Response
-		decoder  func(*http.Response) loomhttp.Decoder
 		buffer   []byte // Buffer for unprocessed data
 		readLock sync.Mutex
 		lock     sync.Mutex
@@ -493,9 +488,8 @@ var _ GuardedClientStream = (*GuardedStreamImpl)(nil)
 // NewGuardedStream creates a new GuardedClientStream.
 func NewGuardedStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) GuardedClientStream {
 	return &GuardedStreamImpl{
-		buffer:  make([]byte, 0, 4096),
-		decoder: decoder,
-		resp:    resp,
+		buffer: make([]byte, 0, 4096),
+		resp:   resp,
 	}
 }
 

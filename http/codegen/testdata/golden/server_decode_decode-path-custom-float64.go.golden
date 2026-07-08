@@ -1,6 +1,6 @@
 // DecodeMethodPathCustomFloat64Request returns a decoder for requests sent to
 // the ServicePathCustomFloat64 MethodPathCustomFloat64 endpoint.
-func DecodeMethodPathCustomFloat64Request(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomfloat64.MethodPathCustomFloat64Payload, error) {
+func DecodeMethodPathCustomFloat64Request(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomfloat64.MethodPathCustomFloat64Payload, error) {
 	return func(r *http.Request) (*servicepathcustomfloat64.MethodPathCustomFloat64Payload, error) {
 		var payload *servicepathcustomfloat64.MethodPathCustomFloat64Payload
 		var (

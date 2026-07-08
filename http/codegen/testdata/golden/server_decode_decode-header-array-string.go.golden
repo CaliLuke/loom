@@ -1,6 +1,6 @@
 // DecodeMethodHeaderArrayStringRequest returns a decoder for requests sent to
 // the ServiceHeaderArrayString MethodHeaderArrayString endpoint.
-func DecodeMethodHeaderArrayStringRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderarraystring.MethodHeaderArrayStringPayload, error) {
+func DecodeMethodHeaderArrayStringRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderarraystring.MethodHeaderArrayStringPayload, error) {
 	return func(r *http.Request) (*serviceheaderarraystring.MethodHeaderArrayStringPayload, error) {
 		var payload *serviceheaderarraystring.MethodHeaderArrayStringPayload
 		var (

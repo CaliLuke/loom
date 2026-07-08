@@ -1,6 +1,6 @@
 // DecodeMethodMultipartUserTypeRequest returns a decoder for requests sent to
 // the ServiceMultipartUserType MethodMultipartUserType endpoint.
-func DecodeMethodMultipartUserTypeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartusertype.MethodMultipartUserTypePayload, error) {
+func DecodeMethodMultipartUserTypeRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartusertype.MethodMultipartUserTypePayload, error) {
 	return func(r *http.Request) (*servicemultipartusertype.MethodMultipartUserTypePayload, error) {
 		var payload *servicemultipartusertype.MethodMultipartUserTypePayload
 		var (

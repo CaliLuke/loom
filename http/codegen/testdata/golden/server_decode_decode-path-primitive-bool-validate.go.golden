@@ -1,7 +1,7 @@
 // DecodeMethodPathPrimitiveBoolValidateRequest returns a decoder for requests
 // sent to the ServicePathPrimitiveBoolValidate MethodPathPrimitiveBoolValidate
 // endpoint.
-func DecodeMethodPathPrimitiveBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (bool, error) {
+func DecodeMethodPathPrimitiveBoolValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (bool, error) {
 	return func(r *http.Request) (bool, error) {
 		var payload bool
 		var (

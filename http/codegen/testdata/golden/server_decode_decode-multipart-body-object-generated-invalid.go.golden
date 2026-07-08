@@ -1,7 +1,7 @@
 // DecodeMethodMultipartObjectGeneratedInvalidRequest returns a decoder for
 // requests sent to the ServiceMultipartObjectGeneratedInvalid
 // MethodMultipartObjectGeneratedInvalid endpoint.
-func DecodeMethodMultipartObjectGeneratedInvalidRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartobjectgeneratedinvalid.MethodMultipartObjectGeneratedInvalidPayload, error) {
+func DecodeMethodMultipartObjectGeneratedInvalidRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartobjectgeneratedinvalid.MethodMultipartObjectGeneratedInvalidPayload, error) {
 	return func(r *http.Request) (*servicemultipartobjectgeneratedinvalid.MethodMultipartObjectGeneratedInvalidPayload, error) {
 		var payload *servicemultipartobjectgeneratedinvalid.MethodMultipartObjectGeneratedInvalidPayload
 		var (

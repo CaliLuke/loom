@@ -1,7 +1,7 @@
 // DecodeMethodQueryCustomTextUnmarshalerRequest returns a decoder for requests
 // sent to the ServiceQueryCustomTextUnmarshaler
 // MethodQueryCustomTextUnmarshaler endpoint.
-func DecodeMethodQueryCustomTextUnmarshalerRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload, error) {
+func DecodeMethodQueryCustomTextUnmarshalerRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload, error) {
 	return func(r *http.Request) (*servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload, error) {
 		var payload *servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload
 		var (

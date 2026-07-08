@@ -1,7 +1,7 @@
 // DecodeMethodQueryMapBoolBoolValidateRequest returns a decoder for requests
 // sent to the ServiceQueryMapBoolBoolValidate MethodQueryMapBoolBoolValidate
 // endpoint.
-func DecodeMethodQueryMapBoolBoolValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapboolboolvalidate.MethodQueryMapBoolBoolValidatePayload, error) {
+func DecodeMethodQueryMapBoolBoolValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapboolboolvalidate.MethodQueryMapBoolBoolValidatePayload, error) {
 	return func(r *http.Request) (*servicequerymapboolboolvalidate.MethodQueryMapBoolBoolValidatePayload, error) {
 		var payload *servicequerymapboolboolvalidate.MethodQueryMapBoolBoolValidatePayload
 		var (
