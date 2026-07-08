@@ -226,12 +226,13 @@ func TestJSONRPCMixedHTTPAndSSEHandlerRoutesByMethod(t *testing.T) {
 	require.NotEmpty(t, mixedHandlerCode, "jsonrpc-mixed-server-handler section not found")
 	require.Contains(t, mixedHandlerCode, `if !strings.Contains(accept, "text/event-stream") {`)
 	require.Contains(t, mixedHandlerCode, `case http.MethodGet:`)
-	require.Contains(t, mixedHandlerCode, `req := &jsonrpc.RawRequest{JSONRPC: "2.0", ID: "events-stream", Method: "events/stream"}`)
+	require.Contains(t, mixedHandlerCode, `req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}`)
+	require.NotContains(t, mixedHandlerCode, `"events-stream"`)
 	require.Contains(t, mixedHandlerCode, `var req jsonrpc.RawRequest`)
 	require.Contains(t, mixedHandlerCode, `switch req.Method {`)
 	require.Contains(t, mixedHandlerCode, `case "events/stream":`)
 	require.Contains(t, mixedHandlerCode, `if err := s.EventsStream(r.Context(), r, req, w); err != nil {`)
-	require.Contains(t, mixedHandlerCode, `s.handleSSE(w, r)`)
+	require.Contains(t, mixedHandlerCode, `if err := s.EventsStream(r.Context(), r, &req, w); err != nil {`)
 	require.Contains(t, mixedHandlerCode, `s.handleHTTP(w, r)`)
 	require.NotContains(t, mixedHandlerCode, "if strings.Contains(accept, \"text/event-stream\") {\n\t\ts.handleSSE(w, r)\n\t\treturn\n\t}")
 }
@@ -287,6 +288,127 @@ func TestJSONRPCMixedServerMountIncludesGET(t *testing.T) {
 	require.NotEmpty(t, mountCode, "jsonrpc-server-mount section not found")
 	require.Contains(t, mountCode, `mux.Handle("POST", "/rpc", h.ServeHTTP)`)
 	require.Contains(t, mountCode, `mux.Handle("GET", "/rpc", h.ServeHTTP)`)
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("POST", "/rpc", h.ServeHTTP)`))
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.ServeHTTP)`))
+}
+
+func TestJSONRPCMixedServerMountDedupesRouteVerbGET(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+	service := services.Get("JSONRPCMixedInitializeEventsStreamService")
+	require.NotNil(t, service)
+	for _, endpoint := range service.Endpoints {
+		for _, route := range endpoint.Routes {
+			route.Verb = "GET"
+		}
+	}
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var mountCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-server-mount" {
+				continue
+			}
+			mountCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, mountCode, "jsonrpc-server-mount section not found")
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.ServeHTTP)`))
+}
+
+func TestJSONRPCSSEOnlyServerMountDedupesRoutesAndIncludesGETListener(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var mountCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-server-mount" {
+				continue
+			}
+			mountCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, mountCode, "jsonrpc-server-mount section not found")
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("POST", "/rpc", h.handleSSE)`))
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.handleSSE)`))
+}
+
+func TestJSONRPCMixedHandlerAvoidsFullBodyReadForNegotiation(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	var mixedHandlerCode string
+	for _, f := range serverFiles {
+		if filepath.Base(f.Path) != "server.go" || filepath.Base(filepath.Dir(f.Path)) != "server" {
+			continue
+		}
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-mixed-server-handler" {
+				continue
+			}
+			mixedHandlerCode = codegen.SectionCode(t, s)
+			break
+		}
+	}
+
+	require.NotEmpty(t, mixedHandlerCode, "jsonrpc-mixed-server-handler section not found")
+	require.NotContains(t, mixedHandlerCode, `io.ReadAll(r.Body)`)
+	require.Contains(t, mixedHandlerCode, `reader := bufio.NewReader(r.Body)`)
+	require.Contains(t, mixedHandlerCode, `const maxNegotiationWhitespace = 4096`)
+	require.Contains(t, mixedHandlerCode, `reader.Peek(1)`)
+	require.Contains(t, mixedHandlerCode, `reader.Discard(1)`)
+	require.Contains(t, mixedHandlerCode, `sniffed < maxNegotiationWhitespace`)
+	require.Contains(t, mixedHandlerCode, `first == byte(0x5b)`)
+	require.Contains(t, mixedHandlerCode, `sniffed >= maxNegotiationWhitespace`)
+}
+
+func TestJSONRPCSSEClientRequestsAcceptEventStream(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+
+	clientFiles := ClientFiles("", services)
+	require.NotEmpty(t, clientFiles, "expected JSON-RPC client files to be generated")
+
+	var clientCode string
+	for _, f := range clientFiles {
+		if filepath.Base(f.Path) != "client.go" || filepath.Base(filepath.Dir(f.Path)) != "client" {
+			continue
+		}
+		for _, s := range f.AllSections() {
+			if s.SectionName() != "jsonrpc-client-endpoint-init" {
+				continue
+			}
+			code := codegen.SectionCode(t, s)
+			if !strings.Contains(code, "EventsStream") {
+				continue
+			}
+			clientCode = code
+			break
+		}
+	}
+
+	require.NotEmpty(t, clientCode, "jsonrpc-client-endpoint-init section for events/stream not found")
+	require.Contains(t, clientCode, `req.Header.Set("Accept", "text/event-stream")`)
 }
 
 func TestJSONRPCMixedHandlerGroupsMultipleSSEMethods(t *testing.T) {
@@ -311,7 +433,10 @@ func TestJSONRPCMixedHandlerGroupsMultipleSSEMethods(t *testing.T) {
 	}
 
 	require.NotEmpty(t, mixedHandlerCode, "jsonrpc-mixed-server-handler section not found")
-	require.Contains(t, mixedHandlerCode, `case "tools/call", "events/stream":`)
+	require.Contains(t, mixedHandlerCode, `case "tools/call":`)
+	require.Contains(t, mixedHandlerCode, `if err := s.ToolsCall(r.Context(), r, &req, w); err != nil {`)
+	require.Contains(t, mixedHandlerCode, `case "events/stream":`)
+	require.Contains(t, mixedHandlerCode, `if err := s.EventsStream(r.Context(), r, &req, w); err != nil {`)
 	require.NotContains(t, mixedHandlerCode, "case \"tools/call\":\n\t\tcase \"events/stream\":")
 }
 

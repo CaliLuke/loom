@@ -107,7 +107,12 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req jsonrpc.RawRequest
-	if err := s.decoder(r).Decode(&req); err != nil {
+	if r.Method == http.MethodGet {
+		req = jsonrpc.RawRequest{
+			JSONRPC: "2.0",
+			Method:  "events/stream",
+		}
+	} else if err := s.decoder(r).Decode(&req); err != nil {
 		stream := &clockSSEStream{
 			decoder: s.decoder,
 			encoder: s.encoder,
@@ -179,7 +184,6 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 } // Mount configures the mux to serve the JSON-RPC clock service methods.
 func Mount(mux loomhttp.Muxer, h *Server) {
 	// SSE only: mount SSE handler
-	mux.Handle("POST", "/rpc", h.handleSSE)
 	mux.Handle("POST", "/rpc", h.handleSSE)
 }
 

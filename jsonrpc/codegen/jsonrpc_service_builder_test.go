@@ -98,7 +98,8 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		clientCode := topLevelSectionCode(t, ClientFiles("", services), "jsonrpc-client-struct")
 
 		require.Contains(t, serverCode, "Mixed HTTP/SSE services negotiate transports in ServeHTTP")
-		require.Contains(t, serverCode, `req := &jsonrpc.RawRequest{JSONRPC: "2.0", ID: "events-stream", Method: "events/stream"}`)
+		require.Contains(t, serverCode, `req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}`)
+		require.NotContains(t, serverCode, `"events-stream"`)
 		require.Contains(t, serverCode, `case "events/stream":`)
 		require.Contains(t, clientCode, "EventsStreamDoer loomhttp.Doer")
 		require.Contains(t, clientCode, "RestoreResponseBody bool")

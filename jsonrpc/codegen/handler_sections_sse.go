@@ -23,7 +23,12 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 				g.Id("ctx").Op(":=").Id("r").Dot("Context").Call()
 				g.Line()
 				g.Var().Id("req").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest")
-				g.If(
+				g.If(jen.Id("r").Dot("Method").Op("==").Qual("net/http", "MethodGet")).Block(
+					jen.Id("req").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest").Values(jen.Dict{
+						jen.Id("JSONRPC"): jen.Lit("2.0"),
+						jen.Id("Method"):  jen.Lit("events/stream"),
+					}),
+				).Else().If(
 					jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("r")).Dot("Decode").Call(jen.Op("&").Id("req")),
 					jen.Err().Op("!=").Nil(),
 				).BlockFunc(func(eg *jen.Group) {

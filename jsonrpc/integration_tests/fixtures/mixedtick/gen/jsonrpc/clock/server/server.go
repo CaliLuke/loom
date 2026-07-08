@@ -110,7 +110,7 @@ func copyJSONRPCResponseMetadata(dst http.ResponseWriter, src *jsonrpcResponseCa
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		req := &jsonrpc.RawRequest{JSONRPC: "2.0", ID: "events-stream", Method: "events/stream"}
+		req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}
 		switch req.Method {
 		default:
 			http.NotFound(w, r)
@@ -123,36 +123,59 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
-			return
+		reader := bufio.NewReader(r.Body)
+		const maxNegotiationWhitespace = 4096
+		var first byte
+		sniffed := 0
+		for sniffed < maxNegotiationWhitespace {
+			peek, err := reader.Peek(1)
+			if err != nil && err != io.EOF {
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
+				return
+			}
+			if len(peek) == 0 {
+				break
+			}
+			first = peek[0]
+			if first != byte(0x20) && first != byte(0x9) && first != byte(0xd) && first != byte(0xa) {
+				break
+			}
+			if _, err := reader.Discard(1); err != nil {
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
+				return
+			}
+			sniffed++
 		}
-		if err := r.Body.Close(); err != nil {
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to close request body: %w", err))
-			return
-		}
-		r.Body = io.NopCloser(bytes.NewReader(body))
 
-		trimmed := bytes.TrimLeft(body, " \t\r\n")
-		if len(trimmed) == 0 || trimmed[0] == byte(0x5b) {
+		r.Body = struct {
+			io.Reader
+			io.Closer
+		}{
+			Closer: r.Body,
+			Reader: reader,
+		}
+
+		if first == 0 || first == byte(0x5b) || sniffed >= maxNegotiationWhitespace {
 			s.handleHTTP(w, r)
 			return
 		}
 
 		var req jsonrpc.RawRequest
 		if err := s.decoder(r).Decode(&req); err != nil {
-			r.Body = io.NopCloser(bytes.NewReader(body))
-			s.handleSSE(w, r)
+			response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
+			if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to encode parse error response: %w", encErr))
+			}
 			return
 		}
-		r.Body = io.NopCloser(bytes.NewReader(body))
 
 		switch req.Method {
 		case "Tick":
-			s.handleSSE(w, r)
+			if err := s.Tick(r.Context(), r, &req, w); err != nil {
+				s.errhandler(r.Context(), w, fmt.Errorf("handler error for Tick: %w", err))
+			}
 		default:
-			s.handleHTTP(w, r)
+			s.processRequest(r.Context(), r, &req, w)
 		}
 	default:
 		http.NotFound(w, r)
@@ -297,7 +320,12 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req jsonrpc.RawRequest
-	if err := s.decoder(r).Decode(&req); err != nil {
+	if r.Method == http.MethodGet {
+		req = jsonrpc.RawRequest{
+			JSONRPC: "2.0",
+			Method:  "events/stream",
+		}
+	} else if err := s.decoder(r).Decode(&req); err != nil {
 		stream := &clockSSEStream{
 			decoder: s.decoder,
 			encoder: s.encoder,

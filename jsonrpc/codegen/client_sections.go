@@ -320,6 +320,9 @@ func writeJSONRPCClientRequestSetup(g *jen.Group, ed *httpcodegen.EndpointData, 
 	g.If(jen.Err().Op(":=").Id("encodeRequest").Call(jen.Id("req"), jen.Id("v")), jen.Err().Op("!=").Nil()).Block(
 		jen.Return(jen.Nil(), jen.Err()),
 	)
+	if httpcodegen.IsSSEEndpoint(ed) {
+		g.Id("req").Dot("Header").Dot("Set").Call(jen.Lit("Accept"), jen.Lit("text/event-stream"))
+	}
 }
 
 func writeJSONRPCWebSocketEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {
