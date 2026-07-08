@@ -271,7 +271,7 @@ func {{ .HandlerInit }}(
 			} else {
 				stream = v.Stream.(*{{ .ServerWebSocket.VarName }})
 			}
-				if stream != nil && stream.conn != nil {
+				if stream != nil && stream.conn.Conn() != nil {
 					// Response writer has been hijacked, do not encode the error
 					if errhandler != nil {
 						errhandler(ctx, w, err)

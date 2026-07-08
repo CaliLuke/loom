@@ -53,7 +53,7 @@ func NewStreamingPayloadMethodHandler(
 			} else {
 				stream = v.Stream.(*StreamingPayloadMethodServerStream)
 			}
-			if stream != nil && stream.conn != nil {
+			if stream != nil && stream.conn.Conn() != nil {
 				// Response writer has been hijacked, do not encode the error
 				if errhandler != nil {
 					errhandler(ctx, w, err)
