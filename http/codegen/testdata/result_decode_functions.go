@@ -71,7 +71,10 @@ func DecodeMethodBodyMultipleViewResponse(decoder func(*http.Response) loomhttp.
 			if err = servicebodymultipleviewviews.ValidateResulttypemultipleviews(vres); err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)
 			}
-			res := servicebodymultipleview.NewResulttypemultipleviews(vres)
+			res, err := servicebodymultipleview.NewResulttypemultipleviews(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)
+			}
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
@@ -111,7 +114,10 @@ func DecodeMethodEmptyBodyResultMultipleViewResponse(decoder func(*http.Response
 			p := NewMethodEmptyBodyResultMultipleViewResulttypemultipleviewsOK(c)
 			view := resp.Header.Get("loom-view")
 			vres := &serviceemptybodyresultmultipleviewviews.Resulttypemultipleviews{Projected: p, View: view}
-			res := serviceemptybodyresultmultipleview.NewResulttypemultipleviews(vres)
+			res, err := serviceemptybodyresultmultipleview.NewResulttypemultipleviews(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceEmptyBodyResultMultipleView", "MethodEmptyBodyResultMultipleView", err)
+			}
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
@@ -169,7 +175,10 @@ func DecodeMethodExplicitBodyPrimitiveResultMultipleViewResponse(decoder func(*h
 			if err = serviceexplicitbodyprimitiveresultmultipleviewviews.ValidateResulttypemultipleviews(vres); err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", err)
 			}
-			res := serviceexplicitbodyprimitiveresultmultipleview.NewResulttypemultipleviews(vres)
+			res, err := serviceexplicitbodyprimitiveresultmultipleview.NewResulttypemultipleviews(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", err)
+			}
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
@@ -220,7 +229,10 @@ func DecodeMethodExplicitBodyUserResultMultipleViewResponse(decoder func(*http.R
 			if err = serviceexplicitbodyuserresultmultipleviewviews.ValidateResulttypemultipleviews(vres); err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceExplicitBodyUserResultMultipleView", "MethodExplicitBodyUserResultMultipleView", err)
 			}
-			res := serviceexplicitbodyuserresultmultipleview.NewResulttypemultipleviews(vres)
+			res, err := serviceexplicitbodyuserresultmultipleview.NewResulttypemultipleviews(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceExplicitBodyUserResultMultipleView", "MethodExplicitBodyUserResultMultipleView", err)
+			}
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
@@ -315,7 +327,10 @@ func DecodeMethodTagMultipleViewsResponse(decoder func(*http.Response) loomhttp.
 			if err = servicetagmultipleviewsviews.ValidateResulttypemultipleviews(vres); err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
 			}
-			res := servicetagmultipleviews.NewResulttypemultipleviews(vres)
+			res, err := servicetagmultipleviews.NewResulttypemultipleviews(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
+			}
 			return res, nil
 		case http.StatusOK:
 			var (
@@ -332,7 +347,10 @@ func DecodeMethodTagMultipleViewsResponse(decoder func(*http.Response) loomhttp.
 			if err = servicetagmultipleviewsviews.ValidateResulttypemultipleviews(vres); err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
 			}
-			res := servicetagmultipleviews.NewResulttypemultipleviews(vres)
+			res, err := servicetagmultipleviews.NewResulttypemultipleviews(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
+			}
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
@@ -732,7 +750,10 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 			p := NewMethodAAResultOK(required, optional, optionalButRequired)
 			view := resp.Header.Get("loom-view")
 			vres := &servicewithheadersblockviewedresultviews.AResult{Projected: p, View: view}
-			res := servicewithheadersblockviewedresult.NewAResult(vres)
+			res, err := servicewithheadersblockviewedresult.NewAResult(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlockViewedResult", "MethodA", err)
+			}
 			return res, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
@@ -785,7 +806,10 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 			p := NewMethodAAResultOK(required)
 			view := "default"
 			vres := &validateerrorresponsetypeviews.AResult{Projected: p, View: view}
-			res := validateerrorresponsetype.NewAResult(vres)
+			res, err := validateerrorresponsetype.NewAResult(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
+			}
 			return res, nil
 		case http.StatusBadRequest:
 			var (

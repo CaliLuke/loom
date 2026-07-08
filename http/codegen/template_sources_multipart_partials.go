@@ -270,6 +270,11 @@ var multipartRequestDecoderConversionPartials = []templateSource{
 		{{ .VarName }}RawSlice := strings.Split({{ .VarName }}Raw, ",")
 		{{ .VarName }} = make({{ goTypeRef .Type }}, len({{ .VarName }}RawSlice))
 		for i, rv := range {{ .VarName }}RawSlice {
+			rvDecoded, err2 := url.PathUnescape(rv)
+			if err2 != nil {
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName }}Raw, "path-escaped array"))
+			}
+			rv = rvDecoded
 			{{- template "partial_slice_item_conversion" . }}
 		}
 	{{- else }}

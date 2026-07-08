@@ -26,7 +26,7 @@ type (
 		ReturnTypeRef string
 		IsCollection  bool
 		TargetType    string
-		InitName       string
+		InitName      string
 		ViewExpr      string
 		Source        string
 		Target        string
@@ -128,6 +128,9 @@ type (
 		Args []*InitArgData
 		// ReturnTypeRef is the reference to the return type.
 		ReturnTypeRef string
+		// ReturnsError indicates whether the constructor returns an error as a
+		// second result.
+		ReturnsError bool
 		// Code is the transformation code.
 		Code string
 		// Helpers contain the helpers used in the transformation code.

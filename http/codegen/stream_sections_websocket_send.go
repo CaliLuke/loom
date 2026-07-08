@@ -44,10 +44,12 @@ func writeServerWebSocketSendResult(b *sourceBuilder, ws *WebSocketData) {
 		return
 	}
 	if ws.Endpoint.Method.ViewedResult.ViewName != "" {
-		b.Addf("\tres := %s.%s(v, %q)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name, ws.Endpoint.Method.ViewedResult.ViewName)
+		b.Addf("\tres, err := %s.%s(v, %q)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name, ws.Endpoint.Method.ViewedResult.ViewName)
+		b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
 		return
 	}
-	b.Addf("\tres := %s.%s(v, s.view)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name)
+	b.Addf("\tres, err := %s.%s(v, s.view)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name)
+	b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
 }
 
 func writeServerWebSocketResponseBody(b *sourceBuilder, ws *WebSocketData) bool {

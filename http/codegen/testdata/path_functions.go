@@ -69,7 +69,7 @@ var PathStringSliceParamCode = `// MethodPathStringSliceParamServicePathStringSl
 func MethodPathStringSliceParamServicePathStringSliceParamPath(a []string) string {
 	aSlice := make([]string, len(a))
 	for i, v := range a {
-		aSlice[i] = url.QueryEscape(v)
+		aSlice[i] = url.PathEscape(v)
 	}
 	return fmt.Sprintf("/one/%v/two", strings.Join(aSlice, ","))
 }
@@ -169,7 +169,7 @@ var PathInterfaceSliceParamCode = `// MethodPathInterfaceSliceParamServicePathIn
 func MethodPathInterfaceSliceParamServicePathInterfaceSliceParamPath(a []any) string {
 	aSlice := make([]string, len(a))
 	for i, v := range a {
-		aSlice[i] = url.QueryEscape(fmt.Sprintf("%v", v))
+		aSlice[i] = url.PathEscape(fmt.Sprintf("%v", v))
 	}
 	return fmt.Sprintf("/one/%v/two", strings.Join(aSlice, ","))
 }

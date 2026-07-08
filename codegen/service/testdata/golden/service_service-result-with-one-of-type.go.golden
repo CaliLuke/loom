@@ -253,23 +253,23 @@ func (u *Result) UnmarshalJSON(data []byte) error {
 
 // NewResultOneof initializes result type ResultOneof from viewed result type
 // ResultOneof.
-func NewResultOneof(vres *resultwithoneoftypeviews.ResultOneof) *ResultOneof {
+func NewResultOneof(vres *resultwithoneoftypeviews.ResultOneof) (*ResultOneof, error) {
 
 	var res *ResultOneof
 	switch vres.View {
 	case "default", "":
 		res = NewResultOneofFromResultOneofView(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedResultOneof initializes viewed result type ResultOneof from result
 // type ResultOneof using the given view.
-func NewViewedResultOneof(res *ResultOneof, view string) *resultwithoneoftypeviews.ResultOneof {
+func NewViewedResultOneof(res *ResultOneof, view string) (*resultwithoneoftypeviews.ResultOneof, error) {
 
 	var vres *resultwithoneoftypeviews.ResultOneof
 	switch view {
@@ -277,11 +277,11 @@ func NewViewedResultOneof(res *ResultOneof, view string) *resultwithoneoftypevie
 		p := ProjectResultOneof(res)
 		vres = &resultwithoneoftypeviews.ResultOneof{Projected: p, View: "default"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewResultOneofFromResultOneofView converts projected type ResultOneofView to

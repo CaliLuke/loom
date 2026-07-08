@@ -35,7 +35,7 @@ type MultipleViewsCollection []*MultipleViews
 
 // NewMultipleViewsCollection initializes result type MultipleViewsCollection
 // from viewed result type MultipleViewsCollection.
-func NewMultipleViewsCollection(vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollection) MultipleViewsCollection {
+func NewMultipleViewsCollection(vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollection) (MultipleViewsCollection, error) {
 
 	var res MultipleViewsCollection
 	switch vres.View {
@@ -44,18 +44,18 @@ func NewMultipleViewsCollection(vres resultcollectionmultipleviewsmethodviews.Mu
 	case "tiny":
 		res = NewMultipleViewsCollectionFromMultipleViewsCollectionViewTiny(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedMultipleViewsCollection initializes viewed result type
 // MultipleViewsCollection from result type MultipleViewsCollection using the
 // given view.
-func NewViewedMultipleViewsCollection(res MultipleViewsCollection, view string) resultcollectionmultipleviewsmethodviews.MultipleViewsCollection {
+func NewViewedMultipleViewsCollection(res MultipleViewsCollection, view string) (resultcollectionmultipleviewsmethodviews.MultipleViewsCollection, error) {
 
 	var vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollection
 	switch view {
@@ -66,12 +66,12 @@ func NewViewedMultipleViewsCollection(res MultipleViewsCollection, view string) 
 		p := ProjectMultipleViewsCollectionTiny(res)
 		vres = resultcollectionmultipleviewsmethodviews.MultipleViewsCollection{Projected: p, View: "tiny"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewMultipleViewsCollectionFromMultipleViewsCollectionView converts projected

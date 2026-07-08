@@ -57,6 +57,30 @@ func TestEndpoint(t *testing.T) {
 	}
 }
 
+func TestEndpointPropagatesViewedResultConstructorError(t *testing.T) {
+	code := endpointSectionCode(t, testdata.WithResultMultipleViewsEndpointDSL)
+
+	require.Contains(t, code, `vres, err := NewViewedViewtype(res, "tiny")`)
+	require.Contains(t, code, "if err != nil {\n\t\t\treturn nil, err\n\t\t}")
+	require.NotContains(t, code, `vres := NewViewedViewtype(res, "tiny")`)
+}
+
+func endpointSectionCode(t *testing.T, dsl func()) string {
+	t.Helper()
+	root := codegen.RunDSL(t, dsl)
+	services := NewServicesData(root)
+	require.Len(t, root.Services, 1)
+	file := EndpointFile("github.com/CaliLuke/loom/example", root.Services[0], services)
+	require.NotNil(t, file)
+	buf := new(bytes.Buffer)
+	for _, section := range file.AllSections()[1:] {
+		require.NoError(t, section.Write(buf))
+	}
+	bs, err := format.Source(buf.Bytes())
+	require.NoError(t, err, buf.String())
+	return string(bs)
+}
+
 func TestStreamingEndpointAuthUsesPayloadWhenEndpointStructIsOmitted(t *testing.T) {
 	method := &EndpointMethodData{
 		MethodData: &MethodData{

@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadResultCollectionWithExplicitViewClientStreamRecvCode = `// CloseAndRecv stops sending messages to the
 // "StreamingPayloadResultCollectionWithExplicitViewMethod" endpoint websocket
 // connection and reads instances of
@@ -30,7 +29,11 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodClientStream) Clo
 	if err := streamingpayloadresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithExplicitViewService", "StreamingPayloadResultCollectionWithExplicitViewMethod", err)
 	}
-	return streamingpayloadresultcollectionwithexplicitviewservice.NewUsertypeCollection(vres), nil
+	result, err := streamingpayloadresultcollectionwithexplicitviewservice.NewUsertypeCollection(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithExplicitViewService", "StreamingPayloadResultCollectionWithExplicitViewMethod", err)
+	}
+	return result, nil
 }
 
 // CloseAndRecvWithContext stops sending messages to the
@@ -61,5 +64,3 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodClientStream) Clo
 	return v, err
 }
 `
-
-

@@ -4,11 +4,15 @@ func DecodeMethodPathStringRequest(mux loomhttp.Muxer, decoder func(*http.Reques
 	return func(r *http.Request) (*servicepathstring.MethodPathStringPayload, error) {
 		var payload *servicepathstring.MethodPathStringPayload
 		var (
-			p string
+			p   string
+			err error
 
 			params = mux.Vars(r)
 		)
 		p = params["p"]
+		if err != nil {
+			return payload, err
+		}
 		payload = NewMethodPathStringPayload(p)
 
 		return payload, nil

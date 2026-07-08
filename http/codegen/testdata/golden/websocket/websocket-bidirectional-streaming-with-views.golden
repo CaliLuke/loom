@@ -102,7 +102,10 @@ func (s *BidirectionalWithViewsServerStream) SendWithContext(ctx context.Context
 		if s.upgradeErr != nil {
 			return s.upgradeErr
 		}
-		res := testservice.NewViewedResponse(v, s.view)
+		res, err := testservice.NewViewedResponse(v, s.view)
+		if err != nil {
+			return err
+		}
 		var body any
 		switch s.view {
 		case "default", "":

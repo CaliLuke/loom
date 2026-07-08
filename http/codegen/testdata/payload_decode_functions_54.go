@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadPathArrayStringValidateDecodeCode = `// DecodeMethodPathArrayStringValidateRequest returns a decoder for requests
 // sent to the ServicePathArrayStringValidate MethodPathArrayStringValidate
 // endpoint.
@@ -17,6 +16,11 @@ func DecodeMethodPathArrayStringValidateRequest(mux loomhttp.Muxer, decoder func
 			pRawSlice := strings.Split(pRaw, ",")
 			p = make([]string, len(pRawSlice))
 			for i, rv := range pRawSlice {
+				rvDecoded, err2 := url.PathUnescape(rv)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("p", pRaw, "path-escaped array"))
+				}
+				rv = rvDecoded
 				p[i] = rv
 			}
 		}
@@ -32,5 +36,3 @@ func DecodeMethodPathArrayStringValidateRequest(mux loomhttp.Muxer, decoder func
 	}
 }
 `
-
-

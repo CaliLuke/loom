@@ -109,7 +109,15 @@ func TestVars(t *testing.T) {
 			Pattern: "/users/{id}",
 			URL:     "/users/%40123",
 			Expected: map[string]string{
-				"id": "@123",
+				"id": "%40123",
+			},
+		},
+		{
+			Name:    "escaped percent literal",
+			Pattern: "/users/{id}",
+			URL:     "/users/100%2520",
+			Expected: map[string]string{
+				"id": "100%20",
 			},
 		},
 		{
@@ -117,8 +125,8 @@ func TestVars(t *testing.T) {
 			Pattern: "/users/{id}/posts/{*post_id}",
 			URL:     "/users/%40123/posts/456/789%24",
 			Expected: map[string]string{
-				"id":      "@123",
-				"post_id": "456/789$",
+				"id":      "%40123",
+				"post_id": "456/789%24",
 			},
 		},
 		{

@@ -15,7 +15,7 @@ func TestJSONRPCClientEncodeDecodeFileRewrite(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeRewriteDSL)
 	files := ClientFiles("", CreateJSONRPCServices(root))
 
-	file := requireCodegenFile(t, files, "client", "encode_decode.go")
+	file := requireEncodeDecodeFile(t, files, "client")
 	sectionNames := sectionNames(file)
 	assert.Contains(t, sectionNames, "source-header")
 	assert.Contains(t, sectionNames, "jsonrpc-request-encoder")
@@ -35,7 +35,7 @@ func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeRewriteDSL)
 	files := ServerFiles("", CreateJSONRPCServices(root))
 
-	file := requireCodegenFile(t, files, "server", "encode_decode.go")
+	file := requireEncodeDecodeFile(t, files, "server")
 	sectionNames := sectionNames(file)
 	assert.Contains(t, sectionNames, "source-header")
 	assert.Contains(t, sectionNames, "jsonrpc-request-decoder")
@@ -54,7 +54,7 @@ func TestJSONRPCClientDecoderReturnsDecodedUnmappedError(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeRewriteDSL)
 	files := ClientFiles("", CreateJSONRPCServices(root))
 
-	file := requireCodegenFile(t, files, "client", "encode_decode.go")
+	file := requireEncodeDecodeFile(t, files, "client")
 	code := renderCodegenFile(t, file)
 
 	assert.Contains(t, code, `return nil, jresp.Error`)
@@ -62,15 +62,27 @@ func TestJSONRPCClientDecoderReturnsDecodedUnmappedError(t *testing.T) {
 				body, _ := io.ReadAll(resp.Body)`)
 }
 
-func requireCodegenFile(t *testing.T, files []*codegen.File, dir, base string) *codegen.File {
+func TestJSONRPCClientDecoderPropagatesViewedResultConstructorError(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcViewedResultDSL)
+	files := ClientFiles("", CreateJSONRPCServices(root))
+
+	file := requireEncodeDecodeFile(t, files, "client")
+	code := renderCodegenFile(t, file)
+
+	assert.Contains(t, code, `res, err := servicebodymultipleview.NewResulttypemultipleviews(vres)`)
+	assert.Contains(t, code, `return nil, loomhttp.ErrValidationError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)`)
+	assert.NotContains(t, code, `res := servicebodymultipleview.NewResulttypemultipleviews(vres)`)
+}
+
+func requireEncodeDecodeFile(t *testing.T, files []*codegen.File, dir string) *codegen.File {
 	t.Helper()
 
 	for _, file := range files {
-		if filepath.Base(file.Path) == base && filepath.Base(filepath.Dir(file.Path)) == dir {
+		if filepath.Base(file.Path) == "encode_decode.go" && filepath.Base(filepath.Dir(file.Path)) == dir {
 			return file
 		}
 	}
-	require.FailNowf(t, "missing codegen file", "expected %s/%s", dir, base)
+	require.FailNowf(t, "missing codegen file", "expected %s/encode_decode.go", dir)
 	return nil
 }
 
@@ -109,6 +121,38 @@ var jsonrpcEncodeDecodeRewriteDSL = func() {
 				dsl.ID("id")
 				dsl.Attribute("total", dsl.Int)
 			})
+			dsl.JSONRPC(func() {})
+		})
+	})
+}
+
+var jsonrpcViewedResultDSL = func() {
+	dsl.API("jsonrpc-viewed-result", func() {
+		dsl.JSONRPC(func() {})
+	})
+
+	resultType := dsl.ResultType("application/vnd.result.multiple.views", func() {
+		dsl.TypeName("Resulttypemultipleviews")
+		dsl.Attributes(func() {
+			dsl.Attribute("a", dsl.String)
+			dsl.Attribute("b", dsl.String)
+		})
+		dsl.View("default", func() {
+			dsl.Attribute("a")
+			dsl.Attribute("b")
+		})
+		dsl.View("tiny", func() {
+			dsl.Attribute("a")
+		})
+	})
+
+	dsl.Service("ServiceBodyMultipleView", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+
+		dsl.Method("MethodBodyMultipleView", func() {
+			dsl.Result(resultType)
 			dsl.JSONRPC(func() {})
 		})
 	})

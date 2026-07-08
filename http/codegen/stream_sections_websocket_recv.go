@@ -174,7 +174,11 @@ func writeClientWebsocketViewedResultReturn(b *sourceBuilder, ws *WebSocketData)
 	b.Addf("\tif err := %s.Validate%s(vres); err != nil {\n", view.ViewsPkg, ws.Endpoint.Method.Result)
 	b.Addf("\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
 	b.Add("\t}\n")
-	b.Addf("\treturn %s.%s(vres), nil\n", ws.PkgName, view.ResultInit.Name)
+	b.Addf("\tresult, err := %s.%s(vres)\n", ws.PkgName, view.ResultInit.Name)
+	b.Add("\tif err != nil {\n")
+	b.Addf("\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
+	b.Add("\t}\n")
+	b.Add("\treturn result, nil\n")
 }
 
 func writeWebSocketContextGuard(b *sourceBuilder, returnValue string) {

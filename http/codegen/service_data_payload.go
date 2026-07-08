@@ -308,6 +308,9 @@ func payloadRequestNeedsValidation(paramsData []*ParamData, queryData []*ParamDa
 			return true
 		}
 	}
+	if len(paramsData) > 0 {
+		return true
+	}
 	for _, param := range paramsData {
 		if param.Validate != "" || needConversion(param.Type) || param.IsTextUnmarshaler {
 			return true

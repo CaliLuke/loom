@@ -64,7 +64,11 @@ func (s *BidirectionalWithViewsClientStream) Recv() (*testservice.Response, erro
 	if err := testserviceviews.ValidateResponse(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("TestService", "BidirectionalWithViews", err)
 	}
-	return testservice.NewResponse(vres), nil
+	result, err := testservice.NewResponse(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("TestService", "BidirectionalWithViews", err)
+	}
+	return result, nil
 }
 
 // RecvWithContext reads instances of "testservice.Response" from the

@@ -28,7 +28,10 @@ func DecodeMethodEmptyBodyResultMultipleViewResponse(decoder func(*http.Response
 			p := NewMethodEmptyBodyResultMultipleViewResulttypemultipleviewsOK(c)
 			view := resp.Header.Get("loom-view")
 			vres := &serviceemptybodyresultmultipleviewviews.Resulttypemultipleviews{Projected: p, View: view}
-			res := serviceemptybodyresultmultipleview.NewResulttypemultipleviews(vres)
+			res, err := serviceemptybodyresultmultipleview.NewResulttypemultipleviews(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceEmptyBodyResultMultipleView", "MethodEmptyBodyResultMultipleView", err)
+			}
 			return res, nil
 		default:
 			body, err := loomhttp.ReadUnexpectedResponseBody(resp)

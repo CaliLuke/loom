@@ -41,7 +41,10 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 			p := NewMethodAAResultOK(required)
 			view := "default"
 			vres := &validateerrorresponsetypeviews.AResult{Projected: p, View: view}
-			res := validateerrorresponsetype.NewAResult(vres)
+			res, err := validateerrorresponsetype.NewAResult(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
+			}
 			return res, nil
 		case http.StatusBadRequest:
 			var (

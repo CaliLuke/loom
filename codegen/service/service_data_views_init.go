@@ -29,6 +29,7 @@ func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg 
 			{Name: "view", Ref: "string"},
 		},
 		ReturnTypeRef: vresref,
+		ReturnsError:  true,
 		Code:          executeInitTypeTemplate(initTData),
 	}
 }
@@ -50,6 +51,7 @@ func buildViewedResultResultInit(att, projected *expr.AttributeExpr, views []*Vi
 		Description:   fmt.Sprintf("%s initializes result type %s from viewed result type %s.", name, resvar, resvar),
 		Args:          []*InitArgData{{Name: "vres", Ref: scope.GoFullTypeRef(att, viewspkg)}},
 		ReturnTypeRef: resref,
+		ReturnsError:  true,
 		Code:          executeInitTypeTemplate(resultInitTData),
 	}, resref
 }
@@ -83,13 +85,13 @@ func renderInitTypeCode(data viewedResultInitTemplateData) string {
 			}
 		}
 		lines = append(lines, "\tdefault:")
-		lines = append(lines, "\t\tpanic(loom.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
+		lines = append(lines, "\t\treturn "+data.ReturnVar+", loom.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
 		for _, value := range quotedViews(data.Views) {
 			lines = append(lines, "\t\t\t"+value+",")
 		}
-		lines = append(lines, "\t\t}))")
+		lines = append(lines, "\t\t})")
 		lines = append(lines, "}")
-		lines = append(lines, "return "+data.ReturnVar)
+		lines = append(lines, "return "+data.ReturnVar+", nil")
 	case data.IsCollection:
 		lines = append(lines, data.ReturnVar+" := make("+data.TargetType+", len("+data.ArgVar+"))")
 		lines = append(lines, "for i, n := range "+data.ArgVar+" {")

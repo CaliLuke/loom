@@ -35,23 +35,23 @@ type ResultWithSpace struct {
 
 // NewResultWithSpace initializes result type ResultWithSpace from viewed
 // result type ResultWithSpace.
-func NewResultWithSpace(vres *servicewithspacesviews.ResultWithSpace) *ResultWithSpace {
+func NewResultWithSpace(vres *servicewithspacesviews.ResultWithSpace) (*ResultWithSpace, error) {
 
 	var res *ResultWithSpace
 	switch vres.View {
 	case "default", "":
 		res = NewResultWithSpaceFromResultWithSpaceView(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedResultWithSpace initializes viewed result type ResultWithSpace from
 // result type ResultWithSpace using the given view.
-func NewViewedResultWithSpace(res *ResultWithSpace, view string) *servicewithspacesviews.ResultWithSpace {
+func NewViewedResultWithSpace(res *ResultWithSpace, view string) (*servicewithspacesviews.ResultWithSpace, error) {
 
 	var vres *servicewithspacesviews.ResultWithSpace
 	switch view {
@@ -59,11 +59,11 @@ func NewViewedResultWithSpace(res *ResultWithSpace, view string) *servicewithspa
 		p := ProjectResultWithSpace(res)
 		vres = &servicewithspacesviews.ResultWithSpace{Projected: p, View: "default"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewResultWithSpaceFromResultWithSpaceView converts projected type

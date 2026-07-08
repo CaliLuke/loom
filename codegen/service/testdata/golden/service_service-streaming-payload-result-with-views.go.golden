@@ -77,7 +77,7 @@ type MultipleViews struct {
 
 // NewMultipleViews initializes result type MultipleViews from viewed result
 // type MultipleViews.
-func NewMultipleViews(vres *streamingpayloadresultwithviewsserviceviews.MultipleViews) *MultipleViews {
+func NewMultipleViews(vres *streamingpayloadresultwithviewsserviceviews.MultipleViews) (*MultipleViews, error) {
 
 	var res *MultipleViews
 	switch vres.View {
@@ -86,17 +86,17 @@ func NewMultipleViews(vres *streamingpayloadresultwithviewsserviceviews.Multiple
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedMultipleViews initializes viewed result type MultipleViews from
 // result type MultipleViews using the given view.
-func NewViewedMultipleViews(res *MultipleViews, view string) *streamingpayloadresultwithviewsserviceviews.MultipleViews {
+func NewViewedMultipleViews(res *MultipleViews, view string) (*streamingpayloadresultwithviewsserviceviews.MultipleViews, error) {
 
 	var vres *streamingpayloadresultwithviewsserviceviews.MultipleViews
 	switch view {
@@ -107,12 +107,12 @@ func NewViewedMultipleViews(res *MultipleViews, view string) *streamingpayloadre
 		p := ProjectMultipleViewsTiny(res)
 		vres = &streamingpayloadresultwithviewsserviceviews.MultipleViews{Projected: p, View: "tiny"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewMultipleViewsFromMultipleViewsView converts projected type

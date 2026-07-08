@@ -39,7 +39,7 @@ type RT2 struct {
 type RT2Collection []*RT2
 
 // NewRT initializes result type RT from viewed result type RT.
-func NewRT(vres *resultwithresulttypecollectionviews.RT) *RT {
+func NewRT(vres *resultwithresulttypecollectionviews.RT) (*RT, error) {
 
 	var res *RT
 	switch vres.View {
@@ -50,18 +50,18 @@ func NewRT(vres *resultwithresulttypecollectionviews.RT) *RT {
 	case "tiny":
 		res = NewRTFromRTViewTiny(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"extended",
 			"tiny",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedRT initializes viewed result type RT from result type RT using the
 // given view.
-func NewViewedRT(res *RT, view string) *resultwithresulttypecollectionviews.RT {
+func NewViewedRT(res *RT, view string) (*resultwithresulttypecollectionviews.RT, error) {
 
 	var vres *resultwithresulttypecollectionviews.RT
 	switch view {
@@ -75,13 +75,13 @@ func NewViewedRT(res *RT, view string) *resultwithresulttypecollectionviews.RT {
 		p := ProjectRTTiny(res)
 		vres = &resultwithresulttypecollectionviews.RT{Projected: p, View: "tiny"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"extended",
 			"tiny",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewRTFromRTView converts projected type RTView to service type RT.

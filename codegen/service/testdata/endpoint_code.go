@@ -148,7 +148,10 @@ func NewAEndpoint(s Service) loom.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		vres := NewViewedRtype(res, "default")
+		vres, err := NewViewedRtype(res, "default")
+		if err != nil {
+			return nil, err
+		}
 		return vres, nil
 	}
 }
@@ -184,7 +187,10 @@ func NewAEndpoint(s Service) loom.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		vres := NewViewedViewtype(res, "tiny")
+		vres, err := NewViewedViewtype(res, "tiny")
+		if err != nil {
+			return nil, err
+		}
 		return vres, nil
 	}
 }
@@ -197,7 +203,10 @@ func NewBEndpoint(s Service) loom.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		vres := NewViewedViewtype(res, "default")
+		vres, err := NewViewedViewtype(res, "default")
+		if err != nil {
+			return nil, err
+		}
 		return vres, nil
 	}
 }

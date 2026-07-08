@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadResultWithExplicitViewServerStreamSendCode = `// SendAndCloseWithContext streams instances of
 // "streamingpayloadresultwithexplicitviewservice.Usertype" to the
 // "StreamingPayloadResultWithExplicitViewMethod" endpoint websocket connection
@@ -20,7 +19,10 @@ func (s *StreamingPayloadResultWithExplicitViewMethodServerStream) SendAndCloseW
 	defer stopContextWatch()
 	err := func() error {
 		defer s.conn.Close()
-		res := streamingpayloadresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
+		res, err := streamingpayloadresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
+		if err != nil {
+			return err
+		}
 		body := NewStreamingPayloadResultWithExplicitViewMethodResponseBodyExtended(res.Projected)
 		return s.conn.WriteJSON(body)
 	}()
@@ -40,5 +42,3 @@ func (s *StreamingPayloadResultWithExplicitViewMethodServerStream) SendAndClose(
 	return s.SendAndCloseWithContext(s.r.Context(), v)
 }
 `
-
-

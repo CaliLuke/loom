@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadResultCollectionWithExplicitViewServerStreamSendCode = `// SendAndCloseWithContext streams instances of
 // "streamingpayloadresultcollectionwithexplicitviewservice.UsertypeCollection"
 // to the "StreamingPayloadResultCollectionWithExplicitViewMethod" endpoint
@@ -20,7 +19,10 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodServerStream) Sen
 	defer stopContextWatch()
 	err := func() error {
 		defer s.conn.Close()
-		res := streamingpayloadresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
+		res, err := streamingpayloadresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
+		if err != nil {
+			return err
+		}
 		body := NewUsertypeResponseTinyCollection(res.Projected)
 		return s.conn.WriteJSON(body)
 	}()
@@ -40,5 +42,3 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodServerStream) Sen
 	return s.SendAndCloseWithContext(s.r.Context(), v)
 }
 `
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadResultCollectionWithViewsServerStreamSendCode = `// SendAndCloseWithContext streams instances of
 // "streamingpayloadresultcollectionwithviewsservice.UsertypeCollection" to the
 // "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
@@ -20,7 +19,10 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndClo
 	defer stopContextWatch()
 	err := func() error {
 		defer s.conn.Close()
-		res := streamingpayloadresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
+		res, err := streamingpayloadresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
+		if err != nil {
+			return err
+		}
 		var body any
 		switch s.view {
 		case "tiny":
@@ -48,5 +50,3 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndClo
 	return s.SendAndCloseWithContext(s.r.Context(), v)
 }
 `
-
-

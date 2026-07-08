@@ -52,7 +52,7 @@ type SingleView struct {
 
 // NewMultipleViews initializes result type MultipleViews from viewed result
 // type MultipleViews.
-func NewMultipleViews(vres *multiplemethodsresultmultipleviewsviews.MultipleViews) *MultipleViews {
+func NewMultipleViews(vres *multiplemethodsresultmultipleviewsviews.MultipleViews) (*MultipleViews, error) {
 
 	var res *MultipleViews
 	switch vres.View {
@@ -61,17 +61,17 @@ func NewMultipleViews(vres *multiplemethodsresultmultipleviewsviews.MultipleView
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedMultipleViews initializes viewed result type MultipleViews from
 // result type MultipleViews using the given view.
-func NewViewedMultipleViews(res *MultipleViews, view string) *multiplemethodsresultmultipleviewsviews.MultipleViews {
+func NewViewedMultipleViews(res *MultipleViews, view string) (*multiplemethodsresultmultipleviewsviews.MultipleViews, error) {
 
 	var vres *multiplemethodsresultmultipleviewsviews.MultipleViews
 	switch view {
@@ -82,33 +82,33 @@ func NewViewedMultipleViews(res *MultipleViews, view string) *multiplemethodsres
 		p := ProjectMultipleViewsTiny(res)
 		vres = &multiplemethodsresultmultipleviewsviews.MultipleViews{Projected: p, View: "tiny"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewSingleView initializes result type SingleView from viewed result type
 // SingleView.
-func NewSingleView(vres *multiplemethodsresultmultipleviewsviews.SingleView) *SingleView {
+func NewSingleView(vres *multiplemethodsresultmultipleviewsviews.SingleView) (*SingleView, error) {
 
 	var res *SingleView
 	switch vres.View {
 	case "default", "":
 		res = NewSingleViewFromSingleViewView(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedSingleView initializes viewed result type SingleView from result
 // type SingleView using the given view.
-func NewViewedSingleView(res *SingleView, view string) *multiplemethodsresultmultipleviewsviews.SingleView {
+func NewViewedSingleView(res *SingleView, view string) (*multiplemethodsresultmultipleviewsviews.SingleView, error) {
 
 	var vres *multiplemethodsresultmultipleviewsviews.SingleView
 	switch view {
@@ -116,11 +116,11 @@ func NewViewedSingleView(res *SingleView, view string) *multiplemethodsresultmul
 		p := ProjectSingleView(res)
 		vres = &multiplemethodsresultmultipleviewsviews.SingleView{Projected: p, View: "default"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewMultipleViewsFromMultipleViewsView converts projected type

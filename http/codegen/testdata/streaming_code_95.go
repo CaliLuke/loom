@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingResultCollectionWithExplicitViewServerStreamSendCode = `// SendWithContext streams instances of
 // "bidirectionalstreamingresultcollectionwithexplicitviewservice.UsertypeCollection"
 // to the "BidirectionalStreamingResultCollectionWithExplicitViewMethod"
@@ -46,7 +45,10 @@ func (s *BidirectionalStreamingResultCollectionWithExplicitViewMethodServerStrea
 		if s.upgradeErr != nil {
 			return s.upgradeErr
 		}
-		res := bidirectionalstreamingresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
+		res, err := bidirectionalstreamingresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
+		if err != nil {
+			return err
+		}
 		body := NewUsertypeResponseTinyCollection(res.Projected)
 		return s.conn.WriteJSON(body)
 	}()
@@ -66,5 +68,3 @@ func (s *BidirectionalStreamingResultCollectionWithExplicitViewMethodServerStrea
 	return s.SendWithContext(s.r.Context(), v)
 }
 `
-
-

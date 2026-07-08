@@ -351,14 +351,19 @@ func appendUniqueImport(imports []*codegen.ImportSpec, seen map[codegen.ImportSp
 func typeInitSection(name string, data *InitData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, data.Description)
-		stmt.Func().
+		fn := stmt.Func().
 			Id(data.Name).
 			ParamsFunc(func(group *jen.Group) {
 				for _, arg := range data.Args {
 					group.Id(arg.Name).Add(codegen.TypeRef(arg.Ref))
 				}
-			}).
-			Add(codegen.TypeRef(data.ReturnTypeRef)).
+			})
+		if data.ReturnsError {
+			fn.Params(codegen.TypeRef(data.ReturnTypeRef), jen.Error())
+		} else {
+			fn.Add(codegen.TypeRef(data.ReturnTypeRef))
+		}
+		fn.
 			BlockFunc(func(group *jen.Group) {
 				appendServiceRawBlock(group, data.Code)
 			})

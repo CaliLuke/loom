@@ -253,9 +253,12 @@ func buildMixedStreamingEndpointInvocation(group *jen.Group, method *EndpointMet
 		if method.ViewedResult.ViewName == "" {
 			viewExpr = jen.Id("view")
 		}
-		group.Id("vres").Op(":=").Id(method.ViewedResult.Init.Name).Call(
+		group.List(jen.Id("vres"), jen.Id("err")).Op(":=").Id(method.ViewedResult.Init.Name).Call(
 			jen.Id("res"),
 			viewExpr,
+		)
+		group.If(jen.Id("err").Op("!=").Nil()).Block(
+			jen.Return(jen.Nil(), jen.Id("err")),
 		)
 		group.Return(jen.Id("vres"), jen.Nil())
 		return
@@ -284,54 +287,11 @@ func buildDirectStreamingInvocation(group *jen.Group, method *EndpointMethodData
 
 func buildSkipRequestEndpointInvocation(group *jen.Group, method *EndpointMethodData) {
 	if method.SkipResponseBodyEncodeDecode {
-		lhs := []jen.Code{}
-		if method.ResultRef != "" {
-			lhs = append(lhs, jen.Id("res"))
-		}
-		lhs = append(lhs, jen.Id("body"), jen.Id("err"))
-		group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
-			args.Id("ctx")
-			if method.PayloadRef != "" {
-				args.Id("ep").Dot("Payload")
-			}
-			args.Id("ep").Dot("Body")
-		})
-		group.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Nil(), jen.Id("err")),
-		)
-		group.Return(
-			jen.Op("&").Id(method.ResponseStruct).ValuesFunc(func(values *jen.Group) {
-				if method.ResultRef != "" {
-					values.Id("Result").Op(":").Id("res")
-				}
-				values.Id("Body").Op(":").Id("body")
-			}),
-			jen.Nil(),
-		)
+		buildSkipRequestSkipResponseEndpointInvocation(group, method)
 		return
 	}
 	if method.ViewedResult != nil {
-		lhs := []jen.Code{jen.Id("res")}
-		if method.ViewedResult.ViewName == "" {
-			lhs = append(lhs, jen.Id("view"))
-		}
-		lhs = append(lhs, jen.Id("err"))
-		group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
-			args.Id("ctx")
-			if method.PayloadRef != "" {
-				args.Id("ep").Dot("Payload")
-			}
-			args.Id("ep").Dot("Body")
-		})
-		group.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Nil(), jen.Id("err")),
-		)
-		viewExpr := jen.Lit(method.ViewedResult.ViewName)
-		if method.ViewedResult.ViewName == "" {
-			viewExpr = jen.Id("view")
-		}
-		group.Id("vres").Op(":=").Id(method.ViewedResult.Init.Name).Call(jen.Id("res"), viewExpr)
-		group.Return(jen.Id("vres"), jen.Nil())
+		buildSkipRequestViewedResultEndpointInvocation(group, method)
 		return
 	}
 	returnExprs := []jen.Code{}
@@ -346,6 +306,60 @@ func buildSkipRequestEndpointInvocation(group *jen.Group, method *EndpointMethod
 		args.Id("ep").Dot("Body")
 	}))
 	group.Return(returnExprs...)
+}
+
+func buildSkipRequestSkipResponseEndpointInvocation(group *jen.Group, method *EndpointMethodData) {
+	lhs := []jen.Code{}
+	if method.ResultRef != "" {
+		lhs = append(lhs, jen.Id("res"))
+	}
+	lhs = append(lhs, jen.Id("body"), jen.Id("err"))
+	group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+		args.Id("ctx")
+		if method.PayloadRef != "" {
+			args.Id("ep").Dot("Payload")
+		}
+		args.Id("ep").Dot("Body")
+	})
+	group.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id("err")),
+	)
+	group.Return(
+		jen.Op("&").Id(method.ResponseStruct).ValuesFunc(func(values *jen.Group) {
+			if method.ResultRef != "" {
+				values.Id("Result").Op(":").Id("res")
+			}
+			values.Id("Body").Op(":").Id("body")
+		}),
+		jen.Nil(),
+	)
+}
+
+func buildSkipRequestViewedResultEndpointInvocation(group *jen.Group, method *EndpointMethodData) {
+	lhs := []jen.Code{jen.Id("res")}
+	if method.ViewedResult.ViewName == "" {
+		lhs = append(lhs, jen.Id("view"))
+	}
+	lhs = append(lhs, jen.Id("err"))
+	group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
+		args.Id("ctx")
+		if method.PayloadRef != "" {
+			args.Id("ep").Dot("Payload")
+		}
+		args.Id("ep").Dot("Body")
+	})
+	group.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id("err")),
+	)
+	viewExpr := jen.Lit(method.ViewedResult.ViewName)
+	if method.ViewedResult.ViewName == "" {
+		viewExpr = jen.Id("view")
+	}
+	group.List(jen.Id("vres"), jen.Id("err")).Op(":=").Id(method.ViewedResult.Init.Name).Call(jen.Id("res"), viewExpr)
+	group.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id("err")),
+	)
+	group.Return(jen.Id("vres"), jen.Nil())
 }
 
 func buildViewedResultEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
@@ -367,7 +381,10 @@ func buildViewedResultEndpointInvocation(group *jen.Group, method *EndpointMetho
 	if method.ViewedResult.ViewName == "" {
 		viewExpr = jen.Id("view")
 	}
-	group.Id("vres").Op(":=").Id(method.ViewedResult.Init.Name).Call(jen.Id("res"), viewExpr)
+	group.List(jen.Id("vres"), jen.Id("err")).Op(":=").Id(method.ViewedResult.Init.Name).Call(jen.Id("res"), viewExpr)
+	group.If(jen.Id("err").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id("err")),
+	)
 	group.Return(jen.Id("vres"), jen.Nil())
 }
 

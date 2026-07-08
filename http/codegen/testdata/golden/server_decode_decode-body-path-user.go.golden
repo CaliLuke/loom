@@ -25,6 +25,9 @@ func DecodeMethodBodyPathUserRequest(mux loomhttp.Muxer, decoder func(*http.Requ
 			params = mux.Vars(r)
 		)
 		b = params["b"]
+		if err != nil {
+			return payload, err
+		}
 		payload = NewMethodBodyPathUserPayloadType(&body, b)
 
 		return payload, nil

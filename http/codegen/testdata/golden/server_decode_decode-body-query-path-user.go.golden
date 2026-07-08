@@ -30,6 +30,9 @@ func DecodeMethodBodyQueryPathUserRequest(mux loomhttp.Muxer, decoder func(*http
 		if bRaw != "" {
 			b = &bRaw
 		}
+		if err != nil {
+			return payload, err
+		}
 		payload = NewMethodBodyQueryPathUserPayloadType(&body, c2, b)
 
 		return payload, nil

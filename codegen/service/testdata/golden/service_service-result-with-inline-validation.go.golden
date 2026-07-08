@@ -39,24 +39,24 @@ type ResultInlineValidationBResult struct {
 
 // NewResultInlineValidation initializes result type ResultInlineValidation
 // from viewed result type ResultInlineValidation.
-func NewResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlineValidation) *ResultInlineValidation {
+func NewResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlineValidation) (*ResultInlineValidation, error) {
 
 	var res *ResultInlineValidation
 	switch vres.View {
 	case "default", "":
 		res = NewResultInlineValidationFromResultInlineValidationView(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedResultInlineValidation initializes viewed result type
 // ResultInlineValidation from result type ResultInlineValidation using the
 // given view.
-func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) *resultwithinlinevalidationviews.ResultInlineValidation {
+func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) (*resultwithinlinevalidationviews.ResultInlineValidation, error) {
 
 	var vres *resultwithinlinevalidationviews.ResultInlineValidation
 	switch view {
@@ -64,11 +64,11 @@ func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) *
 		p := ProjectResultInlineValidation(res)
 		vres = &resultwithinlinevalidationviews.ResultInlineValidation{Projected: p, View: "default"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewResultInlineValidationFromResultInlineValidationView converts projected

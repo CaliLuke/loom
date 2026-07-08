@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingResultCollectionWithViewsServerStreamSendCode = `// SendWithContext streams instances of
 // "bidirectionalstreamingresultcollectionwithviewsservice.UsertypeCollection"
 // to the "BidirectionalStreamingResultCollectionWithViewsMethod" endpoint
@@ -48,7 +47,10 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodServerStream) Send
 		if s.upgradeErr != nil {
 			return s.upgradeErr
 		}
-		res := bidirectionalstreamingresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
+		res, err := bidirectionalstreamingresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
+		if err != nil {
+			return err
+		}
 		var body any
 		switch s.view {
 		case "tiny":
@@ -76,5 +78,3 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodServerStream) Send
 	return s.SendWithContext(s.r.Context(), v)
 }
 `
-
-

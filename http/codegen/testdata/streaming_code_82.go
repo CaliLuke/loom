@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingResultWithViewsClientStreamRecvCode = `// Recv reads instances of
 // "bidirectionalstreamingresultwithviewsservice.Usertype" from the
 // "BidirectionalStreamingResultWithViewsMethod" endpoint websocket connection.
@@ -22,7 +21,11 @@ func (s *BidirectionalStreamingResultWithViewsMethodClientStream) Recv() (*bidir
 	if err := bidirectionalstreamingresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultWithViewsService", "BidirectionalStreamingResultWithViewsMethod", err)
 	}
-	return bidirectionalstreamingresultwithviewsservice.NewUsertype(vres), nil
+	result, err := bidirectionalstreamingresultwithviewsservice.NewUsertype(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultWithViewsService", "BidirectionalStreamingResultWithViewsMethod", err)
+	}
+	return result, nil
 }
 
 // RecvWithContext reads instances of
@@ -52,5 +55,3 @@ func (s *BidirectionalStreamingResultWithViewsMethodClientStream) RecvWithContex
 	return v, err
 }
 `
-
-

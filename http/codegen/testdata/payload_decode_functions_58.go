@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadPathPrimitiveArrayBoolValidateDecodeCode = `// DecodeMethodPathPrimitiveArrayBoolValidateRequest returns a decoder for
 // requests sent to the ServicePathPrimitiveArrayBoolValidate
 // MethodPathPrimitiveArrayBoolValidate endpoint.
@@ -17,6 +16,11 @@ func DecodeMethodPathPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, decod
 			pRawSlice := strings.Split(pRaw, ",")
 			p = make([]bool, len(pRawSlice))
 			for i, rv := range pRawSlice {
+				rvDecoded, err2 := url.PathUnescape(rv)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("p", pRaw, "path-escaped array"))
+				}
+				rv = rvDecoded
 				v, err2 := strconv.ParseBool(rv)
 				if err2 != nil {
 					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("p", pRaw, "array of booleans"))
@@ -41,5 +45,3 @@ func DecodeMethodPathPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, decod
 	}
 }
 `
-
-

@@ -62,6 +62,14 @@ func TestClientDecodeRestoreBodyIsBounded(t *testing.T) {
 	require.NotContains(t, code, "b, err := io.ReadAll(resp.Body)")
 }
 
+func TestClientDecodePropagatesViewedResultConstructorError(t *testing.T) {
+	code := clientDecodeSectionCode(t, testdata.ResultBodyMultipleViewsDSL)
+
+	require.Contains(t, code, `res, err := servicebodymultipleview.NewResulttypemultipleviews(vres)`)
+	require.Contains(t, code, `return nil, loomhttp.ErrValidationError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)`)
+	require.NotContains(t, code, `res := servicebodymultipleview.NewResulttypemultipleviews(vres)`)
+}
+
 func clientDecodeSectionCode(t *testing.T, dsl func()) string {
 	t.Helper()
 	root := RunHTTPDSL(t, dsl)

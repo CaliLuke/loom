@@ -39,24 +39,24 @@ type ListResult struct {
 
 // NewApplicationDashedType initializes result type ApplicationDashedType from
 // viewed result type ApplicationDashedType.
-func NewApplicationDashedType(vres *resultwithdashedmimetypeviews.ApplicationDashedType) *ApplicationDashedType {
+func NewApplicationDashedType(vres *resultwithdashedmimetypeviews.ApplicationDashedType) (*ApplicationDashedType, error) {
 
 	var res *ApplicationDashedType
 	switch vres.View {
 	case "default", "":
 		res = NewApplicationDashedTypeFromApplicationDashedTypeView(vres.Projected)
 	default:
-		panic(loom.InvalidEnumValueError("view", vres.View, []any{
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
-		}))
+		})
 	}
-	return res
+	return res, nil
 }
 
 // NewViewedApplicationDashedType initializes viewed result type
 // ApplicationDashedType from result type ApplicationDashedType using the given
 // view.
-func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) *resultwithdashedmimetypeviews.ApplicationDashedType {
+func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) (*resultwithdashedmimetypeviews.ApplicationDashedType, error) {
 
 	var vres *resultwithdashedmimetypeviews.ApplicationDashedType
 	switch view {
@@ -64,11 +64,11 @@ func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) *re
 		p := ProjectApplicationDashedType(res)
 		vres = &resultwithdashedmimetypeviews.ApplicationDashedType{Projected: p, View: "default"}
 	default:
-		panic(loom.InvalidEnumValueError("view", view, []any{
+		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
-		}))
+		})
 	}
-	return vres
+	return vres, nil
 }
 
 // NewApplicationDashedTypeFromApplicationDashedTypeView converts projected

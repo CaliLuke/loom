@@ -122,7 +122,8 @@ func writeSSEResultSetup(b *sourceBuilder, ed *EndpointData) {
 		if viewName == "" {
 			viewName = "default"
 		}
-		b.Addf("\tres := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, viewName)
+		b.Addf("\tres, err := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, viewName)
+		b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
 		return
 	}
 	b.Add("\tres := v\n")
@@ -275,7 +276,7 @@ func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat
 			if typ.Name() == "array" {
 				b.Addf("\t%sSlice := make([]string, len(%s))\n", arg.VarName, arg.VarName)
 				b.Addf("\tfor i, v := range %s {\n", arg.VarName)
-				b.Addf("\t\t%sSlice[i] = %s\n", arg.VarName, renderQuerySliceConversion(expr.AsArray(typ).ElemType.Type))
+				b.Addf("\t\t%sSlice[i] = %s\n", arg.VarName, renderPathSliceConversion(expr.AsArray(typ).ElemType.Type))
 				b.Add("\t}\n")
 			}
 		}
@@ -293,6 +294,21 @@ func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat
 		return b.String()
 	}
 	return "\treturn " + renderJen(jen.Lit(pathFormat)) + "\n"
+}
+
+func renderPathSliceConversion(dt expr.DataType) string {
+	switch dt.Name() {
+	case "string":
+		return "url.PathEscape(v)"
+	case "bytes":
+		return "url.PathEscape(string(v))"
+	default:
+		converted := renderQuerySliceConversion(dt)
+		if strings.HasPrefix(converted, "url.QueryEscape(") {
+			return "url.PathEscape(" + strings.TrimPrefix(converted, "url.QueryEscape(")
+		}
+		return converted
+	}
 }
 
 func renderQuerySliceConversion(dt expr.DataType) string {

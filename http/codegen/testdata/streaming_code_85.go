@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingResultWithExplicitViewServerStreamSendCode = `// SendWithContext streams instances of
 // "bidirectionalstreamingresultwithexplicitviewservice.Usertype" to the
 // "BidirectionalStreamingResultWithExplicitViewMethod" endpoint websocket
@@ -46,7 +45,10 @@ func (s *BidirectionalStreamingResultWithExplicitViewMethodServerStream) SendWit
 		if s.upgradeErr != nil {
 			return s.upgradeErr
 		}
-		res := bidirectionalstreamingresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
+		res, err := bidirectionalstreamingresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
+		if err != nil {
+			return err
+		}
 		body := NewBidirectionalStreamingResultWithExplicitViewMethodResponseBodyExtended(res.Projected)
 		return s.conn.WriteJSON(body)
 	}()
@@ -66,5 +68,3 @@ func (s *BidirectionalStreamingResultWithExplicitViewMethodServerStream) Send(v 
 	return s.SendWithContext(s.r.Context(), v)
 }
 `
-
-

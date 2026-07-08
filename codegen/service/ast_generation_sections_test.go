@@ -26,6 +26,59 @@ return res`,
 	require.Contains(t, code, "return res")
 }
 
+func TestViewedResultInitSectionsReturnErrors(t *testing.T) {
+	resultSection := typeInitSection("viewed-result-type-to-service-result-type", &InitData{
+		Name:          "NewWidget",
+		Description:   "NewWidget builds a widget.",
+		ReturnTypeRef: "*Widget",
+		ReturnsError:  true,
+		Args: []*InitArgData{
+			{Name: "vres", Ref: "*widgetviews.Widget"},
+		},
+		Code: `
+var res *Widget
+switch vres.View {
+case "default", "":
+	res = NewWidgetFromWidgetView(vres.Projected)
+default:
+	return res, loom.InvalidEnumValueError("view", vres.View, []any{"default"})
+}
+return res, nil`,
+	})
+
+	resultCode := codegen.SectionCode(t, resultSection)
+	require.Contains(t, resultCode, "func NewWidget(vres *widgetviews.Widget) (*Widget, error) {")
+	require.Contains(t, resultCode, `return res, loom.InvalidEnumValueError("view", vres.View, []any{"default"})`)
+	require.Contains(t, resultCode, "return res, nil")
+	require.NotContains(t, resultCode, "panic(")
+
+	viewedSection := typeInitSection("service-result-type-to-viewed-result-type", &InitData{
+		Name:          "NewViewedWidget",
+		Description:   "NewViewedWidget builds a viewed widget.",
+		ReturnTypeRef: "*widgetviews.Widget",
+		ReturnsError:  true,
+		Args: []*InitArgData{
+			{Name: "res", Ref: "*Widget"},
+			{Name: "view", Ref: "string"},
+		},
+		Code: `
+var vres *widgetviews.Widget
+switch view {
+case "default", "":
+	vres = &widgetviews.Widget{Projected: ProjectWidget(res), View: "default"}
+default:
+	return vres, loom.InvalidEnumValueError("view", view, []any{"default"})
+}
+return vres, nil`,
+	})
+
+	viewedCode := codegen.SectionCode(t, viewedSection)
+	require.Contains(t, viewedCode, "func NewViewedWidget(res *Widget, view string) (*widgetviews.Widget, error) {")
+	require.Contains(t, viewedCode, `return vres, loom.InvalidEnumValueError("view", view, []any{"default"})`)
+	require.Contains(t, viewedCode, "return vres, nil")
+	require.NotContains(t, viewedCode, "panic(")
+}
+
 func TestConvertSectionsStructuredDeclarations(t *testing.T) {
 	convertCode := codegen.SectionCode(t, convertSection("convert-to", convertData{
 		Name:            "ToExternal",

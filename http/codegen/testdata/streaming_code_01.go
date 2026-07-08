@@ -315,7 +315,10 @@ func (s *StreamingResultWithViewsMethodServerStream) SendWithContext(ctx context
 		if s.upgradeErr != nil {
 			return s.upgradeErr
 		}
-		res := streamingresultwithviewsservice.NewViewedUsertype(v, s.view)
+		res, err := streamingresultwithviewsservice.NewViewedUsertype(v, s.view)
+		if err != nil {
+			return err
+		}
 		var body any
 		switch s.view {
 		case "tiny":
@@ -603,7 +606,11 @@ func (s *StreamingResultWithViewsMethodClientStream) Recv() (*streamingresultwit
 	if err := streamingresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 	}
-	return streamingresultwithviewsservice.NewUsertype(vres), nil
+	result, err := streamingresultwithviewsservice.NewUsertype(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
+	}
+	return result, nil
 }
 
 // RecvWithContext reads instances of
@@ -716,7 +723,11 @@ func (s *StreamingResultWithExplicitViewMethodClientStream) Recv() (*streamingre
 	if err := streamingresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 	}
-	return streamingresultwithexplicitviewservice.NewUsertype(vres), nil
+	result, err := streamingresultwithexplicitviewservice.NewUsertype(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
+	}
+	return result, nil
 }
 
 // RecvWithContext reads instances of
@@ -792,7 +803,10 @@ func (s *StreamingResultWithExplicitViewMethodServerStream) SendWithContext(ctx 
 		if s.upgradeErr != nil {
 			return s.upgradeErr
 		}
-		res := streamingresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
+		res, err := streamingresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
+		if err != nil {
+			return err
+		}
 		body := NewStreamingResultWithExplicitViewMethodResponseBodyExtended(res.Projected)
 		return s.conn.WriteJSON(body)
 	}()
@@ -858,7 +872,10 @@ func (s *StreamingResultCollectionWithViewsMethodServerStream) SendWithContext(c
 		if s.upgradeErr != nil {
 			return s.upgradeErr
 		}
-		res := streamingresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
+		res, err := streamingresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
+		if err != nil {
+			return err
+		}
 		var body any
 		switch s.view {
 		case "tiny":
@@ -924,7 +941,11 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) Recv() (streaming
 	if err := streamingresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithViewsService", "StreamingResultCollectionWithViewsMethod", err)
 	}
-	return streamingresultcollectionwithviewsservice.NewUsertypeCollection(vres), nil
+	result, err := streamingresultcollectionwithviewsservice.NewUsertypeCollection(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithViewsService", "StreamingResultCollectionWithViewsMethod", err)
+	}
+	return result, nil
 }
 
 // RecvWithContext reads instances of
@@ -1007,7 +1028,10 @@ func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithCo
 		if s.upgradeErr != nil {
 			return s.upgradeErr
 		}
-		res := streamingresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
+		res, err := streamingresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
+		if err != nil {
+			return err
+		}
 		body := NewUsertypeResponseTinyCollection(res.Projected)
 		return s.conn.WriteJSON(body)
 	}()
@@ -1104,7 +1128,11 @@ func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) Recv() (st
 	if err := streamingresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 	}
-	return streamingresultcollectionwithexplicitviewservice.NewUsertypeCollection(vres), nil
+	result, err := streamingresultcollectionwithexplicitviewservice.NewUsertypeCollection(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
+	}
+	return result, nil
 }
 
 // RecvWithContext reads instances of

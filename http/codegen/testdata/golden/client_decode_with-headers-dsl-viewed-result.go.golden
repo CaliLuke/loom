@@ -62,7 +62,10 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 			p := NewMethodAAResultOK(required, optional, optionalButRequired)
 			view := resp.Header.Get("loom-view")
 			vres := &servicewithheadersblockviewedresultviews.AResult{Projected: p, View: view}
-			res := servicewithheadersblockviewedresult.NewAResult(vres)
+			res, err := servicewithheadersblockviewedresult.NewAResult(vres)
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlockViewedResult", "MethodA", err)
+			}
 			return res, nil
 		default:
 			body, err := loomhttp.ReadUnexpectedResponseBody(resp)

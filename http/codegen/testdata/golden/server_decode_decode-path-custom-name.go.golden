@@ -4,11 +4,15 @@ func DecodeMethodPathCustomNameRequest(mux loomhttp.Muxer, decoder func(*http.Re
 	return func(r *http.Request) (*servicepathcustomname.MethodPathCustomNamePayload, error) {
 		var payload *servicepathcustomname.MethodPathCustomNamePayload
 		var (
-			p string
+			p   string
+			err error
 
 			params = mux.Vars(r)
 		)
 		p = params["p"]
+		if err != nil {
+			return payload, err
+		}
 		payload = NewMethodPathCustomNamePayload(p)
 
 		return payload, nil
