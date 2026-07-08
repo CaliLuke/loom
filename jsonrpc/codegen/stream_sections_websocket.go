@@ -471,7 +471,6 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 						cg.Var().Id("isResponse").Bool()
 						writeSSEServiceResponseIDResolution(cg, ed)
 						cg.Var().Id("message").Map(jen.String()).Any()
-						cg.Var().Id("eventType").String()
 						cg.If(jen.Id("isResponse")).Block(
 							jen.Id("resp").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
 							jen.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
@@ -479,16 +478,14 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 								jen.Lit("id"):      jen.Id("resp").Dot("ID"),
 								jen.Lit("result"):  jen.Id("resp").Dot("Result"),
 							}),
-							jen.Id("eventType").Op("=").Lit("response"),
 						).Else().Block(
 							jen.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
 								jen.Lit("jsonrpc"): jen.Lit("2.0"),
 								jen.Lit("method"):  jen.Lit(ed.Method.Name),
 								jen.Lit("params"):  jen.Id("body"),
 							}),
-							jen.Id("eventType").Op("=").Lit("message"),
 						)
-						cg.Return(jen.Id("s").Dot("sendSSEEvent").Call(jen.Id("eventType"), jen.Id("message")))
+						cg.Return(jen.Id("s").Dot("sendSSEEvent").Call(jen.Lit("message"), jen.Id("message")))
 					})
 				}
 				sg.Default().Block(
@@ -524,7 +521,7 @@ func writeSSEServiceStreamSendError(stmt *jen.Statement, data *httpcodegen.Servi
 	codegen.Doc(stmt, "SendError sends a JSON-RPC error response.")
 	stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 		Id("SendError").
-		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("id").String(), jen.Id("err").Error()).
+		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("id").Any(), jen.Id("err").Error()).
 		Error().
 		BlockFunc(func(g *jen.Group) {
 			writeStreamErrorDataSwitch(g, allErrors(data), jen.Id("id"))

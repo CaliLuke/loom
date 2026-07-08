@@ -39,7 +39,7 @@ func TestJSONRPCMixedSSETopLevelServerEmitsFinalResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 2)
 	require.Equal(t, "message", events[0].Type)
-	require.Equal(t, "response", events[1].Type)
+	require.Equal(t, "message", events[1].Type)
 
 	var notification map[string]any
 	require.NoError(t, json.Unmarshal([]byte(events[0].Data), &notification))
@@ -52,6 +52,37 @@ func TestJSONRPCMixedSSETopLevelServerEmitsFinalResponse(t *testing.T) {
 	require.Equal(t, "2.0", response["jsonrpc"])
 	require.Equal(t, "tick-request-1", response["id"])
 	require.Equal(t, map[string]any{"value": "tick-done"}, response["result"])
+}
+
+func TestJSONRPCMixedSSERejectsCrossOriginPost(t *testing.T) {
+	t.Parallel()
+
+	server := startMixedTickServer(t)
+	defer server.Stop() //nolint:errcheck
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	reqBody, err := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"method":  "Tick",
+		"params":  map[string]any{},
+		"id":      "cross-origin-1",
+	})
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL()+"/rpc", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://attacker.example")
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close() //nolint:errcheck
+
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestJSONRPCMixedSSETopLevelServerEmitsErrors(t *testing.T) {

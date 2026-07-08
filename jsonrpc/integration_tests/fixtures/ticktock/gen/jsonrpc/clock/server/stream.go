@@ -116,18 +116,18 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 	}
 	// Convert to response body type for proper JSON encoding
 	body := NewTickResponseBody(result)
-	// Send as response with ID
+	// Send as a JSON-RPC response message with ID
 	message := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      id,
 		"result":  body,
 	}
 
-	return s.sendSSEEvent("response", message)
+	return s.sendSSEEvent("message", message)
 }
 
 // SendError sends a JSON-RPC error response.
-func (s *TickServerStream) SendError(ctx context.Context, id string, err error) error {
+func (s *TickServerStream) SendError(ctx context.Context, id any, err error) error {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
 	code := jsonrpc.InternalError
 	var serviceError *loom.ServiceError
@@ -253,18 +253,18 @@ func (s *TockServerStream) SendAndClose(ctx context.Context, event clock.TockEve
 	}
 	// Convert to response body type for proper JSON encoding
 	body := NewTockResponseBody(result)
-	// Send as response with ID
+	// Send as a JSON-RPC response message with ID
 	message := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      id,
 		"result":  body,
 	}
 
-	return s.sendSSEEvent("response", message)
+	return s.sendSSEEvent("message", message)
 }
 
 // SendError sends a JSON-RPC error response.
-func (s *TockServerStream) SendError(ctx context.Context, id string, err error) error {
+func (s *TockServerStream) SendError(ctx context.Context, id any, err error) error {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
 	code := jsonrpc.InternalError
 	var serviceError *loom.ServiceError

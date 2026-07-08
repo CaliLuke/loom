@@ -223,16 +223,24 @@ func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 				switch {
 				case httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]):
 					g.Comment("WebSocket services implement ServeHTTP for upgrade")
-					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
+					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
+						jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP")),
+					)
 				case hasMixed:
 					g.Comment("Mixed HTTP/SSE services negotiate transports in ServeHTTP")
-					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
+					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
+						jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP")),
+					)
 				case hasSSE:
 					g.Comment("SSE-only services route via handleSSE")
-					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("handleSSE"))
+					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
+						jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("handleSSE")),
+					)
 				default:
 					g.Comment("Plain HTTP JSON-RPC")
-					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
+					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
+						jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP")),
+					)
 				}
 				g.Return(jen.Id("s"))
 			})
@@ -533,7 +541,7 @@ func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed b
 								continue
 							}
 							seen[key] = struct{}{}
-							g.Id("mux").Dot("Handle").Call(jen.Lit(verb), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
+							g.Id("mux").Dot("Handle").Call(jen.Lit(verb), jen.Lit(route.Path), jen.Id("h").Dot("Handler").Dot("ServeHTTP"))
 						}
 					}
 				case hasSSE:
@@ -551,14 +559,14 @@ func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed b
 									continue
 								}
 								seen[key] = struct{}{}
-								g.Id("mux").Dot("Handle").Call(jen.Lit(verb), jen.Lit(route.Path), jen.Id("h").Dot("handleSSE"))
+								g.Id("mux").Dot("Handle").Call(jen.Lit(verb), jen.Lit(route.Path), jen.Id("h").Dot("Handler").Dot("ServeHTTP"))
 							}
 						}
 					}
 				default:
 					g.Comment("HTTP only")
 					for _, route := range data.Endpoints[0].Routes {
-						g.Id("mux").Dot("Handle").Call(jen.Lit(route.Verb), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
+						g.Id("mux").Dot("Handle").Call(jen.Lit(route.Verb), jen.Lit(route.Path), jen.Id("h").Dot("Handler").Dot("ServeHTTP"))
 					}
 				}
 			})

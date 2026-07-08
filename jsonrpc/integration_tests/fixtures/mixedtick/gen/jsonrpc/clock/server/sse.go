@@ -78,7 +78,6 @@ func (s *clockSSEStream) Send(ctx context.Context, event clock.Event) error {
 		var id string
 		var isResponse bool
 		var message map[string]any
-		var eventType string
 		if isResponse {
 			resp := jsonrpc.MakeSuccessResponse(id, body)
 			message = map[string]any{
@@ -86,16 +85,14 @@ func (s *clockSSEStream) Send(ctx context.Context, event clock.Event) error {
 				"jsonrpc": resp.JSONRPC,
 				"result":  resp.Result,
 			}
-			eventType = "response"
 		} else {
 			message = map[string]any{
 				"jsonrpc": "2.0",
 				"method":  "Tick",
 				"params":  body,
 			}
-			eventType = "message"
 		}
-		return s.sendSSEEvent(eventType, message)
+		return s.sendSSEEvent("message", message)
 	default:
 		return fmt.Errorf("unknown event type: %T", event)
 	}

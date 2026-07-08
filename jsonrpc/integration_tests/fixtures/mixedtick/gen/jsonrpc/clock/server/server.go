@@ -52,7 +52,7 @@ func New(endpoints *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Requ
 		errhandler: errhandler,
 	}
 	// Mixed HTTP/SSE services negotiate transports in ServeHTTP
-	s.Handler = http.HandlerFunc(s.ServeHTTP)
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
 	return s
 }
 
@@ -435,8 +435,8 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 } // Mount configures the mux to serve the JSON-RPC clock service methods.
 func Mount(mux loomhttp.Muxer, h *Server) {
 	// Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header and JSON-RPC method
-	mux.Handle("POST", "/rpc", h.ServeHTTP)
-	mux.Handle("GET", "/rpc", h.ServeHTTP)
+	mux.Handle("POST", "/rpc", h.Handler.ServeHTTP)
+	mux.Handle("GET", "/rpc", h.Handler.ServeHTTP)
 }
 
 // Mount configures the mux to serve the JSON-RPC clock service methods.

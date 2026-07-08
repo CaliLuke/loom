@@ -84,7 +84,7 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 
 		require.Contains(t, serverCode, "type Server struct")
 		require.Contains(t, serverCode, "Methods []string")
-		require.Contains(t, serverCode, "Handler = http.HandlerFunc(s.ServeHTTP)")
+		require.Contains(t, serverCode, "Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))")
 		require.NotContains(t, serverCode, "StreamHandler func")
 		require.Contains(t, clientCode, "type Client struct")
 		require.Contains(t, clientCode, "var bufferPool = sync.Pool")

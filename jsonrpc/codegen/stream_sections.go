@@ -150,14 +150,14 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 		return nil
 	}
 %s%s	%s
-	// Send as response with ID
+	// Send as a JSON-RPC response message with ID
 	message := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      id,
 		"result":  body,
 	}
 
-	return s.sendSSEEvent("response", message)
+	return s.sendSSEEvent("message", message)
 }
 `, codegen.Comment("SendAndClose sends a final JSON-RPC response to the client and closes the stream."),
 		codegen.Comment("The response includes the original request ID. Notifications are closed without a final response."),
@@ -181,7 +181,7 @@ func renderSSEEndpointStreamErrorsSource(ed *httpcodegen.EndpointData) string {
 		noCustomComment = "\t// No custom errors defined - check if it's a validation error, otherwise use internal error\n"
 	}
 	return fmt.Sprintf(`%s
-func (s *%s) SendError(ctx context.Context, id string, err error) error {
+func (s *%s) SendError(ctx context.Context, id any, err error) error {
 %s%s}
 
 %s

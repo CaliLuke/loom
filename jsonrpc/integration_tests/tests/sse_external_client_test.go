@@ -33,7 +33,7 @@ func TestJSONRPCSSEInteroperatesWithExternalClient(t *testing.T) {
 		verifyExternalSSEStream(t, baseURL, "Tick", "Tick-request", []externalSSEExpectation{
 			{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tick-1"}},
 			{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tick-2"}},
-			{EventType: "response", EnvelopeField: "result", Value: map[string]any{"value": "tick-done"}},
+			{EventType: "message", EnvelopeField: "result", Value: map[string]any{"value": "tick-done"}},
 		})
 	})
 
@@ -41,7 +41,7 @@ func TestJSONRPCSSEInteroperatesWithExternalClient(t *testing.T) {
 		verifyExternalSSEStream(t, baseURL, "Tock", "Tock-request", []externalSSEExpectation{
 			{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tock-a"}},
 			{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tock-b"}},
-			{EventType: "response", EnvelopeField: "result", Value: map[string]any{"value": "tock-finished"}},
+			{EventType: "message", EnvelopeField: "result", Value: map[string]any{"value": "tock-finished"}},
 		})
 	})
 }
@@ -120,7 +120,7 @@ func verifyExternalSSEStream(t *testing.T, baseURL string, method string, id str
 		var envelope map[string]any
 		require.NoError(t, json.Unmarshal([]byte(got[i].Data), &envelope))
 		require.Equal(t, "2.0", envelope["jsonrpc"])
-		if exp.EventType == "response" {
+		if exp.EnvelopeField == "result" {
 			require.Equal(t, id, envelope["id"])
 		}
 		require.Equal(t, exp.Value, envelope[exp.EnvelopeField])

@@ -241,11 +241,7 @@ func (e *executor) executeSSE(ctx context.Context, t *testing.T, scenario Scenar
 	err = json.Unmarshal(events[0].Data, &response)
 	require.NoError(t, err, "Failed to unmarshal SSE response")
 
-	expectedEventType := "response"
-	if scenario.Expect.Error != nil {
-		expectedEventType = "message"
-	}
-	require.Equal(t, expectedEventType, events[0].Type, "Unexpected SSE event type")
+	require.Equal(t, "message", events[0].Type, "Unexpected SSE event type")
 	e.validateJSONRPCResponse(t, response, scenario.Expect)
 }
 
@@ -419,8 +415,7 @@ func expectedSSEEventType(msg map[string]any) string {
 		return "message"
 	}
 	if _, ok := msg["result"]; ok {
-		return "response"
+		return "message"
 	}
 	return "message"
 }
-

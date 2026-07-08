@@ -57,7 +57,7 @@ type TickServerStream interface {
 	// request ID.
 	SendAndClose(context.Context, TickEvent) error
 	// SendError sends a JSON-RPC error response.
-	SendError(context.Context, string, error) error
+	SendError(context.Context, any, error) error
 }
 
 // TickClientStream allows streaming instances of *TickResult to the client.

@@ -91,18 +91,18 @@ func (s *StreamServerStream) SendAndClose(ctx context.Context, event jsonrpcsses
 		return nil
 	}
 	body := result
-	// Send as response with ID
+	// Send as a JSON-RPC response message with ID
 	message := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      id,
 		"result":  body,
 	}
 
-	return s.sendSSEEvent("response", message)
+	return s.sendSSEEvent("message", message)
 }
 
 // SendError sends a JSON-RPC error response.
-func (s *StreamServerStream) SendError(ctx context.Context, id string, err error) error {
+func (s *StreamServerStream) SendError(ctx context.Context, id any, err error) error {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
 	code := jsonrpc.InternalError
 	var serviceError *loom.ServiceError

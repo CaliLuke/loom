@@ -60,7 +60,8 @@ func TestJSONRPCSSE(t *testing.T) {
 			code := codegen.SectionCode(t, streamSection)
 			require.NotContains(t, code, `sendSSEEvent("notification",`)
 			require.Contains(t, code, `sendSSEEvent("message", message)`)
-			require.Contains(t, code, `sendSSEEvent("response", message)`)
+			require.NotContains(t, code, `sendSSEEvent("response", message)`)
+			require.Equal(t, 2, strings.Count(code, `sendSSEEvent("message", message)`))
 			require.Contains(t, code, `sendSSEEvent("message", response)`)
 			golden := filepath.Join("testdata", "golden", "jsonrpc-sse-"+c.Name+".golden")
 			testutil.CompareOrUpdateGolden(t, code, golden)
@@ -115,8 +116,9 @@ func TestJSONRPCSSEServiceStreamUsesTypedResponseEvents(t *testing.T) {
 	}
 
 	require.NotEmpty(t, serviceStreamCode, "jsonrpc-server-sse-stream-impl section not found")
-	require.Contains(t, serviceStreamCode, `eventType = "response"`)
-	require.Contains(t, serviceStreamCode, `eventType = "message"`)
+	require.NotContains(t, serviceStreamCode, `eventType = "response"`)
+	require.NotContains(t, serviceStreamCode, `var eventType string`)
+	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent("message", message)`)
 	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent("message", response)`)
 }
 
@@ -260,8 +262,19 @@ func TestJSONRPCMixedServerInitUsesServeHTTP(t *testing.T) {
 
 	require.NotEmpty(t, serverInitCode, "jsonrpc-server-init section not found")
 	require.Contains(t, serverInitCode, `Mixed HTTP/SSE services negotiate transports in ServeHTTP`)
-	require.Contains(t, serverInitCode, `s.Handler = http.HandlerFunc(s.ServeHTTP)`)
+	require.Contains(t, serverInitCode, `s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))`)
 	require.NotContains(t, serverInitCode, `s.Handler = http.HandlerFunc(s.handleSSE)`)
+}
+
+func TestJSONRPCSSEOnlyServerInitUsesOriginProtection(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEEventsStreamDSL)
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.NotEmpty(t, serverFiles, "expected JSON-RPC server files to be generated")
+
+	serverInitCode := fileSectionCode(t, serverFiles, "server.go", "jsonrpc-server-init")
+	require.Contains(t, serverInitCode, `s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.handleSSE))`)
 }
 
 func TestJSONRPCMixedServerMountIncludesGET(t *testing.T) {
@@ -286,10 +299,10 @@ func TestJSONRPCMixedServerMountIncludesGET(t *testing.T) {
 	}
 
 	require.NotEmpty(t, mountCode, "jsonrpc-server-mount section not found")
-	require.Contains(t, mountCode, `mux.Handle("POST", "/rpc", h.ServeHTTP)`)
-	require.Contains(t, mountCode, `mux.Handle("GET", "/rpc", h.ServeHTTP)`)
-	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("POST", "/rpc", h.ServeHTTP)`))
-	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.ServeHTTP)`))
+	require.Contains(t, mountCode, `mux.Handle("POST", "/rpc", h.Handler.ServeHTTP)`)
+	require.Contains(t, mountCode, `mux.Handle("GET", "/rpc", h.Handler.ServeHTTP)`)
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("POST", "/rpc", h.Handler.ServeHTTP)`))
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.Handler.ServeHTTP)`))
 }
 
 func TestJSONRPCMixedServerMountDedupesRouteVerbGET(t *testing.T) {
@@ -321,7 +334,7 @@ func TestJSONRPCMixedServerMountDedupesRouteVerbGET(t *testing.T) {
 	}
 
 	require.NotEmpty(t, mountCode, "jsonrpc-server-mount section not found")
-	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.ServeHTTP)`))
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.Handler.ServeHTTP)`))
 }
 
 func TestJSONRPCSSEOnlyServerMountDedupesRoutesAndIncludesGETListener(t *testing.T) {
@@ -346,8 +359,8 @@ func TestJSONRPCSSEOnlyServerMountDedupesRoutesAndIncludesGETListener(t *testing
 	}
 
 	require.NotEmpty(t, mountCode, "jsonrpc-server-mount section not found")
-	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("POST", "/rpc", h.handleSSE)`))
-	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.handleSSE)`))
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("POST", "/rpc", h.Handler.ServeHTTP)`))
+	require.Equal(t, 1, strings.Count(mountCode, `mux.Handle("GET", "/rpc", h.Handler.ServeHTTP)`))
 }
 
 func TestJSONRPCMixedHandlerAvoidsFullBodyReadForNegotiation(t *testing.T) {

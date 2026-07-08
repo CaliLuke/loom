@@ -272,7 +272,7 @@ func buildJSONRPCSSEMethodStream(stmt *jen.Statement, data *serviceStreamInterfa
 		groupDoc(group, "SendError sends a JSON-RPC error response.")
 		group.Id("SendError").Params(
 			jen.Qual("context", "Context"),
-			jen.String(),
+			jen.Any(),
 			jen.Error(),
 		).Error()
 	})
@@ -417,7 +417,7 @@ func buildJSONRPCSSEStream(stmt *jen.Statement, data *Data) {
 			groupDoc(group, "SendError sends a JSON-RPC error response.")
 			group.Id("SendError").Params(
 				jen.Qual("context", "Context"),
-				jen.String(),
+				jen.Any(),
 				jen.Error(),
 			).Error()
 		}
