@@ -16,6 +16,8 @@ import (
 )
 
 var (
+	// ensureConsumerRetryDelay is used when blockDuration means "block indefinitely".
+	ensureConsumerRetryDelay = 100 * time.Millisecond
 	// maxJitterMs is the maximum retry backoff jitter in milliseconds.
 	maxJitterMs = 5000
 	// checkIdlePeriod is the period at which idle messages are checked.
@@ -65,12 +67,14 @@ type (
 		maxPolled int64
 		// bufferSize is the sink channel buffer size.
 		bufferSize int
-		// chans are the sink event channels.
-		chans []chan *Event
+		// subscribers receive sink event notifications.
+		subscribers []*eventSubscriber
 		// donechan is the sink done channel.
 		donechan chan struct{}
 		// wait is the sink cleanup wait group.
 		wait sync.WaitGroup
+		// readCancel cancels the active Redis read call.
+		readCancel context.CancelFunc
 		// closing is true if Close was called.
 		closing bool
 		// eventFilter is the event filter if any.
@@ -189,23 +193,27 @@ func newSink(ctx context.Context, name string, stream *Stream, opts ...options.S
 
 // Subscribe returns a channel that receives events from the sink.
 func (s *Sink) Subscribe() <-chan *Event {
-	c := make(chan *Event, s.bufferSize)
+	sub := newEventSubscriber(s.bufferSize)
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.chans = append(s.chans, c)
-	return c
+	s.subscribers = append(s.subscribers, sub)
+	return sub.ch
 }
 
 // Unsubscribe removes the channel from the sink and closes it.
 func (s *Sink) Unsubscribe(c <-chan *Event) {
 	s.lock.Lock()
-	defer s.lock.Unlock()
-	for i, ch := range s.chans {
-		if ch == c {
-			close(ch)
-			s.chans = append(s.chans[:i], s.chans[i+1:]...)
-			return
+	var sub *eventSubscriber
+	for i, candidate := range s.subscribers {
+		if candidate.ch == c {
+			sub = candidate
+			s.subscribers = append(s.subscribers[:i], s.subscribers[i+1:]...)
+			break
 		}
+	}
+	s.lock.Unlock()
+	if sub != nil {
+		sub.close()
 	}
 }
 
@@ -257,6 +265,7 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 		s.streamCursors[len(s.streams)+i] = ">"
 	}
 	s.consumersMap[stream.Name] = cm
+	s.cancelActiveRead()
 	s.logger.Info("added", "stream", stream.Name)
 	return nil
 }
@@ -281,6 +290,7 @@ func (s *Sink) RemoveStream(ctx context.Context, stream *Stream) error {
 		s.streamCursors[i] = stream.key
 		s.streamCursors[len(s.streams)+i] = ">"
 	}
+	s.cancelActiveRead()
 	if err := s.removeStreamConsumer(ctx, stream); err != nil {
 		return err
 	}
@@ -298,13 +308,17 @@ func (s *Sink) Close(ctx context.Context) {
 	}
 	s.closing = true
 	close(s.donechan)
+	if s.readCancel != nil {
+		s.readCancel()
+	}
 	s.lock.Unlock()
 	s.wait.Wait()
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	for _, c := range s.chans {
-		close(c)
+	for _, sub := range s.subscribers {
+		sub.close()
 	}
+	s.subscribers = nil
 	// Note: we do not delete the consumer from the keep-alive and consumer maps
 	// so that another instance may claim any pending messages.
 	s.consumersKeepAliveMap.Close()

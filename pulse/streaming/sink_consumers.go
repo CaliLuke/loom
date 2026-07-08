@@ -15,6 +15,12 @@ import (
 	"github.com/CaliLuke/loom/pulse/rmap"
 )
 
+type sinkClaimStream struct {
+	name     string
+	key      string
+	consumer string
+}
+
 // deleteStreamStaleConsumers deletes stale consumers for a specific stream.
 // s.lock must be held.
 func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) error {
@@ -114,44 +120,81 @@ func (s *Sink) read(ctx context.Context) {
 	defer s.wait.Done()
 	for {
 		if err := s.ensureConsumer(ctx); err != nil {
-			time.Sleep(time.Duration(rand.Int63n(int64(s.blockDuration))))
+			if !s.waitBeforeEnsureConsumerRetry() {
+				return
+			}
 			continue
 		}
 		s.lock.Lock()
 		readStreams := make([]string, len(s.streamCursors))
 		copy(readStreams, s.streamCursors)
+		consumer := s.consumer
+		readCtx, cancel := context.WithCancel(ctx)
+		s.readCancel = cancel
 		s.lock.Unlock()
 
 		s.logger.Debug("reading", "streams", readStreams, "max", s.maxPolled, "block", s.blockDuration)
-		streams, err := s.rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
+		streams, err := s.rdb.XReadGroup(readCtx, &redis.XReadGroupArgs{
 			Group:    s.Name,
-			Consumer: s.consumer,
+			Consumer: consumer,
 			Streams:  readStreams,
 			Count:    s.maxPolled,
 			Block:    s.blockDuration,
 			NoAck:    s.noAck,
 		}).Result()
+		s.clearActiveRead()
 
-		s.lock.Lock()
-		if s.closing {
-			s.lock.Unlock()
+		if s.isClosing() {
 			// Honor the Close contract and do not forward any more events.
 			// Any events in the PEL will be claimed by another consumer.
 			return
 		}
 		if err != nil {
-			if err := handleReadError(err, s.logger); err != nil {
+			if err := handleReadError(err, s.logger, s.donechan); err != nil {
 				s.logger.Error(fmt.Errorf("error reading events: %w", err))
 			}
-			s.lock.Unlock()
 			continue
 		}
 		for _, events := range streams {
 			streamName := events.Stream[len(streamKeyPrefix):]
-			streamEvents(streamName, events.Stream, s.Name, events.Messages, s.eventFilter, s.chans, s.rdb, s.logger)
+			subscribers, filter := s.snapshotFanOut()
+			streamEvents(streamName, events.Stream, s.Name, events.Messages, filter, subscribers, s.rdb, s.logger, s.donechan)
 		}
-		s.lock.Unlock()
 	}
+}
+
+func (s *Sink) waitBeforeEnsureConsumerRetry() bool {
+	delay := s.blockDuration
+	if s.blockDuration <= 0 {
+		delay = ensureConsumerRetryDelay
+	}
+	delay = time.Duration(rand.Int63n(int64(delay)))
+	select {
+	case <-time.After(delay):
+		return true
+	case <-s.donechan:
+		return false
+	}
+}
+
+func (s *Sink) snapshotFanOut() ([]*eventSubscriber, eventFilterFunc) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	subscribers := make([]*eventSubscriber, len(s.subscribers))
+	copy(subscribers, s.subscribers)
+	return subscribers, s.eventFilter
+}
+
+func (s *Sink) cancelActiveRead() {
+	if s.readCancel != nil {
+		s.readCancel()
+	}
+}
+
+func (s *Sink) clearActiveRead() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.readCancel = nil
 }
 
 // ensureConsumer ensures that the consumer is still alive.
@@ -223,7 +266,10 @@ func (s *Sink) periodicIdleMessageCheck() {
 				continue
 			}
 			s.lock.Lock()
-			s.claimIdleMessages(ctx)
+			claimStreams := s.snapshotClaimStreams()
+			s.lock.Unlock()
+			s.claimIdleMessages(ctx, claimStreams)
+			s.lock.Lock()
 			s.deleteStaleConsumers(ctx)
 			s.lock.Unlock()
 
@@ -233,27 +279,37 @@ func (s *Sink) periodicIdleMessageCheck() {
 	}
 }
 
-// claimIdleMessages claims idle messages from the streams.
-// s.lock must be held.
-func (s *Sink) claimIdleMessages(ctx context.Context) {
-	for _, stream := range s.streams {
+func (s *Sink) snapshotClaimStreams() []sinkClaimStream {
+	claimStreams := make([]sinkClaimStream, len(s.streams))
+	for i, stream := range s.streams {
+		claimStreams[i] = sinkClaimStream{
+			name:     stream.Name,
+			key:      stream.key,
+			consumer: s.consumer,
+		}
+	}
+	return claimStreams
+}
+
+func (s *Sink) claimIdleMessages(ctx context.Context, streams []sinkClaimStream) {
+	for _, stream := range streams {
 		args := redis.XAutoClaimArgs{
 			Stream:   stream.key,
 			Group:    s.Name,
 			MinIdle:  s.ackGracePeriod,
 			Start:    "0-0",
-			Consumer: s.consumer,
+			Consumer: stream.consumer,
 		}
-		start, err := s.claim(ctx, stream.Name, args)
+		start, err := s.claim(ctx, stream.name, args)
 		if err != nil {
-			s.logger.Error(fmt.Errorf("failed to claim idle messages for stream %s: %w", stream.Name, err))
+			s.logger.Error(fmt.Errorf("failed to claim idle messages for stream %s: %w", stream.name, err))
 			continue
 		}
 		for start != "0-0" {
 			args.Start = start
-			start, err = s.claim(ctx, stream.Name, args)
+			start, err = s.claim(ctx, stream.name, args)
 			if err != nil {
-				s.logger.Error(fmt.Errorf("failed to claim idle messages for stream %s: %w", stream.Name, err))
+				s.logger.Error(fmt.Errorf("failed to claim idle messages for stream %s: %w", stream.name, err))
 				break
 			}
 		}
@@ -265,9 +321,16 @@ func (s *Sink) claim(ctx context.Context, streamName string, args redis.XAutoCla
 	messages, start, err := s.rdb.XAutoClaim(ctx, &args).Result()
 	if len(messages) > 0 {
 		s.logger.Info("claimed", "stream", streamName, "messages", len(messages))
-		streamEvents(streamName, args.Stream, s.Name, messages, s.eventFilter, s.chans, s.rdb, s.logger)
+		subscribers, filter := s.snapshotFanOut()
+		streamEvents(streamName, args.Stream, s.Name, messages, filter, subscribers, s.rdb, s.logger, s.donechan)
 	}
 	return start, err
+}
+
+func (s *Sink) isClosing() bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.closing
 }
 
 // deleteConsumerGroup deletes the consumer group.

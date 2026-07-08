@@ -41,17 +41,16 @@ type (
 		maxPolled int64
 		// buffer size of the reader channel.
 		bufferSize int
-		// channels to send notifications
-		chans []chan *Event
+		// subscribers receive event notifications.
+		subscribers []*eventSubscriber
 		// startOnce is used to ensure the reader is started only once.
 		startOnce sync.Once
 		// donechan is the reader donechan channel.
 		donechan chan struct{}
-		// streamschan notifies the reader when streams are added or
-		// removed.
-		streamschan chan struct{}
 		// wait is the reader cleanup wait group.
 		wait sync.WaitGroup
+		// readCancel cancels the active Redis read call.
+		readCancel context.CancelFunc
 		// closing is true if Close was called.
 		closing bool
 		// eventFilter is the event filter if any.
@@ -65,6 +64,14 @@ type (
 	// Acker is the interface used by events to acknowledge themselves.
 	Acker interface {
 		XAck(ctx context.Context, streamKey, sinkName string, ids ...string) *redis.IntCmd
+	}
+
+	eventSubscriber struct {
+		ch     chan *Event
+		done   chan struct{}
+		lock   sync.Mutex
+		wait   sync.WaitGroup
+		closed bool
 	}
 
 	// Event is a stream event.
@@ -111,7 +118,6 @@ func newReader(stream *Stream, opts ...options.Reader) (*Reader, error) {
 		maxPolled:     o.MaxPolled,
 		bufferSize:    o.BufferSize,
 		donechan:      make(chan struct{}),
-		streamschan:   make(chan struct{}),
 		eventFilter:   eventFilter,
 		logger:        stream.rootLogger.WithPrefix("reader", stream.Name),
 		rdb:           stream.rdb,
@@ -123,24 +129,28 @@ func newReader(stream *Stream, opts ...options.Reader) (*Reader, error) {
 // Subscribe returns a channel that receives events from the stream.
 // The channel is closed when the reader is closed.
 func (r *Reader) Subscribe() <-chan *Event {
-	c := make(chan *Event, r.bufferSize)
+	sub := newEventSubscriber(r.bufferSize)
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.chans = append(r.chans, c)
+	r.subscribers = append(r.subscribers, sub)
 	r.start()
-	return c
+	return sub.ch
 }
 
 // Unsubscribe removes the channel from the reader subscribers and closes it.
 func (r *Reader) Unsubscribe(c <-chan *Event) {
 	r.lock.Lock()
-	defer r.lock.Unlock()
-	for i, ch := range r.chans {
-		if ch == c {
-			close(ch)
-			r.chans = append(r.chans[:i], r.chans[i+1:]...)
-			return
+	var sub *eventSubscriber
+	for i, candidate := range r.subscribers {
+		if candidate.ch == c {
+			sub = candidate
+			r.subscribers = append(r.subscribers[:i], r.subscribers[i+1:]...)
+			break
 		}
+	}
+	r.lock.Unlock()
+	if sub != nil {
+		sub.close()
 	}
 }
 
@@ -150,8 +160,11 @@ func (r *Reader) Unsubscribe(c <-chan *Event) {
 func (r *Reader) AddStream(ctx context.Context, stream *Stream, opts ...options.AddStream) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	for _, name := range r.streamKeys {
-		if name == stream.Name {
+	if r.closing {
+		return fmt.Errorf("reader is closing")
+	}
+	for _, key := range r.streamKeys {
+		if key == stream.key {
 			return nil
 		}
 	}
@@ -163,7 +176,7 @@ func (r *Reader) AddStream(ctx context.Context, stream *Stream, opts ...options.
 	r.streams = append(r.streams, stream)
 	r.streamKeys = append(r.streamKeys, stream.key)
 	r.streamCursors = append(r.streamCursors, startID)
-	r.notifyStreamChange()
+	r.cancelActiveRead()
 	r.logger.Info("added", "stream", stream.Name)
 	return nil
 }
@@ -172,15 +185,18 @@ func (r *Reader) AddStream(ctx context.Context, stream *Stream, opts ...options.
 func (r *Reader) RemoveStream(ctx context.Context, stream *Stream) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+	if r.closing {
+		return fmt.Errorf("reader is closing")
+	}
 	for i, st := range r.streams {
 		if st == stream {
 			r.streams = append(r.streams[:i], r.streams[i+1:]...)
 			r.streamKeys = append(r.streamKeys[:i], r.streamKeys[i+1:]...)
 			r.streamCursors = append(r.streamCursors[:i], r.streamCursors[i+1:]...)
+			r.cancelActiveRead()
 			break
 		}
 	}
-	r.notifyStreamChange()
 	r.logger.Info("removed", "stream", stream.Name)
 	return nil
 }
@@ -188,19 +204,32 @@ func (r *Reader) RemoveStream(ctx context.Context, stream *Stream) error {
 // Close stops event polling and closes the reader channel. It is safe to call
 // Close multiple times.
 func (r *Reader) Close() {
-	r.lock.Lock()
-	if r.closing {
+	if !r.beginClose() {
 		return
 	}
-	r.closing = true
-	close(r.donechan)
-	close(r.streamschan)
-	r.lock.Unlock()
 	r.wait.Wait()
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.closed = true
 	r.logger.Info("stopped")
+}
+
+func (r *Reader) beginClose() bool {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if r.closing {
+		return false
+	}
+	r.closing = true
+	close(r.donechan)
+	if r.readCancel != nil {
+		r.readCancel()
+	}
+	return true
+}
+
+func (r *Reader) closeFromReadLoop() {
+	r.beginClose()
 }
 
 // IsClosed returns true if the reader is stopped.
@@ -214,13 +243,12 @@ func (r *Reader) IsClosed() bool {
 func (r *Reader) start() {
 	r.startOnce.Do(func() {
 		r.wait.Add(1)
-		pulse.Go(r.logger, r.read)
+		pulse.Go(r.logger, func() { r.read(context.Background()) })
 	})
 }
 
 // read reads events from the streams and sends them to the reader channel.
-func (r *Reader) read() {
-	ctx := context.Background()
+func (r *Reader) read(ctx context.Context) {
 	defer r.cleanup()
 	for {
 		streamsEvents, err := r.xread(ctx)
@@ -228,51 +256,83 @@ func (r *Reader) read() {
 			return
 		}
 		if err != nil {
-			if err := handleReadError(err, r.logger); err != nil {
+			if err := handleReadError(err, r.logger, r.donechan); err != nil {
 				r.logger.Error(fmt.Errorf("fatal error while reading events: %w, stopping", err))
-				r.Close()
+				r.closeFromReadLoop()
 				return
 			}
 			continue
 		}
 
-		r.lock.Lock()
-		for _, events := range streamsEvents {
-			streamName := events.Stream[len(streamKeyPrefix):]
-			streamEvents(streamName, events.Stream, "", events.Messages, r.eventFilter, r.chans, r.rdb, r.logger)
-			for i := range r.streamKeys {
-				if r.streamKeys[i] == events.Stream {
-					r.streamCursors[i] = events.Messages[len(events.Messages)-1].ID
-					break
-				}
-			}
-		}
-		r.lock.Unlock()
+		r.fanOutStreams(streamsEvents)
 	}
+}
+
+func (r *Reader) fanOutStreams(streamsEvents []redis.XStream) {
+	for _, events := range streamsEvents {
+		r.fanOut(events.Stream, events.Messages)
+	}
+}
+
+func (r *Reader) fanOut(streamKey string, messages []redis.XMessage) {
+	if len(messages) == 0 {
+		return
+	}
+	streamName := streamKey[len(streamKeyPrefix):]
+	subscribers, filter := r.snapshotFanOut()
+	streamEvents(streamName, streamKey, "", messages, filter, subscribers, r.rdb, r.logger, r.donechan)
+
+	lastID := messages[len(messages)-1].ID
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if r.closing {
+		return
+	}
+	for i := range r.streamKeys {
+		if r.streamKeys[i] == streamKey {
+			r.streamCursors[i] = lastID
+			break
+		}
+	}
+}
+
+func (r *Reader) snapshotFanOut() ([]*eventSubscriber, eventFilterFunc) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	subscribers := make([]*eventSubscriber, len(r.subscribers))
+	copy(subscribers, r.subscribers)
+	return subscribers, r.eventFilter
 }
 
 func (r *Reader) xread(ctx context.Context) ([]redis.XStream, error) {
 	// copy so no two goroutines can share the memory
+	readCtx, cancel := context.WithCancel(ctx)
 	r.lock.Lock()
 	readStreams := make([]string, 0, len(r.streamKeys)+len(r.streamCursors))
 	readStreams = append(readStreams, r.streamKeys...)
 	readStreams = append(readStreams, r.streamCursors...)
+	r.readCancel = cancel
 	r.lock.Unlock()
+	defer r.clearActiveRead()
 
 	r.logger.Debug("reading", "streams", readStreams, "max", r.maxPolled, "block", r.blockDuration)
-	return r.rdb.XRead(ctx, &redis.XReadArgs{
+	return r.rdb.XRead(readCtx, &redis.XReadArgs{
 		Streams: readStreams,
 		Count:   r.maxPolled,
 		Block:   r.blockDuration,
 	}).Result()
 }
 
-// notifyStreamChange notifies the reader that the streams have changed.
-func (r *Reader) notifyStreamChange() {
-	select {
-	case r.streamschan <- struct{}{}:
-	default:
+func (r *Reader) cancelActiveRead() {
+	if r.readCancel != nil {
+		r.readCancel()
 	}
+}
+
+func (r *Reader) clearActiveRead() {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.readCancel = nil
 }
 
 // cleanup removes the consumer from the consumer groups and removes the reader
@@ -280,11 +340,15 @@ func (r *Reader) notifyStreamChange() {
 // stopped.
 func (r *Reader) cleanup() {
 	r.lock.Lock()
-	defer r.lock.Unlock()
-	for _, c := range r.chans {
-		close(c)
+	subscribers := r.subscribers
+	r.subscribers = nil
+	r.closed = true
+	r.lock.Unlock()
+	for _, sub := range subscribers {
+		sub.close()
 	}
-	r.chans = nil
+	r.lock.Lock()
+	defer r.lock.Unlock()
 	r.wait.Done()
 }
 
@@ -304,17 +368,17 @@ func (e *Event) CreatedAt() time.Time {
 	return time.Unix(seconds, nanos).UTC()
 }
 
-// streamEvents filters and streams the Redis messages as events to c.
-// The caller is responsible for locking c.
+// streamEvents filters Redis messages and sends them to each subscriber.
 func streamEvents(
 	streamName string,
 	streamKey string,
 	sinkName string,
 	msgs []redis.XMessage,
 	eventFilter eventFilterFunc,
-	chans []chan *Event,
+	subscribers []*eventSubscriber,
 	rdb *redis.Client,
 	logger pulse.Logger,
+	done <-chan struct{},
 ) {
 	if len(msgs) == 0 {
 		return
@@ -338,17 +402,67 @@ func streamEvents(
 			logger.Debug("event filtered", "event", ev.EventName, "id", ev.ID, "stream", streamName)
 			continue
 		}
-		logger.Debug("event", "stream", streamName, "event", ev.EventName, "id", ev.ID, "channels", len(chans))
-		for _, c := range chans {
-			c <- ev
+		logger.Debug("event", "stream", streamName, "event", ev.EventName, "id", ev.ID, "channels", len(subscribers))
+		for _, sub := range subscribers {
+			if !sub.send(ev, done) {
+				return
+			}
 		}
 	}
 }
 
+func newEventSubscriber(bufferSize int) *eventSubscriber {
+	return &eventSubscriber{
+		ch:   make(chan *Event, bufferSize),
+		done: make(chan struct{}),
+	}
+}
+
+func (s *eventSubscriber) send(ev *Event, done <-chan struct{}) bool {
+	if !s.beginSend() {
+		return true
+	}
+	defer s.wait.Done()
+	select {
+	case s.ch <- ev:
+		return true
+	case <-s.done:
+		return true
+	case <-done:
+		return false
+	}
+}
+
+func (s *eventSubscriber) beginSend() bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if s.closed {
+		return false
+	}
+	s.wait.Add(1)
+	return true
+}
+
+func (s *eventSubscriber) close() {
+	s.lock.Lock()
+	if s.closed {
+		s.lock.Unlock()
+		return
+	}
+	s.closed = true
+	close(s.done)
+	s.lock.Unlock()
+	s.wait.Wait()
+	close(s.ch)
+}
+
 // handleReadError retries retryable read errors and ignores non-retryable.
-func handleReadError(err error, logger pulse.Logger) error {
+func handleReadError(err error, logger pulse.Logger, done <-chan struct{}) error {
 	if strings.Contains(err.Error(), "stream key no longer exists") {
 		return err // Fatal error
+	}
+	if errors.Is(err, context.Canceled) {
+		return nil // Read was interrupted by Close or a stream set change.
 	}
 	if errors.Is(err, redis.Nil) {
 		return nil // No event at this time, just loop
@@ -359,6 +473,9 @@ func handleReadError(err error, logger pulse.Logger) error {
 	// Retryable error, sleep and loop
 	d := time.Duration(rand.Intn(maxJitterMs)) * time.Millisecond
 	logger.Error(fmt.Errorf("failed to read events: %w, retrying in %v", err, d))
-	time.Sleep(d)
+	select {
+	case <-time.After(d):
+	case <-done:
+	}
 	return nil
 }
