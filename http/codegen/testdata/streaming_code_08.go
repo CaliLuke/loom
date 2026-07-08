@@ -24,24 +24,21 @@ func (c *Client) StreamingResultNoPayloadMethod() loom.Endpoint {
 			ctx, cancel = context.WithCancel(ctx)
 			conn = c.configurer.StreamingResultNoPayloadMethodFn(conn, cancel)
 		}
+		wsconn := loomhttp.NewWebSocketStream(conn)
 		done := make(chan struct{})
 		go func() {
 			select {
 			case <-ctx.Done():
-				if err := conn.WriteControl(
-					websocket.CloseMessage,
-					websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
-					time.Now().Add(time.Second),
-				); err != nil {
+				if err := wsconn.WriteClose("client closing connection"); err != nil {
 					return
 				}
-				if err := conn.Close(); err != nil {
+				if err := wsconn.Close(); err != nil {
 					return
 				}
 			case <-done:
 			}
 		}()
-		stream := &StreamingResultNoPayloadMethodClientStream{conn: conn, done: done}
+		stream := &StreamingResultNoPayloadMethodClientStream{conn: wsconn, done: done}
 		return stream, nil
 	}
 }

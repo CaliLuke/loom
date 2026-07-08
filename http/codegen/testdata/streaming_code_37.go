@@ -13,10 +13,10 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodClientStream) CloseAndRe
 	)
 	defer s.conn.Close()
 	// Send a nil payload to the server implying end of message
-	if err = s.conn.WriteJSON(nil); err != nil {
+	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
 		return rv, err
 	}
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		s.conn.Close()
 		return rv, io.EOF
@@ -42,25 +42,36 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodClientStream) CloseAndRe
 // "streamingpayloadresultcollectionwithviewsservice.UsertypeCollection" from
 // the connection with context.
 func (s *StreamingPayloadResultCollectionWithViewsMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (streamingpayloadresultcollectionwithviewsservice.UsertypeCollection, error) {
-	var rv streamingpayloadresultcollectionwithviewsservice.UsertypeCollection
+	var (
+		rv   streamingpayloadresultcollectionwithviewsservice.UsertypeCollection
+		body StreamingPayloadResultCollectionWithViewsMethodResponseBody
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
-	v, err := s.CloseAndRecv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	defer s.conn.Close()
+	// Send a nil payload to the server implying end of message
+	if err = s.conn.WriteJSON(ctx, nil); err != nil {
+		return rv, err
 	}
-	return v, err
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		s.conn.Close()
+		return rv, io.EOF
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingPayloadResultCollectionWithViewsMethodUsertypeCollectionOK(body)
+	vres := streamingpayloadresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
+	if err := streamingpayloadresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
+		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithViewsService", "StreamingPayloadResultCollectionWithViewsMethod", err)
+	}
+	result, err := streamingpayloadresultcollectionwithviewsservice.NewUsertypeCollection(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithViewsService", "StreamingPayloadResultCollectionWithViewsMethod", err)
+	}
+	return result, nil
 }
 `

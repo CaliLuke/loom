@@ -418,6 +418,12 @@ Method("echo", func() {
 
 ### WebSocket Implementation
 
+Generated WebSocket streams keep the public typed `Send`, `Recv`, `Close`,
+and `*WithContext` methods, while the socket lifecycle is owned by
+`loomhttp.WebSocketStream`. That runtime wrapper handles idempotent close,
+context-cancel unblocking, close-control frames, and JSON frame read/write
+coordination so generated endpoint wrappers stay thin.
+
 Server-side implementation:
 
 ```go

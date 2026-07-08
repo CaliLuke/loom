@@ -96,14 +96,10 @@ func renderWebSocketCloseBody(ws *WebSocketData) string {
 	}
 	if ws.Type == "server" {
 		b.Add("if s.conn == nil {\n\treturn nil\n}\n")
-		b.Add("if err = s.conn.WriteControl(\n")
-		b.Add("\twebsocket.CloseMessage,\n")
-		b.Add("\twebsocket.FormatCloseMessage(websocket.CloseNormalClosure, \"server closing connection\"),\n")
-		b.Add("\ttime.Now().Add(time.Second),\n")
-		b.Add("); err != nil {\n\treturn err\n}\n")
+		b.Add("if err = s.conn.WriteClose(\"server closing connection\"); err != nil {\n\treturn err\n}\n")
 	} else {
 		b.Add("// Send a nil payload to the server implying client closing connection.\n")
-		b.Add("if err = s.conn.WriteJSON(nil); err != nil {\n\treturn err\n}\n")
+		b.Add("if err = s.conn.WriteJSON(context.Background(), nil); err != nil {\n\treturn err\n}\n")
 	}
 	b.Add("return s.conn.Close()")
 	return b.String()

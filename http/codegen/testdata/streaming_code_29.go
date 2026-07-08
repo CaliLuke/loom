@@ -8,15 +8,6 @@ func (s *StreamingPayloadResultWithExplicitViewMethodServerStream) SendAndCloseW
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		defer s.conn.Close()
 		res, err := streamingpayloadresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
@@ -24,7 +15,7 @@ func (s *StreamingPayloadResultWithExplicitViewMethodServerStream) SendAndCloseW
 			return err
 		}
 		body := NewStreamingPayloadResultWithExplicitViewMethodResponseBodyExtended(res.Projected)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {

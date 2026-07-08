@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadPrimitiveMapClientStreamRecvCode = `// CloseAndRecv stops sending messages to the
 // "StreamingPayloadPrimitiveMapMethod" endpoint websocket connection and reads
 // instances of "map[int]int" from the connection.
@@ -12,10 +11,10 @@ func (s *StreamingPayloadPrimitiveMapMethodClientStream) CloseAndRecv() (map[int
 	)
 	defer s.conn.Close()
 	// Send a nil payload to the server implying end of message
-	if err = s.conn.WriteJSON(nil); err != nil {
+	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
 		return rv, err
 	}
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		s.conn.Close()
 		return rv, io.EOF
@@ -30,27 +29,27 @@ func (s *StreamingPayloadPrimitiveMapMethodClientStream) CloseAndRecv() (map[int
 // "StreamingPayloadPrimitiveMapMethod" endpoint websocket connection and reads
 // instances of "map[int]int" from the connection with context.
 func (s *StreamingPayloadPrimitiveMapMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (map[int]int, error) {
-	var rv map[int]int
+	var (
+		rv   map[int]int
+		body map[int]int
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
-	v, err := s.CloseAndRecv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	defer s.conn.Close()
+	// Send a nil payload to the server implying end of message
+	if err = s.conn.WriteJSON(ctx, nil); err != nil {
+		return rv, err
 	}
-	return v, err
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		s.conn.Close()
+		return rv, io.EOF
+	}
+	if err != nil {
+		return rv, err
+	}
+	return body, nil
 }
 `
-
-

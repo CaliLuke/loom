@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingPrimitiveClientStreamSendCode = `// SendWithContext streams instances of "string" to the
 // "BidirectionalStreamingPrimitiveMethod" endpoint websocket connection with
 // context.
@@ -8,17 +7,8 @@ func (s *BidirectionalStreamingPrimitiveMethodClientStream) SendWithContext(ctx 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
-		return s.conn.WriteJSON(v)
+		return s.conn.WriteJSON(ctx, v)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -34,5 +24,3 @@ func (s *BidirectionalStreamingPrimitiveMethodClientStream) Send(v string) error
 	return s.SendWithContext(context.Background(), v)
 }
 `
-
-

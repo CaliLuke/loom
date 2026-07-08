@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingUserTypeArrayClientStreamSendCode = `// SendWithContext streams instances of
 // "[]*bidirectionalstreamingusertypearrayservice.RequestType" to the
 // "BidirectionalStreamingUserTypeArrayMethod" endpoint websocket connection
@@ -9,18 +8,9 @@ func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) SendWithContext(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		body := NewRequestType(v)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -37,5 +27,3 @@ func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) Send(v []*bidire
 	return s.SendWithContext(context.Background(), v)
 }
 `
-
-

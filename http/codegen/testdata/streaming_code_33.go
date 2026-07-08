@@ -8,15 +8,6 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndClo
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		defer s.conn.Close()
 		res, err := streamingpayloadresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
@@ -32,7 +23,7 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndClo
 		case "default", "":
 			body = NewUsertypeResponseCollection(res.Projected)
 		}
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {

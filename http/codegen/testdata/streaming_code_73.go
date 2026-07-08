@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingNoPayloadClientEndpointCode = `// BidirectionalStreamingNoPayloadMethod returns an endpoint that makes HTTP
 // requests to the BidirectionalStreamingNoPayloadService service
 // BidirectionalStreamingNoPayloadMethod server.
@@ -23,10 +22,9 @@ func (c *Client) BidirectionalStreamingNoPayloadMethod() loom.Endpoint {
 		if c.configurer.BidirectionalStreamingNoPayloadMethodFn != nil {
 			conn = c.configurer.BidirectionalStreamingNoPayloadMethodFn(conn, nil)
 		}
-		stream := &BidirectionalStreamingNoPayloadMethodClientStream{conn: conn}
+		wsconn := loomhttp.NewWebSocketStream(conn)
+		stream := &BidirectionalStreamingNoPayloadMethodClientStream{conn: wsconn}
 		return stream, nil
 	}
 }
 `
-
-

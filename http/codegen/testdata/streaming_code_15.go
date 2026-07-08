@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadNoPayloadServerHandlerInitCode = `// NewStreamingPayloadNoPayloadMethodHandler creates a HTTP handler which loads
 // the HTTP request and calls the "StreamingPayloadNoPayloadService" service
 // "StreamingPayloadNoPayloadMethod" endpoint.
@@ -33,6 +32,7 @@ func NewStreamingPayloadNoPayloadMethodHandler(
 				cancel:     cancel,
 				w:          w,
 				r:          r,
+				conn:       loomhttp.NewWebSocketStream(nil),
 			},
 		}
 		_, err = endpoint(ctx, v)
@@ -59,5 +59,3 @@ func NewStreamingPayloadNoPayloadMethodHandler(
 	})
 }
 `
-
-

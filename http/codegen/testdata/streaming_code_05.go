@@ -8,7 +8,7 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingres
 		body []*UserTypeResponse
 		err  error
 	)
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		s.closeOnce.Do(func() {
 			if s.done != nil {
@@ -32,25 +32,30 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingres
 // "StreamingResultUserTypeArrayMethod" endpoint websocket connection with
 // context.
 func (s *StreamingResultUserTypeArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]*streamingresultusertypearrayservice.UserType, error) {
-	var rv []*streamingresultusertypearrayservice.UserType
+	var (
+		rv   []*streamingresultusertypearrayservice.UserType
+		body []*UserTypeResponse
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		s.closeOnce.Do(func() {
+			if s.done != nil {
+				close(s.done)
+			}
+		})
 		if closeErr := s.conn.Close(); closeErr != nil {
-			return
+			return rv, closeErr
 		}
-	})
-	defer stopContextWatch()
-	v, err := s.Recv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+		return rv, io.EOF
 	}
-	return v, err
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingResultUserTypeArrayMethodUserTypeOK(body)
+	return res, nil
 }
 `

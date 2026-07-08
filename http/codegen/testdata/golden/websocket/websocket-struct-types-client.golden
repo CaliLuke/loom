@@ -17,7 +17,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 )
 
 // ConnConfigurer holds the websocket connection configurer functions for the
@@ -29,8 +28,8 @@ type ConnConfigurer struct {
 // StructStreamClientStream implements the testservice.StructStreamClientStream
 // interface.
 type StructStreamClientStream struct {
-	// conn is the underlying websocket connection.
-	conn *websocket.Conn
+	// conn owns the websocket connection lifecycle.
+	conn *loomhttp.WebSocketStream
 }
 
 // NewConnConfigurer initializes the websocket connection configurer function
@@ -49,7 +48,7 @@ func (s *StructStreamClientStream) Recv() (*testservice.StructStreamResult, erro
 		body StructStreamResponseBody
 		err  error
 	)
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		return rv, io.EOF
 	}
@@ -63,26 +62,23 @@ func (s *StructStreamClientStream) Recv() (*testservice.StructStreamResult, erro
 // RecvWithContext reads instances of "testservice.StructStreamResult" from the
 // "StructStream" endpoint websocket connection with context.
 func (s *StructStreamClientStream) RecvWithContext(ctx context.Context) (*testservice.StructStreamResult, error) {
-	var rv *testservice.StructStreamResult
+	var (
+		rv   *testservice.StructStreamResult
+		body StructStreamResponseBody
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
-	v, err := s.Recv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		return rv, io.EOF
 	}
-	return v, err
+	if err != nil {
+		return rv, err
+	}
+	res := NewStructStreamResultOK(&body)
+	return res, nil
 }
 
 // SendWithContext streams instances of
@@ -92,18 +88,9 @@ func (s *StructStreamClientStream) SendWithContext(ctx context.Context, v *tests
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		body := NewStructStreamStreamingBody(v)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -123,7 +110,7 @@ func (s *StructStreamClientStream) Send(v *testservice.StructStreamStreamingPayl
 func (s *StructStreamClientStream) Close() error {
 	var err error
 	// Send a nil payload to the server implying client closing connection.
-	if err = s.conn.WriteJSON(nil); err != nil {
+	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
 		return err
 	}
 	return s.conn.Close()

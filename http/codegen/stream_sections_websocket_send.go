@@ -15,9 +15,9 @@ func websocketSendSection(ws *WebSocketData) codegen.Section {
 func writeClientWebSocketSend(b *sourceBuilder, ws *WebSocketData) {
 	if ws.Payload != nil && ws.Payload.Init != nil {
 		b.Addf("\tbody := %s(v)\n", ws.Payload.Init.Name)
-		b.Add("\treturn s.conn.WriteJSON(body)\n")
+		b.Add("\treturn s.conn.WriteJSON(ctx, body)\n")
 	} else {
-		b.Add("\treturn s.conn.WriteJSON(v)\n")
+		b.Add("\treturn s.conn.WriteJSON(ctx, v)\n")
 	}
 }
 
@@ -25,7 +25,7 @@ func writeServerWebSocketSend(b *sourceBuilder, ws *WebSocketData) {
 	writeServerWebSocketSendPreamble(b, ws)
 	writeServerWebSocketSendResult(b, ws)
 	if !writeServerWebSocketResponseBody(b, ws) {
-		b.Add("\treturn s.conn.WriteJSON(res)\n")
+		b.Add("\treturn s.conn.WriteJSON(ctx, res)\n")
 	}
 }
 
@@ -61,7 +61,7 @@ func writeServerWebSocketResponseBody(b *sourceBuilder, ws *WebSocketData) bool 
 		return false
 	}
 	writeServerWebSocketBodyInit(b, ws, body)
-	b.Add("\treturn s.conn.WriteJSON(body)\n")
+	b.Add("\treturn s.conn.WriteJSON(ctx, body)\n")
 	return true
 }
 

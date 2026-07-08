@@ -16,7 +16,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 )
 
 // ConnConfigurer holds the websocket connection configurer functions for the
@@ -42,8 +41,8 @@ type BidirectionalPrimitiveServerStream struct {
 	w http.ResponseWriter
 	// r is the HTTP request.
 	r *http.Request
-	// conn is the underlying websocket connection.
-	conn *websocket.Conn
+	// conn owns the websocket connection lifecycle.
+	conn *loomhttp.WebSocketStream
 }
 
 // NewConnConfigurer initializes the websocket connection configurer function
@@ -60,15 +59,6 @@ func (s *BidirectionalPrimitiveServerStream) SendWithContext(ctx context.Context
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		var err error
 		// Upgrade the HTTP connection to a websocket connection only once. Connection
@@ -84,7 +74,7 @@ func (s *BidirectionalPrimitiveServerStream) SendWithContext(ctx context.Context
 			if s.configurer != nil {
 				conn = s.configurer(conn, s.cancel)
 			}
-			s.conn = conn
+			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -98,7 +88,7 @@ func (s *BidirectionalPrimitiveServerStream) SendWithContext(ctx context.Context
 			return s.upgradeErr
 		}
 		res := v
-		return s.conn.WriteJSON(res)
+		return s.conn.WriteJSON(ctx, res)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -131,15 +121,6 @@ func (s *BidirectionalPrimitiveServerStream) RecvWithContext(ctx context.Context
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
 	// before calling the actual service method which may call Recv().
@@ -153,7 +134,7 @@ func (s *BidirectionalPrimitiveServerStream) RecvWithContext(ctx context.Context
 		if s.configurer != nil {
 			conn = s.configurer(conn, s.cancel)
 		}
-		s.conn = conn
+		s.conn.SetConn(conn)
 		if err = ctx.Err(); err != nil {
 			if closeErr := s.conn.Close(); closeErr != nil {
 				s.upgradeErr = closeErr
@@ -166,10 +147,7 @@ func (s *BidirectionalPrimitiveServerStream) RecvWithContext(ctx context.Context
 	if s.upgradeErr != nil {
 		return rv, s.upgradeErr
 	}
-	if err = s.conn.ReadJSON(&msg); err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	if err = s.conn.ReadJSON(ctx, &msg); err != nil {
 		return rv, err
 	}
 	if msg == nil {
@@ -184,11 +162,7 @@ func (s *BidirectionalPrimitiveServerStream) Close() error {
 	if s.conn == nil {
 		return nil
 	}
-	if err = s.conn.WriteControl(
-		websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server closing connection"),
-		time.Now().Add(time.Second),
-	); err != nil {
+	if err = s.conn.WriteClose("server closing connection"); err != nil {
 		return err
 	}
 	return s.conn.Close()

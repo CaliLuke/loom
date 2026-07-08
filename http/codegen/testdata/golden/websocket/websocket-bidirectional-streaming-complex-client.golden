@@ -17,7 +17,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 )
 
 // ConnConfigurer holds the websocket connection configurer functions for the
@@ -29,8 +28,8 @@ type ConnConfigurer struct {
 // BidirectionalComplexClientStream implements the
 // testservice.BidirectionalComplexClientStream interface.
 type BidirectionalComplexClientStream struct {
-	// conn is the underlying websocket connection.
-	conn *websocket.Conn
+	// conn owns the websocket connection lifecycle.
+	conn *loomhttp.WebSocketStream
 }
 
 // NewConnConfigurer initializes the websocket connection configurer function
@@ -49,7 +48,7 @@ func (s *BidirectionalComplexClientStream) Recv() (*testservice.Response, error)
 		body BidirectionalComplexResponseBody
 		err  error
 	)
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		return rv, io.EOF
 	}
@@ -67,26 +66,27 @@ func (s *BidirectionalComplexClientStream) Recv() (*testservice.Response, error)
 // RecvWithContext reads instances of "testservice.Response" from the
 // "BidirectionalComplex" endpoint websocket connection with context.
 func (s *BidirectionalComplexClientStream) RecvWithContext(ctx context.Context) (*testservice.Response, error) {
-	var rv *testservice.Response
+	var (
+		rv   *testservice.Response
+		body BidirectionalComplexResponseBody
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
-	v, err := s.Recv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		return rv, io.EOF
 	}
-	return v, err
+	if err != nil {
+		return rv, err
+	}
+	err = ValidateBidirectionalComplexResponseBody(&body)
+	if err != nil {
+		return rv, err
+	}
+	res := NewBidirectionalComplexResponseOK(&body)
+	return res, nil
 }
 
 // SendWithContext streams instances of "testservice.Request" to the
@@ -95,18 +95,9 @@ func (s *BidirectionalComplexClientStream) SendWithContext(ctx context.Context, 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		body := NewBidirectionalComplexStreamingBody(v)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -126,7 +117,7 @@ func (s *BidirectionalComplexClientStream) Send(v *testservice.Request) error {
 func (s *BidirectionalComplexClientStream) Close() error {
 	var err error
 	// Send a nil payload to the server implying client closing connection.
-	if err = s.conn.WriteJSON(nil); err != nil {
+	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
 		return err
 	}
 	return s.conn.Close()

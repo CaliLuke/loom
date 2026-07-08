@@ -230,6 +230,10 @@ build Auto-K without repeating large amounts of app-local glue.
 - Large generated HTTP/JSON-RPC clients expose path-segment operation groups
   such as `client.Items.List()` in addition to the flat `client.List()`
   methods. Keep both surfaces source-compatible when changing client codegen.
+- HTTP WebSocket generated streams use `loomhttp.WebSocketStream` for
+  connection lifecycle and context-bound JSON frame I/O. Keep new WebSocket
+  fixes in that runtime wrapper or a similarly shared transport core instead
+  of adding per-endpoint read/write/close loops.
 - If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.

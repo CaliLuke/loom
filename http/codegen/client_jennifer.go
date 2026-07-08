@@ -211,20 +211,17 @@ func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
 			configure.Id("conn").Op("=").Id("c").Dot("configurer").Dot(endpoint.Method.VarName+"Fn").Call(jen.Id("conn"), jen.Nil())
 		}
 	})
+	group.Id("wsconn").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("conn"))
 
 	if endpoint.ClientWebSocket.SendName == "" {
 		group.Id("done").Op(":=").Make(jen.Chan().Struct())
 		addRawWebSocketGroup(group, `go func() {
 	select {
 	case <-ctx.Done():
-		if err := conn.WriteControl(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection"),
-			time.Now().Add(time.Second),
-		); err != nil {
+		if err := wsconn.WriteClose("client closing connection"); err != nil {
 			return
 		}
-		if err := conn.Close(); err != nil {
+		if err := wsconn.Close(); err != nil {
 			return
 		}
 	case <-done:
@@ -233,7 +230,7 @@ func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
 	}
 
 	group.Id("stream").Op(":=").Op("&").Id(endpoint.ClientWebSocket.VarName).ValuesFunc(func(values *jen.Group) {
-		values.Id("conn").Op(":").Id("conn")
+		values.Id("conn").Op(":").Id("wsconn")
 		if endpoint.ClientWebSocket.SendName == "" {
 			values.Id("done").Op(":").Id("done")
 		}

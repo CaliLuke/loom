@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingResultWithExplicitViewClientStreamSendCode = `// SendWithContext streams instances of "float32" to the
 // "BidirectionalStreamingResultWithExplicitViewMethod" endpoint websocket
 // connection with context.
@@ -8,17 +7,8 @@ func (s *BidirectionalStreamingResultWithExplicitViewMethodClientStream) SendWit
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
-		return s.conn.WriteJSON(v)
+		return s.conn.WriteJSON(ctx, v)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -35,5 +25,3 @@ func (s *BidirectionalStreamingResultWithExplicitViewMethodClientStream) Send(v 
 	return s.SendWithContext(context.Background(), v)
 }
 `
-
-

@@ -16,7 +16,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 )
 
 // ConnConfigurer holds the websocket connection configurer functions for the
@@ -42,8 +41,8 @@ type StreamPrimitiveServerStream struct {
 	w http.ResponseWriter
 	// r is the HTTP request.
 	r *http.Request
-	// conn is the underlying websocket connection.
-	conn *websocket.Conn
+	// conn owns the websocket connection lifecycle.
+	conn *loomhttp.WebSocketStream
 }
 
 // NewConnConfigurer initializes the websocket connection configurer function
@@ -60,15 +59,6 @@ func (s *StreamPrimitiveServerStream) SendWithContext(ctx context.Context, v str
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		var err error
 		// Upgrade the HTTP connection to a websocket connection only once. Connection
@@ -84,7 +74,7 @@ func (s *StreamPrimitiveServerStream) SendWithContext(ctx context.Context, v str
 			if s.configurer != nil {
 				conn = s.configurer(conn, s.cancel)
 			}
-			s.conn = conn
+			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -98,7 +88,7 @@ func (s *StreamPrimitiveServerStream) SendWithContext(ctx context.Context, v str
 			return s.upgradeErr
 		}
 		res := v
-		return s.conn.WriteJSON(res)
+		return s.conn.WriteJSON(ctx, res)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -120,11 +110,7 @@ func (s *StreamPrimitiveServerStream) Close() error {
 	if s.conn == nil {
 		return nil
 	}
-	if err = s.conn.WriteControl(
-		websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server closing connection"),
-		time.Now().Add(time.Second),
-	); err != nil {
+	if err = s.conn.WriteClose("server closing connection"); err != nil {
 		return err
 	}
 	return s.conn.Close()

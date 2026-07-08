@@ -10,7 +10,7 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodClientStream) Recv
 		body BidirectionalStreamingResultCollectionWithViewsMethodResponseBody
 		err  error
 	)
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		return rv, io.EOF
 	}
@@ -34,25 +34,30 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodClientStream) Recv
 // from the "BidirectionalStreamingResultCollectionWithViewsMethod" endpoint
 // websocket connection with context.
 func (s *BidirectionalStreamingResultCollectionWithViewsMethodClientStream) RecvWithContext(ctx context.Context) (bidirectionalstreamingresultcollectionwithviewsservice.UsertypeCollection, error) {
-	var rv bidirectionalstreamingresultcollectionwithviewsservice.UsertypeCollection
+	var (
+		rv   bidirectionalstreamingresultcollectionwithviewsservice.UsertypeCollection
+		body BidirectionalStreamingResultCollectionWithViewsMethodResponseBody
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
-	v, err := s.Recv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		return rv, io.EOF
 	}
-	return v, err
+	if err != nil {
+		return rv, err
+	}
+	res := NewBidirectionalStreamingResultCollectionWithViewsMethodUsertypeCollectionOK(body)
+	vres := bidirectionalstreamingresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
+	if err := bidirectionalstreamingresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
+		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultCollectionWithViewsService", "BidirectionalStreamingResultCollectionWithViewsMethod", err)
+	}
+	result, err := bidirectionalstreamingresultcollectionwithviewsservice.NewUsertypeCollection(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultCollectionWithViewsService", "BidirectionalStreamingResultCollectionWithViewsMethod", err)
+	}
+	return result, nil
 }
 `

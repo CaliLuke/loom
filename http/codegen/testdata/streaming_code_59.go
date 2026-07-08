@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadUserTypeMapServerStreamSendCode = `// SendAndCloseWithContext streams instances of "[]string" to the
 // "StreamingPayloadUserTypeMapMethod" endpoint websocket connection with
 // context and closes the connection.
@@ -8,19 +7,10 @@ func (s *StreamingPayloadUserTypeMapMethodServerStream) SendAndCloseWithContext(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		defer s.conn.Close()
 		res := v
-		return s.conn.WriteJSON(res)
+		return s.conn.WriteJSON(ctx, res)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -37,5 +27,3 @@ func (s *StreamingPayloadUserTypeMapMethodServerStream) SendAndClose(v []string)
 	return s.SendAndCloseWithContext(s.r.Context(), v)
 }
 `
-
-

@@ -132,8 +132,8 @@ func websocketStructTypeSection(ws *WebSocketData) codegen.Section {
 				group.Comment("r is the HTTP request.")
 				group.Id("r").Op("*").Qual("net/http", "Request")
 			}
-			group.Comment("conn is the underlying websocket connection.")
-			group.Id("conn").Op("*").Qual("github.com/gorilla/websocket", "Conn")
+			group.Comment("conn owns the websocket connection lifecycle.")
+			group.Id("conn").Op("*").Add(codegen.TypeRef("loomhttp.WebSocketStream"))
 			if ws.Type == "client" && ws.SendName == "" {
 				group.Comment("done is closed when the client stream is closed.")
 				group.Id("done").Chan().Struct()

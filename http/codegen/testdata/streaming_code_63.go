@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingServerHandlerInitCode = `// NewBidirectionalStreamingMethodHandler creates a HTTP handler which loads
 // the HTTP request and calls the "BidirectionalStreamingService" service
 // "BidirectionalStreamingMethod" endpoint.
@@ -41,6 +40,7 @@ func NewBidirectionalStreamingMethodHandler(
 				cancel:     cancel,
 				w:          w,
 				r:          r,
+				conn:       loomhttp.NewWebSocketStream(nil),
 			},
 			Payload: payload,
 		}
@@ -68,5 +68,3 @@ func NewBidirectionalStreamingMethodHandler(
 	})
 }
 `
-
-

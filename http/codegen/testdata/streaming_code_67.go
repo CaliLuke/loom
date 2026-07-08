@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingClientEndpointCode = `// BidirectionalStreamingMethod returns an endpoint that makes HTTP requests to
 // the BidirectionalStreamingService service BidirectionalStreamingMethod
 // server.
@@ -28,10 +27,9 @@ func (c *Client) BidirectionalStreamingMethod() loom.Endpoint {
 		if c.configurer.BidirectionalStreamingMethodFn != nil {
 			conn = c.configurer.BidirectionalStreamingMethodFn(conn, nil)
 		}
-		stream := &BidirectionalStreamingMethodClientStream{conn: conn}
+		wsconn := loomhttp.NewWebSocketStream(conn)
+		stream := &BidirectionalStreamingMethodClientStream{conn: wsconn}
 		return stream, nil
 	}
 }
 `
-
-

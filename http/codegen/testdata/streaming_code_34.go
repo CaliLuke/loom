@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadResultCollectionWithViewsServerStreamRecvCode = `// Recv reads instances of "any" from the
 // "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
 // connection.
@@ -20,15 +19,6 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) RecvWithCo
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
 	// before calling the actual service method which may call Recv().
@@ -42,7 +32,7 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) RecvWithCo
 		if s.configurer != nil {
 			conn = s.configurer(conn, s.cancel)
 		}
-		s.conn = conn
+		s.conn.SetConn(conn)
 		if err = ctx.Err(); err != nil {
 			if closeErr := s.conn.Close(); closeErr != nil {
 				s.upgradeErr = closeErr
@@ -55,10 +45,7 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) RecvWithCo
 	if s.upgradeErr != nil {
 		return rv, s.upgradeErr
 	}
-	if err = s.conn.ReadJSON(&msg); err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	if err = s.conn.ReadJSON(ctx, &msg); err != nil {
 		return rv, err
 	}
 	if msg == nil {
@@ -67,5 +54,3 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) RecvWithCo
 	return *msg, nil
 }
 `
-
-

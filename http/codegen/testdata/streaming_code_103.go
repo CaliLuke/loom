@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingPrimitiveArrayServerStreamSendCode = `// SendWithContext streams instances of "[]string" to the
 // "BidirectionalStreamingPrimitiveArrayMethod" endpoint websocket connection
 // with context.
@@ -8,15 +7,6 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) SendWithContext
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		var err error
 		// Upgrade the HTTP connection to a websocket connection only once. Connection
@@ -32,7 +22,7 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) SendWithContext
 			if s.configurer != nil {
 				conn = s.configurer(conn, s.cancel)
 			}
-			s.conn = conn
+			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -46,7 +36,7 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) SendWithContext
 			return s.upgradeErr
 		}
 		res := v
-		return s.conn.WriteJSON(res)
+		return s.conn.WriteJSON(ctx, res)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -62,5 +52,3 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) Send(v []string
 	return s.SendWithContext(s.r.Context(), v)
 }
 `
-
-

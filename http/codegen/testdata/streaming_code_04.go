@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingResultUserTypeArrayServerStreamSendCode = `// SendWithContext streams instances of
 // "[]*streamingresultusertypearrayservice.UserType" to the
 // "StreamingResultUserTypeArrayMethod" endpoint websocket connection with
@@ -9,15 +8,6 @@ func (s *StreamingResultUserTypeArrayMethodServerStream) SendWithContext(ctx con
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		var err error
 		// Upgrade the HTTP connection to a websocket connection only once. Connection
@@ -33,7 +23,7 @@ func (s *StreamingResultUserTypeArrayMethodServerStream) SendWithContext(ctx con
 			if s.configurer != nil {
 				conn = s.configurer(conn, s.cancel)
 			}
-			s.conn = conn
+			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -48,7 +38,7 @@ func (s *StreamingResultUserTypeArrayMethodServerStream) SendWithContext(ctx con
 		}
 		res := v
 		body := NewStreamingResultUserTypeArrayMethodResponseBody(res)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -64,5 +54,3 @@ func (s *StreamingResultUserTypeArrayMethodServerStream) Send(v []*streamingresu
 	return s.SendWithContext(s.r.Context(), v)
 }
 `
-
-

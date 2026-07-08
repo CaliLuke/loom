@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingResultCollectionWithExplicitViewClientStreamSendCode = `// SendWithContext streams instances of "any" to the
 // "BidirectionalStreamingResultCollectionWithExplicitViewMethod" endpoint
 // websocket connection with context.
@@ -8,17 +7,8 @@ func (s *BidirectionalStreamingResultCollectionWithExplicitViewMethodClientStrea
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
-		return s.conn.WriteJSON(v)
+		return s.conn.WriteJSON(ctx, v)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -35,5 +25,3 @@ func (s *BidirectionalStreamingResultCollectionWithExplicitViewMethodClientStrea
 	return s.SendWithContext(context.Background(), v)
 }
 `
-
-

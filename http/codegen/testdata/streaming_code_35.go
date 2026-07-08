@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadResultCollectionWithViewsServerStreamSetViewCode = `// SetView sets the view to render the
 // streamingpayloadresultcollectionwithviewsservice.UsertypeCollection type
 // before sending to the "StreamingPayloadResultCollectionWithViewsMethod"
@@ -9,5 +8,3 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SetView(vi
 	s.view = view
 }
 `
-
-

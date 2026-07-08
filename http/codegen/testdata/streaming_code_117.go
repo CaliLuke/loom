@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingUserTypeMapClientStreamSendCode = `// SendWithContext streams instances of
 // "map[string]*bidirectionalstreamingusertypemapservice.RequestType" to the
 // "BidirectionalStreamingUserTypeMapMethod" endpoint websocket connection with
@@ -9,18 +8,9 @@ func (s *BidirectionalStreamingUserTypeMapMethodClientStream) SendWithContext(ct
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		body := NewMapStringRequestType(v)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -37,5 +27,3 @@ func (s *BidirectionalStreamingUserTypeMapMethodClientStream) Send(v map[string]
 	return s.SendWithContext(context.Background(), v)
 }
 `
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingNoPayloadClientStreamRecvCode = `// Recv reads instances of "bidirectionalstreamingnopayloadservice.UserType"
 // from the "BidirectionalStreamingNoPayloadMethod" endpoint websocket
 // connection.
@@ -10,7 +9,7 @@ func (s *BidirectionalStreamingNoPayloadMethodClientStream) Recv() (*bidirection
 		body BidirectionalStreamingNoPayloadMethodResponseBody
 		err  error
 	)
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		return rv, io.EOF
 	}
@@ -26,27 +25,22 @@ func (s *BidirectionalStreamingNoPayloadMethodClientStream) Recv() (*bidirection
 // "BidirectionalStreamingNoPayloadMethod" endpoint websocket connection with
 // context.
 func (s *BidirectionalStreamingNoPayloadMethodClientStream) RecvWithContext(ctx context.Context) (*bidirectionalstreamingnopayloadservice.UserType, error) {
-	var rv *bidirectionalstreamingnopayloadservice.UserType
+	var (
+		rv   *bidirectionalstreamingnopayloadservice.UserType
+		body BidirectionalStreamingNoPayloadMethodResponseBody
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
-	v, err := s.Recv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		return rv, io.EOF
 	}
-	return v, err
+	if err != nil {
+		return rv, err
+	}
+	res := NewBidirectionalStreamingNoPayloadMethodUserTypeOK(&body)
+	return res, nil
 }
 `
-
-

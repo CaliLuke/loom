@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadNoPayloadClientStreamRecvCode = `// CloseAndRecv stops sending messages to the "StreamingPayloadNoPayloadMethod"
 // endpoint websocket connection and reads instances of
 // "streamingpayloadnopayloadservice.UserType" from the connection.
@@ -12,10 +11,10 @@ func (s *StreamingPayloadNoPayloadMethodClientStream) CloseAndRecv() (*streaming
 	)
 	defer s.conn.Close()
 	// Send a nil payload to the server implying end of message
-	if err = s.conn.WriteJSON(nil); err != nil {
+	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
 		return rv, err
 	}
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		s.conn.Close()
 		return rv, io.EOF
@@ -32,27 +31,28 @@ func (s *StreamingPayloadNoPayloadMethodClientStream) CloseAndRecv() (*streaming
 // instances of "streamingpayloadnopayloadservice.UserType" from the connection
 // with context.
 func (s *StreamingPayloadNoPayloadMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (*streamingpayloadnopayloadservice.UserType, error) {
-	var rv *streamingpayloadnopayloadservice.UserType
+	var (
+		rv   *streamingpayloadnopayloadservice.UserType
+		body StreamingPayloadNoPayloadMethodResponseBody
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
-	v, err := s.CloseAndRecv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	defer s.conn.Close()
+	// Send a nil payload to the server implying end of message
+	if err = s.conn.WriteJSON(ctx, nil); err != nil {
+		return rv, err
 	}
-	return v, err
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		s.conn.Close()
+		return rv, io.EOF
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingPayloadNoPayloadMethodUserTypeOK(&body)
+	return res, nil
 }
 `
-
-

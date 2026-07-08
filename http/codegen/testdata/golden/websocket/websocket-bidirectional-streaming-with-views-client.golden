@@ -17,7 +17,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 )
 
 // ConnConfigurer holds the websocket connection configurer functions for the
@@ -29,8 +28,8 @@ type ConnConfigurer struct {
 // BidirectionalWithViewsClientStream implements the
 // testservice.BidirectionalWithViewsClientStream interface.
 type BidirectionalWithViewsClientStream struct {
-	// conn is the underlying websocket connection.
-	conn *websocket.Conn
+	// conn owns the websocket connection lifecycle.
+	conn *loomhttp.WebSocketStream
 	// view is the view to render testservice.Request result type before sending to
 	// the websocket connection.
 	view string
@@ -52,7 +51,7 @@ func (s *BidirectionalWithViewsClientStream) Recv() (*testservice.Response, erro
 		body BidirectionalWithViewsResponseBody
 		err  error
 	)
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		return rv, io.EOF
 	}
@@ -74,26 +73,31 @@ func (s *BidirectionalWithViewsClientStream) Recv() (*testservice.Response, erro
 // RecvWithContext reads instances of "testservice.Response" from the
 // "BidirectionalWithViews" endpoint websocket connection with context.
 func (s *BidirectionalWithViewsClientStream) RecvWithContext(ctx context.Context) (*testservice.Response, error) {
-	var rv *testservice.Response
+	var (
+		rv   *testservice.Response
+		body BidirectionalWithViewsResponseBody
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
-	v, err := s.Recv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		return rv, io.EOF
 	}
-	return v, err
+	if err != nil {
+		return rv, err
+	}
+	res := NewBidirectionalWithViewsResponseOK(&body)
+	vres := &testserviceviews.Response{res, s.view}
+	if err := testserviceviews.ValidateResponse(vres); err != nil {
+		return rv, loomhttp.ErrValidationError("TestService", "BidirectionalWithViews", err)
+	}
+	result, err := testservice.NewResponse(vres)
+	if err != nil {
+		return rv, loomhttp.ErrValidationError("TestService", "BidirectionalWithViews", err)
+	}
+	return result, nil
 }
 
 // SendWithContext streams instances of "testservice.Request" to the
@@ -102,18 +106,9 @@ func (s *BidirectionalWithViewsClientStream) SendWithContext(ctx context.Context
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		body := NewBidirectionalWithViewsStreamingBody(v)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -133,7 +128,7 @@ func (s *BidirectionalWithViewsClientStream) Send(v *testservice.Request) error 
 func (s *BidirectionalWithViewsClientStream) Close() error {
 	var err error
 	// Send a nil payload to the server implying client closing connection.
-	if err = s.conn.WriteJSON(nil); err != nil {
+	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
 		return err
 	}
 	return s.conn.Close()

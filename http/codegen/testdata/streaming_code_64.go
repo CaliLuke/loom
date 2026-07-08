@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingServerStreamSendCode = `// SendWithContext streams instances of
 // "bidirectionalstreamingservice.UserType" to the
 // "BidirectionalStreamingMethod" endpoint websocket connection with context.
@@ -8,15 +7,6 @@ func (s *BidirectionalStreamingMethodServerStream) SendWithContext(ctx context.C
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		var err error
 		// Upgrade the HTTP connection to a websocket connection only once. Connection
@@ -32,7 +22,7 @@ func (s *BidirectionalStreamingMethodServerStream) SendWithContext(ctx context.C
 			if s.configurer != nil {
 				conn = s.configurer(conn, s.cancel)
 			}
-			s.conn = conn
+			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -47,7 +37,7 @@ func (s *BidirectionalStreamingMethodServerStream) SendWithContext(ctx context.C
 		}
 		res := v
 		body := NewBidirectionalStreamingMethodResponseBody(res)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -63,5 +53,3 @@ func (s *BidirectionalStreamingMethodServerStream) Send(v *bidirectionalstreamin
 	return s.SendWithContext(s.r.Context(), v)
 }
 `
-
-

@@ -17,7 +17,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 )
 
 // ConnConfigurer holds the websocket connection configurer functions for the
@@ -29,8 +28,8 @@ type ConnConfigurer struct {
 // StreamingEndpointClientStream implements the
 // testservice.StreamingEndpointClientStream interface.
 type StreamingEndpointClientStream struct {
-	// conn is the underlying websocket connection.
-	conn *websocket.Conn
+	// conn owns the websocket connection lifecycle.
+	conn *loomhttp.WebSocketStream
 	// done is closed when the client stream is closed.
 	done chan struct{}
 	// closeOnce closes done at most once.
@@ -53,7 +52,7 @@ func (s *StreamingEndpointClientStream) Recv() (string, error) {
 		body string
 		err  error
 	)
-	err = s.conn.ReadJSON(&body)
+	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		s.closeOnce.Do(func() {
 			if s.done != nil {
@@ -74,24 +73,28 @@ func (s *StreamingEndpointClientStream) Recv() (string, error) {
 // RecvWithContext reads instances of "string" from the "StreamingEndpoint"
 // endpoint websocket connection with context.
 func (s *StreamingEndpointClientStream) RecvWithContext(ctx context.Context) (string, error) {
-	var rv string
+	var (
+		rv   string
+		body string
+		err  error
+	)
 	if err := ctx.Err(); err != nil {
 		return rv, err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
+	err = s.conn.ReadJSON(ctx, &body)
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		s.closeOnce.Do(func() {
+			if s.done != nil {
+				close(s.done)
+			}
+		})
 		if closeErr := s.conn.Close(); closeErr != nil {
-			return
+			return rv, closeErr
 		}
-	})
-	defer stopContextWatch()
-	v, err := s.Recv()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return rv, ctxErr
-		}
+		return rv, io.EOF
 	}
-	return v, err
+	if err != nil {
+		return rv, err
+	}
+	return body, nil
 }

@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadNoResultServerStreamCloseCode = `// Close closes the "StreamingPayloadNoResultMethod" endpoint websocket
 // connection.
 func (s *StreamingPayloadNoResultMethodServerStream) Close() error {
@@ -8,15 +7,9 @@ func (s *StreamingPayloadNoResultMethodServerStream) Close() error {
 	if s.conn == nil {
 		return nil
 	}
-	if err = s.conn.WriteControl(
-		websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server closing connection"),
-		time.Now().Add(time.Second),
-	); err != nil {
+	if err = s.conn.WriteClose("server closing connection"); err != nil {
 		return err
 	}
 	return s.conn.Close()
 }
 `
-
-

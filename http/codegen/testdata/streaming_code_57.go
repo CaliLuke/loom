@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadUserTypeArrayClientStreamSendCode = `// SendWithContext streams instances of
 // "[]*streamingpayloadusertypearrayservice.RequestType" to the
 // "StreamingPayloadUserTypeArrayMethod" endpoint websocket connection with
@@ -9,18 +8,9 @@ func (s *StreamingPayloadUserTypeArrayMethodClientStream) SendWithContext(ctx co
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		body := NewRequestType(v)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -37,5 +27,3 @@ func (s *StreamingPayloadUserTypeArrayMethodClientStream) Send(v []*streamingpay
 	return s.SendWithContext(context.Background(), v)
 }
 `
-
-

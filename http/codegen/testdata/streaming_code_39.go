@@ -8,15 +8,6 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodServerStream) Sen
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		defer s.conn.Close()
 		res, err := streamingpayloadresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
@@ -24,7 +15,7 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodServerStream) Sen
 			return err
 		}
 		body := NewUsertypeResponseTinyCollection(res.Projected)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {

@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingPrimitiveMapClientStreamSendCode = `// SendWithContext streams instances of "map[string]int32" to the
 // "BidirectionalStreamingPrimitiveMapMethod" endpoint websocket connection
 // with context.
@@ -8,17 +7,8 @@ func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) SendWithContext(c
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
-		return s.conn.WriteJSON(v)
+		return s.conn.WriteJSON(ctx, v)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -34,5 +24,3 @@ func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) Send(v map[string
 	return s.SendWithContext(context.Background(), v)
 }
 `
-
-

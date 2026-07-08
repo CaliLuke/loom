@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingResultCollectionWithViewsServerStreamSetViewCode = `// SetView sets the view to render the
 // bidirectionalstreamingresultcollectionwithviewsservice.UsertypeCollection
 // type before sending to the
@@ -10,5 +9,3 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodServerStream) SetV
 	s.view = view
 }
 `
-
-

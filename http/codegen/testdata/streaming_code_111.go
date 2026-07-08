@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingUserTypeArrayServerStreamSendCode = `// SendWithContext streams instances of
 // "[]*bidirectionalstreamingusertypearrayservice.ResultType" to the
 // "BidirectionalStreamingUserTypeArrayMethod" endpoint websocket connection
@@ -9,15 +8,6 @@ func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) SendWithContext(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		var err error
 		// Upgrade the HTTP connection to a websocket connection only once. Connection
@@ -33,7 +23,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) SendWithContext(
 			if s.configurer != nil {
 				conn = s.configurer(conn, s.cancel)
 			}
-			s.conn = conn
+			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -48,7 +38,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) SendWithContext(
 		}
 		res := v
 		body := NewBidirectionalStreamingUserTypeArrayMethodResponseBody(res)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -65,5 +55,3 @@ func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) Send(v []*bidire
 	return s.SendWithContext(s.r.Context(), v)
 }
 `
-
-

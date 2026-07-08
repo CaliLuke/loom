@@ -1,6 +1,5 @@
 package testdata
 
-
 var BidirectionalStreamingResultWithViewsServerStreamSetViewCode = `// SetView sets the view to render the
 // bidirectionalstreamingresultwithviewsservice.Usertype type before sending to
 // the "BidirectionalStreamingResultWithViewsMethod" endpoint websocket
@@ -9,5 +8,3 @@ func (s *BidirectionalStreamingResultWithViewsMethodServerStream) SetView(view s
 	s.view = view
 }
 `
-
-

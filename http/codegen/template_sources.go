@@ -220,6 +220,7 @@ func {{ .HandlerInit }}(
 				cancel: cancel,
 				w: w,
 				r: r,
+				conn: loomhttp.NewWebSocketStream(nil),
 			},
 		{{- if .Payload.Ref }}
 			Payload: payload,

@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadNoPayloadClientEndpointCode = `// StreamingPayloadNoPayloadMethod returns an endpoint that makes HTTP requests
 // to the StreamingPayloadNoPayloadService service
 // StreamingPayloadNoPayloadMethod server.
@@ -23,10 +22,9 @@ func (c *Client) StreamingPayloadNoPayloadMethod() loom.Endpoint {
 		if c.configurer.StreamingPayloadNoPayloadMethodFn != nil {
 			conn = c.configurer.StreamingPayloadNoPayloadMethodFn(conn, nil)
 		}
-		stream := &StreamingPayloadNoPayloadMethodClientStream{conn: conn}
+		wsconn := loomhttp.NewWebSocketStream(conn)
+		stream := &StreamingPayloadNoPayloadMethodClientStream{conn: wsconn}
 		return stream, nil
 	}
 }
 `
-
-

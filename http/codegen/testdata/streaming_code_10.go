@@ -1,6 +1,5 @@
 package testdata
 
-
 var StreamingPayloadServerStreamSendCode = `// SendAndCloseWithContext streams instances of
 // "streamingpayloadservice.UserType" to the "StreamingPayloadMethod" endpoint
 // websocket connection with context and closes the connection.
@@ -8,20 +7,11 @@ func (s *StreamingPayloadMethodServerStream) SendAndCloseWithContext(ctx context
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stopContextWatch := context.AfterFunc(ctx, func() {
-		if s.conn == nil {
-			return
-		}
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return
-		}
-	})
-	defer stopContextWatch()
 	err := func() error {
 		defer s.conn.Close()
 		res := v
 		body := NewStreamingPayloadMethodResponseBody(res)
-		return s.conn.WriteJSON(body)
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -38,5 +28,3 @@ func (s *StreamingPayloadMethodServerStream) SendAndClose(v *streamingpayloadser
 	return s.SendAndCloseWithContext(s.r.Context(), v)
 }
 `
-
-
