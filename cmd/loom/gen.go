@@ -21,6 +21,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+var getwd = os.Getwd
+
 // Generator is the code generation management data structure.
 type Generator struct {
 	// Command is the name of the command to run.
@@ -110,7 +112,7 @@ func (g *Generator) Write(_ bool) error {
 	var tmpDir string
 	{
 		wd := "."
-		if cwd, err := os.Getwd(); err != nil {
+		if cwd, err := getwd(); err == nil {
 			wd = cwd
 		}
 		tmp, err := os.MkdirTemp(wd, "loom")

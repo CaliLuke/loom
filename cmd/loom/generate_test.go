@@ -79,6 +79,33 @@ func TestGenerateKeepsTempDirInDebugMode(t *testing.T) {
 	require.True(t, fake.runDebug)
 }
 
+func TestGeneratorWriteUsesCurrentDirectoryWhenGetwdFails(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+
+	origGetwd := getwd
+	getwd = func() (string, error) {
+		return "", errors.New("getwd failed")
+	}
+	defer func() { getwd = origGetwd }()
+
+	g := &Generator{
+		Command:       "gen",
+		DesignPath:    "archive/tar",
+		DesignVersion: 1,
+	}
+	err := g.Write(false)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(g.tmpDir))
+	}()
+
+	tmpDir, err := filepath.Abs(g.tmpDir)
+	require.NoError(t, err)
+	require.Equal(t, root, filepath.Dir(tmpDir))
+	require.FileExists(t, filepath.Join(tmpDir, "main.go"))
+}
+
 func TestGenerateStdoutAndStderrContract(t *testing.T) {
 	cases := map[string]struct {
 		debug          bool
