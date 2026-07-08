@@ -53,6 +53,25 @@ func TestViews(t *testing.T) {
 	}
 }
 
+func TestViewValidationRequiresNestedResultTypeFields(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.ResultWithResultTypeDSL)
+	services := NewServicesData(root)
+	require.Len(t, root.Services, 1)
+	fs := ViewsFile("github.com/CaliLuke/loom/example", root.Services[0], services)
+	require.NotNil(t, fs)
+
+	buf := new(bytes.Buffer)
+	for _, s := range fs.AllSections()[1:] {
+		require.NoError(t, s.Write(buf))
+	}
+	bs, err := format.Source(buf.Bytes())
+	require.NoError(t, err, buf.String())
+	code := strings.ReplaceAll(string(bs), "\r\n", "\n")
+
+	require.Contains(t, code, "if result.B == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"b\", \"result\"))")
+	require.Contains(t, code, "if result.C == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"c\", \"result\"))")
+}
+
 func TestProjectionParity(t *testing.T) {
 	cases := []struct {
 		Name string

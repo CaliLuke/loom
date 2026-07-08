@@ -117,10 +117,11 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 				data.Source = "item"
 				data.ValidateVar = "Validate" + scope.GoTypeName(arr.ElemType) + vn
 			} else {
+				required := rt.Attribute()
 				var fields []validateFieldTemplateData
 				o := &expr.Object{}
 				walkViewAttrs(expr.AsObject(projected.Type), view, func(name string, attr, vatt *expr.AttributeExpr) {
-					if rt, ok := attr.Type.(*expr.ResultTypeExpr); ok {
+					if _, ok := attr.Type.(*expr.ResultTypeExpr); ok {
 						vw := ""
 						if v, ok := vatt.Meta.Last(expr.ViewMetaKey); ok && v != expr.DefaultView {
 							vw = v
@@ -128,7 +129,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 						fields = append(fields, validateFieldTemplateData{
 							Name:        name,
 							ValidateVar: "Validate" + scope.GoTypeName(attr) + codegen.Goify(vw, true),
-							IsRequired:  rt.Attribute().IsRequired(name),
+							IsRequired:  required.IsRequired(name),
 						})
 					} else {
 						o.Set(name, attr)
