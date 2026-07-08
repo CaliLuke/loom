@@ -113,30 +113,6 @@ func generatedRequiredValidationFrom(att *expr.AttributeExpr, validation *expr.V
 	return
 }
 
-func flattenValidations(att *expr.AttributeExpr, seen map[string]struct{}) {
-	switch actual := att.Type.(type) {
-	case *expr.Array:
-		flattenValidations(actual.ElemType, seen)
-	case *expr.Map:
-		flattenValidations(actual.KeyType, seen)
-		flattenValidations(actual.ElemType, seen)
-	case *expr.Object:
-		for _, nat := range *actual {
-			flattenValidations(nat.Attribute, seen)
-		}
-	case *expr.Union:
-		for _, nat := range actual.Values {
-			flattenValidations(nat.Attribute, seen)
-		}
-	case expr.UserType:
-		if _, ok := seen[actual.ID()]; ok {
-			return
-		}
-		seen[actual.ID()] = struct{}{}
-		flattenValidations(actual.Attribute(), seen)
-	}
-}
-
 // toSlice returns Go code that represents the given slice.
 func toSlice(val []any) string {
 	elems := make([]string, len(val))

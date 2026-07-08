@@ -116,19 +116,25 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 	return strings.Join(res, "\n")
 }
 
+// mergedValidation returns the validation that applies to att, accumulating the
+// validations declared at every level of the user-type chain rooted at att's
+// type. Outer levels take precedence over inner ones (outer values win and
+// tighter numeric bounds are kept), matching Merge semantics. Shared expr
+// validation state is never mutated: each level is merged into a fresh copy
+// (dup-before-merge), so the returned value is always safe to discard.
 func mergedValidation(att *expr.AttributeExpr) *expr.ValidationExpr {
 	validation := att.Validation
-	if ut, ok := att.Type.(expr.UserType); ok {
-		val := ut.Attribute().Validation
-		if val == nil {
-			return validation
+	ut, ok := att.Type.(expr.UserType)
+	for ok {
+		if val := ut.Attribute().Validation; val != nil {
+			if validation == nil {
+				validation = val.Dup()
+			} else {
+				validation = validation.Dup()
+				validation.Merge(val)
+			}
 		}
-		if validation == nil {
-			validation = val.Dup()
-		} else {
-			validation = validation.Dup()
-			validation.Merge(val)
-		}
+		ut, ok = ut.Attribute().Type.(expr.UserType)
 	}
 	return validation
 }

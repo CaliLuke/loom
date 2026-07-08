@@ -30,8 +30,6 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 		seen[ut.ID()] = buf
 	}
 
-	flattenValidations(att, make(map[string]struct{}))
-
 	// Write validations on attribute if any.
 	validation := validationCode(att, attCtx, req, alias, target, context)
 	if validation != "" {

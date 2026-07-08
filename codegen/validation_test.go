@@ -95,6 +95,45 @@ func TestRecursiveValidationCode(t *testing.T) {
 	})
 }
 
+func TestMergedValidationWalksFullUserTypeChain(t *testing.T) {
+	root := RunDSL(t, func() {
+		base := dsl.Type("Base", dsl.String, func() {
+			dsl.MinLength(2)
+		})
+		mid := dsl.Type("Mid", base)
+		dsl.Type("ChainHolder", func() {
+			dsl.Attribute("one", base)
+			dsl.Attribute("two", mid)
+		})
+	})
+	baseValidation := root.UserType("Base").Attribute().Validation
+	holder := expr.AsObject(root.UserType("ChainHolder").Attribute().Type)
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, false, "", scope)
+
+	// Two-level chain (Base -> Mid -> attribute) must retain the inner MinLength.
+	twoField := holder.Attribute("two")
+	twoMerged := mergedValidation(twoField)
+	require.NotNil(t, twoMerged, "multi-level chain must produce merged validation")
+	require.NotNil(t, twoMerged.MinLength, "multi-level chain must retain inner MinLength")
+	require.Equal(t, 2, *twoMerged.MinLength)
+	twoCode := validationCode(twoField, ctx, true, false, "target", "target")
+	require.Contains(t, twoCode, "InvalidLengthError", "multi-level chain must render inner MinLength validation")
+
+	// Single-level chain (Base -> attribute) still validates.
+	oneField := holder.Attribute("one")
+	oneMerged := mergedValidation(oneField)
+	require.NotNil(t, oneMerged, "single-level chain must produce merged validation")
+	require.NotNil(t, oneMerged.MinLength, "single-level chain must retain MinLength")
+	require.Equal(t, 2, *oneMerged.MinLength)
+
+	// Read-only property: shared expr validation state must not be mutated.
+	require.Nil(t, twoField.Validation, "field attribute validation must remain untouched")
+	require.NotSame(t, baseValidation, twoMerged, "merged validation must be a copy")
+	require.NotNil(t, baseValidation.MinLength)
+	require.Equal(t, 2, *baseValidation.MinLength)
+}
+
 func TestValidationCodeDoesNotMutateSharedUserTypeValidation(t *testing.T) {
 	root := RunDSL(t, func() {
 		alias := dsl.Type("Status", dsl.String, func() {
