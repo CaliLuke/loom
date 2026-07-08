@@ -323,8 +323,7 @@ func CollectionOf(v any, adsl ...func()) *expr.ResultTypeExpr {
 	})
 	// do not execute the DSL right away, will be done last to make sure
 	// the element DSL has run first.
-	expr.GeneratedResultTypes.Append(rt)
-	return rt
+	return expr.GeneratedResultTypes.Append(rt)
 }
 
 func collectionResultType(v any) *expr.ResultTypeExpr {

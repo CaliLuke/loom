@@ -170,7 +170,7 @@ func (e *HTTPEndpointExpr) appendAPIHTTPErrors(name string, errors []*HTTPErrorE
 }
 
 func (e *HTTPEndpointExpr) forceWebSocketRouteMethod() {
-	if e.MethodExpr.IsStreaming() && e.SSE == nil && len(e.Routes) > 0 {
+	if e.MethodExpr.IsStreaming() && e.SSE == nil && len(e.Routes) > 0 && e.Routes[0].Method == "" {
 		e.Routes[0].Method = "GET"
 	}
 }

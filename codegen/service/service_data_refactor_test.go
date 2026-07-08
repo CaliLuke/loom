@@ -275,7 +275,7 @@ func jsonrpcWebSocketClassificationDSL() {
 	})
 	dsl.Service("JSONRPCWebSocketClassification", func() {
 		dsl.JSONRPC(func() {
-			dsl.POST("/rpc")
+			dsl.GET("/rpc")
 		})
 		dsl.Method("Watch", func() {
 			dsl.StreamingResult(func() {

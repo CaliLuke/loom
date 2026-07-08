@@ -81,4 +81,62 @@ func TestPrepareValidateFinalize(t *testing.T) {
 
 		require.EqualError(t, err, "root cannot be nil")
 	})
+
+	t.Run("does not share attribute validation state across temporary roots", func(t *testing.T) {
+		SetupTestDSL(t)
+
+		shared := &AttributeExpr{
+			Type:       &Object{},
+			Validation: &ValidationExpr{Required: []string{"missing"}},
+		}
+		firstSvc := &ServiceExpr{Name: "First"}
+		firstMethod := &MethodExpr{Name: "read", Payload: shared, Service: firstSvc}
+		firstSvc.Methods = []*MethodExpr{firstMethod}
+		first := &RootExpr{
+			Services: []*ServiceExpr{firstSvc},
+			API: &APIExpr{
+				Name:    "first",
+				HTTP:    &HTTPExpr{},
+				JSONRPC: &JSONRPCExpr{},
+				GRPC:    &GRPCExpr{},
+			},
+		}
+		secondSvc := &ServiceExpr{Name: "Second"}
+		secondMethod := &MethodExpr{Name: "read", Payload: shared, Service: secondSvc}
+		secondSvc.Methods = []*MethodExpr{secondMethod}
+		second := &RootExpr{
+			Services: []*ServiceExpr{secondSvc},
+			API: &APIExpr{
+				Name:    "second",
+				HTTP:    &HTTPExpr{},
+				JSONRPC: &JSONRPCExpr{},
+				GRPC:    &GRPCExpr{},
+			},
+		}
+
+		firstErr := PrepareValidateFinalize(first)
+		secondErr := PrepareValidateFinalize(second)
+
+		require.Error(t, firstErr)
+		require.Contains(t, firstErr.Error(), `service "First" method "read": payload - required field "missing" does not exist`)
+		require.Error(t, secondErr)
+		require.Contains(t, secondErr.Error(), `service "Second" method "read": payload - required field "missing" does not exist`)
+	})
+
+	t.Run("register default roots resets attribute validation state", func(t *testing.T) {
+		SetupTestDSL(t)
+
+		shared := &AttributeExpr{
+			Type:       &Object{},
+			Validation: &ValidationExpr{Required: []string{"missing"}},
+		}
+		validated[shared] = true
+
+		eval.Reset()
+		require.NoError(t, RegisterDefaultRoots())
+
+		if validated[shared] {
+			t.Fatal("default root registration reused stale attribute validation state")
+		}
+	})
 }

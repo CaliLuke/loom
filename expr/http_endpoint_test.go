@@ -418,14 +418,10 @@ func TestHTTPEndpointPrepareAdditionalCoverage(t *testing.T) {
 		}
 	})
 
-	t.Run("websocket route coerced to get", func(t *testing.T) {
-		root := expr.RunDSL(t, websocketRouteMethodCoercionDSL)
-		e := root.API.HTTP.Services[0].HTTPEndpoints[0]
-		if len(e.Routes) != 1 {
-			t.Fatalf("got %d routes, expected 1", len(e.Routes))
-		}
-		if e.Routes[0].Method != "GET" {
-			t.Fatalf("got route method %q, expected GET", e.Routes[0].Method)
+	t.Run("websocket route rejects non-get", func(t *testing.T) {
+		err := expr.RunInvalidDSL(t, websocketRouteMethodCoercionDSL)
+		if !strings.Contains(err.Error(), `WebSocket endpoint supports only "GET" method. Got "POST".`) {
+			t.Fatalf("unexpected error:\n%s", err)
 		}
 	})
 

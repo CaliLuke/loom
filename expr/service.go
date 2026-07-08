@@ -88,6 +88,14 @@ func (s *ServiceExpr) Hash() string {
 // Validate validates the service methods and errors.
 func (s *ServiceExpr) Validate() error {
 	verr := new(eval.ValidationErrors)
+	methods := map[string]struct{}{}
+	for _, method := range s.Methods {
+		if _, ok := methods[method.Name]; ok {
+			verr.Add(s, "method %q defined twice", method.Name)
+			continue
+		}
+		methods[method.Name] = struct{}{}
+	}
 	for _, e := range s.Errors {
 		if err := e.Validate(); err != nil {
 			var verrs *eval.ValidationErrors

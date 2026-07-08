@@ -1,10 +1,12 @@
 package expr_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/expr/testdata"
 )
@@ -42,6 +44,18 @@ func TestServiceExprMethod(t *testing.T) {
 		if actual := s.Method(tc.name); actual != tc.expected {
 			t.Errorf("%s: got %#v, expected %#v", k, actual, tc.expected)
 		}
+	}
+}
+
+func TestServiceRejectsDuplicateMethodNames(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		Service("duplicate methods", func() {
+			Method("show", func() {})
+			Method("show", func() {})
+		})
+	})
+	if !strings.Contains(err.Error(), `method "show" defined twice`) {
+		t.Fatalf("unexpected error:\n%s", err)
 	}
 }
 

@@ -11,6 +11,7 @@ type (
 	Runtime struct {
 		Root                 *RootExpr
 		GeneratedResultTypes *ResultTypesRoot
+		Validated            map[*AttributeExpr]bool
 	}
 )
 
@@ -23,11 +24,15 @@ var Root = defaultRuntime.Root
 // evaluated after Root.
 var GeneratedResultTypes = defaultRuntime.GeneratedResultTypes
 
+// validated keeps track of validated attributes to handle cyclical definitions.
+var validated = defaultRuntime.Validated
+
 // NewRuntime creates a fresh DSL runtime.
 func NewRuntime() *Runtime {
 	return &Runtime{
 		Root:                 new(RootExpr),
 		GeneratedResultTypes: new(ResultTypesRoot),
+		Validated:            make(map[*AttributeExpr]bool),
 	}
 }
 
@@ -46,6 +51,10 @@ func (r *Runtime) RegisterRoots(ctx *eval.DSLContext) error {
 	if ctx == nil {
 		return fmt.Errorf("eval context cannot be nil")
 	}
+	r.Validated = make(map[*AttributeExpr]bool)
+	if r.Root == Root && r.GeneratedResultTypes == GeneratedResultTypes {
+		validated = r.Validated
+	}
 	for _, root := range r.EvalRoots() {
 		if ctx.HasRoot(root.EvalName()) {
 			continue
@@ -60,6 +69,9 @@ func (r *Runtime) RegisterRoots(ctx *eval.DSLContext) error {
 // RegisterDefaultRoots registers the process-default runtime roots with the
 // current evaluation context.
 func RegisterDefaultRoots() error {
+	Root = defaultRuntime.Root
+	GeneratedResultTypes = defaultRuntime.GeneratedResultTypes
+	validated = defaultRuntime.Validated
 	return defaultRuntime.RegisterRoots(eval.Context)
 }
 
@@ -67,6 +79,7 @@ func registerActiveRoots() error {
 	runtime := &Runtime{
 		Root:                 Root,
 		GeneratedResultTypes: GeneratedResultTypes,
+		Validated:            validated,
 	}
 	return runtime.RegisterRoots(eval.Context)
 }

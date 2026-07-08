@@ -161,9 +161,6 @@ const (
 	CookieSameSiteDefault CookieSameSiteValue = "default"
 )
 
-// validated keeps track of validated attributes to handle cyclical definitions.
-var validated = make(map[*AttributeExpr]bool)
-
 // TaggedAttribute returns the name of the child attribute of a with the given
 // tag if a is an object.
 func TaggedAttribute(a *AttributeExpr, tag string) string {

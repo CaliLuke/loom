@@ -21,10 +21,14 @@ func GeneratedResultType(id string) *ResultTypeExpr {
 	return nil
 }
 
-// Append adds the given type to the generated result types if not already
-// added. It returns the type that was added or already present.
-func (r *ResultTypesRoot) Append(t *ResultTypeExpr) {
+// Append adds the given type to the generated result types if not already added.
+// It returns the type that was added or already present.
+func (r *ResultTypesRoot) Append(t *ResultTypeExpr) *ResultTypeExpr {
+	if existing := resultTypesFind(*r, t); existing != nil {
+		return existing
+	}
 	*r = append(*r, t)
+	return t
 }
 
 // EvalName is the name of the expression used by eval.
@@ -43,7 +47,9 @@ func (r *ResultTypesRoot) WalkSets(w eval.SetWalker) {
 		// result types with the generated result types so that in future passes (prepare,
 		// validate, etc.) the generated result types are walked when the root expression
 		// is walked (see the root expression WalkSets implementation).
-		Root.ResultTypes = append(Root.ResultTypes, rt)
+		if resultTypesFindByIdentifier(Root.ResultTypes, rt.Identifier) == nil {
+			Root.ResultTypes = append(Root.ResultTypes, rt)
+		}
 	}
 	w(set)
 }
@@ -59,4 +65,22 @@ func (*ResultTypesRoot) Packages() []string {
 		"github.com/CaliLuke/loom/expr",
 		"github.com/CaliLuke/loom/dsl",
 	}
+}
+
+func resultTypesFind(resultTypes []*ResultTypeExpr, candidate *ResultTypeExpr) *ResultTypeExpr {
+	for _, rt := range resultTypes {
+		if rt == candidate {
+			return rt
+		}
+	}
+	return nil
+}
+
+func resultTypesFindByIdentifier(resultTypes []*ResultTypeExpr, identifier string) *ResultTypeExpr {
+	for _, rt := range resultTypes {
+		if rt.Identifier == identifier {
+			return rt
+		}
+	}
+	return nil
 }

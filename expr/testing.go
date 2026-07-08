@@ -93,6 +93,7 @@ func SetupTestDSL(t *testing.T) *RootExpr {
 		root:                 root,
 		generatedResultTypes: new(ResultTypesRoot),
 		context:              eval.NewContext(),
+		validated:            make(map[*AttributeExpr]bool),
 	})
 	root.API = NewAPIExpr("test api", func() {})
 	root.API.Servers = []*ServerExpr{root.API.DefaultServer()}

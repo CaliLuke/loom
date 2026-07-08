@@ -17,6 +17,7 @@ func PrepareValidateFinalize(root *RootExpr) error {
 		root:                 root,
 		generatedResultTypes: GeneratedResultTypes,
 		context:              eval.NewContext(),
+		validated:            make(map[*AttributeExpr]bool),
 	})
 	defer restore()
 
