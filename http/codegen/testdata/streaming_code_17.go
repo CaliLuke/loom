@@ -5,8 +5,28 @@ var StreamingPayloadNoPayloadClientStreamSendCode = `// SendWithContext streams 
 // "streamingpayloadnopayloadservice.Request" to the
 // "StreamingPayloadNoPayloadMethod" endpoint websocket connection with context.
 func (s *StreamingPayloadNoPayloadMethodClientStream) SendWithContext(ctx context.Context, v *streamingpayloadnopayloadservice.Request) error {
-	body := NewStreamingPayloadNoPayloadMethodStreamingBody(v)
-	return s.conn.WriteJSON(body)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	err := func() error {
+		body := NewStreamingPayloadNoPayloadMethodStreamingBody(v)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+	}
+	return err
 }
 
 // Send streams instances of "streamingpayloadnopayloadservice.Request" to the

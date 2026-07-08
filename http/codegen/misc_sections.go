@@ -198,7 +198,7 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 		Params(jen.Id("v").Add(codegen.TypeRef(ed.SSE.EventTypeRef))).
 		Error().
 		Block(
-			jen.Return(jen.Id("s").Dot(ed.SSE.SendWithContextName).Call(jen.Qual("context", "Background").Call(), jen.Id("v"))),
+			jen.Return(jen.Id("s").Dot(ed.SSE.SendWithContextName).Call(jen.Id("s").Dot("r").Dot("Context").Call(), jen.Id("v"))),
 		)
 	stmt.Line()
 	stmt.Line()
@@ -234,6 +234,8 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 
 func renderServerSSESendWithContextBody(ed *EndpointData) string {
 	var b sourceBuilder
+	b.Add("if err := ctx.Err(); err != nil {\n\treturn err\n}\n")
+	b.Add("if err := s.r.Context().Err(); err != nil {\n\treturn err\n}\n")
 	b.Add("s.initHeaders()\n")
 	writeSSEResultSetup(&b, ed)
 	writeSSEPayloadSetup(&b, ed)

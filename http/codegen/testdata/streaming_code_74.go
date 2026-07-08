@@ -6,8 +6,28 @@ var BidirectionalStreamingNoPayloadClientStreamSendCode = `// SendWithContext st
 // "BidirectionalStreamingNoPayloadMethod" endpoint websocket connection with
 // context.
 func (s *BidirectionalStreamingNoPayloadMethodClientStream) SendWithContext(ctx context.Context, v *bidirectionalstreamingnopayloadservice.Request) error {
-	body := NewBidirectionalStreamingNoPayloadMethodStreamingBody(v)
-	return s.conn.WriteJSON(body)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	err := func() error {
+		body := NewBidirectionalStreamingNoPayloadMethodStreamingBody(v)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+	}
+	return err
 }
 
 // Send streams instances of "bidirectionalstreamingnopayloadservice.Request"

@@ -12,7 +12,7 @@ type SSEBoolMethodServerStream struct {
 // Send Send streams instances of "bool" to the "SSEBoolMethod" endpoint SSE
 // connection.
 func (s *SSEBoolMethodServerStream) Send(v bool) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 
 func (s *SSEBoolMethodServerStream) initHeaders() {
@@ -34,6 +34,12 @@ func (s *SSEBoolMethodServerStream) initHeaders() {
 // SendWithContext SendWithContext streams instances of "bool" to the
 // "SSEBoolMethod" endpoint SSE connection with context.
 func (s *SSEBoolMethodServerStream) SendWithContext(ctx context.Context, v bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.r.Context().Err(); err != nil {
+		return err
+	}
 	s.initHeaders()
 	res := v
 

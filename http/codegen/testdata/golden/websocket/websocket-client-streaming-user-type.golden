@@ -69,14 +69,53 @@ func (s *ClientStreamMessageClientStream) CloseAndRecv() (string, error) {
 // endpoint websocket connection and reads instances of "string" from the
 // connection with context.
 func (s *ClientStreamMessageClientStream) CloseAndRecvWithContext(ctx context.Context) (string, error) {
-	return s.CloseAndRecv()
+	var rv string
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.CloseAndRecv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 
 // SendWithContext streams instances of "testservice.Message" to the
 // "ClientStreamMessage" endpoint websocket connection with context.
 func (s *ClientStreamMessageClientStream) SendWithContext(ctx context.Context, v *testservice.Message) error {
-	body := NewClientStreamMessageStreamingBody(v)
-	return s.conn.WriteJSON(body)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	err := func() error {
+		body := NewClientStreamMessageStreamingBody(v)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+	}
+	return err
 }
 
 // Send streams instances of "testservice.Message" to the "ClientStreamMessage"

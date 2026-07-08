@@ -34,12 +34,17 @@ func writeWebsocketRecvVars(b *sourceBuilder, ws *WebSocketData) {
 	b.Add("\t)\n")
 }
 
-func writeServerWebsocketRecvBody(b *sourceBuilder, ws *WebSocketData) {
-	b.Add(renderWebsocketUpgrade(ws.Endpoint, ws.RecvName, true))
+func writeServerWebsocketRecvBody(b *sourceBuilder, ws *WebSocketData, withContext bool) {
+	b.Add(renderWebsocketUpgrade(ws.Endpoint, ws.RecvName, true, withContext))
 	if ws.RecvTypeIsPointer {
 		b.Add("\tif err = s.conn.ReadJSON(&body); err != nil {\n")
 	} else {
 		b.Add("\tif err = s.conn.ReadJSON(&msg); err != nil {\n")
+	}
+	if withContext {
+		b.Add("\t\tif ctxErr := ctx.Err(); ctxErr != nil {\n")
+		b.Add("\t\t\treturn rv, ctxErr\n")
+		b.Add("\t\t}\n")
 	}
 	b.Add("\t\treturn rv, err\n")
 	b.Add("\t}\n")
@@ -149,6 +154,25 @@ func writeClientWebsocketViewedResultReturn(b *sourceBuilder, ws *WebSocketData)
 	b.Addf("\treturn %s.%s(vres), nil\n", ws.PkgName, view.ResultInit.Name)
 }
 
+func writeWebSocketContextGuard(b *sourceBuilder, returnValue string) {
+	b.Add("\tif err := ctx.Err(); err != nil {\n")
+	if returnValue != "" {
+		b.Addf("\t\treturn %s, err\n", returnValue)
+	} else {
+		b.Add("\t\treturn err\n")
+	}
+	b.Add("\t}\n")
+	b.Add("\tstopContextWatch := context.AfterFunc(ctx, func() {\n")
+	b.Add("\t\tif s.conn == nil {\n")
+	b.Add("\t\t\treturn\n")
+	b.Add("\t\t}\n")
+	b.Add("\t\tif closeErr := s.conn.Close(); closeErr != nil {\n")
+	b.Add("\t\t\treturn\n")
+	b.Add("\t\t}\n")
+	b.Add("\t})\n")
+	b.Add("\tdefer stopContextWatch()\n")
+}
+
 func addWebsocketRecvSection(stmt *jen.Statement, ws *WebSocketData) {
 	stmt.Line()
 	codegen.Doc(stmt, ws.RecvDesc)
@@ -158,13 +182,13 @@ func addWebsocketRecvSection(stmt *jen.Statement, ws *WebSocketData) {
 		Params().
 		Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
 		BlockFunc(func(group *jen.Group) {
+			if ws.Type == "server" {
+				group.Return(jen.Id("s").Dot(ws.RecvWithContextName).Call(jen.Id("s").Dot("r").Dot("Context").Call()))
+				return
+			}
 			var b sourceBuilder
 			writeWebsocketRecvVars(&b, ws)
-			if ws.Type == "server" {
-				writeServerWebsocketRecvBody(&b, ws)
-			} else {
-				writeClientWebsocketRecvBody(&b, ws)
-			}
+			writeClientWebsocketRecvBody(&b, ws)
 			addRawWebSocketGroup(group, b.String())
 		})
 	stmt.Line()
@@ -174,8 +198,24 @@ func addWebsocketRecvSection(stmt *jen.Statement, ws *WebSocketData) {
 		Id(ws.RecvWithContextName).
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
-		Block(
-			jen.Return(jen.Id("s").Dot(ws.RecvName).Call()),
-		)
+		BlockFunc(func(group *jen.Group) {
+			var b sourceBuilder
+			if ws.Type == "server" {
+				writeWebsocketRecvVars(&b, ws)
+				writeWebSocketContextGuard(&b, "rv")
+				writeServerWebsocketRecvBody(&b, ws, true)
+			} else {
+				b.Addf("\tvar rv %s\n", ws.RecvTypeRef)
+				writeWebSocketContextGuard(&b, "rv")
+				b.Addf("\tv, err := s.%s()\n", ws.RecvName)
+				b.Add("\tif err != nil {\n")
+				b.Add("\t\tif ctxErr := ctx.Err(); ctxErr != nil {\n")
+				b.Add("\t\t\treturn rv, ctxErr\n")
+				b.Add("\t\t}\n")
+				b.Add("\t}\n")
+				b.Add("\treturn v, err\n")
+			}
+			addRawWebSocketGroup(group, b.String())
+		})
 	stmt.Line()
 }

@@ -24,7 +24,26 @@ func (s *StreamingResultPrimitiveMapMethodClientStream) Recv() (map[int32]string
 // "StreamingResultPrimitiveMapMethod" endpoint websocket connection with
 // context.
 func (s *StreamingResultPrimitiveMapMethodClientStream) RecvWithContext(ctx context.Context) (map[int32]string, error) {
-	return s.Recv()
+	var rv map[int32]string
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

@@ -32,7 +32,26 @@ func (s *StreamingPayloadNoPayloadMethodClientStream) CloseAndRecv() (*streaming
 // instances of "streamingpayloadnopayloadservice.UserType" from the connection
 // with context.
 func (s *StreamingPayloadNoPayloadMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (*streamingpayloadnopayloadservice.UserType, error) {
-	return s.CloseAndRecv()
+	var rv *streamingpayloadnopayloadservice.UserType
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.CloseAndRecv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

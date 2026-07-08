@@ -31,7 +31,26 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodClientStream) Recv
 // from the "BidirectionalStreamingResultCollectionWithViewsMethod" endpoint
 // websocket connection with context.
 func (s *BidirectionalStreamingResultCollectionWithViewsMethodClientStream) RecvWithContext(ctx context.Context) (bidirectionalstreamingresultcollectionwithviewsservice.UsertypeCollection, error) {
-	return s.Recv()
+	var rv bidirectionalstreamingresultcollectionwithviewsservice.UsertypeCollection
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

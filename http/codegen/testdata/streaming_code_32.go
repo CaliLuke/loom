@@ -38,7 +38,26 @@ func (s *StreamingPayloadResultWithExplicitViewMethodClientStream) CloseAndRecv(
 // "streamingpayloadresultwithexplicitviewservice.Usertype" from the connection
 // with context.
 func (s *StreamingPayloadResultWithExplicitViewMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (*streamingpayloadresultwithexplicitviewservice.Usertype, error) {
-	return s.CloseAndRecv()
+	var rv *streamingpayloadresultwithexplicitviewservice.Usertype
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.CloseAndRecv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

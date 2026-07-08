@@ -4,8 +4,28 @@ package testdata
 var StreamingPayloadClientStreamSendCode = `// SendWithContext streams instances of "streamingpayloadservice.Request" to
 // the "StreamingPayloadMethod" endpoint websocket connection with context.
 func (s *StreamingPayloadMethodClientStream) SendWithContext(ctx context.Context, v *streamingpayloadservice.Request) error {
-	body := NewStreamingPayloadMethodStreamingBody(v)
-	return s.conn.WriteJSON(body)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	err := func() error {
+		body := NewStreamingPayloadMethodStreamingBody(v)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+	}
+	return err
 }
 
 // Send streams instances of "streamingpayloadservice.Request" to the

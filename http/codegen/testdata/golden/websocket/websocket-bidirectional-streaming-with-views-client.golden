@@ -70,14 +70,53 @@ func (s *BidirectionalWithViewsClientStream) Recv() (*testservice.Response, erro
 // RecvWithContext reads instances of "testservice.Response" from the
 // "BidirectionalWithViews" endpoint websocket connection with context.
 func (s *BidirectionalWithViewsClientStream) RecvWithContext(ctx context.Context) (*testservice.Response, error) {
-	return s.Recv()
+	var rv *testservice.Response
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 
 // SendWithContext streams instances of "testservice.Request" to the
 // "BidirectionalWithViews" endpoint websocket connection with context.
 func (s *BidirectionalWithViewsClientStream) SendWithContext(ctx context.Context, v *testservice.Request) error {
-	body := NewBidirectionalWithViewsStreamingBody(v)
-	return s.conn.WriteJSON(body)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	err := func() error {
+		body := NewBidirectionalWithViewsStreamingBody(v)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+	}
+	return err
 }
 
 // Send streams instances of "testservice.Request" to the

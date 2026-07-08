@@ -5,11 +5,30 @@ var StreamingPayloadResultCollectionWithViewsServerStreamRecvCode = `// Recv rea
 // "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
 // connection.
 func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) Recv() (any, error) {
+	return s.RecvWithContext(s.r.Context())
+}
+
+// RecvWithContext reads instances of "any" from the
+// "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
+// connection with context.
+func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) RecvWithContext(ctx context.Context) (any, error) {
 	var (
 		rv  any
 		msg *any
 		err error
 	)
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
 	// before calling the actual service method which may call Recv().
@@ -24,24 +43,28 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) Recv() (an
 			conn = s.configurer(conn, s.cancel)
 		}
 		s.conn = conn
+		if err = ctx.Err(); err != nil {
+			if closeErr := s.conn.Close(); closeErr != nil {
+				s.upgradeErr = closeErr
+				return
+			}
+			s.upgradeErr = err
+			return
+		}
 	})
 	if s.upgradeErr != nil {
 		return rv, s.upgradeErr
 	}
 	if err = s.conn.ReadJSON(&msg); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
 		return rv, err
 	}
 	if msg == nil {
 		return rv, io.EOF
 	}
 	return *msg, nil
-}
-
-// RecvWithContext reads instances of "any" from the
-// "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
-// connection with context.
-func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) RecvWithContext(ctx context.Context) (any, error) {
-	return s.Recv()
 }
 `
 

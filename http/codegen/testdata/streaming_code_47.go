@@ -5,16 +5,36 @@ var StreamingPayloadPrimitiveArrayServerStreamSendCode = `// SendAndCloseWithCon
 // "StreamingPayloadPrimitiveArrayMethod" endpoint websocket connection with
 // context and closes the connection.
 func (s *StreamingPayloadPrimitiveArrayMethodServerStream) SendAndCloseWithContext(ctx context.Context, v []string) error {
-	defer s.conn.Close()
-	res := v
-	return s.conn.WriteJSON(res)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	err := func() error {
+		defer s.conn.Close()
+		res := v
+		return s.conn.WriteJSON(res)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+	}
+	return err
 }
 
 // SendAndClose streams instances of "[]string" to the
 // "StreamingPayloadPrimitiveArrayMethod" endpoint websocket connection and
 // closes the connection.
 func (s *StreamingPayloadPrimitiveArrayMethodServerStream) SendAndClose(v []string) error {
-	return s.SendAndCloseWithContext(context.Background(), v)
+	return s.SendAndCloseWithContext(s.r.Context(), v)
 }
 `
 

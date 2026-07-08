@@ -5,17 +5,37 @@ var StreamingPayloadServerStreamSendCode = `// SendAndCloseWithContext streams i
 // "streamingpayloadservice.UserType" to the "StreamingPayloadMethod" endpoint
 // websocket connection with context and closes the connection.
 func (s *StreamingPayloadMethodServerStream) SendAndCloseWithContext(ctx context.Context, v *streamingpayloadservice.UserType) error {
-	defer s.conn.Close()
-	res := v
-	body := NewStreamingPayloadMethodResponseBody(res)
-	return s.conn.WriteJSON(body)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	err := func() error {
+		defer s.conn.Close()
+		res := v
+		body := NewStreamingPayloadMethodResponseBody(res)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+	}
+	return err
 }
 
 // SendAndClose streams instances of "streamingpayloadservice.UserType" to the
 // "StreamingPayloadMethod" endpoint websocket connection and closes the
 // connection.
 func (s *StreamingPayloadMethodServerStream) SendAndClose(v *streamingpayloadservice.UserType) error {
-	return s.SendAndCloseWithContext(context.Background(), v)
+	return s.SendAndCloseWithContext(s.r.Context(), v)
 }
 `
 

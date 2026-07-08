@@ -32,7 +32,7 @@ func writeServerWebSocketSend(b *sourceBuilder, ws *WebSocketData) {
 func writeServerWebSocketSendPreamble(b *sourceBuilder, ws *WebSocketData) {
 	if ws.SendName == "Send" {
 		b.Add("\tvar err error\n")
-		b.Add(renderWebsocketUpgrade(ws.Endpoint, ws.SendName, false))
+		b.Add(renderWebsocketUpgrade(ws.Endpoint, ws.SendName, false, true))
 		return
 	}
 	b.Add("\tdefer s.conn.Close()\n")
@@ -104,9 +104,7 @@ func writeServerBodyInitCall(b *sourceBuilder, body *TypeData, prefix string) {
 func addWebsocketSendSection(stmt *jen.Statement, ws *WebSocketData) {
 	// Emit SendWithContext with the real body, and Send as a thin forwarder
 	// to keep the no-context convenience method available without duplicating
-	// the send logic in two places. The ctx parameter is currently unused by
-	// the body; this layout means future work to honor it only touches
-	// SendWithContext.
+	// the send logic in two places.
 	stmt.Line()
 	codegen.Doc(stmt, ws.SendWithContextDesc)
 	stmt.Func().
@@ -115,14 +113,29 @@ func addWebsocketSendSection(stmt *jen.Statement, ws *WebSocketData) {
 		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
 		Error().
 		BlockFunc(func(group *jen.Group) {
+			var b sourceBuilder
+			writeWebSocketContextGuard(&b, "")
+			b.Add("\terr := func() error {\n")
 			if ws.Type != "server" {
-				var b sourceBuilder
 				writeClientWebSocketSend(&b, ws)
+				b.Add("\t}()\n")
+				b.Add("\tif err != nil {\n")
+				b.Add("\t\tif ctxErr := ctx.Err(); ctxErr != nil {\n")
+				b.Add("\t\t\treturn ctxErr\n")
+				b.Add("\t\t}\n")
+				b.Add("\t}\n")
+				b.Add("\treturn err\n")
 				addRawWebSocketGroup(group, b.String())
 				return
 			}
-			var b sourceBuilder
 			writeServerWebSocketSend(&b, ws)
+			b.Add("\t}()\n")
+			b.Add("\tif err != nil {\n")
+			b.Add("\t\tif ctxErr := ctx.Err(); ctxErr != nil {\n")
+			b.Add("\t\t\treturn ctxErr\n")
+			b.Add("\t\t}\n")
+			b.Add("\t}\n")
+			b.Add("\treturn err\n")
 			addRawWebSocketGroup(group, b.String())
 		})
 	stmt.Line()
@@ -132,8 +145,12 @@ func addWebsocketSendSection(stmt *jen.Statement, ws *WebSocketData) {
 		Id(ws.SendName).
 		Params(jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
 		Error().
-		Block(
-			jen.Return(jen.Id("s").Dot(ws.SendWithContextName).Call(jen.Qual("context", "Background").Call(), jen.Id("v"))),
-		)
+		BlockFunc(func(group *jen.Group) {
+			ctx := jen.Qual("context", "Background").Call()
+			if ws.Type == "server" {
+				ctx = jen.Id("s").Dot("r").Dot("Context").Call()
+			}
+			group.Return(jen.Id("s").Dot(ws.SendWithContextName).Call(ctx, jen.Id("v")))
+		})
 	stmt.Line()
 }

@@ -5,11 +5,31 @@ var StreamingPayloadUserTypeArrayServerStreamRecvCode = `// Recv reads instances
 // "[]*streamingpayloadusertypearrayservice.RequestType" from the
 // "StreamingPayloadUserTypeArrayMethod" endpoint websocket connection.
 func (s *StreamingPayloadUserTypeArrayMethodServerStream) Recv() ([]*streamingpayloadusertypearrayservice.RequestType, error) {
+	return s.RecvWithContext(s.r.Context())
+}
+
+// RecvWithContext reads instances of
+// "[]*streamingpayloadusertypearrayservice.RequestType" from the
+// "StreamingPayloadUserTypeArrayMethod" endpoint websocket connection with
+// context.
+func (s *StreamingPayloadUserTypeArrayMethodServerStream) RecvWithContext(ctx context.Context) ([]*streamingpayloadusertypearrayservice.RequestType, error) {
 	var (
 		rv   []*streamingpayloadusertypearrayservice.RequestType
 		body []*RequestType
 		err  error
 	)
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
 	// Upgrade the HTTP connection to a websocket connection only once. Connection
 	// upgrade is done here so that authorization logic in the endpoint is executed
 	// before calling the actual service method which may call Recv().
@@ -24,25 +44,28 @@ func (s *StreamingPayloadUserTypeArrayMethodServerStream) Recv() ([]*streamingpa
 			conn = s.configurer(conn, s.cancel)
 		}
 		s.conn = conn
+		if err = ctx.Err(); err != nil {
+			if closeErr := s.conn.Close(); closeErr != nil {
+				s.upgradeErr = closeErr
+				return
+			}
+			s.upgradeErr = err
+			return
+		}
 	})
 	if s.upgradeErr != nil {
 		return rv, s.upgradeErr
 	}
 	if err = s.conn.ReadJSON(&body); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
 		return rv, err
 	}
 	if body == nil {
 		return rv, io.EOF
 	}
 	return NewStreamingPayloadUserTypeArrayMethodArray(body), nil
-}
-
-// RecvWithContext reads instances of
-// "[]*streamingpayloadusertypearrayservice.RequestType" from the
-// "StreamingPayloadUserTypeArrayMethod" endpoint websocket connection with
-// context.
-func (s *StreamingPayloadUserTypeArrayMethodServerStream) RecvWithContext(ctx context.Context) ([]*streamingpayloadusertypearrayservice.RequestType, error) {
-	return s.Recv()
 }
 `
 

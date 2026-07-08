@@ -30,7 +30,26 @@ func (s *StreamingPayloadPrimitiveMapMethodClientStream) CloseAndRecv() (map[int
 // "StreamingPayloadPrimitiveMapMethod" endpoint websocket connection and reads
 // instances of "map[int]int" from the connection with context.
 func (s *StreamingPayloadPrimitiveMapMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (map[int]int, error) {
-	return s.CloseAndRecv()
+	var rv map[int]int
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.CloseAndRecv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

@@ -8,7 +8,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 )
 
-func renderWebsocketUpgrade(endpoint *EndpointData, function string, recv bool) string {
+func renderWebsocketUpgrade(endpoint *EndpointData, function string, recv bool, withContext bool) string {
 	var b sourceBuilder
 	b.Add("\t")
 	b.Add(codegen.Comment("Upgrade the HTTP connection to a websocket connection only once. Connection upgrade is done here so that authorization logic in the endpoint is executed before calling the actual service method which may call " + function + "()."))
@@ -32,6 +32,16 @@ func renderWebsocketUpgrade(endpoint *EndpointData, function string, recv bool) 
 	b.Add("\t\t\tconn = s.configurer(conn, s.cancel)\n")
 	b.Add("\t\t}\n")
 	b.Add("\t\ts.conn = conn\n")
+	if withContext {
+		b.Add("\t\tif err = ctx.Err(); err != nil {\n")
+		b.Add("\t\t\tif closeErr := s.conn.Close(); closeErr != nil {\n")
+		b.Add("\t\t\t\ts.upgradeErr = closeErr\n")
+		b.Add("\t\t\t\treturn\n")
+		b.Add("\t\t\t}\n")
+		b.Add("\t\t\ts.upgradeErr = err\n")
+		b.Add("\t\t\treturn\n")
+		b.Add("\t\t}\n")
+	}
 	b.Add("\t})\n")
 	b.Add("\tif s.upgradeErr != nil {\n")
 	if recv {

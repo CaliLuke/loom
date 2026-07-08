@@ -37,7 +37,26 @@ func (s *StreamingPayloadResultWithViewsMethodClientStream) CloseAndRecv() (*str
 // reads instances of "streamingpayloadresultwithviewsservice.Usertype" from
 // the connection with context.
 func (s *StreamingPayloadResultWithViewsMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (*streamingpayloadresultwithviewsservice.Usertype, error) {
-	return s.CloseAndRecv()
+	var rv *streamingpayloadresultwithviewsservice.Usertype
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.CloseAndRecv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

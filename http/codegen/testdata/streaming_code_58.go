@@ -30,7 +30,26 @@ func (s *StreamingPayloadUserTypeArrayMethodClientStream) CloseAndRecv() (string
 // "StreamingPayloadUserTypeArrayMethod" endpoint websocket connection and
 // reads instances of "string" from the connection with context.
 func (s *StreamingPayloadUserTypeArrayMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (string, error) {
-	return s.CloseAndRecv()
+	var rv string
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.CloseAndRecv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

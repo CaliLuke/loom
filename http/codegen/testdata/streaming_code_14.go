@@ -31,7 +31,26 @@ func (s *StreamingPayloadMethodClientStream) CloseAndRecv() (*streamingpayloadse
 // "StreamingPayloadMethod" endpoint websocket connection and reads instances
 // of "streamingpayloadservice.UserType" from the connection with context.
 func (s *StreamingPayloadMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (*streamingpayloadservice.UserType, error) {
-	return s.CloseAndRecv()
+	var rv *streamingpayloadservice.UserType
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.CloseAndRecv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

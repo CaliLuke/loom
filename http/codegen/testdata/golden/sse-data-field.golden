@@ -14,7 +14,7 @@ type SSEDataFieldMethodServerStream struct {
 // "ssedatafieldservice.SSEDataFieldMethodResult" to the "SSEDataFieldMethod"
 // endpoint SSE connection.
 func (s *SSEDataFieldMethodServerStream) Send(v *ssedatafieldservice.SSEDataFieldMethodResult) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 
 func (s *SSEDataFieldMethodServerStream) initHeaders() {
@@ -37,6 +37,12 @@ func (s *SSEDataFieldMethodServerStream) initHeaders() {
 // "ssedatafieldservice.SSEDataFieldMethodResult" to the "SSEDataFieldMethod"
 // endpoint SSE connection with context.
 func (s *SSEDataFieldMethodServerStream) SendWithContext(ctx context.Context, v *ssedatafieldservice.SSEDataFieldMethodResult) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.r.Context().Err(); err != nil {
+		return err
+	}
 	s.initHeaders()
 	res := v
 

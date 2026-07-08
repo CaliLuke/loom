@@ -8,6 +8,7 @@ type ConnConfigurer struct {
 }
 `
 
+
 var MixedEndpointsConnConfigurerInitCode = `// NewConnConfigurer initializes the websocket connection configurer function
 // with fn for all the streaming endpoints in "StreamingResultService" service.
 func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {
@@ -16,6 +17,7 @@ func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {
 	}
 }
 `
+
 
 var StreamingResultServerHandlerInitCode = `// NewStreamingResultMethodHandler creates a HTTP handler which loads the HTTP
 // request and calls the "StreamingResultService" service
@@ -84,6 +86,7 @@ func NewStreamingResultMethodHandler(
 	})
 }
 `
+
 
 var MixedResultsServerHandlerInitCode = `// NewCreateHandler creates a HTTP handler which loads the HTTP request and
 // calls the "MixedResultsService" service "Create" endpoint.
@@ -191,39 +194,69 @@ func (s *discardCreateServerStream) Close() error {
 }
 `
 
+
 var StreamingResultServerStreamSendCode = `// SendWithContext streams instances of "streamingresultservice.UserType" to
 // the "StreamingResultMethod" endpoint websocket connection with context.
 func (s *StreamingResultMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultservice.UserType) error {
-	var err error
-	// Upgrade the HTTP connection to a websocket connection only once. Connection
-	// upgrade is done here so that authorization logic in the endpoint is executed
-	// before calling the actual service method which may call Send().
-	s.once.Do(func() {
-		var conn *websocket.Conn
-		conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
-		if err != nil {
-			s.upgradeErr = err
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
 			return
 		}
-		if s.configurer != nil {
-			conn = s.configurer(conn, s.cancel)
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
 		}
-		s.conn = conn
 	})
-	if s.upgradeErr != nil {
-		return s.upgradeErr
+	defer stopContextWatch()
+	err := func() error {
+		var err error
+		// Upgrade the HTTP connection to a websocket connection only once. Connection
+		// upgrade is done here so that authorization logic in the endpoint is executed
+		// before calling the actual service method which may call Send().
+		s.once.Do(func() {
+			var conn *websocket.Conn
+			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
+			if err != nil {
+				s.upgradeErr = err
+				return
+			}
+			if s.configurer != nil {
+				conn = s.configurer(conn, s.cancel)
+			}
+			s.conn = conn
+			if err = ctx.Err(); err != nil {
+				if closeErr := s.conn.Close(); closeErr != nil {
+					s.upgradeErr = closeErr
+					return
+				}
+				s.upgradeErr = err
+				return
+			}
+		})
+		if s.upgradeErr != nil {
+			return s.upgradeErr
+		}
+		res := v
+		body := NewStreamingResultMethodResponseBody(res)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 	}
-	res := v
-	body := NewStreamingResultMethodResponseBody(res)
-	return s.conn.WriteJSON(body)
+	return err
 }
 
 // Send streams instances of "streamingresultservice.UserType" to the
 // "StreamingResultMethod" endpoint websocket connection.
 func (s *StreamingResultMethodServerStream) Send(v *streamingresultservice.UserType) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 `
+
 
 var StreamingResultServerStreamCloseCode = `// Close closes the "StreamingResultMethod" endpoint websocket connection.
 func (s *StreamingResultMethodServerStream) Close() error {
@@ -242,50 +275,80 @@ func (s *StreamingResultMethodServerStream) Close() error {
 }
 `
 
+
 var StreamingResultWithViewsServerStreamSendCode = `// SendWithContext streams instances of
 // "streamingresultwithviewsservice.Usertype" to the
 // "StreamingResultWithViewsMethod" endpoint websocket connection with context.
 func (s *StreamingResultWithViewsMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultwithviewsservice.Usertype) error {
-	var err error
-	// Upgrade the HTTP connection to a websocket connection only once. Connection
-	// upgrade is done here so that authorization logic in the endpoint is executed
-	// before calling the actual service method which may call Send().
-	s.once.Do(func() {
-		respHdr := make(http.Header)
-		respHdr.Add("loom-view", s.view)
-		var conn *websocket.Conn
-		conn, err = s.upgrader.Upgrade(s.w, s.r, respHdr)
-		if err != nil {
-			s.upgradeErr = err
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
 			return
 		}
-		if s.configurer != nil {
-			conn = s.configurer(conn, s.cancel)
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
 		}
-		s.conn = conn
 	})
-	if s.upgradeErr != nil {
-		return s.upgradeErr
+	defer stopContextWatch()
+	err := func() error {
+		var err error
+		// Upgrade the HTTP connection to a websocket connection only once. Connection
+		// upgrade is done here so that authorization logic in the endpoint is executed
+		// before calling the actual service method which may call Send().
+		s.once.Do(func() {
+			respHdr := make(http.Header)
+			respHdr.Add("loom-view", s.view)
+			var conn *websocket.Conn
+			conn, err = s.upgrader.Upgrade(s.w, s.r, respHdr)
+			if err != nil {
+				s.upgradeErr = err
+				return
+			}
+			if s.configurer != nil {
+				conn = s.configurer(conn, s.cancel)
+			}
+			s.conn = conn
+			if err = ctx.Err(); err != nil {
+				if closeErr := s.conn.Close(); closeErr != nil {
+					s.upgradeErr = closeErr
+					return
+				}
+				s.upgradeErr = err
+				return
+			}
+		})
+		if s.upgradeErr != nil {
+			return s.upgradeErr
+		}
+		res := streamingresultwithviewsservice.NewViewedUsertype(v, s.view)
+		var body any
+		switch s.view {
+		case "tiny":
+			body = NewStreamingResultWithViewsMethodResponseBodyTiny(res.Projected)
+		case "extended":
+			body = NewStreamingResultWithViewsMethodResponseBodyExtended(res.Projected)
+		case "default", "":
+			body = NewStreamingResultWithViewsMethodResponseBody(res.Projected)
+		}
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 	}
-	res := streamingresultwithviewsservice.NewViewedUsertype(v, s.view)
-	var body any
-	switch s.view {
-	case "tiny":
-		body = NewStreamingResultWithViewsMethodResponseBodyTiny(res.Projected)
-	case "extended":
-		body = NewStreamingResultWithViewsMethodResponseBodyExtended(res.Projected)
-	case "default", "":
-		body = NewStreamingResultWithViewsMethodResponseBody(res.Projected)
-	}
-	return s.conn.WriteJSON(body)
+	return err
 }
 
 // Send streams instances of "streamingresultwithviewsservice.Usertype" to the
 // "StreamingResultWithViewsMethod" endpoint websocket connection.
 func (s *StreamingResultWithViewsMethodServerStream) Send(v *streamingresultwithviewsservice.Usertype) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 `
+
 
 var StreamingResultWithViewsServerStreamSetViewCode = `// SetView sets the view to render the streamingresultwithviewsservice.Usertype
 // type before sending to the "StreamingResultWithViewsMethod" endpoint
@@ -294,6 +357,7 @@ func (s *StreamingResultWithViewsMethodServerStream) SetView(view string) {
 	s.view = view
 }
 `
+
 
 var StreamingResultNoPayloadServerHandlerInitCode = `// NewStreamingResultNoPayloadMethodHandler creates a HTTP handler which loads
 // the HTTP request and calls the "StreamingResultNoPayloadService" service
@@ -354,6 +418,7 @@ func NewStreamingResultNoPayloadMethodHandler(
 }
 `
 
+
 var StreamingResultClientEndpointCode = `// StreamingResultMethod returns an endpoint that makes HTTP requests to the
 // StreamingResultService service StreamingResultMethod server.
 func (c *Client) StreamingResultMethod() loom.Endpoint {
@@ -388,6 +453,7 @@ func (c *Client) StreamingResultMethod() loom.Endpoint {
 }
 `
 
+
 var StreamingResultWithViewsServerStreamCloseCode = `// Close closes the "StreamingResultWithViewsMethod" endpoint websocket
 // connection.
 func (s *StreamingResultWithViewsMethodServerStream) Close() error {
@@ -405,6 +471,7 @@ func (s *StreamingResultWithViewsMethodServerStream) Close() error {
 	return s.conn.Close()
 }
 `
+
 
 var StreamingResultClientStreamRecvCode = `// Recv reads instances of "streamingresultservice.UserType" from the
 // "StreamingResultMethod" endpoint websocket connection.
@@ -429,9 +496,29 @@ func (s *StreamingResultMethodClientStream) Recv() (*streamingresultservice.User
 // RecvWithContext reads instances of "streamingresultservice.UserType" from
 // the "StreamingResultMethod" endpoint websocket connection with context.
 func (s *StreamingResultMethodClientStream) RecvWithContext(ctx context.Context) (*streamingresultservice.UserType, error) {
-	return s.Recv()
+	var rv *streamingresultservice.UserType
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
+
 
 var StreamingResultWithViewsClientEndpointCode = `// StreamingResultWithViewsMethod returns an endpoint that makes HTTP requests
 // to the StreamingResultWithViewsService service
@@ -470,6 +557,7 @@ func (c *Client) StreamingResultWithViewsMethod() loom.Endpoint {
 }
 `
 
+
 var StreamingResultWithViewsClientStreamRecvCode = `// Recv reads instances of "streamingresultwithviewsservice.Usertype" from the
 // "StreamingResultWithViewsMethod" endpoint websocket connection.
 func (s *StreamingResultWithViewsMethodClientStream) Recv() (*streamingresultwithviewsservice.Usertype, error) {
@@ -498,9 +586,29 @@ func (s *StreamingResultWithViewsMethodClientStream) Recv() (*streamingresultwit
 // "streamingresultwithviewsservice.Usertype" from the
 // "StreamingResultWithViewsMethod" endpoint websocket connection with context.
 func (s *StreamingResultWithViewsMethodClientStream) RecvWithContext(ctx context.Context) (*streamingresultwithviewsservice.Usertype, error) {
-	return s.Recv()
+	var rv *streamingresultwithviewsservice.Usertype
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
+
 
 var StreamingResultWithViewsClientStreamSetViewCode = `// SetView sets the view to render the  type before sending to the
 // "StreamingResultWithViewsMethod" endpoint websocket connection.
@@ -508,6 +616,7 @@ func (s *StreamingResultWithViewsMethodClientStream) SetView(view string) {
 	s.view = view
 }
 `
+
 
 var StreamingResultWithExplicitViewClientEndpointCode = `// StreamingResultWithExplicitViewMethod returns an endpoint that makes HTTP
 // requests to the StreamingResultWithExplicitViewService service
@@ -544,6 +653,7 @@ func (c *Client) StreamingResultWithExplicitViewMethod() loom.Endpoint {
 }
 `
 
+
 var StreamingResultWithExplicitViewClientStreamRecvCode = `// Recv reads instances of "streamingresultwithexplicitviewservice.Usertype"
 // from the "StreamingResultWithExplicitViewMethod" endpoint websocket
 // connection.
@@ -574,92 +684,170 @@ func (s *StreamingResultWithExplicitViewMethodClientStream) Recv() (*streamingre
 // "StreamingResultWithExplicitViewMethod" endpoint websocket connection with
 // context.
 func (s *StreamingResultWithExplicitViewMethodClientStream) RecvWithContext(ctx context.Context) (*streamingresultwithexplicitviewservice.Usertype, error) {
-	return s.Recv()
+	var rv *streamingresultwithexplicitviewservice.Usertype
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
+
 
 var StreamingResultWithExplicitViewServerStreamSendCode = `// SendWithContext streams instances of
 // "streamingresultwithexplicitviewservice.Usertype" to the
 // "StreamingResultWithExplicitViewMethod" endpoint websocket connection with
 // context.
 func (s *StreamingResultWithExplicitViewMethodServerStream) SendWithContext(ctx context.Context, v *streamingresultwithexplicitviewservice.Usertype) error {
-	var err error
-	// Upgrade the HTTP connection to a websocket connection only once. Connection
-	// upgrade is done here so that authorization logic in the endpoint is executed
-	// before calling the actual service method which may call Send().
-	s.once.Do(func() {
-		var conn *websocket.Conn
-		conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
-		if err != nil {
-			s.upgradeErr = err
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
 			return
 		}
-		if s.configurer != nil {
-			conn = s.configurer(conn, s.cancel)
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
 		}
-		s.conn = conn
 	})
-	if s.upgradeErr != nil {
-		return s.upgradeErr
+	defer stopContextWatch()
+	err := func() error {
+		var err error
+		// Upgrade the HTTP connection to a websocket connection only once. Connection
+		// upgrade is done here so that authorization logic in the endpoint is executed
+		// before calling the actual service method which may call Send().
+		s.once.Do(func() {
+			var conn *websocket.Conn
+			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
+			if err != nil {
+				s.upgradeErr = err
+				return
+			}
+			if s.configurer != nil {
+				conn = s.configurer(conn, s.cancel)
+			}
+			s.conn = conn
+			if err = ctx.Err(); err != nil {
+				if closeErr := s.conn.Close(); closeErr != nil {
+					s.upgradeErr = closeErr
+					return
+				}
+				s.upgradeErr = err
+				return
+			}
+		})
+		if s.upgradeErr != nil {
+			return s.upgradeErr
+		}
+		res := streamingresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
+		body := NewStreamingResultWithExplicitViewMethodResponseBodyExtended(res.Projected)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 	}
-	res := streamingresultwithexplicitviewservice.NewViewedUsertype(v, "extended")
-	body := NewStreamingResultWithExplicitViewMethodResponseBodyExtended(res.Projected)
-	return s.conn.WriteJSON(body)
+	return err
 }
 
 // Send streams instances of "streamingresultwithexplicitviewservice.Usertype"
 // to the "StreamingResultWithExplicitViewMethod" endpoint websocket connection.
 func (s *StreamingResultWithExplicitViewMethodServerStream) Send(v *streamingresultwithexplicitviewservice.Usertype) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 `
+
 
 var StreamingResultCollectionWithViewsServerStreamSendCode = `// SendWithContext streams instances of
 // "streamingresultcollectionwithviewsservice.UsertypeCollection" to the
 // "StreamingResultCollectionWithViewsMethod" endpoint websocket connection
 // with context.
 func (s *StreamingResultCollectionWithViewsMethodServerStream) SendWithContext(ctx context.Context, v streamingresultcollectionwithviewsservice.UsertypeCollection) error {
-	var err error
-	// Upgrade the HTTP connection to a websocket connection only once. Connection
-	// upgrade is done here so that authorization logic in the endpoint is executed
-	// before calling the actual service method which may call Send().
-	s.once.Do(func() {
-		respHdr := make(http.Header)
-		respHdr.Add("loom-view", s.view)
-		var conn *websocket.Conn
-		conn, err = s.upgrader.Upgrade(s.w, s.r, respHdr)
-		if err != nil {
-			s.upgradeErr = err
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
 			return
 		}
-		if s.configurer != nil {
-			conn = s.configurer(conn, s.cancel)
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
 		}
-		s.conn = conn
 	})
-	if s.upgradeErr != nil {
-		return s.upgradeErr
+	defer stopContextWatch()
+	err := func() error {
+		var err error
+		// Upgrade the HTTP connection to a websocket connection only once. Connection
+		// upgrade is done here so that authorization logic in the endpoint is executed
+		// before calling the actual service method which may call Send().
+		s.once.Do(func() {
+			respHdr := make(http.Header)
+			respHdr.Add("loom-view", s.view)
+			var conn *websocket.Conn
+			conn, err = s.upgrader.Upgrade(s.w, s.r, respHdr)
+			if err != nil {
+				s.upgradeErr = err
+				return
+			}
+			if s.configurer != nil {
+				conn = s.configurer(conn, s.cancel)
+			}
+			s.conn = conn
+			if err = ctx.Err(); err != nil {
+				if closeErr := s.conn.Close(); closeErr != nil {
+					s.upgradeErr = closeErr
+					return
+				}
+				s.upgradeErr = err
+				return
+			}
+		})
+		if s.upgradeErr != nil {
+			return s.upgradeErr
+		}
+		res := streamingresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
+		var body any
+		switch s.view {
+		case "tiny":
+			body = NewUsertypeResponseTinyCollection(res.Projected)
+		case "extended":
+			body = NewUsertypeResponseExtendedCollection(res.Projected)
+		case "default", "":
+			body = NewUsertypeResponseCollection(res.Projected)
+		}
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 	}
-	res := streamingresultcollectionwithviewsservice.NewViewedUsertypeCollection(v, s.view)
-	var body any
-	switch s.view {
-	case "tiny":
-		body = NewUsertypeResponseTinyCollection(res.Projected)
-	case "extended":
-		body = NewUsertypeResponseExtendedCollection(res.Projected)
-	case "default", "":
-		body = NewUsertypeResponseCollection(res.Projected)
-	}
-	return s.conn.WriteJSON(body)
+	return err
 }
 
 // Send streams instances of
 // "streamingresultcollectionwithviewsservice.UsertypeCollection" to the
 // "StreamingResultCollectionWithViewsMethod" endpoint websocket connection.
 func (s *StreamingResultCollectionWithViewsMethodServerStream) Send(v streamingresultcollectionwithviewsservice.UsertypeCollection) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 `
+
 
 var StreamingResultCollectionWithViewsServerStreamSetViewCode = `// SetView sets the view to render the
 // streamingresultcollectionwithviewsservice.UsertypeCollection type before
@@ -669,6 +857,7 @@ func (s *StreamingResultCollectionWithViewsMethodServerStream) SetView(view stri
 	s.view = view
 }
 `
+
 
 var StreamingResultCollectionWithViewsClientStreamRecvCode = `// Recv reads instances of
 // "streamingresultcollectionwithviewsservice.UsertypeCollection" from the
@@ -700,9 +889,29 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) Recv() (streaming
 // "StreamingResultCollectionWithViewsMethod" endpoint websocket connection
 // with context.
 func (s *StreamingResultCollectionWithViewsMethodClientStream) RecvWithContext(ctx context.Context) (streamingresultcollectionwithviewsservice.UsertypeCollection, error) {
-	return s.Recv()
+	var rv streamingresultcollectionwithviewsservice.UsertypeCollection
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
+
 
 var StreamingResultCollectionWithViewsClientStreamSetViewCode = `// SetView sets the view to render the  type before sending to the
 // "StreamingResultCollectionWithViewsMethod" endpoint websocket connection.
@@ -711,33 +920,62 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) SetView(view stri
 }
 `
 
+
 var StreamingResultCollectionWithExplicitViewServerStreamSendCode = `// SendWithContext streams instances of
 // "streamingresultcollectionwithexplicitviewservice.UsertypeCollection" to the
 // "StreamingResultCollectionWithExplicitViewMethod" endpoint websocket
 // connection with context.
 func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithContext(ctx context.Context, v streamingresultcollectionwithexplicitviewservice.UsertypeCollection) error {
-	var err error
-	// Upgrade the HTTP connection to a websocket connection only once. Connection
-	// upgrade is done here so that authorization logic in the endpoint is executed
-	// before calling the actual service method which may call Send().
-	s.once.Do(func() {
-		var conn *websocket.Conn
-		conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
-		if err != nil {
-			s.upgradeErr = err
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
 			return
 		}
-		if s.configurer != nil {
-			conn = s.configurer(conn, s.cancel)
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
 		}
-		s.conn = conn
 	})
-	if s.upgradeErr != nil {
-		return s.upgradeErr
+	defer stopContextWatch()
+	err := func() error {
+		var err error
+		// Upgrade the HTTP connection to a websocket connection only once. Connection
+		// upgrade is done here so that authorization logic in the endpoint is executed
+		// before calling the actual service method which may call Send().
+		s.once.Do(func() {
+			var conn *websocket.Conn
+			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
+			if err != nil {
+				s.upgradeErr = err
+				return
+			}
+			if s.configurer != nil {
+				conn = s.configurer(conn, s.cancel)
+			}
+			s.conn = conn
+			if err = ctx.Err(); err != nil {
+				if closeErr := s.conn.Close(); closeErr != nil {
+					s.upgradeErr = closeErr
+					return
+				}
+				s.upgradeErr = err
+				return
+			}
+		})
+		if s.upgradeErr != nil {
+			return s.upgradeErr
+		}
+		res := streamingresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
+		body := NewUsertypeResponseTinyCollection(res.Projected)
+		return s.conn.WriteJSON(body)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 	}
-	res := streamingresultcollectionwithexplicitviewservice.NewViewedUsertypeCollection(v, "tiny")
-	body := NewUsertypeResponseTinyCollection(res.Projected)
-	return s.conn.WriteJSON(body)
+	return err
 }
 
 // Send streams instances of
@@ -745,7 +983,7 @@ func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithCo
 // "StreamingResultCollectionWithExplicitViewMethod" endpoint websocket
 // connection.
 func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) Send(v streamingresultcollectionwithexplicitviewservice.UsertypeCollection) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 `
 var StreamingResultCollectionWithExplicitViewClientEndpointCode = `// StreamingResultCollectionWithExplicitViewMethod returns an endpoint that
@@ -783,6 +1021,7 @@ func (c *Client) StreamingResultCollectionWithExplicitViewMethod() loom.Endpoint
 }
 `
 
+
 var StreamingResultCollectionWithExplicitViewClientStreamRecvCode = `// Recv reads instances of
 // "streamingresultcollectionwithexplicitviewservice.UsertypeCollection" from
 // the "StreamingResultCollectionWithExplicitViewMethod" endpoint websocket
@@ -814,42 +1053,91 @@ func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) Recv() (st
 // the "StreamingResultCollectionWithExplicitViewMethod" endpoint websocket
 // connection with context.
 func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) RecvWithContext(ctx context.Context) (streamingresultcollectionwithexplicitviewservice.UsertypeCollection, error) {
-	return s.Recv()
+	var rv streamingresultcollectionwithexplicitviewservice.UsertypeCollection
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
+
 
 var StreamingResultPrimitiveServerStreamSendCode = `// SendWithContext streams instances of "string" to the
 // "StreamingResultPrimitiveMethod" endpoint websocket connection with context.
 func (s *StreamingResultPrimitiveMethodServerStream) SendWithContext(ctx context.Context, v string) error {
-	var err error
-	// Upgrade the HTTP connection to a websocket connection only once. Connection
-	// upgrade is done here so that authorization logic in the endpoint is executed
-	// before calling the actual service method which may call Send().
-	s.once.Do(func() {
-		var conn *websocket.Conn
-		conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
-		if err != nil {
-			s.upgradeErr = err
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
 			return
 		}
-		if s.configurer != nil {
-			conn = s.configurer(conn, s.cancel)
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
 		}
-		s.conn = conn
 	})
-	if s.upgradeErr != nil {
-		return s.upgradeErr
+	defer stopContextWatch()
+	err := func() error {
+		var err error
+		// Upgrade the HTTP connection to a websocket connection only once. Connection
+		// upgrade is done here so that authorization logic in the endpoint is executed
+		// before calling the actual service method which may call Send().
+		s.once.Do(func() {
+			var conn *websocket.Conn
+			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
+			if err != nil {
+				s.upgradeErr = err
+				return
+			}
+			if s.configurer != nil {
+				conn = s.configurer(conn, s.cancel)
+			}
+			s.conn = conn
+			if err = ctx.Err(); err != nil {
+				if closeErr := s.conn.Close(); closeErr != nil {
+					s.upgradeErr = closeErr
+					return
+				}
+				s.upgradeErr = err
+				return
+			}
+		})
+		if s.upgradeErr != nil {
+			return s.upgradeErr
+		}
+		res := v
+		return s.conn.WriteJSON(res)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 	}
-	res := v
-	return s.conn.WriteJSON(res)
+	return err
 }
 
 // Send streams instances of "string" to the "StreamingResultPrimitiveMethod"
 // endpoint websocket connection.
 func (s *StreamingResultPrimitiveMethodServerStream) Send(v string) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 `
+
 
 var StreamingResultPrimitiveClientStreamRecvCode = `// Recv reads instances of "string" from the "StreamingResultPrimitiveMethod"
 // endpoint websocket connection.
@@ -873,43 +1161,92 @@ func (s *StreamingResultPrimitiveMethodClientStream) Recv() (string, error) {
 // RecvWithContext reads instances of "string" from the
 // "StreamingResultPrimitiveMethod" endpoint websocket connection with context.
 func (s *StreamingResultPrimitiveMethodClientStream) RecvWithContext(ctx context.Context) (string, error) {
-	return s.Recv()
+	var rv string
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
+
 
 var StreamingResultPrimitiveArrayServerStreamSendCode = `// SendWithContext streams instances of "[]int32" to the
 // "StreamingResultPrimitiveArrayMethod" endpoint websocket connection with
 // context.
 func (s *StreamingResultPrimitiveArrayMethodServerStream) SendWithContext(ctx context.Context, v []int32) error {
-	var err error
-	// Upgrade the HTTP connection to a websocket connection only once. Connection
-	// upgrade is done here so that authorization logic in the endpoint is executed
-	// before calling the actual service method which may call Send().
-	s.once.Do(func() {
-		var conn *websocket.Conn
-		conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
-		if err != nil {
-			s.upgradeErr = err
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
 			return
 		}
-		if s.configurer != nil {
-			conn = s.configurer(conn, s.cancel)
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
 		}
-		s.conn = conn
 	})
-	if s.upgradeErr != nil {
-		return s.upgradeErr
+	defer stopContextWatch()
+	err := func() error {
+		var err error
+		// Upgrade the HTTP connection to a websocket connection only once. Connection
+		// upgrade is done here so that authorization logic in the endpoint is executed
+		// before calling the actual service method which may call Send().
+		s.once.Do(func() {
+			var conn *websocket.Conn
+			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
+			if err != nil {
+				s.upgradeErr = err
+				return
+			}
+			if s.configurer != nil {
+				conn = s.configurer(conn, s.cancel)
+			}
+			s.conn = conn
+			if err = ctx.Err(); err != nil {
+				if closeErr := s.conn.Close(); closeErr != nil {
+					s.upgradeErr = closeErr
+					return
+				}
+				s.upgradeErr = err
+				return
+			}
+		})
+		if s.upgradeErr != nil {
+			return s.upgradeErr
+		}
+		res := v
+		return s.conn.WriteJSON(res)
+	}()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 	}
-	res := v
-	return s.conn.WriteJSON(res)
+	return err
 }
 
 // Send streams instances of "[]int32" to the
 // "StreamingResultPrimitiveArrayMethod" endpoint websocket connection.
 func (s *StreamingResultPrimitiveArrayMethodServerStream) Send(v []int32) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 `
+
 
 var StreamingResultPrimitiveArrayClientStreamRecvCode = `// Recv reads instances of "[]int32" from the
 // "StreamingResultPrimitiveArrayMethod" endpoint websocket connection.
@@ -934,7 +1271,26 @@ func (s *StreamingResultPrimitiveArrayMethodClientStream) Recv() ([]int32, error
 // "StreamingResultPrimitiveArrayMethod" endpoint websocket connection with
 // context.
 func (s *StreamingResultPrimitiveArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]int32, error) {
-	return s.Recv()
+	var rv []int32
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

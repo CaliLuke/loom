@@ -26,7 +26,26 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingres
 // "StreamingResultUserTypeArrayMethod" endpoint websocket connection with
 // context.
 func (s *StreamingResultUserTypeArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]*streamingresultusertypearrayservice.UserType, error) {
-	return s.Recv()
+	var rv []*streamingresultusertypearrayservice.UserType
+	if err := ctx.Err(); err != nil {
+		return rv, err
+	}
+	stopContextWatch := context.AfterFunc(ctx, func() {
+		if s.conn == nil {
+			return
+		}
+		if closeErr := s.conn.Close(); closeErr != nil {
+			return
+		}
+	})
+	defer stopContextWatch()
+	v, err := s.Recv()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rv, ctxErr
+		}
+	}
+	return v, err
 }
 `
 

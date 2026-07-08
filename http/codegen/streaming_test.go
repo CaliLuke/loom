@@ -211,6 +211,44 @@ func TestServerStreaming(t *testing.T) {
 	runTests(t, cases, filesFn)
 }
 
+func TestWebSocketStreamsHonorContextInGeneratedMethods(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.BidirectionalStreamingDSL)
+	services := CreateHTTPServices(root)
+	serverFiles := ServerFiles("", services)
+	require.Greater(t, len(serverFiles), 1)
+
+	recv := codegen.SectionCode(t, serverFiles[1].Section("server-websocket-recv")[0])
+	require.Contains(t, recv, "return s.RecvWithContext(s.r.Context())")
+	require.Contains(t, recv, "if err := ctx.Err(); err != nil {")
+	require.Contains(t, recv, "if closeErr := s.conn.Close(); closeErr != nil {")
+	require.Contains(t, recv, "s.upgradeErr = err")
+	require.Contains(t, recv, "if ctxErr := ctx.Err(); ctxErr != nil {")
+	require.Contains(t, recv, "return rv, ctxErr")
+
+	send := codegen.SectionCode(t, serverFiles[1].Section("server-websocket-send")[0])
+	require.Contains(t, send, "return s.SendWithContext(s.r.Context(), v)")
+	require.NotContains(t, send, "return s.SendWithContext(context.Background(), v)")
+	require.Contains(t, send, "if err := ctx.Err(); err != nil {")
+	require.Contains(t, send, "if closeErr := s.conn.Close(); closeErr != nil {")
+	require.Contains(t, send, "s.upgradeErr = err")
+	require.Contains(t, send, "if ctxErr := ctx.Err(); ctxErr != nil {")
+	require.Contains(t, send, "return ctxErr")
+
+	clientFiles := ClientFiles("", services)
+	require.Greater(t, len(clientFiles), 1)
+	clientRecv := codegen.SectionCode(t, clientFiles[1].Section("client-websocket-recv")[0])
+	require.Contains(t, clientRecv, "if err := ctx.Err(); err != nil {")
+	require.Contains(t, clientRecv, "if closeErr := s.conn.Close(); closeErr != nil {")
+	require.Contains(t, clientRecv, "if ctxErr := ctx.Err(); ctxErr != nil {")
+	require.Contains(t, clientRecv, "return rv, ctxErr")
+
+	clientSend := codegen.SectionCode(t, clientFiles[1].Section("client-websocket-send")[0])
+	require.Contains(t, clientSend, "if err := ctx.Err(); err != nil {")
+	require.Contains(t, clientSend, "if closeErr := s.conn.Close(); closeErr != nil {")
+	require.Contains(t, clientSend, "if ctxErr := ctx.Err(); ctxErr != nil {")
+	require.Contains(t, clientSend, "return ctxErr")
+}
+
 func TestClientStreaming(t *testing.T) {
 	cases := []*testCase{
 		{"client-mixed-endpoints", testdata.StreamingResultDSL, []*sectionExpectation{

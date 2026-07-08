@@ -13,7 +13,7 @@ type SSEStringMethodServerStream struct {
 // Send Send streams instances of "string" to the "SSEStringMethod" endpoint
 // SSE connection.
 func (s *SSEStringMethodServerStream) Send(v string) error {
-	return s.SendWithContext(context.Background(), v)
+	return s.SendWithContext(s.r.Context(), v)
 }
 
 func (s *SSEStringMethodServerStream) initHeaders() {
@@ -35,6 +35,12 @@ func (s *SSEStringMethodServerStream) initHeaders() {
 // SendWithContext SendWithContext streams instances of "string" to the
 // "SSEStringMethod" endpoint SSE connection with context.
 func (s *SSEStringMethodServerStream) SendWithContext(ctx context.Context, v string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.r.Context().Err(); err != nil {
+		return err
+	}
 	s.initHeaders()
 	res := v
 
