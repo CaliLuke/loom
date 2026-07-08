@@ -1,9 +1,8 @@
 package codegen
 
-// requestDecoderPartials holds the helper templates composed into
-// requestDecoderSource. Declared in a separate file to keep the main
-// template source file under the file-size ceiling.
-var requestDecoderConversionPartials = []templateSource{
+// httpDecoderConversionPartials holds conversion helpers shared by request and
+// response decoder templates.
+var httpDecoderConversionPartials = []templateSource{
 	{name: "slice_item_conversion", source: `		{{- if eq .Type.ElemType.Type.Name "string" }}
 			{{ .VarName }}[i] = rv
 		{{- else if eq .Type.ElemType.Type.Name "bytes" }}
@@ -71,17 +70,6 @@ var requestDecoderConversionPartials = []templateSource{
 	for i, rv := range {{ .VarName }}Raw {
 		{{- template "partial_slice_item_conversion" . }}
 	}`},
-	{name: "query_slice_conversion", source: `	{{- if eq . "string" }} url.QueryEscape(v)
-	{{- else if eq . "int" "int32" }} strconv.FormatInt(int64(v), 10)
-	{{- else if eq . "int64" }} strconv.FormatInt(v, 10)
-	{{- else if eq . "uint" "uint32" }} strconv.FormatUint(uint64(v), 10)
-	{{- else if eq . "uint64" }} strconv.FormatUint(v, 10)
-	{{- else if eq . "float32" }} strconv.FormatFloat(float64(v), 'f', -1, 32)
-	{{- else if eq . "float64" }} strconv.FormatFloat(v, 'f', -1, 64)
-	{{- else if eq . "boolean" }} strconv.FormatBool(v)
-	{{- else if eq . "bytes" }} url.QueryEscape(string(v))
-	{{- else }} url.QueryEscape(fmt.Sprintf("%v", v))
-	{{- end }}`},
 	{name: "query_type_conversion", source: `	{{- if .IsTextUnmarshaler }}
 		{{- if .Pointer }}
 		var {{ .VarName }}Val {{ .TypeName }}
@@ -310,9 +298,9 @@ var requestDecoderConversionPartials = []templateSource{
 }
 
 func requestDecoderPartialSources() []templateSource {
-	partials := make([]templateSource, 0, len(requestDecoderElementPartials)+len(requestDecoderConversionPartials))
+	partials := make([]templateSource, 0, len(requestDecoderElementPartials)+len(httpDecoderConversionPartials))
 	partials = append(partials, requestDecoderElementPartials...)
-	return append(partials, requestDecoderConversionPartials...)
+	return append(partials, httpDecoderConversionPartials...)
 }
 
 var requestDecoderPartials = requestDecoderPartialSources()

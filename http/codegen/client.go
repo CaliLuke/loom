@@ -120,15 +120,12 @@ func clientResponseDecoderSection(svc *expr.HTTPServiceExpr, services *ServicesD
 	if e.Result == nil && len(e.Errors) == 0 {
 		return nil
 	}
+	fm := transDecoderTmplFuncs(svc, services)
+	fm["buildResponseData"] = buildResponseData
 	return codegen.NewTextTemplateSection(
 		"response-decoder",
 		responseDecoderSource,
-		map[string]any{
-			"goTypeRef": func(dt expr.DataType) string {
-				return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
-			},
-			"buildResponseData": buildResponseData,
-		},
+		fm,
 		e,
 	)
 }
