@@ -31,6 +31,26 @@ func TestClientStructSection(t *testing.T) {
 	})
 }
 
+func TestLargeClientOperationGroups(t *testing.T) {
+	root := RunHTTPDSL(t, largeTypeFileDSL)
+	services := CreateHTTPServices(root)
+	data := services.Get("LargeTypes")
+
+	structCode := codegen.SectionCode(t, clientStructSection(data))
+	require.Contains(t, structCode, "Items *ItemsClient")
+
+	initCode := codegen.SectionCode(t, clientInitSection(data))
+	require.Contains(t, initCode, "client := &Client{")
+	require.Contains(t, initCode, "client.Items = &ItemsClient{client: client}")
+
+	groupCode := codegen.SectionCode(t, clientOperationGroupSection(data))
+	require.Contains(t, groupCode, "type ItemsClient struct")
+	require.Contains(t, groupCode, "func (g *ItemsClient) Method0() loom.Endpoint")
+	require.Contains(t, groupCode, "return g.client.Method0()")
+	require.Contains(t, groupCode, "func (g *ItemsClient) BuildMethod0Request(ctx context.Context, v any) (*http.Request, error)")
+	require.Contains(t, groupCode, "return g.client.BuildMethod0Request(ctx, v)")
+}
+
 func TestClientEndpointSectionsMixedResults(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.MixedResultsDSL)
 	services := CreateHTTPServices(root)

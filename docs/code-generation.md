@@ -139,6 +139,12 @@ Loom writes deterministic concern files such as `types_requests.go`,
 `types_helpers.go` in the same package. The exported Go API is unchanged; the
 split only keeps large generated packages navigable and diff-friendly.
 
+Large generated HTTP and JSON-RPC clients also expose deterministic operation
+groups derived from the first route path segment, for example
+`client.Items.List()` and `client.Items.BuildListRequest(...)`. The flat
+methods remain available on `Client`, so existing consumers keep compiling
+while larger services gain a narrower navigation surface.
+
 ### Service Interfaces
 
 Generated in `gen/<service>/service.go`:

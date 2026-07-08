@@ -154,6 +154,9 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		}),
 	}
 	sections = append(sections, clientStructSection(data))
+	if len(clientOperationGroups(data)) > 0 {
+		sections = append(sections, clientOperationGroupSection(data))
+	}
 
 	for _, e := range data.Endpoints {
 		if e.MultipartRequestEncoder != nil {

@@ -16,6 +16,10 @@ func clientStructSection(data *ServiceData) gocodegen.Section {
 				group.Comment(gocodegen.Comment(fmt.Sprintf("%s Doer is the HTTP client used to make requests to the %s endpoint.", endpoint.Method.VarName, endpoint.Method.Name)))
 				group.Id(endpoint.Method.VarName + "Doer").Id("loomhttp").Dot("Doer")
 			}
+			for _, opGroup := range clientOperationGroups(data) {
+				group.Comment(gocodegen.Comment(fmt.Sprintf("%s groups %s operations.", opGroup.FieldName, data.Service.Name)))
+				group.Id(opGroup.FieldName).Op("*").Id(opGroup.Name)
+			}
 
 			group.Comment(gocodegen.Comment("RestoreResponseBody controls whether the response bodies are reset after\ndecoding so they can be read again."))
 			group.Id("RestoreResponseBody").Bool()
@@ -57,22 +61,36 @@ func clientInitSection(data *ServiceData) gocodegen.Section {
 				)
 			}
 
-			group.Return().Op("&").Id(data.ClientStruct).ValuesFunc(func(values *jen.Group) {
-				for _, endpoint := range data.Endpoints {
-					values.Id(endpoint.Method.VarName + "Doer").Op(":").Id("doer")
-				}
-				values.Id("RestoreResponseBody").Op(":").Id("restoreBody")
-				values.Id("scheme").Op(":").Id("scheme")
-				values.Id("host").Op(":").Id("host")
-				values.Id("decoder").Op(":").Id("dec")
-				values.Id("encoder").Op(":").Id("enc")
-				if HasWebSocket(data) {
-					values.Id("dialer").Op(":").Id("dialer")
-					values.Id("configurer").Op(":").Id("cfn")
-				}
+			if len(clientOperationGroups(data)) == 0 {
+				group.Return().Op("&").Id(data.ClientStruct).ValuesFunc(func(values *jen.Group) {
+					addClientInitValues(values, data)
+				})
+				return
+			}
+			group.Id("client").Op(":=").Op("&").Id(data.ClientStruct).ValuesFunc(func(values *jen.Group) {
+				addClientInitValues(values, data)
 			})
+			for _, opGroup := range clientOperationGroups(data) {
+				group.Id("client").Dot(opGroup.FieldName).Op("=").Op("&").Id(opGroup.Name).Values(jen.Id("client").Op(":").Id("client"))
+			}
+			group.Return(jen.Id("client"))
 		})
 	})
+}
+
+func addClientInitValues(values *jen.Group, data *ServiceData) {
+	for _, endpoint := range data.Endpoints {
+		values.Id(endpoint.Method.VarName + "Doer").Op(":").Id("doer")
+	}
+	values.Id("RestoreResponseBody").Op(":").Id("restoreBody")
+	values.Id("scheme").Op(":").Id("scheme")
+	values.Id("host").Op(":").Id("host")
+	values.Id("decoder").Op(":").Id("dec")
+	values.Id("encoder").Op(":").Id("enc")
+	if HasWebSocket(data) {
+		values.Id("dialer").Op(":").Id("dialer")
+		values.Id("configurer").Op(":").Id("cfn")
+	}
 }
 
 func clientEndpointSections(endpoint *EndpointData) []gocodegen.Section {

@@ -69,6 +69,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Large generated HTTP and JSON-RPC transport type packages now split wire
   types, unions, validation helpers, and constructors into deterministic
   concern files once they cross the compact-output threshold.
+- Large generated HTTP and JSON-RPC clients now expose deterministic
+  path-segment operation groups while preserving the existing flat `Client`
+  methods and request builders.
 - Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
 - First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads, including flat OAuth-style object-union fields.
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
