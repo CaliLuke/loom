@@ -1,12 +1,12 @@
 func transform() {
 	target := &proto.MapArray{}
 	if source.MapArray != nil {
-		target.MapArray = make([]*proto.MapOfSint32String, len(source.MapArray))
+		target.MapArray = make([]*proto.MapOfSint64String, len(source.MapArray))
 		for i, val := range source.MapArray {
-			target.MapArray[i] = &proto.MapOfSint32String{}
-			target.MapArray[i].Field = make(map[int32]string, len(val))
+			target.MapArray[i] = &proto.MapOfSint64String{}
+			target.MapArray[i].Field = make(map[int64]string, len(val))
 			for key, val := range val {
-				tk := int32(key)
+				tk := int64(key)
 				tv := val
 				target.MapArray[i].Field[tk] = tv
 			}

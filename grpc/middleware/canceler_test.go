@@ -4,8 +4,10 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
 	grpcm "github.com/CaliLuke/loom/grpc/middleware"
@@ -15,7 +17,24 @@ type (
 	testCancelerStream struct {
 		grpc.ServerStream
 	}
+
+	cancelDuringContextStream struct {
+		grpc.ServerStream
+
+		cancelShutdown context.CancelFunc
+		shutdownDone   <-chan struct{}
+		once           sync.Once
+	}
 )
+
+func (s *cancelDuringContextStream) Context() context.Context {
+	s.once.Do(func() {
+		s.cancelShutdown()
+		<-s.shutdownDone
+		time.Sleep(10 * time.Millisecond)
+	})
+	return context.Background()
+}
 
 func TestStreamCanceler(t *testing.T) {
 	var (
@@ -64,5 +83,29 @@ func TestStreamCanceler(t *testing.T) {
 			wg.Wait()
 			cancel()
 		})
+	}
+}
+
+func TestStreamCancelerCancelsStreamAdmittedDuringShutdown(t *testing.T) {
+	shutdownCtx, cancelShutdown := context.WithCancel(context.Background())
+	interceptor := grpcm.StreamCanceler(shutdownCtx)
+	stream := &grpc.StreamServerInfo{FullMethod: "Test.Test"}
+	done := make(chan error, 1)
+
+	go func() {
+		done <- interceptor(nil, &cancelDuringContextStream{
+			cancelShutdown: cancelShutdown,
+			shutdownDone:   shutdownCtx.Done(),
+		}, stream, func(srv any, stream grpc.ServerStream) error {
+			<-stream.Context().Done()
+			return nil
+		})
+	}()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("stream admitted during shutdown was not canceled")
 	}
 }

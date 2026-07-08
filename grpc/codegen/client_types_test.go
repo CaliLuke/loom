@@ -42,3 +42,19 @@ func TestClientTypeFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestClientTypeFilesOmitServerOnlyTransformHelpers(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.PayloadWithNestedTypesDSL)
+	services := CreateGRPCServices(root)
+	fs := ClientTypeFiles("", services)
+	require.Len(t, fs, 1)
+
+	var buf bytes.Buffer
+	for _, s := range fs[0].AllSections()[1:] {
+		require.NoError(t, s.Write(&buf))
+	}
+	code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
+
+	require.Contains(t, code, "func svcServicepayloadwithnestedtypesAParamsToServicePayloadWithNestedTypespbAParams")
+	require.NotContains(t, code, "func protobufServicePayloadWithNestedTypespbAParamsToServicepayloadwithnestedtypesAParams")
+}

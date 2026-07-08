@@ -6,7 +6,7 @@ func transform() {
 		switch string(source.RecursiveOneOf.Kind()) {
 		case "integer":
 			actual, _ := source.RecursiveOneOf.AsInteger()
-			target.RecursiveOneOf = &proto.RecursiveOneOf_Integer{Integer: int32(actual)}
+			target.RecursiveOneOf = &proto.RecursiveOneOf_Integer{Integer: int64(actual)}
 		case "recurse":
 			actual, _ := source.RecursiveOneOf.AsRecurse()
 			target.RecursiveOneOf = &proto.RecursiveOneOf_Recurse{Recurse: svcProtoRecursiveOneOfToProtoRecursiveOneOf(actual)}

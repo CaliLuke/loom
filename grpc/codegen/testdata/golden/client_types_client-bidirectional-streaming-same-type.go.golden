@@ -14,7 +14,7 @@ func NewProtoUserTypeMethodBidirectionalStreamingRPCSameTypeStreamingRequest(spa
 		B: spayload.B,
 	}
 	if spayload.A != nil {
-		a := int32(*spayload.A)
+		a := int64(*spayload.A)
 		v.A = &a
 	}
 	return v

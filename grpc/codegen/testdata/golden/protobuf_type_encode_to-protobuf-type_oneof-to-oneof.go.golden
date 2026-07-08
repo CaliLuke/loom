@@ -7,7 +7,7 @@ func transform() {
 			target.SimpleOneOf = &proto.SimpleOneOf_String_{String_: string(actual)}
 		case "integer":
 			actual, _ := source.SimpleOneOf.AsInteger()
-			target.SimpleOneOf = &proto.SimpleOneOf_Integer{Integer: int32(actual)}
+			target.SimpleOneOf = &proto.SimpleOneOf_Integer{Integer: int64(actual)}
 		}
 	}
 }

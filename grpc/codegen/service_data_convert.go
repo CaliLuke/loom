@@ -161,7 +161,7 @@ func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, 
 // svcCtx is the attribute context for service type
 // proto if true indicates the target type is a protocol buffer type
 // svr if true indicates the code is generated for conversion server side
-func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceVar, targetVar string, svcCtx *codegen.AttributeContext, proto, _, usesrc bool, sd *ServiceData) *InitData {
+func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceVar, targetVar string, svcCtx *codegen.AttributeContext, proto, svr, usesrc bool, sd *ServiceData) *InitData {
 	pbCtx := protoBufTypeContext(sd.PkgName, sd.Scope, false)
 	name := "New"
 	srcCtx := pbCtx
@@ -186,7 +186,7 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 	if err != nil {
 		panic(codegen.NewError(d.ServicesData.Ctx, target, fmt.Errorf("build gRPC transform %s to %s: %w", source.Type.Name(), target.Type.Name(), err)))
 	}
-	sd.transformHelpers = codegen.AppendHelpers(sd.transformHelpers, helpers)
+	sd.transformHelpers = appendTransformHelpers(sd.transformHelpers, helpers, svr)
 	var args []*InitArgData
 	if (!proto && !isEmpty(source.Type)) || (proto && !isEmpty(target.Type)) {
 		args = []*InitArgData{{
@@ -206,6 +206,33 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 		Code:           code,
 		Args:           args,
 	}
+}
+
+func appendTransformHelpers(oldH []*TransformHelperData, newH []*codegen.TransformFunctionData, svr bool) []*TransformHelperData {
+	kind := validateClient
+	if svr {
+		kind = validateServer
+	}
+	for _, h := range newH {
+		found := false
+		for _, h2 := range oldH {
+			if h.Name != h2.Name {
+				continue
+			}
+			found = true
+			if h2.Kind != kind {
+				h2.Kind = validateBoth
+			}
+			break
+		}
+		if !found {
+			oldH = append(oldH, &TransformHelperData{
+				TransformFunctionData: h,
+				Kind:                  kind,
+			})
+		}
+	}
+	return oldH
 }
 
 // buildErrorsData builds the error data for all the error responses in the

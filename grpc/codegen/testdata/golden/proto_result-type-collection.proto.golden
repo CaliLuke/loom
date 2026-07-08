@@ -19,6 +19,6 @@ message RTCollection {
 }
 
 message RT {
-	optional sint32 int_field = 1;
+	optional sint64 int_field = 1;
 	optional string string_field = 2;
 }

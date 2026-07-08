@@ -61,7 +61,7 @@ type (
 
 		// transformHelpers is the list of transform functions required by the
 		// constructors.
-		transformHelpers []*codegen.TransformFunctionData
+		transformHelpers []*TransformHelperData
 		// validations contain the data to generate the validation functions to
 		// validate the initialized type.
 		validations []*ValidationData
@@ -292,6 +292,16 @@ type (
 		// Kind indicates that the validation is for request (server-side),
 		// response (client-side), or both (server and client side) messages.
 		// It is used to generate validation code in the server and client packages.
+		Kind validateKind
+	}
+
+	// TransformHelperData contains the data necessary to render a transform
+	// helper in the generated server package, client package, or both.
+	TransformHelperData struct {
+		*codegen.TransformFunctionData
+
+		// Kind indicates whether the helper is referenced by server-side
+		// constructors, client-side constructors, or both.
 		Kind validateKind
 	}
 

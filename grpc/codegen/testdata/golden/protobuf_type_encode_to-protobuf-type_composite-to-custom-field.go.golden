@@ -4,7 +4,7 @@ func transform() {
 		target.RequiredString = *source.RequiredString
 	}
 	if source.DefaultInt != nil {
-		target.DefaultInt = int32(*source.DefaultInt)
+		target.DefaultInt = int64(*source.DefaultInt)
 	}
 	if source.DefaultInt == nil {
 		target.DefaultInt = 100
@@ -13,9 +13,9 @@ func transform() {
 		target.Type = svcProtoSimpleToProtoSimple(source.Type)
 	}
 	if source.Map != nil {
-		target.Map_ = make(map[int32]string, len(source.Map))
+		target.Map_ = make(map[int64]string, len(source.Map))
 		for key, val := range source.Map {
-			tk := int32(key)
+			tk := int64(key)
 			tv := val
 			target.Map_[tk] = tv
 		}

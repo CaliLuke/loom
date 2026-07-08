@@ -12,7 +12,7 @@ service ServiceServerStreamingRPC {
 }
 
 message MethodServerStreamingRPCRequest {
-	sint32 field = 1;
+	sint64 field = 1;
 }
 
 message MethodServerStreamingRPCResponse {

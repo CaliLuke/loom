@@ -16,7 +16,7 @@ func NewMethodPayloadWithCustomTypePackagePayload(message *service_payload_with_
 func NewProtoMethodPayloadWithCustomTypePackageResponse(result *types.CustomType) *service_payload_with_custom_type_packagepb.MethodPayloadWithCustomTypePackageResponse {
 	message := &service_payload_with_custom_type_packagepb.MethodPayloadWithCustomTypePackageResponse{}
 	if result.Field != nil {
-		field := int32(*result.Field)
+		field := int64(*result.Field)
 		message.Field = &field
 	}
 	return message

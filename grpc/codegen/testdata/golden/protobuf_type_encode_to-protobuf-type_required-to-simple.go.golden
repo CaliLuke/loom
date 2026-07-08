@@ -3,6 +3,6 @@ func transform() {
 		RequiredString: source.RequiredString,
 		DefaultBool:    source.DefaultBool,
 	}
-	integer := int32(source.Integer)
+	integer := int64(source.Integer)
 	target.Integer = &integer
 }

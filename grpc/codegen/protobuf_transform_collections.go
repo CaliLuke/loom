@@ -338,7 +338,7 @@ const convertGoAnyToProtobufValueFunc = `func() *structpb.Value {
 	}
 	value, err := structpb.NewValue(%SRC%)
 	if err != nil {
-		panic(%FMT_SPRINTF%("failed to convert value to structpb.Value: %v", err))
+		return nil
 	}
 	return value
 }()`
@@ -362,7 +362,7 @@ func convertPrimitiveToProto(_, tgt *expr.AttributeExpr, srcPtr, _ bool, srcVar 
 			srcVar = "*" + srcVar
 		}
 
-		return strings.NewReplacer("%SRC%", srcVar, "%FMT_SPRINTF%", "fmt."+"Sprintf").Replace(convertGoAnyToProtobufValueFunc)
+		return strings.NewReplacer("%SRC%", srcVar).Replace(convertGoAnyToProtobufValueFunc)
 	}
 
 	tgtType := protoBufNativeGoTypeName(tgt.Type)

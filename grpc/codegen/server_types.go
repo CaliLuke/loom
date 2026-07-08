@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"path/filepath"
-
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 )
@@ -19,25 +17,7 @@ func ServerTypeFiles(genpkg string, services *ServicesData) []*codegen.File {
 
 // serverType returns the file defining the gRPC server types.
 func serverType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData) *codegen.File {
-	sd := services.Get(svc.Name())
-	initData := collectServerInitData(svc, sd)
-	svcName := sd.Service.PathName
-	fpath := filepath.Join(codegen.Gendir, "grpc", svcName, "server", "types.go")
-	imports := grpcTypeImports(genpkg, svc, sd)
-	sections := []codegen.Section{codegen.Header(svc.Name()+" gRPC server types", "server", imports)}
-	for _, init := range initData {
-		sections = append(sections, grpcTypeInitSection(init))
-	}
-	for _, data := range sd.validations {
-		if data.Kind == validateClient {
-			continue
-		}
-		sections = append(sections, grpcValidateSection(data))
-	}
-	for _, h := range sd.transformHelpers {
-		sections = append(sections, grpcTransformHelperSection(h))
-	}
-	return &codegen.File{Path: fpath, Sections: sections}
+	return grpcTypeFile(genpkg, svc, services, "server", collectServerInitData, validateClient)
 }
 
 func collectServerInitData(svc *expr.GRPCServiceExpr, sd *ServiceData) []*InitData {

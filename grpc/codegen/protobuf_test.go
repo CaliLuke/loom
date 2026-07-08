@@ -62,13 +62,13 @@ func TestProtoNativeType(t *testing.T) {
 	}{{
 		"Boolean", expr.Boolean, "bool",
 	}, {
-		"Int", expr.Int, "sint32",
+		"Int", expr.Int, "sint64",
 	}, {
 		"Int32", expr.Int32, "sint32",
 	}, {
 		"Int64", expr.Int64, "sint64",
 	}, {
-		"UInt", expr.UInt, "uint32",
+		"UInt", expr.UInt, "uint64",
 	}, {
 		"UInt32", expr.UInt32, "uint32",
 	}, {
@@ -102,13 +102,13 @@ func TestProtoBufNativeGoTypeName(t *testing.T) {
 	}{{
 		"Boolean", expr.Boolean, "bool",
 	}, {
-		"Int", expr.Int, "int32",
+		"Int", expr.Int, "int64",
 	}, {
 		"Int32", expr.Int32, "int32",
 	}, {
 		"Int64", expr.Int64, "int64",
 	}, {
-		"UInt", expr.UInt, "uint32",
+		"UInt", expr.UInt, "uint64",
 	}, {
 		"UInt32", expr.UInt32, "uint32",
 	}, {

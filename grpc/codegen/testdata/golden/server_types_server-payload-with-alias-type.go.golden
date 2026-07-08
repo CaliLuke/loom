@@ -17,10 +17,10 @@ func NewMethodMessageUserTypeWithAliasPayload(message *service_message_user_type
 // "ServiceMessageUserTypeWithAlias" service.
 func NewProtoMethodMessageUserTypeWithAliasResponse(result *servicemessageusertypewithalias.PayloadAliasT) *service_message_user_type_with_aliaspb.MethodMessageUserTypeWithAliasResponse {
 	message := &service_message_user_type_with_aliaspb.MethodMessageUserTypeWithAliasResponse{
-		IntAliasField: int32(result.IntAliasField),
+		IntAliasField: int64(result.IntAliasField),
 	}
 	if result.OptionalIntAliasField != nil {
-		optionalIntAliasField := int32(*result.OptionalIntAliasField)
+		optionalIntAliasField := int64(*result.OptionalIntAliasField)
 		message.OptionalIntAliasField = &optionalIntAliasField
 	}
 	return message

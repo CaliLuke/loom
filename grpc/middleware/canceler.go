@@ -58,6 +58,9 @@ func StreamCanceler(ctx context.Context) grpc.StreamServerInterceptor {
 		}
 		cctx, cancel := context.WithCancel(ss.Context())
 		cancels.Store(&cancel, struct{}{})
+		if atomic.LoadUint32(&canceling) == 1 {
+			cancel()
+		}
 		err := handler(srv, NewWrappedServerStream(cctx, ss))
 		cancels.Delete(&cancel)
 		cancel()

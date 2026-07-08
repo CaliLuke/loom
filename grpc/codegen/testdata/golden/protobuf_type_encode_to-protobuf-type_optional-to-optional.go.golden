@@ -10,17 +10,17 @@ func transform() {
 			}
 			value, err := structpb.NewValue(source.Any)
 			if err != nil {
-				panic(fmt.Sprintf("failed to convert value to structpb.Value: %v", err))
+				return nil
 			}
 			return value
 		}(),
 	}
 	if source.Int != nil {
-		int_ := int32(*source.Int)
+		int_ := int64(*source.Int)
 		target.Int = &int_
 	}
 	if source.Uint != nil {
-		uint_ := uint32(*source.Uint)
+		uint_ := uint64(*source.Uint)
 		target.Uint = &uint_
 	}
 	if source.Array != nil {
@@ -30,9 +30,9 @@ func transform() {
 		}
 	}
 	if source.Map != nil {
-		target.Map_ = make(map[int32]string, len(source.Map))
+		target.Map_ = make(map[int64]string, len(source.Map))
 		for key, val := range source.Map {
-			tk := int32(key)
+			tk := int64(key)
 			tv := val
 			target.Map_[tk] = tv
 		}

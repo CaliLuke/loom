@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"path"
-	"path/filepath"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -20,25 +19,7 @@ func ClientTypeFiles(genpkg string, services *ServicesData) []*codegen.File {
 
 // clientType returns the file defining the gRPC client types.
 func clientType(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData) *codegen.File {
-	sd := services.Get(svc.Name())
-	initData := collectClientInitData(svc, sd)
-	svcName := sd.Service.PathName
-	fpath := filepath.Join(codegen.Gendir, "grpc", svcName, "client", "types.go")
-	imports := grpcTypeImports(genpkg, svc, sd)
-	sections := []codegen.Section{codegen.Header(svc.Name()+" gRPC client types", "client", imports)}
-	for _, init := range initData {
-		sections = append(sections, grpcTypeInitSection(init))
-	}
-	for _, data := range sd.validations {
-		if data.Kind == validateServer {
-			continue
-		}
-		sections = append(sections, grpcValidateSection(data))
-	}
-	for _, h := range sd.transformHelpers {
-		sections = append(sections, grpcTransformHelperSection(h))
-	}
-	return &codegen.File{Path: fpath, Sections: sections}
+	return grpcTypeFile(genpkg, svc, services, "client", collectClientInitData, validateServer)
 }
 
 func collectClientInitData(svc *expr.GRPCServiceExpr, sd *ServiceData) []*InitData {
@@ -84,7 +65,6 @@ func grpcTypeImports(genpkg string, svc *expr.GRPCServiceExpr, sd *ServiceData) 
 		{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName},
 	}
 	if grpcServiceNeedsAnyTypeImports(svc) {
-		imports = append(imports, &codegen.ImportSpec{Path: "fmt"})
 		imports = append(imports, &codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"})
 	}
 	imports = append(imports, sd.ProtoGoImports...)

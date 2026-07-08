@@ -337,15 +337,15 @@ func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *exp
 			if ta.proto {
 				nativeTypeName = protoBufNativeGoTypeName(tgtc.Type)
 			}
-			code += "var tmp " + nativeTypeName + " = " + formatGoLiteral(tdef) + "\n\t" + tgtVar + " = &tmp\n"
+			code += "var tmp " + nativeTypeName + " = " + protobufDefaultLiteral(tgtc, tdef, ta) + "\n\t" + tgtVar + " = &tmp\n"
 		} else {
-			code += tgtVar + " = " + formatGoLiteral(tdef) + "\n"
+			code += tgtVar + " = " + protobufDefaultLiteral(tgtc, tdef, ta) + "\n"
 		}
 		code += "}\n"
 	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(n) && ta.SourceCtx.UseDefault:
 		code += "{\n\t"
 		code += objectFieldZeroValueDecl(tgtc, ta)
-		code += "if " + tgtVar + " == zero {\n\t" + tgtVar + " = " + formatGoLiteral(tdef) + "\n}\n"
+		code += "if " + tgtVar + " == zero {\n\t" + tgtVar + " = " + protobufDefaultLiteral(tgtc, tdef, ta) + "\n}\n"
 		code += "}\n"
 	}
 	return code

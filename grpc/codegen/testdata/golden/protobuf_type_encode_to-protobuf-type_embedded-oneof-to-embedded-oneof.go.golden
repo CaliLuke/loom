@@ -9,13 +9,13 @@ func transform() {
 			target.EmbeddedOneOf = &proto.EmbeddedOneOf_String_{String_: string(actual)}
 		case "integer":
 			actual, _ := source.EmbeddedOneOf.AsInteger()
-			target.EmbeddedOneOf = &proto.EmbeddedOneOf_Integer{Integer: int32(actual)}
+			target.EmbeddedOneOf = &proto.EmbeddedOneOf_Integer{Integer: int64(actual)}
 		case "boolean":
 			actual, _ := source.EmbeddedOneOf.AsBoolean()
 			target.EmbeddedOneOf = &proto.EmbeddedOneOf_Boolean{Boolean: bool(actual)}
 		case "number":
 			actual, _ := source.EmbeddedOneOf.AsNumber()
-			target.EmbeddedOneOf = &proto.EmbeddedOneOf_Number{Number: int32(actual)}
+			target.EmbeddedOneOf = &proto.EmbeddedOneOf_Number{Number: int64(actual)}
 		case "array":
 			actual, _ := source.EmbeddedOneOf.AsArray()
 			target.EmbeddedOneOf = &proto.EmbeddedOneOf_Array{Array: svcProtoEmbeddedOneOfArrayToProtoEmbeddedOneOfArray(actual)}

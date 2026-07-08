@@ -12,7 +12,7 @@ package service_message_array;
 option go_package = "/service_message_arraypb";
 
 message MethodMessageArrayRequest {
-	repeated uint32 array_of_primitives = 1;
+	repeated uint64 array_of_primitives = 1;
 	repeated ArrayOfBytes two_d_array = 2;
 	repeated ArrayOfArrayOfBytes three_d_array = 3;
 	repeated MapOfStringDouble array_of_maps = 4;
@@ -35,7 +35,7 @@ message MethodMessageArrayResponse {
 }
 
 message UT {
-	repeated uint32 array_of_primitives = 1;
+	repeated uint64 array_of_primitives = 1;
 	repeated ArrayOfBytes two_d_array = 2;
 	repeated ArrayOfArrayOfBytes three_d_array = 3;
 	repeated MapOfStringDouble array_of_maps = 4;

@@ -13,7 +13,7 @@ option go_package = "/service_message_user_type_with_nested_user_typespb";
 
 message MethodMessageUserTypeWithNestedUserTypesRequest {
 	optional bool boolean_field = 1;
-	optional sint32 int_field = 2;
+	optional sint64 int_field = 2;
 	UTLevel1 ut_level1 = 3;
 }
 

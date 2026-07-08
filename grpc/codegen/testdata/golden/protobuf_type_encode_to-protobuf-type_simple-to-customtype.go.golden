@@ -4,7 +4,7 @@ func transform() {
 		DefaultBool:    bool(source.DefaultBool),
 	}
 	if source.Integer != nil {
-		integer := int32(*source.Integer)
+		integer := int64(*source.Integer)
 		target.Integer = &integer
 	}
 	{

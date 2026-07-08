@@ -1,8 +1,8 @@
 func transform() {
 	target := &proto.WithDefaults{
-		Int:            int32(source.Int),
+		Int:            int64(source.Int),
 		RawJson:        string(source.RawJSON),
-		RequiredInt:    int32(source.RequiredInt),
+		RequiredInt:    int64(source.RequiredInt),
 		String_:        source.String,
 		RequiredString: source.RequiredString,
 		Bytes_:         source.Bytes,
@@ -11,7 +11,7 @@ func transform() {
 		RequiredAny:    source.RequiredAny,
 	}
 	{
-		var zero int32
+		var zero int64
 		if target.Int == zero {
 			target.Int = 100
 		}
@@ -56,20 +56,20 @@ func transform() {
 		}
 	}
 	if source.Map != nil {
-		target.Map_ = make(map[int32]string, len(source.Map))
+		target.Map_ = make(map[int64]string, len(source.Map))
 		for key, val := range source.Map {
-			tk := int32(key)
+			tk := int64(key)
 			tv := val
 			target.Map_[tk] = tv
 		}
 	}
 	if source.Map == nil {
-		target.Map_ = map[int]string{1: "foo"}
+		target.Map_ = map[int64]string{1: "foo"}
 	}
 	if source.RequiredMap != nil {
-		target.RequiredMap = make(map[int32]string, len(source.RequiredMap))
+		target.RequiredMap = make(map[int64]string, len(source.RequiredMap))
 		for key, val := range source.RequiredMap {
-			tk := int32(key)
+			tk := int64(key)
 			tv := val
 			target.RequiredMap[tk] = tv
 		}
