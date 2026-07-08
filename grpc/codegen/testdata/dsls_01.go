@@ -744,6 +744,8 @@ var MessageWithMetadataDSL = func() {
 		Field(1, "BooleanField", Boolean)
 		Field(2, "InMetadata", Int)
 		Field(3, "UTLevel1", UTLevel1)
+		Field(4, "UInts", ArrayOf(UInt))
+		Field(5, "UInt32s", ArrayOf(UInt32))
 	})
 	var ResponseUT = Type("ResponseUT", func() {
 		Field(1, "InTrailer", Boolean)
@@ -757,6 +759,8 @@ var MessageWithMetadataDSL = func() {
 			GRPC(func() {
 				Metadata(func() {
 					Attribute("InMetadata:Authorization")
+					Attribute("UInts:X-Uints")
+					Attribute("UInt32s:X-Uint32s")
 				})
 				Response(CodeOK, func() {
 					Headers(func() {

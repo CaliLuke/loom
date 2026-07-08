@@ -419,7 +419,7 @@ func renderGRPCSliceItemConversion(md *MetadataData) string {
 	case "uint":
 		stmt.Add(renderSliceParseBlock("ParseUint", name, md.VarName, "array of unsigned integers", exprCode("strconv.IntSize"), "uint(v)"))
 	case "uint32":
-		stmt.Add(renderSliceParseBlock("ParseUint", name, md.VarName, "array of unsigned integers", jen.Lit(32), "int32(v)"))
+		stmt.Add(renderSliceParseBlock("ParseUint", name, md.VarName, "array of unsigned integers", jen.Lit(32), "uint32(v)"))
 	case "uint64":
 		stmt.Add(renderSliceParseBlock("ParseUint", name, md.VarName, "array of unsigned integers", jen.Lit(64), "v"))
 	case "float32":
@@ -429,7 +429,7 @@ func renderGRPCSliceItemConversion(md *MetadataData) string {
 	case "boolean":
 		stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", "ParseBool").Call(jen.Id("rv")).Line()
 		stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
-			exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + md.VarName + `Raw, "array of booleans"))`),
+			exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, rv, "array of booleans"))`),
 		).Line()
 		stmt.Add(exprCode(md.VarName)).Index(jen.Id("i")).Op("=").Id("v")
 	case "any":
@@ -464,7 +464,7 @@ func renderSliceParseBlock(fn, name, varName, kind string, bits *jen.Statement, 
 	stmt := &jen.Statement{}
 	stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", fn).Call(jen.Id("rv"), jen.Lit(10), bits).Line()
 	stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
-		exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + varName + `Raw, "` + kind + `"))`),
+		exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, rv, "` + kind + `"))`),
 	).Line()
 	stmt.Add(exprCode(varName)).Index(jen.Id("i")).Op("=").Add(exprCode(assign))
 	return stmt
@@ -474,7 +474,7 @@ func renderSliceFloatParseBlock(name, varName, kind string, bits *jen.Statement,
 	stmt := &jen.Statement{}
 	stmt.List(jen.Id("v"), jen.Id("err2")).Op(":=").Qual("strconv", "ParseFloat").Call(jen.Id("rv"), bits).Line()
 	stmt.If(jen.Id("err2").Op("!=").Nil()).Block(
-		exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, ` + varName + `Raw, "` + kind + `"))`),
+		exprCode(`err = loom.MergeErrors(err, loom.InvalidFieldTypeError(` + name + `, rv, "` + kind + `"))`),
 	).Line()
 	stmt.Add(exprCode(varName)).Index(jen.Id("i")).Op("=").Add(exprCode(assign))
 	return stmt

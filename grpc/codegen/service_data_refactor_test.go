@@ -32,9 +32,11 @@ func TestAnalyzeBuildsRequestCLIArgsFromMessageAndMetadata(t *testing.T) {
 
 	endpoint := svc.Endpoint("MethodMessageWithMetadata")
 	require.NotNil(t, endpoint)
-	require.Len(t, endpoint.Request.CLIArgs, 2)
+	require.Len(t, endpoint.Request.CLIArgs, 4)
 	require.Equal(t, "message", endpoint.Request.CLIArgs[0].Name)
 	require.Equal(t, "inMetadata", endpoint.Request.CLIArgs[1].Name)
+	require.Equal(t, "uInts", endpoint.Request.CLIArgs[2].Name)
+	require.Equal(t, "uInt32s", endpoint.Request.CLIArgs[3].Name)
 }
 
 func TestAnalyzeBuildsResponseMetadataData(t *testing.T) {

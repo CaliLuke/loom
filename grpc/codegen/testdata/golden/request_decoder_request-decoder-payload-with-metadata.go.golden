@@ -3,6 +3,8 @@
 func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metadata.MD) (any, error) {
 	var (
 		inMetadata *int
+		uInts      []uint
+		uInt32s    []uint32
 		err        error
 	)
 	{
@@ -15,6 +17,26 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 			}
 			pv := int(v)
 			inMetadata = &pv
+		}
+		if uIntsRaw := md.Get("X-Uints"); len(uIntsRaw) > 0 {
+			uInts = make([]uint, len(uIntsRaw))
+			for i, rv := range uIntsRaw {
+				v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("uInts", rv, "array of unsigned integers"))
+				}
+				uInts[i] = uint(v)
+			}
+		}
+		if uInt32sRaw := md.Get("X-Uint32s"); len(uInt32sRaw) > 0 {
+			uInt32s = make([]uint32, len(uInt32sRaw))
+			for i, rv := range uInt32sRaw {
+				v, err2 := strconv.ParseUint(rv, 10, 32)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("uInt32s", rv, "array of unsigned integers"))
+				}
+				uInt32s[i] = uint32(v)
+			}
 		}
 	}
 	if err != nil {
@@ -31,7 +53,7 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 	}
 	var payload *servicemessagewithmetadata.RequestUT
 	{
-		payload = NewMethodMessageWithMetadataPayload(message, inMetadata)
+		payload = NewMethodMessageWithMetadataPayload(message, inMetadata, uInts, uInt32s)
 	}
 	return payload, nil
 }

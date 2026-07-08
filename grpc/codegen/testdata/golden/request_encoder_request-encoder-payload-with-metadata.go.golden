@@ -8,5 +8,13 @@ func EncodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md *meta
 	if payload.InMetadata != nil {
 		(*md).Append("Authorization", fmt.Sprintf("%v", *payload.InMetadata))
 	}
+	for _, value := range payload.UInts {
+		valueStr := strconv.FormatUint(uint64(value), 10)
+		(*md).Append("X-Uints", valueStr)
+	}
+	for _, value := range payload.UInt32s {
+		valueStr := strconv.FormatUint(uint64(value), 10)
+		(*md).Append("X-Uint32s", valueStr)
+	}
 	return NewProtoMethodMessageWithMetadataRequest(payload), nil
 }
