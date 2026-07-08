@@ -5,8 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	loompb "github.com/CaliLuke/loom/grpc/pb"
 	loom "github.com/CaliLuke/loom/pkg"
@@ -84,6 +87,61 @@ func TestEncodeErrorStatusCodes(t *testing.T) {
 			assert.Len(t, details, 1)
 			_, ok = details[0].(*loompb.ErrorResponse)
 			assert.True(t, ok)
+		})
+	}
+}
+
+func TestDecodeErrorSkipsUnrecognizedDetails(t *testing.T) {
+	validDetail := &loompb.ErrorResponse{Name: "boom", Msg: "handled"}
+	validAny, err := anypb.New(validDetail)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name    string
+		details []*anypb.Any
+		want    *loompb.ErrorResponse
+	}{
+		{
+			name: "returns later proto detail",
+			details: []*anypb.Any{
+				{
+					TypeUrl: "type.googleapis.com/loom.test.UnlinkedDetail",
+					Value:   []byte{0x08, 0x01},
+				},
+				validAny,
+			},
+			want: validDetail,
+		},
+		{
+			name: "returns nil when no proto detail exists",
+			details: []*anypb.Any{
+				{
+					TypeUrl: "type.googleapis.com/loom.test.UnlinkedDetail",
+					Value:   []byte{0x08, 0x01},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			st := status.FromProto(&statuspb.Status{
+				Code:    int32(codes.Internal),
+				Message: "remote failure",
+				Details: c.details,
+			})
+
+			require.NotPanics(t, func() {
+				got := DecodeError(st.Err())
+				if c.want == nil {
+					assert.Nil(t, got)
+					return
+				}
+				resp, ok := got.(*loompb.ErrorResponse)
+				require.True(t, ok)
+				assert.Equal(t, c.want.Name, resp.Name)
+				assert.Equal(t, c.want.Msg, resp.Msg)
+			})
 		})
 	}
 }

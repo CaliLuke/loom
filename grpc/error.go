@@ -141,9 +141,10 @@ func EncodeError(err error) error {
 }
 
 // DecodeError returns the error message encoded in the status details if error
-// is a gRPC status error. It assumes that the error message is encoded as the
-// first item in the details. It returns nil if the error is not a gRPC status
-// error or if no detail is found.
+// is a gRPC status error. It returns the first status detail that can be
+// decoded as a protocol buffer message, skipping details that grpc-go could
+// not decode. It returns nil if the error is not a gRPC status error or if no
+// protocol buffer detail is found.
 func DecodeError(err error) proto.Message {
 	st, ok := status.FromError(err)
 	if !ok {
@@ -153,7 +154,13 @@ func DecodeError(err error) proto.Message {
 	if len(details) == 0 {
 		return nil
 	}
-	return details[0].(proto.Message)
+	for _, detail := range details {
+		message, ok := detail.(proto.Message)
+		if ok {
+			return message
+		}
+	}
+	return nil
 }
 
 // ErrInvalidType is the error returned when the wrong type is given to a
