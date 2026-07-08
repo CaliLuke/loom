@@ -138,6 +138,7 @@ func addSSEClientImplStruct(stmt *jen.Statement, streamName, implName string) {
 			jen.Id("resp").Op("*").Qual("net/http", "Response"),
 			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
 			jen.Id("buffer").Index().Byte().Comment("Buffer for unprocessed data"),
+			jen.Id("readLock").Qual("sync", "Mutex"),
 			jen.Id("lock").Qual("sync", "Mutex"),
 			jen.Id("closed").Bool(),
 		)
@@ -189,9 +190,10 @@ func renderSSEClientRecvBody() string {
 func renderSSEClientCloseBody() string {
 	var b sourceBuilder
 	b.Add("s.lock.Lock()\n")
-	b.Add("defer s.lock.Unlock()\n")
-	b.Add("if s.closed {\n\treturn nil\n}\n")
+	b.Add("if s.closed {\n\ts.lock.Unlock()\n\treturn nil\n}\n")
 	b.Add("s.closed = true\n")
-	b.Add("return s.resp.Body.Close()")
+	b.Add("body := s.resp.Body\n")
+	b.Add("s.lock.Unlock()\n\n")
+	b.Add("return body.Close()")
 	return b.String()
 }

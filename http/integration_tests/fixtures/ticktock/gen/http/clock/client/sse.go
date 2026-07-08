@@ -28,11 +28,12 @@ type TickClientStream interface {
 type (
 	// TickStreamImpl implements the TickClientStream interface.
 	TickStreamImpl struct {
-		resp    *http.Response
-		decoder func(*http.Response) loomhttp.Decoder
-		buffer  []byte // Buffer for unprocessed data
-		lock    sync.Mutex
-		closed  bool
+		resp     *http.Response
+		decoder  func(*http.Response) loomhttp.Decoder
+		buffer   []byte // Buffer for unprocessed data
+		readLock sync.Mutex
+		lock     sync.Mutex
+		closed   bool
 	}
 )
 
@@ -75,6 +76,9 @@ func (s *TickStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, 
 func (s *TickStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 	const bufSize = 4096 // 4KB buffer size
 
+	s.readLock.Lock()
+	defer s.readLock.Unlock()
+
 	// Check for event in existing buffer
 	event, ok := s.checkBuffer()
 	if ok {
@@ -91,9 +95,6 @@ func (s *TickStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 		// Check if context is done
 		select {
 		case <-ctx.Done():
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
 			return nil, ctx.Err()
 		default:
 			// Continue processing
@@ -108,10 +109,36 @@ func (s *TickStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 			}
 			return nil, io.EOF
 		}
+		body := s.resp.Body
+		s.lock.Unlock()
 
 		// Read next chunk
-		n, err := s.resp.Body.Read(buf)
-		s.lock.Unlock()
+		type readResult struct {
+			n   int
+			err error
+		}
+		readc := make(chan readResult, 1)
+		go func() {
+			n, err := body.Read(buf)
+			readc <- readResult{n: n, err: err}
+		}()
+
+		var n int
+		var err error
+		select {
+		case result := <-readc:
+			n = result.n
+			err = result.err
+		case <-ctx.Done():
+			select {
+			case result := <-readc:
+				n = result.n
+				err = result.err
+			default:
+				_ = s.Close()
+				return nil, ctx.Err()
+			}
+		}
 
 		// Handle read errors
 		if err != nil && err != io.EOF {
@@ -192,12 +219,15 @@ func (s *TickStreamImpl) checkBuffer() ([]byte, bool) {
 // Close closes the SSE stream and releases any associated resources.
 func (s *TickStreamImpl) Close() error {
 	s.lock.Lock()
-	defer s.lock.Unlock()
 	if s.closed {
+		s.lock.Unlock()
 		return nil
 	}
 	s.closed = true
-	return s.resp.Body.Close()
+	body := s.resp.Body
+	s.lock.Unlock()
+
+	return body.Close()
 }
 
 // processEvent processes a raw SSE event into the expected type
@@ -223,11 +253,12 @@ type TockClientStream interface {
 type (
 	// TockStreamImpl implements the TockClientStream interface.
 	TockStreamImpl struct {
-		resp    *http.Response
-		decoder func(*http.Response) loomhttp.Decoder
-		buffer  []byte // Buffer for unprocessed data
-		lock    sync.Mutex
-		closed  bool
+		resp     *http.Response
+		decoder  func(*http.Response) loomhttp.Decoder
+		buffer   []byte // Buffer for unprocessed data
+		readLock sync.Mutex
+		lock     sync.Mutex
+		closed   bool
 	}
 )
 
@@ -270,6 +301,9 @@ func (s *TockStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, 
 func (s *TockStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 	const bufSize = 4096 // 4KB buffer size
 
+	s.readLock.Lock()
+	defer s.readLock.Unlock()
+
 	// Check for event in existing buffer
 	event, ok := s.checkBuffer()
 	if ok {
@@ -286,9 +320,6 @@ func (s *TockStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 		// Check if context is done
 		select {
 		case <-ctx.Done():
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
 			return nil, ctx.Err()
 		default:
 			// Continue processing
@@ -303,10 +334,36 @@ func (s *TockStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 			}
 			return nil, io.EOF
 		}
+		body := s.resp.Body
+		s.lock.Unlock()
 
 		// Read next chunk
-		n, err := s.resp.Body.Read(buf)
-		s.lock.Unlock()
+		type readResult struct {
+			n   int
+			err error
+		}
+		readc := make(chan readResult, 1)
+		go func() {
+			n, err := body.Read(buf)
+			readc <- readResult{n: n, err: err}
+		}()
+
+		var n int
+		var err error
+		select {
+		case result := <-readc:
+			n = result.n
+			err = result.err
+		case <-ctx.Done():
+			select {
+			case result := <-readc:
+				n = result.n
+				err = result.err
+			default:
+				_ = s.Close()
+				return nil, ctx.Err()
+			}
+		}
 
 		// Handle read errors
 		if err != nil && err != io.EOF {
@@ -387,12 +444,15 @@ func (s *TockStreamImpl) checkBuffer() ([]byte, bool) {
 // Close closes the SSE stream and releases any associated resources.
 func (s *TockStreamImpl) Close() error {
 	s.lock.Lock()
-	defer s.lock.Unlock()
 	if s.closed {
+		s.lock.Unlock()
 		return nil
 	}
 	s.closed = true
-	return s.resp.Body.Close()
+	body := s.resp.Body
+	s.lock.Unlock()
+
+	return body.Close()
 }
 
 // processEvent processes a raw SSE event into the expected type
@@ -418,11 +478,12 @@ type GuardedClientStream interface {
 type (
 	// GuardedStreamImpl implements the GuardedClientStream interface.
 	GuardedStreamImpl struct {
-		resp    *http.Response
-		decoder func(*http.Response) loomhttp.Decoder
-		buffer  []byte // Buffer for unprocessed data
-		lock    sync.Mutex
-		closed  bool
+		resp     *http.Response
+		decoder  func(*http.Response) loomhttp.Decoder
+		buffer   []byte // Buffer for unprocessed data
+		readLock sync.Mutex
+		lock     sync.Mutex
+		closed   bool
 	}
 )
 
@@ -465,6 +526,9 @@ func (s *GuardedStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEven
 func (s *GuardedStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 	const bufSize = 4096 // 4KB buffer size
 
+	s.readLock.Lock()
+	defer s.readLock.Unlock()
+
 	// Check for event in existing buffer
 	event, ok := s.checkBuffer()
 	if ok {
@@ -481,9 +545,6 @@ func (s *GuardedStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 		// Check if context is done
 		select {
 		case <-ctx.Done():
-			if len(eventData) > 0 {
-				return eventData, nil
-			}
 			return nil, ctx.Err()
 		default:
 			// Continue processing
@@ -498,10 +559,36 @@ func (s *GuardedStreamImpl) readEvent(ctx context.Context) ([]byte, error) {
 			}
 			return nil, io.EOF
 		}
+		body := s.resp.Body
+		s.lock.Unlock()
 
 		// Read next chunk
-		n, err := s.resp.Body.Read(buf)
-		s.lock.Unlock()
+		type readResult struct {
+			n   int
+			err error
+		}
+		readc := make(chan readResult, 1)
+		go func() {
+			n, err := body.Read(buf)
+			readc <- readResult{n: n, err: err}
+		}()
+
+		var n int
+		var err error
+		select {
+		case result := <-readc:
+			n = result.n
+			err = result.err
+		case <-ctx.Done():
+			select {
+			case result := <-readc:
+				n = result.n
+				err = result.err
+			default:
+				_ = s.Close()
+				return nil, ctx.Err()
+			}
+		}
 
 		// Handle read errors
 		if err != nil && err != io.EOF {
@@ -582,12 +669,15 @@ func (s *GuardedStreamImpl) checkBuffer() ([]byte, bool) {
 // Close closes the SSE stream and releases any associated resources.
 func (s *GuardedStreamImpl) Close() error {
 	s.lock.Lock()
-	defer s.lock.Unlock()
 	if s.closed {
+		s.lock.Unlock()
 		return nil
 	}
 	s.closed = true
-	return s.resp.Body.Close()
+	body := s.resp.Body
+	s.lock.Unlock()
+
+	return body.Close()
 }
 
 // processEvent processes a raw SSE event into the expected type

@@ -17,74 +17,116 @@ func renderSSEClientReadEvent(implName string) string {
 	b.Add("// or encounters an error. Any data after the event boundary is saved in the\n")
 	b.Add("// buffer for the next call.\n")
 	b.Addf("func (s *%s) readEvent(ctx context.Context) ([]byte, error) {\n", implName)
-	b.Add("\tconst bufSize = 4096 // 4KB buffer size\n\n")
-	b.Add("\t// Check for event in existing buffer\n")
-	b.Add("\tevent, ok := s.checkBuffer()\n")
-	b.Add("\tif ok {\n")
-	b.Add("\t\treturn event, nil\n")
-	b.Add("\t}\n\n")
-	b.Add("\t// Initialize with any data from buffer\n")
-	b.Add("\teventData := event\n")
-	b.Add("\twasNewline := len(eventData) > 0 && eventData[len(eventData)-1] == '\\n'\n")
-	b.Add("\tbuf := make([]byte, bufSize)\n\n")
-	b.Add("\t// Read data in chunks until we find an event or hit EOF\n")
-	b.Add("\tfor {\n")
-	b.Add("\t\t// Check if context is done\n")
-	b.Add("\t\tselect {\n")
-	b.Add("\t\tcase <-ctx.Done():\n")
-	b.Add("\t\t\tif len(eventData) > 0 {\n")
-	b.Add("\t\t\t\treturn eventData, nil\n")
-	b.Add("\t\t\t}\n")
-	b.Add("\t\t\treturn nil, ctx.Err()\n")
-	b.Add("\t\tdefault:\n")
-	b.Add("\t\t\t// Continue processing\n")
-	b.Add("\t\t}\n\n")
-	b.Add("\t\t// Check if stream is closed\n")
-	b.Add("\t\ts.lock.Lock()\n")
-	b.Add("\t\tif s.closed {\n")
-	b.Add("\t\t\ts.lock.Unlock()\n")
-	b.Add("\t\t\tif len(eventData) > 0 {\n")
-	b.Add("\t\t\t\treturn eventData, nil\n")
-	b.Add("\t\t\t}\n")
-	b.Add("\t\t\treturn nil, io.EOF\n")
-	b.Add("\t\t}\n\n")
-	b.Add("\t\t// Read next chunk\n")
-	b.Add("\t\tn, err := s.resp.Body.Read(buf)\n")
-	b.Add("\t\ts.lock.Unlock()\n\n")
-	b.Add("\t\t// Handle read errors\n")
-	b.Add("\t\tif err != nil && err != io.EOF {\n")
-	b.Add("\t\t\treturn nil, err\n")
-	b.Add("\t\t}\n\n")
-	b.Add("\t\t// Process data if we got any\n")
-	b.Add("\t\tif n > 0 {\n")
-	b.Add("\t\t\t// Look for event boundary in this chunk\n")
-	b.Add("\t\t\tfor i := 0; i < n; i++ {\n")
-	b.Add("\t\t\t\tb := buf[i]\n")
-	b.Add("\t\t\t\teventData = append(eventData, b)\n\n")
-	b.Add("\t\t\t\t// Check for double newlines (event boundary)\n")
-	b.Add("\t\t\t\tif b == '\\n' && wasNewline {\n")
-	b.Add("\t\t\t\t\t// Save any remaining data for next read\n")
-	b.Add("\t\t\t\t\tif i+1 < n {\n")
-	b.Add("\t\t\t\t\t\ts.lock.Lock()\n")
-	b.Add("\t\t\t\t\t\ts.buffer = append(s.buffer[:0], buf[i+1:n]...)\n")
-	b.Add("\t\t\t\t\t\ts.lock.Unlock()\n")
-	b.Add("\t\t\t\t\t}\n")
-	b.Add("\t\t\t\t\treturn eventData, nil\n")
-	b.Add("\t\t\t\t}\n\n")
-	b.Add("\t\t\t\t// Update newline tracking\n")
-	b.Add("\t\t\t\twasNewline = (b == '\\n')\n")
-	b.Add("\t\t\t}\n")
-	b.Add("\t\t}\n\n")
-	b.Add("\t\t// Return partial data at EOF\n")
-	b.Add("\t\tif errors.Is(err, io.EOF) {\n")
-	b.Add("\t\t\tif len(eventData) > 0 {\n")
-	b.Add("\t\t\t\treturn eventData, nil\n")
-	b.Add("\t\t\t}\n")
-	b.Add("\t\t\treturn nil, io.EOF\n")
-	b.Add("\t\t}\n")
-	b.Add("\t}\n")
-	b.Add("}\n\n")
+	b.Add(renderSSEClientReadEventBody())
 	return b.String()
+}
+
+func renderSSEClientReadEventBody() string {
+	return `	const bufSize = 4096 // 4KB buffer size
+
+	s.readLock.Lock()
+	defer s.readLock.Unlock()
+
+	// Check for event in existing buffer
+	event, ok := s.checkBuffer()
+	if ok {
+		return event, nil
+	}
+
+	// Initialize with any data from buffer
+	eventData := event
+	wasNewline := len(eventData) > 0 && eventData[len(eventData)-1] == '\n'
+	buf := make([]byte, bufSize)
+
+	// Read data in chunks until we find an event or hit EOF
+	for {
+		// Check if context is done
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			// Continue processing
+		}
+
+		// Check if stream is closed
+		s.lock.Lock()
+		if s.closed {
+			s.lock.Unlock()
+			if len(eventData) > 0 {
+				return eventData, nil
+			}
+			return nil, io.EOF
+		}
+		body := s.resp.Body
+		s.lock.Unlock()
+
+		// Read next chunk
+		type readResult struct {
+			n   int
+			err error
+		}
+		readc := make(chan readResult, 1)
+		go func() {
+			n, err := body.Read(buf)
+			readc <- readResult{n: n, err: err}
+		}()
+
+		var n int
+		var err error
+		select {
+		case result := <-readc:
+			n = result.n
+			err = result.err
+		case <-ctx.Done():
+			select {
+			case result := <-readc:
+				n = result.n
+				err = result.err
+			default:
+				_ = s.Close()
+				return nil, ctx.Err()
+			}
+		}
+
+		// Handle read errors
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+
+		// Process data if we got any
+		if n > 0 {
+			// Look for event boundary in this chunk
+			for i := 0; i < n; i++ {
+				b := buf[i]
+				eventData = append(eventData, b)
+
+				// Check for double newlines (event boundary)
+				if b == '\n' && wasNewline {
+					// Save any remaining data for next read
+					if i+1 < n {
+						s.lock.Lock()
+						s.buffer = append(s.buffer[:0], buf[i+1:n]...)
+						s.lock.Unlock()
+					}
+					return eventData, nil
+				}
+
+				// Update newline tracking
+				wasNewline = (b == '\n')
+			}
+		}
+
+		// Return partial data at EOF
+		if errors.Is(err, io.EOF) {
+			if len(eventData) > 0 {
+				return eventData, nil
+			}
+			return nil, io.EOF
+		}
+	}
+}
+
+`
 }
 
 func renderSSEClientCheckBuffer(implName string) string {
