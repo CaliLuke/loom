@@ -77,16 +77,20 @@ type (
 		// wildcards maps a method and a pattern to the name of the wildcard
 		// this is needed because chi does not expose the name of the wildcard
 		wildcards map[string]string
+		// patternBeforeMiddleware reports whether ServeHTTP must pre-match the
+		// route so mux-level middleware can read r.Pattern before chi dispatches
+		// the matched handler.
+		patternBeforeMiddleware bool
 	}
 )
 
 // NewMuxer returns a Muxer implementation based on a Chi router.
 //
-// The returned muxer sets r.Pattern (Go 1.22+) on every dispatched request
-// before middlewares run. This allows observability middleware such as
-// otelhttp to read the matched route from r.Pattern for span attributes and
-// metrics. To take advantage of this, register otelhttp as a mux middleware
-// rather than wrapping the mux externally:
+// The returned muxer sets r.Pattern (Go 1.22+) on every matched request. When
+// mux middleware is registered, r.Pattern is set before the middleware runs so
+// observability middleware such as otelhttp can read the matched route for span
+// attributes and metrics. To take advantage of this, register otelhttp as a mux
+// middleware rather than wrapping the mux externally:
 //
 //	mux := loomhttp.NewMuxer()
 //	mux.Use(otelhttp.NewMiddleware("service"))
@@ -101,10 +105,8 @@ func NewMuxer() ResolverMuxer {
 var wildPath = regexp.MustCompile(`/{\*([a-zA-Z0-9_]+)}`)
 
 // Handle registers the handler function for the given method and pattern.
-// It sets r.Pattern on every matched request to "METHOD /path" (matching the
-// Go 1.22+ convention used by http.ServeMux), enabling observability
-// middleware such as otelhttp to automatically tag spans and metrics with
-// the matched route.
+// It sets r.Pattern on every matched request to "METHOD /path" (matching the Go
+// 1.22+ convention used by http.ServeMux).
 func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -136,14 +138,15 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 	}))
 }
 
-// ServeHTTP resolves the matched route and sets r.Pattern before dispatching
-// the request through chi's middleware chain and handler. This ensures that
-// middlewares registered via Use() — such as otelhttp.NewMiddleware — can
-// read r.Pattern to tag spans and metrics with the http.route attribute.
+// ServeHTTP dispatches the request through chi's middleware chain and handler.
+// When mux middleware is registered, it pre-resolves the matched route so the
+// middleware can read r.Pattern before the matched handler runs.
 func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	rctx := chi.NewRouteContext()
-	if m.Match(rctx, r.Method, r.URL.Path) {
-		r.Pattern = r.Method + " " + m.resolveWildcard(r.Method, rctx.RoutePattern())
+	if m.patternBeforeMiddleware {
+		rctx := chi.NewRouteContext()
+		if m.Match(rctx, r.Method, r.URL.Path) {
+			r.Pattern = r.Method + " " + m.resolveWildcard(r.Method, rctx.RoutePattern())
+		}
 	}
 	m.Router.ServeHTTP(w, r)
 }
@@ -175,6 +178,7 @@ func (m *mux) Vars(r *http.Request) map[string]string {
 func (m *mux) Use(f func(http.Handler) http.Handler) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.patternBeforeMiddleware = true
 	if m.middlewares != nil {
 		m.middlewares = append(m.middlewares, f)
 		return
