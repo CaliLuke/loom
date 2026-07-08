@@ -475,6 +475,11 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 							jen.Return(),
 						)
 						postg.Line()
+						postg.If(jen.Id("req").Dot("Invalid")).Block(
+							jen.Id("s").Dot("processRequest").Call(jen.Id("r").Dot("Context").Call(), jen.Id("r"), jen.Op("&").Id("req"), jen.Id("w")),
+							jen.Return(),
+						)
+						postg.Line()
 						postg.Switch(jen.Id("req").Dot("Method")).BlockFunc(func(dispatch *jen.Group) {
 							for _, endpoint := range data.Endpoints {
 								if endpoint.SSE == nil {
@@ -571,62 +576,106 @@ func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed b
 
 func jsonrpcServerEncodeErrorSection(serverStruct string) codegen.Section {
 	return codegen.MustJenniferSection("jsonrpc-server-encode-error", func(stmt *jen.Statement) {
-		stmt.Comment("encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)").Line()
-		stmt.Func().Params(jen.Id("s").Op("*").Id(serverStruct)).
-			Id("encodeJSONRPCError").
-			Params(
-				jen.Id("ctx").Qual("context", "Context"),
-				jen.Id("w").Qual("net/http", "ResponseWriter"),
-				jen.Id("req").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
-				jen.Id("code").Qual("github.com/CaliLuke/loom/jsonrpc", "Code"),
-				jen.Id("message").String(),
-				jen.Id("data").Any(),
-			).
-			Block(
-				jen.Id("encodeJSONRPCError").Call(
-					jen.Id("ctx"),
-					jen.Id("w"),
-					jen.Id("req"),
+		writeJSONRPCEncodeErrorMethod(stmt, serverStruct)
+		writeJSONRPCEncodeErrorFunction(stmt)
+		writeJSONRPCServiceErrorClassifier(stmt)
+	})
+}
+
+func writeJSONRPCEncodeErrorMethod(stmt *jen.Statement, serverStruct string) {
+	stmt.Comment("encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)").Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(serverStruct)).
+		Id("encodeJSONRPCError").
+		Params(
+			jen.Id("ctx").Qual("context", "Context"),
+			jen.Id("w").Qual("net/http", "ResponseWriter"),
+			jen.Id("req").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
+			jen.Id("code").Qual("github.com/CaliLuke/loom/jsonrpc", "Code"),
+			jen.Id("message").String(),
+			jen.Id("data").Any(),
+		).
+		Block(
+			jen.Id("encodeJSONRPCError").Call(
+				jen.Id("ctx"),
+				jen.Id("w"),
+				jen.Id("req"),
+				jen.Id("code"),
+				jen.Id("message"),
+				jen.Id("data"),
+				jen.Id("s").Dot("encoder"),
+				jen.Id("s").Dot("errhandler"),
+			),
+		)
+	stmt.Line()
+}
+
+func writeJSONRPCEncodeErrorFunction(stmt *jen.Statement) {
+	stmt.Comment("encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)").Line()
+	stmt.Func().Id("encodeJSONRPCError").
+		Params(
+			jen.Id("ctx").Qual("context", "Context"),
+			jen.Id("w").Qual("net/http", "ResponseWriter"),
+			jen.Id("req").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
+			jen.Id("code").Qual("github.com/CaliLuke/loom/jsonrpc", "Code"),
+			jen.Id("message").String(),
+			jen.Id("data").Any(),
+			jen.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder")),
+			jen.Id("errhandler").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter"), jen.Error()),
+		).
+		Block(
+			jen.If(jen.Id("req").Dot("HasID").Op("||").Id("code").Op("==").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidRequest")).Block(
+				jen.Id("id").Op(":=").Id("req").Dot("ID"),
+				jen.If(jen.Op("!").Id("req").Dot("HasID")).Block(
+					jen.Id("id").Op("=").Nil(),
+				),
+				jen.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeErrorResponse").Call(
+					jen.Id("id"),
 					jen.Id("code"),
 					jen.Id("message"),
 					jen.Id("data"),
-					jen.Id("s").Dot("encoder"),
-					jen.Id("s").Dot("errhandler"),
 				),
-			)
-		stmt.Line()
-		stmt.Comment("encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)").Line()
-		stmt.Func().Id("encodeJSONRPCError").
-			Params(
-				jen.Id("ctx").Qual("context", "Context"),
-				jen.Id("w").Qual("net/http", "ResponseWriter"),
-				jen.Id("req").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
-				jen.Id("code").Qual("github.com/CaliLuke/loom/jsonrpc", "Code"),
-				jen.Id("message").String(),
-				jen.Id("data").Any(),
-				jen.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder")),
-				jen.Id("errhandler").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter"), jen.Error()),
-			).
-			Block(
-				jen.If(jen.Id("req").Dot("ID").Op("!=").Nil()).Block(
-					jen.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeErrorResponse").Call(
-						jen.Id("req").Dot("ID"),
-						jen.Id("code"),
-						jen.Id("message"),
-						jen.Id("data"),
-					),
-					jen.If(
-						jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
-						jen.Err().Op("!=").Nil(),
-					).Block(
-						jen.Id("errhandler").Call(
-							jen.Id("ctx"),
-							jen.Id("w"),
-							jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
-						),
+				jen.If(
+					jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
+					jen.Err().Op("!=").Nil(),
+				).Block(
+					jen.Id("errhandler").Call(
+						jen.Id("ctx"),
+						jen.Id("w"),
+						jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
 					),
 				),
-			)
-		stmt.Line()
-	})
+			),
+		)
+	stmt.Line()
+}
+
+func writeJSONRPCServiceErrorClassifier(stmt *jen.Statement) {
+	stmt.Comment("jsonrpcErrorCodeForServiceError classifies framework validation errors as invalid params and all other service errors as internal errors.").Line()
+	stmt.Func().Id("jsonrpcErrorCodeForServiceError").
+		Params(jen.Id("err").Op("*").Add(codegen.TypeRef("loom.ServiceError"))).
+		Qual("github.com/CaliLuke/loom/jsonrpc", "Code").
+		Block(
+			jen.If(jen.Id("err").Op("==").Nil()).Block(
+				jen.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")),
+			),
+			jen.Switch(jen.Id("err").Dot("Name")).Block(
+				jen.Case(
+					codegen.Expr("loom.InvalidFieldType"),
+					codegen.Expr("loom.MissingField"),
+					codegen.Expr("loom.InvalidEnumValue"),
+					codegen.Expr("loom.InvalidFormat"),
+					codegen.Expr("loom.InvalidPattern"),
+					codegen.Expr("loom.InvalidRange"),
+					codegen.Expr("loom.InvalidLength"),
+					codegen.Expr("loom.DecodePayload"),
+					codegen.Expr("loom.MissingPayload"),
+				).Block(
+					jen.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams")),
+				),
+				jen.Default().Block(
+					jen.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")),
+				),
+			),
+		)
+	stmt.Line()
 }

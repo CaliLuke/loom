@@ -24,7 +24,10 @@ import (
 // clock Initialize endpoint.
 func EncodeInitializeResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*clock.InitializeResult)
+		res, ok := v.(*clock.InitializeResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("clock", "Initialize", "*clock.InitializeResult", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewInitializeResponseBody(res)
 		w.WriteHeader(http.StatusOK)
@@ -51,7 +54,7 @@ func DecodeInitializeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loo
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		payload = NewInitializePayload(&body)
 
@@ -63,7 +66,10 @@ func DecodeInitializeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loo
 // Tick endpoint.
 func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*clock.TickResult)
+		res, ok := v.(*clock.TickResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("clock", "Tick", "*clock.TickResult", v)
+		}
 		enc := encoder(ctx, w)
 		body := NewTickResponseBody(res)
 		w.WriteHeader(http.StatusOK)
@@ -90,7 +96,7 @@ func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.
 			if errors.As(err, &gerr) {
 				return payload, gerr
 			}
-			return payload, loom.DecodePayloadError(err.Error())
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		payload = NewTickPayload(&body)
 

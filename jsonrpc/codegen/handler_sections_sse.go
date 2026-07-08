@@ -61,7 +61,7 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 					}
 					sg.Default().BlockFunc(func(dg *jen.Group) {
 						dg.If(
-							jen.Id("req").Dot("ID").Op("==").Nil().Op("||").Id("req").Dot("ID").Op("==").Lit(""),
+							jen.Op("!").Id("req").Dot("HasID"),
 						).Block(
 							jen.Id("w").Dot("WriteHeader").Call(jen.Qual("net/http", "StatusNoContent")),
 							jen.Return(),
@@ -101,7 +101,7 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 							continue
 						}
 						sg.Case(jen.Lit(endpoint.Method.Name)).Block(
-							jen.If(jen.Id("req").Dot("ID").Op("==").Nil()).Block(
+							jen.If(jen.Op("!").Id("req").Dot("HasID")).Block(
 								jen.Id("w").Dot("WriteHeader").Call(jen.Qual("net/http", "StatusNoContent")),
 							),
 						)
@@ -122,7 +122,7 @@ func writeSSEErrorStreamInit(g *jen.Group, streamName string) {
 
 func writeSSEValidationError(g *jen.Group, streamName, message string) {
 	g.If(
-		jen.Id("req").Dot("ID").Op("==").Nil().Op("||").Id("req").Dot("ID").Op("==").Lit(""),
+		jen.Op("!").Id("req").Dot("HasID"),
 	).Block(
 		jen.Id("w").Dot("WriteHeader").Call(jen.Qual("net/http", "StatusNoContent")),
 		jen.Return(),
@@ -139,6 +139,10 @@ func writeSSEValidationError(g *jen.Group, streamName, message string) {
 }
 
 func writeSSERequestValidation(g *jen.Group, streamName string) {
+	g.If(jen.Id("req").Dot("Invalid")).BlockFunc(func(eg *jen.Group) {
+		writeSSEValidationError(eg, streamName, "Invalid request")
+	})
+	g.Line()
 	g.If(jen.Id("req").Dot("JSONRPC").Op("!=").Lit("2.0")).BlockFunc(func(eg *jen.Group) {
 		writeSSEValidationError(eg, streamName, "Invalid request")
 	})

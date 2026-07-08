@@ -347,8 +347,9 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 			"\tvar en loom.LoomErrorNamer\n",
 			"\tif !errors.As(err, &en) {\n",
 			"\t\tcode := jsonrpc.InternalError\n",
-			"\t\tif _, ok := err.(*loom.ServiceError); ok {\n",
-			"\t\t\tcode = jsonrpc.InvalidParams\n",
+			"\t\tvar serviceError *loom.ServiceError\n",
+			"\t\tif errors.As(err, &serviceError) {\n",
+			"\t\t\tcode = jsonrpcErrorCodeForServiceError(serviceError)\n",
 			"\t\t}\n",
 			"\t\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
 			"\t}\n",
@@ -368,8 +369,9 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 		parts = append(parts,
 			"\tdefault:\n",
 			"\t\tcode := jsonrpc.InternalError\n",
-			"\t\tif _, ok := err.(*loom.ServiceError); ok {\n",
-			"\t\t\tcode = jsonrpc.InvalidParams\n",
+			"\t\tvar serviceError *loom.ServiceError\n",
+			"\t\tif errors.As(err, &serviceError) {\n",
+			"\t\t\tcode = jsonrpcErrorCodeForServiceError(serviceError)\n",
 			"\t\t}\n",
 			"\t\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
 			"\t}\n",
@@ -378,8 +380,9 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 	}
 	parts = append(parts,
 		"\tcode := jsonrpc.InternalError\n",
-		"\tif _, ok := err.(*loom.ServiceError); ok {\n",
-		"\t\tcode = jsonrpc.InvalidParams\n",
+		"\tvar serviceError *loom.ServiceError\n",
+		"\tif errors.As(err, &serviceError) {\n",
+		"\t\tcode = jsonrpcErrorCodeForServiceError(serviceError)\n",
 		"\t}\n",
 		"\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
 	)
@@ -397,8 +400,9 @@ func writeStreamResultBodyInit(g *jen.Group, targetName, resultVar string, ed *h
 func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, targetID jen.Code) {
 	writeDefault := func(group *jen.Group) {
 		group.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
-		group.If(jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("err").Assert(jen.Op("*").Id("loom").Dot("ServiceError")), jen.Id("ok")).Block(
-			jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
+		group.Var().Id("serviceError").Op("*").Id("loom").Dot("ServiceError")
+		group.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+			jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
 		)
 		group.Return(
 			jen.Id("s").Dot("sendError").Call(
@@ -509,34 +513,15 @@ func writeSSEServiceResponseIDResolution(g *jen.Group, ed *httpcodegen.EndpointD
 	)
 }
 
-func writeSSEServiceStreamSendError(stmt *jen.Statement, streamName string) {
+func writeSSEServiceStreamSendError(stmt *jen.Statement, data *httpcodegen.ServiceData, streamName string) {
 	codegen.Doc(stmt, "SendError sends a JSON-RPC error response.")
 	stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 		Id("SendError").
 		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("id").String(), jen.Id("err").Error()).
 		Error().
-		Block(
-			jen.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer")),
-			jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
-			jen.Id("message").Op(":=").Id("err").Dot("Error").Call(),
-			jen.Var().Id("data").Any(),
-			jen.Line(),
-			jen.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).Block(
-				jen.Switch(jen.Id("en").Dot("LoomErrorName").Call()).Block(
-					jen.Case(jen.Lit("invalid_params")).Block(
-						jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
-					),
-					jen.Case(jen.Lit("method_not_found")).Block(
-						jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound"),
-					),
-					jen.Default().Block(
-						jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
-					),
-				),
-			),
-			jen.Line(),
-			jen.Return(jen.Id("s").Dot("sendError").Call(jen.Id("ctx"), jen.Id("id"), jen.Id("code"), jen.Id("message"), jen.Id("data"))),
-		)
+		BlockFunc(func(g *jen.Group) {
+			writeStreamErrorDataSwitch(g, allErrors(data), jen.Id("id"))
+		})
 }
 
 func serviceHasErrors(methods []*service.MethodData) bool {

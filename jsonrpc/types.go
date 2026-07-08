@@ -1,6 +1,7 @@
 package jsonrpc
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -40,6 +41,9 @@ type (
 		// It is consumed by generated templates (WebSocket/SSE/HTTP) to decide whether
 		// to send a response for this request. Do not remove even if unused by this package.
 		HasID bool `json:"-"`
+		// Invalid is true when the JSON value is syntactically valid but not a
+		// valid JSON-RPC request envelope.
+		Invalid bool `json:"-"`
 	}
 
 	// RawResponse represents a JSON-RPC response with a marshalled result
@@ -132,6 +136,8 @@ func IDToString(id any) string {
 		return v
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64)
+	case json.Number:
+		return v.String()
 	default:
 		return ""
 	}
@@ -139,18 +145,24 @@ func IDToString(id any) string {
 
 // UnmarshalJSON decodes RawRequest and records whether the id field was present.
 func (r *RawRequest) UnmarshalJSON(data []byte) error {
+	*r = RawRequest{}
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
+		if json.Valid(data) {
+			r.Invalid = true
+			return nil
+		}
 		return err
 	}
+	r.Invalid = false
 	if v, ok := raw["jsonrpc"]; ok {
 		if err := json.Unmarshal(v, &r.JSONRPC); err != nil {
-			return err
+			r.Invalid = true
 		}
 	}
 	if v, ok := raw["method"]; ok {
 		if err := json.Unmarshal(v, &r.Method); err != nil {
-			return err
+			r.Invalid = true
 		}
 	}
 	if v, ok := raw["params"]; ok {
@@ -163,10 +175,18 @@ func (r *RawRequest) UnmarshalJSON(data []byte) error {
 			r.ID = nil
 		} else {
 			var id any
-			if err := json.Unmarshal(v, &id); err != nil {
+			dec := json.NewDecoder(bytes.NewReader(v))
+			dec.UseNumber()
+			if err := dec.Decode(&id); err != nil {
 				return err
 			}
-			r.ID = id
+			switch id := id.(type) {
+			case string, json.Number:
+				r.ID = id
+			default:
+				r.Invalid = true
+				r.ID = nil
+			}
 		}
 	} else {
 		r.HasID = false

@@ -92,11 +92,7 @@ func writeJSONRPCResponseErrorHandling(g *jen.Group, e *httpcodegen.EndpointData
 		eg.Switch(jen.Id("jresp").Dot("Error").Dot("Code")).BlockFunc(func(sg *jen.Group) {
 			writeJSONRPCErrorDecodeSwitch(sg, e)
 			sg.Default().Block(
-				jen.List(jen.Id("body"), jen.Id("_")).Op(":=").Qual("io", "ReadAll").Call(jen.Id("resp").Dot("Body")),
-				jen.Return(
-					jen.Nil(),
-					errInvalidResponseExpr(e.ServiceName, e.Method.Name, jen.Id("resp").Dot("StatusCode"), jen.String().Call(jen.Id("body"))),
-				),
+				jen.Return(jen.Nil(), jen.Id("jresp").Dot("Error")),
 			)
 		})
 	})

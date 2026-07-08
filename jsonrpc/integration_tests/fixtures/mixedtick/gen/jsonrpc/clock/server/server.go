@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -169,6 +170,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if req.Invalid {
+			s.processRequest(r.Context(), r, &req, w)
+			return
+		}
+
 		switch req.Method {
 		case "Tick":
 			if err := s.Tick(r.Context(), r, &req, w); err != nil {
@@ -235,8 +241,8 @@ func (s *Server) handleSingle(w http.ResponseWriter, r *http.Request) {
 
 // handleBatch handles a batch of JSON-RPC requests.
 func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
-	var reqs []jsonrpc.RawRequest
-	if err := s.decoder(r).Decode(&reqs); err != nil {
+	var rawReqs []json.RawMessage
+	if err := s.decoder(r).Decode(&rawReqs); err != nil {
 		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCBatch)
 		response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
 		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
@@ -244,10 +250,24 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	loomtransport.RequestObserverFromContext(r.Context()).SetJSONRPC("", "", len(reqs), false)
+	if len(rawReqs) == 0 {
+		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCBatch)
+		response := jsonrpc.MakeErrorResponse(nil, jsonrpc.InvalidRequest, "Invalid request", nil)
+		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
+			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode invalid batch response: %w", encErr))
+		}
+		return
+	}
+	loomtransport.RequestObserverFromContext(r.Context()).SetJSONRPC("", "", len(rawReqs), false)
 	w.Header().Set("Content-Type", "application/json")
 	writer := &batchWriter{Writer: w}
-	for _, req := range reqs {
+	for _, rawReq := range rawReqs {
+		var req jsonrpc.RawRequest
+		if err := json.Unmarshal(rawReq, &req); err != nil {
+			loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
+			s.encodeJSONRPCError(r.Context(), writer, &jsonrpc.RawRequest{}, jsonrpc.InvalidRequest, "Invalid request", nil)
+			continue
+		}
 		s.processRequest(r.Context(), r, &req, writer)
 	}
 	if writer.written {
@@ -258,6 +278,11 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 // processRequest processes a single JSON-RPC request.
 func (s *Server) processRequest(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) {
 	loomtransport.RequestObserverFromContext(ctx).SetJSONRPC(req.Method, jsonrpc.IDToString(req.ID), 0, !req.HasID)
+	if req.Invalid {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
+		s.encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidRequest, "Invalid request", nil)
+		return
+	}
 	if req.JSONRPC != "2.0" {
 		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
 		s.encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidRequest, "Invalid request", nil)
@@ -336,8 +361,23 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Invalid {
+		if !req.HasID {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		stream := &clockSSEStream{
+			decoder: s.decoder,
+			encoder: s.encoder,
+			r:       r,
+			w:       w,
+		}
+		stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil)
+		return
+	}
+
 	if req.JSONRPC != "2.0" {
-		if req.ID == nil || req.ID == "" {
+		if !req.HasID {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -352,7 +392,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Method == "" {
-		if req.ID == nil || req.ID == "" {
+		if !req.HasID {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -371,7 +411,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	case "Tick":
 		handler = s.Tick
 	default:
-		if req.ID == nil || req.ID == "" {
+		if !req.HasID {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -415,10 +455,11 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 		params, err := decodeParams(r, req)
 		if err != nil {
 			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCParams)
-			if req.ID != nil && req.ID != "" {
+			if req.HasID {
 				code := jsonrpc.InternalError
-				if _, ok := err.(*loom.ServiceError); ok {
-					code = jsonrpc.InvalidParams
+				var serviceError *loom.ServiceError
+				if errors.As(err, &serviceError) {
+					code = jsonrpcErrorCodeForServiceError(serviceError)
 				}
 				encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 			} else {
@@ -433,10 +474,15 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 		res, err := endpoint(ctx, params)
 		if err != nil {
 			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonHandlerError)
-			if req.ID != nil && req.ID != "" {
+			if req.HasID {
 				var en loom.LoomErrorNamer
 				if !errors.As(err, &en) {
-					encodeJSONRPCError(ctx, w, req, jsonrpc.InternalError, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
+					code := jsonrpc.InternalError
+					var serviceError *loom.ServiceError
+					if errors.As(err, &serviceError) {
+						code = jsonrpcErrorCodeForServiceError(serviceError)
+					}
+					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 					return nil
 				}
 				switch en.LoomErrorName() {
@@ -446,8 +492,9 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 					encodeJSONRPCError(ctx, w, req, jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				default:
 					code := jsonrpc.InternalError
-					if _, ok := err.(*loom.ServiceError); ok {
-						code = jsonrpc.InvalidParams
+					var serviceError *loom.ServiceError
+					if errors.As(err, &serviceError) {
+						code = jsonrpcErrorCodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				}
@@ -457,14 +504,8 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 			return nil
 		}
 
-		var id any
-		actual := res.(*clock.InitializeResult)
-		if actual.ID != nil && *actual.ID != "" {
-			id = *actual.ID
-		} else {
-			id = req.ID
-		}
-		if id == nil || id == "" {
+		id := req.ID
+		if !req.HasID {
 			return nil
 		}
 		// Convert result to response body with proper JSON tags
@@ -484,10 +525,11 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
 
 		strm := &TickServerStream{
-			encoder:   encoder,
-			r:         r,
-			requestID: req.ID,
-			w:         w,
+			encoder:      encoder,
+			r:            r,
+			requestHasID: req.HasID,
+			requestID:    req.ID,
+			w:            w,
 		}
 		if r.Method == http.MethodGet && req.Method == "events/stream" {
 			if err := strm.open(); err != nil {
@@ -497,8 +539,13 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		decodeParams := DecodeTickRequest(mux, decoder)
 		params, err := decodeParams(r, req)
 		if err != nil {
-			if req.ID != nil && req.ID != "" {
-				strm.SendError(ctx, jsonrpc.IDToString(req.ID), err)
+			if req.HasID {
+				code := jsonrpc.InternalError
+				var serviceError *loom.ServiceError
+				if errors.As(err, &serviceError) {
+					code = jsonrpcErrorCodeForServiceError(serviceError)
+				}
+				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
 			return nil
 		}
@@ -511,21 +558,22 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 			Stream:  strm,
 		}
 		if _, err := endpoint(ctx, v); err != nil {
-			if req.ID != nil && req.ID != "" {
+			if req.HasID {
 				var en loom.LoomErrorNamer
 				if errors.As(err, &en) {
 					switch en.LoomErrorName() {
 					case "invalid_params":
-						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						return strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 					case "method_not_found":
-						return strm.sendError(ctx, jsonrpc.IDToString(req.ID), jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						return strm.sendError(ctx, req.ID, jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 					}
 				}
 				code := jsonrpc.InternalError
-				if _, ok := err.(*loom.ServiceError); ok {
-					code = jsonrpc.InvalidParams
+				var serviceError *loom.ServiceError
+				if errors.As(err, &serviceError) {
+					code = jsonrpcErrorCodeForServiceError(serviceError)
 				}
-				return strm.sendError(ctx, jsonrpc.IDToString(req.ID), code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
 			return nil
 		}
@@ -538,10 +586,27 @@ func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, 
 
 // encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
 func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) {
-	if req.ID != nil {
-		response := jsonrpc.MakeErrorResponse(req.ID, code, message, data)
+	if req.HasID || code == jsonrpc.InvalidRequest {
+		id := req.ID
+		if !req.HasID {
+			id = nil
+		}
+		response := jsonrpc.MakeErrorResponse(id, code, message, data)
 		if err := encoder(ctx, w).Encode(response); err != nil {
 			errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 		}
+	}
+}
+
+// jsonrpcErrorCodeForServiceError classifies framework validation errors as invalid params and all other service errors as internal errors.
+func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
+	if err == nil {
+		return jsonrpc.InternalError
+	}
+	switch err.Name {
+	case loom.InvalidFieldType, loom.MissingField, loom.InvalidEnumValue, loom.InvalidFormat, loom.InvalidPattern, loom.InvalidRange, loom.InvalidLength, loom.DecodePayload, loom.MissingPayload:
+		return jsonrpc.InvalidParams
+	default:
+		return jsonrpc.InternalError
 	}
 }

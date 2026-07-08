@@ -122,6 +122,7 @@ func jsonrpcServerImports(genpkg, svcName string, data *httpcodegen.ServiceData)
 		&codegen.ImportSpec{Path: "bufio"},
 		&codegen.ImportSpec{Path: "bytes"},
 		&codegen.ImportSpec{Path: "context"},
+		&codegen.ImportSpec{Path: "encoding/json"},
 		&codegen.ImportSpec{Path: "errors"},
 		&codegen.ImportSpec{Path: "fmt"},
 		&codegen.ImportSpec{Path: "io"},

@@ -9,6 +9,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -33,6 +34,8 @@ type TickServerStream struct {
 	r *http.Request
 	// requestID is the JSON-RPC request ID for sending final response
 	requestID any
+	// requestHasID records whether the JSON-RPC request included an ID.
+	requestHasID bool
 	// closed indicates if the stream has been closed via SendAndClose
 	closed bool
 	// mu protects the closed flag
@@ -87,8 +90,8 @@ func (s *TickServerStream) Send(ctx context.Context, event clock.TickEvent) erro
 
 // SendAndClose sends a final JSON-RPC response to the client and closes the
 // stream.
-// The response will include the original request ID unless the result has an
-// ID field populated.
+// The response includes the original request ID. Notifications are closed
+// without a final response.
 // After calling this method, no more events can be sent on this stream.
 func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEvent) error {
 	// Check if stream is already closed
@@ -108,6 +111,9 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 
 	// Determine the ID to use for the response
 	var id any = s.requestID
+	if !s.requestHasID {
+		return nil
+	}
 	// Convert to response body type for proper JSON encoding
 	body := NewTickResponseBody(result)
 	// Send as response with ID
@@ -124,8 +130,9 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 func (s *TickServerStream) SendError(ctx context.Context, id string, err error) error {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
 	code := jsonrpc.InternalError
-	if _, ok := err.(*loom.ServiceError); ok {
-		code = jsonrpc.InvalidParams
+	var serviceError *loom.ServiceError
+	if errors.As(err, &serviceError) {
+		code = jsonrpcErrorCodeForServiceError(serviceError)
 	}
 	return s.sendError(ctx, id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 }

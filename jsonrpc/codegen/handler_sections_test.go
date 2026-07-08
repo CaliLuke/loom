@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/dave/jennifer/jen"
@@ -56,11 +57,20 @@ func TestJSONRPCProcessRequestBodyValidatesAndDispatches(t *testing.T) {
 	})
 
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler")
+	require.Contains(t, code, `if req.Invalid {`)
 	require.Contains(t, code, `if req.JSONRPC != "2.0" {`)
 	require.Contains(t, code, `if req.Method == "" {`)
+	require.Less(t, findIndex(t, code, `if req.Invalid {`), findIndex(t, code, `if req.JSONRPC != "2.0" {`))
 	require.Contains(t, code, `switch req.Method {`)
 	require.Contains(t, code, `case "add":`)
 	require.Contains(t, code, `jsonrpc.MethodNotFound`)
+}
+
+func findIndex(t *testing.T, value, substr string) int {
+	t.Helper()
+	index := strings.Index(value, substr)
+	require.NotEqualf(t, -1, index, "expected %q in generated code", substr)
+	return index
 }
 
 func TestJSONRPCHandlerInitDecodesParamsWithGeneratedDecoderSignature(t *testing.T) {
@@ -146,4 +156,60 @@ func TestJSONRPCBatchWriterHelperSection(t *testing.T) {
 	require.Contains(t, code, `func (rb *batchWriter) Write(data []byte) (int, error)`)
 	require.Contains(t, code, `rb.written = true`)
 	require.Contains(t, code, `return rb.Writer.Write(data)`)
+}
+
+func TestJSONRPCBatchHandlingDecodesElementsIndependently(t *testing.T) {
+	root := RunJSONRPCDSL(t, func() {
+		dsl.API("jsonrpc-batch-test", func() {
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Service("calc", func() {
+			dsl.JSONRPC(func() {
+				dsl.POST("/rpc")
+			})
+			dsl.Method("add", func() {
+				dsl.Payload(func() {
+					dsl.ID("id", dsl.String)
+				})
+				dsl.Result(dsl.String)
+				dsl.JSONRPC(func() {})
+			})
+		})
+	})
+
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler")
+
+	require.Contains(t, code, `var rawReqs []json.RawMessage`)
+	require.Contains(t, code, `if len(rawReqs) == 0 {`)
+	require.Contains(t, code, `jsonrpc.InvalidRequest`)
+	require.Contains(t, code, `for _, rawReq := range rawReqs {`)
+	require.Contains(t, code, `var req jsonrpc.RawRequest`)
+	require.Contains(t, code, `json.Unmarshal(rawReq, &req)`)
+	require.NotContains(t, code, `var reqs []jsonrpc.RawRequest`)
+}
+
+func TestJSONRPCInvalidRequestWithoutIDStillRespondsWithNullID(t *testing.T) {
+	root := RunJSONRPCDSL(t, func() {
+		dsl.API("jsonrpc-invalid-request-test", func() {
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Service("calc", func() {
+			dsl.JSONRPC(func() {
+				dsl.POST("/rpc")
+			})
+			dsl.Method("add", func() {
+				dsl.Result(dsl.String)
+				dsl.JSONRPC(func() {})
+			})
+		})
+	})
+
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-encode-error")
+
+	require.Contains(t, code, `if req.HasID || code == jsonrpc.InvalidRequest {`)
+	require.Contains(t, code, `id := req.ID`)
+	require.Contains(t, code, `if !req.HasID {`)
+	require.Contains(t, code, `id = nil`)
+	require.Contains(t, code, `jsonrpc.MakeErrorResponse(id, code, message, data)`)
+	require.NotContains(t, code, `if req.ID != nil {`)
 }

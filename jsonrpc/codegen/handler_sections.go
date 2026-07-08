@@ -144,10 +144,11 @@ func jsonrpcHandlerClosureReturns(e *httpcodegen.EndpointData) []jen.Code {
 //nolint:maintidx // Transport initialization must encode several protocol branches in one place.
 func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.Id("strm").Op(":=").Op("&").Id(e.SSE.StructName).Values(jen.Dict{
-		jen.Id("w"):         jen.Id("w"),
-		jen.Id("r"):         jen.Id("r"),
-		jen.Id("encoder"):   jen.Id("encoder"),
-		jen.Id("requestID"): jen.Id("req").Dot("ID"),
+		jen.Id("w"):            jen.Id("w"),
+		jen.Id("r"):            jen.Id("r"),
+		jen.Id("encoder"):      jen.Id("encoder"),
+		jen.Id("requestID"):    jen.Id("req").Dot("ID"),
+		jen.Id("requestHasID"): jen.Id("req").Dot("HasID"),
 	})
 	g.If(
 		jen.Id("r").Dot("Method").Op("==").Qual("net/http", "MethodGet").Op("&&").Id("req").Dot("Method").Op("==").Lit("events/stream"),
@@ -163,9 +164,20 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 		g.Id("decodeParams").Op(":=").Id(e.RequestDecoder).Call(jen.Id("mux"), jen.Id("decoder"))
 		g.List(jen.Id("params"), jen.Id("err")).Op(":=").Id("decodeParams").Call(jen.Id("r"), jen.Id("req"))
 		g.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.If(jen.Id("req").Dot("ID").Op("!=").Nil().Op("&&").Id("req").Dot("ID").Op("!=").Lit("")).Block(
-				jen.Id("strm").Dot("SendError").Call(jen.Id("ctx"), codegen.Expr("jsonrpc.IDToString(req.ID)"), jen.Id("err")),
-			),
+			jen.If(jen.Id("req").Dot("HasID")).BlockFunc(func(eg *jen.Group) {
+				eg.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
+				eg.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
+				eg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+					jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+				)
+				eg.Return(jen.Id("strm").Dot("sendError").Call(
+					jen.Id("ctx"),
+					jen.Id("req").Dot("ID"),
+					jen.Id("code"),
+					codegen.Expr("loom.ErrorSafeMessage(err)"),
+					codegen.Expr("jsonrpc.NewErrorData(err)"),
+				))
+			}),
 			jen.Return(jen.Nil()),
 		)
 		writePayloadIDInjection(g, e.Payload)
@@ -192,14 +204,14 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 		jen.List(jen.Id("_"), jen.Id("err")).Op(":=").Id("endpoint").Call(jen.Id("ctx"), jen.Id("v")),
 		jen.Id("err").Op("!=").Nil(),
 	).BlockFunc(func(eg *jen.Group) {
-		eg.If(jen.Id("req").Dot("ID").Op("!=").Nil().Op("&&").Id("req").Dot("ID").Op("!=").Lit("")).BlockFunc(func(idg *jen.Group) {
+		eg.If(jen.Id("req").Dot("HasID")).BlockFunc(func(idg *jen.Group) {
 			idg.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer"))
 			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).Block(
 				jen.Switch(jen.Id("en").Dot("LoomErrorName").Call()).Block(
 					jen.Case(jen.Lit("invalid_params")).Block(
 						jen.Return(jen.Id("strm").Dot("sendError").Call(
 							jen.Id("ctx"),
-							codegen.Expr("jsonrpc.IDToString(req.ID)"),
+							jen.Id("req").Dot("ID"),
 							jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
 							codegen.Expr("loom.ErrorSafeMessage(err)"),
 							codegen.Expr("jsonrpc.NewErrorData(err)"),
@@ -208,7 +220,7 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 					jen.Case(jen.Lit("method_not_found")).Block(
 						jen.Return(jen.Id("strm").Dot("sendError").Call(
 							jen.Id("ctx"),
-							codegen.Expr("jsonrpc.IDToString(req.ID)"),
+							jen.Id("req").Dot("ID"),
 							jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound"),
 							codegen.Expr("loom.ErrorSafeMessage(err)"),
 							codegen.Expr("jsonrpc.NewErrorData(err)"),
@@ -217,15 +229,13 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 				),
 			)
 			idg.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
-			idg.If(
-				jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("err").Assert(jen.Op("*").Add(codegen.TypeRef("loom.ServiceError"))),
-				jen.Id("ok"),
-			).Block(
-				jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
+			idg.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
+			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+				jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
 			)
 			idg.Return(jen.Id("strm").Dot("sendError").Call(
 				jen.Id("ctx"),
-				codegen.Expr("jsonrpc.IDToString(req.ID)"),
+				jen.Id("req").Dot("ID"),
 				jen.Id("code"),
 				codegen.Expr("loom.ErrorSafeMessage(err)"),
 				codegen.Expr("jsonrpc.NewErrorData(err)"),
@@ -300,13 +310,11 @@ func writeJSONRPCParamsDecode(g *jen.Group, e *httpcodegen.EndpointData) {
 			eg.Return(jen.Nil(), jen.Id("err"))
 			return
 		}
-		eg.If(jen.Id("req").Dot("ID").Op("!=").Nil().Op("&&").Id("req").Dot("ID").Op("!=").Lit("")).Block(
+		eg.If(jen.Id("req").Dot("HasID")).Block(
 			jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
-			jen.If(
-				jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("err").Assert(jen.Op("*").Add(codegen.TypeRef("loom.ServiceError"))),
-				jen.Id("ok"),
-			).Block(
-				jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
+			jen.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError")),
+			jen.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+				jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
 			),
 			jen.Id("encodeJSONRPCError").Call(
 				jen.Id("ctx"),
@@ -344,10 +352,15 @@ func writeJSONRPCWebSocketInitReturn(g *jen.Group, e *httpcodegen.EndpointData) 
 func writeJSONRPCEndpointErrorHandling(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.If(jen.Id("err").Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
 		eg.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonHandlerError"))
-		eg.If(jen.Id("req").Dot("ID").Op("!=").Nil().Op("&&").Id("req").Dot("ID").Op("!=").Lit("")).BlockFunc(func(idg *jen.Group) {
+		eg.If(jen.Id("req").Dot("HasID")).BlockFunc(func(idg *jen.Group) {
 			idg.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer"))
 			idg.If(jen.Op("!").Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).Block(
-				writeJSONRPCEncodeErrorCall(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")),
+				jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
+				jen.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError")),
+				jen.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+					jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+				),
+				writeJSONRPCEncodeErrorCall(jen.Id("code")),
 				jen.Return(jen.Nil()),
 			)
 			idg.Switch(jen.Id("en").Dot("LoomErrorName").Call()).BlockFunc(func(sg *jen.Group) {
@@ -400,18 +413,16 @@ func writeJSONRPCEncodeErrorCall(code jen.Code) jen.Code {
 
 func writeJSONRPCDefaultEndpointError(g *jen.Group) {
 	g.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
-	g.If(
-		jen.List(jen.Id("_"), jen.Id("ok")).Op(":=").Id("err").Assert(jen.Op("*").Add(codegen.TypeRef("loom.ServiceError"))),
-		jen.Id("ok"),
-	).Block(
-		jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
+	g.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
+	g.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+		jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
 	)
 	g.Add(writeJSONRPCEncodeErrorCall(jen.Id("code")))
 }
 
 func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.If(
-		jen.Id("req").Dot("ID").Op("==").Nil().Op("||").Id("req").Dot("ID").Op("==").Lit(""),
+		jen.Op("!").Id("req").Dot("HasID"),
 	).Block(
 		jen.Return(jen.Nil()),
 	)
@@ -447,29 +458,9 @@ func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 
 //nolint:maintidx // Result encoding path is branch-heavy by generated transport shape.
 func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
-	g.Var().Id("id").Any()
-	if e.Result.IDAttribute != "" {
-		g.Id("actual").Op(":=").Id("res").Assert(codegen.TypeRef(e.Result.Ref))
-		if e.Result.IDAttributeRequired {
-			g.If(jen.Id("actual").Dot(e.Result.IDAttribute).Op("!=").Lit("")).Block(
-				jen.Id("id").Op("=").Id("actual").Dot(e.Result.IDAttribute),
-			).Else().Block(
-				jen.Id("id").Op("=").Id("req").Dot("ID"),
-			)
-		} else {
-			g.If(
-				jen.Id("actual").Dot(e.Result.IDAttribute).Op("!=").Nil().Op("&&").Op("*").Id("actual").Dot(e.Result.IDAttribute).Op("!=").Lit(""),
-			).Block(
-				jen.Id("id").Op("=").Op("*").Id("actual").Dot(e.Result.IDAttribute),
-			).Else().Block(
-				jen.Id("id").Op("=").Id("req").Dot("ID"),
-			)
-		}
-	} else {
-		g.Id("id").Op("=").Id("req").Dot("ID")
-	}
+	g.Id("id").Op(":=").Id("req").Dot("ID")
 	g.If(
-		jen.Id("id").Op("==").Nil().Op("||").Id("id").Op("==").Lit(""),
+		jen.Op("!").Id("req").Dot("HasID"),
 	).Block(
 		jen.Return(jen.Nil()),
 	)

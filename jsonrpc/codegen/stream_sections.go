@@ -30,6 +30,8 @@ type %s struct {
 	r *http.Request
 	// requestID is the JSON-RPC request ID for sending final response
 	requestID any
+	// requestHasID records whether the JSON-RPC request included an ID.
+	requestHasID bool
 	// closed indicates if the stream has been closed via SendAndClose
 	closed bool
 	// mu protects the closed flag
@@ -144,6 +146,9 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 
 	// Determine the ID to use for the response
 	var id any = s.requestID
+	if !s.requestHasID {
+		return nil
+	}
 %s%s	%s
 	// Send as response with ID
 	message := map[string]any{
@@ -155,7 +160,7 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 	return s.sendSSEEvent("response", message)
 }
 `, codegen.Comment("SendAndClose sends a final JSON-RPC response to the client and closes the stream."),
-		codegen.Comment("The response will include the original request ID unless the result has an ID field populated."),
+		codegen.Comment("The response includes the original request ID. Notifications are closed without a final response."),
 		codegen.Comment("After calling this method, no more events can be sent on this stream."),
 		ed.SSE.StructName,
 		ed.ServicePkgName,
@@ -166,26 +171,8 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 		bodyInit)
 }
 
-func renderSSEEndpointResponseIDResolution(ed *httpcodegen.EndpointData) string {
-	if ed.Result == nil || ed.Result.IDAttribute == "" {
-		return ""
-	}
-	if ed.Result.IDAttributeRequired {
-		return fmt.Sprintf(`	if result.%s != "" {
-		// Use the ID from the result if provided
-		id = result.%s
-		// Clear the ID field so it's not duplicated in the result
-		result.%s = ""
-	}
-`, ed.Result.IDAttribute, ed.Result.IDAttribute, ed.Result.IDAttribute)
-	}
-	return fmt.Sprintf(`	if result.%s != nil && *result.%s != "" {
-		// Use the ID from the result if provided
-		id = *result.%s
-		// Clear the ID field so it's not duplicated in the result
-		result.%s = nil
-	}
-`, ed.Result.IDAttribute, ed.Result.IDAttribute, ed.Result.IDAttribute, ed.Result.IDAttribute)
+func renderSSEEndpointResponseIDResolution(_ *httpcodegen.EndpointData) string {
+	return ""
 }
 
 func renderSSEEndpointStreamErrorsSource(ed *httpcodegen.EndpointData) string {
@@ -263,8 +250,7 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 		writeSSEServiceStreamSend(stmt, data, streamName)
 		if serviceHasErrors(data.Service.Methods) {
 			stmt.Line()
-			writeSSEServiceStreamSendError(stmt, streamName)
+			writeSSEServiceStreamSendError(stmt, data, streamName)
 		}
 	})
 }
-

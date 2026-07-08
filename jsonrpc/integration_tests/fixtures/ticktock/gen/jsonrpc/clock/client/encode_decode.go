@@ -89,8 +89,7 @@ func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 		if jresp.Error != nil {
 			switch jresp.Error.Code {
 			default:
-				body, _ := io.ReadAll(resp.Body)
-				return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
+				return nil, jresp.Error
 			}
 		}
 
@@ -176,8 +175,7 @@ func DecodeTockResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 		if jresp.Error != nil {
 			switch jresp.Error.Code {
 			default:
-				body, _ := io.ReadAll(resp.Body)
-				return nil, loomhttp.ErrInvalidResponse("clock", "Tock", resp.StatusCode, string(body))
+				return nil, jresp.Error
 			}
 		}
 

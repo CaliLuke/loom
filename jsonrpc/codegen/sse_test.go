@@ -462,8 +462,44 @@ func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
 	}
 
 	require.NotEmpty(t, sseHandlerCode, "jsonrpc-sse-server-handler section not found")
-	require.Contains(t, sseHandlerCode, `if req.ID == nil || req.ID == "" {`)
+	require.Contains(t, sseHandlerCode, `if req.Invalid {`)
+	require.Contains(t, sseHandlerCode, `if !req.HasID {`)
 	require.Contains(t, sseHandlerCode, `w.WriteHeader(http.StatusNoContent)`)
+	require.NotContains(t, sseHandlerCode, `req.ID == ""`)
+	require.NotContains(t, sseHandlerCode, `req.ID != ""`)
+}
+
+func TestJSONRPCSSEStreamPreservesRequestIDAndSkipsNotificationCloseResponse(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	files := SSEServerFiles("", CreateJSONRPCServices(root))
+
+	var endpointStreamCode string
+	for _, file := range files {
+		for _, section := range file.AllSections() {
+			if section.SectionName() == "jsonrpc-sse-server-stream" {
+				endpointStreamCode = codegen.SectionCode(t, section)
+			}
+		}
+	}
+	require.NotEmpty(t, endpointStreamCode, "jsonrpc-sse-server-stream section not found")
+
+	require.Contains(t, endpointStreamCode, `requestHasID bool`)
+	require.Contains(t, endpointStreamCode, `if !s.requestHasID {`)
+	require.Contains(t, endpointStreamCode, `return nil`)
+	require.Contains(t, endpointStreamCode, `var id any = s.requestID`)
+	require.NotContains(t, endpointStreamCode, `id = result.ID`)
+}
+
+func TestJSONRPCSSEHandlerPassesOriginalRequestIDToErrors(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler-init")
+
+	require.Contains(t, code, `requestHasID: req.HasID,`)
+	require.Contains(t, code, `if req.HasID {`)
+	require.Contains(t, code, `strm.sendError(ctx, req.ID,`)
+	require.NotContains(t, code, `req.ID != ""`)
+	require.NotContains(t, code, `strm.SendError(ctx, jsonrpc.IDToString(req.ID), err)`)
+	require.NotContains(t, code, `strm.sendError(ctx, jsonrpc.IDToString(req.ID),`)
 }
 
 var jsonrpcMixedInitializeAndEventsStreamDSL = func() {

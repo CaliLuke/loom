@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/big"
 	"testing"
 	"time"
 
@@ -82,6 +83,29 @@ func TestJSONRPCResponseHelpersAndRawRequest(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"jsonrpc":"2.0","method":"widgets.notify"}`), &req))
 	require.False(t, req.HasID)
 	require.Nil(t, req.ID)
+
+	require.NoError(t, json.Unmarshal([]byte(`{"jsonrpc":"2.0","method":"widgets.show","id":9007199254740993}`), &req))
+	require.True(t, req.HasID)
+	require.False(t, req.Invalid)
+	require.Equal(t, json.Number("9007199254740993"), req.ID)
+	require.Equal(t, "9007199254740993", IDToString(req.ID))
+	parsed, ok := new(big.Int).SetString(req.ID.(json.Number).String(), 10)
+	require.True(t, ok)
+	require.Equal(t, "9007199254740993", parsed.String())
+
+	require.NoError(t, json.Unmarshal([]byte(`{"jsonrpc":"2.0","method":"widgets.show","id":true}`), &req))
+	require.True(t, req.HasID)
+	require.True(t, req.Invalid)
+	require.Nil(t, req.ID)
+
+	require.NoError(t, json.Unmarshal([]byte(`{"jsonrpc":"2.0","method":1,"id":"req-1"}`), &req))
+	require.True(t, req.HasID)
+	require.True(t, req.Invalid)
+	require.Equal(t, "req-1", req.ID)
+
+	require.NoError(t, json.Unmarshal([]byte(`[{"jsonrpc":"2.0","method":"widgets.show"}]`), &req))
+	require.False(t, req.HasID)
+	require.True(t, req.Invalid)
 
 	rawErr := &RawErrorResponse{Code: -32000, Message: "bad gateway"}
 	require.Equal(t, "jsonrpc: code -32000: bad gateway", rawErr.Error())

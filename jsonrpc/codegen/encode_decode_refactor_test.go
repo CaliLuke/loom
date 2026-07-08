@@ -50,6 +50,18 @@ func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
 	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(req.Params))`)
 }
 
+func TestJSONRPCClientDecoderReturnsDecodedUnmappedError(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeRewriteDSL)
+	files := ClientFiles("", CreateJSONRPCServices(root))
+
+	file := requireCodegenFile(t, files, "client", "encode_decode.go")
+	code := renderCodegenFile(t, file)
+
+	assert.Contains(t, code, `return nil, jresp.Error`)
+	assert.NotContains(t, code, `default:
+				body, _ := io.ReadAll(resp.Body)`)
+}
+
 func requireCodegenFile(t *testing.T, files []*codegen.File, dir, base string) *codegen.File {
 	t.Helper()
 
