@@ -156,6 +156,17 @@ func TestStartSchedulerRejectsCloseAfterReservation(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestSchedulerCloseBeforeJobMapAssignmentDoesNotConsumeCleanup(t *testing.T) {
+	sched := &scheduler{}
+	jobMap := newFakeSchedulerJobMap()
+
+	sched.closeJobMap()
+	sched.setJobMap(jobMap)
+	sched.closeJobMap()
+
+	require.True(t, jobMap.closed.Load())
+}
+
 func TestDrainRequeueResultsReturnsUnfinishedJobsOnTimeout(t *testing.T) {
 	jobs := map[string]*Job{
 		"success": {Key: "success"},

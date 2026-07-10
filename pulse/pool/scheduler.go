@@ -59,6 +59,8 @@ type (
 		ticker *Ticker
 		// jobMap is the map of jobs keyed by job key.
 		jobMap schedulerJobMap
+		// jobMapLock synchronizes map ownership during Schedule and Close.
+		jobMapLock sync.Mutex
 		// logger is the logger used by the scheduler.
 		logger pulse.Logger
 		// stop is closed when the local scheduler should stop planning.
@@ -106,7 +108,7 @@ func (node *Node) Schedule(ctx context.Context, producer JobProducer, interval t
 		sched.unregister()
 		return fmt.Errorf("failed to join job map %s: %w", name, err)
 	}
-	sched.jobMap = jobMap
+	sched.setJobMap(jobMap)
 	ticker, err := node.NewTicker(ctx, producer.Name(), interval)
 	if err != nil {
 		sched.unregister()
@@ -291,9 +293,18 @@ func (sched *scheduler) unregister() {
 }
 
 func (sched *scheduler) closeJobMap() {
+	sched.jobMapLock.Lock()
+	defer sched.jobMapLock.Unlock()
+	if sched.jobMap == nil {
+		return
+	}
 	sched.closeOnce.Do(func() {
-		if sched.jobMap != nil {
-			sched.jobMap.Close()
-		}
+		sched.jobMap.Close()
 	})
+}
+
+func (sched *scheduler) setJobMap(jobMap schedulerJobMap) {
+	sched.jobMapLock.Lock()
+	defer sched.jobMapLock.Unlock()
+	sched.jobMap = jobMap
 }

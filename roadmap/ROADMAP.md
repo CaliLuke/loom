@@ -106,6 +106,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   frame operations when cancellation races completion.
 - Pulse stream readers and sinks now reject new blocking Redis reads after
   close begins, preventing indefinite `block=0` shutdown hangs.
+- Pulse schedulers synchronize replicated-map ownership so a concurrent close
+  cannot consume cleanup before the joined job map is assigned.
 - JSON-RPC WebSocket generated streams now also wrap raw Gorilla connections
   in `loomhttp.WebSocketStream`, sharing context-bound JSON frame I/O and
   close-control behavior with the HTTP WebSocket generator while retaining
