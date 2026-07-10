@@ -110,12 +110,13 @@ type (
 	}
 
 	SSE struct {
-		RequestIDField   string
-		RequestIDPointer bool
-		DataField        string
-		IDField          string
-		EventField       string
-		RetryField       string
+		RequestIDField     string
+		RequestIDPointer   bool
+		NotificationMethod string
+		DataField          string
+		IDField            string
+		EventField         string
+		RetryField         string
 	}
 
 	Redirect struct {

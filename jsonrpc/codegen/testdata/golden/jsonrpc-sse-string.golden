@@ -57,7 +57,7 @@ func (s *StreamServerStream) Send(ctx context.Context, event jsonrpcssestringser
 	// Send as notification (no ID)
 	message := map[string]any{
 		"jsonrpc": "2.0",
-		"method":  "Stream",
+		"method":  "JSONRPCSSEStringService/stream.event",
 		"params":  body,
 	}
 

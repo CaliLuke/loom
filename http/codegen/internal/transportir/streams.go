@@ -40,12 +40,13 @@ func buildStream(endpoint *expr.HTTPEndpointExpr) *Stream {
 			requestIDPointer = endpoint.MethodExpr.Payload.IsPrimitivePointer(endpoint.SSE.RequestIDField, true)
 		}
 		stream.SSE = &SSE{
-			RequestIDField:   endpoint.SSE.RequestIDField,
-			RequestIDPointer: requestIDPointer,
-			DataField:        endpoint.SSE.DataField,
-			IDField:          endpoint.SSE.IDField,
-			EventField:       endpoint.SSE.EventField,
-			RetryField:       endpoint.SSE.RetryField,
+			RequestIDField:     endpoint.SSE.RequestIDField,
+			RequestIDPointer:   requestIDPointer,
+			NotificationMethod: endpoint.SSE.NotificationMethod,
+			DataField:          endpoint.SSE.DataField,
+			IDField:            endpoint.SSE.IDField,
+			EventField:         endpoint.SSE.EventField,
+			RetryField:         endpoint.SSE.RetryField,
 		}
 	default:
 		stream.Transport = "websocket"

@@ -1246,6 +1246,12 @@ default. With a policy, Loom generates preflight handling and actual-response
 CORS headers for HTTP, SSE, mixed, and WebSocket JSON-RPC servers. Use
 `Origin("*")` without `Credentials()` for an explicit allow-all policy.
 
+For JSON-RPC SSE methods, use
+`SSENotificationMethod("notifications/progress")` inside
+`ServerSentEvents` when intermediate events must use a protocol-defined
+notification. The default is `<service>/stream.event`, never the original
+request method.
+
 ```go
 var _ = Service("calc", func() {
     JSONRPC(func() {

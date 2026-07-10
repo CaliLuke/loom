@@ -252,7 +252,7 @@ func TestJSONRPCSSEServiceStreamSendOmitsResponseBranchWithoutID(t *testing.T) {
 
 	require.NotContains(t, code, "var isResponse bool")
 	require.NotContains(t, code, "jsonrpc.MakeSuccessResponse")
-	require.Contains(t, code, `"method":  "Stream",`)
+	require.Contains(t, code, `"method":  "JSONRPCSSEStringService/stream.event",`)
 }
 
 func TestJSONRPCMixedServerInitUsesServeHTTP(t *testing.T) {

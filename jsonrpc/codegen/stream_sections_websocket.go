@@ -477,14 +477,14 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 							).Else().Block(
 								jen.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
 									jen.Lit("jsonrpc"): jen.Lit("2.0"),
-									jen.Lit("method"):  jen.Lit(ed.Method.Name),
+									jen.Lit("method"):  jen.Lit(sseNotificationMethod(ed)),
 									jen.Lit("params"):  jen.Id("body"),
 								}),
 							)
 						} else {
 							cg.Id("message").Op("=").Map(jen.String()).Any().Values(jen.Dict{
 								jen.Lit("jsonrpc"): jen.Lit("2.0"),
-								jen.Lit("method"):  jen.Lit(ed.Method.Name),
+								jen.Lit("method"):  jen.Lit(sseNotificationMethod(ed)),
 								jen.Lit("params"):  jen.Id("body"),
 							})
 						}

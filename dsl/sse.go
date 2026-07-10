@@ -178,6 +178,22 @@ func SSERequestID(name string) {
 	sse.RequestIDField = name
 }
 
+// SSENotificationMethod sets the JSON-RPC notification method used for
+// intermediate SSE stream events. It must appear in a ServerSentEvents
+// expression used by a JSON-RPC endpoint.
+func SSENotificationMethod(method string) {
+	if method == "" {
+		eval.ReportError("SSE notification method cannot be empty")
+		return
+	}
+	sse, ok := eval.Current().(*expr.HTTPSSEExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	sse.NotificationMethod = method
+}
+
 // SSEEventData defines the attribute of the StreamingResult type that provides the
 // data field for a Server-Sent Event. The attribute must exist in the
 // StreamingResult type.

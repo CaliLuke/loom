@@ -80,6 +80,7 @@ func renderSSEEndpointStreamSendSource(ed *httpcodegen.EndpointData) string {
 	if bodyInit != "body := result" {
 		bodyComment = "\t// Convert to response body type for proper JSON encoding\n"
 	}
+	notificationMethod := sseNotificationMethod(ed)
 	return fmt.Sprintf(`%s
 %s
 func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
@@ -115,7 +116,14 @@ func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
 		ed.SSE.EventTypeRef,
 		bodyComment,
 		bodyInit,
-		ed.Method.Name)
+		notificationMethod)
+}
+
+func sseNotificationMethod(ed *httpcodegen.EndpointData) string {
+	if ed.SSE.NotificationMethod != "" {
+		return ed.SSE.NotificationMethod
+	}
+	return ed.ServiceName + "/stream.event"
 }
 
 func renderSSEEndpointStreamSendAndCloseSource(ed *httpcodegen.EndpointData) string {

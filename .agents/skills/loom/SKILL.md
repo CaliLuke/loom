@@ -169,6 +169,9 @@ build Auto-K without repeating large amounts of app-local glue.
   `{}` so all-optional payloads work with conforming clients; required fields
   still fail through normal payload validation.
 - JSON-RPC SSE event names are part of the transport contract: streamed notifications, final success envelopes, and JSON-RPC error envelopes all ride the normal `message` channel so conforming MCP clients observe every JSON-RPC frame.
+- JSON-RPC SSE intermediate notifications use the designed
+  `SSENotificationMethod(...)`; without one they use the namespaced
+  `<service>/stream.event` default and never masquerade as the request method.
 - JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. The narrow exception is the raw streamable-HTTP `GET /rpc` listener for the `events/stream` method, which must eagerly establish the SSE response so clients can observe readiness before the first domain event.
 - HTTP and JSON-RPC SSE handlers expose `Last-Event-ID` through the shared
   typed context key `loomhttp.LastEventIDKey`; middleware and services should

@@ -18,6 +18,9 @@ type (
 		// that provides the Last-Event-ID request header value.
 		// If empty, no Last-Event-ID request header is included in the request.
 		RequestIDField string
+		// NotificationMethod is the JSON-RPC method used for intermediate SSE
+		// notifications. If empty, code generation uses a namespaced default.
+		NotificationMethod string
 		// DataField is the name of the attribute in the StreamingResult type
 		// that provides the data field for a Server-Sent Event.
 		// If empty, the entire StreamingResult is used as the data field.

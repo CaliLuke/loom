@@ -386,6 +386,18 @@ Content-Type: application/json
 
 ### Server-Sent Events: Server Streaming
 
+Intermediate SSE sends are JSON-RPC notifications. Configure their protocol
+method inside `ServerSentEvents` when a client expects a defined notification:
+
+```go
+ServerSentEvents(func() {
+    SSENotificationMethod("notifications/progress")
+})
+```
+
+Without an explicit method, Loom uses the namespaced
+`<service>/stream.event` default; it never reuses the request method name.
+
 Unidirectional streaming from server to client. Perfect for:
 - Progress updates
 - Live notifications

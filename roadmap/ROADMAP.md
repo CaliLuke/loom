@@ -90,6 +90,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   collection, or nested `Any` values cannot be represented by
   `google.protobuf.Value`, instead of silently emitting nil values.
 - JSON-RPC SSE server generation now emits `message` events for streamed payloads and JSON-RPC error envelopes, while final success envelopes still use `response`; generated SSE clients and the integration harness preserve and validate those event types while remaining backward compatible with legacy/default frames.
+- JSON-RPC SSE intermediate notifications now support the design-owned
+  `SSENotificationMethod(...)` protocol method and otherwise use a namespaced
+  `<service>/stream.event` default instead of the request method.
 - JSON-RPC SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first SSE frame is actually written, so endpoint setup failures can still surface as the correct HTTP error response. The raw streamable-HTTP `GET /rpc` listener for `events/stream` remains an explicit eager-open exception so clients can observe stream establishment before the first published notification.
 - HTTP and JSON-RPC SSE request handlers now share the typed
   `loomhttp.LastEventIDKey` context contract for `Last-Event-ID` propagation.

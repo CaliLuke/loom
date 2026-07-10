@@ -55,6 +55,8 @@ type (
 		// RequestIDField is the name of the payload field that maps to the Last-Event-ID header if any.
 		// If empty, no last event id is included in the request.
 		RequestIDField string
+		// NotificationMethod is the JSON-RPC method for intermediate SSE events.
+		NotificationMethod string
 		// RequestIDPointer indicates whether the RequestIDField is a pointer (i.e., optional primitive).
 		RequestIDPointer bool
 		// HasResponseBody indicates whether an HTTP response body converter exists for this endpoint.
@@ -92,6 +94,7 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 		EventField:          eventFieldVar,
 		RetryField:          retryFieldVar,
 		RequestIDField:      endpointIR.Stream.SSE.RequestIDField,
+		NotificationMethod:  endpointIR.Stream.SSE.NotificationMethod,
 		RequestIDPointer:    endpointIR.Stream.SSE.RequestIDPointer,
 	}
 
@@ -214,4 +217,3 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 func IsSSEEndpoint(ed *EndpointData) bool {
 	return ed.SSE != nil
 }
-
