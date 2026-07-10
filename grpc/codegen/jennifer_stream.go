@@ -40,7 +40,14 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 			)
 			sendArg = "vres.Projected"
 		}
-		body = append(body, jen.Id("v").Op(":=").Id(stream.SendConvert.Init.Name).Call(codegenpkg.Expr(sendArg)))
+		if stream.SendConvert.Init.ErrorAware {
+			body = append(body,
+				jen.List(jen.Id("v"), jen.Err()).Op(":=").Id(stream.SendConvert.Init.Name).Call(codegenpkg.Expr(sendArg)),
+				jen.If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Err())),
+			)
+		} else {
+			body = append(body, jen.Id("v").Op(":=").Id(stream.SendConvert.Init.Name).Call(codegenpkg.Expr(sendArg)))
+		}
 		if stream.Type == "client" && stream.Endpoint.Request.StreamEnvelope != nil {
 			env := stream.Endpoint.Request.StreamEnvelope
 			body = append(body, jen.Return(jen.Id("s").Dot("stream").Dot(stream.SendName).Call(
@@ -270,7 +277,17 @@ func appendGRPCServerErrorHandler(g *jen.Group, endpoint *EndpointData, serverSt
 							for _, arg := range errData.Response.ServerConvert.Init.Args {
 								initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
 							}
-							statusArg = jen.Id(errData.Response.ServerConvert.Init.Name).Call(initArgs...)
+							if errData.Response.ServerConvert.Init.ErrorAware {
+								body = append(body,
+									jen.List(jen.Id("message"), jen.Id("conversionErr")).Op(":=").Id(errData.Response.ServerConvert.Init.Name).Call(initArgs...),
+									jen.If(jen.Id("conversionErr").Op("!=").Nil()).Block(
+										jen.Return(append(prefix, codegenpkg.Expr("loomgrpc.EncodeError").Call(jen.Id("conversionErr")))...),
+									),
+								)
+								statusArg = jen.Id("message")
+							} else {
+								statusArg = jen.Id(errData.Response.ServerConvert.Init.Name).Call(initArgs...)
+							}
 						}
 						body = append(body,
 							jen.Return(append(prefix,

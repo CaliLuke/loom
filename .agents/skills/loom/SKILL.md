@@ -197,6 +197,10 @@ build Auto-K without repeating large amounts of app-local glue.
   instead of duplicating transport request construction.
 - For gRPC, prefer `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`
   over the legacy trace/X-Ray middleware.
+- Generated gRPC encoders propagate `Any` conversion failures. Values placed in
+  DSL `Any` fields must be representable by `google.protobuf.Value`; channels,
+  functions, and arbitrary structs return a descriptive encode error instead
+  of being silently replaced by nil.
 - Generated transport observability is a separate, dependency-free contract
   in `github.com/CaliLuke/loom/observability/transport`. Generated HTTP,
   JSON-RPC, and Loom-MCP servers emit start/finish/failure events plus SSE

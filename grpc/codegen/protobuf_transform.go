@@ -29,6 +29,8 @@ type transformAttrs struct {
 	// source message when proto is false.  (protoc builds union struct type
 	// names from the parent message name).
 	message string
+	// errorAware indicates that protobuf conversion can fail at runtime.
+	errorAware bool
 }
 
 // unionData is used by both transformUnion methods.
@@ -63,6 +65,7 @@ func protoBufTransform(source, target *expr.AttributeExpr, sourceVar, targetVar 
 		SourceCtx: sourceCtx,
 		TargetCtx: targetCtx,
 	}}
+	ta.errorAware = proto && containsAny(source)
 	if proto {
 		target = expr.DupAtt(target)
 		removeMeta(target)
@@ -86,6 +89,17 @@ func protoBufTransform(source, target *expr.AttributeExpr, sourceVar, targetVar 
 	}
 
 	return strings.TrimRight(code, "\n"), funcs, nil
+}
+
+func containsAny(attribute *expr.AttributeExpr) bool {
+	found := false
+	_ = codegen.Walk(attribute, func(current *expr.AttributeExpr) error {
+		if current.Type.Kind() == expr.AnyKind {
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 // removeMeta removes meta attributes from the given attribute that cannot be
@@ -289,7 +303,7 @@ func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr
 		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, false, ta)
 	case isUserType:
 		if !expr.IsPrimitive(srcc.Type) {
-			return renderJenLine(exprCode(tgtVar).Op("=").Id(transformHelperName(srcc, tgtc, ta)).Call(exprCode(srcVar))), nil
+			return renderJenLine(exprCode(tgtVar).Op("=").Add(exprCode(renderTransformHelperCall(srcc, tgtc, srcVar, ta)))), nil
 		}
 		return "", nil
 	case expr.IsObject(srcc.Type):

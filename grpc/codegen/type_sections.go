@@ -16,10 +16,17 @@ func grpcTypeInitSection(init *InitData) codegenpkg.Section {
 		for _, arg := range init.Args {
 			params = append(params, jen.Id(arg.Name).Add(codegenpkg.TypeRef(arg.TypeRef)))
 		}
+		result := jen.Empty().Add(codegenpkg.TypeRef(init.ReturnTypeRef))
+		if init.ErrorAware {
+			result = jen.Empty().Params(codegenpkg.TypeRef(init.ReturnTypeRef), jen.Error())
+		}
 		stmt.Func().Id(init.Name).
 			Params(params...).
-			Add(codegenpkg.TypeRef(init.ReturnTypeRef)).
+			Add(result).
 			BlockFunc(func(g *jen.Group) {
+				if init.ErrorAware {
+					g.Id("transformErr").Op(":=").New(jen.Error())
+				}
 				g.Add(codegenpkg.Expr(init.Code))
 				if init.ReturnIsStruct {
 					for _, arg := range init.Args {
@@ -38,6 +45,14 @@ func grpcTypeInitSection(init *InitData) codegenpkg.Section {
 						}
 						g.Id(init.ReturnVarName).Dot(arg.FieldName).Op("=").Add(codegenpkg.Expr(fieldValue))
 					}
+				}
+				if init.ErrorAware {
+					g.If(jen.Op("*").Id("transformErr").Op("!=").Nil()).Block(
+						jen.Var().Id("zero").Add(codegenpkg.TypeRef(init.ReturnTypeRef)),
+						jen.Return(jen.Id("zero"), jen.Op("*").Id("transformErr")),
+					)
+					g.Return(codegenpkg.Expr(init.ReturnVarName), jen.Nil())
+					return
 				}
 				g.Return(codegenpkg.Expr(init.ReturnVarName))
 			})
@@ -62,8 +77,12 @@ func grpcValidateSection(data *ValidationData) codegenpkg.Section {
 func grpcTransformHelperSection(data *codegenpkg.TransformFunctionData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("transform-helper", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s builds a value of type %s from a value of type %s.", data.Name, data.ResultTypeRef, data.ParamTypeRef))
+		params := []jen.Code{jen.Id("v").Add(codegenpkg.TypeRef(data.ParamTypeRef))}
+		if data.ErrorAware {
+			params = append(params, jen.Id("transformErr").Op("*").Error())
+		}
 		stmt.Func().Id(data.Name).
-			Params(jen.Id("v").Add(codegenpkg.TypeRef(data.ParamTypeRef))).
+			Params(params...).
 			Add(codegenpkg.TypeRef(data.ResultTypeRef)).
 			Block(
 				codegenpkg.Expr(data.Code),

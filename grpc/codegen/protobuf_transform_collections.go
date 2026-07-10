@@ -338,11 +338,11 @@ func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar 
 			}
 			return convertPrimitiveFromProto(srcp, tgt, srcPtr, tgtPtr, srcVar, ta)
 		}
-		return renderJen(jen.Id(transformHelperName(src, tgt, ta)).Call(exprCode(srcVar)))
+		return renderTransformHelperCall(src, tgt, srcVar, ta)
 	}
 
 	if _, ok := src.Type.(expr.UserType); ok {
-		return renderJen(jen.Id(transformHelperName(src, tgt, ta)).Call(exprCode(srcVar)))
+		return renderTransformHelperCall(src, tgt, srcVar, ta)
 	}
 
 	srcType, _ := codegen.GetMetaType(src)
@@ -358,13 +358,22 @@ func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar 
 	return convertPrimitiveFromProto(src, tgt, srcPtr, tgtPtr, srcVar, ta)
 }
 
+func renderTransformHelperCall(src, tgt *expr.AttributeExpr, srcVar string, ta *transformAttrs) string {
+	args := []jen.Code{exprCode(srcVar)}
+	if ta.errorAware {
+		args = append(args, jen.Id("transformErr"))
+	}
+	return renderJen(jen.Id(transformHelperName(src, tgt, ta)).Call(args...))
+}
+
 const convertGoAnyToProtobufValueFunc = `func() *structpb.Value {
 	// Convert Go any to protobuf Value directly
 	if %SRC% == nil {
 		return structpb.NewNullValue()
 	}
-	value, err := structpb.NewValue(%SRC%)
+	value, err := loomgrpc.NewProtoValue(%SRC%)
 	if err != nil {
+		*transformErr = err
 		return nil
 	}
 	return value

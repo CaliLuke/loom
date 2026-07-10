@@ -196,6 +196,7 @@ func buildObjectHelper(source, target *expr.AttributeExpr, req bool, ut expr.Use
 		ParamTypeRef:  ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source)),
 		ResultTypeRef: ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)),
 		Code:          code,
+		ErrorAware:    ta.errorAware,
 	}
 	seen[name] = tfd
 	return tfd, false, nil

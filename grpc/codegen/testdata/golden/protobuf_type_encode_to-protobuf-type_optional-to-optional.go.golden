@@ -8,8 +8,9 @@ func transform() {
 			if source.Any == nil {
 				return structpb.NewNullValue()
 			}
-			value, err := structpb.NewValue(source.Any)
+			value, err := loomgrpc.NewProtoValue(source.Any)
 			if err != nil {
+				*transformErr = err
 				return nil
 			}
 			return value
@@ -35,6 +36,6 @@ func transform() {
 		}
 	}
 	if source.UserType != nil {
-		target.UserType = svcProtoOptionalToProtoOptional(source.UserType)
+		target.UserType = svcProtoOptionalToProtoOptional(source.UserType, transformErr)
 	}
 }

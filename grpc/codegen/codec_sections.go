@@ -49,14 +49,23 @@ func renderGRPCRequestEncoder(endpoint *EndpointData) string {
 	}
 	if endpoint.Request.ClientConvert != nil {
 		if endpoint.Request.StreamEnvelope != nil {
-			fmt.Fprintf(&b, "\tmessage := %s(%s)\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+			if endpoint.Request.ClientConvert.Init.ErrorAware {
+				fmt.Fprintf(&b, "\tmessage, err := %s(%s)\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+				b.Add("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+			} else {
+				fmt.Fprintf(&b, "\tmessage := %s(%s)\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+			}
 			fmt.Fprintf(&b, "\treturn &%s.%s{\n", endpoint.PkgName, endpoint.Request.Message.VarName)
 			fmt.Fprintf(&b, "\t\t%s: &%s{\n", endpoint.Request.StreamEnvelope.FieldName, endpoint.Request.StreamEnvelope.InitialWrapperRef)
 			fmt.Fprintf(&b, "\t\t\t%s: message,\n", endpoint.Request.StreamEnvelope.InitialFieldName)
 			b.Add("\t\t},\n")
 			b.Add("\t}, nil\n")
 		} else {
-			fmt.Fprintf(&b, "\treturn %s(%s), nil\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+			if endpoint.Request.ClientConvert.Init.ErrorAware {
+				fmt.Fprintf(&b, "\treturn %s(%s)\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+			} else {
+				fmt.Fprintf(&b, "\treturn %s(%s), nil\n", endpoint.Request.ClientConvert.Init.Name, renderInitArgList(endpoint.Request.ClientConvert.Init.Args))
+			}
 		}
 	} else {
 		b.Add("\treturn nil, nil\n")
@@ -292,7 +301,12 @@ func renderGRPCResponseEncoder(endpoint *EndpointData) string {
 		fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ResultRef)
 		b.Add("\t}\n")
 	}
-	fmt.Fprintf(&b, "\tresp := %s(%s)\n", endpoint.Response.ServerConvert.Init.Name, renderInitArgList(endpoint.Response.ServerConvert.Init.Args))
+	if endpoint.Response.ServerConvert.Init.ErrorAware {
+		fmt.Fprintf(&b, "\tresp, err := %s(%s)\n", endpoint.Response.ServerConvert.Init.Name, renderInitArgList(endpoint.Response.ServerConvert.Init.Args))
+		b.Add("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+	} else {
+		fmt.Fprintf(&b, "\tresp := %s(%s)\n", endpoint.Response.ServerConvert.Init.Name, renderInitArgList(endpoint.Response.ServerConvert.Init.Args))
+	}
 	for _, md := range endpoint.Response.Headers {
 		b.Add("\n")
 		b.Add(renderGRPCMetadataEncode(md, "(*hdr)"))

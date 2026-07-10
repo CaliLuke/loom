@@ -324,6 +324,8 @@ type (
 		ReturnIsStruct bool
 		// Code is the transformation code.
 		Code string
+		// ErrorAware is true when the constructor can fail during conversion.
+		ErrorAware bool
 	}
 
 	// InitArgData represents a single constructor argument.

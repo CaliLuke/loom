@@ -85,6 +85,7 @@ type (
 		ParamTypeRef  string
 		ResultTypeRef string
 		Code          string
+		ErrorAware    bool
 	}
 )
 
