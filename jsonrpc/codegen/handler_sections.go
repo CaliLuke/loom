@@ -187,7 +187,11 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Id("lastEventID").Op(":=").Id("r").Dot("Header").Dot("Get").Call(jen.Lit("Last-Event-ID")),
 			jen.Id("lastEventID").Op("!=").Lit(""),
 		).BlockFunc(func(eg *jen.Group) {
-			eg.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), jen.Lit("last-event-id"), jen.Id("lastEventID"))
+			eg.Id("ctx").Op("=").Qual("context", "WithValue").Call(
+				jen.Id("ctx"),
+				codegen.TypeRef("loomhttp.LastEventIDKey"),
+				jen.Id("lastEventID"),
+			)
 			if e.Payload != nil && e.Payload.Ref != "" && e.Payload.Request != nil && e.Payload.Request.PayloadType != nil && e.Payload.Request.PayloadType.Name() == "Object" {
 				eg.Id("params").Dot(e.SSE.RequestIDField).Op("=").Id("lastEventID")
 			}
