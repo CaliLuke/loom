@@ -185,12 +185,14 @@ the request context before invoking the generated handler.
 
 ### CORS
 
-Model browser cross-origin policy in the HTTP design with `CORS` rather than
-wrapping generated handlers in application-local middleware. Generated HTTP
-servers mount route-local `OPTIONS` preflight handlers and write
+Model browser cross-origin policy in the HTTP or JSON-RPC design with `CORS`
+rather than wrapping generated handlers in application-local middleware.
+Generated servers mount route-local `OPTIONS` preflight handlers and write
 `Access-Control-Allow-*` headers from the shared `loom/http` runtime helper.
 Service-level CORS overrides API-level CORS, and OpenAPI publishes the
-effective route policy under `x-loom-cors`.
+effective HTTP route policy under `x-loom-cors`. JSON-RPC keeps Go's
+`CrossOriginProtection` secure default when no CORS policy is designed;
+`Origin("*")` without credentials is the explicit allow-all opt-out.
 
 ### Health Checks
 

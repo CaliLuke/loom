@@ -232,6 +232,10 @@ build Auto-K without repeating large amounts of app-local glue.
   API or service scope instead of app-local middleware. Service-level CORS
   overrides API-level CORS; generated HTTP servers mount preflight `OPTIONS`
   handlers and OpenAPI path items include `x-loom-cors`.
+- JSON-RPC uses the same `CORS` DSL in API or service `JSONRPC` scope for
+  browser access across HTTP, SSE, mixed, and WebSocket servers. Without a
+  policy, generated JSON-RPC handlers retain Go's `CrossOriginProtection`;
+  `Origin("*")` without credentials is the explicit allow-all opt-out.
 - Large generated HTTP/JSON-RPC transport type packages may split into
   `types_requests.go`, `types_responses.go`, `types_unions.go`,
   `types_validation.go`, and `types_helpers.go`; do not assume all wire

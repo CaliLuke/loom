@@ -20,6 +20,7 @@ Loom provides first-class, type-safe support for JSON-RPC 2.0, enabling you to b
   - [Mixed Transports: Content Negotiation](#mixed-transports-content-negotiation)
 - [Advanced Features](#advanced-features)
   - [Batch Processing](#batch-processing)
+  - [Browser Cross-Origin Access](#browser-cross-origin-access)
   - [Error Handling](#error-handling)
   - [Streaming Patterns](#streaming-patterns)
   - [Mixed Results](#mixed-results)
@@ -712,6 +713,33 @@ the SSE stream only when `text/event-stream` is requested and the method has
 HTTP request-response path is used.
 
 ## Advanced Features
+
+### Browser Cross-Origin Access
+
+Generated JSON-RPC servers reject browser cross-origin requests by default
+through Go's `http.CrossOriginProtection`. Configure `CORS` in API or service
+`JSONRPC` scope to publish an explicit browser policy; service policy overrides
+API policy. Loom then mounts the `OPTIONS` preflight route, writes matching CORS
+response headers, and replaces the default origin protector with the designed
+policy.
+
+```go
+API("calculator", func() {
+    JSONRPC(func() {
+        CORS(func() {
+            Origin("https://app.example.com", func() {
+                Methods("POST")
+                Headers("Content-Type", "Authorization")
+                Credentials()
+            })
+        })
+    })
+})
+```
+
+Use `Origin("*")` without `Credentials()` as the explicit opt-out when every
+browser origin should be allowed. Non-browser JSON-RPC clients are unaffected
+by the secure default.
 
 ### Batch Processing
 

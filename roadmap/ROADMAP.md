@@ -66,6 +66,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI now suppresses invalid synthesized examples for closed-object direct-union collections in response/media-type arrays instead of emitting examples that fail schema validation.
 - OpenAPI now omits transport-level media-type examples for streaming responses instead of synthesizing partial SSE/WebSocket payload examples that can drift from the referenced schema.
 - HTTP CORS policy is now design-owned through API/service `CORS` DSL, generated preflight routes, shared runtime header helpers, and OpenAPI `x-loom-cors` extensions.
+- JSON-RPC browser cross-origin policy now uses the same design-owned `CORS`
+  DSL and shared runtime headers across HTTP, SSE, mixed, and WebSocket
+  servers, while preserving `CrossOriginProtection` when no policy is defined.
 - Large generated HTTP and JSON-RPC transport type packages now split wire
   types, unions, validation helpers, and constructors into deterministic
   concern files once they cross the compact-output threshold.

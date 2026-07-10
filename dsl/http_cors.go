@@ -5,8 +5,8 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-// CORS defines the Cross-Origin Resource Sharing policy for an API or HTTP
-// service. Service-level CORS overrides the API-level policy for that service.
+// CORS defines the Cross-Origin Resource Sharing policy for an HTTP or JSON-RPC
+// API or service. Service-level CORS overrides the API-level policy.
 func CORS(fn func()) {
 	cors := new(expr.HTTPCORSExpr)
 	if !eval.Execute(fn, cors) {
@@ -15,6 +15,8 @@ func CORS(fn func()) {
 	switch def := eval.Current().(type) {
 	case *expr.RootExpr:
 		def.API.HTTP.CORS = cors
+	case *expr.JSONRPCExpr:
+		def.CORS = cors
 	case *expr.HTTPServiceExpr:
 		def.CORS = cors
 	default:

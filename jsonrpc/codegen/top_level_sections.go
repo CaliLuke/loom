@@ -211,26 +211,29 @@ func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 					)
 				}
 				g.Id("s").Op(":=").Op("&").Id(data.ServerStruct).Values(dict)
+				var handler *jen.Statement
 				switch {
 				case httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]):
 					g.Comment("WebSocket services implement ServeHTTP for upgrade")
-					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
-						jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP")),
-					)
+					handler = jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
 				case hasMixed:
 					g.Comment("Mixed HTTP/SSE services negotiate transports in ServeHTTP")
-					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
-						jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP")),
-					)
+					handler = jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
 				case hasSSE:
 					g.Comment("SSE-only services route via handleSSE")
-					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
-						jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("handleSSE")),
-					)
+					handler = jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("handleSSE"))
 				default:
 					g.Comment("Plain HTTP JSON-RPC")
+					handler = jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
+				}
+				if data.CORS != nil {
+					g.Id("s").Dot("Handler").Op("=").Add(codegen.Expr("loomhttp.CORSHandler")).Call(
+						renderJSONRPCCORSPolicy(data.CORS),
+						handler,
+					)
+				} else {
 					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
-						jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP")),
+						handler,
 					)
 				}
 				g.Return(jen.Id("s"))
@@ -560,6 +563,7 @@ func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed b
 						g.Id("mux").Dot("Handle").Call(jen.Lit(route.Verb), jen.Lit(route.Path), jen.Id("h").Dot("Handler").Dot("ServeHTTP"))
 					}
 				}
+				writeJSONRPCCORSMounts(g, data, hasSSE, hasMixed)
 			})
 		stmt.Line()
 		codegen.Doc(stmt, comment)

@@ -1240,6 +1240,12 @@ at API, service, and method scope. Service-level `JSONRPC` defines the shared
 endpoint path; method-level `JSONRPC` opts a method into JSON-RPC and maps IDs
 and errors.
 
+`CORS` may be declared in API-level or service-level `JSONRPC` scope. Without
+a policy, generated JSON-RPC servers retain Go's secure cross-origin rejection
+default. With a policy, Loom generates preflight handling and actual-response
+CORS headers for HTTP, SSE, mixed, and WebSocket JSON-RPC servers. Use
+`Origin("*")` without `Credentials()` for an explicit allow-all policy.
+
 ```go
 var _ = Service("calc", func() {
     JSONRPC(func() {
