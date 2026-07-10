@@ -1,7 +1,6 @@
 package codegen
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -300,14 +299,13 @@ func TestRequestDecoderMapQueryPresenceIsScopedToMapParam(t *testing.T) {
 	require.NotContains(t, code, "if len(queryRaw) == 0 {")
 }
 
-func TestPathArrayDecodeUnescapesElementsAfterSplit(t *testing.T) {
+func TestPathArrayDecodeUsesMuxNormalizedElements(t *testing.T) {
 	code := decodeSectionCode(t, testdata.PayloadPathArrayStringDSL)
 
 	split := `pRawSlice := strings.Split(pRaw, ",")`
 	unescape := "rvDecoded, err2 := url.PathUnescape(rv)"
 	require.Contains(t, code, split)
-	require.Contains(t, code, unescape)
-	require.Less(t, strings.Index(code, split), strings.Index(code, unescape))
+	require.NotContains(t, code, unescape)
 }
 
 func TestRequestDecoderSkipsMapEntryAfterInvalidKeyParse(t *testing.T) {

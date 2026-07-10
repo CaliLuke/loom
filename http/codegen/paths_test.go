@@ -45,6 +45,17 @@ func TestPaths(t *testing.T) {
 	}
 }
 
+func TestPathConstructorsLeaveEscapingToURL(t *testing.T) {
+	for _, dsl := range []func(){testdata.PathOneParamDSL, testdata.PathStringSliceParamDSL} {
+		root := RunHTTPDSL(t, dsl)
+		services := CreateHTTPServices(root)
+		sections := serverPath(root.API.HTTP.Services[0], services).AllSections()
+		code := codegen.SectionCode(t, sections[1])
+
+		require.NotContains(t, code, "PathEscape")
+	}
+}
+
 func TestPathTrailingShash(t *testing.T) {
 	cases := []struct {
 		Name string

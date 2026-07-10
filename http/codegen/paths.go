@@ -42,7 +42,6 @@ func pathSections(svc *expr.HTTPServiceExpr, pkg string, services *ServicesData)
 	sections = append(sections,
 		codegen.Header(title, pkg, []*codegen.ImportSpec{
 			{Path: "fmt"},
-			{Path: "net/url"},
 			{Path: "strconv"},
 			{Path: "strings"},
 		}),

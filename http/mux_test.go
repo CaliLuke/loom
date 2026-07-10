@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -109,7 +110,7 @@ func TestVars(t *testing.T) {
 			Pattern: "/users/{id}",
 			URL:     "/users/%40123",
 			Expected: map[string]string{
-				"id": "%40123",
+				"id": "@123",
 			},
 		},
 		{
@@ -125,8 +126,16 @@ func TestVars(t *testing.T) {
 			Pattern: "/users/{id}/posts/{*post_id}",
 			URL:     "/users/%40123/posts/456/789%24",
 			Expected: map[string]string{
-				"id":      "%40123",
-				"post_id": "456/789%24",
+				"id":      "@123",
+				"post_id": "456/789$",
+			},
+		},
+		{
+			Name:    "encoded slash uses raw path",
+			Pattern: "/users/{id}",
+			URL:     "/users/hello%2Fworld",
+			Expected: map[string]string{
+				"id": "hello/world",
 			},
 		},
 		{
@@ -149,6 +158,25 @@ func TestVars(t *testing.T) {
 			req, _ := http.NewRequest("GET", c.URL, nil)
 			w := httptest.NewRecorder()
 			mux.ServeHTTP(w, req)
+			assert.True(t, called)
+		})
+	}
+}
+
+func TestVarsRoundTripURLPath(t *testing.T) {
+	cases := []string{"hello world", "100%20"}
+	for _, value := range cases {
+		t.Run(value, func(t *testing.T) {
+			var called bool
+			mux := NewMuxer()
+			mux.Handle(http.MethodGet, "/users/{id}", func(_ http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, value, mux.Vars(r)["id"])
+				called = true
+			})
+
+			u := &url.URL{Path: "/users/" + value}
+			req := httptest.NewRequest(http.MethodGet, u.String(), nil)
+			mux.ServeHTTP(httptest.NewRecorder(), req)
 			assert.True(t, called)
 		})
 	}

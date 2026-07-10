@@ -125,6 +125,11 @@ build Auto-K without repeating large amounts of app-local glue.
   If the DSL field also has `Format(...)`, generated HTTP decoders do not emit
   a second string format check; the custom Go type owns parse/format
   validation.
+- Generated HTTP path constructors pass decoded scalar and array values to
+  `url.URL.Path`, which performs the client-side escaping exactly once. The
+  HTTP mux normalizes chi path captures exactly once, so services receive
+  decoded values without app-local `url.PathUnescape` calls; literal percent
+  sequences remain literal.
 - `FormRequest()` is for typed object payloads and constructor unions only; incompatible body/param mixes are rejected during design validation instead of silently falling back to app-local parsing.
 - Form-encoded unions keep scalar branches on the canonical wrapper shape (`type` + `value`) but flatten object branches onto normal form fields; direct top-level union form payloads do not add an extra synthetic wrapper key, and all-optional object branches may be selected by discriminator alone without synthetic `value` fields.
 - `MultipartRequest()` now generates server-side decoding for supported object payloads, including common file-plus-fields uploads, instead of requiring a handwritten decoder hook.

@@ -80,6 +80,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - HTTP request decoders now support string-backed custom
   `struct:field:type` path, query, header, and cookie fields through
   `encoding.TextUnmarshaler`.
+- HTTP path parameters now normalize percent encoding exactly once across
+  chi raw-path and canonical-path routing; generated client path constructors
+  leave scalar and array values decoded for `net/url` to escape exactly once.
 - JSON-RPC SSE server generation now emits `message` events for streamed payloads and JSON-RPC error envelopes, while final success envelopes still use `response`; generated SSE clients and the integration harness preserve and validate those event types while remaining backward compatible with legacy/default frames.
 - JSON-RPC SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first SSE frame is actually written, so endpoint setup failures can still surface as the correct HTTP error response. The raw streamable-HTTP `GET /rpc` listener for `events/stream` remains an explicit eager-open exception so clients can observe stream establishment before the first published notification.
 - Mixed JSON-RPC HTTP/SSE servers now inspect the decoded JSON-RPC method before routing `Accept: text/event-stream` requests into SSE handling, so MCP-style `initialize` calls can still return normal JSON while `events/stream` keeps the streamable HTTP behavior.

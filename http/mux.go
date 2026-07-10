@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sync"
 
@@ -163,14 +164,26 @@ func (m *mux) Vars(r *http.Request) map[string]string {
 	}
 	vars := make(map[string]string, len(params.Keys))
 	for i, k := range params.Keys {
+		value := params.Values[i]
+		if r.URL.RawPath != "" {
+			value = unescapePathParam(value)
+		}
 		if k == "*" {
 			wildcard := m.wildcards[r.Method+"::"+ctx.RoutePattern()]
-			vars[wildcard] = params.Values[i]
+			vars[wildcard] = value
 			continue
 		}
-		vars[k] = params.Values[i]
+		vars[k] = value
 	}
 	return vars
+}
+
+func unescapePathParam(value string) string {
+	unescaped, err := url.PathUnescape(value)
+	if err != nil {
+		return value
+	}
+	return unescaped
 }
 
 // Use appends a middleware to the list of middlewares to be applied

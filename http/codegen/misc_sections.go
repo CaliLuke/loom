@@ -285,13 +285,13 @@ func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat
 func renderPathSliceConversion(dt expr.DataType) string {
 	switch dt.Name() {
 	case "string":
-		return "url.PathEscape(v)"
+		return "v"
 	case "bytes":
-		return "url.PathEscape(string(v))"
+		return "string(v)"
 	default:
 		converted := renderQuerySliceConversion(dt)
 		if strings.HasPrefix(converted, "url.QueryEscape(") {
-			return "url.PathEscape(" + strings.TrimPrefix(converted, "url.QueryEscape(")
+			return strings.TrimSuffix(strings.TrimPrefix(converted, "url.QueryEscape("), ")")
 		}
 		return converted
 	}
