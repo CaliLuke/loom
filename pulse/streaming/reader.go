@@ -305,14 +305,10 @@ func (r *Reader) snapshotFanOut() ([]*eventSubscriber, eventFilterFunc) {
 }
 
 func (r *Reader) xread(ctx context.Context) ([]redis.XStream, error) {
-	// copy so no two goroutines can share the memory
-	readCtx, cancel := context.WithCancel(ctx)
-	r.lock.Lock()
-	readStreams := make([]string, 0, len(r.streamKeys)+len(r.streamCursors))
-	readStreams = append(readStreams, r.streamKeys...)
-	readStreams = append(readStreams, r.streamCursors...)
-	r.readCancel = cancel
-	r.lock.Unlock()
+	readCtx, readStreams, armed := r.armRead(ctx)
+	if !armed {
+		return nil, context.Canceled
+	}
 	defer r.clearActiveRead()
 
 	r.logger.Debug("reading", "streams", readStreams, "max", r.maxPolled, "block", r.blockDuration)
@@ -321,6 +317,21 @@ func (r *Reader) xread(ctx context.Context) ([]redis.XStream, error) {
 		Count:   r.maxPolled,
 		Block:   r.blockDuration,
 	}).Result()
+}
+
+func (r *Reader) armRead(ctx context.Context) (context.Context, []string, bool) {
+	readCtx, cancel := context.WithCancel(ctx)
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if r.closing {
+		cancel()
+		return readCtx, nil, false
+	}
+	readStreams := make([]string, 0, len(r.streamKeys)+len(r.streamCursors))
+	readStreams = append(readStreams, r.streamKeys...)
+	readStreams = append(readStreams, r.streamCursors...)
+	r.readCancel = cancel
+	return readCtx, readStreams, true
 }
 
 func (r *Reader) cancelActiveRead() {

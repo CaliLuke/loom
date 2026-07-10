@@ -1,6 +1,7 @@
 package streaming
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -83,6 +84,26 @@ func TestReaderFatalCloseSignalDoesNotWaitForReadGoroutine(t *testing.T) {
 
 	require.True(t, reader.isClosing())
 	require.True(t, reader.IsClosed())
+}
+
+func TestReaderDoesNotArmReadAfterCloseStarts(t *testing.T) {
+	reader := &Reader{closing: true}
+
+	readCtx, _, armed := reader.armRead(t.Context())
+
+	require.False(t, armed)
+	require.ErrorIs(t, readCtx.Err(), context.Canceled)
+	require.Nil(t, reader.readCancel)
+}
+
+func TestSinkDoesNotArmReadAfterCloseStarts(t *testing.T) {
+	sink := &Sink{closing: true}
+
+	readCtx, _, _, armed := sink.armRead(t.Context())
+
+	require.False(t, armed)
+	require.ErrorIs(t, readCtx.Err(), context.Canceled)
+	require.Nil(t, sink.readCancel)
 }
 
 func TestReaderAddStreamDeduplicatesByStreamKey(t *testing.T) {

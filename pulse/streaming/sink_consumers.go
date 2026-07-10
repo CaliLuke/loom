@@ -125,13 +125,10 @@ func (s *Sink) read(ctx context.Context) {
 			}
 			continue
 		}
-		s.lock.Lock()
-		readStreams := make([]string, len(s.streamCursors))
-		copy(readStreams, s.streamCursors)
-		consumer := s.consumer
-		readCtx, cancel := context.WithCancel(ctx)
-		s.readCancel = cancel
-		s.lock.Unlock()
+		readCtx, readStreams, consumer, armed := s.armRead(ctx)
+		if !armed {
+			return
+		}
 
 		s.logger.Debug("reading", "streams", readStreams, "max", s.maxPolled, "block", s.blockDuration)
 		streams, err := s.rdb.XReadGroup(readCtx, &redis.XReadGroupArgs{
@@ -161,6 +158,20 @@ func (s *Sink) read(ctx context.Context) {
 			streamEvents(streamName, events.Stream, s.Name, events.Messages, filter, subscribers, s.rdb, s.logger, s.donechan)
 		}
 	}
+}
+
+func (s *Sink) armRead(ctx context.Context) (context.Context, []string, string, bool) {
+	readCtx, cancel := context.WithCancel(ctx)
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if s.closing {
+		cancel()
+		return readCtx, nil, "", false
+	}
+	readStreams := make([]string, len(s.streamCursors))
+	copy(readStreams, s.streamCursors)
+	s.readCancel = cancel
+	return readCtx, readStreams, s.consumer, true
 }
 
 func (s *Sink) waitBeforeEnsureConsumerRetry() bool {

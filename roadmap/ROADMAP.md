@@ -104,6 +104,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - The shared HTTP/JSON-RPC WebSocket runtime now treats pre-upgrade close as a
   no-op without consuming the later socket close, and preserves successful
   frame operations when cancellation races completion.
+- Pulse stream readers and sinks now reject new blocking Redis reads after
+  close begins, preventing indefinite `block=0` shutdown hangs.
 - JSON-RPC WebSocket generated streams now also wrap raw Gorilla connections
   in `loomhttp.WebSocketStream`, sharing context-bound JSON frame I/O and
   close-control behavior with the HTTP WebSocket generator while retaining
