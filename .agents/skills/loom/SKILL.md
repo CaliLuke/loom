@@ -250,6 +250,10 @@ build Auto-K without repeating large amounts of app-local glue.
   connection lifecycle and context-bound JSON frame I/O. Keep new WebSocket
   fixes in that runtime wrapper or a similarly shared transport core instead
   of adding per-endpoint read/write/close loops.
+- `WebSocketStream.Close` and `WriteClose` are no-ops before lazy upgrade and
+  do not consume the later real close. Context cancellation replaces an
+  operation error, but never turns a successfully completed frame read/write
+  into `context.Canceled`.
 - JSON-RPC WebSocket generated streams use the same runtime wrapper for raw
   frame I/O and close-control behavior. Keep JSON-RPC-specific pending request
   correlation in generated code, but route socket lifecycle fixes through the

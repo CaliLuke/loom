@@ -67,10 +67,32 @@ func TestWebSocketStreamCloseIsIdempotent(t *testing.T) {
 func TestWebSocketStreamNilConnection(t *testing.T) {
 	stream := loomhttp.NewWebSocketStream(nil)
 	require.NoError(t, stream.Close())
+	require.NoError(t, stream.WriteClose("not upgraded"))
 
 	var msg map[string]string
 	err := stream.ReadJSON(context.Background(), &msg)
 	require.True(t, errors.Is(err, loomhttp.ErrWebSocketStreamClosed))
+}
+
+func TestWebSocketStreamPreUpgradeCloseDoesNotConsumeClose(t *testing.T) {
+	stream := loomhttp.NewWebSocketStream(nil)
+	require.NoError(t, stream.Close())
+
+	live, cleanup := newIdleWebSocketStream(t)
+	defer cleanup()
+	stream.SetConn(live.Conn())
+	require.NoError(t, stream.Close())
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- stream.ReadJSON(context.Background(), new(map[string]string))
+	}()
+	select {
+	case err := <-errCh:
+		require.Error(t, err)
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("attached connection was not closed")
+	}
 }
 
 func newIdleWebSocketStream(t *testing.T) (*loomhttp.WebSocketStream, func()) {

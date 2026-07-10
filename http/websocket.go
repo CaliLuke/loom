@@ -31,7 +31,8 @@ type (
 	// WebSocketStream owns the lifecycle for a WebSocket connection used by
 	// generated HTTP streaming clients and servers.
 	WebSocketStream struct {
-		conn *websocket.Conn
+		conn     *websocket.Conn
+		connLock sync.RWMutex
 
 		writeLock sync.Mutex
 		closeOnce sync.Once
@@ -57,11 +58,15 @@ func (s *WebSocketStream) Conn() *websocket.Conn {
 	if s == nil {
 		return nil
 	}
+	s.connLock.RLock()
+	defer s.connLock.RUnlock()
 	return s.conn
 }
 
 // SetConn replaces the wrapped Gorilla WebSocket connection.
 func (s *WebSocketStream) SetConn(conn *websocket.Conn) {
+	s.connLock.Lock()
+	defer s.connLock.Unlock()
 	s.conn = conn
 }
 
@@ -95,7 +100,7 @@ func (s *WebSocketStream) WriteJSON(ctx context.Context, v any) error {
 func (s *WebSocketStream) WriteClose(message string) error {
 	conn := s.Conn()
 	if conn == nil {
-		return ErrWebSocketStreamClosed
+		return nil
 	}
 	return conn.WriteControl(
 		websocket.CloseMessage,
@@ -109,11 +114,11 @@ func (s *WebSocketStream) Close() error {
 	if s == nil {
 		return nil
 	}
+	conn := s.Conn()
+	if conn == nil {
+		return nil
+	}
 	s.closeOnce.Do(func() {
-		conn := s.Conn()
-		if conn == nil {
-			return
-		}
 		s.closeErr = conn.Close()
 	})
 	return s.closeErr
@@ -129,6 +134,9 @@ func (s *WebSocketStream) withContext(ctx context.Context, fn func() error) erro
 	defer stop()
 
 	err := fn()
+	if err == nil {
+		return nil
+	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
 	}

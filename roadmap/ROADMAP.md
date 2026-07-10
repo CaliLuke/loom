@@ -101,6 +101,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
   close idempotence, context-cancel unblocking, close-control writes, and
   JSON frame read/write lifecycle behavior live in the shared HTTP runtime
   instead of per-endpoint generated methods.
+- The shared HTTP/JSON-RPC WebSocket runtime now treats pre-upgrade close as a
+  no-op without consuming the later socket close, and preserves successful
+  frame operations when cancellation races completion.
 - JSON-RPC WebSocket generated streams now also wrap raw Gorilla connections
   in `loomhttp.WebSocketStream`, sharing context-bound JSON frame I/O and
   close-control behavior with the HTTP WebSocket generator while retaining
