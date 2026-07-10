@@ -242,6 +242,7 @@ func CookieSameSite(s expr.CookieSameSiteValue) {
 		c.SameSite = s
 	})
 }
+
 // cookieAttribute mutates the active response cookie.
 func cookieAttribute(update func(*expr.HTTPResponseCookieExpr)) {
 	cookie, ok := currentResponseCookie()

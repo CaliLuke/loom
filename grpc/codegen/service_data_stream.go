@@ -41,7 +41,7 @@ func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd 
 		VarName:          md.ServerStream.VarName,
 		Type:             "server",
 		Interface:        fmt.Sprintf("%s.%s_%sServer", sd.PkgName, sd.Service.StructName, md.VarName), // nolint: namescope -- proto-generated interface name stitched from scoped identifiers
-		ServiceInterface: fmt.Sprintf("%s.%s", sd.Service.PkgName, md.ServerStream.Interface),         // nolint: namescope -- sd.Service.PkgName is the exact import alias
+		ServiceInterface: fmt.Sprintf("%s.%s", sd.Service.PkgName, md.ServerStream.Interface),          // nolint: namescope -- sd.Service.PkgName is the exact import alias
 		Endpoint:         ed,
 		MustClose:        md.ServerStream.MustClose,
 	}
@@ -80,7 +80,7 @@ func (d *ServicesData) buildClientStreamData(endpoint *transportir.Endpoint, sd 
 		VarName:          md.ClientStream.VarName,
 		Type:             "client",
 		Interface:        fmt.Sprintf("%s.%s_%sClient", sd.PkgName, sd.Service.StructName, md.VarName), // nolint: namescope -- proto-generated interface name stitched from scoped identifiers
-		ServiceInterface: fmt.Sprintf("%s.%s", sd.Service.PkgName, md.ClientStream.Interface),         // nolint: namescope -- sd.Service.PkgName is the exact import alias
+		ServiceInterface: fmt.Sprintf("%s.%s", sd.Service.PkgName, md.ClientStream.Interface),          // nolint: namescope -- sd.Service.PkgName is the exact import alias
 		Endpoint:         ed,
 		MustClose:        md.ClientStream.MustClose,
 	}

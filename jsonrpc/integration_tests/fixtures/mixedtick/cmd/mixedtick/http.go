@@ -9,9 +9,9 @@ import (
 
 	clock "example.com/mixedtick/gen/clock"
 	clockjssvr "example.com/mixedtick/gen/jsonrpc/clock/server"
-	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/clue/debug"
 	"github.com/CaliLuke/loom/clue/log"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 func handleHTTPServer(ctx context.Context, u *url.URL, clockEndpoints *clock.Endpoints, wg *sync.WaitGroup, errc chan error, dbg bool) {

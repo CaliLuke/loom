@@ -236,5 +236,4 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		{{- end }}
 	}`},
 	)
-
 )

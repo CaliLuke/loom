@@ -55,11 +55,11 @@ func validate(a string) (err error) {
 
 func TestPatternVarPrefix(t *testing.T) {
 	cases := map[string]string{
-		"cli.go":                          "loomPatternCli",
-		"types_validation.go":             "loomPatternTypesValidation",
-		"/abs/path/to/encode_decode.go":   "loomPatternEncodeDecode",
-		"gen/http/svc/client/types.go":    "loomPatternTypes",
-		"weird-name.v2.go":                "loomPatternWeirdNameV2",
+		"cli.go":                        "loomPatternCli",
+		"types_validation.go":           "loomPatternTypesValidation",
+		"/abs/path/to/encode_decode.go": "loomPatternEncodeDecode",
+		"gen/http/svc/client/types.go":  "loomPatternTypes",
+		"weird-name.v2.go":              "loomPatternWeirdNameV2",
 	}
 	for path, want := range cases {
 		require.Equal(t, want, patternVarPrefix(path), "path %q", path)

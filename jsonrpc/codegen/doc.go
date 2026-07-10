@@ -65,7 +65,7 @@ changes to error shape), prefer http/codegen.
   - paths.go / header.go                  — HTTP binding specifics.
   - sse.go / sse_server.go                — Server-Sent Events server pieces.
   - websocket_server.go / websocket_client.go / client_stream_sections_websocket.go
-                                          — WebSocket server/client pieces.
+    — WebSocket server/client pieces.
   - stream_sections.go                    — shared streaming frame helpers.
   - client_stream_sections.go             — client-side stream receiver helpers.
   - testdata                              — fixture specs used by tests.

@@ -68,4 +68,3 @@ func buildStreamEnvelopeData(envelope *expr.AttributeExpr, message *service.User
 		StreamItemWrapperRef: fmt.Sprintf("%s.%s_%s", sd.PkgName, message.VarName, streamItemFieldName), // nolint: namescope
 	}
 }
-

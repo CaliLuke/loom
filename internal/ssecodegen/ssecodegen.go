@@ -38,11 +38,11 @@ func InitHeadersSource(writerExpr string, opts HeaderOptions) string {
 func InitHeadersBody(writerExpr string, opts HeaderOptions) []jen.Code {
 	return []jen.Code{
 		jen.Id("s").Dot("once").Dot("Do").Call(
-		jen.Func().Params().BlockFunc(func(g *jen.Group) {
-			g.Id("header").Op(":=").Add(renderExpr(writerExpr)).Dot("Header").Call()
-			appendHeaderBodyLines(g, opts)
-			g.Add(renderExpr(writerExpr)).Dot("WriteHeader").Call(jen.Qual("net/http", "StatusOK"))
-		}),
+			jen.Func().Params().BlockFunc(func(g *jen.Group) {
+				g.Id("header").Op(":=").Add(renderExpr(writerExpr)).Dot("Header").Call()
+				appendHeaderBodyLines(g, opts)
+				g.Add(renderExpr(writerExpr)).Dot("WriteHeader").Call(jen.Qual("net/http", "StatusOK"))
+			}),
 		),
 	}
 }

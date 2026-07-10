@@ -9,9 +9,9 @@ import (
 
 	clock "example.com/ticktock/gen/clock"
 	clockjssvr "example.com/ticktock/gen/jsonrpc/clock/server"
-	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/clue/debug"
 	"github.com/CaliLuke/loom/clue/log"
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 // handleHTTPServer starts configures and starts a HTTP server on the given
