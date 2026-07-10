@@ -93,6 +93,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - JSON-RPC SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first SSE frame is actually written, so endpoint setup failures can still surface as the correct HTTP error response. The raw streamable-HTTP `GET /rpc` listener for `events/stream` remains an explicit eager-open exception so clients can observe stream establishment before the first published notification.
 - HTTP and JSON-RPC SSE request handlers now share the typed
   `loomhttp.LastEventIDKey` context contract for `Last-Event-ID` propagation.
+- JSON-RPC request decoders now normalize omitted `params` to an empty object,
+  allowing all-optional payloads while retaining normal required-field and
+  malformed-JSON validation.
 - Mixed JSON-RPC HTTP/SSE servers now inspect the decoded JSON-RPC method before routing `Accept: text/event-stream` requests into SSE handling, so MCP-style `initialize` calls can still return normal JSON while `events/stream` keeps the streamable HTTP behavior.
 - JSON-RPC integration tests now include a persistent generated `ticktock` SSE fixture plus an external-client interoperability check using `github.com/tmaxmax/go-sse`, so generated streams are verified against a real third-party client as well as the in-repo harness.
 - HTTP SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first application event is written, and `http/integration_tests` carries a persistent generated `ticktock` fixture verified with `github.com/tmaxmax/go-sse`.

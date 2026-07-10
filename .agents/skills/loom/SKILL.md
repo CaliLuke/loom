@@ -165,6 +165,9 @@ build Auto-K without repeating large amounts of app-local glue.
   - `SafeMessage(message)`
   - `RetryHint(hint)`
 - JSON-RPC is a first-class transport in this repo. Do not assume HTTP or gRPC semantics automatically carry over.
+- JSON-RPC `params` may be omitted. Generated decoders treat absent params as
+  `{}` so all-optional payloads work with conforming clients; required fields
+  still fail through normal payload validation.
 - JSON-RPC SSE event names are part of the transport contract: streamed notifications, final success envelopes, and JSON-RPC error envelopes all ride the normal `message` channel so conforming MCP clients observe every JSON-RPC frame.
 - JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. The narrow exception is the raw streamable-HTTP `GET /rpc` listener for the `events/stream` method, which must eagerly establish the SSE response so clients can observe readiness before the first domain event.
 - HTTP and JSON-RPC SSE handlers expose `Last-Event-ID` through the shared

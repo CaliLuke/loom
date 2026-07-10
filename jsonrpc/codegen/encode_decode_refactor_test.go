@@ -47,7 +47,11 @@ func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
 	assert.Contains(t, code, `"bytes"`)
 	assert.Contains(t, code, `"io"`)
 	assert.Contains(t, code, `func(r *http.Request, req *jsonrpc.RawRequest)`)
-	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(req.Params))`)
+	assert.Contains(t, code, `params := req.Params`)
+	assert.Contains(t, code, `if len(params) == 0 {`)
+	assert.Contains(t, code, `params = []byte("{}")`)
+	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(params))`)
+	assert.NotContains(t, code, `bytes.NewReader(req.Params)`)
 }
 
 func TestJSONRPCClientDecoderReturnsDecodedUnmappedError(t *testing.T) {

@@ -79,7 +79,11 @@ func rewriteJSONRPCRequestDecoderSource(source string) string {
 	source = strings.Replace(source,
 		"return func(r *http.Request) ({{ .Payload.Ref }}, error) {",
 		`return func(r *http.Request, req *jsonrpc.RawRequest) ({{ .Payload.Ref }}, error) {
-		r.Body = io.NopCloser(bytes.NewReader(req.Params))`, 1)
+		params := req.Params
+		if len(params) == 0 {
+			params = []byte("{}")
+		}
+		r.Body = io.NopCloser(bytes.NewReader(params))`, 1)
 
 	return strings.ReplaceAll(source,
 		"return nil, ",
