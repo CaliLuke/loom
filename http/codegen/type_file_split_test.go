@@ -33,7 +33,7 @@ func requireTypeFilePaths(t *testing.T, files []*codegen.File, pkg string) {
 	paths := make([]string, len(files))
 	for i, file := range files {
 		paths[i] = filepath.Base(file.Path)
-		require.Contains(t, file.Path, "/"+pkg+"/")
+		require.Contains(t, filepath.ToSlash(file.Path), "/"+pkg+"/")
 	}
 	require.NotContains(t, paths, "types.go")
 	for _, want := range []string{"types_requests.go", "types_responses.go", "types_validation.go"} {

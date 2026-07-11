@@ -13,6 +13,7 @@ import (
 func TestJSONRPCAdaptationHelpers(t *testing.T) {
 	t.Run("transport path rewrite", func(t *testing.T) {
 		assert.Equal(t, "gen/jsonrpc/calc/client/encode_decode.go", rewriteJSONRPCTransportPath("gen/http/calc/client/encode_decode.go"))
+		assert.Equal(t, `gen\jsonrpc\calc\client\encode_decode.go`, rewriteJSONRPCTransportPath(`gen\http\calc\client\encode_decode.go`))
 	})
 
 	t.Run("example cli path rewrite", func(t *testing.T) {

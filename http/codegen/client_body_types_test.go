@@ -72,7 +72,8 @@ func TestBodyTypeInit(t *testing.T) {
 				goldenPath := filepath.Join("testdata", "golden", "client_body_type_init_"+c.Name+".go.golden")
 				expected, err := os.ReadFile(goldenPath)
 				require.NoError(t, err)
-				require.Contains(t, code, strings.TrimSpace(string(expected)))
+				expectedCode := strings.ReplaceAll(string(expected), "\r\n", "\n")
+				require.Contains(t, code, strings.TrimSpace(expectedCode))
 				return
 			}
 			section := sections[c.SectionIndex]

@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"strings"
-
 	"github.com/CaliLuke/loom/codegen"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
@@ -12,7 +10,7 @@ func PathFiles(data *httpcodegen.ServicesData) []*codegen.File {
 	res := httpcodegen.PathFiles(data)
 	for _, f := range res {
 		updateHeader(f)
-		f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
+		f.Path = rewriteJSONRPCTransportPath(f.Path)
 	}
 	return res
 }

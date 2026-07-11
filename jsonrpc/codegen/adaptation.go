@@ -14,8 +14,17 @@ var (
 	jsonrpcCLIConfigurerUsePattern  = regexp.MustCompile(`, ([A-Za-z0-9_]+)Configurer([,)])`)
 )
 
-func rewriteJSONRPCTransportPath(path string) string {
-	return strings.Replace(path, "/http/", "/jsonrpc/", 1)
+func rewriteJSONRPCTransportPath(filePath string) string {
+	separator := "/"
+	if strings.Contains(filePath, `\`) && !strings.Contains(filePath, "/") {
+		separator = `\`
+	}
+	normalized := strings.ReplaceAll(filePath, `\`, "/")
+	rewritten := strings.Replace(normalized, "/http/", "/jsonrpc/", 1)
+	if separator == `\` {
+		return strings.ReplaceAll(rewritten, "/", `\`)
+	}
+	return rewritten
 }
 
 func rewriteJSONRPCExampleCLIPath(path string) string {

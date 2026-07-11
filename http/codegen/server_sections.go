@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 	"sort"
 	"strings"
 
@@ -92,7 +92,7 @@ func renderServerInitBody(data *ServiceData) string {
 		b.Addf("\tif %s == nil {\n\t\t%s = http.Dir(\".\")\n\t}\n", fs.ArgName, fs.ArgName)
 		prefix := addLeadingSlash(fs.FilePath)
 		if !fs.IsDir {
-			prefix = filepath.Dir(prefix)
+			prefix = path.Dir(prefix)
 		}
 		b.Addf("\t%s = appendPrefix(%s, %q)\n", fs.ArgName, fs.ArgName, prefix)
 	}
@@ -216,7 +216,7 @@ func renderServerMountBody(data *ServiceData, standalone bool) string {
 			for _, requestPath := range fs.RequestPaths {
 				stripped := addLeadingSlash(requestPath)
 				if !fs.IsDir {
-					stripped = filepath.Dir(stripped)
+					stripped = path.Dir(stripped)
 				}
 				if stripped == "/" {
 					b.Addf("\t%s(mux, h.%s)\n", fs.MountHandler, fs.VarName)

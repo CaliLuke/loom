@@ -40,7 +40,7 @@ func serverEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *http
 	}
 	updateHeader(f)
 	f.SetSections(serverEncodeDecodeSections(f))
-	f.Path = strings.Replace(f.Path, "/http/", "/jsonrpc/", 1)
+	f.Path = rewriteJSONRPCTransportPath(f.Path)
 	return f
 }
 
