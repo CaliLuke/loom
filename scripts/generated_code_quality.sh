@@ -23,6 +23,8 @@ fi
 
 TMP_BASE="$(mktemp -d "${TMPDIR:-/tmp}/loom-generated-quality.XXXXXX")"
 trap 'rm -rf "$TMP_BASE"' EXIT
+GOLANGCI_LINT_CACHE="$TMP_BASE/.golangci-lint-cache"
+export GOLANGCI_LINT_CACHE
 
 fixtures=(
   "http-ticktock|http/integration_tests/fixtures/ticktock|example.com/http-ticktock|gen/http/clock/client,gen/http/clock/server,gen/http/openapi.json"
