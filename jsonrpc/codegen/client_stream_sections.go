@@ -207,7 +207,7 @@ func writeSSEClientNotificationCase(g *jen.Group, ed *httpcodegen.EndpointData) 
 	g.If(jen.Id("notification").Dot("JSONRPC").Op("!=").Lit("2.0")).Block(
 		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("invalid JSON-RPC version: %s"), jen.Id("notification").Dot("JSONRPC"))),
 	)
-	g.If(jen.Id("notification").Dot("Method").Op("!=").Lit(ed.Method.Name)).Block(
+	g.If(jen.Id("notification").Dot("Method").Op("!=").Lit(sseNotificationMethod(ed))).Block(
 		jen.Continue(),
 	)
 	if ed.Method.Result != "" {

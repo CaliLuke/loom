@@ -56,7 +56,7 @@ func renderMethodDSL(m *MethodData) string {
 	}
 	b.WriteString("\tJSONRPC(func() {\n")
 	if m.IsSSE() {
-		b.WriteString("\t\tServerSentEvents()\n")
+		fmt.Fprintf(&b, "\t\tServerSentEvents(func() { SSENotificationMethod(%q) })\n", m.Name)
 	}
 	b.WriteString("\t})\n")
 	if shouldGenerateGRPC(m) {

@@ -11,18 +11,24 @@ import (
 
 func TestJSONRPCSSEUsesNamespacedDefaultNotificationMethod(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
-	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "sse.go", "jsonrpc-server-sse-stream-impl")
+	services := CreateJSONRPCServices(root)
+	serverCode := fileSectionCode(t, ServerFiles("", services), "sse.go", "jsonrpc-server-sse-stream-impl")
+	clientCode := fileSectionCode(t, SSEServerFiles("", services), "stream.go", "jsonrpc-sse-client-stream")
 
-	require.Contains(t, code, `"method":  "JSONRPCSSEObjectService/stream.event"`)
-	require.NotContains(t, code, `"method":  "Stream"`)
+	require.Contains(t, serverCode, `"method":  "JSONRPCSSEObjectService/stream.event"`)
+	require.Contains(t, clientCode, `notification.Method != "JSONRPCSSEObjectService/stream.event"`)
+	require.NotContains(t, serverCode, `"method":  "Stream"`)
 }
 
 func TestJSONRPCSSEUsesDesignedNotificationMethod(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcSSENotificationMethodDSL)
-	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "sse.go", "jsonrpc-server-sse-stream-impl")
+	services := CreateJSONRPCServices(root)
+	serverCode := fileSectionCode(t, ServerFiles("", services), "sse.go", "jsonrpc-server-sse-stream-impl")
+	clientCode := fileSectionCode(t, SSEServerFiles("", services), "stream.go", "jsonrpc-sse-client-stream")
 
-	require.Contains(t, code, `"method":  "notifications/progress"`)
-	require.NotContains(t, code, `/stream.event`)
+	require.Contains(t, serverCode, `"method":  "notifications/progress"`)
+	require.Contains(t, clientCode, `notification.Method != "notifications/progress"`)
+	require.NotContains(t, serverCode, `/stream.event`)
 }
 
 var jsonrpcSSENotificationMethodDSL = func() {

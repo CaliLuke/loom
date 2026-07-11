@@ -30,7 +30,7 @@ var _ = Service("clock", func() {
 			Attribute("value", String)
 		})
 		JSONRPC(func() {
-			ServerSentEvents()
+			ServerSentEvents(func() { SSENotificationMethod("Tick") })
 		})
 	})
 })
