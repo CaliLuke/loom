@@ -249,7 +249,10 @@ func renderServerSSESendWithContextBody(ed *EndpointData) string {
 
 func renderSSEInitHeadersBody() string {
 	var b sourceBuilder
-	b.Add(ssecodegen.InitHeadersSource("s.w", ssecodegen.HeaderOptions{PreserveExisting: true}))
+	b.Add(ssecodegen.InitHeadersSource("s.w", ssecodegen.HeaderOptions{
+		PreserveExisting:      true,
+		IncludeAccelBuffering: true,
+	}))
 	b.Add("\ns.lock.Lock()\ns.streamStarted = true\ns.lock.Unlock()")
 	return b.String()
 }

@@ -188,7 +188,7 @@ build Auto-K without repeating large amounts of app-local glue.
   snapshot to the generated constructor. Loom owns actual-request and preflight
   behavior across HTTP, JSON-RPC, and SSE; runtime values never enter generated
   code or OpenAPI, which emits `x-loom-cors: {runtime: true}`.
-- HTTP SSE streams also defer committing `text/event-stream` until the first application event is written.
+- HTTP SSE streams also defer committing `text/event-stream` until the first application event is written. Generated HTTP SSE responses preserve caller-supplied headers and default `X-Accel-Buffering` to `no` so reverse proxies do not buffer incremental events.
 - OpenTelemetry transport instrumentation is first-class. Prefer:
   - `github.com/CaliLuke/loom/observability/otel` when you want framework-owned
     trace, metric, and OTLP log bootstrap plus transport policy.

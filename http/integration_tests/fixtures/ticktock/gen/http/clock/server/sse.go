@@ -50,6 +50,9 @@ func (s *TickServerStream) initHeaders() {
 		if header.Get("Connection") == "" {
 			header.Set("Connection", "keep-alive")
 		}
+		if header.Get("X-Accel-Buffering") == "" {
+			header.Set("X-Accel-Buffering", "no")
+		}
 		s.w.WriteHeader(http.StatusOK)
 	})
 	s.lock.Lock()
@@ -138,6 +141,9 @@ func (s *TockServerStream) initHeaders() {
 		if header.Get("Connection") == "" {
 			header.Set("Connection", "keep-alive")
 		}
+		if header.Get("X-Accel-Buffering") == "" {
+			header.Set("X-Accel-Buffering", "no")
+		}
 		s.w.WriteHeader(http.StatusOK)
 	})
 	s.lock.Lock()
@@ -225,6 +231,9 @@ func (s *GuardedServerStream) initHeaders() {
 		}
 		if header.Get("Connection") == "" {
 			header.Set("Connection", "keep-alive")
+		}
+		if header.Get("X-Accel-Buffering") == "" {
+			header.Set("X-Accel-Buffering", "no")
 		}
 		s.w.WriteHeader(http.StatusOK)
 	})
