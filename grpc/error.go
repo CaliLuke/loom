@@ -106,8 +106,13 @@ func serviceErrorHistory(history []*loompb.ErrorField) []*loom.ServiceError {
 }
 
 // NewStatusError creates a gRPC status error with the error response
-// messages added to its details.
+// messages added to its details. A codes.OK code is replaced with
+// codes.Unknown: a status with code OK yields a nil error, which would
+// silently swallow err.
 func NewStatusError(code codes.Code, err error, details ...protoiface.MessageV1) error {
+	if code == codes.OK {
+		code = codes.Unknown
+	}
 	st := status.New(code, err.Error())
 	if s, err := st.WithDetails(details...); err == nil {
 		return s.Err()

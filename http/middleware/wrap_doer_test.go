@@ -74,6 +74,24 @@ func TestWrapDoer(t *testing.T) {
 	}
 }
 
+func TestWrapDoerTraceIDWithoutSpanID(t *testing.T) {
+	// A context carrying only a trace ID (no span ID) must not panic and
+	// must still propagate the trace header.
+	ctx := context.WithValue(context.Background(), middleware.TraceIDKey, "trace-only")
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://example.com/", nil)
+	require.NoError(t, err)
+
+	doer := &stubDoer{resp: &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}}
+
+	resp, err := httpm.WrapDoer(doer).Do(req)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, "trace-only", doer.req.Header.Get(httpm.TraceIDHeader))
+	assert.Empty(t, doer.req.Header.Get(httpm.ParentSpanIDHeader))
+}
+
 func TestWrapDoerForwardsError(t *testing.T) {
 	wantErr := errors.New("connection refused")
 	doer := &stubDoer{err: wantErr}

@@ -74,7 +74,26 @@ func PasswordField(tag any, name string, args ...any) {
 	Field(tag, name, args...)
 }
 
-// })
+// APIKey defines the attribute used to provide the API key to an endpoint
+// secured with API keys. The first argument is the name of the API key
+// security scheme the attribute provides the key for. The remaining
+// parameters and usage are the same as the Loom DSL Attribute function.
+//
+// APIKey must appear in Payload or Type.
+//
+// Example:
+//
+//	Method("secured_read", func() {
+//	    Security(APIKeyAuth)
+//	    Payload(func() {
+//	        APIKey("api_key", "key", String)
+//	        Required("key")
+//	    })
+//	    HTTP(func() {
+//	        GET("/")
+//	        Param("key:k")
+//	    })
+//	})
 func APIKey(scheme, name string, args ...any) {
 	args = useDSL(args, func() { Meta("security:apikey:"+scheme, scheme) })
 	Attribute(name, args...)

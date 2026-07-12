@@ -110,13 +110,11 @@ func WrapDoer(doer Doer) Doer {
 
 // Do adds the tracing headers to the requests before making it.
 func (d *tracedDoer) Do(r *http.Request) (*http.Response, error) {
-	var (
-		traceID = r.Context().Value(middleware.TraceIDKey)
-		spanID  = r.Context().Value(middleware.TraceSpanIDKey)
-	)
-	if traceID != nil {
-		r.Header.Set(TraceIDHeader, traceID.(string))
-		r.Header.Set(ParentSpanIDHeader, spanID.(string))
+	if traceID, ok := r.Context().Value(middleware.TraceIDKey).(string); ok {
+		r.Header.Set(TraceIDHeader, traceID)
+		if spanID, ok := r.Context().Value(middleware.TraceSpanIDKey).(string); ok {
+			r.Header.Set(ParentSpanIDHeader, spanID)
+		}
 	}
 
 	return d.Doer.Do(r)

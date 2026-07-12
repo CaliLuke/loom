@@ -367,11 +367,15 @@ func TestNewStatusError(t *testing.T) {
 		assert.Empty(t, st.Details())
 	})
 
-	t.Run("ok code returns nil", func(t *testing.T) {
-		// Current behavior: status.WithDetails rejects codes.OK, so the
-		// fallback st.Err() is used which returns nil for an OK status.
-		err := NewStatusError(codes.OK, errors.New("ignored"), NewErrorResponse(errors.New("ignored")))
-		assert.NoError(t, err)
+	t.Run("ok code is replaced with unknown", func(t *testing.T) {
+		// A status with code OK yields a nil error, which would swallow
+		// err entirely, so NewStatusError substitutes codes.Unknown.
+		err := NewStatusError(codes.OK, errors.New("boom"), NewErrorResponse(errors.New("boom")))
+		require.Error(t, err)
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.Unknown, st.Code())
+		assert.Equal(t, "boom", st.Message())
 	})
 }
 
