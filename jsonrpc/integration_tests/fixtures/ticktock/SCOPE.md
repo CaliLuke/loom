@@ -27,9 +27,10 @@ Covered:
 ## What this fixture does NOT prove
 
 - **The raw `events/stream` GET listener contract**. That branch has its own
-  framing and initialization and is NOT exercised here. When touching the
-  GET-listener code path, add or extend dedicated coverage rather than
-  assuming this fixture protects it.
+  framing and initialization and is NOT exercised here; it is covered by
+  `tests/sse_get_listener_test.go`, which regenerates a temp events/stream
+  variant of this fixture and drives a real GET listener. Extend that test
+  when touching the GET-listener code path.
 - Pre-stream endpoint failures (authorization failing before any event, body
   parse failure on the initiating POST). The happy path does not cover the
   "error-before-first-event" shape; add adversarial coverage when changing
@@ -56,7 +57,7 @@ Update this fixture (and this SCOPE.md) when:
 
 Do NOT update this fixture for:
 
-- Raw GET `events/stream` listener changes — add a dedicated fixture.
+- Raw GET `events/stream` listener changes — extend `tests/sse_get_listener_test.go`.
 - WebSocket JSON-RPC changes — use a WebSocket-specific fixture.
 - Unary JSON-RPC changes — use a unary fixture.
 

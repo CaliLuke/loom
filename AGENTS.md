@@ -104,7 +104,7 @@ No commented-out code—delete dead code.
 - Treat the checked-in SSE fixtures as part of the transport regression surface, not as demos:
   - `http/integration_tests/fixtures/ticktock`
   - `jsonrpc/integration_tests/fixtures/ticktock`
-- Be explicit about fixture scope. The checked-in JSON-RPC ticktock fixture only proves POST-initiated SSE behavior; it does **not** cover the raw `events/stream` GET listener contract. That branch currently needs separate codegen or dedicated-fixture coverage.
+- Be explicit about fixture scope. The checked-in JSON-RPC ticktock fixture only proves POST-initiated SSE behavior. The raw `events/stream` GET listener contract is covered behaviorally by `jsonrpc/integration_tests/tests/sse_get_listener_test.go`, which regenerates a temp events/stream variant of the fixture; extend that test when changing the GET-listener branch.
 - Happy-path SSE tests are not enough. When changing SSE behavior, add or update adversarial coverage for:
   - pre-stream endpoint failures
   - event-type compatibility for protocol-level errors
