@@ -77,7 +77,7 @@ func TestWrapDoer(t *testing.T) {
 func TestWrapDoerTraceIDWithoutSpanID(t *testing.T) {
 	// A context carrying only a trace ID (no span ID) must not panic and
 	// must still propagate the trace header.
-	ctx := context.WithValue(context.Background(), middleware.TraceIDKey, "trace-only")
+	ctx := context.WithValue(context.Background(), middleware.TraceIDKey, "trace-only") // nolint: staticcheck
 	req, err := http.NewRequestWithContext(ctx, "GET", "http://example.com/", nil)
 	require.NoError(t, err)
 
