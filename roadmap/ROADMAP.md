@@ -72,6 +72,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - JSON-RPC browser cross-origin policy now uses the same design-owned `CORS`
   DSL and shared runtime headers across HTTP, SSE, mixed, and WebSocket
   servers, while preserving `CrossOriginProtection` when no policy is defined.
+- Generated JSON-RPC `ServeHTTP` now always enters through the effective server
+  handler, so runtime CORS and `Server.Use` middleware remain active for core
+  mounts and downstream transport extensions; raw HTTP, SSE negotiation, and
+  WebSocket dispatch stay behind private generated methods.
 - Mixed JSON-RPC HTTP/SSE generation now emits only the unified negotiated
   server path and endpoint stream implementation, omitting the unreachable
   standalone SSE handler and limiting eager GET-open logic to `events/stream`.

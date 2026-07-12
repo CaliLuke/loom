@@ -1,7 +1,7 @@
 // Mount configures the mux to serve the JSON-RPC JSONRPCCORS service methods.
 func Mount(mux loomhttp.Muxer, h *Server) {
 	// HTTP only
-	mux.Handle("POST", "/rpc", h.Handler.ServeHTTP)
+	mux.Handle("POST", "/rpc", h.ServeHTTP)
 	mux.Handle("OPTIONS", "/rpc", func(w http.ResponseWriter, r *http.Request) {
 		loomhttp.HandleCORSPreflight(w, r, loomhttp.CORSPolicy{Origins: []loomhttp.CORSOrigin{{
 			Credentials: true,

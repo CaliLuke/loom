@@ -1,5 +1,5 @@
-// ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// serveHTTP handles mixed HTTP/SSE requests before server middleware.
+func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}

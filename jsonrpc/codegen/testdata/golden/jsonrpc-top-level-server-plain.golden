@@ -22,6 +22,6 @@ func New(endpoints *calc.Endpoints, mux loomhttp.Muxer, decoder func(*http.Reque
 		errhandler: errhandler,
 	}
 	// Plain HTTP JSON-RPC
-	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.serveHTTP))
 	return s
 }

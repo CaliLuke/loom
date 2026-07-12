@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -32,9 +33,11 @@ func TestJSONRPCServerWithoutCORSKeepsSecureDefault(t *testing.T) {
 
 	initCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-init")
 	require.Contains(t, initCode, "http.NewCrossOriginProtection()")
+	require.Contains(t, initCode, "http.HandlerFunc(s.serveHTTP)")
 	require.NotContains(t, initCode, "loomhttp.CORSHandler")
 
 	mountCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-mount")
+	require.Contains(t, mountCode, `mux.Handle("POST", "/rpc", h.ServeHTTP)`)
 	require.NotContains(t, mountCode, `mux.Handle("OPTIONS"`)
 }
 
@@ -44,10 +47,12 @@ func TestJSONRPCServerRuntimeCORSUsesConstructorPolicy(t *testing.T) {
 
 	initCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-init")
 	require.Contains(t, initCode, "corsPolicy loomhttp.RuntimeCORSPolicy")
-	require.Contains(t, initCode, "corsPolicy.Handler")
+	require.Contains(t, initCode, "corsPolicy.Handler(http.HandlerFunc(s.serveHTTP))")
 	require.NotContains(t, initCode, "NewCrossOriginProtection")
 
 	mountCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-mount")
+	require.Contains(t, mountCode, `mux.Handle("POST", "/rpc", h.ServeHTTP)`)
+	require.NotContains(t, mountCode, "h.Handler.ServeHTTP")
 	require.Contains(t, mountCode, "h.corsPolicy.HandlePreflight")
 }
 
@@ -55,6 +60,14 @@ func TestJSONRPCRuntimeCORSGeneratedModuleCompiles(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcRuntimeCORSPolicyDSL)
 	dir := t.TempDir()
 	renderJSONRPCModule(t, dir, "example.com/jsonrpcruntimecors", root)
+	serverDirs, err := filepath.Glob(filepath.Join(dir, "gen", "jsonrpc", "*", "server"))
+	require.NoError(t, err)
+	require.Len(t, serverDirs, 1)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(serverDirs[0], "runtime_cors_mount_test.go"),
+		[]byte(jsonrpcRuntimeCORSMountTest),
+		0o644,
+	))
 	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
 	runGoJSONRPCTestCommand(t, dir, "test", "./...")
 }
@@ -104,10 +117,10 @@ func TestJSONRPCCORSAppliesToEveryServerTransport(t *testing.T) {
 		dsl     func()
 		handler string
 	}{
-		{name: "plain", dsl: jsonrpcDefaultOriginProtectionDSL, handler: "http.HandlerFunc(s.ServeHTTP)"},
+		{name: "plain", dsl: jsonrpcDefaultOriginProtectionDSL, handler: "http.HandlerFunc(s.serveHTTP)"},
 		{name: "sse", dsl: testdata.JSONRPCSSEEventsStreamDSL, handler: "http.HandlerFunc(s.handleSSE)"},
-		{name: "mixed", dsl: jsonrpcMixedInitializeAndEventsStreamDSL, handler: "http.HandlerFunc(s.ServeHTTP)"},
-		{name: "websocket", dsl: jsonrpcWebSocketRuntimeDSL, handler: "http.HandlerFunc(s.ServeHTTP)"},
+		{name: "mixed", dsl: jsonrpcMixedInitializeAndEventsStreamDSL, handler: "http.HandlerFunc(s.serveHTTP)"},
+		{name: "websocket", dsl: jsonrpcWebSocketRuntimeDSL, handler: "http.HandlerFunc(s.serveHTTP)"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -196,3 +209,99 @@ var jsonrpcAPICORSPolicyDSL = func() {
 		})
 	})
 }
+
+const jsonrpcRuntimeCORSMountTest = `package server
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMountedServerUsesEffectiveHandler(t *testing.T) {
+	policy, err := loomhttp.NewRuntimeCORSPolicy(loomhttp.CORSPolicy{Origins: []loomhttp.CORSOrigin{{
+		Pattern:     "https://app.example.com",
+		Expose:      []string{"X-Request-Id"},
+		Credentials: true,
+	}}})
+	require.NoError(t, err)
+
+	var applicationCalls atomic.Int32
+	server := &Server{
+		Call: func(_ context.Context, _ *http.Request, _ *jsonrpc.RawRequest, w http.ResponseWriter) error {
+			applicationCalls.Add(1)
+			w.WriteHeader(http.StatusAccepted)
+			return nil
+		},
+		Methods:    []string{"Call"},
+		decoder:    loomhttp.RequestDecoder,
+		encoder:    loomhttp.ResponseEncoder,
+		errhandler: func(context.Context, http.ResponseWriter, error) {},
+		corsPolicy: policy,
+	}
+	server.Handler = policy.Handler(http.HandlerFunc(server.serveHTTP))
+
+	var middlewareCalls atomic.Int32
+	server.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middlewareCalls.Add(1)
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	mux := loomhttp.NewMuxer()
+	Mount(mux, server)
+	// Transport extensions such as MCP add these route-local methods around
+	// the generated server's public, effective ServeHTTP entry point.
+	mux.Handle(http.MethodGet, "/rpc", server.ServeHTTP)
+	mux.Handle(http.MethodDelete, "/rpc", server.ServeHTTP)
+
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodDelete} {
+		t.Run("allowed "+method, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(method, "/rpc", strings.NewReader("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Call\",\"params\":\"ok\"}"))
+			request.Header.Set("Origin", "https://app.example.com")
+			mux.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusAccepted, recorder.Code)
+			require.Equal(t, "https://app.example.com", recorder.Header().Get("Access-Control-Allow-Origin"))
+			require.Equal(t, "true", recorder.Header().Get("Access-Control-Allow-Credentials"))
+			require.Equal(t, "X-Request-Id", recorder.Header().Get("Access-Control-Expose-Headers"))
+		})
+	}
+	require.EqualValues(t, 3, applicationCalls.Load())
+	require.EqualValues(t, 3, middlewareCalls.Load())
+
+	t.Run("disallowed origin passes through", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/rpc", strings.NewReader("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Call\",\"params\":\"ok\"}"))
+		request.Header.Set("Origin", "https://evil.example.com")
+		mux.ServeHTTP(recorder, request)
+
+		require.Equal(t, http.StatusAccepted, recorder.Code)
+		require.Empty(t, recorder.Header().Get("Access-Control-Allow-Origin"))
+	})
+
+	t.Run("preflight is route local and terminal", func(t *testing.T) {
+		applicationCallsBefore := applicationCalls.Load()
+		middlewareCallsBefore := middlewareCalls.Load()
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodOptions, "/rpc", nil)
+		request.Header.Set("Origin", "https://app.example.com")
+		request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+		mux.ServeHTTP(recorder, request)
+
+		require.Equal(t, http.StatusNoContent, recorder.Code)
+		require.Equal(t, http.MethodPost, recorder.Header().Get("Access-Control-Allow-Methods"))
+		require.Equal(t, applicationCallsBefore, applicationCalls.Load())
+		require.Equal(t, middlewareCallsBefore, middlewareCalls.Load())
+	})
+}
+`

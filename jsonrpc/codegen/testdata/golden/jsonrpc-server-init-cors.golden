@@ -14,6 +14,6 @@ func New(endpoints *jsonrpccors.Endpoints, mux loomhttp.Muxer, decoder func(*htt
 		Headers:     []string{"Content-Type", "Authorization"},
 		Methods:     []string{"POST"},
 		Pattern:     "https://app.example.com",
-	}}}, http.HandlerFunc(s.ServeHTTP))
+	}}}, http.HandlerFunc(s.serveHTTP))
 	return s
 }

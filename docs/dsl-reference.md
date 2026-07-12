@@ -1268,6 +1268,12 @@ JSON-RPC servers. Runtime mode requires a validated
 `loomhttp.RuntimeCORSPolicy` constructor argument. Use `Origin("*")` without
 `Credentials()` for an explicit allow-all static policy.
 
+The generated server's `ServeHTTP` method is the effective entry point for
+actual requests: it includes the configured CORS or secure-default origin
+policy and middleware installed with `Server.Use`. Custom mounts and transport
+extensions should route actual requests through `ServeHTTP`; generated
+`OPTIONS` routes terminate in the route-local preflight handler.
+
 For JSON-RPC SSE methods, use
 `SSENotificationMethod("notifications/progress")` inside
 `ServerSentEvents` when intermediate events must use a protocol-defined

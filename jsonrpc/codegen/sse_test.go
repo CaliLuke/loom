@@ -224,7 +224,7 @@ func TestJSONRPCMixedServerInitUsesServeHTTP(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
 	serverInitCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-init")
 
-	require.Contains(t, serverInitCode, `s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))`)
+	require.Contains(t, serverInitCode, `s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.serveHTTP))`)
 	require.NotContains(t, serverInitCode, `s.Handler = http.HandlerFunc(s.handleSSE)`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-init-mixed.golden"), serverInitCode)
 }
@@ -253,8 +253,8 @@ func TestJSONRPCSSEOnlyServerInitUsesOriginProtection(t *testing.T) {
 
 func TestJSONRPCServerMountRoutes(t *testing.T) {
 	const (
-		postMount = `mux.Handle("POST", "/rpc", h.Handler.ServeHTTP)`
-		getMount  = `mux.Handle("GET", "/rpc", h.Handler.ServeHTTP)`
+		postMount = `mux.Handle("POST", "/rpc", h.ServeHTTP)`
+		getMount  = `mux.Handle("GET", "/rpc", h.ServeHTTP)`
 	)
 	cases := []struct {
 		Name          string

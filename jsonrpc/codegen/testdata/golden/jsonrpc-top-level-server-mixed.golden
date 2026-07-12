@@ -9,13 +9,13 @@ func New(endpoints *jsonrpcmixedinitializeeventsstreamservice.Endpoints, mux loo
 		encoder:      encoder,
 		errhandler:   errhandler,
 	}
-	// Mixed HTTP/SSE services negotiate transports in ServeHTTP
-	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
+	// Mixed HTTP/SSE services negotiate transports through the internal dispatcher
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.serveHTTP))
 	return s
 }
 
-// ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// serveHTTP handles mixed HTTP/SSE requests before server middleware.
+func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}

@@ -170,7 +170,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 } // Mount configures the mux to serve the JSON-RPC clock service methods.
 func Mount(mux loomhttp.Muxer, h *Server) {
 	// SSE only: mount SSE handler
-	mux.Handle("POST", "/rpc", h.Handler.ServeHTTP)
+	mux.Handle("POST", "/rpc", h.ServeHTTP)
 }
 
 // Mount configures the mux to serve the JSON-RPC clock service methods.

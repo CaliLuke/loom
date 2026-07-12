@@ -11,9 +11,9 @@ func addJSONRPCServeHTTPSection(stmt *jen.Statement, data *httpcodegen.ServiceDa
 		return
 	}
 
-	stmt.Comment("ServeHTTP handles JSON-RPC requests.").Line()
+	stmt.Comment("serveHTTP handles JSON-RPC requests before server middleware.").Line()
 	stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
-		Id("ServeHTTP").
+		Id("serveHTTP").
 		Params(
 			jen.Id("w").Qual("net/http", "ResponseWriter"),
 			jen.Id("r").Op("*").Qual("net/http", "Request"),

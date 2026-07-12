@@ -178,10 +178,14 @@ build Auto-K without repeating large amounts of app-local glue.
   typed context key `loomhttp.LastEventIDKey`; middleware and services should
   not use a raw `"last-event-id"` context key.
 - For mixed JSON-RPC HTTP/SSE services, treat `Accept: text/event-stream` as necessary but not sufficient for SSE routing: normal methods like `initialize` must still go through the JSON response path, while only the actual SSE methods (for example `events/stream`) should route into the stream handler.
-- Mixed JSON-RPC HTTP/SSE servers use one generated `ServeHTTP` negotiation
-  path. They do not emit the SSE-only `handleSSE` path or service-level
-  `sse.go`; the endpoint `stream.go` implementation remains the active stream
-  contract, and only `events/stream` receives eager GET-open logic.
+- Generated JSON-RPC `ServeHTTP` is the effective public handler and must retain
+  constructor policy wrappers plus `Server.Use` middleware. Core mounts and
+  downstream transport extensions should call it; raw HTTP, mixed HTTP/SSE
+  negotiation, and WebSocket dispatch stay private to avoid bypassing the
+  effective chain. Mixed services do not emit the SSE-only `handleSSE` path or
+  service-level `sse.go`; the endpoint `stream.go` implementation remains the
+  active stream contract, and only `events/stream` receives eager GET-open
+  logic.
 - Use `RuntimeCORS()` at API or service HTTP/JSON-RPC scope when allowed origins
   come from deployment configuration. Applications own configuration loading,
   then call `loomhttp.NewRuntimeCORSPolicy` and pass the validated immutable

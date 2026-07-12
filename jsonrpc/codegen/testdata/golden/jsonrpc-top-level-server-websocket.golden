@@ -29,7 +29,7 @@ func New(streamHandler func(context.Context, stream.Stream) error, endpoints *st
 		errhandler:    errhandler,
 		upgrader:      upgrader,
 	}
-	// WebSocket services implement ServeHTTP for upgrade
-	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
+	// WebSocket services upgrade through the internal dispatcher
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.serveHTTP))
 	return s
 }

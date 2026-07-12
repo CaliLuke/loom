@@ -24,9 +24,9 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 	return codegen.NewJenniferSection("jsonrpc-websocket-server-handler", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"
 
-		stmt.Comment("ServeHTTP handles WebSocket JSON-RPC requests.").Line()
+		stmt.Comment("serveHTTP handles WebSocket JSON-RPC requests before server middleware.").Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
-			Id("ServeHTTP").
+			Id("serveHTTP").
 			Params(
 				jen.Id("w").Qual("net/http", "ResponseWriter"),
 				jen.Id("r").Op("*").Qual("net/http", "Request"),

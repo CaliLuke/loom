@@ -1,5 +1,5 @@
-// ServeHTTP handles JSON-RPC requests.
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// serveHTTP handles JSON-RPC requests before server middleware.
+func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	s.handleHTTP(w, r)
 }
 

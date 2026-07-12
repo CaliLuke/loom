@@ -9,7 +9,7 @@ func New(endpoints *jsonrpcmixedinitializeeventsstreamservice.Endpoints, mux loo
 		encoder:      encoder,
 		errhandler:   errhandler,
 	}
-	// Mixed HTTP/SSE services negotiate transports in ServeHTTP
-	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
+	// Mixed HTTP/SSE services negotiate transports through the internal dispatcher
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.serveHTTP))
 	return s
 }
