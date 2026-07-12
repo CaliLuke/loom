@@ -313,7 +313,7 @@ Ranks 1–3 and 10 plus hygiene were applied immediately after the audit; measur
 
 **Round 3 (same day):** C-5 (pulse vs miniredis: rmap 17.8%→75.0%, streaming 25.8%→75.4%, pool 21%→~72%), C-6 (decoder_sections.go 29.1%→100%, package 84.7%→92.8%), C-8 (all five flagged panic/error sites covered; a latent swallowed-transform-error bug found — issue #148), C-10 (`make test-race` = `-race -shuffle=on` + a dedicated CI job; its first run caught real data races in the four `t.Parallel` http/codegen files, whose unsound parallelism was removed), and the V-3 `sse_test.go` consolidation (606→405 lines) all landed. The two hard bugs (`NewStatusError(codes.OK)` swallowing errors, `tracedDoer.Do` panic) are fixed; the remaining suspicions are filed as issues #142–#148, including the GET-listener `SendAndClose` semantics decision (#146).
 
-Still open: S-7 CI caching, the V-5 cross-tree dedup remainder, and the issue backlog above. Decided later the same day: the V-3 golden migration landed (299 substring asserts → 149 + 76 goldens, no-lost-assertions gates 25/25, 55/55, 86/86), and Windows moved out of the per-PR pipeline to a weekly compile+unit canary (`windows-canary.yml`) — the audience is mac/linux and the 455 s Windows job only ran unit tests.
+Still open: S-7 CI caching, the V-5 cross-tree dedup remainder, and the issue backlog above. Decided later the same day: the V-3 golden migration landed (299 substring asserts → 149 + 76 goldens, no-lost-assertions gates 25/25, 55/55, 86/86), and Windows moved out of the per-PR pipeline to an on-demand compile+unit canary (`windows-canary.yml`, workflow_dispatch only) — the audience is mac/linux and the 455 s Windows job only ran unit tests.
 
 ## 7. Method notes
 

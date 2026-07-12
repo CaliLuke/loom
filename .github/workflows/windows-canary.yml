@@ -1,15 +1,14 @@
 name: Windows Canary
 
-# Weekly compile + unit-test canary for Windows. Windows is not a primary
+# On-demand compile + unit-test canary for Windows. Windows is not a primary
 # target (the audience is mac/linux and no maintainer has a Windows machine),
-# so it is not part of the per-PR pipeline; this catches compile breakage and
-# unit regressions on a schedule, and can be dispatched manually when a
-# Windows user reports an issue. Lint and integration tests do not run on
-# Windows (the Makefile skips them loudly).
+# so it is not part of the per-PR pipeline and has no schedule; dispatch it
+# manually (Actions tab or `gh workflow run windows-canary.yml`) when a
+# Windows user reports an issue or before a release that should be checked
+# on Windows. Lint and integration tests do not run on Windows (the Makefile
+# skips them loudly).
 
 on:
-  schedule:
-    - cron: '0 5 * * 1'
   workflow_dispatch:
 
 jobs:
