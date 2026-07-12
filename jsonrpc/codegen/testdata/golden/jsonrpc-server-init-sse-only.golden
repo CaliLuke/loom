@@ -1,0 +1,14 @@
+// New creates a JSON-RPC server which loads HTTP requests and calls the
+// "JSONRPCSSEEventsStreamService" service methods.
+func New(endpoints *jsonrpcsseeventsstreamservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
+	s := &Server{
+		EventsStream: NewEventsStreamHandler(endpoints.EventsStream, mux, decoder, encoder, errhandler),
+		Methods:      []string{"events/stream"},
+		decoder:      decoder,
+		encoder:      encoder,
+		errhandler:   errhandler,
+	}
+	// SSE-only services route via handleSSE
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.handleSSE))
+	return s
+}

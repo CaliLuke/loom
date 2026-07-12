@@ -1,0 +1,29 @@
+// batchWriter is a helper type that implements http.ResponseWriter for writing multiple JSON-RPC responses
+type batchWriter struct {
+	io.Writer
+	header     http.Header
+	statusCode int
+	written    bool
+}
+
+func (rb *batchWriter) Header() http.Header {
+	if rb.header == nil {
+		rb.header = make(http.Header)
+	}
+	return rb.header
+}
+func (rb *batchWriter) WriteHeader(statusCode int) {
+	if rb.written {
+		return
+	}
+	rb.statusCode = statusCode
+}
+func (rb *batchWriter) Write(data []byte) (int, error) {
+	if !rb.written {
+		rb.written = true
+		rb.Writer.Write([]byte{byte(0x5b)})
+	} else {
+		rb.Writer.Write([]byte{byte(0x2c)})
+	}
+	return rb.Writer.Write(data)
+}

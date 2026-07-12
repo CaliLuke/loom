@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	. "github.com/CaliLuke/loom/dsl"
 )
 
@@ -17,19 +18,16 @@ func TestJSONRPCWebSocketUsesSharedRuntimeStream(t *testing.T) {
 
 	serverCode := renderedJSONRPCWebSocketFile(t, ServerFiles("", services), "server")
 	require.Contains(t, serverCode, "conn *loomhttp.WebSocketStream")
-	require.Contains(t, serverCode, "s.conn.ReadJSON(ctx, &req)")
-	require.Contains(t, serverCode, "s.conn.WriteJSON(ctx,")
-	require.Contains(t, serverCode, `s.conn.WriteClose("server closing connection")`)
 	require.NotContains(t, serverCode, "WriteControl(")
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-websocket-server-file.golden"), serverCode)
 	serverHandlerCode := renderedJSONRPCFile(t, ServerFiles("", services), "server.go", "server")
 	require.Contains(t, serverHandlerCode, "wsconn := loomhttp.NewWebSocketStream(conn)")
 	require.Contains(t, serverHandlerCode, "conn:           wsconn")
 
 	clientCode := renderedJSONRPCWebSocketFile(t, ClientFiles("", services), "client")
 	require.Contains(t, clientCode, "ws          *loomhttp.WebSocketStream")
-	require.Contains(t, clientCode, "s.ws.ReadJSON(s.ctx, &response)")
-	require.Contains(t, clientCode, "s.ws.WriteJSON(ctx, request)")
 	require.NotContains(t, clientCode, "writeMu")
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-websocket-client-file.golden"), clientCode)
 	clientEndpointCode := renderedJSONRPCFile(t, ClientFiles("", services), "client.go", "client")
 	require.Contains(t, clientEndpointCode, "ws:      loomhttp.NewWebSocketStream(ws)")
 }

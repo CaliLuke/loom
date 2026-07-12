@@ -1,0 +1,35 @@
+// SendEchoNotification sends a JSON-RPC notification for the echo method.
+func (s *streamStream) SendEchoNotification(ctx context.Context, result *stream.EchoResult) error {
+	body := NewEchoResponseBody(result)
+	return s.conn.WriteJSON(ctx, jsonrpc.MakeNotification("echo", body))
+}
+
+// SendEchoResponse sends a JSON-RPC response for the echo method.
+func (s *streamStream) SendEchoResponse(ctx context.Context, id any, result *stream.EchoResult) error {
+	body := NewEchoResponseBody(result)
+	return s.conn.WriteJSON(ctx, jsonrpc.MakeSuccessResponse(id, body))
+}
+
+// SendError streams JSON-RPC errors.
+func (s *streamStream) SendError(ctx context.Context, id any, err error) error {
+	code := jsonrpc.InternalError
+	var serviceError *loom.ServiceError
+	if errors.As(err, &serviceError) {
+		code = jsonrpcErrorCodeForServiceError(serviceError)
+	}
+	return s.sendError(ctx, id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+}
+
+// send writes a JSON-RPC response to the websocket connection.
+func (s *streamStream) send(id any, method string, result any) error {
+	if id == nil || id == "" {
+		return s.conn.WriteJSON(s.r.Context(), jsonrpc.MakeNotification(method, result))
+	}
+	return s.conn.WriteJSON(s.r.Context(), jsonrpc.MakeSuccessResponse(id, result))
+}
+
+// sendError sends a JSON-RPC error response to the websocket connection.
+func (s *streamStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
+	response := jsonrpc.MakeErrorResponse(id, code, message, data)
+	return s.conn.WriteJSON(ctx, response)
+}

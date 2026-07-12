@@ -1,12 +1,14 @@
 package codegen
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
 )
@@ -103,10 +105,10 @@ func TestJSONRPCServiceSSESendErrorUsesSafeMappedErrors(t *testing.T) {
 	code := jsonrpcGeneratedCode(t, ServerFiles("", CreateJSONRPCServices(root)))
 
 	assert.Contains(t, code, `loom.ErrorSafeMessage(err)`)
-	assert.Contains(t, code, `jsonrpc.NewErrorData(err)`)
 	assert.Contains(t, code, `case "invalid_params":`)
 	assert.NotContains(t, code, `message := err.Error()`)
 	assert.NotContains(t, code, `var data any`)
+	testutil.AssertString(t, filepath.Join("testdata", "golden", "jsonrpc-sse-object-server-files.golden"), code)
 }
 
 func TestJSONRPCServiceSSESendErrorUsesDesignedResponseCodes(t *testing.T) {

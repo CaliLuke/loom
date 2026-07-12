@@ -1,0 +1,15 @@
+// New creates a JSON-RPC server which loads HTTP requests and calls the
+// "JSONRPCMixedInitializeEventsStreamService" service methods.
+func New(endpoints *jsonrpcmixedinitializeeventsstreamservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
+	s := &Server{
+		EventsStream: NewEventsStreamHandler(endpoints.EventsStream, mux, decoder, encoder, errhandler),
+		Initialize:   NewInitializeHandler(endpoints.Initialize, mux, decoder, encoder, errhandler),
+		Methods:      []string{"initialize", "events/stream"},
+		decoder:      decoder,
+		encoder:      encoder,
+		errhandler:   errhandler,
+	}
+	// Mixed HTTP/SSE services negotiate transports in ServeHTTP
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
+	return s
+}

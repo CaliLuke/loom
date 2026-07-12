@@ -1,0 +1,73 @@
+// SSEObjectMethodClientStream is the interface for reading Server-Sent Events.
+type SSEObjectMethodClientStream interface {
+	// Recv reads and returns the next event from the SSE stream.
+	Recv(context.Context) (*sseobjectservice.SSEObjectMethodResult, error)
+	// Close closes the SSE stream and releases resources.
+	Close() error
+}
+type (
+	// SSEObjectMethodStreamImpl implements the SSEObjectMethodClientStream interface.
+	SSEObjectMethodStreamImpl struct {
+		reader  *loomhttp.SSEStreamReader
+		decoder func(*http.Response) loomhttp.Decoder
+	}
+)
+
+// SSEObjectMethodStreamImpl implements the SSEObjectMethodClientStream
+// interface.
+var _ SSEObjectMethodClientStream = (*SSEObjectMethodStreamImpl)(nil)
+
+// NewSSEObjectMethodStream creates a new SSEObjectMethodClientStream.
+func NewSSEObjectMethodStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) SSEObjectMethodClientStream {
+	return &SSEObjectMethodStreamImpl{
+		decoder: decoder,
+		reader:  loomhttp.NewSSEStreamReader(resp.Body),
+	}
+}
+
+// Recv reads and returns the next event from the SSE stream, respecting
+// context cancellation.
+func (s *SSEObjectMethodStreamImpl) Recv(ctx context.Context) (event *sseobjectservice.SSEObjectMethodResult, err error) {
+	var byts []byte
+	byts, err = s.reader.ReadEvent(ctx)
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			if closeErr := s.Close(); closeErr != nil {
+				return event, errors.Join(io.EOF, closeErr)
+			}
+			return event, io.EOF
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			if closeErr := s.Close(); closeErr != nil {
+				return event, err
+			}
+		}
+		return
+	}
+	return s.processEvent(byts)
+}
+
+// Close closes the SSE stream and releases any associated resources.
+func (s *SSEObjectMethodStreamImpl) Close() error {
+	return s.reader.Close()
+}
+
+// processEvent processes a raw SSE event into the expected type
+func (s *SSEObjectMethodStreamImpl) processEvent(eventData []byte) (event *sseobjectservice.SSEObjectMethodResult, err error) {
+	parsed, err := loomhttp.ParseSSEEvent(eventData)
+	if err != nil {
+		return event, err
+	}
+	event = new(sseobjectservice.SSEObjectMethodResult)
+	dataContent := parsed.Data
+	// Decode JSON into the struct pointer directly
+	respBody := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewReader([]byte(dataContent))),
+	}
+	err = s.decoder(respBody).Decode(event)
+	if err != nil {
+		return
+	}
+	return
+}

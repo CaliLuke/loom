@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 )
 
 func TestClientJenniferRequestExpr(t *testing.T) {
@@ -88,7 +89,7 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 		}
 		code := codegen.SectionCode(t, methodSection(method))
 		assert.Contains(t, code, "func (c *Client) Upload(ctx context.Context, p *UploadPayload, req io.ReadCloser)")
-		assert.Contains(t, code, "c.UploadEndpoint(ctx, &UploadRequestData{Payload: p, Body: req})")
+		testutil.AssertGo(t, "testdata/golden/client_method_skip_request_body.go.golden", code)
 	})
 
 	t.Run("skip response body decode unwraps response struct", func(t *testing.T) {
@@ -110,8 +111,7 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 		}
 		code := codegen.SectionCode(t, methodSection(method))
 		assert.Contains(t, code, "func (c *Client) Download(ctx context.Context) (res *DownloadResult, resp io.ReadCloser, err error)")
-		assert.Contains(t, code, "o := ires.(*DownloadResponseData)")
-		assert.Contains(t, code, "return o.Result, o.Body, nil")
+		testutil.AssertGo(t, "testdata/golden/client_method_skip_response_body.go.golden", code)
 	})
 
 	t.Run("mixed results with interceptors uses both endpoint fields", func(t *testing.T) {
@@ -140,8 +140,8 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 			}},
 		}
 		code := codegen.SectionCode(t, clientInitSection(data))
-		assert.Contains(t, code, "MethodEndpoint: WrapMethodClientEndpoint(method, ci)")
 		assert.Contains(t, code, "MethodStreamEndpoint: WrapMethodClientEndpoint(methodStream, ci)")
+		testutil.AssertGo(t, "testdata/golden/client_init_mixed_interceptors.go.golden", code)
 	})
 
 	t.Run("method comments and error comments remain valid go", func(t *testing.T) {
@@ -165,10 +165,9 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 			},
 		}
 		code := codegen.SectionCode(t, methodSection(method))
-		require.Contains(t, code, `// ListAccounts calls the "ListAccounts" endpoint of the "AccountService"`)
 		require.Contains(t, code, `// - "quota_exceeded" (type *QuotaExceededError): Returned when quota is`)
 		require.Contains(t, code, `// exhausted.`)
-		require.Contains(t, code, "// - error: internal error")
+		testutil.AssertGo(t, "testdata/golden/client_method_error_comments.go.golden", code)
 	})
 }
 

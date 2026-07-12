@@ -1,0 +1,19 @@
+// WidgetServerInterceptors implements the server interceptor for the Widget service.
+type WidgetServerInterceptors struct{}
+
+// NewWidgetServerInterceptors creates a new server interceptor for the Widget service.
+func NewWidgetServerInterceptors() *WidgetServerInterceptors {
+	return &WidgetServerInterceptors{}
+}
+
+// Trace logs request flow.
+func (i *WidgetServerInterceptors) Trace(ctx context.Context, info *widgetsvc.TraceInfo, next loom.Endpoint) (any, error) {
+	log.Printf(ctx, "[Trace] Processing request: %v", info.RawPayload())
+	resp, err := next(ctx, info.RawPayload())
+	if err != nil {
+		log.Printf(ctx, "[Trace] Error: %v", err)
+		return nil, err
+	}
+	log.Printf(ctx, "[Trace] Response: %v", resp)
+	return resp, nil
+}

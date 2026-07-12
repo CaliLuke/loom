@@ -1,0 +1,12 @@
+// NewWidget builds a widget.
+func NewWidget(vres *widgetviews.Widget) (*Widget, error) {
+
+	var res *Widget
+	switch vres.View {
+	case "default", "":
+		res = NewWidgetFromWidgetView(vres.Projected)
+	default:
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{"default"})
+	}
+	return res, nil
+}

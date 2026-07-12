@@ -1,0 +1,35 @@
+// Server handles JSON-RPC requests for the stream service.
+type Server struct {
+	http.Handler
+	// Methods is the list of methods served by this server.
+	Methods []string
+	// StreamHandler is the handler for the streaming service.
+	StreamHandler func(context.Context, stream.Stream) error
+	echo          func(context.Context, *http.Request, *jsonrpc.RawRequest) (any, error)
+	echoEndpoint  loom.Endpoint
+
+	decoder    func(*http.Request) loomhttp.Decoder
+	encoder    func(context.Context, http.ResponseWriter) loomhttp.Encoder
+	errhandler func(context.Context, http.ResponseWriter, error)
+	upgrader   loomhttp.Upgrader
+	configfn   loomhttp.ConnConfigureFunc
+}
+
+// New creates a JSON-RPC server which loads HTTP requests and calls the
+// "stream" service methods.
+func New(streamHandler func(context.Context, stream.Stream) error, endpoints *stream.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), upgrader loomhttp.Upgrader, configfn loomhttp.ConnConfigureFunc) *Server {
+	s := &Server{
+		Methods:       []string{"echo"},
+		StreamHandler: streamHandler,
+		configfn:      configfn,
+		decoder:       decoder,
+		echo:          NewEchoHandler(endpoints.Echo, mux, decoder),
+		echoEndpoint:  endpoints.Echo,
+		encoder:       encoder,
+		errhandler:    errhandler,
+		upgrader:      upgrader,
+	}
+	// WebSocket services implement ServeHTTP for upgrade
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
+	return s
+}

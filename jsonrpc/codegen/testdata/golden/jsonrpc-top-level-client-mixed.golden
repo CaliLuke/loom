@@ -1,0 +1,18 @@
+// Client lists the JSONRPCMixedInitializeEventsStreamService service endpoint
+// HTTP clients.
+type Client struct {
+	// Doer is the HTTP client used to make requests to the
+	// JSONRPCMixedInitializeEventsStreamService service.
+	Doer loomhttp.Doer
+	// EventsStream Doer is the HTTP client used to make requests to the
+	// events/stream endpoint.
+	EventsStreamDoer loomhttp.Doer
+	// RestoreResponseBody controls whether the response bodies are reset after
+	// decoding so they can be read again.
+	RestoreResponseBody bool
+
+	scheme  string
+	host    string
+	encoder func(*http.Request) loomhttp.Encoder
+	decoder func(*http.Response) loomhttp.Decoder
+}

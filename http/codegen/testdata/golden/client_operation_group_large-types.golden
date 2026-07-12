@@ -1,0 +1,124 @@
+// ItemsClient groups Items HTTP client operations.
+type ItemsClient struct {
+	client *Client
+}
+
+// Method0 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method0 server.
+func (g *ItemsClient) Method0() loom.Endpoint {
+	return g.client.Method0()
+}
+
+// BuildMethod0Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method0" endpoint
+func (g *ItemsClient) BuildMethod0Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod0Request(ctx, v)
+}
+
+// Method1 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method1 server.
+func (g *ItemsClient) Method1() loom.Endpoint {
+	return g.client.Method1()
+}
+
+// BuildMethod1Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method1" endpoint
+func (g *ItemsClient) BuildMethod1Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod1Request(ctx, v)
+}
+
+// Method2 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method2 server.
+func (g *ItemsClient) Method2() loom.Endpoint {
+	return g.client.Method2()
+}
+
+// BuildMethod2Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method2" endpoint
+func (g *ItemsClient) BuildMethod2Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod2Request(ctx, v)
+}
+
+// Method3 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method3 server.
+func (g *ItemsClient) Method3() loom.Endpoint {
+	return g.client.Method3()
+}
+
+// BuildMethod3Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method3" endpoint
+func (g *ItemsClient) BuildMethod3Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod3Request(ctx, v)
+}
+
+// Method4 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method4 server.
+func (g *ItemsClient) Method4() loom.Endpoint {
+	return g.client.Method4()
+}
+
+// BuildMethod4Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method4" endpoint
+func (g *ItemsClient) BuildMethod4Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod4Request(ctx, v)
+}
+
+// Method5 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method5 server.
+func (g *ItemsClient) Method5() loom.Endpoint {
+	return g.client.Method5()
+}
+
+// BuildMethod5Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method5" endpoint
+func (g *ItemsClient) BuildMethod5Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod5Request(ctx, v)
+}
+
+// Method6 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method6 server.
+func (g *ItemsClient) Method6() loom.Endpoint {
+	return g.client.Method6()
+}
+
+// BuildMethod6Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method6" endpoint
+func (g *ItemsClient) BuildMethod6Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod6Request(ctx, v)
+}
+
+// Method7 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method7 server.
+func (g *ItemsClient) Method7() loom.Endpoint {
+	return g.client.Method7()
+}
+
+// BuildMethod7Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method7" endpoint
+func (g *ItemsClient) BuildMethod7Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod7Request(ctx, v)
+}
+
+// Method8 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method8 server.
+func (g *ItemsClient) Method8() loom.Endpoint {
+	return g.client.Method8()
+}
+
+// BuildMethod8Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method8" endpoint
+func (g *ItemsClient) BuildMethod8Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod8Request(ctx, v)
+}
+
+// Method9 returns an endpoint that makes HTTP requests to the LargeTypes
+// service Method9 server.
+func (g *ItemsClient) Method9() loom.Endpoint {
+	return g.client.Method9()
+}
+
+// BuildMethod9Request instantiates a HTTP request object with method and path
+// set to call the "LargeTypes" service "Method9" endpoint
+func (g *ItemsClient) BuildMethod9Request(ctx context.Context, v any) (*http.Request, error) {
+	return g.client.BuildMethod9Request(ctx, v)
+}

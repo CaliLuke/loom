@@ -1,0 +1,23 @@
+// EncodeCreateResponse returns an encoder for responses returned by the
+// sessionCookieResponseOverride create endpoint.
+func EncodeCreateResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, ok := v.(*sessioncookieresponseoverride.CreateResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("sessionCookieResponseOverride", "create", "*sessioncookieresponseoverride.CreateResult", v)
+		}
+		if res.Session != nil {
+			session := *res.Session
+			http.SetCookie(w, &http.Cookie{
+				Name:     "__Host-ak_session",
+				Value:    session,
+				Path:     "/session",
+				Secure:   true,
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			})
+		}
+		w.WriteHeader(http.StatusCreated)
+		return nil
+	}
+}

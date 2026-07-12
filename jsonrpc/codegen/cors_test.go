@@ -1,10 +1,12 @@
 package codegen
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
@@ -16,14 +18,12 @@ func TestJSONRPCServerCORSUsesDesignPolicy(t *testing.T) {
 
 	initCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-init")
 	require.Contains(t, initCode, `loomhttp.CORSHandler(loomhttp.CORSPolicy{`)
-	require.Contains(t, initCode, `"https://app.example.com"`)
-	require.Contains(t, initCode, `Credentials: true`)
 	require.NotContains(t, initCode, "NewCrossOriginProtection")
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-init-cors.golden"), initCode)
 
 	mountCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-mount")
-	require.Contains(t, mountCode, `mux.Handle("OPTIONS", "/rpc"`)
 	require.Contains(t, mountCode, "loomhttp.HandleCORSPreflight")
-	require.Contains(t, mountCode, `[]string{"POST"}`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-mount-cors.golden"), mountCode)
 }
 
 func TestJSONRPCServerWithoutCORSKeepsSecureDefault(t *testing.T) {

@@ -1,0 +1,13 @@
+// Mount configures the mux to serve the ServiceCORS endpoints.
+func Mount(mux loomhttp.Muxer, h *Server) {
+	mux.Handle("OPTIONS", "/items", func(w http.ResponseWriter, r *http.Request) {
+		loomhttp.HandleCORSPreflight(w, r, loomhttp.CORSPolicy{Origins: []loomhttp.CORSOrigin{{Pattern: "https://app.example.com", Methods: []string{"GET", "POST"}, Headers: []string{"Authorization", "Content-Type"}, Expose: []string{"X-Request-Id"}, MaxAge: 600, Credentials: true}}}, []string{"GET", "POST"})
+	})
+	MountListHandler(mux, h.List)
+	MountCreateHandler(mux, h.Create)
+}
+
+// Mount configures the mux to serve the ServiceCORS endpoints.
+func (s *Server) Mount(mux loomhttp.Muxer) {
+	Mount(mux, s)
+}

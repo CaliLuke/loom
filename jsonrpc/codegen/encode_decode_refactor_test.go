@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/dsl"
 )
 
@@ -24,11 +25,8 @@ func TestJSONRPCClientEncodeDecodeFileRewrite(t *testing.T) {
 	assert.NotContains(t, sectionNames, "response-decoder")
 
 	code := renderCodegenFile(t, file)
-	assert.Contains(t, code, `"github.com/google/uuid"`)
-	assert.Contains(t, code, `github.com/CaliLuke/loom/jsonrpc`)
-	assert.Contains(t, code, `sync/atomic`)
 	assert.Contains(t, code, `body := &jsonrpc.Request{`)
-	assert.Contains(t, code, `Method:  "sum",`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-client-encode-decode-rewrite.golden"), code)
 }
 
 func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
@@ -43,15 +41,9 @@ func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
 	assert.NotContains(t, sectionNames, "error-encoder")
 
 	code := renderCodegenFile(t, file)
-	assert.Contains(t, code, `github.com/CaliLuke/loom/jsonrpc`)
-	assert.Contains(t, code, `"bytes"`)
-	assert.Contains(t, code, `"io"`)
-	assert.Contains(t, code, `func(r *http.Request, req *jsonrpc.RawRequest)`)
-	assert.Contains(t, code, `params := req.Params`)
-	assert.Contains(t, code, `if len(params) == 0 {`)
-	assert.Contains(t, code, `params = []byte("{}")`)
 	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(params))`)
 	assert.NotContains(t, code, `bytes.NewReader(req.Params)`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-encode-decode-rewrite.golden"), code)
 }
 
 func TestJSONRPCClientDecoderReturnsDecodedUnmappedError(t *testing.T) {
@@ -73,9 +65,9 @@ func TestJSONRPCClientDecoderPropagatesViewedResultConstructorError(t *testing.T
 	file := requireEncodeDecodeFile(t, files, "client")
 	code := renderCodegenFile(t, file)
 
-	assert.Contains(t, code, `res, err := servicebodymultipleview.NewResulttypemultipleviews(vres)`)
 	assert.Contains(t, code, `return nil, loomhttp.ErrValidationError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)`)
 	assert.NotContains(t, code, `res := servicebodymultipleview.NewResulttypemultipleviews(vres)`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-client-encode-decode-viewed.golden"), code)
 }
 
 func requireEncodeDecodeFile(t *testing.T, files []*codegen.File, dir string) *codegen.File {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"golang.org/x/net/publicsuffix"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/dsl"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 )
@@ -23,10 +25,9 @@ func TestSessionCookie(t *testing.T) {
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
-		require.Contains(t, serverEncode, `Path:     "/"`)
 		require.Contains(t, serverEncode, `Secure:   true`)
 		require.Contains(t, serverEncode, `HttpOnly: true`)
-		require.Contains(t, serverEncode, `SameSite: http.SameSiteLaxMode`)
+		testutil.CompareOrUpdateGolden(t, serverEncode, filepath.Join("testdata", "golden", "session_cookie_encode-defaults.golden"))
 	})
 
 	t.Run("explicit cookie settings override session defaults", func(t *testing.T) {
@@ -38,8 +39,7 @@ func TestSessionCookie(t *testing.T) {
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `Path:     "/session"`)
 		require.Contains(t, serverEncode, `SameSite: http.SameSiteStrictMode`)
-		require.Contains(t, serverEncode, `Secure:   true`)
-		require.Contains(t, serverEncode, `HttpOnly: true`)
+		testutil.CompareOrUpdateGolden(t, serverEncode, filepath.Join("testdata", "golden", "session_cookie_encode-override.golden"))
 	})
 
 	t.Run("all explicit cookie settings override defaults", func(t *testing.T) {
@@ -49,10 +49,9 @@ func TestSessionCookie(t *testing.T) {
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
-		require.Contains(t, serverEncode, `Path:     "/session"`)
 		require.Contains(t, serverEncode, `Domain:   "session.loom.design"`)
 		require.Contains(t, serverEncode, `MaxAge:   7200`)
-		require.Contains(t, serverEncode, `SameSite: http.SameSiteStrictMode`)
+		testutil.CompareOrUpdateGolden(t, serverEncode, filepath.Join("testdata", "golden", "session_cookie_encode-override-all.golden"))
 	})
 
 	t.Run("set-cookie round trip survives parser and cookie jar", func(t *testing.T) {
@@ -106,11 +105,7 @@ func TestSessionCookie(t *testing.T) {
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `"__Host-ak_session"`)
 		require.Contains(t, serverEncode, `"ak_refresh"`)
-		require.Contains(t, serverEncode, `Path:     "/"`)
-		require.Contains(t, serverEncode, `"/tokens"`)
-		require.Contains(t, serverEncode, `"accounts.loom.design"`)
-		require.Contains(t, serverEncode, `Secure:   true`)
-		require.Contains(t, serverEncode, `HttpOnly: true`)
+		testutil.CompareOrUpdateGolden(t, serverEncode, filepath.Join("testdata", "golden", "session_cookie_encode-multi.golden"))
 
 		endpoint := services.Get("multiSessionCookieResponse").Endpoint("create")
 		require.NotNil(t, endpoint)

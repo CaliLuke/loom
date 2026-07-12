@@ -1,0 +1,41 @@
+
+	// Start HTTP server using default configuration, change the code to
+	// configure the server as required by your service.
+	srv := &http.Server{
+		Addr:              u.Host,
+		Handler:           handler,
+		ReadHeaderTimeout: time.Second * 60,
+		ReadTimeout:       time.Second * 15,
+		WriteTimeout:      time.Second * 30,
+		IdleTimeout:       time.Second * 60,
+	}
+	for _, m := range serviceServer.Mounts {
+		log.Printf(ctx, "HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
+	}
+	for _, m := range anotherServiceServer.Mounts {
+		log.Printf(ctx, "HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
+	}
+
+	(*wg).Add(1)
+	go func() {
+		defer (*wg).Done()
+
+		// Start HTTP server in a separate goroutine.
+		go func() {
+			log.Printf(ctx, "HTTP server listening on %q", u.Host)
+			errc <- srv.ListenAndServe()
+		}()
+
+		<-ctx.Done()
+		log.Printf(ctx, "shutting down HTTP server at %q", u.Host)
+
+		// Shutdown gracefully with a 30s timeout.
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+
+		err := srv.Shutdown(shutdownCtx)
+		if err != nil {
+			log.Printf(shutdownCtx, "failed to shutdown: %v", err)
+		}
+	}()
+}

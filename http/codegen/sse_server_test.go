@@ -57,19 +57,17 @@ func TestSSEServerStreamCommitsHeadersOnSend(t *testing.T) {
 	require.NotNil(t, sseFile)
 
 	code := codegen.SectionCode(t, sseFile.Section("server-sse")[0])
-	require.Contains(t, code, "// Send streams instances of")
-	require.Contains(t, code, "// SendWithContext streams instances of")
+	// The full stream implementation is locked by the same golden TestSSE uses
+	// for the object case; the assertions below pin the behaviors this test is
+	// named for plus regressions that a golden update could silently accept.
+	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-object.golden"))
+	require.Contains(t, code, "s.initHeaders()")
+	require.Contains(t, code, "return s.SendWithContext(s.r.Context(), v)")
 	require.NotContains(t, code, "// Send Send streams")
 	require.NotContains(t, code, "// SendWithContext SendWithContext streams")
-	require.Contains(t, code, "s.initHeaders()")
 	require.NotContains(t, code, "func (s *SSEObjectMethodServerStream) open() error")
-	require.Contains(t, code, "return s.SendWithContext(s.r.Context(), v)")
 	require.NotContains(t, code, "return s.SendWithContext(context.Background(), v)")
-	require.Contains(t, code, "data, err := loomhttp.EncodeSSEData(payload)")
 	require.NotContains(t, code, "switch v := payload.(type)")
-	require.Contains(t, code, "if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {")
-	require.Contains(t, code, "if err := ctx.Err(); err != nil {")
-	require.Contains(t, code, "if err := s.r.Context().Err(); err != nil {")
 }
 
 func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {
@@ -87,15 +85,14 @@ func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {
 	require.NotNil(t, serverFile)
 
 	code := codegen.SectionCode(t, serverFile.Section("server-handler-init")[0])
+	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-object-handler-init.golden"))
 	require.Contains(t, code, "stream := &SSEObjectMethodServerStream{")
-	require.Contains(t, code, "Stream: stream,")
 	require.NotContains(t, code, "stream.open()")
 	decl := strings.Index(code, "encodeError =")
 	require.NotEqual(t, -1, decl, "raw SSE handlers must declare encodeError before using it")
 	use := strings.Index(code, "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
 	require.NotEqual(t, -1, use, "raw SSE handlers must encode pre-stream endpoint failures")
 	require.Less(t, decl, use, "encodeError must be declared before the endpoint failure path uses it")
-	require.Contains(t, code, "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
 }
 
 func TestSSEHandlerDoesNotEncodeErrorAfterStreamStarts(t *testing.T) {

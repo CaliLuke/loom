@@ -1,0 +1,249 @@
+// StreamClientStream implements the jsonrpcsseobjectservice.StreamClientStream
+// interface using Server-Sent Events.
+type StreamClientStream struct {
+	resp     *http.Response
+	reader   *bufio.Reader
+	decoder  func(*http.Response) loomhttp.Decoder
+	closed   bool
+	lock     sync.Mutex
+	readLock sync.Mutex
+}
+
+func (s *StreamClientStream) readSSEEvent(ctx context.Context) ([]byte, error) {
+	var event bytes.Buffer
+
+	s.lock.Lock()
+	if s.closed {
+		s.lock.Unlock()
+		return nil, io.EOF
+	}
+	reader := s.reader
+	s.lock.Unlock()
+
+	for {
+		line, err := s.readSSELine(ctx, reader)
+		if err != nil {
+			if err == io.EOF && event.Len() > 0 {
+				return event.Bytes(), nil
+			}
+			return nil, err
+		}
+
+		event.WriteString(line)
+
+		line = strings.TrimRight(line, "\r\n")
+		if line == "" {
+			if event.Len() > 0 {
+				return event.Bytes(), nil
+			}
+			continue
+		}
+	}
+}
+func (s *StreamClientStream) readSSELine(ctx context.Context, reader *bufio.Reader) (string, error) {
+	type readLineResult struct {
+		line string
+		err  error
+	}
+
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
+	readc := make(chan readLineResult, 1)
+	go func() {
+		line, err := reader.ReadString(byte(0xa))
+		readc <- readLineResult{
+			err:  err,
+			line: line,
+		}
+	}()
+
+	var result readLineResult
+	select {
+	case result = <-readc:
+	case <-ctx.Done():
+		select {
+		case result = <-readc:
+		default:
+			_ = s.Close()
+			return "", ctx.Err()
+		}
+	}
+	return result.line, result.err
+}
+func (s *StreamClientStream) markClosed() {
+	s.lock.Lock()
+	s.closed = true
+	s.lock.Unlock()
+}
+
+// Recv reads instances of "StreamResult" from the stream.
+func (s *StreamClientStream) Recv(ctx context.Context) (*jsonrpcsseobjectservice.StreamResult, error) {
+	s.readLock.Lock()
+	defer s.readLock.Unlock()
+
+	var zero *jsonrpcsseobjectservice.StreamResult
+
+	s.lock.Lock()
+	if s.closed {
+		s.lock.Unlock()
+		return zero, io.EOF
+	}
+	s.lock.Unlock()
+
+	for {
+		rawEvent, err := s.readSSEEvent(ctx)
+		if err != nil {
+			s.markClosed()
+			return zero, err
+		}
+
+		parsedEvent, err := loomhttp.ParseSSEEvent(rawEvent)
+		if err != nil {
+			s.markClosed()
+			return zero, err
+		}
+
+		eventType, data := parsedEvent.Type, []byte(parsedEvent.Data)
+
+		switch eventType {
+		case "notification":
+			var notification struct {
+				JSONRPC string          `json:"jsonrpc"`
+				Method  string          `json:"method"`
+				Params  json.RawMessage `json:"params"`
+			}
+			if err := json.Unmarshal(data, &notification); err != nil {
+				return zero, fmt.Errorf("failed to parse notification: %w", err)
+			}
+			if notification.JSONRPC != "2.0" {
+				return zero, fmt.Errorf("invalid JSON-RPC version: %s", notification.JSONRPC)
+			}
+			if notification.Method != "JSONRPCSSEObjectService/stream.event" {
+				continue
+			}
+			result, err := s.decodeResult(notification.Params)
+			if err != nil {
+				return zero, fmt.Errorf("failed to decode result: %w", err)
+			}
+			return result, nil
+		case "response":
+			var response jsonrpc.Response
+			if err := json.Unmarshal(data, &response); err != nil {
+				return zero, fmt.Errorf("failed to parse response: %w", err)
+			}
+			if response.Error != nil {
+				{
+					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+				}
+			}
+			if response.Result == nil {
+				return zero, fmt.Errorf("missing result in response")
+			}
+			resultBytes, err := json.Marshal(response.Result)
+			if err != nil {
+				return zero, fmt.Errorf("failed to marshal result: %w", err)
+			}
+			result, err := s.decodeResult(json.RawMessage(resultBytes))
+			if err != nil {
+				return zero, fmt.Errorf("failed to decode final result: %w", err)
+			}
+			return result, nil
+		case "error":
+			var response jsonrpc.Response
+			if err := json.Unmarshal(data, &response); err != nil {
+				return zero, fmt.Errorf("failed to parse error response: %w", err)
+			}
+			s.markClosed()
+			if response.Error != nil {
+				return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+			}
+			return zero, fmt.Errorf("unexpected error response")
+		case "", "message":
+			var envelope map[string]json.RawMessage
+			if err := json.Unmarshal(data, &envelope); err != nil {
+				return zero, fmt.Errorf("failed to parse message event: %w", err)
+			}
+			if _, ok := envelope["method"]; ok {
+				var notification struct {
+					JSONRPC string          `json:"jsonrpc"`
+					Method  string          `json:"method"`
+					Params  json.RawMessage `json:"params"`
+				}
+				if err := json.Unmarshal(data, &notification); err != nil {
+					return zero, fmt.Errorf("failed to parse notification: %w", err)
+				}
+				if notification.JSONRPC != "2.0" {
+					return zero, fmt.Errorf("invalid JSON-RPC version: %s", notification.JSONRPC)
+				}
+				if notification.Method != "JSONRPCSSEObjectService/stream.event" {
+					continue
+				}
+				result, err := s.decodeResult(notification.Params)
+				if err != nil {
+					return zero, fmt.Errorf("failed to decode result: %w", err)
+				}
+				return result, nil
+			}
+			var response jsonrpc.Response
+			if err := json.Unmarshal(data, &response); err != nil {
+				return zero, fmt.Errorf("failed to parse response: %w", err)
+			}
+			if response.Error != nil {
+				{
+					s.markClosed()
+					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+				}
+			}
+			if response.Result == nil {
+				return zero, fmt.Errorf("missing result in response")
+			}
+			resultBytes, err := json.Marshal(response.Result)
+			if err != nil {
+				return zero, fmt.Errorf("failed to marshal result: %w", err)
+			}
+			result, err := s.decodeResult(json.RawMessage(resultBytes))
+			if err != nil {
+				return zero, fmt.Errorf("failed to decode final result: %w", err)
+			}
+			s.markClosed()
+			return result, nil
+		default:
+			continue
+		}
+	}
+}
+func (s *StreamClientStream) decodeResult(data json.RawMessage) (*jsonrpcsseobjectservice.StreamResult, error) {
+	resp := &http.Response{
+		Body:       io.NopCloser(bytes.NewReader(data)),
+		StatusCode: http.StatusOK,
+	}
+	decoder := s.decoder(resp)
+	var result *jsonrpcsseobjectservice.StreamResult
+	if err := decoder.Decode(&result); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+// Close closes the stream.
+func (s *StreamClientStream) Close() error {
+	var body io.Closer
+
+	s.lock.Lock()
+	if s.closed {
+		s.lock.Unlock()
+		return nil
+	}
+	s.closed = true
+	if s.resp != nil {
+		body = s.resp.Body
+	}
+	s.lock.Unlock()
+
+	if body != nil {
+		return body.Close()
+	}
+	return nil
+}

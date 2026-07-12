@@ -1,0 +1,63 @@
+type commandLine struct {
+	StreamingServiceA struct {
+		Method struct{} `cmd:"" help:"Method implements Method." name:"method"`
+	} `cmd:"" help:"Service is the StreamingServiceA service interface." name:"streaming-service-a"`
+	StreamingServiceB struct {
+		Method struct{} `cmd:"" help:"Method implements Method." name:"method"`
+	} `cmd:"" help:"Service is the StreamingServiceB service interface." name:"streaming-service-b"`
+}
+
+// ParseEndpoint returns the endpoint and payload as specified on the command
+// line.
+func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool, dialer loomhttp.Dialer, streamingServiceAConfigurer *streamingserviceac.ConnConfigurer, streamingServiceBConfigurer *streamingservicebc.ConnConfigurer) (loom.Endpoint, any, error) {
+	var (
+		command commandLine
+		args    []string
+		svcn    string
+		epn     string
+	)
+	{
+		args = flag.Args()
+		if len(args) == 0 {
+			args = os.Args[1:]
+		}
+		path, err := loomhttpcli.Parse(&command, os.Args[0], args)
+		if err != nil {
+			return nil, nil, fmt.Errorf("parse command: %w", err)
+		}
+		switch path {
+		case "streaming-service-a method":
+			svcn = "streaming-service-a"
+			epn = "method"
+		case "streaming-service-b method":
+			svcn = "streaming-service-b"
+			epn = "method"
+		}
+	}
+
+	var (
+		data     any
+		endpoint loom.Endpoint
+		err      error
+	)
+	{
+		switch svcn {
+		case "streaming-service-a":
+			c := streamingserviceac.NewClient(scheme, host, doer, enc, dec, restore, dialer, streamingServiceAConfigurer)
+			switch epn {
+			case "method":
+				endpoint = c.Method()
+			}
+		case "streaming-service-b":
+			c := streamingservicebc.NewClient(scheme, host, doer, enc, dec, restore, dialer, streamingServiceBConfigurer)
+			switch epn {
+			case "method":
+				endpoint = c.Method()
+			}
+		}
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return endpoint, data, nil
+}

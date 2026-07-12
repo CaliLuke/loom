@@ -2,13 +2,13 @@ package codegen
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
@@ -83,13 +83,13 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		clientCode := topLevelSectionCode(t, ClientFiles("", CreateJSONRPCServices(root)), "jsonrpc-client-struct", "jsonrpc-client-init")
 
 		require.Contains(t, serverCode, "type Server struct")
-		require.Contains(t, serverCode, "Methods []string")
-		require.Contains(t, serverCode, "Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))")
 		require.NotContains(t, serverCode, "StreamHandler func")
 		require.Contains(t, clientCode, "type Client struct")
 		require.NotContains(t, clientCode, "var bufferPool = sync.Pool")
 		require.NotContains(t, clientCode, "streamConfig *jsonrpc.StreamConfig")
 		require.NotContains(t, allRenderedSections(t, ServerFiles("", CreateJSONRPCServices(root))), "type jsonrpcResponseCapture struct")
+		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-server-plain.golden"), serverCode)
+		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-client-plain.golden"), clientCode)
 	})
 
 	t.Run("mixed SSE service keeps top-level mixed transport wiring", func(t *testing.T) {
@@ -98,12 +98,11 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		serverCode := topLevelSectionCode(t, ServerFiles("", services), "jsonrpc-server-init", "jsonrpc-mixed-server-handler")
 		clientCode := topLevelSectionCode(t, ClientFiles("", services), "jsonrpc-client-struct")
 
-		require.Contains(t, serverCode, "Mixed HTTP/SSE services negotiate transports in ServeHTTP")
-		require.Contains(t, serverCode, `req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}`)
 		require.NotContains(t, serverCode, `"events-stream"`)
 		require.Contains(t, serverCode, `case "events/stream":`)
 		require.Contains(t, clientCode, "EventsStreamDoer loomhttp.Doer")
-		require.Contains(t, clientCode, "RestoreResponseBody bool")
+		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-server-mixed.golden"), serverCode)
+		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-client-mixed.golden"), clientCode)
 	})
 
 	t.Run("websocket service keeps stream-specific top-level state", func(t *testing.T) {
@@ -132,10 +131,9 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		clientCode := topLevelSectionCode(t, ClientFiles("", services), "jsonrpc-client-struct", "jsonrpc-client-init")
 
 		require.Contains(t, serverCode, "StreamHandler func(context.Context, stream.Stream) error")
-		require.Contains(t, serverCode, "upgrader loomhttp.Upgrader")
-		require.Contains(t, clientCode, "dialer loomhttp.Dialer")
 		require.Contains(t, clientCode, "streamConfig *jsonrpc.StreamConfig")
-		require.Contains(t, clientCode, "streamConfig := jsonrpc.NewStreamConfig(streamOpts...)")
+		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-server-websocket.golden"), serverCode)
+		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-client-websocket.golden"), clientCode)
 	})
 
 	t.Run("websocket stream send helpers keep doc comments above signatures", func(t *testing.T) {
@@ -162,14 +160,11 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		services := CreateJSONRPCServices(root)
 		code := fileSectionCode(t, ServerFiles("", services), "websocket.go", "jsonrpc-server-websocket-send")
 
-		require.Contains(t, code, "// SendEchoNotification sends a JSON-RPC notification for the echo method.")
-		require.Contains(t, code, "func (s *streamStream) SendEchoNotification(")
 		require.NotContains(t, code, "SendEchoNotification //")
-		require.Contains(t, code, "// SendEchoResponse sends a JSON-RPC response for the echo method.")
-		require.Contains(t, code, "func (s *streamStream) SendEchoResponse(")
 		require.NotContains(t, code, "SendEchoResponse //")
-		require.True(t, strings.Index(code, "// SendEchoNotification sends a JSON-RPC notification for the echo method.") < strings.Index(code, "func (s *streamStream) SendEchoNotification("))
-		require.True(t, strings.Index(code, "// SendEchoResponse sends a JSON-RPC response for the echo method.") < strings.Index(code, "func (s *streamStream) SendEchoResponse("))
+		require.Less(t, findIndex(t, code, "// SendEchoNotification sends a JSON-RPC notification for the echo method."), findIndex(t, code, "func (s *streamStream) SendEchoNotification("))
+		require.Less(t, findIndex(t, code, "// SendEchoResponse sends a JSON-RPC response for the echo method."), findIndex(t, code, "func (s *streamStream) SendEchoResponse("))
+		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-websocket-send.golden"), code)
 	})
 
 	t.Run("websocket server emits service error classifier", func(t *testing.T) {

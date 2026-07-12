@@ -1,12 +1,14 @@
 package codegen
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/codegen/testutil"
 )
 
 func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {
@@ -37,7 +39,5 @@ func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {
 
 	require.Contains(t, code, "type SelectionText string")
 	require.Contains(t, code, "type Selection struct {")
-	require.Contains(t, code, "func NewSelectionText(v SelectionText) Selection {")
-	require.Contains(t, code, "func (u Selection) MarshalFormValues(values url.Values, prefix string) error {")
-	require.Contains(t, code, "func (u *Selection) UnmarshalFormValues(values url.Values, prefix string) error {")
+	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "union_type_section_selection.golden"))
 }

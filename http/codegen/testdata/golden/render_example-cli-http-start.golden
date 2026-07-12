@@ -1,0 +1,10 @@
+func doHTTP(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, error) {
+	var (
+		doer loomhttp.Doer
+	)
+	{
+		doer = &http.Client{Timeout: time.Duration(timeout) * time.Second}
+		if debug {
+			doer = loomhttp.NewDebugDoer(doer)
+		}
+	}

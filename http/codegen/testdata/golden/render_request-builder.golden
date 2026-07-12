@@ -1,0 +1,15 @@
+// BuildMethodMultipartPrimitiveRequest instantiates a HTTP request object with
+// method and path set to call the "ServiceMultipartPrimitive" service
+// "MethodMultipartPrimitive" endpoint
+func (c *Client) BuildMethodMultipartPrimitiveRequest(ctx context.Context, v any) (*http.Request, error) {
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodMultipartPrimitiveServiceMultipartPrimitivePath()}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, loomhttp.ErrInvalidURL("ServiceMultipartPrimitive", "MethodMultipartPrimitive", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -113,8 +114,8 @@ func TestSessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {
 	assert.Equal(t, manualAPIKey.KeyAttr, sessionAPIKey.KeyAttr)
 
 	assert.Contains(t, sessionMethod.PayloadDef, "Auth *string")
-	assert.Contains(t, sessionMethod.PayloadDef, "BrowserSession *string")
 	assert.Contains(t, sessionMethod.PayloadDef, "Message *string")
+	testutil.AssertGo(t, "testdata/golden/security_session_payload_def.go.golden", sessionMethod.PayloadDef)
 }
 
 func TestAPISessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {
@@ -147,8 +148,8 @@ func TestAPISessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) 
 	assert.Equal(t, manualAPIKey.CredField, sessionAPIKey.CredField)
 
 	assert.Contains(t, sessionMethod.PayloadDef, "Auth *string")
-	assert.Contains(t, sessionMethod.PayloadDef, "BrowserSession *string")
 	assert.Contains(t, sessionMethod.PayloadDef, "Message *string")
+	testutil.AssertGo(t, "testdata/golden/security_api_session_payload_def.go.golden", sessionMethod.PayloadDef)
 }
 
 func TestSessionSecurityNoSecurityOverrideRemovesGeneratedRequirements(t *testing.T) {

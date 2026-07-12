@@ -1,0 +1,6 @@
+// NewWidget builds a widget.
+func NewWidget(name string) *Widget {
+
+	res := &Widget{Name: name}
+	return res
+}

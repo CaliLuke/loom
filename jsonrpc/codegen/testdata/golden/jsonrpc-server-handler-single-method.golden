@@ -1,0 +1,151 @@
+// ServeHTTP handles JSON-RPC requests.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.handleHTTP(w, r)
+}
+
+// handleHTTP handles JSON-RPC requests.
+func (s *Server) handleHTTP(w http.ResponseWriter, r *http.Request) {
+	obs, w := loomtransport.BeginJSONRPCRequest(r.Context(), w, "calc", r)
+	defer obs.End()
+	r = r.WithContext(loomtransport.WithRequestObserver(r.Context(), obs))
+	// Peek at the first byte to determine request type
+	bufReader := bufio.NewReader(r.Body)
+	peek, err := bufReader.Peek(1)
+	if err != nil && err != io.EOF {
+		r.Body.Close()
+		obs.Fail(loomtransport.ReasonRequestDecodeFailed)
+		s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
+		return
+	}
+
+	// Wrap the buffered reader with the original closer
+	r.Body = struct {
+		io.Reader
+		io.Closer
+	}{
+		Closer: r.Body,
+		Reader: bufReader,
+	}
+	defer func(r *http.Request) {
+		if err := r.Body.Close(); err != nil {
+			s.errhandler(r.Context(), w, fmt.Errorf("failed to close request body: %w", err))
+		}
+	}(r)
+
+	// Route to appropriate handler
+	if len(peek) > 0 && peek[0] == byte(0x5b) {
+		s.handleBatch(w, r)
+		return
+	}
+	s.handleSingle(w, r)
+}
+
+// handleSingle handles a single JSON-RPC request.
+func (s *Server) handleSingle(w http.ResponseWriter, r *http.Request) {
+	var req jsonrpc.RawRequest
+	if err := s.decoder(r).Decode(&req); err != nil {
+		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
+		response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
+		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
+			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode parse error response: %w", encErr))
+		}
+		return
+	}
+	s.processRequest(r.Context(), r, &req, w)
+}
+
+// handleBatch handles a batch of JSON-RPC requests.
+func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
+	var rawReqs []json.RawMessage
+	if err := s.decoder(r).Decode(&rawReqs); err != nil {
+		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCBatch)
+		response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
+		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
+			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode parse error response: %w", encErr))
+		}
+		return
+	}
+	if len(rawReqs) == 0 {
+		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCBatch)
+		response := jsonrpc.MakeErrorResponse(nil, jsonrpc.InvalidRequest, "Invalid request", nil)
+		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
+			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode invalid batch response: %w", encErr))
+		}
+		return
+	}
+	loomtransport.RequestObserverFromContext(r.Context()).SetJSONRPC("", "", len(rawReqs), false)
+	w.Header().Set("Content-Type", "application/json")
+	writer := &batchWriter{Writer: w}
+	for _, rawReq := range rawReqs {
+		var req jsonrpc.RawRequest
+		if err := json.Unmarshal(rawReq, &req); err != nil {
+			loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
+			s.encodeJSONRPCError(r.Context(), writer, &jsonrpc.RawRequest{}, jsonrpc.InvalidRequest, "Invalid request", nil)
+			continue
+		}
+		s.processRequest(r.Context(), r, &req, writer)
+	}
+	if writer.written {
+		writer.Writer.Write([]byte{byte(0x5d)})
+	}
+}
+
+// processRequest processes a single JSON-RPC request.
+func (s *Server) processRequest(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) {
+	loomtransport.RequestObserverFromContext(ctx).SetJSONRPC(req.Method, jsonrpc.IDToString(req.ID), 0, !req.HasID)
+	if req.Invalid {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
+		s.encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidRequest, "Invalid request", nil)
+		return
+	}
+	if req.JSONRPC != "2.0" {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
+		s.encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidRequest, "Invalid request", nil)
+		return
+	}
+	if req.Method == "" {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCMethod)
+		s.encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidRequest, "Missing method field", nil)
+		return
+	}
+	switch req.Method {
+	case "add":
+		if err := s.Add(ctx, r, req, w); err != nil {
+			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonHandlerError)
+			s.errhandler(ctx, w, fmt.Errorf("handler error for add: %w", err))
+		}
+	default:
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonUnsupportedMethod)
+		s.encodeJSONRPCError(ctx, w, req, jsonrpc.MethodNotFound, "Method not found", nil)
+	}
+}
+
+// batchWriter is a helper type that implements http.ResponseWriter for writing multiple JSON-RPC responses
+type batchWriter struct {
+	io.Writer
+	header     http.Header
+	statusCode int
+	written    bool
+}
+
+func (rb *batchWriter) Header() http.Header {
+	if rb.header == nil {
+		rb.header = make(http.Header)
+	}
+	return rb.header
+}
+func (rb *batchWriter) WriteHeader(statusCode int) {
+	if rb.written {
+		return
+	}
+	rb.statusCode = statusCode
+}
+func (rb *batchWriter) Write(data []byte) (int, error) {
+	if !rb.written {
+		rb.written = true
+		rb.Writer.Write([]byte{byte(0x5b)})
+	} else {
+		rb.Writer.Write([]byte{byte(0x2c)})
+	}
+	return rb.Writer.Write(data)
+}

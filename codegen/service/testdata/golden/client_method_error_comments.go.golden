@@ -1,0 +1,10 @@
+// ListAccounts calls the "ListAccounts" endpoint of the "AccountService"
+// service.
+// ListAccounts may return the following errors:
+// - "quota_exceeded" (type *QuotaExceededError): Returned when quota is
+// exhausted.
+// - error: internal error
+func (c *Client) ListAccounts(ctx context.Context) (err error) {
+	_, err = c.ListAccountsEndpoint(ctx, nil)
+	return
+}

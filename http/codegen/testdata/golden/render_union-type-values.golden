@@ -1,0 +1,213 @@
+// Values is a sum-type union.
+type Values struct {
+	kind              ValuesKind
+	AuthorizationCode *ValuesAuthorizationCodeRequestBody
+	RefreshToken      *ValuesRefreshTokenRequestBody
+}
+
+// ValuesKind enumerates the union variants for Values.
+type ValuesKind string
+
+const (
+	// ValuesKindAuthorizationCode identifies the AuthorizationCode branch of the union.
+	ValuesKindAuthorizationCode ValuesKind = "AuthorizationCode"
+	// ValuesKindRefreshToken identifies the RefreshToken branch of the union.
+	ValuesKindRefreshToken ValuesKind = "RefreshToken"
+)
+
+// Kind returns the discriminator value of the union.
+func (u Values) Kind() ValuesKind {
+	return u.kind
+}
+
+// NewValuesAuthorizationCode constructs a Values with the AuthorizationCode
+// branch set.
+func NewValuesAuthorizationCode(v *ValuesAuthorizationCodeRequestBody) Values {
+	return Values{
+		kind:              ValuesKindAuthorizationCode,
+		AuthorizationCode: v,
+	}
+}
+
+// AsAuthorizationCode returns the value of the AuthorizationCode branch if set.
+func (u Values) AsAuthorizationCode() (_ *ValuesAuthorizationCodeRequestBody, ok bool) {
+	if u.kind != ValuesKindAuthorizationCode {
+		return
+	}
+	return u.AuthorizationCode, true
+}
+
+// SetAuthorizationCode sets the AuthorizationCode branch of the union.
+func (u *Values) SetAuthorizationCode(v *ValuesAuthorizationCodeRequestBody) {
+	u.kind = ValuesKindAuthorizationCode
+	u.AuthorizationCode = v
+}
+
+// NewValuesRefreshToken constructs a Values with the RefreshToken branch set.
+func NewValuesRefreshToken(v *ValuesRefreshTokenRequestBody) Values {
+	return Values{
+		kind:         ValuesKindRefreshToken,
+		RefreshToken: v,
+	}
+}
+
+// AsRefreshToken returns the value of the RefreshToken branch if set.
+func (u Values) AsRefreshToken() (_ *ValuesRefreshTokenRequestBody, ok bool) {
+	if u.kind != ValuesKindRefreshToken {
+		return
+	}
+	return u.RefreshToken, true
+}
+
+// SetRefreshToken sets the RefreshToken branch of the union.
+func (u *Values) SetRefreshToken(v *ValuesRefreshTokenRequestBody) {
+	u.kind = ValuesKindRefreshToken
+	u.RefreshToken = v
+}
+
+// Validate ensures the union discriminant is valid.
+func (u Values) Validate() error {
+	switch u.kind {
+	case "":
+		return loom.InvalidEnumValueError("type", "", []any{
+			string(ValuesKindAuthorizationCode),
+			string(ValuesKindRefreshToken),
+		})
+	case ValuesKindAuthorizationCode:
+		return nil
+	case ValuesKindRefreshToken:
+		return nil
+	default:
+		return loom.InvalidEnumValueError("type", u.kind, []any{
+			string(ValuesKindAuthorizationCode),
+			string(ValuesKindRefreshToken),
+		})
+	}
+}
+
+// MarshalJSON marshals the union into the canonical {type,value} JSON shape.
+func (u Values) MarshalJSON() ([]byte, error) {
+	if err := u.Validate(); err != nil {
+		return nil, err
+	}
+	var (
+		value any
+	)
+	switch u.kind {
+	case ValuesKindAuthorizationCode:
+		value = u.AuthorizationCode
+	case ValuesKindRefreshToken:
+		value = u.RefreshToken
+	default:
+		return nil, fmt.Errorf("unexpected Values discriminant %q", u.kind)
+	}
+	return json.Marshal(struct {
+		Type  string `json:"type"`
+		Value any    `json:"value"`
+	}{
+		Type:  string(u.kind),
+		Value: value,
+	})
+}
+
+// MarshalFormValues marshals the union into application/x-www-form-urlencoded
+// values using the discriminator field plus flattened object fields for
+// object-shaped branches and the canonical {type,value} form shape for scalar
+// branches.
+func (u Values) MarshalFormValues(values url.Values, prefix string) error {
+	if err := u.Validate(); err != nil {
+		return err
+	}
+	values.Set(loomhttp.FormChildKey(prefix, "type"), string(u.kind))
+	switch u.kind {
+	case ValuesKindAuthorizationCode:
+		_, err := loomhttp.EncodeFormValue(values, prefix, u.AuthorizationCode)
+		return err
+	case ValuesKindRefreshToken:
+		_, err := loomhttp.EncodeFormValue(values, prefix, u.RefreshToken)
+		return err
+	default:
+		return fmt.Errorf("unexpected Values discriminant %q", u.kind)
+	}
+}
+
+// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded
+// values using the discriminator field plus flattened object fields for
+// object-shaped branches and the canonical {type,value} form shape for scalar
+// branches.
+func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
+	typeKey := loomhttp.FormChildKey(prefix, "type")
+	rawType := values.Get(typeKey)
+	if rawType == "" {
+		return loom.MissingFieldError("type", "body")
+	}
+	switch rawType {
+	case string(ValuesKindAuthorizationCode):
+		var v *ValuesAuthorizationCodeRequestBody
+		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return loom.MissingFieldError("value", "body")
+		}
+		u.kind = ValuesKindAuthorizationCode
+		u.AuthorizationCode = v
+	case string(ValuesKindRefreshToken):
+		var v *ValuesRefreshTokenRequestBody
+		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return loom.MissingFieldError("value", "body")
+		}
+		u.kind = ValuesKindRefreshToken
+		u.RefreshToken = v
+	default:
+		return loom.InvalidEnumValueError("type", rawType, []any{
+			string(ValuesKindAuthorizationCode),
+			string(ValuesKindRefreshToken),
+		})
+	}
+	return nil
+}
+
+// UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.
+func (u *Values) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Type  string          `json:"type"`
+		Value json.RawMessage `json:"value"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	switch raw.Type {
+	case string(ValuesKindAuthorizationCode):
+		var v *ValuesAuthorizationCodeRequestBody
+		if len(raw.Value) == 0 {
+			return loom.MissingFieldError("value", "body")
+		}
+		if err := json.Unmarshal(raw.Value, &v); err != nil {
+			return err
+		}
+		u.kind = ValuesKindAuthorizationCode
+		u.AuthorizationCode = v
+	case string(ValuesKindRefreshToken):
+		var v *ValuesRefreshTokenRequestBody
+		if len(raw.Value) == 0 {
+			return loom.MissingFieldError("value", "body")
+		}
+		if err := json.Unmarshal(raw.Value, &v); err != nil {
+			return err
+		}
+		u.kind = ValuesKindRefreshToken
+		u.RefreshToken = v
+	default:
+		return loom.InvalidEnumValueError("type", raw.Type, []any{
+			string(ValuesKindAuthorizationCode),
+			string(ValuesKindRefreshToken),
+		})
+	}
+	return nil
+}

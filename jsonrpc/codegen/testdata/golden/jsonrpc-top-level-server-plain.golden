@@ -1,0 +1,27 @@
+// Server handles JSON-RPC requests for the calc service.
+type Server struct {
+	http.Handler
+	// Methods is the list of methods served by this server.
+	Methods []string
+	// Add is the handler for the add method.
+	Add func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error
+
+	decoder    func(*http.Request) loomhttp.Decoder
+	encoder    func(context.Context, http.ResponseWriter) loomhttp.Encoder
+	errhandler func(context.Context, http.ResponseWriter, error)
+}
+
+// New creates a JSON-RPC server which loads HTTP requests and calls the "calc"
+// service methods.
+func New(endpoints *calc.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
+	s := &Server{
+		Add:        NewAddHandler(endpoints.Add, mux, decoder, encoder, errhandler),
+		Methods:    []string{"add"},
+		decoder:    decoder,
+		encoder:    encoder,
+		errhandler: errhandler,
+	}
+	// Plain HTTP JSON-RPC
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
+	return s
+}

@@ -1,0 +1,6 @@
+// FromExternal initializes t from the fields of v
+func (t *Widget) FromExternal(v *external.Widget) {
+
+	temp := &Widget{Name: v.Name}
+	*t = *temp
+}

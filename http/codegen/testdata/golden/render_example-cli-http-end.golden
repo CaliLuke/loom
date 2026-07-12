@@ -1,0 +1,14 @@
+
+endpoint, payload, err := cli.ParseEndpoint(
+		scheme,
+		host,
+		doer,
+		loomhttp.RequestEncoder,
+		loomhttp.ResponseDecoder,
+		debug,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse endpoint: %w", err)
+	}
+	return endpoint, payload, nil
+}

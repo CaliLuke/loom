@@ -1,0 +1,214 @@
+type SelectionText string
+
+// Selection is a sum-type union.
+type Selection struct {
+	kind    SelectionKind
+	Text    SelectionText
+	Payload *PayloadBody
+}
+
+// SelectionKind enumerates the union variants for Selection.
+type SelectionKind string
+
+const (
+	// SelectionKindText identifies the text branch of the union.
+	SelectionKindText SelectionKind = "text"
+	// SelectionKindPayload identifies the payload branch of the union.
+	SelectionKindPayload SelectionKind = "payload"
+)
+
+// Kind returns the discriminator value of the union.
+func (u Selection) Kind() SelectionKind {
+	return u.kind
+}
+
+// NewSelectionText constructs a Selection with the text branch set.
+func NewSelectionText(v SelectionText) Selection {
+	return Selection{
+		kind: SelectionKindText,
+		Text: v,
+	}
+}
+
+// AsText returns the value of the text branch if set.
+func (u Selection) AsText() (_ SelectionText, ok bool) {
+	if u.kind != SelectionKindText {
+		return
+	}
+	return u.Text, true
+}
+
+// SetText sets the text branch of the union.
+func (u *Selection) SetText(v SelectionText) {
+	u.kind = SelectionKindText
+	u.Text = v
+}
+
+// NewSelectionPayload constructs a Selection with the payload branch set.
+func NewSelectionPayload(v *PayloadBody) Selection {
+	return Selection{
+		kind:    SelectionKindPayload,
+		Payload: v,
+	}
+}
+
+// AsPayload returns the value of the payload branch if set.
+func (u Selection) AsPayload() (_ *PayloadBody, ok bool) {
+	if u.kind != SelectionKindPayload {
+		return
+	}
+	return u.Payload, true
+}
+
+// SetPayload sets the payload branch of the union.
+func (u *Selection) SetPayload(v *PayloadBody) {
+	u.kind = SelectionKindPayload
+	u.Payload = v
+}
+
+// Validate ensures the union discriminant is valid.
+func (u Selection) Validate() error {
+	switch u.kind {
+	case "":
+		return loom.InvalidEnumValueError("type", "", []any{
+			string(SelectionKindText),
+			string(SelectionKindPayload),
+		})
+	case SelectionKindText:
+		return nil
+	case SelectionKindPayload:
+		return nil
+	default:
+		return loom.InvalidEnumValueError("type", u.kind, []any{
+			string(SelectionKindText),
+			string(SelectionKindPayload),
+		})
+	}
+}
+
+// MarshalJSON marshals the union into the canonical {type,value} JSON shape.
+func (u Selection) MarshalJSON() ([]byte, error) {
+	if err := u.Validate(); err != nil {
+		return nil, err
+	}
+	var (
+		value any
+	)
+	switch u.kind {
+	case SelectionKindText:
+		value = u.Text
+	case SelectionKindPayload:
+		value = u.Payload
+	default:
+		return nil, fmt.Errorf("unexpected Selection discriminant %q", u.kind)
+	}
+	return json.Marshal(struct {
+		Type  string `json:"type"`
+		Value any    `json:"value"`
+	}{
+		Type:  string(u.kind),
+		Value: value,
+	})
+}
+
+// MarshalFormValues marshals the union into application/x-www-form-urlencoded
+// values using the discriminator field plus flattened object fields for
+// object-shaped branches and the canonical {type,value} form shape for scalar
+// branches.
+func (u Selection) MarshalFormValues(values url.Values, prefix string) error {
+	if err := u.Validate(); err != nil {
+		return err
+	}
+	values.Set(loomhttp.FormChildKey(prefix, "type"), string(u.kind))
+	switch u.kind {
+	case SelectionKindText:
+		_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "value"), u.Text)
+		return err
+	case SelectionKindPayload:
+		_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "value"), u.Payload)
+		return err
+	default:
+		return fmt.Errorf("unexpected Selection discriminant %q", u.kind)
+	}
+}
+
+// UnmarshalFormValues unmarshals the union from application/x-www-form-urlencoded
+// values using the discriminator field plus flattened object fields for
+// object-shaped branches and the canonical {type,value} form shape for scalar
+// branches.
+func (u *Selection) UnmarshalFormValues(values url.Values, prefix string) error {
+	typeKey := loomhttp.FormChildKey(prefix, "type")
+	rawType := values.Get(typeKey)
+	if rawType == "" {
+		return loom.MissingFieldError("type", "body")
+	}
+	switch rawType {
+	case string(SelectionKindText):
+		var v SelectionText
+		seen, err := loomhttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return loom.MissingFieldError("value", "body")
+		}
+		u.kind = SelectionKindText
+		u.Text = v
+	case string(SelectionKindPayload):
+		var v *PayloadBody
+		seen, err := loomhttp.DecodeFormValue(values, valueKey, &v)
+		if err != nil {
+			return err
+		}
+		if !seen {
+			return loom.MissingFieldError("value", "body")
+		}
+		u.kind = SelectionKindPayload
+		u.Payload = v
+	default:
+		return loom.InvalidEnumValueError("type", rawType, []any{
+			string(SelectionKindText),
+			string(SelectionKindPayload),
+		})
+	}
+	return nil
+}
+
+// UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.
+func (u *Selection) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Type  string          `json:"type"`
+		Value json.RawMessage `json:"value"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	switch raw.Type {
+	case string(SelectionKindText):
+		var v SelectionText
+		if len(raw.Value) == 0 {
+			return loom.MissingFieldError("value", "body")
+		}
+		if err := json.Unmarshal(raw.Value, &v); err != nil {
+			return err
+		}
+		u.kind = SelectionKindText
+		u.Text = v
+	case string(SelectionKindPayload):
+		var v *PayloadBody
+		if len(raw.Value) == 0 {
+			return loom.MissingFieldError("value", "body")
+		}
+		if err := json.Unmarshal(raw.Value, &v); err != nil {
+			return err
+		}
+		u.kind = SelectionKindPayload
+		u.Payload = v
+	default:
+		return loom.InvalidEnumValueError("type", raw.Type, []any{
+			string(SelectionKindText),
+			string(SelectionKindPayload),
+		})
+	}
+	return nil
+}

@@ -1,0 +1,101 @@
+// New creates a JSON-RPC server which loads HTTP requests and calls the
+// "JSONRPCMixedInitializeEventsStreamService" service methods.
+func New(endpoints *jsonrpcmixedinitializeeventsstreamservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
+	s := &Server{
+		EventsStream: NewEventsStreamHandler(endpoints.EventsStream, mux, decoder, encoder, errhandler),
+		Initialize:   NewInitializeHandler(endpoints.Initialize, mux, decoder, encoder, errhandler),
+		Methods:      []string{"initialize", "events/stream"},
+		decoder:      decoder,
+		encoder:      encoder,
+		errhandler:   errhandler,
+	}
+	// Mixed HTTP/SSE services negotiate transports in ServeHTTP
+	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))
+	return s
+}
+
+// ServeHTTP handles JSON-RPC requests with content negotiation for mixed HTTP/SSE transports.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}
+		switch req.Method {
+		case "events/stream":
+			if err := s.EventsStream(r.Context(), r, req, w); err != nil {
+				s.errhandler(r.Context(), w, fmt.Errorf("handler error for events/stream: %w", err))
+			}
+			return
+		default:
+			http.NotFound(w, r)
+			return
+		}
+	case http.MethodPost:
+		accept := r.Header.Get("Accept")
+		if !strings.Contains(accept, "text/event-stream") {
+			s.handleHTTP(w, r)
+			return
+		}
+
+		reader := bufio.NewReader(r.Body)
+		const maxNegotiationWhitespace = 4096
+		var first byte
+		sniffed := 0
+		for sniffed < maxNegotiationWhitespace {
+			peek, err := reader.Peek(1)
+			if err != nil && err != io.EOF {
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
+				return
+			}
+			if len(peek) == 0 {
+				break
+			}
+			first = peek[0]
+			if first != byte(0x20) && first != byte(0x9) && first != byte(0xd) && first != byte(0xa) {
+				break
+			}
+			if _, err := reader.Discard(1); err != nil {
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
+				return
+			}
+			sniffed++
+		}
+
+		r.Body = struct {
+			io.Reader
+			io.Closer
+		}{
+			Closer: r.Body,
+			Reader: reader,
+		}
+
+		if first == 0 || first == byte(0x5b) || sniffed >= maxNegotiationWhitespace {
+			s.handleHTTP(w, r)
+			return
+		}
+
+		var req jsonrpc.RawRequest
+		if err := s.decoder(r).Decode(&req); err != nil {
+			response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
+			if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to encode parse error response: %w", encErr))
+			}
+			return
+		}
+
+		if req.Invalid {
+			s.processRequest(r.Context(), r, &req, w)
+			return
+		}
+
+		switch req.Method {
+		case "events/stream":
+			if err := s.EventsStream(r.Context(), r, &req, w); err != nil {
+				s.errhandler(r.Context(), w, fmt.Errorf("handler error for events/stream: %w", err))
+			}
+		default:
+			s.processRequest(r.Context(), r, &req, w)
+		}
+	default:
+		http.NotFound(w, r)
+	}
+}

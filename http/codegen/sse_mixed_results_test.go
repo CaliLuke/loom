@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -32,6 +33,7 @@ func TestSSE_MixedResults(t *testing.T) {
 
 		require.Contains(t, code, "payload = res")
 		require.NotContains(t, code, "NewCreateResponseBody")
+		testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-mixed-results-server.golden"))
 	})
 
 	t.Run("client", func(t *testing.T) {
@@ -50,5 +52,6 @@ func TestSSE_MixedResults(t *testing.T) {
 		code := codegen.SectionCode(t, sections[0])
 
 		require.Contains(t, code, "event = new(")
+		testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-mixed-results-client.golden"))
 	})
 }

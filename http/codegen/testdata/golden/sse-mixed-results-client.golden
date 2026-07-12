@@ -1,0 +1,72 @@
+// CreateClientStream is the interface for reading Server-Sent Events.
+type CreateClientStream interface {
+	// Recv reads and returns the next event from the SSE stream.
+	Recv(context.Context) (*mixedresultsservice.Event, error)
+	// Close closes the SSE stream and releases resources.
+	Close() error
+}
+type (
+	// CreateStreamImpl implements the CreateClientStream interface.
+	CreateStreamImpl struct {
+		reader  *loomhttp.SSEStreamReader
+		decoder func(*http.Response) loomhttp.Decoder
+	}
+)
+
+// CreateStreamImpl implements the CreateClientStream interface.
+var _ CreateClientStream = (*CreateStreamImpl)(nil)
+
+// NewCreateStream creates a new CreateClientStream.
+func NewCreateStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) CreateClientStream {
+	return &CreateStreamImpl{
+		decoder: decoder,
+		reader:  loomhttp.NewSSEStreamReader(resp.Body),
+	}
+}
+
+// Recv reads and returns the next event from the SSE stream, respecting
+// context cancellation.
+func (s *CreateStreamImpl) Recv(ctx context.Context) (event *mixedresultsservice.Event, err error) {
+	var byts []byte
+	byts, err = s.reader.ReadEvent(ctx)
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			if closeErr := s.Close(); closeErr != nil {
+				return event, errors.Join(io.EOF, closeErr)
+			}
+			return event, io.EOF
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			if closeErr := s.Close(); closeErr != nil {
+				return event, err
+			}
+		}
+		return
+	}
+	return s.processEvent(byts)
+}
+
+// Close closes the SSE stream and releases any associated resources.
+func (s *CreateStreamImpl) Close() error {
+	return s.reader.Close()
+}
+
+// processEvent processes a raw SSE event into the expected type
+func (s *CreateStreamImpl) processEvent(eventData []byte) (event *mixedresultsservice.Event, err error) {
+	parsed, err := loomhttp.ParseSSEEvent(eventData)
+	if err != nil {
+		return event, err
+	}
+	event = new(mixedresultsservice.Event)
+	dataContent := parsed.Data
+	// Decode JSON into the struct pointer directly
+	respBody := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewReader([]byte(dataContent))),
+	}
+	err = s.decoder(respBody).Decode(event)
+	if err != nil {
+		return
+	}
+	return
+}

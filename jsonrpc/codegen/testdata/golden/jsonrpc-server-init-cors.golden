@@ -1,0 +1,19 @@
+// New creates a JSON-RPC server which loads HTTP requests and calls the
+// "JSONRPCCORS" service methods.
+func New(endpoints *jsonrpccors.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
+	s := &Server{
+		Call:       NewCallHandler(endpoints.Call, mux, decoder, encoder, errhandler),
+		Methods:    []string{"Call"},
+		decoder:    decoder,
+		encoder:    encoder,
+		errhandler: errhandler,
+	}
+	// Plain HTTP JSON-RPC
+	s.Handler = loomhttp.CORSHandler(loomhttp.CORSPolicy{Origins: []loomhttp.CORSOrigin{{
+		Credentials: true,
+		Headers:     []string{"Content-Type", "Authorization"},
+		Methods:     []string{"POST"},
+		Pattern:     "https://app.example.com",
+	}}}, http.HandlerFunc(s.ServeHTTP))
+	return s
+}

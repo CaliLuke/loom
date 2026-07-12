@@ -1,0 +1,7 @@
+// ToExternal creates an instance of external.Widget initialized from t.
+func (t *Widget) ToExternal() *external.Widget {
+
+	v := &external.Widget{Name: t.Name}
+
+	return v
+}

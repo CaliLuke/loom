@@ -1,0 +1,5 @@
+struct {
+	Message        *string `json:"message,omitempty"`
+	Auth           *string `json:"auth,omitempty"`
+	BrowserSession *string `json:"browser_session,omitempty"`
+}

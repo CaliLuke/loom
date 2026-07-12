@@ -1,0 +1,31 @@
+// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
+func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any) {
+	encodeJSONRPCError(ctx, w, req, code, message, data, s.encoder, s.errhandler)
+}
+
+// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
+func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) {
+	if req.HasID || code == jsonrpc.InvalidRequest {
+		id := req.ID
+		if !req.HasID {
+			id = nil
+		}
+		response := jsonrpc.MakeErrorResponse(id, code, message, data)
+		if err := encoder(ctx, w).Encode(response); err != nil {
+			errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
+		}
+	}
+}
+
+// jsonrpcErrorCodeForServiceError classifies framework validation errors as invalid params and all other service errors as internal errors.
+func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
+	if err == nil {
+		return jsonrpc.InternalError
+	}
+	switch err.Name {
+	case loom.InvalidFieldType, loom.MissingField, loom.InvalidEnumValue, loom.InvalidFormat, loom.InvalidPattern, loom.InvalidRange, loom.InvalidLength, loom.DecodePayload, loom.MissingPayload:
+		return jsonrpc.InvalidParams
+	default:
+		return jsonrpc.InternalError
+	}
+}

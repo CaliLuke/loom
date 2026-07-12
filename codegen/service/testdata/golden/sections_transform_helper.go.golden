@@ -1,0 +1,7 @@
+// widgetToAlias builds a value of type *Alias from a value of type *Widget.
+func widgetToAlias(v *Widget) *Alias {
+
+	res := &Alias{Name: v.Name}
+
+	return res
+}

@@ -1,0 +1,43 @@
+// Client lists the LargeTypes service endpoint HTTP clients.
+type Client struct {
+	// Method0 Doer is the HTTP client used to make requests to the Method0
+	// endpoint.
+	Method0Doer loomhttp.Doer
+	// Method1 Doer is the HTTP client used to make requests to the Method1
+	// endpoint.
+	Method1Doer loomhttp.Doer
+	// Method2 Doer is the HTTP client used to make requests to the Method2
+	// endpoint.
+	Method2Doer loomhttp.Doer
+	// Method3 Doer is the HTTP client used to make requests to the Method3
+	// endpoint.
+	Method3Doer loomhttp.Doer
+	// Method4 Doer is the HTTP client used to make requests to the Method4
+	// endpoint.
+	Method4Doer loomhttp.Doer
+	// Method5 Doer is the HTTP client used to make requests to the Method5
+	// endpoint.
+	Method5Doer loomhttp.Doer
+	// Method6 Doer is the HTTP client used to make requests to the Method6
+	// endpoint.
+	Method6Doer loomhttp.Doer
+	// Method7 Doer is the HTTP client used to make requests to the Method7
+	// endpoint.
+	Method7Doer loomhttp.Doer
+	// Method8 Doer is the HTTP client used to make requests to the Method8
+	// endpoint.
+	Method8Doer loomhttp.Doer
+	// Method9 Doer is the HTTP client used to make requests to the Method9
+	// endpoint.
+	Method9Doer loomhttp.Doer
+	// Items groups LargeTypes operations.
+	Items *ItemsClient
+	// RestoreResponseBody controls whether the response bodies are reset after
+	// decoding so they can be read again.
+	RestoreResponseBody bool
+
+	scheme  string
+	host    string
+	encoder func(*http.Request) loomhttp.Encoder
+	decoder func(*http.Response) loomhttp.Decoder
+}

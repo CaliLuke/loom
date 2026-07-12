@@ -1,0 +1,63 @@
+// NewEventsStreamHandler creates a JSON-RPC handler which calls the
+// "JSONRPCSSEEventsStreamService" service "events/stream" endpoint.
+func NewEventsStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
+	decodeParams := DecodeEventsStreamRequest(mux, decoder)
+	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
+		ctx = context.WithValue(ctx, loom.MethodKey, "events/stream")
+		ctx = context.WithValue(ctx, loom.ServiceKey, "JSONRPCSSEEventsStreamService")
+
+		strm := &EventsStreamServerStream{
+			encoder:      encoder,
+			r:            r,
+			requestHasID: req.HasID,
+			requestID:    req.ID,
+			w:            w,
+		}
+		if r.Method == http.MethodGet && req.Method == "events/stream" {
+			if err := strm.open(); err != nil {
+				return err
+			}
+		}
+		params, err := decodeParams(r, req)
+		if err != nil {
+			if req.HasID {
+				code := jsonrpc.InternalError
+				var serviceError *loom.ServiceError
+				if errors.As(err, &serviceError) {
+					code = jsonrpcErrorCodeForServiceError(serviceError)
+				}
+				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+			}
+			return nil
+		}
+		if req.ID != nil {
+			idStr := jsonrpc.IDToString(req.ID)
+			params.ID = &idStr
+		}
+		v := &jsonrpcsseeventsstreamservice.EventsStreamEndpointInput{
+			Payload: params,
+			Stream:  strm,
+		}
+		if _, err := endpoint(ctx, v); err != nil {
+			if req.HasID {
+				var en loom.LoomErrorNamer
+				if errors.As(err, &en) {
+					switch en.LoomErrorName() {
+					case "invalid_params":
+						return strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+					case "method_not_found":
+						return strm.sendError(ctx, req.ID, jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+					}
+				}
+				code := jsonrpc.InternalError
+				var serviceError *loom.ServiceError
+				if errors.As(err, &serviceError) {
+					code = jsonrpcErrorCodeForServiceError(serviceError)
+				}
+				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+			}
+			return nil
+		}
+		return nil
+	}
+}

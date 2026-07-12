@@ -1,0 +1,12 @@
+// NewViewedWidget builds a viewed widget.
+func NewViewedWidget(res *Widget, view string) (*widgetviews.Widget, error) {
+
+	var vres *widgetviews.Widget
+	switch view {
+	case "default", "":
+		vres = &widgetviews.Widget{Projected: ProjectWidget(res), View: "default"}
+	default:
+		return vres, loom.InvalidEnumValueError("view", view, []any{"default"})
+	}
+	return vres, nil
+}

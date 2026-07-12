@@ -1,0 +1,5 @@
+// NewClient initializes a "MixedInterceptorService" service client given the
+// endpoints.
+func NewClient(method, methodStream loom.Endpoint, ci ClientInterceptors) *Client {
+	return &Client{MethodEndpoint: WrapMethodClientEndpoint(method, ci), MethodStreamEndpoint: WrapMethodClientEndpoint(methodStream, ci)}
+}

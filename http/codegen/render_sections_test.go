@@ -12,8 +12,16 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	ctestdata "github.com/CaliLuke/loom/codegen/example/testdata"
 	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
+
+// renderGolden compares a rendered section against its golden file under
+// testdata/golden.
+func renderGolden(t *testing.T, code, name string) {
+	t.Helper()
+	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", name))
+}
 
 func TestConvertedServerRenderSections(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.ServerFileServerDSL)
@@ -32,16 +40,13 @@ func TestConvertedServerRenderSections(t *testing.T) {
 
 	serverStruct := codegen.SectionCode(t, serverFile.Section("server-struct")[0])
 	require.Contains(t, serverStruct, "type Server struct {")
-	require.Contains(t, serverStruct, "[]*MountPoint")
+	renderGolden(t, serverStruct, "render_server-struct.golden")
 
 	mountPoint := codegen.SectionCode(t, serverFile.Section("server-mountpoint")[0])
-	require.Contains(t, mountPoint, "type MountPoint struct {")
-	require.Contains(t, mountPoint, "Method string")
-	require.Contains(t, mountPoint, "Pattern string")
+	renderGolden(t, mountPoint, "render_server-mountpoint.golden")
 
 	appendFS := codegen.SectionCode(t, serverFile.Section("append-fs")[0])
-	require.Contains(t, appendFS, "type appendFS struct {")
-	require.Contains(t, appendFS, "func appendPrefix(fsys http.FileSystem, prefix string) http.FileSystem {")
+	renderGolden(t, appendFS, "render_append-fs.golden")
 }
 
 func TestServerFileRendersSeparatedDeclarationsAndAttachedFieldDocs(t *testing.T) {
@@ -58,8 +63,7 @@ func TestServerFileRendersSeparatedDeclarationsAndAttachedFieldDocs(t *testing.T
 
 	require.NotContains(t, code, "} //")
 	require.Contains(t, code, "// Method is the name of the service method served by the mounted HTTP handler.\n\tMethod string")
-	require.Contains(t, code, "// Verb is the HTTP method used to match requests to the mounted handler.\n\tVerb string")
-	require.Contains(t, code, "// Pattern is the HTTP request path pattern used to match requests to the mounted handler.\n\tPattern string")
+	renderGolden(t, code, "render_server-file.go.golden")
 }
 
 func TestRenderAppendFSOpenBodySortsMappedFiles(t *testing.T) {
@@ -94,8 +98,7 @@ func TestConvertedTypeRenderSections(t *testing.T) {
 
 	unionSection := codegen.SectionCode(t, file.Section("server-union-type")[0])
 	require.Contains(t, unionSection, "type Values struct {")
-	require.Contains(t, unionSection, "func (u Values) MarshalFormValues")
-	require.Contains(t, unionSection, "func (u *Values) UnmarshalFormValues")
+	renderGolden(t, unionSection, "render_union-type-values.golden")
 }
 
 func TestConvertedStreamRenderSections(t *testing.T) {
@@ -114,9 +117,8 @@ func TestConvertedStreamRenderSections(t *testing.T) {
 
 	sseSection := codegen.SectionCode(t, sseFile.Section("client-sse")[0])
 	require.Contains(t, sseSection, "type SSEObjectMethodClientStream interface {")
-	require.Contains(t, sseSection, "func NewSSEObjectMethodStream(")
-	require.Contains(t, sseSection, "loomhttp.NewSSEStreamReader(resp.Body)")
 	require.NotContains(t, sseSection, "func (s *SSEObjectMethodStreamImpl) checkBuffer() ([]byte, bool) {")
+	renderGolden(t, sseSection, "render_client-sse-object.golden")
 }
 
 func TestConvertedCLIRenderSections(t *testing.T) {
@@ -128,16 +130,14 @@ func TestConvertedCLIRenderSections(t *testing.T) {
 	parseFile := findFileWithSection(t, files, "parse-endpoint")
 	parseSection := codegen.SectionCode(t, parseFile.Section("parse-endpoint")[0])
 	require.Contains(t, parseSection, "func ParseEndpoint(")
-	require.Contains(t, parseSection, "return endpoint, data, nil")
-	require.Contains(t, parseSection, `fmt.Errorf("parse command: %w", err)`)
-	require.Contains(t, parseSection, "dialer loomhttp.Dialer")
+	renderGolden(t, parseSection, "render_parse-endpoint.golden")
 
 	pathRoot := RunHTTPDSL(t, testdata.PathMultipleParamsDSL)
 	pathServices := CreateHTTPServices(pathRoot)
 	pathFile := findFileWithSection(t, PathFiles(pathServices), "path")
 	pathSection := codegen.SectionCode(t, pathFile.Section("path")[0])
 	require.Contains(t, pathSection, "returns the URL path")
-	require.Contains(t, pathSection, "fmt.Sprintf(")
+	renderGolden(t, pathSection, "render_path-multiple-params.golden")
 }
 
 func TestConvertedExampleRenderSections(t *testing.T) {
@@ -147,19 +147,19 @@ func TestConvertedExampleRenderSections(t *testing.T) {
 	cliFile := findFileWithSection(t, ExampleCLIFiles("", services), "cli-http-start")
 	cliStart := renderedSectionSource(t, cliFile.Section("cli-http-start")[0])
 	require.Contains(t, cliStart, "func doHTTP(")
-	require.Contains(t, cliStart, "doer loomhttp.Doer")
+	renderGolden(t, cliStart, "render_example-cli-http-start.golden")
 
 	cliEnd := renderedSectionSource(t, cliFile.Section("cli-http-end")[0])
-	require.Contains(t, cliEnd, `fmt.Errorf("parse endpoint: %w", err)`)
+	renderGolden(t, cliEnd, "render_example-cli-http-end.golden")
 
 	serverFile := findFileWithSection(t, ExampleServerFiles("", services), "server-http-start")
 	serverStart := renderedSectionSource(t, serverFile.Section("server-http-start")[0])
 	require.Contains(t, serverStart, "func handleHTTPServer(")
-	require.Contains(t, serverStart, "errc chan error")
+	renderGolden(t, serverStart, "render_example-server-http-start.golden")
 
 	serverEnd := renderedSectionSource(t, serverFile.Section("server-http-end")[0])
-	require.Contains(t, serverEnd, "context.WithoutCancel(ctx)")
 	require.NotContains(t, serverEnd, "context.WithTimeout(context.Background()")
+	renderGolden(t, serverEnd, "render_example-server-http-end.golden")
 }
 
 func TestConvertedMiscRenderSections(t *testing.T) {
@@ -169,16 +169,15 @@ func TestConvertedMiscRenderSections(t *testing.T) {
 	clientEncodeFile := findFileWithSuffix(t, ClientFiles("gen", services), filepath.Join("client", "encode_decode.go"))
 	requestBuilder := codegen.SectionCode(t, clientEncodeFile.Section("request-builder")[0])
 	require.Contains(t, requestBuilder, "http.NewRequest(")
-	require.Contains(t, requestBuilder, "loomhttp.ErrInvalidURL(")
+	renderGolden(t, requestBuilder, "render_request-builder.golden")
 
 	encoderSection := codegen.SectionCode(t, clientEncodeFile.Section("multipart-request-encoder")[0])
 	require.Contains(t, encoderSection, "multipart.NewWriter(body)")
-	require.Contains(t, encoderSection, "mw.FormDataContentType()")
+	renderGolden(t, encoderSection, "render_multipart-request-encoder.golden")
 
 	serverFile := findFileWithSuffix(t, ServerFiles("gen", services), filepath.Join("server", "server.go"))
 	decoderType := codegen.SectionCode(t, serverFile.Section("multipart-request-decoder-type")[0])
-	require.Contains(t, decoderType, "type ServiceMultipartPrimitiveMethodMultipartPrimitiveDecoderFunc")
-	require.Contains(t, decoderType, "func(*multipart.Reader, *string) error")
+	renderGolden(t, decoderType, "render_multipart-request-decoder-type.golden")
 }
 
 func TestHTTPEncodeDecodeSectionsUseGenericTemplateSections(t *testing.T) {

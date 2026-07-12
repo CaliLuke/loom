@@ -1,0 +1,41 @@
+// EventsStream returns an endpoint that makes JSON-RPC requests to the
+// JSONRPCSSEEventsStreamService service events/stream method.
+func (c *Client) EventsStream() loom.Endpoint {
+	var (
+		encodeRequest = EncodeEventsStreamRequest(c.encoder)
+	)
+
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildEventsStreamRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		if err := encodeRequest(req, v); err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "text/event-stream")
+		resp, err := c.Doer.Do(req)
+		if err != nil {
+			return nil, loomhttp.ErrRequestError("JSONRPCSSEEventsStreamService", "events/stream", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, loomhttp.ErrInvalidResponse("JSONRPCSSEEventsStreamService", "events/stream", resp.StatusCode, string(body))
+		}
+
+		contentType := resp.Header.Get("Content-Type")
+		if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
+			resp.Body.Close()
+			return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+		}
+
+		stream := &EventsStreamClientStream{
+			decoder: c.decoder,
+			reader:  bufio.NewReader(resp.Body),
+			resp:    resp,
+		}
+		return stream, nil
+	}
+}

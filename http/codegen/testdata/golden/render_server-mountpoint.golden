@@ -1,0 +1,9 @@
+// MountPoint holds information about the mounted endpoints.
+type MountPoint struct {
+	// Method is the name of the service method served by the mounted HTTP handler.
+	Method string
+	// Verb is the HTTP method used to match requests to the mounted handler.
+	Verb string
+	// Pattern is the HTTP request path pattern used to match requests to the mounted handler.
+	Pattern string
+}

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 )
 
 func TestTypeInitSectionStructuredDeclaration(t *testing.T) {
@@ -23,7 +24,7 @@ return res`,
 
 	code := codegen.SectionCode(t, section)
 	require.Contains(t, code, "func NewWidget(name string) *Widget {")
-	require.Contains(t, code, "return res")
+	testutil.AssertGo(t, "testdata/golden/sections_type_init.go.golden", code)
 }
 
 func TestViewedResultInitSectionsReturnErrors(t *testing.T) {
@@ -48,9 +49,8 @@ return res, nil`,
 
 	resultCode := codegen.SectionCode(t, resultSection)
 	require.Contains(t, resultCode, "func NewWidget(vres *widgetviews.Widget) (*Widget, error) {")
-	require.Contains(t, resultCode, `return res, loom.InvalidEnumValueError("view", vres.View, []any{"default"})`)
-	require.Contains(t, resultCode, "return res, nil")
 	require.NotContains(t, resultCode, "panic(")
+	testutil.AssertGo(t, "testdata/golden/sections_viewed_result_init_result.go.golden", resultCode)
 
 	viewedSection := typeInitSection("service-result-type-to-viewed-result-type", &InitData{
 		Name:          "NewViewedWidget",
@@ -74,9 +74,8 @@ return vres, nil`,
 
 	viewedCode := codegen.SectionCode(t, viewedSection)
 	require.Contains(t, viewedCode, "func NewViewedWidget(res *Widget, view string) (*widgetviews.Widget, error) {")
-	require.Contains(t, viewedCode, `return vres, loom.InvalidEnumValueError("view", view, []any{"default"})`)
-	require.Contains(t, viewedCode, "return vres, nil")
 	require.NotContains(t, viewedCode, "panic(")
+	testutil.AssertGo(t, "testdata/golden/sections_viewed_result_init_viewed.go.golden", viewedCode)
 }
 
 func TestConvertSectionsStructuredDeclarations(t *testing.T) {
@@ -89,7 +88,7 @@ func TestConvertSectionsStructuredDeclarations(t *testing.T) {
 v := &external.Widget{Name: t.Name}`,
 	}))
 	require.Contains(t, convertCode, "func (t *Widget) ToExternal() *external.Widget {")
-	require.Contains(t, convertCode, "return v")
+	testutil.AssertGo(t, "testdata/golden/sections_convert_to.go.golden", convertCode)
 
 	createCode := codegen.SectionCode(t, createSection("create-from", convertData{
 		Name:            "FromExternal",
@@ -100,7 +99,7 @@ v := &external.Widget{Name: t.Name}`,
 temp := &Widget{Name: v.Name}`,
 	}))
 	require.Contains(t, createCode, "func (t *Widget) FromExternal(v *external.Widget) {")
-	require.Contains(t, createCode, "*t = *temp")
+	testutil.AssertGo(t, "testdata/golden/sections_create_from.go.golden", createCode)
 
 	helperCode := codegen.SectionCode(t, transformHelperSection("convert-create-helper", &codegen.TransformFunctionData{
 		Name:          "widgetToAlias",
@@ -110,7 +109,7 @@ temp := &Widget{Name: v.Name}`,
 res := &Alias{Name: v.Name}`,
 	}))
 	require.Contains(t, helperCode, "func widgetToAlias(v *Widget) *Alias {")
-	require.Contains(t, helperCode, "return res")
+	testutil.AssertGo(t, "testdata/golden/sections_transform_helper.go.golden", helperCode)
 }
 
 func TestExampleSectionsStructuredDeclarations(t *testing.T) {
@@ -122,7 +121,7 @@ func TestExampleSectionsStructuredDeclarations(t *testing.T) {
 		},
 	}))
 	require.Contains(t, authCode, "func (s *widgetsrvc) BasicAuth(ctx context.Context, user, pass string, scheme *security.BasicScheme) (context.Context, error) {")
-	require.Contains(t, authCode, `return ctx, fmt.Errorf("not implemented")`)
+	testutil.AssertGo(t, "testdata/golden/sections_example_security_auth.go.golden", authCode)
 
 	endpointCode := codegen.SectionCode(t, exampleEndpointSection(&basicEndpointData{
 		MethodData: &MethodData{
@@ -142,14 +141,14 @@ func TestExampleSectionsStructuredDeclarations(t *testing.T) {
 		ResultIsStruct: true,
 	}))
 	require.Contains(t, endpointCode, "func (s *widgetsrvc) Do(ctx context.Context) (res *Widget, resp io.ReadCloser, err error) {")
-	require.Contains(t, endpointCode, `resp = io.NopCloser(strings.NewReader("Do"))`)
+	testutil.AssertGo(t, "testdata/golden/sections_example_endpoint.go.golden", endpointCode)
 
 	streamCode := codegen.SectionCode(t, jsonrpcHandleStreamSection(&Data{
 		VarName: "widget",
 		PkgName: "widgetsvc",
 	}))
 	require.Contains(t, streamCode, "func (s *widgetsrvc) HandleStream(ctx context.Context, stream widgetsvc.Stream) error {")
-	require.Contains(t, streamCode, `log.Printf(ctx, "widget.HandleStream")`)
+	testutil.AssertGo(t, "testdata/golden/sections_jsonrpc_handle_stream.go.golden", streamCode)
 }
 
 func TestExampleInterceptorSectionStructuredDeclaration(t *testing.T) {
@@ -164,8 +163,8 @@ func TestExampleInterceptorSectionStructuredDeclaration(t *testing.T) {
 	}, true))
 
 	require.Contains(t, code, "type WidgetServerInterceptors struct{}")
-	require.Contains(t, code, "func NewWidgetServerInterceptors() *WidgetServerInterceptors {")
 	require.Contains(t, code, "func (i *WidgetServerInterceptors) Trace(ctx context.Context, info *widgetsvc.TraceInfo, next loom.Endpoint) (any, error) {")
+	testutil.AssertGo(t, "testdata/golden/sections_example_interceptor.go.golden", code)
 }
 
 func TestUnionSectionStructuredDeclarations(t *testing.T) {
@@ -198,9 +197,5 @@ func TestUnionSectionStructuredDeclarations(t *testing.T) {
 
 	require.Contains(t, code, "type SelectionText string")
 	require.Contains(t, code, "type SelectionCount int")
-	require.Contains(t, code, "type Selection struct {")
-	require.Contains(t, code, "func NewSelectionText(v SelectionText) Selection {")
-	require.Contains(t, code, "func (u Selection) Validate() error {")
-	require.Contains(t, code, "func (u Selection) MarshalJSON() ([]byte, error) {")
-	require.Contains(t, code, "func (u *Selection) UnmarshalJSON(data []byte) error {")
+	testutil.AssertGo(t, "testdata/golden/sections_union_type.go.golden", code)
 }

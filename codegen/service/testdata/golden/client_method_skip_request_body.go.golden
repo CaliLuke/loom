@@ -1,0 +1,5 @@
+// Upload calls the "Upload" endpoint of the "UploadService" service.
+func (c *Client) Upload(ctx context.Context, p *UploadPayload, req io.ReadCloser) (err error) {
+	_, err = c.UploadEndpoint(ctx, &UploadRequestData{Payload: p, Body: req})
+	return
+}

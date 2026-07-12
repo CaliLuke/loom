@@ -59,12 +59,10 @@ func TestJSONRPCSSE(t *testing.T) {
 			// Compare with golden file
 			code := codegen.SectionCode(t, streamSection)
 			require.NotContains(t, code, `sendSSEEvent("notification",`)
-			require.Contains(t, code, `sendSSEEvent("message", message)`)
 			require.NotContains(t, code, `sendSSEEvent("response", message)`)
 			require.Equal(t, 2, strings.Count(code, `sendSSEEvent("message", message)`))
-			require.Contains(t, code, `sendSSEEvent("message", response)`)
 			golden := filepath.Join("testdata", "golden", "jsonrpc-sse-"+c.Name+".golden")
-			testutil.CompareOrUpdateGolden(t, code, golden)
+			testutil.AssertGo(t, golden, code)
 
 			// Find the client stream file/section and verify it accepts MCP-compatible
 			// default or "message" SSE events while remaining backward compatible.
@@ -88,9 +86,8 @@ func TestJSONRPCSSE(t *testing.T) {
 
 			clientCode := codegen.SectionCode(t, clientSection)
 			require.Contains(t, clientCode, `case "", "message":`)
-			require.Contains(t, clientCode, `case "notification":`)
-			require.Contains(t, clientCode, `case "response":`)
-			require.Contains(t, clientCode, `case "error":`)
+			clientGolden := filepath.Join("testdata", "golden", "jsonrpc-sse-client-"+c.Name+".golden")
+			testutil.AssertGo(t, clientGolden, clientCode)
 		})
 	}
 }
@@ -103,6 +100,7 @@ func TestJSONRPCSSEServiceStreamUsesTypedResponseEvents(t *testing.T) {
 	require.NotContains(t, serviceStreamCode, `var eventType string`)
 	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent("message", message)`)
 	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent("message", response)`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-stream-impl-object.golden"), serviceStreamCode)
 }
 
 func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
@@ -111,15 +109,14 @@ func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
 
 	endpointStreamCode := fileSectionCode(t, SSEServerFiles("", services), "stream.go", "jsonrpc-sse-server-stream")
 	require.Contains(t, endpointStreamCode, `func (s *StreamServerStream) open() error {`)
-	require.Contains(t, endpointStreamCode, `return s.sendSSEEvent("message", response)`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-object.golden"), endpointStreamCode)
 
 	handlerInitCode := fileSectionCode(t, ServerFiles("", services), "server.go", "jsonrpc-server-handler-init")
-	require.Contains(t, handlerInitCode, "StreamServerStream")
-	require.Contains(t, handlerInitCode, `if r.Method == http.MethodGet && req.Method == "events/stream" {`)
 	require.NotContains(t, handlerInitCode, `if err := strm.open(); err != nil {
 			return err
 		}
 		decodeParams :=`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-handler-init-object.golden"), handlerInitCode)
 }
 
 func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
@@ -128,28 +125,24 @@ func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
 
 	require.Contains(t, handlerInitCode, `if r.Method == http.MethodGet && req.Method == "events/stream" {`)
 	require.Contains(t, handlerInitCode, `if err := strm.open(); err != nil {`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-handler-init-events-stream.golden"), handlerInitCode)
 }
 
 func TestJSONRPCMixedServerHandler(t *testing.T) {
 	cases := []struct {
 		Name        string
 		DSL         func()
+		Golden      string
 		Contains    []string
 		NotContains []string
 	}{
 		{
-			Name: "routes by method",
-			DSL:  jsonrpcMixedInitializeAndEventsStreamDSL,
+			Name:   "routes by method",
+			DSL:    jsonrpcMixedInitializeAndEventsStreamDSL,
+			Golden: "jsonrpc-mixed-server-handler.golden",
 			Contains: []string{
-				`if !strings.Contains(accept, "text/event-stream") {`,
-				`case http.MethodGet:`,
-				`req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}`,
-				`var req jsonrpc.RawRequest`,
 				`switch req.Method {`,
-				`case "events/stream":`,
-				`if err := s.EventsStream(r.Context(), r, req, w); err != nil {`,
-				`if err := s.EventsStream(r.Context(), r, &req, w); err != nil {`,
-				`s.handleHTTP(w, r)`,
+				`case http.MethodGet:`,
 			},
 			NotContains: []string{
 				`"events-stream"`,
@@ -157,29 +150,23 @@ func TestJSONRPCMixedServerHandler(t *testing.T) {
 			},
 		},
 		{
-			Name: "avoids full body read for negotiation",
-			DSL:  jsonrpcMixedInitializeAndEventsStreamDSL,
+			Name:   "avoids full body read for negotiation",
+			DSL:    jsonrpcMixedInitializeAndEventsStreamDSL,
+			Golden: "jsonrpc-mixed-server-handler.golden",
 			Contains: []string{
-				`reader := bufio.NewReader(r.Body)`,
-				`const maxNegotiationWhitespace = 4096`,
 				`reader.Peek(1)`,
-				`reader.Discard(1)`,
-				`sniffed < maxNegotiationWhitespace`,
-				`first == byte(0x5b)`,
-				`sniffed >= maxNegotiationWhitespace`,
 			},
 			NotContains: []string{
 				`io.ReadAll(r.Body)`,
 			},
 		},
 		{
-			Name: "groups multiple sse methods",
-			DSL:  jsonrpcMixedMultipleSSEMethodsDSL,
+			Name:   "groups multiple sse methods",
+			DSL:    jsonrpcMixedMultipleSSEMethodsDSL,
+			Golden: "jsonrpc-mixed-server-handler-multi-sse.golden",
 			Contains: []string{
 				`case "tools/call":`,
-				`if err := s.ToolsCall(r.Context(), r, &req, w); err != nil {`,
 				`case "events/stream":`,
-				`if err := s.EventsStream(r.Context(), r, &req, w); err != nil {`,
 			},
 			NotContains: []string{
 				"case \"tools/call\":\n\t\tcase \"events/stream\":",
@@ -197,6 +184,7 @@ func TestJSONRPCMixedServerHandler(t *testing.T) {
 			for _, unwanted := range c.NotContains {
 				require.NotContains(t, code, unwanted)
 			}
+			testutil.AssertGo(t, filepath.Join("testdata", "golden", c.Golden), code)
 		})
 	}
 }
@@ -214,16 +202,16 @@ func TestJSONRPCSSEServiceStreamSendOmitsResponseBranchWithoutID(t *testing.T) {
 
 	require.NotContains(t, code, "var isResponse bool")
 	require.NotContains(t, code, "jsonrpc.MakeSuccessResponse")
-	require.Contains(t, code, `"method":  "JSONRPCSSEStringService/stream.event",`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-stream-impl-string.golden"), code)
 }
 
 func TestJSONRPCMixedServerInitUsesServeHTTP(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
 	serverInitCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-init")
 
-	require.Contains(t, serverInitCode, `Mixed HTTP/SSE services negotiate transports in ServeHTTP`)
 	require.Contains(t, serverInitCode, `s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.ServeHTTP))`)
 	require.NotContains(t, serverInitCode, `s.Handler = http.HandlerFunc(s.handleSSE)`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-init-mixed.golden"), serverInitCode)
 }
 
 func TestJSONRPCSSEOnlyServerInitUsesOriginProtection(t *testing.T) {
@@ -231,6 +219,7 @@ func TestJSONRPCSSEOnlyServerInitUsesOriginProtection(t *testing.T) {
 	serverInitCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-init")
 
 	require.Contains(t, serverInitCode, `s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.handleSSE))`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-init-sse-only.golden"), serverInitCode)
 }
 
 func TestJSONRPCServerMountRoutes(t *testing.T) {
@@ -292,42 +281,39 @@ func TestJSONRPCSSEClientRequestsAcceptEventStream(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEEventsStreamDSL)
 	clientCode := fileSectionCode(t, ClientFiles("", CreateJSONRPCServices(root)), "client.go", "jsonrpc-client-endpoint-init")
 
-	require.Contains(t, clientCode, "EventsStream")
 	require.Contains(t, clientCode, `req.Header.Set("Accept", "text/event-stream")`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-client-endpoint-init-events-stream.golden"), clientCode)
 }
 
 func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	sseHandlerCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-sse-server-handler")
 
-	require.Contains(t, sseHandlerCode, `if req.Invalid {`)
-	require.Contains(t, sseHandlerCode, `if !req.HasID {`)
 	require.Contains(t, sseHandlerCode, `w.WriteHeader(http.StatusNoContent)`)
 	require.NotContains(t, sseHandlerCode, `req.ID == ""`)
 	require.NotContains(t, sseHandlerCode, `req.ID != ""`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-server-handler-object.golden"), sseHandlerCode)
 }
 
 func TestJSONRPCSSEStreamPreservesRequestIDAndSkipsNotificationCloseResponse(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	endpointStreamCode := fileSectionCode(t, SSEServerFiles("", CreateJSONRPCServices(root)), "stream.go", "jsonrpc-sse-server-stream")
 
-	require.Contains(t, endpointStreamCode, `requestHasID bool`)
 	require.Contains(t, endpointStreamCode, `if !s.requestHasID {`)
-	require.Contains(t, endpointStreamCode, `return nil`)
 	require.Contains(t, endpointStreamCode, `var id any = s.requestID`)
 	require.NotContains(t, endpointStreamCode, `id = result.ID`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-object.golden"), endpointStreamCode)
 }
 
 func TestJSONRPCSSEHandlerPassesOriginalRequestIDToErrors(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler-init")
 
-	require.Contains(t, code, `requestHasID: req.HasID,`)
-	require.Contains(t, code, `if req.HasID {`)
 	require.Contains(t, code, `strm.sendError(ctx, req.ID,`)
 	require.NotContains(t, code, `req.ID != ""`)
 	require.NotContains(t, code, `strm.SendError(ctx, jsonrpc.IDToString(req.ID), err)`)
 	require.NotContains(t, code, `strm.sendError(ctx, jsonrpc.IDToString(req.ID),`)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-handler-init-object.golden"), code)
 }
 
 var jsonrpcMixedInitializeAndEventsStreamDSL = func() {

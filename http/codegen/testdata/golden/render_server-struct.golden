@@ -1,0 +1,7 @@
+// Server lists the ServiceFileServer service endpoint HTTP handlers.
+type Server struct {
+	Mounts          []*MountPoint
+	PathToFile1JSON http.Handler
+	PathToFile2JSON http.Handler
+	PathToFile3JSON http.Handler
+}
