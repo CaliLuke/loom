@@ -36,6 +36,24 @@ jobs:
           name: coverage
           path: cover.out
 
+  race:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Install dependencies
+        run: make depend
+
+      - name: Race and shuffled-order unit tests
+        run: make test-race
+
   openapi-contract:
     runs-on: ubuntu-latest
 

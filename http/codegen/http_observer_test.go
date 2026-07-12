@@ -22,10 +22,7 @@ import (
 // blocks (BeginHTTPRequest, obs.Fail, defer obs.End) the generator emits,
 // against a real HTTP server.
 func TestHTTPObserver(t *testing.T) {
-	t.Parallel()
-
 	t.Run("success path emits start and finish", func(t *testing.T) {
-		t.Parallel()
 		rec := newRecorder()
 		srv := newGeneratedShapedServer(rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
 			w.WriteHeader(http.StatusOK)
@@ -45,7 +42,6 @@ func TestHTTPObserver(t *testing.T) {
 	})
 
 	t.Run("decode failure classifies terminal as request_decode_failed", func(t *testing.T) {
-		t.Parallel()
 		rec := newRecorder()
 		srv := newGeneratedShapedServer(rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
 			obs.Fail(transport.ReasonRequestDecodeFailed)
@@ -62,7 +58,6 @@ func TestHTTPObserver(t *testing.T) {
 	})
 
 	t.Run("handler error classifies as handler_error", func(t *testing.T) {
-		t.Parallel()
 		rec := newRecorder()
 		srv := newGeneratedShapedServer(rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
 			obs.Fail(transport.ReasonHandlerError)
@@ -78,7 +73,6 @@ func TestHTTPObserver(t *testing.T) {
 	})
 
 	t.Run("response write failure classifies as response_write_failed", func(t *testing.T) {
-		t.Parallel()
 		rec := newRecorder()
 		srv := newGeneratedShapedServer(rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
 			obs.Fail(transport.ReasonResponseWriteFailed)
@@ -92,7 +86,6 @@ func TestHTTPObserver(t *testing.T) {
 	})
 
 	t.Run("panic re-propagates and emits ReasonPanic", func(t *testing.T) {
-		t.Parallel()
 		rec := newRecorder()
 		var caught any
 		var caughtMu sync.Mutex

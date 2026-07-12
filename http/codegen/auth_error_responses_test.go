@@ -32,8 +32,6 @@ func TestAuthErrorResponses(t *testing.T) {
 	})
 
 	t.Run("openapi reuses canonical auth error components across scopes", func(t *testing.T) {
-		t.Parallel()
-
 		cases := []struct {
 			name                 string
 			dsl                  func()

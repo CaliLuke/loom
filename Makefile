@@ -32,7 +32,7 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci clean depend install-hooks lint lint-filesize lint-namescope test test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight release-loom
+.PHONY: all all-tests ci clean depend install-hooks lint lint-filesize lint-namescope test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight release-loom
 .NOTPARALLEL: release release-loom
 
 # Only list test and build dependencies
@@ -122,6 +122,16 @@ ifneq ($(GOOS),windows)
 	PATH="$(GOBIN_DIR):$$PATH" go test -count=1 ./...
 else
 	go test -count=1 ./...
+endif
+
+# Race + shuffled-order guard for the unit suite. Shuffling catches
+# order-coupled tests (the failing seed is printed for reproduction) and the
+# race detector catches data races the plain run cannot.
+test-race:
+ifneq ($(GOOS),windows)
+	PATH="$(GOBIN_DIR):$$PATH" go test -race -shuffle=on -count=1 ./...
+else
+	go test -race -shuffle=on -count=1 ./...
 endif
 
 integration-test: build-loom

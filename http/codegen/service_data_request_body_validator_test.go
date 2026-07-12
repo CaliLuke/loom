@@ -62,8 +62,6 @@ func TestClientRequestBodyValidatorsForUnionBodies(t *testing.T) {
 }
 
 func TestClientRequestBodyValidatorStubForUnionObjectBranchTypes(t *testing.T) {
-	t.Parallel()
-
 	root := RunHTTPDSL(t, oauthFormRequestUnionDSL)
 	require.Len(t, root.API.HTTP.Services, 1)
 
@@ -88,8 +86,6 @@ func TestClientRequestBodyValidatorStubForUnionObjectBranchTypes(t *testing.T) {
 }
 
 func TestAttributeTypeDataEmitsNoOpValidatorStubForTaggedClientRequestBodyType(t *testing.T) {
-	t.Parallel()
-
 	tagged := &expr.UserTypeExpr{
 		TypeName: "SingleAction",
 		AttributeExpr: &expr.AttributeExpr{
@@ -120,8 +116,6 @@ func TestAttributeTypeDataEmitsNoOpValidatorStubForTaggedClientRequestBodyType(t
 }
 
 func TestAttributeTypeDataSkipsNoOpValidatorStubForUntaggedClientRequestBodyType(t *testing.T) {
-	t.Parallel()
-
 	untagged := &expr.UserTypeExpr{
 		TypeName: "SingleAction",
 		AttributeExpr: &expr.AttributeExpr{

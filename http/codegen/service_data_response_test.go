@@ -9,8 +9,6 @@ import (
 )
 
 func TestBuildProblemServerResponseBodyCodeTrimsPointerRefForLiteral(t *testing.T) {
-	t.Parallel()
-
 	code := buildProblemServerResponseBodyCode("*MethodUnauthorizedResponseBody", &transportir.ResponseStatus{
 		StatusCode: 401,
 		Error: &transportir.Error{
@@ -27,8 +25,6 @@ func TestBuildProblemServerResponseBodyCodeTrimsPointerRefForLiteral(t *testing.
 }
 
 func TestBuildProblemClientResultTransformCodeDereferencesOptionalBodyFields(t *testing.T) {
-	t.Parallel()
-
 	code := buildProblemClientResultTransformCode(&transportir.ResponseStatus{StatusCode: 401}, true, nil)
 
 	for _, want := range []string{
