@@ -9,12 +9,11 @@ on:
       - main
 
 jobs:
+  # Windows is not part of the per-PR pipeline: the audience is mac/linux
+  # and the Windows job only ran unit tests while being the pipeline's
+  # critical path. A weekly compile+unit canary lives in windows-canary.yml.
   ci:
-    strategy:
-      fail-fast: true
-      matrix:
-        os: ['ubuntu-latest', 'windows-latest']
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out code
@@ -30,7 +29,6 @@ jobs:
         run: make ci
 
       - name: Upload test coverage for deep source
-        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v7
         with:
           name: coverage
