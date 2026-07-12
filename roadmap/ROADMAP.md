@@ -65,10 +65,16 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, advertises SSE responses as `text/event-stream`, and normalizes binary request examples to string form.
 - OpenAPI now suppresses invalid synthesized examples for closed-object direct-union collections in response/media-type arrays instead of emitting examples that fail schema validation.
 - OpenAPI now omits transport-level media-type examples for streaming responses instead of synthesizing partial SSE/WebSocket payload examples that can drift from the referenced schema.
-- HTTP CORS policy is now design-owned through API/service `CORS` DSL, generated preflight routes, shared runtime header helpers, and OpenAPI `x-loom-cors` extensions.
+- HTTP CORS policy is now design-owned through API/service `CORS` and
+  `RuntimeCORS()` DSL, generated preflight routes, immutable validated startup
+  policy snapshots, shared runtime header helpers, and OpenAPI `x-loom-cors`
+  extensions that do not leak runtime configuration.
 - JSON-RPC browser cross-origin policy now uses the same design-owned `CORS`
   DSL and shared runtime headers across HTTP, SSE, mixed, and WebSocket
   servers, while preserving `CrossOriginProtection` when no policy is defined.
+- Mixed JSON-RPC HTTP/SSE generation now emits only the unified negotiated
+  server path and endpoint stream implementation, omitting the unreachable
+  standalone SSE handler and limiting eager GET-open logic to `events/stream`.
 - Large generated HTTP and JSON-RPC transport type packages now split wire
   types, unions, validation helpers, and constructors into deterministic
   concern files once they cross the compact-output threshold.

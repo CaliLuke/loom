@@ -59,7 +59,7 @@ func buildCORSData(httpSvc *expr.HTTPServiceExpr) *CORSData {
 	if cors == nil {
 		return nil
 	}
-	out := &CORSData{Origins: make([]*CORSOriginData, 0, len(cors.Origins))}
+	out := &CORSData{Origins: make([]*CORSOriginData, 0, len(cors.Origins)), Runtime: cors.Runtime}
 	for _, origin := range cors.Origins {
 		out.Origins = append(out.Origins, &CORSOriginData{
 			Pattern:     origin.Pattern,

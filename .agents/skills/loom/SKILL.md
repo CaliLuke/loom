@@ -178,6 +178,16 @@ build Auto-K without repeating large amounts of app-local glue.
   typed context key `loomhttp.LastEventIDKey`; middleware and services should
   not use a raw `"last-event-id"` context key.
 - For mixed JSON-RPC HTTP/SSE services, treat `Accept: text/event-stream` as necessary but not sufficient for SSE routing: normal methods like `initialize` must still go through the JSON response path, while only the actual SSE methods (for example `events/stream`) should route into the stream handler.
+- Mixed JSON-RPC HTTP/SSE servers use one generated `ServeHTTP` negotiation
+  path. They do not emit the SSE-only `handleSSE` path or service-level
+  `sse.go`; the endpoint `stream.go` implementation remains the active stream
+  contract, and only `events/stream` receives eager GET-open logic.
+- Use `RuntimeCORS()` at API or service HTTP/JSON-RPC scope when allowed origins
+  come from deployment configuration. Applications own configuration loading,
+  then call `loomhttp.NewRuntimeCORSPolicy` and pass the validated immutable
+  snapshot to the generated constructor. Loom owns actual-request and preflight
+  behavior across HTTP, JSON-RPC, and SSE; runtime values never enter generated
+  code or OpenAPI, which emits `x-loom-cors: {runtime: true}`.
 - HTTP SSE streams also defer committing `text/event-stream` until the first application event is written.
 - OpenTelemetry transport instrumentation is first-class. Prefer:
   - `github.com/CaliLuke/loom/observability/otel` when you want framework-owned

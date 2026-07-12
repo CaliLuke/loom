@@ -753,6 +753,13 @@ Use `Origin("*")` without `Credentials()` as the explicit opt-out when every
 browser origin should be allowed. Non-browser JSON-RPC clients are unaffected
 by the secure default.
 
+If origins are deployment-specific, use `RuntimeCORS()` at the same API or
+service scope. Build a `loomhttp.CORSPolicy` from application configuration,
+validate it with `loomhttp.NewRuntimeCORSPolicy`, and pass the immutable result
+to the generated server constructor. Generated preflight and actual-response
+handling stays consistent across JSON-RPC POST, SSE-only, and mixed HTTP/SSE
+servers; configuration values are not embedded in generated code or OpenAPI.
+
 ### Batch Processing
 
 JSON-RPC supports sending multiple requests in a single HTTP call:

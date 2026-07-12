@@ -142,6 +142,13 @@ func renderExampleServerConfigure(services []*ServiceData, apiPkg string) string
 	b.Add("\t)\n")
 	b.Add("\t{\n")
 	b.Add("\t\teh := errorHandler(ctx)\n")
+	if hasRuntimeCORS(services) {
+		b.Add("\t\t// Replace this same-origin default with the deployment-configured browser origins.\n")
+		b.Add("\t\truntimeCORSPolicy, err := loomhttp.NewRuntimeCORSPolicy(loomhttp.CORSPolicy{\n")
+		b.Add("\t\t\tOrigins: []loomhttp.CORSOrigin{{Pattern: u.Scheme + \"://\" + u.Host}},\n")
+		b.Add("\t\t})\n")
+		b.Add("\t\tif err != nil {\n\t\t\tpanic(err)\n\t\t}\n")
+	}
 	if NeedDialer(services) {
 		b.Add("\t\tupgrader := &websocket.Upgrader{}\n")
 	}
@@ -317,6 +324,9 @@ func exampleServerConstructorCall(svc *ServiceData, apiPkg string) string {
 		b.Add("nil")
 	}
 	b.Add(", mux, dec, enc, eh, nil")
+	if svc.CORS != nil && svc.CORS.Runtime {
+		b.Add(", runtimeCORSPolicy")
+	}
 	if HasWebSocket(svc) {
 		b.Add(", upgrader, nil")
 	}
@@ -330,4 +340,13 @@ func exampleServerConstructorCall(svc *ServiceData, apiPkg string) string {
 	}
 	b.Add(")")
 	return b.String()
+}
+
+func hasRuntimeCORS(services []*ServiceData) bool {
+	for _, svc := range services {
+		if svc.CORS != nil && svc.CORS.Runtime {
+			return true
+		}
+	}
+	return false
 }

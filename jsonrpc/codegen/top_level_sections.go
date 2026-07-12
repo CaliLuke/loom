@@ -103,6 +103,9 @@ func jsonrpcServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
 		codegen.Doc(stmt, fmt.Sprintf("%s handles JSON-RPC requests for the %s service.", data.ServerStruct, data.Service.Name))
 		stmt.Type().Id(data.ServerStruct).StructFunc(func(g *jen.Group) {
 			g.Qual("net/http", "Handler")
+			if data.CORS != nil && data.CORS.Runtime {
+				g.Id("corsPolicy").Add(codegen.TypeRef("loomhttp.RuntimeCORSPolicy"))
+			}
 			g.Comment("Methods is the list of methods served by this server.")
 			g.Id("Methods").Index().String()
 			if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
@@ -165,6 +168,9 @@ func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 			jen.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder")),
 			jen.Id("errhandler").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter"), jen.Error()),
 		)
+		if data.CORS != nil && data.CORS.Runtime {
+			params = append(params, jen.Id("corsPolicy").Add(codegen.TypeRef("loomhttp.RuntimeCORSPolicy")))
+		}
 		if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
 			params = append(params,
 				jen.Id("upgrader").Add(codegen.TypeRef("loomhttp.Upgrader")),
@@ -189,6 +195,9 @@ func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 					dict[jen.Id("StreamHandler")] = jen.Id("streamHandler")
 					dict[jen.Id("upgrader")] = jen.Id("upgrader")
 					dict[jen.Id("configfn")] = jen.Id("configfn")
+				}
+				if data.CORS != nil && data.CORS.Runtime {
+					dict[jen.Id("corsPolicy")] = jen.Id("corsPolicy")
 				}
 				for _, endpoint := range data.Endpoints {
 					if httpcodegen.IsWebSocketEndpoint(endpoint) {
@@ -226,12 +235,15 @@ func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bo
 					g.Comment("Plain HTTP JSON-RPC")
 					handler = jen.Qual("net/http", "HandlerFunc").Call(jen.Id("s").Dot("ServeHTTP"))
 				}
-				if data.CORS != nil {
+				switch {
+				case data.CORS != nil && data.CORS.Runtime:
+					g.Id("s").Dot("Handler").Op("=").Id("corsPolicy").Dot("Handler").Call(handler)
+				case data.CORS != nil:
 					g.Id("s").Dot("Handler").Op("=").Add(codegen.Expr("loomhttp.CORSHandler")).Call(
 						renderJSONRPCCORSPolicy(data.CORS),
 						handler,
 					)
-				} else {
+				default:
 					g.Id("s").Dot("Handler").Op("=").Qual("net/http", "NewCrossOriginProtection").Call().Dot("Handler").Call(
 						handler,
 					)

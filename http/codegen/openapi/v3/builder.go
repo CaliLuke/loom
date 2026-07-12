@@ -198,6 +198,9 @@ func corsExtension(cors *expr.HTTPCORSExpr) map[string]any {
 	if cors == nil {
 		return nil
 	}
+	if cors.Runtime {
+		return map[string]any{"runtime": true}
+	}
 	origins := make([]map[string]any, 0, len(cors.Origins))
 	for _, origin := range cors.Origins {
 		item := map[string]any{"origin": origin.Pattern}

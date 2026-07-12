@@ -12,12 +12,35 @@ func CORS(fn func()) {
 	if !eval.Execute(fn, cors) {
 		return
 	}
+	setCORS(cors)
+}
+
+// RuntimeCORS declares that the CORS policy is supplied from application
+// configuration when the generated server is constructed. Service-level
+// runtime CORS overrides the API-level policy.
+func RuntimeCORS() {
+	setCORS(&expr.HTTPCORSExpr{Runtime: true})
+}
+
+func setCORS(cors *expr.HTTPCORSExpr) {
 	switch def := eval.Current().(type) {
 	case *expr.RootExpr:
+		if def.API.HTTP.CORS != nil {
+			eval.ReportError("CORS policy is already defined")
+			return
+		}
 		def.API.HTTP.CORS = cors
 	case *expr.JSONRPCExpr:
+		if def.CORS != nil {
+			eval.ReportError("CORS policy is already defined")
+			return
+		}
 		def.CORS = cors
 	case *expr.HTTPServiceExpr:
+		if def.CORS != nil {
+			eval.ReportError("CORS policy is already defined")
+			return
+		}
 		def.CORS = cors
 	default:
 		eval.IncompatibleDSL()

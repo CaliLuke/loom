@@ -38,6 +38,50 @@ func TestJSONRPCServerWithoutCORSKeepsSecureDefault(t *testing.T) {
 	require.NotContains(t, mountCode, `mux.Handle("OPTIONS"`)
 }
 
+func TestJSONRPCServerRuntimeCORSUsesConstructorPolicy(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcRuntimeCORSPolicyDSL)
+	files := ServerFiles("", CreateJSONRPCServices(root))
+
+	initCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-init")
+	require.Contains(t, initCode, "corsPolicy loomhttp.RuntimeCORSPolicy")
+	require.Contains(t, initCode, "corsPolicy.Handler")
+	require.NotContains(t, initCode, "NewCrossOriginProtection")
+
+	mountCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-mount")
+	require.Contains(t, mountCode, "h.corsPolicy.HandlePreflight")
+}
+
+func TestJSONRPCRuntimeCORSGeneratedModuleCompiles(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcRuntimeCORSPolicyDSL)
+	dir := t.TempDir()
+	renderJSONRPCModule(t, dir, "example.com/jsonrpcruntimecors", root)
+	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
+	runGoJSONRPCTestCommand(t, dir, "test", "./...")
+}
+
+func TestJSONRPCRuntimeCORSAppliesToStreamingTransports(t *testing.T) {
+	tests := []struct {
+		name string
+		dsl  func()
+	}{
+		{name: "sse only", dsl: testdata.JSONRPCSSEEventsStreamDSL},
+		{name: "mixed", dsl: jsonrpcMixedInitializeAndEventsStreamDSL},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RunJSONRPCDSL(t, test.dsl)
+			root.API.JSONRPC.Services[0].CORS = &expr.HTTPCORSExpr{Runtime: true}
+			files := ServerFiles("", CreateJSONRPCServices(root))
+			initCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-init")
+			require.Contains(t, initCode, "corsPolicy loomhttp.RuntimeCORSPolicy")
+			require.Contains(t, initCode, "corsPolicy.Handler")
+			require.NotContains(t, initCode, "NewCrossOriginProtection")
+			mountCode := fileSectionCode(t, files, "server.go", "jsonrpc-server-mount")
+			require.Contains(t, mountCode, "h.corsPolicy.HandlePreflight")
+		})
+	}
+}
+
 func TestJSONRPCWildcardCORSProvidesExplicitOptOut(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcWildcardCORSPolicyDSL)
 	initCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-init")
@@ -101,6 +145,20 @@ var jsonrpcCORSPolicyDSL = func() {
 var jsonrpcDefaultOriginProtectionDSL = func() {
 	dsl.Service("JSONRPCDefaultOriginProtection", func() {
 		dsl.JSONRPC(func() { dsl.POST("/rpc") })
+		dsl.Method("Call", func() {
+			dsl.Payload(dsl.String)
+			dsl.Result(dsl.String)
+			dsl.JSONRPC(func() {})
+		})
+	})
+}
+
+var jsonrpcRuntimeCORSPolicyDSL = func() {
+	dsl.Service("JSONRPCRuntimeCORS", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+			dsl.RuntimeCORS()
+		})
 		dsl.Method("Call", func() {
 			dsl.Payload(dsl.String)
 			dsl.Result(dsl.String)

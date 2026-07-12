@@ -186,13 +186,25 @@ the request context before invoking the generated handler.
 ### CORS
 
 Model browser cross-origin policy in the HTTP or JSON-RPC design with `CORS`
-rather than wrapping generated handlers in application-local middleware.
+or `RuntimeCORS()` rather than wrapping generated handlers in
+application-local middleware.
 Generated servers mount route-local `OPTIONS` preflight handlers and write
 `Access-Control-Allow-*` headers from the shared `loom/http` runtime helper.
 Service-level CORS overrides API-level CORS, and OpenAPI publishes the
 effective HTTP route policy under `x-loom-cors`. JSON-RPC keeps Go's
 `CrossOriginProtection` secure default when no CORS policy is designed;
 `Origin("*")` without credentials is the explicit allow-all opt-out.
+
+Use static `CORS` when the allowed origins are part of the design contract. Use
+`RuntimeCORS()` when deployment configuration owns those values. At startup,
+build a raw `loomhttp.CORSPolicy`, call `loomhttp.NewRuntimeCORSPolicy`, and pass
+the validated immutable snapshot to the generated server constructor. Treat a
+validation error as a startup configuration failure. Loom does not read
+environment variables and does not live-reload the snapshot.
+
+CORS does not authorize WebSocket origins. Configure the generated server's
+WebSocket upgrader `CheckOrigin` policy separately; CORS headers on the HTTP
+upgrade response are not a substitute for handshake origin enforcement.
 
 ### Health Checks
 

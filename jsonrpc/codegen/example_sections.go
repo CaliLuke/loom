@@ -75,6 +75,13 @@ func jsonrpcExampleServerConfigureSource(httpServices, jsonrpcServices []*httpco
 	b.Add("\t)\n")
 	b.Add("\t{\n")
 	b.Add("\t\teh := errorHandler(ctx)\n")
+	if hasRuntimeCORS(append(append([]*httpcodegen.ServiceData(nil), httpServices...), jsonrpcServices...)) {
+		b.Add("\t\t// Replace this same-origin default with the deployment-configured browser origins.\n")
+		b.Add("\t\truntimeCORSPolicy, err := loomhttp.NewRuntimeCORSPolicy(loomhttp.CORSPolicy{\n")
+		b.Add("\t\t\tOrigins: []loomhttp.CORSOrigin{{Pattern: u.Scheme + \"://\" + u.Host}},\n")
+		b.Add("\t\t})\n")
+		b.Add("\t\tif err != nil {\n\t\t\tpanic(err)\n\t\t}\n")
+	}
 	if httpcodegen.NeedDialer(httpServices) || httpcodegen.NeedDialer(jsonrpcServices) {
 		b.Add("\t\tupgrader := &websocket.Upgrader{}\n")
 	}
@@ -90,6 +97,9 @@ func jsonrpcExampleServerConfigureSource(httpServices, jsonrpcServices []*httpco
 			b.Addf("%sSvc.HandleStream, ", svc.Service.VarName)
 		}
 		b.Addf("%sEndpoints, mux, dec, enc, eh", svc.Service.VarName)
+		if svc.CORS != nil && svc.CORS.Runtime {
+			b.Add(", runtimeCORSPolicy")
+		}
 		if httpcodegen.HasWebSocket(svc) {
 			b.Add(", upgrader, nil")
 		}
@@ -178,6 +188,9 @@ func httpcodegenServerConstructorCall(svc *httpcodegen.ServiceData, apiPkg strin
 		b.Add("nil")
 	}
 	b.Add(", mux, dec, enc, eh, nil")
+	if svc.CORS != nil && svc.CORS.Runtime {
+		b.Add(", runtimeCORSPolicy")
+	}
 	if httpcodegen.HasWebSocket(svc) {
 		b.Add(", upgrader, nil")
 	}
@@ -191,4 +204,13 @@ func httpcodegenServerConstructorCall(svc *httpcodegen.ServiceData, apiPkg strin
 	}
 	b.Add(")")
 	return b.String()
+}
+
+func hasRuntimeCORS(services []*httpcodegen.ServiceData) bool {
+	for _, svc := range services {
+		if svc.CORS != nil && svc.CORS.Runtime {
+			return true
+		}
+	}
+	return false
 }

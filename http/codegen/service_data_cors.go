@@ -4,6 +4,7 @@ type (
 	// CORSData contains a service's generated CORS policy.
 	CORSData struct {
 		Origins []*CORSOriginData
+		Runtime bool
 	}
 
 	// CORSOriginData contains a generated CORS origin policy.

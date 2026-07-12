@@ -42,6 +42,32 @@ var ServerCORSPolicyDSL = func() {
 	})
 }
 
+// ServerRuntimeCORSPolicyDSL defines runtime-provided CORS policy generation.
+var ServerRuntimeCORSPolicyDSL = func() {
+	API("runtime-cors", func() {
+		HTTP(func() {
+			RuntimeCORS()
+		})
+	})
+	Service("runtime-cors-service", func() {
+		Method("list", func() {
+			Result(String)
+			HTTP(func() {
+				GET("/items")
+			})
+		})
+		Method("stream", func() {
+			StreamingResult(func() {
+				Attribute("value", String)
+			})
+			HTTP(func() {
+				GET("/stream")
+				ServerSentEvents()
+			})
+		})
+	})
+}
+
 var ServerNoPayloadNoResultWithRedirectDSL = func() {
 	Service("ServiceNoPayloadNoResult", func() {
 		Method("MethodNoPayloadNoResult", func() {

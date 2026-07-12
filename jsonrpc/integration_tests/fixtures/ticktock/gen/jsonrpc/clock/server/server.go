@@ -193,11 +193,6 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 			requestID:    req.ID,
 			w:            w,
 		}
-		if r.Method == http.MethodGet && req.Method == "events/stream" {
-			if err := strm.open(); err != nil {
-				return err
-			}
-		}
 		params, err := decodeParams(r, req)
 		if err != nil {
 			if req.HasID {
@@ -254,11 +249,6 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 			requestHasID: req.HasID,
 			requestID:    req.ID,
 			w:            w,
-		}
-		if r.Method == http.MethodGet && req.Method == "events/stream" {
-			if err := strm.open(); err != nil {
-				return err
-			}
 		}
 		params, err := decodeParams(r, req)
 		if err != nil {

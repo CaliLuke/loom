@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -27,6 +28,12 @@ type (
 		MaxAge      int
 		Credentials bool
 	}
+
+	// RuntimeCORSPolicy is an immutable, validated startup snapshot of a CORS
+	// policy supplied by application configuration.
+	RuntimeCORSPolicy struct {
+		policy CORSPolicy
+	}
 )
 
 // corsRegexCache memoizes compiled, anchored origin regexps keyed by the raw
@@ -34,6 +41,46 @@ type (
 // so caching on the struct value would not persist; a package-level cache keeps
 // compilation to once per distinct pattern across all requests.
 var corsRegexCache sync.Map // map[string]*regexp.Regexp
+
+// NewRuntimeCORSPolicy validates policy and returns an immutable startup
+// snapshot suitable for generated servers declared with RuntimeCORS.
+func NewRuntimeCORSPolicy(policy CORSPolicy) (RuntimeCORSPolicy, error) {
+	if len(policy.Origins) == 0 {
+		return RuntimeCORSPolicy{}, fmt.Errorf("CORS policy must define at least one origin")
+	}
+	snapshot := CORSPolicy{Origins: make([]CORSOrigin, len(policy.Origins))}
+	for i, origin := range policy.Origins {
+		if origin.Pattern == "" {
+			return RuntimeCORSPolicy{}, fmt.Errorf("CORS origin %d cannot be empty", i)
+		}
+		if origin.Credentials && origin.Pattern == "*" {
+			return RuntimeCORSPolicy{}, fmt.Errorf("CORS credentials are incompatible with wildcard origin")
+		}
+		if origin.Regex {
+			if _, err := regexp.Compile(origin.Pattern); err != nil {
+				return RuntimeCORSPolicy{}, fmt.Errorf("CORS origin regex %q is invalid: %w", origin.Pattern, err)
+			}
+		}
+		if origin.MaxAge < 0 {
+			return RuntimeCORSPolicy{}, fmt.Errorf("CORS max age cannot be negative")
+		}
+		origin.Methods = append([]string(nil), origin.Methods...)
+		origin.Headers = append([]string(nil), origin.Headers...)
+		origin.Expose = append([]string(nil), origin.Expose...)
+		snapshot.Origins[i] = origin
+	}
+	return RuntimeCORSPolicy{policy: snapshot}, nil
+}
+
+// Handler wraps next and applies the runtime CORS policy to actual requests.
+func (p RuntimeCORSPolicy) Handler(next http.HandlerFunc) http.HandlerFunc {
+	return CORSHandler(p.policy, next)
+}
+
+// HandlePreflight writes a preflight response using the runtime CORS policy.
+func (p RuntimeCORSPolicy) HandlePreflight(w http.ResponseWriter, r *http.Request, allowedMethods []string) {
+	HandleCORSPreflight(w, r, p.policy, allowedMethods)
+}
 
 // CORSHandler wraps next and writes CORS response headers for matching actual
 // browser requests. Non-CORS requests and disallowed origins pass through

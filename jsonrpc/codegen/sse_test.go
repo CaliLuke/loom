@@ -229,6 +229,20 @@ func TestJSONRPCMixedServerInitUsesServeHTTP(t *testing.T) {
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-init-mixed.golden"), serverInitCode)
 }
 
+func TestJSONRPCMixedServerOmitsStandaloneSSEPath(t *testing.T) {
+	files := ServerFiles("", CreateJSONRPCServices(RunJSONRPCDSL(t, jsonrpcMixedMultipleSSEMethodsDSL)))
+	for _, file := range files {
+		require.NotEqual(t, "sse.go", filepath.Base(file.Path))
+		for _, section := range file.AllSections() {
+			require.NotEqual(t, "jsonrpc-sse-server-handler", section.SectionName())
+		}
+	}
+
+	code := allRenderedSections(t, files)
+	require.NotContains(t, code, "func (s *JSONRPCMixedMultipleSSEMethodsServiceServer) handleSSE")
+	require.Equal(t, 1, strings.Count(code, `r.Method == http.MethodGet && req.Method == "events/stream"`))
+}
+
 func TestJSONRPCSSEOnlyServerInitUsesOriginProtection(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEEventsStreamDSL)
 	serverInitCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-init")

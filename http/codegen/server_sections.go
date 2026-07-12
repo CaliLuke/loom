@@ -16,6 +16,9 @@ func serverStructSection(data *ServiceData) codegen.Section {
 		codegen.Doc(stmt, fmt.Sprintf("%s lists the %s service endpoint HTTP handlers.", data.ServerStruct, data.Service.Name))
 		stmt.Type().Id(data.ServerStruct).StructFunc(func(group *jen.Group) {
 			group.Id("Mounts").Index().Op("*").Id(data.MountPointStruct)
+			if data.CORS != nil && data.CORS.Runtime {
+				group.Id("corsPolicy").Add(codegen.TypeRef("loomhttp.RuntimeCORSPolicy"))
+			}
 			for _, endpoint := range data.Endpoints {
 				group.Id(endpoint.Method.VarName).Qual("net/http", "Handler")
 			}
@@ -62,6 +65,9 @@ func serverInitSection(data *ServiceData) codegen.Section {
 					jen.Id("err").Error(),
 				)
 				group.Id("formatter").Func().Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("err").Error()).Add(codegen.TypeRef("loomhttp.Statuser"))
+				if data.CORS != nil && data.CORS.Runtime {
+					group.Id("corsPolicy").Add(codegen.TypeRef("loomhttp.RuntimeCORSPolicy"))
+				}
 				if HasWebSocket(data) {
 					group.Id("upgrader").Add(codegen.TypeRef("loomhttp.Upgrader"))
 					group.Id("configurer").Add(codegen.TypeRef("*ConnConfigurer"))
@@ -97,6 +103,9 @@ func renderServerInitBody(data *ServiceData) string {
 		b.Addf("\t%s = appendPrefix(%s, %q)\n", fs.ArgName, fs.ArgName, prefix)
 	}
 	b.Addf("\treturn &%s{\n", data.ServerStruct)
+	if data.CORS != nil && data.CORS.Runtime {
+		b.Add("\t\tcorsPolicy: corsPolicy,\n")
+	}
 	b.Addf("\t\tMounts: []*%s{\n", data.MountPointStruct)
 	for _, endpoint := range data.Endpoints {
 		for _, route := range endpoint.Routes {
@@ -199,12 +208,20 @@ func renderServerMountBody(data *ServiceData, standalone bool) string {
 		if data.CORS != nil {
 			for _, route := range corsPreflightRoutes(data) {
 				b.Addf("\tmux.Handle(%q, %q, func(w http.ResponseWriter, r *http.Request) {\n", "OPTIONS", route.Path)
-				b.Addf("\t\tloomhttp.HandleCORSPreflight(w, r, %s, []string{%s})\n", renderCORSPolicy(data.CORS), quotedStringList(route.Methods))
+				if data.CORS.Runtime {
+					b.Addf("\t\th.corsPolicy.HandlePreflight(w, r, []string{%s})\n", quotedStringList(route.Methods))
+				} else {
+					b.Addf("\t\tloomhttp.HandleCORSPreflight(w, r, %s, []string{%s})\n", renderCORSPolicy(data.CORS), quotedStringList(route.Methods))
+				}
 				b.Add("\t})\n")
 			}
 		}
 		for _, endpoint := range data.Endpoints {
-			b.Addf("\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
+			if data.CORS != nil && data.CORS.Runtime {
+				b.Addf("\t%s(mux, h.%s, h.corsPolicy)\n", endpoint.MountHandler, endpoint.Method.VarName)
+			} else {
+				b.Addf("\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
+			}
 		}
 		for _, fs := range data.FileServers {
 			if fs.Redirect != nil {
@@ -236,7 +253,13 @@ func serverHandlerSection(data *EndpointData) codegen.Section {
 		codegen.Doc(stmt, fmt.Sprintf("%s configures the mux to serve the %q service %q endpoint.", data.MountHandler, data.ServiceName, data.Method.Name))
 		stmt.Func().
 			Id(data.MountHandler).
-			Params(jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer")), jen.Id("h").Qual("net/http", "Handler")).
+			ParamsFunc(func(group *jen.Group) {
+				group.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer"))
+				group.Id("h").Qual("net/http", "Handler")
+				if data.CORS != nil && data.CORS.Runtime {
+					group.Id("corsPolicy").Add(codegen.TypeRef("loomhttp.RuntimeCORSPolicy"))
+				}
+			}).
 			BlockFunc(func(group *jen.Group) {
 				appendHTTPRawBlock(group, renderServerHandlerBody(data))
 			})
@@ -249,7 +272,9 @@ func renderServerHandlerBody(data *EndpointData) string {
 	b.Add("\tf, ok := h.(http.HandlerFunc)\n")
 	b.Add("\tif !ok {\n")
 	b.Add("\t\tf = func(w http.ResponseWriter, r *http.Request) {\n\t\t\th.ServeHTTP(w, r)\n\t\t}\n\t}\n")
-	if data.CORS != nil {
+	if data.CORS != nil && data.CORS.Runtime {
+		b.Add("\tf = corsPolicy.Handler(f)\n")
+	} else if data.CORS != nil {
 		b.Addf("\tf = loomhttp.CORSHandler(%s, f)\n", renderCORSPolicy(data.CORS))
 	}
 	for _, route := range data.Routes {

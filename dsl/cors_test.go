@@ -192,6 +192,20 @@ func TestCORSDSLErrors(t *testing.T) {
 			},
 			wantErr: "invalid use of CORS",
 		},
+		{
+			name: "static and runtime cors",
+			dsl: func() {
+				API("cors_api", func() {
+					HTTP(func() {
+						CORS(func() {
+							Origin("https://example.com")
+						})
+						RuntimeCORS()
+					})
+				})
+			},
+			wantErr: "CORS policy is already defined",
+		},
 	}
 
 	for _, tc := range cases {
@@ -201,4 +215,27 @@ func TestCORSDSLErrors(t *testing.T) {
 			require.Contains(t, err.Error(), tc.wantErr)
 		})
 	}
+}
+
+func TestRuntimeCORSDSL(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		API("cors_api", func() {
+			JSONRPC(func() {
+				RuntimeCORS()
+			})
+		})
+		Service("widgets", func() {
+			JSONRPC(func() {
+				POST("/rpc")
+				RuntimeCORS()
+			})
+			Method("list", func() {
+				Result(String)
+				JSONRPC(func() {})
+			})
+		})
+	})
+
+	require.True(t, root.API.JSONRPC.CORS.Runtime)
+	require.True(t, root.API.JSONRPC.Services[0].CORS.Runtime)
 }

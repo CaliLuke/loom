@@ -303,107 +303,7 @@ func (rb *batchWriter) Write(data []byte) (int, error) {
 	return rb.Writer.Write(data)
 }
 
-// handleSSE handles JSON-RPC SSE requests by dispatching to the appropriate method.
-func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var req jsonrpc.RawRequest
-	if r.Method == http.MethodGet {
-		req = jsonrpc.RawRequest{
-			JSONRPC: "2.0",
-			Method:  "events/stream",
-		}
-	} else if err := s.decoder(r).Decode(&req); err != nil {
-		stream := &clockSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-		}
-		if err := stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
-	}
-
-	if req.Invalid {
-		if !req.HasID {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		stream := &clockSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-		}
-		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
-	}
-
-	if req.JSONRPC != "2.0" {
-		if !req.HasID {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		stream := &clockSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-		}
-		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
-	}
-
-	if req.Method == "" {
-		if !req.HasID {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		stream := &clockSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-		}
-		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
-	}
-
-	var handler func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error
-	switch req.Method {
-	case "Tick":
-		handler = s.Tick
-	default:
-		if !req.HasID {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		stream := &clockSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-		}
-		if err := stream.sendError(ctx, req.ID, jsonrpc.MethodNotFound, "Method not found", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
-	}
-
-	if err := handler(ctx, r, &req, w); err != nil {
-		s.errhandler(ctx, w, fmt.Errorf("handler error for %s: %w", req.Method, err))
-		return
-	}
-
-} // Mount configures the mux to serve the JSON-RPC clock service methods.
+// Mount configures the mux to serve the JSON-RPC clock service methods.
 func Mount(mux loomhttp.Muxer, h *Server) {
 	// Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header and JSON-RPC method
 	mux.Handle("POST", "/rpc", h.Handler.ServeHTTP)
@@ -502,11 +402,6 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 			requestHasID: req.HasID,
 			requestID:    req.ID,
 			w:            w,
-		}
-		if r.Method == http.MethodGet && req.Method == "events/stream" {
-			if err := strm.open(); err != nil {
-				return err
-			}
 		}
 		params, err := decodeParams(r, req)
 		if err != nil {

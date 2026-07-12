@@ -10,6 +10,7 @@ type (
 	// HTTPCORSExpr describes the CORS policy for an API or HTTP service.
 	HTTPCORSExpr struct {
 		Origins []*HTTPCORSOriginExpr
+		Runtime bool
 	}
 
 	// HTTPCORSOriginExpr describes one allowed CORS origin and its response
@@ -39,6 +40,12 @@ func (o *HTTPCORSOriginExpr) EvalName() string {
 func (c *HTTPCORSExpr) Validate() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	if c == nil {
+		return verr
+	}
+	if c.Runtime {
+		if len(c.Origins) > 0 {
+			verr.Add(c, "runtime CORS cannot define design-time origins")
+		}
 		return verr
 	}
 	if len(c.Origins) == 0 {
@@ -73,7 +80,7 @@ func (c *HTTPCORSExpr) Dup() *HTTPCORSExpr {
 	if c == nil {
 		return nil
 	}
-	out := &HTTPCORSExpr{Origins: make([]*HTTPCORSOriginExpr, len(c.Origins))}
+	out := &HTTPCORSExpr{Origins: make([]*HTTPCORSOriginExpr, len(c.Origins)), Runtime: c.Runtime}
 	for i, origin := range c.Origins {
 		cp := *origin
 		cp.Methods = append([]string(nil), origin.Methods...)

@@ -105,6 +105,17 @@ func TestBuildPathsIncludesCORSExtension(t *testing.T) {
 	require.Equal(t, 600, origins[0]["maxAge"])
 }
 
+func TestBuildPathsMarksRuntimeCORSWithoutValues(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ServerRuntimeCORSPolicyDSL)
+	doc := New(root)
+	path := doc.Paths["/items"]
+	require.NotNil(t, path)
+	cors, ok := path.Extensions["x-loom-cors"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, true, cors["runtime"])
+	require.NotContains(t, cors, "origins")
+}
+
 type param struct {
 	Name        string
 	In          string

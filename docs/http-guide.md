@@ -610,6 +610,22 @@ Use `Origin("*")` only for non-credentialed APIs. Designs that combine
 that combination. OpenAPI output records the effective route policy under the
 `x-loom-cors` extension.
 
+For deployment-configured origins, select runtime mode in the design:
+
+```go
+HTTP(func() {
+    RuntimeCORS()
+})
+```
+
+Load the raw `loomhttp.CORSPolicy` in application startup, validate and snapshot
+it with `loomhttp.NewRuntimeCORSPolicy`, then pass the resulting immutable value
+to the generated server constructor. Invalid empty origins, regular
+expressions, wildcard credentials, and negative max ages return configuration
+errors. Generated actual-request and preflight handling remains identical for
+ordinary HTTP and SSE routes. Runtime OpenAPI metadata marks the policy as
+runtime-provided without publishing configured origins.
+
 ---
 
 ## Static Content
@@ -677,6 +693,6 @@ var _ = Service("spa", func() {
 
 ### Security
 - Always use HTTPS in production
-- Model browser CORS policy in HTTP design with `CORS`
+- Model browser CORS policy in HTTP design with `CORS` or `RuntimeCORS()`
 - Validate all input parameters
 - Set appropriate timeouts for long-lived connections

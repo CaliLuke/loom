@@ -45,6 +45,27 @@ func TestHTTPCORSDSL(t *testing.T) {
 	}
 }
 
+func TestHTTPRuntimeCORSDSL(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		API("cors", func() {
+			HTTP(func() {
+				RuntimeCORS()
+			})
+		})
+		Service("svc", func() {
+			Method("show", func() {
+				HTTP(func() {
+					GET("/")
+				})
+			})
+		})
+	})
+
+	if root.API.HTTP.CORS == nil || !root.API.HTTP.CORS.Runtime {
+		t.Fatalf("expected runtime CORS policy, got %#v", root.API.HTTP.CORS)
+	}
+}
+
 func TestHTTPCORSValidation(t *testing.T) {
 	cases := []struct {
 		name string

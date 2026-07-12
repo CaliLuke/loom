@@ -8,6 +8,109 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewRuntimeCORSPolicy(t *testing.T) {
+	policy, err := NewRuntimeCORSPolicy(CORSPolicy{Origins: []CORSOrigin{{
+		Pattern: "https://app.example.com",
+		Methods: []string{"GET"},
+	}}})
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	req.Header.Set("Origin", "https://app.example.com")
+	policy.Handler(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+		w.WriteHeader(stdhttp.StatusAccepted)
+	})(recorder, req)
+	require.Equal(t, stdhttp.StatusAccepted, recorder.Code)
+	require.Equal(t, "https://app.example.com", recorder.Header().Get("Access-Control-Allow-Origin"))
+}
+
+func TestNewRuntimeCORSPolicyRejectsInvalidPolicies(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy CORSPolicy
+		want   string
+	}{
+		{name: "empty", policy: CORSPolicy{}, want: "at least one origin"},
+		{name: "empty origin", policy: CORSPolicy{Origins: []CORSOrigin{{}}}, want: "cannot be empty"},
+		{name: "wildcard credentials", policy: CORSPolicy{Origins: []CORSOrigin{{Pattern: "*", Credentials: true}}}, want: "wildcard"},
+		{name: "invalid regex", policy: CORSPolicy{Origins: []CORSOrigin{{Pattern: "[", Regex: true}}}, want: "invalid"},
+		{name: "negative max age", policy: CORSPolicy{Origins: []CORSOrigin{{Pattern: "https://app.example.com", MaxAge: -1}}}, want: "negative"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := NewRuntimeCORSPolicy(test.policy)
+			require.ErrorContains(t, err, test.want)
+		})
+	}
+}
+
+func TestRuntimeCORSPolicySnapshotsInput(t *testing.T) {
+	origins := []CORSOrigin{{Pattern: "https://app.example.com", Methods: []string{"GET"}}}
+	policy, err := NewRuntimeCORSPolicy(CORSPolicy{Origins: origins})
+	require.NoError(t, err)
+	origins[0].Pattern = "https://evil.example.com"
+	origins[0].Methods[0] = "DELETE"
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(stdhttp.MethodOptions, "/", nil)
+	req.Header.Set("Origin", "https://app.example.com")
+	req.Header.Set("Access-Control-Request-Method", "GET")
+	policy.HandlePreflight(recorder, req, []string{"GET"})
+	require.Equal(t, "https://app.example.com", recorder.Header().Get("Access-Control-Allow-Origin"))
+}
+
+func TestRuntimeCORSPolicyRequestBehavior(t *testing.T) {
+	policy, err := NewRuntimeCORSPolicy(CORSPolicy{Origins: []CORSOrigin{{
+		Pattern:     "https://app.example.com",
+		Methods:     []string{"POST"},
+		Headers:     []string{"Authorization"},
+		Credentials: true,
+	}}})
+	require.NoError(t, err)
+
+	t.Run("allowed credentialed actual request", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(stdhttp.MethodPost, "/", nil)
+		req.Header.Set("Origin", "https://app.example.com")
+		policy.Handler(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			w.WriteHeader(stdhttp.StatusOK)
+		})(recorder, req)
+		require.Equal(t, "https://app.example.com", recorder.Header().Get("Access-Control-Allow-Origin"))
+		require.Equal(t, "true", recorder.Header().Get("Access-Control-Allow-Credentials"))
+	})
+
+	t.Run("disallowed actual request", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(stdhttp.MethodPost, "/", nil)
+		req.Header.Set("Origin", "https://evil.example.com")
+		policy.Handler(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			w.WriteHeader(stdhttp.StatusOK)
+		})(recorder, req)
+		require.Empty(t, recorder.Header().Get("Access-Control-Allow-Origin"))
+	})
+
+	t.Run("allowed preflight", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(stdhttp.MethodOptions, "/", nil)
+		req.Header.Set("Origin", "https://app.example.com")
+		req.Header.Set("Access-Control-Request-Method", "POST")
+		policy.HandlePreflight(recorder, req, []string{"POST"})
+		require.Equal(t, stdhttp.StatusNoContent, recorder.Code)
+		require.Equal(t, "POST", recorder.Header().Get("Access-Control-Allow-Methods"))
+	})
+
+	t.Run("disallowed preflight", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(stdhttp.MethodOptions, "/", nil)
+		req.Header.Set("Origin", "https://app.example.com")
+		req.Header.Set("Access-Control-Request-Method", "DELETE")
+		policy.HandlePreflight(recorder, req, []string{"POST"})
+		require.Equal(t, stdhttp.StatusNoContent, recorder.Code)
+		require.Empty(t, recorder.Header().Get("Access-Control-Allow-Origin"))
+	})
+}
+
 func TestCORSActualHeaders(t *testing.T) {
 	policy := CORSPolicy{Origins: []CORSOrigin{{
 		Pattern:     "https://app.example.com",

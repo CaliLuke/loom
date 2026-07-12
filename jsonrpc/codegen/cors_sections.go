@@ -50,20 +50,28 @@ func writeJSONRPCCORSMounts(g *jen.Group, data *httpcodegen.ServiceData, hasSSE,
 	sort.Strings(paths)
 	for _, path := range paths {
 		methods := routes[path]
+		var handle jen.Code
+		if data.CORS.Runtime {
+			handle = jen.Id("h").Dot("corsPolicy").Dot("HandlePreflight").Call(
+				jen.Id("w"),
+				jen.Id("r"),
+				stringSliceLiteral(methods),
+			)
+		} else {
+			handle = codegen.Expr("loomhttp.HandleCORSPreflight").Call(
+				jen.Id("w"),
+				jen.Id("r"),
+				renderJSONRPCCORSPolicy(data.CORS),
+				stringSliceLiteral(methods),
+			)
+		}
 		g.Id("mux").Dot("Handle").Call(
 			jen.Lit("OPTIONS"),
 			jen.Lit(path),
 			jen.Func().Params(
 				jen.Id("w").Qual("net/http", "ResponseWriter"),
 				jen.Id("r").Op("*").Qual("net/http", "Request"),
-			).Block(
-				codegen.Expr("loomhttp.HandleCORSPreflight").Call(
-					jen.Id("w"),
-					jen.Id("r"),
-					renderJSONRPCCORSPolicy(data.CORS),
-					stringSliceLiteral(methods),
-				),
-			),
+			).Block(handle),
 		)
 	}
 }

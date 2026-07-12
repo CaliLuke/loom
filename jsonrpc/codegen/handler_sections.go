@@ -151,16 +151,18 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 		jen.Id("requestID"):    jen.Id("req").Dot("ID"),
 		jen.Id("requestHasID"): jen.Id("req").Dot("HasID"),
 	})
-	g.If(
-		jen.Id("r").Dot("Method").Op("==").Qual("net/http", "MethodGet").Op("&&").Id("req").Dot("Method").Op("==").Lit("events/stream"),
-	).Block(
-		jen.If(
-			jen.Err().Op(":=").Id("strm").Dot("open").Call(),
-			jen.Err().Op("!=").Nil(),
+	if e.Method.Name == "events/stream" {
+		g.If(
+			jen.Id("r").Dot("Method").Op("==").Qual("net/http", "MethodGet").Op("&&").Id("req").Dot("Method").Op("==").Lit("events/stream"),
 		).Block(
-			jen.Return(jen.Err()),
-		),
-	)
+			jen.If(
+				jen.Err().Op(":=").Id("strm").Dot("open").Call(),
+				jen.Err().Op("!=").Nil(),
+			).Block(
+				jen.Return(jen.Err()),
+			),
+		)
+	}
 	if e.Payload != nil && e.Payload.Ref != "" {
 		g.List(jen.Id("params"), jen.Id("err")).Op(":=").Id("decodeParams").Call(jen.Id("r"), jen.Id("req"))
 		g.If(jen.Id("err").Op("!=").Nil()).Block(

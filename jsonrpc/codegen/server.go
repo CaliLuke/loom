@@ -17,7 +17,7 @@ func ServerFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 	for _, svc := range jsvcs {
 		files = append(files, serverFile(genpkg, svc, data))
 		// Generate either WebSocket or SSE file based on transport type
-		if hasJSONRPCSSE(svc, data) {
+		if hasJSONRPCSSE(svc, data) && !hasMixedJSONRPCTransports(svc, data) {
 			if f := sseServerStreamFile(genpkg, svc, data); f != nil {
 				files = append(files, f)
 			}
@@ -164,7 +164,6 @@ func jsonrpcServerTransportSections(data *httpcodegen.ServiceData, hasSSE, hasMi
 		return []codegen.Section{
 			jsonrpcMixedServerHandlerSection(data),
 			jsonrpcServerHandlerSection(data, true),
-			jsonrpcSSEServerHandlerSection(data),
 		}
 	case hasSSE:
 		return []codegen.Section{jsonrpcSSEServerHandlerSection(data)}

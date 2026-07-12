@@ -938,6 +938,26 @@ Generated HTTP servers mount preflight `OPTIONS` handlers and write actual
 request CORS headers. `Origin("*")` is valid only without `Credentials()`.
 OpenAPI path items include the effective policy as `x-loom-cors`.
 
+When allowed origins come from startup or deployment configuration, declare
+runtime mode instead of embedding those values in generated code:
+
+```go
+HTTP(func() {
+    RuntimeCORS()
+})
+```
+
+Construct a validated immutable snapshot with
+`loomhttp.NewRuntimeCORSPolicy(configuredPolicy)` and pass it to the generated
+server constructor. Runtime mode uses the same actual-request, preflight, and
+streaming behavior as static `CORS`; invalid policies fail while the snapshot
+is constructed. OpenAPI emits `x-loom-cors: {runtime: true}` without exposing
+deployment-specific values.
+
+`CORS` and `RuntimeCORS()` are mutually exclusive at the same API or service
+scope. WebSocket handshake origin enforcement remains a separate upgrader
+policy and is not granted by either CORS mode.
+
 ### Error Properties
 
 Mark errors with semantic properties:
@@ -1240,11 +1260,13 @@ at API, service, and method scope. Service-level `JSONRPC` defines the shared
 endpoint path; method-level `JSONRPC` opts a method into JSON-RPC and maps IDs
 and errors.
 
-`CORS` may be declared in API-level or service-level `JSONRPC` scope. Without
-a policy, generated JSON-RPC servers retain Go's secure cross-origin rejection
-default. With a policy, Loom generates preflight handling and actual-response
-CORS headers for HTTP, SSE, mixed, and WebSocket JSON-RPC servers. Use
-`Origin("*")` without `Credentials()` for an explicit allow-all policy.
+`CORS` or `RuntimeCORS()` may be declared in API-level or service-level
+`JSONRPC` scope. Without a policy, generated JSON-RPC servers retain Go's
+secure cross-origin rejection default. With a policy, Loom generates preflight
+handling and actual-response CORS headers for HTTP, SSE, mixed, and WebSocket
+JSON-RPC servers. Runtime mode requires a validated
+`loomhttp.RuntimeCORSPolicy` constructor argument. Use `Origin("*")` without
+`Credentials()` for an explicit allow-all static policy.
 
 For JSON-RPC SSE methods, use
 `SSENotificationMethod("notifications/progress")` inside

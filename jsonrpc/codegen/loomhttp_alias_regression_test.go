@@ -21,6 +21,7 @@ func TestJSONRPCRenderedFilesUseLoomHTTPAlias(t *testing.T) {
 
 	renderCodegenFiles(t, dir, ClientFiles("example.com/repro/gen", services))
 	renderCodegenFiles(t, dir, ServerFiles("example.com/repro/gen", services))
+	renderCodegenFiles(t, dir, SSEServerFiles("example.com/repro/gen", services))
 
 	clientPath := filepath.Join(dir, "gen/jsonrpc/jsonrpc_mixed_initialize_events_stream_service/client/client.go")
 	clientCode, err := os.ReadFile(clientPath)
@@ -34,7 +35,7 @@ func TestJSONRPCRenderedFilesUseLoomHTTPAlias(t *testing.T) {
 	require.Contains(t, string(encodeDecodeCode), "loomhttp.ErrInvalidResponse(")
 	require.NotContains(t, string(encodeDecodeCode), "http1.")
 
-	ssePath := filepath.Join(dir, "gen/jsonrpc/jsonrpc_mixed_initialize_events_stream_service/server/sse.go")
+	ssePath := filepath.Join(dir, "gen/jsonrpc/jsonrpc_mixed_initialize_events_stream_service/server/stream.go")
 	sseCode, err := os.ReadFile(ssePath)
 	require.NoError(t, err)
 	require.Contains(t, string(sseCode), "loomhttp.WriteJSONSSEEvent")
