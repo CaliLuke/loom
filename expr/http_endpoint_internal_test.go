@@ -8,8 +8,6 @@ import (
 )
 
 func TestHTTPEndpointValidateBodyAndPayloadWithoutPayload(t *testing.T) {
-	t.Parallel()
-
 	mapQueryParams := "filters"
 	endpoint := &HTTPEndpointExpr{
 		MethodExpr: &MethodExpr{
@@ -46,8 +44,6 @@ func validationErrorMessages(errs []error) []string {
 }
 
 func TestHTTPEndpointValidateParams(t *testing.T) {
-	t.Parallel()
-
 	queryElem := &AttributeExpr{Type: &Object{}}
 	queryArray := &AttributeExpr{Type: &Array{ElemType: queryElem}}
 	service := &HTTPServiceExpr{
@@ -86,8 +82,6 @@ func TestHTTPEndpointValidateParams(t *testing.T) {
 }
 
 func TestHTTPEndpointValidateHeadersAndCookies(t *testing.T) {
-	t.Parallel()
-
 	payloadObject := &Object{}
 	payloadObject.Set("user", &AttributeExpr{
 		Type: String,

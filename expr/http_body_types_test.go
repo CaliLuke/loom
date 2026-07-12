@@ -7,8 +7,6 @@ import (
 )
 
 func TestPreserveCanonicalOpenAPITypeName(t *testing.T) {
-	t.Parallel()
-
 	attr := &AttributeExpr{
 		Type: &UserTypeExpr{
 			AttributeExpr: &AttributeExpr{
@@ -26,8 +24,6 @@ func TestPreserveCanonicalOpenAPITypeName(t *testing.T) {
 }
 
 func TestCloneExplicitHTTPBodyRenamesAndSetsTypeUID(t *testing.T) {
-	t.Parallel()
-
 	body := &AttributeExpr{
 		Type: &UserTypeExpr{
 			AttributeExpr: &AttributeExpr{
@@ -57,8 +53,6 @@ func TestCloneExplicitHTTPBodyRenamesAndSetsTypeUID(t *testing.T) {
 }
 
 func TestCloneExplicitHTTPBodySetsResultTypeUID(t *testing.T) {
-	t.Parallel()
-
 	body := &AttributeExpr{
 		Type: &ResultTypeExpr{
 			UserTypeExpr: &UserTypeExpr{
@@ -81,8 +75,6 @@ func TestCloneExplicitHTTPBodySetsResultTypeUID(t *testing.T) {
 }
 
 func TestUnionToObjectUsesTaggedDiscriminators(t *testing.T) {
-	t.Parallel()
-
 	Root = &RootExpr{
 		API: &APIExpr{
 			ExampleGenerator: &ExampleGenerator{
