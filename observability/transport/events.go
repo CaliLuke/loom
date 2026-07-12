@@ -148,6 +148,11 @@ const (
 	ReasonStreamWriteFailed Reason = "stream_write_failed"
 	// ReasonStreamFlushFailed marks a failed flush of a streaming response.
 	ReasonStreamFlushFailed Reason = "stream_flush_failed"
+	// ReasonStreamFinalResponseSuppressed marks a SendAndClose final value
+	// discarded because the stream carries no JSON-RPC request ID (a
+	// notification or a raw GET events/stream listener), so protocol rules
+	// forbid sending a final response.
+	ReasonStreamFinalResponseSuppressed Reason = "stream_final_response_suppressed"
 	// ReasonMCPSessionMissing marks an MCP events-stream request that omitted
 	// the Mcp-Session-Id header.
 	ReasonMCPSessionMissing Reason = "mcp_session_missing"

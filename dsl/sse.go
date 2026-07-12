@@ -34,6 +34,16 @@ import (
 // mapping result attributes to event fields. See SSERequestID for more details on
 // mapping payload attributes to the Last-Event-ID request header.
 //
+// JSON-RPC streams distinguish request-initiated and ID-less connections. A
+// stream opened by a request that carries a JSON-RPC ID receives every Send
+// value as a notification and the SendAndClose value as the final response.
+// ID-less streams — JSON-RPC notifications and the raw GET events/stream
+// listener (the MCP-style server-push channel) — must not receive a final
+// response, so the SendAndClose value is discarded and a
+// stream_final_response_suppressed transport event is emitted. Implementations
+// serving GET listeners should Send every value and close the stream instead
+// of relying on SendAndClose to deliver data.
+//
 // Example:
 //
 //	var Notification = Type("Notification", func() {

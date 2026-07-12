@@ -172,6 +172,7 @@ build Auto-K without repeating large amounts of app-local glue.
 - JSON-RPC SSE intermediate notifications use the designed
   `SSENotificationMethod(...)`; without one they use the namespaced
   `<service>/stream.event` default and never masquerade as the request method.
+- JSON-RPC SSE final responses are ID-scoped: a stream opened by a request carrying a JSON-RPC ID receives the `SendAndClose` value as its final response, while ID-less streams (notifications and the raw `GET /rpc` `events/stream` listener, per MCP's response-free server-push channel) discard it and emit a `stream_final_response_suppressed` transport event. Implementations serving GET listeners must `Send` every value they want delivered.
 - JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. The narrow exception is the raw streamable-HTTP `GET /rpc` listener for the `events/stream` method, which must eagerly establish the SSE response so clients can observe readiness before the first domain event.
 - HTTP and JSON-RPC SSE handlers expose `Last-Event-ID` through the shared
   typed context key `loomhttp.LastEventIDKey`; middleware and services should

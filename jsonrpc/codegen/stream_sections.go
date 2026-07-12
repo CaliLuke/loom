@@ -155,6 +155,11 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 	// Determine the ID to use for the response
 	var id any = s.requestID
 	if !s.requestHasID {
+		// ID-less streams (JSON-RPC notifications and raw GET events/stream
+		// listeners) must not receive a final response, so the value is
+		// discarded; emit an observability event so the suppression is
+		// visible to implementations that call SendAndClose with data.
+		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamClose, Reason: loomtransport.ReasonStreamFinalResponseSuppressed, Transport: loomtransport.TransportJSONRPC})
 		return nil
 	}
 %s%s	%s
@@ -168,7 +173,7 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 	return s.sendSSEEvent("message", message)
 }
 `, codegen.Comment("SendAndClose sends a final JSON-RPC response to the client and closes the stream."),
-		codegen.Comment("The response includes the original request ID. Notifications are closed without a final response."),
+		codegen.Comment("The response includes the original request ID. ID-less streams (JSON-RPC notifications and raw GET events/stream listeners) are closed without a final response: the value is discarded and a stream_final_response_suppressed transport event is emitted. Implementations serving GET listeners should Send every value and close instead."),
 		codegen.Comment("After calling this method, no more events can be sent on this stream."),
 		ed.SSE.StructName,
 		ed.ServicePkgName,

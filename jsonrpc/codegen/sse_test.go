@@ -119,6 +119,21 @@ func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-handler-init-object.golden"), handlerInitCode)
 }
 
+// TestJSONRPCSSEStreamSuppressedFinalResponseIsObservable asserts that the
+// generated SendAndClose makes its ID-less suppression branch observable:
+// when a stream carries no JSON-RPC request ID (a notification or the raw
+// GET events/stream listener) the final value is discarded per protocol
+// rules, and the generated code must emit a transport event instead of
+// dropping the data silently.
+func TestJSONRPCSSEStreamSuppressedFinalResponseIsObservable(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	code := fileSectionCode(t, SSEServerFiles("", CreateJSONRPCServices(root)), "stream.go", "jsonrpc-sse-server-stream")
+
+	require.Contains(t, code, "if !s.requestHasID {")
+	require.Contains(t, code, "loomtransport.ReasonStreamFinalResponseSuppressed")
+	require.Contains(t, code, "loomtransport.EventKindStreamClose")
+}
+
 func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEEventsStreamDSL)
 	handlerInitCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler-init")
