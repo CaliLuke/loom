@@ -17,6 +17,10 @@ func TestAutoKStyleCompatibilityContract(t *testing.T) {
 	traceHarness := testkit.NewTraceHarness(t)
 	metricHarness := testkit.NewMetricHarness(t)
 	logHarness := testkit.NewLogHarness(t)
+	lpBefore := otelglobal.GetLoggerProvider()
+	t.Cleanup(func() {
+		otelglobal.SetLoggerProvider(lpBefore)
+	})
 	otelglobal.SetLoggerProvider(logHarness.Provider)
 
 	recorder := testkit.NewHTTPMetricsRecorder()

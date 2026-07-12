@@ -249,6 +249,11 @@ func TestSessionSecurityInjectsPayloadFields(t *testing.T) {
 
 func TestMethodSecurityHelpersAllowDetachedMethods(t *testing.T) {
 	t.Run("effective requirements", func(t *testing.T) {
+		// Reset the global root: a detached method falls back to the
+		// API-level requirements on expr.Root, so state left by earlier
+		// tests would leak into the assertions under shuffled order.
+		expr.SetupTestDSL(t)
+
 		method := &expr.MethodExpr{
 			Name: "DetachedMethod",
 		}

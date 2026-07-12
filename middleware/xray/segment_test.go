@@ -2,6 +2,7 @@ package xray_test
 
 import (
 	"net"
+	"os"
 	"regexp"
 	"testing"
 
@@ -9,10 +10,15 @@ import (
 	"github.com/CaliLuke/loom/middleware/xray/xraytest"
 )
 
-const (
-	// udp host:port used to run test server
-	udplisten = "127.0.0.1:62111"
-)
+// udplisten is the udp host:port used to run the test daemon. It is
+// allocated dynamically per test binary so concurrent runs cannot collide
+// on a fixed port.
+var udplisten string
+
+func TestMain(m *testing.M) {
+	udplisten = xraytest.FreeUDPAddr()
+	os.Exit(m.Run())
+}
 
 func TestSegment_NewSubsegment(t *testing.T) {
 	conn, err := net.Dial("udp", udplisten)

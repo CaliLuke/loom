@@ -121,6 +121,9 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 }
 
 func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
+	if os.Getenv("LOOM_OPENAPI_CONTRACT") == "" {
+		t.Skip("consumer smoke needs node/npx and network access; run via 'make openapi-contract'")
+	}
 	lintCases := []struct {
 		name string
 		dsl  func()

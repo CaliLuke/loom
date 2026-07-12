@@ -151,31 +151,23 @@ func TestStreamingErrorComparison(t *testing.T) {
 	clientfs := ClientFiles("", services)
 	require.Greater(t, len(clientfs), 0, "should have client files")
 
-	// Find unary and streaming code in different sections
-	var unaryCode, streamCode string
-
 	// For unary, look in client-endpoint-init
-	if sections := clientfs[0].Section("client-endpoint-init"); len(sections) > 0 {
-		var code strings.Builder
-		for _, section := range sections {
-			require.NoError(t, section.Write(&code))
-		}
-		unaryCode = code.String()
+	unarySections := clientfs[0].Section("client-endpoint-init")
+	require.NotEmpty(t, unarySections, "client-endpoint-init sections missing from generated client code")
+	var unaryBuilder strings.Builder
+	for _, section := range unarySections {
+		require.NoError(t, section.Write(&unaryBuilder))
 	}
+	unaryCode := unaryBuilder.String()
 
 	// For streaming, look in client-stream-recv
-	if sections := clientfs[0].Section("client-stream-recv"); len(sections) > 0 {
-		var code strings.Builder
-		for _, section := range sections {
-			require.NoError(t, section.Write(&code))
-		}
-		streamCode = code.String()
+	streamSections := clientfs[0].Section("client-stream-recv")
+	require.NotEmpty(t, streamSections, "client-stream-recv sections missing from generated client code")
+	var streamBuilder strings.Builder
+	for _, section := range streamSections {
+		require.NoError(t, section.Write(&streamBuilder))
 	}
-
-	// If no sections found, skip test with explanation
-	if unaryCode == "" || streamCode == "" {
-		t.Skip("Cannot compare unary and streaming - sections not found in generated code")
-	}
+	streamCode := streamBuilder.String()
 
 	// Both should decode errors
 	assert.Contains(t, unaryCode, "loomgrpc.DecodeError(err)",

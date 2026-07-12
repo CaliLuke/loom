@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,10 +60,15 @@ type (
 	}
 )
 
-const (
-	// udp host:port used to run test server
-	udplisten = "127.0.0.1:62113"
-)
+// udplisten is the udp host:port used to run the test daemon. It is
+// allocated dynamically per test binary so concurrent runs cannot collide
+// on a fixed port.
+var udplisten string
+
+func TestMain(m *testing.M) {
+	udplisten = xraytest.FreeUDPAddr()
+	os.Exit(m.Run())
+}
 
 func TestNewUnaryServer(t *testing.T) {
 	cases := []struct {

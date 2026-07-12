@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -66,7 +67,7 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 
 	renderGeneratedFiles(t, dir, files)
 
-	repoRoot := checkoutPinnedLoomModule(t, dir)
+	repoRoot := checkoutPinnedLoomModule(t)
 	goMod := fmt.Sprintf(`module %s
 
 go 1.26.0
@@ -80,7 +81,26 @@ replace github.com/CaliLuke/loom => %s
 	}
 }
 
-func checkoutPinnedLoomModule(t *testing.T, parentDir string) string {
+// pinnedLoom memoizes the pinned loom module checkout so every module-compile
+// test in the package shares one git fetch instead of paying for its own.
+// TestMain removes the checkout after the package's tests finish.
+var pinnedLoom struct {
+	once sync.Once
+	dir  string
+	root string
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if pinnedLoom.root != "" {
+		if err := os.RemoveAll(pinnedLoom.root); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to remove pinned loom checkout: %v\n", err)
+		}
+	}
+	os.Exit(code)
+}
+
+func checkoutPinnedLoomModule(t *testing.T) string {
 	t.Helper()
 
 	if local := configuredLocalLoomModulePath(); local != "" {
@@ -88,19 +108,34 @@ func checkoutPinnedLoomModule(t *testing.T, parentDir string) string {
 		return local
 	}
 
-	commit := strings.TrimSpace(runCommand(t, "", "git", "rev-parse", "HEAD"))
-	remote := strings.TrimSpace(resolveGitRemoteURL(t))
-	dest := filepath.Join(parentDir, "loom-pinned")
-	t.Logf("checking out pinned loom module into %s from %s at %s", dest, remote, commit)
+	pinnedLoom.once.Do(func() {
+		commit := strings.TrimSpace(runCommand(t, "", "git", "rev-parse", "HEAD"))
+		remote := strings.TrimSpace(resolveGitRemoteURL(t))
+		parentDir, err := os.MkdirTemp("", "loom-pinned-")
+		if err != nil {
+			t.Logf("failed to create pinned checkout dir: %v", err)
+			return
+		}
+		dest := filepath.Join(parentDir, "loom-pinned")
+		t.Logf("checking out pinned loom module into %s from %s at %s", dest, remote, commit)
 
-	if _, err := runLoggedCommandAllowFailure(t, "", "git", "init", dest); err == nil {
-		if _, err := runLoggedCommandAllowFailure(t, dest, "git", "remote", "add", "origin", remote); err == nil {
-			if _, err := runLoggedCommandAllowFailure(t, dest, "git", "fetch", "--depth", "1", "origin", commit); err == nil {
-				if _, err := runLoggedCommandAllowFailure(t, dest, "git", "checkout", "--detach", "FETCH_HEAD"); err == nil {
-					return dest
+		if _, err := runLoggedCommandAllowFailure(t, "", "git", "init", dest); err == nil {
+			if _, err := runLoggedCommandAllowFailure(t, dest, "git", "remote", "add", "origin", remote); err == nil {
+				if _, err := runLoggedCommandAllowFailure(t, dest, "git", "fetch", "--depth", "1", "origin", commit); err == nil {
+					if _, err := runLoggedCommandAllowFailure(t, dest, "git", "checkout", "--detach", "FETCH_HEAD"); err == nil {
+						pinnedLoom.dir = dest
+						pinnedLoom.root = parentDir
+						return
+					}
 				}
 			}
 		}
+		if err := os.RemoveAll(parentDir); err != nil {
+			t.Logf("failed to clean up pinned checkout dir: %v", err)
+		}
+	})
+	if pinnedLoom.dir != "" {
+		return pinnedLoom.dir
 	}
 
 	t.Log("falling back to local repository root resolution")

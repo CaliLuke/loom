@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -14,10 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	// udp host:port used to run test server
-	udplisten = "127.0.0.1:62112"
-)
+// udplisten is the udp host:port used to run the test daemon. It is
+// allocated dynamically per test binary so concurrent runs cannot collide
+// on a fixed port.
+var udplisten string
+
+func TestMain(m *testing.M) {
+	udplisten = xraytest.FreeUDPAddr()
+	os.Exit(m.Run())
+}
 
 func TestNew(t *testing.T) {
 	cases := map[string]struct {

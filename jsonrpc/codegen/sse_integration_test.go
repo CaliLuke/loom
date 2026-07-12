@@ -12,11 +12,6 @@ import (
 )
 
 func TestJSONRPCSSEIntegration(t *testing.T) {
-	// Skip if not in CI or explicitly requested
-	if os.Getenv("LOOM_INTEGRATION_TEST") == "" {
-		t.Skip("Skipping integration test. Set LOOM_INTEGRATION_TEST=1 to run.")
-	}
-
 	// Run the DSL
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	services := CreateJSONRPCServices(root)
@@ -63,5 +58,6 @@ func TestJSONRPCSSEIntegration(t *testing.T) {
 	clientContent, err := os.ReadFile(clientStreamPath)
 	require.NoError(t, err)
 	require.Contains(t, string(clientContent), "decodeResult")
-	require.Contains(t, string(clientContent), "JSON-RPC notification")
+	require.Contains(t, string(clientContent), `case "notification":`)
+	require.Contains(t, string(clientContent), `if notification.JSONRPC != "2.0"`)
 }

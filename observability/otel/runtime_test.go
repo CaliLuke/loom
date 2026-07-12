@@ -11,7 +11,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// restoreOTelGlobals snapshots the process-global OTel providers and
+// propagator mutated by New and restores them when the test finishes so
+// tests stay order-independent.
+func restoreOTelGlobals(t *testing.T) {
+	t.Helper()
+	tp := otel.GetTracerProvider()
+	mp := otel.GetMeterProvider()
+	lp := otelglobal.GetLoggerProvider()
+	prop := otel.GetTextMapPropagator()
+	t.Cleanup(func() {
+		otel.SetTracerProvider(tp)
+		otel.SetMeterProvider(mp)
+		otelglobal.SetLoggerProvider(lp)
+		otel.SetTextMapPropagator(prop)
+	})
+}
+
 func TestNewInitializesEnabledProvidersAndGlobals(t *testing.T) {
+	restoreOTelGlobals(t)
 	tpBefore := otel.GetTracerProvider()
 	mpBefore := otel.GetMeterProvider()
 	lpBefore := otelglobal.GetLoggerProvider()
@@ -45,6 +63,7 @@ func TestNewInitializesEnabledProvidersAndGlobals(t *testing.T) {
 }
 
 func TestNewDisabledSectionsDoNotReplaceUnrelatedGlobals(t *testing.T) {
+	restoreOTelGlobals(t)
 	sentinel := noop.NewTracerProvider()
 	otel.SetTracerProvider(sentinel)
 	mpBefore := otel.GetMeterProvider()
@@ -65,6 +84,7 @@ func TestNewDisabledSectionsDoNotReplaceUnrelatedGlobals(t *testing.T) {
 }
 
 func TestNewSupportsLocalOnlyOperation(t *testing.T) {
+	restoreOTelGlobals(t)
 	rt, err := New(context.Background(), Config{
 		ServiceName: "local-only",
 		Traces: TraceConfig{

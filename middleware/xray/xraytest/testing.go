@@ -12,6 +12,24 @@ import (
 	"github.com/CaliLuke/loom/middleware/xray"
 )
 
+// FreeUDPAddr reserves an ephemeral localhost UDP port and returns its
+// host:port address. The listener is closed before returning so callers can
+// bind the address themselves. Allocating from the ephemeral range keeps
+// concurrent test runs from colliding on a fixed port. It panics on failure
+// because it is meant to be called from TestMain, before any *testing.T
+// exists.
+func FreeUDPAddr() string {
+	l, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+	if err != nil {
+		panic(err)
+	}
+	addr := l.LocalAddr().String()
+	if err := l.Close(); err != nil {
+		panic(err)
+	}
+	return addr
+}
+
 // ReadUDP verifies that exactly the expected number of messages are received.
 func ReadUDP(t *testing.T, udplisten string, expectedMessages int, sender func()) []string {
 	t.Helper()

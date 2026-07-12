@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"bytes"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -100,16 +99,8 @@ func TestWebSocketGoldenFiles(t *testing.T) {
 
 			golden := filepath.Join("testdata", "golden", "websocket", c.name+".golden")
 
-			// Create golden file if it doesn't exist (for initial creation)
-			if _, err := os.Stat(golden); os.IsNotExist(err) {
-				dir := filepath.Dir(golden)
-				require.NoError(t, os.MkdirAll(dir, 0750))
-				require.NoError(t, os.WriteFile(golden, []byte(code), 0644))
-				t.Logf("Created golden file: %s", golden)
-				return
-			}
-
-			// Use testutil for proper line ending normalization
+			// testutil fails on a missing golden unless -update is set, so a
+			// new case cannot silently seed its own baseline.
 			testutil.AssertString(t, golden, code)
 		})
 	}

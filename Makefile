@@ -32,7 +32,7 @@ GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci depend install-hooks lint lint-filesize lint-namescope test test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight release-loom
+.PHONY: all all-tests ci clean depend install-hooks lint lint-filesize lint-namescope test test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight release-loom
 .NOTPARALLEL: release release-loom
 
 # Only list test and build dependencies
@@ -100,6 +100,8 @@ ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_filesize.sh || (echo "^ - file size lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
 	@$(GOLANGCI_LINT) run ./... || (echo "^ - lint errors!" && echo && exit 1)
+else
+	@echo "SKIPPED: lint does not run on Windows"
 endif
 
 lint-filesize:
@@ -126,6 +128,8 @@ integration-test: build-loom
 ifneq ($(GOOS),windows)
 	cd jsonrpc/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 10m ./...
 	cd http/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 10m ./...
+else
+	@echo "SKIPPED: integration-test does not run on Windows (no Windows integration coverage)"
 endif
 
 # integration-test-fast is the iteration loop for codegen work. Differences
@@ -160,8 +164,14 @@ endif
 
 openapi-contract:
 ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -run 'Test(RenderedSpecsPassContractLint|RepresentativeSpecsPassRedoclyLintAndConsumerSmoke)$$' ./http/codegen/openapi/v3
+	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run 'Test(RenderedSpecsPassContractLint|RepresentativeSpecsPassRedoclyLintAndConsumerSmoke)$$' ./http/codegen/openapi/v3
 endif
+
+# Remove gitignored artifacts that integration-test runs leave behind
+# (per-run loom build dirs and server logs inside the integration trees).
+clean:
+	find jsonrpc/integration_tests http/integration_tests -type d -name 'loom[0-9]*' -prune -exec rm -rf {} + 2>/dev/null || true
+	find jsonrpc/integration_tests http/integration_tests -type f -name 'server-*.log' -delete 2>/dev/null || true
 
 loom-local:
 	bash ./scripts/loom_source_mode.sh local

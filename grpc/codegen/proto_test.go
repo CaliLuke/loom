@@ -36,17 +36,24 @@ func TestProtoFiles(t *testing.T) {
 		{"protofiles-default-fields", testdata.DefaultFieldsDSL},
 		{"protofiles-custom-message-name", testdata.CustomMessageNameDSL},
 	}
+	// DSL evaluation mutates package-global state, so generate every proto
+	// source serially first, then compile them in parallel subtests.
+	codes := make(map[string]string, len(cases))
+	for _, c := range cases {
+		root := RunGRPCDSL(t, c.DSL)
+		services := CreateGRPCServices(root)
+		fs := ProtoFiles("", services)
+		if len(fs) != 1 {
+			t.Fatalf("%s: got %d files, expected one", c.Name, len(fs))
+		}
+		sections := fs[0].AllSections()
+		require.GreaterOrEqual(t, len(sections), 3)
+		codes[c.Name] = sectionCode(t, sections[1:]...)
+	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			root := RunGRPCDSL(t, c.DSL)
-			services := CreateGRPCServices(root)
-			fs := ProtoFiles("", services)
-			if len(fs) != 1 {
-				t.Fatalf("got %d files, expected one", len(fs))
-			}
-			sections := fs[0].AllSections()
-			require.GreaterOrEqual(t, len(sections), 3)
-			code := sectionCode(t, sections[1:]...)
+			t.Parallel()
+			code := codes[c.Name]
 			// testutil.AssertString handles line ending normalization internally
 			testutil.AssertString(t, "testdata/golden/proto_"+c.Name+".proto.golden", code)
 			fpath := codegen.CreateTempFile(t, code)
@@ -71,19 +78,25 @@ func TestMessageDefSection(t *testing.T) {
 		{"with-metadata", testdata.MessageWithMetadataDSL},
 		{"with-security-attributes", testdata.MessageWithSecurityAttrsDSL},
 	}
+	// DSL evaluation mutates package-global state, so generate every proto
+	// source serially first, then compile them in parallel subtests.
+	codes := make(map[string]string, len(cases))
+	for _, c := range cases {
+		root := RunGRPCDSL(t, c.DSL)
+		services := CreateGRPCServices(root)
+		fs := ProtoFiles("", services)
+		require.Len(t, fs, 1)
+		sections := fs[0].AllSections()
+		require.GreaterOrEqual(t, len(sections), 3)
+		codes[c.Name] = sectionCode(t, sections[:2]...) + sectionCode(t, sections[3:]...)
+	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			root := RunGRPCDSL(t, c.DSL)
-			services := CreateGRPCServices(root)
-			fs := ProtoFiles("", services)
-			require.Len(t, fs, 1)
-			sections := fs[0].AllSections()
-			require.GreaterOrEqual(t, len(sections), 3)
-			code := sectionCode(t, sections[:2]...)
-			msgCode := sectionCode(t, sections[3:]...)
+			t.Parallel()
+			code := codes[c.Name]
 			// testutil.AssertString handles line ending normalization internally
-			testutil.AssertString(t, "testdata/golden/proto_"+c.Name+".proto.golden", code+msgCode)
-			fpath := codegen.CreateTempFile(t, code+msgCode)
+			testutil.AssertString(t, "testdata/golden/proto_"+c.Name+".proto.golden", code)
+			fpath := codegen.CreateTempFile(t, code)
 			assert.NoError(t, protoc(defaultProtocCmd, fpath, nil), "error occurred when compiling proto file %q", fpath)
 		})
 	}

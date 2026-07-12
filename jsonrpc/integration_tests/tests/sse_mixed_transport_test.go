@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +20,63 @@ import (
 	"github.com/CaliLuke/loom/internal/testingx"
 	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
+
+// The mixedtick fixture copy is generated once for the whole package:
+// regeneration (loom gen via go run) dominates the mixed-transport tests'
+// runtime and the generated tree is read-only for the servers, so the three
+// tests share it and only the servers start per test.
+var (
+	mixedTickOnce     sync.Once
+	mixedTickTempRoot string
+	mixedTickWorkDir  string
+	mixedTickSetupErr error
+	mixedTickStartMu  sync.Mutex
+)
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if mixedTickTempRoot != "" {
+		if err := os.RemoveAll(mixedTickTempRoot); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to remove mixedtick work dir: %v\n", err)
+		}
+	}
+	os.Exit(code)
+}
+
+// setupMixedTickWorkDir copies, pins, and regenerates the mixedtick fixture
+// exactly once and returns the shared work dir.
+func setupMixedTickWorkDir() (string, error) {
+	mixedTickOnce.Do(func() {
+		srcDir := filepath.Join("..", "fixtures", "mixedtick")
+		tempRoot, err := os.MkdirTemp("", "mixedtick-tests-")
+		if err != nil {
+			mixedTickSetupErr = err
+			return
+		}
+		mixedTickTempRoot = tempRoot
+		workDir := filepath.Join(tempRoot, "mixedtick")
+		if err := testingx.CopyTree(srcDir, workDir); err != nil {
+			mixedTickSetupErr = err
+			return
+		}
+		if err := testingx.PinLocalReplace(workDir, testingx.RepoRoot()); err != nil {
+			mixedTickSetupErr = err
+			return
+		}
+		if _, err := testingx.RunCmd(workDir, "go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/mixedtick/design", "-o", "."); err != nil {
+			mixedTickSetupErr = err
+			return
+		}
+		// Tidy once so the per-server tidy in harness.StartServer is a no-op
+		// and the parallel tests do not race on module file writes.
+		if _, err := testingx.RunCmd(workDir, "go", "mod", "tidy"); err != nil {
+			mixedTickSetupErr = err
+			return
+		}
+		mixedTickWorkDir = workDir
+	})
+	return mixedTickWorkDir, mixedTickSetupErr
+}
 
 func TestJSONRPCMixedSSETopLevelServerEmitsFinalResponse(t *testing.T) {
 	t.Parallel()
@@ -120,18 +180,20 @@ func TestJSONRPCMixedSSETopLevelServerEmitsErrors(t *testing.T) {
 func startMixedTickServer(t *testing.T) *harness.Server {
 	t.Helper()
 
-	srcDir := filepath.Join("..", "fixtures", "mixedtick")
-	workDir := filepath.Join(t.TempDir(), "mixedtick")
-	require.NoError(t, testingx.CopyTree(srcDir, workDir))
-	require.NoError(t, testingx.PinLocalReplace(workDir, testingx.RepoRoot()))
-
-	_, err := testingx.RunCmd(workDir, "go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/mixedtick/design", "-o", ".")
+	workDir, err := setupMixedTickWorkDir()
 	require.NoError(t, err)
+	// Tree comparison is cheap; keep the fixture-freshness assertion per
+	// test so every test reports drift, not just the one that generated.
+	srcDir := filepath.Join("..", "fixtures", "mixedtick")
 	testingx.RequireTreeMatches(t, filepath.Join(srcDir, "gen"), filepath.Join(workDir, "gen"))
 
 	serverCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
+	// Serialize server startup: StartServer runs go mod tidy + go run in the
+	// shared work dir, and concurrent module-file writes would race.
+	mixedTickStartMu.Lock()
+	defer mixedTickStartMu.Unlock()
 	server, err := harness.StartServer(serverCtx, workDir, 0)
 	require.NoError(t, err)
 	return server
