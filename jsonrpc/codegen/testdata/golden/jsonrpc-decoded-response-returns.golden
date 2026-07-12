@@ -1,0 +1,41 @@
+// case: result-init
+func testcase() {
+	res := NewShowResult(&body)
+	return res, nil
+}
+
+// case: result-init-tag-value
+func testcase() {
+	res := NewShowResult(&body)
+	res.Status = "ok"
+	return res, nil
+}
+
+// case: result-init-tag-pointer
+func testcase() {
+	res := NewShowResult(&body)
+	tmp := "ok"
+	res.Status = &tmp
+	return res, nil
+}
+
+// case: client-body
+func testcase() {
+	return body, nil
+}
+
+// case: header-value
+func testcase() {
+	return location, nil
+}
+
+// case: cookie-value
+func testcase() {
+	return session, nil
+}
+
+// case: empty
+func testcase() {
+	return nil, nil
+}
+

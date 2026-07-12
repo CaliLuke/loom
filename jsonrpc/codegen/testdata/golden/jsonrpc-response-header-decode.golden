@@ -1,0 +1,132 @@
+// case: string-required
+func testcase() {
+	tokenRaw := resp.Header.Get("X-Token")
+	if tokenRaw == "" {
+		err = loom.MergeErrors(err, loom.MissingFieldError("token", "header"))
+	}
+	token = tokenRaw
+}
+
+// case: string-pointer-required
+func testcase() {
+	tokenRaw := resp.Header.Get("X-Token")
+	if tokenRaw == "" {
+		err = loom.MergeErrors(err, loom.MissingFieldError("token", "header"))
+	}
+	token = &tokenRaw
+}
+
+// case: string-optional-default
+func testcase() {
+	regionRaw := resp.Header.Get("X-Region")
+	if regionRaw != "" {
+		region = regionRaw
+	} else {
+		region = "us-east"
+	}
+}
+
+// case: string-optional-no-default
+func testcase() {
+	traceRaw := resp.Header.Get("X-Trace")
+	if traceRaw != "" {
+		trace = &traceRaw
+	} else {
+	}
+}
+
+// case: string-slice-required
+func testcase() {
+	tags = resp.Header["X-Tags"]
+	if tags == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("tags", "header"))
+	}
+}
+
+// case: string-slice-optional
+func testcase() {
+	tags = resp.Header["X-Tags"]
+}
+
+// case: int-slice-required
+func testcase() {
+	{
+		idsRaw := resp.Header["X-Ids"]
+		if idsRaw == nil {
+			return nil, loomhttp.ErrValidationError("", "", loom.MissingFieldError("ids", "header"))
+		}
+		ids = make([]int, len(idsRaw))
+		for i, rv := range idsRaw {
+			v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
+			if err2 != nil {
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("ids", idsRaw, "array of integers"))
+			}
+			ids[i] = int(v)
+		}
+	}
+}
+
+// case: bytes-slice-optional
+func testcase() {
+	{
+		blobsRaw := resp.Header["X-Blobs"]
+		blobs = make([][]byte, len(blobsRaw))
+		for i, rv := range blobsRaw {
+			blobs[i] = []byte(rv)
+		}
+	}
+}
+
+// case: any-slice-passthrough
+func testcase() {
+	{
+		valsRaw := resp.Header["X-Vals"]
+		vals = make([]any, len(valsRaw))
+		for i, rv := range valsRaw {
+			vals[i] = rv
+		}
+	}
+}
+
+// case: slice-flag-on-non-array
+func testcase() {
+	{
+		oddRaw := resp.Header["X-Odd"]
+		odd = make([]int, len(oddRaw))
+		for i, rv := range oddRaw {
+			// unsupported non-array type for var odd
+		}
+	}
+}
+
+// case: int-required
+func testcase() {
+	{
+		countRaw := resp.Header.Get("X-Count")
+		if countRaw == "" {
+			return nil, loomhttp.ErrValidationError("", "", loom.MissingFieldError("count", "header"))
+		}
+		v, err2 := strconv.ParseInt(countRaw, 10, strconv.IntSize)
+		if err2 != nil {
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError("count", countRaw, "integer"))
+		}
+		count = int(v)
+	}
+}
+
+// case: bytes-optional
+func testcase() {
+	{
+		rawRaw := resp.Header.Get("X-Raw")
+		raw = []byte(rawRaw)
+	}
+}
+
+// case: unsupported-map
+func testcase() {
+	{
+		metaRaw := resp.Header.Get("X-Meta")
+		// unsupported type map for var meta
+	}
+}
+

@@ -1,0 +1,61 @@
+// DecodeDivideResponse returns a decoder for responses returned by the calc
+// service divide JSON-RPC method. restoreBody controls whether the response
+// body should be restored after having been read.
+func DecodeDivideResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, loomhttp.ErrInvalidResponse("calc", "divide", resp.StatusCode, string(body))
+		}
+
+		var jresp jsonrpc.RawResponse
+		if err := decoder(resp).Decode(&jresp); err != nil {
+			return nil, loomhttp.ErrDecodingError("calc", "divide", err)
+		}
+
+		if jresp.Error != nil {
+			switch jresp.Error.Code {
+			case 4100:
+				resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))
+				var (
+					body DivideBadRequestResponseBody
+					err  error
+				)
+				err = decoder(resp).Decode(&body)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("calc", "divide", err)
+				}
+				err = ValidateDivideBadRequestResponseBody(&body)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("calc", "divide", err)
+				}
+				return nil, NewDivideBadRequest(&body)
+			default:
+				return nil, jresp.Error
+			}
+		}
+
+		resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
+		var (
+			body string
+			err  error
+		)
+		err = decoder(resp).Decode(&body)
+		if err != nil {
+			return nil, loomhttp.ErrDecodingError("calc", "divide", err)
+		}
+		return body, nil
+	}
+}

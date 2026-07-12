@@ -1,0 +1,54 @@
+func testcase() {
+	switch jresp.Error.Code {
+	case jsonrpc.InternalError:
+		resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))
+		var (
+			body DivideTimeoutResponseBody
+			err  error
+		)
+		err = decoder(resp).Decode(&body)
+		if err != nil {
+			return nil, loomhttp.ErrDecodingError("calc", "divide", err)
+		}
+		err = ValidateDivideTimeoutResponseBody(&body)
+		if err != nil {
+			return nil, loomhttp.ErrValidationError("calc", "divide", err)
+		}
+		return nil, NewDivideTimeout(&body)
+	case jsonrpc.ServerError:
+		var jerrData jsonrpc.ErrorData
+		if len(jresp.Error.Data) > 0 {
+			if err := json.Unmarshal(jresp.Error.Data, &jerrData); err != nil {
+				return nil, loomhttp.ErrDecodingError("calc", "divide", err)
+			}
+		}
+		switch jerrData.Name {
+		case "insufficient_funds":
+			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))
+			var (
+				body DivideInsufficientFundsResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, loomhttp.ErrDecodingError("calc", "divide", err)
+			}
+			return nil, NewDivideInsufficientFunds(&body)
+		case "account_closed":
+			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))
+			var (
+				body DivideAccountClosedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, loomhttp.ErrDecodingError("calc", "divide", err)
+			}
+			return nil, body
+		default:
+			return nil, loomhttp.ErrInvalidResponse("calc", "divide", resp.StatusCode, string(jresp.Error.Data))
+		}
+	default:
+		return nil, jresp.Error
+	}
+}

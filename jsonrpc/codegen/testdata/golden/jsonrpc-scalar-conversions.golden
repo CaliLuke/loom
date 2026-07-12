@@ -1,0 +1,263 @@
+// query case: int
+func testcase() {
+	v, err2 := strconv.ParseInt(vRaw, 10, strconv.IntSize)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "integer"))
+	}
+	v = int(v)
+}
+
+// slice item case: int
+func testcase() {
+	v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of integers"))
+	}
+	v[i] = int(v)
+}
+
+// query case: int32
+func testcase() {
+	v, err2 := strconv.ParseInt(vRaw, 10, 32)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "integer"))
+	}
+	v = int32(v)
+}
+
+// slice item case: int32
+func testcase() {
+	v, err2 := strconv.ParseInt(rv, 10, 32)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of integers"))
+	}
+	v[i] = int32(v)
+}
+
+// query case: int64
+func testcase() {
+	v, err2 := strconv.ParseInt(vRaw, 10, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "integer"))
+	}
+	v = v
+}
+
+// slice item case: int64
+func testcase() {
+	v, err2 := strconv.ParseInt(rv, 10, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of integers"))
+	}
+	v[i] = int64(v)
+}
+
+// query case: uint
+func testcase() {
+	v, err2 := strconv.ParseUint(vRaw, 10, strconv.IntSize)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "unsigned integer"))
+	}
+	v = uint(v)
+}
+
+// slice item case: uint
+func testcase() {
+	v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of unsigned integers"))
+	}
+	v[i] = uint(v)
+}
+
+// query case: uint32
+func testcase() {
+	v, err2 := strconv.ParseUint(vRaw, 10, 32)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "unsigned integer"))
+	}
+	v = uint32(v)
+}
+
+// slice item case: uint32
+func testcase() {
+	v, err2 := strconv.ParseUint(rv, 10, 32)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of unsigned integers"))
+	}
+	v[i] = uint32(v)
+}
+
+// query case: uint64
+func testcase() {
+	v, err2 := strconv.ParseUint(vRaw, 10, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "unsigned integer"))
+	}
+	v = v
+}
+
+// slice item case: uint64
+func testcase() {
+	v, err2 := strconv.ParseUint(rv, 10, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of unsigned integers"))
+	}
+	v[i] = uint64(v)
+}
+
+// query case: float32
+func testcase() {
+	v, err2 := strconv.ParseFloat(vRaw, 32)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "float"))
+	}
+	v = float32(v)
+}
+
+// slice item case: float32
+func testcase() {
+	v, err2 := strconv.ParseFloat(rv, 32)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of floats"))
+	}
+	v[i] = float32(v)
+}
+
+// query case: float64
+func testcase() {
+	v, err2 := strconv.ParseFloat(vRaw, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "float"))
+	}
+	v = v
+}
+
+// slice item case: float64
+func testcase() {
+	v, err2 := strconv.ParseFloat(rv, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of floats"))
+	}
+	v[i] = float64(v)
+}
+
+// query case: boolean
+func testcase() {
+	v, err2 := strconv.ParseBool(vRaw)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "boolean"))
+	}
+	v = v
+}
+
+// slice item case: boolean
+func testcase() {
+	v, err2 := strconv.ParseBool(rv)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of booleans"))
+	}
+	v[i] = bool(v)
+}
+
+// query case: bytes
+func testcase() {
+	v = []byte(vRaw)
+}
+
+// slice item case: bytes
+func testcase() {
+	v[i] = []byte(rv)
+}
+
+// query case: int-pointer
+func testcase() {
+	v, err2 := strconv.ParseInt(vRaw, 10, strconv.IntSize)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "integer"))
+	}
+	pv := int(v)
+	v = &pv
+}
+
+// slice item case: int-pointer
+func testcase() {
+	v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of integers"))
+	}
+	v[i] = int(v)
+}
+
+// query case: int32-alias
+func testcase() {
+	v, err2 := strconv.ParseInt(vRaw, 10, 32)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "integer"))
+	}
+	v = MyInt32(v)
+}
+
+// slice item case: int32-alias
+func testcase() {
+	v, err2 := strconv.ParseInt(rv, 10, 32)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of integers"))
+	}
+	v[i] = int32(v)
+}
+
+// query case: int64-alias
+func testcase() {
+	v, err2 := strconv.ParseInt(vRaw, 10, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "integer"))
+	}
+	v = (MyInt64)(v)
+}
+
+// slice item case: int64-alias
+func testcase() {
+	v, err2 := strconv.ParseInt(rv, 10, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of integers"))
+	}
+	v[i] = int64(v)
+}
+
+// query case: int64-alias-pointer
+func testcase() {
+	v, err2 := strconv.ParseInt(vRaw, 10, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "integer"))
+	}
+	v = (*MyInt64)(&v)
+}
+
+// slice item case: int64-alias-pointer
+func testcase() {
+	v, err2 := strconv.ParseInt(rv, 10, 64)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of integers"))
+	}
+	v[i] = int64(v)
+}
+
+// query case: boolean-pointer
+func testcase() {
+	v, err2 := strconv.ParseBool(vRaw)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "boolean"))
+	}
+	v = &v
+}
+
+// slice item case: boolean-pointer
+func testcase() {
+	v, err2 := strconv.ParseBool(rv)
+	if err2 != nil {
+		err = loom.MergeErrors(err, loom.InvalidFieldTypeError("v", vRaw, "array of booleans"))
+	}
+	v[i] = bool(v)
+}
+

@@ -1,0 +1,87 @@
+// DecodeTransferResponse returns a decoder for responses returned by the calc
+// service transfer JSON-RPC method. restoreBody controls whether the response
+// body should be restored after having been read.
+func DecodeTransferResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, loomhttp.ErrInvalidResponse("calc", "transfer", resp.StatusCode, string(body))
+		}
+
+		var jresp jsonrpc.RawResponse
+		if err := decoder(resp).Decode(&jresp); err != nil {
+			return nil, loomhttp.ErrDecodingError("calc", "transfer", err)
+		}
+
+		if jresp.Error != nil {
+			switch jresp.Error.Code {
+			case 4200:
+				var jerrData jsonrpc.ErrorData
+				if len(jresp.Error.Data) > 0 {
+					if err := json.Unmarshal(jresp.Error.Data, &jerrData); err != nil {
+						return nil, loomhttp.ErrDecodingError("calc", "transfer", err)
+					}
+				}
+				switch jerrData.Name {
+				case "insufficient_funds":
+					resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))
+					var (
+						body TransferInsufficientFundsResponseBody
+						err  error
+					)
+					err = decoder(resp).Decode(&body)
+					if err != nil {
+						return nil, loomhttp.ErrDecodingError("calc", "transfer", err)
+					}
+					err = ValidateTransferInsufficientFundsResponseBody(&body)
+					if err != nil {
+						return nil, loomhttp.ErrValidationError("calc", "transfer", err)
+					}
+					return nil, NewTransferInsufficientFunds(&body)
+				case "account_closed":
+					resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Error.Data))
+					var (
+						body TransferAccountClosedResponseBody
+						err  error
+					)
+					err = decoder(resp).Decode(&body)
+					if err != nil {
+						return nil, loomhttp.ErrDecodingError("calc", "transfer", err)
+					}
+					err = ValidateTransferAccountClosedResponseBody(&body)
+					if err != nil {
+						return nil, loomhttp.ErrValidationError("calc", "transfer", err)
+					}
+					return nil, NewTransferAccountClosed(&body)
+				default:
+					return nil, loomhttp.ErrInvalidResponse("calc", "transfer", resp.StatusCode, string(jresp.Error.Data))
+				}
+			default:
+				return nil, jresp.Error
+			}
+		}
+
+		resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
+		var (
+			body string
+			err  error
+		)
+		err = decoder(resp).Decode(&body)
+		if err != nil {
+			return nil, loomhttp.ErrDecodingError("calc", "transfer", err)
+		}
+		return body, nil
+	}
+}

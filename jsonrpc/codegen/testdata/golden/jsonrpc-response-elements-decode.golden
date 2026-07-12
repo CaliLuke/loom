@@ -1,0 +1,120 @@
+// case: headers-with-validation
+func testcase() {
+	var (
+		token string
+		trace string
+		err   error
+	)
+	tokenRaw := resp.Header.Get("X-Token")
+	if tokenRaw == "" {
+		err = loom.MergeErrors(err, loom.MissingFieldError("token", "header"))
+	}
+	token = tokenRaw
+	err = loom.MergeErrors(err, nil)
+	traceRaw := resp.Header.Get("X-Trace")
+	if traceRaw != "" {
+		trace = traceRaw
+	} else {
+	}
+	if err != nil {
+		return nil, loomhttp.ErrValidationError("calc", "show", err)
+	}
+}
+
+// case: cookies-string
+func testcase() {
+	var (
+		session    string
+		sessionRaw string
+		theme      string
+		themeRaw   string
+		cookies    = resp.Cookies()
+		err        error
+	)
+	for _, c := range cookies {
+		switch c.Name {
+		case "session":
+			sessionRaw = c.Value
+		case "theme":
+			themeRaw = c.Value
+		}
+	}
+	if sessionRaw == "" {
+		err = loom.MergeErrors(err, loom.MissingFieldError("session", "cookie"))
+	}
+	session = sessionRaw
+	if themeRaw != "" {
+		theme = themeRaw
+	}
+	if err != nil {
+		return nil, loomhttp.ErrValidationError("calc", "show", err)
+	}
+}
+
+// case: cookies-scalar-and-validate
+func testcase() {
+	var (
+		count    int
+		countRaw string
+		ratio    float64
+		ratioRaw string
+		cookies  = resp.Cookies()
+	)
+	for _, c := range cookies {
+		switch c.Name {
+		case "count":
+			countRaw = c.Value
+		case "ratio":
+			ratioRaw = c.Value
+		}
+	}
+	{
+		if countRaw == "" {
+			return nil, loomhttp.ErrValidationError("", "", loom.MissingFieldError("count", "cookie"))
+		}
+		v, err2 := strconv.ParseInt(countRaw, 10, strconv.IntSize)
+		if err2 != nil {
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError("count", countRaw, "integer"))
+		}
+		count = int(v)
+	}
+	err = loom.MergeErrors(err, nil)
+	{
+		v, err2 := strconv.ParseFloat(ratioRaw, 64)
+		if err2 != nil {
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError("ratio", ratioRaw, "float"))
+		}
+		ratio = v
+	}
+}
+
+// case: headers-and-cookies
+func testcase() {
+	var (
+		trace string
+		err   error
+	)
+	traceRaw := resp.Header.Get("X-Trace")
+	if traceRaw != "" {
+		trace = traceRaw
+	} else {
+	}
+	var (
+		session    string
+		sessionRaw string
+		cookies    = resp.Cookies()
+	)
+	for _, c := range cookies {
+		switch c.Name {
+		case "session":
+			sessionRaw = c.Value
+		}
+	}
+	if sessionRaw != "" {
+		session = sessionRaw
+	}
+	if err != nil {
+		return nil, loomhttp.ErrValidationError("calc", "show", err)
+	}
+}
+

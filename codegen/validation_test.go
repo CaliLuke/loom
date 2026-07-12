@@ -478,3 +478,40 @@ func TestUnionValidationPreservesValueContextForRequiredOnlyObjectBranches(t *te
 		t.Errorf("pointer context must emit ValidateSomeOtherType call:\n%s", pointerCode)
 	}
 }
+
+func TestConstantPanicsOnUnknownFormat(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name   string
+		Format string
+	}{
+		{"empty", ""},
+		{"unknown-name", "not-a-format"},
+		{"case-sensitive", "UUID"},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			require.PanicsWithValue(t, "unknown format", func() {
+				constant(c.Format)
+			})
+		})
+	}
+}
+
+func TestValidationCodePanicsOnUnknownFormat(t *testing.T) {
+	t.Parallel()
+
+	// The DSL rejects unsupported formats at eval time so this branch is only
+	// reachable from a hand-built expression tree, e.g. plugins mutating the
+	// design after validation.
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, false, "", scope)
+	att := &expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{Format: "not-a-format"},
+	}
+	require.PanicsWithValue(t, "unknown format", func() {
+		ValidationCode(att, nil, ctx, true, false, false, "target")
+	})
+}
