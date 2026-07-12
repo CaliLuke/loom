@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"math"
 	"regexp"
 	"testing"
@@ -121,6 +122,37 @@ func TestTracedLoggerSpreadsKeyvals(t *testing.T) {
 	err := WrapLogger(logger, "trace-id").Log("msg", "hello")
 	require.NoError(t, err)
 	require.Equal(t, []any{"trace", "trace-id", "msg", "hello"}, logger.keyvals)
+}
+
+func TestTracedLoggerEmptyTraceID(t *testing.T) {
+	logger := &recordingLogger{}
+
+	err := WrapLogger(logger, "").Log("msg", "hello")
+	require.NoError(t, err)
+	require.Equal(t, []any{"msg", "hello"}, logger.keyvals)
+}
+
+func TestWithSpan(t *testing.T) {
+	cases := []struct {
+		name     string
+		parentID string
+	}{
+		{name: "with parent", parentID: "parent-id"},
+		{name: "without parent", parentID: ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := WithSpan(context.Background(), "trace-id", "span-id", c.parentID)
+
+			require.Equal(t, "trace-id", ctx.Value(TraceIDKey))
+			require.Equal(t, "span-id", ctx.Value(TraceSpanIDKey))
+			if c.parentID == "" {
+				require.Nil(t, ctx.Value(TraceParentSpanIDKey))
+				return
+			}
+			require.Equal(t, c.parentID, ctx.Value(TraceParentSpanIDKey))
+		})
+	}
 }
 
 type recordingLogger struct {
