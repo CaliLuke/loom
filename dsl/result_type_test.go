@@ -4,9 +4,117 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 )
+
+func TestViewRequirednessOverrides(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		_ = ResultType("application/vnd.view-requiredness", func() {
+			Attributes(func() {
+				Attribute("canonical_required", String)
+				Attribute("canonical_optional", String)
+				Required("canonical_required")
+			})
+			View("inherited", func() {
+				Attribute("canonical_required")
+				Attribute("canonical_optional")
+			})
+			View("overridden", func() {
+				Attribute("canonical_required")
+				Attribute("canonical_optional")
+				ViewOptional("canonical_required")
+				ViewRequired("canonical_optional")
+			})
+		})
+	})
+
+	rt := root.ResultTypes[0]
+	require.True(t, rt.View("inherited").IsRequired("canonical_required"))
+	require.False(t, rt.View("inherited").IsRequired("canonical_optional"))
+	require.False(t, rt.View("overridden").IsRequired("canonical_required"))
+	require.True(t, rt.View("overridden").IsRequired("canonical_optional"))
+
+	projected, err := expr.Project(rt, "overridden")
+	require.NoError(t, err)
+	require.False(t, projected.IsRequired("canonical_required"))
+	require.True(t, projected.IsRequired("canonical_optional"))
+}
+
+func TestViewRequirednessOverrideErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		dsl  func()
+		want string
+	}{
+		{
+			name: "unselected",
+			dsl: func() {
+				Attribute("field")
+				ViewRequired("missing")
+			},
+			want: `view requiredness override references unknown or unselected attribute "missing"`,
+		},
+		{
+			name: "contradictory",
+			dsl: func() {
+				Attribute("field")
+				ViewRequired("field")
+				ViewOptional("field")
+			},
+			want: `view attribute "field" cannot be both required and optional`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, func() {
+				_ = ResultType("application/vnd.invalid-view-requiredness", func() {
+					Attributes(func() {
+						Attribute("field", String)
+					})
+					View("default", test.dsl)
+				})
+			})
+			require.ErrorContains(t, err, test.want)
+			require.Contains(t, err.Error(), "result_type_test.go:")
+		})
+	}
+}
+
+func TestNestedViewRequirednessOverrides(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		child := ResultType("application/vnd.nested-view-child", func() {
+			Attributes(func() {
+				Attribute("value", String)
+				Required("value")
+			})
+			View("loose", func() {
+				Attribute("value")
+				ViewOptional("value")
+			})
+		})
+		_ = ResultType("application/vnd.nested-view-parent", func() {
+			Attributes(func() {
+				Attribute("child", child)
+				Required("child")
+			})
+			View("default", func() {
+				Attribute("child", func() {
+					View("loose")
+				})
+			})
+		})
+	})
+
+	parent := root.ResultTypes[1]
+	projected, err := expr.Project(parent, expr.DefaultView)
+	require.NoError(t, err)
+	child, ok := projected.Find("child").Type.(*expr.ResultTypeExpr)
+	require.True(t, ok)
+	require.False(t, child.IsRequired("value"))
+}
 
 func TestView(t *testing.T) {
 	viewName, view2Name := "test", "test2"
@@ -56,7 +164,7 @@ func TestView(t *testing.T) {
 		{"view", baseRT, viewDSL, []string{viewName}, map[string][]string{viewName: {"att"}}, ""},
 		{"view2", baseRT, view2DSL, []string{view2Name}, map[string][]string{view2Name: {"att2"}}, ""},
 		{"all views", baseRT, allViewsDSL, []string{viewName, view2Name}, map[string][]string{viewName: {"att"}, view2Name: {"att2"}}, ""},
-		{"duplicate view", baseRT, func() { viewDSL(); viewDSL() }, nil, nil, `[result_type_test.go:30] view "test" is defined multiple times in result type "test" in attribute`},
+		{"duplicate view", baseRT, func() { viewDSL(); viewDSL() }, nil, nil, `view "test" is defined multiple times in result type "test" in attribute`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -67,8 +175,8 @@ func TestView(t *testing.T) {
 			if len(c.expectedErr) > 0 {
 				if err == nil {
 					t.Errorf("got no error, expected %s", c.expectedErr)
-				} else if got, want := err.Error(), c.expectedErr; got != want {
-					t.Errorf("got error %s, expected %s", got, want)
+				} else if got, want := err.Error(), c.expectedErr; !strings.Contains(got, want) {
+					t.Errorf("got error %s, expected it to contain %s", got, want)
 				}
 				return
 			}

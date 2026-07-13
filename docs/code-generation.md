@@ -595,6 +595,11 @@ HTTP, gRPC, and JSON-RPC projections aligned with the canonical result model.
 Projection generation is recursive across nested structs, slices, maps, unions,
 collections, and optional fields.
 
+View fields inherit canonical requiredness unless the view uses
+`ViewRequired(...)` or `ViewOptional(...)`. Those overrides drive projected
+validation, HTTP field pointers and JSON tags, and OpenAPI `required` arrays;
+nested named views retain their own requiredness contract.
+
 ### Default View
 
 If no views are defined, Loom adds a "default" view that includes all basic fields.

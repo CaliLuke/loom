@@ -309,7 +309,7 @@ func projectSingle(rt *ResultTypeExpr, view string, seen map[string]*AttributeEx
 		ut = &UserTypeExpr{
 			AttributeExpr: &AttributeExpr{
 				Description: projectedResultDescription(rt, view),
-				Validation:  projectedResultValidation(rt, viewObj),
+				Validation:  projectedResultValidation(rt, v),
 			},
 		}
 	}
@@ -324,18 +324,15 @@ func projectSingle(rt *ResultTypeExpr, view string, seen map[string]*AttributeEx
 	return projected, nil
 }
 
-func projectedResultValidation(rt *ResultTypeExpr, viewObj *Object) *ValidationExpr {
+func projectedResultValidation(rt *ResultTypeExpr, view *ViewExpr) *ValidationExpr {
+	if view.Validation != nil {
+		return view.Validation.Dup()
+	}
 	if rt.Validation == nil {
 		return nil
 	}
-	required := make([]string, 0, len(rt.Validation.Required))
-	for _, name := range rt.Validation.Required {
-		if viewObj.Attribute(name) != nil {
-			required = append(required, name)
-		}
-	}
 	val := rt.Validation.Dup()
-	val.Required = required
+	val.Required = nil
 	return val
 }
 

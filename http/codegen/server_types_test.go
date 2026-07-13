@@ -2,14 +2,42 @@ package codegen
 
 import (
 	"bytes"
-	"github.com/CaliLuke/loom/codegen/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	servicetestdata "github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
+
+func TestServerTypesUseViewRequirednessOverrides(t *testing.T) {
+	root := RunHTTPDSL(t, servicetestdata.ViewRequirednessOverridesDSL)
+	services := CreateHTTPServices(root)
+	fs := serverType("gen", root.API.HTTP.Services[0], services)
+	var buf bytes.Buffer
+	for _, section := range fs.AllSections()[1:] {
+		require.NoError(t, section.Write(&buf))
+	}
+	code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
+	require.Contains(t, code, "CanonicalRequired string  `form:\"canonical_required\" json:\"canonical_required\" xml:\"canonical_required\"`")
+	require.Contains(t, code, "CanonicalOptional *string `form:\"canonical_optional,omitempty\" json:\"canonical_optional,omitempty\" xml:\"canonical_optional,omitempty\"`")
+	require.Contains(t, code, "CanonicalRequired *string `form:\"canonical_required,omitempty\" json:\"canonical_required,omitempty\" xml:\"canonical_required,omitempty\"`")
+	require.Contains(t, code, "CanonicalOptional string  `form:\"canonical_optional\" json:\"canonical_optional\" xml:\"canonical_optional\"`")
+	overridden := generatedHTTPFunction(t, code, "NewShowResponseBodyOverridden")
+	require.Contains(t, overridden, "CanonicalRequired: res.CanonicalRequired")
+	require.Contains(t, overridden, "body.CanonicalOptional = *res.CanonicalOptional")
+}
+
+func generatedHTTPFunction(t *testing.T, code, name string) string {
+	t.Helper()
+	start := bytes.Index([]byte(code), []byte("func "+name+"("))
+	require.NotEqual(t, -1, start)
+	end := bytes.Index([]byte(code[start:]), []byte("\n}\n"))
+	require.NotEqual(t, -1, end)
+	return code[start : start+end+3]
+}
 
 func TestServerTypes(t *testing.T) {
 	const genpkg = "gen"

@@ -344,3 +344,32 @@ var ProjectionParityNestedViewsDSL = func() {
 		})
 	})
 }
+
+var ViewRequirednessOverridesDSL = func() {
+	var RT = ResultType("application/vnd.view-requiredness", func() {
+		TypeName("ViewRequiredness")
+		Attributes(func() {
+			Attribute("canonical_required", String)
+			Attribute("canonical_optional", String)
+			Required("canonical_required")
+		})
+		View("inherited", func() {
+			Attribute("canonical_required")
+			Attribute("canonical_optional")
+		})
+		View("overridden", func() {
+			Attribute("canonical_required")
+			Attribute("canonical_optional")
+			ViewOptional("canonical_required")
+			ViewRequired("canonical_optional")
+		})
+	})
+	Service("ViewRequirednessOverrides", func() {
+		Method("Show", func() {
+			Result(RT)
+			HTTP(func() {
+				GET("/view-requiredness")
+			})
+		})
+	})
+}

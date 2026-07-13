@@ -117,7 +117,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 				data.Source = "item"
 				data.ValidateVar = "Validate" + scope.GoTypeName(arr.ElemType) + vn
 			} else {
-				required := rt.Attribute()
+				required := view.AttributeExpr
 				var fields []validateFieldTemplateData
 				o := &expr.Object{}
 				walkViewAttrs(expr.AsObject(projected.Type), view, func(name string, attr, vatt *expr.AttributeExpr) {
@@ -136,7 +136,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 					}
 				})
 				ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
-				data.Validate = codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: rt.Validation}, rt, ctx, true, false, true, "result")
+				data.Validate = codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: view.Validation}, rt, ctx, true, false, true, "result")
 				data.Fields = fields
 			}
 

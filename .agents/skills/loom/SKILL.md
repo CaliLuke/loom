@@ -119,6 +119,9 @@ build Auto-K without repeating large amounts of app-local glue.
   retain their value-type API.
 - Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
 - When modeling alternate transport/tool result shapes, prefer a canonical `ResultType` plus `View(...)` definitions over hand-maintained sibling DTO copies.
+- Result views inherit canonical requiredness. Use `ViewRequired(...)` and
+  `ViewOptional(...)` inside a view to override selected fields; generated
+  validation, HTTP shapes, OpenAPI, and nested named views follow the override.
 - The service generator now emits exported typed projection helpers for result views:
   - `Project<ResultType>[ViewSuffix](...)` to project a canonical result into the generated view type
   - `New<ResultType>From<ProjectedType>[ViewSuffix](...)` to rebuild the canonical result from a projected view

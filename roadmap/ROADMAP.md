@@ -22,6 +22,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - `OneOf(...)` constructor support and explicit union discriminator tag preservation.
 - Optional `OneOf(...)` attributes now preserve absence across service and
   transport generation while required unions keep their existing value API.
+- Result views can override selected field requiredness in either direction,
+  including nested named views, with consistent validation, HTTP, and OpenAPI
+  contracts.
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
 - OpenAPI schema deduplication now reuses structurally identical generated components while treating explicit HTTP `Body(...)` `openapi:typename` declarations as authoritative public names; conflicting non-equivalent claims now fail generation instead of leaking hash-suffixed public schemas.
 - OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.

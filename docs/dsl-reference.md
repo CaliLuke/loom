@@ -106,6 +106,32 @@ stable tag-to-component mappings. Custom `oneof:type:field` and
 `oneof:value:field` metadata changes the discriminator field and branch payload
 field used in that OpenAPI contract.
 
+#### Result View Requiredness
+
+Result views inherit canonical field requiredness by default. A view may
+override included fields in either direction with `ViewRequired` and
+`ViewOptional`:
+
+```go
+var Report = ResultType("application/vnd.report", func() {
+    Attributes(func() {
+        Attribute("data", String)
+        Attribute("warning", String)
+        Required("data")
+    })
+    View("partial", func() {
+        Attribute("data")
+        Attribute("warning")
+        ViewOptional("data")
+        ViewRequired("warning")
+    })
+})
+```
+
+Overrides may reference only fields selected by that view. Declaring the same
+field both required and optional is a design error. Named views selected for
+nested result fields carry their own overrides recursively.
+
 #### Arrays
 
 Arrays define ordered collections with optional validation:

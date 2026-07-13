@@ -9,6 +9,11 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+const (
+	viewDefinitionMetaKey = "loom:view:definition"
+	viewOptionalMetaKey   = "loom:view:optional"
+)
+
 // Counter used to create unique result type names for identifier-less result
 // types.
 var resultTypeCount int
@@ -219,7 +224,7 @@ func View(name string, adsl ...func()) {
 		eval.ReportError("view %q is defined multiple times in result type %q", name, rt.TypeName)
 		return
 	}
-	at := &expr.AttributeExpr{}
+	at := &expr.AttributeExpr{Meta: expr.MetaExpr{viewDefinitionMetaKey: nil}}
 	ok = false
 	if len(adsl) > 0 {
 		ok = eval.Execute(adsl[0], at)
@@ -245,6 +250,39 @@ func View(name string, adsl ...func()) {
 		}
 		rt.Views = append(rt.Views, view)
 	}
+}
+
+// ViewRequired marks fields included in the current result view as required,
+// overriding optional canonical fields for that view.
+func ViewRequired(names ...string) {
+	at, ok := eval.Current().(*expr.AttributeExpr)
+	if !ok || at.Meta == nil {
+		eval.IncompatibleDSL()
+		return
+	}
+	if _, ok := at.Meta[viewDefinitionMetaKey]; !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	if at.Validation == nil {
+		at.Validation = &expr.ValidationExpr{}
+	}
+	at.Validation.AddRequired(names...)
+}
+
+// ViewOptional marks fields included in the current result view as optional,
+// overriding required canonical fields for that view.
+func ViewOptional(names ...string) {
+	at, ok := eval.Current().(*expr.AttributeExpr)
+	if !ok || at.Meta == nil {
+		eval.IncompatibleDSL()
+		return
+	}
+	if _, ok := at.Meta[viewDefinitionMetaKey]; !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	at.Meta[viewOptionalMetaKey] = append(at.Meta[viewOptionalMetaKey], names...)
 }
 
 // CollectionOf creates a collection result type from its element result type. A
@@ -532,6 +570,15 @@ func buildView(name string, mt *expr.ResultTypeExpr, at *expr.AttributeExpr) (*e
 	if o == nil {
 		return nil, fmt.Errorf("invalid view DSL")
 	}
+	requiredOverrides := viewRequiredOverrides(at)
+	optionalOverrides := at.Meta[viewOptionalMetaKey]
+	selected := make(map[string]struct{}, len(*o))
+	for _, nat := range *o {
+		selected[nat.Name] = struct{}{}
+	}
+	if err := validateViewRequirednessOverrides(requiredOverrides, optionalOverrides, selected); err != nil {
+		return nil, err
+	}
 	for _, nat := range *o {
 		n := nat.Name
 		cat := nat.Attribute
@@ -545,9 +592,74 @@ func buildView(name string, mt *expr.ResultTypeExpr, at *expr.AttributeExpr) (*e
 			return nil, fmt.Errorf("unknown attribute %#v", n)
 		}
 	}
+	at.Validation = effectiveViewValidation(mt.AttributeExpr, selected, requiredOverrides, optionalOverrides)
+	delete(at.Meta, viewDefinitionMetaKey)
+	delete(at.Meta, viewOptionalMetaKey)
 	return &expr.ViewExpr{
 		AttributeExpr: at,
 		Name:          name,
 		Parent:        mt,
 	}, nil
+}
+
+func viewRequiredOverrides(at *expr.AttributeExpr) []string {
+	if at.Validation == nil {
+		return nil
+	}
+	return append([]string(nil), at.Validation.Required...)
+}
+
+func validateViewRequirednessOverrides(required, optional []string, selected map[string]struct{}) error {
+	requiredSet := make(map[string]struct{}, len(required))
+	for _, name := range required {
+		if _, ok := selected[name]; !ok {
+			return fmt.Errorf("view requiredness override references unknown or unselected attribute %q", name)
+		}
+		requiredSet[name] = struct{}{}
+	}
+	for _, name := range optional {
+		if _, ok := selected[name]; !ok {
+			return fmt.Errorf("view requiredness override references unknown or unselected attribute %q", name)
+		}
+		if _, ok := requiredSet[name]; ok {
+			return fmt.Errorf("view attribute %q cannot be both required and optional", name)
+		}
+	}
+	return nil
+}
+
+func effectiveViewValidation(
+	canonical *expr.AttributeExpr,
+	selected map[string]struct{},
+	requiredOverrides, optionalOverrides []string,
+) *expr.ValidationExpr {
+	required := make(map[string]struct{}, len(selected))
+	if canonical.Validation != nil {
+		for _, name := range canonical.Validation.Required {
+			if _, ok := selected[name]; ok {
+				required[name] = struct{}{}
+			}
+		}
+	}
+	for _, name := range optionalOverrides {
+		delete(required, name)
+	}
+	for _, name := range requiredOverrides {
+		required[name] = struct{}{}
+	}
+	ordered := make([]string, 0, len(required))
+	for _, nat := range *expr.AsObject(canonical.Type) {
+		if _, ok := required[nat.Name]; ok {
+			ordered = append(ordered, nat.Name)
+		}
+	}
+	if canonical.Validation == nil && len(ordered) == 0 {
+		return nil
+	}
+	validation := &expr.ValidationExpr{}
+	if canonical.Validation != nil {
+		validation = canonical.Validation.Dup()
+	}
+	validation.Required = ordered
+	return validation
 }

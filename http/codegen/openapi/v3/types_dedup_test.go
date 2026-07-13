@@ -232,6 +232,46 @@ func TestBuildBodyTypesSplitsRequestAndResponseSchemasFromDirectionalMetadata(t 
 	require.NotContains(t, responseSchema.Required, "password")
 }
 
+func TestBuildBodyTypesUsesViewRequirednessOverrides(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		result := dsl.ResultType("application/vnd.view-requiredness-openapi", func() {
+			dsl.Attributes(func() {
+				dsl.Attribute("canonical_required", dsl.String)
+				dsl.Attribute("canonical_optional", dsl.String)
+				dsl.Required("canonical_required")
+			})
+			dsl.View("inherited", func() {
+				dsl.Attribute("canonical_required")
+				dsl.Attribute("canonical_optional")
+			})
+			dsl.View("overridden", func() {
+				dsl.Attribute("canonical_required")
+				dsl.Attribute("canonical_optional")
+				dsl.ViewOptional("canonical_required")
+				dsl.ViewRequired("canonical_optional")
+			})
+		})
+		dsl.Service("view-requiredness", func() {
+			dsl.Method("inherited", func() {
+				dsl.Result(result, func() { dsl.View("inherited") })
+				dsl.HTTP(func() { dsl.GET("/inherited") })
+			})
+			dsl.Method("overridden", func() {
+				dsl.Result(result, func() { dsl.View("overridden") })
+				dsl.HTTP(func() { dsl.GET("/overridden") })
+			})
+		})
+	})
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	inherited := derefSchema(t, bodies["view-requiredness"]["inherited"].ResponseBodies[200][0], types)
+	overridden := derefSchema(t, bodies["view-requiredness"]["overridden"].ResponseBodies[200][0], types)
+	require.Contains(t, inherited.Required, "canonical_required")
+	require.NotContains(t, inherited.Required, "canonical_optional")
+	require.NotContains(t, overridden.Required, "canonical_required")
+	require.Contains(t, overridden.Required, "canonical_optional")
+}
+
 func TestInitExamplesCanonicalizesMultipleUnionExamples(t *testing.T) {
 	union := &expr.Union{
 		TypeKey:  "kind",

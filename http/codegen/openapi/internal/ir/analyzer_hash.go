@@ -56,7 +56,11 @@ func hashAttribute(att *expr.AttributeExpr, h hash.Hash64, seen map[string]*uint
 	case expr.ResultTypeKind:
 		rt := t.(*expr.ResultTypeExpr)
 		*ptr = hashString(rt.Identifier, h)
-		if view, ok := rt.Meta.Last(expr.ViewMetaKey); ok {
+		view, ok := att.Meta.Last(expr.ViewMetaKey)
+		if !ok {
+			view, ok = rt.Meta.Last(expr.ViewMetaKey)
+		}
+		if ok {
 			*ptr = orderedHash(*ptr, hashString(view, h), h)
 		}
 	default:

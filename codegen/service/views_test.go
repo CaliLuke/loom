@@ -72,6 +72,35 @@ func TestViewValidationRequiresNestedResultTypeFields(t *testing.T) {
 	require.Contains(t, code, "if result.C == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"c\", \"result\"))")
 }
 
+func TestViewValidationUsesViewRequirednessOverrides(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.ViewRequirednessOverridesDSL)
+	services := NewServicesData(root)
+	fs := ViewsFile("github.com/CaliLuke/loom/example", root.Services[0], services)
+	require.NotNil(t, fs)
+
+	var buf bytes.Buffer
+	for _, section := range fs.AllSections()[1:] {
+		require.NoError(t, section.Write(&buf))
+	}
+	code := codegen.FormatTestCode(t, "package views\n"+buf.String())
+
+	inherited := generatedFunction(t, code, "ValidateViewRequirednessViewInherited")
+	overridden := generatedFunction(t, code, "ValidateViewRequirednessViewOverridden")
+	require.Contains(t, inherited, `MissingFieldError("canonical_required", "result")`)
+	require.NotContains(t, inherited, `MissingFieldError("canonical_optional", "result")`)
+	require.NotContains(t, overridden, `MissingFieldError("canonical_required", "result")`)
+	require.Contains(t, overridden, `MissingFieldError("canonical_optional", "result")`)
+}
+
+func generatedFunction(t *testing.T, code, name string) string {
+	t.Helper()
+	start := strings.Index(code, "func "+name+"(")
+	require.NotEqual(t, -1, start)
+	end := strings.Index(code[start:], "\n}\n")
+	require.NotEqual(t, -1, end)
+	return code[start : start+end+3]
+}
+
 func TestProjectionParity(t *testing.T) {
 	cases := []struct {
 		Name string

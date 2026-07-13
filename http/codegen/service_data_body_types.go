@@ -149,6 +149,7 @@ func projectResponseBodyView(body *expr.AttributeExpr, view *string, svr bool, s
 			panic(codegen.NewError(nil, body, fmt.Errorf("project generated response body view %q: %w", *view, err)))
 		}
 		body.Type = rt
+		body.Validation = rt.Validation
 		if svr {
 			sd.ServerTypeNames[rt.Name()] = false
 		} else {

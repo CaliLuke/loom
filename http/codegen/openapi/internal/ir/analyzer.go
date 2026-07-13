@@ -280,6 +280,23 @@ func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union) {
 }
 
 func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, noRef bool) *Schema {
+	if resultType, ok := t.(*expr.ResultTypeExpr); ok {
+		view, hasView := attr.Meta.Last(expr.ViewMetaKey)
+		if !hasView {
+			view, hasView = resultType.Meta.Last(expr.ViewMetaKey)
+		}
+		if hasView {
+			projected, err := expr.Project(resultType, view)
+			if err != nil {
+				panic(codegen.NewError(nil, resultType, fmt.Errorf("project OpenAPI result view %q: %w", view, err)))
+			}
+			projectedAttr := expr.DupAtt(attr)
+			projectedAttr.Type = projected
+			projectedAttr.Validation = projected.Validation
+			delete(projectedAttr.Meta, expr.ViewMetaKey)
+			return a.AnalyzeSchema(projectedAttr, noRef)
+		}
+	}
 	if expr.IsAlias(t) {
 		return a.AnalyzeSchema(t.Attribute())
 	}
