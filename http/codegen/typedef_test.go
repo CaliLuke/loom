@@ -63,6 +63,19 @@ func TestGoTypeDef(t *testing.T) {
 				Required: []string{"required", "required_bytes", "required_any"},
 			},
 		}
+		union = &expr.Union{
+			TypeName: "Choice",
+			Values: []*expr.NamedAttributeExpr{
+				{Name: "text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			},
+		}
+		unions = &expr.AttributeExpr{
+			Type: &expr.Object{
+				{Name: "optional", Attribute: &expr.AttributeExpr{Type: union}},
+				{Name: "required", Attribute: &expr.AttributeExpr{Type: union}},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"required"}},
+		}
 	)
 
 	cases := []struct {
@@ -75,6 +88,7 @@ func TestGoTypeDef(t *testing.T) {
 		{"no-default", mixed, false, false, mixedNoDefault},
 		{"use-default", mixed, false, true, mixedUseDefault},
 		{"use-pointer", mixed, true, true, mixedUsePointer},
+		{"union-presence", unions, false, true, unionPresence},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -85,6 +99,11 @@ func TestGoTypeDef(t *testing.T) {
 }
 
 var (
+	unionPresence = `struct {
+	Optional *Choice ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
+	Required Choice ` + "`" + `form:"required" json:"required" xml:"required"` + "`" + `
+}`
+
 	mixedNoDefault = `struct {
 	Required string ` + "`" + `form:"required" json:"required" xml:"required"` + "`" + `
 	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitempty" xml:"default,omitempty"` + "`" + `

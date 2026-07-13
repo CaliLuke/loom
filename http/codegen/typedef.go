@@ -85,7 +85,7 @@ func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, pa
 		if (ptr || parent.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && att.Type != expr.Any {
 			typeDef = "*" + typeDef
 		}
-	} else if expr.IsObject(att.Type) {
+	} else if expr.IsObject(att.Type) || (expr.IsUnion(att.Type) && !parent.IsRequired(name)) {
 		typeDef = "*" + typeDef
 	}
 	description := ""
