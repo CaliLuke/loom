@@ -10,7 +10,6 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
-	"github.com/CaliLuke/loom/internal/ssecodegen"
 )
 
 func jsonrpcWebSocketServerSections(data *httpcodegen.ServiceData) []codegen.Section {
@@ -167,8 +166,8 @@ func jsonrpcWebSocketServerSendSection(data *httpcodegen.ServiceData) codegen.Se
 
 func jsonrpcSSEStreamFields() []jen.Code {
 	return []jen.Code{
-		jen.Comment("once ensures the headers are written once."),
-		jen.Id("once").Qual("sync", "Once"),
+		jen.Comment("writer owns the serialized SSE response lifecycle."),
+		jen.Id("writer").Op("*").Id("loomhttp.SSEStreamWriter"),
 		jen.Comment("w is the HTTP response writer used to send the SSE events."),
 		jen.Id("w").Qual("net/http", "ResponseWriter"),
 		jen.Comment("r is the HTTP request."),
@@ -178,25 +177,6 @@ func jsonrpcSSEStreamFields() []jen.Code {
 		jen.Comment("decoder is the request decoder."),
 		jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Decoder")),
 	}
-}
-
-func jsonrpcSSEInitHeadersBody() []jen.Code {
-	return ssecodegen.InitHeadersBody("s.w", ssecodegen.HeaderOptions{IncludeAccelBuffering: true})
-}
-
-func indentGeneratedCode(code, indent string) string {
-	lines := strings.Split(code, "\n")
-	for i, line := range lines {
-		if line == "" {
-			continue
-		}
-		lines[i] = indent + line
-	}
-	return strings.Join(lines, "\n")
-}
-
-func compactGeneratedCode(code string) string {
-	return strings.Replace(code, "\n\nreturn", "\nreturn", 1)
 }
 
 func addJSONRPCWebSocketResultSendMethods(stmt *jen.Statement, streamName string, ed *httpcodegen.EndpointData) {

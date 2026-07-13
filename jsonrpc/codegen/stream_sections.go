@@ -7,7 +7,6 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
-	"github.com/CaliLuke/loom/internal/ssecodegen"
 )
 
 func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section {
@@ -20,8 +19,8 @@ func renderSSEServerStreamSource(ed *httpcodegen.EndpointData) string {
 	return fmt.Sprintf(`
 %s
 type %s struct {
-	// once ensures headers are written once
-	once sync.Once
+	// writer owns the serialized SSE response lifecycle
+	writer *loomhttp.SSEStreamWriter
 	// encoder is the SSE event encoder
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder
 	// w is the HTTP response writer
@@ -39,20 +38,13 @@ type %s struct {
 }
 
 %s
-func (s *%s) initSSEHeaders() {
-	s.once.Do(func() {
-		s.w.Header().Set("Content-Type", "text/event-stream")
-		s.w.Header().Set("Cache-Control", "no-cache")
-		s.w.Header().Set("Connection", "keep-alive")
-		s.w.Header().Set("X-Accel-Buffering", "no")
-		s.w.WriteHeader(http.StatusOK)
-	})
+func (s *%s) Open(ctx context.Context) error {
+	return s.writer.Open(ctx)
 }
 
 %s
-func (s *%s) open() error {
-	s.initSSEHeaders()
-	return http.NewResponseController(s.w).Flush()
+func (s *%s) SendComment(ctx context.Context, text string) error {
+	return s.writer.SendComment(ctx, text)
 }
 
 %s
@@ -62,9 +54,9 @@ func (s *%s) open() error {
 %s
 `, codegen.Comment(fmt.Sprintf("%s implements the %s.%s interface using Server-Sent Events.", ed.SSE.StructName, ed.ServicePkgName, ed.Method.ServerStream.Interface)),
 		ed.SSE.StructName,
-		codegen.Comment("initSSEHeaders initializes the SSE response headers."),
+		codegen.Comment("Open commits and flushes the SSE headers before the first application event."),
 		ed.SSE.StructName,
-		codegen.Comment("open commits and flushes the SSE headers before the first application event."),
+		codegen.Comment("SendComment writes and flushes an SSE heartbeat comment."),
 		ed.SSE.StructName,
 		renderSSEEndpointStreamSendSource(ed),
 		renderSSEEndpointStreamSendAndCloseSource(ed),
@@ -213,12 +205,12 @@ func (s *%s) sendError(ctx context.Context, id any, code jsonrpc.Code, message s
 func renderSSEEndpointSendSSEEventSource(ed *httpcodegen.EndpointData) string {
 	return fmt.Sprintf(`%s
 func (s *%s) sendSSEEvent(eventType string, v any) error {
-	s.initSSEHeaders()
-	%s
+	return s.writer.WriteEvent(s.r.Context(), func(w io.Writer) error {
+		return loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: eventType}, v)
+	})
 }
 `, codegen.Comment("sendSSEEvent sends a single SSE event."),
-		ed.SSE.StructName,
-		indentGeneratedCode(compactGeneratedCode(ssecodegen.WriteAndFlushSource(`loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v)`, "s.w", ssecodegen.ObserveOption{CtxExpr: "s.r.Context()", Transport: "loomtransport.TransportJSONRPC"})), "\t"))
+		ed.SSE.StructName)
 }
 
 func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section {
@@ -227,23 +219,32 @@ func jsonrpcSSEServerImplSection(data *httpcodegen.ServiceData) codegen.Section 
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the %s.Stream interface for SSE transport.", streamName, data.Service.PkgName))
 		stmt.Type().Id(streamName).Struct(jsonrpcSSEStreamFields()...)
 		stmt.Line()
-		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).Id("initSSEHeaders").Params().Block(jsonrpcSSEInitHeadersBody()...)
+		codegen.Doc(stmt, "Open commits and flushes the successful SSE response before the first event.")
+		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).Id("Open").Params(jen.Id("ctx").Qual("context", "Context")).Error().Block(
+			jen.Return(jen.Id("s").Dot("writer").Dot("Open").Call(jen.Id("ctx"))),
+		)
+		stmt.Line()
+		codegen.Doc(stmt, "SendComment writes and flushes an SSE heartbeat comment.")
+		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).Id("SendComment").Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("text").String()).Error().Block(
+			jen.Return(jen.Id("s").Dot("writer").Dot("SendComment").Call(jen.Id("ctx"), jen.Id("text"))),
+		)
 		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 			Id("sendSSEEvent").
 			Params(jen.Id("eventType").String(), jen.Id("v").Any()).
 			Error().
-			Block(append([]jen.Code{
-				jen.Id("s").Dot("initSSEHeaders").Call(),
-			}, ssecodegen.WriteAndFlushBody(
-				jen.Id("loomhttp").Dot("WriteJSONSSEEvent").Call(
-					jen.Id("s").Dot("w"),
-					jen.Id("loomhttp").Dot("SSEMessage").Values(jen.Dict{jen.Id("Type"): jen.Id("eventType")}),
-					jen.Id("v"),
-				),
-				"s.w",
-				ssecodegen.ObserveOption{CtxExpr: "s.r.Context()", Transport: "loomtransport.TransportJSONRPC"},
-			)...)...)
+			Block(
+				jen.Return(jen.Id("s").Dot("writer").Dot("WriteEvent").Call(
+					jen.Id("s").Dot("r").Dot("Context").Call(),
+					jen.Func().Params(jen.Id("w").Qual("io", "Writer")).Error().Block(
+						jen.Return(jen.Id("loomhttp").Dot("WriteJSONSSEEvent").Call(
+							jen.Id("w"),
+							jen.Id("loomhttp").Dot("SSEMessage").Values(jen.Dict{jen.Id("Type"): jen.Id("eventType")}),
+							jen.Id("v"),
+						)),
+					),
+				)),
+			)
 		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 			Id("sendError").

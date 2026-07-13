@@ -35,7 +35,16 @@ func {{ .HandlerInit }}(
 	upgrader loomhttp.Upgrader,
 	configurer loomhttp.ConnConfigureFunc,
 	{{- end }}
+	{{- if or (isWebSocketEndpoint .) (isSSEEndpoint .) }}
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
+	{{- end }}
 ) http.Handler {
+	{{- if or (isWebSocketEndpoint .) (isSSEEndpoint .) }}
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
+	{{- end }}
 	{{- if (or (mustDecodeRequest .) (not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults)))) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
 	var (
 	{{- end }}
@@ -91,8 +100,7 @@ func {{ .HandlerInit }}(
 			}
 		{{- end }}
 			stream := &{{ .SSE.StructName }}{
-				w: w,
-				r: r,
+				writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
 			}
 			v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 				Stream: stream,
@@ -220,7 +228,7 @@ func {{ .HandlerInit }}(
 				cancel: cancel,
 				w: w,
 				r: r,
-				conn: loomhttp.NewWebSocketStream(nil),
+				conn: loomhttp.NewWebSocketStream(nil, writePolicy),
 			},
 		{{- if .Payload.Ref }}
 			Payload: payload,
@@ -243,8 +251,7 @@ func {{ .HandlerInit }}(
 		}
 		{{- end }}
 		stream := &{{ .SSE.StructName }}{
-			w: w,
-			r: r,
+			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
 		}
 		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 			Stream: stream,

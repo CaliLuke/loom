@@ -8,7 +8,6 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/ssecodegen"
 )
 
 func requestBuilderSection(endpoint *EndpointData) codegen.Section {
@@ -170,16 +169,8 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 	stmt.Line()
 	codegen.Doc(stmt, fmt.Sprintf("%s implements the %s interface using Server-Sent Events.", ed.SSE.StructName, ed.SSE.Interface))
 	stmt.Type().Id(ed.SSE.StructName).Struct(
-		jen.Comment("once ensures the headers are written once."),
-		jen.Id("once").Qual("sync", "Once"),
-		jen.Comment("lock protects started."),
-		jen.Id("lock").Qual("sync", "Mutex"),
-		jen.Comment("started records whether the event stream has been committed."),
-		jen.Id("streamStarted").Bool(),
-		jen.Comment("w is the HTTP response writer used to send the SSE events."),
-		jen.Id("w").Qual("net/http", "ResponseWriter"),
-		jen.Comment("r is the HTTP request."),
-		jen.Id("r").Op("*").Qual("net/http", "Request"),
+		jen.Comment("writer owns the serialized SSE response lifecycle."),
+		jen.Id("writer").Op("*").Id("loomhttp").Dot("SSEStreamWriter"),
 	)
 	stmt.Line()
 	codegen.Doc(stmt, ed.SSE.SendDesc)
@@ -189,28 +180,32 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 		Params(jen.Id("v").Add(codegen.TypeRef(ed.SSE.EventTypeRef))).
 		Error().
 		Block(
-			jen.Return(jen.Id("s").Dot(ed.SSE.SendWithContextName).Call(jen.Id("s").Dot("r").Dot("Context").Call(), jen.Id("v"))),
+			jen.Return(jen.Id("s").Dot(ed.SSE.SendWithContextName).Call(jen.Id("s").Dot("writer").Dot("Context").Call(), jen.Id("v"))),
 		)
 	stmt.Line()
-	stmt.Line()
-	stmt.Func().
-		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
-		Id("initHeaders").
-		Params().
-		BlockFunc(func(group *jen.Group) {
-			addRawWebSocketGroup(group, renderSSEInitHeadersBody())
-		})
 	stmt.Line()
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
 		Id("started").
 		Params().
 		Bool().
-		Block(
-			jen.Id("s").Dot("lock").Dot("Lock").Call(),
-			jen.Defer().Id("s").Dot("lock").Dot("Unlock").Call(),
-			jen.Return(jen.Id("s").Dot("streamStarted")),
-		)
+		Block(jen.Return(jen.Id("s").Dot("writer").Dot("Started").Call()))
+	stmt.Line()
+	codegen.Doc(stmt, "Open commits and flushes the successful SSE response before the first event.")
+	stmt.Func().
+		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
+		Id("Open").
+		Params(jen.Id("ctx").Qual("context", "Context")).
+		Error().
+		Block(jen.Return(jen.Id("s").Dot("writer").Dot("Open").Call(jen.Id("ctx"))))
+	stmt.Line()
+	codegen.Doc(stmt, "SendComment writes and flushes an SSE heartbeat comment.")
+	stmt.Func().
+		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
+		Id("SendComment").
+		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("text").String()).
+		Error().
+		Block(jen.Return(jen.Id("s").Dot("writer").Dot("SendComment").Call(jen.Id("ctx"), jen.Id("text"))))
 	stmt.Line()
 	codegen.Doc(stmt, ed.SSE.SendWithContextDesc)
 	stmt.Func().
@@ -222,38 +217,24 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 			addRawWebSocketGroup(group, renderServerSSESendWithContextBody(ed))
 		})
 	stmt.Line()
-	codegen.Doc(stmt, "Close is a no-op for SSE. We keep the method for compatibility with other stream types.")
+	codegen.Doc(stmt, "Close prevents later SSE control or event writes.")
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
 		Id("Close").
 		Params().
 		Error().
-		Block(
-			jen.Return(jen.Nil()),
-		)
+		Block(jen.Return(jen.Id("s").Dot("writer").Dot("Close").Call()))
 	stmt.Line()
 }
 
 func renderServerSSESendWithContextBody(ed *EndpointData) string {
 	var b sourceBuilder
 	b.Add("if err := ctx.Err(); err != nil {\n\treturn err\n}\n")
-	b.Add("if err := s.r.Context().Err(); err != nil {\n\treturn err\n}\n")
-	b.Add("s.initHeaders()\n")
 	writeSSEResultSetup(&b, ed)
 	writeSSEPayloadSetup(&b, ed)
 	writeSSEPayloadEncoding(&b)
 	writeSSEMessageSetup(&b, ed)
-	b.Add(ssecodegen.WriteAndFlushSource("loomhttp.WriteSSEEvent(s.w, msg)", "s.w", ssecodegen.ObserveOption{CtxExpr: "ctx", Transport: "loomtransport.TransportHTTP"}))
-	return b.String()
-}
-
-func renderSSEInitHeadersBody() string {
-	var b sourceBuilder
-	b.Add(ssecodegen.InitHeadersSource("s.w", ssecodegen.HeaderOptions{
-		PreserveExisting:      true,
-		IncludeAccelBuffering: true,
-	}))
-	b.Add("\ns.lock.Lock()\ns.streamStarted = true\ns.lock.Unlock()")
+	b.Add("return s.writer.WriteEvent(ctx, func(w io.Writer) error {\n\treturn loomhttp.WriteSSEEvent(w, msg)\n})")
 	return b.String()
 }
 

@@ -52,7 +52,8 @@ func TestJSONRPCSSEIntegration(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(serverContent), "JSON-RPC notification")
 	require.Contains(t, string(serverContent), `"jsonrpc": "2.0"`)
-	require.Contains(t, string(serverContent), "text/event-stream")
+	require.Contains(t, string(serverContent), "*loomhttp.SSEStreamWriter")
+	require.Contains(t, string(serverContent), "func (s *StreamServerStream) SendComment")
 
 	// Read and verify client stream has JSON-RPC decoding
 	clientContent, err := os.ReadFile(clientStreamPath)

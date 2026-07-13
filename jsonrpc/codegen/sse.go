@@ -53,6 +53,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 				{Path: "context"},
 				{Path: "errors"},
 				{Path: "fmt"},
+				{Path: "io"},
 				{Path: "net/http"},
 				{Path: "sync"},
 				codegen.LoomImport(""),

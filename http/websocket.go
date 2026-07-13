@@ -33,6 +33,7 @@ type (
 	WebSocketStream struct {
 		conn     *websocket.Conn
 		connLock sync.RWMutex
+		policy   StreamWritePolicy
 
 		writeLock sync.Mutex
 		closeOnce sync.Once
@@ -49,8 +50,11 @@ var (
 // NewWebSocketStream wraps conn with shared generated-stream lifecycle
 // behavior. A nil conn is allowed so generated server streams can be allocated
 // before the WebSocket upgrade happens.
-func NewWebSocketStream(conn *websocket.Conn) *WebSocketStream {
-	return &WebSocketStream{conn: conn}
+func NewWebSocketStream(conn *websocket.Conn, policies ...StreamWritePolicy) *WebSocketStream {
+	return &WebSocketStream{
+		conn:   conn,
+		policy: firstStreamWritePolicy(policies),
+	}
 }
 
 // Conn returns the wrapped Gorilla WebSocket connection.
@@ -91,8 +95,42 @@ func (s *WebSocketStream) WriteJSON(ctx context.Context, v any) error {
 		if conn == nil {
 			return ErrWebSocketStreamClosed
 		}
-		return conn.WriteJSON(v)
+		return s.writeJSONWithDeadline(ctx, conn, v)
 	})
+}
+
+func (s *WebSocketStream) writeJSONWithDeadline(ctx context.Context, conn *websocket.Conn, v any) (err error) {
+	deadline, bounded := streamOperationDeadline(ctx, s.policy)
+	if !bounded {
+		return conn.WriteJSON(v)
+	}
+	if err := conn.SetWriteDeadline(deadline); err != nil {
+		return err
+	}
+	defer func() {
+		if clearErr := conn.SetWriteDeadline(time.Time{}); clearErr != nil && err == nil {
+			err = clearErr
+		}
+	}()
+	return conn.WriteJSON(v)
+}
+
+func firstStreamWritePolicy(policies []StreamWritePolicy) StreamWritePolicy {
+	if len(policies) == 0 {
+		return StreamWritePolicy{}
+	}
+	return policies[0]
+}
+
+func streamOperationDeadline(ctx context.Context, policy StreamWritePolicy) (time.Time, bool) {
+	var deadline time.Time
+	if timeout := policy.Timeout(); timeout > 0 {
+		deadline = time.Now().Add(timeout)
+	}
+	if ctxDeadline, ok := ctx.Deadline(); ok && (deadline.IsZero() || ctxDeadline.Before(deadline)) {
+		deadline = ctxDeadline
+	}
+	return deadline, !deadline.IsZero()
 }
 
 // WriteClose writes a close control frame. It does not close the underlying
@@ -128,12 +166,17 @@ func (s *WebSocketStream) withContext(ctx context.Context, fn func() error) erro
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	closec := make(chan error, 1)
 	stop := context.AfterFunc(ctx, func() {
-		_ = s.Close()
+		closec <- s.Close()
 	})
-	defer stop()
 
 	err := fn()
+	if !stop() {
+		if closeErr := <-closec; closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}
 	if err == nil {
 		return nil
 	}

@@ -108,7 +108,8 @@ func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
 	services := CreateJSONRPCServices(root)
 
 	endpointStreamCode := fileSectionCode(t, SSEServerFiles("", services), "stream.go", "jsonrpc-sse-server-stream")
-	require.Contains(t, endpointStreamCode, `func (s *StreamServerStream) open() error {`)
+	require.Contains(t, endpointStreamCode, `func (s *StreamServerStream) Open(ctx context.Context) error {`)
+	require.Contains(t, endpointStreamCode, `func (s *StreamServerStream) SendComment(ctx context.Context, text string) error {`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-object.golden"), endpointStreamCode)
 
 	handlerInitCode := fileSectionCode(t, ServerFiles("", services), "server.go", "jsonrpc-server-handler-init")
@@ -139,7 +140,7 @@ func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
 	handlerInitCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler-init")
 
 	require.Contains(t, handlerInitCode, `if r.Method == http.MethodGet && req.Method == "events/stream" {`)
-	require.Contains(t, handlerInitCode, `if err := strm.open(); err != nil {`)
+	require.Contains(t, handlerInitCode, `if err := strm.Open(r.Context()); err != nil {`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-handler-init-events-stream.golden"), handlerInitCode)
 }
 

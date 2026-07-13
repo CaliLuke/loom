@@ -113,6 +113,16 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - JSON-RPC integration tests now include a persistent generated `ticktock` SSE fixture plus an external-client interoperability check using `github.com/tmaxmax/go-sse`, so generated streams are verified against a real third-party client as well as the in-repo harness.
 - HTTP SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first application event is written, default `X-Accel-Buffering` to `no` while preserving caller overrides, and carry a persistent generated `ticktock` fixture under `http/integration_tests` verified with `github.com/tmaxmax/go-sse`.
 - SSE wire parsing and formatting now flow through shared helpers in `github.com/CaliLuke/loom/http` backed by `github.com/tmaxmax/go-sse`, replacing duplicated hand-rolled frame logic across generated HTTP clients, generated JSON-RPC streams, and the local JSON-RPC SSE harness.
+- HTTP and JSON-RPC SSE server streams now share a serialized runtime writer
+  and expose `loomhttp.SSEControl` for idempotent eager open and safe comment
+  heartbeats without exposing the raw response writer.
+- Generated HTTP and JSON-RPC streaming servers now accept an immutable
+  `loomhttp.StreamWritePolicy`; positive timeouts install and clear a fresh
+  native deadline for every SSE write/flush and WebSocket JSON write, with
+  stable write-versus-flush timeout observation reasons.
+- HTTP servers now support an immutable typed inbound `RequestMetadata`
+  snapshot with cloned allowlisted headers, sensitive-header opt-in, and
+  trusted-proxy CIDR enforcement for effective client, host, and scheme values.
 - HTTP WebSocket generated streams now store `loomhttp.WebSocketStream`, so
   close idempotence, context-cancel unblocking, close-control writes, and
   JSON frame read/write lifecycle behavior live in the shared HTTP runtime

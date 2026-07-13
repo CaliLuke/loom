@@ -36,20 +36,28 @@ type Server struct {
 	// Stream is the handler for the Stream method.
 	Stream func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error
 
-	decoder    func(*http.Request) loomhttp.Decoder
-	encoder    func(context.Context, http.ResponseWriter) loomhttp.Encoder
-	errhandler func(context.Context, http.ResponseWriter, error)
+	decoder           func(*http.Request) loomhttp.Decoder
+	encoder           func(context.Context, http.ResponseWriter) loomhttp.Encoder
+	errhandler        func(context.Context, http.ResponseWriter, error)
+	streamWritePolicy loomhttp.StreamWritePolicy
 }
 
 // New creates a JSON-RPC server which loads HTTP requests and calls the
-// "JSONRPCSSEObjectService" service methods.
-func New(endpoints *jsonrpcsseobjectservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
+// "JSONRPCSSEObjectService" service methods. An optional streamWritePolicy
+// bounds each server-stream network write and flush. Construct policies with
+// loomhttp.NewStreamWritePolicy.
+func New(endpoints *jsonrpcsseobjectservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicies ...loomhttp.StreamWritePolicy) *Server {
+	var streamWritePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicies) > 0 {
+		streamWritePolicy = streamWritePolicies[0]
+	}
 	s := &Server{
-		Methods:    []string{"Stream"},
-		Stream:     NewStreamHandler(endpoints.Stream, mux, decoder, encoder, errhandler),
-		decoder:    decoder,
-		encoder:    encoder,
-		errhandler: errhandler,
+		Methods:           []string{"Stream"},
+		Stream:            NewStreamHandler(endpoints.Stream, mux, decoder, encoder, errhandler, streamWritePolicy),
+		decoder:           decoder,
+		encoder:           encoder,
+		errhandler:        errhandler,
+		streamWritePolicy: streamWritePolicy,
 	}
 	// SSE-only services route via handleSSE
 	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.handleSSE))
@@ -87,6 +95,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -104,6 +113,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -121,6 +131,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -138,6 +149,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -159,6 +171,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.MethodNotFound, "Method not found", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -187,7 +200,7 @@ func (s *Server) Mount(mux loomhttp.Muxer) {
 
 // NewStreamHandler creates a JSON-RPC handler which calls the
 // "JSONRPCSSEObjectService" service "Stream" endpoint.
-func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
+func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeStreamRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 		ctx = context.WithValue(ctx, loom.MethodKey, "Stream")
@@ -199,6 +212,7 @@ func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*
 			requestHasID: req.HasID,
 			requestID:    req.ID,
 			w:            w,
+			writer:       loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, streamWritePolicy),
 		}
 		params, err := decodeParams(r, req)
 		if err != nil {
@@ -304,8 +318,8 @@ import (
 // jSONRPCSSEObjectServiceSSEStream implements the
 // jsonrpcsseobjectservice.Stream interface for SSE transport.
 type jSONRPCSSEObjectServiceSSEStream struct {
-	// once ensures the headers are written once.
-	once sync.Once
+	// writer owns the serialized SSE response lifecycle.
+	writer *loomhttp.SSEStreamWriter
 	// w is the HTTP response writer used to send the SSE events.
 	w http.ResponseWriter
 	// r is the HTTP request.
@@ -316,35 +330,19 @@ type jSONRPCSSEObjectServiceSSEStream struct {
 	decoder func(*http.Request) loomhttp.Decoder
 }
 
-func (s *jSONRPCSSEObjectServiceSSEStream) initSSEHeaders() {
-	s.once.Do(func() {
-		header := s.w.Header()
-		header.Set("Content-Type", "text/event-stream")
-		header.Set("Cache-Control", "no-cache")
-		header.Set("Connection", "keep-alive")
-		header.Set("X-Accel-Buffering", "no")
-		s.w.WriteHeader(http.StatusOK)
-	})
+// Open commits and flushes the successful SSE response before the first event.
+func (s *jSONRPCSSEObjectServiceSSEStream) Open(ctx context.Context) error {
+	return s.writer.Open(ctx)
+}
+
+// SendComment writes and flushes an SSE heartbeat comment.
+func (s *jSONRPCSSEObjectServiceSSEStream) SendComment(ctx context.Context, text string) error {
+	return s.writer.SendComment(ctx, text)
 }
 func (s *jSONRPCSSEObjectServiceSSEStream) sendSSEEvent(eventType string, v any) error {
-	s.initSSEHeaders()
-	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
-		loomtransport.Observe(s.r.Context(), loomtransport.Event{
-			Kind:      loomtransport.EventKindStreamFailure,
-			Reason:    loomtransport.ReasonStreamWriteFailed,
-			Transport: loomtransport.TransportJSONRPC,
-		})
-		return err
-	}
-	if err := http.NewResponseController(s.w).Flush(); err != nil {
-		loomtransport.Observe(s.r.Context(), loomtransport.Event{
-			Kind:      loomtransport.EventKindStreamFailure,
-			Reason:    loomtransport.ReasonStreamFlushFailed,
-			Transport: loomtransport.TransportJSONRPC,
-		})
-		return err
-	}
-	return nil
+	return s.writer.WriteEvent(s.r.Context(), func(w io.Writer) error {
+		return loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: eventType}, v)
+	})
 }
 func (s *jSONRPCSSEObjectServiceSSEStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)

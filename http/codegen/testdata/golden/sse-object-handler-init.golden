@@ -7,7 +7,12 @@ func NewSSEObjectMethodHandler(
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
 	var (
 		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
@@ -19,8 +24,7 @@ func NewSSEObjectMethodHandler(
 		defer obs.End()
 		var err error
 		stream := &SSEObjectMethodServerStream{
-			w: w,
-			r: r,
+			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
 		}
 		v := &sseobjectservice.SSEObjectMethodEndpointInput{
 			Stream: stream,

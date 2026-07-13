@@ -1,14 +1,29 @@
 package codegen
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
-func TestRenderSSEInitHeadersDisablesProxyBuffering(t *testing.T) {
-	code := renderSSEInitHeadersBody()
+func TestGeneratedSSEHandlerUsesSharedHeaderRuntime(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.SSEObjectDSL)
+	files := ServerFiles("", CreateHTTPServices(root))
+	var serverFile *codegen.File
+	for _, file := range files {
+		if strings.HasSuffix(file.Path, filepath.Join("server", "server.go")) {
+			serverFile = file
+			break
+		}
+	}
+	require.NotNil(t, serverFile)
+	code := codegen.SectionCode(t, serverFile.Section("server-handler-init")[0])
 
-	require.Contains(t, code, `if header.Get("X-Accel-Buffering") == ""`)
-	require.Contains(t, code, `header.Set("X-Accel-Buffering", "no")`)
+	require.Contains(t, code, "loomhttp.NewSSEStreamWriter(")
+	require.Contains(t, code, "loomtransport.TransportHTTP")
 }

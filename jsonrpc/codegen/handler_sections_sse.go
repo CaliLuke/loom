@@ -63,6 +63,7 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 						dg.Id("stream").Op(":=").Op("&").Id(streamName).Values(jen.Dict{
 							jen.Id("w"):       jen.Id("w"),
 							jen.Id("r"):       jen.Id("r"),
+							jen.Id("writer"):  newJSONRPCSSEWriter(),
 							jen.Id("encoder"): jen.Id("s").Dot("encoder"),
 							jen.Id("decoder"): jen.Id("s").Dot("decoder"),
 						})
@@ -105,9 +106,19 @@ func writeSSEErrorStreamInit(g *jen.Group, streamName string) {
 	g.Id("stream").Op(":=").Op("&").Id(streamName).Values(jen.Dict{
 		jen.Id("w"):       jen.Id("w"),
 		jen.Id("r"):       jen.Id("r"),
+		jen.Id("writer"):  newJSONRPCSSEWriter(),
 		jen.Id("encoder"): jen.Id("s").Dot("encoder"),
 		jen.Id("decoder"): jen.Id("s").Dot("decoder"),
 	})
+}
+
+func newJSONRPCSSEWriter() jen.Code {
+	return jen.Id("loomhttp.NewSSEStreamWriter").Call(
+		jen.Id("w"),
+		jen.Id("r").Dot("Context").Call(),
+		jen.Id("loomtransport.TransportJSONRPC"),
+		jen.Id("s").Dot("streamWritePolicy"),
+	)
 }
 
 func writeSSEValidationError(g *jen.Group, streamName, message string) {

@@ -2,49 +2,28 @@
 // sseobjectservice.SSEObjectMethodServerStream interface using Server-Sent
 // Events.
 type SSEObjectMethodServerStream struct {
-	// once ensures the headers are written once.
-	once sync.Once
-	// lock protects started.
-	lock sync.Mutex
-	// started records whether the event stream has been committed.
-	streamStarted bool
-	// w is the HTTP response writer used to send the SSE events.
-	w http.ResponseWriter
-	// r is the HTTP request.
-	r *http.Request
+	// writer owns the serialized SSE response lifecycle.
+	writer *loomhttp.SSEStreamWriter
 }
 
 // Send streams instances of "sseobjectservice.SSEObjectMethodResult" to the
 // "SSEObjectMethod" endpoint SSE connection.
 func (s *SSEObjectMethodServerStream) Send(v *sseobjectservice.SSEObjectMethodResult) error {
-	return s.SendWithContext(s.r.Context(), v)
+	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *SSEObjectMethodServerStream) initHeaders() {
-	s.once.Do(func() {
-		header := s.w.Header()
-		if header.Get("Content-Type") == "" {
-			header.Set("Content-Type", "text/event-stream")
-		}
-		if header.Get("Cache-Control") == "" {
-			header.Set("Cache-Control", "no-cache")
-		}
-		if header.Get("Connection") == "" {
-			header.Set("Connection", "keep-alive")
-		}
-		if header.Get("X-Accel-Buffering") == "" {
-			header.Set("X-Accel-Buffering", "no")
-		}
-		s.w.WriteHeader(http.StatusOK)
-	})
-	s.lock.Lock()
-	s.streamStarted = true
-	s.lock.Unlock()
-}
 func (s *SSEObjectMethodServerStream) started() bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.streamStarted
+	return s.writer.Started()
+}
+
+// Open commits and flushes the successful SSE response before the first event.
+func (s *SSEObjectMethodServerStream) Open(ctx context.Context) error {
+	return s.writer.Open(ctx)
+}
+
+// SendComment writes and flushes an SSE heartbeat comment.
+func (s *SSEObjectMethodServerStream) SendComment(ctx context.Context, text string) error {
+	return s.writer.SendComment(ctx, text)
 }
 
 // SendWithContext streams instances of
@@ -54,10 +33,6 @@ func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *ss
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := s.r.Context().Err(); err != nil {
-		return err
-	}
-	s.initHeaders()
 	res := v
 
 	var payload any
@@ -70,20 +45,12 @@ func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *ss
 
 	msg := loomhttp.SSEMessage{Data: data}
 
-	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
-		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportHTTP})
-		return err
-	}
-
-	if err := http.NewResponseController(s.w).Flush(); err != nil {
-		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportHTTP})
-		return err
-	}
-	return nil
+	return s.writer.WriteEvent(ctx, func(w io.Writer) error {
+		return loomhttp.WriteSSEEvent(w, msg)
+	})
 }
 
-// Close is a no-op for SSE. We keep the method for compatibility with other
-// stream types.
+// Close prevents later SSE control or event writes.
 func (s *SSEObjectMethodServerStream) Close() error {
-	return nil
+	return s.writer.Close()
 }

@@ -47,7 +47,7 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 					jen.Id("conn").Op("=").Id("s").Dot("configfn").Call(jen.Id("conn"), jen.Id("cancel")),
 				)
 				g.Defer().Id("conn").Dot("Close").Call()
-				g.Id("wsconn").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("conn"))
+				g.Id("wsconn").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("conn"), jen.Id("s").Dot("streamWritePolicy"))
 				g.Line()
 				streamDict := jen.Dict{
 					jen.Id("r"):      jen.Id("r"),
@@ -114,6 +114,9 @@ func jsonrpcHandlerInitParams(e *httpcodegen.EndpointData) []jen.Code {
 			jen.Id("errhandler").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter"), jen.Error()),
 		)
 	}
+	if httpcodegen.IsSSEEndpoint(e) {
+		params = append(params, jen.Id("streamWritePolicy").Add(codegen.TypeRef("loomhttp.StreamWritePolicy")))
+	}
 	return params
 }
 
@@ -147,6 +150,7 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.Id("strm").Op(":=").Op("&").Id(e.SSE.StructName).Values(jen.Dict{
 		jen.Id("w"):            jen.Id("w"),
 		jen.Id("r"):            jen.Id("r"),
+		jen.Id("writer"):       jen.Id("loomhttp.NewSSEStreamWriter").Call(jen.Id("w"), jen.Id("r").Dot("Context").Call(), jen.Id("loomtransport.TransportJSONRPC"), jen.Id("streamWritePolicy")),
 		jen.Id("encoder"):      jen.Id("encoder"),
 		jen.Id("requestID"):    jen.Id("req").Dot("ID"),
 		jen.Id("requestHasID"): jen.Id("req").Dot("HasID"),
@@ -156,7 +160,7 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Id("r").Dot("Method").Op("==").Qual("net/http", "MethodGet").Op("&&").Id("req").Dot("Method").Op("==").Lit("events/stream"),
 		).Block(
 			jen.If(
-				jen.Err().Op(":=").Id("strm").Dot("open").Call(),
+				jen.Err().Op(":=").Id("strm").Dot("Open").Call(jen.Id("r").Dot("Context").Call()),
 				jen.Err().Op("!=").Nil(),
 			).Block(
 				jen.Return(jen.Err()),

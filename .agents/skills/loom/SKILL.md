@@ -193,6 +193,21 @@ build Auto-K without repeating large amounts of app-local glue.
   behavior across HTTP, JSON-RPC, and SSE; runtime values never enter generated
   code or OpenAPI, which emits `x-loom-cors: {runtime: true}`.
 - HTTP SSE streams also defer committing `text/event-stream` until the first application event is written. Generated HTTP SSE responses preserve caller-supplied headers and default `X-Accel-Buffering` to `no` so reverse proxies do not buffer incremental events.
+- Generated HTTP and JSON-RPC SSE streams implement the optional
+  `loomhttp.SSEControl` interface. Use `Open(ctx)` to commit readiness before a
+  domain event and `SendComment(ctx, text)` for serialized heartbeat frames;
+  do not recover or write the raw response writer.
+- Generated HTTP and JSON-RPC streaming server constructors accept an optional
+  final `loomhttp.StreamWritePolicy` created with
+  `loomhttp.NewStreamWritePolicy`. Positive timeouts bound each SSE write,
+  flush, and WebSocket JSON write independently; the zero value preserves
+  existing behavior.
+- For endpoint or security logic that needs transport metadata, apply
+  `loomhttp.RequestMetadataMiddleware` through the generated server's `Use`
+  method and read `loomhttp.RequestMetadataFromContext`. Configure retained
+  headers and trusted proxy CIDRs with `NewRequestMetadataPolicy`; forwarding
+  values are ignored for untrusted direct peers, returned headers are cloned,
+  and `Authorization`/`Cookie` require explicit opt-in.
 - OpenTelemetry transport instrumentation is first-class. Prefer:
   - `github.com/CaliLuke/loom/observability/otel` when you want framework-owned
     trace, metric, and OTLP log bootstrap plus transport policy.

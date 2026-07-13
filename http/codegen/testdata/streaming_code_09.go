@@ -12,7 +12,12 @@ func NewStreamingPayloadMethodHandler(
 	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	upgrader loomhttp.Upgrader,
 	configurer loomhttp.ConnConfigureFunc,
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
 	var (
 		decodeRequest = DecodeStreamingPayloadMethodRequest(mux, decoder)
 		encodeError   = loomhttp.ErrorEncoder(encoder, formatter)
@@ -40,7 +45,7 @@ func NewStreamingPayloadMethodHandler(
 				cancel:     cancel,
 				w:          w,
 				r:          r,
-				conn:       loomhttp.NewWebSocketStream(nil),
+				conn:       loomhttp.NewWebSocketStream(nil, writePolicy),
 			},
 			Payload: payload,
 		}

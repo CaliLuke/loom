@@ -424,6 +424,18 @@ and `*WithContext` methods, while the socket lifecycle is owned by
 context-cancel unblocking, close-control frames, and JSON frame read/write
 coordination so generated endpoint wrappers stay thin.
 
+Generated HTTP and JSON-RPC server constructors accept an optional final
+`loomhttp.StreamWritePolicy`. Constructing the policy validates the timeout;
+each WebSocket write installs a fresh deadline and clears it afterward.
+
+```go
+writePolicy, err := loomhttp.NewStreamWritePolicy(5 * time.Second)
+if err != nil {
+    return err
+}
+srv := server.New(/* normal generated arguments */, writePolicy)
+```
+
 Server-side implementation:
 
 ```go
@@ -543,25 +555,51 @@ Method("stream", func() {
 
 ```go
 func (s *Service) Stream(ctx context.Context, stream sse.StreamServerStream) error {
-    ticker := time.NewTicker(time.Second)
-    defer ticker.Stop()
+	control, ok := any(stream).(loomhttp.SSEControl)
+	if !ok {
+		return errors.New("SSE controls unavailable")
+	}
+	if err := control.Open(ctx); err != nil {
+		return err
+	}
 
-    for {
-        select {
-        case <-ticker.C:
-            event := &sse.Event{
+	events := time.NewTicker(time.Second)
+	heartbeats := time.NewTicker(15 * time.Second)
+	defer events.Stop()
+	defer heartbeats.Stop()
+
+	for {
+		select {
+		case <-events.C:
+			event := &sse.Event{
                 Message:   "Hello from server!",
                 Timestamp: time.Now().Unix(),
             }
-            if err := stream.Send(event); err != nil {
-                return err
-            }
+			if err := stream.Send(event); err != nil {
+				return err
+			}
+		case <-heartbeats.C:
+			if err := control.SendComment(ctx, "heartbeat"); err != nil {
+				return err
+			}
         case <-ctx.Done():
             return nil
         }
     }
 }
 ```
+
+`Open` is lazy and idempotent: it flushes the normal `200 text/event-stream`
+headers once, while a typed send or comment also opens the stream when needed.
+Comments reject carriage returns and line feeds, share the typed-event write
+lock, and are ignored as domain events by generated clients. Operations after
+closure return `loomhttp.ErrSSEStreamClosed`; canceled requests return their
+context error.
+
+SSE uses the same optional `StreamWritePolicy` shown above. A positive timeout
+bounds every frame write and flush using `http.ResponseController`; zero keeps
+the existing unbounded behavior. Transports that cannot install the required
+deadline return `loomhttp.ErrStreamWriteDeadlineUnsupported`.
 
 Browser client:
 
@@ -575,9 +613,58 @@ eventSource.onmessage = (event) => {
 
 eventSource.onerror = (error) => {
     console.error('EventSource failed:', error);
-    eventSource.close();
+eventSource.close();
 };
 ```
+
+---
+
+## Inbound Request Metadata
+
+Use `loomhttp.RequestMetadataMiddleware` when endpoint or security code needs a
+single immutable HTTP request snapshot. Apply it with the generated server's
+`Use` method so metadata is present before generated decoding and security
+functions execute.
+
+```go
+metadataPolicy, err := loomhttp.NewRequestMetadataPolicy(
+    []string{"X-Tenant-ID"},
+    []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
+)
+if err != nil {
+    return err
+}
+srv.Use(loomhttp.RequestMetadataMiddleware(metadataPolicy))
+```
+
+The direct peer must match a trusted CIDR before Loom accepts
+`X-Forwarded-For`, `X-Forwarded-Host`, or `X-Forwarded-Proto`. Client selection
+walks `X-Forwarded-For` from the nearest hop on the right and selects the first
+untrusted address. `PeerAddr` always remains the direct peer.
+
+Endpoint and security implementations use the typed accessor:
+
+```go
+metadata, ok := loomhttp.RequestMetadataFromContext(ctx)
+if !ok || metadata.Origin != "https://app.example.com" ||
+    metadata.SecFetchSite != "same-origin" {
+    return nil, loom.MakeError("forbidden", "same-origin request required")
+}
+tenantIDs := metadata.HeaderValues("X-Tenant-ID")
+```
+
+`Origin`, `Sec-Fetch-Site`, request ID, method, path, effective host/scheme,
+client and peer addresses, and user agent have typed fields. Additional headers
+are retained only through the allowlist. `Authorization` and `Cookie` are absent
+unless explicitly selected; cookie-based security can opt in when necessary:
+
+```go
+policy, err := loomhttp.NewRequestMetadataPolicy([]string{"Cookie"}, trusted)
+// Never log metadata.Headers(), Authorization, or Cookie values.
+```
+
+`HeaderValues` and `Headers` always return copies, so consumers cannot mutate
+the request or another consumer's snapshot.
 
 ---
 

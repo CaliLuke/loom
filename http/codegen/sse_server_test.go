@@ -61,11 +61,12 @@ func TestSSEServerStreamCommitsHeadersOnSend(t *testing.T) {
 	// for the object case; the assertions below pin the behaviors this test is
 	// named for plus regressions that a golden update could silently accept.
 	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-object.golden"))
-	require.Contains(t, code, "s.initHeaders()")
-	require.Contains(t, code, "return s.SendWithContext(s.r.Context(), v)")
+	require.Contains(t, code, "s.writer.WriteEvent(ctx, func(w io.Writer) error {")
+	require.Contains(t, code, "return s.SendWithContext(s.writer.Context(), v)")
 	require.NotContains(t, code, "// Send Send streams")
 	require.NotContains(t, code, "// SendWithContext SendWithContext streams")
-	require.NotContains(t, code, "func (s *SSEObjectMethodServerStream) open() error")
+	require.Contains(t, code, "func (s *SSEObjectMethodServerStream) Open(ctx context.Context) error")
+	require.Contains(t, code, "func (s *SSEObjectMethodServerStream) SendComment(ctx context.Context, text string) error")
 	require.NotContains(t, code, "return s.SendWithContext(context.Background(), v)")
 	require.NotContains(t, code, "switch v := payload.(type)")
 }

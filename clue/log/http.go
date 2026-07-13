@@ -197,7 +197,7 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	resp, err = c.RoundTripper.RoundTrip(req)
 	if err != nil {
 		Error(req.Context(), err, msgKV, methKV, urlKV)
-		return
+		return resp, err
 	}
 	ms := timeSince(then).Milliseconds()
 	statusKV := KV{K: HTTPStatusKey, V: resp.Status}
@@ -218,10 +218,10 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 		} else {
 			Error(req.Context(), errors.New(resp.Status), msgKV, methKV, urlKV, statusKV, durKV)
 		}
-		return
+		return resp, nil
 	}
 	Print(req.Context(), msgKV, methKV, urlKV, statusKV, durKV)
-	return
+	return resp, nil
 }
 
 // WriteHeader records the value of the status code before writing it.

@@ -21,7 +21,7 @@ func TestJSONRPCWebSocketUsesSharedRuntimeStream(t *testing.T) {
 	require.NotContains(t, serverCode, "WriteControl(")
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-websocket-server-file.golden"), serverCode)
 	serverHandlerCode := renderedJSONRPCFile(t, ServerFiles("", services), "server.go", "server")
-	require.Contains(t, serverHandlerCode, "wsconn := loomhttp.NewWebSocketStream(conn)")
+	require.Contains(t, serverHandlerCode, "wsconn := loomhttp.NewWebSocketStream(conn, s.streamWritePolicy)")
 	require.Contains(t, serverHandlerCode, "conn:           wsconn")
 
 	clientCode := renderedJSONRPCWebSocketFile(t, ClientFiles("", services), "client")

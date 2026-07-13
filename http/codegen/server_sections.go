@@ -48,6 +48,9 @@ func mountPointStructSection(data *ServiceData) codegen.Section {
 func serverInitSection(data *ServiceData) codegen.Section {
 	return codegen.NewJenniferSection("server-init", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s instantiates HTTP handlers for all the %s service endpoints using the provided encoder and decoder. The handlers are mounted on the given mux using the HTTP verb and path defined in the design. errhandler is called whenever a response fails to be encoded. formatter is used to format errors returned by the service methods prior to encoding. Both errhandler and formatter are optional and can be nil.", data.ServerInit, data.Service.Name)
+		if hasServerStreamPolicy(data) {
+			comment += " An optional streamWritePolicy bounds each server-stream network write and flush. Construct policies with loomhttp.NewStreamWritePolicy."
+		}
 		codegen.Doc(stmt, comment)
 		stmt.Func().
 			Id(data.ServerInit).
@@ -79,6 +82,9 @@ func serverInitSection(data *ServiceData) codegen.Section {
 				}
 				for _, fs := range data.FileServers {
 					group.Id(fs.ArgName).Qual("net/http", "FileSystem")
+				}
+				if hasServerStreamPolicy(data) {
+					group.Id("streamWritePolicy").Op("...").Add(codegen.TypeRef("loomhttp.StreamWritePolicy"))
 				}
 			}).
 			Op("*").Id(data.ServerStruct).
@@ -129,6 +135,9 @@ func renderServerInitBody(data *ServiceData) string {
 		if IsWebSocketEndpoint(endpoint) {
 			b.Addf(", upgrader, configurer.%sFn", endpoint.Method.VarName)
 		}
+		if IsWebSocketEndpoint(endpoint) || IsSSEEndpoint(endpoint) {
+			b.Add(", streamWritePolicy...")
+		}
 		b.Add("),\n")
 	}
 	for _, fs := range data.FileServers {
@@ -136,6 +145,15 @@ func renderServerInitBody(data *ServiceData) string {
 	}
 	b.Add("\t}\n")
 	return b.String()
+}
+
+func hasServerStreamPolicy(data *ServiceData) bool {
+	for _, endpoint := range data.Endpoints {
+		if IsWebSocketEndpoint(endpoint) || IsSSEEndpoint(endpoint) {
+			return true
+		}
+	}
+	return false
 }
 
 func serverServiceSection(data *ServiceData) codegen.Section {

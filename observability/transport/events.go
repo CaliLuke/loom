@@ -148,6 +148,10 @@ const (
 	ReasonStreamWriteFailed Reason = "stream_write_failed"
 	// ReasonStreamFlushFailed marks a failed flush of a streaming response.
 	ReasonStreamFlushFailed Reason = "stream_flush_failed"
+	// ReasonStreamWriteTimeout marks a timed-out streaming response write.
+	ReasonStreamWriteTimeout Reason = "stream_write_timeout"
+	// ReasonStreamFlushTimeout marks a timed-out streaming response flush.
+	ReasonStreamFlushTimeout Reason = "stream_flush_timeout"
 	// ReasonStreamFinalResponseSuppressed marks a SendAndClose final value
 	// discarded because the stream carries no JSON-RPC request ID (a
 	// notification or a raw GET events/stream listener), so protocol rules

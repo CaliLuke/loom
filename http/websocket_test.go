@@ -1,6 +1,7 @@
 package http_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	stdhttp "net/http"
@@ -92,6 +93,42 @@ func TestWebSocketStreamPreUpgradeCloseDoesNotConsumeClose(t *testing.T) {
 		require.Error(t, err)
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("attached connection was not closed")
+	}
+}
+
+func TestWebSocketStreamBoundsBlockedWrite(t *testing.T) {
+	policy, err := loomhttp.NewStreamWritePolicy(25 * time.Millisecond)
+	require.NoError(t, err)
+	result := make(chan error, 1)
+	upgrader := websocket.Upgrader{}
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+		conn, upgradeErr := upgrader.Upgrade(w, r, nil)
+		if upgradeErr != nil {
+			result <- upgradeErr
+			return
+		}
+		stream := loomhttp.NewWebSocketStream(conn, policy)
+		result <- stream.WriteJSON(context.Background(), bytes.Repeat([]byte("x"), 16<<20))
+	}))
+	defer server.Close()
+
+	conn, resp, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
+	require.NoError(t, err)
+	if resp != nil && resp.Body != nil {
+		require.NoError(t, resp.Body.Close())
+	}
+	defer func() {
+		require.NoError(t, conn.Close())
+	}()
+
+	select {
+	case err := <-result:
+		require.Error(t, err)
+		var timeout interface{ Timeout() bool }
+		require.ErrorAs(t, err, &timeout)
+		require.True(t, timeout.Timeout())
+	case <-time.After(time.Second):
+		t.Fatal("WriteJSON did not honor the write policy")
 	}
 }
 

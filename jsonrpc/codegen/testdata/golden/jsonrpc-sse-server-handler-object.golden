@@ -14,6 +14,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -31,6 +32,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -48,6 +50,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -65,6 +68,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -86,6 +90,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.MethodNotFound, "Method not found", nil); err != nil {
 			s.errhandler(ctx, w, err)

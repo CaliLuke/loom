@@ -1,13 +1,20 @@
 // New creates a JSON-RPC server which loads HTTP requests and calls the
-// "JSONRPCMixedInitializeEventsStreamService" service methods.
-func New(endpoints *jsonrpcmixedinitializeeventsstreamservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
+// "JSONRPCMixedInitializeEventsStreamService" service methods. An optional
+// streamWritePolicy bounds each server-stream network write and flush.
+// Construct policies with loomhttp.NewStreamWritePolicy.
+func New(endpoints *jsonrpcmixedinitializeeventsstreamservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicies ...loomhttp.StreamWritePolicy) *Server {
+	var streamWritePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicies) > 0 {
+		streamWritePolicy = streamWritePolicies[0]
+	}
 	s := &Server{
-		EventsStream: NewEventsStreamHandler(endpoints.EventsStream, mux, decoder, encoder, errhandler),
-		Initialize:   NewInitializeHandler(endpoints.Initialize, mux, decoder, encoder, errhandler),
-		Methods:      []string{"initialize", "events/stream"},
-		decoder:      decoder,
-		encoder:      encoder,
-		errhandler:   errhandler,
+		EventsStream:      NewEventsStreamHandler(endpoints.EventsStream, mux, decoder, encoder, errhandler, streamWritePolicy),
+		Initialize:        NewInitializeHandler(endpoints.Initialize, mux, decoder, encoder, errhandler),
+		Methods:           []string{"initialize", "events/stream"},
+		decoder:           decoder,
+		encoder:           encoder,
+		errhandler:        errhandler,
+		streamWritePolicy: streamWritePolicy,
 	}
 	// Mixed HTTP/SSE services negotiate transports through the internal dispatcher
 	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.serveHTTP))

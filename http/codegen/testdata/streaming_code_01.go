@@ -28,7 +28,12 @@ func NewStreamingResultMethodHandler(
 	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	upgrader loomhttp.Upgrader,
 	configurer loomhttp.ConnConfigureFunc,
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
 	var (
 		decodeRequest = DecodeStreamingResultMethodRequest(mux, decoder)
 		encodeError   = loomhttp.ErrorEncoder(encoder, formatter)
@@ -56,7 +61,7 @@ func NewStreamingResultMethodHandler(
 				cancel:     cancel,
 				w:          w,
 				r:          r,
-				conn:       loomhttp.NewWebSocketStream(nil),
+				conn:       loomhttp.NewWebSocketStream(nil, writePolicy),
 			},
 			Payload: payload,
 		}
@@ -94,7 +99,12 @@ func NewCreateHandler(
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
 	var (
 		decodeRequest  = DecodeCreateRequest(mux, decoder)
 		encodeResponse = EncodeCreateResponse(encoder)
@@ -120,8 +130,7 @@ func NewCreateHandler(
 				return
 			}
 			stream := &CreateServerStream{
-				w: w,
-				r: r,
+				writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
 			}
 			v := &mixedresultsservice.CreateEndpointInput{
 				Stream:  stream,
@@ -344,7 +353,12 @@ func NewStreamingResultNoPayloadMethodHandler(
 	formatter func(ctx context.Context, err error) loomhttp.Statuser,
 	upgrader loomhttp.Upgrader,
 	configurer loomhttp.ConnConfigureFunc,
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
 	var (
 		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
@@ -364,7 +378,7 @@ func NewStreamingResultNoPayloadMethodHandler(
 				cancel:     cancel,
 				w:          w,
 				r:          r,
-				conn:       loomhttp.NewWebSocketStream(nil),
+				conn:       loomhttp.NewWebSocketStream(nil, writePolicy),
 			},
 		}
 		_, err = endpoint(ctx, v)
