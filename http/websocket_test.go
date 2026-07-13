@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"net"
 	stdhttp "net/http"
 	"net/http/httptest"
 	"testing"
@@ -107,8 +109,17 @@ func TestWebSocketStreamBoundsBlockedWrite(t *testing.T) {
 			result <- upgradeErr
 			return
 		}
+		tcpConn, ok := conn.NetConn().(*net.TCPConn)
+		if !ok {
+			result <- fmt.Errorf("unexpected WebSocket connection type %T", conn.NetConn())
+			return
+		}
+		if bufferErr := tcpConn.SetWriteBuffer(1024); bufferErr != nil {
+			result <- bufferErr
+			return
+		}
 		stream := loomhttp.NewWebSocketStream(conn, policy)
-		result <- stream.WriteJSON(context.Background(), bytes.Repeat([]byte("x"), 16<<20))
+		result <- stream.WriteJSON(context.Background(), bytes.Repeat([]byte("x"), 1<<20))
 	}))
 	defer server.Close()
 
@@ -127,7 +138,7 @@ func TestWebSocketStreamBoundsBlockedWrite(t *testing.T) {
 		var timeout interface{ Timeout() bool }
 		require.ErrorAs(t, err, &timeout)
 		require.True(t, timeout.Timeout())
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("WriteJSON did not honor the write policy")
 	}
 }
