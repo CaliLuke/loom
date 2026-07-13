@@ -16,14 +16,17 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		return nil
 	}
 	var (
-		name               string
-		varname            string
-		desc               string
-		def                string
-		ref                string
-		validateDef        string
-		validateRef        string
-		flatFormUnionField string
+		name                 string
+		varname              string
+		desc                 string
+		def                  string
+		ref                  string
+		validateDef          string
+		validateRef          string
+		flatFormUnionField   string
+		flatFormUnionPointer bool
+		flatFormUnionTypeKey string
+		flatFormUnionRef     string
 
 		svc     = sd.Service
 		httpctx = httpContext(sd.Scope, true, svr)
@@ -43,7 +46,11 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 			varname, svc.Name, endpointName)
 		if formEncoded {
 			if obj := expr.AsObject(ut.Attribute().Type); obj != nil && len(*obj) == 1 && expr.IsUnion((*obj)[0].Attribute.Type) {
-				flatFormUnionField = codegen.Goify((*obj)[0].Name, true)
+				field := (*obj)[0]
+				flatFormUnionField = codegen.Goify(field.Name, true)
+				flatFormUnionPointer = !ut.Attribute().IsRequired(field.Name)
+				flatFormUnionTypeKey = expr.AsUnion(field.Attribute.Type).GetTypeKey()
+				flatFormUnionRef = sd.Scope.GoTypeRef(field.Attribute)
 			}
 		}
 		if svr || containsUnionType(body.Type) {
@@ -63,16 +70,19 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, validateDef, svr, svcctx, httpctx, sd)
 	return &TypeData{
-		Name:               name,
-		VarName:            varname,
-		Description:        desc,
-		Def:                def,
-		Ref:                ref,
-		Init:               init,
-		ValidateDef:        validateDef,
-		ValidateRef:        validateRef,
-		Example:            body.Example(sds.Root.API.ExampleGenerator),
-		FlatFormUnionField: flatFormUnionField,
+		Name:                 name,
+		VarName:              varname,
+		Description:          desc,
+		Def:                  def,
+		Ref:                  ref,
+		Init:                 init,
+		ValidateDef:          validateDef,
+		ValidateRef:          validateRef,
+		Example:              body.Example(sds.Root.API.ExampleGenerator),
+		FlatFormUnionField:   flatFormUnionField,
+		FlatFormUnionPointer: flatFormUnionPointer,
+		FlatFormUnionTypeKey: flatFormUnionTypeKey,
+		FlatFormUnionRef:     flatFormUnionRef,
 	}
 }
 

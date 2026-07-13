@@ -21,29 +21,52 @@ func typeDeclSection(name string, data *TypeData) codegen.Section {
 
 		stmt.Line()
 		codegen.CommentBlock(stmt, "MarshalFormValues marshals the synthetic request body wrapper using the wrapped union field at the top level.")
-		stmt.Func().
+		marshal := stmt.Func().
 			Params(jen.Id("body").Id(data.VarName)).
 			Id("MarshalFormValues").
 			Params(jen.Id("values").Qual("net/url", "Values"), jen.Id("prefix").String()).
-			Params(jen.Error()).
-			Block(
+			Params(jen.Error())
+		if data.FlatFormUnionPointer {
+			marshal.Block(
+				jen.If(jen.Id("body").Dot(data.FlatFormUnionField).Op("==").Nil()).Block(jen.Return(jen.Nil())),
 				jen.Return(jen.Id("body").Dot(data.FlatFormUnionField).Dot("MarshalFormValues").Call(jen.Id("values"), jen.Id("prefix"))),
 			)
+		} else {
+			marshal.Block(
+				jen.Return(jen.Id("body").Dot(data.FlatFormUnionField).Dot("MarshalFormValues").Call(jen.Id("values"), jen.Id("prefix"))),
+			)
+		}
 
 		stmt.Line()
 		codegen.CommentBlock(stmt, "UnmarshalFormValues unmarshals the synthetic request body wrapper using the wrapped union field at the top level.")
-		stmt.Func().
+		unmarshal := stmt.Func().
 			Params(jen.Id("body").Op("*").Id(data.VarName)).
 			Id("UnmarshalFormValues").
 			Params(jen.Id("values").Qual("net/url", "Values"), jen.Id("prefix").String()).
-			Params(jen.Error()).
-			Block(
+			Params(jen.Error())
+		if data.FlatFormUnionPointer {
+			unmarshal.Block(
+				jen.If(
+					jen.Id("values").Dot("Get").Call(
+						jen.Id("loomhttp").Dot("FormChildKey").Call(jen.Id("prefix"), jen.Lit(data.FlatFormUnionTypeKey)),
+					).Op("==").Lit(""),
+				).Block(jen.Return(jen.Nil())),
+				jen.Var().Id("value").Add(codegen.Expr(strings.TrimPrefix(data.FlatFormUnionRef, "*"))),
+				jen.If(jen.Err().Op(":=").Id("value").Dot("UnmarshalFormValues").Call(jen.Id("values"), jen.Id("prefix")), jen.Err().Op("!=").Nil()).Block(
+					jen.Return(jen.Err()),
+				),
+				jen.Id("body").Dot(data.FlatFormUnionField).Op("=").Op("&").Id("value"),
+				jen.Return(jen.Nil()),
+			)
+		} else {
+			unmarshal.Block(
 				jen.Return(
 					jen.Op("(&").Id("body").Dot(data.FlatFormUnionField).Op(")").
 						Dot("UnmarshalFormValues").
 						Call(jen.Id("values"), jen.Id("prefix")),
 				),
 			)
+		}
 		stmt.Line()
 	})
 }

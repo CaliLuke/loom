@@ -93,6 +93,12 @@ type (
 		// body wrapper that should delegate form encoding and decoding to the
 		// wrapped union directly.
 		FlatFormUnionField string
+		// FlatFormUnionPointer reports whether the wrapped union field is optional.
+		FlatFormUnionPointer bool
+		// FlatFormUnionTypeKey is the form discriminator key for the wrapped union.
+		FlatFormUnionTypeKey string
+		// FlatFormUnionRef is the generated Go reference for the wrapped union.
+		FlatFormUnionRef string
 	}
 
 	// MultipartData contains the data needed to render multipart
