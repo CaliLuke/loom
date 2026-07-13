@@ -211,6 +211,41 @@ func TestBuildDocumentPublishesResponseLinksAndAsyncContracts(t *testing.T) {
 	require.Contains(t, schema.Properties, "target")
 }
 
+func TestBuildDocumentPublishesSSEProjectionAlternatives(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.SSEVariantProjectionDSL)
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+
+	watch := doc.Paths["/events"].Operations["GET"]
+	require.NotNil(t, watch)
+	async, ok := watch.Extensions[asyncContractExtensionName].(map[string]any)
+	require.True(t, ok)
+	messages, ok := async["messages"].(map[string]any)
+	require.True(t, ok)
+	outbound, ok := messages["outbound"].(map[string]any)
+	require.True(t, ok)
+	schema, ok := outbound["schema"].(*openapi.Schema)
+	require.True(t, ok)
+	require.Len(t, schema.OneOf, 2)
+	sse, ok := outbound["sse"].(map[string]any)
+	require.True(t, ok)
+	projections, ok := sse["projections"].([]map[string]string)
+	require.True(t, ok)
+	require.Equal(t, []map[string]string{
+		{"event": "legacy", "view": "legacy"},
+		{"event": "updated", "view": "updated"},
+	}, projections)
+
+	response := watch.Responses["200"]
+	require.NotNil(t, response)
+	if response.Ref != "" {
+		response = doc.Components.Responses[strings.TrimPrefix(response.Ref, ResponseComponentRefPrefix)]
+	}
+	require.NotNil(t, response.Value)
+	media := response.Value.Content["text/event-stream"]
+	require.NotNil(t, media)
+	require.Len(t, media.Schema.OneOf, 2)
+}
+
 func TestBuildDocumentMixedTransportContracts(t *testing.T) {
 	root := codegen.RunDSL(t, mixedTransportDocumentDSL)
 

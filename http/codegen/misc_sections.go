@@ -117,9 +117,22 @@ func serverSSESection(ed *EndpointData) codegen.Section {
 
 func writeSSEResultSetup(b *sourceBuilder, ed *EndpointData) {
 	if ed.Method.ViewedResult != nil {
+		if len(ed.SSE.Projections) > 0 {
+			b.Add("\tvar view string\n")
+			b.Addf("\tswitch v.%s {\n", ed.SSE.EventField)
+			for _, projection := range ed.SSE.Projections {
+				b.Addf("\tcase %q:\n\t\tview = %q\n", projection.EventType, projection.View)
+			}
+			b.Addf("\tdefault:\n\t\treturn fmt.Errorf(\"invalid SSE projection discriminator %%q\", v.%s)\n\t}\n", ed.SSE.EventField)
+			b.Addf("\tres, err := %s.%s(v, view)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name)
+			b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
+			return
+		}
 		viewName := ed.Method.ViewedResult.ViewName
 		if viewName == "" {
-			viewName = "default"
+			b.Addf("\tres, err := %s.%s(v, s.view)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name)
+			b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
+			return
 		}
 		b.Addf("\tres, err := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, viewName)
 		b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
@@ -130,6 +143,17 @@ func writeSSEResultSetup(b *sourceBuilder, ed *EndpointData) {
 
 func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
 	b.Add("\n\tvar payload any\n")
+	if len(ed.SSE.Projections) > 0 {
+		response := sseProjectionResponse(ed)
+		b.Add("\tswitch view {\n")
+		for _, projection := range ed.SSE.Projections {
+			b.Addf("\tcase %q:\n", projection.View)
+			body := viewedServerBody(response.ServerBody, projection.View)
+			writeServerBodyInitCall(b, body, "\t\tpayload = ")
+		}
+		b.Add("\t}\n")
+		return
+	}
 	if ed.SSE.HasResponseBody {
 		b.Addf("\tbody := New%sResponseBody(res)\n", codegen.Goify(ed.Method.Name, true))
 		if ed.SSE.DataField != "" {
@@ -146,6 +170,15 @@ func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
 	b.Add("\tpayload = res\n")
 }
 
+func sseProjectionResponse(ed *EndpointData) *ResponseData {
+	for _, response := range ed.Result.Responses {
+		if len(response.ServerBody) > 0 {
+			return response
+		}
+	}
+	panic("SSE projections require a generated response body")
+}
+
 func writeSSEPayloadEncoding(b *sourceBuilder) {
 	b.Add("\tdata, err := loomhttp.EncodeSSEData(payload)\n")
 	b.Add("\tif err != nil {\n\t\treturn err\n\t}\n\n")
@@ -153,25 +186,25 @@ func writeSSEPayloadEncoding(b *sourceBuilder) {
 
 func writeSSEMessageSetup(b *sourceBuilder, ed *EndpointData) {
 	b.Add("\tmsg := loomhttp.SSEMessage{Data: data}\n")
+	resultVar := "res"
+	if ed.Method.ViewedResult != nil {
+		resultVar = "v"
+	}
 	if ed.SSE.IDField != "" {
-		b.Addf("\n\tif id := res.%s; id != \"\" {\n\t\tmsg.ID = id\n\t}\n", ed.SSE.IDField)
+		b.Addf("\n\tif id := %s.%s; id != \"\" {\n\t\tmsg.ID = id\n\t}\n", resultVar, ed.SSE.IDField)
 	}
 	if ed.SSE.EventField != "" {
-		b.Addf("\tif event := res.%s; event != \"\" {\n\t\tmsg.Type = event\n\t}\n", ed.SSE.EventField)
+		b.Addf("\tif event := %s.%s; event != \"\" {\n\t\tmsg.Type = event\n\t}\n", resultVar, ed.SSE.EventField)
 	}
 	if ed.SSE.RetryField != "" {
-		b.Addf("\tif retry := res.%s; retry > 0 {\n\t\tmsg.RetryMillis = int64(retry)\n\t}\n", ed.SSE.RetryField)
+		b.Addf("\tif retry := %s.%s; retry > 0 {\n\t\tmsg.RetryMillis = int64(retry)\n\t}\n", resultVar, ed.SSE.RetryField)
 	}
 	b.Add("\n")
 }
 
 func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 	stmt.Line()
-	codegen.Doc(stmt, fmt.Sprintf("%s implements the %s interface using Server-Sent Events.", ed.SSE.StructName, ed.SSE.Interface))
-	stmt.Type().Id(ed.SSE.StructName).Struct(
-		jen.Comment("writer owns the serialized SSE response lifecycle."),
-		jen.Id("writer").Op("*").Id("loomhttp").Dot("SSEStreamWriter"),
-	)
+	addServerSSEType(stmt, ed)
 	stmt.Line()
 	codegen.Doc(stmt, ed.SSE.SendDesc)
 	stmt.Func().
@@ -184,6 +217,7 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 		)
 	stmt.Line()
 	stmt.Line()
+	addServerSSESetViewMethod(stmt, ed)
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
 		Id("started").
@@ -225,6 +259,35 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 		Error().
 		Block(jen.Return(jen.Id("s").Dot("writer").Dot("Close").Call()))
 	stmt.Line()
+}
+
+func addServerSSEType(stmt *jen.Statement, ed *EndpointData) {
+	codegen.Doc(stmt, fmt.Sprintf("%s implements the %s interface using Server-Sent Events.", ed.SSE.StructName, ed.SSE.Interface))
+	stmt.Type().Id(ed.SSE.StructName).StructFunc(func(group *jen.Group) {
+		group.Comment("writer owns the serialized SSE response lifecycle.")
+		group.Id("writer").Op("*").Id("loomhttp").Dot("SSEStreamWriter")
+		if serverSSEUsesDynamicView(ed) {
+			group.Id("view").String()
+		}
+	})
+	stmt.Line()
+}
+
+func addServerSSESetViewMethod(stmt *jen.Statement, ed *EndpointData) {
+	if !serverSSEUsesDynamicView(ed) {
+		return
+	}
+	codegen.Doc(stmt, "SetView sets the result view used by subsequent sends when no discriminator projection is configured.")
+	stmt.Func().
+		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
+		Id("SetView").
+		Params(jen.Id("view").String()).
+		Block(jen.Id("s").Dot("view").Op("=").Id("view"))
+	stmt.Line()
+}
+
+func serverSSEUsesDynamicView(ed *EndpointData) bool {
+	return ed.Method.ViewedResult != nil && ed.Method.ViewedResult.ViewName == ""
 }
 
 func renderServerSSESendWithContextBody(ed *EndpointData) string {

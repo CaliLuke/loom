@@ -72,13 +72,29 @@ func analyzeRequestBody(a *Analyzer, endpoint *transportir.Endpoint) *Schema {
 
 func analyzeResponseBodies(a *Analyzer, endpoint *transportir.Endpoint) map[int][]*Schema {
 	responseBodies := make(map[int][]*Schema)
-	appendBodies := func(responses []*transportir.ResponseStatus) {
+	appendBodies := func(responses []*transportir.ResponseStatus, projectSSE bool) {
 		for _, resp := range responses {
+			if projectSSE && endpoint.Stream != nil && endpoint.Stream.SSE != nil && len(endpoint.Stream.SSE.Projections) > 0 {
+				responseBodies[resp.StatusCode] = append(responseBodies[resp.StatusCode], analyzeSSEProjectionSchema(a, endpoint))
+				continue
+			}
 			body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
 			responseBodies[resp.StatusCode] = append(responseBodies[resp.StatusCode], a.AnalyzeSchema(body))
 		}
 	}
-	appendBodies(endpoint.Response.Responses)
-	appendBodies(endpoint.Response.ErrorResponses)
+	appendBodies(endpoint.Response.Responses, true)
+	appendBodies(endpoint.Response.ErrorResponses, false)
 	return responseBodies
+}
+
+func analyzeSSEProjectionSchema(a *Analyzer, endpoint *transportir.Endpoint) *Schema {
+	attrs, err := sseProjectionAttributes(endpoint)
+	if err != nil {
+		panic(err)
+	}
+	schema := &Schema{OneOf: make([]*Schema, 0, len(attrs))}
+	for _, attr := range attrs {
+		schema.OneOf = append(schema.OneOf, a.AnalyzeSchema(attributeForSchemaUsage(attr, schemaUsageResponse)))
+	}
+	return schema
 }

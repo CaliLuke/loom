@@ -204,6 +204,25 @@ func SSENotificationMethod(method string) {
 	sse.NotificationMethod = method
 }
 
+// SSEProjection maps an SSE event discriminator value to a result view used
+// to encode and decode that event's JSON data. At least two mappings are
+// required, and SSEEventType must identify the string discriminator field.
+func SSEProjection(eventType, view string) {
+	sse, ok := eval.Current().(*expr.HTTPSSEExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	if eventType == "" || view == "" {
+		eval.ReportError("SSE projection event type and view cannot be empty")
+		return
+	}
+	sse.Projections = append(sse.Projections, &expr.SSEProjectionExpr{
+		EventType: eventType,
+		View:      view,
+	})
+}
+
 // SSEEventData defines the attribute of the StreamingResult type that provides the
 // data field for a Server-Sent Event. The attribute must exist in the
 // StreamingResult type.

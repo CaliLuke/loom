@@ -70,7 +70,7 @@ func transformUnion(
 	sourceVar string,
 	targetVar string,
 	newVar bool,
-	forceTargetPointer bool,
+	targetPointerOverride *bool,
 	ta *TransformAttrs,
 ) (*jen.Statement, error) {
 	srcUnion, tgtUnion, err := validateTransformUnion(source, target, sourceVar, targetVar)
@@ -85,12 +85,16 @@ func transformUnion(
 	if err != nil {
 		return nil, err
 	}
+	targetIsPointer := strings.HasPrefix(typeRef, "*")
+	if targetPointerOverride != nil {
+		targetIsPointer = *targetPointerOverride
+	}
 	data := transformUnionRenderData{
 		SourceVar:       sourceVar,
 		TargetVar:       targetVar,
 		NewVar:          newVar,
 		TypeRef:         typeRef,
-		TargetIsPointer: forceTargetPointer || strings.HasPrefix(typeRef, "*"),
+		TargetIsPointer: targetIsPointer,
 		ValueTypeRef:    strings.TrimPrefix(typeRef, "*"),
 		TempVarName:     tempVarName,
 		Cases:           cases,

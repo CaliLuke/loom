@@ -117,6 +117,7 @@ type (
 		IDField            string
 		EventField         string
 		RetryField         string
+		Projections        []*expr.SSEProjectionExpr
 	}
 
 	Redirect struct {

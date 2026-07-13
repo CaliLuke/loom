@@ -305,6 +305,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	loom "github.com/CaliLuke/loom/pkg"

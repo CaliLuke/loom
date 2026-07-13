@@ -25,6 +25,9 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Result views can override selected field requiredness in either direction,
   including nested named views, with consistent validation, HTTP, and OpenAPI
   contracts.
+- Typed SSE streams can opt into discriminator-selected result-view JSON
+  projections, with canonical client reconstruction and `oneOf` OpenAPI plus
+  `x-loom-async` contracts.
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
 - OpenAPI schema deduplication now reuses structurally identical generated components while treating explicit HTTP `Body(...)` `openapi:typename` declarations as authoritative public names; conflicting non-equivalent claims now fail generation instead of leaking hash-suffixed public schemas.
 - OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.

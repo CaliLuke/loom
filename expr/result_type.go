@@ -331,8 +331,15 @@ func projectedResultValidation(rt *ResultTypeExpr, view *ViewExpr) *ValidationEx
 	if rt.Validation == nil {
 		return nil
 	}
+	viewObject := AsObject(view.Type)
+	required := make([]string, 0, len(rt.Validation.Required))
+	for _, name := range rt.Validation.Required {
+		if viewObject.Attribute(name) != nil {
+			required = append(required, name)
+		}
+	}
 	val := rt.Validation.Dup()
-	val.Required = nil
+	val.Required = required
 	return val
 }
 

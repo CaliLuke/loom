@@ -36,6 +36,7 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: "context"},
 		&codegen.ImportSpec{Path: "errors"},
 		&codegen.ImportSpec{Path: "fmt"},
+		&codegen.ImportSpec{Path: "io"},
 		&codegen.ImportSpec{Path: "net/http"},
 		&codegen.ImportSpec{Path: "sync"},
 		codegen.LoomImport(""),

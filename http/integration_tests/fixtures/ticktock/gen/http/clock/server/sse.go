@@ -9,60 +9,37 @@ package server
 
 import (
 	"context"
-	"net/http"
-	"sync"
+	"io"
 
 	clock "example.com/http-ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
-	loomtransport "github.com/CaliLuke/loom/observability/transport"
 )
 
 // TickServerStream implements the clock.TickServerStream interface using
 // Server-Sent Events.
 type TickServerStream struct {
-	// once ensures the headers are written once.
-	once sync.Once
-	// lock protects started.
-	lock sync.Mutex
-	// started records whether the event stream has been committed.
-	streamStarted bool
-	// w is the HTTP response writer used to send the SSE events.
-	w http.ResponseWriter
-	// r is the HTTP request.
-	r *http.Request
+	// writer owns the serialized SSE response lifecycle.
+	writer *loomhttp.SSEStreamWriter
 }
 
 // Send streams instances of "clock.TickTockEvent" to the "Tick" endpoint SSE
 // connection.
 func (s *TickServerStream) Send(v *clock.TickTockEvent) error {
-	return s.SendWithContext(s.r.Context(), v)
+	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *TickServerStream) initHeaders() {
-	s.once.Do(func() {
-		header := s.w.Header()
-		if header.Get("Content-Type") == "" {
-			header.Set("Content-Type", "text/event-stream")
-		}
-		if header.Get("Cache-Control") == "" {
-			header.Set("Cache-Control", "no-cache")
-		}
-		if header.Get("Connection") == "" {
-			header.Set("Connection", "keep-alive")
-		}
-		if header.Get("X-Accel-Buffering") == "" {
-			header.Set("X-Accel-Buffering", "no")
-		}
-		s.w.WriteHeader(http.StatusOK)
-	})
-	s.lock.Lock()
-	s.streamStarted = true
-	s.lock.Unlock()
-}
 func (s *TickServerStream) started() bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.streamStarted
+	return s.writer.Started()
+}
+
+// Open commits and flushes the successful SSE response before the first event.
+func (s *TickServerStream) Open(ctx context.Context) error {
+	return s.writer.Open(ctx)
+}
+
+// SendComment writes and flushes an SSE heartbeat comment.
+func (s *TickServerStream) SendComment(ctx context.Context, text string) error {
+	return s.writer.SendComment(ctx, text)
 }
 
 // SendWithContext streams instances of "clock.TickTockEvent" to the "Tick"
@@ -71,10 +48,6 @@ func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := s.r.Context().Err(); err != nil {
-		return err
-	}
-	s.initHeaders()
 	res := v
 
 	var payload any
@@ -90,70 +63,41 @@ func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 		msg.Type = event
 	}
 
-	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
-		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportHTTP})
-		return err
-	}
-
-	if err := http.NewResponseController(s.w).Flush(); err != nil {
-		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportHTTP})
-		return err
-	}
-	return nil
+	return s.writer.WriteEvent(ctx, func(w io.Writer) error {
+		return loomhttp.WriteSSEEvent(w, msg)
+	})
 }
 
-// Close is a no-op for SSE. We keep the method for compatibility with other
-// stream types.
+// Close prevents later SSE control or event writes.
 func (s *TickServerStream) Close() error {
-	return nil
+	return s.writer.Close()
 }
 
 // TockServerStream implements the clock.TockServerStream interface using
 // Server-Sent Events.
 type TockServerStream struct {
-	// once ensures the headers are written once.
-	once sync.Once
-	// lock protects started.
-	lock sync.Mutex
-	// started records whether the event stream has been committed.
-	streamStarted bool
-	// w is the HTTP response writer used to send the SSE events.
-	w http.ResponseWriter
-	// r is the HTTP request.
-	r *http.Request
+	// writer owns the serialized SSE response lifecycle.
+	writer *loomhttp.SSEStreamWriter
 }
 
 // Send streams instances of "clock.TickTockEvent" to the "Tock" endpoint SSE
 // connection.
 func (s *TockServerStream) Send(v *clock.TickTockEvent) error {
-	return s.SendWithContext(s.r.Context(), v)
+	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *TockServerStream) initHeaders() {
-	s.once.Do(func() {
-		header := s.w.Header()
-		if header.Get("Content-Type") == "" {
-			header.Set("Content-Type", "text/event-stream")
-		}
-		if header.Get("Cache-Control") == "" {
-			header.Set("Cache-Control", "no-cache")
-		}
-		if header.Get("Connection") == "" {
-			header.Set("Connection", "keep-alive")
-		}
-		if header.Get("X-Accel-Buffering") == "" {
-			header.Set("X-Accel-Buffering", "no")
-		}
-		s.w.WriteHeader(http.StatusOK)
-	})
-	s.lock.Lock()
-	s.streamStarted = true
-	s.lock.Unlock()
-}
 func (s *TockServerStream) started() bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.streamStarted
+	return s.writer.Started()
+}
+
+// Open commits and flushes the successful SSE response before the first event.
+func (s *TockServerStream) Open(ctx context.Context) error {
+	return s.writer.Open(ctx)
+}
+
+// SendComment writes and flushes an SSE heartbeat comment.
+func (s *TockServerStream) SendComment(ctx context.Context, text string) error {
+	return s.writer.SendComment(ctx, text)
 }
 
 // SendWithContext streams instances of "clock.TickTockEvent" to the "Tock"
@@ -162,10 +106,6 @@ func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := s.r.Context().Err(); err != nil {
-		return err
-	}
-	s.initHeaders()
 	res := v
 
 	var payload any
@@ -181,70 +121,41 @@ func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 		msg.Type = event
 	}
 
-	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
-		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportHTTP})
-		return err
-	}
-
-	if err := http.NewResponseController(s.w).Flush(); err != nil {
-		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportHTTP})
-		return err
-	}
-	return nil
+	return s.writer.WriteEvent(ctx, func(w io.Writer) error {
+		return loomhttp.WriteSSEEvent(w, msg)
+	})
 }
 
-// Close is a no-op for SSE. We keep the method for compatibility with other
-// stream types.
+// Close prevents later SSE control or event writes.
 func (s *TockServerStream) Close() error {
-	return nil
+	return s.writer.Close()
 }
 
 // GuardedServerStream implements the clock.GuardedServerStream interface using
 // Server-Sent Events.
 type GuardedServerStream struct {
-	// once ensures the headers are written once.
-	once sync.Once
-	// lock protects started.
-	lock sync.Mutex
-	// started records whether the event stream has been committed.
-	streamStarted bool
-	// w is the HTTP response writer used to send the SSE events.
-	w http.ResponseWriter
-	// r is the HTTP request.
-	r *http.Request
+	// writer owns the serialized SSE response lifecycle.
+	writer *loomhttp.SSEStreamWriter
 }
 
 // Send streams instances of "clock.TickTockEvent" to the "Guarded" endpoint
 // SSE connection.
 func (s *GuardedServerStream) Send(v *clock.TickTockEvent) error {
-	return s.SendWithContext(s.r.Context(), v)
+	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *GuardedServerStream) initHeaders() {
-	s.once.Do(func() {
-		header := s.w.Header()
-		if header.Get("Content-Type") == "" {
-			header.Set("Content-Type", "text/event-stream")
-		}
-		if header.Get("Cache-Control") == "" {
-			header.Set("Cache-Control", "no-cache")
-		}
-		if header.Get("Connection") == "" {
-			header.Set("Connection", "keep-alive")
-		}
-		if header.Get("X-Accel-Buffering") == "" {
-			header.Set("X-Accel-Buffering", "no")
-		}
-		s.w.WriteHeader(http.StatusOK)
-	})
-	s.lock.Lock()
-	s.streamStarted = true
-	s.lock.Unlock()
-}
 func (s *GuardedServerStream) started() bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.streamStarted
+	return s.writer.Started()
+}
+
+// Open commits and flushes the successful SSE response before the first event.
+func (s *GuardedServerStream) Open(ctx context.Context) error {
+	return s.writer.Open(ctx)
+}
+
+// SendComment writes and flushes an SSE heartbeat comment.
+func (s *GuardedServerStream) SendComment(ctx context.Context, text string) error {
+	return s.writer.SendComment(ctx, text)
 }
 
 // SendWithContext streams instances of "clock.TickTockEvent" to the "Guarded"
@@ -253,10 +164,6 @@ func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.Tick
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := s.r.Context().Err(); err != nil {
-		return err
-	}
-	s.initHeaders()
 	res := v
 
 	var payload any
@@ -272,20 +179,12 @@ func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.Tick
 		msg.Type = event
 	}
 
-	if err := loomhttp.WriteSSEEvent(s.w, msg); err != nil {
-		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportHTTP})
-		return err
-	}
-
-	if err := http.NewResponseController(s.w).Flush(); err != nil {
-		loomtransport.Observe(ctx, loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportHTTP})
-		return err
-	}
-	return nil
+	return s.writer.WriteEvent(ctx, func(w io.Writer) error {
+		return loomhttp.WriteSSEEvent(w, msg)
+	})
 }
 
-// Close is a no-op for SSE. We keep the method for compatibility with other
-// stream types.
+// Close prevents later SSE control or event writes.
 func (s *GuardedServerStream) Close() error {
-	return nil
+	return s.writer.Close()
 }

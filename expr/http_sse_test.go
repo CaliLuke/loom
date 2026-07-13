@@ -169,3 +169,52 @@ func TestHTTPSSEExprValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestHTTPSSEProjectionValidation(t *testing.T) {
+	resultType := &expr.ResultTypeExpr{
+		UserTypeExpr: &expr.UserTypeExpr{
+			AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{
+				{Name: "event_type", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				{Name: "optional_event", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			}, Validation: &expr.ValidationExpr{Required: []string{"event_type"}}},
+		},
+		Views: []*expr.ViewExpr{
+			{Name: "legacy", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{}}},
+			{Name: "updated", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{}}},
+		},
+	}
+	method := &expr.MethodExpr{
+		Name:   "Watch",
+		Result: &expr.AttributeExpr{Type: resultType},
+		Stream: expr.ServerStreamKind,
+	}
+	valid := []*expr.SSEProjectionExpr{
+		{EventType: "legacy", View: "legacy"},
+		{EventType: "updated", View: "updated"},
+	}
+
+	tests := []struct {
+		name        string
+		eventField  string
+		projections []*expr.SSEProjectionExpr
+		want        string
+	}{
+		{name: "valid", eventField: "event_type", projections: valid},
+		{name: "requires two", eventField: "event_type", projections: valid[:1], want: "at least two"},
+		{name: "requires discriminator", projections: valid, want: "require SSEEventType"},
+		{name: "requires required discriminator", eventField: "optional_event", projections: valid, want: "must be required"},
+		{name: "unknown view", eventField: "event_type", projections: []*expr.SSEProjectionExpr{{EventType: "legacy", View: "legacy"}, {EventType: "other", View: "missing"}}, want: "unknown result view"},
+		{name: "duplicate event", eventField: "event_type", projections: []*expr.SSEProjectionExpr{{EventType: "same", View: "legacy"}, {EventType: "same", View: "updated"}}, want: "mapped more than once"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			sse := &expr.HTTPSSEExpr{EventField: test.eventField, Projections: test.projections}
+			err := sse.Validate(method)
+			if test.want == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, test.want)
+		})
+	}
+}

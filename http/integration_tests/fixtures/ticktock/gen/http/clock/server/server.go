@@ -40,17 +40,19 @@ type MountPoint struct {
 // using the HTTP verb and path defined in the design. errhandler is called
 // whenever a response fails to be encoded. formatter is used to format errors
 // returned by the service methods prior to encoding. Both errhandler and
-// formatter are optional and can be nil.
-func New(e *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.Statuser) *Server {
+// formatter are optional and can be nil. An optional streamWritePolicy bounds
+// each server-stream network write and flush. Construct policies with
+// loomhttp.NewStreamWritePolicy.
+func New(e *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.Statuser, streamWritePolicy ...loomhttp.StreamWritePolicy) *Server {
 	return &Server{
 		Mounts: []*MountPoint{
 			{"Tick", "GET", "/tick"},
 			{"Tock", "GET", "/tock"},
 			{"Guarded", "GET", "/guarded"},
 		},
-		Tick:    NewTickHandler(e.Tick, mux, decoder, encoder, errhandler, formatter),
-		Tock:    NewTockHandler(e.Tock, mux, decoder, encoder, errhandler, formatter),
-		Guarded: NewGuardedHandler(e.Guarded, mux, decoder, encoder, errhandler, formatter),
+		Tick:    NewTickHandler(e.Tick, mux, decoder, encoder, errhandler, formatter, streamWritePolicy...),
+		Tock:    NewTockHandler(e.Tock, mux, decoder, encoder, errhandler, formatter, streamWritePolicy...),
+		Guarded: NewGuardedHandler(e.Guarded, mux, decoder, encoder, errhandler, formatter, streamWritePolicy...),
 	}
 }
 
@@ -104,7 +106,12 @@ func NewTickHandler(
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
 	var (
 		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
@@ -116,8 +123,7 @@ func NewTickHandler(
 		defer obs.End()
 		var err error
 		stream := &TickServerStream{
-			w: w,
-			r: r,
+			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
 		}
 		v := &clock.TickEndpointInput{
 			Stream: stream,
@@ -160,7 +166,12 @@ func NewTockHandler(
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
 	var (
 		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
@@ -172,8 +183,7 @@ func NewTockHandler(
 		defer obs.End()
 		var err error
 		stream := &TockServerStream{
-			w: w,
-			r: r,
+			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
 		}
 		v := &clock.TockEndpointInput{
 			Stream: stream,
@@ -216,7 +226,12 @@ func NewGuardedHandler(
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
+	var writePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicy) > 0 {
+		writePolicy = streamWritePolicy[0]
+	}
 	var (
 		decodeRequest = DecodeGuardedRequest(mux, decoder)
 		encodeError   = EncodeGuardedError(encoder, formatter)
@@ -236,8 +251,7 @@ func NewGuardedHandler(
 			return
 		}
 		stream := &GuardedServerStream{
-			w: w,
-			r: r,
+			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
 		}
 		v := &clock.GuardedEndpointInput{
 			Stream:  stream,

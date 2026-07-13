@@ -125,6 +125,10 @@ build Auto-K without repeating large amounts of app-local glue.
 - The service generator now emits exported typed projection helpers for result views:
   - `Project<ResultType>[ViewSuffix](...)` to project a canonical result into the generated view type
   - `New<ResultType>From<ProjectedType>[ViewSuffix](...)` to rebuild the canonical result from a projected view
+- Typed SSE endpoints can declare per-event result views with
+  `SSEProjection(eventType, view)` plus `SSEEventType(...)`; generated servers
+  select the JSON projection by discriminator, clients rebuild the canonical
+  result, and OpenAPI/`x-loom-async` publish a `oneOf` contract.
 - Use `FormRequest()` on HTTP endpoints when the request body contract is `application/x-www-form-urlencoded`.
 - String-backed path, query, header, and cookie fields with
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.

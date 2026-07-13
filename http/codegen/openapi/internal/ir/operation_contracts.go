@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -120,18 +121,33 @@ func buildAsyncOperationExtension(endpointIR *transportir.Endpoint, path string,
 	}
 	if endpointIR.Stream.ResponseMessage != nil {
 		resultAttr := attributeForSchemaUsage(endpointIR.Stream.ResponseMessage, schemaUsageResponse)
+		resultSchema := buildInlineAsyncSchema(resultAttr, rand, closeObjects)
+		if endpointIR.Stream.SSE != nil && len(endpointIR.Stream.SSE.Projections) > 0 {
+			resultSchema = buildInlineSSEProjectionSchema(endpointIR, rand, closeObjects)
+		}
 		outbound := map[string]any{
 			"contentType": "application/json",
-			"schema":      asyncSchemaValue(buildInlineAsyncSchema(resultAttr, rand, closeObjects)),
+			"schema":      asyncSchemaValue(resultSchema),
 		}
 		if endpointIR.Stream.SSE != nil {
-			outbound["sse"] = map[string]any{
+			sseContract := map[string]any{
 				"requestIDField": emptyStringAsNil(endpointIR.Stream.SSE.RequestIDField),
 				"dataField":      emptyStringAsNil(endpointIR.Stream.SSE.DataField),
 				"idField":        emptyStringAsNil(endpointIR.Stream.SSE.IDField),
 				"eventField":     emptyStringAsNil(endpointIR.Stream.SSE.EventField),
 				"retryField":     emptyStringAsNil(endpointIR.Stream.SSE.RetryField),
 			}
+			if len(endpointIR.Stream.SSE.Projections) > 0 {
+				projections := make([]map[string]string, 0, len(endpointIR.Stream.SSE.Projections))
+				for _, projection := range endpointIR.Stream.SSE.Projections {
+					projections = append(projections, map[string]string{
+						"event": projection.EventType,
+						"view":  projection.View,
+					})
+				}
+				sseContract["projections"] = projections
+			}
+			outbound["sse"] = sseContract
 		}
 		messages["outbound"] = outbound
 	}
@@ -139,6 +155,40 @@ func buildAsyncOperationExtension(endpointIR *transportir.Endpoint, path string,
 		contract["messages"] = messages
 	}
 	return map[string]any{asyncContractExtensionName: contract}
+}
+
+func buildInlineSSEProjectionSchema(endpoint *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) *Schema {
+	attrs, err := sseProjectionAttributes(endpoint)
+	if err != nil {
+		panic(err)
+	}
+	schema := &Schema{OneOf: make([]*Schema, 0, len(attrs))}
+	for _, attr := range attrs {
+		schema.OneOf = append(schema.OneOf, buildInlineAsyncSchema(attr, rand, closeObjects))
+	}
+	return schema
+}
+
+func sseProjectionAttributes(endpoint *transportir.Endpoint) ([]*expr.AttributeExpr, error) {
+	if endpoint == nil || endpoint.Stream == nil || endpoint.Stream.SSE == nil || endpoint.Stream.ResponseMessage == nil {
+		return nil, fmt.Errorf("SSE projection endpoint is incomplete")
+	}
+	resultType, ok := endpoint.Stream.ResponseMessage.Type.(*expr.ResultTypeExpr)
+	if !ok {
+		return nil, fmt.Errorf("SSE projections require a result type")
+	}
+	attrs := make([]*expr.AttributeExpr, 0, len(endpoint.Stream.SSE.Projections))
+	for _, projection := range endpoint.Stream.SSE.Projections {
+		projected, err := expr.Project(resultType, projection.View)
+		if err != nil {
+			return nil, fmt.Errorf("project SSE view %q: %w", projection.View, err)
+		}
+		attrs = append(attrs, &expr.AttributeExpr{
+			Type:       projected,
+			Validation: projected.Validation,
+		})
+	}
+	return attrs, nil
 }
 
 func asyncSchemaValue(schema *Schema) any {

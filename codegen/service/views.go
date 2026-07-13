@@ -58,6 +58,8 @@ func viewsHeader(serviceName string, unions []*UnionTypeData) codegen.Section {
 		imports = append(imports,
 			codegen.SimpleImport("encoding/json"),
 			codegen.SimpleImport("fmt"),
+			codegen.SimpleImport("net/url"),
+			codegen.LoomNamedImport("http", "loomhttp"),
 		)
 	}
 	return codegen.Header(serviceName+" views", "views", imports)

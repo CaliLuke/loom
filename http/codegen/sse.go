@@ -11,6 +11,14 @@ import (
 )
 
 type (
+	// SSEProjectionData describes one event-discriminator result projection.
+	SSEProjectionData struct {
+		// EventType is the SSE event discriminator value.
+		EventType string
+		// View is the result view used for the event data.
+		View string
+	}
+
 	// SSEData contains the data needed to render struct type that
 	// implements the server and client stream interface for SSE.
 	SSEData struct {
@@ -61,6 +69,16 @@ type (
 		RequestIDPointer bool
 		// HasResponseBody indicates whether an HTTP response body converter exists for this endpoint.
 		HasResponseBody bool
+		// Projections map SSE event discriminator values to result views.
+		Projections []*SSEProjectionData
+		// ProjectedTypeRef is the generated view projection type reference.
+		ProjectedTypeRef string
+		// ViewedResultRef is the generated viewed-result wrapper reference.
+		ViewedResultRef string
+		// ViewedValidateRef validates the viewed-result wrapper.
+		ViewedValidateRef string
+		// ResultInitRef rebuilds the canonical result from a viewed result.
+		ResultInitRef string
 	}
 )
 
@@ -96,6 +114,19 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 		RequestIDField:      endpointIR.Stream.SSE.RequestIDField,
 		NotificationMethod:  endpointIR.Stream.SSE.NotificationMethod,
 		RequestIDPointer:    endpointIR.Stream.SSE.RequestIDPointer,
+	}
+	for _, projection := range endpointIR.Stream.SSE.Projections {
+		ed.SSE.Projections = append(ed.SSE.Projections, &SSEProjectionData{
+			EventType: projection.EventType,
+			View:      projection.View,
+		})
+	}
+	if len(ed.SSE.Projections) > 0 && md.ViewedResult != nil {
+		projected := expr.AsObject(md.ViewedResult.Type.Attribute().Type).Attribute("projected")
+		ed.SSE.ProjectedTypeRef = sd.Service.ViewScope.GoFullTypeRef(projected, svc.ViewsPkg)
+		ed.SSE.ViewedResultRef = md.ViewedResult.FullRef
+		ed.SSE.ViewedValidateRef = svc.ViewsPkg + "." + md.ViewedResult.Validate.Name
+		ed.SSE.ResultInitRef = svc.PkgName + "." + md.ViewedResult.ResultInit.Name
 	}
 
 	// Mixed results SSE uses the streaming result type for events, not the unary

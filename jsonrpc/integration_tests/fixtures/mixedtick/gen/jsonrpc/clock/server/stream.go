@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 
@@ -24,8 +25,8 @@ import (
 // TickServerStream implements the clock.TickServerStream interface using
 // Server-Sent Events.
 type TickServerStream struct {
-	// once ensures headers are written once
-	once sync.Once
+	// writer owns the serialized SSE response lifecycle
+	writer *loomhttp.SSEStreamWriter
 	// encoder is the SSE event encoder
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder
 	// w is the HTTP response writer
@@ -42,21 +43,14 @@ type TickServerStream struct {
 	mu sync.Mutex
 }
 
-// initSSEHeaders initializes the SSE response headers.
-func (s *TickServerStream) initSSEHeaders() {
-	s.once.Do(func() {
-		s.w.Header().Set("Content-Type", "text/event-stream")
-		s.w.Header().Set("Cache-Control", "no-cache")
-		s.w.Header().Set("Connection", "keep-alive")
-		s.w.Header().Set("X-Accel-Buffering", "no")
-		s.w.WriteHeader(http.StatusOK)
-	})
+// Open commits and flushes the SSE headers before the first application event.
+func (s *TickServerStream) Open(ctx context.Context) error {
+	return s.writer.Open(ctx)
 }
 
-// open commits and flushes the SSE headers before the first application event.
-func (s *TickServerStream) open() error {
-	s.initSSEHeaders()
-	return http.NewResponseController(s.w).Flush()
+// SendComment writes and flushes an SSE heartbeat comment.
+func (s *TickServerStream) SendComment(ctx context.Context, text string) error {
+	return s.writer.SendComment(ctx, text)
 }
 
 // Send sends a JSON-RPC notification to the client.
@@ -153,15 +147,7 @@ func (s *TickServerStream) sendError(ctx context.Context, id any, code jsonrpc.C
 
 // sendSSEEvent sends a single SSE event.
 func (s *TickServerStream) sendSSEEvent(eventType string, v any) error {
-	s.initSSEHeaders()
-	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
-		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamWriteFailed, Transport: loomtransport.TransportJSONRPC})
-		return err
-	}
-
-	if err := http.NewResponseController(s.w).Flush(); err != nil {
-		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamFailure, Reason: loomtransport.ReasonStreamFlushFailed, Transport: loomtransport.TransportJSONRPC})
-		return err
-	}
-	return nil
+	return s.writer.WriteEvent(s.r.Context(), func(w io.Writer) error {
+		return loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: eventType}, v)
+	})
 }

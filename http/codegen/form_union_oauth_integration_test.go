@@ -57,6 +57,9 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 	userTypePkgs := make(map[string][]string)
 	for _, service := range root.Services {
 		files = append(files, servicecodegen.Files(genpkg, service, serviceData, userTypePkgs)...)
+		if views := servicecodegen.ViewsFile(genpkg, service, serviceData); views != nil {
+			files = append(files, views)
+		}
 		files = append(files, servicecodegen.EndpointFile(genpkg, service, serviceData))
 	}
 	files = append(files, PathFiles(httpData)...)

@@ -534,6 +534,31 @@ Method("stream", func() {
 })
 ```
 
+### Per-Event JSON Projections
+
+Typed SSE streams may opt into multiple result-view projections. Map each SSE
+`event:` discriminator to one view with `SSEProjection`; the server selects the
+wire shape from the field named by `SSEEventType`, and generated clients decode
+every declared view back into the canonical `StreamingResult` type.
+
+```go
+StreamingResult(EventResultType)
+HTTP(func() {
+    GET("/events/stream")
+    ServerSentEvents(func() {
+        SSEEventType("event_type")
+        SSEProjection("legacy", "legacy")
+        SSEProjection("updated", "updated")
+    })
+})
+```
+
+Declare at least two mappings. Event values and views must be unique, and each
+view must belong to the streaming result type. A compatibility view can select
+flat canonical fields while omitting a union field; another view can select the
+canonical union wrapper. OpenAPI and `x-loom-async` render these alternatives as
+`oneOf`. Without `SSEProjection`, SSE encoding remains unchanged.
+
 Handle Last-Event-Id for resumable streams:
 
 ```go

@@ -750,6 +750,9 @@ Method("watch", func() {
 **See also:**
 - [HTTP Guide: WebSocket Integration](http-guide.md#websocket-integration) — HTTP-specific streaming implementation
 - [HTTP Guide: Server-Sent Events](http-guide.md#server-sent-events) — SSE for one-way server streaming
+- `SSEProjection(eventType, view)` maps an SSE event discriminator to a
+  `StreamingResult` result view. It is opt-in, requires `SSEEventType`, and
+  requires at least two unique mappings.
 - [gRPC Guide: Streaming Patterns](grpc-guide.md#streaming-patterns) — gRPC streaming implementation
 
 ---

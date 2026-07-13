@@ -31,6 +31,12 @@ func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
 	b.Add("\tif err != nil {\n")
 	b.Add("\t\treturn event, err\n")
 	b.Add("\t}\n")
+	if len(ed.SSE.Projections) > 0 {
+		renderSSEProjectionClientDecode(&b, ed)
+		b.Add("\treturn\n")
+		b.Add("}\n")
+		return b.String()
+	}
 	if ed.SSE.EventIsStruct {
 		b.Addf("\tevent = new(%s)\n", strings.TrimPrefix(ed.SSE.EventTypeRef, "*"))
 	}
@@ -60,6 +66,31 @@ func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
 	b.Add("\treturn\n")
 	b.Add("}\n")
 	return b.String()
+}
+
+func renderSSEProjectionClientDecode(b *sourceBuilder, ed *EndpointData) {
+	b.Add("\tvar view string\n")
+	b.Add("\tswitch parsed.Type {\n")
+	for _, projection := range ed.SSE.Projections {
+		b.Addf("\tcase %q:\n\t\tview = %q\n", projection.EventType, projection.View)
+	}
+	b.Add("\tdefault:\n\t\treturn event, fmt.Errorf(\"invalid SSE projection discriminator %q\", parsed.Type)\n\t}\n")
+	b.Addf("\tprojected := new(%s)\n", strings.TrimPrefix(ed.SSE.ProjectedTypeRef, "*"))
+	b.Add("\trespBody := &http.Response{\n")
+	b.Add("\t\tStatusCode: http.StatusOK,\n")
+	b.Add("\t\tBody:       io.NopCloser(strings.NewReader(parsed.Data)),\n")
+	b.Add("\t}\n")
+	b.Add("\tif err = s.decoder(respBody).Decode(projected); err != nil {\n\t\treturn\n\t}\n")
+	b.Addf("\tvres := &%s{Projected: projected, View: view}\n", strings.TrimPrefix(ed.SSE.ViewedResultRef, "*"))
+	b.Addf("\tif err = %s(vres); err != nil {\n\t\treturn\n\t}\n", ed.SSE.ViewedValidateRef)
+	b.Addf("\tevent, err = %s(vres)\n", ed.SSE.ResultInitRef)
+	b.Add("\tif err != nil {\n\t\treturn\n\t}\n")
+	if ed.SSE.IDField != "" {
+		b.Addf("\tevent.%s = parsed.ID\n", ed.SSE.IDField)
+	}
+	if ed.SSE.EventField != "" {
+		b.Addf("\tevent.%s = parsed.Type\n", ed.SSE.EventField)
+	}
 }
 
 func renderSSEParseAssignment(target, typeRef string) string {

@@ -44,15 +44,8 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		def = goTypeDef(sd.Scope, ut.Attribute(), svr, !svr)
 		desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.",
 			varname, svc.Name, endpointName)
-		if formEncoded {
-			if obj := expr.AsObject(ut.Attribute().Type); obj != nil && len(*obj) == 1 && expr.IsUnion((*obj)[0].Attribute.Type) {
-				field := (*obj)[0]
-				flatFormUnionField = codegen.Goify(field.Name, true)
-				flatFormUnionPointer = !ut.Attribute().IsRequired(field.Name)
-				flatFormUnionTypeKey = expr.AsUnion(field.Attribute.Type).GetTypeKey()
-				flatFormUnionRef = sd.Scope.GoTypeRef(field.Attribute)
-			}
-		}
+		flatFormUnionField, flatFormUnionPointer, flatFormUnionTypeKey, flatFormUnionRef =
+			flatFormUnionMetadata(ut.Attribute(), formEncoded, sd.Scope)
 		if svr || containsUnionType(body.Type) {
 			validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
 			if validateDef != "" {
@@ -84,6 +77,25 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		FlatFormUnionTypeKey: flatFormUnionTypeKey,
 		FlatFormUnionRef:     flatFormUnionRef,
 	}
+}
+
+func flatFormUnionMetadata(
+	attribute *expr.AttributeExpr,
+	formEncoded bool,
+	scope *codegen.NameScope,
+) (fieldName string, pointer bool, typeKey, ref string) {
+	if !formEncoded {
+		return "", false, "", ""
+	}
+	object := expr.AsObject(attribute.Type)
+	if object == nil || len(*object) != 1 || !expr.IsUnion((*object)[0].Attribute.Type) {
+		return "", false, "", ""
+	}
+	field := (*object)[0]
+	return codegen.Goify(field.Name, true),
+		!attribute.IsRequired(field.Name),
+		expr.AsUnion(field.Attribute.Type).GetTypeKey(),
+		scope.GoTypeRef(field.Attribute)
 }
 
 // buildResponseBodyType builds the TypeData for a response body. The data

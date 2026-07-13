@@ -47,6 +47,7 @@ func buildStream(endpoint *expr.HTTPEndpointExpr) *Stream {
 			IDField:            endpoint.SSE.IDField,
 			EventField:         endpoint.SSE.EventField,
 			RetryField:         endpoint.SSE.RetryField,
+			Projections:        endpoint.SSE.Projections,
 		}
 	default:
 		stream.Transport = "websocket"

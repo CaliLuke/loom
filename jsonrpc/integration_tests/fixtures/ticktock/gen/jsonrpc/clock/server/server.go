@@ -16,6 +16,7 @@ import (
 	clock "example.com/ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -29,21 +30,29 @@ type Server struct {
 	// Tock is the handler for the Tock method.
 	Tock func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error
 
-	decoder    func(*http.Request) loomhttp.Decoder
-	encoder    func(context.Context, http.ResponseWriter) loomhttp.Encoder
-	errhandler func(context.Context, http.ResponseWriter, error)
+	decoder           func(*http.Request) loomhttp.Decoder
+	encoder           func(context.Context, http.ResponseWriter) loomhttp.Encoder
+	errhandler        func(context.Context, http.ResponseWriter, error)
+	streamWritePolicy loomhttp.StreamWritePolicy
 }
 
 // New creates a JSON-RPC server which loads HTTP requests and calls the
-// "clock" service methods.
-func New(endpoints *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
+// "clock" service methods. An optional streamWritePolicy bounds each
+// server-stream network write and flush. Construct policies with
+// loomhttp.NewStreamWritePolicy.
+func New(endpoints *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicies ...loomhttp.StreamWritePolicy) *Server {
+	var streamWritePolicy loomhttp.StreamWritePolicy
+	if len(streamWritePolicies) > 0 {
+		streamWritePolicy = streamWritePolicies[0]
+	}
 	s := &Server{
-		Methods:    []string{"Tick", "Tock"},
-		Tick:       NewTickHandler(endpoints.Tick, mux, decoder, encoder, errhandler),
-		Tock:       NewTockHandler(endpoints.Tock, mux, decoder, encoder, errhandler),
-		decoder:    decoder,
-		encoder:    encoder,
-		errhandler: errhandler,
+		Methods:           []string{"Tick", "Tock"},
+		Tick:              NewTickHandler(endpoints.Tick, mux, decoder, encoder, errhandler, streamWritePolicy),
+		Tock:              NewTockHandler(endpoints.Tock, mux, decoder, encoder, errhandler, streamWritePolicy),
+		decoder:           decoder,
+		encoder:           encoder,
+		errhandler:        errhandler,
+		streamWritePolicy: streamWritePolicy,
 	}
 	// SSE-only services route via handleSSE
 	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.handleSSE))
@@ -81,6 +90,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -98,6 +108,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -115,6 +126,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -132,6 +144,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -155,6 +168,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			encoder: s.encoder,
 			r:       r,
 			w:       w,
+			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
 		if err := stream.sendError(ctx, req.ID, jsonrpc.MethodNotFound, "Method not found", nil); err != nil {
 			s.errhandler(ctx, w, err)
@@ -180,7 +194,7 @@ func (s *Server) Mount(mux loomhttp.Muxer) {
 
 // NewTickHandler creates a JSON-RPC handler which calls the "clock" service
 // "Tick" endpoint.
-func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
+func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeTickRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 		ctx = context.WithValue(ctx, loom.MethodKey, "Tick")
@@ -192,6 +206,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 			requestHasID: req.HasID,
 			requestID:    req.ID,
 			w:            w,
+			writer:       loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, streamWritePolicy),
 		}
 		params, err := decodeParams(r, req)
 		if err != nil {
@@ -237,7 +252,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 	}
 } // NewTockHandler creates a JSON-RPC handler which calls the "clock" service
 // "Tock" endpoint.
-func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
+func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeTockRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 		ctx = context.WithValue(ctx, loom.MethodKey, "Tock")
@@ -249,6 +264,7 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 			requestHasID: req.HasID,
 			requestID:    req.ID,
 			w:            w,
+			writer:       loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, streamWritePolicy),
 		}
 		params, err := decodeParams(r, req)
 		if err != nil {

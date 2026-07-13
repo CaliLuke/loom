@@ -10,19 +10,18 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
-	"sync"
 
 	clock "example.com/ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
-	loomtransport "github.com/CaliLuke/loom/observability/transport"
 )
 
 // clockSSEStream implements the clock.Stream interface for SSE transport.
 type clockSSEStream struct {
-	// once ensures the headers are written once.
-	once sync.Once
+	// writer owns the serialized SSE response lifecycle.
+	writer *loomhttp.SSEStreamWriter
 	// w is the HTTP response writer used to send the SSE events.
 	w http.ResponseWriter
 	// r is the HTTP request.
@@ -33,35 +32,19 @@ type clockSSEStream struct {
 	decoder func(*http.Request) loomhttp.Decoder
 }
 
-func (s *clockSSEStream) initSSEHeaders() {
-	s.once.Do(func() {
-		header := s.w.Header()
-		header.Set("Content-Type", "text/event-stream")
-		header.Set("Cache-Control", "no-cache")
-		header.Set("Connection", "keep-alive")
-		header.Set("X-Accel-Buffering", "no")
-		s.w.WriteHeader(http.StatusOK)
-	})
+// Open commits and flushes the successful SSE response before the first event.
+func (s *clockSSEStream) Open(ctx context.Context) error {
+	return s.writer.Open(ctx)
+}
+
+// SendComment writes and flushes an SSE heartbeat comment.
+func (s *clockSSEStream) SendComment(ctx context.Context, text string) error {
+	return s.writer.SendComment(ctx, text)
 }
 func (s *clockSSEStream) sendSSEEvent(eventType string, v any) error {
-	s.initSSEHeaders()
-	if err := loomhttp.WriteJSONSSEEvent(s.w, loomhttp.SSEMessage{Type: eventType}, v); err != nil {
-		loomtransport.Observe(s.r.Context(), loomtransport.Event{
-			Kind:      loomtransport.EventKindStreamFailure,
-			Reason:    loomtransport.ReasonStreamWriteFailed,
-			Transport: loomtransport.TransportJSONRPC,
-		})
-		return err
-	}
-	if err := http.NewResponseController(s.w).Flush(); err != nil {
-		loomtransport.Observe(s.r.Context(), loomtransport.Event{
-			Kind:      loomtransport.EventKindStreamFailure,
-			Reason:    loomtransport.ReasonStreamFlushFailed,
-			Transport: loomtransport.TransportJSONRPC,
-		})
-		return err
-	}
-	return nil
+	return s.writer.WriteEvent(s.r.Context(), func(w io.Writer) error {
+		return loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: eventType}, v)
+	})
 }
 func (s *clockSSEStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)

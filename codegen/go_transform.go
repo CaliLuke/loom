@@ -143,7 +143,7 @@ func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targe
 	case expr.IsMap(source.Type):
 		return transformMap(expr.AsMap(source.Type), expr.AsMap(target.Type), sourceVar, targetVar, newVar, ta)
 	case expr.IsUnion(source.Type):
-		return transformUnion(source, target, sourceVar, targetVar, newVar, false, ta)
+		return transformUnion(source, target, sourceVar, targetVar, newVar, nil, ta)
 	case expr.IsObject(source.Type):
 		return transformObject(source, target, sourceVar, targetVar, newVar, ta)
 	default:
@@ -303,7 +303,8 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 	var code *jen.Statement
 	var err error
 	if expr.IsUnion(srcc.Type) {
-		code, err = transformUnion(srcc, tgtc, srcFieldVar, tgtFieldVar, false, !tgtMatt.IsRequired(name), ta)
+		targetIsPointer := !tgtMatt.IsRequired(name)
+		code, err = transformUnion(srcc, tgtc, srcFieldVar, tgtFieldVar, false, &targetIsPointer, ta)
 	} else {
 		code, err = transformObjectFieldAssignment(srcc, tgtc, srcFieldVar, tgtFieldVar, ta)
 	}
@@ -323,7 +324,7 @@ func transformObjectFieldAssignment(srcc, tgtc *expr.AttributeExpr, srcVar, tgtV
 	case expr.IsMap(srcc.Type):
 		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, ta)
 	case expr.IsUnion(srcc.Type):
-		return transformUnion(srcc, tgtc, srcVar, tgtVar, false, false, ta)
+		return transformUnion(srcc, tgtc, srcVar, tgtVar, false, nil, ta)
 	case isUserType:
 		if expr.IsPrimitive(srcc.Type) {
 			return nil, nil
