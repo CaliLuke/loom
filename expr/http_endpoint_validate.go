@@ -394,6 +394,9 @@ func (e *HTTPEndpointExpr) validateStreamingSSE(verr *eval.ValidationErrors) {
 	if e.SSE == nil {
 		return
 	}
+	if e.SSE.NotificationMethod != "" && !e.IsJSONRPC() {
+		verr.Add(e, "SSENotificationMethod can only be used by JSON-RPC endpoints")
+	}
 	switch e.MethodExpr.Stream {
 	case BidirectionalStreamKind:
 		verr.Add(e, "Server-Sent Events cannot be used with bidirectional streaming endpoints")

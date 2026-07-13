@@ -178,6 +178,25 @@ func TestServerSentEventsDSLErrors(t *testing.T) {
 			wantErr: "Server-Sent Events can only be used with endpoints that have a streaming result or mixed results",
 		},
 		{
+			name: "notification method on plain HTTP SSE",
+			dsl: func() {
+				Service("svc", func() {
+					Method("watch", func() {
+						StreamingResult(func() {
+							Field(1, "message", String)
+						})
+						HTTP(func() {
+							GET("/watch")
+							ServerSentEvents(func() {
+								SSENotificationMethod("notifications/progress")
+							})
+						})
+					})
+				})
+			},
+			wantErr: "SSENotificationMethod can only be used by JSON-RPC endpoints",
+		},
+		{
 			name: "sse with bidirectional streaming",
 			dsl: func() {
 				Service("svc", func() {
