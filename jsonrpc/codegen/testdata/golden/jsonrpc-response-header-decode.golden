@@ -88,17 +88,6 @@ func testcase() {
 	}
 }
 
-// case: slice-flag-on-non-array
-func testcase() {
-	{
-		oddRaw := resp.Header["X-Odd"]
-		odd = make([]int, len(oddRaw))
-		for i, rv := range oddRaw {
-			// unsupported non-array type for var odd
-		}
-	}
-}
-
 // case: int-required
 func testcase() {
 	{
@@ -119,14 +108,6 @@ func testcase() {
 	{
 		rawRaw := resp.Header.Get("X-Raw")
 		raw = []byte(rawRaw)
-	}
-}
-
-// case: unsupported-map
-func testcase() {
-	{
-		metaRaw := resp.Header.Get("X-Meta")
-		// unsupported type map for var meta
 	}
 }
 

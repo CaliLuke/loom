@@ -50,7 +50,7 @@ func TestAnalyzePanicsOnIncompatibleRequestBody(t *testing.T) {
 				services.Get("ServiceBodyUserInner")
 			})
 
-			require.ErrorContains(t, err, "build HTTP payload transform for MethodBodyUserInner")
+			require.ErrorContains(t, err, "build HTTP server payload transform for MethodBodyUserInner")
 		})
 	}
 }
@@ -83,7 +83,7 @@ func TestAnalyzePanicsOnUnknownResponseBodyView(t *testing.T) {
 		services.Get("ServiceBodyMultipleView")
 	})
 
-	require.ErrorContains(t, err, `project response body view "bogus"`)
+	require.ErrorContains(t, err, `project generated response body view "bogus"`)
 }
 
 func TestEffectiveClientResponseBodyPanicsOnUnknownView(t *testing.T) {
@@ -107,7 +107,7 @@ func TestEffectiveClientResponseBodyPanicsOnUnknownView(t *testing.T) {
 		effectiveClientResponseBody(body, methodResult, md)
 	})
 
-	require.ErrorContains(t, err, `project response body view "bogus"`)
+	require.ErrorContains(t, err, `project effective client response body view "bogus"`)
 }
 
 func TestAnalyzePanicsOnIncompatibleWebSocketStreamingBody(t *testing.T) {

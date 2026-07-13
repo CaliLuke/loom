@@ -143,7 +143,7 @@ func validationGoLiteral(v any) string {
 }
 
 // constant returns the Go constant name of the format with the given value.
-func constant(formatName string) string {
+func constant(formatName string, att *expr.AttributeExpr) string {
 	switch formatName {
 	case "date":
 		return "loom.FormatDate"
@@ -174,5 +174,9 @@ func constant(formatName string) string {
 	case "rfc1123":
 		return "loom.FormatRFC1123"
 	}
-	panic("unknown format") // bug
+	err := fmt.Errorf("unknown validation format %q", formatName)
+	if att == nil {
+		panic(NewError(nil, nil, err))
+	}
+	panic(NewError(nil, att, err))
 }

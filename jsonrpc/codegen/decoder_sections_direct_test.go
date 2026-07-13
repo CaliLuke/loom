@@ -16,8 +16,7 @@ import (
 
 // TestWriteResponseHeaderDecodeGolden covers every branch of the response
 // header decoding writer: string headers (required, optional, defaulted),
-// string slices, scalar slices, byte slices, scalar conversions and the
-// unsupported-type fallbacks.
+// string slices, scalar slices, byte slices, and scalar conversions.
 func TestWriteResponseHeaderDecodeGolden(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -112,15 +111,6 @@ func TestWriteResponseHeaderDecodeGolden(t *testing.T) {
 			}, "X-Vals", false, true),
 		},
 		{
-			name: "slice-flag-on-non-array",
-			header: makeHeader(&httpcodegen.AttributeData{
-				Name:    "odd",
-				VarName: "odd",
-				Type:    expr.Int,
-				TypeRef: "[]int",
-			}, "X-Odd", false, true),
-		},
-		{
 			name: "int-required",
 			header: makeHeader(&httpcodegen.AttributeData{
 				Name:     "count",
@@ -139,18 +129,6 @@ func TestWriteResponseHeaderDecodeGolden(t *testing.T) {
 				TypeRef: "[]byte",
 			}, "X-Raw", false, false),
 		},
-		{
-			name: "unsupported-map",
-			header: makeHeader(&httpcodegen.AttributeData{
-				Name:    "meta",
-				VarName: "meta",
-				Type: &expr.Map{
-					KeyType:  &expr.AttributeExpr{Type: expr.String},
-					ElemType: &expr.AttributeExpr{Type: expr.String},
-				},
-				TypeRef: "map[string]string",
-			}, "X-Meta", false, false),
-		},
 	}
 
 	var rendered strings.Builder
@@ -165,6 +143,48 @@ func TestWriteResponseHeaderDecodeGolden(t *testing.T) {
 
 	golden := filepath.Join("testdata", "golden", "jsonrpc-response-header-decode.golden")
 	testutil.AssertString(t, golden, rendered.String())
+}
+
+func TestWriteResponseHeaderDecodeRejectsImpossibleShapes(t *testing.T) {
+	cases := []struct {
+		name   string
+		header *httpcodegen.HeaderData
+		want   string
+	}{
+		{
+			name: "slice flag on non-array",
+			header: makeHeader(&httpcodegen.AttributeData{
+				Name:    "odd",
+				VarName: "odd",
+				Type:    expr.Int,
+				TypeRef: "[]int",
+			}, "X-Odd", false, true),
+			want: `decode JSON-RPC response field "odd": slice conversion requires an array type, got int`,
+		},
+		{
+			name: "unsupported map",
+			header: makeHeader(&httpcodegen.AttributeData{
+				Name:    "meta",
+				VarName: "meta",
+				Type: &expr.Map{
+					KeyType:  &expr.AttributeExpr{Type: expr.String},
+					ElemType: &expr.AttributeExpr{Type: expr.String},
+				},
+				TypeRef: "map[string]string",
+			}, "X-Meta", false, false),
+			want: `decode JSON-RPC response field "meta": unsupported type map`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.PanicsWithError(t, tc.want, func() {
+				renderGroupWriter(t, func(g *jen.Group) {
+					writeResponseHeaderDecode(g, tc.header)
+				})
+			})
+		})
+	}
 }
 
 // TestWriteSingleResponseDecodeElements covers the header and cookie block

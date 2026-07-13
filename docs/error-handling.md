@@ -84,6 +84,12 @@ var _ = Service("calc", func() {
 })
 ```
 
+An error declared with `Error(...)` but omitted from the method's JSON-RPC
+`Response(...)` mappings has no typed transport contract. Generated clients
+therefore return the raw `*jsonrpc.Error` and do not decode or validate its
+`data` field. Add a JSON-RPC `Response` mapping whenever callers need a typed,
+validated service error.
+
 ---
 
 ## Error Types

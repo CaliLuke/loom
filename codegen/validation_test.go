@@ -492,9 +492,10 @@ func TestConstantPanicsOnUnknownFormat(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			require.PanicsWithValue(t, "unknown format", func() {
-				constant(c.Format)
+			err := recoverCodegenPanic(t, func() {
+				constant(c.Format, nil)
 			})
+			require.ErrorContains(t, err, `unknown validation format "`+c.Format+`"`)
 		})
 	}
 }
@@ -511,7 +512,24 @@ func TestValidationCodePanicsOnUnknownFormat(t *testing.T) {
 		Type:       expr.String,
 		Validation: &expr.ValidationExpr{Format: "not-a-format"},
 	}
-	require.PanicsWithValue(t, "unknown format", func() {
+	err := recoverCodegenPanic(t, func() {
 		ValidationCode(att, nil, ctx, true, false, false, "target")
 	})
+	require.ErrorContains(t, err, `unknown validation format "not-a-format"`)
+	var codegenErr *Error
+	require.ErrorAs(t, err, &codegenErr)
+	require.Same(t, att, codegenErr.Expr)
+}
+
+func recoverCodegenPanic(t *testing.T, fn func()) (err error) {
+	t.Helper()
+	defer func() {
+		recovered := recover()
+		require.NotNil(t, recovered, "expected code generation to panic")
+		var ok bool
+		err, ok = recovered.(error)
+		require.True(t, ok, "panic value is not an error: %v", recovered)
+	}()
+	fn()
+	return nil
 }

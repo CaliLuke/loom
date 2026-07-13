@@ -221,7 +221,7 @@ func renderEnumValidation(data validationRenderData) string {
 
 func renderFormatValidation(data validationRenderData) string {
 	return renderSimplePointerWrappedValidation(data.IsPointer, data.Target,
-		"err = loom.MergeErrors(err, loom.ValidateFormat("+quoteString(data.Context)+", "+data.TargetValue+", "+constant(data.Format)+"))")
+		"err = loom.MergeErrors(err, loom.ValidateFormat("+quoteString(data.Context)+", "+data.TargetValue+", "+constant(data.Format, data.Attribute)+"))")
 }
 
 func renderPatternValidation(data validationRenderData) string {

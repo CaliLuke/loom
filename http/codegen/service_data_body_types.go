@@ -136,7 +136,7 @@ func projectResponseBodyView(body *expr.AttributeExpr, view *string, svr bool, s
 		var err error
 		rt, err = expr.Project(rt, *view)
 		if err != nil {
-			panic(codegen.NewError(nil, body, fmt.Errorf("project response body view %q: %w", *view, err)))
+			panic(codegen.NewError(nil, body, fmt.Errorf("project generated response body view %q: %w", *view, err)))
 		}
 		body.Type = rt
 		if svr {

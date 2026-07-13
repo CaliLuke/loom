@@ -401,8 +401,7 @@ func writeElementSliceConversion(g *jen.Group, a *httpcodegen.AttributeData) {
 func writeSliceItemConversion(g *jen.Group, a *httpcodegen.AttributeData) {
 	arr := expr.AsArray(a.Type)
 	if arr == nil {
-		g.Comment("unsupported non-array type for var " + a.VarName)
-		return
+		panic(codegen.NewError(nil, nil, fmt.Errorf("decode JSON-RPC response field %q: slice conversion requires an array type, got %s", a.Name, a.Type.Name())))
 	}
 	if writeScalarSliceItemConversion(g, a, arr.ElemType.Type.Name()) {
 		return
@@ -414,7 +413,7 @@ func writeQueryTypeConversion(g *jen.Group, a *httpcodegen.AttributeData) {
 	if writeScalarQueryTypeConversion(g, a, a.Type.Name()) {
 		return
 	}
-	g.Comment("unsupported type " + a.Type.Name() + " for var " + a.VarName)
+	panic(codegen.NewError(nil, nil, fmt.Errorf("decode JSON-RPC response field %q: unsupported type %s", a.Name, a.Type.Name())))
 }
 
 type scalarParseSpec struct {

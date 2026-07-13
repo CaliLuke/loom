@@ -410,7 +410,6 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool) {
 	clientCode := ""
 	origin := ""
 	pointer := false
-	var err error
 	pAtt := b.payload
 	request := b.endpointIR.Request
 	if b.body != expr.Empty {
@@ -420,31 +419,34 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool) {
 			pointer = !b.payload.IsRequired(o[0]) && expr.IsPrimitive(pAtt.Type)
 		}
 		var helpers []*codegen.TransformFunctionData
+		var err error
 		serverCode, helpers, err = unmarshal(request.Body, pAtt, "body", b.httpsvrctx, b.svcctx)
-		if err == nil {
-			b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
+		if err != nil {
+			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP server payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}
+		b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
 		clientCode, helpers, err = marshal(request.Body, pAtt, "body", "v", b.httpclictx, b.svcctx)
-		if err == nil {
-			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
+		if err != nil {
+			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP client payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}
+		b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
 	} else if expr.IsArray(b.payload.Type) || expr.IsMap(b.payload.Type) {
 		if len(request.PathParams) > 0 {
 			var helpers []*codegen.TransformFunctionData
+			var err error
 			sourceParam := request.PathParams[0]
 			source := codegen.Goify(sourceParam.Name, false)
 			serverCode, helpers, err = unmarshal(sourceParam.Attribute, b.payload, source, b.httpsvrctx, b.svcctx)
-			if err == nil {
-				b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
+			if err != nil {
+				panic(codegen.NewError(b.sds.Ctx, sourceParam.Attribute, fmt.Errorf("build HTTP server path payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
+			b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
 			clientCode, helpers, err = marshal(sourceParam.Attribute, b.payload, source, "v", b.httpclictx, b.svcctx)
-			if err == nil {
-				b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
+			if err != nil {
+				panic(codegen.NewError(b.sds.Ctx, sourceParam.Attribute, fmt.Errorf("build HTTP client path payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
+			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
 		}
-	}
-	if err != nil {
-		panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP payload transform for %s: %w", b.endpointIR.MethodName, err)))
 	}
 	return serverCode, clientCode, origin, pointer
 }
