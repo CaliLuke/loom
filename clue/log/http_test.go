@@ -26,14 +26,19 @@ func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return f(r)
 }
 
-// failingBody is a response body whose Read always fails.
-type failingBody struct{}
-
-func (failingBody) Read([]byte) (int, error) {
-	return 0, errors.New("read failed")
+type partialFailingBody struct {
+	sent bool
 }
 
-func (failingBody) Close() error {
+func (b *partialFailingBody) Read(p []byte) (int, error) {
+	if b.sent {
+		return 0, errors.New("read failed")
+	}
+	b.sent = true
+	return copy(p, "partial"), nil
+}
+
+func (*partialFailingBody) Close() error {
 	return nil
 }
 
@@ -355,6 +360,20 @@ func TestResponseCaptureWriteAndHeader(t *testing.T) {
 	assert.Equal(t, "hello", rec.Body.String())
 }
 
+func TestResponseCaptureImplicitStatusOK(t *testing.T) {
+	rec := httptest.NewRecorder()
+	rw := &responseCapture{ResponseWriter: rec}
+
+	n, err := rw.Write([]byte("hello"))
+	require.NoError(t, err)
+	require.Equal(t, 5, n)
+	require.Equal(t, http.StatusOK, rw.StatusCode)
+
+	rw = &responseCapture{ResponseWriter: httptest.NewRecorder()}
+	rw.Flush()
+	require.Equal(t, http.StatusOK, rw.StatusCode)
+}
+
 func TestResponseCaptureFlush(t *testing.T) {
 	rec := httptest.NewRecorder()
 	rw := &responseCapture{ResponseWriter: rec}
@@ -375,16 +394,18 @@ func TestClientLogBodyOnErrorReadFailure(t *testing.T) {
 		return &http.Response{
 			StatusCode: http.StatusBadRequest,
 			Status:     "400 Bad Request",
-			Body:       failingBody{},
+			Body:       &partialFailingBody{},
 		}, nil
 	}), WithLogBodyOnError())
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/api", nil)
 	resp, err := rt.RoundTrip(req.WithContext(ctx))
 
-	// The read error is logged but not returned.
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	body, readErr := io.ReadAll(resp.Body)
+	require.Equal(t, "partial", string(body))
+	require.EqualError(t, readErr, "read failed")
 	require.NoError(t, resp.Body.Close())
 	require.Contains(t, buf.String(), `err="read failed"`)
 }

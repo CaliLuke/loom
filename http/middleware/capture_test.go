@@ -106,6 +106,7 @@ func TestCaptureResponseWrite(t *testing.T) {
 			}
 
 			assert.Equal(t, c.wantLen, cw.ContentLength)
+			assert.Equal(t, http.StatusOK, cw.StatusCode)
 			assert.Equal(t, total.String(), rec.Body.String(), "body not forwarded to underlying writer")
 		})
 	}
@@ -119,6 +120,7 @@ func TestCaptureResponseFlush(t *testing.T) {
 		cw.Flush()
 
 		assert.True(t, rec.Flushed, "flush not forwarded to underlying writer")
+		assert.Equal(t, http.StatusOK, cw.StatusCode)
 	})
 
 	t.Run("degrades without flusher", func(t *testing.T) {

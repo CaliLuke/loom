@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"testing"
 
@@ -36,7 +37,7 @@ func TestStdLoggerPrint(t *testing.T) {
 			log: func(l *StdLogger) {
 				l.Println("line")
 			},
-			want: "msg=\"line\n\"",
+			want: `msg="line\n"`,
 		},
 	}
 	for _, tc := range cases {
@@ -74,7 +75,7 @@ func TestStdLoggerFatal(t *testing.T) {
 			log: func(l *StdLogger) {
 				l.Fatalln("boom")
 			},
-			want: "msg=\"boom\n\"",
+			want: `msg="boom\n"`,
 		},
 	}
 	for _, tc := range cases {
@@ -118,7 +119,7 @@ func TestStdLoggerPanic(t *testing.T) {
 				l.Panicln("boom")
 			},
 			wantPanic: "boom\n",
-			wantLog:   "msg=\"boom\n\"",
+			wantLog:   `msg="boom\n"`,
 		},
 	}
 	for _, tc := range cases {
@@ -139,7 +140,7 @@ func TestAWSLogger(t *testing.T) {
 		classification logging.Classification
 		want           string
 	}{
-		{"warn logs at info", logging.Warn, "level=info"},
+		{"warn logs at warn", logging.Warn, "level=warn"},
 		{"debug logs at debug", logging.Debug, "level=debug"},
 	}
 	for _, tc := range cases {
@@ -154,14 +155,21 @@ func TestAWSLogger(t *testing.T) {
 }
 
 func TestAWSLoggerWithContext(t *testing.T) {
+	type contextKey string
+	const key contextKey = "key"
+
 	var buf bytes.Buffer
-	l := AsAWSLogger(newTestContext(&buf, WithDebug()))
-	l2 := l.WithContext(newTestContext(&bytes.Buffer{}))
+	original := context.WithValue(newTestContext(&buf, WithDebug()), key, "original")
+	replacement := context.WithValue(newTestContext(&bytes.Buffer{}), key, "replacement")
+	l := AsAWSLogger(original)
+	l2 := l.WithContext(replacement)
 
 	// The returned logger keeps the original clue logger attached to the new
 	// context.
 	awsl, ok := l2.(*AWSLogger)
 	require.True(t, ok)
+	require.Equal(t, "original", l.Value(key))
+	require.Equal(t, "replacement", awsl.Value(key))
 	awsl.Logf(logging.Warn, "relogged")
 	require.Contains(t, buf.String(), "msg=relogged")
 }
@@ -219,6 +227,13 @@ func TestLogrSinkWithValues(t *testing.T) {
 
 	require.Contains(t, buf.String(), "bound=value")
 	require.Contains(t, buf.String(), "msg=hi")
+
+	buf.Reset()
+	named := sink.WithName("outer").(*LogrSink)
+	nested := named.WithValues("bound", "value").(*LogrSink).WithName("inner")
+	nested.Info(0, "nested")
+	require.Contains(t, buf.String(), "log=outer/inner")
+	require.Contains(t, buf.String(), "bound=value")
 }
 
 func TestLogrSinkWithName(t *testing.T) {
@@ -232,6 +247,15 @@ func TestLogrSinkWithName(t *testing.T) {
 	nested := named.(*LogrSink).WithName("inner")
 	nested.Info(0, "second")
 	require.Contains(t, buf.String(), "log=outer/inner")
+
+	buf.Reset()
+	firstSibling := sink.WithName("first")
+	secondSibling := sink.WithName("second")
+	firstSibling.Info(0, "first sibling")
+	secondSibling.Info(0, "second sibling")
+	require.Contains(t, buf.String(), "log=first")
+	require.Contains(t, buf.String(), "log=second")
+	require.NotContains(t, buf.String(), "log=first/second")
 }
 
 func TestMiddlewareLogger(t *testing.T) {

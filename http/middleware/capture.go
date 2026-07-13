@@ -29,12 +29,17 @@ func CaptureResponse(w http.ResponseWriter) *ResponseCapture {
 
 // WriteHeader records the value of the status code before writing it.
 func (w *ResponseCapture) WriteHeader(code int) {
-	w.StatusCode = code
+	if w.StatusCode == 0 {
+		w.StatusCode = code
+	}
 	w.ResponseWriter.WriteHeader(code)
 }
 
 // Write computes the written len and stores it in ContentLength.
 func (w *ResponseCapture) Write(b []byte) (int, error) {
+	if w.StatusCode == 0 {
+		w.StatusCode = http.StatusOK
+	}
 	n, err := w.ResponseWriter.Write(b)
 	w.ContentLength += n
 	return n, err
@@ -42,7 +47,12 @@ func (w *ResponseCapture) Write(b []byte) (int, error) {
 
 // Flush call http.ResponseController Flush() method
 func (w *ResponseCapture) Flush() {
-	_ = http.NewResponseController(w.ResponseWriter).Flush()
+	if w.StatusCode == 0 {
+		w.StatusCode = http.StatusOK
+	}
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 // Push implements the http.Pusher interface if the underlying response

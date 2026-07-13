@@ -41,6 +41,11 @@ func TestFormatText(t *testing.T) {
 			want:    prefix + ` k="say \"hi\"\\now"` + "\n",
 		},
 		{
+			name:    "control characters stay on one logfmt line",
+			keyvals: kvList{{K: "k", V: "first\nsecond\rthird\tfourth"}},
+			want:    prefix + ` k="first\nsecond\rthird\tfourth"` + "\n",
+		},
+		{
 			name:    "empty string is quoted",
 			keyvals: kvList{{K: "k", V: ""}},
 			want:    prefix + ` k=""` + "\n",

@@ -111,11 +111,22 @@ func TestWithMaxSize(t *testing.T) {
 }
 
 func TestWithFileLocation(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := newTestContext(&buf, WithFileLocation())
-	Printf(ctx, "located")
-
-	require.Contains(t, buf.String(), "file=log/options_test.go:")
+	cases := []struct {
+		name string
+		log  func(context.Context)
+	}{
+		{name: "printf", log: func(ctx context.Context) { Printf(ctx, "located") }},
+		{name: "print", log: func(ctx context.Context) { Print(ctx, KV{K: "msg", V: "located"}) }},
+		{name: "info", log: func(ctx context.Context) { Info(ctx, KV{K: "msg", V: "located"}) }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			ctx := newTestContext(&buf, WithFileLocation(), WithDisableBuffering(func(context.Context) bool { return true }))
+			tc.log(ctx)
+			require.Contains(t, buf.String(), "file=log/options_test.go:")
+		})
+	}
 }
 
 func TestWithFunc(t *testing.T) {

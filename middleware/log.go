@@ -34,12 +34,12 @@ func (a *adapter) Log(keyvals ...any) error {
 		keyvals = append(keyvals, "MISSING")
 	}
 	var fm bytes.Buffer
-	vals := make([]any, n)
+	vals := make([]any, 0, n*2)
 	for i := 0; i < len(keyvals); i += 2 {
 		k := keyvals[i]
 		v := keyvals[i+1]
-		vals[i/2] = v
-		fm.WriteString(fmt.Sprintf(" %s=%%+v", k))
+		vals = append(vals, fmt.Sprint(k), v)
+		fm.WriteString(" %s=%+v")
 	}
 	a.Printf(strings.TrimSpace(fm.String()), vals...)
 	return nil

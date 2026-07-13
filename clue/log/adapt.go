@@ -3,7 +3,6 @@ package log
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/aws/smithy-go/logging"
 	"github.com/go-logr/logr"
@@ -22,7 +21,6 @@ type (
 
 	// LogrSink returns a logr LogSink compatible logger.
 	LogrSink struct {
-		lock sync.Mutex
 		name string
 		context.Context
 	}
@@ -153,15 +151,17 @@ func (l *StdLogger) Println(v ...any) {
 
 func (l *AWSLogger) Logf(classification logging.Classification, format string, v ...any) {
 	fn := Infof
-	if classification == logging.Debug {
+	switch classification {
+	case logging.Debug:
 		fn = Debugf
+	case logging.Warn:
+		fn = Warnf
 	}
 	fn(l, format, v...)
 }
 
 func (l *AWSLogger) WithContext(ctx context.Context) logging.Logger {
-	l.Context = WithContext(ctx, l)
-	return l
+	return &AWSLogger{Context: WithContext(ctx, l)}
 }
 
 func (l *LogrSink) Init(info logr.RuntimeInfo) {}
@@ -197,18 +197,16 @@ func (l *LogrSink) WithValues(keysAndValues ...any) logr.LogSink {
 	for i := 0; i < len(keysAndValues); i += 2 {
 		kvs[i/2] = KV{K: fmt.Sprint(keysAndValues[i]), V: keysAndValues[i+1]}
 	}
-	return &LogrSink{Context: With(l, kvList(kvs))}
+	return &LogrSink{Context: With(l, kvList(kvs)), name: l.name}
 }
 
 func (l *LogrSink) WithName(name string) logr.LogSink {
-	l.lock.Lock()
-	defer l.lock.Unlock()
 	cur := l.name
 	if cur != "" {
 		cur += "/"
 	}
-	l.name = cur + name
-	return &LogrSink{Context: With(l, KV{NameKey, l.name}), name: l.name}
+	cur += name
+	return &LogrSink{Context: With(l, KV{NameKey, cur}), name: cur}
 }
 
 // Log creates a log entry using a sequence of key/value pairs.

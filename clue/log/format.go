@@ -108,10 +108,23 @@ func appendEscapedString(b []byte, s string) []byte {
 	if needsQuoting(s) {
 		b = append(b, '"')
 		for i := 0; i < len(s); i++ {
-			if s[i] == '"' || s[i] == '\\' {
+			switch s[i] {
+			case '"', '\\':
 				b = append(b, '\\')
+				b = append(b, s[i])
+			case '\n':
+				b = append(b, `\n`...)
+			case '\r':
+				b = append(b, `\r`...)
+			case '\t':
+				b = append(b, `\t`...)
+			case '\b':
+				b = append(b, `\b`...)
+			case '\f':
+				b = append(b, `\f`...)
+			default:
+				b = append(b, s[i])
 			}
-			b = append(b, s[i])
 		}
 		b = append(b, '"')
 	} else {

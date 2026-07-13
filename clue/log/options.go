@@ -4,8 +4,10 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"golang.org/x/term"
 
@@ -140,20 +142,30 @@ func WithMaxSize(n int) LogOption {
 // directory, file and line number of the caller: "file=dir/file.go:123".
 func WithFileLocation() LogOption {
 	return WithFunc(func(context.Context) []KV {
-		_, file, line, _ := runtime.Caller(4)
-		short := file
-		second := false
-		for i := len(file) - 1; i > 0; i-- {
-			if file[i] == '/' {
-				if second {
-					short = file[i+1:]
-					break
-				}
-				second = true
-			}
-		}
-		return []KV{{"file", short + ":" + strconv.Itoa(line)}}
+		file, line := callerLocation()
+		return []KV{{"file", shortLocation(file) + ":" + strconv.Itoa(line)}}
 	})
+}
+
+func callerLocation() (string, int) {
+	_, ownFile, _, _ := runtime.Caller(0)
+	packageDir := filepath.Dir(ownFile)
+	pcs := make([]uintptr, 16)
+	n := runtime.Callers(2, pcs)
+	frames := runtime.CallersFrames(pcs[:n])
+	for {
+		frame, more := frames.Next()
+		if filepath.Dir(frame.File) != packageDir || strings.HasSuffix(frame.File, "_test.go") {
+			return frame.File, frame.Line
+		}
+		if !more {
+			return frame.File, frame.Line
+		}
+	}
+}
+
+func shortLocation(file string) string {
+	return filepath.Join(filepath.Base(filepath.Dir(file)), filepath.Base(file))
 }
 
 // WithFunc sets a key/value pair generator function to be called with every

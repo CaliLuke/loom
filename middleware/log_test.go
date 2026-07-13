@@ -40,6 +40,11 @@ func TestNewLoggerLog(t *testing.T) {
 			keyvals: []any{"ok", true, "count", 42},
 			want:    "ok=true count=42\n",
 		},
+		{
+			name:    "percent sign in key",
+			keyvals: []any{"rate%", 42},
+			want:    "rate%=42\n",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -48,6 +48,15 @@ type (
 		StatusCode    int
 		ContentLength int
 	}
+
+	errorReader struct {
+		err error
+	}
+
+	replayErrorBody struct {
+		io.Reader
+		io.Closer
+	}
 )
 
 // HTTP returns a HTTP middleware that performs two tasks:
@@ -195,9 +204,13 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	durKV := KV{K: HTTPDurationKey, V: ms}
 	if c.options.iserr(resp.StatusCode) {
 		if c.options.logErrBody {
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				Error(req.Context(), err, msgKV, methKV, urlKV, statusKV, durKV)
+			body, readErr := io.ReadAll(resp.Body)
+			if readErr != nil {
+				resp.Body = &replayErrorBody{
+					Reader: io.MultiReader(bytes.NewReader(body), errorReader{err: readErr}),
+					Closer: resp.Body,
+				}
+				Error(req.Context(), readErr, msgKV, methKV, urlKV, statusKV, durKV)
 				return resp, nil
 			}
 			resp.Body = io.NopCloser(bytes.NewBuffer(body))
@@ -213,12 +226,17 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 
 // WriteHeader records the value of the status code before writing it.
 func (w *responseCapture) WriteHeader(code int) {
-	w.StatusCode = code
+	if w.StatusCode == 0 {
+		w.StatusCode = code
+	}
 	w.ResponseWriter.WriteHeader(code)
 }
 
 // Write computes the written len and stores it in ContentLength.
 func (w *responseCapture) Write(b []byte) (int, error) {
+	if w.StatusCode == 0 {
+		w.StatusCode = http.StatusOK
+	}
 	n, err := w.ResponseWriter.Write(b)
 	w.ContentLength += n
 	return n, err
@@ -227,9 +245,16 @@ func (w *responseCapture) Write(b []byte) (int, error) {
 // Flush implements the http.Flusher interface if the underlying response
 // writer supports it.
 func (w *responseCapture) Flush() {
+	if w.StatusCode == 0 {
+		w.StatusCode = http.StatusOK
+	}
 	if f, ok := w.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
+}
+
+func (r errorReader) Read([]byte) (int, error) {
+	return 0, r.err
 }
 
 // Push implements the http.Pusher interface if the underlying response

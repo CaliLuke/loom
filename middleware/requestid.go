@@ -60,8 +60,10 @@ func GenerateRequestID(ctx context.Context, o *RequestIDOptions) context.Context
 // the unique request ID.
 func UseRequestIDOption(f bool) RequestIDOption {
 	return func(o *RequestIDOptions) *RequestIDOptions {
-		o.requestIDHeader = "X-Request-Id"
 		o.useRequestID = f
+		if f && o.requestIDHeader == "" {
+			o.requestIDHeader = "X-Request-Id"
+		}
 		return o
 	}
 }

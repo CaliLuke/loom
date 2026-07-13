@@ -28,10 +28,10 @@ func TestNewRequestIDOptions(t *testing.T) {
 			wantHeader: "X-Request-Id",
 		},
 		{
-			name:       "use request ID disabled still sets default header",
+			name:       "use request ID disabled has no header side effect",
 			options:    []RequestIDOption{UseRequestIDOption(false)},
 			wantUse:    false,
-			wantHeader: "X-Request-Id",
+			wantHeader: "",
 		},
 		{
 			name:       "custom header enables use",
@@ -46,6 +46,15 @@ func TestNewRequestIDOptions(t *testing.T) {
 				RequestIDHeaderOption("X-Custom-Id"),
 			},
 			wantUse:    true,
+			wantHeader: "X-Custom-Id",
+		},
+		{
+			name: "disable preserves configured header",
+			options: []RequestIDOption{
+				RequestIDHeaderOption("X-Custom-Id"),
+				UseRequestIDOption(false),
+			},
+			wantUse:    false,
 			wantHeader: "X-Custom-Id",
 		},
 		{
