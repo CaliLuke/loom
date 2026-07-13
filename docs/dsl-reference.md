@@ -364,6 +364,14 @@ manual or raw response paths, including `SkipResponseBodyEncodeDecode()`. It
 uses the same shape arguments as `Body(...)`, but it only affects the OpenAPI
 contract and does not add runtime response encoding.
 
+`OpenAPIRequestBody(schema, contentType, required, fn...)` is the request-side
+counterpart for endpoints using `SkipRequestBodyEncodeDecode()`. It publishes
+the explicit schema, media type, description, examples, and
+`requestBody.required` value without enabling generated request parsing,
+buffering, or validation. The schema may be `Bytes`, `String`, a payload
+attribute name, or a named type. It is incompatible with typed `Body(...)`,
+form, multipart, optional JSON body, and non-raw request modes.
+
 `Link(...)` inside an HTTP `Response(...)` publishes OpenAPI response links.
 Use `LinkOperation(...)` or `LinkOperationRef(...)` to identify the target
 operation, `LinkParam(...)` to map link parameters from runtime expressions,
@@ -1029,6 +1037,7 @@ Request body mode expressions:
 - `MultipartRequest` - Use `multipart/form-data` request encoding
 - `OptionalRequestBody` - Allow an omitted JSON body for an object body shape
 - `SkipRequestBodyEncodeDecode` - Pass the raw request body reader to the service
+- `OpenAPIRequestBody` - Document a raw request stream in OpenAPI without decoding it
 - `SkipResponseBodyEncodeDecode` - Return a raw response body reader from the service
 
 ### Mapping Non-Object Payloads

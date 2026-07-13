@@ -138,6 +138,15 @@ build Auto-K without repeating large amounts of app-local glue.
 - Use `OptionalRequestBody()` when an HTTP endpoint may omit a JSON request body entirely.
 - `OptionalRequestBody()` is intentionally narrow: JSON only, object request bodies only, no raw body streaming, no multipart, no form bodies, and no required body-mapped payload attribute.
 - OpenAPI request bodies generated from `OptionalRequestBody()` render with `required: false`.
+- Use `OpenAPIRequestBody(schema, contentType, required, fn...)` with
+  `SkipRequestBodyEncodeDecode()` when a raw request stream needs an explicit
+  OpenAPI contract. The schema, media type, description, examples, and
+  requiredness are documentation-only; generated clients and servers continue
+  to pass the original stream without encoding, decoding, buffering, or
+  content validation.
+- `OpenAPIRequestBody(...)` is incompatible with typed `Body(...)`, form,
+  multipart, optional JSON request bodies, and endpoints that do not use
+  `SkipRequestBodyEncodeDecode()`.
 - Session auth is first-class. Prefer the built-in DSL instead of hand-rolling bearer-or-cookie glue:
   - `SessionAuth(name, fn)`
   - `BearerTransport(scheme, fieldName, fn...)`

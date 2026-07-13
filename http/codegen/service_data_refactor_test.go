@@ -229,6 +229,11 @@ func TestHTTPBuildStreamPayloadMultipartGating(t *testing.T) {
 			expectBuildStreaming: true,
 		},
 		{
+			name:                 "documented raw request body",
+			dsl:                  testdata.RawRequestBodyOpenAPIDSL,
+			expectBuildStreaming: true,
+		},
+		{
 			name:                 "custom multipart decoder path",
 			dsl:                  testdata.PayloadMultipartPrimitiveDSL,
 			expectBuildStreaming: false,
@@ -250,6 +255,15 @@ func TestHTTPBuildStreamPayloadMultipartGating(t *testing.T) {
 			require.Empty(t, endpoint.BuildStreamPayload)
 		})
 	}
+}
+
+func TestDocumentedRawRequestBodyPreservesRawTransportGeneration(t *testing.T) {
+	endpoint := firstEndpointData(t, testdata.RawRequestBodyOpenAPIDSL)
+
+	require.True(t, endpoint.Method.SkipRequestBodyEncodeDecode)
+	require.Nil(t, endpoint.Payload.Request.ServerBody)
+	require.Nil(t, endpoint.Payload.Request.ClientBody)
+	require.NotEmpty(t, endpoint.BuildStreamPayload)
 }
 
 func TestHTTPFileServerPathNormalizationAndWildcardExtraction(t *testing.T) {

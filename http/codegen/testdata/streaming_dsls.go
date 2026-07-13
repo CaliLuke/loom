@@ -34,6 +34,64 @@ var SkipRequestBodyEncodeDecodeDSL = func() {
 	})
 }
 
+var RawRequestBodyOpenAPIDSL = func() {
+	uploadKey := APIKeySecurity("upload_key")
+	manifest := Type("RawUploadManifest", func() {
+		Field(1, "name", String)
+		Field(2, "size", Int64)
+		Required("name", "size")
+	})
+
+	Service("raw_upload", func() {
+		Method("upload_binary", func() {
+			Security(uploadKey)
+			Payload(func() {
+				Field(1, "id", String)
+				Field(2, "filter", String)
+				Field(3, "checksum", String)
+				Field(4, "session", String)
+				APIKeyField(5, "upload_key", "key", String)
+				Required("id", "checksum", "key")
+			})
+			HTTP(func() {
+				POST("/uploads/{id}")
+				Param("filter")
+				Header("checksum:X-Checksum")
+				Header("key:X-Upload-Key")
+				Cookie("session:upload_session")
+				SkipRequestBodyEncodeDecode()
+				OpenAPIRequestBody(Bytes, "application/octet-stream", true, func() {
+					Description("Binary archive streamed directly to the service.")
+					Example([]byte("archive"))
+				})
+			})
+		})
+
+		Method("upload_text", func() {
+			NoSecurity()
+			HTTP(func() {
+				POST("/imports")
+				SkipRequestBodyEncodeDecode()
+				OpenAPIRequestBody(String, "text/plain; charset=utf-8", false, func() {
+					Description("Optional newline-delimited import commands.")
+					Example("create widget")
+				})
+			})
+		})
+
+		Method("upload_manifest", func() {
+			NoSecurity()
+			HTTP(func() {
+				POST("/manifests")
+				SkipRequestBodyEncodeDecode()
+				OpenAPIRequestBody(manifest, "application/vnd.loom.manifest+json", true, func() {
+					Description("Named manifest schema carried as an unparsed stream.")
+				})
+			})
+		})
+	})
+}
+
 var StreamingMultipleServicesDSL = func() {
 	Service("StreamingServiceA", func() {
 		Method("Method", func() {

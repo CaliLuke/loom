@@ -61,11 +61,21 @@ func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 }
 
 func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *RequestBody {
-	if endpointIR == nil || endpointIR.Request == nil || endpointIR.Request.Body == nil || endpointIR.Request.Body.Type == expr.Empty {
+	if endpointIR == nil || endpointIR.Request == nil {
 		return nil
 	}
-	bodyAttr := attributeForSchemaUsage(endpointIR.Request.Body, schemaUsageRequest)
+	body := endpointIR.Request.Body
 	contentType := "application/json"
+	required := endpointIR.Request.MustHaveBody
+	if endpointIR.Request.DocumentBody != nil {
+		body = endpointIR.Request.DocumentBody
+		contentType = endpointIR.Request.DocumentContentType
+		required = endpointIR.Request.DocumentRequired
+	}
+	if body == nil || body.Type == expr.Empty {
+		return nil
+	}
+	bodyAttr := attributeForSchemaUsage(body, schemaUsageRequest)
 	if endpointIR.Request.Multipart {
 		contentType = "multipart/form-data"
 	} else if endpointIR.Request.FormEncoded {
@@ -73,7 +83,7 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 	}
 	return &RequestBody{
 		Description:   requestBodyDescription(bodyAttr),
-		Required:      endpointIR.Request.MustHaveBody,
+		Required:      required,
 		ComponentName: componentMetaValue(bodyAttr, "openapi:component:requestBody"),
 		Content: map[string]*MediaType{
 			contentType: buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects),

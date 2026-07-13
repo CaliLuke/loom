@@ -276,9 +276,44 @@ errors still fail normally.
 ### Raw Request and Response Bodies
 
 Use `SkipRequestBodyEncodeDecode` when the service should receive the request
-body as an `io.Reader`, for example large uploads or pass-through endpoints.
-All non-body payload attributes must be mapped to path parameters, query
+body as an `io.ReadCloser`, for example large uploads or pass-through
+endpoints. Generated clients accept the caller-supplied `io.ReadCloser`. All
+non-body payload attributes must be mapped to path parameters, query
 parameters, or headers.
+
+Add `OpenAPIRequestBody` when contract consumers also need to know the raw body
+shape. The schema, media type, description, and requiredness affect OpenAPI
+only; Loom still passes the original request stream directly to the service and
+the generated client still sends the caller-supplied stream without encoding
+or buffering it.
+
+```go
+var _ = Service("uploads", func() {
+    Method("upload", func() {
+        Payload(func() {
+            Field(1, "id", String, "Upload identifier")
+            Field(2, "checksum", String, "Expected SHA-256 digest")
+            Required("id", "checksum")
+        })
+
+        HTTP(func() {
+            POST("/uploads/{id}")
+            Header("checksum:X-Checksum")
+            SkipRequestBodyEncodeDecode()
+            OpenAPIRequestBody(Bytes, "application/octet-stream", true, func() {
+                Description("Archive bytes streamed directly to the service.")
+            })
+        })
+    })
+})
+```
+
+Use `String` with a text media type for raw text, or a named Loom type when the
+stream has a structured schema that should appear as an OpenAPI component. The
+optional DSL function accepts normal schema documentation such as
+`Description`, `Example`, `Format`, and `Meta`. `OpenAPIRequestBody` requires
+`SkipRequestBodyEncodeDecode` and cannot be combined with `Body`,
+`FormRequest`, `MultipartRequest`, or `OptionalRequestBody`.
 
 Use `SkipResponseBodyEncodeDecode` when the service returns a raw response body
 reader. These raw body modes are HTTP-only and cannot be combined with gRPC or
