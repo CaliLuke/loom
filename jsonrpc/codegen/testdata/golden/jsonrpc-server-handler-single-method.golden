@@ -86,7 +86,11 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 		s.processRequest(r.Context(), r, &req, writer)
 	}
 	if writer.written {
-		writer.Writer.Write([]byte{byte(0x5d)})
+		if _, err := writer.Writer.Write([]byte{byte(0x5d)}); err != nil {
+			loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonResponseWriteFailed)
+			s.errhandler(r.Context(), w, fmt.Errorf("failed to close JSON-RPC batch response: %w", err))
+			return
+		}
 	}
 }
 
@@ -123,9 +127,8 @@ func (s *Server) processRequest(ctx context.Context, r *http.Request, req *jsonr
 // batchWriter is a helper type that implements http.ResponseWriter for writing multiple JSON-RPC responses
 type batchWriter struct {
 	io.Writer
-	header     http.Header
-	statusCode int
-	written    bool
+	header  http.Header
+	written bool
 }
 
 func (rb *batchWriter) Header() http.Header {
@@ -134,18 +137,17 @@ func (rb *batchWriter) Header() http.Header {
 	}
 	return rb.header
 }
-func (rb *batchWriter) WriteHeader(statusCode int) {
-	if rb.written {
-		return
-	}
-	rb.statusCode = statusCode
+func (rb *batchWriter) WriteHeader(_ int) {
+	// JSON-RPC batch items do not control the outer HTTP status.
 }
 func (rb *batchWriter) Write(data []byte) (int, error) {
+	delimiter := byte(0x2c)
 	if !rb.written {
-		rb.written = true
-		rb.Writer.Write([]byte{byte(0x5b)})
-	} else {
-		rb.Writer.Write([]byte{byte(0x2c)})
+		delimiter = byte(0x5b)
 	}
+	if _, err := rb.Writer.Write([]byte{delimiter}); err != nil {
+		return 0, fmt.Errorf("write JSON-RPC batch delimiter: %w", err)
+	}
+	rb.written = true
 	return rb.Writer.Write(data)
 }

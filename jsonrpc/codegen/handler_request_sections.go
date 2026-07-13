@@ -106,7 +106,18 @@ func writeJSONRPCBatchWriter(g *jen.Group) {
 		jen.List(jen.Id("_"), jen.Id("rawReq")).Op(":=").Range().Id("rawReqs"),
 	).BlockFunc(writeJSONRPCBatchItem)
 	g.If(jen.Id("writer").Dot("written")).Block(
-		jen.Id("writer").Dot("Writer").Dot("Write").Call(jen.Index().Byte().Values(jen.LitByte(']'))),
+		jen.If(
+			jen.List(jen.Id("_"), jen.Id("err")).Op(":=").Id("writer").Dot("Writer").Dot("Write").Call(jen.Index().Byte().Values(jen.LitByte(']'))),
+			jen.Id("err").Op("!=").Nil(),
+		).Block(
+			loomtransportRef("RequestObserverFromContext").Call(jen.Id("r").Dot("Context").Call()).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
+			jen.Id("s").Dot("errhandler").Call(
+				jen.Id("r").Dot("Context").Call(),
+				jen.Id("w"),
+				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to close JSON-RPC batch response: %w"), jen.Id("err")),
+			),
+			jen.Return(),
+		),
 	)
 }
 

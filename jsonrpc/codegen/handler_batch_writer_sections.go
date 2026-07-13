@@ -7,7 +7,6 @@ func addJSONRPCBatchWriterSection(stmt *jen.Statement) {
 	stmt.Type().Id("batchWriter").Struct(
 		jen.Qual("io", "Writer"),
 		jen.Id("header").Qual("net/http", "Header"),
-		jen.Id("statusCode").Int(),
 		jen.Id("written").Bool(),
 	)
 	stmt.Line()
@@ -24,26 +23,28 @@ func addJSONRPCBatchWriterSection(stmt *jen.Statement) {
 	stmt.Line()
 	stmt.Func().Params(jen.Id("rb").Op("*").Id("batchWriter")).
 		Id("WriteHeader").
-		Params(jen.Id("statusCode").Int()).
+		Params(jen.Id("_").Int()).
 		Block(
-			jen.If(jen.Id("rb").Dot("written")).Block(
-				jen.Return(),
-			),
-			jen.Id("rb").Dot("statusCode").Op("=").Id("statusCode"),
+			jen.Comment("JSON-RPC batch items do not control the outer HTTP status."),
 		)
 	stmt.Line()
 	stmt.Func().Params(jen.Id("rb").Op("*").Id("batchWriter")).
 		Id("Write").
 		Params(jen.Id("data").Index().Byte()).
 		Params(jen.Int(), jen.Error()).
-		Block(
-			jen.If(jen.Op("!").Id("rb").Dot("written")).Block(
-				jen.Id("rb").Dot("written").Op("=").True(),
-				jen.Id("rb").Dot("Writer").Dot("Write").Call(jen.Index().Byte().Values(jen.LitByte('['))),
-			).Else().Block(
-				jen.Id("rb").Dot("Writer").Dot("Write").Call(jen.Index().Byte().Values(jen.LitByte(','))),
-			),
-			jen.Return(jen.Id("rb").Dot("Writer").Dot("Write").Call(jen.Id("data"))),
-		)
+		BlockFunc(func(g *jen.Group) {
+			g.Id("delimiter").Op(":=").LitByte(',')
+			g.If(jen.Op("!").Id("rb").Dot("written")).Block(
+				jen.Id("delimiter").Op("=").LitByte('['),
+			)
+			g.If(
+				jen.List(jen.Id("_"), jen.Id("err")).Op(":=").Id("rb").Dot("Writer").Dot("Write").Call(jen.Index().Byte().Values(jen.Id("delimiter"))),
+				jen.Id("err").Op("!=").Nil(),
+			).Block(
+				jen.Return(jen.Lit(0), jen.Qual("fmt", "Errorf").Call(jen.Lit("write JSON-RPC batch delimiter: %w"), jen.Id("err"))),
+			)
+			g.Id("rb").Dot("written").Op("=").True()
+			g.Return(jen.Id("rb").Dot("Writer").Dot("Write").Call(jen.Id("data")))
+		})
 	stmt.Line()
 }

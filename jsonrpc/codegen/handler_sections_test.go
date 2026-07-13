@@ -119,6 +119,9 @@ func TestJSONRPCBatchWriterHelperSection(t *testing.T) {
 	code := codegen.SectionCode(t, section)
 
 	require.Contains(t, code, `type batchWriter struct`)
+	require.NotContains(t, code, "statusCode int")
+	require.Contains(t, code, "JSON-RPC batch items do not control the outer HTTP status")
+	require.Contains(t, code, "write JSON-RPC batch delimiter: %w")
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-batch-writer.golden"), code)
 }
 
@@ -130,6 +133,8 @@ func TestJSONRPCBatchHandlingDecodesElementsIndependently(t *testing.T) {
 	require.Contains(t, code, `for _, rawReq := range rawReqs {`)
 	require.Contains(t, code, `json.Unmarshal(rawReq, &req)`)
 	require.NotContains(t, code, `var reqs []jsonrpc.RawRequest`)
+	require.Contains(t, code, `failed to close JSON-RPC batch response: %w`)
+	require.Contains(t, code, `loomtransport.ReasonResponseWriteFailed`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-handler-single-method.golden"), code)
 }
 
