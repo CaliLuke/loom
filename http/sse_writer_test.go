@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
+	"log"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -23,6 +27,7 @@ func TestSSEStreamWriterControls(t *testing.T) {
 		require.NoError(t, stream.Open(context.Background()))
 		require.NoError(t, stream.SendComment(context.Background(), "heartbeat"))
 		require.Equal(t, http.StatusOK, w.status)
+		require.Equal(t, 1, w.writeHeaderCalls)
 		require.Equal(t, "text/event-stream", w.header.Get("Content-Type"))
 		require.Equal(t, 2, w.flushes)
 		require.Equal(t, ": heartbeat\n\n", w.body.String())
@@ -57,6 +62,164 @@ func TestSSEStreamWriterControls(t *testing.T) {
 		require.NoError(t, stream.Close())
 		require.ErrorIs(t, stream.SendComment(context.Background(), "late"), ErrSSEStreamClosed)
 	})
+}
+
+func TestSSEStreamWriterCommitsHeaderOnce(t *testing.T) {
+	tests := []struct {
+		name        string
+		write       func(*SSEStreamWriter) error
+		wantBody    string
+		wantFlushes int
+	}{
+		{
+			name: "open followed by events and comments",
+			write: func(stream *SSEStreamWriter) error {
+				if err := stream.Open(context.Background()); err != nil {
+					return err
+				}
+				if err := stream.Open(context.Background()); err != nil {
+					return err
+				}
+				if err := writeTestSSEEvent(stream); err != nil {
+					return err
+				}
+				if err := writeTestSSEEvent(stream); err != nil {
+					return err
+				}
+				if err := stream.SendComment(context.Background(), "heartbeat"); err != nil {
+					return err
+				}
+				return stream.SendComment(context.Background(), "heartbeat")
+			},
+			wantBody:    "data: event\n\ndata: event\n\n: heartbeat\n\n: heartbeat\n\n",
+			wantFlushes: 5,
+		},
+		{
+			name: "first event without open",
+			write: func(stream *SSEStreamWriter) error {
+				if err := writeTestSSEEvent(stream); err != nil {
+					return err
+				}
+				if err := writeTestSSEEvent(stream); err != nil {
+					return err
+				}
+				return stream.SendComment(context.Background(), "heartbeat")
+			},
+			wantBody:    "data: event\n\ndata: event\n\n: heartbeat\n\n",
+			wantFlushes: 3,
+		},
+		{
+			name: "first comment without open",
+			write: func(stream *SSEStreamWriter) error {
+				if err := stream.SendComment(context.Background(), "heartbeat"); err != nil {
+					return err
+				}
+				if err := stream.SendComment(context.Background(), "heartbeat"); err != nil {
+					return err
+				}
+				return writeTestSSEEvent(stream)
+			},
+			wantBody:    ": heartbeat\n\n: heartbeat\n\ndata: event\n\n",
+			wantFlushes: 3,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			w := &deadlineResponseWriter{header: make(http.Header)}
+			stream := NewSSEStreamWriter(w, context.Background(), loomtransport.TransportHTTP, StreamWritePolicy{})
+
+			require.NoError(t, test.write(stream))
+			require.Equal(t, http.StatusOK, w.status)
+			require.Equal(t, 1, w.writeHeaderCalls)
+			require.Equal(t, test.wantFlushes, w.flushes)
+			require.Equal(t, test.wantBody, w.body.String())
+		})
+	}
+}
+
+func TestSSEStreamWriterDoesNotRecommitAfterFailure(t *testing.T) {
+	t.Run("write failure", func(t *testing.T) {
+		writeErr := errors.New("write failed")
+		w := &deadlineResponseWriter{header: make(http.Header)}
+		stream := NewSSEStreamWriter(w, context.Background(), loomtransport.TransportHTTP, StreamWritePolicy{})
+
+		err := stream.WriteEvent(context.Background(), func(io.Writer) error {
+			return writeErr
+		})
+		require.ErrorIs(t, err, writeErr)
+		require.NoError(t, stream.SendComment(context.Background(), "heartbeat"))
+		require.Equal(t, 1, w.writeHeaderCalls)
+		require.Equal(t, 1, w.flushes)
+	})
+
+	t.Run("flush failure", func(t *testing.T) {
+		flushErr := errors.New("flush failed")
+		w := &failingFlushWriter{header: make(http.Header), err: flushErr}
+		stream := NewSSEStreamWriter(w, context.Background(), loomtransport.TransportHTTP, StreamWritePolicy{})
+
+		require.ErrorIs(t, stream.Open(context.Background()), flushErr)
+		require.ErrorIs(t, stream.Open(context.Background()), flushErr)
+		require.ErrorIs(t, stream.SendComment(context.Background(), "heartbeat"), flushErr)
+		require.Equal(t, 1, w.writeHeaderCalls)
+		require.Equal(t, 2, w.flushes)
+	})
+}
+
+func TestSSEStreamWriterConcurrentWritesCommitHeaderOnce(t *testing.T) {
+	const writers = 16
+	w := &deadlineResponseWriter{header: make(http.Header)}
+	stream := NewSSEStreamWriter(w, context.Background(), loomtransport.TransportHTTP, StreamWritePolicy{})
+	errs := make(chan error, writers)
+	var wait sync.WaitGroup
+
+	for i := range writers {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			if i%2 == 0 {
+				errs <- writeTestSSEEvent(stream)
+				return
+			}
+			errs <- stream.SendComment(context.Background(), "heartbeat")
+		}()
+	}
+	wait.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, 1, w.writeHeaderCalls)
+	require.Equal(t, writers, w.flushes)
+	require.Equal(t, writers/2, strings.Count(w.body.String(), "data: event\n\n"))
+	require.Equal(t, writers/2, strings.Count(w.body.String(), ": heartbeat\n\n"))
+}
+
+func TestSSEStreamWriterDoesNotLogSuperfluousWriteHeader(t *testing.T) {
+	var serverLog bytes.Buffer
+	handlerErr := make(chan error, 1)
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		stream := NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, StreamWritePolicy{})
+		firstErr := writeTestSSEEvent(stream)
+		secondErr := writeTestSSEEvent(stream)
+		handlerErr <- errors.Join(firstErr, secondErr)
+	}))
+	server.Config.ErrorLog = log.New(&serverLog, "", 0)
+	server.Start()
+	defer server.Close()
+
+	response, err := server.Client().Get(server.URL)
+	require.NoError(t, err)
+	body, readErr := io.ReadAll(response.Body)
+	closeErr := response.Body.Close()
+	require.NoError(t, readErr)
+	require.NoError(t, closeErr)
+	require.NoError(t, <-handlerErr)
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	require.Equal(t, "text/event-stream", response.Header.Get("Content-Type"))
+	require.Equal(t, "data: event\n\ndata: event\n\n", string(body))
+	require.NotContains(t, serverLog.String(), "superfluous response.WriteHeader")
 }
 
 func TestStreamWritePolicy(t *testing.T) {
@@ -114,18 +277,20 @@ func TestSSEStreamWriterBoundsBlockedWrite(t *testing.T) {
 }
 
 type deadlineResponseWriter struct {
-	lock      sync.Mutex
-	header    http.Header
-	body      bytes.Buffer
-	status    int
-	flushes   int
-	deadlines []time.Time
+	lock             sync.Mutex
+	header           http.Header
+	body             bytes.Buffer
+	status           int
+	writeHeaderCalls int
+	flushes          int
+	deadlines        []time.Time
 }
 
 type failingFlushWriter struct {
-	header  http.Header
-	err     error
-	flushes int
+	header           http.Header
+	err              error
+	writeHeaderCalls int
+	flushes          int
 }
 
 func (w *failingFlushWriter) Header() http.Header {
@@ -136,7 +301,9 @@ func (w *failingFlushWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (w *failingFlushWriter) WriteHeader(int) {}
+func (w *failingFlushWriter) WriteHeader(int) {
+	w.writeHeaderCalls++
+}
 
 func (w *failingFlushWriter) FlushError() error {
 	w.flushes++
@@ -154,6 +321,7 @@ func (w *deadlineResponseWriter) Write(p []byte) (int, error) {
 }
 
 func (w *deadlineResponseWriter) WriteHeader(status int) {
+	w.writeHeaderCalls++
 	w.status = status
 }
 
@@ -172,6 +340,13 @@ func (w *deadlineResponseWriter) writeDeadlines() []time.Time {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	return append([]time.Time(nil), w.deadlines...)
+}
+
+func writeTestSSEEvent(stream *SSEStreamWriter) error {
+	return stream.WriteEvent(context.Background(), func(w io.Writer) error {
+		_, err := io.WriteString(w, "data: event\n\n")
+		return err
+	})
 }
 
 type unsupportedDeadlineWriter struct {

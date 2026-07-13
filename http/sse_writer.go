@@ -140,6 +140,9 @@ func (s *SSEStreamWriter) checkContext(ctx context.Context) error {
 }
 
 func (s *SSEStreamWriter) initHeaders() {
+	if s.started {
+		return
+	}
 	header := s.w.Header()
 	setHeaderDefault(header, "Content-Type", "text/event-stream")
 	setHeaderDefault(header, "Cache-Control", "no-cache")
