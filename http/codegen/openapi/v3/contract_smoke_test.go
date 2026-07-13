@@ -43,6 +43,23 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			dsl:  testdata.MealPlannerDSL,
 		},
 		{
+			name: "raw-request-bodies",
+			dsl:  testdata.RawRequestBodyOpenAPIDSL,
+			extra: func(t *testing.T, spec map[string]any) {
+				binary := requireOperation(t, spec, "/uploads/{id}", "post")
+				binaryBody := requireMap(t, binary["requestBody"], "binary request body")
+				require.Equal(t, true, binaryBody["required"])
+				binaryContent := requireMap(t, binaryBody["content"], "binary request content")
+				require.Contains(t, binaryContent, "application/octet-stream")
+
+				text := requireOperation(t, spec, "/imports", "post")
+				textBody := requireMap(t, text["requestBody"], "text request body")
+				require.NotContains(t, textBody, "required")
+				textContent := requireMap(t, textBody["content"], "text request content")
+				require.Contains(t, textContent, "text/plain; charset=utf-8")
+			},
+		},
+		{
 			name: "request-response-split",
 			dsl:  testdata.OpenAPIRequestResponseSplitDSL,
 			extra: func(t *testing.T, spec map[string]any) {
@@ -129,6 +146,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		dsl  func()
 	}{
 		{name: "meal-planner", dsl: testdata.MealPlannerDSL},
+		{name: "raw-request-bodies", dsl: testdata.RawRequestBodyOpenAPIDSL},
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
 	}
 	for _, tc := range lintCases {
@@ -143,7 +161,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		})
 	}
 
-	artifacts := renderOpenAPIArtifacts(t, testdata.OpenAPIProblemLinksAsyncDSL)
+	artifacts := renderOpenAPIArtifacts(t, testdata.RawRequestBodyOpenAPIDSL)
 	workDir := filepath.Join(t.TempDir(), "contract-smoke")
 	require.NoError(t, os.MkdirAll(workDir, 0o750))
 

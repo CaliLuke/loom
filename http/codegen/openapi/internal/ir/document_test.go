@@ -70,6 +70,54 @@ func TestBuildDocumentUsesExplicitRequestBodyDescriptionMeta(t *testing.T) {
 	require.Equal(t, "Human-friendly request body description.", operation.RequestBody.Value.Description)
 }
 
+func TestBuildDocumentPublishesDocumentedRawRequestBodies(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.RawRequestBodyOpenAPIDSL)
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+
+	binary := doc.Paths["/uploads/{id}"].Operations["POST"]
+	require.NotNil(t, binary)
+	require.NotNil(t, binary.RequestBody)
+	require.NotNil(t, binary.RequestBody.Value)
+	require.True(t, binary.RequestBody.Value.Required)
+	require.Equal(t, "Binary archive streamed directly to the service.", binary.RequestBody.Value.Description)
+	binaryMedia := binary.RequestBody.Value.Content["application/octet-stream"]
+	require.NotNil(t, binaryMedia)
+	require.Equal(t, "string", binaryMedia.Schema.Type)
+	require.Equal(t, "binary", binaryMedia.Schema.Format)
+	require.Equal(t, "archive", binaryMedia.Example)
+	require.Len(t, binary.Parameters, 4)
+	require.Equal(t, []map[string][]string{{"upload_key": {}}}, binary.Security)
+
+	text := doc.Paths["/imports"].Operations["POST"]
+	require.NotNil(t, text)
+	require.NotNil(t, text.RequestBody)
+	require.NotNil(t, text.RequestBody.Value)
+	require.False(t, text.RequestBody.Value.Required)
+	require.Equal(t, "Optional newline-delimited import commands.", text.RequestBody.Value.Description)
+	textMedia := text.RequestBody.Value.Content["text/plain; charset=utf-8"]
+	require.NotNil(t, textMedia)
+	require.Equal(t, "string", textMedia.Schema.Type)
+	require.Empty(t, textMedia.Schema.Format)
+	require.Equal(t, "create widget", textMedia.Example)
+
+	manifest := doc.Paths["/manifests"].Operations["POST"]
+	require.NotNil(t, manifest)
+	require.NotNil(t, manifest.RequestBody)
+	require.NotNil(t, manifest.RequestBody.Value)
+	manifestMedia := manifest.RequestBody.Value.Content["application/vnd.loom.manifest+json"]
+	require.NotNil(t, manifestMedia)
+	require.Equal(t, "#/components/schemas/RawUploadManifest", manifestMedia.Schema.Ref)
+}
+
+func TestBuildDocumentOmitsUndocumentedRawRequestBody(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.SkipRequestBodyEncodeDecodeDSL)
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+
+	operation := doc.Paths["/"].Operations["POST"]
+	require.NotNil(t, operation)
+	require.Nil(t, operation.RequestBody)
+}
+
 func TestBuildDocumentCarriesErrorRemedyDescriptions(t *testing.T) {
 	const (
 		serviceName = "test service"

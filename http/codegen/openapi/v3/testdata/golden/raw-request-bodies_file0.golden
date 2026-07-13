@@ -1,0 +1,194 @@
+{
+  "components": {
+    "responses": {
+      "NoContentResponse": {
+        "description": "No Content response."
+      }
+    },
+    "schemas": {
+      "RawUploadManifest": {
+        "example": {
+          "name": "Qui quia inventore et tempora.",
+          "size": 4170793618430505500
+        },
+        "properties": {
+          "name": {
+            "example": "Quia molestias.",
+            "type": "string"
+          },
+          "size": {
+            "example": 7595816812588075000,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "size"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "upload_key": {
+        "in": "header",
+        "name": "X-Upload-Key",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.1",
+  "paths": {
+    "/imports": {
+      "post": {
+        "operationId": "raw_upload.upload_text",
+        "requestBody": {
+          "content": {
+            "text/plain; charset=utf-8": {
+              "example": "create widget",
+              "schema": {
+                "description": "Optional newline-delimited import commands.",
+                "example": "create widget",
+                "type": "string"
+              }
+            }
+          },
+          "description": "Optional newline-delimited import commands."
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "security": [],
+        "summary": "upload_text raw_upload",
+        "tags": [
+          "raw_upload"
+        ]
+      }
+    },
+    "/manifests": {
+      "post": {
+        "operationId": "raw_upload.upload_manifest",
+        "requestBody": {
+          "content": {
+            "application/vnd.loom.manifest+json": {
+              "example": {
+                "name": "Provident aliquam tempora beatae vitae.",
+                "size": 6168161092050465000
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RawUploadManifest"
+              }
+            }
+          },
+          "description": "Named manifest schema carried as an unparsed stream.",
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "security": [],
+        "summary": "upload_manifest raw_upload",
+        "tags": [
+          "raw_upload"
+        ]
+      }
+    },
+    "/uploads/{id}": {
+      "post": {
+        "operationId": "raw_upload.upload_binary",
+        "parameters": [
+          {
+            "example": "Iste perspiciatis.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "example": "Sunt itaque inventore optio quia ullam aut.",
+              "type": "string"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": "Neque nisi quibusdam nisi sint sunt.",
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "example": "Harum et.",
+              "type": "string"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": "Quo qui molestiae iure.",
+            "in": "header",
+            "name": "X-Checksum",
+            "required": true,
+            "schema": {
+              "example": "Quia velit assumenda fuga est sint.",
+              "type": "string"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": "Perspiciatis voluptatum laudantium eos aut.",
+            "in": "cookie",
+            "name": "upload_session",
+            "schema": {
+              "example": "Consequuntur sint voluptate.",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "example": "archive",
+              "schema": {
+                "description": "Binary archive streamed directly to the service.",
+                "example": "archive",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "Binary archive streamed directly to the service.",
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "security": [
+          {
+            "upload_key": []
+          }
+        ],
+        "summary": "upload_binary raw_upload",
+        "tags": [
+          "raw_upload"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "raw_upload"
+    }
+  ]
+}

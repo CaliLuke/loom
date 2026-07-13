@@ -2,6 +2,7 @@ package expr
 
 import (
 	"errors"
+	"mime"
 	"strings"
 
 	"github.com/CaliLuke/loom/eval"
@@ -163,6 +164,9 @@ func (e *HTTPEndpointExpr) validateMissingPayload(verr *eval.ValidationErrors, h
 	}
 	if e.OptionalRequestBody {
 		verr.Add(e, "OptionalRequestBody is set but Payload is not defined")
+	}
+	if e.OpenAPIRequestBody != nil {
+		e.validateOpenAPIRequestBody(verr)
 	}
 	if hasParams {
 		verr.Add(e, "Params are set but Payload is not defined.")
@@ -331,6 +335,9 @@ func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationError
 	if e.OptionalRequestBody && e.FormRequest {
 		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with FormRequest.")
 	}
+	if e.OpenAPIRequestBody != nil {
+		e.validateOpenAPIRequestBody(verr)
+	}
 	if e.OptionalRequestBody && e.Body != nil && !IsObject(e.Body.Type) {
 		verr.Add(e, "OptionalRequestBody requires an object request body.")
 	}
@@ -342,6 +349,27 @@ func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationError
 	}
 	if e.FormRequest && !(IsUnion(e.MethodExpr.Payload.Type) || IsObject(e.MethodExpr.Payload.Type)) {
 		verr.Add(e, "FormRequest requires an object or constructor union payload")
+	}
+}
+
+func (e *HTTPEndpointExpr) validateOpenAPIRequestBody(verr *eval.ValidationErrors) {
+	verr.Merge(e.OpenAPIRequestBody.Validate("HTTP OpenAPI request body", e))
+	if !e.SkipRequestBodyEncodeDecode {
+		verr.Add(e, "OpenAPIRequestBody requires SkipRequestBodyEncodeDecode.")
+	}
+	if e.MultipartRequest {
+		verr.Add(e, "HTTP endpoint cannot use OpenAPIRequestBody with MultipartRequest.")
+	}
+	if e.FormRequest {
+		verr.Add(e, "HTTP endpoint cannot use OpenAPIRequestBody with FormRequest.")
+	}
+	if e.OptionalRequestBody {
+		verr.Add(e, "HTTP endpoint cannot use OpenAPIRequestBody with OptionalRequestBody.")
+	}
+	contentType := e.OpenAPIRequestBodyContentType
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil || strings.TrimSpace(mediaType) == "" {
+		verr.Add(e, "OpenAPIRequestBody content type %q is invalid.", contentType)
 	}
 }
 

@@ -32,9 +32,15 @@ type (
 	}
 
 	Request struct {
-		Payload             *expr.AttributeExpr
-		Body                *expr.AttributeExpr
-		RawBody             *expr.AttributeExpr
+		Payload *expr.AttributeExpr
+		Body    *expr.AttributeExpr
+		RawBody *expr.AttributeExpr
+		// DocumentBody is the documentation-only request body schema.
+		DocumentBody *expr.AttributeExpr
+		// DocumentContentType is the documentation-only request media type.
+		DocumentContentType string
+		// DocumentRequired is the documentation-only request body requiredness.
+		DocumentRequired    bool
 		StreamingBody       *expr.AttributeExpr
 		BodyOrigin          string
 		PathParams          []*Parameter

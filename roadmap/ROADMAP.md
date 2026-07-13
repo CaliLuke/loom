@@ -96,6 +96,10 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
 - First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads, including flat OAuth-style object-union fields.
 - Explicit optional JSON request bodies via `OptionalRequestBody()`.
+- Raw request streams can now publish an explicit OpenAPI request body through
+  `OpenAPIRequestBody(...)`, including media type, schema, description,
+  examples, and requiredness, without changing generated stream signatures or
+  enabling runtime decoding and buffering.
 - Multipart object request decoding without handwritten decoder hooks, including shared validation flow when multipart bodies are combined with generated request-element decoding.
 - Request-body validator parity and transform helper parity for downstream consumers.
 - HTTP request decoders now support string-backed custom

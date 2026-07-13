@@ -49,6 +49,7 @@ func TestFiles(t *testing.T) {
 		{"activity-feed", testdata.ActivityFeedDSL},
 		{"streaming-partial-examples", testdata.StreamingPartialExamplesDSL},
 		{"async-session-security", testdata.AsyncSessionSecurityDSL},
+		{"raw-request-bodies", testdata.RawRequestBodyOpenAPIDSL},
 		{"parameter-components", testdata.OpenAPIParameterComponentsDSL},
 		{"reusable-components", testdata.OpenAPIReusableComponentsDSL},
 		{"explicit-reusable-component-names", testdata.OpenAPIExplicitReusableComponentNamesDSL},

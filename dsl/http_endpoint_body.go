@@ -1,6 +1,8 @@
 package dsl
 
 import (
+	"strings"
+
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 )
@@ -56,6 +58,51 @@ func Body(args ...any) {
 // OpenAPIBody accepts the same arguments as Body.
 func OpenAPIBody(args ...any) {
 	body(args, true)
+}
+
+// OpenAPIRequestBody describes a documentation-only HTTP request body for an
+// endpoint that uses SkipRequestBodyEncodeDecode.
+//
+// OpenAPIRequestBody must appear in a HTTP endpoint expression. It affects the
+// generated OpenAPI contract only and does not enable request buffering,
+// decoding, or validation.
+//
+// The body argument may be a payload attribute name, data type, or user type.
+// The contentType argument is the request media type, and required controls the
+// OpenAPI requestBody.required value. An optional DSL function may set schema
+// details such as Description, Example, Format, or Meta.
+//
+// Example:
+//
+//	OpenAPIRequestBody(Bytes, "application/octet-stream", true, func() {
+//	    Description("Archive bytes streamed directly to the service.")
+//	})
+func OpenAPIRequestBody(bodyArg any, contentType string, required bool, fn ...func()) {
+	e, ok := eval.Current().(*expr.HTTPEndpointExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	if len(fn) > 1 {
+		eval.TooManyArgError()
+		return
+	}
+
+	args := []any{bodyArg}
+	if len(fn) == 1 {
+		args = append(args, fn[0])
+	}
+	attr, dsl, ok := resolveBodyAttribute(args, e.MethodExpr.Payload, "Request", true)
+	if !ok {
+		return
+	}
+	if dsl != nil {
+		eval.Execute(dsl, attr)
+	}
+	attr.AddMeta("http:openapi:request:body")
+	e.OpenAPIRequestBody = attr
+	e.OpenAPIRequestBodyContentType = strings.TrimSpace(contentType)
+	e.OpenAPIRequestBodyRequired = required
 }
 
 func body(args []any, openAPIOnly bool) {

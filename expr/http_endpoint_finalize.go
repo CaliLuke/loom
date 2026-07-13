@@ -113,6 +113,9 @@ func (e *HTTPEndpointExpr) finalizeTransportBodies() {
 
 	e.Body = httpRequestBody(e)
 	e.Body.Finalize()
+	if e.OpenAPIRequestBody != nil {
+		e.OpenAPIRequestBody.Finalize()
+	}
 
 	e.StreamingBody = httpStreamingBody(e)
 	if e.StreamingBody != nil {

@@ -62,7 +62,11 @@ func analyzeEndpointBodies(a *Analyzer, endpoint *transportir.Endpoint) *Endpoin
 }
 
 func analyzeRequestBody(a *Analyzer, endpoint *transportir.Endpoint) *Schema {
-	req := a.AnalyzeSchema(attributeForSchemaUsage(endpoint.Request.Body, schemaUsageRequest))
+	body := endpoint.Request.Body
+	if endpoint.Request.DocumentBody != nil {
+		body = endpoint.Request.DocumentBody
+	}
+	req := a.AnalyzeSchema(attributeForSchemaUsage(body, schemaUsageRequest))
 	if endpoint.Request.StreamingBody == nil {
 		return req
 	}

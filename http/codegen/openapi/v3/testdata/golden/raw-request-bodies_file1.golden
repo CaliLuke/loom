@@ -1,0 +1,128 @@
+openapi: 3.1.1
+info:
+    title: Loom API
+    version: 0.0.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+    - url: http://localhost:80
+      description: Default server for test api
+paths:
+    /imports:
+        post:
+            tags:
+                - raw_upload
+            summary: upload_text raw_upload
+            operationId: raw_upload.upload_text
+            requestBody:
+                description: Optional newline-delimited import commands.
+                content:
+                    text/plain; charset=utf-8:
+                        schema:
+                            type: string
+                            description: Optional newline-delimited import commands.
+                            example: create widget
+                        example: create widget
+            responses:
+                "204":
+                    $ref: '#/components/responses/NoContentResponse'
+            security: []
+    /manifests:
+        post:
+            tags:
+                - raw_upload
+            summary: upload_manifest raw_upload
+            operationId: raw_upload.upload_manifest
+            requestBody:
+                description: Named manifest schema carried as an unparsed stream.
+                required: true
+                content:
+                    application/vnd.loom.manifest+json:
+                        schema:
+                            $ref: '#/components/schemas/RawUploadManifest'
+                        example:
+                            name: Provident aliquam tempora beatae vitae.
+                            size: 6168161092050465198
+            responses:
+                "204":
+                    $ref: '#/components/responses/NoContentResponse'
+            security: []
+    /uploads/{id}:
+        post:
+            tags:
+                - raw_upload
+            summary: upload_binary raw_upload
+            operationId: raw_upload.upload_binary
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: Sunt itaque inventore optio quia ullam aut.
+                  example: Iste perspiciatis.
+                - name: filter
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    example: Harum et.
+                  example: Neque nisi quibusdam nisi sint sunt.
+                - name: X-Checksum
+                  in: header
+                  allowEmptyValue: true
+                  required: true
+                  schema:
+                    type: string
+                    example: Quia velit assumenda fuga est sint.
+                  example: Quo qui molestiae iure.
+                - name: upload_session
+                  in: cookie
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    example: Consequuntur sint voluptate.
+                  example: Perspiciatis voluptatum laudantium eos aut.
+            requestBody:
+                description: Binary archive streamed directly to the service.
+                required: true
+                content:
+                    application/octet-stream:
+                        schema:
+                            type: string
+                            description: Binary archive streamed directly to the service.
+                            example: archive
+                            format: binary
+                        example: archive
+            responses:
+                "204":
+                    $ref: '#/components/responses/NoContentResponse'
+            security:
+                - upload_key: []
+components:
+    schemas:
+        RawUploadManifest:
+            type: object
+            properties:
+                name:
+                    type: string
+                    example: Quia molestias.
+                size:
+                    type: integer
+                    example: 7595816812588075382
+                    format: int64
+            example:
+                name: Qui quia inventore et tempora.
+                size: 4170793618430505438
+            required:
+                - name
+                - size
+    responses:
+        NoContentResponse:
+            description: No Content response.
+    securitySchemes:
+        upload_key:
+            type: apiKey
+            name: X-Upload-Key
+            in: header
+tags:
+    - name: raw_upload
