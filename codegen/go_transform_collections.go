@@ -64,7 +64,15 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 // Note: transport to/from service transforms are always object to union or
 // union to object. The only case a transform is union to union is when
 // converting a projected type from/to a service type.
-func transformUnion(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
+func transformUnion(
+	source *expr.AttributeExpr,
+	target *expr.AttributeExpr,
+	sourceVar string,
+	targetVar string,
+	newVar bool,
+	forceTargetPointer bool,
+	ta *TransformAttrs,
+) (*jen.Statement, error) {
 	srcUnion, tgtUnion, err := validateTransformUnion(source, target, sourceVar, targetVar)
 	if err != nil {
 		return nil, err
@@ -82,7 +90,7 @@ func transformUnion(source, target *expr.AttributeExpr, sourceVar, targetVar str
 		TargetVar:       targetVar,
 		NewVar:          newVar,
 		TypeRef:         typeRef,
-		TargetIsPointer: strings.HasPrefix(typeRef, "*"),
+		TargetIsPointer: forceTargetPointer || strings.HasPrefix(typeRef, "*"),
 		ValueTypeRef:    strings.TrimPrefix(typeRef, "*"),
 		TempVarName:     tempVarName,
 		Cases:           cases,
@@ -304,11 +312,22 @@ func renderTransformGoUnion(data transformUnionRenderData) (*jen.Statement, erro
 					}
 					return
 				}
-				caseGroup.Id("u").Op(":=").Add(Expr(data.TargetVar))
+				if data.TargetIsPointer {
+					caseGroup.Var().Id("u").Add(TypeRef(data.ValueTypeRef))
+					caseGroup.If(Expr(data.TargetVar).Op("!=").Nil()).Block(
+						jen.Id("u").Op("=").Op("*").Add(Expr(data.TargetVar)),
+					)
+				} else {
+					caseGroup.Id("u").Op(":=").Add(Expr(data.TargetVar))
+				}
 				caseGroup.Id("u").Dot("Set" + c.TargetFieldName).Call(
 					jen.Parens(TypeRef(c.TargetCastType)).Call(Expr(data.TempVarName)),
 				)
-				caseGroup.Add(Expr(data.TargetVar)).Op("=").Id("u")
+				if data.TargetIsPointer {
+					caseGroup.Add(Expr(data.TargetVar)).Op("=").Op("&").Id("u")
+				} else {
+					caseGroup.Add(Expr(data.TargetVar)).Op("=").Id("u")
+				}
 			})
 		}
 	})

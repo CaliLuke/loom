@@ -457,7 +457,10 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 	endpoint := client.Exchange()
 
 	result, err := endpoint(context.Background(), &token.Grant{
-		Grant: token.NewGrant2RefreshToken(&token.RefreshTokenGrant{}),
+		Grant: func() *token.Grant2 {
+			grant := token.NewGrant2RefreshToken(&token.RefreshTokenGrant{})
+			return &grant
+		}(),
 	})
 	if err != nil {
 		t.Fatalf("generated client exchange: %v", err)

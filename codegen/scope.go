@@ -202,6 +202,7 @@ func (s *NameScope) objectFieldTypeDef(parent *expr.AttributeExpr, name string, 
 	fn := GoifyAtt(at, name, true)
 	tdef := s.goTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg)
 	if expr.IsObject(at.Type) ||
+		(expr.IsUnion(at.Type) && !parent.IsRequired(name)) ||
 		parent.IsPrimitivePointer(name, useDefault) ||
 		(ptr && expr.IsPrimitive(at.Type) && at.Type.Kind() != expr.AnyKind && at.Type.Kind() != expr.BytesKind) {
 		tdef = "*" + tdef

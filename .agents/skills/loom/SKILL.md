@@ -114,6 +114,9 @@ build Auto-K without repeating large amounts of app-local glue.
   generation. Treat those tests as contract-shape enforcement, not optional
   extras.
 - `OneOf(...)` works both as a named union declaration and as a type constructor.
+- Optional object attributes whose type is `OneOf(...)` generate as pointers so
+  nil represents absence without invoking union marshaling; required unions
+  retain their value-type API.
 - Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
 - When modeling alternate transport/tool result shapes, prefer a canonical `ResultType` plus `View(...)` definitions over hand-maintained sibling DTO copies.
 - The service generator now emits exported typed projection helpers for result views:

@@ -9,8 +9,8 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/CaliLuke/loom/clue/log"
+	loom "github.com/CaliLuke/loom/pkg"
 	multipleservicesinterceptorsservice2 "multiple_services_interceptors_service2"
 )
 

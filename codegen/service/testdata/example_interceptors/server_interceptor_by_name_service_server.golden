@@ -9,8 +9,8 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/CaliLuke/loom/clue/log"
+	loom "github.com/CaliLuke/loom/pkg"
 	serverinterceptorbynameservice "server_interceptor_by_name_service"
 )
 

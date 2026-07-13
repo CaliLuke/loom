@@ -134,3 +134,23 @@ func TestGoTransformUnionUsesExplicitVariantTagsInSwitchCases(t *testing.T) {
 	require.False(t, strings.Contains(formatted, `case "Single":`))
 	require.False(t, strings.Contains(formatted, `case "Batch":`))
 }
+
+func TestGoTransformOptionalUnionFieldsPreserveAbsence(t *testing.T) {
+	union := &expr.Union{
+		TypeName: "Choice",
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "Text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		},
+	}
+	source := &expr.AttributeExpr{Type: &expr.Object{
+		{Name: "choice", Attribute: &expr.AttributeExpr{Type: union}},
+	}}
+	target := expr.DupAtt(source)
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, true, "", scope)
+
+	code, _, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	require.NoError(t, err)
+	require.Contains(t, code, "if source.Choice != nil && source.Choice.Kind() != \"\"")
+	require.Contains(t, code, "target.Choice = &u")
+}

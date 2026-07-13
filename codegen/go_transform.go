@@ -143,7 +143,7 @@ func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targe
 	case expr.IsMap(source.Type):
 		return transformMap(expr.AsMap(source.Type), expr.AsMap(target.Type), sourceVar, targetVar, newVar, ta)
 	case expr.IsUnion(source.Type):
-		return transformUnion(source, target, sourceVar, targetVar, newVar, ta)
+		return transformUnion(source, target, sourceVar, targetVar, newVar, false, ta)
 	case expr.IsObject(source.Type):
 		return transformObject(source, target, sourceVar, targetVar, newVar, ta)
 	default:
@@ -300,7 +300,13 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 
 	srcFieldVar := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)
 	tgtFieldVar := targetVar + "." + GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
-	code, err := transformObjectFieldAssignment(srcc, tgtc, srcFieldVar, tgtFieldVar, ta)
+	var code *jen.Statement
+	var err error
+	if expr.IsUnion(srcc.Type) {
+		code, err = transformUnion(srcc, tgtc, srcFieldVar, tgtFieldVar, false, !tgtMatt.IsRequired(name), ta)
+	} else {
+		code, err = transformObjectFieldAssignment(srcc, tgtc, srcFieldVar, tgtFieldVar, ta)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +323,7 @@ func transformObjectFieldAssignment(srcc, tgtc *expr.AttributeExpr, srcVar, tgtV
 	case expr.IsMap(srcc.Type):
 		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, ta)
 	case expr.IsUnion(srcc.Type):
-		return transformUnion(srcc, tgtc, srcVar, tgtVar, false, ta)
+		return transformUnion(srcc, tgtc, srcVar, tgtVar, false, false, ta)
 	case isUserType:
 		if expr.IsPrimitive(srcc.Type) {
 			return nil, nil
@@ -338,7 +344,11 @@ func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.Attribut
 	}
 	condition := Expr(srcVar + " != nil")
 	if expr.IsUnion(srcc.Type) {
-		condition = Expr(srcVar + `.Kind() != ""`)
+		if srcMatt.IsRequired(name) {
+			condition = Expr(srcVar + `.Kind() != ""`)
+		} else {
+			condition = Expr(srcVar + ` != nil && ` + srcVar + `.Kind() != ""`)
+		}
 	}
 	stmt := &jen.Statement{}
 	stmt.If(condition).BlockFunc(func(group *jen.Group) {

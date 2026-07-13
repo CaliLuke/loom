@@ -95,6 +95,11 @@ Attribute("event", OneOf(Created, Deleted), func() {
 })
 ```
 
+When a union is used as an optional object attribute, generated Go types expose
+it as a pointer. Leaving the pointer nil omits the JSON property; setting it
+still requires a valid discriminator and matching branch value. Required union
+attributes retain their value-type API.
+
 For OpenAPI 3.1, Loom renders supported union schemas as `oneOf` references to
 generated branch-envelope components and includes an OpenAPI discriminator with
 stable tag-to-component mappings. Custom `oneof:type:field` and

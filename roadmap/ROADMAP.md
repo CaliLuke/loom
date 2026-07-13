@@ -20,6 +20,8 @@ This roadmap is meant to keep work focused on those outcomes instead of accumula
 - OpenAPI v2 removal and OpenAPI 3.1 / JSON Schema 2020-12 baseline.
 - `libopenapi`-backed spec validation in the test harness.
 - `OneOf(...)` constructor support and explicit union discriminator tag preservation.
+- Optional `OneOf(...)` attributes now preserve absence across service and
+  transport generation while required unions keep their existing value API.
 - OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
 - OpenAPI schema deduplication now reuses structurally identical generated components while treating explicit HTTP `Body(...)` `openapi:typename` declarations as authoritative public names; conflicting non-equivalent claims now fail generation instead of leaking hash-suffixed public schemas.
 - OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.

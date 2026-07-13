@@ -10,8 +10,8 @@ import (
 	clientinterceptorservice "client_interceptor_service"
 	"context"
 	"fmt"
-	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/CaliLuke/loom/clue/log"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // ClientInterceptorServiceClientInterceptors implements the client interceptors for the ClientInterceptorService service.
