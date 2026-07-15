@@ -17,16 +17,18 @@ Use Loom framework source as the authoritative reference for DSL and runtime beh
 - `middleware/`: reusable middleware components
 - `expr/`: design expression model
 
-## Skill-Bundled User Guides
+## Canonical User Guides
 
-- `SKILL.md`: primary routing index for bundled Loom docs
-- `references/user-guides/<topic>/...`: task-sized fragments for quick lookup
-- `references/user-guides/*.md`: full transcripts kept as fallbacks when a fragment is insufficient
-- Repo-specific Loom contract behavior now lives in the skill itself under `Loom Contract Rules`, not in a separate delta appendix.
+- `SKILL.md`: primary routing index and Loom-specific contract rules
+- `docs/`: maintained user guides for quickstart, DSL, code generation, HTTP,
+  gRPC, errors, interceptors, and production
+- `jsonrpc/README.md` and `jsonrpc/ARCHITECTURE.md`: maintained JSON-RPC user and
+  architecture documentation
 
 ## Suggested Lookup Flow
 
-1. If the task needs end-user doc steps, open the matching fragment listed in `SKILL.md`.
+1. If the task needs end-user instructions, open the matching canonical guide
+   listed in `SKILL.md`.
 2. Check the available Loom source tree for DSL and generation behavior.
 3. Confirm transport behavior in `http/`, `grpc/`, or `jsonrpc/`.
 4. Apply changes in user code by editing DSL first, then regenerating with `loom gen`.

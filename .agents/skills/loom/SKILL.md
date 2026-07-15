@@ -362,23 +362,26 @@ loom example <module-import-path>/design
 ## References
 
 - Framework/source map: `references/repo-map.md`
-- Use only the original full guide pages under `references/user-guides/*.md`.
+- Canonical user guides: `../../../docs/`
+- JSON-RPC guide and architecture: `../../../jsonrpc/README.md` and
+  `../../../jsonrpc/ARCHITECTURE.md`
 - For framework/runtime internals, inspect the Loom source tree described in `references/repo-map.md`.
 
-## Original Guide Pages
+## Canonical Guide Pages
 
-- `references/user-guides/quickstart.md`
-- `references/user-guides/dsl-reference.md`
-- `references/user-guides/code-generation.md`
-- `references/user-guides/http-guide.md`
-- `references/user-guides/grpc-guide.md`
-- `references/user-guides/error-handling.md`
-- `references/user-guides/interceptors.md`
-- `references/user-guides/production.md`
+- `../../../docs/quickstart.md`
+- `../../../docs/dsl-reference.md`
+- `../../../docs/code-generation.md`
+- `../../../docs/http-guide.md`
+- `../../../docs/grpc-guide.md`
+- `../../../docs/error-handling.md`
+- `../../../docs/interceptors.md`
+- `../../../docs/production.md`
+- `../../../jsonrpc/README.md`
 
 ## Selection Rules
 
-- Start with the one full guide page that best matches the immediate task.
+- Start with the canonical guide that best matches the immediate task.
 - For repo-specific behavior differences from upstream Loom releases, use the `Loom Contract Rules` section in this skill before inspecting the wider source tree.
-- Load additional full guide pages only if the first one is insufficient.
+- Load additional guides only if the first one is insufficient.
 - Prefer `references/repo-map.md` and the Loom source tree for framework internals or runtime behavior.

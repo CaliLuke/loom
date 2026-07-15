@@ -1,253 +1,69 @@
 # Loom Roadmap
 
-## Purpose
+This file contains only unresolved, framework-owned work. Completed work belongs
+in the implementation, tests, user documentation, release notes, and Git
+history—not in the roadmap.
 
-`loom` is not trying to preserve every historical Loom feature.
-The value proposition is:
+## Priority 1: Correctness and Security
 
-- a smaller framework surface
-- cleaner OpenAPI 3.x output
-- less application-side glue in design files
-- safer defaults for common auth and session patterns
-- reduced maintenance by outsourcing commodity protocol correctness to libraries where appropriate
+- Isolate request contexts between alternative security schemes so a failed
+  branch cannot leak credentials or other values into the branch that succeeds.
+- Bound and redact `DebugDoer` request/response capture, and make effective
+  client-address logging honor the trusted-proxy policy.
+- Remove the legacy X-Ray, request-ID, logging, and tracing middleware surface in
+  the next breaking release. Until removal, correct the reversed 4xx/5xx X-Ray
+  classification and lock the behavior with focused tests.
+- Define and test entropy-failure behavior for generated request IDs and other
+  framework-generated identifiers.
 
-This roadmap is meant to keep work focused on those outcomes instead of accumulating disconnected compatibility patches.
+## Priority 2: Reproducible Generation and Releases
 
-## Status
+- Make `loom gen` transactional: generate into a staging tree, validate the
+  result, and replace `gen/` only after the complete run succeeds.
+- Pin `protoc-gen-go` and `protoc-gen-go-grpc` in framework-owned tooling and
+  publish the supported toolchain contract.
+- Replace JSON-RPC integration source rewriting based on strings and regular
+  expressions with typed generator seams or explicit fixture configuration.
+- Make the plugin boundary explicit: either document and test it as a public
+  extension contract or internalize it.
+- Make release preparation transactional and self-verifying, including version
+  updates, fixture regeneration, tag publication, and matching GitHub Release
+  creation.
+- Centralize temp-module local-source selection so integration and release
+  harnesses share one untracked, worktree-safe mechanism.
 
-### Completed
+## Priority 3: Documentation and Skill Integrity
 
-- OpenAPI v2 removal and OpenAPI 3.1 / JSON Schema 2020-12 baseline.
-- `libopenapi`-backed spec validation in the test harness.
-- `OneOf(...)` constructor support and explicit union discriminator tag preservation.
-- Optional `OneOf(...)` attributes now preserve absence across service and
-  transport generation while required unions keep their existing value API.
-- Result views can override selected field requiredness in either direction,
-  including nested named views, with consistent validation, HTTP, and OpenAPI
-  contracts.
-- Typed SSE streams can opt into discriminator-selected result-view JSON
-  projections, with canonical client reconstruction and `oneOf` OpenAPI plus
-  `x-loom-async` contracts.
-- OpenAPI wrapper unions now emit `oneOf` branch-envelope refs with discriminator mappings.
-- OpenAPI schema deduplication now reuses structurally identical generated components while treating explicit HTTP `Body(...)` `openapi:typename` declarations as authoritative public names; conflicting non-equivalent claims now fail generation instead of leaking hash-suffixed public schemas.
-- OpenAPI now emits operation-level security requirements for secured endpoints and explicit `security: []` for `NoSecurity()` operations.
-- OpenAPI security requirement values for HTTP bearer, API key, basic, and
-  cookie schemes now render as empty arrays; only OAuth2 publishes scope names
-  in requirement arrays.
-- OpenAPI now hoists repeated path/query/header/cookie parameters into
-  `components.parameters` with stable component names and rewrites repeated
-  inline occurrences to parameter refs.
-- OpenAPI now hoists repeated request bodies, headers, named examples, and
-  structurally identical no-body responses into reusable components where the
-  contract shape is stable enough for downstream client generators.
-- OpenAPI now hoists repeated payload-bearing responses into
-  `components.responses` when the response description, headers, content type,
-  and referenced schema shape are equivalent even if duplicate generated schema
-  refs only differ by internal alias names.
-- OpenAPI now gives shared reusable request bodies and responses stable
-  schema-driven or generic public component names where safe, while pruning
-  nil-valued component placeholders before rendering `components.*` maps.
-- `AuthErrorResponses()` now reuses compatible canonical 401/403 auth mappings
-  across method, service, and API scopes instead of forcing helper-owned auth
-  response descriptions when the design already defines those contract shapes.
-- OpenAPI now supports explicit public names for hoisted reusable request-body,
-  parameter, response, and named-example components, explicit request-body
-  descriptions, and automatic request vs response schema splitting when
-  `readOnly`/`writeOnly` metadata would otherwise leak server-managed or
-  secret fields across both directions.
-- OpenAPI and HTTP transport generation now default Loom errors to
-  RFC 9457-style `application/problem+json` contracts with stable `code`,
-  `instance`, and optional `retry_hint` fields, support error-local
-  `ProblemType(...)` / `ProblemTitle(...)` overrides, and keep first-class
-  response links, framework-owned async streaming contracts under
-  `x-loom-async`, plus representative Redocly and downstream TypeScript/Go
-  smoke-generation gates.
-- OpenAPI operations now inherit service-level tag declarations by default, so
-  operation tags line up with published top-level tag objects without
-  duplicating method-level metadata.
-- OpenAPI schema generation now honors attribute-level `readOnly`,
-  `writeOnly`, `deprecated`, `contentEncoding`, and `contentMediaType`
-  metadata in the IR-backed schema paths.
-- OpenAPI now prunes unreferenced generated component schemas instead of publishing every top-level type and result type.
-- OpenAPI closed-object contract mode now supports opt-in `additionalProperties: false` / `unevaluatedProperties: false` output while preserving explicit dictionary schemas.
-- OpenAPI now suppresses invalid closed-object union-wrapper examples, honors field-level `Meta("openapi:example", "false")` on those wrappers, keeps SSE stream responses on normal HTTP success codes, advertises SSE responses as `text/event-stream`, and normalizes binary request examples to string form.
-- OpenAPI now suppresses invalid synthesized examples for closed-object direct-union collections in response/media-type arrays instead of emitting examples that fail schema validation.
-- OpenAPI now omits transport-level media-type examples for streaming responses instead of synthesizing partial SSE/WebSocket payload examples that can drift from the referenced schema.
-- HTTP CORS policy is now design-owned through API/service `CORS` and
-  `RuntimeCORS()` DSL, generated preflight routes, immutable validated startup
-  policy snapshots, shared runtime header helpers, and OpenAPI `x-loom-cors`
-  extensions that do not leak runtime configuration.
-- JSON-RPC browser cross-origin policy now uses the same design-owned `CORS`
-  DSL and shared runtime headers across HTTP, SSE, mixed, and WebSocket
-  servers, while preserving `CrossOriginProtection` when no policy is defined.
-- Generated JSON-RPC `ServeHTTP` now always enters through the effective server
-  handler, so runtime CORS and `Server.Use` middleware remain active for core
-  mounts and downstream transport extensions; raw HTTP, SSE negotiation, and
-  WebSocket dispatch stay behind private generated methods.
-- Mixed JSON-RPC HTTP/SSE generation now emits only the unified negotiated
-  server path and endpoint stream implementation, omitting the unreachable
-  standalone SSE handler and limiting eager GET-open logic to `events/stream`.
-- Large generated HTTP and JSON-RPC transport type packages now split wire
-  types, unions, validation helpers, and constructors into deterministic
-  concern files once they cross the compact-output threshold.
-- Large generated HTTP and JSON-RPC clients now expose deterministic
-  path-segment operation groups while preserving the existing flat `Client`
-  methods and request builders.
-- Generated service-package projection helpers now expose canonical result-to-view and view-to-result transforms for `ResultType` / `View` modeling.
-- First-class `application/x-www-form-urlencoded` request encoding and decoding for typed and union payloads, including flat OAuth-style object-union fields.
-- Explicit optional JSON request bodies via `OptionalRequestBody()`.
-- Raw request streams can now publish an explicit OpenAPI request body through
-  `OpenAPIRequestBody(...)`, including media type, schema, description,
-  examples, and requiredness, without changing generated stream signatures or
-  enabling runtime decoding and buffering.
-- Multipart object request decoding without handwritten decoder hooks, including shared validation flow when multipart bodies are combined with generated request-element decoding.
-- Request-body validator parity and transform helper parity for downstream consumers.
-- HTTP request decoders now support string-backed custom
-  `struct:field:type` path, query, header, and cookie fields through
-  `encoding.TextUnmarshaler`.
-- HTTP path parameters now normalize percent encoding exactly once across
-  chi raw-path and canonical-path routing; generated client path constructors
-  leave scalar and array values decoded for `net/url` to escape exactly once.
-- Generated gRPC encoders now return descriptive conversion errors when scalar,
-  collection, or nested `Any` values cannot be represented by
-  `google.protobuf.Value`, instead of silently emitting nil values.
-- JSON-RPC SSE server generation now emits `message` events for streamed payloads and JSON-RPC error envelopes, while final success envelopes still use `response`; generated SSE clients and the integration harness preserve and validate those event types while remaining backward compatible with legacy/default frames.
-- JSON-RPC SSE intermediate notifications now support the design-owned
-  `SSENotificationMethod(...)` protocol method and otherwise use a namespaced
-  `<service>/stream.event` default instead of the request method.
-- JSON-RPC SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first SSE frame is actually written, so endpoint setup failures can still surface as the correct HTTP error response. The raw streamable-HTTP `GET /rpc` listener for `events/stream` remains an explicit eager-open exception so clients can observe stream establishment before the first published notification.
-- HTTP and JSON-RPC SSE request handlers now share the typed
-  `loomhttp.LastEventIDKey` context contract for `Last-Event-ID` propagation.
-- JSON-RPC request decoders now normalize omitted `params` to an empty object,
-  allowing all-optional payloads while retaining normal required-field and
-  malformed-JSON validation.
-- Mixed JSON-RPC HTTP/SSE servers now inspect the decoded JSON-RPC method before routing `Accept: text/event-stream` requests into SSE handling, so MCP-style `initialize` calls can still return normal JSON while `events/stream` keeps the streamable HTTP behavior.
-- JSON-RPC integration tests now include a persistent generated `ticktock` SSE fixture plus an external-client interoperability check using `github.com/tmaxmax/go-sse`, so generated streams are verified against a real third-party client as well as the in-repo harness.
-- HTTP SSE server streams now defer committing `200 OK` plus `Content-Type: text/event-stream` until the first application event is written, default `X-Accel-Buffering` to `no` while preserving caller overrides, and carry a persistent generated `ticktock` fixture under `http/integration_tests` verified with `github.com/tmaxmax/go-sse`.
-- SSE wire parsing and formatting now flow through shared helpers in `github.com/CaliLuke/loom/http` backed by `github.com/tmaxmax/go-sse`, replacing duplicated hand-rolled frame logic across generated HTTP clients, generated JSON-RPC streams, and the local JSON-RPC SSE harness.
-- HTTP and JSON-RPC SSE server streams now share a serialized runtime writer
-  and expose `loomhttp.SSEControl` for idempotent eager open and safe comment
-  heartbeats without exposing the raw response writer.
-- Generated HTTP and JSON-RPC streaming servers now accept an immutable
-  `loomhttp.StreamWritePolicy`; positive timeouts install and clear a fresh
-  native deadline for every SSE write/flush and WebSocket JSON write, with
-  stable write-versus-flush timeout observation reasons.
-- HTTP servers now support an immutable typed inbound `RequestMetadata`
-  snapshot with cloned allowlisted headers, sensitive-header opt-in, and
-  trusted-proxy CIDR enforcement for effective client, host, and scheme values.
-- HTTP WebSocket generated streams now store `loomhttp.WebSocketStream`, so
-  close idempotence, context-cancel unblocking, close-control writes, and
-  JSON frame read/write lifecycle behavior live in the shared HTTP runtime
-  instead of per-endpoint generated methods.
-- The shared HTTP/JSON-RPC WebSocket runtime now treats pre-upgrade close as a
-  no-op without consuming the later socket close, and preserves successful
-  frame operations when cancellation races completion.
-- Pulse stream readers and sinks now reject new blocking Redis reads after
-  close begins, preventing indefinite `block=0` shutdown hangs.
-- Pulse schedulers synchronize replicated-map ownership so a concurrent close
-  cannot consume cleanup before the joined job map is assigned.
-- JSON-RPC WebSocket generated streams now also wrap raw Gorilla connections
-  in `loomhttp.WebSocketStream`, sharing context-bound JSON frame I/O and
-  close-control behavior with the HTTP WebSocket generator while retaining
-  JSON-RPC pending-request correlation in generated code.
-- First-class OpenTelemetry transport wrappers now live in `github.com/CaliLuke/loom/http/middleware/otel` and `github.com/CaliLuke/loom/grpc/middleware/otel`, using the official `otelhttp` and `otelgrpc` libraries while keeping provider/exporter bootstrap app-owned.
-- OpenTelemetry V2 now adds a framework-owned observability package in `github.com/CaliLuke/loom/observability/otel` plus an optional `logrusbridge` adapter, covering provider bootstrap, HTTP metric-mode selection, request-scoped transport enrichment hooks, and OTLP log bootstrap while retaining the lower-level transport wrappers as escape hatches.
-- CLI example rendering now tolerates empty-map examples instead of panicking when OpenAPI example suppression removes wrapper examples.
-- Generated HTTP and JSON-RPC CLI clients now use a Kong-backed command parser
-  through a Loom-owned HTTP CLI runtime wrapper, replacing generated
-  `flag.FlagSet` endpoint parsing while keeping typed Loom endpoint and payload
-  construction in generated code.
-- Session auth DSL and derived auth/session transport behavior.
-- Per-cookie response model and improved `Set-Cookie` OpenAPI output.
-- Stable OpenAPI schema naming and canonical `operationId` generation.
-- `http/codegen/openapi/v3` now carries a non-trivial `meal-planner` specimen that closes the loop with rendered-spec assertions plus Redocly lint for auth, forms, multipart, union wrappers, views, and SSE.
-- `http/codegen/openapi/v3` now carries a small specimen matrix (`meal-planner`, `collab-streams`, `activity-feed`, `ops-socket`, `streaming-partial-examples`) to exercise form/multipart, SSE, closed-object union collections, and WebSocket-style streaming OpenAPI output.
-- OpenAPI v3 request/response body and content generation now flows through the
-  typed IR analyzer/renderer end to end, including the direct operation helper
-  path used by local seam tests, with the duplicate legacy v3 response/body
-  builder removed.
-- OpenAPI parameter analysis, route-level operation metadata, and reusable
-  component hoisting now also live under the typed IR layer, so the remaining
-  `http/codegen/openapi/v3` package mostly renders IR-owned decisions instead
-  of duplicating contract logic.
-- Go-source generation now uses the shared section model
-  (`codegen.Section`, `codegen.JenniferSection`, `codegen.RawSection`) instead
-  of file-backed Go template assets, and non-Go template assets use neutral
-  `.tmpl` names.
-- Temp-module integration tests that generate code outside the repo now pin the pushed GitHub commit instead of the local working tree when materializing `github.com/CaliLuke/loom`.
-- Generic helper consolidation into `loom`.
+- Correct the canonical JSON-RPC documentation for SSE event names, final
+  response suppression, eager GET listener behavior, mixed HTTP/SSE routing,
+  and session-auth transport behavior.
+- Document HTTP negotiation defaults, body-size and multipart limits, trusted
+  proxy behavior, remediation metadata, and Pulse lifecycle guarantees.
+- Document gRPC prerequisites, initial streaming envelopes, conversion failure
+  behavior, and the supported interceptor DSL/runtime boundary.
+- Keep observer reason and event lists synchronized with source by generating
+  or validating them in CI.
+- Add a documentation check that rejects legacy upstream naming, stale commands,
+  broken relative links, and duplicated user guides in the Loom skill.
 
-### In Progress
+## Priority 4: Verification
 
-- none
+- Finish direct seam coverage for HTTP endpoint validation and service-data
+  assembly, especially optional-body origins, union collections, remediation
+  metadata, raw-object wrapping, viewed-result deduplication, and forced types.
+- Prove representative downstream generation in temporary modules pinned to an
+  exact pushed Loom commit, then run compile and contract smoke tests without
+  modifying the consumer repository.
+- Keep the OpenAPI specimen matrix, Redocly validation, downstream client
+  generation, generated-fixture regeneration, and full integration suite as
+  release gates.
 
-### Next
+## Decision Rules
 
-- prove the cleaned stack against representative downstream generation in temp modules
-- centralize temp-module local-source toggles across harnesses and release
-  tooling so worktree switches use shared git-common-dir state instead of any
-  tracked repo files
-- finish the direct follow-up test backlog for refactored transport/service-data seams
-- keep new generator work on the shared Go-section architecture and use typed
-  Go emission for logic-heavy sections by default
+Add roadmap work only when it is unresolved, framework-owned, and backed by a
+concrete defect, maintenance cost, or downstream consumer need. Remove an item
+as soon as the implementation, tests, and durable documentation are complete.
 
-## Prioritized Backlog
-
-These items are prioritized based on two goals:
-
-- produce a stronger OpenAPI 3.1 contract for machine reconciliation
-- remove transport projection glue that is currently hand-maintained in application code
-
-1. Generated projection parity tests and guardrails
-   See [Generated Projection Parity Tests](./generated_projection_parity_tests.md).
-
-2. Refactor follow-up test backlog
-   The recent Fowler-style refactor of HTTP endpoint validation and transport/service-data assembly exposed several helper seams that need direct tests instead of relying only on broad package and golden coverage.
-   Started 2026-03-18:
-   Direct `http/codegen` coverage now exists for decoder return-value fallback, map-query shaping, request encoder gating, request validation gating, tagless response ordering, file-server path normalization/wildcard extraction, aliased path-param request init, result-init and error-init arg assembly, response-body generation for explicit origin/view fanout, error content-type suppression, and multipart decoder/encoder gating.
-
-   `expr/http_endpoint.go`
-   - Add validation coverage for map/array payload skip-request-body edge cases.
-
-   `http/codegen/service_data.go`
-   - Add request validation-flag coverage for optional-body origin handling.
-   - Add direct union collection tests across request body, streaming body, responses, and errors.
-
-   `codegen/service/service_data.go`
-   - Add direct tests for remediation metadata on collected service errors.
-   - Add tests for raw-object payload/result wrapping into synthetic user types.
-   - Add tests for viewed-result deduplication by view and separation across different views.
-   - Add direct union collection coverage across payload, streaming payload, result, and errors.
-   - Add forced-type generation tests with and without service filters.
-
-   Lower-priority integration/golden follow-up
-   - Add representative golden coverage for viewed results, explicit response tags, explicit body origin attributes, multipart, skip request body encode/decode, skip response body encode/decode, and JSON-RPC mixed results.
-   - Add one complex end-to-end generator test that combines params, headers, cookies, tagged responses, and typed error responses.
-
-## Roadmap Index
-
-- [Finish Checklist](./finish_checklist.md)
-- [Auth and Session](./auth_and_session.md)
-- [Generated Projection Parity Tests](./generated_projection_parity_tests.md)
-- [Refactor Checklist](./refactor_checklist.md)
-
-## Definition Of Finished
-
-This effort is finished only when all items in [Finish Checklist](./finish_checklist.md) are complete.
-
-## Things to Avoid
-
-- Building auth runtime behavior into `loom`.
-- Adding features solely to preserve historical Loom behavior.
-- Expanding the DSL without validating that it removes real application complexity.
-- Replacing core DSL-to-codegen semantics with libraries.
-
-## Decision Rule
-
-Before starting a new framework feature, ask:
-
-1. Does this remove real glue or real risk in application design files?
-2. Is this framework semantics, rather than runtime security logic better handled by libraries?
-3. Is there a concrete downstream consumer that benefits now?
-
-If the answer to any of these is “no”, the feature should usually wait.
+Do not add compatibility work solely to preserve historical upstream behavior,
+runtime security policy better owned by applications, or speculative DSL
+surface without a current consumer.
