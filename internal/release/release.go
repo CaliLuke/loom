@@ -141,7 +141,7 @@ func (run *releaseRun) prepare(ctx context.Context) ([]string, error) {
 	}
 	if err := streamCommand(ctx, run.stage, []string{
 		"LOOM_DIR=" + run.stage,
-		"XDG_CACHE_HOME=" + run.cacheDir,
+		"GOLANGCI_LINT_CACHE=" + run.cacheDir,
 	},
 		run.config.PreflightCommand, "release-preflight"); err != nil {
 		return nil, fmt.Errorf("release preflight: %w", err)
