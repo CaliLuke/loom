@@ -43,6 +43,7 @@ type releaseRun struct {
 	root          string
 	head          string
 	stage         string
+	cacheDir      string
 	worktreeAdded bool
 	tagCreated    bool
 	pushed        bool
@@ -99,6 +100,7 @@ func (run *releaseRun) execute(ctx context.Context) (resultErr error) {
 		return fmt.Errorf("create release staging path: %w", err)
 	}
 	run.stage = stage
+	run.cacheDir = stage + "-cache"
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
 		defer cancel()
@@ -137,7 +139,10 @@ func (run *releaseRun) prepare(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := streamCommand(ctx, run.stage, []string{"LOOM_DIR=" + run.stage},
+	if err := streamCommand(ctx, run.stage, []string{
+		"LOOM_DIR=" + run.stage,
+		"XDG_CACHE_HOME=" + run.cacheDir,
+	},
 		run.config.PreflightCommand, "release-preflight"); err != nil {
 		return nil, fmt.Errorf("release preflight: %w", err)
 	}
@@ -198,6 +203,9 @@ func (run *releaseRun) cleanup(ctx context.Context) error {
 	}
 	if err := os.RemoveAll(run.stage); err != nil {
 		cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove release staging directory: %w", err))
+	}
+	if err := os.RemoveAll(run.cacheDir); err != nil {
+		cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove release cache directory: %w", err))
 	}
 	return cleanupErr
 }

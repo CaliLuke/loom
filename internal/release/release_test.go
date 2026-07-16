@@ -124,6 +124,9 @@ func TestRunPublishesVerifiedReleaseAndFastForwardsCaller(t *testing.T) {
 	preflight := writeCommand(t, "preflight", fmt.Sprintf(`#!/bin/sh
 printf 'preflight:%%s:%%s\n' "$PWD" "$LOOM_DIR" >> %q
 test "$(pwd -P)" = "$(cd "$LOOM_DIR" && pwd -P)"
+test -n "$XDG_CACHE_HOME"
+test "$(dirname "$LOOM_DIR")" = "$(dirname "$XDG_CACHE_HOME")"
+test "$LOOM_DIR" != "$XDG_CACHE_HOME"
 `, logPath))
 	gh := writeCommand(t, "gh", fmt.Sprintf(`#!/bin/sh
 count_file=%q
