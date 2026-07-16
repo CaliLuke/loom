@@ -949,6 +949,14 @@ fields when the design has not already modeled them. `CookieTransport(..., "")`
 keeps cookie auth transport-owned: Loom still decodes the HTTP cookie and emits
 cookie security metadata, but it does not add a payload field or CLI flag.
 
+Generated endpoints isolate the context used by each alternative security
+requirement. If an authorizer returns a modified context together with an
+error, Loom discards that candidate context before trying the next alternative.
+Schemes declared together in one `Security(A, B)` requirement retain AND
+semantics and chain the context returned by each successful authorizer. Only the
+context from the requirement that ultimately succeeds reaches the service
+method.
+
 Use `AuthErrorResponses()` in HTTP scope to add standard 401/403 error response
 mappings, and use `SessionCookie(...)` in HTTP response scope when setting a
 session cookie with secure defaults: `Path("/")`, `Secure`, `HttpOnly`, and

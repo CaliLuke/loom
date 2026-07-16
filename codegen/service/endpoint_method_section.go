@@ -65,64 +65,73 @@ func endpointMethodSection(method *EndpointMethodData) codegen.Section {
 
 func buildEndpointAuth(group *jen.Group, method *EndpointMethodData, payload string) {
 	group.Var().Id("err").Error()
+	contextVar := "ctx"
+	if len(method.Requirements) > 1 {
+		contextVar = "authCtx"
+		group.Id(contextVar).Op(":=").Id("ctx")
+	}
 	for ridx, req := range method.Requirements {
 		if ridx != 0 {
 			group.If(jen.Id("err").Op("!=").Nil()).BlockFunc(func(nested *jen.Group) {
-				buildRequirementSchemes(nested, req, payload)
+				nested.Id(contextVar).Op("=").Id("ctx")
+				buildRequirementSchemes(nested, req, payload, contextVar)
 			})
 			continue
 		}
-		buildRequirementSchemes(group, req, payload)
+		buildRequirementSchemes(group, req, payload, contextVar)
 	}
 	group.If(jen.Id("err").Op("!=").Nil()).Block(
 		jen.Return(jen.Nil(), jen.Id("err")),
 	)
+	if contextVar != "ctx" {
+		group.Id("ctx").Op("=").Id(contextVar)
+	}
 }
 
-func buildRequirementSchemes(group *jen.Group, req *RequirementData, payload string) {
+func buildRequirementSchemes(group *jen.Group, req *RequirementData, payload, contextVar string) {
 	for sidx, scheme := range req.Schemes {
 		if sidx != 0 {
 			group.If(jen.Id("err").Op("==").Nil()).BlockFunc(func(nested *jen.Group) {
-				buildSchemeAuth(nested, req, scheme, payload)
+				buildSchemeAuth(nested, req, scheme, payload, contextVar)
 			})
 			continue
 		}
-		buildSchemeAuth(group, req, scheme, payload)
+		buildSchemeAuth(group, req, scheme, payload, contextVar)
 	}
 }
 
-func buildSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload string) {
+func buildSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar string) {
 	switch scheme.Type {
 	case "Basic":
-		buildBasicSchemeAuth(group, req, scheme, payload)
+		buildBasicSchemeAuth(group, req, scheme, payload, contextVar)
 	case "APIKey":
-		buildCredentialSchemeAuth(group, req, scheme, payload, "APIKey", "key")
+		buildCredentialSchemeAuth(group, req, scheme, payload, contextVar, "APIKey", "key")
 	case "JWT":
-		buildCredentialSchemeAuth(group, req, scheme, payload, "JWT", "token")
+		buildCredentialSchemeAuth(group, req, scheme, payload, contextVar, "JWT", "token")
 	case "OAuth2":
-		buildOAuth2SchemeAuth(group, req, scheme, payload)
+		buildOAuth2SchemeAuth(group, req, scheme, payload, contextVar)
 	}
 }
 
-func buildBasicSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload string) {
+func buildBasicSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar string) {
 	buildSchemeStruct(group, "BasicScheme", scheme.SchemeName, scheme.Scopes, req.Scopes, nil)
 	buildPointerStringBinding(group, "user", payload, scheme.UsernameField, scheme.UsernamePointer)
 	buildPointerStringBinding(group, "pass", payload, scheme.PasswordField, scheme.PasswordPointer)
 	userExpr := payloadFieldExpr(payload, scheme.UsernameField, scheme.UsernamePointer, "user")
 	passExpr := payloadFieldExpr(payload, scheme.PasswordField, scheme.PasswordPointer, "pass")
-	group.List(jen.Id("ctx"), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
-		jen.Id("ctx"),
+	group.List(jen.Id(contextVar), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
+		jen.Id(contextVar),
 		userExpr,
 		passExpr,
 		jen.Op("&").Id("sc"),
 	)
 }
 
-func buildCredentialSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, schemeStruct, tempVar string) {
+func buildCredentialSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar, schemeStruct, tempVar string) {
 	buildSchemeStruct(group, schemeStruct+"Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes, nil)
 	if scheme.TransportOwned {
-		group.List(jen.Id("ctx"), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
-			jen.Id("ctx"),
+		group.List(jen.Id(contextVar), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
+			jen.Id(contextVar),
 			jen.Lit(""),
 			jen.Op("&").Id("sc"),
 		)
@@ -130,14 +139,14 @@ func buildCredentialSchemeAuth(group *jen.Group, req *RequirementData, scheme *S
 	}
 	buildPointerStringBinding(group, tempVar, payload, scheme.CredField, scheme.CredPointer)
 	expr := payloadFieldExpr(payload, scheme.CredField, scheme.CredPointer, tempVar)
-	group.List(jen.Id("ctx"), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
-		jen.Id("ctx"),
+	group.List(jen.Id(contextVar), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
+		jen.Id(contextVar),
 		expr,
 		jen.Op("&").Id("sc"),
 	)
 }
 
-func buildOAuth2SchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload string) {
+func buildOAuth2SchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar string) {
 	buildSchemeStruct(group, "OAuth2Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes, func(values *jen.Group) {
 		if len(scheme.Flows) == 0 {
 			return
@@ -161,8 +170,8 @@ func buildOAuth2SchemeAuth(group *jen.Group, req *RequirementData, scheme *Schem
 	})
 	buildPointerStringBinding(group, "token", payload, scheme.CredField, scheme.CredPointer)
 	expr := payloadFieldExpr(payload, scheme.CredField, scheme.CredPointer, "token")
-	group.List(jen.Id("ctx"), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
-		jen.Id("ctx"),
+	group.List(jen.Id(contextVar), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
+		jen.Id(contextVar),
 		expr,
 		jen.Op("&").Id("sc"),
 	)

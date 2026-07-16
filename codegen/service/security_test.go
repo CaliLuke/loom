@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,6 +117,79 @@ func TestSessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {
 	assert.Contains(t, sessionMethod.PayloadDef, "Auth *string")
 	assert.Contains(t, sessionMethod.PayloadDef, "Message *string")
 	testutil.AssertGo(t, "testdata/golden/security_session_payload_def.go.golden", sessionMethod.PayloadDef)
+}
+
+func TestSecureEndpointIsolatesAlternativeRequirementContexts(t *testing.T) {
+	cases := []struct {
+		name        string
+		dsl         func()
+		serviceName string
+	}{
+		{
+			name:        "hand-authored security",
+			dsl:         testdata.EndpointWithBearerOrCookieSecurityDSL,
+			serviceName: "EndpointWithBearerOrCookieSecurity",
+		},
+		{
+			name:        "session security",
+			dsl:         testdata.EndpointWithSessionSecurityDSL,
+			serviceName: "EndpointWithSessionSecurity",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := codegen.RunDSL(t, tc.dsl)
+			service := NewServicesData(root).Get(tc.serviceName)
+			require.NotNil(t, service)
+			method := endpointData(service).Methods[0]
+			require.NotNil(t, method)
+			assert.Equal(t, "Secure", method.Name)
+			require.Len(t, method.Requirements, 2)
+
+			code := codegen.SectionCode(t, endpointMethodSection(method))
+			assert.Contains(t, code, "authCtx := ctx")
+			assert.Contains(t, code, "authCtx, err = authJWTFn(authCtx,")
+			assert.Contains(t, code, "if err != nil {\n\t\t\tauthCtx = ctx")
+			assert.Contains(t, code, "authCtx, err = authAPIKeyFn(authCtx,")
+			assert.Contains(t, code, "ctx = authCtx")
+			assert.NotContains(t, code, "ctx, err = authJWTFn(ctx,")
+			assert.NotContains(t, code, "ctx, err = authAPIKeyFn(ctx,")
+		})
+	}
+}
+
+func TestSecureEndpointPreservesContextWithinCompoundRequirement(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.EndpointWithCompoundOrSecurityDSL)
+	service := NewServicesData(root).Get("EndpointWithCompoundOrSecurity")
+	require.NotNil(t, service)
+	method := endpointData(service).Methods[0]
+	require.NotNil(t, method)
+	require.Len(t, method.Requirements, 2)
+	require.Len(t, method.Requirements[0].Schemes, 2)
+
+	code := codegen.SectionCode(t, endpointMethodSection(method))
+	andGuard := strings.Index(code, "if err == nil {")
+	basicAuth := strings.Index(code, "authCtx, err = authBasicFn(authCtx,")
+	jwtAuth := strings.Index(code, "authCtx, err = authJWTFn(authCtx,")
+	reset := strings.Index(code, "if err != nil {\n\t\t\tauthCtx = ctx")
+	apiKeyAuth := strings.Index(code, "authCtx, err = authAPIKeyFn(authCtx,")
+	positions := []struct {
+		name  string
+		index int
+	}{
+		{name: "basic authorizer", index: basicAuth},
+		{name: "AND guard", index: andGuard},
+		{name: "JWT authorizer", index: jwtAuth},
+		{name: "alternative reset", index: reset},
+		{name: "API key authorizer", index: apiKeyAuth},
+	}
+	for _, position := range positions {
+		assert.NotEqual(t, -1, position.index, position.name)
+	}
+	assert.Greater(t, andGuard, basicAuth)
+	assert.Greater(t, jwtAuth, andGuard)
+	assert.Greater(t, reset, jwtAuth)
+	assert.Greater(t, apiKeyAuth, reset)
 }
 
 func TestAPISessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {

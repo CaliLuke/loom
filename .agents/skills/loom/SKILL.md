@@ -173,6 +173,11 @@ build Auto-K without repeating large amounts of app-local glue.
   transports can coexist with handshake path/query/header payload mappings
   without creating a JSON request body; if the payload is fully mapped to
   cookie/path/query/header inputs, the websocket handshake remains bodyless.
+- Generated endpoints isolate contexts between alternative security
+  requirements. A failed alternative's returned context is discarded before
+  the next alternative runs. Schemes within one requirement still chain their
+  successful contexts for AND semantics, and only the successful requirement's
+  context reaches the service method.
 - Use `AuthErrorResponses()` for standard HTTP auth failures instead of duplicating 401/403 mappings.
 - `AuthErrorResponses()` now reuses compatible canonical 401/403 mappings from
   method, service, or API scope when those auth errors are already modeled,

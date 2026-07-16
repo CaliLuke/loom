@@ -194,6 +194,21 @@ var EndpointWithBearerOrCookieSecurityDSL = func() {
 	})
 }
 
+var EndpointWithCompoundOrSecurityDSL = func() {
+	Service("EndpointWithCompoundOrSecurity", func() {
+		Method("Secure", func() {
+			Security(BasicAuth, JWTAuth)
+			Security(APIKeyAuth)
+			Payload(func() {
+				Username("user", String)
+				Password("pass", String)
+				Token("auth", String)
+				APIKey("api_key", "browser_session", String)
+			})
+		})
+	})
+}
+
 var EndpointWithSessionSecurityDSL = func() {
 	var AppSession = SessionAuth("app_session", func() {
 		BearerTransport(JWTAuth, "auth")
