@@ -92,7 +92,7 @@ This is part of the product, not an afterthought. Loom is intentionally shaped s
 go install github.com/CaliLuke/loom/cmd/loom@latest
 
 # Install the current stable release explicitly
-go install github.com/CaliLuke/loom/cmd/loom@v1.6.2
+go install github.com/CaliLuke/loom/cmd/loom@v1.7.0
 
 # Create a new module
 mkdir hello && cd hello
