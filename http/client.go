@@ -2,11 +2,14 @@ package http
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -34,6 +37,11 @@ type (
 		Response *http.Response
 	}
 
+	debugReplayBody struct {
+		io.Reader
+		io.Closer
+	}
+
 	// ClientError is an error returned by a HTTP service client.
 	ClientError struct {
 		// Name is a name for this class of errors.
@@ -55,6 +63,11 @@ type (
 	}
 )
 
+const (
+	debugBodyCaptureLimit = int64(64 << 10)
+	debugRedactedValue    = "[REDACTED]"
+)
+
 func (c ClientError) Unwrap() error {
 	return c.Err
 }
@@ -67,50 +80,204 @@ func NewDebugDoer(d Doer) DebugDoer {
 
 // Do captures the request and response.
 func (dd *debugDoer) Do(req *http.Request) (*http.Response, error) {
-	var reqb []byte
-	if req.Body != nil {
-		var (
-			body io.ReadCloser
-			err  error
-		)
-		if req.GetBody != nil {
-			body, err = req.GetBody()
-			if err != nil {
-				return nil, fmt.Errorf("capture request body: %w", err)
-			}
-			reqb, err = io.ReadAll(body)
-			if closeErr := body.Close(); closeErr != nil {
-				return nil, fmt.Errorf("close captured request body: %w", closeErr)
-			}
-		} else {
-			reqb, err = io.ReadAll(req.Body)
-			req.Body = io.NopCloser(bytes.NewBuffer(reqb))
-		}
-		if err != nil {
-			return nil, fmt.Errorf("capture request body: %w", err)
-		}
-	}
-
-	resp, err := dd.Doer.Do(req)
-
+	capturedRequest, err := captureDebugRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
-	respb, err := io.ReadAll(resp.Body)
+	resp, err := dd.Doer.Do(req)
 	if err != nil {
-		respb = fmt.Appendf(nil, "!!failed to read response: %s", err)
+		return nil, err
 	}
-	resp.Body = io.NopCloser(bytes.NewBuffer(respb))
 
-	dd.Response = resp
-
-	req.Body = io.NopCloser(bytes.NewBuffer(reqb))
-	dd.Request = req
+	dd.Request = capturedRequest
+	dd.Response = captureDebugResponse(resp)
 
 	dd.Fprint(os.Stderr)
 
-	return resp, err
+	return resp, nil
+}
+
+func captureDebugRequest(req *http.Request) (*http.Request, error) {
+	captured := req.Clone(req.Context())
+	captured.Header = redactDebugHeaders(req.Header)
+	captured.URL = redactDebugURL(req.URL)
+	if req.Body == nil {
+		return captured, nil
+	}
+
+	var (
+		body      io.ReadCloser
+		data      []byte
+		truncated bool
+		err       error
+	)
+	if req.GetBody != nil {
+		body, err = req.GetBody()
+		if err != nil {
+			return nil, fmt.Errorf("capture request body: %w", err)
+		}
+		data, truncated, err = readDebugBody(body)
+		if closeErr := body.Close(); closeErr != nil {
+			return nil, fmt.Errorf("close captured request body: %w", closeErr)
+		}
+	} else {
+		body = req.Body
+		data, truncated, err = readDebugBody(body)
+		req.Body = &debugReplayBody{
+			Reader: io.MultiReader(bytes.NewReader(data), body),
+			Closer: body,
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("capture request body: %w", err)
+	}
+	captured.Body = io.NopCloser(bytes.NewReader(redactDebugBody(req.Header, data, truncated)))
+	return captured, nil
+}
+
+func redactDebugURL(original *url.URL) *url.URL {
+	if original == nil {
+		return nil
+	}
+	redacted := *original
+	if redacted.User != nil {
+		username := redacted.User.Username()
+		if _, hasPassword := redacted.User.Password(); hasPassword {
+			redacted.User = url.UserPassword(username, debugRedactedValue)
+		}
+	}
+	query := redacted.Query()
+	for name := range query {
+		if isSensitiveDebugName(name) {
+			query[name] = []string{debugRedactedValue}
+		}
+	}
+	redacted.RawQuery = query.Encode()
+	return &redacted
+}
+
+func captureDebugResponse(resp *http.Response) *http.Response {
+	captured := new(http.Response)
+	*captured = *resp
+	captured.Header = redactDebugHeaders(resp.Header)
+	if resp.Body == nil {
+		return captured
+	}
+
+	body := resp.Body
+	data, truncated, err := readDebugBody(body)
+	if err != nil {
+		message := fmt.Appendf(nil, "!!failed to read response: %s", err)
+		captured.Body = io.NopCloser(bytes.NewReader(message))
+		resp.Body = io.NopCloser(bytes.NewReader(message))
+		return captured
+	}
+	resp.Body = &debugReplayBody{
+		Reader: io.MultiReader(bytes.NewReader(data), body),
+		Closer: body,
+	}
+	captured.Body = io.NopCloser(bytes.NewReader(redactDebugBody(resp.Header, data, truncated)))
+	return captured
+}
+
+func readDebugBody(body io.Reader) ([]byte, bool, error) {
+	data, err := io.ReadAll(io.LimitReader(body, debugBodyCaptureLimit+1))
+	if err != nil {
+		return data, false, err
+	}
+	return data, int64(len(data)) > debugBodyCaptureLimit, nil
+}
+
+func redactDebugHeaders(headers http.Header) http.Header {
+	redacted := headers.Clone()
+	for name := range redacted {
+		if isSensitiveDebugName(name) {
+			redacted[name] = []string{debugRedactedValue}
+		}
+	}
+	return redacted
+}
+
+func redactDebugBody(headers http.Header, data []byte, truncated bool) []byte {
+	if truncated {
+		return fmt.Appendf(nil, "[body omitted after %d bytes]", debugBodyCaptureLimit)
+	}
+	if len(data) == 0 {
+		return nil
+	}
+
+	mediaType, _, err := mime.ParseMediaType(headers.Get("Content-Type"))
+	if err != nil {
+		return data
+	}
+	switch {
+	case mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"):
+		return redactDebugJSON(data)
+	case mediaType == "application/x-www-form-urlencoded":
+		return redactDebugForm(data)
+	default:
+		return data
+	}
+}
+
+func redactDebugJSON(data []byte) []byte {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return []byte("[invalid JSON body omitted]")
+	}
+	redactDebugValue(value)
+	redacted, err := json.Marshal(value)
+	if err != nil {
+		return []byte("[JSON body redaction failed]")
+	}
+	return redacted
+}
+
+func redactDebugValue(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for name, field := range typed {
+			if isSensitiveDebugName(name) {
+				typed[name] = debugRedactedValue
+				continue
+			}
+			redactDebugValue(field)
+		}
+	case []any:
+		for _, item := range typed {
+			redactDebugValue(item)
+		}
+	}
+}
+
+func redactDebugForm(data []byte) []byte {
+	values, err := url.ParseQuery(string(data))
+	if err != nil {
+		return []byte("[invalid form body omitted]")
+	}
+	for name := range values {
+		if isSensitiveDebugName(name) {
+			values[name] = []string{debugRedactedValue}
+		}
+	}
+	return []byte(values.Encode())
+}
+
+func isSensitiveDebugName(name string) bool {
+	normalized := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToLower(name))
+	switch normalized {
+	case "authorization", "cookie", "set_cookie", "proxy_authorization",
+		"password", "passwd", "secret", "token", "api_key", "x_api_key",
+		"access_token", "refresh_token", "client_secret", "credential",
+		"credentials", "session", "session_id":
+		return true
+	}
+	return strings.HasSuffix(normalized, "_token") ||
+		strings.HasSuffix(normalized, "_secret") ||
+		strings.HasSuffix(normalized, "_api_key")
 }
 
 // Printf dumps the captured request and response details to w.

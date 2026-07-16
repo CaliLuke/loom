@@ -75,6 +75,34 @@ func TestRequestMetadataMiddleware(t *testing.T) {
 	})
 }
 
+func TestEffectiveClientAddress(t *testing.T) {
+	t.Run("ignores forwarded headers without a metadata policy", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "https://service.example.test/tasks", nil)
+		r.RemoteAddr = "192.0.2.10:4321"
+		r.Header.Set("X-Forwarded-For", "198.51.100.7")
+
+		require.Equal(t, "192.0.2.10", EffectiveClientAddress(r))
+	})
+
+	t.Run("uses trusted proxy metadata", func(t *testing.T) {
+		policy, err := NewRequestMetadataPolicy(nil, []netip.Prefix{
+			netip.MustParsePrefix("10.0.0.0/8"),
+		})
+		require.NoError(t, err)
+
+		var got string
+		handler := RequestMetadataMiddleware(policy)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			got = EffectiveClientAddress(r)
+		}))
+		r := httptest.NewRequest(http.MethodGet, "https://service.example.test/tasks", nil)
+		r.RemoteAddr = "10.0.0.2:4321"
+		r.Header.Set("X-Forwarded-For", "198.51.100.7, 10.0.0.1")
+		handler.ServeHTTP(httptest.NewRecorder(), r)
+
+		require.Equal(t, "198.51.100.7", got)
+	})
+}
+
 func TestRequestMetadataSensitiveHeaderOptIn(t *testing.T) {
 	policy, err := NewRequestMetadataPolicy([]string{"Authorization", "Cookie"}, nil)
 	require.NoError(t, err)

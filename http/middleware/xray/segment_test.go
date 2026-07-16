@@ -4,11 +4,13 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strings"
 	"sync"
 	"testing"
 
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/middleware/xray"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -163,10 +165,7 @@ func TestRecordRequest(t *testing.T) {
 			if s.HTTP.Request == nil {
 				t.Fatal("HTTP Request field is nil")
 			}
-			if c.Request.IP != "" && s.HTTP.Request.ClientIP != c.Request.IP {
-				t.Errorf("HTTP Request ClientIP is invalid, expected %#v got %#v", c.Request.IP, s.HTTP.Request.ClientIP)
-			}
-			if c.Request.IP == "" && s.HTTP.Request.ClientIP != c.Request.RemoteHost {
+			if s.HTTP.Request.ClientIP != c.Request.RemoteHost {
 				t.Errorf("HTTP Request ClientIP is invalid, expected host %#v got %#v", c.Request.RemoteHost, s.HTTP.Request.ClientIP)
 			}
 			if s.HTTP.Request.Method != c.Request.Method {
@@ -184,6 +183,24 @@ func TestRecordRequest(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRecordRequestUsesTrustedClientMetadata(t *testing.T) {
+	policy, err := loomhttp.NewRequestMetadataPolicy(nil, []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/8"),
+	})
+	require.NoError(t, err)
+
+	segment := &HTTPSegment{Segment: &xray.Segment{Mutex: &sync.Mutex{}}}
+	handler := loomhttp.RequestMetadataMiddleware(policy)(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		segment.RecordRequest(req, "remote")
+	}))
+	req := httptest.NewRequest(http.MethodGet, "https://loom.design/path", http.NoBody)
+	req.RemoteAddr = "10.0.0.2:443"
+	req.Header.Set("X-Forwarded-For", "198.51.100.7, 10.0.0.1")
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	require.Equal(t, "198.51.100.7", segment.HTTP.Request.ClientIP)
 }
 
 func mustParseURL(t *testing.T, raw string) *url.URL {

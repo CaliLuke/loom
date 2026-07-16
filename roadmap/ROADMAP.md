@@ -6,8 +6,6 @@ history—not in the roadmap.
 
 ## Priority 1: Correctness and Security
 
-- Bound and redact `DebugDoer` request/response capture, and make effective
-  client-address logging honor the trusted-proxy policy.
 - Remove the legacy X-Ray, request-ID, logging, and tracing middleware surface in
   the next breaking release. Until removal, correct the reversed 4xx/5xx X-Ray
   classification and lock the behavior with focused tests.

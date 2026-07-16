@@ -97,6 +97,17 @@ func RequestMetadataFromContext(ctx context.Context) (RequestMetadata, bool) {
 	return metadata, ok
 }
 
+// EffectiveClientAddress returns the trusted effective client IP when request
+// metadata middleware has installed a snapshot. Otherwise it returns the
+// direct network peer and never trusts forwarding headers on its own.
+func EffectiveClientAddress(r *http.Request) string {
+	if metadata, ok := RequestMetadataFromContext(r.Context()); ok && metadata.ClientAddr != "" {
+		return metadata.ClientAddr
+	}
+	peer, _ := splitRequestPeer(r.RemoteAddr)
+	return peer
+}
+
 // HeaderValues returns a copy of the retained values for name.
 func (m RequestMetadata) HeaderValues(name string) []string {
 	return append([]string(nil), m.headers.Values(name)...)

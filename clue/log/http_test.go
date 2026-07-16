@@ -9,8 +9,11 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"regexp"
 	"testing"
+
+	loomhttp "github.com/CaliLuke/loom/http"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -447,7 +450,7 @@ func TestFrom(t *testing.T) {
 		remoteAddr string
 		want       string
 	}{
-		{"x-forwarded-for wins", "10.0.0.1", "192.168.1.1:1234", "10.0.0.1"},
+		{"x-forwarded-for is ignored without metadata", "10.0.0.1", "192.168.1.1:1234", "192.168.1.1"},
 		{"remote addr with port", "", "192.168.1.1:1234", "192.168.1.1"},
 		{"remote addr without port", "", "192.168.1.1", "192.168.1.1"},
 	}
@@ -461,4 +464,22 @@ func TestFrom(t *testing.T) {
 			require.Equal(t, tc.want, from(req))
 		})
 	}
+
+	t.Run("trusted metadata selects forwarded client", func(t *testing.T) {
+		policy, err := loomhttp.NewRequestMetadataPolicy(nil, []netip.Prefix{
+			netip.MustParsePrefix("10.0.0.0/8"),
+		})
+		require.NoError(t, err)
+
+		var got string
+		handler := loomhttp.RequestMetadataMiddleware(policy)(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+			got = from(req)
+		}))
+		req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+		req.RemoteAddr = "10.0.0.2:1234"
+		req.Header.Set("X-Forwarded-For", "198.51.100.7, 10.0.0.1")
+		handler.ServeHTTP(httptest.NewRecorder(), req)
+
+		require.Equal(t, "198.51.100.7", got)
+	})
 }

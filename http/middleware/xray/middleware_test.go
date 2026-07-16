@@ -207,10 +207,7 @@ func TestMiddleware(t *testing.T) {
 			if s.HTTP.Request == nil {
 				t.Fatal("HTTP Request field is nil")
 			}
-			if c.Request.IP != "" && s.HTTP.Request.ClientIP != c.Request.IP {
-				t.Errorf("HTTP Request ClientIP is invalid, expected %#v got %#v", c.Request.IP, s.HTTP.Request.ClientIP)
-			}
-			if c.Request.IP == "" && s.HTTP.Request.ClientIP != c.Request.RemoteHost {
+			if s.HTTP.Request.ClientIP != c.Request.RemoteHost {
 				t.Errorf("HTTP Request ClientIP is invalid, expected host %#v got %#v", c.Request.RemoteHost, s.HTTP.Request.ClientIP)
 			}
 			if s.HTTP.Request.Method != c.Request.Method {

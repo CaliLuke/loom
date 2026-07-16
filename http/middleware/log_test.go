@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"testing"
 
+	loomhttp "github.com/CaliLuke/loom/http"
 	httpm "github.com/CaliLuke/loom/http/middleware"
 	"github.com/CaliLuke/loom/middleware"
 	"github.com/stretchr/testify/assert"
@@ -27,16 +29,25 @@ func TestLog(t *testing.T) {
 		name          string
 		requestID     string
 		xForwardedFor string
+		trustedProxy  bool
 		status        int
 		body          string
 		wantFrom      string
 	}{
 		{
-			name:          "logs request and response",
+			name:          "ignores forwarded address without trusted metadata",
 			requestID:     "req-1",
 			xForwardedFor: "1.2.3.4",
 			status:        http.StatusCreated,
 			body:          "hello",
+			wantFrom:      "192.0.2.1",
+		},
+		{
+			name:          "logs trusted forwarded client",
+			requestID:     "req-trusted",
+			xForwardedFor: "1.2.3.4, 10.0.0.1",
+			trustedProxy:  true,
+			status:        http.StatusOK,
 			wantFrom:      "1.2.3.4",
 		},
 		{
@@ -67,7 +78,16 @@ func TestLog(t *testing.T) {
 				req.Header.Set("X-Forwarded-For", c.xForwardedFor)
 			}
 
-			httpm.Log(logger)(handler).ServeHTTP(httptest.NewRecorder(), req)
+			logged := httpm.Log(logger)(handler)
+			if c.trustedProxy {
+				policy, err := loomhttp.NewRequestMetadataPolicy(nil, []netip.Prefix{
+					netip.MustParsePrefix("192.0.2.0/24"),
+					netip.MustParsePrefix("10.0.0.0/8"),
+				})
+				require.NoError(t, err)
+				logged = loomhttp.RequestMetadataMiddleware(policy)(logged)
+			}
+			logged.ServeHTTP(httptest.NewRecorder(), req)
 
 			require.Len(t, logger.entries, 2)
 			assert.Equal(t, []any{

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/middleware/xray"
 )
 
@@ -140,22 +140,8 @@ func responseData(resp *http.Response) *xray.Response {
 	}
 }
 
-// getIP implements a heuristic that returns an origin IP address for a request.
+// getIP returns the effective client IP from trusted request metadata or the
+// direct network peer when no metadata policy has been applied.
 func getIP(req *http.Request) string {
-	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
-		for _, ip := range strings.Split(req.Header.Get(h), ",") {
-			if len(ip) == 0 {
-				continue
-			}
-			realIP := net.ParseIP(strings.ReplaceAll(ip, " ", ""))
-			return realIP.String()
-		}
-	}
-
-	// not found in header
-	host, _, err := net.SplitHostPort(req.RemoteAddr)
-	if err != nil {
-		return req.RemoteAddr
-	}
-	return host
+	return loomhttp.EffectiveClientAddress(req)
 }

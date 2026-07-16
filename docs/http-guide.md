@@ -321,6 +321,23 @@ streaming payload/result methods.
 
 ---
 
+## Debug Client Capture
+
+`loomhttp.NewDebugDoer` is intended for local CLI diagnostics. Generated HTTP
+and JSON-RPC example clients use it when debug mode is enabled. Each request and
+response body capture is limited to 64 KiB; the full body still flows to the
+server or caller, while an oversized captured body is omitted from debug
+output.
+
+Debug capture redacts authorization and cookie headers, headers and URL query
+parameters named for tokens, secrets, credentials, sessions, or API keys, and
+sensitive fields nested in JSON or form bodies. Malformed structured bodies are
+omitted instead of printed without redaction. Ordinary non-structured bodies
+remain visible, so debug mode should not be enabled for production traffic or
+payloads containing unmodeled secrets.
+
+---
+
 ## Content Negotiation
 
 ### Built-in Encoders
@@ -725,6 +742,11 @@ policy, err := loomhttp.NewRequestMetadataPolicy([]string{"Cookie"}, trusted)
 
 `HeaderValues` and `Headers` always return copies, so consumers cannot mutate
 the request or another consumer's snapshot.
+
+Framework request logging and retained X-Ray middleware use
+`loomhttp.EffectiveClientAddress`. They honor `ClientAddr` from this metadata
+snapshot and otherwise log only the direct network peer; forwarding headers are
+never trusted without an installed policy.
 
 ---
 

@@ -2,10 +2,10 @@ package middleware
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"time"
 
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/middleware"
 )
 
@@ -15,10 +15,10 @@ import (
 // logs it with the request and corresponding response details.
 //
 // The middleware logs the incoming requests HTTP method and path as well as the
-// originator of the request. The originator is computed by looking at the
-// X-Forwarded-For HTTP header or - absent of that - the originating IP. The
-// middleware also logs the response HTTP status code, body length (in bytes) and
-// timing information.
+// originator of the request. The originator comes from the trusted request
+// metadata snapshot when present and otherwise uses the direct network peer.
+// The middleware also logs the response HTTP status code, body length (in
+// bytes), and timing information.
 //
 // Deprecated: use github.com/CaliLuke/loom/http/middleware/otel instead. This
 // function will be removed in a future version of Loom.
@@ -72,13 +72,5 @@ func log(l middleware.Logger, r *http.Request, w http.ResponseWriter, next http.
 
 // from makes a best effort to compute the request client IP.
 func from(req *http.Request) string {
-	if f := req.Header.Get("X-Forwarded-For"); f != "" {
-		return f
-	}
-	f := req.RemoteAddr
-	ip, _, err := net.SplitHostPort(f)
-	if err != nil {
-		return f
-	}
-	return ip
+	return loomhttp.EffectiveClientAddress(req)
 }

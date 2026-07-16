@@ -232,6 +232,14 @@ build Auto-K without repeating large amounts of app-local glue.
   headers and trusted proxy CIDRs with `NewRequestMetadataPolicy`; forwarding
   values are ignored for untrusted direct peers, returned headers are cloned,
   and `Authorization`/`Cookie` require explicit opt-in.
+- Framework request loggers and retained X-Ray middleware use
+  `loomhttp.EffectiveClientAddress`: they honor the metadata snapshot's trusted
+  client address and otherwise ignore forwarding headers in favor of the direct
+  peer.
+- `loomhttp.NewDebugDoer` captures at most 64 KiB per request or response body,
+  preserves the complete transport streams, and redacts sensitive headers,
+  query parameters, JSON fields, and form fields. Truncated or malformed
+  structured bodies fail closed; keep debug mode out of production traffic.
 - OpenTelemetry transport instrumentation is first-class. Prefer:
   - `github.com/CaliLuke/loom/observability/otel` when you want framework-owned
     trace, metric, and OTLP log bootstrap plus transport policy.

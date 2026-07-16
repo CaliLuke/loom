@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"regexp"
 
+	loomhttp "github.com/CaliLuke/loom/http"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -276,13 +277,5 @@ func (w *responseCapture) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 // from returns the client address from the request.
 func from(req *http.Request) string {
-	if f := req.Header.Get("X-Forwarded-For"); f != "" {
-		return f
-	}
-	f := req.RemoteAddr
-	ip, _, err := net.SplitHostPort(f)
-	if err != nil {
-		return f
-	}
-	return ip
+	return loomhttp.EffectiveClientAddress(req)
 }
