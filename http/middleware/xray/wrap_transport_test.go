@@ -142,6 +142,7 @@ func TestTransport(t *testing.T) {
 		Seg struct {
 			Exception string
 			Error     bool
+			Fault     bool
 		}
 	)
 	var (
@@ -165,25 +166,25 @@ func TestTransport(t *testing.T) {
 			Trace:    Tra{traceID, spanID},
 			Request:  Req{method, host, ip, remoteAddr, remoteHost, agent, url},
 			Response: &Res{http.StatusOK, "test"},
-			Segment:  Seg{"", false},
+			Segment:  Seg{"", false, false},
 		},
 		"badRequest": {
 			Trace:    Tra{traceID, spanID},
 			Request:  Req{method, host, ip, remoteAddr, remoteHost, agent, url},
 			Response: &Res{http.StatusBadRequest, "payload not valid"},
-			Segment:  Seg{"", false},
+			Segment:  Seg{"", true, false},
 		},
 		"fault": {
 			Trace:    Tra{traceID, spanID},
 			Request:  Req{method, host, ip, remoteAddr, remoteHost, agent, url},
 			Response: &Res{http.StatusInternalServerError, ""},
-			Segment:  Seg{"", true},
+			Segment:  Seg{"", false, true},
 		},
 		"error": {
 			Trace:    Tra{traceID, spanID},
 			Request:  Req{method, host, ip, remoteAddr, remoteHost, agent, url},
 			Response: nil,
-			Segment:  Seg{"some error", true},
+			Segment:  Seg{"some error", false, true},
 		},
 	}
 	for k, c := range cases {
@@ -316,6 +317,9 @@ func TestTransport(t *testing.T) {
 			}
 			if s.Error != c.Segment.Error {
 				t.Errorf("Error is invalid, expected %v got %v", c.Segment.Error, s.Error)
+			}
+			if s.Fault != c.Segment.Fault {
+				t.Errorf("Fault is invalid, expected %v got %v", c.Segment.Fault, s.Fault)
 			}
 		})
 	}

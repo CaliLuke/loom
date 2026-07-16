@@ -50,15 +50,6 @@ func (s *GRPCSegment) RecordResponse(resp any) {
 
 // RecordError sets Throttle, Fault, Error, and HTTP.Response.
 func (s *GRPCSegment) RecordError(err error) {
-	s.Segment.RecordError(err)
-
-	s.Lock()
-	defer s.Unlock()
-
-	if s.HTTP == nil {
-		s.HTTP = &xray.HTTP{}
-	}
-
 	var (
 		code   codes.Code
 		length int64
@@ -72,18 +63,35 @@ func (s *GRPCSegment) RecordError(err error) {
 			code = codes.Unknown
 		}
 	}
+
+	s.Lock()
+	s.classifyError(code)
+	s.Unlock()
+	s.Segment.RecordError(err)
+
+	s.Lock()
+	defer s.Unlock()
+
+	if s.HTTP == nil {
+		s.HTTP = &xray.HTTP{}
+	}
 	s.HTTP.Response = &xray.Response{
 		Status:        int(code),
 		ContentLength: length,
 	}
 
+}
+
+func (s *GRPCSegment) classifyError(code codes.Code) {
 	switch code {
-	case codes.InvalidArgument, codes.NotFound,
-		codes.AlreadyExists, codes.PermissionDenied,
-		codes.Unimplemented, codes.Unauthenticated:
-		s.Fault = true
-	default:
+	case codes.ResourceExhausted:
+		s.Throttle = true
+	case codes.Canceled, codes.InvalidArgument, codes.NotFound,
+		codes.AlreadyExists, codes.PermissionDenied, codes.FailedPrecondition,
+		codes.Aborted, codes.OutOfRange, codes.Unauthenticated:
 		s.Error = true
+	default:
+		s.Fault = true
 	}
 }
 

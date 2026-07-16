@@ -38,12 +38,13 @@ func TestWrapDoer(t *testing.T) {
 		Name       string
 		Segment    bool
 		StatusCode int
-		Error      bool
+		Fails      bool
+		Fault      bool
 	}{
-		{"no segment in context", false, http.StatusOK, false},
-		{"segment in context", true, http.StatusOK, false},
-		{"segment in context - failed request", true, http.StatusBadRequest, true},
-		{"segment in context - error", true, http.StatusInternalServerError, true},
+		{"no segment in context", false, http.StatusOK, false, false},
+		{"segment in context", true, http.StatusOK, false, false},
+		{"segment in context - failed request", true, http.StatusBadRequest, true, true},
+		{"segment in context - error", true, http.StatusInternalServerError, true, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -81,7 +82,7 @@ func TestWrapDoer(t *testing.T) {
 						}
 					}()
 				}
-				if err != nil && !tc.Error {
+				if err != nil && !tc.Fails {
 					t.Fatalf("error executing request: %v", err)
 				}
 			})
@@ -121,11 +122,14 @@ func TestWrapDoer(t *testing.T) {
 			if s.HTTP.Request.URL != url {
 				t.Fatalf("unexpected segment HTTP URL: expected %q, got %q", verb, s.HTTP.Request.Method)
 			}
-			if s.Cause == nil && tc.Error {
+			if s.Cause == nil && tc.Fails {
 				t.Error("invalid exception, expected non-nil Cause but got nil Cause")
 			}
-			if s.Error != tc.Error {
-				t.Errorf("Error is invalid, expected %v got %v", tc.Error, s.Error)
+			if s.Error {
+				t.Error("Error is invalid, expected false got true")
+			}
+			if s.Fault != tc.Fault {
+				t.Errorf("Fault is invalid, expected %v got %v", tc.Fault, s.Fault)
 			}
 		})
 	}

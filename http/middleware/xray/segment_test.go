@@ -45,9 +45,34 @@ func TestRecordError(t *testing.T) {
 			if c.HasCause && len(w.Stack) < 2 {
 				t.Errorf("stack too small: %v", w.Stack)
 			}
-			if !s.Error {
-				t.Error("s.Error was not set to true")
-			}
+			require.True(t, s.Fault)
+			require.False(t, s.Error)
+		})
+	}
+}
+
+func TestHTTPStatusClassification(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		error    bool
+		fault    bool
+		throttle bool
+	}{
+		{name: "success", status: http.StatusOK},
+		{name: "client error", status: http.StatusBadRequest, error: true},
+		{name: "throttle", status: http.StatusTooManyRequests, throttle: true},
+		{name: "server fault", status: http.StatusInternalServerError, fault: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segment := &HTTPSegment{Segment: &xray.Segment{Mutex: &sync.Mutex{}}}
+			segment.RecordResponse(&http.Response{StatusCode: tt.status})
+
+			require.Equal(t, tt.error, segment.Error)
+			require.Equal(t, tt.fault, segment.Fault)
+			require.Equal(t, tt.throttle, segment.Throttle)
 		})
 	}
 }

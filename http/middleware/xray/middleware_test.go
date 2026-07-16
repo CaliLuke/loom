@@ -65,6 +65,7 @@ func TestMiddleware(t *testing.T) {
 		Seg struct {
 			Exception string
 			Error     bool
+			Fault     bool
 		}
 	)
 	var (
@@ -90,43 +91,43 @@ func TestMiddleware(t *testing.T) {
 			Trace:    Tra{"", "", ""},
 			Request:  Req{"", "", "", "", "", "", nil},
 			Response: Res{0},
-			Segment:  Seg{"", false},
+			Segment:  Seg{"", false, false},
 		},
 		"basic": {
 			Trace:    Tra{traceID, spanID, ""},
 			Request:  Req{method, host, ip, remoteAddr, remoteHost, agent, url},
 			Response: Res{http.StatusOK},
-			Segment:  Seg{"", false},
+			Segment:  Seg{"", false, false},
 		},
 		"with-parent": {
 			Trace:    Tra{traceID, spanID, parentID},
 			Request:  Req{method, host, ip, remoteAddr, remoteHost, agent, url},
 			Response: Res{http.StatusOK},
-			Segment:  Seg{"", false},
+			Segment:  Seg{"", false, false},
 		},
 		"without-ip": {
 			Trace:    Tra{traceID, spanID, parentID},
 			Request:  Req{method, host, "", remoteAddr, remoteHost, agent, url},
 			Response: Res{http.StatusOK},
-			Segment:  Seg{"", false},
+			Segment:  Seg{"", false, false},
 		},
 		"without-ip-remote-port": {
 			Trace:    Tra{traceID, spanID, parentID},
 			Request:  Req{method, host, "", remoteNoPort, remoteHost, agent, url},
 			Response: Res{http.StatusOK},
-			Segment:  Seg{"", false},
+			Segment:  Seg{"", false, false},
 		},
 		"error": {
 			Trace:    Tra{traceID, spanID, ""},
 			Request:  Req{method, host, ip, remoteAddr, remoteHost, agent, url},
 			Response: Res{http.StatusBadRequest},
-			Segment:  Seg{"error", true},
+			Segment:  Seg{"error", true, true},
 		},
 		"fault": {
 			Trace:    Tra{traceID, spanID, ""},
 			Request:  Req{method, host, ip, remoteAddr, remoteHost, agent, url},
 			Response: Res{http.StatusInternalServerError},
-			Segment:  Seg{"", true},
+			Segment:  Seg{"", false, true},
 		},
 	}
 	for k, c := range cases {
@@ -228,6 +229,9 @@ func TestMiddleware(t *testing.T) {
 			}
 			if s.Error != c.Segment.Error {
 				t.Errorf("Error is invalid, expected %v got %v", c.Segment.Error, s.Error)
+			}
+			if s.Fault != c.Segment.Fault {
+				t.Errorf("Fault is invalid, expected %v got %v", c.Segment.Fault, s.Fault)
 			}
 		})
 	}

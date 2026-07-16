@@ -42,13 +42,12 @@ type (
 		// Cause contains information about an error that occurred while
 		// processing the request.
 		Cause *Cause `json:"cause,omitempty"`
-		// Error is true when a request causes an internal error. It is
-		// automatically set by Close when the response status code is
-		// 500 or more.
+		// Error is true when a request results in a client error. It is
+		// typically set when the response status code is between 400 and
+		// 500, excluding throttling responses.
 		Error bool `json:"error,omitempty"`
-		// Fault is true when a request results in an error that is due
-		// to the user. Typically it should be set when the response
-		// status code is between 400 and 500 (but not 429).
+		// Fault is true when a request results in a server error. It is
+		// typically set when the response status code is 500 or greater.
 		Fault bool `json:"fault,omitempty"`
 		// Throttle is true when a request is throttled. It is set to
 		// true when the segment closes and the response status code is
@@ -174,8 +173,8 @@ func (s *Segment) NewSubsegment(name string) *Segment {
 	return sub
 }
 
-// RecordError traces an error. The client may also want to initialize the
-// fault field of s.
+// RecordError traces an internal or transport error as a server fault. Callers
+// may classify a known client error or throttle before recording its cause.
 //
 // The trace contains a stack trace and a cause for the error if the argument
 // was created using one of the New, Errorf, Wrap or Wrapf functions of the
@@ -186,13 +185,10 @@ func (s *Segment) RecordError(e error) {
 	s.Lock()
 	defer s.Unlock()
 
-	// set Error to indicate an internal error due to service being unreachable, etc.
-	// otherwise if a response was received then the status will determine Error vs. Fault.
-	//
-	// first check if the other flags have already been set in case these methods are being
-	// called directly instead of using xray.WrapClient(), etc.
-	if !s.Fault && !s.Throttle {
-		s.Error = true
+	// Preserve an explicit client or throttle classification. Otherwise an
+	// exception without a classified response is a server-side fault.
+	if !s.Error && !s.Throttle {
+		s.Fault = true
 	}
 	if s.Cause == nil {
 		wd, _ := os.Getwd()

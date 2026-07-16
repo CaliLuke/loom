@@ -104,9 +104,9 @@ func (s *HTTPSegment) recordStatusCode(statusCode int) {
 	case statusCode == http.StatusTooManyRequests:
 		s.Throttle = true
 	case statusCode >= 400 && statusCode < 500:
-		s.Fault = true
-	case statusCode >= 500:
 		s.Error = true
+	case statusCode >= 500:
+		s.Fault = true
 	}
 }
 

@@ -7,8 +7,7 @@ history—not in the roadmap.
 ## Priority 1: Correctness and Security
 
 - Remove the legacy X-Ray, request-ID, logging, and tracing middleware surface in
-  the next breaking release. Until removal, correct the reversed 4xx/5xx X-Ray
-  classification and lock the behavior with focused tests.
+  the next breaking release.
 - Define and test entropy-failure behavior for generated request IDs and other
   framework-generated identifiers.
 

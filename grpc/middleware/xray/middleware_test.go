@@ -40,6 +40,7 @@ type (
 	Seg struct {
 		Exception error
 		Error     bool
+		Fault     bool
 	}
 
 	testCase struct {
@@ -122,7 +123,7 @@ func TestUnaryServerMiddleware(t *testing.T) {
 			m, err := NewUnaryServer("service", udplisten)
 			require.NoError(t, err)
 			handler := func(_ context.Context, _ any) (any, error) {
-				if c.Segment.Error {
+				if c.Segment.Exception != nil {
 					return nil, c.Segment.Exception
 				}
 				return &wrapperspb.StringValue{Value: "response"}, nil
@@ -145,7 +146,7 @@ func TestUnaryServerMiddleware(t *testing.T) {
 
 			messages := xraytest.ReadUDP(t, udplisten, expMsgs, func() {
 				_, err := m(ctx, &wrapperspb.StringValue{Value: "request"}, unary, handler)
-				if !c.Segment.Error {
+				if c.Segment.Exception == nil {
 					assert.NoError(t, err)
 				}
 			})
@@ -180,6 +181,7 @@ func TestUnaryServerMiddleware(t *testing.T) {
 				assert.Equal(t, c.Segment.Exception.Error(), s.Cause.Exceptions[0].Message)
 			}
 			assert.Equal(t, c.Segment.Error, s.Error)
+			assert.Equal(t, c.Segment.Fault, s.Fault)
 		})
 	}
 }
@@ -202,7 +204,7 @@ func TestStreamServerMiddleware(t *testing.T) {
 				t.Fatalf("failed to create middleware: %s", err)
 			}
 			handler := func(_ any, _ grpc.ServerStream) error {
-				if c.Segment.Error {
+				if c.Segment.Exception != nil {
 					return c.Segment.Exception
 				}
 				return nil
@@ -225,7 +227,7 @@ func TestStreamServerMiddleware(t *testing.T) {
 			wss := grpcm.NewWrappedServerStream(ctx, &testServerStream{})
 
 			messages := xraytest.ReadUDP(t, udplisten, expMsgs, func() {
-				if err := m(nil, wss, streamInfo, handler); err != nil && !c.Segment.Error {
+				if err := m(nil, wss, streamInfo, handler); err != nil && c.Segment.Exception == nil {
 					t.Fatalf("unexpected error %s", err)
 				}
 			})
@@ -294,9 +296,8 @@ func TestStreamServerMiddleware(t *testing.T) {
 			if s.Cause != nil && s.Cause.Exceptions[0].Message != c.Segment.Exception.Error() {
 				t.Errorf("Exception is invalid, expected %q got %q", c.Segment.Exception.Error(), s.Cause.Exceptions[0].Message)
 			}
-			if s.Error != c.Segment.Error {
-				t.Errorf("Error is invalid, expected %v got %v", c.Segment.Error, s.Error)
-			}
+			assert.Equal(t, c.Segment.Error, s.Error)
+			assert.Equal(t, c.Segment.Fault, s.Fault)
 		})
 	}
 }
@@ -308,35 +309,35 @@ func middlewareTestCases(traceID, spanID, parentID, clientIP, remoteAddr, agent 
 			Trace:    Tra{"", "", ""},
 			Request:  Req{"", "", ""},
 			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
+			Segment:  Seg{nil, false, false},
 		},
 		{
 			Name:     "basic",
 			Trace:    Tra{traceID, spanID, ""},
 			Request:  Req{remoteAddr, clientIP, agent},
 			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
+			Segment:  Seg{nil, false, false},
 		},
 		{
 			Name:     "with-parent",
 			Trace:    Tra{traceID, spanID, parentID},
 			Request:  Req{remoteAddr, clientIP, agent},
 			Response: Res{codes.OK},
-			Segment:  Seg{nil, false},
+			Segment:  Seg{nil, false, false},
 		},
 		{
 			Name:     "error",
 			Trace:    Tra{traceID, spanID, ""},
 			Request:  Req{remoteAddr, clientIP, agent},
 			Response: Res{codes.Unknown},
-			Segment:  Seg{status.Error(codes.Unknown, "error"), true},
+			Segment:  Seg{status.Error(codes.Unknown, "error"), false, true},
 		},
 		{
 			Name:     "fault",
 			Trace:    Tra{traceID, spanID, ""},
 			Request:  Req{remoteAddr, clientIP, agent},
 			Response: Res{codes.InvalidArgument},
-			Segment:  Seg{status.Error(codes.InvalidArgument, "error"), true},
+			Segment:  Seg{status.Error(codes.InvalidArgument, "error"), true, false},
 		},
 	}
 }
@@ -354,17 +355,19 @@ func TestUnaryClient(t *testing.T) {
 		Name       string
 		Segment    bool
 		StatusCode codes.Code
+		Fails      bool
 		Error      bool
+		Fault      bool
 	}{
-		{"no segment in context", false, codes.OK, false},
-		{"segment in context", true, codes.OK, false},
-		{"segment in context - failed request", true, codes.InvalidArgument, true},
-		{"segment in context - error", true, codes.Internal, true},
+		{"no segment in context", false, codes.OK, false, false, false},
+		{"segment in context", true, codes.OK, false, false, false},
+		{"segment in context - failed request", true, codes.InvalidArgument, true, true, false},
+		{"segment in context - error", true, codes.Internal, true, false, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			invoker := func(_ context.Context, _ string, _, _ any, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
-				if tc.Error {
+				if tc.Fails {
 					return status.Error(tc.StatusCode, "error")
 				}
 				return nil
@@ -391,7 +394,7 @@ func TestUnaryClient(t *testing.T) {
 			}
 
 			messages := xraytest.ReadUDP(t, udplisten, expMsgs, func() {
-				if err := UnaryClient(host)(ctx, "Test.Test", req, resp, nil, invoker); err != nil && !tc.Error {
+				if err := UnaryClient(host)(ctx, "Test.Test", req, resp, nil, invoker); err != nil && !tc.Fails {
 					t.Fatalf("unexpected error %s", err)
 				}
 			})
@@ -428,12 +431,11 @@ func TestUnaryClient(t *testing.T) {
 			if s.HTTP.Request.Method != "GRPC" {
 				t.Errorf("unexpected segment HTTP method: expected \"GRPC\", got %q", s.HTTP.Request.Method)
 			}
-			if s.Cause == nil && tc.Error {
+			if s.Cause == nil && tc.Fails {
 				t.Error("invalid exception, expected non-nil Cause but got nil Cause")
 			}
-			if s.Error != tc.Error {
-				t.Errorf("Error is invalid, expected %v got %v", tc.Error, s.Error)
-			}
+			assert.Equal(t, tc.Error, s.Error)
+			assert.Equal(t, tc.Fault, s.Fault)
 		})
 	}
 }

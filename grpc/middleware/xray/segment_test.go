@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -48,9 +49,39 @@ func TestRecordError(t *testing.T) {
 			if c.HasCause && len(w.Stack) < 2 {
 				t.Errorf("stack too small: %v", w.Stack)
 			}
-			if !s.Error {
-				t.Error("s.Error was not set to true")
-			}
+			require.True(t, s.Fault)
+			require.False(t, s.Error)
+		})
+	}
+}
+
+func TestGRPCErrorClassification(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     codes.Code
+		error    bool
+		fault    bool
+		throttle bool
+	}{
+		{name: "invalid argument", code: codes.InvalidArgument, error: true},
+		{name: "unauthenticated", code: codes.Unauthenticated, error: true},
+		{name: "aborted", code: codes.Aborted, error: true},
+		{name: "resource exhausted", code: codes.ResourceExhausted, throttle: true},
+		{name: "unimplemented", code: codes.Unimplemented, fault: true},
+		{name: "internal", code: codes.Internal, fault: true},
+		{name: "unknown", code: codes.Unknown, fault: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segment := &GRPCSegment{Segment: &xray.Segment{Mutex: &sync.Mutex{}}}
+			segment.RecordError(status.Error(tt.code, "failed"))
+
+			require.Equal(t, tt.error, segment.Error)
+			require.Equal(t, tt.fault, segment.Fault)
+			require.Equal(t, tt.throttle, segment.Throttle)
+			require.Equal(t, int(tt.code), segment.HTTP.Response.Status)
+			require.NotNil(t, segment.Cause)
 		})
 	}
 }

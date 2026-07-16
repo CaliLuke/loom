@@ -1,13 +1,16 @@
 package xray_test
 
 import (
+	"errors"
 	"net"
 	"os"
 	"regexp"
+	"sync"
 	"testing"
 
 	"github.com/CaliLuke/loom/middleware/xray"
 	"github.com/CaliLuke/loom/middleware/xray/xraytest"
+	"github.com/stretchr/testify/require"
 )
 
 // udplisten is the udp host:port used to run the test daemon. It is
@@ -49,6 +52,16 @@ func TestSegment_NewSubsegment(t *testing.T) {
 	if ss.Parent != s {
 		t.Errorf("invalid subsegment parent, expected %v, got %v", s, ss.Parent)
 	}
+}
+
+func TestSegmentRecordErrorClassifiesServerFault(t *testing.T) {
+	segment := &xray.Segment{Mutex: &sync.Mutex{}}
+	segment.RecordError(errors.New("internal failure"))
+
+	require.True(t, segment.Fault)
+	require.False(t, segment.Error)
+	require.False(t, segment.Throttle)
+	require.NotNil(t, segment.Cause)
 }
 
 func TestSegment_SubmitInProgress(t *testing.T) {
