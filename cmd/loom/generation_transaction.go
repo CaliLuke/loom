@@ -16,10 +16,19 @@ import (
 
 type (
 	generationTransaction struct {
-		output string
-		root   string
-		stage  string
-		backup string
+		output          string
+		root            string
+		stage           string
+		backup          string
+		externalBackups []string
+	}
+
+	externalGenerationOutput struct {
+		rel         string
+		staged      string
+		destination string
+		backup      string
+		installed   bool
 	}
 
 	generationManifest struct {
@@ -136,6 +145,10 @@ func (t *generationTransaction) commit(outputs []string) ([]string, error) {
 	if err := os.MkdirAll(t.output, 0o750); err != nil {
 		return nil, fmt.Errorf("create output directory %s: %w", t.output, err)
 	}
+	external, err := t.prepareExternalOutputs(outputs)
+	if err != nil {
+		return nil, err
+	}
 
 	liveGen := filepath.Join(t.output, codegen.Gendir)
 	stagedGen := filepath.Join(t.stage, codegen.Gendir)
@@ -155,11 +168,17 @@ func (t *generationTransaction) commit(outputs []string) ([]string, error) {
 		}
 		return nil, commitErr
 	}
+	if err := t.installExternalOutputs(external); err != nil {
+		return nil, errors.Join(err, t.rollbackInstalledOutputs(external, liveGen, hadLive))
+	}
 	if hadLive {
 		if err := os.RemoveAll(backup); err != nil {
 			return nil, fmt.Errorf("remove previous generation tree %s: %w", backup, err)
 		}
 		t.backup = ""
+	}
+	if err := t.removeExternalBackups(external); err != nil {
+		return nil, err
 	}
 
 	committed := make([]string, 0, len(outputs))
@@ -194,7 +213,129 @@ func (t *generationTransaction) cleanup() error {
 			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove generation backup directory %s: %w", backup, err))
 		}
 	}
+	for _, backup := range t.externalBackups {
+		if err := os.Remove(backup); err != nil && !errors.Is(err, os.ErrNotExist) {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove generated output backup %s: %w", backup, err))
+		}
+	}
+	t.externalBackups = nil
 	return cleanupErr
+}
+
+func (t *generationTransaction) prepareExternalOutputs(outputs []string) ([]*externalGenerationOutput, error) {
+	seen := make(map[string]struct{}, len(outputs))
+	external := make([]*externalGenerationOutput, 0, len(outputs))
+	for _, output := range outputs {
+		rel, err := t.stagedRelativePath(output)
+		if err != nil {
+			return nil, err
+		}
+		if firstPathElement(rel) == codegen.Gendir {
+			continue
+		}
+		if _, ok := seen[rel]; ok {
+			continue
+		}
+		seen[rel] = struct{}{}
+		destination := filepath.Join(t.output, rel)
+		if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
+			return nil, fmt.Errorf("create generated output directory %s: %w", filepath.Dir(destination), err)
+		}
+		if info, err := os.Lstat(destination); err == nil {
+			if !info.Mode().IsRegular() {
+				return nil, fmt.Errorf("generated output destination %s is not a regular file", destination)
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("inspect generated output destination %s: %w", destination, err)
+		}
+		external = append(external, &externalGenerationOutput{
+			rel:         rel,
+			staged:      filepath.Join(t.stage, rel),
+			destination: destination,
+		})
+	}
+	return external, nil
+}
+
+func (t *generationTransaction) installExternalOutputs(outputs []*externalGenerationOutput) error {
+	for _, output := range outputs {
+		if _, err := os.Lstat(output.destination); err == nil {
+			backup, err := reserveRenamePath(filepath.Dir(output.destination))
+			if err != nil {
+				return err
+			}
+			if err := os.Rename(output.destination, backup); err != nil {
+				return fmt.Errorf("preserve generated output %s: %w", output.destination, err)
+			}
+			output.backup = backup
+			t.externalBackups = append(t.externalBackups, backup)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("inspect generated output %s: %w", output.destination, err)
+		}
+		if err := os.Rename(output.staged, output.destination); err != nil {
+			return fmt.Errorf("replace generated output %s: %w", output.destination, err)
+		}
+		output.installed = true
+	}
+	return nil
+}
+
+func (t *generationTransaction) removeExternalBackups(outputs []*externalGenerationOutput) error {
+	for _, output := range outputs {
+		if output.backup == "" {
+			continue
+		}
+		if err := os.Remove(output.backup); err != nil {
+			return fmt.Errorf("remove previous generated output %s: %w", output.backup, err)
+		}
+		t.forgetExternalBackup(output.backup)
+		output.backup = ""
+	}
+	return nil
+}
+
+func (t *generationTransaction) rollbackInstalledOutputs(
+	outputs []*externalGenerationOutput,
+	liveGen string,
+	hadLive bool,
+) error {
+	var rollbackErr error
+	for index := len(outputs) - 1; index >= 0; index-- {
+		output := outputs[index]
+		if output.installed {
+			if err := os.Remove(output.destination); err != nil && !errors.Is(err, os.ErrNotExist) {
+				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("remove generated output %s: %w", output.destination, err))
+			}
+		}
+		if output.backup != "" {
+			if err := os.Rename(output.backup, output.destination); err != nil {
+				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore generated output %s: %w", output.destination, err))
+			} else {
+				t.forgetExternalBackup(output.backup)
+				output.backup = ""
+			}
+		}
+	}
+	if err := os.RemoveAll(liveGen); err != nil {
+		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("remove failed generation tree %s: %w", liveGen, err))
+	}
+	if hadLive {
+		if err := os.Rename(t.backup, liveGen); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore generation tree %s: %w", liveGen, err))
+		} else {
+			t.backup = ""
+		}
+	}
+	return rollbackErr
+}
+
+func (t *generationTransaction) forgetExternalBackup(path string) {
+	for index, backup := range t.externalBackups {
+		if backup == path {
+			t.externalBackups = append(t.externalBackups[:index], t.externalBackups[index+1:]...)
+			return
+		}
+	}
 }
 
 func (t *generationTransaction) prepareModuleContext(moduleRoot string) error {
@@ -233,13 +374,13 @@ func (t *generationTransaction) stagedRelativePath(output string) (string, error
 	}
 	if pathEscapes(rel) {
 		cleanOutput := filepath.Clean(output)
-		if filepath.IsAbs(output) || pathEscapes(cleanOutput) || firstPathElement(cleanOutput) != codegen.Gendir {
+		if filepath.IsAbs(output) || pathEscapes(cleanOutput) {
 			return "", fmt.Errorf("generated output %s is outside staging directory %s", output, t.stage)
 		}
 		rel = cleanOutput
 	}
-	if firstPathElement(rel) != codegen.Gendir {
-		return "", fmt.Errorf("generated output %s is outside staged %s directory", output, codegen.Gendir)
+	if rel == "." || rel == "" {
+		return "", fmt.Errorf("generated output %s does not name a file", output)
 	}
 	return rel, nil
 }

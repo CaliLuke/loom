@@ -17,8 +17,9 @@ build Auto-K without repeating large amounts of app-local glue.
 - Regenerate after every design change with `loom gen <module-import-path>/design`.
 - Never hand-edit generated `gen/` files.
 - `loom gen` is transactional: it stages and validates the complete generated
-  tree before replacing `gen/`, so ordinary generation/finalization failures
-  preserve the last successful output.
+  tree before replacing `gen/` and declared plugin outputs, so generation,
+  finalization, validation, and installation failures preserve the last
+  successful artifacts.
 - Implement business logic in non-generated files.
 - Use Go import paths for Loom commands, not filesystem paths.
 - Commit generated code; do not rely on CI to regenerate it.

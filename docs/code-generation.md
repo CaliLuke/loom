@@ -38,8 +38,9 @@ loom gen <design-package-import-path> [-o <output-dir>] [--debug]
 The primary command for code generation:
 - Processes your design package and generates implementation code
 - Generates and finalizes a complete staging tree, validates its manifest and
-  outputs, then replaces the entire `gen/` directory on success. A generation,
-  finalization, or validation failure leaves the existing `gen/` tree intact.
+  outputs, then replaces the entire `gen/` directory and any declared plugin
+  outputs on success. A generation, finalization, validation, or installation
+  failure restores the previous generated artifacts.
 - Run after every design change
 
 #### Create Example (`loom example`)

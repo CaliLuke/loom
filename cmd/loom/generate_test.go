@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -281,6 +282,82 @@ func TestGenerateTransactionReplacesGenOnlyAfterSuccess(t *testing.T) {
 	require.Equal(t, expectedOutput+"\n", stdout)
 	require.NoFileExists(t, filepath.Join(liveGen, "stale.go"))
 	require.FileExists(t, filepath.Join(liveGen, "current.go"))
+	requireNoGenerationArtifacts(t, filepath.Dir(output))
+}
+
+func TestGenerateTransactionCommitsExternalPluginOutputs(t *testing.T) {
+	output := t.TempDir()
+	liveGen := filepath.Join(output, "gen")
+	external := filepath.Join(output, "AGENTS_QUICKSTART.md")
+	require.NoError(t, os.MkdirAll(liveGen, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(liveGen, "stale.go"), []byte("stale"), 0o644))
+	require.NoError(t, os.WriteFile(external, []byte("old guide"), 0o644))
+
+	fake := &fakeGenerator{
+		runFiles: []string{"gen/current.go", "AGENTS_QUICKSTART.md"},
+		runFunc: func(stage string) error {
+			gen := filepath.Join(stage, "gen")
+			if err := os.MkdirAll(gen, 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(gen, "current.go"), []byte("current"), 0o644); err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(stage, "AGENTS_QUICKSTART.md"), []byte("new guide"), 0o644); err != nil {
+				return err
+			}
+			return writeStagedManifest(stage)
+		},
+	}
+	stubGeneratorFactory(t, fake)
+
+	_, _, err := captureOutput(t, func() error {
+		return generate("gen", "archive/tar", output, false)
+	})
+
+	require.NoError(t, err)
+	require.NoFileExists(t, filepath.Join(liveGen, "stale.go"))
+	require.FileExists(t, filepath.Join(liveGen, "current.go"))
+	contents, err := os.ReadFile(external)
+	require.NoError(t, err)
+	require.Equal(t, "new guide", string(contents))
+	requireNoGenerationArtifacts(t, filepath.Dir(output))
+}
+
+func TestGenerateTransactionRollsBackExternalPluginOutputs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("read-only directory permissions differ on Windows")
+	}
+
+	output := t.TempDir()
+	liveGen := filepath.Join(output, "gen")
+	firstExternal := filepath.Join(output, "FIRST.md")
+	lockedDir := filepath.Join(output, "locked")
+	secondExternal := filepath.Join(lockedDir, "SECOND.md")
+	require.NoError(t, os.MkdirAll(liveGen, 0o755))
+	require.NoError(t, os.MkdirAll(lockedDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(liveGen, "original.go"), []byte("original"), 0o644))
+	require.NoError(t, os.WriteFile(firstExternal, []byte("old first"), 0o644))
+	require.NoError(t, os.WriteFile(secondExternal, []byte("old second"), 0o644))
+	require.NoError(t, os.Chmod(lockedDir, 0o500))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(lockedDir, 0o755))
+	})
+
+	fake := &fakeGenerator{runFiles: []string{"gen/current.go", "FIRST.md", "locked/SECOND.md"}}
+	stubGeneratorFactory(t, fake)
+
+	err := generate("gen", "archive/tar", output, false)
+
+	require.ErrorContains(t, err, "stage Commit")
+	require.FileExists(t, filepath.Join(liveGen, "original.go"))
+	require.NoFileExists(t, filepath.Join(liveGen, "current.go"))
+	firstContents, readErr := os.ReadFile(firstExternal)
+	require.NoError(t, readErr)
+	require.Equal(t, "old first", string(firstContents))
+	secondContents, readErr := os.ReadFile(secondExternal)
+	require.NoError(t, readErr)
+	require.Equal(t, "old second", string(secondContents))
 	requireNoGenerationArtifacts(t, filepath.Dir(output))
 }
 
