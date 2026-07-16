@@ -28,7 +28,8 @@ Use this skill when publishing a Loom release from this repo.
 - Review the repo-local Loom skill at `.agents/skills/loom/SKILL.md` and update it when the release changes framework behavior, guidance, or version-facing command examples.
 - The pushed `v*` tag must result in a matching GitHub Release via `.github/workflows/release.yml`.
 - Every GitHub Release must have meaningful notes before the release is considered done. A bare generated changelog link, empty body, or placeholder text is not acceptable.
-- Release notes and release-facing commit messages must describe the Loom behavior shipped, user impact, upgrade notes, and verification. Do not center another framework, upstream project, or inspiration source when the actual value is the Loom improvement.
+- Release notes and release-facing commit messages must describe the Loom behavior shipped, user impact, and upgrade notes. Do not center another framework, upstream project, or inspiration source when the actual value is the Loom improvement.
+- Do not add a routine `Verification` section or list standard CI commands in release notes. Readers need what changed and any action they must take; the repository and CI retain the verification record.
 - The same workflow also supports manual backfill for an existing `v*` tag when a release entry needs repair.
 - Do not call the release done until the tag exists on GitHub and the GitHub Releases page shows that version.
 
@@ -64,8 +65,8 @@ falls back to a working tree in ordinary development checks either.
    - Highlights that explain concrete Loom behavior, not where the idea came from.
    - Breaking changes or required regeneration.
    - Upgrade notes for generated clients, servers, docs, or downstream repos.
-   - Verification commands that were run.
    - The full changelog comparison link.
+   Exclude routine verification details and CI command lists.
 4. Review release-facing commit messages. If a message frames the work as a port from another framework or otherwise undersells the Loom change, reword it before release so the history describes what was actually done.
 5. Choose the exact target version and pass it explicitly as `VERSION=vX.Y.Z`.
 6. Run `make release VERSION=vX.Y.Z`. The command stages version changes in a
@@ -87,7 +88,7 @@ falls back to a working tree in ordinary development checks either.
 - GitHub shows a release object for the new tag, not just a tag entry.
 - `git rev-parse HEAD`, `git ls-remote origin refs/heads/main`, and the peeled
   release tag all identify the same release commit.
-- `gh release view vX.Y.Z --json body --jq .body` shows substantive release notes with user-facing highlights, upgrade notes when relevant, verification, and the changelog link.
+- `gh release view vX.Y.Z --json body --jq .body` shows substantive release notes with user-facing highlights, upgrade notes when relevant, and the changelog link, without a routine verification section.
 - The release body does not merely say `Full Changelog`, and it does not frame Loom work around another framework or upstream source unless that project is itself part of the user-visible contract.
 
 ## Recovery
