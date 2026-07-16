@@ -20,8 +20,6 @@ history—not in the roadmap.
   result, and replace `gen/` only after the complete run succeeds.
 - Pin `protoc-gen-go` and `protoc-gen-go-grpc` in framework-owned tooling and
   publish the supported toolchain contract.
-- Replace JSON-RPC integration source rewriting based on strings and regular
-  expressions with typed generator seams or explicit fixture configuration.
 - Make the plugin boundary explicit: either document and test it as a public
   extension contract or internalize it.
 - Make release preparation transactional and self-verifying, including version

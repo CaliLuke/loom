@@ -10,7 +10,11 @@ import (
 	"github.com/CaliLuke/loom/codegen/cli"
 )
 
-func parseEndpointSection(common []*cli.CommandData, commands []*commandData) codegen.Section {
+func parseEndpointSection(
+	common []*cli.CommandData,
+	commands []*commandData,
+	transport ClientCLITransport,
+) codegen.Section {
 	return codegen.NewJenniferSection("parse-endpoint", func(stmt *jen.Statement) {
 		appendKongCommandLineStruct(stmt, common)
 		stmt.Line()
@@ -25,13 +29,13 @@ func parseEndpointSection(common []*cli.CommandData, commands []*commandData) co
 				group.Id("enc").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Encoder"))
 				group.Id("dec").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder"))
 				group.Id("restore").Bool()
-				appendParseEndpointStreamingParams(group, commands)
+				appendParseEndpointStreamingParams(group, commands, transport)
 				appendParseEndpointCommandParams(group, commands)
 			}).
 			Params(codegen.TypeRef("loom.Endpoint"), jen.Any(), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
 				appendKongParseCommand(group, commands)
-				appendHTTPParseEndpointBody(group, commands)
+				appendHTTPParseEndpointBody(group, commands, transport)
 			})
 	})
 }
@@ -140,14 +144,19 @@ func kongFieldName(name string) string {
 	return codegen.Goify(name, true)
 }
 
-func appendParseEndpointStreamingParams(group *jen.Group, commands []*commandData) {
+func appendParseEndpointStreamingParams(
+	group *jen.Group,
+	commands []*commandData,
+	transport ClientCLITransport,
+) {
 	if !streamingCmdExists(commands) {
 		return
 	}
 	group.Id("dialer").Add(codegen.TypeRef("loomhttp.Dialer"))
 	for _, cmd := range commands {
 		if cmd.NeedDialer {
-			group.Id(cmd.VarName + "Configurer").Add(codegen.TypeRef("*" + cmd.PkgName + ".ConnConfigurer"))
+			group.Id(transport.StreamingConfigurerName(cmd.VarName)).
+				Add(codegen.TypeRef(transport.StreamingConfigurerType(cmd.PkgName)))
 		}
 	}
 }
@@ -165,7 +174,11 @@ func appendParseEndpointCommandParams(group *jen.Group, commands []*commandData)
 	}
 }
 
-func appendHTTPParseEndpointBody(group *jen.Group, commands []*commandData) {
+func appendHTTPParseEndpointBody(
+	group *jen.Group,
+	commands []*commandData,
+	transport ClientCLITransport,
+) {
 	group.Var().Defs(
 		jen.Id("data").Any(),
 		jen.Id("endpoint").Add(codegen.TypeRef("loom.Endpoint")),
@@ -175,7 +188,7 @@ func appendHTTPParseEndpointBody(group *jen.Group, commands []*commandData) {
 		block.Switch(jen.Id("svcn")).BlockFunc(func(switchGroup *jen.Group) {
 			for _, cmd := range commands {
 				switchGroup.Case(jen.Lit(cmd.Name)).BlockFunc(func(caseGroup *jen.Group) {
-					appendHTTPCommandCase(caseGroup, cmd)
+					appendHTTPCommandCase(caseGroup, cmd, transport)
 				})
 			}
 		})
@@ -186,8 +199,8 @@ func appendHTTPParseEndpointBody(group *jen.Group, commands []*commandData) {
 	group.Return(jen.Id("endpoint"), jen.Id("data"), jen.Nil())
 }
 
-func appendHTTPCommandCase(group *jen.Group, cmd *commandData) {
-	group.Id("c").Op(":=").Id(cmd.PkgName).Dot("NewClient").Call(httpCommandClientArgs(cmd)...)
+func appendHTTPCommandCase(group *jen.Group, cmd *commandData, transport ClientCLITransport) {
+	group.Id("c").Op(":=").Id(cmd.PkgName).Dot("NewClient").Call(httpCommandClientArgs(cmd, transport)...)
 	group.Switch(jen.Id("epn")).BlockFunc(func(endpointSwitch *jen.Group) {
 		for _, sub := range cmd.Subcommands {
 			endpointSwitch.Case(jen.Lit(sub.Name)).BlockFunc(func(subGroup *jen.Group) {
@@ -197,7 +210,7 @@ func appendHTTPCommandCase(group *jen.Group, cmd *commandData) {
 	})
 }
 
-func httpCommandClientArgs(cmd *commandData) []jen.Code {
+func httpCommandClientArgs(cmd *commandData, transport ClientCLITransport) []jen.Code {
 	args := []jen.Code{
 		jen.Id("scheme"),
 		jen.Id("host"),
@@ -207,7 +220,7 @@ func httpCommandClientArgs(cmd *commandData) []jen.Code {
 		jen.Id("restore"),
 	}
 	if cmd.NeedDialer {
-		args = append(args, jen.Id("dialer"), jen.Id(cmd.VarName+"Configurer"))
+		args = append(args, jen.Id("dialer"), jen.Id(transport.StreamingConfigurerName(cmd.VarName)))
 	}
 	return args
 }

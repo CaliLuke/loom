@@ -40,7 +40,7 @@ func serverEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *http
 	}
 	updateHeader(f)
 	f.SetSections(serverEncodeDecodeSections(f))
-	f.Path = rewriteJSONRPCTransportPath(f.Path)
+	f.Path = jsonrpcTransportPath(f.Path)
 	return f
 }
 
@@ -51,7 +51,6 @@ func serverEncodeDecodeSections(f *codegen.File) []codegen.Section {
 		case "source-header":
 			addJSONRPCServerImports(section)
 		case "request-decoder":
-			section = rewriteJSONRPCSectionSource(section, rewriteJSONRPCRequestDecoderSource)
 			sections = append(sections, renameJSONRPCSection(section, "jsonrpc-request-decoder"))
 			continue
 		case "error-encoder":
@@ -69,26 +68,6 @@ func addJSONRPCServerImports(section codegen.Section) {
 	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "bytes"})
 	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "io"})
 	codegen.AddSectionImport(section, codegen.LoomImport("jsonrpc"))
-}
-
-func rewriteJSONRPCRequestDecoderSource(source string) string {
-	source = strings.Replace(source,
-		"func(*http.Request) (",
-		"func(*http.Request, *jsonrpc.RawRequest) (", 1)
-
-	source = strings.Replace(source,
-		"return func(r *http.Request) ({{ .Payload.Ref }}, error) {",
-		`return func(r *http.Request, req *jsonrpc.RawRequest) ({{ .Payload.Ref }}, error) {
-		params := req.Params
-		if len(params) == 0 {
-			params = []byte("{}")
-		}
-		r.Body = io.NopCloser(bytes.NewReader(params))`, 1)
-
-	return strings.ReplaceAll(source,
-		"return nil, ",
-		`var zero {{ .Payload.Ref }}
-		return zero, `)
 }
 
 // serverFile returns the file implementing the HTTP server.

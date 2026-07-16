@@ -10,13 +10,26 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+// ExampleCLITransport describes the transport-specific names and paths used by
+// a generated example client.
+type ExampleCLITransport struct {
+	// PathName is the transport directory below the generated package.
+	PathName string
+	// Filename is the transport example source filename.
+	Filename string
+	// FunctionName is the transport entry point called by the example main.
+	FunctionName string
+	// UsagePrefix prefixes the generated usage helper functions.
+	UsagePrefix string
+}
+
 // ExampleCLIFiles returns an example client tool HTTP implementation for each
 // server expression.
 func ExampleCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 	var files []*codegen.File
 	servers := example.NewServersData()
 	for _, svr := range services.Root.API.Servers {
-		if f := exampleCLIWithCache(genpkg, svr, services, servers); f != nil {
+		if f := exampleCLIWithCache(genpkg, svr, services, servers, httpExampleCLITransport()); f != nil {
 			files = append(files, f)
 		}
 	}
@@ -26,12 +39,30 @@ func ExampleCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 // ExampleCLI returns an example client tool HTTP implementation for the given
 // server expression.
 func ExampleCLI(genpkg string, svr *expr.ServerExpr, services *ServicesData) *codegen.File {
-	return exampleCLIWithCache(genpkg, svr, services, example.NewServersData())
+	return exampleCLIWithCache(genpkg, svr, services, example.NewServersData(), httpExampleCLITransport())
 }
 
-func exampleCLIWithCache(genpkg string, svr *expr.ServerExpr, services *ServicesData, servers example.ServersData) *codegen.File {
+// ExampleCLIForTransport returns an example client configured for transport.
+// It is used by transports that share the HTTP client runtime.
+func ExampleCLIForTransport(
+	genpkg string,
+	svr *expr.ServerExpr,
+	services *ServicesData,
+	transport ExampleCLITransport,
+) *codegen.File {
+	return exampleCLIWithCache(genpkg, svr, services, example.NewServersData(), transport)
+}
+
+func exampleCLIWithCache(
+	genpkg string,
+	svr *expr.ServerExpr,
+	services *ServicesData,
+	servers example.ServersData,
+	transport ExampleCLITransport,
+) *codegen.File {
+	transport = normalizeExampleCLITransport(transport)
 	svrdata := servers.Get(svr, services.Root)
-	path := filepath.Join("cmd", svrdata.Dir+"-cli", "http.go")
+	path := filepath.Join("cmd", svrdata.Dir+"-cli", transport.Filename)
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		return nil // file already exists, skip it.
 	}
@@ -53,7 +84,7 @@ func exampleCLIWithCache(genpkg string, svr *expr.ServerExpr, services *Services
 		{Path: "github.com/gorilla/websocket"},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
-		{Path: genpkg + "/http/cli/" + svrdata.Dir, Name: "cli"},
+		{Path: genpkg + "/" + transport.PathName + "/cli/" + svrdata.Dir, Name: "cli"},
 	}
 	importScope := codegen.NewNameScope()
 	for _, svc := range services.Root.Services {
@@ -74,14 +105,40 @@ func exampleCLIWithCache(genpkg string, svr *expr.ServerExpr, services *Services
 	}
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
-		exampleCLIStartSection(svcData, interceptorsPkg),
+		exampleCLIStartSection(svcData, interceptorsPkg, transport.FunctionName),
 		exampleCLIStreamingSection(svcData),
 		exampleCLIEndSection(svcData, apiPkg),
-		exampleCLIUsageSection(),
+		exampleCLIUsageSection(transport.UsagePrefix),
 	}
 	return &codegen.File{
 		Path:      path,
 		Sections:  sections,
 		SkipExist: true,
 	}
+}
+
+func httpExampleCLITransport() ExampleCLITransport {
+	return ExampleCLITransport{
+		PathName:     "http",
+		Filename:     "http.go",
+		FunctionName: "doHTTP",
+		UsagePrefix:  "http",
+	}
+}
+
+func normalizeExampleCLITransport(transport ExampleCLITransport) ExampleCLITransport {
+	defaults := httpExampleCLITransport()
+	if transport.PathName == "" {
+		transport.PathName = defaults.PathName
+	}
+	if transport.Filename == "" {
+		transport.Filename = defaults.Filename
+	}
+	if transport.FunctionName == "" {
+		transport.FunctionName = defaults.FunctionName
+	}
+	if transport.UsagePrefix == "" {
+		transport.UsagePrefix = defaults.UsagePrefix
+	}
+	return transport
 }

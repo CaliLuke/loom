@@ -3,8 +3,15 @@ package codegen
 var (
 	requestDecoderSource = joinHTTPTemplateSource(`{{ printf "%s returns a decoder for requests sent to the %s %s endpoint." .RequestDecoder .ServiceName .Method.Name | comment }}
 {{- $usesDecoder := or .MultipartRequestDecoder (and .Payload.Request.ServerBody (not .Payload.Request.MultipartGenerated) (not .Payload.Request.FormEncoded)) }}
-func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ else }}_{{ end }} func(*http.Request) loomhttp.Decoder) func(*http.Request) ({{ .Payload.Ref }}, error) {
-	return func(r *http.Request) ({{ .Payload.Ref }}, error) {
+func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ else }}_{{ end }} func(*http.Request) loomhttp.Decoder) func(*http.Request{{ if .Method.IsJSONRPC }}, *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
+	return func(r *http.Request{{ if .Method.IsJSONRPC }}, req *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
+	{{- if .Method.IsJSONRPC }}
+		params := req.Params
+		if len(params) == 0 {
+			params = []byte("{}")
+		}
+		r.Body = io.NopCloser(bytes.NewReader(params))
+	{{- end }}
 		var payload {{ .Payload.Ref }}
 {{- if .MultipartRequestDecoder }}
 		if err := decoder(r).Decode(&payload); err != nil {

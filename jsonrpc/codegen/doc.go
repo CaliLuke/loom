@@ -1,31 +1,25 @@
 /*
 Package codegen generates JSON-RPC 2.0 servers and clients from an evaluated
-Loom design. It builds on top of http/codegen because JSON-RPC over HTTP
-reuses the HTTP wire machinery: framing, headers, status codes, routing, and
-request/response body types.
+Loom design. It shares HTTP service data and typed generator sections because
+JSON-RPC over HTTP uses the same headers, routing, and body types.
 
-# Pipeline position
+# Pipeline
 
-	service.ServicesData              (codegen/service)
+	service.ServicesData (codegen/service)
 	        |
 	        v
-	httpcodegen.NewServicesData(svc, JSONRPC.HTTPExpr)  -- reused
+	httpcodegen.NewServicesData(service, JSONRPC.HTTPExpr)
 	        |
 	        v
-	jsonrpc/codegen adaptation: add JSON-RPC envelope + streaming semantics
-	to each endpoint (adaptation.go, stream_sections.go).
-	        |
-	        v
-	Section renderers (server.go, client.go, sse_server.go, websocket_*.go,
-	handler_*.go, client_stream_sections*.go)
+	typed shared sections selected by Method.IsJSONRPC plus JSON-RPC-owned
+	server, client, SSE, WebSocket, and example sections
 	        |
 	        v
 	[]*codegen.File consumed by codegen/generator
 
-The JSON-RPC generator does NOT define its own ServicesData type; it uses
-http/codegen's *ServicesData constructed from r.API.JSONRPC.HTTPExpr (which is
-derived from the JSON-RPC design at eval time). Adaptation is applied per
-endpoint through service builder helpers in this package.
+The package does not define a parallel ServicesData model. JSON-RPC behavior
+must be selected through evaluated method metadata or explicit generator
+configuration; generated source is never parsed or rewritten.
 
 # What this package owns
 
@@ -44,18 +38,8 @@ endpoint through service builder helpers in this package.
     client_stream_sections.go).
   - JSON-RPC example server + client CLI (example_*.go, client_cli.go).
 
-# Adaptation layer
-
-adaptation.go is the entry point that bridges the HTTP ServicesData produced
-by http/codegen into JSON-RPC expectations (e.g., every endpoint has a JSON-RPC
-method name, result framing is the JSON-RPC Response object). When adding a
-new JSON-RPC feature, start by deciding whether the adaptation belongs here or
-in http/codegen's base types — if the feature is transport-neutral (e.g.,
-changes to error shape), prefer http/codegen.
-
 # File layout
 
-  - adaptation.go                         — per-endpoint JSON-RPC adaptation.
   - server.go / client.go                 — server/client section renderers.
   - server_types.go / client_types.go     — type-file renderers.
   - handler_*_sections.go                 — request handler section templates.
@@ -72,9 +56,8 @@ changes to error shape), prefer http/codegen.
 
 # Extension points
 
-  - Add a new JSON-RPC method-level feature (e.g., notification-only): extend
-    adaptation.go so the flag propagates through MethodData, then teach the
-    handler section renderers to special-case it.
+  - Add a new method-level feature by propagating evaluated metadata through
+    MethodData and selecting behavior in typed templates or section builders.
   - Add a new streaming transport: create a sibling file next to sse_server.go
     / websocket_server.go following the existing structure; reuse
     stream_sections.go for framing helpers.
@@ -84,9 +67,10 @@ changes to error shape), prefer http/codegen.
 
 # Invariants
 
-  - No direct edits to http/codegen ServicesData at JSON-RPC analysis time —
-    pass a JSON-RPC-shaped HTTPExpr in instead (see codegen/generator
-    transport.go).
+  - Do not parse or rewrite rendered source. Extend typed method metadata,
+    section builders, or explicit transport configuration instead.
+  - Do not edit HTTP ServicesData during JSON-RPC analysis. Pass a
+    JSON-RPC-shaped HTTPExpr to the shared data builder.
   - Streaming codegen files must not duplicate frame-boundary logic — it lives
     in stream_sections.go and is shared by SSE and WebSocket renderers.
   - SSE regression surface: the checked-in fixture at

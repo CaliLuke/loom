@@ -9,7 +9,7 @@ import (
 func ClientTypeFiles(genpkg string, services *httpcodegen.ServicesData) []*codegen.File {
 	res := httpcodegen.ClientTypeFiles(genpkg, services)
 	for _, f := range res {
-		f.Path = rewriteJSONRPCTransportPath(f.Path)
+		f.Path = jsonrpcTransportPath(f.Path)
 	}
 	return res
 }

@@ -18,12 +18,10 @@ func ExampleCLIFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.F
 }
 
 func exampleCLI(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr) *codegen.File {
-	f := httpcodegen.ExampleCLI(genpkg, svr, data)
-	if f == nil {
-		return nil
-	}
-	f.Path = rewriteJSONRPCExampleCLIPath(f.Path)
-	updateHeader(f)
-	f.SetSections(rewriteJSONRPCSectionSources(f.AllSections(), rewriteJSONRPCExampleCLISource))
-	return f
+	return httpcodegen.ExampleCLIForTransport(genpkg, svr, data, httpcodegen.ExampleCLITransport{
+		PathName:     "jsonrpc",
+		Filename:     "jsonrpc.go",
+		FunctionName: "doJSONRPC",
+		UsagePrefix:  "jsonrpc",
+	})
 }

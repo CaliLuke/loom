@@ -10,7 +10,7 @@ func ServerTypeFiles(genpkg string, services *httpcodegen.ServicesData) []*codeg
 	res := httpcodegen.ServerTypeFiles(genpkg, services)
 	for _, f := range res {
 		updateHeader(f)
-		f.Path = rewriteJSONRPCTransportPath(f.Path)
+		f.Path = jsonrpcTransportPath(f.Path)
 	}
 	return res
 }

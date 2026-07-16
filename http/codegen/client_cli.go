@@ -11,6 +11,21 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+// ClientCLITransport describes the generated transport-specific client CLI
+// package.
+type ClientCLITransport struct {
+	// PathName is the transport directory used below the generated package.
+	PathName string
+	// DisplayName is the transport name used in generated file titles.
+	DisplayName string
+	// StreamingConfigurerName returns the generated streaming configurer
+	// parameter name for a service variable.
+	StreamingConfigurerName func(string) string
+	// StreamingConfigurerType returns the generated streaming configurer type
+	// for a service package.
+	StreamingConfigurerType func(string) string
+}
+
 // commandData wraps the common CommandData and adds HTTP-specific fields.
 type commandData struct {
 	*cli.CommandData
@@ -40,9 +55,20 @@ type subcommandData struct {
 
 // ClientCLIFiles returns the client HTTP CLI support file.
 func ClientCLIFiles(genpkg string, data *ServicesData) []*codegen.File {
+	return ClientCLIFilesForTransport(genpkg, data, httpClientCLITransport())
+}
+
+// ClientCLIFilesForTransport returns client CLI support files configured for
+// transport. It is used by transports that share the HTTP command model.
+func ClientCLIFilesForTransport(
+	genpkg string,
+	data *ServicesData,
+	transport ClientCLITransport,
+) []*codegen.File {
 	if len(data.Expressions.Services) == 0 {
 		return nil
 	}
+	transport = normalizeClientCLITransport(transport)
 	var (
 		cmds []*commandData
 		svcs []*expr.HTTPServiceExpr
@@ -77,12 +103,42 @@ func ClientCLIFiles(genpkg string, data *ServicesData) []*codegen.File {
 				}
 			}
 		}
-		files = append(files, endpointParser(genpkg, data.Root, svr, svrData, data))
+		files = append(files, endpointParser(genpkg, data.Root, svr, svrData, data, transport))
 	}
 	for i, svc := range svcs {
-		files = append(files, payloadBuilders(genpkg, svc, cmds[i].CommandData, data))
+		files = append(files, payloadBuilders(genpkg, svc, cmds[i].CommandData, data, transport))
 	}
 	return files
+}
+
+func httpClientCLITransport() ClientCLITransport {
+	return ClientCLITransport{
+		PathName:    "http",
+		DisplayName: "HTTP",
+		StreamingConfigurerName: func(serviceVar string) string {
+			return serviceVar + "Configurer"
+		},
+		StreamingConfigurerType: func(servicePkg string) string {
+			return "*" + servicePkg + ".ConnConfigurer"
+		},
+	}
+}
+
+func normalizeClientCLITransport(transport ClientCLITransport) ClientCLITransport {
+	defaults := httpClientCLITransport()
+	if transport.PathName == "" {
+		transport.PathName = defaults.PathName
+	}
+	if transport.DisplayName == "" {
+		transport.DisplayName = defaults.DisplayName
+	}
+	if transport.StreamingConfigurerName == nil {
+		transport.StreamingConfigurerName = defaults.StreamingConfigurerName
+	}
+	if transport.StreamingConfigurerType == nil {
+		transport.StreamingConfigurerType = defaults.StreamingConfigurerType
+	}
+	return transport
 }
 
 func buildSubcommandData(sd *ServiceData, e *EndpointData) *subcommandData {
@@ -104,10 +160,17 @@ func buildSubcommandData(sd *ServiceData, e *EndpointData) *subcommandData {
 
 // endpointParser returns the file that implements the command line parser that
 // builds the client endpoint and payload necessary to perform a request.
-func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, data []*commandData, services *ServicesData) *codegen.File {
+func endpointParser(
+	genpkg string,
+	root *expr.RootExpr,
+	svr *expr.ServerExpr,
+	data []*commandData,
+	services *ServicesData,
+	transport ClientCLITransport,
+) *codegen.File {
 	pkg := codegen.SnakeCase(codegen.Goify(svr.Name, true))
-	path := filepath.Join(codegen.Gendir, "http", "cli", pkg, "cli.go")
-	title := fmt.Sprintf("%s HTTP client CLI support package", svr.Name)
+	path := filepath.Join(codegen.Gendir, transport.PathName, "cli", pkg, "cli.go")
+	title := fmt.Sprintf("%s %s client CLI support package", svr.Name, transport.DisplayName)
 	specs := []*codegen.ImportSpec{
 		{Path: "flag"},
 		{Path: "fmt"},
@@ -124,7 +187,7 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 			continue
 		}
 		specs = append(specs, &codegen.ImportSpec{
-			Path: genpkg + "/http/" + sd.Service.PathName + "/client",
+			Path: genpkg + "/" + transport.PathName + "/" + sd.Service.PathName + "/client",
 			Name: sd.Service.PkgName + "c",
 		})
 		// Add interceptors import if service has client interceptors
@@ -146,7 +209,7 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 		codegen.Header(title, "cli", specs),
 		cli.UsageCommands(cliData),
 		cli.UsageExamples(cliData),
-		parseEndpointSection(cliData, data),
+		parseEndpointSection(cliData, data, transport),
 	)
 	for _, cmd := range cliData {
 		sections = append(sections, cli.CommandUsage(cmd))
@@ -156,10 +219,16 @@ func endpointParser(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, da
 
 // payloadBuilders returns the file that contains the payload constructors that
 // use flag values as arguments.
-func payloadBuilders(genpkg string, svc *expr.HTTPServiceExpr, data *cli.CommandData, services *ServicesData) *codegen.File {
+func payloadBuilders(
+	genpkg string,
+	svc *expr.HTTPServiceExpr,
+	data *cli.CommandData,
+	services *ServicesData,
+	transport ClientCLITransport,
+) *codegen.File {
 	sd := services.Get(svc.Name())
-	path := filepath.Join(codegen.Gendir, "http", sd.Service.PathName, "client", "cli.go")
-	title := fmt.Sprintf("%s HTTP client CLI support package", svc.Name())
+	path := filepath.Join(codegen.Gendir, transport.PathName, sd.Service.PathName, "client", "cli.go")
+	title := fmt.Sprintf("%s %s client CLI support package", svc.Name(), transport.DisplayName)
 	specs := []*codegen.ImportSpec{
 		{Path: "encoding/json"},
 		{Path: "fmt"},

@@ -3,8 +3,6 @@ package codegen
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -40,7 +38,7 @@ func clientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *http
 	}
 	updateHeader(f)
 	f.SetSections(clientEncodeDecodeSections(f, svcData))
-	f.Path = rewriteJSONRPCTransportPath(f.Path)
+	f.Path = jsonrpcTransportPath(f.Path)
 	return f
 }
 
@@ -50,8 +48,6 @@ func clientEncodeDecodeSections(f *codegen.File, svcData *httpcodegen.ServiceDat
 		switch section.SectionName() {
 		case "source-header":
 			addJSONRPCClientImports(section)
-		case "request-encoder":
-			section = rewriteJSONRPCSectionSource(section, rewriteJSONRPCRequestEncoderSource)
 		case "response-decoder":
 			ed, ok := endpointDataForSection(section)
 			if !ok {
@@ -83,14 +79,6 @@ func addJSONRPCClientImports(section codegen.Section) {
 	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "sync/atomic"})
 	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "github.com/google/uuid"})
 	codegen.AddSectionImport(section, codegen.LoomImport("jsonrpc"))
-}
-
-func rewriteJSONRPCRequestEncoderSource(source string) string {
-	re := regexp.MustCompile(`body := (.*)\n`)
-	return re.ReplaceAllStringFunc(source, func(match string) string {
-		matches := re.FindStringSubmatch(match)
-		return strings.Replace(newJSONRPCBody, "{{ .NewBody }}", matches[1], 1)
-	})
 }
 
 // clientFile returns the client HTTP transport file
@@ -133,28 +121,3 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 
 	return &codegen.File{Path: path, Sections: sections}
 }
-
-const newJSONRPCBody = `b := {{ .NewBody }}
-		body := &jsonrpc.Request{
-			JSONRPC: "2.0",
-			Method:  "{{ .Method.Name }}",
-			Params:  b,
-		}
-{{- if .Payload.IDAttribute }}
-	{{- if .Payload.IDAttributeRequired }}
-		if p.{{ .Payload.IDAttribute }} != "" {
-			body.ID = p.{{ .Payload.IDAttribute }}
-		}
-		// If ID is empty, this is a notification - no ID field
-	{{- else }}
-		if p.{{ .Payload.IDAttribute }} != nil && *p.{{ .Payload.IDAttribute }} != "" {
-			body.ID = p.{{ .Payload.IDAttribute }}
-		}
-		// If ID is nil or empty, this is a notification - no ID field
-	{{- end }}
-{{- else }}
-		// No ID field in payload - always send as a request with generated ID
-		id := uuid.New().String()
-		body.ID = id
-{{- end }}
-`

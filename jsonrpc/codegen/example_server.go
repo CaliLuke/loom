@@ -27,7 +27,7 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 	svrdata := servers.Get(svr, data.Root)
 	httppath := filepath.Join("cmd", svrdata.Dir, "http.go")
 	file, hasHTTP := findOrBuildExampleHTTPServer(genpkg, data, svr, files, httppath)
-	file.Path = rewriteJSONRPCExampleServerPath(file.Path)
+	file.Path = filepath.Join(filepath.Dir(file.Path), "jsonrpc.go")
 
 	sections := file.AllSections()
 	header := file.HeaderSection()

@@ -43,7 +43,7 @@ func TestJSONRPCRenderedFilesUseLoomHTTPAlias(t *testing.T) {
 }
 
 func TestJSONRPCMixedSSEGeneratedModuleCompiles(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeRewriteDSL)
+	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeDSL)
 	dir := t.TempDir()
 
 	renderJSONRPCModule(t, dir, "example.com/jsonrpcaliasit", root)

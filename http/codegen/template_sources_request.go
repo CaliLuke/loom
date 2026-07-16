@@ -152,9 +152,41 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		}
 	{{- else if .Payload.Request.ClientBody }}
 		{{- if .Payload.Request.ClientBody.Init }}
+		{{- if .Method.IsJSONRPC }}
+		b := {{ .Payload.Request.ClientBody.Init.Name }}({{ range $i, $arg := .Payload.Request.ClientBody.Init.ClientArgs }}{{ if $i }}, {{ end }}{{ if $arg.FieldPointer }}&{{ end }}{{ $arg.VarName }}{{ end }})
+		{{- else }}
 		body := {{ .Payload.Request.ClientBody.Init.Name }}({{ range $i, $arg := .Payload.Request.ClientBody.Init.ClientArgs }}{{ if $i }}, {{ end }}{{ if $arg.FieldPointer }}&{{ end }}{{ $arg.VarName }}{{ end }})
+		{{- end }}
+		{{- else }}
+		{{- if .Method.IsJSONRPC }}
+		b := p{{ if .Payload.Request.PayloadAttr }}.{{ .Payload.Request.PayloadAttr }}{{ end }}
 		{{- else }}
 		body := p{{ if .Payload.Request.PayloadAttr }}.{{ .Payload.Request.PayloadAttr }}{{ end }}
+		{{- end }}
+		{{- end }}
+		{{- if .Method.IsJSONRPC }}
+		body := &jsonrpc.Request{
+			JSONRPC: "2.0",
+			Method:  "{{ .Method.Name }}",
+			Params:  b,
+		}
+		{{- if .Payload.IDAttribute }}
+			{{- if .Payload.IDAttributeRequired }}
+		if p.{{ .Payload.IDAttribute }} != "" {
+			body.ID = p.{{ .Payload.IDAttribute }}
+		}
+		// If ID is empty, this is a notification - no ID field
+			{{- else }}
+		if p.{{ .Payload.IDAttribute }} != nil && *p.{{ .Payload.IDAttribute }} != "" {
+			body.ID = p.{{ .Payload.IDAttribute }}
+		}
+		// If ID is nil or empty, this is a notification - no ID field
+			{{- end }}
+		{{- else }}
+		// No ID field in payload - always send as a request with generated ID
+		id := uuid.New().String()
+		body.ID = id
+		{{- end }}
 		{{- end }}
 		{{- if .Payload.Request.FormEncoded }}
 		if err := loomhttp.SetFormRequest(req, &body); err != nil {

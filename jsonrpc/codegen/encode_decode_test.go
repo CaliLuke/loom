@@ -10,10 +10,33 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/dsl"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
-func TestJSONRPCClientEncodeDecodeFileRewrite(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeRewriteDSL)
+func TestSharedClientGeneratorEmitsJSONRPCRequestEnvelope(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeDSL)
+	services := CreateJSONRPCServices(root)
+	file := httpcodegen.ClientEncodeDecodeFile("", root.API.JSONRPC.Services[0], services)
+
+	require.NotNil(t, file)
+	code := sectionSourceByName(t, file, "request-encoder")
+	assert.Contains(t, code, `body := &jsonrpc.Request{`)
+	assert.Contains(t, code, `JSONRPC: "2.0"`)
+}
+
+func TestSharedServerGeneratorEmitsJSONRPCRequestDecoder(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeDSL)
+	services := CreateJSONRPCServices(root)
+	file := httpcodegen.ServerEncodeDecodeFile("", root.API.JSONRPC.Services[0], services)
+
+	require.NotNil(t, file)
+	code := sectionSourceByName(t, file, "request-decoder")
+	assert.Contains(t, code, `func(r *http.Request, req *jsonrpc.RawRequest)`)
+	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(params))`)
+}
+
+func TestJSONRPCClientEncodeDecodeFile(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeDSL)
 	files := ClientFiles("", CreateJSONRPCServices(root))
 
 	file := requireEncodeDecodeFile(t, files, "client")
@@ -26,11 +49,11 @@ func TestJSONRPCClientEncodeDecodeFileRewrite(t *testing.T) {
 
 	code := renderCodegenFile(t, file)
 	assert.Contains(t, code, `body := &jsonrpc.Request{`)
-	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-client-encode-decode-rewrite.golden"), code)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-client-encode-decode.golden"), code)
 }
 
-func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeRewriteDSL)
+func TestJSONRPCServerEncodeDecodeFile(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeDSL)
 	files := ServerFiles("", CreateJSONRPCServices(root))
 
 	file := requireEncodeDecodeFile(t, files, "server")
@@ -43,11 +66,11 @@ func TestJSONRPCServerEncodeDecodeFileRewrite(t *testing.T) {
 	code := renderCodegenFile(t, file)
 	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(params))`)
 	assert.NotContains(t, code, `bytes.NewReader(req.Params)`)
-	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-encode-decode-rewrite.golden"), code)
+	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-encode-decode.golden"), code)
 }
 
 func TestJSONRPCClientDecoderReturnsDecodedUnmappedError(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeRewriteDSL)
+	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeDSL)
 	files := ClientFiles("", CreateJSONRPCServices(root))
 
 	file := requireEncodeDecodeFile(t, files, "client")
@@ -96,8 +119,8 @@ func sectionNames(file *codegen.File) []string {
 	return names
 }
 
-var jsonrpcEncodeDecodeRewriteDSL = func() {
-	dsl.API("jsonrpc-encode-decode-rewrite", func() {
+var jsonrpcEncodeDecodeDSL = func() {
+	dsl.API("jsonrpc-encode-decode", func() {
 		dsl.JSONRPC(func() {})
 	})
 

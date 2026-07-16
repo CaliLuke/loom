@@ -12,8 +12,8 @@ import (
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
-func TestJSONRPCClientCLIFilesUseAdaptationPipeline(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcClientCLIAdaptationDSL)
+func TestJSONRPCClientCLIFilesUseTransportConfiguration(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcClientCLITransportDSL)
 	files := ClientCLIFiles("", CreateJSONRPCServices(root))
 
 	require.NotEmpty(t, files)
@@ -24,10 +24,11 @@ func TestJSONRPCClientCLIFilesUseAdaptationPipeline(t *testing.T) {
 	parseSource := sectionSourceByName(t, parseFile, "parse-endpoint")
 	assert.Contains(t, parseSource, "loomhttp.ConnConfigureFunc")
 	assert.NotContains(t, parseSource, "ConnConfigurer")
+	require.IsType(t, &codegen.JenniferSection{}, sectionByName(t, parseFile, "parse-endpoint"))
 }
 
-func TestJSONRPCExampleCLIFilesUseAdaptationPipeline(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcAdaptationPipelineDSL)
+func TestJSONRPCExampleCLIFilesUseTransportConfiguration(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcTransportGenerationDSL)
 	files := ExampleCLIFiles("", CreateJSONRPCServices(root))
 
 	require.Len(t, files, 1)
@@ -38,10 +39,11 @@ func TestJSONRPCExampleCLIFilesUseAdaptationPipeline(t *testing.T) {
 	assert.Contains(t, code, "jsonrpcUsage")
 	assert.NotContains(t, code, "doHTTP")
 	assert.NotContains(t, code, "httpUsage")
+	require.IsType(t, &codegen.JenniferSection{}, sectionByName(t, files[0], "cli-http-usage"))
 }
 
-func TestJSONRPCExampleServerFilesUseAdaptationPipeline(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcAdaptationPipelineDSL)
+func TestJSONRPCExampleServerFilesUseTransportConfiguration(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcTransportGenerationDSL)
 	services := CreateJSONRPCServices(root)
 	httpFiles := httpcodegen.ExampleServerFiles("", services)
 	files := ExampleServerFiles("", services, httpFiles)
@@ -60,14 +62,20 @@ func TestJSONRPCExampleServerFilesUseAdaptationPipeline(t *testing.T) {
 func sectionSourceByName(t *testing.T, file *codegen.File, name string) string {
 	t.Helper()
 
+	return renderSectionSource(sectionByName(t, file, name))
+}
+
+func sectionByName(t *testing.T, file *codegen.File, name string) codegen.Section {
+	t.Helper()
+
 	for _, section := range file.AllSections() {
 		if section.SectionName() == name {
-			return renderSectionSource(section)
+			return section
 		}
 	}
 
 	require.FailNowf(t, "missing section", "expected section %q in %s", name, file.Path)
-	return ""
+	return nil
 }
 
 func requireFileWithSection(t *testing.T, files []*codegen.File, name string) *codegen.File {
@@ -85,8 +93,8 @@ func requireFileWithSection(t *testing.T, files []*codegen.File, name string) *c
 	return nil
 }
 
-var jsonrpcAdaptationPipelineDSL = func() {
-	dsl.API("jsonrpc-adaptation-pipeline", func() {
+var jsonrpcTransportGenerationDSL = func() {
+	dsl.API("jsonrpc-transport-generation", func() {
 		dsl.Server("SingleHost", func() {
 			dsl.Services("calc")
 			dsl.Host("dev", func() {
@@ -117,8 +125,8 @@ var jsonrpcAdaptationPipelineDSL = func() {
 	})
 }
 
-var jsonrpcClientCLIAdaptationDSL = func() {
-	dsl.API("jsonrpc-client-cli-adaptation-pipeline", func() {
+var jsonrpcClientCLITransportDSL = func() {
+	dsl.API("jsonrpc-client-cli-transport", func() {
 		dsl.Server("SingleHost", func() {
 			dsl.Services("calc")
 			dsl.Host("dev", func() {

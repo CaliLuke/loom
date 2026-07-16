@@ -8,15 +8,19 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 )
 
-func exampleCLIStartSection(services []*ServiceData, interceptorsPkg string) codegen.Section {
+func exampleCLIStartSection(
+	services []*ServiceData,
+	interceptorsPkg string,
+	functionName string,
+) codegen.Section {
 	return codegen.NewRenderSection("cli-http-start", func() string {
-		return renderExampleCLIStart(services, interceptorsPkg)
+		return renderExampleCLIStart(services, interceptorsPkg, functionName)
 	})
 }
 
-func renderExampleCLIStart(services []*ServiceData, interceptorsPkg string) string {
+func renderExampleCLIStart(services []*ServiceData, interceptorsPkg, functionName string) string {
 	var b sourceBuilder
-	b.Add("func doHTTP(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, error) {\n")
+	b.Addf("func %s(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, error) {\n", functionName)
 	b.Add("\tvar (\n")
 	b.Add("\t\tdoer loomhttp.Doer\n")
 	for _, svc := range servicesWithClientInterceptors(services) {
@@ -90,15 +94,15 @@ func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
 	return b.String()
 }
 
-func exampleCLIUsageSection() codegen.Section {
+func exampleCLIUsageSection(usagePrefix string) codegen.Section {
 	return codegen.NewJenniferSection("cli-http-usage", func(stmt *jen.Statement) {
 		stmt.Line()
-		stmt.Func().Id("httpUsageCommands").Params().Index().String().Block(
+		stmt.Func().Id(usagePrefix + "UsageCommands").Params().Index().String().Block(
 			jen.Return(jen.Id("cli").Dot("UsageCommands").Call()),
 		)
 		stmt.Line()
 		stmt.Line()
-		stmt.Func().Id("httpUsageExamples").Params().String().Block(
+		stmt.Func().Id(usagePrefix + "UsageExamples").Params().String().Block(
 			jen.Return(jen.Id("cli").Dot("UsageExamples").Call()),
 		)
 		stmt.Line()
