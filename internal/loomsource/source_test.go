@@ -11,6 +11,8 @@ import (
 )
 
 func TestResolve(t *testing.T) {
+	t.Setenv("LOOM_DIR", "")
+
 	t.Run("implicit local mode uses repository root", func(t *testing.T) {
 		repoRoot := newGitRepository(t)
 		require.NoError(t, SetMode(repoRoot, ModeLocal, ""))
