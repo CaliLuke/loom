@@ -176,7 +176,7 @@ func (node *Node) claimDispatch(ctx context.Context, key string) (string, error)
 // owns it. Dispatch callers can time out while another node later claims a
 // stale pending key, so unconditional deletion would erase a newer guard.
 func (node *Node) releaseDispatchPending(key, pendingTS string) {
-	if _, err := luaReleaseDispatch.Run(context.Background(), node.rdb, []string{
+	if _, err := luaReleaseDispatch.Run(node.runtimeCtx, node.rdb, []string{
 		rmapContentKey(jobPendingMapName(node.PoolName)),
 		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
 	}, key, pendingTS).Result(); err != nil {
@@ -347,6 +347,9 @@ func (node *Node) close(ctx context.Context, shutdown bool) error {
 
 	// Stop all goroutines
 	close(node.stop)
+	if node.runtimeCancel != nil {
+		node.runtimeCancel()
+	}
 	node.wg.Wait()
 
 	// Requeue jobs if not shutting down.

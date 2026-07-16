@@ -225,13 +225,12 @@ func (s *Sink) ensureConsumer(ctx context.Context) error {
 }
 
 // periodicKeepAlive updates this consumer keep-alive every half ack grace period.
-func (s *Sink) periodicKeepAlive() {
+func (s *Sink) periodicKeepAlive(ctx context.Context) {
 	defer s.wait.Done()
 	defer s.logger.Debug("periodicKeepAlive: exiting")
 	ticker := time.NewTicker(s.ackGracePeriod)
 	defer ticker.Stop()
 
-	ctx := context.Background()
 	for {
 		select {
 		case <-ticker.C:
@@ -254,17 +253,21 @@ func (s *Sink) periodicKeepAlive() {
 // periodicIdleMessageCheck claims any idle message every check stale period.
 // An idle message is one that has not been acked for more than the ack grace period.
 // Once all idle messages are claimed, any stale consumer is deleted.
-func (s *Sink) periodicIdleMessageCheck() {
+func (s *Sink) periodicIdleMessageCheck(ctx context.Context) {
 	defer s.wait.Done()
 	defer s.logger.Debug("periodicIdleMessageCheck: exiting")
-	ticker := time.NewTicker(checkIdlePeriod)
-	defer ticker.Stop()
+	checks := s.idleChecks
+	var ticker *time.Ticker
+	if checks == nil {
+		ticker = time.NewTicker(s.idleCheckPeriod)
+		checks = ticker.C
+		defer ticker.Stop()
+	}
 
-	leaseDuration := checkIdlePeriod.Milliseconds() - 5
-	ctx := context.Background()
+	leaseDuration := s.idleCheckPeriod.Milliseconds() - 5
 	for {
 		select {
-		case <-ticker.C:
+		case <-checks:
 			now := time.Now().UnixNano() / int64(time.Millisecond)
 			newExpiration := now + leaseDuration
 			result, err := s.acquireLease.EvalSha(ctx, s.rdb, s.leaseKeyName, newExpiration, now, leaseDuration).Result()

@@ -36,29 +36,32 @@ func (node *Node) stopAllJobs(ctx context.Context) {
 }
 
 // handlePoolEvents reads events from the pool job stream.
-func (node *Node) handlePoolEvents(c <-chan *streaming.Event) {
+func (node *Node) handlePoolEvents(ctx context.Context, c <-chan *streaming.Event) {
 	defer node.wg.Done()
 
 	for {
 		select {
-		case ev := <-c:
-			if err := node.routeWorkerEvent(ev); err != nil {
+		case ev, ok := <-c:
+			if !ok {
+				return
+			}
+			if err := node.routeWorkerEvent(ctx, ev); err != nil {
 				node.logger.Error(fmt.Errorf("handlePoolEvents: failed to route event: %w", err))
 			}
 		case <-node.stop:
-			node.poolSink.Close(context.Background())
+			node.poolSink.Close(ctx)
 			return
 		}
 	}
 }
 
 // routeWorkerEvent routes a dispatched event to the proper worker.
-func (node *Node) routeWorkerEvent(ev *streaming.Event) error {
+func (node *Node) routeWorkerEvent(ctx context.Context, ev *streaming.Event) error {
 	// Filter out stale events
 	if time.Since(ev.CreatedAt()) > pendingEventTTL {
 		node.logger.Debug("routeWorkerEvent: stale event, not routing", "event", ev.EventName, "id", ev.ID, "since", time.Since(ev.CreatedAt()), "TTL", pendingEventTTL)
 		// Ack the sink event so it does not get redelivered.
-		if err := node.poolSink.Ack(context.Background(), ev); err != nil {
+		if err := node.poolSink.Ack(ctx, ev); err != nil {
 			node.logger.Error(fmt.Errorf("routeWorkerEvent: failed to ack event: %w", err), "event", ev.EventName, "id", ev.ID)
 		}
 		return nil
@@ -77,7 +80,7 @@ func (node *Node) routeWorkerEvent(ev *streaming.Event) error {
 	if err != nil {
 		return err
 	}
-	eventID, err := stream.Add(context.Background(), ev.EventName, marshalEnvelope(node.ID, ev.Payload), options.WithOnlyIfStreamExists())
+	eventID, err := stream.Add(ctx, ev.EventName, marshalEnvelope(node.ID, ev.Payload), options.WithOnlyIfStreamExists())
 	if err != nil {
 		return fmt.Errorf("routeWorkerEvent: failed to add event %s to worker stream %q: %w", ev.EventName, workerStreamName(wid), err)
 	}
@@ -91,13 +94,16 @@ func (node *Node) routeWorkerEvent(ev *streaming.Event) error {
 
 // handleNodeEvents reads events from the node event stream and acks the pending
 // events that correspond to jobs that are now running or done.
-func (node *Node) handleNodeEvents(c <-chan *streaming.Event) {
+func (node *Node) handleNodeEvents(ctx context.Context, c <-chan *streaming.Event) {
 	defer node.wg.Done()
 
 	for {
 		select {
-		case ev := <-c:
-			node.processNodeEvent(ev)
+		case ev, ok := <-c:
+			if !ok {
+				return
+			}
+			node.processNodeEvent(ctx, ev)
 		case <-node.stop:
 			node.nodeReader.Close()
 			return
@@ -106,7 +112,7 @@ func (node *Node) handleNodeEvents(c <-chan *streaming.Event) {
 }
 
 // processNodeEvent processes a node event.
-func (node *Node) processNodeEvent(ev *streaming.Event) {
+func (node *Node) processNodeEvent(ctx context.Context, ev *streaming.Event) {
 	switch ev.EventName {
 	case evInit:
 		// Event sent by pool node to initialize the node event stream.
@@ -114,7 +120,7 @@ func (node *Node) processNodeEvent(ev *streaming.Event) {
 	case evAck:
 		// Event sent by worker to ack a dispatched job.
 		node.logger.Debug("handleNodeEvents: received ack", "event", ev.EventName, "id", ev.ID)
-		node.ackWorkerEvent(ev)
+		node.ackWorkerEvent(ctx, ev)
 	case evDispatchReturn:
 		// Event sent by pool node to node that originally dispatched the job.
 		node.logger.Debug("handleNodeEvents: received dispatch return", "event", ev.EventName, "id", ev.ID)
@@ -125,7 +131,7 @@ func (node *Node) processNodeEvent(ev *streaming.Event) {
 // ackWorkerEvent acks the pending event that corresponds to the acked job.  If
 // the event was a dispatched job then it sends a dispatch return event to the
 // node that dispatched the job.
-func (node *Node) ackWorkerEvent(ev *streaming.Event) {
+func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 	workerID, payload := unmarshalEnvelope(ev.Payload)
 	ack := unmarshalAck(payload)
 	key := pendingEventKey(workerID, ack.EventID)
@@ -135,8 +141,6 @@ func (node *Node) ackWorkerEvent(ev *streaming.Event) {
 		return
 	}
 	pending := val.(*streaming.Event)
-	ctx := context.Background()
-
 	// If a dispatched job then send a return event to the node that
 	// dispatched the job.
 	if pending.EventName == evStartJob {
@@ -202,11 +206,16 @@ func (node *Node) returnDispatchStatus(ev *streaming.Event) {
 // when workers are added or removed from the pool.
 func (node *Node) watchWorkers(ctx context.Context) {
 	defer node.wg.Done()
+	updates := node.workerMap.Subscribe()
+	defer node.workerMap.Unsubscribe(updates)
 	for {
 		select {
 		case <-node.stop:
 			return
-		case <-node.workerMap.Subscribe():
+		case _, ok := <-updates:
+			if !ok {
+				return
+			}
 			node.logger.Debug("watchWorkers: worker map updated")
 			node.handleWorkerMapUpdate(ctx)
 		}
@@ -225,7 +234,7 @@ func (node *Node) handleWorkerMapUpdate(ctx context.Context) {
 			// If it's not in the worker map, then it's not active and its jobs
 			// have already been requeued.
 			node.logger.Info("handleWorkerMapUpdate: removing inactive local worker", "worker", worker.ID)
-			if err := node.deleteWorker(worker.ID); err != nil {
+			if err := node.deleteWorker(ctx, worker.ID); err != nil {
 				node.logger.Error(fmt.Errorf("handleWorkerMapUpdate: failed to delete inactive worker %q: %w", worker.ID, err), "worker", worker.ID)
 			}
 			worker.stop(ctx)

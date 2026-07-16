@@ -133,7 +133,7 @@ func (sm *Map) run() {
 				close(c)
 			}
 			if sm.sub != nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				ctx, cancel := context.WithTimeout(context.WithoutCancel(sm.closectx), 5*time.Second)
 				if err := sm.sub.Unsubscribe(ctx, sm.chankey); err != nil {
 					sm.logger.Error(fmt.Errorf("failed to unsubscribe: %w", err))
 				}

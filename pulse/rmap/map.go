@@ -122,7 +122,7 @@ func Join(ctx context.Context, name string, rdb *redis.Client, opts ...MapOption
 	if o.TTL < 0 {
 		return nil, fmt.Errorf("pulse map: %s ttl must be >= 0", name)
 	}
-	closectx, closer := context.WithCancel(context.Background())
+	closectx, closer := context.WithCancel(context.WithoutCancel(ctx))
 	sm := &Map{
 		Name:                 name,
 		chankey:              fmt.Sprintf("map:%s:updates", name),

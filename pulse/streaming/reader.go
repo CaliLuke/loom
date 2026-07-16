@@ -51,6 +51,10 @@ type (
 		wait sync.WaitGroup
 		// readCancel cancels the active Redis read call.
 		readCancel context.CancelFunc
+		// runtimeCtx owns the reader background loop.
+		runtimeCtx context.Context
+		// runtimeCancel stops the reader background loop.
+		runtimeCancel context.CancelFunc
 		// closing is true if Close was called.
 		closing bool
 		// eventFilter is the event filter if any.
@@ -96,7 +100,7 @@ type (
 )
 
 // newReader creates a new reader.
-func newReader(stream *Stream, opts ...options.Reader) (*Reader, error) {
+func newReader(ctx context.Context, stream *Stream, opts ...options.Reader) (*Reader, error) {
 	o := options.ParseReaderOptions(opts...)
 	var eventFilter eventFilterFunc
 	if o.Topic != "" {
@@ -109,6 +113,7 @@ func newReader(stream *Stream, opts ...options.Reader) (*Reader, error) {
 		eventFilter = func(e *Event) bool { return topicPatternRegexp.MatchString(e.Topic) }
 	}
 
+	runtimeCtx, runtimeCancel := context.WithCancel(context.WithoutCancel(ctx))
 	reader := &Reader{
 		startID:       o.LastEventID,
 		streams:       []*Stream{stream},
@@ -118,6 +123,8 @@ func newReader(stream *Stream, opts ...options.Reader) (*Reader, error) {
 		maxPolled:     o.MaxPolled,
 		bufferSize:    o.BufferSize,
 		donechan:      make(chan struct{}),
+		runtimeCtx:    runtimeCtx,
+		runtimeCancel: runtimeCancel,
 		eventFilter:   eventFilter,
 		logger:        stream.rootLogger.WithPrefix("reader", stream.Name),
 		rdb:           stream.rdb,
@@ -222,6 +229,9 @@ func (r *Reader) beginClose() bool {
 	}
 	r.closing = true
 	close(r.donechan)
+	if r.runtimeCancel != nil {
+		r.runtimeCancel()
+	}
 	if r.readCancel != nil {
 		r.readCancel()
 	}
@@ -243,7 +253,7 @@ func (r *Reader) IsClosed() bool {
 func (r *Reader) start() {
 	r.startOnce.Do(func() {
 		r.wait.Add(1)
-		pulse.Go(r.logger, func() { r.read(context.Background()) })
+		pulse.Go(r.logger, func() { r.read(r.runtimeCtx) })
 	})
 }
 

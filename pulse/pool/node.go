@@ -44,6 +44,8 @@ type (
 		clientOnly         bool
 		logger             pulse.Logger
 		h                  hasher
+		runtimeCtx         context.Context
+		runtimeCancel      context.CancelFunc
 		stop               chan struct{}  // closed when node is stopped
 		closed             chan struct{}  // closed when node is closed
 		wg                 sync.WaitGroup // allows to wait until all goroutines exit
@@ -220,6 +222,8 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		return nil, fmt.Errorf("AddNode: failed to create node event reader for stream %q: %w", nodeStreamName(poolName, nodeID), err)
 	}
 
+	runtimeBase := log.WithContext(context.WithoutCancel(ctx), ctx)
+	runtimeCtx, runtimeCancel := context.WithCancel(runtimeBase)
 	p := &Node{
 		ID:                 nodeID,
 		PoolName:           poolName,
@@ -245,6 +249,8 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		workerShutdownTTL:  o.workerShutdownTTL,
 		ackGracePeriod:     o.ackGracePeriod,
 		h:                  &jumpHash{h: crc64.New(crc64.MakeTable(crc64.ECMA))},
+		runtimeCtx:         runtimeCtx,
+		runtimeCancel:      runtimeCancel,
 		stop:               make(chan struct{}),
 		closed:             closed,
 		rdb:                rdb,
@@ -256,25 +262,21 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 	if o.clientOnly {
 		logger.Info("client-only")
 		p.wg.Add(3)
-		pulse.Go(logger, func() { p.handleNodeEvents(nch) }) // to handle job acks
-		pulse.Go(logger, func() { p.processInactiveNodes() })
-		pulse.Go(logger, func() { p.updateNodeKeepAlive() })
+		pulse.Go(logger, func() { p.handleNodeEvents(runtimeCtx, nch) }) // to handle job acks
+		pulse.Go(logger, func() { p.processInactiveNodes(runtimeCtx) })
+		pulse.Go(logger, func() { p.updateNodeKeepAlive(runtimeCtx) })
 		return p, nil
 	}
 
-	// create new logger context for goroutines.
-	logCtx := context.Background()
-	logCtx = log.WithContext(logCtx, ctx)
-
 	p.wg.Add(8) // Increment for all background goroutines
-	pulse.Go(logger, func() { p.handlePoolEvents(poolSink.Subscribe()) })
-	pulse.Go(logger, func() { p.handleNodeEvents(nch) })
-	pulse.Go(logger, func() { p.watchWorkers(logCtx) })
-	pulse.Go(logger, func() { p.watchShutdown(logCtx) })
-	pulse.Go(logger, func() { p.processInactiveNodes() })
-	pulse.Go(logger, func() { p.processInactiveWorkers(logCtx) })
-	pulse.Go(logger, func() { p.processInactiveJobs(logCtx) })
-	pulse.Go(logger, func() { p.updateNodeKeepAlive() })
+	pulse.Go(logger, func() { p.handlePoolEvents(runtimeCtx, poolSink.Subscribe()) })
+	pulse.Go(logger, func() { p.handleNodeEvents(runtimeCtx, nch) })
+	pulse.Go(logger, func() { p.watchWorkers(runtimeCtx) })
+	pulse.Go(logger, func() { p.watchShutdown(runtimeCtx) })
+	pulse.Go(logger, func() { p.processInactiveNodes(runtimeCtx) })
+	pulse.Go(logger, func() { p.processInactiveWorkers(runtimeCtx) })
+	pulse.Go(logger, func() { p.processInactiveJobs(runtimeCtx) })
+	pulse.Go(logger, func() { p.updateNodeKeepAlive(runtimeCtx) })
 
 	return p, nil
 }

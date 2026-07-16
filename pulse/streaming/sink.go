@@ -15,13 +15,13 @@ import (
 	"github.com/CaliLuke/loom/pulse/streaming/options"
 )
 
+const defaultIdleCheckPeriod = 500 * time.Millisecond
+
 var (
 	// ensureConsumerRetryDelay is used when blockDuration means "block indefinitely".
 	ensureConsumerRetryDelay = 100 * time.Millisecond
 	// maxJitterMs is the maximum retry backoff jitter in milliseconds.
 	maxJitterMs = 5000
-	// checkIdlePeriod is the period at which idle messages are checked.
-	checkIdlePeriod = 500 * time.Millisecond
 )
 
 // acquireLeaseScript is the script used to acquire the idle message check lease.
@@ -39,6 +39,11 @@ var acquireLeaseScript = redis.NewScript(`
 `)
 
 type (
+	sinkRuntime struct {
+		idleCheckPeriod time.Duration
+		idleChecks      <-chan time.Time
+	}
+
 	// Sink represents a stream sink.
 	Sink struct {
 		// Name is the sink name.
@@ -75,6 +80,10 @@ type (
 		wait sync.WaitGroup
 		// readCancel cancels the active Redis read call.
 		readCancel context.CancelFunc
+		// runtimeCtx owns all background Redis operations.
+		runtimeCtx context.Context
+		// runtimeCancel stops all background Redis operations.
+		runtimeCancel context.CancelFunc
 		// closing is true if Close was called.
 		closing bool
 		// eventFilter is the event filter if any.
@@ -98,6 +107,10 @@ type (
 		acquireLease *redis.Script
 		// rdb is the redis connection.
 		rdb *redis.Client
+		// idleCheckPeriod controls the stale-consumer lease interval.
+		idleCheckPeriod time.Duration
+		// idleChecks triggers stale-consumer checks when provided by tests.
+		idleChecks <-chan time.Time
 	}
 
 	// eventFilterFunc is the function used to filter events.
@@ -111,7 +124,7 @@ type (
 // which is not the semantics Pulse wants to enforce.
 //
 //nolint:maintidx // Sink setup validates options and initializes Redis-backed state together.
-func newSink(ctx context.Context, name string, stream *Stream, opts ...options.Sink) (*Sink, error) {
+func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRuntime, opts ...options.Sink) (*Sink, error) {
 	o := options.ParseSinkOptions(opts...)
 	var eventMatcher eventFilterFunc
 	if o.Topic != "" {
@@ -145,6 +158,8 @@ func newSink(ctx context.Context, name string, stream *Stream, opts ...options.S
 		return nil, fmt.Errorf("failed to apply stream TTL: %w", err)
 	}
 
+	runtimeBase := log.WithContext(context.WithoutCancel(ctx), ctx)
+	runtimeCtx, runtimeCancel := context.WithCancel(runtimeBase)
 	sink := &Sink{
 		Name:                  name,
 		leaseKeyName:          []string{staleLockName(name)},
@@ -163,6 +178,13 @@ func newSink(ctx context.Context, name string, stream *Stream, opts ...options.S
 		acquireLease:          acquireLeaseScript,
 		logger:                logger,
 		rdb:                   stream.rdb,
+		runtimeCtx:            runtimeCtx,
+		runtimeCancel:         runtimeCancel,
+		idleCheckPeriod:       runtime.idleCheckPeriod,
+		idleChecks:            runtime.idleChecks,
+	}
+	if sink.idleCheckPeriod <= 0 {
+		sink.idleCheckPeriod = defaultIdleCheckPeriod
 	}
 
 	// Clean up any existing stale consumers before creating our own
@@ -177,14 +199,10 @@ func newSink(ctx context.Context, name string, stream *Stream, opts ...options.S
 	sink.consumer = consumer
 	sink.logger = sink.logger.WithPrefix("consumer", consumer)
 
-	// create new logger context for goroutines.
-	logCtx := context.Background()
-	logCtx = log.WithContext(logCtx, ctx)
-
 	sink.wait.Add(3)
-	pulse.Go(logger, func() { sink.read(logCtx) })
-	pulse.Go(logger, sink.periodicKeepAlive)
-	pulse.Go(logger, sink.periodicIdleMessageCheck)
+	pulse.Go(logger, func() { sink.read(runtimeCtx) })
+	pulse.Go(logger, func() { sink.periodicKeepAlive(runtimeCtx) })
+	pulse.Go(logger, func() { sink.periodicIdleMessageCheck(runtimeCtx) })
 
 	sink.logger.Info("created", "start", sink.startID, "stream", stream.Name, "max_polled", sink.maxPolled, "block_duration", sink.blockDuration, "buffer_size", sink.bufferSize, "no_ack", sink.noAck, "ack_grace_period", sink.ackGracePeriod)
 
@@ -307,6 +325,9 @@ func (s *Sink) Close(ctx context.Context) {
 	close(s.donechan)
 	if s.readCancel != nil {
 		s.readCancel()
+	}
+	if s.runtimeCancel != nil {
+		s.runtimeCancel()
 	}
 	s.lock.Unlock()
 	s.wait.Wait()

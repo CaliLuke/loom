@@ -16,16 +16,18 @@ type (
 	// Ticker represents a clock that periodically sends ticks to one of the pool nodes
 	// which created a ticker with the same name.
 	Ticker struct {
-		C         <-chan time.Time
-		c         chan time.Time
-		name      string
-		lock      sync.Mutex
-		tickerMap *rmap.Map
-		timer     *time.Timer
-		next      string // serialized next tick time in unix micro and duration
-		mapch     <-chan rmap.EventKind
-		wg        *sync.WaitGroup
-		logger    pulse.Logger
+		C             <-chan time.Time
+		c             chan time.Time
+		name          string
+		lock          sync.Mutex
+		tickerMap     *rmap.Map
+		timer         *time.Timer
+		next          string // serialized next tick time in unix micro and duration
+		mapch         <-chan rmap.EventKind
+		wg            *sync.WaitGroup
+		logger        pulse.Logger
+		runtimeCtx    context.Context
+		runtimeCancel context.CancelFunc
 	}
 )
 
@@ -50,14 +52,17 @@ func (node *Node) NewTicker(ctx context.Context, name string, d time.Duration, o
 		logger = pulse.NoopLogger()
 	}
 	c := make(chan time.Time)
+	runtimeCtx, runtimeCancel := context.WithCancel(node.runtimeCtx)
 	t := &Ticker{
-		C:         c,
-		c:         c,
-		name:      name,
-		tickerMap: node.tickerMap,
-		mapch:     node.tickerMap.Subscribe(),
-		wg:        &sync.WaitGroup{},
-		logger:    logger,
+		C:             c,
+		c:             c,
+		name:          name,
+		tickerMap:     node.tickerMap,
+		mapch:         node.tickerMap.Subscribe(),
+		wg:            &sync.WaitGroup{},
+		logger:        logger,
+		runtimeCtx:    runtimeCtx,
+		runtimeCancel: runtimeCancel,
 	}
 	if current, ok := node.tickerMap.Get(name); ok {
 		_, curd := deserialize(current)
@@ -88,6 +93,9 @@ func (node *Node) NewTicker(ctx context.Context, name string, d time.Duration, o
 // receivers (matching time.Ticker semantics).
 func (t *Ticker) Close() {
 	t.lock.Lock()
+	if t.runtimeCancel != nil {
+		t.runtimeCancel()
+	}
 	if t.timer != nil {
 		t.timer.Stop()
 	}
@@ -107,8 +115,11 @@ func (t *Ticker) Stop() {
 	if t.timer != nil {
 		t.timer.Stop()
 	}
-	if _, err := t.tickerMap.Delete(context.Background(), t.name); err != nil {
+	if _, err := t.tickerMap.Delete(t.runtimeCtx, t.name); err != nil {
 		t.logger.Error(err, "msg", "failed to delete ticker")
+	}
+	if t.runtimeCancel != nil {
+		t.runtimeCancel()
 	}
 	if t.mapch != nil {
 		t.tickerMap.Unsubscribe(t.mapch)
@@ -130,6 +141,8 @@ func (t *Ticker) handleEvents() {
 	t.lock.Unlock()
 	for {
 		select {
+		case <-t.runtimeCtx.Done():
+			return
 		case _, ok := <-ch:
 			if !ok {
 				t.logger.Info("stopped locally")
@@ -171,7 +184,7 @@ func (t *Ticker) handleTick() {
 		ts = ts.Add(d)
 	}
 	next := serialize(ts, d)
-	prev, err := t.tickerMap.TestAndSet(context.Background(), t.name, t.next, next)
+	prev, err := t.tickerMap.TestAndSet(t.runtimeCtx, t.name, t.next, next)
 	if err != nil {
 		t.handleAdvanceFailureLocked(err, d)
 		return

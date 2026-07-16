@@ -89,7 +89,7 @@ func NewStream(name string, rdb *redis.Client, opts ...options.Stream) (*Stream,
 //   - from the event added on or after the timestamp provided via
 //     WithReaderStartAt if still in the stream, oldest event otherwise
 func (s *Stream) NewReader(ctx context.Context, opts ...options.Reader) (*Reader, error) {
-	reader, err := newReader(s, opts...)
+	reader, err := newReader(ctx, s, opts...)
 	if err != nil {
 		s.logger.Error(fmt.Errorf("failed to create reader: %w", err))
 		return nil, err
@@ -110,7 +110,7 @@ func (s *Stream) NewReader(ctx context.Context, opts ...options.Reader) (*Reader
 //   - from the event added on or after the timestamp provided via
 //     WithSinkStartAt if still in the stream, oldest event otherwise
 func (s *Stream) NewSink(ctx context.Context, name string, opts ...options.Sink) (*Sink, error) {
-	sink, err := newSink(ctx, name, s, opts...)
+	sink, err := newSink(ctx, name, s, sinkRuntime{idleCheckPeriod: defaultIdleCheckPeriod}, opts...)
 	if err != nil {
 		s.logger.Error(fmt.Errorf("failed to create sink: %w", err), "sink", name)
 		return nil, err

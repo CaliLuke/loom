@@ -126,6 +126,27 @@ func newTestSink(t *testing.T, stream *Stream, name string, opts ...options.Sink
 	return sink
 }
 
+// newTestSinkWithRuntime creates a sink with explicit background scheduling.
+func newTestSinkWithRuntime(
+	t *testing.T,
+	stream *Stream,
+	name string,
+	runtime sinkRuntime,
+	opts ...options.Sink,
+) *Sink {
+	t.Helper()
+	opts = append([]options.Sink{
+		options.WithSinkBlockDuration(50 * time.Millisecond),
+		options.WithSinkAckGracePeriod(time.Second),
+	}, opts...)
+	sink, err := newSink(t.Context(), name, stream, runtime, opts...)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		sink.Close(context.Background())
+	})
+	return sink
+}
+
 // receiveEvent waits for an event on c and fails the test on timeout.
 func receiveEvent(t *testing.T, c <-chan *Event) *Event {
 	t.Helper()
@@ -344,15 +365,6 @@ func TestSinkClaimsPendingEventsOfClosedSink(t *testing.T) {
 	rdb := startTestRedis(t)
 	ctx := t.Context()
 
-	// Speed up the idle message check for this test only. The variable is
-	// restored after both sinks are fully closed so no goroutine reads it
-	// concurrently.
-	oldCheckIdlePeriod := checkIdlePeriod
-	checkIdlePeriod = 25 * time.Millisecond
-	t.Cleanup(func() {
-		checkIdlePeriod = oldCheckIdlePeriod
-	})
-
 	stream := newTestStream(t, rdb, "sink-claim")
 	first := newTestSink(t, stream, "claimer",
 		options.WithSinkStartAtOldest(),
@@ -368,11 +380,24 @@ func TestSinkClaimsPendingEventsOfClosedSink(t *testing.T) {
 	require.Equal(t, id, ev.ID)
 	first.Close(ctx)
 
-	second := newTestSink(t, stream, "claimer",
+	idleChecks := make(chan time.Time)
+	second := newTestSinkWithRuntime(t, stream, "claimer", sinkRuntime{
+		idleCheckPeriod: 25 * time.Millisecond,
+		idleChecks:      idleChecks,
+	},
 		options.WithSinkAckGracePeriod(150*time.Millisecond))
 	secondCh := second.Subscribe()
-
-	claimed := receiveEvent(t, secondCh)
+	var claimed *Event
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	for claimed == nil {
+		select {
+		case claimed = <-secondCh:
+		case idleChecks <- time.Now():
+		case <-deadline.C:
+			t.Fatal("timed out waiting for pending event claim")
+		}
+	}
 	require.Equal(t, id, claimed.ID)
 	require.Equal(t, "created", claimed.EventName)
 	require.NoError(t, second.Ack(ctx, claimed))

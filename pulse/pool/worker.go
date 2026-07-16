@@ -44,6 +44,8 @@ type (
 		workerShutdownTTL time.Duration
 		pendingJobTTL     time.Duration
 		logger            pulse.Logger
+		runtimeCtx        context.Context
+		runtimeCancel     context.CancelFunc
 		wg                sync.WaitGroup
 
 		jobs        sync.Map // jobs being handled by the worker indexed by job key
@@ -112,6 +114,8 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create reader for worker %q: %w", wid, err)
 	}
+	runtimeBase := log.WithContext(context.WithoutCancel(ctx), ctx)
+	runtimeCtx, runtimeCancel := context.WithCancel(runtimeBase)
 	w := &Worker{
 		ID:                wid,
 		node:              node,
@@ -127,6 +131,8 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 		workerTTL:         node.workerTTL,
 		workerShutdownTTL: node.workerShutdownTTL,
 		logger:            node.logger.WithPrefix("worker", wid),
+		runtimeCtx:        runtimeCtx,
+		runtimeCancel:     runtimeCancel,
 		jobs:              sync.Map{},
 		nodeStreams:       sync.Map{},
 	}
@@ -137,12 +143,8 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 
 	w.wg.Add(2)
 
-	// Create new context for the worker so that canceling the original one does
-	// not cancel the worker.
-	logCtx := context.Background()
-	logCtx = log.WithContext(logCtx, ctx)
-	pulse.Go(w.logger, func() { w.handleEvents(logCtx, reader.Subscribe()) })
-	pulse.Go(w.logger, func() { w.keepAlive(logCtx) })
+	pulse.Go(w.logger, func() { w.handleEvents(runtimeCtx, reader.Subscribe()) })
+	pulse.Go(w.logger, func() { w.keepAlive(runtimeCtx) })
 
 	return w, nil
 }
@@ -233,11 +235,12 @@ func (w *Worker) stop(ctx context.Context) {
 	}
 	w.stopped = true
 	w.lock.Unlock()
+	close(w.done)
+	w.runtimeCancel()
 	w.reader.Close()
 	if err := w.stream.Destroy(ctx); err != nil {
 		w.logger.Error(fmt.Errorf("failed to destroy stream for worker: %w", err))
 	}
-	close(w.done)
 	w.wg.Wait()
 }
 

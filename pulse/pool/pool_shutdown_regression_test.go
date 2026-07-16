@@ -29,19 +29,51 @@ func TestReturnDispatchStatusClosedChannelDoesNotPanic(t *testing.T) {
 	})
 }
 
-func TestClientOnlyNodeCloseWithInitializedClosedChannelDoesNotPanic(t *testing.T) {
+func TestHandlePoolEventsStopsWhenSubscriptionCloses(t *testing.T) {
 	node := &Node{
-		ID:         "node-1",
-		PoolName:   "pool",
-		stop:       make(chan struct{}),
-		closed:     make(chan struct{}),
-		clientOnly: true,
-		logger:     pulse.NoopLogger(),
+		logger: pulse.NoopLogger(),
+		stop:   make(chan struct{}),
+	}
+	events := make(chan *streaming.Event)
+	node.wg.Add(1)
+	go node.handlePoolEvents(t.Context(), events)
+
+	close(events)
+
+	requireWaitGroupCompletes(t, &node.wg)
+}
+
+func TestHandleNodeEventsStopsWhenSubscriptionCloses(t *testing.T) {
+	node := &Node{
+		logger: pulse.NoopLogger(),
+		stop:   make(chan struct{}),
+	}
+	events := make(chan *streaming.Event)
+	node.wg.Add(1)
+	go node.handleNodeEvents(t.Context(), events)
+
+	close(events)
+
+	requireWaitGroupCompletes(t, &node.wg)
+}
+
+func TestClientOnlyNodeCloseWithInitializedClosedChannelDoesNotPanic(t *testing.T) {
+	runtimeCtx, runtimeCancel := context.WithCancel(t.Context())
+	node := &Node{
+		ID:            "node-1",
+		PoolName:      "pool",
+		runtimeCtx:    runtimeCtx,
+		runtimeCancel: runtimeCancel,
+		stop:          make(chan struct{}),
+		closed:        make(chan struct{}),
+		clientOnly:    true,
+		logger:        pulse.NoopLogger(),
 	}
 
 	require.NotPanics(t, func() {
 		require.NoError(t, node.close(context.Background(), false))
 	})
+	require.ErrorIs(t, runtimeCtx.Err(), context.Canceled)
 }
 
 func TestDrainRequeueResultsKeepsFailuresAfterSuccess(t *testing.T) {
@@ -334,5 +366,19 @@ func requireClosed(t *testing.T, ch <-chan struct{}) {
 	case <-ch:
 	default:
 		t.Fatal("channel is open")
+	}
+}
+
+func requireWaitGroupCompletes(t *testing.T, wg *sync.WaitGroup) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("goroutine did not stop")
 	}
 }
