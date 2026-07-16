@@ -27,7 +27,10 @@ func TestSessionCookie(t *testing.T) {
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `Secure:   true`)
 		require.Contains(t, serverEncode, `HttpOnly: true`)
-		testutil.CompareOrUpdateGolden(t, serverEncode, filepath.Join("testdata", "golden", "session_cookie_encode-defaults.golden"))
+		testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+			StringContent(serverEncode).
+			Path("session_cookie_encode-defaults.golden").
+			CompareContent()
 	})
 
 	t.Run("explicit cookie settings override session defaults", func(t *testing.T) {
@@ -39,7 +42,10 @@ func TestSessionCookie(t *testing.T) {
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `Path:     "/session"`)
 		require.Contains(t, serverEncode, `SameSite: http.SameSiteStrictMode`)
-		testutil.CompareOrUpdateGolden(t, serverEncode, filepath.Join("testdata", "golden", "session_cookie_encode-override.golden"))
+		testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+			StringContent(serverEncode).
+			Path("session_cookie_encode-override.golden").
+			CompareContent()
 	})
 
 	t.Run("all explicit cookie settings override defaults", func(t *testing.T) {
@@ -51,7 +57,10 @@ func TestSessionCookie(t *testing.T) {
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `Domain:   "session.loom.design"`)
 		require.Contains(t, serverEncode, `MaxAge:   7200`)
-		testutil.CompareOrUpdateGolden(t, serverEncode, filepath.Join("testdata", "golden", "session_cookie_encode-override-all.golden"))
+		testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+			StringContent(serverEncode).
+			Path("session_cookie_encode-override-all.golden").
+			CompareContent()
 	})
 
 	t.Run("set-cookie round trip survives parser and cookie jar", func(t *testing.T) {
@@ -105,7 +114,10 @@ func TestSessionCookie(t *testing.T) {
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
 		require.Contains(t, serverEncode, `"__Host-ak_session"`)
 		require.Contains(t, serverEncode, `"ak_refresh"`)
-		testutil.CompareOrUpdateGolden(t, serverEncode, filepath.Join("testdata", "golden", "session_cookie_encode-multi.golden"))
+		testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+			StringContent(serverEncode).
+			Path("session_cookie_encode-multi.golden").
+			CompareContent()
 
 		endpoint := services.Get("multiSessionCookieResponse").Endpoint("create")
 		require.NotNil(t, endpoint)

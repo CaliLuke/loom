@@ -2,12 +2,10 @@ package log
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
-	"io"
 	"path"
 	"time"
 
+	"github.com/CaliLuke/loom/internal/identifier"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,12 +15,6 @@ type (
 	// GRPCLogOption is a function that applies a configuration option
 	// to a GRPC interceptor logger.
 	GRPCLogOption func(*grpcOptions)
-
-	// GRPCClientLogOption is a function that applies a configuration option
-	// to a GRPC client interceptor logger.
-	//
-	// Deprecated: Use GRPCLogOption instead.
-	GRPCClientLogOption = GRPCLogOption
 
 	grpcOptions struct {
 		iserr              func(codes.Code) bool
@@ -272,7 +264,5 @@ func (s *streamWithContext) Context() context.Context {
 // randShortID produces a "unique" 6 bytes long string.
 // This algorithm favors simplicity and efficiency over true uniqueness.
 func randShortID() string {
-	b := make([]byte, 6)
-	io.ReadFull(rand.Reader, b) // nolint: errcheck
-	return base64.RawURLEncoding.EncodeToString(b)
+	return identifier.MustBase64(6)
 }

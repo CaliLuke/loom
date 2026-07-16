@@ -87,13 +87,15 @@ var (
 	}
 )
 
-func generate(cmd, path, output string, debug bool) error {
+func generate(cmd, path, output string, debug bool) (returnErr error) {
 	var (
 		files                                                                    []string
 		err                                                                      error
 		tmp                                                                      generatorRunner
+		transaction                                                              *generationTransaction
 		startTotal, startImport, startNewGen, startWrite, startCompile, startRun time.Time
 	)
+	requestedOutput := output
 
 	startTotal = time.Now()
 
@@ -102,6 +104,18 @@ func generate(cmd, path, output string, debug bool) error {
 		return cleanupGenerator(tmp, debug, wrapStageError("build.Import", err))
 	}
 	debugStage(debug, "build.Import", startImport, "path=%s", path)
+	if cmd == "gen" {
+		transaction, err = newGenerationTransaction(output)
+		if err != nil {
+			return wrapStageError("Prepare", err)
+		}
+		defer func() {
+			if cleanupErr := transaction.cleanup(); cleanupErr != nil {
+				returnErr = errors.Join(returnErr, cleanupErr)
+			}
+		}()
+		output = transaction.stagePath()
+	}
 
 	startNewGen = time.Now()
 	tmp = newGenerator(cmd, path, output, debug)
@@ -124,7 +138,10 @@ func generate(cmd, path, output string, debug bool) error {
 		return cleanupGenerator(tmp, debug, wrapStageError("Run", err))
 	}
 	debugStage(debug, "Run", startRun, "files=%d", len(files))
-	debugStage(debug, "total", startTotal, "command=%s output=%s", cmd, output)
+	if files, err = finishGenerationTransaction(transaction, files, debug); err != nil {
+		return cleanupGenerator(tmp, debug, err)
+	}
+	debugStage(debug, "total", startTotal, "command=%s output=%s", cmd, requestedOutput)
 	fmt.Println(strings.Join(files, "\n"))
 	if !debug {
 		if err := tmp.Remove(); err != nil {

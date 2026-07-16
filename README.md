@@ -172,7 +172,7 @@ The repository is the current source of truth for framework code, migration hist
 
 - **[Repository](https://github.com/CaliLuke/loom)**: Framework source, issues, releases, and discussions
 - **[Roadmap](https://github.com/CaliLuke/loom/tree/main/roadmap)**: Active framework direction and remaining work
-- **[JSON-RPC Architecture](https://github.com/CaliLuke/loom/blob/main/jsonrpc/ARCHITECTURE.md)**: Transport architecture notes
+- **[JSON-RPC Guide](jsonrpc/README.md)**: HTTP, SSE, WebSocket, and protocol behavior
 - **[Integration Tests](https://github.com/CaliLuke/loom/tree/main/http/integration_tests)**: End-to-end fixture and smoke coverage
 
 ## Development

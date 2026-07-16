@@ -42,6 +42,20 @@ func TestAnalyzeWrapsRawObjectPayloadsWithUniqueSyntheticTypeNames(t *testing.T)
 	require.Equal(t, "FooPayload3", method.Payload)
 }
 
+func TestAnalyzeWrapsRawObjectResults(t *testing.T) {
+	root := codegen.RunDSL(t, stest.WithDefaultDSL)
+	services := NewServicesData(root)
+	svc := services.Get("WithDefault")
+	require.NotNil(t, svc)
+
+	method := svc.Method("A")
+	require.NotNil(t, method)
+	require.Equal(t, "AResult", method.Result)
+	require.Equal(t, "*AResult", method.ResultRef)
+	_, ok := root.Services[0].Methods[0].Result.Type.(expr.UserType)
+	require.True(t, ok)
+}
+
 func TestAnalyzeViewedResultsDeduplicateCanonicalTypeButPreserveMethodViews(t *testing.T) {
 	root := codegen.RunDSL(t, stest.WithExplicitAndDefaultViewsDSL)
 	services := NewServicesData(root)
@@ -199,7 +213,13 @@ func TestAnalyzeServiceDataRefactorRegression(t *testing.T) {
 	svc := services.Get("ServiceDataRefactor")
 	require.NotNil(t, svc)
 
-	require.Len(t, svc.unions, 1)
+	require.ElementsMatch(t, []string{
+		"ErrorChoice",
+		"PayloadChoice",
+		"ResultChoice",
+		"StreamChoice",
+		"Value",
+	}, serviceUnionTypeNames(svc.unions))
 	require.Len(t, svc.ServerInterceptors, 1)
 	require.Len(t, svc.ClientInterceptors, 1)
 	require.Len(t, svc.viewedResultTypes, 1)
@@ -228,6 +248,14 @@ func TestAnalyzeServiceDataRefactorRegression(t *testing.T) {
 	require.Len(t, viewed.Views, 2)
 	require.Equal(t, "default", viewed.Views[0].Name)
 	require.Equal(t, "tiny", viewed.Views[1].Name)
+}
+
+func serviceUnionTypeNames(types []*UnionTypeData) []string {
+	names := make([]string, len(types))
+	for i, union := range types {
+		names[i] = union.Name
+	}
+	return names
 }
 
 func hasServiceUserType(types []*UserTypeData, name string) bool {
@@ -362,6 +390,30 @@ func serviceDataRefactorRegressionDSL() {
 	var watchEvent = dsl.Type("WatchEvent", func() {
 		dsl.Attribute("event", dsl.String)
 	})
+	var payloadEnvelope = dsl.Type("ServiceDataPayloadEnvelope", func() {
+		dsl.OneOf("payload_choice", func() {
+			dsl.Attribute("name", dsl.String)
+			dsl.Attribute("count", dsl.Int)
+		})
+	})
+	var streamEnvelope = dsl.Type("ServiceDataStreamEnvelope", func() {
+		dsl.OneOf("stream_choice", func() {
+			dsl.Attribute("message", dsl.String)
+			dsl.Attribute("sequence", dsl.Int)
+		})
+	})
+	var resultEnvelope = dsl.Type("ServiceDataResultEnvelope", func() {
+		dsl.OneOf("result_choice", func() {
+			dsl.Attribute("accepted", dsl.Boolean)
+			dsl.Attribute("location", dsl.String)
+		})
+	})
+	var errorEnvelope = dsl.Type("ServiceDataErrorEnvelope", func() {
+		dsl.OneOf("error_choice", func() {
+			dsl.Attribute("field", dsl.String)
+			dsl.Attribute("retry_after", dsl.Int)
+		})
+	})
 
 	dsl.Interceptor("logging")
 	dsl.Interceptor("tracing")
@@ -384,6 +436,19 @@ func serviceDataRefactorRegressionDSL() {
 				dsl.GET("/")
 				dsl.ServerSentEvents()
 			})
+		})
+		dsl.Method("Submit", func() {
+			dsl.Payload(dsl.MapOf(dsl.String, payloadEnvelope))
+		})
+		dsl.Method("Upload", func() {
+			dsl.StreamingPayload(dsl.ArrayOf(streamEnvelope))
+			dsl.Result(dsl.String)
+		})
+		dsl.Method("List", func() {
+			dsl.Result(dsl.MapOf(dsl.String, resultEnvelope))
+		})
+		dsl.Method("Fail", func() {
+			dsl.Error("invalid", dsl.ArrayOf(errorEnvelope))
 		})
 	})
 }

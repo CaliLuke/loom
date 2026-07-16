@@ -349,10 +349,16 @@ Loom's default encoders support:
 - HTML (`text/html`)
 - Plain text (`text/plain`)
 
-Response content type is determined by:
-1. `Accept` header
-2. `Content-Type` header (if no Accept)
-3. Default (JSON)
+An explicit response `ContentType` in the design takes precedence over the
+request. Otherwise the default response encoder selects a single supported
+media type from `Accept`, ignoring media-type parameters such as `charset`.
+Missing or unsupported values fall back to JSON. The built-in negotiator does
+not rank comma-separated alternatives, quality values, or wildcards; install a
+custom encoder when the API needs full RFC-style preference negotiation.
+
+Request decoding uses the request `Content-Type`, not `Accept`. A missing
+request content type defaults to JSON. Unsupported request media types produce
+an unsupported-media-type error rather than silently decoding as JSON.
 
 Set a default response content type:
 
@@ -366,6 +372,22 @@ Method("create", func() {
     })
 })
 ```
+
+### Body Limits
+
+Loom's built-in JSON, XML, Gob, HTML, and plain-text request decoders accept at
+most 32 MiB. Generated multipart decoding uses the same 32 MiB aggregate limit
+across all parts, including unnamed parts; it is not a per-file allowance.
+Generated clients also cap buffered response-body restoration at 32 MiB.
+
+Unexpected response bodies included in generated client errors are capped at
+64 KiB so an invalid upstream response cannot create an unbounded diagnostic.
+The debug capture limit described above is a separate 64 KiB cap and does not
+truncate the body delivered to the transport caller.
+
+`SkipRequestBodyEncodeDecode` and `SkipResponseBodyEncodeDecode` deliberately
+bypass these buffering limits because the application owns the raw stream. Add
+an application or proxy limit when using those escape hatches.
 
 ### Custom Encoders
 
@@ -743,10 +765,9 @@ policy, err := loomhttp.NewRequestMetadataPolicy([]string{"Cookie"}, trusted)
 `HeaderValues` and `Headers` always return copies, so consumers cannot mutate
 the request or another consumer's snapshot.
 
-Framework request logging and retained X-Ray middleware use
-`loomhttp.EffectiveClientAddress`. They honor `ClientAddr` from this metadata
-snapshot and otherwise log only the direct network peer; forwarding headers are
-never trusted without an installed policy.
+The `clue/log` HTTP middleware uses `loomhttp.EffectiveClientAddress`. It honors
+`ClientAddr` from this metadata snapshot and otherwise logs only the direct
+network peer; forwarding headers are never trusted without an installed policy.
 
 ---
 

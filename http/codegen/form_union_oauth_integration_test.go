@@ -15,6 +15,7 @@ import (
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
+	"github.com/CaliLuke/loom/internal/loomsource"
 )
 
 func TestFormRequestUnionOAuthIntegration(t *testing.T) {
@@ -89,8 +90,8 @@ replace github.com/CaliLuke/loom => %s
 // TestMain removes the checkout after the package's tests finish.
 var pinnedLoom struct {
 	once sync.Once
-	dir  string
 	root string
+	err  error
 }
 
 func TestMain(m *testing.M) {
@@ -106,100 +107,23 @@ func TestMain(m *testing.M) {
 func checkoutPinnedLoomModule(t *testing.T) string {
 	t.Helper()
 
-	if local := configuredLocalLoomModulePath(); local != "" {
-		t.Logf("using locally configured loom module: %s", local)
-		return local
-	}
-
 	pinnedLoom.once.Do(func() {
-		commit := strings.TrimSpace(runCommand(t, "", "git", "rev-parse", "HEAD"))
-		remote := strings.TrimSpace(resolveGitRemoteURL(t))
-		parentDir, err := os.MkdirTemp("", "loom-pinned-")
-		if err != nil {
-			t.Logf("failed to create pinned checkout dir: %v", err)
-			return
-		}
-		dest := filepath.Join(parentDir, "loom-pinned")
-		t.Logf("checking out pinned loom module into %s from %s at %s", dest, remote, commit)
-
-		if _, err := runLoggedCommandAllowFailure(t, "", "git", "init", dest); err == nil {
-			if _, err := runLoggedCommandAllowFailure(t, dest, "git", "remote", "add", "origin", remote); err == nil {
-				if _, err := runLoggedCommandAllowFailure(t, dest, "git", "fetch", "--depth", "1", "origin", commit); err == nil {
-					if _, err := runLoggedCommandAllowFailure(t, dest, "git", "checkout", "--detach", "FETCH_HEAD"); err == nil {
-						pinnedLoom.dir = dest
-						pinnedLoom.root = parentDir
-						return
-					}
-				}
-			}
-		}
-		if err := os.RemoveAll(parentDir); err != nil {
-			t.Logf("failed to clean up pinned checkout dir: %v", err)
-		}
+		pinnedLoom.root, pinnedLoom.err = os.MkdirTemp("", "loom-source-")
 	})
-	if pinnedLoom.dir != "" {
-		return pinnedLoom.dir
+	if pinnedLoom.err != nil {
+		t.Fatalf("create Loom source checkout directory: %v", pinnedLoom.err)
 	}
 
-	t.Log("falling back to local repository root resolution")
-	root, err := runLoggedCommandAllowFailure(t, "", "git", "rev-parse", "--show-toplevel")
-	if err == nil {
-		if local := validatedLocalLoomModulePath(strings.TrimSpace(root)); local != "" {
-			t.Logf("using current repository root as loom module: %s", local)
-			return local
-		}
-	}
-
-	t.Fatalf("could not resolve local or pinned loom module source")
-	return ""
-}
-
-func configuredLocalLoomModulePath() string {
-	if repo := os.Getenv("LOOM_REPO"); repo != "" {
-		return validatedLocalLoomModulePath(repo)
-	}
-	root, err := runCommandAllowFailure("", "git", "rev-parse", "--show-toplevel")
+	repoRoot, err := loomsource.RepositoryRoot(".")
 	if err != nil {
-		return ""
+		t.Fatalf("resolve Loom repository root: %v", err)
 	}
-	modeFile := filepath.Join(strings.TrimSpace(root), "jsonrpc", "integration_tests", ".loom_source_mode")
-	data, err := os.ReadFile(modeFile)
+	path, err := loomsource.Resolve(repoRoot, filepath.Join(pinnedLoom.root, "loom-pinned"))
 	if err != nil {
-		return ""
+		t.Fatalf("resolve Loom source: %v", err)
 	}
-	fields := strings.Fields(string(data))
-	if len(fields) < 2 || fields[0] != "local" {
-		return ""
-	}
-	return validatedLocalLoomModulePath(fields[1])
-}
-
-func validatedLocalLoomModulePath(path string) string {
-	if path == "" {
-		return ""
-	}
-	cleaned := filepath.Clean(path)
-	info, err := os.Stat(filepath.Join(cleaned, "go.mod"))
-	if err != nil || info.IsDir() {
-		return ""
-	}
-	return cleaned
-}
-
-func resolveGitRemoteURL(t *testing.T) string {
-	t.Helper()
-
-	for _, name := range []string{"origin", "fork"} {
-		if out, err := runLoggedCommandAllowFailure(t, "", "git", "remote", "get-url", name); err == nil {
-			url := strings.TrimSpace(out)
-			if url != "" {
-				t.Logf("resolved git remote %q to %s", name, url)
-				return url
-			}
-		}
-	}
-	t.Fatal("could not resolve git remote URL from fork or origin")
-	return ""
+	t.Logf("using Loom source: %s", path)
+	return path
 }
 
 func renderGeneratedFiles(t *testing.T, dir string, files []*cg.File) {

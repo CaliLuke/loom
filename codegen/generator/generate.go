@@ -19,7 +19,6 @@ import (
 // Generate runs the code generation algorithms.
 func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	startGenerate := time.Now()
-
 	registry := codegen.DefaultRegistrySnapshot()
 
 	roots, err := loadRoots(debug)
@@ -36,7 +35,6 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if err := runPreparePlugins(registry, cmd, genpkg, roots, debug); err != nil {
 		return nil, err
 	}
@@ -45,7 +43,6 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	if err != nil {
 		return nil, err
 	}
-
 	genfiles, err = runPostGenerationPlugins(registry, cmd, genpkg, roots, genfiles, debug)
 	if err != nil {
 		return nil, err
@@ -117,7 +114,20 @@ func computeGenPackage(dir string, debug bool) (genpkg string, err error) {
 		return "", wrapStageError("compute-gen-package", dummyName, err)
 	}
 
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName}, path)
+	moduleRoot, err := findModuleRoot(path)
+	if err != nil {
+		return "", wrapStageError("compute-gen-package", path, err)
+	}
+	if moduleRoot == "" {
+		debugStage(debug, "compute-gen-package", start, "path=%s genpkg=%s", path, codegen.Gendir)
+		return codegen.Gendir, nil
+	}
+
+	pkgs, err := packages.Load(&packages.Config{
+		Mode: packages.NeedName,
+		Env:  append(os.Environ(), "GOWORK=off"),
+		Dir:  path,
+	}, ".")
 	if err != nil {
 		return "", wrapStageError("compute-gen-package", path, err)
 	}
@@ -132,9 +142,30 @@ func computeGenPackage(dir string, debug bool) (genpkg string, err error) {
 	return genpkg, nil
 }
 
-func loadGenerators(cmd string, debug bool) ([]Genfunc, error) {
+func findModuleRoot(path string) (string, error) {
+	for {
+		goMod := filepath.Join(path, "go.mod")
+		info, err := os.Stat(goMod)
+		if err == nil {
+			if info.Mode().IsRegular() {
+				return path, nil
+			}
+			return "", fmt.Errorf("module file %s is not a regular file", goMod)
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("inspect module file %s: %w", goMod, err)
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return "", nil
+		}
+		path = parent
+	}
+}
+
+func loadGenerators(cmd string, debug bool) ([]genfunc, error) {
 	start := time.Now()
-	genfuncs, err := Generators(cmd)
+	genfuncs, err := generatorLoader(cmd)
 	if err != nil {
 		return nil, wrapStageError("load-generators", cmd, err)
 	}
@@ -151,7 +182,7 @@ func runPreparePlugins(registry *codegen.Registry, cmd, genpkg string, roots []e
 	return nil
 }
 
-func generateInitialFiles(genpkg string, roots []eval.Root, genfuncs []Genfunc, debug bool) ([]*codegen.File, error) {
+func generateInitialFiles(genpkg string, roots []eval.Root, genfuncs []genfunc, debug bool) ([]*codegen.File, error) {
 	start := time.Now()
 	var genfiles []*codegen.File
 	for i, gen := range genfuncs {
@@ -165,7 +196,13 @@ func generateInitialFiles(genpkg string, roots []eval.Root, genfuncs []Genfunc, 
 	return genfiles, nil
 }
 
-func runPostGenerationPlugins(registry *codegen.Registry, cmd, genpkg string, roots []eval.Root, genfiles []*codegen.File, debug bool) ([]*codegen.File, error) {
+func runPostGenerationPlugins(
+	registry *codegen.Registry,
+	cmd, genpkg string,
+	roots []eval.Root,
+	genfiles []*codegen.File,
+	debug bool,
+) ([]*codegen.File, error) {
 	start := time.Now()
 	files, err := registry.RunPlugins(cmd, genpkg, roots, genfiles)
 	if err != nil {

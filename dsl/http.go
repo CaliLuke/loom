@@ -544,8 +544,6 @@ func Tag(name, value string) {
 //	   })
 func ContentType(typ string) {
 	switch actual := eval.Current().(type) {
-	case *expr.ResultTypeExpr:
-		actual.ContentType = typ // deprecated
 	case *expr.HTTPResponseExpr:
 		actual.ContentType = typ
 	default:

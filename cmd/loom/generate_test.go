@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,6 +24,8 @@ type fakeGenerator struct {
 	writeDebug bool
 	compileDbg bool
 	runDebug   bool
+	output     string
+	runFunc    func(string) error
 }
 
 func (f *fakeGenerator) Write(debug bool) error {
@@ -35,6 +40,30 @@ func (f *fakeGenerator) Compile(debug bool) error {
 
 func (f *fakeGenerator) Run(debug bool) ([]string, error) {
 	f.runDebug = debug
+	if f.runFunc != nil {
+		if err := f.runFunc(f.output); err != nil {
+			return nil, err
+		}
+	} else if f.output != "" && f.runErr == nil {
+		if err := os.MkdirAll(filepath.Join(f.output, "gen"), 0o755); err != nil {
+			return nil, err
+		}
+		if err := writeStagedManifest(f.output); err != nil {
+			return nil, err
+		}
+		for _, output := range f.runFiles {
+			if filepath.IsAbs(output) || pathEscapes(output) {
+				continue
+			}
+			path := filepath.Join(f.output, output)
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				return nil, err
+			}
+			if err := os.WriteFile(path, nil, 0o644); err != nil {
+				return nil, err
+			}
+		}
+	}
 	return f.runFiles, f.runErr
 }
 
@@ -44,12 +73,15 @@ func (f *fakeGenerator) Remove() error {
 }
 
 func TestGenerateRemovesTempDirOnSuccessWithoutDebug(t *testing.T) {
+	t.Chdir(t.TempDir())
 	fake := &fakeGenerator{runFiles: []string{"gen/service.go"}}
 	origNewGenerator := newGenerator
 	newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
 		require.Equal(t, "gen", cmd)
-		require.Equal(t, ".", output)
+		require.Equal(t, filepath.Dir(currentDirectory()), filepath.Dir(output))
+		require.Contains(t, filepath.Base(output), ".loom-gen-")
 		require.False(t, debug)
+		fake.output = output
 		return fake
 	}
 	defer func() { newGenerator = origNewGenerator }()
@@ -63,10 +95,12 @@ func TestGenerateRemovesTempDirOnSuccessWithoutDebug(t *testing.T) {
 }
 
 func TestGenerateKeepsTempDirInDebugMode(t *testing.T) {
+	t.Chdir(t.TempDir())
 	fake := &fakeGenerator{runFiles: []string{"gen/service.go"}}
 	origNewGenerator := newGenerator
 	newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
 		require.True(t, debug)
+		fake.output = output
 		return fake
 	}
 	defer func() { newGenerator = origNewGenerator }()
@@ -77,6 +111,7 @@ func TestGenerateKeepsTempDirInDebugMode(t *testing.T) {
 	require.True(t, fake.writeDebug)
 	require.True(t, fake.compileDbg)
 	require.True(t, fake.runDebug)
+	requireNoGenerationArtifacts(t, filepath.Dir(currentDirectory()))
 }
 
 func TestGeneratorWriteUsesCurrentDirectoryWhenGetwdFails(t *testing.T) {
@@ -129,6 +164,8 @@ func TestGenerateStdoutAndStderrContract(t *testing.T) {
 				"stage=Write",
 				"stage=Compile",
 				"stage=Run",
+				"stage=Validate",
+				"stage=Commit",
 				"stage=total",
 			},
 			wantKeepTmpDir: true,
@@ -137,10 +174,12 @@ func TestGenerateStdoutAndStderrContract(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
 			fake := &fakeGenerator{runFiles: []string{"gen/service.go", "gen/client.go"}}
 			origNewGenerator := newGenerator
 			newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
 				require.Equal(t, tc.debug, debug)
+				fake.output = output
 				return fake
 			}
 			defer func() { newGenerator = origNewGenerator }()
@@ -166,6 +205,7 @@ func TestGenerateRemovesTempDirOnCompileFailureWithoutDebug(t *testing.T) {
 	fake := &fakeGenerator{compileErr: errors.New("compile failed")}
 	origNewGenerator := newGenerator
 	newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
+		fake.output = output
 		return fake
 	}
 	defer func() { newGenerator = origNewGenerator }()
@@ -198,6 +238,7 @@ func TestGenerateWrapsStageFailures(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			origNewGenerator := newGenerator
 			newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
+				tc.fake.output = output
 				return tc.fake
 			}
 			defer func() { newGenerator = origNewGenerator }()
@@ -206,6 +247,136 @@ func TestGenerateWrapsStageFailures(t *testing.T) {
 			require.EqualError(t, err, tc.wantErr)
 		})
 	}
+}
+
+func TestGenerateTransactionReplacesGenOnlyAfterSuccess(t *testing.T) {
+	output := t.TempDir()
+	liveGen := filepath.Join(output, "gen")
+	require.NoError(t, os.MkdirAll(liveGen, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(liveGen, "stale.go"), []byte("stale"), 0o644))
+
+	fake := &fakeGenerator{
+		runFiles: []string{"gen/current.go"},
+		runFunc: func(stage string) error {
+			require.FileExists(t, filepath.Join(liveGen, "stale.go"))
+			gen := filepath.Join(stage, "gen")
+			if err := os.MkdirAll(gen, 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(gen, "current.go"), []byte("current"), 0o644); err != nil {
+				return err
+			}
+			return writeStagedManifest(stage)
+		},
+	}
+	stubGeneratorFactory(t, fake)
+
+	stdout, _, err := captureOutput(t, func() error {
+		return generate("gen", "archive/tar", output, false)
+	})
+
+	require.NoError(t, err)
+	expectedOutput, err := filepath.Rel(currentDirectory(), filepath.Join(output, "gen", "current.go"))
+	require.NoError(t, err)
+	require.Equal(t, expectedOutput+"\n", stdout)
+	require.NoFileExists(t, filepath.Join(liveGen, "stale.go"))
+	require.FileExists(t, filepath.Join(liveGen, "current.go"))
+	requireNoGenerationArtifacts(t, filepath.Dir(output))
+}
+
+func TestGenerateTransactionPreservesGenOnRunFailure(t *testing.T) {
+	output := t.TempDir()
+	liveGen := filepath.Join(output, "gen")
+	require.NoError(t, os.MkdirAll(liveGen, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(liveGen, "service.go"), []byte("original"), 0o644))
+
+	fake := &fakeGenerator{
+		runFunc: func(stage string) error {
+			require.FileExists(t, filepath.Join(liveGen, "service.go"))
+			gen := filepath.Join(stage, "gen")
+			if err := os.MkdirAll(gen, 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(gen, "partial.go"), []byte("partial"), 0o644); err != nil {
+				return err
+			}
+			return errors.New("finalize failed")
+		},
+	}
+	stubGeneratorFactory(t, fake)
+
+	err := generate("gen", "archive/tar", output, false)
+
+	require.EqualError(t, err, "stage Run: finalize failed")
+	require.FileExists(t, filepath.Join(liveGen, "service.go"))
+	require.NoFileExists(t, filepath.Join(liveGen, "partial.go"))
+	requireNoGenerationArtifacts(t, filepath.Dir(output))
+}
+
+func TestGenerateTransactionPreservesGenOnStagingValidationFailure(t *testing.T) {
+	output := t.TempDir()
+	liveGen := filepath.Join(output, "gen")
+	require.NoError(t, os.MkdirAll(liveGen, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(liveGen, "service.go"), []byte("original"), 0o644))
+
+	fake := &fakeGenerator{runFunc: func(string) error { return nil }}
+	stubGeneratorFactory(t, fake)
+
+	err := generate("gen", "archive/tar", output, false)
+
+	require.ErrorContains(t, err, "stage Validate")
+	require.FileExists(t, filepath.Join(liveGen, "service.go"))
+	requireNoGenerationArtifacts(t, filepath.Dir(output))
+}
+
+func TestGenerateTransactionRejectsMissingStagedOutput(t *testing.T) {
+	output := t.TempDir()
+	liveGen := filepath.Join(output, "gen")
+	require.NoError(t, os.MkdirAll(liveGen, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(liveGen, "service.go"), []byte("original"), 0o644))
+
+	fake := &fakeGenerator{
+		runFiles: []string{"gen/missing.go"},
+		runFunc: func(stage string) error {
+			if err := os.MkdirAll(filepath.Join(stage, "gen"), 0o755); err != nil {
+				return err
+			}
+			return writeStagedManifest(stage)
+		},
+	}
+	stubGeneratorFactory(t, fake)
+
+	err := generate("gen", "archive/tar", output, false)
+
+	require.ErrorContains(t, err, "stage Validate")
+	require.ErrorContains(t, err, "missing.go")
+	require.FileExists(t, filepath.Join(liveGen, "service.go"))
+	requireNoGenerationArtifacts(t, filepath.Dir(output))
+}
+
+func TestGenerateTransactionRejectsInvalidManifest(t *testing.T) {
+	output := t.TempDir()
+	liveGen := filepath.Join(output, "gen")
+	require.NoError(t, os.MkdirAll(liveGen, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(liveGen, "service.go"), []byte("original"), 0o644))
+
+	fake := &fakeGenerator{
+		runFunc: func(stage string) error {
+			gen := filepath.Join(stage, "gen")
+			if err := os.MkdirAll(gen, 0o755); err != nil {
+				return err
+			}
+			return os.WriteFile(filepath.Join(gen, "loom.json"), []byte(`{"loom_version":"wrong"}`), 0o644)
+		},
+	}
+	stubGeneratorFactory(t, fake)
+
+	err := generate("gen", "archive/tar", output, false)
+
+	require.ErrorContains(t, err, "stage Validate")
+	require.ErrorContains(t, err, "has Loom version \"wrong\"")
+	require.FileExists(t, filepath.Join(liveGen, "service.go"))
+	requireNoGenerationArtifacts(t, filepath.Dir(output))
 }
 
 func TestGenerateRealBinaryDebugContract(t *testing.T) {
@@ -237,6 +408,8 @@ func TestGenerateRealBinaryDebugContract(t *testing.T) {
 		"stage=go-build",
 		"stage=Compile",
 		"stage=Run",
+		"stage=Validate",
+		"stage=Commit",
 		"stage=binary-startup",
 		"stage=eval.Context.Errors",
 		"stage=eval.RunDSL",
@@ -257,7 +430,42 @@ func TestGenerateRealBinaryDebugContract(t *testing.T) {
 	require.NotContains(t, stderr, "[TIMING]")
 }
 
-func TestGenerateRealBinaryFailurePreservesStageContext(t *testing.T) {
+func TestGenerateRealBinaryPreservesModuleQualifiedGenPackage(t *testing.T) {
+	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
+	require.NoError(t, err)
+
+	origWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(fixtureDir))
+	defer func() {
+		require.NoError(t, os.Chdir(origWD))
+	}()
+
+	outputDir, err := os.MkdirTemp(fixtureDir, "transactional-gen-")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(outputDir))
+	})
+
+	_, _, err = captureOutput(t, func() error {
+		return generate("gen", "example.com/ticktock/design", outputDir, false)
+	})
+	require.NoError(t, err)
+
+	clientTypes := filepath.Join(outputDir, "gen", "jsonrpc", "clock", "client", "types.go")
+	contents, err := os.ReadFile(clientTypes)
+	require.NoError(t, err)
+	wantImport := "example.com/ticktock/" + filepath.Base(outputDir) + "/gen/clock"
+	require.Contains(t, string(contents), wantImport)
+
+	command := exec.Command("go", "test", "./...")
+	command.Dir = outputDir
+	command.Env = append(os.Environ(), "GOWORK=off")
+	combined, err := command.CombinedOutput()
+	require.NoError(t, err, string(combined))
+}
+
+func TestGenerateRealBinaryCommitFailureCleansStage(t *testing.T) {
 	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
 	require.NoError(t, err)
 
@@ -277,39 +485,15 @@ func TestGenerateRealBinaryFailurePreservesStageContext(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "stage Run: exit status 1")
-	require.ErrorContains(t, err, "stage generator.Generate: stage compute-gen-package path "+filepath.Join(outputPath, "gen"))
+	require.ErrorContains(t, err, "stage Commit: create output directory "+outputPath)
 	require.Empty(t, stdout)
 	require.NotContains(t, stdout, "[loom-debug]")
 	require.Contains(t, stderr, "stage=binary-startup")
-	require.Contains(t, stderr, "stage generator.Generate: stage compute-gen-package path "+filepath.Join(outputPath, "gen"))
-}
-
-func TestCleanupDirsReturnsSubdirectoriesOnly(t *testing.T) {
-	root := t.TempDir()
-	genDir := filepath.Join(root, "gen")
-	require.NoError(t, os.MkdirAll(filepath.Join(genDir, "svc"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(genDir, "views"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(genDir, "README.txt"), []byte("ignore"), 0o644))
-
-	dirs := cleanupDirs("gen", root)
-	require.ElementsMatch(t, []string{
-		filepath.Join(genDir, "svc"),
-		filepath.Join(genDir, "views"),
-	}, dirs)
-}
-
-func TestCleanupDirsFallsBackWhenReaddirFails(t *testing.T) {
-	root := t.TempDir()
-	genDir := filepath.Join(root, "gen")
-	require.NoError(t, os.WriteFile(genDir, []byte("not a dir"), 0o644))
-
-	dirs := cleanupDirs("gen", root)
-	require.Equal(t, []string{genDir}, dirs)
-}
-
-func TestCleanupDirsIgnoresNonGenCommands(t *testing.T) {
-	require.Nil(t, cleanupDirs("example", t.TempDir()))
+	require.Contains(t, stderr, "stage=generator.Generate")
+	contents, readErr := os.ReadFile(outputPath)
+	require.NoError(t, readErr)
+	require.Equal(t, "x", string(contents))
+	requireNoGenerationArtifacts(t, outputRoot)
 }
 
 func TestHelpIncludesCommandsAndFlags(t *testing.T) {
@@ -368,4 +552,34 @@ func captureOutput(t *testing.T, fn func() error) (stdout string, stderr string,
 	require.NoError(t, stderrReader.Close())
 
 	return stdoutBuf.String(), stderrBuf.String(), runErr
+}
+
+func stubGeneratorFactory(t *testing.T, fake *fakeGenerator) {
+	t.Helper()
+	origNewGenerator := newGenerator
+	newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
+		fake.output = output
+		return fake
+	}
+	t.Cleanup(func() {
+		newGenerator = origNewGenerator
+	})
+}
+
+func requireNoGenerationArtifacts(t *testing.T, dir string) {
+	t.Helper()
+	stages, err := filepath.Glob(filepath.Join(dir, ".loom-gen-*"))
+	require.NoError(t, err)
+	require.Empty(t, stages)
+	backups, err := filepath.Glob(filepath.Join(dir, ".loom-gen-backup-*"))
+	require.NoError(t, err)
+	require.Empty(t, backups)
+}
+
+func writeStagedManifest(stage string) error {
+	contents, err := json.Marshal(map[string]string{"loom_version": loom.Version()})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(stage, "gen", "loom.json"), contents, 0o644)
 }

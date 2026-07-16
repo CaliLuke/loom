@@ -277,8 +277,8 @@ The `ID()` function marks which field receives the JSON-RPC message ID. Rules:
 
 1. ID fields must be String type
 2. Result can only have an ID if Payload has one
-3. For non-streaming methods, the response `id` defaults to the request `id`.
-   If the result ID is set, that value is used instead.
+3. For non-streaming methods, the response `id` is the original request `id`.
+   A result ID field does not override protocol correlation.
 4. Missing ID at runtime means the message is a notification
 
 ### ID Semantics
@@ -301,16 +301,16 @@ How IDs behave across transports and shapes:
     - If the payload has no ID field, the client generates a string `id` and
       sends a request (never a notification).
   - Server
-    - The response envelope `id` equals the result ID if set; otherwise it
-      equals the request `id`. The server does not inject the request `id` into
-      your result struct.
+    - The response envelope `id` equals the original request `id`. The server
+      does not inject that ID into your result struct or accept a result field
+      as a correlation override.
 
 - SSE (server streaming)
   - `Send(ctx, event)`: emits a JSON-RPC notification (no `id`).
-  - `SendAndClose(ctx, result)`: sends a JSON-RPC response. The `id` equals the
-    result ID if set; otherwise the original request `id`. To avoid duplicate
-    fields, the framework clears the result ID field when it is used for the
-    envelope.
+  - `SendAndClose(ctx, result)`: sends a JSON-RPC response only when the stream
+    was opened by a request carrying an `id`. ID-less notifications and raw
+    `GET` listeners close without a final frame; send every value that must
+    reach those clients with `Send`.
 
 - WebSocket (streaming)
   - Server replies use the original request `id` automatically. Use
@@ -488,28 +488,46 @@ for {
   generated handler decodes a `jsonrpc.RawRequest`, validates it, and
   dispatches to the method-specific SSE handler.
 - The SSE response is a long-lived HTTP response with
-  `Content-Type: text/event-stream`. The generated stream type writes events
-  using standard SSE framing (`id:`, `event:`, `data:`, blank line).
+  `Content-Type: text/event-stream`. JSON-RPC notifications, final success
+  responses, and error responses all use the SSE event type `message`; the
+  JSON-RPC envelope in `data:` identifies the frame kind.
 - The server stream interface exposes:
   - `Send(ctx, event)`: writes a JSON-RPC notification as an SSE event
     (no response expected). Use this for progress or updates.
-  - `SendAndClose(ctx, result)`: sends the final JSON-RPC response (with `id`)
-    and closes the stream. The response `id` is taken from the original
-    request `id`, or from a result `ID()` field if defined in the design.
+  - `SendAndClose(ctx, result)`: closes the stream and, for an ID-bearing
+    request, sends the final JSON-RPC response using the original request ID.
+    For an ID-less notification or raw `GET` listener, it discards the value
+    and emits the `stream_final_response_suppressed` transport event.
   - `SendError(ctx, id, err)`: writes a JSON-RPC error response.
 - Notifications vs responses:
-  - Notifications omit `id` per JSON-RPC and are represented as SSE events
-    with the `data:` being the result body.
-  - Final responses include a JSON-RPC envelope; the SSE `id:` field mirrors
-    the JSON-RPC response `id` when an ID is present.
-- Example on-the-wire SSE frame (simplified):
+  - Notifications omit `id`; their `method` is the designed
+    `SSENotificationMethod`, or `<service>/stream.event` by default, and their
+    `params` contain the projected event body.
+  - Final responses and errors carry normal JSON-RPC response envelopes in
+    `data:`. Loom does not duplicate the JSON-RPC ID into the SSE `id:` field.
+- Example on-the-wire frames (simplified):
 
   ```text
-  event: metric
-  id: 7
+  event: message
+  data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"metric":"cpu","value":0.9}}
+
+  event: message
   data: {"jsonrpc":"2.0","result":{"metric":"cpu","value":0.9},"id":"7"}
 
   ```
+
+#### Raw `events/stream` GET Listener
+
+When the designed JSON-RPC method is literally `events/stream`, Loom also
+mounts a bodyless `GET` listener on the service endpoint. Send
+`Accept: text/event-stream`; Loom synthesizes the method dispatch without a
+JSON-RPC request body and eagerly opens the SSE response so the client can
+observe readiness before the first domain event.
+
+The listener has no JSON-RPC request ID. Every value that must reach the
+client must therefore use `Send`. Calling `SendAndClose` closes the listener
+but suppresses its value, because sending a JSON-RPC response without a
+request ID would violate the notification contract.
 
 ### WebSocket: Bidirectional Streaming
 
@@ -715,14 +733,15 @@ Service("hybrid", func() {
 })
 ```
 
-The server automatically routes based on the `Accept` header:
+For a method with both result shapes, the server negotiates as follows:
 - `Accept: application/json` → HTTP handler → `Result`
 - `Accept: text/event-stream` → SSE handler → `StreamingResult`
 
-Under the hood, the generated handler checks `Accept` at runtime and invokes
-the SSE stream only when `text/event-stream` is requested and the method has
-`StreamingResult` (including mixed-result shapes). Otherwise, the standard
-HTTP request-response path is used.
+`Accept: text/event-stream` is necessary but not sufficient for SSE routing.
+The generated server dispatches the JSON-RPC `method` first and invokes an SSE
+handler only for a method designed with `ServerSentEvents` and a streaming
+result. Ordinary methods, including protocol methods such as `initialize`,
+remain on the JSON response path even when a client sends the SSE accept type.
 
 ## Advanced Features
 
@@ -941,6 +960,19 @@ func (s *svc) ReportStream(ctx context.Context, p *ReportPayload,
     return nil
 }
 ```
+
+### Generated Server Boundary
+
+The generated server's exported `ServeHTTP` method is the effective public
+handler. It includes constructor policy wrappers and middleware registered via
+`Server.Use`; mount or extend that handler instead of calling generated raw
+HTTP, SSE, or WebSocket internals directly. This keeps JSON-RPC envelope
+validation, mixed-transport dispatch, CORS, and middleware ordering intact.
+
+Generated protocol code lives below `gen/jsonrpc/<service>/`. Service
+interfaces and endpoints remain transport-neutral below `gen/<service>/`.
+Treat both trees as generated output: change the design or framework generator
+and regenerate instead of editing either tree by hand.
 
 ## Best Practices
 

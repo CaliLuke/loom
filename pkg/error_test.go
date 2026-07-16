@@ -2,6 +2,7 @@ package loom
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 )
 
@@ -24,6 +25,16 @@ func (testRemediableError) LoomErrorRemedy() *ErrorRemedy {
 		Code:        "test.fix",
 		SafeMessage: "safe detail",
 		RetryHint:   "retry later",
+	}
+}
+
+func TestServiceErrorUsesLoomErrorNameOnly(t *testing.T) {
+	typeOfServiceError := reflect.TypeOf(&ServiceError{})
+	if _, ok := typeOfServiceError.MethodByName("ErrorName"); ok {
+		t.Error("ServiceError exposes the removed ErrorName compatibility method")
+	}
+	if _, ok := typeOfServiceError.MethodByName("LoomErrorName"); !ok {
+		t.Error("ServiceError does not expose LoomErrorName")
 	}
 }
 

@@ -946,8 +946,13 @@ var _ = Service("accounts", func() {
 inside a `SessionAuth` are alternatives: generated OpenAPI security uses OR
 semantics, and generated payload/binding code injects the required credential
 fields when the design has not already modeled them. `CookieTransport(..., "")`
-keeps cookie auth transport-owned: Loom still decodes the HTTP cookie and emits
-cookie security metadata, but it does not add a payload field or CLI flag.
+keeps browser-cookie auth transport-owned: Loom emits OpenAPI cookie security,
+but does not synthesize a payload field, CLI flag, or HTTP decode local. The
+generated auth wrapper still calls the API-key authorizer with an empty key.
+Install `loomhttp.RequestMetadataMiddleware` with `Cookie` explicitly retained
+when the authorizer must resolve the browser session from request-scoped
+transport metadata; do not expect the empty field name to trigger implicit
+cookie decoding.
 
 Generated endpoints isolate the context used by each alternative security
 requirement. If an authorizer returns a modified context together with an
@@ -1385,8 +1390,8 @@ JSONRPC(func() {
 })
 ```
 
-See [JSON-RPC Architecture](../jsonrpc/ARCHITECTURE.md) for implementation
-details and streaming patterns.
+See the [JSON-RPC Guide](../jsonrpc/README.md) for transport behavior and
+streaming patterns.
 
 ---
 

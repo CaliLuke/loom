@@ -21,7 +21,6 @@ cover.out
 **/.DS_Store
 
 jsonrpc/integration_tests/tests/testdata/runs/*
-jsonrpc/integration_tests/.loom_source_mode
 jsonrpc/integration_tests/fixtures/*/server-*.log
 http/integration_tests/fixtures/*/server-*.log
 

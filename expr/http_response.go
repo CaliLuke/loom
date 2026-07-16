@@ -347,7 +347,6 @@ func (r *HTTPResponseExpr) Finalize(a *HTTPEndpointExpr, svcAtt *AttributeExpr) 
 	if r.OpenAPIBody != nil {
 		r.finalizeOpenAPIBody(a)
 	}
-	r.inheritContentType(svcAtt)
 	initAttr(r.Headers, svcAtt)
 	initResponseCookies(r.Cookies, svcAtt)
 }
@@ -429,15 +428,6 @@ func ensureValidation(att *AttributeExpr) *ValidationExpr {
 func (r *HTTPResponseExpr) finalizeOpenAPIBody(a *HTTPEndpointExpr) {
 	r.OpenAPIBody = httpOpenAPIResponseBody(a, r)
 	r.OpenAPIBody.Finalize()
-}
-
-func (r *HTTPResponseExpr) inheritContentType(svcAtt *AttributeExpr) {
-	if r.ContentType != "" {
-		return
-	}
-	if rt, ok := svcAtt.Type.(*ResultTypeExpr); ok && rt.ContentType != "" {
-		r.ContentType = rt.ContentType
-	}
 }
 
 // Dup creates a copy of the response expression.

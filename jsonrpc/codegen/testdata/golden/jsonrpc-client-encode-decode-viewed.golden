@@ -18,7 +18,6 @@ import (
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
 	loom "github.com/CaliLuke/loom/pkg"
-	"github.com/google/uuid"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -109,7 +108,10 @@ func DecodeMethodBodyMultipleViewResponse(decoder func(*http.Response) loomhttp.
 // the ServiceBodyMultipleView service MethodBodyMultipleView JSON-RPC method.
 func EncodeMethodBodyMultipleViewRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
-		id := uuid.New().String()
+		id, err := jsonrpc.NewRequestID()
+		if err != nil {
+			return loomhttp.ErrEncodingError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)
+		}
 		body := &jsonrpc.Request{
 			ID:      id,
 			JSONRPC: "2.0",

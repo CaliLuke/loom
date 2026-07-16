@@ -39,7 +39,7 @@ func assertExampleCodeGolden(
 			}
 			code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
 			golden := filepath.Join("testdata", "golden", fileLabel+"-"+c.Name+".golden")
-			testutil.CompareOrUpdateGolden(t, code, golden)
+			testutil.NewGoldenFile(t, ".").StringContent(code).Path(golden).CompareContent()
 		})
 	}
 }

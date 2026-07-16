@@ -1,12 +1,11 @@
 package loom
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
+
+	"github.com/CaliLuke/loom/internal/identifier"
 )
 
 type (
@@ -241,16 +240,14 @@ func validationErrorWithSafe(err *ServiceError, safeMessage string) *ServiceErro
 }
 
 // NewErrorID creates a unique 8 character ID that is well suited to use as an
-// error identifier.
+// error identifier. It panics if operating-system entropy is unavailable.
 func NewErrorID() string {
 	// for the curious - simplifying a bit - the probability of 2 values
 	// being equal for n 6-bytes values is n^2 / 2^49. For n = 1 million
 	// this gives around 1 chance in 500. 6 bytes seems to be a good
 	// trade-off between probability of clashes and length of ID (6 * 4/3 =
 	// 8 chars) since clashes are not catastrophic.
-	b := make([]byte, 6)
-	io.ReadFull(rand.Reader, b) // nolint: errcheck
-	return base64.RawURLEncoding.EncodeToString(b)
+	return identifier.MustBase64(6)
 }
 
 // MergeErrors updates an error by merging another into it. It first converts
@@ -335,13 +332,8 @@ func cloneServiceErrorHistory(history []*ServiceError) []*ServiceError {
 // Error returns the error message.
 func (e *ServiceError) Error() string { return e.Message }
 
-// ErrorName returns the error name.
-//
-// Deprecated: Use LoomErrorName.
-func (e *ServiceError) ErrorName() string { return e.Name }
-
 // LoomErrorName returns the error name.
-func (e *ServiceError) LoomErrorName() string { return e.ErrorName() }
+func (e *ServiceError) LoomErrorName() string { return e.Name }
 
 // LoomErrorRemedy returns the remediation guidance attached to the error, if
 // any.

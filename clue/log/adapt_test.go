@@ -257,37 +257,3 @@ func TestLogrSinkWithName(t *testing.T) {
 	require.Contains(t, buf.String(), "log=second")
 	require.NotContains(t, buf.String(), "log=first/second")
 }
-
-func TestMiddlewareLogger(t *testing.T) {
-	cases := []struct {
-		name    string
-		keyvals []any
-		want    []string
-	}{
-		{
-			name:    "even keyvals",
-			keyvals: []any{"k1", "v1", "k2", 42},
-			want:    []string{"k1=v1", "k2=42"},
-		},
-		{
-			name:    "odd keyvals append missing",
-			keyvals: []any{"k1", "v1", "orphan"},
-			want:    []string{"k1=v1", "orphan=MISSING"},
-		},
-		{
-			name:    "non-string keys are stringified",
-			keyvals: []any{42, "v"},
-			want:    []string{"42=v"},
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			l := AsLoomMiddlewareLogger(newTestContext(&buf))
-			require.NoError(t, l.Log(tc.keyvals...))
-			for _, want := range tc.want {
-				assert.Contains(t, buf.String(), want)
-			}
-		})
-	}
-}

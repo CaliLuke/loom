@@ -37,7 +37,7 @@ func TestSSE(t *testing.T) {
 			require.Greater(t, len(sections), 1)
 			code := codegen.SectionCode(t, sections[1])
 			golden := filepath.Join("testdata", "golden", "sse-"+c.Name+".golden")
-			testutil.CompareOrUpdateGolden(t, code, golden)
+			testutil.NewGoldenFile(t, ".").StringContent(code).Path(golden).CompareContent()
 		})
 	}
 }
@@ -60,7 +60,10 @@ func TestSSEServerStreamCommitsHeadersOnSend(t *testing.T) {
 	// The full stream implementation is locked by the same golden TestSSE uses
 	// for the object case; the assertions below pin the behaviors this test is
 	// named for plus regressions that a golden update could silently accept.
-	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-object.golden"))
+	testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+		StringContent(code).
+		Path("sse-object.golden").
+		CompareContent()
 	require.Contains(t, code, "s.writer.WriteEvent(ctx, func(w io.Writer) error {")
 	require.Contains(t, code, "return s.SendWithContext(s.writer.Context(), v)")
 	require.NotContains(t, code, "// Send Send streams")
@@ -86,7 +89,10 @@ func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {
 	require.NotNil(t, serverFile)
 
 	code := codegen.SectionCode(t, serverFile.Section("server-handler-init")[0])
-	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-object-handler-init.golden"))
+	testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+		StringContent(code).
+		Path("sse-object-handler-init.golden").
+		CompareContent()
 	require.Contains(t, code, "stream := &SSEObjectMethodServerStream{")
 	require.NotContains(t, code, "stream.open()")
 	decl := strings.Index(code, "encodeError =")

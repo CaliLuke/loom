@@ -184,7 +184,10 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- end }}
 		{{- else }}
 		// No ID field in payload - always send as a request with generated ID
-		id := uuid.New().String()
+		id, err := jsonrpc.NewRequestID()
+		if err != nil {
+			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
+		}
 		body.ID = id
 		{{- end }}
 		{{- end }}

@@ -39,5 +39,8 @@ func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {
 
 	require.Contains(t, code, "type SelectionText string")
 	require.Contains(t, code, "type Selection struct {")
-	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "union_type_section_selection.golden"))
+	testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+		StringContent(code).
+		Path("union_type_section_selection.golden").
+		CompareContent()
 }

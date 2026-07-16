@@ -22,8 +22,7 @@ Use Loom framework source as the authoritative reference for DSL and runtime beh
 - `SKILL.md`: primary routing index and Loom-specific contract rules
 - `docs/`: maintained user guides for quickstart, DSL, code generation, HTTP,
   gRPC, errors, interceptors, and production
-- `jsonrpc/README.md` and `jsonrpc/ARCHITECTURE.md`: maintained JSON-RPC user and
-  architecture documentation
+- `jsonrpc/README.md`: maintained JSON-RPC user and architecture documentation
 
 ## Suggested Lookup Flow
 

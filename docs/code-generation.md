@@ -26,11 +26,7 @@ go install github.com/CaliLuke/loom/cmd/loom@latest
 All commands expect Go package import paths, not filesystem paths:
 
 ```bash
-# Correct: using Go package import path
 loom gen github.com/CaliLuke/loom-examples/calc/design
-
-# Incorrect: using filesystem path
-loom gen ./design
 ```
 
 #### Generate Code (`loom gen`)
@@ -41,7 +37,9 @@ loom gen <design-package-import-path> [-o <output-dir>] [--debug]
 
 The primary command for code generation:
 - Processes your design package and generates implementation code
-- Recreates the entire `gen/` directory from scratch each time
+- Generates and finalizes a complete staging tree, validates its manifest and
+  outputs, then replaces the entire `gen/` directory on success. A generation,
+  finalization, or validation failure leaves the existing `gen/` tree intact.
 - Run after every design change
 
 #### Create Example (`loom example`)
@@ -608,11 +606,28 @@ If no views are defined, Loom adds a "default" view that includes all basic fiel
 
 ## Extension Points
 
-Loom's active extension points are the DSL, transport code generators, template
-sections, and runtime middleware. The old external plugin examples are not
-part of this repository. Add new generated behavior in the relevant generator
-package (`http/codegen`, `grpc/codegen`, `jsonrpc/codegen`, or shared
-`codegen`) and keep generated files reproducible from the design package.
+Loom exposes a compile-time generator plugin registry for framework extensions
+such as Loom-MCP. A plugin registers from a package imported by the design
+dependency graph using `codegen.RegisterPluginFirst`, `RegisterPlugin`, or
+`RegisterPluginLast`. Each registration can provide a prepare callback that
+updates evaluated roots and a generation callback that adds or transforms
+files.
+
+Generation snapshots the registry before evaluation phases run, so concurrent
+registrations cannot alter an in-progress run. Plugins execute in deterministic
+groups (`First`, normal, then `Last`) and by name within each group. Treat this
+as a compile-time extension contract: applications should use the design DSL
+and runtime middleware for application behavior, while external framework
+packages use plugins only for reproducible generated artifacts.
+
+External plugins may populate `codegen.File.SectionTemplates` when their
+sections are template-backed. Loom-owned generators use the generic
+`codegen.File.Sections` API, but `SectionTemplates` remains a supported public
+extension surface and is adapted by `File.AllSections` during rendering.
+
+Framework-owned HTTP, gRPC, and JSON-RPC behavior still belongs directly in the
+relevant generator package. Generated section hooks are an implementation
+mechanism inside generators, not a second plugin lifecycle.
 
 ---
 

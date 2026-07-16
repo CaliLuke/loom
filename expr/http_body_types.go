@@ -326,7 +326,6 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	nmt := &ResultTypeExpr{
 		UserTypeExpr: userType,
 		Identifier:   rt.Identifier,
-		ContentType:  rt.ContentType,
 		Views:        views,
 	}
 	for _, v := range views {

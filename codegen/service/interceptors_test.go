@@ -59,7 +59,7 @@ func TestInterceptors(t *testing.T) {
 				code := strings.ReplaceAll(string(bs), "\r\n", "\n")
 
 				golden := filepath.Join("testdata", "interceptors", c.Name+"_"+filepath.Base(f.Path)+".golden")
-				compareOrUpdateGolden(t, code, golden)
+				assertGolden(t, code, golden)
 			}
 		})
 	}
@@ -213,9 +213,8 @@ func TestCollectAttributes(t *testing.T) {
 	}
 }
 
-// compareOrUpdateGolden delegates to the shared testutil helper. Pass -update
-// (or -u) on the go-test command line to rewrite golden files.
-func compareOrUpdateGolden(t *testing.T, code, golden string) {
+// assertGolden compares code with golden and honors the shared update flags.
+func assertGolden(t *testing.T, code, golden string) {
 	t.Helper()
-	testutil.CompareOrUpdateGolden(t, code, golden)
+	testutil.NewGoldenFile(t, ".").StringContent(code).Path(golden).CompareContent()
 }

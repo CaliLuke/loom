@@ -21,8 +21,9 @@ Covered:
 - `SendAndCloseWithContext` + `SendAndClose` interface on the server stream
   (see http/codegen's WebSocket/SSE stream emit — the wrapper is a thin
   forwarder to the with-context variant).
-- Generated app compiles against repo-local or pinned-remote Loom, depending
-  on `make loom-local` / `make loom-remote`.
+- Temp-copy regeneration rewrites the fixture's Loom replacement to the current
+  repository root and proves the regenerated app compiles against the change
+  under test.
 
 ## What this fixture does NOT prove
 
@@ -38,9 +39,6 @@ Covered:
 - Event-type compatibility for protocol-level errors (e.g., JSON-RPC error
   response shapes delivered inside the SSE stream). The fixture exercises
   successful event emission but not the error-as-event negotiation.
-- Compile-after-generation of the emitted fixture app when the framework
-  change is unpushed. Always `make loom-local` during development; the
-  pinned-remote path verifies CI parity.
 - Branch-specific connection timing / retry / backoff semantics beyond what
   the happy path exercises.
 - WebSocket transport. WebSocket JSON-RPC is covered separately by
@@ -64,11 +62,13 @@ Do NOT update this fixture for:
 ## Regenerating
 
 ```bash
-make loom-local                         # iterate on unpushed framework changes
-# or: make loom-remote                  # parity with CI
 cd jsonrpc/integration_tests/fixtures/ticktock
-loom gen github.com/CaliLuke/loom/jsonrpc/integration_tests/fixtures/ticktock/design
+go run -mod=mod github.com/CaliLuke/loom/cmd/loom gen example.com/ticktock/design -o .
 ```
+
+This checked-in fixture has an explicit local `replace` directive. The shared
+`make loom-local` / `make loom-remote` mode controls dynamically generated
+HTTP and JSON-RPC temp modules, not direct regeneration inside this fixture.
 
 `server-*.log`, `loom*` temp directories, and similar byproducts in this
 directory are NOT part of the fixture contract; they can be cleaned up at

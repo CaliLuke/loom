@@ -72,7 +72,7 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
+              "application/vnd.custom+json": {
                 "example": {
                   "string": ""
                 },

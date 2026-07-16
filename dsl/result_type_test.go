@@ -235,3 +235,15 @@ func TestCollectionOfUnknownViewReturnsValidationError(t *testing.T) {
 		t.Fatalf("expected error to contain %q, got %q", want, got)
 	}
 }
+
+func TestContentTypeRejectedInResultType(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		_ = ResultType("application/vnd.example.result+json", func() {
+			ContentType("application/json")
+			Attribute("value", String)
+		})
+	})
+
+	require.ErrorContains(t, err, "ContentType")
+	require.ErrorContains(t, err, "invalid use")
+}

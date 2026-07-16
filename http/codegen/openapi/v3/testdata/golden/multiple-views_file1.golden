@@ -33,7 +33,7 @@ paths:
                 "200":
                     description: OK response.
                     content:
-                        application/json:
+                        application/vnd.custom+json:
                             schema:
                                 $ref: '#/components/schemas/TestEndpointTinyResponseBodyTiny'
                             example:

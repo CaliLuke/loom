@@ -176,8 +176,17 @@ neither package depends on the other.
 `invalid_jsonrpc_params`, `unsupported_method`, `missing_credentials`,
 `invalid_credentials`, `permission_rejected`, `principal_mismatch`,
 `handler_error`, `panic`, `response_write_failed`, `stream_write_failed`,
-`stream_flush_failed`, `mcp_session_missing`, `mcp_session_not_found`,
-`mcp_session_principal_mismatch`, and `mcp_events_stream_write_failed`.
+`stream_flush_failed`, `stream_write_timeout`, `stream_flush_timeout`,
+`stream_final_response_suppressed`, `mcp_session_missing`,
+`mcp_session_not_found`, `mcp_session_principal_mismatch`, and
+`mcp_events_stream_write_failed`.
+
+The two timeout reasons distinguish a configured streaming deadline from an
+ordinary writer or flusher failure. `stream_final_response_suppressed` is a
+successful JSON-RPC protocol decision: an ID-less SSE notification or raw GET
+listener called `SendAndClose`, so Loom closed the stream without emitting an
+invalid final response. Do not count that reason as a server fault; use it to
+find implementations that should send their final value with `Send` instead.
 
 For non-HTTP entry points (e.g. a JSON-RPC consumer reading frames from a
 queue) use `transport.WithObserver(ctx, obs)` to inject the observer into

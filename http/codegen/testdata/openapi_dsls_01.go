@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var SimpleDSL = func() {
 	var PayloadT = Type("Payload", func() {
 		Attribute("string", String, func() {
@@ -73,7 +72,6 @@ var MultipleServicesDSL = func() {
 
 var MultipleViewsDSL = func() {
 	var ResultT = ResultType("application/json", func() {
-		ContentType("application/vnd.custom+json")
 		TypeName("Result")
 		Attributes(func() {
 			Attribute("string", String, func() {
@@ -107,6 +105,9 @@ var MultipleViewsDSL = func() {
 			})
 			HTTP(func() {
 				GET("/tiny")
+				Response(StatusOK, func() {
+					ContentType("application/vnd.custom+json")
+				})
 			})
 		})
 	})
@@ -908,5 +909,3 @@ var OpenAPIReusableComponentsDSL = func() {
 		})
 	})
 }
-
-

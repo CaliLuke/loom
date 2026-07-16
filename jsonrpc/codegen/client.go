@@ -77,7 +77,6 @@ func addJSONRPCClientImports(section codegen.Section) {
 	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "bytes"})
 	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "sync"})
 	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "sync/atomic"})
-	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "github.com/google/uuid"})
 	codegen.AddSectionImport(section, codegen.LoomImport("jsonrpc"))
 }
 

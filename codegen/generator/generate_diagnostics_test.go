@@ -14,15 +14,15 @@ import (
 )
 
 func TestGenerateDebugDiagnostics(t *testing.T) {
-	t.Cleanup(func() { Generators = generators })
+	t.Cleanup(func() { generatorLoader = generators })
 
-	Generators = func(cmd string) ([]Genfunc, error) {
-		return []Genfunc{
+	generatorLoader = func(cmd string) ([]genfunc, error) {
+		return []genfunc{
 			func(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 				f := &codegen.File{Path: filepath.Join(codegen.Gendir, "types", "diagnostics.go")}
-				f.SectionTemplates = []*codegen.SectionTemplate{
+				f.Sections = []codegen.Section{
 					codegen.Header("Types", "types", nil),
-					{Name: "type-def", Source: "type Diagnostics struct{}\n"},
+					codegen.NewRawSection("type-def", "type Diagnostics struct{}\n"),
 				}
 				return []*codegen.File{f}, nil
 			},
@@ -57,15 +57,15 @@ func TestGenerateDebugDiagnostics(t *testing.T) {
 }
 
 func TestGenerateWrapsWriteFailuresWithStageAndPath(t *testing.T) {
-	t.Cleanup(func() { Generators = generators })
+	t.Cleanup(func() { generatorLoader = generators })
 
-	Generators = func(cmd string) ([]Genfunc, error) {
-		return []Genfunc{
+	generatorLoader = func(cmd string) ([]genfunc, error) {
+		return []genfunc{
 			func(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 				f := &codegen.File{Path: filepath.Join(codegen.Gendir, "types", "broken.go")}
-				f.SectionTemplates = []*codegen.SectionTemplate{
+				f.Sections = []codegen.Section{
 					codegen.Header("Types", "types", nil),
-					{Name: "type-def", Source: "type Broken struct{}\n"},
+					codegen.NewRawSection("type-def", "type Broken struct{}\n"),
 				}
 				f.FinalizeFunc = func(path string) error {
 					return errors.New("finalize failed")

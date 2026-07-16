@@ -3,8 +3,6 @@ package middleware
 import (
 	"bufio"
 	"bytes"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -13,7 +11,7 @@ import (
 	"strings"
 
 	loomhttp "github.com/CaliLuke/loom/http"
-	"github.com/CaliLuke/loom/middleware"
+	"github.com/CaliLuke/loom/internal/identifier"
 )
 
 // responseDupper tees the response to a buffer and a response writer.
@@ -30,7 +28,7 @@ func Debug(mux loomhttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			buf := &bytes.Buffer{}
-			reqID := requestID(r)
+			reqID := shortID()
 			writeDebugRequest(buf, mux, reqID, r)
 
 			dupper := &responseDupper{ResponseWriter: rw, Buffer: &bytes.Buffer{}}
@@ -42,15 +40,7 @@ func Debug(mux loomhttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
 	}
 }
 
-func requestID(r *http.Request) any {
-	reqID := r.Context().Value(middleware.RequestIDKey)
-	if reqID == nil {
-		return shortID()
-	}
-	return reqID
-}
-
-func writeDebugRequest(buf *bytes.Buffer, mux loomhttp.Muxer, reqID any, r *http.Request) {
+func writeDebugRequest(buf *bytes.Buffer, mux loomhttp.Muxer, reqID string, r *http.Request) {
 	fmt.Fprintf(buf, "> [%s] %s %s", reqID, r.Method, r.URL.String())
 	writeDebugMap(buf, reqID, ">", stringMap(r.Header))
 	writeDebugMap(buf, reqID, ">", mux.Vars(r))
@@ -59,7 +49,7 @@ func writeDebugRequest(buf *bytes.Buffer, mux loomhttp.Muxer, reqID any, r *http
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 }
 
-func writeDebugResponse(buf *bytes.Buffer, reqID any, dupper *responseDupper) {
+func writeDebugResponse(buf *bytes.Buffer, reqID string, dupper *responseDupper) {
 	fmt.Fprintf(buf, "\n< [%s] %s", reqID, http.StatusText(dupper.Status))
 	writeDebugMap(buf, reqID, "<", stringMap(dupper.Header()))
 	if dupper.Buffer.Len() > 0 {
@@ -75,7 +65,7 @@ func stringMap(values map[string][]string) map[string]string {
 	return flat
 }
 
-func writeDebugMap(buf *bytes.Buffer, reqID any, prefix string, values map[string]string) {
+func writeDebugMap(buf *bytes.Buffer, reqID, prefix string, values map[string]string) {
 	keys := sortedDebugKeys(values)
 	for _, key := range keys {
 		fmt.Fprintf(buf, "\n%s [%s] %s: %s", prefix, reqID, key, values[key])
@@ -99,7 +89,7 @@ func readDebugBody(r *http.Request) []byte {
 	return body
 }
 
-func writeDebugBody(buf *bytes.Buffer, reqID any, body []byte) {
+func writeDebugBody(buf *bytes.Buffer, reqID string, body []byte) {
 	if len(body) == 0 {
 		return
 	}
@@ -132,7 +122,5 @@ func (r *responseDupper) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 // shortID produces a " unique" 6 bytes long string.
 // Do not use as a reliable way to get unique IDs, instead use for things like logging.
 func shortID() string {
-	b := make([]byte, 6)
-	io.ReadFull(rand.Reader, b) // nolint: errcheck
-	return base64.RawURLEncoding.EncodeToString(b)
+	return identifier.MustBase64(6)
 }

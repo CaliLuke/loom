@@ -24,45 +24,10 @@ type (
 		name string
 		context.Context
 	}
-
-	// middlewareLogger is a Loom middleware compatible logger.
-	middlewareLogger struct {
-		context.Context
-	}
-
-	// MiddlewareLogger is the minimal structured logger interface used by Loom
-	// middleware adapters.
-	MiddlewareLogger interface {
-		Log(keyvals ...any) error
-	}
 )
 
 // NameKey is the key used to log the name of the logger.
 const NameKey = "log"
-
-// AsLoomMiddlewareLogger creates a middleware-compatible logger that can be used
-// when configuring generated HTTP or gRPC servers.
-//
-// Usage:
-//
-//	// HTTP server:
-//	import loomhttp "github.com/CaliLuke/loom/http"
-//	import httpmdlwr "github.com/CaliLuke/loom/http/middleware"
-//	...
-//	mux := loomhttp.NewMuxer()
-//	handler := httpmdlwr.LogContext(log.AsLoomMiddlewareLogger)(mux)
-//
-//	// gRPC server:
-//	import "google.golang.org/grpc"
-//	import grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
-//	import grpcmdlwr "github.com/CaliLuke/loom/grpc/middleware"
-//	...
-//	srv := grpc.NewServer(
-//	    grpcmiddleware.WithUnaryServerChain(grpcmdlwr.UnaryServerLogContext(log.AsLoomMiddlewareLogger)),
-//	)
-func AsLoomMiddlewareLogger(ctx context.Context) MiddlewareLogger {
-	return middlewareLogger{ctx}
-}
 
 // AsStdLogger adapts a Loom logger to a stdlib compatible logger.
 func AsStdLogger(ctx context.Context) *StdLogger {
@@ -207,19 +172,4 @@ func (l *LogrSink) WithName(name string) logr.LogSink {
 	}
 	cur += name
 	return &LogrSink{Context: With(l, KV{NameKey, cur}), name: cur}
-}
-
-// Log creates a log entry using a sequence of key/value pairs.
-func (l middlewareLogger) Log(keyvals ...any) error {
-	n := (len(keyvals) + 1) / 2
-	if len(keyvals)%2 != 0 {
-		keyvals = append(keyvals, "MISSING")
-	}
-	kvs := make([]KV, n)
-	for i := range n {
-		k, v := keyvals[2*i], keyvals[2*i+1]
-		kvs[i] = KV{K: fmt.Sprint(k), V: v}
-	}
-	Print(l, kvList(kvs))
-	return nil
 }

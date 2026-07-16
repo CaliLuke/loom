@@ -191,6 +191,20 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.Equal(t, "GET", ws.Endpoints[0].Routes[0].Verb)
 	})
 
+	t.Run("union collections are discovered across HTTP transport paths", func(t *testing.T) {
+		root := RunHTTPDSL(t, mixedTransportServiceDataDSL)
+		services := CreateHTTPServices(root)
+		svc := services.Get("UnionHTTPPaths")
+		require.NotNil(t, svc)
+
+		require.ElementsMatch(t, []string{
+			"ErrorChoice",
+			"RequestChoice",
+			"ResponseChoice",
+			"StreamChoice",
+		}, httpUnionTypeNames(svc.UnionTypes))
+	})
+
 	t.Run("buildErrorsData uses IR-owned error responses", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, responseInitArgsDSL)
 		endpointIR := transportir.BuildEndpoint(endpointExpr)
@@ -329,6 +343,14 @@ func bodyViews(types []*TypeData) []string {
 		views[i] = td.View
 	}
 	return views
+}
+
+func httpUnionTypeNames(types []*service.UnionTypeData) []string {
+	names := make([]string, len(types))
+	for i, union := range types {
+		names[i] = union.Name
+	}
+	return names
 }
 
 func stringPtr(v string) *string {
@@ -497,6 +519,61 @@ func mixedTransportServiceDataDSL() {
 				Attribute("event", String)
 			})
 			JSONRPC(func() {})
+		})
+	})
+
+	var requestEnvelope = Type("HTTPRequestUnionEnvelope", func() {
+		OneOf("request_choice", func() {
+			Attribute("name", String)
+			Attribute("count", Int)
+		})
+	})
+	var streamEnvelope = Type("HTTPStreamUnionEnvelope", func() {
+		OneOf("stream_choice", func() {
+			Attribute("message", String)
+			Attribute("sequence", Int)
+		})
+	})
+	var responseEnvelope = Type("HTTPResponseUnionEnvelope", func() {
+		OneOf("response_choice", func() {
+			Attribute("accepted", Boolean)
+			Attribute("location", String)
+		})
+	})
+	var errorEnvelope = Type("HTTPErrorUnionEnvelope", func() {
+		OneOf("error_choice", func() {
+			Attribute("field", String)
+			Attribute("retry_after", Int)
+		})
+	})
+
+	Service("UnionHTTPPaths", func() {
+		Method("request", func() {
+			Payload(ArrayOf(requestEnvelope))
+			HTTP(func() {
+				POST("/request")
+			})
+		})
+		Method("stream", func() {
+			StreamingPayload(MapOf(String, streamEnvelope))
+			Result(String)
+			HTTP(func() {
+				GET("/stream")
+			})
+		})
+		Method("response", func() {
+			Result(ArrayOf(responseEnvelope))
+			HTTP(func() {
+				GET("/response")
+				Response(StatusOK)
+			})
+		})
+		Method("failure", func() {
+			Error("invalid", MapOf(String, errorEnvelope))
+			HTTP(func() {
+				POST("/failure")
+				Response("invalid", StatusBadRequest)
+			})
 		})
 	})
 }

@@ -9,11 +9,11 @@ files. When code generation changes, you can review the differences and update
 the golden files if the changes are correct.
 
 This package provides:
-- Simple assertion functions for common cases
-- A fluent API for advanced scenarios
+
+- Assertion functions for strings, Go source, JSON, and byte slices
+- A fluent API for custom golden-file locations
 - Automatic formatting for Go code and JSON
-- Cross-platform line ending normalization
-- Batch operations for testing multiple files
+- Cross-platform line-ending normalization
 
 ## Basic Usage
 
@@ -39,24 +39,7 @@ Update golden files when output changes:
 go test -update
 ```
 
-## Common Patterns
-
-### Testing Multiple Files
-
-When generating multiple related files:
-
-```go
-func TestMultipleFiles(t *testing.T) {
-    batch := testutil.NewBatch(t)
-    
-    batch.AddString("server.go.golden", generateServer()).
-          AddString("client.go.golden", generateClient()).
-          AddString("types.go.golden", generateTypes()).
-          Compare()
-}
-```
-
-### Format-Specific Testing
+## Format-Specific Testing
 
 The package automatically formats content based on file type:
 
@@ -71,12 +54,6 @@ func TestFormattedOutput(t *testing.T) {
     testutil.AssertJSON(t, "config.json.golden", jsonData)
 }
 ```
-
-## Testing Multiple Generated Files
-
-When testing code generators that produce multiple files, you can use batch
-operations to test them all at once. This ensures all generated files remain
-consistent with each other.
 
 ## Advanced Usage
 
@@ -93,21 +70,6 @@ func TestWithFluentAPI(t *testing.T) {
     gf.StringContent(code).
        Path("service.go.golden").
        CompareContent()
-}
-```
-
-### Directory Comparison
-
-Compare entire directory structures:
-
-```go
-func TestGeneratedDirectory(t *testing.T) {
-    // Generate files to a directory
-    generateToDirectory("./generated")
-    
-    // Compare against golden directory
-    snapshot := testutil.NewDirSnapshot(t, "./generated", "testdata/golden/expected")
-    snapshot.Ignore("*.tmp", "*.log").Compare()
 }
 ```
 
@@ -159,7 +121,6 @@ The package automatically detects and formats content based on file extensions:
 
 - `.go` or `.go.golden`: Formatted with `go/format`
 - `.json` or `.json.golden`: Pretty-printed with proper indentation
-- Other extensions: Treated as plain text
 - Other extensions: Treated as plain text
 
 ## Notes

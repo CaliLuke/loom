@@ -122,20 +122,6 @@ func (g *GoldenFile) CompareContent() {
 	g.compareContent(content, goldenPath)
 }
 
-// Compare compares the actual content with the golden file content (legacy API)
-//
-// Deprecated: Use StringContent().Path().CompareContent() for the fluent API
-func (g *GoldenFile) Compare(actual string, golden string) {
-	g.t.Helper()
-	g.StringContent(actual).Path(golden).CompareContent()
-}
-
-// CompareBytes is like Compare but works with byte slices (legacy API)
-func (g *GoldenFile) CompareBytes(actual []byte, golden string) {
-	g.t.Helper()
-	g.Content(actual).Path(golden).CompareContent()
-}
-
 // prepareContent applies transformations based on content type and options
 func (g *GoldenFile) prepareContent() []byte {
 	content := g.content
@@ -241,24 +227,6 @@ func (g *GoldenFile) Exists(golden string) bool {
 
 // SetUpdateMode sets whether this GoldenFile should update golden files on compare.
 func (g *GoldenFile) SetUpdateMode(update bool) { g.update = update }
-
-// CompareOrUpdateGolden provides a drop-in replacement for the legacy function
-// used throughout the codebase. New code should use GoldenFile instead.
-// The golden parameter should be a full path to the golden file.
-func CompareOrUpdateGolden(t *testing.T, actual, golden string) {
-	t.Helper()
-	gf := NewGoldenFile(t, "")
-	// Since this is a legacy function, golden is expected to be a full path
-	// We use an absolute path to bypass the base path handling
-	absGolden := golden
-	if !filepath.IsAbs(golden) {
-		// If it's already relative, make it absolute from current directory
-		var err error
-		absGolden, err = filepath.Abs(golden)
-		require.NoError(t, err)
-	}
-	gf.StringContent(actual).Path(absGolden).CompareContent()
-}
 
 // Assert provides a simple assertion API
 func Assert(t testing.TB, goldenPath string, got []byte) {

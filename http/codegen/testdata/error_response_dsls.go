@@ -159,13 +159,13 @@ var APINoBodyErrorResponseDSL = func() {
 
 var APINoBodyErrorResponseWithContentTypeDSL = func() {
 	var StringError = ResultType("application/vnd.string.error", func() {
-		ContentType("application/xml")
 		Attribute("header")
 	})
 	var _ = API("test", func() {
 		Error("bad_request", StringError)
 		HTTP(func() {
 			Response("bad_request", StatusBadRequest, func() {
+				ContentType("application/xml")
 				Header("header")
 			})
 		})
@@ -199,13 +199,13 @@ var NoBodyErrorResponseDSL = func() {
 
 var NoBodyErrorResponseWithContentTypeDSL = func() {
 	var StringError = ResultType("application/vnd.string.error", func() {
-		ContentType("application/xml")
 		Attribute("header")
 	})
 	Service("ServiceNoBodyErrorResponse", func() {
 		Error("bad_request", StringError)
 		HTTP(func() {
 			Response("bad_request", StatusBadRequest, func() {
+				ContentType("application/xml")
 				Header("header")
 			})
 		})

@@ -13,11 +13,10 @@ import (
 	"github.com/CaliLuke/loom/codegen/testutil"
 )
 
-// compareOrUpdateGolden delegates to the shared testutil helper. Pass -update
-// (or -u) on the go-test command line to rewrite golden files.
-func compareOrUpdateGolden(t *testing.T, code, golden string) {
+// assertGolden compares code with golden and honors the shared update flags.
+func assertGolden(t *testing.T, code, golden string) {
 	t.Helper()
-	testutil.CompareOrUpdateGolden(t, code, golden)
+	testutil.NewGoldenFile(t, ".").StringContent(code).Path(golden).CompareContent()
 }
 
 func TestExampleServerFiles(t *testing.T) {
@@ -52,7 +51,7 @@ func TestExampleServerFiles(t *testing.T) {
 			}
 			code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
 			golden := filepath.Join("testdata", "server-"+c.Name+".golden")
-			compareOrUpdateGolden(t, code, golden)
+			assertGolden(t, code, golden)
 		})
 	}
 }

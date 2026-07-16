@@ -127,7 +127,6 @@ func (g *Generator) Write(_ bool) error {
 	{
 		data := map[string]any{
 			"Command":       g.Command,
-			"CleanupDirs":   cleanupDirs(g.Command, g.Output),
 			"DesignVersion": g.DesignVersion,
 		}
 		imports := []*codegen.ImportSpec{
@@ -278,37 +277,6 @@ func (g *Generator) runGoCmd(args ...string) error {
 	return nil
 }
 
-// cleanupDirs returns the paths of the subdirectories under gendir to delete
-// before generating code.
-func cleanupDirs(cmd, output string) []string {
-	if cmd == "gen" {
-		gendirPath := filepath.Join(output, codegen.Gendir)
-		gendir, err := os.Open(gendirPath)
-		if err != nil {
-			return nil
-		}
-		defer func() {
-			err := gendir.Close()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "failed to close gendir: %s", err)
-			}
-		}()
-		finfos, err := gendir.Readdir(-1)
-		if err != nil {
-			return []string{gendirPath}
-		}
-		var dirs []string
-
-		for _, fi := range finfos {
-			if fi.IsDir() {
-				dirs = append(dirs, filepath.Join(gendirPath, fi.Name()))
-			}
-		}
-		return dirs
-	}
-	return nil
-}
-
 // mainT is the template for the generator main.
 const mainT = `func main() {
 	var (
@@ -360,11 +328,6 @@ const mainT = `func main() {
 	}
 	debugStage(*debug, "eval.RunDSL", startRunDSL, "status=ok")
 
-{{- range .CleanupDirs }}
-	if err := os.RemoveAll({{ printf "%q" . }}); err != nil {
-		fail(err.Error())
-	}
-{{- end }}
 {{- if gt .DesignVersion 2 }}
 	codegen.DesignVersion = ver
 {{- end }}

@@ -224,7 +224,16 @@ func jsonrpcMinimalRequestEncoderSection(ed *httpcodegen.EndpointData) codegen.S
 						Params(jen.Id("req").Op("*").Qual("net/http", "Request"), jen.Id("v").Any()).
 						Error().
 						Block(
-							jen.Id("id").Op(":=").Qual("github.com/google/uuid", "New").Call().Dot("String").Call(),
+							jen.List(jen.Id("id"), jen.Err()).Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "NewRequestID").Call(),
+							jen.If(jen.Err().Op("!=").Nil()).Block(
+								jen.Return(
+									jen.Id("loomhttp").Dot("ErrEncodingError").Call(
+										jen.Lit(ed.ServiceName),
+										jen.Lit(ed.Method.Name),
+										jen.Err(),
+									),
+								),
+							),
 							jen.Id("body").Op(":=").Op("&").Qual("github.com/CaliLuke/loom/jsonrpc", "Request").Values(jen.Dict{
 								jen.Id("JSONRPC"): jen.Lit("2.0"),
 								jen.Id("Method"):  jen.Lit(ed.Method.Name),

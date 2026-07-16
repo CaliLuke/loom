@@ -34,7 +34,7 @@ func TestExampleCLIFiles(t *testing.T) {
 			}
 			code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
 			golden := filepath.Join("testdata", "client-"+c.Name+".golden")
-			compareOrUpdateGolden(t, code, golden)
+			assertGolden(t, code, golden)
 		})
 	}
 }

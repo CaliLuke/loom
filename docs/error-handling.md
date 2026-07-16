@@ -354,6 +354,44 @@ if err != nil {
 
 ---
 
+## Structured Remediation
+
+Use `Remedy` when a client or operator needs a stable next action in addition
+to the error classification:
+
+```go
+Error("expired_session", ErrorResult, func() {
+    Description("The session can no longer authorize requests.")
+    Remedy(func() {
+        RemedyCode("session.reauthenticate")
+        SafeMessage("Your session expired. Sign in again.")
+        RetryHint("Obtain a new session before retrying the request.")
+    })
+})
+```
+
+A remedy must declare at least one field:
+
+- `RemedyCode` is a stable machine-facing action or classification. Do not use
+  human prose as the code.
+- `SafeMessage` is suitable for an end user and replaces internal error detail
+  on default transport error paths.
+- `RetryHint` tells the caller how or when a retry can succeed; it should not
+  merely repeat that the operation failed.
+
+Generated default-error constructors attach the remedy to the returned
+`*loom.ServiceError`. Generated custom error types expose the same metadata
+through `LoomErrorRemedy`. Runtime code can consume either shape with
+`loom.ExtractErrorRemedy`, `loom.ErrorRemedyCode`, `loom.ErrorSafeMessage`, and
+`loom.ErrorRetryHint` instead of type-switching on generated errors.
+
+The default HTTP problem document uses `SafeMessage` as `detail` and publishes
+`RetryHint` as `retry_hint`. JSON-RPC error `data` carries the full nested
+remedy object. Keep internal causes in wrapped errors and logs; do not place
+credentials, queries, or stack traces in any remediation field.
+
+---
+
 ## Default HTTP Problem Documents
 
 When an HTTP endpoint returns a default Loom service error, Loom serializes it
@@ -381,6 +419,19 @@ Error("wrong_token_type", ErrorResult, func() {
     ProblemTitle("Wrong Token Type")
 })
 ```
+
+### Identifier Entropy Failures
+
+Loom never substitutes partial bytes or a zero identifier when the operating
+system's cryptographic entropy source fails. APIs that already return only a
+string — including framework-generated service-error, request-log, and trace
+identifiers — fail loudly because they cannot report the failure in their
+signature. Treat such a panic as a process-level environment failure, not a
+recoverable request condition.
+
+Generated JSON-RPC clients have an error-returning encoding path. If generation
+of an automatic request ID fails, the client returns a wrapped encoding error
+and does not send a request with a missing, partial, or zero ID.
 
 ## Custom Error Serialization
 

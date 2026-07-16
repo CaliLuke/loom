@@ -10,10 +10,8 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ExplicitContentTypeResultDSL = func() {
 	var ResultType = ResultType("ResultType", func() {
-		ContentType("application/custom+json")
 		Attribute("a", String)
 		Attribute("b", String)
 	})
@@ -22,9 +20,10 @@ var ExplicitContentTypeResultDSL = func() {
 			Result(ResultType)
 			HTTP(func() {
 				POST("/")
+				Response(StatusOK, func() {
+					ContentType("application/custom+json")
+				})
 			})
 		})
 	})
 }
-
-

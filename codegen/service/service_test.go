@@ -13,6 +13,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service/testdata"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestService(t *testing.T) {
@@ -83,6 +84,21 @@ func TestService(t *testing.T) {
 			testutil.AssertGo(t, "testdata/golden/service_"+c.Name+".go.golden", code)
 		})
 	}
+}
+
+func TestRenderErrorMethodsUsesLoomErrorNameOnly(t *testing.T) {
+	code := renderErrorMethods(&UserTypeData{
+		Ref:         "*ExampleError",
+		Name:        "example_error",
+		Description: "example error",
+		Type: &expr.UserTypeExpr{
+			AttributeExpr: &expr.AttributeExpr{Type: expr.String},
+			TypeName:      "ExampleError",
+		},
+	})
+
+	require.Contains(t, code, ") LoomErrorName() string")
+	require.NotContains(t, code, ") ErrorName() string")
 }
 
 func TestStructPkgPath(t *testing.T) {

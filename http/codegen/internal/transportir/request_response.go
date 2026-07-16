@@ -150,13 +150,7 @@ func responseContentTypes(resp *expr.HTTPResponseExpr) []string {
 	if contentTypes := responseContentTypeHeaderEnums(resp); len(contentTypes) > 0 {
 		return contentTypes
 	}
-	body := responseDocumentBody(resp)
 	contentType := resp.ContentType
-	if body != nil {
-		if rt, ok := body.Type.(*expr.ResultTypeExpr); ok && contentType == "" {
-			contentType = rt.ContentType
-		}
-	}
 	if contentType == "" && isSSEResponse(resp) {
 		contentType = "text/event-stream"
 	}

@@ -235,49 +235,6 @@ func buildCreateSectionData(c *expr.TypeMap, svc *Data, convertPkgName string, n
 	}, tf, nil
 }
 
-func buildDefaultConvertSectionData(c *expr.TypeMap, svc *Data, names map[string]struct{}) (convertData, []*codegen.TransformFunctionData, error) {
-	dt, t, err := designTypeFromExternal(c)
-	if err != nil {
-		return convertData{}, nil, err
-	}
-	srcCtx := typeContext(svc.Scope)
-	tgtCtx := externalAttributeContext(t)
-	srcAtt := &expr.AttributeExpr{Type: c.User}
-	tgtAtt := &expr.AttributeExpr{Type: dt}
-	tgtAtt.AddMeta("struct:type:name", dt.Name())
-	code, tf, err := codegen.GoTransform(srcAtt, tgtAtt, "t", "v", srcCtx, tgtCtx, "transform", true)
-	if err != nil {
-		return convertData{}, nil, err
-	}
-	return convertData{
-		Name:            uniquify("ConvertTo"+t.Name(), names),
-		ReceiverTypeRef: svc.Scope.GoTypeRef(srcAtt),
-		TypeName:        t.Name(),
-		TypeRef:         externalTypeRef(t, c.User),
-		Code:            code,
-	}, tf, nil
-}
-
-func buildDefaultCreateSectionData(c *expr.TypeMap, svc *Data, names map[string]struct{}) (convertData, []*codegen.TransformFunctionData, error) {
-	dt, t, err := designTypeFromExternal(c)
-	if err != nil {
-		return convertData{}, nil, err
-	}
-	srcCtx := externalAttributeContext(t)
-	tgtCtx := typeContext(svc.Scope)
-	tgtAtt := &expr.AttributeExpr{Type: c.User}
-	code, tf, err := codegen.GoTransform(&expr.AttributeExpr{Type: dt}, tgtAtt, "v", "temp", srcCtx, tgtCtx, "transform", true)
-	if err != nil {
-		return convertData{}, nil, err
-	}
-	return convertData{
-		Name:            uniquify("CreateFrom"+t.Name(), names),
-		ReceiverTypeRef: codegen.NewNameScope().GoTypeRef(tgtAtt),
-		TypeRef:         externalTypeRef(t, c.User),
-		Code:            code,
-	}, tf, nil
-}
-
 func designTypeFromExternal(c *expr.TypeMap) (expr.DataType, reflect.Type, error) {
 	var dt expr.DataType
 	t := reflect.TypeOf(c.External)

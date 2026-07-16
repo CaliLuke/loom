@@ -99,6 +99,7 @@ func (s *helloService) SayHello(ctx context.Context, name string) (string, error
 | [Error Handling](error-handling.md) | Defining and handling errors |
 | [Interceptors](interceptors.md) | Interceptors and middleware patterns |
 | [Production](production.md) | Observability, security, and deployment |
+| [Pulse Lifecycle](pulse.md) | Redis-backed maps, streams, pools, and shutdown contracts |
 
 ## Quick Example
 

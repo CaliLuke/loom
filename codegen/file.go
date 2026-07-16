@@ -38,14 +38,10 @@ type (
 
 	// A File contains the logic to generate a complete file.
 	File struct {
-		// Sections is the list of file sections in order of rendering. New
-		// generator code should prefer this field over SectionTemplates.
+		// Sections is the list of file sections in order of rendering.
 		Sections []Section
-		// SectionTemplates is the list of file section templates in
-		// order of rendering.
-		//
-		// Deprecated: kept for compatibility while generators migrate to the
-		// generic Section abstraction.
+		// SectionTemplates is the template-backed section list used by external
+		// generator extensions. Framework-owned generators use Sections.
 		SectionTemplates []*SectionTemplate
 		// Path returns the file path relative to the output directory.
 		Path string
@@ -88,12 +84,9 @@ func (f *File) AllSections() []Section {
 	if len(f.Sections) > 0 {
 		return f.Sections
 	}
-	if len(f.SectionTemplates) == 0 {
-		return nil
-	}
 	sections := make([]Section, len(f.SectionTemplates))
-	for i, s := range f.SectionTemplates {
-		sections[i] = s
+	for i, section := range f.SectionTemplates {
+		sections[i] = section
 	}
 	return sections
 }

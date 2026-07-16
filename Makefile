@@ -6,21 +6,13 @@
 # - "depend" retrieves the Go packages needed to run the linter and tests
 # - "lint" runs the linter
 # - "test" runs the tests
-# - "release" creates a new release commit, tags the commit, and pushes the tag to GitHub.
-#   It requires VERSION=vX.Y.Z and GitHub Actions publishes the matching GitHub Release.
+# - "release" verifies a staged release, atomically publishes its commit and tag, and
+#   waits for the matching substantive GitHub Release. It requires VERSION=vX.Y.Z.
 #
 # Meta targets:
 # - "all" is the default target, it runs "lint" and "test"
 #
-CURRENT_MAJOR=$(shell awk '/Major = / {print $$3; exit}' pkg/version.go)
-CURRENT_MINOR=$(shell awk '/Minor = / {print $$3; exit}' pkg/version.go)
-CURRENT_BUILD=$(shell awk '/Build = / {print $$3; exit}' pkg/version.go)
-CURRENT_VERSION=v$(CURRENT_MAJOR).$(CURRENT_MINOR).$(CURRENT_BUILD)
 VERSION?=
-VERSION_PARTS=$(subst ., ,$(patsubst v%,%,$(VERSION)))
-RELEASE_MAJOR=$(word 1,$(VERSION_PARTS))
-RELEASE_MINOR=$(word 2,$(VERSION_PARTS))
-RELEASE_BUILD=$(word 3,$(VERSION_PARTS))
 
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
@@ -29,17 +21,19 @@ GOPATH=$(shell go env GOPATH)
 GOBIN_DIR=$(GOPATH)/bin
 GOLANGCI_LINT_VERSION?=v2.12.2
 GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
+PROTOC_GEN_GO_VERSION?=v1.36.11
+PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci clean depend install-hooks lint lint-filesize lint-namescope test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight release-loom
-.NOTPARALLEL: release release-loom
+.PHONY: all all-tests ci clean depend install-hooks lint lint-docs lint-filesize lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.NOTPARALLEL: release
 
 # Only list test and build dependencies
 # Standard dependencies are installed via go get
 DEPEND=\
-	google.golang.org/protobuf/cmd/protoc-gen-go@latest \
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest 
+	google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION) \
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GEN_GO_GRPC_VERSION)
 
 all: lint test integration-test
 
@@ -98,7 +92,10 @@ install-hooks:
 lint:
 ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_filesize.sh || (echo "^ - file size lint errors!" && echo && exit 1)
+	@bash ./scripts/lint_legacy_middleware.sh || (echo "^ - legacy middleware lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
+	@bash ./scripts/lint_toolchain.sh || (echo "^ - toolchain lint errors!" && echo && exit 1)
+	@go run ./scripts/docscheck || (echo "^ - documentation lint errors!" && echo && exit 1)
 	@$(GOLANGCI_LINT) run ./... || (echo "^ - lint errors!" && echo && exit 1)
 else
 	@echo "SKIPPED: lint does not run on Windows"
@@ -107,8 +104,17 @@ endif
 lint-filesize:
 	@bash ./scripts/lint_filesize.sh
 
+lint-legacy-middleware:
+	@bash ./scripts/lint_legacy_middleware.sh
+
 lint-namescope:
 	@bash ./scripts/lint_name_scope.sh
+
+lint-toolchain:
+	@bash ./scripts/lint_toolchain.sh
+
+lint-docs:
+	@go run ./scripts/docscheck
 
 test:
 ifneq ($(GOOS),windows)
@@ -209,50 +215,5 @@ $(GOBIN_DIR)/loom: $(CODEGEN_SOURCES)
 
 release-preflight: lint test-release integration-test openapi-contract generated-code-quality
 
-release: release-loom
-	@echo "Release $(VERSION) pushed"
-	@echo "GitHub Actions will publish the matching GitHub Release for tag $(VERSION)"
-
-release-loom:
-	# First make sure all is clean
-	@status="$$(git status --porcelain)"; \
-	if [ -n "$$status" ]; then \
-		echo "error: loom repo has uncommitted changes:"; \
-		echo "$$status"; \
-		exit 1; \
-	fi
-	@if [ -z "$(VERSION)" ]; then \
-		echo "error: missing VERSION (example: make release VERSION=v1.0.10)"; \
-		exit 1; \
-	fi
-	@if ! printf '%s\n' "$(VERSION)" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
-		echo "error: VERSION must match vX.Y.Z"; \
-		exit 1; \
-	fi
-	@if [ "$(VERSION)" = "$(CURRENT_VERSION)" ]; then \
-		echo "error: VERSION $(VERSION) matches current version $(CURRENT_VERSION)"; \
-		exit 1; \
-	fi
-	go mod tidy 
-	# Bump version number, commit and push
-	sed 's/Major = .*/Major = $(RELEASE_MAJOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
-	sed 's/Minor = .*/Minor = $(RELEASE_MINOR)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
-	sed 's/Build = .*/Build = $(RELEASE_BUILD)/' pkg/version.go > _tmp && mv _tmp pkg/version.go
-	sed 's|go install github.com/CaliLuke/loom/cmd/loom@v[0-9][0-9.]*|go install github.com/CaliLuke/loom/cmd/loom@$(VERSION)|' README.md > _tmp && mv _tmp README.md
-	# Bump version-stamped integration fixtures. Generated loom.json embeds
-	# loom_version, so the checked-in fixtures must move with pkg/version.go or
-	# the fixture-comparison integration tests fail in release-preflight (which
-	# regenerates and diffs against these files using the just-bumped version).
-	@for f in $$(find . -path '*/integration_tests/fixtures/*/gen/loom.json'); do \
-		sed 's|"loom_version": "v[0-9][0-9.]*"|"loom_version": "$(VERSION)"|' "$$f" > _tmp && mv _tmp "$$f"; \
-		echo "bumped $$f -> $(VERSION)"; \
-	done
-	$(MAKE) release-preflight
-	git add .
-	git commit -m "Release $(VERSION)"
-	git tag $(VERSION)
-	cd cmd/loom && go install .
-	git push origin main
-	git push origin $(VERSION)
-	# Wait for Go proxy to update
-	sleep 10
+release:
+	@go run ./internal/cmd/release --version "$(VERSION)"

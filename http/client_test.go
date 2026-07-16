@@ -245,7 +245,7 @@ func (d *debugCaptureDoer) Do(req *stdhttp.Request) (*stdhttp.Response, error) {
 	body, err := io.ReadAll(req.Body)
 	require.NoError(d.t, err)
 	d.requestBody = string(body)
-	responseBody := io.ReadCloser(io.NopCloser(strings.NewReader(d.responseBody)))
+	var responseBody io.ReadCloser = io.NopCloser(strings.NewReader(d.responseBody))
 	if d.responseReads != nil {
 		responseBody = d.responseReads
 	}

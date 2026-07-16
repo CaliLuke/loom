@@ -347,10 +347,6 @@ mux.Use(log.HTTP(ctx))                              // Request logging
 mux.Use(loomhttpmiddleware.PopulateRequestContext()) // Loom context
 ```
 
-`loom/http/middleware.RequestID` still exists for compatibility, but it is
-deprecated. Prefer the OpenTelemetry middleware and application-owned request ID
-handling for new services.
-
 ### Creating Custom Middleware
 
 ```go

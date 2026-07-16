@@ -20,7 +20,10 @@ import (
 // testdata/golden.
 func renderGolden(t *testing.T, code, name string) {
 	t.Helper()
-	testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", name))
+	testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+		StringContent(code).
+		Path(name).
+		CompareContent()
 }
 
 func TestConvertedServerRenderSections(t *testing.T) {

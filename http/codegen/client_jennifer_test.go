@@ -39,15 +39,24 @@ func TestLargeClientOperationGroups(t *testing.T) {
 	data := services.Get("LargeTypes")
 
 	structCode := codegen.SectionCode(t, clientStructSection(data))
-	testutil.CompareOrUpdateGolden(t, structCode, filepath.Join("testdata", "golden", "client_struct_large-types.golden"))
+	testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+		StringContent(structCode).
+		Path("client_struct_large-types.golden").
+		CompareContent()
 
 	initCode := codegen.SectionCode(t, clientInitSection(data))
-	testutil.CompareOrUpdateGolden(t, initCode, filepath.Join("testdata", "golden", "client_init_large-types.golden"))
+	testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+		StringContent(initCode).
+		Path("client_init_large-types.golden").
+		CompareContent()
 
 	groupCode := codegen.SectionCode(t, clientOperationGroupSection(data))
 	require.Contains(t, groupCode, "type ItemsClient struct")
 	require.Contains(t, groupCode, "func (g *ItemsClient) Method0() loom.Endpoint")
-	testutil.CompareOrUpdateGolden(t, groupCode, filepath.Join("testdata", "golden", "client_operation_group_large-types.golden"))
+	testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+		StringContent(groupCode).
+		Path("client_operation_group_large-types.golden").
+		CompareContent()
 }
 
 func TestClientEndpointSectionsMixedResults(t *testing.T) {

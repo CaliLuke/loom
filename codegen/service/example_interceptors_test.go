@@ -117,7 +117,7 @@ func TestExampleInterceptorsFiles(t *testing.T) {
 				ext := filepath.Ext(baseName)
 				goldenName := baseName[:len(baseName)-len(ext)] + ".golden"
 				golden := filepath.Join("testdata", "example_interceptors", goldenName)
-				compareOrUpdateGolden(t, code, golden)
+				assertGolden(t, code, golden)
 			}
 		})
 	}

@@ -254,6 +254,16 @@ service "Service" HTTP endpoint "MethodC": HTTP endpoint request body must be em
 			DSL:   testdata.EndpointMapPayloadBodyConflict,
 			Error: `service "Service" HTTP endpoint "Method": Payload type is map but HTTP endpoint body is not.`,
 		},
+		"endpoint-array-payload-skip-request-body-without-transport": {
+			DSL: testdata.EndpointArrayPayloadSkipRequestBodyWithoutTransport,
+			Error: `service "Service" HTTP endpoint "Method": Payload type is array but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers or params.
+service "Service" HTTP endpoint "Method": HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.`,
+		},
+		"endpoint-map-payload-skip-request-body-without-transport": {
+			DSL: testdata.EndpointMapPayloadSkipRequestBodyWithoutTransport,
+			Error: `service "Service" HTTP endpoint "Method": Payload type is map but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers.
+service "Service" HTTP endpoint "Method": HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.`,
+		},
 		"endpoint-object-payload-body-conflict": {
 			DSL:   testdata.EndpointObjectPayloadBodyConflict,
 			Error: `service "Service" HTTP endpoint "Method": Body "value" is not found in Payload.`,

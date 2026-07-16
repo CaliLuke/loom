@@ -52,6 +52,16 @@ func TestJSONRPCClientEncodeDecodeFile(t *testing.T) {
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-client-encode-decode.golden"), code)
 }
 
+func TestJSONRPCClientGeneratorPropagatesRequestIDEntropyFailure(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcViewedResultDSL)
+	services := CreateJSONRPCServices(root)
+	file := requireEncodeDecodeFile(t, ClientFiles("", services), "client")
+
+	code := sectionSourceByName(t, file, "jsonrpc-minimal-request-encoder")
+	assert.Contains(t, code, `id, err := jsonrpc.NewRequestID()`)
+	assert.Contains(t, code, `return loomhttp.ErrEncodingError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)`)
+}
+
 func TestJSONRPCServerEncodeDecodeFile(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcEncodeDecodeDSL)
 	files := ServerFiles("", CreateJSONRPCServices(root))
@@ -88,6 +98,8 @@ func TestJSONRPCClientDecoderPropagatesViewedResultConstructorError(t *testing.T
 	file := requireEncodeDecodeFile(t, files, "client")
 	code := renderCodegenFile(t, file)
 
+	assert.Contains(t, code, `id, err := jsonrpc.NewRequestID()`)
+	assert.Contains(t, code, `return loomhttp.ErrEncodingError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)`)
 	assert.Contains(t, code, `return nil, loomhttp.ErrValidationError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)`)
 	assert.NotContains(t, code, `res := servicebodymultipleview.NewResulttypemultipleviews(vres)`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-client-encode-decode-viewed.golden"), code)

@@ -30,13 +30,6 @@ func (e *LoomError) Error() string {
 	return ""
 }
 
-// ErrorName returns the error name.
-//
-// Deprecated: Use LoomErrorName.
-func (e *LoomError) ErrorName() string {
-	return e.LoomErrorName()
-}
-
 // LoomErrorName returns the error name.
 func (e *LoomError) LoomErrorName() string {
 	return e.ErrorCode

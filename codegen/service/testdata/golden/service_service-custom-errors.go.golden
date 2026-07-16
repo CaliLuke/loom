@@ -42,13 +42,6 @@ func (e *APayload) Error() string {
 	return ""
 }
 
-// ErrorName returns the error name.
-//
-// Deprecated: Use LoomErrorName.
-func (e *APayload) ErrorName() string {
-	return e.LoomErrorName()
-}
-
 // LoomErrorName returns the error name.
 func (e *APayload) LoomErrorName() string {
 	return "user_type"
@@ -59,13 +52,6 @@ func (e *Result) Error() string {
 	return ""
 }
 
-// ErrorName returns the error name.
-//
-// Deprecated: Use LoomErrorName.
-func (e *Result) ErrorName() string {
-	return e.LoomErrorName()
-}
-
 // LoomErrorName returns the error name.
 func (e *Result) LoomErrorName() string {
 	return e.B
@@ -74,13 +60,6 @@ func (e *Result) LoomErrorName() string {
 // Error returns an error description.
 func (e Primitive) Error() string {
 	return "primitive error description"
-}
-
-// ErrorName returns the error name.
-//
-// Deprecated: Use LoomErrorName.
-func (e Primitive) ErrorName() string {
-	return e.LoomErrorName()
 }
 
 // LoomErrorName returns the error name.

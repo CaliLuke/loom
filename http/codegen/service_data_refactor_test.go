@@ -170,6 +170,44 @@ func TestHTTPPayloadRequestValidationTriggers(t *testing.T) {
 	}
 }
 
+func TestHTTPOptionalRequestBodyAssembly(t *testing.T) {
+	cases := []struct {
+		name            string
+		dsl             func()
+		wantBodyOrigin  string
+		wantPayloadAttr string
+	}{
+		{
+			name: "whole payload body",
+			dsl:  testdata.PayloadBodyObjectOptionalRequestDSL,
+		},
+		{
+			name:            "optional payload attribute body",
+			dsl:             testdata.PayloadBodyObjectOptionalOriginRequestDSL,
+			wantBodyOrigin:  "body",
+			wantPayloadAttr: "Body",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			services, endpointExpr, svcData := firstHTTPBuildContext(t, c.dsl)
+			endpointIR := transportir.BuildEndpoint(endpointExpr)
+			payload := services.buildPayloadDataFromIR(endpointIR, svcData)
+
+			require.True(t, endpointIR.Request.OptionalBody)
+			require.False(t, endpointIR.Request.MustHaveBody)
+			require.Equal(t, c.wantBodyOrigin, endpointIR.Request.BodyOrigin)
+			require.NotNil(t, payload.Request)
+			require.False(t, payload.Request.MustHaveBody)
+			require.False(t, payload.Request.MustValidate)
+			require.Equal(t, c.wantPayloadAttr, payload.Request.PayloadAttr)
+			require.NotNil(t, payload.Request.DecodePlan)
+			require.False(t, payload.Request.DecodePlan.MustValidate)
+		})
+	}
+}
+
 func TestHTTPResponsesMoveTaglessCaseLast(t *testing.T) {
 	endpoint := firstEndpointData(t, responseTaglessFirstDSL)
 	require.Len(t, endpoint.Result.Responses, 2)

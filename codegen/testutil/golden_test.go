@@ -15,7 +15,7 @@ func TestGoldenFile(t *testing.T) {
 	// Create a temporary directory for test golden files
 	tmpDir := t.TempDir()
 
-	t.Run("Compare", func(t *testing.T) {
+	t.Run("CompareContent", func(t *testing.T) {
 		// Create a test golden file
 		goldenPath := filepath.Join(tmpDir, "test.golden")
 		expectedContent := "package main\n\nfunc main() {\n\t// Test content\n}\n"
@@ -24,7 +24,7 @@ func TestGoldenFile(t *testing.T) {
 		gf := testutil.NewGoldenFile(t, tmpDir)
 
 		// Test successful comparison
-		gf.Compare(expectedContent, "test.golden")
+		gf.StringContent(expectedContent).Path("test.golden").CompareContent()
 
 		// Test failed comparison would normally fail the test
 		// We can't easily test this without a full mock of testing.TB
@@ -38,7 +38,7 @@ func TestGoldenFile(t *testing.T) {
 		goldenFile := "update_test.golden"
 
 		// Update should create the file
-		gf.Compare(newContent, goldenFile)
+		gf.StringContent(newContent).Path(goldenFile).CompareContent()
 
 		// Verify file was created with correct content
 		goldenPath := filepath.Join(tmpDir, goldenFile)
@@ -53,12 +53,12 @@ func TestGoldenFile(t *testing.T) {
 		newFile := "new_file.golden"
 		content := "new file content"
 		gf.SetUpdateMode(true)
-		gf.Compare(content, newFile)
+		gf.StringContent(content).Path(newFile).CompareContent()
 		// Verify file was created
 		assert.True(t, gf.Exists(newFile))
 		// Now compare without update
 		gf.SetUpdateMode(false)
-		gf.Compare(content, newFile)
+		gf.StringContent(content).Path(newFile).CompareContent()
 
 		// Test comparing with different content would fail the test
 		// We verify the file was created correctly above
@@ -76,7 +76,7 @@ func TestGoldenFile(t *testing.T) {
 
 		// Create files (using update override)
 		for golden, actual := range pairs {
-			gf.Compare(actual, golden)
+			gf.StringContent(actual).Path(golden).CompareContent()
 		}
 
 		// Verify all files were created
@@ -95,7 +95,7 @@ func TestGoldenFile(t *testing.T) {
 		absPath := filepath.Join(tmpDir, "subdir", "abs.golden")
 		content := "absolute path content"
 
-		gf.Compare(content, absPath)
+		gf.StringContent(content).Path(absPath).CompareContent()
 
 		// Verify file was created at absolute path
 		actual, err := os.ReadFile(absPath)
@@ -113,6 +113,6 @@ func TestGoldenFile(t *testing.T) {
 
 		// Compare with Unix line endings (should pass due to normalization)
 		unixContent := "line1\nline2\nline3\n"
-		gf.Compare(unixContent, "windows.golden")
+		gf.StringContent(unixContent).Path("windows.golden").CompareContent()
 	})
 }

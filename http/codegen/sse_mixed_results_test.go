@@ -33,7 +33,10 @@ func TestSSE_MixedResults(t *testing.T) {
 
 		require.Contains(t, code, "payload = res")
 		require.NotContains(t, code, "NewCreateResponseBody")
-		testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-mixed-results-server.golden"))
+		testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+			StringContent(code).
+			Path("sse-mixed-results-server.golden").
+			CompareContent()
 	})
 
 	t.Run("client", func(t *testing.T) {
@@ -52,6 +55,9 @@ func TestSSE_MixedResults(t *testing.T) {
 		code := codegen.SectionCode(t, sections[0])
 
 		require.Contains(t, code, "event = new(")
-		testutil.CompareOrUpdateGolden(t, code, filepath.Join("testdata", "golden", "sse-mixed-results-client.golden"))
+		testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).
+			StringContent(code).
+			Path("sse-mixed-results-client.golden").
+			CompareContent()
 	})
 }

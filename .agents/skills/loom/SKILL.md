@@ -16,9 +16,20 @@ build Auto-K without repeating large amounts of app-local glue.
 - Treat `design/*.go` as the source of truth.
 - Regenerate after every design change with `loom gen <module-import-path>/design`.
 - Never hand-edit generated `gen/` files.
+- `loom gen` is transactional: it stages and validates the complete generated
+  tree before replacing `gen/`, so ordinary generation/finalization failures
+  preserve the last successful output.
 - Implement business logic in non-generated files.
 - Use Go import paths for Loom commands, not filesystem paths.
 - Commit generated code; do not rely on CI to regenerate it.
+- External framework extensions may register compile-time generator plugins
+  through `codegen.RegisterPluginFirst`, `RegisterPlugin`, or
+  `RegisterPluginLast`. Registration must happen through imports reachable from
+  the design package; one generation run uses a stable registry snapshot and
+  deterministic phase ordering.
+- Template-backed external plugins may populate `codegen.File.SectionTemplates`;
+  it is a supported public extension surface. Loom-owned generators should use
+  the generic `codegen.File.Sections` API.
 
 ## Runtime Gotchas
 
@@ -189,6 +200,11 @@ build Auto-K without repeating large amounts of app-local glue.
   - `SafeMessage(message)`
   - `RetryHint(hint)`
 - JSON-RPC is a first-class transport in this repo. Do not assume HTTP or gRPC semantics automatically carry over.
+- Generated JSON-RPC request IDs use checked operating-system entropy and
+  surface entropy failures as request encoding errors. Framework error,
+  request/log, and X-Ray identifiers never emit partial or zero-filled values;
+  their string-only constructors panic if the operating system cannot supply
+  the required entropy.
 - JSON-RPC `params` may be omitted. Generated decoders treat absent params as
   `{}` so all-optional payloads work with conforming clients; required fields
   still fail through normal payload validation.
@@ -266,8 +282,12 @@ build Auto-K without repeating large amounts of app-local glue.
   `github.com/CaliLuke/loom/http/cli`. Keep command parsing framework-owned;
   generated CLI code should continue to build typed Loom endpoints and payloads
   instead of duplicating transport request construction.
-- For gRPC, prefer `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`
-  over the legacy trace/X-Ray middleware.
+- For gRPC, use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`
+  for framework-owned transport telemetry.
+- Framework-owned gRPC generation uses `protoc` 25.0,
+  `protoc-gen-go` v1.36.11, and `protoc-gen-go-grpc` v1.6.2. Run `make depend`
+  to install the exact supported versions; never substitute `@latest` in Loom
+  tooling.
 - Generated gRPC encoders propagate `Any` conversion failures. Values placed in
   DSL `Any` fields must be representable by `google.protobuf.Value`; channels,
   functions, and arbitrary structs return a descriptive encode error instead
@@ -287,7 +307,8 @@ build Auto-K without repeating large amounts of app-local glue.
     `unsupported_method`, `missing_credentials`, `invalid_credentials`,
     `permission_rejected`, `principal_mismatch`, `handler_error`,
     `panic`, `response_write_failed`, `stream_write_failed`,
-    `stream_flush_failed`, `mcp_session_missing`, `mcp_session_not_found`,
+    `stream_flush_failed`, `stream_write_timeout`, `stream_flush_timeout`,
+    `stream_final_response_suppressed`, `mcp_session_missing`, `mcp_session_not_found`,
     `mcp_session_principal_mismatch`, `mcp_events_stream_write_failed`.
   - Generated code never emits raw bodies, JSON-RPC params, MCP tool
     arguments, credentials, or result payloads — keep that invariant
@@ -349,7 +370,6 @@ loom example <module-import-path>/design
 ```
 
 - Correct: `loom gen example.com/myapi/design`
-- Incorrect: `loom gen ./design`
 
 ## DSL Authoring Notes
 
@@ -362,6 +382,11 @@ loom example <module-import-path>/design
 
 ## Diagnosing Codegen Failures
 
+- Framework temp-module checks share one source selector. Use `make loom-local`
+  for unpushed work, `make loom-remote` for exact pushed-commit parity, and
+  `make loom-status` to inspect the worktree-local setting. `LOOM_DIR` overrides
+  the setting for one run; remote resolution fails instead of falling back to
+  an uncommitted working tree.
 - Set `DEBUG_LOOM=1` when running `loom gen` to stream structured debug
   traces of codegen decision points (service/method being analyzed, endpoint
   shape, etc.) to stderr. Silent by default; intended for tracing "why did
@@ -376,8 +401,7 @@ loom example <module-import-path>/design
 
 - Framework/source map: `references/repo-map.md`
 - Canonical user guides: `../../../docs/`
-- JSON-RPC guide and architecture: `../../../jsonrpc/README.md` and
-  `../../../jsonrpc/ARCHITECTURE.md`
+- JSON-RPC guide: `../../../jsonrpc/README.md`
 - For framework/runtime internals, inspect the Loom source tree described in `references/repo-map.md`.
 
 ## Canonical Guide Pages

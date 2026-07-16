@@ -12,7 +12,7 @@ Below are some guidelines to follow when contributing to this project:
   and follow the checklist presented in the issue description section. A simple
   Loom design that reproduces your issue helps immensely.
 * If you know how to fix your bug, we highly encourage PR contributions. See
-  [How Can I Get Started section](#how-can-i-get-started?) on how to submit a PR.
+  [How Can I Get Started section](#how-can-i-get-started) on how to submit a PR.
 * For feature requests and submitting major changes, [open an issue](https://github.com/CaliLuke/loom/issues/new)
   or use [GitHub Discussions](https://github.com/CaliLuke/loom/discussions) to discuss
   the feature first.
@@ -33,11 +33,7 @@ worked on and contributing to them are most welcome.
 4) Link the issue that the PR intends to solve in the PR description. If an issue
 does not exist, adding a description in the PR that describes the issue and the
 fix is recommended.
-5) Making changes to Loom can sometimes break downstream plugins or examples.
-Run `make test-plugins` and `make test-examples` to see the failures. To fix
-such failures, create matching branches in the affected downstream repositories
-and fix the failures there as well. Re-run the above make commands to verify
-your fix. Linking downstream PRs to the main Loom PR makes it easier to
-understand the changes.
+5) Run `./check.sh --full` before opening a PR so framework, generated-fixture,
+and integration coverage all exercise the change.
 6) Ensure the CI build passes when you issue a PR to Loom.
 7) Join the conversation on [GitHub Discussions](https://github.com/CaliLuke/loom/discussions).

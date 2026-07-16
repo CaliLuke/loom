@@ -81,9 +81,6 @@ func renderErrorMethods(data *UserTypeData) string {
 	var b sourceBuilder
 	b.Add("// Error returns an error description.\n")
 	fmt.Fprintf(&b, "func (e %s) Error() string {\n\treturn %q\n}\n\n", data.Ref, data.Description)
-	b.Add("// ErrorName returns the error name.\n//\n")
-	b.Add("// Deprecated: Use LoomErrorName.\n")
-	fmt.Fprintf(&b, "func (e %s) ErrorName() string {\n\treturn e.LoomErrorName()\n}\n\n", data.Ref)
 	b.Add("// LoomErrorName returns the error name.\n")
 	fmt.Fprintf(&b, "func (e %s) LoomErrorName() string {\n\treturn %s\n}\n", data.Ref, errorName(data))
 	if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {

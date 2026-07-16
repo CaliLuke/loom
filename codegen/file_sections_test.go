@@ -44,9 +44,7 @@ func TestProductionFilesUseGenericSections(t *testing.T) {
 			return err
 		}
 		source := string(b)
-		if strings.Contains(source, "SectionTemplates:") ||
-			strings.Contains(source, ".SectionTemplates") ||
-			strings.Contains(source, "NewTemplateSection(") ||
+		if strings.Contains(source, "NewTemplateSection(") ||
 			strings.Contains(source, "&codegen.SectionTemplate{") ||
 			strings.Contains(source, "&SectionTemplate{") {
 			offenders = append(offenders, rel)
@@ -57,6 +55,20 @@ func TestProductionFilesUseGenericSections(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(offenders) > 0 {
-		t.Fatalf("production generators must use File.Sections, not File.SectionTemplates:\n%s", strings.Join(offenders, "\n"))
+		t.Fatalf("production generators must use generic File.Sections:\n%s", strings.Join(offenders, "\n"))
+	}
+}
+
+func TestAllSectionsAcceptsExternalTemplateSections(t *testing.T) {
+	header := Header("External types", "external", nil)
+	typeSection := &SectionTemplate{Name: "external-type", Source: "type External struct{}\n"}
+	file := &File{SectionTemplates: []*SectionTemplate{header, typeSection}}
+
+	sections := file.AllSections()
+	if len(sections) != 2 {
+		t.Fatalf("expected 2 sections, got %d", len(sections))
+	}
+	if got := sections[1].SectionName(); got != "external-type" {
+		t.Errorf("expected external-type section, got %q", got)
 	}
 }

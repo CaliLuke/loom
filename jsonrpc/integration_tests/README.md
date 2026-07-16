@@ -26,15 +26,21 @@ FILTER="^echo_.*" go test -count=1 -v ./...
 
 The `FILTER` environment variable is useful for running a specific group of tests (like all `echo` tests) without typing each full name. It matches the regular expression against the `name` field in your `scenarios.yaml` file.
 
-By default, the framework now materializes `github.com/CaliLuke/loom` from the current
-Git commit and remote URL into a temp checkout before running `loom gen` /
-`loom example`, so generated test services are reproducible in CI rather than
-silently depending on the local working tree. Set `LOOM_REPO=/path/to/repo` only
-when you intentionally want to override that behavior for local debugging.
+By default, the shared temp-module source resolver materializes
+`github.com/CaliLuke/loom` from the current Git commit and canonical remote into
+a temporary checkout before running `loom gen` / `loom example`. This keeps CI
+and fresh checkouts reproducible instead of silently using the working tree.
+
+From the repository root, use `make loom-local` while iterating on unpushed
+changes, `make loom-remote` for pinned-commit parity, and `make loom-status` to
+inspect the worktree's persisted mode. `LOOM_DIR=/path/to/loom` overrides that
+mode for one invocation. The persisted selection lives in worktree-local,
+untracked Git metadata and is shared by the HTTP and JSON-RPC temp-module
+harnesses.
 
 ## Persistent Fixtures
 
-The directory [`fixtures/ticktock`](/Users/luca/code/loom/jsonrpc/integration_tests/fixtures/ticktock) is a checked-in generated JSON-RPC SSE specimen. It exposes two simple streaming methods, `Tick` and `Tock`, which emit timed notification frames followed by a final response. It exists for two reasons:
+The directory [`fixtures/ticktock`](fixtures/ticktock) is a checked-in generated JSON-RPC SSE specimen. It exposes two simple streaming methods, `Tick` and `Tock`, which emit timed notification frames followed by a final response. It exists for two reasons:
 
 - as a human-readable debugging tool when working on JSON-RPC SSE transport behavior
 - as the target for the external-client interoperability test that uses `github.com/tmaxmax/go-sse`
@@ -44,15 +50,19 @@ It now also acts as an adversarial regression surface for:
 - protocol-level decode errors that must still arrive on the normal SSE `message` channel
 - temp-copy regeneration and compile-after-generation against the current repo root
 
-What it does **not** prove: the raw streamable-HTTP `GET` listener contract for `events/stream`. The ticktock fixture only exercises POST-initiated JSON-RPC SSE. The raw `events/stream` eager-open branch is currently owned by direct codegen tests in [`jsonrpc/codegen/sse_test.go`](/Users/luca/code/loom/jsonrpc/codegen/sse_test.go), not by this checked-in fixture.
+What it does **not** prove: the raw streamable-HTTP `GET` listener contract for
+`events/stream`. The ticktock fixture only exercises POST-initiated JSON-RPC
+SSE. [`tests/sse_get_listener_test.go`](tests/sse_get_listener_test.go)
+regenerates a temporary `events/stream` variant and drives its eager-open GET
+listener end to end.
 
 When you intentionally change JSON-RPC SSE generation and need to regenerate the fixture, run from that directory:
 
 ```bash
 mv clock.go clock.go.src
 go mod tidy
-go run ../../cmd/loom gen example.com/ticktock/design
-go run ../../cmd/loom example example.com/ticktock/design
+go run -mod=mod github.com/CaliLuke/loom/cmd/loom gen example.com/ticktock/design -o .
+go run -mod=mod github.com/CaliLuke/loom/cmd/loom example example.com/ticktock/design -o .
 mv clock.go.src clock.go
 go mod tidy
 ```

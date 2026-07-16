@@ -2,7 +2,6 @@ package middleware_test
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +10,6 @@ import (
 
 	loomhttp "github.com/CaliLuke/loom/http"
 	httpm "github.com/CaliLuke/loom/http/middleware"
-	"github.com/CaliLuke/loom/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,8 +31,6 @@ func TestDebug(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/foo?a=1", strings.NewReader("hi"))
 	req.Header.Set("X-Test", "value")
-	ctx := context.WithValue(req.Context(), middleware.RequestIDKey, "req-1") // nolint: staticcheck
-	req = req.WithContext(ctx)
 
 	rec := httptest.NewRecorder()
 	httpm.Debug(loomhttp.NewMuxer(), &buf)(handler).ServeHTTP(rec, req)
@@ -45,12 +41,13 @@ func TestDebug(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "hello", rec.Body.String())
 
-	want := "> [req-1] POST /foo?a=1\n" +
-		"> [req-1] X-Test: value\n" +
-		"[req-1] hi\n" +
-		"\n< [req-1] OK\n" +
-		"< [req-1] Content-Type: application/json\n" +
-		"[req-1] hello\n\n"
+	id := debugRequestID(t, buf.String())
+	want := "> [" + id + "] POST /foo?a=1\n" +
+		"> [" + id + "] X-Test: value\n" +
+		"[" + id + "] hi\n" +
+		"\n< [" + id + "] OK\n" +
+		"< [" + id + "] Content-Type: application/json\n" +
+		"[" + id + "] hello\n\n"
 	assert.Equal(t, want, buf.String())
 }
 
@@ -61,15 +58,14 @@ func TestDebugEmptyBodies(t *testing.T) {
 	})
 
 	req := httptest.NewRequest("GET", "/health", nil)
-	ctx := context.WithValue(req.Context(), middleware.RequestIDKey, "req-2") // nolint: staticcheck
-	req = req.WithContext(ctx)
 
 	rec := httptest.NewRecorder()
 	httpm.Debug(loomhttp.NewMuxer(), &buf)(handler).ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusNoContent, rec.Code)
-	want := "> [req-2] GET /health\n" +
-		"< [req-2] No Content\n"
+	id := debugRequestID(t, buf.String())
+	want := "> [" + id + "] GET /health\n" +
+		"< [" + id + "] No Content\n"
 	assert.Equal(t, want, buf.String())
 }
 
@@ -82,8 +78,14 @@ func TestDebugGeneratesRequestID(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 	httpm.Debug(loomhttp.NewMuxer(), &buf)(handler).ServeHTTP(httptest.NewRecorder(), req)
 
-	out := buf.String()
-	require.True(t, strings.HasPrefix(out, "> ["), "unexpected debug output: %q", out)
-	id := out[3:strings.Index(out, "]")]
+	id := debugRequestID(t, buf.String())
 	assert.Len(t, id, 8, "generated request ID has unexpected length")
+}
+
+func debugRequestID(t *testing.T, output string) string {
+	t.Helper()
+	require.True(t, strings.HasPrefix(output, "> ["), "unexpected debug output: %q", output)
+	end := strings.Index(output, "]")
+	require.Positive(t, end, "unexpected debug output: %q", output)
+	return output[3:end]
 }

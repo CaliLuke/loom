@@ -78,7 +78,7 @@ No commented-out code—delete dead code.
 
 ### Releases
 
-- For Loom release work, use the repo-local [`release` skill](/Users/luca/code/loom-mono/loom/.agents/skills/release/SKILL.md).
+- For Loom release work, use the repo-local [`release` skill](.agents/skills/release/SKILL.md).
 - Cut releases with `make release VERSION=vX.Y.Z`. Do not rely on implicit or hardcoded version defaults.
 - Treat the GitHub Release object as part of the release contract, not an optional follow-up after tag push.
 - If a `v*` tag does not result in a matching GitHub Release entry, stop and fix the automation before cutting another release.
@@ -95,11 +95,11 @@ No commented-out code—delete dead code.
 - For OpenAPI contract work, validate rendered specs with `libopenapi` and lint the specimen outputs with Redocly.
 - Keep the OpenAPI specimen matrix meaningful. Reuse or extend the non-trivial fixtures under `http/codegen/testdata` instead of inventing throwaway one-off examples when a real contract shape is under test.
 - For external temp-module or fake-app generation loops, pin `github.com/CaliLuke/loom` to a pushed GitHub commit, not the local working tree, so CI can reproduce the result.
-- For this repo, the standard JSON-RPC integration toggle is `make loom-local` for local iteration and `make loom-remote` for pinned-remote parity. `make loom-status` shows the current mode.
-- `make loom-local` writes a repo-local source-mode file for the JSON-RPC temp-module generator; `LOOM_DIR=/absolute/path` still overrides that mode for one-off runs.
+- For this repo, the shared HTTP/JSON-RPC temp-module source toggle is `make loom-local` for local iteration and `make loom-remote` for pinned-remote parity. `make loom-status` shows the current mode.
+- Source mode is stored as worktree-local, untracked Git metadata. `LOOM_DIR=/absolute/path` still overrides that persisted mode for one-off runs.
 - While developing an unpushed framework change, use local mode or set `LOOM_DIR=/absolute/path/to/repo` explicitly so verification exercises the code you just changed rather than the last pushed commit.
 - Distinguish the two SSE verification paths:
-  - the JSON-RPC temp-module generator must honor the local-vs-remote switch (`make loom-local`, `make loom-remote`, or `LOOM_DIR=...`).
+  - HTTP and JSON-RPC temp-module generators must honor the shared local-vs-remote switch (`make loom-local`, `make loom-remote`, or `LOOM_DIR=...`).
   - temp-copy regeneration smoke tests for checked-in fixtures are intentionally local-only and should rewrite the copied fixture `replace github.com/CaliLuke/loom => ...` to the current repo root before running `loom gen`
 - Treat the checked-in SSE fixtures as part of the transport regression surface, not as demos:
   - `http/integration_tests/fixtures/ticktock`
@@ -110,7 +110,7 @@ No commented-out code—delete dead code.
   - event-type compatibility for protocol-level errors
   - compile-after-generation of the emitted fixture app
   - any branch-specific connection timing semantics the fixture actually supports
-- For new or changed `loom` framework capabilities, use the [`framework-capability` skill](/Users/luca/code/loom-mono/loom/.agents/skills/framework-capability/SKILL.md).
+- For new or changed `loom` framework capabilities, use the [`framework-capability` skill](.agents/skills/framework-capability/SKILL.md).
 
 ---
 

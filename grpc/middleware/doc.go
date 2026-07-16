@@ -1,23 +1,18 @@
 // Package middleware contains gRPC server and client interceptors that wraps
 // unary and streaming RPCs to provide additional functionality.
 //
-// This package contains the following middlewares:
+// This package contains the following middleware:
 //
-//   - Logging server middleware for unary and streaming endpoints.
-//   - Request ID server middleware for unary and streaming endpoints.
 //   - Stream Canceler server middleware for canceling streaming requests.
-//   - Tracing middleware for unary and streaming server and client.
-//   - AWS X-Ray middleware for producing X-Ray segments for unary and streaming
-//     client and server.
+//   - OpenTelemetry server and client middleware in the otel subpackage.
 //
 // Example to use the server middleware:
 //
-//	srv := grpc.NewServer(middleware.UnaryRequestID())
+//	srv := grpc.NewServer(middleware.StreamCanceler())
 //
 // Example to use the client middleware:
 //
 //	conn, err := grpc.Dial(host,
-//	    grpc.WithUnaryInterceptor(middleware.UnaryClientTrace()),
-//	    grpc.WithStreamInterceptor(middleware.StreamClientTrace()),
+//	    otel.GRPCClientOption("service"),
 //	)
 package middleware

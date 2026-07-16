@@ -18,7 +18,6 @@ import (
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
 	loom "github.com/CaliLuke/loom/pkg"
-	"github.com/google/uuid"
 	"io"
 	"mime/multipart"
 	"net/http"

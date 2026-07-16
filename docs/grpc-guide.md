@@ -19,6 +19,30 @@ Loom's gRPC support includes:
 - **Streaming Support**: All gRPC streaming patterns supported
 - **Error Handling**: Comprehensive error handling with status code mapping
 
+### Prerequisites and Supported Toolchain
+
+Use Go 1.26 or newer and keep these protobuf tools on `PATH` when generating a
+gRPC service:
+
+| Tool | Supported version |
+|------|-------------------|
+| `protoc` | 25.0 |
+| `protoc-gen-go` | v1.36.11 |
+| `protoc-gen-go-grpc` | v1.6.2 |
+
+Framework contributors can run `make depend` from the Loom repository to
+install these exact versions. Service repositories should pin the same tools
+in their own bootstrap or CI instead of installing `@latest`; a changed plugin
+can rewrite checked-in generated Go even when the design did not change.
+
+Verify the active binaries before diagnosing generation drift:
+
+```bash
+protoc --version
+protoc-gen-go --version
+protoc-gen-go-grpc --version
+```
+
 ### Type Mapping
 
 | Loom Type  | Protocol Buffer Type |
@@ -36,6 +60,14 @@ Loom's gRPC support includes:
 | Bytes     | bytes              |
 | ArrayOf   | repeated           |
 | MapOf     | map                |
+
+`Any` maps to `google.protobuf.Value`, so its runtime values must be
+representable by protobuf's JSON-like value model. Scalars, lists, maps with
+string keys, and nil are appropriate. Channels, functions, and arbitrary Go
+structs are not representable. Generated request and response constructors
+propagate a descriptive conversion error before writing the gRPC message;
+they do not silently replace an invalid value with nil. Prefer a concrete Loom
+type whenever the value has a stable contract.
 
 ---
 
@@ -177,6 +209,22 @@ Method("create", func() {
 > **Design Recap**: Streaming is defined at the design level using `StreamingPayload` and `StreamingResult`. The DSL is transport-agnostic — the same design works for both HTTP and gRPC. See [DSL Reference: Streaming](dsl-reference.md#streaming) for design patterns. This section covers gRPC-specific streaming implementation.
 
 gRPC supports three streaming patterns.
+
+### Initial Payload and Stream Item Envelopes
+
+A client- or bidirectional-streaming method may declare both `Payload` and
+`StreamingPayload`. When both shapes need protobuf message fields, Loom emits
+a typed `oneof` envelope with two branches:
+
+- `initial_payload` carries the one-shot method payload in the first frame.
+- `stream_item` carries every later value sent through the generated stream.
+
+Generated clients send the initial frame before returning the stream wrapper,
+then wrap each `Send` value as a stream item. Generated servers require that
+ordering: a missing first frame, a stream item in place of the initial payload,
+or another initial-payload frame returned from `Recv` is a validation error.
+This framing is generated protocol, not an application convention; external
+protobuf clients must follow the same ordering.
 
 ### Server-Side Streaming
 
@@ -523,6 +571,10 @@ message AddResponse {
 ```
 
 ### Protoc Configuration
+
+The versions above are the supported defaults. Use metadata overrides only
+when the deployment has a deliberate custom toolchain or additional imported
+schemas:
 
 ```go
 var _ = API("calculator", func() {

@@ -95,7 +95,11 @@ func (g *Generator) buildDesignData() *DesignData {
 // renderDesign writes the design files required prior to running loom gen/example.
 func (g *Generator) renderDesign(design *DesignData) error {
 	// go.mod
-	goModSource, err := renderGoModSource(g.repoRootReplace())
+	loomPath, err := g.repoRootReplace()
+	if err != nil {
+		return fmt.Errorf("resolve Loom source: %w", err)
+	}
+	goModSource, err := renderGoModSource(loomPath)
 	if err != nil {
 		return fmt.Errorf("render go.mod source: %w", err)
 	}

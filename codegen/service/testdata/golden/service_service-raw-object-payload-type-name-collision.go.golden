@@ -40,13 +40,6 @@ func (e *FooPayload) Error() string {
 	return ""
 }
 
-// ErrorName returns the error name.
-//
-// Deprecated: Use LoomErrorName.
-func (e *FooPayload) ErrorName() string {
-	return e.LoomErrorName()
-}
-
 // LoomErrorName returns the error name.
 func (e *FooPayload) LoomErrorName() string {
 	return "reserve_foo_payload"
@@ -55,13 +48,6 @@ func (e *FooPayload) LoomErrorName() string {
 // Error returns an error description.
 func (e *FooPayload2) Error() string {
 	return ""
-}
-
-// ErrorName returns the error name.
-//
-// Deprecated: Use LoomErrorName.
-func (e *FooPayload2) ErrorName() string {
-	return e.LoomErrorName()
 }
 
 // LoomErrorName returns the error name.

@@ -700,6 +700,34 @@ var EndpointMapPayloadBodyConflict = func() {
 	})
 }
 
+// EndpointArrayPayloadSkipRequestBodyWithoutTransport exercises an array raw
+// request payload that has no generated transport mapping.
+var EndpointArrayPayloadSkipRequestBodyWithoutTransport = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(ArrayOf(String))
+			HTTP(func() {
+				POST("/")
+				SkipRequestBodyEncodeDecode()
+			})
+		})
+	})
+}
+
+// EndpointMapPayloadSkipRequestBodyWithoutTransport exercises a map raw
+// request payload that has no generated transport mapping.
+var EndpointMapPayloadSkipRequestBodyWithoutTransport = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(MapOf(String, String))
+			HTTP(func() {
+				POST("/")
+				SkipRequestBodyEncodeDecode()
+			})
+		})
+	})
+}
+
 var EndpointObjectPayloadBodyConflict = func() {
 	Service("Service", func() {
 		Method("Method", func() {

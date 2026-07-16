@@ -17,7 +17,7 @@
 //		code := generateCode()
 //
 //		// Compare with golden file
-//		gf.Compare(code, "mytest.golden")
+//		gf.StringContent(code).Path("mytest.golden").CompareContent()
 //	}
 //
 // Updating Golden Files:
@@ -27,31 +27,13 @@
 //
 //	go test ./... -update
 //
-// Legacy Compatibility:
-//
-// For backward compatibility with existing tests, use CompareOrUpdateGolden:
-//
-//	testutil.CompareOrUpdateGolden(t, actual, "path/to/file.golden")
-//
-// This function uses the same -update flag but requires the full path to the
-// golden file.
-//
 // Advanced Usage:
 //
 // The GoldenFile type provides additional methods for more complex scenarios:
 //
-//	// Compare multiple files at once
-//	gf.CompareMultiple(map[string]string{
-//		"file1.golden": code1,
-//		"file2.golden": code2,
-//	})
-//
-//	// Create golden file if it doesn't exist
-//	gf.CompareOrCreate(code, "new.golden")
-//
 //	// Check if a golden file exists
 //	if gf.Exists("optional.golden") {
-//		gf.Compare(code, "optional.golden")
+//		gf.StringContent(code).Path("optional.golden").CompareContent()
 //	}
 //
 // Organization:
