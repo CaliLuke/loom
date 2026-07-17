@@ -10,7 +10,7 @@ Use this skill for Loom-MCP work only.
 ## Non-Negotiables
 
 - Treat `design/*.go` as the source of truth.
-- Regenerate after every design change with the generator command provided by the checked-out Loom-MCP repo.
+- Regenerate after every design change with `loom gen <module-import-path>/design`.
 - Never hand-edit generated `gen/` files.
 - Implement business logic in non-generated files.
 - Use Go import paths for Loom-MCP generator commands, not filesystem paths.
@@ -18,25 +18,27 @@ Use this skill for Loom-MCP work only.
 
 ## Runtime Gotchas
 
-- SSE server streams do not expose a generated `Open()` hook. Loom writes SSE headers on the first `Send`, so idle subscriptions that must complete the HTTP handshake before the first business event need a non-generated transport/runtime flush path or an explicit bootstrap event in the contract.
-- Never repair SSE or cookie behavior by editing generated files. Keep the fix in `design/*.go` or non-generated transport/runtime code.
-- For responses that need multiple `Set-Cookie` headers, prefer idiomatic framework cookies in the DSL. If a flow still depends on raw cookie header strings, write them from non-generated transport code against the live `http.ResponseWriter` rather than patching generated encoders.
-- Generated SDK server code emits `github.com/CaliLuke/loom/observability/transport` events alongside the existing `adapter.log(...)` calls; the two channels are complementary and intentionally additive. Treat the `adapter.log` call count in `gen/mcp_<service>/sdk_server.go` as part of the logging contract — `TestMCPTransportObserverEmissions` pins both that count and the observer wiring, so a deliberate change requires updating both.
-- The MCP-specific reasons emitted from `serveSDKEventsStream` are `mcp_session_missing`, `mcp_session_not_found`, `mcp_session_principal_mismatch`, and `mcp_events_stream_write_failed`; the streamable-HTTP path classifies 4xx+ responses as `handler_error`. Wire an observer at the HTTP entry point using `transport.HTTPMiddleware(observer)` to receive these events.
-- Loom-MCP currently consumes `observability/transport` through the `replace github.com/CaliLuke/loom => ../loom` directive in `go.mod`. A non-local release that drops the replace must bump `github.com/CaliLuke/loom` to a Loom tag containing the `observability/transport` package — otherwise generated SDK server code will not compile against the public Loom module.
+- Generated HTTP and JSON-RPC SSE streams implement `loomhttp.SSEControl`. Use `Open(ctx)` to commit an idle stream and `SendComment(ctx, text)` for serialized heartbeat frames; do not recover or write the raw `http.ResponseWriter`.
+- Generated streaming server constructors accept `loomhttp.StreamWritePolicy`. Use it to bound each SSE write, flush, and WebSocket JSON write instead of wrapping the response writer with application-owned write-deadline logic.
+- Apply `loomhttp.RequestMetadataMiddleware` through the generated server's `Use` method when endpoint or security logic needs headers, peer addresses, or trusted-proxy metadata. Do not place a raw response writer or request object in application context.
+- Never repair SSE, cookie, or session behavior by editing generated files. Prefer the Loom DSL and generated extension points; keep only business policy and dependency wiring in non-generated code.
+- Prefer idiomatic framework cookies in the DSL. Session auth supports cookie-only browser transport without synthesizing a payload credential field, and generated endpoint auth wrappers retain responsibility for invoking the authorizer.
+- Generated MCP servers expose transport observability through `SDKServerOptions.TransportObserver`; external `transport.HTTPMiddleware(observer)` is an application-wide alternative, not a prerequisite for framework events.
+- Authenticated streamable-HTTP MCP sessions must resolve a stable verified identity on each transport. The SDK adapter uses `MCPAdapterOptions.SessionPrincipal`; the native JSON-RPC transport uses the generated `MCPSessionPrincipal` hook. Both default to `TokenInfo.UserID`; override the relevant hook when verified identity comes from another request context. Both transports bind issued sessions to that principal and reject missing, foreign, or anonymously adopted bindings on POST, GET, and DELETE.
+- Use `SDKServerOptions.RequestContext` for request-scoped application values and `SDKServerOptions.RuntimeCORS` for a designed runtime CORS policy. Keep authentication middleware outside the generated handler so those hooks receive verified context.
 
 ## Default Workflow
 
-1. Detect the Loom service surface: `go.mod`, `design/`, DSL imports, or `gen/` folders.
+1. Detect the Loom-MCP service surface: `go.mod`, `design/`, DSL imports, or `gen/` folders.
 2. Edit the DSL in `design/`.
-3. Run the checked-in Loom-MCP generator for `<module>/design`.
-4. Run the repo's example or scaffold command only when new starter files are explicitly wanted.
+3. Run `loom gen <module-import-path>/design`.
+4. Run `loom example <module-import-path>/design` only when new starter files are explicitly wanted.
 5. Implement logic outside `gen/`.
 6. Verify with `go mod tidy` and project tests.
 
 ## Command Reminders
 
-- Prefer the Loom-MCP repo's current generator entrypoints over stale upstream `goa` command examples.
+- Use the Loom CLI pinned by the consuming repository; Loom-MCP does not have a separate generator binary.
 - Use import paths like `<module>/design`, not filesystem paths like `./design`.
 
 ## References
@@ -44,7 +46,7 @@ Use this skill for Loom-MCP work only.
 - Framework/source map: `references/repo-map.md`
 - Prefer the small fragments under `references/user-guides/<topic>/` first.
 - Use the top-level full transcripts under `references/user-guides/*.md` only when a fragment is insufficient.
-- For framework/runtime internals, inspect the Loom source tree described in `references/repo-map.md`.
+- For transport internals, inspect the Loom source tree described in `references/repo-map.md`; for agent, MCP adapter, and runtime internals, inspect the peer `loom-mcp` repository and its current skill.
 
 ## Fragment Routing
 
