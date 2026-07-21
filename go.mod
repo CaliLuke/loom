@@ -3,7 +3,7 @@ module github.com/CaliLuke/loom
 go 1.26.1
 
 require (
-	github.com/alecthomas/kong v1.15.0
+	github.com/alecthomas/kong v1.16.0
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/aws/smithy-go v1.27.3
 	github.com/dave/jennifer v1.7.1
@@ -17,7 +17,6 @@ require (
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/pb33f/libopenapi v0.38.6
-	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
