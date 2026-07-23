@@ -1,201 +1,168 @@
 <p align="center">
-  <a href="https://github.com/CaliLuke/loom/releases/latest"><img alt="Release" src="https://img.shields.io/github/release/CaliLuke/loom.svg?style=for-the-badge"></a>
-  <a href="https://pkg.go.dev/github.com/CaliLuke/loom"><img alt="Go Doc" src="https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge"></a>
-  <a href="https://github.com/CaliLuke/loom/actions/workflows/ci.yml"><img alt="GitHub Action: Test" src="https://img.shields.io/github/actions/workflow/status/CaliLuke/loom/ci.yml?branch=main&style=for-the-badge"></a>
-  <a href="https://goreportcard.com/report/github.com/CaliLuke/loom"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/CaliLuke/loom?style=for-the-badge"></a>
-  <a href="/LICENSE"><img alt="Software License" src="https://img.shields.io/badge/license-MIT-brightgreen.svg?style=for-the-badge"></a>
-  <a href="https://github.com/CaliLuke/loom/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Community-Discussions-0285FF?style=for-the-badge"></a>
+  <a href="https://github.com/CaliLuke/loom/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/CaliLuke/loom?style=for-the-badge"></a>
+  <a href="https://pkg.go.dev/github.com/CaliLuke/loom"><img alt="Go reference" src="https://pkg.go.dev/badge/github.com/CaliLuke/loom.svg"></a>
+  <a href="https://go.dev/dl/"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/CaliLuke/loom?style=for-the-badge"></a>
+  <a href="https://github.com/CaliLuke/loom/actions/workflows/test.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/CaliLuke/loom/test.yml?branch=main&style=for-the-badge&label=build"></a>
+  <a href="https://github.com/CaliLuke/loom/actions/workflows/codeql.yml"><img alt="CodeQL status" src="https://img.shields.io/github/actions/workflow/status/CaliLuke/loom/codeql.yml?branch=main&style=for-the-badge&label=CodeQL"></a>
+  <a href="https://deepwiki.com/CaliLuke/loom"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg"></a>
+  <a href="./LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-brightgreen.svg?style=for-the-badge"></a>
 </p>
 
-# Loom - The AI-First API Framework
+# Loom
 
-## Overview
+Loom is a design-first Go framework that turns one API definition into service
+interfaces, HTTP, gRPC, and JSON-RPC transports, type-safe clients, CLIs, and
+OpenAPI 3.1 contracts.
 
-Loom is a design-first API framework pushed in an AI-first direction: stronger machine-consumable contracts, less app-local glue, and transport generation that holds up under automation. It was shaped to support the creation of Auto-K and the style of development that came with it: agent-assisted iteration, contract-first generation, and downstream tooling that depends on trustworthy specs.
-
-Loom is design-first. You describe the service once in a Go DSL, then generate transports, clients, docs, and scaffolding from that contract. The difference is where Loom puts pressure on the framework: OpenAPI 3.1 quality, reusable public contract components, JSON-RPC and streaming behavior, session/auth ergonomics, and repo conventions that make AI-assisted development materially easier.
-
-## Why Loom?
-
-Traditional API development breaks down in two places: teams end up hand-maintaining transport glue, and the published spec is too weak to safely drive codegen, SDKs, and agents. Loom exists to fix both.
-
-Loom is designed for teams that want:
-- one design source of truth for service behavior, transport shape, and published contract
-- OpenAPI output strong enough to feed downstream client generators directly
-- framework-owned solutions for recurring glue instead of per-app patches
-- a repo and workflow that cooperate with AI-assisted implementation instead of fighting it
-
-## Key Features
-
-- **Expressive Design Language**: Define your API with a clear, type-safe DSL that captures your intent
-- **Comprehensive Code Generation**:
-  - Type-safe server interfaces that enforce your design
-  - Client packages with full error handling
-  - Transport layer adapters (HTTP/gRPC/JSON-RPC) with routing and encoding
-  - OpenAPI 3.1 documentation that's always in sync
-  - CLI tools for testing your services
-- **Multi-Protocol Support**: Generate HTTP REST, gRPC, and JSON-RPC endpoints from a single design
-- **Clean Architecture**: Business logic remains separate from transport concerns
-- **Enterprise Ready**: Supports authentication, authorization, CORS, logging, and more
-- **Comprehensive Testing**: Includes extensive unit and integration test suites ensuring quality and reliability
+[Quick start](#quick-start) · [Documentation](docs/_index.md) ·
+[Go reference](https://pkg.go.dev/github.com/CaliLuke/loom) ·
+[Ask DeepWiki](https://deepwiki.com/CaliLuke/loom)
 
 ## Why Loom?
 
-Loom currently emphasizes:
-- **AI-first development**: the repo ships with its own Loom skill for AI-assisted service work, plus repo conventions and generated-contract rules meant to keep agents on the rails instead of patching around framework gaps
-- **Auto-K-driven framework design**: many capabilities were added because Auto-K needed them in the framework, not as one-off application glue
-- **Stronger OpenAPI 3.1 as a product surface**: Loom treats the OpenAPI document as a machine contract, not a byproduct. The generator validates with `libopenapi`, lints with Redocly, and smoke-tests downstream generation with `openapi-typescript` and `oapi-codegen`
-- **Better reusable public contracts**: repeated parameters, request bodies, responses, examples, and schemas are hoisted and named more deliberately so generated specs are easier to consume and diff
-- **More truthful request/response schema publication**: `readOnly` and `writeOnly` metadata split public request and response schemas when they should not share one shape
-- **Standards-oriented error contracts**: Loom HTTP defaults now use RFC 9457-style `application/problem+json` problem documents with stable machine-readable codes, and the DSL can still override public problem `type`/`title` metadata when needed
-- **First-class async contract publication**: SSE and WebSocket endpoints publish framework-owned async metadata in OpenAPI so downstream tooling can reason about stream payloads and handshake behavior
-- **JSON-RPC as a real transport, not an afterthought**: Loom treats JSON-RPC and JSON-RPC SSE as framework-owned behavior with dedicated generation and integration coverage
-- **Less application glue**: session auth, auth error reuse, response links, form and multipart request support, observability hooks, and transport-specific contract controls live in the framework instead of being repeatedly rebuilt in services
+- **Contracts you can build against.** Loom emits OpenAPI 3.1.1 using JSON
+  Schema 2020-12. Representative contracts are parsed with `libopenapi`, linted
+  with Redocly, and compiled through `openapi-typescript` and `oapi-codegen` in
+  [consumer smoke tests](http/codegen/openapi/v3/contract_smoke_test.go#L140).
+- **One design, multiple transports.** The same service model drives HTTP,
+  gRPC, and JSON-RPC servers and clients. SSE and WebSocket endpoints publish
+  explicit message and handshake metadata under `x-loom-async`.
+- **Framework-owned API behavior.** Validation, authentication, CORS,
+  RFC 9457 problem responses, streaming, and transport observability are
+  modeled once instead of being rebuilt around every handler.
+- **Repeatable generation.** `loom gen` stages and validates the complete output
+  before replacing generated files. Humans and coding agents follow the same
+  design → generate → implement workflow.
 
-The short version: Loom is optimized for AI-assisted service development and machine-grade contracts.
+## How it works
 
-## Built For Auto-K
+| You write | Loom generates |
+| --- | --- |
+| `design/*.go` API definitions | Service interfaces and endpoint wrappers |
+| Business logic | HTTP, gRPC, and JSON-RPC servers and clients |
+| Application wiring and tests | Request validation, CLIs, and transport code |
+| Transport policy in the DSL | OpenAPI 3.1 and Protocol Buffer definitions |
 
-Auto-K was one of the forcing functions behind Loom. The framework was pushed to absorb repeated infrastructure and contract concerns that would otherwise have remained application-local:
-- cleaner auth/session modeling
-- better generated OpenAPI for downstream automation
-- stronger streaming and JSON-RPC behavior
-- more reusable public contract components
-- better direct seam tests for generator behavior
+Design files are the source of truth. Generated files live under `gen/`; your
+business logic stays in ordinary, non-generated Go files.
 
-That matters beyond Auto-K. The same work makes Loom better for any codebase that wants to generate clients directly from the spec, keep transport behavior honest, and let AI tools operate on a clearer contract surface.
+## Loom and Goa
 
-## AI Assistance
+Loom was [derived from Goa](LICENSE#L5) and retains its design-first model:
+describe the service in a Go DSL, generate the transport layer, and implement
+the resulting service interface.
 
-Loom comes with its own repository skill for AI-assisted development at [.agents/skills/loom/SKILL.md](./.agents/skills/loom/SKILL.md). It documents the framework contract rules, generation workflow, OpenAPI behavior, and the repo-specific guardrails an agent needs to make useful changes without thrashing generated code.
+Loom is intended for teams that specifically need:
 
-This is part of the product, not an afterthought. Loom is intentionally shaped so both humans and agents can work from the same design, the same generated surfaces, and the same published contract.
+- OpenAPI 3.1 and JSON Schema 2020-12 as a tested machine-facing contract;
+- reusable contract components, request/response schema separation, and
+  explicit async metadata;
+- RFC 9457 HTTP errors and framework-owned session, CORS, streaming, and
+  observability behavior;
+- transactional code generation and compile-time generator extensions.
 
-## How It Works
+[Goa](https://github.com/goadesign/goa) remains the original project with the
+larger established community. If Loom's contract and transport guarantees are
+not requirements, Goa may be the better fit. Loom is actively diverging and
+does not promise source compatibility with every Goa release.
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────────────┐
-│ Design API  │────>│ Generate Code│────>│ Implement Business  │
-│ using DSL   │     │ & Docs       │     │ Logic               │
-└─────────────┘     └──────────────┘     └─────────────────────┘
-```
+## Quick start
 
-1. **Design**: Express your API's intent in Loom's DSL
-2. **Generate**: Run `loom gen` to create server interfaces, client code, and documentation
-3. **Implement**: Focus solely on writing your business logic in the generated interfaces
-4. **Evolve**: Update your design and regenerate code as your API evolves
+Loom requires the Go version declared in [go.mod](go.mod#L3), currently Go
+1.26.1 or later.
 
-## Quick Start
+Install the CLI and create a module:
 
 ```bash
-# Install Loom
 go install github.com/CaliLuke/loom/cmd/loom@latest
 
-# Install the current stable release explicitly
-go install github.com/CaliLuke/loom/cmd/loom@v1.7.0
-
-# Create a new module
 mkdir hello && cd hello
-go mod init hello
-
-# Define a service in design/design.go
+go mod init example.com/hello
+go get github.com/CaliLuke/loom@latest
 mkdir design
-cat > design/design.go << EOF
+```
+
+Create `design/design.go`:
+
+```go
 package design
 
 import . "github.com/CaliLuke/loom/dsl"
 
 var _ = Service("hello", func() {
-    Method("say_hello", func() {
-        Payload(func() {
-            Field(1, "name", String)
-            Required("name")
-        })
-        Result(String)
+	Method("greet", func() {
+		Payload(func() {
+			Field(1, "name", String, "Name to greet")
+			Required("name")
+		})
+		Result(String)
 
-        HTTP(func() {
-            GET("/hello/{name}")
-        })
-    })
+		HTTP(func() {
+			GET("/hello/{name}")
+		})
+	})
 })
-EOF
-
-# Generate the code
-loom gen hello/design
-loom example hello/design
-
-# Build and run
-go mod tidy
-go run cmd/hello/*.go --http-port 8000
-
-# In another terminal
-curl http://localhost:8000/hello/world
 ```
 
-The example above:
-1. Defines a simple "hello" service with one method
-2. Generates server and client code
-3. Starts a server that logs requests server-side (without displaying any client output)
+Generate the service and starter implementation:
 
-### JSON-RPC Alternative
+```bash
+loom gen example.com/hello/design
+loom example example.com/hello/design
+go mod tidy
+```
 
-For a JSON-RPC service, simply add a `JSONRPC` expression to the service and
-method:
+In the generated starter file `hello.go`, replace the `Greet` method with:
 
 ```go
-var _ = Service("hello" , func() {
-    JSONRPC(func() {
-        Path("/jsonrpc")
-    })
-    Method("say_hello", func() {
-        Payload(func() {
-            Field(1, "name", String)
-            Required("name")
-        })
-        Result(String)
-
-        JSONRPC(func() {})
-    })
+func (s *hellosrvc) Greet(ctx context.Context, p *hello.GreetPayload) (string, error) {
+	log.Printf(ctx, "hello.greet")
+	return "Hello, " + p.Name + "!", nil
 }
 ```
 
-Then test with:
+Run the service:
+
 ```bash
-curl -X POST http://localhost:8000/jsonrpc \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"hello.say_hello","params":{"name":"world"},"id":"1"}'
+go run ./cmd/hello --http-port=8000
 ```
+
+Then call it from another terminal:
+
+```bash
+$ curl http://localhost:8000/hello/Ada
+"Hello, Ada!"
+```
+
+The same generation run creates a type-safe client and
+`gen/http/openapi.{json,yaml}`. Continue with the
+[guided quickstart](docs/quickstart.md) or explore the
+[generated-code workflow](docs/code-generation.md).
 
 ## Documentation
 
-The repository is the current source of truth for framework code, migration history, and transport behavior:
+- **Design:** [DSL reference](docs/dsl-reference.md) and
+  [code generation](docs/code-generation.md)
+- **Transports:** [HTTP](docs/http-guide.md), [gRPC](docs/grpc-guide.md), and
+  [JSON-RPC](jsonrpc/README.md)
+- **Operations:** [error handling](docs/error-handling.md),
+  [interceptors](docs/interceptors.md), and
+  [production guidance](docs/production.md)
+- **Agent-assisted development:**
+  [Loom skill](.agents/skills/loom/SKILL.md)
 
-- **[Repository](https://github.com/CaliLuke/loom)**: Framework source, issues, releases, and discussions
-- **[Roadmap](https://github.com/CaliLuke/loom/tree/main/roadmap)**: Active framework direction and remaining work
-- **[JSON-RPC Guide](jsonrpc/README.md)**: HTTP, SSE, WebSocket, and protocol behavior
-- **[Integration Tests](https://github.com/CaliLuke/loom/tree/main/http/integration_tests)**: End-to-end fixture and smoke coverage
+## Project expectations
 
-## Development
+Loom is a code-generation framework: adopting it means keeping the design as
+the source of truth, regenerating after design changes, and committing
+generated code. If you prefer handwritten transport handlers or a schema-first
+workflow based on existing OpenAPI or Protocol Buffer files, Loom is probably
+not the right abstraction.
 
-Install the tracked git hooks with:
-
-```bash
-make install-hooks
-```
-
-The repo-managed pre-push hook runs `make lint`, and `make lint` now includes the `dupl` linter so duplicated Go code is blocked before push.
-
-## Real-World Examples
-
-Coming soon...
-
-## Community & Support
-
-- Ask questions on [GitHub Discussions](https://github.com/CaliLuke/loom/discussions)
-- Report issues on [GitHub](https://github.com/CaliLuke/loom/issues)
-- Follow releases on [GitHub Releases](https://github.com/CaliLuke/loom/releases)
-- Watch the repo and release feed if you want rename and migration updates as Loom continues to diverge.
+For releases and project activity, see [GitHub Releases](https://github.com/CaliLuke/loom/releases)
+and [GitHub Issues](https://github.com/CaliLuke/loom/issues). Contributions are
+welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+Loom is available under the [MIT License](LICENSE).
