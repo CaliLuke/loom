@@ -61,7 +61,7 @@ Loom is intended for teams that specifically need:
   observability behavior;
 - transactional code generation and compile-time generator extensions.
 
-[Goa](https://github.com/goadesign/goa) remains the original project with the
+[Goa](https://goa.design/) remains the original project with the
 larger established community. If Loom's contract and transport guarantees are
 not requirements, Goa may be the better fit. Loom is actively diverging and
 does not promise source compatibility with every Goa release.

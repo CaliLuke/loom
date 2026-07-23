@@ -3,21 +3,20 @@ module github.com/CaliLuke/loom
 go 1.26.1
 
 require (
-	github.com/alecthomas/kong v1.15.0
+	github.com/alecthomas/kong v1.16.0
 	github.com/alicebob/miniredis/v2 v2.38.0
-	github.com/aws/smithy-go v1.27.3
+	github.com/aws/smithy-go v1.27.4
 	github.com/dave/jennifer v1.7.1
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598
 	github.com/felixge/httpsnoop v1.1.0
 	github.com/go-chi/chi/v5 v5.3.1
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	github.com/gohugoio/hashstructure v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d
 	github.com/oklog/ulid/v2 v2.1.1
-	github.com/pb33f/libopenapi v0.38.6
-	github.com/pkg/errors v0.9.1
+	github.com/pb33f/libopenapi v0.38.7
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
@@ -40,7 +39,7 @@ require (
 	golang.org/x/text v0.40.0
 	golang.org/x/tools v0.48.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800
-	google.golang.org/grpc v1.82.0
+	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
