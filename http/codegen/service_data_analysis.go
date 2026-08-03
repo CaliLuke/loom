@@ -132,12 +132,12 @@ func (sds *ServicesData) buildFileServersData(httpSvc *expr.HTTPServiceExpr, sco
 	for _, server := range httpSvc.FileServers {
 		paths := make([]string, len(server.RequestPaths))
 		for i, path := range server.RequestPaths {
-			idx := strings.LastIndex(path, "/{")
+			prefix, _, ok := strings.CutLast(path, "/{")
 			switch {
-			case idx == 0:
+			case ok && prefix == "":
 				paths[i] = "/"
-			case idx > 0:
-				paths[i] = path[:idx]
+			case ok:
+				paths[i] = prefix
 			default:
 				paths[i] = path
 			}

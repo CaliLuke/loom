@@ -3,6 +3,7 @@ package otel
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -71,6 +72,12 @@ type (
 		Insecure bool
 		// Headers are sent on OTLP HTTP export requests.
 		Headers map[string]string
+	}
+
+	otlpHTTPConfig struct {
+		endpoint string
+		insecure bool
+		headers  map[string]string
 	}
 
 	// Runtime contains the initialized OpenTelemetry providers.
@@ -144,8 +151,8 @@ func New(ctx context.Context, cfg Config) (*Runtime, error) {
 
 	rt.Shutdown = func(ctx context.Context) error {
 		var errs []error
-		for i := len(shutdowns) - 1; i >= 0; i-- {
-			if err := shutdowns[i](ctx); err != nil {
+		for _, shutdown := range slices.Backward(shutdowns) {
+			if err := shutdown(ctx); err != nil {
 				errs = append(errs, err)
 			}
 		}

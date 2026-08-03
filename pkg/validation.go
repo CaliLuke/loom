@@ -8,8 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"time"
-
-	googleuuid "github.com/google/uuid"
+	"uuid"
 )
 
 // Format defines a validation format.
@@ -155,15 +154,28 @@ func ValidatePatternCompiled(name, val string, r *regexp.Regexp) error {
 // "6ba7b8109dad11d180b400c04fd430c8",
 // "{6ba7b810-9dad-11d1-80b4-00c04fd430c8}",
 // "urn:uuid:6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-func validateUUID(uuid string) error {
-	u, err := googleuuid.Parse(uuid)
+func validateUUID(value string) error {
+	u, err := uuid.Parse(value)
 	if err != nil {
-		return fmt.Errorf("uuid: %s: %w", uuid, err)
+		return fmt.Errorf("uuid: %s: %w", value, err)
 	}
 
-	if u.Variant() != googleuuid.RFC4122 {
-		return fmt.Errorf("uuid: expected RFC4122 format, but got %s", u.Variant().String())
+	if u[8]&0xc0 != 0x80 {
+		return fmt.Errorf("uuid: expected RFC4122 format, but got %s", uuidVariant(u))
 	}
 
 	return nil
+}
+
+func uuidVariant(u uuid.UUID) string {
+	switch {
+	case u[8]&0x80 == 0:
+		return "Reserved"
+	case u[8]&0xc0 == 0x80:
+		return "RFC4122"
+	case u[8]&0xe0 == 0xc0:
+		return "Microsoft"
+	default:
+		return "Future"
+	}
 }

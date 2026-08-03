@@ -74,10 +74,9 @@ func exampleServerWithCache(genpkg string, root *expr.RootExpr, svr *expr.Server
 	)
 	{
 		// genpkg is created by path.Join so the separator is / regardless of operating system
-		idx := strings.LastIndex(genpkg, string("/"))
 		rootPath = "."
-		if idx > 0 {
-			rootPath = genpkg[:idx]
+		if parent, _, ok := strings.CutLast(genpkg, "/"); ok && parent != "" {
+			rootPath = parent
 		}
 		apiPkg = scope.Unique(strings.ToLower(codegen.Goify(services.Root.API.Name, false) + "api"))
 	}

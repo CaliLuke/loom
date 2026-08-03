@@ -323,7 +323,7 @@ func (c *Client) parseSSEEvents(r io.Reader) ([]SSEEvent, error) {
 // ConnectWebSocket establishes a WebSocket connection
 func (c *Client) ConnectWebSocket(ctx context.Context) error {
 	// Build WebSocket URL
-	wsURL := *c.baseURL
+	wsURL := c.baseURL.Clone()
 	wsURL.Path = c.config.WSPath
 
 	// Convert scheme

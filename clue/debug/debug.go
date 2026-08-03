@@ -68,6 +68,7 @@ func MountDebugLogEnabler(mux Muxer, opts ...DebugLogEnablerOption) {
 //	/debug/pprof/block
 //	/debug/pprof/cmdline
 //	/debug/pprof/goroutine
+//	/debug/pprof/goroutineleak
 //	/debug/pprof/heap
 //	/debug/pprof/mutex
 //	/debug/pprof/profile
@@ -98,6 +99,7 @@ func MountPprofHandlers(mux Muxer, opts ...PprofOption) {
 	mux.HandleFunc(o.prefix+"trace", pprof.Trace)
 
 	mux.Handle(o.prefix+"goroutine", pprof.Handler("goroutine"))
+	mux.Handle(o.prefix+"goroutineleak", pprof.Handler("goroutineleak"))
 	mux.Handle(o.prefix+"threadcreate", pprof.Handler("threadcreate"))
 	mux.Handle(o.prefix+"mutex", pprof.Handler("mutex"))
 	mux.Handle(o.prefix+"heap", pprof.Handler("heap"))

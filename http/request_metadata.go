@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/textproto"
+	"slices"
 	"strings"
 )
 
@@ -195,9 +196,9 @@ func forwardedClient(values []string, peer netip.Addr, proxies []netip.Prefix) n
 		}
 	}
 	hops = append(hops, peer)
-	for i := len(hops) - 1; i >= 0; i-- {
-		if !isTrustedProxy(hops[i], proxies) {
-			return hops[i]
+	for _, hop := range slices.Backward(hops) {
+		if !isTrustedProxy(hop, proxies) {
+			return hop
 		}
 	}
 	return netip.Addr{}

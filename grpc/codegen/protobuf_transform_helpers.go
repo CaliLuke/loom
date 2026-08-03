@@ -353,6 +353,13 @@ func protobufDefaultLiteral(att *expr.AttributeExpr, value any, ta *transformAtt
 }
 
 func protobufTypedDefaultLiteral(att *expr.AttributeExpr, value any, ta *transformAttrs) (string, bool) {
+	if typeName, _ := codegen.GetMetaType(att); typeName == "json.RawMessage" {
+		actual := reflect.ValueOf(value)
+		if actual.IsValid() && actual.Kind() == reflect.Slice && actual.Type().Elem().Kind() == reflect.Uint8 {
+			literal := fmt.Sprintf("%#v", actual.Bytes())
+			return typeName + strings.TrimPrefix(literal, "[]byte"), true
+		}
+	}
 	switch actual := att.Type.(type) {
 	case *expr.Array:
 		return protobufArrayDefaultLiteral(actual, value, ta)

@@ -10,8 +10,8 @@ This guide walks you through installing Goa and creating your first service. By 
 
 Before you begin, ensure your environment meets these requirements:
 
-- Go 1.18 or later - Goa leverages modern Go features
-- Go Modules enabled - This is the default in Go 1.16+, but verify with GO111MODULE=on if needed
+- Go 1.27 or later - Loom requires the current Go toolchain
+- Go Modules enabled - This is the default for supported Go versions
 - curl or any HTTP client - For testing your service
 
 ## Installation

@@ -136,6 +136,7 @@ func jsonrpcExampleServerEndSource(httpServices, jsonrpcServices []*httpcodegen.
 	b.Add("\t\tAddr:              u.Host,\n")
 	b.Add("\t\tHandler:           handler,\n")
 	b.Add("\t\tReadHeaderTimeout: time.Second * 60,\n")
+	b.Add("\t\tMaxHeaderValueCount: http.DefaultMaxHeaderValueCount,\n")
 	b.Add("\t\tReadTimeout:       time.Second * 15,\n")
 	b.Add("\t\tWriteTimeout:      time.Second * 30,\n")
 	b.Add("\t\tIdleTimeout:       time.Second * 60,\n")

@@ -56,10 +56,7 @@ func newLoggerProvider(ctx context.Context, cfg LogConfig, res *resource.Resourc
 }
 
 func traceExporterOptions(cfg TraceConfig) []otlptracehttp.Option {
-	return appendOTLPHTTPOptions(
-		cfg.Endpoint,
-		cfg.Insecure,
-		cfg.Headers,
+	return otlpHTTPConfig{cfg.Endpoint, cfg.Insecure, cfg.Headers}.options(
 		otlptracehttp.WithEndpoint,
 		otlptracehttp.WithInsecure,
 		otlptracehttp.WithHeaders,
@@ -67,10 +64,7 @@ func traceExporterOptions(cfg TraceConfig) []otlptracehttp.Option {
 }
 
 func metricExporterOptions(cfg MetricConfig) []otlpmetrichttp.Option {
-	return appendOTLPHTTPOptions(
-		cfg.Endpoint,
-		cfg.Insecure,
-		cfg.Headers,
+	return otlpHTTPConfig{cfg.Endpoint, cfg.Insecure, cfg.Headers}.options(
 		otlpmetrichttp.WithEndpoint,
 		otlpmetrichttp.WithInsecure,
 		otlpmetrichttp.WithHeaders,
@@ -78,33 +72,27 @@ func metricExporterOptions(cfg MetricConfig) []otlpmetrichttp.Option {
 }
 
 func logExporterOptions(cfg LogConfig) []otlploghttp.Option {
-	return appendOTLPHTTPOptions(
-		cfg.Endpoint,
-		cfg.Insecure,
-		cfg.Headers,
+	return otlpHTTPConfig{cfg.Endpoint, cfg.Insecure, cfg.Headers}.options(
 		otlploghttp.WithEndpoint,
 		otlploghttp.WithInsecure,
 		otlploghttp.WithHeaders,
 	)
 }
 
-func appendOTLPHTTPOptions[T any](
-	endpoint string,
-	insecure bool,
-	headers map[string]string,
+func (cfg otlpHTTPConfig) options[T any](
 	withEndpoint func(string) T,
 	withInsecure func() T,
 	withHeaders func(map[string]string) T,
 ) []T {
 	opts := make([]T, 0, 3)
-	if endpoint != "" {
-		opts = append(opts, withEndpoint(endpoint))
+	if cfg.endpoint != "" {
+		opts = append(opts, withEndpoint(cfg.endpoint))
 	}
-	if insecure {
+	if cfg.insecure {
 		opts = append(opts, withInsecure())
 	}
-	if len(headers) > 0 {
-		opts = append(opts, withHeaders(headers))
+	if len(cfg.headers) > 0 {
+		opts = append(opts, withHeaders(cfg.headers))
 	}
 	return opts
 }

@@ -5,6 +5,7 @@
 		Addr:              u.Host,
 		Handler:           handler,
 		ReadHeaderTimeout: time.Second * 60,
+		MaxHeaderValueCount: http.DefaultMaxHeaderValueCount,
 		ReadTimeout:       time.Second * 15,
 		WriteTimeout:      time.Second * 30,
 		IdleTimeout:       time.Second * 60,

@@ -1,11 +1,12 @@
 package main
 
 import (
-	"encoding/json"
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -300,8 +301,7 @@ func (t *generationTransaction) rollbackInstalledOutputs(
 	hadLive bool,
 ) error {
 	var rollbackErr error
-	for index := len(outputs) - 1; index >= 0; index-- {
-		output := outputs[index]
+	for _, output := range slices.Backward(outputs) {
 		if output.installed {
 			if err := os.Remove(output.destination); err != nil && !errors.Is(err, os.ErrNotExist) {
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("remove generated output %s: %w", output.destination, err))

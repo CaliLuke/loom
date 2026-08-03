@@ -126,7 +126,7 @@ func addViewedResultComment(group *jen.Group, method *MethodData) {
 		if view.Description != "" {
 			line += ": " + view.Description
 		}
-		group.Comment("\t" + line)
+		group.Comment("  " + line)
 	}
 }
 

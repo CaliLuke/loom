@@ -40,12 +40,12 @@ import (
 func StreamCanceler(ctx context.Context) grpc.StreamServerInterceptor {
 	var (
 		cancels   sync.Map
-		canceling uint32
+		canceling atomic.Uint32
 	)
 
 	go func() {
 		<-ctx.Done()
-		atomic.StoreUint32(&canceling, 1)
+		canceling.Store(1)
 		cancels.Range(func(key any, value any) bool {
 			cancel := key.(*context.CancelFunc)
 			(*cancel)()
@@ -53,12 +53,12 @@ func StreamCanceler(ctx context.Context) grpc.StreamServerInterceptor {
 		})
 	}()
 	return grpc.StreamServerInterceptor(func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if atomic.LoadUint32(&canceling) == 1 {
+		if canceling.Load() == 1 {
 			return status.Error(codes.Unavailable, "server is stopping")
 		}
 		cctx, cancel := context.WithCancel(ss.Context())
 		cancels.Store(&cancel, struct{}{})
-		if atomic.LoadUint32(&canceling) == 1 {
+		if canceling.Load() == 1 {
 			cancel()
 		}
 		err := handler(srv, NewWrappedServerStream(cctx, ss))

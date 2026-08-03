@@ -66,10 +66,9 @@ func exampleCLIWithCache(
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		return nil // file already exists, skip it.
 	}
-	idx := strings.LastIndex(genpkg, string("/"))
 	rootPath := "."
-	if idx > 0 {
-		rootPath = genpkg[:idx]
+	if parent, _, ok := strings.CutLast(genpkg, "/"); ok && parent != "" {
+		rootPath = parent
 	}
 	specs := []*codegen.ImportSpec{
 		{Path: "context"},

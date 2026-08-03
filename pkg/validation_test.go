@@ -61,8 +61,8 @@ func TestValidateFormat(t *testing.T) {
 		"valid uuid with brace":      {"validUUIDWithBrace", validUUIDWithBrace, FormatUUID, nil},
 		"valid uuid with no dash":    {"validUUIDRaw", validUUIDRaw, FormatUUID, nil},
 		"valid uuid with urn prefix": {"validUUIDWithURNPrefix", validUUIDWithURNPrefix, FormatUUID, nil},
-		"invalid uuid":               {"invalidUUID", invalidUUID, FormatUUID, InvalidFormatError("invalidUUID", invalidUUID, FormatUUID, fmt.Errorf("uuid: %s: invalid UUID length: 25", invalidUUID))},
-		"invalid uuid non hex":       {"invalidUUIDNonHex", invalidUUIDNonHex, FormatUUID, InvalidFormatError("invalidUUIDNonHex", invalidUUIDNonHex, FormatUUID, fmt.Errorf("uuid: %s: invalid UUID format", invalidUUIDNonHex))},
+		"invalid uuid":               {"invalidUUID", invalidUUID, FormatUUID, InvalidFormatError("invalidUUID", invalidUUID, FormatUUID, fmt.Errorf("uuid: %s: invalid uuid", invalidUUID))},
+		"invalid uuid non hex":       {"invalidUUIDNonHex", invalidUUIDNonHex, FormatUUID, InvalidFormatError("invalidUUIDNonHex", invalidUUIDNonHex, FormatUUID, fmt.Errorf("uuid: %s: invalid uuid", invalidUUIDNonHex))},
 
 		"valid email": {"validEmail", validEmail, FormatEmail, nil},
 

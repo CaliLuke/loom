@@ -1,6 +1,6 @@
 module github.com/CaliLuke/loom/jsonrpc/integration_tests
 
-go 1.26.1
+go 1.27
 
 require (
 	github.com/CaliLuke/loom v1.3.2
@@ -15,7 +15,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598 // indirect
 	github.com/go-chi/chi/v5 v5.3.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	golang.org/x/mod v0.38.0 // indirect

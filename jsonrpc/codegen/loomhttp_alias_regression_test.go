@@ -74,7 +74,7 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 
 	goMod := fmt.Sprintf(`module %s
 
-go 1.26.0
+go 1.27
 
 require github.com/CaliLuke/loom v1.0.0
 

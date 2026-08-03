@@ -393,9 +393,8 @@ func mediaTypeToResultType(identifier string) (string, string, error) {
 	}
 	identifier = mime.FormatMediaType(identifier, params)
 	lastPart := identifier
-	lastPartIndex := strings.LastIndex(identifier, "/")
-	if lastPartIndex > -1 {
-		lastPart = identifier[lastPartIndex+1:]
+	if _, suffix, ok := strings.CutLast(identifier, "/"); ok {
+		lastPart = suffix
 	}
 	plusIndex := strings.Index(lastPart, "+")
 	if plusIndex > 0 {

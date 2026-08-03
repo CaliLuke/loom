@@ -384,15 +384,14 @@ func canonicalResponseSchemaRef(name string, schemas map[string]*Schema, cache m
 }
 
 func duplicateAliasBase(name string) (string, bool) {
-	idx := strings.LastIndex(name, "_")
-	if idx <= 0 || idx == len(name)-1 {
+	base, suffix, ok := strings.CutLast(name, "_")
+	if !ok || base == "" || suffix == "" {
 		return "", false
 	}
-	suffix := name[idx+1:]
 	if !isDigits(suffix) {
 		return "", false
 	}
-	return name[:idx], true
+	return base, true
 }
 
 func schemaComponentName(ref string) (string, bool) {

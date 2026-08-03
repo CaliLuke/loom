@@ -382,14 +382,14 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 		stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
 			switch {
 			case ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type):
-				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + formatGoLiteral(tdef)))
+				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + formatAttributeGoLiteral(tgtc, tdef)))
 				group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
 			case expr.IsArray(tgtc.Type):
 				group.Add(transformObjectArrayDefaultValueCode(tgtc, tgtVar, tdef, ta))
 			case expr.IsMap(tgtc.Type):
 				group.Add(transformObjectMapDefaultValueCode(tgtc, tgtVar, tdef, ta))
 			default:
-				group.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
+				group.Add(Expr(tgtVar)).Op("=").Add(Expr(formatAttributeGoLiteral(tgtc, tdef)))
 			}
 		})
 		return stmt
@@ -416,7 +416,7 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 				condition = tgtVar + " == nil"
 			}
 			group.If(Expr(condition)).BlockFunc(func(ifGroup *jen.Group) {
-				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
+				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(formatAttributeGoLiteral(tgtc, tdef)))
 			})
 		})
 		return stmt

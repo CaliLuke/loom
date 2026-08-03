@@ -140,7 +140,7 @@ func redactDebugURL(original *url.URL) *url.URL {
 	if original == nil {
 		return nil
 	}
-	redacted := *original
+	redacted := original.Clone()
 	if redacted.User != nil {
 		username := redacted.User.Username()
 		if _, hasPassword := redacted.User.Password(); hasPassword {
@@ -154,7 +154,7 @@ func redactDebugURL(original *url.URL) *url.URL {
 		}
 	}
 	redacted.RawQuery = query.Encode()
-	return &redacted
+	return redacted
 }
 
 func captureDebugResponse(resp *http.Response) *http.Response {

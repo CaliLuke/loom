@@ -108,8 +108,8 @@ func jsonrpcExampleAPIPkg(genpkg string, header codegen.Section, data *httpcodeg
 	headerData := codegen.HeaderDataForSection(header)
 	if headerData != nil {
 		rootPath := "."
-		if idx := strings.LastIndex(genpkg, "/"); idx > 0 {
-			rootPath = genpkg[:idx]
+		if parent, _, ok := strings.CutLast(genpkg, "/"); ok && parent != "" {
+			rootPath = parent
 		}
 		for _, imp := range headerData.Imports {
 			if imp.Path == rootPath {

@@ -24,11 +24,10 @@ import (
 func TestHTTPObserver(t *testing.T) {
 	t.Run("success path emits start and finish", func(t *testing.T) {
 		rec := newRecorder()
-		srv := newGeneratedShapedServer(rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
+		srv := newGeneratedShapedServer(t, rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"ok":true}`))
 		})
-		defer srv.Close()
 		resp, err := srv.Client().Get(srv.URL + "/foo")
 		require.NoError(t, err)
 		require.NoError(t, resp.Body.Close())
@@ -43,11 +42,10 @@ func TestHTTPObserver(t *testing.T) {
 
 	t.Run("decode failure classifies terminal as request_decode_failed", func(t *testing.T) {
 		rec := newRecorder()
-		srv := newGeneratedShapedServer(rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
+		srv := newGeneratedShapedServer(t, rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
 			obs.Fail(transport.ReasonRequestDecodeFailed)
 			w.WriteHeader(http.StatusBadRequest)
 		})
-		defer srv.Close()
 		resp, err := srv.Client().Get(srv.URL + "/foo")
 		require.NoError(t, err)
 		require.NoError(t, resp.Body.Close())
@@ -59,11 +57,10 @@ func TestHTTPObserver(t *testing.T) {
 
 	t.Run("handler error classifies as handler_error", func(t *testing.T) {
 		rec := newRecorder()
-		srv := newGeneratedShapedServer(rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
+		srv := newGeneratedShapedServer(t, rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
 			obs.Fail(transport.ReasonHandlerError)
 			http.Error(w, "boom", http.StatusInternalServerError)
 		})
-		defer srv.Close()
 		resp, err := srv.Client().Get(srv.URL + "/foo")
 		require.NoError(t, err)
 		require.NoError(t, resp.Body.Close())
@@ -74,11 +71,10 @@ func TestHTTPObserver(t *testing.T) {
 
 	t.Run("response write failure classifies as response_write_failed", func(t *testing.T) {
 		rec := newRecorder()
-		srv := newGeneratedShapedServer(rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
+		srv := newGeneratedShapedServer(t, rec, func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver) {
 			obs.Fail(transport.ReasonResponseWriteFailed)
 			w.WriteHeader(http.StatusInternalServerError)
 		})
-		defer srv.Close()
 		resp, err := srv.Client().Get(srv.URL + "/foo")
 		require.NoError(t, err)
 		require.NoError(t, resp.Body.Close())
@@ -100,8 +96,7 @@ func TestHTTPObserver(t *testing.T) {
 			}()
 			handler.ServeHTTP(w, r)
 		})
-		srv := httptest.NewServer(recoverer)
-		defer srv.Close()
+		srv := httptest.NewTestServer(t, recoverer)
 		resp, err := srv.Client().Get(srv.URL + "/foo")
 		require.NoError(t, err)
 		require.NoError(t, resp.Body.Close())
@@ -149,6 +144,7 @@ func wrapGeneratedShaped(rec transport.Observer, inner func(ctx context.Context,
 	}))
 }
 
-func newGeneratedShapedServer(rec transport.Observer, inner func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver)) *httptest.Server {
-	return httptest.NewServer(wrapGeneratedShaped(rec, inner))
+func newGeneratedShapedServer(t testing.TB, rec transport.Observer, inner func(ctx context.Context, w http.ResponseWriter, r *http.Request, obs *transport.RequestObserver)) *httptest.Server {
+	t.Helper()
+	return httptest.NewTestServer(t, wrapGeneratedShaped(rec, inner))
 }

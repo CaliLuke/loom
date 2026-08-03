@@ -354,12 +354,23 @@ func formatGoLiteral(v any) string {
 	return b.String()
 }
 
+func formatAttributeGoLiteral(att *expr.AttributeExpr, value any) string {
+	if typeName, _ := GetMetaType(att); typeName == "json.RawMessage" {
+		actual := reflect.ValueOf(value)
+		if actual.IsValid() && actual.Kind() == reflect.Slice && actual.Type().Elem().Kind() == reflect.Uint8 {
+			literal := fmt.Sprintf("%#v", actual.Bytes())
+			return typeName + strings.TrimPrefix(literal, "[]byte")
+		}
+	}
+	return formatGoLiteral(value)
+}
+
 func typedDefaultLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
 	switch actual := att.Type.(type) {
 	case *expr.Map:
 		return typedMapDefaultLiteral(actual, value, ta)
 	default:
-		return formatGoLiteral(value), true
+		return formatAttributeGoLiteral(att, value), true
 	}
 }
 
@@ -401,7 +412,7 @@ func typedDefaultValueLiteral(att *expr.AttributeExpr, value any, ta *TransformA
 	if expr.IsMap(att.Type) {
 		return typedMapDefaultLiteral(expr.AsMap(att.Type), value, ta)
 	}
-	return formatGoLiteral(value), true
+	return formatAttributeGoLiteral(att, value), true
 }
 
 // transformAttributeHelpers returns the Go transform functions and their definitions

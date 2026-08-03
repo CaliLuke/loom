@@ -1,6 +1,8 @@
 package dsl
 
 import (
+	"slices"
+
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 	pkg "github.com/CaliLuke/loom/pkg"
@@ -277,8 +279,8 @@ func currentErrorExpr() (*expr.ErrorExpr, bool) {
 	if errExpr, ok := eval.Current().(*expr.ErrorExpr); ok {
 		return errExpr, true
 	}
-	for i := len(eval.Context.Stack) - 1; i >= 0; i-- {
-		if errExpr, ok := eval.Context.Stack[i].(*expr.ErrorExpr); ok {
+	for _, v := range slices.Backward(eval.Context.Stack) {
+		if errExpr, ok := v.(*expr.ErrorExpr); ok {
 			return errExpr, true
 		}
 	}

@@ -99,7 +99,7 @@ func addInterceptorsInterfaceComment(stmt *jen.Statement, server bool) {
 func addInterceptorInterfaceMethod(group *jen.Group, interceptor *InterceptorData) {
 	if interceptor.Description != "" {
 		for _, line := range strings.Split(codegen.Comment(interceptor.Description), "\n") {
-			group.Comment("\t" + strings.TrimPrefix(line, "// "))
+			group.Comment(strings.TrimPrefix(line, "// "))
 		}
 	}
 	group.Id(interceptor.Name).Params(
@@ -155,9 +155,9 @@ func addInterceptorAccessorInterface(group *jen.Group, name, suffix string, enab
 	group.Line()
 	desc := fmt.Sprintf("%s%s provides type-safe access to the method %s.\nIt allows reading and writing specific fields of the %s as defined\nin the design.", name, suffix, interfaceAccessTarget(suffix), interfaceAccessTarget(suffix))
 	if strings.HasPrefix(suffix, "Streaming") {
-		group.Comment("\t" + name + suffix + " provides type-safe access to the method " + interfaceAccessTarget(suffix) + ".")
-		group.Comment("\t" + "It allows reading and writing specific fields of the " + interfaceAccessTarget(suffix) + " as defined")
-		group.Comment("\t" + "in the design.")
+		group.Comment(name + suffix + " provides type-safe access to the method " + interfaceAccessTarget(suffix) + ".")
+		group.Comment("It allows reading and writing specific fields of the " + interfaceAccessTarget(suffix) + " as defined")
+		group.Comment("in the design.")
 	} else {
 		addIndentedGroupComment(group, desc)
 	}
@@ -187,7 +187,7 @@ func addInterceptorMethodStructs(group *jen.Group, interceptors []*InterceptorDa
 
 func addIndentedGroupComment(group *jen.Group, text string) {
 	for _, line := range strings.Split(codegen.Comment(text), "\n") {
-		group.Comment("\t" + strings.TrimPrefix(line, "// "))
+		group.Comment(strings.TrimPrefix(line, "// "))
 	}
 }
 

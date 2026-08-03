@@ -52,14 +52,12 @@ func TestWrapClientCreatesClientSpan(t *testing.T) {
 		require.NoError(t, tp.Shutdown(context.Background()))
 	})
 
-	srv := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+	srv := httptest.NewTestServer(t, stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		w.WriteHeader(stdhttp.StatusAccepted)
 		_, err := w.Write([]byte("ok"))
 		require.NoError(t, err)
 	}))
-	t.Cleanup(srv.Close)
-
-	client := WrapClient(&stdhttp.Client{}, otelhttp.WithTracerProvider(tp))
+	client := WrapClient(srv.Client(), otelhttp.WithTracerProvider(tp))
 	req, err := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, srv.URL, nil)
 	require.NoError(t, err)
 

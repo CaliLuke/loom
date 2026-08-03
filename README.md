@@ -69,7 +69,7 @@ does not promise source compatibility with every Goa release.
 ## Quick start
 
 Loom requires the Go version declared in [go.mod](go.mod#L3), currently Go
-1.26.1 or later.
+1.27 or later.
 
 Install the CLI and create a module:
 

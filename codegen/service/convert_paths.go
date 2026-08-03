@@ -6,6 +6,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -33,8 +34,8 @@ func commonPath(sep byte, paths ...string) string {
 		}
 	}
 
-	for i := len(c) - 1; i >= 0; i-- {
-		if c[i] == sep {
+	for i, v := range slices.Backward(c) {
+		if v == sep {
 			c = c[:i]
 			break
 		}

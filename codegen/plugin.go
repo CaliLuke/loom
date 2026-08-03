@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"slices"
 	"sync"
 
 	"github.com/CaliLuke/loom/eval"
@@ -127,8 +128,7 @@ func (r *Registry) RegisterPluginLast(name string, cmd string, pre PrepareFunc, 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var inserted bool
-	for i := len(r.plugins) - 1; i >= 0; i-- {
-		plgn := r.plugins[i]
+	for i, plgn := range slices.Backward(r.plugins) {
 		if !plgn.last || plgn.name < np.name {
 			r.plugins = append(r.plugins[:i+1], append([]*plugin{np}, r.plugins[i+1:]...)...) //nolint:gocritic
 			inserted = true

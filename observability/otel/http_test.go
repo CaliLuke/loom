@@ -124,19 +124,18 @@ func TestHTTPMiddlewareMetricModes(t *testing.T) {
 func TestWrapHTTPClientEmitsClientSpanAndPropagatesContext(t *testing.T) {
 	traceHarness := testkit.NewTraceHarness(t)
 	metricHarness := testkit.NewMetricHarness(t)
-	client := WrapHTTPClient(http.DefaultClient, HTTPClientConfig{
-		ServiceName:    "autok-client",
-		MetricMode:     HTTPMetricModeNone,
-		TracerProvider: traceHarness.Provider,
-		MeterProvider:  metricHarness.Provider,
-	})
 
 	server := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.NotEmpty(t, r.Header.Get("Traceparent"))
 		w.WriteHeader(http.StatusOK)
 	})
-	ts := httptest.NewServer(server)
-	defer ts.Close()
+	ts := httptest.NewTestServer(t, server)
+	client := WrapHTTPClient(ts.Client(), HTTPClientConfig{
+		ServiceName:    "autok-client",
+		MetricMode:     HTTPMetricModeNone,
+		TracerProvider: traceHarness.Provider,
+		MeterProvider:  metricHarness.Provider,
+	})
 
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, nil)
 	require.NoError(t, err)

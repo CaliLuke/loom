@@ -126,8 +126,8 @@ func removeUnusedImports(fset *token.FileSet, file *ast.File, imports map[import
 //   - "gopkg.in/yaml.v2" -> "yaml"
 func inferPackageName(path string) string {
 	// Get the last component of the path
-	if idx := strings.LastIndex(path, "/"); idx >= 0 {
-		path = path[idx+1:]
+	if _, name, ok := strings.CutLast(path, "/"); ok {
+		path = name
 	}
 
 	// Remove version suffixes like .v2, .v3, etc.

@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDebugLogToggleConcurrentAccess(t *testing.T) {
@@ -19,8 +21,7 @@ func TestDebugLogToggleConcurrentAccess(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})))
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httptest.NewTestServer(t, mux)
 
 	var wg sync.WaitGroup
 	for range 8 {
@@ -28,7 +29,7 @@ func TestDebugLogToggleConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range 50 {
-				resp, err := http.Get(server.URL + "/debug?debug-logs=on")
+				resp, err := server.Client().Get(server.URL + "/debug?debug-logs=on")
 				if err != nil {
 					t.Errorf("toggle on failed: %v", err)
 					return
@@ -37,7 +38,7 @@ func TestDebugLogToggleConcurrentAccess(t *testing.T) {
 					t.Errorf("close toggle on response body: %v", err)
 					return
 				}
-				resp, err = http.Get(server.URL + "/debug?debug-logs=off")
+				resp, err = server.Client().Get(server.URL + "/debug?debug-logs=off")
 				if err != nil {
 					t.Errorf("toggle off failed: %v", err)
 					return
@@ -51,7 +52,7 @@ func TestDebugLogToggleConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range 50 {
-				resp, err := http.Get(server.URL + "/work")
+				resp, err := server.Client().Get(server.URL + "/work")
 				if err != nil {
 					t.Errorf("work request failed: %v", err)
 					return
@@ -64,4 +65,17 @@ func TestDebugLogToggleConcurrentAccess(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestMountPprofHandlersIncludesGoroutineLeakProfile(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	MountPprofHandlers(mux)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/debug/pprof/goroutineleak?debug=1", nil)
+	mux.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "goroutineleak profile")
 }
