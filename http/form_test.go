@@ -173,3 +173,70 @@ func TestParseFormChildKey(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkEncodeFormValues(b *testing.B) {
+	active := true
+	payload := testFormPayload{
+		ClientID: "client-123",
+		Scope:    []string{"openid", "profile"},
+		Active:   &active,
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if _, err := EncodeFormValues(payload); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkDecodeFormValues(b *testing.B) {
+	values := url.Values{
+		"client_id": {"client-123"},
+		"scope":     {"openid", "profile"},
+		"active":    {"true"},
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		var payload testFormPayload
+		if err := DecodeFormValues(values, &payload); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkEncodeNestedFormValues(b *testing.B) {
+	payload := testFormMapPayload{
+		Items: map[string]testFormItem{
+			"first":  {Sub: "hello"},
+			"second": {Sub: "world"},
+		},
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if _, err := EncodeFormValues(payload); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkDecodeNestedFormValues(b *testing.B) {
+	values := url.Values{
+		"items[first][sub]":  {"hello"},
+		"items[second][sub]": {"world"},
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		var payload testFormMapPayload
+		if err := DecodeFormValues(values, &payload); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
