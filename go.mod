@@ -11,7 +11,7 @@ require (
 	github.com/felixge/httpsnoop v1.1.0
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-logr/logr v1.4.4
-	github.com/gohugoio/hashstructure v0.6.0
+	github.com/gohugoio/hashstructure v1.0.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d
