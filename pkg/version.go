@@ -10,11 +10,11 @@ const (
 	// Major version number
 	Major = 1
 	// Minor version number
-	Minor = 7
+	Minor = 8
 	// Build number
-	Build = 1
+	Build = 0
 	// Suffix is the semantic version prerelease identifier, or empty for a stable release.
-	Suffix = ""
+	Suffix = "alpha.1"
 )
 
 var (
