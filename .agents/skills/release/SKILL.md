@@ -9,7 +9,8 @@ Use this skill when publishing a Loom release from this repo.
 
 ## Non-Negotiables
 
-- Cut Loom releases with `make release VERSION=vX.Y.Z`.
+- Cut Loom releases with `make release VERSION=vX.Y.Z` or an explicit SemVer
+  prerelease such as `make release VERSION=vX.Y.Z-alpha.1`.
 - Do not rely on hardcoded version defaults. The release version must be explicit.
 - The tagged commit must update every version-stamped file together:
   `pkg/version.go`, the versioned README install command, and every generated
@@ -27,6 +28,7 @@ Use this skill when publishing a Loom release from this repo.
 - Review user-facing docs affected by the release changes and update them before cutting the tag.
 - Review the repo-local Loom skill at `.agents/skills/loom/SKILL.md` and update it when the release changes framework behavior, guidance, or version-facing command examples.
 - The pushed `v*` tag must result in a matching GitHub Release via `.github/workflows/release.yml`.
+  Stable tags must publish as stable releases and prerelease tags must publish as prereleases.
 - Every GitHub Release must have meaningful notes before the release is considered done. A bare generated changelog link, empty body, or placeholder text is not acceptable.
 - Release notes and release-facing commit messages must describe the Loom behavior shipped, user impact, and upgrade notes. Do not center another framework, upstream project, or inspiration source when the actual value is the Loom improvement.
 - Do not add a routine `Verification` section or list standard CI commands in release notes. Readers need what changed and any action they must take; the repository and CI retain the verification record.
@@ -40,9 +42,12 @@ openapi-contract generated-code-quality`) in an isolated detached worktree
 before it creates a release commit or tag. That gate needs real tools on
 `PATH`, or it fails on environmental gaps that look like release bugs:
 
+- The Go version declared in `go.mod`; prerelease directives such as
+  `go 1.27rc2` require that exact preview toolchain or a launcher that can
+  download it automatically.
 - `golangci-lint` — `make depend` installs the pinned version to
   `$(go env GOPATH)/bin`; make sure that bin directory is on `PATH`.
-- `protoc` 25.0, `protoc-gen-go` v1.36.11, and
+- `protoc` 25.0, `protoc-gen-go` v1.36.12, and
   `protoc-gen-go-grpc` v1.6.2 — `make depend` installs the exact supported
   toolchain. Do not substitute `@latest`.
 - `node`/`npx` — the OpenAPI contract tests shell out to `npx @redocly/cli` and `openapi-typescript`; without Node they fail with `npx: executable file not found`.
@@ -68,12 +73,14 @@ falls back to a working tree in ordinary development checks either.
    - The full changelog comparison link.
    Exclude routine verification details and CI command lists.
 4. Review release-facing commit messages. If a message frames the work as a port from another framework or otherwise undersells the Loom change, reword it before release so the history describes what was actually done.
-5. Choose the exact target version and pass it explicitly as `VERSION=vX.Y.Z`.
-6. Run `make release VERSION=vX.Y.Z`. The command stages version changes in a
+5. Choose the exact target version and pass it explicitly as `VERSION=vX.Y.Z`
+   or `VERSION=vX.Y.Z-prerelease`.
+6. Run `make release VERSION=<version>`. The command stages version changes in a
    detached worktree, runs preflight, rejects unexpected mutations, commits and
    tags only after success, atomically pushes `main` plus the annotated tag,
-   verifies both remote refs, waits for the matching non-draft stable GitHub
-   Release with substantive notes, and finally fast-forwards the caller.
+   verifies both remote refs, waits for the matching non-draft GitHub Release
+   with the expected stable or prerelease state and substantive notes, and
+   finally fast-forwards the caller.
 7. Review the published notes against the draft. If generated notes omit user
    impact, upgrade guidance, or verification, repair them with
    `gh release edit vX.Y.Z --notes-file ...` and verify again.
@@ -85,7 +92,8 @@ falls back to a working tree in ordinary development checks either.
 - `pkg/version.go` reports the released version.
 - `README.md`, `.agents/skills/loom/SKILL.md`, and any other impacted user-facing docs reflect the released behavior and version references.
 - `git tag --list 'v*' --sort=-creatordate | head` includes the new tag.
-- GitHub shows a release object for the new tag, not just a tag entry.
+- GitHub shows a release object for the new tag, not just a tag entry, with
+  prerelease state matching the tag.
 - `git rev-parse HEAD`, `git ls-remote origin refs/heads/main`, and the peeled
   release tag all identify the same release commit.
 - `gh release view vX.Y.Z --json body --jq .body` shows substantive release notes with user-facing highlights, upgrade notes when relevant, and the changelog link, without a routine verification section.

@@ -52,7 +52,7 @@ func TestAutoKStyleCompatibilityContract(t *testing.T) {
 	fixture.Mux.Handle("GET", "/projects/{project_id}", func(w http.ResponseWriter, r *http.Request) {
 		AddHTTPAttributes(r.Context(), attribute.String("operation.kind", "request"))
 		record := log.Record{}
-		record.SetBody(log.StringValue("handler log"))
+		record.SetBody(attribute.StringValue("handler log"))
 		otelglobal.Logger("autok.handler").Emit(r.Context(), record)
 		w.WriteHeader(http.StatusOK)
 	})

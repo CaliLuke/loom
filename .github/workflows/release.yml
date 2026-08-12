@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing vX.Y.Z tag to publish or repair
+        description: Existing semantic version tag to publish or repair
         required: true
         type: string
 
@@ -37,7 +37,7 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             tag="${{ inputs.tag }}"
           fi
-          if ! printf '%s\n' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+          if ! printf '%s\n' "$tag" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
             echo "invalid tag: $tag"
             exit 1
           fi
@@ -45,4 +45,8 @@ jobs:
             echo "GitHub Release $tag already exists"
             exit 0
           fi
-          gh release create "$tag" --verify-tag --generate-notes --latest
+          release_kind=(--latest)
+          if [[ "$tag" == *-* ]]; then
+            release_kind=(--prerelease)
+          fi
+          gh release create "$tag" --verify-tag --generate-notes "${release_kind[@]}"

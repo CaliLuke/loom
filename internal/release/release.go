@@ -15,7 +15,7 @@ import (
 type Config struct {
 	// Root is the clean Loom repository to release.
 	Root string
-	// Version is the exact stable semantic version tag, including its v prefix.
+	// Version is the exact semantic version tag, including its v prefix.
 	Version string
 	// CanonicalRemote overrides the expected origin URL. Tests use a local bare repository.
 	CanonicalRemote string
@@ -58,16 +58,23 @@ const (
 )
 
 var (
-	versionPattern = regexp.MustCompile(`^v([0-9]+)\.([0-9]+)\.([0-9]+)$`)
-	versionFields  = map[string]*regexp.Regexp{
+	versionPattern = regexp.MustCompile(
+		`^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$`,
+	)
+	versionFields = map[string]*regexp.Regexp{
 		"Major": regexp.MustCompile(`(?m)^(\s*Major\s*=\s*)[0-9]+`),
 		"Minor": regexp.MustCompile(`(?m)^(\s*Minor\s*=\s*)[0-9]+`),
 		"Build": regexp.MustCompile(`(?m)^(\s*Build\s*=\s*)[0-9]+`),
 	}
+	versionSuffixPattern = regexp.MustCompile(`(?m)^(\s*Suffix\s*=\s*)"([^"]*)"`)
 	readmeVersionPattern = regexp.MustCompile(
-		`go install github\.com/CaliLuke/loom/cmd/loom@v[0-9]+\.[0-9]+\.[0-9]+`,
+		`go install github\.com/CaliLuke/loom/cmd/loom@v[0-9]+\.[0-9]+\.[0-9]+` +
+			`(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?`,
 	)
-	fixtureVersionPattern = regexp.MustCompile(`"loom_version"\s*:\s*"v[0-9]+\.[0-9]+\.[0-9]+"`)
+	fixtureVersionPattern = regexp.MustCompile(
+		`"loom_version"\s*:\s*"v[0-9]+\.[0-9]+\.[0-9]+` +
+			`(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"`,
+	)
 )
 
 // Run validates, stages, verifies, publishes, and confirms one Loom release.

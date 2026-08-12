@@ -5,7 +5,6 @@ import (
 
 	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
 	"go.opentelemetry.io/otel/attribute"
-	otellog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/trace"
 
@@ -35,8 +34,8 @@ func TestNewMirrorsLogrusEntriesIntoOpenTelemetryLogs(t *testing.T) {
 func requireLogAttribute(t *testing.T, record sdklog.Record, expected attribute.KeyValue) {
 	t.Helper()
 	found := false
-	record.WalkAttributes(func(kv otellog.KeyValue) bool {
-		if attribute.Key(kv.Key) != expected.Key {
+	record.WalkAttributes(func(kv attribute.KeyValue) bool {
+		if kv.Key != expected.Key {
 			return true
 		}
 		require.Equal(t, expected.Value.AsString(), kv.Value.AsString())

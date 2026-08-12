@@ -9,13 +9,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
+
+	"golang.org/x/mod/semver"
 )
 
 func validateVersion(version string) error {
-	if !versionPattern.MatchString(version) {
-		return fmt.Errorf("VERSION %q must match vX.Y.Z", version)
+	if !versionPattern.MatchString(version) || !semver.IsValid(version) {
+		return fmt.Errorf("VERSION %q must match vX.Y.Z or vX.Y.Z-prerelease", version)
 	}
 	return nil
 }
@@ -78,26 +79,14 @@ func validateRepository(ctx context.Context, config Config) (string, error) {
 }
 
 func validateVersionAdvance(current, target string) error {
-	currentParts := versionPattern.FindStringSubmatch(current)
-	targetParts := versionPattern.FindStringSubmatch(target)
-	if len(currentParts) != 4 || len(targetParts) != 4 {
+	if err := validateVersion(current); err != nil {
 		return fmt.Errorf("compare release versions: invalid current %q or target %q", current, target)
 	}
-	for index := 1; index < 4; index++ {
-		currentPart, err := strconv.Atoi(currentParts[index])
-		if err != nil {
-			return fmt.Errorf("parse current release version %q: %w", current, err)
-		}
-		targetPart, err := strconv.Atoi(targetParts[index])
-		if err != nil {
-			return fmt.Errorf("parse target release version %q: %w", target, err)
-		}
-		if targetPart > currentPart {
-			return nil
-		}
-		if targetPart < currentPart {
-			break
-		}
+	if err := validateVersion(target); err != nil {
+		return fmt.Errorf("compare release versions: invalid current %q or target %q", current, target)
+	}
+	if semver.Compare(target, current) > 0 {
+		return nil
 	}
 	return fmt.Errorf("release VERSION %s must be greater than current version %s", target, current)
 }
@@ -134,15 +123,23 @@ func readCurrentVersion(path string) (string, error) {
 		value := strings.TrimSpace(strings.TrimPrefix(string(matches[0]), string(matches[1])))
 		parts = append(parts, value)
 	}
-	return "v" + strings.Join(parts, "."), nil
+	version := "v" + strings.Join(parts, ".")
+	suffixMatches := versionSuffixPattern.FindSubmatch(contents)
+	if len(suffixMatches) != 3 {
+		return "", errors.New("read current version: missing Suffix field")
+	}
+	if suffix := string(suffixMatches[2]); suffix != "" {
+		version += "-" + suffix
+	}
+	return version, nil
 }
 
 func updateVersionFiles(root, version string) ([]string, error) {
 	matches := versionPattern.FindStringSubmatch(version)
-	if len(matches) != 4 {
-		return nil, fmt.Errorf("VERSION %q must match vX.Y.Z", version)
+	if len(matches) != 5 {
+		return nil, fmt.Errorf("VERSION %q must match vX.Y.Z or vX.Y.Z-prerelease", version)
 	}
-	if err := updatePackageVersion(root, matches[1:]); err != nil {
+	if err := updatePackageVersion(root, matches[1:4], matches[4]); err != nil {
 		return nil, err
 	}
 	if err := updateReadmeVersion(root, version); err != nil {
@@ -157,7 +154,7 @@ func updateVersionFiles(root, version string) ([]string, error) {
 	return changed, nil
 }
 
-func updatePackageVersion(root string, parts []string) error {
+func updatePackageVersion(root string, parts []string, suffix string) error {
 	versionPath := filepath.Join(root, "pkg", "version.go")
 	contents, mode, err := readFile(versionPath)
 	if err != nil {
@@ -168,6 +165,10 @@ func updatePackageVersion(root string, parts []string) error {
 		if err != nil {
 			return err
 		}
+	}
+	contents, err = replaceExactlyOne(contents, versionSuffixPattern, `${1}"`+suffix+`"`, versionPath)
+	if err != nil {
+		return err
 	}
 	if err := os.WriteFile(versionPath, contents, mode); err != nil {
 		return fmt.Errorf("write %s: %w", versionPath, err)

@@ -34,7 +34,7 @@ func TestPinLocalReplaceUpdatesGoMod(t *testing.T) {
 	workDir := t.TempDir()
 	goMod := `module example.com/fixture
 
-go 1.27
+go 1.27rc2
 
 require github.com/CaliLuke/loom v1.0.0
 

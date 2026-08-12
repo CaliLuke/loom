@@ -83,6 +83,9 @@ build Auto-K without repeating large amounts of app-local glue.
   generic public component names when that contract identity can be inferred
   safely, instead of defaulting to operation-derived names; hash suffixes
   remain only as a collision fallback.
+- Treat hash-suffixed fallback names as generated collision identities. If a
+  downstream SDK or tool depends on a component name, set the corresponding
+  `openapi:typename` or `openapi:component:*` metadata explicitly.
 - Use `Meta("openapi:component:requestBody", "...")` when a hoisted reusable
   request body needs an explicit public component name, and
   `Meta("openapi:component:parameter", "...")` when a hoisted reusable
@@ -286,7 +289,7 @@ build Auto-K without repeating large amounts of app-local glue.
 - For gRPC, use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`
   for framework-owned transport telemetry.
 - Framework-owned gRPC generation uses `protoc` 25.0,
-  `protoc-gen-go` v1.36.11, and `protoc-gen-go-grpc` v1.6.2. Run `make depend`
+  `protoc-gen-go` v1.36.12, and `protoc-gen-go-grpc` v1.6.2. Run `make depend`
   to install the exact supported versions; never substitute `@latest` in Loom
   tooling.
 - Generated gRPC encoders propagate `Any` conversion failures. Values placed in
@@ -365,6 +368,8 @@ build Auto-K without repeating large amounts of app-local glue.
 
 ```bash
 go install github.com/CaliLuke/loom/cmd/loom@latest
+# Go 1.27rc2 preview while the stable release remains on the prior toolchain:
+go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.1
 loom version
 loom gen <module-import-path>/design
 loom example <module-import-path>/design

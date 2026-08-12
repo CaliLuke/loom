@@ -22,8 +22,10 @@ func TestValidateVersion(t *testing.T) {
 		wantErr string
 	}{
 		{name: "valid", version: "v1.7.0"},
+		{name: "valid prerelease", version: "v1.8.0-alpha.1"},
 		{name: "missing prefix", version: "1.7.0", wantErr: "must match vX.Y.Z"},
-		{name: "prerelease", version: "v1.7.0-rc1", wantErr: "must match vX.Y.Z"},
+		{name: "leading zero", version: "v1.08.0", wantErr: "must match vX.Y.Z"},
+		{name: "invalid prerelease", version: "v1.8.0-alpha..1", wantErr: "must match vX.Y.Z"},
 		{name: "missing component", version: "v1.7", wantErr: "must match vX.Y.Z"},
 	}
 
@@ -44,8 +46,12 @@ func TestValidateVersionAdvance(t *testing.T) {
 
 	require.NoError(t, validateVersionAdvance("v1.6.2", "v1.7.0"))
 	require.NoError(t, validateVersionAdvance("v1.6.2", "v2.0.0"))
+	require.NoError(t, validateVersionAdvance("v1.7.1", "v1.8.0-alpha.1"))
+	require.NoError(t, validateVersionAdvance("v1.8.0-alpha.1", "v1.8.0-alpha.2"))
+	require.NoError(t, validateVersionAdvance("v1.8.0-alpha.2", "v1.8.0"))
 	require.ErrorContains(t, validateVersionAdvance("v1.6.2", "v1.6.2"), "greater than")
 	require.ErrorContains(t, validateVersionAdvance("v1.6.2", "v1.5.9"), "greater than")
+	require.ErrorContains(t, validateVersionAdvance("v1.8.0-alpha.2", "v1.8.0-alpha.1"), "greater than")
 }
 
 func TestSubstantiveRelease(t *testing.T) {
@@ -60,9 +66,11 @@ func TestSubstantiveRelease(t *testing.T) {
 		wantErr string
 	}{
 		{name: "valid", version: "v1.7.0", data: releaseJSON("v1.7.0", validBody, false, false)},
+		{name: "valid prerelease", version: "v1.8.0-alpha.1", data: releaseJSON("v1.8.0-alpha.1", validBody, false, true)},
 		{name: "wrong tag", version: "v1.7.0", data: releaseJSON("v1.6.2", validBody, false, false), wantErr: "tag"},
 		{name: "draft", version: "v1.7.0", data: releaseJSON("v1.7.0", validBody, true, false), wantErr: "draft"},
 		{name: "prerelease", version: "v1.7.0", data: releaseJSON("v1.7.0", validBody, false, true), wantErr: "prerelease"},
+		{name: "prerelease not marked", version: "v1.8.0-alpha.1", data: releaseJSON("v1.8.0-alpha.1", validBody, false, false), wantErr: "prerelease"},
 		{name: "empty", version: "v1.7.0", data: releaseJSON("v1.7.0", "", false, false), wantErr: "substantive"},
 		{name: "changelog only", version: "v1.7.0", data: releaseJSON("v1.7.0", "Full Changelog: https://example.com", false, false), wantErr: "substantive"},
 	}
@@ -77,6 +85,41 @@ func TestSubstantiveRelease(t *testing.T) {
 			require.ErrorContains(t, err, test.wantErr)
 		})
 	}
+}
+
+func TestUpdateVersionFilesSupportsPrerelease(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "pkg/version.go"), `package loom
+
+const (
+	Major = 1
+	Minor = 7
+	Build = 1
+	Suffix = ""
+)
+`)
+	writeFile(t, filepath.Join(root, "README.md"),
+		"go install github.com/CaliLuke/loom/cmd/loom@v1.7.1\n")
+	writeFile(t, filepath.Join(root, "http/integration_tests/fixtures/ticktock/gen/loom.json"),
+		"{\n  \"loom_version\": \"v1.7.1\"\n}\n")
+
+	changed, err := updateVersionFiles(root, "v1.8.0-alpha.1")
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		"README.md",
+		"http/integration_tests/fixtures/ticktock/gen/loom.json",
+		"pkg/version.go",
+	}, changed)
+
+	files := snapshotReleaseFiles(t, root)
+	require.Contains(t, files["pkg/version.go"], "Minor = 8")
+	require.Contains(t, files["pkg/version.go"], "Build = 0")
+	require.Contains(t, files["pkg/version.go"], `Suffix = "alpha.1"`)
+	require.Contains(t, files["README.md"], "cmd/loom@v1.8.0-alpha.1")
+	require.Contains(t, files["http/integration_tests/fixtures/ticktock/gen/loom.json"],
+		`"loom_version": "v1.8.0-alpha.1"`)
 }
 
 func TestSameRemote(t *testing.T) {
@@ -216,6 +259,7 @@ const (
 	Major = 1
 	Minor = 6
 	Build = 2
+	Suffix = ""
 )
 `)
 	writeFile(t, filepath.Join(root, "README.md"), "go install github.com/CaliLuke/loom/cmd/loom@v1.6.2\n")

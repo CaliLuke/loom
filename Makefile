@@ -7,7 +7,7 @@
 # - "lint" runs the linter
 # - "test" runs the tests
 # - "release" verifies a staged release, atomically publishes its commit and tag, and
-#   waits for the matching substantive GitHub Release. It requires VERSION=vX.Y.Z.
+#   waits for the matching substantive GitHub Release. It requires an explicit semantic VERSION.
 #
 # Meta targets:
 # - "all" is the default target, it runs "lint" and "test"
@@ -21,7 +21,7 @@ GOPATH=$(shell go env GOPATH)
 GOBIN_DIR=$(GOPATH)/bin
 GOLANGCI_LINT_VERSION?=v2.12.2
 GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
-PROTOC_GEN_GO_VERSION?=v1.36.11
+PROTOC_GEN_GO_VERSION?=v1.36.12
 PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)

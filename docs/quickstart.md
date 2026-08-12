@@ -12,7 +12,7 @@ This guide walks you through installing Loom and creating your first service. By
 
 Before you begin, ensure your environment meets these requirements:
 
-- **Go 1.27 or later** - this repository's `go.mod` currently declares Go 1.27
+- **Go 1.27rc2 or later** - this preview requirement will move to Go 1.27 after its stable release
 - **Go Modules enabled** - this is the default for supported Go versions
 - **curl or any HTTP client** - For testing your service
 

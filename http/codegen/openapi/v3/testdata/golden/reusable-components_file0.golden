@@ -84,7 +84,7 @@
       "NoContentResponse": {
         "description": "No Content response."
       },
-      "Session_d5d120e942d17641Status200Response": {
+      "Session_f83ae53b4e88d8a9Status200Response": {
         "content": {
           "application/json": {
             "examples": {
@@ -96,7 +96,7 @@
               }
             },
             "schema": {
-              "$ref": "#/components/schemas/Session_d5d120e942d17641_2"
+              "$ref": "#/components/schemas/Session_f83ae53b4e88d8a9_2"
             }
           }
         },
@@ -144,7 +144,7 @@
         ],
         "type": "object"
       },
-      "Session_d5d120e942d17641_2": {
+      "Session_f83ae53b4e88d8a9_2": {
         "example": {
           "expiresAt": "2026-03-21T12:00:00Z",
           "token": "token-456",
@@ -185,7 +185,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/Session_d5d120e942d17641Status200Response"
+            "$ref": "#/components/responses/Session_f83ae53b4e88d8a9Status200Response"
           }
         },
         "summary": "refresh auth",
@@ -216,7 +216,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/Session_d5d120e942d17641Status200Response"
+            "$ref": "#/components/responses/Session_f83ae53b4e88d8a9Status200Response"
           }
         },
         "summary": "signin auth",

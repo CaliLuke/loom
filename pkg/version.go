@@ -13,7 +13,7 @@ const (
 	Minor = 7
 	// Build number
 	Build = 1
-	// Suffix - set to empty string in release tag commits.
+	// Suffix is the semantic version prerelease identifier, or empty for a stable release.
 	Suffix = ""
 )
 

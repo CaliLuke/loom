@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/semver"
 )
 
 func verifyRemoteRefs(ctx context.Context, root, version, commit string) error {
@@ -81,7 +83,11 @@ func validateRelease(version string, data []byte) error {
 	if release.Draft {
 		return errors.New("GitHub Release is still a draft")
 	}
-	if release.Prerelease {
+	expectPrerelease := semver.Prerelease(version) != ""
+	if release.Prerelease != expectPrerelease {
+		if expectPrerelease {
+			return errors.New("GitHub Release is not marked as a prerelease")
+		}
 		return errors.New("stable GitHub Release is marked as a prerelease")
 	}
 	body := strings.TrimSpace(release.Body)

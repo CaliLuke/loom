@@ -359,6 +359,9 @@ single schema component and reuses it by `$ref`. Explicit names from
 `openapi:typename` are treated as public component names: equivalent schemas may
 reuse the name, but different schemas claiming the same explicit name fail
 generation instead of receiving hash-suffixed public names.
+Hash-suffixed fallback names are generated collision identities, not a public
+naming API. If downstream SDKs or tooling depend on a component name, set the
+corresponding `openapi:typename` or `openapi:component:*` metadata explicitly.
 
 OpenAPI security requirement values are empty arrays for HTTP bearer, API key,
 basic, and cookie security schemes. OAuth2 is the only scheme kind that
