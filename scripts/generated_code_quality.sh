@@ -4,11 +4,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOOM_BIN="${LOOM_BIN:-$(go env GOPATH)/bin/loom}"
 GOLANGCI_LINT="${GOLANGCI_LINT:-$(go env GOPATH)/bin/golangci-lint}"
+STATICCHECK="${STATICCHECK:-$(go env GOPATH)/bin/staticcheck}"
+STATICCHECK_CHECKS="${STATICCHECK_CHECKS:-all,-S*,-ST*,-QF*}"
 
 if [ ! -x "$LOOM_BIN" ]; then
   echo "missing loom binary: $LOOM_BIN" >&2
   echo "run: make build-loom-cached" >&2
   exit 1
+fi
+
+if [ ! -x "$STATICCHECK" ]; then
+  if command -v staticcheck >/dev/null 2>&1; then
+    STATICCHECK="$(command -v staticcheck)"
+  else
+    echo "missing staticcheck: $STATICCHECK" >&2
+    echo "run: make depend" >&2
+    exit 1
+  fi
 fi
 
 if [ ! -x "$GOLANGCI_LINT" ]; then
@@ -63,9 +75,10 @@ run_fixture() {
     go mod tidy
     go test ./...
     go vet ./...
+    "$STATICCHECK" -checks="$STATICCHECK_CHECKS" ./gen/...
     "$GOLANGCI_LINT" run \
       --no-config \
-      --enable-only=errcheck,staticcheck,govet,ineffassign,unused,errorlint \
+      --enable-only=errcheck,govet,ineffassign,unused,errorlint \
       --timeout=5m \
       ./gen/...
   )

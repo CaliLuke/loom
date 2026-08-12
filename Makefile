@@ -21,6 +21,9 @@ GOPATH=$(shell go env GOPATH)
 GOBIN_DIR=$(GOPATH)/bin
 GOLANGCI_LINT_VERSION?=v2.12.2
 GOLANGCI_LINT=$(GOBIN_DIR)/golangci-lint
+STATICCHECK_VERSION?=v0.8.0-rc.1
+STATICCHECK=$(GOBIN_DIR)/staticcheck
+STATICCHECK_CHECKS?=all,-S*,-ST*,-QF*
 PROTOC_GEN_GO_VERSION?=v1.36.12
 PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
@@ -70,7 +73,9 @@ depend:
 	@go mod download
 	@for package in $(DEPEND); do GOBIN="$(GOBIN_DIR)" go install $$package; done
 	@GOBIN="$(GOBIN_DIR)" go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	@GOBIN="$(GOBIN_DIR)" go install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
 	@$(GOLANGCI_LINT) version
+	@$(STATICCHECK) -version
 	@go mod tidy -compat=1.17
 	@echo INSTALLING PROTOC...
 	@rm -rf "$(PROTOC)"
@@ -96,6 +101,7 @@ ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_toolchain.sh || (echo "^ - toolchain lint errors!" && echo && exit 1)
 	@go run ./scripts/docscheck || (echo "^ - documentation lint errors!" && echo && exit 1)
+	@$(STATICCHECK) -checks='$(STATICCHECK_CHECKS)' ./... || (echo "^ - staticcheck errors!" && echo && exit 1)
 	@$(GOLANGCI_LINT) run ./... || (echo "^ - lint errors!" && echo && exit 1)
 else
 	@echo "SKIPPED: lint does not run on Windows"
@@ -175,7 +181,9 @@ endif
 
 generated-code-quality: build-loom-cached
 ifneq ($(GOOS),windows)
-	GOLANGCI_LINT="$(GOLANGCI_LINT)" LOOM_BIN="$(GOBIN_DIR)/loom" bash ./scripts/generated_code_quality.sh
+	GOLANGCI_LINT="$(GOLANGCI_LINT)" STATICCHECK="$(STATICCHECK)" \
+		STATICCHECK_CHECKS='$(STATICCHECK_CHECKS)' LOOM_BIN="$(GOBIN_DIR)/loom" \
+		bash ./scripts/generated_code_quality.sh
 endif
 
 openapi-contract:

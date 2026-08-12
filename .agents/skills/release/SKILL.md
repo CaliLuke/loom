@@ -47,6 +47,9 @@ before it creates a release commit or tag. That gate needs real tools on
   download it automatically.
 - `golangci-lint` — `make depend` installs the pinned version to
   `$(go env GOPATH)/bin`; make sure that bin directory is on `PATH`.
+- `staticcheck` — Go 1.27 preview releases require the separately pinned
+  Staticcheck RC installed by `make depend`; golangci-lint's bundled analyzer
+  remains disabled until its Go 1.27-compatible release is available.
 - `protoc` 25.0, `protoc-gen-go` v1.36.12, and
   `protoc-gen-go-grpc` v1.6.2 — `make depend` installs the exact supported
   toolchain. Do not substitute `@latest`.

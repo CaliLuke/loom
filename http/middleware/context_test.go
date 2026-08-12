@@ -72,6 +72,7 @@ func TestRequestContextKeyValsOddCountPanics(t *testing.T) {
 	require.PanicsWithValue(t,
 		"initctx: invalid number of key/value elements, must be an even number",
 		func() {
-			httpm.RequestContextKeyVals(ctxTestKey("a")) // nolint: staticcheck // odd count on purpose to trigger the panic
+			//lint:ignore SA5012 Odd argument count is the behavior under test.
+			httpm.RequestContextKeyVals(ctxTestKey("a"))
 		})
 }

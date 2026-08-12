@@ -1,9 +1,12 @@
 version: "2"
 linters:
+  disable:
+    # golangci-lint v2.12.2 bundles Staticcheck 0.7, whose IR crashes on
+    # Go 1.27rc2 Linux sources. Makefile runs the compatible pinned RC directly.
+    - staticcheck
   enable:
     - errorlint     # Better error handling patterns for Go 1.13+
     - errcheck      # Check for unchecked errors
-    - staticcheck   # Advanced static analysis
     - dupl          # Detect duplicated code blocks
     - gocyclo       # Enforce a cyclomatic complexity ceiling
     - maintidx      # Enforce maintainability index floor (Halstead + cyclomatic + LOC)
@@ -26,21 +29,7 @@ linters:
       - path: _test\.go
         linters:
           - maintidx
-      - path: _test\.go
-        text: "SA1019: .*SectionTemplates"
-        linters:
-          - staticcheck
-      - path: codegen/service/client_test\.go
-        text: "SA1019: ast\\.(Object|Scope)"
-        linters:
-          - staticcheck
   settings:
-    staticcheck:
-      checks:
-        - "all"
-        - "-S*"       # Keep style/simplification churn out of the gate.
-        - "-ST*"      # Dot imports and docs are intentionally varied in DSL code.
-        - "-QF*"      # Quick-fixes are useful locally but too noisy as a gate.
     dupl:
       threshold: 150
     gocyclo:

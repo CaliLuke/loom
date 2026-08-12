@@ -79,12 +79,11 @@ func canonicalGoFragment(t *testing.T, code string) string {
 	require.NoError(t, err, wrapped)
 	var buf bytes.Buffer
 	require.NoError(t, ast.Fprint(&buf, fset, file, func(name string, value reflect.Value) bool {
-		switch value.Interface().(type) {
-		case token.Pos, *ast.Object, *ast.Scope:
+		if name == "Obj" || name == "Scope" {
 			return false
-		default:
-			return true
 		}
+		_, isPosition := value.Interface().(token.Pos)
+		return !isPosition
 	}))
 	return buf.String()
 }
