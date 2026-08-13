@@ -53,6 +53,25 @@ func validate(a string) (err error) {
 	require.NotContains(t, string(validation), "loomPatternCli0")
 }
 
+func TestFinalizeJSONSourceAddsExactlyOneFinalLineFeed(t *testing.T) {
+	cases := map[string]struct {
+		source string
+		want   string
+	}{
+		"empty":             {source: "", want: ""},
+		"missing newline":   {source: `{"ok":true}`, want: "{\"ok\":true}\n"},
+		"single newline":    {source: "{\"ok\":true}\n", want: "{\"ok\":true}\n"},
+		"multiple newlines": {source: "{\"ok\":true}\n\n", want: "{\"ok\":true}\n"},
+		"CRLF newline":      {source: "{\"ok\":true}\r\n", want: "{\"ok\":true}\n"},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.want, string(finalizeJSONSource([]byte(tc.source))))
+		})
+	}
+}
+
 func TestPatternVarPrefix(t *testing.T) {
 	cases := map[string]string{
 		"cli.go":                        "loomPatternCli",

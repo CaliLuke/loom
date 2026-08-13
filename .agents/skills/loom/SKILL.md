@@ -40,6 +40,9 @@ build Auto-K without repeating large amounts of app-local glue.
 ## Loom Contract Rules
 
 - `loom` emits OpenAPI 3.1 / JSON Schema 2020-12 only. The canonical artifacts are `gen/http/openapi.json` and `gen/http/openapi.yaml`.
+- Generated JSON artifacts, including `gen/http/openapi.json` and
+  `gen/loom.json`, end with exactly one LF. OpenAPI JSON remains compact by
+  default unless prefix or indentation metadata requests formatted output.
 - Treat OpenAPI output shape as framework contract. Stable schema names, canonical `operationId`, and `libopenapi` validation are intentional behavior, not incidental formatting.
 - When changing OpenAPI contract generation in `loom`, start in
   `http/codegen/openapi/internal/ir` first. That package now owns schema,

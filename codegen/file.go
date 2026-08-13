@@ -145,13 +145,16 @@ func (f *File) Render(dir string) (string, error) {
 		}
 	}
 
-	// For Go files, process everything in memory
+	// Finalize generated artifacts in memory before writing them.
 	content := buf.Bytes()
-	if filepath.Ext(path) == ".go" {
+	switch filepath.Ext(path) {
+	case ".go":
 		content, err = finalizeGoSource(path, content)
 		if err != nil {
 			return "", err
 		}
+	case ".json":
+		content = finalizeJSONSource(content)
 	}
 
 	// Write the final content exactly once
@@ -167,6 +170,13 @@ func (f *File) Render(dir string) (string, error) {
 	}
 
 	return path, nil
+}
+
+func finalizeJSONSource(content []byte) []byte {
+	if len(content) == 0 {
+		return content
+	}
+	return append(bytes.TrimRight(content, "\r\n"), '\n')
 }
 
 // SectionName returns the stable identifier of the section.

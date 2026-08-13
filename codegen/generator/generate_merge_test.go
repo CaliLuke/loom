@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -298,6 +299,9 @@ func assertVersionFile(t *testing.T, dir string, outputs []string) []string {
 	}
 	if v := data["loom_version"]; v != loom.Version() {
 		t.Fatalf("loom.json version = %q, want %q", v, loom.Version())
+	}
+	if !bytes.HasSuffix(bs, []byte("}\n")) {
+		t.Fatalf("loom.json must end with exactly one LF, got final bytes %q", bs[max(0, len(bs)-2):])
 	}
 
 	// Filter loom.json out of outputs.

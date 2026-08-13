@@ -3,6 +3,7 @@ package openapiv3_test
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -101,6 +102,38 @@ func TestFiles(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestRenderedJSONFileEndsWithFinalLineFeed(t *testing.T) {
+	openapi.Definitions = make(map[string]*openapi.Schema)
+	root := httpgen.RunHTTPDSL(t, testdata.SimpleDSL)
+	files, err := openapiv3.Files(root)
+	if err != nil {
+		t.Fatalf("OpenAPI failed with %s", err)
+	}
+
+	var jsonFile *codegen.File
+	for _, file := range files {
+		if filepath.Ext(file.Path) == ".json" {
+			jsonFile = file
+			break
+		}
+	}
+	if jsonFile == nil {
+		t.Fatal("OpenAPI did not produce a JSON file")
+	}
+
+	path, err := jsonFile.Render(t.TempDir())
+	if err != nil {
+		t.Fatalf("failed rendering OpenAPI JSON: %s", err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed reading OpenAPI JSON: %s", err)
+	}
+	if !bytes.HasSuffix(content, []byte("}\n")) {
+		t.Fatalf("OpenAPI JSON must end with exactly one LF, got final bytes %q", content[max(0, len(content)-2):])
 	}
 }
 
