@@ -33,7 +33,8 @@ worked on and contributing to them are most welcome.
 4) Link the issue that the PR intends to solve in the PR description. If an issue
 does not exist, adding a description in the PR that describes the issue and the
 fix is recommended.
-5) Run `./check.sh --full` before opening a PR so framework, generated-fixture,
-and integration coverage all exercise the change.
+5) Run `./check.sh --full` before opening a PR so the same meaningful lint,
+unit, integration, race, OpenAPI contract, and generated-code gates as
+direct-main GitHub CI exercise the change.
 6) Ensure the CI build passes when you issue a PR to Loom.
 7) Join the conversation on [GitHub Discussions](https://github.com/CaliLuke/loom/discussions).

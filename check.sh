@@ -10,7 +10,7 @@
 # Usage:
 #   ./check.sh          # lint + unit tests
 #   ./check.sh --fix    # auto-fix formatting/imports, then lint + unit tests
-#   ./check.sh --full   # adds the integration-test suite (slow; matches `make all`)
+#   ./check.sh --full   # all meaningful direct-main GitHub CI gates (slow)
 #
 # Do not add gate logic here. Add it to the Makefile or a script under
 # scripts/ so the pre-push hook and CI pick it up automatically.
@@ -35,7 +35,7 @@ case "$MODE" in
     exec make lint test
     ;;
   --full)
-    exec make all
+    exec make ci-local
     ;;
   check|"")
     exec make lint test

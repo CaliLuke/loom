@@ -7,4 +7,27 @@ repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
 echo "Running pre-push checks..."
-./check.sh
+
+# Git supplies one update per line as:
+#   <local ref> <local oid> <remote ref> <remote oid>
+# Run the complete local CI equivalent only when this push updates main. A
+# deletion has an all-zero local object ID and does not need source validation.
+run_full=false
+while read -r _local_ref local_oid remote_ref _remote_oid; do
+	case "$local_oid" in
+		'') continue ;;
+		*[!0]*) ;;
+		*) continue ;;
+	esac
+	if [ "$remote_ref" = "refs/heads/main" ]; then
+		run_full=true
+	fi
+done
+
+if [ "$run_full" = true ]; then
+	# A commit being pushed for the first time cannot be fetched in remote mode.
+	# Override this process only; do not mutate the persisted worktree mode.
+	LOOM_DIR="$repo_root" ./check.sh --full
+else
+	./check.sh
+fi

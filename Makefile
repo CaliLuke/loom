@@ -4,6 +4,7 @@
 #
 # Targets:
 # - "depend" retrieves the Go packages needed to run the linter and tests
+# - "ci-local" runs the meaningful direct-main GitHub CI gates locally
 # - "lint" runs the linter
 # - "test" runs the tests
 # - "release" verifies a staged release, atomically publishes its commit and tag, and
@@ -29,8 +30,8 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci clean depend install-hooks lint lint-docs lint-filesize lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
-.NOTPARALLEL: release
+.PHONY: all all-tests ci ci-local clean depend install-hooks lint lint-docs lint-filesize lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
 # Standard dependencies are installed via go get
@@ -43,6 +44,12 @@ all: lint test integration-test
 all-tests: lint test integration-test
 
 ci: depend all
+
+# ci-local mirrors the meaningful Linux gates in .github/workflows/test.yml.
+# Run `make depend` once to install the pinned Go tools. Node.js, npm/npx,
+# rsync, and network access are also required by the external contract gates.
+# The source mode is intentionally inherited from the worktree or LOOM_DIR.
+ci-local: all test-race openapi-contract generated-code-quality
 
 # Install protoc
 PROTOC_VERSION=25.0
@@ -100,6 +107,7 @@ ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_legacy_middleware.sh || (echo "^ - legacy middleware lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_toolchain.sh || (echo "^ - toolchain lint errors!" && echo && exit 1)
+	@bash ./scripts/lint_ci_contract.sh || (echo "^ - CI contract lint errors!" && echo && exit 1)
 	@go run ./scripts/docscheck || (echo "^ - documentation lint errors!" && echo && exit 1)
 	@$(STATICCHECK) -checks='$(STATICCHECK_CHECKS)' ./... || (echo "^ - staticcheck errors!" && echo && exit 1)
 	@$(GOLANGCI_LINT) run ./... || (echo "^ - lint errors!" && echo && exit 1)

@@ -140,9 +140,10 @@ No commented-out code—delete dead code.
 ```bash
 make lint          # Run linters (filesize, namescope, golangci-lint)
 make test          # Run tests
+make ci-local      # Run all meaningful direct-main GitHub CI gates locally
 ./check.sh         # Thin wrapper: make lint + make test
 ./check.sh --fix   # Auto-fix imports/formatting, then check
-./check.sh --full  # Adds integration-test (slow)
+./check.sh --full  # Stable wrapper for make ci-local (slow)
 cd cmd/loom && go install .  # Install CLI locally
 ```
 
