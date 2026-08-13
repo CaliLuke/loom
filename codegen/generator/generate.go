@@ -3,9 +3,11 @@ package generator
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -320,11 +322,7 @@ func emitWarnings(files []*codegen.File) error {
 			}
 		}
 	}
-	ordered := make([]string, 0, len(warnings))
-	for warning := range warnings {
-		ordered = append(ordered, warning)
-	}
-	sort.Strings(ordered)
+	ordered := slices.Sorted(maps.Keys(warnings))
 	for _, warning := range ordered {
 		if _, err := fmt.Fprintf(os.Stderr, "[loom-warning] %s\n", warning); err != nil {
 			return fmt.Errorf("write warning: %w", err)

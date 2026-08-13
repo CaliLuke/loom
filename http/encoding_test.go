@@ -637,5 +637,5 @@ func (errReader) Close() error {
 func makeTextDecoder() Decoder {
 	buffer := bytes.Buffer{}
 	buffer.WriteString(testString)
-	return newTextDecoder(&buffer, "content/type", false)
+	return newTextDecoder(&buffer, "content/type", decodeResponse)
 }

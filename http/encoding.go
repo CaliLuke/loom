@@ -61,6 +61,13 @@ type (
 
 	// private type used to define context keys.
 	contextKey int
+
+	decodeMode uint8
+)
+
+const (
+	decodeResponse decodeMode = iota
+	decodeRequest
 )
 
 // RequestDecoder returns a HTTP request body decoder suitable for the given
@@ -87,13 +94,13 @@ func RequestDecoder(r *http.Request) Decoder {
 	}
 	switch contentType {
 	case "application/json":
-		return newLimitedDecoder(r.Body, decodeJSON, true)
+		return newLimitedDecoder(r.Body, decodeJSON, decodeRequest)
 	case "application/gob":
-		return newLimitedDecoder(r.Body, decodeGOB, true)
+		return newLimitedDecoder(r.Body, decodeGOB, decodeRequest)
 	case "application/xml":
-		return newLimitedDecoder(r.Body, decodeXML, true)
+		return newLimitedDecoder(r.Body, decodeXML, decodeRequest)
 	case "text/html", "text/plain":
-		return newTextDecoder(r.Body, contentType, true)
+		return newTextDecoder(r.Body, contentType, decodeRequest)
 	default:
 		return newUnsupportedDecoder(contentType)
 	}
@@ -243,23 +250,23 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 func ResponseDecoder(resp *http.Response) Decoder {
 	ct := resp.Header.Get("Content-Type")
 	if ct == "" {
-		return newLimitedDecoder(resp.Body, decodeJSON, false)
+		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse)
 	}
 	if mediaType, _, err := mime.ParseMediaType(ct); err == nil {
 		ct = mediaType
 	}
 	switch {
 	case ct == "application/json" || strings.HasSuffix(ct, "+json"):
-		return newLimitedDecoder(resp.Body, decodeJSON, false)
+		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse)
 	case ct == "application/xml" || strings.HasSuffix(ct, "+xml"):
-		return newLimitedDecoder(resp.Body, decodeXML, false)
+		return newLimitedDecoder(resp.Body, decodeXML, decodeResponse)
 	case ct == "application/gob" || strings.HasSuffix(ct, "+gob"):
-		return newLimitedDecoder(resp.Body, decodeGOB, false)
+		return newLimitedDecoder(resp.Body, decodeGOB, decodeResponse)
 	case ct == "text/html" || ct == "text/plain" ||
 		strings.HasSuffix(ct, "+html") || strings.HasSuffix(ct, "+txt"):
-		return newTextDecoder(resp.Body, ct, false)
+		return newTextDecoder(resp.Body, ct, decodeResponse)
 	default:
-		return newLimitedDecoder(resp.Body, decodeJSON, false)
+		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse)
 	}
 }
 
@@ -369,30 +376,30 @@ func (e *textEncoder) Encode(v any) (err error) {
 	return
 }
 
-func newTextDecoder(r io.Reader, ct string, request bool) Decoder {
-	return &textDecoder{r: r, ct: ct, request: request}
+func newTextDecoder(r io.Reader, ct string, mode decodeMode) Decoder {
+	return &textDecoder{r: r, ct: ct, mode: mode}
 }
 
-func newLimitedDecoder(r io.Reader, decode func(io.Reader, any) error, request bool) Decoder {
-	return &limitedDecoder{r: r, decode: decode, request: request}
+func newLimitedDecoder(r io.Reader, decode func(io.Reader, any) error, mode decodeMode) Decoder {
+	return &limitedDecoder{r: r, decode: decode, mode: mode}
 }
 
 type textDecoder struct {
-	r       io.Reader
-	ct      string
-	request bool
+	r    io.Reader
+	ct   string
+	mode decodeMode
 }
 
 type limitedDecoder struct {
-	r       io.Reader
-	decode  func(io.Reader, any) error
-	request bool
+	r      io.Reader
+	decode func(io.Reader, any) error
+	mode   decodeMode
 }
 
 func (d *limitedDecoder) Decode(v any) error {
 	b, err := readAllLimited(d.r, DefaultMaxRequestBodyBytes)
 	if err != nil {
-		return requestBodyDecodeError(err, d.request)
+		return requestBodyDecodeError(err, d.mode)
 	}
 	return d.decode(bytes.NewReader(b), v)
 }
@@ -400,7 +407,7 @@ func (d *limitedDecoder) Decode(v any) error {
 func (e *textDecoder) Decode(v any) error {
 	b, err := readAllLimited(e.r, DefaultMaxRequestBodyBytes)
 	if err != nil {
-		return requestBodyDecodeError(err, e.request)
+		return requestBodyDecodeError(err, e.mode)
 	}
 	switch c := v.(type) {
 	case *string:
@@ -437,8 +444,8 @@ func readAllLimited(r io.Reader, limit int64) ([]byte, error) {
 	return b, nil
 }
 
-func requestBodyDecodeError(err error, request bool) error {
-	if request && errors.Is(err, errRequestBodyTooLarge) {
+func requestBodyDecodeError(err error, mode decodeMode) error {
+	if mode == decodeRequest && errors.Is(err, errRequestBodyTooLarge) {
 		return loom.RequestBodyTooLargeError()
 	}
 	return err

@@ -2,6 +2,7 @@ package openapiv3
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -95,12 +96,7 @@ func droppedOpenAPI31Methods(path *PathItem) []string {
 			methods[method] = struct{}{}
 		}
 	}
-	ordered := make([]string, 0, len(methods))
-	for method := range methods {
-		ordered = append(ordered, method)
-	}
-	sort.Strings(ordered)
-	return ordered
+	return slices.Sorted(maps.Keys(methods))
 }
 
 func openAPI31PathWarning(pathName string, methods []string, removePath bool) string {
