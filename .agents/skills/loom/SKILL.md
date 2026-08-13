@@ -372,7 +372,7 @@ build Auto-K without repeating large amounts of app-local glue.
 ```bash
 go install github.com/CaliLuke/loom/cmd/loom@latest
 # Go 1.27rc2 preview while the stable release remains on the prior toolchain:
-go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.1
+go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2
 loom version
 loom gen <module-import-path>/design
 loom example <module-import-path>/design
