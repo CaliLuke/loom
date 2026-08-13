@@ -115,43 +115,26 @@ func Response(val any, args ...any) {
 	name, ok, val, args := responseNameArgs(val, args)
 	switch t := eval.Current().(type) {
 	case *expr.RootExpr:
-		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
-			t.API.HTTP.Errors = append(t.API.HTTP.Errors, err)
-		})
+		appendHTTPOrJSONRPCError(name, ok, val, args, t, &t.API.HTTP.Errors)
 	case *expr.HTTPExpr:
-		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
-			t.Errors = append(t.Errors, err)
-		})
+		appendHTTPOrJSONRPCError(name, ok, val, args, t, &t.Errors)
 	case *expr.GRPCExpr:
-		appendGRPCError(name, ok, val, args, t, func(err *expr.GRPCErrorExpr) {
-			t.Errors = append(t.Errors, err)
-		})
+		appendGRPCError(name, ok, val, args, t, &t.Errors)
 	case *expr.JSONRPCExpr:
-		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
-			t.Errors = append(t.Errors, err)
-		})
+		appendHTTPOrJSONRPCError(name, ok, val, args, t, &t.Errors)
 	case *expr.HTTPServiceExpr:
-		appendHTTPOrJSONRPCError(name, ok, val, args, t, func(err *expr.HTTPErrorExpr) {
-			t.HTTPErrors = append(t.HTTPErrors, err)
-		})
+		appendHTTPOrJSONRPCError(name, ok, val, args, t, &t.HTTPErrors)
 	case *expr.GRPCServiceExpr:
-		appendGRPCError(name, ok, val, args, t, func(err *expr.GRPCErrorExpr) {
-			t.GRPCErrors = append(t.GRPCErrors, err)
-		})
+		appendGRPCError(name, ok, val, args, t, &t.GRPCErrors)
 	case *expr.HTTPEndpointExpr:
 		if ok {
-			appendHTTPOrJSONRPCError(name, true, val, args, t, func(err *expr.HTTPErrorExpr) {
-				t.HTTPErrors = append(t.HTTPErrors, err)
-			})
+			appendHTTPOrJSONRPCError(name, true, val, args, t, &t.HTTPErrors)
 			return
 		}
 		t.Responses = append(t.Responses, httpEndpointResponse(t, val, args...))
 	case *expr.GRPCEndpointExpr:
 		if ok {
-			// error response
-			if e := grpcError(name, t, args...); e != nil {
-				t.GRPCErrors = append(t.GRPCErrors, e)
-			}
+			appendGRPCError(name, true, val, args, t, &t.GRPCErrors)
 			return
 		}
 		t.Response = grpcEndpointResponse(t, val, args...)
@@ -176,24 +159,64 @@ func Code(code int) {
 	}
 }
 
-func appendHTTPOrJSONRPCError(name string, ok bool, val any, args []any, parent eval.Expression, appendFn func(*expr.HTTPErrorExpr)) {
+func appendHTTPOrJSONRPCError(
+	name string,
+	ok bool,
+	val any,
+	args []any,
+	parent eval.Expression,
+	errors *[]*expr.HTTPErrorExpr,
+) {
 	if !ok {
 		eval.InvalidArgError("name of error", val)
+		return
+	}
+	if hasHTTPErrorName(*errors, name) {
+		eval.ReportError("error response %q is defined multiple times", name)
 		return
 	}
 	if e := httpOrJSONRPCError(name, parent, args...); e != nil {
-		appendFn(e)
+		*errors = append(*errors, e)
 	}
 }
 
-func appendGRPCError(name string, ok bool, val any, args []any, parent eval.Expression, appendFn func(*expr.GRPCErrorExpr)) {
+func appendGRPCError(
+	name string,
+	ok bool,
+	val any,
+	args []any,
+	parent eval.Expression,
+	errors *[]*expr.GRPCErrorExpr,
+) {
 	if !ok {
 		eval.InvalidArgError("name of error", val)
 		return
 	}
-	if e := grpcError(name, parent, args...); e != nil {
-		appendFn(e)
+	if hasGRPCErrorName(*errors, name) {
+		eval.ReportError("error response %q is defined multiple times", name)
+		return
 	}
+	if e := grpcError(name, parent, args...); e != nil {
+		*errors = append(*errors, e)
+	}
+}
+
+func hasHTTPErrorName(errors []*expr.HTTPErrorExpr, name string) bool {
+	for _, err := range errors {
+		if err.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func hasGRPCErrorName(errors []*expr.GRPCErrorExpr, name string) bool {
+	for _, err := range errors {
+		if err.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func responseNameArgs(val any, args []any) (string, bool, any, []any) {

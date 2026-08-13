@@ -194,6 +194,127 @@ func TestRepeatedAPITransportBlocksCompose(t *testing.T) {
 	require.Len(t, root.API.GRPC.Errors, 2)
 }
 
+func TestRepeatedTransportBlocksRejectDuplicateErrorMappings(t *testing.T) {
+	tests := map[string]func(){
+		"API HTTP": func() {
+			API("api", func() {
+				Error("boom")
+				HTTP(func() {
+					Response("boom", StatusConflict)
+				})
+				HTTP(func() {
+					Response("boom", StatusNotFound)
+				})
+			})
+		},
+		"API JSON-RPC": func() {
+			API("api", func() {
+				Error("boom")
+				JSONRPC(func() {
+					Response("boom", RPCInvalidRequest)
+				})
+				JSONRPC(func() {
+					Response("boom", RPCInternalError)
+				})
+			})
+		},
+		"API gRPC": func() {
+			API("api", func() {
+				Error("boom")
+				GRPC(func() {
+					Response("boom", CodeInvalidArgument)
+				})
+				GRPC(func() {
+					Response("boom", CodeUnavailable)
+				})
+			})
+		},
+		"service HTTP": func() {
+			Service("svc", func() {
+				Error("boom")
+				HTTP(func() {
+					Response("boom", StatusConflict)
+				})
+				HTTP(func() {
+					Response("boom", StatusNotFound)
+				})
+			})
+		},
+		"service JSON-RPC": func() {
+			Service("svc", func() {
+				Error("boom")
+				JSONRPC(func() {
+					Response("boom", RPCInvalidRequest)
+				})
+				JSONRPC(func() {
+					Response("boom", RPCInternalError)
+				})
+			})
+		},
+		"service gRPC": func() {
+			Service("svc", func() {
+				Error("boom")
+				GRPC(func() {
+					Response("boom", CodeInvalidArgument)
+				})
+				GRPC(func() {
+					Response("boom", CodeUnavailable)
+				})
+			})
+		},
+		"endpoint HTTP": func() {
+			Service("svc", func() {
+				Method("call", func() {
+					Error("boom")
+					HTTP(func() {
+						GET("/")
+						Response("boom", StatusConflict)
+					})
+					HTTP(func() {
+						Response("boom", StatusNotFound)
+					})
+				})
+			})
+		},
+		"endpoint JSON-RPC": func() {
+			Service("svc", func() {
+				JSONRPC(func() {
+					POST("/rpc")
+				})
+				Method("call", func() {
+					Error("boom")
+					JSONRPC(func() {
+						Response("boom", RPCInvalidRequest)
+					})
+					JSONRPC(func() {
+						Response("boom", RPCInternalError)
+					})
+				})
+			})
+		},
+		"endpoint gRPC": func() {
+			Service("svc", func() {
+				Method("call", func() {
+					Error("boom")
+					GRPC(func() {
+						Response("boom", CodeInvalidArgument)
+					})
+					GRPC(func() {
+						Response("boom", CodeUnavailable)
+					})
+				})
+			})
+		},
+	}
+
+	for name, dsl := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, dsl)
+			require.Contains(t, err.Error(), `error response "boom" is defined multiple times`)
+		})
+	}
+}
+
 func TestRepeatedTransportBlockErrorLocations(t *testing.T) {
 	tests := []struct {
 		name   string
