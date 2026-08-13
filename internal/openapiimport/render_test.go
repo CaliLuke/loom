@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -33,8 +34,12 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 	for _, want := range []string{
 		`var ImportedNewPet = Type("NewPet", func() {`,
 		`Meta("openapi:additionalProperties", "false")`,
+		`Meta("openapi:example", "false")`,
+		`Meta("openapi:tag:pets")`,
 		`Method("PetsCreate", func() {`,
 		`Meta("openapi:operationId", "pets.create")`,
+		`Meta("openapi:summary", "")`,
+		`Meta("openapi:description:requestBody", "Pet to create.")`,
 		`POST("/pets")`,
 		`Response(201, func() {`,
 		`Method("PetsGet", func() {`,
@@ -42,9 +47,33 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 		`GET("/pets/{id}")`,
 		`Header("xTraceID:X-Trace-ID")`,
 		`Response("Status404", 404, func() {`,
+		`Meta("openapi:description:errorName", "false")`,
 	} {
 		require.Contains(t, string(yamlSource), want)
 	}
+	require.Contains(t, string(yamlSource), "HTTP(func() {\n\t\t\tMeta(\"openapi:tag:pets\")")
+	require.Contains(t, string(yamlSource), "Attribute(\"body\", ImportedNewPet, func() {\n\t\t\t\tMeta(\"openapi:description:requestBody\"")
+	require.NotContains(t, string(yamlSource), "Payload(func() {\n\t\t\tMeta(\"openapi:description:requestBody\"")
+}
+
+func TestRenderSuppressesGeneratedOperationMetadataWhenAbsent(t *testing.T) {
+	document, diagnostics, err := Analyze(readFixture(t, "supported.yaml"))
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	document.Operations[0].OperationID = ""
+	document.Operations[0].Summary = ""
+
+	source, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	method := string(source)
+	start := strings.Index(method, `Method("PetsCreate", func() {`)
+	require.NotEqual(t, -1, start)
+	method = method[start:]
+	end := strings.Index(method, `Method("PetsGet", func() {`)
+	require.NotEqual(t, -1, end)
+	method = method[:end]
+	require.Contains(t, method, `Meta("openapi:operationId", "")`)
+	require.Contains(t, method, `Meta("openapi:summary", "")`)
 }
 
 func TestRenderOutputCompilesAndEvaluatesAsLoomDesign(t *testing.T) {

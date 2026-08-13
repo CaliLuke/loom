@@ -161,6 +161,30 @@ func TestBuildDocumentCarriesErrorRemedyDescriptions(t *testing.T) {
 	require.Equal(t, "bad: Bad Request response. Remedy code: bad.fix. Safe message: Retry with a valid request. Retry hint: Correct the payload and retry.", operation.Responses["400"].Value.Description)
 }
 
+func TestBuildDocumentCanPreserveExactErrorResponseDescription(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		dsl.Service("pets", func() {
+			dsl.Method("show", func() {
+				dsl.Result(dsl.String)
+				dsl.Error("not_found", dsl.String)
+				dsl.HTTP(func() {
+					dsl.GET("/pets")
+					dsl.Response(dsl.StatusOK)
+					dsl.Response("not_found", dsl.StatusNotFound, func() {
+						dsl.Description("Pet was not found.")
+						dsl.Meta("openapi:description:errorName", "false")
+					})
+				})
+			})
+		})
+	})
+
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	operation := doc.Paths["/pets"].Operations["GET"]
+	require.NotNil(t, operation)
+	require.Equal(t, "Pet was not found.", operation.Responses["404"].Value.Description)
+}
+
 func TestBuildOperationAddsResponseCookieHeader(t *testing.T) {
 	const (
 		serviceName = "test service"

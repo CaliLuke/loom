@@ -206,7 +206,8 @@ const DefaultProtoc = expr.DefaultProtoc
 // "openapi:component:mediaType", "openapi:example:dataValue",
 // "openapi:example:serializedValue", "openapi:allowReserved",
 // "openapi:style", "openapi:oauth2MetadataUrl", "openapi:security:uri",
-// "openapi:description:omit", "openapi:discriminator:optional",
+// "openapi:description:omit", "openapi:description:errorName",
+// "openapi:discriminator:optional",
 // "openapi:discriminator:defaultMapping", "openapi:xml:nodeType", and the
 // "openapi:encoding", "openapi:prefixEncoding", and "openapi:itemEncoding"
 // families. See the DSL reference for their scopes and nested-key syntax.
@@ -361,6 +362,16 @@ const DefaultProtoc = expr.DefaultProtoc
 //
 //	Attribute("payload", String, func() {
 //	    Meta("openapi:contentMediaType", "application/json")
+//	})
+//
+// - "openapi:description:errorName" controls whether an error response
+// description is prefixed with the Loom error name. Set it to "false" inside
+// an HTTP error Response to preserve an externally authored description
+// verbatim. The default is true.
+//
+//	Response("not_found", StatusNotFound, func() {
+//		Description("Pet was not found.")
+//		Meta("openapi:description:errorName", "false")
 //	})
 //
 // - "openapi:typename" overrides the name of the type generated in the OpenAPI specification.

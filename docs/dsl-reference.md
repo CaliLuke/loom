@@ -380,7 +380,7 @@ All OpenAPI 3.2 additions use the same design and renderer:
 | Security metadata | `openapi:oauth2MetadataUrl`, `openapi:deprecated`, and `openapi:security:uri` on a security scheme |
 | Optional discriminator and fallback | `openapi:discriminator:optional` and `openapi:discriminator:defaultMapping` on a `OneOf` |
 | XML node mapping | `openapi:xml:name`, `:namespace`, `:prefix`, and `:nodeType`; valid node types are `element`, `attribute`, `text`, `cdata`, and `none` |
-| Response metadata | `openapi:summary` and `openapi:description:omit` inside `Response(...)` |
+| Response metadata | `openapi:summary`, `openapi:description:omit`, and `openapi:description:errorName` inside `Response(...)` |
 | Reserved characters and cookie serialization | `openapi:allowReserved` on parameters or headers and `openapi:style` set to `cookie` on cookies |
 | Server names | The DSL `Server(...)` name is emitted as the OpenAPI Server Object `name` |
 
@@ -389,6 +389,11 @@ Encoding metadata fields may be `contentType`, `style`, `explode`, or
 `prefixEncoding:<index>`, or `itemEncoding` segment before the field to describe
 nested content, for example
 `openapi:itemEncoding:encoding:id:style`.
+
+Loom prefixes error-response descriptions with the error name by default. Set
+`Meta("openapi:description:errorName", "false")` inside an HTTP error
+`Response(...)` only when preserving an externally authored response
+description verbatim, such as a contract imported with `loom import openapi`.
 
 ```go
 var DeviceAuth = OAuth2Security("device", func() {

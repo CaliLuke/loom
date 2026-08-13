@@ -67,6 +67,11 @@ Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
 consumer still requires OpenAPI 3.1.1. The output paths remain the same and the
 compatible surrounding contract is preserved.
 
+Imported error responses preserve their authored descriptions verbatim. Loom
+normally prefixes error descriptions with the error name; for hand-authored
+designs, use `Meta("openapi:description:errorName", "false")` inside an HTTP
+error `Response(...)` only when an external contract requires exact wording.
+
 For TypeScript clients, use the endorsed `@hey-api/openapi-ts` workflow in
 `docs/typescript-clients.md`. Use the 3.1 compatibility target, pin the external
 generator, and keep its entire output directory generator-owned.

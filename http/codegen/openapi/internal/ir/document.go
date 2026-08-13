@@ -122,9 +122,12 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 	}
 	for _, errResp := range endpointIR.Response.ErrorResponses {
 		resp := buildResponse(errResp, errResp.StatusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false)
-		desc := errResp.Error.Name
-		if resp.Description != "" {
-			desc += ": " + resp.Description
+		desc := resp.Description
+		if value, ok := errResp.Meta.Last("openapi:description:errorName"); !ok || value != "false" {
+			desc = errResp.Error.Name
+			if resp.Description != "" {
+				desc += ": " + resp.Description
+			}
 		}
 		desc = appendErrorRemedyDescription(desc, errResp.Error)
 		resp.Description = desc

@@ -197,6 +197,7 @@ endif
 openapi-contract:
 ifneq ($(GOOS),windows)
 	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run 'Test(RenderedSpecsPassContractLint|RepresentativeSpecsPassRedoclyLintAndConsumerSmoke)$$' ./http/codegen/openapi/v3
+	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run 'TestOpenAPIImportSemanticRoundTrip$$' ./cmd/loom
 endif
 
 # Remove gitignored artifacts that integration-test runs leave behind

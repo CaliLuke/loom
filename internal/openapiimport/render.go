@@ -127,11 +127,36 @@ func (r *renderer) api() {
 	if r.document.APIVersion != "" {
 		r.line("Version(%q)", r.document.APIVersion)
 	}
+	r.line("Meta(%q, %q)", "openapi:example", "false")
 	if strings.HasPrefix(r.document.OpenAPIVersion, "3.1.") {
 		r.line("Meta(%q, %q)", "openapi:version", "3.1")
 	}
+	for _, tag := range r.importedTags() {
+		r.line("Meta(%q)", "openapi:tag:"+tag)
+	}
 	r.close()
 	r.line("")
+}
+
+func (r *renderer) importedTags() []string {
+	seen := make(map[string]struct{})
+	tags := make([]string, 0, len(r.document.Tags))
+	add := func(tag string) {
+		if _, ok := seen[tag]; ok {
+			return
+		}
+		seen[tag] = struct{}{}
+		tags = append(tags, tag)
+	}
+	for _, tag := range r.document.Tags {
+		add(tag)
+	}
+	for _, operation := range r.document.Operations {
+		for _, tag := range operation.Tags {
+			add(tag)
+		}
+	}
+	return tags
 }
 
 func (r *renderer) service() error {
@@ -204,15 +229,8 @@ func (r *renderer) operationMetadata(operation *Operation) {
 	if operation.Description != "" {
 		r.line("Description(%q)", operation.Description)
 	}
-	if operation.OperationID != "" {
-		r.line("Meta(%q, %q)", "openapi:operationId", operation.OperationID)
-	}
-	if operation.Summary != "" {
-		r.line("Meta(%q, %q)", "openapi:summary", operation.Summary)
-	}
-	for _, tag := range operation.Tags {
-		r.line("Meta(%q)", "openapi:tag:"+tag)
-	}
+	r.line("Meta(%q, %q)", "openapi:operationId", operation.OperationID)
+	r.line("Meta(%q, %q)", "openapi:summary", operation.Summary)
 }
 
 func (r *renderer) errorDefinitions(responses []renderedResponse, path string) error {
@@ -226,6 +244,9 @@ func (r *renderer) errorDefinitions(responses []renderedResponse, path string) e
 
 func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path string) error {
 	r.open("HTTP(func()")
+	for _, tag := range operation.Tags {
+		r.line("Meta(%q)", "openapi:tag:"+tag)
+	}
 	if err := r.route(operation); err != nil {
 		return err
 	}
@@ -273,6 +294,11 @@ type renderedHeader struct {
 	name   string
 	field  string
 	header Header
+}
+
+type renderedMetadata struct {
+	name  string
+	value string
 }
 
 func (r *renderer) parameters(source []Parameter, path string) ([]renderedParameter, error) {
@@ -389,14 +415,18 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 		}
 	}
 	if body != nil {
-		if err := r.attribute(body.field, body.body.Schema, "", path+"/requestBody/schema"); err != nil {
+		metadata := []renderedMetadata(nil)
+		if body.body.Description != "" {
+			metadata = append(metadata, renderedMetadata{
+				name:  "openapi:description:requestBody",
+				value: body.body.Description,
+			})
+		}
+		if err := r.attribute(body.field, body.body.Schema, "", path+"/requestBody/schema", metadata...); err != nil {
 			return err
 		}
 		if body.body.Required {
 			required = append(required, body.field)
-		}
-		if body.body.Description != "" {
-			r.line("Meta(%q, %q)", "openapi:description:requestBody", body.body.Description)
 		}
 	}
 	if len(required) > 0 {
@@ -504,7 +534,7 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 		prefix += strconv.Quote("Status"+response.status) + ", "
 	}
 	prefix += strconv.Itoa(status)
-	needsBlock := response.response.Description != "" || response.response.ContentType != "" ||
+	needsBlock := failure || response.response.Description != "" || response.response.ContentType != "" ||
 		len(response.headers) > 0 || response.response.Schema != nil && len(response.headers) > 0
 	if !needsBlock {
 		r.line("%s)", prefix)
@@ -513,6 +543,9 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 	r.open("%s, func()", prefix)
 	if response.response.Description != "" {
 		r.line("Description(%q)", response.response.Description)
+	}
+	if failure {
+		r.line("Meta(%q, %q)", "openapi:description:errorName", "false")
 	}
 	if response.response.ContentType != "" {
 		r.line("ContentType(%q)", response.response.ContentType)

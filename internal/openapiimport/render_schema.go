@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func (r *renderer) attribute(name string, schema *Schema, description, path string) error {
+func (r *renderer) attribute(name string, schema *Schema, description, path string, metadata ...renderedMetadata) error {
 	expression, object, err := r.schemaExpression(schema, path)
 	if err != nil {
 		return err
@@ -16,16 +16,22 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		if description != "" {
 			r.line("Description(%q)", description)
 		}
+		for _, meta := range metadata {
+			r.line("Meta(%q, %q)", meta.name, meta.value)
+		}
 		if err := r.schemaBlock(schema, path); err != nil {
 			return err
 		}
 		r.close()
 		return nil
 	}
-	if description != "" || r.hasSchemaBlock(schema) {
+	if description != "" || len(metadata) > 0 || r.hasSchemaBlock(schema) {
 		r.open("Attribute(%q, %s, func()", name, expression)
 		if description != "" {
 			r.line("Description(%q)", description)
+		}
+		for _, meta := range metadata {
+			r.line("Meta(%q, %q)", meta.name, meta.value)
 		}
 		if err := r.validationBlock(schema, path); err != nil {
 			return err
