@@ -151,10 +151,16 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		t.Skip("consumer smoke needs node/npx and network access; run via 'make openapi-contract'")
 	}
 	lintCases := []struct {
-		name string
-		dsl  func()
+		name                       string
+		dsl                        func()
+		unsupportedOAS32Diagnostic string
 	}{
 		{name: "meal-planner", dsl: testdata.MealPlannerDSL},
+		{
+			name:                       "openapi-3.2-features",
+			dsl:                        testdata.OpenAPI32FeaturesDSL,
+			unsupportedOAS32Diagnostic: "Unknown type name found: string",
+		},
 		{name: "file-response", dsl: fileResponseOpenAPIDSL},
 		{name: "raw-request-bodies", dsl: testdata.RawRequestBodyOpenAPIDSL},
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
@@ -167,12 +173,23 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 			yamlPath := filepath.Join(workDir, "openapi.yaml")
 			require.NoError(t, os.WriteFile(yamlPath, artifacts.YAML, 0o600))
 			_, err := testingx.RunCmd(workDir, "npx", "--yes", "@redocly/cli@"+redoclyCLIVersion, "lint", yamlPath)
+			if tc.unsupportedOAS32Diagnostic != "" {
+				// renderOpenAPIArtifacts has already parsed and built both valid
+				// artifacts with libopenapi. This diagnostic is Redocly's current
+				// lack of OpenAPI 3.2 support, not a Loom rendering failure.
+				require.ErrorContains(t, err, tc.unsupportedOAS32Diagnostic)
+				return
+			}
 			require.NoError(t, err)
 		})
 	}
 
-	// These consumer versions reject the 3.2 version string before processing
-	// the otherwise compatible document, so exercise the renderer's 3.1 target.
+	// The pinned Redocly CLI above rejects the canonical 3.2 feature specimen
+	// before linting it; keep asserting that exact limitation so the specimen is
+	// not silently omitted. The pinned downstream generators below likewise
+	// reject the 3.2 version string before processing the otherwise compatible
+	// document, so exercise the renderer's 3.1 compatibility target with the
+	// existing non-trivial raw-body specimen.
 	artifacts := renderOpenAPIArtifactsForVersion(
 		t,
 		testdata.RawRequestBodyOpenAPIDSL,
