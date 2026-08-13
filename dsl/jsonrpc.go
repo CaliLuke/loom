@@ -211,7 +211,7 @@ func JSONRPC(dsl func()) {
 		eval.Execute(dsl, actual.JSONRPC)
 	case *expr.ServiceExpr:
 		svc := expr.Root.API.JSONRPC.ServiceFor(actual, &expr.Root.API.JSONRPC.HTTPExpr)
-		svc.DSLFunc = dsl
+		svc.DSLFunc = composeDSL(svc.DSL(), dsl)
 		// Mark service as JSON-RPC
 		if actual.Meta == nil {
 			actual.Meta = expr.MetaExpr{}
@@ -234,7 +234,7 @@ func JSONRPC(dsl func()) {
 			actual.Meta = expr.MetaExpr{}
 		}
 		actual.Meta["jsonrpc"] = []string{}
-		e.DSLFunc = dsl
+		e.DSLFunc = composeDSL(e.DSL(), dsl)
 	default:
 		eval.IncompatibleDSL()
 	}

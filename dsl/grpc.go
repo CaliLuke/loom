@@ -95,11 +95,11 @@ func GRPC(fn func()) {
 		eval.Execute(fn, expr.Root.API.GRPC)
 	case *expr.ServiceExpr:
 		res := expr.Root.API.GRPC.ServiceFor(actual)
-		res.DSLFunc = fn
+		res.DSLFunc = composeDSL(res.DSL(), fn)
 	case *expr.MethodExpr:
 		res := expr.Root.API.GRPC.ServiceFor(actual.Service)
 		act := res.EndpointFor(actual.Name, actual)
-		act.DSLFunc = fn
+		act.DSLFunc = composeDSL(act.DSL(), fn)
 	default:
 		eval.IncompatibleDSL()
 	}

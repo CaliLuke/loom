@@ -38,6 +38,31 @@ func TestBuildDocumentIncludesRequestBodyAndResponses(t *testing.T) {
 	require.Equal(t, "No Content response.", operation.Responses["204"].Value.Description)
 }
 
+func TestBuildDocumentComposesRepeatedHTTPBlocks(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		dsl.Service("svc", func() {
+			dsl.HTTP(func() {
+				dsl.Path("/base")
+			})
+			dsl.Error("boom", dsl.ErrorResult, "boom")
+			dsl.HTTP(func() {
+				dsl.Response("boom", dsl.StatusConflict)
+			})
+			dsl.Method("get", func() {
+				dsl.Result(dsl.String)
+				dsl.HTTP(func() {
+					dsl.GET("/thing")
+				})
+			})
+		})
+	})
+
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes)
+	operation := doc.Paths["/base/thing"].Operations["GET"]
+	require.NotNil(t, operation)
+	require.Contains(t, operation.Responses, "409")
+}
+
 func TestBuildDocumentUsesExplicitRequestBodyDescriptionMeta(t *testing.T) {
 	const (
 		serviceName = "test service"

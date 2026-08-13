@@ -45,6 +45,10 @@ loom gen example.com/myapi/design
   start newly introduced fields at `100`.
 - Prefer a canonical `ResultType` with `View(...)` definitions over parallel
   hand-maintained DTOs for alternate public representations.
+- Repeated `HTTP`, `GRPC`, or `JSONRPC` blocks in the same API, service, or
+  method scope compose in declaration order. Use this to keep transport
+  mappings near the errors or methods they describe; ordinary duplicate and
+  conflict rules still apply to the combined contents.
 
 ## OpenAPI Contracts
 

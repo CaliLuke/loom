@@ -62,11 +62,7 @@ func Service(name string, fn func()) *expr.ServiceExpr {
 		return nil
 	}
 	if s := expr.Root.Service(name); s != nil {
-		oldDSL := s.DSL()
-		s.DSLFunc = func() {
-			oldDSL()
-			fn()
-		}
+		s.DSLFunc = composeDSL(s.DSL(), fn)
 		return s
 	}
 	s := &expr.ServiceExpr{Name: name, DSLFunc: fn}

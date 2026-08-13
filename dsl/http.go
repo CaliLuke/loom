@@ -156,11 +156,11 @@ func HTTP(fns ...func()) {
 		eval.Execute(fn, expr.Root)
 	case *expr.ServiceExpr:
 		res := expr.Root.API.HTTP.ServiceFor(actual, expr.Root.API.HTTP)
-		res.DSLFunc = fn
+		res.DSLFunc = composeDSL(res.DSL(), fn)
 	case *expr.MethodExpr:
 		res := expr.Root.API.HTTP.ServiceFor(actual.Service, expr.Root.API.HTTP)
 		act := res.EndpointFor(actual)
-		act.DSLFunc = fn
+		act.DSLFunc = composeDSL(act.DSL(), fn)
 	default:
 		eval.IncompatibleDSL()
 	}

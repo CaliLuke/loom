@@ -1429,6 +1429,31 @@ Service("users", func() {
 })
 ```
 
+### Composing Transport Blocks
+
+`HTTP`, `GRPC`, and `JSONRPC` may be declared more than once in the same API,
+service, or method scope. Loom evaluates repeated blocks in declaration order
+as though their contents appeared in one block. This allows routing, error
+mapping, and other transport concerns to stay near the declarations they
+describe:
+
+```go
+Service("users", func() {
+    HTTP(func() {
+        Path("/users")
+    })
+
+    Error("not_found")
+    HTTP(func() {
+        Response("not_found", StatusNotFound)
+    })
+})
+```
+
+Normal rules still apply to the combined contents: additive declarations are
+appended, conflicting declarations report their usual design errors, and
+single-value settings retain their documented replacement behavior.
+
 ---
 
 ## JSON-RPC Transport Mapping
