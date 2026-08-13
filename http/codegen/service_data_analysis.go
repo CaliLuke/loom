@@ -166,38 +166,71 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 	payload := sds.buildPayloadDataFromIR(endpointIR, sd)
 	reqs, hsch, bosch, qsch, basch := sds.buildRequirementSchemes(endpointIR)
 	requestInit := sds.buildClientRequestInit(endpointIR, method, svc, routes)
+	responseContractCases := buildResponseContractCaseData(endpointIR)
 
 	endpoint := &EndpointData{
-		Method:          method,
-		ServiceName:     svc.Name,
-		ServiceVarName:  svc.VarName,
-		ServicePkgName:  svc.PkgName,
-		Payload:         payload,
-		Result:          sds.buildResultDataFromIR(endpointIR, sd),
-		Errors:          sds.buildErrorsDataFromIR(endpointIR, sd),
-		HeaderSchemes:   hsch,
-		BodySchemes:     bosch,
-		QuerySchemes:    qsch,
-		BasicScheme:     basch,
-		Routes:          routes,
-		MountHandler:    fmt.Sprintf("Mount%sHandler", method.VarName),
-		HandlerInit:     fmt.Sprintf("New%sHandler", method.VarName),
-		RequestDecoder:  fmt.Sprintf("Decode%sRequest", method.VarName),
-		ResponseEncoder: fmt.Sprintf("Encode%sResponse", method.VarName),
-		ErrorEncoder:    fmt.Sprintf("Encode%sError", method.VarName),
-		ClientStruct:    "Client",
-		EndpointInit:    method.VarName,
-		RequestInit:     requestInit,
-		HasMixedResults: endpointIR.Response.HasMixedResults,
-		RequestEncoder:  endpointRequestEncoderName(method, payload, basch),
-		ResponseDecoder: fmt.Sprintf("Decode%sResponse", method.VarName),
-		Requirements:    reqs,
-		CORS:            sd.CORS,
+		Method:                    method,
+		ServiceName:               svc.Name,
+		ServiceVarName:            svc.VarName,
+		ServicePkgName:            svc.PkgName,
+		Payload:                   payload,
+		Result:                    sds.buildResultDataFromIR(endpointIR, sd),
+		Errors:                    sds.buildErrorsDataFromIR(endpointIR, sd),
+		HeaderSchemes:             hsch,
+		BodySchemes:               bosch,
+		QuerySchemes:              qsch,
+		BasicScheme:               basch,
+		Routes:                    routes,
+		MountHandler:              fmt.Sprintf("Mount%sHandler", method.VarName),
+		HandlerInit:               fmt.Sprintf("New%sHandler", method.VarName),
+		RequestDecoder:            fmt.Sprintf("Decode%sRequest", method.VarName),
+		ResponseEncoder:           fmt.Sprintf("Encode%sResponse", method.VarName),
+		ErrorEncoder:              fmt.Sprintf("Encode%sError", method.VarName),
+		ClientStruct:              "Client",
+		EndpointInit:              method.VarName,
+		RequestInit:               requestInit,
+		HasMixedResults:           endpointIR.Response.HasMixedResults,
+		ResponseContractCasesInit: fmt.Sprintf("%sResponseContractCases", method.VarName),
+		ResponseContractCases:     responseContractCases,
+		RequestEncoder:            endpointRequestEncoderName(method, payload, basch),
+		ResponseDecoder:           fmt.Sprintf("Decode%sResponse", method.VarName),
+		Requirements:              reqs,
+		CORS:                      sd.CORS,
 	}
 	sds.applyStreamingEndpointData(endpoint, endpointIR, sd)
 	sds.applyMultipartEndpointData(endpoint, endpointIR, method, svc, scope)
 	endpoint.Redirect = transportRedirectData(endpointIR.Redirect)
 	return endpoint
+}
+
+func buildResponseContractCaseData(endpoint *transportir.Endpoint) []*ResponseContractCaseData {
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	if !analysis.Supported() {
+		return nil
+	}
+
+	cases := make([]*ResponseContractCaseData, 0, len(analysis.Cases))
+	for _, contractCase := range analysis.Cases {
+		data := &ResponseContractCaseData{
+			ID:           contractCase.ID,
+			IsError:      contractCase.Kind == transportir.ResponseContractError,
+			StatusCode:   contractCase.StatusCode,
+			ErrorName:    contractCase.ErrorName,
+			ContentTypes: append([]string(nil), contractCase.ContentTypes...),
+		}
+		for _, header := range contractCase.Headers {
+			if header.Required {
+				data.RequiredHeaders = append(data.RequiredHeaders, header.HTTPName)
+			}
+		}
+		for _, cookie := range contractCase.Cookies {
+			if cookie.Required {
+				data.RequiredCookies = append(data.RequiredCookies, cookie.HTTPName)
+			}
+		}
+		cases = append(cases, data)
+	}
+	return cases
 }
 
 func (sds *ServicesData) applyStreamingEndpointData(endpoint *EndpointData, endpointIR *transportir.Endpoint, sd *ServiceData) {

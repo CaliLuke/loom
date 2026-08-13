@@ -43,6 +43,9 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	sections = append(sections, serverBaseSections(data)...)
 	for _, e := range data.Endpoints {
 		sections = append(sections, serverEndpointSections(e)...)
+		if section := serverResponseContractSection(e); section != nil {
+			sections = append(sections, section)
+		}
 	}
 	if section := mappedFilesSection(data); section != nil {
 		sections = append(sections, section)

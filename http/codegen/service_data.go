@@ -138,6 +138,10 @@ type (
 		// HasMixedResults indicates if the method has both Result and StreamingResult
 		// defined with different types, enabling content negotiation.
 		HasMixedResults bool
+		// ResponseContractCasesInit is the generated response contract accessor.
+		ResponseContractCasesInit string
+		// ResponseContractCases lists the supported HTTP wire-response cases.
+		ResponseContractCases []*ResponseContractCaseData
 
 		// client
 
@@ -161,6 +165,25 @@ type (
 		// BuildStreamPayload is the name of the function used to create the
 		// payload for endpoints that use SkipRequestBodyEncodeDecode.
 		BuildStreamPayload string
+	}
+
+	// ResponseContractCaseData contains the transport metadata required to
+	// render a generated HTTP response contract case.
+	ResponseContractCaseData struct {
+		// ID is the stable response contract case identifier.
+		ID string
+		// IsError reports whether the case describes a service error.
+		IsError bool
+		// StatusCode is the exact declared HTTP status code.
+		StatusCode int
+		// ErrorName is the declared service error name.
+		ErrorName string
+		// ContentTypes lists the declared response media types.
+		ContentTypes []string
+		// RequiredHeaders lists the required response header names.
+		RequiredHeaders []string
+		// RequiredCookies lists the required response cookie names.
+		RequiredCookies []string
 	}
 
 	// FileServerData lists the data needed to generate file servers.

@@ -115,6 +115,14 @@ Loom's default HTTP errors are RFC 9457-style
 
 Do not duplicate these contracts in handwritten transport code.
 
+Generated HTTP server packages expose `<Method>ResponseContractCases()` for
+supported unary endpoints. In application integration tests, exercise each
+domain scenario through the real generated transport, then pass its
+`*http.Response` and the matching case to
+`loomhttp.ValidateResponseContract`. The validator checks Loom-owned wire
+invariants; the application remains responsible for payloads, fakes, and state
+that make every declared response reachable.
+
 ## Unions, Views, and Projections
 
 - `OneOf(...)` works as both a named union declaration and a type constructor.

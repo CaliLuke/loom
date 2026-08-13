@@ -436,6 +436,28 @@ func main() {
 }
 ```
 
+### Response Contract Checks
+
+For each supported unary HTTP endpoint, the generated server package exposes a
+`<Method>ResponseContractCases` function. Each case records the exact status,
+allowed base media types, error name, and required response headers and cookies
+declared by the design.
+
+Use `loomhttp.ValidateResponseContract` after sending a request through the
+real generated transport:
+
+```go
+for _, contract := range widgetserver.ShowResponseContractCases() {
+	response := exerciseApplicationScenario(t, contract.ID)
+	require.NoError(t, loomhttp.ValidateResponseContract(response, contract))
+}
+```
+
+Loom validates the transport-owned wire behavior, including `Loom-Error` for
+declared errors. The application test must still arrange the service state,
+payload, and fake or fixture that reaches each case; Loom does not synthesize
+domain behavior.
+
 ---
 
 ## WebSocket Integration
