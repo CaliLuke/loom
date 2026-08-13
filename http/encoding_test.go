@@ -336,30 +336,65 @@ func TestReadResponseBodyUsesDecodeLimit(t *testing.T) {
 }
 
 func TestRequestDecoderCapsJSONBody(t *testing.T) {
+	validBody := `{"value":"ok"}`
+	exactLimitBody := validBody + strings.Repeat(" ", DefaultMaxRequestBodyBytes-len(validBody))
+	oversizedBody := exactLimitBody + " "
 	cases := []struct {
-		name string
-		body string
+		name             string
+		body             string
+		contentLength    int64
+		transferEncoding []string
+		wantTooLarge     bool
 	}{
 		{
-			name: "oversized prefix",
-			body: strings.Repeat(" ", DefaultMaxRequestBodyBytes+1) + `{"value":"ok"}`,
+			name:         "oversized prefix",
+			body:         strings.Repeat(" ", DefaultMaxRequestBodyBytes+1) + validBody,
+			wantTooLarge: true,
 		},
 		{
-			name: "valid payload with oversized suffix",
-			body: `{"value":"ok"}` + strings.Repeat(" ", DefaultMaxRequestBodyBytes),
+			name:         "valid payload with oversized suffix",
+			body:         validBody + strings.Repeat(" ", DefaultMaxRequestBodyBytes),
+			wantTooLarge: true,
+		},
+		{
+			name:          "exactly at limit",
+			body:          exactLimitBody,
+			contentLength: int64(len(exactLimitBody)),
+		},
+		{
+			name:             "chunked oversized body without content length",
+			body:             oversizedBody,
+			contentLength:    -1,
+			transferEncoding: []string{"chunked"},
+			wantTooLarge:     true,
+		},
+		{
+			name:          "oversized body with falsely small content length",
+			body:          oversizedBody,
+			contentLength: int64(len(validBody)),
+			wantTooLarge:  true,
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			req := httptest.NewRequest("POST", "/", strings.NewReader(c.body))
+			if c.contentLength != 0 {
+				req.ContentLength = c.contentLength
+			}
+			req.TransferEncoding = c.transferEncoding
 			var out struct {
 				Value string `json:"value"`
 			}
 
 			err := RequestDecoder(req).Decode(&out)
 
-			requireRequestBodyTooLargeResponse(t, err)
-			require.Empty(t, out.Value)
+			if c.wantTooLarge {
+				requireRequestBodyTooLargeResponse(t, err)
+				require.Empty(t, out.Value)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, "ok", out.Value)
 		})
 	}
 }
