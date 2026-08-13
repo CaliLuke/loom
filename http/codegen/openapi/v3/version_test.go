@@ -85,7 +85,8 @@ func TestConstructForVersion(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, ok := constructForVersion(test.target, test.constructors...)
+			router := versionRouter{target: test.target}
+			got, ok := router.construct(test.constructors...)
 			require.Equal(t, test.wantOK, ok)
 			require.Equal(t, test.want, got)
 		})

@@ -45,13 +45,15 @@ build Auto-K without repeating large amounts of app-local glue.
   `Meta("openapi:version", "3.1")` selects compatibility output by omitting
   only 3.2-only members during rendering; it does not invoke a second generator
   or write side-by-side artifacts.
-- Route version-dependent render shapes through `versionedConstructor` ranges.
+- Route version-dependent render shapes through the Go 1.27 generic
+  `versionRouter.construct` method and `versionedConstructor` ranges.
   A missing range omits an additive feature; a newer matching `from` range
   overrides an older open-ended constructor, so incompatible future shapes stay
   local to the affected construct.
 - Generated JSON artifacts, including `gen/http/openapi.json` and
-  `gen/loom.json`, end with exactly one LF. OpenAPI JSON remains compact by
-  default unless prefix or indentation metadata requests formatted output.
+  `gen/loom.json`, end with exactly one LF. OpenAPI JSON uses Go 1.27's
+  `encoding/json/v2` with deterministic ordering and remains compact by default
+  unless prefix or indentation metadata requests formatted output.
 - OpenAPI 3.2 support includes native QUERY and extension methods, querystring
   parameters, sequential `itemSchema`, reusable media types, nested encodings,
   structured examples, tag hierarchy, server/document identity, device OAuth,

@@ -1,7 +1,8 @@
 package openapiv3
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"fmt"
 	"path/filepath"
 
@@ -42,13 +43,11 @@ func Files(root *expr.RootExpr) ([]*codegen.File, error) {
 func toJSON(meta expr.MetaExpr, d any) (string, error) {
 	prefix, p := meta.Last("openapi:json:prefix")
 	indent, i := meta.Last("openapi:json:indent")
-	marshal := json.Marshal
+	options := []json.Options{json.Deterministic(true)}
 	if p || i {
-		marshal = func(v any) ([]byte, error) {
-			return json.MarshalIndent(v, prefix, indent)
-		}
+		options = append(options, jsontext.WithIndentPrefix(prefix), jsontext.WithIndent(indent))
 	}
-	b, err := marshal(d)
+	b, err := json.Marshal(d, options...)
 	if err != nil {
 		return "", fmt.Errorf("openapi json: %w", err)
 	}

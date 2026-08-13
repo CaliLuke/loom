@@ -1,5 +1,4 @@
 {
-  "components": {},
   "info": {
     "description": "WebSocket control surface for operator consoles.",
     "license": {

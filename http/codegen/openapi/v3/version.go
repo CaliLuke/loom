@@ -10,6 +10,10 @@ import (
 type openAPIVersion uint8
 
 type (
+	versionRouter struct {
+		target openAPIVersion
+	}
+
 	versionRange struct {
 		from    openAPIVersion
 		through openAPIVersion
@@ -49,7 +53,8 @@ func targetOpenAPIVersion(meta expr.MetaExpr) (openAPIVersion, error) {
 }
 
 func renderOpenAPIVersion(target openAPIVersion) string {
-	value, _ := constructForVersion(target,
+	router := versionRouter{target: target}
+	value, _ := router.construct(
 		versionedConstructor[string]{
 			versions: versionRange{from: openAPIVersion31, through: openAPIVersion31},
 			construct: func() string {
@@ -66,13 +71,13 @@ func renderOpenAPIVersion(target openAPIVersion) string {
 	return value
 }
 
-// constructForVersion selects the matching constructor with the newest lower bound.
+// construct selects the matching constructor with the newest lower bound.
 // No match represents an additive feature that is unavailable for the target.
-func constructForVersion[T any](target openAPIVersion, constructors ...versionedConstructor[T]) (T, bool) {
+func (r versionRouter) construct[T any](constructors ...versionedConstructor[T]) (T, bool) {
 	var selected *versionedConstructor[T]
 	for i := range constructors {
 		constructor := &constructors[i]
-		if constructor.construct == nil || !constructor.versions.contains(target) {
+		if constructor.construct == nil || !constructor.versions.contains(r.target) {
 			continue
 		}
 		if selected == nil || constructor.versions.from > selected.versions.from {
