@@ -136,6 +136,9 @@ func filterOpenAPI31Components(components *Components) {
 	for _, example := range components.Examples {
 		filterExampleCompatibility(example)
 	}
+	for _, link := range components.Links {
+		filterLinkCompatibility(link)
+	}
 	for _, scheme := range components.SecuritySchemes {
 		filterSecurityCompatibility(scheme)
 	}
@@ -160,6 +163,9 @@ func filterResponseCompatibility(response *Response) {
 	}
 	for _, header := range response.Headers {
 		filterHeaderCompatibility(header)
+	}
+	for _, link := range response.Links {
+		filterLinkCompatibility(link)
 	}
 }
 
@@ -220,6 +226,13 @@ func filterExampleCompatibility(ref *ExampleRef) {
 	ref.Value.DataValue = nil
 	ref.Value.SerializedValue = ""
 	ref.Value.Value = ref.Value.CompatibilityValue
+}
+
+func filterLinkCompatibility(ref *LinkRef) {
+	if ref == nil || ref.Value == nil {
+		return
+	}
+	ref.Value.Server = nil
 }
 
 func filterSecurityCompatibility(ref *SecuritySchemeRef) {

@@ -91,6 +91,8 @@ var OpenAPI32FeaturesDSL = func() {
 				Meta("openapi:prefixEncoding:0:contentType", "application/json")
 				Meta("openapi:itemEncoding:contentType", "application/json")
 				Meta("openapi:itemEncoding:encoding:id:style", "form")
+				Meta("openapi:itemEncoding:prefixEncoding:0:contentType", "application/json")
+				Meta("openapi:itemEncoding:itemEncoding:contentType", "application/json")
 			})
 			HTTP(func() {
 				GET("/events")
