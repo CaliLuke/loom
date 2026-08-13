@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/internal/openapiversion"
 )
 
 type (
@@ -173,6 +174,13 @@ func (a *APIExpr) EvalName() string { return "API " + a.Name }
 
 // Hash returns a unique hash value for a.
 func (a *APIExpr) Hash() string { return "_api_+" + a.Name }
+
+// Validate checks API-level metadata constraints.
+func (a *APIExpr) Validate() error {
+	value, _ := a.Meta.Last("openapi:version")
+	_, err := openapiversion.Parse(value)
+	return err
+}
 
 // Finalize makes sure that the API name is initialized and there is at least
 // one server definition (if none exists, it creates a default server). If API

@@ -1,10 +1,8 @@
 package openapiv3
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/openapiversion"
 )
 
 type openAPIVersion uint8
@@ -38,18 +36,18 @@ const (
 )
 
 func targetOpenAPIVersion(meta expr.MetaExpr) (openAPIVersion, error) {
-	value, ok := meta.Last("openapi:version")
-	if !ok || strings.TrimSpace(value) == "" {
-		return openAPIVersion32, nil
+	value, _ := meta.Last("openapi:version")
+	target, err := openapiversion.Parse(value)
+	if err != nil {
+		return 0, err
 	}
-	switch strings.TrimSpace(value) {
-	case "3.1", "3.1.0", "3.1.1", "3.1.2":
+	switch target {
+	case openapiversion.Target31:
 		return openAPIVersion31, nil
-	case "3.2", OpenAPIVersion:
+	case openapiversion.Target32:
 		return openAPIVersion32, nil
-	default:
-		return 0, fmt.Errorf("unsupported OpenAPI version %q", value)
 	}
+	return openAPIVersion32, nil
 }
 
 func renderOpenAPIVersion(target openAPIVersion) string {

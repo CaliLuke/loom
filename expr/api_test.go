@@ -2,6 +2,8 @@ package expr
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestAPIExprSchemes(t *testing.T) {
@@ -102,6 +104,44 @@ func TestAPIExprFinalize(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestAPIExprValidatesOpenAPIVersion(t *testing.T) {
+	tests := map[string]struct {
+		value   string
+		wantErr string
+	}{
+		"default":       {},
+		"3.1 alias":     {value: "3.1"},
+		"3.1 patch":     {value: "3.1.2"},
+		"3.2 alias":     {value: "3.2"},
+		"3.2 canonical": {value: "3.2.0"},
+		"trimmed":       {value: " 3.1.1 "},
+		"empty":         {value: "   "},
+		"unsupported": {
+			value:   "3.3",
+			wantErr: `API version-test: unsupported OpenAPI version "3.3"; supported values are 3.1, 3.1.0, 3.1.1, 3.1.2, 3.2, and 3.2.0`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			SetupTestDSL(t)
+			api := NewAPIExpr("version-test", func() {})
+			if test.value != "" {
+				api.Meta = MetaExpr{"openapi:version": {test.value}}
+			}
+			root := &RootExpr{API: api}
+
+			err := PrepareValidateFinalize(root)
+			if test.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, test.wantErr)
+			require.ErrorContains(t, err, "api_test.go:")
+		})
 	}
 }
 

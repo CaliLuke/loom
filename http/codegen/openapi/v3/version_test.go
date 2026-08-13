@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/require"
@@ -105,6 +106,17 @@ func TestFilterOpenAPI31PreservesContentSchema(t *testing.T) {
 	filterSchemaCompatibility(schema, make(map[*openapi.Schema]struct{}))
 
 	require.Same(t, contentSchema, schema.ContentSchema)
+}
+
+func TestNewRejectsInvalidOpenAPIVersion(t *testing.T) {
+	root := &expr.RootExpr{
+		API: &expr.APIExpr{
+			Meta: expr.MetaExpr{"openapi:version": {"3.3"}},
+			HTTP: &expr.HTTPExpr{Services: []*expr.HTTPServiceExpr{{}}},
+		},
+	}
+
+	require.Nil(t, New(root))
 }
 
 func TestFilterOpenAPI31RecursesPropertyCarrierSchemas(t *testing.T) {

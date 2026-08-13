@@ -29,14 +29,18 @@ const (
 	defaultOperationIDFormat = "{service}.{method}(.{routeIndex})"
 )
 
-// New returns the OpenAPI v3 specification for the given API.
-// It returns nil if the design does not define HTTP endpoints.
+// New returns the OpenAPI v3 specification for the given API. It returns nil
+// if the design does not define HTTP endpoints or configures an unsupported
+// openapi:version value. Callers that need the validation error should evaluate
+// the design before calling New or use Files.
 func New(root *expr.RootExpr) *OpenAPI {
 	target := openAPIVersion32
 	if root != nil && root.API != nil {
-		if configured, err := targetOpenAPIVersion(root.API.Meta); err == nil {
-			target = configured
+		configured, err := targetOpenAPIVersion(root.API.Meta)
+		if err != nil {
+			return nil
 		}
+		target = configured
 	}
 	return newForVersion(root, target)
 }
