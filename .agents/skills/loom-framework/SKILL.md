@@ -11,8 +11,8 @@ OpenAPI output, framework tests, fixtures, and contributor tooling.
 
 Do not use this skill for ordinary consumer work in `design/`, `gen/`, service
 implementations, or application bootstrap. Use the `loom` skill for those
-tasks. When adding or materially changing a framework capability, use
-`framework-capability` after this skill.
+tasks. This skill also owns the stronger delivery workflow for new framework
+capabilities; there is no separate capability-maintenance skill.
 
 ## Start Here
 
@@ -31,6 +31,43 @@ tasks. When adding or materially changing a framework capability, use
 
 Fix the root framework boundary. Do not patch generated `gen/` output or add an
 application-facing workaround when the framework owns the behavior.
+
+## Adding or Changing Framework Capabilities
+
+Apply this section when adding public DSL surface, generator or transport
+behavior, OpenAPI or JSON Schema features, auth/session semantics, request or
+response decoding, or another framework behavior intended to remove
+application glue.
+
+Before implementing, identify:
+
+1. the repeated application workaround or concrete risk
+2. the generic framework behavior that should replace it
+3. a real consuming application or contract that proves the need
+4. the framework layer that owns the behavior
+5. what policy must remain application-owned
+
+If those boundaries are unclear, do not add framework surface yet. Prefer the
+narrowest behavior that removes the actual workaround, and do not special-case
+one application's protocol flow when a generic transport or contract behavior
+is the real fix.
+
+A capability is complete only when:
+
+- implementation lives at the correct ownership layer
+- direct, generated-output, regression, and broader transport tests cover the
+  relevant behavior
+- coverage includes normal, edge, invalid, ambiguous, and still-rejected cases
+  where applicable
+- public docs and the consumer `loom` skill describe changed application usage
+- internal architecture or workflow changes are recorded in this skill
+- any live roadmap item reflects the delivered state
+- the change is committed and pushed unless the user asks otherwise
+
+For decoding capabilities, cover successful decoding, invalid input,
+validation after decoding, and removal of the old custom workaround. For
+contract output, pair structural assertions with rendered output and parser or
+consumer validation.
 
 ## Architecture Boundaries
 

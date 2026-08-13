@@ -19,10 +19,8 @@
 - Use the [`loom-framework` skill](.agents/skills/loom-framework/SKILL.md) for
   maintaining this repository: DSL implementation, `expr`, codegen, transport
   internals, OpenAPI generation, framework runtime packages, fixtures, and
-  contributor workflows.
-- For a new or materially changed framework capability, use
-  `loom-framework` first and then the
-  [`framework-capability` skill](.agents/skills/framework-capability/SKILL.md).
+  contributor workflows. Its capability section applies when adding or
+  materially changing public framework behavior.
 - Do not put contributor commands, generator architecture, fixture policy, or
   other maintainer-only directives in the consumer `loom` skill. Update that
   skill only when application developers must use or reason about Loom

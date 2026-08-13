@@ -11,8 +11,7 @@ or wiring generated transports and runtime packages.
 
 This is deliberately not a framework-maintenance guide. If the task changes
 Loom's DSL implementation, expression model, generators, transports, OpenAPI
-renderer, or framework tests, use the `loom-framework` skill. Add the
-`framework-capability` skill when creating or changing a framework capability.
+renderer, or framework tests, use the `loom-framework` skill.
 
 ## Core Workflow
 
@@ -270,5 +269,4 @@ loom example <module-import-path>/design
 
 Open the guide closest to the task before searching framework source. If using
 Loom correctly still leaves repeated application glue, report the boundary and
-route a separate framework task through `loom-framework` and
-`framework-capability`.
+route a separate framework task through `loom-framework`.

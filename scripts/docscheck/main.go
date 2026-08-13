@@ -55,7 +55,6 @@ func maintainedDocuments(root string) ([]string, error) {
 		"AGENTS.md": {}, "CONTRIBUTING.md": {}, "README.md": {},
 	}
 	for _, directory := range []string{
-		".agents/skills/framework-capability",
 		".agents/skills/loom",
 		".agents/skills/loom-framework",
 		"docs",
