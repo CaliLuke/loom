@@ -42,7 +42,7 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 		{{- end }}
 	{{- else }}
 		{{- with (index .Result.Responses 0) }}
-			{{- if not $.Method.SkipResponseBodyEncodeDecode }}
+			{{- if not (or $.Method.SkipResponseBodyEncodeDecode $.Method.FileResponse) }}
 				w.WriteHeader({{ .StatusCode }})
 			{{- end }}
 			return nil
@@ -212,7 +212,9 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- if .ErrorHeader }}
 	w.Header().Set("loom-error", res.LoomErrorName())
 	{{- end }}
-	w.WriteHeader({{ .StatusCode }})`},
+		{{- if not .DeferStatus }}
+	w.WriteHeader({{ .StatusCode }})
+	{{- end }}`},
 		{name: "header_conversion", source: `	{{- if eq .Type.Name "boolean" -}}
 		{{ .VarName }} := strconv.FormatBool({{ if not .Required }}*{{ end }}{{ .Target }})
 	{{- else if eq .Type.Name "int" -}}

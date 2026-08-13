@@ -156,6 +156,11 @@ fakes, and state that make every declared response reachable.
 - Let generated clients and routers handle path escaping exactly once; do not
   add app-local `url.PathEscape` or `url.PathUnescape` layers.
 - Prefer modeled response cookies over raw `Set-Cookie` header bags.
+- Use `FileResponse()` for seekable HTTP downloads that need range and
+  conditional request handling. Implement the generated service method with a
+  `*loomhttp.FileResponse`, set `Name`, `ModTime`, and `Content`, and declare
+  `HEAD(...)` explicitly when needed. The generated client returns an
+  `io.ReadCloser`; the caller must close it.
 
 If a body shape is unsupported, use the documented custom encoder/decoder seam
 rather than modifying generated files.

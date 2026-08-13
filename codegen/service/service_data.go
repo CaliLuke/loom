@@ -170,6 +170,8 @@ type (
 		// SkipResponseBodyEncodeDecode is true if the method result includes
 		// the raw HTTP response body reader.
 		SkipResponseBodyEncodeDecode bool
+		// FileResponse is true if the HTTP method returns seekable file content.
+		FileResponse bool
 		// RequestStruct is the name of the data structure containing the
 		// payload and request body reader when SkipRequestBodyEncodeDecode is
 		// used.
@@ -178,6 +180,8 @@ type (
 		// result and response body reader when SkipResponseBodyEncodeDecode is
 		// used.
 		ResponseStruct string
+		// FileResponseStruct is the server-only response carrier used by file endpoints.
+		FileResponseStruct string
 		// EndpointField is the unique field name used in the generated client
 		// struct to store the loom.Endpoint for this method. It is computed with a
 		// scope that includes method names to avoid field/method name collisions.

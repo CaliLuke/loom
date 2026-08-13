@@ -136,6 +136,7 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 		}
 		responses[strconv.Itoa(errResp.StatusCode)] = resp
 	}
+	addFileResponseProtocolResponses(endpointIR, responses)
 	return responses
 }
 

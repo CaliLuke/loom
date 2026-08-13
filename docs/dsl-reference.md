@@ -1188,6 +1188,8 @@ Request body mode expressions:
 - `SkipRequestBodyEncodeDecode` - Pass the raw request body reader to the service
 - `OpenAPIRequestBody` - Document a raw request stream in OpenAPI without decoding it
 - `SkipResponseBodyEncodeDecode` - Return a raw response body reader from the service
+- `FileResponse` - Return seekable file content with `http.ServeContent` range,
+  conditional request, GET, and explicit HEAD semantics
 
 ### Mapping Non-Object Payloads
 
@@ -1373,6 +1375,14 @@ malformed JSON still returns a decode error.
 Use `SkipRequestBodyEncodeDecode` and `SkipResponseBodyEncodeDecode` for raw
 HTTP body streaming with `io.Reader` values. These flags are HTTP-only and are
 incompatible with gRPC and method streaming.
+
+Use `FileResponse` for HTTP-only seekable downloads. Every declared route must
+be `GET` or `HEAD`; declare `HEAD` explicitly when required. The service method
+returns `*loomhttp.FileResponse`, while generated clients retain the raw
+`io.ReadCloser`. File responses require one untagged 200 application response;
+Loom and `http.ServeContent` own the 206, 304, 412, and 416 protocol outcomes.
+When response `ContentType` is omitted, OpenAPI uses binary `*/*` while the
+runtime infers MIME type from `FileResponse.Name`.
 
 ### Custom HTTP Field Types
 

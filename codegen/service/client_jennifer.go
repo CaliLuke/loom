@@ -87,58 +87,72 @@ func buildClientMethod(stmt *jen.Statement, method *EndpointMethodData, stream b
 		resultType = method.ClientStream.Interface
 	}
 
-	stmt.Func().Params(jen.Id("c").Op("*").Id(method.ClientVarName)).Id(name).ParamsFunc(func(group *jen.Group) {
-		group.Id("ctx").Qual("context", "Context")
-		if method.PayloadRef != "" {
-			group.Id("p").Add(codegen.TypeRef(method.PayloadRef))
+	rawResponse := returnsRawResponse(method)
+	stmt.Func().Params(jen.Id("c").Op("*").Id(method.ClientVarName)).Id(name).
+		ParamsFunc(func(group *jen.Group) { addClientMethodParams(group, method) }).
+		ParamsFunc(func(group *jen.Group) { addClientMethodResults(group, resultType, rawResponse) }).
+		BlockFunc(func(group *jen.Group) { buildClientMethodBody(group, method, stream, resultType, rawResponse) })
+}
+
+func addClientMethodParams(group *jen.Group, method *EndpointMethodData) {
+	group.Id("ctx").Qual("context", "Context")
+	if method.PayloadRef != "" {
+		group.Id("p").Add(codegen.TypeRef(method.PayloadRef))
+	}
+	if method.MethodData.SkipRequestBodyEncodeDecode {
+		group.Id("req").Qual("io", "ReadCloser")
+	}
+}
+
+func addClientMethodResults(group *jen.Group, resultType string, rawResponse bool) {
+	if resultType != "" {
+		group.Id("res").Add(codegen.TypeRef(resultType))
+	}
+	if rawResponse {
+		group.Id("resp").Qual("io", "ReadCloser")
+	}
+	group.Id("err").Error()
+}
+
+func buildClientMethodBody(group *jen.Group, method *EndpointMethodData, stream bool, resultType string, rawResponse bool) {
+	returnsValue := resultType != "" || rawResponse
+	if returnsValue {
+		group.Var().Id("ires").Any()
+	}
+	lhs := jen.Id("_")
+	if returnsValue {
+		lhs = jen.Id("ires")
+	}
+	endpointField := method.EndpointField
+	if stream {
+		endpointField = method.StreamEndpointField
+	}
+	group.List(lhs, jen.Id("err")).Op("=").Id("c").Dot(endpointField).Call(jen.Id("ctx"), requestExpr(method))
+	if !returnsValue {
+		group.Return()
+		return
+	}
+	group.If(jen.Id("err").Op("!=").Nil()).Block(jen.Return())
+	if rawResponse {
+		buildRawClientMethodReturn(group, method)
+		return
+	}
+	group.Return(jen.Id("ires").Assert(codegen.TypeRef(resultType)), jen.Nil())
+}
+
+func buildRawClientMethodReturn(group *jen.Group, method *EndpointMethodData) {
+	group.Id("o").Op(":=").Id("ires").Assert(jen.Op("*").Id(method.MethodData.ResponseStruct))
+	group.ReturnFunc(func(returnGroup *jen.Group) {
+		if method.ResultRef != "" {
+			returnGroup.Id("o").Dot("Result")
 		}
-		if method.MethodData.SkipRequestBodyEncodeDecode {
-			group.Id("req").Qual("io", "ReadCloser")
-		}
-	}).ParamsFunc(func(group *jen.Group) {
-		if resultType != "" {
-			group.Id("res").Add(codegen.TypeRef(resultType))
-		}
-		if method.MethodData.SkipResponseBodyEncodeDecode {
-			group.Id("resp").Qual("io", "ReadCloser")
-		}
-		group.Id("err").Error()
-	}).BlockFunc(func(group *jen.Group) {
-		if resultType != "" || method.MethodData.SkipResponseBodyEncodeDecode {
-			group.Var().Id("ires").Any()
-		}
-		lhs := jen.Id("_")
-		if resultType != "" || method.MethodData.SkipResponseBodyEncodeDecode {
-			lhs = jen.Id("ires")
-		}
-		endpointField := method.EndpointField
-		if stream {
-			endpointField = method.StreamEndpointField
-		}
-		group.List(lhs, jen.Id("err")).Op("=").Id("c").Dot(endpointField).Call(jen.Id("ctx"), requestExpr(method))
-		if resultType == "" && !method.MethodData.SkipResponseBodyEncodeDecode {
-			group.Return()
-			return
-		}
-		group.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(),
-		)
-		if method.MethodData.SkipResponseBodyEncodeDecode {
-			group.Id("o").Op(":=").Id("ires").Assert(jen.Op("*").Id(method.MethodData.ResponseStruct))
-			group.ReturnFunc(func(returnGroup *jen.Group) {
-				if method.ResultRef != "" {
-					returnGroup.Id("o").Dot("Result")
-				}
-				returnGroup.Id("o").Dot("Body")
-				returnGroup.Nil()
-			})
-			return
-		}
-		group.Return(
-			jen.Id("ires").Assert(codegen.TypeRef(resultType)),
-			jen.Nil(),
-		)
+		returnGroup.Id("o").Dot("Body")
+		returnGroup.Nil()
 	})
+}
+
+func returnsRawResponse(method *EndpointMethodData) bool {
+	return method.MethodData.SkipResponseBodyEncodeDecode || method.MethodData.FileResponse
 }
 
 func wrappedClientEndpointExpr(method *EndpointMethodData, stream bool) *jen.Statement {

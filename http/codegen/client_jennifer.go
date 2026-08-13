@@ -305,7 +305,7 @@ func renderClientHTTPEndpoint(group *jen.Group, endpoint *EndpointData) {
 		),
 	)
 
-	if endpoint.Method.SkipResponseBodyEncodeDecode {
+	if endpoint.Method.SkipResponseBodyEncodeDecode || endpoint.Method.FileResponse {
 		if endpoint.Result.Ref != "" {
 			group.List(jen.Id("res"), jen.Err()).Op(":=").Id("decodeResponse").Call(jen.Id("resp"))
 		} else {

@@ -300,7 +300,41 @@ func {{ .HandlerInit }}(
 				return
 			}
 		{{- end }}
-	{{- if .Method.SkipResponseBodyEncodeDecode }}
+	{{- if .Method.FileResponse }}
+		o := res.(*{{ .ServicePkgName }}.{{ .Method.FileResponseStruct }})
+		if o.File == nil || o.File.Content == nil {
+			err := fmt.Errorf("{{ .ServiceName }}.{{ .Method.Name }} returned nil file response content")
+			obs.Fail(loomtransport.ReasonHandlerError)
+			if encodeErr := encodeError(ctx, w, err); encodeErr != nil && errhandler != nil {
+				errhandler(ctx, w, encodeErr)
+			}
+			return
+		}
+		if closer, ok := o.File.Content.(io.Closer); ok {
+			defer func() {
+				if err := closer.Close(); err != nil {
+					obs.Fail(loomtransport.ReasonResponseWriteFailed)
+					if errhandler != nil {
+						errhandler(ctx, w, err)
+					}
+				}
+			}()
+		}
+		if err := encodeResponse(ctx, w, {{ if .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
+			obs.Fail(loomtransport.ReasonResponseWriteFailed)
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		{{- with (index .Result.Responses 0) }}
+			{{- if .ContentType }}
+		w.Header().Set("Content-Type", {{ printf "%q" .ContentType }})
+			{{- end }}
+		{{- end }}
+		o.File.ServeHTTP(w, r)
+		return
+	{{- else if .Method.SkipResponseBodyEncodeDecode }}
 		o := res.(*{{ .ServicePkgName }}.{{ .Method.ResponseStruct }})
 		defer o.Body.Close()
 		if wt, ok := o.Body.(io.WriterTo); ok {

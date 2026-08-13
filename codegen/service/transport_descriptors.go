@@ -94,6 +94,11 @@ type (
 		// HasResponseStruct reports whether transport code uses the generated
 		// response wrapper struct.
 		HasResponseStruct bool
+		// IsFileResponse reports whether the method serves seekable file content.
+		IsFileResponse bool
+		// HasFileResponseStruct reports whether server transport code uses the
+		// generated file response wrapper struct.
+		HasFileResponseStruct bool
 		// Stream contains the stream capability descriptor.
 		Stream StreamDescriptor
 	}
@@ -149,15 +154,17 @@ func BuildStreamDescriptor(svc *Data, method *MethodData, payload, result *expr.
 func DescribeMethodCapabilities(method *MethodData) MethodCapabilityDescriptor {
 	stream := DescribeStream(method)
 	return MethodCapabilityDescriptor{
-		HasPayload:          method.PayloadRef != "",
-		HasResult:           method.ResultRef != "",
-		HasViewedResult:     method.ViewedResult != nil,
-		HasStreamingPayload: stream.HasPayload,
-		HasStreamingResult:  stream.HasResult,
-		HasMixedResults:     method.HasMixedResults,
-		HasRequestStruct:    method.SkipRequestBodyEncodeDecode && method.RequestStruct != "",
-		HasResponseStruct:   method.SkipResponseBodyEncodeDecode && method.ResponseStruct != "",
-		Stream:              stream,
+		HasPayload:            method.PayloadRef != "",
+		HasResult:             method.ResultRef != "",
+		HasViewedResult:       method.ViewedResult != nil,
+		HasStreamingPayload:   stream.HasPayload,
+		HasStreamingResult:    stream.HasResult,
+		HasMixedResults:       method.HasMixedResults,
+		HasRequestStruct:      method.SkipRequestBodyEncodeDecode && method.RequestStruct != "",
+		HasResponseStruct:     (method.SkipResponseBodyEncodeDecode || method.FileResponse) && method.ResponseStruct != "",
+		IsFileResponse:        method.FileResponse,
+		HasFileResponseStruct: method.FileResponse && method.FileResponseStruct != "",
+		Stream:                stream,
 	}
 }
 

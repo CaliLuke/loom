@@ -319,6 +319,48 @@ Use `SkipResponseBodyEncodeDecode` when the service returns a raw response body
 reader. These raw body modes are HTTP-only and cannot be combined with gRPC or
 streaming payload/result methods.
 
+Use `FileResponse` for seekable downloads that need standard range and
+conditional request behavior. It is HTTP-only and accepts explicit `GET` and
+`HEAD` routes; Loom does not synthesize a `HEAD` route.
+
+```go
+Method("download", func() {
+    Payload(func() {
+        Attribute("id", String)
+        Required("id")
+    })
+    Result(func() {
+        Attribute("etag", String)
+    })
+    HTTP(func() {
+        GET("/downloads/{id}")
+        HEAD("/downloads/{id}")
+        FileResponse()
+        Response(func() {
+            ContentType("application/pdf")
+            Header("etag:ETag")
+        })
+    })
+})
+```
+
+The generated service method returns the modeled result metadata followed by
+`*loomhttp.FileResponse` and `error`. Set `Name`, `ModTime`, and seekable
+`Content`; the generated handler encodes result headers first, then delegates
+status, content length, ranges, cache validators, and GET/HEAD body behavior to
+`http.ServeContent`. It closes `Content` after the request when it also
+implements `io.Closer`. Generated clients return the modeled result plus an
+`io.ReadCloser`; callers own closing that response body.
+
+OpenAPI documents the normal 200 response and the ServeContent-owned 206,
+304, 412, and 416 outcomes, together with Range and conditional request
+headers. Application responses must keep one untagged 200 success and must not
+claim those protocol statuses. Without an explicit response `ContentType`, the
+spec uses binary `*/*` because `FileResponse.Name` controls runtime MIME
+inference. Result metadata may map ETag and application headers, but not the
+transport-owned Content-Type, Content-Length, Content-Range, Accept-Ranges, or
+Last-Modified headers.
+
 ---
 
 ## Debug Client Capture

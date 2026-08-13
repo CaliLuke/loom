@@ -48,6 +48,10 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			dsl:  testdata.MealPlannerDSL,
 		},
 		{
+			name: "file-response",
+			dsl:  fileResponseOpenAPIDSL,
+		},
+		{
 			name: "raw-request-bodies",
 			dsl:  testdata.RawRequestBodyOpenAPIDSL,
 			extra: func(t *testing.T, spec map[string]any) {
@@ -151,6 +155,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		dsl  func()
 	}{
 		{name: "meal-planner", dsl: testdata.MealPlannerDSL},
+		{name: "file-response", dsl: fileResponseOpenAPIDSL},
 		{name: "raw-request-bodies", dsl: testdata.RawRequestBodyOpenAPIDSL},
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
 	}

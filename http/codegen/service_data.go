@@ -447,6 +447,9 @@ type (
 		// EncodePlan contains precomputed decisions used by the server response
 		// encoder template.
 		EncodePlan *ResponseEncodePlan
+		// DeferStatus is true when the response encoder must leave status
+		// commitment to a subsequent transport primitive such as ServeContent.
+		DeferStatus bool
 	}
 
 	// ResponseEncodePlan contains the derived control flow decisions for

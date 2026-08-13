@@ -64,6 +64,7 @@ type (
 		ErrorResponses      []*ResponseStatus
 		HasMixedResults     bool
 		SkipBodyEncode      bool
+		FileResponse        bool
 		IDAttribute         string
 		IDAttributeRequired bool
 	}

@@ -85,6 +85,9 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 			codegen.LoomImport("security"),
 			{Path: genpkg + "/" + svcName + "/" + "views", Name: svc.ViewsPkg},
 		}
+		if hasFileResponse(svc.Methods) {
+			imports = append(imports, codegen.LoomNamedImport("http", "loomhttp"))
+		}
 		header := codegen.Header(service.Name+" endpoints", svc.PkgName, imports)
 		def := endpointsStructSection(data)
 		sections = []codegen.Section{header, def}
@@ -103,7 +106,9 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 			if m.SkipRequestBodyEncodeDecode {
 				sections = append(sections, requestBodyStructSection(m))
 			}
-			if m.SkipResponseBodyEncodeDecode {
+			if m.FileResponse {
+				sections = append(sections, fileResponseStructSection(m), responseBodyStructSection(m))
+			} else if m.SkipResponseBodyEncodeDecode {
 				sections = append(sections, responseBodyStructSection(m))
 			}
 		}

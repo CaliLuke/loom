@@ -42,6 +42,8 @@ func buildServiceMethod(group *jen.Group, method *MethodData) {
 	groupDoc(group, method.Description)
 	if method.SkipResponseBodyEncodeDecode {
 		groupDoc(group, "If body implements [io.WriterTo], that implementation will be used instead. Consider [github.com/CaliLuke/loom/pkg.SkipResponseWriter] to adapt existing implementations.")
+	} else if method.FileResponse {
+		groupDoc(group, "File content is served with [net/http.ServeContent] semantics.")
 	}
 	addViewedResultComment(group, method)
 	group.Id(method.VarName).
@@ -85,6 +87,8 @@ func addServiceMethodResults(results *jen.Group, method *MethodData) {
 	addServiceMethodResultValue(results, method)
 	if method.SkipResponseBodyEncodeDecode {
 		results.Id("body").Qual("io", "ReadCloser")
+	} else if method.FileResponse {
+		results.Id("file").Add(codegen.TypeRef("*loomhttp.FileResponse"))
 	}
 	addServiceMethodViewResult(results, method)
 	results.Id("err").Error()

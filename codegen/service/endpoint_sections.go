@@ -77,6 +77,21 @@ func responseBodyStructSection(method *EndpointMethodData) codegen.Section {
 	})
 }
 
+func fileResponseStructSection(method *EndpointMethodData) codegen.Section {
+	return codegen.NewJenniferSection("file-response-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s holds both the result and seekable file response of the %q method.", method.FileResponseStruct, method.Name))
+		stmt.Type().Id(method.FileResponseStruct).StructFunc(func(group *jen.Group) {
+			if method.ResultRef != "" {
+				groupDoc(group, "Result is the method result.")
+				group.Id("Result").Add(codegen.TypeRef(method.ResultRef))
+			}
+			groupDoc(group, "File is the seekable HTTP file response.")
+			group.Id("File").Add(codegen.TypeRef("*loomhttp.FileResponse"))
+		})
+		stmt.Line()
+	})
+}
+
 func endpointsInitSection(data *EndpointsData) codegen.Section {
 	return codegen.NewJenniferSection("endpoints-init", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("New%s wraps the methods of the %q service with endpoints.", data.VarName, data.Name))

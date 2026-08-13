@@ -45,8 +45,10 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 			codegen.SimpleImport("encoding/json"),
 			codegen.SimpleImport("fmt"),
 			codegen.SimpleImport("net/url"),
-			codegen.LoomNamedImport("http", "loomhttp"),
 		)
+	}
+	if len(svc.unions) > 0 || hasFileResponse(svc.Methods) {
+		imports = append(imports, codegen.LoomNamedImport("http", "loomhttp"))
 	}
 	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
 	def := serviceDefinitionSection(svc)

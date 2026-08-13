@@ -51,8 +51,10 @@ func endpointMethodSection(method *EndpointMethodData) codegen.Section {
 						buildSkipRequestEndpointInvocation(group, method)
 					case method.ViewedResult != nil:
 						buildViewedResultEndpointInvocation(group, method, payload)
+					case method.FileResponse:
+						buildRawResponseEndpointInvocation(group, method, payload, "file", method.FileResponseStruct, "File")
 					case method.SkipResponseBodyEncodeDecode:
-						buildSkipResponseEndpointInvocation(group, method, payload)
+						buildRawResponseEndpointInvocation(group, method, payload, "body", method.ResponseStruct, "Body")
 					default:
 						buildDefaultEndpointInvocation(group, method, payload)
 					}
@@ -397,12 +399,16 @@ func buildViewedResultEndpointInvocation(group *jen.Group, method *EndpointMetho
 	group.Return(jen.Id("vres"), jen.Nil())
 }
 
-func buildSkipResponseEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
+func buildRawResponseEndpointInvocation(
+	group *jen.Group,
+	method *EndpointMethodData,
+	payload, rawName, responseStruct, responseField string,
+) {
 	lhs := []jen.Code{}
 	if method.ResultRef != "" {
 		lhs = append(lhs, jen.Id("res"))
 	}
-	lhs = append(lhs, jen.Id("body"), jen.Id("err"))
+	lhs = append(lhs, jen.Id(rawName), jen.Id("err"))
 	group.List(lhs...).Op(":=").Id("s").Dot(method.VarName).CallFunc(func(args *jen.Group) {
 		args.Id("ctx")
 		if method.PayloadRef != "" {
@@ -413,11 +419,11 @@ func buildSkipResponseEndpointInvocation(group *jen.Group, method *EndpointMetho
 		jen.Return(jen.Nil(), jen.Id("err")),
 	)
 	group.Return(
-		jen.Op("&").Id(method.ResponseStruct).ValuesFunc(func(values *jen.Group) {
+		jen.Op("&").Id(responseStruct).ValuesFunc(func(values *jen.Group) {
 			if method.ResultRef != "" {
 				values.Id("Result").Op(":").Id("res")
 			}
-			values.Id("Body").Op(":").Id("body")
+			values.Id(responseField).Op(":").Id(rawName)
 		}),
 		jen.Nil(),
 	)

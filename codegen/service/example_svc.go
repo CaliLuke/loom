@@ -74,6 +74,9 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 		{Path: "github.com/CaliLuke/loom/clue/log"},
 		{Path: "github.com/CaliLuke/loom/security"},
 	}
+	if hasFileResponse(data.Methods) {
+		specs = append(specs, codegen.LoomNamedImport("http", "loomhttp"))
+	}
 	sections := []codegen.Section{
 		codegen.Header("", apipkg, specs),
 		exampleServiceStructSection(data),

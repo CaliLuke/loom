@@ -15,6 +15,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 		verr.Add(e, "Endpoint name cannot be empty")
 	}
 	e.validateSkipBodyEncoding(verr)
+	e.validateFileResponse(verr)
 	e.validateStreamingSSE(verr)
 	e.validateJSONRPCTransport(verr)
 	e.validateRedirect(verr)
@@ -398,6 +399,67 @@ func (e *HTTPEndpointExpr) validateSkipBodyEncoding(verr *eval.ValidationErrors)
 		if rt, ok := e.MethodExpr.Result.Type.(*ResultTypeExpr); ok && len(rt.Views) > 1 {
 			verr.Add(e, "Endpoint cannot use SkipResponseBodyEncodeDecode when method result type defines multiple views.")
 		}
+	}
+}
+
+func (e *HTTPEndpointExpr) validateFileResponse(verr *eval.ValidationErrors) {
+	if !e.FileResponse {
+		return
+	}
+	if e.SkipResponseBodyEncodeDecode {
+		verr.Add(e, "Endpoint cannot use FileResponse with SkipResponseBodyEncodeDecode.")
+	}
+	if s := Root.API.GRPC.Service(e.Service.Name()); s != nil && s.Endpoint(e.Name()) != nil {
+		verr.Add(e, "Endpoint cannot use FileResponse and define a gRPC transport.")
+	}
+	if e.MethodExpr.IsStreaming() {
+		verr.Add(e, "Endpoint cannot use FileResponse when method defines streaming.")
+	}
+	if rt, ok := e.MethodExpr.Result.Type.(*ResultTypeExpr); ok && len(rt.Views) > 1 {
+		verr.Add(e, "Endpoint cannot use FileResponse when method result type defines multiple views.")
+	}
+	if len(e.Responses) != 1 || e.Responses[0].StatusCode != StatusOK || e.Responses[0].Tag[0] != "" {
+		verr.Add(e, "FileResponse requires exactly one untagged 200 application response; ServeContent owns protocol response statuses.")
+	}
+	for _, httpError := range e.HTTPErrors {
+		if isFileProtocolStatus(httpError.Response.StatusCode) {
+			verr.Add(e, "FileResponse error response status %d conflicts with ServeContent protocol behavior.", httpError.Response.StatusCode)
+		}
+	}
+	for _, response := range e.Responses {
+		if response == nil || response.Headers == nil {
+			continue
+		}
+		for _, namedAttribute := range *AsObject(response.Headers.Type) {
+			attribute := namedAttribute.Name
+			header := response.Headers.ElemName(attribute)
+			if isFileResponseOwnedHeader(header) {
+				verr.Add(response, "FileResponse result attribute %q cannot map to transport-owned response header %q.", attribute, header)
+			}
+		}
+	}
+	for _, route := range e.Routes {
+		if route.Method != "GET" && route.Method != "HEAD" {
+			verr.Add(e, "FileResponse supports only explicit GET or HEAD routes. Got %q.", route.Method)
+		}
+	}
+}
+
+func isFileResponseOwnedHeader(header string) bool {
+	switch strings.ToLower(header) {
+	case "content-type", "content-length", "content-range", "accept-ranges", "last-modified":
+		return true
+	default:
+		return false
+	}
+}
+
+func isFileProtocolStatus(status int) bool {
+	switch status {
+	case StatusPartialContent, StatusNotModified, StatusPreconditionFailed, StatusRequestedRangeNotSatisfiable:
+		return true
+	default:
+		return false
 	}
 }
 

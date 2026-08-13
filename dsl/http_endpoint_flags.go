@@ -125,3 +125,19 @@ func SkipResponseBodyEncodeDecode() {
 	}
 	e.SkipResponseBodyEncodeDecode = true
 }
+
+// FileResponse indicates that the endpoint returns seekable file or media
+// content using the standard library HTTP content-serving semantics. The
+// service method returns a loom HTTP FileResponse alongside its typed result.
+// Loom delegates range and conditional request handling to http.ServeContent.
+//
+// FileResponse must appear in an HTTP endpoint expression whose explicitly
+// declared routes use only GET or HEAD. FileResponse does not add a HEAD route.
+func FileResponse() {
+	e, ok := eval.Current().(*expr.HTTPEndpointExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	e.FileResponse = true
+}

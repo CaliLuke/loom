@@ -84,15 +84,17 @@ func buildMethodSecurityData(m *expr.MethodExpr, errors []*ErrorInitData, errorL
 func (d *ServicesData) buildMethodTransportData(m *expr.MethodExpr, vname string) MethodTransportData {
 	_, isJSONRPC := m.Meta["jsonrpc"]
 	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
-	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode := d.httpSkipBodyFlags(m)
+	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode, fileResponse := d.httpTransportFlags(m)
 	return MethodTransportData{
 		IsJSONRPC:                    isJSONRPC,
 		IsJSONRPCSSE:                 isJSONRPCSSE,
 		IsJSONRPCWebSocket:           isJSONRPCWebSocket,
 		SkipRequestBodyEncodeDecode:  skipRequestBodyEncodeDecode,
 		SkipResponseBodyEncodeDecode: skipResponseBodyEncodeDecode,
+		FileResponse:                 fileResponse,
 		RequestStruct:                vname + "RequestData",
 		ResponseStruct:               vname + "ResponseData",
+		FileResponseStruct:           vname + "FileResponseData",
 	}
 }
 
@@ -158,18 +160,27 @@ func (d *ServicesData) classifyJSONRPCStreamTransport(m *expr.MethodExpr, isJSON
 	return false, false
 }
 
-func (d *ServicesData) httpSkipBodyFlags(m *expr.MethodExpr) (bool, bool) {
+func (d *ServicesData) httpTransportFlags(m *expr.MethodExpr) (bool, bool, bool) {
 	for _, svc := range d.Root.API.HTTP.Services {
 		if svc.Name() != m.Service.Name {
 			continue
 		}
 		httpMethod := svc.Endpoint(m.Name)
 		if httpMethod == nil {
-			return false, false
+			return false, false, false
 		}
-		return httpMethod.SkipRequestBodyEncodeDecode, httpMethod.SkipResponseBodyEncodeDecode
+		return httpMethod.SkipRequestBodyEncodeDecode, httpMethod.SkipResponseBodyEncodeDecode, httpMethod.FileResponse
 	}
-	return false, false
+	return false, false, false
+}
+
+func hasFileResponse(methods []*MethodData) bool {
+	for _, method := range methods {
+		if method.FileResponse {
+			return true
+		}
+	}
+	return false
 }
 
 // initStreamData initializes the streaming payload data structures and methods.

@@ -97,6 +97,9 @@ func exampleEndpointSection(data *basicEndpointData) codegen.Section {
 				if data.SkipResponseBodyEncodeDecode {
 					group.Id("resp").Add(codegen.TypeRef("io.ReadCloser"))
 				}
+				if data.FileResponse {
+					group.Id("file").Add(codegen.TypeRef("*loomhttp.FileResponse"))
+				}
 				if data.ViewedResult != nil && data.ViewedResult.ViewName == "" {
 					group.Id("view").String()
 				}
@@ -151,6 +154,14 @@ func renderExampleEndpointBody(data *basicEndpointData) string {
 		body.Add(`resp = io.NopCloser(strings.NewReader("`)
 		body.Add(data.Name)
 		body.Add(`"))` + "\n")
+	}
+	if data.FileResponse {
+		body.Add("// file is served with range and conditional request semantics.\n")
+		body.Add(`file = &loomhttp.FileResponse{Name: "`)
+		body.Add(data.Name)
+		body.Add(`", Content: strings.NewReader("`)
+		body.Add(data.Name)
+		body.Add(`")}` + "\n")
 	}
 	if data.ViewedResult != nil && data.ViewedResult.ViewName == "" {
 		if data.ServerStream != nil {

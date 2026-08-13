@@ -58,11 +58,16 @@ func buildResponse(endpoint *expr.HTTPEndpointExpr) *Response {
 		StreamingResult:     endpoint.MethodExpr.StreamingResult,
 		HasMixedResults:     endpoint.MethodExpr.HasMixedResults(),
 		SkipBodyEncode:      endpoint.SkipResponseBodyEncodeDecode,
+		FileResponse:        endpoint.FileResponse,
 		IDAttribute:         endpoint.ResultIDAttribute,
 		IDAttributeRequired: result != nil && endpoint.ResultIDAttribute != "" && result.IsRequired(endpoint.ResultIDAttribute),
 	}
 	for _, status := range endpoint.Responses {
-		response.Responses = append(response.Responses, buildResponseStatus(status, nil))
+		responseStatus := buildResponseStatus(status, nil)
+		if endpoint.FileResponse && status.ContentType == "" && len(responseContentTypeHeaderEnums(status)) == 0 {
+			responseStatus.ContentTypes = []string{"*/*"}
+		}
+		response.Responses = append(response.Responses, responseStatus)
 	}
 	for _, httpError := range endpoint.HTTPErrors {
 		response.ErrorResponses = append(response.ErrorResponses, buildResponseStatus(httpError.Response, httpError))
@@ -102,7 +107,7 @@ func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTP
 		IsError:      httpError != nil,
 		EmitExamples: shouldEmitResponseExamples(status),
 		IsWebSocket:  isWebSocketResponse(status, status.StatusCode),
-		BinaryBody:   status.StatusCode != expr.StatusNoContent && isSkipResponseBodyEncodeDecode(status.Parent),
+		BinaryBody:   status.StatusCode != expr.StatusNoContent && isRawResponseBody(status.Parent),
 		Meta:         status.Meta,
 		Links:        buildResponseLinks(status),
 	}
@@ -216,12 +221,12 @@ func responseContentTypeHeaderEnums(resp *expr.HTTPResponseExpr) []string {
 	return contentTypes
 }
 
-func isSkipResponseBodyEncodeDecode(parent eval.Expression) bool {
+func isRawResponseBody(parent eval.Expression) bool {
 	if parent == nil {
 		return false
 	}
 	endpoint, ok := parent.(*expr.HTTPEndpointExpr)
-	return ok && endpoint.SkipResponseBodyEncodeDecode
+	return ok && (endpoint.SkipResponseBodyEncodeDecode || endpoint.FileResponse)
 }
 
 func buildResponseLinks(resp *expr.HTTPResponseExpr) []*ResponseLink {

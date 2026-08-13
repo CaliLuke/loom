@@ -66,6 +66,9 @@ type (
 		// returns a reader and that the client accepts a reader to stream the
 		// response body.
 		SkipResponseBodyEncodeDecode bool
+		// FileResponse indicates that the endpoint result includes seekable
+		// content served with net/http ServeContent semantics.
+		FileResponse bool
 		// Responses is the list of all the possible success HTTP
 		// responses.
 		Responses []*HTTPResponseExpr
@@ -226,7 +229,7 @@ func (r *RouteExpr) Validate() *eval.ValidationErrors {
 	}
 
 	// HEAD method must not return a response body as per RFC 2616 section 9.4
-	if r.Method == "HEAD" {
+	if r.Method == "HEAD" && !r.Endpoint.FileResponse {
 		disallowBody := func(resp *HTTPResponseExpr) {
 			if httpResponseBody(r.Endpoint, resp).Type != Empty {
 				verr.Add(r, "HTTP status %d: Response body defined for HEAD method which does not allow response body.", resp.StatusCode)

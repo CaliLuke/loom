@@ -145,6 +145,7 @@ func (sds *ServicesData) buildSingleResponseData(
 			MustValidate: responseFieldsNeedValidation(headersData, cookiesData),
 			ResultAttr:   codegen.Goify(origin, true),
 			ViewedResult: md.ViewedResult,
+			DeferStatus:  endpointIR.Response.FileResponse,
 		},
 	)
 }

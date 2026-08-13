@@ -53,6 +53,11 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 
 	requestBody := buildRequestBody(endpointIR, bodies, rand, closeObjects)
 	responseMap := buildResponses(endpointIR, bodies, rand, closeObjects)
+	if routeIR.Method == "HEAD" {
+		for _, response := range responseMap {
+			response.Content = nil
+		}
+	}
 	responses := make(map[string]*ResponseRef, len(responseMap))
 	for status, response := range responseMap {
 		responses[status] = &ResponseRef{Value: response}
@@ -79,6 +84,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 
 func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
 	params := append(paramsFromPath(endpointIR, rand, closeObjects), paramsFromHeadersAndCookies(endpointIR, rand, closeObjects)...)
+	params = addFileResponseRequestParameters(endpointIR, params)
 	if endpointIR.Request.MapQueryParams != nil {
 		name := *endpointIR.Request.MapQueryParams
 		if name == "" {

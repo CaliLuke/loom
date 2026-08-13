@@ -105,7 +105,7 @@ func (e *HTTPEndpointExpr) ensureDefaultResponse() {
 	status := StatusOK
 	if e.Redirect != nil {
 		status = e.Redirect.StatusCode
-	} else if e.MethodExpr.Result.Type == Empty && !e.SkipResponseBodyEncodeDecode {
+	} else if e.MethodExpr.Result.Type == Empty && !e.SkipResponseBodyEncodeDecode && !e.FileResponse {
 		status = StatusNoContent
 	}
 	e.Responses = []*HTTPResponseExpr{{StatusCode: status}}

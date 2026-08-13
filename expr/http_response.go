@@ -161,7 +161,7 @@ func (r *HTTPResponseExpr) validateStatusAndBody(e *HTTPEndpointExpr, verr *eval
 }
 
 func (r *HTTPResponseExpr) validateTextContentType(e *HTTPEndpointExpr, verr *eval.ValidationErrors) {
-	if (r.ContentType != "text/html" && r.ContentType != "text/plain") || e.SkipRequestBodyEncodeDecode {
+	if (r.ContentType != "text/html" && r.ContentType != "text/plain") || e.SkipRequestBodyEncodeDecode || e.FileResponse {
 		return
 	}
 	if r.OpenAPIBody != nil && r.OpenAPIBody.Type != String && r.OpenAPIBody.Type != Bytes {
@@ -277,8 +277,12 @@ func (r *HTTPResponseExpr) validateCookies(e *HTTPEndpointExpr, resultType *http
 func (r *HTTPResponseExpr) validateBodyAndLinks(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
 	if r.Body != nil {
 		verr.Merge(r.Body.Validate("HTTP response body", r))
-		if e.SkipResponseBodyEncodeDecode {
-			verr.Add(r, "Cannot define a response body when endpoint uses SkipResponseBodyEncodeDecode.")
+		if e.SkipResponseBodyEncodeDecode || e.FileResponse {
+			mode := "SkipResponseBodyEncodeDecode"
+			if e.FileResponse {
+				mode = "FileResponse"
+			}
+			verr.Add(r, "Cannot define a response body when endpoint uses %s.", mode)
 		}
 		if att, ok := r.Body.Meta["origin:attribute"]; ok {
 			if resultType.AttributeType(att[0]) == nil {
@@ -291,10 +295,17 @@ func (r *HTTPResponseExpr) validateBodyAndLinks(e *HTTPEndpointExpr, resultType 
 				}
 			}
 		}
-	} else if e.SkipResponseBodyEncodeDecode {
+	} else if e.SkipResponseBodyEncodeDecode || e.FileResponse {
 		body := httpResponseBody(e, r)
+		if e.FileResponse && r.Body == nil {
+			body = &AttributeExpr{Type: Empty}
+		}
 		if body.Type != Empty {
-			verr.Add(e, "HTTP endpoint response body must be empty when using SkipResponseBodyEncodeDecode. Make sure to define headers and cookies as needed.")
+			mode := "SkipResponseBodyEncodeDecode"
+			if e.FileResponse {
+				mode = "FileResponse"
+			}
+			verr.Add(e, "HTTP endpoint response body must be empty when using %s. Make sure to define headers and cookies as needed.", mode)
 		}
 	}
 	if r.OpenAPIBody != nil {

@@ -22,13 +22,13 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			defer func() {
 				resp.Body = io.NopCloser(bytes.NewBuffer(b))
 			}()
-		{{- if not .Method.SkipResponseBodyEncodeDecode }} } else {
+		{{- if not (or .Method.SkipResponseBodyEncodeDecode .Method.FileResponse) }} } else {
 			defer resp.Body.Close()
 		{{- end }}
 		}
 		switch resp.StatusCode {
 	{{- range .Result.Responses }}
-		case {{ .StatusCode }}:
+		case {{ .StatusCode }}{{ if and $.Method.FileResponse (eq .Code 200) }}, http.StatusPartialContent, http.StatusNotModified{{ end }}:
 			{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 		{{- if .ResultInit }}
 			{{- if .ViewedResult }}
