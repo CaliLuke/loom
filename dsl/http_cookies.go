@@ -97,9 +97,12 @@ func SessionCookie(name string, args ...any) {
 
 // CookieMaxAge defines the "max-age" attribute of a HTTP response cookie.
 //
-// CookieMaxAge must appear in a Cookie expression.
+// CookieMaxAge must appear after Cookie or SessionCookie in a HTTP response
+// expression.
 //
-// CookieMaxAge accepts one argument which is the max-age value.
+// CookieMaxAge accepts one argument which is the max-age value in seconds. A
+// positive value sets the cookie lifetime, zero omits the Max-Age attribute,
+// and a negative value deletes the cookie immediately.
 //
 // Example:
 //
@@ -110,6 +113,10 @@ func SessionCookie(name string, args ...any) {
 //	            Response(StatusCreated, func() {
 //	                Cookie("session:SID", String)
 //	                CookieMaxAge(3600)
+//	            })
+//	            Response(StatusNoContent, func() {
+//	                SessionCookie("expired_session:SID", String)
+//	                CookieMaxAge(-1) // Delete the cookie immediately.
 //	            })
 //	        })
 //	    })
