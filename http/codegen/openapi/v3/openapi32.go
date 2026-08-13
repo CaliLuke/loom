@@ -9,16 +9,32 @@ import (
 
 const openAPIAsyncExtension = "x-loom-async"
 
-func renderOpenAPI(root *expr.RootExpr, spec *OpenAPI, target openAPIVersion) []string {
+func renderOpenAPI(root *expr.RootExpr, spec *OpenAPI, target openAPIVersion) ([]string, error) {
 	if spec == nil {
-		return nil
+		return nil, nil
 	}
-	spec.OpenAPI = renderOpenAPIVersion(target)
-	if target == openAPIVersion32 {
-		applyOpenAPI32(root, spec)
-		return nil
+	router := &versionRouter{target: target}
+	version, err := renderOpenAPIVersion(router)
+	if err != nil {
+		return nil, err
 	}
-	return filterOpenAPI31(spec)
+	spec.OpenAPI = version
+	router.runPasses(
+		versionedPass{
+			versions: versionRange{through: openAPIVersion31},
+			apply: func() []string {
+				return filterOpenAPI31(spec)
+			},
+		},
+		versionedPass{
+			versions: versionRange{from: openAPIVersion32},
+			apply: func() []string {
+				applyOpenAPI32(root, spec)
+				return nil
+			},
+		},
+	)
+	return router.warnings(), nil
 }
 
 func applyOpenAPI32(root *expr.RootExpr, spec *OpenAPI) {

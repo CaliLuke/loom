@@ -47,20 +47,26 @@ func New(root *expr.RootExpr) *OpenAPI {
 		}
 		target = configured
 	}
-	spec, _ := newForVersion(root, target)
+	spec, _, err := newForVersion(root, target)
+	if err != nil {
+		return nil
+	}
 	return spec
 }
 
-func newForVersion(root *expr.RootExpr, target openAPIVersion) (*OpenAPI, []string) {
+func newForVersion(root *expr.RootExpr, target openAPIVersion) (*OpenAPI, []string, error) {
 	if root == nil || root.API == nil || root.API.HTTP == nil || len(root.API.HTTP.Services) == 0 {
 		// No HTTP transport
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	disableOpenAPIExamples(root.API)
 	spec := buildDocument(root)
-	warnings := renderOpenAPI(root, spec, target)
-	return spec, warnings
+	warnings, err := renderOpenAPI(root, spec, target)
+	if err != nil {
+		return nil, nil, err
+	}
+	return spec, warnings, nil
 }
 
 // buildInfo builds the OpenAPI Info object.

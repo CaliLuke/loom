@@ -41,13 +41,15 @@ func TestOpenAPI31FilterCoversEveryOpenAPI32ModelMember(t *testing.T) {
 
 	openapi.Definitions = make(map[string]*openapi.Schema)
 	root32 := expr.RunDSL(t, testdata.OpenAPI32FeaturesDSL)
-	spec32, warnings := newForVersion(root32, openAPIVersion32)
+	spec32, warnings, err := newForVersion(root32, openAPIVersion32)
+	require.NoError(t, err)
 	require.Empty(t, warnings)
 	addOpenAPI32LinkServerCases(t, spec32)
 
 	openapi.Definitions = make(map[string]*openapi.Schema)
 	root31 := expr.RunDSL(t, testdata.OpenAPI32FeaturesDSL)
-	spec31, _ := newForVersion(root31, openAPIVersion31)
+	spec31, _, err := newForVersion(root31, openAPIVersion31)
+	require.NoError(t, err)
 	addOpenAPI32LinkServerCases(t, spec31)
 	filterOpenAPI31(spec31)
 

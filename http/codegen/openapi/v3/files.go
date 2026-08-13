@@ -18,7 +18,10 @@ func Files(root *expr.RootExpr) ([]*codegen.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	spec, warnings := newForVersion(root, target)
+	spec, warnings, err := newForVersion(root, target)
+	if err != nil {
+		return nil, err
+	}
 	jsonSource, err := toJSON(root.API.Meta, spec)
 	if err != nil {
 		return nil, err
