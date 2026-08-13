@@ -60,6 +60,15 @@ func TestHTTPFileResponseValidation(t *testing.T) {
 			wantErr: "Endpoint cannot use FileResponse with SkipResponseBodyEncodeDecode.",
 		},
 		{
+			name: "rejects raw request body escape hatch",
+			dsl: fileResponseDSL(func() {
+				GET("/files/{id}")
+				FileResponse()
+				SkipRequestBodyEncodeDecode()
+			}),
+			wantErr: "Endpoint cannot use FileResponse with SkipRequestBodyEncodeDecode.",
+		},
+		{
 			name: "rejects application status owned by ServeContent",
 			dsl: fileResponseDSL(func() {
 				GET("/files/{id}")
@@ -87,6 +96,25 @@ func TestHTTPFileResponseValidation(t *testing.T) {
 			}
 			err := expr.RunInvalidDSL(t, test.dsl)
 			require.ErrorContains(t, err, test.wantErr)
+		})
+	}
+}
+
+func TestHTTPFileResponseRejectsViewedResultTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		dsl  func()
+	}{
+		{name: "implicit default view", dsl: fileResponseViewedResultDSL(false, "")},
+		{name: "explicit default view", dsl: fileResponseViewedResultDSL(false, "default")},
+		{name: "explicit alternate view", dsl: fileResponseViewedResultDSL(true, "summary")},
+		{name: "multiple views without selection", dsl: fileResponseViewedResultDSL(true, "")},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, test.dsl)
+			require.ErrorContains(t, err, "Endpoint cannot use FileResponse when method result type defines views.")
 		})
 	}
 }
@@ -153,6 +181,41 @@ func fileResponseDSL(httpDSL func()) func() {
 					Attribute("etag", String)
 				})
 				HTTP(httpDSL)
+			})
+		})
+	}
+}
+
+func fileResponseViewedResultDSL(multipleViews bool, selectedView string) func() {
+	return func() {
+		metadata := ResultType("application/vnd.loom.file-metadata+json", func() {
+			Attributes(func() {
+				Attribute("etag", String)
+				Attribute("name", String)
+			})
+			View("default", func() {
+				Attribute("etag")
+			})
+			if multipleViews {
+				View("summary", func() {
+					Attribute("name")
+				})
+			}
+		})
+
+		Service("files", func() {
+			Method("download", func() {
+				if selectedView == "" {
+					Result(metadata)
+				} else {
+					Result(metadata, func() {
+						View(selectedView)
+					})
+				}
+				HTTP(func() {
+					GET("/files")
+					FileResponse()
+				})
 			})
 		})
 	}

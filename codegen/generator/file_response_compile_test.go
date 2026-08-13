@@ -15,7 +15,25 @@ import (
 )
 
 func TestFileResponseGeneratedApplicationCompiles(t *testing.T) {
-	root := codegen.RunDSL(t, fileResponseCompileDSL)
+	tests := []struct {
+		name string
+		dsl  func()
+	}{
+		{name: "empty result GET", dsl: fileResponseEmptyResultCompileDSL},
+		{name: "inline metadata GET and HEAD", dsl: fileResponseInlineResultCompileDSL},
+		{name: "reusable metadata type", dsl: fileResponseUserTypeResultCompileDSL},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testFileResponseGeneratedApplicationCompiles(t, test.dsl)
+		})
+	}
+}
+
+func testFileResponseGeneratedApplicationCompiles(t *testing.T, design func()) {
+	t.Helper()
+	root := codegen.RunDSL(t, design)
 	roots := []eval.Root{root}
 	genpkg := "example.com/file-response/gen"
 
@@ -40,20 +58,57 @@ func TestFileResponseGeneratedApplicationCompiles(t *testing.T) {
 	require.NoError(t, err, output)
 }
 
-func fileResponseCompileDSL() {
+func fileResponseEmptyResultCompileDSL() {
 	dsl.API("file-response", func() {})
 	dsl.Service("files", func() {
 		dsl.Method("download", func() {
+			dsl.HTTP(func() {
+				dsl.GET("/download")
+				dsl.FileResponse()
+			})
+		})
+	})
+}
+
+func fileResponseInlineResultCompileDSL() {
+	dsl.API("file-response", func() {})
+	dsl.Service("files", func() {
+		dsl.Method("download", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("id", dsl.String)
+				dsl.Required("id")
+			})
 			dsl.Result(func() {
 				dsl.Attribute("etag", dsl.String)
 			})
 			dsl.HTTP(func() {
-				dsl.GET("/download")
-				dsl.HEAD("/download")
+				dsl.GET("/download/{id}")
+				dsl.HEAD("/download/{id}")
 				dsl.FileResponse()
 				dsl.Response(func() {
 					dsl.ContentType("application/octet-stream")
 					dsl.Header("etag:ETag")
+				})
+			})
+		})
+	})
+}
+
+func fileResponseUserTypeResultCompileDSL() {
+	dsl.API("file-response", func() {})
+	metadata := dsl.Type("FileMetadata", func() {
+		dsl.Attribute("etag", dsl.String)
+		dsl.Attribute("disposition", dsl.String)
+	})
+	dsl.Service("files", func() {
+		dsl.Method("download", func() {
+			dsl.Result(metadata)
+			dsl.HTTP(func() {
+				dsl.GET("/download")
+				dsl.FileResponse()
+				dsl.Response(func() {
+					dsl.Header("etag:ETag")
+					dsl.Header("disposition:Content-Disposition")
 				})
 			})
 		})

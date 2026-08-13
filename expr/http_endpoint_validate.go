@@ -409,14 +409,17 @@ func (e *HTTPEndpointExpr) validateFileResponse(verr *eval.ValidationErrors) {
 	if e.SkipResponseBodyEncodeDecode {
 		verr.Add(e, "Endpoint cannot use FileResponse with SkipResponseBodyEncodeDecode.")
 	}
+	if e.SkipRequestBodyEncodeDecode {
+		verr.Add(e, "Endpoint cannot use FileResponse with SkipRequestBodyEncodeDecode.")
+	}
 	if s := Root.API.GRPC.Service(e.Service.Name()); s != nil && s.Endpoint(e.Name()) != nil {
 		verr.Add(e, "Endpoint cannot use FileResponse and define a gRPC transport.")
 	}
 	if e.MethodExpr.IsStreaming() {
 		verr.Add(e, "Endpoint cannot use FileResponse when method defines streaming.")
 	}
-	if rt, ok := e.MethodExpr.Result.Type.(*ResultTypeExpr); ok && len(rt.Views) > 1 {
-		verr.Add(e, "Endpoint cannot use FileResponse when method result type defines multiple views.")
+	if _, ok := e.MethodExpr.Result.Type.(*ResultTypeExpr); ok {
+		verr.Add(e, "Endpoint cannot use FileResponse when method result type defines views.")
 	}
 	if len(e.Responses) != 1 || e.Responses[0].StatusCode != StatusOK || e.Responses[0].Tag[0] != "" {
 		verr.Add(e, "FileResponse requires exactly one untagged 200 application response; ServeContent owns protocol response statuses.")
