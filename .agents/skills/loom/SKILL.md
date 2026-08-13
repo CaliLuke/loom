@@ -151,10 +151,16 @@ Prefer Loom's first-class session DSL:
 - `CookieName(name)`
 - `SessionSecurity(contract)`
 - `SessionCookie(...)`
+- `CookieInsecure()` for plain-HTTP local development only
 
 `CookieTransport(scheme, "", fn...)` is the transport-owned browser-cookie
 mode. It emits the security contract without synthesizing a payload field or
 CLI flag, allowing the application to resolve the cookie from request metadata.
+
+`SessionCookie(...)` remains secure by default. A response may call
+`CookieInsecure()` immediately afterward for plain-HTTP local development, but
+must not do so in production or for `__Host-`/`__Secure-` names or
+`SameSite=None` cookies.
 
 Alternative security requirements are isolated. Context returned by a failed
 alternative does not leak into the next one; schemes within one successful

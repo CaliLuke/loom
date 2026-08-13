@@ -48,6 +48,32 @@ func TestSessionCookie(t *testing.T) {
 			CompareContent()
 	})
 
+	t.Run("insecure override omits secure from generated contracts", func(t *testing.T) {
+		root := RunHTTPDSL(t, sessionCookieResponseInsecureDSL)
+		services := CreateHTTPServices(root)
+
+		serverFiles := ServerFiles("", services)
+		require.Len(t, serverFiles, 2)
+		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
+		require.NotContains(t, serverEncode, `Secure:`)
+		require.Contains(t, serverEncode, `HttpOnly: true`)
+
+		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
+		doc := parseOpenAPIV3Document(t, v3JSON)
+		pathItem, ok := doc.Paths.PathItems.Get("/session")
+		require.True(t, ok)
+		require.NotNil(t, pathItem.Post)
+		okResp, ok := pathItem.Post.Responses.Codes.Get("201")
+		require.True(t, ok)
+		header, ok := okResp.Headers.Get("Set-Cookie")
+		require.True(t, ok)
+		require.NotNil(t, header)
+		require.Contains(t, header.Description, `Policy: Path=/; HttpOnly; SameSite=Lax.`)
+		require.NotContains(t, header.Description, "Secure")
+		require.NotNil(t, header.Example)
+		require.NotContains(t, header.Example.Value, "Secure")
+	})
+
 	t.Run("all explicit cookie settings override defaults", func(t *testing.T) {
 		root := RunHTTPDSL(t, sessionCookieResponseOverrideAllDSL)
 		services := CreateHTTPServices(root)
@@ -229,6 +255,23 @@ var sessionCookieResponseOverrideDSL = func() {
 					dsl.SessionCookie("session:__Host-ak_session")
 					dsl.CookiePath("/session")
 					dsl.CookieSameSite(dsl.CookieSameSiteStrict)
+				})
+			})
+		})
+	})
+}
+
+var sessionCookieResponseInsecureDSL = func() {
+	dsl.Service("sessionCookieResponseInsecure", func() {
+		dsl.Method("create", func() {
+			dsl.Result(func() {
+				dsl.Attribute("session", dsl.String)
+			})
+			dsl.HTTP(func() {
+				dsl.POST("/session")
+				dsl.Response(dsl.StatusCreated, func() {
+					dsl.SessionCookie("session:app_session")
+					dsl.CookieInsecure()
 				})
 			})
 		})

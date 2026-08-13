@@ -108,6 +108,41 @@ var CookieSecureDSL = func() {
 	})
 }
 
+var CookieInsecureDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					SessionCookie("cookie")
+					CookieInsecure()
+				})
+			})
+		})
+	})
+}
+
+var CookieSecureAfterInsecureDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					Cookie("cookie")
+					CookieInsecure()
+					CookieSecure()
+				})
+			})
+		})
+	})
+}
+
 var CookieHTTPOnlyDSL = func() {
 	Service("CookieSvc", func() {
 		Method("Method", func() {
@@ -272,6 +307,23 @@ var InvalidCookieSetterPlacementDSL = func() {
 				POST("/")
 				Response(StatusOK, func() {
 					CookiePath("/session")
+					Cookie("cookie")
+				})
+			})
+		})
+	})
+}
+
+var InvalidCookieInsecurePlacementDSL = func() {
+	Service("CookieSvc", func() {
+		Method("Method", func() {
+			Result(func() {
+				Attribute("cookie", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response(StatusOK, func() {
+					CookieInsecure()
 					Cookie("cookie")
 				})
 			})

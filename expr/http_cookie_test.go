@@ -65,6 +65,22 @@ func TestHTTPResponseCookie(t *testing.T) {
 			},
 		},
 		{
+			Name: "session cookie insecure override",
+			DSL:  testdata.CookieInsecureDSL,
+			Check: func(t *testing.T, cookies []*expr.HTTPResponseCookieExpr) {
+				t.Helper()
+				assertResponseCookie(t, cookies[0], "cookie", "cookie", "/", "", "", false, true, expr.CookieSameSiteLax)
+			},
+		},
+		{
+			Name: "secure setter overrides insecure setter",
+			DSL:  testdata.CookieSecureAfterInsecureDSL,
+			Check: func(t *testing.T, cookies []*expr.HTTPResponseCookieExpr) {
+				t.Helper()
+				assertResponseCookie(t, cookies[0], "cookie", "cookie", "", "", "", true, false, "")
+			},
+		},
+		{
 			Name: "http-only",
 			DSL:  testdata.CookieHTTPOnlyDSL,
 			Check: func(t *testing.T, cookies []*expr.HTTPResponseCookieExpr) {
@@ -153,6 +169,13 @@ func TestResponseCookieValidation(t *testing.T) {
 		err := expr.RunInvalidDSL(t, testdata.DuplicateResponseCookieNameDSL)
 		if actual := err.Error(); actual == "" || !strings.Contains(actual, `response defines duplicate cookie "ak"`) {
 			t.Fatalf("got error %q, expected it to contain %q", actual, `response defines duplicate cookie "ak"`)
+		}
+	})
+
+	t.Run("insecure setter requires a declared response cookie", func(t *testing.T) {
+		err := expr.RunInvalidDSL(t, testdata.InvalidCookieInsecurePlacementDSL)
+		if actual := err.Error(); actual == "" || !strings.Contains(actual, "cookie attributes must be declared after Cookie or SessionCookie in an HTTP response") {
+			t.Fatalf("got error %q, expected it to contain %q", actual, "cookie attributes must be declared after Cookie or SessionCookie in an HTTP response")
 		}
 	})
 }

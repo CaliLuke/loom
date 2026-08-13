@@ -201,6 +201,34 @@ func CookieSecure() {
 	})
 }
 
+// CookieInsecure removes the "secure" attribute from a HTTP response cookie.
+//
+// CookieInsecure must appear after Cookie or SessionCookie in a HTTP response
+// expression. Use it only for plain-HTTP local development; production session
+// cookies should retain the secure default. CookieInsecure must not be used with
+// cookie names that start with "__Host-" or "__Secure-", or with
+// CookieSameSite(CookieSameSiteNone), because browsers require those cookies to
+// be secure.
+//
+// Example:
+//
+//	var _ = Service("account", func() {
+//	    Method("create", func() {
+//	        Result(Account)
+//	        HTTP(func() {
+//	            Response(StatusCreated, func() {
+//	                SessionCookie("session:SID", String)
+//	                CookieInsecure() // Plain-HTTP local development only.
+//	            })
+//	        })
+//	    })
+//	})
+func CookieInsecure() {
+	cookieAttribute(func(c *expr.HTTPResponseCookieExpr) {
+		c.Secure = false
+	})
+}
+
 // CookieHTTPOnly initializes the "http-only" attribute of a HTTP response
 // cookie with "HttpOnly".
 //

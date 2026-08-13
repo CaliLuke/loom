@@ -1060,7 +1060,10 @@ Method("logout", func() {
 
 A negative max age instructs browsers to delete the cookie immediately. Zero
 omits the `Max-Age` attribute, while a positive value is its lifetime in
-seconds.
+seconds. For plain-HTTP local development, call `CookieInsecure()` immediately
+after `SessionCookie(...)` to override the secure default. Do not use that
+override in production or with `__Host-`/`__Secure-` cookie names or
+`SameSite=None`, which require `Secure`.
 
 ### CORS
 
