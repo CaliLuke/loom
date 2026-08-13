@@ -206,6 +206,12 @@ func filterSchemaCompatibility(schema *openapi.Schema, seen map[*openapi.Schema]
 	for _, child := range schema.OneOf {
 		filterSchemaCompatibility(child, seen)
 	}
+	if child, ok := schema.AdditionalProperties.(*openapi.Schema); ok {
+		filterSchemaCompatibility(child, seen)
+	}
+	if child, ok := schema.UnevaluatedProperties.(*openapi.Schema); ok {
+		filterSchemaCompatibility(child, seen)
+	}
 }
 
 func containsString(values []string, target string) bool {

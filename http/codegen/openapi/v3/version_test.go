@@ -1,9 +1,11 @@
 package openapiv3
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,4 +105,82 @@ func TestFilterOpenAPI31PreservesContentSchema(t *testing.T) {
 	filterSchemaCompatibility(schema, make(map[*openapi.Schema]struct{}))
 
 	require.Same(t, contentSchema, schema.ContentSchema)
+}
+
+func TestFilterOpenAPI31RecursesPropertyCarrierSchemas(t *testing.T) {
+	additional := compatibilityOnlySchema()
+	unevaluated := compatibilityOnlySchema()
+	schema := &openapi.Schema{
+		AdditionalProperties:  additional,
+		UnevaluatedProperties: unevaluated,
+	}
+	additional.Properties = map[string]*openapi.Schema{"root": schema}
+	unevaluated.Items = unevaluated
+
+	filterSchemaCompatibility(schema, make(map[*openapi.Schema]struct{}))
+
+	for _, child := range []*openapi.Schema{additional, unevaluated} {
+		require.Empty(t, child.Discriminator.DefaultMapping)
+		require.False(t, child.Discriminator.Optional)
+		require.Contains(t, child.Required, "kind")
+		require.Empty(t, child.XML.NodeType)
+	}
+
+	booleanCarriers := &openapi.Schema{
+		AdditionalProperties:  false,
+		UnevaluatedProperties: true,
+	}
+	filterSchemaCompatibility(booleanCarriers, make(map[*openapi.Schema]struct{}))
+	require.Equal(t, false, booleanCarriers.AdditionalProperties)
+	require.Equal(t, true, booleanCarriers.UnevaluatedProperties)
+}
+
+func TestFilterOpenAPI31RendersCompatiblePropertyCarrierSchemas(t *testing.T) {
+	spec := &OpenAPI{
+		OpenAPI: OpenAPICompatibilityVersion,
+		Info: &Info{
+			Title:   "compatibility",
+			Version: "1.0.0",
+		},
+		Paths: map[string]*PathItem{},
+		Components: &Components{Schemas: map[string]*openapi.Schema{
+			"Envelope": {
+				Type:                  openapi.Object,
+				AdditionalProperties:  compatibilityOnlySchema(),
+				UnevaluatedProperties: compatibilityOnlySchema(),
+			},
+		}},
+	}
+
+	filterOpenAPI31(spec)
+	source, err := toJSON(nil, spec)
+	require.NoError(t, err)
+	parsed, err := libopenapi.NewDocument([]byte(source))
+	require.NoError(t, err)
+	_, err = parsed.BuildV3Model()
+	require.NoError(t, err)
+
+	var rendered map[string]any
+	require.NoError(t, json.Unmarshal([]byte(source), &rendered))
+	components := rendered["components"].(map[string]any)
+	schemas := components["schemas"].(map[string]any)
+	envelope := schemas["Envelope"].(map[string]any)
+	for _, field := range []string{"additionalProperties", "unevaluatedProperties"} {
+		child := envelope[field].(map[string]any)
+		require.NotContains(t, child["discriminator"].(map[string]any), "defaultMapping")
+		require.Contains(t, child["required"].([]any), "kind")
+		require.NotContains(t, child["xml"].(map[string]any), "nodeType")
+	}
+}
+
+func compatibilityOnlySchema() *openapi.Schema {
+	return &openapi.Schema{
+		Type: openapi.Object,
+		Discriminator: &openapi.Discriminator{
+			PropertyName:   "kind",
+			DefaultMapping: "#/components/schemas/Fallback",
+			Optional:       true,
+		},
+		XML: &openapi.XML{NodeType: "element"},
+	}
 }
