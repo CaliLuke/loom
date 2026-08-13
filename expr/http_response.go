@@ -180,7 +180,26 @@ func (r *HTTPResponseExpr) validateHeadersAndCookies(e *HTTPEndpointExpr, result
 		r.validateHeaders(e, resultType, verr)
 	}
 	if len(r.Cookies) > 0 {
+		r.validateCookieSecurity(verr)
 		r.validateCookies(e, resultType, verr)
+	}
+}
+
+func (r *HTTPResponseExpr) validateCookieSecurity(verr *eval.ValidationErrors) {
+	for _, cookie := range r.Cookies {
+		if cookie == nil || cookie.Secure {
+			continue
+		}
+		name := cookie.HTTPName()
+		switch {
+		case strings.HasPrefix(name, "__Host-"):
+			verr.Add(r, "cookie %q requires CookieSecure because its name uses the %q prefix", name, "__Host-")
+		case strings.HasPrefix(name, "__Secure-"):
+			verr.Add(r, "cookie %q requires CookieSecure because its name uses the %q prefix", name, "__Secure-")
+		}
+		if cookie.SameSite == CookieSameSiteNone {
+			verr.Add(r, "cookie %q requires CookieSecure when SameSite is None", name)
+		}
 	}
 }
 

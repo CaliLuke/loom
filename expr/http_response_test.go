@@ -36,6 +36,9 @@ service "MissingCookieResultAttribute" HTTP endpoint "Method": attribute "bar" u
 		{"skip encode with OpenAPI body", skipEncodeWithOpenAPIBodyDSL, ""},
 		{"response link", responseLinkDSL, ""},
 		{"invalid response link", invalidResponseLinkDSL, `HTTP response link "self": response link must define either a target operation or operation ref`},
+		{"insecure host cookie", insecureResponseCookieDSL("InsecureHostCookie", "__Host-session", false), `HTTP response of service "InsecureHostCookie" HTTP endpoint "Method": cookie "__Host-session" requires CookieSecure because its name uses the "__Host-" prefix`},
+		{"insecure secure-prefix cookie", insecureResponseCookieDSL("InsecureSecurePrefixCookie", "__Secure-session", false), `HTTP response of service "InsecureSecurePrefixCookie" HTTP endpoint "Method": cookie "__Secure-session" requires CookieSecure because its name uses the "__Secure-" prefix`},
+		{"insecure same-site-none cookie", insecureResponseCookieDSL("InsecureSameSiteNoneCookie", "session", true), `HTTP response of service "InsecureSameSiteNoneCookie" HTTP endpoint "Method": cookie "session" requires CookieSecure when SameSite is None`},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -48,6 +51,28 @@ service "MissingCookieResultAttribute" HTTP endpoint "Method": attribute "bar" u
 					t.Errorf("got error %q, expected %q", got, c.Error)
 				}
 			}
+		})
+	}
+}
+
+func insecureResponseCookieDSL(serviceName, cookieName string, sameSiteNone bool) func() {
+	return func() {
+		Service(serviceName, func() {
+			Method("Method", func() {
+				Result(func() {
+					Attribute("session", String)
+				})
+				HTTP(func() {
+					POST("/")
+					Response(StatusOK, func() {
+						SessionCookie("session:" + cookieName)
+						CookieInsecure()
+						if sameSiteNone {
+							CookieSameSite(CookieSameSiteNone)
+						}
+					})
+				})
+			})
 		})
 	}
 }
