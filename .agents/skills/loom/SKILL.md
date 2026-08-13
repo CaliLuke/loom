@@ -93,6 +93,11 @@ build Auto-K without repeating large amounts of app-local glue.
 - Loom HTTP default errors now use RFC 9457-style
   `application/problem+json` documents with a stable machine-readable `code`
   field instead of the legacy upstream error media type.
+- Built-in HTTP request decoders return status `413` with problem code
+  `request_too_large` when the 32 MiB body limit is exceeded. This applies to
+  generated multipart decoding's aggregate limit as well as JSON, XML, Gob,
+  HTML, and plain-text request bodies; malformed bodies remain
+  `decode_payload` errors.
 - Use `ProblemResult` / `ProblemResultIdentifier` explicitly when you want to
   model that same problem-document contract yourself in custom result/error
   shapes.

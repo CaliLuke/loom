@@ -378,6 +378,10 @@ Method("create", func() {
 Loom's built-in JSON, XML, Gob, HTML, and plain-text request decoders accept at
 most 32 MiB. Generated multipart decoding uses the same 32 MiB aggregate limit
 across all parts, including unnamed parts; it is not a per-file allowance.
+Requests that exceed either limit receive an RFC 9457
+`application/problem+json` response with status `413` and code
+`request_too_large`, rather than the `decode_payload` response used for
+malformed bodies.
 Generated clients also cap buffered response-body restoration at 32 MiB.
 
 Unexpected response bodies included in generated client errors are capped at

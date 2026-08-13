@@ -92,6 +92,9 @@ const (
 	UnsupportedMediaType = "unsupported_media_type"
 	// DecodePayload is the error name for decode payload errors.
 	DecodePayload = "decode_payload"
+	// RequestBodyTooLarge is the error name returned by the Loom decoder when
+	// the HTTP request body exceeds the framework limit.
+	RequestBodyTooLarge = "request_too_large"
 	// MissingPayload is the error name for missing payload errors.
 	MissingPayload = "missing_payload"
 )
@@ -152,6 +155,12 @@ func MissingPayloadError() error {
 // body cannot be decoded successfully.
 func DecodePayloadError(msg string) error {
 	return PermanentError(DecodePayload, "%s", msg)
+}
+
+// RequestBodyTooLargeError is the error produced by the Loom decoder when an
+// HTTP request body exceeds the framework limit.
+func RequestBodyTooLargeError() error {
+	return PermanentError(RequestBodyTooLarge, "request body too large")
 }
 
 // UnsupportedMediaTypeError is the error produced by the Loom decoder when the

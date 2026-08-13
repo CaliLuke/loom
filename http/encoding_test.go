@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -357,7 +358,7 @@ func TestRequestDecoderCapsJSONBody(t *testing.T) {
 
 			err := RequestDecoder(req).Decode(&out)
 
-			require.ErrorIs(t, err, errRequestBodyTooLarge)
+			requireRequestBodyTooLargeResponse(t, err)
 			require.Empty(t, out.Value)
 		})
 	}
@@ -496,7 +497,7 @@ func TestTextPlainDecoderCapsBody(t *testing.T) {
 
 	err := decoder.Decode(&value)
 
-	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	requireRequestBodyTooLargeResponse(t, err)
 	require.Empty(t, value)
 }
 
@@ -516,7 +517,7 @@ func TestReadMultipartFormCapsPartData(t *testing.T) {
 
 	form, err := ReadMultipartForm(mr)
 
-	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	requireRequestBodyTooLargeResponse(t, err)
 	require.Nil(t, form)
 }
 
@@ -538,7 +539,7 @@ func TestReadMultipartFormCapsAggregateData(t *testing.T) {
 
 	form, err := ReadMultipartForm(mr)
 
-	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	requireRequestBodyTooLargeResponse(t, err)
 	require.Nil(t, form)
 }
 
@@ -562,8 +563,30 @@ func TestReadMultipartFormCapsNamelessPartData(t *testing.T) {
 
 	form, err := ReadMultipartForm(mr)
 
-	require.ErrorIs(t, err, errRequestBodyTooLarge)
+	requireRequestBodyTooLargeResponse(t, err)
 	require.Nil(t, form)
+}
+
+func requireRequestBodyTooLargeResponse(t *testing.T, err error) {
+	t.Helper()
+
+	var serviceErr *loom.ServiceError
+	require.ErrorAs(t, err, &serviceErr)
+	require.Equal(t, loom.RequestBodyTooLarge, serviceErr.Name)
+
+	w := httptest.NewRecorder()
+	encoder := ErrorEncoder(ResponseEncoder, nil)
+	require.NoError(t, encoder(context.Background(), w, err))
+	require.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	require.Equal(t, ProblemJSONContentType, w.Header().Get("Content-Type"))
+
+	var problem ProblemResponse
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&problem))
+	require.Equal(t, "about:blank", problem.Type)
+	require.Equal(t, http.StatusText(http.StatusRequestEntityTooLarge), problem.Title)
+	require.Equal(t, http.StatusRequestEntityTooLarge, problem.Status)
+	require.Equal(t, "request body too large", problem.Detail)
+	require.Equal(t, loom.RequestBodyTooLarge, problem.Code)
 }
 
 type errReader struct{}

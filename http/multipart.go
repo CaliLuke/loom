@@ -52,7 +52,7 @@ func ReadMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
 		if name == "" {
 			data, readErr := readAllLimited(part, remaining)
 			if readErr != nil {
-				return nil, readErr
+				return nil, requestBodyDecodeError(readErr, true)
 			}
 			remaining -= int64(len(data))
 			if closeErr := part.Close(); closeErr != nil {
@@ -61,11 +61,11 @@ func ReadMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
 			continue
 		}
 		if remaining <= 0 {
-			return nil, errRequestBodyTooLarge
+			return nil, requestBodyDecodeError(errRequestBodyTooLarge, true)
 		}
 		data, readErr := readAllLimited(part, remaining)
 		if readErr != nil {
-			return nil, readErr
+			return nil, requestBodyDecodeError(readErr, true)
 		}
 		closeErr := part.Close()
 		if closeErr != nil {
