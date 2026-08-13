@@ -38,6 +38,21 @@ func TestServiceErrorUsesLoomErrorNameOnly(t *testing.T) {
 	}
 }
 
+func TestRequestBodyTooLargeError(t *testing.T) {
+	err := RequestBodyTooLargeError()
+
+	var serviceErr *ServiceError
+	if !errors.As(err, &serviceErr) {
+		t.Fatalf("got %T, want *ServiceError", err)
+	}
+	if serviceErr.Name != RequestBodyTooLarge {
+		t.Errorf("got name %q, want %q", serviceErr.Name, RequestBodyTooLarge)
+	}
+	if serviceErr.Message != "request body too large" {
+		t.Errorf("got message %q, want request body too large", serviceErr.Message)
+	}
+}
+
 func TestServiceErrorUnwrap(t *testing.T) {
 	var (
 		errFoo          = errors.New("foo")

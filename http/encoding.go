@@ -87,13 +87,13 @@ func RequestDecoder(r *http.Request) Decoder {
 	}
 	switch contentType {
 	case "application/json":
-		return newLimitedDecoder(r.Body, decodeJSON)
+		return newRequestLimitedDecoder(r.Body, decodeJSON)
 	case "application/gob":
-		return newLimitedDecoder(r.Body, decodeGOB)
+		return newRequestLimitedDecoder(r.Body, decodeGOB)
 	case "application/xml":
-		return newLimitedDecoder(r.Body, decodeXML)
+		return newRequestLimitedDecoder(r.Body, decodeXML)
 	case "text/html", "text/plain":
-		return newTextDecoder(r.Body, contentType)
+		return newRequestTextDecoder(r.Body, contentType)
 	default:
 		return newUnsupportedDecoder(contentType)
 	}
@@ -370,27 +370,37 @@ func (e *textEncoder) Encode(v any) (err error) {
 }
 
 func newTextDecoder(r io.Reader, ct string) Decoder {
-	return &textDecoder{r, ct}
+	return &textDecoder{r: r, ct: ct}
+}
+
+func newRequestTextDecoder(r io.Reader, ct string) Decoder {
+	return &textDecoder{r: r, ct: ct, request: true}
 }
 
 func newLimitedDecoder(r io.Reader, decode func(io.Reader, any) error) Decoder {
 	return &limitedDecoder{r: r, decode: decode}
 }
 
+func newRequestLimitedDecoder(r io.Reader, decode func(io.Reader, any) error) Decoder {
+	return &limitedDecoder{r: r, decode: decode, request: true}
+}
+
 type textDecoder struct {
-	r  io.Reader
-	ct string
+	r       io.Reader
+	ct      string
+	request bool
 }
 
 type limitedDecoder struct {
-	r      io.Reader
-	decode func(io.Reader, any) error
+	r       io.Reader
+	decode  func(io.Reader, any) error
+	request bool
 }
 
 func (d *limitedDecoder) Decode(v any) error {
 	b, err := readAllLimited(d.r, DefaultMaxRequestBodyBytes)
 	if err != nil {
-		return err
+		return requestBodyDecodeError(err, d.request)
 	}
 	return d.decode(bytes.NewReader(b), v)
 }
@@ -398,7 +408,7 @@ func (d *limitedDecoder) Decode(v any) error {
 func (e *textDecoder) Decode(v any) error {
 	b, err := readAllLimited(e.r, DefaultMaxRequestBodyBytes)
 	if err != nil {
-		return err
+		return requestBodyDecodeError(err, e.request)
 	}
 	switch c := v.(type) {
 	case *string:
@@ -433,6 +443,13 @@ func readAllLimited(r io.Reader, limit int64) ([]byte, error) {
 		return nil, errRequestBodyTooLarge
 	}
 	return b, nil
+}
+
+func requestBodyDecodeError(err error, request bool) error {
+	if request && errors.Is(err, errRequestBodyTooLarge) {
+		return loom.RequestBodyTooLargeError()
+	}
+	return err
 }
 
 // newUnsupportedDecoder returns a decoder that returns an error indicating that
