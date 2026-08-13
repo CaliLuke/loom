@@ -61,6 +61,10 @@ Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
 consumer still requires OpenAPI 3.1.1. The output paths remain the same and the
 compatible surrounding contract is preserved.
 
+For TypeScript clients, use the endorsed `@hey-api/openapi-ts` workflow in
+`docs/typescript-clients.md`. Use the 3.1 compatibility target, pin the external
+generator, and keep its entire output directory generator-owned.
+
 OpenAPI 3.2 capabilities available from the DSL include:
 
 - tag summaries, hierarchy, and kind
@@ -273,6 +277,7 @@ loom example <module-import-path>/design
 - `docs/quickstart.md`
 - `docs/dsl-reference.md`
 - `docs/code-generation.md`
+- `docs/typescript-clients.md`
 - `docs/http-guide.md`
 - `docs/grpc-guide.md`
 - `docs/error-handling.md`

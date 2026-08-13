@@ -21,8 +21,13 @@ import (
 
 const (
 	redoclyCLIVersion        = "2.24.1"
+	heyAPIOpenAPIVersion     = "0.99.0"
+	heyAPIClientFetchVersion = "0.13.1"
 	openAPITypescriptVersion = "7.13.0"
 	typeScriptVersion        = "5.9.3"
+	tanStackQueryVersion     = "5.101.4"
+	zodVersion               = "4.4.3"
+	reactVersion             = "19.2.8"
 	oapiCodegenVersion       = "v2.6.0"
 	openAPIAsyncExtension    = "x-loom-async"
 )
@@ -183,6 +188,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(workDir, "tsconfig.json"), []byte("{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"ESNext\",\n    \"moduleResolution\": \"Bundler\",\n    \"strict\": true,\n    \"skipLibCheck\": true,\n    \"lib\": [\"ES2020\", \"DOM\"]\n  },\n  \"include\": [\"index.ts\", \"openapi.d.ts\"]\n}\n"), 0o600))
 	_, err = testingx.RunCmd(workDir, "npx", "--yes", "--package=typescript@"+typeScriptVersion, "tsc", "--noEmit", "--project", "tsconfig.json")
 	require.NoError(t, err)
+	smokeHeyAPITypeScriptClient(t, workDir, jsonPath)
 
 	goDir := filepath.Join(workDir, "go-smoke")
 	require.NoError(t, os.MkdirAll(goDir, 0o750))
@@ -193,6 +199,63 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 	_, err = testingx.RunCmd(goDir, "go", "mod", "tidy")
 	require.NoError(t, err)
 	_, err = testingx.RunCmd(goDir, "go", "build", "./...")
+	require.NoError(t, err)
+}
+
+func smokeHeyAPITypeScriptClient(t *testing.T, workDir, jsonPath string) {
+	t.Helper()
+	heyDir := filepath.Join(workDir, "hey-api-smoke")
+	require.NoError(t, os.MkdirAll(heyDir, 0o750))
+	_, err := testingx.RunCmd(
+		heyDir,
+		"npm",
+		"install",
+		"--ignore-scripts",
+		"--save-exact",
+		"typescript@"+typeScriptVersion,
+		"@hey-api/openapi-ts@"+heyAPIOpenAPIVersion,
+		"@hey-api/client-fetch@"+heyAPIClientFetchVersion,
+		"@tanstack/react-query@"+tanStackQueryVersion,
+		"zod@"+zodVersion,
+		"react@"+reactVersion,
+	)
+	require.NoError(t, err)
+
+	config := `export default {
+  input: ` + strconv.Quote(jsonPath) + `,
+  output: "src/client",
+  plugins: [
+    { name: "@hey-api/client-fetch", baseUrl: false, throwOnError: true },
+    { name: "@hey-api/typescript" },
+    { name: "@hey-api/sdk", validator: { response: "zod" } },
+    { name: "zod" },
+    {
+      name: "@tanstack/react-query",
+      queryOptions: true,
+      mutationOptions: true,
+      queryKeys: { tags: true },
+    },
+  ],
+};
+`
+	require.NoError(t, os.WriteFile(filepath.Join(heyDir, "openapi-ts.config.mjs"), []byte(config), 0o600))
+	_, err = testingx.RunCmd(heyDir, filepath.Join(heyDir, "node_modules", ".bin", "openapi-ts"))
+	require.NoError(t, err)
+
+	tsconfig := `{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src/**/*.ts"]
+}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(heyDir, "tsconfig.json"), []byte(tsconfig), 0o600))
+	_, err = testingx.RunCmd(heyDir, filepath.Join(heyDir, "node_modules", ".bin", "tsc"), "--noEmit", "--project", "tsconfig.json")
 	require.NoError(t, err)
 }
 

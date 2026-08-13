@@ -94,6 +94,11 @@ loom version
 
 **Best Practice:** Commit generated code to version control rather than generating during CI/CD. This ensures reproducible builds and allows tracking changes in generated code.
 
+For browser and TypeScript consumers, use the endorsed
+[`@hey-api/openapi-ts` recipe](typescript-clients.md). It covers the OpenAPI 3.1
+compatibility target, generated SDK and validation artifacts, session cookies,
+and drift checks.
+
 ---
 
 ## Generation Process

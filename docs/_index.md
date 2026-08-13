@@ -97,6 +97,7 @@ func (s *helloService) SayHello(ctx context.Context, name string) (string, error
 | [Quickstart](quickstart.md) | Install Loom and build your first service |
 | [DSL Reference](dsl-reference.md) | Complete reference for Loom's design language |
 | [Code Generation](code-generation.md) | Understanding Loom's code generation process |
+| [TypeScript Clients](typescript-clients.md) | Generate TypeScript clients, validators, and query helpers from OpenAPI |
 | [HTTP Guide](http-guide.md) | HTTP transport features, routing, and patterns |
 | [gRPC Guide](grpc-guide.md) | gRPC transport features and streaming |
 | [JSON-RPC Guide](../jsonrpc/README.md) | JSON-RPC transport, batching, WebSocket, and SSE patterns |
