@@ -258,8 +258,11 @@ Set `DEBUG_LOOM=1` while generating when you need DSL/codegen decision traces.
 
 ## Installation and Commands
 
+The repository skill describes Loom `main`. Use the current recommended release
+for consuming services unless intentionally testing an unreleased checkout.
+
 ```bash
-go install github.com/CaliLuke/loom/cmd/loom@latest
+go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2
 loom version
 loom gen <module-import-path>/design
 loom example <module-import-path>/design

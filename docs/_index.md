@@ -7,6 +7,10 @@ llm_optimized: true
 aliases:
 ---
 
+> **Version scope:** These checked-in guides describe Loom `main`. The current
+> recommended release is `v1.8.0-alpha.2`; consult its release notes when a
+> documented capability is not available in that tag.
+
 ## Overview
 
 Loom is a design-first framework for building services in Go. Define your API

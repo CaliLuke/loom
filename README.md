@@ -80,7 +80,7 @@ go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2
 
 mkdir hello && cd hello
 go mod init example.com/hello
-go get github.com/CaliLuke/loom@latest
+go get github.com/CaliLuke/loom@v1.8.0-alpha.2
 mkdir design
 ```
 

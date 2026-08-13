@@ -18,7 +18,7 @@ business logic stays in files you own.
 ### Installation
 
 ```bash
-go install github.com/CaliLuke/loom/cmd/loom@latest
+go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2
 ```
 
 ### Pinning the Generator in a Module
