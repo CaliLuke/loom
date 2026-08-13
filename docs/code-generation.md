@@ -21,6 +21,29 @@ business logic stays in files you own.
 go install github.com/CaliLuke/loom/cmd/loom@latest
 ```
 
+### Pinning the Generator in a Module
+
+Applications that want reproducible generation can record the Loom command as
+a Go tool dependency:
+
+```bash
+go get -tool github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2
+go tool loom gen example.com/myservice/design
+```
+
+This records the command's complete dependency graph in the application's
+`go.mod` and `go.sum`. Installing only the root Loom module does not necessarily
+record command-only dependencies such as the code generator's source-emission
+packages.
+
+For an existing `//go:generate` or script that intentionally uses `go run`, add
+the command package—not only the root module—before invoking it:
+
+```bash
+go get github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2
+go run github.com/CaliLuke/loom/cmd/loom gen example.com/myservice/design
+```
+
 ### Commands
 
 All commands expect Go package import paths, not filesystem paths:

@@ -991,13 +991,13 @@ through more than one transport:
 
 ```go
 var AccessToken = JWTSecurity("access_token")
-var BrowserSession = APIKeySecurity("browser_session", func() {
-    In("cookie")
-})
+var BrowserSession = APIKeySecurity("browser_session")
 
 var AppSession = SessionAuth("app_session", func() {
     BearerTransport(AccessToken, "auth")
-    CookieTransport(BrowserSession, "browser_session")
+    CookieTransport(BrowserSession, "", func() {
+        CookieName("app_session")
+    })
 })
 
 var _ = Service("accounts", func() {
@@ -1039,7 +1039,28 @@ method.
 Use `AuthErrorResponses()` in HTTP scope to add standard 401/403 error response
 mappings, and use `SessionCookie(...)` in HTTP response scope when setting a
 session cookie with secure defaults: `Path("/")`, `Secure`, `HttpOnly`, and
-`SameSite=Lax`.
+`SameSite=Lax`. To clear that cookie on logout, return an empty value from the
+result field mapped to the cookie and set `CookieMaxAge(-1)`:
+
+```go
+Method("logout", func() {
+    Result(func() {
+        Field(1, "session_token", String)
+        Required("session_token")
+    })
+    HTTP(func() {
+        POST("/logout")
+        Response(StatusNoContent, func() {
+            SessionCookie("session_token:app_session", String)
+            CookieMaxAge(-1)
+        })
+    })
+})
+```
+
+A negative max age instructs browsers to delete the cookie immediately. Zero
+omits the `Max-Age` attribute, while a positive value is its lifetime in
+seconds.
 
 ### CORS
 
@@ -1261,6 +1282,33 @@ Body(func() {
     Attribute("age:a")   // age attribute from "a" field in JSON
 })
 ```
+
+### Response Headers
+
+Declare response headers inside a `Response` block. The mapped attribute comes
+from the method result; result fields not mapped to headers or cookies remain
+in the response body:
+
+```go
+Method("create", func() {
+    Result(func() {
+        Field(1, "href", String, "Canonical account URL")
+        Field(2, "name", String, "Account name")
+        Required("href", "name")
+    })
+    HTTP(func() {
+        POST("/accounts")
+        Response(StatusCreated, func() {
+            Header("href:Location")
+        })
+    })
+})
+```
+
+The mapping syntax is `"result_attribute:HTTP-Header-Name"`. Use
+`Header("href")` when the result attribute name is already the desired HTTP
+header name. Type, description, and validation are inherited from the result
+attribute unless explicitly overridden.
 
 ### Form and Multipart Request Bodies
 
@@ -1561,14 +1609,14 @@ Method("doubly_secure", func() {
 
 ### Implementing Security
 
-Loom generates an `Auther` interface that your service must implement:
+Loom generates an `Authorizer` interface that your service must implement:
 
 ```go
-type Auther interface {
-    BasicAuth(ctx context.Context, user, pass string, scheme *security.BasicScheme) (context.Context, error)
-    JWTAuth(ctx context.Context, token string, scheme *security.JWTScheme) (context.Context, error)
-    APIKeyAuth(ctx context.Context, key string, scheme *security.APIKeyScheme) (context.Context, error)
-    OAuth2Auth(ctx context.Context, token string, scheme *security.OAuth2Scheme) (context.Context, error)
+type Authorizer interface {
+    BasicAuth(ctx context.Context, user, pass string, schema *security.BasicScheme) (context.Context, error)
+    JWTAuth(ctx context.Context, token string, schema *security.JWTScheme) (context.Context, error)
+    APIKeyAuth(ctx context.Context, key string, schema *security.APIKeyScheme) (context.Context, error)
+    OAuth2Auth(ctx context.Context, token string, schema *security.OAuth2Scheme) (context.Context, error)
 }
 ```
 

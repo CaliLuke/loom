@@ -46,6 +46,16 @@ func TestCheckMarkdown(t *testing.T) {
 			content: "Run `goa gen example.com/service/design`.\n",
 			want:    "legacy upstream naming",
 		},
+		{
+			name:    "legacy authorizer name",
+			content: "Implement the `Auth" + "er` interface.\n",
+			want:    "legacy upstream naming",
+		},
+		{
+			name:    "unsupported cookie location",
+			content: "```go\nIn(\"cookie\")\n```\n",
+			want:    "unsupported Loom DSL form",
+		},
 	}
 
 	for _, test := range tests {

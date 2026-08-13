@@ -61,7 +61,7 @@ import (
 //
 // By default:
 //
-//   - success HTTP responses use code 200 (OK) and error HTTP responses use code 500 (Internal Server Error)
+//   - success HTTP responses use code 200 (OK) and error HTTP responses use code 400 (Bad Request)
 //   - error JSON-RPC responses use code -32603 (Internal error)
 //   - success gRPC responses use code 0 (OK) and error gRPC responses use code 2 (Unknown)
 //   - The result type attributes are all mapped to the HTTP response body,

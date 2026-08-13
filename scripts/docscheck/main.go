@@ -14,11 +14,12 @@ import (
 )
 
 var (
-	markdownLinkPattern = regexp.MustCompile(`!?\[[^]]*\]\(([^)\s]+)(?:\s+[^)]*)?\)`)
-	headingPattern      = regexp.MustCompile(`^#{1,6}\s+(.+?)\s*#*\s*$`)
-	localCommandPattern = regexp.MustCompile(`\bloom\s+(?:gen|example)\s+\./`)
-	legacyNamingPattern = regexp.MustCompile(`(?:github\.com/goadesign/goa|goa\.design/goa|\bgoa\s+(?:gen|example)\b|\bGOA_[A-Z0-9_]+\b)`)
-	reasonPattern       = regexp.MustCompile(`\bReason\w+\s+Reason\s*=\s*"([^"]+)"`)
+	markdownLinkPattern   = regexp.MustCompile(`!?\[[^]]*\]\(([^)\s]+)(?:\s+[^)]*)?\)`)
+	headingPattern        = regexp.MustCompile(`^#{1,6}\s+(.+?)\s*#*\s*$`)
+	localCommandPattern   = regexp.MustCompile(`\bloom\s+(?:gen|example)\s+\./`)
+	legacyNamingPattern   = regexp.MustCompile(`(?:github\.com/goadesign/goa|goa\.design/goa|\bgoa\s+(?:gen|example)\b|\bGOA_[A-Z0-9_]+\b|\b\x41uther\b)`)
+	unsupportedDSLPattern = regexp.MustCompile(`\bIn\s*\(\s*"cookie"\s*\)`)
+	reasonPattern         = regexp.MustCompile(`\bReason\w+\s+Reason\s*=\s*"([^"]+)"`)
 )
 
 func main() {
@@ -115,6 +116,14 @@ func checkMarkdown(root string, documents []string) []string {
 		for _, match := range legacyNamingPattern.FindAllStringIndex(content, -1) {
 			issues = append(issues, fmt.Sprintf(
 				"%s:%d: legacy upstream naming %q is not allowed in Loom documentation",
+				document,
+				lineNumber(content, match[0]),
+				content[match[0]:match[1]],
+			))
+		}
+		for _, match := range unsupportedDSLPattern.FindAllStringIndex(content, -1) {
+			issues = append(issues, fmt.Sprintf(
+				"%s:%d: unsupported Loom DSL form %q",
 				document,
 				lineNumber(content, match[0]),
 				content[match[0]:match[1]],
