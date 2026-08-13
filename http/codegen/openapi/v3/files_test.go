@@ -60,6 +60,40 @@ func TestFilesEmitCanonicalOpenAPI32(t *testing.T) {
 	require.Equal(t, "string", requireString(t, requireMap(t, properties["id"], "SSE id schema")["type"], "SSE id type"))
 }
 
+func TestFilesUseNormativeJSONSchemaDialectForAllTargets(t *testing.T) {
+	const wantDialect = "https://spec.openapis.org/oas/3.1/dialect/base"
+
+	tests := []struct {
+		name        string
+		target      string
+		wantVersion string
+	}{
+		{name: "OpenAPI 3.1", target: "3.1", wantVersion: openapiv3.OpenAPICompatibilityVersion},
+		{name: "OpenAPI 3.2", wantVersion: openapiv3.OpenAPIVersion},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			openapi.Definitions = make(map[string]*openapi.Schema)
+			root := httpgen.RunHTTPDSL(t, testdata.SimpleDSL)
+			if test.target != "" {
+				if root.API.Meta == nil {
+					root.API.Meta = make(map[string][]string)
+				}
+				root.API.Meta["openapi:version"] = []string{test.target}
+			}
+
+			files, err := openapiv3.Files(root)
+			require.NoError(t, err)
+			buf := renderSection(t, files[0].AllSections()[0])
+			source := buf.Bytes()
+			validateOpenAPIVersion(t, source, test.wantVersion)
+			spec := decodeOpenAPIJSON(t, source)
+			require.Equal(t, wantDialect, spec["jsonSchemaDialect"])
+		})
+	}
+}
+
 func TestRendererSkipsOpenAPI32OnlySectionsFor31Target(t *testing.T) {
 	tests := []struct {
 		name              string

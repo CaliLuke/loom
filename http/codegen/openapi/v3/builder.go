@@ -16,7 +16,12 @@ import (
 )
 
 const (
-	// JSONSchemaDialect is the JSON Schema dialect advertised by the generated spec.
+	// JSONSchemaDialect is the JSON Schema dialect advertised by generated specs.
+	// OpenAPI 3.2 intentionally retains the 3.1 dialect URI; section 4.24.1 of
+	// the normative specification identifies this URI for the 3.2 feature set:
+	// https://spec.openapis.org/oas/v3.2.0.html#json-schema-keywords
+	// The specification also declares its prose authoritative over conflicting
+	// informational JSON Schema artifacts.
 	JSONSchemaDialect = "https://spec.openapis.org/oas/3.1/dialect/base"
 )
 
