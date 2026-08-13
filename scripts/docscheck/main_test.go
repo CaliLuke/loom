@@ -70,10 +70,12 @@ func TestCheckDuplicateSkillGuides(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, filepath.Join(root, "docs", "http-guide.md"), "# HTTP\n")
 	writeTestFile(t, filepath.Join(root, ".agents", "skills", "loom", "references", "http-guide.md"), "# Copy\n")
+	writeTestFile(t, filepath.Join(root, ".agents", "skills", "loom-framework", "references", "http-guide.md"), "# Copy\n")
 
 	issues := checkDuplicateSkillGuides(root)
 
 	require.Equal(t, []string{
+		".agents/skills/loom-framework/references/http-guide.md: duplicates canonical guide name docs/http-guide.md",
 		".agents/skills/loom/references/http-guide.md: duplicates canonical guide name docs/http-guide.md",
 	}, issues)
 }

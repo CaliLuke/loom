@@ -1,460 +1,274 @@
 ---
 name: loom
-description: Build and maintain `loom` services in Go. Use this skill when a user mentions Loom, Loom migration, Loom DSL, `loom gen`, generated `gen/` transport code, OpenAPI/proto generation, service implementation after DSL changes, or refactoring a project with a `design` package.
+description: Use Loom from a consuming Go service. Covers authoring the design DSL, running loom gen, implementing services outside gen, and adopting generated HTTP, gRPC, JSON-RPC, OpenAPI, auth, streaming, and observability contracts. Do not use this skill to modify the Loom framework repository itself.
 ---
 
-# Loom
+# Use Loom
 
-Use this skill when building or changing a service that uses `loom`. It is for framework users: service designers and implementers working from the Loom DSL and generated code.
+Use this skill when an application consumes `github.com/CaliLuke/loom`: writing
+or changing `design/*.go`, regenerating `gen/`, implementing service methods,
+or wiring generated transports and runtime packages.
 
-Loom is a design-first framework that diverged to support AI-first development, stronger
-machine-facing OpenAPI 3.2 contracts with 3.1 compatibility, and the framework capabilities needed to
-build Auto-K without repeating large amounts of app-local glue.
+This is deliberately not a framework-maintenance guide. If the task changes
+Loom's DSL implementation, expression model, generators, transports, OpenAPI
+renderer, or framework tests, use the `loom-framework` skill. Add the
+`framework-capability` skill when creating or changing a framework capability.
 
-## Non-Negotiables
+## Core Workflow
 
-- Treat `design/*.go` as the source of truth.
-- Regenerate after every design change with `loom gen <module-import-path>/design`.
-- Never hand-edit generated `gen/` files.
-- `loom gen` is transactional: it stages and validates the complete generated
-  tree before replacing `gen/` and declared plugin outputs, so generation,
-  finalization, validation, and installation failures preserve the last
-  successful artifacts.
-- Implement business logic in non-generated files.
-- Use Go import paths for Loom commands, not filesystem paths.
-- Commit generated code; do not rely on CI to regenerate it.
-- External framework extensions may register compile-time generator plugins
-  through `codegen.RegisterPluginFirst`, `RegisterPlugin`, or
-  `RegisterPluginLast`. Registration must happen through imports reachable from
-  the design package; one generation run uses a stable registry snapshot and
-  deterministic phase ordering.
-- Template-backed external plugins may populate `codegen.File.SectionTemplates`;
-  it is a supported public extension surface. Loom-owned generators should use
-  the generic `codegen.File.Sections` API.
+1. Treat `design/*.go` as the source of truth.
+2. Put validation, transport mappings, security, errors, and public contract
+   metadata in the design.
+3. Run `loom gen <module-import-path>/design` after every design change.
+4. Implement business logic outside `gen/`.
+5. Run `loom example <module-import-path>/design` only when scaffolding missing
+   starter files; it does not overwrite existing `cmd/` files.
+6. Run the consuming repository's formatting, tests, and integration checks.
 
-## Runtime Gotchas
+Never edit `gen/` directly. `loom gen` deletes and recreates it transactionally,
+so manual changes are both temporary and misleading.
 
-- Do not "fix" SSE by hand-editing generated stream files. Keep the fix in `design/*.go` or non-generated transport/runtime code.
-- Do not map multi-cookie responses through ad hoc `Header("set_cookies:Set-Cookie")` bags and then patch generated encoders. Prefer idiomatic framework cookies in the DSL when feasible. If the response shape still depends on raw cookie header values, emit them from non-generated transport code on the live `http.ResponseWriter` instead of editing generated files.
+Use Go import paths, not filesystem paths:
 
-## Loom Contract Rules
+```bash
+loom gen example.com/myapi/design
+```
 
-- `loom` emits OpenAPI 3.2.0 by default at the canonical
-  `gen/http/openapi.json` and `gen/http/openapi.yaml` paths. There is one DSL
-  parser, one shared IR, and one renderer. API metadata
-  `Meta("openapi:version", "3.1")` selects compatibility output by omitting
-  only 3.2-only members during rendering; it does not invoke a second generator
-  or write side-by-side artifacts.
-- Route version-dependent render shapes through the Go 1.27 generic
-  `versionRouter.construct` method and `versionedConstructor` ranges.
-  A missing range omits an additive feature; a newer matching `from` range
-  overrides an older open-ended constructor, so incompatible future shapes stay
-  local to the affected construct.
-- Generated JSON artifacts, including `gen/http/openapi.json` and
-  `gen/loom.json`, end with exactly one LF. OpenAPI JSON uses Go 1.27's
-  `encoding/json/v2` with deterministic ordering and remains compact by default
-  unless prefix or indentation metadata requests formatted output.
-- OpenAPI 3.2 support includes native QUERY and extension methods, querystring
-  parameters, sequential `itemSchema`, reusable media types, nested encodings,
-  structured examples, tag hierarchy, server/document identity, device OAuth,
-  URI security schemes, response metadata, XML node types, and discriminator
-  fallbacks. Keep each addition in the shared IR and gate only its emitted
-  member for the 3.1 compatibility target.
-- Treat OpenAPI output shape as framework contract. Stable schema names, canonical `operationId`, and `libopenapi` validation are intentional behavior, not incidental formatting.
-- When changing OpenAPI contract generation in `loom`, start in
-  `http/codegen/openapi/internal/ir` first. That package now owns schema,
-  parameter, operation-metadata, and reusable-component analysis; the
-  `http/codegen/openapi/v3` package should mostly render IR-owned decisions.
-- Go-source generation in framework code should be implemented in Go via the
-  generic section model (`codegen.Section`, `codegen.JenniferSection`,
-  `codegen.RawSection`) rather than file-backed template assets.
-- Use `codegen.JenniferSection` when a section benefits from typed Go emission.
-  Use `codegen.RawSection` when direct source assembly is simpler and keeps the
-  logic local and explicit.
-- Non-Go artifact generation may still use text templates, but those assets
-  should use neutral `.tmpl` names rather than Go-specific suffixes.
-- Structurally identical generated OpenAPI components are deduplicated and reused by `$ref`.
-- For explicit HTTP `Body(...)` request/response types, `Meta("openapi:typename", "...")` is the public OpenAPI component name contract. When two non-equivalent explicit body schemas claim the same name, generation fails instead of leaking a hash-suffixed fallback into the spec.
-- Treat that failure as a modeling conflict, not as a cue to add more aliases. It usually means one DSL type is being asked to represent both the semantic service/result shape and a transport-only projection (for example, “same object minus cookie/header fields”).
-- If some fields are transport-only, keep them in HTTP headers/cookies and out of the canonical body/result type. Do not rely on OpenAPI naming to paper over service-shape vs transport-shape drift.
-- Generated OpenAPI emits operation-level security for secured endpoints, including inherited service/API requirements; `NoSecurity()` emits explicit `security: []` on the operation instead of relying on omission.
-- Generated OpenAPI security requirement values for HTTP bearer, API key,
-  basic, and cookie schemes are empty arrays. Only OAuth2 requirements publish
-  scope names in OpenAPI; JWT/bearer scopes stay available to generated auth
-  code without becoming OpenAPI scope arrays.
-- Generated OpenAPI prunes unreferenced component schemas; top-level types and result types that are not reachable from any published request/response path should not appear in `components.schemas`.
-- Generated OpenAPI now also hoists repeated path, query, header, and cookie
-  parameters into `components.parameters` with stable component names; repeated
-  inline parameter shapes should appear as `$ref`s rather than duplicated
-  objects.
-- Generated OpenAPI also hoists repeated request bodies, headers, named
-  examples, and structurally identical no-body responses into reusable
-  components where the public contract shape is stable enough to share safely.
-- Loom HTTP default errors now use RFC 9457-style
-  `application/problem+json` documents with a stable machine-readable `code`
-  field instead of the legacy upstream error media type.
-- Built-in HTTP request decoders return status `413` with problem code
-  `request_too_large` when the 32 MiB body limit is exceeded. This applies to
-  generated multipart decoding's aggregate limit as well as JSON, XML, Gob,
-  HTML, and plain-text request bodies; malformed bodies remain
-  `decode_payload` errors.
-- Use `ProblemResult` / `ProblemResultIdentifier` explicitly when you want to
-  model that same problem-document contract yourself in custom result/error
-  shapes.
-- Use `ProblemType(...)` and `ProblemTitle(...)` inside `Error(...)` blocks
-  when a specific error needs a public RFC 9457 `type` URI or `title`
-  override instead of the framework-generated default.
-- Shared reusable request bodies and responses now prefer schema-derived or
-  generic public component names when that contract identity can be inferred
-  safely, instead of defaulting to operation-derived names; hash suffixes
-  remain only as a collision fallback.
-- Treat hash-suffixed fallback names as generated collision identities. If a
-  downstream SDK or tool depends on a component name, set the corresponding
-  `openapi:typename` or `openapi:component:*` metadata explicitly.
-- Use `Meta("openapi:component:requestBody", "...")` when a hoisted reusable
-  request body needs an explicit public component name, and
-  `Meta("openapi:component:parameter", "...")` when a hoisted reusable
-  path/query/header/cookie parameter needs one.
-- Use `Meta("openapi:component:response", "...")` for reusable response
-  components, `Meta("openapi:component:example", "...")` for reusable named
-  examples, and `Meta("openapi:description:requestBody", "...")` when the
-  public OpenAPI request-body description should differ from the underlying
-  type description.
-- When the same domain type is used on both request and response paths,
-  `readOnly` and `writeOnly` metadata now trigger automatic request/response
-  schema splitting so server-managed and secret fields do not share one public
-  schema component across both directions.
-- Service-level OpenAPI tags are inherited by operations and file servers when
-  those operations do not declare method-level tags of their own.
-- Use `Link(...)`, `LinkOperation(...)`, `LinkOperationRef(...)`,
-  `LinkParam(...)`, and `LinkRequestBody(...)` on HTTP responses when a
-  workflow or follow-up operation should be published as an OpenAPI response
-  link instead of a handwritten patch.
-- Attribute-level `Meta("openapi:readOnly", ...)`,
-  `Meta("openapi:writeOnly", ...)`, `Meta("openapi:deprecated", ...)`,
-  `Meta("openapi:contentEncoding", ...)`, and
-  `Meta("openapi:contentMediaType", ...)` flow through to generated OpenAPI
-  schemas.
-- Generated OpenAPI suppresses closed-object union-wrapper examples that would be invalid against the emitted schema, and field-level `Meta("openapi:example", "false")` must suppress wrapper examples all the way through enclosing request bodies/media types.
-- Generated OpenAPI also suppresses synthesized examples for closed-object union collections when the array/map element shape would otherwise emit invalid discriminator-wrapper examples.
-- Generated OpenAPI does not emit transport-level media-type examples for streaming responses; SSE and WebSocket response shapes still appear via their schemas, but the generator should not synthesize single-message examples from sparse field examples.
-- Wrapper-style unions now emit OpenAPI discriminators with:
-  - `discriminator.propertyName`
-  - `discriminator.mapping`
-  - `oneOf` refs to generated `...Envelope` component schemas
-- Use API metadata `Meta("openapi:closed-objects", "true")` when machine consumers need stricter object contracts in generated OpenAPI.
-- In closed-object mode, normal object schemas emit `additionalProperties: false`, composed union wrappers emit `unevaluatedProperties: false`, and explicit dictionaries such as `MapOf(...)` remain open.
-- Generated OpenAPI keeps SSE endpoints on ordinary HTTP success responses instead of rewriting them to WebSocket `101` semantics, and advertises those responses as `text/event-stream` rather than `application/json`.
-- Generated OpenAPI also publishes framework-owned async streaming contracts
-  under `x-loom-async` for SSE and WebSocket endpoints, with inline message
-  schemas plus truthful handshake metadata. Default 3.2 output also describes
-  each parsed SSE envelope with native `itemSchema`; its `data` string uses
-  `contentMediaType` and `contentSchema` for the decoded JSON payload. Keep
-  `x-loom-async` because it carries richer Loom handshake and field mappings.
-- Generated OpenAPI normalizes binary (`Bytes`) examples to string form; do not expect byte-array literals in emitted OpenAPI examples.
-- The OpenAPI regression gate in `http/codegen/openapi/v3` now includes
-  Redocly lint plus downstream `openapi-typescript` and `oapi-codegen` smoke
-  generation. Treat those tests as contract-shape enforcement, not optional
-  extras.
-- `OneOf(...)` works both as a named union declaration and as a type constructor.
-- Optional object attributes whose type is `OneOf(...)` generate as pointers so
-  nil represents absence without invoking union marshaling; required unions
-  retain their value-type API. Canonical JSON decoding rejects both a missing
-  union value and explicit JSON `null`.
-- Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
-- When modeling alternate transport/tool result shapes, prefer a canonical `ResultType` plus `View(...)` definitions over hand-maintained sibling DTO copies.
+## Design Rules
+
+- Prefer concrete types over `Any`, especially when gRPC generation matters.
+- Put lengths, enums, formats, requiredness, and other validation in the DSL;
+  do not duplicate it in service implementations.
+- Do not rely on nil versus empty slices or maps to encode presence. Generated
+  JSON uses `omitempty`, so both serialize as missing.
+- For each non-`Extend` type, payload, or result, start literal field tags at
+  `1` and increment within that definition. For definitions using `Extend`,
+  start newly introduced fields at `100`.
+- Prefer a canonical `ResultType` with `View(...)` definitions over parallel
+  hand-maintained DTOs for alternate public representations.
+
+## OpenAPI Contracts
+
+Loom emits OpenAPI 3.2.0 by default at:
+
+- `gen/http/openapi.json`
+- `gen/http/openapi.yaml`
+
+Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
+consumer still requires OpenAPI 3.1.1. The output paths remain the same and the
+compatible surrounding contract is preserved.
+
+OpenAPI 3.2 capabilities available from the DSL include:
+
+- tag summaries, hierarchy, and kind
+- QUERY and extension HTTP methods
+- whole-query-string parameters
+- `itemSchema` for sequential and streaming media
+- reusable media types and nested encodings
+- structured examples
+- device authorization OAuth flows and OAuth metadata
+- URI security schemes
+- response summaries with optional descriptions
+- XML node types
+- optional discriminators and default mappings
+- server names and `$self` document identity
+- `allowReserved` for parameters and headers, plus cookie style
+
+Use the metadata table and examples in `docs/dsl-reference.md` instead of
+patching generated OpenAPI.
+
+Other important OpenAPI usage rules:
+
+- Use `Meta("openapi:typename", "...")` when a public schema component needs a
+  stable explicit name.
+- Use `Meta("openapi:component:requestBody", "...")`,
+  `Meta("openapi:component:parameter", "...")`,
+  `Meta("openapi:component:response", "...")`, and
+  `Meta("openapi:component:example", "...")` for stable reusable component
+  names.
+- Model workflow links with `Link(...)`, `LinkOperation(...)`,
+  `LinkOperationRef(...)`, `LinkParam(...)`, and `LinkRequestBody(...)`.
+- Use `Meta("openapi:readOnly", ...)` and
+  `Meta("openapi:writeOnly", ...)` so request and response schemas split
+  correctly when one domain type serves both directions.
+- Use API metadata `Meta("openapi:closed-objects", "true")` when consumers need
+  strict object contracts.
+- Unreferenced component schemas are intentionally omitted.
+
+## Errors and Remediation
+
+Loom's default HTTP errors are RFC 9457-style
+`application/problem+json` documents with a stable `code` field.
+
+- Use `ProblemResult` when explicitly modeling the same public document shape.
+- Use `ProblemType(...)` and `ProblemTitle(...)` for public error overrides.
+- Use `AuthErrorResponses()` for standard 401/403 mappings.
+- Use `Remedy(...)`, `RemedyCode(...)`, `SafeMessage(...)`, and
+  `RetryHint(...)` for structured remediation metadata.
+
+Do not duplicate these contracts in handwritten transport code.
+
+## Unions, Views, and Projections
+
+- `OneOf(...)` works as both a named union declaration and a type constructor.
+- Explicit discriminator tags control wire values independently of schema and
+  Go type names.
+- Optional object unions generate as pointers; required unions remain values.
+- Missing and explicit JSON `null` are both rejected for required unions.
 - Result views inherit canonical requiredness. Use `ViewRequired(...)` and
-  `ViewOptional(...)` inside a view to override selected fields; generated
-  validation, HTTP shapes, OpenAPI, and nested named views follow the override.
-- The service generator now emits exported typed projection helpers for result views:
-  - `Project<ResultType>[ViewSuffix](...)` to project a canonical result into the generated view type
-  - `New<ResultType>From<ProjectedType>[ViewSuffix](...)` to rebuild the canonical result from a projected view
-- Typed SSE endpoints can declare per-event result views with
-  `SSEProjection(eventType, view)` plus `SSEEventType(...)`; generated servers
-  select the JSON projection by discriminator, clients rebuild the canonical
-  result, and OpenAPI/`x-loom-async` publish a `oneOf` contract.
-- Use `FormRequest()` on HTTP endpoints when the request body contract is `application/x-www-form-urlencoded`.
+  `ViewOptional(...)` for deliberate overrides.
+- Generated projection helpers convert between canonical results and view
+  types. Use them instead of maintaining app-local conversion copies.
+- For typed SSE projections, use `SSEProjection(eventType, view)` with
+  `SSEEventType(...)`.
+
+## HTTP Bodies and Parameters
+
+- Use `FormRequest()` for typed `application/x-www-form-urlencoded` payloads.
+- Use `MultipartRequest()` for supported multipart object payloads.
+- Use `OptionalRequestBody()` for optional JSON object bodies.
+- Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
+  request stream needs a documentation-only OpenAPI contract.
 - String-backed path, query, header, and cookie fields with
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
-  If the DSL field also has `Format(...)`, generated HTTP decoders do not emit
-  a second string format check; the custom Go type owns parse/format
-  validation.
-- Generated HTTP path constructors pass decoded scalar and array values to
-  `url.URL.Path`, which performs the client-side escaping exactly once. The
-  HTTP mux normalizes chi path captures exactly once, so services receive
-  decoded values without app-local `url.PathUnescape` calls; literal percent
-  sequences remain literal.
-- `FormRequest()` is for typed object payloads and constructor unions only; incompatible body/param mixes are rejected during design validation instead of silently falling back to app-local parsing.
-- Form-encoded unions keep scalar branches on the canonical wrapper shape (`type` + `value`) but flatten object branches onto normal form fields; direct top-level union form payloads do not add an extra synthetic wrapper key, and all-optional object branches may be selected by discriminator alone without synthetic `value` fields.
-- `MultipartRequest()` now generates server-side decoding for supported object payloads, including common file-plus-fields uploads, instead of requiring a handwritten decoder hook.
-- Generated multipart decoding is intentionally narrower than form decoding: unsupported multipart payload shapes still use the legacy custom encoder/decoder seam instead of partial magic.
-- For supported multipart object payloads with a single top-level file field, sibling body attributes named `filename` and `content_type` are auto-populated from the uploaded part when those fields are present and not explicitly supplied.
-- Use `OptionalRequestBody()` when an HTTP endpoint may omit a JSON request body entirely.
-- `OptionalRequestBody()` is intentionally narrow: JSON only, object request bodies only, no raw body streaming, no multipart, no form bodies, and no required body-mapped payload attribute.
-- OpenAPI request bodies generated from `OptionalRequestBody()` render with `required: false`.
-- Use `OpenAPIRequestBody(schema, contentType, required, fn...)` with
-  `SkipRequestBodyEncodeDecode()` when a raw request stream needs an explicit
-  OpenAPI contract. The schema, media type, description, examples, and
-  requiredness are documentation-only; generated clients and servers continue
-  to pass the original stream without encoding, decoding, buffering, or
-  content validation.
-- `OpenAPIRequestBody(...)` is incompatible with typed `Body(...)`, form,
-  multipart, optional JSON request bodies, and endpoints that do not use
-  `SkipRequestBodyEncodeDecode()`.
-- Session auth is first-class. Prefer the built-in DSL instead of hand-rolling bearer-or-cookie glue:
-  - `SessionAuth(name, fn)`
-  - `BearerTransport(scheme, fieldName, fn...)`
-  - `CookieTransport(scheme, fieldName, fn...)`
-  - `CookieName(name)`
-  - `SessionSecurity(contract)`
-- `CookieTransport(scheme, "", fn...)` is the transport-owned browser-cookie mode:
-  Loom still emits OpenAPI cookie security, but it does not synthesize a
-  payload credential field, HTTP CLI flag, or HTTP server decode locals. The
-  generated endpoint auth wrapper still runs and calls the API key authorizer
-  with an empty key so applications can resolve browser cookie auth from
-  request-scoped transport metadata instead of payload fields.
-- For HTTP WebSocket streaming endpoints, `SessionSecurity(...)` cookie
-  transports can coexist with handshake path/query/header payload mappings
-  without creating a JSON request body; if the payload is fully mapped to
-  cookie/path/query/header inputs, the websocket handshake remains bodyless.
-- Generated endpoints isolate contexts between alternative security
-  requirements. A failed alternative's returned context is discarded before
-  the next alternative runs. Schemes within one requirement still chain their
-  successful contexts for AND semantics, and only the successful requirement's
-  context reaches the service method.
-- Use `AuthErrorResponses()` for standard HTTP auth failures instead of duplicating 401/403 mappings.
-- `AuthErrorResponses()` now reuses compatible canonical 401/403 mappings from
-  method, service, or API scope when those auth errors are already modeled,
-  instead of forcing the helper-owned fallback descriptions into the contract.
-- Prefer modeled response cookies over raw `Set-Cookie` header bags. `SessionCookie(...)` is the secure-default helper for common session issuance.
-- Structured remediation metadata is part of the contract surface. Use:
-  - `Remedy(fn)`
-  - `RemedyCode(code)`
-  - `SafeMessage(message)`
-  - `RetryHint(hint)`
-- JSON-RPC is a first-class transport in this repo. Do not assume HTTP or gRPC semantics automatically carry over.
-- Generated JSON-RPC request IDs use checked operating-system entropy and
-  surface entropy failures as request encoding errors. Framework error,
-  request/log, and X-Ray identifiers never emit partial or zero-filled values;
-  their string-only constructors panic if the operating system cannot supply
-  the required entropy.
-- JSON-RPC `params` may be omitted. Generated decoders treat absent params as
-  `{}` so all-optional payloads work with conforming clients; required fields
-  still fail through normal payload validation.
-- JSON-RPC SSE event names are part of the transport contract: streamed notifications, final success envelopes, and JSON-RPC error envelopes all ride the normal `message` channel so conforming MCP clients observe every JSON-RPC frame.
-- JSON-RPC SSE intermediate notifications use the designed
-  `SSENotificationMethod(...)`; without one they use the namespaced
-  `<service>/stream.event` default and never masquerade as the request method.
-- JSON-RPC SSE final responses are ID-scoped: a stream opened by a request carrying a JSON-RPC ID receives the `SendAndClose` value as its final response, while ID-less streams (notifications and the raw `GET /rpc` `events/stream` listener, per MCP's response-free server-push channel) discard it and emit a `stream_final_response_suppressed` transport event. Implementations serving GET listeners must `Send` every value they want delivered.
-- JSON-RPC SSE streams defer committing `text/event-stream` until the first frame is written. The narrow exception is the raw streamable-HTTP `GET /rpc` listener for the `events/stream` method, which must eagerly establish the SSE response so clients can observe readiness before the first domain event.
-- HTTP and JSON-RPC SSE handlers expose `Last-Event-ID` through the shared
-  typed context key `loomhttp.LastEventIDKey`; middleware and services should
-  not use a raw `"last-event-id"` context key.
-- For mixed JSON-RPC HTTP/SSE services, treat `Accept: text/event-stream` as necessary but not sufficient for SSE routing: normal methods like `initialize` must still go through the JSON response path, while only the actual SSE methods (for example `events/stream`) should route into the stream handler.
-- Generated JSON-RPC `ServeHTTP` is the effective public handler and must retain
-  constructor policy wrappers plus `Server.Use` middleware. Core mounts and
-  downstream transport extensions should call it; raw HTTP, mixed HTTP/SSE
-  negotiation, and WebSocket dispatch stay private to avoid bypassing the
-  effective chain. Mixed services do not emit the SSE-only `handleSSE` path or
-  service-level `sse.go`; the endpoint `stream.go` implementation remains the
-  active stream contract, and only `events/stream` receives eager GET-open
-  logic.
-- Use `RuntimeCORS()` at API or service HTTP/JSON-RPC scope when allowed origins
-  come from deployment configuration. Applications own configuration loading,
-  then call `loomhttp.NewRuntimeCORSPolicy` and pass the validated immutable
-  snapshot to the generated constructor. Loom owns actual-request and preflight
-  behavior across HTTP, JSON-RPC, and SSE; runtime values never enter generated
-  code or OpenAPI, which emits `x-loom-cors: {runtime: true}`.
-- HTTP SSE streams also defer committing `text/event-stream` until the first application event is written. Generated HTTP SSE responses preserve caller-supplied headers and default `X-Accel-Buffering` to `no` so reverse proxies do not buffer incremental events.
-- Generated HTTP and JSON-RPC SSE streams implement the optional
-  `loomhttp.SSEControl` interface. Use `Open(ctx)` to commit readiness before a
-  domain event and `SendComment(ctx, text)` for serialized heartbeat frames;
-  do not recover or write the raw response writer.
-- Generated HTTP and JSON-RPC streaming server constructors accept an optional
-  final `loomhttp.StreamWritePolicy` created with
-  `loomhttp.NewStreamWritePolicy`. Positive timeouts bound each SSE write,
-  flush, and WebSocket JSON write independently; the zero value preserves
-  existing behavior.
-- For endpoint or security logic that needs transport metadata, apply
-  `loomhttp.RequestMetadataMiddleware` through the generated server's `Use`
-  method and read `loomhttp.RequestMetadataFromContext`. Configure retained
-  headers and trusted proxy CIDRs with `NewRequestMetadataPolicy`; forwarding
-  values are ignored for untrusted direct peers, returned headers are cloned,
-  and `Authorization`/`Cookie` require explicit opt-in.
-- Framework request loggers and retained X-Ray middleware use
-  `loomhttp.EffectiveClientAddress`: they honor the metadata snapshot's trusted
-  client address and otherwise ignore forwarding headers in favor of the direct
-  peer.
-- `loomhttp.NewDebugDoer` captures at most 64 KiB per request or response body,
-  preserves the complete transport streams, and redacts sensitive headers,
-  query parameters, JSON fields, and form fields. Truncated or malformed
-  structured bodies fail closed; keep debug mode out of production traffic.
-- OpenTelemetry transport instrumentation is first-class. Prefer:
-  - `github.com/CaliLuke/loom/observability/otel` when you want framework-owned
-    trace, metric, and OTLP log bootstrap plus transport policy.
-  - `github.com/CaliLuke/loom/http/middleware/otel`
-  - `github.com/CaliLuke/loom/grpc/middleware/otel`
-- The root observability package is the preferred path for services that want to
-  replace repeated app-local observability glue. The lower-level HTTP and gRPC
-  packages remain the transport-only escape hatch.
-- These packages intentionally wrap the official contrib libraries:
-  - `otelhttp` for HTTP
-  - `otelgrpc` for gRPC
-- Keep environment parsing and domain-specific metrics in application bootstrap.
-  The root package owns provider setup, transport policy, and request-scoped
-  transport hooks; it does not own app-specific exporter configuration parsing.
-- For HTTP servers, use `loomhttp.NewMuxer()` plus `otel.HTTPMiddleware(...)` so
-  spans can use the matched `METHOD /pattern` route name from `r.Pattern`.
-- For downstream HTTP middlewares that need to attach request-scoped transport
-  attributes after the span starts, call `otel.AddHTTPAttributes(...)` instead
-  of mutating spans directly.
-- For generated HTTP clients, wrap an `*http.Client` with
-  `otel.WrapHTTPClient(...)` before passing it anywhere a Loom HTTP Doer is
-  expected.
-- Generated HTTP and JSON-RPC CLI clients use a Kong-backed parser through
-  `github.com/CaliLuke/loom/http/cli`. Keep command parsing framework-owned;
-  generated CLI code should continue to build typed Loom endpoints and payloads
-  instead of duplicating transport request construction.
-- For gRPC, use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`
-  for framework-owned transport telemetry.
-- Framework-owned gRPC generation uses `protoc` 25.0,
-  `protoc-gen-go` v1.36.12, and `protoc-gen-go-grpc` v1.6.2. Run `make depend`
-  to install the exact supported versions; never substitute `@latest` in Loom
-  tooling.
-- Generated gRPC encoders propagate `Any` conversion failures. Values placed in
-  DSL `Any` fields must be representable by `google.protobuf.Value`; channels,
-  functions, and arbitrary structs return a descriptive encode error instead
-  of being silently replaced by nil.
-- Generated transport observability is a separate, dependency-free contract
-  in `github.com/CaliLuke/loom/observability/transport`. Generated HTTP,
-  JSON-RPC, and Loom-MCP servers emit start/finish/failure events plus SSE
-  stream open/close/failure events at decode, dispatch, handler, panic,
-  response-write, and stream-write boundaries.
-  - Wire it with `transport.HTTPMiddleware(observer)` for HTTP entry
-    points or `transport.WithObserver(ctx, observer)` for non-HTTP entry
-    points; generated constructor signatures stay unchanged.
-  - `Event.Reason` is a stable, low-cardinality enumeration safe for
-    metric labels: `ok`, `request_decode_failed`,
-    `invalid_jsonrpc_envelope`, `invalid_jsonrpc_batch`,
-    `invalid_jsonrpc_method`, `invalid_jsonrpc_params`,
-    `unsupported_method`, `missing_credentials`, `invalid_credentials`,
-    `permission_rejected`, `principal_mismatch`, `handler_error`,
-    `panic`, `response_write_failed`, `stream_write_failed`,
-    `stream_flush_failed`, `stream_write_timeout`, `stream_flush_timeout`,
-    `stream_final_response_suppressed`, `mcp_session_missing`, `mcp_session_not_found`,
-    `mcp_session_principal_mismatch`, `mcp_events_stream_write_failed`.
-  - Generated code never emits raw bodies, JSON-RPC params, MCP tool
-    arguments, credentials, or result payloads — keep that invariant
-    when adding new emission sites.
-  - This package is composable with `observability/otel`: span/trace
-    setup, propagation, and metric recording stay in the otel package;
-    `observability/transport` only carries request-level classification.
+- Let generated clients and routers handle path escaping exactly once; do not
+  add app-local `url.PathEscape` or `url.PathUnescape` layers.
+- Prefer modeled response cookies over raw `Set-Cookie` header bags.
 
-## Practical Checks
+If a body shape is unsupported, use the documented custom encoder/decoder seam
+rather than modifying generated files.
 
-- If a design hand-models bearer-or-cookie auth, duplicated auth responses, or raw `Set-Cookie` headers, check whether the newer session and cookie DSL should replace that glue first.
-- If browser clients need cross-origin access, model it with HTTP `CORS` in
-  API or service scope instead of app-local middleware. Service-level CORS
-  overrides API-level CORS; generated HTTP servers mount preflight `OPTIONS`
-  handlers and OpenAPI path items include `x-loom-cors`.
-- JSON-RPC uses the same `CORS` DSL in API or service `JSONRPC` scope for
-  browser access across HTTP, SSE, mixed, and WebSocket servers. Without a
-  policy, generated JSON-RPC handlers retain Go's `CrossOriginProtection`;
-  `Origin("*")` without credentials is the explicit allow-all opt-out.
-- Large generated HTTP/JSON-RPC transport type packages may split into
-  `types_requests.go`, `types_responses.go`, `types_unions.go`,
-  `types_validation.go`, and `types_helpers.go`; do not assume all wire
-  structs live in `types.go`.
-- Large generated HTTP/JSON-RPC clients expose path-segment operation groups
-  such as `client.Items.List()` in addition to the flat `client.List()`
-  methods. Keep both surfaces source-compatible when changing client codegen.
-- HTTP WebSocket generated streams use `loomhttp.WebSocketStream` for
-  connection lifecycle and context-bound JSON frame I/O. Keep new WebSocket
-  fixes in that runtime wrapper or a similarly shared transport core instead
-  of adding per-endpoint read/write/close loops.
-- `WebSocketStream.Close` and `WriteClose` are no-ops before lazy upgrade and
-  do not consume the later real close. Context cancellation replaces an
-  operation error, but never turns a successfully completed frame read/write
-  into `context.Canceled`.
-- JSON-RPC WebSocket generated streams use the same runtime wrapper for raw
-  frame I/O and close-control behavior. Keep JSON-RPC-specific pending request
-  correlation in generated code, but route socket lifecycle fixes through the
-  shared runtime.
-- If a consumer compares OpenAPI outputs, verify whether it uses default 3.2 or
-  `Meta("openapi:version", "3.1")` compatibility output before changing framework code.
-- If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
-- If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
+## Authentication and Sessions
 
-## Default Workflow
+Prefer Loom's first-class session DSL:
 
-1. Detect the Loom service surface: `go.mod`, `design/`, DSL imports, or `gen/` folders.
-2. Edit the DSL in `design/`.
-3. Run `loom gen <module>/design`.
-4. Run `loom example <module>/design` only when scaffolding a new service or new starter files are explicitly wanted.
-5. Implement logic outside `gen/`.
-6. Verify with `go mod tidy` and project tests.
+- `SessionAuth(name, fn)`
+- `BearerTransport(scheme, fieldName, fn...)`
+- `CookieTransport(scheme, fieldName, fn...)`
+- `CookieName(name)`
+- `SessionSecurity(contract)`
+- `SessionCookie(...)`
 
-## Command Reminders
+`CookieTransport(scheme, "", fn...)` is the transport-owned browser-cookie
+mode. It emits the security contract without synthesizing a payload field or
+CLI flag, allowing the application to resolve the cookie from request metadata.
+
+Alternative security requirements are isolated. Context returned by a failed
+alternative does not leak into the next one; schemes within one successful
+requirement retain AND semantics.
+
+## Streaming
+
+- SSE endpoints use normal HTTP success responses with
+  `text/event-stream`.
+- Generated HTTP and JSON-RPC SSE streams expose `loomhttp.SSEControl`.
+  Use `Open(ctx)` for explicit readiness and `SendComment(ctx, text)` for
+  heartbeat frames.
+- Configure bounded stream writes with `loomhttp.NewStreamWritePolicy`.
+- Read `Last-Event-ID` through `loomhttp.LastEventIDKey`.
+- Do not recover or write the raw response writer to work around streaming
+  behavior.
+- Generated WebSocket streams use `loomhttp.WebSocketStream`; use the generated
+  interface rather than adding parallel socket lifecycle code.
+
+Loom also emits the framework-owned `x-loom-async` OpenAPI extension for richer
+SSE and WebSocket handshake/message contracts.
+
+## JSON-RPC
+
+JSON-RPC is a first-class transport, not an HTTP behavior alias.
+
+- Omitted `params` decode as `{}`; ordinary required-field validation still
+  applies.
+- SSE notifications, final responses, and protocol errors use the generated
+  stream contract.
+- Set intermediate notification names with
+  `SSENotificationMethod(...)` when the default namespaced method is unsuitable.
+- A raw `GET /rpc` events listener is ID-less and suppresses final responses;
+  send every value that must reach that listener with `Send`.
+- For mixed HTTP/SSE services, only designed SSE methods route to streams even
+  if the client advertises `Accept: text/event-stream`.
+- Mount and wrap the generated public `ServeHTTP` handler so middleware and
+  transport policy are preserved.
+
+## CORS and Request Metadata
+
+- Model browser access with `CORS` in the HTTP or JSON-RPC design.
+- Use `RuntimeCORS()` when origins come from deployment configuration, then
+  pass a validated `loomhttp.RuntimeCORSPolicy` snapshot to the generated
+  constructor.
+- Apply `loomhttp.RequestMetadataMiddleware` through the generated server's
+  `Use` method and read `loomhttp.RequestMetadataFromContext`.
+- Configure retained headers and trusted proxies with
+  `NewRequestMetadataPolicy`. Sensitive headers require explicit opt-in.
+- Use `loomhttp.EffectiveClientAddress` instead of interpreting forwarding
+  headers in application code.
+
+## Observability and Debugging
+
+Prefer framework packages over repeated bootstrap glue:
+
+- `github.com/CaliLuke/loom/observability/otel`
+- `github.com/CaliLuke/loom/http/middleware/otel`
+- `github.com/CaliLuke/loom/grpc/middleware/otel`
+- `github.com/CaliLuke/loom/observability/transport`
+
+For HTTP clients, wrap `*http.Client` with `otel.WrapHTTPClient(...)`. For HTTP
+servers, use `loomhttp.NewMuxer()` with `otel.HTTPMiddleware(...)`. For gRPC,
+use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`.
+
+`observability/transport.Event.Reason` is a stable, low-cardinality value for
+metrics and routing. Handle these values rather than parsing error messages:
+
+- `ok`
+- `request_decode_failed`
+- `invalid_jsonrpc_envelope`
+- `invalid_jsonrpc_batch`
+- `invalid_jsonrpc_method`
+- `invalid_jsonrpc_params`
+- `unsupported_method`
+- `missing_credentials`
+- `invalid_credentials`
+- `permission_rejected`
+- `principal_mismatch`
+- `handler_error`
+- `panic`
+- `response_write_failed`
+- `stream_write_failed`
+- `stream_flush_failed`
+- `stream_write_timeout`
+- `stream_flush_timeout`
+- `stream_final_response_suppressed`
+- `mcp_session_missing`
+- `mcp_session_not_found`
+- `mcp_session_principal_mismatch`
+- `mcp_events_stream_write_failed`
+
+Use `loomhttp.NewDebugDoer` only for bounded, redacted development diagnostics.
+Set `DEBUG_LOOM=1` while generating when you need DSL/codegen decision traces.
+
+## Installation and Commands
 
 ```bash
 go install github.com/CaliLuke/loom/cmd/loom@latest
-# Go 1.27rc2 preview while the stable release remains on the prior toolchain:
-go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2
 loom version
 loom gen <module-import-path>/design
 loom example <module-import-path>/design
 ```
 
-- Correct: `loom gen example.com/myapi/design`
+## Canonical Guides
 
-## DSL Authoring Notes
+- `docs/quickstart.md`
+- `docs/dsl-reference.md`
+- `docs/code-generation.md`
+- `docs/http-guide.md`
+- `docs/grpc-guide.md`
+- `docs/error-handling.md`
+- `docs/interceptors.md`
+- `docs/production.md`
+- `jsonrpc/README.md`
 
-- Use literal integer field tags in Loom design. For each non-`Extend` type,
-  payload, or result definition, start `Field` tags at `1` and increment by
-  `1` within that definition. For definitions that call `Extend`, start fields
-  introduced by that definition at `100` and increment by `1`. Do not carry
-  field counters across methods or types, and do not hide field tags behind
-  variables or helper calls.
-
-## Diagnosing Codegen Failures
-
-- Framework temp-module checks share one source selector. Use `make loom-local`
-  for unpushed work, `make loom-remote` for exact pushed-commit parity, and
-  `make loom-status` to inspect the worktree-local setting. `LOOM_DIR` overrides
-  the setting for one run; remote resolution fails instead of falling back to
-  an uncommitted working tree.
-- Set `DEBUG_LOOM=1` when running `loom gen` to stream structured debug
-  traces of codegen decision points (service/method being analyzed, endpoint
-  shape, etc.) to stderr. Silent by default; intended for tracing "why did
-  codegen emit X for endpoint Y?" without patching the framework.
-- When `loom gen` panics or errors, the message now leads with the DSL
-  source position and the service/method being processed, e.g.
-  `[design.go:42] service Foo, method Bar: <underlying error>`. Jump to
-  that file:line first rather than grepping the design for candidate
-  endpoints.
-
-## References
-
-- Framework/source map: `references/repo-map.md`
-- Canonical user guides: `../../../docs/`
-- JSON-RPC guide: `../../../jsonrpc/README.md`
-- For framework/runtime internals, inspect the Loom source tree described in `references/repo-map.md`.
-
-## Canonical Guide Pages
-
-- `../../../docs/quickstart.md`
-- `../../../docs/dsl-reference.md`
-- `../../../docs/code-generation.md`
-- `../../../docs/http-guide.md`
-- `../../../docs/grpc-guide.md`
-- `../../../docs/error-handling.md`
-- `../../../docs/interceptors.md`
-- `../../../docs/production.md`
-- `../../../jsonrpc/README.md`
-
-## Selection Rules
-
-- Start with the canonical guide that best matches the immediate task.
-- For repo-specific behavior differences from upstream Loom releases, use the `Loom Contract Rules` section in this skill before inspecting the wider source tree.
-- Load additional guides only if the first one is insufficient.
-- Prefer `references/repo-map.md` and the Loom source tree for framework internals or runtime behavior.
+Open the guide closest to the task before searching framework source. If using
+Loom correctly still leaves repeated application glue, report the boundary and
+route a separate framework task through `loom-framework` and
+`framework-capability`.

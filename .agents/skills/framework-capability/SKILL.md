@@ -1,10 +1,15 @@
 ---
 name: framework-capability
-description: Add a new `loom` framework capability end to end. Use this when implementing generator, DSL, transport, OpenAPI, auth/session, or other framework-level behavior that should remove real application glue. Covers scoping the capability, raising the testing bar, validating repo cleanliness, updating roadmap/docs including the Loom skill, and finishing with commit and push.
+description: Add or materially change a Loom framework capability end to end. Use after the loom-framework skill when generator, DSL, transport, OpenAPI, auth/session, or other framework behavior should remove real application glue. Covers scope, testing, public documentation, cleanliness, commit, and push.
 ---
 # Framework Capability
 
 Use this skill when the task is to add or complete a real `loom` framework capability, not just adopt existing behavior in an application.
+
+Read and apply the `loom-framework` skill first. That skill owns general
+framework architecture and contributor workflow; this skill adds the stricter
+capability-delivery process. Read the consumer `loom` skill only when the
+capability changes how application developers use Loom.
 
 ## Trigger Conditions
 
@@ -41,8 +46,9 @@ A framework capability is not done when code compiles. It is done only when:
 
 - the framework behavior is implemented at the right layer
 - the tests are thorough enough for a maintained fork
-- the roadmap and plan docs reflect reality
-- the Loom skill reflects the new contract or workflow
+- the roadmap and plan docs reflect reality where a live plan exists
+- public docs and the consumer Loom skill reflect any changed usage contract
+- the maintainer skill reflects any changed internal architecture or workflow
 - the branch is committed and pushed
 
 ## Workflow
@@ -72,7 +78,10 @@ Inspect:
 - the motivating consumer usage or workaround
 - the existing framework path that almost solves it
 - nearby tests and goldens
-- the Loom skill if the change affects contract semantics or recommended usage
+- the consumer Loom skill if the change affects contract semantics or
+  recommended application usage
+- the Loom framework skill if the change affects implementation architecture or
+  contributor workflow
 
 Do not guess where generation stops short.
 
@@ -173,18 +182,21 @@ At minimum inspect:
 - `roadmap/ROADMAP.md`
 - the specific capability plan doc
 
-### Loom skill
+### Skill ownership
 
-If the capability changes how an agent should think about Loom behavior, update the Loom skill directly.
+Keep consumer and maintainer guidance separate.
 
 Check:
 
 - `.agents/skills/loom/SKILL.md`
-- `.agents/skills/loom/references/repo-map.md` if navigation guidance changed
+- `.agents/skills/loom-framework/SKILL.md`
+- `.agents/skills/loom-framework/references/repo-map.md` if framework navigation changed
 
-Do not hide important repo-specific framework semantics in a hacky sidecar note when they belong in the main skill instructions.
+Update the consumer `loom` skill only when application developers must design,
+generate, wire, or reason about a Loom service differently. Do not put codegen
+architecture, contributor commands, fixture policy, or internal routing there.
 
-Update the Loom skill when the change affects:
+Update the consumer skill when the change affects:
 
 - contract expectations
 - transport semantics
@@ -194,12 +206,20 @@ Update the Loom skill when the change affects:
 - union/discriminator semantics
 - request decoding behavior developers need to know about
 
+Update the `loom-framework` skill when the change affects:
+
+- framework ownership boundaries
+- generator or renderer architecture
+- version-routing implementation
+- contributor verification and source-mode workflow
+- fixture and integration-test policy
+
 ## Finish Sequence
 
 Unless the user explicitly says otherwise:
 
 1. update roadmap docs
-2. update Loom skill docs where needed
+2. update the correctly scoped consumer or maintainer skill where needed
 3. verify tests are green
 4. commit with a concrete message
 5. push the branch
@@ -213,7 +233,7 @@ Your final summary should state:
 - what framework capability was added
 - what app-local glue it replaces
 - which files carry the implementation
-- which docs were updated
+- which public and maintainer docs were updated
 - which test suites were run
 - whether the branch was committed and pushed
 

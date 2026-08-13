@@ -10,6 +10,26 @@
 - **Be concise**: Give short status updates during multi-step work. Present a short summary when done.
 - **Loom naming only**: Do not introduce or keep legacy upstream-named aliases, env vars, scripts, targets, or compatibility shims in Loom-owned workflows. Use `loom` naming exclusively.
 
+### Skill Routing
+
+- Use the [`loom` skill](.agents/skills/loom/SKILL.md) only for consuming Loom:
+  authoring `design/`, running `loom gen`, implementing services outside
+  `gen/`, and wiring generated transports or runtime packages in an
+  application.
+- Use the [`loom-framework` skill](.agents/skills/loom-framework/SKILL.md) for
+  maintaining this repository: DSL implementation, `expr`, codegen, transport
+  internals, OpenAPI generation, framework runtime packages, fixtures, and
+  contributor workflows.
+- For a new or materially changed framework capability, use
+  `loom-framework` first and then the
+  [`framework-capability` skill](.agents/skills/framework-capability/SKILL.md).
+- Do not put contributor commands, generator architecture, fixture policy, or
+  other maintainer-only directives in the consumer `loom` skill. Update that
+  skill only when application developers must use or reason about Loom
+  differently.
+- For releases, use the [`release` skill](.agents/skills/release/SKILL.md) in
+  addition to `loom-framework`.
+
 ### Go Code Style
 
 - **Go 1.27+**. Format with `go fmt ./...`.
@@ -110,7 +130,8 @@ No commented-out code—delete dead code.
   - event-type compatibility for protocol-level errors
   - compile-after-generation of the emitted fixture app
   - any branch-specific connection timing semantics the fixture actually supports
-- For new or changed `loom` framework capabilities, use the [`framework-capability` skill](.agents/skills/framework-capability/SKILL.md).
+- For framework work, follow the skill routing above before applying the
+  testing rules in this section.
 
 ---
 

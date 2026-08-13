@@ -54,7 +54,13 @@ func maintainedDocuments(root string) ([]string, error) {
 	documentSet := map[string]struct{}{
 		"AGENTS.md": {}, "CONTRIBUTING.md": {}, "README.md": {},
 	}
-	for _, directory := range []string{".agents/skills/loom", "docs", "jsonrpc"} {
+	for _, directory := range []string{
+		".agents/skills/framework-capability",
+		".agents/skills/loom",
+		".agents/skills/loom-framework",
+		"docs",
+		"jsonrpc",
+	} {
 		err := filepath.WalkDir(filepath.Join(root, directory), func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -142,31 +148,33 @@ func checkDuplicateSkillGuides(root string) []string {
 	}
 
 	var issues []string
-	skillRoot := filepath.Join(root, ".agents", "skills", "loom")
-	err = filepath.WalkDir(skillRoot, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() || !strings.EqualFold(filepath.Ext(path), ".md") {
+	for _, skill := range []string{"loom", "loom-framework"} {
+		skillRoot := filepath.Join(root, ".agents", "skills", skill)
+		err = filepath.WalkDir(skillRoot, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() || !strings.EqualFold(filepath.Ext(path), ".md") {
+				return nil
+			}
+			canonicalPath, duplicate := canonical[strings.ToLower(filepath.Base(path))]
+			if !duplicate {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			issues = append(issues, fmt.Sprintf(
+				"%s: duplicates canonical guide name %s",
+				filepath.ToSlash(rel),
+				canonicalPath,
+			))
 			return nil
+		})
+		if err != nil {
+			issues = append(issues, fmt.Sprintf(".agents/skills/%s: discover skill guides: %v", skill, err))
 		}
-		canonicalPath, duplicate := canonical[strings.ToLower(filepath.Base(path))]
-		if !duplicate {
-			return nil
-		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			return relErr
-		}
-		issues = append(issues, fmt.Sprintf(
-			"%s: duplicates canonical guide name %s",
-			filepath.ToSlash(rel),
-			canonicalPath,
-		))
-		return nil
-	})
-	if err != nil {
-		issues = append(issues, fmt.Sprintf(".agents/skills/loom: discover skill guides: %v", err))
 	}
 	sort.Strings(issues)
 	return issues
