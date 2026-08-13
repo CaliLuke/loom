@@ -1,0 +1,288 @@
+package codegen
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+func TestGeneratedHTTPServerRejectsOversizedRequestBodies(t *testing.T) {
+	const modulePath = "example.com/bodylimitit"
+
+	root := RunHTTPDSL(t, requestBodyLimitDSL)
+	dir := t.TempDir()
+	renderHTTPModule(t, dir, modulePath, root)
+
+	if err := os.WriteFile(filepath.Join(dir, "request_body_limit_test.go"), []byte(requestBodyLimitHarness), 0o600); err != nil {
+		t.Fatalf("write request body limit harness: %v", err)
+	}
+
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "test", "./...")
+}
+
+func requestBodyLimitDSL() {
+	Service("limits", func() {
+		Method("JSON", func() {
+			Payload(func() {
+				Attribute("value", String)
+				Required("value")
+			})
+			HTTP(func() {
+				POST("/json")
+			})
+		})
+		Method("Text", func() {
+			Payload(String)
+			HTTP(func() {
+				POST("/text")
+			})
+		})
+		Method("Multipart", func() {
+			Payload(func() {
+				Attribute("data", Bytes)
+				Required("data")
+			})
+			HTTP(func() {
+				POST("/multipart")
+				MultipartRequest()
+			})
+		})
+	})
+}
+
+const requestBodyLimitHarness = `package bodylimitit_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	limits "example.com/bodylimitit/gen/limits"
+	limitsserver "example.com/bodylimitit/gen/http/limits/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type dispatchCounts struct {
+	json      atomic.Int32
+	text      atomic.Int32
+	multipart atomic.Int32
+}
+
+func TestGeneratedRoutesEnforceRequestBodyLimit(t *testing.T) {
+	counts := new(dispatchCounts)
+	server := newBodyLimitServer(t, counts)
+
+	exactJSON := exactLimitJSON(t)
+	response := sendRequest(t, server, "/json", "application/json", bytes.NewReader(exactJSON), false)
+	requireSuccess(t, response)
+	if got := counts.json.Load(); got != 1 {
+		t.Fatalf("exact-limit JSON dispatch count = %d, want 1", got)
+	}
+
+	oversizedJSON := append(append([]byte(nil), exactJSON...), ' ')
+	tests := []struct {
+		name        string
+		path        string
+		contentType string
+		body        func(*testing.T) io.Reader
+		chunked     bool
+	}{
+		{
+			name:        "JSON with Content-Length",
+			path:        "/json",
+			contentType: "application/json",
+			body:        func(*testing.T) io.Reader { return bytes.NewReader(oversizedJSON) },
+		},
+		{
+			name:        "chunked JSON",
+			path:        "/json",
+			contentType: "application/json",
+			body:        func(*testing.T) io.Reader { return bytes.NewReader(oversizedJSON) },
+			chunked:     true,
+		},
+		{
+			name:        "text",
+			path:        "/text",
+			contentType: "text/plain",
+			body: func(*testing.T) io.Reader {
+				return strings.NewReader(strings.Repeat("x", loomhttp.DefaultMaxRequestBodyBytes+1))
+			},
+		},
+		{
+			name:        "multipart",
+			path:        "/multipart",
+			contentType: "multipart/form-data",
+			body:        oversizedMultipartBody,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			bodyReader := test.body(t)
+			contentType := test.contentType
+			if multipartBody, ok := bodyReader.(*multipartRequestBody); ok {
+				contentType = multipartBody.contentType
+				bodyReader = multipartBody.Reader
+			}
+			response := sendRequest(t, server, test.path, contentType, bodyReader, test.chunked)
+			requireRequestTooLarge(t, response)
+		})
+	}
+
+	if got := counts.json.Load(); got != 1 {
+		t.Errorf("JSON dispatch count after oversized requests = %d, want 1", got)
+	}
+	if got := counts.text.Load(); got != 0 {
+		t.Errorf("text dispatch count = %d, want 0", got)
+	}
+	if got := counts.multipart.Load(); got != 0 {
+		t.Errorf("multipart dispatch count = %d, want 0", got)
+	}
+}
+
+func newBodyLimitServer(t *testing.T, counts *dispatchCounts) *httptest.Server {
+	t.Helper()
+	endpoints := &limits.Endpoints{
+		JSON: func(context.Context, any) (any, error) {
+			counts.json.Add(1)
+			return nil, nil
+		},
+		Text: func(context.Context, any) (any, error) {
+			counts.text.Add(1)
+			return nil, nil
+		},
+		Multipart: func(context.Context, any) (any, error) {
+			counts.multipart.Add(1)
+			return nil, nil
+		},
+	}
+	mux := loomhttp.NewMuxer()
+	generated := limitsserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	limitsserver.Mount(mux, generated)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	return server
+}
+
+func exactLimitJSON(t *testing.T) []byte {
+	t.Helper()
+	body := []byte(` + "`" + `{"value":"ok"}` + "`" + `)
+	if len(body) > loomhttp.DefaultMaxRequestBodyBytes {
+		t.Fatalf("JSON prefix length %d exceeds request limit", len(body))
+	}
+	return append(body, bytes.Repeat([]byte{' '}, loomhttp.DefaultMaxRequestBodyBytes-len(body))...)
+}
+
+type multipartRequestBody struct {
+	io.Reader
+	contentType string
+}
+
+func oversizedMultipartBody(t *testing.T) io.Reader {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("data", "payload.bin")
+	if err != nil {
+		t.Fatalf("create multipart file: %v", err)
+	}
+	if _, err := io.CopyN(part, zeroReader{}, loomhttp.DefaultMaxRequestBodyBytes+1); err != nil {
+		t.Fatalf("write multipart file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+	return &multipartRequestBody{Reader: bytes.NewReader(body.Bytes()), contentType: writer.FormDataContentType()}
+}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 'x'
+	}
+	return len(p), nil
+}
+
+func sendRequest(
+	t *testing.T,
+	server *httptest.Server,
+	path string,
+	contentType string,
+	body io.Reader,
+	chunked bool,
+) *http.Response {
+	t.Helper()
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+path, body)
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+	request.Header.Set("Content-Type", contentType)
+	if chunked {
+		request.ContentLength = -1
+		request.TransferEncoding = []string{"chunked"}
+	}
+	response, err := server.Client().Do(request)
+	if err != nil {
+		t.Fatalf("send request: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("close response body: %v", err)
+		}
+	})
+	return response
+}
+
+func requireSuccess(t *testing.T, response *http.Response) {
+	t.Helper()
+	if response.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("status = %d, want 204; body: %s", response.StatusCode, body)
+	}
+}
+
+func requireRequestTooLarge(t *testing.T, response *http.Response) {
+	t.Helper()
+	if response.StatusCode != http.StatusRequestEntityTooLarge {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("status = %d, want 413; body: %s", response.StatusCode, body)
+	}
+	if got := response.Header.Get("Content-Type"); got != loomhttp.ProblemJSONContentType {
+		t.Errorf("Content-Type = %q, want %q", got, loomhttp.ProblemJSONContentType)
+	}
+	var problem loomhttp.ProblemResponse
+	if err := json.NewDecoder(response.Body).Decode(&problem); err != nil {
+		t.Fatalf("decode problem response: %v", err)
+	}
+	if problem.Type != "about:blank" {
+		t.Errorf("problem type = %q, want about:blank", problem.Type)
+	}
+	if problem.Title != http.StatusText(http.StatusRequestEntityTooLarge) {
+		t.Errorf("problem title = %q, want %q", problem.Title, http.StatusText(http.StatusRequestEntityTooLarge))
+	}
+	if problem.Status != http.StatusRequestEntityTooLarge {
+		t.Errorf("problem status = %d, want 413", problem.Status)
+	}
+	if problem.Detail != "request body too large" {
+		t.Errorf("problem detail = %q, want request body too large", problem.Detail)
+	}
+	if problem.Code != loom.RequestBodyTooLarge {
+		t.Errorf("problem code = %q, want %q", problem.Code, loom.RequestBodyTooLarge)
+	}
+	if problem.Instance != "" && !strings.HasPrefix(problem.Instance, "urn:loom:error:") {
+		t.Errorf("problem instance = %q, want empty or Loom error URN", problem.Instance)
+	}
+}
+`
