@@ -56,6 +56,44 @@ func TestGenerateDebugDiagnostics(t *testing.T) {
 	require.NotContains(t, stderr, "stage=write-file ")
 }
 
+func TestGenerateEmitsDeduplicatedWarningsWithoutDebug(t *testing.T) {
+	t.Cleanup(func() { generatorLoader = generators })
+
+	generatorLoader = func(cmd string) ([]genfunc, error) {
+		return []genfunc{
+			func(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
+				warnings := []string{
+					`OpenAPI 3.1 omits unsupported method QUERY from path "/mixed"`,
+					`OpenAPI 3.1 omits unsupported method CONNECT from path "/tunnel" and removes the path because no compatible operations remain`,
+				}
+				return []*codegen.File{
+					{
+						Path:     filepath.Join(codegen.Gendir, "openapi.json"),
+						Sections: []codegen.Section{codegen.NewRawSection("openapi", "{}")},
+						Warnings: warnings,
+					},
+					{
+						Path:     filepath.Join(codegen.Gendir, "openapi.yaml"),
+						Sections: []codegen.Section{codegen.NewRawSection("openapi", "openapi: 3.1.0")},
+						Warnings: warnings,
+					},
+				}, nil
+			},
+		}, nil
+	}
+
+	stderr, err := captureGeneratorStderr(t, func() error {
+		_, genErr := Generate(t.TempDir(), "gen", false)
+		return genErr
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "[loom-warning] "+
+		`OpenAPI 3.1 omits unsupported method CONNECT from path "/tunnel" and removes the path because no compatible operations remain`+"\n"+
+		"[loom-warning] "+
+		`OpenAPI 3.1 omits unsupported method QUERY from path "/mixed"`+"\n", stderr)
+}
+
 func TestGenerateWrapsWriteFailuresWithStageAndPath(t *testing.T) {
 	t.Cleanup(func() { generatorLoader = generators })
 

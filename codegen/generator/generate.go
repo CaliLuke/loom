@@ -55,6 +55,9 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		genfiles = mergeFilesByPath(genfiles)
 		debugStage(debug, "merge-files", start, "files=%d", len(genfiles))
 	}
+	if err := emitWarnings(genfiles); err != nil {
+		return nil, wrapStageError("emit-warnings", "", err)
+	}
 
 	// 8. Emit loom.json version file (gen command only).
 	if cmd == "gen" {
@@ -305,6 +308,31 @@ func computeOutputs(written map[string]struct{}, debug bool) []string {
 	return outputs
 }
 
+func emitWarnings(files []*codegen.File) error {
+	warnings := make(map[string]struct{})
+	for _, file := range files {
+		if file == nil {
+			continue
+		}
+		for _, warning := range file.Warnings {
+			if warning != "" {
+				warnings[warning] = struct{}{}
+			}
+		}
+	}
+	ordered := make([]string, 0, len(warnings))
+	for warning := range warnings {
+		ordered = append(ordered, warning)
+	}
+	sort.Strings(ordered)
+	for _, warning := range ordered {
+		if _, err := fmt.Fprintf(os.Stderr, "[loom-warning] %s\n", warning); err != nil {
+			return fmt.Errorf("write warning: %w", err)
+		}
+	}
+	return nil
+}
+
 // mergeFilesByPath coalesces files that share the same output path by
 // concatenating their non-header sections and merging header imports. This
 // prevents later renders from truncating earlier content when multiple
@@ -353,6 +381,7 @@ func mergeFileByPath(byPath map[string]*codegen.File, namesByPath map[string]map
 	mergeHeaderSections(existingSections, incomingSections)
 	initSectionNames(namesByPath, f.Path, existingSections)
 	existing.SetSections(appendUniqueSections(existingSections, incomingSections, namesByPath[f.Path]))
+	existing.Warnings = append(existing.Warnings, f.Warnings...)
 	if existing.FinalizeFunc == nil && f.FinalizeFunc != nil {
 		existing.FinalizeFunc = f.FinalizeFunc
 	}

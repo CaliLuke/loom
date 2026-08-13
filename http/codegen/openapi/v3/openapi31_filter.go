@@ -1,15 +1,22 @@
 package openapiv3
 
-import "github.com/CaliLuke/loom/http/codegen/openapi"
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+)
 
 // filterOpenAPI31 omits sections whose minimum OpenAPI version is 3.2.
 // The shared DSL analysis and document model remain identical for all targets.
-func filterOpenAPI31(spec *OpenAPI) {
+func filterOpenAPI31(spec *OpenAPI) []string {
 	spec.Self = ""
 	filterOpenAPI31Servers(spec.Servers)
 	filterOpenAPI31Tags(spec.Tags)
-	filterOpenAPI31Paths(spec.Paths)
+	warnings := filterOpenAPI31Paths(spec.Paths)
 	filterOpenAPI31Components(spec.Components)
+	return warnings
 }
 
 func filterOpenAPI31Servers(servers []*Server) {
@@ -30,11 +37,20 @@ func filterOpenAPI31Tags(tags []*openapi.Tag) {
 	}
 }
 
-func filterOpenAPI31Paths(paths map[string]*PathItem) {
-	for pathName, path := range paths {
+func filterOpenAPI31Paths(paths map[string]*PathItem) []string {
+	pathNames := make([]string, 0, len(paths))
+	for pathName := range paths {
+		pathNames = append(pathNames, pathName)
+	}
+	sort.Strings(pathNames)
+
+	var warnings []string
+	for _, pathName := range pathNames {
+		path := paths[pathName]
 		if path == nil {
 			continue
 		}
+		droppedMethods := droppedOpenAPI31Methods(path)
 		path.Query = nil
 		path.AdditionalOperations = nil
 		path.Connect = nil
@@ -53,11 +69,54 @@ func filterOpenAPI31Paths(paths map[string]*PathItem) {
 				}
 			}
 		}
-		if path.Delete == nil && path.Get == nil && path.Head == nil &&
-			path.Options == nil && path.Patch == nil && path.Post == nil && path.Put == nil && path.Trace == nil {
+		removePath := path.Delete == nil && path.Get == nil && path.Head == nil &&
+			path.Options == nil && path.Patch == nil && path.Post == nil && path.Put == nil && path.Trace == nil
+		if removePath {
 			delete(paths, pathName)
 		}
+		if len(droppedMethods) > 0 {
+			warnings = append(warnings, openAPI31PathWarning(pathName, droppedMethods, removePath))
+		}
 	}
+	return warnings
+}
+
+func droppedOpenAPI31Methods(path *PathItem) []string {
+	methods := make(map[string]struct{})
+	if path.Connect != nil {
+		methods["CONNECT"] = struct{}{}
+	}
+	if path.Query != nil {
+		methods["QUERY"] = struct{}{}
+	}
+	for method, operation := range path.AdditionalOperations {
+		if operation != nil {
+			methods[method] = struct{}{}
+		}
+	}
+	ordered := make([]string, 0, len(methods))
+	for method := range methods {
+		ordered = append(ordered, method)
+	}
+	sort.Strings(ordered)
+	return ordered
+}
+
+func openAPI31PathWarning(pathName string, methods []string, removePath bool) string {
+	noun := "method"
+	if len(methods) != 1 {
+		noun = "methods"
+	}
+	warning := fmt.Sprintf(
+		"OpenAPI 3.1 omits unsupported %s %s from path %q",
+		noun,
+		strings.Join(methods, ", "),
+		pathName,
+	)
+	if removePath {
+		warning += " and removes the path because no compatible operations remain"
+	}
+	return warning
 }
 
 func filterOpenAPI31Components(components *Components) {

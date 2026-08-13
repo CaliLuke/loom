@@ -98,6 +98,16 @@ func TestRendererSkipsOpenAPI32OnlySectionsFor31Target(t *testing.T) {
 			files, err := openapiv3.Files(root)
 			require.NoError(t, err)
 			require.Len(t, files, 2)
+			if test.version == "3.1" {
+				require.Equal(t, []string{
+					`OpenAPI 3.1 omits unsupported methods PURGE, QUERY from path "/books" and removes the path because no compatible operations remain`,
+					`OpenAPI 3.1 omits unsupported method CONNECT from path "/tunnel" and removes the path because no compatible operations remain`,
+				}, files[0].Warnings)
+				require.Equal(t, files[0].Warnings, files[1].Warnings)
+			} else {
+				require.Empty(t, files[0].Warnings)
+				require.Empty(t, files[1].Warnings)
+			}
 			buf := renderSection(t, files[0].AllSections()[0])
 			jsonSpec := buf.Bytes()
 			validateOpenAPIVersion(t, jsonSpec, test.wantVersion)

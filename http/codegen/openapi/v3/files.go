@@ -18,7 +18,7 @@ func Files(root *expr.RootExpr) ([]*codegen.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	spec := newForVersion(root, target)
+	spec, warnings := newForVersion(root, target)
 	jsonSource, err := toJSON(root.API.Meta, spec)
 	if err != nil {
 		return nil, err
@@ -32,10 +32,12 @@ func Files(root *expr.RootExpr) ([]*codegen.File, error) {
 		{
 			Path:     filepath.Join(codegen.Gendir, "http", "openapi.json"),
 			Sections: []codegen.Section{codegen.NewRawSection("openapi_v3", jsonSource)},
+			Warnings: append([]string(nil), warnings...),
 		},
 		{
 			Path:     filepath.Join(codegen.Gendir, "http", "openapi.yaml"),
 			Sections: []codegen.Section{codegen.NewRawSection("openapi_v3", yamlSource)},
+			Warnings: append([]string(nil), warnings...),
 		},
 	}, nil
 }

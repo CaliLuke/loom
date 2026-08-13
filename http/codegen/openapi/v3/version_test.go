@@ -185,6 +185,41 @@ func TestFilterOpenAPI31RendersCompatiblePropertyCarrierSchemas(t *testing.T) {
 	}
 }
 
+func TestFilterOpenAPI31WarnsAboutDroppedPathOperations(t *testing.T) {
+	get := new(Operation)
+	spec := &OpenAPI{Paths: map[string]*PathItem{
+		"/compatible": {
+			Get: new(Operation),
+		},
+		"/mixed": {
+			Get:   get,
+			Query: new(Operation),
+		},
+		"/query": {
+			Query: new(Operation),
+		},
+		"/tunnel": {
+			Connect: new(Operation),
+			AdditionalOperations: map[string]*Operation{
+				"COPY": new(Operation),
+			},
+		},
+	}}
+
+	warnings := filterOpenAPI31(spec)
+
+	require.Equal(t, []string{
+		`OpenAPI 3.1 omits unsupported method QUERY from path "/mixed"`,
+		`OpenAPI 3.1 omits unsupported method QUERY from path "/query" and removes the path because no compatible operations remain`,
+		`OpenAPI 3.1 omits unsupported methods CONNECT, COPY from path "/tunnel" and removes the path because no compatible operations remain`,
+	}, warnings)
+	require.Same(t, get, spec.Paths["/mixed"].Get)
+	require.Nil(t, spec.Paths["/mixed"].Query)
+	require.NotNil(t, spec.Paths["/compatible"].Get)
+	require.NotContains(t, spec.Paths, "/query")
+	require.NotContains(t, spec.Paths, "/tunnel")
+}
+
 func compatibilityOnlySchema() *openapi.Schema {
 	return &openapi.Schema{
 		Type: openapi.Object,

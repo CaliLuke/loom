@@ -9,16 +9,16 @@ import (
 
 const openAPIAsyncExtension = "x-loom-async"
 
-func renderOpenAPI(root *expr.RootExpr, spec *OpenAPI, target openAPIVersion) {
+func renderOpenAPI(root *expr.RootExpr, spec *OpenAPI, target openAPIVersion) []string {
 	if spec == nil {
-		return
+		return nil
 	}
 	spec.OpenAPI = renderOpenAPIVersion(target)
 	if target == openAPIVersion32 {
 		applyOpenAPI32(root, spec)
-		return
+		return nil
 	}
-	filterOpenAPI31(spec)
+	return filterOpenAPI31(spec)
 }
 
 func applyOpenAPI32(root *expr.RootExpr, spec *OpenAPI) {
