@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -31,6 +32,13 @@ func TestServerResponseContractCases(t *testing.T) {
 	require.Contains(t, generated, `ID: "widgets.show.error.not_found.404"`)
 	require.Contains(t, generated, "Kind: loomhttp.ResponseContractError")
 	require.Contains(t, generated, `ErrorName: "not_found"`)
+
+	aggregates := file.Section("server-response-contracts")
+	require.Len(t, aggregates, 1)
+	aggregate := codegen.SectionCode(t, aggregates[0])
+	require.Contains(t, aggregate, "// ResponseContractCases returns every supported declared HTTP wire-response")
+	require.Contains(t, aggregate, "func ResponseContractCases() []loomhttp.ResponseContractCase")
+	require.Contains(t, aggregate, "cases = append(cases, ShowResponseContractCases()...)")
 }
 
 func TestServerResponseContractCasesOmitUnsupportedEndpoints(t *testing.T) {
@@ -40,6 +48,7 @@ func TestServerResponseContractCasesOmitUnsupportedEndpoints(t *testing.T) {
 
 	for _, file := range files {
 		require.Empty(t, file.Section("server-response-contract"))
+		require.Empty(t, file.Section("server-response-contracts"))
 	}
 }
 
@@ -51,6 +60,25 @@ func TestServerResponseContractCasesCompile(t *testing.T) {
 	require.NoError(t, err)
 	t.Setenv("LOOM_DIR", repoRoot)
 	renderHTTPModule(t, dir, modulePath, root)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "response_contract_test.go"), []byte(`package responsecontractcompile_test
+
+import (
+	"testing"
+
+	widgetserver "example.com/responsecontractcompile/gen/http/widgets/server"
+)
+
+func TestResponseContractCasesReturnsFreshManifest(t *testing.T) {
+	first := widgetserver.ResponseContractCases()
+	if len(first) == 0 {
+		t.Fatal("response contract manifest is empty")
+	}
+	first[0].ID = "mutated"
+	if widgetserver.ResponseContractCases()[0].ID == "mutated" {
+		t.Fatal("response contract manifest shares mutable storage")
+	}
+}
+`), 0o600))
 
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "test", "./...")

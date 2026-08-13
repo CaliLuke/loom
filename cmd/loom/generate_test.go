@@ -590,6 +590,7 @@ func TestHelpIncludesCommandsAndFlags(t *testing.T) {
 	text := string(out)
 	require.Contains(t, text, "loom gen PACKAGE")
 	require.Contains(t, text, "loom example PACKAGE")
+	require.Contains(t, text, "loom test-scaffold PACKAGE")
 	require.Contains(t, text, "-output DIRECTORY")
 	require.Contains(t, text, "-debug")
 	require.True(t, strings.Contains(text, "Loom framework") || strings.Contains(text, "Loom"))

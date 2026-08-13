@@ -35,6 +35,43 @@ func serverResponseContractSection(endpoint *EndpointData) codegen.Section {
 	})
 }
 
+func serverResponseContractsSection(data *ServiceData) codegen.Section {
+	caseCount := 0
+	for _, endpoint := range data.Endpoints {
+		caseCount += len(endpoint.ResponseContractCases)
+	}
+	if caseCount == 0 {
+		return nil
+	}
+
+	return codegen.NewJenniferSection("server-response-contracts", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, "ResponseContractCases returns every supported declared HTTP wire-response contract for this service. The returned slice is owned by the caller.")
+		stmt.Func().
+			Id("ResponseContractCases").
+			Params().
+			Index().
+			Add(codegen.TypeRef("loomhttp.ResponseContractCase")).
+			BlockFunc(func(group *jen.Group) {
+				group.Id("cases").Op(":=").Make(
+					jen.Index().Add(codegen.TypeRef("loomhttp.ResponseContractCase")),
+					jen.Lit(0),
+					jen.Lit(caseCount),
+				)
+				for _, endpoint := range data.Endpoints {
+					if len(endpoint.ResponseContractCases) == 0 {
+						continue
+					}
+					group.Id("cases").Op("=").Append(
+						jen.Id("cases"),
+						jen.Id(endpoint.ResponseContractCasesInit).Call().Op("..."),
+					)
+				}
+				group.Return(jen.Id("cases"))
+			})
+		stmt.Line()
+	})
+}
+
 func responseContractCaseFields(contractCase *ResponseContractCaseData) []jen.Code {
 	kind := "loomhttp.ResponseContractSuccess"
 	if contractCase.IsError {

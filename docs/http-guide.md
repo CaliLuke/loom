@@ -439,24 +439,29 @@ func main() {
 ### Response Contract Checks
 
 For each supported unary HTTP endpoint, the generated server package exposes a
-`<Method>ResponseContractCases` function. Each case records the exact status,
-allowed base media types, error name, and required response headers and cookies
+`<Method>ResponseContractCases` function and collects them in the service-wide
+`ResponseContractCases` manifest. Each case records the exact status, allowed
+base media types, error name, and required response headers and cookies
 declared by the design.
 
-Use `loomhttp.ValidateResponseContract` after sending a request through the
-real generated transport:
+After `loom gen`, create a consumer-owned provider scaffold:
 
-```go
-for _, contract := range widgetserver.ShowResponseContractCases() {
-	response := exerciseApplicationScenario(t, contract.ID)
-	require.NoError(t, loomhttp.ValidateResponseContract(response, contract))
-}
+```bash
+loom test-scaffold example.com/myservice/design
 ```
 
-Loom validates the transport-owned wire behavior, including `Loom-Error` for
-declared errors. The application test must still arrange the service state,
+Loom writes missing files under `internal/contracttest/` and never overwrites
+them. Fill the generated scenario map with callbacks that send real requests
+through the generated transport. The test reports every missing case and calls
+`loomhttp.ValidateResponseContract` for implemented callbacks, including
+callbacks that return nil responses.
+
+Loom validates transport-owned wire behavior, including `Loom-Error` for
+declared errors. Application tests must still arrange the service state,
 payload, and fake or fixture that reaches each case; Loom does not synthesize
-domain behavior.
+domain behavior. Because the scaffold reads the service-wide generated
+manifest at runtime, a later design change fails the existing test until its
+new response scenarios are supplied.
 
 ---
 

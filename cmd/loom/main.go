@@ -21,6 +21,21 @@ type generatorRunner interface {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "import" {
+		input, output, err := parseOpenAPIImportArgs(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		target, err := importOpenAPI(input, output)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		fmt.Println(target)
+		return
+	}
+
 	var (
 		cmd    string
 		path   string
@@ -35,7 +50,7 @@ func main() {
 	case "version":
 		fmt.Println("Loom version " + loom.Version())
 		os.Exit(0)
-	case "gen", "example":
+	case "gen", "example", "test-scaffold":
 		if len(os.Args) == 2 {
 			usage()
 			return
@@ -80,9 +95,10 @@ func main() {
 
 // help with tests
 var (
-	usage        = help
-	gen          = generate
-	newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
+	usage         = help
+	gen           = generate
+	importOpenAPI = importOpenAPIDesign
+	newGenerator  = func(cmd, path, output string, debug bool) generatorRunner {
 		return NewGenerator(cmd, path, output, debug)
 	}
 )
@@ -156,23 +172,35 @@ func help() {
 Learn more at https://github.com/CaliLuke/loom.
 
 Usage:
+	loom import openapi INPUT [-o FILE-OR-DIRECTORY]
   loom gen PACKAGE [--output DIRECTORY] [--debug]
   loom example PACKAGE [--output DIRECTORY] [--debug]
+  loom test-scaffold PACKAGE [--output DIRECTORY] [--debug]
   loom version
 
 Commands:
+	import openapi
+	      Create a Loom design from a supported OpenAPI 3.1 or 3.2 contract.
   gen
         Generate service interfaces, endpoints, transport code and OpenAPI spec.
   example
         Generate example server and client tool.
+  test-scaffold
+        Generate consumer-owned HTTP response contract tests.
   version
         Print version information.
 
 Args:
+	INPUT
+	      OpenAPI JSON or YAML file
+
   PACKAGE
         Go import path to design package
 
 Flags:
+	-o, -output FILE-OR-DIRECTORY
+	      import output, defaults to design/design.go
+
   -o, -output DIRECTORY
         output directory, defaults to the current working directory
 
@@ -181,6 +209,7 @@ Flags:
 
 Example:
 
+	loom import openapi openapi.yaml -o design
   loom gen github.com/CaliLuke/loom-examples/cellar/design -o gendir
 
 `)

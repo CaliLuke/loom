@@ -21,6 +21,8 @@ func generators(cmd string) ([]genfunc, error) {
 		return []genfunc{Service, Transport, OpenAPI}, nil
 	case "example":
 		return []genfunc{Example}, nil
+	case "test-scaffold":
+		return []genfunc{TestScaffold}, nil
 	default:
 		return nil, fmt.Errorf("unknown command %q", cmd)
 	}

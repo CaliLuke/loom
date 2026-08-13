@@ -46,11 +46,28 @@ go run github.com/CaliLuke/loom/cmd/loom gen example.com/myservice/design
 
 ### Commands
 
-All commands expect Go package import paths, not filesystem paths:
+Generation commands expect Go package import paths, not filesystem paths:
 
 ```bash
 loom gen github.com/CaliLuke/loom-examples/calc/design
 ```
+
+#### Import OpenAPI (`loom import openapi`)
+
+```bash
+loom import openapi <input.json-or-yaml> [-o <design.go-or-directory>]
+```
+
+This command creates one gofmt-formatted Loom design from the strict supported
+subset of an OpenAPI 3.1 or 3.2 contract. The default output is
+`design/design.go`. An existing directory, a path ending in a separator, or a
+non-existing extensionless path is treated as a directory; a `.go` path names
+the output file directly.
+
+Import is intentionally lossless-or-fail: unsupported constructs are reported
+together and no partial design or TODO placeholders are written. The command
+also refuses to overwrite an existing target. Review the imported design, then
+run `loom gen <module-import-path>/design` normally.
 
 #### Generate Code (`loom gen`)
 
@@ -78,6 +95,18 @@ A scaffolding command:
 - Run once when starting a new project
 - Will NOT overwrite existing custom implementation
 
+#### Create Contract Tests (`loom test-scaffold`)
+
+```bash
+loom test-scaffold <design-package-import-path> [-o <output-dir>] [--debug]
+```
+
+This command creates consumer-owned HTTP response contract tests under
+`internal/contracttest/`. Existing scaffold files are never overwritten. The
+generated test enumerates the current server manifest and fails once for every
+declared response that lacks an application callback, so later `loom gen`
+changes remain visible without rewriting the scaffold.
+
 #### Show Version
 
 ```bash
@@ -89,8 +118,9 @@ loom version
 1. Create initial design
 2. Run `loom gen` to generate base code
 3. Run `loom example` to create implementation stubs
-4. Implement your service logic
-5. Run `loom gen` after every design change
+4. Run `loom test-scaffold` to create response-contract test providers
+5. Implement your service logic and contract scenarios
+6. Run `loom gen` after every design change
 
 **Best Practice:** Commit generated code to version control rather than generating during CI/CD. This ensures reproducible builds and allows tracking changes in generated code.
 

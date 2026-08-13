@@ -57,6 +57,12 @@ Loom emits OpenAPI 3.2.0 by default at:
 - `gen/http/openapi.json`
 - `gen/http/openapi.yaml`
 
+To bootstrap a design from an existing OpenAPI 3.1 or 3.2 JSON/YAML contract,
+run `loom import openapi <input> -o design`. Import supports a strict subset:
+it reports every unsupported construct it finds, writes no partial design or
+TODO placeholders, and never overwrites an existing target. Review the new
+`design/design.go` before running `loom gen`.
+
 Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
 consumer still requires OpenAPI 3.1.1. The output paths remain the same and the
 compatible surrounding contract is preserved.
@@ -115,13 +121,14 @@ Loom's default HTTP errors are RFC 9457-style
 
 Do not duplicate these contracts in handwritten transport code.
 
-Generated HTTP server packages expose `<Method>ResponseContractCases()` for
-supported unary endpoints. In application integration tests, exercise each
-domain scenario through the real generated transport, then pass its
-`*http.Response` and the matching case to
-`loomhttp.ValidateResponseContract`. The validator checks Loom-owned wire
-invariants; the application remains responsible for payloads, fakes, and state
-that make every declared response reachable.
+Generated HTTP server packages expose per-method response contract functions
+and a service-wide `ResponseContractCases()` manifest for supported unary
+endpoints. After `loom gen`, run `loom test-scaffold <design-package>` once to
+create non-overwriting provider tests under `internal/contracttest/`. Fill each
+case callback with a real generated-transport request. Missing callbacks fail
+individually, and `loomhttp.ValidateResponseContract` checks responses returned
+by implemented callbacks. The application remains responsible for payloads,
+fakes, and state that make every declared response reachable.
 
 ## Unions, Views, and Projections
 
@@ -279,6 +286,7 @@ together so their version pins remain aligned.
 ```bash
 go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2
 loom version
+loom import openapi openapi.yaml -o design
 loom gen <module-import-path>/design
 loom example <module-import-path>/design
 ```

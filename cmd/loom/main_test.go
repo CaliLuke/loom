@@ -33,7 +33,8 @@ func TestCmdLine(t *testing.T) {
 		ExpectedOutput  string
 		ExpectedDebug   bool
 	}{
-		"gen": {"gen " + testPkg, false, "gen", testPkg, ".", false},
+		"gen":           {"gen " + testPkg, false, "gen", testPkg, ".", false},
+		"test scaffold": {"test-scaffold " + testPkg, false, "test-scaffold", testPkg, ".", false},
 
 		"invalid":     {"invalid " + testPkg, true, "", "", "", false},
 		"empty":       {"", true, "", "", "", false},
