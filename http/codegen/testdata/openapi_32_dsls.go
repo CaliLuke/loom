@@ -75,7 +75,7 @@ var OpenAPI32FeaturesDSL = func() {
 		Method("purge", func() {
 			Result(String)
 			HTTP(func() {
-				Route("PURGE", "/books")
+				Route("purge", "/books")
 			})
 		})
 		Method("connect", func() {

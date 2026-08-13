@@ -2,6 +2,7 @@ package expr_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -35,6 +36,53 @@ route HEAD "/" of service "DisallowResponseBody" HTTP endpoint "Method": HTTP st
 					t.Errorf("got error %q\nexpected %q", got, c.Error)
 				}
 			}
+		})
+	}
+}
+
+func TestHTTPRouteMethodTokenValidation(t *testing.T) {
+	valid := []string{
+		"PURGE",
+		"m-search",
+		"X!#$%&'*+-.^_`|~9",
+	}
+	for _, method := range valid {
+		t.Run("valid "+method, func(t *testing.T) {
+			root := expr.RunDSL(t, routeMethodDSL(method))
+			route := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0]
+			if got, want := route.Method, strings.ToUpper(method); got != want {
+				t.Errorf("route method = %q, want %q", got, want)
+			}
+		})
+	}
+
+	invalid := []string{
+		"",
+		"BAD METHOD",
+		"BAD/METHOD",
+		"BAD\nMETHOD",
+		"MÉTHODE",
+	}
+	for _, method := range invalid {
+		t.Run("invalid "+method, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, routeMethodDSL(method))
+			got := stripValidationLocations(err.Error())
+			want := fmt.Sprintf("HTTP method %q is invalid: must be a non-empty RFC 9110 token", strings.ToUpper(method))
+			if !strings.Contains(got, want) {
+				t.Errorf("got error %q\nexpected it to contain %q", got, want)
+			}
+		})
+	}
+}
+
+func routeMethodDSL(method string) func() {
+	return func() {
+		Service("MethodToken", func() {
+			Method("Call", func() {
+				HTTP(func() {
+					Route(method, "/call")
+				})
+			})
 		})
 	}
 }

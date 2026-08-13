@@ -35,6 +35,31 @@ func TestHTTPEndpointValidateBodyAndPayloadWithoutPayload(t *testing.T) {
 	}, validationErrorMessages(verr.Errors))
 }
 
+func TestHTTPEndpointPrepareNormalizesRouteMethods(t *testing.T) {
+	previousRoot := Root
+	api := NewAPIExpr("route-method", func() {})
+	Root = &RootExpr{API: api}
+	t.Cleanup(func() {
+		Root = previousRoot
+	})
+
+	serviceExpr := &ServiceExpr{Name: "Service"}
+	service := &HTTPServiceExpr{Root: api.HTTP, ServiceExpr: serviceExpr}
+	method := &MethodExpr{
+		Name:    "Call",
+		Payload: &AttributeExpr{Type: Empty},
+		Result:  &AttributeExpr{Type: Empty},
+		Service: serviceExpr,
+	}
+	endpoint := &HTTPEndpointExpr{MethodExpr: method, Service: service}
+	route := &RouteExpr{Method: "purge", Path: "/cache", Endpoint: endpoint}
+	endpoint.Routes = []*RouteExpr{route}
+
+	endpoint.Prepare()
+
+	require.Equal(t, "PURGE", route.Method)
+}
+
 func validationErrorMessages(errs []error) []string {
 	msgs := make([]string, 0, len(errs))
 	for _, err := range errs {

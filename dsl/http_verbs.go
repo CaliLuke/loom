@@ -80,8 +80,9 @@ func QUERY(path string) *expr.RouteExpr {
 	return route("QUERY", path)
 }
 
-// Route creates a route using an extension HTTP method. Use the dedicated verb
-// helpers for standard methods, including QUERY.
+// Route creates a route using an extension HTTP method. The method must be a
+// non-empty RFC 9110 token and is normalized to uppercase. Use the dedicated
+// verb helpers for standard methods, including QUERY.
 func Route(method, path string) *expr.RouteExpr {
 	return route(method, path)
 }

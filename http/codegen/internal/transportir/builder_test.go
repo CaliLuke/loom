@@ -62,6 +62,23 @@ func TestBuildEndpointPlainHTTP(t *testing.T) {
 	require.Equal(t, "header", endpoint.Security.Parameters[0].In)
 }
 
+func TestBuildEndpointUsesCanonicalExtensionMethod(t *testing.T) {
+	root := testcodegen.RunDSL(t, func() {
+		dsl.Service("widgets", func() {
+			dsl.Method("purge", func() {
+				dsl.HTTP(func() {
+					dsl.Route("purge", "/widgets")
+				})
+			})
+		})
+	})
+
+	exprRoute := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0]
+	require.Equal(t, "PURGE", exprRoute.Method)
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+	require.Equal(t, "PURGE", endpoint.Routes[0].Method)
+}
+
 func TestBuildEndpointJSONRPCPost(t *testing.T) {
 	endpoint := firstJSONRPCEndpoint(t, func() {
 		dsl.API("jsonrpc-post", func() {

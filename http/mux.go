@@ -106,8 +106,14 @@ func NewMuxer() ResolverMuxer {
 	}
 }
 
-// wildPath matches a wildcard path segment.
-var wildPath = regexp.MustCompile(`/{\*([a-zA-Z0-9_]+)}`)
+var (
+	// wildPath matches a wildcard path segment.
+	wildPath = regexp.MustCompile(`/{\*([a-zA-Z0-9_]+)}`)
+
+	// chi.RegisterMethod mutates package-global state without synchronization.
+	// Serialize Loom registrations so multiple muxes can mount custom methods.
+	methodRegistrationMu sync.Mutex
+)
 
 // Handle registers the handler function for the given method and pattern.
 // It sets r.Pattern on every matched request to "METHOD /path" (matching the Go
@@ -137,6 +143,9 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 		pattern = wildPath.ReplaceAllString(pattern, "/*")
 		m.wildcards[method+"::"+pattern] = wildcards[1]
 	}
+	methodRegistrationMu.Lock()
+	defer methodRegistrationMu.Unlock()
+	chi.RegisterMethod(method)
 	m.Method(method, pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Pattern = reqPattern
 		handler(w, r)

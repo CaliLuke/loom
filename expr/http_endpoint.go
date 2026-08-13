@@ -165,6 +165,7 @@ func (e *HTTPEndpointExpr) Prepare() {
 		return
 	}
 	e.prepared = true
+	e.normalizeRouteMethods()
 	e.initTransportAttributes()
 	e.inheritTransportAttributes()
 	e.ensureRouteParams()
@@ -173,6 +174,12 @@ func (e *HTTPEndpointExpr) Prepare() {
 	e.inheritHTTPErrors()
 	e.forceWebSocketRouteMethod()
 	e.prepareResponses()
+}
+
+func (e *HTTPEndpointExpr) normalizeRouteMethods() {
+	for _, route := range e.Routes {
+		route.Method = strings.ToUpper(route.Method)
+	}
 }
 
 // EvalName returns the generic definition name used in error messages.
@@ -185,6 +192,7 @@ func (r *RouteExpr) EvalName() string {
 // in an absolute route.
 func (r *RouteExpr) Validate() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	r.validateMethod(verr)
 
 	// Make sure route params are defined in the method payload
 	if rparams := r.Params(); len(rparams) > 0 {
@@ -243,6 +251,31 @@ func (r *RouteExpr) Validate() *eval.ValidationErrors {
 		}
 	}
 	return verr
+}
+
+func (r *RouteExpr) validateMethod(verr *eval.ValidationErrors) {
+	if !validHTTPMethodToken(r.Method) {
+		verr.Add(r, "HTTP method %q is invalid: must be a non-empty RFC 9110 token", r.Method)
+	}
+}
+
+func validHTTPMethodToken(method string) bool {
+	if method == "" {
+		return false
+	}
+	for i := 0; i < len(method); i++ {
+		char := method[i]
+		if ('a' <= char && char <= 'z') || ('A' <= char && char <= 'Z') || ('0' <= char && char <= '9') {
+			continue
+		}
+		switch char {
+		case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // Params returns all the route parameters across all the base paths. For

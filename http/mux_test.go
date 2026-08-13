@@ -72,6 +72,37 @@ func TestMiddlewares(t *testing.T) {
 	}
 }
 
+func TestMuxExtensionMethods(t *testing.T) {
+	methods := []string{"QUERY", "PURGE"}
+	for _, method := range methods {
+		t.Run(method, func(t *testing.T) {
+			m := NewMuxer()
+			m.Handle(method, "/items", func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, method, r.Method)
+				w.WriteHeader(http.StatusNoContent)
+			})
+
+			r := httptest.NewRequest(method, "/items", nil)
+			w := httptest.NewRecorder()
+			m.ServeHTTP(w, r)
+			assert.Equal(t, http.StatusNoContent, w.Code)
+		})
+	}
+}
+
+func TestMuxExtensionMethodRegistrationIsConcurrentSafe(t *testing.T) {
+	const method = "REINDEX"
+	for range 8 {
+		t.Run("mux", func(t *testing.T) {
+			t.Parallel()
+			m := NewMuxer()
+			m.Handle(method, "/items", func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusNoContent)
+			})
+		})
+	}
+}
+
 func TestMuxUseAfterHandlePanicsWithLoomDiagnostic(t *testing.T) {
 	m := NewMuxer().(*mux)
 	m.Handle(http.MethodGet, "/", func(http.ResponseWriter, *http.Request) {})

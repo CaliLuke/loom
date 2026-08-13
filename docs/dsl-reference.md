@@ -370,7 +370,7 @@ All OpenAPI 3.2 additions use the same design and renderer:
 | Feature | DSL or metadata |
 |---------|-----------------|
 | Tag summary, hierarchy, and kind | `openapi:tag:<name>:summary`, `:parent`, and `:kind` on the API or HTTP service |
-| QUERY and extension methods | `QUERY("/path")` and `Route("PURGE", "/path")`; CONNECT is emitted through `additionalOperations` |
+| QUERY and extension methods | `QUERY("/path")` and `Route("purge", "/path")`; extension methods must be non-empty RFC 9110 tokens and are normalized to uppercase; CONNECT is emitted through `additionalOperations` |
 | Whole query string | `MapParams(...)` emits `in: querystring` with form content in 3.2 |
 | Sequential and streaming media | SSE, `application/jsonl`, and `application/json-seq` use `itemSchema` automatically; use `openapi:itemSchema` for other sequential media such as `multipart/mixed` |
 | Reusable media types | `openapi:component:mediaType` on a body or result type |
@@ -409,7 +409,7 @@ Method("search", func() {
 
 Method("purge", func() {
     HTTP(func() {
-        Route("PURGE", "/cache")
+        Route("purge", "/cache")
     })
 })
 ```
