@@ -171,8 +171,8 @@
     "title": "Collaboration Streams API",
     "version": "0.0.1"
   },
-  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
-  "openapi": "3.1.1",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
   "paths": {
     "/threads/{thread_id}": {
       "get": {
@@ -241,8 +241,24 @@
           "200": {
             "content": {
               "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/WatchThreadResponseBody"
+                "itemSchema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "contentMediaType": "application/json",
+                      "contentSchema": {
+                        "$ref": "#/components/schemas/WatchThreadResponseBody"
+                      },
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
                 }
               }
             },
@@ -344,6 +360,7 @@
   },
   "servers": [
     {
+      "name": "collab-streams",
       "url": "https://api.collab-streams.example.test"
     }
   ],

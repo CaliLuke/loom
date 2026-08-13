@@ -9,8 +9,8 @@
     "title": "Ops Socket API",
     "version": "0.0.1"
   },
-  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
-  "openapi": "3.1.1",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
   "paths": {
     "/ws/ops/{channel}": {
       "get": {
@@ -108,6 +108,7 @@
   },
   "servers": [
     {
+      "name": "ops-socket",
       "url": "https://api.ops-socket.example.test"
     }
   ],

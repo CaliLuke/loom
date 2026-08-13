@@ -128,6 +128,7 @@ func TestRenderUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 	body := renderUnionUnmarshalJSONBody(data)
 
 	require.Contains(t, body, `return loom.MissingFieldError("value", "body")`)
+	require.Contains(t, body, `len(raw.Value) == 0 || string(raw.Value) == "null"`)
 	require.Contains(t, body, `return loom.InvalidEnumValueError("type", raw.Type, []any{`)
 	require.NotContains(t, body, `unexpected Selection type`)
 }

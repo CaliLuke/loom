@@ -143,3 +143,23 @@ func ClientCredentialsFlow(tokenURL, refreshURL string) {
 		RefreshURL: refreshURL,
 	})
 }
+
+// DeviceAuthorizationFlow defines an OAuth 2 device authorization flow as
+// described by RFC 8628. It must be used in OAuth2Security.
+func DeviceAuthorizationFlow(deviceAuthorizationURL, tokenURL, refreshURL string) {
+	current, ok := eval.Current().(*expr.SchemeExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	if current.Kind != expr.OAuth2Kind {
+		eval.ReportError("cannot specify flow for non-oauth2 security scheme.")
+		return
+	}
+	current.Flows = append(current.Flows, &expr.FlowExpr{
+		Kind:                   expr.DeviceAuthorizationFlowKind,
+		DeviceAuthorizationURL: deviceAuthorizationURL,
+		TokenURL:               tokenURL,
+		RefreshURL:             refreshURL,
+	})
+}

@@ -12,8 +12,8 @@ aliases:
 Loom is a design-first framework for building services in Go. Define your API
 once using Loom's DSL, then generate service interfaces, endpoint wrappers,
 transport adapters, clients, and machine-consumable contracts from that design.
-Loom emphasizes HTTP, JSON-RPC, streaming behavior, stronger OpenAPI 3.1
-output, and continued gRPC support.
+Loom emphasizes HTTP, JSON-RPC, streaming behavior, OpenAPI 3.2 with a
+version-gated 3.1 compatibility target, and continued gRPC support.
 
 ### Key Features
 
@@ -22,7 +22,7 @@ output, and continued gRPC support.
 - **Type Safety** — End-to-end type safety from design to implementation
 - **Multi-Transport** — Support for HTTP, JSON-RPC, and gRPC from a single design
 - **Validation** — Built-in request validation based on your design
-- **Contracts** — Auto-generated OpenAPI 3.1 specifications for HTTP APIs
+- **Contracts** — Auto-generated OpenAPI 3.2 specifications with optional 3.1 compatibility
 
 ## How Loom Works
 
@@ -55,7 +55,7 @@ loom gen myservice/design
 - Service interfaces and endpoint wrappers
 - Server adapters with request routing and validation
 - Type-safe client libraries
-- OpenAPI 3.1 specifications for HTTP APIs
+- OpenAPI 3.2 specifications for HTTP APIs, or 3.1 compatibility output
 - JSON-RPC transport code when `JSONRPC` is used
 - Protocol Buffer definitions (for gRPC)
 - Transport encoders/decoders
@@ -82,7 +82,7 @@ func (s *helloService) SayHello(ctx context.Context, name string) (string, error
 | You Write | Loom Generates |
 |-----------|---------------|
 | `design/*.go` — API definitions | `gen/` — All transport code |
-| `service.go` — Business logic | OpenAPI 3.1 specifications |
+| `service.go` — Business logic | OpenAPI 3.2 or 3.1 compatibility specifications |
 | `cmd/*/main.go` — Server startup | Protocol Buffer definitions |
 | Tests and custom middleware | Request validation |
 

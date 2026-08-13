@@ -102,7 +102,8 @@ loom gen hello/design
 This creates a `gen` folder containing:
 - Service interfaces and endpoints
 - HTTP transport layer (handlers, encoders, decoders)
-- OpenAPI 3.1 specifications under `gen/http/openapi.{json,yaml}`
+- OpenAPI 3.2 specifications under `gen/http/openapi.{json,yaml}`; set API
+  metadata `Meta("openapi:version", "3.1")` for compatibility output
 - Client code
 
 Now scaffold a working implementation:

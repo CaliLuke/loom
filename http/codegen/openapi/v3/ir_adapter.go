@@ -119,12 +119,18 @@ func responseFromIR(response *openapiir.Response) *Response {
 		return nil
 	}
 	desc := response.Description
+	var description *string
+	if !response.OmitDescription {
+		description = &desc
+	}
 	return &Response{
-		Description: &desc,
-		Headers:     headersFromIR(response.Headers),
-		Content:     mediaTypesFromIR(response.Content),
-		Links:       responseLinksFromIR(response.Links),
-		Extensions:  cloneStringAnyMap(response.Extensions),
+		Summary:                  response.Summary,
+		Description:              description,
+		Headers:                  headersFromIR(response.Headers),
+		Content:                  mediaTypesFromIR(response.Content),
+		Links:                    responseLinksFromIR(response.Links),
+		Extensions:               cloneStringAnyMap(response.Extensions),
+		CompatibilityDescription: desc,
 	}
 }
 
@@ -188,12 +194,13 @@ func headerRefFromIR(header *openapiir.HeaderRef) *HeaderRef {
 		return &HeaderRef{Ref: header.Ref}
 	}
 	return &HeaderRef{Value: &Header{
-		Description: header.Value.Description,
-		Required:    header.Value.Required,
-		Schema:      openapiir.RenderSchema(header.Value.Schema),
-		Example:     header.Value.Example,
-		Examples:    examplesFromIR(header.Value.Examples),
-		Extensions:  cloneStringAnyMap(header.Value.Extensions),
+		Description:   header.Value.Description,
+		Required:      header.Value.Required,
+		AllowReserved: header.Value.AllowReserved,
+		Schema:        openapiir.RenderSchema(header.Value.Schema),
+		Example:       header.Value.Example,
+		Examples:      examplesFromIR(header.Value.Examples),
+		Extensions:    cloneStringAnyMap(header.Value.Extensions),
 	}}
 }
 
@@ -219,20 +226,21 @@ func parameterRefFromIR(parameter *openapiir.ParameterRef) *ParameterRef {
 		return nil
 	}
 	return &ParameterRef{Value: &Parameter{
-		Name:            parameter.Value.Name,
-		In:              parameter.Value.In,
-		Description:     parameter.Value.Description,
-		Style:           parameter.Value.Style,
-		Explode:         parameter.Value.Explode,
-		AllowEmptyValue: parameter.Value.AllowEmptyValue,
-		AllowReserved:   parameter.Value.AllowReserved,
-		Deprecated:      parameter.Value.Deprecated,
-		Required:        parameter.Value.Required,
-		Schema:          openapiir.RenderSchema(parameter.Value.Schema),
-		Example:         parameter.Value.Example,
-		Examples:        examplesFromIR(parameter.Value.Examples),
-		Content:         mediaTypesFromIR(parameter.Value.Content),
-		Extensions:      cloneStringAnyMap(parameter.Value.Extensions),
+		Name:             parameter.Value.Name,
+		In:               parameter.Value.In,
+		Description:      parameter.Value.Description,
+		Style:            parameter.Value.Style,
+		Explode:          parameter.Value.Explode,
+		AllowEmptyValue:  parameter.Value.AllowEmptyValue,
+		AllowReserved:    parameter.Value.AllowReserved,
+		Deprecated:       parameter.Value.Deprecated,
+		Required:         parameter.Value.Required,
+		Schema:           openapiir.RenderSchema(parameter.Value.Schema),
+		Example:          parameter.Value.Example,
+		Examples:         examplesFromIR(parameter.Value.Examples),
+		Content:          mediaTypesFromIR(parameter.Value.Content),
+		WholeQueryString: parameter.Value.WholeQueryString,
+		Extensions:       cloneStringAnyMap(parameter.Value.Extensions),
 	}}
 }
 
@@ -242,12 +250,19 @@ func mediaTypesFromIR(mediaTypes map[string]*openapiir.MediaType) map[string]*Me
 	}
 	out := make(map[string]*MediaType, len(mediaTypes))
 	for contentType, mediaType := range mediaTypes {
-		out[contentType] = &MediaType{
-			Schema:     openapiir.RenderSchema(mediaType.Schema),
-			Example:    mediaType.Example,
-			Examples:   examplesFromIR(mediaType.Examples),
-			Extensions: cloneStringAnyMap(mediaType.Extensions),
+		converted := &MediaType{
+			Schema:        openapiir.RenderSchema(mediaType.Schema),
+			Example:       mediaType.Example,
+			Examples:      examplesFromIR(mediaType.Examples),
+			ComponentName: mediaType.ComponentName,
+			Extensions:    cloneStringAnyMap(mediaType.Extensions),
 		}
+		applyMediaTypeMetadata(converted, mediaType.Metadata)
+		switch contentType {
+		case "application/jsonl", "application/json-seq":
+			converted.UseItemSchema = true
+		}
+		out[contentType] = converted
 	}
 	return out
 }
@@ -279,10 +294,22 @@ func exampleRefFromIR(example *openapiir.ExampleRef) *ExampleRef {
 		return nil
 	}
 	return &ExampleRef{Value: &Example{
-		Summary:     example.Value.Summary,
-		Description: example.Value.Description,
-		Value:       example.Value.Value,
+		Summary:            example.Value.Summary,
+		Description:        example.Value.Description,
+		Value:              example.Value.Value,
+		DataValue:          example.Value.DataValue,
+		SerializedValue:    example.Value.SerializedValue,
+		CompatibilityValue: firstNonNil(example.Value.Value, example.Value.DataValue),
 	}}
+}
+
+func firstNonNil(values ...any) any {
+	for _, value := range values {
+		if value != nil {
+			return value
+		}
+	}
+	return nil
 }
 
 func externalDocsFromIR(docs *openapiir.ExternalDocs) *openapi.ExternalDocs {
@@ -330,6 +357,7 @@ func schemaToIR(schema *openapi.Schema) *openapiir.Schema {
 		Deprecated:            schema.Deprecated,
 		ContentEncoding:       schema.ContentEncoding,
 		ContentMediaType:      schema.ContentMediaType,
+		ContentSchema:         schemaToIR(schema.ContentSchema),
 		PathStart:             schema.PathStart,
 		Links:                 linksToIR(schema.Links),
 		Enum:                  append([]any(nil), schema.Enum...),
@@ -348,6 +376,7 @@ func schemaToIR(schema *openapi.Schema) *openapiir.Schema {
 		AnyOf:                 schemaSliceToIR(schema.AnyOf),
 		OneOf:                 schemaSliceToIR(schema.OneOf),
 		Discriminator:         discriminatorToIR(schema.Discriminator),
+		XML:                   xmlToIR(schema.XML),
 		Extensions:            cloneStringAnyMap(schema.Extensions),
 	}
 	if schema.Media != nil {
@@ -386,8 +415,22 @@ func discriminatorToIR(discriminator *openapi.Discriminator) *openapiir.Discrimi
 		return nil
 	}
 	return &openapiir.Discriminator{
-		PropertyName: discriminator.PropertyName,
-		Mapping:      cloneStringMap(discriminator.Mapping),
+		PropertyName:   discriminator.PropertyName,
+		Mapping:        cloneStringMap(discriminator.Mapping),
+		DefaultMapping: discriminator.DefaultMapping,
+		Optional:       discriminator.Optional,
+	}
+}
+
+func xmlToIR(xml *openapi.XML) *openapiir.XML {
+	if xml == nil {
+		return nil
+	}
+	return &openapiir.XML{
+		Name:      xml.Name,
+		Namespace: xml.Namespace,
+		Prefix:    xml.Prefix,
+		NodeType:  xml.NodeType,
 	}
 }
 

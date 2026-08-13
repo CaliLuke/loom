@@ -12,9 +12,15 @@ import (
 type Tag struct {
 	// Name of the tag.
 	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	// Summary is the short display label for the tag in OpenAPI 3.2.
+	Summary string `json:"summary,omitempty" yaml:"summary,omitempty"`
 	// Description is a short description of the tag.
 	// GFM syntax can be used for rich text representation.
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	// Parent names the tag that contains this tag in OpenAPI 3.2.
+	Parent string `json:"parent,omitempty" yaml:"parent,omitempty"`
+	// Kind classifies the tag in OpenAPI 3.2.
+	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
 	// ExternalDocs is additional external documentation for this tag.
 	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
 	// Extensions defines the OpenAPI extensions.
@@ -53,6 +59,12 @@ func TagsFromExpr(mdata expr.MetaExpr) (tags []*Tag) {
 			switch chunks[3] {
 			case "desc":
 				tag.Description = mdata[key][0]
+			case "summary":
+				tag.Summary = mdata[key][0]
+			case "parent":
+				tag.Parent = mdata[key][0]
+			case "kind":
+				tag.Kind = mdata[key][0]
 			case "url":
 				if tag.ExternalDocs == nil {
 					tag.ExternalDocs = &ExternalDocs{}

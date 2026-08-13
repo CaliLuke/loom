@@ -183,12 +183,14 @@ func buildResponse(resp *transportir.ResponseStatus, statusCode int, bodies map[
 		desc = fmt.Sprintf("%s response.", http.StatusText(statusCode))
 	}
 	return &Response{
-		Description:   desc,
-		ComponentName: metaValue(resp.Meta, "openapi:component:response"),
-		Headers:       headers,
-		Content:       content,
-		Links:         buildResponseLinks(resp.Links, currentService),
-		Extensions:    openapi.ExtensionsFromExpr(resp.Meta),
+		Description:     desc,
+		Summary:         metaValue(resp.Meta, "openapi:summary"),
+		OmitDescription: metaBool(resp.Meta, "openapi:description:omit"),
+		ComponentName:   metaValue(resp.Meta, "openapi:component:response"),
+		Headers:         headers,
+		Content:         content,
+		Links:           buildResponseLinks(resp.Links, currentService),
+		Extensions:      openapi.ExtensionsFromExpr(resp.Meta),
 	}
 }
 
@@ -215,11 +217,24 @@ func trimSentence(text string) string {
 
 func buildMediaType(attr *expr.AttributeExpr, schema *Schema, rand *expr.ExampleGenerator, closeObjects bool) *MediaType {
 	mediaType := &MediaType{
-		Schema:     schema,
-		Extensions: openapi.ExtensionsFromExpr(attr.Meta),
+		Schema:        schema,
+		ComponentName: componentMetaValue(attr, "openapi:component:mediaType"),
+		Metadata:      cloneMeta(attr.Meta),
+		Extensions:    openapi.ExtensionsFromExpr(attr.Meta),
 	}
 	initExamples(mediaType, attr, rand, closeObjects)
 	return mediaType
+}
+
+func cloneMeta(meta expr.MetaExpr) map[string][]string {
+	if len(meta) == 0 {
+		return nil
+	}
+	cloned := make(map[string][]string, len(meta))
+	for key, values := range meta {
+		cloned[key] = append([]string(nil), values...)
+	}
+	return cloned
 }
 
 func headersFromIR(headersIR []*transportir.Header, rand *expr.ExampleGenerator, closeObjects bool) map[string]*HeaderRef {
@@ -234,10 +249,11 @@ func headersFromIR(headersIR []*transportir.Header, rand *expr.ExampleGenerator,
 			continue
 		}
 		header := &Header{
-			Description: child.Description,
-			Required:    child.IsRequiredNoDefault(headerIR.Name),
-			Schema:      analyzer.AnalyzeSchema(child),
-			Extensions:  openapi.ExtensionsFromExpr(child.Meta),
+			Description:   child.Description,
+			Required:      child.IsRequiredNoDefault(headerIR.Name),
+			AllowReserved: metaBool(child.Meta, "openapi:allowReserved"),
+			Schema:        analyzer.AnalyzeSchema(child),
+			Extensions:    openapi.ExtensionsFromExpr(child.Meta),
 		}
 		initExamples(header, child, rand, closeObjects)
 		headers[headerIR.HTTPName] = &HeaderRef{Value: header}
@@ -280,26 +296,20 @@ func initExamples(target interface {
 			if !ok {
 				continue
 			}
-			refs[example.Summary] = &ExampleRef{Value: &Example{
-				Summary:       example.Summary,
-				Description:   example.Description,
-				ComponentName: metaValue(example.Meta, "openapi:component:example"),
-				Value:         val,
-			}}
+			refs[example.Summary] = &ExampleRef{Value: buildExample(example, val)}
 		}
 		if len(refs) > 0 {
 			target.setExamples(refs)
 		}
 	case len(examples) == 1:
 		if val, ok := openAPIExampleValue(attr, examples[0].Value); ok {
-			if componentName := metaValue(examples[0].Meta, "openapi:component:example"); componentName != "" {
+			if componentName := metaValue(examples[0].Meta, "openapi:component:example"); componentName != "" || hasStructuredExampleMetadata(examples[0].Meta) {
+				name := examples[0].Summary
+				if name == "" {
+					name = "default"
+				}
 				target.setExamples(map[string]*ExampleRef{
-					examples[0].Summary: {Value: &Example{
-						Summary:       examples[0].Summary,
-						Description:   examples[0].Description,
-						ComponentName: componentName,
-						Value:         val,
-					}},
+					name: {Value: buildExample(examples[0], val)},
 				})
 				return
 			}
@@ -310,6 +320,29 @@ func initExamples(target interface {
 			target.setExample(val)
 		}
 	}
+}
+
+func buildExample(example *expr.ExampleExpr, value any) *Example {
+	out := &Example{
+		Summary:       example.Summary,
+		Description:   example.Description,
+		ComponentName: metaValue(example.Meta, "openapi:component:example"),
+		Value:         value,
+	}
+	if _, ok := example.Meta["openapi:example:dataValue"]; ok {
+		out.DataValue = value
+		out.Value = nil
+	}
+	if serialized, ok := example.Meta.Last("openapi:example:serializedValue"); ok {
+		out.SerializedValue = serialized
+	}
+	return out
+}
+
+func hasStructuredExampleMetadata(meta expr.MetaExpr) bool {
+	_, dataValue := meta["openapi:example:dataValue"]
+	_, serialized := meta["openapi:example:serializedValue"]
+	return dataValue || serialized
 }
 
 func openAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {

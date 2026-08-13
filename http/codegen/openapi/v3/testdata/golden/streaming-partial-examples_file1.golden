@@ -1,4 +1,4 @@
-openapi: 3.1.1
+openapi: 3.2.0
 info:
     title: Streaming Partial Examples API
     description: Exercises suppression of invalid synthetic examples for streaming responses.
@@ -6,9 +6,10 @@ info:
         name: Apache-2.0
         url: https://www.apache.org/licenses/LICENSE-2.0.html
     version: 0.0.1
-jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
 servers:
-    - url: https://api.streaming-partial-examples.example.test
+    - name: streaming-partial-examples
+      url: https://api.streaming-partial-examples.example.test
 paths:
     /events:
         get:
@@ -17,8 +18,17 @@ paths:
                 "200":
                     content:
                         text/event-stream:
-                            schema:
-                                $ref: '#/components/schemas/RealtimeSSEEvent'
+                            itemSchema:
+                                additionalProperties: false
+                                properties:
+                                    data:
+                                        contentMediaType: application/json
+                                        contentSchema:
+                                            $ref: '#/components/schemas/RealtimeSSEEvent'
+                                        type: string
+                                required:
+                                    - data
+                                type: object
                     description: OK response.
             security: []
             summary: events streamingPartialExamples

@@ -191,6 +191,26 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:generate", "false")
 //	})
 //
+// - "openapi:version" selects the OpenAPI renderer target. Loom emits 3.2 by
+// default. The value "3.1" keeps the same parser, IR, and renderer while
+// omitting 3.2-only sections. Applicable to API only.
+//
+//	var _ = API("MyAPI", func() {
+//	    Meta("openapi:version", "3.1")
+//	})
+//
+// - "openapi:self" sets the OpenAPI 3.2 $self document URI. It is omitted for
+// the 3.1 compatibility target. Applicable to API only.
+//
+// Other OpenAPI 3.2 metadata includes "openapi:itemSchema",
+// "openapi:component:mediaType", "openapi:example:dataValue",
+// "openapi:example:serializedValue", "openapi:allowReserved",
+// "openapi:style", "openapi:oauth2MetadataUrl", "openapi:security:uri",
+// "openapi:description:omit", "openapi:discriminator:optional",
+// "openapi:discriminator:defaultMapping", "openapi:xml:nodeType", and the
+// "openapi:encoding", "openapi:prefixEncoding", and "openapi:itemEncoding"
+// families. See the DSL reference for their scopes and nested-key syntax.
+//
 // - "openapi:json:prefix" specifies the prefix used to format the OpenAPI
 // specification encoded in JSON. It can be used with "openapi:json:indent".
 // Applicable to API only.

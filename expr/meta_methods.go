@@ -65,6 +65,16 @@ func (m *MethodExpr) DeleteMeta(name string) {
 	delete(m.Meta, name)
 }
 
+// AddMeta appends metadata values to the security scheme expression.
+func (s *SchemeExpr) AddMeta(name string, value ...string) {
+	s.Meta = appendMeta(s.Meta, name, value...)
+}
+
+// DeleteMeta removes a metadata entry from the security scheme expression.
+func (s *SchemeExpr) DeleteMeta(name string) {
+	delete(s.Meta, name)
+}
+
 // AddMeta appends metadata values to the HTTP service expression.
 func (s *HTTPServiceExpr) AddMeta(name string, value ...string) {
 	s.Meta = appendMeta(s.Meta, name, value...)

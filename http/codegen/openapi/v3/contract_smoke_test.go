@@ -161,7 +161,14 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		})
 	}
 
-	artifacts := renderOpenAPIArtifacts(t, testdata.RawRequestBodyOpenAPIDSL)
+	// These consumer versions reject the 3.2 version string before processing
+	// the otherwise compatible document, so exercise the renderer's 3.1 target.
+	artifacts := renderOpenAPIArtifactsForVersion(
+		t,
+		testdata.RawRequestBodyOpenAPIDSL,
+		"3.1",
+		openapiv3.OpenAPICompatibilityVersion,
+	)
 	workDir := filepath.Join(t.TempDir(), "contract-smoke")
 	require.NoError(t, os.MkdirAll(workDir, 0o750))
 
@@ -191,9 +198,20 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 
 func renderOpenAPIArtifacts(t *testing.T, dsl func()) renderedOpenAPIArtifacts {
 	t.Helper()
+	return renderOpenAPIArtifactsForVersion(t, dsl, "", openapiv3.OpenAPIVersion)
+}
+
+func renderOpenAPIArtifactsForVersion(t *testing.T, dsl func(), target, want string) renderedOpenAPIArtifacts {
+	t.Helper()
 
 	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, dsl)
+	if target != "" {
+		if root.API.Meta == nil {
+			root.API.Meta = make(map[string][]string)
+		}
+		root.API.Meta["openapi:version"] = []string{target}
+	}
 	oFiles, err := openapiv3.Files(root)
 	require.NoError(t, err)
 
@@ -204,7 +222,7 @@ func renderOpenAPIArtifacts(t *testing.T, dsl func()) renderedOpenAPIArtifacts {
 		section := sections[0]
 		var buf bytes.Buffer
 		require.NoError(t, section.Write(&buf))
-		validateOpenAPI(t, buf.Bytes())
+		validateOpenAPIVersion(t, buf.Bytes(), want)
 		switch filepath.Ext(file.Path) {
 		case ".json":
 			artifacts.JSON = append([]byte(nil), buf.Bytes()...)

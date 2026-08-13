@@ -25,15 +25,17 @@ type (
 		Example      any                `json:"example,omitempty" yaml:"example,omitempty"`
 
 		// Hyper schema
-		Media            *Media  `json:"media,omitempty" yaml:"media,omitempty"`
-		ReadOnly         bool    `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-		WriteOnly        bool    `json:"writeOnly,omitempty" yaml:"writeOnly,omitempty"`
-		Deprecated       bool    `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
-		ContentEncoding  string  `json:"contentEncoding,omitempty" yaml:"contentEncoding,omitempty"`
-		ContentMediaType string  `json:"contentMediaType,omitempty" yaml:"contentMediaType,omitempty"`
-		PathStart        string  `json:"pathStart,omitempty" yaml:"pathStart,omitempty"`
-		Links            []*Link `json:"links,omitempty" yaml:"links,omitempty"`
-		Ref              string  `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+		Media            *Media `json:"media,omitempty" yaml:"media,omitempty"`
+		ReadOnly         bool   `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+		WriteOnly        bool   `json:"writeOnly,omitempty" yaml:"writeOnly,omitempty"`
+		Deprecated       bool   `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
+		ContentEncoding  string `json:"contentEncoding,omitempty" yaml:"contentEncoding,omitempty"`
+		ContentMediaType string `json:"contentMediaType,omitempty" yaml:"contentMediaType,omitempty"`
+		// ContentSchema describes decoded content after applying ContentEncoding and ContentMediaType.
+		ContentSchema *Schema `json:"contentSchema,omitempty" yaml:"contentSchema,omitempty"`
+		PathStart     string  `json:"pathStart,omitempty" yaml:"pathStart,omitempty"`
+		Links         []*Link `json:"links,omitempty" yaml:"links,omitempty"`
+		Ref           string  `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 
 		// Validation
 		Enum                  []any    `json:"enum,omitempty" yaml:"enum,omitempty"`
@@ -55,6 +57,7 @@ type (
 		AnyOf         []*Schema      `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
 		OneOf         []*Schema      `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
 		Discriminator *Discriminator `json:"discriminator,omitempty" yaml:"discriminator,omitempty"`
+		XML           *XML           `json:"xml,omitempty" yaml:"xml,omitempty"`
 
 		// Extensions defines the OpenAPI extensions.
 		Extensions map[string]any `json:"-" yaml:"-"`
@@ -71,8 +74,21 @@ type (
 
 	// Discriminator represents an OpenAPI discriminator object.
 	Discriminator struct {
-		PropertyName string            `json:"propertyName" yaml:"propertyName"`
-		Mapping      map[string]string `json:"mapping,omitempty" yaml:"mapping,omitempty"`
+		PropertyName   string            `json:"propertyName" yaml:"propertyName"`
+		Mapping        map[string]string `json:"mapping,omitempty" yaml:"mapping,omitempty"`
+		DefaultMapping string            `json:"defaultMapping,omitempty" yaml:"defaultMapping,omitempty"`
+		// Optional records that the discriminator property may be omitted in OpenAPI 3.2.
+		Optional bool `json:"-" yaml:"-"`
+	}
+
+	// XML describes how a schema maps to XML nodes.
+	XML struct {
+		Name      string `json:"name,omitempty" yaml:"name,omitempty"`
+		Namespace string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
+		Prefix    string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
+		NodeType  string `json:"nodeType,omitempty" yaml:"nodeType,omitempty"`
+		Attribute bool   `json:"attribute,omitempty" yaml:"attribute,omitempty"`
+		Wrapped   bool   `json:"wrapped,omitempty" yaml:"wrapped,omitempty"`
 	}
 
 	// Link represents a "link" field in a JSON hyper schema.

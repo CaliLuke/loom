@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash"
 	"hash/fnv"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -415,6 +416,28 @@ func applySchemaOpenAPIMetadata(s *Schema, meta expr.MetaExpr) {
 	}
 	if value, ok := meta.Last("openapi:contentMediaType"); ok {
 		s.ContentMediaType = value
+	}
+	if value, ok := meta.Last("openapi:discriminator:defaultMapping"); ok && s.Discriminator != nil {
+		s.Discriminator.DefaultMapping = value
+	}
+	if value, ok := meta.Last("openapi:discriminator:optional"); ok && metaBoolValue(value) && s.Discriminator != nil {
+		s.Discriminator.Optional = true
+		s.Required = slices.DeleteFunc(s.Required, func(name string) bool {
+			return name == s.Discriminator.PropertyName
+		})
+	}
+	for key, assign := range map[string]func(*XML, string){
+		"openapi:xml:name":      func(xml *XML, value string) { xml.Name = value },
+		"openapi:xml:namespace": func(xml *XML, value string) { xml.Namespace = value },
+		"openapi:xml:prefix":    func(xml *XML, value string) { xml.Prefix = value },
+		"openapi:xml:nodeType":  func(xml *XML, value string) { xml.NodeType = value },
+	} {
+		if value, ok := meta.Last(key); ok {
+			if s.XML == nil {
+				s.XML = new(XML)
+			}
+			assign(s.XML, value)
+		}
 	}
 }
 

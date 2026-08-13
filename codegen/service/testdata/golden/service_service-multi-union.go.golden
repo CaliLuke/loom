@@ -220,7 +220,7 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 	switch raw.Type {
 	case string(ValuesKindA):
 		var v *TypeA
-		if len(raw.Value) == 0 {
+		if len(raw.Value) == 0 || string(raw.Value) == "null" {
 			return loom.MissingFieldError("value", "body")
 		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
@@ -230,7 +230,7 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 		u.A = v
 	case string(ValuesKindB):
 		var v *TypeB
-		if len(raw.Value) == 0 {
+		if len(raw.Value) == 0 || string(raw.Value) == "null" {
 			return loom.MissingFieldError("value", "body")
 		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {

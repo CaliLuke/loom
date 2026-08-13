@@ -1,11 +1,12 @@
-openapi: 3.1.1
+openapi: 3.2.0
 info:
     title: Contract Surfaces API
     description: Exercises problem documents, workflow links, and async streaming contracts.
     version: 0.0.1
-jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
 servers:
-    - url: https://api.contract-surfaces.example.test
+    - name: contract-surfaces
+      url: https://api.contract-surfaces.example.test
 paths:
     /threads:
         post:
@@ -90,8 +91,19 @@ paths:
                 "200":
                     content:
                         text/event-stream:
-                            schema:
-                                $ref: '#/components/schemas/OpenAPIThreadEvent'
+                            itemSchema:
+                                additionalProperties: false
+                                properties:
+                                    data:
+                                        contentMediaType: application/json
+                                        contentSchema:
+                                            $ref: '#/components/schemas/OpenAPIThreadEvent'
+                                        type: string
+                                    id:
+                                        type: string
+                                required:
+                                    - data
+                                type: object
                     description: OK response.
                 "404":
                     $ref: '#/components/responses/NotFoundError'

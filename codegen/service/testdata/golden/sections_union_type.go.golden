@@ -187,7 +187,7 @@ func (u *Selection) UnmarshalJSON(data []byte) error {
 	switch raw.Type {
 	case string(SelectionKindText):
 		var v SelectionText
-		if len(raw.Value) == 0 {
+		if len(raw.Value) == 0 || string(raw.Value) == "null" {
 			return loom.MissingFieldError("value", "body")
 		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
@@ -197,7 +197,7 @@ func (u *Selection) UnmarshalJSON(data []byte) error {
 		u.Text = v
 	case string(SelectionKindCount):
 		var v SelectionCount
-		if len(raw.Value) == 0 {
+		if len(raw.Value) == 0 || string(raw.Value) == "null" {
 			return loom.MissingFieldError("value", "body")
 		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {

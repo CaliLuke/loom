@@ -12,7 +12,7 @@
 
 Loom is a design-first Go framework that turns one API definition into service
 interfaces, HTTP, gRPC, and JSON-RPC transports, type-safe clients, CLIs, and
-OpenAPI 3.1 contracts.
+OpenAPI 3.2 contracts with an optional OpenAPI 3.1 compatibility target.
 
 [Quick start](#quick-start) · [Documentation](docs/_index.md) ·
 [Go reference](https://pkg.go.dev/github.com/CaliLuke/loom) ·
@@ -20,8 +20,10 @@ OpenAPI 3.1 contracts.
 
 ## Why Loom?
 
-- **Contracts you can build against.** Loom emits OpenAPI 3.1.1 using JSON
-  Schema 2020-12. Representative contracts are parsed with `libopenapi`, linted
+- **Contracts you can build against.** Loom emits OpenAPI 3.2.0 by default from
+  one shared contract model. Set `Meta("openapi:version", "3.1")` to make the
+  same renderer omit 3.2-only members while keeping the canonical output paths.
+  Representative contracts are parsed with `libopenapi`, linted
   with Redocly, and compiled through `openapi-typescript` and `oapi-codegen` in
   [consumer smoke tests](http/codegen/openapi/v3/contract_smoke_test.go#L140).
 - **One design, multiple transports.** The same service model drives HTTP,
@@ -41,7 +43,7 @@ OpenAPI 3.1 contracts.
 | `design/*.go` API definitions | Service interfaces and endpoint wrappers |
 | Business logic | HTTP, gRPC, and JSON-RPC servers and clients |
 | Application wiring and tests | Request validation, CLIs, and transport code |
-| Transport policy in the DSL | OpenAPI 3.1 and Protocol Buffer definitions |
+| Transport policy in the DSL | OpenAPI 3.2, optional 3.1 compatibility, and Protocol Buffer definitions |
 
 Design files are the source of truth. Generated files live under `gen/`; your
 business logic stays in ordinary, non-generated Go files.
@@ -54,7 +56,7 @@ the resulting service interface.
 
 Loom is intended for teams that specifically need:
 
-- OpenAPI 3.1 and JSON Schema 2020-12 as a tested machine-facing contract;
+- OpenAPI 3.2 with a version-gated 3.1 compatibility target as a tested machine-facing contract;
 - reusable contract components, request/response schema separation, and
   explicit async metadata;
 - RFC 9457 HTTP errors and framework-owned session, CORS, streaming, and

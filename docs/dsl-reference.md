@@ -98,9 +98,10 @@ Attribute("event", OneOf(Created, Deleted), func() {
 When a union is used as an optional object attribute, generated Go types expose
 it as a pointer. Leaving the pointer nil omits the JSON property; setting it
 still requires a valid discriminator and matching branch value. Required union
-attributes retain their value-type API.
+attributes retain their value-type API. Canonical JSON decoding rejects both a
+missing `value` property and an explicit `"value": null`.
 
-For OpenAPI 3.1, Loom renders supported union schemas as `oneOf` references to
+For OpenAPI 3.1 and 3.2, Loom renders supported union schemas as `oneOf` references to
 generated branch-envelope components and includes an OpenAPI discriminator with
 stable tag-to-component mappings. Custom `oneof:type:field` and
 `oneof:value:field` metadata changes the discriminator field and branch payload
@@ -334,11 +335,20 @@ var _ = API("exampleAPI", func() {
 
 ### OpenAPI Metadata
 
-Loom emits OpenAPI 3.1 for HTTP APIs. The most commonly used metadata keys are:
+Loom emits OpenAPI 3.2.0 by default. There is one DSL parser, one shared IR,
+and one renderer. Set `Meta("openapi:version", "3.1")` at API scope when a
+consumer requires OpenAPI 3.1.1; the renderer omits only members whose minimum
+version is 3.2 and continues emitting the surrounding compatible contract. Both
+targets use the canonical `gen/http/openapi.json` and
+`gen/http/openapi.yaml` paths.
+
+The most commonly used metadata keys are:
 
 | Key | Scope | Purpose |
 |-----|-------|---------|
 | `openapi:generate` | API, server, host, service, method, file server, attribute | Disable OpenAPI emission for a scope with `"false"` |
+| `openapi:version` | API | Select `"3.1"` compatibility output; 3.2 is the default |
+| `openapi:self` | API | Set the OpenAPI 3.2 `$self` document URI |
 | `openapi:operationId` | API, service, method | Customize generated operation IDs |
 | `openapi:summary` | Method | Set operation summary |
 | `openapi:tag:<name>` | HTTP service or method | Define or assign OpenAPI tags |
@@ -352,6 +362,63 @@ Loom emits OpenAPI 3.1 for HTTP APIs. The most commonly used metadata keys are:
 | `openapi:component:parameter` | Attribute | Hoist and name reusable parameters |
 | `openapi:component:response` | HTTP response | Hoist and name reusable responses |
 | `openapi:component:example` | Example | Hoist and name reusable examples |
+
+#### OpenAPI 3.2 features
+
+All OpenAPI 3.2 additions use the same design and renderer:
+
+| Feature | DSL or metadata |
+|---------|-----------------|
+| Tag summary, hierarchy, and kind | `openapi:tag:<name>:summary`, `:parent`, and `:kind` on the API or HTTP service |
+| QUERY and extension methods | `QUERY("/path")` and `Route("PURGE", "/path")`; CONNECT is emitted through `additionalOperations` |
+| Whole query string | `MapParams(...)` emits `in: querystring` with form content in 3.2 |
+| Sequential and streaming media | SSE, `application/jsonl`, and `application/json-seq` use `itemSchema` automatically; use `openapi:itemSchema` for other sequential media such as `multipart/mixed` |
+| Reusable media types | `openapi:component:mediaType` on a body or result type |
+| Multipart and nested encoding | `openapi:encoding:<property>:<field>`, `openapi:prefixEncoding:<index>:<field>`, and `openapi:itemEncoding:<field>` |
+| Structured examples | `openapi:example:dataValue` and `openapi:example:serializedValue` inside `Example(...)` |
+| OAuth device flow | `DeviceAuthorizationFlow(deviceURL, tokenURL, refreshURL)` |
+| Security metadata | `openapi:oauth2MetadataUrl`, `openapi:deprecated`, and `openapi:security:uri` on a security scheme |
+| Optional discriminator and fallback | `openapi:discriminator:optional` and `openapi:discriminator:defaultMapping` on a `OneOf` |
+| XML node mapping | `openapi:xml:name`, `:namespace`, `:prefix`, and `:nodeType`; valid node types are `element`, `attribute`, `text`, `cdata`, and `none` |
+| Response metadata | `openapi:summary` and `openapi:description:omit` inside `Response(...)` |
+| Reserved characters and cookie serialization | `openapi:allowReserved` on parameters or headers and `openapi:style` set to `cookie` on cookies |
+| Server names | The DSL `Server(...)` name is emitted as the OpenAPI Server Object `name` |
+
+Encoding metadata fields may be `contentType`, `style`, `explode`, or
+`allowReserved`. Nest another `encoding:<property>`,
+`prefixEncoding:<index>`, or `itemEncoding` segment before the field to describe
+nested content, for example
+`openapi:itemEncoding:encoding:id:style`.
+
+```go
+var DeviceAuth = OAuth2Security("device", func() {
+    DeviceAuthorizationFlow(deviceURL, tokenURL, refreshURL)
+    Meta("openapi:oauth2MetadataUrl", metadataURL)
+})
+
+Method("search", func() {
+    HTTP(func() {
+        QUERY("/search")
+    })
+})
+
+Method("purge", func() {
+    HTTP(func() {
+        Route("PURGE", "/cache")
+    })
+})
+```
+
+OpenAPI 3.2 deprecates the XML Object's older `attribute: true` and
+`wrapped: true` forms. Use `openapi:xml:nodeType` instead.
+
+With the 3.1 compatibility target, QUERY and extension-method operations are
+omitted. New fields such as `$self`, tag hierarchy, server names,
+`itemSchema`, reusable media types, nested encodings, security additions,
+response summaries, XML `nodeType`, and discriminator fallbacks are skipped.
+Shared content remains: sequential media falls back to `schema`, reusable media
+is inlined, structured examples fall back to `value`, and `MapParams(...)`
+remains an ordinary query parameter.
 
 Generated OpenAPI component schemas are deduplicated by structural identity.
 When two generated request or response body shapes are equivalent, Loom emits a
@@ -416,6 +483,10 @@ SSE and WebSocket endpoints keep the HTTP handshake modeled as ordinary
 OpenAPI operations. Loom also publishes framework-owned streaming contract
 metadata under `x-loom-async` so downstream tools can discover stream message
 schemas without pretending the OpenAPI response body is a finite JSON payload.
+In 3.2 output, an SSE response additionally uses `itemSchema` to describe each
+parsed event envelope. The envelope's `data` string uses `contentMediaType` and
+`contentSchema` to identify the decoded JSON message schema; `x-loom-async`
+remains available for Loom-specific handshake and field-mapping details.
 
 ---
 

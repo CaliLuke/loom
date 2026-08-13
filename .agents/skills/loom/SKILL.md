@@ -8,7 +8,7 @@ description: Build and maintain `loom` services in Go. Use this skill when a use
 Use this skill when building or changing a service that uses `loom`. It is for framework users: service designers and implementers working from the Loom DSL and generated code.
 
 Loom is a design-first framework that diverged to support AI-first development, stronger
-machine-facing OpenAPI 3.1 contracts, and the framework capabilities needed to
+machine-facing OpenAPI 3.2 contracts with 3.1 compatibility, and the framework capabilities needed to
 build Auto-K without repeating large amounts of app-local glue.
 
 ## Non-Negotiables
@@ -39,10 +39,25 @@ build Auto-K without repeating large amounts of app-local glue.
 
 ## Loom Contract Rules
 
-- `loom` emits OpenAPI 3.1 / JSON Schema 2020-12 only. The canonical artifacts are `gen/http/openapi.json` and `gen/http/openapi.yaml`.
+- `loom` emits OpenAPI 3.2.0 by default at the canonical
+  `gen/http/openapi.json` and `gen/http/openapi.yaml` paths. There is one DSL
+  parser, one shared IR, and one renderer. API metadata
+  `Meta("openapi:version", "3.1")` selects compatibility output by omitting
+  only 3.2-only members during rendering; it does not invoke a second generator
+  or write side-by-side artifacts.
+- Route version-dependent render shapes through `versionedConstructor` ranges.
+  A missing range omits an additive feature; a newer matching `from` range
+  overrides an older open-ended constructor, so incompatible future shapes stay
+  local to the affected construct.
 - Generated JSON artifacts, including `gen/http/openapi.json` and
   `gen/loom.json`, end with exactly one LF. OpenAPI JSON remains compact by
   default unless prefix or indentation metadata requests formatted output.
+- OpenAPI 3.2 support includes native QUERY and extension methods, querystring
+  parameters, sequential `itemSchema`, reusable media types, nested encodings,
+  structured examples, tag hierarchy, server/document identity, device OAuth,
+  URI security schemes, response metadata, XML node types, and discriminator
+  fallbacks. Keep each addition in the shared IR and gate only its emitted
+  member for the 3.1 compatibility target.
 - Treat OpenAPI output shape as framework contract. Stable schema names, canonical `operationId`, and `libopenapi` validation are intentional behavior, not incidental formatting.
 - When changing OpenAPI contract generation in `loom`, start in
   `http/codegen/openapi/internal/ir` first. That package now owns schema,
@@ -125,7 +140,10 @@ build Auto-K without repeating large amounts of app-local glue.
 - Generated OpenAPI keeps SSE endpoints on ordinary HTTP success responses instead of rewriting them to WebSocket `101` semantics, and advertises those responses as `text/event-stream` rather than `application/json`.
 - Generated OpenAPI also publishes framework-owned async streaming contracts
   under `x-loom-async` for SSE and WebSocket endpoints, with inline message
-  schemas plus truthful handshake metadata.
+  schemas plus truthful handshake metadata. Default 3.2 output also describes
+  each parsed SSE envelope with native `itemSchema`; its `data` string uses
+  `contentMediaType` and `contentSchema` for the decoded JSON payload. Keep
+  `x-loom-async` because it carries richer Loom handshake and field mappings.
 - Generated OpenAPI normalizes binary (`Bytes`) examples to string form; do not expect byte-array literals in emitted OpenAPI examples.
 - The OpenAPI regression gate in `http/codegen/openapi/v3` now includes
   Redocly lint plus downstream `openapi-typescript` and `oapi-codegen` smoke
@@ -134,7 +152,8 @@ build Auto-K without repeating large amounts of app-local glue.
 - `OneOf(...)` works both as a named union declaration and as a type constructor.
 - Optional object attributes whose type is `OneOf(...)` generate as pointers so
   nil represents absence without invoking union marshaling; required unions
-  retain their value-type API.
+  retain their value-type API. Canonical JSON decoding rejects both a missing
+  union value and explicit JSON `null`.
 - Explicit union discriminator tags control the wire value even when schema/type names are renamed for OpenAPI purposes.
 - When modeling alternate transport/tool result shapes, prefer a canonical `ResultType` plus `View(...)` definitions over hand-maintained sibling DTO copies.
 - Result views inherit canonical requiredness. Use `ViewRequired(...)` and
@@ -354,7 +373,8 @@ build Auto-K without repeating large amounts of app-local glue.
   frame I/O and close-control behavior. Keep JSON-RPC-specific pending request
   correlation in generated code, but route socket lifecycle fixes through the
   shared runtime.
-- If a consumer compares OpenAPI outputs, verify it reads the OpenAPI 3.1 artifacts before changing framework code.
+- If a consumer compares OpenAPI outputs, verify whether it uses default 3.2 or
+  `Meta("openapi:version", "3.1")` compatibility output before changing framework code.
 - If a union-related change looks wrong, inspect both `OneOf(...)` usage and explicit discriminator tags before changing codegen.
 - If the task touches generated transport errors, confirm whether remediation metadata should flow through the contract before adding ad hoc fields.
 

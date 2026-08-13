@@ -250,8 +250,8 @@
     "title": "Contract Surfaces API",
     "version": "0.0.1"
   },
-  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
-  "openapi": "3.1.1",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
   "paths": {
     "/threads": {
       "post": {
@@ -381,8 +381,24 @@
           "200": {
             "content": {
               "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/OpenAPIThreadEvent"
+                "itemSchema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "contentMediaType": "application/json",
+                      "contentSchema": {
+                        "$ref": "#/components/schemas/OpenAPIThreadEvent"
+                      },
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
                 }
               }
             },
@@ -605,6 +621,7 @@
   },
   "servers": [
     {
+      "name": "contract-surfaces",
       "url": "https://api.contract-surfaces.example.test"
     }
   ],

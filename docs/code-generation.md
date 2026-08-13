@@ -491,6 +491,13 @@ var _ = API("MyAPI", func() {
     
     // Disable example generation
     Meta("openapi:example", "false")
+
+    // OpenAPI 3.2 is the default. Set 3.1 only for compatibility consumers;
+    // the same renderer skips 3.2-only sections.
+    Meta("openapi:version", "3.1")
+
+    // OpenAPI 3.2 document identity (omitted by the 3.1 target)
+    Meta("openapi:self", "https://example.com/openapi.json")
 })
 
 var _ = Service("UserService", func() {

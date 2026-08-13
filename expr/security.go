@@ -47,6 +47,8 @@ const (
 	PasswordFlowKind
 	// ClientCredentialsFlowKind identifies a OAuth Client Credentials flow.
 	ClientCredentialsFlowKind
+	// DeviceAuthorizationFlowKind identifies an OAuth 2 device authorization flow.
+	DeviceAuthorizationFlowKind
 )
 
 type (
@@ -128,6 +130,8 @@ type (
 		TokenURL string
 		// RefreshURL to be used for obtaining refresh token.
 		RefreshURL string
+		// DeviceAuthorizationURL starts a device authorization flow.
+		DeviceAuthorizationURL string
 	}
 
 	// ScopeExpr defines a security scope.
@@ -340,6 +344,9 @@ func (f *FlowExpr) Validate() *eval.ValidationErrors {
 	if _, err := url.Parse(f.RefreshURL); err != nil {
 		verr.Add(f, "invalid refresh URL %q: %s", f.RefreshURL, err)
 	}
+	if _, err := url.Parse(f.DeviceAuthorizationURL); err != nil {
+		verr.Add(f, "invalid device authorization URL %q: %s", f.DeviceAuthorizationURL, err)
+	}
 	return verr
 }
 
@@ -354,6 +361,8 @@ func (f *FlowExpr) Type() string {
 		return "password"
 	case ClientCredentialsFlowKind:
 		return "client_credentials"
+	case DeviceAuthorizationFlowKind:
+		return "device_authorization"
 	default:
 		panic(fmt.Sprintf("unknown flow kind: %#v", f.Kind)) // bug
 	}

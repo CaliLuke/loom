@@ -63,6 +63,12 @@ type (
 		Ref   string
 		Value *SecurityScheme
 	}
+
+	// MediaTypeRef represents an OpenAPI reference to a Media Type object.
+	MediaTypeRef struct {
+		Ref   string
+		Value *MediaType
+	}
 )
 
 func (r *ParameterRef) MarshalJSON() ([]byte, error)      { return marshalJSONRef(r.Ref, r.Value) }
@@ -73,6 +79,7 @@ func (r *ExampleRef) MarshalJSON() ([]byte, error)        { return marshalJSONRe
 func (r *LinkRef) MarshalJSON() ([]byte, error)           { return marshalJSONRef(r.Ref, r.Value) }
 func (r *RequestBodyRef) MarshalJSON() ([]byte, error)    { return marshalJSONRef(r.Ref, r.Value) }
 func (r *SecuritySchemeRef) MarshalJSON() ([]byte, error) { return marshalJSONRef(r.Ref, r.Value) }
+func (r *MediaTypeRef) MarshalJSON() ([]byte, error)      { return marshalJSONRef(r.Ref, r.Value) }
 
 func (r *ParameterRef) MarshalYAML() (any, error)      { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *ResponseRef) MarshalYAML() (any, error)       { return marshalYAMLRef(r.Ref, r.Value) }
@@ -82,6 +89,7 @@ func (r *ExampleRef) MarshalYAML() (any, error)        { return marshalYAMLRef(r
 func (r *LinkRef) MarshalYAML() (any, error)           { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *RequestBodyRef) MarshalYAML() (any, error)    { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *SecuritySchemeRef) MarshalYAML() (any, error) { return marshalYAMLRef(r.Ref, r.Value) }
+func (r *MediaTypeRef) MarshalYAML() (any, error)      { return marshalYAMLRef(r.Ref, r.Value) }
 
 func (r *ParameterRef) UnmarshalJSON(d []byte) error   { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
 func (r *ResponseRef) UnmarshalJSON(d []byte) error    { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
@@ -91,6 +99,9 @@ func (r *ExampleRef) UnmarshalJSON(d []byte) error     { return unmarshalJSONRef
 func (r *LinkRef) UnmarshalJSON(d []byte) error        { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
 func (r *RequestBodyRef) UnmarshalJSON(d []byte) error { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
 func (r *SecuritySchemeRef) UnmarshalJSON(d []byte) error {
+	return unmarshalJSONRef(d, &r.Ref, &r.Value)
+}
+func (r *MediaTypeRef) UnmarshalJSON(d []byte) error {
 	return unmarshalJSONRef(d, &r.Ref, &r.Value)
 }
 
@@ -116,6 +127,9 @@ func (r *RequestBodyRef) UnmarshalYAML(u func(any) error) error {
 	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
 }
 func (r *SecuritySchemeRef) UnmarshalYAML(u func(any) error) error {
+	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
+}
+func (r *MediaTypeRef) UnmarshalYAML(u func(any) error) error {
 	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
 }
 

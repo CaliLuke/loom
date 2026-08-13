@@ -16,10 +16,8 @@ import (
 )
 
 const (
-	// OpenAPIVersion is the OpenAPI specification version targeted by this package.
-	OpenAPIVersion = "3.1.1"
 	// JSONSchemaDialect is the JSON Schema dialect advertised by the generated spec.
-	JSONSchemaDialect = "https://json-schema.org/draft/2020-12/schema"
+	JSONSchemaDialect = "https://spec.openapis.org/oas/3.1/dialect/base"
 )
 
 var (
@@ -34,13 +32,25 @@ const (
 // New returns the OpenAPI v3 specification for the given API.
 // It returns nil if the design does not define HTTP endpoints.
 func New(root *expr.RootExpr) *OpenAPI {
+	target := openAPIVersion32
+	if root != nil && root.API != nil {
+		if configured, err := targetOpenAPIVersion(root.API.Meta); err == nil {
+			target = configured
+		}
+	}
+	return newForVersion(root, target)
+}
+
+func newForVersion(root *expr.RootExpr, target openAPIVersion) *OpenAPI {
 	if root == nil || root.API == nil || root.API.HTTP == nil || len(root.API.HTTP.Services) == 0 {
 		// No HTTP transport
 		return nil
 	}
 
 	disableOpenAPIExamples(root.API)
-	return buildDocument(root)
+	spec := buildDocument(root)
+	renderOpenAPI(root, spec, target)
+	return spec
 }
 
 // buildInfo builds the OpenAPI Info object.
@@ -274,6 +284,15 @@ func assignPathOperation(paths map[string]*PathItem, key, method string, operati
 		path.Head = operation
 	case "PATCH":
 		path.Patch = operation
+	case "TRACE":
+		path.Trace = operation
+	case "QUERY":
+		path.Query = operation
+	default:
+		if path.AdditionalOperations == nil {
+			path.AdditionalOperations = make(map[string]*Operation)
+		}
+		path.AdditionalOperations[method] = operation
 	}
 }
 
@@ -465,6 +484,7 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 			}
 
 			server = &Server{
+				Name:        svr.Name,
 				URL:         string(uExpr),
 				Description: svr.Description,
 				Variables:   serverVariable,
@@ -478,6 +498,7 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 // buildSecurityScheme builds the OpenAPI SecurityScheme object from the
 // top-level security scheme definition.
 func buildSecurityScheme(se *expr.SchemeExpr) *SecurityScheme {
+	extensions := openapi.ExtensionsFromExpr(se.Meta)
 	var scheme *SecurityScheme
 	switch se.Kind {
 	case expr.BasicAuthKind:
@@ -485,7 +506,7 @@ func buildSecurityScheme(se *expr.SchemeExpr) *SecurityScheme {
 			Type:        "http",
 			Scheme:      "basic",
 			Description: se.Description,
-			Extensions:  openapi.ExtensionsFromExpr(se.Meta),
+			Extensions:  extensions,
 		}
 	case expr.APIKeyKind:
 		scheme = &SecurityScheme{
@@ -493,58 +514,67 @@ func buildSecurityScheme(se *expr.SchemeExpr) *SecurityScheme {
 			Description: se.Description,
 			In:          se.In,
 			Name:        se.Name,
-			Extensions:  openapi.ExtensionsFromExpr(se.Meta),
+			Extensions:  extensions,
 		}
 	case expr.JWTKind:
 		scheme = &SecurityScheme{
 			Type:        "http",
 			Scheme:      "bearer",
 			Description: se.Description,
-			Extensions:  openapi.ExtensionsFromExpr(se.Meta),
+			Extensions:  extensions,
 		}
 	case expr.OAuth2Kind:
-		scopes := make(map[string]string, len(se.Scopes))
-		for _, scope := range se.Scopes {
-			scopes[scope.Name] = scope.Description
-		}
-		var flows OAuthFlows
-		for _, f := range se.Flows {
-			switch f.Kind {
-			case expr.AuthorizationCodeFlowKind:
-				flows.AuthorizationCode = &OAuthFlow{
-					AuthorizationURL: f.AuthorizationURL,
-					TokenURL:         f.TokenURL,
-					RefreshURL:       f.RefreshURL,
-					Scopes:           scopes,
-				}
-			case expr.ClientCredentialsFlowKind:
-				flows.ClientCredentials = &OAuthFlow{
-					TokenURL:   f.TokenURL,
-					RefreshURL: f.RefreshURL,
-					Scopes:     scopes,
-				}
-			case expr.ImplicitFlowKind:
-				flows.Implicit = &OAuthFlow{
-					AuthorizationURL: f.AuthorizationURL,
-					RefreshURL:       f.RefreshURL,
-					Scopes:           scopes,
-				}
-			case expr.PasswordFlowKind:
-				flows.Password = &OAuthFlow{
-					TokenURL:   f.TokenURL,
-					RefreshURL: f.RefreshURL,
-					Scopes:     scopes,
-				}
-			}
-		}
 		scheme = &SecurityScheme{
 			Type:        "oauth2",
 			Description: se.Description,
-			Flows:       &flows,
-			Extensions:  openapi.ExtensionsFromExpr(se.Meta),
+			Flows:       buildOAuthFlows(se),
+			Extensions:  extensions,
 		}
 	}
+	if scheme != nil {
+		scheme.OAuth2MetadataURL = metaFirst(se.Meta, "openapi:oauth2MetadataUrl")
+		scheme.Deprecated = metaBool(se.Meta, "openapi:deprecated")
+	}
 	return scheme
+}
+
+func buildOAuthFlows(se *expr.SchemeExpr) *OAuthFlows {
+	scopes := make(map[string]string, len(se.Scopes))
+	for _, scope := range se.Scopes {
+		scopes[scope.Name] = scope.Description
+	}
+	flows := new(OAuthFlows)
+	for _, flow := range se.Flows {
+		assignOAuthFlow(flows, flow, scopes)
+	}
+	return flows
+}
+
+func assignOAuthFlow(flows *OAuthFlows, flow *expr.FlowExpr, scopes map[string]string) {
+	value := &OAuthFlow{
+		AuthorizationURL:       flow.AuthorizationURL,
+		TokenURL:               flow.TokenURL,
+		RefreshURL:             flow.RefreshURL,
+		DeviceAuthorizationURL: flow.DeviceAuthorizationURL,
+		Scopes:                 scopes,
+	}
+	switch flow.Kind {
+	case expr.AuthorizationCodeFlowKind:
+		flows.AuthorizationCode = value
+	case expr.ClientCredentialsFlowKind:
+		flows.ClientCredentials = value
+	case expr.ImplicitFlowKind:
+		flows.Implicit = value
+	case expr.PasswordFlowKind:
+		flows.Password = value
+	case expr.DeviceAuthorizationFlowKind:
+		flows.DeviceAuthorization = value
+	}
+}
+
+func metaBool(meta expr.MetaExpr, key string) bool {
+	value, ok := meta.Last(key)
+	return ok && value != "false"
 }
 
 // buildTags builds the OpenAPI Tag object from the API expression.

@@ -45,21 +45,22 @@ type (
 
 	// Parameter describes an IR parameter object.
 	Parameter struct {
-		Name            string
-		In              string
-		ComponentName   string `json:"-"`
-		Description     string
-		Style           string
-		Explode         *bool
-		AllowEmptyValue bool
-		AllowReserved   bool
-		Deprecated      bool
-		Required        bool
-		Schema          *Schema
-		Example         any
-		Examples        map[string]*ExampleRef
-		Content         map[string]*MediaType
-		Extensions      map[string]any
+		Name             string
+		In               string
+		ComponentName    string `json:"-"`
+		Description      string
+		Style            string
+		Explode          *bool
+		AllowEmptyValue  bool
+		AllowReserved    bool
+		Deprecated       bool
+		Required         bool
+		Schema           *Schema
+		Example          any
+		Examples         map[string]*ExampleRef
+		Content          map[string]*MediaType
+		WholeQueryString bool
+		Extensions       map[string]any
 	}
 
 	// RequestBodyRef is a request body reference or value.
@@ -85,12 +86,14 @@ type (
 
 	// Response describes an IR response.
 	Response struct {
-		Description   string
-		ComponentName string `json:"-"`
-		Headers       map[string]*HeaderRef
-		Content       map[string]*MediaType
-		Links         map[string]*ResponseLinkRef
-		Extensions    map[string]any
+		Description     string
+		Summary         string
+		OmitDescription bool
+		ComponentName   string `json:"-"`
+		Headers         map[string]*HeaderRef
+		Content         map[string]*MediaType
+		Links           map[string]*ResponseLinkRef
+		Extensions      map[string]any
 	}
 
 	// ResponseLinkRef is a response link reference or value.
@@ -111,10 +114,12 @@ type (
 
 	// MediaType describes an IR media type.
 	MediaType struct {
-		Schema     *Schema
-		Example    any
-		Examples   map[string]*ExampleRef
-		Extensions map[string]any
+		Schema        *Schema
+		Example       any
+		Examples      map[string]*ExampleRef
+		ComponentName string
+		Metadata      map[string][]string
+		Extensions    map[string]any
 	}
 
 	// HeaderRef is a header reference or value.
@@ -125,12 +130,13 @@ type (
 
 	// Header describes an IR header.
 	Header struct {
-		Description string
-		Required    bool
-		Schema      *Schema
-		Example     any
-		Examples    map[string]*ExampleRef
-		Extensions  map[string]any
+		Description   string
+		Required      bool
+		AllowReserved bool
+		Schema        *Schema
+		Example       any
+		Examples      map[string]*ExampleRef
+		Extensions    map[string]any
 	}
 
 	// ExampleRef is an example reference or value.
@@ -141,10 +147,12 @@ type (
 
 	// Example describes an IR example object.
 	Example struct {
-		Summary       string
-		Description   string
-		ComponentName string
-		Value         any
+		Summary         string
+		Description     string
+		ComponentName   string
+		Value           any
+		DataValue       any
+		SerializedValue string
 	}
 
 	// ExternalDocs describes operation-level external documentation.
@@ -184,6 +192,7 @@ type (
 		Deprecated       bool
 		ContentEncoding  string
 		ContentMediaType string
+		ContentSchema    *Schema
 		PathStart        string
 		Links            []*Link
 
@@ -204,6 +213,7 @@ type (
 		AnyOf         []*Schema
 		OneOf         []*Schema
 		Discriminator *Discriminator
+		XML           *XML
 
 		Extensions map[string]any
 	}
@@ -216,8 +226,18 @@ type (
 
 	// Discriminator describes union selection.
 	Discriminator struct {
-		PropertyName string
-		Mapping      map[string]string
+		PropertyName   string
+		Mapping        map[string]string
+		DefaultMapping string
+		Optional       bool
+	}
+
+	// XML describes how a schema maps to XML nodes.
+	XML struct {
+		Name      string
+		Namespace string
+		Prefix    string
+		NodeType  string
 	}
 
 	// Media represents JSON hyper schema media.

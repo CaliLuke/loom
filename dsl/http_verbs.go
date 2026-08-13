@@ -75,6 +75,17 @@ func PATCH(path string) *expr.RouteExpr {
 	return route("PATCH", path)
 }
 
+// QUERY creates a route using the QUERY HTTP method. See GET.
+func QUERY(path string) *expr.RouteExpr {
+	return route("QUERY", path)
+}
+
+// Route creates a route using an extension HTTP method. Use the dedicated verb
+// helpers for standard methods, including QUERY.
+func Route(method, path string) *expr.RouteExpr {
+	return route(method, path)
+}
+
 func route(method, path string) *expr.RouteExpr {
 	r := &expr.RouteExpr{Method: method, Path: path}
 

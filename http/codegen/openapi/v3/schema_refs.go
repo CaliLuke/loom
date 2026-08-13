@@ -22,7 +22,7 @@ func rewritePathItemSchemaRefs(pathItem *PathItem, resolveRef func(string) strin
 	if pathItem == nil {
 		return
 	}
-	for _, op := range []*Operation{pathItem.Get, pathItem.Put, pathItem.Post, pathItem.Delete, pathItem.Options, pathItem.Head, pathItem.Patch} {
+	for _, op := range pathItemOperations(pathItem) {
 		rewriteOperationSchemaRefs(op, resolveRef)
 	}
 }
@@ -100,6 +100,7 @@ func rewriteSchemaRefs(schema *openapi.Schema, resolveRef func(string) string) {
 		return
 	}
 	rewriteSchemaRefs(schema.Items, resolveRef)
+	rewriteSchemaRefs(schema.ContentSchema, resolveRef)
 	for _, prop := range schema.Properties {
 		rewriteSchemaRefs(prop, resolveRef)
 	}
@@ -131,16 +132,7 @@ func collectPathItemSchemaRefs(pathItem *PathItem, addRef func(string)) {
 	if pathItem == nil {
 		return
 	}
-	ops := []*Operation{
-		pathItem.Get,
-		pathItem.Put,
-		pathItem.Post,
-		pathItem.Delete,
-		pathItem.Options,
-		pathItem.Head,
-		pathItem.Patch,
-	}
-	for _, op := range ops {
+	for _, op := range pathItemOperations(pathItem) {
 		collectOperationSchemaRefs(op, addRef)
 	}
 }
@@ -180,6 +172,7 @@ func collectSchemaRefs(schema *openapi.Schema, addRef func(string)) {
 		return
 	}
 	collectSchemaRefs(schema.Items, addRef)
+	collectSchemaRefs(schema.ContentSchema, addRef)
 	for _, prop := range schema.Properties {
 		collectSchemaRefs(prop, addRef)
 	}
@@ -213,6 +206,7 @@ func rewriteMediaTypeSchemaRefs(mediaTypes map[string]*MediaType, resolveRef fun
 			continue
 		}
 		rewriteSchemaRefs(mediaType.Schema, resolveRef)
+		rewriteSchemaRefs(mediaType.ItemSchema, resolveRef)
 	}
 }
 
@@ -222,6 +216,7 @@ func collectOperationMediaTypeSchemaRefs(mediaTypes map[string]*MediaType, addRe
 			continue
 		}
 		collectSchemaRefs(mediaType.Schema, addRef)
+		collectSchemaRefs(mediaType.ItemSchema, addRef)
 	}
 }
 
@@ -245,6 +240,7 @@ func isPureRefSchema(schema *openapi.Schema) bool {
 		!schema.Deprecated &&
 		schema.ContentEncoding == "" &&
 		schema.ContentMediaType == "" &&
+		schema.ContentSchema == nil &&
 		schema.PathStart == "" &&
 		len(schema.Links) == 0 &&
 		len(schema.Enum) == 0 &&
@@ -264,6 +260,7 @@ func isPureRefSchema(schema *openapi.Schema) bool {
 		len(schema.AnyOf) == 0 &&
 		len(schema.OneOf) == 0 &&
 		schema.Discriminator == nil &&
+		schema.XML == nil &&
 		len(schema.Extensions) == 0
 }
 

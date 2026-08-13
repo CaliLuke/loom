@@ -24,7 +24,7 @@ func orderedOperations(pathItem *PathItem) []*Operation {
 	if pathItem == nil {
 		return nil
 	}
-	methods := []string{"CONNECT", "DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"}
+	methods := orderedStringKeys(pathItem.Operations)
 	operations := make([]*Operation, 0, len(methods))
 	for _, method := range methods {
 		operation := pathItem.Operations[method]
@@ -205,10 +205,12 @@ func cloneResponseForHash(response *Response, schemas map[string]*Schema) *Respo
 		return nil
 	}
 	cloned := &Response{
-		Description: response.Description,
-		Headers:     cloneResponseHeaderRefs(response.Headers),
-		Links:       cloneResponseLinkRefs(response.Links),
-		Extensions:  cloneResponseExtensions(response.Extensions),
+		Description:     response.Description,
+		Summary:         response.Summary,
+		OmitDescription: response.OmitDescription,
+		Headers:         cloneResponseHeaderRefs(response.Headers),
+		Links:           cloneResponseLinkRefs(response.Links),
+		Extensions:      cloneResponseExtensions(response.Extensions),
 	}
 	if len(response.Content) > 0 {
 		cloned.Content = make(map[string]*MediaType, len(response.Content))
@@ -250,11 +252,24 @@ func cloneMediaTypeForHash(mediaType *MediaType, schemas map[string]*Schema, cac
 		return nil
 	}
 	return &MediaType{
-		Schema:     normalizeSchemaForHash(mediaType.Schema, schemas, cache, stack),
-		Example:    mediaType.Example,
-		Examples:   cloneResponseExampleRefs(mediaType.Examples),
-		Extensions: cloneResponseExtensions(mediaType.Extensions),
+		Schema:        normalizeSchemaForHash(mediaType.Schema, schemas, cache, stack),
+		Example:       mediaType.Example,
+		Examples:      cloneResponseExampleRefs(mediaType.Examples),
+		ComponentName: mediaType.ComponentName,
+		Metadata:      cloneStringSliceMap(mediaType.Metadata),
+		Extensions:    cloneResponseExtensions(mediaType.Extensions),
 	}
+}
+
+func cloneStringSliceMap(values map[string][]string) map[string][]string {
+	if len(values) == 0 {
+		return nil
+	}
+	cloned := make(map[string][]string, len(values))
+	for key, value := range values {
+		cloned[key] = append([]string(nil), value...)
+	}
+	return cloned
 }
 
 func normalizeSchemaForHash(schema *Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *Schema {
@@ -267,6 +282,7 @@ func normalizeSchemaForHash(schema *Schema, schemas map[string]*Schema, cache ma
 
 	cloned := *schema
 	cloned.Items = normalizeSchemaForHash(schema.Items, schemas, cache, stack)
+	cloned.ContentSchema = normalizeSchemaForHash(schema.ContentSchema, schemas, cache, stack)
 	cloned.Properties = normalizeSchemaMapForHash(schema.Properties, schemas, cache, stack)
 	cloned.Defs = normalizeSchemaMapForHash(schema.Defs, schemas, cache, stack)
 	cloned.AnyOf = normalizeSchemaSliceForHash(schema.AnyOf, schemas, cache, stack)

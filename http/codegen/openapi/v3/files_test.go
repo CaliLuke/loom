@@ -7,9 +7,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/pb33f/libopenapi"
+	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
@@ -18,6 +20,290 @@ import (
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
+
+func TestFilesEmitCanonicalOpenAPI32(t *testing.T) {
+	openapi.Definitions = make(map[string]*openapi.Schema)
+	root := httpgen.RunHTTPDSL(t, testdata.AsyncSessionSecurityDSL)
+	root.API.Meta["openapi:self"] = []string{"https://api.example.com/openapi.json"}
+
+	files, err := openapiv3.Files(root)
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+
+	artifacts := make(map[string][]byte, len(files))
+	for _, file := range files {
+		sections := file.AllSections()
+		require.Len(t, sections, 1)
+		buf := renderSection(t, sections[0])
+		artifacts[file.Path] = append([]byte(nil), buf.Bytes()...)
+	}
+
+	jsonSpec := artifacts[filepath.Join(codegen.Gendir, "http", "openapi.json")]
+	yamlSpec := artifacts[filepath.Join(codegen.Gendir, "http", "openapi.yaml")]
+	require.NotEmpty(t, jsonSpec)
+	require.NotEmpty(t, yamlSpec)
+	validateOpenAPIVersion(t, jsonSpec, openapiv3.OpenAPIVersion)
+	validateOpenAPIVersion(t, yamlSpec, openapiv3.OpenAPIVersion)
+
+	spec := decodeOpenAPIJSON(t, jsonSpec)
+	require.Equal(t, "https://api.example.com/openapi.json", requireString(t, spec["$self"], "OpenAPI document identity"))
+	events := requireOperation(t, spec, "/events/{project_id}", "get")
+	media := requireResponseMediaType(t, events, "text/event-stream")
+	require.NotContains(t, media, "schema")
+	itemSchema := requireMap(t, media["itemSchema"], "SSE item schema")
+	properties := requireMap(t, itemSchema["properties"], "SSE item schema properties")
+	data := requireMap(t, properties["data"], "SSE data schema")
+	require.Equal(t, "string", requireString(t, data["type"], "SSE data type"))
+	require.Equal(t, "application/json", requireString(t, data["contentMediaType"], "SSE data content type"))
+	contentSchema := requireMap(t, data["contentSchema"], "SSE data content schema")
+	require.Equal(t, "#/components/schemas/AsyncSessionRealtimeSSEEvent", requireString(t, contentSchema["$ref"], "SSE data schema ref"))
+	require.Equal(t, "string", requireString(t, requireMap(t, properties["id"], "SSE id schema")["type"], "SSE id type"))
+}
+
+func TestRendererSkipsOpenAPI32OnlySectionsFor31Target(t *testing.T) {
+	tests := []struct {
+		name              string
+		version           string
+		wantVersion       string
+		wantSelf          bool
+		wantServerName    bool
+		wantTagHierarchy  bool
+		wantQuery         bool
+		wantAdditionalOps bool
+	}{
+		{
+			name:              "default 3.2",
+			wantVersion:       openapiv3.OpenAPIVersion,
+			wantSelf:          true,
+			wantServerName:    true,
+			wantTagHierarchy:  true,
+			wantQuery:         true,
+			wantAdditionalOps: true,
+		},
+		{
+			name:        "3.1 compatibility target",
+			version:     "3.1",
+			wantVersion: openapiv3.OpenAPICompatibilityVersion,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			openapi.Definitions = make(map[string]*openapi.Schema)
+			root := httpgen.RunHTTPDSL(t, testdata.OpenAPI32FeaturesDSL)
+			if test.version != "" {
+				root.API.Meta["openapi:version"] = []string{test.version}
+			}
+
+			files, err := openapiv3.Files(root)
+			require.NoError(t, err)
+			require.Len(t, files, 2)
+			buf := renderSection(t, files[0].AllSections()[0])
+			jsonSpec := buf.Bytes()
+			validateOpenAPIVersion(t, jsonSpec, test.wantVersion)
+			spec := decodeOpenAPIJSON(t, jsonSpec)
+
+			require.Equal(t, test.wantSelf, spec["$self"] != nil)
+			servers := requireSlice(t, spec["servers"], "servers")
+			server := requireMap(t, servers[0], "server")
+			require.Equal(t, test.wantServerName, server["name"] != nil)
+			tags := requireSlice(t, spec["tags"], "tags")
+			var hierarchy bool
+			for _, rawTag := range tags {
+				tag := requireMap(t, rawTag, "tag")
+				hierarchy = hierarchy || tag["summary"] != nil || tag["parent"] != nil || tag["kind"] != nil
+			}
+			require.Equal(t, test.wantTagHierarchy, hierarchy)
+
+			paths := requireMap(t, spec["paths"], "paths")
+			books, exists := paths["/books"]
+			if !test.wantQuery && !test.wantAdditionalOps {
+				require.False(t, exists)
+				assertOpenAPI31CompatibilityProjection(t, spec)
+				return
+			}
+			path := requireMap(t, books, "books path")
+			require.Equal(t, test.wantQuery, path["query"] != nil)
+			require.Equal(t, test.wantAdditionalOps, path["additionalOperations"] != nil)
+		})
+	}
+}
+
+func assertOpenAPI31CompatibilityProjection(t *testing.T, spec map[string]any) {
+	t.Helper()
+	require.Equal(t, "https://spec.openapis.org/oas/3.1/dialect/base", spec["jsonSchemaDialect"])
+	paths := requireMap(t, spec["paths"], "paths")
+	require.NotContains(t, paths, "/tunnel")
+	events := requireMap(t, paths["/events"], "events path")
+	get := requireMap(t, events["get"], "events GET")
+	multipart := requireResponseMediaType(t, get, "multipart/mixed")
+	require.NotContains(t, multipart, "$ref")
+	require.NotNil(t, multipart["schema"])
+	require.NotContains(t, multipart, "itemSchema")
+	require.NotContains(t, multipart, "prefixEncoding")
+	require.NotContains(t, multipart, "itemEncoding")
+
+	components := requireMap(t, spec["components"], "components")
+	require.NotContains(t, components, "mediaTypes")
+	schemes := requireMap(t, components["securitySchemes"], "security schemes")
+	require.Contains(t, schemes, "external")
+	device := requireMap(t, schemes["device"], "device security scheme")
+	require.NotContains(t, device, "deprecated")
+	require.NotContains(t, device, "oauth2MetadataUrl")
+	require.NotContains(t, requireMap(t, device["flows"], "OAuth flows"), "deviceAuthorization")
+
+	schemas := requireMap(t, components["schemas"], "schemas")
+	event := requireMap(t, schemas["CatalogEvent"], "CatalogEvent schema")
+	require.NotContains(t, requireMap(t, event["xml"], "CatalogEvent XML"), "nodeType")
+	change := requireMap(t, requireMap(t, event["properties"], "CatalogEvent properties")["change"], "change schema")
+	discriminator := requireMap(t, change["discriminator"], "change discriminator")
+	require.NotContains(t, discriminator, "defaultMapping")
+	require.Contains(t, requireSlice(t, change["required"], "change required fields"), "type")
+
+	parameters := requireOperation(t, spec, "/parameters", "get")
+	requestParameters := requireSlice(t, parameters["parameters"], "parameter operation parameters")
+	requestHeader := findParameter(t, requestParameters, "header", "X-Filter")
+	require.NotContains(t, requestHeader, "allowReserved")
+	requestCookie := findParameter(t, requestParameters, "cookie", "preferences")
+	require.NotContains(t, requestCookie, "allowReserved")
+	require.NotContains(t, requestCookie, "style")
+	parameterResponse := requireMap(t, requireMap(t, parameters["responses"], "parameter responses")["200"], "parameter response")
+	responseHeader := requireMap(t, requireMap(t, parameterResponse["headers"], "parameter response headers")["X-Cursor"], "response header")
+	require.NotContains(t, responseHeader, "allowReserved")
+
+	exampleOperation := requireOperation(t, spec, "/example", "get")
+	exampleMedia := requireResponseMediaType(t, exampleOperation, "application/json")
+	examples := requireMap(t, exampleMedia["examples"], "3.1 examples")
+	structured := resolveExample(t, spec, requireMap(t, examples["structured"], "3.1 structured example"))
+	require.NotNil(t, structured["value"])
+	require.NotContains(t, structured, "dataValue")
+	require.NotContains(t, structured, "serializedValue")
+}
+
+func TestFilesRejectUnsupportedOpenAPIVersion(t *testing.T) {
+	openapi.Definitions = make(map[string]*openapi.Schema)
+	root := httpgen.RunHTTPDSL(t, testdata.SimpleDSL)
+	if root.API.Meta == nil {
+		root.API.Meta = make(map[string][]string)
+	}
+	root.API.Meta["openapi:version"] = []string{"3.3"}
+
+	_, err := openapiv3.Files(root)
+	require.ErrorContains(t, err, `unsupported OpenAPI version "3.3"`)
+}
+
+func TestCanonicalOpenAPI32EmitsEveryNewFeatureFamily(t *testing.T) {
+	openapi.Definitions = make(map[string]*openapi.Schema)
+	root := httpgen.RunHTTPDSL(t, testdata.OpenAPI32FeaturesDSL)
+	files, err := openapiv3.Files(root)
+	require.NoError(t, err)
+	buf := renderSection(t, files[0].AllSections()[0])
+	validateOpenAPIVersion(t, buf.Bytes(), openapiv3.OpenAPIVersion)
+	spec := decodeOpenAPIJSON(t, buf.Bytes())
+	require.Equal(t, "https://spec.openapis.org/oas/3.1/dialect/base", spec["jsonSchemaDialect"])
+
+	paths := requireMap(t, spec["paths"], "paths")
+	books := requireMap(t, paths["/books"], "books path")
+	query := requireMap(t, books["query"], "QUERY operation")
+	require.NotNil(t, books["additionalOperations"])
+	tunnel := requireMap(t, paths["/tunnel"], "tunnel path")
+	require.Contains(t, requireMap(t, tunnel["additionalOperations"], "tunnel additional operations"), "CONNECT")
+	parameters := requireSlice(t, query["parameters"], "QUERY parameters")
+	queryString := requireMap(t, parameters[0], "querystring parameter")
+	require.Equal(t, "querystring", queryString["in"])
+	require.NotNil(t, queryString["content"])
+
+	responses := requireMap(t, query["responses"], "QUERY responses")
+	response := requireMap(t, responses["200"], "QUERY response")
+	require.Equal(t, "Event stream", response["summary"])
+	require.NotContains(t, response, "description")
+	jsonl := requireMap(t, requireMap(t, response["content"], "QUERY response content")["application/jsonl"], "JSONL media type")
+	require.NotNil(t, jsonl["itemSchema"])
+	require.NotContains(t, jsonl, "schema")
+	examples := requireMap(t, jsonl["examples"], "JSONL examples")
+	structured := resolveExample(t, spec, requireMap(t, examples["structured"], "structured example"))
+	require.NotNil(t, structured["dataValue"])
+	require.Equal(t, `{"id":"evt-1"}`, structured["serializedValue"])
+
+	security := requireSlice(t, query["security"], "QUERY security")
+	require.NotEmpty(t, security)
+	require.Contains(t, requireMap(t, security[0], "security requirement"), "https://auth.example.com/security/external")
+	components := requireMap(t, spec["components"], "components")
+	schemes := requireMap(t, components["securitySchemes"], "security schemes")
+	require.NotContains(t, schemes, "external")
+	device := requireMap(t, schemes["device"], "device security scheme")
+	require.Equal(t, true, device["deprecated"])
+	require.Equal(t, "https://auth.example.com/.well-known/oauth-authorization-server", device["oauth2MetadataUrl"])
+	flows := requireMap(t, device["flows"], "OAuth flows")
+	deviceFlow := requireMap(t, flows["deviceAuthorization"], "device authorization flow")
+	require.Equal(t, "https://auth.example.com/device", deviceFlow["deviceAuthorizationUrl"])
+
+	schemas := requireMap(t, components["schemas"], "schemas")
+	event := requireMap(t, schemas["CatalogEvent"], "CatalogEvent schema")
+	xml := requireMap(t, event["xml"], "CatalogEvent XML")
+	require.Equal(t, "element", xml["nodeType"])
+	change := requireMap(t, requireMap(t, event["properties"], "CatalogEvent properties")["change"], "change schema")
+	discriminator := requireMap(t, change["discriminator"], "change discriminator")
+	require.Equal(t, "#/components/schemas/CatalogCreated", discriminator["defaultMapping"])
+	required, _ := change["required"].([]any)
+	require.NotContains(t, required, "type")
+
+	events := requireMap(t, paths["/events"], "events path")
+	get := requireMap(t, events["get"], "events GET")
+	multipart := requireResponseMediaType(t, get, "multipart/mixed")
+	require.Equal(t, "#/components/mediaTypes/CatalogEventStream", multipart["$ref"])
+	mediaTypes := requireMap(t, components["mediaTypes"], "media type components")
+	stream := requireMap(t, mediaTypes["CatalogEventStream"], "CatalogEventStream component")
+	require.NotNil(t, stream["itemSchema"])
+	require.NotNil(t, stream["prefixEncoding"])
+	itemEncoding := requireMap(t, stream["itemEncoding"], "item encoding")
+	nested := requireMap(t, itemEncoding["encoding"], "nested encoding")
+	require.NotNil(t, nested["id"])
+
+	parameterOperation := requireOperation(t, spec, "/parameters", "get")
+	requestParameters := requireSlice(t, parameterOperation["parameters"], "parameter operation parameters")
+	requestHeader := findParameter(t, requestParameters, "header", "X-Filter")
+	require.Equal(t, true, requestHeader["allowReserved"])
+	requestCookie := findParameter(t, requestParameters, "cookie", "preferences")
+	require.Equal(t, true, requestCookie["allowReserved"])
+	require.Equal(t, "cookie", requestCookie["style"])
+	parameterResponse := requireMap(t, requireMap(t, parameterOperation["responses"], "parameter responses")["200"], "parameter response")
+	responseHeader := requireMap(t, requireMap(t, parameterResponse["headers"], "parameter response headers")["X-Cursor"], "response header")
+	require.Equal(t, true, responseHeader["allowReserved"])
+}
+
+func resolveExample(t *testing.T, spec, example map[string]any) map[string]any {
+	t.Helper()
+	ref, _ := example["$ref"].(string)
+	if ref == "" {
+		return example
+	}
+	const prefix = "#/components/examples/"
+	require.True(t, strings.HasPrefix(ref, prefix), "unexpected example reference %q", ref)
+	components := requireMap(t, spec["components"], "components")
+	examples := requireMap(t, components["examples"], "component examples")
+	return requireMap(t, examples[strings.TrimPrefix(ref, prefix)], "component example")
+}
+
+func findParameter(t *testing.T, parameters []any, in, name string) map[string]any {
+	t.Helper()
+	for _, raw := range parameters {
+		parameter := requireMap(t, raw, "parameter")
+		if parameter["in"] == in && parameter["name"] == name {
+			return parameter
+		}
+	}
+	t.Fatalf("parameter %s %q not found", in, name)
+	return nil
+}
+
+func requireResponseMediaType(t *testing.T, operation map[string]any, contentType string) map[string]any {
+	t.Helper()
+	responses := requireMap(t, operation["responses"], "operation responses")
+	response := requireMap(t, responses["200"], "operation response")
+	content := requireMap(t, response["content"], "response content")
+	return requireMap(t, content[contentType], "response media type")
+}
 
 func TestFiles(t *testing.T) {
 	var (
@@ -421,12 +707,17 @@ func TestRenderedSpecClosedObjectModeClosesObjectsAndUsesUnevaluatedPropertiesFo
 }
 
 func validateOpenAPI(t *testing.T, b []byte) {
+	validateOpenAPIVersion(t, b, openapiv3.OpenAPIVersion)
+}
+
+func validateOpenAPIVersion(t *testing.T, b []byte, wantVersion string) {
+	t.Helper()
 	parsed, err := libopenapi.NewDocument(b)
 	if err != nil {
 		t.Fatalf("libopenapi failed to parse generated spec: %s\nspec:\n%s", err, string(b))
 	}
-	if parsed.GetVersion() != openapiv3.OpenAPIVersion {
-		t.Fatalf("libopenapi parsed version %q, expected %q", parsed.GetVersion(), openapiv3.OpenAPIVersion)
+	if parsed.GetVersion() != wantVersion {
+		t.Fatalf("libopenapi parsed version %q, expected %q", parsed.GetVersion(), wantVersion)
 	}
 	if _, err := parsed.BuildV3Model(); err != nil {
 		t.Fatalf("libopenapi failed to build 3.x model: %s\nspec:\n%s", err, string(b))

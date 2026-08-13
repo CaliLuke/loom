@@ -1,11 +1,12 @@
-openapi: 3.1.1
+openapi: 3.2.0
 info:
     title: Async Session Security API
     description: Exercises async streaming contracts secured by cookie-backed session auth.
     version: 0.0.1
-jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
 servers:
-    - url: https://api.async-session-security.example.test
+    - name: async-session-security
+      url: https://api.async-session-security.example.test
 paths:
     /events/{project_id}:
         get:
@@ -23,8 +24,19 @@ paths:
                 "200":
                     content:
                         text/event-stream:
-                            schema:
-                                $ref: '#/components/schemas/AsyncSessionRealtimeSSEEvent'
+                            itemSchema:
+                                additionalProperties: false
+                                properties:
+                                    data:
+                                        contentMediaType: application/json
+                                        contentSchema:
+                                            $ref: '#/components/schemas/AsyncSessionRealtimeSSEEvent'
+                                        type: string
+                                    id:
+                                        type: string
+                                required:
+                                    - data
+                                type: object
                     description: OK response.
             security:
                 - browser_session_cookie: []

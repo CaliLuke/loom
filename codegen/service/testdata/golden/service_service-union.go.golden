@@ -313,7 +313,7 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 	switch raw.Type {
 	case string(ValuesKindInt):
 		var v ValuesInt
-		if len(raw.Value) == 0 {
+		if len(raw.Value) == 0 || string(raw.Value) == "null" {
 			return loom.MissingFieldError("value", "body")
 		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
@@ -323,7 +323,7 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 		u.Int = v
 	case string(ValuesKindString):
 		var v ValuesString
-		if len(raw.Value) == 0 {
+		if len(raw.Value) == 0 || string(raw.Value) == "null" {
 			return loom.MissingFieldError("value", "body")
 		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
@@ -333,7 +333,7 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 		u.String = v
 	case string(ValuesKindBoolean):
 		var v ValuesBoolean
-		if len(raw.Value) == 0 {
+		if len(raw.Value) == 0 || string(raw.Value) == "null" {
 			return loom.MissingFieldError("value", "body")
 		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {
@@ -343,7 +343,7 @@ func (u *Values) UnmarshalJSON(data []byte) error {
 		u.Boolean = v
 	case string(ValuesKindBytes):
 		var v ValuesBytes
-		if len(raw.Value) == 0 {
+		if len(raw.Value) == 0 || string(raw.Value) == "null" {
 			return loom.MissingFieldError("value", "body")
 		}
 		if err := json.Unmarshal(raw.Value, &v); err != nil {

@@ -59,6 +59,7 @@ func collectMediaTypeSchemaRefs(mediaTypes map[string]*MediaType, addRef func(st
 			continue
 		}
 		collectSchemaRefs(mediaType.Schema, addRef)
+		collectSchemaRefs(mediaType.ItemSchema, addRef)
 	}
 }
 

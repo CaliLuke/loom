@@ -96,7 +96,8 @@ func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerat
 						Bool: boolPtr(true),
 					},
 				},
-				Style: "deepObject",
+				Style:            "deepObject",
+				WholeQueryString: true,
 			},
 		})
 	}
@@ -145,13 +146,20 @@ func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *ex
 		In:              in,
 		ComponentName:   componentMetaValue(attr, "openapi:component:parameter"),
 		Description:     attr.Description,
-		AllowEmptyValue: in != "path",
+		AllowEmptyValue: in == "query",
+		AllowReserved:   metaBool(attr.Meta, "openapi:allowReserved"),
+		Style:           metaValue(attr.Meta, "openapi:style"),
 		Required:        required,
 		Schema:          NewAnalyzer(rand, closeObjects).AnalyzeSchema(attr),
 		Extensions:      openapi.ExtensionsFromExpr(attr.Meta),
 	}
 	initExamples(parameter, attr, rand, closeObjects)
 	return &ParameterRef{Value: parameter}
+}
+
+func metaBool(meta expr.MetaExpr, key string) bool {
+	value, ok := meta.Last(key)
+	return ok && value != "false"
 }
 
 func wrapRequestBody(body *RequestBody) *RequestBodyRef {

@@ -43,6 +43,7 @@ func RenderSchema(schema *Schema) *openapi.Schema {
 	out.Deprecated = schema.Deprecated
 	out.ContentEncoding = schema.ContentEncoding
 	out.ContentMediaType = schema.ContentMediaType
+	out.ContentSchema = RenderSchema(schema.ContentSchema)
 	out.PathStart = schema.PathStart
 	out.Links = renderLinks(schema.Links)
 	out.Enum = schema.Enum
@@ -61,6 +62,7 @@ func RenderSchema(schema *Schema) *openapi.Schema {
 	out.AnyOf = renderSchemaSlice(schema.AnyOf)
 	out.OneOf = renderSchemaSlice(schema.OneOf)
 	out.Discriminator = renderDiscriminator(schema.Discriminator)
+	out.XML = renderXML(schema.XML)
 	out.Extensions = cloneMap(schema.Extensions)
 	return out
 }
@@ -135,12 +137,26 @@ func renderDiscriminator(discriminator *Discriminator) *openapi.Discriminator {
 		return nil
 	}
 	out := &openapi.Discriminator{
-		PropertyName: discriminator.PropertyName,
+		PropertyName:   discriminator.PropertyName,
+		DefaultMapping: discriminator.DefaultMapping,
+		Optional:       discriminator.Optional,
 	}
 	if len(discriminator.Mapping) > 0 {
 		out.Mapping = cloneMap(discriminator.Mapping)
 	}
 	return out
+}
+
+func renderXML(xml *XML) *openapi.XML {
+	if xml == nil {
+		return nil
+	}
+	return &openapi.XML{
+		Name:      xml.Name,
+		Namespace: xml.Namespace,
+		Prefix:    xml.Prefix,
+		NodeType:  xml.NodeType,
+	}
 }
 
 func renderMedia(media *Media) *openapi.Media {

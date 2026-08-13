@@ -4,15 +4,14 @@
     "title": "Loom API",
     "version": "0.0.1"
   },
-  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
-  "openapi": "3.1.1",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
   "paths": {
     "/": {
       "post": {
         "operationId": "test_service.test_endpoint",
         "parameters": [
           {
-            "allowEmptyValue": true,
             "example": 1933576090881075000,
             "in": "header",
             "name": "foo",
@@ -23,7 +22,6 @@
             }
           },
           {
-            "allowEmptyValue": true,
             "example": 7595816812588075000,
             "in": "header",
             "name": "bar",
@@ -49,6 +47,7 @@
   "servers": [
     {
       "description": "Default server for test api",
+      "name": "test api",
       "url": "http://localhost:80"
     }
   ],

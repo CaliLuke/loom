@@ -11,9 +11,13 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-// Files returns the OpenAPI 3.1 specification files in JSON and YAML formats.
+// Files returns the configured OpenAPI specification files in JSON and YAML formats.
 func Files(root *expr.RootExpr) ([]*codegen.File, error) {
-	spec := New(root)
+	target, err := targetOpenAPIVersion(root.API.Meta)
+	if err != nil {
+		return nil, err
+	}
+	spec := newForVersion(root, target)
 	jsonSource, err := toJSON(root.API.Meta, spec)
 	if err != nil {
 		return nil, err
