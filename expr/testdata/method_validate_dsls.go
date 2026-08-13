@@ -201,6 +201,62 @@ var ValidCookieOnlyTransportOwnedSessionSecurityDSL = func() {
 	})
 }
 
+var ValidSharedTransportOwnedSessionPayloadDSL = func() {
+	var browserSession = APIKeySecurity("shared_browser_session_cookie")
+	var AppSession = SessionAuth("shared_transport_only_cookie_session", func() {
+		CookieTransport(browserSession, "", func() {
+			CookieName("app_session")
+		})
+	})
+	var SongIDPayload = Type("SongIDPayload", func() {
+		Attribute("song_id", Int)
+	})
+	Service("ValidSharedTransportOwnedSessionPayloadService", func() {
+		SessionSecurity(AppSession)
+		Method("Get", func() {
+			Payload(SongIDPayload)
+		})
+		Method("Download", func() {
+			Payload(SongIDPayload)
+		})
+	})
+}
+
+var ValidCompatibleNamedSessionPayloadDSL = func() {
+	var AppSession = SessionAuth("compatible_named_session", func() {
+		BearerTransport(JWTAuth, "auth")
+	})
+	var CredentialPayload = Type("CredentialPayload", func() {
+		Token("auth", String)
+		Attribute("message", String)
+	})
+	Service("ValidCompatibleNamedSessionPayloadService", func() {
+		Method("SecureMethod", func() {
+			SessionSecurity(AppSession)
+			Payload(CredentialPayload)
+		})
+	})
+}
+
+var ValidMixedOwnedSessionPayloadDSL = func() {
+	var browserSession = APIKeySecurity("mixed_browser_session_cookie")
+	var AppSession = SessionAuth("mixed_owned_session", func() {
+		BearerTransport(JWTAuth, "auth")
+		CookieTransport(browserSession, "", func() {
+			CookieName("app_session")
+		})
+	})
+	var SongIDPayload = Type("SongIDPayload", func() {
+		Attribute("song_id", Int)
+	})
+	Service("ValidMixedOwnedSessionPayloadService", func() {
+		Method("Get", func() {
+			SessionSecurity(AppSession)
+			Payload(SongIDPayload)
+		})
+	})
+}
+
 var ValidAPISessionSecurityDSL = func() {
 	var JWT = JWTSecurity("jwt")
 	var APIKey = APIKeySecurity("api_key")

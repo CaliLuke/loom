@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -281,6 +282,35 @@ func TestCookieOnlyTransportOwnedSessionSecurityOmitsGeneratedCredentialField(t 
 			assert.Contains(t, method.PayloadDef, "Message *string")
 		})
 	}
+}
+
+func TestTransportOwnedSessionSecurityReusesSharedPayloadCodegenType(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.SharedPayloadWithTransportOwnedSessionSecurityDSL)
+	services := NewServicesData(root)
+	service := services.Get("SharedPayloadWithTransportOwnedSessionSecurity")
+	require.NotNil(t, service)
+	get := service.Method("Get")
+	download := service.Method("Download")
+	require.NotNil(t, get)
+	require.NotNil(t, download)
+	require.Equal(t, "SongIDPayload", get.Payload)
+	require.Equal(t, "*SongIDPayload", get.PayloadRef)
+	require.Equal(t, "SongIDPayload", download.Payload)
+	require.Equal(t, "*SongIDPayload", download.PayloadRef)
+	require.NotContains(t, get.PayloadDef, "SessionPayload")
+	require.NotContains(t, download.PayloadDef, "SessionPayload")
+
+	files := Files("github.com/CaliLuke/loom/example", root.Services[0], services, make(map[string][]string))
+	require.NotEmpty(t, files)
+	var rendered bytes.Buffer
+	for _, section := range files[0].AllSections() {
+		require.NoError(t, section.Write(&rendered))
+	}
+	serviceCode := rendered.String()
+	require.Contains(t, serviceCode, "Get(context.Context, *SongIDPayload)")
+	require.Contains(t, serviceCode, "Download(context.Context, *SongIDPayload)")
+	require.Equal(t, 1, strings.Count(serviceCode, "type SongIDPayload struct"))
+	require.NotContains(t, serviceCode, "SessionPayload")
 }
 
 func TestSecureEndpoint(t *testing.T) {

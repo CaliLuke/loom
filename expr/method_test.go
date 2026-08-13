@@ -286,6 +286,37 @@ func TestTransportOwnedCookieSessionSecuritySkipsPayloadInjection(t *testing.T) 
 	assert.Equal(t, "browser_session_cookie", method.Requirements[0].Schemes[0].SchemeName)
 }
 
+func TestTransportOwnedSessionSecurityReusesSharedNamedPayload(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidSharedTransportOwnedSessionPayloadDSL)
+	service := root.Service("ValidSharedTransportOwnedSessionPayloadService")
+	get := service.Method("Get")
+	download := service.Method("Download")
+	require.NotNil(t, get)
+	require.NotNil(t, download)
+	require.Equal(t, "SongIDPayload", get.Payload.Type.Name())
+	require.Equal(t, "SongIDPayload", download.Payload.Type.Name())
+	require.Same(t, get.Payload.Type, download.Payload.Type)
+	require.Nil(t, get.Payload.Find("shared_browser_session_cookie"))
+	require.Nil(t, download.Payload.Find("shared_browser_session_cookie"))
+}
+
+func TestSessionSecurityReusesCompatibleNamedPayload(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidCompatibleNamedSessionPayloadDSL)
+	method := root.Service("ValidCompatibleNamedSessionPayloadService").Method("SecureMethod")
+	require.NotNil(t, method)
+	require.Equal(t, "CredentialPayload", method.Payload.Type.Name())
+	require.NotNil(t, method.Payload.Find("auth"))
+}
+
+func TestSessionSecurityClonesNamedPayloadWhenInjectingField(t *testing.T) {
+	root := expr.RunDSL(t, testdata.ValidMixedOwnedSessionPayloadDSL)
+	method := root.Service("ValidMixedOwnedSessionPayloadService").Method("Get")
+	require.NotNil(t, method)
+	require.Equal(t, "SongIDPayload_Get_SessionPayload", method.Payload.Type.Name())
+	require.NotNil(t, method.Payload.Find("auth"))
+	require.Nil(t, method.Payload.Find("mixed_browser_session_cookie"))
+}
+
 func TestMethodExprError(t *testing.T) {
 	var (
 		errorFoo = &expr.ErrorExpr{

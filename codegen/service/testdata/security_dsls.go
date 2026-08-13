@@ -243,6 +243,30 @@ var EndpointWithCookieOnlyTransportOwnedSessionSecurityDSL = func() {
 	})
 }
 
+var SharedPayloadWithTransportOwnedSessionSecurityDSL = func() {
+	var BrowserSessionCookie = APIKeySecurity("shared_browser_session_cookie", func() {
+		Description("Browser session cookie")
+	})
+	var AppSession = SessionAuth("shared_app_session_cookie_only", func() {
+		CookieTransport(BrowserSessionCookie, "", func() {
+			CookieName("app_session")
+		})
+	})
+	var SongIDPayload = Type("SongIDPayload", func() {
+		Attribute("song_id", Int)
+		Required("song_id")
+	})
+	Service("SharedPayloadWithTransportOwnedSessionSecurity", func() {
+		SessionSecurity(AppSession)
+		Method("Get", func() {
+			Payload(SongIDPayload)
+		})
+		Method("Download", func() {
+			Payload(SongIDPayload)
+		})
+	})
+}
+
 var EndpointWithServiceCookieOnlyTransportOwnedSessionSecurityDSL = func() {
 	var BrowserSessionCookie = APIKeySecurity("service_browser_session_cookie", func() {
 		Description("Browser session cookie")
