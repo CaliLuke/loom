@@ -1,14 +1,26 @@
 package codegen
 
 import (
-	"github.com/CaliLuke/loom/codegen/testutil"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
+
+func TestGeneratedMultipartServerCompiles(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.PayloadMultipartObjectGeneratedOptionalDSL)
+	dir := t.TempDir()
+	repoRoot := runCommand(t, "", "git", "rev-parse", "--show-toplevel")
+	t.Setenv("LOOM_DIR", filepath.Clean(strings.TrimSpace(repoRoot)))
+	renderHTTPModule(t, dir, "example.com/multipartcompile", root)
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "test", "./...")
+}
 
 func TestServerMultipartFuncType(t *testing.T) {
 	const genpkg = "gen"

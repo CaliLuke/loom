@@ -6,7 +6,6 @@ func DecodeMethodMultipartObjectGeneratedOptionalRequest(mux loomhttp.Muxer, _ f
 		var payload *servicemultipartobjectgeneratedoptional.MethodMultipartObjectGeneratedOptionalPayload
 		var (
 			body MethodMultipartObjectGeneratedOptionalRequestBody
-			err  error
 		)
 		mr, multipartErr := r.MultipartReader()
 		if multipartErr != nil {

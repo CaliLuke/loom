@@ -24,7 +24,9 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 {{- else if .Payload.Request.ServerBody }}
 		var (
 			body {{ .Payload.Request.ServerBody.VarName }}
+		{{- if .Payload.Request.NeedsServerErrorVar }}
 			err  error
+		{{- end }}
 		)
 	{{- if .Payload.Request.MultipartGenerated }}
 		mr, multipartErr := r.MultipartReader()

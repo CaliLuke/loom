@@ -309,6 +309,9 @@ type (
 		// MultipartFileFields describes multipart file parts that need explicit
 		// handling during generated request decoding.
 		MultipartFileFields []*MultipartFileFieldData
+		// NeedsServerErrorVar indicates whether the generated server request
+		// decoder uses the shared error accumulator.
+		NeedsServerErrorVar bool
 		// FormEncoded if true indicates the request uses
 		// application/x-www-form-urlencoded.
 		FormEncoded bool

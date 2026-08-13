@@ -223,6 +223,7 @@ func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 		expectDecoder      bool
 		expectGenerated    bool
 		expectFileFieldLen int
+		expectErrorVar     bool
 	}{
 		{
 			name:               "custom multipart decoder required",
@@ -230,6 +231,7 @@ func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 			expectDecoder:      true,
 			expectGenerated:    false,
 			expectFileFieldLen: 0,
+			expectErrorVar:     true,
 		},
 		{
 			name:               "generated multipart object",
@@ -237,6 +239,15 @@ func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 			expectDecoder:      false,
 			expectGenerated:    true,
 			expectFileFieldLen: 1,
+			expectErrorVar:     true,
+		},
+		{
+			name:               "generated optional multipart object",
+			dsl:                testdata.PayloadMultipartObjectGeneratedOptionalDSL,
+			expectDecoder:      false,
+			expectGenerated:    true,
+			expectFileFieldLen: 1,
+			expectErrorVar:     false,
 		},
 	}
 
@@ -251,6 +262,7 @@ func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 			}
 			require.Equal(t, c.expectGenerated, endpoint.Payload.Request.MultipartGenerated)
 			require.Len(t, endpoint.Payload.Request.MultipartFileFields, c.expectFileFieldLen)
+			require.Equal(t, c.expectErrorVar, endpoint.Payload.Request.NeedsServerErrorVar)
 		})
 	}
 }

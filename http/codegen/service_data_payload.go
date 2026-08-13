@@ -133,8 +133,22 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		MultipartFileFields: multipartFiles,
 		FormEncoded:         b.endpointIR.Request.FormEncoded,
 	}
+	request.NeedsServerErrorVar = requestNeedsServerErrorVar(request)
 	request.DecodePlan = newRequestDecodePlan(request)
 	return request, mapQueryParam
+}
+
+func requestNeedsServerErrorVar(request *RequestData) bool {
+	if !request.MultipartGenerated || request.MustValidate ||
+		(request.ServerBody != nil && request.ServerBody.ValidateRef != "") {
+		return true
+	}
+	for _, field := range request.MultipartFileFields {
+		if field.Required {
+			return true
+		}
+	}
+	return false
 }
 
 func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
