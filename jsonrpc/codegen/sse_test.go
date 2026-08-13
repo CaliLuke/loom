@@ -210,6 +210,14 @@ func TestJSONRPCSSEOnlyHandlerOmitsEmptyNotificationSwitch(t *testing.T) {
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-sse-server-handler")
 
 	require.NotContains(t, code, "switch req.Method {\n\t}")
+	require.Contains(t, code, `jsonrpcEnvelopeDecodeError(err)`)
+}
+
+func TestJSONRPCMixedHandlerClassifiesEnvelopeDecodeErrors(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-mixed-server-handler")
+
+	require.Contains(t, code, `jsonrpcEnvelopeDecodeError(err)`)
 }
 
 func TestJSONRPCSSEServiceStreamSendOmitsResponseBranchWithoutID(t *testing.T) {

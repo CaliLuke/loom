@@ -134,9 +134,10 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 		var req jsonrpc.RawRequest
 		if err := s.decoder(r).Decode(&req); err != nil {
-			response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
+			code, message, data := jsonrpcEnvelopeDecodeError(err)
+			response := jsonrpc.MakeErrorResponse(nil, code, message, data)
 			if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
-				s.errhandler(r.Context(), w, fmt.Errorf("failed to encode parse error response: %w", encErr))
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to encode envelope decode error response: %w", encErr))
 			}
 			return
 		}
@@ -201,9 +202,10 @@ func (s *Server) handleSingle(w http.ResponseWriter, r *http.Request) {
 	var req jsonrpc.RawRequest
 	if err := s.decoder(r).Decode(&req); err != nil {
 		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
-		response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
+		code, message, data := jsonrpcEnvelopeDecodeError(err)
+		response := jsonrpc.MakeErrorResponse(nil, code, message, data)
 		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode parse error response: %w", encErr))
+			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode envelope decode error response: %w", encErr))
 		}
 		return
 	}
@@ -215,9 +217,10 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 	var rawReqs []json.RawMessage
 	if err := s.decoder(r).Decode(&rawReqs); err != nil {
 		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCBatch)
-		response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
+		code, message, data := jsonrpcEnvelopeDecodeError(err)
+		response := jsonrpc.MakeErrorResponse(nil, code, message, data)
 		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode parse error response: %w", encErr))
+			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode envelope decode error response: %w", encErr))
 		}
 		return
 	}
@@ -475,12 +478,23 @@ func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc
 	}
 }
 
-// jsonrpcErrorCodeForServiceError classifies framework validation errors as invalid params and all other service errors as internal errors.
+// jsonrpcEnvelopeDecodeError classifies errors raised while decoding a JSON-RPC envelope.
+func jsonrpcEnvelopeDecodeError(err error) (jsonrpc.Code, string, any) {
+	var serviceError *loom.ServiceError
+	if errors.As(err, &serviceError) && serviceError.Name == loom.RequestBodyTooLarge {
+		return jsonrpcErrorCodeForServiceError(serviceError), loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)
+	}
+	return jsonrpc.ParseError, "Parse error", nil
+}
+
+// jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.
 func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
 	if err == nil {
 		return jsonrpc.InternalError
 	}
 	switch err.Name {
+	case loom.RequestBodyTooLarge:
+		return jsonrpc.InvalidRequest
 	case loom.InvalidFieldType, loom.MissingField, loom.InvalidEnumValue, loom.InvalidFormat, loom.InvalidPattern, loom.InvalidRange, loom.InvalidLength, loom.DecodePayload, loom.MissingPayload:
 		return jsonrpc.InvalidParams
 	default:

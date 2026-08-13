@@ -100,6 +100,14 @@ func TestJSONRPCUnmappedServiceErrorsUseInternalError(t *testing.T) {
 	assert.NotContains(t, code, `code = jsonrpc.InvalidParams`)
 }
 
+func TestJSONRPCRequestBodyTooLargeUsesInvalidRequest(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcSingleMethodDSL)
+
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-encode-error")
+	assert.Contains(t, code, `case loom.RequestBodyTooLarge:`)
+	assert.Contains(t, code, `return jsonrpc.InvalidRequest`)
+}
+
 func TestJSONRPCServiceSSESendErrorUsesSafeMappedErrors(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	code := jsonrpcGeneratedCode(t, ServerFiles("", CreateJSONRPCServices(root)))

@@ -92,7 +92,8 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			w:       w,
 			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
-		if err := stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil); err != nil {
+		code, message, data := jsonrpcEnvelopeDecodeError(err)
+		if err := stream.sendError(ctx, nil, code, message, data); err != nil {
 			s.errhandler(ctx, w, err)
 		}
 		return
@@ -327,12 +328,23 @@ func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc
 	}
 }
 
-// jsonrpcErrorCodeForServiceError classifies framework validation errors as invalid params and all other service errors as internal errors.
+// jsonrpcEnvelopeDecodeError classifies errors raised while decoding a JSON-RPC envelope.
+func jsonrpcEnvelopeDecodeError(err error) (jsonrpc.Code, string, any) {
+	var serviceError *loom.ServiceError
+	if errors.As(err, &serviceError) && serviceError.Name == loom.RequestBodyTooLarge {
+		return jsonrpcErrorCodeForServiceError(serviceError), loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)
+	}
+	return jsonrpc.ParseError, "Parse error", nil
+}
+
+// jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.
 func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
 	if err == nil {
 		return jsonrpc.InternalError
 	}
 	switch err.Name {
+	case loom.RequestBodyTooLarge:
+		return jsonrpc.InvalidRequest
 	case loom.InvalidFieldType, loom.MissingField, loom.InvalidEnumValue, loom.InvalidFormat, loom.InvalidPattern, loom.InvalidRange, loom.InvalidLength, loom.DecodePayload, loom.MissingPayload:
 		return jsonrpc.InvalidParams
 	default:

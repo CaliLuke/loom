@@ -33,7 +33,20 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 					jen.Err().Op("!=").Nil(),
 				).BlockFunc(func(eg *jen.Group) {
 					writeSSEErrorStreamInit(eg, streamName)
-					writeSSESendErrorCall(eg, "stream", jen.Nil(), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ParseError"), "Parse error")
+					eg.List(jen.Id("code"), jen.Id("message"), jen.Id("data")).Op(":=").
+						Id("jsonrpcEnvelopeDecodeError").Call(jen.Err())
+					eg.If(
+						jen.Err().Op(":=").Id("stream").Dot("sendError").Call(
+							jen.Id("ctx"),
+							jen.Nil(),
+							jen.Id("code"),
+							jen.Id("message"),
+							jen.Id("data"),
+						),
+						jen.Err().Op("!=").Nil(),
+					).Block(
+						jen.Id("s").Dot("errhandler").Call(jen.Id("ctx"), jen.Id("w"), jen.Err()),
+					)
 					eg.Return()
 				})
 				g.Line()

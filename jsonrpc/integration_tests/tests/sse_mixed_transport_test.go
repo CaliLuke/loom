@@ -145,6 +145,47 @@ func TestJSONRPCMixedSSERejectsCrossOriginPost(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
+func TestJSONRPCMixedRejectsOversizedRequestBody(t *testing.T) {
+	t.Parallel()
+
+	server := startMixedTickServer(t)
+	defer server.Stop() //nolint:errcheck
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	body := strings.NewReader(`{"jsonrpc":"2.0","method":"initialize","params":{"id":"` +
+		strings.Repeat("x", loomhttp.DefaultMaxRequestBodyBytes) + `"},"id":"oversized"}`)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL()+"/rpc", body)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var envelope struct {
+		JSONRPC string `json:"jsonrpc"`
+		ID      any    `json:"id"`
+		Error   struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+			Data    struct {
+				Name string `json:"name"`
+			} `json:"data"`
+		} `json:"error"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&envelope))
+	require.Equal(t, "2.0", envelope.JSONRPC)
+	require.Nil(t, envelope.ID)
+	require.Equal(t, -32600, envelope.Error.Code)
+	require.Equal(t, "request body too large", envelope.Error.Message)
+	require.Equal(t, "request_too_large", envelope.Error.Data.Name)
+}
+
 func TestJSONRPCMixedSSETopLevelServerEmitsErrors(t *testing.T) {
 	t.Parallel()
 

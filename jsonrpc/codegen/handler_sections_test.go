@@ -41,7 +41,18 @@ func TestJSONRPCHandlerSectionRoutesBufferedRequests(t *testing.T) {
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-handler")
 	require.Contains(t, code, `s.handleBatch(w, r)`)
 	require.Contains(t, code, `s.handleSingle(w, r)`)
+	require.Equal(t, 2, strings.Count(code, `jsonrpcEnvelopeDecodeError(err)`))
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-handler-single-method.golden"), code)
+}
+
+func TestJSONRPCEnvelopeDecodeErrorClassification(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcSingleMethodDSL)
+
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-encode-error")
+	require.Contains(t, code, `func jsonrpcEnvelopeDecodeError(err error) (jsonrpc.Code, string, any)`)
+	require.Contains(t, code, `errors.As(err, &serviceError) && serviceError.Name == loom.RequestBodyTooLarge`)
+	require.Contains(t, code, `return jsonrpcErrorCodeForServiceError(serviceError), loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)`)
+	require.Contains(t, code, `return jsonrpc.ParseError, "Parse error", nil`)
 }
 
 func TestJSONRPCProcessRequestBodyValidatesAndDispatches(t *testing.T) {

@@ -117,11 +117,13 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 							jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("r")).Dot("Decode").Call(jen.Op("&").Id("req")),
 							jen.Err().Op("!=").Nil(),
 						).Block(
+							jen.List(jen.Id("code"), jen.Id("message"), jen.Id("data")).Op(":=").
+								Id("jsonrpcEnvelopeDecodeError").Call(jen.Err()),
 							jen.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeErrorResponse").Call(
 								jen.Nil(),
-								jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ParseError"),
-								jen.Lit("Parse error"),
-								jen.Nil(),
+								jen.Id("code"),
+								jen.Id("message"),
+								jen.Id("data"),
 							),
 							jen.If(
 								jen.Id("encErr").Op(":=").Id("s").Dot("encoder").Call(jen.Id("r").Dot("Context").Call(), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
@@ -130,7 +132,7 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 								jen.Id("s").Dot("errhandler").Call(
 									jen.Id("r").Dot("Context").Call(),
 									jen.Id("w"),
-									jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode parse error response: %w"), jen.Id("encErr")),
+									jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode envelope decode error response: %w"), jen.Id("encErr")),
 								),
 							),
 							jen.Return(),

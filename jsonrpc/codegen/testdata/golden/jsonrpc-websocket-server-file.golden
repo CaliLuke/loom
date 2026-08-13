@@ -164,12 +164,14 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) Close() error {
 		return err
 	}
 	return s.conn.Close()
-} // jsonrpcErrorCodeForServiceError classifies framework validation errors as invalid params and all other service errors as internal errors.
+} // jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.
 func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
 	if err == nil {
 		return jsonrpc.InternalError
 	}
 	switch err.Name {
+	case loom.RequestBodyTooLarge:
+		return jsonrpc.InvalidRequest
 	case loom.InvalidFieldType, loom.MissingField, loom.InvalidEnumValue, loom.InvalidFormat, loom.InvalidPattern, loom.InvalidRange, loom.InvalidLength, loom.DecodePayload, loom.MissingPayload:
 		return jsonrpc.InvalidParams
 	default:

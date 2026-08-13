@@ -59,9 +59,10 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 		var req jsonrpc.RawRequest
 		if err := s.decoder(r).Decode(&req); err != nil {
-			response := jsonrpc.MakeErrorResponse(nil, jsonrpc.ParseError, "Parse error", nil)
+			code, message, data := jsonrpcEnvelopeDecodeError(err)
+			response := jsonrpc.MakeErrorResponse(nil, code, message, data)
 			if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
-				s.errhandler(r.Context(), w, fmt.Errorf("failed to encode parse error response: %w", encErr))
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to encode envelope decode error response: %w", encErr))
 			}
 			return
 		}

@@ -16,7 +16,8 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			w:       w,
 			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 		}
-		if err := stream.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil); err != nil {
+		code, message, data := jsonrpcEnvelopeDecodeError(err)
+		if err := stream.sendError(ctx, nil, code, message, data); err != nil {
 			s.errhandler(ctx, w, err)
 		}
 		return

@@ -32,7 +32,7 @@ func addJSONRPCHandleSingleSection(stmt *jen.Statement, data *httpcodegen.Servic
 				jen.Err().Op("!=").Nil(),
 			).BlockFunc(func(g *jen.Group) {
 				g.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("r").Dot("Context").Call()).Dot("Fail").Call(loomtransportRef("ReasonInvalidJSONRPCEnvelope"))
-				writeParseErrorResponse(g, jen.Id("r").Dot("Context").Call())
+				writeJSONRPCEnvelopeDecodeErrorResponse(g, jen.Id("r").Dot("Context").Call())
 				g.Return()
 			}),
 			jen.Id("s").Dot("processRequest").Call(jen.Id("r").Dot("Context").Call(), jen.Id("r"), jen.Op("&").Id("req"), jen.Id("w")),
@@ -63,7 +63,7 @@ func writeJSONRPCBatchDecode(g *jen.Group) {
 		jen.Err().Op("!=").Nil(),
 	).BlockFunc(func(g *jen.Group) {
 		g.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("r").Dot("Context").Call()).Dot("Fail").Call(loomtransportRef("ReasonInvalidJSONRPCBatch"))
-		writeParseErrorResponse(g, jen.Id("r").Dot("Context").Call())
+		writeJSONRPCEnvelopeDecodeErrorResponse(g, jen.Id("r").Dot("Context").Call())
 		g.Return()
 	})
 }
@@ -202,12 +202,14 @@ func writeJSONRPCInvalidRequestCheck(g *jen.Group, condition jen.Code, message j
 	)
 }
 
-func writeParseErrorResponse(g *jen.Group, ctx jen.Code) {
+func writeJSONRPCEnvelopeDecodeErrorResponse(g *jen.Group, ctx jen.Code) {
+	g.List(jen.Id("code"), jen.Id("message"), jen.Id("data")).Op(":=").
+		Id("jsonrpcEnvelopeDecodeError").Call(jen.Err())
 	g.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeErrorResponse").Call(
 		jen.Nil(),
-		jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ParseError"),
-		jen.Lit("Parse error"),
-		jen.Nil(),
+		jen.Id("code"),
+		jen.Id("message"),
+		jen.Id("data"),
 	)
 	g.If(
 		jen.Id("encErr").Op(":=").Id("s").Dot("encoder").Call(ctx, jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
@@ -216,7 +218,7 @@ func writeParseErrorResponse(g *jen.Group, ctx jen.Code) {
 		jen.Id("s").Dot("errhandler").Call(
 			ctx,
 			jen.Id("w"),
-			jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode parse error response: %w"), jen.Id("encErr")),
+			jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode envelope decode error response: %w"), jen.Id("encErr")),
 		),
 	)
 }

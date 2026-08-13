@@ -329,6 +329,7 @@ func jsonrpcServerEncodeErrorSection(serverStruct string) codegen.Section {
 	return codegen.NewJenniferSection("jsonrpc-server-encode-error", func(stmt *jen.Statement) {
 		writeJSONRPCEncodeErrorMethod(stmt, serverStruct)
 		writeJSONRPCEncodeErrorFunction(stmt)
+		writeJSONRPCEnvelopeDecodeErrorClassifier(stmt)
 		writeJSONRPCServiceErrorClassifier(stmt)
 	})
 }
@@ -400,8 +401,38 @@ func writeJSONRPCEncodeErrorFunction(stmt *jen.Statement) {
 	stmt.Line()
 }
 
+func writeJSONRPCEnvelopeDecodeErrorClassifier(stmt *jen.Statement) {
+	stmt.Comment("jsonrpcEnvelopeDecodeError classifies errors raised while decoding a JSON-RPC envelope.").Line()
+	stmt.Func().Id("jsonrpcEnvelopeDecodeError").
+		Params(jen.Id("err").Error()).
+		Params(
+			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "Code"),
+			jen.String(),
+			jen.Any(),
+		).
+		Block(
+			jen.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError")),
+			jen.If(
+				jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError")).
+					Op("&&").Id("serviceError").Dot("Name").Op("==").Add(codegen.Expr("loom.RequestBodyTooLarge")),
+			).Block(
+				jen.Return(
+					jen.Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+					codegen.Expr("loom.ErrorSafeMessage(err)"),
+					codegen.Expr("jsonrpc.NewErrorData(err)"),
+				),
+			),
+			jen.Return(
+				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ParseError"),
+				jen.Lit("Parse error"),
+				jen.Nil(),
+			),
+		)
+	stmt.Line()
+}
+
 func writeJSONRPCServiceErrorClassifier(stmt *jen.Statement) {
-	stmt.Comment("jsonrpcErrorCodeForServiceError classifies framework validation errors as invalid params and all other service errors as internal errors.").Line()
+	stmt.Comment("jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.").Line()
 	stmt.Func().Id("jsonrpcErrorCodeForServiceError").
 		Params(jen.Id("err").Op("*").Add(codegen.TypeRef("loom.ServiceError"))).
 		Qual("github.com/CaliLuke/loom/jsonrpc", "Code").
@@ -410,6 +441,9 @@ func writeJSONRPCServiceErrorClassifier(stmt *jen.Statement) {
 				jen.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")),
 			),
 			jen.Switch(jen.Id("err").Dot("Name")).Block(
+				jen.Case(codegen.Expr("loom.RequestBodyTooLarge")).Block(
+					jen.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidRequest")),
+				),
 				jen.Case(
 					codegen.Expr("loom.InvalidFieldType"),
 					codegen.Expr("loom.MissingField"),
