@@ -21,6 +21,9 @@ func TestHTTPErrorResponseValidation(t *testing.T) {
 		{"array of object in header", arrayObjectErrorResponseWithHeadersDSL, `HTTP response of service "ArrayObjectErrorResponseWithHeaders" HTTP endpoint "Method": Array error type is mapped to an HTTP header but is not an array of primitive types.`},
 		{"map in header", mapErrorTypeResponseWithHeadersDSL, `HTTP response of service "MapErrorTypeResponseWithHeaders" HTTP endpoint "Method": error type must be a primitive type or an array of primitive types.`},
 		{"missing header result attribute", missingHeaderErrorAttributeDSL, `HTTP response of service "MissingHeaderErrorAttribute" HTTP endpoint "Method": header "bar" has no equivalent attribute in error type, use notation 'attribute_name:header_name' to identify corresponding error type attribute.`},
+		{"insecure host cookie", insecureErrorResponseCookieDSL("InsecureHostErrorCookie", "__Host-session", false), `HTTP response of service "InsecureHostErrorCookie" HTTP endpoint "Method": cookie "__Host-session" requires CookieSecure because its name uses the "__Host-" prefix`},
+		{"insecure secure-prefix cookie", insecureErrorResponseCookieDSL("InsecureSecurePrefixErrorCookie", "__Secure-session", false), `HTTP response of service "InsecureSecurePrefixErrorCookie" HTTP endpoint "Method": cookie "__Secure-session" requires CookieSecure because its name uses the "__Secure-" prefix`},
+		{"insecure same-site-none cookie", insecureErrorResponseCookieDSL("InsecureSameSiteNoneErrorCookie", "session", true), `HTTP response of service "InsecureSameSiteNoneErrorCookie" HTTP endpoint "Method": cookie "session" requires CookieSecure when SameSite is None`},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -32,6 +35,28 @@ func TestHTTPErrorResponseValidation(t *testing.T) {
 					t.Errorf("\ngot error %q\nexpected %q", err.Error(), c.Error)
 				}
 			}
+		})
+	}
+}
+
+func insecureErrorResponseCookieDSL(serviceName, cookieName string, sameSiteNone bool) func() {
+	return func() {
+		Service(serviceName, func() {
+			Method("Method", func() {
+				Error("boom", func() {
+					Attribute("session", String)
+				})
+				HTTP(func() {
+					POST("/")
+					Response("boom", StatusConflict, func() {
+						SessionCookie("session:" + cookieName)
+						CookieInsecure()
+						if sameSiteNone {
+							CookieSameSite(CookieSameSiteNone)
+						}
+					})
+				})
+			})
 		})
 	}
 }

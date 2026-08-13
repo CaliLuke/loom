@@ -51,8 +51,14 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 	case *RootExpr:
 		ee = Root.Error(e.Name)
 	}
+	if len(e.Response.Cookies) > 0 {
+		e.Response.validateCookieSecurity(verr)
+	}
+	e.validateHeaders(ee, verr)
+	return verr
+}
 
-	// validate headers
+func (e *HTTPErrorExpr) validateHeaders(ee *ErrorExpr, verr *eval.ValidationErrors) {
 	if e.Response.Headers != nil && !e.Response.Headers.IsEmpty() {
 		verr.Merge(e.Response.Headers.Validate("HTTP error response headers", e.Response))
 		switch {
@@ -82,7 +88,6 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 			verr.Add(e.Response, "error type must be a primitive type or an array of primitive types.")
 		}
 	}
-	return verr
 }
 
 // Finalize looks up the corresponding method error expression.
