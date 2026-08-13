@@ -100,15 +100,19 @@ const (
 	Suffix = ""
 )
 `)
-	writeFile(t, filepath.Join(root, "README.md"),
-		"go install github.com/CaliLuke/loom/cmd/loom@v1.7.1\n")
+	writeVersionDocumentation(t, root, "v1.7.1")
 	writeFile(t, filepath.Join(root, "http/integration_tests/fixtures/ticktock/gen/loom.json"),
 		"{\n  \"loom_version\": \"v1.7.1\"\n}\n")
 
 	changed, err := updateVersionFiles(root, "v1.8.0-alpha.1")
 	require.NoError(t, err)
 	require.Equal(t, []string{
+		".agents/skills/loom/SKILL.md",
 		"README.md",
+		"docs/_index.md",
+		"docs/code-generation.md",
+		"docs/dsl-reference.md",
+		"docs/quickstart.md",
 		"http/integration_tests/fixtures/ticktock/gen/loom.json",
 		"pkg/version.go",
 	}, changed)
@@ -117,7 +121,17 @@ const (
 	require.Contains(t, files["pkg/version.go"], "Minor = 8")
 	require.Contains(t, files["pkg/version.go"], "Build = 0")
 	require.Contains(t, files["pkg/version.go"], `Suffix = "alpha.1"`)
-	require.Contains(t, files["README.md"], "cmd/loom@v1.8.0-alpha.1")
+	for _, path := range []string{
+		".agents/skills/loom/SKILL.md",
+		"README.md",
+		"docs/_index.md",
+		"docs/code-generation.md",
+		"docs/dsl-reference.md",
+		"docs/quickstart.md",
+	} {
+		require.Contains(t, files[path], "v1.8.0-alpha.1", path)
+		require.NotContains(t, files[path], "v1.7.1", path)
+	}
 	require.Contains(t, files["http/integration_tests/fixtures/ticktock/gen/loom.json"],
 		`"loom_version": "v1.8.0-alpha.1"`)
 }
@@ -262,7 +276,7 @@ const (
 	Suffix = ""
 )
 `)
-	writeFile(t, filepath.Join(root, "README.md"), "go install github.com/CaliLuke/loom/cmd/loom@v1.6.2\n")
+	writeVersionDocumentation(t, root, "v1.6.2")
 	for _, transport := range []string{"http", "jsonrpc", "grpc"} {
 		writeFile(t, filepath.Join(root, transport, "integration_tests/fixtures/ticktock/gen/loom.json"),
 			"{\n  \"loom_version\": \"v1.6.2\"\n}\n")
@@ -292,7 +306,11 @@ func snapshotReleaseFiles(t *testing.T, root string) map[string]string {
 		if err != nil {
 			return err
 		}
-		if relative != "pkg/version.go" && relative != "README.md" && !strings.HasSuffix(relative, "gen/loom.json") {
+		if relative != "pkg/version.go" &&
+			relative != "README.md" &&
+			relative != filepath.Join(".agents", "skills", "loom", "SKILL.md") &&
+			!strings.HasPrefix(relative, "docs"+string(filepath.Separator)) &&
+			!strings.HasSuffix(relative, "gen/loom.json") {
 			return nil
 		}
 		contents, err := os.ReadFile(path)
@@ -324,6 +342,30 @@ func writeFile(t *testing.T, path, contents string) {
 
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 	require.NoError(t, os.WriteFile(path, []byte(contents), 0o644))
+}
+
+func writeVersionDocumentation(t *testing.T, root, version string) {
+	t.Helper()
+
+	writeFile(t, filepath.Join(root, "README.md"), strings.Join([]string{
+		"go install github.com/CaliLuke/loom/cmd/loom@" + version,
+		"go get github.com/CaliLuke/loom@" + version,
+	}, "\n"))
+	writeFile(t, filepath.Join(root, ".agents/skills/loom/SKILL.md"),
+		"go install github.com/CaliLuke/loom/cmd/loom@"+version+"\n")
+	writeFile(t, filepath.Join(root, "docs/_index.md"),
+		"> **Recommended release: `"+version+"`.**\n")
+	writeFile(t, filepath.Join(root, "docs/code-generation.md"), strings.Join([]string{
+		"go install github.com/CaliLuke/loom/cmd/loom@" + version,
+		"go get -tool github.com/CaliLuke/loom/cmd/loom@" + version,
+		"go get github.com/CaliLuke/loom/cmd/loom@" + version,
+	}, "\n"))
+	writeFile(t, filepath.Join(root, "docs/quickstart.md"), strings.Join([]string{
+		"go install github.com/CaliLuke/loom/cmd/loom@" + version,
+		"go get github.com/CaliLuke/loom@" + version,
+	}, "\n"))
+	writeFile(t, filepath.Join(root, "docs/dsl-reference.md"),
+		"> **Since: unreleased.**\n")
 }
 
 func gitOutput(t *testing.T, dir string, args ...string) string {

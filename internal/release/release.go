@@ -66,11 +66,7 @@ var (
 		"Minor": regexp.MustCompile(`(?m)^(\s*Minor\s*=\s*)[0-9]+`),
 		"Build": regexp.MustCompile(`(?m)^(\s*Build\s*=\s*)[0-9]+`),
 	}
-	versionSuffixPattern = regexp.MustCompile(`(?m)^(\s*Suffix\s*=\s*)"([^"]*)"`)
-	readmeVersionPattern = regexp.MustCompile(
-		`go install github\.com/CaliLuke/loom/cmd/loom@v[0-9]+\.[0-9]+\.[0-9]+` +
-			`(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?`,
-	)
+	versionSuffixPattern  = regexp.MustCompile(`(?m)^(\s*Suffix\s*=\s*)"([^"]*)"`)
 	fixtureVersionPattern = regexp.MustCompile(
 		`"loom_version"\s*:\s*"v[0-9]+\.[0-9]+\.[0-9]+` +
 			`(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"`,

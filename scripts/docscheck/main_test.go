@@ -90,6 +90,30 @@ func TestCheckDuplicateSkillGuides(t *testing.T) {
 	}, issues)
 }
 
+func TestCheckRecommendedVersion(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "pkg/version.go"), `package loom
+
+const (
+	Major = 1
+	Minor = 8
+	Build = 0
+	Suffix = "alpha.1"
+)
+`)
+	writeDocsVersionFixture(t, root, "v1.8.0-alpha.1")
+	require.Empty(t, checkRecommendedVersion(root))
+
+	writeTestFile(t, filepath.Join(root, "docs/_index.md"),
+		"> **Recommended release: `v1.7.1`.**\n")
+	issues := checkRecommendedVersion(root)
+	require.Equal(t, []string{
+		"docs/_index.md: recommended version v1.7.1 does not match package version v1.8.0-alpha.1",
+	}, issues)
+}
+
 func TestCheckObserverReasons(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -113,4 +137,26 @@ func writeTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+}
+
+func writeDocsVersionFixture(t *testing.T, root, version string) {
+	t.Helper()
+
+	writeTestFile(t, filepath.Join(root, "README.md"), strings.Join([]string{
+		"go install github.com/CaliLuke/loom/cmd/loom@" + version,
+		"go get github.com/CaliLuke/loom@" + version,
+	}, "\n"))
+	writeTestFile(t, filepath.Join(root, ".agents/skills/loom/SKILL.md"),
+		"go install github.com/CaliLuke/loom/cmd/loom@"+version+"\n")
+	writeTestFile(t, filepath.Join(root, "docs/_index.md"),
+		"> **Recommended release: `"+version+"`.**\n")
+	writeTestFile(t, filepath.Join(root, "docs/code-generation.md"), strings.Join([]string{
+		"go install github.com/CaliLuke/loom/cmd/loom@" + version,
+		"go get -tool github.com/CaliLuke/loom/cmd/loom@" + version,
+		"go get github.com/CaliLuke/loom/cmd/loom@" + version,
+	}, "\n"))
+	writeTestFile(t, filepath.Join(root, "docs/quickstart.md"), strings.Join([]string{
+		"go install github.com/CaliLuke/loom/cmd/loom@" + version,
+		"go get github.com/CaliLuke/loom@" + version,
+	}, "\n"))
 }

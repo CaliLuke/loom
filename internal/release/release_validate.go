@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/docsmeta"
 	"golang.org/x/mod/semver"
 )
 
@@ -110,28 +111,7 @@ func sameRemote(actual, canonical string) bool {
 }
 
 func readCurrentVersion(path string) (string, error) {
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("read current version: %w", err)
-	}
-	parts := make([]string, 0, 3)
-	for _, name := range []string{"Major", "Minor", "Build"} {
-		matches := versionFields[name].FindSubmatch(contents)
-		if len(matches) != 2 {
-			return "", fmt.Errorf("read current version: missing %s field", name)
-		}
-		value := strings.TrimSpace(strings.TrimPrefix(string(matches[0]), string(matches[1])))
-		parts = append(parts, value)
-	}
-	version := "v" + strings.Join(parts, ".")
-	suffixMatches := versionSuffixPattern.FindSubmatch(contents)
-	if len(suffixMatches) != 3 {
-		return "", errors.New("read current version: missing Suffix field")
-	}
-	if suffix := string(suffixMatches[2]); suffix != "" {
-		version += "-" + suffix
-	}
-	return version, nil
+	return docsmeta.ReadPackageVersion(path)
 }
 
 func updateVersionFiles(root, version string) ([]string, error) {
@@ -142,14 +122,16 @@ func updateVersionFiles(root, version string) ([]string, error) {
 	if err := updatePackageVersion(root, matches[1:4], matches[4]); err != nil {
 		return nil, err
 	}
-	if err := updateReadmeVersion(root, version); err != nil {
+	documentation, err := docsmeta.UpdateVersionMetadata(root, version)
+	if err != nil {
 		return nil, err
 	}
 	fixtures, err := updateFixtureVersions(root, version)
 	if err != nil {
 		return nil, err
 	}
-	changed := append([]string{"README.md", "pkg/version.go"}, fixtures...)
+	changed := append([]string{"pkg/version.go"}, documentation...)
+	changed = append(changed, fixtures...)
 	sort.Strings(changed)
 	return changed, nil
 }
@@ -172,23 +154,6 @@ func updatePackageVersion(root string, parts []string, suffix string) error {
 	}
 	if err := os.WriteFile(versionPath, contents, mode); err != nil {
 		return fmt.Errorf("write %s: %w", versionPath, err)
-	}
-	return nil
-}
-
-func updateReadmeVersion(root, version string) error {
-	readmePath := filepath.Join(root, "README.md")
-	contents, mode, err := readFile(readmePath)
-	if err != nil {
-		return err
-	}
-	contents, err = replaceExactlyOne(contents, readmeVersionPattern,
-		"go install github.com/CaliLuke/loom/cmd/loom@"+version, readmePath)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(readmePath, contents, mode); err != nil {
-		return fmt.Errorf("write %s: %w", readmePath, err)
 	}
 	return nil
 }

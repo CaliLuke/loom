@@ -7,9 +7,14 @@ llm_optimized: true
 aliases:
 ---
 
-> **Version scope:** These checked-in guides describe Loom `main`. The current
-> recommended release is `v1.8.0-alpha.2`; consult its release notes when a
-> documented capability is not available in that tag.
+> **Recommended release: `v1.8.0-alpha.2`.** These checked-in guides track Loom
+> `main`; when read from a release tag, they describe that tagged snapshot.
+> Consult the [release notes](https://github.com/CaliLuke/loom/releases) when a
+> documented capability is not available in the recommended tag.
+
+Feature sections may include a **Since: `vX.Y.Z`** note recording the first
+release that contains the capability. These notes are added prospectively;
+their absence does not guarantee that a feature exists in every older release.
 
 ## Overview
 

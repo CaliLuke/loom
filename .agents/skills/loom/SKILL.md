@@ -262,8 +262,11 @@ Set `DEBUG_LOOM=1` while generating when you need DSL/codegen decision traces.
 
 ## Installation and Commands
 
-The repository skill describes Loom `main`. Use the current recommended release
-for consuming services unless intentionally testing an unreleased checkout.
+The repository skill tracks Loom `main`; a copy read from a release tag
+describes that tagged snapshot. Use the current recommended release for
+consuming services unless intentionally testing an unreleased checkout. Loom's
+release workflow stamps this recommendation and the public installation guides
+together so their version pins remain aligned.
 
 ```bash
 go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.2

@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/CaliLuke/loom/internal/docsmeta"
 )
 
 var (
@@ -33,7 +35,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	issues := checkMarkdown(root, documents)
+	issues := checkRecommendedVersion(root)
+	issues = append(issues, checkMarkdown(root, documents)...)
 	issues = append(issues, checkDuplicateSkillGuides(root)...)
 	for _, guide := range []string{".agents/skills/loom/SKILL.md", "docs/production.md"} {
 		issues = append(issues, checkObserverReasons(
@@ -49,6 +52,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, "docs lint:", issue)
 	}
 	os.Exit(1)
+}
+
+func checkRecommendedVersion(root string) []string {
+	version, err := docsmeta.ReadPackageVersion(filepath.Join(root, "pkg", "version.go"))
+	if err != nil {
+		return []string{err.Error()}
+	}
+	return docsmeta.CheckRecommendedVersion(root, version)
 }
 
 func maintainedDocuments(root string) ([]string, error) {
