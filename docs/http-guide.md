@@ -382,6 +382,11 @@ Requests that exceed either limit receive an RFC 9457
 `application/problem+json` response with status `413` and code
 `request_too_large`, rather than the `decode_payload` response used for
 malformed bodies.
+
+JSON-RPC endpoints keep the protocol's HTTP `200` response and map the same
+condition to an `InvalidRequest` error: code `-32600`, null `id`, message
+`request body too large`, and error data name `request_too_large`. A
+POST-initiated SSE request receives that envelope as a `message` event.
 Generated clients also cap buffered response-body restoration at 32 MiB.
 
 Unexpected response bodies included in generated client errors are capped at
