@@ -57,7 +57,8 @@ type (
 	MiddlewareMuxer interface {
 		Muxer
 		// Use appends a middleware to the list of middlewares to be applied
-		// to the Muxer.
+		// to the Muxer. Use must be called before Handle or before mounting a
+		// generated server.
 		Use(func(http.Handler) http.Handler)
 	}
 
@@ -97,8 +98,9 @@ type (
 //	mux.Use(otelhttp.NewMiddleware("service"))
 func NewMuxer() ResolverMuxer {
 	return &mux{
-		Router:    chi.NewRouter(),
-		wildcards: make(map[string]string),
+		Router:      chi.NewRouter(),
+		middlewares: make([]func(http.Handler) http.Handler, 0),
+		wildcards:   make(map[string]string),
 	}
 }
 
@@ -186,8 +188,9 @@ func unescapePathParam(value string) string {
 	return unescaped
 }
 
-// Use appends a middleware to the list of middlewares to be applied
-// downstream the Muxer.
+// Use appends a middleware to the list of middlewares applied downstream of
+// the Muxer. It panics if a route has already been registered; call Use before
+// mounting generated servers.
 func (m *mux) Use(f func(http.Handler) http.Handler) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -196,7 +199,7 @@ func (m *mux) Use(f func(http.Handler) http.Handler) {
 		m.middlewares = append(m.middlewares, f)
 		return
 	}
-	m.Router.Use(f)
+	panic("loom: register muxer middleware before mounting generated servers")
 }
 
 // ResolvePattern returns the route pattern used to register the handler for the

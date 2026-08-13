@@ -72,6 +72,21 @@ func TestMiddlewares(t *testing.T) {
 	}
 }
 
+func TestMuxUseAfterHandlePanicsWithLoomDiagnostic(t *testing.T) {
+	mux := NewMuxer()
+	mux.Handle(http.MethodGet, "/", func(http.ResponseWriter, *http.Request) {})
+
+	assert.PanicsWithValue(
+		t,
+		"loom: register muxer middleware before mounting generated servers",
+		func() {
+			mux.Use(func(next http.Handler) http.Handler {
+				return next
+			})
+		},
+	)
+}
+
 func TestVars(t *testing.T) {
 	cases := []struct {
 		Name     string
