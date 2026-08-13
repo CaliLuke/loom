@@ -10,15 +10,25 @@ import (
 )
 
 func TestErrorStringArgumentDiagnostic(t *testing.T) {
-	err := expr.RunInvalidDSL(t, func() {
-		Service("songs", func() {
-			Method("get", func() {
-				Error("bad_request", "The request or song ID is invalid.")
+	tests := map[string]func(){
+		"description only": func() {
+			Error("bad_request", "The request or song ID is invalid.")
+		},
+		"description before DSL": func() {
+			Error("bad_request", "The request or song ID is invalid.", func() {})
+		},
+	}
+	for name, errorDSL := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, func() {
+				Service("songs", func() {
+					Method("get", errorDSL)
+				})
 			})
-		})
-	})
 
-	require.Contains(t, err.Error(), `error descriptions are set with a DSL function: Error("bad_request", func() { Description("The request or song ID is invalid.") })`)
+			require.Contains(t, err.Error(), `error descriptions are set with a DSL function: Error("bad_request", func() { Description("The request or song ID is invalid.") })`)
+		})
+	}
 }
 
 func TestErrorStringArgumentNamesUserType(t *testing.T) {

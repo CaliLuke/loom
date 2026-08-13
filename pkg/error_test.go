@@ -4,6 +4,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type testRemediableError struct{}
@@ -42,15 +44,9 @@ func TestRequestBodyTooLargeError(t *testing.T) {
 	err := RequestBodyTooLargeError()
 
 	var serviceErr *ServiceError
-	if !errors.As(err, &serviceErr) {
-		t.Fatalf("got %T, want *ServiceError", err)
-	}
-	if serviceErr.Name != RequestBodyTooLarge {
-		t.Errorf("got name %q, want %q", serviceErr.Name, RequestBodyTooLarge)
-	}
-	if serviceErr.Message != "request body too large" {
-		t.Errorf("got message %q, want request body too large", serviceErr.Message)
-	}
+	require.ErrorAs(t, err, &serviceErr)
+	require.Equal(t, RequestBodyTooLarge, serviceErr.Name)
+	require.Equal(t, "request body too large", serviceErr.Message)
 }
 
 func TestServiceErrorUnwrap(t *testing.T) {

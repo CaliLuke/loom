@@ -36,6 +36,7 @@ type (
 	// Server represents an OpenAPI Server object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#serverObject
 	Server struct {
+		// Name identifies the server in OpenAPI 3.2 and later.
 		Name        string                     `json:"name,omitempty" yaml:"name,omitempty"`
 		URL         string                     `json:"url" yaml:"url"`
 		Description string                     `json:"description,omitempty" yaml:"description,omitempty"`
@@ -45,19 +46,21 @@ type (
 	// PathItem represents an OpenAPI Path Item object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#pathItemObject
 	PathItem struct {
-		Ref                  string                `json:"$ref,omitempty" yaml:"$ref,omitempty"`
-		Summary              string                `json:"summary,omitempty" yaml:"summary,omitempty"`
-		Description          string                `json:"description,omitempty" yaml:"description,omitempty"`
-		Connect              *Operation            `json:"connect,omitempty" yaml:"connect,omitempty"`
-		Delete               *Operation            `json:"delete,omitempty" yaml:"delete,omitempty"`
-		Get                  *Operation            `json:"get,omitempty" yaml:"get,omitempty"`
-		Head                 *Operation            `json:"head,omitempty" yaml:"head,omitempty"`
-		Options              *Operation            `json:"options,omitempty" yaml:"options,omitempty"`
-		Patch                *Operation            `json:"patch,omitempty" yaml:"patch,omitempty"`
-		Post                 *Operation            `json:"post,omitempty" yaml:"post,omitempty"`
-		Put                  *Operation            `json:"put,omitempty" yaml:"put,omitempty"`
-		Trace                *Operation            `json:"trace,omitempty" yaml:"trace,omitempty"`
-		Query                *Operation            `json:"query,omitempty" yaml:"query,omitempty"`
+		Ref         string     `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+		Summary     string     `json:"summary,omitempty" yaml:"summary,omitempty"`
+		Description string     `json:"description,omitempty" yaml:"description,omitempty"`
+		Connect     *Operation `json:"connect,omitempty" yaml:"connect,omitempty"`
+		Delete      *Operation `json:"delete,omitempty" yaml:"delete,omitempty"`
+		Get         *Operation `json:"get,omitempty" yaml:"get,omitempty"`
+		Head        *Operation `json:"head,omitempty" yaml:"head,omitempty"`
+		Options     *Operation `json:"options,omitempty" yaml:"options,omitempty"`
+		Patch       *Operation `json:"patch,omitempty" yaml:"patch,omitempty"`
+		Post        *Operation `json:"post,omitempty" yaml:"post,omitempty"`
+		Put         *Operation `json:"put,omitempty" yaml:"put,omitempty"`
+		Trace       *Operation `json:"trace,omitempty" yaml:"trace,omitempty"`
+		// Query describes the QUERY operation in OpenAPI 3.2 and later.
+		Query *Operation `json:"query,omitempty" yaml:"query,omitempty"`
+		// AdditionalOperations describes operations for additional HTTP methods in OpenAPI 3.2 and later.
 		AdditionalOperations map[string]*Operation `json:"additionalOperations,omitempty" yaml:"additionalOperations,omitempty"`
 		Servers              []*Server             `json:"servers,omitempty" yaml:"servers,omitempty"`
 		Parameters           []*ParameterRef       `json:"parameters,omitempty" yaml:"parameters,omitempty"`
@@ -76,8 +79,9 @@ type (
 		Examples        map[string]*ExampleRef        `json:"examples,omitempty" yaml:"examples,omitempty"`
 		Links           map[string]*LinkRef           `json:"links,omitempty" yaml:"links,omitempty"`
 		Callbacks       map[string]*CallbackRef       `json:"callbacks,omitempty" yaml:"callbacks,omitempty"`
-		MediaTypes      map[string]*MediaTypeRef      `json:"mediaTypes,omitempty" yaml:"mediaTypes,omitempty"`
-		Extensions      map[string]any                `json:"-" yaml:"-"`
+		// MediaTypes contains reusable Media Type Objects in OpenAPI 3.2 and later.
+		MediaTypes map[string]*MediaTypeRef `json:"mediaTypes,omitempty" yaml:"mediaTypes,omitempty"`
+		Extensions map[string]any           `json:"-" yaml:"-"`
 	}
 
 	// Contact represents an OpenAPI Contact object as defined in
@@ -161,16 +165,19 @@ type (
 	// MediaType represents an OpenAPI Media Type object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#mediaTypeObject
 	MediaType struct {
+		// Ref references a reusable Media Type Object in OpenAPI 3.2 and later.
 		Ref    string          `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 		Schema *openapi.Schema `json:"schema,omitempty" yaml:"schema,omitempty"`
 		// ItemSchema describes each item in a streaming media type in OpenAPI 3.2 and later.
-		ItemSchema     *openapi.Schema        `json:"itemSchema,omitempty" yaml:"itemSchema,omitempty"`
-		PrefixEncoding []*Encoding            `json:"prefixEncoding,omitempty" yaml:"prefixEncoding,omitempty"`
-		ItemEncoding   *Encoding              `json:"itemEncoding,omitempty" yaml:"itemEncoding,omitempty"`
-		Example        any                    `json:"example,omitempty" yaml:"example,omitempty"`
-		Examples       map[string]*ExampleRef `json:"examples,omitempty" yaml:"examples,omitempty"`
-		Encoding       map[string]*Encoding   `json:"encoding,omitempty" yaml:"encoding,omitempty"`
-		Extensions     map[string]any         `json:"-" yaml:"-"`
+		ItemSchema *openapi.Schema `json:"itemSchema,omitempty" yaml:"itemSchema,omitempty"`
+		// PrefixEncoding describes encodings for tuple prefixes in OpenAPI 3.2 and later.
+		PrefixEncoding []*Encoding `json:"prefixEncoding,omitempty" yaml:"prefixEncoding,omitempty"`
+		// ItemEncoding describes the encoding applied to each remaining item in OpenAPI 3.2 and later.
+		ItemEncoding *Encoding              `json:"itemEncoding,omitempty" yaml:"itemEncoding,omitempty"`
+		Example      any                    `json:"example,omitempty" yaml:"example,omitempty"`
+		Examples     map[string]*ExampleRef `json:"examples,omitempty" yaml:"examples,omitempty"`
+		Encoding     map[string]*Encoding   `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+		Extensions   map[string]any         `json:"-" yaml:"-"`
 		// ComponentName names a reusable OpenAPI 3.2 media type component.
 		ComponentName string `json:"-" yaml:"-"`
 		// UseItemSchema marks sequential media whose schema applies to each streamed item.
@@ -180,15 +187,24 @@ type (
 	// Encoding represents an OpenAPI Encoding object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#encodingObject
 	Encoding struct {
-		ContentType    string                `json:"contentType,omitempty" yaml:"contentType,omitempty"`
-		Headers        map[string]*HeaderRef `json:"headers,omitempty" yaml:"headers,omitempty"`
-		Style          string                `json:"style,omitempty" yaml:"style,omitempty"`
-		Explode        *bool                 `json:"explode,omitempty" yaml:"explode,omitempty"`
-		AllowReserved  bool                  `json:"allowReserved,omitempty" yaml:"allowReserved,omitempty"`
-		Encoding       map[string]*Encoding  `json:"encoding,omitempty" yaml:"encoding,omitempty"`
-		PrefixEncoding []*Encoding           `json:"prefixEncoding,omitempty" yaml:"prefixEncoding,omitempty"`
-		ItemEncoding   *Encoding             `json:"itemEncoding,omitempty" yaml:"itemEncoding,omitempty"`
-		Extensions     map[string]any        `json:"-" yaml:"-"`
+		// ContentType identifies the media type used to encode the value.
+		ContentType string `json:"contentType,omitempty" yaml:"contentType,omitempty"`
+		// Headers describes additional headers associated with the encoded value.
+		Headers map[string]*HeaderRef `json:"headers,omitempty" yaml:"headers,omitempty"`
+		// Style describes how the encoded value is serialized.
+		Style string `json:"style,omitempty" yaml:"style,omitempty"`
+		// Explode controls whether arrays and objects produce separate parameters.
+		Explode *bool `json:"explode,omitempty" yaml:"explode,omitempty"`
+		// AllowReserved permits reserved URI characters in the encoded value.
+		AllowReserved bool `json:"allowReserved,omitempty" yaml:"allowReserved,omitempty"`
+		// Encoding describes nested object-property encodings in OpenAPI 3.2 and later.
+		Encoding map[string]*Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+		// PrefixEncoding describes nested tuple-prefix encodings in OpenAPI 3.2 and later.
+		PrefixEncoding []*Encoding `json:"prefixEncoding,omitempty" yaml:"prefixEncoding,omitempty"`
+		// ItemEncoding describes the nested encoding for remaining array items in OpenAPI 3.2 and later.
+		ItemEncoding *Encoding `json:"itemEncoding,omitempty" yaml:"itemEncoding,omitempty"`
+		// Extensions contains specification extensions keyed by x-prefixed names.
+		Extensions map[string]any `json:"-" yaml:"-"`
 	}
 
 	// Header represents an OpenAPI Header object as defined in
@@ -223,10 +239,12 @@ type (
 	// Example represents an OpenAPI Example object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#exampleObject
 	Example struct {
-		Summary         string         `json:"summary,omitempty" yaml:"summary,omitempty"`
-		Description     string         `json:"description,omitempty" yaml:"description,omitempty"`
-		Value           any            `json:"value,omitempty" yaml:"value,omitempty"`
-		DataValue       any            `json:"dataValue,omitempty" yaml:"dataValue,omitempty"`
+		Summary     string `json:"summary,omitempty" yaml:"summary,omitempty"`
+		Description string `json:"description,omitempty" yaml:"description,omitempty"`
+		Value       any    `json:"value,omitempty" yaml:"value,omitempty"`
+		// DataValue contains the example's parsed data value in OpenAPI 3.2 and later.
+		DataValue any `json:"dataValue,omitempty" yaml:"dataValue,omitempty"`
+		// SerializedValue contains the example's serialized representation in OpenAPI 3.2 and later.
 		SerializedValue string         `json:"serializedValue,omitempty" yaml:"serializedValue,omitempty"`
 		ExternalValue   string         `json:"externalValue,omitempty" yaml:"externalValue,omitempty"`
 		Extensions      map[string]any `json:"-" yaml:"-"`
@@ -246,25 +264,28 @@ type (
 	// SecurityScheme represents an OpenAPI SecurityScheme object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#securitySchemeObject
 	SecurityScheme struct {
-		Type              string         `json:"type,omitempty" yaml:"type,omitempty"`
-		Description       string         `json:"description,omitempty" yaml:"description,omitempty"`
-		Name              string         `json:"name,omitempty" yaml:"name,omitempty"`
-		In                string         `json:"in,omitempty" yaml:"in,omitempty"`
-		Scheme            string         `json:"scheme,omitempty" yaml:"scheme,omitempty"`
-		BearerFormat      string         `json:"bearerFormat,omitempty" yaml:"bearerFormat,omitempty"`
-		Flows             *OAuthFlows    `json:"flows,omitempty" yaml:"flows,omitempty"`
-		OAuth2MetadataURL string         `json:"oauth2MetadataUrl,omitempty" yaml:"oauth2MetadataUrl,omitempty"`
-		Deprecated        bool           `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
-		Extensions        map[string]any `json:"-" yaml:"-"`
+		Type         string      `json:"type,omitempty" yaml:"type,omitempty"`
+		Description  string      `json:"description,omitempty" yaml:"description,omitempty"`
+		Name         string      `json:"name,omitempty" yaml:"name,omitempty"`
+		In           string      `json:"in,omitempty" yaml:"in,omitempty"`
+		Scheme       string      `json:"scheme,omitempty" yaml:"scheme,omitempty"`
+		BearerFormat string      `json:"bearerFormat,omitempty" yaml:"bearerFormat,omitempty"`
+		Flows        *OAuthFlows `json:"flows,omitempty" yaml:"flows,omitempty"`
+		// OAuth2MetadataURL locates OAuth 2.0 authorization server metadata in OpenAPI 3.2 and later.
+		OAuth2MetadataURL string `json:"oauth2MetadataUrl,omitempty" yaml:"oauth2MetadataUrl,omitempty"`
+		// Deprecated reports whether use of the security scheme is discouraged.
+		Deprecated bool           `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
+		Extensions map[string]any `json:"-" yaml:"-"`
 	}
 
 	// OAuthFlows represents an OpenAPI OAuthFlows object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#oauthFlowsObject
 	OAuthFlows struct {
-		Implicit            *OAuthFlow     `json:"implicit,omitempty" yaml:"implicit,omitempty"`
-		Password            *OAuthFlow     `json:"password,omitempty" yaml:"password,omitempty"`
-		ClientCredentials   *OAuthFlow     `json:"clientCredentials,omitempty" yaml:"clientCredentials,omitempty"`
-		AuthorizationCode   *OAuthFlow     `json:"authorizationCode,omitempty" yaml:"authorizationCode,omitempty"`
+		Implicit          *OAuthFlow `json:"implicit,omitempty" yaml:"implicit,omitempty"`
+		Password          *OAuthFlow `json:"password,omitempty" yaml:"password,omitempty"`
+		ClientCredentials *OAuthFlow `json:"clientCredentials,omitempty" yaml:"clientCredentials,omitempty"`
+		AuthorizationCode *OAuthFlow `json:"authorizationCode,omitempty" yaml:"authorizationCode,omitempty"`
+		// DeviceAuthorization describes the OAuth device authorization flow in OpenAPI 3.2 and later.
 		DeviceAuthorization *OAuthFlow     `json:"deviceAuthorization,omitempty" yaml:"deviceAuthorization,omitempty"`
 		Extensions          map[string]any `json:"-" yaml:"-"`
 	}
@@ -272,9 +293,10 @@ type (
 	// OAuthFlow represents an OpenAPI OAuthFlow object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#oauthFlowObject
 	OAuthFlow struct {
-		AuthorizationURL       string            `json:"authorizationUrl,omitempty" yaml:"authorizationUrl,omitempty"`
-		TokenURL               string            `json:"tokenUrl,omitempty" yaml:"tokenUrl,omitempty"`
-		RefreshURL             string            `json:"refreshUrl,omitempty" yaml:"refreshUrl,omitempty"`
+		AuthorizationURL string `json:"authorizationUrl,omitempty" yaml:"authorizationUrl,omitempty"`
+		TokenURL         string `json:"tokenUrl,omitempty" yaml:"tokenUrl,omitempty"`
+		RefreshURL       string `json:"refreshUrl,omitempty" yaml:"refreshUrl,omitempty"`
+		// DeviceAuthorizationURL locates the OAuth device authorization endpoint in OpenAPI 3.2 and later.
 		DeviceAuthorizationURL string            `json:"deviceAuthorizationUrl,omitempty" yaml:"deviceAuthorizationUrl,omitempty"`
 		Scopes                 map[string]string `json:"scopes" yaml:"scopes"`
 		Extensions             map[string]any    `json:"-" yaml:"-"`

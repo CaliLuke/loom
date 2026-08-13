@@ -1,7 +1,6 @@
 package dsl_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -356,7 +355,7 @@ func TestRepeatedTransportBlockErrorLocations(t *testing.T) {
 			})
 
 			require.Contains(t, err.Error(), "transport_composition_test.go:")
-			require.False(t, strings.Contains(err.Error(), "compose.go:"), err.Error())
+			require.NotContains(t, err.Error(), "compose.go:")
 		})
 	}
 }

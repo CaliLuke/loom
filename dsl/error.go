@@ -89,7 +89,7 @@ func Error(name string, args ...any) {
 	if len(args) == 0 {
 		args = []any{expr.ErrorResult}
 	}
-	if len(args) == 1 {
+	if len(args) > 0 {
 		if description, ok := args[0].(string); ok && expr.Root.UserType(description) == nil {
 			eval.ReportError(
 				`error descriptions are set with a DSL function: Error(%q, func() { Description(%q) })`,

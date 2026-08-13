@@ -76,6 +76,8 @@ type (
 		mu sync.Mutex
 		// middlewares to be registered before handlers
 		middlewares []func(http.Handler) http.Handler
+		// routesRegistered reports whether Handle has mounted the middleware chain.
+		routesRegistered bool
 		// wildcards maps a method and a pattern to the name of the wildcard
 		// this is needed because chi does not expose the name of the wildcard
 		wildcards map[string]string
@@ -113,7 +115,7 @@ var wildPath = regexp.MustCompile(`/{\*([a-zA-Z0-9_]+)}`)
 func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.middlewares != nil {
+	if !m.routesRegistered {
 		for _, middleware := range m.middlewares {
 			m.Router.Use(middleware)
 		}
@@ -123,7 +125,7 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 			w.WriteHeader(http.StatusNotFound)
 			enc.Encode(NewErrorResponse(ctx, fmt.Errorf("404 page not found"))) // nolint:errcheck
 		}))
-		m.middlewares = nil
+		m.routesRegistered = true
 	}
 	// Capture the registered pattern before wildcard rewriting so we can
 	// populate r.Pattern for downstream consumers.
@@ -194,12 +196,11 @@ func unescapePathParam(value string) string {
 func (m *mux) Use(f func(http.Handler) http.Handler) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.patternBeforeMiddleware = true
-	if m.middlewares != nil {
-		m.middlewares = append(m.middlewares, f)
-		return
+	if m.routesRegistered {
+		panic("loom: register muxer middleware before mounting generated servers")
 	}
-	panic("loom: register muxer middleware before mounting generated servers")
+	m.middlewares = append(m.middlewares, f)
+	m.patternBeforeMiddleware = true
 }
 
 // ResolvePattern returns the route pattern used to register the handler for the

@@ -87,13 +87,13 @@ func RequestDecoder(r *http.Request) Decoder {
 	}
 	switch contentType {
 	case "application/json":
-		return newRequestLimitedDecoder(r.Body, decodeJSON)
+		return newLimitedDecoder(r.Body, decodeJSON, true)
 	case "application/gob":
-		return newRequestLimitedDecoder(r.Body, decodeGOB)
+		return newLimitedDecoder(r.Body, decodeGOB, true)
 	case "application/xml":
-		return newRequestLimitedDecoder(r.Body, decodeXML)
+		return newLimitedDecoder(r.Body, decodeXML, true)
 	case "text/html", "text/plain":
-		return newRequestTextDecoder(r.Body, contentType)
+		return newTextDecoder(r.Body, contentType, true)
 	default:
 		return newUnsupportedDecoder(contentType)
 	}
@@ -243,23 +243,23 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 func ResponseDecoder(resp *http.Response) Decoder {
 	ct := resp.Header.Get("Content-Type")
 	if ct == "" {
-		return newLimitedDecoder(resp.Body, decodeJSON)
+		return newLimitedDecoder(resp.Body, decodeJSON, false)
 	}
 	if mediaType, _, err := mime.ParseMediaType(ct); err == nil {
 		ct = mediaType
 	}
 	switch {
 	case ct == "application/json" || strings.HasSuffix(ct, "+json"):
-		return newLimitedDecoder(resp.Body, decodeJSON)
+		return newLimitedDecoder(resp.Body, decodeJSON, false)
 	case ct == "application/xml" || strings.HasSuffix(ct, "+xml"):
-		return newLimitedDecoder(resp.Body, decodeXML)
+		return newLimitedDecoder(resp.Body, decodeXML, false)
 	case ct == "application/gob" || strings.HasSuffix(ct, "+gob"):
-		return newLimitedDecoder(resp.Body, decodeGOB)
+		return newLimitedDecoder(resp.Body, decodeGOB, false)
 	case ct == "text/html" || ct == "text/plain" ||
 		strings.HasSuffix(ct, "+html") || strings.HasSuffix(ct, "+txt"):
-		return newTextDecoder(resp.Body, ct)
+		return newTextDecoder(resp.Body, ct, false)
 	default:
-		return newLimitedDecoder(resp.Body, decodeJSON)
+		return newLimitedDecoder(resp.Body, decodeJSON, false)
 	}
 }
 
@@ -369,20 +369,12 @@ func (e *textEncoder) Encode(v any) (err error) {
 	return
 }
 
-func newTextDecoder(r io.Reader, ct string) Decoder {
-	return &textDecoder{r: r, ct: ct}
+func newTextDecoder(r io.Reader, ct string, request bool) Decoder {
+	return &textDecoder{r: r, ct: ct, request: request}
 }
 
-func newRequestTextDecoder(r io.Reader, ct string) Decoder {
-	return &textDecoder{r: r, ct: ct, request: true}
-}
-
-func newLimitedDecoder(r io.Reader, decode func(io.Reader, any) error) Decoder {
-	return &limitedDecoder{r: r, decode: decode}
-}
-
-func newRequestLimitedDecoder(r io.Reader, decode func(io.Reader, any) error) Decoder {
-	return &limitedDecoder{r: r, decode: decode, request: true}
+func newLimitedDecoder(r io.Reader, decode func(io.Reader, any) error, request bool) Decoder {
+	return &limitedDecoder{r: r, decode: decode, request: request}
 }
 
 type textDecoder struct {
