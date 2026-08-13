@@ -13,13 +13,23 @@ import (
 )
 
 func TestGeneratedMultipartServerCompiles(t *testing.T) {
-	root := RunHTTPDSL(t, testdata.PayloadMultipartObjectGeneratedOptionalDSL)
-	dir := t.TempDir()
 	repoRoot := runCommand(t, "", "git", "rev-parse", "--show-toplevel")
 	t.Setenv("LOOM_DIR", filepath.Clean(strings.TrimSpace(repoRoot)))
-	renderHTTPModule(t, dir, "example.com/multipartcompile", root)
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "test", "./...")
+	tests := map[string]func(){
+		"optional fields": testdata.PayloadMultipartObjectGeneratedOptionalDSL,
+		"path parameter":  testdata.PayloadMultipartCompilePathParamDSL,
+		"required file":   testdata.PayloadMultipartCompileRequiredFileDSL,
+		"validation":      testdata.PayloadMultipartCompileValidationDSL,
+	}
+	for name, dsl := range tests {
+		t.Run(name, func(t *testing.T) {
+			root := RunHTTPDSL(t, dsl)
+			dir := t.TempDir()
+			renderHTTPModule(t, dir, "example.com/multipartcompile", root)
+			runGoCommand(t, dir, "mod", "tidy")
+			runGoCommand(t, dir, "test", "./...")
+		})
+	}
 }
 
 func TestServerMultipartFuncType(t *testing.T) {
