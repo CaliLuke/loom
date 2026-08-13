@@ -51,49 +51,21 @@ func applyOpenAPI32(root *expr.RootExpr, spec *OpenAPI) {
 }
 
 func promoteConfiguredItemSchemas(spec *OpenAPI) {
-	visit := func(mediaTypes map[string]*MediaType) {
+	visitMediaTypes(spec, func(mediaTypes map[string]*MediaType) {
 		for _, mediaType := range mediaTypes {
 			if mediaType != nil && mediaType.UseItemSchema && mediaType.ItemSchema == nil {
 				mediaType.ItemSchema = mediaType.Schema
 				mediaType.Schema = nil
 			}
 		}
-	}
-	for _, path := range spec.Paths {
-		for _, operation := range pathItemOperations(path) {
-			if operation == nil {
-				continue
-			}
-			if operation.RequestBody != nil && operation.RequestBody.Value != nil {
-				visit(operation.RequestBody.Value.Content)
-			}
-			for _, response := range operation.Responses {
-				if response != nil && response.Value != nil {
-					visit(response.Value.Content)
-				}
-			}
-		}
-	}
-	if spec.Components == nil {
-		return
-	}
-	for _, body := range spec.Components.RequestBodies {
-		if body != nil && body.Value != nil {
-			visit(body.Value.Content)
-		}
-	}
-	for _, response := range spec.Components.Responses {
-		if response != nil && response.Value != nil {
-			visit(response.Value.Content)
-		}
-	}
+	})
 }
 
 func componentizeMediaTypes(spec *OpenAPI) {
 	if spec == nil || spec.Components == nil {
 		return
 	}
-	visit := func(mediaTypes map[string]*MediaType) {
+	visitMediaTypes(spec, func(mediaTypes map[string]*MediaType) {
 		for _, mediaType := range mediaTypes {
 			if mediaType == nil || mediaType.ComponentName == "" {
 				continue
@@ -107,23 +79,39 @@ func componentizeMediaTypes(spec *OpenAPI) {
 			spec.Components.MediaTypes[name] = &MediaTypeRef{Value: &component}
 			*mediaType = MediaType{Ref: "#/components/mediaTypes/" + name}
 		}
+	})
+}
+
+func visitMediaTypes(spec *OpenAPI, visit func(map[string]*MediaType)) {
+	if spec == nil || visit == nil {
+		return
 	}
-	visitOperation := func(operation *Operation) {
-		if operation == nil {
-			return
+	for _, path := range spec.Paths {
+		if path == nil {
+			continue
 		}
-		if operation.RequestBody != nil && operation.RequestBody.Value != nil {
-			visit(operation.RequestBody.Value.Content)
-		}
-		for _, response := range operation.Responses {
-			if response != nil && response.Value != nil {
-				visit(response.Value.Content)
+		visitParameterMediaTypes(path.Parameters, visit)
+		for _, operation := range pathItemOperations(path) {
+			if operation == nil {
+				continue
+			}
+			visitParameterMediaTypes(operation.Parameters, visit)
+			if operation.RequestBody != nil && operation.RequestBody.Value != nil {
+				visit(operation.RequestBody.Value.Content)
+			}
+			for _, response := range operation.Responses {
+				if response != nil && response.Value != nil {
+					visit(response.Value.Content)
+				}
 			}
 		}
 	}
-	for _, path := range spec.Paths {
-		for _, operation := range pathItemOperations(path) {
-			visitOperation(operation)
+	if spec.Components == nil {
+		return
+	}
+	for _, parameter := range spec.Components.Parameters {
+		if parameter != nil && parameter.Value != nil {
+			visit(parameter.Value.Content)
 		}
 	}
 	for _, body := range spec.Components.RequestBodies {
@@ -134,6 +122,14 @@ func componentizeMediaTypes(spec *OpenAPI) {
 	for _, response := range spec.Components.Responses {
 		if response != nil && response.Value != nil {
 			visit(response.Value.Content)
+		}
+	}
+}
+
+func visitParameterMediaTypes(parameters []*ParameterRef, visit func(map[string]*MediaType)) {
+	for _, parameter := range parameters {
+		if parameter != nil && parameter.Value != nil {
+			visit(parameter.Value.Content)
 		}
 	}
 }

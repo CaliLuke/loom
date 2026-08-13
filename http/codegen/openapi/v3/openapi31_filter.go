@@ -2,6 +2,7 @@ package openapiv3
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -255,7 +256,7 @@ func filterSchemaCompatibility(schema *openapi.Schema, seen map[*openapi.Schema]
 	}
 	seen[schema] = struct{}{}
 	if schema.Discriminator != nil {
-		if schema.Discriminator.Optional && !containsString(schema.Required, schema.Discriminator.PropertyName) {
+		if schema.Discriminator.Optional && !slices.Contains(schema.Required, schema.Discriminator.PropertyName) {
 			schema.Required = append(schema.Required, schema.Discriminator.PropertyName)
 		}
 		schema.Discriminator.DefaultMapping = ""
@@ -284,15 +285,6 @@ func filterSchemaCompatibility(schema *openapi.Schema, seen map[*openapi.Schema]
 	if child, ok := schema.UnevaluatedProperties.(*openapi.Schema); ok {
 		filterSchemaCompatibility(child, seen)
 	}
-}
-
-func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
 }
 
 func filterEncodingCompatibility(encoding *Encoding) {

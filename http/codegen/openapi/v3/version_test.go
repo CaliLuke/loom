@@ -10,88 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConstructForVersion(t *testing.T) {
+func TestRenderOpenAPIVersion(t *testing.T) {
 	tests := []struct {
-		name         string
-		target       openAPIVersion
-		constructors []versionedConstructor[string]
-		want         string
-		wantOK       bool
+		name   string
+		target openAPIVersion
+		want   string
 	}{
-		{
-			name:   "additive feature omitted before minimum version",
-			target: openAPIVersion31,
-			constructors: []versionedConstructor[string]{
-				{
-					versions: versionRange{from: openAPIVersion32},
-					construct: func() string {
-						return "3.2 field"
-					},
-				},
-			},
-		},
-		{
-			name:   "additive feature emitted at minimum version",
-			target: openAPIVersion32,
-			constructors: []versionedConstructor[string]{
-				{
-					versions: versionRange{from: openAPIVersion32},
-					construct: func() string {
-						return "3.2 field"
-					},
-				},
-			},
-			want:   "3.2 field",
-			wantOK: true,
-		},
-		{
-			name:   "incompatible representation routes by version",
-			target: openAPIVersion32,
-			constructors: []versionedConstructor[string]{
-				{
-					versions: versionRange{from: openAPIVersion31, through: openAPIVersion31},
-					construct: func() string {
-						return "3.1 shape"
-					},
-				},
-				{
-					versions: versionRange{from: openAPIVersion32},
-					construct: func() string {
-						return "3.2 shape"
-					},
-				},
-			},
-			want:   "3.2 shape",
-			wantOK: true,
-		},
-		{
-			name:   "newer constructor overrides an open ended older constructor",
-			target: openAPIVersion32 + 1,
-			constructors: []versionedConstructor[string]{
-				{
-					versions: versionRange{from: openAPIVersion32},
-					construct: func() string {
-						return "3.2 shape"
-					},
-				},
-				{
-					versions: versionRange{from: openAPIVersion32 + 1},
-					construct: func() string {
-						return "future shape"
-					},
-				},
-			},
-			want:   "future shape",
-			wantOK: true,
-		},
+		{name: "compatibility target", target: openAPIVersion31, want: OpenAPICompatibilityVersion},
+		{name: "default target", target: openAPIVersion32, want: OpenAPIVersion},
+		{name: "future target defaults to current", target: openAPIVersion32 + 1, want: OpenAPIVersion},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			router := versionRouter{target: test.target}
-			got, ok := router.construct(test.constructors...)
-			require.Equal(t, test.wantOK, ok)
-			require.Equal(t, test.want, got)
+			require.Equal(t, test.want, renderOpenAPIVersion(test.target))
 		})
 	}
 }
