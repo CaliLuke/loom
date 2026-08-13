@@ -94,11 +94,11 @@ There is one DSL parser, one shared semantic IR, and one renderer.
 
 - Gate emitted constructs by target version; do not fork parsers, IRs,
   generators, or canonical output paths.
-- Route additive and incompatible render shapes through the Go 1.27 generic
-  `versionRouter.construct` method and `versionedConstructor` ranges.
-- A missing range omits an additive feature below its minimum version.
-- When multiple ranges match, the constructor with the newest lower bound wins,
-  allowing a future version to replace an older representation locally.
+- Render from the shared document model once. Apply 3.2-only transformations in
+  `applyOpenAPI32`; for the 3.1 target, remove only incompatible members in
+  `filterOpenAPI31` while preserving shared structures.
+- Keep isolated version choices explicit and local. Do not introduce a generic
+  version router until multiple real render shapes require that abstraction.
 - Keep shared JSON Schema features such as `contentSchema` when they are valid
   in both targets. Compatibility filtering must remove only version-specific
   members.
