@@ -10,6 +10,21 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
+// httpReservedIdentifiers lists package and local identifiers emitted verbatim
+// by the HTTP generators. Service imports are aliased around this namespace.
+var httpReservedIdentifiers = []string{
+	"body",
+	"bytes",
+	"c",
+	"ctx",
+	"err",
+	"io",
+	"loom",
+	"loomhttp",
+	"v",
+	"websocket",
+}
+
 // analyze creates the data necessary to render the code of the given service.
 // It records the user types needed by the service definition in userTypes.
 // Panics are wrapped with DSL attribution (service, endpoint, source location)
@@ -27,7 +42,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 		"file_servers", len(httpSvc.FileServers),
 	)
 	irService := transportir.BuildService(httpSvc)
-	scope := newHTTPAnalysisScope(svc)
+	svc, scope := newHTTPAnalysisService(svc)
 	sd = newHTTPServiceData(svc, scope)
 	sd.CORS = buildCORSData(httpSvc)
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
@@ -103,13 +118,20 @@ func endpointPath(ep *transportir.Endpoint) string {
 	return ep.Routes[0].Path
 }
 
-func newHTTPAnalysisScope(svc *service.Data) *codegen.NameScope {
+func newHTTPAnalysisService(svc *service.Data) (*service.Data, *codegen.NameScope) {
 	scope := codegen.NewNameScope()
 	scope.Unique("c") // 'c' is reserved as the client's receiver name.
 	scope.Unique("v") // 'v' is reserved as the request builder payload argument name.
 	scope.Unique("websocket")
-	scope.Unique(svc.PkgName)
-	return scope
+
+	aliasScope := codegen.NewNameScope()
+	for _, name := range httpReservedIdentifiers {
+		aliasScope.Unique(name)
+	}
+	httpSvc := *svc
+	httpSvc.PkgName = aliasScope.Unique(svc.PkgName, "svc")
+	scope.Unique(httpSvc.PkgName)
+	return &httpSvc, scope
 }
 
 func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceData {

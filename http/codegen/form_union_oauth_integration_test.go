@@ -66,6 +66,7 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 	files = append(files, PathFiles(httpData)...)
 	files = append(files, ClientTypeFiles(genpkg, httpData)...)
 	files = append(files, ClientFiles(genpkg, httpData)...)
+	files = append(files, ClientCLIFiles(genpkg, httpData)...)
 	files = append(files, ServerTypeFiles(genpkg, httpData)...)
 	files = append(files, ServerFiles(genpkg, httpData)...)
 
