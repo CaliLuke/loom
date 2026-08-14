@@ -138,6 +138,12 @@ func TestMethodRejectsAmbiguousEffectiveErrorTypes(t *testing.T) {
 
 					Method("AddDeviceFingerprint", func() {
 						Error("Status400", exceptionResponse)
+						HTTP(func() {
+							POST("/omni/add/device-fingerprint")
+							Response("Status400", StatusBadRequest)
+							Response("unauthorized", StatusUnauthorized)
+							Response("forbidden", StatusForbidden)
+						})
 					})
 				})
 			},
@@ -156,6 +162,22 @@ func TestMethodRejectsAmbiguousEffectiveErrorTypes(t *testing.T) {
 				})
 			},
 			error: `attribute: type "SharedError" is used to define multiple errors and must identify the attribute containing the error name with ErrorName`,
+		},
+		"copied references to the same user type": {
+			dsl: func() {
+				sharedError := Type("CopiedSharedError", func() {
+					Attribute("message", String)
+				})
+				sharedErrorCopy := expr.Dup(sharedError)
+
+				Service("CopiedSharedErrors", func() {
+					Error("not_found", sharedError)
+					Method("Show", func() {
+						Error("conflict", sharedErrorCopy)
+					})
+				})
+			},
+			error: `attribute: type "CopiedSharedError" is used to define multiple errors and must identify the attribute containing the error name with ErrorName`,
 		},
 	}
 

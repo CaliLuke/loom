@@ -170,11 +170,11 @@ func validateErrorTypeDiscriminators(errors []*ErrorExpr) *eval.ValidationErrors
 			continue
 		}
 		for j := i + 1; j < len(errors); j++ {
-			if e.Type != errors[j].Type {
+			if !sameErrorType(e.Type, errors[j].Type) {
 				continue
 			}
 			for k := j; k < len(errors); k++ {
-				if e.Type == errors[k].Type {
+				if sameErrorType(e.Type, errors[k].Type) {
 					reported[k] = true
 				}
 			}
@@ -185,6 +185,15 @@ func validateErrorTypeDiscriminators(errors []*ErrorExpr) *eval.ValidationErrors
 		}
 	}
 	return verr
+}
+
+func sameErrorType(left, right DataType) bool {
+	leftUserType, leftIsUserType := left.(UserType)
+	rightUserType, rightIsUserType := right.(UserType)
+	if leftIsUserType || rightIsUserType {
+		return leftIsUserType && rightIsUserType && leftUserType.ID() == rightUserType.ID()
+	}
+	return left == right
 }
 
 func hasErrorNameAttribute(att *AttributeExpr) bool {
