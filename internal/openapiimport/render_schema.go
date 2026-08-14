@@ -294,6 +294,9 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 }
 
 func (r *renderer) validationBlock(schema *Schema, path string) error {
+	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
+		r.line("Meta(%q, %q)", "openapi:format", "")
+	}
 	if schema.Format != "" && schema.Type == "string" && schema.Format != "byte" && schema.Format != "binary" {
 		if formatName, ok := stringFormatDSL(schema.Format); ok {
 			r.line("Format(%s)", formatName)
@@ -367,6 +370,9 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 		if _, ok := stringFormatDSL(schema.Format); ok {
 			return true
 		}
+	}
+	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
+		return true
 	}
 	return schema.Deprecated || schema.ReadOnly || schema.WriteOnly || schema.Default != nil
 }

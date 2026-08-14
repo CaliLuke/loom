@@ -365,6 +365,9 @@ func copyHTTPResponseBodyMeta(userType *UserTypeExpr, attr *AttributeExpr) {
 		if m, ok := t.Attribute().Meta["openapi:typename"]; ok {
 			userType.AddMeta("openapi:typename", m...)
 		}
+		if m, ok := t.Attribute().Meta["openapi:typename:canonical"]; ok {
+			userType.AddMeta("openapi:typename:canonical", m...)
+		}
 		if m, ok := t.Attribute().Meta["openapi:additionalProperties"]; ok {
 			userType.AddMeta("openapi:additionalProperties", m...)
 		}

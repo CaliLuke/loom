@@ -64,6 +64,9 @@ func applySchemaOpenAPIMetadata(s *Schema, meta expr.MetaExpr) {
 	if value, ok := meta.Last("openapi:contentMediaType"); ok {
 		s.ContentMediaType = value
 	}
+	if value, ok := meta.Last("openapi:format"); ok {
+		s.Format = value
+	}
 	if value, ok := meta.Last("openapi:discriminator:defaultMapping"); ok && s.Discriminator != nil {
 		s.Discriminator.DefaultMapping = value
 	}

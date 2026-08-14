@@ -36,6 +36,9 @@ func pruneAttributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage, s
 }
 
 func pruneUserTypeForSchemaUsage(attr *expr.AttributeExpr, userType expr.UserType, usage schemaUsage, seen map[string]struct{}) bool {
+	if hasCanonicalOpenAPITypeName(attr.Meta) || hasCanonicalOpenAPITypeName(userType.Attribute().Meta) {
+		return false
+	}
 	key := userType.Hash()
 	if _, ok := seen[key]; ok {
 		return false

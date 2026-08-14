@@ -183,6 +183,11 @@ func compareOpenAPIContracts(expected, actual *openapiimport.Document) error {
 	normalizeEmptyOpenAPICollections(expectedNormalized)
 	normalizeEmptyOpenAPICollections(normalized)
 	if !reflect.DeepEqual(expectedNormalized, normalized) {
+		expectedJSON, expectedErr := json.Marshal(expectedNormalized)
+		actualJSON, actualErr := json.Marshal(normalized)
+		if expectedErr == nil && actualErr == nil {
+			return fmt.Errorf("OpenAPI semantic contract differs:\nexpected: %s\nactual:   %s", expectedJSON, actualJSON)
+		}
 		return fmt.Errorf("OpenAPI semantic contract differs:\nexpected: %#v\nactual:   %#v", expectedNormalized, normalized)
 	}
 	return nil

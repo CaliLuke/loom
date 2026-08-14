@@ -202,6 +202,9 @@ const DefaultProtoc = expr.DefaultProtoc
 // - "openapi:self" sets the OpenAPI 3.2 $self document URI. It is omitted for
 // the 3.1 compatibility target. Applicable to API only.
 //
+// - "openapi:format" overrides the generated OpenAPI schema format. An empty
+// value removes the default format. Applicable to attributes only.
+//
 // Other OpenAPI 3.2 metadata includes "openapi:itemSchema",
 // "openapi:component:mediaType", "openapi:example:dataValue",
 // "openapi:example:serializedValue", "openapi:allowReserved",

@@ -164,6 +164,17 @@ func TestAnalyzerAppliesSchemaOpenAPIMetadata(t *testing.T) {
 	require.Equal(t, "application/json", schema.ContentMediaType)
 }
 
+func TestAnalyzerHonorsExplicitEmptySchemaFormat(t *testing.T) {
+	t.Parallel()
+
+	schema := NewAnalyzer(expr.NewRandom("ir"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type: expr.Int,
+		Meta: expr.MetaExpr{"openapi:format": []string{""}},
+	})
+
+	require.Empty(t, schema.Format)
+}
+
 func TestAttributeForSchemaUsagePrunesRequestAndResponseFields(t *testing.T) {
 	t.Parallel()
 
@@ -212,4 +223,37 @@ func TestAttributeForSchemaUsagePrunesRequestAndResponseFields(t *testing.T) {
 	require.Equal(t, []string{"id", "server_only"}, responseType.Attribute().Validation.Required)
 	require.Equal(t, "SessionBodyResponse", responseType.TypeName)
 	require.Equal(t, "session-body#Response", responseType.UID)
+}
+
+func TestAttributeForSchemaUsagePreservesCanonicalSchema(t *testing.T) {
+	t.Parallel()
+
+	attr := &expr.AttributeExpr{
+		Type: &expr.UserTypeExpr{
+			TypeName: "Pet",
+			AttributeExpr: &expr.AttributeExpr{
+				Type: &expr.Object{
+					{Name: "id", Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+						Meta: expr.MetaExpr{"openapi:readOnly": []string{"true"}},
+					}},
+					{Name: "secret", Attribute: &expr.AttributeExpr{
+						Type: expr.String,
+						Meta: expr.MetaExpr{"openapi:writeOnly": []string{"true"}},
+					}},
+				},
+				Meta: expr.MetaExpr{
+					"openapi:typename":           []string{"Pet"},
+					"openapi:typename:canonical": []string{"true"},
+				},
+			},
+		},
+	}
+
+	responseAttr := attributeForSchemaUsage(attr, schemaUsageResponse)
+	responseType, ok := responseAttr.Type.(*expr.UserTypeExpr)
+	require.True(t, ok)
+	require.Equal(t, "Pet", responseType.TypeName)
+	require.NotNil(t, expr.AsObject(responseType.Attribute().Type).Attribute("id"))
+	require.NotNil(t, expr.AsObject(responseType.Attribute().Type).Attribute("secret"))
 }

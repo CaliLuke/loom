@@ -87,18 +87,22 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 	switch {
 	case object:
 		r.open("var %s = Type(%q, func()", name, named.Name)
+		r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
 		if err := r.schemaBlock(named.Schema, path, errorType); err != nil {
 			return err
 		}
 		r.close()
 	case r.hasSchemaBlock(named.Schema):
 		r.open("var %s = Type(%q, %s, func()", name, named.Name, expression)
+		r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
 		if err := r.schemaBlock(named.Schema, path, errorType); err != nil {
 			return err
 		}
 		r.close()
 	default:
-		r.line("var %s = Type(%q, %s)", name, named.Name, expression)
+		r.open("var %s = Type(%q, %s, func()", name, named.Name, expression)
+		r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		r.close()
 	}
 	r.line("")
 	return nil

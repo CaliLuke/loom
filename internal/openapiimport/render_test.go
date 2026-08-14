@@ -55,9 +55,11 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 		`Meta("openapi:readOnly", "true")`,
 		`Meta("openapi:writeOnly", "true")`,
 		`Meta("openapi:deprecated", "true")`,
+		`Meta("openapi:typename:canonical", "true")`,
 		`Default("cat")`,
-		`Attribute("weight", Float64)`,
-		`Attribute("stock", Int)`,
+		`Attribute("weight", Float64, func() {`,
+		`Attribute("stock", Int, func() {`,
+		`Meta("openapi:format", "")`,
 	} {
 		require.Contains(t, string(yamlSource), want)
 	}
@@ -340,23 +342,15 @@ func TestRenderRoundTripsNewlySupportedSchemaKeywordsIntoOpenAPI(t *testing.T) {
 		`"default":"cat"`,
 		`"deprecated":true`,
 		`"readOnly":true`,
+		`"writeOnly":true`,
 	} {
 		require.Contains(t, spec, want)
 	}
-	// Pet is only ever used as a response schema in this fixture, so its
-	// writeOnly "secret" property is correctly split out of every generated
-	// view rather than appearing with "writeOnly":true; a request-side
-	// document would need to reference Pet as a payload to observe the flag
-	// in the generated contract. writeOnly's DSL-level rendering is covered
-	// directly by TestRenderEmitsDefaultAndDeprecatedMetadata.
-	require.NotContains(t, spec, `"secret"`)
+	require.Contains(t, spec, `"secret"`)
 
-	// weight (unformatted number) and stock (unformatted integer) round-trip
-	// as the widest Loom representation: Loom always annotates a generated
-	// integer/number with a format, so the regenerated contract gains
-	// "format": "double"/"int64" that the source document omitted. This is
-	// the documented, non-narrowing fallback rather than a byte-identical
-	// round trip.
+	// weight (unformatted number) and stock (unformatted integer) use Loom's
+	// widest representations while preserving the source contract's absent
+	// format.
 	var decoded struct {
 		Components struct {
 			Schemas map[string]struct {
@@ -368,22 +362,12 @@ func TestRenderRoundTripsNewlySupportedSchemaKeywordsIntoOpenAPI(t *testing.T) {
 		} `json:"components"`
 	}
 	require.NoError(t, json.Unmarshal(openAPI, &decoded))
-	var pet *struct {
-		Type   string `json:"type"`
-		Format string `json:"format"`
-	}
-	for name, schema := range decoded.Components.Schemas {
-		if _, ok := schema.Properties["weight"]; ok {
-			require.Contains(t, name, "Pet")
-			weight := schema.Properties["weight"]
-			pet = &weight
-			require.Equal(t, "number", schema.Properties["weight"].Type)
-			require.Equal(t, "double", schema.Properties["weight"].Format)
-			require.Equal(t, "integer", schema.Properties["stock"].Type)
-			require.Equal(t, "int64", schema.Properties["stock"].Format)
-		}
-	}
-	require.NotNil(t, pet, "expected a Pet-derived schema with a weight property")
+	pet, ok := decoded.Components.Schemas["Pet"]
+	require.True(t, ok, "expected the canonical Pet schema")
+	require.Equal(t, "number", pet.Properties["weight"].Type)
+	require.Empty(t, pet.Properties["weight"].Format)
+	require.Equal(t, "integer", pet.Properties["stock"].Type)
+	require.Empty(t, pet.Properties["stock"].Format)
 }
 
 func TestRenderRejectsUnrepresentableModels(t *testing.T) {
@@ -521,9 +505,9 @@ func TestRenderFallsBackForUnrecognizedAndAbsentFormats(t *testing.T) {
 	rendered := string(source)
 	require.Contains(t, rendered, `Attribute("birthDate", String)`)
 	require.NotContains(t, rendered, "FormatDate")
-	require.Contains(t, rendered, `Attribute("count", Int)`)
+	require.Contains(t, rendered, "Attribute(\"count\", Int, func() {\n\t\tMeta(\"openapi:format\", \"\")")
 	require.Contains(t, rendered, `Attribute("weight", Int)`)
-	require.Contains(t, rendered, `Attribute("result", Float64)`)
+	require.Contains(t, rendered, "Attribute(\"result\", Float64, func() {\n\t\tMeta(\"openapi:format\", \"\")")
 }
 
 func TestRenderDropsUnrepresentableParameterAndHeaderDeprecation(t *testing.T) {
