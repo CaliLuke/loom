@@ -25,6 +25,12 @@ Use this skill when publishing a Loom release from this repo.
   preflight, atomic main/tag publication, remote-ref verification, and matching
   substantive GitHub Release verification. Never pipe it through a command
   that can swallow the original status.
+- The release publisher attests its exact atomic `main` plus annotated-tag push
+  after `release-preflight` succeeds. The pre-push hook accepts that exact
+  two-ref publication without recursively running the full gate again. All
+  ordinary direct-main pushes still run the CI-equivalent gate, and the hook
+  clears Git's repository-local environment before tests create temporary
+  repositories.
 - Review user-facing docs affected by the release changes and update them before cutting the tag.
 - Review the repo-local Loom skill at `.agents/skills/loom/SKILL.md` and update it when the release changes framework behavior, guidance, or version-facing command examples.
 - The pushed `v*` tag must result in a matching GitHub Release via `.github/workflows/release.yml`.

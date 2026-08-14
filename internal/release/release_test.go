@@ -178,6 +178,11 @@ exit 23
 func TestRunPublishesVerifiedReleaseAndFastForwardsCaller(t *testing.T) {
 	repository := newTestRepository(t)
 	logPath := filepath.Join(repository.temp, "commands.log")
+	writeFile(t, filepath.Join(repository.root, ".git/hooks/pre-push"), fmt.Sprintf(`#!/bin/sh
+printf 'hook:%%s\n' "$LOOM_RELEASE_VERSION" >> %q
+cat >> %q
+`, logPath, logPath))
+	require.NoError(t, os.Chmod(filepath.Join(repository.root, ".git/hooks/pre-push"), 0o755))
 	preflight := writeCommand(t, "preflight", fmt.Sprintf(`#!/bin/sh
 printf 'preflight:%%s:%%s\n' "$PWD" "$LOOM_DIR" >> %q
 test "$(pwd -P)" = "$(cd "$LOOM_DIR" && pwd -P)"
@@ -232,6 +237,9 @@ printf '%%s\n' '{"tagName":"v1.7.0","body":"## Highlights\n\n- Transactional rel
 	commands, err := os.ReadFile(logPath)
 	require.NoError(t, err)
 	require.Contains(t, string(commands), "preflight:")
+	require.Contains(t, string(commands), "hook:v1.7.0")
+	require.Contains(t, string(commands), "refs/heads/main")
+	require.Contains(t, string(commands), "refs/tags/v1.7.0")
 	require.Equal(t, 3, strings.Count(string(commands), "gh:release view v1.7.0"))
 	requireNoReleaseWorktree(t, repository.temp)
 }

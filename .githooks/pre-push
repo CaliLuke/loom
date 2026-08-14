@@ -3,6 +3,28 @@
 set -eu
 
 repo_root=$(git rev-parse --show-toplevel)
+git_local_env=$(git rev-parse --local-env-vars)
+release_version=${LOOM_RELEASE_VERSION-}
+release_head=
+release_tag=
+
+if [ -n "$release_version" ]; then
+	if ! printf '%s\n' "$release_version" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
+		echo "invalid Loom release pre-push attestation: $release_version" >&2
+		exit 1
+	fi
+	release_head=$(git rev-parse HEAD)
+	release_tag=$(git rev-parse "refs/tags/$release_version")
+	if [ "$(git cat-file -t "$release_tag")" != tag ]; then
+		echo "Loom release tag $release_version is not annotated" >&2
+		exit 1
+	fi
+	release_tag_commit=$(git rev-parse "refs/tags/$release_version^{}")
+	if [ "$release_tag_commit" != "$release_head" ]; then
+		echo "Loom release tag $release_version does not identify HEAD" >&2
+		exit 1
+	fi
+fi
 
 cd "$repo_root"
 
@@ -13,7 +35,21 @@ echo "Running pre-push checks..."
 # Run the complete local CI equivalent only when this push updates main. A
 # deletion has an all-zero local object ID and does not need source validation.
 run_full=false
+release_main=false
+release_tag_update=false
+update_count=0
 while read -r _local_ref local_oid remote_ref _remote_oid; do
+	update_count=$((update_count + 1))
+	if [ -n "$release_version" ]; then
+		if [ "$remote_ref" = "refs/heads/main" ] && [ "$local_oid" = "$release_head" ]; then
+			release_main=true
+		elif [ "$remote_ref" = "refs/tags/$release_version" ] && [ "$local_oid" = "$release_tag" ]; then
+			release_tag_update=true
+		else
+			echo "unexpected ref in Loom release publication: $remote_ref" >&2
+			exit 1
+		fi
+	fi
 	case "$local_oid" in
 		'') continue ;;
 		*[!0]*) ;;
@@ -23,6 +59,19 @@ while read -r _local_ref local_oid remote_ref _remote_oid; do
 		run_full=true
 	fi
 done
+
+if [ -n "$release_version" ]; then
+	if [ "$update_count" -ne 2 ] || [ "$release_main" != true ] || [ "$release_tag_update" != true ]; then
+		echo "Loom release publication must atomically update main and $release_version" >&2
+		exit 1
+	fi
+	exit 0
+fi
+
+# Git exports repository-local environment variables to push hooks. Clear them
+# before tests create or inspect other repositories, as recommended by
+# githooks(5), so those Git commands use their own working directories.
+unset $git_local_env
 
 if [ "$run_full" = true ]; then
 	# A commit being pushed for the first time cannot be fetched in remote mode.

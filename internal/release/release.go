@@ -175,7 +175,8 @@ func (run *releaseRun) publish(ctx context.Context, changedFiles []string) error
 		return fmt.Errorf("create release tag: %w", err)
 	}
 	run.tagCreated = true
-	if err := streamCommand(ctx, run.stage, nil, "git", "push", "--atomic", "origin",
+	if err := streamCommand(ctx, run.stage, []string{"LOOM_RELEASE_VERSION=" + run.config.Version},
+		"git", "push", "--atomic", "origin",
 		"HEAD:refs/heads/main", "refs/tags/"+run.config.Version); err != nil {
 		return fmt.Errorf("atomically push release branch and tag: %w", err)
 	}
