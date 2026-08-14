@@ -218,6 +218,25 @@ type Schema struct {
 	MinItems *int64
 	// MaxItems is the maximum array length.
 	MaxItems *int64
+	// Deprecated reports whether the schema declares the JSON Schema
+	// deprecated keyword.
+	Deprecated bool
+	// ReadOnly reports whether the schema declares the JSON Schema readOnly
+	// keyword.
+	ReadOnly bool
+	// WriteOnly reports whether the schema declares the JSON Schema writeOnly
+	// keyword.
+	WriteOnly bool
+	// Default holds the decoded JSON Schema default value, or nil when the
+	// schema declares no default.
+	Default *SchemaDefault
+}
+
+// SchemaDefault holds a decoded JSON Schema default value together with its
+// presence, distinguishing an authored default from no default at all.
+type SchemaDefault struct {
+	// Value is the decoded default value.
+	Value any
 }
 
 // NamedProperty is an object property in deterministic source-name order.

@@ -130,9 +130,6 @@ func (p *documentPlanner) parameter(parameter Parameter, path string) {
 	} else {
 		p.schema(resolved.Schema, path+"/schema")
 	}
-	if resolved.Deprecated {
-		p.unsupported("parameter-deprecated", path, "deprecated parameters are not renderable")
-	}
 	if resolved.In != "query" && resolved.AllowEmptyValue {
 		p.unsupported("parameter-allow-empty-value", path, "allowEmptyValue is only supported for query parameters")
 	}
@@ -172,9 +169,6 @@ func (p *documentPlanner) response(response Response, path string) {
 		if named.Header.Ref != "" {
 			p.unsupported("header-reference", headerPath, "header references are not renderable")
 			continue
-		}
-		if named.Header.Deprecated {
-			p.unsupported("header-deprecated", headerPath, fmt.Sprintf("header %q is deprecated and not renderable", named.Name))
 		}
 		if named.Header.Schema == nil {
 			p.unsupported("header-schema", headerPath, fmt.Sprintf("header %q has no schema", named.Name))

@@ -2,6 +2,7 @@ package openapiimport
 
 import (
 	"bytes"
+	"encoding/json"
 	"go/parser"
 	"go/token"
 	"os"
@@ -50,6 +51,12 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 		`Meta("openapi:allowEmptyValue", "false")`,
 		`Response("Status404", 404, func() {`,
 		`Meta("openapi:description:errorName", "false")`,
+		`Meta("openapi:readOnly", "true")`,
+		`Meta("openapi:writeOnly", "true")`,
+		`Meta("openapi:deprecated", "true")`,
+		`Default("cat")`,
+		`Attribute("weight", Float64)`,
+		`Attribute("stock", Int)`,
 	} {
 		require.Contains(t, string(yamlSource), want)
 	}
@@ -202,6 +209,89 @@ func TestRenderErrorFieldCollisionGeneratesCompilingService(t *testing.T) {
 	require.NoError(t, err, string(output))
 }
 
+// TestRenderRoundTripsNewlySupportedSchemaKeywordsIntoOpenAPI regenerates the
+// imported design and inspects the generated OpenAPI document, confirming
+// that default, deprecated, readOnly, writeOnly, and unformatted
+// integer/number properties imported from supported.yaml reappear in the
+// regenerated contract rather than merely compiling.
+func TestRenderRoundTripsNewlySupportedSchemaKeywordsIntoOpenAPI(t *testing.T) {
+	document, diagnostics, err := Analyze(readFixture(t, "supported.yaml"))
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	source, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+
+	moduleDir := t.TempDir()
+	repoRoot := repositoryRoot(t)
+	goMod := "module example.com/imported\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\n" +
+		"replace github.com/CaliLuke/loom => " + repoRoot + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(goMod), 0o600))
+	designDir := filepath.Join(moduleDir, "design")
+	require.NoError(t, os.MkdirAll(designDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(designDir, "design.go"), source, 0o600))
+
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = moduleDir
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+	cmd = exec.Command("go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/imported/design", "-o", ".")
+	cmd.Dir = moduleDir
+	output, err = cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+
+	openAPI, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	spec := string(openAPI)
+	for _, want := range []string{
+		`"default":"cat"`,
+		`"deprecated":true`,
+		`"readOnly":true`,
+	} {
+		require.Contains(t, spec, want)
+	}
+	// Pet is only ever used as a response schema in this fixture, so its
+	// writeOnly "secret" property is correctly split out of every generated
+	// view rather than appearing with "writeOnly":true; a request-side
+	// document would need to reference Pet as a payload to observe the flag
+	// in the generated contract. writeOnly's DSL-level rendering is covered
+	// directly by TestRenderEmitsDefaultAndDeprecatedMetadata.
+	require.NotContains(t, spec, `"secret"`)
+
+	// weight (unformatted number) and stock (unformatted integer) round-trip
+	// as the widest Loom representation: Loom always annotates a generated
+	// integer/number with a format, so the regenerated contract gains
+	// "format": "double"/"int64" that the source document omitted. This is
+	// the documented, non-narrowing fallback rather than a byte-identical
+	// round trip.
+	var decoded struct {
+		Components struct {
+			Schemas map[string]struct {
+				Properties map[string]struct {
+					Type   string `json:"type"`
+					Format string `json:"format"`
+				} `json:"properties"`
+			} `json:"schemas"`
+		} `json:"components"`
+	}
+	require.NoError(t, json.Unmarshal(openAPI, &decoded))
+	var pet *struct {
+		Type   string `json:"type"`
+		Format string `json:"format"`
+	}
+	for name, schema := range decoded.Components.Schemas {
+		if _, ok := schema.Properties["weight"]; ok {
+			require.Contains(t, name, "Pet")
+			weight := schema.Properties["weight"]
+			pet = &weight
+			require.Equal(t, "number", schema.Properties["weight"].Type)
+			require.Equal(t, "double", schema.Properties["weight"].Format)
+			require.Equal(t, "integer", schema.Properties["stock"].Type)
+			require.Equal(t, "int64", schema.Properties["stock"].Format)
+		}
+	}
+	require.NotNil(t, pet, "expected a Pet-derived schema with a weight property")
+}
+
 func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 	schemaRef := func(name string) *Schema {
 		return &Schema{Ref: "#/components/schemas/" + name}
@@ -247,15 +337,12 @@ func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 				AdditionalProperties: &AdditionalProperties{Schema: &Schema{Type: "string"}},
 			}
 		}, want: "object properties with schema-valued additionalProperties are not renderable"},
-		{name: "unsupported format", edit: func(d *Document) {
-			d.Components.Schemas[0].Schema = &Schema{Type: "string", Format: "duration"}
-		}, want: `string format "duration" is not renderable`},
+		{name: "unsupported boolean format", edit: func(d *Document) {
+			d.Components.Schemas[0].Schema = &Schema{Type: "boolean", Format: "custom"}
+		}, want: `boolean format "custom" is not renderable`},
 		{name: "response reference", edit: func(d *Document) {
 			d.Operations[0].Responses[0].Response = Response{Ref: "#/components/responses/OK"}
 		}, want: "response references are not renderable"},
-		{name: "parameter deprecation", edit: func(d *Document) {
-			d.Operations[0].Parameters = []Parameter{{Name: "q", In: "query", Deprecated: true, Schema: &Schema{Type: "string"}}}
-		}, want: "deprecated parameters are not renderable"},
 	}
 
 	for _, test := range tests {
@@ -270,6 +357,106 @@ func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 			require.ErrorContains(t, err, test.want)
 		})
 	}
+}
+
+func TestRenderEmitsDefaultAndDeprecatedMetadata(t *testing.T) {
+	document := &Document{
+		OpenAPIVersion: "3.1.1",
+		Title:          "Metadata",
+		APIVersion:     "1.0.0",
+		Components: Components{Schemas: []NamedSchema{
+			{Name: "Widget", GoName: "Widget", Schema: &Schema{
+				Type: "object",
+				Properties: []NamedProperty{
+					{Name: "mouthX", Schema: &Schema{Type: "number", Format: "float", Deprecated: true}},
+					{Name: "stable", Schema: &Schema{Type: "string", ReadOnly: true}},
+					{Name: "input", Schema: &Schema{Type: "string", WriteOnly: true}},
+					{Name: "apiVersion", Schema: &Schema{Type: "string", Default: &SchemaDefault{Value: "1.0"}}},
+				},
+			}},
+		}},
+		Operations: []Operation{{
+			Method: "GET", Path: "/widgets", OperationID: "widgets.get", GoName: "WidgetsGet",
+			Responses: []StatusResponse{{
+				Status: "200", Response: Response{
+					Schema:      &Schema{Ref: "#/components/schemas/Widget"},
+					ContentType: "application/json",
+				},
+			}},
+		}},
+	}
+
+	source, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	rendered := string(source)
+	require.Contains(t, rendered, `Meta("openapi:deprecated", "true")`)
+	require.Contains(t, rendered, `Meta("openapi:readOnly", "true")`)
+	require.Contains(t, rendered, `Meta("openapi:writeOnly", "true")`)
+	require.Contains(t, rendered, `Default("1.0")`)
+}
+
+func TestRenderFallsBackForUnrecognizedAndAbsentFormats(t *testing.T) {
+	schemaRef := func(name string) *Schema {
+		return &Schema{Ref: "#/components/schemas/" + name}
+	}
+	document := &Document{
+		OpenAPIVersion: "3.1.1",
+		Title:          "Formats",
+		APIVersion:     "1.0.0",
+		Components: Components{Schemas: []NamedSchema{
+			{Name: "Record", GoName: "Record", Schema: &Schema{
+				Type: "object",
+				Properties: []NamedProperty{
+					{Name: "birthDate", Schema: &Schema{Type: "string", Format: "dd/mm/yyyy"}},
+					{Name: "count", Schema: &Schema{Type: "integer"}},
+					{Name: "weight", Schema: &Schema{Type: "integer", Format: "int16"}},
+					{Name: "result", Schema: &Schema{Type: "number", Format: ""}},
+				},
+			}},
+		}},
+		Operations: []Operation{{
+			Method: "GET", Path: "/records", OperationID: "records.get", GoName: "RecordsGet",
+			Responses: []StatusResponse{{
+				Status: "200", Response: Response{Schema: schemaRef("Record"), ContentType: "application/json"},
+			}},
+		}},
+	}
+
+	source, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	rendered := string(source)
+	require.Contains(t, rendered, `Attribute("birthDate", String)`)
+	require.NotContains(t, rendered, "FormatDate")
+	require.Contains(t, rendered, `Attribute("count", Int)`)
+	require.Contains(t, rendered, `Attribute("weight", Int)`)
+	require.Contains(t, rendered, `Attribute("result", Float64)`)
+}
+
+func TestRenderDropsUnrepresentableParameterAndHeaderDeprecation(t *testing.T) {
+	document := &Document{
+		OpenAPIVersion: "3.1.1",
+		Title:          "Deprecated",
+		APIVersion:     "1.0.0",
+		Operations: []Operation{{
+			Method: "GET", Path: "/legacy", OperationID: "legacy.get", GoName: "LegacyGet",
+			Parameters: []Parameter{{Name: "q", In: "query", Deprecated: true, Schema: &Schema{Type: "string"}}},
+			Responses: []StatusResponse{{
+				Status: "200",
+				Response: Response{
+					ContentType: "application/json",
+					Schema:      &Schema{Type: "string"},
+					Headers: []NamedHeader{{
+						Name:   "X-Legacy",
+						Header: Header{Deprecated: true, Schema: &Schema{Type: "string"}},
+					}},
+				},
+			}},
+		}},
+	}
+
+	source, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	require.NotContains(t, string(source), "openapi:deprecated")
 }
 
 func TestRenderDoesNotMutateDocument(t *testing.T) {

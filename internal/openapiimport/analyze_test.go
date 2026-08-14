@@ -2,6 +2,7 @@ package openapiimport
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -366,6 +367,134 @@ func TestAnalyzeReportsMalformedInput(t *testing.T) {
 	require.False(t, errors.Is(err, ErrUnsupportedVersion))
 	require.Nil(t, document)
 	require.Empty(t, diagnostics)
+}
+
+func TestAnalyzeAcceptsSchemaDefaultAndDeprecated(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Defaults, version: "1"}
+paths:
+  /pets:
+    get:
+      responses: {"204": {description: done}}
+components:
+  schemas:
+    FaceCoordinatesDto:
+      type: object
+      properties:
+        mouthX:
+          type: number
+          format: float
+          deprecated: true
+        stable:
+          type: string
+          readOnly: true
+        input:
+          type: string
+          writeOnly: true
+        apiVersion:
+          type: string
+          default: "1.0"
+        retries:
+          type: integer
+          format: int32
+          default: 3
+        enabled:
+          type: boolean
+          default: true
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+
+	byName := map[string]*Schema{}
+	for _, property := range document.Components.Schemas[0].Schema.Properties {
+		byName[property.Name] = property.Schema
+	}
+	require.True(t, byName["mouthX"].Deprecated)
+	require.True(t, byName["stable"].ReadOnly)
+	require.True(t, byName["input"].WriteOnly)
+	require.NotNil(t, byName["apiVersion"].Default)
+	require.Equal(t, "1.0", byName["apiVersion"].Default.Value)
+	require.NotNil(t, byName["retries"].Default)
+	require.Equal(t, 3, byName["retries"].Default.Value)
+	require.NotNil(t, byName["enabled"].Default)
+	require.Equal(t, true, byName["enabled"].Default.Value)
+}
+
+func TestAnalyzeRejectsDefaultForCompositeTypesAndMismatchedValues(t *testing.T) {
+	tests := map[string]string{
+		"object default": `
+    Widget:
+      type: object
+      default: {}
+      properties:
+        name: {type: string}
+`,
+		"array default": `
+    Widget:
+      type: array
+      default: []
+      items: {type: string}
+`,
+		"mismatched scalar default": `
+    Widget:
+      type: integer
+      format: int32
+      default: "not-a-number"
+`,
+	}
+	for name, schema := range tests {
+		t.Run(name, func(t *testing.T) {
+			source := []byte(fmt.Sprintf(`openapi: 3.1.1
+info: {title: Defaults, version: "1"}
+paths:
+  /pets:
+    get:
+      responses: {"204": {description: done}}
+components:
+  schemas:%s`, schema))
+
+			_, diagnostics, err := Analyze(source)
+			require.NoError(t, err)
+			requireDiagnosticCode(t, diagnostics, "schema-keyword")
+		})
+	}
+}
+
+func TestAnalyzeClassifiesParameterAndHeaderDeprecatedAsLossy(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Deprecated, version: "1"}
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: api-version
+          in: header
+          required: true
+          deprecated: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: found
+          headers:
+            X-Legacy:
+              deprecated: true
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {type: string}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.NotNil(t, document)
+	requireDiagnosticCode(t, diagnostics, "parameter-deprecated")
+	requireDiagnosticCode(t, diagnostics, "header-deprecated")
+
+	fatal, warnings := diagnostics.Classify(true)
+	require.Empty(t, fatal)
+	require.Len(t, warnings, 2)
 }
 
 func readFixture(t *testing.T, name string) []byte {

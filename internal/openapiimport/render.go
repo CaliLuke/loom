@@ -301,9 +301,10 @@ func (r *renderer) parameters(source []Parameter, path string) ([]renderedParame
 		if resolved.Schema == nil {
 			return nil, fmt.Errorf("render OpenAPI design: %s/%d has no schema", path, i)
 		}
-		if resolved.Deprecated {
-			return nil, fmt.Errorf("render OpenAPI design: %s/%d deprecated parameters are not renderable", path, i)
-		}
+		// A deprecated parameter has no faithful Loom DSL representation
+		// (there is no per-parameter deprecated marker); the flag is
+		// intentionally dropped here. Analyze reports this omission as the
+		// lossy-allowed "parameter-deprecated" diagnostic.
 		if resolved.In == "path" && !resolved.Required {
 			return nil, fmt.Errorf("render OpenAPI design: %s/%d path parameter %q must be required", path, i, resolved.Name)
 		}
@@ -373,9 +374,9 @@ func (r *renderer) renderedResponse(source StatusResponse, path string) (rendere
 		if err != nil {
 			return renderedResponse{}, err
 		}
-		if header.Deprecated {
-			return renderedResponse{}, fmt.Errorf("render OpenAPI design: %s header %q is deprecated and not renderable", path, named.Name)
-		}
+		// A deprecated header has no faithful Loom DSL representation; the
+		// flag is intentionally dropped here. Analyze reports this omission
+		// as the lossy-allowed "header-deprecated" diagnostic.
 		if header.Schema == nil {
 			return renderedResponse{}, fmt.Errorf("render OpenAPI design: %s header %q has no schema", path, named.Name)
 		}

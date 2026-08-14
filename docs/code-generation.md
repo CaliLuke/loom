@@ -69,12 +69,24 @@ reported together and no partial design or TODO placeholders are written. The
 command also refuses to overwrite an existing target. Review the imported
 design, then run `loom gen <module-import-path>/design` normally.
 
+Schema `default`, `deprecated`, `readOnly`, and `writeOnly`, and unformatted
+(or `int32`/`int64`-formatted) integers and unformatted (or
+`float`/`double`-formatted) numbers, import without any flag: they map onto
+`Default(...)`, `Meta("openapi:deprecated", ...)`, `ReadOnly()`, `WriteOnly()`,
+`Int`, and `Float64` respectively and are never reported as lossy.
+
 Use `--allow-lossy` only when you explicitly accept omission of non-contract
-metadata. It writes the design and reports deterministic warnings to stderr for
-info metadata, external documentation, tag and path metadata, response
-summaries, and examples. It never downgrades contract-affecting diagnostics
-such as servers, security, extensions, callbacks, links, serialization, media
-encodings, or schema features; those still prevent any output from being
+metadata or of constructs the Loom HTTP DSL cannot express per-parameter or
+per-header. It writes the design and reports deterministic warnings to stderr
+for: info metadata, external documentation, tag and path metadata, response
+summaries, examples, unrecognized `format` values (rendered without a format
+validation, per OpenAPI 3.1's rule that unknown formats must not fail
+processing), and parameter- or header-level `deprecated` (the HTTP DSL has no
+per-parameter or per-header deprecated marker, so the flag is dropped; a
+schema's own `deprecated` keyword is unaffected and always preserved). It never
+downgrades contract-affecting diagnostics such as servers, security,
+extensions, callbacks, links, serialization, media encodings, or schema
+composition and structural keywords; those still prevent any output from being
 written.
 
 #### Generate Code (`loom gen`)

@@ -59,11 +59,11 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 	case "array":
 		return r.arraySchemaExpression(schema, path)
 	case "string":
-		return stringSchemaExpression(schema.Format, path)
+		return stringSchemaExpression(schema.Format), false, nil
 	case "integer":
-		return integerSchemaExpression(schema.Format, path)
+		return integerSchemaExpression(schema.Format), false, nil
 	case "number":
-		return numberSchemaExpression(schema.Format, path)
+		return numberSchemaExpression(schema.Format), false, nil
 	case "boolean":
 		return booleanSchemaExpression(schema.Format, path)
 	default:
@@ -123,37 +123,49 @@ func (r *renderer) arraySchemaExpression(schema *Schema, path string) (string, b
 	return strings.TrimSpace(child.builder.String()), false, nil
 }
 
-func stringSchemaExpression(format, path string) (string, bool, error) {
-	primitives := map[string]string{"": "String", "byte": "Bytes"}
-	if primitive, ok := primitives[format]; ok {
-		return primitive, false, nil
+// stringSchemaExpression selects the Loom base type for a string schema.
+// "byte" maps to Bytes; every other format, including one Loom does not
+// recognize, maps to String. A recognized format additionally gets a
+// Format(...) validation call (see validationBlock); an unrecognized one
+// renders as a plain String, matching OpenAPI 3.1's rule that unknown format
+// values must not fail validation or processing. Analyze reports unrecognized
+// non-empty formats as the lossy-allowed "schema-format" diagnostic.
+func stringSchemaExpression(format string) string {
+	if format == "byte" {
+		return "Bytes"
 	}
-	if _, ok := stringFormatDSL(format); !ok {
-		return "", false, fmt.Errorf("render OpenAPI design: %s string format %q is not renderable", path, format)
-	}
-	return "String", false, nil
+	return "String"
 }
 
-func integerSchemaExpression(format, path string) (string, bool, error) {
+// integerSchemaExpression selects the Loom base type for an integer schema.
+// "int32" and "int64" map to their fixed-width types; an absent, empty, or
+// unrecognized format maps to Int, Loom's unformatted integer, which is the
+// widest representation and therefore never narrows the source contract.
+// Analyze reports unrecognized non-empty formats as the lossy-allowed
+// "schema-format" diagnostic; an absent or empty format is fully supported
+// and reported nowhere.
+func integerSchemaExpression(format string) string {
 	switch format {
 	case "int32":
-		return "Int32", false, nil
+		return "Int32"
 	case "int64":
-		return "Int64", false, nil
+		return "Int64"
 	default:
-		return "", false, fmt.Errorf("render OpenAPI design: %s integer format %q is not renderable", path, format)
+		return "Int"
 	}
 }
 
-func numberSchemaExpression(format, path string) (string, bool, error) {
-	switch format {
-	case "float":
-		return "Float32", false, nil
-	case "double":
-		return "Float64", false, nil
-	default:
-		return "", false, fmt.Errorf("render OpenAPI design: %s number format %q is not renderable", path, format)
+// numberSchemaExpression selects the Loom base type for a number schema.
+// "float" maps to Float32; "double", an absent/empty format, or an
+// unrecognized format maps to Float64, the widest representation. Analyze
+// reports unrecognized non-empty formats as the lossy-allowed "schema-format"
+// diagnostic; an absent or empty format is fully supported and reported
+// nowhere.
+func numberSchemaExpression(format string) string {
+	if format == "float" {
+		return "Float32"
 	}
+	return "Float64"
 }
 
 func booleanSchemaExpression(format, path string) (string, bool, error) {
@@ -204,11 +216,27 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 
 func (r *renderer) validationBlock(schema *Schema, path string) error {
 	if schema.Format != "" && schema.Type == "string" && schema.Format != "byte" {
-		formatName, ok := stringFormatDSL(schema.Format)
-		if !ok {
-			return fmt.Errorf("render OpenAPI design: %s string format %q is not renderable", path, schema.Format)
+		if formatName, ok := stringFormatDSL(schema.Format); ok {
+			r.line("Format(%s)", formatName)
 		}
-		r.line("Format(%s)", formatName)
+		// An unrecognized format renders the attribute without a Format(...)
+		// validation; Analyze already reported the omission.
+	}
+	if schema.Default != nil {
+		literal, err := scalarLiteral(schema.Default.Value)
+		if err != nil {
+			return fmt.Errorf("render OpenAPI design: %s default: %w", path, err)
+		}
+		r.line("Default(%s)", literal)
+	}
+	if schema.Deprecated {
+		r.line("Meta(%q, %q)", "openapi:deprecated", "true")
+	}
+	if schema.ReadOnly {
+		r.line("Meta(%q, %q)", "openapi:readOnly", "true")
+	}
+	if schema.WriteOnly {
+		r.line("Meta(%q, %q)", "openapi:writeOnly", "true")
 	}
 	if len(schema.Enum) > 0 {
 		values := make([]string, 0, len(schema.Enum))
@@ -246,11 +274,22 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 }
 
 func (r *renderer) hasSchemaBlock(schema *Schema) bool {
-	return schema != nil && (schema.Description != "" || schema.Type == "string" && schema.Format != "" && schema.Format != "byte" ||
-		len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 || schema.Pattern != "" ||
-		schema.Minimum != nil || schema.Maximum != nil || schema.ExclusiveMinimum != nil || schema.ExclusiveMaximum != nil ||
-		schema.MinLength != nil || schema.MaxLength != nil || schema.MinItems != nil || schema.MaxItems != nil ||
-		schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed)
+	if schema == nil {
+		return false
+	}
+	if schema.Description != "" || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
+		schema.Pattern != "" || schema.Minimum != nil || schema.Maximum != nil || schema.ExclusiveMinimum != nil ||
+		schema.ExclusiveMaximum != nil || schema.MinLength != nil || schema.MaxLength != nil ||
+		schema.MinItems != nil || schema.MaxItems != nil ||
+		schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
+		return true
+	}
+	if schema.Type == "string" && schema.Format != "" && schema.Format != "byte" {
+		if _, ok := stringFormatDSL(schema.Format); ok {
+			return true
+		}
+	}
+	return schema.Deprecated || schema.ReadOnly || schema.WriteOnly || schema.Default != nil
 }
 
 func (r *renderer) resolveParameter(parameter Parameter, path string) (Parameter, string, error) {

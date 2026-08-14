@@ -79,6 +79,7 @@ components:
         kind:
           type: string
           enum: [cat, dog]
+          default: cat
       required: [name]
       additionalProperties: false
     Pet:
@@ -87,8 +88,19 @@ components:
         id:
           type: integer
           format: int64
+          readOnly: true
         name:
           type: string
+        nickname:
+          type: string
+          deprecated: true
+        secret:
+          type: string
+          writeOnly: true
+        weight:
+          type: number
+        stock:
+          type: integer
         labels:
           type: array
           items:
