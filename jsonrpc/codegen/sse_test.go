@@ -220,6 +220,18 @@ func TestJSONRPCMixedHandlerClassifiesEnvelopeDecodeErrors(t *testing.T) {
 	require.Contains(t, code, `jsonrpcEnvelopeDecodeError(err)`)
 }
 
+// TestJSONRPCMixedHandlerStreamsEnvelopeDecodeErrorsOverSSE asserts that once
+// SSE is negotiated, envelope decode failures are streamed as SSE message
+// events instead of being encoded as plain JSON HTTP bodies.
+func TestJSONRPCMixedHandlerStreamsEnvelopeDecodeErrorsOverSSE(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-mixed-server-handler")
+
+	require.Contains(t, code, `writer := loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy)`)
+	require.Contains(t, code, `loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: "message"}, response)`)
+	require.NotContains(t, code, "s.encoder(r.Context(), w).Encode(response)")
+}
+
 func TestJSONRPCSSEServiceStreamSendOmitsResponseBranchWithoutID(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEStringDSL)
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "sse.go", "jsonrpc-server-sse-stream-impl")

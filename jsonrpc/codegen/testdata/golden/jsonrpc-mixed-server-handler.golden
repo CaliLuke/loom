@@ -59,10 +59,14 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 		var req jsonrpc.RawRequest
 		if err := s.decoder(r).Decode(&req); err != nil {
+			// SSE is negotiated: stream the envelope decode error as a message event.
 			code, message, data := jsonrpcEnvelopeDecodeError(err)
 			response := jsonrpc.MakeErrorResponse(nil, code, message, data)
-			if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
-				s.errhandler(r.Context(), w, fmt.Errorf("failed to encode envelope decode error response: %w", encErr))
+			writer := loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy)
+			if sendErr := writer.WriteEvent(r.Context(), func(w io.Writer) error {
+				return loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: "message"}, response)
+			}); sendErr != nil {
+				s.errhandler(r.Context(), w, fmt.Errorf("failed to send envelope decode error event: %w", sendErr))
 			}
 			return
 		}

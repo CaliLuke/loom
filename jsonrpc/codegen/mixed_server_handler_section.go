@@ -117,6 +117,7 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 							jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("r")).Dot("Decode").Call(jen.Op("&").Id("req")),
 							jen.Err().Op("!=").Nil(),
 						).Block(
+							jen.Comment("SSE is negotiated: stream the envelope decode error as a message event."),
 							jen.List(jen.Id("code"), jen.Id("message"), jen.Id("data")).Op(":=").
 								Id("jsonrpcEnvelopeDecodeError").Call(jen.Err()),
 							jen.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeErrorResponse").Call(
@@ -125,14 +126,24 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 								jen.Id("message"),
 								jen.Id("data"),
 							),
+							jen.Id("writer").Op(":=").Add(newJSONRPCSSEWriter()),
 							jen.If(
-								jen.Id("encErr").Op(":=").Id("s").Dot("encoder").Call(jen.Id("r").Dot("Context").Call(), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
-								jen.Id("encErr").Op("!=").Nil(),
+								jen.Id("sendErr").Op(":=").Id("writer").Dot("WriteEvent").Call(
+									jen.Id("r").Dot("Context").Call(),
+									jen.Func().Params(jen.Id("w").Qual("io", "Writer")).Error().Block(
+										jen.Return(jen.Id("loomhttp").Dot("WriteJSONSSEEvent").Call(
+											jen.Id("w"),
+											jen.Id("loomhttp").Dot("SSEMessage").Values(jen.Dict{jen.Id("Type"): jen.Lit("message")}),
+											jen.Id("response"),
+										)),
+									),
+								),
+								jen.Id("sendErr").Op("!=").Nil(),
 							).Block(
 								jen.Id("s").Dot("errhandler").Call(
 									jen.Id("r").Dot("Context").Call(),
 									jen.Id("w"),
-									jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode envelope decode error response: %w"), jen.Id("encErr")),
+									jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send envelope decode error event: %w"), jen.Id("sendErr")),
 								),
 							),
 							jen.Return(),

@@ -186,6 +186,72 @@ func TestJSONRPCMixedRejectsOversizedRequestBody(t *testing.T) {
 	require.Equal(t, "request_too_large", envelope.Error.Data.Name)
 }
 
+func TestJSONRPCMixedSSEStreamsEnvelopeDecodeErrors(t *testing.T) {
+	t.Parallel()
+
+	server := startMixedTickServer(t)
+	defer server.Stop() //nolint:errcheck
+
+	t.Run("oversized body", func(t *testing.T) {
+		body := strings.NewReader(`{"jsonrpc":"2.0","method":"Tick","params":{"id":"` +
+			strings.Repeat("x", loomhttp.DefaultMaxRequestBodyBytes) + `"},"id":"oversized"}`)
+		resp, respBody := postMixedTickSSERawRequest(t, server.URL()+"/rpc", body)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.True(t, strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream"))
+
+		events, err := loomhttp.ParseSSEStream(bytes.NewReader(respBody))
+		require.NoError(t, err)
+		require.Len(t, events, 1)
+		require.Equal(t, "message", events[0].Type)
+
+		var envelope struct {
+			JSONRPC string `json:"jsonrpc"`
+			ID      any    `json:"id"`
+			Error   struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+				Data    struct {
+					Name string `json:"name"`
+				} `json:"data"`
+			} `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(events[0].Data), &envelope))
+		require.Equal(t, "2.0", envelope.JSONRPC)
+		require.Nil(t, envelope.ID)
+		require.Equal(t, -32600, envelope.Error.Code)
+		require.Equal(t, "request body too large", envelope.Error.Message)
+		require.Equal(t, "request_too_large", envelope.Error.Data.Name)
+	})
+
+	t.Run("malformed envelope", func(t *testing.T) {
+		body := strings.NewReader(`{"jsonrpc":"2.0","method":`)
+		resp, respBody := postMixedTickSSERawRequest(t, server.URL()+"/rpc", body)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.True(t, strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream"))
+
+		events, err := loomhttp.ParseSSEStream(bytes.NewReader(respBody))
+		require.NoError(t, err)
+		require.Len(t, events, 1)
+		require.Equal(t, "message", events[0].Type)
+
+		var envelope struct {
+			JSONRPC string `json:"jsonrpc"`
+			ID      any    `json:"id"`
+			Error   struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(events[0].Data), &envelope))
+		require.Equal(t, "2.0", envelope.JSONRPC)
+		require.Nil(t, envelope.ID)
+		require.Equal(t, -32700, envelope.Error.Code)
+		require.Equal(t, "Parse error", envelope.Error.Message)
+	})
+}
+
 func TestJSONRPCMixedSSETopLevelServerEmitsErrors(t *testing.T) {
 	t.Parallel()
 
@@ -263,4 +329,26 @@ func postMixedTickSSERequest(t *testing.T, url string, payload map[string]any) (
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	return resp, body
+}
+
+func postMixedTickSSERawRequest(t *testing.T, url string, body io.Reader) (*http.Response, []byte) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
+	require.NoError(t, err)
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		resp.Body.Close() //nolint:errcheck
+	})
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	return resp, respBody
 }
