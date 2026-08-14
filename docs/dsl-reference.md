@@ -1068,7 +1068,7 @@ A negative max age instructs browsers to delete the cookie immediately. Zero
 omits the `Max-Age` attribute, while a positive value is its lifetime in
 seconds.
 
-> **Since: `v1.8.0-alpha.3`.**
+> **Since: `v1.8.0`.**
 
 For plain-HTTP local development, call `CookieInsecure()` immediately
 after `SessionCookie(...)` to override the secure default. Do not use that

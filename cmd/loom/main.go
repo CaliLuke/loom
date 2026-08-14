@@ -192,7 +192,7 @@ Usage:
 
 Commands:
   import openapi
-    Create a Loom design from a supported OpenAPI 3.1 or 3.2 contract.
+        Create a Loom design from a supported OpenAPI 3.1 or 3.2 contract.
   gen
         Generate service interfaces, endpoints, transport code and OpenAPI spec.
   example
@@ -204,22 +204,22 @@ Commands:
 
 Args:
   INPUT
-    OpenAPI JSON or YAML file
+        OpenAPI JSON or YAML file
 
   PACKAGE
         Go import path to design package
 
 Flags:
   -o, --output FILE-OR-DIRECTORY (import)
-    import output, defaults to design/design.go
+        import output, defaults to design/design.go
 
   --allow-lossy (import)
-    allow explicitly lossy metadata omissions and report them as warnings
+        allow explicitly lossy metadata omissions and report them as warnings
 
-  -o, -output DIRECTORY (gen, example, test-scaffold)
-    output directory, defaults to the current working directory
+  -o, --output DIRECTORY (gen, example, test-scaffold)
+        output directory, defaults to the current working directory
 
-  -debug
+  --debug
         Print debug information (mainly intended for Loom developers)
 
 Example:

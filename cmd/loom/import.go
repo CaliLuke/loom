@@ -22,7 +22,7 @@ type openAPIImportArgs struct {
 
 func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 	if len(args) < 2 || args[0] != "openapi" || strings.TrimSpace(args[1]) == "" {
-		return openAPIImportArgs{}, fmt.Errorf("usage: loom import openapi INPUT [-o PATH] [--allow-lossy]")
+		return openAPIImportArgs{}, fmt.Errorf("usage: loom import openapi INPUT [-o FILE-OR-DIRECTORY] [--allow-lossy]")
 	}
 	if args[1] == "-" {
 		return openAPIImportArgs{}, fmt.Errorf("openapi import input must be a file; stdin is not supported")
