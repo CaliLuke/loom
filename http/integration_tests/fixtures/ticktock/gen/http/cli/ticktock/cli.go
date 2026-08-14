@@ -24,7 +24,9 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{"clock (tick|tock|guarded)"}
-} // UsageExamples produces an example of a valid invocation of the CLI tool.
+}
+
+// UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
 	return os.Args[0] + " clock tick\\n"
 }
@@ -96,7 +98,9 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 		return nil, nil, err
 	}
 	return endpoint, data, nil
-} // clockUsage displays the usage of the clock command and its subcommands.
+}
+
+// clockUsage displays the usage of the clock command and its subcommands.
 func clockUsage() {
 	fmt.Fprintln(os.Stderr, "Service is the clock service interface.")
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] clock COMMAND [flags]\n\n", os.Args[0])

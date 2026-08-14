@@ -34,10 +34,14 @@ type Client struct {
 	host    string
 	encoder func(*http.Request) loomhttp.Encoder
 	decoder func(*http.Response) loomhttp.Decoder
-} // NewClient instantiates HTTP clients for all the clock service servers.
+}
+
+// NewClient instantiates HTTP clients for all the clock service servers.
 func NewClient(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restoreBody bool) *Client {
 	return &Client{TickDoer: doer, TockDoer: doer, GuardedDoer: doer, RestoreResponseBody: restoreBody, scheme: scheme, host: host, decoder: dec, encoder: enc}
-} // Tick returns an endpoint that makes HTTP requests to the clock service Tick
+}
+
+// Tick returns an endpoint that makes HTTP requests to the clock service Tick
 // server.
 func (c *Client) Tick() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
@@ -61,7 +65,9 @@ func (c *Client) Tick() loom.Endpoint {
 		}
 		return NewTickStream(resp, c.decoder), nil
 	}
-} // Tock returns an endpoint that makes HTTP requests to the clock service Tock
+}
+
+// Tock returns an endpoint that makes HTTP requests to the clock service Tock
 // server.
 func (c *Client) Tock() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
@@ -85,7 +91,9 @@ func (c *Client) Tock() loom.Endpoint {
 		}
 		return NewTockStream(resp, c.decoder), nil
 	}
-} // Guarded returns an endpoint that makes HTTP requests to the clock service
+}
+
+// Guarded returns an endpoint that makes HTTP requests to the clock service
 // Guarded server.
 func (c *Client) Guarded() loom.Endpoint {
 	var (

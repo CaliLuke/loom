@@ -17,7 +17,6 @@ paths:
                   in: query
                   name: token
                   schema:
-                    example: Deserunt voluptas nisi.
                     type: string
             responses:
                 "200":
