@@ -237,6 +237,9 @@ func writePartialReport(writer io.Writer, analysis *openapiimport.PartialAnalysi
 	if err := writeDiagnosticGroups(writer, "warnings", analysis.Warnings); err != nil {
 		return err
 	}
+	if err := writeDiagnosticGroups(writer, "skipped (document level)", analysis.Omitted); err != nil {
+		return err
+	}
 	if len(analysis.Skipped) == 0 {
 		return nil
 	}

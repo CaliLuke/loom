@@ -137,6 +137,8 @@ type RequestBody struct {
 	ContentType string
 	// Schema describes the request body.
 	Schema *Schema
+	// Examples contains examples declared on the request media type.
+	Examples []Example
 }
 
 // StatusResponse associates an HTTP response with its status code.
@@ -158,6 +160,8 @@ type Response struct {
 	ContentType string
 	// Schema describes the response body.
 	Schema *Schema
+	// Examples contains examples declared on the response media type.
+	Examples []Example
 	// Headers contains response headers sorted by wire name.
 	Headers []NamedHeader
 }
@@ -231,8 +235,22 @@ type Schema struct {
 	WriteOnly bool
 	// Default holds the decoded JSON Schema default value, or nil when the
 	// schema declares no default.
-	Default                *SchemaDefault
+	Default *SchemaDefault
+	// Examples contains decoded examples declared by example or examples.
+	Examples               []Example
 	unsupportedComposition bool
+}
+
+// Example is an example value retained from a schema or media type.
+type Example struct {
+	// Name is the authored media example key or a deterministic schema example name.
+	Name string
+	// Summary is the authored media example summary.
+	Summary string
+	// Description is the authored example description.
+	Description string
+	// Value is the decoded example value.
+	Value any
 }
 
 // SchemaDefault holds a decoded JSON Schema default value together with its

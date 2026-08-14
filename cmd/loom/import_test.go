@@ -314,6 +314,44 @@ paths:
 	}
 }
 
+func TestRunOpenAPIImportReportsDocumentLevelOmissions(t *testing.T) {
+	const source = `openapi: 3.1.1
+info: {title: Partial, version: "1"}
+servers: [{url: https://api.example.com}]
+security: [{apiKey: []}]
+paths:
+  /pets:
+    get:
+      operationId: getPets
+      responses: {"204": {description: done}}
+components:
+  securitySchemes:
+    apiKey: {type: apiKey, in: header, name: X-API-Key}
+`
+	root := t.TempDir()
+	input := filepath.Join(root, "openapi.yaml")
+	output := filepath.Join(root, "design")
+	require.NoError(t, os.WriteFile(input, []byte(source), 0o644))
+
+	var exitCode int
+	stdout, stderr, err := captureOutput(t, func() error {
+		exitCode = runOpenAPIImport([]string{"openapi", input, "-o", output, "--skip-unrenderable"})
+		return nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitCode)
+	require.Contains(t, stdout, "design.go")
+	for _, expected := range []string{
+		"importable: 1/1 operations",
+		"skipped (document level):",
+		"security\t1",
+		"security-schemes\t1",
+		"servers\t1",
+	} {
+		require.Contains(t, stderr, expected)
+	}
+}
+
 func TestImportOpenAPIDesignOutputResolution(t *testing.T) {
 	source := supportedOpenAPISource(t)
 	cases := map[string]struct {

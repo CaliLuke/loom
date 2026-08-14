@@ -97,6 +97,62 @@ func TestRenderOutputCompilesAndEvaluatesAsLoomDesign(t *testing.T) {
 	requireRenderedDesignEvaluates(t, source, 2)
 }
 
+func TestRenderPreservesSchemaAndMediaExamples(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Examples, version: "1"}
+paths:
+  /pets:
+    post:
+      operationId: createPet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: {name: Fido}
+            schema: {$ref: '#/components/schemas/Pet'}
+      responses:
+        "200":
+          description: created
+          content:
+            application/json:
+              examples:
+                created:
+                  summary: Created pet
+                  description: A newly-created pet.
+                  value: {name: Fido}
+              schema: {$ref: '#/components/schemas/Pet'}
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, example: Fido}
+        kind: {type: string, examples: [dog, cat]}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	requireRenderedDesignEvaluates(t, rendered, 1)
+
+	design := string(rendered)
+	for _, expected := range []string{
+		`Example("Fido")`,
+		`Example("example-1", "dog")`,
+		`Example("example-2", "cat")`,
+		`Example(Val{"name": "Fido"})`,
+		`Example("created", func() {`,
+		`Meta("openapi:example:summary", "Created pet")`,
+		`Description("A newly-created pet.")`,
+		`Value(Val{"name": "Fido"})`,
+	} {
+		require.Contains(t, design, expected)
+	}
+}
+
 func requireRenderedDesignEvaluates(t *testing.T, source []byte, wantMethods int) {
 	t.Helper()
 	moduleDir := t.TempDir()

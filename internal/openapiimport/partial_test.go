@@ -66,7 +66,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: value
+                format: proprietary
 `)
 
 	tests := []struct {
@@ -77,7 +77,7 @@ paths:
 		wantWarningCode string
 	}{
 		{name: "strict", wantSkipped: 1},
-		{name: "allow lossy", allowLossy: true, wantOperations: 1, wantWarningCode: "examples"},
+		{name: "allow lossy", allowLossy: true, wantOperations: 1, wantWarningCode: "schema-format"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -90,4 +90,67 @@ paths:
 			}
 		})
 	}
+}
+
+func TestAnalyzePartialOmitsDocumentLevelBlockers(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info:
+  title: Partial
+  version: "1"
+  contact: {name: Loom}
+servers: [{url: https://api.example.com}]
+security: [{apiKey: []}]
+tags:
+  - name: pets
+    description: Pet operations.
+paths:
+  /pets:
+    get:
+      operationId: getPets
+      tags: [pets]
+      responses: {"204": {description: done}}
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+`)
+
+	analysis, _, err := AnalyzePartial(source, Selection{}, false)
+	require.NoError(t, err)
+	require.Len(t, analysis.Document.Operations, 1)
+	require.Empty(t, analysis.Skipped)
+	require.Empty(t, analysis.Blocked)
+	for _, code := range []string{"info-metadata", "servers", "security", "tag-metadata", "security-schemes"} {
+		requireDiagnosticCode(t, analysis.Omitted, code)
+	}
+}
+
+func TestAnalyzePartialStillBlocksOperationLevelSecurity(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Partial, version: "1"}
+security: [{apiKey: []}]
+paths:
+  /public:
+    get:
+      operationId: getPublic
+      responses: {"204": {description: done}}
+  /private:
+    get:
+      operationId: getPrivate
+      security: [{apiKey: []}]
+      responses: {"204": {description: done}}
+components:
+  securitySchemes:
+    apiKey: {type: apiKey, in: header, name: X-API-Key}
+`)
+
+	analysis, _, err := AnalyzePartial(source, Selection{}, false)
+	require.NoError(t, err)
+	require.Len(t, analysis.Document.Operations, 1)
+	require.Equal(t, "/public", analysis.Document.Operations[0].Path)
+	require.Len(t, analysis.Skipped, 1)
+	require.Equal(t, "/private", analysis.Skipped[0].Path)
+	requireDiagnosticCode(t, analysis.Skipped[0].Diagnostics, "security")
 }

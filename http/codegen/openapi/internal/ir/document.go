@@ -327,8 +327,12 @@ func initExamples(target interface {
 }
 
 func buildExample(example *expr.ExampleExpr, value any) *Example {
+	summary := example.Summary
+	if authored, ok := example.Meta.Last("openapi:example:summary"); ok {
+		summary = authored
+	}
 	out := &Example{
-		Summary:       example.Summary,
+		Summary:       summary,
 		Description:   example.Description,
 		ComponentName: metaValue(example.Meta, "openapi:component:example"),
 		Value:         value,

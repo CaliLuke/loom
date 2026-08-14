@@ -2,6 +2,7 @@ package openapiimport
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -304,12 +305,8 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 		// An unrecognized format renders the attribute without a Format(...)
 		// validation; Analyze already reported the omission.
 	}
-	if schema.Default != nil {
-		literal, err := scalarLiteral(schema.Default.Value)
-		if err != nil {
-			return fmt.Errorf("render OpenAPI design: %s default: %w", path, err)
-		}
-		r.line("Default(%s)", literal)
+	if err := r.defaultAndExamples(schema, path); err != nil {
+		return err
 	}
 	if schema.Deprecated {
 		r.line("Meta(%q, %q)", "openapi:deprecated", "true")
@@ -320,16 +317,8 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 	if schema.WriteOnly {
 		r.line("Meta(%q, %q)", "openapi:writeOnly", "true")
 	}
-	if len(schema.Enum) > 0 {
-		values := make([]string, 0, len(schema.Enum))
-		for _, value := range schema.Enum {
-			literal, err := scalarLiteral(value)
-			if err != nil {
-				return fmt.Errorf("render OpenAPI design: %s enum: %w", path, err)
-			}
-			values = append(values, literal)
-		}
-		r.line("Enum(%s)", strings.Join(values, ", "))
+	if err := r.enumValidation(schema, path); err != nil {
+		return err
 	}
 	if schema.Pattern != "" {
 		r.line("Pattern(%q)", schema.Pattern)
@@ -355,6 +344,38 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 	return nil
 }
 
+func (r *renderer) defaultAndExamples(schema *Schema, path string) error {
+	if schema.Default != nil {
+		literal, err := scalarLiteral(schema.Default.Value)
+		if err != nil {
+			return fmt.Errorf("render OpenAPI design: %s default: %w", path, err)
+		}
+		r.line("Default(%s)", literal)
+	}
+	for _, example := range schema.Examples {
+		if err := r.example(example, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *renderer) enumValidation(schema *Schema, path string) error {
+	if len(schema.Enum) == 0 {
+		return nil
+	}
+	values := make([]string, 0, len(schema.Enum))
+	for _, value := range schema.Enum {
+		literal, err := scalarLiteral(value)
+		if err != nil {
+			return fmt.Errorf("render OpenAPI design: %s enum: %w", path, err)
+		}
+		values = append(values, literal)
+	}
+	r.line("Enum(%s)", strings.Join(values, ", "))
+	return nil
+}
+
 func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if schema == nil {
 		return false
@@ -374,7 +395,96 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		return true
 	}
-	return schema.Deprecated || schema.ReadOnly || schema.WriteOnly || schema.Default != nil
+	return schema.Deprecated || schema.ReadOnly || schema.WriteOnly || schema.Default != nil || len(schema.Examples) > 0
+}
+
+func (r *renderer) example(example Example, path string) error {
+	literal, err := exampleLiteral(example.Value)
+	if err != nil {
+		return fmt.Errorf("render OpenAPI design: %s example: %w", path, err)
+	}
+	if example.Name == "" && example.Summary == "" && example.Description == "" {
+		r.line("Example(%s)", literal)
+		return nil
+	}
+	name := example.Name
+	if name == "" {
+		name = "default"
+	}
+	if example.Summary == "" && example.Description == "" {
+		r.line("Example(%q, %s)", name, literal)
+		return nil
+	}
+	r.open("Example(%q, func()", name)
+	if example.Summary != "" && example.Summary != name {
+		r.line("Meta(%q, %q)", "openapi:example:summary", example.Summary)
+	}
+	if example.Description != "" {
+		r.line("Description(%q)", example.Description)
+	}
+	r.line("Value(%s)", literal)
+	r.close()
+	return nil
+}
+
+func exampleLiteral(value any) (string, error) {
+	switch actual := value.(type) {
+	case string:
+		return strconv.Quote(actual), nil
+	case bool:
+		return strconv.FormatBool(actual), nil
+	case int:
+		return strconv.Itoa(actual), nil
+	case int8:
+		return strconv.FormatInt(int64(actual), 10), nil
+	case int16:
+		return strconv.FormatInt(int64(actual), 10), nil
+	case int32:
+		return strconv.FormatInt(int64(actual), 10), nil
+	case int64:
+		return strconv.FormatInt(actual, 10), nil
+	case uint:
+		return strconv.FormatUint(uint64(actual), 10), nil
+	case uint8:
+		return strconv.FormatUint(uint64(actual), 10), nil
+	case uint16:
+		return strconv.FormatUint(uint64(actual), 10), nil
+	case uint32:
+		return strconv.FormatUint(uint64(actual), 10), nil
+	case uint64:
+		return strconv.FormatUint(actual, 10), nil
+	case float32:
+		return strconv.FormatFloat(float64(actual), 'g', -1, 32), nil
+	case float64:
+		return strconv.FormatFloat(actual, 'g', -1, 64), nil
+	case []any:
+		values := make([]string, len(actual))
+		for index, item := range actual {
+			literal, err := exampleLiteral(item)
+			if err != nil {
+				return "", err
+			}
+			values[index] = literal
+		}
+		return "[]any{" + strings.Join(values, ", ") + "}", nil
+	case map[string]any:
+		keys := make([]string, 0, len(actual))
+		for key := range actual {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		values := make([]string, 0, len(keys))
+		for _, key := range keys {
+			literal, err := exampleLiteral(actual[key])
+			if err != nil {
+				return "", err
+			}
+			values = append(values, strconv.Quote(key)+": "+literal)
+		}
+		return "Val{" + strings.Join(values, ", ") + "}", nil
+	default:
+		return "", fmt.Errorf("value of type %T is not a supported Loom example", value)
+	}
 }
 
 func (r *renderer) resolveParameter(parameter Parameter, path string) (Parameter, string, error) {

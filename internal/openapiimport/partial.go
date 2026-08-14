@@ -14,6 +14,8 @@ type (
 		Blocked Diagnostics
 		// Warnings contains allowed lossy diagnostics for retained operations.
 		Warnings Diagnostics
+		// Omitted contains document-level constructs skipped by partial import.
+		Omitted Diagnostics
 		// Skipped contains operations that cannot be rendered and their diagnostics.
 		Skipped []SkippedOperation
 		// TotalOperations is the number of operations before partial analysis.
@@ -47,6 +49,7 @@ func AnalyzePartial(source []byte, selection Selection, allowLossy bool) (*Parti
 		TotalOperations: len(document.Operations),
 		TotalSchemas:    len(document.Components.Schemas),
 	}
+	rawDiagnostics, analysis.Omitted = splitDocumentOmissions(rawDiagnostics)
 	retained := make([]Operation, 0, len(document.Operations))
 	for _, operation := range document.Operations {
 		candidate := documentForOperations(document, []Operation{operation})
@@ -75,6 +78,45 @@ func AnalyzePartial(source []byte, selection Selection, allowLossy bool) (*Parti
 		return nil, report, fmt.Errorf("plan partial OpenAPI import:\n%s", diagnostics.Error())
 	}
 	return analysis, report, nil
+}
+
+func splitDocumentOmissions(diagnostics Diagnostics) (retained, omitted Diagnostics) {
+	for _, diagnostic := range diagnostics {
+		if isDocumentOmission(diagnostic) {
+			omitted = append(omitted, diagnostic)
+			continue
+		}
+		retained = append(retained, diagnostic)
+	}
+	return retained.sorted(), uniqueDiagnostics(omitted)
+}
+
+func isDocumentOmission(diagnostic Diagnostic) bool {
+	switch diagnostic.Code {
+	case "info-metadata":
+		return diagnostic.Path == "#/info"
+	case "servers":
+		return diagnostic.Path == "#/servers"
+	case "security":
+		return diagnostic.Path == "#/security"
+	case "external-docs":
+		return diagnostic.Path == "#/externalDocs"
+	case "document-identity":
+		return diagnostic.Path == "#"
+	case "tag-metadata":
+		return strings.HasPrefix(diagnostic.Path, "#/tags/")
+	case "webhooks":
+		return diagnostic.Path == "#/webhooks"
+	case "security-schemes":
+		return diagnostic.Path == "#/components/securitySchemes"
+	case "component-kind":
+		return diagnostic.Path == "#/components"
+	case "vendor-extension":
+		return diagnostic.Path == "#" || diagnostic.Path == "#/info" ||
+			diagnostic.Path == "#/components" || strings.HasPrefix(diagnostic.Path, "#/tags/")
+	default:
+		return false
+	}
 }
 
 func documentForOperations(document *Document, operations []Operation) *Document {

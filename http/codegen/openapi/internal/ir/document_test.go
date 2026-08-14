@@ -264,6 +264,19 @@ func TestBuildDocumentComponentizesRepeatedContractNodes(t *testing.T) {
 	require.Equal(t, signin.RequestBody.Ref, refresh.RequestBody.Ref)
 }
 
+func TestBuildExampleUsesAuthoredOpenAPISummary(t *testing.T) {
+	example := &expr.ExampleExpr{
+		Summary: "component-key",
+		Value:   "value",
+		Meta: expr.MetaExpr{
+			"openapi:example:summary": {"Authored summary"},
+		},
+	}
+
+	built := buildExample(example, example.Value)
+	require.Equal(t, "Authored summary", built.Summary)
+}
+
 func TestBuildDocumentPublishesResponseLinksAndAsyncContracts(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.OpenAPIProblemLinksAsyncDSL)
 

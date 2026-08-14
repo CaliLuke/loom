@@ -92,7 +92,12 @@ design, then run `loom gen <module-import-path>/design` normally.
 
 Use `--report` to print grouped blocker counts and affected operations without
 writing a design. Use `--skip-unrenderable` to write all renderable operations
-and report each skipped operation.
+and report each skipped operation. Partial import also omits unsupported
+document-level members such as `servers`, root `security`,
+`components.securitySchemes`, info metadata, and tag metadata. It reports these
+under `skipped (document level)` without making otherwise-renderable operations
+fail. Operation-level security and servers still make that operation
+unrenderable.
 
 Both modes use these exit codes:
 
@@ -130,26 +135,31 @@ The generated method keeps the original wire value in
 `Meta("openapi:operationId", ...)`. Regenerated OpenAPI documents therefore
 retain the source `operationId`.
 
-Schema `default`, `deprecated`, `readOnly`, and `writeOnly`, and unformatted
-(or `int32`/`int64`-formatted) integers and unformatted (or
-`float`/`double`-formatted) numbers, import without any flag: they map onto
-`Default(...)`, `Meta("openapi:deprecated", ...)`, `ReadOnly()`, `WriteOnly()`,
-`Int`, and `Float64` respectively and are never reported as lossy.
+The importer preserves schema `example`, `examples`, `default`, `deprecated`,
+`readOnly`, and `writeOnly` without a flag. It also preserves unformatted
+integer and number schemas. The `int32`, `int64`, `float`, and `double` formats
+are also supported.
+
+The importer maps these members to `Example(...)`, `Default(...)`, metadata,
+`Int`, or `Float64`. It also maps request and response media examples to
+`Example(...)`. It reports null, external, or incompatible examples at their
+source locations.
 
 Use `--allow-lossy` only when you explicitly accept omission of non-contract
 metadata or of constructs the Loom HTTP DSL cannot express per-parameter or
 per-header. It writes the design and reports deterministic warnings to stderr
 for: info metadata, external documentation, tag and path metadata, response
-summaries, examples, unrecognized `format` values (rendered without a format
-validation, per OpenAPI 3.1's rule that unknown formats must not fail
-processing), and parameter- or header-level `deprecated` (the HTTP DSL has no
-per-parameter or per-header deprecated marker, so the flag is dropped; a
-schema's own `deprecated` keyword is unaffected and always preserved). It never
+summaries, and unrenderable or parameter/header examples. It also reports
+unrecognized `format` values and renders them without a format validation.
+OpenAPI 3.1 specifies that an unknown format must not stop processing. The flag
+also omits parameter-level or header-level `deprecated`. The HTTP DSL has no
+deprecated marker for these items. The importer always preserves a schema's
+own `deprecated` keyword. It never
 downgrades contract-affecting diagnostics such as servers, security,
 extensions, callbacks, links, custom serialization, media encodings, or schema
 composition and structural keywords. Without `--skip-unrenderable`, these
 diagnostics prevent output. With that flag, the importer omits each affected
-operation.
+operation. The document-level omissions use the separate behavior above.
 
 #### Generate Code (`loom gen`)
 

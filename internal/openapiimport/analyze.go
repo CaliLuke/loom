@@ -350,10 +350,10 @@ func (a *analyzer) requestBody(source *v3.RequestBody, path string) RequestBody 
 	if low := source.GoLow(); low != nil && low.IsReference() {
 		return RequestBody{Ref: low.GetReference()}
 	}
-	contentType, schema := a.content(source.Content, path+"/content")
+	contentType, schema, examples := a.content(source.Content, path+"/content")
 	body := RequestBody{
 		Description: source.Description, Required: source.Required != nil && *source.Required,
-		ContentType: contentType, Schema: schema,
+		ContentType: contentType, Schema: schema, Examples: examples,
 	}
 	a.extensions(path, source.Extensions)
 	return body
@@ -369,8 +369,8 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 	if low := source.GoLow(); low != nil && low.IsReference() {
 		return Response{Ref: low.GetReference()}
 	}
-	contentType, schema := a.content(source.Content, path+"/content")
-	response := Response{Description: source.Description, ContentType: contentType, Schema: schema}
+	contentType, schema, examples := a.content(source.Content, path+"/content")
+	response := Response{Description: source.Description, ContentType: contentType, Schema: schema, Examples: examples}
 	for name, header := range source.Headers.FromOldest() {
 		response.Headers = append(response.Headers, NamedHeader{
 			Name: name, Header: a.header(header, path+"/headers/"+escapeJSONPointer(name)),
@@ -417,17 +417,17 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 	return header
 }
 
-func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path string) (string, *Schema) {
+func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path string) (string, *Schema, []Example) {
 	if orderedmap.Len(content) == 0 {
-		return "", nil
+		return "", nil, nil
 	}
 	if orderedmap.Len(content) != 1 {
 		a.unsupported("multiple-media-types", path, "exactly one media type is supported")
-		return "", nil
+		return "", nil, nil
 	}
 	for contentType, media := range content.FromOldest() {
 		if media == nil {
-			return contentType, nil
+			return contentType, nil, nil
 		}
 		mediaPath := path + "/" + escapeJSONPointer(contentType)
 		if media.ItemSchema != nil {
@@ -436,13 +436,12 @@ func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path 
 		if orderedmap.Len(media.Encoding) > 0 || orderedmap.Len(media.ItemEncoding) > 0 {
 			a.unsupported("media-encoding", mediaPath, "media encodings are not in the strict import subset")
 		}
-		if media.Example != nil || orderedmap.Len(media.Examples) > 0 {
-			a.unsupported("examples", mediaPath, "media examples are not in the strict import subset")
-		}
+		schema := a.schema(media.Schema, mediaPath+"/schema")
+		examples := a.mediaExamples(media, schema, mediaPath)
 		a.extensions(mediaPath, media.Extensions)
-		return contentType, a.schema(media.Schema, mediaPath+"/schema")
+		return contentType, schema, examples
 	}
-	return "", nil
+	return "", nil, nil
 }
 
 func isJSONMediaType(contentType string) bool {
@@ -469,6 +468,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	a.schemaEnum(schema, source, path)
 	a.schemaExclusiveBounds(schema, source)
 	a.schemaDefault(schema, source, path)
+	a.schemaExamples(schema, source, path)
 	a.schemaFormat(schema, path)
 	a.schemaUnsupportedKeywords(schema, source, path, supportedAllOf)
 	a.extensions(path, source.Extensions)
@@ -664,9 +664,6 @@ func (a *analyzer) schemaUnsupportedKeywords(schema *Schema, source *base.Schema
 		source.Id != "" || source.Comment != "" || source.ContentSchema != nil || orderedmap.Len(source.Defs) > 0 ||
 		orderedmap.Len(source.Vocabulary) > 0 || source.UnevaluatedItems != nil {
 		a.unsupported("schema-resource", path, "JSON Schema resource and dialect keywords are not in the strict import subset")
-	}
-	if source.Example != nil || len(source.Examples) > 0 {
-		a.unsupported("examples", path, "schema examples are not in the strict import subset")
 	}
 }
 

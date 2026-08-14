@@ -61,13 +61,18 @@ To bootstrap a design from an existing OpenAPI 3.1 or 3.2 JSON/YAML contract,
 run `loom import openapi <input> -o design`. Import supports a strict subset:
 it reports every unsupported construct it finds, writes no partial design or
 TODO placeholders, and never overwrites an existing target. Schema `default`,
-`deprecated`, `readOnly`, `writeOnly`, and unformatted integers and numbers
-import with no flag needed. If you explicitly accept omitting non-contract
+`example`, `examples`, `deprecated`, `readOnly`, and `writeOnly` import without
+a flag. Unformatted integers and numbers also import without a flag.
+Representable media examples map to `Example(...)`.
+
+If you explicitly accept omitting non-contract
 metadata, unrecognized `format` values, or a parameter/header (not schema)
 `deprecated` flag the HTTP DSL cannot express per-parameter, add
 `--allow-lossy`; it warns on stderr for each omission but still refuses any
-contract-affecting loss. Review the new `design/design.go` before running
-`loom gen`.
+contract-affecting loss. Use `--skip-unrenderable` to retain renderable
+operations. It reports skipped operations and omitted root members separately.
+These root members include servers, security, security schemes, info metadata,
+and tag metadata. Review the new `design/design.go` before running `loom gen`.
 
 Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
 consumer still requires OpenAPI 3.1.1. The output paths remain the same and the

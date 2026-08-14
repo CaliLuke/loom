@@ -384,11 +384,12 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 		}
 	}
 	if body != nil {
+		bodySchema := schemaWithExamples(body.body.Schema, body.body.Examples)
 		if body.mode != requestBodyJSON {
 			if body.body.Description != "" {
 				r.line("Meta(%q, %q)", "openapi:description:requestBody", body.body.Description)
 			}
-			if err := r.renderRequestTransportBody(body.body.Schema, path+"/requestBody/schema"); err != nil {
+			if err := r.renderRequestTransportBody(bodySchema, path+"/requestBody/schema"); err != nil {
 				return err
 			}
 		} else {
@@ -399,7 +400,7 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 					value: body.body.Description,
 				})
 			}
-			if err := r.attribute(body.field, body.body.Schema, "", path+"/requestBody/schema", metadata...); err != nil {
+			if err := r.attribute(body.field, bodySchema, "", path+"/requestBody/schema", metadata...); err != nil {
 				return err
 			}
 			if body.body.Required {
@@ -423,6 +424,7 @@ func (r *renderer) errorDefinition(response renderedResponse, path string) error
 }
 
 func (r *renderer) responseType(call, name string, response renderedResponse, path string) error {
+	responseSchema := schemaWithExamples(response.response.Schema, response.response.Examples)
 	prefix := call + "("
 	if name != "" {
 		prefix += strconv.Quote(name) + ", "
@@ -432,13 +434,21 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 			r.line("%sEmpty)", prefix)
 			return nil
 		}
-		expression, object, err := r.schemaExpression(response.response.Schema, path+"/content/schema")
+		expression, object, err := r.schemaExpression(responseSchema, path+"/content/schema")
 		if err != nil {
 			return err
 		}
 		if object {
 			r.open("%sfunc()", prefix)
-			if err := r.schemaBlock(response.response.Schema, path+"/content/schema", call == "Error"); err != nil {
+			if err := r.schemaBlock(responseSchema, path+"/content/schema", call == "Error"); err != nil {
+				return err
+			}
+			r.close()
+			return nil
+		}
+		if r.hasSchemaBlock(responseSchema) {
+			r.open("%s%s, func()", prefix, expression)
+			if err := r.validationBlock(responseSchema, path+"/content/schema"); err != nil {
 				return err
 			}
 			r.close()
@@ -454,7 +464,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		}
 	}
 	if response.response.Schema != nil && !response.rawBody {
-		if err := r.attribute(response.body, response.response.Schema, "", path+"/content/schema"); err != nil {
+		if err := r.attribute(response.body, responseSchema, "", path+"/content/schema"); err != nil {
 			return err
 		}
 	}
@@ -529,7 +539,7 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 		r.line("ContentType(%q)", response.response.ContentType)
 	}
 	if response.rawBody {
-		if err := r.openAPIBody(response.response.Schema, path+"/content/schema"); err != nil {
+		if err := r.openAPIBody(schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
 			return err
 		}
 	}
@@ -545,6 +555,15 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 	}
 	r.close()
 	return nil
+}
+
+func schemaWithExamples(schema *Schema, examples []Example) *Schema {
+	if schema == nil || len(examples) == 0 {
+		return schema
+	}
+	combined := *schema
+	combined.Examples = append(append([]Example(nil), schema.Examples...), examples...)
+	return &combined
 }
 
 func (r *renderer) open(format string, args ...any) {
