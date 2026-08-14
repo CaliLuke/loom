@@ -21,6 +21,14 @@ func TestHTTPErrorResponseValidation(t *testing.T) {
 		{"array of object in header", arrayObjectErrorResponseWithHeadersDSL, `HTTP response of service "ArrayObjectErrorResponseWithHeaders" HTTP endpoint "Method": Array error type is mapped to an HTTP header but is not an array of primitive types.`},
 		{"map in header", mapErrorTypeResponseWithHeadersDSL, `HTTP response of service "MapErrorTypeResponseWithHeaders" HTTP endpoint "Method": error type must be a primitive type or an array of primitive types.`},
 		{"missing header result attribute", missingHeaderErrorAttributeDSL, `HTTP response of service "MissingHeaderErrorAttribute" HTTP endpoint "Method": header "bar" has no equivalent attribute in error type, use notation 'attribute_name:header_name' to identify corresponding error type attribute.`},
+		{"valid cookie mapping", validErrorResponseCookieDSL, ""},
+		{"missing cookie error attribute", missingCookieErrorAttributeDSL, `HTTP response of service "MissingCookieErrorAttribute" HTTP endpoint "Method": cookie "sid" has no equivalent attribute in error type, use notation 'attribute_name:cookie_name' to identify corresponding error type attribute.
+HTTP response of service "MissingCookieErrorAttribute" HTTP endpoint "Method": attribute "missing" used in HTTP cookies must be a primitive type.`},
+		{"duplicate cookie name", duplicateErrorResponseCookieNameDSL, `HTTP response of service "DuplicateErrorResponseCookieName" HTTP endpoint "Method": response defines duplicate cookie "sid"`},
+		{"duplicate cookie attribute", duplicateErrorResponseCookieAttributeDSL, `HTTP response of service "DuplicateErrorResponseCookieAttribute" HTTP endpoint "Method": response defines duplicate cookie mapping for attribute "session"`},
+		{"non-primitive cookie error attribute", nonPrimitiveCookieErrorAttributeDSL, `HTTP response of service "NonPrimitiveCookieErrorAttribute" HTTP endpoint "Method": attribute "session" used in HTTP cookies must be a primitive type.`},
+		{"empty error cookies", emptyErrorResponseWithCookiesDSL, `HTTP response of service "EmptyErrorResponseWithCookies" HTTP endpoint "Method": response defines cookies but error type is empty`},
+		{"array error cookies", arrayErrorResponseWithCookiesDSL, `HTTP response of service "ArrayErrorResponseWithCookies" HTTP endpoint "Method": Array error type is mapped to an HTTP cookie.`},
 		{"insecure host cookie", insecureErrorResponseCookieDSL("InsecureHostErrorCookie", "__Host-session", false), `HTTP response of service "InsecureHostErrorCookie" HTTP endpoint "Method": cookie "__Host-session" requires CookieSecure because its name uses the "__Host-" prefix`},
 		{"insecure secure-prefix cookie", insecureErrorResponseCookieDSL("InsecureSecurePrefixErrorCookie", "__Secure-session", false), `HTTP response of service "InsecureSecurePrefixErrorCookie" HTTP endpoint "Method": cookie "__Secure-session" requires CookieSecure because its name uses the "__Secure-" prefix`},
 		{"insecure same-site-none cookie", insecureErrorResponseCookieDSL("InsecureSameSiteNoneErrorCookie", "session", true), `HTTP response of service "InsecureSameSiteNoneErrorCookie" HTTP endpoint "Method": cookie "session" requires CookieSecure when SameSite is None`},
@@ -37,6 +45,117 @@ func TestHTTPErrorResponseValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+var validErrorResponseCookieDSL = func() {
+	Service("ValidErrorResponseCookie", func() {
+		Method("Method", func() {
+			Error("boom", func() {
+				Attribute("session", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response("boom", StatusConflict, func() {
+					Cookie("session:sid")
+				})
+			})
+		})
+	})
+}
+
+var missingCookieErrorAttributeDSL = func() {
+	Service("MissingCookieErrorAttribute", func() {
+		Method("Method", func() {
+			Error("boom", func() {
+				Attribute("session", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response("boom", StatusConflict, func() {
+					Cookie("missing:sid")
+				})
+			})
+		})
+	})
+}
+
+var duplicateErrorResponseCookieNameDSL = func() {
+	Service("DuplicateErrorResponseCookieName", func() {
+		Method("Method", func() {
+			Error("boom", func() {
+				Attribute("session", String)
+				Attribute("refresh", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response("boom", StatusConflict, func() {
+					Cookie("session:sid")
+					Cookie("refresh:sid")
+				})
+			})
+		})
+	})
+}
+
+var duplicateErrorResponseCookieAttributeDSL = func() {
+	Service("DuplicateErrorResponseCookieAttribute", func() {
+		Method("Method", func() {
+			Error("boom", func() {
+				Attribute("session", String)
+			})
+			HTTP(func() {
+				POST("/")
+				Response("boom", StatusConflict, func() {
+					Cookie("session:sid")
+					Cookie("session:other")
+				})
+			})
+		})
+	})
+}
+
+var nonPrimitiveCookieErrorAttributeDSL = func() {
+	Service("NonPrimitiveCookieErrorAttribute", func() {
+		Method("Method", func() {
+			Error("boom", func() {
+				Attribute("session", MapOf(String, String))
+			})
+			HTTP(func() {
+				POST("/")
+				Response("boom", StatusConflict, func() {
+					Cookie("session")
+				})
+			})
+		})
+	})
+}
+
+var emptyErrorResponseWithCookiesDSL = func() {
+	Service("EmptyErrorResponseWithCookies", func() {
+		Method("Method", func() {
+			Error("boom", Empty)
+			HTTP(func() {
+				POST("/")
+				Response("boom", StatusConflict, func() {
+					Cookie("session")
+				})
+			})
+		})
+	})
+}
+
+var arrayErrorResponseWithCookiesDSL = func() {
+	Service("ArrayErrorResponseWithCookies", func() {
+		Method("Method", func() {
+			Error("boom", ArrayOf(String))
+			HTTP(func() {
+				POST("/")
+				Response("boom", StatusConflict, func() {
+					Cookie("session")
+				})
+			})
+		})
+	})
 }
 
 func insecureErrorResponseCookieDSL(serviceName, cookieName string, sameSiteNone bool) func() {

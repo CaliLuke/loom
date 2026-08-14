@@ -181,7 +181,15 @@ func (r *HTTPResponseExpr) validateHeadersAndCookies(e *HTTPEndpointExpr, result
 	}
 	if len(r.Cookies) > 0 {
 		r.validateCookieSecurity(verr)
-		r.validateCookies(e, resultType, verr)
+		r.validateCookies(
+			e.MethodExpr.Result,
+			resultType.AttributeType,
+			"result type",
+			resultType.InView,
+			"Result",
+			e,
+			verr,
+		)
 	}
 }
 
@@ -232,13 +240,19 @@ func (r *HTTPResponseExpr) validateHeaders(e *HTTPEndpointExpr, resultType *http
 	}
 }
 
-func (r *HTTPResponseExpr) validateCookies(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
+func (r *HTTPResponseExpr) validateCookies(
+	source *AttributeExpr,
+	attributeType func(string) DataType,
+	sourceDescription, sourceQualifier, sourceTitle string,
+	invalidTypeParent eval.Expression,
+	verr *eval.ValidationErrors,
+) {
 	seenNames := make(map[string]struct{}, len(r.Cookies))
 	seenAttrs := make(map[string]struct{}, len(r.Cookies))
 	switch {
-	case isEmpty(e.MethodExpr.Result):
-		verr.Add(r, "response defines cookies but result is empty")
-	case IsObject(e.MethodExpr.Result.Type):
+	case isEmpty(source):
+		verr.Add(r, "response defines cookies but %s is empty", sourceDescription)
+	case IsObject(source.Type):
 		for _, cookie := range r.Cookies {
 			verr.Merge(cookie.Validate("HTTP response cookie", r))
 			httpName := cookie.HTTPName()
@@ -254,12 +268,12 @@ func (r *HTTPResponseExpr) validateCookies(e *HTTPEndpointExpr, resultType *http
 					seenAttrs[attrName] = struct{}{}
 				}
 			}
-			t := resultType.AttributeType(cookie.AttributeName())
+			t := attributeType(cookie.AttributeName())
 			if t == nil {
-				verr.Add(r, "cookie %q has no equivalent attribute in%s result type, use notation 'attribute_name:cookie_name' to identify corresponding result type attribute.", httpName, resultType.InView)
+				verr.Add(r, "cookie %q has no equivalent attribute in%s %s, use notation 'attribute_name:cookie_name' to identify corresponding %s attribute.", httpName, sourceQualifier, sourceDescription, sourceDescription)
 			}
 			if !IsPrimitive(t) {
-				verr.Add(e, "attribute %q used in HTTP cookies must be a primitive type.", cookie.AttributeName())
+				verr.Add(invalidTypeParent, "attribute %q used in HTTP cookies must be a primitive type.", cookie.AttributeName())
 			}
 		}
 	default:
@@ -267,9 +281,9 @@ func (r *HTTPResponseExpr) validateCookies(e *HTTPEndpointExpr, resultType *http
 			verr.Merge(cookie.Validate("HTTP response cookie", r))
 		}
 		if len(r.Cookies) > 1 {
-			verr.Add(r, "response defines more than one cookies but result type is not an object")
-		} else if IsArray(e.MethodExpr.Result.Type) {
-			verr.Add(e, "Array result is mapped to an HTTP cookie.")
+			verr.Add(r, "response defines more than one cookies but %s is not an object", sourceDescription)
+		} else if IsArray(source.Type) {
+			verr.Add(invalidTypeParent, "%s type is mapped to an HTTP cookie.", sourceTitle)
 		}
 	}
 }
@@ -297,9 +311,6 @@ func (r *HTTPResponseExpr) validateBodyAndLinks(e *HTTPEndpointExpr, resultType 
 		}
 	} else if e.SkipResponseBodyEncodeDecode || e.FileResponse {
 		body := httpResponseBody(e, r)
-		if e.FileResponse && r.Body == nil {
-			body = &AttributeExpr{Type: Empty}
-		}
 		if body.Type != Empty {
 			mode := "SkipResponseBodyEncodeDecode"
 			if e.FileResponse {

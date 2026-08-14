@@ -1,6 +1,7 @@
 package expr_test
 
 import (
+	"net/http"
 	"testing"
 
 	. "github.com/CaliLuke/loom/dsl"
@@ -20,6 +21,9 @@ func TestHTTPFileResponseValidation(t *testing.T) {
 				GET("/files/{id}")
 				HEAD("/files/{id}")
 				FileResponse()
+				Response(func() {
+					Header("etag:ETag")
+				})
 			}),
 		},
 		{
@@ -51,6 +55,11 @@ func TestHTTPFileResponseValidation(t *testing.T) {
 			wantErr: "Cannot define a response body when endpoint uses FileResponse.",
 		},
 		{
+			name:    "rejects inferred body from unmapped result attribute",
+			dsl:     fileResponseUnmappedResultDSL(),
+			wantErr: "HTTP endpoint response body must be empty when using FileResponse.",
+		},
+		{
 			name: "rejects raw stream escape hatch",
 			dsl: fileResponseDSL(func() {
 				GET("/files/{id}")
@@ -76,6 +85,21 @@ func TestHTTPFileResponseValidation(t *testing.T) {
 				Response(StatusAccepted)
 			}),
 			wantErr: "FileResponse requires exactly one untagged 200 application response",
+		},
+		{
+			name:    "rejects JSON-RPC transport",
+			dsl:     fileResponseJSONRPCDSL(),
+			wantErr: "Endpoint cannot use FileResponse and define a JSON-RPC transport.",
+		},
+		{
+			name:    "rejects gRPC transport",
+			dsl:     fileResponseGRPCDSL(),
+			wantErr: "Endpoint cannot use FileResponse and define a gRPC transport.",
+		},
+		{
+			name:    "rejects StreamingResult",
+			dsl:     fileResponseStreamingResultDSL(),
+			wantErr: "Endpoint cannot use FileResponse when method defines streaming.",
 		},
 	}
 
@@ -150,6 +174,15 @@ func TestHTTPFileResponseRejectsTransportOwnedResultHeaders(t *testing.T) {
 	}
 }
 
+func TestHTTPFileResponseRejectsFileProtocolErrorStatuses(t *testing.T) {
+	for _, status := range []int{StatusPartialContent, StatusNotModified, StatusPreconditionFailed, StatusRequestedRangeNotSatisfiable} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, fileResponseProtocolErrorDSL(status))
+			require.ErrorContains(t, err, "FileResponse error response status")
+		})
+	}
+}
+
 func fileResponseResultHeaderDSL(header string) func() {
 	return func() {
 		Service("files", func() {
@@ -164,6 +197,87 @@ func fileResponseResultHeaderDSL(header string) func() {
 					Response(func() {
 						Header("metadata:" + header)
 					})
+				})
+			})
+		})
+	}
+}
+
+func fileResponseUnmappedResultDSL() func() {
+	return func() {
+		Service("files", func() {
+			Method("download", func() {
+				Result(func() {
+					Attribute("etag", String)
+					Attribute("size", Int)
+				})
+				HTTP(func() {
+					GET("/files")
+					FileResponse()
+					Response(func() {
+						Header("etag:ETag")
+					})
+				})
+			})
+		})
+	}
+}
+
+func fileResponseJSONRPCDSL() func() {
+	return func() {
+		Service("files", func() {
+			JSONRPC(func() {
+				POST("/rpc")
+			})
+			Method("download", func() {
+				Result(String)
+				JSONRPC(func() {
+					FileResponse()
+				})
+			})
+		})
+	}
+}
+
+func fileResponseGRPCDSL() func() {
+	return func() {
+		Service("files", func() {
+			Method("download", func() {
+				Result(String)
+				HTTP(func() {
+					GET("/files")
+					FileResponse()
+				})
+				GRPC(func() {})
+			})
+		})
+	}
+}
+
+func fileResponseStreamingResultDSL() func() {
+	return func() {
+		Service("files", func() {
+			Method("download", func() {
+				StreamingResult(String)
+				HTTP(func() {
+					GET("/files")
+					FileResponse()
+				})
+			})
+		})
+	}
+}
+
+func fileResponseProtocolErrorDSL(status int) func() {
+	return func() {
+		Service("files", func() {
+			Method("download", func() {
+				Error("file_status", String)
+				Result(String)
+				HTTP(func() {
+					GET("/files")
+					FileResponse()
+					Response("file_status", status)
 				})
 			})
 		})

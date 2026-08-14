@@ -415,6 +415,9 @@ func (e *HTTPEndpointExpr) validateFileResponse(verr *eval.ValidationErrors) {
 	if s := Root.API.GRPC.Service(e.Service.Name()); s != nil && s.Endpoint(e.Name()) != nil {
 		verr.Add(e, "Endpoint cannot use FileResponse and define a gRPC transport.")
 	}
+	if e.IsJSONRPC() {
+		verr.Add(e, "Endpoint cannot use FileResponse and define a JSON-RPC transport.")
+	}
 	if e.MethodExpr.IsStreaming() {
 		verr.Add(e, "Endpoint cannot use FileResponse when method defines streaming.")
 	}

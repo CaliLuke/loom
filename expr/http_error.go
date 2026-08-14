@@ -53,6 +53,21 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 	}
 	if len(e.Response.Cookies) > 0 {
 		e.Response.validateCookieSecurity(verr)
+		e.Response.validateCookies(
+			ee.AttributeExpr,
+			func(name string) DataType {
+				att := ee.Find(name)
+				if att == nil {
+					return nil
+				}
+				return att.Type
+			},
+			"error type",
+			"",
+			"Array error",
+			e.Response,
+			verr,
+		)
 	}
 	e.validateHeaders(ee, verr)
 	return verr
