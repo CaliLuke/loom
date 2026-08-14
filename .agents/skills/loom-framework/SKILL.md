@@ -118,6 +118,25 @@ The public feature inventory and metadata usage belong in
 `docs/dsl-reference.md` and the consumer `loom` skill. Internal constructor,
 filter, and serialization rules belong here.
 
+## OpenAPI Importer Invariants
+
+- Retain supported source values in the normalized import model before
+  rendering. A diagnostic-only path cannot recover discarded values later.
+- Scope diagnostics by their JSON Pointer and owning layer, not by diagnostic
+  code alone. The same code can identify a root omission or an operation
+  blocker.
+- Split safe document omissions before per-operation filtering. Root metadata
+  must not make every operation fail during `--skip-unrenderable`.
+- Apply component-closure filtering independently from document and operation
+  filtering. Referenced component diagnostics must stay with their consumers.
+- Copy a shared normalized schema before adding request or response metadata.
+  Do not mutate a component schema while rendering one media type.
+- Make every response-rendering branch honor `hasSchemaBlock`. Primitive and
+  referenced-type shortcuts must not discard examples, defaults, or metadata.
+- For a newly supported import construct, cover analysis, rendered source, DSL
+  evaluation, and regenerated contract shape. Keep unsupported variants as
+  source-specific diagnostics.
+
 ## Transport Invariants
 
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
