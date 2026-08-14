@@ -23,7 +23,9 @@ type generatorRunner interface {
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "import" {
-		runOpenAPIImport(os.Args[2:])
+		if exitCode := runOpenAPIImport(os.Args[2:]); exitCode != 0 {
+			os.Exit(exitCode)
+		}
 		return
 	}
 
@@ -84,44 +86,111 @@ func main() {
 	}
 }
 
-func runOpenAPIImport(args []string) {
+func runOpenAPIImport(args []string) int {
 	arguments, err := parseOpenAPIImportArgs(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		return 1
 	}
-	if arguments.listTags {
-		tags, err := listOpenAPITags(arguments.input)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		printOpenAPITags(tags)
-		return
+	switch {
+	case arguments.listTags:
+		return runOpenAPITagList(arguments)
+	case arguments.report:
+		return runOpenAPIReport(arguments)
+	case arguments.skipUnrenderable:
+		return runOpenAPIPartialImport(arguments)
+	case arguments.selection.Active():
+		return runOpenAPISelectedImport(arguments)
+	default:
+		return runOpenAPIStrictImport(arguments)
 	}
-	if arguments.selection.Active() {
-		target, warnings, report, err := importSelectedOpenAPI(
-			arguments.input,
-			arguments.output,
-			arguments.allowLossy,
-			arguments.selection,
-		)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		printImportWarnings(warnings)
-		printUnclaimedPaths(report.UnclaimedPaths)
+}
+
+func runOpenAPITagList(arguments openAPIImportArgs) int {
+	tags, err := listOpenAPITags(arguments.input)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	printOpenAPITags(tags)
+	return 0
+}
+
+func runOpenAPIReport(arguments openAPIImportArgs) int {
+	analysis, _, err := analyzePartialOpenAPI(
+		arguments.input,
+		arguments.allowLossy,
+		arguments.selection,
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	if err := writePartialReport(os.Stdout, analysis); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	return partialImportExitCode(analysis)
+}
+
+func runOpenAPIPartialImport(arguments openAPIImportArgs) int {
+	target, analysis, report, err := importPartialOpenAPI(
+		arguments.input,
+		arguments.output,
+		arguments.allowLossy,
+		arguments.selection,
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	if err := writePartialReport(os.Stderr, analysis); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	printUnclaimedPaths(report.UnclaimedPaths)
+	if target != "" {
 		fmt.Println(target)
-		return
 	}
+	return partialImportExitCode(analysis)
+}
+
+func runOpenAPISelectedImport(arguments openAPIImportArgs) int {
+	target, warnings, report, err := importSelectedOpenAPI(
+		arguments.input,
+		arguments.output,
+		arguments.allowLossy,
+		arguments.selection,
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	printImportWarnings(warnings)
+	printUnclaimedPaths(report.UnclaimedPaths)
+	fmt.Println(target)
+	return 0
+}
+
+func runOpenAPIStrictImport(arguments openAPIImportArgs) int {
 	target, warnings, err := importOpenAPI(arguments.input, arguments.output, arguments.allowLossy)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		return 1
 	}
 	printImportWarnings(warnings)
 	fmt.Println(target)
+	return 0
+}
+
+func partialImportExitCode(analysis *openapiimport.PartialAnalysis) int {
+	if analysis == nil || analysis.Document == nil || len(analysis.Document.Operations) == 0 {
+		return 1
+	}
+	if len(analysis.Document.Operations) < analysis.TotalOperations {
+		return 2
+	}
+	return 0
 }
 
 func printOpenAPITags(tags []openapiimport.TagSummary) {
@@ -149,6 +218,8 @@ var (
 	gen                   = generate
 	importOpenAPI         = importOpenAPIDesign
 	importSelectedOpenAPI = importOpenAPIDesignSelected
+	importPartialOpenAPI  = importOpenAPIPartial
+	analyzePartialOpenAPI = analyzeOpenAPIPartial
 	listOpenAPITags       = inspectOpenAPITags
 	newGenerator          = func(cmd, path, output string, debug bool) generatorRunner {
 		return NewGenerator(cmd, path, output, debug)
@@ -267,6 +338,12 @@ Flags:
 
   --list-tags (import)
         list operation and path counts by tag without writing a design
+
+  --report (import)
+        report grouped import blockers without writing a design
+
+  --skip-unrenderable (import)
+        write all renderable operations and report skipped operations
 
   -o, --output DIRECTORY (gen, example, test-scaffold)
         output directory, defaults to the current working directory

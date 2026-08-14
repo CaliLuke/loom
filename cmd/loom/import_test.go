@@ -100,6 +100,19 @@ func TestParseOpenAPIImportSelectionArgs(t *testing.T) {
 	require.ErrorContains(t, err, "--list-tags cannot be combined")
 }
 
+func TestParseOpenAPIImportPartialArgs(t *testing.T) {
+	report, err := parseOpenAPIImportArgs([]string{"openapi", "contract.json", "--report"})
+	require.NoError(t, err)
+	require.True(t, report.report)
+
+	partial, err := parseOpenAPIImportArgs([]string{"openapi", "contract.json", "--skip-unrenderable"})
+	require.NoError(t, err)
+	require.True(t, partial.skipUnrenderable)
+
+	_, err = parseOpenAPIImportArgs([]string{"openapi", "contract.json", "--report", "--skip-unrenderable"})
+	require.ErrorContains(t, err, "cannot be combined")
+}
+
 func TestImportOpenAPIDesignLossyPolicy(t *testing.T) {
 	const metadataOnly = `openapi: 3.1.1
 info:
@@ -208,6 +221,97 @@ paths:
 	require.Empty(t, target)
 	require.Empty(t, warnings)
 	require.NoDirExists(t, missingOutput)
+}
+
+func TestRunOpenAPIImportPartialModes(t *testing.T) {
+	const partialSource = `openapi: 3.1.1
+info: {title: Partial, version: "1"}
+paths:
+  /good:
+    get:
+      operationId: getGood
+      responses: {"204": {description: done}}
+  /bad:
+    post:
+      operationId: postBad
+      callbacks: {unsupported: {}}
+      responses: {"204": {description: done}}
+`
+	const blockedSource = `openapi: 3.1.1
+info: {title: Blocked, version: "1"}
+paths:
+  /bad:
+    post:
+      operationId: postBad
+      callbacks: {unsupported: {}}
+      responses: {"204": {description: done}}
+`
+	tests := []struct {
+		name            string
+		source          string
+		flag            string
+		wantExit        int
+		wantOutput      bool
+		wantStdout      []string
+		wantStderr      []string
+		wantNotInDesign string
+	}{
+		{
+			name:       "report is a dry run",
+			source:     partialSource,
+			flag:       "--report",
+			wantExit:   2,
+			wantStdout: []string{"importable: 1/2 operations", "blocked:", "callbacks\t1", "POST /bad"},
+		},
+		{
+			name:            "partial output",
+			source:          partialSource,
+			flag:            "--skip-unrenderable",
+			wantExit:        2,
+			wantOutput:      true,
+			wantStdout:      []string{"design.go"},
+			wantStderr:      []string{"importable: 1/2 operations", "POST /bad"},
+			wantNotInDesign: `Method("PostBad"`,
+		},
+		{
+			name:       "nothing importable",
+			source:     blockedSource,
+			flag:       "--skip-unrenderable",
+			wantExit:   1,
+			wantStderr: []string{"importable: 0/1 operations", "POST /bad"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			input := filepath.Join(root, "openapi.yaml")
+			output := filepath.Join(root, "design")
+			require.NoError(t, os.WriteFile(input, []byte(test.source), 0o644))
+
+			var exitCode int
+			stdout, stderr, err := captureOutput(t, func() error {
+				exitCode = runOpenAPIImport([]string{"openapi", input, "-o", output, test.flag})
+				return nil
+			})
+			require.NoError(t, err)
+			require.Equal(t, test.wantExit, exitCode)
+			for _, expected := range test.wantStdout {
+				require.Contains(t, stdout, expected)
+			}
+			for _, expected := range test.wantStderr {
+				require.Contains(t, stderr, expected)
+			}
+			target := filepath.Join(output, "design.go")
+			if !test.wantOutput {
+				require.NoFileExists(t, target)
+				return
+			}
+			require.FileExists(t, target)
+			rendered, err := os.ReadFile(target)
+			require.NoError(t, err)
+			require.NotContains(t, string(rendered), test.wantNotInDesign)
+		})
+	}
 }
 
 func TestImportOpenAPIDesignOutputResolution(t *testing.T) {

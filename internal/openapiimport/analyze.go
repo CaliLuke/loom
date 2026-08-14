@@ -30,6 +30,15 @@ func Analyze(source []byte) (*Document, Diagnostics, error) {
 // AnalyzeSelected parses source and retains operations that match selection.
 // It returns tag counts and paths that do not match the requested tags.
 func AnalyzeSelected(source []byte, selection Selection) (*Document, Diagnostics, SelectionReport, error) {
+	document, diagnostics, report, err := analyzeSelectedDocument(source, selection)
+	if err != nil || document == nil {
+		return document, diagnostics, report, err
+	}
+	diagnostics = append(diagnostics, planDocument(document).diagnostics...)
+	return document, diagnostics.sorted(), report, nil
+}
+
+func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Diagnostics, SelectionReport, error) {
 	if err := selection.Validate(); err != nil {
 		return nil, nil, SelectionReport{}, err
 	}
@@ -60,7 +69,6 @@ func AnalyzeSelected(source []byte, selection Selection) (*Document, Diagnostics
 		closure := pruneComponents(document)
 		analyzer.diagnostics = filterSelectionDiagnostics(analyzer.diagnostics, closure)
 	}
-	analyzer.diagnostics = append(analyzer.diagnostics, planDocument(document).diagnostics...)
 	return document, analyzer.diagnostics.sorted(), analyzer.report, nil
 }
 

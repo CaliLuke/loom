@@ -90,6 +90,21 @@ reported together and no partial design or TODO placeholders are written. The
 command also refuses to overwrite an existing target. Review the imported
 design, then run `loom gen <module-import-path>/design` normally.
 
+Use `--report` to print grouped blocker counts and affected operations without
+writing a design. Use `--skip-unrenderable` to write all renderable operations
+and report each skipped operation.
+
+Both modes use these exit codes:
+
+| Code | Result |
+|---|---|
+| `0` | All selected operations are importable. |
+| `2` | Some selected operations are importable. |
+| `1` | No selected operation is importable, or another failure occurred. |
+
+`--report` and `--skip-unrenderable` work with operation filters and
+`--allow-lossy`. Report mode never creates the output path.
+
 The importer converts each `operationId` to an idiomatic Go method name. It
 uses matching path words to split lowercase IDs and preserves initialisms such
 as `B2B`.
@@ -115,8 +130,9 @@ per-parameter or per-header deprecated marker, so the flag is dropped; a
 schema's own `deprecated` keyword is unaffected and always preserved). It never
 downgrades contract-affecting diagnostics such as servers, security,
 extensions, callbacks, links, serialization, media encodings, or schema
-composition and structural keywords; those still prevent any output from being
-written.
+composition and structural keywords. Without `--skip-unrenderable`, these
+diagnostics prevent output. With that flag, the importer omits each affected
+operation.
 
 #### Generate Code (`loom gen`)
 
