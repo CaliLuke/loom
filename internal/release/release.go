@@ -123,7 +123,7 @@ func (run *releaseRun) createWorktree(ctx context.Context) error {
 	if err := os.Remove(run.stage); err != nil {
 		return fmt.Errorf("prepare release staging path: %w", err)
 	}
-	if _, err := runCommand(ctx, run.root, "git", "worktree", "add", "--detach", run.stage, run.head); err != nil {
+	if _, err := runCommand(ctx, run.root, nil, "git", "worktree", "add", "--detach", run.stage, run.head); err != nil {
 		return fmt.Errorf("create release worktree: %w", err)
 	}
 	run.worktreeAdded = true
@@ -157,20 +157,21 @@ func (run *releaseRun) prepare(ctx context.Context) ([]string, error) {
 
 func (run *releaseRun) publish(ctx context.Context, changedFiles []string) error {
 	addArgs := append([]string{"add", "--"}, changedFiles...)
-	if _, err := runCommand(ctx, run.stage, "git", addArgs...); err != nil {
+	if _, err := runCommand(ctx, run.stage, nil, "git", addArgs...); err != nil {
 		return fmt.Errorf("stage release files: %w", err)
 	}
-	if _, err := runCommand(ctx, run.stage, "git", "diff", "--cached", "--check"); err != nil {
+	if _, err := runCommand(ctx, run.stage, nil, "git", "diff", "--cached", "--check"); err != nil {
 		return fmt.Errorf("validate staged release diff: %w", err)
 	}
-	if _, err := runCommand(ctx, run.stage, "git", "commit", "-m", "Release "+run.config.Version); err != nil {
+	if _, err := runCommand(ctx, run.stage, []string{"GOLANGCI_LINT_CACHE=" + run.cacheDir},
+		"git", "commit", "-m", "Release "+run.config.Version); err != nil {
 		return fmt.Errorf("create release commit: %w", err)
 	}
 	releaseCommit, err := gitCommandOutput(ctx, run.stage, "rev-parse", "HEAD")
 	if err != nil {
 		return fmt.Errorf("resolve release commit: %w", err)
 	}
-	if _, err := runCommand(ctx, run.stage, "git", "tag", "-a", run.config.Version,
+	if _, err := runCommand(ctx, run.stage, nil, "git", "tag", "-a", run.config.Version,
 		"-m", "Release "+run.config.Version); err != nil {
 		return fmt.Errorf("create release tag: %w", err)
 	}
@@ -187,7 +188,7 @@ func (run *releaseRun) publish(ctx context.Context, changedFiles []string) error
 	if err := waitForRelease(ctx, run.config); err != nil {
 		return err
 	}
-	if _, err := runCommand(ctx, run.root, "git", "merge", "--ff-only", releaseCommit); err != nil {
+	if _, err := runCommand(ctx, run.root, nil, "git", "merge", "--ff-only", releaseCommit); err != nil {
 		return fmt.Errorf("fast-forward caller checkout to release commit: %w", err)
 	}
 	return nil
@@ -196,12 +197,12 @@ func (run *releaseRun) publish(ctx context.Context, changedFiles []string) error
 func (run *releaseRun) cleanup(ctx context.Context) error {
 	var cleanupErr error
 	if run.tagCreated && !run.pushed {
-		if _, err := runCommand(ctx, run.root, "git", "tag", "-d", run.config.Version); err != nil {
+		if _, err := runCommand(ctx, run.root, nil, "git", "tag", "-d", run.config.Version); err != nil {
 			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove unpublished release tag: %w", err))
 		}
 	}
 	if run.worktreeAdded {
-		if _, err := runCommand(ctx, run.root, "git", "worktree", "remove", "--force", run.stage); err != nil {
+		if _, err := runCommand(ctx, run.root, nil, "git", "worktree", "remove", "--force", run.stage); err != nil {
 			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove release worktree: %w", err))
 		}
 	}

@@ -46,7 +46,7 @@ func remoteRef(ctx context.Context, root, ref string) (string, error) {
 func waitForRelease(ctx context.Context, config Config) error {
 	var lastErr error
 	for attempt := 1; attempt <= config.PollAttempts; attempt++ {
-		output, err := runCommand(ctx, config.Root, config.GitHubCommand, "release", "view", config.Version,
+		output, err := runCommand(ctx, config.Root, nil, config.GitHubCommand, "release", "view", config.Version,
 			"--repo", config.GitHubRepo, "--json", "tagName,body,isDraft,isPrerelease")
 		if err == nil {
 			err = validateRelease(config.Version, output)
@@ -101,13 +101,14 @@ func validateRelease(version string, data []byte) error {
 }
 
 func gitCommandOutput(ctx context.Context, dir string, args ...string) (string, error) {
-	output, err := runCommand(ctx, dir, "git", args...)
+	output, err := runCommand(ctx, dir, nil, "git", args...)
 	return strings.TrimSpace(string(output)), err
 }
 
-func runCommand(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+func runCommand(ctx context.Context, dir string, environment []string, name string, args ...string) ([]byte, error) {
 	command := exec.CommandContext(ctx, name, args...)
 	command.Dir = dir
+	command.Env = append(os.Environ(), environment...)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return output, fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, strings.TrimSpace(string(output)))

@@ -222,7 +222,7 @@ func replaceExactlyOne(contents []byte, pattern *regexp.Regexp, replacement, pat
 }
 
 func validateStagedChanges(ctx context.Context, root string, expected []string) error {
-	output, err := runCommand(ctx, root, "git", "status", "--porcelain", "--untracked-files=all")
+	output, err := runCommand(ctx, root, nil, "git", "status", "--porcelain", "--untracked-files=all")
 	if err != nil {
 		return fmt.Errorf("inspect staged release changes: %w", err)
 	}

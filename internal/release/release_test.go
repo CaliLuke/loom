@@ -183,13 +183,19 @@ printf 'hook:%%s\n' "$LOOM_RELEASE_VERSION" >> %q
 cat >> %q
 `, logPath, logPath))
 	require.NoError(t, os.Chmod(filepath.Join(repository.root, ".git/hooks/pre-push"), 0o755))
+	writeFile(t, filepath.Join(repository.root, ".git/hooks/pre-commit"), fmt.Sprintf(`#!/bin/sh
+test -n "$GOLANGCI_LINT_CACHE"
+printf 'commit-cache:%%s\n' "$GOLANGCI_LINT_CACHE" >> %q
+`, logPath))
+	require.NoError(t, os.Chmod(filepath.Join(repository.root, ".git/hooks/pre-commit"), 0o755))
 	preflight := writeCommand(t, "preflight", fmt.Sprintf(`#!/bin/sh
 printf 'preflight:%%s:%%s\n' "$PWD" "$LOOM_DIR" >> %q
+printf 'preflight-cache:%%s\n' "$GOLANGCI_LINT_CACHE" >> %q
 test "$(pwd -P)" = "$(cd "$LOOM_DIR" && pwd -P)"
 test -n "$GOLANGCI_LINT_CACHE"
 test "$(dirname "$LOOM_DIR")" = "$(dirname "$GOLANGCI_LINT_CACHE")"
 test "$LOOM_DIR" != "$GOLANGCI_LINT_CACHE"
-`, logPath))
+`, logPath, logPath))
 	gh := writeCommand(t, "gh", fmt.Sprintf(`#!/bin/sh
 count_file=%q
 log_file=%q
@@ -237,6 +243,10 @@ printf '%%s\n' '{"tagName":"v1.7.0","body":"## Highlights\n\n- Transactional rel
 	commands, err := os.ReadFile(logPath)
 	require.NoError(t, err)
 	require.Contains(t, string(commands), "preflight:")
+	preflightCacheLine := lineWithPrefix(t, string(commands), "preflight-cache:")
+	commitCacheLine := lineWithPrefix(t, string(commands), "commit-cache:")
+	require.Equal(t, strings.TrimPrefix(preflightCacheLine, "preflight-cache:"),
+		strings.TrimPrefix(commitCacheLine, "commit-cache:"))
 	require.Contains(t, string(commands), "hook:v1.7.0")
 	require.Contains(t, string(commands), "refs/heads/main")
 	require.Contains(t, string(commands), "refs/tags/v1.7.0")
@@ -411,4 +421,16 @@ func requireNoReleaseWorktree(t *testing.T, root string) {
 	}
 	worktrees := gitOutput(t, filepath.Join(root, "loom"), "worktree", "list", "--porcelain")
 	require.NotContains(t, worktrees, "loom-release-")
+}
+
+func lineWithPrefix(t *testing.T, contents string, prefix string) string {
+	t.Helper()
+
+	for line := range strings.SplitSeq(contents, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return line
+		}
+	}
+	require.Fail(t, "missing line", "prefix %q in %q", prefix, contents)
+	return ""
 }
