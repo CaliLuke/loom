@@ -27,6 +27,7 @@ func TestResponseContractTestFiles(t *testing.T) {
 	require.Contains(t, generated, "func TestWidgetsHTTPResponseContracts(t *testing.T)")
 	require.Contains(t, generated, "for _, contract := range widgetssvr.ResponseContractCases()")
 	require.Contains(t, generated, `t.Errorf("missing response contract scenario %q", contract.ID)`)
+	require.Contains(t, generated, `t.Errorf("response contract scenario %q has no declared contract", id)`)
 	require.Contains(t, generated, "loomhttp.ValidateResponseContract(response, contract)")
 	require.NotContains(t, generated, "t.Skip")
 }
@@ -47,34 +48,79 @@ func TestResponseContractTestFilesPreserveExistingScaffold(t *testing.T) {
 	require.Equal(t, "consumer owned\n", string(content))
 }
 
-func TestResponseContractTestFilesPassRealGeneratedScenarios(t *testing.T) {
-	const modulePath = "example.com/responsecontractprovider"
-	root := RunHTTPDSL(t, responseContractProviderDSL)
-	dir := t.TempDir()
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	t.Setenv("LOOM_DIR", repoRoot)
-	renderHTTPModule(t, dir, modulePath, root)
-	renderGeneratedFiles(t, dir, ResponseContractTestFiles(modulePath+"/gen", CreateHTTPServices(root)))
+func TestResponseContractTestFilesUseDistinctServiceAliasPrefixes(t *testing.T) {
+	root := RunHTTPDSL(t, responseContractAliasCollisionDSL)
+	files := ResponseContractTestFiles("example.com/contracts/gen", CreateHTTPServices(root))
+	require.Len(t, files, 2)
 
-	scaffoldPath := filepath.Join(dir, "internal", "contracttest", "widgets_http_test.go")
-	scaffold, err := os.ReadFile(scaffoldPath)
-	require.NoError(t, err)
-	populated := strings.Replace(
-		string(scaffold),
-		"return map[string]widgetsResponseContractScenario{}",
-		`return map[string]widgetsResponseContractScenario{
+	generated := make([]string, 0, len(files))
+	for _, file := range files {
+		generated = append(generated, codegen.SectionCode(t, file.Section("response-contract-test")[0]))
+	}
+	require.Contains(t, generated[0], "type bodysvcResponseContractScenario")
+	require.Contains(t, generated[1], "type bodysvcsvcResponseContractScenario")
+}
+
+func TestResponseContractTestFilesPassRealGeneratedScenarios(t *testing.T) {
+	runResponseContractScaffold(t, responseContractScaffoldTest{
+		modulePath:   "example.com/responsecontractprovider",
+		design:       responseContractProviderDSL,
+		scaffoldName: "widgets_http_test.go",
+		emptyMap:     "return map[string]widgetsResponseContractScenario{}",
+		scenarios: `return map[string]widgetsResponseContractScenario{
 		"widgets.show.success.202.outcome=accepted": acceptedResponse,
 		"widgets.show.success.200": fallbackResponse,
 		"widgets.show.error.not_found.404": notFoundResponse,
 	}`,
-		1,
-	)
+		harnessName: "widgets_provider_test.go",
+		harness:     responseContractProviderHarness,
+	})
+}
+
+func TestResponseContractTestFilesPassFileAndBodylessGeneratedScenarios(t *testing.T) {
+	runResponseContractScaffold(t, responseContractScaffoldTest{
+		modulePath:   "example.com/responsecontractfilebodyless",
+		design:       responseContractFileAndBodylessDSL,
+		scaffoldName: "files_http_test.go",
+		emptyMap:     "return map[string]filesResponseContractScenario{}",
+		scenarios: `return map[string]filesResponseContractScenario{
+		"files.download.success.200": downloadResponse,
+		"files.no_content.success.204": noContentResponse,
+	}`,
+		harnessName: "files_provider_test.go",
+		harness:     responseContractFileAndBodylessHarness,
+	})
+}
+
+type responseContractScaffoldTest struct {
+	modulePath   string
+	design       func()
+	scaffoldName string
+	emptyMap     string
+	scenarios    string
+	harnessName  string
+	harness      string
+}
+
+func runResponseContractScaffold(t *testing.T, test responseContractScaffoldTest) {
+	t.Helper()
+	root := RunHTTPDSL(t, test.design)
+	dir := t.TempDir()
+	repoRoot, err := loomsource.RepositoryRoot(".")
+	require.NoError(t, err)
+	t.Setenv("LOOM_DIR", repoRoot)
+	renderHTTPModule(t, dir, test.modulePath, root)
+	renderGeneratedFiles(t, dir, ResponseContractTestFiles(test.modulePath+"/gen", CreateHTTPServices(root)))
+
+	scaffoldPath := filepath.Join(dir, "internal", "contracttest", test.scaffoldName)
+	scaffold, err := os.ReadFile(scaffoldPath)
+	require.NoError(t, err)
+	populated := strings.Replace(string(scaffold), test.emptyMap, test.scenarios, 1)
 	require.NotEqual(t, string(scaffold), populated)
 	require.NoError(t, os.WriteFile(scaffoldPath, []byte(populated), 0o600))
 	require.NoError(t, os.WriteFile(
-		filepath.Join(dir, "internal", "contracttest", "widgets_provider_test.go"),
-		[]byte(responseContractProviderHarness),
+		filepath.Join(dir, "internal", "contracttest", test.harnessName),
+		[]byte(test.harness),
 		0o600,
 	))
 
@@ -118,6 +164,45 @@ func responseContractProviderDSL() {
 	})
 }
 
+func responseContractFileAndBodylessDSL() {
+	Service("files", func() {
+		Method("download", func() {
+			Result(func() {
+				Attribute("etag", String)
+				Required("etag")
+			})
+			HTTP(func() {
+				GET("/files/download")
+				FileResponse()
+				Response(func() {
+					Header("etag:ETag")
+				})
+			})
+		})
+		Method("no_content", func() {
+			Result(Empty)
+			HTTP(func() {
+				GET("/files/empty")
+				Response(StatusNoContent)
+			})
+		})
+	})
+}
+
+func responseContractAliasCollisionDSL() {
+	for _, serviceName := range []string{"body", "bodysvc"} {
+		Service(serviceName, func() {
+			Method("show", func() {
+				Result(String)
+				HTTP(func() {
+					GET("/items")
+					Response(StatusOK)
+				})
+			})
+		})
+	}
+}
+
 func TestResponseContractTestFilesFailMissingScenarios(t *testing.T) {
 	const modulePath = "example.com/responsecontractscaffold"
 	root := RunHTTPDSL(t, responseContractServerDSL)
@@ -158,6 +243,21 @@ func TestResponseContractTestFilesFailMissingScenarios(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, output, `response contract "widgets.show.success.202.outcome=accepted": response is nil`)
 	require.NotContains(t, output, `missing response contract scenario "widgets.show.success.202.outcome=accepted"`)
+
+	withStaleScenario := strings.Replace(
+		string(content),
+		"return map[string]widgetsResponseContractScenario{}",
+		`return map[string]widgetsResponseContractScenario{
+		"widgets.show.success.299": func(*testing.T) *http.Response { return nil },
+	}`,
+		1,
+	)
+	require.NotEqual(t, string(content), withStaleScenario)
+	require.NoError(t, os.WriteFile(path, []byte(withStaleScenario), 0o600))
+
+	output, err = runCommandAllowFailure(dir, "go", "test", "./internal/contracttest")
+	require.Error(t, err)
+	require.Contains(t, output, `response contract scenario "widgets.show.success.299" has no declared contract`)
 }
 
 const responseContractProviderHarness = `package contracttest
@@ -243,5 +343,66 @@ func (s *widgetsService) Show(context.Context) (*widgets.ShowResult, error) {
 	default:
 		return nil, nil
 	}
+}
+`
+
+const responseContractFileAndBodylessHarness = `package contracttest
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	files "example.com/responsecontractfilebodyless/gen/files"
+	filesserver "example.com/responsecontractfilebodyless/gen/http/files/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+func downloadResponse(t *testing.T) *http.Response {
+	return requestFilesScenario(t, "/files/download")
+}
+
+func noContentResponse(t *testing.T) *http.Response {
+	return requestFilesScenario(t, "/files/empty")
+}
+
+func requestFilesScenario(t *testing.T, path string) *http.Response {
+	t.Helper()
+	endpoints := files.NewEndpoints(&filesService{})
+	mux := loomhttp.NewMuxer()
+	server := filesserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	filesserver.Mount(mux, server)
+	httpServer := httptest.NewServer(mux)
+	t.Cleanup(httpServer.Close)
+
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, httpServer.URL+path, nil)
+	if err != nil {
+		t.Fatalf("create files request: %v", err)
+	}
+	response, err := httpServer.Client().Do(request)
+	if err != nil {
+		t.Fatalf("request files scenario: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("close files response: %v", err)
+		}
+	})
+	return response
+}
+
+type filesService struct{}
+
+func (*filesService) Download(context.Context) (*files.DownloadResult, *loomhttp.FileResponse, error) {
+	return &files.DownloadResult{Etag: "\"example\""}, &loomhttp.FileResponse{
+		Name:    "example.bin",
+		Content: strings.NewReader("file bytes"),
+	}, nil
+}
+
+func (*filesService) NoContent(context.Context) error {
+	return nil
 }
 `

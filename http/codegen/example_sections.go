@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/dave/jennifer/jen"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func exampleCLIStartSection(
-	services []*ServiceData,
+	services []exampleCLIServiceData,
 	interceptorsPkg string,
 	functionName string,
 ) codegen.Section {
@@ -18,13 +19,13 @@ func exampleCLIStartSection(
 	})
 }
 
-func renderExampleCLIStart(services []*ServiceData, interceptorsPkg, functionName string) string {
+func renderExampleCLIStart(services []exampleCLIServiceData, interceptorsPkg, functionName string) string {
 	var b sourceBuilder
 	b.Addf("func %s(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, error) {\n", functionName)
 	b.Add("\tvar (\n")
 	b.Add("\t\tdoer loomhttp.Doer\n")
-	for _, svc := range servicesWithClientInterceptors(services) {
-		b.Addf("\t\t%sInterceptors %s.ClientInterceptors\n", svc.Service.VarName, svc.Service.PkgName)
+	for _, svc := range cliServicesWithClientInterceptors(services) {
+		b.Addf("\t\t%sInterceptors %s.ClientInterceptors\n", svc.Data.Service.VarName, svc.ServiceImport)
 	}
 	b.Add("\t)\n")
 	b.Add("\t{\n")
@@ -32,33 +33,33 @@ func renderExampleCLIStart(services []*ServiceData, interceptorsPkg, functionNam
 	b.Add("\t\tif debug {\n")
 	b.Add("\t\t\tdoer = loomhttp.NewDebugDoer(doer)\n")
 	b.Add("\t\t}\n")
-	for _, svc := range servicesWithClientInterceptors(services) {
-		b.Addf("\t\t%sInterceptors = %s.New%sClientInterceptors()\n", svc.Service.VarName, interceptorsPkg, svc.Service.StructName)
+	for _, svc := range cliServicesWithClientInterceptors(services) {
+		b.Addf("\t\t%sInterceptors = %s.New%sClientInterceptors()\n", svc.Data.Service.VarName, interceptorsPkg, svc.Data.Service.StructName)
 	}
 	b.Add("\t}\n")
 	return b.String()
 }
 
-func exampleCLIStreamingSection(services []*ServiceData) codegen.Section {
+func exampleCLIStreamingSection(services []exampleCLIServiceData) codegen.Section {
 	return codegen.NewRenderSection("cli-http-streaming", func() string {
 		return renderExampleCLIStreaming(services)
 	})
 }
 
-func renderExampleCLIStreaming(services []*ServiceData) string {
-	if !NeedDialer(services) {
+func renderExampleCLIStreaming(services []exampleCLIServiceData) string {
+	if !exampleCLINeedsDialer(services) {
 		return ""
 	}
 	return "\nvar (\n\tdialer *websocket.Dialer\n)\n{\n\tdialer = websocket.DefaultDialer\n}\n"
 }
 
-func exampleCLIEndSection(services []*ServiceData, apiPkg string) codegen.Section {
+func exampleCLIEndSection(services []exampleCLIServiceData, apiPkg string) codegen.Section {
 	return codegen.NewRenderSection("cli-http-end", func() string {
 		return renderExampleCLIEnd(services, apiPkg)
 	})
 }
 
-func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
+func renderExampleCLIEnd(services []exampleCLIServiceData, apiPkg string) string {
 	var b sourceBuilder
 	b.Add("\nendpoint, payload, err := cli.ParseEndpoint(\n")
 	b.Add("\t\tscheme,\n")
@@ -67,23 +68,23 @@ func renderExampleCLIEnd(services []*ServiceData, apiPkg string) string {
 	b.Add("\t\tloomhttp.RequestEncoder,\n")
 	b.Add("\t\tloomhttp.ResponseDecoder,\n")
 	b.Add("\t\tdebug,\n")
-	if NeedDialer(services) {
+	if exampleCLINeedsDialer(services) {
 		b.Add("\t\tdialer,\n")
 		for _, svc := range services {
-			if HasWebSocket(svc) {
+			if HasWebSocket(svc.Data) {
 				b.Add("\t\tnil,\n")
 			}
 		}
 	}
 	for _, svc := range services {
-		for _, endpoint := range svc.Endpoints {
+		for _, endpoint := range svc.Data.Endpoints {
 			if endpoint.MultipartRequestDecoder != nil {
 				b.Addf("\t\t%s.%s,\n", apiPkg, endpoint.MultipartRequestEncoder.FuncName)
 			}
 		}
 	}
-	for _, svc := range servicesWithClientInterceptors(services) {
-		b.Addf("\t\t%sInterceptors,\n", svc.Service.VarName)
+	for _, svc := range cliServicesWithClientInterceptors(services) {
+		b.Addf("\t\t%sInterceptors,\n", svc.Data.Service.VarName)
 	}
 	b.Add("\t)\n")
 	b.Add("\tif err != nil {\n")
@@ -109,7 +110,7 @@ func exampleCLIUsageSection(usagePrefix string) codegen.Section {
 	})
 }
 
-func exampleServerStartSection(services []*ServiceData) codegen.Section {
+func exampleServerStartSection(services []exampleServerServiceData) codegen.Section {
 	return codegen.NewRenderSection("server-http-start", func() string {
 		return renderExampleServerStart(services)
 	})
@@ -127,13 +128,13 @@ func exampleServerMuxSection() codegen.Section {
 	})
 }
 
-func exampleServerConfigureSection(services []*ServiceData, apiPkg string) codegen.Section {
+func exampleServerConfigureSection(services []exampleServerServiceData, apiPkg string) codegen.Section {
 	return codegen.NewRenderSection("server-http-init", func() string {
 		return renderExampleServerConfigure(services, apiPkg)
 	})
 }
 
-func renderExampleServerConfigure(services []*ServiceData, apiPkg string) string {
+func renderExampleServerConfigure(services []exampleServerServiceData, apiPkg string) string {
 	var b sourceBuilder
 	b.Add("\n\t// Wrap the endpoints with the transport specific layers. The generated\n")
 	b.Add("\t// server packages contains code generated from the design which maps\n")
@@ -141,7 +142,7 @@ func renderExampleServerConfigure(services []*ServiceData, apiPkg string) string
 	b.Add("\t// responses.\n")
 	b.Add("\tvar (\n")
 	for _, svc := range services {
-		b.Addf("\t\t%sServer *%ssvr.Server\n", svc.Service.VarName, svc.Service.PkgName)
+		b.Addf("\t\t%sServer *%s.Server\n", svc.Data.Service.VarName, svc.ServerImport)
 	}
 	b.Add("\t)\n")
 	b.Add("\t{\n")
@@ -153,7 +154,7 @@ func renderExampleServerConfigure(services []*ServiceData, apiPkg string) string
 		b.Add("\t\t})\n")
 		b.Add("\t\tif err != nil {\n\t\t\tpanic(err)\n\t\t}\n")
 	}
-	if NeedDialer(services) {
+	if exampleServerNeedsDialer(services) {
 		b.Add("\t\tupgrader := &websocket.Upgrader{}\n")
 	}
 	for _, svc := range services {
@@ -162,7 +163,7 @@ func renderExampleServerConfigure(services []*ServiceData, apiPkg string) string
 	b.Add("\t}\n\n")
 	b.Add("\t// Configure the mux.\n")
 	for _, svc := range services {
-		b.Addf("\t%ssvr.Mount(mux, %sServer)\n", svc.Service.PkgName, svc.Service.VarName)
+		b.Addf("\t%s.Mount(mux, %sServer)\n", svc.ServerImport, svc.Data.Service.VarName)
 	}
 	return b.String()
 }
@@ -173,28 +174,28 @@ func exampleServerMiddlewareSection() codegen.Section {
 	})
 }
 
-func exampleServerEndSection(services []*ServiceData) codegen.Section {
+func exampleServerEndSection(services []exampleServerServiceData) codegen.Section {
 	return codegen.NewRenderSection("server-http-end", func() string {
 		return renderExampleServerEnd(services)
 	})
 }
 
-func renderExampleServerStart(services []*ServiceData) string {
+func renderExampleServerStart(services []exampleServerServiceData) string {
 	var b sourceBuilder
 	b.Add("\n")
 	b.Add(codegen.Comment("handleHTTPServer starts configures and starts a HTTP server on the given URL. It shuts down the server if any error is received in the error channel."))
 	b.Add("\n")
 	b.Add("func handleHTTPServer(ctx context.Context, u *url.URL")
 	for _, svc := range services {
-		if len(svc.Service.Methods) > 0 {
-			b.Addf(", %sEndpoints *%s.Endpoints", svc.Service.VarName, svc.Service.PkgName)
+		if len(svc.Data.Service.Methods) > 0 {
+			b.Addf(", %sEndpoints *%s.Endpoints", svc.Data.Service.VarName, svc.ServiceImport)
 		}
 	}
 	b.Add(", wg *sync.WaitGroup, errc chan error, dbg bool) {\n")
 	return b.String()
 }
 
-func renderExampleServerEnd(services []*ServiceData) string {
+func renderExampleServerEnd(services []exampleServerServiceData) string {
 	var b sourceBuilder
 	b.Add("\n\t// Start HTTP server using default configuration, change the code to\n")
 	b.Add("\t// configure the server as required by your service.\n")
@@ -204,7 +205,7 @@ func renderExampleServerEnd(services []*ServiceData) string {
 	b.Add("\t\tReadHeaderTimeout: time.Second * 60,\n")
 	b.Add("\t\tMaxHeaderValueCount: http.DefaultMaxHeaderValueCount,\n")
 	b.Add("\t\tReadTimeout:       time.Second * 15,\n")
-	if HasStreamingEndpoint(services) {
+	if exampleServerHasStreamingEndpoint(services) {
 		b.Add("\t\tWriteTimeout:      0,\n")
 	} else {
 		b.Add("\t\tWriteTimeout:      time.Second * 30,\n")
@@ -212,7 +213,7 @@ func renderExampleServerEnd(services []*ServiceData) string {
 	b.Add("\t\tIdleTimeout:       time.Second * 60,\n")
 	b.Add("\t}\n")
 	for _, svc := range services {
-		b.Addf("\tfor _, m := range %sServer.Mounts {\n", svc.Service.VarName)
+		b.Addf("\tfor _, m := range %sServer.Mounts {\n", svc.Data.Service.VarName)
 		b.Add("\t\tlog.Printf(ctx, \"HTTP %q mounted on %s %s\", m.Method, m.Verb, m.Pattern)\n")
 		b.Add("\t}\n")
 	}
@@ -309,10 +310,10 @@ func dummyMultipartRequestEncoderSection(data *MultipartData) codegen.Section {
 	})
 }
 
-func servicesWithClientInterceptors(services []*ServiceData) []*ServiceData {
-	filtered := make([]*ServiceData, 0, len(services))
+func cliServicesWithClientInterceptors(services []exampleCLIServiceData) []exampleCLIServiceData {
+	filtered := make([]exampleCLIServiceData, 0, len(services))
 	for _, svc := range services {
-		if len(svc.Service.ClientInterceptors) == 0 {
+		if len(svc.Data.Service.ClientInterceptors) == 0 {
 			continue
 		}
 		filtered = append(filtered, svc)
@@ -320,36 +321,63 @@ func servicesWithClientInterceptors(services []*ServiceData) []*ServiceData {
 	return filtered
 }
 
-func exampleServerConstructorCall(svc *ServiceData, apiPkg string) string {
+func exampleCLINeedsDialer(services []exampleCLIServiceData) bool {
+	for _, service := range services {
+		if HasWebSocket(service.Data) {
+			return true
+		}
+	}
+	return false
+}
+
+func exampleServerConstructorCall(svc exampleServerServiceData, apiPkg string) string {
 	var b sourceBuilder
-	b.Addf("%sServer = %ssvr.New(", svc.Service.VarName, svc.Service.PkgName)
-	if len(svc.Endpoints) > 0 {
-		b.Addf("%sEndpoints", svc.Service.VarName)
+	b.Addf("%sServer = %s.New(", svc.Data.Service.VarName, svc.ServerImport)
+	if len(svc.Data.Endpoints) > 0 {
+		b.Addf("%sEndpoints", svc.Data.Service.VarName)
 	} else {
 		b.Add("nil")
 	}
 	b.Add(", mux, dec, enc, eh, nil")
-	if svc.CORS != nil && svc.CORS.Runtime {
+	if svc.Data.CORS != nil && svc.Data.CORS.Runtime {
 		b.Add(", runtimeCORSPolicy")
 	}
-	if HasWebSocket(svc) {
+	if HasWebSocket(svc.Data) {
 		b.Add(", upgrader, nil")
 	}
-	for _, endpoint := range svc.Endpoints {
+	for _, endpoint := range svc.Data.Endpoints {
 		if endpoint.MultipartRequestDecoder != nil {
 			b.Addf(", %s.%s", apiPkg, endpoint.MultipartRequestDecoder.FuncName)
 		}
 	}
-	for range svc.FileServers {
+	for range svc.Data.FileServers {
 		b.Add(", nil")
 	}
 	b.Add(")")
 	return b.String()
 }
 
-func hasRuntimeCORS(services []*ServiceData) bool {
+func hasRuntimeCORS(services []exampleServerServiceData) bool {
 	for _, svc := range services {
-		if svc.CORS != nil && svc.CORS.Runtime {
+		if svc.Data.CORS != nil && svc.Data.CORS.Runtime {
+			return true
+		}
+	}
+	return false
+}
+
+func exampleServerNeedsDialer(services []exampleServerServiceData) bool {
+	for _, service := range services {
+		if HasWebSocket(service.Data) {
+			return true
+		}
+	}
+	return false
+}
+
+func exampleServerHasStreamingEndpoint(services []exampleServerServiceData) bool {
+	for _, service := range services {
+		if HasWebSocket(service.Data) || slices.ContainsFunc(service.Data.Endpoints, IsSSEEndpoint) {
 			return true
 		}
 	}

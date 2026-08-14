@@ -11,6 +11,13 @@ import (
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
+type jsonrpcExampleServiceData struct {
+	Data                *httpcodegen.ServiceData
+	ServiceImport       string
+	HTTPServerImport    string
+	JSONRPCServerImport string
+}
+
 // ExampleServerFiles returns example JSON-RPC server implementation.
 func ExampleServerFiles(genpkg string, data *httpcodegen.ServicesData, files []*codegen.File) []*codegen.File {
 	var fw []*codegen.File
@@ -26,7 +33,7 @@ func ExampleServerFiles(genpkg string, data *httpcodegen.ServicesData, files []*
 func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, servers example.ServersData) *codegen.File {
 	svrdata := servers.Get(svr, data.Root)
 	httppath := filepath.Join("cmd", svrdata.Dir, "http.go")
-	file, hasHTTP := findOrBuildExampleHTTPServer(genpkg, data, svr, files, httppath)
+	file, _ := findOrBuildExampleHTTPServer(genpkg, data, svr, files, httppath)
 	file.Path = filepath.Join(filepath.Dir(file.Path), "jsonrpc.go")
 
 	sections := file.AllSections()
@@ -36,12 +43,9 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 	}
 	addJSONRPCExampleImports(header, genpkg, data)
 
-	svcdata := jsonrpcExampleServiceData(svr, data)
+	svcdata := buildJSONRPCExampleServiceData(svr, data, header, genpkg)
 	updatedSections := make([]codegen.Section, 0, len(sections)+2)
-	httpServices := []*httpcodegen.ServiceData(nil)
-	if hasHTTP {
-		httpServices = svcdata
-	}
+	httpServices := jsonrpcHTTPExampleServiceData(svcdata, data)
 	apiPkg := jsonrpcExampleAPIPkg(genpkg, header, data)
 	for _, section := range sections {
 		switch section.SectionName() {
@@ -67,6 +71,20 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 	return file
 }
 
+func jsonrpcHTTPExampleServiceData(services []jsonrpcExampleServiceData, data *httpcodegen.ServicesData) []jsonrpcExampleServiceData {
+	httpServiceNames := make(map[string]struct{}, len(data.Root.API.HTTP.Services))
+	for _, service := range data.Root.API.HTTP.Services {
+		httpServiceNames[service.Name()] = struct{}{}
+	}
+	httpServices := make([]jsonrpcExampleServiceData, 0, len(services))
+	for _, service := range services {
+		if _, ok := httpServiceNames[service.Data.Service.Name]; ok {
+			httpServices = append(httpServices, service)
+		}
+	}
+	return httpServices
+}
+
 func findOrBuildExampleHTTPServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, httpPath string) (*codegen.File, bool) {
 	for _, f := range files {
 		if f.Path == httpPath {
@@ -80,26 +98,62 @@ func findOrBuildExampleHTTPServer(genpkg string, data *httpcodegen.ServicesData,
 
 func addJSONRPCExampleImports(header codegen.Section, genpkg string, data *httpcodegen.ServicesData) {
 	scope := codegen.NewNameScope()
+	headerData := codegen.HeaderDataForSection(header)
+	importsByPath := make(map[string]string)
+	if headerData != nil {
+		for _, spec := range headerData.Imports {
+			if spec == nil || spec.Name == "_" || spec.Name == "." {
+				continue
+			}
+			name := spec.Name
+			if name == "" {
+				name = path.Base(spec.Path)
+			}
+			if name != "" {
+				scope.Unique(name)
+				importsByPath[spec.Path] = name
+			}
+		}
+	}
 	for _, svc := range data.Root.API.JSONRPC.Services {
 		sd := data.Get(svc.Name())
 		svcName := sd.Service.PathName
-		codegen.AddSectionImport(header, &codegen.ImportSpec{
-			Path: path.Join(genpkg, svcName),
-			Name: scope.Unique(sd.Service.PkgName),
-		})
+		servicePath := path.Join(genpkg, svcName)
+		serviceImport, ok := importsByPath[servicePath]
+		if !ok {
+			serviceImport = scope.Unique(sd.Service.PkgName, "svc")
+			codegen.AddSectionImport(header, &codegen.ImportSpec{Path: servicePath, Name: serviceImport})
+		}
 		codegen.AddSectionImport(header, &codegen.ImportSpec{
 			Path: path.Join(genpkg, "jsonrpc", svcName, "server"),
-			Name: scope.Unique(sd.Service.PkgName + "jssvr"),
+			Name: scope.Unique(serviceImport+"jssvr", "jssvr"),
 		})
 	}
 }
 
-func jsonrpcExampleServiceData(svr *expr.ServerExpr, data *httpcodegen.ServicesData) []*httpcodegen.ServiceData {
-	svcdata := make([]*httpcodegen.ServiceData, 0, len(svr.Services))
-	for _, svc := range svr.Services {
-		if d := data.Get(svc); d != nil {
-			svcdata = append(svcdata, d)
+func buildJSONRPCExampleServiceData(svr *expr.ServerExpr, data *httpcodegen.ServicesData, header codegen.Section, genpkg string) []jsonrpcExampleServiceData {
+	svcdata := make([]jsonrpcExampleServiceData, 0, len(svr.Services))
+	headerData := codegen.HeaderDataForSection(header)
+	importNames := make(map[string]string)
+	if headerData != nil {
+		for _, spec := range headerData.Imports {
+			if spec != nil && spec.Name != "" {
+				importNames[spec.Path] = spec.Name
+			}
 		}
+	}
+	for _, svc := range svr.Services {
+		d := data.Get(svc)
+		if d == nil {
+			continue
+		}
+		svcName := d.Service.PathName
+		svcdata = append(svcdata, jsonrpcExampleServiceData{
+			Data:                d,
+			ServiceImport:       importNames[path.Join(genpkg, svcName)],
+			HTTPServerImport:    importNames[path.Join(genpkg, "http", svcName, "server")],
+			JSONRPCServerImport: importNames[path.Join(genpkg, "jsonrpc", svcName, "server")],
+		})
 	}
 	return svcdata
 }

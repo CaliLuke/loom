@@ -10,19 +10,51 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
-// httpReservedIdentifiers lists package and local identifiers emitted verbatim
-// by the HTTP generators. Service imports are aliased around this namespace.
-var httpReservedIdentifiers = []string{
-	"body",
+// transportGeneratedImportNames is the union of local names from literal
+// ImportSpec and Loom import constructors in generated files that also emit a
+// dynamic transport import. TestTransportImportAliasReservationsCoverGeneratedImports
+// keeps it aligned with those constructors. Service, view, and user-type
+// imports are dynamic design data and therefore allocate their own aliases.
+var transportGeneratedImportNames = []string{
+	"atomic",
+	"bufio",
 	"bytes",
+	"context",
+	"debug",
+	"errors",
+	"flag",
+	"fmt",
+	"http",
+	"io",
+	"json",
+	"jsonrpc",
+	"log",
+	"loom",
+	"loomhttp",
+	"loomhttpcli",
+	"loomtransport",
+	"middleware",
+	"multipart",
+	"os",
+	"path",
+	"strconv",
+	"strings",
+	"sync",
+	"testing",
+	"time",
+	"url",
+	"utf8",
+	"websocket",
+}
+
+// transportGeneratedLocalNames are local identifiers that coexist with
+// service package references in generated transport functions.
+var transportGeneratedLocalNames = []string{
+	"body",
 	"c",
 	"ctx",
 	"err",
-	"io",
-	"loom",
-	"loomhttp",
 	"v",
-	"websocket",
 }
 
 // analyze creates the data necessary to render the code of the given service.
@@ -42,7 +74,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 		"file_servers", len(httpSvc.FileServers),
 	)
 	irService := transportir.BuildService(httpSvc)
-	svc, scope := newHTTPAnalysisService(svc)
+	svc, scope := newHTTPAnalysisService(svc, sds.serviceImportAliases[httpSvc.Name()])
 	sd = newHTTPServiceData(svc, scope)
 	sd.CORS = buildCORSData(httpSvc)
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
@@ -118,20 +150,39 @@ func endpointPath(ep *transportir.Endpoint) string {
 	return ep.Routes[0].Path
 }
 
-func newHTTPAnalysisService(svc *service.Data) (*service.Data, *codegen.NameScope) {
+func newHTTPAnalysisService(svc *service.Data, importAlias string) (*service.Data, *codegen.NameScope) {
 	scope := codegen.NewNameScope()
 	scope.Unique("c") // 'c' is reserved as the client's receiver name.
 	scope.Unique("v") // 'v' is reserved as the request builder payload argument name.
 	scope.Unique("websocket")
 
-	aliasScope := codegen.NewNameScope()
-	for _, name := range httpReservedIdentifiers {
-		aliasScope.Unique(name)
-	}
 	httpSvc := *svc
-	httpSvc.PkgName = aliasScope.Unique(svc.PkgName, "svc")
+	httpSvc.PkgName = importAlias
 	scope.Unique(httpSvc.PkgName)
 	return &httpSvc, scope
+}
+
+func newServiceImportAliases(expressions *expr.HTTPExpr) map[string]string {
+	scope := codegen.NewNameScope()
+	for _, name := range transportGeneratedImportNames {
+		scope.Unique(name)
+	}
+	for _, name := range transportGeneratedLocalNames {
+		scope.Unique(name)
+	}
+
+	aliases := make(map[string]string, len(expressions.Services))
+	for _, httpSvc := range expressions.Services {
+		aliases[httpSvc.Name()] = scope.Unique(httpServicePackageName(httpSvc.ServiceExpr), "svc")
+	}
+	return aliases
+}
+
+func httpServicePackageName(svc *expr.ServiceExpr) string {
+	scope := codegen.NewNameScope()
+	scope.Unique("Use")
+	scope.Unique("websocket")
+	return scope.HashedUnique(svc, strings.ToLower(codegen.Goify(svc.Name, false)), "svc")
 }
 
 func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceData {
@@ -188,7 +239,7 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 	payload := sds.buildPayloadDataFromIR(endpointIR, sd)
 	reqs, hsch, bosch, qsch, basch := sds.buildRequirementSchemes(endpointIR)
 	requestInit := sds.buildClientRequestInit(endpointIR, method, svc, routes)
-	responseContractCases := buildResponseContractCaseData(endpointIR)
+	responseContractCases, responseContractWarnings := buildResponseContractCaseData(endpointIR)
 
 	endpoint := &EndpointData{
 		Method:                    method,
@@ -214,6 +265,7 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 		HasMixedResults:           endpointIR.Response.HasMixedResults,
 		ResponseContractCasesInit: fmt.Sprintf("%sResponseContractCases", method.VarName),
 		ResponseContractCases:     responseContractCases,
+		ResponseContractWarnings:  responseContractWarnings,
 		RequestEncoder:            endpointRequestEncoderName(method, payload, basch),
 		ResponseDecoder:           fmt.Sprintf("Decode%sResponse", method.VarName),
 		Requirements:              reqs,
@@ -225,20 +277,22 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 	return endpoint
 }
 
-func buildResponseContractCaseData(endpoint *transportir.Endpoint) []*ResponseContractCaseData {
+func buildResponseContractCaseData(endpoint *transportir.Endpoint) ([]*ResponseContractCaseData, []string) {
 	analysis := transportir.AnalyzeResponseContractCases(endpoint)
 	if !analysis.Supported() {
-		return nil
+		return nil, responseContractLimitationWarnings(endpoint, analysis.Limitations)
 	}
 
 	cases := make([]*ResponseContractCaseData, 0, len(analysis.Cases))
 	for _, contractCase := range analysis.Cases {
 		data := &ResponseContractCaseData{
-			ID:           contractCase.ID,
-			IsError:      contractCase.Kind == transportir.ResponseContractError,
-			StatusCode:   contractCase.StatusCode,
-			ErrorName:    contractCase.ErrorName,
-			ContentTypes: append([]string(nil), contractCase.ContentTypes...),
+			ID:         contractCase.ID,
+			IsError:    contractCase.Kind == transportir.ResponseContractError,
+			StatusCode: contractCase.StatusCode,
+			ErrorName:  contractCase.ErrorName,
+		}
+		if contractCase.HasBody {
+			data.ContentTypes = append([]string(nil), contractCase.ContentTypes...)
 		}
 		for _, header := range contractCase.Headers {
 			if header.Required {
@@ -252,7 +306,20 @@ func buildResponseContractCaseData(endpoint *transportir.Endpoint) []*ResponseCo
 		}
 		cases = append(cases, data)
 	}
-	return cases
+	return cases, nil
+}
+
+func responseContractLimitationWarnings(endpoint *transportir.Endpoint, limitations []transportir.ResponseContractLimitation) []string {
+	if endpoint == nil || endpoint.Service == nil || len(limitations) == 0 {
+		return nil
+	}
+
+	prefix := fmt.Sprintf("response contract omitted for %s.%s", endpoint.Service.Name, endpoint.MethodName)
+	warnings := make([]string, 0, len(limitations))
+	for _, limitation := range limitations {
+		warnings = append(warnings, fmt.Sprintf("%s: %s: %s", prefix, limitation.Code, limitation.Detail))
+	}
+	return warnings
 }
 
 func (sds *ServicesData) applyStreamingEndpointData(endpoint *EndpointData, endpointIR *transportir.Endpoint, sd *ServiceData) {

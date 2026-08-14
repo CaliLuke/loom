@@ -10,7 +10,9 @@ import (
 
 	cg "github.com/CaliLuke/loom/codegen"
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,6 +53,63 @@ func TestJSONRPCMixedSSEGeneratedModuleCompiles(t *testing.T) {
 	runGoJSONRPCTestCommand(t, dir, "test", "./...")
 }
 
+func TestJSONRPCServicePackageAliasGeneratedModuleCompiles(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcServicePackageAliasDSL)
+	dir := t.TempDir()
+
+	renderJSONRPCModule(t, dir, "example.com/jsonrpcservicealias", root)
+	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
+	runGoJSONRPCTestCommand(t, dir, "test", "./...")
+}
+
+func TestJSONRPCServicePackageAliasAggregateExampleCompiles(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcServicePackageAliasDSL)
+	dir := t.TempDir()
+	const modulePath = "example.com/jsonrpcservicealiasexample"
+	renderJSONRPCModule(t, dir, modulePath, root)
+
+	services := CreateJSONRPCServices(root)
+	httpFiles := httpcodegen.ExampleServerFiles(modulePath+"/gen", services)
+	files := ExampleServerFiles(modulePath+"/gen", services, httpFiles)
+	renderCodegenFiles(t, dir, files)
+
+	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
+	runGoJSONRPCTestCommand(t, dir, "test", "./cmd/api")
+}
+
+func TestJSONRPCServicePackageAliasAggregateExampleUsesResolvedImports(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcServicePackageAliasDSL)
+	services := CreateJSONRPCServices(root)
+	files := ExampleServerFiles("example.com/jsonrpcservicealias/gen", services, nil)
+	require.Len(t, files, 1)
+
+	code := renderCodegenFile(t, files[0])
+	require.Contains(t, code, "foojssvrsvcjssvr.New(")
+	require.Contains(t, code, "foojssvrsvcjssvr.Mount(mux, foojssvrJSONRPCServer)")
+	require.NotContains(t, code, "foojssvrjssvr.New(")
+}
+
+func TestJSONRPCMixedServicePackageAliasAggregateExampleCompiles(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedServicePackageAliasDSL)
+	dir := t.TempDir()
+	const modulePath = "example.com/jsonrpcmixedservicealiasexample"
+	renderMixedHTTPJSONRPCModule(t, dir, modulePath, root)
+
+	serviceData := servicecodegen.NewServicesData(root)
+	httpData := httpcodegen.NewServicesData(serviceData, root.API.HTTP)
+	jsonrpcData := CreateJSONRPCServices(root)
+	httpFiles := httpcodegen.ExampleServerFiles(modulePath+"/gen", httpData)
+	files := ExampleServerFiles(modulePath+"/gen", jsonrpcData, httpFiles)
+	require.Len(t, files, 1)
+	rendered := renderCodegenFile(t, files[0])
+	require.Contains(t, rendered, "foosvr.Mount(mux, fooServer)")
+	require.Contains(t, rendered, "foojssvrsvcjssvr.Mount(mux, foojssvrJSONRPCServer)")
+	renderCodegenFiles(t, dir, files)
+
+	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
+	runGoJSONRPCTestCommand(t, dir, "test", "./cmd/api")
+}
+
 func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {
 	t.Helper()
 
@@ -69,6 +128,46 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 	files = append(files, ClientFiles(genpkg, jsonrpcData)...)
 	files = append(files, ServerTypeFiles(genpkg, jsonrpcData)...)
 	files = append(files, ServerFiles(genpkg, jsonrpcData)...)
+	files = append(files, SSEServerFiles(genpkg, jsonrpcData)...)
+
+	renderCodegenFiles(t, dir, files)
+
+	goMod := fmt.Sprintf(`module %s
+
+go 1.27rc2
+
+require github.com/CaliLuke/loom v1.0.0
+
+replace github.com/CaliLuke/loom => %s
+`, modulePath, resolveJSONRPCTestLoomModulePath(t, dir))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o644))
+}
+
+func renderMixedHTTPJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {
+	t.Helper()
+
+	genpkg := modulePath + "/gen"
+	serviceData := servicecodegen.NewServicesData(root)
+	httpData := httpcodegen.NewServicesData(serviceData, root.API.HTTP)
+	jsonrpcData := CreateJSONRPCServices(root)
+
+	files := make([]*cg.File, 0, len(root.Services)*2+10)
+	userTypePkgs := make(map[string][]string)
+	for _, svc := range root.Services {
+		files = append(files, servicecodegen.Files(genpkg, svc, serviceData, userTypePkgs)...)
+		files = append(files, servicecodegen.EndpointFile(genpkg, svc, serviceData))
+	}
+	files = append(files, httpcodegen.PathFiles(httpData)...)
+	files = append(files, httpcodegen.ClientTypeFiles(genpkg, httpData)...)
+	files = append(files, httpcodegen.ClientFiles(genpkg, httpData)...)
+	files = append(files, httpcodegen.ServerTypeFiles(genpkg, httpData)...)
+	files = append(files, httpcodegen.ServerFiles(genpkg, httpData)...)
+	files = append(files, PathFiles(jsonrpcData)...)
+	files = append(files, ClientTypeFiles(genpkg, jsonrpcData)...)
+	files = append(files, ClientFiles(genpkg, jsonrpcData)...)
+	files = append(files, ServerTypeFiles(genpkg, jsonrpcData)...)
+	files = append(files, ServerFiles(genpkg, jsonrpcData)...)
+	files = append(files, SSEServerFiles(genpkg, jsonrpcData)...)
 
 	renderCodegenFiles(t, dir, files)
 
@@ -149,4 +248,81 @@ func runJSONRPCTestCommandAllowFailure(dir, name string, args ...string) (string
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	return string(out), err
+}
+
+var jsonrpcServicePackageAliasDSL = func() {
+	dsl.API("jsonrpc-service-package-alias", func() {
+		dsl.JSONRPC(func() {})
+		dsl.Server("api", func() {
+			dsl.Services("foo", "foojssvr")
+			dsl.Host("development", func() {
+				dsl.URI("http://localhost:8080")
+			})
+		})
+	})
+	for _, serviceName := range []string{"foo", "foojssvr"} {
+		dsl.Service(serviceName, func() {
+			dsl.JSONRPC(func() {
+				dsl.POST("/rpc")
+			})
+			dsl.Method("call", func() {
+				dsl.Payload(func() {
+					dsl.ID("id", dsl.String, "Request ID")
+				})
+				dsl.Result(func() {
+					dsl.ID("id", dsl.String, "Request ID")
+					dsl.Attribute("value", dsl.String)
+				})
+				dsl.JSONRPC(func() {})
+			})
+		})
+	}
+}
+
+var jsonrpcMixedServicePackageAliasDSL = func() {
+	dsl.API("jsonrpc-mixed-service-package-alias", func() {
+		dsl.JSONRPC(func() {})
+		dsl.Server("api", func() {
+			dsl.Services("foo", "foojssvr")
+			dsl.Host("development", func() {
+				dsl.URI("http://localhost:8080")
+			})
+		})
+	})
+	dsl.Service("foo", func() {
+		dsl.Method("show", func() {
+			dsl.Result(dsl.String)
+			dsl.HTTP(func() {
+				dsl.GET("/items")
+			})
+		})
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		dsl.Method("call", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.Result(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+				dsl.Attribute("value", dsl.String)
+			})
+			dsl.JSONRPC(func() {})
+		})
+	})
+	dsl.Service("foojssvr", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		dsl.Method("call", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.Result(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+				dsl.Attribute("value", dsl.String)
+			})
+			dsl.JSONRPC(func() {})
+		})
+	})
 }

@@ -10,6 +10,11 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+type exampleCLIServiceData struct {
+	Data          *ServiceData
+	ServiceImport string
+}
+
 // ExampleCLITransport describes the transport-specific names and paths used by
 // a generated example client.
 type ExampleCLITransport struct {
@@ -86,19 +91,25 @@ func exampleCLIWithCache(
 		{Path: genpkg + "/" + transport.PathName + "/cli/" + svrdata.Dir, Name: "cli"},
 	}
 	importScope := codegen.NewNameScope()
+	reserveExampleImportNames(importScope, specs)
+	exampleServices := make(map[string]exampleCLIServiceData, len(services.Root.Services))
 	for _, svc := range services.Root.Services {
-		data := services.ServicesData.Get(svc.Name)
-		specs = append(specs, &codegen.ImportSpec{Path: genpkg + "/" + data.PkgName})
-		importScope.Unique(data.PkgName)
+		data := services.Get(svc.Name)
+		serviceImport := importScope.Unique(data.Service.PkgName, "svc")
+		exampleServices[svc.Name] = exampleCLIServiceData{Data: data, ServiceImport: serviceImport}
+		specs = append(specs, &codegen.ImportSpec{
+			Path: genpkg + "/" + data.Service.PathName,
+			Name: serviceImport,
+		})
 	}
 	interceptorsPkg := importScope.Unique("interceptors", "ex")
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath + "/interceptors", Name: interceptorsPkg})
 	apiPkg := importScope.Unique(strings.ToLower(codegen.Goify(services.Root.API.Name, false)), "api")
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath, Name: apiPkg})
 
-	var svcData []*ServiceData
+	svcData := make([]exampleCLIServiceData, 0, len(svr.Services))
 	for _, svc := range svr.Services {
-		if data := services.Get(svc); data != nil {
+		if data, ok := exampleServices[svc]; ok {
 			svcData = append(svcData, data)
 		}
 	}

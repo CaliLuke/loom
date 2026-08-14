@@ -93,6 +93,30 @@ func TestValidateResponseContract(t *testing.T) {
 			wantErr: `response contract "widgets.show.success.200": Content-Type is "text/plain", want one of [application/json]`,
 		},
 		{
+			name: "wildcard content type",
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/pdf"}},
+			},
+			contract: ResponseContractCase{
+				ID:           "files.download.success.200",
+				StatusCode:   http.StatusOK,
+				ContentTypes: []string{"*/*"},
+			},
+		},
+		{
+			name: "type wildcard content type",
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/problem+json"}},
+			},
+			contract: ResponseContractCase{
+				ID:           "errors.show.success.200",
+				StatusCode:   http.StatusOK,
+				ContentTypes: []string{"application/*"},
+			},
+		},
+		{
 			name: "error name mismatch",
 			response: &http.Response{
 				StatusCode: http.StatusNotFound,

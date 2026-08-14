@@ -12,6 +12,12 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+type exampleServerServiceData struct {
+	Data          *ServiceData
+	ServiceImport string
+	ServerImport  string
+}
+
 // ExampleServerFiles returns an example http service implementation.
 func ExampleServerFiles(genpkg string, data *ServicesData) []*codegen.File {
 	var fw []*codegen.File
@@ -37,6 +43,30 @@ func ExampleServer(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, ser
 func exampleServerWithCache(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, services *ServicesData, servers example.ServersData) *codegen.File {
 	svrdata := servers.Get(svr, root)
 	fpath := filepath.Join("cmd", svrdata.Dir, "http.go")
+	specs, exampleServices, apiPkg := exampleServerImports(genpkg, root, services)
+
+	svcdata := make([]exampleServerServiceData, 0, len(svr.Services))
+	for _, svc := range svr.Services {
+		if data, ok := exampleServices[svc]; ok {
+			svcdata = append(svcdata, data)
+		}
+	}
+
+	sections := []codegen.Section{
+		codegen.Header("", "main", specs),
+		exampleServerStartSection(svcdata),
+		exampleServerEncodingSection(),
+		exampleServerMuxSection(),
+		exampleServerConfigureSection(svcdata, apiPkg),
+		exampleServerMiddlewareSection(),
+		exampleServerEndSection(svcdata),
+		exampleServerErrorHandlerSection(),
+	}
+
+	return &codegen.File{Path: fpath, Sections: sections, SkipExist: true}
+}
+
+func exampleServerImports(genpkg string, root *expr.RootExpr, services *ServicesData) ([]*codegen.ImportSpec, map[string]exampleServerServiceData, string) {
 	specs := make([]*codegen.ImportSpec, 0, 12+2*len(root.API.HTTP.Services))
 	baseSpecs := []*codegen.ImportSpec{
 		{Path: "context"},
@@ -54,53 +84,52 @@ func exampleServerWithCache(genpkg string, root *expr.RootExpr, svr *expr.Server
 	specs = append(specs, baseSpecs...)
 
 	scope := codegen.NewNameScope()
+	reserveExampleImportNames(scope, baseSpecs)
+	exampleServices := make(map[string]exampleServerServiceData, len(root.API.HTTP.Services))
 	for _, svc := range root.API.HTTP.Services {
 		sd := services.Get(svc.Name())
 		svcName := sd.Service.PathName
+		serviceImport := scope.Unique(sd.Service.PkgName, "svc")
+		serverImport := scope.Unique(serviceImport+"svr", "svr")
+		exampleServices[svc.Name()] = exampleServerServiceData{
+			Data:          sd,
+			ServiceImport: serviceImport,
+			ServerImport:  serverImport,
+		}
 		specs = append(specs,
 			&codegen.ImportSpec{
 				Path: path.Join(genpkg, "http", svcName, "server"),
-				Name: scope.Unique(sd.Service.PkgName + "svr"),
+				Name: serverImport,
 			},
 			&codegen.ImportSpec{
 				Path: path.Join(genpkg, svcName),
-				Name: scope.Unique(sd.Service.PkgName),
+				Name: serviceImport,
 			})
 	}
 
-	var (
-		rootPath string
-		apiPkg   string
-	)
-	{
-		// genpkg is created by path.Join so the separator is / regardless of operating system
-		rootPath = "."
-		if parent, _, ok := strings.CutLast(genpkg, "/"); ok && parent != "" {
-			rootPath = parent
-		}
-		apiPkg = scope.Unique(strings.ToLower(codegen.Goify(services.Root.API.Name, false) + "api"))
+	// genpkg is created by path.Join so the separator is / regardless of operating system.
+	rootPath := "."
+	if parent, _, ok := strings.CutLast(genpkg, "/"); ok && parent != "" {
+		rootPath = parent
 	}
+	apiPkg := scope.Unique(strings.ToLower(codegen.Goify(services.Root.API.Name, false) + "api"))
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath, Name: apiPkg})
+	return specs, exampleServices, apiPkg
+}
 
-	var svcdata []*ServiceData
-	for _, svc := range svr.Services {
-		if data := services.Get(svc); data != nil {
-			svcdata = append(svcdata, data)
+func reserveExampleImportNames(scope *codegen.NameScope, specs []*codegen.ImportSpec) {
+	for _, spec := range specs {
+		if spec == nil || spec.Name == "_" || spec.Name == "." {
+			continue
+		}
+		name := spec.Name
+		if name == "" {
+			name = path.Base(spec.Path)
+		}
+		if name != "" {
+			scope.Unique(name)
 		}
 	}
-
-	sections := []codegen.Section{
-		codegen.Header("", "main", specs),
-		exampleServerStartSection(svcdata),
-		exampleServerEncodingSection(),
-		exampleServerMuxSection(),
-		exampleServerConfigureSection(svcdata, apiPkg),
-		exampleServerMiddlewareSection(),
-		exampleServerEndSection(svcdata),
-		exampleServerErrorHandlerSection(),
-	}
-
-	return &codegen.File{Path: fpath, Sections: sections, SkipExist: true}
 }
 
 // dummyMultipartFile returns a dummy implementation of the multipart decoders

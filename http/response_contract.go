@@ -5,7 +5,6 @@ import (
 	"mime"
 	"net/http"
 	"net/textproto"
-	"slices"
 	"strings"
 )
 
@@ -91,14 +90,36 @@ func validateResponseContractContentType(header http.Header, declared []string) 
 		if err != nil {
 			return fmt.Errorf("parse declared Content-Type %q: %w", contentType, err)
 		}
-		if !slices.Contains(expected, mediaType) {
+		if responseContractMediaTypeMatches(actual, mediaType) {
+			return nil
+		}
+		if !responseContractMediaTypeListed(expected, mediaType) {
 			expected = append(expected, mediaType)
 		}
 	}
-	if !slices.Contains(expected, actual) {
-		return fmt.Errorf("Content-Type is %q, want one of %v", actual, expected)
+	return fmt.Errorf("Content-Type is %q, want one of %v", actual, expected)
+}
+
+func responseContractMediaTypeMatches(actual, expected string) bool {
+	actualType, actualSubtype, ok := strings.Cut(actual, "/")
+	if !ok {
+		return false
 	}
-	return nil
+	expectedType, expectedSubtype, ok := strings.Cut(expected, "/")
+	if !ok {
+		return false
+	}
+	return (expectedType == "*" || expectedType == actualType) &&
+		(expectedSubtype == "*" || expectedSubtype == actualSubtype)
+}
+
+func responseContractMediaTypeListed(mediaTypes []string, target string) bool {
+	for _, mediaType := range mediaTypes {
+		if mediaType == target {
+			return true
+		}
+	}
+	return false
 }
 
 func responseHeaderPresent(header http.Header, target string) bool {

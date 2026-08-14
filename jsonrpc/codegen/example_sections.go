@@ -36,30 +36,30 @@ func renderSectionSource(section codegen.Section) string {
 	return b.String()
 }
 
-func jsonrpcExampleServerStartSource(httpServices, jsonrpcServices []*httpcodegen.ServiceData) string {
+func jsonrpcExampleServerStartSource(httpServices, jsonrpcServices []jsonrpcExampleServiceData) string {
 	var b exampleSourceBuilder
 	b.Add("\n")
 	b.Add(codegen.Comment("handleHTTPServer starts configures and starts a HTTP server on the given URL. It shuts down the server if any error is received in the error channel."))
 	b.Add("\n")
 	b.Add("func handleHTTPServer(ctx context.Context, u *url.URL")
 	for _, svc := range httpServices {
-		if len(svc.Service.Methods) > 0 {
-			b.Addf(", %sEndpoints *%s.Endpoints", svc.Service.VarName, svc.Service.PkgName)
+		if len(svc.Data.Service.Methods) > 0 {
+			b.Addf(", %sEndpoints *%s.Endpoints", svc.Data.Service.VarName, svc.ServiceImport)
 		}
 	}
 	for _, svc := range jsonrpcServices {
-		if !hasServiceName(httpServices, svc.Service.Name) {
-			b.Addf(", %sEndpoints *%s.Endpoints", svc.Service.VarName, svc.Service.PkgName)
+		if !hasJSONRPCExampleServiceName(httpServices, svc.Data.Service.Name) {
+			b.Addf(", %sEndpoints *%s.Endpoints", svc.Data.Service.VarName, svc.ServiceImport)
 		}
 	}
 	for _, svc := range jsonrpcServices {
-		b.Addf(", %sSvc %s.Service", svc.Service.VarName, svc.Service.PkgName)
+		b.Addf(", %sSvc %s.Service", svc.Data.Service.VarName, svc.ServiceImport)
 	}
 	b.Add(", wg *sync.WaitGroup, errc chan error, dbg bool) {\n")
 	return b.String()
 }
 
-func jsonrpcExampleServerConfigureSource(httpServices, jsonrpcServices []*httpcodegen.ServiceData, apiPkg string) string {
+func jsonrpcExampleServerConfigureSource(httpServices, jsonrpcServices []jsonrpcExampleServiceData, apiPkg string) string {
 	var b exampleSourceBuilder
 	b.Add("\n\t// Wrap the endpoints with the transport specific layers. The generated\n")
 	b.Add("\t// server packages contains code generated from the design which maps\n")
@@ -67,40 +67,40 @@ func jsonrpcExampleServerConfigureSource(httpServices, jsonrpcServices []*httpco
 	b.Add("\t// responses.\n")
 	b.Add("\tvar (\n")
 	for _, svc := range httpServices {
-		b.Addf("\t\t%sServer *%ssvr.Server\n", svc.Service.VarName, svc.Service.PkgName)
+		b.Addf("\t\t%sServer *%s.Server\n", svc.Data.Service.VarName, svc.HTTPServerImport)
 	}
 	for _, svc := range jsonrpcServices {
-		b.Addf("\t\t%sJSONRPCServer *%sjssvr.Server\n", svc.Service.VarName, svc.Service.PkgName)
+		b.Addf("\t\t%sJSONRPCServer *%s.Server\n", svc.Data.Service.VarName, svc.JSONRPCServerImport)
 	}
 	b.Add("\t)\n")
 	b.Add("\t{\n")
 	b.Add("\t\teh := errorHandler(ctx)\n")
-	if hasRuntimeCORS(append(append([]*httpcodegen.ServiceData(nil), httpServices...), jsonrpcServices...)) {
+	if jsonrpcExampleHasRuntimeCORS(httpServices, jsonrpcServices) {
 		b.Add("\t\t// Replace this same-origin default with the deployment-configured browser origins.\n")
 		b.Add("\t\truntimeCORSPolicy, err := loomhttp.NewRuntimeCORSPolicy(loomhttp.CORSPolicy{\n")
 		b.Add("\t\t\tOrigins: []loomhttp.CORSOrigin{{Pattern: u.Scheme + \"://\" + u.Host}},\n")
 		b.Add("\t\t})\n")
 		b.Add("\t\tif err != nil {\n\t\t\tpanic(err)\n\t\t}\n")
 	}
-	if httpcodegen.NeedDialer(httpServices) || httpcodegen.NeedDialer(jsonrpcServices) {
+	if jsonrpcExampleNeedsDialer(httpServices) || jsonrpcExampleNeedsDialer(jsonrpcServices) {
 		b.Add("\t\tupgrader := &websocket.Upgrader{}\n")
 	}
 	for _, svc := range httpServices {
 		b.Addf("\t\t%s\n", httpcodegenServerConstructorCall(svc, apiPkg))
 	}
 	for _, svc := range jsonrpcServices {
-		if len(svc.Endpoints) == 0 {
+		if len(svc.Data.Endpoints) == 0 {
 			continue
 		}
-		b.Addf("\t\t%sJSONRPCServer = %sjssvr.New(", svc.Service.VarName, svc.Service.PkgName)
-		if httpcodegen.HasWebSocket(svc) {
-			b.Addf("%sSvc.HandleStream, ", svc.Service.VarName)
+		b.Addf("\t\t%sJSONRPCServer = %s.New(", svc.Data.Service.VarName, svc.JSONRPCServerImport)
+		if httpcodegen.HasWebSocket(svc.Data) {
+			b.Addf("%sSvc.HandleStream, ", svc.Data.Service.VarName)
 		}
-		b.Addf("%sEndpoints, mux, dec, enc, eh", svc.Service.VarName)
-		if svc.CORS != nil && svc.CORS.Runtime {
+		b.Addf("%sEndpoints, mux, dec, enc, eh", svc.Data.Service.VarName)
+		if svc.Data.CORS != nil && svc.Data.CORS.Runtime {
 			b.Add(", runtimeCORSPolicy")
 		}
-		if httpcodegen.HasWebSocket(svc) {
+		if httpcodegen.HasWebSocket(svc.Data) {
 			b.Add(", upgrader, nil")
 		}
 		b.Add(")\n")
@@ -108,19 +108,19 @@ func jsonrpcExampleServerConfigureSource(httpServices, jsonrpcServices []*httpco
 	b.Add("\t}\n\n")
 	b.Add("\t// Configure the mux.\n")
 	for _, svc := range httpServices {
-		b.Addf("\t%ssvr.Mount(mux, %sServer)\n", svc.Service.PkgName, svc.Service.VarName)
+		b.Addf("\t%s.Mount(mux, %sServer)\n", svc.HTTPServerImport, svc.Data.Service.VarName)
 	}
 	for _, svc := range jsonrpcServices {
-		b.Addf("\t%sjssvr.Mount(mux, %sJSONRPCServer)\n", svc.Service.PkgName, svc.Service.VarName)
+		b.Addf("\t%s.Mount(mux, %sJSONRPCServer)\n", svc.JSONRPCServerImport, svc.Data.Service.VarName)
 	}
 	return b.String()
 }
 
-func jsonrpcHTTPMountLogSource(jsonrpcServices []*httpcodegen.ServiceData) string {
+func jsonrpcHTTPMountLogSource(jsonrpcServices []jsonrpcExampleServiceData) string {
 	var b exampleSourceBuilder
 	for _, svc := range jsonrpcServices {
-		b.Addf("\tfor _, m := range %sJSONRPCServer.Methods {\n", svc.Service.VarName)
-		for _, route := range svc.Endpoints[0].Routes {
+		b.Addf("\tfor _, m := range %sJSONRPCServer.Methods {\n", svc.Data.Service.VarName)
+		for _, route := range svc.Data.Endpoints[0].Routes {
 			b.Addf("\t\tlog.Printf(ctx, \"JSON-RPC method %%q mounted on %s %s\", m)\n", route.Verb, route.Path)
 		}
 		b.Add("\t}\n")
@@ -128,7 +128,7 @@ func jsonrpcHTTPMountLogSource(jsonrpcServices []*httpcodegen.ServiceData) strin
 	return b.String()
 }
 
-func jsonrpcExampleServerEndSource(httpServices, jsonrpcServices []*httpcodegen.ServiceData) string {
+func jsonrpcExampleServerEndSource(httpServices, jsonrpcServices []jsonrpcExampleServiceData) string {
 	var b exampleSourceBuilder
 	b.Add("\n\t// Start HTTP server using default configuration, change the code to\n")
 	b.Add("\t// configure the server as required by your service.\n")
@@ -142,7 +142,7 @@ func jsonrpcExampleServerEndSource(httpServices, jsonrpcServices []*httpcodegen.
 	b.Add("\t\tIdleTimeout:       time.Second * 60,\n")
 	b.Add("\t}\n")
 	for _, svc := range httpServices {
-		b.Addf("\tfor _, m := range %sServer.Mounts {\n", svc.Service.VarName)
+		b.Addf("\tfor _, m := range %sServer.Mounts {\n", svc.Data.Service.VarName)
 		b.Add("\t\tlog.Printf(ctx, \"HTTP %q mounted on %s %s\", m.Method, m.Verb, m.Pattern)\n")
 		b.Add("\t}\n")
 	}
@@ -171,45 +171,56 @@ func jsonrpcExampleServerEndSource(httpServices, jsonrpcServices []*httpcodegen.
 	return b.String()
 }
 
-func hasServiceName(services []*httpcodegen.ServiceData, name string) bool {
+func hasJSONRPCExampleServiceName(services []jsonrpcExampleServiceData, name string) bool {
 	for _, svc := range services {
-		if svc.Service.Name == name {
+		if svc.Data.Service.Name == name {
 			return true
 		}
 	}
 	return false
 }
 
-func httpcodegenServerConstructorCall(svc *httpcodegen.ServiceData, apiPkg string) string {
+func httpcodegenServerConstructorCall(svc jsonrpcExampleServiceData, apiPkg string) string {
 	var b exampleSourceBuilder
-	b.Addf("%sServer = %ssvr.New(", svc.Service.VarName, svc.Service.PkgName)
-	if len(svc.Endpoints) > 0 {
-		b.Addf("%sEndpoints", svc.Service.VarName)
+	b.Addf("%sServer = %s.New(", svc.Data.Service.VarName, svc.HTTPServerImport)
+	if len(svc.Data.Endpoints) > 0 {
+		b.Addf("%sEndpoints", svc.Data.Service.VarName)
 	} else {
 		b.Add("nil")
 	}
 	b.Add(", mux, dec, enc, eh, nil")
-	if svc.CORS != nil && svc.CORS.Runtime {
+	if svc.Data.CORS != nil && svc.Data.CORS.Runtime {
 		b.Add(", runtimeCORSPolicy")
 	}
-	if httpcodegen.HasWebSocket(svc) {
+	if httpcodegen.HasWebSocket(svc.Data) {
 		b.Add(", upgrader, nil")
 	}
-	for _, endpoint := range svc.Endpoints {
+	for _, endpoint := range svc.Data.Endpoints {
 		if endpoint.MultipartRequestDecoder != nil {
 			b.Addf(", %s.%s", apiPkg, endpoint.MultipartRequestDecoder.FuncName)
 		}
 	}
-	for range svc.FileServers {
+	for range svc.Data.FileServers {
 		b.Add(", nil")
 	}
 	b.Add(")")
 	return b.String()
 }
 
-func hasRuntimeCORS(services []*httpcodegen.ServiceData) bool {
+func jsonrpcExampleHasRuntimeCORS(serviceGroups ...[]jsonrpcExampleServiceData) bool {
+	for _, services := range serviceGroups {
+		for _, svc := range services {
+			if svc.Data.CORS != nil && svc.Data.CORS.Runtime {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func jsonrpcExampleNeedsDialer(services []jsonrpcExampleServiceData) bool {
 	for _, svc := range services {
-		if svc.CORS != nil && svc.CORS.Runtime {
+		if httpcodegen.HasWebSocket(svc.Data) {
 			return true
 		}
 	}

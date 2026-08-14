@@ -34,16 +34,19 @@ func serviceHasResponseContractCases(data *ServiceData) bool {
 }
 
 func responseContractTestFile(genpkg string, data *ServiceData) *codegen.File {
-	serverAlias := data.Service.PkgName + "svr"
-	imports := []*codegen.ImportSpec{
-		{Path: "net/http"},
-		{Path: "testing"},
+	imports := make([]*codegen.ImportSpec, 0, 4)
+	imports = append(imports,
+		&codegen.ImportSpec{Path: "net/http"},
+		&codegen.ImportSpec{Path: "testing"},
 		codegen.LoomNamedImport("http", "loomhttp"),
-		{
-			Path: path.Join(genpkg, "http", data.Service.PathName, "server"),
-			Name: serverAlias,
-		},
-	}
+	)
+	scope := codegen.NewNameScope()
+	reserveExampleImportNames(scope, imports)
+	serverAlias := scope.Unique(data.Service.PkgName+"svr", "svr")
+	imports = append(imports, &codegen.ImportSpec{
+		Path: path.Join(genpkg, "http", data.Service.PathName, "server"),
+		Name: serverAlias,
+	})
 	return &codegen.File{
 		Path: filepath.Join("internal", "contracttest", data.Service.PathName+"_http_test.go"),
 		Sections: []codegen.Section{
@@ -74,6 +77,22 @@ func responseContractTestSection(data *ServiceData, serverAlias string) codegen.
 
 		stmt.Func().Id(testName).Params(jen.Id("t").Op("*").Qual("testing", "T")).BlockFunc(func(group *jen.Group) {
 			group.Id("scenarios").Op(":=").Id(scenariosInit).Call()
+			group.For(
+				jen.List(jen.Id("id")).Op(":=").Range().Id("scenarios"),
+			).Block(
+				jen.Id("matched").Op(":=").False(),
+				jen.For(
+					jen.List(jen.Id("_"), jen.Id("contract")).Op(":=").Range().Add(codegen.Expr(serverAlias+".ResponseContractCases")).Call(),
+				).Block(
+					jen.If(jen.Id("contract").Dot("ID").Op("==").Id("id")).Block(
+						jen.Id("matched").Op("=").True(),
+						jen.Break(),
+					),
+				),
+				jen.If(jen.Op("!").Id("matched")).Block(
+					jen.Id("t").Dot("Errorf").Call(jen.Lit("response contract scenario %q has no declared contract"), jen.Id("id")),
+				),
+			)
 			group.For(
 				jen.List(jen.Id("_"), jen.Id("contract")).Op(":=").Range().Add(codegen.Expr(serverAlias+".ResponseContractCases")).Call(),
 			).Block(

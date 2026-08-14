@@ -48,6 +48,7 @@ func TestAnalyzeResponseContractCases(t *testing.T) {
 	require.Equal(t, "outcome", accepted.TagName)
 	require.Equal(t, "accepted", accepted.TagValue)
 	require.Equal(t, []string{"application/json"}, accepted.ContentTypes)
+	require.True(t, accepted.HasBody)
 	require.Len(t, accepted.Headers, 1)
 	require.Equal(t, "X-Version", accepted.Headers[0].HTTPName)
 	require.Len(t, accepted.Cookies, 1)
@@ -56,8 +57,6 @@ func TestAnalyzeResponseContractCases(t *testing.T) {
 	require.True(t, accepted.Cookies[0].Secure)
 	require.True(t, accepted.Cookies[0].HTTPOnly)
 	require.Equal(t, expr.CookieSameSiteLax, accepted.Cookies[0].SameSite)
-	require.Same(t, endpoint.Response.Responses[0], accepted.Response)
-
 	fallback := analysis.Cases[1]
 	require.Equal(t, "widgets.show.success.200", fallback.ID)
 	require.Empty(t, fallback.TagName)
@@ -191,6 +190,55 @@ func TestAnalyzeResponseContractCasesEscapesStableIDSegments(t *testing.T) {
 	require.True(t, analysis.Supported())
 	require.Len(t, analysis.Cases, 1)
 	require.Equal(t, "catalog%2Ev2.show%2Fitem.success.202.state%3Dkind=ready%2Enow", analysis.Cases[0].ID)
+}
+
+func TestAnalyzeResponseContractCasesTracksBodyApplicability(t *testing.T) {
+	endpoint := &transportir.Endpoint{
+		Service:    &transportir.Service{Name: "files"},
+		MethodName: "download",
+		Request:    &transportir.Request{},
+		Response: &transportir.Response{
+			Responses: []*transportir.ResponseStatus{{
+				StatusCode:   expr.StatusNoContent,
+				ContentTypes: []string{"application/json"},
+				Body:         &expr.AttributeExpr{Type: expr.Empty},
+			}},
+		},
+	}
+
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	require.True(t, analysis.Supported())
+	require.Len(t, analysis.Cases, 1)
+	require.False(t, analysis.Cases[0].HasBody)
+}
+
+func TestAnalyzeResponseContractCasesTreatsOnlyFileSuccessAsBody(t *testing.T) {
+	endpoint := &transportir.Endpoint{
+		Service:    &transportir.Service{Name: "files"},
+		MethodName: "download",
+		Request:    &transportir.Request{},
+		Response: &transportir.Response{
+			FileResponse: true,
+			Responses: []*transportir.ResponseStatus{{
+				StatusCode:   expr.StatusOK,
+				ContentTypes: []string{"*/*"},
+				Body:         &expr.AttributeExpr{Type: expr.Empty},
+			}},
+			ErrorResponses: []*transportir.ResponseStatus{{
+				Error:        &transportir.Error{Name: "not_found"},
+				StatusCode:   expr.StatusNotFound,
+				ContentTypes: []string{"application/json"},
+				Body:         &expr.AttributeExpr{Type: expr.Empty},
+				IsError:      true,
+			}},
+		},
+	}
+
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	require.True(t, analysis.Supported())
+	require.Len(t, analysis.Cases, 2)
+	require.True(t, analysis.Cases[0].HasBody)
+	require.False(t, analysis.Cases[1].HasBody)
 }
 
 func responseContractSnapshotFor(analysis *transportir.ResponseContractAnalysis) responseContractSnapshot {

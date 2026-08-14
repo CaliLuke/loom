@@ -52,13 +52,12 @@ type (
 		TagValue string
 		// ContentTypes lists the declared response media types.
 		ContentTypes []string
+		// HasBody reports whether the response contract asserts a body media type.
+		HasBody bool
 		// Headers lists the declared response header assertions.
 		Headers []ResponseContractHeader
 		// Cookies lists the declared response cookie assertions.
 		Cookies []ResponseContractCookie
-		// Response is the source transport response used by later generators to
-		// construct the result or typed error for this case.
-		Response *ResponseStatus
 	}
 
 	// ResponseContractHeader describes a declared response header assertion.
@@ -140,10 +139,10 @@ func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis 
 	methodName := endpoint.MethodName
 	analysis.Cases = make([]*ResponseContractCase, 0, len(endpoint.Response.Responses)+len(endpoint.Response.ErrorResponses))
 	for _, response := range endpoint.Response.Responses {
-		analysis.Cases = append(analysis.Cases, newResponseContractCase(serviceName, methodName, response))
+		analysis.Cases = append(analysis.Cases, newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response))
 	}
 	for _, response := range endpoint.Response.ErrorResponses {
-		analysis.Cases = append(analysis.Cases, newResponseContractCase(serviceName, methodName, response))
+		analysis.Cases = append(analysis.Cases, newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response))
 	}
 
 	seen := make(map[string]struct{}, len(analysis.Cases))
@@ -226,7 +225,7 @@ func responseContractLimitations(endpoint *Endpoint) []ResponseContractLimitatio
 	return limitations
 }
 
-func newResponseContractCase(serviceName, methodName string, response *ResponseStatus) *ResponseContractCase {
+func newResponseContractCase(serviceName, methodName string, fileResponse bool, response *ResponseStatus) *ResponseContractCase {
 	kind := ResponseContractSuccess
 	errorName := ""
 	if response.IsError {
@@ -243,10 +242,14 @@ func newResponseContractCase(serviceName, methodName string, response *ResponseS
 		TagName:      response.TagName,
 		TagValue:     response.TagValue,
 		ContentTypes: append([]string(nil), response.ContentTypes...),
+		HasBody:      (fileResponse && !response.IsError) || responseHasBody(response),
 		Headers:      responseContractHeaders(response.Headers),
 		Cookies:      responseContractCookies(response.Cookies),
-		Response:     response,
 	}
+}
+
+func responseHasBody(response *ResponseStatus) bool {
+	return response != nil && response.Body != nil && response.Body.Type != expr.Empty
 }
 
 func responseContractCaseID(serviceName, methodName string, kind ResponseContractCaseKind, response *ResponseStatus) string {

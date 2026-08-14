@@ -57,7 +57,15 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		sections = append(sections, fileServerSection(s))
 	}
 
-	return &codegen.File{Path: fpath, Sections: sections}
+	return &codegen.File{Path: fpath, Sections: sections, Warnings: serverResponseContractWarnings(data)}
+}
+
+func serverResponseContractWarnings(data *ServiceData) []string {
+	var warnings []string
+	for _, endpoint := range data.Endpoints {
+		warnings = append(warnings, endpoint.ResponseContractWarnings...)
+	}
+	return warnings
 }
 
 // ServerEncodeDecodeFile returns the file defining the HTTP server encoding and

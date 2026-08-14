@@ -12,8 +12,9 @@ type (
 	// ServicesData encapsulates the data computed from the design.
 	ServicesData struct {
 		*service.ServicesData
-		Expressions *expr.HTTPExpr
-		HTTPData    map[string]*ServiceData
+		Expressions          *expr.HTTPExpr
+		HTTPData             map[string]*ServiceData
+		serviceImportAliases map[string]string
 	}
 
 	// ServiceData contains the data used to render the code related to a
@@ -142,6 +143,9 @@ type (
 		ResponseContractCasesInit string
 		// ResponseContractCases lists the supported HTTP wire-response cases.
 		ResponseContractCases []*ResponseContractCaseData
+		// ResponseContractWarnings lists analysis limitations for unsupported
+		// response contract cases.
+		ResponseContractWarnings []string
 
 		// client
 
@@ -572,9 +576,10 @@ type (
 // NewServicesData creates a new ServicesData instance for the given service data.
 func NewServicesData(services *service.ServicesData, expressions *expr.HTTPExpr) *ServicesData {
 	return &ServicesData{
-		ServicesData: services,
-		Expressions:  expressions,
-		HTTPData:     make(map[string]*ServiceData),
+		ServicesData:         services,
+		Expressions:          expressions,
+		HTTPData:             make(map[string]*ServiceData),
+		serviceImportAliases: newServiceImportAliases(expressions),
 	}
 }
 
