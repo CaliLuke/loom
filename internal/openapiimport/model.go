@@ -118,6 +118,8 @@ type Parameter struct {
 	Required bool
 	// Deprecated reports whether the parameter is deprecated.
 	Deprecated bool
+	// AllowEmptyValue reports whether an empty parameter value is permitted.
+	AllowEmptyValue bool
 	// Schema describes the parameter value.
 	Schema *Schema
 }

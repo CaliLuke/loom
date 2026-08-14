@@ -409,6 +409,15 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:component:parameter", "CursorParam")
 //	})
 //
+// - "openapi:allowEmptyValue" sets the OpenAPI allowEmptyValue flag for a
+// query parameter. Applicable to attributes mapped with Param. Import-generated
+// designs use it when Loom's default query-parameter behavior would otherwise
+// change the imported contract.
+//
+//	Attribute("cursor", String, func() {
+//	    Meta("openapi:allowEmptyValue", "false")
+//	})
+//
 // - "openapi:component:response" sets the public component name used for a
 // reusable OpenAPI response. Explicit names force hoisting into
 // `components.responses`, even for single-use responses. Applicable to HTTP

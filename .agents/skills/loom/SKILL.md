@@ -60,8 +60,10 @@ Loom emits OpenAPI 3.2.0 by default at:
 To bootstrap a design from an existing OpenAPI 3.1 or 3.2 JSON/YAML contract,
 run `loom import openapi <input> -o design`. Import supports a strict subset:
 it reports every unsupported construct it finds, writes no partial design or
-TODO placeholders, and never overwrites an existing target. Review the new
-`design/design.go` before running `loom gen`.
+TODO placeholders, and never overwrites an existing target. If you explicitly
+accept omitting non-contract metadata, add `--allow-lossy`; it warns on stderr
+for metadata-only omissions but still refuses any contract-affecting loss.
+Review the new `design/design.go` before running `loom gen`.
 
 Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
 consumer still requires OpenAPI 3.1.1. The output paths remain the same and the
@@ -165,7 +167,8 @@ fakes, and state that make every declared response reachable.
   conditional request handling. Implement the generated service method with a
   `*loomhttp.FileResponse`, set `Name`, `ModTime`, and `Content`, and declare
   `HEAD(...)` explicitly when needed. The generated client returns an
-  `io.ReadCloser`; the caller must close it.
+  `io.ReadCloser`; the caller must close it. Map every modeled result metadata
+  attribute to a response header or cookie because FileResponse owns the body.
 
 If a body shape is unsupported, use the documented custom encoder/decoder seam
 rather than modifying generated files.

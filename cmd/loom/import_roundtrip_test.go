@@ -345,6 +345,20 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 				}
 			}
 		}
+		actualParameters := normalized.Operations[operationIndex].Parameters
+		expectedParameters := expected.Operations[operationIndex].Parameters
+		for parameterIndex := range actualParameters {
+			if parameterIndex >= len(expectedParameters) {
+				break
+			}
+			actualParameter := &actualParameters[parameterIndex]
+			expectedParameter := expectedParameters[parameterIndex]
+			if actualParameter.Schema != nil && expectedParameter.Schema != nil &&
+				expectedParameter.Schema.Description == "" &&
+				actualParameter.Schema.Description == actualParameter.Description {
+				actualParameter.Schema.Description = ""
+			}
+		}
 	}
 	return normalized, nil
 }

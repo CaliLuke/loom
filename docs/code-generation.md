@@ -55,7 +55,7 @@ loom gen github.com/CaliLuke/loom-examples/calc/design
 #### Import OpenAPI (`loom import openapi`)
 
 ```bash
-loom import openapi <input.json-or-yaml> [-o <design.go-or-directory>]
+loom import openapi <input.json-or-yaml> [-o <design.go-or-directory>] [--allow-lossy]
 ```
 
 This command creates one gofmt-formatted Loom design from the strict supported
@@ -64,10 +64,18 @@ subset of an OpenAPI 3.1 or 3.2 contract. The default output is
 non-existing extensionless path is treated as a directory; a `.go` path names
 the output file directly.
 
-Import is intentionally lossless-or-fail: unsupported constructs are reported
-together and no partial design or TODO placeholders are written. The command
-also refuses to overwrite an existing target. Review the imported design, then
-run `loom gen <module-import-path>/design` normally.
+Import is intentionally lossless-or-fail by default: unsupported constructs are
+reported together and no partial design or TODO placeholders are written. The
+command also refuses to overwrite an existing target. Review the imported
+design, then run `loom gen <module-import-path>/design` normally.
+
+Use `--allow-lossy` only when you explicitly accept omission of non-contract
+metadata. It writes the design and reports deterministic warnings to stderr for
+info metadata, external documentation, tag and path metadata, response
+summaries, and examples. It never downgrades contract-affecting diagnostics
+such as servers, security, extensions, callbacks, links, serialization, media
+encodings, or schema features; those still prevent any output from being
+written.
 
 #### Generate Code (`loom gen`)
 

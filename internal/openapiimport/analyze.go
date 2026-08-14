@@ -15,8 +15,8 @@ import (
 	yaml3 "gopkg.in/yaml.v3"
 )
 
-// ErrUnsupportedVersion indicates that the input is not an OpenAPI 3.0, 3.1,
-// or 3.2 document.
+// ErrUnsupportedVersion indicates that the input is not an OpenAPI 3.1 or 3.2
+// document.
 var ErrUnsupportedVersion = errors.New("unsupported OpenAPI version")
 
 // Analyze parses source without writing to the filesystem and returns a
@@ -28,8 +28,8 @@ func Analyze(source []byte) (*Document, Diagnostics, error) {
 		return nil, nil, fmt.Errorf("parse OpenAPI document: %w", err)
 	}
 	version := parsed.GetVersion()
-	if !supportedVersion(version) {
-		return nil, nil, fmt.Errorf("%w %q; expected 3.0.x, 3.1.x, or 3.2.x", ErrUnsupportedVersion, version)
+	if !renderableVersion(version) {
+		return nil, nil, fmt.Errorf("%w %q; expected 3.1.x or 3.2.x", ErrUnsupportedVersion, version)
 	}
 
 	diagnostics, err := externalReferenceDiagnostics(source)
@@ -46,6 +46,7 @@ func Analyze(source []byte) (*Document, Diagnostics, error) {
 	}
 	analyzer := analyzer{diagnostics: diagnostics}
 	document := analyzer.document(&model.Model)
+	analyzer.diagnostics = append(analyzer.diagnostics, planDocument(document).diagnostics...)
 	return document, analyzer.diagnostics.sorted(), nil
 }
 
@@ -55,10 +56,8 @@ type analyzer struct {
 
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
 
-func supportedVersion(version string) bool {
-	return strings.HasPrefix(version, "3.0.") ||
-		strings.HasPrefix(version, "3.1.") ||
-		strings.HasPrefix(version, "3.2.")
+func renderableVersion(version string) bool {
+	return strings.HasPrefix(version, "3.1.") || strings.HasPrefix(version, "3.2.")
 }
 
 func externalReferenceDiagnostics(source []byte) (Diagnostics, error) {
@@ -136,7 +135,7 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	}
 	a.extensions("#", source.Extensions)
 	document.Components = a.components(source.Components)
-	document.Operations = a.operations(source.Paths)
+	document.Operations = a.operations(source.Paths, document.Components)
 	assignOperationNames(document.Operations)
 	return document
 }
@@ -188,7 +187,7 @@ func (a *analyzer) components(source *v3.Components) Components {
 	return result
 }
 
-func (a *analyzer) operations(paths *v3.Paths) []Operation {
+func (a *analyzer) operations(paths *v3.Paths, components Components) []Operation {
 	if paths == nil {
 		return nil
 	}
@@ -207,21 +206,19 @@ func (a *analyzer) operations(paths *v3.Paths) []Operation {
 		}
 		a.extensions(base, item.Extensions)
 		for method, operation := range item.GetOperations().FromOldest() {
-			operations = append(operations, a.operation(strings.ToUpper(method), path, item.Parameters, operation, base+"/"+method))
+			operations = append(operations, a.operation(strings.ToUpper(method), path, item.Parameters, operation, base+"/"+method, base+"/parameters", components))
 		}
 	}
 	return operations
 }
 
-func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, source *v3.Operation, pointer string) Operation {
+func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, source *v3.Operation, pointer, inheritedPath string, components Components) Operation {
 	operation := Operation{
 		Method: method, Path: path, OperationID: source.OperationId, Summary: source.Summary,
 		Description: source.Description, Tags: append([]string(nil), source.Tags...),
 		Deprecated: source.Deprecated != nil && *source.Deprecated,
 	}
-	for i, parameter := range append(append([]*v3.Parameter(nil), inherited...), source.Parameters...) {
-		operation.Parameters = append(operation.Parameters, a.parameter(parameter, fmt.Sprintf("%s/parameters/%d", pointer, i)))
-	}
+	operation.Parameters = a.mergeParameters(inherited, source.Parameters, inheritedPath, pointer+"/parameters", components)
 	if source.RequestBody != nil {
 		body := a.requestBody(source.RequestBody, pointer+"/requestBody")
 		operation.RequestBody = &body
@@ -257,16 +254,74 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 	return operation
 }
 
+type parameterOccurrence struct {
+	parameter Parameter
+	path      string
+}
+
+func (a *analyzer) mergeParameters(inherited, operation []*v3.Parameter, inheritedPath, operationPath string, components Components) []Parameter {
+	merged := make([]parameterOccurrence, 0, len(inherited)+len(operation))
+	indices := make(map[string]int, len(inherited)+len(operation))
+	appendParameter := func(parameter *v3.Parameter, path string, operationLevel bool) {
+		occurrence := parameterOccurrence{parameter: a.parameter(parameter, path), path: path}
+		key, ok := parameterKey(occurrence.parameter, components)
+		if !ok {
+			merged = append(merged, occurrence)
+			return
+		}
+		if index, exists := indices[key]; exists {
+			if !operationLevel {
+				a.unsupported("duplicate-parameter", path, "parameters with the same name and location must not be repeated")
+			}
+			merged[index] = occurrence
+			return
+		}
+		indices[key] = len(merged)
+		merged = append(merged, occurrence)
+	}
+	for index, parameter := range inherited {
+		appendParameter(parameter, fmt.Sprintf("%s/%d", inheritedPath, index), false)
+	}
+	operationKeys := make(map[string]struct{}, len(operation))
+	for index, parameter := range operation {
+		path := fmt.Sprintf("%s/%d", operationPath, index)
+		occurrence := parameterOccurrence{parameter: a.parameter(parameter, path), path: path}
+		key, ok := parameterKey(occurrence.parameter, components)
+		if !ok {
+			merged = append(merged, occurrence)
+			continue
+		}
+		if _, exists := operationKeys[key]; exists {
+			a.unsupported("duplicate-parameter", occurrence.path, "parameters with the same name and location must not be repeated")
+		}
+		operationKeys[key] = struct{}{}
+		if mergedIndex, exists := indices[key]; exists {
+			merged[mergedIndex] = occurrence
+			continue
+		}
+		indices[key] = len(merged)
+		merged = append(merged, occurrence)
+	}
+	result := make([]Parameter, len(merged))
+	for index := range merged {
+		result[index] = merged[index].parameter
+	}
+	return result
+}
+
 func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 	if source == nil {
 		return Parameter{}
 	}
-	if source.Reference != "" {
-		return Parameter{Ref: source.Reference}
+	if reference := source.Reference; reference != "" {
+		return Parameter{Ref: reference}
+	}
+	if low := source.GoLow(); low != nil && low.IsReference() {
+		return Parameter{Ref: low.GetReference()}
 	}
 	parameter := Parameter{
 		Name: source.Name, In: source.In, Description: source.Description,
-		Required: source.Required != nil && *source.Required, Deprecated: source.Deprecated,
+		Required: source.Required != nil && *source.Required, Deprecated: source.Deprecated, AllowEmptyValue: source.AllowEmptyValue,
 		Schema: a.schema(source.Schema, path+"/schema"),
 	}
 	if source.In != "path" && source.In != "query" && source.In != "header" && source.In != "cookie" {
@@ -275,7 +330,7 @@ func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 	if orderedmap.Len(source.Content) > 0 {
 		a.unsupported("parameter-content", path+"/content", "content-based parameters are not in the strict import subset")
 	}
-	if source.Style != "" || source.Explode != nil || source.AllowEmptyValue || source.AllowReserved {
+	if source.Style != "" || source.Explode != nil || source.AllowReserved {
 		a.unsupported("parameter-serialization", path, "custom parameter serialization is not in the strict import subset")
 	}
 	if source.Example != nil || orderedmap.Len(source.Examples) > 0 {
@@ -289,8 +344,11 @@ func (a *analyzer) requestBody(source *v3.RequestBody, path string) RequestBody 
 	if source == nil {
 		return RequestBody{}
 	}
-	if source.Reference != "" {
-		return RequestBody{Ref: source.Reference}
+	if reference := source.Reference; reference != "" {
+		return RequestBody{Ref: reference}
+	}
+	if low := source.GoLow(); low != nil && low.IsReference() {
+		return RequestBody{Ref: low.GetReference()}
 	}
 	contentType, schema := a.content(source.Content, path+"/content")
 	body := RequestBody{
@@ -305,8 +363,11 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 	if source == nil {
 		return Response{}
 	}
-	if source.Reference != "" {
-		return Response{Ref: source.Reference}
+	if reference := source.Reference; reference != "" {
+		return Response{Ref: reference}
+	}
+	if low := source.GoLow(); low != nil && low.IsReference() {
+		return Response{Ref: low.GetReference()}
 	}
 	contentType, schema := a.content(source.Content, path+"/content")
 	response := Response{Description: source.Description, ContentType: contentType, Schema: schema}
@@ -330,8 +391,11 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 	if source == nil {
 		return Header{}
 	}
-	if source.Reference != "" {
-		return Header{Ref: source.Reference}
+	if reference := source.Reference; reference != "" {
+		return Header{Ref: reference}
+	}
+	if low := source.GoLow(); low != nil && low.IsReference() {
+		return Header{Ref: low.GetReference()}
 	}
 	header := Header{
 		Description: source.Description, Required: source.Required,
@@ -365,12 +429,18 @@ func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path 
 		if media == nil {
 			return contentType, nil
 		}
-		if media.ItemSchema != nil || orderedmap.Len(media.Encoding) > 0 || orderedmap.Len(media.ItemEncoding) > 0 ||
-			media.Example != nil || orderedmap.Len(media.Examples) > 0 {
-			a.unsupported("media-metadata", path+"/"+escapeJSONPointer(contentType), "item schemas, encodings, and examples are not in the strict import subset")
+		mediaPath := path + "/" + escapeJSONPointer(contentType)
+		if media.ItemSchema != nil {
+			a.unsupported("media-item-schema", mediaPath+"/itemSchema", "item schemas are not in the strict import subset")
 		}
-		a.extensions(path+"/"+escapeJSONPointer(contentType), media.Extensions)
-		return contentType, a.schema(media.Schema, path+"/"+escapeJSONPointer(contentType)+"/schema")
+		if orderedmap.Len(media.Encoding) > 0 || orderedmap.Len(media.ItemEncoding) > 0 {
+			a.unsupported("media-encoding", mediaPath, "media encodings are not in the strict import subset")
+		}
+		if media.Example != nil || orderedmap.Len(media.Examples) > 0 {
+			a.unsupported("examples", mediaPath, "media examples are not in the strict import subset")
+		}
+		a.extensions(mediaPath, media.Extensions)
+		return contentType, a.schema(media.Schema, mediaPath+"/schema")
 	}
 	return "", nil
 }

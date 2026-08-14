@@ -25,15 +25,18 @@ func TestAnalyzeJSONYAMLParity(t *testing.T) {
 	require.Equal(t, "3.1.1", yamlDocument.OpenAPIVersion)
 	require.Equal(t, "Pet API", yamlDocument.Title)
 	require.Len(t, yamlDocument.Components.Schemas, 3)
+	require.Len(t, yamlDocument.Components.Parameters, 1)
 	require.Len(t, yamlDocument.Operations, 2)
 	require.Equal(t, "PetsCreate", yamlDocument.Operations[0].GoName)
 	require.Equal(t, "#/components/schemas/NewPet", yamlDocument.Operations[0].RequestBody.Schema.Ref)
 	require.Equal(t, "PetsGet", yamlDocument.Operations[1].GoName)
+	require.Len(t, yamlDocument.Operations[1].Parameters, 3)
+	require.Equal(t, "#/components/parameters/PetID", yamlDocument.Operations[1].Parameters[0].Ref)
 	require.Equal(t, "#/components/schemas/Pet", yamlDocument.Operations[1].Responses[0].Response.Schema.Ref)
 }
 
 func TestAnalyzeAssignsDeterministicCollisionNames(t *testing.T) {
-	source := []byte(`openapi: 3.0.3
+	source := []byte(`openapi: 3.1.1
 info: {title: Collisions, version: "1"}
 paths:
   /b:
@@ -47,7 +50,7 @@ paths:
 components:
   schemas:
     pet_id: {type: string}
-    pet-id: {type: integer}
+    pet-id: {type: integer, format: int64}
 `)
 
 	document, diagnostics, err := Analyze(source)
@@ -105,6 +108,9 @@ components:
 
 func TestAnalyzeRejectsUnsupportedVersions(t *testing.T) {
 	tests := map[string]string{
+		"OpenAPI 3.0": `openapi: 3.0.3
+info: {title: Old, version: "1"}
+paths: {}`,
 		"swagger": `swagger: "2.0"
 info: {title: Old, version: "1"}
 paths: {}`,
@@ -119,6 +125,184 @@ paths: {}`,
 			require.ErrorIs(t, err, ErrUnsupportedVersion)
 			require.Nil(t, document)
 			require.Empty(t, diagnostics)
+		})
+	}
+}
+
+func TestAnalyzeMergesPathParametersWithOperationOverrides(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Overrides, version: "1"}
+paths:
+  /pets/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: inherited
+        schema: {type: string}
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: operation
+          schema: {type: integer, format: int64}
+      responses: {"204": {description: done}}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Len(t, document.Operations, 1)
+	require.Len(t, document.Operations[0].Parameters, 1)
+	parameter := document.Operations[0].Parameters[0]
+	require.Equal(t, "operation", parameter.Description)
+	require.Equal(t, "integer", parameter.Schema.Type)
+}
+
+func TestAnalyzeReportsPlannerDiagnostics(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Strict, version: "1"}
+paths:
+  /pets/{pet-id}:
+    get:
+      parameters:
+        - name: pet-id
+          in: path
+          required: false
+          deprecated: true
+          schema: {type: string}
+        - name: trace:id
+          in: header
+          allowEmptyValue: true
+          schema: {type: string}
+      responses:
+        "200": {description: first}
+        "201": {description: second}
+`)
+
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	requireDiagnosticCode(t, diagnostics, "parameter-deprecated")
+	requireDiagnosticCode(t, diagnostics, "path-parameter-required")
+	requireDiagnosticCode(t, diagnostics, "path-parameter-name")
+	requireDiagnosticCode(t, diagnostics, "wire-name")
+	requireDiagnosticCode(t, diagnostics, "parameter-allow-empty-value")
+	requireDiagnosticCode(t, diagnostics, "success-response-count")
+}
+
+func TestAnalyzeClassifiesMediaExamplesSeparately(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Examples, version: "1"}
+paths:
+  /pets:
+    get:
+      responses:
+        "200":
+          description: found
+          content:
+            application/json:
+              example: {name: Fido}
+              schema: {type: string}
+`)
+
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Len(t, diagnostics, 1)
+	require.Equal(t, "examples", diagnostics[0].Code)
+	require.NotEqual(t, "media-metadata", diagnostics[0].Code)
+}
+
+func TestAnalyzeRejectsDuplicateAndUnrenderableReferences(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: References, version: "1"}
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, format: int32}
+        - name: limit
+          in: query
+          schema: {type: integer, format: int32}
+        - $ref: "#/components/parameters/Nested"
+        - $ref: "#/components/headers/Trace"
+      responses:
+        "200": {$ref: "#/components/responses/OK"}
+        "404":
+          description: missing
+          headers:
+            X-Trace: {$ref: "#/components/headers/Trace"}
+    post:
+      requestBody: {$ref: "#/components/requestBodies/Body"}
+      responses: {"201": {description: created}}
+components:
+  parameters:
+    Nested: {$ref: "#/components/parameters/Limit"}
+    Limit:
+      name: inheritedLimit
+      in: query
+      schema: {type: integer, format: int32}
+  requestBodies:
+    Body:
+      content: {application/json: {schema: {type: string}}}
+  responses:
+    OK: {description: found}
+  headers:
+    Trace: {schema: {type: string}}
+`)
+
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	requireDiagnosticCode(t, diagnostics, "duplicate-parameter")
+	requireDiagnosticCode(t, diagnostics, "parameter-reference")
+	requireDiagnosticCode(t, diagnostics, "request-body-reference")
+	requireDiagnosticCode(t, diagnostics, "response-reference")
+	requireDiagnosticCode(t, diagnostics, "header-reference")
+}
+
+func TestAnalyzeRejectsUnrenderableEscapedComponentParameterNames(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Escaped components, version: "1"}
+paths:
+  /pets:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Pet~0ID"
+        - $ref: "#/components/parameters/Pet~1ID"
+      responses: {"204": {description: done}}
+components:
+  parameters:
+    Pet~ID:
+      name: tilde
+      in: query
+      schema: {type: string}
+    Pet/ID:
+      name: slash
+      in: query
+      schema: {type: string}
+`)
+
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	requireDiagnosticCode(t, diagnostics, "component-parameter-name")
+}
+
+func TestLocalComponentReferenceNameDecodesJSONPointerEscapes(t *testing.T) {
+	tests := map[string]string{
+		"tilde": "Pet~0ID",
+		"slash": "Pet~1ID",
+	}
+	for name, segment := range tests {
+		t.Run(name, func(t *testing.T) {
+			component, err := localComponentReferenceName("#/components/parameters/"+segment, "#/components/parameters/")
+			require.NoError(t, err)
+			if name == "tilde" {
+				require.Equal(t, "Pet~ID", component)
+				return
+			}
+			require.Equal(t, "Pet/ID", component)
 		})
 	}
 }

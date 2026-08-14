@@ -147,12 +147,16 @@ func paramsFromHeadersAndCookies(endpointIR *transportir.Endpoint, rand *expr.Ex
 }
 
 func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *expr.ExampleGenerator, closeObjects bool) *ParameterRef {
+	allowEmptyValue := in == "query"
+	if value, ok := attr.Meta.Last("openapi:allowEmptyValue"); ok && in == "query" {
+		allowEmptyValue = value == "true"
+	}
 	parameter := &Parameter{
 		Name:            name,
 		In:              in,
 		ComponentName:   componentMetaValue(attr, "openapi:component:parameter"),
 		Description:     attr.Description,
-		AllowEmptyValue: in == "query",
+		AllowEmptyValue: allowEmptyValue,
 		AllowReserved:   metaBool(attr.Meta, "openapi:allowReserved"),
 		Style:           metaValue(attr.Meta, "openapi:style"),
 		Required:        required,

@@ -14,58 +14,66 @@ import (
 
 const defaultImportOutput = "design"
 
-func parseOpenAPIImportArgs(args []string) (string, string, error) {
+type openAPIImportArgs struct {
+	input      string
+	output     string
+	allowLossy bool
+}
+
+func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 	if len(args) < 2 || args[0] != "openapi" || strings.TrimSpace(args[1]) == "" {
-		return "", "", fmt.Errorf("usage: loom import openapi INPUT [-o PATH]")
+		return openAPIImportArgs{}, fmt.Errorf("usage: loom import openapi INPUT [-o PATH] [--allow-lossy]")
 	}
 	if args[1] == "-" {
-		return "", "", fmt.Errorf("openapi import input must be a file; stdin is not supported")
+		return openAPIImportArgs{}, fmt.Errorf("openapi import input must be a file; stdin is not supported")
 	}
 
 	flags := flag.NewFlagSet("import openapi", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	shortOutput := flags.String("o", "", "output file or directory")
 	output := flags.String("output", defaultImportOutput, "output file or directory")
+	allowLossy := flags.Bool("allow-lossy", false, "allow explicitly lossy metadata omissions")
 	if err := flags.Parse(args[2:]); err != nil {
-		return "", "", fmt.Errorf("parse import flags: %w", err)
+		return openAPIImportArgs{}, fmt.Errorf("parse import flags: %w", err)
 	}
 	if flags.NArg() > 0 {
-		return "", "", fmt.Errorf("unexpected import arguments: %s", strings.Join(flags.Args(), " "))
+		return openAPIImportArgs{}, fmt.Errorf("unexpected import arguments: %s", strings.Join(flags.Args(), " "))
 	}
 	if *shortOutput != "" {
 		*output = *shortOutput
 	}
 	if strings.TrimSpace(*output) == "" {
-		return "", "", fmt.Errorf("import output path must not be empty")
+		return openAPIImportArgs{}, fmt.Errorf("import output path must not be empty")
 	}
-	return args[1], *output, nil
+	return openAPIImportArgs{input: args[1], output: *output, allowLossy: *allowLossy}, nil
 }
 
-func importOpenAPIDesign(input, output string) (string, error) {
+func importOpenAPIDesign(input, output string, allowLossy bool) (string, openapiimport.Diagnostics, error) {
 	source, err := os.ReadFile(input)
 	if err != nil {
-		return "", fmt.Errorf("read OpenAPI input %q: %w", input, err)
+		return "", nil, fmt.Errorf("read OpenAPI input %q: %w", input, err)
 	}
 	document, diagnostics, err := openapiimport.Analyze(source)
 	if err != nil {
-		return "", fmt.Errorf("analyze OpenAPI input %q: %w", input, err)
+		return "", nil, fmt.Errorf("analyze OpenAPI input %q: %w", input, err)
 	}
-	if len(diagnostics) > 0 {
-		return "", fmt.Errorf("OpenAPI import cannot preserve the input contract:\n%s", diagnostics.Error())
+	fatal, warnings := diagnostics.Classify(allowLossy)
+	if len(fatal) > 0 {
+		return "", nil, fmt.Errorf("OpenAPI import cannot preserve the input contract:\n%s", fatal.Error())
 	}
 
 	target, packageName, err := resolveImportTarget(output)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	rendered, err := openapiimport.Render(document, openapiimport.Options{PackageName: packageName})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if err := installImportFile(target, rendered); err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return target, nil
+	return target, warnings, nil
 }
 
 func resolveImportTarget(output string) (string, string, error) {

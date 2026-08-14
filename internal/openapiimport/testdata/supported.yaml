@@ -5,19 +5,31 @@ info:
   version: 1.2.3
 paths:
   /pets/{id}:
+    parameters:
+      - $ref: "#/components/parameters/PetID"
+      - name: limit
+        in: query
+        description: Inherited page limit.
+        schema:
+          type: integer
+          format: int32
     get:
       operationId: pets.get
       summary: Get a pet
       description: Returns one pet.
       tags: [pets]
       parameters:
-        - name: id
-          in: path
-          required: true
+        - name: limit
+          in: query
+          description: Operation page limit.
           schema:
             type: integer
-            format: int64
-            minimum: 1
+            format: int32
+        - name: X-Request-ID
+          in: header
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Found pet.
@@ -81,6 +93,10 @@ components:
           type: array
           items:
             type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
       required: [id, name]
     Problem:
       type: object
@@ -88,3 +104,12 @@ components:
         detail:
           type: string
       required: [detail]
+  parameters:
+    PetID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1

@@ -32,12 +32,13 @@ func Render(document *Document, options Options) ([]byte, error) {
 	if !token.IsIdentifier(packageName) || token.Lookup(packageName).IsKeyword() {
 		return nil, fmt.Errorf("render OpenAPI design: package name %q is not a Go identifier", packageName)
 	}
-	r := renderer{document: document, schemas: make(map[string]NamedSchema)}
+	plan := planDocument(document)
+	if len(plan.diagnostics) > 0 {
+		return nil, fmt.Errorf("render OpenAPI design: cannot preserve the input contract:\n%s", plan.diagnostics.Error())
+	}
+	r := renderer{document: document, schemas: make(map[string]NamedSchema), operations: plan.operations}
 	if err := r.index(); err != nil {
 		return nil, err
-	}
-	if !strings.HasPrefix(document.OpenAPIVersion, "3.1.") && !strings.HasPrefix(document.OpenAPIVersion, "3.2.") {
-		return nil, fmt.Errorf("render OpenAPI design: cannot target OpenAPI %s; Loom renders 3.1 or 3.2", document.OpenAPIVersion)
 	}
 
 	r.line("package %s", packageName)
@@ -62,10 +63,11 @@ func Render(document *Document, options Options) ([]byte, error) {
 }
 
 type renderer struct {
-	document *Document
-	schemas  map[string]NamedSchema
-	builder  strings.Builder
-	indent   int
+	document   *Document
+	schemas    map[string]NamedSchema
+	operations []operationPlan
+	builder    strings.Builder
+	indent     int
 }
 
 func (r *renderer) index() error {
@@ -166,7 +168,7 @@ func (r *renderer) service() error {
 	}
 	r.open("var _ = Service(%q, func()", serviceName)
 	for i := range r.document.Operations {
-		if err := r.operation(&r.document.Operations[i], i); err != nil {
+		if err := r.operation(&r.document.Operations[i], r.operations[i], i); err != nil {
 			return err
 		}
 	}
@@ -174,12 +176,8 @@ func (r *renderer) service() error {
 	return nil
 }
 
-func (r *renderer) operation(operation *Operation, index int) error {
+func (r *renderer) operation(operation *Operation, plan operationPlan, index int) error {
 	path := fmt.Sprintf("#/operations/%d", index)
-	plan, err := r.planOperation(operation, path)
-	if err != nil {
-		return err
-	}
 
 	r.open("Method(%q, func()", operation.GoName)
 	r.operationMetadata(operation)
@@ -274,8 +272,9 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 }
 
 type renderedParameter struct {
-	parameter Parameter
-	field     string
+	parameter     Parameter
+	field         string
+	componentName string
 }
 
 type renderedBody struct {
@@ -305,7 +304,7 @@ func (r *renderer) parameters(source []Parameter, path string) ([]renderedParame
 	used := make(map[string]int)
 	result := make([]renderedParameter, 0, len(source))
 	for i, parameter := range source {
-		resolved, err := r.resolveParameter(parameter, fmt.Sprintf("%s/%d", path, i))
+		resolved, componentName, err := r.resolveParameter(parameter, fmt.Sprintf("%s/%d", path, i))
 		if err != nil {
 			return nil, err
 		}
@@ -325,7 +324,7 @@ func (r *renderer) parameters(source []Parameter, path string) ([]renderedParame
 		if field == "" {
 			return nil, fmt.Errorf("render OpenAPI design: %s/%d parameter %q has no usable field name", path, i, resolved.Name)
 		}
-		result = append(result, renderedParameter{parameter: resolved, field: field})
+		result = append(result, renderedParameter{parameter: resolved, field: field, componentName: componentName})
 	}
 	return result, nil
 }
@@ -407,7 +406,14 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 	r.open("Payload(func()")
 	var required []string
 	for i, parameter := range parameters {
-		if err := r.attribute(parameter.field, parameter.parameter.Schema, parameter.parameter.Description, fmt.Sprintf("%s/parameters/%d", path, i)); err != nil {
+		var metadata []renderedMetadata
+		if parameter.componentName != "" {
+			metadata = append(metadata, renderedMetadata{name: "openapi:component:parameter", value: parameter.componentName})
+		}
+		if parameter.parameter.In == "query" {
+			metadata = append(metadata, renderedMetadata{name: "openapi:allowEmptyValue", value: strconv.FormatBool(parameter.parameter.AllowEmptyValue)})
+		}
+		if err := r.attribute(parameter.field, parameter.parameter.Schema, parameter.parameter.Description, fmt.Sprintf("%s/parameters/%d", path, i), metadata...); err != nil {
 			return err
 		}
 		if parameter.parameter.Required {
@@ -535,7 +541,7 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 	}
 	prefix += strconv.Itoa(status)
 	needsBlock := failure || response.response.Description != "" || response.response.ContentType != "" ||
-		len(response.headers) > 0 || response.response.Schema != nil && len(response.headers) > 0
+		len(response.headers) > 0
 	if !needsBlock {
 		r.line("%s)", prefix)
 		return nil

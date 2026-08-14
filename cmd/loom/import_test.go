@@ -5,18 +5,20 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/internal/openapiimport"
 )
 
 func TestParseOpenAPIImportArgs(t *testing.T) {
 	cases := map[string]struct {
-		args       []string
-		wantInput  string
-		wantOutput string
-		wantError  string
+		args           []string
+		wantInput      string
+		wantOutput     string
+		wantAllowLossy bool
+		wantError      string
 	}{
 		"default output": {
 			args:       []string{"openapi", "contract.yaml"},
@@ -32,6 +34,12 @@ func TestParseOpenAPIImportArgs(t *testing.T) {
 			args:       []string{"openapi", "contract.json", "--output", "generated"},
 			wantInput:  "contract.json",
 			wantOutput: "generated",
+		},
+		"allow lossy": {
+			args:           []string{"openapi", "contract.json", "--allow-lossy"},
+			wantInput:      "contract.json",
+			wantOutput:     "design",
+			wantAllowLossy: true,
 		},
 		"wrong format": {
 			args:      []string{"swagger", "contract.json"},
@@ -53,14 +61,77 @@ func TestParseOpenAPIImportArgs(t *testing.T) {
 
 	for name, test := range cases {
 		t.Run(name, func(t *testing.T) {
-			input, output, err := parseOpenAPIImportArgs(test.args)
+			parsed, err := parseOpenAPIImportArgs(test.args)
 			if test.wantError != "" {
 				require.ErrorContains(t, err, test.wantError)
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, test.wantInput, input)
-			require.Equal(t, test.wantOutput, output)
+			require.Equal(t, test.wantInput, parsed.input)
+			require.Equal(t, test.wantOutput, parsed.output)
+			require.Equal(t, test.wantAllowLossy, parsed.allowLossy)
+		})
+	}
+}
+
+func TestImportOpenAPIDesignLossyPolicy(t *testing.T) {
+	const metadataOnly = `openapi: 3.1.1
+info:
+  title: Metadata
+  version: 1.0.0
+  contact: {name: Loom}
+paths: {}
+`
+	const metadataAndContract = `openapi: 3.1.1
+info:
+  title: Metadata
+  version: 1.0.0
+  contact: {name: Loom}
+servers: [{url: https://api.example.com}]
+paths: {}
+`
+
+	cases := map[string]struct {
+		source       string
+		allowLossy   bool
+		wantWarnings openapiimport.Diagnostics
+		wantError    string
+	}{
+		"strict metadata does not write": {
+			source:    metadataOnly,
+			wantError: "OpenAPI import cannot preserve the input contract",
+		},
+		"lossy metadata writes with warnings": {
+			source:     metadataOnly,
+			allowLossy: true,
+			wantWarnings: openapiimport.Diagnostics{{
+				Code: "info-metadata", Path: "#/info", Message: "summary, terms, contact, and license metadata are not in the strict import subset",
+			}},
+		},
+		"lossy does not downgrade contract diagnostics": {
+			source:     metadataAndContract,
+			allowLossy: true,
+			wantError:  "OpenAPI import cannot preserve the input contract",
+		},
+	}
+
+	for name, test := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			input := filepath.Join(root, "openapi.yaml")
+			require.NoError(t, os.WriteFile(input, []byte(test.source), 0o644))
+			output := filepath.Join(root, "design")
+
+			target, warnings, err := importOpenAPIDesign(input, output, test.allowLossy)
+			if test.wantError != "" {
+				require.Empty(t, target)
+				require.ErrorContains(t, err, test.wantError)
+				require.NoDirExists(t, output)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, test.wantWarnings, warnings)
+			require.FileExists(t, target)
 		})
 	}
 }
@@ -116,8 +187,9 @@ func TestImportOpenAPIDesignOutputResolution(t *testing.T) {
 				test.prepare(t, output)
 			}
 
-			target, err := importOpenAPIDesign(input, output)
+			target, warnings, err := importOpenAPIDesign(input, output, false)
 			require.NoError(t, err)
+			require.Empty(t, warnings)
 			require.Equal(t, test.wantTarget(root), target)
 			rendered, err := os.ReadFile(target)
 			require.NoError(t, err)
@@ -152,14 +224,14 @@ components:
 `,
 			wantError: "OpenAPI import cannot preserve the input contract",
 		},
-		"renderer rejection": {
+		"unsupported OpenAPI version": {
 			source: `openapi: 3.0.3
 info:
   title: Old Contract
   version: 1.0.0
 paths: {}
 `,
-			wantError: "cannot target OpenAPI 3.0.3",
+			wantError: "unsupported OpenAPI version",
 		},
 		"invalid document": {
 			source:    "openapi: [",
@@ -174,8 +246,9 @@ paths: {}
 			require.NoError(t, os.WriteFile(input, []byte(test.source), 0o644))
 			output := filepath.Join(root, "generated")
 
-			target, err := importOpenAPIDesign(input, output)
+			target, warnings, err := importOpenAPIDesign(input, output, false)
 			require.Empty(t, target)
+			require.Empty(t, warnings)
 			require.ErrorContains(t, err, test.wantError)
 			require.NoDirExists(t, output)
 		})
@@ -191,8 +264,9 @@ func TestImportOpenAPIDesignRefusesToOverwrite(t *testing.T) {
 	target := filepath.Join(output, "design.go")
 	require.NoError(t, os.WriteFile(target, []byte("sentinel\n"), 0o600))
 
-	result, err := importOpenAPIDesign(input, output)
+	result, warnings, err := importOpenAPIDesign(input, output, false)
 	require.Empty(t, result)
+	require.Empty(t, warnings)
 	require.ErrorContains(t, err, "already exists; refusing to overwrite")
 	contents, readErr := os.ReadFile(target)
 	require.NoError(t, readErr)
@@ -208,8 +282,9 @@ func TestImportOpenAPIDesignRejectsInvalidPackageBeforeCreatingOutput(t *testing
 	require.NoError(t, os.WriteFile(input, supportedOpenAPISource(t), 0o644))
 	output := filepath.Join(root, "bad-name")
 
-	target, err := importOpenAPIDesign(input, output)
+	target, warnings, err := importOpenAPIDesign(input, output, false)
 	require.Empty(t, target)
+	require.Empty(t, warnings)
 	require.ErrorContains(t, err, `package name "bad-name" is not a Go identifier`)
 	require.NoDirExists(t, output)
 }
@@ -220,8 +295,9 @@ func TestImportOpenAPIDesignRejectsNonGoOutputFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(input, supportedOpenAPISource(t), 0o644))
 	output := filepath.Join(root, "design.yaml")
 
-	target, err := importOpenAPIDesign(input, output)
+	target, warnings, err := importOpenAPIDesign(input, output, false)
 	require.Empty(t, target)
+	require.Empty(t, warnings)
 	require.ErrorContains(t, err, "must be a .go file or directory")
 	require.NoFileExists(t, output)
 }
@@ -242,11 +318,13 @@ func TestMainRoutesOpenAPIImport(t *testing.T) {
 	}()
 
 	var gotInput, gotOutput string
-	importOpenAPI = func(input, output string) (string, error) {
+	var gotAllowLossy bool
+	importOpenAPI = func(input, output string, allowLossy bool) (string, openapiimport.Diagnostics, error) {
 		gotInput, gotOutput = input, output
-		return filepath.Join("design", "design.go"), nil
+		gotAllowLossy = allowLossy
+		return filepath.Join("design", "design.go"), openapiimport.Diagnostics{{Code: "examples", Path: "#/paths", Message: "examples omitted"}}, nil
 	}
-	os.Args = []string{"loom", "import", "openapi", "contract.yaml", "-o", "design"}
+	os.Args = []string{"loom", "import", "openapi", "contract.yaml", "-o", "design", "--allow-lossy"}
 
 	stdout, stderr, err := captureOutput(t, func() error {
 		main()
@@ -255,6 +333,7 @@ func TestMainRoutesOpenAPIImport(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "contract.yaml", gotInput)
 	require.Equal(t, "design", gotOutput)
+	require.True(t, gotAllowLossy)
 	require.Equal(t, filepath.Join("design", "design.go")+"\n", stdout)
-	require.Empty(t, strings.TrimSpace(stderr))
+	require.Equal(t, "warning: #/paths: examples omitted (examples)\n", stderr)
 }

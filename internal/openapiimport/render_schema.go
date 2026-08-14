@@ -241,23 +241,12 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 		schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed)
 }
 
-func (r *renderer) resolveParameter(parameter Parameter, path string) (Parameter, error) {
-	if parameter.Ref == "" {
-		return parameter, nil
+func (r *renderer) resolveParameter(parameter Parameter, path string) (Parameter, string, error) {
+	resolved, componentName, err := resolveParameterReference(parameter, r.document.Components)
+	if err != nil {
+		return Parameter{}, "", fmt.Errorf("render OpenAPI design: %s %w", path, err)
 	}
-	name := strings.TrimPrefix(parameter.Ref, "#/components/parameters/")
-	if name == parameter.Ref || name == "" {
-		return Parameter{}, fmt.Errorf("render OpenAPI design: %s parameter reference %q has the wrong kind", path, parameter.Ref)
-	}
-	for _, named := range r.document.Components.Parameters {
-		if named.Name == name {
-			if named.Parameter.Ref != "" {
-				return Parameter{}, fmt.Errorf("render OpenAPI design: %s nested parameter references are not renderable", path)
-			}
-			return named.Parameter, nil
-		}
-	}
-	return Parameter{}, fmt.Errorf("render OpenAPI design: %s parameter reference %q does not resolve", path, parameter.Ref)
+	return resolved, componentName, nil
 }
 
 func (r *renderer) resolveHeader(header Header, path string) (Header, error) {

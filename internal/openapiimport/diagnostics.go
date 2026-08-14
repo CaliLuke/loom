@@ -17,6 +17,15 @@ type Diagnostic struct {
 // Diagnostics is a deterministic collection of unsupported-feature reports.
 type Diagnostics []Diagnostic
 
+var lossyDiagnosticCodes = map[string]struct{}{
+	"examples":         {},
+	"external-docs":    {},
+	"info-metadata":    {},
+	"path-metadata":    {},
+	"response-summary": {},
+	"tag-metadata":     {},
+}
+
 // Error formats all diagnostics as a single error-style message.
 func (d Diagnostics) Error() string {
 	parts := make([]string, 0, len(d))
@@ -24,6 +33,24 @@ func (d Diagnostics) Error() string {
 		parts = append(parts, fmt.Sprintf("%s: %s (%s)", diagnostic.Path, diagnostic.Message, diagnostic.Code))
 	}
 	return strings.Join(parts, "\n")
+}
+
+// Classify separates diagnostics that may be omitted with explicit user
+// consent from diagnostics that always prevent a faithful import. Unknown
+// diagnostic codes remain fatal so new importer limits cannot be silently
+// downgraded.
+func (d Diagnostics) Classify(allowLossy bool) (fatal, warnings Diagnostics) {
+	if !allowLossy {
+		return append(Diagnostics(nil), d...), nil
+	}
+	for _, diagnostic := range d {
+		if _, ok := lossyDiagnosticCodes[diagnostic.Code]; ok {
+			warnings = append(warnings, diagnostic)
+			continue
+		}
+		fatal = append(fatal, diagnostic)
+	}
+	return fatal, warnings
 }
 
 func (d *Diagnostics) add(code, path, message string) {

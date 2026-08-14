@@ -360,6 +360,7 @@ The most commonly used metadata keys are:
 | `openapi:typename` | Type, payload, result | Override generated component schema names |
 | `openapi:component:requestBody` | Payload/body types | Hoist and name reusable request bodies |
 | `openapi:component:parameter` | Attribute | Hoist and name reusable parameters |
+| `openapi:allowEmptyValue` | Query parameter attribute | Override the generated OpenAPI `allowEmptyValue` flag; import uses `false` to preserve an authored query parameter |
 | `openapi:component:response` | HTTP response | Hoist and name reusable responses |
 | `openapi:component:example` | Example | Hoist and name reusable examples |
 
@@ -1387,7 +1388,9 @@ returns `*loomhttp.FileResponse`, while generated clients retain the raw
 `io.ReadCloser`. File responses require one untagged 200 application response;
 Loom and `http.ServeContent` own the 206, 304, 412, and 416 protocol outcomes.
 When response `ContentType` is omitted, OpenAPI uses binary `*/*` while the
-runtime infers MIME type from `FileResponse.Name`.
+runtime infers MIME type from `FileResponse.Name`. Every result metadata
+attribute must map to a response header or cookie; FileResponse exclusively
+owns the response body.
 
 ### Custom HTTP Field Types
 

@@ -10,6 +10,7 @@ import (
 
 	"flag"
 
+	"github.com/CaliLuke/loom/internal/openapiimport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -22,17 +23,7 @@ type generatorRunner interface {
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "import" {
-		input, output, err := parseOpenAPIImportArgs(os.Args[2:])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		target, err := importOpenAPI(input, output)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		fmt.Println(target)
+		runOpenAPIImport(os.Args[2:])
 		return
 	}
 
@@ -90,6 +81,27 @@ func main() {
 	if err := gen(cmd, path, output, debug); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
+	}
+}
+
+func runOpenAPIImport(args []string) {
+	arguments, err := parseOpenAPIImportArgs(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	target, warnings, err := importOpenAPI(arguments.input, arguments.output, arguments.allowLossy)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	printImportWarnings(warnings)
+	fmt.Println(target)
+}
+
+func printImportWarnings(warnings openapiimport.Diagnostics) {
+	for _, warning := range warnings {
+		fmt.Fprintf(os.Stderr, "warning: %s: %s (%s)\n", warning.Path, warning.Message, warning.Code)
 	}
 }
 
@@ -172,15 +184,15 @@ func help() {
 Learn more at https://github.com/CaliLuke/loom.
 
 Usage:
-	loom import openapi INPUT [-o FILE-OR-DIRECTORY]
+  loom import openapi INPUT [-o FILE-OR-DIRECTORY] [--allow-lossy]
   loom gen PACKAGE [--output DIRECTORY] [--debug]
   loom example PACKAGE [--output DIRECTORY] [--debug]
   loom test-scaffold PACKAGE [--output DIRECTORY] [--debug]
   loom version
 
 Commands:
-	import openapi
-	      Create a Loom design from a supported OpenAPI 3.1 or 3.2 contract.
+  import openapi
+    Create a Loom design from a supported OpenAPI 3.1 or 3.2 contract.
   gen
         Generate service interfaces, endpoints, transport code and OpenAPI spec.
   example
@@ -191,25 +203,28 @@ Commands:
         Print version information.
 
 Args:
-	INPUT
-	      OpenAPI JSON or YAML file
+  INPUT
+    OpenAPI JSON or YAML file
 
   PACKAGE
         Go import path to design package
 
 Flags:
-	-o, -output FILE-OR-DIRECTORY
-	      import output, defaults to design/design.go
+  -o, --output FILE-OR-DIRECTORY (import)
+    import output, defaults to design/design.go
 
-  -o, -output DIRECTORY
-        output directory, defaults to the current working directory
+  --allow-lossy (import)
+    allow explicitly lossy metadata omissions and report them as warnings
+
+  -o, -output DIRECTORY (gen, example, test-scaffold)
+    output directory, defaults to the current working directory
 
   -debug
         Print debug information (mainly intended for Loom developers)
 
 Example:
 
-	loom import openapi openapi.yaml -o design
+  loom import openapi openapi.yaml -o design
   loom gen github.com/CaliLuke/loom-examples/cellar/design -o gendir
 
 `)
