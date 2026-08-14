@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"slices"
-
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
@@ -607,20 +605,4 @@ func (svc *ServiceData) Endpoint(name string) *EndpointData {
 		}
 	}
 	return nil
-}
-
-// upgradeParams returns the data required to render the websocket_upgrade
-// template.
-// NeedDialer returns true if at least one method in the defined services
-// uses WebSocket for sending payload or result.
-func NeedDialer(data []*ServiceData) bool {
-	return slices.ContainsFunc(data, HasWebSocket)
-}
-
-// HasStreamingEndpoint returns true if at least one method in the defined
-// services uses a long-lived streaming transport.
-func HasStreamingEndpoint(data []*ServiceData) bool {
-	return slices.ContainsFunc(data, func(sd *ServiceData) bool {
-		return HasWebSocket(sd) || slices.ContainsFunc(sd.Endpoints, IsSSEEndpoint)
-	})
 }

@@ -88,6 +88,12 @@ func exampleServerImports(genpkg string, root *expr.RootExpr, services *Services
 	exampleServices := make(map[string]exampleServerServiceData, len(root.API.HTTP.Services))
 	for _, svc := range root.API.HTTP.Services {
 		sd := services.Get(svc.Name())
+		if sd == nil {
+			panic(codegen.NewError(nil, svc.ServiceExpr, fmt.Errorf("unknown HTTP service %q", svc.Name())))
+		}
+		if sd.Service == nil {
+			panic(codegen.NewError(nil, svc.ServiceExpr, fmt.Errorf("unknown service %q", svc.Name())))
+		}
 		svcName := sd.Service.PathName
 		serviceImport := scope.Unique(sd.Service.PkgName, "svc")
 		serverImport := scope.Unique(serviceImport+"svr", "svr")
