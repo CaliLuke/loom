@@ -22,7 +22,7 @@ for path in "${forbidden_paths[@]}"; do
   fi
 done
 
-if rg -n 'AsLoomMiddlewareLogger|GRPCClientLogOption' clue/log --glob '*.go'; then
+if grep -R -n -E --include='*.go' 'AsLoomMiddlewareLogger|GRPCClientLogOption' clue/log; then
   echo "clue/log: legacy middleware adapters or aliases must be removed" >&2
   status=1
 fi
