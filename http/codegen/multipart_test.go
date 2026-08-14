@@ -19,6 +19,7 @@ func TestGeneratedMultipartServerCompiles(t *testing.T) {
 		"optional fields": testdata.PayloadMultipartObjectGeneratedOptionalDSL,
 		"path parameter":  testdata.PayloadMultipartCompilePathParamDSL,
 		"required file":   testdata.PayloadMultipartCompileRequiredFileDSL,
+		"two file fields": testdata.PayloadMultipartCompileTwoFilesDSL,
 		"validation":      testdata.PayloadMultipartCompileValidationDSL,
 	}
 	for name, dsl := range tests {

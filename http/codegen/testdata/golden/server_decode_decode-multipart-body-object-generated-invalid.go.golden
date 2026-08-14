@@ -27,8 +27,7 @@ func DecodeMethodMultipartObjectGeneratedInvalidRequest(mux loomhttp.Muxer, _ fu
 		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
 			return payload, loom.MissingPayloadError()
 		} else {
-			files := multipartForm.Files["file"]
-			switch len(files) {
+			switch files := multipartForm.Files["file"]; len(files) {
 			case 0:
 				err = loom.MergeErrors(err, loom.MissingFieldError("file", "body"))
 			case 1:

@@ -42,6 +42,24 @@ var PayloadMultipartCompileRequiredFileDSL = func() {
 	})
 }
 
+// PayloadMultipartCompileTwoFilesDSL isolates generated multipart decoding
+// with two Bytes file fields.
+var PayloadMultipartCompileTwoFilesDSL = func() {
+	Service("MultipartCompileTwoFiles", func() {
+		Method("upload", func() {
+			Payload(func() {
+				Attribute("front", Bytes)
+				Attribute("back", Bytes)
+				Required("front")
+			})
+			HTTP(func() {
+				POST("/")
+				MultipartRequest()
+			})
+		})
+	})
+}
+
 // PayloadMultipartCompileValidationDSL isolates generated multipart decoding
 // with body validation.
 var PayloadMultipartCompileValidationDSL = func() {

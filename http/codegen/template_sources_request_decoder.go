@@ -51,8 +51,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		{{- end }}
 		} else {
 		{{- range .Payload.Request.MultipartFileFields }}
-			files := multipartForm.Files["{{ .HTTPName }}"]
-			switch len(files) {
+			switch files := multipartForm.Files["{{ .HTTPName }}"]; len(files) {
 			case 0:
 			{{- if .Required }}
 				err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "body"))
