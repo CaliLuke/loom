@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -68,7 +69,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 
 	_, deprecated := endpointIR.Meta.Last("openapi:deprecated")
 	return &Operation{
-		Tags:         operationTagNames(endpointIR.Meta, service.Meta, service.Name),
+		Tags:         operationTagNames(endpointIR.Meta, endpointIR.MethodMeta, service.Meta, service.Name),
 		Summary:      summary,
 		Description:  endpointIR.Description,
 		OperationID:  operationID,
@@ -216,8 +217,13 @@ func isSecurityParameter(security *transportir.Security, in, name string) bool {
 	return false
 }
 
-func operationTagNames(endpointMeta, serviceMeta expr.MetaExpr, serviceName string) []string {
+func operationTagNames(endpointMeta, methodMeta, serviceMeta expr.MetaExpr, serviceName string) []string {
 	tagNames := openapi.TagNamesFromExpr(endpointMeta)
+	for _, name := range openapi.TagNamesFromExpr(methodMeta) {
+		if !slices.Contains(tagNames, name) {
+			tagNames = append(tagNames, name)
+		}
+	}
 	if len(tagNames) > 0 {
 		return tagNames
 	}

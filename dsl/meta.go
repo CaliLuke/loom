@@ -271,7 +271,9 @@ const DefaultProtoc = expr.DefaultProtoc
 //	})
 //
 // - "openapi:tag:xxx" sets the OpenAPI object field tag xxx. Applicable to
-// HTTP services and methods. Tags are defined on services and used by methods.
+// HTTP services and methods. Tags are defined on services and used by
+// methods. A method may reference a tag from its HTTP expression or directly
+// from its body; when both declare tags the operation carries the union.
 //
 //	var _ = Service("MyService", func() {
 //	    HTTP(func() {
@@ -281,8 +283,9 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    	Meta("openapi:tag:Backend:extension:x-data", `{"foo":"bar"}`)
 //	    })
 //	    Method("MyMethod", func() {
+//	        Meta("openapi:tag:Backend") // or inside HTTP(func() { ... })
 //	        HTTP(func() {
-//	     	   Meta("openapi:tag:Backend")
+//	     	   GET("/backend")
 //	    	})
 //	    })
 //	})

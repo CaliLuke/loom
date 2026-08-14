@@ -594,6 +594,27 @@ var HeadersDSL = func() {
 	})
 }
 
+var MethodBodyTagsDSL = func() {
+	Service("tagged", func() {
+		HTTP(func() {
+			Meta("openapi:tag:B2B:desc", "Server-to-server endpoints.")
+		})
+		Method("update", func() {
+			Meta("openapi:tag:B2B")
+			HTTP(func() {
+				POST("/stats")
+				Meta("openapi:tag:Device")
+			})
+		})
+		Method("list", func() {
+			Meta("openapi:tag:Internal")
+			HTTP(func() {
+				GET("/stats")
+			})
+		})
+	})
+}
+
 var WithTagsDSL = func() {
 	Service("test service", func() {
 		HTTP(func() {

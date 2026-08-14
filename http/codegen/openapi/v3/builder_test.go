@@ -450,3 +450,23 @@ func TestNewBuildsReusableContractComponentsAndServiceTags(t *testing.T) {
 		t.Fatalf("unexpected refresh tags: %#v", got)
 	}
 }
+
+func TestNewAppliesMethodBodyOperationTags(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.MethodBodyTagsDSL)
+
+	spec := New(root)
+	if spec == nil {
+		t.Fatal("expected spec")
+	}
+	update := spec.Paths["/stats"].Post
+	list := spec.Paths["/stats"].Get
+	if update == nil || list == nil {
+		t.Fatal("expected tagged operations")
+	}
+	if got := update.Tags; len(got) != 2 || got[0] != "Device" || got[1] != "B2B" {
+		t.Errorf("unexpected update tags: %#v", got)
+	}
+	if got := list.Tags; len(got) != 1 || got[0] != "Internal" {
+		t.Errorf("unexpected list tags: %#v", got)
+	}
+}
