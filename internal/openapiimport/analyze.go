@@ -262,7 +262,7 @@ type parameterOccurrence struct {
 func (a *analyzer) mergeParameters(inherited, operation []*v3.Parameter, inheritedPath, operationPath string, components Components) []Parameter {
 	merged := make([]parameterOccurrence, 0, len(inherited)+len(operation))
 	indices := make(map[string]int, len(inherited)+len(operation))
-	appendParameter := func(parameter *v3.Parameter, path string, operationLevel bool) {
+	appendParameter := func(parameter *v3.Parameter, path string) {
 		occurrence := parameterOccurrence{parameter: a.parameter(parameter, path), path: path}
 		key, ok := parameterKey(occurrence.parameter, components)
 		if !ok {
@@ -270,9 +270,7 @@ func (a *analyzer) mergeParameters(inherited, operation []*v3.Parameter, inherit
 			return
 		}
 		if index, exists := indices[key]; exists {
-			if !operationLevel {
-				a.unsupported("duplicate-parameter", path, "parameters with the same name and location must not be repeated")
-			}
+			a.unsupported("duplicate-parameter", path, "parameters with the same name and location must not be repeated")
 			merged[index] = occurrence
 			return
 		}
@@ -280,7 +278,7 @@ func (a *analyzer) mergeParameters(inherited, operation []*v3.Parameter, inherit
 		merged = append(merged, occurrence)
 	}
 	for index, parameter := range inherited {
-		appendParameter(parameter, fmt.Sprintf("%s/%d", inheritedPath, index), false)
+		appendParameter(parameter, fmt.Sprintf("%s/%d", inheritedPath, index))
 	}
 	operationKeys := make(map[string]struct{}, len(operation))
 	for index, parameter := range operation {

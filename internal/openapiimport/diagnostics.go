@@ -9,8 +9,11 @@ import (
 // Diagnostic describes an OpenAPI construct that the strict import subset
 // cannot represent without losing contract information.
 type Diagnostic struct {
-	Code    string
-	Path    string
+	// Code identifies the importer limit class, for example "media-type".
+	Code string
+	// Path is the JSON Pointer of the offending construct in the source document.
+	Path string
+	// Message explains why the construct cannot be imported faithfully.
 	Message string
 }
 

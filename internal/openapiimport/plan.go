@@ -43,6 +43,15 @@ func planDocument(document *Document) documentPlan {
 			planner.unsupported("unused-component-parameter", path, "unreferenced parameter components cannot be rendered faithfully")
 		}
 	}
+	for _, named := range document.Components.RequestBodies {
+		planner.unsupported("component-request-body", "#/components/requestBodies/"+escapeJSONPointer(named.Name), "reusable request body components are not in the strict import subset")
+	}
+	for _, named := range document.Components.Responses {
+		planner.unsupported("component-response", "#/components/responses/"+escapeJSONPointer(named.Name), "reusable response components are not in the strict import subset")
+	}
+	for _, named := range document.Components.Headers {
+		planner.unsupported("component-header", "#/components/headers/"+escapeJSONPointer(named.Name), "reusable header components are not in the strict import subset")
+	}
 	planner.diagnostics = planner.diagnostics.sorted()
 	plan := documentPlan{diagnostics: planner.diagnostics}
 	if len(plan.diagnostics) > 0 {

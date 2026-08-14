@@ -262,6 +262,30 @@ components:
 	requireDiagnosticCode(t, diagnostics, "header-reference")
 }
 
+func TestAnalyzeRejectsUnrenderableComponentKinds(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Component kinds, version: "1"}
+paths:
+  /pets:
+    get:
+      responses: {"204": {description: done}}
+components:
+  requestBodies:
+    Body:
+      content: {application/json: {schema: {type: string}}}
+  responses:
+    OK: {description: found}
+  headers:
+    Trace: {schema: {type: string}}
+`)
+
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	requireDiagnosticCode(t, diagnostics, "component-request-body")
+	requireDiagnosticCode(t, diagnostics, "component-response")
+	requireDiagnosticCode(t, diagnostics, "component-header")
+}
+
 func TestAnalyzeRejectsUnrenderableEscapedComponentParameterNames(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Escaped components, version: "1"}
