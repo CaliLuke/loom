@@ -115,6 +115,8 @@ func runResponseContractScaffold(t *testing.T, test responseContractScaffoldTest
 	scaffoldPath := filepath.Join(dir, "internal", "contracttest", test.scaffoldName)
 	scaffold, err := os.ReadFile(scaffoldPath)
 	require.NoError(t, err)
+	require.Contains(t, string(scaffold), "// Generated once by Loom. Edit freely; regeneration never overwrites this file.")
+	require.NotContains(t, string(scaffold), "DO NOT EDIT")
 	populated := strings.Replace(string(scaffold), test.emptyMap, test.scenarios, 1)
 	require.NotEqual(t, string(scaffold), populated)
 	require.NoError(t, os.WriteFile(scaffoldPath, []byte(populated), 0o600))

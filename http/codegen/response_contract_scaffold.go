@@ -50,7 +50,7 @@ func responseContractTestFile(genpkg string, data *ServiceData) *codegen.File {
 	return &codegen.File{
 		Path: filepath.Join("internal", "contracttest", data.Service.PathName+"_http_test.go"),
 		Sections: []codegen.Section{
-			codegen.Header(fmt.Sprintf("%s HTTP response contract tests", data.Service.Name), "contracttest", imports),
+			codegen.ScaffoldHeader(fmt.Sprintf("%s HTTP response contract tests", data.Service.Name), "contracttest", imports),
 			responseContractTestSection(data, serverAlias),
 		},
 		SkipExist: true,

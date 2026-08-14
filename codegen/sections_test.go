@@ -122,3 +122,28 @@ package testpackage
 		})
 	}
 }
+
+func TestScaffoldHeader(t *testing.T) {
+	const expected = `// Generated once by Loom. Edit freely; regeneration never overwrites this file.
+//
+// test title
+//
+// Command:
+// loom
+
+package testpackage
+
+`
+	buf := new(bytes.Buffer)
+	s := ScaffoldHeader("test title", "testpackage", nil)
+	if err := s.Write(buf); err != nil {
+		t.Fatalf("write scaffold header: %v", err)
+	}
+	actual := normalizeLineEndings(buf.String())
+	if actual != normalizeLineEndings(expected) {
+		t.Errorf("got %#v, expected %#v", actual, expected)
+	}
+	if strings.Contains(actual, "DO NOT EDIT") {
+		t.Errorf("scaffold header must not carry the DO NOT EDIT marker: %#v", actual)
+	}
+}
