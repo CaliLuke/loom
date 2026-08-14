@@ -1,9 +1,9 @@
 package openapiv3
 
 import (
-	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
-
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
 	"github.com/CaliLuke/loom/internal/securityreq"
 )
 
@@ -39,5 +39,6 @@ func buildDocument(root *expr.RootExpr) *OpenAPI {
 		Servers:           buildServers(root.API.Servers),
 		Security:          securityreq.OpenAPI(securityreq.Effective(root.API.Requirements, root.API.SessionAuths)),
 		Tags:              buildTags(root.API),
+		ExternalDocs:      openapi.DocsFromExpr(root.API.Docs, nil),
 	}
 }

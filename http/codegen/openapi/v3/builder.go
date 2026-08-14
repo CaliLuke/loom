@@ -610,6 +610,17 @@ func buildTags(api *expr.APIExpr) []*openapi.Tag {
 		for _, t := range openapi.TagsFromExpr(s.Meta) {
 			m[t.Name] = t
 		}
+		if s.ServiceExpr.Docs != nil {
+			tag := m[s.Name()]
+			if tag == nil {
+				tag = &openapi.Tag{
+					Name:        s.Name(),
+					Description: s.Description(),
+				}
+				m[tag.Name] = tag
+			}
+			tag.ExternalDocs = openapi.DocsFromExpr(s.ServiceExpr.Docs, nil)
+		}
 	}
 
 	// sort tag names alphabetically

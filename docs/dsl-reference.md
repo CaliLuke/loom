@@ -537,6 +537,8 @@ var _ = API("bookstore", func() {
 })
 ```
 
+`Docs()` maps to OpenAPI `externalDocs`. API docs appear at the document root, service docs appear on the service tag, and method docs appear on the operation.
+
 ### Server Configuration
 
 Define where your API can be accessed:
