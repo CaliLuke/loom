@@ -261,6 +261,16 @@ func (r *renderer) resolveParameter(parameter Parameter, path string) (Parameter
 	return resolved, componentName, nil
 }
 
+// resolveHeader normalizes an inline or referenced response Header. Unlike
+// resolveParameter, it never returns a resolved component: planDocument
+// raises the unconditional "component-header" diagnostic for every
+// #/components/headers entry a document declares (see plan.go), so any
+// document that reaches this renderer through the package's Analyze/Render
+// entry points is already guaranteed to have an empty
+// document.Components.Headers set. A header.Ref observed here can therefore
+// only be a dangling reference (or one produced by a manually-constructed
+// Document that bypassed planDocument), which is reported as unresolved
+// rather than silently inlined.
 func (r *renderer) resolveHeader(header Header, path string) (Header, error) {
 	if header.Ref == "" {
 		return header, nil
@@ -268,14 +278,6 @@ func (r *renderer) resolveHeader(header Header, path string) (Header, error) {
 	name := strings.TrimPrefix(header.Ref, "#/components/headers/")
 	if name == header.Ref || name == "" {
 		return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q has the wrong kind", path, header.Ref)
-	}
-	for _, named := range r.document.Components.Headers {
-		if named.Name == name {
-			if named.Header.Ref != "" {
-				return Header{}, fmt.Errorf("render OpenAPI design: %s nested header references are not renderable", path)
-			}
-			return named.Header, nil
-		}
 	}
 	return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q does not resolve", path, header.Ref)
 }

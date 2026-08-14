@@ -139,7 +139,6 @@ func multipartFileFields(body *expr.AttributeExpr) []*MultipartFileFieldData {
 		fields = append(fields, &MultipartFileFieldData{
 			Name:     name,
 			HTTPName: name,
-			Required: body.IsRequired(name),
 		})
 	}
 	return fields

@@ -53,9 +53,8 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		{{- range .Payload.Request.MultipartFileFields }}
 			switch files := multipartForm.Files["{{ .HTTPName }}"]; len(files) {
 			case 0:
-			{{- if .Required }}
-				err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "body"))
-			{{- end }}
+				// A missing required file is reported by the body validation
+				// below, which independently detects the resulting nil field.
 			case 1:
 				multipartForm.Values.Set("{{ .HTTPName }}", string(files[0].Data))
 			{{- if .PopulateFilename }}

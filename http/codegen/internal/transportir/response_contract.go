@@ -226,13 +226,14 @@ func responseContractLimitations(endpoint *Endpoint) []ResponseContractLimitatio
 }
 
 func newResponseContractCase(serviceName, methodName string, fileResponse bool, response *ResponseStatus) *ResponseContractCase {
+	// IsError == (Error != nil) is guaranteed at construction (see
+	// buildResponseStatus in request_response.go), so Error is dereferenced
+	// unguarded here, matching responseContractCaseID below.
 	kind := ResponseContractSuccess
 	errorName := ""
 	if response.IsError {
 		kind = ResponseContractError
-		if response.Error != nil {
-			errorName = response.Error.Name
-		}
+		errorName = response.Error.Name
 	}
 	return &ResponseContractCase{
 		ID:           responseContractCaseID(serviceName, methodName, kind, response),

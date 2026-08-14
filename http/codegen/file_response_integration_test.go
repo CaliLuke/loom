@@ -57,6 +57,7 @@ const fileResponseIntegrationHarness = `package integration
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -316,6 +317,57 @@ func TestGeneratedFileResponseClientOwnershipAndStatuses(t *testing.T) {
 			t.Fatal("generated client did not close error response body")
 		}
 	})
+}
+
+// TestGeneratedFileResponseClientPreconditionAndRangeErrors characterizes the
+// generated client decoder for the 412 and 416 protocol responses that the
+// OpenAPI output documents for FileResponse endpoints (see
+// addFileResponseProtocolResponses in
+// http/codegen/openapi/internal/ir/document_file_response.go). Neither status
+// is added to the FileResponse success case alongside 206/304 (a caller
+// precondition or byte range that the server could not satisfy is not a
+// successful file transfer), so both fall through to the decoder's generic
+// unexpected-status branch. That branch already returns a typed
+// *loomhttp.ClientError carrying the real status code and response body,
+// which is a sound outcome for these statuses; this test guards that
+// behavior so it isn't silently lost.
+func TestGeneratedFileResponseClientPreconditionAndRangeErrors(t *testing.T) {
+	_, server := newFileServer(t)
+	tests := []struct {
+		name       string
+		headers    http.Header
+		wantStatus int
+	}{
+		{name: "precondition failed", headers: http.Header{"If-Match": {"\"different\""}}, wantStatus: http.StatusPreconditionFailed},
+		{name: "range not satisfiable", headers: http.Header{"Range": {"bytes=99-100"}}, wantStatus: http.StatusRequestedRangeNotSatisfiable},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			doer := &observingDoer{base: server.Client(), headers: test.headers}
+			client := newGeneratedFileClient(t, server.URL, doer)
+			value, err := client(context.Background(), &files.DownloadPayload{})
+			if err == nil {
+				t.Fatalf("Download succeeded, want error for status %d", test.wantStatus)
+			}
+			if value != nil {
+				t.Fatalf("value = %#v, want nil", value)
+			}
+			var clientErr *loomhttp.ClientError
+			if !errors.As(err, &clientErr) {
+				t.Fatalf("err = %T, want *loomhttp.ClientError", err)
+			}
+			if clientErr.Name != "invalid_response" {
+				t.Errorf("Name = %q, want %q", clientErr.Name, "invalid_response")
+			}
+			if !strings.Contains(clientErr.Message, fmt.Sprintf("%d", test.wantStatus)) {
+				t.Errorf("Message = %q, want mention of status %d", clientErr.Message, test.wantStatus)
+			}
+			if !doer.body.closed.Load() {
+				t.Fatal("generated client did not close error response body")
+			}
+		})
+	}
 }
 
 func newFileServer(t *testing.T) (*fileService, *httptest.Server) {

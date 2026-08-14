@@ -138,17 +138,15 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 	return request, mapQueryParam
 }
 
+// requestNeedsServerErrorVar reports whether the generated server request
+// decoder declares the shared "err" accumulator variable. Multipart-generated
+// requests only need it when field or body validation runs; a required
+// multipart file field always produces a non-empty ServerBody.ValidateRef
+// (the generated Validate<Body> function treats the resulting nil field as
+// missing), so that condition alone is sufficient.
 func requestNeedsServerErrorVar(request *RequestData) bool {
-	if !request.MultipartGenerated || request.MustValidate ||
-		(request.ServerBody != nil && request.ServerBody.ValidateRef != "") {
-		return true
-	}
-	for _, field := range request.MultipartFileFields {
-		if field.Required {
-			return true
-		}
-	}
-	return false
+	return !request.MultipartGenerated || request.MustValidate ||
+		(request.ServerBody != nil && request.ServerBody.ValidateRef != "")
 }
 
 func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {

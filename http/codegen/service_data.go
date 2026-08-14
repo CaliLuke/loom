@@ -371,8 +371,6 @@ type (
 		Name string
 		// HTTPName is the multipart form field name.
 		HTTPName string
-		// Required indicates whether the file field is required.
-		Required bool
 		// PopulateFilename indicates whether the generated decoder should
 		// auto-populate the sibling "filename" field from the uploaded part.
 		PopulateFilename bool

@@ -1,5 +1,21 @@
 package codegen
 
+// FileResponse endpoints add http.StatusPartialContent (206) and
+// http.StatusNotModified (304) to the 200 success case below because
+// net/http.ServeContent (see http/file_response.go) treats both as
+// successful outcomes of the same file transfer. The OpenAPI output for
+// these endpoints additionally documents 412 (Precondition Failed) and 416
+// (Range Not Satisfiable) as real protocol responses (see
+// addFileResponseProtocolResponses in
+// http/codegen/openapi/internal/ir/document_file_response.go), since
+// ServeContent can produce them too. Those two are intentionally NOT added
+// to the success case: a failed precondition or unsatisfiable range is not a
+// successful file transfer, so treating them as success would hand the
+// caller a Result with a body that doesn't match what was asked for. They
+// fall through to the decoder's generic unexpected-status branch below,
+// which already returns a typed loomhttp.ClientError carrying the real
+// status code and response body — a sound, if generic, mapping for a
+// declared-but-not-successful response.
 var (
 	responseDecoderSource = joinHTTPTemplateSource(`{{ printf "%s returns a decoder for responses returned by the %s %s endpoint. restoreBody controls whether the response body should be restored after having been read." .ResponseDecoder .ServiceName .Method.Name | comment }}
 {{- if .Errors }}

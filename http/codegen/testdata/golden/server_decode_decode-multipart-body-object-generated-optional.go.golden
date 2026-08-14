@@ -28,6 +28,8 @@ func DecodeMethodMultipartObjectGeneratedOptionalRequest(mux loomhttp.Muxer, _ f
 		} else {
 			switch files := multipartForm.Files["file"]; len(files) {
 			case 0:
+				// A missing required file is reported by the body validation
+				// below, which independently detects the resulting nil field.
 			case 1:
 				multipartForm.Values.Set("file", string(files[0].Data))
 				if _, ok := multipartForm.Values["filename"]; !ok && files[0].Filename != "" {
