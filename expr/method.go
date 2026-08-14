@@ -150,33 +150,53 @@ func (m *MethodExpr) Validate() error {
 // validateErrors validates the method errors.
 func (m *MethodExpr) validateErrors() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	for i, e := range m.Errors {
+	for _, e := range m.Errors {
 		if err := e.Validate(); err != nil {
 			var verrs *eval.ValidationErrors
 			if errors.As(err, &verrs) {
 				verr.Merge(verrs)
 			}
 		}
-		for j, e2 := range m.Errors {
-			// If an object type is used to define more than one errors validate the
-			// presence of struct:error:name meta in the object type.
-			if i != j && e.Type == e2.Type && IsObject(e.Type) {
-				var found bool
-				walkAttribute(e.AttributeExpr, func(_ string, att *AttributeExpr) error { // nolint: errcheck
-					if _, ok := att.Meta["struct:error:name"]; ok {
-						found = true
-						return fmt.Errorf("struct:error:name found: stop iteration")
-					}
-					return nil
-				})
-				if !found {
-					verr.Add(e, "type %q is used to define multiple errors and must identify the attribute containing the error name with ErrorName", e.Type.Name())
-					break
+	}
+	verr.Merge(validateErrorTypeDiscriminators(m.effectiveErrors()))
+	return verr
+}
+
+func validateErrorTypeDiscriminators(errors []*ErrorExpr) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	reported := make([]bool, len(errors))
+	for i, e := range errors {
+		if reported[i] || !IsObject(e.Type) {
+			continue
+		}
+		for j := i + 1; j < len(errors); j++ {
+			if e.Type != errors[j].Type {
+				continue
+			}
+			for k := j; k < len(errors); k++ {
+				if e.Type == errors[k].Type {
+					reported[k] = true
 				}
 			}
+			if !hasErrorNameAttribute(e.AttributeExpr) {
+				verr.Add(e, "type %q is used to define multiple errors and must identify the attribute containing the error name with ErrorName", e.Type.Name())
+			}
+			break
 		}
 	}
 	return verr
+}
+
+func hasErrorNameAttribute(att *AttributeExpr) bool {
+	var found bool
+	walkAttribute(att, func(_ string, nested *AttributeExpr) error { // nolint: errcheck
+		if _, ok := nested.Meta["struct:error:name"]; ok {
+			found = true
+			return errors.New("struct:error:name found: stop iteration")
+		}
+		return nil
+	})
+	return found
 }
 
 // validateInterceptors validates the method interceptors.
@@ -270,7 +290,7 @@ func (m *MethodExpr) Finalize() {
 	m.finalizeMethodResult(&m.StreamingResult)
 	m.Result = finalizeMethodResultAttr(m.Result)
 	m.finalizeInterceptors()
-	m.inheritServiceErrors()
+	m.Errors = m.effectiveErrors()
 	m.finalizeErrors()
 	if m.hasNoSecurityRequirement() {
 		m.Requirements = nil
@@ -318,15 +338,17 @@ func finalizeMethodResultAttr(att *AttributeExpr) *AttributeExpr {
 	return att
 }
 
-func (m *MethodExpr) inheritServiceErrors() {
+func (m *MethodExpr) effectiveErrors() []*ErrorExpr {
+	errors := append([]*ErrorExpr(nil), m.Errors...)
 	if m.Service == nil {
-		return
+		return errors
 	}
 	for _, serviceErr := range m.Service.Errors {
-		if !methodHasError(m.Errors, serviceErr.Name) {
-			m.Errors = append(m.Errors, serviceErr)
+		if !methodHasError(errors, serviceErr.Name) {
+			errors = append(errors, serviceErr)
 		}
 	}
+	return errors
 }
 
 func methodHasError(errors []*ErrorExpr, name string) bool {

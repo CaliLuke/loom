@@ -120,6 +120,53 @@ func TestServiceExprValidate(t *testing.T) {
 	}
 }
 
+func TestMethodRejectsAmbiguousEffectiveErrorTypes(t *testing.T) {
+	cases := map[string]struct {
+		dsl   func()
+		error string
+	}{
+		"service and method errors": {
+			dsl: func() {
+				exceptionResponse := Type("ExceptionResponse", func() {
+					Attribute("error", String)
+					Attribute("message", String)
+				})
+
+				Service("IncodeOmniAPI", func() {
+					Error("unauthorized", exceptionResponse)
+					Error("forbidden", exceptionResponse)
+
+					Method("AddDeviceFingerprint", func() {
+						Error("Status400", exceptionResponse)
+					})
+				})
+			},
+			error: `attribute: type "ExceptionResponse" is used to define multiple errors and must identify the attribute containing the error name with ErrorName`,
+		},
+		"service errors": {
+			dsl: func() {
+				sharedError := Type("SharedError", func() {
+					Attribute("message", String)
+				})
+
+				Service("AmbiguousServiceErrors", func() {
+					Error("not_found", sharedError)
+					Error("conflict", sharedError)
+					Method("Show", func() {})
+				})
+			},
+			error: `attribute: type "SharedError" is used to define multiple errors and must identify the attribute containing the error name with ErrorName`,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, tc.dsl)
+			assert.EqualError(t, err, tc.error)
+		})
+	}
+}
+
 func TestErrorExprValidate(t *testing.T) {
 	cases := []struct {
 		Name  string
@@ -132,7 +179,6 @@ func TestErrorExprValidate(t *testing.T) {
 attribute: duplicate error names in type "Error"
 attribute: error name "a" must be a string in type "Error"
 attribute: error name "a" must be required in type "Error"
-attribute: type "ErrorType" is used to define multiple errors and must identify the attribute containing the error name with ErrorName
 attribute: type "ErrorType" is used to define multiple errors and must identify the attribute containing the error name with ErrorName`,
 		},
 	}
