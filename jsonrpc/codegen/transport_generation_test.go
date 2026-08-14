@@ -42,6 +42,16 @@ func TestJSONRPCExampleCLIFilesUseTransportConfiguration(t *testing.T) {
 	require.IsType(t, &codegen.JenniferSection{}, sectionByName(t, files[0], "cli-http-usage"))
 }
 
+func TestJSONRPCExampleCLIFilesSkipServicesWithoutTransportData(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcTransportAbsentServiceDSL)
+	files := ExampleCLIFiles("", CreateJSONRPCServices(root))
+
+	require.Len(t, files, 1)
+	code := renderCodegenFile(t, files[0])
+	assert.Contains(t, code, "doJSONRPC")
+	assert.NotContains(t, code, "prompts")
+}
+
 func TestJSONRPCExampleServerFilesUseTransportConfiguration(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcTransportGenerationDSL)
 	services := CreateJSONRPCServices(root)
@@ -150,6 +160,27 @@ var jsonrpcClientCLITransportDSL = func() {
 				dsl.Attribute("message", dsl.String)
 			})
 			dsl.JSONRPC(func() {})
+		})
+	})
+}
+
+var jsonrpcTransportAbsentServiceDSL = func() {
+	dsl.API("jsonrpc-transport-absent-service", func() {
+		dsl.Server("SingleHost", func() {
+			dsl.Services("prompts")
+			dsl.Host("dev", func() {
+				dsl.URI("http://example:8080")
+			})
+		})
+		dsl.JSONRPC(func() {})
+	})
+
+	dsl.Service("prompts", func() {
+		dsl.Method("dynamic", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("name", dsl.String)
+			})
+			dsl.Result(dsl.String)
 		})
 	})
 }

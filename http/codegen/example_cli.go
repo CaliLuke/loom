@@ -92,11 +92,11 @@ func exampleCLIWithCache(
 	}
 	importScope := codegen.NewNameScope()
 	reserveExampleImportNames(importScope, specs)
-	exampleServices := make(map[string]exampleCLIServiceData, len(services.Root.Services))
-	for _, svc := range services.Root.Services {
-		data := services.Get(svc.Name)
+	exampleServices := make(map[string]exampleCLIServiceData, len(services.Expressions.Services))
+	for _, svc := range services.Expressions.Services {
+		data := services.Get(svc.Name())
 		serviceImport := importScope.Unique(data.Service.PkgName, "svc")
-		exampleServices[svc.Name] = exampleCLIServiceData{Data: data, ServiceImport: serviceImport}
+		exampleServices[svc.Name()] = exampleCLIServiceData{Data: data, ServiceImport: serviceImport}
 		specs = append(specs, &codegen.ImportSpec{
 			Path: genpkg + "/" + data.Service.PathName,
 			Name: serviceImport,
