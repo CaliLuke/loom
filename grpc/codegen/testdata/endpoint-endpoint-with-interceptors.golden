@@ -21,10 +21,14 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{"service-with-interceptors (method-a|method-b)"}
-} // UsageExamples produces an example of a valid invocation of the CLI tool.
+}
+
+// UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
 	return os.Args[0] + " service-with-interceptors method-a --message '{\n      \"field\": \"Sapiente est.\"\n   }'\\n"
-} // ParseEndpoint returns the endpoint and payload as specified on the command
+}
+
+// ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(cc *grpc.ClientConn, serviceWithInterceptorsInter servicewithinterceptors.ClientInterceptors, opts ...grpc.CallOption) (loom.Endpoint, any, error) {
 	var (
@@ -110,7 +114,9 @@ func ParseEndpoint(cc *grpc.ClientConn, serviceWithInterceptorsInter servicewith
 		return nil, nil, err
 	}
 	return endpoint, data, nil
-} // serviceWithInterceptorsUsage displays the usage of the
+}
+
+// serviceWithInterceptorsUsage displays the usage of the
 // service-with-interceptors command and its subcommands.
 func serviceWithInterceptorsUsage() {
 	fmt.Fprintln(os.Stderr, "Service is the ServiceWithInterceptors service interface.")
