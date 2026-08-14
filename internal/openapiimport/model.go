@@ -15,6 +15,8 @@ type Document struct {
 	APIVersion string
 	// Tags lists declared tag names in source order.
 	Tags []string
+	// Extensions contains document-level vendor extensions.
+	Extensions map[string]any
 	// Components contains normalized reusable definitions.
 	Components Components
 	// Operations contains HTTP operations in deterministic path-and-method order.
@@ -95,6 +97,8 @@ type Operation struct {
 	Tags []string
 	// Deprecated reports whether the operation is deprecated.
 	Deprecated bool
+	// Extensions contains operation-level vendor extensions.
+	Extensions map[string]any
 	// Parameters contains inherited path-item and operation parameters.
 	Parameters []Parameter
 	// RequestBody is the operation request body, if any.
@@ -120,6 +124,8 @@ type Parameter struct {
 	Deprecated bool
 	// AllowEmptyValue reports whether an empty parameter value is permitted.
 	AllowEmptyValue bool
+	// Extensions contains parameter-level vendor extensions.
+	Extensions map[string]any
 	// Schema describes the parameter value.
 	Schema *Schema
 }
@@ -139,6 +145,8 @@ type RequestBody struct {
 	Schema *Schema
 	// Examples contains examples declared on the request media type.
 	Examples []Example
+	// Extensions contains request-body-level vendor extensions.
+	Extensions map[string]any
 }
 
 // StatusResponse associates an HTTP response with its status code.
@@ -164,6 +172,8 @@ type Response struct {
 	Examples []Example
 	// Headers contains response headers sorted by wire name.
 	Headers []NamedHeader
+	// Extensions contains response-level vendor extensions.
+	Extensions map[string]any
 }
 
 // Header describes a response header. Ref is set instead of the remaining
@@ -188,6 +198,8 @@ type Schema struct {
 	Ref string
 	// Type is the single JSON Schema type.
 	Type string
+	// Nullable reports that the schema also accepts the JSON null value.
+	Nullable bool
 	// Format is the authored schema format.
 	Format string
 	// Title is the schema title.
@@ -237,7 +249,9 @@ type Schema struct {
 	// schema declares no default.
 	Default *SchemaDefault
 	// Examples contains decoded examples declared by example or examples.
-	Examples               []Example
+	Examples []Example
+	// Extensions contains schema-level vendor extensions.
+	Extensions             map[string]any
 	unsupportedComposition bool
 }
 

@@ -113,7 +113,7 @@ func (a *analyzer) operations(paths *v3.Paths, components Components, declaredTa
 		a.report = newSelectionReport(nil, nil, declaredTags, nil)
 		return nil
 	}
-	a.extensions("#/paths", paths.Extensions)
+	a.unsupportedExtensions("#/paths", paths.Extensions)
 	var operations []Operation
 	tagPaths := make(map[string]map[string]struct{})
 	tagOperations := make(map[string]int)
@@ -157,7 +157,7 @@ func (a *analyzer) operations(paths *v3.Paths, components Components, declaredTa
 		if len(item.Servers) > 0 {
 			a.unsupported("servers", base+"/servers", "path servers are not in the strict import subset")
 		}
-		a.extensions(base, item.Extensions)
+		a.unsupportedExtensions(base, item.Extensions)
 		for _, selectedOperation := range selected {
 			operations = append(operations, a.operation(
 				strings.ToUpper(selectedOperation.method),

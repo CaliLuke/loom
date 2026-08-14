@@ -137,6 +137,9 @@ func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targe
 	if err := IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
 		return nil, err
 	}
+	if matchingExplicitType(source, target) {
+		return directAssignment(sourceVar, targetVar, newVar), nil
+	}
 	switch {
 	case expr.IsArray(source.Type):
 		return transformArray(expr.AsArray(source.Type), expr.AsArray(target.Type), sourceVar, targetVar, newVar, ta)
@@ -149,6 +152,20 @@ func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targe
 	default:
 		return transformPrimitive(source, target, sourceVar, targetVar, newVar, ta)
 	}
+}
+
+func matchingExplicitType(source, target *expr.AttributeExpr) bool {
+	sourceType, _ := GetMetaType(source)
+	targetType, _ := GetMetaType(target)
+	return IsExplicitPresenceType(source) && IsExplicitPresenceType(target) && sourceType != "" && sourceType == targetType
+}
+
+func directAssignment(sourceVar, targetVar string, newVar bool) *jen.Statement {
+	assign := "="
+	if newVar {
+		assign = ":="
+	}
+	return new(jen.Statement).Add(Expr(targetVar)).Op(assign).Add(Expr(sourceVar))
 }
 
 // transformPrimitive returns the code to transform source primtive type to
@@ -218,7 +235,7 @@ func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		err          error
 	)
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
-		if !expr.IsPrimitive(srcc.Type) {
+		if !expr.IsPrimitive(srcc.Type) && !matchingExplicitType(srcc, tgtc) {
 			return
 		}
 		if err = IsCompatible(srcc.Type, tgtc.Type, sourceVar, targetVar); err != nil {
@@ -244,6 +261,9 @@ func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttribu
 	tgtField := GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
 	_, isSrcUT := srcc.Type.(expr.UserType)
 	_, isTgtUT := tgtc.Type.(expr.UserType)
+	if matchingExplicitType(srcc, tgtc) {
+		return Expr(srcField), nil
+	}
 
 	switch {
 	case isSrcUT || isTgtUT:
@@ -296,6 +316,9 @@ func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar
 func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(srcc.Type, tgtc.Type, sourceVar, targetVar); err != nil {
 		return nil, err
+	}
+	if matchingExplicitType(srcc, tgtc) {
+		return nil, nil
 	}
 
 	srcFieldVar := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)

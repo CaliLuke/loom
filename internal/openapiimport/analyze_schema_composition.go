@@ -8,6 +8,55 @@ import (
 	"github.com/pb33f/libopenapi/orderedmap"
 )
 
+func nullableUnionType(types []string) (string, bool) {
+	if len(types) != 2 {
+		return "", false
+	}
+	if types[0] == "null" && types[1] != "null" {
+		return types[1], true
+	}
+	if types[1] == "null" && types[0] != "null" {
+		return types[0], true
+	}
+	return "", false
+}
+
+func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path string) bool {
+	if len(source.AnyOf) != 2 || hasDirectAllOfSchemaShape(source) {
+		return false
+	}
+	var value *Schema
+	for index, proxy := range source.AnyOf {
+		if proxy == nil {
+			return false
+		}
+		if !proxy.IsReference() {
+			candidate := proxy.Schema()
+			if candidate != nil && len(candidate.Type) == 1 && candidate.Type[0] == "null" {
+				continue
+			}
+		}
+		if value != nil {
+			return false
+		}
+		value = a.schema(proxy, fmt.Sprintf("%s/anyOf/%d", path, index))
+	}
+	if value == nil || value.Type == "" && value.Ref == "" {
+		return false
+	}
+	outerDescription := schema.Description
+	outerExtensions := schema.Extensions
+	*schema = *value
+	schema.Nullable = true
+	if outerDescription != "" {
+		schema.Description = outerDescription
+	}
+	if len(outerExtensions) > 0 {
+		schema.Extensions = outerExtensions
+	}
+	return true
+}
+
 func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string) bool {
 	if len(source.AllOf) == 0 {
 		return false

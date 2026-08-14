@@ -1,9 +1,11 @@
 package openapiimport
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/format"
 	"go/token"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -55,7 +57,9 @@ func Render(document *Document, options Options) ([]byte, error) {
 			return nil, err
 		}
 	}
-	r.api()
+	if err := r.api(); err != nil {
+		return nil, err
+	}
 	if err := r.service(); err != nil {
 		return nil, err
 	}
@@ -108,7 +112,7 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 	return nil
 }
 
-func (r *renderer) api() {
+func (r *renderer) api() error {
 	name := r.document.Title
 	if name == "" {
 		name = "Imported API"
@@ -124,7 +128,10 @@ func (r *renderer) api() {
 		r.line("Version(%q)", r.document.APIVersion)
 	}
 	r.line("Meta(%q, %q)", "openapi:example", "false")
-	if strings.HasPrefix(r.document.OpenAPIVersion, "3.1.") {
+	if err := r.emitExtensions("", r.document.Extensions); err != nil {
+		return err
+	}
+	if strings.HasPrefix(r.document.OpenAPIVersion, "3.0.") || strings.HasPrefix(r.document.OpenAPIVersion, "3.1.") {
 		r.line("Meta(%q, %q)", "openapi:version", "3.1")
 	}
 	for _, tag := range r.importedTags() {
@@ -143,6 +150,7 @@ func (r *renderer) api() {
 	}
 	r.close()
 	r.line("")
+	return nil
 }
 
 func (r *renderer) importedTags() []string {
@@ -185,7 +193,9 @@ func (r *renderer) operation(operation *Operation, plan operationPlan, index int
 	path := fmt.Sprintf("#/operations/%d", index)
 
 	r.open("Method(%q, func()", operation.GoName)
-	r.operationMetadata(operation)
+	if err := r.operationMetadata(operation); err != nil {
+		return err
+	}
 	if err := r.payload(plan.parameters, plan.body, path+"/payload"); err != nil {
 		return err
 	}
@@ -240,12 +250,13 @@ func (r *renderer) planOperation(operation *Operation, path string) (operationPl
 	}, nil
 }
 
-func (r *renderer) operationMetadata(operation *Operation) {
+func (r *renderer) operationMetadata(operation *Operation) error {
 	if operation.Description != "" {
 		r.line("Description(%q)", operation.Description)
 	}
 	r.line("Meta(%q, %q)", "openapi:operationId", operation.OperationID)
 	r.line("Meta(%q, %q)", "openapi:summary", operation.Summary)
+	return r.emitExtensions("", operation.Extensions)
 }
 
 func (r *renderer) errorDefinitions(responses []renderedResponse, path string) error {
@@ -369,12 +380,9 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 	r.open("Payload(func()")
 	var required []string
 	for i, parameter := range parameters {
-		var metadata []renderedMetadata
-		if parameter.componentName != "" {
-			metadata = append(metadata, renderedMetadata{name: "openapi:component:parameter", value: parameter.componentName})
-		}
-		if parameter.parameter.In == "query" {
-			metadata = append(metadata, renderedMetadata{name: "openapi:allowEmptyValue", value: strconv.FormatBool(parameter.parameter.AllowEmptyValue)})
+		metadata, err := parameterMetadata(parameter)
+		if err != nil {
+			return err
 		}
 		if err := r.attribute(parameter.field, parameter.parameter.Schema, parameter.parameter.Description, fmt.Sprintf("%s/parameters/%d", path, i), metadata...); err != nil {
 			return err
@@ -384,28 +392,12 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 		}
 	}
 	if body != nil {
-		bodySchema := schemaWithExamples(body.body.Schema, body.body.Examples)
-		if body.mode != requestBodyJSON {
-			if body.body.Description != "" {
-				r.line("Meta(%q, %q)", "openapi:description:requestBody", body.body.Description)
-			}
-			if err := r.renderRequestTransportBody(bodySchema, path+"/requestBody/schema"); err != nil {
-				return err
-			}
-		} else {
-			metadata := []renderedMetadata(nil)
-			if body.body.Description != "" {
-				metadata = append(metadata, renderedMetadata{
-					name:  "openapi:description:requestBody",
-					value: body.body.Description,
-				})
-			}
-			if err := r.attribute(body.field, bodySchema, "", path+"/requestBody/schema", metadata...); err != nil {
-				return err
-			}
-			if body.body.Required {
-				required = append(required, body.field)
-			}
+		bodyRequired, err := r.payloadBody(body, path+"/requestBody/schema")
+		if err != nil {
+			return err
+		}
+		if bodyRequired {
+			required = append(required, body.field)
 		}
 	}
 	if len(required) > 0 {
@@ -413,6 +405,39 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 	}
 	r.close()
 	return nil
+}
+
+func parameterMetadata(parameter renderedParameter) ([]renderedMetadata, error) {
+	var metadata []renderedMetadata
+	if parameter.componentName != "" {
+		metadata = append(metadata, renderedMetadata{name: "openapi:component:parameter", value: parameter.componentName})
+	}
+	if parameter.parameter.In == "query" {
+		metadata = append(metadata, renderedMetadata{name: "openapi:allowEmptyValue", value: strconv.FormatBool(parameter.parameter.AllowEmptyValue)})
+	}
+	extensions, err := renderedExtensions("parameter", parameter.parameter.Extensions)
+	return append(metadata, extensions...), err
+}
+
+func (r *renderer) payloadBody(body *renderedBody, path string) (bool, error) {
+	schema := schemaWithExamples(body.body.Schema, body.body.Examples)
+	if body.mode != requestBodyJSON {
+		if err := r.emitExtensions("requestBody", body.body.Extensions); err != nil {
+			return false, err
+		}
+		if body.body.Description != "" {
+			r.line("Meta(%q, %q)", "openapi:description:requestBody", body.body.Description)
+		}
+		return false, r.renderRequestTransportBody(schema, path)
+	}
+	metadata, err := renderedExtensions("requestBody", body.body.Extensions)
+	if err != nil {
+		return false, err
+	}
+	if body.body.Description != "" {
+		metadata = append(metadata, renderedMetadata{name: "openapi:description:requestBody", value: body.body.Description})
+	}
+	return body.body.Required, r.attribute(body.field, schema, "", path, metadata...)
 }
 
 func (r *renderer) result(response renderedResponse, path string) error {
@@ -430,32 +455,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		prefix += strconv.Quote(name) + ", "
 	}
 	if len(response.headers) == 0 {
-		if response.response.Schema == nil || response.rawBody {
-			r.line("%sEmpty)", prefix)
-			return nil
-		}
-		expression, object, err := r.schemaExpression(responseSchema, path+"/content/schema")
-		if err != nil {
-			return err
-		}
-		if object {
-			r.open("%sfunc()", prefix)
-			if err := r.schemaBlock(responseSchema, path+"/content/schema", call == "Error"); err != nil {
-				return err
-			}
-			r.close()
-			return nil
-		}
-		if r.hasSchemaBlock(responseSchema) {
-			r.open("%s%s, func()", prefix, expression)
-			if err := r.validationBlock(responseSchema, path+"/content/schema"); err != nil {
-				return err
-			}
-			r.close()
-			return nil
-		}
-		r.line("%s%s)", prefix, expression)
-		return nil
+		return r.responseTypeWithoutHeaders(call, prefix, response, responseSchema, path+"/content/schema")
 	}
 	r.open("%sfunc()", prefix)
 	for _, header := range response.headers {
@@ -481,6 +481,41 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		r.quotedCall("Required", required)
 	}
 	r.close()
+	return nil
+}
+
+func (r *renderer) responseTypeWithoutHeaders(call, prefix string, response renderedResponse, schema *Schema, path string) error {
+	if response.response.Schema == nil || response.rawBody {
+		r.line("%sEmpty)", prefix)
+		return nil
+	}
+	expression, object, err := r.schemaExpression(schema, path)
+	if err != nil {
+		return err
+	}
+	if object {
+		r.open("%sfunc()", prefix)
+		if err := r.emitNullableGoType(schema, path); err != nil {
+			return err
+		}
+		if err := r.schemaBlock(schema, path, call == "Error"); err != nil {
+			return err
+		}
+		r.close()
+		return nil
+	}
+	if r.hasSchemaBlock(schema) || r.effectiveNullable(schema) {
+		r.open("%s%s, func()", prefix, expression)
+		if err := r.emitNullableGoType(schema, path); err != nil {
+			return err
+		}
+		if err := r.validationBlock(schema, path); err != nil {
+			return err
+		}
+		r.close()
+		return nil
+	}
+	r.line("%s%s)", prefix, expression)
 	return nil
 }
 
@@ -523,7 +558,7 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 	}
 	prefix += strconv.Itoa(status)
 	needsBlock := failure || response.response.Description != "" || response.response.ContentType != "" ||
-		len(response.headers) > 0
+		len(response.headers) > 0 || len(response.response.Extensions) > 0
 	if !needsBlock {
 		r.line("%s)", prefix)
 		return nil
@@ -534,6 +569,9 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 	}
 	if failure {
 		r.line("Meta(%q, %q)", "openapi:description:errorName", "false")
+	}
+	if err := r.emitExtensions("response", response.response.Extensions); err != nil {
+		return err
 	}
 	if response.response.ContentType != "" {
 		r.line("ContentType(%q)", response.response.ContentType)
@@ -564,6 +602,38 @@ func schemaWithExamples(schema *Schema, examples []Example) *Schema {
 	combined := *schema
 	combined.Examples = append(append([]Example(nil), schema.Examples...), examples...)
 	return &combined
+}
+
+func renderedExtensions(scope string, extensions map[string]any) ([]renderedMetadata, error) {
+	names := make([]string, 0, len(extensions))
+	for name := range extensions {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	metadata := make([]renderedMetadata, 0, len(names))
+	prefix := "openapi:extension:"
+	if scope != "" {
+		prefix = "openapi:" + scope + ":extension:"
+	}
+	for _, name := range names {
+		value, err := json.Marshal(extensions[name])
+		if err != nil {
+			return nil, fmt.Errorf("render OpenAPI design: vendor extension %q: %w", name, err)
+		}
+		metadata = append(metadata, renderedMetadata{name: prefix + name, value: string(value)})
+	}
+	return metadata, nil
+}
+
+func (r *renderer) emitExtensions(scope string, extensions map[string]any) error {
+	metadata, err := renderedExtensions(scope, extensions)
+	if err != nil {
+		return err
+	}
+	for _, meta := range metadata {
+		r.line("Meta(%q, %q)", meta.name, meta.value)
+	}
+	return nil
 }
 
 func (r *renderer) open(format string, args ...any) {

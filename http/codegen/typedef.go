@@ -24,6 +24,9 @@ import (
 // default value so cannot be nil) otherwise the fields are values only when
 // required.
 func goTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault bool) string {
+	if t, _ := codegen.GetMetaType(att); codegen.IsExplicitPresenceType(att) && t != "" {
+		return t
+	}
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		return goPrimitiveTypeDef(att, actual)
@@ -81,11 +84,14 @@ func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *
 func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, parent *expr.AttributeExpr, name, elem string, att *expr.AttributeExpr, ptr, useDefault bool) string {
 	fieldName := codegen.GoifyAtt(att, name, true)
 	typeDef := goTypeDef(scope, att, ptr, useDefault)
-	if expr.IsPrimitive(att.Type) {
+	switch {
+	case codegen.IsExplicitPresenceType(att):
+		// Explicit field types define their own presence semantics.
+	case expr.IsPrimitive(att.Type):
 		if (ptr || parent.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && att.Type != expr.Any {
 			typeDef = "*" + typeDef
 		}
-	} else if expr.IsObject(att.Type) || (expr.IsUnion(att.Type) && !parent.IsRequired(name)) {
+	case expr.IsObject(att.Type) || (expr.IsUnion(att.Type) && !parent.IsRequired(name)):
 		typeDef = "*" + typeDef
 	}
 	description := ""

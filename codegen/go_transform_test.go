@@ -232,3 +232,19 @@ func TestGoTransformRendersTypedMapDefaultFromMapVal(t *testing.T) {
 	require.Contains(t, code, `map[string]int{"size": 1}`)
 	require.NotContains(t, code, "map[interface {}]interface {}")
 }
+
+func TestGoTransformTreatsMatchingExplicitTypesAsAtomic(t *testing.T) {
+	meta := expr.MetaExpr{
+		"openapi:nullable":  []string{"true"},
+		"struct:field:type": []string{"loom.Nullable[[]string]"},
+	}
+	source := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}, Meta: meta}
+	target := expr.DupAtt(source)
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, true, "", scope)
+
+	code, helpers, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	require.NoError(t, err)
+	require.Equal(t, "target := source", code)
+	require.Empty(t, helpers)
+}

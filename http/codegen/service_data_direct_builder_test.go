@@ -14,6 +14,18 @@ import (
 )
 
 func TestHTTPDirectBuilderSeams(t *testing.T) {
+	t.Run("error name header keeps routing metadata out of the body", func(t *testing.T) {
+		_, endpointExpr, _ := firstHTTPBuildContext(t, sharedErrorHeaderDSL)
+		endpointIR := transportir.BuildEndpoint(endpointExpr)
+		require.Len(t, endpointIR.Response.ErrorResponses, 2)
+		for _, response := range endpointIR.Response.ErrorResponses {
+			require.Len(t, response.Headers, 1)
+			require.Equal(t, "loom-error", response.Headers[0].HTTPName)
+			require.Nil(t, response.Body.Find("name"))
+			require.NotNil(t, response.Body.Find("message"))
+		}
+	})
+
 	t.Run("buildEndpointData preserves mixed result assembly", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.MixedResultsDSL)
 		endpointIR := transportir.BuildEndpoint(endpointExpr)
@@ -233,6 +245,34 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.NotNil(t, endpoint.ClientWebSocket.Payload)
 		require.NotNil(t, endpoint.ClientWebSocket.Payload.Init)
 		require.Equal(t, "NewStreamStreamingBody", endpoint.ClientWebSocket.Payload.Init.Name)
+	})
+}
+
+func sharedErrorHeaderDSL() {
+	shared := Type("SharedErrorHeader", func() {
+		ErrorName("name", String)
+		Attribute("message", String)
+		Required("name", "message")
+	})
+	Service("SharedErrorHeaderService", func() {
+		Method("read", func() {
+			Payload(func() {
+				Attribute("id", String)
+				Required("id")
+			})
+			Error("missing", shared)
+			Error("forbidden", shared)
+			HTTP(func() {
+				GET("/items/{id}")
+				Param("id")
+				Response("missing", StatusNotFound, func() {
+					Header("name:loom-error")
+				})
+				Response("forbidden", StatusForbidden, func() {
+					Header("name:loom-error")
+				})
+			})
+		})
 	})
 }
 

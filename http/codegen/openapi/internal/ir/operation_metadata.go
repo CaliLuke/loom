@@ -165,7 +165,10 @@ func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *ex
 		Style:           metaValue(attr.Meta, "openapi:style"),
 		Required:        required,
 		Schema:          schema,
-		Extensions:      openapi.ExtensionsFromExpr(attr.Meta),
+		Extensions: openapi.MergeExtensions(
+			openapi.ExtensionsFromExpr(attr.Meta),
+			openapi.ScopedExtensionsFromExpr(attr.Meta, "parameter"),
+		),
 	}
 	initExamples(parameter, attr, rand, closeObjects)
 	return &ParameterRef{Value: parameter}

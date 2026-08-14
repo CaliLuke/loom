@@ -137,9 +137,7 @@ var DivByZero = Type("DivByZero", func() {
     Description("DivByZero is the error returned when using value 0 as divisor.")
     Field(1, "message", String, "Error message")
     Field(2, "dividend", Int, "Dividend that was used")
-    Field(3, "name", String, "Error name", func() {
-        Meta("struct:error:name")  // Required for multiple custom errors
-    })
+    ErrorName(3, "name", String, "Error name")
     Required("message", "dividend", "name")
 })
 
@@ -150,7 +148,21 @@ var _ = Service("divider", func() {
 })
 ```
 
-**Important**: When using custom types for multiple errors in the same method, you must specify which attribute contains the error name using `Meta("struct:error:name")`.
+When one custom type represents multiple errors in the same method, use
+`ErrorName` to identify the routing field. The field is part of the response
+body by default. To keep routing metadata exclusively in the `Loom-Error`
+header, map it as a response header for every named response:
+
+```go
+Response("forbidden", StatusForbidden, func() {
+    Header("name:loom-error")
+})
+```
+
+The generated server writes the header, the generated client restores the
+field from it, and the field is omitted from the response body and OpenAPI
+schema. This supports several named errors with one unchanged payload shape,
+including multiple errors that use the same HTTP status.
 
 The generated `Error()` method returns the first non-empty string field with one of these names:
 

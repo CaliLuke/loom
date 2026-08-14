@@ -461,6 +461,9 @@ func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformA
 }
 
 func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
+	if matchingExplicitType(source, target) {
+		return helpers, nil
+	}
 	var other []*TransformFunctionData
 	switch {
 	case expr.IsArray(source.Type):

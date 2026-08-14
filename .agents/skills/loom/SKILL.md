@@ -72,7 +72,10 @@ metadata, unrecognized `format` values, or a parameter/header (not schema)
 contract-affecting loss. Use `--skip-unrenderable` to retain renderable
 operations. It reports skipped operations and omitted root members separately.
 These root members include servers, security, security schemes, info metadata,
-and tag metadata. Review the new `design/design.go` before running `loom gen`.
+and tag metadata. It also reports omitted operation security metadata while
+retaining the otherwise-renderable operation. Exit `3` means partial output was
+written, exit `2` means nothing was importable, and exit `1` is a command
+failure. Review the new `design/design.go` before running `loom gen`.
 
 Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
 consumer still requires OpenAPI 3.1.1. The output paths remain the same and the
@@ -134,6 +137,9 @@ Loom's default HTTP errors are RFC 9457-style
 - Use `AuthErrorResponses()` for standard 401/403 mappings.
 - Use `Remedy(...)`, `RemedyCode(...)`, `SafeMessage(...)`, and
   `RetryHint(...)` for structured remediation metadata.
+- For a shared custom error type, use `ErrorName` for routing. Map that field
+  with `Header("field:loom-error")` on each HTTP error response when routing
+  metadata must stay out of the response body and OpenAPI schema.
 
 Do not duplicate these contracts in handwritten transport code.
 

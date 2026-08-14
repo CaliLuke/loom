@@ -80,7 +80,8 @@ standard error. `--list-tags` reports deterministic operation and path counts
 without writing a design.
 
 This command creates one gofmt-formatted Loom design from the strict supported
-subset of an OpenAPI 3.1 or 3.2 contract. The default output is
+subset of an OpenAPI 3.0, 3.1, or 3.2 contract. OpenAPI 3.0 inputs are
+translated to the equivalent OpenAPI 3.1 design metadata. The default output is
 `design/design.go`. An existing directory, a path ending in a separator, or a
 non-existing extensionless path is treated as a directory; a `.go` path names
 the output file directly.
@@ -96,7 +97,9 @@ and report each skipped operation. Partial import also omits unsupported
 document-level members such as `servers`, root `security`,
 `components.securitySchemes`, info metadata, and tag metadata. It reports these
 under `skipped (document level)` without making otherwise-renderable operations
-fail. Operation-level security and servers still make that operation
+fail. Operation-level security is retained as an explicit omission under
+`skipped (operation metadata)` so the generated operation can be reviewed and
+secured by hand. Operation-level servers still make that operation
 unrenderable.
 
 Both modes use these exit codes:
@@ -104,8 +107,9 @@ Both modes use these exit codes:
 | Code | Result |
 |---|---|
 | `0` | All selected operations are importable. |
-| `2` | Some selected operations are importable. |
-| `1` | No selected operation is importable, or another failure occurred. |
+| `3` | Some selected operations are importable; partial output is available. |
+| `2` | No selected operation is importable; no design is written. |
+| `1` | Usage, input, output, or another command failure occurred. |
 
 `--report` and `--skip-unrenderable` work with operation filters and
 `--allow-lossy`. Report mode never creates the output path.
@@ -118,6 +122,16 @@ The importer maps `multipart/form-data` request bodies to
 `MultipartRequest()`. It maps `application/x-www-form-urlencoded` request
 bodies to `FormRequest()`. Both request body schemas must define an object.
 The importer maps `type: string, format: binary` to `Bytes`.
+
+OpenAPI 3.0 `nullable: true` and OpenAPI 3.1/3.2 two-member type unions such as
+`type: [string, "null"]` generate `loom.Nullable[T]`. Its zero value means the
+property was absent; `loom.NullValue[T]()` means it was explicitly null; and
+`loom.NullableValue(value)` carries a concrete value. Use `Present`, `IsNull`,
+and `Value` when handling imported payloads.
+
+JSON-compatible `x-*` extensions are preserved at document, operation, schema,
+parameter, request-body, and response scopes. Extensions at unsupported scopes
+remain explicit import diagnostics and are never discarded silently.
 
 With `--allow-lossy`, the importer supports the common Spring inheritance
 shape `allOf: [$ref, inline object]`. It renders the parent with `Extend(...)`

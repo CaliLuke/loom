@@ -146,6 +146,9 @@ func (s *NameScope) GoTypeDefWithTargetPkg(att *expr.AttributeExpr, ptr, useDefa
 // in which case their own package is used. When targetPkg is empty, the
 // package qualification falls back to pkg and the user type location.
 func (s *NameScope) goTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
+	if t, _ := GetMetaType(att); IsExplicitPresenceType(att) && t != "" {
+		return t
+	}
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		return primitiveTypeDef(att, actual)
@@ -201,10 +204,10 @@ func (s *NameScope) objectTypeDefWithPkgOverride(att *expr.AttributeExpr, actual
 func (s *NameScope) objectFieldTypeDef(parent *expr.AttributeExpr, name string, at *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
 	fn := GoifyAtt(at, name, true)
 	tdef := s.goTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg)
-	if expr.IsObject(at.Type) ||
+	if !IsExplicitPresenceType(at) && (expr.IsObject(at.Type) ||
 		(expr.IsUnion(at.Type) && !parent.IsRequired(name)) ||
 		parent.IsPrimitivePointer(name, useDefault) ||
-		(ptr && expr.IsPrimitive(at.Type) && at.Type.Kind() != expr.AnyKind && at.Type.Kind() != expr.BytesKind) {
+		(ptr && expr.IsPrimitive(at.Type) && at.Type.Kind() != expr.AnyKind && at.Type.Kind() != expr.BytesKind)) {
 		tdef = "*" + tdef
 	}
 	desc := ""
@@ -306,6 +309,9 @@ func (s *NameScope) GoTypeNameWithDefaults(att *expr.AttributeExpr) string {
 // GoFullTypeName returns the Go type name of the given data type qualified with
 // the given package name if applicable and if not the empty string.
 func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
+	if t, _ := GetMetaType(att); IsExplicitPresenceType(att) && t != "" {
+		return t
+	}
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		if t, _ := GetMetaType(att); t != "" {
@@ -352,6 +358,17 @@ func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
 	default:
 		panic(NewError(nil, att, fmt.Errorf("unknown collection element data type %T", actual)))
 	}
+}
+
+// IsExplicitPresenceType reports whether att's explicit Go type implements
+// presence semantics and must not be wrapped in an additional pointer.
+func IsExplicitPresenceType(att *expr.AttributeExpr) bool {
+	if att == nil {
+		return false
+	}
+	value, ok := att.Meta.Last("openapi:nullable")
+	typeName, _ := GetMetaType(att)
+	return ok && value != "false" && typeName != ""
 }
 
 // pkgWithDefault returns the package defining the given type. If the types is a

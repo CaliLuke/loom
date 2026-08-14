@@ -12,6 +12,15 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 	if err != nil {
 		return err
 	}
+	if schema != nil && schema.Ref != "" && r.effectiveNullable(schema) {
+		refName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		named := r.schemas[refName]
+		expression, object, err = r.schemaExpression(named.Schema, path+"/resolved/"+escapeJSONPointer(refName))
+		if err != nil {
+			return err
+		}
+		metadata = append(metadata, renderedMetadata{name: "openapi:typename", value: named.Name})
+	}
 	if object {
 		r.open("Attribute(%q, func()", name)
 		if description != "" {
@@ -20,13 +29,17 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		for _, meta := range metadata {
 			r.line("Meta(%q, %q)", meta.name, meta.value)
 		}
+		if err := r.emitNullableGoType(schema, path); err != nil {
+			return err
+		}
+		r.emitNullableJSONTag(name, schema)
 		if err := r.schemaBlock(schema, path, false); err != nil {
 			return err
 		}
 		r.close()
 		return nil
 	}
-	if description != "" || len(metadata) > 0 || r.hasSchemaBlock(schema) {
+	if description != "" || len(metadata) > 0 || r.hasSchemaBlock(schema) || r.effectiveNullable(schema) {
 		r.open("Attribute(%q, %s, func()", name, expression)
 		if description != "" {
 			r.line("Description(%q)", description)
@@ -34,6 +47,10 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		for _, meta := range metadata {
 			r.line("Meta(%q, %q)", meta.name, meta.value)
 		}
+		if err := r.emitNullableGoType(schema, path); err != nil {
+			return err
+		}
+		r.emitNullableJSONTag(name, schema)
 		if err := r.validationBlock(schema, path); err != nil {
 			return err
 		}
@@ -295,6 +312,12 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 }
 
 func (r *renderer) validationBlock(schema *Schema, path string) error {
+	if err := r.emitExtensions("schema", schema.Extensions); err != nil {
+		return err
+	}
+	if schema.Nullable {
+		r.line("Meta(%q, %q)", "openapi:nullable", "true")
+	}
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		r.line("Meta(%q, %q)", "openapi:format", "")
 	}
@@ -395,7 +418,54 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		return true
 	}
-	return schema.Deprecated || schema.ReadOnly || schema.WriteOnly || schema.Default != nil || len(schema.Examples) > 0
+	return schema.Nullable || schema.Deprecated || schema.ReadOnly || schema.WriteOnly || schema.Default != nil || len(schema.Examples) > 0 ||
+		len(schema.Extensions) > 0
+}
+
+func (r *renderer) emitNullableGoType(schema *Schema, path string) error {
+	if !r.effectiveNullable(schema) {
+		return nil
+	}
+	if !schema.Nullable {
+		r.line("Meta(%q, %q)", "openapi:nullable", "true")
+	}
+	goType, _, err := r.schemaGoType(schema, path)
+	if err != nil {
+		return err
+	}
+	r.line(
+		"Meta(%q, %q, %q, %q)",
+		"struct:field:type",
+		"loom.Nullable["+goType+"]",
+		"github.com/CaliLuke/loom/pkg",
+		"loom",
+	)
+	return nil
+}
+
+func (r *renderer) schemaGoType(schema *Schema, path string) (string, bool, error) {
+	if schema == nil {
+		return "", false, fmt.Errorf("render OpenAPI design: %s schema is nil", path)
+	}
+	if schema.Ref != "" {
+		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		named, ok := r.schemas[name]
+		if name == schema.Ref || name == "" || !ok {
+			return "", false, fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
+		}
+		return r.schemaGoType(named.Schema, path+"/resolved/"+escapeJSONPointer(name))
+	}
+	if goType, ok := nullablePrimitiveGoType(schema); ok {
+		return goType, false, nil
+	}
+	switch schema.Type {
+	case "array":
+		return r.nullableArrayGoType(schema, path)
+	case "object":
+		return r.nullableObjectGoType(schema, path)
+	default:
+		return "", false, fmt.Errorf("render OpenAPI design: %s schema type %q has no nullable Go representation", path, schema.Type)
+	}
 }
 
 func (r *renderer) example(example Example, path string) error {

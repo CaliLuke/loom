@@ -11,11 +11,10 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	yaml4 "go.yaml.in/yaml/v4"
 	yaml3 "gopkg.in/yaml.v3"
 )
 
-// ErrUnsupportedVersion indicates that the input is not an OpenAPI 3.1 or 3.2
+// ErrUnsupportedVersion indicates that the input is not an OpenAPI 3.0, 3.1, or 3.2
 // document.
 var ErrUnsupportedVersion = errors.New("unsupported OpenAPI version")
 
@@ -48,7 +47,7 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 	}
 	version := parsed.GetVersion()
 	if !renderableVersion(version) {
-		return nil, nil, SelectionReport{}, fmt.Errorf("%w %q; expected 3.1.x or 3.2.x", ErrUnsupportedVersion, version)
+		return nil, nil, SelectionReport{}, fmt.Errorf("%w %q; expected 3.0.x, 3.1.x, or 3.2.x", ErrUnsupportedVersion, version)
 	}
 
 	diagnostics, err := externalReferenceDiagnostics(source)
@@ -81,7 +80,7 @@ type analyzer struct {
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
 
 func renderableVersion(version string) bool {
-	return strings.HasPrefix(version, "3.1.") || strings.HasPrefix(version, "3.2.")
+	return strings.HasPrefix(version, "3.0.") || strings.HasPrefix(version, "3.1.") || strings.HasPrefix(version, "3.2.")
 }
 
 func externalReferenceDiagnostics(source []byte) (Diagnostics, error) {
@@ -131,7 +130,7 @@ func (a *analyzer) document(source *v3.Document) *Document {
 		if source.Info.Summary != "" || source.Info.TermsOfService != "" || source.Info.Contact != nil || source.Info.License != nil {
 			a.unsupported("info-metadata", "#/info", "summary, terms, contact, and license metadata are not in the strict import subset")
 		}
-		a.extensions("#/info", source.Info.Extensions)
+		a.unsupportedExtensions("#/info", source.Info.Extensions)
 	}
 	if len(source.Servers) > 0 {
 		a.unsupported("servers", "#/servers", "server definitions are not in the strict import subset")
@@ -157,7 +156,7 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	if orderedmap.Len(source.Webhooks) > 0 {
 		a.unsupported("webhooks", "#/webhooks", "webhooks are not in the strict import subset")
 	}
-	a.extensions("#", source.Extensions)
+	document.Extensions = a.extensions("#", source.Extensions)
 	document.Components = a.components(source.Components)
 	document.Operations = a.operations(source.Paths, document.Components, document.Tags)
 	assignOperationNames(document.Operations)
@@ -207,7 +206,7 @@ func (a *analyzer) components(source *v3.Components) Components {
 		orderedmap.Len(source.PathItems) > 0 || orderedmap.Len(source.MediaTypes) > 0 {
 		a.unsupported("component-kind", "#/components", "examples, links, callbacks, path items, and media types are not in the strict import subset")
 	}
-	a.extensions("#/components", source.Extensions)
+	a.unsupportedExtensions("#/components", source.Extensions)
 	return result
 }
 
@@ -216,6 +215,7 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 		Method: method, Path: path, OperationID: source.OperationId, Summary: source.Summary,
 		Description: source.Description, Tags: append([]string(nil), source.Tags...),
 		Deprecated: source.Deprecated != nil && *source.Deprecated,
+		Extensions: a.extensions(pointer, source.Extensions),
 	}
 	operation.Parameters = a.mergeParameters(inherited, source.Parameters, inheritedPath, pointer+"/parameters", components)
 	if source.RequestBody != nil {
@@ -235,7 +235,7 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 		if source.Responses.Default != nil {
 			a.unsupported("default-response", pointer+"/responses/default", "default responses are not in the strict import subset")
 		}
-		a.extensions(pointer+"/responses", source.Responses.Extensions)
+		a.unsupportedExtensions(pointer+"/responses", source.Responses.Extensions)
 	}
 	if orderedmap.Len(source.Callbacks) > 0 {
 		a.unsupported("callbacks", pointer+"/callbacks", "callbacks are not in the strict import subset")
@@ -249,7 +249,6 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 	if source.ExternalDocs != nil {
 		a.unsupported("external-docs", pointer+"/externalDocs", "external documentation is not in the strict import subset")
 	}
-	a.extensions(pointer, source.Extensions)
 	return operation
 }
 
@@ -319,7 +318,8 @@ func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 	parameter := Parameter{
 		Name: source.Name, In: source.In, Description: source.Description,
 		Required: source.Required != nil && *source.Required, Deprecated: source.Deprecated, AllowEmptyValue: source.AllowEmptyValue,
-		Schema: a.schema(source.Schema, path+"/schema"),
+		Schema:     a.schema(source.Schema, path+"/schema"),
+		Extensions: a.extensions(path, source.Extensions),
 	}
 	if source.In != "path" && source.In != "query" && source.In != "header" && source.In != "cookie" {
 		a.unsupported("parameter-location", path+"/in", fmt.Sprintf("parameter location %q is not supported", source.In))
@@ -336,7 +336,6 @@ func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 	if parameter.Deprecated {
 		a.unsupported("parameter-deprecated", path, "the HTTP DSL has no per-parameter deprecated marker; the flag is omitted from the rendered design")
 	}
-	a.extensions(path, source.Extensions)
 	return parameter
 }
 
@@ -354,8 +353,8 @@ func (a *analyzer) requestBody(source *v3.RequestBody, path string) RequestBody 
 	body := RequestBody{
 		Description: source.Description, Required: source.Required != nil && *source.Required,
 		ContentType: contentType, Schema: schema, Examples: examples,
+		Extensions: a.extensions(path, source.Extensions),
 	}
-	a.extensions(path, source.Extensions)
 	return body
 }
 
@@ -370,7 +369,13 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 		return Response{Ref: low.GetReference()}
 	}
 	contentType, schema, examples := a.content(source.Content, path+"/content")
-	response := Response{Description: source.Description, ContentType: contentType, Schema: schema, Examples: examples}
+	response := Response{
+		Description: source.Description,
+		ContentType: contentType,
+		Schema:      schema,
+		Examples:    examples,
+		Extensions:  a.extensions(path, source.Extensions),
+	}
 	for name, header := range source.Headers.FromOldest() {
 		response.Headers = append(response.Headers, NamedHeader{
 			Name: name, Header: a.header(header, path+"/headers/"+escapeJSONPointer(name)),
@@ -383,7 +388,6 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 	if source.Summary != "" {
 		a.unsupported("response-summary", path+"/summary", "response summaries are not in the strict import subset")
 	}
-	a.extensions(path, source.Extensions)
 	return response
 }
 
@@ -413,7 +417,7 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 	if header.Deprecated {
 		a.unsupported("header-deprecated", path, "the HTTP DSL has no per-header deprecated marker; the flag is omitted from the rendered design")
 	}
-	a.extensions(path, source.Extensions)
+	a.unsupportedExtensions(path, source.Extensions)
 	return header
 }
 
@@ -438,7 +442,7 @@ func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path 
 		}
 		schema := a.schema(media.Schema, mediaPath+"/schema")
 		examples := a.mediaExamples(media, schema, mediaPath)
-		a.extensions(mediaPath, media.Extensions)
+		a.unsupportedExtensions(mediaPath, media.Extensions)
 		return contentType, schema, examples
 	}
 	return "", nil, nil
@@ -462,6 +466,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		return &Schema{}
 	}
 	schema := newNormalizedSchema(source)
+	supportedNullableComposition := a.schemaNullableAnyOf(schema, source, path)
 	supportedAllOf := a.schemaAllOf(schema, source, path)
 	a.schemaTypeAndProperties(schema, source, path)
 	a.schemaCollections(schema, source, path)
@@ -470,8 +475,8 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	a.schemaDefault(schema, source, path)
 	a.schemaExamples(schema, source, path)
 	a.schemaFormat(schema, path)
-	a.schemaUnsupportedKeywords(schema, source, path, supportedAllOf)
-	a.extensions(path, source.Extensions)
+	a.schemaUnsupportedKeywords(schema, source, path, supportedAllOf, supportedNullableComposition)
+	schema.Extensions = a.extensions(path, source.Extensions)
 	return schema
 }
 
@@ -490,9 +495,21 @@ func newNormalizedSchema(source *base.Schema) *Schema {
 
 func (a *analyzer) schemaTypeAndProperties(schema *Schema, source *base.Schema, path string) {
 	if len(source.Type) == 1 {
-		schema.Type = source.Type[0]
+		if source.Type[0] == "null" {
+			a.unsupported("schema-type", path+"/type", "a null-only schema is not in the strict import subset")
+		} else {
+			schema.Type = source.Type[0]
+		}
 	} else if len(source.Type) > 1 {
-		a.unsupported("schema-type-union", path+"/type", "multiple JSON Schema types are not in the strict import subset")
+		if nullableType, ok := nullableUnionType(source.Type); ok {
+			schema.Type = nullableType
+			schema.Nullable = true
+		} else {
+			a.unsupported("schema-type-union", path+"/type", "only a two-member union containing one concrete type and null is supported")
+		}
+	}
+	if source.Nullable != nil && *source.Nullable {
+		schema.Nullable = true
 	}
 	if schema.Type == "" && orderedmap.Len(source.Properties) > 0 {
 		schema.Type = "object"
@@ -646,8 +663,15 @@ func (a *analyzer) schemaFormat(schema *Schema, path string) {
 	}
 }
 
-func (a *analyzer) schemaUnsupportedKeywords(schema *Schema, source *base.Schema, path string, supportedAllOf bool) {
-	if len(source.AllOf) > 0 && !supportedAllOf || len(source.OneOf) > 0 || len(source.AnyOf) > 0 || source.Not != nil {
+func (a *analyzer) schemaUnsupportedKeywords(
+	schema *Schema,
+	source *base.Schema,
+	path string,
+	supportedAllOf bool,
+	supportedNullableComposition bool,
+) {
+	if len(source.AllOf) > 0 && !supportedAllOf || len(source.OneOf) > 0 ||
+		len(source.AnyOf) > 0 && !supportedNullableComposition || source.Not != nil {
 		schema.unsupportedComposition = true
 	}
 	if len(source.PrefixItems) > 0 || source.Contains != nil || source.If != nil || source.Then != nil || source.Else != nil ||
@@ -656,7 +680,7 @@ func (a *analyzer) schemaUnsupportedKeywords(schema *Schema, source *base.Schema
 		a.unsupported("advanced-schema", path, "advanced JSON Schema applicators are not in the strict import subset")
 	}
 	if source.MultipleOf != nil || source.UniqueItems != nil || source.MaxProperties != nil || source.MinProperties != nil ||
-		source.Const != nil || source.Nullable != nil ||
+		source.Const != nil ||
 		source.ContentEncoding != "" || source.ContentMediaType != "" || source.XML != nil || source.ExternalDocs != nil {
 		a.unsupported("schema-keyword", path, "one or more schema keywords are not in the strict import subset")
 	}
@@ -664,12 +688,6 @@ func (a *analyzer) schemaUnsupportedKeywords(schema *Schema, source *base.Schema
 		source.Id != "" || source.Comment != "" || source.ContentSchema != nil || orderedmap.Len(source.Defs) > 0 ||
 		orderedmap.Len(source.Vocabulary) > 0 || source.UnevaluatedItems != nil {
 		a.unsupported("schema-resource", path, "JSON Schema resource and dialect keywords are not in the strict import subset")
-	}
-}
-
-func (a *analyzer) extensions(path string, extensions *orderedmap.Map[string, *yaml4.Node]) {
-	if orderedmap.Len(extensions) > 0 {
-		a.unsupported("vendor-extension", path, "vendor extensions are not in the strict import subset")
 	}
 }
 

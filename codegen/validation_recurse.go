@@ -173,6 +173,9 @@ func prefixedValidation(val string) string {
 }
 
 func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.UserType, target, context string, req, view bool, seen map[string]*bytes.Buffer) string {
+	if isNullableAttribute(att) {
+		return validateNullableAttribute(ctx, att, put, target, context, req, view, seen)
+	}
 	ut, isUT := att.Type.(expr.UserType)
 	if !isUT {
 		code := recurseValidationCode(att, put, ctx, req, false, view, target, context, seen).String()
@@ -224,4 +227,57 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	// cause mismatches between function declarations and call sites.
 	fmt.Fprint(&buf, renderUserValidation(name, target))
 	return "if " + target + " != nil {\n\t" + buf.String() + "\n}"
+}
+
+func isNullableAttribute(att *expr.AttributeExpr) bool {
+	if att == nil {
+		return false
+	}
+	value, ok := att.Meta.Last("openapi:nullable")
+	if ok && value != "false" {
+		return true
+	}
+	metaType, _ := GetMetaType(att)
+	return strings.HasPrefix(metaType, "loom.Nullable[")
+}
+
+func validateNullableAttribute(
+	ctx *AttributeContext,
+	att *expr.AttributeExpr,
+	put expr.UserType,
+	target string,
+	context string,
+	required bool,
+	view bool,
+	seen map[string]*bytes.Buffer,
+) string {
+	underlying := *att
+	underlying.Meta = make(expr.MetaExpr, len(att.Meta))
+	for name, values := range att.Meta {
+		if name == "openapi:nullable" || name == "struct:field:type" {
+			continue
+		}
+		underlying.Meta[name] = append([]string(nil), values...)
+	}
+
+	valueCtx := ctx.Dup()
+	valueCtx.Pointer = false
+	validation := recurseValidationCode(&underlying, put, valueCtx, true, false, view, "actual", context, seen).String()
+	var lines []string
+	if required {
+		field, parent := nullableValidationContext(context)
+		lines = append(lines, "if !"+target+".Present() {\n\terr = loom.MergeErrors(err, loom.MissingFieldError("+quoteString(field)+", "+quoteString(parent)+"))\n}")
+	}
+	if validation != "" {
+		lines = append(lines, "if actual, ok := "+target+".Value(); ok {\n"+indentCode(validation)+"}")
+	}
+	return strings.Join(lines, "\n")
+}
+
+func nullableValidationContext(context string) (field, parent string) {
+	index := strings.LastIndex(context, ".")
+	if index < 0 {
+		return context, "body"
+	}
+	return context[index+1:], context[:index]
 }

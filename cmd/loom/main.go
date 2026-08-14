@@ -185,10 +185,10 @@ func runOpenAPIStrictImport(arguments openAPIImportArgs) int {
 
 func partialImportExitCode(analysis *openapiimport.PartialAnalysis) int {
 	if analysis == nil || analysis.Document == nil || len(analysis.Document.Operations) == 0 {
-		return 1
+		return 2
 	}
 	if len(analysis.Document.Operations) < analysis.TotalOperations {
-		return 2
+		return 3
 	}
 	return 0
 }

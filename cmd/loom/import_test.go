@@ -260,14 +260,14 @@ paths:
 			name:       "report is a dry run",
 			source:     partialSource,
 			flag:       "--report",
-			wantExit:   2,
+			wantExit:   3,
 			wantStdout: []string{"importable: 1/2 operations", "blocked:", "callbacks\t1", "POST /bad"},
 		},
 		{
 			name:            "partial output",
 			source:          partialSource,
 			flag:            "--skip-unrenderable",
-			wantExit:        2,
+			wantExit:        3,
 			wantOutput:      true,
 			wantStdout:      []string{"design.go"},
 			wantStderr:      []string{"importable: 1/2 operations", "POST /bad"},
@@ -277,7 +277,7 @@ paths:
 			name:       "nothing importable",
 			source:     blockedSource,
 			flag:       "--skip-unrenderable",
-			wantExit:   1,
+			wantExit:   2,
 			wantStderr: []string{"importable: 0/1 operations", "POST /bad"},
 		},
 	}
@@ -441,7 +441,7 @@ components:
 			wantError: "OpenAPI import cannot preserve the input contract",
 		},
 		"unsupported OpenAPI version": {
-			source: `openapi: 3.0.3
+			source: `openapi: 3.3.0
 info:
   title: Old Contract
   version: 1.0.0

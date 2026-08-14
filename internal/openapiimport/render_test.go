@@ -153,6 +153,163 @@ components:
 	}
 }
 
+func requireRenderedDesignGenerates(t *testing.T, source []byte) {
+	t.Helper()
+	moduleDir := t.TempDir()
+	repoRoot := repositoryRoot(t)
+	goMod := "module example.com/imported\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\n" +
+		"replace github.com/CaliLuke/loom => " + repoRoot + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(goMod), 0o600))
+	designDir := filepath.Join(moduleDir, "design")
+	require.NoError(t, os.MkdirAll(designDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(designDir, "design.go"), source, 0o600))
+
+	loomBin := filepath.Join(moduleDir, "loom")
+	build := exec.Command("go", "build", "-o", loomBin, "./cmd/loom")
+	build.Dir = repoRoot
+	output, err := build.CombinedOutput()
+	require.NoError(t, err, string(output))
+
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = moduleDir
+	output, err = tidy.CombinedOutput()
+	require.NoError(t, err, string(output))
+
+	generate := exec.Command(loomBin, "gen", "example.com/imported/design", "-o", ".")
+	generate.Dir = moduleDir
+	output, err = generate.CombinedOutput()
+	require.NoError(t, err, string(output))
+
+	test := exec.Command("go", "test", "-mod=mod", "./...")
+	test.Dir = moduleDir
+	output, err = test.CombinedOutput()
+	require.NoError(t, err, string(output))
+}
+
+func TestRenderPreservesVendorExtensionsAtSupportedScopes(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Extensions, version: "1"}
+x-document: {reviewed: true}
+paths:
+  /pets:
+    post:
+      operationId: createPet
+      x-operation: [one, two]
+      parameters:
+        - name: trace
+          in: header
+          required: false
+          x-parameter: 7
+          schema:
+            type: string
+            x-parameter-schema: {kind: trace}
+      requestBody:
+        required: true
+        x-request: request-value
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Pet'}
+      responses:
+        "201":
+          description: created
+          x-response: {state: created}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+components:
+  schemas:
+    Pet:
+      type: object
+      x-schema: {audience: public}
+      required: [name]
+      properties:
+        name: {type: string}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Equal(t, map[string]any{"reviewed": true}, document.Extensions["x-document"])
+	require.Equal(t, []any{"one", "two"}, document.Operations[0].Extensions["x-operation"])
+	require.Equal(t, float64(7), document.Operations[0].Parameters[0].Extensions["x-parameter"])
+	require.Equal(t, "request-value", document.Operations[0].RequestBody.Extensions["x-request"])
+	require.Equal(t, map[string]any{"state": "created"}, document.Operations[0].Responses[0].Response.Extensions["x-response"])
+	require.Equal(t, map[string]any{"audience": "public"}, document.Components.Schemas[0].Schema.Extensions["x-schema"])
+
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	requireRenderedDesignEvaluates(t, rendered, 1)
+	design := string(rendered)
+	for _, expected := range []string{
+		`Meta("openapi:extension:x-document", "{\"reviewed\":true}")`,
+		`Meta("openapi:extension:x-operation", "[\"one\",\"two\"]")`,
+		`Meta("openapi:parameter:extension:x-parameter", "7")`,
+		`Meta("openapi:schema:extension:x-parameter-schema", "{\"kind\":\"trace\"}")`,
+		`Meta("openapi:requestBody:extension:x-request", "\"request-value\"")`,
+		`Meta("openapi:response:extension:x-response", "{\"state\":\"created\"}")`,
+		`Meta("openapi:schema:extension:x-schema", "{\"audience\":\"public\"}")`,
+	} {
+		require.Contains(t, design, expected)
+	}
+}
+
+func TestRenderPreservesNullableSchemas(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Nullable, version: "1"}
+paths:
+  /records:
+    post:
+      operationId: createRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Record'}
+      responses:
+        "200":
+          description: record
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Record'}
+components:
+  schemas:
+    Record:
+      type: object
+      required: [required_note, required_child]
+      properties:
+        required_note: {type: [string, "null"]}
+        optional_count: {type: [integer, "null"]}
+        required_child:
+          type: [object, "null"]
+          properties:
+            name: {type: string}
+        optional_tags:
+          type: [array, "null"]
+          items: {type: string}
+        optional_label: {$ref: '#/components/schemas/NullableLabel'}
+    NullableLabel:
+      type: [string, "null"]
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	requireRenderedDesignEvaluates(t, rendered, 1)
+	requireRenderedDesignGenerates(t, rendered)
+	design := string(rendered)
+	for _, expected := range []string{
+		`Meta("openapi:nullable", "true")`,
+		`"loom.Nullable[string]"`,
+		`"loom.Nullable[int]"`,
+		`"loom.Nullable[[]string]"`,
+		`"loom.Nullable[struct { Name *string`,
+	} {
+		require.Contains(t, design, expected)
+	}
+}
+
 func requireRenderedDesignEvaluates(t *testing.T, source []byte, wantMethods int) {
 	t.Helper()
 	moduleDir := t.TempDir()
@@ -454,7 +611,7 @@ func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 		want string
 	}{
 		{name: "invalid package", edit: func(*Document) {}, want: `package name "bad-name" is not a Go identifier`},
-		{name: "OpenAPI 3.0 target", edit: func(d *Document) { d.OpenAPIVersion = "3.0.3" }, want: "only OpenAPI 3.1 and 3.2 documents are renderable"},
+		{name: "OpenAPI 2.0 target", edit: func(d *Document) { d.OpenAPIVersion = "2.0" }, want: "only OpenAPI 3.0, 3.1, and 3.2 documents are renderable"},
 		{name: "no success response", edit: func(d *Document) { d.Operations[0].Responses[0].Status = "404" }, want: "must define exactly one 2xx response"},
 		{name: "multiple success responses", edit: func(d *Document) {
 			d.Operations[0].Responses = append(d.Operations[0].Responses, StatusResponse{Status: "201"})

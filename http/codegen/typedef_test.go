@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -96,6 +97,22 @@ func TestGoTypeDef(t *testing.T) {
 			assert.Equal(t, c.Def, def)
 		})
 	}
+}
+
+func TestGoTypeDefUsesExplicitTypeForStructuredFields(t *testing.T) {
+	scope := codegen.NewNameScope()
+	field := &expr.AttributeExpr{
+		Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+		Meta: expr.MetaExpr{
+			"openapi:nullable":  []string{"true"},
+			"struct:field:type": []string{"loom.Nullable[[]string]"},
+		},
+	}
+	parent := &expr.AttributeExpr{Type: &expr.Object{{Name: "values", Attribute: field}}}
+
+	got := goTypeDef(scope, parent, true, false)
+	require.Contains(t, got, "Values loom.Nullable[[]string]")
+	require.NotContains(t, got, "*loom.Nullable")
 }
 
 var (

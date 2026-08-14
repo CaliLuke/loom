@@ -240,13 +240,23 @@ func writePartialReport(writer io.Writer, analysis *openapiimport.PartialAnalysi
 	if err := writeDiagnosticGroups(writer, "skipped (document level)", analysis.Omitted); err != nil {
 		return err
 	}
+	if err := writeOperationDiagnostics(writer, "skipped (operation metadata)", analysis.OperationOmissions); err != nil {
+		return err
+	}
 	if len(analysis.Skipped) == 0 {
 		return nil
 	}
-	if _, err := fmt.Fprintln(writer, "skipped:"); err != nil {
+	return writeOperationDiagnostics(writer, "skipped", analysis.Skipped)
+}
+
+func writeOperationDiagnostics(writer io.Writer, label string, operations []openapiimport.SkippedOperation) error {
+	if len(operations) == 0 {
+		return nil
+	}
+	if _, err := fmt.Fprintf(writer, "%s:\n", label); err != nil {
 		return err
 	}
-	for _, operation := range analysis.Skipped {
+	for _, operation := range operations {
 		if _, err := fmt.Fprintf(writer, "  %s %s\n", operation.Method, operation.Path); err != nil {
 			return err
 		}

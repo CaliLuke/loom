@@ -154,9 +154,6 @@ components:
 
 func TestAnalyzeRejectsUnsupportedVersions(t *testing.T) {
 	tests := map[string]string{
-		"OpenAPI 3.0": `openapi: 3.0.3
-info: {title: Old, version: "1"}
-paths: {}`,
 		"swagger": `swagger: "2.0"
 info: {title: Old, version: "1"}
 paths: {}`,
@@ -173,6 +170,105 @@ paths: {}`,
 			require.Empty(t, diagnostics)
 		})
 	}
+}
+
+func TestAnalyzeSupportsOpenAPI30(t *testing.T) {
+	for _, version := range []string{"3.0.0", "3.0.3"} {
+		t.Run(version, func(t *testing.T) {
+			source := []byte(`openapi: ` + version + `
+info: {title: Compatible, version: "1"}
+paths:
+  /items:
+    post:
+      operationId: createItem
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Item'}
+      responses:
+        "200":
+          description: item
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Item'}
+components:
+  schemas:
+    Item:
+      type: object
+      required: [note]
+      properties:
+        note: {type: string, nullable: true}
+`)
+			document, diagnostics, err := Analyze(source)
+			require.NoError(t, err)
+			require.Empty(t, diagnostics)
+			require.Equal(t, version, document.OpenAPIVersion)
+			require.True(t, document.Components.Schemas[0].Schema.Properties[0].Schema.Nullable)
+		})
+	}
+}
+
+func TestAnalyzeSupportsNullableTypeUnions(t *testing.T) {
+	tests := []struct {
+		name       string
+		schemaType string
+		format     string
+	}{
+		{name: "string", schemaType: "string"},
+		{name: "uuid", schemaType: "string", format: "uuid"},
+		{name: "date-time", schemaType: "string", format: "date-time"},
+		{name: "integer", schemaType: "integer"},
+		{name: "number", schemaType: "number"},
+		{name: "boolean", schemaType: "boolean"},
+		{name: "array", schemaType: "array"},
+		{name: "object", schemaType: "object"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			format := ""
+			if test.format != "" {
+				format = "\n          format: " + test.format
+			}
+			detail := ""
+			switch test.schemaType {
+			case "array":
+				detail = "\n          items: {type: string}"
+			case "object":
+				detail = "\n          properties: {name: {type: string}}"
+			}
+			source := []byte(`openapi: 3.1.1
+info: {title: Nullable, version: "1"}
+paths: {}
+components:
+  schemas:
+    Record:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: [` + test.schemaType + `, "null"]` + format + detail + `
+`)
+			document, diagnostics, err := Analyze(source)
+			require.NoError(t, err)
+			require.Empty(t, diagnostics)
+			property := document.Components.Schemas[0].Schema.Properties[0].Schema
+			require.Equal(t, test.schemaType, property.Type)
+			require.True(t, property.Nullable)
+		})
+	}
+}
+
+func TestAnalyzeRejectsNonNullableTypeUnions(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Union, version: "1"}
+paths: {}
+components:
+  schemas:
+    Value: {type: [string, integer]}
+`)
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	requireDiagnosticCode(t, diagnostics, "schema-type-union")
 }
 
 func TestAnalyzeMergesPathParametersWithOperationOverrides(t *testing.T) {

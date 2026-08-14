@@ -16,6 +16,8 @@ type (
 		Warnings Diagnostics
 		// Omitted contains document-level constructs skipped by partial import.
 		Omitted Diagnostics
+		// OperationOmissions contains metadata omitted from retained operations.
+		OperationOmissions []SkippedOperation
 		// Skipped contains operations that cannot be rendered and their diagnostics.
 		Skipped []SkippedOperation
 		// TotalOperations is the number of operations before partial analysis.
@@ -55,6 +57,14 @@ func AnalyzePartial(source []byte, selection Selection, allowLossy bool) (*Parti
 		candidate := documentForOperations(document, []Operation{operation})
 		closure := pruneComponents(candidate)
 		diagnostics := filterOperationDiagnostics(rawDiagnostics, operation, closure)
+		diagnostics, omitted := splitOperationOmissions(diagnostics, operation)
+		if len(omitted) > 0 {
+			analysis.OperationOmissions = append(analysis.OperationOmissions, SkippedOperation{
+				Method:      operation.Method,
+				Path:        operation.Path,
+				Diagnostics: omitted,
+			})
+		}
 		diagnostics = append(diagnostics, planDocument(candidate).diagnostics...)
 		fatal, warnings := diagnostics.sorted().Classify(allowLossy)
 		if len(fatal) > 0 {
@@ -78,6 +88,18 @@ func AnalyzePartial(source []byte, selection Selection, allowLossy bool) (*Parti
 		return nil, report, fmt.Errorf("plan partial OpenAPI import:\n%s", diagnostics.Error())
 	}
 	return analysis, report, nil
+}
+
+func splitOperationOmissions(diagnostics Diagnostics, operation Operation) (retained, omitted Diagnostics) {
+	methodBase := "#/paths/" + escapeJSONPointer(operation.Path) + "/" + strings.ToLower(operation.Method)
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Code == "security" && diagnostic.Path == methodBase+"/security" {
+			omitted = append(omitted, diagnostic)
+			continue
+		}
+		retained = append(retained, diagnostic)
+	}
+	return retained.sorted(), uniqueDiagnostics(omitted)
 }
 
 func splitDocumentOmissions(diagnostics Diagnostics) (retained, omitted Diagnostics) {

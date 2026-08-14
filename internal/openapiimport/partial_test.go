@@ -127,7 +127,7 @@ components:
 	}
 }
 
-func TestAnalyzePartialStillBlocksOperationLevelSecurity(t *testing.T) {
+func TestAnalyzePartialOmitsOperationLevelSecurity(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Partial, version: "1"}
 security: [{apiKey: []}]
@@ -148,9 +148,10 @@ components:
 
 	analysis, _, err := AnalyzePartial(source, Selection{}, false)
 	require.NoError(t, err)
-	require.Len(t, analysis.Document.Operations, 1)
-	require.Equal(t, "/public", analysis.Document.Operations[0].Path)
-	require.Len(t, analysis.Skipped, 1)
-	require.Equal(t, "/private", analysis.Skipped[0].Path)
-	requireDiagnosticCode(t, analysis.Skipped[0].Diagnostics, "security")
+	require.Len(t, analysis.Document.Operations, 2)
+	require.Empty(t, analysis.Skipped)
+	require.Empty(t, analysis.Blocked)
+	require.Len(t, analysis.OperationOmissions, 1)
+	require.Equal(t, "/private", analysis.OperationOmissions[0].Path)
+	requireDiagnosticCode(t, analysis.OperationOmissions[0].Diagnostics, "security")
 }

@@ -34,7 +34,7 @@ func planDocument(document *Document) documentPlan {
 	}
 	planner.index()
 	if !renderableVersion(document.OpenAPIVersion) {
-		planner.unsupported("openapi-version", "#", "only OpenAPI 3.1 and 3.2 documents are renderable")
+		planner.unsupported("openapi-version", "#", "only OpenAPI 3.0, 3.1, and 3.2 documents are renderable")
 	}
 	for _, named := range document.Components.Schemas {
 		planner.schema(named.Schema, "#/components/schemas/"+escapeJSONPointer(named.Name))

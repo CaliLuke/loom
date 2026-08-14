@@ -296,6 +296,9 @@ func renderLengthValidation(data validationRenderData) string {
 
 func renderRequiredValidation(data validationRenderData) string {
 	field := data.AttributeCtx.Scope.Field(data.RequiredAttr, data.RequiredName, true)
+	if isNullableAttribute(data.RequiredAttr) {
+		return "if !" + data.Target + "." + field + ".Present() {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
+	}
 	if expr.IsUnion(data.RequiredAttr.Type) {
 		if _, ok := data.AttributeCtx.Scope.(*AttributeScope); ok {
 			return "if " + data.Target + "." + field + ".Kind() == \"\" {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"

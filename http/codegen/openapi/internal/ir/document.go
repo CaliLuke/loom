@@ -88,7 +88,10 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		Content: map[string]*MediaType{
 			contentType: buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects),
 		},
-		Extensions: openapi.ExtensionsFromExpr(bodyAttr.Meta),
+		Extensions: openapi.MergeExtensions(
+			openapi.ExtensionsFromExpr(bodyAttr.Meta),
+			openapi.ScopedExtensionsFromExpr(bodyAttr.Meta, "requestBody"),
+		),
 	}
 }
 
@@ -194,7 +197,10 @@ func buildResponse(resp *transportir.ResponseStatus, statusCode int, bodies map[
 		Headers:         headers,
 		Content:         content,
 		Links:           buildResponseLinks(resp.Links, currentService),
-		Extensions:      openapi.ExtensionsFromExpr(resp.Meta),
+		Extensions: openapi.MergeExtensions(
+			openapi.ExtensionsFromExpr(resp.Meta),
+			openapi.ScopedExtensionsFromExpr(resp.Meta, "response"),
+		),
 	}
 }
 

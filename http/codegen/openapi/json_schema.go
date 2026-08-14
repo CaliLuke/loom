@@ -508,20 +508,44 @@ func (s *Schema) Dup() *Schema {
 func buildAttributeSchema(api *expr.APIExpr, s *Schema, at *expr.AttributeExpr) *Schema {
 	s.Merge(TypeSchema(api, at.Type))
 	if s.Ref != "" {
-		// Ref is exclusive with other fields
+		s.Extensions = MergeExtensions(
+			ExtensionsFromExpr(at.Meta),
+			ScopedExtensionsFromExpr(at.Meta, "schema"),
+		)
+		applyNullableSchema(s, at.Meta)
 		return s
 	}
 	s.DefaultValue = ToStringMap(at.DefaultValue)
 	s.Description = at.Description
 	s.Example = expr.CanonicalizeExample(at, at.Example(api.ExampleGenerator))
-	s.Extensions = ExtensionsFromExpr(at.Meta)
+	s.Extensions = MergeExtensions(
+		ExtensionsFromExpr(at.Meta),
+		ScopedExtensionsFromExpr(at.Meta, "schema"),
+	)
 	applySchemaOpenAPIMetadata(s, at.Meta)
 	if ap := AdditionalPropertiesFromExpr(at.Meta); ap != nil {
 		s.AdditionalProperties = ap
 	}
 	initAttributeValidation(s, at)
+	applyNullableSchema(s, at.Meta)
 
 	return s
+}
+
+func applyNullableSchema(schema *Schema, meta expr.MetaExpr) {
+	value, ok := meta.Last("openapi:nullable")
+	if !ok || value == "false" || schema == nil || schema.Type == Null {
+		return
+	}
+	base := *schema
+	base.Extensions = nil
+	*schema = Schema{
+		AnyOf: []*Schema{
+			&base,
+			{Type: Null},
+		},
+		Extensions: schema.Extensions,
+	}
 }
 
 // initAttributeValidation initializes validation rules for an attribute.
