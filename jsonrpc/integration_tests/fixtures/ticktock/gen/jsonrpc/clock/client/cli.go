@@ -30,7 +30,9 @@ func BuildTickPayload(clockTickBody string) (*clock.TickPayload, error) {
 	}
 
 	return v, nil
-} // BuildTockPayload builds the payload for the clock Tock endpoint from CLI
+}
+
+// BuildTockPayload builds the payload for the clock Tock endpoint from CLI
 // flags.
 func BuildTockPayload(clockTockBody string) (*clock.TockPayload, error) {
 	var err error

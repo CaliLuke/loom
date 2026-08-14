@@ -59,6 +59,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 		var req jsonrpc.RawRequest
 		if err := s.decoder(r).Decode(&req); err != nil {
+			loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
 			// SSE is negotiated: stream the envelope decode error as a message event.
 			code, message, data := jsonrpcEnvelopeDecodeError(err)
 			response := jsonrpc.MakeErrorResponse(nil, code, message, data)

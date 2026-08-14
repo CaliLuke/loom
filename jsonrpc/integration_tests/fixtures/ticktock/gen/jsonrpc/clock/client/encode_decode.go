@@ -105,7 +105,9 @@ func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 		res := NewTickResultOK(&body)
 		return res, nil
 	}
-} // BuildTockRequest instantiates a HTTP request object with method and path set
+}
+
+// BuildTockRequest instantiates a HTTP request object with method and path set
 // to call the "clock" service "Tock" endpoint
 func (c *Client) BuildTockRequest(ctx context.Context, v any) (*http.Request, error) {
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: TockClockPath()}

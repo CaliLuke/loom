@@ -9,6 +9,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			Method:  "events/stream",
 		}
 	} else if err := s.decoder(r).Decode(&req); err != nil {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
 		stream := &jSONRPCSSEObjectServiceSSEStream{
 			decoder: s.decoder,
 			encoder: s.encoder,

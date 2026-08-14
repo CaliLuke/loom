@@ -70,7 +70,9 @@ func (c *Client) Initialize() loom.Endpoint {
 		}
 		return decodeResponse(resp)
 	}
-} // Tick returns an endpoint that makes JSON-RPC requests to the clock service
+}
+
+// Tick returns an endpoint that makes JSON-RPC requests to the clock service
 // Tick method.
 func (c *Client) Tick() loom.Endpoint {
 	var (

@@ -32,6 +32,7 @@ func jsonrpcSSEServerHandlerSection(data *httpcodegen.ServiceData) codegen.Secti
 					jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("r")).Dot("Decode").Call(jen.Op("&").Id("req")),
 					jen.Err().Op("!=").Nil(),
 				).BlockFunc(func(eg *jen.Group) {
+					eg.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonInvalidJSONRPCEnvelope"))
 					writeSSEErrorStreamInit(eg, streamName)
 					eg.List(jen.Id("code"), jen.Id("message"), jen.Id("data")).Op(":=").
 						Id("jsonrpcEnvelopeDecodeError").Call(jen.Err())

@@ -105,7 +105,9 @@ func DecodeInitializeResponse(decoder func(*http.Response) loomhttp.Decoder, res
 		res := NewInitializeResultOK(&body)
 		return res, nil
 	}
-} // BuildTickRequest instantiates a HTTP request object with method and path set
+}
+
+// BuildTickRequest instantiates a HTTP request object with method and path set
 // to call the "clock" service "Tick" endpoint
 func (c *Client) BuildTickRequest(ctx context.Context, v any) (*http.Request, error) {
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: TickClockPath()}

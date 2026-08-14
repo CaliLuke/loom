@@ -37,7 +37,9 @@ type jSONRPCWebSocketRuntimeServiceStream struct {
 	r *http.Request
 	// conn owns the websocket connection lifecycle.
 	conn *loomhttp.WebSocketStream
-} // streamStreamWrapper wraps the JSON-RPC stream to provide a method-specific interface.
+}
+
+// streamStreamWrapper wraps the JSON-RPC stream to provide a method-specific interface.
 type streamStreamWrapper struct {
 	stream    *jSONRPCWebSocketRuntimeServiceStream
 	requestID any
@@ -54,7 +56,9 @@ func (w *streamStreamWrapper) SendError(ctx context.Context, err error) error {
 }
 func (w *streamStreamWrapper) Close() error {
 	return w.stream.Close()
-} // SendStreamNotification sends a JSON-RPC notification for the Stream method.
+}
+
+// SendStreamNotification sends a JSON-RPC notification for the Stream method.
 func (s *jSONRPCWebSocketRuntimeServiceStream) SendStreamNotification(ctx context.Context, result *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult) error {
 	body := NewStreamResponseBody(result)
 	return s.conn.WriteJSON(ctx, jsonrpc.MakeNotification("Stream", body))
@@ -88,7 +92,9 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) send(id any, method string, resul
 func (s *jSONRPCWebSocketRuntimeServiceStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
 	return s.conn.WriteJSON(ctx, response)
-} // Recv reads JSON-RPC requests from the JSONRPCWebSocketRuntimeService service
+}
+
+// Recv reads JSON-RPC requests from the JSONRPCWebSocketRuntimeService service
 // stream.
 func (s *jSONRPCWebSocketRuntimeServiceStream) Recv(ctx context.Context) error {
 	var req jsonrpc.RawRequest
@@ -154,7 +160,9 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) processRequest(ctx context.Contex
 		}
 		return nil
 	}
-} // Close closes the JSONRPCWebSocketRuntimeService service websocket connection.
+}
+
+// Close closes the JSONRPCWebSocketRuntimeService service websocket connection.
 func (s *jSONRPCWebSocketRuntimeServiceStream) Close() error {
 	var err error
 	if s.conn == nil {
@@ -164,7 +172,9 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) Close() error {
 		return err
 	}
 	return s.conn.Close()
-} // jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.
+}
+
+// jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.
 func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
 	if err == nil {
 		return jsonrpc.InternalError

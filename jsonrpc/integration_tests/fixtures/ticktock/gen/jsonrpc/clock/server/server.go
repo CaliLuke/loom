@@ -85,6 +85,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			Method:  "events/stream",
 		}
 	} else if err := s.decoder(r).Decode(&req); err != nil {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
 		stream := &clockSSEStream{
 			decoder: s.decoder,
 			encoder: s.encoder,
@@ -182,7 +183,9 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-} // Mount configures the mux to serve the JSON-RPC clock service methods.
+}
+
+// Mount configures the mux to serve the JSON-RPC clock service methods.
 func Mount(mux loomhttp.Muxer, h *Server) {
 	// SSE only: mount SSE handler
 	mux.Handle("POST", "/rpc", h.ServeHTTP)
@@ -251,7 +254,9 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		}
 		return nil
 	}
-} // NewTockHandler creates a JSON-RPC handler which calls the "clock" service
+}
+
+// NewTockHandler creates a JSON-RPC handler which calls the "clock" service
 // "Tock" endpoint.
 func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeTockRequest(mux, decoder)
@@ -309,7 +314,9 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		}
 		return nil
 	}
-} // encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
+}
+
+// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
 func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any) {
 	encodeJSONRPCError(ctx, w, req, code, message, data, s.encoder, s.errhandler)
 }

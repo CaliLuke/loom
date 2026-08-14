@@ -36,7 +36,9 @@ const (
 )
 
 // StreamErrorHandler allows users to handle stream errors.
-type StreamErrorHandler func(ctx context.Context, errorType StreamErrorType, err error, response *jsonrpc.RawResponse) // StreamClientStream implements the Stream client stream with direct WebSocket
+type StreamErrorHandler func(ctx context.Context, errorType StreamErrorType, err error, response *jsonrpc.RawResponse)
+
+// StreamClientStream implements the Stream client stream with direct WebSocket
 // handling.
 type StreamClientStream struct {
 	ws          *loomhttp.WebSocketStream

@@ -20,6 +20,11 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 			BlockFunc(func(g *jen.Group) {
 				g.Switch(jen.Id("r").Dot("Method")).BlockFunc(func(sg *jen.Group) {
 					sg.Case(jen.Qual("net/http", "MethodGet")).BlockFunc(func(getg *jen.Group) {
+						if !hasEventsStreamSSEEndpoint(data) {
+							getg.Qual("net/http", "NotFound").Call(jen.Id("w"), jen.Id("r"))
+							getg.Return()
+							return
+						}
 						getg.Id("req").Op(":=").Add(codegen.Expr(`&jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}`))
 						getg.Switch(jen.Id("req").Dot("Method")).BlockFunc(func(dispatch *jen.Group) {
 							for _, endpoint := range data.Endpoints {
@@ -117,6 +122,7 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 							jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("r")).Dot("Decode").Call(jen.Op("&").Id("req")),
 							jen.Err().Op("!=").Nil(),
 						).Block(
+							loomtransportRef("RequestObserverFromContext").Call(jen.Id("r").Dot("Context").Call()).Dot("Fail").Call(loomtransportRef("ReasonInvalidJSONRPCEnvelope")),
 							jen.Comment("SSE is negotiated: stream the envelope decode error as a message event."),
 							jen.List(jen.Id("code"), jen.Id("message"), jen.Id("data")).Op(":=").
 								Id("jsonrpcEnvelopeDecodeError").Call(jen.Err()),
@@ -184,4 +190,18 @@ func jsonrpcMixedServerHandlerSection(data *httpcodegen.ServiceData) codegen.Sec
 			})
 		stmt.Line()
 	})
+}
+
+// hasEventsStreamSSEEndpoint reports whether the service declares an SSE
+// endpoint literally named "events/stream". The mixed server handler's GET
+// branch only needs to dispatch a synthetic "events/stream" request when such
+// an endpoint exists; otherwise GET requests always fall through to
+// http.NotFound.
+func hasEventsStreamSSEEndpoint(data *httpcodegen.ServiceData) bool {
+	for _, endpoint := range data.Endpoints {
+		if endpoint.SSE != nil && endpoint.Method.Name == "events/stream" {
+			return true
+		}
+	}
+	return false
 }

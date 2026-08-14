@@ -188,6 +188,18 @@ func TestJSONRPCMixedServerHandler(t *testing.T) {
 				"case \"tools/call\":\n\t\tcase \"events/stream\":",
 			},
 		},
+		{
+			Name:   "omits dead events/stream scaffolding without an events/stream endpoint",
+			DSL:    jsonrpcMixedNoEventsStreamDSL,
+			Golden: "jsonrpc-mixed-server-handler-no-events-stream.golden",
+			Contains: []string{
+				`case http.MethodGet:`,
+			},
+			NotContains: []string{
+				`Method: "events/stream"`,
+				`req := &jsonrpc.RawRequest{`,
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -230,6 +242,29 @@ func TestJSONRPCMixedHandlerStreamsEnvelopeDecodeErrorsOverSSE(t *testing.T) {
 	require.Contains(t, code, `writer := loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy)`)
 	require.Contains(t, code, `loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: "message"}, response)`)
 	require.NotContains(t, code, "s.encoder(r.Context(), w).Encode(response)")
+}
+
+// TestJSONRPCMixedHandlerObservesSSEEnvelopeDecodeFailures asserts that the
+// mixed dispatcher's SSE-negotiated decode-error branch records
+// ReasonInvalidJSONRPCEnvelope on the request observer, matching the
+// single/batch HTTP paths (jsonrpc-server-handler section), so envelope
+// failures are observable regardless of which transport was negotiated.
+func TestJSONRPCMixedHandlerObservesSSEEnvelopeDecodeFailures(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-mixed-server-handler")
+
+	require.Contains(t, code, `loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)`)
+}
+
+// TestJSONRPCSSEHandlerObservesEnvelopeDecodeFailures asserts that handleSSE's
+// envelope decode-error branch records ReasonInvalidJSONRPCEnvelope on the
+// request observer, matching the single/batch HTTP paths, so envelope
+// failures on SSE-only services are observable too.
+func TestJSONRPCSSEHandlerObservesEnvelopeDecodeFailures(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-sse-server-handler")
+
+	require.Contains(t, code, `loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)`)
 }
 
 func TestJSONRPCSSEServiceStreamSendOmitsResponseBranchWithoutID(t *testing.T) {
@@ -427,6 +462,41 @@ var jsonrpcMixedMultipleSSEMethodsDSL = func() {
 			})
 		})
 		dsl.Method("events/stream", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.StreamingResult(func() {
+				dsl.Attribute("value", dsl.String)
+			})
+			dsl.JSONRPC(func() {
+				dsl.ServerSentEvents()
+			})
+		})
+	})
+}
+
+// jsonrpcMixedNoEventsStreamDSL is a mixed HTTP/SSE service (mirrors the
+// checked-in mixedtick fixture) whose only SSE method is not named
+// "events/stream". The mixed server handler's GET branch must not construct
+// a dead events/stream dispatch for services shaped like this one.
+var jsonrpcMixedNoEventsStreamDSL = func() {
+	dsl.API("jsonrpc-mixed-no-events-stream-test", func() {
+		dsl.JSONRPC(func() {})
+	})
+	dsl.Service("JSONRPCMixedNoEventsStreamService", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		dsl.Method("initialize", func() {
+			dsl.Payload(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.Result(func() {
+				dsl.ID("id", dsl.String, "Request ID")
+			})
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Method("Tick", func() {
 			dsl.Payload(func() {
 				dsl.ID("id", dsl.String, "Request ID")
 			})

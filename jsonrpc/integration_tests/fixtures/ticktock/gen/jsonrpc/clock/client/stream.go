@@ -271,7 +271,9 @@ func (s *TickClientStream) Close() error {
 		return body.Close()
 	}
 	return nil
-} // TockClientStream implements the clock.TockClientStream interface using
+}
+
+// TockClientStream implements the clock.TockClientStream interface using
 // Server-Sent Events.
 type TockClientStream struct {
 	resp     *http.Response

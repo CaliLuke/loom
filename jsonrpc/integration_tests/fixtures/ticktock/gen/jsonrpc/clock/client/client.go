@@ -91,7 +91,9 @@ func (c *Client) Tick() loom.Endpoint {
 		}
 		return stream, nil
 	}
-} // Tock returns an endpoint that makes JSON-RPC requests to the clock service
+}
+
+// Tock returns an endpoint that makes JSON-RPC requests to the clock service
 // Tock method.
 func (c *Client) Tock() loom.Endpoint {
 	var (

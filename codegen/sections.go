@@ -57,6 +57,15 @@ func (s *JenniferSection) SectionName() string {
 }
 
 // Write writes the rendered Jennifer section to the given writer.
+//
+// File.Render concatenates every section's Write output back-to-back with no
+// separator of its own, so a section's rendered text must always end with a
+// newline that terminates its final line. A Build callback that forgets a
+// trailing stmt.Line() would otherwise leave the last line unterminated,
+// gluing the next section's leading doc comment onto this section's closing
+// brace (e.g. "} // Mount configures..."). Write guards against that here,
+// at the shared renderer, instead of relying on every call site to remember
+// the trailing stmt.Line().
 func (s *JenniferSection) Write(w io.Writer) error {
 	stmt := jen.Empty()
 	if s.Build != nil {
@@ -70,7 +79,11 @@ func (s *JenniferSection) Write(w io.Writer) error {
 	for i, line := range lines {
 		lines[i] = strings.TrimRight(strings.TrimPrefix(line, "\t"), " ")
 	}
-	_, err := io.WriteString(w, strings.Join(lines, "\n"))
+	content := strings.Join(lines, "\n")
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	_, err := io.WriteString(w, content)
 	return err
 }
 

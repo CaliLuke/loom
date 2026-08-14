@@ -82,12 +82,8 @@ func (s *Server) MethodNames() []string {
 func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		req := &jsonrpc.RawRequest{JSONRPC: "2.0", Method: "events/stream"}
-		switch req.Method {
-		default:
-			http.NotFound(w, r)
-			return
-		}
+		http.NotFound(w, r)
+		return
 	case http.MethodPost:
 		accept := r.Header.Get("Accept")
 		if !strings.Contains(accept, "text/event-stream") {
@@ -134,6 +130,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 		var req jsonrpc.RawRequest
 		if err := s.decoder(r).Decode(&req); err != nil {
+			loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
 			// SSE is negotiated: stream the envelope decode error as a message event.
 			code, message, data := jsonrpcEnvelopeDecodeError(err)
 			response := jsonrpc.MakeErrorResponse(nil, code, message, data)
@@ -405,7 +402,9 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 		}
 		return nil
 	}
-} // NewTickHandler creates a JSON-RPC handler which calls the "clock" service
+}
+
+// NewTickHandler creates a JSON-RPC handler which calls the "clock" service
 // "Tick" endpoint.
 func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeTickRequest(mux, decoder)
@@ -463,7 +462,9 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		}
 		return nil
 	}
-} // encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
+}
+
+// encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
 func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any) {
 	encodeJSONRPCError(ctx, w, req, code, message, data, s.encoder, s.errhandler)
 }
