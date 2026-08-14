@@ -458,6 +458,10 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 			if !openapi.MustGenerate(host.Meta) {
 				continue
 			}
+			description := host.Description
+			if description == "" {
+				description = svr.Description
+			}
 
 			var (
 				serverVariable   = make(map[string]*ServerVariable)
@@ -494,7 +498,7 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 					serverVariable[v.Name] = &ServerVariable{
 						Enum:        validationValues,
 						Default:     defaultValue,
-						Description: host.Variables.Description,
+						Description: v.Attribute.Description,
 					}
 				}
 			}
@@ -502,7 +506,7 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 			server = &Server{
 				Name:        svr.Name,
 				URL:         string(uExpr),
-				Description: svr.Description,
+				Description: description,
 				Variables:   serverVariable,
 			}
 			svrs = append(svrs, server)

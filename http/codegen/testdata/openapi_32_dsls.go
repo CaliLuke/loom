@@ -45,8 +45,13 @@ var OpenAPI32FeaturesDSL = func() {
 		Meta("openapi:tag:catalog:kind", "nav")
 		Meta("openapi:tag:books:parent", "catalog")
 		Server("production", func() {
+			Description("Hosts the production catalog endpoints.")
 			Host("primary", func() {
-				URI("https://api.example.com")
+				Description("Primary production environment.")
+				URI("https://{region}.api.example.com")
+				Variable("region", String, "Deployment region.", func() {
+					Default("us")
+				})
 			})
 		})
 	})
@@ -112,7 +117,9 @@ var OpenAPI32FeaturesDSL = func() {
 			})
 			HTTP(func() {
 				GET("/parameters")
-				Header("filter:X-Filter", String, func() {
+				Header("filter:X-Filter", String, "Catalog filter.", func() {
+					Default("all")
+					Example("all")
 					Meta("openapi:allowReserved", "true")
 				})
 				Cookie("preferences", String, func() {

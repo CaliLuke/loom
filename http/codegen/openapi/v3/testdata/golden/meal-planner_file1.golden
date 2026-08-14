@@ -198,7 +198,6 @@ paths:
                   required: true
                   schema:
                     type: string
-                    example: pantry_12
                   example: pantry_12
             requestBody:
                 required: true
@@ -282,21 +281,18 @@ paths:
                   allowEmptyValue: true
                   schema:
                     type: string
-                    example: vegetarian
                   example: vegetarian
                 - name: cursor
                   in: query
                   allowEmptyValue: true
                   schema:
                     type: string
-                    example: cursor_2
                   example: cursor_2
                 - name: limit
                   in: query
                   allowEmptyValue: true
                   schema:
                     type: integer
-                    example: 20
                     format: int64
                     minimum: 1
                     maximum: 100
@@ -338,7 +334,6 @@ paths:
                   required: true
                   schema:
                     type: string
-                    example: recipe_42
                     pattern: ^recipe_[0-9]+$
                   example: recipe_42
             responses:
@@ -819,7 +814,6 @@ components:
             required: true
             schema:
                 type: string
-                example: "2026-03-16"
                 format: date
             example: "2026-03-16"
     requestBodies:

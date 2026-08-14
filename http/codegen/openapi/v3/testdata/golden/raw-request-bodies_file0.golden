@@ -112,7 +112,6 @@
             "name": "id",
             "required": true,
             "schema": {
-              "example": "Sunt itaque inventore optio quia ullam aut.",
               "type": "string"
             }
           },
@@ -122,7 +121,6 @@
             "in": "query",
             "name": "filter",
             "schema": {
-              "example": "Harum et.",
               "type": "string"
             }
           },
@@ -132,7 +130,6 @@
             "name": "X-Checksum",
             "required": true,
             "schema": {
-              "example": "Quia velit assumenda fuga est sint.",
               "type": "string"
             }
           },
@@ -141,7 +138,6 @@
             "in": "cookie",
             "name": "upload_session",
             "schema": {
-              "example": "Consequuntur sint voluptate.",
               "type": "string"
             }
           }

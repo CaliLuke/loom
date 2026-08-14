@@ -7,7 +7,6 @@
         "name": "week_start",
         "required": true,
         "schema": {
-          "example": "2026-03-16",
           "format": "date",
           "type": "string"
         }
@@ -991,7 +990,6 @@
             "name": "pantry_id",
             "required": true,
             "schema": {
-              "example": "pantry_12",
               "type": "string"
             }
           }
@@ -1129,7 +1127,6 @@
             "in": "query",
             "name": "tag",
             "schema": {
-              "example": "vegetarian",
               "type": "string"
             }
           },
@@ -1139,7 +1136,6 @@
             "in": "query",
             "name": "cursor",
             "schema": {
-              "example": "cursor_2",
               "type": "string"
             }
           },
@@ -1149,7 +1145,6 @@
             "in": "query",
             "name": "limit",
             "schema": {
-              "example": 20,
               "format": "int64",
               "maximum": 100,
               "minimum": 1,
@@ -1216,7 +1211,6 @@
             "name": "recipe_id",
             "required": true,
             "schema": {
-              "example": "recipe_42",
               "pattern": "^recipe_[0-9]+$",
               "type": "string"
             }

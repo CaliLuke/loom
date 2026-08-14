@@ -53,8 +53,6 @@ components:
             required: true
             schema:
                 type: string
-                description: Widget identifier.
-                example: widget-123
             example: widget-123
         QueryLimit:
             name: limit
@@ -63,8 +61,6 @@ components:
             allowEmptyValue: true
             schema:
                 type: integer
-                description: Page size.
-                example: 25
                 format: int64
                 minimum: 1
             example: 25

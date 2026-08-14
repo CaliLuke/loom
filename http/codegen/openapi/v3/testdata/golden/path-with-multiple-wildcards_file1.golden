@@ -20,7 +20,6 @@ paths:
                   required: true
                   schema:
                     type: integer
-                    example: 9176544974339886224
                     format: int64
                   example: 1933576090881074823
                 - name: bar
@@ -28,7 +27,6 @@ paths:
                   required: true
                   schema:
                     type: integer
-                    example: 2166276375441812184
                     format: int64
                   example: 7595816812588075382
             responses:

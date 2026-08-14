@@ -16,7 +16,6 @@
             "name": "int_map",
             "required": true,
             "schema": {
-              "example": 9176544974339886000,
               "format": "int64",
               "type": "integer"
             }

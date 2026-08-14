@@ -9,6 +9,7 @@ servers:
       variables:
         version:
             default: v1
+            description: API Version
 paths:
     /:
         post:

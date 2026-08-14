@@ -89,6 +89,60 @@ func TestBuildInfo(t *testing.T) {
 	}
 }
 
+func TestBuildServersPreservesHostMetadata(t *testing.T) {
+	tests := []struct {
+		name              string
+		serverDescription string
+		hostDescription   string
+		wantDescription   string
+	}{
+		{
+			name:              "host description takes precedence",
+			serverDescription: "Hosts the device intelligence endpoints.",
+			hostDescription:   "Shared staging environment.",
+			wantDescription:   "Shared staging environment.",
+		},
+		{
+			name:              "server description is the fallback",
+			serverDescription: "Hosts the device intelligence endpoints.",
+			wantDescription:   "Hosts the device intelligence endpoints.",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			variables := expr.Object{
+				&expr.NamedAttributeExpr{
+					Name: "subdomain",
+					Attribute: &expr.AttributeExpr{
+						Type:         expr.String,
+						Description:  "Stage subdomain.",
+						DefaultValue: "saas-api.stage",
+					},
+				},
+			}
+			servers := buildServers([]*expr.ServerExpr{
+				{
+					Name:        "device-intelligence",
+					Description: test.serverDescription,
+					Hosts: []*expr.HostExpr{
+						{
+							Name:        "stage",
+							Description: test.hostDescription,
+							URIs:        []expr.URIExpr{"https://{subdomain}.incode.com"},
+							Variables:   &expr.AttributeExpr{Type: &variables},
+						},
+					},
+				},
+			})
+
+			require.Len(t, servers, 1)
+			require.Equal(t, test.wantDescription, servers[0].Description)
+			require.Equal(t, "Stage subdomain.", servers[0].Variables["subdomain"].Description)
+		})
+	}
+}
+
 func TestBuildPathsIncludesCORSExtension(t *testing.T) {
 	root := expr.RunDSL(t, testdata.ServerCORSPolicyDSL)
 	doc := New(root)

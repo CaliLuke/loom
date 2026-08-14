@@ -8,8 +8,6 @@
         "name": "widgetID",
         "required": true,
         "schema": {
-          "description": "Widget identifier.",
-          "example": "widget-123",
           "type": "string"
         }
       },
@@ -20,8 +18,6 @@
         "in": "query",
         "name": "limit",
         "schema": {
-          "description": "Page size.",
-          "example": 25,
           "format": "int64",
           "minimum": 1,
           "type": "integer"

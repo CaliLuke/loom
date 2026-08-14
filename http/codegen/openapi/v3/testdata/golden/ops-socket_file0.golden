@@ -21,7 +21,6 @@
             "name": "channel",
             "required": true,
             "schema": {
-              "example": "deployments",
               "type": "string"
             }
           }

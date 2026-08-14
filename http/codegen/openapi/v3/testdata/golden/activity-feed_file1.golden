@@ -24,7 +24,6 @@ paths:
                   allowEmptyValue: true
                   schema:
                     type: string
-                    example: cursor_2
                   example: cursor_2
             responses:
                 "200":
@@ -51,7 +50,6 @@ paths:
                   required: true
                   schema:
                     type: string
-                    example: act_4
                   example: act_4
             responses:
                 "200":
@@ -166,7 +164,6 @@ components:
             required: true
             schema:
                 type: string
-                example: proj_9
             example: proj_9
     responses:
         BadRequestError:

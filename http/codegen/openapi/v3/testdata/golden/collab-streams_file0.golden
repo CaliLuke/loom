@@ -7,7 +7,6 @@
         "name": "thread_id",
         "required": true,
         "schema": {
-          "example": "thr_42",
           "pattern": "^thr_[0-9]+$",
           "type": "string"
         }
@@ -232,7 +231,6 @@
             "in": "query",
             "name": "last_event_id",
             "schema": {
-              "example": "evt_7",
               "type": "string"
             }
           }

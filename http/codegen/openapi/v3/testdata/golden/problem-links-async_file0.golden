@@ -7,7 +7,6 @@
         "name": "thread_id",
         "required": true,
         "schema": {
-          "example": "thr_42",
           "type": "string"
         }
       }
@@ -372,7 +371,6 @@
             "in": "query",
             "name": "last_event_id",
             "schema": {
-              "example": "evt_7",
               "type": "string"
             }
           }
@@ -535,7 +533,6 @@
             "name": "channel",
             "required": true,
             "schema": {
-              "example": "deployments",
               "type": "string"
             }
           }

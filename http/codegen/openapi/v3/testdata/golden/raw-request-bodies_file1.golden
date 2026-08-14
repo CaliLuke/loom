@@ -59,27 +59,23 @@ paths:
                   required: true
                   schema:
                     type: string
-                    example: Sunt itaque inventore optio quia ullam aut.
                   example: Iste perspiciatis.
                 - name: filter
                   in: query
                   allowEmptyValue: true
                   schema:
                     type: string
-                    example: Harum et.
                   example: Neque nisi quibusdam nisi sint sunt.
                 - name: X-Checksum
                   in: header
                   required: true
                   schema:
                     type: string
-                    example: Quia velit assumenda fuga est sint.
                   example: Quo qui molestiae iure.
                 - name: upload_session
                   in: cookie
                   schema:
                     type: string
-                    example: Consequuntur sint voluptate.
                   example: Perspiciatis voluptatum laudantium eos aut.
             requestBody:
                 description: Binary archive streamed directly to the service.

@@ -65,7 +65,6 @@ components:
             required: true
             schema:
                 type: string
-                example: widget-123
             example: widget-123
     requestBodies:
         SearchFiltersRequest:

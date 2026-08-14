@@ -20,7 +20,6 @@ paths:
                   required: true
                   schema:
                     type: integer
-                    example: 9176544974339886224
                     format: int64
                   example: 1933576090881074823
             responses:

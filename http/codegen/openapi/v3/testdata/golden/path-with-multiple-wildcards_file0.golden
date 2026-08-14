@@ -16,7 +16,6 @@
             "name": "foo",
             "required": true,
             "schema": {
-              "example": 9176544974339886000,
               "format": "int64",
               "type": "integer"
             }
@@ -27,7 +26,6 @@
             "name": "bar",
             "required": true,
             "schema": {
-              "example": 2166276375441812200,
               "format": "int64",
               "type": "integer"
             }

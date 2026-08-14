@@ -151,6 +151,7 @@ func TestRendererSkipsOpenAPI32OnlySectionsFor31Target(t *testing.T) {
 			servers := requireSlice(t, spec["servers"], "servers")
 			server := requireMap(t, servers[0], "server")
 			require.Equal(t, test.wantServerName, server["name"] != nil)
+			assertOpenAPIMetadataPreserved(t, spec)
 			tags := requireSlice(t, spec["tags"], "tags")
 			var hierarchy bool
 			for _, rawTag := range tags {
@@ -171,6 +172,25 @@ func TestRendererSkipsOpenAPI32OnlySectionsFor31Target(t *testing.T) {
 			require.Equal(t, test.wantAdditionalOps, path["additionalOperations"] != nil)
 		})
 	}
+}
+
+func assertOpenAPIMetadataPreserved(t *testing.T, spec map[string]any) {
+	t.Helper()
+	servers := requireSlice(t, spec["servers"], "servers")
+	server := requireMap(t, servers[0], "server")
+	require.Equal(t, "Primary production environment.", server["description"])
+	variables := requireMap(t, server["variables"], "server variables")
+	region := requireMap(t, variables["region"], "region server variable")
+	require.Equal(t, "Deployment region.", region["description"])
+
+	operation := requireOperation(t, spec, "/parameters", "get")
+	parameters := requireSlice(t, operation["parameters"], "parameter operation parameters")
+	filter := findParameter(t, parameters, "header", "X-Filter")
+	require.Equal(t, "Catalog filter.", filter["description"])
+	require.Equal(t, "all", filter["example"])
+	schema := requireMap(t, filter["schema"], "filter parameter schema")
+	require.NotContains(t, schema, "description")
+	require.NotContains(t, schema, "example")
 }
 
 func assertOpenAPI31CompatibilityProjection(t *testing.T, spec map[string]any) {

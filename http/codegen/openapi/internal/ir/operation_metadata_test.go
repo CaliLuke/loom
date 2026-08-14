@@ -60,3 +60,21 @@ func TestParamForIgnoresOpenAPIAllowEmptyValueMetadataOutsideQuery(t *testing.T)
 
 	require.False(t, parameter.Value.AllowEmptyValue)
 }
+
+func TestParamForKeepsPresentationMetadataOffSchema(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type:         expr.String,
+		Description:  "API version of the request.",
+		DefaultValue: "1.0",
+		UserExamples: []*expr.ExampleExpr{
+			{Value: "1.0"},
+		},
+	}
+
+	parameter := paramFor(attribute, "api-version", "header", false, expr.NewRandom("operation-metadata-test"), false)
+
+	require.Equal(t, "API version of the request.", parameter.Value.Description)
+	require.Equal(t, "1.0", parameter.Value.Example)
+	require.Empty(t, parameter.Value.Schema.Description)
+	require.Nil(t, parameter.Value.Schema.Example)
+}

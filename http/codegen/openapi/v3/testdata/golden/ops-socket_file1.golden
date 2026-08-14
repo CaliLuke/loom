@@ -20,7 +20,6 @@ paths:
                   name: channel
                   required: true
                   schema:
-                    example: deployments
                     type: string
             responses:
                 "101":

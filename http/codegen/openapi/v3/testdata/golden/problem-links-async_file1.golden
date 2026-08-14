@@ -85,7 +85,6 @@ paths:
                   in: query
                   name: last_event_id
                   schema:
-                    example: evt_7
                     type: string
             responses:
                 "200":
@@ -197,7 +196,6 @@ paths:
                   name: channel
                   required: true
                   schema:
-                    example: deployments
                     type: string
             responses:
                 "101":
@@ -391,7 +389,6 @@ components:
             required: true
             schema:
                 type: string
-                example: thr_42
             example: thr_42
     responses:
         ConflictError:

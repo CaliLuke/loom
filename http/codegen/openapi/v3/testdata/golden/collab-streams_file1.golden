@@ -49,7 +49,6 @@ paths:
                   in: query
                   name: last_event_id
                   schema:
-                    example: evt_7
                     type: string
             responses:
                 "200":
@@ -255,7 +254,6 @@ components:
             required: true
             schema:
                 type: string
-                example: thr_42
                 pattern: ^thr_[0-9]+$
             example: thr_42
 tags:

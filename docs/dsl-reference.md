@@ -547,6 +547,7 @@ var _ = API("bookstore", func() {
         Description("Production server")
         
         Host("production", func() {
+            Description("Production API endpoint")
             URI("https://{version}.api.example.com")
             URI("grpcs://{version}.grpc.example.com")
             
@@ -565,6 +566,10 @@ var _ = API("bookstore", func() {
     })
 })
 ```
+
+Each OpenAPI Server Object uses the description of its `Host`. If the host has no description, Loom uses the enclosing `Server` description.
+
+Each `Variable` description becomes the description of the matching OpenAPI Server Variable Object.
 
 ### API-Level Errors
 

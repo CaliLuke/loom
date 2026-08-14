@@ -152,6 +152,9 @@ func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *ex
 	if value, ok := attr.Meta.Last("openapi:allowEmptyValue"); ok && in == "query" {
 		allowEmptyValue = value == "true"
 	}
+	schema := NewAnalyzer(rand, closeObjects).AnalyzeSchema(attr)
+	schema.Description = ""
+	schema.Example = nil
 	parameter := &Parameter{
 		Name:            name,
 		In:              in,
@@ -161,7 +164,7 @@ func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *ex
 		AllowReserved:   metaBool(attr.Meta, "openapi:allowReserved"),
 		Style:           metaValue(attr.Meta, "openapi:style"),
 		Required:        required,
-		Schema:          NewAnalyzer(rand, closeObjects).AnalyzeSchema(attr),
+		Schema:          schema,
 		Extensions:      openapi.ExtensionsFromExpr(attr.Meta),
 	}
 	initExamples(parameter, attr, rand, closeObjects)

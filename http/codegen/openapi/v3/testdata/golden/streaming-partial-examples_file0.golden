@@ -154,7 +154,6 @@
             "name": "projectID",
             "required": true,
             "schema": {
-              "example": "proj_1",
               "type": "string"
             }
           }
