@@ -101,6 +101,102 @@ func TestRenderErrorMethodsUsesLoomErrorNameOnly(t *testing.T) {
 	require.NotContains(t, code, ") ErrorName() string")
 }
 
+func TestRenderErrorMethodsUsesInstanceMessage(t *testing.T) {
+	tests := []struct {
+		name     string
+		fields   expr.Object
+		required []string
+		contains []string
+		excludes []string
+	}{
+		{
+			name: "optional message",
+			fields: expr.Object{
+				&expr.NamedAttributeExpr{Name: "message", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			},
+			contains: []string{
+				`if e != nil && e.Message != nil && *e.Message != ""`,
+				`return *e.Message`,
+			},
+		},
+		{
+			name: "conventional field priority",
+			fields: expr.Object{
+				&expr.NamedAttributeExpr{Name: "reason", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				&expr.NamedAttributeExpr{Name: "message", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			},
+			required: []string{"reason", "message"},
+			contains: []string{
+				`if e != nil && e.Message != ""`,
+				`return e.Message`,
+				`if e != nil && e.Reason != ""`,
+			},
+		},
+		{
+			name: "non-string conventional field",
+			fields: expr.Object{
+				&expr.NamedAttributeExpr{Name: "message", Attribute: &expr.AttributeExpr{Type: expr.Int}},
+			},
+			excludes: []string{"e.Message"},
+		},
+		{
+			name: "optional string alias",
+			fields: expr.Object{
+				&expr.NamedAttributeExpr{
+					Name: "detail",
+					Attribute: &expr.AttributeExpr{Type: &expr.UserTypeExpr{
+						AttributeExpr: &expr.AttributeExpr{Type: expr.String},
+						TypeName:      "ErrorDetail",
+					}},
+				},
+			},
+			contains: []string{
+				`if e != nil && e.Detail != nil && string(*e.Detail) != ""`,
+				`return string(*e.Detail)`,
+			},
+		},
+		{
+			name: "error name field",
+			fields: expr.Object{
+				&expr.NamedAttributeExpr{Name: "error", Attribute: &expr.AttributeExpr{
+					Type: expr.String,
+					Meta: expr.MetaExpr{"struct:error:name": nil},
+				}},
+			},
+			required: []string{"error"},
+			excludes: []string{"if e != nil && e.Error"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			errorType := &expr.UserTypeExpr{
+				AttributeExpr: &expr.AttributeExpr{
+					Type:       &test.fields,
+					Validation: &expr.ValidationExpr{Required: test.required},
+				},
+				TypeName: "ExceptionResponse",
+			}
+			code := renderErrorMethods(&UserTypeData{
+				Ref:         "*ExceptionResponse",
+				Name:        "exception_response",
+				Description: "Error shape returned by every non-2xx response.",
+				Type:        errorType,
+			})
+
+			for _, expected := range test.contains {
+				require.Contains(t, code, expected)
+			}
+			for _, unexpected := range test.excludes {
+				require.NotContains(t, code, unexpected)
+			}
+			if test.name == "conventional field priority" {
+				require.Less(t, strings.Index(code, "e.Message"), strings.Index(code, "e.Reason"))
+			}
+			require.Contains(t, code, `return "Error shape returned by every non-2xx response."`)
+		})
+	}
+}
+
 func TestStructPkgPath(t *testing.T) {
 	fooPath := filepath.Join("gen", "foo", "foo.go")
 	recursiveFooPath := filepath.Join("gen", "foo", "recursive_foo.go")

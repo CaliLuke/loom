@@ -152,6 +152,16 @@ var _ = Service("divider", func() {
 
 **Important**: When using custom types for multiple errors in the same method, you must specify which attribute contains the error name using `Meta("struct:error:name")`.
 
+The generated `Error()` method returns the first non-empty string field with one of these names:
+
+1. `message`
+2. `detail`
+3. `title`
+4. `error`
+5. `reason`
+
+If these fields are empty or absent, `Error()` returns the custom type description.
+
 ### Error Properties
 
 Error properties inform clients about error characteristics (only available with `ErrorResult`):

@@ -8,7 +8,16 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
+
+type errorMessageField struct {
+	Name    string
+	Pointer bool
+	Alias   bool
+}
+
+var errorMessageAttributeNames = []string{"message", "detail", "title", "error", "reason"}
 
 func typeDefinitionSection(name, description, typeName, def string) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
@@ -80,7 +89,26 @@ func unionTypeSection(name string, data *UnionTypeData) codegen.Section {
 func renderErrorMethods(data *UserTypeData) string {
 	var b sourceBuilder
 	b.Add("// Error returns an error description.\n")
-	fmt.Fprintf(&b, "func (e %s) Error() string {\n\treturn %q\n}\n\n", data.Ref, data.Description)
+	fmt.Fprintf(&b, "func (e %s) Error() string {\n", data.Ref)
+	for _, field := range errorMessageFields(data) {
+		accessor := "e." + field.Name
+		value := accessor
+		if field.Pointer {
+			value = "*" + accessor
+		}
+		if field.Alias {
+			value = "string(" + value + ")"
+		}
+		condition := value + " != \"\""
+		if field.Pointer {
+			condition = accessor + " != nil && " + condition
+		}
+		if strings.HasPrefix(data.Ref, "*") {
+			condition = "e != nil && " + condition
+		}
+		fmt.Fprintf(&b, "\tif %s {\n\t\treturn %s\n\t}\n", condition, value)
+	}
+	fmt.Fprintf(&b, "\treturn %q\n}\n\n", data.Description)
 	b.Add("// LoomErrorName returns the error name.\n")
 	fmt.Fprintf(&b, "func (e %s) LoomErrorName() string {\n\treturn %s\n}\n", data.Ref, errorName(data))
 	if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
@@ -93,6 +121,43 @@ func renderErrorMethods(data *UserTypeData) string {
 		b.Add("\t}\n}\n")
 	}
 	return b.String()
+}
+
+func errorMessageFields(data *UserTypeData) []errorMessageField {
+	object := expr.AsObject(data.Type)
+	if object == nil {
+		return nil
+	}
+	parent := data.Type.Attribute()
+	fields := make([]errorMessageField, 0, len(errorMessageAttributeNames))
+	for _, preferredName := range errorMessageAttributeNames {
+		for _, attribute := range *object {
+			if _, isErrorName := attribute.Attribute.Meta["struct:error:name"]; isErrorName {
+				continue
+			}
+			if !strings.EqualFold(attribute.Name, preferredName) ||
+				!isStringType(attribute.Attribute.Type) {
+				continue
+			}
+			fields = append(fields, errorMessageField{
+				Name:    codegen.GoifyAtt(attribute.Attribute, attribute.Name, true),
+				Pointer: parent.IsPrimitivePointer(attribute.Name, true),
+				Alias:   expr.IsAlias(attribute.Attribute.Type),
+			})
+		}
+	}
+	return fields
+}
+
+func isStringType(dataType expr.DataType) bool {
+	switch actual := dataType.(type) {
+	case expr.Primitive:
+		return actual.Kind() == expr.StringKind
+	case expr.UserType:
+		return isStringType(actual.Attribute().Type)
+	default:
+		return false
+	}
 }
 
 func renderViewedTypeMap(rtdata []*viewedType) string {

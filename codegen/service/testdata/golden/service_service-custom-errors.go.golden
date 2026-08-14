@@ -21,12 +21,14 @@ const ServiceName = "CustomErrors"
 // MethodKey key.
 var MethodNames = [1]string{"A"}
 
+// Custom error fallback.
 type APayload struct {
 	IntField      int     `json:"IntField"`
 	StringField   string  `json:"StringField"`
 	BooleanField  bool    `json:"BooleanField"`
 	BytesField    []byte  `json:"BytesField"`
 	OptionalField *string `json:"OptionalField,omitempty"`
+	Message       *string `json:"message,omitempty"`
 }
 
 type Result struct {
@@ -39,7 +41,10 @@ type Primitive string
 
 // Error returns an error description.
 func (e *APayload) Error() string {
-	return ""
+	if e != nil && e.Message != nil && *e.Message != "" {
+		return *e.Message
+	}
+	return "Custom error fallback."
 }
 
 // LoomErrorName returns the error name.

@@ -277,11 +277,13 @@ var ServiceErrorDSL = func() {
 
 var CustomErrorsDSL = func() {
 	var APayload = Type("APayload", func() {
+		Description("Custom error fallback.")
 		Attribute("IntField", Int)
 		Attribute("StringField", String)
 		Attribute("BooleanField", Boolean)
 		Attribute("BytesField", Bytes)
 		Attribute("OptionalField", String)
+		Attribute("message", String)
 		Required("IntField", "StringField", "BooleanField", "BytesField")
 	})
 
