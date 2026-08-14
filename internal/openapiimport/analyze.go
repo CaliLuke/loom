@@ -422,13 +422,10 @@ func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path 
 		return "", nil
 	}
 	if orderedmap.Len(content) != 1 {
-		a.unsupported("multiple-media-types", path, "exactly one JSON media type is supported")
+		a.unsupported("multiple-media-types", path, "exactly one media type is supported")
 		return "", nil
 	}
 	for contentType, media := range content.FromOldest() {
-		if !isJSONMediaType(contentType) {
-			a.unsupported("media-type", path+"/"+escapeJSONPointer(contentType), fmt.Sprintf("media type %q is not JSON", contentType))
-		}
 		if media == nil {
 			return contentType, nil
 		}
@@ -449,7 +446,7 @@ func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path 
 }
 
 func isJSONMediaType(contentType string) bool {
-	baseType := strings.ToLower(strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0]))
+	baseType := normalizedMediaType(contentType)
 	return baseType == "application/json" || strings.HasSuffix(baseType, "+json")
 }
 
@@ -631,7 +628,7 @@ func (a *analyzer) schemaFormat(schema *Schema, path string) {
 	}
 	switch schema.Type {
 	case "string":
-		if schema.Format == "byte" {
+		if schema.Format == "byte" || schema.Format == "binary" {
 			return
 		}
 		if _, ok := stringFormatDSL(schema.Format); !ok {

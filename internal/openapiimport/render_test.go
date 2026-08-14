@@ -3,6 +3,7 @@ package openapiimport
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"os"
@@ -91,7 +92,11 @@ func TestRenderOutputCompilesAndEvaluatesAsLoomDesign(t *testing.T) {
 	require.Empty(t, diagnostics)
 	source, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)
+	requireRenderedDesignEvaluates(t, source, 2)
+}
 
+func requireRenderedDesignEvaluates(t *testing.T, source []byte, wantMethods int) {
+	t.Helper()
 	moduleDir := t.TempDir()
 	repoRoot := repositoryRoot(t)
 	goMod := "module example.com/imported\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\n" +
@@ -100,7 +105,7 @@ func TestRenderOutputCompilesAndEvaluatesAsLoomDesign(t *testing.T) {
 	designDir := filepath.Join(moduleDir, "design")
 	require.NoError(t, os.MkdirAll(designDir, 0o750))
 	require.NoError(t, os.WriteFile(filepath.Join(designDir, "design.go"), source, 0o600))
-	testSource := `package design
+	testSource := fmt.Sprintf(`package design
 
 import (
 	"testing"
@@ -117,19 +122,108 @@ func TestEvaluateImportedDesign(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := len(expr.Root.Services); got != 1 {
-		t.Fatalf("got %d services, want 1", got)
+		t.Fatalf("got %%d services, want 1", got)
 	}
-	if got := len(expr.Root.Services[0].Methods); got != 2 {
-		t.Fatalf("got %d methods, want 2", got)
+	if got := len(expr.Root.Services[0].Methods); got != %d {
+		t.Fatalf("got %%d methods, want %d", got)
 	}
 }
-`
+`, wantMethods, wantMethods)
 	require.NoError(t, os.WriteFile(filepath.Join(designDir, "design_test.go"), []byte(testSource), 0o600))
 
 	cmd := exec.Command("go", "test", "-mod=mod", "./design")
 	cmd.Dir = moduleDir
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(output))
+}
+
+func TestRenderMultipartFormAndBinaryMediaTypes(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Media API, version: "1"}
+paths:
+  /uploads:
+    post:
+      operationId: upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Upload'
+      responses: {"204": {description: uploaded}}
+  /tokens:
+    post:
+      operationId: createToken
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type: {type: string}
+      responses: {"204": {description: created}}
+  /documents/{id}:
+    get:
+      operationId: download
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: document
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+  /signatures:
+    post:
+      operationId: attachSignature
+      responses:
+        "200":
+          description: signed document
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+        "400":
+          description: invalid signature
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+components:
+  schemas:
+    Upload:
+      type: object
+      required: [file, label]
+      properties:
+        file: {type: string, format: binary}
+        label: {type: string}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	requireRenderedDesignEvaluates(t, rendered, 4)
+
+	design := string(rendered)
+	for _, expected := range []string{
+		`Attribute("file", Bytes)`,
+		`Attribute("label", String)`,
+		`Extend(ImportedUpload)`,
+		`MultipartRequest()`,
+		`Attribute("grant_type", String)`,
+		`FormRequest()`,
+		`Consumes("application/x-www-form-urlencoded", "multipart/form-data")`,
+		`Produces("application/pdf")`,
+		`FileResponse()`,
+		`SkipResponseBodyEncodeDecode()`,
+		`ContentType("application/pdf")`,
+		`OpenAPIBody(Bytes)`,
+	} {
+		require.Contains(t, design, expected)
+	}
+	require.NotContains(t, design, `Body("body")`)
 }
 
 func TestRenderErrorFieldCollisionGeneratesCompilingService(t *testing.T) {

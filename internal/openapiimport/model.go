@@ -133,7 +133,7 @@ type RequestBody struct {
 	Description string
 	// Required reports whether the request body is required.
 	Required bool
-	// ContentType is the single supported JSON media type.
+	// ContentType is the single request media type.
 	ContentType string
 	// Schema describes the request body.
 	Schema *Schema
@@ -154,7 +154,7 @@ type Response struct {
 	Ref string
 	// Description is the response description.
 	Description string
-	// ContentType is the single supported JSON media type, if the response has a body.
+	// ContentType is the single response media type, if the response has a body.
 	ContentType string
 	// Schema describes the response body.
 	Schema *Schema

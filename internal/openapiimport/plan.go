@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+type responseBodyMode uint8
+
+const (
+	responseBodyEncoded responseBodyMode = iota
+	responseBodyStream
+	responseBodyFile
+)
+
 // documentPlan is the render-ready result of applying the importer subset.
 type documentPlan struct {
 	operations  []operationPlan
@@ -104,12 +112,22 @@ func (p *documentPlanner) operation(operation *Operation, path string) {
 		p.parameter(parameter, fmt.Sprintf("%s/parameters/%d", path, index))
 	}
 	p.requestBody(operation.RequestBody, path+"/requestBody")
+	responseMode := operationResponseBodyMode(operation)
 	successes := 0
 	for _, response := range operation.Responses {
 		if strings.HasPrefix(response.Status, "2") {
 			successes++
 		}
-		p.response(response.Response, path+"/responses/"+escapeJSONPointer(response.Status))
+		responsePath := path + "/responses/" + escapeJSONPointer(response.Status)
+		if response.Response.Schema != nil && !isJSONMediaType(response.Response.ContentType) &&
+			responseMode == responseBodyEncoded {
+			p.unsupported(
+				"media-type",
+				responsePath+"/content",
+				fmt.Sprintf("content type %q requires a non-JSON success response", response.Response.ContentType),
+			)
+		}
+		p.response(response.Response, responsePath, responseMode != responseBodyEncoded)
 	}
 	if successes != 1 {
 		p.unsupported("success-response-count", path+"/responses", fmt.Sprintf("must define exactly one 2xx response, got %d", successes))
@@ -152,15 +170,23 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 		p.unsupported("request-body-reference", path, "request body references are not renderable")
 		return
 	}
-	p.content(body.ContentType, body.Schema, path)
+	switch {
+	case isJSONMediaType(body.ContentType):
+		p.content(body.ContentType, body.Schema, path, false)
+	case isMultipartMediaType(body.ContentType), isFormMediaType(body.ContentType):
+		p.content(body.ContentType, body.Schema, path, true)
+	default:
+		p.unsupported("media-type", path+"/content", fmt.Sprintf("content type %q is not renderable", body.ContentType))
+		p.content(body.ContentType, body.Schema, path, true)
+	}
 }
 
-func (p *documentPlanner) response(response Response, path string) {
+func (p *documentPlanner) response(response Response, path string, allowNonJSON bool) {
 	if response.Ref != "" {
 		p.unsupported("response-reference", path, "response references are not renderable")
 		return
 	}
-	p.content(response.ContentType, response.Schema, path)
+	p.content(response.ContentType, response.Schema, path, allowNonJSON)
 	for _, named := range response.Headers {
 		headerPath := path + "/headers/" + escapeJSONPointer(named.Name)
 		if strings.Contains(named.Name, ":") {
@@ -178,17 +204,54 @@ func (p *documentPlanner) response(response Response, path string) {
 	}
 }
 
-func (p *documentPlanner) content(contentType string, schema *Schema, path string) {
+func (p *documentPlanner) content(contentType string, schema *Schema, path string, allowNonJSON bool) {
 	if schema == nil {
 		if contentType != "" {
 			p.unsupported("content-schema", path+"/content", "content type has no schema")
 		}
 		return
 	}
-	if contentType == "" || !isJSONMediaType(contentType) {
+	if contentType == "" || !allowNonJSON && !isJSONMediaType(contentType) {
 		p.unsupported("media-type", path+"/content", fmt.Sprintf("content type %q is not renderable", contentType))
 	}
 	p.schema(schema, path+"/content/schema")
+}
+
+func operationResponseBodyMode(operation *Operation) responseBodyMode {
+	for _, response := range operation.Responses {
+		if !strings.HasPrefix(response.Status, "2") || response.Response.Schema == nil ||
+			isJSONMediaType(response.Response.ContentType) {
+			continue
+		}
+		if (operation.Method == "GET" || operation.Method == "HEAD") && response.Status == "200" &&
+			!hasFileProtocolResponse(operation.Responses) {
+			return responseBodyFile
+		}
+		return responseBodyStream
+	}
+	return responseBodyEncoded
+}
+
+func hasFileProtocolResponse(responses []StatusResponse) bool {
+	for _, response := range responses {
+		switch response.Status {
+		case "206", "304", "412", "416":
+			return true
+		}
+	}
+	return false
+}
+
+func isMultipartMediaType(contentType string) bool {
+	return normalizedMediaType(contentType) == "multipart/form-data"
+}
+
+func isFormMediaType(contentType string) bool {
+	return normalizedMediaType(contentType) == "application/x-www-form-urlencoded"
+}
+
+func normalizedMediaType(contentType string) string {
+	return strings.ToLower(strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0]))
 }
 
 func (p *documentPlanner) schema(schema *Schema, path string) {

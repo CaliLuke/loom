@@ -109,6 +109,17 @@ The importer converts each `operationId` to an idiomatic Go method name. It
 uses matching path words to split lowercase IDs and preserves initialisms such
 as `B2B`.
 
+The importer maps `multipart/form-data` request bodies to
+`MultipartRequest()`. It maps `application/x-www-form-urlencoded` request
+bodies to `FormRequest()`. Both request body schemas must define an object.
+The importer maps `type: string, format: binary` to `Bytes`.
+
+For a single non-JSON success response, the importer keeps the media type and
+schema as an OpenAPI-only body. It uses `FileResponse()` for a compatible
+`GET` or `HEAD` response with status `200`. It uses
+`SkipResponseBodyEncodeDecode()` for other methods and statuses. The service
+implements the streamed response body.
+
 The generated method keeps the original wire value in
 `Meta("openapi:operationId", ...)`. Regenerated OpenAPI documents therefore
 retain the source `operationId`.
@@ -129,7 +140,7 @@ processing), and parameter- or header-level `deprecated` (the HTTP DSL has no
 per-parameter or per-header deprecated marker, so the flag is dropped; a
 schema's own `deprecated` keyword is unaffected and always preserved). It never
 downgrades contract-affecting diagnostics such as servers, security,
-extensions, callbacks, links, serialization, media encodings, or schema
+extensions, callbacks, links, custom serialization, media encodings, or schema
 composition and structural keywords. Without `--skip-unrenderable`, these
 diagnostics prevent output. With that flag, the importer omits each affected
 operation.

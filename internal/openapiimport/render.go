@@ -126,6 +126,17 @@ func (r *renderer) api() {
 	for _, tag := range r.importedTags() {
 		r.line("Meta(%q)", "openapi:tag:"+tag)
 	}
+	consumes, produces := r.importedMediaTypes()
+	if len(consumes) > 0 || len(produces) > 0 {
+		r.open("HTTP(func()")
+		if len(consumes) > 0 {
+			r.quotedCall("Consumes", consumes)
+		}
+		if len(produces) > 0 {
+			r.quotedCall("Produces", produces)
+		}
+		r.close()
+	}
 	r.close()
 	r.line("")
 }
@@ -192,13 +203,23 @@ type operationPlan struct {
 	failures   []renderedResponse
 	parameters []renderedParameter
 	body       *renderedBody
+	response   responseBodyMode
 }
+
+type requestBodyMode uint8
+
+const (
+	requestBodyJSON requestBodyMode = iota
+	requestBodyMultipart
+	requestBodyForm
+)
 
 func (r *renderer) planOperation(operation *Operation, path string) (operationPlan, error) {
 	if operation.GoName == "" || !token.IsIdentifier(operation.GoName) || token.Lookup(operation.GoName).IsKeyword() {
 		return operationPlan{}, fmt.Errorf("render OpenAPI design: %s has invalid Go method name %q", path, operation.GoName)
 	}
-	success, failures, err := r.operationResponses(operation, path)
+	responseMode := operationResponseBodyMode(operation)
+	success, failures, err := r.operationResponses(operation, responseMode, path)
 	if err != nil {
 		return operationPlan{}, err
 	}
@@ -210,7 +231,9 @@ func (r *renderer) planOperation(operation *Operation, path string) (operationPl
 	if err != nil {
 		return operationPlan{}, err
 	}
-	return operationPlan{success: success, failures: failures, parameters: parameters, body: body}, nil
+	return operationPlan{
+		success: success, failures: failures, parameters: parameters, body: body, response: responseMode,
+	}, nil
 }
 
 func (r *renderer) operationMetadata(operation *Operation) {
@@ -247,7 +270,20 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 		}
 	}
 	if plan.body != nil {
-		r.line("Body(%q)", plan.body.field)
+		switch plan.body.mode {
+		case requestBodyMultipart:
+			r.line("MultipartRequest()")
+		case requestBodyForm:
+			r.line("FormRequest()")
+		default:
+			r.line("Body(%q)", plan.body.field)
+		}
+	}
+	switch plan.response {
+	case responseBodyStream:
+		r.line("SkipResponseBodyEncodeDecode()")
+	case responseBodyFile:
+		r.line("FileResponse()")
 	}
 	if err := r.responseMapping(plan.success, false, path+"/responses/"+plan.success.status); err != nil {
 		return err
@@ -270,6 +306,7 @@ type renderedParameter struct {
 type renderedBody struct {
 	body  RequestBody
 	field string
+	mode  requestBodyMode
 }
 
 type renderedResponse struct {
@@ -277,6 +314,7 @@ type renderedResponse struct {
 	response Response
 	headers  []renderedHeader
 	body     string
+	rawBody  bool
 }
 
 type renderedHeader struct {
@@ -320,76 +358,6 @@ func (r *renderer) parameters(source []Parameter, path string) ([]renderedParame
 	return result, nil
 }
 
-func (r *renderer) requestBody(source *RequestBody, path string) (*renderedBody, error) {
-	if source == nil {
-		return nil, nil
-	}
-	body := *source
-	if body.Ref != "" {
-		return nil, fmt.Errorf("render OpenAPI design: %s request body references are not renderable", path)
-	}
-	if body.Schema == nil {
-		return nil, fmt.Errorf("render OpenAPI design: %s has no schema", path)
-	}
-	if body.ContentType == "" || !isJSONMediaType(body.ContentType) {
-		return nil, fmt.Errorf("render OpenAPI design: %s content type %q is not renderable", path, body.ContentType)
-	}
-	return &renderedBody{body: body, field: "body"}, nil
-}
-
-func (r *renderer) operationResponses(operation *Operation, path string) (renderedResponse, []renderedResponse, error) {
-	var success []renderedResponse
-	var failures []renderedResponse
-	for _, source := range operation.Responses {
-		response, err := r.renderedResponse(source, path+"/responses/"+source.Status)
-		if err != nil {
-			return renderedResponse{}, nil, err
-		}
-		if strings.HasPrefix(source.Status, "2") {
-			success = append(success, response)
-		} else {
-			failures = append(failures, response)
-		}
-	}
-	if len(success) != 1 {
-		return renderedResponse{}, nil, fmt.Errorf("render OpenAPI design: %s must define exactly one 2xx response, got %d", path, len(success))
-	}
-	return success[0], failures, nil
-}
-
-func (r *renderer) renderedResponse(source StatusResponse, path string) (renderedResponse, error) {
-	if source.Response.Ref != "" {
-		return renderedResponse{}, fmt.Errorf("render OpenAPI design: %s response references are not renderable", path)
-	}
-	if source.Response.Schema == nil && source.Response.ContentType != "" {
-		return renderedResponse{}, fmt.Errorf("render OpenAPI design: %s has content type but no schema", path)
-	}
-	if source.Response.Schema != nil && (source.Response.ContentType == "" || !isJSONMediaType(source.Response.ContentType)) {
-		return renderedResponse{}, fmt.Errorf("render OpenAPI design: %s content type %q is not renderable", path, source.Response.ContentType)
-	}
-	used := make(map[string]int)
-	headers := make([]renderedHeader, 0, len(source.Response.Headers))
-	for _, named := range source.Response.Headers {
-		header, err := r.resolveHeader(named.Header, path+"/headers/"+escapeJSONPointer(named.Name))
-		if err != nil {
-			return renderedResponse{}, err
-		}
-		// A deprecated header has no faithful Loom DSL representation; the
-		// flag is intentionally dropped here. Analyze reports this omission
-		// as the lossy-allowed "header-deprecated" diagnostic.
-		if header.Schema == nil {
-			return renderedResponse{}, fmt.Errorf("render OpenAPI design: %s header %q has no schema", path, named.Name)
-		}
-		field := uniqueName(codegen.Goify(named.Name, false), used)
-		headers = append(headers, renderedHeader{name: named.Name, field: field, header: header})
-	}
-	bodyField := ""
-	if source.Response.Schema != nil {
-		bodyField = uniqueName("body", used)
-	}
-	return renderedResponse{status: source.Status, response: source.Response, headers: headers, body: bodyField}, nil
-}
-
 func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, path string) error {
 	if len(parameters) == 0 && body == nil {
 		return nil
@@ -412,18 +380,27 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 		}
 	}
 	if body != nil {
-		metadata := []renderedMetadata(nil)
-		if body.body.Description != "" {
-			metadata = append(metadata, renderedMetadata{
-				name:  "openapi:description:requestBody",
-				value: body.body.Description,
-			})
-		}
-		if err := r.attribute(body.field, body.body.Schema, "", path+"/requestBody/schema", metadata...); err != nil {
-			return err
-		}
-		if body.body.Required {
-			required = append(required, body.field)
+		if body.mode != requestBodyJSON {
+			if body.body.Description != "" {
+				r.line("Meta(%q, %q)", "openapi:description:requestBody", body.body.Description)
+			}
+			if err := r.renderRequestTransportBody(body.body.Schema, path+"/requestBody/schema"); err != nil {
+				return err
+			}
+		} else {
+			metadata := []renderedMetadata(nil)
+			if body.body.Description != "" {
+				metadata = append(metadata, renderedMetadata{
+					name:  "openapi:description:requestBody",
+					value: body.body.Description,
+				})
+			}
+			if err := r.attribute(body.field, body.body.Schema, "", path+"/requestBody/schema", metadata...); err != nil {
+				return err
+			}
+			if body.body.Required {
+				required = append(required, body.field)
+			}
 		}
 	}
 	if len(required) > 0 {
@@ -447,7 +424,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		prefix += strconv.Quote(name) + ", "
 	}
 	if len(response.headers) == 0 {
-		if response.response.Schema == nil {
+		if response.response.Schema == nil || response.rawBody {
 			r.line("%sEmpty)", prefix)
 			return nil
 		}
@@ -472,7 +449,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 			return err
 		}
 	}
-	if response.response.Schema != nil {
+	if response.response.Schema != nil && !response.rawBody {
 		if err := r.attribute(response.body, response.response.Schema, "", path+"/content/schema"); err != nil {
 			return err
 		}
@@ -483,7 +460,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 			required = append(required, header.field)
 		}
 	}
-	if response.response.Schema != nil {
+	if response.response.Schema != nil && !response.rawBody {
 		required = append(required, response.body)
 	}
 	if len(required) > 0 {
@@ -546,6 +523,11 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 	}
 	if response.response.ContentType != "" {
 		r.line("ContentType(%q)", response.response.ContentType)
+	}
+	if response.rawBody {
+		if err := r.openAPIBody(response.response.Schema, path+"/content/schema"); err != nil {
+			return err
+		}
 	}
 	for _, header := range response.headers {
 		name := header.field

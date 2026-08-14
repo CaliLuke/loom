@@ -43,6 +43,69 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 	return nil
 }
 
+func (r *renderer) validateRequestTransportBodySchema(schema *Schema, path string) error {
+	resolved := schema
+	if schema != nil && schema.Ref != "" {
+		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		named, ok := r.schemas[name]
+		if name == schema.Ref || name == "" || !ok {
+			return fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
+		}
+		resolved = named.Schema
+	}
+	if resolved == nil || resolved.Type != "object" {
+		return fmt.Errorf("render OpenAPI design: %s form and multipart bodies require an object schema", path)
+	}
+	_, object, err := r.objectSchemaExpression(resolved, path)
+	if err != nil {
+		return err
+	}
+	if !object {
+		return fmt.Errorf("render OpenAPI design: %s form and multipart bodies require object properties", path)
+	}
+	return nil
+}
+
+func (r *renderer) renderRequestTransportBody(schema *Schema, path string) error {
+	if err := r.validateRequestTransportBodySchema(schema, path); err != nil {
+		return err
+	}
+	if schema.Ref != "" {
+		expression, _, err := r.schemaExpression(schema, path)
+		if err != nil {
+			return err
+		}
+		r.line("Extend(%s)", expression)
+		return nil
+	}
+	return r.schemaBlock(schema, path, false)
+}
+
+func (r *renderer) openAPIBody(schema *Schema, path string) error {
+	expression, object, err := r.schemaExpression(schema, path)
+	if err != nil {
+		return err
+	}
+	if object {
+		r.open("OpenAPIBody(func()")
+		if err := r.schemaBlock(schema, path, false); err != nil {
+			return err
+		}
+		r.close()
+		return nil
+	}
+	if r.hasSchemaBlock(schema) {
+		r.open("OpenAPIBody(%s, func()", expression)
+		if err := r.validationBlock(schema, path); err != nil {
+			return err
+		}
+		r.close()
+		return nil
+	}
+	r.line("OpenAPIBody(%s)", expression)
+	return nil
+}
+
 func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, error) {
 	if schema == nil {
 		return "", false, fmt.Errorf("render OpenAPI design: %s schema is nil", path)
@@ -124,14 +187,14 @@ func (r *renderer) arraySchemaExpression(schema *Schema, path string) (string, b
 }
 
 // stringSchemaExpression selects the Loom base type for a string schema.
-// "byte" maps to Bytes; every other format, including one Loom does not
+// "byte" and "binary" map to Bytes; every other format, including one Loom does not
 // recognize, maps to String. A recognized format additionally gets a
 // Format(...) validation call (see validationBlock); an unrecognized one
 // renders as a plain String, matching OpenAPI 3.1's rule that unknown format
 // values must not fail validation or processing. Analyze reports unrecognized
 // non-empty formats as the lossy-allowed "schema-format" diagnostic.
 func stringSchemaExpression(format string) string {
-	if format == "byte" {
+	if format == "byte" || format == "binary" {
 		return "Bytes"
 	}
 	return "String"
@@ -215,7 +278,7 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 }
 
 func (r *renderer) validationBlock(schema *Schema, path string) error {
-	if schema.Format != "" && schema.Type == "string" && schema.Format != "byte" {
+	if schema.Format != "" && schema.Type == "string" && schema.Format != "byte" && schema.Format != "binary" {
 		if formatName, ok := stringFormatDSL(schema.Format); ok {
 			r.line("Format(%s)", formatName)
 		}
@@ -284,7 +347,7 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 		schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
 		return true
 	}
-	if schema.Type == "string" && schema.Format != "" && schema.Format != "byte" {
+	if schema.Type == "string" && schema.Format != "" && schema.Format != "byte" && schema.Format != "binary" {
 		if _, ok := stringFormatDSL(schema.Format); ok {
 			return true
 		}
