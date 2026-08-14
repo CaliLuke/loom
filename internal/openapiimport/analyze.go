@@ -23,35 +23,51 @@ var ErrUnsupportedVersion = errors.New("unsupported OpenAPI version")
 // normalized model plus every unsupported-feature diagnostic it can discover.
 // Syntax, model-building, and version failures are returned as errors.
 func Analyze(source []byte) (*Document, Diagnostics, error) {
+	document, diagnostics, _, err := AnalyzeSelected(source, Selection{})
+	return document, diagnostics, err
+}
+
+// AnalyzeSelected parses source and retains operations that match selection.
+// It returns tag counts and paths that do not match the requested tags.
+func AnalyzeSelected(source []byte, selection Selection) (*Document, Diagnostics, SelectionReport, error) {
+	if err := selection.Validate(); err != nil {
+		return nil, nil, SelectionReport{}, err
+	}
 	parsed, err := libopenapi.NewDocument(source)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parse OpenAPI document: %w", err)
+		return nil, nil, SelectionReport{}, fmt.Errorf("parse OpenAPI document: %w", err)
 	}
 	version := parsed.GetVersion()
 	if !renderableVersion(version) {
-		return nil, nil, fmt.Errorf("%w %q; expected 3.1.x or 3.2.x", ErrUnsupportedVersion, version)
+		return nil, nil, SelectionReport{}, fmt.Errorf("%w %q; expected 3.1.x or 3.2.x", ErrUnsupportedVersion, version)
 	}
 
 	diagnostics, err := externalReferenceDiagnostics(source)
 	if err != nil {
-		return nil, nil, fmt.Errorf("inspect OpenAPI references: %w", err)
+		return nil, nil, SelectionReport{}, fmt.Errorf("inspect OpenAPI references: %w", err)
 	}
 	if len(diagnostics) > 0 {
-		return nil, diagnostics.sorted(), nil
+		return nil, diagnostics.sorted(), SelectionReport{}, nil
 	}
 
 	model, err := parsed.BuildV3Model()
 	if err != nil {
-		return nil, nil, fmt.Errorf("build OpenAPI %s model: %w", version, err)
+		return nil, nil, SelectionReport{}, fmt.Errorf("build OpenAPI %s model: %w", version, err)
 	}
-	analyzer := analyzer{diagnostics: diagnostics}
+	analyzer := analyzer{diagnostics: diagnostics, selection: selection}
 	document := analyzer.document(&model.Model)
+	if selection.Active() {
+		closure := pruneComponents(document)
+		analyzer.diagnostics = filterSelectionDiagnostics(analyzer.diagnostics, closure)
+	}
 	analyzer.diagnostics = append(analyzer.diagnostics, planDocument(document).diagnostics...)
-	return document, analyzer.diagnostics.sorted(), nil
+	return document, analyzer.diagnostics.sorted(), analyzer.report, nil
 }
 
 type analyzer struct {
 	diagnostics Diagnostics
+	selection   Selection
+	report      SelectionReport
 }
 
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
@@ -135,7 +151,7 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	}
 	a.extensions("#", source.Extensions)
 	document.Components = a.components(source.Components)
-	document.Operations = a.operations(source.Paths, document.Components)
+	document.Operations = a.operations(source.Paths, document.Components, document.Tags)
 	assignOperationNames(document.Operations)
 	return document
 }
@@ -185,31 +201,6 @@ func (a *analyzer) components(source *v3.Components) Components {
 	}
 	a.extensions("#/components", source.Extensions)
 	return result
-}
-
-func (a *analyzer) operations(paths *v3.Paths, components Components) []Operation {
-	if paths == nil {
-		return nil
-	}
-	a.extensions("#/paths", paths.Extensions)
-	var operations []Operation
-	for path, item := range paths.PathItems.FromOldest() {
-		base := "#/paths/" + escapeJSONPointer(path)
-		if item.Reference != "" {
-			a.unsupported("path-reference", base, "path item references are not in the strict import subset")
-		}
-		if item.Summary != "" || item.Description != "" {
-			a.unsupported("path-metadata", base, "path item summaries and descriptions are not in the strict import subset")
-		}
-		if len(item.Servers) > 0 {
-			a.unsupported("servers", base+"/servers", "path servers are not in the strict import subset")
-		}
-		a.extensions(base, item.Extensions)
-		for method, operation := range item.GetOperations().FromOldest() {
-			operations = append(operations, a.operation(strings.ToUpper(method), path, item.Parameters, operation, base+"/"+method, base+"/parameters", components))
-		}
-	}
-	return operations
 }
 
 func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, source *v3.Operation, pointer, inheritedPath string, components Components) Operation {

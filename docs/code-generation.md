@@ -55,8 +55,29 @@ loom gen github.com/CaliLuke/loom-examples/calc/design
 #### Import OpenAPI (`loom import openapi`)
 
 ```bash
-loom import openapi <input.json-or-yaml> [-o <design.go-or-directory>] [--allow-lossy]
+loom import openapi <input.json-or-yaml> [-o <design.go-or-directory>] [--allow-lossy] [FILTERS]
 ```
+
+Use operation filters to import one service boundary from a large contract:
+
+```bash
+loom import openapi monolith.json --tag "Face capture" --tag Videoselfie -o design/face.go
+loom import openapi monolith.json --path-prefix /omni/b2b/v1 -o design/b2b.go
+loom import openapi monolith.json --path "/omni/*/device-*" -o design/device.go
+loom import openapi monolith.json --list-tags
+```
+
+Repeat a filter to add selections. Different filter types also form a union.
+Tag matches are exact. Path patterns use Go `path.Match` syntax, where `*`
+does not match `/`.
+
+The importer retains the transitive component closure for the selected
+operations. An unrelated component does not appear in the generated design or
+its refusal set.
+
+When a tag filter is active, the command reports each unclaimed path on
+standard error. `--list-tags` reports deterministic operation and path counts
+without writing a design.
 
 This command creates one gofmt-formatted Loom design from the strict supported
 subset of an OpenAPI 3.1 or 3.2 contract. The default output is

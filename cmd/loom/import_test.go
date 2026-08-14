@@ -74,6 +74,32 @@ func TestParseOpenAPIImportArgs(t *testing.T) {
 	}
 }
 
+func TestParseOpenAPIImportSelectionArgs(t *testing.T) {
+	parsed, err := parseOpenAPIImportArgs([]string{
+		"openapi",
+		"contract.json",
+		"--tag", "Face capture",
+		"--tag", "Videoselfie",
+		"--path-prefix", "/omni/b2b/v1",
+		"--path", "/omni/*/device-*",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"Face capture", "Videoselfie"}, parsed.selection.Tags)
+	require.Equal(t, []string{"/omni/b2b/v1"}, parsed.selection.PathPrefixes)
+	require.Equal(t, []string{"/omni/*/device-*"}, parsed.selection.Paths)
+	require.False(t, parsed.listTags)
+
+	parsed, err = parseOpenAPIImportArgs([]string{"openapi", "contract.json", "--list-tags"})
+	require.NoError(t, err)
+	require.True(t, parsed.listTags)
+
+	_, err = parseOpenAPIImportArgs([]string{"openapi", "contract.json", "--path", "["})
+	require.ErrorContains(t, err, "invalid OpenAPI path pattern")
+
+	_, err = parseOpenAPIImportArgs([]string{"openapi", "contract.json", "--list-tags", "--tag", "Face"})
+	require.ErrorContains(t, err, "--list-tags cannot be combined")
+}
+
 func TestImportOpenAPIDesignLossyPolicy(t *testing.T) {
 	const metadataOnly = `openapi: 3.1.1
 info:
@@ -134,6 +160,54 @@ paths: {}
 			require.FileExists(t, target)
 		})
 	}
+}
+
+func TestImportOpenAPIDesignSelection(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Selection, version: "1"}
+paths:
+  /face:
+    get:
+      operationId: getFace
+      tags: [Face]
+      responses: {"204": {description: done}}
+  /other:
+    get:
+      operationId: getOther
+      tags: [Other]
+      callbacks: {ignored: {}}
+      responses: {"204": {description: done}}
+`)
+	root := t.TempDir()
+	input := filepath.Join(root, "openapi.yaml")
+	require.NoError(t, os.WriteFile(input, source, 0o644))
+	output := filepath.Join(root, "design")
+
+	target, warnings, report, err := importOpenAPIDesignSelected(
+		input,
+		output,
+		false,
+		openapiimport.Selection{Tags: []string{"Face"}},
+	)
+	require.NoError(t, err)
+	require.Empty(t, warnings)
+	require.Equal(t, []string{"/other"}, report.UnclaimedPaths)
+	rendered, err := os.ReadFile(target)
+	require.NoError(t, err)
+	require.Contains(t, string(rendered), `Method("GetFace"`)
+	require.NotContains(t, string(rendered), `Method("GetOther"`)
+
+	missingOutput := filepath.Join(root, "missing")
+	target, warnings, _, err = importOpenAPIDesignSelected(
+		input,
+		missingOutput,
+		false,
+		openapiimport.Selection{Tags: []string{"Missing"}},
+	)
+	require.ErrorContains(t, err, "selection matched no operations")
+	require.Empty(t, target)
+	require.Empty(t, warnings)
+	require.NoDirExists(t, missingOutput)
 }
 
 func TestImportOpenAPIDesignOutputResolution(t *testing.T) {
@@ -336,4 +410,62 @@ func TestMainRoutesOpenAPIImport(t *testing.T) {
 	require.True(t, gotAllowLossy)
 	require.Equal(t, filepath.Join("design", "design.go")+"\n", stdout)
 	require.Equal(t, "warning: #/paths: examples omitted (examples)\n", stderr)
+}
+
+func TestMainRoutesSelectedOpenAPIImport(t *testing.T) {
+	originalArgs := os.Args
+	originalImport := importSelectedOpenAPI
+	defer func() {
+		os.Args = originalArgs
+		importSelectedOpenAPI = originalImport
+	}()
+
+	var gotSelection openapiimport.Selection
+	importSelectedOpenAPI = func(
+		_ string,
+		_ string,
+		_ bool,
+		selection openapiimport.Selection,
+	) (string, openapiimport.Diagnostics, openapiimport.SelectionReport, error) {
+		gotSelection = selection
+		return filepath.Join("design", "design.go"), nil, openapiimport.SelectionReport{
+			UnclaimedPaths: []string{"/other"},
+		}, nil
+	}
+	os.Args = []string{"loom", "import", "openapi", "contract.yaml", "--tag", "Face"}
+
+	stdout, stderr, err := captureOutput(t, func() error {
+		main()
+		return nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"Face"}, gotSelection.Tags)
+	require.Equal(t, filepath.Join("design", "design.go")+"\n", stdout)
+	require.Equal(t, "unclaimed path: /other\n", stderr)
+}
+
+func TestMainListsOpenAPITags(t *testing.T) {
+	originalArgs := os.Args
+	originalList := listOpenAPITags
+	defer func() {
+		os.Args = originalArgs
+		listOpenAPITags = originalList
+	}()
+
+	listOpenAPITags = func(input string) ([]openapiimport.TagSummary, error) {
+		require.Equal(t, "contract.yaml", input)
+		return []openapiimport.TagSummary{
+			{Name: "Face", Operations: 3, Paths: 2},
+			{Name: "Other", Operations: 1, Paths: 1},
+		}, nil
+	}
+	os.Args = []string{"loom", "import", "openapi", "contract.yaml", "--list-tags"}
+
+	stdout, stderr, err := captureOutput(t, func() error {
+		main()
+		return nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, "TAG\tOPERATIONS\tPATHS\nFace\t3\t2\nOther\t1\t1\n", stdout)
+	require.Empty(t, stderr)
 }

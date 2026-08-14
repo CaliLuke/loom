@@ -90,6 +90,31 @@ func runOpenAPIImport(args []string) {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
+	if arguments.listTags {
+		tags, err := listOpenAPITags(arguments.input)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		printOpenAPITags(tags)
+		return
+	}
+	if arguments.selection.Active() {
+		target, warnings, report, err := importSelectedOpenAPI(
+			arguments.input,
+			arguments.output,
+			arguments.allowLossy,
+			arguments.selection,
+		)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		printImportWarnings(warnings)
+		printUnclaimedPaths(report.UnclaimedPaths)
+		fmt.Println(target)
+		return
+	}
 	target, warnings, err := importOpenAPI(arguments.input, arguments.output, arguments.allowLossy)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -97,6 +122,19 @@ func runOpenAPIImport(args []string) {
 	}
 	printImportWarnings(warnings)
 	fmt.Println(target)
+}
+
+func printOpenAPITags(tags []openapiimport.TagSummary) {
+	fmt.Println("TAG\tOPERATIONS\tPATHS")
+	for _, tag := range tags {
+		fmt.Printf("%s\t%d\t%d\n", tag.Name, tag.Operations, tag.Paths)
+	}
+}
+
+func printUnclaimedPaths(paths []string) {
+	for _, path := range paths {
+		fmt.Fprintf(os.Stderr, "unclaimed path: %s\n", path)
+	}
 }
 
 func printImportWarnings(warnings openapiimport.Diagnostics) {
@@ -107,10 +145,12 @@ func printImportWarnings(warnings openapiimport.Diagnostics) {
 
 // help with tests
 var (
-	usage         = help
-	gen           = generate
-	importOpenAPI = importOpenAPIDesign
-	newGenerator  = func(cmd, path, output string, debug bool) generatorRunner {
+	usage                 = help
+	gen                   = generate
+	importOpenAPI         = importOpenAPIDesign
+	importSelectedOpenAPI = importOpenAPIDesignSelected
+	listOpenAPITags       = inspectOpenAPITags
+	newGenerator          = func(cmd, path, output string, debug bool) generatorRunner {
 		return NewGenerator(cmd, path, output, debug)
 	}
 )
@@ -184,7 +224,7 @@ func help() {
 Learn more at https://github.com/CaliLuke/loom.
 
 Usage:
-  loom import openapi INPUT [-o FILE-OR-DIRECTORY] [--allow-lossy]
+  loom import openapi INPUT [-o FILE-OR-DIRECTORY] [--allow-lossy] [FILTERS]
   loom gen PACKAGE [--output DIRECTORY] [--debug]
   loom example PACKAGE [--output DIRECTORY] [--debug]
   loom test-scaffold PACKAGE [--output DIRECTORY] [--debug]
@@ -215,6 +255,18 @@ Flags:
 
   --allow-lossy (import)
         allow explicitly lossy metadata omissions and report them as warnings
+
+  --tag TAG (import, repeatable)
+        select operations with this tag
+
+  --path-prefix PREFIX (import, repeatable)
+        select operations below this OpenAPI path prefix
+
+  --path PATTERN (import, repeatable)
+        select operations that match this path pattern
+
+  --list-tags (import)
+        list operation and path counts by tag without writing a design
 
   -o, --output DIRECTORY (gen, example, test-scaffold)
         output directory, defaults to the current working directory

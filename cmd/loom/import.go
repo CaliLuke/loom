@@ -18,11 +18,13 @@ type openAPIImportArgs struct {
 	input      string
 	output     string
 	allowLossy bool
+	selection  openapiimport.Selection
+	listTags   bool
 }
 
 func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 	if len(args) < 2 || args[0] != "openapi" || strings.TrimSpace(args[1]) == "" {
-		return openAPIImportArgs{}, fmt.Errorf("usage: loom import openapi INPUT [-o FILE-OR-DIRECTORY] [--allow-lossy]")
+		return openAPIImportArgs{}, fmt.Errorf("usage: loom import openapi INPUT [-o FILE-OR-DIRECTORY] [--allow-lossy] [FILTERS]")
 	}
 	if args[1] == "-" {
 		return openAPIImportArgs{}, fmt.Errorf("openapi import input must be a file; stdin is not supported")
@@ -33,6 +35,23 @@ func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 	shortOutput := flags.String("o", "", "output file or directory")
 	output := flags.String("output", defaultImportOutput, "output file or directory")
 	allowLossy := flags.Bool("allow-lossy", false, "allow explicitly lossy metadata omissions")
+	listTags := flags.Bool("list-tags", false, "list operation counts by tag")
+	var tags, pathPrefixes, paths []string
+	flags.Func(
+		"tag",
+		"select operations with this tag; repeat to form a union",
+		appendImportFilter(&tags),
+	)
+	flags.Func(
+		"path-prefix",
+		"select operations below this path prefix; repeat to form a union",
+		appendImportFilter(&pathPrefixes),
+	)
+	flags.Func(
+		"path",
+		"select operations matching this path pattern; repeat to form a union",
+		appendImportFilter(&paths),
+	)
 	if err := flags.Parse(args[2:]); err != nil {
 		return openAPIImportArgs{}, fmt.Errorf("parse import flags: %w", err)
 	}
@@ -45,35 +64,89 @@ func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 	if strings.TrimSpace(*output) == "" {
 		return openAPIImportArgs{}, fmt.Errorf("import output path must not be empty")
 	}
-	return openAPIImportArgs{input: args[1], output: *output, allowLossy: *allowLossy}, nil
+	selection := openapiimport.Selection{Tags: tags, PathPrefixes: pathPrefixes, Paths: paths}
+	if err := selection.Validate(); err != nil {
+		return openAPIImportArgs{}, err
+	}
+	if *listTags && selection.Active() {
+		return openAPIImportArgs{}, fmt.Errorf("--list-tags cannot be combined with --tag, --path-prefix, or --path")
+	}
+	return openAPIImportArgs{
+		input:      args[1],
+		output:     *output,
+		allowLossy: *allowLossy,
+		selection:  selection,
+		listTags:   *listTags,
+	}, nil
+}
+
+func appendImportFilter(values *[]string) func(string) error {
+	return func(value string) error {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return fmt.Errorf("OpenAPI import filters must not be empty")
+		}
+		*values = append(*values, value)
+		return nil
+	}
 }
 
 func importOpenAPIDesign(input, output string, allowLossy bool) (string, openapiimport.Diagnostics, error) {
+	target, warnings, _, err := importOpenAPIDesignSelected(input, output, allowLossy, openapiimport.Selection{})
+	return target, warnings, err
+}
+
+func importOpenAPIDesignSelected(
+	input, output string,
+	allowLossy bool,
+	selection openapiimport.Selection,
+) (string, openapiimport.Diagnostics, openapiimport.SelectionReport, error) {
 	source, err := os.ReadFile(input)
 	if err != nil {
-		return "", nil, fmt.Errorf("read OpenAPI input %q: %w", input, err)
+		return "", nil, openapiimport.SelectionReport{}, fmt.Errorf("read OpenAPI input %q: %w", input, err)
 	}
-	document, diagnostics, err := openapiimport.Analyze(source)
+	document, diagnostics, report, err := openapiimport.AnalyzeSelected(source, selection)
 	if err != nil {
-		return "", nil, fmt.Errorf("analyze OpenAPI input %q: %w", input, err)
+		return "", nil, report, fmt.Errorf("analyze OpenAPI input %q: %w", input, err)
 	}
 	fatal, warnings := diagnostics.Classify(allowLossy)
 	if len(fatal) > 0 {
-		return "", nil, fmt.Errorf("OpenAPI import cannot preserve the input contract:\n%s", fatal.Error())
+		return "", nil, report, fmt.Errorf("OpenAPI import cannot preserve the input contract:\n%s", fatal.Error())
+	}
+	if document == nil {
+		return "", nil, report, fmt.Errorf("OpenAPI analysis did not produce a document")
+	}
+	if selection.Active() && len(document.Operations) == 0 {
+		return "", nil, report, fmt.Errorf("OpenAPI selection matched no operations")
 	}
 
 	target, packageName, err := resolveImportTarget(output)
 	if err != nil {
-		return "", nil, err
+		return "", nil, report, err
 	}
 	rendered, err := openapiimport.Render(document, openapiimport.Options{PackageName: packageName})
 	if err != nil {
-		return "", nil, err
+		return "", nil, report, err
 	}
 	if err := installImportFile(target, rendered); err != nil {
-		return "", nil, err
+		return "", nil, report, err
 	}
-	return target, warnings, nil
+	return target, warnings, report, nil
+}
+
+func inspectOpenAPITags(input string) ([]openapiimport.TagSummary, error) {
+	source, err := os.ReadFile(input)
+	if err != nil {
+		return nil, fmt.Errorf("read OpenAPI input %q: %w", input, err)
+	}
+	document, diagnostics, report, err := openapiimport.AnalyzeSelected(source, openapiimport.Selection{})
+	if err != nil {
+		return nil, fmt.Errorf("analyze OpenAPI input %q: %w", input, err)
+	}
+	if document == nil {
+		return nil, fmt.Errorf("inspect OpenAPI tags:\n%s", diagnostics.Error())
+	}
+	return report.Tags, nil
 }
 
 func resolveImportTarget(output string) (string, string, error) {
