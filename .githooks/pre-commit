@@ -8,6 +8,8 @@
 set -eu
 
 repo_root=$(git rev-parse --show-toplevel)
+git_local_env=$(git rev-parse --local-env-vars)
+unset $git_local_env
 cd "$repo_root"
 
 make lint

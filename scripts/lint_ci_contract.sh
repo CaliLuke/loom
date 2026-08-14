@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAKEFILE="$ROOT/Makefile"
 WORKFLOW="$ROOT/.github/workflows/test.yml"
 CHECK_SCRIPT="$ROOT/check.sh"
+PRE_COMMIT="$ROOT/.githooks/pre-commit"
 PRE_PUSH="$ROOT/.githooks/pre-push"
 
 fail() {
@@ -95,6 +96,9 @@ run_and_assert_make "|||ci-local" "$CHECK_SCRIPT" --full
 run_and_assert_make "|||lint test" "$CHECK_SCRIPT"
 
 repo_root="$(git -C "$ROOT" rev-parse --show-toplevel)"
+git_dir="$(git -C "$ROOT" rev-parse --absolute-git-dir)"
+run_and_assert_make "|||lint" env GIT_DIR="$git_dir" GIT_WORK_TREE="$repo_root" "$PRE_COMMIT"
+
 update_oid="1111111111111111111111111111111111111111"
 remote_oid="2222222222222222222222222222222222222222"
 delete_oid="0000000000000000000000000000000000000000"
