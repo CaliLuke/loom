@@ -38,6 +38,46 @@ func TestAnalyzerKeepsExplicitTypenamesDistinct(t *testing.T) {
 	require.Equal(t, "#/components/schemas/BarPayload", secondSchema.Ref)
 }
 
+func TestAnalyzerDeduplicatesRenamedSchemasWithTheSameExplicitTypename(t *testing.T) {
+	t.Parallel()
+
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+	full := &expr.AttributeExpr{
+		Meta: expr.MetaExpr{"openapi:typename": []string{"ExceptionResponse"}},
+		Type: &expr.UserTypeExpr{
+			AttributeExpr: &expr.AttributeExpr{
+				Type: &expr.Object{
+					{Name: "loomError", Attribute: &expr.AttributeExpr{Type: expr.String}},
+					{Name: "message", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				},
+			},
+			TypeName: "ExceptionResponse",
+		},
+	}
+	projected := func() *expr.AttributeExpr {
+		return &expr.AttributeExpr{
+			Meta: expr.MetaExpr{"openapi:typename": []string{"ExceptionResponse"}},
+			Type: &expr.UserTypeExpr{
+				AttributeExpr: &expr.AttributeExpr{
+					Type: &expr.Object{
+						{Name: "message", Attribute: &expr.AttributeExpr{Type: expr.String}},
+					},
+				},
+				TypeName: "ExceptionResponseBody",
+			},
+		}
+	}
+
+	fullSchema := analyzer.AnalyzeSchema(full)
+	firstProjected := analyzer.AnalyzeSchema(projected())
+	secondProjected := analyzer.AnalyzeSchema(projected())
+
+	require.Equal(t, "#/components/schemas/ExceptionResponse", fullSchema.Ref)
+	require.NotEqual(t, fullSchema.Ref, firstProjected.Ref)
+	require.Equal(t, firstProjected.Ref, secondProjected.Ref)
+	require.Len(t, analyzer.Components(), 2)
+}
+
 func TestAnalyzerDeduplicatesUnionEnvelopeSchemas(t *testing.T) {
 	t.Parallel()
 

@@ -33,8 +33,8 @@ type (
 	}
 
 	schemaRef struct {
-		ref      string
-		explicit bool
+		ref          string
+		explicitName string
 	}
 )
 
@@ -305,11 +305,10 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, no
 	s := &Schema{}
 	h := a.HashAttribute(attr, fnv.New64())
 	metaName, canonical := schemaTypeNaming(attr, t)
-	metaRef := toRef(metaName)
 
 	refs, ok := a.hashes[h]
 	if !noRef && ok {
-		if ref := findMatchingSchemaRef(refs, metaRef, metaName != ""); ref != "" {
+		if ref := findMatchingSchemaRef(refs, metaName, canonical); ref != "" {
 			s.Ref = ref
 			return s
 		}
@@ -322,7 +321,7 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, no
 		typeName = a.Uniquify(typeName, h)
 	}
 	s.Ref = toRef(typeName)
-	a.registerSchemaRef(h, s.Ref, metaName != "")
+	a.registerSchemaRef(h, s.Ref, metaName)
 	if _, ok := a.schemas[typeName]; !ok {
 		a.schemaHashes[typeName] = h
 		if canonical {
@@ -493,13 +492,13 @@ func (a *Analyzer) unionBranchSchemaKey(union *expr.Union, val *expr.NamedAttrib
 	}, ":")
 }
 
-func (a *Analyzer) registerSchemaRef(h uint64, ref string, explicit bool) {
+func (a *Analyzer) registerSchemaRef(h uint64, ref, explicitName string) {
 	for _, existing := range a.hashes[h] {
-		if existing.ref == ref && existing.explicit == explicit {
+		if existing.ref == ref && existing.explicitName == explicitName {
 			return
 		}
 	}
-	a.hashes[h] = append(a.hashes[h], schemaRef{ref: ref, explicit: explicit})
+	a.hashes[h] = append(a.hashes[h], schemaRef{ref: ref, explicitName: explicitName})
 }
 
 func toRef(name string) string {

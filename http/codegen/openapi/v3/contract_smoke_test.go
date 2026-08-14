@@ -94,6 +94,21 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			},
 		},
 		{
+			name: "shared-error-responses",
+			dsl:  testdata.OpenAPISharedErrorHeaderDSL,
+			extra: func(t *testing.T, spec map[string]any) {
+				components := requireMap(t, spec["components"], "components")
+				schemas := requireMap(t, components["schemas"], "components.schemas")
+				variantCount := 0
+				for name := range schemas {
+					if strings.HasPrefix(name, "ExceptionResponse_") {
+						variantCount++
+					}
+				}
+				require.Equal(t, 1, variantCount)
+			},
+		},
+		{
 			name: "async-session-security",
 			dsl:  testdata.AsyncSessionSecurityDSL,
 			extra: func(t *testing.T, spec map[string]any) {
@@ -164,6 +179,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "file-response", dsl: fileResponseOpenAPIDSL},
 		{name: "raw-request-bodies", dsl: testdata.RawRequestBodyOpenAPIDSL},
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
+		{name: "shared-error-responses", dsl: testdata.OpenAPISharedErrorHeaderDSL},
 	}
 	for _, tc := range lintCases {
 		t.Run("redocly-"+tc.name, func(t *testing.T) {

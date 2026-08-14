@@ -96,7 +96,7 @@
               }
             },
             "schema": {
-              "$ref": "#/components/schemas/Session_f83ae53b4e88d8a9_2"
+              "$ref": "#/components/schemas/Session_f83ae53b4e88d8a9"
             }
           }
         },
@@ -144,7 +144,7 @@
         ],
         "type": "object"
       },
-      "Session_f83ae53b4e88d8a9_2": {
+      "Session_f83ae53b4e88d8a9": {
         "example": {
           "expiresAt": "2026-03-21T12:00:00Z",
           "token": "token-456",

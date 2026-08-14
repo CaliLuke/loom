@@ -1,6 +1,7 @@
 package openapiv3
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,31 @@ func TestBuildBodyTypesDeduplicatesGeneratedRequestBodySchemasByStructure(t *tes
 	require.Equal(t, firstRef, secondRef)
 	require.Len(t, types, 1)
 	matchesSchema(t, "shared request body", types[nameFromRef(firstRef)], types, tobj("name", tstring))
+}
+
+func TestBuildBodyTypesDeduplicatesSharedErrorBodiesProjectedByHeader(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.OpenAPISharedErrorHeaderDSL)
+
+	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
+	serviceBodies := bodies["sharedErrorResponses"]
+	wantRef := serviceBodies["first"].ResponseBodies[400][0].Ref
+
+	for _, methodName := range []string{"first", "second"} {
+		for _, status := range []int{400, 401, 403} {
+			require.Equal(t, wantRef, serviceBodies[methodName].ResponseBodies[status][0].Ref)
+		}
+	}
+
+	variantCount := 0
+	for name := range types {
+		if strings.HasPrefix(name, "ExceptionResponse_") {
+			variantCount++
+		}
+	}
+	require.Equal(t, 1, variantCount)
+	projected := derefSchema(t, serviceBodies["first"].ResponseBodies[400][0], types)
+	require.NotContains(t, projected.Properties, "loomError")
+	require.Contains(t, projected.Properties, "message")
 }
 
 func TestBuildBodyTypesDeduplicatesRepeatedUnionEnvelopeSchemas(t *testing.T) {

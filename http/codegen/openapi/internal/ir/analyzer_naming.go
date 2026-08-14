@@ -100,15 +100,21 @@ func syntheticUnionBranchSchemaDescription(val *expr.NamedAttributeExpr) string 
 	return fmt.Sprintf(`Synthetic wrapper for union variant %q.`, tag)
 }
 
-func findMatchingSchemaRef(refs []schemaRef, metaRef string, explicit bool) string {
+func findMatchingSchemaRef(refs []schemaRef, explicitName string, canonical bool) string {
 	for _, ref := range refs {
-		if explicit {
-			if ref.ref == metaRef {
+		if explicitName != "" {
+			if canonical {
+				if ref.ref == toRef(explicitName) {
+					return ref.ref
+				}
+				continue
+			}
+			if ref.explicitName == explicitName {
 				return ref.ref
 			}
 			continue
 		}
-		if !ref.explicit {
+		if ref.explicitName == "" {
 			return ref.ref
 		}
 	}
