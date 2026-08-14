@@ -125,6 +125,83 @@ func TestEvaluateImportedDesign(t *testing.T) {
 	require.NoError(t, err, string(output))
 }
 
+func TestRenderErrorFieldCollisionGeneratesCompilingService(t *testing.T) {
+	schemaRef := func(name string) *Schema {
+		return &Schema{Ref: "#/components/schemas/" + name}
+	}
+	document := &Document{
+		OpenAPIVersion: "3.1.1",
+		Title:          "Error Fields",
+		APIVersion:     "1.0.0",
+		Components: Components{Schemas: []NamedSchema{
+			{
+				Name:   "Failure",
+				GoName: "Failure",
+				Schema: &Schema{Type: "object", Properties: []NamedProperty{
+					{Name: "error", Schema: &Schema{Type: "string"}},
+					{Name: "loomErrorName", Schema: &Schema{Type: "string"}},
+				}},
+			},
+			{
+				Name:   "Success",
+				GoName: "Success",
+				Schema: &Schema{Type: "object", Properties: []NamedProperty{
+					{Name: "error", Schema: &Schema{Type: "string"}},
+				}},
+			},
+		}},
+		Operations: []Operation{{
+			Method: "GET", Path: "/fields", OperationID: "fields.get", GoName: "FieldsGet",
+			Responses: []StatusResponse{
+				{Status: "200", Response: Response{ContentType: "application/json", Schema: schemaRef("Success")}},
+				{Status: "500", Response: Response{ContentType: "application/json", Schema: schemaRef("Failure")}},
+			},
+		}, {
+			Method: "GET", Path: "/inline", OperationID: "inline.get", GoName: "InlineGet",
+			Responses: []StatusResponse{
+				{Status: "204", Response: Response{}},
+				{
+					Status: "400",
+					Response: Response{
+						ContentType: "application/json",
+						Schema: &Schema{Type: "object", Properties: []NamedProperty{
+							{Name: "error", Schema: &Schema{Type: "string"}},
+						}},
+					},
+				},
+			},
+		}},
+	}
+
+	source, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	require.Contains(t, string(source), "Meta(\"struct:field:name\", \"ErrorField\")")
+	require.Contains(t, string(source), "Meta(\"struct:field:name\", \"LoomErrorNameField\")")
+	require.Equal(t, 3, strings.Count(string(source), "struct:field:name"))
+
+	moduleDir := t.TempDir()
+	repoRoot := repositoryRoot(t)
+	goMod := "module example.com/imported\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\n" +
+		"replace github.com/CaliLuke/loom => " + repoRoot + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(goMod), 0o600))
+	designDir := filepath.Join(moduleDir, "design")
+	require.NoError(t, os.MkdirAll(designDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(designDir, "design.go"), source, 0o600))
+
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = moduleDir
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+	cmd = exec.Command("go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/imported/design", "-o", ".")
+	cmd.Dir = moduleDir
+	output, err = cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+	cmd = exec.Command("go", "test", "-mod=mod", "./...")
+	cmd.Dir = moduleDir
+	output, err = cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+}
+
 func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 	schemaRef := func(name string) *Schema {
 		return &Schema{Ref: "#/components/schemas/" + name}

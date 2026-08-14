@@ -8,6 +8,14 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 )
 
+// generatedErrorMethodNames mirrors the receiver methods emitted by
+// codegen/service.renderErrorMethods.
+var generatedErrorMethodNames = map[string]struct{}{
+	"Error":           {},
+	"LoomErrorName":   {},
+	"LoomErrorRemedy": {},
+}
+
 func assignSchemaNames(schemas []NamedSchema) {
 	sort.Slice(schemas, func(i, j int) bool {
 		return schemas[i].Name < schemas[j].Name
@@ -45,4 +53,30 @@ func uniqueName(base string, used map[string]int) string {
 		return base
 	}
 	return fmt.Sprintf("%s%d", base, used[key])
+}
+
+func errorTypeFieldOverrides(fields []string) map[int]string {
+	used := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		used[codegen.Goify(field, true)] = struct{}{}
+	}
+
+	overrides := make(map[int]string)
+	for index, name := range fields {
+		field := codegen.Goify(name, true)
+		if _, reserved := generatedErrorMethodNames[field]; !reserved {
+			continue
+		}
+		base := field + "Field"
+		candidate := base
+		for suffix := 2; ; suffix++ {
+			if _, exists := used[candidate]; !exists {
+				used[candidate] = struct{}{}
+				overrides[index] = candidate
+				break
+			}
+			candidate = fmt.Sprintf("%s%d", base, suffix)
+		}
+	}
+	return overrides
 }

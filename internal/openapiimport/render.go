@@ -36,7 +36,12 @@ func Render(document *Document, options Options) ([]byte, error) {
 	if len(plan.diagnostics) > 0 {
 		return nil, fmt.Errorf("render OpenAPI design: cannot preserve the input contract:\n%s", plan.diagnostics.Error())
 	}
-	r := renderer{document: document, schemas: make(map[string]NamedSchema), operations: plan.operations}
+	r := renderer{
+		document:     document,
+		schemas:      make(map[string]NamedSchema),
+		errorSchemas: make(map[string]struct{}),
+		operations:   plan.operations,
+	}
 	if err := r.index(); err != nil {
 		return nil, err
 	}
@@ -63,28 +68,12 @@ func Render(document *Document, options Options) ([]byte, error) {
 }
 
 type renderer struct {
-	document   *Document
-	schemas    map[string]NamedSchema
-	operations []operationPlan
-	builder    strings.Builder
-	indent     int
-}
-
-func (r *renderer) index() error {
-	for _, schema := range r.document.Components.Schemas {
-		if schema.Name == "" || schema.GoName == "" {
-			return fmt.Errorf("render OpenAPI design: component schema names must not be empty")
-		}
-		identifier := "Imported" + schema.GoName
-		if !token.IsIdentifier(identifier) || token.Lookup(identifier).IsKeyword() {
-			return fmt.Errorf("render OpenAPI design: component schema %q has invalid Go name %q", schema.Name, schema.GoName)
-		}
-		if _, exists := r.schemas[schema.Name]; exists {
-			return fmt.Errorf("render OpenAPI design: component schema %q is defined more than once", schema.Name)
-		}
-		r.schemas[schema.Name] = schema
-	}
-	return nil
+	document     *Document
+	schemas      map[string]NamedSchema
+	errorSchemas map[string]struct{}
+	operations   []operationPlan
+	builder      strings.Builder
+	indent       int
 }
 
 func (r *renderer) namedSchema(named NamedSchema) error {
@@ -94,16 +83,17 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 		return err
 	}
 	name := "Imported" + named.GoName
+	_, errorType := r.errorSchemas[named.Name]
 	switch {
 	case object:
 		r.open("var %s = Type(%q, func()", name, named.Name)
-		if err := r.schemaBlock(named.Schema, path); err != nil {
+		if err := r.schemaBlock(named.Schema, path, errorType); err != nil {
 			return err
 		}
 		r.close()
 	case r.hasSchemaBlock(named.Schema):
 		r.open("var %s = Type(%q, %s, func()", name, named.Name, expression)
-		if err := r.schemaBlock(named.Schema, path); err != nil {
+		if err := r.schemaBlock(named.Schema, path, errorType); err != nil {
 			return err
 		}
 		r.close()
@@ -466,7 +456,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		}
 		if object {
 			r.open("%sfunc()", prefix)
-			if err := r.schemaBlock(response.response.Schema, path+"/content/schema"); err != nil {
+			if err := r.schemaBlock(response.response.Schema, path+"/content/schema", call == "Error"); err != nil {
 				return err
 			}
 			r.close()

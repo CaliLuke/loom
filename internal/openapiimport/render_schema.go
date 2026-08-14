@@ -19,7 +19,7 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		for _, meta := range metadata {
 			r.line("Meta(%q, %q)", meta.name, meta.value)
 		}
-		if err := r.schemaBlock(schema, path); err != nil {
+		if err := r.schemaBlock(schema, path, false); err != nil {
 			return err
 		}
 		r.close()
@@ -163,15 +163,27 @@ func booleanSchemaExpression(format, path string) (string, bool, error) {
 	return "Boolean", false, nil
 }
 
-func (r *renderer) schemaBlock(schema *Schema, path string) error {
+func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) error {
 	if schema.Description != "" {
 		r.line("Description(%q)", schema.Description)
 	}
 	if schema.Type == "object" && schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
 		r.line("Meta(%q, %q)", "openapi:additionalProperties", "false")
 	}
-	for _, property := range schema.Properties {
-		if err := r.attribute(property.Name, property.Schema, "", path+"/properties/"+escapeJSONPointer(property.Name)); err != nil {
+	fieldOverrides := map[int]string(nil)
+	if errorType {
+		fields := make([]string, len(schema.Properties))
+		for index, property := range schema.Properties {
+			fields[index] = property.Name
+		}
+		fieldOverrides = errorTypeFieldOverrides(fields)
+	}
+	for index, property := range schema.Properties {
+		var metadata []renderedMetadata
+		if field := fieldOverrides[index]; field != "" {
+			metadata = append(metadata, renderedMetadata{name: "struct:field:name", value: field})
+		}
+		if err := r.attribute(property.Name, property.Schema, "", path+"/properties/"+escapeJSONPointer(property.Name), metadata...); err != nil {
 			return err
 		}
 	}
