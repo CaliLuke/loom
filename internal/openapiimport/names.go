@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/CaliLuke/loom/codegen"
 )
@@ -38,9 +39,43 @@ func assignOperationNames(operations []Operation) {
 		base := operations[i].OperationID
 		if base == "" {
 			base = operations[i].Method + " " + operations[i].Path
+		} else {
+			base = operationIDWithPathWords(base, operations[i].Path)
 		}
-		operations[i].GoName = uniqueName(codegen.Goify(base, true), used)
+		name := codegen.Goify(base, true)
+		name = strings.ReplaceAll(name, "B2b", "B2B")
+		operations[i].GoName = uniqueName(name, used)
 	}
+}
+
+func operationIDWithPathWords(operationID, path string) string {
+	target := alphanumericLower(operationID)
+	words := strings.FieldsFunc(path, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	for start := range words {
+		var candidate strings.Builder
+		for end := start; end < len(words); end++ {
+			candidate.WriteString(strings.ToLower(words[end]))
+			if candidate.Len() > len(target) {
+				break
+			}
+			if end > start && candidate.String() == target {
+				return strings.Join(words[start:end+1], "_")
+			}
+		}
+	}
+	return operationID
+}
+
+func alphanumericLower(value string) string {
+	var normalized strings.Builder
+	for _, r := range value {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			normalized.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return normalized.String()
 }
 
 func uniqueName(base string, used map[string]int) string {

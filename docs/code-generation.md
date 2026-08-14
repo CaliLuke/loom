@@ -69,6 +69,14 @@ reported together and no partial design or TODO placeholders are written. The
 command also refuses to overwrite an existing target. Review the imported
 design, then run `loom gen <module-import-path>/design` normally.
 
+The importer converts each `operationId` to an idiomatic Go method name. It
+uses matching path words to split lowercase IDs and preserves initialisms such
+as `B2B`.
+
+The generated method keeps the original wire value in
+`Meta("openapi:operationId", ...)`. Regenerated OpenAPI documents therefore
+retain the source `operationId`.
+
 Schema `default`, `deprecated`, `readOnly`, and `writeOnly`, and unformatted
 (or `int32`/`int64`-formatted) integers and unformatted (or
 `float`/`double`-formatted) numbers, import without any flag: they map onto

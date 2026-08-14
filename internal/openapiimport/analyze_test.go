@@ -67,6 +67,50 @@ components:
 	})
 }
 
+func TestAnalyzeNormalizesOperationNames(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Operation names, version: "1"}
+paths:
+  /omni/get/device-info:
+    get:
+      operationId: getdeviceinfo
+      responses: {"204": {description: done}}
+  /b2b/device-info:
+    get:
+      operationId: b2bDeviceInfo
+      responses: {"204": {description: done}}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	tests := []struct {
+		name            string
+		operation       Operation
+		wantGoName      string
+		wantOperationID string
+	}{
+		{
+			name:            "B2B initialism",
+			operation:       document.Operations[0],
+			wantGoName:      "B2BDeviceInfo",
+			wantOperationID: "b2bDeviceInfo",
+		},
+		{
+			name:            "path word hints",
+			operation:       document.Operations[1],
+			wantGoName:      "GetDeviceInfo",
+			wantOperationID: "getdeviceinfo",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.wantGoName, test.operation.GoName)
+			require.Equal(t, test.wantOperationID, test.operation.OperationID)
+		})
+	}
+}
+
 func TestAnalyzeAggregatesAndSortsUnsupportedFeatures(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Unsupported, version: "1"}
