@@ -190,6 +190,8 @@ type Schema struct {
 	Title string
 	// Description is the schema description.
 	Description string
+	// Bases contains local object schemas extended by this schema.
+	Bases []*Schema
 	// Properties contains object properties sorted by wire name.
 	Properties []NamedProperty
 	// Required contains sorted required property names.
@@ -229,7 +231,8 @@ type Schema struct {
 	WriteOnly bool
 	// Default holds the decoded JSON Schema default value, or nil when the
 	// schema declares no default.
-	Default *SchemaDefault
+	Default                *SchemaDefault
+	unsupportedComposition bool
 }
 
 // SchemaDefault holds a decoded JSON Schema default value together with its

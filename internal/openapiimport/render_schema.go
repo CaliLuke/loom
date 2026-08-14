@@ -245,6 +245,22 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 	if schema.Type == "object" && schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
 		r.line("Meta(%q, %q)", "openapi:additionalProperties", "false")
 	}
+	for index, base := range schema.Bases {
+		if base == nil || base.Ref == "" {
+			return fmt.Errorf("render OpenAPI design: %s/bases/%d object base must be a schema reference", path, index)
+		}
+		basePath := fmt.Sprintf("%s/bases/%d", path, index)
+		expression, _, err := r.schemaExpression(base, basePath)
+		if err != nil {
+			return err
+		}
+		name := strings.TrimPrefix(base.Ref, "#/components/schemas/")
+		named := r.schemas[name]
+		if named.Schema == nil || named.Schema.Type != "object" {
+			return fmt.Errorf("render OpenAPI design: %s object base %q is not an object schema", basePath, base.Ref)
+		}
+		r.line("Extend(%s)", expression)
+	}
 	fieldOverrides := map[int]string(nil)
 	if errorType {
 		fields := make([]string, len(schema.Properties))
@@ -340,7 +356,7 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if schema == nil {
 		return false
 	}
-	if schema.Description != "" || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
+	if schema.Description != "" || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
 		schema.Pattern != "" || schema.Minimum != nil || schema.Maximum != nil || schema.ExclusiveMinimum != nil ||
 		schema.ExclusiveMaximum != nil || schema.MinLength != nil || schema.MaxLength != nil ||
 		schema.MinItems != nil || schema.MaxItems != nil ||

@@ -255,6 +255,10 @@ func normalizedMediaType(contentType string) string {
 }
 
 func (p *documentPlanner) schema(schema *Schema, path string) {
+	if schema != nil && schema.unsupportedComposition {
+		p.unsupported("schema-composition", path, "allOf, oneOf, anyOf, and not are not in the strict import subset")
+		return
+	}
 	renderer := renderer{document: p.document, schemas: p.schemas}
 	_, _, err := renderer.schemaExpression(schema, path)
 	if err == nil {

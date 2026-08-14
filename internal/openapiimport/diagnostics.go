@@ -21,15 +21,16 @@ type Diagnostic struct {
 type Diagnostics []Diagnostic
 
 var lossyDiagnosticCodes = map[string]struct{}{
-	"examples":             {},
-	"external-docs":        {},
-	"header-deprecated":    {},
-	"info-metadata":        {},
-	"parameter-deprecated": {},
-	"path-metadata":        {},
-	"response-summary":     {},
-	"schema-format":        {},
-	"tag-metadata":         {},
+	"examples":               {},
+	"external-docs":          {},
+	"header-deprecated":      {},
+	"info-metadata":          {},
+	"parameter-deprecated":   {},
+	"path-metadata":          {},
+	"response-summary":       {},
+	"schema-allof-flattened": {},
+	"schema-format":          {},
+	"tag-metadata":           {},
 }
 
 // Error formats all diagnostics as a single error-style message.

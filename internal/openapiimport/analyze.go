@@ -463,13 +463,14 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		return &Schema{}
 	}
 	schema := newNormalizedSchema(source)
+	supportedAllOf := a.schemaAllOf(schema, source, path)
 	a.schemaTypeAndProperties(schema, source, path)
 	a.schemaCollections(schema, source, path)
 	a.schemaEnum(schema, source, path)
 	a.schemaExclusiveBounds(schema, source)
 	a.schemaDefault(schema, source, path)
 	a.schemaFormat(schema, path)
-	a.schemaUnsupportedKeywords(source, path)
+	a.schemaUnsupportedKeywords(schema, source, path, supportedAllOf)
 	a.extensions(path, source.Extensions)
 	return schema
 }
@@ -645,9 +646,9 @@ func (a *analyzer) schemaFormat(schema *Schema, path string) {
 	}
 }
 
-func (a *analyzer) schemaUnsupportedKeywords(source *base.Schema, path string) {
-	if len(source.AllOf) > 0 || len(source.OneOf) > 0 || len(source.AnyOf) > 0 || source.Not != nil {
-		a.unsupported("schema-composition", path, "allOf, oneOf, anyOf, and not are not in the strict import subset")
+func (a *analyzer) schemaUnsupportedKeywords(schema *Schema, source *base.Schema, path string, supportedAllOf bool) {
+	if len(source.AllOf) > 0 && !supportedAllOf || len(source.OneOf) > 0 || len(source.AnyOf) > 0 || source.Not != nil {
+		schema.unsupportedComposition = true
 	}
 	if len(source.PrefixItems) > 0 || source.Contains != nil || source.If != nil || source.Then != nil || source.Else != nil ||
 		orderedmap.Len(source.DependentSchemas) > 0 || orderedmap.Len(source.DependentRequired) > 0 ||

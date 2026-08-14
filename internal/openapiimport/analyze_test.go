@@ -149,6 +149,7 @@ components:
 	requireDiagnosticCode(t, diagnostics, "security")
 	requireDiagnosticCode(t, diagnostics, "security-schemes")
 	requireDiagnosticCode(t, diagnostics, "servers")
+	requireNoDiagnosticCode(t, diagnostics, "schema")
 }
 
 func TestAnalyzeRejectsUnsupportedVersions(t *testing.T) {

@@ -1,0 +1,62 @@
+package openapiimport
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/orderedmap"
+)
+
+func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string) bool {
+	if len(source.AllOf) == 0 {
+		return false
+	}
+	if len(source.AllOf) != 2 || hasDirectAllOfSchemaShape(source) {
+		return false
+	}
+	var baseSchema, inlineSchema *Schema
+	for index, proxy := range source.AllOf {
+		if proxy == nil {
+			return false
+		}
+		partPath := fmt.Sprintf("%s/allOf/%d", path, index)
+		if proxy.IsReference() {
+			ref := proxy.GetReference()
+			if !strings.HasPrefix(ref, "#/components/schemas/") || baseSchema != nil {
+				return false
+			}
+			baseSchema = &Schema{Ref: ref}
+			continue
+		}
+		if inlineSchema != nil {
+			return false
+		}
+		inlineSchema = a.schema(proxy, partPath)
+	}
+	if baseSchema == nil || inlineSchema == nil || inlineSchema.Type != "object" || len(inlineSchema.Bases) > 0 {
+		return false
+	}
+	schema.Type = "object"
+	schema.Bases = []*Schema{baseSchema}
+	schema.Properties = inlineSchema.Properties
+	schema.Required = inlineSchema.Required
+	schema.AdditionalProperties = inlineSchema.AdditionalProperties
+	if schema.Description == "" {
+		schema.Description = inlineSchema.Description
+	}
+	a.unsupported(
+		"schema-allof-flattened",
+		path+"/allOf",
+		"object inheritance is rendered with Extend and regenerated OpenAPI flattens the composition",
+	)
+	return true
+}
+
+func hasDirectAllOfSchemaShape(source *base.Schema) bool {
+	return len(source.Type) > 0 || orderedmap.Len(source.Properties) > 0 || len(source.Required) > 0 ||
+		source.Items != nil || source.AdditionalProperties != nil || len(source.Enum) > 0 || source.Format != "" ||
+		source.Pattern != "" || source.Minimum != nil || source.Maximum != nil || source.ExclusiveMinimum != nil ||
+		source.ExclusiveMaximum != nil || source.MinLength != nil || source.MaxLength != nil ||
+		source.MinItems != nil || source.MaxItems != nil || source.Default != nil
+}

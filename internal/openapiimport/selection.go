@@ -271,6 +271,9 @@ func (p *componentPruner) visitSchema(schema *Schema) {
 		p.visitSchema(p.schemas[name])
 		return
 	}
+	for _, base := range schema.Bases {
+		p.visitSchema(base)
+	}
 	for _, property := range schema.Properties {
 		p.visitSchema(property.Schema)
 	}

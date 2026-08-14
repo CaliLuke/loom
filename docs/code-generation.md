@@ -114,6 +114,12 @@ The importer maps `multipart/form-data` request bodies to
 bodies to `FormRequest()`. Both request body schemas must define an object.
 The importer maps `type: string, format: binary` to `Bytes`.
 
+With `--allow-lossy`, the importer supports the common Spring inheritance
+shape `allOf: [$ref, inline object]`. It renders the parent with `Extend(...)`
+and keeps the inline properties and required fields. Regenerated OpenAPI
+flattens this inheritance relationship. Other `allOf` shapes remain blocked.
+The importer also blocks `oneOf`, `anyOf`, and `not`.
+
 For a single non-JSON success response, the importer keeps the media type and
 schema as an OpenAPI-only body. It uses `FileResponse()` for a compatible
 `GET` or `HEAD` response with status `200`. It uses
