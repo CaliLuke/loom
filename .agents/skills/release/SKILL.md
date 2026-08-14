@@ -35,7 +35,7 @@ Use this skill when publishing a Loom release from this repo.
 - Review the repo-local Loom skill at `.agents/skills/loom/SKILL.md` and update it when the release changes framework behavior, guidance, or version-facing command examples.
 - The pushed `v*` tag must result in a matching GitHub Release via `.github/workflows/release.yml`.
   Stable tags must publish as stable releases and prerelease tags must publish as prereleases.
-- Every GitHub Release must have meaningful notes before the release is considered done. A bare generated changelog link, empty body, or placeholder text is not acceptable.
+- Every GitHub Release must have meaningful notes before the release is considered done. A bare generated changelog link, empty body, or placeholder text is not acceptable. `make release` enforces this: it rejects a body that is only GitHub's auto-generated "What's Changed"/"New Contributors" bullets and "Full Changelog" link, even though `.github/workflows/release.yml` always creates that generated body first as the tag-triggered release's initial content.
 - Release notes and release-facing commit messages must describe the Loom behavior shipped, user impact, and upgrade notes. Do not center another framework, upstream project, or inspiration source when the actual value is the Loom improvement.
 - Do not add a routine `Verification` section or list standard CI commands in release notes. Readers need what changed and any action they must take; the repository and CI retain the verification record.
 - The same workflow also supports manual backfill for an existing `v*` tag when a release entry needs repair.
@@ -87,13 +87,24 @@ falls back to a working tree in ordinary development checks either.
 6. Run `make release VERSION=<version>`. The command stages version changes in a
    detached worktree, runs preflight, rejects unexpected mutations, commits and
    tags only after success, atomically pushes `main` plus the annotated tag,
-   verifies both remote refs, waits for the matching non-draft GitHub Release
-   with the expected stable or prerelease state and substantive notes, and
-   finally fast-forwards the caller.
-7. Review the published notes against the draft. If generated notes omit user
-   impact, upgrade guidance, or verification, repair them with
-   `gh release edit vX.Y.Z --notes-file ...` and verify again.
-8. Before closing the release, update this release skill if the run exposed a
+   and verifies both remote refs. Pushing the tag triggers
+   `.github/workflows/release.yml`, which immediately creates the GitHub
+   Release with `gh release create --generate-notes` — a body of only
+   auto-generated "What's Changed"/"Full Changelog" content. `make release`
+   then polls that release and blocks until its body is substantive; it never
+   accepts the generated-only body, so it will not finish on its own.
+7. As soon as the tag push in step 6 lands (watch for the `gh release create`
+   run or poll `gh release view vX.Y.Z`), replace the generated body with the
+   notes drafted in step 3: `gh release edit vX.Y.Z --notes-file <draft>`.
+   Do this promptly — `make release` polls every few seconds for about five
+   minutes (60 attempts) by default and exits with an error if that window
+   elapses before the body becomes substantive. Once the edit lands, the next
+   poll succeeds and `make release` fast-forwards the caller's `main`
+   automatically.
+8. If `make release` times out before you finish the edit, it has already
+   published the tag and (generated-notes) release; follow the timeout
+   recovery below instead of rerunning release preparation.
+9. Before closing the release, update this release skill if the run exposed a
    process gap.
 
 ## Required Verification
@@ -112,14 +123,24 @@ falls back to a working tree in ordinary development checks either.
 
 - If the tag exists but the GitHub Release is missing, use the manual `workflow_dispatch` path in `.github/workflows/release.yml` with that tag before cutting another release.
 - If `make release` is attempted without `VERSION=...`, stop and rerun with an explicit version instead of editing files by hand.
-- If a release was published with empty, placeholder, or changelog-only notes, treat it as an incomplete release repair: inspect the commits, write meaningful notes, update the GitHub Release, then verify the published body.
 - If `release-preflight` fails, `make release` removes the isolated worktree and
   leaves the caller checkout, local tags, and remote refs untouched. Fix the
   real failure, commit and push it to `main`, then rerun the same release
   command.
-- If atomic push succeeds but GitHub Release verification times out, the remote
-  commit and tag already exist even though the caller may not have
-  fast-forwarded. Do not cut another version or rerun release preparation. Use
-  the workflow's manual dispatch to publish/repair that exact tag, verify it
-  with `gh release view`, then fetch and fast-forward local `main`.
+- If atomic push succeeds but GitHub Release verification times out — including
+  the expected case where the tag-triggered workflow published only
+  auto-generated notes and the substantive edit did not land within the poll
+  window — the remote commit and tag already exist even though the caller may
+  not have fast-forwarded. Do not cut another version or rerun release
+  preparation. The workflow's `workflow_dispatch` path only creates a *missing*
+  release and no-ops when one already exists, so it does not repair notes here.
+  Instead: inspect the commits, write meaningful notes (or reuse the step 3
+  draft), publish them with `gh release edit vX.Y.Z --notes-file ...`, verify
+  the body with `gh release view vX.Y.Z --json body --jq .body`, then fetch and
+  fast-forward local `main` (`git fetch origin && git merge --ff-only
+  origin/main`) since `make release` exited before doing so.
+- More generally, if a release was ever published with empty, placeholder, or
+  changelog-only notes outside this exact flow, treat it the same way: inspect
+  the commits, write meaningful notes, update the GitHub Release with
+  `gh release edit`, then verify the published body.
 - `mismatched file loom.json` from an integration test means a version-stamped fixture is out of sync with `pkg/version.go`. `loom.json` contains only `{"loom_version": "vX.Y.Z"}`; confirm that is the *only* diff (the fixture-compare stops at the first mismatch, so regenerate and diff the whole tree to be sure real generated code did not also change), then let `make release` bump the fixtures. If other generated files also differ, the release contains a codegen change and the fixtures need a genuine regeneration, not just a version bump.

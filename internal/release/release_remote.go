@@ -7,10 +7,25 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
 	"golang.org/x/mod/semver"
+)
+
+var (
+	// generatedNotesHeadingPattern matches the section headings GitHub's
+	// `--generate-notes` output uses and nothing else, so a heading alone
+	// never counts as substantive prose.
+	generatedNotesHeadingPattern = regexp.MustCompile(`(?i)^#{1,6}\s*(what's changed|new contributors)\s*:?\s*$`)
+	// generatedNotesBulletPattern matches an auto-generated "What's Changed" or
+	// "New Contributors" bullet line, which always ends in a link to the pull
+	// request, commit, or first-contribution reference on GitHub.
+	generatedNotesBulletPattern = regexp.MustCompile(`(?i)^[-*]\s+\S.*\bhttps://github\.com/\S+/(?:pull|commit)/\S+$`)
+	// generatedNotesChangelogPattern matches the trailing "Full Changelog"
+	// comparison link line GitHub appends to generated notes.
+	generatedNotesChangelogPattern = regexp.MustCompile(`(?i)^\*{0,2}full changelog\*{0,2}:\s*https://\S+$`)
 )
 
 func verifyRemoteRefs(ctx context.Context, root, version, commit string) error {
@@ -97,7 +112,39 @@ func validateRelease(version string, data []byte) error {
 		!strings.Contains(lowerBody, "highlights")) {
 		return errors.New("GitHub Release does not contain substantive release notes")
 	}
+	if isGeneratedNotesOnly(body) {
+		return errors.New(
+			"GitHub Release body is only auto-generated changelog notes; " +
+				"add substantive highlights before the release is considered done",
+		)
+	}
 	return nil
+}
+
+// isGeneratedNotesOnly reports whether body consists entirely of GitHub's
+// `--generate-notes` output: a "What's Changed"/"New Contributors" heading,
+// per-PR or per-contributor bullet lines that end in a GitHub link, and a
+// trailing "Full Changelog" comparison link, with no other prose. A body that
+// merely includes one of those elements alongside real highlights, upgrade
+// notes, or other authored text is not flagged, since at least one line will
+// fail to match every pattern below.
+func isGeneratedNotesOnly(body string) bool {
+	sawLine := false
+	for line := range strings.SplitSeq(body, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		switch {
+		case generatedNotesHeadingPattern.MatchString(trimmed):
+		case generatedNotesBulletPattern.MatchString(trimmed):
+		case generatedNotesChangelogPattern.MatchString(trimmed):
+		default:
+			return false
+		}
+		sawLine = true
+	}
+	return sawLine
 }
 
 func gitCommandOutput(ctx context.Context, dir string, args ...string) (string, error) {

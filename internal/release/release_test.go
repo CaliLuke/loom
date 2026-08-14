@@ -59,6 +59,29 @@ func TestSubstantiveRelease(t *testing.T) {
 
 	validBody := "## What's Changed\n\n- Transactional release preparation with isolated verification.\n\n" +
 		"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.6.2...v1.7.0"
+	pureGeneratedBody := "## What's Changed\n" +
+		"* fix(codegen): skip transport-absent example services by @CaliLuke in " +
+		"https://github.com/CaliLuke/loom/pull/245\n" +
+		"* fix(openapiimport): avoid error field method collisions by @CaliLuke in " +
+		"https://github.com/CaliLuke/loom/pull/244\n\n" +
+		"## New Contributors\n" +
+		"* @newcontributor made their first contribution in " +
+		"https://github.com/CaliLuke/loom/pull/246\n\n" +
+		"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.8.0-alpha.3...v1.8.0-alpha.4"
+	generatedPlusHighlightsBody := "## Highlights\n\n" +
+		"- Generated clients now retry idempotent requests with jittered backoff.\n\n" +
+		"## What's Changed\n" +
+		"* fix(codegen): skip transport-absent example services by @CaliLuke in " +
+		"https://github.com/CaliLuke/loom/pull/245\n\n" +
+		"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.8.0-alpha.3...v1.8.0-alpha.4"
+	v180DraftStyleBody := "## Highlights\n\n" +
+		"- **OpenAPI imports now avoid generated field and method collisions.** A schema\n" +
+		"  property named `error` no longer collides with generated result accessors and\n" +
+		"  produces uncompilable Loom design code.\n\n" +
+		"## Upgrade notes\n\n" +
+		"This alpha requires Go 1.27rc2 or later. Install and require the exact\n" +
+		"prerelease tag.\n\n" +
+		"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.8.0-alpha.3...v1.8.0-alpha.4"
 	tests := []struct {
 		name    string
 		version string
@@ -73,6 +96,18 @@ func TestSubstantiveRelease(t *testing.T) {
 		{name: "prerelease not marked", version: "v1.8.0-alpha.1", data: releaseJSON("v1.8.0-alpha.1", validBody, false, false), wantErr: "prerelease"},
 		{name: "empty", version: "v1.7.0", data: releaseJSON("v1.7.0", "", false, false), wantErr: "substantive"},
 		{name: "changelog only", version: "v1.7.0", data: releaseJSON("v1.7.0", "Full Changelog: https://example.com", false, false), wantErr: "substantive"},
+		{
+			name: "pure generated notes rejected", version: "v1.8.0-alpha.4",
+			data: releaseJSON("v1.8.0-alpha.4", pureGeneratedBody, false, true), wantErr: "auto-generated",
+		},
+		{
+			name: "generated notes plus substantive highlights accepted", version: "v1.8.0-alpha.4",
+			data: releaseJSON("v1.8.0-alpha.4", generatedPlusHighlightsBody, false, true),
+		},
+		{
+			name: "v1.8.0 draft style with highlights and upgrade notes accepted", version: "v1.8.0-alpha.4",
+			data: releaseJSON("v1.8.0-alpha.4", v180DraftStyleBody, false, true),
+		},
 	}
 
 	for _, test := range tests {
@@ -83,6 +118,67 @@ func TestSubstantiveRelease(t *testing.T) {
 				return
 			}
 			require.ErrorContains(t, err, test.wantErr)
+		})
+	}
+}
+
+func TestIsGeneratedNotesOnly(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{name: "empty body", body: "", want: false},
+		{
+			name: "pure what's changed and full changelog",
+			body: "## What's Changed\n" +
+				"* fix: skip transport-absent example services by @CaliLuke in " +
+				"https://github.com/CaliLuke/loom/pull/245\n\n" +
+				"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.0.0...v1.1.0",
+			want: true,
+		},
+		{
+			name: "pure with new contributors section",
+			body: "## What's Changed\n" +
+				"* fix: bug by @user in https://github.com/CaliLuke/loom/pull/1\n\n" +
+				"## New Contributors\n" +
+				"* @newuser made their first contribution in https://github.com/CaliLuke/loom/pull/1\n\n" +
+				"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.0.0...v1.1.0",
+			want: true,
+		},
+		{
+			name: "commit link bullet still generated",
+			body: "## What's Changed\n" +
+				"* docs: fix typo in https://github.com/CaliLuke/loom/commit/abcdef1\n\n" +
+				"Full changelog: https://github.com/CaliLuke/loom/compare/v1.0.0...v1.1.0",
+			want: true,
+		},
+		{
+			name: "highlights section is prose, not generated",
+			body: "## Highlights\n\n" +
+				"- Generated clients now retry idempotent requests with jittered backoff.\n\n" +
+				"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.0.0...v1.1.0",
+			want: false,
+		},
+		{
+			name: "non-pr bullet is prose, not generated",
+			body: "## What's Changed\n\n" +
+				"- Transactional release preparation with isolated verification.\n\n" +
+				"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.0.0...v1.1.0",
+			want: false,
+		},
+		{
+			name: "changelog link alone has no prose so it is still flagged",
+			body: "**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.0.0...v1.1.0",
+			want: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.want, isGeneratedNotesOnly(test.body))
 		})
 	}
 }
