@@ -359,7 +359,11 @@ claim those protocol statuses. Without an explicit response `ContentType`, the
 spec uses binary `*/*` because `FileResponse.Name` controls runtime MIME
 inference. Result metadata may map ETag and application headers, but not the
 transport-owned Content-Type, Content-Length, Content-Range, Accept-Ranges, or
-Last-Modified headers.
+Last-Modified headers. Every result metadata attribute must map to a response
+header or cookie; FileResponse exclusively owns the response body.
+Generated response-contract manifests cover declared application response
+branches, not FileResponse's transport-owned 206, 304, 412, and 416 outcomes
+or decoder and mux failures such as 400 and 413.
 
 ---
 
@@ -429,6 +433,7 @@ JSON-RPC endpoints keep the protocol's HTTP `200` response and map the same
 condition to an `InvalidRequest` error: code `-32600`, null `id`, message
 `request body too large`, and error data name `request_too_large`. A
 POST-initiated SSE request receives that envelope as a `message` event.
+
 Generated clients also cap buffered response-body restoration at 32 MiB.
 
 Unexpected response bodies included in generated client errors are capped at

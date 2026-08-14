@@ -52,6 +52,10 @@ assert_prerequisites all "lint test integration-test"
 assert_prerequisites ci "depend all"
 assert_prerequisites ci-local "all test-race openapi-contract generated-code-quality"
 
+if grep -Eq '^[[:space:]]*run:[[:space:]]*[|>][+-]?[[:space:]]*(#.*)?$' "$WORKFLOW"; then
+  fail "workflow multiline run blocks are unsupported because Make targets could escape CI contract extraction"
+fi
+
 workflow_targets="$({
   sed -nE 's/^[[:space:]]*run:[[:space:]]*make[[:space:]]+([^[:space:]#]+).*$/\1/p' "$WORKFLOW"
 } | LC_ALL=C sort -u)"

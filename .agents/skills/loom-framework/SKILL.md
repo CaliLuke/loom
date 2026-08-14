@@ -97,8 +97,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
 - Render from the shared document model once. Apply 3.2-only transformations in
   `applyOpenAPI32`; for the 3.1 target, remove only incompatible members in
   `filterOpenAPI31` while preserving shared structures.
-- Keep isolated version choices explicit and local. Do not introduce a generic
-  version router until multiple real render shapes require that abstraction.
+- Route version-dependent construction and document passes through
+  `versionRouter`. Constructors declare bounded or open-ended `versionRange`
+  values; when multiple constructors match, `construct` selects the one with
+  the newest lower bound, while `mustConstruct` turns a missing required shape
+  into an error. `runPasses` applies every matching pass in registration order,
+  and the router carries constructor and pass diagnostics to the generated
+  files. Keep non-versioned behavior outside the router.
 - Keep shared JSON Schema features such as `contentSchema` when they are valid
   in both targets. Compatibility filtering must remove only version-specific
   members.
