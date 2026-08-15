@@ -342,10 +342,7 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 				if e.Response == nil {
 					continue
 				}
-				parts = append(parts,
-					fmt.Sprintf("\tcase %q:\n", e.Name),
-					fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, e.Response.Code),
-				)
+				parts = append(parts, streamMappedErrorCase(prefix, e))
 			}
 		}
 		parts = append(parts,
@@ -367,6 +364,39 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 		"\t\tcode = jsonrpcErrorCodeForServiceError(serviceError)\n",
 		"\t}\n",
 		"\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
+	)
+	return strings.Join(parts, "")
+}
+
+func streamMappedErrorCase(prefix string, item *httpcodegen.ErrorData) string {
+	response := item.Response
+	parts := []string{fmt.Sprintf("\tcase %q:\n", item.Name)}
+	if response.EncodePlan == nil || !response.EncodePlan.HasBody {
+		return strings.Join(append(parts,
+			fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, response.Code),
+		), "")
+	}
+
+	parts = append(parts,
+		fmt.Sprintf("\t\tvar res %s\n", item.Ref),
+		"\t\tif !errors.As(err, &res) {\n",
+		fmt.Sprintf("\t\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, response.Code),
+		"\t\t}\n",
+	)
+	body := response.EncodePlan.FirstBody
+	data := "res"
+	if body.Init != nil {
+		args := make([]string, 0, len(body.Init.ServerArgs))
+		for _, arg := range body.Init.ServerArgs {
+			args = append(args, arg.Ref)
+		}
+		parts = append(parts, fmt.Sprintf("\t\tdata := %s(%s)\n", body.Init.Name, strings.Join(args, ", ")))
+		data = "data"
+	} else if response.ResultAttr != "" {
+		data += "." + response.ResultAttr
+	}
+	parts = append(parts,
+		fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), %s)\n", prefix, response.Code, data),
 	)
 	return strings.Join(parts, "")
 }
@@ -407,20 +437,55 @@ func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, tar
 			if e.Response == nil {
 				continue
 			}
-			sg.Case(jen.Lit(e.Name)).Block(
-				jen.Return(
-					jen.Id("s").Dot("sendError").Call(
-						jen.Id("ctx"),
-						targetID,
-						jen.Lit(e.Response.Code),
-						jen.Id("loom").Dot("ErrorSafeMessage").Call(jen.Id("err")),
-						jen.Qual("github.com/CaliLuke/loom/jsonrpc", "NewErrorData").Call(jen.Id("err")),
-					),
-				),
-			)
+			sg.Case(jen.Lit(e.Name)).BlockFunc(func(cg *jen.Group) {
+				writeStreamMappedError(cg, e, targetID)
+			})
 		}
 		sg.Default().BlockFunc(writeDefault)
 	})
+}
+
+func writeStreamMappedError(g *jen.Group, item *httpcodegen.ErrorData, targetID jen.Code) {
+	response := item.Response
+	writeGeneric := func(group *jen.Group) {
+		group.Return(
+			jen.Id("s").Dot("sendError").Call(
+				jen.Id("ctx"),
+				targetID,
+				jen.Lit(response.Code),
+				jen.Id("loom").Dot("ErrorSafeMessage").Call(jen.Id("err")),
+				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "NewErrorData").Call(jen.Id("err")),
+			),
+		)
+	}
+	if response.EncodePlan == nil || !response.EncodePlan.HasBody {
+		writeGeneric(g)
+		return
+	}
+
+	g.Var().Id("res").Add(codegen.TypeRef(item.Ref))
+	g.If(jen.Op("!").Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("res"))).BlockFunc(writeGeneric)
+	body := response.EncodePlan.FirstBody
+	data := jen.Code(jen.Id("res"))
+	if body.Init != nil {
+		args := make([]jen.Code, 0, len(body.Init.ServerArgs))
+		for _, arg := range body.Init.ServerArgs {
+			args = append(args, codegen.Expr(arg.Ref))
+		}
+		g.Id("data").Op(":=").Id(body.Init.Name).Call(args...)
+		data = jen.Id("data")
+	} else if response.ResultAttr != "" {
+		data = jen.Id("res").Dot(response.ResultAttr)
+	}
+	g.Return(
+		jen.Id("s").Dot("sendError").Call(
+			jen.Id("ctx"),
+			targetID,
+			jen.Lit(response.Code),
+			jen.Id("loom").Dot("ErrorSafeMessage").Call(jen.Id("err")),
+			data,
+		),
+	)
 }
 
 func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceData, streamName string) {

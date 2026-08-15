@@ -849,6 +849,31 @@ Standard error codes:
 - `-32603`: Internal error
 - `-32000` to `-32099`: Reserved for implementation
 
+#### Selecting the `error.data` schema
+
+Only an effective JSON-RPC `Response(...)` mapping creates a typed
+`error.data` contract. An HTTP mapping with the same error name has no effect
+on JSON-RPC.
+
+For an explicit mapping, the generated server projects the concrete service
+error into the designed response body. The generated client validates that
+body and reconstructs the designed service error. The envelope `code` and
+`message` remain separate from required body fields.
+
+Use a required `ErrorName` field when two names share one custom error type.
+The generated client uses this field when those names also share one numeric
+code.
+
+Without an explicit JSON-RPC mapping, the server uses generic
+`jsonrpc.ErrorData`. The generated client returns
+`*jsonrpc.RawErrorResponse`, including the raw code, message, and data.
+Protocol failures use their protocol or generic data shape. They do not use a
+designed application body.
+
+Generic `jsonrpc.ErrorData` includes Loom remedy metadata when available. A
+typed mapping does not replace its designed body with generic metadata. Add
+the required remedy fields to the custom error type when clients need them.
+
 ### Streaming Patterns
 
 #### Client Streaming (WebSocket only)

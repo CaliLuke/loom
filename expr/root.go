@@ -98,10 +98,10 @@ func (r *RootExpr) WalkSets(walk eval.SetWalker) {
 	walk(methods)
 
 	// HTTP services and endpoints
-	r.walkHTTPServices(r.API.HTTP.Services, walk)
+	r.walkHTTPServices(r.API.HTTP, r.API.HTTP.Services, walk)
 
 	// JSON-RPC services and endpoints
-	r.walkHTTPServices(r.API.JSONRPC.Services, walk)
+	r.walkHTTPServices(r.API.JSONRPC, r.API.JSONRPC.Services, walk)
 
 	// GRPC services and endpoints
 	grpcsvcs := make(eval.ExpressionSet, len(r.API.GRPC.Services))
@@ -349,7 +349,7 @@ func (r *RootExpr) Finalize() {
 }
 
 // walkHTTPServices walks the HTTP services and endpoints.
-func (r *RootExpr) walkHTTPServices(svcs []*HTTPServiceExpr, walk eval.SetWalker) {
+func (r *RootExpr) walkHTTPServices(root eval.Expression, svcs []*HTTPServiceExpr, walk eval.SetWalker) {
 	sort.SliceStable(svcs, func(i, j int) bool {
 		return svcs[j].ParentName == svcs[i].Name()
 	})
@@ -365,7 +365,7 @@ func (r *RootExpr) walkHTTPServices(svcs []*HTTPServiceExpr, walk eval.SetWalker
 			httpsvrs = append(httpsvrs, s)
 		}
 	}
-	walk(eval.ExpressionSet{r.API.HTTP})
+	walk(eval.ExpressionSet{root})
 	walk(httpsvcs)
 	walk(httpepts)
 	walk(httpsvrs)

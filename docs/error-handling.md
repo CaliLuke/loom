@@ -86,9 +86,10 @@ var _ = Service("calc", func() {
 
 An error declared with `Error(...)` but omitted from the method's JSON-RPC
 `Response(...)` mappings has no typed transport contract. Generated clients
-therefore return the raw `*jsonrpc.Error` and do not decode or validate its
-`data` field. Add a JSON-RPC `Response` mapping whenever callers need a typed,
-validated service error.
+therefore return the raw `*jsonrpc.RawErrorResponse`. They do not decode or
+validate its `data` field. HTTP `Response(...)` mappings never create a
+JSON-RPC error contract. Add a JSON-RPC `Response` mapping when callers need a
+typed, validated service error.
 
 ---
 
@@ -308,6 +309,21 @@ var _ = Service("divider", func() {
 })
 ```
 
+The effective JSON-RPC mapping selects the `error.data` schema:
+
+- An explicit JSON-RPC `Response(...)` mapping uses the designed error body.
+  The server projects the concrete service error into that body. The generated
+  client validates the same body and reconstructs the service error.
+- A shared custom error type must include a required `ErrorName` field when
+  two error names use that type. The field distinguishes errors that share one
+  numeric JSON-RPC code.
+- An error without an explicit JSON-RPC mapping uses `jsonrpc.ErrorData`.
+  Generated clients return its raw `*jsonrpc.RawErrorResponse` envelope.
+- Protocol failures also use the protocol or generic data shape. They never
+  use an application error body.
+- HTTP error mappings apply only to HTTP. Matching error names do not copy an
+  HTTP status code or body schema into JSON-RPC.
+
 ---
 
 ## Producing and Consuming Errors
@@ -408,9 +424,13 @@ through `LoomErrorRemedy`. Runtime code can consume either shape with
 `loom.ErrorRetryHint` instead of type-switching on generated errors.
 
 The default HTTP problem document uses `SafeMessage` as `detail` and publishes
-`RetryHint` as `retry_hint`. JSON-RPC error `data` carries the full nested
-remedy object. Keep internal causes in wrapped errors and logs; do not place
-credentials, queries, or stack traces in any remediation field.
+`RetryHint` as `retry_hint`. Unmapped JSON-RPC errors carry the full nested
+remedy object in generic `error.data`.
+
+Mapped JSON-RPC errors use the designed body instead. Add remedy fields to the
+custom error type when that public body must expose them. Keep internal causes
+in wrapped errors and logs. Do not place credentials, queries, or stack traces
+in any remediation field.
 
 ---
 

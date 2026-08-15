@@ -146,7 +146,7 @@ func (e *HTTPEndpointExpr) inheritHTTPErrors() {
 		if e.appendServiceHTTPErrors(serviceError.Name) {
 			continue
 		}
-		e.appendAPIHTTPErrors(serviceError.Name, Root.API.HTTP.Errors)
+		e.appendAPIHTTPErrors(serviceError.Name, e.Service.Root.Errors)
 	}
 }
 

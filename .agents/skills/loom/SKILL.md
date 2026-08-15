@@ -243,6 +243,15 @@ JSON-RPC is a first-class transport, not an HTTP behavior alias.
 
 - Omitted `params` decode as `{}`; ordinary required-field validation still
   applies.
+- Only an explicit effective JSON-RPC `Response(...)` mapping creates a typed
+  `error.data` contract. HTTP mappings never apply to JSON-RPC.
+- Explicit mappings project the concrete service error into the designed body.
+  Use a required `ErrorName` field when multiple names share one custom type.
+- Unmapped service errors use generic `jsonrpc.ErrorData`. Generated clients
+  return the raw `*jsonrpc.RawErrorResponse`, including its code, message, and
+  data.
+- Add remedy fields to a mapped custom error type when its public body must
+  expose retry guidance. Generic errors carry Loom's nested remedy metadata.
 - SSE notifications, final responses, and protocol errors use the generated
   stream contract.
 - Set intermediate notification names with

@@ -401,24 +401,55 @@ func writeJSONRPCKnownErrorCases(g *jen.Group, e *httpcodegen.EndpointData) {
 			if item.Response == nil {
 				continue
 			}
-			g.Case(jen.Lit(item.Name)).Block(
-				writeJSONRPCEncodeErrorCall(jen.Lit(item.Response.Code)),
-			)
+			g.Case(jen.Lit(item.Name)).BlockFunc(func(cg *jen.Group) {
+				writeJSONRPCMappedError(cg, item)
+			})
 		}
 	}
 }
 
 func writeJSONRPCEncodeErrorCall(code jen.Code) jen.Code {
+	return writeJSONRPCEncodeErrorCallWithData(code, codegen.Expr("jsonrpc.NewErrorData(err)"))
+}
+
+func writeJSONRPCEncodeErrorCallWithData(code, data jen.Code) jen.Code {
 	return jen.Id("encodeJSONRPCError").Call(
 		jen.Id("ctx"),
 		jen.Id("w"),
 		jen.Id("req"),
 		code,
 		codegen.Expr("loom.ErrorSafeMessage(err)"),
-		codegen.Expr("jsonrpc.NewErrorData(err)"),
+		data,
 		jen.Id("encoder"),
 		jen.Id("errhandler"),
 	)
+}
+
+func writeJSONRPCMappedError(g *jen.Group, item *httpcodegen.ErrorData) {
+	response := item.Response
+	if response.EncodePlan == nil || !response.EncodePlan.HasBody {
+		g.Add(writeJSONRPCEncodeErrorCall(jen.Lit(response.Code)))
+		return
+	}
+
+	g.Var().Id("res").Add(codegen.TypeRef(item.Ref))
+	g.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("res"))).BlockFunc(func(cg *jen.Group) {
+		body := response.EncodePlan.FirstBody
+		data := jen.Code(jen.Id("res"))
+		if body.Init != nil {
+			args := make([]jen.Code, 0, len(body.Init.ServerArgs))
+			for _, arg := range body.Init.ServerArgs {
+				args = append(args, codegen.Expr(arg.Ref))
+			}
+			cg.Id("data").Op(":=").Id(body.Init.Name).Call(args...)
+			data = jen.Id("data")
+		} else if response.ResultAttr != "" {
+			data = jen.Id("res").Dot(response.ResultAttr)
+		}
+		cg.Add(writeJSONRPCEncodeErrorCallWithData(jen.Lit(response.Code), data))
+		cg.Break()
+	})
+	g.Add(writeJSONRPCEncodeErrorCall(jen.Lit(response.Code)))
 }
 
 func writeJSONRPCDefaultEndpointError(g *jen.Group) {
