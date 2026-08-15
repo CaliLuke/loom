@@ -49,6 +49,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	if err != nil {
 		return nil, err
 	}
+	removePaths := collectRemovePaths(genfiles)
 
 	// 7. Merge files that target the same path to avoid overwriting content when
 	// multiple generators (or services) emit sections for the same file.
@@ -69,6 +70,9 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	written, err := writeFiles(dir, genfiles, debug)
 	if err != nil {
 		return nil, err
+	}
+	if err := removeGeneratedPaths(dir, removePaths, written); err != nil {
+		return nil, wrapStageError("remove-files", "", err)
 	}
 
 	outputs = computeOutputs(written, debug)
@@ -290,6 +294,67 @@ func collectWriteResults(written map[string]struct{}, resultChan <-chan fileRend
 		}
 	}
 	return firstErr
+}
+
+func collectRemovePaths(files []*codegen.File) []string {
+	paths := make(map[string]struct{})
+	for _, file := range files {
+		if file == nil {
+			continue
+		}
+		for _, path := range file.RemovePaths {
+			paths[path] = struct{}{}
+		}
+	}
+	return slices.Sorted(maps.Keys(paths))
+}
+
+func removeGeneratedPaths(dir string, paths []string, written map[string]struct{}) (err error) {
+	if len(paths) == 0 {
+		return nil
+	}
+	base, err := filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(base)
+	if err != nil {
+		return fmt.Errorf("open output directory %s: %w", base, err)
+	}
+	defer func() {
+		if closeErr := root.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("close output directory %s: %w", base, closeErr))
+		}
+	}()
+	for _, path := range paths {
+		target, err := generatedRemovalPath(base, path)
+		if err != nil {
+			return err
+		}
+		info, err := root.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			delete(written, target)
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("inspect generated removal path %s: %w", target, err)
+		}
+		if info.IsDir() {
+			return fmt.Errorf("generated removal path %s is a directory", target)
+		}
+		if err := root.Remove(path); err != nil {
+			return fmt.Errorf("remove generated file %s: %w", target, err)
+		}
+		delete(written, target)
+	}
+	return nil
+}
+
+func generatedRemovalPath(base, path string) (string, error) {
+	if !filepath.IsLocal(path) || filepath.Clean(path) == "." {
+		return "", fmt.Errorf("generated removal path %s is outside output directory", path)
+	}
+	return filepath.Join(base, filepath.Clean(path)), nil
 }
 
 func computeOutputs(written map[string]struct{}, debug bool) []string {

@@ -199,6 +199,15 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:version", "3.1")
 //	})
 //
+// - "openapi:output" selects the generated OpenAPI file format. Valid values
+// are "json", "yaml", and "both". The default is "both". Selecting one format
+// removes a stale file for the other format during generation. Applicable to
+// API only.
+//
+//	var _ = API("MyAPI", func() {
+//	    Meta("openapi:output", "json")
+//	})
+//
 // - "openapi:self" sets the OpenAPI 3.2 $self document URI. It is omitted for
 // the 3.1 compatibility target. Applicable to API only.
 //
@@ -223,9 +232,9 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:json:prefix", "  ")
 //	})
 //
-// - "openapi:json:indent" specifies the indent used to format the OpenAPI
-// specification encoded in JSON. It can be used with "openapi:json:prefix".
-// Applicable to API only.
+// - "openapi:json:indent" overrides the two-space indent used to format the
+// OpenAPI specification encoded in JSON. It can be used with
+// "openapi:json:prefix". Applicable to API only.
 //
 //	var _ = API("MyAPI", func() {
 //	    Meta("openapi:json:indent", "  ")

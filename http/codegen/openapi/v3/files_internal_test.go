@@ -15,5 +15,5 @@ func TestToJSONUsesV2Semantics(t *testing.T) {
 	got, err := toJSON(nil, value)
 
 	require.NoError(t, err)
-	require.Equal(t, `{"nil_map":{},"nil_slice":[]}`, got)
+	require.Equal(t, "{\n  \"nil_map\": {},\n  \"nil_slice\": []\n}", got)
 }

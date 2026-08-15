@@ -703,16 +703,6 @@ func TestRenderRoundTripsNewlySupportedSchemaKeywordsIntoOpenAPI(t *testing.T) {
 
 	openAPI, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
 	require.NoError(t, err)
-	spec := string(openAPI)
-	for _, want := range []string{
-		`"default":"cat"`,
-		`"deprecated":true`,
-		`"readOnly":true`,
-		`"writeOnly":true`,
-	} {
-		require.Contains(t, spec, want)
-	}
-	require.Contains(t, spec, `"secret"`)
 
 	// weight (unformatted number) and stock (unformatted integer) use Loom's
 	// widest representations while preserving the source contract's absent
@@ -721,15 +711,25 @@ func TestRenderRoundTripsNewlySupportedSchemaKeywordsIntoOpenAPI(t *testing.T) {
 		Components struct {
 			Schemas map[string]struct {
 				Properties map[string]struct {
-					Type   string `json:"type"`
-					Format string `json:"format"`
+					Type       string `json:"type"`
+					Format     string `json:"format"`
+					Default    any    `json:"default"`
+					Deprecated bool   `json:"deprecated"`
+					ReadOnly   bool   `json:"readOnly"`
+					WriteOnly  bool   `json:"writeOnly"`
 				} `json:"properties"`
 			} `json:"schemas"`
 		} `json:"components"`
 	}
 	require.NoError(t, json.Unmarshal(openAPI, &decoded))
+	newPet, ok := decoded.Components.Schemas["NewPet"]
+	require.True(t, ok, "expected the canonical NewPet schema")
+	require.Equal(t, "cat", newPet.Properties["kind"].Default)
 	pet, ok := decoded.Components.Schemas["Pet"]
 	require.True(t, ok, "expected the canonical Pet schema")
+	require.True(t, pet.Properties["nickname"].Deprecated)
+	require.True(t, pet.Properties["id"].ReadOnly)
+	require.True(t, pet.Properties["secret"].WriteOnly)
 	require.Equal(t, "number", pet.Properties["weight"].Type)
 	require.Empty(t, pet.Properties["weight"].Format)
 	require.Equal(t, "integer", pet.Properties["stock"].Type)

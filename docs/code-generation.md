@@ -680,8 +680,11 @@ var _ = Service("calc", func() {
 var _ = API("MyAPI", func() {
     // Control generation
     Meta("openapi:generate", "false")
+
+    // Emit JSON only. Valid values are "json", "yaml", and "both" (default).
+    Meta("openapi:output", "json")
     
-    // Format JSON output
+    // Override the default two-space JSON formatting
     Meta("openapi:json:prefix", "  ")
     Meta("openapi:json:indent", "  ")
     
@@ -729,7 +732,11 @@ same design produces the same examples, and changing one schema does not shift
 examples for unrelated operations or components. Set
 `Meta("openapi:example", "false")` at API scope when committed specifications
 should omit synthesized examples. Explicit `Example(...)` values remain in both
-the JSON and YAML outputs.
+the JSON and YAML outputs. Loom emits both formats by default. Set
+`Meta("openapi:output", "json")` or `Meta("openapi:output", "yaml")` to emit
+only one; generation removes a stale unselected sibling file. JSON is
+deterministically ordered, formatted with two-space indentation, and terminated
+with a newline for readable contract diffs.
 
 ---
 

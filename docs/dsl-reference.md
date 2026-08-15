@@ -346,7 +346,11 @@ and one renderer. Set `Meta("openapi:version", "3.1")` at API scope when a
 consumer requires OpenAPI 3.1.1; the renderer omits only members whose minimum
 version is 3.2 and continues emitting the surrounding compatible contract. Both
 targets use the canonical `gen/http/openapi.json` and
-`gen/http/openapi.yaml` paths.
+`gen/http/openapi.yaml` paths. Both files are emitted by default. Set
+`Meta("openapi:output", "json")` or `Meta("openapi:output", "yaml")` at API
+scope to emit only one format; generation removes a stale unselected sibling.
+JSON output is deterministically ordered, uses two-space indentation, and ends
+with a newline.
 
 The most commonly used metadata keys are:
 
@@ -355,6 +359,7 @@ The most commonly used metadata keys are:
 | `openapi:generate` | API, server, host, service, method, file server, attribute | Disable OpenAPI emission for a scope with `"false"` |
 | `openapi:example` | API, attribute | At API scope, omit synthesized examples with `"false"`; at attribute scope, suppress that attribute's examples |
 | `openapi:version` | API | Select `"3.1"` compatibility output; 3.2 is the default |
+| `openapi:output` | API | Select `"json"`, `"yaml"`, or `"both"`; both is the default |
 | `openapi:self` | API | Set the OpenAPI 3.2 `$self` document URI |
 | `openapi:operationId` | API, service, method | Customize generated operation IDs |
 | `openapi:summary` | Method | Set operation summary |

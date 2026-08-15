@@ -110,7 +110,11 @@ There is one DSL parser, one shared semantic IR, and one renderer.
 - Start OpenAPI contract changes in `http/codegen/openapi/internal/ir`; keep the
   `v3` package focused on rendering IR-owned decisions.
 - OpenAPI JSON uses Go 1.27 `encoding/json/v2` with deterministic ordering.
-  Preserve compact output by default and configured prefix/indent behavior.
+  Preserve two-space indentation, the final newline added by `codegen.File`,
+  and configured prefix/indent behavior.
+- OpenAPI output defaults to both canonical files. API metadata may select JSON
+  or YAML alone; `codegen.File.RemovePaths` must remove only the stale sibling
+  in the generator's deterministic post-write phase.
 - Seed synthesized examples from stable schema and occurrence identity. Do not
   consume a shared traversal sequence that lets unrelated design changes
   perturb output. API-level example omission must retain explicitly authored

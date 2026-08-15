@@ -51,6 +51,9 @@ type (
 		// FinalizeFunc is called after the file has been generated. It
 		// is given the absolute path to the file as argument.
 		FinalizeFunc func(string) error
+		// RemovePaths lists files relative to the output directory that are
+		// removed after every generated file is written successfully.
+		RemovePaths []string
 		// Warnings lists non-fatal diagnostics discovered while generating
 		// the file. The generator reports duplicate warning messages once.
 		Warnings []string

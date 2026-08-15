@@ -22,6 +22,7 @@ Use Loom's OpenAPI 3.1 compatibility target for downstream client generators:
 ```go
 var _ = API("my_api", func() {
     Meta("openapi:version", "3.1")
+    Meta("openapi:output", "json")
 })
 ```
 
@@ -34,7 +35,9 @@ go tool loom gen example.com/myservice/design
 The Hey API input is `gen/http/openapi.json`, which identifies itself as
 OpenAPI 3.1.1. Loom's default OpenAPI 3.2 output is the richer framework
 contract, but the 3.1 target is the continuously tested interoperability
-surface for downstream generators.
+surface for downstream generators. Selecting JSON avoids tracking a redundant
+YAML contract; Loom removes an existing `gen/http/openapi.yaml` on the next
+successful generation.
 
 ## Install and configure Hey API
 
