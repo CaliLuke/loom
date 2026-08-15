@@ -1,0 +1,173 @@
+{
+  "components": {
+    "requestBodies": {
+      "CollisionRequestBody": {
+        "content": {
+          "application/json": {
+            "example": {
+              "accountID": "account-123",
+              "username": "alice"
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Credentials"
+            }
+          }
+        },
+        "required": true
+      },
+      "CollisionRequestBody_3129ca6d": {
+        "content": {
+          "application/json": {
+            "example": {
+              "email": "person@example.com"
+            },
+            "schema": {
+              "$ref": "#/components/schemas/AlternateCredentials"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "responses": {
+      "CreateResponseBodyResponseStatus201Response": {
+        "content": {
+          "application/json": {
+            "example": {
+              "token": "token-123"
+            },
+            "schema": {
+              "$ref": "#/components/schemas/CreateResponseBodyResponse"
+            }
+          }
+        },
+        "description": "Created response."
+      }
+    },
+    "schemas": {
+      "AlternateCredentials": {
+        "example": {
+          "email": "person@example.com"
+        },
+        "properties": {
+          "email": {
+            "example": "person@example.com",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
+      "CreateResponseBodyResponse": {
+        "example": {
+          "token": "token-123"
+        },
+        "properties": {
+          "token": {
+            "example": "token-123",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
+      "Credentials": {
+        "example": {
+          "accountID": "account-123",
+          "username": "alice"
+        },
+        "properties": {
+          "accountID": {
+            "example": "account-123",
+            "readOnly": true,
+            "type": "string"
+          },
+          "username": {
+            "example": "alice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountID",
+          "username"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/sessions": {
+      "post": {
+        "operationId": "collision.create",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/CollisionRequestBody"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/CreateResponseBodyResponseStatus201Response"
+          }
+        },
+        "summary": "create collision",
+        "tags": [
+          "collision"
+        ]
+      }
+    },
+    "/sessions/alternate": {
+      "post": {
+        "operationId": "collision.alternate",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/CollisionRequestBody_3129ca6d"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/CreateResponseBodyResponseStatus201Response"
+          }
+        },
+        "summary": "alternate collision",
+        "tags": [
+          "collision"
+        ]
+      }
+    },
+    "/sessions/refresh": {
+      "post": {
+        "operationId": "collision.refresh",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/CollisionRequestBody"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/CreateResponseBodyResponseStatus201Response"
+          }
+        },
+        "summary": "refresh collision",
+        "tags": [
+          "collision"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "name": "test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "collision"
+    }
+  ]
+}

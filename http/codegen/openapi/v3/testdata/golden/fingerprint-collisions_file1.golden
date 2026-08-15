@@ -1,0 +1,110 @@
+openapi: 3.2.0
+info:
+    title: Loom API
+    version: 0.0.1
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+servers:
+    - name: test api
+      url: http://localhost:80
+      description: Default server for test api
+paths:
+    /sessions:
+        post:
+            tags:
+                - collision
+            summary: create collision
+            operationId: collision.create
+            requestBody:
+                $ref: '#/components/requestBodies/CollisionRequestBody'
+            responses:
+                "201":
+                    $ref: '#/components/responses/CreateResponseBodyResponseStatus201Response'
+    /sessions/alternate:
+        post:
+            tags:
+                - collision
+            summary: alternate collision
+            operationId: collision.alternate
+            requestBody:
+                $ref: '#/components/requestBodies/CollisionRequestBody_3129ca6d'
+            responses:
+                "201":
+                    $ref: '#/components/responses/CreateResponseBodyResponseStatus201Response'
+    /sessions/refresh:
+        post:
+            tags:
+                - collision
+            summary: refresh collision
+            operationId: collision.refresh
+            requestBody:
+                $ref: '#/components/requestBodies/CollisionRequestBody'
+            responses:
+                "201":
+                    $ref: '#/components/responses/CreateResponseBodyResponseStatus201Response'
+components:
+    schemas:
+        AlternateCredentials:
+            type: object
+            properties:
+                email:
+                    type: string
+                    example: person@example.com
+            example:
+                email: person@example.com
+            required:
+                - email
+        CreateResponseBodyResponse:
+            type: object
+            properties:
+                token:
+                    type: string
+                    example: token-123
+            example:
+                token: token-123
+            required:
+                - token
+        Credentials:
+            type: object
+            properties:
+                accountID:
+                    type: string
+                    example: account-123
+                    readOnly: true
+                username:
+                    type: string
+                    example: alice
+            example:
+                accountID: account-123
+                username: alice
+            required:
+                - accountID
+                - username
+    requestBodies:
+        CollisionRequestBody:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Credentials'
+                    example:
+                        accountID: account-123
+                        username: alice
+        CollisionRequestBody_3129ca6d:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/AlternateCredentials'
+                    example:
+                        email: person@example.com
+    responses:
+        CreateResponseBodyResponseStatus201Response:
+            description: Created response.
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/CreateResponseBodyResponse'
+                    example:
+                        token: token-123
+tags:
+    - name: collision

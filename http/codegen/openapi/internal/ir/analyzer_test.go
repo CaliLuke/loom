@@ -171,12 +171,12 @@ func TestAnalyzerClaimExplicitNamePanicsOnConflict(t *testing.T) {
 	t.Parallel()
 
 	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
-	analyzer.schemaHashes["AuthSessionResponseBody"] = 1
+	analyzer.schemaFingerprints["AuthSessionResponseBody"] = "first"
 
 	require.PanicsWithValue(t,
 		"openapi: explicit component name \"AuthSessionResponseBody\" is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values",
 		func() {
-			analyzer.ClaimExplicitName("AuthSessionResponseBody", 2)
+			analyzer.ClaimExplicitName("AuthSessionResponseBody", "second")
 		},
 	)
 }

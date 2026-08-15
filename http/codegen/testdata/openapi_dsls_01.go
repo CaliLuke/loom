@@ -930,3 +930,79 @@ var OpenAPIReusableComponentsDSL = func() {
 		})
 	})
 }
+
+var OpenAPIFingerprintCollisionsDSL = func() {
+	var Credentials = Type("Credentials", func() {
+		Meta("openapi:component:requestBody", "CollisionRequestBody")
+		Attribute("accountID", String, func() {
+			Meta("openapi:readOnly", "true")
+			Example("account-123")
+		})
+		Attribute("username", String, func() {
+			Example("alice")
+		})
+		Required("accountID", "username")
+		Example(Val{"accountID": "account-123", "username": "alice"})
+	})
+	var AlternateCredentials = Type("AlternateCredentials", func() {
+		Meta("openapi:component:requestBody", "CollisionRequestBody")
+		Attribute("email", String, func() {
+			Example("person@example.com")
+		})
+		Required("email")
+		Example(Val{"email": "person@example.com"})
+	})
+
+	var Session = Type("Session", func() {
+		Attribute("secret", String, func() {
+			Meta("openapi:writeOnly", "true")
+			Example("secret")
+		})
+		Attribute("token", String, func() {
+			Example("token-123")
+		})
+		Required("secret", "token")
+		Example(Val{"secret": "secret", "token": "token-123"})
+	})
+
+	Service("collision", func() {
+		Method("create", func() {
+			Payload(func() {
+				Attribute("body", Credentials)
+				Required("body")
+			})
+			Result(Session)
+			HTTP(func() {
+				POST("/sessions")
+				Body("body")
+				Response(StatusCreated)
+			})
+		})
+
+		Method("refresh", func() {
+			Payload(func() {
+				Attribute("body", Credentials)
+				Required("body")
+			})
+			Result(Session)
+			HTTP(func() {
+				POST("/sessions/refresh")
+				Body("body")
+				Response(StatusCreated)
+			})
+		})
+
+		Method("alternate", func() {
+			Payload(func() {
+				Attribute("body", AlternateCredentials)
+				Required("body")
+			})
+			Result(Session)
+			HTTP(func() {
+				POST("/sessions/alternate")
+				Body("body")
+				Response(StatusCreated)
+			})
+		})
+	})
+}

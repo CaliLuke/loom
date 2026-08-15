@@ -2,8 +2,6 @@ package ir
 
 import (
 	"fmt"
-	"hash"
-	"hash/fnv"
 	"slices"
 	"strconv"
 	"strings"
@@ -21,15 +19,14 @@ type (
 
 	// Analyzer converts expr types into IR schemas and endpoint body models.
 	Analyzer struct {
-		schemas            map[string]*Schema
-		schemaHashes       map[string]uint64
-		hashes             map[uint64][]schemaRef
-		canonicalNames     map[string]uint64
-		unionBranchSchemas map[string]string
-		closeObjects       bool
-		rand               *expr.ExampleGenerator
-		exampleValue       func(*expr.AttributeExpr, any) (any, bool)
-		suppressExamples   func(*expr.AttributeExpr, bool) bool
+		schemas              map[string]*Schema
+		schemaFingerprints   map[string]string
+		schemasByFingerprint map[string][]schemaRef
+		unionBranchSchemas   map[string]string
+		closeObjects         bool
+		rand                 *expr.ExampleGenerator
+		exampleValue         func(*expr.AttributeExpr, any) (any, bool)
+		suppressExamples     func(*expr.AttributeExpr, bool) bool
 	}
 
 	schemaRef struct {
@@ -61,13 +58,12 @@ func WithExampleSuppression(fn func(*expr.AttributeExpr, bool) bool) AnalyzerOpt
 // NewAnalyzer creates a schema analyzer.
 func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...AnalyzerOption) *Analyzer {
 	a := &Analyzer{
-		schemas:            make(map[string]*Schema),
-		schemaHashes:       make(map[string]uint64),
-		hashes:             make(map[uint64][]schemaRef),
-		canonicalNames:     make(map[string]uint64),
-		unionBranchSchemas: make(map[string]string),
-		closeObjects:       closeObjects,
-		rand:               rand,
+		schemas:              make(map[string]*Schema),
+		schemaFingerprints:   make(map[string]string),
+		schemasByFingerprint: make(map[string][]schemaRef),
+		unionBranchSchemas:   make(map[string]string),
+		closeObjects:         closeObjects,
+		rand:                 rand,
 	}
 	for _, opt := range options {
 		opt(a)
@@ -80,9 +76,9 @@ func (a *Analyzer) Components() map[string]*Schema {
 	return a.schemas
 }
 
-// SchemaHashes returns the tracked component hashes keyed by component name.
-func (a *Analyzer) SchemaHashes() map[string]uint64 {
-	return a.schemaHashes
+// SchemaFingerprints returns component fingerprints keyed by component name.
+func (a *Analyzer) SchemaFingerprints() map[string]string {
+	return a.schemaFingerprints
 }
 
 // AnalyzeSchema builds an IR schema for the given attribute.
@@ -100,16 +96,16 @@ func (a *Analyzer) AnalyzeSchema(attr *expr.AttributeExpr, noref ...bool) *Schem
 }
 
 // Uniquify returns a stable unique component name.
-func (a *Analyzer) Uniquify(name string, h uint64) string {
+func (a *Analyzer) Uniquify(name, fingerprint string) string {
 	if _, ok := a.schemas[name]; !ok {
 		return name
 	}
-	candidate := fmt.Sprintf("%s_%016x", name, h)
+	candidate := name + "_" + fingerprint[:16]
 	if _, ok := a.schemas[candidate]; !ok {
 		return candidate
 	}
 	for i := 2; ; i++ {
-		fallback := fmt.Sprintf("%s_%016x_%d", name, h, i)
+		fallback := fmt.Sprintf("%s_%s_%d", name, fingerprint[:16], i)
 		if _, ok := a.schemas[fallback]; !ok {
 			return fallback
 		}
@@ -117,17 +113,16 @@ func (a *Analyzer) Uniquify(name string, h uint64) string {
 }
 
 // ClaimExplicitName reserves an explicit component name or panics if it conflicts.
-func (a *Analyzer) ClaimExplicitName(name string, h uint64) string {
-	if existingHash, ok := a.schemaHashes[name]; ok && existingHash != h {
+func (a *Analyzer) ClaimExplicitName(name, fingerprint string) string {
+	if existingFingerprint, ok := a.schemaFingerprints[name]; ok && existingFingerprint != fingerprint {
 		panic(fmt.Sprintf("openapi: explicit component name %q is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values", name))
 	}
-	a.canonicalNames[name] = h
 	return name
 }
 
-// HashAttribute computes a structural hash for the given attribute.
-func (*Analyzer) HashAttribute(att *expr.AttributeExpr, h hash.Hash64) uint64 {
-	return *hashAttribute(att, h, make(map[string]*uint64))
+// FingerprintAttribute computes the canonical structural fingerprint for the attribute.
+func (a *Analyzer) FingerprintAttribute(att *expr.AttributeExpr) string {
+	return fingerprintAttribute(att, a.closeObjects)
 }
 
 func mergeStreamingBodyNote(req, streaming *Schema) *Schema {
@@ -303,10 +298,10 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, no
 	}
 
 	s := &Schema{}
-	h := a.HashAttribute(attr, fnv.New64())
+	fingerprint := a.FingerprintAttribute(attr)
 	metaName, canonical := schemaTypeNaming(attr, t)
 
-	refs, ok := a.hashes[h]
+	refs, ok := a.schemasByFingerprint[fingerprint]
 	if !noRef && ok {
 		if ref := findMatchingSchemaRef(refs, metaName, canonical); ref != "" {
 			s.Ref = ref
@@ -316,17 +311,14 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, no
 
 	typeName := codegen.Goify(schemaTypeName(t, metaName), true)
 	if canonical {
-		typeName = a.ClaimExplicitName(typeName, h)
+		typeName = a.ClaimExplicitName(typeName, fingerprint)
 	} else {
-		typeName = a.Uniquify(typeName, h)
+		typeName = a.Uniquify(typeName, fingerprint)
 	}
 	s.Ref = toRef(typeName)
-	a.registerSchemaRef(h, s.Ref, metaName)
+	a.registerSchemaRef(fingerprint, s.Ref, metaName)
 	if _, ok := a.schemas[typeName]; !ok {
-		a.schemaHashes[typeName] = h
-		if canonical {
-			a.canonicalNames[typeName] = h
-		}
+		a.schemaFingerprints[typeName] = fingerprint
 		componentAttr := componentAttribute(attr, t)
 		a.schemas[typeName] = a.AnalyzeSchema(componentAttr, true)
 	}
@@ -461,8 +453,8 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 	}
 
 	name := deterministicUnionBranchSchemaName(union, val)
-	hash := hashString(key, fnv.New64())
-	name = a.Uniquify(name, hash)
+	fingerprint := fingerprintString(key)
+	name = a.Uniquify(name, fingerprint)
 	a.unionBranchSchemas[key] = name
 
 	branchSchema := &Schema{
@@ -477,28 +469,28 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 		},
 		Required: []string{union.GetTypeKey(), union.GetValueKey()},
 	}
-	a.schemaHashes[name] = hash
+	a.schemaFingerprints[name] = fingerprint
 	a.schemas[name] = branchSchema
 	return toRef(name)
 }
 
 func (a *Analyzer) unionBranchSchemaKey(union *expr.Union, val *expr.NamedAttributeExpr) string {
-	hash := a.HashAttribute(val.Attribute, fnv.New64())
+	fingerprint := a.FingerprintAttribute(val.Attribute)
 	return strings.Join([]string{
 		union.GetTypeKey(),
 		union.GetValueKey(),
 		expr.UnionVariantTag(val),
-		strconv.FormatUint(hash, 10),
+		fingerprint,
 	}, ":")
 }
 
-func (a *Analyzer) registerSchemaRef(h uint64, ref, explicitName string) {
-	for _, existing := range a.hashes[h] {
+func (a *Analyzer) registerSchemaRef(fingerprint, ref, explicitName string) {
+	for _, existing := range a.schemasByFingerprint[fingerprint] {
 		if existing.ref == ref && existing.explicitName == explicitName {
 			return
 		}
 	}
-	a.hashes[h] = append(a.hashes[h], schemaRef{ref: ref, explicitName: explicitName})
+	a.schemasByFingerprint[fingerprint] = append(a.schemasByFingerprint[fingerprint], schemaRef{ref: ref, explicitName: explicitName})
 }
 
 func toRef(name string) string {

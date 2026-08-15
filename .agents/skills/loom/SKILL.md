@@ -117,6 +117,8 @@ Other important OpenAPI usage rules:
 
 - Use `Meta("openapi:typename", "...")` when a public schema component needs a
   stable explicit name.
+- Treat hash-suffixed fallback names as generated identities. Use explicit
+  component-name metadata when downstream code requires a stable public name.
 - Use `Meta("openapi:component:requestBody", "...")`,
   `Meta("openapi:component:parameter", "...")`,
   `Meta("openapi:component:response", "...")`, and

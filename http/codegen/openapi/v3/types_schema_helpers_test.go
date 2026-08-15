@@ -2,7 +2,6 @@ package openapiv3
 
 import (
 	"encoding/json"
-	"hash/fnv"
 	"strings"
 	"testing"
 
@@ -226,17 +225,17 @@ func TestSchemafierUniquifyUsesStableHashSuffix(t *testing.T) {
 	sf.schemas["CreateThreadRequest"] = openapi.NewSchema()
 	sf.schemas["CreateThreadRequest2"] = openapi.NewSchema()
 
-	name := sf.uniquify("CreateThreadRequest", 0x1234abcd)
+	name := sf.uniquify("CreateThreadRequest", "000000001234abcd000000000000000000000000000000000000000000000000")
 	if name != "CreateThreadRequest_000000001234abcd" {
 		t.Fatalf("got %q, expected deterministic hash suffix", name)
 	}
 
-	name = sf.uniquify("CreateThreadRequest2", 0x99)
+	name = sf.uniquify("CreateThreadRequest2", "0000000000000099000000000000000000000000000000000000000000000000")
 	if name != "CreateThreadRequest2_0000000000000099" {
 		t.Fatalf("got %q, expected original trailing digits to be preserved", name)
 	}
 
-	name = sf.uniquify("FreshName", 0xbeef)
+	name = sf.uniquify("FreshName", "000000000000beef000000000000000000000000000000000000000000000000")
 	if name != "FreshName" {
 		t.Fatalf("got %q, expected unsuffixed fresh name", name)
 	}
@@ -244,35 +243,35 @@ func TestSchemafierUniquifyUsesStableHashSuffix(t *testing.T) {
 
 func TestClaimExplicitNamePanicsOnConflictingSchema(t *testing.T) {
 	sf := newSchemafier(expr.NewRandom("test"))
-	sf.schemaHashes["AuthSessionResponseBody"] = 0x1
+	sf.schemaFingerprints["AuthSessionResponseBody"] = "first"
 
 	require.PanicsWithValue(t,
 		"openapi: explicit component name \"AuthSessionResponseBody\" is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values",
 		func() {
-			sf.claimExplicitName("AuthSessionResponseBody", 0x2)
+			sf.claimExplicitName("AuthSessionResponseBody", "second")
 		},
 	)
 }
 
-func TestHashAttribute(t *testing.T) {
+func TestFingerprintAttribute(t *testing.T) {
 	type (
 		testAttr struct {
 			name string
 			att  *expr.AttributeExpr
 		}
 
-		hashBehavior int
+		fingerprintBehavior int
 
 		testGroup struct {
 			name     string
 			attrs    []testAttr
-			behavior hashBehavior
+			behavior fingerprintBehavior
 		}
 	)
 
 	const (
-		uniqueHashes hashBehavior = iota
-		identicalHashes
+		uniqueFingerprints fingerprintBehavior = iota
+		identicalFingerprints
 	)
 
 	var (
@@ -282,16 +281,12 @@ func TestHashAttribute(t *testing.T) {
 
 	cases := []testGroup{
 		{
-			name:     "Primitive types",
-			behavior: uniqueHashes,
+			name:     "Distinct OpenAPI primitive types",
+			behavior: uniqueFingerprints,
 			attrs: []testAttr{
 				{name: "bool", att: &expr.AttributeExpr{Type: expr.Boolean}},
 				{name: "int", att: &expr.AttributeExpr{Type: expr.Int}},
 				{name: "int32", att: &expr.AttributeExpr{Type: expr.Int32}},
-				{name: "int64", att: &expr.AttributeExpr{Type: expr.Int64}},
-				{name: "uint", att: &expr.AttributeExpr{Type: expr.UInt}},
-				{name: "uint32", att: &expr.AttributeExpr{Type: expr.UInt32}},
-				{name: "uint64", att: &expr.AttributeExpr{Type: expr.UInt64}},
 				{name: "float32", att: &expr.AttributeExpr{Type: expr.Float32}},
 				{name: "float64", att: &expr.AttributeExpr{Type: expr.Float64}},
 				{name: "string", att: &expr.AttributeExpr{Type: expr.String}},
@@ -299,8 +294,24 @@ func TestHashAttribute(t *testing.T) {
 				{name: "any", att: &expr.AttributeExpr{Type: expr.Any}},
 			},
 		}, {
+			name:     "Equivalent OpenAPI integer types",
+			behavior: identicalFingerprints,
+			attrs: []testAttr{
+				{name: "int", att: &expr.AttributeExpr{Type: expr.Int}},
+				{name: "int64", att: &expr.AttributeExpr{Type: expr.Int64}},
+				{name: "uint", att: &expr.AttributeExpr{Type: expr.UInt}},
+				{name: "uint64", att: &expr.AttributeExpr{Type: expr.UInt64}},
+			},
+		}, {
+			name:     "Equivalent OpenAPI int32 types",
+			behavior: identicalFingerprints,
+			attrs: []testAttr{
+				{name: "int32", att: &expr.AttributeExpr{Type: expr.Int32}},
+				{name: "uint32", att: &expr.AttributeExpr{Type: expr.UInt32}},
+			},
+		}, {
 			name:     "Collection types",
-			behavior: uniqueHashes,
+			behavior: uniqueFingerprints,
 			attrs: []testAttr{
 				{name: "array-bool", att: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.Boolean}}}},
 				{name: "array-int", att: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.Int}}}},
@@ -309,7 +320,7 @@ func TestHashAttribute(t *testing.T) {
 			},
 		}, {
 			name:     "Objects with validation rules",
-			behavior: uniqueHashes,
+			behavior: uniqueFingerprints,
 			attrs: []testAttr{
 				{name: "no-validation", att: newObj("foo", false)},
 				{name: "required-validation", att: newObj("foo", true)},
@@ -328,7 +339,7 @@ func TestHashAttribute(t *testing.T) {
 			},
 		}, {
 			name:     "Result types with different views",
-			behavior: uniqueHashes,
+			behavior: uniqueFingerprints,
 			attrs: []testAttr{
 				{name: "no-view", att: newRT("id", newObj("foo", true))},
 				{name: "default-view", att: newRTWithView("id", newObj("foo", true), "default")},
@@ -336,14 +347,14 @@ func TestHashAttribute(t *testing.T) {
 			},
 		}, {
 			name:     "Objects with openapi:generate:false metadata",
-			behavior: identicalHashes,
+			behavior: identicalFingerprints,
 			attrs: []testAttr{
 				{name: "obj-with-skipped-field", att: newObj2Meta("foo", "bar", expr.String, expr.String, metaEmpty, metaNotGenerate)},
 				{name: "obj-without-skipped-field", att: newObj("foo", false)},
 			},
 		}, {
 			name:     "Complex map types",
-			behavior: uniqueHashes,
+			behavior: uniqueFingerprints,
 			attrs: []testAttr{
 				{name: "map-int-array", att: &expr.AttributeExpr{Type: &expr.Map{
 					KeyType:  &expr.AttributeExpr{Type: expr.Int},
@@ -356,14 +367,14 @@ func TestHashAttribute(t *testing.T) {
 			},
 		}, {
 			name:     "Nested user types",
-			behavior: uniqueHashes,
+			behavior: uniqueFingerprints,
 			attrs: []testAttr{
 				{name: "single-nest", att: newUserType("foo", newObj("bar", false))},
 				{name: "double-nest", att: newUserType("foo", newUserType("bar", newObj("baz", false)))},
 			},
 		}, {
 			name:     "Recursive types",
-			behavior: identicalHashes,
+			behavior: identicalFingerprints,
 			attrs: []testAttr{
 				{name: "recursive-1", att: newRecursiveType("foo")},
 				{name: "recursive-2", att: newRecursiveType("foo")},
@@ -371,29 +382,28 @@ func TestHashAttribute(t *testing.T) {
 		},
 	}
 
-	h := fnv.New64()
 	sf := newSchemafier(expr.NewRandom("test"))
 
 	for _, group := range cases {
 		t.Run(group.name, func(t *testing.T) {
-			seen := make(map[uint64][]string)
+			seen := make(map[string][]string)
 
 			for _, attr := range group.attrs {
-				hash := sf.hashAttribute(attr.att, h)
-				seen[hash] = append(seen[hash], attr.name)
+				fingerprint := sf.fingerprintAttribute(attr.att)
+				seen[fingerprint] = append(seen[fingerprint], attr.name)
 			}
 
 			switch group.behavior {
-			case uniqueHashes:
-				for hash, names := range seen {
+			case uniqueFingerprints:
+				for fingerprint, names := range seen {
 					if len(names) > 1 {
-						t.Errorf("expected unique hashes but got collision between %v (hash: %d)",
-							names, hash)
+						t.Errorf("expected unique fingerprints but got collision between %v (fingerprint: %s)",
+							names, fingerprint)
 					}
 				}
-			case identicalHashes:
+			case identicalFingerprints:
 				if len(seen) > 1 {
-					t.Errorf("expected identical hashes but got different ones: %v", seen)
+					t.Errorf("expected identical fingerprints but got different ones: %v", seen)
 				}
 			}
 		})

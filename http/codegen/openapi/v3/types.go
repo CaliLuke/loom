@@ -2,7 +2,6 @@ package openapiv3
 
 import (
 	"fmt"
-	"hash"
 	"maps"
 
 	"github.com/CaliLuke/loom/expr"
@@ -27,9 +26,9 @@ type (
 	// schemafier adapts the OpenAPI IR analyzer/renderer to the legacy v3 schema
 	// helper API used throughout this package.
 	schemafier struct {
-		analyzer     *openapiir.Analyzer
-		schemas      map[string]*openapi.Schema
-		schemaHashes map[string]uint64
+		analyzer           *openapiir.Analyzer
+		schemas            map[string]*openapi.Schema
+		schemaFingerprints map[string]string
 	}
 )
 
@@ -42,8 +41,8 @@ func newSchemafier(rand *expr.ExampleGenerator) *schemafier {
 			openapiir.WithExampleValue(openAPIExampleValue),
 			openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
 		),
-		schemas:      make(map[string]*openapi.Schema),
-		schemaHashes: make(map[string]uint64),
+		schemas:            make(map[string]*openapi.Schema),
+		schemaFingerprints: make(map[string]string),
 	}
 }
 
@@ -82,35 +81,35 @@ func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi
 	return rendered
 }
 
-func (sf *schemafier) uniquify(name string, h uint64) string {
+func (sf *schemafier) uniquify(name, fingerprint string) string {
 	if _, ok := sf.schemas[name]; !ok {
 		return name
 	}
-	candidate := fmt.Sprintf("%s_%016x", name, h)
+	candidate := name + "_" + fingerprint[:16]
 	if _, ok := sf.schemas[candidate]; !ok {
 		return candidate
 	}
 	for i := 2; ; i++ {
-		fallback := fmt.Sprintf("%s_%016x_%d", name, h, i)
+		fallback := fmt.Sprintf("%s_%s_%d", name, fingerprint[:16], i)
 		if _, ok := sf.schemas[fallback]; !ok {
 			return fallback
 		}
 	}
 }
 
-func (sf *schemafier) claimExplicitName(name string, h uint64) string {
-	if existingHash, ok := sf.schemaHashes[name]; ok && existingHash != h {
+func (sf *schemafier) claimExplicitName(name, fingerprint string) string {
+	if existingFingerprint, ok := sf.schemaFingerprints[name]; ok && existingFingerprint != fingerprint {
 		panic(fmt.Sprintf("openapi: explicit component name %q is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values", name))
 	}
-	sf.schemaHashes[name] = h
+	sf.schemaFingerprints[name] = fingerprint
 	return name
 }
 
-func (sf *schemafier) hashAttribute(att *expr.AttributeExpr, h hash.Hash64) uint64 {
-	return sf.analyzer.HashAttribute(att, h)
+func (sf *schemafier) fingerprintAttribute(att *expr.AttributeExpr) string {
+	return sf.analyzer.FingerprintAttribute(att)
 }
 
 func (sf *schemafier) sync() {
 	sf.schemas = openapiir.RenderSchemaMap(sf.analyzer.Components())
-	sf.schemaHashes = maps.Clone(sf.analyzer.SchemaHashes())
+	sf.schemaFingerprints = maps.Clone(sf.analyzer.SchemaFingerprints())
 }

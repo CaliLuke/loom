@@ -18,7 +18,7 @@ paths:
                 $ref: '#/components/requestBodies/CredentialsRequestBody'
             responses:
                 "200":
-                    $ref: '#/components/responses/Session_f83ae53b4e88d8a9Status200Response'
+                    $ref: '#/components/responses/Session_f01e4e234bbb10ecStatus200Response'
     /auth/revoke:
         post:
             tags:
@@ -38,7 +38,7 @@ paths:
                 $ref: '#/components/requestBodies/CredentialsRequestBody'
             responses:
                 "200":
-                    $ref: '#/components/responses/Session_f83ae53b4e88d8a9Status200Response'
+                    $ref: '#/components/responses/Session_f01e4e234bbb10ecStatus200Response'
     /auth/signout:
         post:
             tags:
@@ -77,7 +77,7 @@ components:
             required:
                 - username
                 - password
-        Session_f83ae53b4e88d8a9:
+        Session_f01e4e234bbb10ec:
             type: object
             properties:
                 expiresAt:
@@ -120,7 +120,7 @@ components:
     responses:
         NoContentResponse:
             description: No Content response.
-        Session_f83ae53b4e88d8a9Status200Response:
+        Session_f01e4e234bbb10ecStatus200Response:
             description: OK response.
             headers:
                 X-Trace-ID:
@@ -128,7 +128,7 @@ components:
             content:
                 application/json:
                     schema:
-                        $ref: '#/components/schemas/Session_f83ae53b4e88d8a9'
+                        $ref: '#/components/schemas/Session_f01e4e234bbb10ec'
                     examples:
                         current:
                             $ref: '#/components/examples/AuthRefreshStatus200ResponseCurrentExample'

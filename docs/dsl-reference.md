@@ -442,6 +442,12 @@ Hash-suffixed fallback names are generated collision identities, not a public
 naming API. If downstream SDKs or tooling depend on a component name, set the
 corresponding `openapi:typename` or `openapi:component:*` metadata explicitly.
 
+Loom now uses its own versioned fingerprint for hash-suffixed fallback names.
+This causes one intentional transition. Existing hash-suffixed schemas, request
+bodies, responses, and SDK type names can change after regeneration. Regenerate
+and review these artifacts once when you upgrade. Set explicit component-name
+metadata before the upgrade when a public name must not change.
+
 OpenAPI security requirement values are empty arrays for HTTP bearer, API key,
 basic, and cookie security schemes. OAuth2 is the only scheme kind that
 publishes required scopes in those arrays; JWT and bearer scopes remain part of
