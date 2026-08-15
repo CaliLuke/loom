@@ -367,10 +367,20 @@ func (e *HTTPEndpointExpr) validateOpenAPIRequestBody(verr *eval.ValidationError
 	if e.OptionalRequestBody {
 		verr.Add(e, "HTTP endpoint cannot use OpenAPIRequestBody with OptionalRequestBody.")
 	}
-	contentType := e.OpenAPIRequestBodyContentType
-	mediaType, _, err := mime.ParseMediaType(contentType)
-	if err != nil || strings.TrimSpace(mediaType) == "" {
-		verr.Add(e, "OpenAPIRequestBody content type %q is invalid.", contentType)
+	if len(e.OpenAPIRequestBodyContentTypes) == 0 {
+		verr.Add(e, "OpenAPIRequestBody requires at least one content type.")
+	}
+	seen := make(map[string]struct{}, len(e.OpenAPIRequestBodyContentTypes))
+	for _, contentType := range e.OpenAPIRequestBodyContentTypes {
+		mediaType, _, err := mime.ParseMediaType(contentType)
+		if err != nil || strings.TrimSpace(mediaType) == "" {
+			verr.Add(e, "OpenAPIRequestBody content type %q is invalid.", contentType)
+			continue
+		}
+		if _, ok := seen[contentType]; ok {
+			verr.Add(e, "OpenAPIRequestBody content type %q is duplicated.", contentType)
+		}
+		seen[contentType] = struct{}{}
 	}
 }
 

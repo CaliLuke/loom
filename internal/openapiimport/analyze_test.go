@@ -208,6 +208,118 @@ components:
 	}
 }
 
+func TestAnalyzeSupportsEquivalentRequestMediaTypes(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Flexible, version: "1"}
+paths:
+  /items:
+    post:
+      operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Item'}
+          application/x-www-form-urlencoded:
+            schema: {$ref: '#/components/schemas/Item'}
+          multipart/form-data:
+            schema: {$ref: '#/components/schemas/Item'}
+      responses: {"204": {description: created}}
+components:
+  schemas:
+    Item:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Equal(t, []string{
+		"application/json",
+		"application/x-www-form-urlencoded",
+		"multipart/form-data",
+	}, document.Operations[0].RequestBody.ContentTypes)
+}
+
+func TestAnalyzeRejectsIncompatibleRequestMediaTypes(t *testing.T) {
+	tests := []struct {
+		name      string
+		media     string
+		wantCodes []string
+	}{
+		{
+			name: "different schema",
+			media: `
+          application/json:
+            schema: {type: string}
+          multipart/form-data:
+            schema: {type: object, properties: {value: {type: string}}}`,
+			wantCodes: []string{"request-media-schema"},
+		},
+		{
+			name: "different examples",
+			media: `
+          application/json:
+            example: first
+            schema: {type: string}
+          application/x-www-form-urlencoded:
+            example: second
+            schema: {type: string}`,
+			wantCodes: []string{"request-media-examples"},
+		},
+		{
+			name: "multipart encoding",
+			media: `
+          application/json:
+            schema: {type: object, properties: {value: {type: string}}}
+          multipart/form-data:
+            schema: {type: object, properties: {value: {type: string}}}
+            encoding:
+              value: {contentType: text/plain}`,
+			wantCodes: []string{"media-encoding"},
+		},
+		{
+			name: "unsupported media type",
+			media: `
+          application/json:
+            schema: {type: string}
+          text/plain:
+            schema: {type: string}`,
+			wantCodes: []string{"media-type"},
+		},
+		{
+			name: "form media require an object schema",
+			media: `
+          application/json:
+            schema: {type: string}
+          application/x-www-form-urlencoded:
+            schema: {type: string}`,
+			wantCodes: []string{"render-plan"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := []byte(`openapi: 3.1.1
+info: {title: Strict, version: "1"}
+paths:
+  /items:
+    post:
+      requestBody:
+        content:` + test.media + `
+      responses: {"204": {description: done}}
+`)
+			_, diagnostics, err := Analyze(source)
+			require.NoError(t, err)
+			for _, code := range test.wantCodes {
+				requireDiagnosticCode(t, diagnostics, code)
+			}
+		})
+	}
+}
+
 func TestAnalyzeSupportsNullableTypeUnions(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -170,14 +170,23 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 		p.unsupported("request-body-reference", path, "request body references are not renderable")
 		return
 	}
-	switch {
-	case isJSONMediaType(body.ContentType):
-		p.content(body.ContentType, body.Schema, path, false)
-	case isMultipartMediaType(body.ContentType), isFormMediaType(body.ContentType):
-		p.content(body.ContentType, body.Schema, path, true)
-	default:
-		p.unsupported("media-type", path+"/content", fmt.Sprintf("content type %q is not renderable", body.ContentType))
-		p.content(body.ContentType, body.Schema, path, true)
+	if len(body.ContentTypes) == 0 {
+		p.content("", body.Schema, path, false)
+		return
+	}
+	for _, contentType := range body.ContentTypes {
+		contentPath := path + "/content/" + escapeJSONPointer(contentType)
+		switch {
+		case isJSONMediaType(contentType):
+		case isMultipartMediaType(contentType), isFormMediaType(contentType):
+		default:
+			p.unsupported("media-type", contentPath, fmt.Sprintf("content type %q is not renderable", contentType))
+		}
+		if body.Schema == nil {
+			p.unsupported("content-schema", contentPath+"/schema", "content type has no schema")
+			continue
+		}
+		p.schema(body.Schema, contentPath+"/schema")
 	}
 }
 

@@ -78,6 +78,17 @@ func OpenAPIBody(args ...any) {
 //	    Description("Archive bytes streamed directly to the service.")
 //	})
 func OpenAPIRequestBody(bodyArg any, contentType string, required bool, fn ...func()) {
+	openAPIRequestBody(bodyArg, []string{contentType}, required, fn...)
+}
+
+// OpenAPIRequestBodyTypes describes one documentation-only request schema for
+// multiple media types on an endpoint that uses SkipRequestBodyEncodeDecode.
+// The application is responsible for decoding the raw request stream.
+func OpenAPIRequestBodyTypes(bodyArg any, contentTypes []string, required bool, fn ...func()) {
+	openAPIRequestBody(bodyArg, contentTypes, required, fn...)
+}
+
+func openAPIRequestBody(bodyArg any, contentTypes []string, required bool, fn ...func()) {
 	e, ok := eval.Current().(*expr.HTTPEndpointExpr)
 	if !ok {
 		eval.IncompatibleDSL()
@@ -101,7 +112,10 @@ func OpenAPIRequestBody(bodyArg any, contentType string, required bool, fn ...fu
 	}
 	attr.AddMeta("http:openapi:request:body")
 	e.OpenAPIRequestBody = attr
-	e.OpenAPIRequestBodyContentType = strings.TrimSpace(contentType)
+	e.OpenAPIRequestBodyContentTypes = make([]string, len(contentTypes))
+	for i, contentType := range contentTypes {
+		e.OpenAPIRequestBodyContentTypes[i] = strings.TrimSpace(contentType)
+	}
 	e.OpenAPIRequestBodyRequired = required
 }
 
@@ -196,8 +210,11 @@ func resolveBodyAttribute(args []any, ref *expr.AttributeExpr, kind string, open
 		return &expr.AttributeExpr{Type: a}, fn, true
 	case func():
 		if ref == nil {
-			eval.ReportError("Body is set but Payload is not defined")
-			return nil, nil, false
+			if !openAPIOnly {
+				eval.ReportError("Body is set but Payload is not defined")
+				return nil, nil, false
+			}
+			return &expr.AttributeExpr{}, a, true
 		}
 		return &expr.AttributeExpr{References: []expr.DataType{ref.Type}}, a, true
 	default:

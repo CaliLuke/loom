@@ -35,6 +35,26 @@ func TestOpenAPIRequestBodyValidation(t *testing.T) {
 			want: `OpenAPIRequestBody content type "not a media type" is invalid.`,
 		},
 		{
+			name: "rejects duplicate content types",
+			dsl: func() {
+				rawRequestBodyEndpoint(func() {
+					SkipRequestBodyEncodeDecode()
+					OpenAPIRequestBodyTypes(Bytes, []string{"application/json", "application/json"}, true)
+				})
+			},
+			want: `OpenAPIRequestBody content type "application/json" is duplicated.`,
+		},
+		{
+			name: "requires a content type",
+			dsl: func() {
+				rawRequestBodyEndpoint(func() {
+					SkipRequestBodyEncodeDecode()
+					OpenAPIRequestBodyTypes(Bytes, nil, true)
+				})
+			},
+			want: "OpenAPIRequestBody requires at least one content type.",
+		},
+		{
 			name: "rejects form mode",
 			dsl: func() {
 				rawRequestBodyEndpoint(func() {
@@ -91,6 +111,18 @@ func TestOpenAPIRequestBodyValidation(t *testing.T) {
 			require.Contains(t, stripValidationLocations(err.Error()), tc.want)
 		})
 	}
+}
+
+func TestOpenAPIRequestBodyTypesRecordsMediaTypes(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		rawRequestBodyEndpoint(func() {
+			SkipRequestBodyEncodeDecode()
+			OpenAPIRequestBodyTypes(Bytes, []string{"application/json", "multipart/form-data"}, true)
+		})
+	})
+
+	endpoint := root.API.HTTP.Services[0].HTTPEndpoints[0]
+	require.Equal(t, []string{"application/json", "multipart/form-data"}, endpoint.OpenAPIRequestBodyContentTypes)
 }
 
 func rawRequestBodyEndpoint(endpointDSL func()) {

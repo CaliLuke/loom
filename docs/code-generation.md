@@ -125,6 +125,13 @@ The importer maps `multipart/form-data` request bodies to
 bodies to `FormRequest()`. Both request body schemas must define an object.
 The importer maps `type: string, format: binary` to `Bytes`.
 
+If one request body lists multiple media types, each entry must use the same
+schema and examples. Loom imports supported entries as one documented raw
+stream. The generated service must inspect the content type and decode the
+stream. A form or multipart entry requires a shared object schema. Different
+schemas, examples, per-part encodings, and unsupported media types remain
+strict import errors.
+
 OpenAPI 3.0 `nullable: true` and OpenAPI 3.1/3.2 two-member type unions such as
 `type: [string, "null"]` generate `loom.Nullable[T]`. Its zero value means the
 property was absent; `loom.NullValue[T]()` means it was explicitly null; and

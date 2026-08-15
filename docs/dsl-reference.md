@@ -485,6 +485,10 @@ buffering, or validation. The schema may be `Bytes`, `String`, a payload
 attribute name, or a named type. It is incompatible with typed `Body(...)`,
 form, multipart, optional JSON body, and non-raw request modes.
 
+`OpenAPIRequestBodyTypes(schema, contentTypes, required, fn...)` publishes the
+same request schema for multiple media types. Loom does not decode these
+formats. The service must inspect the content type and decode the raw stream.
+
 `Link(...)` inside an HTTP `Response(...)` publishes OpenAPI response links.
 Use `LinkOperation(...)` or `LinkOperationRef(...)` to identify the target
 operation, `LinkParam(...)` to map link parameters from runtime expressions,
@@ -1206,6 +1210,7 @@ Request body mode expressions:
 - `OptionalRequestBody` - Allow an omitted JSON body for an object body shape
 - `SkipRequestBodyEncodeDecode` - Pass the raw request body reader to the service
 - `OpenAPIRequestBody` - Document a raw request stream in OpenAPI without decoding it
+- `OpenAPIRequestBodyTypes` - Document one raw request schema for multiple media types
 - `SkipResponseBodyEncodeDecode` - Return a raw response body reader from the service
 - `FileResponse` - Return seekable file content with `http.ServeContent` range,
   conditional request, GET, and explicit HEAD semantics

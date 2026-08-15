@@ -45,8 +45,8 @@ type (
 		Body *AttributeExpr
 		// OpenAPIRequestBody describes a documentation-only request body.
 		OpenAPIRequestBody *AttributeExpr
-		// OpenAPIRequestBodyContentType is the documented request media type.
-		OpenAPIRequestBodyContentType string
+		// OpenAPIRequestBodyContentTypes are the documented request media types.
+		OpenAPIRequestBodyContentTypes []string
 		// OpenAPIRequestBodyRequired records whether the documented body is required.
 		OpenAPIRequestBodyRequired bool
 		// StreamingBody describes the body transferred through the websocket

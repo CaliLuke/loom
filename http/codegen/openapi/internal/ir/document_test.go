@@ -134,6 +134,41 @@ func TestBuildDocumentPublishesDocumentedRawRequestBodies(t *testing.T) {
 	require.Equal(t, "#/components/schemas/RawUploadManifest", manifestMedia.Schema.Ref)
 }
 
+func TestBuildDocumentPublishesMultipleRawRequestBodyMediaTypes(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		body := dsl.Type("FlexibleBody", func() {
+			dsl.Attribute("name", dsl.String)
+			dsl.Required("name")
+		})
+		dsl.Service("flexible", func() {
+			dsl.Method("create", func() {
+				dsl.HTTP(func() {
+					dsl.POST("/flexible")
+					dsl.SkipRequestBodyEncodeDecode()
+					dsl.OpenAPIRequestBodyTypes(body, []string{
+						"application/json",
+						"application/x-www-form-urlencoded",
+						"multipart/form-data",
+					}, true)
+				})
+			})
+		})
+	})
+	document := BuildDocument(root.API, root.Types, root.ResultTypes)
+
+	body := document.Paths["/flexible"].Operations["POST"].RequestBody.Value
+	require.Len(t, body.Content, 3)
+	for _, contentType := range []string{
+		"application/json",
+		"application/x-www-form-urlencoded",
+		"multipart/form-data",
+	} {
+		media := body.Content[contentType]
+		require.NotNil(t, media)
+		require.Equal(t, "#/components/schemas/FlexibleBody", media.Schema.Ref)
+	}
+}
+
 func TestBuildDocumentOmitsUndocumentedRawRequestBody(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.SkipRequestBodyEncodeDecodeDSL)
 	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))

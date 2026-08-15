@@ -139,8 +139,8 @@ type RequestBody struct {
 	Description string
 	// Required reports whether the request body is required.
 	Required bool
-	// ContentType is the single request media type.
-	ContentType string
+	// ContentTypes are the request media types that share Schema and Examples.
+	ContentTypes []string
 	// Schema describes the request body.
 	Schema *Schema
 	// Examples contains examples declared on the request media type.

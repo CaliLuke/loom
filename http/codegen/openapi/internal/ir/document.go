@@ -65,11 +65,11 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		return nil
 	}
 	body := endpointIR.Request.Body
-	contentType := "application/json"
+	contentTypes := []string{"application/json"}
 	required := endpointIR.Request.MustHaveBody
 	if endpointIR.Request.DocumentBody != nil {
 		body = endpointIR.Request.DocumentBody
-		contentType = endpointIR.Request.DocumentContentType
+		contentTypes = endpointIR.Request.DocumentContentTypes
 		required = endpointIR.Request.DocumentRequired
 	}
 	if body == nil || body.Type == expr.Empty {
@@ -77,17 +77,20 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 	}
 	bodyAttr := attributeForSchemaUsage(body, schemaUsageRequest)
 	if endpointIR.Request.Multipart {
-		contentType = "multipart/form-data"
+		contentTypes = []string{"multipart/form-data"}
 	} else if endpointIR.Request.FormEncoded {
-		contentType = "application/x-www-form-urlencoded"
+		contentTypes = []string{"application/x-www-form-urlencoded"}
+	}
+	mediaType := buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects)
+	content := make(map[string]*MediaType, len(contentTypes))
+	for _, contentType := range contentTypes {
+		content[contentType] = mediaType
 	}
 	return &RequestBody{
 		Description:   requestBodyDescription(bodyAttr),
 		Required:      required,
 		ComponentName: componentMetaValue(bodyAttr, "openapi:component:requestBody"),
-		Content: map[string]*MediaType{
-			contentType: buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects),
-		},
+		Content:       content,
 		Extensions: openapi.MergeExtensions(
 			openapi.ExtensionsFromExpr(bodyAttr.Meta),
 			openapi.ScopedExtensionsFromExpr(bodyAttr.Meta, "requestBody"),

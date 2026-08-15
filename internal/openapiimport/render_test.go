@@ -153,7 +153,7 @@ components:
 	}
 }
 
-func requireRenderedDesignGenerates(t *testing.T, source []byte) {
+func requireRenderedDesignGenerates(t *testing.T, source []byte) string {
 	t.Helper()
 	moduleDir := t.TempDir()
 	repoRoot := repositoryRoot(t)
@@ -184,6 +184,93 @@ func requireRenderedDesignGenerates(t *testing.T, source []byte) {
 	test.Dir = moduleDir
 	output, err = test.CombinedOutput()
 	require.NoError(t, err, string(output))
+	return moduleDir
+}
+
+func TestRenderRoundTripsMultipleRequestMediaTypes(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Flexible, version: "1"}
+paths:
+  /items:
+    post:
+      operationId: createItem
+      requestBody:
+        required: true
+        description: One schema with three encodings.
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Item'}
+          application/x-www-form-urlencoded:
+            schema: {$ref: '#/components/schemas/Item'}
+          multipart/form-data:
+            schema: {$ref: '#/components/schemas/Item'}
+      responses: {"204": {description: created}}
+components:
+  schemas:
+    Item:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	design := string(rendered)
+	require.Contains(t, design, "SkipRequestBodyEncodeDecode()")
+	require.Contains(t, design, `OpenAPIRequestBodyTypes(ImportedItem, []string{"application/json", "application/x-www-form-urlencoded", "multipart/form-data"}, true`)
+	require.NotContains(t, design, `Body("body")`)
+	requireRenderedDesignEvaluates(t, rendered, 1)
+	moduleDir := requireRenderedDesignGenerates(t, rendered)
+
+	generated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	var contract map[string]any
+	require.NoError(t, json.Unmarshal(generated, &contract))
+	paths := contract["paths"].(map[string]any)
+	operation := paths["/items"].(map[string]any)["post"].(map[string]any)
+	body := operation["requestBody"].(map[string]any)
+	content := body["content"].(map[string]any)
+	contentTypes := make([]string, 0, len(content))
+	for contentType := range content {
+		contentTypes = append(contentTypes, contentType)
+	}
+	require.ElementsMatch(t, []string{
+		"application/json",
+		"application/x-www-form-urlencoded",
+		"multipart/form-data",
+	}, contentTypes)
+}
+
+func TestRenderMultipleRequestMediaTypesWithInlineObject(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Inline, version: "1"}
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: &item
+              type: object
+              required: [name]
+              properties:
+                name: {type: string}
+          multipart/form-data:
+            schema: *item
+      responses: {"204": {description: created}}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	require.Contains(t, string(rendered), "OpenAPIRequestBodyTypes(func() {")
+	requireRenderedDesignEvaluates(t, rendered, 1)
 }
 
 func TestRenderPreservesVendorExtensionsAtSupportedScopes(t *testing.T) {

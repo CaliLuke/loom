@@ -308,11 +308,22 @@ var _ = Service("uploads", func() {
 })
 ```
 
+Use `OpenAPIRequestBodyTypes` when one raw schema accepts multiple media types.
+The service must inspect the request content type and decode the stream.
+
+```go
+OpenAPIRequestBodyTypes(Upload, []string{
+    "application/json",
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+}, true)
+```
+
 Use `String` with a text media type for raw text, or a named Loom type when the
 stream has a structured schema that should appear as an OpenAPI component. The
 optional DSL function accepts normal schema documentation such as
-`Description`, `Example`, `Format`, and `Meta`. `OpenAPIRequestBody` requires
-`SkipRequestBodyEncodeDecode` and cannot be combined with `Body`,
+`Description`, `Example`, `Format`, and `Meta`. Both documentation expressions
+require `SkipRequestBodyEncodeDecode` and cannot be combined with `Body`,
 `FormRequest`, `MultipartRequest`, or `OptionalRequestBody`.
 
 Use `SkipResponseBodyEncodeDecode` when the service returns a raw response body

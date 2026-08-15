@@ -349,10 +349,10 @@ func (a *analyzer) requestBody(source *v3.RequestBody, path string) RequestBody 
 	if low := source.GoLow(); low != nil && low.IsReference() {
 		return RequestBody{Ref: low.GetReference()}
 	}
-	contentType, schema, examples := a.content(source.Content, path+"/content")
+	contentTypes, schema, examples := a.requestContent(source.Content, path+"/content")
 	body := RequestBody{
 		Description: source.Description, Required: source.Required != nil && *source.Required,
-		ContentType: contentType, Schema: schema, Examples: examples,
+		ContentTypes: contentTypes, Schema: schema, Examples: examples,
 		Extensions: a.extensions(path, source.Extensions),
 	}
 	return body

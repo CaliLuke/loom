@@ -177,6 +177,9 @@ fakes, and state that make every declared response reachable.
 - Use `OptionalRequestBody()` for optional JSON object bodies.
 - Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
   request stream needs a documentation-only OpenAPI contract.
+- Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts
+  multiple media types. Inspect the content type and decode the stream in the
+  service.
 - String-backed path, query, header, and cookie fields with
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
 - Let generated clients and routers handle path escaping exactly once; do not

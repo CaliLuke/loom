@@ -226,6 +226,7 @@ const (
 	requestBodyJSON requestBodyMode = iota
 	requestBodyMultipart
 	requestBodyForm
+	requestBodyRaw
 )
 
 func (r *renderer) planOperation(operation *Operation, path string) (operationPlan, error) {
@@ -290,6 +291,11 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 			r.line("MultipartRequest()")
 		case requestBodyForm:
 			r.line("FormRequest()")
+		case requestBodyRaw:
+			r.line("SkipRequestBodyEncodeDecode()")
+			if err := r.openAPIRequestBody(plan.body.body, path+"/requestBody"); err != nil {
+				return err
+			}
 		default:
 			r.line("Body(%q)", plan.body.field)
 		}
@@ -374,7 +380,8 @@ func (r *renderer) parameters(source []Parameter, path string) ([]renderedParame
 }
 
 func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, path string) error {
-	if len(parameters) == 0 && body == nil {
+	hasBody := body != nil && body.mode != requestBodyRaw
+	if len(parameters) == 0 && !hasBody {
 		return nil
 	}
 	r.open("Payload(func()")
@@ -391,7 +398,7 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 			required = append(required, parameter.field)
 		}
 	}
-	if body != nil {
+	if hasBody {
 		bodyRequired, err := r.payloadBody(body, path+"/requestBody/schema")
 		if err != nil {
 			return err

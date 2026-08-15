@@ -13,9 +13,11 @@ func (r *renderer) importedMediaTypes() ([]string, []string) {
 	produces := make(map[string]struct{})
 	nonJSON := false
 	for _, operation := range r.document.Operations {
-		if operation.RequestBody != nil && operation.RequestBody.ContentType != "" {
-			consumes[operation.RequestBody.ContentType] = struct{}{}
-			nonJSON = nonJSON || !isJSONMediaType(operation.RequestBody.ContentType)
+		if operation.RequestBody != nil {
+			for _, contentType := range operation.RequestBody.ContentTypes {
+				consumes[contentType] = struct{}{}
+				nonJSON = nonJSON || !isJSONMediaType(contentType)
+			}
 		}
 		for _, response := range operation.Responses {
 			if response.Response.ContentType == "" {
@@ -51,15 +53,33 @@ func (r *renderer) requestBody(source *RequestBody, path string) (*renderedBody,
 	if body.Schema == nil {
 		return nil, fmt.Errorf("render OpenAPI design: %s has no schema", path)
 	}
+	if len(body.ContentTypes) == 0 {
+		return nil, fmt.Errorf("render OpenAPI design: %s has no content type", path)
+	}
+	if len(body.ContentTypes) > 1 {
+		for _, contentType := range body.ContentTypes {
+			if !isMultipartMediaType(contentType) && !isFormMediaType(contentType) {
+				continue
+			}
+			if err := r.validateRequestTransportBodySchema(
+				body.Schema,
+				path+"/content/"+escapeJSONPointer(contentType)+"/schema",
+			); err != nil {
+				return nil, err
+			}
+		}
+		return &renderedBody{body: body, mode: requestBodyRaw}, nil
+	}
+	contentType := body.ContentTypes[0]
 	mode := requestBodyJSON
 	switch {
-	case isJSONMediaType(body.ContentType):
-	case isMultipartMediaType(body.ContentType):
+	case isJSONMediaType(contentType):
+	case isMultipartMediaType(contentType):
 		mode = requestBodyMultipart
-	case isFormMediaType(body.ContentType):
+	case isFormMediaType(contentType):
 		mode = requestBodyForm
 	default:
-		return nil, fmt.Errorf("render OpenAPI design: %s content type %q is not renderable", path, body.ContentType)
+		return nil, fmt.Errorf("render OpenAPI design: %s content type %q is not renderable", path, contentType)
 	}
 	if mode != requestBodyJSON {
 		if err := r.validateRequestTransportBodySchema(body.Schema, path+"/schema"); err != nil {
