@@ -1,6 +1,8 @@
 package http
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"testing"
 
@@ -187,6 +189,81 @@ func TestValidateResponseContract(t *testing.T) {
 				return
 			}
 			require.EqualError(t, err, test.wantErr)
+		})
+	}
+}
+
+func TestValidateSSEResponseContract(t *testing.T) {
+	contract := ResponseContractCase{
+		ID:           "events.watch.success.200",
+		Kind:         ResponseContractSuccess,
+		Transport:    ResponseContractSSE,
+		StatusCode:   http.StatusOK,
+		ContentTypes: []string{"text/event-stream"},
+		SSE: &SSEResponseContract{
+			Direction:         "server",
+			MessageType:       "WatchEvent",
+			DataEncoding:      "json",
+			IDField:           "id",
+			EventField:        "event",
+			IDRequired:        true,
+			EventTypeRequired: true,
+			EventTypes:        []string{"created", "updated"},
+			Terminal:          "eof",
+		},
+	}
+	valid := func() *SSEResponseContractObservation {
+		return &SSEResponseContractObservation{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/event-stream; charset=utf-8"}},
+			},
+			Events:        []SSEEvent{{ID: "1", Type: "created", Data: `{"id":"1"}`}},
+			TerminalError: io.EOF,
+		}
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(*SSEResponseContractObservation)
+		wantErr string
+	}{
+		{name: "success"},
+		{name: "clean nil terminal", mutate: func(observation *SSEResponseContractObservation) {
+			observation.TerminalError = nil
+		}},
+		{name: "missing events", mutate: func(observation *SSEResponseContractObservation) {
+			observation.Events = nil
+		}, wantErr: "no SSE events were observed"},
+		{name: "invalid JSON", mutate: func(observation *SSEResponseContractObservation) {
+			observation.Events[0].Data = "not-json"
+		}, wantErr: "data is not valid JSON"},
+		{name: "missing id", mutate: func(observation *SSEResponseContractObservation) {
+			observation.Events[0].ID = ""
+		}, wantErr: "is missing an id"},
+		{name: "missing event type", mutate: func(observation *SSEResponseContractObservation) {
+			observation.Events[0].Type = ""
+		}, wantErr: "is missing an event type"},
+		{name: "unexpected event type", mutate: func(observation *SSEResponseContractObservation) {
+			observation.Events[0].Type = "deleted"
+		}, wantErr: `type is "deleted", want one of [created updated]`},
+		{name: "terminal failure", mutate: func(observation *SSEResponseContractObservation) {
+			observation.TerminalError = errors.New("connection reset")
+		}, wantErr: "SSE terminal error, want clean EOF: connection reset"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			observation := valid()
+			if test.mutate != nil {
+				test.mutate(observation)
+			}
+			err := ValidateSSEResponseContract(observation, contract)
+			if test.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, test.wantErr)
 		})
 	}
 }

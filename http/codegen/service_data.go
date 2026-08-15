@@ -176,6 +176,8 @@ type (
 		ID string
 		// IsError reports whether the case describes a service error.
 		IsError bool
+		// Transport identifies the response protocol.
+		Transport string
 		// StatusCode is the exact declared HTTP status code.
 		StatusCode int
 		// ErrorName is the declared service error name.
@@ -186,6 +188,34 @@ type (
 		RequiredHeaders []string
 		// RequiredCookies lists the required response cookie names.
 		RequiredCookies []string
+		// SSE describes stream assertions for an SSE success case.
+		SSE *SSEResponseContractData
+	}
+
+	// SSEResponseContractData contains generated SSE manifest metadata.
+	SSEResponseContractData struct {
+		// Direction is the designed stream direction.
+		Direction string
+		// MessageType is the designed streaming result type name.
+		MessageType string
+		// DataField is the result field encoded into SSE data, if any.
+		DataField string
+		// DataEncoding identifies whether SSE data is JSON or plain text.
+		DataEncoding string
+		// IDField is the result field encoded into SSE id, if any.
+		IDField string
+		// EventField is the result field encoded into SSE event, if any.
+		EventField string
+		// RetryField is the result field encoded into SSE retry, if any.
+		RetryField string
+		// IDRequired reports whether every event must include an ID.
+		IDRequired bool
+		// EventTypeRequired reports whether every event must include a type.
+		EventTypeRequired bool
+		// EventTypes lists allowed projection discriminator values.
+		EventTypes []string
+		// Terminal identifies expected stream completion behavior.
+		Terminal string
 	}
 
 	// FileServerData lists the data needed to generate file servers.

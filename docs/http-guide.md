@@ -501,11 +501,14 @@ func main() {
 
 ### Response Contract Checks
 
-For each supported unary HTTP endpoint, the generated server package exposes a
+For each supported unary or server-sent events HTTP endpoint, the generated server package exposes a
 `<Method>ResponseContractCases` function and collects them in the service-wide
 `ResponseContractCases` manifest. Each case records the exact status, allowed
 base media types, error name, and required response headers and cookies
-declared by the design.
+declared by the design. SSE success cases also record the stream direction,
+message type and encoding, SSE field mappings, required ID and event-type
+fields, allowed projection event types, and terminal completion contract.
+Declared errors that fail before the stream starts remain ordinary HTTP cases.
 
 After `loom gen`, create a consumer-owned provider scaffold:
 
@@ -514,10 +517,12 @@ loom test-scaffold example.com/myservice/design
 ```
 
 Loom writes missing files under `internal/contracttest/` and never overwrites
-them. Fill the generated scenario map with callbacks that send real requests
-through the generated transport. The test reports every missing case and calls
-`loomhttp.ValidateResponseContract` for implemented callbacks, including
-callbacks that return nil responses.
+them. Fill the generated unary and SSE scenario maps with callbacks that send
+real requests through the generated transport. Unary callbacks return the
+response. SSE callbacks return an `loomhttp.SSEResponseContractObservation`
+with the handshake response, parsed events, and terminal read error. The test
+reports every missing case and calls the matching validator, including for nil
+responses.
 
 Loom validates transport-owned wire behavior, including `Loom-Error` for
 declared errors. Application tests must still arrange the service state,
@@ -525,6 +530,22 @@ payload, and fake or fixture that reaches each case; Loom does not synthesize
 domain behavior. Because the scaffold reads the service-wide generated
 manifest at runtime, a later design change fails the existing test until its
 new response scenarios are supplied.
+
+The current response-contract scaffold support matrix is:
+
+| Transport shape | Scaffold status |
+|---|---|
+| Unary HTTP, including declared file-response success and error cases | Supported |
+| Server SSE success and pre-stream declared errors | Supported |
+| Mixed unary/SSE results | Unsupported; generation emits a diagnostic |
+| Client or bidirectional SSE | Unsupported; generation emits a diagnostic |
+| WebSocket | Unsupported; requires stream-aware scenarios |
+| Multipart requests, raw request/response, and redirects | Unsupported; generation emits a diagnostic |
+| JSON-RPC and gRPC | No response-contract scaffold yet |
+
+For file responses, the manifest covers the response declared by the design.
+It does not add transport-owned conditional or range branches such as 206, 304,
+412, or 416.
 
 ---
 

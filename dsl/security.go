@@ -245,7 +245,9 @@ func CookieName(name string) {
 //
 // Security accepts an arbitrary number of security schemes as argument
 // specified by name or by reference and an optional DSL function as last
-// argument.
+// argument. Security with no arguments adds an anonymous alternative. This
+// represents an empty OpenAPI security requirement object and makes
+// authentication optional without removing the other alternatives.
 //
 // Examples:
 //
@@ -283,9 +285,11 @@ func CookieName(name string) {
 //	})
 func Security(args ...any) {
 	var dsl func()
-	if d, ok := args[len(args)-1].(func()); ok {
-		args = args[:len(args)-1]
-		dsl = d
+	if len(args) > 0 {
+		if d, ok := args[len(args)-1].(func()); ok {
+			args = args[:len(args)-1]
+			dsl = d
+		}
 	}
 
 	schemes := make([]*expr.SchemeExpr, len(args))

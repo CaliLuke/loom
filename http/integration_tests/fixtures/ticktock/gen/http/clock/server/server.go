@@ -145,6 +145,25 @@ func NewTickHandler(
 	})
 }
 
+// TickResponseContractCases returns the declared HTTP wire-response contracts
+// for Tick. Callers remain responsible for exercising the application
+// scenarios that produce each response.
+func TickResponseContractCases() []loomhttp.ResponseContractCase {
+	return []loomhttp.ResponseContractCase{{ID: "clock.Tick.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, StatusCode: 200, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
+		DataEncoding:      "text",
+		DataField:         "data",
+		Direction:         "server",
+		EventField:        "event",
+		EventTypeRequired: true,
+		EventTypes:        []string{},
+		IDField:           "",
+		IDRequired:        false,
+		MessageType:       "TickTockEvent",
+		RetryField:        "",
+		Terminal:          "eof",
+	}}}
+}
+
 // MountTockHandler configures the mux to serve the "clock" service "Tock"
 // endpoint.
 func MountTockHandler(mux loomhttp.Muxer, h http.Handler) {
@@ -203,6 +222,25 @@ func NewTockHandler(
 			return
 		}
 	})
+}
+
+// TockResponseContractCases returns the declared HTTP wire-response contracts
+// for Tock. Callers remain responsible for exercising the application
+// scenarios that produce each response.
+func TockResponseContractCases() []loomhttp.ResponseContractCase {
+	return []loomhttp.ResponseContractCase{{ID: "clock.Tock.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, StatusCode: 200, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
+		DataEncoding:      "text",
+		DataField:         "data",
+		Direction:         "server",
+		EventField:        "event",
+		EventTypeRequired: true,
+		EventTypes:        []string{},
+		IDField:           "",
+		IDRequired:        false,
+		MessageType:       "TickTockEvent",
+		RetryField:        "",
+		Terminal:          "eof",
+	}}}
 }
 
 // MountGuardedHandler configures the mux to serve the "clock" service
@@ -272,4 +310,33 @@ func NewGuardedHandler(
 			return
 		}
 	})
+}
+
+// GuardedResponseContractCases returns the declared HTTP wire-response
+// contracts for Guarded. Callers remain responsible for exercising the
+// application scenarios that produce each response.
+func GuardedResponseContractCases() []loomhttp.ResponseContractCase {
+	return []loomhttp.ResponseContractCase{{ID: "clock.Guarded.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, StatusCode: 200, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
+		DataEncoding:      "text",
+		DataField:         "data",
+		Direction:         "server",
+		EventField:        "event",
+		EventTypeRequired: true,
+		EventTypes:        []string{},
+		IDField:           "",
+		IDRequired:        false,
+		MessageType:       "TickTockEvent",
+		RetryField:        "",
+		Terminal:          "eof",
+	}}, {ID: "clock.Guarded.error.unauthorized.401", Kind: loomhttp.ResponseContractError, Transport: loomhttp.ResponseContractHTTP, StatusCode: 401, ErrorName: "unauthorized", ContentTypes: []string{"application/problem+json"}}}
+}
+
+// ResponseContractCases returns every supported declared HTTP wire-response
+// contract for this service. The returned slice is owned by the caller.
+func ResponseContractCases() []loomhttp.ResponseContractCase {
+	cases := make([]loomhttp.ResponseContractCase, 0, 4)
+	cases = append(cases, TickResponseContractCases()...)
+	cases = append(cases, TockResponseContractCases()...)
+	cases = append(cases, GuardedResponseContractCases()...)
+	return cases
 }

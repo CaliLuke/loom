@@ -1065,6 +1065,13 @@ semantics and chain the context returned by each successful authorizer. Only the
 context from the requirement that ultimately succeeds reaches the service
 method.
 
+Each separate `Security(...)` call adds an OR alternative. `Security()` with no
+scheme adds an anonymous alternative, so callers may satisfy the endpoint
+without credentials while the other alternatives remain available. This maps
+to an empty OpenAPI Security Requirement Object (`{}`). Use `NoSecurity()` on a
+method to replace inherited requirements with an explicit empty security list
+(`security: []`).
+
 Use `AuthErrorResponses()` in HTTP scope to add standard 401/403 error response
 mappings, and use `SessionCookie(...)` in HTTP response scope when setting a
 session cookie with secure defaults: `Path("/")`, `Secure`, `HttpOnly`, and

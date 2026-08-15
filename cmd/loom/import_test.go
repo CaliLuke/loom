@@ -337,7 +337,7 @@ paths:
 	}
 }
 
-func TestRunOpenAPIImportReportsDocumentLevelOmissions(t *testing.T) {
+func TestRunOpenAPIImportPreservesSecurityWhileReportingOtherOmissions(t *testing.T) {
 	const source = `openapi: 3.1.1
 info: {title: Partial, version: "1"}
 servers: [{url: https://api.example.com}]
@@ -367,12 +367,12 @@ components:
 	for _, expected := range []string{
 		"importable: 1/1 operations",
 		"skipped (document level):",
-		"security\t1",
-		"security-schemes\t1",
 		"servers\t1",
 	} {
 		require.Contains(t, stderr, expected)
 	}
+	require.NotContains(t, stderr, "security\t")
+	require.NotContains(t, stderr, "security-schemes\t")
 }
 
 func TestImportOpenAPIDesignOutputResolution(t *testing.T) {

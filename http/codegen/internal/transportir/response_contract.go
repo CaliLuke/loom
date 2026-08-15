@@ -14,12 +14,16 @@ type (
 	// successful result or a service error.
 	ResponseContractCaseKind string
 
+	// ResponseContractTransport identifies the wire protocol validated by a
+	// response contract case.
+	ResponseContractTransport string
+
 	// ResponseContractLimitationCode identifies an endpoint feature that the
-	// unary HTTP response contract analysis intentionally does not support.
+	// HTTP response contract analysis intentionally does not support.
 	ResponseContractLimitationCode string
 
 	// ResponseContractAnalysis describes the exhaustive response cases for a
-	// supported unary HTTP endpoint. Cases is empty when Limitations is not.
+	// supported HTTP endpoint. Cases is empty when Limitations is not.
 	ResponseContractAnalysis struct {
 		// Cases lists the declared response branches in design order.
 		Cases []*ResponseContractCase
@@ -42,6 +46,8 @@ type (
 		ID string
 		// Kind distinguishes successful results from service errors.
 		Kind ResponseContractCaseKind
+		// Transport identifies the response protocol.
+		Transport ResponseContractTransport
 		// StatusCode is the declared HTTP response status.
 		StatusCode int
 		// ErrorName is the declared service error name for error cases.
@@ -58,6 +64,34 @@ type (
 		Headers []ResponseContractHeader
 		// Cookies lists the declared response cookie assertions.
 		Cookies []ResponseContractCookie
+		// SSE describes stream assertions for an SSE success case.
+		SSE *ResponseContractSSE
+	}
+
+	// ResponseContractSSE describes a generated Server-Sent Events contract.
+	ResponseContractSSE struct {
+		// Direction is the designed stream direction.
+		Direction string
+		// MessageType is the designed streaming result type name.
+		MessageType string
+		// DataField is the result field encoded into SSE data, if any.
+		DataField string
+		// DataEncoding identifies whether SSE data is JSON or plain text.
+		DataEncoding string
+		// IDField is the result field encoded into SSE id, if any.
+		IDField string
+		// EventField is the result field encoded into SSE event, if any.
+		EventField string
+		// RetryField is the result field encoded into SSE retry, if any.
+		RetryField string
+		// IDRequired reports whether every observed event must include an ID.
+		IDRequired bool
+		// EventTypeRequired reports whether every observed event must include a type.
+		EventTypeRequired bool
+		// EventTypes lists allowed projection discriminator values, if constrained.
+		EventTypes []string
+		// Terminal identifies the expected stream completion behavior.
+		Terminal string
 	}
 
 	// ResponseContractHeader describes a declared response header assertion.
@@ -98,6 +132,10 @@ const (
 	ResponseContractSuccess ResponseContractCaseKind = "success"
 	// ResponseContractError identifies an error response contract case.
 	ResponseContractError ResponseContractCaseKind = "error"
+	// ResponseContractHTTP identifies an ordinary HTTP response contract.
+	ResponseContractHTTP ResponseContractTransport = "http"
+	// ResponseContractSSE identifies a Server-Sent Events response contract.
+	ResponseContractSSETransport ResponseContractTransport = "sse"
 
 	// ResponseContractMissingEndpoint indicates that no endpoint was supplied.
 	ResponseContractMissingEndpoint ResponseContractLimitationCode = "missing_endpoint"
@@ -127,7 +165,7 @@ const (
 )
 
 // AnalyzeResponseContractCases builds deterministic, exhaustive descriptors
-// for the declared response branches of a supported unary HTTP endpoint.
+// for the declared response branches of a supported HTTP endpoint.
 func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis {
 	analysis := &ResponseContractAnalysis{}
 	analysis.Limitations = responseContractLimitations(endpoint)
@@ -139,7 +177,12 @@ func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis 
 	methodName := endpoint.MethodName
 	analysis.Cases = make([]*ResponseContractCase, 0, len(endpoint.Response.Responses)+len(endpoint.Response.ErrorResponses))
 	for _, response := range endpoint.Response.Responses {
-		analysis.Cases = append(analysis.Cases, newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response))
+		contractCase := newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response)
+		if endpoint.Stream != nil && endpoint.Stream.IsSSE {
+			contractCase.Transport = ResponseContractSSETransport
+			contractCase.SSE = newResponseContractSSE(endpoint.Stream)
+		}
+		analysis.Cases = append(analysis.Cases, contractCase)
 	}
 	for _, response := range endpoint.Response.ErrorResponses {
 		analysis.Cases = append(analysis.Cases, newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response))
@@ -160,8 +203,8 @@ func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis 
 	return analysis
 }
 
-// Supported reports whether the endpoint is inside the unary HTTP response
-// contract analysis scope.
+// Supported reports whether the endpoint is inside the HTTP response contract
+// analysis scope.
 func (a *ResponseContractAnalysis) Supported() bool {
 	return a != nil && len(a.Limitations) == 0
 }
@@ -187,12 +230,7 @@ func responseContractLimitations(endpoint *Endpoint) []ResponseContractLimitatio
 			Detail: "JSON-RPC response envelopes are outside unary HTTP contract scope",
 		})
 	}
-	if endpoint.Stream != nil && endpoint.Stream.IsStreaming {
-		limitations = append(limitations, ResponseContractLimitation{
-			Code:   ResponseContractStreaming,
-			Detail: "SSE and WebSocket responses require stream-aware contract scenarios",
-		})
-	}
+	limitations = append(limitations, responseContractStreamingLimitations(endpoint.Stream)...)
 	if endpoint.Redirect != nil {
 		limitations = append(limitations, ResponseContractLimitation{
 			Code:   ResponseContractRedirect,
@@ -225,6 +263,38 @@ func responseContractLimitations(endpoint *Endpoint) []ResponseContractLimitatio
 	return limitations
 }
 
+func responseContractStreamingLimitations(stream *Stream) []ResponseContractLimitation {
+	if stream == nil || !stream.IsStreaming {
+		return nil
+	}
+	if !stream.IsSSE {
+		return []ResponseContractLimitation{{
+			Code:   ResponseContractStreaming,
+			Detail: "WebSocket responses require stream-aware contract scenarios",
+		}}
+	}
+	var limitations []ResponseContractLimitation
+	if stream.HasMixedResults {
+		limitations = append(limitations, ResponseContractLimitation{
+			Code:   ResponseContractStreaming,
+			Detail: "mixed unary and SSE results require separate negotiated contract cases",
+		})
+	}
+	if stream.Direction != "server" {
+		limitations = append(limitations, ResponseContractLimitation{
+			Code:   ResponseContractStreaming,
+			Detail: "SSE response contracts currently require a server stream",
+		})
+	}
+	if stream.ResponseMessage == nil || stream.ResponseMessage.Type == nil || stream.ResponseMessage.Type == expr.Empty {
+		limitations = append(limitations, ResponseContractLimitation{
+			Code:   ResponseContractStreaming,
+			Detail: "SSE response contracts require a streaming result message",
+		})
+	}
+	return limitations
+}
+
 func newResponseContractCase(serviceName, methodName string, fileResponse bool, response *ResponseStatus) *ResponseContractCase {
 	// IsError == (Error != nil) is guaranteed at construction (see
 	// buildResponseStatus in request_response.go), so Error is dereferenced
@@ -238,6 +308,7 @@ func newResponseContractCase(serviceName, methodName string, fileResponse bool, 
 	return &ResponseContractCase{
 		ID:           responseContractCaseID(serviceName, methodName, kind, response),
 		Kind:         kind,
+		Transport:    ResponseContractHTTP,
 		StatusCode:   response.StatusCode,
 		ErrorName:    errorName,
 		TagName:      response.TagName,
@@ -247,6 +318,54 @@ func newResponseContractCase(serviceName, methodName string, fileResponse bool, 
 		Headers:      responseContractHeaders(response.Headers),
 		Cookies:      responseContractCookies(response.Cookies),
 	}
+}
+
+func newResponseContractSSE(stream *Stream) *ResponseContractSSE {
+	contract := &ResponseContractSSE{
+		Direction: "server",
+		Terminal:  "eof",
+	}
+	if stream == nil {
+		return contract
+	}
+	contract.Direction = stream.Direction
+	if stream.ResponseMessage != nil && stream.ResponseMessage.Type != nil {
+		contract.MessageType = stream.ResponseMessage.Type.Name()
+	}
+	if stream.SSE == nil {
+		return contract
+	}
+	contract.DataField = stream.SSE.DataField
+	contract.DataEncoding = responseContractSSEDataEncoding(stream)
+	contract.IDField = stream.SSE.IDField
+	contract.EventField = stream.SSE.EventField
+	contract.RetryField = stream.SSE.RetryField
+	if stream.ResponseMessage != nil {
+		contract.IDRequired = stream.SSE.IDField != "" && stream.ResponseMessage.IsRequired(stream.SSE.IDField)
+		contract.EventTypeRequired = stream.SSE.EventField != "" && stream.ResponseMessage.IsRequired(stream.SSE.EventField)
+	}
+	for _, projection := range stream.SSE.Projections {
+		if projection != nil {
+			contract.EventTypes = append(contract.EventTypes, projection.EventType)
+		}
+	}
+	return contract
+}
+
+func responseContractSSEDataEncoding(stream *Stream) string {
+	if stream == nil || stream.ResponseMessage == nil || stream.ResponseMessage.Type == nil {
+		return "json"
+	}
+	data := stream.ResponseMessage
+	if stream.SSE != nil && stream.SSE.DataField != "" {
+		if field := stream.ResponseMessage.Find(stream.SSE.DataField); field != nil {
+			data = field
+		}
+	}
+	if data.Type == expr.String || data.Type == expr.Bytes {
+		return "text"
+	}
+	return "json"
 }
 
 func responseHasBody(response *ResponseStatus) bool {

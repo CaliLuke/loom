@@ -27,6 +27,20 @@ func assignSchemaNames(schemas []NamedSchema) {
 	}
 }
 
+func assignSecuritySchemeNames(schemes []SecurityScheme, schemas []NamedSchema) {
+	sort.Slice(schemes, func(i, j int) bool {
+		return schemes[i].Name < schemes[j].Name
+	})
+	used := make(map[string]int, len(schemes)+len(schemas))
+	for _, schema := range schemas {
+		uniqueName("Imported"+schema.GoName, used)
+	}
+	for i := range schemes {
+		base := "Imported" + codegen.Goify(schemes[i].Name, true) + "Security"
+		schemes[i].GoName = uniqueName(base, used)
+	}
+}
+
 func assignOperationNames(operations []Operation) {
 	sort.Slice(operations, func(i, j int) bool {
 		if operations[i].Path != operations[j].Path {

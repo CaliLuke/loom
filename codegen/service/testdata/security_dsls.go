@@ -194,6 +194,18 @@ var EndpointWithBearerOrCookieSecurityDSL = func() {
 	})
 }
 
+var EndpointWithOptionalSecurityDSL = func() {
+	Service("EndpointWithOptionalSecurity", func() {
+		Method("Secure", func() {
+			Security(APIKeyAuth)
+			Security()
+			Payload(func() {
+				APIKey("api_key", "browser_session", String)
+			})
+		})
+	})
+}
+
 var EndpointWithCompoundOrSecurityDSL = func() {
 	Service("EndpointWithCompoundOrSecurity", func() {
 		Method("Secure", func() {

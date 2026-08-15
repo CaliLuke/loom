@@ -174,6 +174,31 @@ func TestAnalyzeResponseContractCasesRejectsUnsupportedScopes(t *testing.T) {
 	}
 }
 
+func TestAnalyzeResponseContractCasesSupportsSSE(t *testing.T) {
+	root := testcodegen.RunDSL(t, responseContractSSEDSL)
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	require.True(t, analysis.Supported())
+	require.Empty(t, analysis.Limitations)
+	require.Len(t, analysis.Cases, 2)
+	require.Equal(t, "events.watch.success.200", analysis.Cases[0].ID)
+	require.Equal(t, []string{"text/event-stream"}, analysis.Cases[0].ContentTypes)
+	require.Equal(t, transportir.ResponseContractSSETransport, analysis.Cases[0].Transport)
+	require.NotNil(t, analysis.Cases[0].SSE)
+	require.Equal(t, "server", analysis.Cases[0].SSE.Direction)
+	require.Equal(t, "id", analysis.Cases[0].SSE.IDField)
+	require.Equal(t, "event", analysis.Cases[0].SSE.EventField)
+	require.Equal(t, "data", analysis.Cases[0].SSE.DataField)
+	require.Equal(t, "text", analysis.Cases[0].SSE.DataEncoding)
+	require.True(t, analysis.Cases[0].SSE.IDRequired)
+	require.True(t, analysis.Cases[0].SSE.EventTypeRequired)
+	require.Equal(t, "eof", analysis.Cases[0].SSE.Terminal)
+	require.Equal(t, "events.watch.error.unauthorized.401", analysis.Cases[1].ID)
+	require.Equal(t, transportir.ResponseContractHTTP, analysis.Cases[1].Transport)
+	require.Nil(t, analysis.Cases[1].SSE)
+}
+
 func TestAnalyzeResponseContractCasesEscapesStableIDSegments(t *testing.T) {
 	endpoint := &transportir.Endpoint{
 		Service:    &transportir.Service{Name: "catalog.v2"},
@@ -289,6 +314,29 @@ func responseContractDSL() {
 					dsl.Header("reason:X-Reason")
 				})
 				dsl.Response("gone", expr.StatusNotFound)
+			})
+		})
+	})
+}
+
+func responseContractSSEDSL() {
+	dsl.Service("events", func() {
+		dsl.Method("watch", func() {
+			dsl.Error("unauthorized")
+			dsl.StreamingResult(func() {
+				dsl.Attribute("id", dsl.String)
+				dsl.Attribute("event", dsl.String)
+				dsl.Attribute("data", dsl.String)
+				dsl.Required("id", "event", "data")
+			})
+			dsl.HTTP(func() {
+				dsl.GET("/events")
+				dsl.Response("unauthorized", expr.StatusUnauthorized)
+				dsl.ServerSentEvents(func() {
+					dsl.SSEEventID("id")
+					dsl.SSEEventType("event")
+					dsl.SSEEventData("data")
+				})
 			})
 		})
 	})

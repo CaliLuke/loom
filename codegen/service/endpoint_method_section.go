@@ -91,6 +91,10 @@ func buildEndpointAuth(group *jen.Group, method *EndpointMethodData, payload str
 }
 
 func buildRequirementSchemes(group *jen.Group, req *RequirementData, payload, contextVar string) {
+	if len(req.Schemes) == 0 {
+		group.Id("err").Op("=").Nil()
+		return
+	}
 	for sidx, scheme := range req.Schemes {
 		if sidx != 0 {
 			group.If(jen.Id("err").Op("==").Nil()).BlockFunc(func(nested *jen.Group) {

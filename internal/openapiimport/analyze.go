@@ -135,9 +135,6 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	if len(source.Servers) > 0 {
 		a.unsupported("servers", "#/servers", "server definitions are not in the strict import subset")
 	}
-	if len(source.Security) > 0 {
-		a.unsupported("security", "#/security", "security requirements are not in the strict import subset")
-	}
 	if source.ExternalDocs != nil {
 		a.unsupported("external-docs", "#/externalDocs", "external documentation is not in the strict import subset")
 	}
@@ -158,6 +155,10 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	}
 	document.Extensions = a.extensions("#", source.Extensions)
 	document.Components = a.components(source.Components)
+	document.SecurityDefined = source.GoLow() != nil && !source.GoLow().Security.IsEmpty()
+	if document.SecurityDefined {
+		document.Security = a.securityRequirements(source.Security, "#/security", document.Components)
+	}
 	document.Operations = a.operations(source.Paths, document.Components, document.Tags)
 	assignOperationNames(document.Operations)
 	return document
@@ -175,6 +176,12 @@ func (a *analyzer) components(source *v3.Components) Components {
 		})
 	}
 	assignSchemaNames(result.Schemas)
+	for name, scheme := range source.SecuritySchemes.FromOldest() {
+		if normalized, ok := a.securityScheme(name, scheme, "#/components/securitySchemes/"+escapeJSONPointer(name)); ok {
+			result.SecuritySchemes = append(result.SecuritySchemes, normalized)
+		}
+	}
+	assignSecuritySchemeNames(result.SecuritySchemes, result.Schemas)
 	for name, parameter := range source.Parameters.FromOldest() {
 		result.Parameters = append(result.Parameters, NamedParameter{
 			Name:      name,
@@ -199,9 +206,6 @@ func (a *analyzer) components(source *v3.Components) Components {
 			Header: a.header(header, "#/components/headers/"+escapeJSONPointer(name)),
 		})
 	}
-	if orderedmap.Len(source.SecuritySchemes) > 0 {
-		a.unsupported("security-schemes", "#/components/securitySchemes", "security schemes are not in the strict import subset")
-	}
 	if orderedmap.Len(source.Examples) > 0 || orderedmap.Len(source.Links) > 0 || orderedmap.Len(source.Callbacks) > 0 ||
 		orderedmap.Len(source.PathItems) > 0 || orderedmap.Len(source.MediaTypes) > 0 {
 		a.unsupported("component-kind", "#/components", "examples, links, callbacks, path items, and media types are not in the strict import subset")
@@ -216,6 +220,10 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 		Description: source.Description, Tags: append([]string(nil), source.Tags...),
 		Deprecated: source.Deprecated != nil && *source.Deprecated,
 		Extensions: a.extensions(pointer, source.Extensions),
+	}
+	if source.Security != nil {
+		operation.SecurityDefined = true
+		operation.Security = a.securityRequirements(source.Security, pointer+"/security", components)
 	}
 	operation.Parameters = a.mergeParameters(inherited, source.Parameters, inheritedPath, pointer+"/parameters", components)
 	if source.RequestBody != nil {
@@ -240,9 +248,6 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 	if orderedmap.Len(source.Callbacks) > 0 {
 		a.unsupported("callbacks", pointer+"/callbacks", "callbacks are not in the strict import subset")
 	}
-	if len(source.Security) > 0 {
-		a.unsupported("security", pointer+"/security", "operation security is not in the strict import subset")
-	}
 	if len(source.Servers) > 0 {
 		a.unsupported("servers", pointer+"/servers", "operation servers are not in the strict import subset")
 	}
@@ -250,11 +255,6 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 		a.unsupported("external-docs", pointer+"/externalDocs", "external documentation is not in the strict import subset")
 	}
 	return operation
-}
-
-type parameterOccurrence struct {
-	parameter Parameter
-	path      string
 }
 
 func (a *analyzer) mergeParameters(inherited, operation []*v3.Parameter, inheritedPath, operationPath string, components Components) []Parameter {

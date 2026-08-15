@@ -14,9 +14,6 @@ func BuildRequirementsData(requirements []*expr.SecurityExpr, method *expr.Metho
 			rs = rs.Append(projected)
 			schemes = schemes.Append(projected)
 		}
-		if len(rs) == 0 {
-			continue
-		}
 		reqs = append(reqs, &RequirementData{Schemes: rs, Scopes: req.Scopes})
 	}
 	return reqs, schemes

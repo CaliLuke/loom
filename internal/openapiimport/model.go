@@ -17,6 +17,10 @@ type Document struct {
 	Tags []string
 	// Extensions contains document-level vendor extensions.
 	Extensions map[string]any
+	// SecurityDefined reports whether the source declares the security member.
+	SecurityDefined bool
+	// Security contains root security requirement alternatives in source order.
+	Security SecurityRequirements
 	// Components contains normalized reusable definitions.
 	Components Components
 	// Operations contains HTTP operations in deterministic path-and-method order.
@@ -25,6 +29,8 @@ type Document struct {
 
 // Components contains reusable OpenAPI definitions retained by the importer.
 type Components struct {
+	// SecuritySchemes contains supported reusable security schemes.
+	SecuritySchemes []SecurityScheme
 	// Schemas contains reusable schema definitions sorted by source name.
 	Schemas []NamedSchema
 	// Parameters contains reusable parameter definitions.
@@ -35,6 +41,43 @@ type Components struct {
 	Responses []NamedResponse
 	// Headers contains reusable header definitions.
 	Headers []NamedHeader
+}
+
+// SecurityScheme is a supported reusable OpenAPI security scheme.
+type SecurityScheme struct {
+	// Name is the authored component key.
+	Name string
+	// GoName is the deterministic collision-safe variable identifier.
+	GoName string
+	// Type is the OpenAPI security scheme type.
+	Type string
+	// Description describes the credential contract.
+	Description string
+	// In identifies the credential location: header, query, or cookie.
+	In string
+	// ParameterName is the authored wire name of the credential.
+	ParameterName string
+	// Extensions contains scheme-level vendor extensions.
+	Extensions map[string]any
+}
+
+// SecurityRequirements lists alternative OpenAPI security requirement objects.
+type SecurityRequirements []SecurityRequirement
+
+// SecurityRequirement lists schemes that must all succeed for one alternative.
+type SecurityRequirement struct {
+	// Schemes lists required schemes in source order. An empty list permits
+	// anonymous access as one alternative.
+	Schemes []SecurityRequirementScheme
+}
+
+// SecurityRequirementScheme references one component security scheme.
+type SecurityRequirementScheme struct {
+	// Name is the referenced security scheme component key.
+	Name string
+	// Scopes contains the authored scopes. Supported API-key schemes require
+	// this list to be empty.
+	Scopes []string
 }
 
 // NamedSchema is a reusable schema and its deterministic Go identifier.
@@ -99,6 +142,10 @@ type Operation struct {
 	Deprecated bool
 	// Extensions contains operation-level vendor extensions.
 	Extensions map[string]any
+	// SecurityDefined reports whether the operation overrides root security.
+	SecurityDefined bool
+	// Security contains operation security requirement alternatives.
+	Security SecurityRequirements
 	// Parameters contains inherited path-item and operation parameters.
 	Parameters []Parameter
 	// RequestBody is the operation request body, if any.
@@ -288,4 +335,9 @@ type AdditionalProperties struct {
 	Allowed *bool
 	// Schema describes map values when additionalProperties is a schema.
 	Schema *Schema
+}
+
+type parameterOccurrence struct {
+	parameter Parameter
+	path      string
 }

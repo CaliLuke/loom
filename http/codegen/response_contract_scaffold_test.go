@@ -32,6 +32,20 @@ func TestResponseContractTestFiles(t *testing.T) {
 	require.NotContains(t, generated, "t.Skip")
 }
 
+func TestResponseContractTestFilesIncludeSSEScenarios(t *testing.T) {
+	root := RunHTTPDSL(t, responseContractSSEDSL)
+	services := CreateHTTPServices(root)
+	files := ResponseContractTestFiles("example.com/events/gen", services)
+	require.Len(t, files, 1)
+
+	generated := codegen.SectionCode(t, files[0].Section("response-contract-test")[0])
+	require.Contains(t, generated, "type eventsSSEResponseContractScenario func(*testing.T) *loomhttp.SSEResponseContractObservation")
+	require.Contains(t, generated, "func eventsSSEResponseContractScenarios() map[string]eventsSSEResponseContractScenario")
+	require.Contains(t, generated, "contract.Transport == loomhttp.ResponseContractSSE")
+	require.Contains(t, generated, "loomhttp.ValidateSSEResponseContract(observation, contract)")
+	require.Contains(t, generated, `missing SSE response contract scenario %q`)
+}
+
 func TestResponseContractTestFilesPreserveExistingScaffold(t *testing.T) {
 	root := RunHTTPDSL(t, responseContractServerDSL)
 	file := ResponseContractTestFiles("example.com/widgets/gen", CreateHTTPServices(root))[0]
@@ -90,6 +104,47 @@ func TestResponseContractTestFilesPassFileAndBodylessGeneratedScenarios(t *testi
 		harnessName: "files_provider_test.go",
 		harness:     responseContractFileAndBodylessHarness,
 	})
+}
+
+func TestResponseContractTestFilesPassSSESuccessAndPreStreamErrorScenarios(t *testing.T) {
+	const modulePath = "example.com/responsecontractsse"
+	root := RunHTTPDSL(t, responseContractSSEDSL)
+	dir := t.TempDir()
+	repoRoot, err := loomsource.RepositoryRoot(".")
+	require.NoError(t, err)
+	t.Setenv("LOOM_DIR", repoRoot)
+	renderHTTPModule(t, dir, modulePath, root)
+	renderGeneratedFiles(t, dir, ResponseContractTestFiles(modulePath+"/gen", CreateHTTPServices(root)))
+
+	scaffoldPath := filepath.Join(dir, "internal", "contracttest", "events_http_test.go")
+	scaffold, err := os.ReadFile(scaffoldPath)
+	require.NoError(t, err)
+	populated := strings.Replace(
+		string(scaffold),
+		"return map[string]eventsResponseContractScenario{}",
+		`return map[string]eventsResponseContractScenario{
+		"events.watch.error.unauthorized.401": unauthorizedResponse,
+	}`,
+		1,
+	)
+	populated = strings.Replace(
+		populated,
+		"return map[string]eventsSSEResponseContractScenario{}",
+		`return map[string]eventsSSEResponseContractScenario{
+		"events.watch.success.200": watchSSEObservation,
+	}`,
+		1,
+	)
+	require.NotEqual(t, string(scaffold), populated)
+	require.NoError(t, os.WriteFile(scaffoldPath, []byte(populated), 0o600))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, "internal", "contracttest", "events_provider_test.go"),
+		[]byte(responseContractSSEProviderHarness),
+		0o600,
+	))
+
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "test", "./internal/contracttest")
 }
 
 type responseContractScaffoldTest struct {
@@ -203,6 +258,29 @@ func responseContractAliasCollisionDSL() {
 			})
 		})
 	}
+}
+
+func responseContractSSEDSL() {
+	Service("events", func() {
+		Method("watch", func() {
+			Error("unauthorized")
+			StreamingResult(func() {
+				Attribute("id", String)
+				Attribute("event", String)
+				Attribute("data", String)
+				Required("id", "event", "data")
+			})
+			HTTP(func() {
+				GET("/events")
+				Response("unauthorized", StatusUnauthorized)
+				ServerSentEvents(func() {
+					SSEEventID("id")
+					SSEEventType("event")
+					SSEEventData("data")
+				})
+			})
+		})
+	})
 }
 
 func TestResponseContractTestFilesFailMissingScenarios(t *testing.T) {
@@ -345,6 +423,82 @@ func (s *widgetsService) Show(context.Context) (*widgets.ShowResult, error) {
 	default:
 		return nil, nil
 	}
+}
+`
+
+const responseContractSSEProviderHarness = `package contracttest
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	events "example.com/responsecontractsse/gen/events"
+	eventsserver "example.com/responsecontractsse/gen/http/events/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+type eventsService struct {
+	unauthorized bool
+}
+
+func watchSSEObservation(t *testing.T) *loomhttp.SSEResponseContractObservation {
+	t.Helper()
+	response := requestEventsScenario(t, false)
+	observed, err := loomhttp.ParseSSEStream(response.Body)
+	if closeErr := response.Body.Close(); closeErr != nil {
+		t.Errorf("close SSE response: %v", closeErr)
+	}
+	return &loomhttp.SSEResponseContractObservation{
+		Response:      response,
+		Events:        observed,
+		TerminalError: err,
+	}
+}
+
+func unauthorizedResponse(t *testing.T) *http.Response {
+	return requestEventsScenario(t, true)
+}
+
+func requestEventsScenario(t *testing.T, unauthorized bool) *http.Response {
+	t.Helper()
+	endpoints := events.NewEndpoints(&eventsService{unauthorized: unauthorized})
+	mux := loomhttp.NewMuxer()
+	server := eventsserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	eventsserver.Mount(mux, server)
+	httpServer := httptest.NewServer(mux)
+	t.Cleanup(httpServer.Close)
+
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, httpServer.URL+"/events", nil)
+	if err != nil {
+		t.Fatalf("create events request: %v", err)
+	}
+	request.Header.Set("Accept", "text/event-stream")
+	response, err := httpServer.Client().Do(request)
+	if err != nil {
+		t.Fatalf("request events scenario: %v", err)
+	}
+	if unauthorized {
+		t.Cleanup(func() {
+			if err := response.Body.Close(); err != nil {
+				t.Errorf("close unauthorized response: %v", err)
+			}
+		})
+	}
+	return response
+}
+
+func (s *eventsService) Watch(_ context.Context, stream events.WatchServerStream) error {
+	if s.unauthorized {
+		return events.MakeUnauthorized(errors.New("unauthorized"))
+	}
+	return stream.Send(&events.WatchResult{
+		ID:    "event-1",
+		Event: "created",
+		Data:  "payload",
+	})
 }
 `
 

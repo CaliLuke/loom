@@ -96,13 +96,19 @@ design, then run `loom gen <module-import-path>/design` normally.
 Use `--report` to print grouped blocker counts and affected operations without
 writing a design. Use `--skip-unrenderable` to write all renderable operations
 and report each skipped operation. Partial import also omits unsupported
-document-level members such as `servers`, root `security`,
-`components.securitySchemes`, info metadata, and tag metadata. It reports these
-under `skipped (document level)` without making otherwise-renderable operations
-fail. Operation-level security is retained as an explicit omission under
-`skipped (operation metadata)` so the generated operation can be reviewed and
-secured by hand. Operation-level servers still make that operation
-unrenderable.
+document-level members such as `servers`, info metadata, and tag metadata. It
+reports these under `skipped (document level)` without making
+otherwise-renderable operations fail. Operation-level servers still make that
+operation unrenderable.
+
+API-key security schemes in headers, query parameters, and cookies import
+without loss. The importer preserves root and operation requirement
+alternatives, including AND requirements, an anonymous `{}` alternative, and
+an explicit operation `security: []` override. Generated designs use
+`Security()` with no scheme for the anonymous alternative and `NoSecurity()`
+for the explicit empty override. Unsupported security scheme kinds, references,
+locations, fields, and OAuth-style scope values remain strict diagnostics; the
+importer never silently weakens an authentication contract.
 
 Both modes use these exit codes:
 
@@ -221,6 +227,13 @@ This command creates consumer-owned HTTP response contract tests under
 generated test enumerates the current server manifest and fails once for every
 declared response that lacks an application callback, so later `loom gen`
 changes remain visible without rewriting the scaffold.
+
+Unary and SSE cases use separate callback maps. An SSE success callback returns
+an `loomhttp.SSEResponseContractObservation` containing the handshake response,
+parsed events, and terminal read error. The validator checks the handshake,
+event data encoding, required ID and event-type fields, projection event types,
+and clean stream completion. Declared errors that occur before the first SSE
+frame remain ordinary HTTP response cases.
 
 #### Show Version
 

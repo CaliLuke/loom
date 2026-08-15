@@ -193,6 +193,19 @@ func TestSecureEndpointPreservesContextWithinCompoundRequirement(t *testing.T) {
 	assert.Greater(t, apiKeyAuth, reset)
 }
 
+func TestSecureEndpointAllowsAnonymousRequirementFallback(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.EndpointWithOptionalSecurityDSL)
+	service := NewServicesData(root).Get("EndpointWithOptionalSecurity")
+	require.NotNil(t, service)
+	method := endpointData(service).Methods[0]
+	require.NotNil(t, method)
+	require.Len(t, method.Requirements, 2)
+	require.Empty(t, method.Requirements[1].Schemes)
+
+	code := codegen.SectionCode(t, endpointMethodSection(method))
+	require.Contains(t, code, "if err != nil {\n\t\t\tauthCtx = ctx\n\t\t\terr = nil")
+}
+
 func TestAPISessionSecurityMatchesHandAuthoredSecurityCodegenData(t *testing.T) {
 	manualRoot := codegen.RunDSL(t, testdata.EndpointWithBearerOrCookieAPISecurityDSL)
 	sessionRoot := codegen.RunDSL(t, testdata.EndpointWithAPISessionSecurityDSL)

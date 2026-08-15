@@ -57,6 +57,11 @@ func Render(document *Document, options Options) ([]byte, error) {
 			return nil, err
 		}
 	}
+	for _, scheme := range document.Components.SecuritySchemes {
+		if err := r.securityScheme(scheme); err != nil {
+			return nil, err
+		}
+	}
 	if err := r.api(); err != nil {
 		return nil, err
 	}
@@ -137,6 +142,11 @@ func (r *renderer) api() error {
 	for _, tag := range r.importedTags() {
 		r.line("Meta(%q)", "openapi:tag:"+tag)
 	}
+	if r.document.SecurityDefined {
+		if err := r.securityRequirements(r.document.Security); err != nil {
+			return err
+		}
+	}
 	consumes, produces := r.importedMediaTypes()
 	if len(consumes) > 0 || len(produces) > 0 {
 		r.open("HTTP(func()")
@@ -196,6 +206,13 @@ func (r *renderer) operation(operation *Operation, plan operationPlan, index int
 	if err := r.operationMetadata(operation); err != nil {
 		return err
 	}
+	if operation.SecurityDefined {
+		if len(operation.Security) == 0 {
+			r.line("NoSecurity()")
+		} else if err := r.securityRequirements(operation.Security); err != nil {
+			return err
+		}
+	}
 	if err := r.payload(plan.parameters, plan.body, path+"/payload"); err != nil {
 		return err
 	}
@@ -239,6 +256,10 @@ func (r *renderer) planOperation(operation *Operation, path string) (operationPl
 		return operationPlan{}, err
 	}
 	parameters, err := r.parameters(operation.Parameters, path+"/parameters")
+	if err != nil {
+		return operationPlan{}, err
+	}
+	parameters, err = r.securityParameters(operation, parameters, path+"/security")
 	if err != nil {
 		return operationPlan{}, err
 	}
@@ -319,9 +340,10 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 }
 
 type renderedParameter struct {
-	parameter     Parameter
-	field         string
-	componentName string
+	parameter      Parameter
+	field          string
+	componentName  string
+	securityScheme string
 }
 
 type renderedBody struct {
@@ -387,6 +409,10 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 	r.open("Payload(func()")
 	var required []string
 	for i, parameter := range parameters {
+		if parameter.securityScheme != "" {
+			r.line("APIKey(%q, %q, String)", parameter.securityScheme, parameter.field)
+			continue
+		}
 		metadata, err := parameterMetadata(parameter)
 		if err != nil {
 			return err

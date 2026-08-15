@@ -174,6 +174,27 @@ func TestSecurityAPIAndServiceLevelDSL(t *testing.T) {
 	require.Equal(t, "jwt", svc.Requirements[0].Schemes[0].SchemeName)
 }
 
+func TestSecurityAnonymousAlternativeDSL(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		key := APIKeySecurity("key")
+		Service("optional", func() {
+			Method("show", func() {
+				Security(key)
+				Security()
+				Payload(func() {
+					APIKey("key", "credential", String)
+				})
+			})
+		})
+	})
+
+	method := root.Service("optional").Method("show")
+	require.Len(t, method.Requirements, 2)
+	require.Len(t, method.Requirements[0].Schemes, 1)
+	require.Empty(t, method.Requirements[1].Schemes)
+	require.NotContains(t, method.Meta, "security:no")
+}
+
 func TestSecurityDSLErrors(t *testing.T) {
 	cases := []struct {
 		name    string

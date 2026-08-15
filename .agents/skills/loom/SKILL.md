@@ -75,11 +75,14 @@ metadata, unrecognized `format` values, or a parameter/header (not schema)
 `--allow-lossy`; it warns on stderr for each omission but still refuses any
 contract-affecting loss. Use `--skip-unrenderable` to retain renderable
 operations. It reports skipped operations and omitted root members separately.
-These root members include servers, security, security schemes, info metadata,
-and tag metadata. It also reports omitted operation security metadata while
-retaining the otherwise-renderable operation. Exit `3` means partial output was
-written, exit `2` means nothing was importable, and exit `1` is a command
-failure. Review the new `design/design.go` before running `loom gen`.
+These root members include servers, info metadata, and tag metadata. API-key
+security schemes in headers, query parameters, and cookies, plus root and
+operation security requirements, import losslessly. An anonymous `{}`
+alternative renders as `Security()` and an explicit operation `security: []`
+renders as `NoSecurity()`. Other scheme kinds, unsupported fields, and invalid
+scope values fail closed. Exit `3` means partial output was written, exit `2`
+means nothing was importable, and exit `1` is a command failure. Review the new
+`design/design.go` before running `loom gen`.
 
 Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
 consumer still requires OpenAPI 3.1.1. The output paths remain the same and the
@@ -150,13 +153,16 @@ Loom's default HTTP errors are RFC 9457-style
 Do not duplicate these contracts in handwritten transport code.
 
 Generated HTTP server packages expose per-method response contract functions
-and a service-wide `ResponseContractCases()` manifest for supported unary
-endpoints. After `loom gen`, run `loom test-scaffold <design-package>` once to
-create non-overwriting provider tests under `internal/contracttest/`. Fill each
-case callback with a real generated-transport request. Missing callbacks fail
-individually, and `loomhttp.ValidateResponseContract` checks responses returned
-by implemented callbacks. The application remains responsible for payloads,
-fakes, and state that make every declared response reachable.
+and a service-wide `ResponseContractCases()` manifest for supported unary and
+server SSE endpoints. After `loom gen`, run
+`loom test-scaffold <design-package>` once to create non-overwriting provider
+tests under `internal/contracttest/`. Fill each callback with a real
+generated-transport request. Unary callbacks return the response. SSE callbacks
+return an `loomhttp.SSEResponseContractObservation` containing the handshake,
+parsed events, and terminal error; declared pre-stream errors remain unary
+cases. Missing callbacks fail individually, and the matching Loom validator
+checks implemented callbacks. The application remains responsible for
+payloads, fakes, and state that make every declared response reachable.
 
 ## Unions, Views, and Projections
 

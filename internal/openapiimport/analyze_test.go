@@ -36,6 +36,72 @@ func TestAnalyzeJSONYAMLParity(t *testing.T) {
 	require.Equal(t, "#/components/schemas/Pet", yamlDocument.Operations[1].Responses[0].Response.Schema.Ref)
 }
 
+func TestAnalyzeSupportsAPIKeySecurityContracts(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Secured API, version: "1"}
+security:
+  - HeaderKey: []
+paths:
+  /inherited:
+    get:
+      operationId: inherited
+      responses: {"204": {description: done}}
+  /public:
+    get:
+      operationId: public
+      security: []
+      responses: {"204": {description: done}}
+  /optional:
+    get:
+      operationId: optional
+      security:
+        - CookieKey: []
+        - {}
+      responses: {"204": {description: done}}
+components:
+  securitySchemes:
+    HeaderKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Header credential.
+    CookieKey:
+      type: apiKey
+      in: cookie
+      name: session-id
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.NotNil(t, document)
+	require.Len(t, document.Operations, 3)
+}
+
+func TestAnalyzeRejectsUnsupportedSecuritySchemeKinds(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Unsupported security, version: "1"}
+security: [{OAuth: [read]}]
+paths:
+  /items:
+    get:
+      operationId: listItems
+      responses: {"204": {description: done}}
+components:
+  securitySchemes:
+    OAuth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://example.com/token
+          scopes: {read: Read access}
+`)
+
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	requireDiagnosticCode(t, diagnostics, "security-scheme")
+}
+
 func TestAnalyzeAssignsDeterministicCollisionNames(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Collisions, version: "1"}
@@ -146,8 +212,8 @@ components:
 	requireDiagnosticCode(t, diagnostics, "callbacks")
 	requireDiagnosticCode(t, diagnostics, "default-response")
 	requireDiagnosticCode(t, diagnostics, "schema-composition")
-	requireDiagnosticCode(t, diagnostics, "security")
-	requireDiagnosticCode(t, diagnostics, "security-schemes")
+	requireDiagnosticCode(t, diagnostics, "security-requirement")
+	requireDiagnosticCode(t, diagnostics, "security-scheme")
 	requireDiagnosticCode(t, diagnostics, "servers")
 	requireNoDiagnosticCode(t, diagnostics, "schema")
 }

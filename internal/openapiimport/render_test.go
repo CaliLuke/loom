@@ -97,6 +97,72 @@ func TestRenderOutputCompilesAndEvaluatesAsLoomDesign(t *testing.T) {
 	requireRenderedDesignEvaluates(t, source, 2)
 }
 
+func TestRenderRoundTripsAPIKeySecurityContracts(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Secured API, version: "1"}
+security:
+  - HeaderKey: []
+paths:
+  /inherited:
+    get:
+      operationId: inherited
+      responses: {"204": {description: done}}
+  /public:
+    get:
+      operationId: public
+      security: []
+      responses: {"204": {description: done}}
+  /optional:
+    get:
+      operationId: optional
+      security:
+        - CookieKey: []
+        - {}
+      responses: {"204": {description: done}}
+components:
+  securitySchemes:
+    HeaderKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Header credential.
+    CookieKey:
+      type: apiKey
+      in: cookie
+      name: session-id
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	design := string(rendered)
+	require.Contains(t, design, `APIKeySecurity("HeaderKey"`)
+	require.Contains(t, design, `APIKeySecurity("CookieKey"`)
+	require.Contains(t, design, `Security(ImportedHeaderKeySecurity)`)
+	require.Contains(t, design, `NoSecurity()`)
+	require.Contains(t, design, "Security(ImportedCookieKeySecurity)\n\t\tSecurity()")
+	require.Contains(t, design, `Header("headerKeyCredential:X-API-Key")`)
+	require.Contains(t, design, `Cookie("cookieKeyCredential:session-id")`)
+	requireRenderedDesignEvaluates(t, rendered, 3)
+
+	moduleDir := requireRenderedDesignGenerates(t, rendered)
+	generated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	var contract map[string]any
+	require.NoError(t, json.Unmarshal(generated, &contract))
+	securitySchemes := contract["components"].(map[string]any)["securitySchemes"].(map[string]any)
+	require.Equal(t, "header", securitySchemes["HeaderKey"].(map[string]any)["in"])
+	require.Equal(t, "cookie", securitySchemes["CookieKey"].(map[string]any)["in"])
+	require.Equal(t, []any{map[string]any{"HeaderKey": []any{}}}, contract["security"])
+	require.Equal(t, []any{}, operationFromImportedSpec(t, contract, "/public", "get")["security"])
+	require.Equal(t, []any{
+		map[string]any{"CookieKey": []any{}},
+		map[string]any{},
+	}, operationFromImportedSpec(t, contract, "/optional", "get")["security"])
+}
+
 func TestRenderPreservesSchemaAndMediaExamples(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Examples, version: "1"}
@@ -853,4 +919,15 @@ func repositoryRoot(t *testing.T) string {
 	_, filename, _, ok := runtime.Caller(0)
 	require.True(t, ok)
 	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+}
+
+func operationFromImportedSpec(t *testing.T, contract map[string]any, path, method string) map[string]any {
+	t.Helper()
+	paths, ok := contract["paths"].(map[string]any)
+	require.True(t, ok)
+	pathItem, ok := paths[path].(map[string]any)
+	require.True(t, ok)
+	operation, ok := pathItem[method].(map[string]any)
+	require.True(t, ok)
+	return operation
 }

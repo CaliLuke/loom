@@ -40,7 +40,7 @@ func TestServerResponseContractLimitationsBecomeWarnings(t *testing.T) {
 	file := findFileWithSuffix(t, files, filepath.Join("server", "server.go"))
 
 	require.Equal(t, []string{
-		"response contract omitted for StreamingResultService.StreamingResultMethod: streaming: SSE and WebSocket responses require stream-aware contract scenarios",
+		"response contract omitted for StreamingResultService.StreamingResultMethod: streaming: WebSocket responses require stream-aware contract scenarios",
 	}, file.Warnings)
 }
 

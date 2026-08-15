@@ -1,7 +1,10 @@
 package http
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/textproto"
@@ -13,6 +16,10 @@ type (
 	// case describes a successful result or a service error.
 	ResponseContractCaseKind string
 
+	// ResponseContractTransport identifies the wire protocol validated by a
+	// generated response contract case.
+	ResponseContractTransport string
+
 	// ResponseContractCase describes the HTTP wire invariants for one declared
 	// response branch. It does not describe how application code reaches that
 	// branch.
@@ -21,6 +28,8 @@ type (
 		ID string
 		// Kind identifies a successful result or service error response.
 		Kind ResponseContractCaseKind
+		// Transport identifies the response protocol.
+		Transport ResponseContractTransport
 		// StatusCode is the exact declared HTTP status code.
 		StatusCode int
 		// ErrorName is the expected Loom-Error header value for an error case.
@@ -31,6 +40,45 @@ type (
 		RequiredHeaders []string
 		// RequiredCookies lists declared response cookies that must be present.
 		RequiredCookies []string
+		// SSE describes stream assertions for an SSE success case.
+		SSE *SSEResponseContract
+	}
+
+	// SSEResponseContract describes the observable wire contract of an SSE stream.
+	SSEResponseContract struct {
+		// Direction is the designed stream direction.
+		Direction string
+		// MessageType is the designed streaming result type name.
+		MessageType string
+		// DataField is the result field encoded into SSE data, if any.
+		DataField string
+		// DataEncoding identifies whether SSE data is JSON or plain text.
+		DataEncoding string
+		// IDField is the result field encoded into SSE id, if any.
+		IDField string
+		// EventField is the result field encoded into SSE event, if any.
+		EventField string
+		// RetryField is the result field encoded into SSE retry, if any.
+		RetryField string
+		// IDRequired reports whether every event must include an ID.
+		IDRequired bool
+		// EventTypeRequired reports whether every event must include a type.
+		EventTypeRequired bool
+		// EventTypes lists allowed projection discriminator values, if constrained.
+		EventTypes []string
+		// Terminal identifies the expected stream completion behavior.
+		Terminal string
+	}
+
+	// SSEResponseContractObservation contains the response and frames produced by
+	// one consumer-owned SSE scenario.
+	SSEResponseContractObservation struct {
+		// Response is the HTTP handshake response.
+		Response *http.Response
+		// Events contains parsed SSE frames observed before completion.
+		Events []SSEEvent
+		// TerminalError is the final error returned by the stream reader.
+		TerminalError error
 	}
 )
 
@@ -39,6 +87,10 @@ const (
 	ResponseContractSuccess ResponseContractCaseKind = "success"
 	// ResponseContractError identifies an error response contract case.
 	ResponseContractError ResponseContractCaseKind = "error"
+	// ResponseContractHTTP identifies an ordinary HTTP response contract.
+	ResponseContractHTTP ResponseContractTransport = "http"
+	// ResponseContractSSE identifies a Server-Sent Events response contract.
+	ResponseContractSSE ResponseContractTransport = "sse"
 )
 
 // ValidateResponseContract validates the transport-owned wire invariants in
@@ -74,6 +126,54 @@ func ValidateResponseContract(resp *http.Response, contract ResponseContractCase
 		}
 	}
 	return nil
+}
+
+// ValidateSSEResponseContract validates an SSE handshake, observed frames, and
+// clean end-of-stream behavior against contract.
+func ValidateSSEResponseContract(observation *SSEResponseContractObservation, contract ResponseContractCase) error {
+	prefix := fmt.Sprintf("response contract %q", contract.ID)
+	if observation == nil {
+		return fmt.Errorf("%s: SSE observation is nil", prefix)
+	}
+	if contract.Transport != ResponseContractSSE || contract.SSE == nil {
+		return fmt.Errorf("%s: contract is not an SSE response", prefix)
+	}
+	if err := ValidateResponseContract(observation.Response, contract); err != nil {
+		return err
+	}
+	if len(observation.Events) == 0 {
+		return fmt.Errorf("%s: no SSE events were observed", prefix)
+	}
+	for index, event := range observation.Events {
+		if event.Data == "" {
+			return fmt.Errorf("%s: SSE event %d has empty data", prefix, index)
+		}
+		if contract.SSE.DataEncoding == "json" && !json.Valid([]byte(event.Data)) {
+			return fmt.Errorf("%s: SSE event %d data is not valid JSON", prefix, index)
+		}
+		if contract.SSE.IDRequired && event.ID == "" {
+			return fmt.Errorf("%s: SSE event %d is missing an id", prefix, index)
+		}
+		if contract.SSE.EventTypeRequired && event.Type == "" {
+			return fmt.Errorf("%s: SSE event %d is missing an event type", prefix, index)
+		}
+		if len(contract.SSE.EventTypes) > 0 && !responseContractEventTypeListed(contract.SSE.EventTypes, event.Type) {
+			return fmt.Errorf("%s: SSE event %d type is %q, want one of %v", prefix, index, event.Type, contract.SSE.EventTypes)
+		}
+	}
+	if contract.SSE.Terminal == "eof" && observation.TerminalError != nil && !errors.Is(observation.TerminalError, io.EOF) {
+		return fmt.Errorf("%s: SSE terminal error, want clean EOF: %w", prefix, observation.TerminalError)
+	}
+	return nil
+}
+
+func responseContractEventTypeListed(eventTypes []string, target string) bool {
+	for _, eventType := range eventTypes {
+		if eventType == target {
+			return true
+		}
+	}
+	return false
 }
 
 func validateResponseContractContentType(header http.Header, declared []string) error {

@@ -92,7 +92,7 @@ paths:
 	}
 }
 
-func TestAnalyzePartialOmitsDocumentLevelBlockers(t *testing.T) {
+func TestAnalyzePartialPreservesSupportedDocumentSecurity(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info:
   title: Partial
@@ -122,12 +122,15 @@ components:
 	require.Len(t, analysis.Document.Operations, 1)
 	require.Empty(t, analysis.Skipped)
 	require.Empty(t, analysis.Blocked)
-	for _, code := range []string{"info-metadata", "servers", "security", "tag-metadata", "security-schemes"} {
+	for _, code := range []string{"info-metadata", "servers", "tag-metadata"} {
 		requireDiagnosticCode(t, analysis.Omitted, code)
 	}
+	require.True(t, analysis.Document.SecurityDefined)
+	require.Len(t, analysis.Document.Security, 1)
+	require.Len(t, analysis.Document.Components.SecuritySchemes, 1)
 }
 
-func TestAnalyzePartialOmitsOperationLevelSecurity(t *testing.T) {
+func TestAnalyzePartialPreservesOperationLevelSecurity(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Partial, version: "1"}
 security: [{apiKey: []}]
@@ -151,7 +154,11 @@ components:
 	require.Len(t, analysis.Document.Operations, 2)
 	require.Empty(t, analysis.Skipped)
 	require.Empty(t, analysis.Blocked)
-	require.Len(t, analysis.OperationOmissions, 1)
-	require.Equal(t, "/private", analysis.OperationOmissions[0].Path)
-	requireDiagnosticCode(t, analysis.OperationOmissions[0].Diagnostics, "security")
+	require.Empty(t, analysis.OperationOmissions)
+	private := analysis.Document.Operations[0]
+	if private.Path != "/private" {
+		private = analysis.Document.Operations[1]
+	}
+	require.True(t, private.SecurityDefined)
+	require.Len(t, private.Security, 1)
 }

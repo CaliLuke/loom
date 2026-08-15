@@ -6,6 +6,7 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 func serverResponseContractSection(endpoint *EndpointData) codegen.Section {
@@ -80,6 +81,7 @@ func responseContractCaseFields(contractCase *ResponseContractCaseData) []jen.Co
 	fields := []jen.Code{
 		jen.Id("ID").Op(":").Lit(contractCase.ID),
 		jen.Id("Kind").Op(":").Add(codegen.Expr(kind)),
+		jen.Id("Transport").Op(":").Add(codegen.Expr(responseContractTransportRef(contractCase.Transport))),
 		jen.Id("StatusCode").Op(":").Lit(contractCase.StatusCode),
 	}
 	if contractCase.ErrorName != "" {
@@ -94,7 +96,31 @@ func responseContractCaseFields(contractCase *ResponseContractCaseData) []jen.Co
 	if len(contractCase.RequiredCookies) > 0 {
 		fields = append(fields, jen.Id("RequiredCookies").Op(":").Index().String().Values(quotedValues(contractCase.RequiredCookies)...))
 	}
+	if contractCase.SSE != nil {
+		fields = append(fields, jen.Id("SSE").Op(":").Op("&").Add(codegen.Expr("loomhttp.SSEResponseContract")).Values(
+			jen.Dict{
+				jen.Id("Direction"):         jen.Lit(contractCase.SSE.Direction),
+				jen.Id("MessageType"):       jen.Lit(contractCase.SSE.MessageType),
+				jen.Id("DataField"):         jen.Lit(contractCase.SSE.DataField),
+				jen.Id("DataEncoding"):      jen.Lit(contractCase.SSE.DataEncoding),
+				jen.Id("IDField"):           jen.Lit(contractCase.SSE.IDField),
+				jen.Id("EventField"):        jen.Lit(contractCase.SSE.EventField),
+				jen.Id("RetryField"):        jen.Lit(contractCase.SSE.RetryField),
+				jen.Id("IDRequired"):        jen.Lit(contractCase.SSE.IDRequired),
+				jen.Id("EventTypeRequired"): jen.Lit(contractCase.SSE.EventTypeRequired),
+				jen.Id("EventTypes"):        jen.Index().String().Values(quotedValues(contractCase.SSE.EventTypes)...),
+				jen.Id("Terminal"):          jen.Lit(contractCase.SSE.Terminal),
+			},
+		))
+	}
 	return fields
+}
+
+func responseContractTransportRef(transport string) string {
+	if transport == string(transportir.ResponseContractSSETransport) {
+		return "loomhttp.ResponseContractSSE"
+	}
+	return "loomhttp.ResponseContractHTTP"
 }
 
 func quotedValues(values []string) []jen.Code {
