@@ -311,6 +311,9 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, no
 
 	typeName := codegen.Goify(schemaTypeName(t, metaName), true)
 	if canonical {
+		if metaName != "" {
+			typeName = metaName
+		}
 		typeName = a.ClaimExplicitName(typeName, fingerprint)
 	} else {
 		typeName = a.Uniquify(typeName, fingerprint)
@@ -494,6 +497,8 @@ func (a *Analyzer) registerSchemaRef(fingerprint, ref, explicitName string) {
 }
 
 func toRef(name string) string {
+	name = strings.ReplaceAll(name, "~", "~0")
+	name = strings.ReplaceAll(name, "/", "~1")
 	return fmt.Sprintf("#/components/schemas/%s", name)
 }
 

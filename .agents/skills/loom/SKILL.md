@@ -71,9 +71,11 @@ Representable media examples map to `Example(...)`.
 
 An unconstrained OpenAPI schema `{}` imports as `Any` wherever a schema can
 appear, including a named component. Regeneration preserves the empty schema,
-and generated HTTP code accepts any JSON value. Do not replace a typeless
-schema that has constraints with `Any`; the importer rejects that contract
-because `Any` would discard its assertions.
+and generated HTTP code accepts any JSON value. Generated fields use
+`loom.Nullable[any]` so application code can distinguish absence from explicit
+JSON `null`; direct named results keep their imported type and can return
+`nil`. Do not replace a typeless schema that has constraints with `Any`; the
+importer rejects that contract because `Any` would discard its assertions.
 
 If you explicitly accept omitting non-contract
 metadata, unrecognized `format` values, or a parameter/header (not schema)

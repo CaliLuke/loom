@@ -14,10 +14,14 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 				w.Header().Set("loom-view", res.View)
 			{{- end }}
 		{{- else }}
+			{{- if .Result.IsAny }}
+			res := v
+			{{- else }}
 			res, ok := v.({{ .Result.Ref }})
 			if !ok {
 				return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Result.Ref }}", v)
 			}
+			{{- end }}
 		{{- end }}
 		{{- range .Result.Responses }}
 			{{- if .ContentType }}

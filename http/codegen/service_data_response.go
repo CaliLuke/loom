@@ -45,6 +45,7 @@ func (b *resultBuilder) build() *ResultData {
 	idAtt, idAttRequired := buildResultIDData(b.endpoint.Response, result)
 	return &ResultData{
 		IsStruct:            expr.IsObject(result.Type),
+		IsAny:               isAnyType(result.Type),
 		Name:                resultDesc.Declared.Name,
 		Ref:                 resultDesc.Declared.Ref,
 		IDAttribute:         idAtt,
@@ -52,6 +53,17 @@ func (b *resultBuilder) build() *ResultData {
 		Responses:           responses,
 		View:                resultDesc.View,
 		MustInit:            mustInit,
+	}
+}
+
+func isAnyType(dataType expr.DataType) bool {
+	switch actual := dataType.(type) {
+	case expr.Primitive:
+		return actual.Kind() == expr.AnyKind
+	case expr.UserType:
+		return isAnyType(actual.Attribute().Type)
+	default:
+		return false
 	}
 }
 

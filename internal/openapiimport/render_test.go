@@ -244,7 +244,7 @@ func requireRenderedDesignGenerates(t *testing.T, source []byte) string {
 	generate := exec.Command(loomBin, "gen", "example.com/imported/design", "-o", ".")
 	generate.Dir = moduleDir
 	output, err = generate.CombinedOutput()
-	require.NoError(t, err, string(output))
+	require.NoError(t, err, "%s\n%s", output, source)
 
 	test := exec.Command("go", "test", "-mod=mod", "./...")
 	test.Dir = moduleDir

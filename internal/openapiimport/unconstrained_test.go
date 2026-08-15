@@ -15,18 +15,38 @@ const unconstrainedSchemaSource = `openapi: 3.1.1
 info: {title: Echo, version: "1"}
 paths:
   /container:
-    get:
-      operationId: getContainer
+    post:
+      operationId: echoContainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Container'}
       responses:
         "200":
           description: container
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Container'}
+  /direct:
+    post:
+      operationId: direct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Anything'}
+      responses:
+        "200":
+          description: direct
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Anything'}
   /echo:
     post:
       operationId: echo
       requestBody:
+        required: true
         content:
           application/json:
             schema: {}
@@ -36,11 +56,40 @@ paths:
           content:
             application/json:
               schema: {}
+  /failure:
+    get:
+      operationId: failure
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema: {type: string}
+        "400":
+          description: arbitrary failure
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Anything'}
+        "422":
+          description: container failure
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Container'}
+  /nil:
+    get:
+      operationId: nilResult
+      responses:
+        "200":
+          description: explicit null
+          content:
+            application/json:
+              schema: {}
 components:
   schemas:
     Anything: {}
     Container:
       type: object
+      required: [value]
       properties:
         component: {$ref: '#/components/schemas/Anything'}
         value: {}
@@ -65,11 +114,54 @@ func TestAnalyzePreservesUnconstrainedSchemas(t *testing.T) {
 	require.NotNil(t, container.Properties[2].Schema.Items)
 	require.True(t, container.Properties[2].Schema.Items.Unconstrained)
 
-	require.Len(t, document.Operations, 2)
+	require.Len(t, document.Operations, 5)
 	echo := requireNormalizedOperation(t, document, "Echo")
 	require.NotNil(t, echo.RequestBody)
 	require.True(t, echo.RequestBody.Schema.Unconstrained)
 	require.True(t, echo.Responses[0].Response.Schema.Unconstrained)
+}
+
+func TestRenderPreservesCollidingCanonicalComponentNames(t *testing.T) {
+	document, diagnostics, err := Analyze([]byte(`openapi: 3.1.1
+info: {title: Collisions, version: "1"}
+paths:
+  /dash:
+    get:
+      operationId: dash
+      responses:
+        "200":
+          description: dash
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/foo-bar'}
+  /underscore:
+    get:
+      operationId: underscore
+      responses:
+        "200":
+          description: underscore
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/foo_bar'}
+components:
+  schemas:
+    foo-bar: {type: string}
+    foo_bar: {type: integer}
+`))
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+
+	moduleDir := requireRenderedDesignGenerates(t, rendered)
+	generated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	var contract map[string]any
+	require.NoError(t, json.Unmarshal(generated, &contract))
+	components := requireUnconstrainedMap(t, contract["components"], "components")
+	schemas := requireUnconstrainedMap(t, components["schemas"], "component schemas")
+	require.Contains(t, schemas, "foo-bar")
+	require.Contains(t, schemas, "foo_bar")
 }
 
 func TestAnalyzeRejectsConstrainedSchemaWithoutType(t *testing.T) {
@@ -93,10 +185,12 @@ func TestRenderRoundTripsAndRunsUnconstrainedSchemas(t *testing.T) {
 	require.NoError(t, err)
 	design := string(rendered)
 	require.Contains(t, design, `var ImportedAnything = Type("Anything", Any, func() {`)
-	require.Contains(t, design, `Attribute("value", Any)`)
+	require.Contains(t, design, `Attribute("value", Any, func() {`)
+	require.Contains(t, design, `Meta("struct:field:type", "loom.Nullable[any]", "github.com/CaliLuke/loom/pkg", "loom")`)
 	require.Contains(t, design, `Attribute("values", ArrayOf(Any))`)
-	require.Contains(t, design, `Attribute("body", Any)`)
+	require.Contains(t, design, `Attribute("body", Any, func() {`)
 	require.Contains(t, design, `Result(Any)`)
+	require.Contains(t, design, `Error("Status400", func() {`)
 
 	moduleDir := requireRenderedDesignGenerates(t, rendered)
 	generated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
@@ -127,6 +221,28 @@ func TestRenderRoundTripsAndRunsUnconstrainedSchemas(t *testing.T) {
 	responseContent := requireUnconstrainedMap(t, success["content"], "response content")
 	responseJSON := requireUnconstrainedMap(t, responseContent["application/json"], "response JSON media")
 	require.Empty(t, requireUnconstrainedMap(t, responseJSON["schema"], "response schema"))
+
+	direct := operationFromImportedSpec(t, contract, "/direct", "post")
+	directRequest := requireUnconstrainedMap(t, direct["requestBody"], "direct request body")
+	directRequestContent := requireUnconstrainedMap(t, directRequest["content"], "direct request content")
+	directRequestJSON := requireUnconstrainedMap(t, directRequestContent["application/json"], "direct request JSON media")
+	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedMap(t, directRequestJSON["schema"], "direct request schema")["$ref"])
+	directResponses := requireUnconstrainedMap(t, direct["responses"], "direct responses")
+	directSuccess := requireUnconstrainedMap(t, directResponses["200"], "direct success response")
+	directResponseContent := requireUnconstrainedMap(t, directSuccess["content"], "direct response content")
+	directResponseJSON := requireUnconstrainedMap(t, directResponseContent["application/json"], "direct response JSON media")
+	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedMap(t, directResponseJSON["schema"], "direct response schema")["$ref"])
+
+	failure := operationFromImportedSpec(t, contract, "/failure", "get")
+	failureResponses := requireUnconstrainedMap(t, failure["responses"], "failure responses")
+	badRequest := requireUnconstrainedMap(t, failureResponses["400"], "bad request response")
+	badRequestContent := requireUnconstrainedMap(t, badRequest["content"], "bad request content")
+	badRequestJSON := requireUnconstrainedMap(t, badRequestContent["application/json"], "bad request JSON media")
+	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedMap(t, badRequestJSON["schema"], "bad request schema")["$ref"])
+	unprocessable := requireUnconstrainedMap(t, failureResponses["422"], "unprocessable response")
+	unprocessableContent := requireUnconstrainedMap(t, unprocessable["content"], "unprocessable content")
+	unprocessableJSON := requireUnconstrainedMap(t, unprocessableContent["application/json"], "unprocessable JSON media")
+	require.Equal(t, "#/components/schemas/Container", requireUnconstrainedMap(t, unprocessableJSON["schema"], "unprocessable schema")["$ref"])
 
 	runUnconstrainedRuntimeTests(t, moduleDir)
 }
@@ -187,8 +303,20 @@ func (echoService) Echo(_ context.Context, payload *echo.EchoPayload) (any, erro
 	return payload.Body, nil
 }
 
-func (echoService) GetContainer(context.Context) (*echo.Container, error) {
-	return &echo.Container{}, nil
+func (echoService) EchoContainer(_ context.Context, payload *echo.EchoContainerPayload) (*echo.Container, error) {
+	return payload.Body, nil
+}
+
+func (echoService) Direct(_ context.Context, payload *echo.DirectPayload) (echo.Anything, error) {
+	return echo.Anything(payload.Body), nil
+}
+
+func (echoService) Failure(context.Context) (string, error) {
+	return "ok", nil
+}
+
+func (echoService) NilResult(context.Context) (any, error) {
+	return nil, nil
 }
 
 func TestUnconstrainedJSONValuesRoundTrip(t *testing.T) {
@@ -229,5 +357,74 @@ func TestUnconstrainedJSONValuesRoundTrip(t *testing.T) {
 			require.JSONEq(t, test.json, string(body))
 		})
 	}
+}
+
+func TestRequiredUnconstrainedPropertyAcceptsNull(t *testing.T) {
+	endpoints := echo.NewEndpoints(echoService{})
+	mux := loomhttp.NewMuxer()
+	server := echoserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	echoserver.Mount(mux, server)
+	httpServer := httptest.NewServer(mux)
+	t.Cleanup(httpServer.Close)
+
+	request, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		httpServer.URL+"/container",
+		bytes.NewBufferString(` + "`{\"component\":null,\"value\":null,\"values\":[null,{\"nested\":true}]}`" + `),
+	)
+	require.NoError(t, err)
+	request.Header.Set("Content-Type", "application/json")
+	response, err := httpServer.Client().Do(request)
+	require.NoError(t, err)
+	body, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	require.NoError(t, response.Body.Close())
+	require.Equal(t, http.StatusOK, response.StatusCode, string(body))
+	require.JSONEq(t, ` + "`{\"component\":null,\"value\":null,\"values\":[null,{\"nested\":true}]}`" + `, string(body))
+}
+
+func TestNamedUnconstrainedComponentAcceptsNull(t *testing.T) {
+	endpoints := echo.NewEndpoints(echoService{})
+	mux := loomhttp.NewMuxer()
+	server := echoserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	echoserver.Mount(mux, server)
+	httpServer := httptest.NewServer(mux)
+	t.Cleanup(httpServer.Close)
+
+	request, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		httpServer.URL+"/direct",
+		bytes.NewBufferString("null"),
+	)
+	require.NoError(t, err)
+	request.Header.Set("Content-Type", "application/json")
+	response, err := httpServer.Client().Do(request)
+	require.NoError(t, err)
+	body, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	require.NoError(t, response.Body.Close())
+	require.Equal(t, http.StatusOK, response.StatusCode, string(body))
+	require.JSONEq(t, "null", string(body))
+}
+
+func TestNilUnconstrainedResultEncodesNull(t *testing.T) {
+	endpoints := echo.NewEndpoints(echoService{})
+	mux := loomhttp.NewMuxer()
+	server := echoserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	echoserver.Mount(mux, server)
+	httpServer := httptest.NewServer(mux)
+	t.Cleanup(httpServer.Close)
+
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, httpServer.URL+"/nil", nil)
+	require.NoError(t, err)
+	response, err := httpServer.Client().Do(request)
+	require.NoError(t, err)
+	body, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	require.NoError(t, response.Body.Close())
+	require.Equal(t, http.StatusOK, response.StatusCode, string(body))
+	require.JSONEq(t, "null", string(body))
 }
 `

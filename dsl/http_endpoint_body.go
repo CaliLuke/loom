@@ -177,6 +177,20 @@ func resolveBodyContext(openAPIOnly bool) (*expr.AttributeExpr, func(*expr.Attri
 			eval.IncompatibleDSL()
 			return nil, nil, "", false
 		}
+		if e.ErrorName != "" {
+			errorExpr := p.MethodExpr.Error(e.ErrorName)
+			if errorExpr == nil {
+				eval.ReportError("Error %q is not defined in the method", e.ErrorName)
+				return nil, nil, "", false
+			}
+			return errorExpr.AttributeExpr, func(att *expr.AttributeExpr) {
+				if openAPIOnly {
+					e.OpenAPIBody = att
+				} else {
+					e.Body = att
+				}
+			}, "Error " + e.ErrorName, true
+		}
 		return p.MethodExpr.Result, func(att *expr.AttributeExpr) {
 			if openAPIOnly {
 				e.OpenAPIBody = att

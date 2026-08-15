@@ -329,6 +329,7 @@ func httpOrJSONRPCError(n string, p eval.Expression, args ...any) *expr.HTTPErro
 	resp := &expr.HTTPResponseExpr{
 		StatusCode: code,
 		Parent:     p,
+		ErrorName:  n,
 	}
 	executeResponseDSL(fn, resp)
 	return &expr.HTTPErrorExpr{

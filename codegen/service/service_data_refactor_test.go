@@ -31,6 +31,16 @@ func TestAnalyzeServiceErrorsCarryRemedyMetadataToErrorTypes(t *testing.T) {
 	require.True(t, found)
 }
 
+func TestAnalyzeServiceErrorOnlyMarksRootUserTypeAsError(t *testing.T) {
+	root := codegen.RunDSL(t, nestedAnyErrorDSL)
+	services := NewServicesData(root)
+	svc := services.Get("NestedAnyError")
+	require.NotNil(t, svc)
+	require.True(t, hasServiceUserType(svc.errorTypes, "Container"))
+	require.False(t, hasServiceUserType(svc.errorTypes, "Anything"))
+	require.True(t, hasServiceUserType(svc.userTypes, "Anything"))
+}
+
 func TestAnalyzeWrapsRawObjectPayloadsWithUniqueSyntheticTypeNames(t *testing.T) {
 	root := codegen.RunDSL(t, stest.RawObjectPayloadTypeNameCollisionDSL)
 	services := NewServicesData(root)
@@ -275,6 +285,20 @@ func forceGenerateTypeMismatchDSL() {
 
 	dsl.Service("ForceGenerateTypeMismatch", func() {
 		dsl.Method("A", func() {})
+	})
+}
+
+func nestedAnyErrorDSL() {
+	anything := dsl.Type("Anything", dsl.Any)
+	container := dsl.Type("Container", func() {
+		dsl.Attribute("value", anything)
+	})
+
+	dsl.Service("NestedAnyError", func() {
+		dsl.Method("Run", func() {
+			dsl.Result(container)
+			dsl.Error("invalid", container)
+		})
 	})
 }
 

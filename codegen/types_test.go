@@ -201,6 +201,26 @@ func TestAttributeTagsWithName_DefaultJSONName(t *testing.T) {
 	}
 }
 
+func TestIsExplicitPresenceTypeRecognizesNullableMetaType(t *testing.T) {
+	nullable := &expr.AttributeExpr{
+		Type: expr.Any,
+		Meta: expr.MetaExpr{
+			"struct:field:type": []string{"loom.Nullable[any]", "github.com/CaliLuke/loom/pkg", "loom"},
+		},
+	}
+	custom := &expr.AttributeExpr{
+		Type: expr.String,
+		Meta: expr.MetaExpr{"struct:field:type": []string{"json.RawMessage", "encoding/json"}},
+	}
+
+	if !IsExplicitPresenceType(nullable) {
+		t.Error("loom.Nullable meta type was not recognized as an explicit presence type")
+	}
+	if IsExplicitPresenceType(custom) {
+		t.Error("ordinary custom meta type was recognized as an explicit presence type")
+	}
+}
+
 func TestGoify(t *testing.T) {
 	cases := map[string]struct {
 		str        string

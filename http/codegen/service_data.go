@@ -278,6 +278,8 @@ type (
 		// IsStruct is true if the result type is a user type defining
 		// an object.
 		IsStruct bool
+		// IsAny is true if the result type is Any or an alias of Any.
+		IsAny bool
 		// Inits contains the data required to render the result
 		// constructors if any.
 		Inits []*InitData

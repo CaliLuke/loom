@@ -61,6 +61,34 @@ func TestAnalyzerPreservesCanonicalAnyAliasAsComponent(t *testing.T) {
 	require.Empty(t, component.Type)
 }
 
+func TestAnalyzerPreservesCanonicalNamesThatShareAGoIdentifier(t *testing.T) {
+	t.Parallel()
+
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+	canonical := func(typeName, componentName string, primitive expr.Primitive) *expr.AttributeExpr {
+		return &expr.AttributeExpr{
+			Type: &expr.UserTypeExpr{
+				TypeName: typeName,
+				AttributeExpr: &expr.AttributeExpr{
+					Type: primitive,
+					Meta: expr.MetaExpr{
+						"openapi:typename":           []string{componentName},
+						"openapi:typename:canonical": []string{"true"},
+					},
+				},
+			},
+		}
+	}
+
+	dash := analyzer.AnalyzeSchema(canonical("FooBarDash", "foo-bar", expr.String))
+	underscore := analyzer.AnalyzeSchema(canonical("FooBarUnderscore", "foo_bar", expr.Int))
+
+	require.Equal(t, "#/components/schemas/foo-bar", dash.Ref)
+	require.Equal(t, "#/components/schemas/foo_bar", underscore.Ref)
+	require.Contains(t, analyzer.Components(), "foo-bar")
+	require.Contains(t, analyzer.Components(), "foo_bar")
+}
+
 func TestAnalyzerDeduplicatesRenamedSchemasWithTheSameExplicitTypename(t *testing.T) {
 	t.Parallel()
 

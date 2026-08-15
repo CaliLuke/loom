@@ -29,7 +29,7 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		for _, meta := range metadata {
 			r.line("Meta(%q, %q)", meta.name, meta.value)
 		}
-		if err := r.emitNullableGoType(schema, path); err != nil {
+		if err := r.emitAttributeGoType(schema, path); err != nil {
 			return err
 		}
 		r.emitNullableJSONTag(name, schema)
@@ -39,7 +39,8 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		r.close()
 		return nil
 	}
-	if description != "" || len(metadata) > 0 || r.hasSchemaBlock(schema) || r.effectiveNullable(schema) {
+	if description != "" || len(metadata) > 0 || r.hasSchemaBlock(schema) ||
+		r.effectiveNullable(schema) || r.effectiveUnconstrained(schema) {
 		r.open("Attribute(%q, %s, func()", name, expression)
 		if description != "" {
 			r.line("Description(%q)", description)
@@ -47,7 +48,7 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		for _, meta := range metadata {
 			r.line("Meta(%q, %q)", meta.name, meta.value)
 		}
-		if err := r.emitNullableGoType(schema, path); err != nil {
+		if err := r.emitAttributeGoType(schema, path); err != nil {
 			return err
 		}
 		r.emitNullableJSONTag(name, schema)
@@ -457,6 +458,9 @@ func (r *renderer) schemaGoType(schema *Schema, path string) (string, bool, erro
 			return "", false, fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
 		}
 		return r.schemaGoType(named.Schema, path+"/resolved/"+escapeJSONPointer(name))
+	}
+	if schema.Unconstrained {
+		return "any", false, nil
 	}
 	if goType, ok := nullablePrimitiveGoType(schema); ok {
 		return goType, false, nil

@@ -8,6 +8,18 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+type requestBodyTypeDetails struct {
+	varName              string
+	description          string
+	definition           string
+	validateDefinition   string
+	validateReference    string
+	flatFormUnionField   string
+	flatFormUnionPointer bool
+	flatFormUnionTypeKey string
+	flatFormUnionRef     string
+}
+
 // buildRequestBodyType builds the TypeData for a request body. The data makes
 // it possible to generate a function on the client side that creates the body
 // from the service method payload.
@@ -16,67 +28,88 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		return nil
 	}
 	var (
-		name                 string
-		varname              string
-		desc                 string
-		def                  string
-		ref                  string
-		validateDef          string
-		validateRef          string
-		flatFormUnionField   string
-		flatFormUnionPointer bool
-		flatFormUnionTypeKey string
-		flatFormUnionRef     string
-
-		svc     = sd.Service
 		httpctx = httpContext(sd.Scope, true, svr)
 		ep      = sd.Service.Method(endpointName)
 		pkg     = service.DefaultPackageName(ep.PayloadLoc, sd.Service.PkgName)
 		svcctx  = serviceContext(pkg, sd.Service.Scope)
 	)
-	name = body.Type.Name()
-	ref = sd.Scope.GoTypeRef(body)
-
 	addMarshalTags(body, make(map[string]struct{}))
-
-	if ut, ok := body.Type.(expr.UserType); ok {
-		varname = codegen.Goify(ut.Name(), true)
-		def = goTypeDef(sd.Scope, ut.Attribute(), svr, !svr)
-		desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.",
-			varname, svc.Name, endpointName)
-		flatFormUnionField, flatFormUnionPointer, flatFormUnionTypeKey, flatFormUnionRef =
-			flatFormUnionMetadata(ut.Attribute(), formEncoded, sd.Scope)
-		if svr || containsUnionType(body.Type) {
-			validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
-			if validateDef != "" {
-				validateRef = fmt.Sprintf("err = Validate%s(&body)", varname)
-			}
-		}
-	} else {
-		ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !svr, "", sd.Scope)
-		validateRef = codegen.ValidationCode(body, nil, ctx, true, expr.IsAlias(body.Type), false, "body")
-		if svr && expr.IsObject(body.Type) {
-			body.Validation = nil
-		}
-		varname = sd.Scope.GoTypeRef(body)
-		desc = body.Description
-	}
-	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, validateDef, svr, svcctx, httpctx, sd)
+	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, sd, httpctx)
+	ref := sd.Scope.GoTypeRef(body)
+	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, details.validateDefinition, svr, svcctx, httpctx, sd)
 	return &TypeData{
-		Name:                 name,
-		VarName:              varname,
-		Description:          desc,
-		Def:                  def,
+		Name:                 body.Type.Name(),
+		VarName:              details.varName,
+		Description:          details.description,
+		Def:                  details.definition,
 		Ref:                  ref,
 		Init:                 init,
-		ValidateDef:          validateDef,
-		ValidateRef:          validateRef,
+		ValidateDef:          details.validateDefinition,
+		ValidateRef:          details.validateReference,
 		Example:              body.Example(sds.Root.API.ExampleGenerator),
-		FlatFormUnionField:   flatFormUnionField,
-		FlatFormUnionPointer: flatFormUnionPointer,
-		FlatFormUnionTypeKey: flatFormUnionTypeKey,
-		FlatFormUnionRef:     flatFormUnionRef,
+		FlatFormUnionField:   details.flatFormUnionField,
+		FlatFormUnionPointer: details.flatFormUnionPointer,
+		FlatFormUnionTypeKey: details.flatFormUnionTypeKey,
+		FlatFormUnionRef:     details.flatFormUnionRef,
 	}
+}
+
+func buildRequestBodyTypeDetails(
+	body *expr.AttributeExpr,
+	endpointName string,
+	formEncoded bool,
+	svr bool,
+	sd *ServiceData,
+	httpctx *codegen.AttributeContext,
+) requestBodyTypeDetails {
+	if codegen.IsExplicitPresenceType(body) {
+		ctx := codegen.NewAttributeContext(false, false, !svr, "", sd.Scope)
+		return requestBodyTypeDetails{
+			varName:           sd.Scope.GoTypeRef(body),
+			description:       body.Description,
+			validateReference: codegen.ValidationCode(body, nil, ctx, true, expr.IsAlias(body.Type), false, "body"),
+		}
+	}
+	if userType, ok := body.Type.(expr.UserType); ok {
+		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
+	}
+	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !svr, "", sd.Scope)
+	validateReference := codegen.ValidationCode(body, nil, ctx, true, expr.IsAlias(body.Type), false, "body")
+	if svr && expr.IsObject(body.Type) {
+		body.Validation = nil
+	}
+	details := requestBodyTypeDetails{
+		varName:           sd.Scope.GoTypeRef(body),
+		description:       body.Description,
+		validateReference: validateReference,
+	}
+	return details
+}
+
+func buildUserRequestBodyTypeDetails(
+	body *expr.AttributeExpr,
+	userType expr.UserType,
+	endpointName string,
+	formEncoded bool,
+	svr bool,
+	sd *ServiceData,
+	httpctx *codegen.AttributeContext,
+) requestBodyTypeDetails {
+	varName := codegen.Goify(userType.Name(), true)
+	details := requestBodyTypeDetails{
+		varName:     varName,
+		description: fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.", varName, sd.Service.Name, endpointName),
+		definition:  goTypeDef(sd.Scope, userType.Attribute(), svr, !svr),
+	}
+	details.flatFormUnionField, details.flatFormUnionPointer, details.flatFormUnionTypeKey, details.flatFormUnionRef =
+		flatFormUnionMetadata(userType.Attribute(), formEncoded, sd.Scope)
+	if svr || containsUnionType(body.Type) {
+		details.validateDefinition = codegen.ValidationCode(body, userType, httpctx, true, expr.IsAlias(body.Type), false, "body")
+		if details.validateDefinition != "" {
+			details.validateReference = fmt.Sprintf("err = Validate%s(&body)", varName)
+		}
+	}
+	return details
 }
 
 func flatFormUnionMetadata(

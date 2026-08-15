@@ -60,16 +60,20 @@ func collectTypes(at *expr.AttributeExpr, scope *codegen.NameScope, seen map[str
 		if _, ok := seen[dt.ID()]; ok {
 			return nil
 		}
+		typeReference := at
+		if codegen.IsExplicitPresenceType(at) {
+			typeReference = &expr.AttributeExpr{Type: dt}
+		}
 		typeLoc := codegen.UserTypeLocation(dt)
 		if typeLoc == nil {
 			typeLoc = loc
 		}
 		data = append(data, &UserTypeData{
 			Name:        dt.Name(),
-			VarName:     scope.GoTypeName(at),
+			VarName:     scope.GoTypeName(typeReference),
 			Description: dt.Attribute().Description,
 			Def:         scope.GoTypeDef(dt.Attribute(), false, true),
-			Ref:         scope.GoTypeRef(at),
+			Ref:         scope.GoTypeRef(typeReference),
 			Loc:         typeLoc,
 			Type:        dt,
 		})

@@ -10,13 +10,16 @@ import (
 )
 
 func schemaTypeNaming(attr *expr.AttributeExpr, t expr.UserType) (string, bool) {
+	canonical := hasCanonicalOpenAPITypeName(attr.Meta) || hasCanonicalOpenAPITypeName(t.Attribute().Meta)
 	var metaName string
 	if n, ok := attr.Meta.Last("openapi:typename"); ok {
-		metaName = codegen.Goify(n, true)
+		metaName = n
 	} else if n, ok := t.Attribute().Meta.Last("openapi:typename"); ok {
-		metaName = codegen.Goify(n, true)
+		metaName = n
 	}
-	canonical := hasCanonicalOpenAPITypeName(attr.Meta) || hasCanonicalOpenAPITypeName(t.Attribute().Meta)
+	if !canonical {
+		metaName = codegen.Goify(metaName, true)
+	}
 	return metaName, canonical
 }
 

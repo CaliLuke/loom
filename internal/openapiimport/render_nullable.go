@@ -8,9 +8,24 @@ import (
 )
 
 func (r *renderer) emitNullableJSONTag(name string, schema *Schema) {
-	if r.effectiveNullable(schema) {
+	if r.effectiveNullable(schema) || r.effectiveUnconstrained(schema) {
 		r.line("Meta(%q, %q)", "struct:tag:json:name", name+",omitzero")
 	}
+}
+
+func (r *renderer) effectiveUnconstrained(schema *Schema) bool {
+	if schema == nil {
+		return false
+	}
+	if schema.Unconstrained {
+		return true
+	}
+	if schema.Ref == "" {
+		return false
+	}
+	name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+	named, ok := r.schemas[name]
+	return ok && named.Schema != nil && named.Schema.Unconstrained
 }
 
 func (r *renderer) effectiveNullable(schema *Schema) bool {
@@ -26,6 +41,20 @@ func (r *renderer) effectiveNullable(schema *Schema) bool {
 	name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
 	named, ok := r.schemas[name]
 	return ok && named.Schema != nil && named.Schema.Nullable
+}
+
+func (r *renderer) emitAttributeGoType(schema *Schema, path string) error {
+	if r.effectiveUnconstrained(schema) {
+		r.line(
+			"Meta(%q, %q, %q, %q)",
+			"struct:field:type",
+			"loom.Nullable[any]",
+			"github.com/CaliLuke/loom/pkg",
+			"loom",
+		)
+		return nil
+	}
+	return r.emitNullableGoType(schema, path)
 }
 
 func nullablePrimitiveGoType(schema *Schema) (string, bool) {
@@ -100,9 +129,12 @@ func (r *renderer) inlineObjectGoType(schema *Schema, path string) (string, bool
 			return "", false, err
 		}
 		_, isRequired := required[property.Name]
-		if r.effectiveNullable(property.Schema) {
+		switch {
+		case r.effectiveUnconstrained(property.Schema):
+			fieldType = "loom.Nullable[any]"
+		case r.effectiveNullable(property.Schema):
 			fieldType = "loom.Nullable[" + fieldType + "]"
-		} else if object || !isRequired && property.Schema.Type != "array" && property.Schema.Type != "object" {
+		case object || !isRequired && property.Schema.Type != "array" && property.Schema.Type != "object":
 			if !strings.HasPrefix(fieldType, "*") {
 				fieldType = "*" + fieldType
 			}

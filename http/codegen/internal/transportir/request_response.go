@@ -343,7 +343,8 @@ func normalizeHTTPAttributeRecursive(attr *expr.AttributeExpr, seen map[string]s
 		if len(attr.UserExamples) == 0 {
 			attr.UserExamples = actual.Attribute().ExtractUserExamples()
 		}
-		if _, ok := actual.(*expr.ResultTypeExpr); !ok && !expr.IsObject(actual) {
+		if _, ok := actual.(*expr.ResultTypeExpr); !ok && !expr.IsObject(actual) &&
+			!hasCanonicalOpenAPITypeName(attr, actual) {
 			attr.Type = actual.Attribute().Type
 			if validation := actual.Attribute().Validation; validation != nil {
 				if attr.Validation == nil {
@@ -378,4 +379,14 @@ func normalizeHTTPAttributeRecursive(attr *expr.AttributeExpr, seen map[string]s
 		// type for request and response bodies.
 	}
 	return attr
+}
+
+func hasCanonicalOpenAPITypeName(attr *expr.AttributeExpr, userType expr.UserType) bool {
+	for _, meta := range []expr.MetaExpr{attr.Meta, userType.Attribute().Meta} {
+		value, ok := meta.Last("openapi:typename:canonical")
+		if ok && value == "true" {
+			return true
+		}
+	}
+	return false
 }

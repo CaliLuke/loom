@@ -148,8 +148,11 @@ An unconstrained schema `{}` imports as Loom `Any`. This applies to component
 schemas, object properties, array items, request bodies, and responses. The
 regenerated OpenAPI preserves `{}`, including named component identity, and the
 generated HTTP code accepts every JSON value: scalar, object, array, boolean,
-or null. A schema that omits `type` but declares constraints is not treated as
-unconstrained and remains a strict import error.
+or null. Generated payload and object fields for `{}` use `loom.Nullable[any]`
+to distinguish an absent field from an explicit JSON `null`; use its presence
+methods as described above. Direct named results retain their imported result
+type and may return `nil`. A schema that omits `type` but declares constraints
+is not treated as unconstrained and remains a strict import error.
 
 JSON-compatible `x-*` extensions are preserved at document, operation, schema,
 parameter, request-body, and response scopes. Extensions at unsupported scopes

@@ -77,7 +77,15 @@ func (d *ServicesData) collectServiceAnalysisData(service *expr.ServiceExpr, sco
 		seenProj:   make(map[string]*ProjectedTypeData),
 		seenViewed: make(map[string]*ViewedResultTypeData),
 	}
-	state.errTypes, state.errorInits = d.collectServiceErrorData(service.Errors, scope, seen, seenErrors, state.errTypes, state.errorInits)
+	state.types, state.errTypes, state.errorInits = d.collectServiceErrorData(
+		service.Errors,
+		scope,
+		seen,
+		seenErrors,
+		state.types,
+		state.errTypes,
+		state.errorInits,
+	)
 	state.types, state.projTypes, state.errTypes, state.errorInits = d.collectMethodTypeData(service, scope, viewScope, viewspkg, seen, state.seenProj, seenErrors, state.types, state.projTypes, state.errTypes, state.errorInits)
 	return state
 }
@@ -170,13 +178,22 @@ func (d *ServicesData) collectServiceErrorData(
 	scope *codegen.NameScope,
 	seen map[string]struct{},
 	seenErrors map[string]struct{},
+	types []*UserTypeData,
 	errTypes []*UserTypeData,
 	errorInits []*ErrorInitData,
-) ([]*UserTypeData, []*ErrorInitData) {
+) ([]*UserTypeData, []*UserTypeData, []*ErrorInitData) {
 	for _, errExpr := range errors {
-		errTypes, errorInits = recordServiceError(errExpr, scope, seen, seenErrors, errTypes, errorInits)
+		types, errTypes, errorInits = recordServiceError(
+			errExpr,
+			scope,
+			seen,
+			seenErrors,
+			types,
+			errTypes,
+			errorInits,
+		)
 	}
-	return errTypes, errorInits
+	return types, errTypes, errorInits
 }
 
 func (d *ServicesData) collectMethodTypeData(
@@ -197,7 +214,15 @@ func (d *ServicesData) collectMethodTypeData(
 			projTypes = append(projTypes, collectProjectedTypes(expr.DupAtt(method.Result), method.Result, viewspkg, scope, viewScope, seenProj)...)
 		}
 		for _, errExpr := range method.Errors {
-			errTypes, errorInits = recordServiceError(errExpr, scope, seen, seenErrors, errTypes, errorInits)
+			types, errTypes, errorInits = recordServiceError(
+				errExpr,
+				scope,
+				seen,
+				seenErrors,
+				types,
+				errTypes,
+				errorInits,
+			)
 		}
 	}
 	return types, projTypes, errTypes, errorInits
@@ -230,21 +255,32 @@ func recordServiceError(
 	scope *codegen.NameScope,
 	seen map[string]struct{},
 	seenErrors map[string]struct{},
+	types []*UserTypeData,
 	errTypes []*UserTypeData,
 	errorInits []*ErrorInitData,
-) ([]*UserTypeData, []*ErrorInitData) {
-	collected := collectTypes(errExpr.AttributeExpr, scope, seen, nil)
-	errTypes = append(errTypes, collected...)
+) ([]*UserTypeData, []*UserTypeData, []*ErrorInitData) {
 	if ut, ok := errExpr.Type.(expr.UserType); ok {
+		collected := collectTypes(errExpr.AttributeExpr, scope, make(map[string]struct{}), nil)
 		for _, t := range collected {
 			if t.Type.ID() != ut.ID() {
+				if _, exists := seen[t.Type.ID()]; !exists {
+					seen[t.Type.ID()] = struct{}{}
+					types = append(types, t)
+				}
 				continue
 			}
+			seen[t.Type.ID()] = struct{}{}
+			if hasUserTypeData(errTypes, t.Type.ID()) {
+				continue
+			}
+			errTypes = append(errTypes, t)
 			t.RemedyCode = errorRemedyCode(errExpr)
 			t.SafeMessage = errorSafeMessage(errExpr)
 			t.RetryHint = errorRetryHint(errExpr)
-			break
 		}
+	} else {
+		collected := collectTypes(errExpr.AttributeExpr, scope, seen, nil)
+		errTypes = append(errTypes, collected...)
 	}
 	if expr.IsDefaultErrorResult(errExpr.Type) {
 		if _, ok := seenErrors[errExpr.Name]; !ok {
@@ -252,7 +288,16 @@ func recordServiceError(
 			errorInits = append(errorInits, buildErrorInitData(errExpr, scope))
 		}
 	}
-	return errTypes, errorInits
+	return types, errTypes, errorInits
+}
+
+func hasUserTypeData(types []*UserTypeData, id string) bool {
+	for _, typeData := range types {
+		if typeData.Type.ID() == id {
+			return true
+		}
+	}
+	return false
 }
 
 func wrapRawObjectMethods(service *expr.ServiceExpr, scope *codegen.NameScope, seen map[string]struct{}) {

@@ -140,6 +140,32 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.Nil(t, serverBodyType.Init)
 	})
 
+	t.Run("explicit presence request bodies use their meta type directly", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, anyPresenceHTTPDSL)
+
+		bodyType := services.buildRequestBodyType(
+			endpointExpr.Body,
+			endpointExpr.MethodExpr.Payload,
+			endpointExpr.Name(),
+			false,
+			true,
+			svcData,
+		)
+
+		require.NotNil(t, bodyType)
+		require.Equal(t, "loom.Nullable[any]", bodyType.VarName)
+		require.Empty(t, bodyType.Def)
+	})
+
+	t.Run("result data identifies Any aliases", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, anyPresenceHTTPDSL)
+		endpointIR := transportir.BuildEndpoint(endpointExpr)
+
+		result := services.buildResultDataFromIR(endpointIR, svcData)
+
+		require.True(t, result.IsAny)
+	})
+
 	t.Run("buildResponseBodyType keeps projected view names", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultWithResultViewDSL)
 		method := svcData.Service.Method(endpointExpr.Name())
@@ -271,6 +297,31 @@ func sharedErrorHeaderDSL() {
 				Response("forbidden", StatusForbidden, func() {
 					Header("name:loom-error")
 				})
+			})
+		})
+	})
+}
+
+func anyPresenceHTTPDSL() {
+	anything := Type("Anything", Any)
+	Service("AnyPresence", func() {
+		Method("direct", func() {
+			Payload(func() {
+				Attribute("body", anything, func() {
+					Meta(
+						"struct:field:type",
+						"loom.Nullable[any]",
+						"github.com/CaliLuke/loom/pkg",
+						"loom",
+					)
+				})
+				Required("body")
+			})
+			Result(anything)
+			HTTP(func() {
+				POST("/direct")
+				Body("body")
+				Response(StatusOK)
 			})
 		})
 	})

@@ -368,7 +368,7 @@ func IsExplicitPresenceType(att *expr.AttributeExpr) bool {
 	}
 	value, ok := att.Meta.Last("openapi:nullable")
 	typeName, _ := GetMetaType(att)
-	return ok && value != "false" && typeName != ""
+	return typeName != "" && (ok && value != "false" || strings.HasPrefix(typeName, "loom.Nullable["))
 }
 
 // pkgWithDefault returns the package defining the given type. If the types is a

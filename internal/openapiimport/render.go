@@ -318,7 +318,19 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 				return err
 			}
 		default:
-			r.line("Body(%q)", plan.body.field)
+			if plan.body.body.Schema != nil && plan.body.body.Schema.Ref != "" {
+				name := strings.TrimPrefix(plan.body.body.Schema.Ref, "#/components/schemas/")
+				named, ok := r.schemas[name]
+				if !ok {
+					return fmt.Errorf("render OpenAPI design: %s/requestBody schema reference %q does not resolve", path, plan.body.body.Schema.Ref)
+				}
+				r.open("Body(%q, func()", plan.body.field)
+				r.line("Meta(%q, %q)", "openapi:typename", named.Name)
+				r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+				r.close()
+			} else {
+				r.line("Body(%q)", plan.body.field)
+			}
 		}
 	}
 	switch plan.response {
@@ -483,11 +495,12 @@ func (r *renderer) errorDefinition(response renderedResponse, path string) error
 
 func (r *renderer) responseType(call, name string, response renderedResponse, path string) error {
 	responseSchema := schemaWithExamples(response.response.Schema, response.response.Examples)
+	wrapUnconstrainedError := call == "Error" && r.effectiveUnconstrained(responseSchema)
 	prefix := call + "("
 	if name != "" {
 		prefix += strconv.Quote(name) + ", "
 	}
-	if len(response.headers) == 0 {
+	if len(response.headers) == 0 && !wrapUnconstrainedError {
 		return r.responseTypeWithoutHeaders(call, prefix, response, responseSchema, path+"/content/schema")
 	}
 	r.open("%sfunc()", prefix)
@@ -497,7 +510,11 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		}
 	}
 	if response.response.Schema != nil && !response.rawBody {
-		if err := r.attribute(response.body, responseSchema, "", path+"/content/schema"); err != nil {
+		bodySchema := responseSchema
+		if wrapUnconstrainedError {
+			bodySchema = &Schema{Unconstrained: true}
+		}
+		if err := r.attribute(response.body, bodySchema, "", path+"/content/schema"); err != nil {
 			return err
 		}
 	}
@@ -578,63 +595,6 @@ func (r *renderer) parameterMapping(parameter renderedParameter, path string) er
 		return fmt.Errorf("render OpenAPI design: %s parameter location %q is not renderable", path, parameter.parameter.In)
 	}
 	return nil
-}
-
-func (r *renderer) responseMapping(response renderedResponse, failure bool, path string) error {
-	status, err := strconv.Atoi(response.status)
-	if err != nil {
-		return fmt.Errorf("render OpenAPI design: %s status %q is not numeric", path, response.status)
-	}
-	prefix := "Response("
-	if failure {
-		prefix += strconv.Quote("Status"+response.status) + ", "
-	}
-	prefix += strconv.Itoa(status)
-	needsBlock := failure || response.response.Description != "" || response.response.ContentType != "" ||
-		len(response.headers) > 0 || len(response.response.Extensions) > 0
-	if !needsBlock {
-		r.line("%s)", prefix)
-		return nil
-	}
-	r.open("%s, func()", prefix)
-	if response.response.Description != "" {
-		r.line("Description(%q)", response.response.Description)
-	}
-	if failure {
-		r.line("Meta(%q, %q)", "openapi:description:errorName", "false")
-	}
-	if err := r.emitExtensions("response", response.response.Extensions); err != nil {
-		return err
-	}
-	if response.response.ContentType != "" {
-		r.line("ContentType(%q)", response.response.ContentType)
-	}
-	if response.rawBody {
-		if err := r.openAPIBody(schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
-			return err
-		}
-	}
-	for _, header := range response.headers {
-		name := header.field
-		if name != header.name {
-			name += ":" + header.name
-		}
-		r.line("Header(%q)", name)
-	}
-	if response.body != "" && len(response.headers) > 0 {
-		r.line("Body(%q)", response.body)
-	}
-	r.close()
-	return nil
-}
-
-func schemaWithExamples(schema *Schema, examples []Example) *Schema {
-	if schema == nil || len(examples) == 0 {
-		return schema
-	}
-	combined := *schema
-	combined.Examples = append(append([]Example(nil), schema.Examples...), examples...)
-	return &combined
 }
 
 func renderedExtensions(scope string, extensions map[string]any) ([]renderedMetadata, error) {

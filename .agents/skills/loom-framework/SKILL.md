@@ -136,8 +136,13 @@ filter, and serialization rules belong here.
   missing type alone, because typeless constraints must continue to fail
   closed.
 - Preserve canonical named aliases as OpenAPI components, including aliases of
-  `Any`. Canonical component identity takes precedence over ordinary primitive
-  alias inlining.
+  `Any`. Preserve the exact source component key even when multiple keys map to
+  the same Go identifier. Canonical component identity takes precedence over
+  ordinary primitive alias inlining.
+- Represent unconstrained payload and object fields with explicit presence so
+  required JSON `null` is not mistaken for absence. An unconstrained error
+  schema needs a concrete error envelope; only the envelope's root user type
+  may receive generated error methods.
 - Make every response-rendering branch honor `hasSchemaBlock`. Primitive and
   referenced-type shortcuts must not discard examples, defaults, or metadata.
 - For a newly supported import construct, cover analysis, rendered source, DSL

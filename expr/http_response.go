@@ -107,6 +107,9 @@ type (
 		// Parent expression, one of EndpointExpr, ServiceExpr or
 		// RootExpr.
 		Parent eval.Expression
+		// ErrorName identifies the error whose response DSL is executing. It is
+		// empty for successful responses.
+		ErrorName string
 		// Meta is a list of key/value pairs
 		Meta MetaExpr
 		// Links describes the OpenAPI links emitted for this response.
@@ -478,6 +481,7 @@ func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 		Description: r.Description,
 		ContentType: r.ContentType,
 		Parent:      r.Parent,
+		ErrorName:   r.ErrorName,
 		Meta:        r.Meta,
 	}
 	if r.Body != nil {
