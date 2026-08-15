@@ -477,6 +477,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	a.schemaFormat(schema, path)
 	a.schemaUnsupportedKeywords(schema, source, path, supportedAllOf, supportedNullableComposition)
 	schema.Extensions = a.extensions(path, source.Extensions)
+	schema.Unconstrained = isUnconstrainedSchema(schema)
 	return schema
 }
 

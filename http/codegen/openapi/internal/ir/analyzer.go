@@ -293,13 +293,13 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, no
 			return a.AnalyzeSchema(projectedAttr, noRef)
 		}
 	}
-	if expr.IsAlias(t) {
+	metaName, canonical := schemaTypeNaming(attr, t)
+	if expr.IsAlias(t) && !canonical {
 		return a.AnalyzeSchema(t.Attribute())
 	}
 
 	s := &Schema{}
 	fingerprint := a.FingerprintAttribute(attr)
-	metaName, canonical := schemaTypeNaming(attr, t)
 
 	refs, ok := a.schemasByFingerprint[fingerprint]
 	if !noRef && ok {

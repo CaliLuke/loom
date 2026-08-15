@@ -144,6 +144,13 @@ property was absent; `loom.NullValue[T]()` means it was explicitly null; and
 `loom.NullableValue(value)` carries a concrete value. Use `Present`, `IsNull`,
 and `Value` when handling imported payloads.
 
+An unconstrained schema `{}` imports as Loom `Any`. This applies to component
+schemas, object properties, array items, request bodies, and responses. The
+regenerated OpenAPI preserves `{}`, including named component identity, and the
+generated HTTP code accepts every JSON value: scalar, object, array, boolean,
+or null. A schema that omits `type` but declares constraints is not treated as
+unconstrained and remains a strict import error.
+
 JSON-compatible `x-*` extensions are preserved at document, operation, schema,
 parameter, request-body, and response scopes. Extensions at unsupported scopes
 remain explicit import diagnostics and are never discarded silently.

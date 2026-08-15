@@ -134,6 +134,9 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 	if schema.Title != "" {
 		return "", false, fmt.Errorf("render OpenAPI design: %s schema title is not renderable", path)
 	}
+	if schema.Unconstrained {
+		return "Any", false, nil
+	}
 	switch schema.Type {
 	case "object":
 		return r.objectSchemaExpression(schema, path)

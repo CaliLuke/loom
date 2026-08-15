@@ -131,6 +131,13 @@ filter, and serialization rules belong here.
   filtering. Referenced component diagnostics must stay with their consumers.
 - Copy a shared normalized schema before adding request or response metadata.
   Do not mutate a component schema while rendering one media type.
+- Classify a schema as unconstrained only when it has no type and no retained
+  assertions or applicators. Map that state to `Any`; do not infer `Any` from a
+  missing type alone, because typeless constraints must continue to fail
+  closed.
+- Preserve canonical named aliases as OpenAPI components, including aliases of
+  `Any`. Canonical component identity takes precedence over ordinary primitive
+  alias inlining.
 - Make every response-rendering branch honor `hasSchemaBlock`. Primitive and
   referenced-type shortcuts must not discard examples, defaults, or metadata.
 - For a newly supported import construct, cover analysis, rendered source, DSL

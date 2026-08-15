@@ -38,6 +38,29 @@ func TestAnalyzerKeepsExplicitTypenamesDistinct(t *testing.T) {
 	require.Equal(t, "#/components/schemas/BarPayload", secondSchema.Ref)
 }
 
+func TestAnalyzerPreservesCanonicalAnyAliasAsComponent(t *testing.T) {
+	t.Parallel()
+
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+	anything := &expr.UserTypeExpr{
+		TypeName: "Anything",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: expr.Any,
+			Meta: expr.MetaExpr{
+				"openapi:typename:canonical": []string{"true"},
+			},
+		},
+	}
+
+	schema := analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: anything})
+
+	require.Equal(t, "#/components/schemas/Anything", schema.Ref)
+	component, ok := analyzer.Components()["Anything"]
+	require.True(t, ok)
+	require.NotNil(t, component)
+	require.Empty(t, component.Type)
+}
+
 func TestAnalyzerDeduplicatesRenamedSchemasWithTheSameExplicitTypename(t *testing.T) {
 	t.Parallel()
 

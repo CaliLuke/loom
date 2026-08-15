@@ -243,6 +243,8 @@ type Header struct {
 type Schema struct {
 	// Ref is the authored local schema component reference.
 	Ref string
+	// Unconstrained reports that the schema accepts every JSON value.
+	Unconstrained bool
 	// Type is the single JSON Schema type.
 	Type string
 	// Nullable reports that the schema also accepts the JSON null value.
