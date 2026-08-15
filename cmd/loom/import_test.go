@@ -74,6 +74,29 @@ func TestParseOpenAPIImportArgs(t *testing.T) {
 	}
 }
 
+func TestRunOpenAPIImportHelp(t *testing.T) {
+	cases := map[string][]string{
+		"before input": {"openapi", "--help"},
+		"after input":  {"openapi", "contract.yaml", "-h"},
+	}
+
+	for name, args := range cases {
+		t.Run(name, func(t *testing.T) {
+			var exitCode int
+			stdout, stderr, err := captureOutput(t, func() error {
+				exitCode = runOpenAPIImport(args)
+				return nil
+			})
+
+			require.NoError(t, err)
+			require.Zero(t, exitCode)
+			require.Contains(t, stdout, "Usage:\n  loom import openapi INPUT")
+			require.Contains(t, stdout, "--skip-unrenderable")
+			require.Empty(t, stderr)
+		})
+	}
+}
+
 func TestParseOpenAPIImportSelectionArgs(t *testing.T) {
 	parsed, err := parseOpenAPIImportArgs([]string{
 		"openapi",
@@ -490,6 +513,18 @@ func TestImportOpenAPIDesignRefusesToOverwrite(t *testing.T) {
 	temporary, globErr := filepath.Glob(filepath.Join(output, ".loom-import-*.go"))
 	require.NoError(t, globErr)
 	require.Empty(t, temporary)
+}
+
+func TestImportOpenAPIDesignWritesToDiscardDevice(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "openapi.yaml")
+	require.NoError(t, os.WriteFile(input, supportedOpenAPISource(t), 0o644))
+
+	target, warnings, err := importOpenAPIDesign(input, os.DevNull, false)
+
+	require.NoError(t, err)
+	require.Empty(t, warnings)
+	require.Equal(t, filepath.Clean(os.DevNull), target)
 }
 
 func TestImportOpenAPIDesignRejectsInvalidPackageBeforeCreatingOutput(t *testing.T) {

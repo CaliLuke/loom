@@ -179,7 +179,12 @@ func validateErrorTypeDiscriminators(errors []*ErrorExpr) *eval.ValidationErrors
 				}
 			}
 			if !hasErrorNameAttribute(e.AttributeExpr) {
-				verr.Add(e, "type %q is used to define multiple errors and must identify the attribute containing the error name with ErrorName", e.Type.Name())
+				verr.Add(
+					e,
+					"type %q is used to define multiple errors. "+
+						"Mark the attribute containing the error name with ErrorName and add it to Required",
+					e.Type.Name(),
+				)
 			}
 			break
 		}

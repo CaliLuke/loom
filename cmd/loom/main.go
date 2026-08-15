@@ -87,7 +87,13 @@ func main() {
 }
 
 func runOpenAPIImport(args []string) int {
+	if openAPIImportHelpRequested(args) {
+		return runOpenAPIImportHelp()
+	}
 	arguments, err := parseOpenAPIImportArgs(args)
+	if errors.Is(err, flag.ErrHelp) {
+		return runOpenAPIImportHelp()
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -104,6 +110,14 @@ func runOpenAPIImport(args []string) int {
 	default:
 		return runOpenAPIStrictImport(arguments)
 	}
+}
+
+func runOpenAPIImportHelp() int {
+	if err := writeOpenAPIImportHelp(os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	return 0
 }
 
 func runOpenAPITagList(arguments openAPIImportArgs) int {
@@ -303,7 +317,7 @@ Usage:
 
 Commands:
   import openapi
-        Create a Loom design from a supported OpenAPI 3.1 or 3.2 contract.
+        Create a Loom design from a supported OpenAPI 3.0, 3.1, or 3.2 contract.
   gen
         Generate service interfaces, endpoints, transport code and OpenAPI spec.
   example

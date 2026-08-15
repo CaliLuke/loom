@@ -58,6 +58,8 @@ loom gen github.com/CaliLuke/loom-examples/calc/design
 loom import openapi <input.json-or-yaml> [-o <design.go-or-directory>] [--allow-lossy] [FILTERS]
 ```
 
+Run `loom import openapi --help` for the importer-specific flag reference.
+
 Use operation filters to import one service boundary from a large contract:
 
 ```bash

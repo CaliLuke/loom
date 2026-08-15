@@ -13,7 +13,47 @@ import (
 	"github.com/CaliLuke/loom/internal/openapiimport"
 )
 
-const defaultImportOutput = "design"
+const (
+	defaultImportOutput   = "design"
+	openAPIImportHelpText = `Create a Loom design from a supported OpenAPI contract.
+
+Usage:
+  loom import openapi INPUT [-o FILE-OR-DIRECTORY] [--allow-lossy] [FILTERS]
+
+Arguments:
+  INPUT
+        OpenAPI 3.0, 3.1, or 3.2 JSON or YAML file
+
+Flags:
+  -h, --help
+        Show help for the OpenAPI importer
+
+  -o, --output FILE-OR-DIRECTORY
+        Write the design to this file or directory. The default is design/design.go
+
+  --allow-lossy
+        Allow explicitly lossy metadata omissions and report them as warnings
+
+  --tag TAG
+        Select operations with this tag. Repeat the flag to form a union
+
+  --path-prefix PREFIX
+        Select operations below this OpenAPI path prefix. Repeat the flag to form a union
+
+  --path PATTERN
+        Select operations matching this path pattern. Repeat the flag to form a union
+
+  --list-tags
+        List operation and path counts by tag without writing a design
+
+  --report
+        Report grouped import blockers without writing a design
+
+  --skip-unrenderable
+        Write only operations that can be rendered
+
+`
+)
 
 type (
 	openAPIImportArgs struct {
@@ -101,6 +141,17 @@ func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 		report:           *report,
 		skipUnrenderable: *skipUnrenderable,
 	}, nil
+}
+
+func openAPIImportHelpRequested(args []string) bool {
+	return len(args) > 1 && args[0] == "openapi" && (args[1] == "-h" || args[1] == "--help")
+}
+
+func writeOpenAPIImportHelp(writer io.Writer) error {
+	if _, err := fmt.Fprint(writer, openAPIImportHelpText); err != nil {
+		return fmt.Errorf("write OpenAPI import help: %w", err)
+	}
+	return nil
 }
 
 func appendImportFilter(values *[]string) func(string) error {
@@ -361,6 +412,9 @@ func hasTrailingPathSeparator(path string) bool {
 }
 
 func installImportFile(target string, source []byte) (returnErr error) {
+	if filepath.Clean(target) == filepath.Clean(os.DevNull) {
+		return writeDiscardedImport(target, source)
+	}
 	if _, err := os.Lstat(target); err == nil {
 		return fmt.Errorf("import output %q already exists; refusing to overwrite", target)
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -390,6 +444,22 @@ func installImportFile(target string, source []byte) (returnErr error) {
 			return fmt.Errorf("import output %q already exists; refusing to overwrite", target)
 		}
 		return fmt.Errorf("install import output %q: %w", target, err)
+	}
+	return nil
+}
+
+func writeDiscardedImport(target string, source []byte) (returnErr error) {
+	file, err := os.OpenFile(target, os.O_WRONLY, 0)
+	if err != nil {
+		return fmt.Errorf("open import discard device %q: %w", target, err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("close import discard device %q: %w", target, closeErr))
+		}
+	}()
+	if _, err := file.Write(source); err != nil {
+		return fmt.Errorf("write import discard device %q: %w", target, err)
 	}
 	return nil
 }

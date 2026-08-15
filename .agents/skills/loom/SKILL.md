@@ -49,6 +49,10 @@ loom gen example.com/myapi/design
   method scope compose in declaration order. Use this to keep transport
   mappings near the errors or methods they describe; ordinary duplicate and
   conflict rules still apply to the combined contents.
+- Design files conventionally dot-import `github.com/CaliLuke/loom/dsl`.
+  Top-level Go identifiers must not reuse exported DSL names. Examples include
+  `Fault`, `Error`, `Result`, and `Type`. Use an application-specific variable
+  name. The declaration string can keep the public name.
 
 ## OpenAPI Contracts
 

@@ -53,6 +53,12 @@ var Person = Type("Person", func() {
 })
 ```
 
+Design files conventionally dot-import `github.com/CaliLuke/loom/dsl`.
+Top-level Go identifiers cannot reuse exported DSL names. Examples include
+`Fault`, `Error`, `Result`, and `Type`. Go reports a redeclaration through the
+dot-import. Give the Go variable an application-specific name. The declaration
+string can still use the public contract name.
+
 ### Complex Types
 
 #### OneOf Unions
