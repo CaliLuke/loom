@@ -10,7 +10,11 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
-func responseCookieHeader(cookies []*transportir.Cookie, rand *expr.ExampleGenerator) *Header {
+func responseCookieHeader(
+	cookies []*transportir.Cookie,
+	rand *expr.ExampleGenerator,
+	closeObjects bool,
+) *Header {
 	if len(cookies) == 0 {
 		return nil
 	}
@@ -23,19 +27,50 @@ func responseCookieHeader(cookies []*transportir.Cookie, rand *expr.ExampleGener
 	if len(cookies) == 1 {
 		cookie := cookies[0]
 		header.Description = describeResponseCookie(cookie)
-		header.Example = serializeResponseCookieExample(cookie, cookie.Attribute.Example(rand))
+		if example, ok := responseCookieExample(cookie, rand, closeObjects); ok {
+			header.Example = example
+		}
 		return header
 	}
 	header.Description = describeResponseCookies(cookies)
-	header.Examples = make(map[string]*ExampleRef, len(cookies))
+	examples := make(map[string]*ExampleRef, len(cookies))
 	for _, cookie := range cookies {
-		header.Examples[cookie.HTTPName] = &ExampleRef{Value: &Example{
+		example, ok := responseCookieExample(cookie, rand, closeObjects)
+		if !ok {
+			continue
+		}
+		examples[cookie.HTTPName] = &ExampleRef{Value: &Example{
 			Summary:     fmt.Sprintf("%s cookie", cookie.HTTPName),
 			Description: describeResponseCookie(cookie),
-			Value:       serializeResponseCookieExample(cookie, cookie.Attribute.Example(rand)),
+			Value:       example,
 		}}
 	}
+	if len(examples) > 0 {
+		header.Examples = examples
+	}
 	return header
+}
+
+func responseCookieExample(
+	cookie *transportir.Cookie,
+	rand *expr.ExampleGenerator,
+	closeObjects bool,
+) (string, bool) {
+	if cookie == nil || cookie.Attribute == nil {
+		return "", false
+	}
+	cookieContext := attributeExampleContext(
+		cookie.Attribute,
+		closeObjects,
+		"response-cookie",
+		cookie.HTTPName,
+	)
+	generator := exampleGeneratorForAttribute(rand, cookie.Attribute, closeObjects, cookieContext)
+	value := cookie.Attribute.Example(generator)
+	if value == nil {
+		return "", false
+	}
+	return serializeResponseCookieExample(cookie, value), true
 }
 
 func describeResponseCookie(cookie *transportir.Cookie) string {

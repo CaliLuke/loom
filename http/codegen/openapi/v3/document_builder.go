@@ -7,14 +7,14 @@ import (
 	"github.com/CaliLuke/loom/internal/securityreq"
 )
 
-func disableOpenAPIExamples(api *expr.APIExpr) {
-	if api == nil {
-		return
+func openAPIExampleGenerator(api *expr.APIExpr) *expr.ExampleGenerator {
+	if api == nil || api.ExampleGenerator == nil {
+		return nil
 	}
-	m, ok := api.Meta.Last("openapi:example")
-	if ok && m == "false" {
-		api.ExampleGenerator.Randomizer = nil
+	if value, ok := api.Meta.Last("openapi:example"); ok && value == "false" {
+		return &expr.ExampleGenerator{}
 	}
+	return api.ExampleGenerator
 }
 
 func buildDocument(root *expr.RootExpr) *OpenAPI {
@@ -22,6 +22,7 @@ func buildDocument(root *expr.RootExpr) *OpenAPI {
 		root.API,
 		root.Types,
 		root.ResultTypes,
+		openapiir.WithExampleGenerator(openAPIExampleGenerator(root.API)),
 		openapiir.WithExampleValue(openAPIExampleValue),
 		openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
 	)

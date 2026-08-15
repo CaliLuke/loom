@@ -685,7 +685,7 @@ var _ = API("MyAPI", func() {
     Meta("openapi:json:prefix", "  ")
     Meta("openapi:json:indent", "  ")
     
-    // Disable example generation
+    // Omit synthesized examples while retaining authored Example(...) values
     Meta("openapi:example", "false")
 
     // OpenAPI 3.2 is the default. Set 3.1 only for compatibility consumers;
@@ -723,6 +723,13 @@ var User = Type("User", func() {
     Meta("openapi:typename", "CustomUser")
 })
 ```
+
+Loom synthesizes deterministic OpenAPI examples by default. Regenerating the
+same design produces the same examples, and changing one schema does not shift
+examples for unrelated operations or components. Set
+`Meta("openapi:example", "false")` at API scope when committed specifications
+should omit synthesized examples. Explicit `Example(...)` values remain in both
+the JSON and YAML outputs.
 
 ---
 

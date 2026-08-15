@@ -54,9 +54,9 @@ paths:
                                     properties:
                                         message:
                                             type: string
-                                            example: Incidunt assumenda voluptate autem.
+                                            example: Suscipit voluptatem odio magnam.
                                     example:
-                                        message: Magnam repellat tenetur quia aut earum.
+                                        message: Tenetur a quas distinctio.
                                     required:
                                         - message
                                 event:
@@ -64,7 +64,7 @@ paths:
                                     example: abc123
                             example:
                                 data:
-                                    message: A nisi porro aspernatur maxime et in.
+                                    message: Maiores laudantium.
                                 event: abc123
                             required:
                                 - event
@@ -110,13 +110,13 @@ paths:
                             properties:
                                 event:
                                     type: string
-                                    example: Quis ut.
+                                    example: Officiis earum libero perspiciatis dolorum id ea.
                                 ts:
                                     type: integer
                                     example: 1
                                     format: int64
                             example:
-                                event: Ad exercitationem qui consequuntur non.
+                                event: Suscipit veritatis deserunt molestiae.
                                 ts: 1
                             required:
                                 - ts
@@ -132,9 +132,9 @@ components:
                     properties:
                         message:
                             type: string
-                            example: Autem placeat illo ut autem itaque.
+                            example: Omnis rerum officia dolorem neque ut.
                     example:
-                        message: Maxime voluptatem.
+                        message: Distinctio veniam ipsa.
                     required:
                         - message
                 event:
@@ -142,7 +142,7 @@ components:
                     example: abc123
             example:
                 data:
-                    message: Non corporis commodi.
+                    message: Repellat quod.
                 event: abc123
             required:
                 - event

@@ -206,7 +206,7 @@
             "inbound": {
               "contentType": "application/json",
               "schema": {
-                "example": "Et repellendus molestias eius odio.",
+                "example": "Quis aliquam atque et a vel.",
                 "type": "string"
               }
             },

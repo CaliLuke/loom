@@ -8,16 +8,16 @@
     "schemas": {
       "RawUploadManifest": {
         "example": {
-          "name": "Qui quia inventore et tempora.",
-          "size": 4170793618430505500
+          "name": "Omnis quis voluptatem.",
+          "size": 1556568609638228200
         },
         "properties": {
           "name": {
-            "example": "Quia molestias.",
+            "example": "Sequi velit sapiente.",
             "type": "string"
           },
           "size": {
-            "example": 7595816812588075000,
+            "example": 1718341104888284000,
             "format": "int64",
             "type": "integer"
           }
@@ -79,8 +79,8 @@
           "content": {
             "application/vnd.loom.manifest+json": {
               "example": {
-                "name": "Provident aliquam tempora beatae vitae.",
-                "size": 6168161092050465000
+                "name": "Explicabo voluptas veritatis ea ullam dolor laborum.",
+                "size": 7434481764654082000
               },
               "schema": {
                 "$ref": "#/components/schemas/RawUploadManifest"
@@ -107,7 +107,7 @@
         "operationId": "raw_upload.upload_binary",
         "parameters": [
           {
-            "example": "Iste perspiciatis.",
+            "example": "Dolor neque fuga.",
             "in": "path",
             "name": "id",
             "required": true,
@@ -117,7 +117,7 @@
           },
           {
             "allowEmptyValue": true,
-            "example": "Neque nisi quibusdam nisi sint sunt.",
+            "example": "Saepe at illum est aliquid debitis et.",
             "in": "query",
             "name": "filter",
             "schema": {
@@ -125,7 +125,7 @@
             }
           },
           {
-            "example": "Quo qui molestiae iure.",
+            "example": "Est laborum et sapiente et hic.",
             "in": "header",
             "name": "X-Checksum",
             "required": true,
@@ -134,7 +134,7 @@
             }
           },
           {
-            "example": "Perspiciatis voluptatum laudantium eos aut.",
+            "example": "Unde nostrum aliquam tenetur animi.",
             "in": "cookie",
             "name": "upload_session",
             "schema": {

@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -111,60 +112,105 @@ func buildAsyncOperationExtension(endpointIR *transportir.Endpoint, path string,
 		"direction": endpointIR.Stream.Direction,
 	}
 
-	messages := make(map[string]any)
-	if endpointIR.Stream.RequestMessage != nil && endpointIR.Stream.RequestHasBody {
-		payloadAttr := attributeForSchemaUsage(endpointIR.Stream.RequestMessage, schemaUsageRequest)
-		messages["inbound"] = map[string]any{
-			"contentType": "application/json",
-			"schema":      asyncSchemaValue(buildInlineAsyncSchema(payloadAttr, rand, closeObjects)),
-		}
-	}
-	if endpointIR.Stream.ResponseMessage != nil {
-		resultAttr := attributeForSchemaUsage(endpointIR.Stream.ResponseMessage, schemaUsageResponse)
-		resultSchema := buildInlineAsyncSchema(resultAttr, rand, closeObjects)
-		if endpointIR.Stream.SSE != nil && len(endpointIR.Stream.SSE.Projections) > 0 {
-			resultSchema = buildInlineSSEProjectionSchema(endpointIR, rand, closeObjects)
-		}
-		outbound := map[string]any{
-			"contentType": "application/json",
-			"schema":      asyncSchemaValue(resultSchema),
-		}
-		if endpointIR.Stream.SSE != nil {
-			sseContract := map[string]any{
-				"requestIDField": emptyStringAsNil(endpointIR.Stream.SSE.RequestIDField),
-				"dataField":      emptyStringAsNil(endpointIR.Stream.SSE.DataField),
-				"idField":        emptyStringAsNil(endpointIR.Stream.SSE.IDField),
-				"eventField":     emptyStringAsNil(endpointIR.Stream.SSE.EventField),
-				"retryField":     emptyStringAsNil(endpointIR.Stream.SSE.RetryField),
-			}
-			if len(endpointIR.Stream.SSE.Projections) > 0 {
-				projections := make([]map[string]string, 0, len(endpointIR.Stream.SSE.Projections))
-				for _, projection := range endpointIR.Stream.SSE.Projections {
-					projections = append(projections, map[string]string{
-						"event": projection.EventType,
-						"view":  projection.View,
-					})
-				}
-				sseContract["projections"] = projections
-			}
-			outbound["sse"] = sseContract
-		}
-		messages["outbound"] = outbound
-	}
-	if len(messages) > 0 {
+	asyncContext := endpointSchemaExampleContext(endpointIR, "async", path)
+	if messages := buildAsyncMessages(endpointIR, rand, closeObjects, asyncContext); len(messages) > 0 {
 		contract["messages"] = messages
 	}
 	return map[string]any{asyncContractExtensionName: contract}
 }
 
-func buildInlineSSEProjectionSchema(endpoint *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) *Schema {
+func buildAsyncMessages(
+	endpointIR *transportir.Endpoint,
+	rand *expr.ExampleGenerator,
+	closeObjects bool,
+	context string,
+) map[string]any {
+	messages := make(map[string]any)
+	if endpointIR.Stream.RequestMessage != nil && endpointIR.Stream.RequestHasBody {
+		payloadAttr := attributeForSchemaUsage(endpointIR.Stream.RequestMessage, schemaUsageRequest)
+		messages["inbound"] = map[string]any{
+			"contentType": "application/json",
+			"schema": asyncSchemaValue(buildInlineAsyncSchema(
+				payloadAttr,
+				rand,
+				closeObjects,
+				childExampleContext(context, "inbound"),
+			)),
+		}
+	}
+	if endpointIR.Stream.ResponseMessage != nil {
+		messages["outbound"] = buildAsyncOutboundMessage(endpointIR, rand, closeObjects, context)
+	}
+	return messages
+}
+
+func buildAsyncOutboundMessage(
+	endpointIR *transportir.Endpoint,
+	rand *expr.ExampleGenerator,
+	closeObjects bool,
+	context string,
+) map[string]any {
+	resultAttr := attributeForSchemaUsage(endpointIR.Stream.ResponseMessage, schemaUsageResponse)
+	resultSchema := buildInlineAsyncSchema(
+		resultAttr,
+		rand,
+		closeObjects,
+		childExampleContext(context, "outbound"),
+	)
+	if endpointIR.Stream.SSE != nil && len(endpointIR.Stream.SSE.Projections) > 0 {
+		resultSchema = buildInlineSSEProjectionSchema(endpointIR, rand, closeObjects, context)
+	}
+	outbound := map[string]any{
+		"contentType": "application/json",
+		"schema":      asyncSchemaValue(resultSchema),
+	}
+	if endpointIR.Stream.SSE != nil {
+		outbound["sse"] = buildAsyncSSEContract(endpointIR.Stream.SSE)
+	}
+	return outbound
+}
+
+func buildAsyncSSEContract(sse *transportir.SSE) map[string]any {
+	contract := map[string]any{
+		"requestIDField": emptyStringAsNil(sse.RequestIDField),
+		"dataField":      emptyStringAsNil(sse.DataField),
+		"idField":        emptyStringAsNil(sse.IDField),
+		"eventField":     emptyStringAsNil(sse.EventField),
+		"retryField":     emptyStringAsNil(sse.RetryField),
+	}
+	if len(sse.Projections) > 0 {
+		projections := make([]map[string]string, 0, len(sse.Projections))
+		for _, projection := range sse.Projections {
+			projections = append(projections, map[string]string{
+				"event": projection.EventType,
+				"view":  projection.View,
+			})
+		}
+		contract["projections"] = projections
+	}
+	return contract
+}
+
+func buildInlineSSEProjectionSchema(
+	endpoint *transportir.Endpoint,
+	rand *expr.ExampleGenerator,
+	closeObjects bool,
+	context ...string,
+) *Schema {
 	attrs, err := sseProjectionAttributes(endpoint)
 	if err != nil {
 		panic(err)
 	}
 	schema := &Schema{OneOf: make([]*Schema, 0, len(attrs))}
-	for _, attr := range attrs {
-		schema.OneOf = append(schema.OneOf, buildInlineAsyncSchema(attr, rand, closeObjects))
+	for index, attr := range attrs {
+		projectionContext := exampleContext("sse-projection", strconv.Itoa(index))
+		if len(context) > 0 && context[0] != "" {
+			projectionContext = childExampleContext(context[0], "projection", strconv.Itoa(index))
+		}
+		schema.OneOf = append(
+			schema.OneOf,
+			buildInlineAsyncSchema(attr, rand, closeObjects, projectionContext),
+		)
 	}
 	return schema
 }
@@ -201,12 +247,21 @@ func asyncSchemaValue(schema *Schema) any {
 	return RenderSchema(schema)
 }
 
-func buildInlineAsyncSchema(attr *expr.AttributeExpr, rand *expr.ExampleGenerator, closeObjects bool) *Schema {
+func buildInlineAsyncSchema(
+	attr *expr.AttributeExpr,
+	rand *expr.ExampleGenerator,
+	closeObjects bool,
+	context ...string,
+) *Schema {
 	if attr == nil {
 		return nil
 	}
 	analyzer := NewAnalyzer(rand, closeObjects)
-	return analyzer.AnalyzeSchema(inlineContractAttribute(attr), false)
+	inlineContext := exampleContext("async-schema", fingerprintAttribute(attr, closeObjects))
+	if len(context) > 0 && context[0] != "" {
+		inlineContext = context[0]
+	}
+	return analyzer.AnalyzeSchemaWithContext(inlineContractAttribute(attr), inlineContext, false)
 }
 
 func inlineContractAttribute(attr *expr.AttributeExpr) *expr.AttributeExpr {

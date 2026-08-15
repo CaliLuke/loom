@@ -223,7 +223,16 @@ func TestSessionCookie(t *testing.T) {
 		require.Contains(t, header.Description, `Sets the "__Host-ak_session" cookie.`)
 		require.Contains(t, header.Description, `Policy: Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax.`)
 		require.NotNil(t, header.Example)
-		require.Equal(t, `__Host-ak_session="Quia molestias."; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`, header.Example.Value)
+		example := header.Example.Value
+		cookies := (&http.Response{Header: http.Header{"Set-Cookie": []string{example}}}).Cookies()
+		require.Len(t, cookies, 1)
+		require.Equal(t, "__Host-ak_session", cookies[0].Name)
+		require.NotEmpty(t, cookies[0].Value)
+		require.Equal(t, "/", cookies[0].Path)
+		require.True(t, cookies[0].HttpOnly)
+		require.True(t, cookies[0].Secure)
+		require.Equal(t, http.SameSiteLaxMode, cookies[0].SameSite)
+		require.Contains(t, example, "; Max-Age=0;")
 	})
 }
 

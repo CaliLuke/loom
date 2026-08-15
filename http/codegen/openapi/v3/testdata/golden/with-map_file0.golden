@@ -33,12 +33,6 @@
               },
               {
                 "string": ""
-              },
-              {
-                "string": ""
-              },
-              {
-                "string": ""
               }
             ],
             "items": {
@@ -117,9 +111,6 @@
                 },
                 {
                   "string": ""
-                },
-                {
-                  "string": ""
                 }
               ],
               "foo": ""
@@ -140,12 +131,6 @@
             "example": {
               "": {
                 "bar": [
-                  {
-                    "string": ""
-                  },
-                  {
-                    "string": ""
-                  },
                   {
                     "string": ""
                   },
@@ -226,12 +211,6 @@
                   "resulttype_map": {
                     "": {
                       "bar": [
-                        {
-                          "string": ""
-                        },
-                        {
-                          "string": ""
-                        },
                         {
                           "string": ""
                         },

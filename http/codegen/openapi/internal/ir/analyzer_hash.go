@@ -23,12 +23,63 @@ type canonicalSchemaEncoder struct {
 // schemaFingerprintVersion identifies Loom's canonical OpenAPI schema encoding.
 // The encoding uses length-prefixed fields, sorted object keys, set semantics
 // for enum and required values, and last-write-wins object member semantics.
-const schemaFingerprintVersion = "loom-openapi-schema-v1"
+const (
+	schemaFingerprintVersion = "loom-openapi-schema-v1"
+	exampleContextVersion    = "loom-openapi-example-context-v1"
+)
 
 func fingerprintAttribute(att *expr.AttributeExpr, closeObjects bool) string {
 	encoding := canonicalAttributeEncoding(att, closeObjects)
 	sum := sha256.Sum256(encoding)
 	return hex.EncodeToString(sum[:])
+}
+
+func exampleGeneratorForAttribute(
+	generator *expr.ExampleGenerator,
+	att *expr.AttributeExpr,
+	closeObjects bool,
+	context ...string,
+) *expr.ExampleGenerator {
+	if generator == nil || generator.Randomizer == nil {
+		return generator
+	}
+	faker, ok := generator.Randomizer.(*expr.FakerRandomizer)
+	if !ok {
+		return generator
+	}
+	identity := fingerprintAttribute(att, closeObjects)
+	if len(context) > 0 && context[0] != "" {
+		identity = context[0] + ":" + identity
+	}
+	return expr.NewRandom(faker.Seed + ":openapi-example:" + identity)
+}
+
+func exampleContext(parts ...string) string {
+	encoder := newCanonicalSchemaEncoder()
+	encoder.writeString(exampleContextVersion)
+	for _, part := range parts {
+		encoder.writeString(part)
+	}
+	sum := sha256.Sum256(encoder.Bytes())
+	return hex.EncodeToString(sum[:])
+}
+
+func childExampleContext(parent string, parts ...string) string {
+	return exampleContext(append([]string{parent}, parts...)...)
+}
+
+func attributeExampleContext(
+	att *expr.AttributeExpr,
+	closeObjects bool,
+	parts ...string,
+) string {
+	parts = append(parts, "schema", fingerprintAttribute(att, closeObjects))
+	if att != nil {
+		if userType, ok := att.Type.(expr.UserType); ok {
+			parts = append(parts, "user-type", userType.ID())
+		}
+	}
+	return exampleContext(parts...)
 }
 
 func fingerprintString(value string) string {

@@ -23,6 +23,20 @@
           "type": "integer"
         }
       }
+    },
+    "responses": {
+      "ComponentServiceListGadgetsStatus200Response": {
+        "content": {
+          "application/json": {
+            "example": "Dolor inventore.",
+            "schema": {
+              "example": "Est minima minima illum voluptas vitae.",
+              "type": "string"
+            }
+          }
+        },
+        "description": "OK response."
+      }
     }
   },
   "info": {
@@ -45,16 +59,7 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "example": "Itaque inventore optio.",
-                "schema": {
-                  "example": "Doloribus qui quia.",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "OK response."
+            "$ref": "#/components/responses/ComponentServiceListGadgetsStatus200Response"
           }
         },
         "summary": "listGadgets componentService",
@@ -76,16 +81,7 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "example": "Et tempora et quae.",
-                "schema": {
-                  "example": "Quia molestias.",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "OK response."
+            "$ref": "#/components/responses/ComponentServiceListGadgetsStatus200Response"
           }
         },
         "summary": "listWidgets componentService",

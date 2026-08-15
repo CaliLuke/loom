@@ -353,6 +353,7 @@ The most commonly used metadata keys are:
 | Key | Scope | Purpose |
 |-----|-------|---------|
 | `openapi:generate` | API, server, host, service, method, file server, attribute | Disable OpenAPI emission for a scope with `"false"` |
+| `openapi:example` | API, attribute | At API scope, omit synthesized examples with `"false"`; at attribute scope, suppress that attribute's examples |
 | `openapi:version` | API | Select `"3.1"` compatibility output; 3.2 is the default |
 | `openapi:self` | API | Set the OpenAPI 3.2 `$self` document URI |
 | `openapi:operationId` | API, service, method | Customize generated operation IDs |
@@ -369,6 +370,13 @@ The most commonly used metadata keys are:
 | `openapi:allowEmptyValue` | Query parameter attribute | Override the generated OpenAPI `allowEmptyValue` flag; import uses `false` to preserve an authored query parameter |
 | `openapi:component:response` | HTTP response | Hoist and name reusable responses |
 | `openapi:component:example` | Example | Hoist and name reusable examples |
+
+Synthesized examples are deterministic and isolated by stable schema and
+occurrence identity. The same design and generation options therefore produce
+byte-identical examples, and an unrelated schema change does not shift them.
+To omit only synthesized examples, set `Meta("openapi:example", "false")` at
+API scope. Explicit `Example(...)` values remain in both `openapi.json` and
+`openapi.yaml`.
 
 #### OpenAPI 3.2 features
 

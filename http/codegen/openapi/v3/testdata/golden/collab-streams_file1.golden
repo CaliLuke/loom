@@ -190,7 +190,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Ea praesentium.
+                        example: Quam assumenda ut vel enim rerum fugiat.
                     example:
                         - alice
                         - bob

@@ -11,7 +11,7 @@
         "operationId": "test_service.test_endpoint",
         "parameters": [
           {
-            "example": 1933576090881075000,
+            "example": 4268502965797695500,
             "in": "path",
             "name": "int_map",
             "required": true,

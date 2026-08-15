@@ -99,23 +99,23 @@
       "ImportPantryRequestBody": {
         "additionalProperties": false,
         "example": {
-          "content_type": "Quos ut libero quaerat et est.",
-          "file": "Odit accusantium aut qui.",
-          "filename": "Eligendi non ut.",
+          "content_type": "Ex et.",
+          "file": "Officiis aliquid doloribus.",
+          "filename": "Et in nam quas atque.",
           "label": "scan-weekly"
         },
         "properties": {
           "content_type": {
-            "example": "Et dolore qui.",
+            "example": "Sequi sunt rerum omnis.",
             "type": "string"
           },
           "file": {
-            "example": "Odit ut mollitia molestias vero quidem quia.",
+            "example": "Sit et aliquid maiores distinctio quis quisquam.",
             "format": "binary",
             "type": "string"
           },
           "filename": {
-            "example": "Recusandae suscipit doloremque earum numquam.",
+            "example": "Possimus dignissimos libero ex.",
             "type": "string"
           },
           "label": {
@@ -144,6 +144,16 @@
               "day": "monday",
               "recipe_id": "recipe_42",
               "slot": "dinner"
+            },
+            {
+              "day": "monday",
+              "recipe_id": "recipe_42",
+              "slot": "dinner"
+            },
+            {
+              "day": "monday",
+              "recipe_id": "recipe_42",
+              "slot": "dinner"
             }
           ],
           "week_start": "2026-03-16"
@@ -151,6 +161,11 @@
         "properties": {
           "meals": {
             "example": [
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              },
               {
                 "day": "monday",
                 "recipe_id": "recipe_42",
@@ -239,6 +254,11 @@
               "day": "monday",
               "recipe_id": "recipe_42",
               "slot": "dinner"
+            },
+            {
+              "day": "monday",
+              "recipe_id": "recipe_42",
+              "slot": "dinner"
             }
           ]
         },
@@ -313,7 +333,7 @@
               "spinach"
             ],
             "items": {
-              "example": "Non suscipit facilis.",
+              "example": "Ut vel eos.",
               "type": "string"
             },
             "type": "array"
@@ -330,7 +350,7 @@
               "vegetarian"
             ],
             "items": {
-              "example": "Nam in iure dolore mollitia in.",
+              "example": "Rerum maxime.",
               "type": "string"
             },
             "type": "array"
@@ -509,6 +529,12 @@
       "RecipeResponseSummaryCollection": {
         "description": "ListRecipesResponseBody is the result type for an array of RecipeResponse (summary view)",
         "example": [
+          {
+            "difficulty": "easy",
+            "id": "recipe_42",
+            "minutes": 30,
+            "title": "Sheet Pan Gnocchi"
+          },
           {
             "difficulty": "easy",
             "id": "recipe_42",
@@ -860,11 +886,6 @@
                     "day": "monday",
                     "recipe_id": "recipe_42",
                     "slot": "dinner"
-                  },
-                  {
-                    "day": "monday",
-                    "recipe_id": "recipe_42",
-                    "slot": "dinner"
                   }
                 ]
               },
@@ -880,11 +901,6 @@
               "application/json": {
                 "example": {
                   "meals": [
-                    {
-                      "day": "monday",
-                      "recipe_id": "recipe_42",
-                      "slot": "dinner"
-                    },
                     {
                       "day": "monday",
                       "recipe_id": "recipe_42",
@@ -998,9 +1014,9 @@
           "content": {
             "multipart/form-data": {
               "example": {
-                "content_type": "Harum rerum a.",
-                "file": "Illo iusto.",
-                "filename": "Magni architecto aliquid.",
+                "content_type": "A veniam voluptatem.",
+                "file": "Autem voluptates impedit veritatis reiciendis ducimus odit.",
+                "filename": "Autem quo quidem error.",
                 "label": "scan-weekly"
               },
               "schema": {
@@ -1157,6 +1173,12 @@
             "content": {
               "application/json": {
                 "example": [
+                  {
+                    "difficulty": "easy",
+                    "id": "recipe_42",
+                    "minutes": 30,
+                    "title": "Sheet Pan Gnocchi"
+                  },
                   {
                     "difficulty": "easy",
                     "id": "recipe_42",

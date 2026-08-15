@@ -4,18 +4,18 @@
       "RealtimeSSEEvent": {
         "example": {
           "data": {
-            "message": "Non corporis commodi."
+            "message": "Repellat quod."
           },
           "event": "abc123"
         },
         "properties": {
           "data": {
             "example": {
-              "message": "Maxime voluptatem."
+              "message": "Distinctio veniam ipsa."
             },
             "properties": {
               "message": {
-                "example": "Autem placeat illo ut autem itaque.",
+                "example": "Omnis rerum officia dolorem neque ut.",
                 "type": "string"
               }
             },
@@ -100,18 +100,18 @@
               "schema": {
                 "example": {
                   "data": {
-                    "message": "A nisi porro aspernatur maxime et in."
+                    "message": "Maiores laudantium."
                   },
                   "event": "abc123"
                 },
                 "properties": {
                   "data": {
                     "example": {
-                      "message": "Magnam repellat tenetur quia aut earum."
+                      "message": "Tenetur a quas distinctio."
                     },
                     "properties": {
                       "message": {
-                        "example": "Incidunt assumenda voluptate autem.",
+                        "example": "Suscipit voluptatem odio magnam.",
                         "type": "string"
                       }
                     },
@@ -185,12 +185,12 @@
               "contentType": "application/json",
               "schema": {
                 "example": {
-                  "event": "Ad exercitationem qui consequuntur non.",
+                  "event": "Suscipit veritatis deserunt molestiae.",
                   "ts": 1
                 },
                 "properties": {
                   "event": {
-                    "example": "Quis ut.",
+                    "example": "Officiis earum libero perspiciatis dolorum id ea.",
                     "type": "string"
                   },
                   "ts": {

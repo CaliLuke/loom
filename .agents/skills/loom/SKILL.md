@@ -135,6 +135,9 @@ Other important OpenAPI usage rules:
   `Meta("openapi:component:response", "...")`, and
   `Meta("openapi:component:example", "...")` for stable reusable component
   names.
+- Synthesized examples are deterministic in both OpenAPI outputs. Set
+  `Meta("openapi:example", "false")` at API scope to omit synthesized examples
+  while retaining explicit `Example(...)` values.
 - Model workflow links with `Link(...)`, `LinkOperation(...)`,
   `LinkOperationRef(...)`, `LinkParam(...)`, and `LinkRequestBody(...)`.
 - Use `Meta("openapi:readOnly", ...)` and

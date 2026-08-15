@@ -33,6 +33,8 @@ paths:
                                 bar:
                                     - string: ""
                                     - string: ""
+                                    - string: ""
+                                    - string: ""
                                 foo: ""
                 "404":
                     description: Not Found response.
@@ -65,8 +67,6 @@ components:
                     items:
                         $ref: '#/components/schemas/Bar'
                     example:
-                        - string: ""
-                        - string: ""
                         - string: ""
                         - string: ""
                 foo:

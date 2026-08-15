@@ -33,12 +33,6 @@
               },
               {
                 "string": ""
-              },
-              {
-                "string": ""
-              },
-              {
-                "string": ""
               }
             ],
             "items": {
@@ -84,6 +78,12 @@
               "application/json": {
                 "example": {
                   "bar": [
+                    {
+                      "string": ""
+                    },
+                    {
+                      "string": ""
+                    },
                     {
                       "string": ""
                     },

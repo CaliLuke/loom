@@ -21,7 +21,7 @@ paths:
                   schema:
                     type: integer
                     format: int64
-                  example: 1933576090881074823
+                  example: 4268502965797695683
             responses:
                 "204":
                     description: No Content response.

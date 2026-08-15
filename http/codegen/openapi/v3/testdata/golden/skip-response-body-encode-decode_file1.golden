@@ -53,8 +53,8 @@ paths:
                         text/html:
                             schema:
                                 type: string
-                                example: Quia molestias.
-                            example: Doloribus qui quia.
+                                example: Est minima minima illum voluptas vitae.
+                            example: Eligendi voluptatem inventore expedita minima quia.
 components: {}
 tags:
     - name: testService

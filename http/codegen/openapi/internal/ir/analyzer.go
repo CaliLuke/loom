@@ -55,6 +55,13 @@ func WithExampleSuppression(fn func(*expr.AttributeExpr, bool) bool) AnalyzerOpt
 	}
 }
 
+// WithExampleGenerator overrides the generator used for synthesized examples.
+func WithExampleGenerator(generator *expr.ExampleGenerator) AnalyzerOption {
+	return func(a *Analyzer) {
+		a.rand = generator
+	}
+}
+
 // NewAnalyzer creates a schema analyzer.
 func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...AnalyzerOption) *Analyzer {
 	a := &Analyzer{
@@ -71,6 +78,17 @@ func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...Anal
 	return a
 }
 
+func exampleGeneratorWithOptions(
+	generator *expr.ExampleGenerator,
+	options ...AnalyzerOption,
+) *expr.ExampleGenerator {
+	settings := &Analyzer{rand: generator}
+	for _, option := range options {
+		option(settings)
+	}
+	return settings.rand
+}
+
 // Components returns the analyzed component schemas.
 func (a *Analyzer) Components() map[string]*Schema {
 	return a.schemas
@@ -83,15 +101,28 @@ func (a *Analyzer) SchemaFingerprints() map[string]string {
 
 // AnalyzeSchema builds an IR schema for the given attribute.
 func (a *Analyzer) AnalyzeSchema(attr *expr.AttributeExpr, noref ...bool) *Schema {
+	context := exampleContext("schema", fingerprintAttribute(attr, a.closeObjects))
+	return a.analyzeSchema(attr, context, noref...)
+}
+
+// AnalyzeSchemaWithContext builds an IR schema using a stable example occurrence context.
+func (a *Analyzer) AnalyzeSchemaWithContext(attr *expr.AttributeExpr, context string, noref ...bool) *Schema {
+	if context == "" {
+		context = exampleContext("schema", fingerprintAttribute(attr, a.closeObjects))
+	}
+	return a.analyzeSchema(attr, context, noref...)
+}
+
+func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref ...bool) *Schema {
 	if attr == nil || attr.Type == expr.Empty {
 		return nil
 	}
 	if t, ok := attr.Type.(expr.UserType); ok {
-		return a.analyzeUserType(attr, t, len(noref) > 0)
+		return a.analyzeUserType(attr, t, context, len(noref) > 0)
 	}
 
-	s, note := a.analyzeInlineType(attr)
-	a.applySchemaAttributeDetails(s, attr, note)
+	s, note := a.analyzeInlineType(attr, context)
+	a.applySchemaAttributeDetails(s, attr, note, context)
 	return s
 }
 
@@ -176,17 +207,17 @@ func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.Attribu
 	return componentAttr
 }
 
-func (a *Analyzer) analyzeInlineType(attr *expr.AttributeExpr) (*Schema, string) {
+func (a *Analyzer) analyzeInlineType(attr *expr.AttributeExpr, context string) (*Schema, string) {
 	s := &Schema{}
 	switch t := attr.Type.(type) {
 	case expr.Primitive:
-		a.analyzeInlinePrimitive(s, attr, t)
+		a.analyzeInlinePrimitive(s, attr, t, context)
 	case *expr.Array:
-		a.analyzeInlineArray(s, t)
+		a.analyzeInlineArray(s, t, context)
 	case *expr.Object:
-		a.analyzeInlineObject(s, attr, t)
+		a.analyzeInlineObject(s, attr, t, context)
 	case *expr.Map:
-		a.analyzeInlineMap(s, t)
+		a.analyzeInlineMap(s, t, context)
 	case *expr.Union:
 		a.analyzeInlineUnion(s, t)
 	default:
@@ -195,7 +226,12 @@ func (a *Analyzer) analyzeInlineType(attr *expr.AttributeExpr) (*Schema, string)
 	return s, ""
 }
 
-func (a *Analyzer) analyzeInlinePrimitive(s *Schema, attr *expr.AttributeExpr, primitive expr.Primitive) {
+func (a *Analyzer) analyzeInlinePrimitive(
+	s *Schema,
+	attr *expr.AttributeExpr,
+	primitive expr.Primitive,
+	context string,
+) {
 	switch primitive.Kind() {
 	case expr.IntKind, expr.UIntKind, expr.Int64Kind, expr.UInt64Kind:
 		s.Type = "integer"
@@ -210,7 +246,7 @@ func (a *Analyzer) analyzeInlinePrimitive(s *Schema, attr *expr.AttributeExpr, p
 		s.Type = "number"
 		s.Format = "double"
 	case expr.BytesKind:
-		a.analyzeInlineBytes(s, attr)
+		a.analyzeInlineBytes(s, attr, context)
 	case expr.AnyKind:
 		s.Type = ""
 	default:
@@ -218,10 +254,11 @@ func (a *Analyzer) analyzeInlinePrimitive(s *Schema, attr *expr.AttributeExpr, p
 	}
 }
 
-func (a *Analyzer) analyzeInlineBytes(s *Schema, attr *expr.AttributeExpr) {
+func (a *Analyzer) analyzeInlineBytes(s *Schema, attr *expr.AttributeExpr, context string) {
 	if bases := attr.Bases; len(bases) > 0 {
-		for _, base := range bases {
-			s.AnyOf = append(s.AnyOf, a.AnalyzeSchema(&expr.AttributeExpr{Type: base}, false))
+		for index, base := range bases {
+			baseContext := childExampleContext(context, "base", strconv.Itoa(index))
+			s.AnyOf = append(s.AnyOf, a.analyzeSchema(&expr.AttributeExpr{Type: base}, baseContext, false))
 		}
 		return
 	}
@@ -229,19 +266,22 @@ func (a *Analyzer) analyzeInlineBytes(s *Schema, attr *expr.AttributeExpr) {
 	s.Format = "binary"
 }
 
-func (a *Analyzer) analyzeInlineArray(s *Schema, arr *expr.Array) {
+func (a *Analyzer) analyzeInlineArray(s *Schema, arr *expr.Array, context string) {
 	s.Type = string(openapi.Array)
-	s.Items = a.AnalyzeSchema(arr.ElemType)
+	s.Items = a.analyzeSchema(arr.ElemType, childExampleContext(context, "items"))
 }
 
-func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj *expr.Object) {
+func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj *expr.Object, context string) {
 	s.Type = string(openapi.Object)
 	if len(*obj) > 0 {
 		s.Properties = make(map[string]*Schema)
 	}
 	for _, nat := range *obj {
 		if openapi.MustGenerate(nat.Attribute.Meta) {
-			s.Properties[nat.Name] = a.AnalyzeSchema(nat.Attribute)
+			s.Properties[nat.Name] = a.analyzeSchema(
+				nat.Attribute,
+				childExampleContext(context, "property", nat.Name),
+			)
 		}
 	}
 	if a.closeObjects && openapi.AdditionalPropertiesFromExpr(attr.Meta) == nil {
@@ -249,13 +289,15 @@ func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj 
 	}
 }
 
-func (a *Analyzer) analyzeInlineMap(s *Schema, m *expr.Map) {
+func (a *Analyzer) analyzeInlineMap(s *Schema, m *expr.Map, context string) {
 	s.Type = string(openapi.Object)
 	if m.ElemType.Type == expr.Any {
 		s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(true)}
 		return
 	}
-	s.AdditionalProperties = &BoolOrSchema{Schema: a.AnalyzeSchema(m.ElemType)}
+	s.AdditionalProperties = &BoolOrSchema{
+		Schema: a.analyzeSchema(m.ElemType, childExampleContext(context, "additional-properties")),
+	}
 }
 
 func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union) {
@@ -275,7 +317,7 @@ func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union) {
 	}
 }
 
-func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, noRef bool) *Schema {
+func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool) *Schema {
 	if resultType, ok := t.(*expr.ResultTypeExpr); ok {
 		view, hasView := attr.Meta.Last(expr.ViewMetaKey)
 		if !hasView {
@@ -290,12 +332,12 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, no
 			projectedAttr.Type = projected
 			projectedAttr.Validation = projected.Validation
 			delete(projectedAttr.Meta, expr.ViewMetaKey)
-			return a.AnalyzeSchema(projectedAttr, noRef)
+			return a.analyzeSchema(projectedAttr, context, noRef)
 		}
 	}
 	metaName, canonical := schemaTypeNaming(attr, t)
 	if expr.IsAlias(t) && !canonical {
-		return a.AnalyzeSchema(t.Attribute())
+		return a.analyzeSchema(t.Attribute(), context)
 	}
 
 	s := &Schema{}
@@ -323,12 +365,13 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, no
 	if _, ok := a.schemas[typeName]; !ok {
 		a.schemaFingerprints[typeName] = fingerprint
 		componentAttr := componentAttribute(attr, t)
-		a.schemas[typeName] = a.AnalyzeSchema(componentAttr, true)
+		componentContext := exampleContext("component", typeName)
+		a.schemas[typeName] = a.analyzeSchema(componentAttr, componentContext, true)
 	}
 	return s
 }
 
-func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeExpr, note string) {
+func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeExpr, note, context string) {
 	s.Description = attr.Description
 	if note != "" {
 		s.Description += "\n" + note
@@ -340,7 +383,7 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 		suppress = a.suppressExamples(attr, a.closeObjects)
 	}
 	if !suppress {
-		raw := attr.Example(a.rand)
+		raw := attr.Example(exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context))
 		if a.exampleValue != nil {
 			if example, ok := a.exampleValue(attr, raw); ok {
 				s.Example = example
@@ -468,7 +511,10 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 				Type: string(openapi.String),
 				Enum: []any{expr.UnionVariantTag(val)},
 			},
-			union.GetValueKey(): a.AnalyzeSchema(val.Attribute),
+			union.GetValueKey(): a.analyzeSchema(
+				val.Attribute,
+				childExampleContext(exampleContext("component", name), "property", union.GetValueKey()),
+			),
 		},
 		Required: []string{union.GetTypeKey(), union.GetValueKey()},
 	}

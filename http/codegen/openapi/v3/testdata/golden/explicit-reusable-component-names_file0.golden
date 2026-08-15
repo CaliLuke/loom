@@ -26,6 +26,20 @@
         "required": true
       }
     },
+    "responses": {
+      "ComponentNamesSearchGadgetsStatus200Response": {
+        "content": {
+          "application/json": {
+            "example": "Dolor inventore.",
+            "schema": {
+              "example": "Est minima minima illum voluptas vitae.",
+              "type": "string"
+            }
+          }
+        },
+        "description": "OK response."
+      }
+    },
     "schemas": {
       "SearchFilters": {
         "example": {
@@ -64,16 +78,7 @@
         },
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "example": "Itaque inventore optio.",
-                "schema": {
-                  "example": "Doloribus qui quia.",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "OK response."
+            "$ref": "#/components/responses/ComponentNamesSearchGadgetsStatus200Response"
           }
         },
         "summary": "searchGadgets componentNames",
@@ -95,16 +100,7 @@
         },
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "example": "Et tempora et quae.",
-                "schema": {
-                  "example": "Quia molestias.",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "OK response."
+            "$ref": "#/components/responses/ComponentNamesSearchGadgetsStatus200Response"
           }
         },
         "summary": "searchRecipes componentNames",

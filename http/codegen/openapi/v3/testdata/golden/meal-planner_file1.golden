@@ -125,9 +125,6 @@ paths:
                                 - day: monday
                                   recipe_id: recipe_42
                                   slot: dinner
-                                - day: monday
-                                  recipe_id: recipe_42
-                                  slot: dinner
             responses:
                 "200":
                     description: OK response.
@@ -137,9 +134,6 @@ paths:
                                 $ref: '#/components/schemas/MealPlan'
                             example:
                                 meals:
-                                    - day: monday
-                                      recipe_id: recipe_42
-                                      slot: dinner
                                     - day: monday
                                       recipe_id: recipe_42
                                       slot: dinner
@@ -206,9 +200,9 @@ paths:
                         schema:
                             $ref: '#/components/schemas/ImportPantryRequestBody'
                         example:
-                            content_type: Harum rerum a.
-                            file: Illo iusto.
-                            filename: Magni architecto aliquid.
+                            content_type: A veniam voluptatem.
+                            file: Autem voluptates impedit veritatis reiciendis ducimus odit.
+                            filename: Autem quo quidem error.
                             label: scan-weekly
             responses:
                 "202":
@@ -313,6 +307,10 @@ paths:
                                   id: recipe_42
                                   minutes: 30
                                   title: Sheet Pan Gnocchi
+                                - difficulty: easy
+                                  id: recipe_42
+                                  minutes: 30
+                                  title: Sheet Pan Gnocchi
                 "400":
                     $ref: '#/components/responses/BadRequestError'
                 "401":
@@ -394,22 +392,22 @@ components:
             properties:
                 content_type:
                     type: string
-                    example: Et dolore qui.
+                    example: Sequi sunt rerum omnis.
                 file:
                     type: string
-                    example: Odit ut mollitia molestias vero quidem quia.
+                    example: Sit et aliquid maiores distinctio quis quisquam.
                     format: binary
                 filename:
                     type: string
-                    example: Recusandae suscipit doloremque earum numquam.
+                    example: Possimus dignissimos libero ex.
                 label:
                     type: string
                     example: scan-weekly
                     pattern: ^scan-[a-z]+$
             example:
-                content_type: Quos ut libero quaerat et est.
-                file: Odit accusantium aut qui.
-                filename: Eligendi non ut.
+                content_type: Ex et.
+                file: Officiis aliquid doloribus.
+                filename: Et in nam quas atque.
                 label: scan-weekly
             required:
                 - file
@@ -432,6 +430,9 @@ components:
                         - day: monday
                           recipe_id: recipe_42
                           slot: dinner
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
                 week_start:
                     type: string
                     example: "2026-03-16"
@@ -439,6 +440,12 @@ components:
             description: A meal plan covering one planning week.
             example:
                 meals:
+                    - day: monday
+                      recipe_id: recipe_42
+                      slot: dinner
+                    - day: monday
+                      recipe_id: recipe_42
+                      slot: dinner
                     - day: monday
                       recipe_id: recipe_42
                       slot: dinner
@@ -511,6 +518,9 @@ components:
                     - day: monday
                       recipe_id: recipe_42
                       slot: dinner
+                    - day: monday
+                      recipe_id: recipe_42
+                      slot: dinner
             additionalProperties: false
         MealplannerRecipe:
             type: object
@@ -529,7 +539,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Non suscipit facilis.
+                        example: Ut vel eos.
                     example:
                         - gnocchi
                         - tomatoes
@@ -543,7 +553,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Nam in iure dolore mollitia in.
+                        example: Rerum maxime.
                     example:
                         - weeknight
                         - vegetarian
@@ -697,6 +707,10 @@ components:
                 $ref: '#/components/schemas/RecipeResponseSummary'
             description: ListRecipesResponseBody is the result type for an array of RecipeResponse (summary view)
             example:
+                - difficulty: easy
+                  id: recipe_42
+                  minutes: 30
+                  title: Sheet Pan Gnocchi
                 - difficulty: easy
                   id: recipe_42
                   minutes: 30

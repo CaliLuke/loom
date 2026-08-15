@@ -22,26 +22,19 @@ paths:
                             items:
                                 $ref: '#/components/schemas/Foobar'
                             example:
-                                - bar:
-                                    - string: ""
+                                - bar: []
                                   foo: []
-                                - bar:
-                                    - string: ""
+                                - bar: []
                                   foo: []
-                                - bar:
-                                    - string: ""
+                                - bar: []
                                   foo: []
                         example:
                             - bar:
                                 - string: ""
-                              foo: []
-                            - bar:
                                 - string: ""
                               foo: []
                             - bar:
                                 - string: ""
-                              foo: []
-                            - bar:
                                 - string: ""
                               foo: []
             responses:
@@ -76,23 +69,22 @@ components:
                         $ref: '#/components/schemas/Bar'
                     example:
                         - string: ""
-                        - string: ""
                     minItems: 0
                     maxItems: 42
                 foo:
                     type: array
                     items:
                         type: string
-                        example: Beatae non id consequatur.
-                    example: []
+                        example: Quia enim quis itaque et.
+                    example:
+                        - Reprehenderit odio suscipit debitis alias.
+                        - Ipsam dolorem vel vero aut alias asperiores.
                     minItems: 0
                     maxItems: 42
             example:
                 bar:
                     - string: ""
                     - string: ""
-                foo:
-                    - Repudiandae sit.
-                    - Asperiores fuga qui rem qui earum eos.
+                foo: []
 tags:
     - name: testService

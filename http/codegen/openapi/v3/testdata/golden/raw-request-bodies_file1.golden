@@ -41,8 +41,8 @@ paths:
                         schema:
                             $ref: '#/components/schemas/RawUploadManifest'
                         example:
-                            name: Provident aliquam tempora beatae vitae.
-                            size: 6168161092050465198
+                            name: Explicabo voluptas veritatis ea ullam dolor laborum.
+                            size: 7434481764654081621
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -59,24 +59,24 @@ paths:
                   required: true
                   schema:
                     type: string
-                  example: Iste perspiciatis.
+                  example: Dolor neque fuga.
                 - name: filter
                   in: query
                   allowEmptyValue: true
                   schema:
                     type: string
-                  example: Neque nisi quibusdam nisi sint sunt.
+                  example: Saepe at illum est aliquid debitis et.
                 - name: X-Checksum
                   in: header
                   required: true
                   schema:
                     type: string
-                  example: Quo qui molestiae iure.
+                  example: Est laborum et sapiente et hic.
                 - name: upload_session
                   in: cookie
                   schema:
                     type: string
-                  example: Perspiciatis voluptatum laudantium eos aut.
+                  example: Unde nostrum aliquam tenetur animi.
             requestBody:
                 description: Binary archive streamed directly to the service.
                 required: true
@@ -100,14 +100,14 @@ components:
             properties:
                 name:
                     type: string
-                    example: Quia molestias.
+                    example: Sequi velit sapiente.
                 size:
                     type: integer
-                    example: 7595816812588075382
+                    example: 1718341104888283996
                     format: int64
             example:
-                name: Qui quia inventore et tempora.
-                size: 4170793618430505438
+                name: Omnis quis voluptatem.
+                size: 1556568609638228194
             required:
                 - name
                 - size

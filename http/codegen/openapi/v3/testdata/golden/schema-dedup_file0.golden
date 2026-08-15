@@ -5,9 +5,9 @@
         "content": {
           "application/json": {
             "example": {
-              "type": "AlphaSchemaDedup",
+              "type": "BetaSchemaDedup",
               "value": {
-                "alpha": "Molestiae iure sit."
+                "beta": "Dolores animi."
               }
             },
             "schema": {
@@ -21,7 +21,7 @@
               "example": {
                 "type": "BetaSchemaDedup",
                 "value": {
-                  "beta": "Et est neque."
+                  "beta": "Harum quos et aut repellat exercitationem."
                 }
               },
               "oneOf": [
@@ -47,11 +47,11 @@
     "schemas": {
       "AlphaSchemaDedup": {
         "example": {
-          "alpha": "Doloribus qui quia."
+          "alpha": "Beatae qui totam temporibus quis qui accusantium."
         },
         "properties": {
           "alpha": {
-            "example": "Quia molestias.",
+            "example": "Est et non et ea.",
             "type": "string"
           }
         },
@@ -100,11 +100,11 @@
       },
       "BetaSchemaDedup": {
         "example": {
-          "beta": "Itaque inventore optio."
+          "beta": "Magni odio reiciendis aperiam sunt dignissimos quo."
         },
         "properties": {
           "beta": {
-            "example": "Et tempora et quae.",
+            "example": "Porro nihil natus exercitationem eaque nisi veritatis.",
             "type": "string"
           }
         },
@@ -115,11 +115,11 @@
       },
       "FirstRequestBody": {
         "example": {
-          "name": "Iste perspiciatis."
+          "name": "Occaecati dolores."
         },
         "properties": {
           "name": {
-            "example": "Ullam aut.",
+            "example": "Voluptas velit eaque sit praesentium ipsum.",
             "type": "string"
           }
         },
@@ -144,7 +144,7 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Nisi sint sunt beatae quia."
+                "name": "Molestias sunt ut qui."
               },
               "schema": {
                 "$ref": "#/components/schemas/FirstRequestBody"
@@ -171,7 +171,7 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Assumenda fuga est sint maxime."
+                "name": "Ut repellendus saepe."
               },
               "schema": {
                 "$ref": "#/components/schemas/FirstRequestBody"

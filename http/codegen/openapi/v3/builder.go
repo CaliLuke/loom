@@ -60,7 +60,6 @@ func newForVersion(root *expr.RootExpr, target openAPIVersion) (*OpenAPI, []stri
 		return nil, nil, nil
 	}
 
-	disableOpenAPIExamples(root.API)
 	spec := buildDocument(root)
 	warnings, err := renderOpenAPI(root, spec, target)
 	if err != nil {

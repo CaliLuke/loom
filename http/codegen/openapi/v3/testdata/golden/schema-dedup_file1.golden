@@ -21,7 +21,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/FirstRequestBody'
                         example:
-                            name: Nisi sint sunt beatae quia.
+                            name: Molestias sunt ut qui.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -38,7 +38,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/FirstRequestBody'
                         example:
-                            name: Assumenda fuga est sint maxime.
+                            name: Ut repellendus saepe.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -71,9 +71,9 @@ components:
             properties:
                 alpha:
                     type: string
-                    example: Quia molestias.
+                    example: Est et non et ea.
             example:
-                alpha: Doloribus qui quia.
+                alpha: Beatae qui totam temporibus quis qui accusantium.
             required:
                 - alpha
         AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope:
@@ -107,9 +107,9 @@ components:
             properties:
                 beta:
                     type: string
-                    example: Et tempora et quae.
+                    example: Porro nihil natus exercitationem eaque nisi veritatis.
             example:
-                beta: Itaque inventore optio.
+                beta: Magni odio reiciendis aperiam sunt dignissimos quo.
             required:
                 - beta
         FirstRequestBody:
@@ -117,9 +117,9 @@ components:
             properties:
                 name:
                     type: string
-                    example: Ullam aut.
+                    example: Voluptas velit eaque sit praesentium ipsum.
             example:
-                name: Iste perspiciatis.
+                name: Occaecati dolores.
             required:
                 - name
     requestBodies:
@@ -132,7 +132,7 @@ components:
                         example:
                             type: BetaSchemaDedup
                             value:
-                                beta: Et est neque.
+                                beta: Harum quos et aut repellat exercitationem.
                         oneOf:
                             - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
                             - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
@@ -142,9 +142,9 @@ components:
                                 AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
                                 BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
                     example:
-                        type: AlphaSchemaDedup
+                        type: BetaSchemaDedup
                         value:
-                            alpha: Molestiae iure sit.
+                            beta: Dolores animi.
     responses:
         NoContentResponse:
             description: No Content response.

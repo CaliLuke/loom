@@ -41,8 +41,6 @@ paths:
                                         bar:
                                             - string: ""
                                             - string: ""
-                                            - string: ""
-                                            - string: ""
                                         foo: ""
                                 uint32_map:
                                     "": 1
@@ -66,8 +64,6 @@ components:
                     items:
                         $ref: '#/components/schemas/Bar'
                     example:
-                        - string: ""
-                        - string: ""
                         - string: ""
                         - string: ""
                 foo:
@@ -122,8 +118,6 @@ components:
                             bar:
                                 - string: ""
                                 - string: ""
-                                - string: ""
-                                - string: ""
                             foo: ""
                     additionalProperties:
                         $ref: '#/components/schemas/LoomFoobar'
@@ -147,7 +141,6 @@ components:
                 resulttype_map:
                     "":
                         bar:
-                            - string: ""
                             - string: ""
                             - string: ""
                             - string: ""

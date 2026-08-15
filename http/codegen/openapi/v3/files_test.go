@@ -544,6 +544,18 @@ func TestRenderedSpecDeduplicatesGeneratedRequestBodiesAndUnionEnvelopes(t *test
 		t.Fatalf("expected duplicate request body component to be removed, got counts %#v\nspec:\n%s", counts, spec)
 	}
 
+	reusableRequestRefs := regexp.MustCompile(`(?m)^\s+\$ref: '#/components/requestBodies/([^']+RequestBody)'$`).FindAllStringSubmatch(spec, -1)
+	reusableCounts := make(map[string]int)
+	for _, match := range reusableRequestRefs {
+		reusableCounts[match[1]]++
+	}
+	if reusableCounts["DedupServiceUnionFirstRequestBody"] != 2 {
+		t.Fatalf("expected the union request body component to remain reusable, got counts %#v\nspec:\n%s", reusableCounts, spec)
+	}
+	if _, ok := reusableCounts["DedupServiceUnionSecondRequestBody"]; ok {
+		t.Fatalf("expected duplicate union request body component to be removed, got counts %#v\nspec:\n%s", reusableCounts, spec)
+	}
+
 	envelopes := regexp.MustCompile(`(?m)^\s+([A-Za-z0-9]+Envelope):$`).FindAllStringSubmatch(spec, -1)
 	if len(envelopes) != 2 {
 		t.Fatalf("expected exactly 2 deduplicated union envelope components, got %d\nspec:\n%s", len(envelopes), spec)

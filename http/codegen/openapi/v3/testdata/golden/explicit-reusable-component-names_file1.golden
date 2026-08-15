@@ -20,13 +20,7 @@ paths:
                 $ref: '#/components/requestBodies/SearchFiltersRequest'
             responses:
                 "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                type: string
-                                example: Doloribus qui quia.
-                            example: Itaque inventore optio.
+                    $ref: '#/components/responses/ComponentNamesSearchGadgetsStatus200Response'
     /recipes/{widgetID}/search:
         post:
             tags:
@@ -39,13 +33,7 @@ paths:
                 $ref: '#/components/requestBodies/SearchFiltersRequest'
             responses:
                 "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                type: string
-                                example: Quia molestias.
-                            example: Et tempora et quae.
+                    $ref: '#/components/responses/ComponentNamesSearchGadgetsStatus200Response'
 components:
     schemas:
         SearchFilters:
@@ -75,5 +63,14 @@ components:
                         $ref: '#/components/schemas/SearchFilters'
                     example:
                         query: soup
+    responses:
+        ComponentNamesSearchGadgetsStatus200Response:
+            description: OK response.
+            content:
+                application/json:
+                    schema:
+                        type: string
+                        example: Est minima minima illum voluptas vitae.
+                    example: Dolor inventore.
 tags:
     - name: componentNames

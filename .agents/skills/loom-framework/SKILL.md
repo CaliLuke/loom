@@ -111,6 +111,10 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   `v3` package focused on rendering IR-owned decisions.
 - OpenAPI JSON uses Go 1.27 `encoding/json/v2` with deterministic ordering.
   Preserve compact output by default and configured prefix/indent behavior.
+- Seed synthesized examples from stable schema and occurrence identity. Do not
+  consume a shared traversal sequence that lets unrelated design changes
+  perturb output. API-level example omission must retain explicitly authored
+  examples in both JSON and YAML without mutating the evaluated design.
 - Treat stable schema names, canonical `operationId`, reusable component
   identity, and extension output as public framework contracts.
 

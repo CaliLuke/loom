@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"strconv"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
@@ -25,13 +27,19 @@ func analyzeComponentTypes(a *Analyzer, types []expr.UserType, resultTypes []*ex
 		if !mustGenerateType(t.Attribute().Meta) {
 			continue
 		}
-		a.AnalyzeSchema(&expr.AttributeExpr{Type: t})
+		a.AnalyzeSchemaWithContext(
+			&expr.AttributeExpr{Type: t},
+			exampleContext("component-type", t.ID()),
+		)
 	}
 	for _, t := range resultTypes {
 		if !mustGenerateType(t.Attribute().Meta) {
 			continue
 		}
-		a.AnalyzeSchema(&expr.AttributeExpr{Type: t})
+		a.AnalyzeSchemaWithContext(
+			&expr.AttributeExpr{Type: t},
+			exampleContext("component-result-type", t.ID()),
+		)
 	}
 }
 
@@ -66,11 +74,15 @@ func analyzeRequestBody(a *Analyzer, endpoint *transportir.Endpoint) *Schema {
 	if endpoint.Request.DocumentBody != nil {
 		body = endpoint.Request.DocumentBody
 	}
-	req := a.AnalyzeSchema(attributeForSchemaUsage(body, schemaUsageRequest))
+	requestAttr := attributeForSchemaUsage(body, schemaUsageRequest)
+	requestContext := attributeExampleContext(requestAttr, a.closeObjects, "request-schema")
+	req := a.AnalyzeSchemaWithContext(requestAttr, requestContext)
 	if endpoint.Request.StreamingBody == nil {
 		return req
 	}
-	streaming := a.AnalyzeSchema(attributeForSchemaUsage(endpoint.Request.StreamingBody, schemaUsageRequest))
+	streamingAttr := attributeForSchemaUsage(endpoint.Request.StreamingBody, schemaUsageRequest)
+	streamingContext := attributeExampleContext(streamingAttr, a.closeObjects, "streaming-request-schema")
+	streaming := a.AnalyzeSchemaWithContext(streamingAttr, streamingContext)
 	return mergeStreamingBodyNote(req, streaming)
 }
 
@@ -83,7 +95,16 @@ func analyzeResponseBodies(a *Analyzer, endpoint *transportir.Endpoint) map[int]
 				continue
 			}
 			body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
-			responseBodies[resp.StatusCode] = append(responseBodies[resp.StatusCode], a.AnalyzeSchema(body))
+			context := attributeExampleContext(
+				body,
+				a.closeObjects,
+				"response-schema",
+				strconv.Itoa(resp.StatusCode),
+			)
+			responseBodies[resp.StatusCode] = append(
+				responseBodies[resp.StatusCode],
+				a.AnalyzeSchemaWithContext(body, context),
+			)
 		}
 	}
 	appendBodies(endpoint.Response.Responses, true)
@@ -97,8 +118,24 @@ func analyzeSSEProjectionSchema(a *Analyzer, endpoint *transportir.Endpoint) *Sc
 		panic(err)
 	}
 	schema := &Schema{OneOf: make([]*Schema, 0, len(attrs))}
-	for _, attr := range attrs {
-		schema.OneOf = append(schema.OneOf, a.AnalyzeSchema(attributeForSchemaUsage(attr, schemaUsageResponse)))
+	for index, attr := range attrs {
+		context := endpointSchemaExampleContext(endpoint, "sse-projection", strconv.Itoa(index))
+		schema.OneOf = append(
+			schema.OneOf,
+			a.AnalyzeSchemaWithContext(attributeForSchemaUsage(attr, schemaUsageResponse), context),
+		)
 	}
 	return schema
+}
+
+func endpointSchemaExampleContext(endpoint *transportir.Endpoint, parts ...string) string {
+	serviceName := ""
+	methodName := ""
+	if endpoint != nil {
+		methodName = endpoint.Name
+		if endpoint.Service != nil {
+			serviceName = endpoint.Service.Name
+		}
+	}
+	return exampleContext(append([]string{"service", serviceName, "method", methodName}, parts...)...)
 }
