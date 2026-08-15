@@ -1,6 +1,9 @@
 package generator
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/eval"
@@ -8,6 +11,11 @@ import (
 	grpccodegen "github.com/CaliLuke/loom/grpc/codegen"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 	jsonrpccodegen "github.com/CaliLuke/loom/jsonrpc/codegen"
+)
+
+const (
+	httpGenerationAll    = "all"
+	httpGenerationServer = "server"
 )
 
 // Transport iterates through the roots and returns the files needed to render
@@ -35,13 +43,11 @@ func Transport(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		)
 
 		// HTTP
-		httpServices := httpcodegen.NewServicesData(services, r.API.HTTP)
-		rootFiles = append(rootFiles, httpcodegen.ServerFiles(genpkg, httpServices)...)
-		rootFiles = append(rootFiles, httpcodegen.ClientFiles(genpkg, httpServices)...)
-		rootFiles = append(rootFiles, httpcodegen.ServerTypeFiles(genpkg, httpServices)...)
-		rootFiles = append(rootFiles, httpcodegen.ClientTypeFiles(genpkg, httpServices)...)
-		rootFiles = append(rootFiles, httpcodegen.PathFiles(httpServices)...)
-		rootFiles = append(rootFiles, httpcodegen.ClientCLIFiles(genpkg, httpServices)...)
+		httpFiles, err := httpTransportFiles(genpkg, r, services)
+		if err != nil {
+			return nil, err
+		}
+		rootFiles = append(rootFiles, httpFiles...)
 
 		// GRPC
 		grpcServices := grpccodegen.NewServicesData(services)
@@ -67,4 +73,52 @@ func Transport(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		files = append(files, rootFiles...)
 	}
 	return files, nil
+}
+
+func httpTransportFiles(genpkg string, root *expr.RootExpr, services *service.ServicesData) ([]*codegen.File, error) {
+	mode, err := httpGenerationMode(root.API.Meta)
+	if err != nil {
+		return nil, err
+	}
+	httpServices := httpcodegen.NewServicesData(services, root.API.HTTP)
+	serverFiles := httpcodegen.ServerFiles(genpkg, httpServices)
+	files := append([]*codegen.File(nil), serverFiles...)
+	if mode == httpGenerationAll {
+		files = append(files, httpcodegen.ClientFiles(genpkg, httpServices)...)
+	}
+	files = append(files, httpcodegen.ServerTypeFiles(genpkg, httpServices)...)
+	if mode == httpGenerationAll {
+		files = append(files, httpcodegen.ClientTypeFiles(genpkg, httpServices)...)
+		files = append(files, httpcodegen.PathFiles(httpServices)...)
+		files = append(files, httpcodegen.ClientCLIFiles(genpkg, httpServices)...)
+		return files, nil
+	}
+	files = append(files, httpcodegen.ServerPathFiles(httpServices)...)
+	if len(serverFiles) > 0 {
+		serverFiles[0].RemovePaths = append(serverFiles[0].RemovePaths, staleHTTPClientPaths(httpServices)...)
+	}
+	return files, nil
+}
+
+func httpGenerationMode(meta expr.MetaExpr) (string, error) {
+	mode, ok := meta.Last("http:generate")
+	if !ok {
+		return httpGenerationAll, nil
+	}
+	switch mode {
+	case httpGenerationAll, httpGenerationServer:
+		return mode, nil
+	default:
+		return "", fmt.Errorf("HTTP generation mode %q must be one of all or server", mode)
+	}
+}
+
+func staleHTTPClientPaths(services *httpcodegen.ServicesData) []string {
+	paths := make([]string, 0, 1+len(services.Expressions.Services))
+	paths = append(paths, filepath.Join(codegen.Gendir, "http", "cli"))
+	for _, service := range services.Expressions.Services {
+		serviceData := services.Get(service.Name())
+		paths = append(paths, filepath.Join(codegen.Gendir, "http", serviceData.Service.PathName, "client"))
+	}
+	return paths
 }

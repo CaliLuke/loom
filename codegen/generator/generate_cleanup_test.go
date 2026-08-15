@@ -46,6 +46,49 @@ func TestGenerateRemovesPathsAfterAllWrites(t *testing.T) {
 	}
 }
 
+func TestGenerateRemovesDirectoriesAfterAllWrites(t *testing.T) {
+	t.Cleanup(func() {
+		generatorLoader = generators
+	})
+	serverPath := filepath.Join(codegen.Gendir, "http", "widgets", "server", "server.go")
+	clientDir := filepath.Join(codegen.Gendir, "http", "widgets", "client")
+	clientPath := filepath.Join(clientDir, "client.go")
+	clientTypesPath := filepath.Join(clientDir, "types.go")
+	generatorLoader = func(string) ([]genfunc, error) {
+		return []genfunc{
+			func(string, []eval.Root) ([]*codegen.File, error) {
+				return []*codegen.File{
+					{
+						Path:        serverPath,
+						Sections:    []codegen.Section{codegen.NewRawSection("server", "package server\n")},
+						RemovePaths: []string{clientDir},
+					},
+					{
+						Path:     clientPath,
+						Sections: []codegen.Section{codegen.NewRawSection("client", "package client\n")},
+					},
+					{
+						Path:     clientTypesPath,
+						Sections: []codegen.Section{codegen.NewRawSection("types", "package client\n")},
+					},
+				}, nil
+			},
+		}, nil
+	}
+
+	dir := t.TempDir()
+	outputs, err := Generate(dir, "example", false)
+
+	require.NoError(t, err)
+	require.FileExists(t, filepath.Join(dir, serverPath))
+	require.NoDirExists(t, filepath.Join(dir, clientDir))
+	for _, output := range outputs {
+		absolute := absoluteOutputPath(t, output)
+		require.NotEqual(t, filepath.Join(dir, clientPath), absolute)
+		require.NotEqual(t, filepath.Join(dir, clientTypesPath), absolute)
+	}
+}
+
 func TestGenerateSkipsPathRemovalWhenAWriteFails(t *testing.T) {
 	t.Cleanup(func() {
 		generatorLoader = generators

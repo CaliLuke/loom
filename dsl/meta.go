@@ -183,6 +183,14 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("protoc:include", "/usr/local/include/google/protobuf")
 //	})
 //
+// - "http:generate" selects the generated HTTP transport artifacts. The value
+// "server" emits server packages without per-service clients or the aggregate
+// HTTP CLI. The value "all" is the default. Applicable to API only.
+//
+//	var _ = API("MyAPI", func() {
+//	    Meta("http:generate", "server")
+//	})
+//
 // - "openapi:generate" specifies whether OpenAPI specification should be
 // generated. Defaults to true. Applicable to Server, Host, services, methods,
 // file servers and attributes.

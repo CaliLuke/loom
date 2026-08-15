@@ -340,14 +340,32 @@ func removeGeneratedPaths(dir string, paths []string, written map[string]struct{
 			return fmt.Errorf("inspect generated removal path %s: %w", target, err)
 		}
 		if info.IsDir() {
-			return fmt.Errorf("generated removal path %s is a directory", target)
+			err = root.RemoveAll(path)
+		} else {
+			err = root.Remove(path)
 		}
-		if err := root.Remove(path); err != nil {
+		if err != nil {
 			return fmt.Errorf("remove generated file %s: %w", target, err)
 		}
-		delete(written, target)
+		removeWrittenPaths(written, target, info.IsDir())
 	}
 	return nil
+}
+
+func removeWrittenPaths(written map[string]struct{}, target string, recursive bool) {
+	for path := range written {
+		if path == target {
+			delete(written, path)
+			continue
+		}
+		if !recursive {
+			continue
+		}
+		relative, err := filepath.Rel(target, path)
+		if err == nil && filepath.IsLocal(relative) && relative != "." {
+			delete(written, path)
+		}
+	}
 }
 
 func generatedRemovalPath(base, path string) (string, error) {

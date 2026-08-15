@@ -589,6 +589,22 @@ func main() {
 
 ## Customization
 
+### HTTP Artifact Selection
+
+Loom generates HTTP servers, per-service clients, and the aggregate client CLI
+by default. A service that only hosts an HTTP API can generate server packages
+without unused client artifacts:
+
+```go
+var _ = API("MyAPI", func() {
+    Meta("http:generate", "server")
+})
+```
+
+The `server` mode keeps generated service packages, HTTP server packages, and
+OpenAPI output. It omits `gen/http/<service>/client/` and `gen/http/cli/` and
+removes those directories when a project switches from the default `all` mode.
+
 ### Type Generation Control
 
 Force generation of types not directly referenced by methods:

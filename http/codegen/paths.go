@@ -18,6 +18,15 @@ func PathFiles(data *ServicesData) []*codegen.File {
 	return fw
 }
 
+// ServerPathFiles returns the service path files used by HTTP servers.
+func ServerPathFiles(data *ServicesData) []*codegen.File {
+	files := make([]*codegen.File, len(data.Expressions.Services))
+	for i, service := range data.Expressions.Services {
+		files[i] = serverPath(service, data)
+	}
+	return files
+}
+
 // serverPath returns the server file containing the request path constructors
 // for the given service.
 func serverPath(svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {

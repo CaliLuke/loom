@@ -86,6 +86,10 @@ consumer validation.
   that genuinely benefits from templates.
 - Never edit checked-in generated fixtures manually. Regenerate them through
   the same Loom path consumers use.
+- HTTP transport generation defaults to all artifacts. API metadata
+  `Meta("http:generate", "server")` omits client, client-type, client-path, and
+  aggregate CLI files while retaining service and server packages. Stale client
+  directories are removed only in the safe generator post-write phase.
 
 ## OpenAPI Version Architecture
 

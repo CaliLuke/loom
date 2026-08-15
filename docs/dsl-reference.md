@@ -1216,6 +1216,13 @@ Method("create", func() {
 
 The HTTP DSL defines how service methods map to HTTP endpoints.
 
+Loom generates HTTP servers, per-service clients, and the aggregate client CLI
+by default. Set `Meta("http:generate", "server")` at API scope for a
+server-only application. This keeps `gen/http/<service>/server/`, generated
+service packages, and OpenAPI output while omitting
+`gen/http/<service>/client/` and `gen/http/cli/`. Switching from the default
+`all` mode removes those stale client directories during successful generation.
+
 ### HTTP Request Components
 
 An HTTP request has four parts that can be mapped to payload attributes:

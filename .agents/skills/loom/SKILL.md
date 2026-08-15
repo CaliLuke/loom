@@ -33,6 +33,11 @@ Use Go import paths, not filesystem paths:
 loom gen example.com/myapi/design
 ```
 
+HTTP generation includes servers, per-service clients, and the aggregate
+client CLI by default. For an HTTP server-only application, set API metadata
+`Meta("http:generate", "server")`. Loom keeps generated service and HTTP server
+packages and removes stale `gen/http/*/client/` and `gen/http/cli/` directories.
+
 ## Design Rules
 
 - Prefer concrete types over `Any`, especially when gRPC generation matters.
