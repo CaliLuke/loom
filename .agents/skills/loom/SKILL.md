@@ -116,6 +116,11 @@ For TypeScript clients, use the endorsed `@hey-api/openapi-ts` workflow in
 `docs/typescript-clients.md`. Use the 3.1 compatibility target, pin the external
 generator, and keep its entire output directory generator-owned.
 
+For published OpenAPI compatibility, use the endorsed oasdiff workflow in
+`docs/openapi-evolution.md`. Regenerate before comparison, block `ERR`, review
+`WARN`, and keep policy files consumer-owned. Use the 3.1 compatibility target
+until the project audits the required oasdiff 3.2 coverage.
+
 OpenAPI 3.2 capabilities available from the DSL include:
 
 - tag summaries, hierarchy, and kind

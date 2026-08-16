@@ -153,3 +153,7 @@ Choose one ownership policy:
 - Commit neither and generate both deterministically before build and test.
 
 Do not check only the OpenAPI file while ignoring generated TypeScript drift.
+
+Add the [oasdiff workflow](openapi-evolution.md) when the OpenAPI contract is a
+published compatibility boundary. That gate complements generated TypeScript
+drift checks; it does not replace them.

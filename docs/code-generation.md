@@ -274,6 +274,11 @@ For browser and TypeScript consumers, use the endorsed
 compatibility target, generated SDK and validation artifacts, session cookies,
 and drift checks.
 
+For published API compatibility, use the endorsed
+[oasdiff workflow](openapi-evolution.md). It regenerates the contract, detects
+stale committed output, reports a Markdown changelog, and blocks breaking
+changes.
+
 ---
 
 ## Generation Process

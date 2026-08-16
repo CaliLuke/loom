@@ -1,0 +1,62 @@
+name: OpenAPI compatibility
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DESIGN_PACKAGE: example.com/myservice/design
+  OPENAPI_SPEC: gen/http/openapi.json
+
+jobs:
+  oasdiff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the revision
+        uses: actions/checkout@v7
+
+      - name: Fetch the base branch
+        run: git fetch --depth=1 origin "${{ github.base_ref }}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Regenerate the Loom contract
+        run: go tool loom gen "$DESIGN_PACKAGE"
+
+      - name: Fail on stale generated contracts
+        shell: bash
+        run: |
+          changes="$(git status --porcelain --untracked-files=all -- \
+            gen/http/openapi.json gen/http/openapi.yaml)"
+          if test -n "$changes"; then
+            printf '%s\n' "$changes"
+            exit 1
+          fi
+
+      - name: Create the review changelog
+        uses: oasdiff/oasdiff-action/changelog@2649ebe137aeb72a95707671204e829f86e091fc # v0.1.13
+        with:
+          base: origin/${{ github.base_ref }}:${{ env.OPENAPI_SPEC }}
+          revision: ${{ env.OPENAPI_SPEC }}
+          format: markdown
+          output-to-file: oasdiff-changelog.md
+          allow-external-refs: false
+          review: false
+
+      - name: Add the changelog to the job summary
+        if: ${{ hashFiles('oasdiff-changelog.md') != '' }}
+        run: cat oasdiff-changelog.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Block breaking changes
+        uses: oasdiff/oasdiff-action/breaking@2649ebe137aeb72a95707671204e829f86e091fc # v0.1.13
+        with:
+          base: origin/${{ github.base_ref }}:${{ env.OPENAPI_SPEC }}
+          revision: ${{ env.OPENAPI_SPEC }}
+          fail-on: ERR
+          allow-external-refs: false
+          review: false

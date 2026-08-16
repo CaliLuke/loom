@@ -160,6 +160,9 @@ filter, and serialization rules belong here.
 - For a newly supported import construct, cover analysis, rendered source, DSL
   evaluation, and regenerated contract shape. Keep unsupported variants as
   source-specific diagnostics.
+- Keep OpenAPI evolution policy outside Loom's module graph. Consumers own
+  oasdiff versions, severity overrides, and ignores. Loom documentation can
+  provide a pinned external workflow.
 
 ## Transport Invariants
 
