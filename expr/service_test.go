@@ -203,6 +203,9 @@ attribute: error name "a" must be a string in type "Error"
 attribute: error name "a" must be required in type "Error"
 attribute: type "ErrorType" is used to define multiple errors. Mark the attribute containing the error name with ErrorName and add it to Required`,
 		},
+		{"invalid-empty-error-type", testdata.InvalidEmptyErrorTypeDSL,
+			`attribute: error type "bodyless" must not be Empty. Omit the type and map Body(Empty) on a bodyless HTTP response`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {

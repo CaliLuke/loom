@@ -55,6 +55,14 @@ var InvalidStructErrorNameDSL = func() {
 	})
 }
 
+var InvalidEmptyErrorTypeDSL = func() {
+	Service("InvalidEmptyErrorType", func() {
+		Method("Method", func() {
+			Error("bodyless", Empty)
+		})
+	})
+}
+
 var ServiceErrorDSL = func() {
 	var ServiceError = Type("ServiceError", func() {
 		ErrorName("a")

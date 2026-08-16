@@ -57,8 +57,11 @@ const (
 // Error describes a method error return value. The description includes a
 // unique name (in the scope of the method), an optional type, description and
 // DSL that further describes the type. If no type is specified then the
-// built-in RFC 9457 problem-document result type is used. The DSL syntax is identical to the
-// Attribute DSL.
+// built-in RFC 9457 problem-document result type is used. The DSL syntax is
+// identical to the Attribute DSL.
+//
+// Do not use Empty as the error type. For a bodyless HTTP error, omit the type
+// and use Body(Empty) in the matching HTTP Response expression.
 //
 // Error must appear in the Service (to define error responses that apply to all
 // the service methods) or Method expressions. Error may also appear under the API

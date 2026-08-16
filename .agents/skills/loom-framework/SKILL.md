@@ -132,6 +132,12 @@ filter, and serialization rules belong here.
 
 ## OpenAPI Importer Invariants
 
+- A strict import must render and evaluate. Forward generation must complete,
+  and the generated Go code must compile. The generated OpenAPI contract must
+  preserve the accepted source semantics.
+- Add each accepted response shape to an import-to-generation contract test.
+  Bodyless errors use a concrete error type and an explicit HTTP `Body(Empty)`
+  mapping. Never render `Error(name, Empty)`.
 - Retain supported source values in the normalized import model before
   rendering. A diagnostic-only path cannot recover discarded values later.
 - Scope diagnostics by their JSON Pointer and owning layer, not by diagnostic

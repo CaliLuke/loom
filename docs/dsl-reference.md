@@ -686,6 +686,19 @@ var _ = Service("billing", func() {
 })
 ```
 
+An error must have a concrete error type. Do not use `Error("name", Empty)`.
+For a bodyless HTTP error, omit the type and use `Body(Empty)` in its response:
+
+```go
+Error("payload_too_large")
+
+HTTP(func() {
+    Response("payload_too_large", StatusRequestEntityTooLarge, func() {
+        Body(Empty)
+    })
+})
+```
+
 ---
 
 ## Services and Methods
