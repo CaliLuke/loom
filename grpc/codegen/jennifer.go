@@ -178,7 +178,7 @@ func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 			}
 			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Add(codegenpkg.TypeRef("loomgrpc."+handlerType)))
 		}
-		fields = append(fields, jen.Qual(data.PkgName, "Unimplemented"+data.ServerInterface))
+		fields = append(fields, codegenpkg.TypeRef(data.PkgName+".Unimplemented"+data.ServerInterface))
 		stmt.Type().Id(data.ServerStruct).Struct(fields...)
 	})
 }

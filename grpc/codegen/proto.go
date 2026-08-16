@@ -52,7 +52,7 @@ func protoFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData)
 		// proto syntax and package
 		codegen.NewTextTemplateSection("proto-start", grpcTemplates.Read(grpcProtoStartT), nil, map[string]any{
 			"ProtoVersion": ProtoVersion,
-			"Pkg":          pkgName(svc, svcName),
+			"Pkg":          data.ProtoPkg,
 			"Imports":      data.ProtoImports,
 		}),
 		// service definition

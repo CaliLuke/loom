@@ -233,7 +233,7 @@ A scaffolding command:
 loom test-scaffold <design-package-import-path> [-o <output-dir>] [--debug]
 ```
 
-This command creates consumer-owned HTTP response contract tests under
+This command creates consumer-owned HTTP and gRPC response contract tests under
 `internal/contracttest/`. Existing scaffold files are never overwritten. The
 generated test enumerates the current server manifest and fails once for every
 declared response that lacks an application callback, so later `loom gen`
@@ -257,6 +257,14 @@ ordinary HTTP response cases.
 Loom supports non-streaming multipart contracts for flat object bodies with
 primitive or bytes fields. Other multipart shapes produce a generation
 diagnostic. Multipart SSE and WebSocket endpoints also produce a diagnostic.
+
+The gRPC scaffold publishes one stable case for each success or declared error.
+Cases include the status code, protobuf success message or typed status detail,
+and required header and trailer metadata. A callback receives the case and
+returns a `loomgrpc.ResponseContractObservation` from a real generated client
+call. Unary and server-streaming endpoints are supported. Server streams must
+finish with clean EOF. Client-streaming and bidirectional endpoints produce a
+generation diagnostic until their completion lifecycle is supported.
 
 #### Show Version
 

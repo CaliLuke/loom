@@ -184,6 +184,11 @@ filter, and serialization rules belong here.
 - WebSocket cases own the `101` handshake headers, stream direction, inbound
   and outbound message types, and terminal behavior. Declared pre-upgrade
   errors stay unary HTTP cases with the same stable case IDs.
+- gRPC response-contract cases own status codes, protobuf success messages,
+  typed status details, and required header and trailer metadata. Unary and
+  server-streaming cases are supported. A successful server stream terminates
+  with clean EOF. Client-streaming and bidirectional completion contracts stay
+  explicit generation limitations.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.
