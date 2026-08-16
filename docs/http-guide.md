@@ -540,7 +540,8 @@ The current response-contract scaffold support matrix is:
 | Transport shape | Scaffold status |
 |---|---|
 | Unary HTTP, including declared file-response success and error cases | Supported |
-| Multipart requests with flat primitive or bytes object fields | Supported |
+| Non-streaming multipart requests with flat primitive or bytes object fields | Supported |
+| Multipart requests combined with SSE | Unsupported; generation emits a diagnostic |
 | Other multipart request shapes | Unsupported; generation emits a diagnostic |
 | Server SSE success and pre-stream declared errors | Supported |
 | Mixed unary/SSE results | Unsupported; generation emits a diagnostic |

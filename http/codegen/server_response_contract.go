@@ -97,10 +97,10 @@ func responseContractCaseFields(contractCase *ResponseContractCaseData) []jen.Co
 		fields = append(fields, jen.Id("RequiredCookies").Op(":").Index().String().Values(quotedValues(contractCase.RequiredCookies)...))
 	}
 	if contractCase.Multipart != nil {
-		fields = append(fields, jen.Id("Multipart").Op(":").Op("&").Add(codegen.Expr("loomhttp.MultipartRequestContract")).Values(
+		fields = append(fields, jen.Id("Multipart").Op(":").Op("&").Add(codegen.TypeRef("loomhttp.MultipartRequestContract")).Values(
 			jen.Dict{
 				jen.Id("ContentType"): jen.Lit(contractCase.Multipart.ContentType),
-				jen.Id("Parts"): jen.Index().Add(codegen.Expr("loomhttp.MultipartPartContract")).ValuesFunc(func(group *jen.Group) {
+				jen.Id("Parts"): jen.Index().Add(codegen.TypeRef("loomhttp.MultipartPartContract")).ValuesFunc(func(group *jen.Group) {
 					for _, part := range contractCase.Multipart.Parts {
 						group.Values(jen.Dict{
 							jen.Id("Name"):      jen.Lit(part.Name),

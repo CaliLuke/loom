@@ -263,7 +263,11 @@ func responseContractLimitations(endpoint *Endpoint) []ResponseContractLimitatio
 		})
 	}
 	if endpoint.Request != nil && endpoint.Request.Multipart {
-		if _, limitation := responseContractMultipartRequest(endpoint.Request); limitation != nil {
+		if endpoint.Stream != nil && endpoint.Stream.IsSSE {
+			limitations = append(limitations, *unsupportedMultipartContract(
+				"multipart response contracts do not support SSE endpoints",
+			))
+		} else if _, limitation := responseContractMultipartRequest(endpoint.Request); limitation != nil {
 			limitations = append(limitations, *limitation)
 		}
 	}

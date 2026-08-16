@@ -199,6 +199,19 @@ func TestAnalyzeResponseContractCasesSupportsMultipart(t *testing.T) {
 	require.Equal(t, want, analysis.Cases[1].Multipart)
 }
 
+func TestAnalyzeResponseContractCasesRejectsMultipartSSECombination(t *testing.T) {
+	root := testcodegen.RunDSL(t, responseContractMultipartSSEDSL)
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	require.False(t, analysis.Supported())
+	require.Empty(t, analysis.Cases)
+	require.Equal(t, []transportir.ResponseContractLimitation{{
+		Code:   transportir.ResponseContractMultipart,
+		Detail: "multipart response contracts do not support SSE endpoints",
+	}}, analysis.Limitations)
+}
+
 func TestAnalyzeResponseContractCasesSupportsSSE(t *testing.T) {
 	root := testcodegen.RunDSL(t, responseContractSSEDSL)
 	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
@@ -325,6 +338,23 @@ func responseContractMultipartDSL() {
 				dsl.MultipartRequest()
 				dsl.Response(expr.StatusAccepted)
 				dsl.Response("bad_request", expr.StatusBadRequest)
+			})
+		})
+	})
+}
+
+func responseContractMultipartSSEDSL() {
+	dsl.Service("imports", func() {
+		dsl.Method("watch", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("file", dsl.Bytes)
+				dsl.Required("file")
+			})
+			dsl.StreamingResult(dsl.String)
+			dsl.HTTP(func() {
+				dsl.POST("/imports/watch")
+				dsl.MultipartRequest()
+				dsl.ServerSentEvents()
 			})
 		})
 	})

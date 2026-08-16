@@ -168,7 +168,8 @@ filter, and serialization rules belong here.
 
 - Response-contract manifests classify unary HTTP, supported multipart, and SSE
   success cases explicitly. Multipart cases expose flat primitive and bytes
-  parts from prepared transport data. Applications own codecs and fixtures.
+  parts from prepared transport data. Multipart SSE combinations remain an
+  explicit limitation. Applications own codecs and fixtures.
   SSE cases own handshake, message, field-mapping, projection event type, and
   terminal-completion metadata. Declared pre-stream errors stay unary HTTP cases
   with the same stable case IDs.

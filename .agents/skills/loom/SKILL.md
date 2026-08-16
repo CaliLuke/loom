@@ -181,7 +181,7 @@ Do not duplicate these contracts in handwritten transport code.
 
 Generated HTTP server packages expose per-method response contract functions
 and a service-wide `ResponseContractCases()` manifest. Loom supports unary,
-flat multipart, and server SSE endpoints. After `loom gen`, run
+non-streaming flat multipart, and server SSE endpoints. After `loom gen`, run
 `loom test-scaffold <design-package>` once to create non-overwriting provider
 tests under `internal/contracttest/`. Fill each callback with a real
 generated-transport request. Unary callbacks return the response. Multipart

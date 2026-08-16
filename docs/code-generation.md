@@ -249,8 +249,9 @@ event data encoding, required ID and event-type fields, projection event types,
 and clean stream completion. Declared errors that occur before the first SSE
 frame remain ordinary HTTP response cases.
 
-Loom supports multipart contracts for flat object bodies with primitive or
-bytes fields. Other multipart shapes produce an explicit generation diagnostic.
+Loom supports non-streaming multipart contracts for flat object bodies with
+primitive or bytes fields. Other multipart shapes and multipart SSE endpoints
+produce an explicit generation diagnostic.
 
 #### Show Version
 
