@@ -5,7 +5,7 @@ go 1.27rc2
 require (
 	github.com/alecthomas/kong v1.16.1
 	github.com/alicebob/miniredis/v2 v2.38.0
-	github.com/aws/smithy-go v1.27.7
+	github.com/aws/smithy-go v1.27.8
 	github.com/dave/jennifer v1.7.1
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598
 	github.com/felixge/httpsnoop v1.1.0
@@ -16,7 +16,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/pb33f/libopenapi v0.38.7
 	github.com/redis/go-redis/v9 v9.22.0
-	github.com/sirupsen/logrus v1.9.4
+	github.com/sirupsen/logrus v1.10.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tmaxmax/go-sse v0.11.0
 	go.opentelemetry.io/contrib/bridges/otellogrus v0.20.0
@@ -33,11 +33,11 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.45.0
 	go.opentelemetry.io/otel/trace v1.45.0
 	go.yaml.in/yaml/v4 v4.0.0-rc.6
-	golang.org/x/mod v0.39.0
-	golang.org/x/net v0.57.0
+	golang.org/x/mod v0.40.0
+	golang.org/x/net v0.58.0
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.41.0
-	golang.org/x/tools v0.48.0
+	golang.org/x/tools v0.49.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260810153831-ec0a7760b754
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.12
