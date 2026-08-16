@@ -14,7 +14,7 @@ const (
 	// Build number
 	Build = 0
 	// Suffix is the semantic version prerelease identifier, or empty for a stable release.
-	Suffix = "alpha.9"
+	Suffix = "alpha.10"
 )
 
 var (
