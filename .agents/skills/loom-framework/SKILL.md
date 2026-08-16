@@ -163,10 +163,12 @@ filter, and serialization rules belong here.
 
 ## Transport Invariants
 
-- Response-contract manifests classify unary HTTP and SSE success cases
-  explicitly. SSE cases own handshake, message, field-mapping, projection event
-  type, and terminal-completion metadata; declared pre-stream errors stay unary
-  HTTP cases with the same stable case IDs.
+- Response-contract manifests classify unary HTTP, supported multipart, and SSE
+  success cases explicitly. Multipart cases expose flat primitive and bytes
+  parts from prepared transport data. Applications own codecs and fixtures.
+  SSE cases own handshake, message, field-mapping, projection event type, and
+  terminal-completion metadata. Declared pre-stream errors stay unary HTTP cases
+  with the same stable case IDs.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.

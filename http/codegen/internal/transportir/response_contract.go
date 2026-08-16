@@ -64,8 +64,29 @@ type (
 		Headers []ResponseContractHeader
 		// Cookies lists the declared response cookie assertions.
 		Cookies []ResponseContractCookie
+		// Multipart describes the designed multipart request, if present.
+		Multipart *ResponseContractMultipartRequest
 		// SSE describes stream assertions for an SSE success case.
 		SSE *ResponseContractSSE
+	}
+
+	// ResponseContractMultipartRequest describes a multipart request shape that
+	// can be represented without an application-owned codec.
+	ResponseContractMultipartRequest struct {
+		// ContentType is the request media type.
+		ContentType string
+		// Parts lists the designed multipart fields in body order.
+		Parts []ResponseContractMultipartPart
+	}
+
+	// ResponseContractMultipartPart describes one designed multipart field.
+	ResponseContractMultipartPart struct {
+		// Name is the multipart form field name.
+		Name string
+		// MediaType is the default media type for the part value.
+		MediaType string
+		// Required reports whether the request body requires the part.
+		Required bool
 	}
 
 	// ResponseContractSSE describes a generated Server-Sent Events contract.
@@ -175,9 +196,11 @@ func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis 
 
 	serviceName := endpoint.Service.Name
 	methodName := endpoint.MethodName
+	multipart, _ := responseContractMultipartRequest(endpoint.Request)
 	analysis.Cases = make([]*ResponseContractCase, 0, len(endpoint.Response.Responses)+len(endpoint.Response.ErrorResponses))
 	for _, response := range endpoint.Response.Responses {
 		contractCase := newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response)
+		contractCase.Multipart = multipart
 		if endpoint.Stream != nil && endpoint.Stream.IsSSE {
 			contractCase.Transport = ResponseContractSSETransport
 			contractCase.SSE = newResponseContractSSE(endpoint.Stream)
@@ -185,7 +208,9 @@ func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis 
 		analysis.Cases = append(analysis.Cases, contractCase)
 	}
 	for _, response := range endpoint.Response.ErrorResponses {
-		analysis.Cases = append(analysis.Cases, newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response))
+		contractCase := newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response)
+		contractCase.Multipart = multipart
+		analysis.Cases = append(analysis.Cases, contractCase)
 	}
 
 	seen := make(map[string]struct{}, len(analysis.Cases))
@@ -238,10 +263,9 @@ func responseContractLimitations(endpoint *Endpoint) []ResponseContractLimitatio
 		})
 	}
 	if endpoint.Request != nil && endpoint.Request.Multipart {
-		limitations = append(limitations, ResponseContractLimitation{
-			Code:   ResponseContractMultipart,
-			Detail: "multipart requests may require application-owned codecs and fixtures",
-		})
+		if _, limitation := responseContractMultipartRequest(endpoint.Request); limitation != nil {
+			limitations = append(limitations, *limitation)
+		}
 	}
 	if endpoint.Request != nil && endpoint.Request.SkipBodyEncode {
 		limitations = append(limitations, ResponseContractLimitation{
@@ -261,6 +285,62 @@ func responseContractLimitations(endpoint *Endpoint) []ResponseContractLimitatio
 		})
 	}
 	return limitations
+}
+
+func responseContractMultipartRequest(request *Request) (*ResponseContractMultipartRequest, *ResponseContractLimitation) {
+	if request == nil || !request.Multipart {
+		return nil, nil
+	}
+	if request.Body == nil {
+		return nil, unsupportedMultipartContract("multipart response contracts require a request body")
+	}
+	object := expr.AsObject(request.Body.Type)
+	if object == nil || len(*object) == 0 {
+		return nil, unsupportedMultipartContract("multipart response contracts require a non-empty object request body")
+	}
+
+	contract := &ResponseContractMultipartRequest{
+		ContentType: "multipart/form-data",
+		Parts:       make([]ResponseContractMultipartPart, 0, len(*object)),
+	}
+	seen := make(map[string]struct{}, len(*object))
+	for _, namedAttribute := range *object {
+		if namedAttribute == nil || namedAttribute.Attribute == nil {
+			return nil, unsupportedMultipartContract("multipart response contracts require named request parts")
+		}
+		name := strings.SplitN(namedAttribute.Name, ":", 2)[0]
+		if strings.TrimSpace(name) == "" {
+			return nil, unsupportedMultipartContract("multipart response contracts require non-empty part names")
+		}
+		if _, ok := seen[name]; ok {
+			return nil, unsupportedMultipartContract(fmt.Sprintf("multipart part name %q is not unique", name))
+		}
+		seen[name] = struct{}{}
+
+		if !expr.IsPrimitive(namedAttribute.Attribute.Type) || namedAttribute.Attribute.Type.Kind() == expr.AnyKind {
+			return nil, unsupportedMultipartContract(fmt.Sprintf(
+				"multipart part %q does not have a primitive or bytes shape",
+				name,
+			))
+		}
+		mediaType := "text/plain"
+		if namedAttribute.Attribute.Type.Kind() == expr.BytesKind {
+			mediaType = "application/octet-stream"
+		}
+		contract.Parts = append(contract.Parts, ResponseContractMultipartPart{
+			Name:      name,
+			MediaType: mediaType,
+			Required:  request.Body.IsRequired(namedAttribute.Name),
+		})
+	}
+	return contract, nil
+}
+
+func unsupportedMultipartContract(detail string) *ResponseContractLimitation {
+	return &ResponseContractLimitation{
+		Code:   ResponseContractMultipart,
+		Detail: detail,
+	}
 }
 
 func responseContractStreamingLimitations(stream *Stream) []ResponseContractLimitation {

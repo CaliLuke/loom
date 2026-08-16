@@ -175,16 +175,18 @@ Loom's default HTTP errors are RFC 9457-style
 Do not duplicate these contracts in handwritten transport code.
 
 Generated HTTP server packages expose per-method response contract functions
-and a service-wide `ResponseContractCases()` manifest for supported unary and
-server SSE endpoints. After `loom gen`, run
+and a service-wide `ResponseContractCases()` manifest. Loom supports unary,
+flat multipart, and server SSE endpoints. After `loom gen`, run
 `loom test-scaffold <design-package>` once to create non-overwriting provider
 tests under `internal/contracttest/`. Fill each callback with a real
-generated-transport request. Unary callbacks return the response. SSE callbacks
-return an `loomhttp.SSEResponseContractObservation` containing the handshake,
-parsed events, and terminal error; declared pre-stream errors remain unary
-cases. Missing callbacks fail individually, and the matching Loom validator
-checks implemented callbacks. The application remains responsible for
-payloads, fakes, and state that make every declared response reachable.
+generated-transport request. Unary callbacks return the response. Multipart
+callbacks receive the designed content type, parts, media types, and
+requiredness. The application owns its multipart codecs and fixtures. SSE
+callbacks return an `loomhttp.SSEResponseContractObservation` containing the
+handshake, parsed events, and terminal error. Declared pre-stream errors remain
+unary cases. Missing callbacks fail individually. The matching Loom validator
+checks implemented callbacks. The application remains responsible for payloads,
+fakes, and state that make every declared response reachable.
 
 ## JSON Presence and Nullability
 

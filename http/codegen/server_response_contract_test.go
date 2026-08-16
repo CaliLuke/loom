@@ -52,6 +52,26 @@ func TestServerResponseContractCasesOmitUnsupportedEndpoints(t *testing.T) {
 	}
 }
 
+func TestServerResponseContractCasesIncludeMultipartRequest(t *testing.T) {
+	root := RunHTTPDSL(t, responseContractMultipartServerDSL)
+	services := CreateHTTPServices(root)
+	file := findFileWithSuffix(t, ServerFiles("gen", services), filepath.Join("server", "server.go"))
+	sections := file.Section("server-response-contract")
+	require.Len(t, sections, 1)
+
+	generated := codegen.SectionCode(t, sections[0])
+	require.Contains(t, generated, `ID: "imports.create.success.202"`)
+	require.Contains(t, generated, `RequiredHeaders: []string{"X-Import-Id"}`)
+	require.Contains(t, generated, "Multipart: &loomhttp.MultipartRequestContract{")
+	require.Contains(t, generated, `ContentType: "multipart/form-data"`)
+	require.Contains(t, generated, `MediaType: "application/octet-stream"`)
+	require.Contains(t, generated, `Name:      "file"`)
+	require.Contains(t, generated, `MediaType: "text/plain"`)
+	require.Contains(t, generated, `Name:      "label"`)
+	require.Contains(t, generated, `ID: "imports.create.error.bad_request.400"`)
+	require.Contains(t, generated, `ErrorName: "bad_request"`)
+}
+
 func TestServerResponseContractCasesCompile(t *testing.T) {
 	const modulePath = "example.com/responsecontractcompile"
 	root := RunHTTPDSL(t, responseContractServerDSL)
@@ -112,6 +132,33 @@ func responseContractServerDSL() {
 				Response("not_found", StatusNotFound, func() {
 					Header("reason:X-Reason")
 				})
+			})
+		})
+	})
+}
+
+func responseContractMultipartServerDSL() {
+	Service("imports", func() {
+		Method("create", func() {
+			Payload(func() {
+				Attribute("file", Bytes)
+				Attribute("label", String)
+				Required("file", "label")
+			})
+			Result(func() {
+				Attribute("receipt", String)
+				Attribute("import_id", String)
+				Required("receipt", "import_id")
+			})
+			Error("bad_request")
+			HTTP(func() {
+				POST("/imports")
+				MultipartRequest()
+				Response(StatusAccepted, func() {
+					Body("receipt")
+					Header("import_id:X-Import-Id")
+				})
+				Response("bad_request", StatusBadRequest)
 			})
 		})
 	})

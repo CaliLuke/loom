@@ -96,6 +96,22 @@ func responseContractCaseFields(contractCase *ResponseContractCaseData) []jen.Co
 	if len(contractCase.RequiredCookies) > 0 {
 		fields = append(fields, jen.Id("RequiredCookies").Op(":").Index().String().Values(quotedValues(contractCase.RequiredCookies)...))
 	}
+	if contractCase.Multipart != nil {
+		fields = append(fields, jen.Id("Multipart").Op(":").Op("&").Add(codegen.Expr("loomhttp.MultipartRequestContract")).Values(
+			jen.Dict{
+				jen.Id("ContentType"): jen.Lit(contractCase.Multipart.ContentType),
+				jen.Id("Parts"): jen.Index().Add(codegen.Expr("loomhttp.MultipartPartContract")).ValuesFunc(func(group *jen.Group) {
+					for _, part := range contractCase.Multipart.Parts {
+						group.Values(jen.Dict{
+							jen.Id("Name"):      jen.Lit(part.Name),
+							jen.Id("MediaType"): jen.Lit(part.MediaType),
+							jen.Id("Required"):  jen.Lit(part.Required),
+						})
+					}
+				}),
+			},
+		))
+	}
 	if contractCase.SSE != nil {
 		fields = append(fields, jen.Id("SSE").Op(":").Op("&").Add(codegen.Expr("loomhttp.SSEResponseContract")).Values(
 			jen.Dict{

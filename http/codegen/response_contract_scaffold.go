@@ -44,6 +44,17 @@ func serviceHasSSEResponseContractCases(data *ServiceData) bool {
 	return false
 }
 
+func serviceHasMultipartResponseContractCases(data *ServiceData) bool {
+	for _, endpoint := range data.Endpoints {
+		for _, contractCase := range endpoint.ResponseContractCases {
+			if contractCase.Multipart != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func responseContractTestFile(genpkg string, data *ServiceData) *codegen.File {
 	imports := make([]*codegen.ImportSpec, 0, 4)
 	imports = append(imports,
@@ -77,6 +88,9 @@ func responseContractTestSection(data *ServiceData, serverAlias string) codegen.
 	hasSSE := serviceHasSSEResponseContractCases(data)
 	sseScenarioType := prefix + "SSEResponseContractScenario"
 	sseScenariosInit := prefix + "SSEResponseContractScenarios"
+	hasMultipart := serviceHasMultipartResponseContractCases(data)
+	multipartScenarioType := prefix + "MultipartResponseContractScenario"
+	multipartScenariosInit := prefix + "MultipartResponseContractScenarios"
 
 	return codegen.NewJenniferSection("response-contract-test", func(stmt *jen.Statement) {
 		addResponseContractScenarioDeclarations(
@@ -86,27 +100,41 @@ func responseContractTestSection(data *ServiceData, serverAlias string) codegen.
 			sseScenarioType,
 			sseScenariosInit,
 			hasSSE,
+			multipartScenarioType,
+			multipartScenariosInit,
+			hasMultipart,
 		)
 		stmt.Func().Id(testName).Params(jen.Id("t").Op("*").Qual("testing", "T")).BlockFunc(func(group *jen.Group) {
 			group.Id("scenarios").Op(":=").Id(scenariosInit).Call()
 			if hasSSE {
 				group.Id("sseScenarios").Op(":=").Id(sseScenariosInit).Call()
 			}
+			if hasMultipart {
+				group.Id("multipartScenarios").Op(":=").Id(multipartScenariosInit).Call()
+			}
 			group.Add(responseContractManifestCheck(
 				"scenarios",
 				serverAlias,
-				"!=",
+				"unary",
 				"response contract scenario %q has no declared contract",
 			))
 			if hasSSE {
 				group.Add(responseContractManifestCheck(
 					"sseScenarios",
 					serverAlias,
-					"==",
+					"sse",
 					"SSE response contract scenario %q has no declared contract",
 				))
 			}
-			group.Add(responseContractExecutionLoop(serverAlias, hasSSE))
+			if hasMultipart {
+				group.Add(responseContractManifestCheck(
+					"multipartScenarios",
+					serverAlias,
+					"multipart",
+					"multipart response contract scenario %q has no declared contract",
+				))
+			}
+			group.Add(responseContractExecutionLoop(serverAlias, hasSSE, hasMultipart))
 		})
 		stmt.Line()
 	})
@@ -116,6 +144,8 @@ func addResponseContractScenarioDeclarations(
 	stmt *jen.Statement,
 	scenarioType, scenariosInit, sseScenarioType, sseScenariosInit string,
 	hasSSE bool,
+	multipartScenarioType, multipartScenariosInit string,
+	hasMultipart bool,
 ) {
 	stmt.Type().Id(scenarioType).Func().Params(
 		jen.Op("*").Qual("testing", "T"),
@@ -125,20 +155,30 @@ func addResponseContractScenarioDeclarations(
 		jen.Return(jen.Map(jen.String()).Id(scenarioType).Values()),
 	)
 	stmt.Line()
-	if !hasSSE {
-		return
+	if hasSSE {
+		stmt.Type().Id(sseScenarioType).Func().Params(
+			jen.Op("*").Qual("testing", "T"),
+		).Op("*").Add(codegen.Expr("loomhttp.SSEResponseContractObservation"))
+		stmt.Line()
+		stmt.Func().Id(sseScenariosInit).Params().Map(jen.String()).Id(sseScenarioType).Block(
+			jen.Return(jen.Map(jen.String()).Id(sseScenarioType).Values()),
+		)
+		stmt.Line()
 	}
-	stmt.Type().Id(sseScenarioType).Func().Params(
-		jen.Op("*").Qual("testing", "T"),
-	).Op("*").Add(codegen.Expr("loomhttp.SSEResponseContractObservation"))
-	stmt.Line()
-	stmt.Func().Id(sseScenariosInit).Params().Map(jen.String()).Id(sseScenarioType).Block(
-		jen.Return(jen.Map(jen.String()).Id(sseScenarioType).Values()),
-	)
-	stmt.Line()
+	if hasMultipart {
+		stmt.Type().Id(multipartScenarioType).Func().Params(
+			jen.Op("*").Qual("testing", "T"),
+			codegen.TypeRef("loomhttp.MultipartRequestContract"),
+		).Op("*").Qual("net/http", "Response")
+		stmt.Line()
+		stmt.Func().Id(multipartScenariosInit).Params().Map(jen.String()).Id(multipartScenarioType).Block(
+			jen.Return(jen.Map(jen.String()).Id(multipartScenarioType).Values()),
+		)
+		stmt.Line()
+	}
 }
 
-func responseContractManifestCheck(scenarios, serverAlias, transportOperator, errorFormat string) *jen.Statement {
+func responseContractManifestCheck(scenarios, serverAlias, scenarioKind, errorFormat string) *jen.Statement {
 	return jen.For(
 		jen.List(jen.Id("id")).Op(":=").Range().Id(scenarios),
 	).Block(
@@ -147,7 +187,7 @@ func responseContractManifestCheck(scenarios, serverAlias, transportOperator, er
 			jen.List(jen.Id("_"), jen.Id("contract")).Op(":=").Range().Add(codegen.Expr(serverAlias+".ResponseContractCases")).Call(),
 		).Block(
 			jen.If(
-				jen.Id("contract").Dot("Transport").Op(transportOperator).Add(codegen.Expr("loomhttp.ResponseContractSSE")).Op("&&").
+				responseContractScenarioPredicate(scenarioKind).Op("&&").
 					Id("contract").Dot("ID").Op("==").Id("id"),
 			).Block(
 				jen.Id("matched").Op("=").True(),
@@ -160,15 +200,58 @@ func responseContractManifestCheck(scenarios, serverAlias, transportOperator, er
 	)
 }
 
-func responseContractExecutionLoop(serverAlias string, hasSSE bool) *jen.Statement {
+func responseContractScenarioPredicate(scenarioKind string) *jen.Statement {
+	switch scenarioKind {
+	case "sse":
+		return jen.Id("contract").Dot("Transport").Op("==").Add(codegen.Expr("loomhttp.ResponseContractSSE"))
+	case "multipart":
+		return jen.Id("contract").Dot("Multipart").Op("!=").Nil()
+	default:
+		return jen.Id("contract").Dot("Transport").Op("!=").Add(codegen.Expr("loomhttp.ResponseContractSSE")).Op("&&").
+			Id("contract").Dot("Multipart").Op("==").Nil()
+	}
+}
+
+func responseContractExecutionLoop(serverAlias string, hasSSE, hasMultipart bool) *jen.Statement {
 	return jen.For(
 		jen.List(jen.Id("_"), jen.Id("contract")).Op(":=").Range().Add(codegen.Expr(serverAlias + ".ResponseContractCases")).Call(),
 	).BlockFunc(func(group *jen.Group) {
 		if hasSSE {
 			addSSEResponseContractExecution(group)
 		}
+		if hasMultipart {
+			addMultipartResponseContractExecution(group)
+		}
 		addUnaryResponseContractExecution(group)
 	})
+}
+
+func addMultipartResponseContractExecution(group *jen.Group) {
+	group.If(
+		jen.Id("contract").Dot("Multipart").Op("!=").Nil(),
+	).Block(
+		jen.List(jen.Id("scenario"), jen.Id("ok")).Op(":=").Id("multipartScenarios").Index(jen.Id("contract").Dot("ID")),
+		jen.If(jen.Op("!").Id("ok")).Block(
+			jen.Id("t").Dot("Errorf").Call(jen.Lit("missing multipart response contract scenario %q"), jen.Id("contract").Dot("ID")),
+			jen.Continue(),
+		),
+		jen.Id("t").Dot("Run").Call(
+			jen.Id("contract").Dot("ID"),
+			jen.Func().Params(jen.Id("t").Op("*").Qual("testing", "T")).Block(
+				jen.Id("response").Op(":=").Id("scenario").Call(jen.Id("t"), jen.Op("*").Id("contract").Dot("Multipart")),
+				jen.If(
+					jen.Id("err").Op(":=").Add(codegen.Expr("loomhttp.ValidateResponseContract")).Call(
+						jen.Id("response"),
+						jen.Id("contract"),
+					),
+					jen.Id("err").Op("!=").Nil(),
+				).Block(
+					jen.Id("t").Dot("Error").Call(jen.Id("err")),
+				),
+			),
+		),
+		jen.Continue(),
+	)
 }
 
 func addSSEResponseContractExecution(group *jen.Group) {

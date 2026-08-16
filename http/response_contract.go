@@ -40,8 +40,29 @@ type (
 		RequiredHeaders []string
 		// RequiredCookies lists declared response cookies that must be present.
 		RequiredCookies []string
+		// Multipart describes the designed multipart request, if present.
+		Multipart *MultipartRequestContract
 		// SSE describes stream assertions for an SSE success case.
 		SSE *SSEResponseContract
+	}
+
+	// MultipartRequestContract describes the stable request shape supplied to a
+	// consumer-owned multipart response scenario.
+	MultipartRequestContract struct {
+		// ContentType is the request media type.
+		ContentType string
+		// Parts lists the designed multipart fields in body order.
+		Parts []MultipartPartContract
+	}
+
+	// MultipartPartContract describes one designed multipart request field.
+	MultipartPartContract struct {
+		// Name is the multipart form field name.
+		Name string
+		// MediaType is the default media type for the part value.
+		MediaType string
+		// Required reports whether the request body requires the part.
+		Required bool
 	}
 
 	// SSEResponseContract describes the observable wire contract of an SSE stream.

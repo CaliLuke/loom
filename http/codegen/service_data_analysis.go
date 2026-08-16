@@ -293,6 +293,19 @@ func buildResponseContractCaseData(endpoint *transportir.Endpoint) ([]*ResponseC
 			StatusCode: contractCase.StatusCode,
 			ErrorName:  contractCase.ErrorName,
 		}
+		if contractCase.Multipart != nil {
+			data.Multipart = &MultipartRequestContractData{
+				ContentType: contractCase.Multipart.ContentType,
+				Parts:       make([]MultipartPartContractData, 0, len(contractCase.Multipart.Parts)),
+			}
+			for _, part := range contractCase.Multipart.Parts {
+				data.Multipart.Parts = append(data.Multipart.Parts, MultipartPartContractData{
+					Name:      part.Name,
+					MediaType: part.MediaType,
+					Required:  part.Required,
+				})
+			}
+		}
 		if contractCase.SSE != nil {
 			data.SSE = &SSEResponseContractData{
 				Direction:         contractCase.SSE.Direction,

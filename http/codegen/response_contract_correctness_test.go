@@ -44,6 +44,16 @@ func TestServerResponseContractLimitationsBecomeWarnings(t *testing.T) {
 	}, file.Warnings)
 }
 
+func TestUnsupportedMultipartResponseContractBecomesWarning(t *testing.T) {
+	root := RunHTTPDSL(t, responseContractNestedMultipartDSL)
+	files := ServerFiles("gen", CreateHTTPServices(root))
+	file := findFileWithSuffix(t, files, filepath.Join("server", "server.go"))
+
+	require.Equal(t, []string{
+		`response contract omitted for imports.create: multipart: multipart part "metadata" does not have a primitive or bytes shape`,
+	}, file.Warnings)
+}
+
 func TestBodylessContentTypeHeaderRemainsARequiredContractHeader(t *testing.T) {
 	root := RunHTTPDSL(t, responseContractBodylessContentTypeDSL)
 	services := CreateHTTPServices(root)
@@ -114,6 +124,23 @@ func responseContractContentTypeDSL() {
 			HTTP(func() {
 				GET("/downloads/empty")
 				Response(StatusNoContent)
+			})
+		})
+	})
+}
+
+func responseContractNestedMultipartDSL() {
+	Service("imports", func() {
+		Method("create", func() {
+			Payload(func() {
+				Attribute("metadata", func() {
+					Attribute("label", String)
+				})
+			})
+			HTTP(func() {
+				POST("/imports")
+				MultipartRequest()
+				Response(StatusAccepted)
 			})
 		})
 	})

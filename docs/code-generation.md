@@ -239,12 +239,18 @@ generated test enumerates the current server manifest and fails once for every
 declared response that lacks an application callback, so later `loom gen`
 changes remain visible without rewriting the scaffold.
 
-Unary and SSE cases use separate callback maps. An SSE success callback returns
+Unary, multipart, and SSE cases use separate callback maps. A multipart
+callback receives an `loomhttp.MultipartRequestContract` with the request
+content type, part names, part media types, and required parts. The application
+still owns multipart codecs and request fixtures. An SSE success callback returns
 an `loomhttp.SSEResponseContractObservation` containing the handshake response,
 parsed events, and terminal read error. The validator checks the handshake,
 event data encoding, required ID and event-type fields, projection event types,
 and clean stream completion. Declared errors that occur before the first SSE
 frame remain ordinary HTTP response cases.
+
+Loom supports multipart contracts for flat object bodies with primitive or
+bytes fields. Other multipart shapes produce an explicit generation diagnostic.
 
 #### Show Version
 

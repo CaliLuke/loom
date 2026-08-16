@@ -20,15 +20,16 @@ type (
 	}
 
 	responseContractCaseSnapshot struct {
-		ID           string                               `json:"id"`
-		Kind         transportir.ResponseContractCaseKind `json:"kind"`
-		StatusCode   int                                  `json:"status_code"`
-		ErrorName    string                               `json:"error_name,omitempty"`
-		TagName      string                               `json:"tag_name,omitempty"`
-		TagValue     string                               `json:"tag_value,omitempty"`
-		ContentTypes []string                             `json:"content_types"`
-		Headers      []transportir.ResponseContractHeader `json:"headers,omitempty"`
-		Cookies      []transportir.ResponseContractCookie `json:"cookies,omitempty"`
+		ID           string                                        `json:"id"`
+		Kind         transportir.ResponseContractCaseKind          `json:"kind"`
+		StatusCode   int                                           `json:"status_code"`
+		ErrorName    string                                        `json:"error_name,omitempty"`
+		TagName      string                                        `json:"tag_name,omitempty"`
+		TagValue     string                                        `json:"tag_value,omitempty"`
+		ContentTypes []string                                      `json:"content_types"`
+		Headers      []transportir.ResponseContractHeader          `json:"headers,omitempty"`
+		Cookies      []transportir.ResponseContractCookie          `json:"cookies,omitempty"`
+		Multipart    *transportir.ResponseContractMultipartRequest `json:"multipart,omitempty"`
 	}
 )
 
@@ -134,10 +135,11 @@ func TestAnalyzeResponseContractCasesRejectsUnsupportedScopes(t *testing.T) {
 			code: transportir.ResponseContractRedirect,
 		},
 		{
-			name: "multipart",
+			name: "unrepresentable multipart",
 			endpoint: func() *transportir.Endpoint {
 				endpoint := base()
 				endpoint.Request.Multipart = true
+				endpoint.Request.Body = &expr.AttributeExpr{Type: expr.String}
 				return endpoint
 			},
 			code: transportir.ResponseContractMultipart,
@@ -172,6 +174,29 @@ func TestAnalyzeResponseContractCasesRejectsUnsupportedScopes(t *testing.T) {
 			require.NotEmpty(t, analysis.Limitations[0].Detail)
 		})
 	}
+}
+
+func TestAnalyzeResponseContractCasesSupportsMultipart(t *testing.T) {
+	root := testcodegen.RunDSL(t, responseContractMultipartDSL)
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	require.True(t, analysis.Supported())
+	require.Empty(t, analysis.Limitations)
+	require.Len(t, analysis.Cases, 2)
+
+	want := &transportir.ResponseContractMultipartRequest{
+		ContentType: "multipart/form-data",
+		Parts: []transportir.ResponseContractMultipartPart{
+			{Name: "file", MediaType: "application/octet-stream", Required: true},
+			{Name: "label", MediaType: "text/plain", Required: true},
+			{Name: "note", MediaType: "text/plain"},
+		},
+	}
+	require.Equal(t, "imports.create.success.202", analysis.Cases[0].ID)
+	require.Equal(t, want, analysis.Cases[0].Multipart)
+	require.Equal(t, "imports.create.error.bad_request.400", analysis.Cases[1].ID)
+	require.Equal(t, want, analysis.Cases[1].Multipart)
 }
 
 func TestAnalyzeResponseContractCasesSupportsSSE(t *testing.T) {
@@ -279,9 +304,30 @@ func responseContractSnapshotFor(analysis *transportir.ResponseContractAnalysis)
 			ContentTypes: contractCase.ContentTypes,
 			Headers:      contractCase.Headers,
 			Cookies:      contractCase.Cookies,
+			Multipart:    contractCase.Multipart,
 		})
 	}
 	return snapshot
+}
+
+func responseContractMultipartDSL() {
+	dsl.Service("imports", func() {
+		dsl.Method("create", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("file", dsl.Bytes)
+				dsl.Attribute("label", dsl.String)
+				dsl.Attribute("note", dsl.String)
+				dsl.Required("file", "label")
+			})
+			dsl.Error("bad_request")
+			dsl.HTTP(func() {
+				dsl.POST("/imports")
+				dsl.MultipartRequest()
+				dsl.Response(expr.StatusAccepted)
+				dsl.Response("bad_request", expr.StatusBadRequest)
+			})
+		})
+	})
 }
 
 func responseContractDSL() {
