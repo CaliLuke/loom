@@ -388,7 +388,7 @@ release workflow stamps this recommendation and the public installation guides
 together so their version pins remain aligned.
 
 ```bash
-go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.10
+go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.11
 loom version
 loom import openapi openapi.yaml -o design
 loom gen <module-import-path>/design
