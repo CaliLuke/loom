@@ -13,6 +13,7 @@ type (
 	//nolint:tagliatelle // JSON Schema uses camelCase field names.
 	InlineSchema struct {
 		Type                 string                   `json:"type,omitempty"`
+		Title                string                   `json:"title,omitempty"`
 		Description          string                   `json:"description,omitempty"`
 		Examples             []any                    `json:"examples,omitempty"`
 		Required             []string                 `json:"required,omitempty"`
@@ -76,6 +77,7 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}) (*Inli
 	}
 
 	schema := &InlineSchema{
+		Title:       attr.Title,
 		Description: attr.Description,
 	}
 	populateInlineSchemaMetadata(schema, attr)
@@ -248,6 +250,9 @@ func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) {
 	}
 	if attr.Description != "" {
 		schema.Description = attr.Description
+	}
+	if attr.Title != "" {
+		schema.Title = attr.Title
 	}
 	if attr.DefaultValue != nil {
 		schema.Default = CanonicalizeExample(attr, attr.DefaultValue)

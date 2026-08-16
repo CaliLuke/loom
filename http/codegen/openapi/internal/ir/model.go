@@ -186,6 +186,7 @@ type (
 		Items        *Schema
 		Properties   map[string]*Schema
 		Defs         map[string]*Schema
+		Title        string `json:",omitzero"`
 		Description  string
 		DefaultValue any
 		Example      any

@@ -349,6 +349,7 @@ func schemaToIR(schema *openapi.Schema) *openapiir.Schema {
 		Items:                 schemaToIR(schema.Items),
 		Properties:            schemaMapToIR(schema.Properties),
 		Defs:                  schemaMapToIR(schema.Defs),
+		Title:                 schema.Title,
 		Description:           schema.Description,
 		DefaultValue:          schema.DefaultValue,
 		Example:               schema.Example,

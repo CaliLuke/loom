@@ -37,6 +37,7 @@ The `Type` DSL function is the primary way to define structured data types:
 
 ```go
 var Person = Type("Person", func() {
+    Title("Person Record")
     Description("A person")
     
     // Basic attribute
@@ -52,6 +53,11 @@ var Person = Type("Person", func() {
     Required("name", "age")
 })
 ```
+
+Use `Title(...)` inside a `Type` or `Attribute` block to set that JSON Schema
+node's OpenAPI `title`. The title is independent of the Loom type or field name
+and is preserved on component schemas, properties, array items, and request or
+response body schemas.
 
 Design files conventionally dot-import `github.com/CaliLuke/loom/dsl`.
 Top-level Go identifiers cannot reuse exported DSL names. Examples include

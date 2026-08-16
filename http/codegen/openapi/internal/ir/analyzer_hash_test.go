@@ -66,6 +66,15 @@ func TestAttributeFingerprintCanonicalizesMapValues(t *testing.T) {
 	require.Equal(t, fingerprintAttribute(first, false), fingerprintAttribute(second, false))
 }
 
+func TestAttributeFingerprintIncludesSchemaTitle(t *testing.T) {
+	t.Parallel()
+
+	plain := &expr.AttributeExpr{Type: expr.String}
+	titled := &expr.AttributeExpr{Type: expr.String, Title: "Display Name"}
+
+	require.NotEqual(t, fingerprintAttribute(plain, false), fingerprintAttribute(titled, false))
+}
+
 func TestAttributeFingerprintIsStableForRecursiveAttributes(t *testing.T) {
 	t.Parallel()
 

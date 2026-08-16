@@ -34,6 +34,7 @@ func RenderSchema(schema *Schema) *openapi.Schema {
 	out.Items = RenderSchema(schema.Items)
 	out.Properties = RenderSchemaMap(schema.Properties)
 	out.Defs = RenderSchemaMap(schema.Defs)
+	out.Title = schema.Title
 	out.Description = schema.Description
 	out.DefaultValue = schema.DefaultValue
 	out.Example = schema.Example

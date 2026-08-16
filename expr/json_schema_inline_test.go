@@ -10,6 +10,7 @@ import (
 func TestInlineJSONSchema(t *testing.T) {
 	t.Run("builds object schema with validations defaults and examples", func(t *testing.T) {
 		attr := &AttributeExpr{
+			Title: "Example Object",
 			Type: &Object{
 				&NamedAttributeExpr{Name: "name", Attribute: &AttributeExpr{Type: String}},
 				&NamedAttributeExpr{Name: "count", Attribute: &AttributeExpr{Type: Int}},
@@ -33,6 +34,7 @@ func TestInlineJSONSchema(t *testing.T) {
 		data := mustInlineJSONSchema(t, attr)
 
 		require.Equal(t, "object", data["type"])
+		require.Equal(t, "Example Object", data["title"])
 		require.Equal(t, false, data["additionalProperties"])
 		require.ElementsMatch(t, []any{"name"}, data["required"].([]any))
 		props := data["properties"].(map[string]any)

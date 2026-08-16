@@ -280,6 +280,21 @@ func TestAnalyzerAppliesSchemaOpenAPIMetadata(t *testing.T) {
 	require.Equal(t, "application/json", schema.ContentMediaType)
 }
 
+func TestAnalyzerPreservesSchemaTitleAcrossNullability(t *testing.T) {
+	t.Parallel()
+
+	schema := NewAnalyzer(expr.NewRandom("ir"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type:     expr.String,
+		Title:    "Display Name",
+		Nullable: true,
+	})
+
+	require.Equal(t, "Display Name", schema.Title)
+	require.Len(t, schema.AnyOf, 2)
+	require.Empty(t, schema.AnyOf[0].Title)
+	require.Equal(t, "Display Name", RenderSchema(schema).Title)
+}
+
 func TestAnalyzerHonorsExplicitEmptySchemaFormat(t *testing.T) {
 	t.Parallel()
 
