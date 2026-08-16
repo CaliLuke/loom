@@ -501,7 +501,7 @@ func main() {
 
 ### Response Contract Checks
 
-For each supported unary, multipart, or server-sent events endpoint, the generated server package exposes a
+For each supported unary, multipart, SSE, or WebSocket endpoint, the generated server package exposes a
 `<Method>ResponseContractCases` function and collects them in the service-wide
 `ResponseContractCases` manifest. Each case records the exact status, allowed
 base media types, error name, and required response headers and cookies
@@ -510,7 +510,9 @@ message type and encoding, SSE field mappings, required ID and event-type
 fields, allowed projection event types, and terminal completion contract.
 Declared errors that fail before the stream starts remain ordinary HTTP cases.
 Supported multipart cases also record request content type, part names, part
-media types, and required parts.
+media types, and required parts. WebSocket success cases record the `101`
+handshake, upgrade headers, stream direction, message types, and terminal
+behavior. Declared pre-upgrade errors remain ordinary HTTP cases.
 
 After `loom gen`, create a consumer-owned provider scaffold:
 
@@ -519,13 +521,16 @@ loom test-scaffold example.com/myservice/design
 ```
 
 Loom writes missing files under `internal/contracttest/` and never overwrites
-them. Fill the unary, multipart, and SSE scenario maps with callbacks that send
+them. Fill the unary, multipart, SSE, and WebSocket scenario maps with callbacks that send
 real requests through the generated transport. Unary callbacks return the
 response. Multipart callbacks receive an `loomhttp.MultipartRequestContract`
 and return the response. SSE callbacks return an
 `loomhttp.SSEResponseContractObservation` with the handshake response, parsed
 events, and terminal read error. The test reports every missing case and calls
-the matching validator, including for nil responses.
+the matching validator, including for nil responses. WebSocket callbacks receive
+an `loomhttp.WebSocketResponseContract`. They return an
+`loomhttp.WebSocketResponseContractObservation` with the handshake, outbound
+JSON messages, and terminal read error.
 
 Loom validates transport-owned wire behavior, including `Loom-Error` for
 declared errors. Application tests must still arrange the service state,
@@ -542,11 +547,13 @@ The current response-contract scaffold support matrix is:
 | Unary HTTP, including declared file-response success and error cases | Supported |
 | Non-streaming multipart requests with flat primitive or bytes object fields | Supported |
 | Multipart requests combined with SSE | Unsupported; generation emits a diagnostic |
+| Multipart requests combined with WebSocket | Unsupported. Generation emits a diagnostic. |
 | Other multipart request shapes | Unsupported; generation emits a diagnostic |
 | Server SSE success and pre-stream declared errors | Supported |
 | Mixed unary/SSE results | Unsupported; generation emits a diagnostic |
 | Client or bidirectional SSE | Unsupported; generation emits a diagnostic |
-| WebSocket | Unsupported; requires stream-aware scenarios |
+| Plain HTTP WebSocket success and pre-upgrade declared errors | Supported |
+| Mixed unary/WebSocket results or incomplete stream message shapes | Unsupported. Generation emits a diagnostic. |
 | Raw request/response and redirects | Unsupported; generation emits a diagnostic |
 | JSON-RPC and gRPC | No response-contract scaffold yet |
 

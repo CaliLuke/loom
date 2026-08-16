@@ -321,6 +321,15 @@ func buildResponseContractCaseData(endpoint *transportir.Endpoint) ([]*ResponseC
 				Terminal:          contractCase.SSE.Terminal,
 			}
 		}
+		if contractCase.WebSocket != nil {
+			data.WebSocket = &WebSocketResponseContractData{
+				Direction:           contractCase.WebSocket.Direction,
+				InboundMessageType:  contractCase.WebSocket.InboundMessageType,
+				OutboundMessageType: contractCase.WebSocket.OutboundMessageType,
+				HandshakeHeaders:    append([]string(nil), contractCase.WebSocket.HandshakeHeaders...),
+				Terminal:            contractCase.WebSocket.Terminal,
+			}
+		}
 		if contractCase.HasBody {
 			data.ContentTypes = append([]string(nil), contractCase.ContentTypes...)
 		}

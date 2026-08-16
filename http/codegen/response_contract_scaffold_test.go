@@ -46,6 +46,21 @@ func TestResponseContractTestFilesIncludeSSEScenarios(t *testing.T) {
 	require.Contains(t, generated, `missing SSE response contract scenario %q`)
 }
 
+func TestResponseContractTestFilesIncludeWebSocketScenarios(t *testing.T) {
+	root := RunHTTPDSL(t, responseContractWebSocketServerDSL)
+	services := CreateHTTPServices(root)
+	files := ResponseContractTestFiles("example.com/events/gen", services)
+	require.Len(t, files, 1)
+
+	generated := codegen.SectionCode(t, files[0].Section("response-contract-test")[0])
+	require.Contains(t, generated, "type eventsWebSocketResponseContractScenario func(*testing.T, loomhttp.WebSocketResponseContract) *loomhttp.WebSocketResponseContractObservation")
+	require.Contains(t, generated, "func eventsWebSocketResponseContractScenarios() map[string]eventsWebSocketResponseContractScenario")
+	require.Contains(t, generated, "contract.Transport == loomhttp.ResponseContractWebSocket")
+	require.Contains(t, generated, "scenario(t, *contract.WebSocket)")
+	require.Contains(t, generated, "loomhttp.ValidateWebSocketResponseContract(observation, contract)")
+	require.Contains(t, generated, `missing WebSocket response contract scenario %q`)
+}
+
 func TestResponseContractTestFilesPreserveExistingScaffold(t *testing.T) {
 	root := RunHTTPDSL(t, responseContractServerDSL)
 	file := ResponseContractTestFiles("example.com/widgets/gen", CreateHTTPServices(root))[0]
@@ -107,44 +122,51 @@ func TestResponseContractTestFilesPassFileAndBodylessGeneratedScenarios(t *testi
 }
 
 func TestResponseContractTestFilesPassSSESuccessAndPreStreamErrorScenarios(t *testing.T) {
-	const modulePath = "example.com/responsecontractsse"
-	root := RunHTTPDSL(t, responseContractSSEDSL)
-	dir := t.TempDir()
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	t.Setenv("LOOM_DIR", repoRoot)
-	renderHTTPModule(t, dir, modulePath, root)
-	renderGeneratedFiles(t, dir, ResponseContractTestFiles(modulePath+"/gen", CreateHTTPServices(root)))
-
-	scaffoldPath := filepath.Join(dir, "internal", "contracttest", "events_http_test.go")
-	scaffold, err := os.ReadFile(scaffoldPath)
-	require.NoError(t, err)
-	populated := strings.Replace(
-		string(scaffold),
-		"return map[string]eventsResponseContractScenario{}",
-		`return map[string]eventsResponseContractScenario{
+	runResponseContractScaffold(t, responseContractScaffoldTest{
+		modulePath:   "example.com/responsecontractsse",
+		design:       responseContractSSEDSL,
+		scaffoldName: "events_http_test.go",
+		replacements: []responseContractScaffoldReplacement{
+			{
+				emptyMap: "return map[string]eventsResponseContractScenario{}",
+				scenarios: `return map[string]eventsResponseContractScenario{
 		"events.watch.error.unauthorized.401": unauthorizedResponse,
-	}`,
-		1,
-	)
-	populated = strings.Replace(
-		populated,
-		"return map[string]eventsSSEResponseContractScenario{}",
-		`return map[string]eventsSSEResponseContractScenario{
+}`,
+			},
+			{
+				emptyMap: "return map[string]eventsSSEResponseContractScenario{}",
+				scenarios: `return map[string]eventsSSEResponseContractScenario{
 		"events.watch.success.200": watchSSEObservation,
-	}`,
-		1,
-	)
-	require.NotEqual(t, string(scaffold), populated)
-	require.NoError(t, os.WriteFile(scaffoldPath, []byte(populated), 0o600))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(dir, "internal", "contracttest", "events_provider_test.go"),
-		[]byte(responseContractSSEProviderHarness),
-		0o600,
-	))
+}`,
+			},
+		},
+		harnessName: "events_provider_test.go",
+		harness:     responseContractSSEProviderHarness,
+	})
+}
 
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "test", "./internal/contracttest")
+func TestResponseContractTestFilesPassWebSocketSuccessAndPreUpgradeErrorScenarios(t *testing.T) {
+	runResponseContractScaffold(t, responseContractScaffoldTest{
+		modulePath:   "example.com/responsecontractwebsocket",
+		design:       responseContractWebSocketServerDSL,
+		scaffoldName: "events_http_test.go",
+		replacements: []responseContractScaffoldReplacement{
+			{
+				emptyMap: "return map[string]eventsResponseContractScenario{}",
+				scenarios: `return map[string]eventsResponseContractScenario{
+		"events.watch.error.unauthorized.401": unauthorizedWebSocketResponse,
+}`,
+			},
+			{
+				emptyMap: "return map[string]eventsWebSocketResponseContractScenario{}",
+				scenarios: `return map[string]eventsWebSocketResponseContractScenario{
+		"events.watch.success.101": watchWebSocketObservation,
+}`,
+			},
+		},
+		harnessName: "events_websocket_provider_test.go",
+		harness:     responseContractWebSocketProviderHarness,
+	})
 }
 
 type responseContractScaffoldTest struct {
@@ -153,8 +175,14 @@ type responseContractScaffoldTest struct {
 	scaffoldName string
 	emptyMap     string
 	scenarios    string
+	replacements []responseContractScaffoldReplacement
 	harnessName  string
 	harness      string
+}
+
+type responseContractScaffoldReplacement struct {
+	emptyMap  string
+	scenarios string
 }
 
 func runResponseContractScaffold(t *testing.T, test responseContractScaffoldTest) {
@@ -172,7 +200,13 @@ func runResponseContractScaffold(t *testing.T, test responseContractScaffoldTest
 	require.NoError(t, err)
 	require.Contains(t, string(scaffold), "// Generated once by Loom. Edit freely; regeneration never overwrites this file.")
 	require.NotContains(t, string(scaffold), "DO NOT EDIT")
-	populated := strings.Replace(string(scaffold), test.emptyMap, test.scenarios, 1)
+	populated := string(scaffold)
+	if test.emptyMap != "" {
+		populated = strings.Replace(populated, test.emptyMap, test.scenarios, 1)
+	}
+	for _, replacement := range test.replacements {
+		populated = strings.Replace(populated, replacement.emptyMap, replacement.scenarios, 1)
+	}
 	require.NotEqual(t, string(scaffold), populated)
 	require.NoError(t, os.WriteFile(scaffoldPath, []byte(populated), 0o600))
 	require.NoError(t, os.WriteFile(
@@ -499,6 +533,109 @@ func (s *eventsService) Watch(_ context.Context, stream events.WatchServerStream
 		Event: "created",
 		Data:  "payload",
 	})
+}
+`
+
+const responseContractWebSocketProviderHarness = `package contracttest
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/gorilla/websocket"
+
+	events "example.com/responsecontractwebsocket/gen/events"
+	eventsserver "example.com/responsecontractwebsocket/gen/http/events/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+type webSocketEventsService struct {
+	unauthorized bool
+}
+
+func watchWebSocketObservation(t *testing.T, _ loomhttp.WebSocketResponseContract) *loomhttp.WebSocketResponseContractObservation {
+	t.Helper()
+	conn, response := dialEventsWebSocket(t, false)
+	t.Cleanup(func() {
+		if err := conn.Close(); err != nil {
+			t.Errorf("close WebSocket client: %v", err)
+		}
+	})
+
+	_, message, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read WebSocket message: %v", err)
+	}
+	_, _, terminalErr := conn.ReadMessage()
+	return &loomhttp.WebSocketResponseContractObservation{
+		Response:      response,
+		Messages:      []json.RawMessage{message},
+		TerminalError: terminalErr,
+	}
+}
+
+func unauthorizedWebSocketResponse(t *testing.T) *http.Response {
+	t.Helper()
+	_, response := dialEventsWebSocket(t, true)
+	t.Cleanup(func() {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("close unauthorized response: %v", err)
+		}
+	})
+	return response
+}
+
+func dialEventsWebSocket(t *testing.T, unauthorized bool) (*websocket.Conn, *http.Response) {
+	t.Helper()
+	endpoints := events.NewEndpoints(&webSocketEventsService{unauthorized: unauthorized})
+	mux := loomhttp.NewMuxer()
+	upgrader := &websocket.Upgrader{}
+	server := eventsserver.New(
+		endpoints,
+		mux,
+		loomhttp.RequestDecoder,
+		loomhttp.ResponseEncoder,
+		nil,
+		nil,
+		upgrader,
+		nil,
+	)
+	eventsserver.Mount(mux, server)
+	httpServer := httptest.NewServer(mux)
+	t.Cleanup(httpServer.Close)
+
+	conn, response, err := websocket.DefaultDialer.Dial("ws"+httpServer.URL[len("http"):]+"/events/socket", nil)
+	if unauthorized {
+		if !errors.Is(err, websocket.ErrBadHandshake) {
+			t.Fatalf("dial unauthorized WebSocket: %v", err)
+		}
+		if response == nil {
+			t.Fatal("unauthorized WebSocket response is nil")
+		}
+		return nil, response
+	}
+	if err != nil {
+		status := 0
+		if response != nil {
+			status = response.StatusCode
+		}
+		t.Fatalf("dial WebSocket: %v (status %d)", err, status)
+	}
+	return conn, response
+}
+
+func (s *webSocketEventsService) Watch(_ context.Context, stream events.WatchServerStream) error {
+	if s.unauthorized {
+		return events.MakeUnauthorized(errors.New("unauthorized"))
+	}
+	if err := stream.Send(&events.WatchResult{Message: "ready"}); err != nil {
+		return err
+	}
+	return stream.Close()
 }
 `
 

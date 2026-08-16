@@ -1,15 +1,18 @@
 package transport
 
-import "net/http"
+import (
+	"bufio"
+	"net"
+	"net/http"
+)
 
 // CaptureResponseWriter wraps a [http.ResponseWriter] and records the final
 // HTTP status code and number of bytes written by the handler. Generated
 // HTTP handlers use it to populate the StatusCode and BytesWritten fields of
 // terminal transport events without retaining the raw response body.
 //
-// CaptureResponseWriter forwards [http.Flusher], [http.Hijacker], and
-// [http.Pusher] when the underlying writer implements them so streaming and
-// WebSocket upgrade paths continue to work after wrapping.
+// CaptureResponseWriter forwards [http.Hijacker] directly. Its Unwrap method
+// lets [http.ResponseController] reach other optional writer interfaces.
 type CaptureResponseWriter struct {
 	// ResponseWriter is the wrapped writer. It is intentionally exported so
 	// generated code can pass the wrapper directly to helpers that perform
@@ -51,6 +54,12 @@ func (c *CaptureResponseWriter) Write(b []byte) (int, error) {
 	n, err := c.ResponseWriter.Write(b)
 	c.bytes += int64(n)
 	return n, err
+}
+
+// Hijack forwards ownership of the HTTP connection when the wrapped writer
+// supports connection hijacking.
+func (c *CaptureResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return http.NewResponseController(c.ResponseWriter).Hijack()
 }
 
 // StatusCode returns the HTTP status code recorded by WriteHeader or Write,

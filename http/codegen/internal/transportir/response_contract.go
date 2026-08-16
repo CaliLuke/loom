@@ -68,6 +68,8 @@ type (
 		Multipart *ResponseContractMultipartRequest
 		// SSE describes stream assertions for an SSE success case.
 		SSE *ResponseContractSSE
+		// WebSocket describes stream assertions for a WebSocket success case.
+		WebSocket *ResponseContractWebSocket
 	}
 
 	// ResponseContractMultipartRequest describes a multipart request shape that
@@ -115,6 +117,20 @@ type (
 		Terminal string
 	}
 
+	// ResponseContractWebSocket describes a generated WebSocket contract.
+	ResponseContractWebSocket struct {
+		// Direction is the designed stream direction.
+		Direction string
+		// InboundMessageType is the designed client-to-server message type name.
+		InboundMessageType string
+		// OutboundMessageType is the designed server-to-client message type name.
+		OutboundMessageType string
+		// HandshakeHeaders lists required WebSocket upgrade response headers.
+		HandshakeHeaders []string
+		// Terminal identifies the expected stream completion behavior.
+		Terminal string
+	}
+
 	// ResponseContractHeader describes a declared response header assertion.
 	ResponseContractHeader struct {
 		// Name is the result or error attribute mapped to the header.
@@ -157,6 +173,8 @@ const (
 	ResponseContractHTTP ResponseContractTransport = "http"
 	// ResponseContractSSE identifies a Server-Sent Events response contract.
 	ResponseContractSSETransport ResponseContractTransport = "sse"
+	// ResponseContractWebSocketTransport identifies a WebSocket response contract.
+	ResponseContractWebSocketTransport ResponseContractTransport = "websocket"
 
 	// ResponseContractMissingEndpoint indicates that no endpoint was supplied.
 	ResponseContractMissingEndpoint ResponseContractLimitationCode = "missing_endpoint"
@@ -166,8 +184,8 @@ const (
 	// ResponseContractJSONRPC indicates that the endpoint uses JSON-RPC rather
 	// than plain HTTP semantics.
 	ResponseContractJSONRPC ResponseContractLimitationCode = "jsonrpc"
-	// ResponseContractStreaming indicates that the endpoint uses SSE or
-	// WebSocket streaming.
+	// ResponseContractStreaming indicates that a streaming endpoint shape is
+	// outside the supported SSE or WebSocket response contract scope.
 	ResponseContractStreaming ResponseContractLimitationCode = "streaming"
 	// ResponseContractRedirect indicates that the endpoint is a redirect.
 	ResponseContractRedirect ResponseContractLimitationCode = "redirect"
@@ -199,11 +217,22 @@ func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis 
 	multipart, _ := responseContractMultipartRequest(endpoint.Request)
 	analysis.Cases = make([]*ResponseContractCase, 0, len(endpoint.Response.Responses)+len(endpoint.Response.ErrorResponses))
 	for _, response := range endpoint.Response.Responses {
-		contractCase := newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response)
+		contractResponse := response
+		if endpoint.Stream != nil && endpoint.Stream.IsWebSocket {
+			webSocketResponse := *response
+			webSocketResponse.StatusCode = endpoint.Stream.HandshakeStatus
+			webSocketResponse.ContentTypes = nil
+			webSocketResponse.Body = &expr.AttributeExpr{Type: expr.Empty}
+			contractResponse = &webSocketResponse
+		}
+		contractCase := newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, contractResponse)
 		contractCase.Multipart = multipart
 		if endpoint.Stream != nil && endpoint.Stream.IsSSE {
 			contractCase.Transport = ResponseContractSSETransport
 			contractCase.SSE = newResponseContractSSE(endpoint.Stream)
+		} else if endpoint.Stream != nil && endpoint.Stream.IsWebSocket {
+			contractCase.Transport = ResponseContractWebSocketTransport
+			contractCase.WebSocket = newResponseContractWebSocket(endpoint.Stream, endpoint.Response.Result)
 		}
 		analysis.Cases = append(analysis.Cases, contractCase)
 	}
@@ -266,6 +295,10 @@ func responseContractLimitations(endpoint *Endpoint) []ResponseContractLimitatio
 		if endpoint.Stream != nil && endpoint.Stream.IsSSE {
 			limitations = append(limitations, *unsupportedMultipartContract(
 				"multipart response contracts do not support SSE endpoints",
+			))
+		} else if endpoint.Stream != nil && endpoint.Stream.IsWebSocket {
+			limitations = append(limitations, *unsupportedMultipartContract(
+				"multipart response contracts do not support WebSocket endpoints",
 			))
 		} else if _, limitation := responseContractMultipartRequest(endpoint.Request); limitation != nil {
 			limitations = append(limitations, *limitation)
@@ -352,10 +385,7 @@ func responseContractStreamingLimitations(stream *Stream) []ResponseContractLimi
 		return nil
 	}
 	if !stream.IsSSE {
-		return []ResponseContractLimitation{{
-			Code:   ResponseContractStreaming,
-			Detail: "WebSocket responses require stream-aware contract scenarios",
-		}}
+		return responseContractWebSocketLimitations(stream)
 	}
 	var limitations []ResponseContractLimitation
 	if stream.HasMixedResults {
@@ -377,6 +407,38 @@ func responseContractStreamingLimitations(stream *Stream) []ResponseContractLimi
 		})
 	}
 	return limitations
+}
+
+func responseContractWebSocketLimitations(stream *Stream) []ResponseContractLimitation {
+	limitation := func(detail string) []ResponseContractLimitation {
+		return []ResponseContractLimitation{{
+			Code:   ResponseContractStreaming,
+			Detail: detail,
+		}}
+	}
+	if stream.HasMixedResults {
+		return limitation("mixed unary and WebSocket results require separate negotiated contract cases")
+	}
+	if stream.HandshakeStatus != expr.StatusSwitchingProtocols {
+		return limitation("WebSocket response contracts require a 101 switching-protocols handshake")
+	}
+	switch stream.Direction {
+	case "server":
+		if responseContractMessageType(stream.ResponseMessage) == "" {
+			return limitation("server WebSocket response contracts require an outbound message")
+		}
+	case "client":
+		if responseContractMessageType(stream.RequestMessage) == "" {
+			return limitation("client WebSocket response contracts require an inbound message")
+		}
+	case "bidirectional":
+		if responseContractMessageType(stream.RequestMessage) == "" || responseContractMessageType(stream.ResponseMessage) == "" {
+			return limitation("bidirectional WebSocket response contracts require inbound and outbound messages")
+		}
+	default:
+		return limitation(fmt.Sprintf("WebSocket response contracts do not support stream direction %q", stream.Direction))
+	}
+	return nil
 }
 
 func newResponseContractCase(serviceName, methodName string, fileResponse bool, response *ResponseStatus) *ResponseContractCase {
@@ -434,6 +496,33 @@ func newResponseContractSSE(stream *Stream) *ResponseContractSSE {
 		}
 	}
 	return contract
+}
+
+func newResponseContractWebSocket(stream *Stream, result *expr.AttributeExpr) *ResponseContractWebSocket {
+	contract := &ResponseContractWebSocket{
+		HandshakeHeaders: []string{"Connection", "Sec-WebSocket-Accept", "Upgrade"},
+		Terminal:         "normal_close",
+	}
+	if stream == nil {
+		return contract
+	}
+	contract.Direction = stream.Direction
+	contract.InboundMessageType = responseContractMessageType(stream.RequestMessage)
+	contract.OutboundMessageType = responseContractMessageType(stream.ResponseMessage)
+	if stream.Direction == "client" && contract.OutboundMessageType == "" {
+		contract.OutboundMessageType = responseContractMessageType(result)
+	}
+	if stream.Direction == "client" && contract.OutboundMessageType != "" {
+		contract.Terminal = "final_message"
+	}
+	return contract
+}
+
+func responseContractMessageType(message *expr.AttributeExpr) string {
+	if message == nil || message.Type == nil || message.Type == expr.Empty {
+		return ""
+	}
+	return message.Type.Name()
 }
 
 func responseContractSSEDataEncoding(stream *Stream) string {

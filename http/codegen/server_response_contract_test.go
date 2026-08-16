@@ -9,7 +9,6 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	. "github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/http/codegen/testdata"
 	"github.com/CaliLuke/loom/internal/loomsource"
 )
 
@@ -41,15 +40,24 @@ func TestServerResponseContractCases(t *testing.T) {
 	require.Contains(t, aggregate, "cases = append(cases, ShowResponseContractCases()...)")
 }
 
-func TestServerResponseContractCasesOmitUnsupportedEndpoints(t *testing.T) {
-	root := RunHTTPDSL(t, testdata.StreamingResultDSL)
+func TestServerResponseContractCasesIncludeWebSocket(t *testing.T) {
+	root := RunHTTPDSL(t, responseContractWebSocketServerDSL)
 	services := CreateHTTPServices(root)
-	files := ServerFiles("gen", services)
+	file := findFileWithSuffix(t, ServerFiles("gen", services), filepath.Join("server", "server.go"))
+	sections := file.Section("server-response-contract")
+	require.Len(t, sections, 1)
 
-	for _, file := range files {
-		require.Empty(t, file.Section("server-response-contract"))
-		require.Empty(t, file.Section("server-response-contracts"))
-	}
+	generated := codegen.SectionCode(t, sections[0])
+	require.Contains(t, generated, `ID: "events.watch.success.101"`)
+	require.Contains(t, generated, "Transport: loomhttp.ResponseContractWebSocket")
+	require.Contains(t, generated, "StatusCode: 101")
+	require.Contains(t, generated, "WebSocket: &loomhttp.WebSocketResponseContract{")
+	require.Contains(t, generated, `Direction:           "server"`)
+	require.Contains(t, generated, `OutboundMessageType: "WatchResult"`)
+	require.Contains(t, generated, `HandshakeHeaders:    []string{"Connection", "Sec-WebSocket-Accept", "Upgrade"}`)
+	require.Contains(t, generated, `Terminal:            "normal_close"`)
+	require.Contains(t, generated, `ID: "events.watch.error.unauthorized.401"`)
+	require.Contains(t, generated, "Transport: loomhttp.ResponseContractHTTP")
 }
 
 func TestServerResponseContractCasesIncludeMultipartRequest(t *testing.T) {
@@ -159,6 +167,22 @@ func responseContractMultipartServerDSL() {
 					Header("import_id:X-Import-Id")
 				})
 				Response("bad_request", StatusBadRequest)
+			})
+		})
+	})
+}
+
+func responseContractWebSocketServerDSL() {
+	Service("events", func() {
+		Method("watch", func() {
+			Error("unauthorized")
+			StreamingResult(func() {
+				Attribute("message", String)
+				Required("message")
+			})
+			HTTP(func() {
+				GET("/events/socket")
+				Response("unauthorized", StatusUnauthorized)
 			})
 		})
 	})
