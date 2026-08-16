@@ -24,9 +24,10 @@ func TestDupArrayPreservesNonNullableElems(t *testing.T) {
 	}
 }
 
-func TestDupAttPreservesNullableAndExplicitNullExample(t *testing.T) {
+func TestDupAttPreservesTitleNullableAndExplicitNullExample(t *testing.T) {
 	attribute := &AttributeExpr{
 		Type:     String,
+		Title:    "Display Name",
 		Nullable: true,
 		UserExamples: []*ExampleExpr{{
 			Summary:      "null",
@@ -35,6 +36,9 @@ func TestDupAttPreservesNullableAndExplicitNullExample(t *testing.T) {
 	}
 
 	duplicated := DupAtt(attribute)
+	if duplicated.Title != "Display Name" {
+		t.Errorf("duplicated attribute title is %q, expected %q", duplicated.Title, "Display Name")
+	}
 	if !duplicated.Nullable {
 		t.Error("duplicated attribute did not preserve nullability")
 	}

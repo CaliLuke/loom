@@ -151,6 +151,8 @@ filter, and serialization rules belong here.
   `Any`. Preserve the exact source component key even when multiple keys map to
   the same Go identifier. Canonical component identity takes precedence over
   ordinary primitive alias inlining.
+- Preserve schema titles as first-class attribute annotations through import,
+  attribute duplication, nullable wrapping, shared IR analysis, and rendering.
 - Represent unconstrained payload and object fields with explicit presence so
   required JSON `null` is not mistaken for absence. An unconstrained error
   schema needs a concrete error envelope; only the envelope's root user type

@@ -382,6 +382,7 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 }
 
 func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeExpr, note, context string) {
+	s.Title = attr.Title
 	s.Description = attr.Description
 	if note != "" {
 		s.Description += "\n" + note
@@ -454,6 +455,7 @@ func applyNullableSchema(schema *Schema) {
 		return
 	}
 	base := *schema
+	base.Title = ""
 	base.Description = ""
 	base.DefaultValue = nil
 	base.Example = nil
@@ -463,6 +465,7 @@ func applyNullableSchema(schema *Schema) {
 	base.XML = nil
 	base.Extensions = nil
 	*schema = Schema{
+		Title:        schema.Title,
 		Description:  schema.Description,
 		DefaultValue: schema.DefaultValue,
 		Example:      schema.Example,

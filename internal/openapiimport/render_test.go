@@ -219,6 +219,89 @@ components:
 	}
 }
 
+func TestRenderPreservesSchemaTitles(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Titles, version: "1"}
+paths:
+  /items:
+    post:
+      operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              title: Create Item Request
+              type: string
+      responses:
+        "200":
+          description: created
+          content:
+            application/json:
+              schema:
+                title: Create Item Response
+                type: object
+                properties:
+                  item: {$ref: '#/components/schemas/Item'}
+components:
+  schemas:
+    Item:
+      title: Item Resource
+      type: object
+      required: [updated_at]
+      properties:
+        updated_at:
+          title: Last Modified At
+          type: string
+        tags:
+          type: array
+          items:
+            title: Item Tag
+            type: string
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+
+	design := string(rendered)
+	for _, title := range []string{
+		"Item Resource",
+		"Last Modified At",
+		"Create Item Request",
+		"Item Tag",
+		"Create Item Response",
+	} {
+		require.Contains(t, design, `Title("`+title+`")`)
+	}
+	requireRenderedDesignEvaluates(t, rendered, 1)
+	moduleDir := requireRenderedDesignGenerates(t, rendered)
+
+	generated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	var contract map[string]any
+	require.NoError(t, json.Unmarshal(generated, &contract))
+
+	item := contract["components"].(map[string]any)["schemas"].(map[string]any)["Item"].(map[string]any)
+	require.Equal(t, "Item Resource", item["title"])
+	require.Equal(t, "Last Modified At", item["properties"].(map[string]any)["updated_at"].(map[string]any)["title"])
+
+	operation := operationFromImportedSpec(t, contract, "/items", "post")
+	requestSchema := operation["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+	require.Equal(t, "Create Item Request", requestSchema["title"])
+	require.Equal(t, "Item Tag", item["properties"].(map[string]any)["tags"].(map[string]any)["items"].(map[string]any)["title"])
+	responseSchema := operation["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+	responseTitle := responseSchema["title"]
+	if ref, ok := responseSchema["$ref"].(string); ok {
+		name := strings.TrimPrefix(ref, "#/components/schemas/")
+		require.NotEqual(t, ref, name)
+		responseTitle = contract["components"].(map[string]any)["schemas"].(map[string]any)[name].(map[string]any)["title"]
+	}
+	require.Equal(t, "Create Item Response", responseTitle)
+}
+
 func requireRenderedDesignGenerates(t *testing.T, source []byte) string {
 	t.Helper()
 	moduleDir := t.TempDir()

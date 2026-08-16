@@ -515,6 +515,9 @@ func buildAttributeSchema(api *expr.APIExpr, s *Schema, at *expr.AttributeExpr) 
 		applyNullableSchema(s, at)
 		return s
 	}
+	if at.Title != "" {
+		s.Title = at.Title
+	}
 	s.DefaultValue = ToStringMap(at.DefaultValue)
 	s.Description = at.Description
 	s.Example = expr.CanonicalizeExample(at, at.Example(api.ExampleGenerator))
@@ -537,8 +540,10 @@ func applyNullableSchema(schema *Schema, attribute *expr.AttributeExpr) {
 		return
 	}
 	base := *schema
+	base.Title = ""
 	base.Extensions = nil
 	*schema = Schema{
+		Title: schema.Title,
 		AnyOf: []*Schema{
 			&base,
 			{Type: Null},

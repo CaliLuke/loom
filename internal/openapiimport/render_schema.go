@@ -121,9 +121,6 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 	if schema.Ref != "" {
 		return r.schemaReferenceExpression(schema.Ref, path)
 	}
-	if schema.Title != "" {
-		return "", false, fmt.Errorf("render OpenAPI design: %s schema title is not renderable", path)
-	}
 	if schema.Unconstrained {
 		return "Any", false, nil
 	}
@@ -323,6 +320,9 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 }
 
 func (r *renderer) validationBlock(schema *Schema, path string) error {
+	if schema.Title != "" {
+		r.line("Title(%q)", schema.Title)
+	}
 	if err := r.emitExtensions("schema", schema.Extensions); err != nil {
 		return err
 	}
@@ -414,7 +414,7 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if schema == nil {
 		return false
 	}
-	if schema.Description != "" || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
+	if schema.Title != "" || schema.Description != "" || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
 		schema.Pattern != "" || schema.Minimum != nil || schema.Maximum != nil || schema.ExclusiveMinimum != nil ||
 		schema.ExclusiveMaximum != nil || schema.MinLength != nil || schema.MaxLength != nil ||
 		schema.MinItems != nil || schema.MaxItems != nil ||

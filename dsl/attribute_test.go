@@ -7,6 +7,29 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+func TestTitleSetsSchemaTitles(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		Type("Item", func() {
+			Title("Item Resource")
+			Attribute("updated_at", String, func() {
+				Title("Last Modified At")
+			})
+		})
+	})
+
+	item := root.UserType("Item")
+	if item.Attribute().Title != "Item Resource" {
+		t.Errorf("got type title %q, expected %q", item.Attribute().Title, "Item Resource")
+	}
+	updatedAt := item.Attribute().Find("updated_at")
+	if updatedAt == nil {
+		t.Fatal("missing updated_at attribute")
+	}
+	if updatedAt.Title != "Last Modified At" {
+		t.Errorf("got attribute title %q, expected %q", updatedAt.Title, "Last Modified At")
+	}
+}
+
 func TestFieldAddsTagToUnionBranch(t *testing.T) {
 	root := expr.RunDSL(t, func() {
 		Type("Envelope", func() {

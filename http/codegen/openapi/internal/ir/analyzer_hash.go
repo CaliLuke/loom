@@ -108,15 +108,25 @@ func (e *canonicalSchemaEncoder) writeAttribute(att *expr.AttributeExpr, closeOb
 		return
 	}
 	if att.Type != nil && att.Type.Kind() == expr.UserTypeKind {
+		e.writeTitle(att.Title)
 		e.writeType(att, closeObjects)
 		return
 	}
 	e.writeString("attribute")
+	e.writeTitle(att.Title)
 	e.writeType(att, closeObjects)
 	if att.Type != nil && (att.Type.Kind() == expr.UserTypeKind || att.Type.Kind() == expr.ResultTypeKind) {
 		return
 	}
 	e.writeValidation(att)
+}
+
+func (e *canonicalSchemaEncoder) writeTitle(title string) {
+	if title == "" {
+		return
+	}
+	e.writeString("title")
+	e.writeString(title)
 }
 
 func (e *canonicalSchemaEncoder) writeType(att *expr.AttributeExpr, closeObjects bool) {

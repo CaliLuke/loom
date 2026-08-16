@@ -175,15 +175,15 @@ The generated method keeps the original wire value in
 `Meta("openapi:operationId", ...)`. Regenerated OpenAPI documents therefore
 retain the source `operationId`.
 
-The importer preserves schema `example`, `examples`, `default`, `deprecated`,
-`readOnly`, and `writeOnly` without a flag. It also preserves unformatted
-integer and number schemas. The `int32`, `int64`, `float`, and `double` formats
-are also supported.
+The importer preserves schema `title`, `example`, `examples`, `default`,
+`deprecated`, `readOnly`, and `writeOnly` without a flag. It also preserves
+unformatted integer and number schemas. The `int32`, `int64`, `float`, and
+`double` formats are also supported.
 
-The importer maps these members to `Example(...)`, `Default(...)`, metadata,
-`Int`, or `Float64`. It also maps request and response media examples to
-`Example(...)`. It reports null, external, or incompatible examples at their
-source locations.
+The importer maps these members to `Title(...)`, `Example(...)`, `Default(...)`,
+metadata, `Int`, or `Float64`. It also maps request and response media examples
+to `Example(...)`. It reports null, external, or incompatible examples at
+their source locations.
 
 Use `--allow-lossy` only when you explicitly accept omission of non-contract
 metadata or of constructs the Loom HTTP DSL cannot express per-parameter or

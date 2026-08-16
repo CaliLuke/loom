@@ -108,9 +108,15 @@ func TestAttributeTypeSchemaLeavesAmbiguousUnionExampleUnchanged(t *testing.T) {
 }
 
 func TestAttributeSchemaUsesSemanticNullability(t *testing.T) {
-	attribute := &expr.AttributeExpr{Type: expr.String, Nullable: true}
+	attribute := &expr.AttributeExpr{Type: expr.String, Title: "Display Name", Nullable: true}
 	schema := buildAttributeSchema(&expr.APIExpr{ExampleGenerator: expr.NewRandom("nullable")}, NewSchema(), attribute)
+	if schema.Title != "Display Name" {
+		t.Fatalf("got title %q, expected %q", schema.Title, "Display Name")
+	}
 	if len(schema.AnyOf) != 2 || schema.AnyOf[0].Type != String || schema.AnyOf[1].Type != Null {
 		t.Fatalf("got nullable schema %#v, expected string-or-null anyOf", schema.AnyOf)
+	}
+	if schema.AnyOf[0].Title != "" {
+		t.Fatalf("got title %q on nullable branch, expected annotation on outer schema", schema.AnyOf[0].Title)
 	}
 }

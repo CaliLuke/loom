@@ -54,10 +54,11 @@ func API(name string, fn func()) *expr.APIExpr {
 	return expr.Root.API
 }
 
-// Title sets the API title. It is used by the generated OpenAPI specification.
+// Title sets the API or JSON Schema title used by the generated OpenAPI
+// specification.
 //
-// Title must appear in an API expression or any expression implementing
-// TitleHolder.
+// Title must appear in an API, Type, or Attribute expression, or any expression
+// implementing TitleHolder.
 //
 // Title accepts a single string argument.
 //

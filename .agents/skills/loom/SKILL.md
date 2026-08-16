@@ -75,9 +75,10 @@ newline-terminated for reviewable diffs.
 To bootstrap a design from an existing OpenAPI 3.1 or 3.2 JSON/YAML contract,
 run `loom import openapi <input> -o design`. Import supports a strict subset:
 it reports every unsupported construct it finds, writes no partial design or
-TODO placeholders, and never overwrites an existing target. Schema `default`,
-`example`, `examples`, `deprecated`, `readOnly`, and `writeOnly` import without
-a flag. Unformatted integers and numbers also import without a flag.
+TODO placeholders, and never overwrites an existing target. Schema `title`,
+`default`, `example`, `examples`, `deprecated`, `readOnly`, and `writeOnly`
+import without a flag. Unformatted integers and numbers also import without a
+flag.
 Representable media examples map to `Example(...)`.
 
 An unconstrained OpenAPI schema `{}` imports as `Any` wherever a schema can
@@ -139,6 +140,8 @@ Other important OpenAPI usage rules:
 
 - Use `Meta("openapi:typename", "...")` when a public schema component needs a
   stable explicit name.
+- Use `Title(...)` inside a type or attribute block when a schema node needs a
+  human-readable OpenAPI title distinct from its Loom name.
 - Treat hash-suffixed fallback names as generated identities. Use explicit
   component-name metadata when downstream code requires a stable public name.
 - Use `Meta("openapi:component:requestBody", "...")`,

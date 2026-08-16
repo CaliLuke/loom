@@ -21,6 +21,8 @@ type (
 		References []DataType
 		// Optional description
 		Description string
+		// Title is the optional JSON Schema title for this attribute.
+		Title string
 		// Docs points to external documentation
 		Docs *DocsExpr
 		// Optional validations
@@ -234,6 +236,11 @@ func (a *AttributeExpr) EvalName() string {
 		}
 	}
 	return "attribute"
+}
+
+// SetTitle sets the JSON Schema title for the attribute.
+func (a *AttributeExpr) SetTitle(title string) {
+	a.Title = title
 }
 
 // Finalize merges base and reference type attributes and finalizes the Type
