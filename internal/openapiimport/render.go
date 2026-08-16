@@ -507,6 +507,10 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		prefix += strconv.Quote(name) + ", "
 	}
 	if len(response.headers) == 0 && !wrapUnconstrainedError {
+		if call == "Error" && (response.response.Schema == nil || response.rawBody) {
+			r.line("Error(%q)", name)
+			return nil
+		}
 		return r.responseTypeWithoutHeaders(call, prefix, response, responseSchema, path+"/content/schema")
 	}
 	r.open("%sfunc()", prefix)

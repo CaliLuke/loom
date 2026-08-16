@@ -114,10 +114,12 @@ func (s *ServiceExpr) Finalize() {
 	}
 }
 
-// Validate checks that the error name is found in the result meta for
-// custom error types.
+// Validate checks the error type and custom error-name metadata.
 func (e *ErrorExpr) Validate() error {
 	verr := new(eval.ValidationErrors)
+	if e.Type == Empty {
+		verr.Add(e, "error type %q must not be Empty. Omit the type and map Body(Empty) on a bodyless HTTP response", e.Name)
+	}
 	if IsUnion(e.Type) {
 		verr.Add(e, "error type %q must not be a union; use separate named errors or an object type", e.Name)
 		return verr

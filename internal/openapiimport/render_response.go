@@ -34,6 +34,9 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 	if response.response.ContentType != "" {
 		r.line("ContentType(%q)", response.response.ContentType)
 	}
+	if failure && response.response.Schema == nil {
+		r.line("Body(Empty)")
+	}
 	if response.rawBody {
 		if err := r.openAPIBody(schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
 			return err
