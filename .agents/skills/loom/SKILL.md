@@ -184,7 +184,7 @@ Do not duplicate these contracts in handwritten transport code.
 
 Generated HTTP server packages expose per-method response contract functions
 and a service-wide `ResponseContractCases()` manifest. Loom supports unary,
-non-streaming flat multipart, and server SSE endpoints. After `loom gen`, run
+non-streaming flat multipart, server SSE, and plain HTTP WebSocket endpoints. After `loom gen`, run
 `loom test-scaffold <design-package>` once to create non-overwriting provider
 tests under `internal/contracttest/`. Fill each callback with a real
 generated-transport request. Unary callbacks return the response. Multipart
@@ -192,9 +192,12 @@ callbacks receive the designed content type, parts, media types, and
 requiredness. The application owns its multipart codecs and fixtures. SSE
 callbacks return an `loomhttp.SSEResponseContractObservation` containing the
 handshake, parsed events, and terminal error. Declared pre-stream errors remain
-unary cases. Missing callbacks fail individually. The matching Loom validator
-checks implemented callbacks. The application remains responsible for payloads,
-fakes, and state that make every declared response reachable.
+unary cases. WebSocket callbacks receive the stream contract. They return an
+`loomhttp.WebSocketResponseContractObservation` with the handshake, outbound
+JSON messages, and terminal error. Declared pre-upgrade errors remain unary
+cases. Missing callbacks fail individually. The matching Loom validator checks
+implemented callbacks. The application remains responsible for payloads, fakes,
+and state that make every declared response reachable.
 
 ## JSON Presence and Nullability
 

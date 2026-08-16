@@ -58,7 +58,9 @@ func TestCaptureResponseWriterForwardsHijack(t *testing.T) {
 	t.Parallel()
 	h := &hijackableRecorder{ResponseRecorder: httptest.NewRecorder()}
 	c := transport.NewCaptureResponseWriter(h)
-	_, _, err := http.NewResponseController(c).Hijack()
+	hijacker, ok := any(c).(http.Hijacker)
+	require.True(t, ok)
+	_, _, err := hijacker.Hijack()
 	require.ErrorIs(t, err, http.ErrNotSupported)
 	require.True(t, h.hijacked)
 }

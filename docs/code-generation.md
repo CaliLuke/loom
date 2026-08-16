@@ -239,19 +239,24 @@ generated test enumerates the current server manifest and fails once for every
 declared response that lacks an application callback, so later `loom gen`
 changes remain visible without rewriting the scaffold.
 
-Unary, multipart, and SSE cases use separate callback maps. A multipart
+Unary, multipart, SSE, and WebSocket cases use separate callback maps. A multipart
 callback receives an `loomhttp.MultipartRequestContract` with the request
 content type, part names, part media types, and required parts. The application
 still owns multipart codecs and request fixtures. An SSE success callback returns
 an `loomhttp.SSEResponseContractObservation` containing the handshake response,
 parsed events, and terminal read error. The validator checks the handshake,
 event data encoding, required ID and event-type fields, projection event types,
-and clean stream completion. Declared errors that occur before the first SSE
-frame remain ordinary HTTP response cases.
+and clean stream completion.
+
+A WebSocket callback receives the stream contract. It returns the upgrade
+response, outbound JSON messages, and terminal read error. The validator checks
+the `101` response, upgrade headers, JSON messages, and terminal behavior.
+Declared errors that occur before an SSE frame or WebSocket upgrade remain
+ordinary HTTP response cases.
 
 Loom supports non-streaming multipart contracts for flat object bodies with
-primitive or bytes fields. Other multipart shapes and multipart SSE endpoints
-produce an explicit generation diagnostic.
+primitive or bytes fields. Other multipart shapes produce a generation
+diagnostic. Multipart SSE and WebSocket endpoints also produce a diagnostic.
 
 #### Show Version
 

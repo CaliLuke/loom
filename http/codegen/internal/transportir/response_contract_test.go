@@ -30,6 +30,7 @@ type (
 		Headers      []transportir.ResponseContractHeader          `json:"headers,omitempty"`
 		Cookies      []transportir.ResponseContractCookie          `json:"cookies,omitempty"`
 		Multipart    *transportir.ResponseContractMultipartRequest `json:"multipart,omitempty"`
+		WebSocket    *transportir.ResponseContractWebSocket        `json:"websocket,omitempty"`
 	}
 )
 
@@ -237,6 +238,193 @@ func TestAnalyzeResponseContractCasesSupportsSSE(t *testing.T) {
 	require.Nil(t, analysis.Cases[1].SSE)
 }
 
+func TestAnalyzeResponseContractCasesSupportsWebSocket(t *testing.T) {
+	root := testcodegen.RunDSL(t, responseContractWebSocketDSL)
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	require.True(t, analysis.Supported())
+	require.Empty(t, analysis.Limitations)
+	require.Len(t, analysis.Cases, 2)
+
+	success := analysis.Cases[0]
+	require.Equal(t, "events.watch.success.101", success.ID)
+	require.Equal(t, transportir.ResponseContractSuccess, success.Kind)
+	require.Equal(t, transportir.ResponseContractWebSocketTransport, success.Transport)
+	require.Equal(t, expr.StatusSwitchingProtocols, success.StatusCode)
+	require.False(t, success.HasBody)
+	require.Empty(t, success.ContentTypes)
+	require.Equal(t, &transportir.ResponseContractWebSocket{
+		Direction:           "server",
+		OutboundMessageType: "object",
+		HandshakeHeaders:    []string{"Connection", "Sec-WebSocket-Accept", "Upgrade"},
+		Terminal:            "normal_close",
+	}, success.WebSocket)
+
+	unauthorized := analysis.Cases[1]
+	require.Equal(t, "events.watch.error.unauthorized.401", unauthorized.ID)
+	require.Equal(t, transportir.ResponseContractHTTP, unauthorized.Transport)
+	require.Nil(t, unauthorized.WebSocket)
+}
+
+func TestAnalyzeResponseContractCasesDescribesWebSocketDirections(t *testing.T) {
+	tests := []struct {
+		name       string
+		stream     *transportir.Stream
+		result     *expr.AttributeExpr
+		want       *transportir.ResponseContractWebSocket
+		limitation string
+	}{
+		{
+			name: "server",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				Direction:       "server",
+				HandshakeStatus: expr.StatusSwitchingProtocols,
+				ResponseMessage: &expr.AttributeExpr{Type: expr.String},
+			},
+			want: &transportir.ResponseContractWebSocket{
+				Direction:           "server",
+				OutboundMessageType: "string",
+				HandshakeHeaders:    []string{"Connection", "Sec-WebSocket-Accept", "Upgrade"},
+				Terminal:            "normal_close",
+			},
+		},
+		{
+			name: "client with final result",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				Direction:       "client",
+				HandshakeStatus: expr.StatusSwitchingProtocols,
+				RequestMessage:  &expr.AttributeExpr{Type: expr.String},
+			},
+			result: &expr.AttributeExpr{Type: expr.Int},
+			want: &transportir.ResponseContractWebSocket{
+				Direction:           "client",
+				InboundMessageType:  "string",
+				OutboundMessageType: "int",
+				HandshakeHeaders:    []string{"Connection", "Sec-WebSocket-Accept", "Upgrade"},
+				Terminal:            "final_message",
+			},
+		},
+		{
+			name: "bidirectional",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				Direction:       "bidirectional",
+				HandshakeStatus: expr.StatusSwitchingProtocols,
+				RequestMessage:  &expr.AttributeExpr{Type: expr.String},
+				ResponseMessage: &expr.AttributeExpr{Type: expr.Int},
+			},
+			want: &transportir.ResponseContractWebSocket{
+				Direction:           "bidirectional",
+				InboundMessageType:  "string",
+				OutboundMessageType: "int",
+				HandshakeHeaders:    []string{"Connection", "Sec-WebSocket-Accept", "Upgrade"},
+				Terminal:            "normal_close",
+			},
+		},
+		{
+			name: "missing server message",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				Direction:       "server",
+				HandshakeStatus: expr.StatusSwitchingProtocols,
+			},
+			limitation: "server WebSocket response contracts require an outbound message",
+		},
+		{
+			name: "missing client message",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				Direction:       "client",
+				HandshakeStatus: expr.StatusSwitchingProtocols,
+			},
+			limitation: "client WebSocket response contracts require an inbound message",
+		},
+		{
+			name: "missing bidirectional message",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				Direction:       "bidirectional",
+				HandshakeStatus: expr.StatusSwitchingProtocols,
+				RequestMessage:  &expr.AttributeExpr{Type: expr.String},
+			},
+			limitation: "bidirectional WebSocket response contracts require inbound and outbound messages",
+		},
+		{
+			name: "wrong handshake status",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				Direction:       "server",
+				HandshakeStatus: expr.StatusOK,
+				ResponseMessage: &expr.AttributeExpr{Type: expr.String},
+			},
+			limitation: "WebSocket response contracts require a 101 switching-protocols handshake",
+		},
+		{
+			name: "mixed result",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				HasMixedResults: true,
+				Direction:       "server",
+				HandshakeStatus: expr.StatusSwitchingProtocols,
+				ResponseMessage: &expr.AttributeExpr{Type: expr.String},
+			},
+			limitation: "mixed unary and WebSocket results require separate negotiated contract cases",
+		},
+		{
+			name: "unknown direction",
+			stream: &transportir.Stream{
+				IsStreaming:     true,
+				IsWebSocket:     true,
+				Direction:       "sideways",
+				HandshakeStatus: expr.StatusSwitchingProtocols,
+				ResponseMessage: &expr.AttributeExpr{Type: expr.String},
+			},
+			limitation: `WebSocket response contracts do not support stream direction "sideways"`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			endpoint := &transportir.Endpoint{
+				Service:    &transportir.Service{Name: "events"},
+				MethodName: "watch",
+				Request:    &transportir.Request{},
+				Response: &transportir.Response{
+					Result: test.result,
+					Responses: []*transportir.ResponseStatus{{
+						StatusCode: expr.StatusOK,
+					}},
+				},
+				Stream: test.stream,
+			}
+
+			analysis := transportir.AnalyzeResponseContractCases(endpoint)
+			if test.limitation != "" {
+				require.False(t, analysis.Supported())
+				require.Equal(t, []transportir.ResponseContractLimitation{{
+					Code:   transportir.ResponseContractStreaming,
+					Detail: test.limitation,
+				}}, analysis.Limitations)
+				return
+			}
+			require.True(t, analysis.Supported())
+			require.Len(t, analysis.Cases, 1)
+			require.Equal(t, test.want, analysis.Cases[0].WebSocket)
+		})
+	}
+}
+
 func TestAnalyzeResponseContractCasesEscapesStableIDSegments(t *testing.T) {
 	endpoint := &transportir.Endpoint{
 		Service:    &transportir.Service{Name: "catalog.v2"},
@@ -318,6 +506,7 @@ func responseContractSnapshotFor(analysis *transportir.ResponseContractAnalysis)
 			Headers:      contractCase.Headers,
 			Cookies:      contractCase.Cookies,
 			Multipart:    contractCase.Multipart,
+			WebSocket:    contractCase.WebSocket,
 		})
 	}
 	return snapshot
@@ -413,6 +602,22 @@ func responseContractSSEDSL() {
 					dsl.SSEEventType("event")
 					dsl.SSEEventData("data")
 				})
+			})
+		})
+	})
+}
+
+func responseContractWebSocketDSL() {
+	dsl.Service("events", func() {
+		dsl.Method("watch", func() {
+			dsl.Error("unauthorized")
+			dsl.StreamingResult(func() {
+				dsl.Attribute("message", dsl.String)
+				dsl.Required("message")
+			})
+			dsl.HTTP(func() {
+				dsl.GET("/events/socket")
+				dsl.Response("unauthorized", expr.StatusUnauthorized)
 			})
 		})
 	})

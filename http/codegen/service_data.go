@@ -195,6 +195,8 @@ type (
 		Multipart *MultipartRequestContractData
 		// SSE describes stream assertions for an SSE success case.
 		SSE *SSEResponseContractData
+		// WebSocket describes stream assertions for a WebSocket success case.
+		WebSocket *WebSocketResponseContractData
 	}
 
 	// MultipartRequestContractData contains generated multipart request metadata.
@@ -237,6 +239,20 @@ type (
 		EventTypeRequired bool
 		// EventTypes lists allowed projection discriminator values.
 		EventTypes []string
+		// Terminal identifies expected stream completion behavior.
+		Terminal string
+	}
+
+	// WebSocketResponseContractData contains generated WebSocket manifest metadata.
+	WebSocketResponseContractData struct {
+		// Direction is the designed stream direction.
+		Direction string
+		// InboundMessageType is the designed client-to-server message type name.
+		InboundMessageType string
+		// OutboundMessageType is the designed server-to-client message type name.
+		OutboundMessageType string
+		// HandshakeHeaders lists required WebSocket upgrade response headers.
+		HandshakeHeaders []string
 		// Terminal identifies expected stream completion behavior.
 		Terminal string
 	}

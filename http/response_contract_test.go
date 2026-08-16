@@ -1,11 +1,13 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 )
 
@@ -266,4 +268,122 @@ func TestValidateSSEResponseContract(t *testing.T) {
 			require.ErrorContains(t, err, test.wantErr)
 		})
 	}
+}
+
+func TestValidateWebSocketResponseContract(t *testing.T) {
+	contract := ResponseContractCase{
+		ID:         "events.watch.success.101",
+		Kind:       ResponseContractSuccess,
+		Transport:  ResponseContractWebSocket,
+		StatusCode: http.StatusSwitchingProtocols,
+		WebSocket: &WebSocketResponseContract{
+			Direction:           "server",
+			OutboundMessageType: "WatchStreamingResult",
+			HandshakeHeaders: []string{
+				"Connection",
+				"Sec-WebSocket-Accept",
+				"Upgrade",
+			},
+			Terminal: "normal_close",
+		},
+	}
+	valid := func() *WebSocketResponseContractObservation {
+		header := make(http.Header)
+		header.Set("Connection", "Upgrade")
+		header.Set("Sec-WebSocket-Accept", "key")
+		header.Set("Upgrade", "websocket")
+		return &WebSocketResponseContractObservation{
+			Response: &http.Response{
+				StatusCode: http.StatusSwitchingProtocols,
+				Header:     header,
+			},
+			Messages:      []json.RawMessage{json.RawMessage(`{"message":"ready"}`)},
+			TerminalError: &websocket.CloseError{Code: websocket.CloseNormalClosure, Text: "done"},
+		}
+	}
+	require.ErrorContains(
+		t,
+		ValidateWebSocketResponseContract(nil, contract),
+		"WebSocket observation is nil",
+	)
+
+	tests := []struct {
+		name    string
+		mutate  func(*WebSocketResponseContractObservation, *ResponseContractCase)
+		wantErr string
+	}{
+		{name: "success"},
+		{name: "nil observation", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			*observation = WebSocketResponseContractObservation{}
+		}, wantErr: "response is nil"},
+		{name: "wrong contract transport", mutate: func(_ *WebSocketResponseContractObservation, contract *ResponseContractCase) {
+			contract.Transport = ResponseContractHTTP
+		}, wantErr: "contract is not a WebSocket response"},
+		{name: "missing messages", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.Messages = nil
+		}, wantErr: "no WebSocket messages were observed"},
+		{name: "missing handshake header", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.Response.Header.Del("Upgrade")
+		}, wantErr: `WebSocket handshake header "Upgrade" is missing`},
+		{name: "invalid connection header", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.Response.Header.Set("Connection", "keep-alive")
+		}, wantErr: `WebSocket handshake header "Connection" does not contain "Upgrade"`},
+		{name: "invalid upgrade header", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.Response.Header.Set("Upgrade", "h2c")
+		}, wantErr: `WebSocket handshake header "Upgrade" is "h2c", want "websocket"`},
+		{name: "empty accept header", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.Response.Header.Set("Sec-WebSocket-Accept", "")
+		}, wantErr: `WebSocket handshake header "Sec-WebSocket-Accept" is empty`},
+		{name: "invalid JSON", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.Messages[0] = json.RawMessage("not-json")
+		}, wantErr: "message 0 is not valid JSON"},
+		{name: "abnormal close", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.TerminalError = &websocket.CloseError{Code: websocket.CloseAbnormalClosure}
+		}, wantErr: "terminal error, want normal close"},
+		{name: "missing close", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.TerminalError = nil
+		}, wantErr: "terminal error is nil, want normal close"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			observation := valid()
+			current := contract
+			if test.mutate != nil {
+				test.mutate(observation, &current)
+			}
+			err := ValidateWebSocketResponseContract(observation, current)
+			if test.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, test.wantErr)
+		})
+	}
+}
+
+func TestValidateWebSocketResponseContractFinalMessage(t *testing.T) {
+	contract := ResponseContractCase{
+		ID:         "events.collect.success.101",
+		Kind:       ResponseContractSuccess,
+		Transport:  ResponseContractWebSocket,
+		StatusCode: http.StatusSwitchingProtocols,
+		WebSocket: &WebSocketResponseContract{
+			Direction:           "client",
+			InboundMessageType:  "CollectStreamingPayload",
+			OutboundMessageType: "CollectResult",
+			Terminal:            "final_message",
+		},
+	}
+	observation := &WebSocketResponseContractObservation{
+		Response: &http.Response{
+			StatusCode: http.StatusSwitchingProtocols,
+			Header:     make(http.Header),
+		},
+		Messages: []json.RawMessage{json.RawMessage(`{"count":1}`)},
+	}
+	require.NoError(t, ValidateWebSocketResponseContract(observation, contract))
+
+	observation.Messages = append(observation.Messages, json.RawMessage(`{"count":2}`))
+	require.ErrorContains(t, ValidateWebSocketResponseContract(observation, contract), "observed 2 WebSocket messages, want exactly one final message")
 }

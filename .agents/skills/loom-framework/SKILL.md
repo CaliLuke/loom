@@ -168,13 +168,16 @@ filter, and serialization rules belong here.
 
 ## Transport Invariants
 
-- Response-contract manifests classify unary HTTP, supported multipart, and SSE
-  success cases explicitly. Multipart cases expose flat primitive and bytes
+- Response-contract manifests classify unary HTTP, supported multipart, SSE,
+  and plain HTTP WebSocket success cases explicitly. Multipart cases expose flat primitive and bytes
   parts from prepared transport data. Multipart SSE combinations remain an
   explicit limitation. Applications own codecs and fixtures.
   SSE cases own handshake, message, field-mapping, projection event type, and
   terminal-completion metadata. Declared pre-stream errors stay unary HTTP cases
   with the same stable case IDs.
+- WebSocket cases own the `101` handshake headers, stream direction, inbound
+  and outbound message types, and terminal behavior. Declared pre-upgrade
+  errors stay unary HTTP cases with the same stable case IDs.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.

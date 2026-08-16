@@ -11,7 +11,6 @@ import (
 	. "github.com/CaliLuke/loom/dsl"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
-	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestResponseContractCaseContentTypesFollowBodyApplicability(t *testing.T) {
@@ -34,14 +33,12 @@ func TestResponseContractCaseContentTypesFollowBodyApplicability(t *testing.T) {
 	}
 }
 
-func TestServerResponseContractLimitationsBecomeWarnings(t *testing.T) {
-	root := RunHTTPDSL(t, testdata.StreamingResultDSL)
+func TestSupportedWebSocketResponseContractHasNoWarning(t *testing.T) {
+	root := RunHTTPDSL(t, responseContractWebSocketServerDSL)
 	files := ServerFiles("gen", CreateHTTPServices(root))
 	file := findFileWithSuffix(t, files, filepath.Join("server", "server.go"))
 
-	require.Equal(t, []string{
-		"response contract omitted for StreamingResultService.StreamingResultMethod: streaming: WebSocket responses require stream-aware contract scenarios",
-	}, file.Warnings)
+	require.Empty(t, file.Warnings)
 }
 
 func TestUnsupportedMultipartResponseContractBecomesWarning(t *testing.T) {
