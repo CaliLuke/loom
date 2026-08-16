@@ -3,7 +3,7 @@ import "regexp"
 // MethodStreamingBody is the type of the "ServicePayloadValidatedAlias"
 // service "Method" endpoint HTTP request body.
 type MethodStreamingBody struct {
-	Name *ValidatedStringStreamingBody `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	Name loom.Optional[ValidatedStringStreamingBody] `form:"name,omitempty" json:"name,omitzero" xml:"name,omitempty"`
 }
 
 // ValidatedStringStreamingBody is used to define fields on request body types.
@@ -13,9 +13,10 @@ type ValidatedStringStreamingBody string
 // endpoint payload.
 func NewMethodStreamingBody(body *MethodStreamingBody) *servicepayloadvalidatedalias.MethodStreamingPayload {
 	v := &servicepayloadvalidatedalias.MethodStreamingPayload{}
-	if body.Name != nil {
-		name := servicepayloadvalidatedalias.ValidatedString(*body.Name)
-		v.Name = &name
+	if actual, ok := body.Name.Value(); ok {
+		vNameValue := servicepayloadvalidatedalias.ValidatedString(actual)
+
+		v.Name = &vNameValue
 	}
 
 	return v
@@ -24,12 +25,10 @@ func NewMethodStreamingBody(body *MethodStreamingBody) *servicepayloadvalidateda
 // ValidateMethodStreamingBody runs the validations defined on
 // MethodStreamingBody
 func ValidateMethodStreamingBody(body *MethodStreamingBody) (err error) {
-	if body.Name != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.name", string(*body.Name), loomPatternTest0))
-	}
-	if body.Name != nil {
-		if utf8.RuneCountInString(string(*body.Name)) < 10 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body.name", string(*body.Name), utf8.RuneCountInString(string(*body.Name)), 10, true))
+	if actual, ok := body.Name.Value(); ok {
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.name", actual, loomPatternTest0))
+		if len(actual) < 10 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body.name", actual, len(actual), 10, true))
 		}
 	}
 	return

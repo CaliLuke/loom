@@ -19,6 +19,7 @@ var (
 	tagPrefix                = "+"
 	userTypeHashPrefix       = "!"
 	userTypePrefix           = "_t_"
+	nullablePrefix           = "?"
 )
 
 // Hash returns a hash value for the given data type. Two types have the same
@@ -57,13 +58,13 @@ func hash(dt DataType, ignoreFields, ignoreNames, ignoreTags bool, seen map[*Obj
 }
 
 func hashArray(a *Array, ignoreFields, ignoreNames, ignoreTags bool, seen map[*Object]*string) *string {
-	h := arrayPrefix + *hash(a.ElemType.Type, ignoreFields, ignoreNames, ignoreTags, seen)
+	h := arrayPrefix + hashAttribute(a.ElemType, ignoreFields, ignoreNames, ignoreTags, seen)
 	return &h
 }
 
 func hashMap(m *Map, ignoreFields, ignoreNames, ignoreTags bool, seen map[*Object]*string) *string {
-	h := mapPrefix + *hash(m.KeyType.Type, ignoreFields, ignoreNames, ignoreTags, seen) +
-		mapElemPrefix + *hash(m.ElemType.Type, ignoreFields, ignoreNames, ignoreTags, seen)
+	h := mapPrefix + hashAttribute(m.KeyType, ignoreFields, ignoreNames, ignoreTags, seen) +
+		mapElemPrefix + hashAttribute(m.ElemType, ignoreFields, ignoreNames, ignoreTags, seen)
 	return &h
 }
 
@@ -75,7 +76,7 @@ func hashUnion(u *Union, ignoreFields, ignoreNames, ignoreTags bool, seen map[*O
 	})
 	h := unionTypePrefix + u.TypeName
 	for _, nat := range sorted {
-		h += unionAttributePrefix + nat.Name + unionAttributeTypePrefix + *hash(nat.Attribute.Type, ignoreFields, ignoreNames, ignoreTags, seen)
+		h += unionAttributePrefix + nat.Name + unionAttributeTypePrefix + hashAttribute(nat.Attribute, ignoreFields, ignoreNames, ignoreTags, seen)
 	}
 	return &h
 }
@@ -89,6 +90,9 @@ func hashUserType(ut UserType, ignoreFields, ignoreNames, ignoreTags bool, seen 
 		return &h
 	}
 	att := ut.Attribute()
+	if IsNullable(att) {
+		h += nullablePrefix
+	}
 	if !ignoreTags {
 		for _, k := range sortedStructFieldMetaKeys(att.Meta) {
 			h += fmt.Sprintf("%s%s%s", tagPrefix, k, att.Meta[k])
@@ -107,7 +111,7 @@ func hashObject(o *Object, ignoreFields, ignoreNames, ignoreTags bool, seen map[
 	seen[o] = ph
 	for _, a := range sorted(o) {
 		*ph += attributePrefix + a.Name +
-			attributeTypePrefix + *hash(a.Attribute.Type, ignoreFields, ignoreNames, ignoreTags, seen)
+			attributeTypePrefix + hashAttribute(a.Attribute, ignoreFields, ignoreNames, ignoreTags, seen)
 		if !ignoreTags {
 			for _, k := range sortedStructFieldMetaKeys(a.Attribute.Meta) {
 				*ph += fmt.Sprintf("%s%s%s", tagPrefix, k, a.Attribute.Meta[k])
@@ -115,6 +119,14 @@ func hashObject(o *Object, ignoreFields, ignoreNames, ignoreTags bool, seen map[
 		}
 	}
 	return ph
+}
+
+func hashAttribute(attribute *AttributeExpr, ignoreFields, ignoreNames, ignoreTags bool, seen map[*Object]*string) string {
+	prefix := ""
+	if IsNullable(attribute) {
+		prefix = nullablePrefix
+	}
+	return prefix + *hash(attribute.Type, ignoreFields, ignoreNames, ignoreTags, seen)
 }
 
 func sortedStructFieldMetaKeys(meta MetaExpr) []string {

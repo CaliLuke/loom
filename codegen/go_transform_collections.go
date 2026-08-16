@@ -26,7 +26,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		NewVar:         newVar,
 		TransformAttrs: ta,
 		LoopVar:        string(rune(105 + strings.Count(targetVar, "["))),
-		IsStruct:       expr.IsObject(target.ElemType.Type),
+		IsStruct:       expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
 	}
 	return renderTransformGoArray(data)
 }
@@ -50,8 +50,8 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		TargetVar:      targetVar,
 		NewVar:         newVar,
 		TransformAttrs: ta,
-		IsKeyStruct:    expr.IsObject(target.KeyType.Type),
-		IsElemStruct:   expr.IsObject(target.ElemType.Type),
+		IsKeyStruct:    expr.IsObject(target.KeyType.Type) && !expr.AllowsNull(target.KeyType),
+		IsElemStruct:   expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
 	}
 	if depth := MapDepth(target); depth > 0 {
 		data.LoopVar = string(rune(97 + depth))
@@ -438,6 +438,10 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *Transform
 // the tope level conversion function is skipped as the generate code does not make
 // use of it (since it inlines that top-level transformation).
 func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
+	if expr.IsNullable(source) || expr.IsNullable(target) {
+		source = concretePresenceAttribute(source)
+		target = concretePresenceAttribute(target)
+	}
 	name := transformHelperName(source, target, ta)
 	if _, ok := seen[name]; ok {
 		return helpers, err
@@ -513,6 +517,16 @@ func generateHelper(source, target *expr.AttributeExpr, req bool, ta *TransformA
 	if _, ok := seen[name]; ok {
 		return nil, nil
 	}
+	nested := *ta
+	nested.SourceCtx = ta.SourceCtx.Dup()
+	nested.TargetCtx = ta.TargetCtx.Dup()
+	if attributeUsesJSONPresence(source, nested.SourceCtx) {
+		nested.SourceCtx.JSONPresence = true
+	}
+	if attributeUsesJSONPresence(target, nested.TargetCtx) {
+		nested.TargetCtx.JSONPresence = true
+	}
+	ta = &nested
 
 	// When transforming into a user type defined in an external package, assume
 	// nested anonymous types (e.g., union sum types) belong to the same target
@@ -545,6 +559,17 @@ func generateHelper(source, target *expr.AttributeExpr, req bool, ta *TransformA
 	}
 	seen[name] = tfd
 	return tfd, nil
+}
+
+func attributeUsesJSONPresence(attribute *expr.AttributeExpr, context *AttributeContext) bool {
+	if attribute == nil || context == nil || len(context.JSONPresenceTypes) == 0 {
+		return false
+	}
+	if userType, ok := attribute.Type.(expr.UserType); ok && context.JSONPresenceTypes[userType.ID()] {
+		return true
+	}
+	name := context.Scope.Name(attribute, context.Pkg(attribute), false, context.UseDefault)
+	return context.JSONPresenceTypes[name]
 }
 
 // walkMatches iterates through the attributes of source and looks for

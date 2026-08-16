@@ -40,7 +40,7 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 	if bodyAttr != nil {
 		body = bodyAttr.Type
 	}
-	return &payloadBuilder{
+	builder := &payloadBuilder{
 		sds:        sds,
 		endpointIR: endpointIR,
 		sd:         sd,
@@ -54,6 +54,8 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 		svcctx:     serviceContext(pkg, sd.Service.Scope),
 		pkg:        pkg,
 	}
+	builder.httpsvrctx.JSONPresence = bodyAttr != nil && !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
+	return builder
 }
 
 func (b *payloadBuilder) build() *PayloadData {
@@ -165,8 +167,8 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 }
 
 func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {
-	return b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.endpointIR.Request.FormEncoded, true, b.sd),
-		b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.endpointIR.Request.FormEncoded, false, b.sd)
+	return b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, true, b.sd),
+		b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
 }
 
 func (b *payloadBuilder) buildRequestElements() ([]*ParamData, []*ParamData, []*HeaderData, []*CookieData, *ParamData) {
@@ -423,6 +425,7 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool) {
 		if o, ok := request.Body.Meta["origin:attribute"]; ok {
 			origin = o[0]
 			pAtt = expr.AsObject(b.payload.Type).Attribute(origin)
+			pAtt = serviceFieldTransformAttribute(b.payload, origin, pAtt)
 			pointer = !b.payload.IsRequired(o[0]) && expr.IsPrimitive(pAtt.Type)
 		}
 		var helpers []*codegen.TransformFunctionData

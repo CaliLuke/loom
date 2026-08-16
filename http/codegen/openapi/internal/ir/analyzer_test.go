@@ -61,6 +61,31 @@ func TestAnalyzerPreservesCanonicalAnyAliasAsComponent(t *testing.T) {
 	require.Empty(t, component.Type)
 }
 
+func TestAnalyzerKeepsNamedAnyNullExampleOnOccurrence(t *testing.T) {
+	t.Parallel()
+
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false, WithExampleValue(openAPIExampleValueForTest))
+	anything := &expr.UserTypeExpr{
+		TypeName: "Anything",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: expr.Any,
+			Meta: expr.MetaExpr{
+				"openapi:typename:canonical": []string{"true"},
+			},
+		},
+	}
+	analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: anything})
+	schema := analyzer.AnalyzeSchema(&expr.AttributeExpr{
+		Type:         anything,
+		UserExamples: []*expr.ExampleExpr{{ExplicitNull: true}},
+	})
+
+	require.Equal(t, "#/components/schemas/Anything", schema.Ref)
+	require.IsType(t, NullExample{}, schema.Example)
+	_, componentHasNullExample := analyzer.Components()["Anything"].Example.(NullExample)
+	require.False(t, componentHasNullExample)
+}
+
 func TestAnalyzerPreservesCanonicalNamesThatShareAGoIdentifier(t *testing.T) {
 	t.Parallel()
 

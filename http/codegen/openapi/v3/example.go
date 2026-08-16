@@ -5,6 +5,7 @@ import (
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
 )
 
 type (
@@ -26,7 +27,7 @@ func initExamples(obj exampler, attr *expr.AttributeExpr, r *expr.ExampleGenerat
 	case len(examples) > 1:
 		refs := make(map[string]*ExampleRef, len(examples))
 		for _, ex := range examples {
-			val, ok := openAPIExampleValue(attr, ex.Value)
+			val, ok := authoredExampleValue(attr, ex)
 			if !ok {
 				continue
 			}
@@ -43,7 +44,7 @@ func initExamples(obj exampler, attr *expr.AttributeExpr, r *expr.ExampleGenerat
 		obj.setExamples(refs)
 		return
 	case len(examples) > 0:
-		if val, ok := openAPIExampleValue(attr, examples[0].Value); ok {
+		if val, ok := authoredExampleValue(attr, examples[0]); ok {
 			obj.setExample(val)
 		}
 	default:
@@ -51,6 +52,16 @@ func initExamples(obj exampler, attr *expr.AttributeExpr, r *expr.ExampleGenerat
 			obj.setExample(val)
 		}
 	}
+}
+
+func authoredExampleValue(attr *expr.AttributeExpr, example *expr.ExampleExpr) (any, bool) {
+	if example != nil && example.ExplicitNull && expr.AllowsNull(attr) {
+		return openapiir.NullExample{}, true
+	}
+	if example == nil {
+		return nil, false
+	}
+	return openAPIExampleValue(attr, example.Value)
 }
 
 func shouldSuppressOpenAPIExamples(attr *expr.AttributeExpr, closeObjects bool) bool {
@@ -118,6 +129,10 @@ func objectContainsSuppressedOpenAPIExample(attr *expr.AttributeExpr, closeObjec
 
 func openAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 	if raw == nil {
+		if examples := attr.ExtractUserExamples(); len(examples) > 0 &&
+			examples[len(examples)-1].ExplicitNull && expr.AllowsNull(attr) {
+			return openapiir.NullExample{}, true
+		}
 		return nil, false
 	}
 	val := normalizeOpenAPIExample(expr.CanonicalizeExample(attr, raw))

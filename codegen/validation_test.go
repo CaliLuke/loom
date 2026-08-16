@@ -159,6 +159,35 @@ func TestValidationCodeDoesNotMutateSharedUserTypeValidation(t *testing.T) {
 	require.Equal(t, 2, *aliasValidation.MinLength)
 }
 
+func TestNullableValidationUsesSemanticPresence(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type:       expr.String,
+		Nullable:   true,
+		Validation: &expr.ValidationExpr{Pattern: "^[a-z]+$"},
+	}
+	ctx := NewAttributeContext(false, false, false, "", NewNameScope())
+	code := ValidationCode(attribute, nil, ctx, true, false, false, "body.value")
+	require.Contains(t, code, "if !body.value.Present()")
+	require.Contains(t, code, "if actual, ok := body.value.Value(); ok")
+	require.Contains(t, code, "ValidatePattern")
+}
+
+func TestNullableRecursiveValidationTerminates(t *testing.T) {
+	node := &expr.UserTypeExpr{TypeName: "Node"}
+	node.AttributeExpr = &expr.AttributeExpr{
+		Type: &expr.Object{{
+			Name:      "child",
+			Attribute: &expr.AttributeExpr{Type: node, Nullable: true},
+		}},
+		Validation: &expr.ValidationExpr{},
+	}
+	attribute := &expr.AttributeExpr{Type: node, Nullable: true}
+
+	code := ValidationCode(attribute, node, NewAttributeContext(false, false, true, "", NewNameScope()), true, false, false, "node")
+	require.Contains(t, code, ".Present()")
+	require.Less(t, len(code), 5000)
+}
+
 // TestRecursiveValidationWithCycleGuard tests that recursive types are
 // properly handled without infinite loops. The recursion guard should prevent
 // cycles while still allowing validation of the same type in different contexts.

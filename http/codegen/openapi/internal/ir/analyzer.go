@@ -118,11 +118,21 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 		return nil
 	}
 	if t, ok := attr.Type.(expr.UserType); ok {
-		return a.analyzeUserType(attr, t, context, len(noref) > 0)
+		s := a.analyzeUserType(attr, t, context, len(noref) > 0)
+		if attr.Nullable && !expr.IsNullable(t.Attribute()) {
+			a.applySchemaExample(s, attr, context)
+			applyNullableSchema(s)
+		} else if expr.AllowsNull(t.Attribute()) && len(attr.UserExamples) > 0 {
+			a.applySchemaExample(s, attr, context)
+		}
+		return s
 	}
 
 	s, note := a.analyzeInlineType(attr, context)
 	a.applySchemaAttributeDetails(s, attr, note, context)
+	if expr.IsNullable(attr) {
+		applyNullableSchema(s)
+	}
 	return s
 }
 
@@ -201,7 +211,7 @@ func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.Attribu
 	if attr.DefaultValue != nil {
 		componentAttr.DefaultValue = attr.DefaultValue
 	}
-	if len(attr.UserExamples) > 0 {
+	if len(attr.UserExamples) > 0 && !expr.AllowsNull(attr) {
 		componentAttr.UserExamples = attr.UserExamples
 	}
 	return componentAttr
@@ -378,20 +388,7 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 	}
 	s.DefaultValue = toStringMap(attr.DefaultValue)
 
-	suppress := false
-	if a.suppressExamples != nil {
-		suppress = a.suppressExamples(attr, a.closeObjects)
-	}
-	if !suppress {
-		raw := attr.Example(exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context))
-		if a.exampleValue != nil {
-			if example, ok := a.exampleValue(attr, raw); ok {
-				s.Example = example
-			}
-		} else if raw != nil {
-			s.Example = raw
-		}
-	}
+	a.applySchemaExample(s, attr, context)
 	s.Extensions = openapi.ExtensionsFromExpr(attr.Meta)
 	applySchemaOpenAPIMetadata(s, attr.Meta)
 	if ap := openapi.AdditionalPropertiesFromExpr(attr.Meta); ap != nil {
@@ -432,6 +429,52 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 			continue
 		}
 		s.Required = append(s.Required, required)
+	}
+}
+
+func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, context string) {
+	suppress := false
+	if a.suppressExamples != nil {
+		suppress = a.suppressExamples(attr, a.closeObjects)
+	}
+	if !suppress {
+		raw := attr.Example(exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context))
+		if a.exampleValue != nil {
+			if example, ok := a.exampleValue(attr, raw); ok {
+				s.Example = example
+			}
+		} else if raw != nil {
+			s.Example = raw
+		}
+	}
+}
+
+func applyNullableSchema(schema *Schema) {
+	if schema == nil || schema.Type == string(openapi.Null) {
+		return
+	}
+	base := *schema
+	base.Description = ""
+	base.DefaultValue = nil
+	base.Example = nil
+	base.ReadOnly = false
+	base.WriteOnly = false
+	base.Deprecated = false
+	base.XML = nil
+	base.Extensions = nil
+	*schema = Schema{
+		Description:  schema.Description,
+		DefaultValue: schema.DefaultValue,
+		Example:      schema.Example,
+		ReadOnly:     schema.ReadOnly,
+		WriteOnly:    schema.WriteOnly,
+		Deprecated:   schema.Deprecated,
+		AnyOf: []*Schema{
+			&base,
+			{Type: string(openapi.Null)},
+		},
+		XML:        schema.XML,
+		Extensions: schema.Extensions,
 	}
 }
 

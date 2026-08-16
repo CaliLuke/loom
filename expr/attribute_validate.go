@@ -3,6 +3,7 @@ package expr
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/CaliLuke/loom/eval"
 )
@@ -34,9 +35,42 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 		verr.Merge(a.validateNumericBounds(ctx, parent))
 	}
 	verr.Merge(a.validateExamples(ctx, parent))
+	verr.Merge(a.validatePresence(ctx, parent))
 	verr.Merge(a.validateChildTypes(ctx, parent))
 	verr.Merge(a.validateViewReference(ctx, parent))
 
+	return verr
+}
+
+func (a *AttributeExpr) validatePresence(ctx string, parent eval.Expression) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	if AllowsNull(a) {
+		if _, hasType := a.Meta["struct:field:type"]; hasType && !legacyNullableWrapper(a) {
+			verr.Add(parent, "%snull-admitting attributes conflict with custom field type metadata", ctx)
+		}
+		if tag, ok := a.Meta.Last("struct:tag:json"); ok {
+			if strings.Split(tag, ",")[0] == "-" {
+				verr.Add(parent, "%snull-admitting attributes conflict with a JSON tag that omits the field", ctx)
+			}
+			if jsonTagHasOption(tag, "string") {
+				verr.Add(parent, "%sJSON ,string is not supported on presence-aware attributes", ctx)
+			}
+		}
+	}
+	if value, ok := a.Meta.Last("openapi:nullable"); ok && value == "false" && legacyNullableWrapper(a) {
+		verr.Add(parent, "%snullable metadata conflicts with Loom Nullable field type", ctx)
+	}
+	if value, ok := a.Meta.Last("openapi:nullable"); ok && value == "true" {
+		if _, hasType := a.Meta["struct:field:type"]; hasType && !legacyNullableWrapper(a) {
+			verr.Add(parent, "%snullable metadata conflicts with custom field type", ctx)
+		}
+	}
+	if array := AsArray(a.Type); array != nil && array.NonNullableElems && IsNullable(array.ElemType) {
+		verr.Add(parent, "%sarray elements cannot be both nullable and required", ctx)
+	}
+	if mapping := AsMap(a.Type); mapping != nil && IsNullable(mapping.KeyType) {
+		verr.Add(parent, "%smap keys cannot be nullable", ctx)
+	}
 	return verr
 }
 
@@ -71,7 +105,91 @@ func isIntegerKind(kind Kind) bool {
 // Prepare resolves any deferred named type references before validation.
 func (a *AttributeExpr) Prepare() {
 	a.prepareTypeRefs(make(map[*AttributeExpr]struct{}))
+	a.normalizeLegacyPresence(make(map[*AttributeExpr]struct{}))
 	a.preparePkgPath(a.pkgPath(), a.Type, make(map[*AttributeExpr]struct{}))
+}
+
+func (a *AttributeExpr) normalizeLegacyPresence(seen map[*AttributeExpr]struct{}) {
+	if a == nil {
+		return
+	}
+	if _, ok := seen[a]; ok {
+		return
+	}
+	seen[a] = struct{}{}
+	if legacyNullableWrapper(a) {
+		if value, ok := a.Meta.Last("openapi:nullable"); !ok || value != "false" {
+			a.Nullable = true
+			delete(a.Meta, "openapi:nullable")
+			if legacyWrapperCanUseSemanticType(a) {
+				delete(a.Meta, "struct:field:type")
+			}
+		}
+	} else if value, ok := a.Meta.Last("openapi:nullable"); ok && value == "true" {
+		a.Nullable = true
+		delete(a.Meta, "openapi:nullable")
+	}
+	switch actual := a.Type.(type) {
+	case UserType:
+		actual.Attribute().normalizeLegacyPresence(seen)
+	case *Array:
+		actual.ElemType.normalizeLegacyPresence(seen)
+	case *Map:
+		actual.KeyType.normalizeLegacyPresence(seen)
+		actual.ElemType.normalizeLegacyPresence(seen)
+	case *Object:
+		for _, named := range *actual {
+			named.Attribute.normalizeLegacyPresence(seen)
+		}
+	case *Union:
+		for _, named := range actual.Values {
+			named.Attribute.normalizeLegacyPresence(seen)
+		}
+	}
+}
+
+func legacyNullableWrapper(a *AttributeExpr) bool {
+	if a == nil {
+		return false
+	}
+	args, ok := a.Meta["struct:field:type"]
+	return ok && len(args) == 3 && args[1] == "github.com/CaliLuke/loom/pkg" && args[2] == "loom" &&
+		strings.HasPrefix(args[0], "loom.Nullable[") && strings.HasSuffix(args[0], "]")
+}
+
+func legacyWrapperCanUseSemanticType(a *AttributeExpr) bool {
+	args := a.Meta["struct:field:type"]
+	if len(args) != 3 {
+		return false
+	}
+	want := ""
+	switch a.Type {
+	case Boolean:
+		want = "bool"
+	case Int:
+		want = "int"
+	case Int32:
+		want = "int32"
+	case Int64:
+		want = "int64"
+	case UInt:
+		want = "uint"
+	case UInt32:
+		want = "uint32"
+	case UInt64:
+		want = "uint64"
+	case Float32:
+		want = "float32"
+	case Float64:
+		want = "float64"
+	case String:
+		want = "string"
+	case Bytes:
+		want = "[]byte"
+	case Any:
+		want = "any"
+	}
+	return want != "" && args[0] == "loom.Nullable["+want+"]"
 }
 
 func (a *AttributeExpr) preparePkgPath(pkgPath string, t DataType, seen map[*AttributeExpr]struct{}) {
@@ -156,6 +274,11 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 		verr.Merge(ar.ElemType.Validate(ctx, a))
 		return verr
 	}
+	if mapping := AsMap(a.Type); mapping != nil {
+		verr.Merge(mapping.KeyType.Validate(ctx, a))
+		verr.Merge(mapping.ElemType.Validate(ctx, a))
+		return verr
+	}
 	if u := AsUnion(a.Type); u != nil {
 		for _, ut := range u.Values {
 			verr.Merge(ut.Attribute.Validate(ctx, parent))
@@ -178,6 +301,15 @@ func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expressio
 		verr.Merge(nat.Attribute.Validate(fieldCtx, parent))
 	}
 	return verr
+}
+
+func jsonTagHasOption(tag, option string) bool {
+	for _, candidate := range strings.Split(tag, ",")[1:] {
+		if candidate == option {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *AttributeExpr) pkgPath() string {

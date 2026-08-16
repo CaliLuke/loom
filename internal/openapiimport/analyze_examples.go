@@ -60,7 +60,10 @@ func (a *analyzer) exampleValue(node *yaml4.Node, schema *Schema, path string) (
 		return nil, false
 	}
 	if value == nil {
-		a.unsupported("examples", path, "null examples cannot be expressed by the Loom DSL")
+		if schema != nil && schema.Nullable {
+			return nil, true
+		}
+		a.unsupported("examples", path, "null example requires a nullable schema")
 		return nil, false
 	}
 	if _, err := exampleLiteral(value); err != nil {
@@ -75,6 +78,9 @@ func (a *analyzer) exampleValue(node *yaml4.Node, schema *Schema, path string) (
 }
 
 func exampleCompatibleWithSchema(schema *Schema, value any) bool {
+	if value == nil {
+		return schema != nil && schema.Nullable
+	}
 	if schema == nil || schema.Ref != "" {
 		return true
 	}

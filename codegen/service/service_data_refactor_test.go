@@ -66,6 +66,28 @@ func TestAnalyzeWrapsRawObjectResults(t *testing.T) {
 	require.True(t, ok)
 }
 
+func TestNullableNamedMethodRootsKeepDeclarationNamesUnwrapped(t *testing.T) {
+	named := &expr.UserTypeExpr{
+		TypeName: "Patch",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{
+			Name:      "name",
+			Attribute: &expr.AttributeExpr{Type: expr.String},
+		}}},
+	}
+	attribute := &expr.AttributeExpr{Type: named, Nullable: true, Description: "Patch stream value."}
+	scope := codegen.NewNameScope()
+
+	projection := buildMethodAttributeProjection(attribute, "payload", "Updates", "Apply", expr.NewRandom("presence"), scope)
+	require.Equal(t, "Patch", projection.Name)
+	require.Equal(t, "loom.Nullable[Patch]", projection.Reference)
+	require.Contains(t, projection.Definition, "struct {")
+
+	stream := buildStreamAttributeData(attribute, &expr.MethodExpr{Name: "Apply"}, scope, expr.NewRandom("presence"))
+	require.Equal(t, "Patch", stream.Name)
+	require.Equal(t, "loom.Nullable[Patch]", stream.Ref)
+	require.Contains(t, stream.Def, "struct {")
+}
+
 func TestAnalyzeViewedResultsDeduplicateCanonicalTypeButPreserveMethodViews(t *testing.T) {
 	root := codegen.RunDSL(t, stest.WithExplicitAndDefaultViewsDSL)
 	services := NewServicesData(root)

@@ -14,6 +14,30 @@ import (
 )
 
 func TestHTTPDirectBuilderSeams(t *testing.T) {
+	t.Run("response aliases use the nested server JSON representation", func(t *testing.T) {
+		nested := &expr.UserTypeExpr{
+			TypeName: "PetResponseBody",
+			AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{
+				Name:      "nickname",
+				Attribute: &expr.AttributeExpr{Type: expr.String},
+			}}},
+		}
+		response := &expr.UserTypeExpr{
+			TypeName:      "PetsGetResponseBody",
+			AttributeExpr: &expr.AttributeExpr{Type: nested},
+		}
+		sd := &ServiceData{
+			Scope:                   codegen.NewNameScope(),
+			ServerJSONPresenceTypes: map[string]bool{nested.ID(): true},
+		}
+
+		require.True(t, serverTypeUsesJSONPresence(sd, &expr.AttributeExpr{Type: response}))
+		require.False(t, serverTypeUsesJSONPresence(sd, &expr.AttributeExpr{Type: &expr.Object{{
+			Name:      "pet",
+			Attribute: &expr.AttributeExpr{Type: nested},
+		}}}))
+	})
+
 	t.Run("error name header keeps routing metadata out of the body", func(t *testing.T) {
 		_, endpointExpr, _ := firstHTTPBuildContext(t, sharedErrorHeaderDSL)
 		endpointIR := transportir.BuildEndpoint(endpointExpr)
@@ -119,7 +143,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildRequestBodyType flattens form union helper field", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
-		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, false, svcData)
+		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "Values", bodyType.FlatFormUnionField)
 		require.True(t, bodyType.FlatFormUnionPointer)
@@ -132,8 +156,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildRequestBodyType only emits constructors on the client", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
-		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, false, svcData)
-		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, true, svcData)
+		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData)
+		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, endpointExpr.MultipartRequest, true, svcData)
 		require.NotNil(t, clientBodyType)
 		require.NotNil(t, clientBodyType.Init)
 		require.NotNil(t, serverBodyType)
@@ -147,6 +171,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 			endpointExpr.Body,
 			endpointExpr.MethodExpr.Payload,
 			endpointExpr.Name(),
+			false,
 			false,
 			true,
 			svcData,
@@ -271,6 +296,15 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.NotNil(t, endpoint.ClientWebSocket.Payload)
 		require.NotNil(t, endpoint.ClientWebSocket.Payload.Init)
 		require.Equal(t, "NewStreamStreamingBody", endpoint.ClientWebSocket.Payload.Init.Name)
+	})
+
+	t.Run("websocket payload init converts optional JSON fields", func(t *testing.T) {
+		endpoint := firstEndpointData(t, testdata.StreamingPayloadDSL)
+		require.NotNil(t, endpoint.ServerWebSocket)
+		require.NotNil(t, endpoint.ServerWebSocket.Payload)
+		require.NotNil(t, endpoint.ServerWebSocket.Payload.Init)
+		require.Contains(t, endpoint.ServerWebSocket.Payload.Init.ServerCode, "body.X.Value()")
+		require.NotContains(t, endpoint.ServerWebSocket.Payload.Init.ServerCode, "X: body.X")
 	})
 }
 

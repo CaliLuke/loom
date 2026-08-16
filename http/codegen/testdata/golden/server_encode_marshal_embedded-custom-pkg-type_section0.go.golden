@@ -4,8 +4,11 @@ func unmarshalFooRequestBodyToFooFoo(v *FooRequestBody) *foo.Foo {
 	if v == nil {
 		return nil
 	}
-	res := &foo.Foo{
-		Bar: v.Bar,
+	res := &foo.Foo{}
+	if actual, ok := v.Bar.Value(); ok {
+		resBarValue := actual
+
+		res.Bar = &resBarValue
 	}
 
 	return res

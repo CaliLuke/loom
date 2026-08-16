@@ -187,16 +187,17 @@ func httpServicePackageName(svc *expr.ServiceExpr) string {
 
 func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceData {
 	return &ServiceData{
-		Service:          svc,
-		ServerStruct:     "Server",
-		MountPointStruct: "MountPoint",
-		ServerInit:       "New",
-		MountServer:      "Mount",
-		ServerService:    "Service",
-		ClientStruct:     "Client",
-		ServerTypeNames:  make(map[string]bool),
-		ClientTypeNames:  make(map[string]bool),
-		Scope:            scope,
+		Service:                 svc,
+		ServerStruct:            "Server",
+		MountPointStruct:        "MountPoint",
+		ServerInit:              "New",
+		MountServer:             "Mount",
+		ServerService:           "Service",
+		ClientStruct:            "Client",
+		ServerTypeNames:         make(map[string]bool),
+		ServerJSONPresenceTypes: make(map[string]bool),
+		ClientTypeNames:         make(map[string]bool),
+		Scope:                   scope,
 	}
 }
 

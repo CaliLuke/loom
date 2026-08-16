@@ -2,8 +2,10 @@
 // service MethodBodyQueryUserUnion endpoint payload.
 func NewMethodBodyQueryUserUnionPayloadType(body *MethodBodyQueryUserUnionRequestBody, b *string) *servicebodyqueryuserunion.PayloadType {
 	v := &servicebodyqueryuserunion.PayloadType{}
-	if body.A != nil {
-		v.A = unmarshalUnionRequestBodyToServicebodyqueryuserunionUnion(body.A)
+	if actual, ok := body.A.Value(); ok {
+		vAValue := unmarshalUnionRequestBodyToServicebodyqueryuserunionUnion(&actual)
+
+		v.A = vAValue
 	}
 	v.B = b
 

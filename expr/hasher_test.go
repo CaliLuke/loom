@@ -92,6 +92,21 @@ func TestObjectHash(t *testing.T) {
 	}
 }
 
+func TestHashDistinguishesNullableOccurrences(t *testing.T) {
+	nonNullable := &Object{{Name: "value", Attribute: &AttributeExpr{Type: String}}}
+	nullable := &Object{{Name: "value", Attribute: &AttributeExpr{Type: String, Nullable: true}}}
+
+	if Hash(nonNullable, false, true, true) == Hash(nullable, false, true, true) {
+		t.Error("object hashes must include attribute nullability")
+	}
+
+	nonNullableArray := &Array{ElemType: &AttributeExpr{Type: String}}
+	nullableArray := &Array{ElemType: &AttributeExpr{Type: String, Nullable: true}}
+	if Hash(nonNullableArray, false, true, true) == Hash(nullableArray, false, true, true) {
+		t.Error("array hashes must include element nullability")
+	}
+}
+
 func TestObjectHashSortsStructFieldMetadata(t *testing.T) {
 	first := &Object{
 		{Name: "field", Attribute: &AttributeExpr{

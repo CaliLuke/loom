@@ -22,6 +22,8 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateRoutes(verr)
 	e.validateResponses(verr)
 	e.validateBodyAndPayload(verr)
+	e.validateNullableTransportLocations(verr)
+	e.validateJSONBodyPresenceTags(verr)
 	for _, er := range e.HTTPErrors {
 		verr.Merge(er.Validate())
 	}
@@ -35,6 +37,79 @@ func (e *HTTPEndpointExpr) Validate() error {
 	}
 
 	return verr
+}
+
+func (e *HTTPEndpointExpr) validateJSONBodyPresenceTags(verr *eval.ValidationErrors) {
+	if e == nil || e.FormRequest || e.MultipartRequest || e.SkipRequestBodyEncodeDecode {
+		return
+	}
+	body := e.Body
+	if body == nil && len(e.Routes) > 0 {
+		body = httpRequestBody(e)
+	}
+	if body == nil && e.MethodExpr != nil {
+		body = e.MethodExpr.Payload
+	}
+	if containsOptionalJSONStringTag(body) {
+		verr.Add(e, "JSON ,string is not supported on optional attributes in HTTP JSON request bodies")
+	}
+}
+
+func (e *HTTPEndpointExpr) validateNullableTransportLocations(verr *eval.ValidationErrors) {
+	if e == nil {
+		return
+	}
+	if e.Params != nil && containsNullable(e.Params.Attribute()) {
+		verr.Add(e, "HTTP query and path parameters do not support nullable attributes")
+	}
+	if e.Headers != nil && containsNullable(e.Headers.Attribute()) {
+		verr.Add(e, "HTTP request headers do not support nullable attributes")
+	}
+	if e.Cookies != nil && containsNullable(e.Cookies.Attribute()) {
+		verr.Add(e, "HTTP request cookies do not support nullable attributes")
+	}
+	if e.MapQueryParams != nil && e.MethodExpr != nil {
+		mapped := e.MethodExpr.Payload
+		if name := *e.MapQueryParams; name != "" && mapped != nil {
+			mapped = mapped.Find(name)
+		}
+		if containsNullable(mapped) {
+			verr.Add(e, "HTTP map query parameters do not support nullable attributes")
+		}
+	}
+	body := e.Body
+	if body == nil && len(e.Routes) > 0 {
+		body = httpRequestBody(e)
+	}
+	if body == nil && e.MethodExpr != nil {
+		body = e.MethodExpr.Payload
+	}
+	if (e.FormRequest || e.MultipartRequest) && containsNullable(body) {
+		verr.Add(e, "HTTP form and multipart bodies do not support nullable attributes")
+	}
+	for _, response := range e.Responses {
+		validateNullableHTTPResponse(response, verr)
+	}
+	for _, httpError := range e.HTTPErrors {
+		if httpError != nil {
+			validateNullableHTTPResponse(httpError.Response, verr)
+		}
+	}
+}
+
+func validateNullableHTTPResponse(response *HTTPResponseExpr, verr *eval.ValidationErrors) {
+	if response == nil {
+		return
+	}
+	if response.Headers != nil && containsNullable(response.Headers.Attribute()) {
+		verr.Add(response, "HTTP response headers do not support nullable attributes")
+	}
+	for _, cookie := range response.Cookies {
+		if cookie != nil && containsNullable(cookie.Attribute()) {
+			verr.Add(response, "HTTP response cookies do not support nullable attributes")
+			break
+		}
+	}
 }
 
 func (e *HTTPEndpointExpr) validateResponses(verr *eval.ValidationErrors) {

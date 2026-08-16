@@ -97,6 +97,9 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 	case object:
 		r.open("var %s = Type(%q, func()", name, named.Name)
 		r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		if err := r.emitNullableGoType(named.Schema, path); err != nil {
+			return err
+		}
 		if err := r.schemaBlock(named.Schema, path, errorType); err != nil {
 			return err
 		}
@@ -104,6 +107,9 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 	case r.hasSchemaBlock(named.Schema):
 		r.open("var %s = Type(%q, %s, func()", name, named.Name, expression)
 		r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		if err := r.emitNullableGoType(named.Schema, path); err != nil {
+			return err
+		}
 		if err := r.schemaBlock(named.Schema, path, errorType); err != nil {
 			return err
 		}

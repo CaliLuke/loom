@@ -186,6 +186,21 @@ cases. Missing callbacks fail individually, and the matching Loom validator
 checks implemented callbacks. The application remains responsible for
 payloads, fakes, and state that make every declared response reachable.
 
+## JSON Presence and Nullability
+
+- Treat requiredness and nullability as independent. `Required("field")`
+  requires presence; `Nullable()` allows a present field to contain JSON null.
+- Generated nullable fields use `loom.Nullable[T]`. Its zero value is absent;
+  use `loom.NullValue[T]()` for explicit null and `loom.NullableValue(value)`
+  for a concrete value. Inspect it with `Present`, `IsNull`, and `Value`.
+- Use `Example("name", Null())` to author an explicit null example. `Null()`
+  is not valid as a default. Concrete defaults apply only to absent inputs.
+- `Nullable()` is supported for JSON HTTP bodies, JSON-RPC values, array
+  elements, and map values. Do not use it for map keys, string-encoded HTTP
+  parameters or metadata, forms, multipart bodies, or gRPC message fields.
+- OpenAPI 3.1/3.2 value-or-null unions and OpenAPI 3.0 `nullable: true` import
+  to this same DSL contract.
+
 ## Unions, Views, and Projections
 
 - `OneOf(...)` works as both a named union declaration and a type constructor.

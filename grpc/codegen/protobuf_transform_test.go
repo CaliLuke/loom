@@ -245,6 +245,55 @@ func TestProtoBufTransformAnyType(t *testing.T) {
 	}
 }
 
+func TestProtoBufTransformAnyObjectPreservesPresence(t *testing.T) {
+	object := &expr.AttributeExpr{
+		Type:       &expr.Object{{Name: "data", Attribute: &expr.AttributeExpr{Type: expr.Any}}},
+		Validation: &expr.ValidationExpr{Required: []string{"data"}},
+	}
+	scope := codegen.NewNameScope()
+	svcCtx := codegen.NewAttributeContext(false, false, true, "", scope)
+	pbCtx := protoBufTypeContext("", scope, false)
+
+	toProto, _, err := protoBufTransform(object, object, "source", "target", svcCtx, pbCtx, true, true)
+	require.NoError(t, err)
+	require.Contains(t, toProto, "source.Data.IsNull()")
+	require.Contains(t, toProto, "source.Data.Value()")
+	require.Contains(t, toProto, "structpb.NewNullValue()")
+	require.Contains(t, toProto, "loomgrpc.NewProtoValue(actual)")
+	require.NotContains(t, toProto, "loomgrpc.NewProtoValue(source.Data)")
+
+	fromProto, _, err := protoBufTransform(object, object, "source", "target", pbCtx, svcCtx, false, true)
+	require.NoError(t, err)
+	require.Contains(t, fromProto, "source.Data.GetKind().(*structpb.Value_NullValue)")
+	require.Contains(t, fromProto, "target.Data.SetNull()")
+	require.Contains(t, fromProto, "target.Data.SetValue(source.Data.AsInterface())")
+}
+
+func TestProtoBufTransformNamedAnyObjectPreservesPresence(t *testing.T) {
+	anything := &expr.UserTypeExpr{
+		TypeName:      "Anything",
+		AttributeExpr: &expr.AttributeExpr{Type: expr.Any},
+	}
+	object := &expr.AttributeExpr{
+		Type:       &expr.Object{{Name: "data", Attribute: &expr.AttributeExpr{Type: anything}}},
+		Validation: &expr.ValidationExpr{Required: []string{"data"}},
+	}
+	scope := codegen.NewNameScope()
+	svcCtx := codegen.NewAttributeContext(false, false, true, "", scope)
+	pbCtx := protoBufTypeContext("", scope, false)
+
+	toProto, _, err := protoBufTransform(object, object, "source", "target", svcCtx, pbCtx, true, true)
+	require.NoError(t, err)
+	require.Contains(t, toProto, "source.Data.IsNull()")
+	require.Contains(t, toProto, "source.Data.Value()")
+	require.Contains(t, toProto, "loomgrpc.NewProtoValue(actual)")
+
+	fromProto, _, err := protoBufTransform(object, object, "source", "target", pbCtx, svcCtx, false, true)
+	require.NoError(t, err)
+	require.Contains(t, fromProto, "target.Data.SetNull()")
+	require.Contains(t, fromProto, "target.Data.SetValue(Anything(source.Data.AsInterface()))")
+}
+
 func TestProtoBufTransformSeams(t *testing.T) {
 	root := codegen.RunDSL(t, ctestdata.TestTypesDSL)
 	sd := &ServiceData{Name: "Service", Scope: codegen.NewNameScope()}

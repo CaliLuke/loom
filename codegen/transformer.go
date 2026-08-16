@@ -46,7 +46,17 @@ type (
 		// SamePackageConversion if true indicates that this context is being used
 		// for conversion code generation within the same package as the types.
 		SamePackageConversion bool
+		// JSONPresence indicates that optional object fields use loom.Optional
+		// to distinguish an absent JSON member from a concrete zero value.
+		JSONPresence bool
+		// JSONPresenceTypes records named types whose physical object fields use
+		// loom.Optional even when the root conversion itself uses native presence.
+		JSONPresenceTypes map[string]bool
 	}
+
+	// PresenceKind identifies the physical presence representation of an
+	// object field in a generated Go type.
+	PresenceKind uint8
 
 	// AttributeScope contains the scope of an attribute. It implements the
 	// Attributor interface.
@@ -87,6 +97,15 @@ type (
 		Code          string
 		ErrorAware    bool
 	}
+)
+
+const (
+	// NativePresence uses the ordinary Go representation selected by Loom.
+	NativePresence PresenceKind = iota
+	// OptionalPresence uses loom.Optional for absent-or-value JSON fields.
+	OptionalPresence
+	// NullablePresence uses loom.Nullable for absent, null, or value fields.
+	NullablePresence
 )
 
 // NewAttributeContext initializes an attribute context.
@@ -222,6 +241,18 @@ func (a *AttributeContext) IsPrimitivePointer(name string, att *expr.AttributeEx
 	return att.IsPrimitivePointer(name, a.UseDefault)
 }
 
+// FieldPresence returns the physical presence representation for an object
+// field in this context.
+func (a *AttributeContext) FieldPresence(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr) PresenceKind {
+	if expr.AllowsNull(attribute) {
+		return NullablePresence
+	}
+	if a.JSONPresence && parent != nil && !parent.IsRequiredNoDefault(name) {
+		return OptionalPresence
+	}
+	return NativePresence
+}
+
 // Pkg returns the package name of the given type.
 func (a *AttributeContext) Pkg(att *expr.AttributeExpr) string {
 	if att == nil {
@@ -254,6 +285,8 @@ func (a *AttributeContext) Dup() *AttributeContext {
 		Scope:                 a.Scope,
 		DefaultPkg:            a.DefaultPkg,
 		SamePackageConversion: a.SamePackageConversion,
+		JSONPresence:          a.JSONPresence,
+		JSONPresenceTypes:     a.JSONPresenceTypes,
 	}
 }
 

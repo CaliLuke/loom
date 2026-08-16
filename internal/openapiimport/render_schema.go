@@ -12,15 +12,6 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 	if err != nil {
 		return err
 	}
-	if schema != nil && schema.Ref != "" && r.effectiveNullable(schema) {
-		refName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-		named := r.schemas[refName]
-		expression, object, err = r.schemaExpression(named.Schema, path+"/resolved/"+escapeJSONPointer(refName))
-		if err != nil {
-			return err
-		}
-		metadata = append(metadata, renderedMetadata{name: "openapi:typename", value: named.Name})
-	}
 	if object {
 		r.open("Attribute(%q, func()", name)
 		if description != "" {
@@ -32,7 +23,6 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		if err := r.emitAttributeGoType(schema, path); err != nil {
 			return err
 		}
-		r.emitNullableJSONTag(name, schema)
 		if err := r.schemaBlock(schema, path, false); err != nil {
 			return err
 		}
@@ -51,7 +41,6 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 		if err := r.emitAttributeGoType(schema, path); err != nil {
 			return err
 		}
-		r.emitNullableJSONTag(name, schema)
 		if err := r.validationBlock(schema, path); err != nil {
 			return err
 		}
@@ -182,7 +171,22 @@ func (r *renderer) objectSchemaExpression(schema *Schema, path string) (string, 
 	if err != nil {
 		return "", false, err
 	}
-	return "MapOf(String, " + value + ")", false, nil
+	valueSchema := schema.AdditionalProperties.Schema
+	if !r.hasSchemaBlock(valueSchema) && !r.effectiveNullable(valueSchema) {
+		return "MapOf(String, " + value + ")", false, nil
+	}
+	child := renderer{document: r.document, schemas: r.schemas}
+	child.open("MapOf(String, %s, func()", value)
+	child.open("Elem(func()")
+	if err := child.emitNullableGoType(valueSchema, path+"/additionalProperties"); err != nil {
+		return "", false, err
+	}
+	if err := child.validationBlock(valueSchema, path+"/additionalProperties"); err != nil {
+		return "", false, err
+	}
+	child.close()
+	child.close()
+	return strings.TrimSpace(child.builder.String()), false, nil
 }
 
 func (r *renderer) arraySchemaExpression(schema *Schema, path string) (string, bool, error) {
@@ -196,11 +200,14 @@ func (r *renderer) arraySchemaExpression(schema *Schema, path string) (string, b
 	if object {
 		return "", false, fmt.Errorf("render OpenAPI design: %s inline object array items are not renderable", path)
 	}
-	if !r.hasSchemaBlock(schema.Items) {
+	if !r.hasSchemaBlock(schema.Items) && !r.effectiveNullable(schema.Items) {
 		return "ArrayOf(" + item + ")", false, nil
 	}
 	child := renderer{document: r.document, schemas: r.schemas}
 	child.open("ArrayOf(%s, func()", item)
+	if err := child.emitNullableGoType(schema.Items, path+"/items"); err != nil {
+		return "", false, err
+	}
 	if err := child.validationBlock(schema.Items, path+"/items"); err != nil {
 		return "", false, err
 	}
@@ -319,9 +326,6 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 	if err := r.emitExtensions("schema", schema.Extensions); err != nil {
 		return err
 	}
-	if schema.Nullable {
-		r.line("Meta(%q, %q)", "openapi:nullable", "true")
-	}
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		r.line("Meta(%q, %q)", "openapi:format", "")
 	}
@@ -373,6 +377,9 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 
 func (r *renderer) defaultAndExamples(schema *Schema, path string) error {
 	if schema.Default != nil {
+		if schema.Default.Value == nil {
+			return fmt.Errorf("render OpenAPI design: %s default: null defaults are not supported", path)
+		}
 		literal, err := scalarLiteral(schema.Default.Value)
 		if err != nil {
 			return fmt.Errorf("render OpenAPI design: %s default: %w", path, err)
@@ -427,52 +434,12 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 }
 
 func (r *renderer) emitNullableGoType(schema *Schema, path string) error {
+	_ = path
 	if !r.effectiveNullable(schema) {
 		return nil
 	}
-	if !schema.Nullable {
-		r.line("Meta(%q, %q)", "openapi:nullable", "true")
-	}
-	goType, _, err := r.schemaGoType(schema, path)
-	if err != nil {
-		return err
-	}
-	r.line(
-		"Meta(%q, %q, %q, %q)",
-		"struct:field:type",
-		"loom.Nullable["+goType+"]",
-		"github.com/CaliLuke/loom/pkg",
-		"loom",
-	)
+	r.line("Nullable()")
 	return nil
-}
-
-func (r *renderer) schemaGoType(schema *Schema, path string) (string, bool, error) {
-	if schema == nil {
-		return "", false, fmt.Errorf("render OpenAPI design: %s schema is nil", path)
-	}
-	if schema.Ref != "" {
-		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-		named, ok := r.schemas[name]
-		if name == schema.Ref || name == "" || !ok {
-			return "", false, fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
-		}
-		return r.schemaGoType(named.Schema, path+"/resolved/"+escapeJSONPointer(name))
-	}
-	if schema.Unconstrained {
-		return "any", false, nil
-	}
-	if goType, ok := nullablePrimitiveGoType(schema); ok {
-		return goType, false, nil
-	}
-	switch schema.Type {
-	case "array":
-		return r.nullableArrayGoType(schema, path)
-	case "object":
-		return r.nullableObjectGoType(schema, path)
-	default:
-		return "", false, fmt.Errorf("render OpenAPI design: %s schema type %q has no nullable Go representation", path, schema.Type)
-	}
 }
 
 func (r *renderer) example(example Example, path string) error {
@@ -505,63 +472,91 @@ func (r *renderer) example(example Example, path string) error {
 }
 
 func exampleLiteral(value any) (string, error) {
+	return exampleLiteralValue(value, false)
+}
+
+func exampleLiteralValue(value any, nested bool) (string, error) {
+	if value == nil {
+		if nested {
+			return "nil", nil
+		}
+		return "Null()", nil
+	}
+	if literal, ok := exampleScalarLiteral(value); ok {
+		return literal, nil
+	}
 	switch actual := value.(type) {
-	case string:
-		return strconv.Quote(actual), nil
-	case bool:
-		return strconv.FormatBool(actual), nil
-	case int:
-		return strconv.Itoa(actual), nil
-	case int8:
-		return strconv.FormatInt(int64(actual), 10), nil
-	case int16:
-		return strconv.FormatInt(int64(actual), 10), nil
-	case int32:
-		return strconv.FormatInt(int64(actual), 10), nil
-	case int64:
-		return strconv.FormatInt(actual, 10), nil
-	case uint:
-		return strconv.FormatUint(uint64(actual), 10), nil
-	case uint8:
-		return strconv.FormatUint(uint64(actual), 10), nil
-	case uint16:
-		return strconv.FormatUint(uint64(actual), 10), nil
-	case uint32:
-		return strconv.FormatUint(uint64(actual), 10), nil
-	case uint64:
-		return strconv.FormatUint(actual, 10), nil
-	case float32:
-		return strconv.FormatFloat(float64(actual), 'g', -1, 32), nil
-	case float64:
-		return strconv.FormatFloat(actual, 'g', -1, 64), nil
 	case []any:
-		values := make([]string, len(actual))
-		for index, item := range actual {
-			literal, err := exampleLiteral(item)
-			if err != nil {
-				return "", err
-			}
-			values[index] = literal
-		}
-		return "[]any{" + strings.Join(values, ", ") + "}", nil
+		return exampleArrayLiteral(actual)
 	case map[string]any:
-		keys := make([]string, 0, len(actual))
-		for key := range actual {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		values := make([]string, 0, len(keys))
-		for _, key := range keys {
-			literal, err := exampleLiteral(actual[key])
-			if err != nil {
-				return "", err
-			}
-			values = append(values, strconv.Quote(key)+": "+literal)
-		}
-		return "Val{" + strings.Join(values, ", ") + "}", nil
+		return exampleMapLiteral(actual)
 	default:
 		return "", fmt.Errorf("value of type %T is not a supported Loom example", value)
 	}
+}
+
+func exampleScalarLiteral(value any) (string, bool) {
+	switch actual := value.(type) {
+	case string:
+		return strconv.Quote(actual), true
+	case bool:
+		return strconv.FormatBool(actual), true
+	case int:
+		return strconv.Itoa(actual), true
+	case int8:
+		return strconv.FormatInt(int64(actual), 10), true
+	case int16:
+		return strconv.FormatInt(int64(actual), 10), true
+	case int32:
+		return strconv.FormatInt(int64(actual), 10), true
+	case int64:
+		return strconv.FormatInt(actual, 10), true
+	case uint:
+		return strconv.FormatUint(uint64(actual), 10), true
+	case uint8:
+		return strconv.FormatUint(uint64(actual), 10), true
+	case uint16:
+		return strconv.FormatUint(uint64(actual), 10), true
+	case uint32:
+		return strconv.FormatUint(uint64(actual), 10), true
+	case uint64:
+		return strconv.FormatUint(actual, 10), true
+	case float32:
+		return strconv.FormatFloat(float64(actual), 'g', -1, 32), true
+	case float64:
+		return strconv.FormatFloat(actual, 'g', -1, 64), true
+	default:
+		return "", false
+	}
+}
+
+func exampleArrayLiteral(items []any) (string, error) {
+	values := make([]string, len(items))
+	for index, item := range items {
+		literal, err := exampleLiteralValue(item, true)
+		if err != nil {
+			return "", err
+		}
+		values[index] = literal
+	}
+	return "[]any{" + strings.Join(values, ", ") + "}", nil
+}
+
+func exampleMapLiteral(mapping map[string]any) (string, error) {
+	keys := make([]string, 0, len(mapping))
+	for key := range mapping {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	values := make([]string, 0, len(keys))
+	for _, key := range keys {
+		literal, err := exampleLiteralValue(mapping[key], true)
+		if err != nil {
+			return "", err
+		}
+		values = append(values, strconv.Quote(key)+": "+literal)
+	}
+	return "Val{" + strings.Join(values, ", ") + "}", nil
 }
 
 func (r *renderer) resolveParameter(parameter Parameter, path string) (Parameter, string, error) {

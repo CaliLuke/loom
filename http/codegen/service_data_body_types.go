@@ -23,7 +23,7 @@ type requestBodyTypeDetails struct {
 // buildRequestBodyType builds the TypeData for a request body. The data makes
 // it possible to generate a function on the client side that creates the body
 // from the service method payload.
-func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, endpointName string, formEncoded bool, svr bool, sd *ServiceData) *TypeData {
+func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, endpointName string, formEncoded, multipart, svr bool, sd *ServiceData) *TypeData {
 	if body.Type == expr.Empty {
 		return nil
 	}
@@ -33,8 +33,13 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		pkg     = service.DefaultPackageName(ep.PayloadLoc, sd.Service.PkgName)
 		svcctx  = serviceContext(pkg, sd.Service.Scope)
 	)
+	httpctx.JSONPresence = svr && !formEncoded && !multipart
+	if svr {
+		recordServerJSONPresenceType(sd, body, httpctx.JSONPresence)
+		recordServerJSONPresenceType(sd, att, httpctx.JSONPresence)
+	}
 	addMarshalTags(body, make(map[string]struct{}))
-	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, sd, httpctx)
+	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, multipart, svr, sd, httpctx)
 	ref := sd.Scope.GoTypeRef(body)
 	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, details.validateDefinition, svr, svcctx, httpctx, sd)
 	return &TypeData{
@@ -54,10 +59,29 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 }
 
+func recordServerJSONPresenceType(sd *ServiceData, attribute *expr.AttributeExpr, jsonPresence bool) {
+	if sd == nil || attribute == nil {
+		return
+	}
+	if sd.ServerJSONPresenceTypes == nil {
+		sd.ServerJSONPresenceTypes = make(map[string]bool)
+	}
+	name := sd.Scope.GoValueTypeName(attribute)
+	if _, recorded := sd.ServerJSONPresenceTypes[name]; !recorded {
+		sd.ServerJSONPresenceTypes[name] = jsonPresence
+	}
+	if userType, ok := attribute.Type.(expr.UserType); ok {
+		if _, recorded := sd.ServerJSONPresenceTypes[userType.ID()]; !recorded {
+			sd.ServerJSONPresenceTypes[userType.ID()] = jsonPresence
+		}
+	}
+}
+
 func buildRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
 	endpointName string,
 	formEncoded bool,
+	multipart bool,
 	svr bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
@@ -71,7 +95,7 @@ func buildRequestBodyTypeDetails(
 		}
 	}
 	if userType, ok := body.Type.(expr.UserType); ok {
-		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
+		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, multipart, svr, sd, httpctx)
 	}
 	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !svr, "", sd.Scope)
 	validateReference := codegen.ValidationCode(body, nil, ctx, true, expr.IsAlias(body.Type), false, "body")
@@ -91,6 +115,7 @@ func buildUserRequestBodyTypeDetails(
 	userType expr.UserType,
 	endpointName string,
 	formEncoded bool,
+	multipart bool,
 	svr bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
@@ -99,7 +124,7 @@ func buildUserRequestBodyTypeDetails(
 	details := requestBodyTypeDetails{
 		varName:     varName,
 		description: fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.", varName, sd.Service.Name, endpointName),
-		definition:  goTypeDef(sd.Scope, userType.Attribute(), svr, !svr),
+		definition:  goValueTypeDef(sd.Scope, userType.Attribute(), svr, !svr, svr && !formEncoded && !multipart),
 	}
 	details.flatFormUnionField, details.flatFormUnionPointer, details.flatFormUnionTypeKey, details.flatFormUnionRef =
 		flatFormUnionMetadata(userType.Attribute(), formEncoded, sd.Scope)
@@ -139,6 +164,10 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		return nil
 	}
 	httpctx := httpContext(sd.Scope, false, svr)
+	httpctx.JSONPresence = !svr
+	if svr {
+		httpctx.JSONPresenceTypes = sd.ServerJSONPresenceTypes
+	}
 	pkg := service.DefaultPackageName(loc, sd.Service.PkgName)
 	svcctx := serviceContext(pkg, sd.Service.Scope)
 	body, viewName := projectResponseBodyView(body, view, svr, sd)
@@ -154,6 +183,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	}
 	if svr {
 		collectServerResponseBodyTypes(sds, body, data.name, sd)
+		httpctx.JSONPresence = serverTypeUsesJSONPresence(sd, body)
 	}
 	init := sds.buildResponseBodyInit(body, att, pkg, endpointName, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
 	return &TypeData{
@@ -167,6 +197,31 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		ValidateRef: data.validateRef,
 		Example:     body.Example(sds.Root.API.ExampleGenerator),
 		View:        viewName,
+	}
+}
+
+func serverTypeUsesJSONPresence(sd *ServiceData, attribute *expr.AttributeExpr) bool {
+	if sd == nil || attribute == nil || len(sd.ServerJSONPresenceTypes) == 0 {
+		return false
+	}
+	if sd.ServerJSONPresenceTypes[sd.Scope.GoValueTypeName(attribute)] {
+		return true
+	}
+	seen := make(map[string]struct{})
+	current := attribute.Type
+	for {
+		userType, ok := current.(expr.UserType)
+		if !ok {
+			return false
+		}
+		if sd.ServerJSONPresenceTypes[userType.ID()] {
+			return true
+		}
+		if _, ok := seen[userType.ID()]; ok {
+			return false
+		}
+		seen[userType.ID()] = struct{}{}
+		current = userType.Attribute().Type
 	}
 }
 
@@ -214,7 +269,7 @@ func initResponseBodyTypeData(body, att *expr.AttributeExpr, sd *ServiceData) *r
 
 func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, ut expr.UserType, endpointName string, httpctx *codegen.AttributeContext, sd *ServiceData, svr, allowValidateDef bool) {
 	data.varName = codegen.Goify(ut.Name(), true)
-	data.def = goTypeDef(sd.Scope, ut.Attribute(), !svr, svr)
+	data.def = goValueTypeDef(sd.Scope, ut.Attribute(), !svr, svr, !svr)
 	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
 	if !svr && allowValidateDef {
 		data.validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
@@ -234,7 +289,7 @@ func applyStructuredResponseBodyTypeData(data *responseBodyTypeData, body *expr.
 		data.name = codegen.Goify(endpointName, true) + "ResponseBody"
 		data.varName = data.name
 		data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
-		data.def = goTypeDef(sd.Scope, body, !svr, svr)
+		data.def = goTypeDef(sd.Scope, body, !svr, svr, !svr)
 	} else {
 		data.varName = sd.Scope.GoTypeRef(body)
 		data.desc = body.Description
@@ -252,7 +307,7 @@ func applyPrimitiveResponseBodyTypeData(data *responseBodyTypeData, body *expr.A
 func collectServerResponseBodyTypes(sds *ServicesData, body *expr.AttributeExpr, name string, sd *ServiceData) {
 	sd.ServerTypeNames[name] = false
 	collectUserTypes(body.Type, func(ut expr.UserType) {
-		if d := sds.attributeTypeData(ut, false, false, true, sd); d != nil {
+		if d := sds.attributeTypeData(ut, false, false, true, true, sd); d != nil {
 			sd.ServerBodyAttributeTypes = append(sd.ServerBodyAttributeTypes, d)
 		}
 	})
@@ -275,15 +330,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 	initName := fmt.Sprintf("New%s", codegen.Goify(sd.Scope.GoTypeName(body), true))
 	initDesc := fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",
 		initName, endpointName, sd.Service.Name)
-	src := sourceVar
-	srcAtt := att
-	origin := ""
-	if o, ok := body.Meta["origin:attribute"]; ok {
-		srcObj := expr.AsObject(att.Type)
-		origin = o[0]
-		srcAtt = srcObj.Attribute(origin)
-		src += "." + codegen.Goify(origin, true)
-	}
+	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
 	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP request body transform: %w", err)))
@@ -341,15 +388,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 		svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
 	}
 
-	src := sourceVar
-	srcAtt := att
-	origin := ""
-	if o, ok := body.Meta["origin:attribute"]; ok {
-		srcObj := expr.AsObject(att.Type)
-		origin = o[0]
-		srcAtt = srcObj.Attribute(origin)
-		src += "." + codegen.Goify(origin, true)
-	}
+	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
 	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response body transform: %w", err)))
@@ -381,4 +420,15 @@ func (sds *ServicesData) buildResponseBodyInit(
 		ServerCode:          code,
 		ServerArgs:          []*InitArgData{arg},
 	}
+}
+
+func serviceBodyTransformSource(att, body *expr.AttributeExpr, sourceVar string) (*expr.AttributeExpr, string, string) {
+	origin, ok := body.Meta["origin:attribute"]
+	if !ok || len(origin) == 0 {
+		return att, sourceVar, ""
+	}
+	name := origin[0]
+	attribute := expr.AsObject(att.Type).Attribute(name)
+	attribute = serviceFieldTransformAttribute(att, name, attribute)
+	return attribute, sourceVar + "." + codegen.Goify(name, true), name
 }

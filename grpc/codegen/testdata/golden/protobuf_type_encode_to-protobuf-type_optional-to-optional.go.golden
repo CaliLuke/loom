@@ -3,18 +3,6 @@ func transform() {
 		Float_:  source.Float,
 		String_: source.String,
 		Bytes_:  source.Bytes,
-		Any: func() *structpb.Value {
-			// Convert Go any to protobuf Value directly
-			if source.Any == nil {
-				return structpb.NewNullValue()
-			}
-			value, err := loomgrpc.NewProtoValue(source.Any)
-			if err != nil {
-				*transformErr = err
-				return nil
-			}
-			return value
-		}(),
 	}
 	if source.Int != nil {
 		int_ := int64(*source.Int)
@@ -23,6 +11,22 @@ func transform() {
 	if source.Uint != nil {
 		uint_ := uint64(*source.Uint)
 		target.Uint = &uint_
+	}
+	if source.Any.IsNull() {
+		target.Any = structpb.NewNullValue()
+	} else if actual, ok := source.Any.Value(); ok {
+		target.Any = func() *structpb.Value {
+			// Convert Go any to protobuf Value directly
+			if actual == nil {
+				return structpb.NewNullValue()
+			}
+			value, err := loomgrpc.NewProtoValue(actual)
+			if err != nil {
+				*transformErr = err
+				return nil
+			}
+			return value
+		}()
 	}
 	if source.Array != nil {
 		target.Array = make([]string, len(source.Array))

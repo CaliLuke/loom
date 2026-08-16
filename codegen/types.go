@@ -80,6 +80,12 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 	if att == nil {
 		return ""
 	}
+	tags, jsonName := attributeTagValues(att)
+	normalizeAttributeJSONTag(tags, jsonName, parent, fieldName, att)
+	return renderAttributeTags(tags)
+}
+
+func attributeTagValues(att *expr.AttributeExpr) (map[string]string, string) {
 	tags := make(map[string]string)
 	var jsonName string
 	keys := make([]string, 0, len(att.Meta))
@@ -92,34 +98,44 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 		if !strings.HasPrefix(key, "struct:tag:") {
 			continue
 		}
-		switch key {
-		case "struct:tag:json:name":
+		if key == "struct:tag:json:name" {
 			if jsonName == "" && len(val) > 0 {
 				jsonName = strings.Join(val, ",")
 			}
 			continue
-		default:
 		}
 		name := key[11:]
 		value := strings.Join(val, ",")
 		tags[name] = value
 		if name == "json" {
-			// Full override: do not attempt to merge with json:name.
 			jsonName = ""
 		}
 	}
-	if _, ok := tags["json"]; !ok && jsonName != "" {
+	return tags, jsonName
+}
+
+func normalizeAttributeJSONTag(tags map[string]string, jsonName string, parent *expr.AttributeExpr, fieldName string, att *expr.AttributeExpr) {
+	jsonTag, hasJSONTag := tags["json"]
+	if !hasJSONTag {
+		if jsonName == "" {
+			jsonName = fieldName
+		}
+		if jsonName == "" {
+			return
+		}
 		if parent != nil && fieldName != "" && !parent.IsRequired(fieldName) {
-			jsonName += ",omitempty"
+			jsonName = appendJSONOmitOption(jsonName, att)
 		}
 		tags["json"] = jsonName
-	} else if _, ok := tags["json"]; !ok && fieldName != "" {
-		jsonName = fieldName
-		if parent != nil && !parent.IsRequired(fieldName) {
-			jsonName += ",omitempty"
-		}
-		tags["json"] = jsonName
+		return
 	}
+	if parent != nil && fieldName != "" && !parent.IsRequired(fieldName) &&
+		(IsExplicitPresenceType(att) || expr.AllowsNull(att)) {
+		tags["json"] = appendJSONOmitOption(jsonTag, att)
+	}
+}
+
+func renderAttributeTags(tags map[string]string) string {
 	if len(tags) == 0 {
 		return ""
 	}
@@ -133,4 +149,28 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 		elems = append(elems, fmt.Sprintf("%s:\"%s\"", n, tags[n]))
 	}
 	return " `" + strings.Join(elems, " ") + "`"
+}
+
+func appendJSONOmitOption(tag string, att *expr.AttributeExpr) string {
+	option := "omitempty"
+	if IsExplicitPresenceType(att) || expr.AllowsNull(att) {
+		option = "omitzero"
+	}
+	parts := strings.Split(tag, ",")
+	options := make([]string, 0, len(parts))
+	seen := false
+	for _, part := range parts[1:] {
+		if part == "omitempty" || part == "omitzero" {
+			if !seen {
+				options = append(options, option)
+				seen = true
+			}
+			continue
+		}
+		options = append(options, part)
+	}
+	if !seen {
+		options = append(options, option)
+	}
+	return strings.Join(append([]string{parts[0]}, options...), ",")
 }

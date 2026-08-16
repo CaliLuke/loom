@@ -3,9 +3,16 @@
 // "MethodExplicitBodyUserResultMultipleView" endpoint result from a HTTP "OK"
 // response.
 func NewMethodExplicitBodyUserResultMultipleViewResulttypemultipleviewsOK(body *MethodExplicitBodyUserResultMultipleViewResponseBody, c *string) *serviceexplicitbodyuserresultmultipleviewviews.ResulttypemultipleviewsView {
-	v := &serviceexplicitbodyuserresultmultipleviewviews.UserTypeView{
-		X: body.X,
-		Y: body.Y,
+	v := &serviceexplicitbodyuserresultmultipleviewviews.UserTypeView{}
+	if actual, ok := body.X.Value(); ok {
+		vXValue := actual
+
+		v.X = &vXValue
+	}
+	if actual, ok := body.Y.Value(); ok {
+		vYValue := actual
+
+		v.Y = &vYValue
 	}
 	res := &serviceexplicitbodyuserresultmultipleviewviews.ResulttypemultipleviewsView{
 		A: v,

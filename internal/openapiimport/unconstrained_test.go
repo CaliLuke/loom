@@ -186,7 +186,7 @@ func TestRenderRoundTripsAndRunsUnconstrainedSchemas(t *testing.T) {
 	design := string(rendered)
 	require.Contains(t, design, `var ImportedAnything = Type("Anything", Any, func() {`)
 	require.Contains(t, design, `Attribute("value", Any, func() {`)
-	require.Contains(t, design, `Meta("struct:field:type", "loom.Nullable[any]", "github.com/CaliLuke/loom/pkg", "loom")`)
+	require.NotContains(t, design, `Meta("struct:field:type", "loom.Nullable[any]", "github.com/CaliLuke/loom/pkg", "loom")`)
 	require.Contains(t, design, `Attribute("values", ArrayOf(Any))`)
 	require.Contains(t, design, `Attribute("body", Any, func() {`)
 	require.Contains(t, design, `Result(Any)`)

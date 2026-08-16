@@ -59,6 +59,58 @@ Top-level Go identifiers cannot reuse exported DSL names. Examples include
 dot-import. Give the Go variable an application-specific name. The declaration
 string can still use the public contract name.
 
+### Presence and Nullability
+
+Requiredness and nullability are separate parts of an attribute contract.
+`Required` controls whether a property must be present. `Nullable` controls
+whether a present property may contain JSON `null`:
+
+```go
+var Patch = Type("Patch", func() {
+    Attribute("nickname", String) // absent or a string; null is rejected
+    Attribute("bio", String, func() {
+        Nullable() // absent, null, or a string
+        Example("clear", Null())
+    })
+    Attribute("status", String, func() {
+        Nullable() // null or a string; absence is rejected by Required
+    })
+    Required("status")
+})
+```
+
+Generated service types represent nullable attributes as `loom.Nullable[T]`.
+Its zero value is absent. Construct the other states with
+`loom.NullValue[T]()` and `loom.NullableValue(value)`, and inspect them with
+`Present`, `IsNull`, and `Value`. A required nullable attribute still uses the
+wrapper so that generated validation can reject absence while accepting null.
+
+| Contract | Absent JSON property | JSON `null` | Concrete JSON value | Generated service form |
+|---|---|---|---|---|
+| Required, non-null | Rejected | Rejected | Accepted | Native `T` |
+| Required, nullable | Rejected | Accepted | Accepted | `loom.Nullable[T]` |
+| Optional, non-null | Accepted | Rejected | Accepted | Loom-selected pointer, slice, or map form |
+| Optional, nullable | Accepted | Accepted | Accepted | `loom.Nullable[T]` |
+
+Generated JSON transport types use `loom.Optional[T]` internally when an
+optional non-null property needs an explicit absent-or-value decoding state.
+Service implementations do not use that transport-only wrapper.
+
+`Example(Null())` authors an explicit null example. `Null()` is not a default:
+defaults must be concrete values and apply only when an input property is
+absent. An explicit null never activates a default.
+
+`Nullable` also works on array elements and map values. Map keys cannot be
+nullable. JSON HTTP bodies and JSON-RPC preserve all four combinations of
+requiredness and nullability. String-encoded HTTP parameters, headers, cookies,
+forms, multipart bodies, and gRPC messages reject nullable shapes during design
+validation because those transports cannot preserve the same JSON presence
+contract. An unconstrained `Any` value remains the gRPC exception.
+
+OpenAPI 3.1 and 3.2 render nullable schemas as a value-or-null union. The
+OpenAPI importer maps those unions, and OpenAPI 3.0 `nullable: true`, back to
+the same `Nullable()` DSL contract.
+
 ### Complex Types
 
 #### OneOf Unions

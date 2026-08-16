@@ -52,7 +52,7 @@ type GuardedUnauthorizedResponseBody struct {
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Retry hint is concise guidance on how to correct the request or retry the
 	// operation.
-	RetryHint *string `form:"retry_hint,omitempty" json:"retry_hint,omitempty" xml:"retry_hint,omitempty"`
+	RetryHint loom.Optional[string] `form:"retry_hint,omitempty" json:"retry_hint,omitzero" xml:"retry_hint,omitempty"`
 }
 
 // NewTickTockEventOK builds a "clock" service "Tick" endpoint result from a
@@ -103,7 +103,11 @@ func NewGuardedUnauthorized(body *GuardedUnauthorizedResponseBody) *loom.Service
 	if body.Instance != nil {
 		instance = *body.Instance
 	}
-	v := loomhttp.ProblemErrorFromBody(code, 401, detail, instance, body.RetryHint)
+	var retryHint *string
+	if actual, ok := body.RetryHint.Value(); ok {
+		retryHint = &actual
+	}
+	v := loomhttp.ProblemErrorFromBody(code, 401, detail, instance, retryHint)
 
 	return v
 }

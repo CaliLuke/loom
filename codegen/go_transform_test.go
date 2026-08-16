@@ -248,3 +248,95 @@ func TestGoTransformTreatsMatchingExplicitTypesAsAtomic(t *testing.T) {
 	require.Equal(t, "target := source", code)
 	require.Empty(t, helpers)
 }
+
+func TestTransformJSONOptionalPrimitiveToServicePointer(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type: &expr.Object{{Name: "count", Attribute: &expr.AttributeExpr{Type: expr.Int}}},
+	}
+	scope := NewNameScope()
+	sourceCtx := NewAttributeContext(true, false, false, "", scope)
+	sourceCtx.JSONPresence = true
+	targetCtx := NewAttributeContext(false, false, true, "", scope)
+
+	code, _, err := GoTransform(attribute, attribute, "body", "payload", sourceCtx, targetCtx, "unmarshal", true)
+	require.NoError(t, err)
+	require.Contains(t, code, "body.Count.Value()")
+	require.Contains(t, code, "payload.Count = &")
+}
+
+func TestTransformServicePointerToJSONOptionalPrimitive(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type: &expr.Object{{Name: "count", Attribute: &expr.AttributeExpr{Type: expr.Int}}},
+	}
+	scope := NewNameScope()
+	sourceCtx := NewAttributeContext(false, false, true, "", scope)
+	targetCtx := NewAttributeContext(false, false, true, "", scope)
+	targetCtx.JSONPresence = true
+
+	code, _, err := GoTransform(attribute, attribute, "payload", "body", sourceCtx, targetCtx, "marshal", true)
+	require.NoError(t, err)
+	require.Contains(t, code, "if payload.Count != nil")
+	require.Contains(t, code, "loom.OptionalValue")
+}
+
+func TestTransformNullableObjectCollectionPreservesNestedJSONPresence(t *testing.T) {
+	child := &expr.UserTypeExpr{
+		TypeName: "Child",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{
+			Name:      "name",
+			Attribute: &expr.AttributeExpr{Type: expr.String},
+		}}},
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{
+		Type:     child,
+		Nullable: true,
+	}}}
+	scope := NewNameScope()
+	sourceCtx := NewAttributeContext(false, false, true, "service", scope)
+	targetCtx := NewAttributeContext(false, false, true, "", scope)
+	targetCtx.JSONPresence = true
+
+	_, helpers, err := GoTransform(attribute, attribute, "values", "body", sourceCtx, targetCtx, "marshal", true)
+	require.NoError(t, err)
+	require.Len(t, helpers, 1)
+	require.NotContains(t, helpers[0].Code, "Name: v.Name")
+	require.Contains(t, helpers[0].Code, "loom.OptionalValue")
+}
+
+func TestTransformJSONOptionalRecursiveUserTypeUsesHelper(t *testing.T) {
+	root := RunDSL(t, testdata.TestTypesDSL)
+	recursive := root.UserType("Recursive")
+	require.NotNil(t, recursive)
+
+	scope := NewNameScope()
+	sourceCtx := NewAttributeContext(false, false, true, "", scope)
+	sourceCtx.JSONPresence = true
+	targetCtx := NewAttributeContext(false, false, true, "", scope)
+	attribute := &expr.AttributeExpr{Type: recursive}
+
+	code, helpers, err := GoTransform(attribute, attribute, "body", "payload", sourceCtx, targetCtx, "unmarshal", true)
+	require.NoError(t, err)
+	require.Contains(t, code, "unmarshalRecursiveToRecursive(&actual)")
+	require.Len(t, helpers, 1)
+	require.Equal(t, "unmarshalRecursiveToRecursive", helpers[0].Name)
+}
+
+func TestTransformRawAnyAndNullablePresence(t *testing.T) {
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, true, "", scope)
+	raw := &expr.AttributeExpr{Type: expr.Any}
+	nullable := &expr.AttributeExpr{Type: expr.Any, Nullable: true}
+
+	decoded, _, err := GoTransform(raw, nullable, "body", "value", ctx, ctx, "unmarshal", true)
+	require.NoError(t, err)
+	require.Contains(t, decoded, "var value loom.Nullable[any]")
+	require.Contains(t, decoded, "if valueValue == nil")
+	require.Contains(t, decoded, "value = loom.NullValue[any]()")
+	require.Contains(t, decoded, "value = loom.NullableValue(valueValue)")
+
+	encoded, _, err := GoTransform(nullable, raw, "value", "body", ctx, ctx, "marshal", true)
+	require.NoError(t, err)
+	require.Contains(t, encoded, "var body any")
+	require.Contains(t, encoded, "if value.IsNull()")
+	require.Contains(t, encoded, "actual, ok := value.Value()")
+}

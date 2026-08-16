@@ -3,8 +3,10 @@
 // payload.
 func NewMethodBodyUserInnerDefaultPayloadType(body *MethodBodyUserInnerDefaultRequestBody) *servicebodyuserinnerdefault.PayloadType {
 	v := &servicebodyuserinnerdefault.PayloadType{}
-	if body.Inner != nil {
-		v.Inner = unmarshalInnerTypeRequestBodyToServicebodyuserinnerdefaultInnerType(body.Inner)
+	if actual, ok := body.Inner.Value(); ok {
+		vInnerValue := unmarshalInnerTypeRequestBodyToServicebodyuserinnerdefaultInnerType(&actual)
+
+		v.Inner = vInnerValue
 	}
 
 	return v

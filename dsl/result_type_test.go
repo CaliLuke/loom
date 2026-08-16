@@ -14,8 +14,12 @@ func TestViewRequirednessOverrides(t *testing.T) {
 	root := expr.RunDSL(t, func() {
 		_ = ResultType("application/vnd.view-requiredness", func() {
 			Attributes(func() {
-				Attribute("canonical_required", String)
-				Attribute("canonical_optional", String)
+				Attribute("canonical_required", String, func() {
+					Nullable()
+				})
+				Attribute("canonical_optional", String, func() {
+					Nullable()
+				})
 				Required("canonical_required")
 			})
 			View("inherited", func() {
@@ -41,6 +45,8 @@ func TestViewRequirednessOverrides(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, projected.IsRequired("canonical_required"))
 	require.True(t, projected.IsRequired("canonical_optional"))
+	require.True(t, expr.IsNullable(projected.Find("canonical_required")))
+	require.True(t, expr.IsNullable(projected.Find("canonical_optional")))
 }
 
 func TestViewRequirednessOverrideErrors(t *testing.T) {

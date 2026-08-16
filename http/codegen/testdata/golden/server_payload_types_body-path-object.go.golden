@@ -1,8 +1,11 @@
 // NewMethodBodyPathObjectPayload builds a ServiceBodyPathObject service
 // MethodBodyPathObject endpoint payload.
 func NewMethodBodyPathObjectPayload(body *MethodBodyPathObjectRequestBody, b string) *servicebodypathobject.MethodBodyPathObjectPayload {
-	v := &servicebodypathobject.MethodBodyPathObjectPayload{
-		A: body.A,
+	v := &servicebodypathobject.MethodBodyPathObjectPayload{}
+	if actual, ok := body.A.Value(); ok {
+		vAValue := actual
+
+		v.A = &vAValue
 	}
 	v.B = &b
 

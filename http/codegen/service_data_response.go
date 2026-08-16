@@ -99,6 +99,7 @@ func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, 
 		scope      = svc.Scope
 		svcctx     = serviceContext(pkg, sd.Service.Scope)
 	)
+	httpclictx.JSONPresence = true
 	{
 		if viewed {
 			scope = svc.ViewScope
@@ -167,7 +168,8 @@ func responseOriginAttribute(resp *transportir.ResponseStatus, result *expr.Attr
 		return "", result
 	}
 	if resp.BodyOrigin != "" {
-		return resp.BodyOrigin, expr.AsObject(result.Type).Attribute(resp.BodyOrigin)
+		attribute := expr.AsObject(result.Type).Attribute(resp.BodyOrigin)
+		return resp.BodyOrigin, serviceFieldTransformAttribute(result, resp.BodyOrigin, attribute)
 	}
 	return "", result
 }

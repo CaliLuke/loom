@@ -34,7 +34,10 @@ func TestBuildProblemClientResultTransformCodeDereferencesOptionalBodyFields(t *
 		"detail = *body.Detail",
 		"if body.Instance != nil {",
 		"instance = *body.Instance",
-		"v := loomhttp.ProblemErrorFromBody(code, 401, detail, instance, body.RetryHint)",
+		"var retryHint *string",
+		"if actual, ok := body.RetryHint.Value(); ok {",
+		"retryHint = &actual",
+		"v := loomhttp.ProblemErrorFromBody(code, 401, detail, instance, retryHint)",
 	} {
 		if !strings.Contains(code, want) {
 			t.Fatalf("expected generated transform to contain %q, got:\n%s", want, code)

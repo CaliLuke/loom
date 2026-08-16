@@ -3,27 +3,30 @@ import "regexp"
 // MethodARequestBody is the type of the "ServiceMultipleMethods" service
 // "MethodA" endpoint HTTP request body.
 type MethodARequestBody struct {
-	A *string `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
+	A loom.Optional[string] `form:"a,omitempty" json:"a,omitzero" xml:"a,omitempty"`
 }
 
 // MethodBRequestBody is the type of the "ServiceMultipleMethods" service
 // "MethodB" endpoint HTTP request body.
 type MethodBRequestBody struct {
-	A *string              `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
-	B *string              `form:"b,omitempty" json:"b,omitempty" xml:"b,omitempty"`
-	C *APayloadRequestBody `form:"c,omitempty" json:"c,omitempty" xml:"c,omitempty"`
+	A *string               `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
+	B loom.Optional[string] `form:"b,omitempty" json:"b,omitzero" xml:"b,omitempty"`
+	C *APayloadRequestBody  `form:"c,omitempty" json:"c,omitempty" xml:"c,omitempty"`
 }
 
 // APayloadRequestBody is used to define fields on request body types.
 type APayloadRequestBody struct {
-	A *string `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
+	A loom.Optional[string] `form:"a,omitempty" json:"a,omitzero" xml:"a,omitempty"`
 }
 
 // NewMethodAAPayload builds a ServiceMultipleMethods service MethodA endpoint
 // payload.
 func NewMethodAAPayload(body *MethodARequestBody) *servicemultiplemethods.APayload {
-	v := &servicemultiplemethods.APayload{
-		A: body.A,
+	v := &servicemultiplemethods.APayload{}
+	if actual, ok := body.A.Value(); ok {
+		vAValue := actual
+
+		v.A = &vAValue
 	}
 
 	return v
@@ -34,7 +37,11 @@ func NewMethodAAPayload(body *MethodARequestBody) *servicemultiplemethods.APaylo
 func NewMethodBPayloadType(body *MethodBRequestBody) *servicemultiplemethods.PayloadType {
 	v := &servicemultiplemethods.PayloadType{
 		A: *body.A,
-		B: body.B,
+	}
+	if actual, ok := body.B.Value(); ok {
+		vBValue := actual
+
+		v.B = &vBValue
 	}
 	v.C = unmarshalAPayloadRequestBodyToServicemultiplemethodsAPayload(body.C)
 
@@ -43,8 +50,8 @@ func NewMethodBPayloadType(body *MethodBRequestBody) *servicemultiplemethods.Pay
 
 // ValidateMethodARequestBody runs the validations defined on MethodARequestBody
 func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
-	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
+	if actual, ok := body.A.Value(); ok {
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", actual, loomPatternTest0))
 	}
 	return
 }
@@ -60,8 +67,8 @@ func ValidateMethodBRequestBody(body *MethodBRequestBody) (err error) {
 	if body.A != nil {
 		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
 	}
-	if body.B != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", *body.B, loomPatternTest1))
+	if actual, ok := body.B.Value(); ok {
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", actual, loomPatternTest1))
 	}
 	if body.C != nil {
 		if err2 := ValidateAPayloadRequestBody(body.C); err2 != nil {
@@ -74,8 +81,8 @@ func ValidateMethodBRequestBody(body *MethodBRequestBody) (err error) {
 // ValidateAPayloadRequestBody runs the validations defined on
 // APayloadRequestBody
 func ValidateAPayloadRequestBody(body *APayloadRequestBody) (err error) {
-	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
+	if actual, ok := body.A.Value(); ok {
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", actual, loomPatternTest0))
 	}
 	return
 }

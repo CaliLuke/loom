@@ -139,10 +139,11 @@ schemas, examples, per-part encodings, and unsupported media types remain
 strict import errors.
 
 OpenAPI 3.0 `nullable: true` and OpenAPI 3.1/3.2 two-member type unions such as
-`type: [string, "null"]` generate `loom.Nullable[T]`. Its zero value means the
-property was absent; `loom.NullValue[T]()` means it was explicitly null; and
-`loom.NullableValue(value)` carries a concrete value. Use `Present`, `IsNull`,
-and `Value` when handling imported payloads.
+`type: [string, "null"]` import as `Nullable()` and generate
+`loom.Nullable[T]`. Authored `Nullable()` attributes use the same representation.
+Its zero value means the property was absent; `loom.NullValue[T]()` means it
+was explicitly null; and `loom.NullableValue(value)` carries a concrete value.
+Use `Present`, `IsNull`, and `Value` when handling generated service types.
 
 An unconstrained schema `{}` imports as Loom `Any`. This applies to component
 schemas, object properties, array items, request bodies, and responses. The

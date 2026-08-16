@@ -180,6 +180,12 @@ filter, and serialization rules belong here.
   emit bodies, params, tool arguments, credentials, or result payloads.
 - Keep HTTP, gRPC, and JSON-RPC semantics distinct unless a deliberately shared
   transport core owns the behavior.
+- Keep requiredness and nullability orthogonal. `expr` owns semantic
+  nullability; shared service models use `loom.Nullable[T]` for null-admitting
+  object fields; JSON decoding boundaries alone use `loom.Optional[T]` for
+  optional non-null fields. Reject nullable shapes at transports that cannot
+  preserve absent, null, and concrete states instead of weakening the service
+  contract.
 
 ## Verification Strategy
 

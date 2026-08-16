@@ -512,7 +512,7 @@ func buildAttributeSchema(api *expr.APIExpr, s *Schema, at *expr.AttributeExpr) 
 			ExtensionsFromExpr(at.Meta),
 			ScopedExtensionsFromExpr(at.Meta, "schema"),
 		)
-		applyNullableSchema(s, at.Meta)
+		applyNullableSchema(s, at)
 		return s
 	}
 	s.DefaultValue = ToStringMap(at.DefaultValue)
@@ -527,14 +527,13 @@ func buildAttributeSchema(api *expr.APIExpr, s *Schema, at *expr.AttributeExpr) 
 		s.AdditionalProperties = ap
 	}
 	initAttributeValidation(s, at)
-	applyNullableSchema(s, at.Meta)
+	applyNullableSchema(s, at)
 
 	return s
 }
 
-func applyNullableSchema(schema *Schema, meta expr.MetaExpr) {
-	value, ok := meta.Last("openapi:nullable")
-	if !ok || value == "false" || schema == nil || schema.Type == Null {
+func applyNullableSchema(schema *Schema, attribute *expr.AttributeExpr) {
+	if !expr.IsNullable(attribute) || schema == nil || schema.Type == Null {
 		return
 	}
 	base := *schema

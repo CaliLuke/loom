@@ -180,6 +180,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "raw-request-bodies", dsl: testdata.RawRequestBodyOpenAPIDSL},
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
 		{name: "shared-error-responses", dsl: testdata.OpenAPISharedErrorHeaderDSL},
+		{name: "nullable-presence", dsl: presenceOpenAPIDSL},
 	}
 	for _, tc := range lintCases {
 		t.Run("redocly-"+tc.name, func(t *testing.T) {

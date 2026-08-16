@@ -106,3 +106,11 @@ func TestAttributeTypeSchemaLeavesAmbiguousUnionExampleUnchanged(t *testing.T) {
 		t.Errorf("got canonicalized ambiguous example %#v, expected unchanged empty object", example)
 	}
 }
+
+func TestAttributeSchemaUsesSemanticNullability(t *testing.T) {
+	attribute := &expr.AttributeExpr{Type: expr.String, Nullable: true}
+	schema := buildAttributeSchema(&expr.APIExpr{ExampleGenerator: expr.NewRandom("nullable")}, NewSchema(), attribute)
+	if len(schema.AnyOf) != 2 || schema.AnyOf[0].Type != String || schema.AnyOf[1].Type != Null {
+		t.Fatalf("got nullable schema %#v, expected string-or-null anyOf", schema.AnyOf)
+	}
+}

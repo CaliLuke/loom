@@ -5,9 +5,10 @@ func unmarshalResultTypeRequestBodyToFooserviceResultType(v *ResultTypeRequestBo
 		return nil
 	}
 	res := &fooservice.ResultType{}
-	if v.Foo != nil {
-		foo := fooservice.Foo(*v.Foo)
-		res.Foo = &foo
+	if actual, ok := v.Foo.Value(); ok {
+		resFooValue := fooservice.Foo(actual)
+
+		res.Foo = &resFooValue
 	}
 
 	return res

@@ -23,6 +23,12 @@ func httpContext(scope *codegen.NameScope, request, svr bool) *codegen.Attribute
 	return codegen.NewAttributeContext(!marshal, false, marshal, "", scope)
 }
 
+func responseHTTPContext(scope *codegen.NameScope) *codegen.AttributeContext {
+	ctx := httpContext(scope, false, false)
+	ctx.JSONPresence = true
+	return ctx
+}
+
 // serviceContext returns an attribute context for service types.
 func serviceContext(pkg string, scope *codegen.NameScope) *codegen.AttributeContext {
 	return codegen.NewAttributeContext(false, false, true, pkg, scope)
@@ -61,6 +67,15 @@ func unmarshal(source, target *expr.AttributeExpr, sourceVar string, sourceCtx, 
 // sourceCtx, targetCtx are the source and target attribute contexts
 func marshal(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext) (string, []*codegen.TransformFunctionData, error) {
 	return codegen.GoTransform(source, target, sourceVar, targetVar, sourceCtx, targetCtx, "marshal", true)
+}
+
+func serviceFieldTransformAttribute(parent *expr.AttributeExpr, name string, attribute *expr.AttributeExpr) *expr.AttributeExpr {
+	if parent == nil || name == "" || attribute == nil || expr.IsNullable(attribute) || !expr.AllowsNull(attribute) {
+		return attribute
+	}
+	clone := expr.DupAtt(attribute)
+	clone.Nullable = true
+	return clone
 }
 
 // needConversion returns true if the type needs to be converted from a string.

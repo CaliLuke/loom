@@ -4,8 +4,10 @@
 // "OK" response.
 func NewMethodExplicitBodyUserResultObjectMultipleViewResulttypemultipleviewsOK(body *MethodExplicitBodyUserResultObjectMultipleViewResponseBody, c *string) *serviceexplicitbodyuserresultobjectmultipleviewviews.ResulttypemultipleviewsView {
 	v := &serviceexplicitbodyuserresultobjectmultipleviewviews.ResulttypemultipleviewsView{}
-	if body.A != nil {
-		v.A = unmarshalUserTypeResponseBodyToServiceexplicitbodyuserresultobjectmultipleviewviewsUserTypeView(body.A)
+	if actual, ok := body.A.Value(); ok {
+		vAValue := unmarshalUserTypeResponseBodyToServiceexplicitbodyuserresultobjectmultipleviewviewsUserTypeView(&actual)
+
+		v.A = vAValue
 	}
 	v.C = c
 

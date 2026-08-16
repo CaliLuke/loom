@@ -9,6 +9,7 @@ package client
 
 import (
 	clock "example.com/mixedtick/gen/clock"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // InitializeRequestBody is the type of the "clock" service "Initialize"
@@ -20,8 +21,8 @@ type InitializeRequestBody struct {
 // InitializeResponseBody is the type of the "clock" service "Initialize"
 // endpoint HTTP response body.
 type InitializeResponseBody struct {
-	ID              *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	ProtocolVersion *string `form:"protocol_version,omitempty" json:"protocol_version,omitempty" xml:"protocol_version,omitempty"`
+	ID              loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
+	ProtocolVersion loom.Optional[string] `form:"protocol_version,omitempty" json:"protocol_version,omitzero" xml:"protocol_version,omitempty"`
 }
 
 // TickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
@@ -33,7 +34,7 @@ type TickRequestBody struct {
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
 // response body.
 type TickResponseBody struct {
-	Value *string `form:"value,omitempty" json:"value,omitempty" xml:"value,omitempty"`
+	Value loom.Optional[string] `form:"value,omitempty" json:"value,omitzero" xml:"value,omitempty"`
 }
 
 // NewInitializeRequestBody builds the HTTP request body from the payload of
@@ -57,9 +58,16 @@ func NewTickRequestBody(p *clock.TickPayload) *TickRequestBody {
 // NewInitializeResultOK builds a "clock" service "Initialize" endpoint result
 // from a HTTP "OK" response.
 func NewInitializeResultOK(body *InitializeResponseBody) *clock.InitializeResult {
-	v := &clock.InitializeResult{
-		ID:              body.ID,
-		ProtocolVersion: body.ProtocolVersion,
+	v := &clock.InitializeResult{}
+	if actual, ok := body.ID.Value(); ok {
+		vIDValue := actual
+
+		v.ID = &vIDValue
+	}
+	if actual, ok := body.ProtocolVersion.Value(); ok {
+		vProtocolVersionValue := actual
+
+		v.ProtocolVersion = &vProtocolVersionValue
 	}
 
 	return v
@@ -68,8 +76,11 @@ func NewInitializeResultOK(body *InitializeResponseBody) *clock.InitializeResult
 // NewTickResultOK builds a "clock" service "Tick" endpoint result from a HTTP
 // "OK" response.
 func NewTickResultOK(body *TickResponseBody) *clock.TickResult {
-	v := &clock.TickResult{
-		Value: body.Value,
+	v := &clock.TickResult{}
+	if actual, ok := body.Value.Value(); ok {
+		vValueValue := actual
+
+		v.Value = &vValueValue
 	}
 
 	return v

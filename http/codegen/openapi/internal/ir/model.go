@@ -155,6 +155,10 @@ type (
 		SerializedValue string
 	}
 
+	// NullExample is a non-nil marker that marshals as an explicit JSON or YAML
+	// null while remaining distinguishable from an omitted example field.
+	NullExample struct{}
+
 	// ExternalDocs describes operation-level external documentation.
 	ExternalDocs struct {
 		Description string
@@ -259,3 +263,13 @@ type (
 		EncType      string
 	}
 )
+
+// MarshalJSON implements json.Marshaler.
+func (NullExample) MarshalJSON() ([]byte, error) {
+	return []byte("null"), nil
+}
+
+// MarshalYAML implements yaml.Marshaler.
+func (NullExample) MarshalYAML() (any, error) {
+	return nil, nil
+}

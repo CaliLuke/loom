@@ -40,6 +40,9 @@ func TestGoTypeDef(t *testing.T) {
 		unionType                   = &expr.Union{TypeName: "StringOrInt", Values: []*expr.NamedAttributeExpr{{Name: "text", Attribute: &expr.AttributeExpr{Type: expr.String}}, {Name: "count", Attribute: &expr.AttributeExpr{Type: expr.Int}}}}
 		optionalUnionObj            = &expr.AttributeExpr{Type: &expr.Object{{Name: "choice", Attribute: &expr.AttributeExpr{Type: unionType}}}}
 		requiredUnionObj            = &expr.AttributeExpr{Type: &expr.Object{{Name: "choice", Attribute: &expr.AttributeExpr{Type: unionType}}}, Validation: &expr.ValidationExpr{Required: []string{"choice"}}}
+		nullableObject              = &expr.AttributeExpr{Type: &expr.Object{{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}}}, Nullable: true}
+		nullableObjectArray         = &expr.AttributeExpr{Type: &expr.Array{ElemType: nullableObject}}
+		nullableObjectMap           = &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: nullableObject}}
 
 		mixedObj = &expr.AttributeExpr{
 			Type: &expr.Object{
@@ -101,16 +104,26 @@ func TestGoTypeDef(t *testing.T) {
 		"BytesKind":   {&expr.AttributeExpr{Type: expr.Bytes}, false, true, "[]byte"},
 		"AnyKind":     {&expr.AttributeExpr{Type: expr.Any}, false, true, "any"},
 
-		"Array":          {simpleArray, false, true, "[]bool"},
-		"Map":            {simpleMap, false, true, "map[int]string"},
-		"UserTypeExpr":   {userType, false, true, "UserType"},
-		"ResultTypeExpr": {resultType, false, true, "ResultType"},
+		"Array":               {simpleArray, false, true, "[]bool"},
+		"Map":                 {simpleMap, false, true, "map[int]string"},
+		"NullableObjectArray": {nullableObjectArray, false, true, "[]loom.Nullable[struct {\n\tValue *string `json:\"value,omitempty\"`\n}]"},
+		"NullableObjectMap":   {nullableObjectMap, false, true, "map[string]loom.Nullable[struct {\n\tValue *string `json:\"value,omitempty\"`\n}]"},
+		"UserTypeExpr":        {userType, false, true, "UserType"},
+		"ResultTypeExpr":      {resultType, false, true, "ResultType"},
 
-		"Object":                                 {requiredObj, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tStringField string `json:\"StringField\"`\n}"},
-		"ObjDefault":                             {defaultObj, false, true, "struct {\n\tIntField int `json:\"IntField,omitempty\"`\n\tStringField string `json:\"StringField,omitempty\"`\n}"},
-		"ObjDefaultNoDef":                        {defaultObj, false, false, "struct {\n\tIntField *int `json:\"IntField,omitempty\"`\n\tStringField *string `json:\"StringField,omitempty\"`\n}"},
-		"OptionalUnion":                          {optionalUnionObj, false, true, "struct {\n\tChoice *StringOrInt `json:\"choice,omitempty\"`\n}"},
-		"RequiredUnion":                          {requiredUnionObj, false, true, "struct {\n\tChoice StringOrInt `json:\"choice\"`\n}"},
+		"Object":          {requiredObj, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tStringField string `json:\"StringField\"`\n}"},
+		"ObjDefault":      {defaultObj, false, true, "struct {\n\tIntField int `json:\"IntField,omitempty\"`\n\tStringField string `json:\"StringField,omitempty\"`\n}"},
+		"ObjDefaultNoDef": {defaultObj, false, false, "struct {\n\tIntField *int `json:\"IntField,omitempty\"`\n\tStringField *string `json:\"StringField,omitempty\"`\n}"},
+		"OptionalUnion":   {optionalUnionObj, false, true, "struct {\n\tChoice *StringOrInt `json:\"choice,omitempty\"`\n}"},
+		"RequiredUnion":   {requiredUnionObj, false, true, "struct {\n\tChoice StringOrInt `json:\"choice\"`\n}"},
+		"NullableFields": {&expr.AttributeExpr{
+			Type: &expr.Object{
+				{Name: "required", Attribute: &expr.AttributeExpr{Type: expr.String, Nullable: true}},
+				{Name: "optional", Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.Int}}, Nullable: true}},
+				{Name: "anything", Attribute: &expr.AttributeExpr{Type: expr.Any}},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"required"}},
+		}, false, true, "struct {\n\tRequired loom.Nullable[string] `json:\"required\"`\n\tOptional loom.Nullable[[]int] `json:\"optional,omitzero\"`\n\tAnything loom.Nullable[any] `json:\"anything,omitzero\"`\n}"},
 		"ObjMixed":                               {mixedObj, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField UserType `json:\"UserTypeField\"`\n\tMetaTypeField json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *types.UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
 		"ObjMixedPointer":                        {mixedObj, true, true, "struct {\n\tIntField *int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField *UserType `json:\"UserTypeField\"`\n\tMetaTypeField *json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField *jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *types.UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
 		"ObjMixedWithStructPkgPath":              {mixedObjWithStructPkgPath, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField UserType `json:\"UserTypeField\"`\n\tMetaTypeField json.RawMessage `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField jason.RawMessage `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
@@ -129,6 +142,33 @@ func TestGoTypeDef(t *testing.T) {
 		if actual != tc.expected {
 			t.Errorf("%s: got %#v, expected %#v", k, actual, tc.expected)
 		}
+	}
+}
+
+func TestAttributeTagsWithNameNormalizesPresenceOverride(t *testing.T) {
+	field := &expr.AttributeExpr{
+		Type:     expr.String,
+		Nullable: true,
+		Meta:     expr.MetaExpr{"struct:tag:json": []string{"wire_name,omitempty"}},
+	}
+	parent := &expr.AttributeExpr{Type: &expr.Object{{Name: "value", Attribute: field}}}
+
+	if got, want := AttributeTagsWithName(parent, "value", field), " `json:\"wire_name,omitzero\"`"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestGoValueTypeDefStripsInheritedNamedPresence(t *testing.T) {
+	root := &expr.AttributeExpr{Type: expr.String, Nullable: true}
+	named := &expr.UserTypeExpr{TypeName: "NullableText", AttributeExpr: root}
+	attribute := &expr.AttributeExpr{Type: named}
+	scope := NewNameScope()
+
+	if got, want := scope.GoValueTypeDef(attribute, false, true), "NullableText"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got, want := scope.GoTypeDef(attribute, false, true), "loom.Nullable[NullableText]"; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -198,6 +238,18 @@ func TestAttributeTagsWithName_DefaultJSONName(t *testing.T) {
 	}
 	if got, want := AttributeTagsWithName(parent, "optional_field", optional), " `json:\"optional_field,omitempty\"`"; got != want {
 		t.Fatalf("optional: got %q, want %q", got, want)
+	}
+}
+
+func TestAttributeTagsWithName_PresenceUsesOmitZero(t *testing.T) {
+	parent := &expr.AttributeExpr{Type: &expr.Object{}}
+	nullable := &expr.AttributeExpr{Type: expr.String, Nullable: true}
+	anything := &expr.AttributeExpr{Type: expr.Any}
+	if got, want := AttributeTagsWithName(parent, "nullable", nullable), " `json:\"nullable,omitzero\"`"; got != want {
+		t.Fatalf("nullable: got %q, want %q", got, want)
+	}
+	if got, want := AttributeTagsWithName(parent, "anything", anything), " `json:\"anything,omitzero\"`"; got != want {
+		t.Fatalf("anything: got %q, want %q", got, want)
 	}
 }
 

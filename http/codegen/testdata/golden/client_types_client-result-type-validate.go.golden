@@ -2,14 +2,17 @@
 // "ServiceResultTypeValidate" service "MethodResultTypeValidate" endpoint HTTP
 // response body.
 type MethodResultTypeValidateResponseBody struct {
-	A *string `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
+	A loom.Optional[string] `form:"a,omitempty" json:"a,omitzero" xml:"a,omitempty"`
 }
 
 // NewMethodResultTypeValidateResultTypeOK builds a "ServiceResultTypeValidate"
 // service "MethodResultTypeValidate" endpoint result from a HTTP "OK" response.
 func NewMethodResultTypeValidateResultTypeOK(body *MethodResultTypeValidateResponseBody) *serviceresulttypevalidate.ResultType {
-	v := &serviceresulttypevalidate.ResultType{
-		A: body.A,
+	v := &serviceresulttypevalidate.ResultType{}
+	if actual, ok := body.A.Value(); ok {
+		vAValue := actual
+
+		v.A = &vAValue
 	}
 
 	return v
@@ -18,9 +21,9 @@ func NewMethodResultTypeValidateResultTypeOK(body *MethodResultTypeValidateRespo
 // ValidateMethodResultTypeValidateResponseBody runs the validations defined on
 // MethodResultTypeValidateResponseBody
 func ValidateMethodResultTypeValidateResponseBody(body *MethodResultTypeValidateResponseBody) (err error) {
-	if body.A != nil {
-		if utf8.RuneCountInString(*body.A) < 5 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body.a", *body.A, utf8.RuneCountInString(*body.A), 5, true))
+	if actual, ok := body.A.Value(); ok {
+		if utf8.RuneCountInString(actual) < 5 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body.a", actual, utf8.RuneCountInString(actual), 5, true))
 		}
 	}
 	return

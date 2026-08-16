@@ -51,6 +51,9 @@ type (
 		// which if true indicates that the type has been generated
 		// in the server package.
 		ServerTypeNames map[string]bool
+		// ServerJSONPresenceTypes records server body user types whose generated
+		// fields use loom.Optional at JSON boundaries.
+		ServerJSONPresenceTypes map[string]bool
 		// ClientTypeNames records the user type names used to define
 		// the endpoint request and response bodies for client code.
 		// The type name is used as the key and a bool as the value

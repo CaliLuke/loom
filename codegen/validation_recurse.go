@@ -18,16 +18,21 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 		first    = true
 		ut, isUT = att.Type.(expr.UserType)
 	)
-
-	// Break infinite recursions
-	// Note: when alias=true, we're validating the underlying base type,
-	// so alias types shouldn't use the recursion guard. Only non-alias user
-	// types need cycle protection.
+	// Break infinite recursions before presence wrappers recurse into their
+	// concrete named value. Keep wrapped and concrete states distinct.
 	if isUT && !alias {
-		if buf, ok := seen[ut.ID()]; ok {
-			return buf
+		key := ut.ID()
+		if isNullableAttribute(att) {
+			key += ":nullable"
 		}
-		seen[ut.ID()] = buf
+		if existing, ok := seen[key]; ok {
+			return existing
+		}
+		seen[key] = buf
+	}
+	if isNullableAttribute(att) {
+		fmt.Fprint(buf, validateNullableAttribute(attCtx, att, put, target, context, req, view, seen))
+		return buf
 	}
 
 	// Write validations on attribute if any.
@@ -68,10 +73,19 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 	if isUT {
 		put = ut
 	}
+	mapped := expr.NewMappedAttributeExpr(att)
 	for _, nat := range *(expr.AsObject(att.Type)) {
 		tgt := target + "." + attCtx.Scope.Field(nat.Attribute, nat.Name, true)
 		ctx := context + "." + nat.Name
-		val := validateAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
+		var val string
+		switch attCtx.FieldPresence(mapped, nat.Name, nat.Attribute) {
+		case OptionalPresence:
+			val = validateOptionalAttribute(attCtx, nat.Attribute, put, tgt, ctx, view, seen)
+		case NullablePresence:
+			val = validateNullableAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
+		default:
+			val = validateAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
+		}
 		appendValidationBlock(buf, first, val)
 	}
 }
@@ -233,6 +247,9 @@ func isNullableAttribute(att *expr.AttributeExpr) bool {
 	if att == nil {
 		return false
 	}
+	if expr.IsNullable(att) {
+		return true
+	}
 	value, ok := att.Meta.Last("openapi:nullable")
 	if ok && value != "false" {
 		return true
@@ -251,7 +268,7 @@ func validateNullableAttribute(
 	view bool,
 	seen map[string]*bytes.Buffer,
 ) string {
-	underlying := *att
+	underlying := concretePresenceAttribute(att)
 	underlying.Meta = make(expr.MetaExpr, len(att.Meta))
 	for name, values := range att.Meta {
 		if name == "openapi:nullable" || name == "struct:field:type" {
@@ -262,7 +279,7 @@ func validateNullableAttribute(
 
 	valueCtx := ctx.Dup()
 	valueCtx.Pointer = false
-	validation := recurseValidationCode(&underlying, put, valueCtx, true, false, view, "actual", context, seen).String()
+	validation := recurseValidationCode(underlying, put, valueCtx, true, false, view, "actual", context, seen).String()
 	var lines []string
 	if required {
 		field, parent := nullableValidationContext(context)
@@ -272,6 +289,41 @@ func validateNullableAttribute(
 		lines = append(lines, "if actual, ok := "+target+".Value(); ok {\n"+indentCode(validation)+"}")
 	}
 	return strings.Join(lines, "\n")
+}
+
+func validateOptionalAttribute(
+	ctx *AttributeContext,
+	att *expr.AttributeExpr,
+	put expr.UserType,
+	target string,
+	context string,
+	view bool,
+	seen map[string]*bytes.Buffer,
+) string {
+	underlying := concretePresenceAttribute(att)
+	valueCtx := ctx.Dup()
+	valueCtx.Pointer = false
+	valueCtx.JSONPresence = false
+	validation := recurseValidationCode(underlying, put, valueCtx, true, false, view, "actual", context, seen).String()
+	if validation == "" {
+		return ""
+	}
+	return "if actual, ok := " + target + ".Value(); ok {\n" + indentCode(validation) + "}"
+}
+
+func concretePresenceAttribute(att *expr.AttributeExpr) *expr.AttributeExpr {
+	underlying := *att
+	underlying.Nullable = false
+	userType, ok := att.Type.(expr.UserType)
+	if !ok || !expr.IsNullable(userType.Attribute()) {
+		return &underlying
+	}
+	concreteType := userType.Dup(nil)
+	concreteAttribute := expr.DupAtt(userType.Attribute())
+	concreteAttribute.Nullable = false
+	concreteType.SetAttribute(concreteAttribute)
+	underlying.Type = concreteType
+	return &underlying
 }
 
 func nullableValidationContext(context string) (field, parent string) {

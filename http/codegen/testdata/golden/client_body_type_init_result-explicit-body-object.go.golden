@@ -4,8 +4,10 @@
 // response.
 func NewMethodExplicitBodyUserResultObjectResulttypeOK(body *MethodExplicitBodyUserResultObjectResponseBody, c *string, b *string) *serviceexplicitbodyuserresultobjectviews.ResulttypeView {
 	v := &serviceexplicitbodyuserresultobjectviews.ResulttypeView{}
-	if body.A != nil {
-		v.A = unmarshalUserTypeResponseBodyToServiceexplicitbodyuserresultobjectviewsUserTypeView(body.A)
+	if actual, ok := body.A.Value(); ok {
+		vAValue := unmarshalUserTypeResponseBodyToServiceexplicitbodyuserresultobjectviewsUserTypeView(&actual)
+
+		v.A = vAValue
 	}
 	v.C = c
 	v.B = b

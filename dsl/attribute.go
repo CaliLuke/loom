@@ -2,6 +2,7 @@ package dsl
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
@@ -278,12 +279,33 @@ func Default(def any) {
 		eval.ReportError("default values are not supported for union attributes")
 		return
 	}
+	if isNilDSLValue(def) {
+		eval.ReportError("null default values are not supported")
+		return
+	}
+	if _, ok := def.(nullExample); ok {
+		eval.ReportError("Null is only valid inside Example")
+		return
+	}
 	if a.Type != nil && !a.Type.IsCompatible(def) {
 		eval.ReportError("default value %#v is incompatible with attribute of type %s",
 			def, expr.QualifiedTypeName(a.Type))
 		return
 	}
 	a.SetDefault(def)
+}
+
+func isNilDSLValue(value any) bool {
+	if value == nil {
+		return true
+	}
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
 }
 
 // Example provides an example value for a type, a parameter, a header or any
@@ -358,10 +380,14 @@ func Example(args ...any) {
 	if dsl, ok := arg.(func()); ok {
 		eval.Execute(dsl, ex)
 	} else {
-		ex.Value = arg
+		setExampleValue(ex, arg)
 	}
-	if ex.Value == nil {
+	if ex.Value == nil && !ex.ExplicitNull {
 		eval.ReportError("example value is missing")
+		return
+	}
+	if ex.ExplicitNull && !expr.AllowsNull(a) {
+		eval.ReportError("null example is incompatible with non-nullable attribute")
 		return
 	}
 	a.UserExamples = append(a.UserExamples, ex)

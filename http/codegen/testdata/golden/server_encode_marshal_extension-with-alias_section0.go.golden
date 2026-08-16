@@ -5,8 +5,10 @@ func unmarshalExtensionRequestBodyToFooserviceExtension(v *ExtensionRequestBody)
 		return nil
 	}
 	res := &fooservice.Extension{}
-	if v.Bar != nil {
-		res.Bar = unmarshalBarRequestBodyToFooserviceBar(v.Bar)
+	if actual, ok := v.Bar.Value(); ok {
+		resBarValue := unmarshalBarRequestBodyToFooserviceBar(&actual)
+
+		res.Bar = resBarValue
 	}
 
 	return res

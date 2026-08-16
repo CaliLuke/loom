@@ -15,9 +15,9 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 		collectUnionBranchUserTypes(endpointIR.Request.StreamingBody, unionBranchTypes)
 	}
 
-	appendTypeData := func(att *expr.AttributeExpr, ptr, server bool, target *[]*TypeData) {
+	appendTypeData := func(att *expr.AttributeExpr, ptr, server, jsonPresence bool, target *[]*TypeData) {
 		collectUserTypes(att.Type, func(ut expr.UserType) {
-			if d := sds.attributeTypeData(ut, true, ptr, server, sd); d != nil {
+			if d := sds.attributeTypeData(ut, true, ptr, server, jsonPresence, sd); d != nil {
 				if !server && d.ValidateDef == "" {
 					if _, ok := unionBranchTypes[ut.ID()]; ok {
 						d.ValidateDef = "// no validations"
@@ -28,12 +28,13 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 			}
 		})
 	}
-	appendTypeData(endpointIR.Request.RawBody, true, true, &sd.ServerBodyAttributeTypes)
-	appendTypeData(endpointIR.Request.RawBody, false, false, &sd.ClientBodyAttributeTypes)
+	requestJSONPresence := !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
+	appendTypeData(endpointIR.Request.RawBody, true, true, requestJSONPresence, &sd.ServerBodyAttributeTypes)
+	appendTypeData(endpointIR.Request.RawBody, false, false, false, &sd.ClientBodyAttributeTypes)
 
 	if endpointIR.Stream.RequestPayload != nil && endpointIR.Stream.RequestPayload.Type != expr.Empty {
-		appendTypeData(endpointIR.Request.StreamingBody, true, true, &sd.ServerBodyAttributeTypes)
-		appendTypeData(endpointIR.Request.StreamingBody, false, false, &sd.ClientBodyAttributeTypes)
+		appendTypeData(endpointIR.Request.StreamingBody, true, true, true, &sd.ServerBodyAttributeTypes)
+		appendTypeData(endpointIR.Request.StreamingBody, false, false, false, &sd.ClientBodyAttributeTypes)
 	}
 
 	if endpointIR.Response.Result != nil {
@@ -41,7 +42,7 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 		for _, response := range endpointIR.Response.Responses {
 			body := effectiveClientResponseBody(response.Body, endpointIR.Response.Result, md)
 			collectUserTypes(body.Type, func(ut expr.UserType) {
-				if d := sds.attributeTypeData(ut, false, true, false, sd); d != nil {
+				if d := sds.attributeTypeData(ut, false, true, false, true, sd); d != nil {
 					sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
 				}
 			})
@@ -49,14 +50,14 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 	}
 	for _, httpError := range endpointIR.Response.ErrorResponses {
 		collectUserTypes(httpError.Body.Type, func(ut expr.UserType) {
-			if d := sds.attributeTypeData(ut, false, true, false, sd); d != nil {
+			if d := sds.attributeTypeData(ut, false, true, false, true, sd); d != nil {
 				sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
 			}
 		})
 	}
 }
 
-func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bool, rd *ServiceData) *TypeData {
+func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, jsonPresence bool, rd *ServiceData) *TypeData {
 	if ut == expr.Empty {
 		return nil
 	}
@@ -68,6 +69,12 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bo
 		return nil
 	}
 	seen[ut.Name()] = false
+	if server {
+		if rd.ServerJSONPresenceTypes == nil {
+			rd.ServerJSONPresenceTypes = make(map[string]bool)
+		}
+		rd.ServerJSONPresenceTypes[ut.ID()] = jsonPresence
+	}
 
 	var (
 		name        string
@@ -78,7 +85,8 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bo
 		att  = &expr.AttributeExpr{Type: ut}
 		hctx = httpContext(rd.Scope, req, server)
 	)
-	name = rd.Scope.GoTypeName(att)
+	hctx.JSONPresence = jsonPresence
+	name = rd.Scope.GoValueTypeName(att)
 	ctx := "request"
 	if !req {
 		ctx = "response"
@@ -104,7 +112,7 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server bo
 		Name:        ut.Name(),
 		VarName:     name,
 		Description: desc,
-		Def:         goTypeDef(rd.Scope, ut.Attribute(), ptr, hctx.UseDefault),
+		Def:         goValueTypeDef(rd.Scope, ut.Attribute(), ptr, hctx.UseDefault, jsonPresence),
 		Ref:         rd.Scope.GoTypeRef(att),
 		ValidateDef: validate,
 		ValidateRef: validateRef,

@@ -349,7 +349,7 @@ func initExamples(target interface {
 	case len(examples) > 1:
 		refs := make(map[string]*ExampleRef, len(examples))
 		for _, example := range examples {
-			val, ok := openAPIExampleValue(attr, example.Value)
+			val, ok := authoredOpenAPIExampleValue(attr, example)
 			if !ok {
 				continue
 			}
@@ -359,7 +359,7 @@ func initExamples(target interface {
 			target.setExamples(refs)
 		}
 	case len(examples) == 1:
-		if val, ok := openAPIExampleValue(attr, examples[0].Value); ok {
+		if val, ok := authoredOpenAPIExampleValue(attr, examples[0]); ok {
 			if componentName := metaValue(examples[0].Meta, "openapi:component:example"); componentName != "" || hasStructuredExampleMetadata(examples[0].Meta) {
 				name := examples[0].Summary
 				if name == "" {
@@ -378,6 +378,16 @@ func initExamples(target interface {
 			target.setExample(val)
 		}
 	}
+}
+
+func authoredOpenAPIExampleValue(attr *expr.AttributeExpr, example *expr.ExampleExpr) (any, bool) {
+	if example != nil && example.ExplicitNull && expr.AllowsNull(attr) {
+		return NullExample{}, true
+	}
+	if example == nil {
+		return nil, false
+	}
+	return openAPIExampleValue(attr, example.Value)
 }
 
 func buildExample(example *expr.ExampleExpr, value any) *Example {
@@ -409,6 +419,10 @@ func hasStructuredExampleMetadata(meta expr.MetaExpr) bool {
 
 func openAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 	if raw == nil {
+		if examples := attr.ExtractUserExamples(); len(examples) > 0 &&
+			examples[len(examples)-1].ExplicitNull && expr.AllowsNull(attr) {
+			return NullExample{}, true
+		}
 		return nil, false
 	}
 	val := normalizeOpenAPIExample(expr.CanonicalizeExample(attr, raw))

@@ -7,13 +7,19 @@ func unmarshalInnerTypeRequestBodyToServicebodyuserinnerdefaultInnerType(v *Inne
 	if v == nil {
 		return nil
 	}
-	res := &servicebodyuserinnerdefault.InnerType{
-		A: *v.A,
+	res := &servicebodyuserinnerdefault.InnerType{}
+	if actual, ok := v.A.Value(); ok {
+		resAValue := actual
+
+		res.A = resAValue
+	} else {
+		res.A = "defaulta"
 	}
-	if v.B != nil {
-		res.B = *v.B
-	}
-	if v.B == nil {
+	if actual, ok := v.B.Value(); ok {
+		resBValue := actual
+
+		res.B = resBValue
+	} else {
 		res.B = "defaultb"
 	}
 
@@ -30,7 +36,11 @@ func unmarshalPayloadTypeRequestBodyToServicebodyinlinerecursiveuserPayloadType(
 	}
 	res := &servicebodyinlinerecursiveuser.PayloadType{
 		A: *v.A,
-		B: v.B,
+	}
+	if actual, ok := v.B.Value(); ok {
+		resBValue := actual
+
+		res.B = &resBValue
 	}
 	res.C = unmarshalPayloadTypeRequestBodyToServicebodyinlinerecursiveuserPayloadType(v.C)
 

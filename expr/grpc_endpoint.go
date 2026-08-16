@@ -81,10 +81,69 @@ func (e *GRPCEndpointExpr) Validate() error {
 		verr.Add(e, "Endpoint name cannot be empty")
 	}
 	e.validateGRPCUnionShapes(verr)
+	e.validateNullableTransport(verr)
 	verr.Merge(e.validateRequestShape())
 	verr.Merge(e.Response.Validate(e))
 	verr.Merge(e.validateGRPCErrors())
 	return verr
+}
+
+func (e *GRPCEndpointExpr) validateNullableTransport(verr *eval.ValidationErrors) {
+	if e == nil {
+		return
+	}
+	tests := []struct {
+		attribute *AttributeExpr
+		location  string
+	}{
+		{e.Request, "request messages"},
+		{e.StreamingRequest, "streaming request messages"},
+	}
+	if e.Metadata != nil {
+		tests = append(tests, struct {
+			attribute *AttributeExpr
+			location  string
+		}{e.Metadata.Attribute(), "request metadata"})
+	}
+	if e.Response != nil {
+		tests = appendGRPCResponsePresenceTests(tests, e.Response, "response")
+	}
+	for _, grpcError := range e.GRPCErrors {
+		if grpcError != nil && grpcError.Response != nil {
+			tests = appendGRPCResponsePresenceTests(tests, grpcError.Response, "error response")
+		}
+	}
+	for _, test := range tests {
+		if containsUnsupportedGRPCPresence(test.attribute) {
+			verr.Add(e, "gRPC %s do not support nullable attributes; use Any when null must cross gRPC", test.location)
+		}
+	}
+}
+
+func appendGRPCResponsePresenceTests(tests []struct {
+	attribute *AttributeExpr
+	location  string
+}, response *GRPCResponseExpr, prefix string) []struct {
+	attribute *AttributeExpr
+	location  string
+} {
+	tests = append(tests, struct {
+		attribute *AttributeExpr
+		location  string
+	}{response.Message, prefix + " messages"})
+	if response.Headers != nil {
+		tests = append(tests, struct {
+			attribute *AttributeExpr
+			location  string
+		}{response.Headers.Attribute(), prefix + " header metadata"})
+	}
+	if response.Trailers != nil {
+		tests = append(tests, struct {
+			attribute *AttributeExpr
+			location  string
+		}{response.Trailers.Attribute(), prefix + " trailer metadata"})
+	}
+	return tests
 }
 
 func ensureValidatedAttribute(att *AttributeExpr) *AttributeExpr {

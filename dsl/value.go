@@ -26,7 +26,7 @@ func Value(val any) {
 		if v, ok := val.(expr.Val); ok {
 			val = map[string]any(v)
 		}
-		e.Value = val
+		setExampleValue(e, val)
 	default:
 		eval.IncompatibleDSL()
 	}

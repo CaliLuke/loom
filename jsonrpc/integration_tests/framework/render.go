@@ -465,7 +465,7 @@ func renderWebSocketTransform(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tif p != nil {\n\t\tresult := &%s.%sResult{Field1: strings.ToUpper(p.Field1), Field2: p.Field2 * 2, Field3: !p.Field3}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\tif p != nil && p.Data != nil {\n\t\ttransformed := make(map[string]any)\n\t\tif data, ok := p.Data.(map[string]any); ok {\n\t\t\tfor k, v := range data { transformed[\"transformed_\"+k] = v }\n\t\t}\n\t\tresult := &%s.%sResult{Data: transformed}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tif p != nil {\n\t\traw, present := p.Data.Value()\n\t\tif !present { return nil }\n\t\tdata, ok := raw.(map[string]any)\n\t\tif !ok { return nil }\n\t\ttransformed := make(map[string]any)\n\t\tfor k, v := range data { transformed[\"transformed_\"+k] = v }\n\t\tresult := &%s.%sResult{Data: loom.NullableValue[any](transformed)}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	default:
 		return "\treturn nil"
 	}
@@ -480,7 +480,7 @@ func renderWebSocketGenerate(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tif p != nil {\n\t\tresult := &%s.%sResult{Field1: \"generated-value1\", Field2: 42, Field3: true}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\tif p != nil {\n\t\tresult := &%s.%sResult{ID: p.ID, Data: map[string]any{\"generated\": true, \"count\": 3, \"status\": \"ok\"}}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tif p != nil {\n\t\tresult := &%s.%sResult{ID: p.ID, Data: loom.NullableValue[any](map[string]any{\"generated\": true, \"count\": 3, \"status\": \"ok\"})}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	default:
 		return fmt.Sprintf("\tresult := &%s.%sResult{}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName)
 	}
@@ -495,7 +495,7 @@ func renderWebSocketStream(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\tcount := p.Field2\n\tif count <= 0 { count = 3 }\n\tif count > 10 { count = 10 }\n\tfor i := 1; i <= count; i++ {\n\t\tnotification := &%s.%sResult{\n\t\t\tField1: fmt.Sprintf(\"%%s-%%d\", p.Field1, i),\n\t\t\tField2: i,\n\t\t\tField3: i == count,\n\t\t}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t}\n\tresult := &%s.%sResult{Field1: \"completed\", Field2: 100, Field3: true}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\tif len(p.Data) == 0 {\n\t\tnotification := &%s.%sResult{Data: map[string]any{\"status\": \"empty\"}}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t} else {\n\t\tkeys := make([]string, 0, len(p.Data))\n\t\tfor k := range p.Data { keys = append(keys, k) }\n\t\tsort.Strings(keys)\n\t\tfor _, k := range keys {\n\t\t\tnotification := &%s.%sResult{Data: map[string]any{\"key\": k, \"value\": p.Data[k]}}\n\t\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t\t}\n\t}\n\tresult := &%s.%sResult{Data: map[string]any{\"status\": \"completed\", \"final\": true}}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\traw, _ := p.Data.Value()\n\tdata, _ := raw.(map[string]any)\n\tif len(data) == 0 {\n\t\tnotification := &%s.%sResult{Data: loom.NullableValue[any](map[string]any{\"status\": \"empty\"})}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t} else {\n\t\tkeys := make([]string, 0, len(data))\n\t\tfor k := range data { keys = append(keys, k) }\n\t\tsort.Strings(keys)\n\t\tfor _, k := range keys {\n\t\t\tnotification := &%s.%sResult{Data: loom.NullableValue[any](map[string]any{\"key\": k, \"value\": data[k]})}\n\t\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t\t}\n\t}\n\tresult := &%s.%sResult{Data: loom.NullableValue[any](map[string]any{\"status\": \"completed\", \"final\": true})}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
 	default:
 		return "\treturn nil"
 	}
@@ -510,7 +510,7 @@ func renderWebSocketBroadcast(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tfor i := 1; i <= 2; i++ {\n\t\tresult := &%s.%sResult{Field1: fmt.Sprintf(\"broadcast-%%d\", i), Field2: i, Field3: i%%2 == 0}\n\t\tif err := stream.SendNotification(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\tfor i := 1; i <= 2; i++ {\n\t\tresult := &%s.%sResult{Data: map[string]any{\"broadcast\": i, \"timestamp\": time.Now().Unix()}}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tfor i := 1; i <= 2; i++ {\n\t\tresult := &%s.%sResult{Data: loom.NullableValue[any](map[string]any{\"broadcast\": i, \"timestamp\": time.Now().Unix()})}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	default:
 		return fmt.Sprintf("\tfor i := 1; i <= 2; i++ {\n\t\tresult := &%s.%sResult{}\n\t\tif err := stream.SendNotification(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	}

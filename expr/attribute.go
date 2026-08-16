@@ -29,6 +29,9 @@ type (
 		Meta MetaExpr
 		// Optional member default value
 		DefaultValue any
+		// Nullable reports whether the attribute occurrence accepts an explicit
+		// null value independently of whether its parent requires the field.
+		Nullable bool
 		// UserExample set in DSL or computed in Finalize
 		UserExamples []*ExampleExpr
 		// finalized is true if the attribute has been finalized - only
@@ -46,6 +49,9 @@ type (
 		Meta MetaExpr
 		// Value is the example value.
 		Value any
+		// ExplicitNull distinguishes an authored null example from a missing
+		// example value.
+		ExplicitNull bool
 	}
 
 	// Val is the type used to provide the value of examples for attributes that are

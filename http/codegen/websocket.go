@@ -155,11 +155,11 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 	}
 	data.serverRecvTypeName = streamDesc.Payload.Name
 	data.serverRecvTypeRef = streamDesc.Payload.Ref
-	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, true, sd)
+	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, true, sd)
 	if needInit(endpointIR.Stream.RequestPayload) {
 		initWebSocketPayloadConstructor(data.serverPayload, sds, endpointIR, sd)
 	}
-	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, sd)
+	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, false, sd)
 	if data.clientPayload != nil {
 		sd.ClientTypeNames[data.clientPayload.Name] = false
 		sd.ServerTypeNames[data.clientPayload.Name] = false
@@ -179,6 +179,7 @@ func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpo
 			err     error
 		)
 		httpctx := httpContext(sd.Scope, true, true)
+		httpctx.JSONPresence = true
 		streamBody := makeHTTPType(endpointIR.Request.StreamingBody)
 		serverCode, helpers, err = marshal(streamBody, endpointIR.Stream.RequestPayload, "body", "v", httpctx, serviceContext(sd.Service.PkgName, sd.Service.Scope))
 		if err == nil {

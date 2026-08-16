@@ -2,8 +2,10 @@
 // MethodBodyUserInner endpoint payload.
 func NewMethodBodyUserInnerPayloadType(body *MethodBodyUserInnerRequestBody) *servicebodyuserinner.PayloadType {
 	v := &servicebodyuserinner.PayloadType{}
-	if body.Inner != nil {
-		v.Inner = unmarshalInnerTypeRequestBodyToServicebodyuserinnerInnerType(body.Inner)
+	if actual, ok := body.Inner.Value(); ok {
+		vInnerValue := unmarshalInnerTypeRequestBodyToServicebodyuserinnerInnerType(&actual)
+
+		v.Inner = vInnerValue
 	}
 
 	return v

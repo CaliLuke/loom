@@ -93,7 +93,7 @@ func TestGoTypeDef(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			def := goTypeDef(codegen.NewNameScope(), c.Attr, c.UsePtr, c.UseDefault)
+			def := goTypeDef(codegen.NewNameScope(), c.Attr, c.UsePtr, c.UseDefault, false)
 			assert.Equal(t, c.Def, def)
 		})
 	}
@@ -110,9 +110,48 @@ func TestGoTypeDefUsesExplicitTypeForStructuredFields(t *testing.T) {
 	}
 	parent := &expr.AttributeExpr{Type: &expr.Object{{Name: "values", Attribute: field}}}
 
-	got := goTypeDef(scope, parent, true, false)
+	got := goTypeDef(scope, parent, true, false, false)
 	require.Contains(t, got, "Values loom.Nullable[[]string]")
 	require.NotContains(t, got, "*loom.Nullable")
+}
+
+func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type: &expr.Object{
+			{Name: "required", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			{Name: "optional", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			{Name: "empty", Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}},
+			{Name: "nullable", Attribute: &expr.AttributeExpr{Type: expr.Int, Nullable: true}},
+			{Name: "anything", Attribute: &expr.AttributeExpr{Type: expr.Any}},
+			{Name: "renamed", Attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{
+				"struct:tag:json": {"wire_name,omitempty,string"},
+				"struct:tag:xml":  {"legacy"},
+			}}},
+		},
+		Validation: &expr.ValidationExpr{Required: []string{"required"}},
+	}
+
+	got := goTypeDef(codegen.NewNameScope(), attribute, true, false, true)
+	require.Contains(t, got, "Required *string")
+	require.Contains(t, got, "Optional loom.Optional[string]")
+	require.Contains(t, got, "Empty loom.Optional[[]string]")
+	require.Contains(t, got, "Nullable loom.Nullable[int]")
+	require.Contains(t, got, "Anything loom.Nullable[any]")
+	require.Contains(t, got, `json:"optional,omitzero"`)
+	require.Contains(t, got, `json:"empty,omitzero"`)
+	require.Contains(t, got, `json:"nullable,omitzero"`)
+	require.Contains(t, got, `json:"wire_name,omitzero,string"`)
+	require.Contains(t, got, `xml:"legacy"`)
+}
+
+func TestGoValueTypeDefStripsNamedRootPresence(t *testing.T) {
+	root := &expr.AttributeExpr{Type: expr.String, Nullable: true}
+	named := &expr.UserTypeExpr{TypeName: "NullableText", AttributeExpr: root}
+	attribute := &expr.AttributeExpr{Type: named, Nullable: true}
+	scope := codegen.NewNameScope()
+
+	require.Equal(t, "NullableText", goValueTypeDef(scope, attribute, false, true, true))
+	require.Equal(t, "loom.Nullable[NullableText]", goTypeDef(scope, attribute, false, true, true))
 }
 
 var (
@@ -126,11 +165,11 @@ var (
 	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitempty" xml:"default,omitempty"` + "`" + `
 	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
 	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
-	Any any ` + "`" + `form:"any,omitempty" json:"any,omitempty" xml:"any,omitempty"` + "`" + `
+	Any loom.Nullable[any] ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
 	RequiredBytes []byte ` + "`" + `form:"required_bytes" json:"required_bytes" xml:"required_bytes"` + "`" + `
-	RequiredAny any ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
+	RequiredAny loom.Nullable[any] ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
 	DefaultBytes []byte ` + "`" + `form:"default_bytes,omitempty" json:"default_bytes,omitempty" xml:"default_bytes,omitempty"` + "`" + `
-	DefaultAny any ` + "`" + `form:"default_any,omitempty" json:"default_any,omitempty" xml:"default_any,omitempty"` + "`" + `
+	DefaultAny loom.Nullable[any] ` + "`" + `form:"default_any,omitempty" json:"default_any,omitzero" xml:"default_any,omitempty"` + "`" + `
 	CustomType *pkg.String ` + "`" + `form:"custom_type,omitempty" json:"custom_type,omitempty" xml:"custom_type,omitempty"` + "`" + `
 	CustomTag *string ` + "`" + `foo:"bar"` + "`" + `
 }`
@@ -140,11 +179,11 @@ var (
 	Default int ` + "`" + `form:"default" json:"default" xml:"default"` + "`" + `
 	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
 	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
-	Any any ` + "`" + `form:"any,omitempty" json:"any,omitempty" xml:"any,omitempty"` + "`" + `
+	Any loom.Nullable[any] ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
 	RequiredBytes []byte ` + "`" + `form:"required_bytes" json:"required_bytes" xml:"required_bytes"` + "`" + `
-	RequiredAny any ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
+	RequiredAny loom.Nullable[any] ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
 	DefaultBytes []byte ` + "`" + `form:"default_bytes" json:"default_bytes" xml:"default_bytes"` + "`" + `
-	DefaultAny any ` + "`" + `form:"default_any" json:"default_any" xml:"default_any"` + "`" + `
+	DefaultAny loom.Nullable[any] ` + "`" + `form:"default_any" json:"default_any,omitzero" xml:"default_any"` + "`" + `
 	CustomType *pkg.String ` + "`" + `form:"custom_type,omitempty" json:"custom_type,omitempty" xml:"custom_type,omitempty"` + "`" + `
 	CustomTag *string ` + "`" + `foo:"bar"` + "`" + `
 }`
@@ -154,11 +193,11 @@ var (
 	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitempty" xml:"default,omitempty"` + "`" + `
 	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
 	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
-	Any any ` + "`" + `form:"any,omitempty" json:"any,omitempty" xml:"any,omitempty"` + "`" + `
+	Any loom.Nullable[any] ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
 	RequiredBytes []byte ` + "`" + `form:"required_bytes,omitempty" json:"required_bytes,omitempty" xml:"required_bytes,omitempty"` + "`" + `
-	RequiredAny any ` + "`" + `form:"required_any,omitempty" json:"required_any,omitempty" xml:"required_any,omitempty"` + "`" + `
+	RequiredAny loom.Nullable[any] ` + "`" + `form:"required_any,omitempty" json:"required_any,omitempty" xml:"required_any,omitempty"` + "`" + `
 	DefaultBytes []byte ` + "`" + `form:"default_bytes,omitempty" json:"default_bytes,omitempty" xml:"default_bytes,omitempty"` + "`" + `
-	DefaultAny any ` + "`" + `form:"default_any,omitempty" json:"default_any,omitempty" xml:"default_any,omitempty"` + "`" + `
+	DefaultAny loom.Nullable[any] ` + "`" + `form:"default_any,omitempty" json:"default_any,omitzero" xml:"default_any,omitempty"` + "`" + `
 	CustomType *pkg.String ` + "`" + `form:"custom_type,omitempty" json:"custom_type,omitempty" xml:"custom_type,omitempty"` + "`" + `
 	CustomTag *string ` + "`" + `foo:"bar"` + "`" + `
 }`

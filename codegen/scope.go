@@ -132,6 +132,19 @@ func (s *NameScope) GoTypeDef(att *expr.AttributeExpr, ptr, useDefault bool) str
 	return s.goTypeDef(att, ptr, useDefault, pkg)
 }
 
+// GoValueTypeDef returns the Go type definition for the concrete value of att
+// without wrapping att itself in a presence type. Nested attributes retain
+// their own presence semantics.
+func (s *NameScope) GoValueTypeDef(att *expr.AttributeExpr, ptr, useDefault bool) string {
+	pkg := ""
+	if loc := UserTypeLocation(att.Type); loc != nil {
+		pkg = loc.PackageName()
+	} else if p, ok := att.Meta.Last("struct:pkg:path"); ok && p != "" {
+		pkg = Goify(filepath.Base(p), false)
+	}
+	return s.goValueTypeDefWithPkgOverride(att, ptr, useDefault, pkg, "")
+}
+
 // GoTypeDefWithTargetPkg returns the Go type definition string, qualifying any
 // user types inside inline structs with the provided target package. This helps
 // when generating JSON-RPC client types that embed inline structs referencing
@@ -149,6 +162,13 @@ func (s *NameScope) goTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, useDe
 	if t, _ := GetMetaType(att); IsExplicitPresenceType(att) && t != "" {
 		return t
 	}
+	if expr.IsNullable(att) {
+		return "loom.Nullable[" + s.goValueTypeDefWithPkgOverride(att, ptr, useDefault, pkg, targetPkg) + "]"
+	}
+	return s.goValueTypeDefWithPkgOverride(att, ptr, useDefault, pkg, targetPkg)
+}
+
+func (s *NameScope) goValueTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		return primitiveTypeDef(att, actual)
@@ -185,7 +205,7 @@ func primitiveTypeDef(att *expr.AttributeExpr, actual expr.Primitive) string {
 
 func (s *NameScope) collectionElemTypeDef(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
 	def := s.goTypeDefWithPkgOverride(att, ptr, useDefault, pkg, targetPkg)
-	if expr.IsObject(att.Type) {
+	if expr.IsObject(att.Type) && !IsExplicitPresenceType(att) {
 		return "*" + def
 	}
 	return def
@@ -204,6 +224,9 @@ func (s *NameScope) objectTypeDefWithPkgOverride(att *expr.AttributeExpr, actual
 func (s *NameScope) objectFieldTypeDef(parent *expr.AttributeExpr, name string, at *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
 	fn := GoifyAtt(at, name, true)
 	tdef := s.goTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg)
+	if expr.AllowsNull(at) && !expr.IsNullable(at) {
+		tdef = "loom.Nullable[" + s.goValueTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg) + "]"
+	}
 	if !IsExplicitPresenceType(at) && (expr.IsObject(at.Type) ||
 		(expr.IsUnion(at.Type) && !parent.IsRequired(name)) ||
 		parent.IsPrimitivePointer(name, useDefault) ||
@@ -227,7 +250,7 @@ func (s *NameScope) userTypeDefWithPkgOverride(att *expr.AttributeExpr, actual e
 	// of an external reference, otherwise we can emit identifiers that do not
 	// exist in the referenced package (e.g., pkg.Foo2).
 	if prefix == "" {
-		return s.GoTypeName(att)
+		return s.GoValueTypeName(att)
 	}
 	return prefix + Goify(actual.Name(), true)
 }
@@ -269,7 +292,16 @@ func (*NameScope) GoVar(varName string, dt expr.DataType) string {
 // given attribute type.
 func (s *NameScope) GoTypeRef(att *expr.AttributeExpr) string {
 	name := s.GoTypeName(att)
+	if IsExplicitPresenceType(att) {
+		return name
+	}
 	return goTypeRef(name, att.Type)
+}
+
+// GoValueTypeRef returns a reference to the concrete value type of att without
+// wrapping att itself in a presence type.
+func (s *NameScope) GoValueTypeRef(att *expr.AttributeExpr) string {
+	return goTypeRef(s.GoValueTypeName(att), att.Type)
 }
 
 // GoTypeRefWithDefaults returns the Go code that refers to the Go type which
@@ -286,12 +318,21 @@ func (s *NameScope) GoTypeRefWithDefaults(att *expr.AttributeExpr) string {
 // the given attribute type defined in the given package if a user type.
 func (s *NameScope) GoFullTypeRef(att *expr.AttributeExpr, pkg string) string {
 	name := s.GoFullTypeName(att, pkg)
+	if IsExplicitPresenceType(att) {
+		return name
+	}
 	return goTypeRef(name, att.Type)
 }
 
 // GoTypeName returns the Go type name of the given attribute type.
 func (s *NameScope) GoTypeName(att *expr.AttributeExpr) string {
 	return s.GoFullTypeName(att, "")
+}
+
+// GoValueTypeName returns the concrete Go type name of att without wrapping
+// att itself in a presence type.
+func (s *NameScope) GoValueTypeName(att *expr.AttributeExpr) string {
+	return s.goFullValueTypeName(att, "")
 }
 
 // GoTypeNameWithDefaults returns the Go type name of the given attribute type.
@@ -312,6 +353,13 @@ func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
 	if t, _ := GetMetaType(att); IsExplicitPresenceType(att) && t != "" {
 		return t
 	}
+	if expr.IsNullable(att) {
+		return "loom.Nullable[" + s.goFullValueTypeName(att, pkg) + "]"
+	}
+	return s.goFullValueTypeName(att, pkg)
+}
+
+func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string) string {
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		if t, _ := GetMetaType(att); t != "" {
@@ -360,11 +408,14 @@ func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
 	}
 }
 
-// IsExplicitPresenceType reports whether att's explicit Go type implements
-// presence semantics and must not be wrapped in an additional pointer.
+// IsExplicitPresenceType reports whether att uses explicit presence semantics
+// and must not be wrapped in an additional pointer.
 func IsExplicitPresenceType(att *expr.AttributeExpr) bool {
 	if att == nil {
 		return false
+	}
+	if expr.IsNullable(att) || att.Type == expr.Any {
+		return true
 	}
 	value, ok := att.Meta.Last("openapi:nullable")
 	typeName, _ := GetMetaType(att)

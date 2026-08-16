@@ -32,7 +32,7 @@ func newErrorBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *Se
 		sd:         sd,
 		svc:        svc,
 		method:     svc.Method(endpointIR.Name),
-		httpclictx: httpContext(sd.Scope, false, false),
+		httpclictx: responseHTTPContext(sd.Scope),
 	}
 }
 
@@ -119,6 +119,7 @@ func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseSt
 	if o, ok := body.Meta["origin:attribute"]; ok {
 		origin = o[0]
 		errAtt = expr.AsObject(httpError.Type).Attribute(origin)
+		errAtt = serviceFieldTransformAttribute(httpError.Attribute, origin, errAtt)
 	}
 	code, err := b.sds.buildClientResultTransformCode(body, errAtt, httpError.Attribute, b.endpoint.Request, b.httpclictx, errctx, b.sd)
 	if err != nil {
@@ -211,7 +212,11 @@ instance := ""
 if body.Instance != nil {
 	instance = *body.Instance
 }
-v := loomhttp.ProblemErrorFromBody(code, %d, detail, instance, body.RetryHint)`, errorResponse.StatusCode)
+var retryHint *string
+if actual, ok := body.RetryHint.Value(); ok {
+	retryHint = &actual
+}
+v := loomhttp.ProblemErrorFromBody(code, %d, detail, instance, retryHint)`, errorResponse.StatusCode)
 	} else {
 		if v, ok := findInitArgVar(args, "code"); ok {
 			codeExpr = v

@@ -2,24 +2,29 @@
 // "ServiceResultWithResultView" service "MethodResultWithResultView" endpoint
 // HTTP response body.
 type MethodResultWithResultViewResponseBodyFull struct {
-	Name *string         `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	Rt   *RtResponseBody `form:"rt,omitempty" json:"rt,omitempty" xml:"rt,omitempty"`
+	Name loom.Optional[string]         `form:"name,omitempty" json:"name,omitzero" xml:"name,omitempty"`
+	Rt   loom.Optional[RtResponseBody] `form:"rt,omitempty" json:"rt,omitzero" xml:"rt,omitempty"`
 }
 
 // RtResponseBody is used to define fields on response body types.
 type RtResponseBody struct {
-	X *string `form:"x,omitempty" json:"x,omitempty" xml:"x,omitempty"`
+	X loom.Optional[string] `form:"x,omitempty" json:"x,omitzero" xml:"x,omitempty"`
 }
 
 // NewMethodResultWithResultViewResulttypeOK builds a
 // "ServiceResultWithResultView" service "MethodResultWithResultView" endpoint
 // result from a HTTP "OK" response.
 func NewMethodResultWithResultViewResulttypeOK(body *MethodResultWithResultViewResponseBodyFull) *serviceresultwithresultviewviews.ResulttypeView {
-	v := &serviceresultwithresultviewviews.ResulttypeView{
-		Name: body.Name,
+	v := &serviceresultwithresultviewviews.ResulttypeView{}
+	if actual, ok := body.Name.Value(); ok {
+		vNameValue := actual
+
+		v.Name = &vNameValue
 	}
-	if body.Rt != nil {
-		v.Rt = unmarshalRtResponseBodyToServiceresultwithresultviewviewsRtView(body.Rt)
+	if actual, ok := body.Rt.Value(); ok {
+		vRtValue := unmarshalRtResponseBodyToServiceresultwithresultviewviewsRtView(&actual)
+
+		v.Rt = vRtValue
 	}
 
 	return v

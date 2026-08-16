@@ -109,7 +109,7 @@ func TestAttributeTypeDataEmitsNoOpValidatorStubForTaggedClientRequestBodyType(t
 		ServicesData: &service.ServicesData{Root: expr.Root},
 	}
 
-	data := sds.attributeTypeData(tagged, true, false, false, sd)
+	data := sds.attributeTypeData(tagged, true, false, false, true, sd)
 	require.NotNil(t, data)
 	require.Equal(t, "// no validations", data.ValidateDef)
 	require.Equal(t, "err = ValidateSingleAction(v)", data.ValidateRef)
@@ -138,7 +138,7 @@ func TestAttributeTypeDataSkipsNoOpValidatorStubForUntaggedClientRequestBodyType
 		ServicesData: &service.ServicesData{Root: expr.Root},
 	}
 
-	data := sds.attributeTypeData(untagged, true, false, false, sd)
+	data := sds.attributeTypeData(untagged, true, false, false, true, sd)
 	require.NotNil(t, data)
 	require.Empty(t, data.ValidateDef)
 	require.Empty(t, data.ValidateRef)

@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -23,21 +24,28 @@ import (
 // values even when not required (to account for the fact that they have a
 // default value so cannot be nil) otherwise the fields are values only when
 // required.
-func goTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault bool) string {
+func goTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
 	if t, _ := codegen.GetMetaType(att); codegen.IsExplicitPresenceType(att) && t != "" {
 		return t
 	}
+	if expr.IsNullable(att) {
+		return "loom.Nullable[" + goValueTypeDef(scope, att, ptr, useDefault, jsonPresence) + "]"
+	}
+	return goValueTypeDef(scope, att, ptr, useDefault, jsonPresence)
+}
+
+func goValueTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		return goPrimitiveTypeDef(att, actual)
 	case *expr.Array:
-		return goArrayTypeDef(scope, actual, ptr, useDefault)
+		return goArrayTypeDef(scope, actual, ptr, useDefault, jsonPresence)
 	case *expr.Map:
-		return goMapTypeDef(scope, actual, ptr, useDefault)
+		return goMapTypeDef(scope, actual, ptr, useDefault, jsonPresence)
 	case *expr.Object:
-		return goObjectTypeDef(scope, att, actual, ptr, useDefault)
+		return goObjectTypeDef(scope, att, actual, ptr, useDefault, jsonPresence)
 	case expr.UserType, *expr.Union:
-		return scope.GoTypeName(att)
+		return scope.GoValueTypeName(att)
 	default:
 		panic(codegen.NewError(nil, att, fmt.Errorf("unknown HTTP type definition %T", actual)))
 	}
@@ -50,42 +58,48 @@ func goPrimitiveTypeDef(att *expr.AttributeExpr, actual expr.Primitive) string {
 	return codegen.GoNativeTypeName(actual)
 }
 
-func goArrayTypeDef(scope *codegen.NameScope, actual *expr.Array, ptr, useDefault bool) string {
-	return "[]" + goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault)
+func goArrayTypeDef(scope *codegen.NameScope, actual *expr.Array, ptr, useDefault, jsonPresence bool) string {
+	return "[]" + goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault, jsonPresence)
 }
 
-func goMapTypeDef(scope *codegen.NameScope, actual *expr.Map, ptr, useDefault bool) string {
-	keyDef := goCollectionElemTypeDef(scope, actual.KeyType, ptr, useDefault)
-	elemDef := goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault)
+func goMapTypeDef(scope *codegen.NameScope, actual *expr.Map, ptr, useDefault, jsonPresence bool) string {
+	keyDef := goCollectionElemTypeDef(scope, actual.KeyType, ptr, useDefault, jsonPresence)
+	elemDef := goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault, jsonPresence)
 	return fmt.Sprintf("map[%s]%s", keyDef, elemDef)
 }
 
-func goCollectionElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault bool) string {
-	def := goTypeDef(scope, att, ptr, useDefault)
-	if expr.IsObject(att.Type) {
+func goCollectionElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
+	def := goTypeDef(scope, att, ptr, useDefault, jsonPresence)
+	if expr.IsObject(att.Type) && !codegen.IsExplicitPresenceType(att) {
 		def = "*" + def
 	}
 	return def
 }
 
-func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault bool) string {
+func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault, jsonPresence bool) string {
 	_ = actual
 	lines := []string{"struct {"}
 	ma := expr.NewMappedAttributeExpr(att)
 	parent := ma.Attribute()
 	codegen.WalkMappedAttr(ma, func(name, elem string, _ bool, at *expr.AttributeExpr) error { // nolint: errcheck
-		lines = append(lines, goObjectFieldDef(scope, ma, parent, name, elem, at, ptr, useDefault))
+		lines = append(lines, goObjectFieldDef(scope, ma, parent, name, elem, at, ptr, useDefault, jsonPresence))
 		return nil
 	})
 	lines = append(lines, "}")
 	return strings.Join(lines, "\n")
 }
 
-func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, parent *expr.AttributeExpr, name, elem string, att *expr.AttributeExpr, ptr, useDefault bool) string {
+func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, parent *expr.AttributeExpr, name, elem string, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
 	fieldName := codegen.GoifyAtt(att, name, true)
-	typeDef := goTypeDef(scope, att, ptr, useDefault)
+	typeDef := goTypeDef(scope, att, ptr, useDefault, jsonPresence)
+	wireOptional := !ma.IsRequiredNoDefault(name)
+	if expr.AllowsNull(att) && !expr.IsNullable(att) {
+		typeDef = "loom.Nullable[" + goValueTypeDef(scope, att, ptr, useDefault, jsonPresence) + "]"
+	} else if jsonPresence && wireOptional && !expr.AllowsNull(att) {
+		typeDef = "loom.Optional[" + typeDef + "]"
+	}
 	switch {
-	case codegen.IsExplicitPresenceType(att):
+	case codegen.IsExplicitPresenceType(att), jsonPresence && wireOptional:
 		// Explicit field types define their own presence semantics.
 	case expr.IsPrimitive(att.Type):
 		if (ptr || parent.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && att.Type != expr.Any {
@@ -99,7 +113,8 @@ func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, pa
 		description = codegen.Comment(att.Description) + "\n\t"
 	}
 	optional := objectFieldOptional(ma, name, ptr, useDefault)
-	tags := attributeTags(parent, att, elem, optional)
+	omitZero := wireOptional && (jsonPresence || codegen.IsExplicitPresenceType(att))
+	tags := attributeTags(att, elem, optional, omitZero)
 	return fmt.Sprintf("\t%s%s %s%s", description, fieldName, typeDef, tags)
 }
 
@@ -115,23 +130,97 @@ func objectFieldOptional(ma *expr.MappedAttributeExpr, name string, ptr, useDefa
 }
 
 // attributeTags computes the struct field tags.
-func attributeTags(parent, att *expr.AttributeExpr, t string, optional bool) string {
-	if tags := codegen.AttributeTags(parent, att); tags != "" {
-		return tags
-	}
-	var o string
+func attributeTags(att *expr.AttributeExpr, t string, optional, omitZero bool) string {
+	var omitEmpty string
 	// Always use omitempty for JSON-RPC ID attributes, even when required
 	// since it is part of a different top-level field in the transport
 	if optional || isJSONRPCID(att) {
-		o = ",omitempty"
+		omitEmpty = ",omitempty"
+	}
+	jsonOption := omitEmpty
+	if omitZero {
+		jsonOption = ",omitzero"
 	}
 	jsonName := t
+	explicitJSON := false
 	if att != nil && att.Meta != nil {
-		if v := att.Meta["struct:tag:json:name"]; len(v) > 0 && v[0] != "" {
+		if v := att.Meta["struct:tag:json"]; len(v) > 0 {
 			jsonName = strings.Join(v, ",")
+			explicitJSON = true
+		}
+		if v := att.Meta["struct:tag:json:name"]; len(v) > 0 && v[0] != "" {
+			if !explicitJSON {
+				jsonName = strings.Join(v, ",")
+			}
 		}
 	}
-	return fmt.Sprintf(" `form:\"%s%s\" json:\"%s%s\" xml:\"%s%s\"`", t, o, jsonName, o, t, o)
+	if omitZero && strings.Split(jsonName, ",")[0] == "-" {
+		panic(codegen.NewError(nil, att, fmt.Errorf("JSON field %q uses presence semantics and cannot be omitted with tag '-'", t)))
+	}
+	jsonName = mergeJSONOmitOption(jsonName, strings.TrimPrefix(jsonOption, ","))
+	if custom := mergedAttributeTags(att, jsonName, omitZero || explicitJSON || hasJSONTagName(att)); custom != "" {
+		return custom
+	}
+	return fmt.Sprintf(" `form:\"%s%s\" json:\"%s\" xml:\"%s%s\"`", t, omitEmpty, jsonName, t, omitEmpty)
+}
+
+func mergedAttributeTags(att *expr.AttributeExpr, jsonTag string, includeJSON bool) string {
+	if att == nil || att.Meta == nil {
+		return ""
+	}
+	tags := make(map[string]string)
+	for key, values := range att.Meta {
+		if !strings.HasPrefix(key, "struct:tag:") || key == "struct:tag:json:name" {
+			continue
+		}
+		tags[strings.TrimPrefix(key, "struct:tag:")] = strings.Join(values, ",")
+	}
+	if len(tags) == 0 {
+		return ""
+	}
+	if includeJSON {
+		tags["json"] = jsonTag
+	}
+	keys := make([]string, 0, len(tags))
+	for key := range tags {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s:\"%s\"", key, tags[key]))
+	}
+	return " `" + strings.Join(parts, " ") + "`"
+}
+
+func hasJSONTagName(att *expr.AttributeExpr) bool {
+	if att == nil || att.Meta == nil {
+		return false
+	}
+	return len(att.Meta["struct:tag:json:name"]) > 0
+}
+
+func mergeJSONOmitOption(tag, option string) string {
+	if option == "" {
+		return tag
+	}
+	parts := strings.Split(tag, ",")
+	options := make([]string, 0, len(parts))
+	seen := false
+	for _, part := range parts[1:] {
+		if part == "omitempty" || part == "omitzero" {
+			if !seen {
+				options = append(options, option)
+				seen = true
+			}
+			continue
+		}
+		options = append(options, part)
+	}
+	if !seen {
+		options = append(options, option)
+	}
+	return strings.Join(append([]string{parts[0]}, options...), ",")
 }
 
 // isJSONRPCID checks if the attribute is marked as a JSON-RPC ID attribute

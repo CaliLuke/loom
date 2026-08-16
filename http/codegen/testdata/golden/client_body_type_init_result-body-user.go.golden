@@ -1,8 +1,11 @@
 // NewMethodBodyObjectHeaderResultOK builds a "ServiceBodyObjectHeader" service
 // "MethodBodyObjectHeader" endpoint result from a HTTP "OK" response.
 func NewMethodBodyObjectHeaderResultOK(body *MethodBodyObjectHeaderResponseBody, b *string) *servicebodyobjectheader.MethodBodyObjectHeaderResult {
-	v := &servicebodyobjectheader.MethodBodyObjectHeaderResult{
-		A: body.A,
+	v := &servicebodyobjectheader.MethodBodyObjectHeaderResult{}
+	if actual, ok := body.A.Value(); ok {
+		vAValue := actual
+
+		v.A = &vAValue
 	}
 	v.B = b
 

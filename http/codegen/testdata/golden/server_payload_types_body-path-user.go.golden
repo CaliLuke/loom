@@ -1,8 +1,11 @@
 // NewMethodBodyPathUserPayloadType builds a ServiceBodyPathUser service
 // MethodBodyPathUser endpoint payload.
 func NewMethodBodyPathUserPayloadType(body *MethodBodyPathUserRequestBody, b string) *servicebodypathuser.PayloadType {
-	v := &servicebodypathuser.PayloadType{
-		A: body.A,
+	v := &servicebodypathuser.PayloadType{}
+	if actual, ok := body.A.Value(); ok {
+		vAValue := actual
+
+		v.A = &vAValue
 	}
 	v.B = &b
 

@@ -7,7 +7,7 @@ type MethodResultWithResultCollectionResponseBody struct {
 
 // ResulttypeResponseBody is used to define fields on response body types.
 type ResulttypeResponseBody struct {
-	X RtCollectionResponseBody `form:"x,omitempty" json:"x,omitempty" xml:"x,omitempty"`
+	X loom.Optional[RtCollectionResponseBody] `form:"x,omitempty" json:"x,omitzero" xml:"x,omitempty"`
 }
 
 // RtCollectionResponseBody is used to define fields on response body types.
@@ -15,7 +15,7 @@ type RtCollectionResponseBody []*RtResponseBody
 
 // RtResponseBody is used to define fields on response body types.
 type RtResponseBody struct {
-	X *string `form:"x,omitempty" json:"x,omitempty" xml:"x,omitempty"`
+	X loom.Optional[string] `form:"x,omitempty" json:"x,omitzero" xml:"x,omitempty"`
 }
 
 // NewMethodResultWithResultCollectionResponseBody builds the HTTP response

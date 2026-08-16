@@ -2,6 +2,7 @@
 package codegen
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -137,6 +138,17 @@ func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targe
 	if err := IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
 		return nil, err
 	}
+	sourceNullable := expr.IsNullable(source)
+	targetNullable := expr.IsNullable(target)
+	if sourceNullable || targetNullable {
+		if sourceNullable != targetNullable {
+			if isAnyPresenceAttribute(source) && isAnyPresenceAttribute(target) {
+				return transformRawAnyPresence(source, target, sourceVar, targetVar, newVar, ta)
+			}
+			return nil, fmt.Errorf("cannot transform nullable attribute to a non-nullable representation")
+		}
+		return transformNullablePresence(source, target, sourceVar, targetVar, newVar, nil, ta)
+	}
 	if matchingExplicitType(source, target) {
 		return directAssignment(sourceVar, targetVar, newVar), nil
 	}
@@ -235,6 +247,10 @@ func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		err          error
 	)
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
+		if ta.SourceCtx.FieldPresence(srcMatt, n, srcc) != NativePresence ||
+			ta.TargetCtx.FieldPresence(tgtMatt, n, tgtc) != NativePresence {
+			return
+		}
 		if !expr.IsPrimitive(srcc.Type) && !matchingExplicitType(srcc, tgtc) {
 			return
 		}
@@ -323,6 +339,9 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 
 	srcFieldVar := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)
 	tgtFieldVar := targetVar + "." + GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
+	if code, handled, err := transformObjectPresenceField(srcMatt, tgtMatt, srcc, tgtc, srcFieldVar, tgtFieldVar, name, ta); handled {
+		return code, err
+	}
 	var code *jen.Statement
 	var err error
 	if expr.IsUnion(srcc.Type) {

@@ -242,6 +242,10 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		}
 		srcField := sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
 		tgtField := ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
+		if presenceCode, handled := transformAnyPresenceObjectField(srcField, targetVar+"."+tgtField, srcc, tgtc, ta); handled {
+			postInitCode += presenceCode
+			return
+		}
 		srcPtr := ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr)
 		tgtPtr := ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr)
 		srcFieldConv := convertType(srcc, tgtc, srcPtr, tgtPtr, srcField, ta)
@@ -258,6 +262,25 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		initCode += "\n"
 	}
 	return initCode, postInitCode
+}
+
+func transformAnyPresenceObjectField(srcField, tgtField string, source, target *expr.AttributeExpr, ta *transformAttrs) (string, bool) {
+	sourceBase := unAlias(source)
+	targetBase := unAlias(target)
+	if sourceBase.Type.Kind() != expr.AnyKind || targetBase.Type.Kind() != expr.AnyKind {
+		return "", false
+	}
+	if ta.proto {
+		converted := convertPrimitiveToProto(sourceBase, targetBase, false, false, "actual", ta)
+		return "if " + srcField + ".IsNull() {\n\t" + tgtField + " = structpb.NewNullValue()\n" +
+			"} else if actual, ok := " + srcField + ".Value(); ok {\n\t" + tgtField + " = " + converted + "\n}\n", true
+	}
+	converted := srcField + ".AsInterface()"
+	if target.Type.Kind() != expr.AnyKind {
+		converted = ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)) + "(" + converted + ")"
+	}
+	return "if " + srcField + " != nil {\n\tif _, isNull := " + srcField + ".GetKind().(*structpb.Value_NullValue); isNull {\n\t\t" +
+		tgtField + ".SetNull()\n\t} else {\n\t\t" + tgtField + ".SetValue(" + converted + ")\n\t}\n}\n", true
 }
 
 func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {

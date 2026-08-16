@@ -429,8 +429,17 @@ components:
     Record:
       type: object
       required: [required_note, required_child]
+      examples:
+        - required_note: null
+          required_child: null
+          nullable_items: [value, null]
+          nullable_values: {value: null}
+          nullable_objects: [{name: loom}, null]
+          nullable_object_values: {value: null}
       properties:
-        required_note: {type: [string, "null"]}
+        required_note:
+          type: [string, "null"]
+          examples: [null]
         optional_count: {type: [integer, "null"]}
         required_child:
           type: [object, "null"]
@@ -439,7 +448,29 @@ components:
         optional_tags:
           type: [array, "null"]
           items: {type: string}
+        nullable_items:
+          type: array
+          items: {type: [string, "null"]}
+        nullable_values:
+          type: object
+          additionalProperties: {type: [integer, "null"]}
+        nullable_objects:
+          type: array
+          items:
+            anyOf:
+              - {$ref: '#/components/schemas/Child'}
+              - {type: "null"}
+        nullable_object_values:
+          type: object
+          additionalProperties:
+            anyOf:
+              - {$ref: '#/components/schemas/Child'}
+              - {type: "null"}
         optional_label: {$ref: '#/components/schemas/NullableLabel'}
+    Child:
+      type: object
+      properties:
+        name: {type: string}
     NullableLabel:
       type: [string, "null"]
 `)
@@ -452,15 +483,28 @@ components:
 	requireRenderedDesignEvaluates(t, rendered, 1)
 	requireRenderedDesignGenerates(t, rendered)
 	design := string(rendered)
-	for _, expected := range []string{
-		`Meta("openapi:nullable", "true")`,
-		`"loom.Nullable[string]"`,
-		`"loom.Nullable[int]"`,
-		`"loom.Nullable[[]string]"`,
-		`"loom.Nullable[struct { Name *string`,
-	} {
-		require.Contains(t, design, expected)
-	}
+	require.GreaterOrEqual(t, strings.Count(design, "Nullable()"), 5)
+	require.NotContains(t, design, `Meta("openapi:nullable"`)
+	require.NotContains(t, design, `Meta("struct:field:type", "loom.Nullable[`)
+	require.Contains(t, design, "ArrayOf(String, func() {\n\t\tNullable()")
+	require.Contains(t, design, "MapOf(String, Int, func() {\n\t\tElem(func() {\n\t\t\tNullable()")
+	require.Contains(t, design, "Null())")
+	require.Contains(t, design, "Attribute(\"optional_label\", ImportedNullableLabel, func() {\n\t\tNullable()")
+	require.Contains(t, design, `Example("example-1", Val{"nullable_items": []any{"value", nil}, "nullable_object_values": Val{"value": nil}, "nullable_objects": []any{Val{"name": "loom"}, nil}, "nullable_values": Val{"value": nil}, "required_child": nil, "required_note": nil})`)
+	require.Contains(t, design, "var ImportedNullableLabel = Type(\"NullableLabel\", String, func() {\n\tMeta(\"openapi:typename:canonical\", \"true\")\n\tNullable()")
+}
+
+func TestExampleLiteralKeepsNestedNullAsGoNil(t *testing.T) {
+	literal, err := exampleLiteral(map[string]any{
+		"items": []any{"value", nil},
+		"value": nil,
+	})
+	require.NoError(t, err)
+	require.Equal(t, `Val{"items": []any{"value", nil}, "value": nil}`, literal)
+
+	literal, err = exampleLiteral(nil)
+	require.NoError(t, err)
+	require.Equal(t, "Null()", literal)
 }
 
 func requireRenderedDesignEvaluates(t *testing.T, source []byte, wantMethods int) {

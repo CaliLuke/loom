@@ -7,8 +7,6 @@ func transform() {
 		RequiredString: source.RequiredString,
 		Bytes:          source.Bytes,
 		RequiredBytes:  source.RequiredBytes,
-		Any:            source.Any,
-		RequiredAny:    source.RequiredAny,
 	}
 	{
 		var zero int
@@ -34,11 +32,23 @@ func transform() {
 			target.Bytes = []byte{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72}
 		}
 	}
-	{
-		var zero any
-		if target.Any == zero {
-			target.Any = "something"
-		}
+	if source.Any.IsNull() {
+		target.Any = loom.NullValue[any]()
+	} else if actual, ok := source.Any.Value(); ok {
+		targetAnyValue := actual
+
+		target.Any = loom.NullableValue(targetAnyValue)
+	} else {
+		target.Any = loom.NullableValue("something")
+	}
+	if source.RequiredAny.IsNull() {
+		target.RequiredAny = loom.NullValue[any]()
+	} else if actual, ok := source.RequiredAny.Value(); ok {
+		targetRequiredAnyValue := actual
+
+		target.RequiredAny = loom.NullableValue(targetRequiredAnyValue)
+	} else {
+		target.RequiredAny = loom.NullableValue("anything")
 	}
 	if source.Array != nil {
 		target.Array = make([]string, len(source.Array))
