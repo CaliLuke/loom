@@ -189,6 +189,11 @@ filter, and serialization rules belong here.
   server-streaming cases are supported. A successful server stream terminates
   with clean EOF. Client-streaming and bidirectional completion contracts stay
   explicit generation limitations.
+- JSON-RPC response-contract cases own success result types, declared error
+  codes, typed error-data names, and ID-less notification suppression. Unary
+  and server-SSE cases are supported. Server-SSE requests with an ID retain a
+  final response. ID-less streams suppress it. Other streaming completion
+  shapes stay explicit generation limitations.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.

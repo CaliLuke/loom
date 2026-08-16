@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	grpctestdata "github.com/CaliLuke/loom/grpc/codegen/testdata"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
+	jsonrpctestdata "github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
 )
 
 func TestTestScaffold(t *testing.T) {
@@ -27,6 +28,15 @@ func TestTestScaffoldIncludesGRPCContracts(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	require.Equal(t, filepath.Join("internal", "contracttest", "service_unary_rpc_no_payload_grpc_test.go"), files[0].Path)
+	require.True(t, files[0].SkipExist)
+}
+
+func TestTestScaffoldIncludesJSONRPCContracts(t *testing.T) {
+	root := expr.RunDSL(t, jsonrpctestdata.JSONRPCSSEStringDSL)
+	files, err := TestScaffold("example.com/events/gen", []eval.Root{root})
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, filepath.Join("internal", "contracttest", "jsonrpcsse_string_service_jsonrpc_test.go"), files[0].Path)
 	require.True(t, files[0].SkipExist)
 }
 

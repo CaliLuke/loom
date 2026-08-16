@@ -210,6 +210,14 @@ callback call the generated gRPC client and return a
 Client-streaming and bidirectional completion contracts are reported as
 unsupported generation diagnostics.
 
+Generated JSON-RPC server packages expose the same per-method and service-wide
+manifest pattern. Cases cover success results, declared error codes, typed
+error data, and response suppression for ID-less notifications. Call each real
+generated handler from the scaffold and return a
+`jsonrpc.ResponseContractObservation`. Server-SSE calls with an ID end with a
+final response. ID-less streams suppress that response. Other streaming
+completion shapes are explicit generation limitations.
+
 ## JSON Presence and Nullability
 
 - Treat requiredness and nullability as independent. `Required("field")`

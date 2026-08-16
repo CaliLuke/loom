@@ -266,6 +266,15 @@ call. Unary and server-streaming endpoints are supported. Server streams must
 finish with clean EOF. Client-streaming and bidirectional endpoints produce a
 generation diagnostic until their completion lifecycle is supported.
 
+The JSON-RPC scaffold publishes success, declared error, and notification
+suppression cases. Cases include the designed result type, error code, and
+typed error-data name. Each callback returns a
+`jsonrpc.ResponseContractObservation` from a real generated handler request.
+Unary and server-SSE endpoints are supported. A server-SSE request with an ID
+must finish with a final response. An ID-less stream must suppress that final
+response. WebSocket, client-streaming, and bidirectional completion contracts
+produce a generation diagnostic.
+
 #### Show Version
 
 ```bash
