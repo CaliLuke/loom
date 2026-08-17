@@ -288,6 +288,36 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 	}
 }
 
+// InitializeResponseContractCases returns the declared JSON-RPC wire-response
+// contracts for Initialize. Callers remain responsible for exercising the
+// application scenarios that produce each response.
+func InitializeResponseContractCases() []jsonrpc.ResponseContractCase {
+	return []jsonrpc.ResponseContractCase{{ID: "clock.Initialize.success", Kind: jsonrpc.ResponseContractSuccess, ResultType: "InitializeResult", HasResult: true}, {ID: "clock.Initialize.notification", Kind: jsonrpc.ResponseContractNotification}}
+}
+
+// TickResponseContractCases returns the declared JSON-RPC wire-response
+// contracts for Tick. Callers remain responsible for exercising the
+// application scenarios that produce each response.
+func TickResponseContractCases() []jsonrpc.ResponseContractCase {
+	return []jsonrpc.ResponseContractCase{{ID: "clock.Tick.success", Kind: jsonrpc.ResponseContractSuccess, ResultType: "TickResult", HasResult: true, Stream: &jsonrpc.StreamingResponseContract{
+		Terminal:  "final_response",
+		Transport: "sse",
+	}}, {ID: "clock.Tick.notification", Kind: jsonrpc.ResponseContractNotification, Stream: &jsonrpc.StreamingResponseContract{
+		Terminal:  "suppressed",
+		Transport: "sse",
+	}}}
+}
+
+// ResponseContractCases returns every supported declared JSON-RPC
+// wire-response contract for this service. The returned slice is owned by the
+// caller.
+func ResponseContractCases() []jsonrpc.ResponseContractCase {
+	cases := make([]jsonrpc.ResponseContractCase, 0, 4)
+	cases = append(cases, InitializeResponseContractCases()...)
+	cases = append(cases, TickResponseContractCases()...)
+	return cases
+}
+
 // encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
 func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any) {
 	encodeJSONRPCError(ctx, w, req, code, message, data, s.encoder, s.errhandler)
