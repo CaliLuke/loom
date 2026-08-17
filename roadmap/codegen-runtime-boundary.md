@@ -52,6 +52,27 @@ generated-quality gate compiles and analyzes all five fixture groups.
 The direct unary lifecycle tests increase `http` package coverage from 78.0
 percent to 78.4 percent.
 
+### HTTP stream and raw-body phase
+
+Issue #281 moves shared HTTP handler state into `HandlerLifecycle`. This runtime
+type owns request observation and error routing before and after response commit.
+
+The runtime also owns raw-body writes, file serving, and content cleanup.
+Generated code retains typed result and stream adapters.
+
+The HTTP ticktock total decreases from 1,963 lines to 1,930 lines after this
+phase. Its server total decreases from 762 lines to 729 lines. Its `server.go`
+file decreases from 324 lines to 291 lines.
+
+The HTTP quality fixture has no stream, file, or raw-body endpoint. Its line
+counts remain 1,865 total, 599 server, and 183 in `server.go`.
+
+Direct runtime tests cover pre-commit errors, post-commit errors, cleanup
+failures, and late raw-body write failures. The SSE and WebSocket adversarial
+integration tests also cover the generated adapters.
+
+The `http` package statement coverage is 78.3 percent after this phase.
+
 Use these commands to repeat the checks:
 
 ```bash
@@ -93,7 +114,7 @@ loomhttp.MountHandler(mux, http.MethodGet, "/items", handler)
 `MountHandler` accepts `http.Handler`. The Go compiler checks the handler type,
 and the runtime does not inspect the handler with reflection.
 
-The unary HTTP phase will use typed callbacks with this general shape:
+The unary HTTP phase uses typed callbacks with this general shape:
 
 ```go
 type UnaryHandlerSpec[Payload, Result any] struct {
@@ -110,8 +131,11 @@ type UnaryHandlerSpec[Payload, Result any] struct {
 Generated code supplies each callback. Runtime code controls the protocol
 sequence and reports failures through the shared observation contract.
 
-Streaming helpers will use narrow stream interfaces and typed callbacks. They
-will not accept an untyped service registry.
+Other HTTP handlers create `HandlerLifecycle` and pass typed closures to its
+raw-body and file helpers. SSE and WebSocket adapters report their commit state
+to `HandlerFailed`.
+
+The runtime helpers do not accept an untyped service registry.
 
 ## Compatibility Contract
 
@@ -144,7 +168,8 @@ decisions, fixtures, error content, and retry policy.
 1. HTTP route mounting uses the runtime helper in this prototype.
 2. Issue #280 moves unary HTTP handler lifecycle into the runtime. The phase
    is implemented on its ticket branch.
-3. Issue #281 moves HTTP stream and raw-body lifecycle into the runtime.
+3. Issue #281 moves HTTP stream and raw-body lifecycle into the runtime. The
+   phase is implemented on its ticket branch.
 4. Issue #282 moves JSON-RPC dispatch lifecycle into the runtime.
 5. Issue #283 moves gRPC metadata and status lifecycle into the runtime.
 

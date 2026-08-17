@@ -14,17 +14,13 @@ func NewMethodPayloadNoResultHandler(
 		encodeError   = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "MethodPayloadNoResult")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "ServicePayloadNoResult")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "ServicePayloadNoResult", "MethodPayloadNoResult", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "ServicePayloadNoResult", "MethodPayloadNoResult")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 		_, err := decodeRequest(r)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.DecodeFailed(err, encodeError, errhandler)
 			return
 		}
 		http.Redirect(w, r, "/redirect/dest", http.StatusMovedPermanently)

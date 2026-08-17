@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 
 	loomtransport "github.com/CaliLuke/loom/observability/transport"
@@ -113,4 +114,80 @@ func TestUnaryHandlerLifecycle(t *testing.T) {
 			require.Equal(t, test.wantReason, recorder.events[1].Reason)
 		})
 	}
+}
+
+func TestHandlerLifecycleRoutesEndpointErrorsByCommitState(t *testing.T) {
+	errEndpoint := errors.New("endpoint")
+	tests := []struct {
+		name         string
+		committed    bool
+		wantEncoded  bool
+		wantHandled  bool
+		wantHTTPCode int
+	}{
+		{name: "pre-commit", wantEncoded: true, wantHTTPCode: http.StatusBadRequest},
+		{name: "post-commit", committed: true, wantHandled: true, wantHTTPCode: http.StatusOK},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var encoded, handled bool
+			recorder := &unaryEventRecorder{}
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/events", nil)
+			request = request.WithContext(loomtransport.WithObserver(request.Context(), recorder))
+			lifecycle := NewHandlerLifecycle(response, request, "events", "watch")
+
+			lifecycle.HandlerFailed(
+				errEndpoint,
+				test.committed,
+				func(_ context.Context, w http.ResponseWriter, err error) error {
+					encoded = true
+					require.ErrorIs(t, err, errEndpoint)
+					w.WriteHeader(http.StatusBadRequest)
+					return nil
+				},
+				func(_ context.Context, _ http.ResponseWriter, err error) {
+					handled = true
+					require.ErrorIs(t, err, errEndpoint)
+				},
+			)
+			lifecycle.End()
+
+			require.Equal(t, test.wantEncoded, encoded)
+			require.Equal(t, test.wantHandled, handled)
+			require.Equal(t, test.wantHTTPCode, response.Code)
+			require.Len(t, recorder.events, 2)
+			require.Equal(t, loomtransport.ReasonHandlerError, recorder.events[1].Reason)
+		})
+	}
+}
+
+func TestHandlerLifecycleDoesNotEncodeFailedWebSocketUpgradeTwice(t *testing.T) {
+	recorder := &unaryEventRecorder{}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/events", nil)
+	request = request.WithContext(loomtransport.WithObserver(request.Context(), recorder))
+	lifecycle := NewHandlerLifecycle(response, request, "events", "watch")
+	defer lifecycle.End()
+
+	_, upgradeErr := (&websocket.Upgrader{}).Upgrade(lifecycle.Writer(), request, nil)
+	require.Error(t, upgradeErr)
+	var encoded, handled bool
+	lifecycle.HandlerFailed(
+		upgradeErr,
+		false,
+		func(context.Context, http.ResponseWriter, error) error {
+			encoded = true
+			return nil
+		},
+		func(_ context.Context, _ http.ResponseWriter, err error) {
+			handled = true
+			require.ErrorIs(t, err, upgradeErr)
+		},
+	)
+
+	require.False(t, encoded)
+	require.True(t, handled)
+	require.Equal(t, http.StatusBadRequest, response.Code)
 }

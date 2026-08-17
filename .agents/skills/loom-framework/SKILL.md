@@ -192,7 +192,10 @@ filter, and serialization rules belong here.
   eagerly so clients can observe readiness.
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
-  Redirect, file, raw-body, SSE, and WebSocket branches remain explicit.
+  Other generated HTTP handlers use `HandlerLifecycle` for context,
+  observation, and commit-aware failure routing. File and raw-body branches
+  also delegate writes and cleanup. Generated code retains typed result and
+  stream adapters.
 - Protocol errors must use event types compatible with the relevant client
   contract.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated

@@ -17,11 +17,10 @@ func NewSSEObjectMethodHandler(
 		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "SSEObjectMethod")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "SSEObjectService")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "SSEObjectService", "SSEObjectMethod", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "SSEObjectService", "SSEObjectMethod")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 		var err error
 		stream := &SSEObjectMethodServerStream{
 			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
@@ -31,16 +30,7 @@ func NewSSEObjectMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonHandlerError)
-			if stream.started() {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
 			return
 		}
 	})

@@ -39,17 +39,13 @@ func NewStreamingResultMethodHandler(
 		encodeError   = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingResultMethod")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingResultService")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "StreamingResultService", "StreamingResultMethod", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "StreamingResultService", "StreamingResultMethod")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 		payload, err := decodeRequest(r)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.DecodeFailed(err, encodeError, errhandler)
 			return
 		}
 		var cancel context.CancelFunc
@@ -67,23 +63,13 @@ func NewStreamingResultMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *StreamingResultMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*StreamingResultMethodServerStream)
 			} else {
 				stream = v.Stream.(*StreamingResultMethodServerStream)
 			}
-			if stream != nil && stream.conn.Conn() != nil {
-				// Response writer has been hijacked, do not encode the error
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.HandlerFailed(err, stream != nil && stream.conn.Conn() != nil, encodeError, errhandler)
 			return
 		}
 	})
@@ -111,11 +97,10 @@ func NewCreateHandler(
 		encodeError    = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "Create")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "MixedResultsService")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "MixedResultsService", "Create", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "MixedResultsService", "Create")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
 		acceptHeader := r.Header.Get("Accept")
@@ -123,10 +108,7 @@ func NewCreateHandler(
 			// Handle SSE request
 			payload, err := decodeRequest(r)
 			if err != nil {
-				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.DecodeFailed(err, encodeError, errhandler)
 				return
 			}
 			stream := &CreateServerStream{
@@ -138,19 +120,13 @@ func NewCreateHandler(
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
-				obs.Fail(loomtransport.ReasonHandlerError)
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
 			}
 		} else {
 			// Handle standard HTTP request
 			payload, err := decodeRequest(r)
 			if err != nil {
-				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.DecodeFailed(err, encodeError, errhandler)
 				return
 			}
 			// Mixed results endpoints always use the generated endpoint input struct.
@@ -162,17 +138,11 @@ func NewCreateHandler(
 			}
 			res, err := endpoint(ctx, v)
 			if err != nil {
-				obs.Fail(loomtransport.ReasonHandlerError)
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.HandlerFailed(err, false, encodeError, errhandler)
 				return
 			}
 			if err := encodeResponse(ctx, w, res); err != nil {
-				obs.Fail(loomtransport.ReasonResponseWriteFailed)
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.ResponseFailed(err, errhandler)
 			}
 		}
 	})
@@ -363,11 +333,10 @@ func NewStreamingResultNoPayloadMethodHandler(
 		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "StreamingResultNoPayloadMethod")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingResultNoPayloadService")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "StreamingResultNoPayloadService", "StreamingResultNoPayloadMethod", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "StreamingResultNoPayloadService", "StreamingResultNoPayloadMethod")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -383,23 +352,13 @@ func NewStreamingResultNoPayloadMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *StreamingResultNoPayloadMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*StreamingResultNoPayloadMethodServerStream)
 			} else {
 				stream = v.Stream.(*StreamingResultNoPayloadMethodServerStream)
 			}
-			if stream != nil && stream.conn.Conn() != nil {
-				// Response writer has been hijacked, do not encode the error
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.HandlerFailed(err, stream != nil && stream.conn.Conn() != nil, encodeError, errhandler)
 			return
 		}
 	})

@@ -87,11 +87,10 @@ func {{ .HandlerInit }}(
 	})
 	{{- else }}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, {{ printf "%q" .Method.Name }})
-		ctx = context.WithValue(ctx, loom.ServiceKey, {{ printf "%q" .ServiceName }})
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, {{ printf "%q" .ServiceName }}, {{ printf "%q" .Method.Name }}, r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, {{ printf "%q" .ServiceName }}, {{ printf "%q" .Method.Name }})
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 	{{- if .HasMixedResults }}
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
@@ -101,10 +100,7 @@ func {{ .HandlerInit }}(
 		{{- if mustDecodeRequest . }}
 			payload, err := decodeRequest(r)
 			if err != nil {
-				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.DecodeFailed(err, encodeError, errhandler)
 				return
 			}
 		{{- else }}
@@ -136,20 +132,14 @@ func {{ .HandlerInit }}(
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
-				obs.Fail(loomtransport.ReasonHandlerError)
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
 			}
 		} else {
 			// Handle standard HTTP request
 		{{- if mustDecodeRequest . }}
 			payload, err := decodeRequest(r)
 			if err != nil {
-				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.DecodeFailed(err, encodeError, errhandler)
 				return
 			}
 		{{- else }}
@@ -171,63 +161,17 @@ func {{ .HandlerInit }}(
 			res, err := endpoint(ctx, v)
 		{{- end }}
 			if err != nil {
-				obs.Fail(loomtransport.ReasonHandlerError)
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.HandlerFailed(err, false, encodeError, errhandler)
 				return
 			}
 		{{- if .Method.SkipResponseBodyEncodeDecode }}
 			o := res.(*{{ .ServicePkgName }}.{{ .Method.ResponseStruct }})
-			defer o.Body.Close()
-			if wt, ok := o.Body.(io.WriterTo); ok {
-				if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-					obs.Fail(loomtransport.ReasonResponseWriteFailed)
-					if errhandler != nil {
-						errhandler(ctx, w, err)
-					}
-					return
-				}
-				n, err := wt.WriteTo(w)
-				if err != nil {
-					if n == 0 {
-						obs.Fail(loomtransport.ReasonResponseWriteFailed)
-						if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-							errhandler(ctx, w, err)
-						}
-					} else {
-						http.NewResponseController(w).Flush()
-						panic(http.ErrAbortHandler) // too late to write an error
-					}
-				}
-				return
-			}
-			// handle immediate read error like a returned error
-			buf := bufio.NewReader(o.Body)
-			if _, err := buf.Peek(1); err != nil && err != io.EOF {
-				obs.Fail(loomtransport.ReasonHandlerError)
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-				obs.Fail(loomtransport.ReasonResponseWriteFailed)
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if _, err := io.Copy(w, buf); err != nil {
-				http.NewResponseController(w).Flush()
-				panic(http.ErrAbortHandler)
-			}
+			lifecycle.WriteRawBody(o.Body, func(ctx context.Context, w http.ResponseWriter) error {
+				return encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }})
+			}, encodeError, errhandler)
 		{{- else }}
 			if err := encodeResponse(ctx, w, res); err != nil {
-				obs.Fail(loomtransport.ReasonResponseWriteFailed)
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.ResponseFailed(err, errhandler)
 			}
 		{{- end }}
 		}
@@ -235,10 +179,7 @@ func {{ .HandlerInit }}(
 		{{- if mustDecodeRequest . }}
 			{{ if .Redirect }}_{{ else }}payload{{ end }}, err := decodeRequest(r)
 			if err != nil {
-				obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				lifecycle.DecodeFailed(err, encodeError, errhandler)
 				return
 			}
 	{{- else if not .Redirect }}
@@ -296,7 +237,6 @@ func {{ .HandlerInit }}(
 	{{- end }}
 		{{- if not .Redirect }}
 			if err != nil {
-				obs.Fail(loomtransport.ReasonHandlerError)
 				{{- if isWebSocketEndpoint . }}
 			var stream *{{ .ServerWebSocket.VarName }}
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
@@ -304,114 +244,33 @@ func {{ .HandlerInit }}(
 			} else {
 				stream = v.Stream.(*{{ .ServerWebSocket.VarName }})
 			}
-				if stream != nil && stream.conn.Conn() != nil {
-					// Response writer has been hijacked, do not encode the error
-					if errhandler != nil {
-						errhandler(ctx, w, err)
-					}
-					return
-				}
+				lifecycle.HandlerFailed(err, stream != nil && stream.conn.Conn() != nil, encodeError, errhandler)
 				{{- end }}
 				{{- if isSSEEndpoint . }}
-				if stream.started() {
-					if errhandler != nil {
-						errhandler(ctx, w, err)
-					}
-					return
-				}
+				lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
 				{{- end }}
-				if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-					errhandler(ctx, w, err)
-				}
+				{{- if not (or (isWebSocketEndpoint .) (isSSEEndpoint .)) }}
+				lifecycle.HandlerFailed(err, false, encodeError, errhandler)
+				{{- end }}
 				return
 			}
 		{{- end }}
 	{{- if .Method.FileResponse }}
 		o := res.(*{{ .ServicePkgName }}.{{ .Method.FileResponseStruct }})
-		if o.File == nil || o.File.Content == nil {
-			err := fmt.Errorf("{{ .ServiceName }}.{{ .Method.Name }} returned nil file response content")
-			obs.Fail(loomtransport.ReasonHandlerError)
-			if encodeErr := encodeError(ctx, w, err); encodeErr != nil && errhandler != nil {
-				errhandler(ctx, w, encodeErr)
-			}
-			return
-		}
-		if closer, ok := o.File.Content.(io.Closer); ok {
-			defer func() {
-				if err := closer.Close(); err != nil {
-					obs.Fail(loomtransport.ReasonResponseWriteFailed)
-					if errhandler != nil {
-						errhandler(ctx, w, err)
-					}
-				}
-			}()
-		}
-		if err := encodeResponse(ctx, w, {{ if .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-			obs.Fail(loomtransport.ReasonResponseWriteFailed)
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		{{- with (index .Result.Responses 0) }}
-			{{- if .ContentType }}
-		w.Header().Set("Content-Type", {{ printf "%q" .ContentType }})
-			{{- end }}
-		{{- end }}
-		o.File.ServeHTTP(w, r)
+		lifecycle.ServeFile(r, o.File, {{ with (index .Result.Responses 0) }}{{ if .ContentType }}{{ printf "%q" .ContentType }}{{ else }}""{{ end }}{{ else }}""{{ end }}, func(ctx context.Context, w http.ResponseWriter) error {
+			return encodeResponse(ctx, w, {{ if .Result.Ref }}o.Result{{ else }}res{{ end }})
+		}, encodeError, errhandler)
 		return
 	{{- else if .Method.SkipResponseBodyEncodeDecode }}
 		o := res.(*{{ .ServicePkgName }}.{{ .Method.ResponseStruct }})
-		defer o.Body.Close()
-		if wt, ok := o.Body.(io.WriterTo); ok {
-			{{- if not (or .Redirect (isWebSocketEndpoint .)) }}
-			if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-				obs.Fail(loomtransport.ReasonResponseWriteFailed)
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			{{- end }}
-			n, err := wt.WriteTo(w)
-			if err != nil {
-				if n == 0 {
-					obs.Fail(loomtransport.ReasonResponseWriteFailed)
-					if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-						errhandler(ctx, w, err)
-					}
-				} else {
-					http.NewResponseController(w).Flush()
-					panic(http.ErrAbortHandler) // too late to write an error
-				}
-			}
-			return
-		}
-		// handle immediate read error like a returned error
-		buf := bufio.NewReader(o.Body)
-		if _, err := buf.Peek(1); err != nil && err != io.EOF {
-			obs.Fail(loomtransport.ReasonHandlerError)
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
+		lifecycle.WriteRawBody(o.Body, func(ctx context.Context, w http.ResponseWriter) error {
+			return encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }})
+		}, encodeError, errhandler)
+		return
 	{{- end }}
-	{{- if not (or .Redirect (isWebSocketEndpoint .) (isSSEEndpoint .)) }}
+	{{- if not (or .Redirect (isWebSocketEndpoint .) (isSSEEndpoint .) .Method.SkipResponseBodyEncodeDecode .Method.FileResponse) }}
 		if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-			obs.Fail(loomtransport.ReasonResponseWriteFailed)
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			{{- if .Method.SkipResponseBodyEncodeDecode }}
-			return
-			{{- end }}
-		}
-	{{- end }}
-	{{- if .Method.SkipResponseBodyEncodeDecode }}
-		if _, err := io.Copy(w, buf); err != nil {
-			http.NewResponseController(w).Flush()
-			panic(http.ErrAbortHandler) // too late to write an error
+			lifecycle.ResponseFailed(err, errhandler)
 		}
 	{{- end }}
 	{{- end }}

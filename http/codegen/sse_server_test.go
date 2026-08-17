@@ -97,7 +97,7 @@ func TestSSEHandlerDefersStreamCommitUntilEndpointAccepts(t *testing.T) {
 	require.NotContains(t, code, "stream.open()")
 	decl := strings.Index(code, "encodeError =")
 	require.NotEqual(t, -1, decl, "raw SSE handlers must declare encodeError before using it")
-	use := strings.Index(code, "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
+	use := strings.Index(code, "lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)")
 	require.NotEqual(t, -1, use, "raw SSE handlers must encode pre-stream endpoint failures")
 	require.Less(t, decl, use, "encodeError must be declared before the endpoint failure path uses it")
 }
@@ -117,13 +117,8 @@ func TestSSEHandlerDoesNotEncodeErrorAfterStreamStarts(t *testing.T) {
 	require.NotNil(t, serverFile)
 
 	code := codegen.SectionCode(t, serverFile.Section("server-handler-init")[0])
-	require.Contains(t, code, "if stream.started() {")
-	require.Contains(t, code, "errhandler(ctx, w, err)")
-
-	started := strings.Index(code, "if stream.started() {")
-	encode := strings.Index(code[started:], "if err := encodeError(ctx, w, err); err != nil && errhandler != nil {")
-	require.NotEqual(t, -1, started)
-	require.NotEqual(t, -1, encode)
+	require.Contains(t, code, "lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)")
+	require.NotContains(t, code, "if stream.started() {")
 }
 
 func TestSSEHandlerUsesTypedLastEventIDContextKey(t *testing.T) {

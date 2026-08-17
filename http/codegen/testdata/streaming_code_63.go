@@ -23,17 +23,13 @@ func NewBidirectionalStreamingMethodHandler(
 		encodeError   = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "BidirectionalStreamingMethod")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "BidirectionalStreamingService")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "BidirectionalStreamingService", "BidirectionalStreamingMethod", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "BidirectionalStreamingService", "BidirectionalStreamingMethod")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 		payload, err := decodeRequest(r)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.DecodeFailed(err, encodeError, errhandler)
 			return
 		}
 		var cancel context.CancelFunc
@@ -51,23 +47,13 @@ func NewBidirectionalStreamingMethodHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonHandlerError)
 			var stream *BidirectionalStreamingMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
 				stream = wrapper.Unwrap().(*BidirectionalStreamingMethodServerStream)
 			} else {
 				stream = v.Stream.(*BidirectionalStreamingMethodServerStream)
 			}
-			if stream != nil && stream.conn.Conn() != nil {
-				// Response writer has been hijacked, do not encode the error
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.HandlerFailed(err, stream != nil && stream.conn.Conn() != nil, encodeError, errhandler)
 			return
 		}
 	})

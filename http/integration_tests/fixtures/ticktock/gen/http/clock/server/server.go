@@ -110,11 +110,10 @@ func NewTickHandler(
 		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "Tick")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "clock", "Tick", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "clock", "Tick")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 		var err error
 		stream := &TickServerStream{
 			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
@@ -124,16 +123,7 @@ func NewTickHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonHandlerError)
-			if stream.started() {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
 			return
 		}
 	})
@@ -183,11 +173,10 @@ func NewTockHandler(
 		encodeError = loomhttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "Tock")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "clock", "Tock", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "clock", "Tock")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 		var err error
 		stream := &TockServerStream{
 			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
@@ -197,16 +186,7 @@ func NewTockHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonHandlerError)
-			if stream.started() {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
 			return
 		}
 	})
@@ -257,17 +237,13 @@ func NewGuardedHandler(
 		encodeError   = EncodeGuardedError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "Guarded")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "clock")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "clock", "Guarded", r)
-		defer obs.End()
+		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "clock", "Guarded")
+		defer lifecycle.End()
+		ctx := lifecycle.Context()
+		w = lifecycle.Writer()
 		payload, err := decodeRequest(r)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.DecodeFailed(err, encodeError, errhandler)
 			return
 		}
 		stream := &GuardedServerStream{
@@ -279,16 +255,7 @@ func NewGuardedHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			obs.Fail(loomtransport.ReasonHandlerError)
-			if stream.started() {
-				if errhandler != nil {
-					errhandler(ctx, w, err)
-				}
-				return
-			}
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
+			lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
 			return
 		}
 	})
