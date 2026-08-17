@@ -20,15 +20,15 @@ import (
 )
 
 const (
-	redoclyCLIVersion        = "2.24.1"
+	redoclyCLIVersion        = "2.46.1"
 	heyAPIOpenAPIVersion     = "0.99.0"
 	heyAPIClientFetchVersion = "0.13.1"
-	openAPITypescriptVersion = "7.13.0"
-	typeScriptVersion        = "5.9.3"
+	typeScriptAPIVersion     = "6.0.2"
+	typeScriptVersion        = "7.0.2"
 	tanStackQueryVersion     = "5.101.4"
 	zodVersion               = "4.4.3"
 	reactVersion             = "19.2.8"
-	oapiCodegenVersion       = "v2.6.0"
+	oapiCodegenVersion       = "v2.8.0"
 	openAPIAsyncExtension    = "x-loom-async"
 )
 
@@ -221,17 +221,11 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 	require.NoError(t, os.WriteFile(yamlPath, artifacts.YAML, 0o600))
 	require.NoError(t, os.WriteFile(jsonPath, artifacts.JSON, 0o600))
 
-	_, err := testingx.RunCmd(workDir, "npx", "--yes", "--package=openapi-typescript@"+openAPITypescriptVersion, "--package=typescript@"+typeScriptVersion, "openapi-typescript", yamlPath, "-o", "openapi.d.ts")
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(workDir, "index.ts"), []byte("import type { paths } from \"./openapi\";\n\ntype SmokePaths = paths;\nconst smoke: SmokePaths | undefined = undefined;\nexport default smoke;\n"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(workDir, "tsconfig.json"), []byte("{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"ESNext\",\n    \"moduleResolution\": \"Bundler\",\n    \"strict\": true,\n    \"skipLibCheck\": true,\n    \"lib\": [\"ES2020\", \"DOM\"]\n  },\n  \"include\": [\"index.ts\", \"openapi.d.ts\"]\n}\n"), 0o600))
-	_, err = testingx.RunCmd(workDir, "npx", "--yes", "--package=typescript@"+typeScriptVersion, "tsc", "--noEmit", "--project", "tsconfig.json")
-	require.NoError(t, err)
 	smokeHeyAPITypeScriptClient(t, workDir, jsonPath)
 
 	goDir := filepath.Join(workDir, "go-smoke")
 	require.NoError(t, os.MkdirAll(goDir, 0o750))
-	_, err = testingx.RunCmd(goDir, "go", "mod", "init", "example.com/openapi-smoke")
+	_, err := testingx.RunCmd(goDir, "go", "mod", "init", "example.com/openapi-smoke")
 	require.NoError(t, err)
 	_, err = testingx.RunCmd(goDir, "go", "run", "github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@"+oapiCodegenVersion, "-generate", "types,client", "-package", "smoke", "-o", "client.gen.go", yamlPath)
 	require.NoError(t, err)
@@ -245,14 +239,25 @@ func smokeHeyAPITypeScriptClient(t *testing.T, workDir, jsonPath string) {
 	t.Helper()
 	heyDir := filepath.Join(workDir, "hey-api-smoke")
 	require.NoError(t, os.MkdirAll(heyDir, 0o750))
+	generatorDir := filepath.Join(heyDir, ".hey-api")
+	require.NoError(t, os.MkdirAll(generatorDir, 0o750))
 	_, err := testingx.RunCmd(
+		generatorDir,
+		"npm",
+		"install",
+		"--ignore-scripts",
+		"--save-exact",
+		"typescript@npm:@typescript/typescript6@"+typeScriptAPIVersion,
+		"@hey-api/openapi-ts@"+heyAPIOpenAPIVersion,
+	)
+	require.NoError(t, err)
+	_, err = testingx.RunCmd(
 		heyDir,
 		"npm",
 		"install",
 		"--ignore-scripts",
 		"--save-exact",
 		"typescript@"+typeScriptVersion,
-		"@hey-api/openapi-ts@"+heyAPIOpenAPIVersion,
 		"@hey-api/client-fetch@"+heyAPIClientFetchVersion,
 		"@tanstack/react-query@"+tanStackQueryVersion,
 		"zod@"+zodVersion,
@@ -278,7 +283,7 @@ func smokeHeyAPITypeScriptClient(t *testing.T, workDir, jsonPath string) {
 };
 `
 	require.NoError(t, os.WriteFile(filepath.Join(heyDir, "openapi-ts.config.mjs"), []byte(config), 0o600))
-	_, err = testingx.RunCmd(heyDir, filepath.Join(heyDir, "node_modules", ".bin", "openapi-ts"))
+	_, err = testingx.RunCmd(heyDir, filepath.Join(generatorDir, "node_modules", ".bin", "openapi-ts"))
 	require.NoError(t, err)
 
 	tsconfig := `{

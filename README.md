@@ -24,7 +24,7 @@ OpenAPI 3.2 contracts with an optional OpenAPI 3.1 compatibility target.
   one shared contract model. Set `Meta("openapi:version", "3.1")` to make the
   same renderer omit 3.2-only members while keeping the canonical output paths.
   Representative contracts are parsed with `libopenapi`, linted
-  with Redocly, and compiled through `openapi-typescript` and `oapi-codegen` in
+  with Redocly, and compiled through Hey API and `oapi-codegen` in
   [consumer smoke tests](http/codegen/openapi/v3/contract_smoke_test.go#L140).
 - **One design, multiple transports.** The same service model drives HTTP,
   gRPC, and JSON-RPC servers and clients. SSE and WebSocket endpoints publish

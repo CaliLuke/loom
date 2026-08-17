@@ -41,22 +41,31 @@ successful generation.
 
 ## Install and configure Hey API
 
-Pin the generator and its TypeScript peer dependency exactly. Install the
-runtime packages used by the selected plugins in the frontend application:
+Install TypeScript 7 and the runtime packages in the frontend application:
 
 ```bash
-npm install --save-dev --save-exact \
-  @hey-api/openapi-ts@0.99.0 typescript@5.9.3
+npm install --save-dev --save-exact typescript@7.0.2
 npm install --save-exact \
   @hey-api/client-fetch@0.13.1 @tanstack/react-query@5.101.4 zod@4.4.3
 ```
 
-Create `openapi-ts.config.ts` in the frontend project:
+Hey API uses the TypeScript programmatic API during generation. TypeScript 7
+does not provide that API. Install the TypeScript 6 compatibility package in
+an isolated generator directory:
+
+```bash
+npm install --prefix .hey-api --save-dev --save-exact \
+  @hey-api/openapi-ts@0.99.0 \
+  typescript@npm:@typescript/typescript6@6.0.2
+```
+
+This alias is private to the generator. The application still uses TypeScript
+7 for type checking and builds.
+
+Create `openapi-ts.config.mjs` in the frontend project:
 
 ```ts
-import { defineConfig } from "@hey-api/openapi-ts";
-
-export default defineConfig({
+export default {
   input: "../backend/gen/http/openapi.json",
   output: "src/api/generated",
   plugins: [
@@ -78,7 +87,13 @@ export default defineConfig({
       queryKeys: { tags: true },
     },
   ],
-});
+};
+```
+
+Run the isolated generator from the frontend project root:
+
+```bash
+.hey-api/node_modules/.bin/openapi-ts
 ```
 
 Loom operation IDs use `service.method`. Hey API 0.99 already splits operation

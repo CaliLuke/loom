@@ -26,8 +26,8 @@ gRPC service:
 
 | Tool | Supported version |
 |------|-------------------|
-| `protoc` | 25.0 |
-| `protoc-gen-go` | v1.36.11 |
+| `protoc` | 35.1 |
+| `protoc-gen-go` | v1.36.12 |
 | `protoc-gen-go-grpc` | v1.6.2 |
 
 Framework contributors can run `make depend` from the Loom repository to

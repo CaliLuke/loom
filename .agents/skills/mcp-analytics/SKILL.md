@@ -45,14 +45,14 @@ MCP tools are async functions passed to `server.tool()`. Wrapping the handler is
 ```json
 {
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.20.0",
-    "dotenv": "^17.2.3",
-    "posthog-node": "^5.9.5",
-    "zod": "^3.25.76"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "dotenv": "^17.4.2",
+    "posthog-node": "^5.49.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^24.7.1",
-    "typescript": "^5.9.3"
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
   }
 }
 ```

@@ -52,7 +52,7 @@ ci: depend all
 ci-local: all test-race openapi-contract generated-code-quality
 
 # Install protoc
-PROTOC_VERSION=25.0
+PROTOC_VERSION=35.1
 UNZIP=unzip
 ifeq ($(GOOS),linux)
 	PROTOC=protoc-$(PROTOC_VERSION)-linux-x86_64

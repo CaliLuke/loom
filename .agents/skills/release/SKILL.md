@@ -56,10 +56,10 @@ before it creates a release commit or tag. That gate needs real tools on
 - `staticcheck` — Go 1.27 preview releases require the separately pinned
   Staticcheck RC installed by `make depend`; golangci-lint's bundled analyzer
   remains disabled until its Go 1.27-compatible release is available.
-- `protoc` 25.0, `protoc-gen-go` v1.36.12, and
+- `protoc` 35.1, `protoc-gen-go` v1.36.12, and
   `protoc-gen-go-grpc` v1.6.2 — `make depend` installs the exact supported
   toolchain. Do not substitute `@latest`.
-- `node`/`npx` — the OpenAPI contract tests shell out to `npx @redocly/cli` and `openapi-typescript`; without Node they fail with `npx: executable file not found`.
+- `node`/`npx` — the OpenAPI contract tests run Redocly and generate a Hey API client; without Node they fail with `npx: executable file not found`.
 - `gh` authenticated for `CaliLuke/loom` — release completion polls the
   published GitHub Release and validates its tag, state, and notes.
 
