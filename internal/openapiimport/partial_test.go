@@ -122,9 +122,10 @@ components:
 	require.Len(t, analysis.Document.Operations, 1)
 	require.Empty(t, analysis.Skipped)
 	require.Empty(t, analysis.Blocked)
-	for _, code := range []string{"info-metadata", "servers", "tag-metadata"} {
+	for _, code := range []string{"info-metadata", "servers"} {
 		requireDiagnosticCode(t, analysis.Omitted, code)
 	}
+	require.Equal(t, "Pet operations.", analysis.Document.TagMetadata[0].Description)
 	require.True(t, analysis.Document.SecurityDefined)
 	require.Len(t, analysis.Document.Security, 1)
 	require.Len(t, analysis.Document.Components.SecuritySchemes, 1)

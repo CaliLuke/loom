@@ -122,6 +122,43 @@ func TestOpenAPIImportSharedStatusRoundTrip(t *testing.T) {
 	}
 }
 
+func TestOpenAPIImportExporterSymmetryRoundTrip(t *testing.T) {
+	if os.Getenv("LOOM_OPENAPI_CONTRACT") == "" {
+		t.Skip("set LOOM_OPENAPI_CONTRACT=1 to run the OpenAPI import contract")
+	}
+
+	repoRoot := testingx.RepoRoot()
+	loomBin := filepath.Join(t.TempDir(), "loom")
+	output, err := testingx.RunCmd(repoRoot, "go", "build", "-o", loomBin, "./cmd/loom")
+	require.NoError(t, err, output)
+	source, err := os.ReadFile(filepath.Join(repoRoot, "internal", "openapiimport", "testdata", "symmetry.yaml"))
+	require.NoError(t, err)
+	sourceDocument := analyzeOpenAPIContract(t, source)
+
+	moduleDir := t.TempDir()
+	modulePath := "example.com/openapi-symmetry-roundtrip"
+	writeRoundTripModule(t, moduleDir, modulePath, repoRoot)
+	input := filepath.Join(moduleDir, "openapi.yaml")
+	require.NoError(t, os.WriteFile(input, source, 0o600))
+
+	output, err = testingx.RunCmd(moduleDir, loomBin, "import", "openapi", input, "-o", "design")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(moduleDir, "go", "mod", "tidy")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(moduleDir, loomBin, "gen", modulePath+"/design", "-o", ".")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(moduleDir, "go", "mod", "tidy")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(moduleDir, "go", "test", "./...")
+	require.NoError(t, err, output)
+
+	regenerated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	regenerated = removeGeneratedDocumentDefaults(t, regenerated, sourceDocument.Title)
+	regeneratedDocument := analyzeOpenAPIContract(t, regenerated)
+	require.NoError(t, compareOpenAPIContracts(sourceDocument, regeneratedDocument))
+}
+
 func TestCompareOpenAPIContractsRejectsLoss(t *testing.T) {
 	source := &openapiimport.Document{
 		OpenAPIVersion: "3.2.0",
@@ -237,13 +274,16 @@ func compareOpenAPIContracts(expected, actual *openapiimport.Document) error {
 	}
 	normalizeEmptyOpenAPICollections(expectedNormalized)
 	normalizeEmptyOpenAPICollections(normalized)
-	if !reflect.DeepEqual(expectedNormalized, normalized) {
-		expectedJSON, expectedErr := json.Marshal(expectedNormalized)
-		actualJSON, actualErr := json.Marshal(normalized)
-		if expectedErr == nil && actualErr == nil {
-			return fmt.Errorf("OpenAPI semantic contract differs:\nexpected: %s\nactual:   %s", expectedJSON, actualJSON)
-		}
-		return fmt.Errorf("OpenAPI semantic contract differs:\nexpected: %#v\nactual:   %#v", expectedNormalized, normalized)
+	expectedJSON, err := json.Marshal(expectedNormalized)
+	if err != nil {
+		return fmt.Errorf("marshal expected OpenAPI semantic contract: %w", err)
+	}
+	actualJSON, err := json.Marshal(normalized)
+	if err != nil {
+		return fmt.Errorf("marshal actual OpenAPI semantic contract: %w", err)
+	}
+	if string(expectedJSON) != string(actualJSON) {
+		return fmt.Errorf("OpenAPI semantic contract differs:\nexpected: %s\nactual:   %s", expectedJSON, actualJSON)
 	}
 	return nil
 }
@@ -253,6 +293,13 @@ func normalizeEmptyOpenAPICollections(document *openapiimport.Document) {
 		document.Tags = nil
 	} else {
 		sort.Strings(document.Tags)
+	}
+	if len(document.TagMetadata) == 0 {
+		document.TagMetadata = nil
+	} else {
+		sort.Slice(document.TagMetadata, func(i, j int) bool {
+			return document.TagMetadata[i].Name < document.TagMetadata[j].Name
+		})
 	}
 	for index := range document.Components.Schemas {
 		normalizeOpenAPISchema(document.Components.Schemas[index].Schema)
@@ -322,6 +369,13 @@ func normalizeOpenAPIRequestBody(body *openapiimport.RequestBody) {
 
 func normalizeOpenAPIResponse(response *openapiimport.Response) {
 	normalizeOpenAPISchema(response.Schema)
+	if len(response.Examples) == 0 {
+		response.Examples = nil
+	} else {
+		sort.Slice(response.Examples, func(i, j int) bool {
+			return response.Examples[i].Name < response.Examples[j].Name
+		})
+	}
 	if len(response.Headers) == 0 {
 		response.Headers = nil
 	}
@@ -382,16 +436,41 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 		}
 	}
 	normalized.Tags = retained
+	expectedTagMetadata := make(map[string]struct{}, len(expected.TagMetadata))
+	for _, tag := range expected.TagMetadata {
+		expectedTagMetadata[tag.Name] = struct{}{}
+	}
+	retainedMetadata := make([]openapiimport.Tag, 0, len(normalized.TagMetadata))
+	for _, tag := range normalized.TagMetadata {
+		if _, ok := expectedTagMetadata[tag.Name]; ok {
+			retainedMetadata = append(retainedMetadata, tag)
+			continue
+		}
+		if _, ok := authoredTags[tag.Name]; !ok || !emptyOpenAPITagMetadata(tag) {
+			return nil, fmt.Errorf("generated OpenAPI declared unexpected tag metadata for %q", tag.Name)
+		}
+	}
+	normalized.TagMetadata = retainedMetadata
 	for operationIndex := range normalized.Operations {
 		if operationIndex >= len(expected.Operations) {
 			break
 		}
-		for responseIndex := range normalized.Operations[operationIndex].Responses {
+		actualOperation := &normalized.Operations[operationIndex]
+		expectedOperation := expected.Operations[operationIndex]
+		if !expectedOperation.SecurityDefined && actualOperation.SecurityDefined &&
+			reflect.DeepEqual(actualOperation.Security, normalized.Security) {
+			actualOperation.SecurityDefined = false
+			actualOperation.Security = nil
+		}
+		for responseIndex := range actualOperation.Responses {
 			if responseIndex >= len(expected.Operations[operationIndex].Responses) {
 				break
 			}
-			actualHeaders := normalized.Operations[operationIndex].Responses[responseIndex].Response.Headers
-			expectedHeaders := expected.Operations[operationIndex].Responses[responseIndex].Response.Headers
+			actualResponse := &actualOperation.Responses[responseIndex].Response
+			expectedResponse := expectedOperation.Responses[responseIndex].Response
+			inlineGeneratedResponseSchema(normalized, &expectedResponse, actualResponse)
+			actualHeaders := actualResponse.Headers
+			expectedHeaders := expectedResponse.Headers
 			for headerIndex := range actualHeaders {
 				if headerIndex >= len(expectedHeaders) {
 					break
@@ -405,8 +484,8 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 				}
 			}
 		}
-		actualParameters := normalized.Operations[operationIndex].Parameters
-		expectedParameters := expected.Operations[operationIndex].Parameters
+		actualParameters := actualOperation.Parameters
+		expectedParameters := expectedOperation.Parameters
 		for parameterIndex := range actualParameters {
 			if parameterIndex >= len(expectedParameters) {
 				break
@@ -421,6 +500,59 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 		}
 	}
 	return normalized, nil
+}
+
+func emptyOpenAPITagMetadata(tag openapiimport.Tag) bool {
+	return tag.Summary == "" && tag.Description == "" && tag.Parent == "" && tag.Kind == "" &&
+		tag.ExternalDocsURL == "" && tag.ExternalDocsDescription == "" && len(tag.Extensions) == 0
+}
+
+func inlineGeneratedResponseSchema(
+	document *openapiimport.Document,
+	expected *openapiimport.Response,
+	actual *openapiimport.Response,
+) {
+	if expected.Schema == nil || expected.Schema.Ref != "" || actual.Schema == nil || actual.Schema.Ref == "" {
+		return
+	}
+	const componentPrefix = "#/components/schemas/"
+	if !strings.HasPrefix(actual.Schema.Ref, componentPrefix) {
+		return
+	}
+	name := strings.TrimPrefix(actual.Schema.Ref, componentPrefix)
+	for index := range document.Components.Schemas {
+		component := document.Components.Schemas[index]
+		if component.Name != name {
+			continue
+		}
+		actual.Schema = component.Schema
+		removeDuplicatedResponseSchemaExamples(expected, actual)
+		document.Components.Schemas = append(
+			document.Components.Schemas[:index],
+			document.Components.Schemas[index+1:]...,
+		)
+		return
+	}
+}
+
+func removeDuplicatedResponseSchemaExamples(expected, actual *openapiimport.Response) {
+	if actual.Schema == nil || expected.Schema == nil || len(expected.Schema.Examples) > 0 ||
+		len(actual.Schema.Examples) == 0 {
+		return
+	}
+	for _, schemaExample := range actual.Schema.Examples {
+		matched := false
+		for _, responseExample := range actual.Examples {
+			if reflect.DeepEqual(schemaExample.Value, responseExample.Value) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return
+		}
+	}
+	actual.Schema.Examples = nil
 }
 
 func cloneOpenAPIContract(t *testing.T, source *openapiimport.Document) *openapiimport.Document {

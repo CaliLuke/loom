@@ -445,8 +445,15 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			name:  "Tag Object",
 			model: base.Tag{},
 			groups: []grammarFieldGroup{
-				group(grammarPreserved, "analyzer.document", "Name"),
-				group(grammarLossy, "tag-metadata diagnostic", "Summary", "Description", "ExternalDocs", "Parent", "Kind", "Extensions"),
+				group(grammarPreserved, "analyzer.tags and TestImportPreservesExporterMetadataSymmetry", "Name", "Summary", "Description", "Parent", "Kind", "Extensions"),
+				group(grammarConditional, "analyzer.tags rejects nested external-doc extensions", "ExternalDocs"),
+			},
+		},
+		{
+			name:  "External Documentation Object",
+			model: base.ExternalDoc{},
+			groups: []grammarFieldGroup{
+				group(grammarConditional, "analyzer.tags preserves fields and rejects nested extensions", "Description", "URL", "Extensions"),
 			},
 		},
 		{
@@ -479,18 +486,18 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			name:  "Components Object",
 			model: v3.Components{},
 			groups: []grammarFieldGroup{
-				group(grammarConditional, "analyzer.components and render planner", "Schemas", "Responses", "Parameters", "RequestBodies", "Headers", "SecuritySchemes"),
-				group(grammarRejected, "component-kind and extension diagnostics", "Examples", "Links", "Callbacks", "PathItems", "MediaTypes", "Extensions"),
+				group(grammarConditional, "analyzer.components and render planner", "Schemas", "Responses", "Parameters", "RequestBodies", "Headers", "SecuritySchemes", "Examples"),
+				group(grammarRejected, "component-kind and extension diagnostics", "Links", "Callbacks", "PathItems", "MediaTypes", "Extensions"),
 			},
 		},
 		{
 			name:  "Parameter Object",
 			model: v3.Parameter{},
 			groups: []grammarFieldGroup{
-				group(grammarConditional, "analyzer.parameter and render planner", "Reference", "Name", "In", "Required", "AllowEmptyValue", "Schema", "Extensions"),
+				group(grammarConditional, "analyzer.parameter and render planner", "Reference", "Name", "In", "Required", "AllowEmptyValue", "Style", "AllowReserved", "Schema", "Extensions"),
 				group(grammarPreserved, "analyzer.parameter", "Description"),
 				group(grammarLossy, "parameter-deprecated and examples diagnostics", "Deprecated", "Example", "Examples"),
-				group(grammarRejected, "parameter serialization and content diagnostics", "Style", "Explode", "AllowReserved", "Content"),
+				group(grammarRejected, "parameter serialization and content diagnostics", "Explode", "Content"),
 			},
 		},
 		{
@@ -523,8 +530,7 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			name:  "Response Object",
 			model: v3.Response{},
 			groups: []grammarFieldGroup{
-				group(grammarPreserved, "analyzer.response", "Description", "Headers", "Content", "Extensions"),
-				group(grammarLossy, "response-summary diagnostic", "Summary"),
+				group(grammarPreserved, "analyzer.response and TestImportPreservesExporterMetadataSymmetry", "Description", "Summary", "Headers", "Content", "Extensions"),
 				group(grammarRejected, "response reference and links diagnostics", "Reference", "Links"),
 			},
 		},
@@ -533,22 +539,43 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			model: v3.Header{},
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.header", "Description", "Required", "Schema"),
+				group(grammarConditional, "analyzer.header and TestImportPreservesExporterMetadataSymmetry", "Style", "AllowReserved"),
 				group(grammarLossy, "header-deprecated and examples diagnostics", "Deprecated", "Example", "Examples"),
-				group(grammarRejected, "header reference, serialization, content, and extension diagnostics", "Reference", "AllowEmptyValue", "Style", "Explode", "AllowReserved", "Content", "Extensions"),
+				group(grammarRejected, "header reference, serialization, content, and extension diagnostics", "Reference", "AllowEmptyValue", "Explode", "Content", "Extensions"),
 			},
 		},
 		{
 			name:  "Security Scheme Object",
 			model: v3.SecurityScheme{},
 			groups: []grammarFieldGroup{
-				group(grammarConditional, "analyzer.securityScheme supports API keys", "Reference", "Type", "Description", "Name", "In", "Scheme", "BearerFormat", "Flows", "OpenIdConnectUrl", "OAuth2MetadataUrl", "Deprecated", "Extensions"),
+				group(grammarConditional, "analyzer.securityScheme and TestImportPreservesRepresentableSecuritySchemes", "Reference", "Type", "Description", "Name", "In", "Scheme", "BearerFormat", "Flows", "OpenIdConnectUrl", "OAuth2MetadataUrl", "Deprecated", "Extensions"),
+			},
+		},
+		{
+			name:              "OAuth Flows Object",
+			model:             v3.OAuthFlows{},
+			parserGapFields:   []string{"deviceAuthorization"},
+			parserGapEvidence: "oauthDeviceAuthorizationPresent rejects the official OpenAPI 3.2 field that libopenapi v0.38.7 does not expose correctly",
+			groups: []grammarFieldGroup{
+				group(grammarConditional, "analyzer.oauthFlows", "Implicit", "Password", "ClientCredentials", "AuthorizationCode"),
+				group(grammarRejected, "device authorization and extension diagnostics", "Device", "Extensions"),
+			},
+		},
+		{
+			name:              "OAuth Flow Object",
+			model:             v3.OAuthFlow{},
+			parserGapFields:   []string{"deviceAuthorizationUrl"},
+			parserGapEvidence: "device authorization is rejected from the raw OAuth Flows Object before URL fields can be discarded",
+			groups: []grammarFieldGroup{
+				group(grammarConditional, "analyzer.validOAuthFlow and analyzer.oauthFlows", "AuthorizationUrl", "TokenUrl", "RefreshUrl", "Scopes"),
+				group(grammarRejected, "OAuth flow extension diagnostic", "Extensions"),
 			},
 		},
 		{
 			name:  "Example Object",
 			model: base.Example{},
 			groups: []grammarFieldGroup{
-				group(grammarConditional, "analyzer.mediaExamples", "Reference", "Summary", "Description", "Value", "ExternalValue", "DataValue", "SerializedValue", "Extensions"),
+				group(grammarConditional, "analyzer.mediaExamples and TestImportPreservesStructuredAndReusableExamples", "Reference", "Summary", "Description", "Value", "ExternalValue", "DataValue", "SerializedValue", "Extensions"),
 			},
 		},
 		{

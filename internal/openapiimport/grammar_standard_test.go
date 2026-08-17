@@ -71,6 +71,9 @@ func officialOpenAPIFixedFields() map[string][]string {
 		"Tag Object": {
 			"description", "externalDocs", "kind", "name", "parent", "summary",
 		},
+		"External Documentation Object": {
+			"description", "url",
+		},
 		"Path Item Object": {
 			"$ref", "additionalOperations", "delete", "description", "get", "head", "options",
 			"parameters", "patch", "post", "put", "query", "servers", "summary", "trace",
@@ -107,6 +110,12 @@ func officialOpenAPIFixedFields() map[string][]string {
 		"Security Scheme Object": {
 			"bearerFormat", "deprecated", "description", "flows", "in", "name",
 			"oauth2MetadataUrl", "openIdConnectUrl", "scheme", "type",
+		},
+		"OAuth Flows Object": {
+			"authorizationCode", "clientCredentials", "deviceAuthorization", "implicit", "password",
+		},
+		"OAuth Flow Object": {
+			"authorizationUrl", "deviceAuthorizationUrl", "refreshUrl", "scopes", "tokenUrl",
 		},
 		"Example Object": {
 			"dataValue", "description", "externalValue", "serializedValue", "summary", "value",

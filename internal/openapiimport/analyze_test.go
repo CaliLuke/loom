@@ -82,7 +82,7 @@ components:
 func TestAnalyzeRejectsUnsupportedSecuritySchemeKinds(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Unsupported security, version: "1"}
-security: [{OAuth: [read]}]
+security: [{OIDC: []}]
 paths:
   /items:
     get:
@@ -90,12 +90,9 @@ paths:
       responses: {"204": {description: done}}
 components:
   securitySchemes:
-    OAuth:
-      type: oauth2
-      flows:
-        clientCredentials:
-          tokenUrl: https://example.com/token
-          scopes: {read: Read access}
+    OIDC:
+      type: openIdConnect
+      openIdConnectUrl: https://example.com/.well-known/openid-configuration
 `)
 
 	_, diagnostics, err := Analyze(source)
@@ -195,7 +192,7 @@ paths:
         default: {description: fallback}
 components:
   securitySchemes:
-    token: {type: http, scheme: bearer}
+    token: {type: mutualTLS}
   schemas:
     Pet:
       oneOf:

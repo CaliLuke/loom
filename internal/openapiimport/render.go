@@ -146,7 +146,9 @@ func (r *renderer) api() error {
 		r.line("Meta(%q, %q)", "openapi:version", "3.1")
 	}
 	for _, tag := range r.importedTags() {
-		r.line("Meta(%q)", "openapi:tag:"+tag)
+		if err := r.tagMetadata(tag); err != nil {
+			return err
+		}
 	}
 	if r.document.SecurityDefined {
 		if err := r.securityRequirements(r.document.Security); err != nil {
@@ -167,27 +169,6 @@ func (r *renderer) api() error {
 	r.close()
 	r.line("")
 	return nil
-}
-
-func (r *renderer) importedTags() []string {
-	seen := make(map[string]struct{})
-	tags := make([]string, 0, len(r.document.Tags))
-	add := func(tag string) {
-		if _, ok := seen[tag]; ok {
-			return
-		}
-		seen[tag] = struct{}{}
-		tags = append(tags, tag)
-	}
-	for _, tag := range r.document.Tags {
-		add(tag)
-	}
-	for _, operation := range r.document.Operations {
-		for _, tag := range operation.Tags {
-			add(tag)
-		}
-	}
-	return tags
 }
 
 func (r *renderer) service() error {
@@ -307,10 +288,8 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 	if operation.Deprecated {
 		r.line("Deprecated()")
 	}
-	for _, parameter := range plan.parameters {
-		if err := r.parameterMapping(parameter, path+"/parameters"); err != nil {
-			return err
-		}
+	if err := r.parameterMappings(plan.parameters, path+"/parameters"); err != nil {
+		return err
 	}
 	if plan.body != nil {
 		switch plan.body.mode {
@@ -362,6 +341,7 @@ type renderedParameter struct {
 	field          string
 	componentName  string
 	securityScheme string
+	securityKind   string
 }
 
 type renderedBody struct {
@@ -448,7 +428,20 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 	var required []string
 	for i, parameter := range parameters {
 		if parameter.securityScheme != "" {
-			r.line("APIKey(%q, %q, String)", parameter.securityScheme, parameter.field)
+			switch parameter.securityKind {
+			case "apiKey":
+				r.line("APIKey(%q, %q, String)", parameter.securityScheme, parameter.field)
+			case "username":
+				r.line("Username(%q, String)", parameter.field)
+			case "password":
+				r.line("Password(%q, String)", parameter.field)
+			case "token":
+				r.line("Token(%q, String)", parameter.field)
+			case "accessToken":
+				r.line("AccessToken(%q, String)", parameter.field)
+			default:
+				return fmt.Errorf("render OpenAPI design: unsupported security credential kind %q", parameter.securityKind)
+			}
 			continue
 		}
 		metadata, err := parameterMetadata(parameter)
@@ -485,6 +478,12 @@ func parameterMetadata(parameter renderedParameter) ([]renderedMetadata, error) 
 	}
 	if parameter.parameter.In == "query" {
 		metadata = append(metadata, renderedMetadata{name: "openapi:allowEmptyValue", value: strconv.FormatBool(parameter.parameter.AllowEmptyValue)})
+	}
+	if parameter.parameter.Style != "" {
+		metadata = append(metadata, renderedMetadata{name: "openapi:style", value: parameter.parameter.Style})
+	}
+	if parameter.parameter.AllowReserved {
+		metadata = append(metadata, renderedMetadata{name: "openapi:allowReserved", value: "true"})
 	}
 	extensions, err := renderedExtensions("parameter", parameter.parameter.Extensions)
 	return append(metadata, extensions...), err
@@ -550,10 +549,8 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		return r.responseTypeWithoutHeaders(call, prefix, response, responseSchema, path+"/content/schema")
 	}
 	r.open("%sfunc()", prefix)
-	for _, header := range response.headers {
-		if err := r.attribute(header.field, header.header.Schema, header.header.Description, path+"/headers/"+escapeJSONPointer(header.name)); err != nil {
-			return err
-		}
+	if err := r.responseHeaderAttributes(response.headers, path+"/headers"); err != nil {
+		return err
 	}
 	if response.response.Schema != nil && !response.rawBody {
 		bodySchema := responseSchema

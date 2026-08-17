@@ -124,14 +124,20 @@ flag the HTTP DSL cannot express per-parameter, add
 `--allow-lossy`; it warns on stderr for each omission but still refuses any
 contract-affecting loss. Use `--skip-unrenderable` to retain renderable
 operations. It reports skipped operations and omitted root members separately.
-These root members include servers, info metadata, and tag metadata. API-key
-security schemes in headers, query parameters, and cookies, plus root and
-operation security requirements, import losslessly. An anonymous `{}`
+These root members include servers and unsupported info metadata. Tag metadata,
+response summaries, supported serialization, structured examples, and reusable
+examples import losslessly. API-key, HTTP basic, HTTP bearer, and supported
+OAuth 2.0 schemes also import losslessly. OAuth 2.0 flows must use the same
+scope map. Root and operation security requirements retain OAuth scopes and
+AND or alternative semantics. An anonymous `{}`
 alternative renders as `Security()` and an explicit operation `security: []`
-renders as `NoSecurity()`. Other scheme kinds, unsupported fields, and invalid
-scope values fail closed. Exit `3` means partial output was written, exit `2`
+renders as `NoSecurity()`. Other scheme kinds, bearer formats, incompatible
+OAuth flow shapes, and invalid scope values fail closed. Exit `3` means partial output was written, exit `2`
 means nothing was importable, and exit `1` is a command failure. Review the new
 `design/design.go` before running `loom gen`.
+
+The importer rejects a 3.2-only field when the source declares OpenAPI 3.0 or
+3.1. Change the source version only when the complete contract is valid for 3.2.
 
 Set API metadata `Meta("openapi:version", "3.1")` only when a downstream
 consumer still requires OpenAPI 3.1.1. Selected output paths remain canonical

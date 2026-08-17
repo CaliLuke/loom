@@ -456,7 +456,8 @@ func (r *renderer) example(example Example, path string) error {
 	if err != nil {
 		return fmt.Errorf("render OpenAPI design: %s example: %w", path, err)
 	}
-	if example.Name == "" && example.Summary == "" && example.Description == "" {
+	structured := example.ComponentName != "" || example.DataValue || example.SerializedValue != ""
+	if example.Name == "" && example.Summary == "" && example.Description == "" && !structured {
 		r.line("Example(%s)", literal)
 		return nil
 	}
@@ -464,11 +465,20 @@ func (r *renderer) example(example Example, path string) error {
 	if name == "" {
 		name = "default"
 	}
-	if example.Summary == "" && example.Description == "" {
+	if example.Summary == "" && example.Description == "" && !structured {
 		r.line("Example(%q, %s)", name, literal)
 		return nil
 	}
 	r.open("Example(%q, func()", name)
+	if example.ComponentName != "" {
+		r.line("Meta(%q, %q)", "openapi:component:example", example.ComponentName)
+	}
+	if example.DataValue {
+		r.line("Meta(%q)", "openapi:example:dataValue")
+	}
+	if example.SerializedValue != "" {
+		r.line("Meta(%q, %q)", "openapi:example:serializedValue", example.SerializedValue)
+	}
 	if example.Summary != "" && example.Summary != name {
 		r.line("Meta(%q, %q)", "openapi:example:summary", example.Summary)
 	}

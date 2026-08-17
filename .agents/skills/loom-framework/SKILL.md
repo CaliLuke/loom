@@ -144,6 +144,8 @@ filter, and serialization rules belong here.
 - Compare that parser ledger with the fixed fields in the official OpenAPI 3.0,
   3.1, and 3.2 schemas. Add a raw-source guard when the standard defines a field
   that the parser does not expose.
+- Guard version-specific fields even when the parser exposes their union for
+  every version. Reject a 3.2-only field in a 3.0 or 3.1 document before render.
 - Treat the OpenAPI 3.1 and 3.2 Schema Object as an open vocabulary at the
   parser boundary. Preserve JSON-compatible `x-*` extensions. Reject unknown
   non-`x-*` keywords unless Loom explicitly supports and tests them.
@@ -155,6 +157,10 @@ filter, and serialization rules belong here.
 - A strict import must render and evaluate. Forward generation must complete,
   and the generated Go code must compile. The generated OpenAPI contract must
   preserve the accepted source semantics.
+- Keep an exporter-symmetry fixture for constructs that Loom emits and imports.
+  Import the fixture, compile the service, regenerate OpenAPI, and compare the
+  semantic contracts. Add each new inverse mapping to this fixture. If an
+  exporter shape cannot round-trip, record and test the explicit rejection.
 - Add each accepted response shape to an import-to-generation contract test.
   Schema-less errors use a concrete non-default error type and an explicit HTTP
   `Body(Empty)` mapping. This prevents synthesized default error headers. Never

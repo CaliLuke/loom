@@ -125,8 +125,6 @@ func isDocumentOmission(diagnostic Diagnostic) bool {
 		return diagnostic.Path == "#/externalDocs"
 	case "document-identity":
 		return diagnostic.Path == "#"
-	case "tag-metadata":
-		return strings.HasPrefix(diagnostic.Path, "#/tags/")
 	case "webhooks":
 		return diagnostic.Path == "#/webhooks"
 	case "security-schemes":
@@ -146,6 +144,7 @@ func documentForOperations(document *Document, operations []Operation) *Document
 	result.Components = document.Components
 	result.Operations = append([]Operation(nil), operations...)
 	result.Tags = append([]string(nil), document.Tags...)
+	result.TagMetadata = append([]Tag(nil), document.TagMetadata...)
 	return &result
 }
 

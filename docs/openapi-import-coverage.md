@@ -39,6 +39,9 @@ The test ledger records the union of fixed fields from the published
 [3.1 schema](https://spec.openapis.org/oas/3.1/schema/2025-11-23), and
 [3.2 schema](https://spec.openapis.org/oas/3.2/schema/2025-11-23).
 
+Loom also checks version boundaries. A 3.0 or 3.1 document cannot use fields
+that the OpenAPI specification first defines in 3.2.
+
 ## Object coverage
 
 The following table summarizes fixed fields on objects that the importer
@@ -48,19 +51,19 @@ reads. Specification extensions are patterns, not fixed fields.
 |---|---|---|---|
 | OpenAPI | `openapi`, `info`, `paths`, supported `components`, `security`, `tags`, supported `x-*` | `externalDocs` | `servers`, `jsonSchemaDialect`, `$self`, `webhooks` |
 | Info | `title`, `description`, `version`, supported `x-*` | `summary`, `termsOfService`, `contact`, `license` | None |
-| Tag | `name` | `summary`, `description`, `externalDocs`, `parent`, `kind`, `x-*` | None |
+| Tag | `name`, `summary`, `description`, `parent`, `kind`, supported `externalDocs`, and `x-*` | None | Extensions inside `externalDocs` |
 | Paths | Path entries | None | `x-*` |
 | Path Item | Standard methods, `QUERY`, additional methods, `parameters` | `summary`, `description` | `$ref`, `servers`, `x-*` |
 | Operation | `tags`, `summary`, `description`, `operationId`, `parameters`, `requestBody`, `responses`, `deprecated`, `security`, supported `x-*` | `externalDocs` | `callbacks`, `servers` |
-| Components | Supported schemas, parameters, request bodies, responses, headers, and API-key security schemes | None | examples, links, callbacks, path items, media types, and `x-*` component entries |
-| Parameter | Identity, location, requiredness, schema, description, and supported `x-*` | `deprecated`, unsupported examples | custom serialization and `content` |
+| Components | Supported schemas, parameters, request bodies, responses, headers, security schemes, and examples | None | Links, callbacks, path items, media types, and `x-*` component entries |
+| Parameter | Identity, location, requiredness, schema, description, supported style, `allowReserved`, and supported `x-*` | `deprecated`, unsupported examples | `explode`, unsupported styles, and `content` |
 | Request Body | `description`, `required`, supported content, and supported `x-*` | None | direct `$ref` plans that cannot retain component identity |
 | Media Type | Supported schema and examples | OpenAPI 3.2 `description` | `itemSchema`, encoding fields, `prefixEncoding`, and `x-*` |
 | Responses | Concrete status-code entries | None | `default` and `x-*` |
-| Response | `description`, supported headers and content, and supported `x-*` | `summary` | direct `$ref` plans and links |
-| Header | `description`, `required`, and schema | `deprecated`, unsupported examples | custom serialization, content, direct `$ref`, and `x-*` |
-| Security Scheme | API keys in header, query, or cookie locations | None | Other scheme kinds and unsupported fields |
-| Example | JSON-compatible inline examples | Unrenderable examples | References, external values, and incompatible value forms |
+| Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Direct `$ref` plans and links |
+| Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, direct `$ref`, and `x-*` |
+| Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization, and incompatible OAuth scope maps |
+| Example | JSON-compatible inline, structured, and reusable component examples | Unrenderable examples | External values and incompatible value forms |
 
 Path and operation extensions use a documented allowlist. Unknown extensions
 at those supported scopes produce diagnostics. Document, schema, parameter,
@@ -130,6 +133,8 @@ Importer tests enforce the boundary in several ways:
   component and operation location.
 - Cross-product tests cover response selection, path-parameter identity,
   reference wrappers, and every renderable schema kind.
+- An exporter-symmetry fixture imports every supported exporter shape. It then
+  compiles the generated service and compares the regenerated OpenAPI contract.
 
 This gives Loom full **classification coverage** for the declared import
 boundary. It does not mean that Loom imports every OpenAPI construct.

@@ -18,20 +18,115 @@ func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path strin
 	}
 	for name, source := range media.Examples.FromOldest() {
 		examplePath := path + "/examples/" + escapeJSONPointer(name)
-		if source == nil || source.Reference != "" || source.ExternalValue != "" || source.DataValue != nil || source.SerializedValue != "" {
-			a.unsupported("examples", examplePath, "media example cannot be expressed as a Loom Example value")
+		if source == nil {
+			a.unsupported("examples", examplePath, "media example is nil")
 			continue
 		}
-		if orderedmap.Len(source.Extensions) > 0 {
-			a.unsupported("examples", examplePath, "media example extensions are not in the strict import subset")
+		if reference := exampleReference(source); reference != "" {
+			example, ok := a.referencedExample(reference, schema, examplePath)
+			if ok {
+				example.Name = name
+				examples = append(examples, example)
+			}
+			continue
 		}
-		if value, ok := a.exampleValue(source.Value, schema, examplePath+"/value"); ok {
-			examples = append(examples, Example{
-				Name: name, Summary: source.Summary, Description: source.Description, Value: value,
-			})
+		example, ok := a.normalizedExample(source, schema, examplePath)
+		if ok {
+			example.Name = name
+			examples = append(examples, example)
 		}
 	}
 	return examples
+}
+
+func (a *analyzer) componentExample(name string, source *base.Example, path string) (Example, bool) {
+	if source == nil {
+		a.unsupported("examples", path, "component example is nil")
+		return Example{}, false
+	}
+	if exampleReference(source) != "" {
+		a.unsupported("examples", path, "component example references are not in the strict import subset")
+		return Example{}, false
+	}
+	example, ok := a.normalizedExample(source, nil, path)
+	if !ok {
+		return Example{}, false
+	}
+	example.ComponentName = name
+	return example, true
+}
+
+func exampleReference(source *base.Example) string {
+	if source == nil {
+		return ""
+	}
+	if source.Reference != "" {
+		return source.Reference
+	}
+	if low := source.GoLow(); low != nil && low.IsReference() {
+		return low.GetReference()
+	}
+	return ""
+}
+
+func (a *analyzer) referencedExample(reference string, schema *Schema, path string) (Example, bool) {
+	name, err := localComponentReferenceName(reference, "#/components/examples/")
+	if err != nil {
+		a.unsupported("examples", path, "example reference must target a local example component")
+		return Example{}, false
+	}
+	example, ok := a.examples[name]
+	if !ok {
+		a.unsupported("examples", path, fmt.Sprintf("example component %q does not resolve", name))
+		return Example{}, false
+	}
+	if !exampleCompatibleWithSchema(schema, example.Value) {
+		a.unsupported("examples", path, "referenced example value is not compatible with its schema")
+		return Example{}, false
+	}
+	return example, true
+}
+
+func (a *analyzer) normalizedExample(source *base.Example, schema *Schema, path string) (Example, bool) {
+	if !a.openAPI32() && (source.DataValue != nil || source.SerializedValue != "") {
+		a.unsupported("versioned-field", path, "dataValue and serializedValue require OpenAPI 3.2")
+		return Example{}, false
+	}
+	if source.ExternalValue != "" {
+		a.unsupported("examples", path+"/externalValue", "external example values are not in the strict import subset")
+		return Example{}, false
+	}
+	if orderedmap.Len(source.Extensions) > 0 {
+		a.unsupported("examples", path, "example extensions are not in the strict import subset")
+		return Example{}, false
+	}
+	if source.Value != nil && source.DataValue != nil {
+		a.unsupported("examples", path, "example value and dataValue are mutually exclusive")
+		return Example{}, false
+	}
+	if source.Value != nil && source.SerializedValue != "" {
+		a.unsupported("examples", path, "example value and serializedValue are mutually exclusive")
+		return Example{}, false
+	}
+	node := source.Value
+	dataValue := source.DataValue != nil
+	valuePath := path + "/value"
+	if dataValue {
+		node = source.DataValue
+		valuePath = path + "/dataValue"
+	}
+	if node == nil {
+		a.unsupported("examples", path, "example needs value or dataValue to preserve its typed meaning")
+		return Example{}, false
+	}
+	value, ok := a.exampleValue(node, schema, valuePath)
+	if !ok {
+		return Example{}, false
+	}
+	return Example{
+		Summary: source.Summary, Description: source.Description, Value: value,
+		DataValue: dataValue, SerializedValue: source.SerializedValue,
+	}, true
 }
 
 func (a *analyzer) schemaExamples(schema *Schema, source *base.Schema, path string) {

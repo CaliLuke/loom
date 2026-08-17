@@ -62,7 +62,7 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 	if err != nil {
 		return nil, nil, SelectionReport{}, fmt.Errorf("build OpenAPI %s model: %w", version, err)
 	}
-	analyzer := analyzer{diagnostics: diagnostics, selection: selection}
+	analyzer := analyzer{diagnostics: diagnostics, selection: selection, examples: make(map[string]Example), version: version}
 	document := analyzer.document(&model.Model)
 	if selection.Active() {
 		closure := pruneComponents(document)
@@ -75,12 +75,18 @@ type analyzer struct {
 	diagnostics Diagnostics
 	selection   Selection
 	report      SelectionReport
+	examples    map[string]Example
+	version     string
 }
 
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
 
 func renderableVersion(version string) bool {
 	return strings.HasPrefix(version, "3.0.") || strings.HasPrefix(version, "3.1.") || strings.HasPrefix(version, "3.2.")
+}
+
+func (a *analyzer) openAPI32() bool {
+	return strings.HasPrefix(a.version, "3.2.")
 }
 
 func externalReferenceDiagnostics(source []byte) (Diagnostics, error) {
@@ -141,15 +147,7 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	if source.JsonSchemaDialect != "" || source.Self != "" {
 		a.unsupported("document-identity", "#", "$self and jsonSchemaDialect are not in the strict import subset")
 	}
-	for _, tag := range source.Tags {
-		if tag == nil {
-			continue
-		}
-		document.Tags = append(document.Tags, tag.Name)
-		if tag.Summary != "" || tag.Description != "" || tag.ExternalDocs != nil || tag.Parent != "" || tag.Kind != "" || orderedmap.Len(tag.Extensions) > 0 {
-			a.unsupported("tag-metadata", "#/tags/"+escapeJSONPointer(tag.Name), "tag metadata beyond its name is not in the strict import subset")
-		}
-	}
+	document.Tags, document.TagMetadata = a.tags(source.Tags)
 	if orderedmap.Len(source.Webhooks) > 0 {
 		a.unsupported("webhooks", "#/webhooks", "webhooks are not in the strict import subset")
 	}
@@ -172,6 +170,11 @@ func (a *analyzer) components(source *v3.Components) Components {
 		return Components{}
 	}
 	var result Components
+	for name, example := range source.Examples.FromOldest() {
+		if normalized, ok := a.componentExample(name, example, "#/components/examples/"+escapeJSONPointer(name)); ok {
+			a.examples[name] = normalized
+		}
+	}
 	for name, schema := range source.Schemas.FromOldest() {
 		result.Schemas = append(result.Schemas, NamedSchema{
 			Name:   name,
@@ -209,9 +212,9 @@ func (a *analyzer) components(source *v3.Components) Components {
 			Header: a.header(header, "#/components/headers/"+escapeJSONPointer(name)),
 		})
 	}
-	if orderedmap.Len(source.Examples) > 0 || orderedmap.Len(source.Links) > 0 || orderedmap.Len(source.Callbacks) > 0 ||
+	if orderedmap.Len(source.Links) > 0 || orderedmap.Len(source.Callbacks) > 0 ||
 		orderedmap.Len(source.PathItems) > 0 || orderedmap.Len(source.MediaTypes) > 0 {
-		a.unsupported("component-kind", "#/components", "examples, links, callbacks, path items, and media types are not in the strict import subset")
+		a.unsupported("component-kind", "#/components", "links, callbacks, path items, and media types are not in the strict import subset")
 	}
 	a.unsupportedExtensions("#/components", source.Extensions)
 	return result
@@ -321,8 +324,14 @@ func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 	parameter := Parameter{
 		Name: source.Name, In: source.In, Description: source.Description,
 		Required: source.Required != nil && *source.Required, Deprecated: source.Deprecated, AllowEmptyValue: source.AllowEmptyValue,
-		Schema:     a.schema(source.Schema, path+"/schema"),
-		Extensions: a.extensions(path, source.Extensions),
+		Style: source.Style, AllowReserved: source.AllowReserved,
+		Schema: a.schema(source.Schema, path+"/schema"), Extensions: a.extensions(path, source.Extensions),
+	}
+	if !a.openAPI32() && source.Style == "cookie" {
+		a.unsupported("versioned-field", path+"/style", "cookie parameter style requires OpenAPI 3.2")
+	}
+	if !a.openAPI32() && source.AllowReserved && source.In != "query" {
+		a.unsupported("versioned-field", path+"/allowReserved", "allowReserved outside query parameters requires OpenAPI 3.2")
 	}
 	if source.In != "path" && source.In != "query" && source.In != "header" && source.In != "cookie" {
 		a.unsupported("parameter-location", path+"/in", fmt.Sprintf("parameter location %q is not supported", source.In))
@@ -330,7 +339,7 @@ func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 	if orderedmap.Len(source.Content) > 0 {
 		a.unsupported("parameter-content", path+"/content", "content-based parameters are not in the strict import subset")
 	}
-	if source.Style != "" || source.Explode != nil || source.AllowReserved {
+	if (source.Style != "" && !supportedParameterStyle(source.In, source.Style)) || source.Explode != nil {
 		a.unsupported("parameter-serialization", path, "custom parameter serialization is not in the strict import subset")
 	}
 	if source.Example != nil || orderedmap.Len(source.Examples) > 0 {
@@ -374,10 +383,14 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 	contentType, schema, examples := a.content(source.Content, path+"/content")
 	response := Response{
 		Description: source.Description,
+		Summary:     source.Summary,
 		ContentType: contentType,
 		Schema:      schema,
 		Examples:    examples,
 		Extensions:  a.extensions(path, source.Extensions),
+	}
+	if !a.openAPI32() && source.Summary != "" {
+		a.unsupported("versioned-field", path+"/summary", "response summary requires OpenAPI 3.2")
 	}
 	for name, header := range source.Headers.FromOldest() {
 		response.Headers = append(response.Headers, NamedHeader{
@@ -387,9 +400,6 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 	sort.Slice(response.Headers, func(i, j int) bool { return response.Headers[i].Name < response.Headers[j].Name })
 	if orderedmap.Len(source.Links) > 0 {
 		a.unsupported("response-links", path+"/links", "response links are not in the strict import subset")
-	}
-	if source.Summary != "" {
-		a.unsupported("response-summary", path+"/summary", "response summaries are not in the strict import subset")
 	}
 	return response
 }
@@ -406,12 +416,16 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 	}
 	header := Header{
 		Description: source.Description, Required: source.Required,
-		Deprecated: source.Deprecated, Schema: a.schema(source.Schema, path+"/schema"),
+		Deprecated: source.Deprecated, AllowReserved: source.AllowReserved,
+		Schema: a.schema(source.Schema, path+"/schema"),
+	}
+	if !a.openAPI32() && source.AllowReserved {
+		a.unsupported("versioned-field", path+"/allowReserved", "header allowReserved requires OpenAPI 3.2")
 	}
 	if orderedmap.Len(source.Content) > 0 {
 		a.unsupported("header-content", path+"/content", "content-based headers are not in the strict import subset")
 	}
-	if source.Style != "" || source.Explode || source.AllowEmptyValue || source.AllowReserved {
+	if (source.Style != "" && source.Style != "simple") || source.Explode || source.AllowEmptyValue {
 		a.unsupported("header-serialization", path, "custom header serialization is not in the strict import subset")
 	}
 	if source.Example != nil || orderedmap.Len(source.Examples) > 0 {

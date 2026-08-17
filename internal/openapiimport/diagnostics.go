@@ -28,11 +28,9 @@ var lossyDiagnosticCodes = map[string]struct{}{
 	"media-type-description":            {},
 	"parameter-deprecated":              {},
 	"path-metadata":                     {},
-	"response-summary":                  {},
 	"schema-allof-flattened":            {},
 	"schema-format":                     {},
 	"schema-inline-array-item-promoted": {},
-	"tag-metadata":                      {},
 }
 
 // Error formats all diagnostics as a single error-style message.

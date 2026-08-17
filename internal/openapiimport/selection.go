@@ -348,7 +348,18 @@ func (p *componentPruner) retain(document *Document) {
 		}
 	}
 	document.Tags = retainStrings(document.Tags, usedTags)
+	document.TagMetadata = retainTags(document.TagMetadata, usedTags)
 	p.closure.tags = usedTags
+}
+
+func retainTags(source []Tag, retained map[string]struct{}) []Tag {
+	result := make([]Tag, 0, len(source))
+	for _, tag := range source {
+		if _, ok := retained[tag.Name]; ok {
+			result = append(result, tag)
+		}
+	}
+	return result
 }
 
 func componentReferenceName(ref, prefix string) (string, bool) {

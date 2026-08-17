@@ -100,18 +100,19 @@ design, then run `loom gen <module-import-path>/design` normally.
 Use `--report` to print grouped blocker counts and affected operations without
 writing a design. Use `--skip-unrenderable` to write all renderable operations
 and report each skipped operation. Partial import also omits unsupported
-document-level members such as `servers`, info metadata, and tag metadata. It
+document-level members such as `servers` and unsupported info metadata. It
 reports these under `skipped (document level)` without making
 otherwise-renderable operations fail. Operation-level servers still make that
 operation unrenderable.
 
-API-key security schemes in headers, query parameters, and cookies import
-without loss. The importer preserves root and operation requirement
-alternatives, including AND requirements, an anonymous `{}` alternative, and
-an explicit operation `security: []` override. Generated designs use
+API-key, HTTP basic, HTTP bearer, and supported OAuth 2.0 schemes import
+without loss. OAuth 2.0 flows must use the same scope map because Loom defines
+scopes on the scheme. The importer preserves root and operation requirement
+alternatives, including OAuth scopes, AND requirements, an anonymous `{}`
+alternative, and an explicit operation `security: []` override. Generated designs use
 `Security()` with no scheme for the anonymous alternative and `NoSecurity()`
 for the explicit empty override. Unsupported security scheme kinds, references,
-locations, fields, and OAuth-style scope values remain strict diagnostics; the
+locations, bearer formats, and OAuth flow shapes remain strict diagnostics. The
 importer never silently weakens an authentication contract.
 
 Both modes use these exit codes:
@@ -218,15 +219,24 @@ A schema-less error response stays bodyless. The importer does not add response
 headers that are absent from the source contract.
 
 The importer maps these members to `Title(...)`, `Example(...)`, `Default(...)`,
-metadata, `Int`, or `Float64`. It also maps request and response media examples
-to `Example(...)`. It reports null, external, or incompatible examples at
-their source locations.
+metadata, `Int`, or `Float64`. It maps request and response media examples to
+`Example(...)`. This support includes structured examples and reusable component
+examples. It reports external or incompatible examples at their source locations.
+
+The importer preserves tag metadata and response summaries. It also preserves
+the supported parameter and header serialization that Loom emits. Parameter
+support includes the default styles, cookie style, and `allowReserved`. Header
+support includes simple style and `allowReserved`. Other custom serialization
+remains a strict diagnostic.
+
+The document version controls these mappings. The importer rejects a 3.2-only
+field in a document that declares OpenAPI 3.0 or 3.1.
 
 Use `--allow-lossy` only when you explicitly accept omission of non-contract
 metadata or of constructs the Loom HTTP DSL cannot express per-parameter or
 per-header. It writes the design and reports deterministic warnings to stderr
-for: info metadata, external documentation, tag and path metadata, response
-summaries, media type descriptions, and unrenderable or parameter/header
+for: info metadata, external documentation, path metadata, media type
+descriptions, and unrenderable or parameter/header
 examples. It also reports
 unrecognized `format` values and renders them without a format validation.
 OpenAPI 3.1 specifies that an unknown format must not stop processing. The flag

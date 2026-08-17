@@ -15,6 +15,8 @@ type Document struct {
 	APIVersion string
 	// Tags lists declared tag names in source order.
 	Tags []string
+	// TagMetadata contains declared tag details in source order.
+	TagMetadata []Tag
 	// Extensions contains document-level vendor extensions.
 	Extensions map[string]any
 	// SecurityDefined reports whether the source declares the security member.
@@ -25,6 +27,26 @@ type Document struct {
 	Components Components
 	// Operations contains HTTP operations in deterministic path-and-method order.
 	Operations []Operation
+}
+
+// Tag contains OpenAPI metadata for one declared tag.
+type Tag struct {
+	// Name is the authored tag name.
+	Name string
+	// Summary is the short display label.
+	Summary string
+	// Description describes the tagged operations.
+	Description string
+	// Parent names the containing OpenAPI 3.2 tag.
+	Parent string
+	// Kind classifies the tag in OpenAPI 3.2.
+	Kind string
+	// ExternalDocsURL locates additional documentation.
+	ExternalDocsURL string
+	// ExternalDocsDescription describes the additional documentation.
+	ExternalDocsDescription string
+	// Extensions contains tag-level vendor extensions.
+	Extensions map[string]any
 }
 
 // Components contains reusable OpenAPI definitions retained by the importer.
@@ -51,14 +73,44 @@ type SecurityScheme struct {
 	GoName string
 	// Type is the OpenAPI security scheme type.
 	Type string
+	// Scheme is the HTTP authentication scheme for type http.
+	Scheme string
 	// Description describes the credential contract.
 	Description string
 	// In identifies the credential location: header, query, or cookie.
 	In string
 	// ParameterName is the authored wire name of the credential.
 	ParameterName string
+	// Deprecated reports whether use of the scheme is discouraged.
+	Deprecated bool
+	// OAuth2MetadataURL locates OAuth authorization server metadata.
+	OAuth2MetadataURL string
+	// OAuthFlows contains supported OAuth2 flows in specification order.
+	OAuthFlows []OAuthFlow
+	// Scopes contains the shared OAuth2 scope definitions.
+	Scopes []SecurityScope
 	// Extensions contains scheme-level vendor extensions.
 	Extensions map[string]any
+}
+
+// OAuthFlow is one OAuth2 authorization flow.
+type OAuthFlow struct {
+	// Kind is authorizationCode, implicit, password, or clientCredentials.
+	Kind string
+	// AuthorizationURL is the flow authorization endpoint.
+	AuthorizationURL string
+	// TokenURL is the flow token endpoint.
+	TokenURL string
+	// RefreshURL is the optional flow refresh endpoint.
+	RefreshURL string
+}
+
+// SecurityScope is one OAuth2 scope definition.
+type SecurityScope struct {
+	// Name is the authored scope value.
+	Name string
+	// Description explains the permission granted by the scope.
+	Description string
 }
 
 // SecurityRequirements lists alternative OpenAPI security requirement objects.
@@ -171,6 +223,10 @@ type Parameter struct {
 	Deprecated bool
 	// AllowEmptyValue reports whether an empty parameter value is permitted.
 	AllowEmptyValue bool
+	// Style is the authored serialization style when Loom supports it.
+	Style string
+	// AllowReserved permits reserved URI characters in the encoded value.
+	AllowReserved bool
 	// Extensions contains parameter-level vendor extensions.
 	Extensions map[string]any
 	// Schema describes the parameter value.
@@ -211,6 +267,8 @@ type Response struct {
 	Ref string
 	// Description is the response description.
 	Description string
+	// Summary is the OpenAPI 3.2 response summary.
+	Summary string
 	// ContentType is the single response media type, if the response has a body.
 	ContentType string
 	// Schema describes the response body.
@@ -234,6 +292,8 @@ type Header struct {
 	Required bool
 	// Deprecated reports whether the response header is deprecated.
 	Deprecated bool
+	// AllowReserved permits reserved URI characters in the encoded value.
+	AllowReserved bool
 	// Schema describes the response header value.
 	Schema *Schema
 }
@@ -312,6 +372,12 @@ type Example struct {
 	Summary string
 	// Description is the authored example description.
 	Description string
+	// ComponentName is the reusable OpenAPI example component name.
+	ComponentName string
+	// DataValue reports that Value belongs in the OpenAPI 3.2 dataValue field.
+	DataValue bool
+	// SerializedValue is the authored OpenAPI 3.2 serialized representation.
+	SerializedValue string
 	// Value is the decoded example value.
 	Value any
 }
