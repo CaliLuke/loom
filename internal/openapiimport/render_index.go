@@ -39,7 +39,7 @@ func (r *renderer) index() error {
 			if errorNames[name] == nil {
 				errorNames[name] = make(map[string]struct{})
 			}
-			errorNames[name]["Status"+response.status] = struct{}{}
+			errorNames[name][response.errorName] = struct{}{}
 		}
 	}
 	for operationIndex := range r.operations {

@@ -90,3 +90,54 @@ components:
 		})
 	}
 }
+
+func TestRenderClonesSharedSchemaUsedBySameStatusAcrossOperations(t *testing.T) {
+	document, diagnostics, err := Analyze([]byte(`openapi: 3.1.0
+info:
+  title: Shared Status Errors
+  version: "1"
+paths:
+  /items:
+    get:
+      operationId: listItems
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createItem
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+`))
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+
+	source, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	design := string(source)
+	for _, errorName := range []string{"ListItemsStatus400", "CreateItemStatus400"} {
+		require.Contains(t, design, `Error("`+errorName+`", func() {`)
+	}
+	require.Equal(t, 2, strings.Count(design, `Extend(ImportedErrorResponse)`))
+	requireRenderedDesignEvaluates(t, source, 2)
+	requireRenderedDesignGenerates(t, source)
+}

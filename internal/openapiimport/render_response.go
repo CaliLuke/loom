@@ -12,7 +12,7 @@ func (r *renderer) responseMapping(response renderedResponse, failure bool, path
 	}
 	prefix := "Response("
 	if failure {
-		prefix += strconv.Quote("Status"+response.status) + ", "
+		prefix += strconv.Quote(response.errorName) + ", "
 	}
 	prefix += strconv.Itoa(status)
 	needsBlock := failure || response.response.Description != "" || response.response.ContentType != "" ||

@@ -67,6 +67,61 @@ func TestOpenAPIImportSemanticRoundTrip(t *testing.T) {
 	}
 }
 
+func TestOpenAPIImportSharedStatusRoundTrip(t *testing.T) {
+	if os.Getenv("LOOM_OPENAPI_CONTRACT") == "" {
+		t.Skip("set LOOM_OPENAPI_CONTRACT=1 to run the OpenAPI import contract")
+	}
+
+	repoRoot := testingx.RepoRoot()
+	loomBin := filepath.Join(t.TempDir(), "loom")
+	output, err := testingx.RunCmd(repoRoot, "go", "build", "-o", loomBin, "./cmd/loom")
+	require.NoError(t, err, output)
+	source, err := os.ReadFile(filepath.Join(
+		repoRoot,
+		"internal",
+		"openapiimport",
+		"testdata",
+		"shared_status_different_schemas.yaml",
+	))
+	require.NoError(t, err)
+	sourceDocument := analyzeOpenAPIContract(t, source)
+
+	for _, allowLossy := range []bool{false, true} {
+		name := "strict"
+		if allowLossy {
+			name = "lossy"
+		}
+		t.Run(name, func(t *testing.T) {
+			moduleDir := t.TempDir()
+			modulePath := "example.com/shared-status-roundtrip"
+			writeRoundTripModule(t, moduleDir, modulePath, repoRoot)
+			input := filepath.Join(moduleDir, "openapi.yaml")
+			require.NoError(t, os.WriteFile(input, source, 0o600))
+
+			args := []string{"import", "openapi", input, "-o", "design"}
+			if allowLossy {
+				args = append(args, "--allow-lossy")
+			}
+			output, err := testingx.RunCmd(moduleDir, loomBin, args...)
+			require.NoError(t, err, output)
+			output, err = testingx.RunCmd(moduleDir, "go", "mod", "tidy")
+			require.NoError(t, err, output)
+			output, err = testingx.RunCmd(moduleDir, loomBin, "gen", modulePath+"/design", "-o", ".")
+			require.NoError(t, err, output)
+			output, err = testingx.RunCmd(moduleDir, "go", "mod", "tidy")
+			require.NoError(t, err, output)
+			output, err = testingx.RunCmd(moduleDir, "go", "test", "./gen/...")
+			require.NoError(t, err, output)
+
+			regenerated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+			require.NoError(t, err)
+			regenerated = removeGeneratedDocumentDefaults(t, regenerated, sourceDocument.Title)
+			regeneratedDocument := analyzeOpenAPIContract(t, regenerated)
+			require.NoError(t, compareOpenAPIContracts(sourceDocument, regeneratedDocument))
+		})
+	}
+}
+
 func TestCompareOpenAPIContractsRejectsLoss(t *testing.T) {
 	source := &openapiimport.Document{
 		OpenAPIVersion: "3.2.0",

@@ -74,7 +74,25 @@ func planDocument(document *Document) documentPlan {
 		}
 		plan.operations = append(plan.operations, operation)
 	}
+	disambiguateSharedErrorStatuses(document.Operations, plan.operations)
 	return plan
+}
+
+func disambiguateSharedErrorStatuses(operations []Operation, plans []operationPlan) {
+	statusCounts := make(map[string]int)
+	for _, operation := range plans {
+		for _, response := range operation.failures {
+			statusCounts[response.status]++
+		}
+	}
+	for operationIndex := range plans {
+		for responseIndex := range plans[operationIndex].failures {
+			response := &plans[operationIndex].failures[responseIndex]
+			if statusCounts[response.status] > 1 {
+				response.errorName = operations[operationIndex].GoName + "Status" + response.status
+			}
+		}
+	}
 }
 
 type documentPlanner struct {
