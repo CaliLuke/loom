@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Loom Ticket"
+  short_description: "Evaluate Loom GitHub ticket coherence"
+  default_prompt: "Use $review-loom-ticket to evaluate this GitHub issue against Loom principles and recommend a disposition."
