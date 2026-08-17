@@ -4,6 +4,7 @@ import (
 	"go/doc"
 	"go/token"
 	"strings"
+	"unicode"
 
 	"github.com/CaliLuke/loom/expr"
 )
@@ -12,7 +13,8 @@ import (
 // any non letter and non digit character and by making sure the first character
 // is a letter or "_". Goify produces a "CamelCase" version of the string, if
 // firstUpper is true the first character of the identifier is uppercase
-// otherwise it's lowercase.
+// otherwise it's lowercase. Identifiers that would start with a digit receive
+// the Val or val prefix.
 func Goify(str string, firstUpper bool) string {
 	// Optimize trivial case
 	if str == "" {
@@ -33,6 +35,13 @@ func Goify(str string, firstUpper bool) string {
 			return "Val"
 		}
 		return "val"
+	}
+	if unicode.IsDigit([]rune(str)[0]) {
+		if firstUpper {
+			str = "Val" + str
+		} else {
+			str = "val" + str
+		}
 	}
 	return fixReservedGo(str)
 }

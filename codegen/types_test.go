@@ -289,6 +289,8 @@ func TestGoify(t *testing.T) {
 		"first upper false normal identifier":               {"Blue", false, "blue"},
 		"first upper true normal identifier":                {"Blue", true, "Blue"},
 		"invalid identifier":                                {"Blue%50", true, "Blue50"},
+		"numeric identifier":                                {"0", true, "Val0"},
+		"numeric unexported identifier":                     {"0", false, "val0"},
 		"invalid identifier firstupper false":               {"Blue%50", false, "blue50"},
 		"only UUID and firstupper false":                    {"UUID", false, "uuid"},
 		"consecutives invalid identifiers firstupper false": {"[[fields___type]]", false, "fieldsType"},

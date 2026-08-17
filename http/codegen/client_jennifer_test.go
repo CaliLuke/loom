@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -57,6 +58,35 @@ func TestLargeClientOperationGroups(t *testing.T) {
 		StringContent(groupCode).
 		Path("client_operation_group_large-types.golden").
 		CompareContent()
+}
+
+func TestNumericPathClientOperationGroupsUseValidIdentifiers(t *testing.T) {
+	root := RunHTTPDSL(t, func() {
+		Service("NumericPathGroups", func() {
+			for index := range 7 {
+				Method(fmt.Sprintf("Method%d", index), func() {
+					HTTP(func() {
+						GET(fmt.Sprintf("/0/items/%d", index))
+						Response(StatusOK)
+					})
+				})
+			}
+		})
+	})
+	services := CreateHTTPServices(root)
+	data := services.Get("NumericPathGroups")
+
+	groups := clientOperationGroups(data)
+	require.Len(t, groups, 1)
+	require.Equal(t, "Val0", groups[0].FieldName)
+	require.Equal(t, "Val0Client", groups[0].Name)
+	require.Contains(t, codegen.SectionCode(t, clientStructSection(data)), "Val0 *Val0Client")
+	require.Contains(t, codegen.SectionCode(t, clientOperationGroupSection(data)), "type Val0Client struct")
+	outputDir := t.TempDir()
+	for _, file := range ClientFiles("gen", services) {
+		_, err := file.Render(outputDir)
+		require.NoError(t, err)
+	}
 }
 
 func TestClientEndpointSectionsMixedResults(t *testing.T) {
