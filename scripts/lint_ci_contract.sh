@@ -3,9 +3,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+GO_BIN="$(command -v go)"
+MAKE_BIN="$(command -v make)"
+LOOM_BINARY="$(go env GOPATH)/bin/loom"
 MAKEFILE="$ROOT/Makefile"
 WORKFLOW="$ROOT/.github/workflows/test.yml"
 CHECK_SCRIPT="$ROOT/check.sh"
+FAST_INTEGRATION_SCRIPT="$ROOT/scripts/integration_test_fast.sh"
 PRE_COMMIT="$ROOT/.githooks/pre-commit"
 PRE_PUSH="$ROOT/.githooks/pre-push"
 
@@ -52,6 +56,12 @@ assert_prerequisites() {
 assert_prerequisites all "lint test integration-test"
 assert_prerequisites ci "depend all"
 assert_prerequisites ci-local "all test-race openapi-contract generated-code-quality"
+
+fast_recipe="$(make --no-print-directory -C "$ROOT" -n integration-test-fast SERVICE=ticktock RUN='^TestFast$$')"
+expected_fast_recipe="bash ./scripts/integration_test_fast.sh"
+if ! grep -Fqx "$expected_fast_recipe" <<<"$fast_recipe"; then
+  fail "integration-test-fast does not invoke the nested fixture runner"
+fi
 
 if grep -Eq '^[[:space:]]*run:[[:space:]]*[|>][+-]?[[:space:]]*(#.*)?$' "$WORKFLOW"; then
   fail "workflow multiline run blocks are unsupported because Make targets could escape CI contract extraction"
@@ -160,6 +170,74 @@ if printf '%b' "HEAD $release_head refs/heads/main $remote_oid\n$lightweight_tag
   GIT_DIR="$git_dir" GIT_WORK_TREE="$repo_root" LOOM_RELEASE_VERSION="$lightweight_version" \
   "$PRE_PUSH" origin https://github.com/CaliLuke/loom.git >/dev/null 2>&1; then
   fail "pre-push accepted a lightweight Loom release tag"
+fi
+
+FAST_ROOT="$TMP_BASE/integration-fast"
+FAST_LOG="$TMP_BASE/integration-fast.log"
+mkdir -p "$FAST_ROOT"
+FAST_ROOT="$(cd "$FAST_ROOT" && pwd)"
+for transport in jsonrpc http; do
+  fixture="$FAST_ROOT/$transport/integration_tests/fixtures/ticktock"
+  mkdir -p "$fixture/loom123"
+  : >"$fixture/go.mod"
+  : >"$fixture/server-existing.log"
+  : >"$fixture/loom123/artifact"
+done
+cat >"$STUB_BIN/go" <<'EOF'
+#!/bin/sh
+if [ -z "${FAST_INTEGRATION_LOG-}" ]; then
+  exec "$REAL_GO_BIN" "$@"
+fi
+printf '%s|%s\n' "$PWD" "$*" >>"$FAST_INTEGRATION_LOG"
+: >server-new.log
+mkdir -p loom456
+: >loom456/artifact
+if [ "${FAST_INTEGRATION_FAIL_DIR-}" = "$PWD" ]; then
+  exit 9
+fi
+EOF
+chmod 0755 "$STUB_BIN/go"
+
+: >"$FAST_LOG"
+FAST_INTEGRATION_LOG="$FAST_LOG" GOBIN_DIR="$STUB_BIN" \
+  SERVICE= RUN= bash "$FAST_INTEGRATION_SCRIPT" ticktock '^TestFast$' "$FAST_ROOT"
+expected_fast_log="$(printf '%s\n%s' \
+  "$FAST_ROOT/jsonrpc/integration_tests/fixtures/ticktock|test -count=1 -timeout 5m -run ^TestFast$ ./..." \
+  "$FAST_ROOT/http/integration_tests/fixtures/ticktock|test -count=1 -timeout 5m -run ^TestFast$ ./...")"
+actual_fast_log="$(<"$FAST_LOG")"
+if [[ "$actual_fast_log" != "$expected_fast_log" ]]; then
+  fail "integration-test-fast invoked Go as [$actual_fast_log], want [$expected_fast_log]"
+fi
+if find "$FAST_ROOT" \( -type f -name 'server-*.log' -o -type d -name 'loom[0-9]*' \) -print -quit | grep -q .; then
+  fail "integration-test-fast left server logs or loom temp directories"
+fi
+
+if FAST_INTEGRATION_LOG="$FAST_LOG" GOBIN_DIR="$STUB_BIN" \
+  FAST_INTEGRATION_FAIL_DIR="$FAST_ROOT/http/integration_tests/fixtures/ticktock" \
+  SERVICE= RUN= bash "$FAST_INTEGRATION_SCRIPT" ticktock '^TestFailure$' "$FAST_ROOT"; then
+  fail "integration-test-fast ignored a fixture test failure"
+fi
+if find "$FAST_ROOT" \( -type f -name 'server-*.log' -o -type d -name 'loom[0-9]*' \) -print -quit | grep -q .; then
+  fail "failed integration-test-fast left server logs or loom temp directories"
+fi
+if SERVICE= RUN= bash "$FAST_INTEGRATION_SCRIPT" '../ticktock' . "$FAST_ROOT" >/dev/null 2>&1; then
+  fail "integration-test-fast accepted an unsafe fixture service"
+fi
+
+cat >"$STUB_BIN/bash" <<'EOF'
+#!/bin/sh
+printf '%s|%s|%s\n' "$*" "$SERVICE" "$RUN" >"$FAST_MAKE_LOG"
+EOF
+chmod 0755 "$STUB_BIN/bash"
+unsafe_service="tick'tock; echo injected"
+quoted_run="Test user's value; echo not-run"
+FAST_MAKE_LOG="$FAST_LOG" REAL_GO_BIN="$GO_BIN" PATH="$STUB_BIN:$PATH" \
+  "$MAKE_BIN" --no-print-directory -C "$ROOT" -o "$LOOM_BINARY" \
+  integration-test-fast SERVICE="$unsafe_service" RUN="$quoted_run" >/dev/null
+expected_make_fast="./scripts/integration_test_fast.sh|$unsafe_service|$quoted_run"
+actual_make_fast="$(<"$FAST_LOG")"
+if [[ "$actual_make_fast" != "$expected_make_fast" ]]; then
+  fail "integration-test-fast changed or shell-parsed SERVICE/RUN at the Make boundary"
 fi
 
 echo "CI contract lint passed"

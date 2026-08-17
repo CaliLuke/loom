@@ -176,6 +176,8 @@ endif
 #      fixtures (the fastest useful coverage surface). Override with
 #      SERVICE=... to pick a specific fixture, or RUN=... to pass a custom
 #      `-run` regex to `go test`.
+#   3. Removes per-run server logs and loom temporary directories from both
+#      selected fixture modules, including after a failed test run.
 #
 # This target is intentionally NOT wired into `all` or CI — it is an explicit
 # developer shortcut. `integration-test` remains the canonical target.
@@ -183,8 +185,7 @@ SERVICE?=ticktock
 RUN?=.
 integration-test-fast: build-loom-cached
 ifneq ($(GOOS),windows)
-	cd jsonrpc/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 5m -run '$(RUN)' ./fixtures/$(SERVICE)/...
-	cd http/integration_tests && PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout 5m -run '$(RUN)' ./fixtures/$(SERVICE)/...
+	bash ./scripts/integration_test_fast.sh
 endif
 
 generated-code-quality: build-loom-cached
