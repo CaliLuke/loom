@@ -371,11 +371,12 @@ type renderedBody struct {
 }
 
 type renderedResponse struct {
-	status   string
-	response Response
-	headers  []renderedHeader
-	body     string
-	rawBody  bool
+	status         string
+	response       Response
+	headers        []renderedHeader
+	body           string
+	rawBody        bool
+	cloneErrorType bool
 }
 
 type renderedHeader struct {
@@ -505,6 +506,16 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 	prefix := call + "("
 	if name != "" {
 		prefix += strconv.Quote(name) + ", "
+	}
+	if call == "Error" && response.cloneErrorType {
+		expression, _, err := r.schemaExpression(responseSchema, path+"/content/schema")
+		if err != nil {
+			return err
+		}
+		r.open("%sfunc()", prefix)
+		r.line("Extend(%s)", expression)
+		r.close()
+		return nil
 	}
 	if len(response.headers) == 0 && !wrapUnconstrainedError {
 		if call == "Error" && (response.response.Schema == nil || response.rawBody) {
