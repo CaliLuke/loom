@@ -14,6 +14,9 @@ func grpcStreamStructSection(stream *StreamData) codegenpkg.Section {
 		fields := []jen.Code{
 			jen.Id("stream").Add(codegenpkg.TypeRef(stream.Interface)),
 		}
+		if stream.Type == "server" {
+			fields = append(fields, jen.Id("ctx").Qual("context", "Context"))
+		}
 		if stream.Endpoint.Method.ViewedResult != nil {
 			fields = append(fields, jen.Id("view").String())
 		}
@@ -35,7 +38,7 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 				jen.List(jen.Id("vres"), jen.Err()).Op(":=").Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.Init.Name).
 					Call(jen.Id("res"), codegenpkg.Expr(viewArg)),
 				jen.If(jen.Err().Op("!=").Nil()).Block(
-					jen.Return(jen.Err()),
+					jen.Return(grpcStreamEncodeError(stream, jen.Err())),
 				),
 			)
 			sendArg = "vres.Projected"
@@ -43,7 +46,7 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 		if stream.SendConvert.Init.ErrorAware {
 			body = append(body,
 				jen.List(jen.Id("v"), jen.Err()).Op(":=").Id(stream.SendConvert.Init.Name).Call(codegenpkg.Expr(sendArg)),
-				jen.If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Err())),
+				jen.If(jen.Err().Op("!=").Nil()).Block(jen.Return(grpcStreamEncodeError(stream, jen.Err()))),
 			)
 		} else {
 			body = append(body, jen.Id("v").Op(":=").Id(stream.SendConvert.Init.Name).Call(codegenpkg.Expr(sendArg)))
@@ -58,7 +61,11 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 				}),
 			)))
 		} else {
-			body = append(body, jen.Return(jen.Id("s").Dot("stream").Dot(stream.SendName).Call(jen.Id("v"))))
+			send := jen.Id("s").Dot("stream").Dot(stream.SendName).Call(jen.Id("v"))
+			if stream.Type == "server" {
+				send = codegenpkg.Expr("loomgrpc.ObserveStreamWriteError").Call(jen.Id("s").Dot("ctx"), send)
+			}
+			body = append(body, jen.Return(send))
 		}
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
 			Id(stream.SendName).
@@ -96,7 +103,7 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 				}
 				appendGRPCStreamRecvErrorHandling(g, stream)
 				if stream.Type == "server" && stream.Endpoint.Request.StreamEnvelope != nil {
-					appendGRPCStreamRecvEnvelopeUnpack(g, stream.Endpoint.Request.StreamEnvelope)
+					appendGRPCStreamRecvEnvelopeUnpack(g, stream, stream.Endpoint.Request.StreamEnvelope)
 				}
 				if appendGRPCStreamRecvViewedResult(g, stream) {
 					return
@@ -106,7 +113,7 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 						jen.Err().Op("=").Id(stream.RecvConvert.Validation.Name).Call(jen.Id("v")),
 						jen.Err().Op("!=").Nil(),
 					).Block(
-						jen.Return(jen.Id("res"), jen.Err()),
+						jen.Return(jen.Id("res"), grpcStreamDecodeError(stream, jen.Err())),
 					)
 				}
 				initArgs := make([]jen.Code, 0, len(stream.RecvConvert.Init.Args))
@@ -127,20 +134,20 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 	})
 }
 
-func appendGRPCStreamRecvEnvelopeUnpack(g *jen.Group, env *StreamEnvelopeData) {
+func appendGRPCStreamRecvEnvelopeUnpack(g *jen.Group, stream *StreamData, env *StreamEnvelopeData) {
 	g.List(jen.Id("body"), jen.Id("ok")).Op(":=").Id("message").Dot(env.FieldName).Assert(jen.Op("*").Add(codegenpkg.TypeRef(env.StreamItemWrapperRef)))
 	g.If(jen.Op("!").Id("ok")).Block(
 		jen.Switch(jen.Id("message").Dot(env.FieldName).Assert(jen.Type())).Block(
 			jen.Case(jen.Op("*").Add(codegenpkg.TypeRef(env.InitialWrapperRef))).Block(
-				jen.Return(jen.Id("res"), codegenpkg.Expr(`loom.InvalidFieldTypeError("body", "initial_payload", "stream_item")`)),
+				jen.Return(jen.Id("res"), grpcStreamDecodeError(stream, codegenpkg.Expr(`loom.InvalidFieldTypeError("body", "initial_payload", "stream_item")`))),
 			),
 			jen.Default().Block(
-				jen.Return(jen.Id("res"), codegenpkg.Expr(`loom.MissingFieldError("stream_item", "stream")`)),
+				jen.Return(jen.Id("res"), grpcStreamDecodeError(stream, codegenpkg.Expr(`loom.MissingFieldError("stream_item", "stream")`))),
 			),
 		),
 	)
 	g.If(jen.Id("body").Dot(env.StreamItemFieldName).Op("==").Nil()).Block(
-		jen.Return(jen.Id("res"), codegenpkg.Expr(`loom.MissingFieldError("stream_item", "stream")`)),
+		jen.Return(jen.Id("res"), grpcStreamDecodeError(stream, codegenpkg.Expr(`loom.MissingFieldError("stream_item", "stream")`))),
 	)
 	g.Id("v").Op(":=").Id("body").Dot(env.StreamItemFieldName)
 }
@@ -165,8 +172,22 @@ func appendGRPCStreamRecvErrorHandling(g *jen.Group, stream *StreamData) {
 			})
 			return
 		}
-		eg.Return(jen.Id("res"), jen.Err())
+		eg.Return(jen.Id("res"), grpcStreamDecodeError(stream, jen.Err()))
 	})
+}
+
+func grpcStreamEncodeError(stream *StreamData, err jen.Code) jen.Code {
+	if stream.Type != "server" {
+		return err
+	}
+	return codegenpkg.Expr("loomgrpc.ObserveStreamEncodeError").Call(jen.Id("s").Dot("ctx"), err)
+}
+
+func grpcStreamDecodeError(stream *StreamData, err jen.Code) jen.Code {
+	if stream.Type != "server" {
+		return err
+	}
+	return codegenpkg.Expr("loomgrpc.ObserveStreamDecodeError").Call(jen.Id("s").Dot("ctx"), err)
 }
 
 func grpcStreamRecvErrorCase(errData *ErrorData) []jen.Code {
@@ -244,72 +265,83 @@ func grpcStreamCloseSection(stream *StreamData) codegenpkg.Section {
 				return
 			}
 			g.Comment(codegenpkg.Comment("synchronize stream"))
-			g.Return(jen.Id("s").Dot("stream").Dot("SendAndClose").Call(jen.Op("&").Id(stream.Endpoint.Response.ServerConvert.TgtName).Values()))
+			g.Return(codegenpkg.Expr("loomgrpc.ObserveStreamWriteError").Call(
+				jen.Id("s").Dot("ctx"),
+				jen.Id("s").Dot("stream").Dot("SendAndClose").Call(
+					jen.Op("&").Id(stream.Endpoint.Response.ServerConvert.TgtName).Values(),
+				),
+			))
 		})
 	})
 }
 
-func appendGRPCServerErrorHandler(g *jen.Group, endpoint *EndpointData, serverStream bool) {
-	g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
-		if len(endpoint.Errors) > 0 {
-			prefix := []jen.Code{}
-			if !serverStream {
-				prefix = append(prefix, jen.Nil())
-			}
-			eg.Var().Id("en").Add(codegenpkg.TypeRef("loom.LoomErrorNamer"))
-			eg.If(jen.Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("en"))).Block(
-				jen.Switch(jen.Id("en").Dot("LoomErrorName").Call()).BlockFunc(func(sg *jen.Group) {
-					for _, errData := range endpoint.Errors {
-						body := []jen.Code{}
-						if errData.Response.ServerConvert != nil {
-							body = append(body,
-								jen.Var().Id("er").Add(codegenpkg.TypeRef(errData.Response.ServerConvert.SrcRef)),
-								jen.If(
-									jen.Op("!").Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("er")),
-								).Block(
-									jen.Return(append(prefix, codegenpkg.Expr("loomgrpc.EncodeError").Call(jen.Err()))...),
-								),
-							)
-						}
-						statusArg := codegenpkg.Expr("loomgrpc.NewErrorResponse(err)")
-						if errData.Response.ServerConvert != nil {
-							initArgs := make([]jen.Code, 0, len(errData.Response.ServerConvert.Init.Args))
-							for _, arg := range errData.Response.ServerConvert.Init.Args {
-								initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
-							}
-							if errData.Response.ServerConvert.Init.ErrorAware {
-								body = append(body,
-									jen.List(jen.Id("message"), jen.Id("conversionErr")).Op(":=").Id(errData.Response.ServerConvert.Init.Name).Call(initArgs...),
-									jen.If(jen.Id("conversionErr").Op("!=").Nil()).Block(
-										jen.Return(append(prefix, codegenpkg.Expr("loomgrpc.EncodeError").Call(jen.Id("conversionErr")))...),
-									),
-								)
-								statusArg = jen.Id("message")
-							} else {
-								statusArg = jen.Id(errData.Response.ServerConvert.Init.Name).Call(initArgs...)
-							}
-						}
-						body = append(body,
-							jen.Return(append(prefix,
-								codegenpkg.Expr("loomgrpc.NewStatusError").Call(
-									codegenpkg.Expr(errData.Response.StatusCode),
-									jen.Err(),
-									statusArg,
-								),
-							)...),
-						)
-						sg.Case(jen.Lit(errData.Name)).Block(body...)
-					}
-				}),
+func writeGRPCServerErrorMapper(stmt *jen.Statement, endpoint *EndpointData) {
+	stmt.Func().Id("map"+endpoint.Method.VarName+"Error").
+		Params(jen.Id("name").String(), jen.Err().Error()).
+		Params(codegenpkg.TypeRef("loomgrpc.ErrorMapping"), jen.Bool(), jen.Error()).
+		BlockFunc(func(g *jen.Group) {
+			g.Switch(jen.Id("name")).BlockFunc(func(cases *jen.Group) {
+				for _, errData := range endpoint.Errors {
+					cases.Case(jen.Lit(errData.Name)).Block(grpcServerErrorMappingCase(errData)...)
+				}
+			})
+			g.Return(emptyGRPCServerErrorMapping()...)
+		})
+}
+
+func grpcServerErrorMappingCase(errData *ErrorData) []jen.Code {
+	body := []jen.Code{}
+	if errData.Response.ServerConvert != nil {
+		body = append(body,
+			jen.Var().Id("er").Add(codegenpkg.TypeRef(errData.Response.ServerConvert.SrcRef)),
+			jen.If(
+				jen.Op("!").Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("er")),
+			).Block(
+				jen.Return(emptyGRPCServerErrorMapping()...),
+			),
+		)
+	}
+	detail := codegenpkg.Expr("loomgrpc.NewErrorResponse(err)")
+	if errData.Response.ServerConvert != nil {
+		initArgs := make([]jen.Code, 0, len(errData.Response.ServerConvert.Init.Args))
+		for _, arg := range errData.Response.ServerConvert.Init.Args {
+			initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
+		}
+		if errData.Response.ServerConvert.Init.ErrorAware {
+			body = append(body,
+				jen.List(jen.Id("message"), jen.Id("conversionErr")).Op(":=").Id(errData.Response.ServerConvert.Init.Name).Call(initArgs...),
+				jen.If(jen.Id("conversionErr").Op("!=").Nil()).Block(
+					jen.Return(
+						codegenpkg.TypeRef("loomgrpc.ErrorMapping").Values(),
+						jen.False(),
+						jen.Id("conversionErr"),
+					),
+				),
 			)
+			detail = jen.Id("message")
+		} else {
+			detail = jen.Id(errData.Response.ServerConvert.Init.Name).Call(initArgs...)
 		}
-		ret := []jen.Code{}
-		if !serverStream {
-			ret = append(ret, jen.Nil())
-		}
-		ret = append(ret, codegenpkg.Expr("loomgrpc.EncodeError").Call(jen.Err()))
-		eg.Return(ret...)
-	})
+	}
+	body = append(body,
+		jen.Return(
+			codegenpkg.TypeRef("loomgrpc.ErrorMapping").Values(jen.Dict{
+				jen.Id("Code"):   codegenpkg.Expr(errData.Response.StatusCode),
+				jen.Id("Detail"): detail,
+			}),
+			jen.True(),
+			jen.Nil(),
+		),
+	)
+	return body
+}
+
+func emptyGRPCServerErrorMapping() []jen.Code {
+	return []jen.Code{
+		codegenpkg.TypeRef("loomgrpc.ErrorMapping").Values(),
+		jen.False(),
+		jen.Nil(),
+	}
 }
 
 func grpcStreamSetViewSection(stream *StreamData) codegenpkg.Section {

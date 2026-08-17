@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
@@ -147,4 +148,22 @@ func TestStreaming(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestServerStreamingErrorObservationDelegatesToRuntime(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.BidirectionalStreamingRPCDSL)
+	services := CreateGRPCServices(root)
+	serverFiles := ServerFiles("", services)
+	require.Len(t, serverFiles, 2)
+
+	structCode := codegen.SectionsCode(t, serverFiles[0].Section("server-stream-struct-type"))
+	sendCode := codegen.SectionsCode(t, serverFiles[0].Section("server-stream-send"))
+	recvCode := codegen.SectionsCode(t, serverFiles[0].Section("server-stream-recv"))
+	interfaceCode := codegen.SectionsCode(t, serverFiles[0].Section("server-grpc-interface"))
+
+	require.Contains(t, structCode, "ctx    context.Context")
+	require.Contains(t, sendCode, "loomgrpc.ObserveStreamEncodeError(s.ctx, err)")
+	require.Contains(t, sendCode, "loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))")
+	require.Contains(t, recvCode, "loomgrpc.ObserveStreamDecodeError(s.ctx, err)")
+	require.Contains(t, interfaceCode, "ctx:    ctx")
 }

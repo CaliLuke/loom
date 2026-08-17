@@ -3,28 +3,31 @@
 // service_client_streaming_rpc_with_payloadpb.ServiceClientStreamingRPCWithPayloadServer
 // interface.
 func (s *Server) MethodClientStreamingRPCWithPayload(stream service_client_streaming_rpc_with_payloadpb.ServiceClientStreamingRPCWithPayload_MethodClientStreamingRPCWithPayloadServer) error {
-	ctx := stream.Context()
-	ctx = context.WithValue(ctx, loom.MethodKey, "MethodClientStreamingRPCWithPayload")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceClientStreamingRPCWithPayload")
-	var reqpb any
-	message, err := stream.Recv()
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			reqpb = nil
-		} else {
-			return loomgrpc.EncodeError(err)
-		}
-	} else {
-		reqpb = message
-	}
-	p, err := s.MethodClientStreamingRPCWithPayloadH.Decode(ctx, reqpb)
-	if err != nil {
-		return loomgrpc.EncodeError(err)
-	}
-	ep := &serviceclientstreamingrpcwithpayload.MethodClientStreamingRPCWithPayloadEndpointInput{Stream: &MethodClientStreamingRPCWithPayloadServerStream{stream: stream}, Payload: p.(int)}
-	err = s.MethodClientStreamingRPCWithPayloadH.Handle(ctx, ep)
-	if err != nil {
-		return loomgrpc.EncodeError(err)
-	}
-	return nil
+	return loomgrpc.ServeStream(stream.Context(), loomgrpc.StreamServerSpec{
+		Decode: func(ctx context.Context) (any, error) {
+			var reqpb any
+			message, err := stream.Recv()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					reqpb = nil
+				} else {
+					return nil, err
+				}
+			} else {
+				reqpb = message
+			}
+			p, err := s.MethodClientStreamingRPCWithPayloadH.Decode(ctx, reqpb)
+			if err != nil {
+				return nil, err
+			}
+			ep := &serviceclientstreamingrpcwithpayload.MethodClientStreamingRPCWithPayloadEndpointInput{Stream: &MethodClientStreamingRPCWithPayloadServerStream{
+				ctx:    ctx,
+				stream: stream,
+			}, Payload: p.(int)}
+			return ep, nil
+		},
+		Handle:  s.MethodClientStreamingRPCWithPayloadH.Handle,
+		Method:  "MethodClientStreamingRPCWithPayload",
+		Service: "ServiceClientStreamingRPCWithPayload",
+	})
 }

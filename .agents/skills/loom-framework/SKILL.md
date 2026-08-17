@@ -206,6 +206,11 @@ filter, and serialization rules belong here.
   stream adapters only.
 - Preserve the generated public `ServeHTTP` middleware and policy chain when
   adding JSON-RPC dispatch branches.
+- Keep gRPC request context, metadata application, status conversion,
+  observation, and clean stream completion in `grpc.ServeUnary`,
+  `grpc.ServeStream`, and `grpc.EncodeServerError`. Generated gRPC code supplies
+  protocol buffer adapters and typed `grpc.ErrorMapper` callbacks. Do not copy
+  the status lifecycle into generated service methods.
 - Generated transport observability must remain dependency-free and must never
   emit bodies, params, tool arguments, credentials, or result payloads.
 - Keep HTTP, gRPC, and JSON-RPC semantics distinct unless a deliberately shared

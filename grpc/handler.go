@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -79,6 +80,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 			// Decode gRPC request message and incoming metadata
 			md, _ := metadata.FromIncomingContext(ctx)
 			if req, err = h.decoder(ctx, reqpb, md); err != nil {
+				loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonRequestDecodeFailed)
 				var e *loom.ServiceError
 				if errors.As(err, &e) {
 					return nil, err
@@ -95,6 +97,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 	{
 		// Invoke Loom endpoint
 		if resp, err = h.endpoint(ctx, req); err != nil {
+			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonHandlerError)
 			return nil, err
 		}
 	}
@@ -109,6 +112,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 		if h.encoder != nil {
 			// Encode gRPC response
 			if respb, err = h.encoder(ctx, resp, &hdr, &trlr); err != nil {
+				loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonResponseWriteFailed)
 				var e *loom.ServiceError
 				if errors.As(err, &e) {
 					return nil, err
@@ -122,6 +126,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 	// Encode gRPC headers
 	if len(hdr) > 0 {
 		if err := grpc.SendHeader(ctx, hdr); err != nil {
+			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonResponseWriteFailed)
 			gerr := loom.Fault("%s", err.Error())
 			return nil, NewStatusError(codes.Unknown, gerr, NewErrorResponse(gerr))
 		}
@@ -130,6 +135,7 @@ func (h *unaryHandler) Handle(ctx context.Context, reqpb any) (any, error) {
 	// Encode gRPC trailers
 	if len(trlr) > 0 {
 		if err := grpc.SetTrailer(ctx, trlr); err != nil {
+			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonResponseWriteFailed)
 			gerr := loom.Fault("%s", err.Error())
 			return nil, NewStatusError(codes.Unknown, gerr, NewErrorResponse(gerr))
 		}
@@ -148,6 +154,7 @@ func (h *streamHandler) Decode(ctx context.Context, reqpb any) (any, error) {
 		if h.decoder != nil {
 			md, _ := metadata.FromIncomingContext(ctx)
 			if req, err = h.decoder(ctx, reqpb, md); err != nil {
+				loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonRequestDecodeFailed)
 				var e *loom.ServiceError
 				if errors.As(err, &e) {
 					return nil, err
@@ -163,5 +170,8 @@ func (h *streamHandler) Decode(ctx context.Context, reqpb any) (any, error) {
 // Handle serves a gRPC request.
 func (h *streamHandler) Handle(ctx context.Context, stream any) error {
 	_, err := h.endpoint(ctx, stream)
+	if err != nil {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonHandlerError)
+	}
 	return err
 }

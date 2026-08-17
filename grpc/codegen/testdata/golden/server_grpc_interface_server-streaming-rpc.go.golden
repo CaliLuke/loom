@@ -1,17 +1,20 @@
 // MethodServerStreamingRPC implements the "MethodServerStreamingRPC" method in
 // service_server_streaming_rpcpb.ServiceServerStreamingRPCServer interface.
 func (s *Server) MethodServerStreamingRPC(message *service_server_streaming_rpcpb.MethodServerStreamingRPCRequest, stream service_server_streaming_rpcpb.ServiceServerStreamingRPC_MethodServerStreamingRPCServer) error {
-	ctx := stream.Context()
-	ctx = context.WithValue(ctx, loom.MethodKey, "MethodServerStreamingRPC")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceServerStreamingRPC")
-	p, err := s.MethodServerStreamingRPCH.Decode(ctx, message)
-	if err != nil {
-		return loomgrpc.EncodeError(err)
-	}
-	ep := &serviceserverstreamingrpc.MethodServerStreamingRPCEndpointInput{Stream: &MethodServerStreamingRPCServerStream{stream: stream}, Payload: p.(int)}
-	err = s.MethodServerStreamingRPCH.Handle(ctx, ep)
-	if err != nil {
-		return loomgrpc.EncodeError(err)
-	}
-	return nil
+	return loomgrpc.ServeStream(stream.Context(), loomgrpc.StreamServerSpec{
+		Decode: func(ctx context.Context) (any, error) {
+			p, err := s.MethodServerStreamingRPCH.Decode(ctx, message)
+			if err != nil {
+				return nil, err
+			}
+			ep := &serviceserverstreamingrpc.MethodServerStreamingRPCEndpointInput{Stream: &MethodServerStreamingRPCServerStream{
+				ctx:    ctx,
+				stream: stream,
+			}, Payload: p.(int)}
+			return ep, nil
+		},
+		Handle:  s.MethodServerStreamingRPCH.Handle,
+		Method:  "MethodServerStreamingRPC",
+		Service: "ServiceServerStreamingRPC",
+	})
 }

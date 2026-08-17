@@ -1,11 +1,13 @@
 // MethodUnaryRPCNoResult implements the "MethodUnaryRPCNoResult" method in
 // service_unary_rpc_no_resultpb.ServiceUnaryRPCNoResultServer interface.
 func (s *Server) MethodUnaryRPCNoResult(ctx context.Context, message *service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultRequest) (*service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultResponse, error) {
-	ctx = context.WithValue(ctx, loom.MethodKey, "MethodUnaryRPCNoResult")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceUnaryRPCNoResult")
-	resp, err := s.MethodUnaryRPCNoResultH.Handle(ctx, message)
+	resp, err := loomgrpc.ServeUnary(ctx, message, loomgrpc.UnaryServerSpec{
+		Handler: s.MethodUnaryRPCNoResultH,
+		Method:  "MethodUnaryRPCNoResult",
+		Service: "ServiceUnaryRPCNoResult",
+	})
 	if err != nil {
-		return nil, loomgrpc.EncodeError(err)
+		return nil, err
 	}
 	return resp.(*service_unary_rpc_no_resultpb.MethodUnaryRPCNoResultResponse), nil
 }

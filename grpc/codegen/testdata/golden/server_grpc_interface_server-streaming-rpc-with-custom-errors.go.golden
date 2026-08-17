@@ -1,55 +1,49 @@
 // ServerStream implements the "ServerStream" method in
 // streaming_error_servicepb.StreamingErrorServiceServer interface.
 func (s *Server) ServerStream(message *streaming_error_servicepb.ServerStreamRequest, stream streaming_error_servicepb.StreamingErrorService_ServerStreamServer) error {
-	ctx := stream.Context()
-	ctx = context.WithValue(ctx, loom.MethodKey, "ServerStream")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "StreamingErrorService")
-	p, err := s.ServerStreamH.Decode(ctx, message)
-	if err != nil {
-		var en loom.LoomErrorNamer
-		if errors.As(err, &en) {
-			switch en.LoomErrorName() {
-			case "custom_error":
-				var er *streamingerrorservice.CustomError
-				if !errors.As(err, &er) {
-					return loomgrpc.EncodeError(err)
-				}
-				return loomgrpc.NewStatusError(codes.InvalidArgument, err, NewServerStreamCustomErrorError(er))
-			case "validation_error":
-				var er *streamingerrorservice.ValidationError
-				if !errors.As(err, &er) {
-					return loomgrpc.EncodeError(err)
-				}
-				return loomgrpc.NewStatusError(codes.FailedPrecondition, err, NewServerStreamValidationErrorError(er))
-			case "internal_error":
-				return loomgrpc.NewStatusError(codes.Internal, err, loomgrpc.NewErrorResponse(err))
+	return loomgrpc.ServeStream(stream.Context(), loomgrpc.StreamServerSpec{
+		Decode: func(ctx context.Context) (any, error) {
+			p, err := s.ServerStreamH.Decode(ctx, message)
+			if err != nil {
+				return nil, err
 			}
+			ep := &streamingerrorservice.ServerStreamEndpointInput{Stream: &ServerStreamServerStream{
+				ctx:    ctx,
+				stream: stream,
+			}, Payload: p.(string)}
+			return ep, nil
+		},
+		Handle:   s.ServerStreamH.Handle,
+		MapError: mapServerStreamError,
+		Method:   "ServerStream",
+		Service:  "StreamingErrorService",
+	})
+}
+func mapServerStreamError(name string, err error) (loomgrpc.ErrorMapping, bool, error) {
+	switch name {
+	case "custom_error":
+		var er *streamingerrorservice.CustomError
+		if !errors.As(err, &er) {
+			return loomgrpc.ErrorMapping{}, false, nil
 		}
-		return loomgrpc.EncodeError(err)
-	}
-	ep := &streamingerrorservice.ServerStreamEndpointInput{Stream: &ServerStreamServerStream{stream: stream}, Payload: p.(string)}
-	err = s.ServerStreamH.Handle(ctx, ep)
-	if err != nil {
-		var en loom.LoomErrorNamer
-		if errors.As(err, &en) {
-			switch en.LoomErrorName() {
-			case "custom_error":
-				var er *streamingerrorservice.CustomError
-				if !errors.As(err, &er) {
-					return loomgrpc.EncodeError(err)
-				}
-				return loomgrpc.NewStatusError(codes.InvalidArgument, err, NewServerStreamCustomErrorError(er))
-			case "validation_error":
-				var er *streamingerrorservice.ValidationError
-				if !errors.As(err, &er) {
-					return loomgrpc.EncodeError(err)
-				}
-				return loomgrpc.NewStatusError(codes.FailedPrecondition, err, NewServerStreamValidationErrorError(er))
-			case "internal_error":
-				return loomgrpc.NewStatusError(codes.Internal, err, loomgrpc.NewErrorResponse(err))
-			}
+		return loomgrpc.ErrorMapping{
+			Code:   codes.InvalidArgument,
+			Detail: NewServerStreamCustomErrorError(er),
+		}, true, nil
+	case "validation_error":
+		var er *streamingerrorservice.ValidationError
+		if !errors.As(err, &er) {
+			return loomgrpc.ErrorMapping{}, false, nil
 		}
-		return loomgrpc.EncodeError(err)
+		return loomgrpc.ErrorMapping{
+			Code:   codes.FailedPrecondition,
+			Detail: NewServerStreamValidationErrorError(er),
+		}, true, nil
+	case "internal_error":
+		return loomgrpc.ErrorMapping{
+			Code:   codes.Internal,
+			Detail: loomgrpc.NewErrorResponse(err),
+		}, true, nil
 	}
-	return nil
+	return loomgrpc.ErrorMapping{}, false, nil
 }

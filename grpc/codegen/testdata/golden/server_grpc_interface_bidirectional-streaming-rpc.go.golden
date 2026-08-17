@@ -3,17 +3,20 @@
 // service_bidirectional_streaming_rpcpb.ServiceBidirectionalStreamingRPCServer
 // interface.
 func (s *Server) MethodBidirectionalStreamingRPC(stream service_bidirectional_streaming_rpcpb.ServiceBidirectionalStreamingRPC_MethodBidirectionalStreamingRPCServer) error {
-	ctx := stream.Context()
-	ctx = context.WithValue(ctx, loom.MethodKey, "MethodBidirectionalStreamingRPC")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceBidirectionalStreamingRPC")
-	_, err := s.MethodBidirectionalStreamingRPCH.Decode(ctx, nil)
-	if err != nil {
-		return loomgrpc.EncodeError(err)
-	}
-	ep := &servicebidirectionalstreamingrpc.MethodBidirectionalStreamingRPCEndpointInput{Stream: &MethodBidirectionalStreamingRPCServerStream{stream: stream}}
-	err = s.MethodBidirectionalStreamingRPCH.Handle(ctx, ep)
-	if err != nil {
-		return loomgrpc.EncodeError(err)
-	}
-	return nil
+	return loomgrpc.ServeStream(stream.Context(), loomgrpc.StreamServerSpec{
+		Decode: func(ctx context.Context) (any, error) {
+			_, err := s.MethodBidirectionalStreamingRPCH.Decode(ctx, nil)
+			if err != nil {
+				return nil, err
+			}
+			ep := &servicebidirectionalstreamingrpc.MethodBidirectionalStreamingRPCEndpointInput{Stream: &MethodBidirectionalStreamingRPCServerStream{
+				ctx:    ctx,
+				stream: stream,
+			}}
+			return ep, nil
+		},
+		Handle:  s.MethodBidirectionalStreamingRPCH.Handle,
+		Method:  "MethodBidirectionalStreamingRPC",
+		Service: "ServiceBidirectionalStreamingRPC",
+	})
 }

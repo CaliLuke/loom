@@ -16,7 +16,8 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   decisions
 - `http/codegen/openapi/v3`: OpenAPI 3.2 rendering and 3.1 compatibility
   projection
-- `grpc/`: gRPC runtime and protobuf/transport generation
+- `grpc/`: gRPC runtime-owned metadata, status, observation, and stream
+  completion lifecycle; protobuf/transport generation; and typed error mapping
 - `jsonrpc/`: JSON-RPC runtime-owned envelope, batch, notification, SSE, and
   WebSocket lifecycle; typed transport generation; and integrations
 - `observability/`: framework-owned tracing, metrics, logging, and transport

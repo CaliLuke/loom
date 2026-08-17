@@ -39,6 +39,9 @@ func TestServerGRPCInterface(t *testing.T) {
 			sections := fs[0].Section("server-grpc-interface")
 			require.NotEmpty(t, sections)
 			code := codegen.SectionsCode(t, sections)
+			require.Contains(t, code, "loomgrpc.Serve")
+			require.NotContains(t, code, "context.WithValue")
+			require.NotContains(t, code, "loomgrpc.NewStatusError")
 			testutil.AssertGo(t, "testdata/golden/server_grpc_interface_"+c.Name+".go.golden", code)
 		})
 	}

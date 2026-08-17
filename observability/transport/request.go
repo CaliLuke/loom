@@ -3,12 +3,13 @@ package transport
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 )
 
 // RequestObserver tracks a single transport request lifecycle and emits
 // Start, terminal, and panic events through an Observer attached to the
-// request context. Generated HTTP, JSON-RPC, and MCP transports use the
+// request context. HTTP, gRPC, JSON-RPC, and MCP transports use the
 // observer to consolidate per-request boilerplate into a small surface:
 //
 //	obs, w := transport.BeginHTTPRequest(ctx, w, "Service", "Method", r)
@@ -19,7 +20,9 @@ import (
 // End must be deferred so panics propagate through it as
 // EventKindRequestFailure with [ReasonPanic] and are re-panicked; if End is
 // reached without a recorded failure, EventKindRequestFinish is emitted.
+// RequestObserver methods are safe for concurrent use.
 type RequestObserver struct {
+	mu        sync.Mutex
 	ctx       context.Context
 	transport TransportKind
 	service   string
@@ -105,7 +108,12 @@ func BeginRequest(ctx context.Context, kind TransportKind, service, method strin
 // downstream cleanup classifications. End will emit
 // EventKindRequestFailure with the recorded reason.
 func (o *RequestObserver) Fail(reason Reason) {
-	if o == nil || o.failed {
+	if o == nil {
+		return
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.failed || o.finished {
 		return
 	}
 	o.failed = true
@@ -116,7 +124,12 @@ func (o *RequestObserver) Fail(reason Reason) {
 // terminal event. The message is reported through Event.SafeMessage and
 // must not contain raw user input, credentials, or payload data.
 func (o *RequestObserver) FailWithMessage(reason Reason, safeMessage string) {
-	if o == nil || o.failed {
+	if o == nil {
+		return
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.failed || o.finished {
 		return
 	}
 	o.failed = true
@@ -131,6 +144,11 @@ func (o *RequestObserver) FailWithMessage(reason Reason, safeMessage string) {
 // method as the operation name.
 func (o *RequestObserver) SetJSONRPC(method, id string, batchCount int, notification bool) {
 	if o == nil {
+		return
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.finished {
 		return
 	}
 	o.jsonrpcMethod = method
@@ -148,6 +166,11 @@ func (o *RequestObserver) SetSession(sessionID string) {
 	if o == nil {
 		return
 	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.finished {
+		return
+	}
 	o.sessionID = sessionID
 }
 
@@ -159,22 +182,32 @@ func (o *RequestObserver) End() {
 	if o == nil {
 		return
 	}
-	if rec := recover(); rec != nil {
-		o.failed = true
-		o.reason = ReasonPanic
-		o.emit(EventKindRequestFailure, ReasonPanic)
-		o.finished = true
-		panic(rec)
-	}
+	rec := recover()
+	o.mu.Lock()
 	if o.finished {
+		o.mu.Unlock()
+		if rec != nil {
+			panic(rec)
+		}
 		return
 	}
 	o.finished = true
-	if o.failed {
-		o.emit(EventKindRequestFailure, o.reason)
-		return
+	if rec != nil {
+		o.failed = true
+		o.reason = ReasonPanic
+		event := o.eventLocked(EventKindRequestFailure, ReasonPanic)
+		o.mu.Unlock()
+		Observe(o.ctx, event)
+		panic(rec)
 	}
-	o.emit(EventKindRequestFinish, ReasonOK)
+	var event Event
+	if o.failed {
+		event = o.eventLocked(EventKindRequestFailure, o.reason)
+	} else {
+		event = o.eventLocked(EventKindRequestFinish, ReasonOK)
+	}
+	o.mu.Unlock()
+	Observe(o.ctx, event)
 }
 
 // EmitStreamOpen reports the opening of a streaming response within the
@@ -206,7 +239,18 @@ func (o *RequestObserver) EmitStreamFailure(reason Reason) {
 }
 
 func (o *RequestObserver) emit(kind EventKind, reason Reason) {
-	e := Event{
+	o.mu.Lock()
+	if o.finished {
+		o.mu.Unlock()
+		return
+	}
+	event := o.eventLocked(kind, reason)
+	o.mu.Unlock()
+	Observe(o.ctx, event)
+}
+
+func (o *RequestObserver) eventLocked(kind EventKind, reason Reason) Event {
+	event := Event{
 		Kind:          kind,
 		Reason:        reason,
 		Transport:     o.transport,
@@ -220,14 +264,16 @@ func (o *RequestObserver) emit(kind EventKind, reason Reason) {
 		BatchCount:    o.batchCount,
 		Notification:  o.notification,
 		SessionID:     o.sessionID,
-		SafeMessage:   o.emitWithMessage,
+	}
+	if kind == EventKindRequestFailure {
+		event.SafeMessage = o.emitWithMessage
+		o.emitWithMessage = ""
 	}
 	if o.capture != nil {
-		e.StatusCode = o.capture.StatusCode()
-		e.BytesWritten = o.capture.BytesWritten()
+		event.StatusCode = o.capture.StatusCode()
+		event.BytesWritten = o.capture.BytesWritten()
 	}
-	Observe(o.ctx, e)
-	o.emitWithMessage = ""
+	return event
 }
 
 type requestObserverKey struct{}

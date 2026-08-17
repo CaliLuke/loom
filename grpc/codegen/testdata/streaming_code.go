@@ -5,6 +5,7 @@ var ServerStreamingServerStructCode = `// MethodServerStreamingUserTypeRPCServer
 // interface.
 type MethodServerStreamingUserTypeRPCServerStream struct {
 	stream service_server_streaming_user_type_rpcpb.ServiceServerStreamingUserTypeRPC_MethodServerStreamingUserTypeRPCServer
+	ctx    context.Context
 }
 `
 
@@ -13,7 +14,7 @@ var ServerStreamingServerSendCode = `// Send streams instances of
 // to the "MethodServerStreamingUserTypeRPC" endpoint gRPC stream.
 func (s *MethodServerStreamingUserTypeRPCServerStream) Send(res *serviceserverstreamingusertyperpc.UserType) error {
 	v := NewProtoUserTypeMethodServerStreamingUserTypeRPCResponse(res)
-	return s.stream.Send(v)
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
 // SendWithContext streams instances of
@@ -64,6 +65,7 @@ var ServerStreamingResultWithViewsServerStructCode = `// MethodServerStreamingUs
 // interface.
 type MethodServerStreamingUserTypeRPCServerStream struct {
 	stream service_server_streaming_user_type_rpcpb.ServiceServerStreamingUserTypeRPC_MethodServerStreamingUserTypeRPCServer
+	ctx    context.Context
 	view   string
 }
 `
@@ -74,10 +76,10 @@ var ServerStreamingResultWithViewsServerSendCode = `// Send streams instances of
 func (s *MethodServerStreamingUserTypeRPCServerStream) Send(res *serviceserverstreamingusertyperpc.ResultType) error {
 	vres, err := serviceserverstreamingusertyperpc.NewViewedResultType(res, s.view)
 	if err != nil {
-		return err
+		return loomgrpc.ObserveStreamEncodeError(s.ctx, err)
 	}
 	v := NewProtoResultTypeViewMethodServerStreamingUserTypeRPCResponse(vres.Projected)
-	return s.stream.Send(v)
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
 // SendWithContext streams instances of
@@ -146,10 +148,10 @@ var ServerStreamingResultCollectionWithExplicitViewServerSendCode = `// Send str
 func (s *MethodServerStreamingResultTypeCollectionWithExplicitViewServerStream) Send(res serviceserverstreamingresulttypecollectionwithexplicitview.ResultTypeCollection) error {
 	vres, err := serviceserverstreamingresulttypecollectionwithexplicitview.NewViewedResultTypeCollection(res, "tiny")
 	if err != nil {
-		return err
+		return loomgrpc.ObserveStreamEncodeError(s.ctx, err)
 	}
 	v := NewProtoResultTypeCollectionViewResultTypeCollection(vres.Projected)
-	return s.stream.Send(v)
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
 // SendWithContext streams instances of
@@ -197,7 +199,7 @@ var ServerStreamingPrimitiveServerSendCode = `// Send streams instances of
 // "MethodServerStreamingRPC" endpoint gRPC stream.
 func (s *MethodServerStreamingRPCServerStream) Send(res string) error {
 	v := NewProtoMethodServerStreamingRPCResponse(res)
-	return s.stream.Send(v)
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
 // SendWithContext streams instances of
@@ -233,7 +235,7 @@ var ServerStreamingArrayServerSendCode = `// Send streams instances of
 // "MethodServerStreamingArray" endpoint gRPC stream.
 func (s *MethodServerStreamingArrayServerStream) Send(res []int) error {
 	v := NewProtoMethodServerStreamingArrayResponse(res)
-	return s.stream.Send(v)
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
 // SendWithContext streams instances of
@@ -269,7 +271,7 @@ var ServerStreamingMapServerSendCode = `// Send streams instances of
 // "MethodServerStreamingMap" endpoint gRPC stream.
 func (s *MethodServerStreamingMapServerStream) Send(res map[string]*serviceserverstreamingmap.UserType) error {
 	v := NewProtoMethodServerStreamingMapResponse(res)
-	return s.stream.Send(v)
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
 // SendWithContext streams instances of
@@ -343,6 +345,7 @@ var ClientStreamingServerStructCode = `// MethodClientStreamingRPCServerStream i
 // serviceclientstreamingrpc.MethodClientStreamingRPCServerStream interface.
 type MethodClientStreamingRPCServerStream struct {
 	stream service_client_streaming_rpcpb.ServiceClientStreamingRPC_MethodClientStreamingRPCServer
+	ctx    context.Context
 }
 `
 
@@ -351,7 +354,7 @@ var ClientStreamingServerSendCode = `// SendAndClose streams instances of
 // "MethodClientStreamingRPC" endpoint gRPC stream.
 func (s *MethodClientStreamingRPCServerStream) SendAndClose(res string) error {
 	v := NewProtoMethodClientStreamingRPCResponse(res)
-	return s.stream.SendAndClose(v)
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.SendAndClose(v))
 }
 
 // SendAndCloseWithContext streams instances of
@@ -369,7 +372,7 @@ func (s *MethodClientStreamingRPCServerStream) Recv() (int, error) {
 	var res int
 	v, err := s.stream.Recv()
 	if err != nil {
-		return res, err
+		return res, loomgrpc.ObserveStreamDecodeError(s.ctx, err)
 	}
 	return NewMethodClientStreamingRPCStreamingRequestMethodClientStreamingRPCStreamingRequest(v), nil
 }
@@ -427,7 +430,7 @@ func (s *MethodClientStreamingRPCClientStream) CloseAndRecvWithContext(ctx conte
 
 var ClientStreamingServerNoResultCloseCode = `func (s *MethodClientStreamingNoResultServerStream) Close() error {
 	// synchronize stream
-	return s.stream.SendAndClose(&service_client_streaming_no_resultpb.MethodClientStreamingNoResultResponse{})
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.SendAndClose(&service_client_streaming_no_resultpb.MethodClientStreamingNoResultResponse{}))
 }
 `
 
@@ -443,6 +446,7 @@ var BidirectionalStreamingServerStructCode = `// MethodBidirectionalStreamingRPC
 // interface.
 type MethodBidirectionalStreamingRPCServerStream struct {
 	stream service_bidirectional_streaming_rpcpb.ServiceBidirectionalStreamingRPC_MethodBidirectionalStreamingRPCServer
+	ctx    context.Context
 	view   string
 }
 `
@@ -453,10 +457,10 @@ var BidirectionalStreamingServerSendCode = `// Send streams instances of
 func (s *MethodBidirectionalStreamingRPCServerStream) Send(res *servicebidirectionalstreamingrpc.ID) error {
 	vres, err := servicebidirectionalstreamingrpc.NewViewedID(res, "default")
 	if err != nil {
-		return err
+		return loomgrpc.ObserveStreamEncodeError(s.ctx, err)
 	}
 	v := NewProtoIDViewMethodBidirectionalStreamingRPCResponse(vres.Projected)
-	return s.stream.Send(v)
+	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
 // SendWithContext streams instances of
@@ -474,7 +478,7 @@ func (s *MethodBidirectionalStreamingRPCServerStream) Recv() (int, error) {
 	var res int
 	v, err := s.stream.Recv()
 	if err != nil {
-		return res, err
+		return res, loomgrpc.ObserveStreamDecodeError(s.ctx, err)
 	}
 	return NewMethodBidirectionalStreamingRPCStreamingRequestMethodBidirectionalStreamingRPCStreamingRequest(v), nil
 }

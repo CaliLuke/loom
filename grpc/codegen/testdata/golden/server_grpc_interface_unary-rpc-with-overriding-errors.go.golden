@@ -3,20 +3,29 @@
 // service_unary_rpc_with_overriding_errorspb.ServiceUnaryRPCWithOverridingErrorsServer
 // interface.
 func (s *Server) MethodUnaryRPCWithOverridingErrors(ctx context.Context, message *service_unary_rpc_with_overriding_errorspb.MethodUnaryRPCWithOverridingErrorsRequest) (*service_unary_rpc_with_overriding_errorspb.MethodUnaryRPCWithOverridingErrorsResponse, error) {
-	ctx = context.WithValue(ctx, loom.MethodKey, "MethodUnaryRPCWithOverridingErrors")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceUnaryRPCWithOverridingErrors")
-	resp, err := s.MethodUnaryRPCWithOverridingErrorsH.Handle(ctx, message)
+	resp, err := loomgrpc.ServeUnary(ctx, message, loomgrpc.UnaryServerSpec{
+		Handler:  s.MethodUnaryRPCWithOverridingErrorsH,
+		MapError: mapMethodUnaryRPCWithOverridingErrorsError,
+		Method:   "MethodUnaryRPCWithOverridingErrors",
+		Service:  "ServiceUnaryRPCWithOverridingErrors",
+	})
 	if err != nil {
-		var en loom.LoomErrorNamer
-		if errors.As(err, &en) {
-			switch en.LoomErrorName() {
-			case "overridden":
-				return nil, loomgrpc.NewStatusError(codes.Unknown, err, loomgrpc.NewErrorResponse(err))
-			case "internal":
-				return nil, loomgrpc.NewStatusError(codes.Unknown, err, loomgrpc.NewErrorResponse(err))
-			}
-		}
-		return nil, loomgrpc.EncodeError(err)
+		return nil, err
 	}
 	return resp.(*service_unary_rpc_with_overriding_errorspb.MethodUnaryRPCWithOverridingErrorsResponse), nil
+}
+func mapMethodUnaryRPCWithOverridingErrorsError(name string, err error) (loomgrpc.ErrorMapping, bool, error) {
+	switch name {
+	case "overridden":
+		return loomgrpc.ErrorMapping{
+			Code:   codes.Unknown,
+			Detail: loomgrpc.NewErrorResponse(err),
+		}, true, nil
+	case "internal":
+		return loomgrpc.ErrorMapping{
+			Code:   codes.Unknown,
+			Detail: loomgrpc.NewErrorResponse(err),
+		}, true, nil
+	}
+	return loomgrpc.ErrorMapping{}, false, nil
 }

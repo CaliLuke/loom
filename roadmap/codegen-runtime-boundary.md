@@ -141,6 +141,12 @@ validates envelopes, frames batches, suppresses notification responses,
 negotiates HTTP and SSE, owns WebSocket setup, and controls final stream
 responses. Generated switches retain compile-time links to designed methods.
 
+gRPC servers pass generated handlers and typed designed-error mappers to
+`ServeUnary` and `ServeStream`. The runtime applies request metadata, response
+headers and trailers, status conversion, observation, and clean stream
+completion. Generated code retains protocol buffer conversion and typed error
+detail construction.
+
 The runtime helpers do not accept an untyped service registry.
 
 ## Compatibility Contract
@@ -180,7 +186,13 @@ decisions, fixtures, error content, and retry policy.
    implemented on its ticket branch. The checked-in `ticktock` JSON-RPC server
    decreased from 360 to 257 lines. The mixed HTTP/SSE server decreased from
    508 to 302 lines.
-5. Issue #283 moves gRPC metadata and status lifecycle into the runtime.
+5. Issue #283 moves gRPC metadata and status lifecycle into the runtime. The
+   phase is implemented on its ticket branch. The gRPC quality fixture
+   changes from 3,152 to 3,159 lines. Its generated server total changes from
+   607 to 614 lines. The new lines carry the runtime request context into stream
+   adapters and classify stream I/O errors at their source. Each streaming
+   method now emits one typed error mapping instead of repeating the full status
+   lifecycle after both decode and endpoint invocation.
 
 Each phase records line counts for the same fixtures. Each phase also runs the
 transport integration tests and `make generated-code-quality`.

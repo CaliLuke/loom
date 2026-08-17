@@ -3,39 +3,41 @@
 // service_bidirectional_streaming_rpc_with_errorspb.ServiceBidirectionalStreamingRPCWithErrorsServer
 // interface.
 func (s *Server) MethodBidirectionalStreamingRPCWithErrors(stream service_bidirectional_streaming_rpc_with_errorspb.ServiceBidirectionalStreamingRPCWithErrors_MethodBidirectionalStreamingRPCWithErrorsServer) error {
-	ctx := stream.Context()
-	ctx = context.WithValue(ctx, loom.MethodKey, "MethodBidirectionalStreamingRPCWithErrors")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceBidirectionalStreamingRPCWithErrors")
-	_, err := s.MethodBidirectionalStreamingRPCWithErrorsH.Decode(ctx, nil)
-	if err != nil {
-		var en loom.LoomErrorNamer
-		if errors.As(err, &en) {
-			switch en.LoomErrorName() {
-			case "timeout":
-				return loomgrpc.NewStatusError(codes.Canceled, err, loomgrpc.NewErrorResponse(err))
-			case "internal":
-				return loomgrpc.NewStatusError(codes.Unknown, err, loomgrpc.NewErrorResponse(err))
-			case "bad_request":
-				return loomgrpc.NewStatusError(codes.InvalidArgument, err, loomgrpc.NewErrorResponse(err))
+	return loomgrpc.ServeStream(stream.Context(), loomgrpc.StreamServerSpec{
+		Decode: func(ctx context.Context) (any, error) {
+			_, err := s.MethodBidirectionalStreamingRPCWithErrorsH.Decode(ctx, nil)
+			if err != nil {
+				return nil, err
 			}
-		}
-		return loomgrpc.EncodeError(err)
+			ep := &servicebidirectionalstreamingrpcwitherrors.MethodBidirectionalStreamingRPCWithErrorsEndpointInput{Stream: &MethodBidirectionalStreamingRPCWithErrorsServerStream{
+				ctx:    ctx,
+				stream: stream,
+			}}
+			return ep, nil
+		},
+		Handle:   s.MethodBidirectionalStreamingRPCWithErrorsH.Handle,
+		MapError: mapMethodBidirectionalStreamingRPCWithErrorsError,
+		Method:   "MethodBidirectionalStreamingRPCWithErrors",
+		Service:  "ServiceBidirectionalStreamingRPCWithErrors",
+	})
+}
+func mapMethodBidirectionalStreamingRPCWithErrorsError(name string, err error) (loomgrpc.ErrorMapping, bool, error) {
+	switch name {
+	case "timeout":
+		return loomgrpc.ErrorMapping{
+			Code:   codes.Canceled,
+			Detail: loomgrpc.NewErrorResponse(err),
+		}, true, nil
+	case "internal":
+		return loomgrpc.ErrorMapping{
+			Code:   codes.Unknown,
+			Detail: loomgrpc.NewErrorResponse(err),
+		}, true, nil
+	case "bad_request":
+		return loomgrpc.ErrorMapping{
+			Code:   codes.InvalidArgument,
+			Detail: loomgrpc.NewErrorResponse(err),
+		}, true, nil
 	}
-	ep := &servicebidirectionalstreamingrpcwitherrors.MethodBidirectionalStreamingRPCWithErrorsEndpointInput{Stream: &MethodBidirectionalStreamingRPCWithErrorsServerStream{stream: stream}}
-	err = s.MethodBidirectionalStreamingRPCWithErrorsH.Handle(ctx, ep)
-	if err != nil {
-		var en loom.LoomErrorNamer
-		if errors.As(err, &en) {
-			switch en.LoomErrorName() {
-			case "timeout":
-				return loomgrpc.NewStatusError(codes.Canceled, err, loomgrpc.NewErrorResponse(err))
-			case "internal":
-				return loomgrpc.NewStatusError(codes.Unknown, err, loomgrpc.NewErrorResponse(err))
-			case "bad_request":
-				return loomgrpc.NewStatusError(codes.InvalidArgument, err, loomgrpc.NewErrorResponse(err))
-			}
-		}
-		return loomgrpc.EncodeError(err)
-	}
-	return nil
+	return loomgrpc.ErrorMapping{}, false, nil
 }

@@ -3,28 +3,31 @@
 // service_bidirectional_streaming_rpc_with_payloadpb.ServiceBidirectionalStreamingRPCWithPayloadServer
 // interface.
 func (s *Server) MethodBidirectionalStreamingRPCWithPayload(stream service_bidirectional_streaming_rpc_with_payloadpb.ServiceBidirectionalStreamingRPCWithPayload_MethodBidirectionalStreamingRPCWithPayloadServer) error {
-	ctx := stream.Context()
-	ctx = context.WithValue(ctx, loom.MethodKey, "MethodBidirectionalStreamingRPCWithPayload")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceBidirectionalStreamingRPCWithPayload")
-	var reqpb any
-	message, err := stream.Recv()
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			reqpb = nil
-		} else {
-			return loomgrpc.EncodeError(err)
-		}
-	} else {
-		reqpb = message
-	}
-	p, err := s.MethodBidirectionalStreamingRPCWithPayloadH.Decode(ctx, reqpb)
-	if err != nil {
-		return loomgrpc.EncodeError(err)
-	}
-	ep := &servicebidirectionalstreamingrpcwithpayload.MethodBidirectionalStreamingRPCWithPayloadEndpointInput{Stream: &MethodBidirectionalStreamingRPCWithPayloadServerStream{stream: stream}, Payload: p.(*servicebidirectionalstreamingrpcwithpayload.Payload)}
-	err = s.MethodBidirectionalStreamingRPCWithPayloadH.Handle(ctx, ep)
-	if err != nil {
-		return loomgrpc.EncodeError(err)
-	}
-	return nil
+	return loomgrpc.ServeStream(stream.Context(), loomgrpc.StreamServerSpec{
+		Decode: func(ctx context.Context) (any, error) {
+			var reqpb any
+			message, err := stream.Recv()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					reqpb = nil
+				} else {
+					return nil, err
+				}
+			} else {
+				reqpb = message
+			}
+			p, err := s.MethodBidirectionalStreamingRPCWithPayloadH.Decode(ctx, reqpb)
+			if err != nil {
+				return nil, err
+			}
+			ep := &servicebidirectionalstreamingrpcwithpayload.MethodBidirectionalStreamingRPCWithPayloadEndpointInput{Stream: &MethodBidirectionalStreamingRPCWithPayloadServerStream{
+				ctx:    ctx,
+				stream: stream,
+			}, Payload: p.(*servicebidirectionalstreamingrpcwithpayload.Payload)}
+			return ep, nil
+		},
+		Handle:  s.MethodBidirectionalStreamingRPCWithPayloadH.Handle,
+		Method:  "MethodBidirectionalStreamingRPCWithPayload",
+		Service: "ServiceBidirectionalStreamingRPCWithPayload",
+	})
 }

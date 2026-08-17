@@ -1,36 +1,51 @@
 // MethodUnaryRPCWithErrors implements the "MethodUnaryRPCWithErrors" method in
 // service_unary_rpc_with_errorspb.ServiceUnaryRPCWithErrorsServer interface.
 func (s *Server) MethodUnaryRPCWithErrors(ctx context.Context, message *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsRequest) (*service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsResponse, error) {
-	ctx = context.WithValue(ctx, loom.MethodKey, "MethodUnaryRPCWithErrors")
-	ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceUnaryRPCWithErrors")
-	resp, err := s.MethodUnaryRPCWithErrorsH.Handle(ctx, message)
+	resp, err := loomgrpc.ServeUnary(ctx, message, loomgrpc.UnaryServerSpec{
+		Handler:  s.MethodUnaryRPCWithErrorsH,
+		MapError: mapMethodUnaryRPCWithErrorsError,
+		Method:   "MethodUnaryRPCWithErrors",
+		Service:  "ServiceUnaryRPCWithErrors",
+	})
 	if err != nil {
-		var en loom.LoomErrorNamer
-		if errors.As(err, &en) {
-			switch en.LoomErrorName() {
-			case "timeout":
-				return nil, loomgrpc.NewStatusError(codes.Canceled, err, loomgrpc.NewErrorResponse(err))
-			case "internal":
-				var er *serviceunaryrpcwitherrors.AnotherError
-				if !errors.As(err, &er) {
-					return nil, loomgrpc.EncodeError(err)
-				}
-				return nil, loomgrpc.NewStatusError(codes.Unknown, err, NewMethodUnaryRPCWithErrorsInternalError(er))
-			case "bad_request":
-				var er *serviceunaryrpcwitherrors.AnotherError
-				if !errors.As(err, &er) {
-					return nil, loomgrpc.EncodeError(err)
-				}
-				return nil, loomgrpc.NewStatusError(codes.InvalidArgument, err, NewMethodUnaryRPCWithErrorsBadRequestError(er))
-			case "custom_error":
-				var er *serviceunaryrpcwitherrors.ErrorType
-				if !errors.As(err, &er) {
-					return nil, loomgrpc.EncodeError(err)
-				}
-				return nil, loomgrpc.NewStatusError(codes.Unknown, err, NewMethodUnaryRPCWithErrorsCustomErrorError(er))
-			}
-		}
-		return nil, loomgrpc.EncodeError(err)
+		return nil, err
 	}
 	return resp.(*service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsResponse), nil
+}
+func mapMethodUnaryRPCWithErrorsError(name string, err error) (loomgrpc.ErrorMapping, bool, error) {
+	switch name {
+	case "timeout":
+		return loomgrpc.ErrorMapping{
+			Code:   codes.Canceled,
+			Detail: loomgrpc.NewErrorResponse(err),
+		}, true, nil
+	case "internal":
+		var er *serviceunaryrpcwitherrors.AnotherError
+		if !errors.As(err, &er) {
+			return loomgrpc.ErrorMapping{}, false, nil
+		}
+		return loomgrpc.ErrorMapping{
+			Code:   codes.Unknown,
+			Detail: NewMethodUnaryRPCWithErrorsInternalError(er),
+		}, true, nil
+	case "bad_request":
+		var er *serviceunaryrpcwitherrors.AnotherError
+		if !errors.As(err, &er) {
+			return loomgrpc.ErrorMapping{}, false, nil
+		}
+		return loomgrpc.ErrorMapping{
+			Code:   codes.InvalidArgument,
+			Detail: NewMethodUnaryRPCWithErrorsBadRequestError(er),
+		}, true, nil
+	case "custom_error":
+		var er *serviceunaryrpcwitherrors.ErrorType
+		if !errors.As(err, &er) {
+			return loomgrpc.ErrorMapping{}, false, nil
+		}
+		return loomgrpc.ErrorMapping{
+			Code:   codes.Unknown,
+			Detail: NewMethodUnaryRPCWithErrorsCustomErrorError(er),
+		}, true, nil
+	}
+	return loomgrpc.ErrorMapping{}, false, nil
 }

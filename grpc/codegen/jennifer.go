@@ -255,11 +255,16 @@ func grpcServerInterfaceSection(endpoint *EndpointData) codegenpkg.Section {
 			Params(params...).
 			Params(results...).
 			BlockFunc(func(g *jen.Group) {
-				addGRPCServerContext(g, endpoint)
-				addGRPCServerHandleCall(g, endpoint)
-				appendGRPCServerErrorHandler(g, endpoint, endpoint.ServerStream != nil)
-				addGRPCServerReturn(g, endpoint)
+				if endpoint.ServerStream == nil {
+					writeGRPCUnaryServerMethod(g, endpoint)
+					return
+				}
+				writeGRPCStreamServerMethod(g, endpoint)
 			})
+		if len(endpoint.Errors) > 0 {
+			stmt.Line()
+			writeGRPCServerErrorMapper(stmt, endpoint)
+		}
 	})
 }
 
@@ -284,23 +289,48 @@ func grpcServerInterfaceResults(endpoint *EndpointData) []jen.Code {
 	return []jen.Code{jen.Error()}
 }
 
-func addGRPCServerContext(g *jen.Group, endpoint *EndpointData) {
-	if endpoint.ServerStream != nil {
-		g.Id("ctx").Op(":=").Id("stream").Dot("Context").Call()
-	}
-	g.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), codegenpkg.Expr("loom.MethodKey"), jen.Lit(endpoint.Method.Name))
-	g.Id("ctx").Op("=").Qual("context", "WithValue").Call(jen.Id("ctx"), codegenpkg.Expr("loom.ServiceKey"), jen.Lit(endpoint.ServiceName))
+func writeGRPCUnaryServerMethod(g *jen.Group, endpoint *EndpointData) {
+	g.List(jen.Id("resp"), jen.Err()).Op(":=").Add(codegenpkg.Expr("loomgrpc.ServeUnary")).Call(
+		jen.Id("ctx"),
+		jen.Id("message"),
+		codegenpkg.TypeRef("loomgrpc.UnaryServerSpec").Values(grpcServerSpecFields(endpoint)),
+	)
+	g.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Err()),
+	)
+	addGRPCServerReturn(g, endpoint)
 }
 
-func addGRPCServerHandleCall(g *jen.Group, endpoint *EndpointData) {
-	if endpoint.ServerStream != nil {
-		addGRPCStreamHandleCall(g, endpoint)
-		return
-	}
-	g.List(jen.Id("resp"), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Handle").Call(jen.Id("ctx"), jen.Id("message"))
+func writeGRPCStreamServerMethod(g *jen.Group, endpoint *EndpointData) {
+	fields := grpcServerSpecFields(endpoint)
+	fields[jen.Id("Decode")] = jen.Func().
+		Params(jen.Id("ctx").Qual("context", "Context")).
+		Params(jen.Any(), jen.Error()).
+		BlockFunc(func(decode *jen.Group) {
+			writeGRPCStreamInputDecode(decode, endpoint)
+		})
+	fields[jen.Id("Handle")] = jen.Id("s").Dot(endpoint.Method.VarName + "H").Dot("Handle")
+	g.Return(codegenpkg.Expr("loomgrpc.ServeStream").Call(
+		jen.Id("stream").Dot("Context").Call(),
+		codegenpkg.TypeRef("loomgrpc.StreamServerSpec").Values(fields),
+	))
 }
 
-func addGRPCStreamHandleCall(g *jen.Group, endpoint *EndpointData) {
+func grpcServerSpecFields(endpoint *EndpointData) jen.Dict {
+	fields := jen.Dict{
+		jen.Id("Service"): jen.Lit(endpoint.ServiceName),
+		jen.Id("Method"):  jen.Lit(endpoint.Method.Name),
+	}
+	if endpoint.ServerStream == nil {
+		fields[jen.Id("Handler")] = jen.Id("s").Dot(endpoint.Method.VarName + "H")
+	}
+	if len(endpoint.Errors) > 0 {
+		fields[jen.Id("MapError")] = jen.Id("map" + endpoint.Method.VarName + "Error")
+	}
+	return fields
+}
+
+func writeGRPCStreamInputDecode(g *jen.Group, endpoint *EndpointData) {
 	decodeTarget := "_"
 	if endpoint.PayloadRef != "" {
 		decodeTarget = "p"
@@ -314,7 +344,7 @@ func addGRPCStreamHandleCall(g *jen.Group, endpoint *EndpointData) {
 			jen.If(jen.Qual("errors", "Is").Call(jen.Err(), jen.Qual("io", "EOF"))).Block(
 				jen.Id("reqpb").Op("=").Nil(),
 			).Else().Block(
-				jen.Return(codegenpkg.Expr("loomgrpc.EncodeError").Call(jen.Err())),
+				jen.Return(jen.Nil(), jen.Err()),
 			),
 		).Else().Block(
 			jen.Id("reqpb").Op("=").Id("message"),
@@ -326,21 +356,24 @@ func addGRPCStreamHandleCall(g *jen.Group, endpoint *EndpointData) {
 		decodeArg = jen.Id("message")
 	}
 	g.List(jen.Id(decodeTarget), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Decode").Call(jen.Id("ctx"), decodeArg)
-	appendGRPCServerErrorHandler(g, endpoint, true)
+	g.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Err()),
+	)
 	g.Id("ep").Op(":=").Op("&").Qual(endpoint.ServicePkgName, endpoint.Method.VarName+"EndpointInput").ValuesFunc(func(dict *jen.Group) {
 		dict.Id("Stream").Op(":").Op("&").Id(endpoint.ServerStream.VarName).Values(jen.Dict{
 			jen.Id("stream"): jen.Id("stream"),
+			jen.Id("ctx"):    jen.Id("ctx"),
 		})
 		if endpoint.PayloadRef != "" {
-			dict.Id("Payload").Op(":").Id("p").Assert(codegenpkg.Expr(endpoint.PayloadRef))
+			dict.Id("Payload").Op(":").Id("p").Assert(codegenpkg.TypeRef(endpoint.PayloadRef))
 		}
 	})
-	g.Err().Op("=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Handle").Call(jen.Id("ctx"), jen.Id("ep"))
+	g.Return(jen.Id("ep"), jen.Nil())
 }
 
 func addGRPCServerReturn(g *jen.Group, endpoint *EndpointData) {
 	if endpoint.ServerStream == nil {
-		g.Return(jen.Id("resp").Assert(codegenpkg.Expr(endpoint.Response.ServerConvert.TgtRef)), jen.Nil())
+		g.Return(jen.Id("resp").Assert(codegenpkg.TypeRef(endpoint.Response.ServerConvert.TgtRef)), jen.Nil())
 		return
 	}
 	g.Return(jen.Nil())

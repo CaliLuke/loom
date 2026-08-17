@@ -22,15 +22,15 @@ type (
 	Event struct {
 		// Kind is the lifecycle position of the event.
 		Kind EventKind
-		// Transport identifies the generated transport (HTTP, JSON-RPC, MCP).
+		// Transport identifies the generated transport (HTTP, gRPC, JSON-RPC, MCP).
 		Transport TransportKind
 		// Reason is the stable classification for this event.
 		Reason Reason
 
 		// Service is the Loom service name owning the endpoint.
 		Service string
-		// Method is the operation name (HTTP handler, JSON-RPC method, or MCP
-		// tool) as known to the generator.
+		// Method is the operation name (HTTP handler, gRPC method, JSON-RPC
+		// method, or MCP tool) as known to the transport.
 		Method string
 		// Route is the HTTP route pattern when available.
 		Route string
@@ -98,6 +98,8 @@ const (
 const (
 	// TransportHTTP identifies generic HTTP-generated transport events.
 	TransportHTTP TransportKind = "http"
+	// TransportGRPC identifies gRPC-generated transport events.
+	TransportGRPC TransportKind = "grpc"
 	// TransportJSONRPC identifies JSON-RPC-generated transport events.
 	TransportJSONRPC TransportKind = "jsonrpc"
 	// TransportMCP identifies Loom-MCP-generated transport events.
@@ -141,8 +143,8 @@ const (
 	ReasonHandlerError Reason = "handler_error"
 	// ReasonPanic marks a recovered panic in the generated handler.
 	ReasonPanic Reason = "panic"
-	// ReasonResponseWriteFailed marks a failure while writing the HTTP
-	// response body.
+	// ReasonResponseWriteFailed marks a failure while encoding a response or
+	// writing response metadata or body data.
 	ReasonResponseWriteFailed Reason = "response_write_failed"
 	// ReasonStreamWriteFailed marks a failed write to a streaming response.
 	ReasonStreamWriteFailed Reason = "stream_write_failed"
