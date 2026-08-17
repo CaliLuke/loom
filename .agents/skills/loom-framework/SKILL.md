@@ -138,6 +138,20 @@ filter, and serialization rules belong here.
 
 ## OpenAPI Importer Invariants
 
+- Keep a field-level grammar ledger for each OpenAPI object the importer reads.
+  Classify every parser field as preserved, conditional, lossy, rejected, or
+  parser-only, and name the test or diagnostic that proves the classification.
+- Compare that parser ledger with the fixed fields in the official OpenAPI 3.0,
+  3.1, and 3.2 schemas. Add a raw-source guard when the standard defines a field
+  that the parser does not expose.
+- Treat the OpenAPI 3.1 and 3.2 Schema Object as an open vocabulary at the
+  parser boundary. Preserve JSON-compatible `x-*` extensions. Reject unknown
+  non-`x-*` keywords unless Loom explicitly supports and tests them.
+- Keep the canonical JSON and YAML fixtures in parity. Add every strict,
+  cross-boundary construct to both fixtures.
+- Test a newly supported schema construct in every legal component and
+  operation location. Test shared response and naming policies as matrices,
+  not only through the issue specimen that exposed the gap.
 - A strict import must render and evaluate. Forward generation must complete,
   and the generated Go code must compile. The generated OpenAPI contract must
   preserve the accepted source semantics.

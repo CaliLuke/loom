@@ -38,6 +38,9 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 		`Meta("openapi:additionalProperties", "false")`,
 		`Meta("openapi:example", "false")`,
 		`Meta("openapi:tag:pets")`,
+		`Method("LegacyGet", func() {`,
+		`GET("/legacy")`,
+		`Response(302, func() {`,
 		`Method("PetsCreate", func() {`,
 		`Meta("openapi:operationId", "pets.create")`,
 		`Meta("openapi:summary", "")`,
@@ -46,7 +49,8 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 		`Response(201, func() {`,
 		`Method("PetsGet", func() {`,
 		`Error("Status404", ImportedProblem)`,
-		`GET("/pets/{id}")`,
+		`GET("/pets/{pet_id}")`,
+		`Param("pet_id")`,
 		`Header("xTraceID:X-Trace-ID")`,
 		`Meta("openapi:component:parameter", "PetID")`,
 		`Meta("openapi:allowEmptyValue", "false")`,
@@ -59,6 +63,8 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 		`Default("cat")`,
 		`Attribute("weight", Float64, func() {`,
 		`Attribute("stock", Int, func() {`,
+		`var ImportedStatus = Type("Status", Int, func() {`,
+		`Attribute("status", ImportedStatus)`,
 		`Meta("openapi:format", "")`,
 	} {
 		require.Contains(t, string(yamlSource), want)
@@ -72,8 +78,8 @@ func TestRenderSuppressesGeneratedOperationMetadataWhenAbsent(t *testing.T) {
 	document, diagnostics, err := Analyze(readFixture(t, "supported.yaml"))
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
-	document.Operations[0].OperationID = ""
-	document.Operations[0].Summary = ""
+	document.Operations[1].OperationID = ""
+	document.Operations[1].Summary = ""
 
 	source, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)
@@ -94,7 +100,7 @@ func TestRenderOutputCompilesAndEvaluatesAsLoomDesign(t *testing.T) {
 	require.Empty(t, diagnostics)
 	source, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)
-	requireRenderedDesignEvaluates(t, source, 2)
+	requireRenderedDesignEvaluates(t, source, 3)
 }
 
 func TestRenderDisambiguatesSharedErrorStatusesByOperation(t *testing.T) {

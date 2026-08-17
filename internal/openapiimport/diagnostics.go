@@ -25,6 +25,7 @@ var lossyDiagnosticCodes = map[string]struct{}{
 	"external-docs":                     {},
 	"header-deprecated":                 {},
 	"info-metadata":                     {},
+	"media-type-description":            {},
 	"parameter-deprecated":              {},
 	"path-metadata":                     {},
 	"response-summary":                  {},

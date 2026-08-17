@@ -6,7 +6,7 @@
     "version": "1.2.3"
   },
   "paths": {
-    "/pets/{id}": {
+    "/pets/{pet_id}": {
       "parameters": [
         {
           "$ref": "#/components/parameters/PetID"
@@ -89,6 +89,16 @@
           }
         }
       }
+    },
+    "/legacy": {
+      "get": {
+        "operationId": "legacy.get",
+        "tags": ["pets"],
+        "responses": {
+          "302": {"description": "Moved permanently."},
+          "400": {"description": "Invalid redirect request."}
+        }
+      }
     }
   },
   "components": {
@@ -111,20 +121,25 @@
           "secret": {"type": "string", "writeOnly": true},
           "weight": {"type": "number"},
           "stock": {"type": "integer"},
+          "status": {"allOf": [{"$ref": "#/components/schemas/Status"}]},
           "labels": {"type": "array", "items": {"type": "string"}},
           "metadata": {"type": "object", "additionalProperties": {"type": "string"}}
         },
-        "required": ["id", "name"]
+        "required": ["id", "name", "status"]
       },
       "Problem": {
         "type": "object",
         "properties": {"detail": {"type": "string"}},
         "required": ["detail"]
+      },
+      "Status": {
+        "type": "integer",
+        "enum": [1, 2]
       }
     },
     "parameters": {
       "PetID": {
-        "name": "id",
+        "name": "pet_id",
         "in": "path",
         "required": true,
         "schema": {"type": "integer", "format": "int64", "minimum": 1}

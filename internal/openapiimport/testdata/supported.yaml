@@ -4,7 +4,7 @@ info:
   description: A small import fixture.
   version: 1.2.3
 paths:
-  /pets/{id}:
+  /pets/{pet_id}:
     parameters:
       - $ref: "#/components/parameters/PetID"
       - name: limit
@@ -67,6 +67,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Pet"
+  /legacy:
+    get:
+      operationId: legacy.get
+      tags: [pets]
+      responses:
+        "302":
+          description: Moved permanently.
+        "400":
+          description: Invalid redirect request.
 components:
   schemas:
     NewPet:
@@ -101,6 +110,9 @@ components:
           type: number
         stock:
           type: integer
+        status:
+          allOf:
+            - $ref: "#/components/schemas/Status"
         labels:
           type: array
           items:
@@ -109,16 +121,19 @@ components:
           type: object
           additionalProperties:
             type: string
-      required: [id, name]
+      required: [id, name, status]
     Problem:
       type: object
       properties:
         detail:
           type: string
       required: [detail]
+    Status:
+      type: integer
+      enum: [1, 2]
   parameters:
     PetID:
-      name: id
+      name: pet_id
       in: path
       required: true
       schema:

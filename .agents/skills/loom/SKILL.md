@@ -73,7 +73,7 @@ only one format. Generation removes the stale sibling file when this setting
 changes. JSON output is deterministically ordered, two-space indented, and
 newline-terminated for reviewable diffs.
 
-To bootstrap a design from an existing OpenAPI 3.1 or 3.2 JSON/YAML contract,
+To bootstrap a design from an existing OpenAPI 3.0, 3.1, or 3.2 JSON/YAML contract,
 run `loom import openapi <input> -o design`. Import supports a strict subset:
 it reports every unsupported construct it finds, writes no partial design or
 TODO placeholders, and never overwrites an existing target. Schema `title`,
@@ -82,6 +82,8 @@ import without a flag. Unformatted integers and numbers also import without a
 flag. String schemas with `format: byte` or `format: binary` import as `Bytes`.
 Regeneration preserves the selected format.
 Representable media examples map to `Example(...)`.
+Use `docs/openapi-import-coverage.md` for the complete field and schema-keyword
+matrix. It distinguishes preserved, conditional, lossy, and rejected input.
 
 Path parameters retain their authored attribute names so route placeholders
 and `Param(...)` mappings stay identical, including snake_case names. Generated
@@ -109,6 +111,11 @@ the regenerated schema is flattened. Inline object array items are promoted
 to a deterministic component under the same flag so their fields and
 validation remain renderable. Both structural changes are reported as lossy
 warnings. Other `allOf`, `oneOf`, `anyOf`, and `not` shapes remain blocked.
+A Schema Object with `$ref` siblings is also blocked. Wrap the reference in a
+supported `allOf` shape so the importer does not discard sibling constraints.
+
+OpenAPI 3.2 Media Type `description` requires `--allow-lossy`.
+`prefixEncoding` remains a strict import error.
 
 If you explicitly accept omitting non-contract
 metadata, the documented `allOf` flattening and inline array-item promotion,

@@ -437,6 +437,7 @@ func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path 
 			return contentType, nil, nil
 		}
 		mediaPath := path + "/" + escapeJSONPointer(contentType)
+		a.mediaTypeParserGapDiagnostics(media, mediaPath)
 		if media.ItemSchema != nil {
 			a.unsupported("media-item-schema", mediaPath+"/itemSchema", "item schemas are not in the strict import subset")
 		}
@@ -460,7 +461,15 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	if proxy == nil {
 		return nil
 	}
+	a.schemaUnknownKeywordDiagnostics(proxy, path)
 	if proxy.IsReference() {
+		if proxy.IsTransformedRefWithSiblings() {
+			a.unsupported(
+				"schema-reference-siblings",
+				path,
+				"schema $ref siblings are not in the strict import subset; wrap the reference in a supported allOf shape",
+			)
+		}
 		return &Schema{Ref: proxy.GetReference()}
 	}
 	source := proxy.Schema()
@@ -664,34 +673,6 @@ func (a *analyzer) schemaFormat(schema *Schema, path string) {
 		if schema.Format != "float" && schema.Format != "double" {
 			a.unsupported("schema-format", path, fmt.Sprintf("number format %q is not a recognized Loom format; rendering as Float64", schema.Format))
 		}
-	}
-}
-
-func (a *analyzer) schemaUnsupportedKeywords(
-	schema *Schema,
-	source *base.Schema,
-	path string,
-	supportedAllOf bool,
-	supportedNullableComposition bool,
-) {
-	if len(source.AllOf) > 0 && !supportedAllOf || len(source.OneOf) > 0 ||
-		len(source.AnyOf) > 0 && !supportedNullableComposition || source.Not != nil {
-		schema.unsupportedComposition = true
-	}
-	if len(source.PrefixItems) > 0 || source.Contains != nil || source.If != nil || source.Then != nil || source.Else != nil ||
-		orderedmap.Len(source.DependentSchemas) > 0 || orderedmap.Len(source.DependentRequired) > 0 ||
-		orderedmap.Len(source.PatternProperties) > 0 || source.PropertyNames != nil || source.UnevaluatedProperties != nil {
-		a.unsupported("advanced-schema", path, "advanced JSON Schema applicators are not in the strict import subset")
-	}
-	if source.MultipleOf != nil || source.UniqueItems != nil || source.MaxProperties != nil || source.MinProperties != nil ||
-		source.Const != nil ||
-		source.ContentEncoding != "" || source.ContentMediaType != "" || source.XML != nil || source.ExternalDocs != nil {
-		a.unsupported("schema-keyword", path, "one or more schema keywords are not in the strict import subset")
-	}
-	if source.DynamicRef != "" || source.Anchor != "" || source.DynamicAnchor != "" || source.SchemaTypeRef != "" ||
-		source.Id != "" || source.Comment != "" || source.ContentSchema != nil || orderedmap.Len(source.Defs) > 0 ||
-		orderedmap.Len(source.Vocabulary) > 0 || source.UnevaluatedItems != nil {
-		a.unsupported("schema-resource", path, "JSON Schema resource and dialect keywords are not in the strict import subset")
 	}
 }
 

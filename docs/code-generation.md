@@ -88,6 +88,10 @@ translated to the equivalent OpenAPI 3.1 design metadata. The default output is
 non-existing extensionless path is treated as a directory; a `.go` path names
 the output file directly.
 
+See [OpenAPI Import Coverage](openapi-import-coverage.md) for the field and
+schema-keyword matrix. The matrix distinguishes preserved, conditional, lossy,
+and rejected constructs.
+
 Import is intentionally lossless-or-fail by default: unsupported constructs are
 reported together and no partial design or TODO placeholders are written. The
 command also refuses to overwrite an existing target. Review the imported
@@ -182,6 +186,13 @@ deterministically named component so Loom can render the array. The promotion
 is reported as a lossy warning because it changes the schema's component
 structure without changing its fields or validation. Other `allOf` shapes
 remain blocked. The importer also blocks `oneOf`, `anyOf`, and `not`.
+It rejects a Schema Object with `$ref` siblings because returning only the
+reference would discard the sibling constraints. Wrap the reference in a
+supported `allOf` shape instead.
+
+OpenAPI 3.2 Media Type `description` requires `--allow-lossy` because the Loom
+HTTP DSL has no media-level description. `prefixEncoding` remains a strict
+error.
 
 An operation must define exactly one primary successful response. The importer
 uses its single 2xx response when present. If no 2xx response exists, it uses a
@@ -215,7 +226,8 @@ Use `--allow-lossy` only when you explicitly accept omission of non-contract
 metadata or of constructs the Loom HTTP DSL cannot express per-parameter or
 per-header. It writes the design and reports deterministic warnings to stderr
 for: info metadata, external documentation, tag and path metadata, response
-summaries, and unrenderable or parameter/header examples. It also reports
+summaries, media type descriptions, and unrenderable or parameter/header
+examples. It also reports
 unrecognized `format` values and renders them without a format validation.
 OpenAPI 3.1 specifies that an unknown format must not stop processing. The flag
 also omits parameter-level or header-level `deprecated`. The HTTP DSL has no
