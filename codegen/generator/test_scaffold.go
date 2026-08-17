@@ -5,7 +5,9 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
+	grpccodegen "github.com/CaliLuke/loom/grpc/codegen"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
+	jsonrpccodegen "github.com/CaliLuke/loom/jsonrpc/codegen"
 )
 
 // TestScaffold returns consumer-owned test scaffolds for the evaluated design
@@ -20,6 +22,10 @@ func TestScaffold(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		services := service.NewServicesData(r)
 		httpServices := httpcodegen.NewServicesData(services, r.API.HTTP)
 		files = append(files, httpcodegen.ResponseContractTestFiles(genpkg, httpServices)...)
+		grpcServices := grpccodegen.NewServicesData(services)
+		files = append(files, grpccodegen.ResponseContractTestFiles(genpkg, grpcServices)...)
+		jsonrpcServices := httpcodegen.NewServicesData(services, &r.API.JSONRPC.HTTPExpr)
+		files = append(files, jsonrpccodegen.ResponseContractTestFiles(genpkg, jsonrpcServices)...)
 	}
 	return files, nil
 }

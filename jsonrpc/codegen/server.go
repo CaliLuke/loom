@@ -73,6 +73,7 @@ func addJSONRPCServerImports(section codegen.Section) {
 // serverFile returns the file implementing the HTTP server.
 func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.ServicesData) *codegen.File {
 	data := services.Get(svc.Name())
+	contractData := buildResponseContractServiceData(svc, services)
 	svcName := data.Service.PathName
 	fpath := filepath.Join(codegen.Gendir, "jsonrpc", svcName, "server", "server.go")
 	title := fmt.Sprintf("%s JSON-RPC server", svc.Name())
@@ -91,12 +92,20 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	for _, e := range data.Endpoints {
 		sections = append(sections, jsonrpcServerHandlerInitSection(e))
 	}
+	for _, endpoint := range contractData.Endpoints {
+		if section := serverResponseContractSection(endpoint); section != nil {
+			sections = append(sections, section)
+		}
+	}
+	if section := serverResponseContractsSection(contractData); section != nil {
+		sections = append(sections, section)
+	}
 
 	if !httpcodegen.HasWebSocket(data) {
 		sections = append(sections, jsonrpcServerEncodeErrorSection(data.ServerStruct))
 	}
 
-	return &codegen.File{Path: fpath, Sections: sections}
+	return &codegen.File{Path: fpath, Sections: sections, Warnings: contractData.warnings()}
 }
 
 func jsonrpcServerImports(genpkg, svcName string, data *httpcodegen.ServiceData) []*codegen.ImportSpec {

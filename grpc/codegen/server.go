@@ -58,6 +58,12 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		sections = append(sections, grpcServerInitSection(data))
 		for _, e := range data.Endpoints {
 			sections = append(sections, grpcHandlerInitSection(e), grpcServerInterfaceSection(e))
+			if section := serverResponseContractSection(e); section != nil {
+				sections = append(sections, section)
+			}
+		}
+		if section := serverResponseContractsSection(data); section != nil {
+			sections = append(sections, section)
 		}
 		for _, e := range data.Endpoints {
 			if e.ServerStream != nil {
@@ -76,7 +82,15 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			}
 		}
 	}
-	return &codegen.File{Path: fpath, Sections: sections}
+	return &codegen.File{Path: fpath, Sections: sections, Warnings: serverResponseContractWarnings(data)}
+}
+
+func serverResponseContractWarnings(data *ServiceData) []string {
+	var warnings []string
+	for _, endpoint := range data.Endpoints {
+		warnings = append(warnings, endpoint.ResponseContractWarnings...)
+	}
+	return warnings
 }
 
 // serverEncodeDecode returns the file defining the gRPC server encoding and

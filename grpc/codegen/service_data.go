@@ -21,6 +21,8 @@ type (
 		Service *service.Data
 		// PkgName is the name of the generated package in *.pb.go.
 		PkgName string
+		// ProtoPkg is the protobuf wire package name.
+		ProtoPkg string
 		// ProtoImports is the list of proto file paths imported by this
 		// service's .proto definition (e.g. "example/common.proto"). These
 		// populate the `Imports` section of the generated .proto file.
@@ -98,6 +100,12 @@ type (
 		MessageSchemes service.SchemesData
 		// Errors describes the method gRPC errors.
 		Errors []*ErrorData
+		// ResponseContractCasesInit is the generated response contract accessor.
+		ResponseContractCasesInit string
+		// ResponseContractCases lists supported gRPC response branches.
+		ResponseContractCases []*ResponseContractCaseData
+		// ResponseContractWarnings lists unsupported response contract shapes.
+		ResponseContractWarnings []string
 
 		// server side
 
@@ -120,6 +128,36 @@ type (
 		ClientInterface string
 		// ClientStream is the client stream data.
 		ClientStream *StreamData
+	}
+
+	// ResponseContractCaseData contains metadata for a generated gRPC contract case.
+	ResponseContractCaseData struct {
+		// ID is the stable response contract identifier.
+		ID string
+		// IsError reports whether the case is a service error.
+		IsError bool
+		// StatusCode is the generated gRPC status constant.
+		StatusCode string
+		// MessageType is the protobuf full name of a success message.
+		MessageType string
+		// ErrorName is the declared service error name.
+		ErrorName string
+		// DetailType is the protobuf full name of an error detail.
+		DetailType string
+		// RequiredHeaders lists required response metadata keys.
+		RequiredHeaders []string
+		// RequiredTrailers lists required trailer metadata keys.
+		RequiredTrailers []string
+		// Stream describes a supported streaming completion.
+		Stream *ResponseContractStreamData
+	}
+
+	// ResponseContractStreamData contains generated streaming completion metadata.
+	ResponseContractStreamData struct {
+		// Direction is the designed stream direction.
+		Direction string
+		// Terminal identifies the expected completion behavior.
+		Terminal string
 	}
 
 	// MetadataData describes a gRPC metadata field.

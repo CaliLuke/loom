@@ -89,6 +89,20 @@ Generate the code:
 loom gen calculator/design
 ```
 
+Create non-overwriting response-contract scenarios after generation:
+
+```bash
+loom test-scaffold calculator/design
+```
+
+Generated JSON-RPC server packages publish stable success, error, and
+notification-suppression cases. Fill each scaffold callback with a request to
+the real generated handler. Return a `jsonrpc.ResponseContractObservation` so
+Loom can check the result envelope, error code and typed data, or absence of a
+notification response. Server-SSE contracts also check final-response behavior.
+WebSocket, client-streaming, and bidirectional completion shapes currently
+produce an explicit generation diagnostic.
+
 Implement the service:
 
 ```go

@@ -201,6 +201,23 @@ cases. Missing callbacks fail individually. The matching Loom validator checks
 implemented callbacks. The application remains responsible for payloads, fakes,
 and state that make every declared response reachable.
 
+Generated gRPC server packages also expose per-method and service-wide
+`ResponseContractCases()` manifests. The manifest covers unary and
+server-streaming success messages, declared status codes, typed status details,
+and required headers and trailers. Run `loom test-scaffold` once, then make each
+callback call the generated gRPC client and return a
+`loomgrpc.ResponseContractObservation`. Server streams must end with clean EOF.
+Client-streaming and bidirectional completion contracts are reported as
+unsupported generation diagnostics.
+
+Generated JSON-RPC server packages expose the same per-method and service-wide
+manifest pattern. Cases cover success results, declared error codes, typed
+error data, and response suppression for ID-less notifications. Call each real
+generated handler from the scaffold and return a
+`jsonrpc.ResponseContractObservation`. Server-SSE calls with an ID end with a
+final response. ID-less streams suppress that response. Other streaming
+completion shapes are explicit generation limitations.
+
 ## JSON Presence and Nullability
 
 - Treat requiredness and nullability as independent. `Required("field")`

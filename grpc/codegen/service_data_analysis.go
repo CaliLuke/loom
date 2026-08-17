@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
@@ -29,6 +30,7 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 		Name:                svcVarN,
 		Description:         svc.Description,
 		PkgName:             pkg,
+		ProtoPkg:            pkgName(gs, svc.PathName),
 		ServerStruct:        "Server",
 		ClientStruct:        "Client",
 		ServerInit:          "New",
@@ -59,6 +61,7 @@ func (d *ServicesData) buildEndpointDataWithContext(
 		}
 	}()
 	prepareEndpointProtoMessages(endpointIR, sd)
+	responseContractCases, responseContractWarnings := buildResponseContractCaseData(endpointIR, sd.ProtoPkg)
 	md := svc.Method(endpointIR.Name)
 	payloadDesc := service.BuildPayloadDescriptor(svc, md, endpointIR.Request.Payload)
 	resultDesc := service.BuildResultDescriptor(svc, md, endpointIR.Response.Result)
@@ -68,30 +71,80 @@ func (d *ServicesData) buildEndpointDataWithContext(
 	response := d.buildResponseData(endpointIR, svc, sd, collector)
 	msgSch, metSch := partitionSecuritySchemes(endpointIR, md)
 	ed := &EndpointData{
-		ServiceName:      svc.Name,
-		PkgName:          sd.PkgName,
-		ServicePkgName:   svc.PkgName,
-		Method:           md,
-		PayloadType:      endpointIR.Request.Payload.Type,
-		PayloadRef:       payloadDesc.Ref,
-		ResultRef:        resultDesc.Declared.Ref,
-		ViewedResultRef:  resultDesc.ViewedRef,
-		Request:          request,
-		Response:         response,
-		MessageSchemes:   msgSch,
-		MetadataSchemes:  metSch,
-		Errors:           errors,
-		ServerStruct:     sd.ServerStruct,
-		ServerInterface:  sd.ServerInterface,
-		ClientMethodName: protoBufify(md.VarName, true, true),
-		ClientStruct:     sd.ClientStruct,
-		ClientInterface:  sd.ClientInterface,
+		ServiceName:               svc.Name,
+		PkgName:                   sd.PkgName,
+		ServicePkgName:            svc.PkgName,
+		Method:                    md,
+		PayloadType:               endpointIR.Request.Payload.Type,
+		PayloadRef:                payloadDesc.Ref,
+		ResultRef:                 resultDesc.Declared.Ref,
+		ViewedResultRef:           resultDesc.ViewedRef,
+		Request:                   request,
+		Response:                  response,
+		MessageSchemes:            msgSch,
+		MetadataSchemes:           metSch,
+		Errors:                    errors,
+		ResponseContractCasesInit: fmt.Sprintf("%sResponseContractCases", md.VarName),
+		ResponseContractCases:     responseContractCases,
+		ResponseContractWarnings:  responseContractWarnings,
+		ServerStruct:              sd.ServerStruct,
+		ServerInterface:           sd.ServerInterface,
+		ClientMethodName:          protoBufify(md.VarName, true, true),
+		ClientStruct:              sd.ClientStruct,
+		ClientInterface:           sd.ClientInterface,
 	}
 	sd.Endpoints = append(sd.Endpoints, ed)
 	if endpointIR.Stream.IsStreaming {
 		ed.ServerStream = d.buildStreamData(endpointIR, sd, true)
 		ed.ClientStream = d.buildStreamData(endpointIR, sd, false)
 	}
+}
+
+func buildResponseContractCaseData(endpoint *transportir.Endpoint, protoPkg string) ([]*ResponseContractCaseData, []string) {
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	if !analysis.Supported() {
+		return nil, responseContractLimitationWarnings(endpoint, analysis.Limitations)
+	}
+	cases := make([]*ResponseContractCaseData, 0, len(analysis.Cases))
+	for _, contractCase := range analysis.Cases {
+		data := &ResponseContractCaseData{
+			ID:               contractCase.ID,
+			IsError:          contractCase.Kind == transportir.ResponseContractError,
+			StatusCode:       statusCodeToGRPCConst(contractCase.StatusCode),
+			MessageType:      qualifyResponseContractMessage(protoPkg, contractCase.MessageType),
+			ErrorName:        contractCase.ErrorName,
+			DetailType:       qualifyResponseContractMessage(protoPkg, contractCase.DetailType),
+			RequiredHeaders:  append([]string(nil), contractCase.RequiredHeaders...),
+			RequiredTrailers: append([]string(nil), contractCase.RequiredTrailers...),
+		}
+		if contractCase.Stream != nil {
+			data.Stream = &ResponseContractStreamData{
+				Direction: contractCase.Stream.Direction,
+				Terminal:  contractCase.Stream.Terminal,
+			}
+		}
+		cases = append(cases, data)
+	}
+	return cases, nil
+}
+
+func qualifyResponseContractMessage(protoPkg, message string) string {
+	if message == "" || strings.Contains(message, ".") {
+		return message
+	}
+	return protoPkg + "." + message
+}
+
+func responseContractLimitationWarnings(endpoint *transportir.Endpoint, limitations []transportir.ResponseContractLimitation) []string {
+	if endpoint == nil || endpoint.Service == nil || len(limitations) == 0 {
+		return nil
+	}
+	prefix := fmt.Sprintf("gRPC response contract omitted for %s.%s", endpoint.Service.Name, endpoint.Name)
+	warnings := make([]string, 0, len(limitations))
+	for _, limitation := range limitations {
+		warnings = append(warnings, fmt.Sprintf("%s: %s: %s", prefix, limitation.Code, limitation.Detail))
+	}
+	return warnings
 }
 
 type messageCollector struct {
