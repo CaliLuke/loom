@@ -3,6 +3,7 @@ package codegen
 import (
 	"github.com/dave/jennifer/jen"
 
+	"github.com/CaliLuke/loom/codegen"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
@@ -33,79 +34,21 @@ func addJSONRPCHandleHTTPSection(stmt *jen.Statement, data *httpcodegen.ServiceD
 			jen.Id("w").Qual("net/http", "ResponseWriter"),
 			jen.Id("r").Op("*").Qual("net/http", "Request"),
 		).
-		BlockFunc(func(g *jen.Group) {
-			writeJSONRPCObserverPrelude(g, serviceName)
-			writeBufferedRequestHandling(g)
-		})
+		Block(
+			jen.Id("jsonrpc.ServeHTTP").Call(jen.Id("w"), jen.Id("r"), jen.Id("s").Dot("httpHandlerSpec").Call()),
+		)
 	stmt.Line()
-}
-
-// writeJSONRPCObserverPrelude emits the observer lifecycle setup at the top
-// of the generated `handleHTTP`: BeginJSONRPCRequest captures the response
-// writer, defer obs.End() emits the terminal event (or ReasonPanic on
-// recovered panics), and the observer is injected into the request context
-// so deeper layers (processRequest, dispatch, encoders) can mark failures
-// without threading a new parameter through every signature.
-func writeJSONRPCObserverPrelude(g *jen.Group, serviceName string) {
-	g.List(jen.Id("obs"), jen.Id("w")).Op(":=").Add(loomtransportRef("BeginJSONRPCRequest")).Call(
-		jen.Id("r").Dot("Context").Call(),
-		jen.Id("w"),
-		jen.Lit(serviceName),
-		jen.Id("r"),
-	)
-	g.Defer().Id("obs").Dot("End").Call()
-	g.Id("r").Op("=").Id("r").Dot("WithContext").Call(
-		loomtransportRef("WithRequestObserver").Call(
-			jen.Id("r").Dot("Context").Call(),
-			jen.Id("obs"),
-		),
-	)
-}
-
-func writeBufferedRequestHandling(g *jen.Group) {
-	g.Comment("Peek at the first byte to determine request type")
-	g.Id("bufReader").Op(":=").Qual("bufio", "NewReader").Call(jen.Id("r").Dot("Body"))
-	g.List(jen.Id("peek"), jen.Err()).Op(":=").Id("bufReader").Dot("Peek").Call(jen.Lit(1))
-	g.If(
-		jen.Err().Op("!=").Nil().Op("&&").Err().Op("!=").Qual("io", "EOF"),
-	).Block(
-		jen.Id("r").Dot("Body").Dot("Close").Call(),
-		jen.Id("obs").Dot("Fail").Call(loomtransportRef("ReasonRequestDecodeFailed")),
-		jen.Id("s").Dot("errhandler").Call(
-			jen.Id("r").Dot("Context").Call(),
-			jen.Id("w"),
-			jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to read request body: %w"), jen.Err()),
-		),
-		jen.Return(),
-	)
-	g.Line()
-	g.Comment("Wrap the buffered reader with the original closer")
-	g.Id("r").Dot("Body").Op("=").Struct(
-		jen.Qual("io", "Reader"),
-		jen.Qual("io", "Closer"),
-	).Values(jen.Dict{
-		jen.Id("Reader"): jen.Id("bufReader"),
-		jen.Id("Closer"): jen.Id("r").Dot("Body"),
-	})
-	g.Defer().Func().Params(jen.Id("r").Op("*").Qual("net/http", "Request")).Block(
-		jen.If(
-			jen.Err().Op(":=").Id("r").Dot("Body").Dot("Close").Call(),
-			jen.Err().Op("!=").Nil(),
-		).Block(
-			jen.Id("s").Dot("errhandler").Call(
-				jen.Id("r").Dot("Context").Call(),
-				jen.Id("w"),
-				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to close request body: %w"), jen.Err()),
-			),
-		),
-	).Call(jen.Id("r"))
-	g.Line()
-	g.Comment("Route to appropriate handler")
-	g.If(
-		jen.Len(jen.Id("peek")).Op(">").Lit(0).Op("&&").Id("peek").Index(jen.Lit(0)).Op("==").LitByte('['),
-	).Block(
-		jen.Id("s").Dot("handleBatch").Call(jen.Id("w"), jen.Id("r")),
-		jen.Return(),
-	)
-	g.Id("s").Dot("handleSingle").Call(jen.Id("w"), jen.Id("r"))
+	stmt.Comment("httpHandlerSpec returns the generated adapters used by the JSON-RPC HTTP runtime.").Line()
+	stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+		Id("httpHandlerSpec").Params().Add(codegen.TypeRef("jsonrpc.HTTPHandlerSpec")).
+		Block(
+			jen.Return(codegen.TypeRef("jsonrpc.HTTPHandlerSpec").Values(jen.Dict{
+				jen.Id("Service"):       jen.Lit(serviceName),
+				jen.Id("Decoder"):       jen.Id("s").Dot("decoder"),
+				jen.Id("Encoder"):       jen.Id("s").Dot("encoder"),
+				jen.Id("Dispatch"):      jen.Id("s").Dot("dispatchHTTP"),
+				jen.Id("HandleFailure"): jen.Id("s").Dot("errhandler"),
+			})),
+		)
+	stmt.Line()
 }

@@ -95,10 +95,11 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 	t.Run("mixed SSE service keeps top-level mixed transport wiring", func(t *testing.T) {
 		root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
 		services := CreateJSONRPCServices(root)
-		serverCode := topLevelSectionCode(t, ServerFiles("", services), "jsonrpc-server-init", "jsonrpc-mixed-server-handler")
+		serverCode := topLevelSectionCode(t, ServerFiles("", services), "jsonrpc-server-init", "jsonrpc-mixed-server-handler", "jsonrpc-sse-server-adapters")
 		clientCode := topLevelSectionCode(t, ClientFiles("", services), "jsonrpc-client-struct")
 
 		require.NotContains(t, serverCode, `"events-stream"`)
+		require.Contains(t, serverCode, `jsonrpc.ServeMixed(`)
 		require.Contains(t, serverCode, `case "events/stream":`)
 		require.Contains(t, clientCode, "EventsStreamDoer loomhttp.Doer")
 		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-server-mixed.golden"), serverCode)
@@ -185,10 +186,9 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		services := CreateJSONRPCServices(root)
 		files := ServerFiles("", services)
 		sendCode := fileSectionCode(t, files, "websocket.go", "jsonrpc-server-websocket-send")
-		classifierCode := fileSectionCode(t, files, "websocket.go", "jsonrpc-server-websocket-service-error-classifier")
 
-		require.Contains(t, sendCode, "code = jsonrpcErrorCodeForServiceError(serviceError)")
-		require.Contains(t, classifierCode, "func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code")
+		require.Contains(t, sendCode, "code = jsonrpc.CodeForServiceError(serviceError)")
+		require.NotContains(t, allRenderedSections(t, files), "func jsonrpcErrorCodeForServiceError")
 	})
 }
 

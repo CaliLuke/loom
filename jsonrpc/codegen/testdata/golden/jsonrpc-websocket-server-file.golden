@@ -16,7 +16,6 @@ import (
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
 	loom "github.com/CaliLuke/loom/pkg"
-	"github.com/gorilla/websocket"
 	"io"
 	"net/http"
 	"strings"
@@ -41,18 +40,24 @@ type jSONRPCWebSocketRuntimeServiceStream struct {
 
 // streamStreamWrapper wraps the JSON-RPC stream to provide a method-specific interface.
 type streamStreamWrapper struct {
-	stream    *jSONRPCWebSocketRuntimeServiceStream
-	requestID any
+	stream       *jSONRPCWebSocketRuntimeServiceStream
+	requestHasID bool
+	requestID    any
 }
 
 func (w *streamStreamWrapper) SendNotification(ctx context.Context, res *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult) error {
 	return w.stream.SendStreamNotification(ctx, res)
 }
 func (w *streamStreamWrapper) SendResponse(ctx context.Context, res *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult) error {
-	return w.stream.SendStreamResponse(ctx, w.requestID, res)
+	body := NewStreamResponseBody(res)
+	return jsonrpc.CompleteStream(ctx, w.requestHasID, w.requestID, body, func(response *jsonrpc.Response) error {
+		return w.stream.conn.WriteJSON(ctx, response)
+	})
 }
 func (w *streamStreamWrapper) SendError(ctx context.Context, err error) error {
-	return w.stream.SendError(ctx, w.requestID, err)
+	return jsonrpc.CompleteStreamError(ctx, w.requestHasID, func() error {
+		return w.stream.SendError(ctx, w.requestID, err)
+	})
 }
 func (w *streamStreamWrapper) Close() error {
 	return w.stream.Close()
@@ -75,7 +80,7 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) SendError(ctx context.Context, id
 	code := jsonrpc.InternalError
 	var serviceError *loom.ServiceError
 	if errors.As(err, &serviceError) {
-		code = jsonrpcErrorCodeForServiceError(serviceError)
+		code = jsonrpc.CodeForServiceError(serviceError)
 	}
 	return s.sendError(ctx, id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 }
@@ -97,33 +102,16 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) sendError(ctx context.Context, id
 // Recv reads JSON-RPC requests from the JSONRPCWebSocketRuntimeService service
 // stream.
 func (s *jSONRPCWebSocketRuntimeServiceStream) Recv(ctx context.Context) error {
-	var req jsonrpc.RawRequest
-	if err := s.conn.ReadJSON(ctx, &req); err != nil {
-		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-			return err
-		}
-		if err := s.sendError(ctx, nil, jsonrpc.ParseError, "Parse error", nil); err != nil {
-			return fmt.Errorf("failed to send parse error: %w", err)
-		}
-		return nil
+	return jsonrpc.ReceiveWebSocketRequest(ctx, s.conn, s.matchesMethod, s.processRequest, s.sendError)
+}
+func (s *jSONRPCWebSocketRuntimeServiceStream) matchesMethod(method string) bool {
+	switch method {
+	case "Stream":
+		return true
 	}
-	return s.processRequest(ctx, &req)
+	return false
 }
 func (s *jSONRPCWebSocketRuntimeServiceStream) processRequest(ctx context.Context, req *jsonrpc.RawRequest) error {
-	if req.JSONRPC != "2.0" {
-		if req.HasID {
-			return s.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil)
-		}
-		return nil
-	}
-
-	if req.Method == "" {
-		if req.HasID {
-			return s.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil)
-		}
-		return nil
-	}
-
 	switch req.Method {
 	case "Stream":
 		payload, err := s.stream(ctx, s.r, req)
@@ -137,8 +125,9 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) processRequest(ctx context.Contex
 			return fmt.Errorf("handler error for Stream: %w", err)
 		}
 		streamWrapper := &streamStreamWrapper{
-			requestID: req.ID,
-			stream:    s,
+			requestHasID: req.HasID,
+			requestID:    req.ID,
+			stream:       s,
 		}
 		endpointInput := &jsonrpcwebsocketruntimeservice.StreamEndpointInput{
 			Payload: payload.(*jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeRequest),
@@ -155,9 +144,6 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) processRequest(ctx context.Contex
 		}
 		return nil
 	default:
-		if req.HasID {
-			return s.sendError(ctx, req.ID, jsonrpc.MethodNotFound, "Method not found", nil)
-		}
 		return nil
 	}
 }
@@ -172,19 +158,4 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) Close() error {
 		return err
 	}
 	return s.conn.Close()
-}
-
-// jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.
-func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
-	if err == nil {
-		return jsonrpc.InternalError
-	}
-	switch err.Name {
-	case loom.RequestBodyTooLarge:
-		return jsonrpc.InvalidRequest
-	case loom.InvalidFieldType, loom.MissingField, loom.InvalidEnumValue, loom.InvalidFormat, loom.InvalidPattern, loom.InvalidRange, loom.InvalidLength, loom.DecodePayload, loom.MissingPayload:
-		return jsonrpc.InvalidParams
-	default:
-		return jsonrpc.InternalError
-	}
 }

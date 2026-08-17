@@ -25,7 +25,7 @@ func NewEventsStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder 
 				code := jsonrpc.InternalError
 				var serviceError *loom.ServiceError
 				if errors.As(err, &serviceError) {
-					code = jsonrpcErrorCodeForServiceError(serviceError)
+					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
@@ -53,7 +53,7 @@ func NewEventsStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder 
 				code := jsonrpc.InternalError
 				var serviceError *loom.ServiceError
 				if errors.As(err, &serviceError) {
-					code = jsonrpcErrorCodeForServiceError(serviceError)
+					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}

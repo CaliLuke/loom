@@ -15,7 +15,7 @@ func (s *streamStream) SendError(ctx context.Context, id any, err error) error {
 	code := jsonrpc.InternalError
 	var serviceError *loom.ServiceError
 	if errors.As(err, &serviceError) {
-		code = jsonrpcErrorCodeForServiceError(serviceError)
+		code = jsonrpc.CodeForServiceError(serviceError)
 	}
 	return s.sendError(ctx, id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 }

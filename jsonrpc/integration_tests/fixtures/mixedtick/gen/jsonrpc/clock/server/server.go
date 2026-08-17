@@ -8,14 +8,10 @@
 package server
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
 
 	clock "example.com/mixedtick/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
@@ -78,243 +74,71 @@ func (s *Server) MethodNames() []string {
 	return clock.MethodNames[:]
 }
 
-// serveHTTP handles mixed HTTP/SSE requests before server middleware.
+// serveHTTP delegates mixed JSON-RPC HTTP/SSE negotiation to the transport runtime.
 func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		http.NotFound(w, r)
-		return
-	case http.MethodPost:
-		accept := r.Header.Get("Accept")
-		if !strings.Contains(accept, "text/event-stream") {
-			s.handleHTTP(w, r)
-			return
-		}
-
-		reader := bufio.NewReader(r.Body)
-		const maxNegotiationWhitespace = 4096
-		var first byte
-		sniffed := 0
-		for sniffed < maxNegotiationWhitespace {
-			peek, err := reader.Peek(1)
-			if err != nil && err != io.EOF {
-				s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
-				return
-			}
-			if len(peek) == 0 {
-				break
-			}
-			first = peek[0]
-			if first != byte(0x20) && first != byte(0x9) && first != byte(0xd) && first != byte(0xa) {
-				break
-			}
-			if _, err := reader.Discard(1); err != nil {
-				s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
-				return
-			}
-			sniffed++
-		}
-
-		r.Body = struct {
-			io.Reader
-			io.Closer
-		}{
-			Closer: r.Body,
-			Reader: reader,
-		}
-
-		if first == 0 || first == byte(0x5b) || sniffed >= maxNegotiationWhitespace {
-			s.handleHTTP(w, r)
-			return
-		}
-
-		var req jsonrpc.RawRequest
-		if err := s.decoder(r).Decode(&req); err != nil {
-			loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
-			// SSE is negotiated: stream the envelope decode error as a message event.
-			code, message, data := jsonrpcEnvelopeDecodeError(err)
-			response := jsonrpc.MakeErrorResponse(nil, code, message, data)
-			writer := loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy)
-			if sendErr := writer.WriteEvent(r.Context(), func(w io.Writer) error {
-				return loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: "message"}, response)
-			}); sendErr != nil {
-				s.errhandler(r.Context(), w, fmt.Errorf("failed to send envelope decode error event: %w", sendErr))
-			}
-			return
-		}
-
-		if req.Invalid {
-			s.processRequest(r.Context(), r, &req, w)
-			return
-		}
-
-		switch req.Method {
-		case "Tick":
-			if err := s.Tick(r.Context(), r, &req, w); err != nil {
-				s.errhandler(r.Context(), w, fmt.Errorf("handler error for Tick: %w", err))
-			}
-		default:
-			s.processRequest(r.Context(), r, &req, w)
-		}
-	default:
-		http.NotFound(w, r)
-	}
+	jsonrpc.ServeMixed(w, r, jsonrpc.MixedHandlerSpec{
+		HTTP:        s.httpHandlerSpec(),
+		SSE:         s.sseHandlerSpec(),
+		SupportsGET: false,
+	})
 }
 
 // handleHTTP handles JSON-RPC requests.
 func (s *Server) handleHTTP(w http.ResponseWriter, r *http.Request) {
-	obs, w := loomtransport.BeginJSONRPCRequest(r.Context(), w, "clock", r)
-	defer obs.End()
-	r = r.WithContext(loomtransport.WithRequestObserver(r.Context(), obs))
-	// Peek at the first byte to determine request type
-	bufReader := bufio.NewReader(r.Body)
-	peek, err := bufReader.Peek(1)
-	if err != nil && err != io.EOF {
-		r.Body.Close()
-		obs.Fail(loomtransport.ReasonRequestDecodeFailed)
-		s.errhandler(r.Context(), w, fmt.Errorf("failed to read request body: %w", err))
-		return
-	}
-
-	// Wrap the buffered reader with the original closer
-	r.Body = struct {
-		io.Reader
-		io.Closer
-	}{
-		Closer: r.Body,
-		Reader: bufReader,
-	}
-	defer func(r *http.Request) {
-		if err := r.Body.Close(); err != nil {
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to close request body: %w", err))
-		}
-	}(r)
-
-	// Route to appropriate handler
-	if len(peek) > 0 && peek[0] == byte(0x5b) {
-		s.handleBatch(w, r)
-		return
-	}
-	s.handleSingle(w, r)
+	jsonrpc.ServeHTTP(w, r, s.httpHandlerSpec())
 }
 
-// handleSingle handles a single JSON-RPC request.
-func (s *Server) handleSingle(w http.ResponseWriter, r *http.Request) {
-	var req jsonrpc.RawRequest
-	if err := s.decoder(r).Decode(&req); err != nil {
-		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
-		code, message, data := jsonrpcEnvelopeDecodeError(err)
-		response := jsonrpc.MakeErrorResponse(nil, code, message, data)
-		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode envelope decode error response: %w", encErr))
-		}
-		return
-	}
-	s.processRequest(r.Context(), r, &req, w)
-}
-
-// handleBatch handles a batch of JSON-RPC requests.
-func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
-	var rawReqs []json.RawMessage
-	if err := s.decoder(r).Decode(&rawReqs); err != nil {
-		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCBatch)
-		code, message, data := jsonrpcEnvelopeDecodeError(err)
-		response := jsonrpc.MakeErrorResponse(nil, code, message, data)
-		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode envelope decode error response: %w", encErr))
-		}
-		return
-	}
-	if len(rawReqs) == 0 {
-		loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCBatch)
-		response := jsonrpc.MakeErrorResponse(nil, jsonrpc.InvalidRequest, "Invalid request", nil)
-		if encErr := s.encoder(r.Context(), w).Encode(response); encErr != nil {
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to encode invalid batch response: %w", encErr))
-		}
-		return
-	}
-	loomtransport.RequestObserverFromContext(r.Context()).SetJSONRPC("", "", len(rawReqs), false)
-	w.Header().Set("Content-Type", "application/json")
-	writer := &batchWriter{Writer: w}
-	for _, rawReq := range rawReqs {
-		var req jsonrpc.RawRequest
-		if err := json.Unmarshal(rawReq, &req); err != nil {
-			loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
-			s.encodeJSONRPCError(r.Context(), writer, &jsonrpc.RawRequest{}, jsonrpc.InvalidRequest, "Invalid request", nil)
-			continue
-		}
-		s.processRequest(r.Context(), r, &req, writer)
-	}
-	if writer.written {
-		if _, err := writer.Writer.Write([]byte{byte(0x5d)}); err != nil {
-			loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonResponseWriteFailed)
-			s.errhandler(r.Context(), w, fmt.Errorf("failed to close JSON-RPC batch response: %w", err))
-			return
-		}
+// httpHandlerSpec returns the generated adapters used by the JSON-RPC HTTP runtime.
+func (s *Server) httpHandlerSpec() jsonrpc.HTTPHandlerSpec {
+	return jsonrpc.HTTPHandlerSpec{
+		Decoder:       s.decoder,
+		Dispatch:      s.dispatchHTTP,
+		Encoder:       s.encoder,
+		HandleFailure: s.errhandler,
+		Service:       "clock",
 	}
 }
 
-// processRequest processes a single JSON-RPC request.
-func (s *Server) processRequest(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) {
-	loomtransport.RequestObserverFromContext(ctx).SetJSONRPC(req.Method, jsonrpc.IDToString(req.ID), 0, !req.HasID)
-	if req.Invalid {
-		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
-		s.encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidRequest, "Invalid request", nil)
-		return
-	}
-	if req.JSONRPC != "2.0" {
-		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
-		s.encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidRequest, "Invalid request", nil)
-		return
-	}
-	if req.Method == "" {
-		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCMethod)
-		s.encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidRequest, "Missing method field", nil)
-		return
-	}
+// dispatchHTTP calls the typed adapter for a JSON-RPC method.
+func (s *Server) dispatchHTTP(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) (bool, error) {
 	switch req.Method {
 	case "Initialize":
-		if err := s.Initialize(ctx, r, req, w); err != nil {
-			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonHandlerError)
-			s.errhandler(ctx, w, fmt.Errorf("handler error for Initialize: %w", err))
-		}
+		return true, s.Initialize(ctx, r, req, w)
 	case "Tick":
-		if err := s.Tick(ctx, r, req, w); err != nil {
-			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonHandlerError)
-			s.errhandler(ctx, w, fmt.Errorf("handler error for Tick: %w", err))
-		}
-	default:
-		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonUnsupportedMethod)
-		s.encodeJSONRPCError(ctx, w, req, jsonrpc.MethodNotFound, "Method not found", nil)
+		return true, s.Tick(ctx, r, req, w)
+	}
+	return false, nil
+}
+
+// sseHandlerSpec returns the generated adapters used by the JSON-RPC SSE runtime.
+func (s *Server) sseHandlerSpec() jsonrpc.SSEHandlerSpec {
+	return jsonrpc.SSEHandlerSpec{
+		Decoder:       s.decoder,
+		Dispatch:      s.dispatchSSE,
+		HandleFailure: s.errhandler,
+		SendError:     s.sendSSEError,
+		Service:       "clock",
 	}
 }
 
-// batchWriter is a helper type that implements http.ResponseWriter for writing multiple JSON-RPC responses
-type batchWriter struct {
-	io.Writer
-	header  http.Header
-	written bool
+// dispatchSSE calls the typed adapter for a JSON-RPC SSE method.
+func (s *Server) dispatchSSE(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) (bool, bool, error) {
+	switch req.Method {
+	case "Tick":
+		return true, false, s.Tick(ctx, r, req, w)
+	}
+	return false, false, nil
 }
 
-func (rb *batchWriter) Header() http.Header {
-	if rb.header == nil {
-		rb.header = make(http.Header)
+// sendSSEError writes one JSON-RPC error as an SSE message event.
+func (s *Server) sendSSEError(ctx context.Context, r *http.Request, w http.ResponseWriter, id any, code jsonrpc.Code, message string, data any) error {
+	stream := &TickServerStream{
+		encoder: s.encoder,
+		r:       r,
+		w:       w,
+		writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 	}
-	return rb.header
-}
-func (rb *batchWriter) WriteHeader(_ int) {
-	// JSON-RPC batch items do not control the outer HTTP status.
-}
-func (rb *batchWriter) Write(data []byte) (int, error) {
-	delimiter := byte(0x2c)
-	if !rb.written {
-		delimiter = byte(0x5b)
-	}
-	if _, err := rb.Writer.Write([]byte{delimiter}); err != nil {
-		return 0, fmt.Errorf("write JSON-RPC batch delimiter: %w", err)
-	}
-	rb.written = true
-	return rb.Writer.Write(data)
+	return stream.sendError(ctx, id, code, message, data)
 }
 
 // Mount configures the mux to serve the JSON-RPC clock service methods.
@@ -344,7 +168,7 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 				code := jsonrpc.InternalError
 				var serviceError *loom.ServiceError
 				if errors.As(err, &serviceError) {
-					code = jsonrpcErrorCodeForServiceError(serviceError)
+					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 			} else {
@@ -365,7 +189,7 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 					code := jsonrpc.InternalError
 					var serviceError *loom.ServiceError
 					if errors.As(err, &serviceError) {
-						code = jsonrpcErrorCodeForServiceError(serviceError)
+						code = jsonrpc.CodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 					return nil
@@ -379,7 +203,7 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 					code := jsonrpc.InternalError
 					var serviceError *loom.ServiceError
 					if errors.As(err, &serviceError) {
-						code = jsonrpcErrorCodeForServiceError(serviceError)
+						code = jsonrpc.CodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				}
@@ -426,7 +250,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				code := jsonrpc.InternalError
 				var serviceError *loom.ServiceError
 				if errors.As(err, &serviceError) {
-					code = jsonrpcErrorCodeForServiceError(serviceError)
+					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
@@ -454,7 +278,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				code := jsonrpc.InternalError
 				var serviceError *loom.ServiceError
 				if errors.As(err, &serviceError) {
-					code = jsonrpcErrorCodeForServiceError(serviceError)
+					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
@@ -471,38 +295,8 @@ func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, 
 
 // encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
 func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) {
-	if req.HasID || code == jsonrpc.InvalidRequest {
-		id := req.ID
-		if !req.HasID {
-			id = nil
-		}
-		response := jsonrpc.MakeErrorResponse(id, code, message, data)
-		if err := encoder(ctx, w).Encode(response); err != nil {
-			errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
-		}
-	}
-}
-
-// jsonrpcEnvelopeDecodeError classifies errors raised while decoding a JSON-RPC envelope.
-func jsonrpcEnvelopeDecodeError(err error) (jsonrpc.Code, string, any) {
-	var serviceError *loom.ServiceError
-	if errors.As(err, &serviceError) && serviceError.Name == loom.RequestBodyTooLarge {
-		return jsonrpcErrorCodeForServiceError(serviceError), loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)
-	}
-	return jsonrpc.ParseError, "Parse error", nil
-}
-
-// jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.
-func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
-	if err == nil {
-		return jsonrpc.InternalError
-	}
-	switch err.Name {
-	case loom.RequestBodyTooLarge:
-		return jsonrpc.InvalidRequest
-	case loom.InvalidFieldType, loom.MissingField, loom.InvalidEnumValue, loom.InvalidFormat, loom.InvalidPattern, loom.InvalidRange, loom.InvalidLength, loom.DecodePayload, loom.MissingPayload:
-		return jsonrpc.InvalidParams
-	default:
-		return jsonrpc.InternalError
+	response := jsonrpc.MakeErrorResponse(req.ID, code, message, data)
+	if err := encoder(ctx, w).Encode(response); err != nil {
+		errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 	}
 }

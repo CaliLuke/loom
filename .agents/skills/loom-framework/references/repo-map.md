@@ -17,8 +17,8 @@ belong in the `loom` skill and the canonical guides under `docs/`.
 - `http/codegen/openapi/v3`: OpenAPI 3.2 rendering and 3.1 compatibility
   projection
 - `grpc/`: gRPC runtime and protobuf/transport generation
-- `jsonrpc/`: JSON-RPC runtime, HTTP/SSE/WebSocket dispatch, generation, and
-  integrations
+- `jsonrpc/`: JSON-RPC runtime-owned envelope, batch, notification, SSE, and
+  WebSocket lifecycle; typed transport generation; and integrations
 - `observability/`: framework-owned tracing, metrics, logging, and transport
   event contracts
 - `internal/`: repository-private support packages and release/source tooling

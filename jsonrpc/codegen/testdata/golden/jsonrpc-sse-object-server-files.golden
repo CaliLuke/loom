@@ -79,113 +79,40 @@ func (s *Server) MethodNames() []string {
 	return jsonrpcsseobjectservice.MethodNames[:]
 }
 
-// handleSSE handles JSON-RPC SSE requests by dispatching to the appropriate method.
+// handleSSE delegates JSON-RPC SSE lifecycle to the transport runtime.
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	jsonrpc.ServeSSE(w, r, s.sseHandlerSpec())
+}
 
-	var req jsonrpc.RawRequest
-	if r.Method == http.MethodGet {
-		req = jsonrpc.RawRequest{
-			JSONRPC: "2.0",
-			Method:  "events/stream",
-		}
-	} else if err := s.decoder(r).Decode(&req); err != nil {
-		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
-		stream := &jSONRPCSSEObjectServiceSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
-		}
-		code, message, data := jsonrpcEnvelopeDecodeError(err)
-		if err := stream.sendError(ctx, nil, code, message, data); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
+// sseHandlerSpec returns the generated adapters used by the JSON-RPC SSE runtime.
+func (s *Server) sseHandlerSpec() jsonrpc.SSEHandlerSpec {
+	return jsonrpc.SSEHandlerSpec{
+		Decoder:       s.decoder,
+		Dispatch:      s.dispatchSSE,
+		HandleFailure: s.errhandler,
+		SendError:     s.sendSSEError,
+		Service:       "JSONRPCSSEObjectService",
 	}
+}
 
-	if req.Invalid {
-		if !req.HasID {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		stream := &jSONRPCSSEObjectServiceSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
-		}
-		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
-	}
-
-	if req.JSONRPC != "2.0" {
-		if !req.HasID {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		stream := &jSONRPCSSEObjectServiceSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
-		}
-		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
-	}
-
-	if req.Method == "" {
-		if !req.HasID {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		stream := &jSONRPCSSEObjectServiceSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
-		}
-		if err := stream.sendError(ctx, req.ID, jsonrpc.InvalidRequest, "Invalid request", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
-	}
-
-	var handler func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error
+// dispatchSSE calls the typed adapter for a JSON-RPC SSE method.
+func (s *Server) dispatchSSE(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) (bool, bool, error) {
 	switch req.Method {
 	case "Stream":
-		handler = s.Stream
-	default:
-		if !req.HasID {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		stream := &jSONRPCSSEObjectServiceSSEStream{
-			decoder: s.decoder,
-			encoder: s.encoder,
-			r:       r,
-			w:       w,
-			writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
-		}
-		if err := stream.sendError(ctx, req.ID, jsonrpc.MethodNotFound, "Method not found", nil); err != nil {
-			s.errhandler(ctx, w, err)
-		}
-		return
+		return true, false, s.Stream(ctx, r, req, w)
 	}
+	return false, false, nil
+}
 
-	if err := handler(ctx, r, &req, w); err != nil {
-		s.errhandler(ctx, w, fmt.Errorf("handler error for %s: %w", req.Method, err))
-		return
+// sendSSEError writes one JSON-RPC error as an SSE message event.
+func (s *Server) sendSSEError(ctx context.Context, r *http.Request, w http.ResponseWriter, id any, code jsonrpc.Code, message string, data any) error {
+	stream := &StreamServerStream{
+		encoder: s.encoder,
+		r:       r,
+		w:       w,
+		writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 	}
-
+	return stream.sendError(ctx, id, code, message, data)
 }
 
 // Mount configures the mux to serve the JSON-RPC JSONRPCSSEObjectService
@@ -223,7 +150,7 @@ func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*
 				code := jsonrpc.InternalError
 				var serviceError *loom.ServiceError
 				if errors.As(err, &serviceError) {
-					code = jsonrpcErrorCodeForServiceError(serviceError)
+					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
@@ -254,7 +181,7 @@ func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*
 				code := jsonrpc.InternalError
 				var serviceError *loom.ServiceError
 				if errors.As(err, &serviceError) {
-					code = jsonrpcErrorCodeForServiceError(serviceError)
+					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
@@ -271,39 +198,9 @@ func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, 
 
 // encodeJSONRPCError creates and sends a JSON-RPC error response (handles nil ID gracefully)
 func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) {
-	if req.HasID || code == jsonrpc.InvalidRequest {
-		id := req.ID
-		if !req.HasID {
-			id = nil
-		}
-		response := jsonrpc.MakeErrorResponse(id, code, message, data)
-		if err := encoder(ctx, w).Encode(response); err != nil {
-			errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
-		}
-	}
-}
-
-// jsonrpcEnvelopeDecodeError classifies errors raised while decoding a JSON-RPC envelope.
-func jsonrpcEnvelopeDecodeError(err error) (jsonrpc.Code, string, any) {
-	var serviceError *loom.ServiceError
-	if errors.As(err, &serviceError) && serviceError.Name == loom.RequestBodyTooLarge {
-		return jsonrpcErrorCodeForServiceError(serviceError), loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)
-	}
-	return jsonrpc.ParseError, "Parse error", nil
-}
-
-// jsonrpcErrorCodeForServiceError classifies client-caused framework errors and maps all other service errors to internal errors.
-func jsonrpcErrorCodeForServiceError(err *loom.ServiceError) jsonrpc.Code {
-	if err == nil {
-		return jsonrpc.InternalError
-	}
-	switch err.Name {
-	case loom.RequestBodyTooLarge:
-		return jsonrpc.InvalidRequest
-	case loom.InvalidFieldType, loom.MissingField, loom.InvalidEnumValue, loom.InvalidFormat, loom.InvalidPattern, loom.InvalidRange, loom.InvalidLength, loom.DecodePayload, loom.MissingPayload:
-		return jsonrpc.InvalidParams
-	default:
-		return jsonrpc.InternalError
+	response := jsonrpc.MakeErrorResponse(req.ID, code, message, data)
+	if err := encoder(ctx, w).Encode(response); err != nil {
+		errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 	}
 }
 

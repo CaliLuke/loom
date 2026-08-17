@@ -135,6 +135,12 @@ Other HTTP handlers create `HandlerLifecycle` and pass typed closures to its
 raw-body and file helpers. SSE and WebSocket adapters report their commit state
 to `HandlerFailed`.
 
+JSON-RPC servers pass typed dispatch and error callbacks to `HTTPHandlerSpec`,
+`SSEHandlerSpec`, `MixedHandlerSpec`, and `WebSocketHandlerSpec`. The runtime
+validates envelopes, frames batches, suppresses notification responses,
+negotiates HTTP and SSE, owns WebSocket setup, and controls final stream
+responses. Generated switches retain compile-time links to designed methods.
+
 The runtime helpers do not accept an untyped service registry.
 
 ## Compatibility Contract
@@ -170,7 +176,10 @@ decisions, fixtures, error content, and retry policy.
    is implemented on its ticket branch.
 3. Issue #281 moves HTTP stream and raw-body lifecycle into the runtime. The
    phase is implemented on its ticket branch.
-4. Issue #282 moves JSON-RPC dispatch lifecycle into the runtime.
+4. Issue #282 moves JSON-RPC dispatch lifecycle into the runtime. The phase is
+   implemented on its ticket branch. The checked-in `ticktock` JSON-RPC server
+   decreased from 360 to 257 lines. The mixed HTTP/SSE server decreased from
+   508 to 302 lines.
 5. Issue #283 moves gRPC metadata and status lifecycle into the runtime.
 
 Each phase records line counts for the same fixtures. Each phase also runs the

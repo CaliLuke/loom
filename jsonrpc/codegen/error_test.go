@@ -58,6 +58,7 @@ func TestJSONRPCErrorProjectionUsesCoreHelpers(t *testing.T) {
 				code := codegen.SectionCode(t, section)
 				assert.Contains(t, code, "loom.ErrorSafeMessage(err)")
 				assert.Contains(t, code, "jsonrpc.NewErrorData(err)")
+				assert.Contains(t, code, "jsonrpc.CompleteStreamError(ctx, s.requestHasID")
 			}
 		}
 		require.True(t, found, "expected jsonrpc-sse-server-stream section")
@@ -95,7 +96,7 @@ func TestJSONRPCUnmappedServiceErrorsUseInternalError(t *testing.T) {
 	code := serverCode + "\n" + streamCode
 
 	assert.Contains(t, code, "errors.As(err, &serviceError)")
-	assert.Contains(t, code, "code = jsonrpcErrorCodeForServiceError(serviceError)")
+	assert.Contains(t, code, "code = jsonrpc.CodeForServiceError(serviceError)")
 	assert.NotContains(t, code, `err.(*loom.ServiceError)`)
 	assert.NotContains(t, code, `code = jsonrpc.InvalidParams`)
 }
@@ -104,8 +105,7 @@ func TestJSONRPCRequestBodyTooLargeUsesInvalidRequest(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcSingleMethodDSL)
 
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-server-encode-error")
-	assert.Contains(t, code, `case loom.RequestBodyTooLarge:`)
-	assert.Contains(t, code, `return jsonrpc.InvalidRequest`)
+	assert.NotContains(t, code, `RequestBodyTooLarge`)
 }
 
 func TestJSONRPCServiceSSESendErrorUsesSafeMappedErrors(t *testing.T) {

@@ -120,7 +120,6 @@ func sseNotificationMethod(ed *httpcodegen.EndpointData) string {
 
 func renderSSEEndpointStreamSendAndCloseSource(ed *httpcodegen.EndpointData) string {
 	bodyInit := streamResultBodyInit("result", ed)
-	idResolution := renderSSEEndpointResponseIDResolution(ed)
 	bodyComment := ""
 	if bodyInit != "body := result" {
 		bodyComment = "\t// Convert to response body type for proper JSON encoding\n"
@@ -144,25 +143,10 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 		return fmt.Errorf("unexpected event type: %%T", event)
 	}
 
-	// Determine the ID to use for the response
-	var id any = s.requestID
-	if !s.requestHasID {
-		// ID-less streams (JSON-RPC notifications and raw GET events/stream
-		// listeners) must not receive a final response, so the value is
-		// discarded; emit an observability event so the suppression is
-		// visible to implementations that call SendAndClose with data.
-		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamClose, Reason: loomtransport.ReasonStreamFinalResponseSuppressed, Transport: loomtransport.TransportJSONRPC})
-		return nil
-	}
-%s%s	%s
-	// Send as a JSON-RPC response message with ID
-	message := map[string]any{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"result":  body,
-	}
-
-	return s.sendSSEEvent("message", message)
+%s	%s
+	return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, func(response *jsonrpc.Response) error {
+		return s.sendSSEEvent("message", response)
+	})
 }
 `, codegen.Comment("SendAndClose sends a final JSON-RPC response to the client and closes the stream."),
 		codegen.Comment("The response includes the original request ID. ID-less streams (JSON-RPC notifications and raw GET events/stream listeners) are closed without a final response: the value is discarded and a stream_final_response_suppressed transport event is emitted. Implementations serving GET listeners should Send every value and close instead."),
@@ -171,13 +155,8 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 		ed.ServicePkgName,
 		ed.Method.VarName,
 		ed.SSE.EventTypeRef,
-		idResolution,
 		bodyComment,
 		bodyInit)
-}
-
-func renderSSEEndpointResponseIDResolution(_ *httpcodegen.EndpointData) string {
-	return ""
 }
 
 func renderSSEEndpointStreamErrorsSource(ed *httpcodegen.EndpointData) string {
@@ -187,6 +166,12 @@ func renderSSEEndpointStreamErrorsSource(ed *httpcodegen.EndpointData) string {
 	}
 	return fmt.Sprintf(`%s
 func (s *%s) SendError(ctx context.Context, id any, err error) error {
+	return jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {
+		return s.sendMappedError(ctx, id, err)
+	})
+}
+
+func (s *%s) sendMappedError(ctx context.Context, id any, err error) error {
 %s%s}
 
 %s
@@ -194,7 +179,8 @@ func (s *%s) sendError(ctx context.Context, id any, code jsonrpc.Code, message s
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
 	return s.sendSSEEvent("message", response)
 }
-`, codegen.Comment("SendError sends a JSON-RPC error response."),
+	`, codegen.Comment("SendError sends a JSON-RPC error response."),
+		ed.SSE.StructName,
 		ed.SSE.StructName,
 		noCustomComment,
 		streamErrorSwitch("	return s.sendError(ctx, id, ", ed.Errors),

@@ -200,6 +200,10 @@ filter, and serialization rules belong here.
   contract.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
   endpoints should not grow independent read/write/close loops.
+- Keep JSON-RPC envelope validation, batch framing, notification suppression,
+  HTTP/SSE negotiation, WebSocket setup, and final stream-response decisions
+  in `jsonrpc`. Generated JSON-RPC code supplies typed dispatch, error, and
+  stream adapters only.
 - Preserve the generated public `ServeHTTP` middleware and policy chain when
   adding JSON-RPC dispatch branches.
 - Generated transport observability must remain dependency-free and must never

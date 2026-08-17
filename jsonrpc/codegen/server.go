@@ -143,6 +143,7 @@ func jsonrpcServerTransportSections(data *httpcodegen.ServiceData, hasSSE, hasMi
 		return []codegen.Section{
 			jsonrpcMixedServerHandlerSection(data),
 			jsonrpcServerHandlerSection(data, true),
+			jsonrpcSSEAdapterSection(data),
 		}
 	case hasSSE:
 		return []codegen.Section{jsonrpcSSEServerHandlerSection(data)}

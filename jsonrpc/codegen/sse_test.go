@@ -60,7 +60,8 @@ func TestJSONRPCSSE(t *testing.T) {
 			code := codegen.SectionCode(t, streamSection)
 			require.NotContains(t, code, `sendSSEEvent("notification",`)
 			require.NotContains(t, code, `sendSSEEvent("response", message)`)
-			require.Equal(t, 2, strings.Count(code, `sendSSEEvent("message", message)`))
+			require.Equal(t, 1, strings.Count(code, `sendSSEEvent("message", message)`))
+			require.Contains(t, code, `jsonrpc.CompleteStream(`)
 			golden := filepath.Join("testdata", "golden", "jsonrpc-sse-"+c.Name+".golden")
 			testutil.AssertGo(t, golden, code)
 
@@ -120,19 +121,14 @@ func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-handler-init-object.golden"), handlerInitCode)
 }
 
-// TestJSONRPCSSEStreamSuppressedFinalResponseIsObservable asserts that the
-// generated SendAndClose makes its ID-less suppression branch observable:
-// when a stream carries no JSON-RPC request ID (a notification or the raw
-// GET events/stream listener) the final value is discarded per protocol
-// rules, and the generated code must emit a transport event instead of
-// dropping the data silently.
-func TestJSONRPCSSEStreamSuppressedFinalResponseIsObservable(t *testing.T) {
+// TestJSONRPCSSEStreamSuppressedFinalResponseIsRuntimeOwned asserts that the
+// generated typed adapter delegates final-response protocol decisions.
+func TestJSONRPCSSEStreamSuppressedFinalResponseIsRuntimeOwned(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	code := fileSectionCode(t, SSEServerFiles("", CreateJSONRPCServices(root)), "stream.go", "jsonrpc-sse-server-stream")
 
-	require.Contains(t, code, "if !s.requestHasID {")
-	require.Contains(t, code, "loomtransport.ReasonStreamFinalResponseSuppressed")
-	require.Contains(t, code, "loomtransport.EventKindStreamClose")
+	require.Contains(t, code, "jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body")
+	require.NotContains(t, code, "ReasonStreamFinalResponseSuppressed")
 }
 
 func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
@@ -153,12 +149,12 @@ func TestJSONRPCMixedServerHandler(t *testing.T) {
 		NotContains []string
 	}{
 		{
-			Name:   "routes by method",
+			Name:   "delegates negotiation",
 			DSL:    jsonrpcMixedInitializeAndEventsStreamDSL,
 			Golden: "jsonrpc-mixed-server-handler.golden",
 			Contains: []string{
-				`switch req.Method {`,
-				`case http.MethodGet:`,
+				`jsonrpc.ServeMixed(`,
+				`SupportsGET: true,`,
 			},
 			NotContains: []string{
 				`"events-stream"`,
@@ -166,35 +162,22 @@ func TestJSONRPCMixedServerHandler(t *testing.T) {
 			},
 		},
 		{
-			Name:   "avoids full body read for negotiation",
-			DSL:    jsonrpcMixedInitializeAndEventsStreamDSL,
-			Golden: "jsonrpc-mixed-server-handler.golden",
-			Contains: []string{
-				`reader.Peek(1)`,
-			},
-			NotContains: []string{
-				`io.ReadAll(r.Body)`,
-			},
-		},
-		{
-			Name:   "groups multiple sse methods",
+			Name:   "multiple SSE methods use same runtime",
 			DSL:    jsonrpcMixedMultipleSSEMethodsDSL,
 			Golden: "jsonrpc-mixed-server-handler-multi-sse.golden",
 			Contains: []string{
-				`case "tools/call":`,
-				`case "events/stream":`,
+				`jsonrpc.ServeMixed(`,
+				`SupportsGET: true,`,
 			},
 			NotContains: []string{
-				"case \"tools/call\":\n\t\tcase \"events/stream\":",
+				`reader.Peek(1)`,
 			},
 		},
 		{
-			Name:   "omits dead events/stream scaffolding without an events/stream endpoint",
-			DSL:    jsonrpcMixedNoEventsStreamDSL,
-			Golden: "jsonrpc-mixed-server-handler-no-events-stream.golden",
-			Contains: []string{
-				`case http.MethodGet:`,
-			},
+			Name:     "omits dead events/stream scaffolding without an events/stream endpoint",
+			DSL:      jsonrpcMixedNoEventsStreamDSL,
+			Golden:   "jsonrpc-mixed-server-handler-no-events-stream.golden",
+			Contains: []string{`SupportsGET: false,`},
 			NotContains: []string{
 				`Method: "events/stream"`,
 				`req := &jsonrpc.RawRequest{`,
@@ -222,14 +205,16 @@ func TestJSONRPCSSEOnlyHandlerOmitsEmptyNotificationSwitch(t *testing.T) {
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-sse-server-handler")
 
 	require.NotContains(t, code, "switch req.Method {\n\t}")
-	require.Contains(t, code, `jsonrpcEnvelopeDecodeError(err)`)
+	require.Contains(t, code, `jsonrpc.ServeSSE(w, r, s.sseHandlerSpec())`)
+	require.NotContains(t, code, `jsonrpcEnvelopeDecodeError`)
 }
 
-func TestJSONRPCMixedHandlerClassifiesEnvelopeDecodeErrors(t *testing.T) {
+func TestJSONRPCMixedHandlerDelegatesEnvelopeDecodeErrors(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-mixed-server-handler")
 
-	require.Contains(t, code, `jsonrpcEnvelopeDecodeError(err)`)
+	require.Contains(t, code, `jsonrpc.ServeMixed(`)
+	require.NotContains(t, code, `jsonrpcEnvelopeDecodeError`)
 }
 
 // TestJSONRPCMixedHandlerStreamsEnvelopeDecodeErrorsOverSSE asserts that once
@@ -239,8 +224,7 @@ func TestJSONRPCMixedHandlerStreamsEnvelopeDecodeErrorsOverSSE(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-mixed-server-handler")
 
-	require.Contains(t, code, `writer := loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy)`)
-	require.Contains(t, code, `loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: "message"}, response)`)
+	require.Contains(t, code, `jsonrpc.ServeMixed(`)
 	require.NotContains(t, code, "s.encoder(r.Context(), w).Encode(response)")
 }
 
@@ -253,7 +237,7 @@ func TestJSONRPCMixedHandlerObservesSSEEnvelopeDecodeFailures(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcMixedInitializeAndEventsStreamDSL)
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-mixed-server-handler")
 
-	require.Contains(t, code, `loomtransport.RequestObserverFromContext(r.Context()).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)`)
+	require.NotContains(t, code, `ReasonInvalidJSONRPCEnvelope`)
 }
 
 // TestJSONRPCSSEHandlerObservesEnvelopeDecodeFailures asserts that handleSSE's
@@ -264,7 +248,8 @@ func TestJSONRPCSSEHandlerObservesEnvelopeDecodeFailures(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	code := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-sse-server-handler")
 
-	require.Contains(t, code, `loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)`)
+	require.Contains(t, code, `jsonrpc.ServeSSE(`)
+	require.NotContains(t, code, `ReasonInvalidJSONRPCEnvelope`)
 }
 
 func TestJSONRPCSSEServiceStreamSendOmitsResponseBranchWithoutID(t *testing.T) {
@@ -374,7 +359,8 @@ func TestJSONRPCSSENotificationErrorsDoNotEmitFrames(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	sseHandlerCode := fileSectionCode(t, ServerFiles("", CreateJSONRPCServices(root)), "server.go", "jsonrpc-sse-server-handler")
 
-	require.Contains(t, sseHandlerCode, `w.WriteHeader(http.StatusNoContent)`)
+	require.Contains(t, sseHandlerCode, `jsonrpc.ServeSSE(`)
+	require.NotContains(t, sseHandlerCode, `w.WriteHeader(http.StatusNoContent)`)
 	require.NotContains(t, sseHandlerCode, `req.ID == ""`)
 	require.NotContains(t, sseHandlerCode, `req.ID != ""`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-server-handler-object.golden"), sseHandlerCode)
@@ -384,8 +370,7 @@ func TestJSONRPCSSEStreamPreservesRequestIDAndSkipsNotificationCloseResponse(t *
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	endpointStreamCode := fileSectionCode(t, SSEServerFiles("", CreateJSONRPCServices(root)), "stream.go", "jsonrpc-sse-server-stream")
 
-	require.Contains(t, endpointStreamCode, `if !s.requestHasID {`)
-	require.Contains(t, endpointStreamCode, `var id any = s.requestID`)
+	require.Contains(t, endpointStreamCode, `jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body`)
 	require.NotContains(t, endpointStreamCode, `id = result.ID`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-object.golden"), endpointStreamCode)
 }

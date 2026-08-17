@@ -19,14 +19,7 @@ func jsonrpcWebSocketServerSections(data *httpcodegen.ServiceData) []codegen.Sec
 		jsonrpcWebSocketServerSendSection(data),
 		jsonrpcWebSocketServerRecvSection(data),
 		jsonrpcWebSocketServerCloseSection(data),
-		jsonrpcWebSocketServerServiceErrorClassifierSection(),
 	}
-}
-
-func jsonrpcWebSocketServerServiceErrorClassifierSection() codegen.Section {
-	return codegen.NewJenniferSection("jsonrpc-server-websocket-service-error-classifier", func(stmt *jen.Statement) {
-		writeJSONRPCServiceErrorClassifier(stmt)
-	})
 }
 
 func jsonrpcWebSocketServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
@@ -56,6 +49,7 @@ func jsonrpcWebSocketServerStructSection(data *httpcodegen.ServiceData) codegen.
 	})
 }
 
+//nolint:maintidx // Generated method-specific stream adapters are intentionally centralized.
 func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.NewJenniferSection("jsonrpc-server-websocket-stream-wrapper", func(stmt *jen.Statement) {
 		streamName := lowerInitial(data.Service.StructName) + "Stream"
@@ -72,6 +66,7 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 			stmt.Comment(fmt.Sprintf("%sStreamWrapper wraps the JSON-RPC stream to provide a method-specific interface.", name)).Line()
 			stmt.Type().Id(name+"StreamWrapper").Struct(
 				jen.Id("stream").Op("*").Id(streamName),
+				jen.Id("requestHasID").Bool(),
 				jen.Id("requestID").Any(),
 			)
 			stmt.Line()
@@ -87,16 +82,31 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 				Id("SendResponse").
 				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("res").Add(codegen.TypeRef(ed.Result.Ref))).
 				Error().
-				Block(
-					jen.Return(jen.Id("w").Dot("stream").Dot("Send"+ed.Method.VarName+"Response").Call(jen.Id("ctx"), jen.Id("w").Dot("requestID"), jen.Id("res"))),
-				)
+				BlockFunc(func(g *jen.Group) {
+					writeStreamResultBodyInit(g, "res", ed)
+					g.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "CompleteStream").Call(
+						jen.Id("ctx"),
+						jen.Id("w").Dot("requestHasID"),
+						jen.Id("w").Dot("requestID"),
+						jen.Id("body"),
+						jen.Func().Params(jen.Id("response").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "Response")).Error().Block(
+							jen.Return(jen.Id("w").Dot("stream").Dot("conn").Dot("WriteJSON").Call(jen.Id("ctx"), jen.Id("response"))),
+						),
+					))
+				})
 			stmt.Line()
 			stmt.Func().Params(jen.Id("w").Op("*").Id(name+"StreamWrapper")).
 				Id("SendError").
 				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("err").Error()).
 				Error().
 				Block(
-					jen.Return(jen.Id("w").Dot("stream").Dot("SendError").Call(jen.Id("ctx"), jen.Id("w").Dot("requestID"), jen.Id("err"))),
+					jen.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "CompleteStreamError").Call(
+						jen.Id("ctx"),
+						jen.Id("w").Dot("requestHasID"),
+						jen.Func().Params().Error().Block(
+							jen.Return(jen.Id("w").Dot("stream").Dot("SendError").Call(jen.Id("ctx"), jen.Id("w").Dot("requestID"), jen.Id("err"))),
+						),
+					)),
 				)
 			stmt.Line()
 			stmt.Func().Params(jen.Id("w").Op("*").Id(name + "StreamWrapper")).
@@ -198,7 +208,7 @@ func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *h
 			Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref))).
 			Error().
 			BlockFunc(func(g *jen.Group) {
-				writeStreamResultBodyInit(g, "body", "result", ed)
+				writeStreamResultBodyInit(g, "result", ed)
 				g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
 					jen.Id("ctx"),
 					jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
@@ -218,7 +228,7 @@ func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *h
 		).
 		Error().
 		BlockFunc(func(g *jen.Group) {
-			writeStreamResultBodyInit(g, "body", "result", ed)
+			writeStreamResultBodyInit(g, "result", ed)
 			g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
 				jen.Id("ctx"),
 				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
@@ -245,47 +255,38 @@ func jsonrpcWebSocketServerRecvSection(data *httpcodegen.ServiceData) codegen.Se
 			Params(jen.Id("ctx").Qual("context", "Context")).
 			Error().
 			Block(
-				jen.Var().Id("req").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest"),
-				jen.If(
-					jen.Err().Op(":=").Id("s").Dot("conn").Dot("ReadJSON").Call(jen.Id("ctx"), jen.Op("&").Id("req")),
-					jen.Err().Op("!=").Nil(),
-				).Block(
-					jen.If(
-						jen.Qual("github.com/gorilla/websocket", "IsUnexpectedCloseError").Call(
-							jen.Err(),
-							jen.Qual("github.com/gorilla/websocket", "CloseGoingAway"),
-							jen.Qual("github.com/gorilla/websocket", "CloseAbnormalClosure"),
-						),
-					).Block(
-						jen.Return(jen.Err()),
-					),
-					jen.If(
-						jen.Err().Op(":=").Id("s").Dot("sendError").Call(jen.Id("ctx"), jen.Nil(), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ParseError"), jen.Lit("Parse error"), jen.Nil()),
-						jen.Err().Op("!=").Nil(),
-					).Block(
-						jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send parse error: %w"), jen.Err())),
-					),
-					jen.Return(jen.Nil()),
-				),
-				jen.Return(jen.Id("s").Dot("processRequest").Call(jen.Id("ctx"), jen.Op("&").Id("req"))),
+				jen.Return(jen.Id("jsonrpc.ReceiveWebSocketRequest").Call(
+					jen.Id("ctx"),
+					jen.Id("s").Dot("conn"),
+					jen.Id("s").Dot("matchesMethod"),
+					jen.Id("s").Dot("processRequest"),
+					jen.Id("s").Dot("sendError"),
+				)),
 			)
+		stmt.Line()
+		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
+			Id("matchesMethod").
+			Params(jen.Id("method").String()).
+			Bool().
+			BlockFunc(func(g *jen.Group) {
+				g.Switch(jen.Id("method")).BlockFunc(func(cases *jen.Group) {
+					for _, endpoint := range data.Endpoints {
+						cases.Case(jen.Lit(endpoint.Method.Name)).Block(jen.Return(jen.True()))
+					}
+				})
+				g.Return(jen.False())
+			})
 		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(streamName)).
 			Id("processRequest").
 			Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("req").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest")).
 			Error().
 			BlockFunc(func(g *jen.Group) {
-				writeWebSocketRequestValidation(g)
 				g.Switch(jen.Id("req").Dot("Method")).BlockFunc(func(sg *jen.Group) {
 					for _, ed := range data.Endpoints {
 						writeWebSocketRequestCase(sg, ed)
 					}
-					sg.Default().Block(
-						jen.If(jen.Id("req").Dot("HasID")).Block(
-							jen.Return(jen.Id("s").Dot("sendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound"), jen.Lit("Method not found"), jen.Nil())),
-						),
-						jen.Return(jen.Nil()),
-					)
+					sg.Default().Block(jen.Return(jen.Nil()))
 				})
 			})
 	})
@@ -331,7 +332,7 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 			"\t\tcode := jsonrpc.InternalError\n",
 			"\t\tvar serviceError *loom.ServiceError\n",
 			"\t\tif errors.As(err, &serviceError) {\n",
-			"\t\t\tcode = jsonrpcErrorCodeForServiceError(serviceError)\n",
+			"\t\t\tcode = jsonrpc.CodeForServiceError(serviceError)\n",
 			"\t\t}\n",
 			"\t\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
 			"\t}\n",
@@ -350,7 +351,7 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 			"\t\tcode := jsonrpc.InternalError\n",
 			"\t\tvar serviceError *loom.ServiceError\n",
 			"\t\tif errors.As(err, &serviceError) {\n",
-			"\t\t\tcode = jsonrpcErrorCodeForServiceError(serviceError)\n",
+			"\t\t\tcode = jsonrpc.CodeForServiceError(serviceError)\n",
 			"\t\t}\n",
 			"\t\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
 			"\t}\n",
@@ -361,7 +362,7 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 		"\tcode := jsonrpc.InternalError\n",
 		"\tvar serviceError *loom.ServiceError\n",
 		"\tif errors.As(err, &serviceError) {\n",
-		"\t\tcode = jsonrpcErrorCodeForServiceError(serviceError)\n",
+		"\t\tcode = jsonrpc.CodeForServiceError(serviceError)\n",
 		"\t}\n",
 		"\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
 	)
@@ -401,12 +402,12 @@ func streamMappedErrorCase(prefix string, item *httpcodegen.ErrorData) string {
 	return strings.Join(parts, "")
 }
 
-func writeStreamResultBodyInit(g *jen.Group, targetName, resultVar string, ed *httpcodegen.EndpointData) {
+func writeStreamResultBodyInit(g *jen.Group, resultVar string, ed *httpcodegen.EndpointData) {
 	if ed.Result != nil && len(ed.Result.Responses) > 0 && len(ed.Result.Responses[0].ServerBody) > 0 && ed.Result.Responses[0].ServerBody[0].Init != nil {
-		g.Id(targetName).Op(":=").Id(ed.Result.Responses[0].ServerBody[0].Init.Name).Call(jen.Id(resultVar))
+		g.Id("body").Op(":=").Id(ed.Result.Responses[0].ServerBody[0].Init.Name).Call(jen.Id(resultVar))
 		return
 	}
-	g.Id(targetName).Op(":=").Id(resultVar)
+	g.Id("body").Op(":=").Id(resultVar)
 }
 
 func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, targetID jen.Code) {
@@ -414,7 +415,7 @@ func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, tar
 		group.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
 		group.Var().Id("serviceError").Op("*").Id("loom").Dot("ServiceError")
 		group.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
-			jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+			jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 		)
 		group.Return(
 			jen.Id("s").Dot("sendError").Call(
@@ -506,7 +507,7 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 						continue
 					}
 					sg.Case(codegen.Expr(ed.SSE.EventTypeRef)).BlockFunc(func(cg *jen.Group) {
-						writeStreamResultBodyInit(cg, "body", "v", ed)
+						writeStreamResultBodyInit(cg, "v", ed)
 						cg.Var().Id("message").Map(jen.String()).Any()
 						if sseEventCanBeResponse(ed) {
 							cg.Var().Id("id").String()

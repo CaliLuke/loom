@@ -13,10 +13,7 @@ func jsonrpcServerHandlerSection(data *httpcodegen.ServiceData, mixed bool) code
 	return codegen.NewJenniferSection("jsonrpc-server-handler", func(stmt *jen.Statement) {
 		addJSONRPCServeHTTPSection(stmt, data, mixed)
 		addJSONRPCHandleHTTPSection(stmt, data)
-		addJSONRPCHandleSingleSection(stmt, data)
-		addJSONRPCHandleBatchSection(stmt, data)
-		addJSONRPCProcessRequestSection(stmt, data)
-		addJSONRPCBatchWriterSection(stmt)
+		addJSONRPCDispatchHTTPSection(stmt, data)
 	})
 }
 
@@ -32,37 +29,38 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 				jen.Id("r").Op("*").Qual("net/http", "Request"),
 			).
 			BlockFunc(func(g *jen.Group) {
-				g.List(jen.Id("ctx"), jen.Id("cancel")).Op(":=").Qual("context", "WithCancel").Call(jen.Id("r").Dot("Context").Call())
-				g.List(jen.Id("conn"), jen.Err()).Op(":=").Id("s").Dot("upgrader").Dot("Upgrade").Call(jen.Id("w"), jen.Id("r"), jen.Nil())
-				g.If(jen.Err().Op("!=").Nil()).Block(
-					jen.Id("s").Dot("errhandler").Call(
-						jen.Id("r").Dot("Context").Call(),
-						jen.Id("w"),
-						jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to upgrade to WebSocket: %w"), jen.Err()),
-					),
-					jen.Id("cancel").Call(),
-					jen.Return(),
+				g.Id("jsonrpc.ServeWebSocket").Call(
+					jen.Id("w"),
+					jen.Id("r"),
+					codegen.TypeRef("jsonrpc.WebSocketHandlerSpec").Values(jen.Dict{
+						jen.Id("Upgrader"):      jen.Id("s").Dot("upgrader"),
+						jen.Id("Configure"):     jen.Id("s").Dot("configfn"),
+						jen.Id("WritePolicy"):   jen.Id("s").Dot("streamWritePolicy"),
+						jen.Id("HandleFailure"): jen.Id("s").Dot("errhandler"),
+						jen.Id("Run"): jen.Func().Params(
+							jen.Id("ctx").Qual("context", "Context"),
+							jen.Id("cancel").Qual("context", "CancelFunc"),
+							jen.Id("r").Op("*").Qual("net/http", "Request"),
+							jen.Id("w").Qual("net/http", "ResponseWriter"),
+							jen.Id("conn").Op("*").Add(codegen.TypeRef("loomhttp.WebSocketStream")),
+						).Error().BlockFunc(func(run *jen.Group) {
+							streamDict := jen.Dict{
+								jen.Id("r"):      jen.Id("r"),
+								jen.Id("w"):      jen.Id("w"),
+								jen.Id("conn"):   jen.Id("conn"),
+								jen.Id("cancel"): jen.Id("cancel"),
+							}
+							for _, endpoint := range data.Endpoints {
+								streamDict[jen.Id(lowerInitial(endpoint.Method.VarName))] = jen.Id("s").Dot(lowerInitial(endpoint.Method.VarName))
+								if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
+									streamDict[jen.Id(lowerInitial(endpoint.Method.VarName)+"Endpoint")] = jen.Id("s").Dot(lowerInitial(endpoint.Method.VarName) + "Endpoint")
+								}
+							}
+							run.Id("stream").Op(":=").Op("&").Id(streamName).Values(streamDict)
+							run.Return(jen.Id("s").Dot("StreamHandler").Call(jen.Id("ctx"), jen.Id("stream")))
+						}),
+					}),
 				)
-				g.If(jen.Id("s").Dot("configfn").Op("!=").Nil()).Block(
-					jen.Id("conn").Op("=").Id("s").Dot("configfn").Call(jen.Id("conn"), jen.Id("cancel")),
-				)
-				g.Defer().Id("conn").Dot("Close").Call()
-				g.Id("wsconn").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("conn"), jen.Id("s").Dot("streamWritePolicy"))
-				g.Line()
-				streamDict := jen.Dict{
-					jen.Id("r"):      jen.Id("r"),
-					jen.Id("w"):      jen.Id("w"),
-					jen.Id("conn"):   jen.Id("wsconn"),
-					jen.Id("cancel"): jen.Id("cancel"),
-				}
-				for _, endpoint := range data.Endpoints {
-					streamDict[jen.Id(lowerInitial(endpoint.Method.VarName))] = jen.Id("s").Dot(lowerInitial(endpoint.Method.VarName))
-					if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
-						streamDict[jen.Id(lowerInitial(endpoint.Method.VarName)+"Endpoint")] = jen.Id("s").Dot(lowerInitial(endpoint.Method.VarName) + "Endpoint")
-					}
-				}
-				g.Id("stream").Op(":=").Op("&").Id(streamName).Values(streamDict)
-				g.Id("s").Dot("StreamHandler").Call(jen.Id("ctx"), jen.Id("stream"))
 			})
 	})
 }
@@ -174,7 +172,7 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 				eg.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
 				eg.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
 				eg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
-					jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+					jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 				)
 				eg.Return(jen.Id("strm").Dot("sendError").Call(
 					jen.Id("ctx"),
@@ -241,7 +239,7 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 			idg.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
 			idg.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
 			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
-				jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+				jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 			)
 			idg.Return(jen.Id("strm").Dot("sendError").Call(
 				jen.Id("ctx"),
@@ -324,7 +322,7 @@ func writeJSONRPCParamsDecode(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
 			jen.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError")),
 			jen.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
-				jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+				jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 			),
 			jen.Id("encodeJSONRPCError").Call(
 				jen.Id("ctx"),
@@ -368,7 +366,7 @@ func writeJSONRPCEndpointErrorHandling(g *jen.Group, e *httpcodegen.EndpointData
 				jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
 				jen.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError")),
 				jen.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
-					jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+					jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 				),
 				writeJSONRPCEncodeErrorCall(jen.Id("code")),
 				jen.Return(jen.Nil()),
@@ -456,7 +454,7 @@ func writeJSONRPCDefaultEndpointError(g *jen.Group) {
 	g.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
 	g.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
 	g.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
-		jen.Id("code").Op("=").Id("jsonrpcErrorCodeForServiceError").Call(jen.Id("serviceError")),
+		jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 	)
 	g.Add(writeJSONRPCEncodeErrorCall(jen.Id("code")))
 }

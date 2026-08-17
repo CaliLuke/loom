@@ -18,7 +18,6 @@ import (
 	clock "example.com/mixedtick/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
-	loomtransport "github.com/CaliLuke/loom/observability/transport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -106,35 +105,26 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 		return fmt.Errorf("unexpected event type: %T", event)
 	}
 
-	// Determine the ID to use for the response
-	var id any = s.requestID
-	if !s.requestHasID {
-		// ID-less streams (JSON-RPC notifications and raw GET events/stream
-		// listeners) must not receive a final response, so the value is
-		// discarded; emit an observability event so the suppression is
-		// visible to implementations that call SendAndClose with data.
-		loomtransport.Observe(s.r.Context(), loomtransport.Event{Kind: loomtransport.EventKindStreamClose, Reason: loomtransport.ReasonStreamFinalResponseSuppressed, Transport: loomtransport.TransportJSONRPC})
-		return nil
-	}
 	// Convert to response body type for proper JSON encoding
 	body := NewTickResponseBody(result)
-	// Send as a JSON-RPC response message with ID
-	message := map[string]any{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"result":  body,
-	}
-
-	return s.sendSSEEvent("message", message)
+	return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, func(response *jsonrpc.Response) error {
+		return s.sendSSEEvent("message", response)
+	})
 }
 
 // SendError sends a JSON-RPC error response.
 func (s *TickServerStream) SendError(ctx context.Context, id any, err error) error {
+	return jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {
+		return s.sendMappedError(ctx, id, err)
+	})
+}
+
+func (s *TickServerStream) sendMappedError(ctx context.Context, id any, err error) error {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
 	code := jsonrpc.InternalError
 	var serviceError *loom.ServiceError
 	if errors.As(err, &serviceError) {
-		code = jsonrpcErrorCodeForServiceError(serviceError)
+		code = jsonrpc.CodeForServiceError(serviceError)
 	}
 	return s.sendError(ctx, id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 }

@@ -8,24 +8,7 @@ import (
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
-func writeWebSocketRequestValidation(g *jen.Group) {
-	g.If(jen.Id("req").Dot("JSONRPC").Op("!=").Lit("2.0")).Block(
-		jen.If(jen.Id("req").Dot("HasID")).Block(
-			jen.Return(jen.Id("s").Dot("sendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidRequest"), jen.Lit("Invalid request"), jen.Nil())),
-		),
-		jen.Return(jen.Nil()),
-	)
-	g.Line()
-	g.If(jen.Id("req").Dot("Method").Op("==").Lit("")).Block(
-		jen.If(jen.Id("req").Dot("HasID")).Block(
-			jen.Return(jen.Id("s").Dot("sendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidRequest"), jen.Lit("Invalid request"), jen.Nil())),
-		),
-		jen.Return(jen.Nil()),
-	)
-	g.Line()
-}
-
-//nolint:maintidx // Generated websocket request dispatch is intentionally centralized.
+//nolint:maintidx // Generated websocket typed adapters are intentionally centralized.
 func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 	if ed.Method.ServerStream != nil && (ed.Method.ServerStream.Kind == expr.ServerStreamKind || ed.Method.ServerStream.Kind == expr.BidirectionalStreamKind) {
 		g.Case(jen.Lit(ed.Method.Name)).BlockFunc(func(cg *jen.Group) {
@@ -47,12 +30,11 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 				jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("handler error for "+ed.Method.Name+": %w"), jen.Err())),
 			)
 			cg.Id("streamWrapper").Op(":=").Op("&").Id(lowerInitial(ed.Method.VarName) + "StreamWrapper").Values(jen.Dict{
-				jen.Id("stream"):    jen.Id("s"),
-				jen.Id("requestID"): jen.Id("req").Dot("ID"),
+				jen.Id("stream"):       jen.Id("s"),
+				jen.Id("requestHasID"): jen.Id("req").Dot("HasID"),
+				jen.Id("requestID"):    jen.Id("req").Dot("ID"),
 			})
-			fields := jen.Dict{
-				jen.Id("Stream"): jen.Id("streamWrapper"),
-			}
+			fields := jen.Dict{jen.Id("Stream"): jen.Id("streamWrapper")}
 			if ed.Payload != nil && ed.Payload.Ref != "" {
 				fields[jen.Id("Payload")] = jen.Id("payload").Assert(codegen.TypeRef(ed.Payload.Ref))
 			}
