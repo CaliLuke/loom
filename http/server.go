@@ -36,3 +36,17 @@ func (s Servers) Mount(mux Muxer) {
 		m.Mount(mux)
 	}
 }
+
+// AsHandlerFunc adapts handler to the function type required by Muxer.
+func AsHandlerFunc(handler http.Handler) http.HandlerFunc {
+	if handlerFunc, ok := handler.(http.HandlerFunc); ok {
+		return handlerFunc
+	}
+	return handler.ServeHTTP
+}
+
+// MountHandler registers handler for method and pattern on mux. Generated
+// servers use this function so handler adaptation remains runtime behavior.
+func MountHandler(mux Muxer, method, pattern string, handler http.Handler) {
+	mux.Handle(method, pattern, AsHandlerFunc(handler))
+}

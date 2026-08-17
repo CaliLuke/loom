@@ -2,11 +2,5 @@
 // "ServiceTrailingSlashRoutingServer" service "server-trailing-slash-routing"
 // endpoint.
 func MountServerTrailingSlashRoutingHandler(mux loomhttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/trailing/slash/", f)
+	loomhttp.MountHandler(mux, "GET", "/trailing/slash/", h)
 }

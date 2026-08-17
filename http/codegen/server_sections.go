@@ -287,16 +287,13 @@ func serverHandlerSection(data *EndpointData) codegen.Section {
 
 func renderServerHandlerBody(data *EndpointData) string {
 	var b sourceBuilder
-	b.Add("\tf, ok := h.(http.HandlerFunc)\n")
-	b.Add("\tif !ok {\n")
-	b.Add("\t\tf = func(w http.ResponseWriter, r *http.Request) {\n\t\t\th.ServeHTTP(w, r)\n\t\t}\n\t}\n")
 	if data.CORS != nil && data.CORS.Runtime {
-		b.Add("\tf = corsPolicy.Handler(f)\n")
+		b.Add("\th = corsPolicy.Handler(loomhttp.AsHandlerFunc(h))\n")
 	} else if data.CORS != nil {
-		b.Addf("\tf = loomhttp.CORSHandler(%s, f)\n", renderCORSPolicy(data.CORS))
+		b.Addf("\th = loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h))\n", renderCORSPolicy(data.CORS))
 	}
 	for _, route := range data.Routes {
-		b.Addf("\tmux.Handle(%q, %q, f)\n", route.Verb, route.Path)
+		b.Addf("\tloomhttp.MountHandler(mux, %q, %q, h)\n", route.Verb, route.Path)
 	}
 	return b.String()
 }

@@ -34,3 +34,15 @@ func TestServerHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestServerHandlerDelegatesMountingToRuntime(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.ServerSimpleRoutingDSL)
+	services := CreateHTTPServices(root)
+	files := ServerFiles("gen", services)
+	sections := codegentest.Sections(files, "server.go", "server-handler")
+	require.NotEmpty(t, sections)
+	code := codegen.SectionCode(t, sections[0])
+
+	require.Contains(t, code, `loomhttp.MountHandler(mux, "GET", "/simple/routing", h)`)
+	require.NotContains(t, code, `h.(http.HandlerFunc)`)
+}

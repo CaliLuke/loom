@@ -13,3 +13,8 @@ as soon as the implementation, tests, and durable documentation are complete.
 Do not add compatibility work solely to preserve historical upstream behavior,
 runtime security policy better owned by applications, or speculative DSL
 surface without a current consumer.
+
+## Active Designs
+
+- [Generated transport runtime boundary](codegen-runtime-boundary.md) tracks
+  the staged work from issue #267.

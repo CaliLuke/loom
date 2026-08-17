@@ -88,13 +88,7 @@ func (s *Server) Mount(mux loomhttp.Muxer) {
 // MountTickHandler configures the mux to serve the "clock" service "Tick"
 // endpoint.
 func MountTickHandler(mux loomhttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/tick", f)
+	loomhttp.MountHandler(mux, "GET", "/tick", h)
 }
 
 // NewTickHandler creates a HTTP handler which loads the HTTP request and calls
@@ -167,13 +161,7 @@ func TickResponseContractCases() []loomhttp.ResponseContractCase {
 // MountTockHandler configures the mux to serve the "clock" service "Tock"
 // endpoint.
 func MountTockHandler(mux loomhttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/tock", f)
+	loomhttp.MountHandler(mux, "GET", "/tock", h)
 }
 
 // NewTockHandler creates a HTTP handler which loads the HTTP request and calls
@@ -246,13 +234,7 @@ func TockResponseContractCases() []loomhttp.ResponseContractCase {
 // MountGuardedHandler configures the mux to serve the "clock" service
 // "Guarded" endpoint.
 func MountGuardedHandler(mux loomhttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/guarded", f)
+	loomhttp.MountHandler(mux, "GET", "/guarded", h)
 }
 
 // NewGuardedHandler creates a HTTP handler which loads the HTTP request and
