@@ -8,7 +8,7 @@ type MethodResultWithResultViewResponseBodyFull struct {
 
 // RtResponseBody is used to define fields on response body types.
 type RtResponseBody struct {
-	X loom.Optional[string] `form:"x,omitempty" json:"x,omitzero" xml:"x,omitempty"`
+	X *string `form:"x,omitempty" json:"x,omitempty" xml:"x,omitempty"`
 }
 
 // NewMethodResultWithResultViewResponseBodyFull builds the HTTP response body

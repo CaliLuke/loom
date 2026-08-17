@@ -102,10 +102,10 @@ func recordServerResponseNestedTypeLayouts(endpoint *transportir.Endpoint, sd *S
 		return
 	}
 	for _, response := range endpoint.Response.Responses {
-		recordNestedTypeLayouts(sd, response.Body, true, true, false, true)
+		recordNestedTypeLayouts(sd, response.Body, true, false, false, true)
 	}
 	for _, response := range endpoint.Response.ErrorResponses {
-		recordNestedTypeLayouts(sd, response.Body, true, true, false, true)
+		recordNestedTypeLayouts(sd, response.Body, true, false, false, true)
 	}
 }
 
@@ -190,16 +190,21 @@ func recordUserTypeLayout(sd *ServiceData, userType expr.UserType, server, jsonP
 	jsonPresenceTypes, pointerTypes, useDefaultTypes := typeLayoutMaps(sd, server)
 	name := userType.Name()
 	if recordedJSONPresence, recorded := jsonPresenceTypes[userType.ID()]; recorded {
-		jsonPresenceTypes[name] = recordedJSONPresence
-		pointerTypes[name] = pointerTypes[userType.ID()]
-		useDefaultTypes[name] = useDefaultTypes[userType.ID()]
-		return
-	}
-	if recordedJSONPresence, recorded := jsonPresenceTypes[name]; recorded {
-		jsonPresenceTypes[userType.ID()] = recordedJSONPresence
-		pointerTypes[userType.ID()] = pointerTypes[name]
-		useDefaultTypes[userType.ID()] = useDefaultTypes[name]
-		return
+		recordedPointer := pointerTypes[userType.ID()]
+		if typeLayoutPriority(recordedJSONPresence, recordedPointer) >= typeLayoutPriority(jsonPresence, pointer) {
+			jsonPresenceTypes[name] = recordedJSONPresence
+			pointerTypes[name] = recordedPointer
+			useDefaultTypes[name] = useDefaultTypes[userType.ID()]
+			return
+		}
+	} else if recordedJSONPresence, recorded = jsonPresenceTypes[name]; recorded {
+		recordedPointer := pointerTypes[name]
+		if typeLayoutPriority(recordedJSONPresence, recordedPointer) >= typeLayoutPriority(jsonPresence, pointer) {
+			jsonPresenceTypes[userType.ID()] = recordedJSONPresence
+			pointerTypes[userType.ID()] = recordedPointer
+			useDefaultTypes[userType.ID()] = useDefaultTypes[name]
+			return
+		}
 	}
 	jsonPresenceTypes[name] = jsonPresence
 	pointerTypes[name] = pointer
@@ -207,6 +212,16 @@ func recordUserTypeLayout(sd *ServiceData, userType expr.UserType, server, jsonP
 	jsonPresenceTypes[userType.ID()] = jsonPresence
 	pointerTypes[userType.ID()] = pointer
 	useDefaultTypes[userType.ID()] = useDefault
+}
+
+func typeLayoutPriority(jsonPresence, pointer bool) uint8 {
+	if jsonPresence {
+		return 2
+	}
+	if pointer {
+		return 1
+	}
+	return 0
 }
 
 func typeLayoutMaps(sd *ServiceData, server bool) (map[string]bool, map[string]bool, map[string]bool) {

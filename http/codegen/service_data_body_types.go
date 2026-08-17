@@ -168,7 +168,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	body, viewName := projectResponseBodyView(body, view, svr, sd)
 	if svr {
 		recordRootTypeLayout(sd, body, true, false, false, true)
-		recordAttributeTypeLayouts(sd, body, true, true, false, true)
+		recordAttributeTypeLayouts(sd, body, true, false, false, true)
 	} else {
 		recordAttributeTypeLayouts(sd, body, false, true, true, false)
 	}
@@ -198,31 +198,6 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		ValidateRef: data.validateRef,
 		Example:     body.Example(sds.Root.API.ExampleGenerator),
 		View:        viewName,
-	}
-}
-
-func serverTypeUsesJSONPresence(sd *ServiceData, attribute *expr.AttributeExpr) bool {
-	if sd == nil || attribute == nil || len(sd.ServerJSONPresenceTypes) == 0 {
-		return false
-	}
-	if sd.ServerJSONPresenceTypes[sd.Scope.GoValueTypeName(attribute)] {
-		return true
-	}
-	seen := make(map[string]struct{})
-	current := attribute.Type
-	for {
-		userType, ok := current.(expr.UserType)
-		if !ok {
-			return false
-		}
-		if sd.ServerJSONPresenceTypes[userType.ID()] {
-			return true
-		}
-		if _, ok := seen[userType.ID()]; ok {
-			return false
-		}
-		seen[userType.ID()] = struct{}{}
-		current = userType.Attribute().Type
 	}
 }
 
@@ -309,7 +284,7 @@ func applyPrimitiveResponseBodyTypeData(data *responseBodyTypeData, body *expr.A
 func collectServerResponseBodyTypes(sds *ServicesData, body *expr.AttributeExpr, name string, sd *ServiceData) {
 	sd.ServerTypeNames[name] = false
 	collectUserTypes(body.Type, func(ut expr.UserType) {
-		if d := sds.attributeTypeData(ut, false, false, true, true, sd); d != nil {
+		if d := sds.attributeTypeData(ut, false, false, true, false, sd); d != nil {
 			sd.ServerBodyAttributeTypes = append(sd.ServerBodyAttributeTypes, d)
 		}
 	})

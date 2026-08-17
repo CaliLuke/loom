@@ -3,8 +3,7 @@
 func marshalFooserviceResultTypeToResultTypeResponse(v *fooservice.ResultType) *ResultTypeResponse {
 	res := &ResultTypeResponse{}
 	if v.Extension != nil {
-		resExtensionValue := marshalFooserviceExtensionToExtensionResponse(v.Extension)
-		res.Extension.SetValue(*resExtensionValue)
+		res.Extension = marshalFooserviceExtensionToExtensionResponse(v.Extension)
 	}
 
 	return res

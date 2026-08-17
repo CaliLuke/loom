@@ -4,10 +4,8 @@ func marshalFooFooToFooResponseBody(v *foo.Foo) *FooResponseBody {
 	if v == nil {
 		return nil
 	}
-	res := &FooResponseBody{}
-	if v.Bar != nil {
-		resBarValue := *v.Bar
-		res.Bar = loom.OptionalValue(resBarValue)
+	res := &FooResponseBody{
+		Bar: v.Bar,
 	}
 
 	return res

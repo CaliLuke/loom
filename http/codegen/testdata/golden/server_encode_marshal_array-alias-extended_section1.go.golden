@@ -3,8 +3,8 @@
 func marshalFooserviceResultTypeToResultTypeResponse(v *fooservice.ResultType) *ResultTypeResponse {
 	res := &ResultTypeResponse{}
 	if v.Foo != nil {
-		resFooValue := string(*v.Foo)
-		res.Foo = loom.OptionalValue(resFooValue)
+		foo := string(*v.Foo)
+		res.Foo = &foo
 	}
 
 	return res

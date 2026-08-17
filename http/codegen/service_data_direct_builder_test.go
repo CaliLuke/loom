@@ -14,7 +14,7 @@ import (
 )
 
 func TestHTTPDirectBuilderSeams(t *testing.T) {
-	t.Run("response aliases use the nested server JSON representation", func(t *testing.T) {
+	t.Run("server response layout wins over later request reuse", func(t *testing.T) {
 		nested := &expr.UserTypeExpr{
 			TypeName: "PetResponseBody",
 			AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{
@@ -22,20 +22,16 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 				Attribute: &expr.AttributeExpr{Type: expr.String},
 			}}},
 		}
-		response := &expr.UserTypeExpr{
-			TypeName:      "PetsGetResponseBody",
-			AttributeExpr: &expr.AttributeExpr{Type: nested},
-		}
 		sd := &ServiceData{
-			Scope:                   codegen.NewNameScope(),
-			ServerJSONPresenceTypes: map[string]bool{nested.ID(): true},
+			Scope: codegen.NewNameScope(),
 		}
 
-		require.True(t, serverTypeUsesJSONPresence(sd, &expr.AttributeExpr{Type: response}))
-		require.False(t, serverTypeUsesJSONPresence(sd, &expr.AttributeExpr{Type: &expr.Object{{
-			Name:      "pet",
-			Attribute: &expr.AttributeExpr{Type: nested},
-		}}}))
+		recordUserTypeLayout(sd, nested, true, false, false, true)
+		recordUserTypeLayout(sd, nested, true, true, true, false)
+
+		require.True(t, sd.ServerJSONPresenceTypes[nested.ID()])
+		require.True(t, sd.ServerPresencePointerTypes[nested.ID()])
+		require.False(t, sd.ServerPresenceUseDefaultTypes[nested.ID()])
 	})
 
 	t.Run("error name header keeps routing metadata out of the body", func(t *testing.T) {

@@ -6,8 +6,7 @@ func marshalFooserviceExtensionToExtensionResponse(v *fooservice.Extension) *Ext
 	}
 	res := &ExtensionResponse{}
 	if v.Bar != nil {
-		resBarValue := marshalFooserviceBarToBarResponse(v.Bar)
-		res.Bar.SetValue(*resBarValue)
+		res.Bar = marshalFooserviceBarToBarResponse(v.Bar)
 	}
 
 	return res

@@ -83,6 +83,9 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 			Attribute("values", ArrayOf(String), func() {
 				MinLength(1)
 			})
+			Attribute("optional_value", String)
+			Attribute("required_value", String)
+			Required("required_value")
 		})
 		var ServerOrderRequest = Type("ServerOrderRequest", func() {
 			Attribute("nested", ServerSharedNested)
@@ -97,6 +100,15 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 		})
 		var ResponseRootRequest = Type("ResponseRootRequest", func() {
 			Attribute("nested", ResponseRootShared)
+		})
+		var HeaderBody = Type("HeaderBody", func() {
+			Attribute("nickname", String)
+			Attribute("labels", ArrayOf(String))
+			Attribute("metadata", MapOf(String, String))
+		})
+		var HeaderResult = Type("HeaderResult", func() {
+			Attribute("body", HeaderBody)
+			Attribute("trace", String)
 		})
 		Service("OptionalUnionValidation", func() {
 			Method("Show", func() {
@@ -164,6 +176,16 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 					Body(ResponseRootRequest)
 				})
 			})
+			Method("HeaderShow", func() {
+				Result(HeaderResult)
+				HTTP(func() {
+					GET("/header")
+					Response(StatusOK, func() {
+						Body("body")
+						Header("trace")
+					})
+				})
+			})
 		})
 	})
 	dir := t.TempDir()
@@ -187,7 +209,34 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 		serverTypes.Write(contents)
 	}
 	require.Contains(t, serverTypes.String(), "Values loom.Optional[[]string]")
+	require.Contains(t, serverTypes.String(), "OptionalValue loom.Optional[string]")
+	require.Contains(t, serverTypes.String(), "RequiredValue *string")
+	require.Contains(t, serverTypes.String(), "func ValidateServerSharedNestedRequestBodyRequestBody")
 	require.Contains(t, serverTypes.String(), "func ValidateResponseRootShared")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "presence_regression_test.go"), []byte(`package optionalunionvalidation_test
+
+import (
+	json "encoding/json/v2"
+	"testing"
+
+	server "example.com/optionalunionvalidation/gen/http/optional_union_validation/server"
+)
+
+func TestSharedRequestPresence(t *testing.T) {
+	var nullBody server.ServerSharedNestedRequestBodyRequestBody
+	if err := json.Unmarshal([]byte("{\"optional_value\":null,\"required_value\":\"ok\"}"), &nullBody); err == nil {
+		t.Error("expected explicit null to be rejected")
+	}
+
+	var missingRequired server.ServerSharedNestedRequestBodyRequestBody
+	if err := json.Unmarshal([]byte("{}"), &missingRequired); err != nil {
+		t.Fatalf("decode empty object: %v", err)
+	}
+	if err := server.ValidateServerSharedNestedRequestBodyRequestBody(&missingRequired); err == nil {
+		t.Error("expected missing required value to be rejected")
+	}
+}
+`), 0o600))
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "test", "./...")
 }
