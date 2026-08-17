@@ -103,10 +103,15 @@ func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, 
 }
 
 func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
-	ctx := attCtx.Dup()
-	ctx.Pointer = false
-	keyVal := prefixedValidation(validateAttribute(ctx, m.KeyType, put, "k", context+".key", true, view, seen))
-	valueVal := prefixedValidation(validateAttribute(ctx, m.ElemType, put, "v", context+"[key]", true, view, seen))
+	keyCtx := attCtx.Dup()
+	keyCtx.Pointer = false
+	valueCtx := attCtx
+	if valueCtx.Pointer && expr.IsPrimitive(m.ElemType.Type) {
+		valueCtx = attCtx.Dup()
+		valueCtx.Pointer = false
+	}
+	keyVal := prefixedValidation(validateAttribute(keyCtx, m.KeyType, put, "k", context+".key", true, view, seen))
+	valueVal := prefixedValidation(validateAttribute(valueCtx, m.ElemType, put, "v", context+"[key]", true, view, seen))
 	if keyVal != "" || valueVal != "" {
 		appendValidationBlock(buf, first, renderMapValidation(target, keyVal, valueVal))
 	}
@@ -135,7 +140,18 @@ func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *Att
 		// semantics for nested objects, so preserve the enclosing context and
 		// only keep pointer semantics when both layers use pointers.
 		unionCtx := attCtx.Dup()
-		unionCtx.Pointer = unionCtx.Pointer && expr.IsObject(v.Attribute.Type)
+		_, named := v.Attribute.Type.(expr.UserType)
+		if !named {
+			unionCtx.JSONPresence = false
+			unionCtx.UseDefault = true
+		}
+		if expr.IsObject(v.Attribute.Type) && !named {
+			// HTTP sum types store inline object branches with native pointer
+			// presence, even when the union field uses JSON presence.
+			unionCtx.Pointer = false
+		} else {
+			unionCtx.Pointer = unionCtx.Pointer && expr.IsObject(v.Attribute.Type)
+		}
 		val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view, seen)
 		if val == "" {
 			continue
@@ -277,8 +293,7 @@ func validateNullableAttribute(
 		underlying.Meta[name] = append([]string(nil), values...)
 	}
 
-	valueCtx := ctx.Dup()
-	valueCtx.Pointer = false
+	valueCtx := presenceValueContext(ctx, underlying)
 	validation := recurseValidationCode(underlying, put, valueCtx, true, false, view, "actual", context, seen).String()
 	var lines []string
 	if required {
@@ -301,14 +316,32 @@ func validateOptionalAttribute(
 	seen map[string]*bytes.Buffer,
 ) string {
 	underlying := concretePresenceAttribute(att)
-	valueCtx := ctx.Dup()
-	valueCtx.Pointer = false
-	valueCtx.JSONPresence = false
+	valueCtx := presenceValueContext(ctx, underlying)
 	validation := recurseValidationCode(underlying, put, valueCtx, true, false, view, "actual", context, seen).String()
 	if validation == "" {
 		return ""
 	}
 	return "if actual, ok := " + target + ".Value(); ok {\n" + indentCode(validation) + "}"
+}
+
+func presenceValueContext(ctx *AttributeContext, underlying *expr.AttributeExpr) *AttributeContext {
+	valueCtx := ctx.Dup()
+	primitive := expr.IsPrimitive(underlying.Type)
+	if primitive {
+		valueCtx.Pointer = false
+	}
+	if userType, ok := underlying.Type.(expr.UserType); ok && !primitive {
+		if jsonPresence, recorded := ctx.JSONPresenceTypes[userType.ID()]; recorded {
+			valueCtx.JSONPresence = jsonPresence
+		}
+		if pointer, recorded := ctx.PresencePointerTypes[userType.ID()]; recorded {
+			valueCtx.Pointer = pointer
+		}
+		if useDefault, recorded := ctx.PresenceUseDefaultTypes[userType.ID()]; recorded {
+			valueCtx.UseDefault = useDefault
+		}
+	}
+	return valueCtx
 }
 
 func concretePresenceAttribute(att *expr.AttributeExpr) *expr.AttributeExpr {

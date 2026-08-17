@@ -172,6 +172,223 @@ func TestNullableValidationUsesSemanticPresence(t *testing.T) {
 	require.Contains(t, code, "ValidatePattern")
 }
 
+func TestOptionalObjectValidationPreservesNestedJSONPresence(t *testing.T) {
+	minLength := 1
+	minimum := 0.0
+	details := &expr.UserTypeExpr{
+		TypeName: "Details",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{
+			Name: "note",
+			Attribute: &expr.AttributeExpr{
+				Type:       expr.String,
+				Validation: &expr.ValidationExpr{MinLength: &minLength},
+			},
+		}}},
+	}
+	scores := &expr.UserTypeExpr{
+		TypeName: "Scores",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{
+				{
+					Name: "code",
+					Attribute: &expr.AttributeExpr{
+						Type:       expr.String,
+						Validation: &expr.ValidationExpr{MinLength: &minLength},
+					},
+				},
+				{
+					Name: "confidence",
+					Attribute: &expr.AttributeExpr{
+						Type:       expr.Float64,
+						Validation: &expr.ValidationExpr{Minimum: &minimum},
+					},
+				},
+				{Name: "details", Attribute: &expr.AttributeExpr{Type: details}},
+				{
+					Name: "labels",
+					Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{
+						Type:       expr.String,
+						Validation: &expr.ValidationExpr{MinLength: &minLength},
+					}}},
+				},
+				{
+					Name: "required_code",
+					Attribute: &expr.AttributeExpr{
+						Type:       expr.String,
+						Validation: &expr.ValidationExpr{MinLength: &minLength},
+					},
+				},
+				{Name: "required_details", Attribute: &expr.AttributeExpr{Type: details}},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"required_code", "required_details"}},
+		},
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Object{{
+		Name:      "scores",
+		Attribute: &expr.AttributeExpr{Type: scores},
+	}}}
+	ctx := NewAttributeContext(true, false, true, "", NewNameScope())
+	ctx.JSONPresence = true
+
+	code := ValidationCode(attribute, nil, ctx, true, false, false, "body")
+
+	require.Contains(t, code, "body.Scores.Value()")
+	require.Contains(t, code, "actual.Code.Value()")
+	require.Contains(t, code, "actual.Confidence.Value()")
+	require.Contains(t, code, "actual.Details.Value()")
+	require.Contains(t, code, "actual.Labels.Value()")
+	require.Contains(t, code, "actual.RequiredCode != nil")
+	require.Contains(t, code, "*actual.RequiredCode")
+	require.Contains(t, code, "actual.RequiredDetails != nil")
+	require.NotContains(t, code, "actual.Code != nil")
+	require.NotContains(t, code, "range actual.Labels")
+}
+
+func TestOptionalUnionInlineObjectValidationUsesNativePresence(t *testing.T) {
+	minLength := 1
+	details := &expr.UserTypeExpr{
+		TypeName: "Details",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{
+				Name: "code",
+				Attribute: &expr.AttributeExpr{
+					Type:       expr.String,
+					Validation: &expr.ValidationExpr{MinLength: &minLength},
+				},
+			}},
+			Validation: &expr.ValidationExpr{Required: []string{"code"}},
+		},
+	}
+	union := &expr.Union{
+		TypeName: "Choice",
+		Values: []*expr.NamedAttributeExpr{
+			{
+				Name: "object",
+				Attribute: &expr.AttributeExpr{
+					Type: &expr.Object{
+						{
+							Name: "optional_code",
+							Attribute: &expr.AttributeExpr{
+								Type:       expr.String,
+								Validation: &expr.ValidationExpr{MinLength: &minLength},
+							},
+						},
+						{
+							Name: "required_code",
+							Attribute: &expr.AttributeExpr{
+								Type:       expr.String,
+								Validation: &expr.ValidationExpr{MinLength: &minLength},
+							},
+						},
+					},
+					Validation: &expr.ValidationExpr{Required: []string{"required_code"}},
+				},
+			},
+			{Name: "text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			{
+				Name: "objects",
+				Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{
+					Type: &expr.Object{{
+						Name: "array_code",
+						Attribute: &expr.AttributeExpr{
+							Type:       expr.String,
+							Validation: &expr.ValidationExpr{MinLength: &minLength},
+						},
+					}},
+				}}},
+			},
+			{
+				Name: "nullable_items",
+				Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{
+					Type:     details,
+					Nullable: true,
+				}}},
+			},
+		},
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Object{{
+		Name:      "choice",
+		Attribute: &expr.AttributeExpr{Type: union},
+	}}}
+	ctx := NewAttributeContext(true, false, true, "", NewNameScope())
+	ctx.JSONPresence = true
+	ctx.JSONPresenceTypes = map[string]bool{details.ID(): true}
+	ctx.PresencePointerTypes = map[string]bool{details.ID(): true}
+
+	code := ValidationCode(attribute, nil, ctx, true, false, false, "body")
+
+	require.Contains(t, code, "body.Choice.Value()")
+	require.Contains(t, code, "actual.OptionalCode != nil")
+	require.Contains(t, code, "*actual.OptionalCode")
+	require.Contains(t, code, "utf8.RuneCountInString(actual.RequiredCode)")
+	require.NotContains(t, code, "actual.OptionalCode.Value()")
+	require.NotContains(t, code, "actual.RequiredCode != nil")
+	require.NotContains(t, code, "*actual.RequiredCode")
+	require.Contains(t, code, "e.ArrayCode != nil")
+	require.Contains(t, code, "*e.ArrayCode")
+	require.NotContains(t, code, "e.ArrayCode.Value()")
+	require.Contains(t, code, "e.Value()")
+	require.Contains(t, code, "actual.Code != nil")
+	require.Contains(t, code, "*actual.Code")
+}
+
+func TestNullableObjectValidationPreservesNestedPointerPresence(t *testing.T) {
+	minLength := 1
+	details := &expr.UserTypeExpr{
+		TypeName: "Details",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{
+				Name: "code",
+				Attribute: &expr.AttributeExpr{
+					Type:       expr.String,
+					Validation: &expr.ValidationExpr{MinLength: &minLength},
+				},
+			}},
+			Validation: &expr.ValidationExpr{Required: []string{"code"}},
+		},
+	}
+	attribute := &expr.AttributeExpr{Type: details, Nullable: true}
+	ctx := NewAttributeContext(true, false, true, "", NewNameScope())
+	ctx.JSONPresence = true
+
+	code := ValidationCode(attribute, details, ctx, true, false, false, "body.details")
+
+	require.Contains(t, code, "body.details.Value()")
+	require.Contains(t, code, "actual.Code != nil")
+	require.Contains(t, code, "*actual.Code")
+}
+
+func TestOptionalMapInlineObjectValidationPreservesPointerLayout(t *testing.T) {
+	minLength := 1
+	entry := &expr.AttributeExpr{
+		Type: &expr.Object{{
+			Name: "code",
+			Attribute: &expr.AttributeExpr{
+				Type:       expr.String,
+				Validation: &expr.ValidationExpr{MinLength: &minLength},
+			},
+		}},
+		Validation: &expr.ValidationExpr{Required: []string{"code"}},
+	}
+	entries := &expr.Map{
+		KeyType:  &expr.AttributeExpr{Type: expr.String},
+		ElemType: entry,
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Object{{
+		Name:      "entries",
+		Attribute: &expr.AttributeExpr{Type: entries},
+	}}}
+	ctx := NewAttributeContext(true, false, true, "", NewNameScope())
+	ctx.JSONPresence = true
+
+	code := ValidationCode(attribute, nil, ctx, true, false, false, "body")
+
+	require.Contains(t, code, "body.Entries.Value()")
+	require.Contains(t, code, "if v != nil")
+	require.Contains(t, code, "v.Code != nil")
+	require.Contains(t, code, "*v.Code")
+}
+
 func TestNullableRecursiveValidationTerminates(t *testing.T) {
 	node := &expr.UserTypeExpr{TypeName: "Node"}
 	node.AttributeExpr = &expr.AttributeExpr{

@@ -54,12 +54,30 @@ type (
 		// ServerJSONPresenceTypes records server body user types whose generated
 		// fields use loom.Optional at JSON boundaries.
 		ServerJSONPresenceTypes map[string]bool
+		// ServerPresencePointerTypes records server body user types whose
+		// generated fields use pointer presence.
+		ServerPresencePointerTypes map[string]bool
+		// ServerPresenceUseDefaultTypes records server body user types whose
+		// generated fields use value storage for defaulted optional primitives.
+		ServerPresenceUseDefaultTypes map[string]bool
+		// ServerRequestValidationTypes records server body user types that must
+		// emit request validation even when a response owns their definition.
+		ServerRequestValidationTypes map[string]bool
 		// ClientTypeNames records the user type names used to define
 		// the endpoint request and response bodies for client code.
 		// The type name is used as the key and a bool as the value
 		// which if true indicates that the type has been generated
 		// in the client package.
 		ClientTypeNames map[string]bool
+		// ClientJSONPresenceTypes records client body user types whose generated
+		// fields use loom.Optional at JSON boundaries.
+		ClientJSONPresenceTypes map[string]bool
+		// ClientPresencePointerTypes records client body user types whose
+		// generated fields use pointer presence.
+		ClientPresencePointerTypes map[string]bool
+		// ClientPresenceUseDefaultTypes records client body user types whose
+		// generated fields use value storage for defaulted optional primitives.
+		ClientPresenceUseDefaultTypes map[string]bool
 		// ServerTransformHelpers is the list of transform functions
 		// required by the various server side constructors.
 		ServerTransformHelpers []*codegen.TransformFunctionData

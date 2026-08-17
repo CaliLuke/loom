@@ -34,12 +34,20 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		svcctx  = serviceContext(pkg, sd.Service.Scope)
 	)
 	httpctx.JSONPresence = svr && !formEncoded && !multipart
+	ensureTypeLayoutMaps(sd)
+	recordAttributeTypeLayouts(sd, body, svr, httpctx.JSONPresence, httpctx.Pointer, httpctx.UseDefault)
 	if svr {
-		recordServerJSONPresenceType(sd, body, httpctx.JSONPresence)
-		recordServerJSONPresenceType(sd, att, httpctx.JSONPresence)
+		httpctx.JSONPresenceTypes = sd.ServerJSONPresenceTypes
+		httpctx.PresencePointerTypes = sd.ServerPresencePointerTypes
+		httpctx.PresenceUseDefaultTypes = sd.ServerPresenceUseDefaultTypes
+	} else {
+		httpctx.JSONPresenceTypes = sd.ClientJSONPresenceTypes
+		httpctx.PresencePointerTypes = sd.ClientPresencePointerTypes
+		httpctx.PresenceUseDefaultTypes = sd.ClientPresenceUseDefaultTypes
 	}
+	applyUserTypeLayout(httpctx, sd, body, svr)
 	addMarshalTags(body, make(map[string]struct{}))
-	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, multipart, svr, sd, httpctx)
+	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, sd, httpctx)
 	ref := sd.Scope.GoTypeRef(body)
 	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, details.validateDefinition, svr, svcctx, httpctx, sd)
 	return &TypeData{
@@ -59,29 +67,10 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 }
 
-func recordServerJSONPresenceType(sd *ServiceData, attribute *expr.AttributeExpr, jsonPresence bool) {
-	if sd == nil || attribute == nil {
-		return
-	}
-	if sd.ServerJSONPresenceTypes == nil {
-		sd.ServerJSONPresenceTypes = make(map[string]bool)
-	}
-	name := sd.Scope.GoValueTypeName(attribute)
-	if _, recorded := sd.ServerJSONPresenceTypes[name]; !recorded {
-		sd.ServerJSONPresenceTypes[name] = jsonPresence
-	}
-	if userType, ok := attribute.Type.(expr.UserType); ok {
-		if _, recorded := sd.ServerJSONPresenceTypes[userType.ID()]; !recorded {
-			sd.ServerJSONPresenceTypes[userType.ID()] = jsonPresence
-		}
-	}
-}
-
 func buildRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
 	endpointName string,
 	formEncoded bool,
-	multipart bool,
 	svr bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
@@ -95,7 +84,7 @@ func buildRequestBodyTypeDetails(
 		}
 	}
 	if userType, ok := body.Type.(expr.UserType); ok {
-		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, multipart, svr, sd, httpctx)
+		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
 	}
 	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !svr, "", sd.Scope)
 	validateReference := codegen.ValidationCode(body, nil, ctx, true, expr.IsAlias(body.Type), false, "body")
@@ -115,7 +104,6 @@ func buildUserRequestBodyTypeDetails(
 	userType expr.UserType,
 	endpointName string,
 	formEncoded bool,
-	multipart bool,
 	svr bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
@@ -124,7 +112,7 @@ func buildUserRequestBodyTypeDetails(
 	details := requestBodyTypeDetails{
 		varName:     varName,
 		description: fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.", varName, sd.Service.Name, endpointName),
-		definition:  goValueTypeDef(sd.Scope, userType.Attribute(), svr, !svr, svr && !formEncoded && !multipart),
+		definition:  goValueTypeDef(sd.Scope, userType.Attribute(), httpctx.Pointer, httpctx.UseDefault, httpctx.JSONPresence),
 	}
 	details.flatFormUnionField, details.flatFormUnionPointer, details.flatFormUnionTypeKey, details.flatFormUnionRef =
 		flatFormUnionMetadata(userType.Attribute(), formEncoded, sd.Scope)
@@ -165,12 +153,26 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	}
 	httpctx := httpContext(sd.Scope, false, svr)
 	httpctx.JSONPresence = !svr
+	ensureTypeLayoutMaps(sd)
 	if svr {
 		httpctx.JSONPresenceTypes = sd.ServerJSONPresenceTypes
+		httpctx.PresencePointerTypes = sd.ServerPresencePointerTypes
+		httpctx.PresenceUseDefaultTypes = sd.ServerPresenceUseDefaultTypes
+	} else {
+		httpctx.JSONPresenceTypes = sd.ClientJSONPresenceTypes
+		httpctx.PresencePointerTypes = sd.ClientPresencePointerTypes
+		httpctx.PresenceUseDefaultTypes = sd.ClientPresenceUseDefaultTypes
 	}
 	pkg := service.DefaultPackageName(loc, sd.Service.PkgName)
 	svcctx := serviceContext(pkg, sd.Service.Scope)
 	body, viewName := projectResponseBodyView(body, view, svr, sd)
+	if svr {
+		recordRootTypeLayout(sd, body, true, false, false, true)
+		recordAttributeTypeLayouts(sd, body, true, true, false, true)
+	} else {
+		recordAttributeTypeLayouts(sd, body, false, true, true, false)
+	}
+	applyUserTypeLayout(httpctx, sd, body, svr)
 	data := initResponseBodyTypeData(body, att, sd)
 	addMarshalTags(body, make(map[string]struct{}))
 
@@ -183,7 +185,6 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	}
 	if svr {
 		collectServerResponseBodyTypes(sds, body, data.name, sd)
-		httpctx.JSONPresence = serverTypeUsesJSONPresence(sd, body)
 	}
 	init := sds.buildResponseBodyInit(body, att, pkg, endpointName, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
 	return &TypeData{
@@ -271,7 +272,8 @@ func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.Attrib
 	data.varName = codegen.Goify(ut.Name(), true)
 	data.def = goValueTypeDef(sd.Scope, ut.Attribute(), !svr, svr, !svr)
 	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
-	if !svr && allowValidateDef {
+	serverRequestValidation := svr && (sd.ServerRequestValidationTypes[ut.ID()] || sd.ServerRequestValidationTypes[ut.Name()])
+	if allowValidateDef && (!svr || serverRequestValidation) {
 		data.validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
 		if data.validateDef == "" {
 			return

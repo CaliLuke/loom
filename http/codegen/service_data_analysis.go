@@ -78,6 +78,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	sd = newHTTPServiceData(svc, scope)
 	sd.CORS = buildCORSData(httpSvc)
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
+	recordServiceTypeLayouts(irService.Endpoints, sd)
 	for _, httpEndpoint := range irService.Endpoints {
 		epCtx := ctx.WithMethod(httpSvc.ServiceExpr.Method(httpEndpoint.MethodName))
 		epCtx.Debug("analyzing HTTP endpoint",
@@ -187,17 +188,23 @@ func httpServicePackageName(svc *expr.ServiceExpr) string {
 
 func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceData {
 	return &ServiceData{
-		Service:                 svc,
-		ServerStruct:            "Server",
-		MountPointStruct:        "MountPoint",
-		ServerInit:              "New",
-		MountServer:             "Mount",
-		ServerService:           "Service",
-		ClientStruct:            "Client",
-		ServerTypeNames:         make(map[string]bool),
-		ServerJSONPresenceTypes: make(map[string]bool),
-		ClientTypeNames:         make(map[string]bool),
-		Scope:                   scope,
+		Service:                       svc,
+		ServerStruct:                  "Server",
+		MountPointStruct:              "MountPoint",
+		ServerInit:                    "New",
+		MountServer:                   "Mount",
+		ServerService:                 "Service",
+		ClientStruct:                  "Client",
+		ServerTypeNames:               make(map[string]bool),
+		ServerJSONPresenceTypes:       make(map[string]bool),
+		ServerPresencePointerTypes:    make(map[string]bool),
+		ServerPresenceUseDefaultTypes: make(map[string]bool),
+		ServerRequestValidationTypes:  make(map[string]bool),
+		ClientTypeNames:               make(map[string]bool),
+		ClientJSONPresenceTypes:       make(map[string]bool),
+		ClientPresencePointerTypes:    make(map[string]bool),
+		ClientPresenceUseDefaultTypes: make(map[string]bool),
+		Scope:                         scope,
 	}
 }
 

@@ -127,6 +127,9 @@ func (s *serverTypeSections) appendTypeData(section string, tdata *TypeData, tra
 		return
 	}
 	if generated, ok := data.ServerTypeNames[tdata.Name]; ok && generated {
+		if tdata.ValidateDef != "" {
+			recordValidatedType(tdata, s.seenValidated, &s.validatedTypes)
+		}
 		return
 	}
 	if tdata.Def != "" {

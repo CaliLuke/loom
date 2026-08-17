@@ -56,6 +56,11 @@ func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
 			err = loom.MergeErrors(err, err2)
 		}
 	}
+	if actual, ok := body.DupObj.Value(); ok {
+		if actual.Int == nil {
+			err = loom.MergeErrors(err, loom.MissingFieldError("int", "body.dup_obj"))
+		}
+	}
 	return
 }
 

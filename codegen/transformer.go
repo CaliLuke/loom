@@ -52,6 +52,12 @@ type (
 		// JSONPresenceTypes records named types whose physical object fields use
 		// loom.Optional even when the root conversion itself uses native presence.
 		JSONPresenceTypes map[string]bool
+		// PresencePointerTypes records named types whose physical object fields
+		// use pointer presence after a wrapper value is unwrapped.
+		PresencePointerTypes map[string]bool
+		// PresenceUseDefaultTypes records named types whose physical object fields
+		// use value storage for optional primitive fields with defaults.
+		PresenceUseDefaultTypes map[string]bool
 	}
 
 	// PresenceKind identifies the physical presence representation of an
@@ -279,14 +285,16 @@ func (a *AttributeContext) Pkg(att *expr.AttributeExpr) string {
 // Dup creates a shallow copy of the AttributeContext.
 func (a *AttributeContext) Dup() *AttributeContext {
 	return &AttributeContext{
-		Pointer:               a.Pointer,
-		IgnoreRequired:        a.IgnoreRequired,
-		UseDefault:            a.UseDefault,
-		Scope:                 a.Scope,
-		DefaultPkg:            a.DefaultPkg,
-		SamePackageConversion: a.SamePackageConversion,
-		JSONPresence:          a.JSONPresence,
-		JSONPresenceTypes:     a.JSONPresenceTypes,
+		Pointer:                 a.Pointer,
+		IgnoreRequired:          a.IgnoreRequired,
+		UseDefault:              a.UseDefault,
+		Scope:                   a.Scope,
+		DefaultPkg:              a.DefaultPkg,
+		SamePackageConversion:   a.SamePackageConversion,
+		JSONPresence:            a.JSONPresence,
+		JSONPresenceTypes:       a.JSONPresenceTypes,
+		PresencePointerTypes:    a.PresencePointerTypes,
+		PresenceUseDefaultTypes: a.PresenceUseDefaultTypes,
 	}
 }
 
