@@ -297,7 +297,8 @@ func renderLengthValidation(data validationRenderData) string {
 func renderRequiredValidation(data validationRenderData) string {
 	field := data.AttributeCtx.Scope.Field(data.RequiredAttr, data.RequiredName, true)
 	mapped := expr.NewMappedAttributeExpr(data.Attribute)
-	if data.AttributeCtx.FieldPresence(mapped, data.RequiredName, data.RequiredAttr) == NullablePresence {
+	presence := data.AttributeCtx.FieldPresence(mapped, data.RequiredName, data.RequiredAttr)
+	if presence == OptionalPresence || presence == NullablePresence {
 		return "if !" + data.Target + "." + field + ".Present() {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
 	}
 	if expr.IsUnion(data.RequiredAttr.Type) {

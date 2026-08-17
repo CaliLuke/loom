@@ -110,6 +110,16 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 			Attribute("body", HeaderBody)
 			Attribute("trace", String)
 		})
+		var RequiredDefaultSort = Type("RequiredDefaultSort", func() {
+			Attribute("field", String, func() {
+				Default("display_id")
+				Enum("display_id", "created_at")
+			})
+			Required("field")
+		})
+		var RequiredDefaultRequest = Type("RequiredDefaultRequest", func() {
+			Attribute("sort", RequiredDefaultSort)
+		})
 		Service("OptionalUnionValidation", func() {
 			Method("Show", func() {
 				Result(Envelope)
@@ -186,6 +196,13 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 					})
 				})
 			})
+			Method("RequiredDefaultSubmit", func() {
+				Payload(RequiredDefaultRequest)
+				HTTP(func() {
+					POST("/required-default")
+					Body(RequiredDefaultRequest)
+				})
+			})
 		})
 	})
 	dir := t.TempDir()
@@ -211,6 +228,9 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 	require.Contains(t, serverTypes.String(), "Values loom.Optional[[]string]")
 	require.Contains(t, serverTypes.String(), "OptionalValue loom.Optional[string]")
 	require.Contains(t, serverTypes.String(), "RequiredValue *string")
+	require.Contains(t, serverTypes.String(), "Field loom.Optional[string]")
+	require.Contains(t, serverTypes.String(), "if !actual.Field.Present()")
+	require.NotContains(t, serverTypes.String(), "actual.Field == nil")
 	require.Contains(t, serverTypes.String(), "func ValidateServerSharedNestedRequestBodyRequestBody")
 	require.Contains(t, serverTypes.String(), "func ValidateResponseRootShared")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "presence_regression_test.go"), []byte(`package optionalunionvalidation_test

@@ -172,6 +172,26 @@ func TestNullableValidationUsesSemanticPresence(t *testing.T) {
 	require.Contains(t, code, "ValidatePattern")
 }
 
+func TestRequiredDefaultJSONPresenceValidationUsesOptionalPresence(t *testing.T) {
+	root := RunDSL(t, func() {
+		dsl.Type("Sort", func() {
+			dsl.Attribute("field", dsl.String, func() {
+				dsl.Default("display_id")
+				dsl.Enum("display_id", "created_at")
+			})
+			dsl.Required("field")
+		})
+	})
+	attribute := root.UserType("Sort").Attribute()
+	ctx := NewAttributeContext(true, false, true, "", NewNameScope())
+	ctx.JSONPresence = true
+
+	code := validationCode(attribute, ctx, true, false, "body", "body")
+
+	require.Contains(t, code, "if !body.Field.Present()")
+	require.NotContains(t, code, "body.Field == nil")
+}
+
 func TestOptionalObjectValidationPreservesNestedJSONPresence(t *testing.T) {
 	minLength := 1
 	minimum := 0.0
