@@ -83,6 +83,12 @@ flag. String schemas with `format: byte` or `format: binary` import as `Bytes`.
 Regeneration preserves the selected format.
 Representable media examples map to `Example(...)`.
 
+Path parameters retain their authored attribute names so route placeholders
+and `Param(...)` mappings stay identical, including snake_case names. Generated
+Go fields remain idiomatic. An operation uses its single 2xx response as the
+primary success, or a single 3xx when no 2xx exists, so redirect-only contracts
+do not need a synthetic 2xx.
+
 An unconstrained OpenAPI schema `{}` imports as `Any` wherever a schema can
 appear, including a named component. Regeneration preserves the empty schema,
 and generated HTTP code accepts any JSON value. Generated fields use
@@ -97,9 +103,17 @@ uses `map[string]any`, and regenerated OpenAPI preserves the object boundary.
 The importer rejects a schema that also declares object members because the
 Loom DSL cannot preserve both shapes.
 
+A one-member `allOf` containing a local schema reference imports losslessly.
+With `--allow-lossy`, `allOf: [$ref, inline object]` renders with `Extend(...)`;
+the regenerated schema is flattened. Inline object array items are promoted
+to a deterministic component under the same flag so their fields and
+validation remain renderable. Both structural changes are reported as lossy
+warnings. Other `allOf`, `oneOf`, `anyOf`, and `not` shapes remain blocked.
+
 If you explicitly accept omitting non-contract
-metadata, unrecognized `format` values, or a parameter/header (not schema)
-`deprecated` flag the HTTP DSL cannot express per-parameter, add
+metadata, the documented `allOf` flattening and inline array-item promotion,
+unrecognized `format` values, or a parameter/header (not schema) `deprecated`
+flag the HTTP DSL cannot express per-parameter, add
 `--allow-lossy`; it warns on stderr for each omission but still refuses any
 contract-affecting loss. Use `--skip-unrenderable` to retain renderable
 operations. It reports skipped operations and omitted root members separately.

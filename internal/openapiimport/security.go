@@ -134,7 +134,7 @@ func (r *renderer) securityParameters(operation *Operation, parameters []rendere
 	}
 	usedFields := make(map[string]int, len(parameters)+len(requirements))
 	for _, parameter := range parameters {
-		uniqueName(parameter.field, usedFields)
+		uniqueName(codegen.Goify(parameter.field, false), usedFields)
 	}
 	seen := make(map[string]struct{})
 	for requirementIndex, requirement := range requirements {

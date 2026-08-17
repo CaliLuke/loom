@@ -61,6 +61,16 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 	if len(source.AllOf) == 0 {
 		return false
 	}
+	if len(source.AllOf) == 1 && !hasDirectAllOfSchemaShape(source) {
+		proxy := source.AllOf[0]
+		if proxy != nil && proxy.IsReference() {
+			ref := proxy.GetReference()
+			if strings.HasPrefix(ref, "#/components/schemas/") {
+				schema.Ref = ref
+				return true
+			}
+		}
+	}
 	if len(source.AllOf) != 2 || hasDirectAllOfSchemaShape(source) {
 		return false
 	}

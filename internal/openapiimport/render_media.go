@@ -3,7 +3,6 @@ package openapiimport
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 )
@@ -96,6 +95,7 @@ func (r *renderer) operationResponses(
 ) (renderedResponse, []renderedResponse, error) {
 	var success []renderedResponse
 	var failures []renderedResponse
+	successClass := successResponseClass(operation.Responses)
 	for _, source := range operation.Responses {
 		rawBody := mode != responseBodyEncoded && source.Response.Schema != nil &&
 			!isJSONMediaType(source.Response.ContentType)
@@ -103,7 +103,7 @@ func (r *renderer) operationResponses(
 		if err != nil {
 			return renderedResponse{}, nil, err
 		}
-		if strings.HasPrefix(source.Status, "2") {
+		if isSuccessResponseStatus(source.Status, successClass) {
 			success = append(success, response)
 		} else {
 			failures = append(failures, response)
@@ -111,7 +111,7 @@ func (r *renderer) operationResponses(
 	}
 	if len(success) != 1 {
 		return renderedResponse{}, nil, fmt.Errorf(
-			"render OpenAPI design: %s must define exactly one 2xx response, got %d",
+			"render OpenAPI design: %s must define exactly one 2xx response or, when absent, exactly one 3xx response, got %d",
 			path,
 			len(success),
 		)

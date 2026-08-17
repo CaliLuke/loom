@@ -126,6 +126,11 @@ The importer converts each `operationId` to an idiomatic Go method name. It
 uses matching path words to split lowercase IDs and preserves initialisms such
 as `B2B`.
 
+Path parameter attributes keep their authored names so they remain identical
+to route placeholders. For example, `{asset_id}` renders as an `asset_id`
+payload attribute and `Param("asset_id")`; generated Go still uses the
+idiomatic `AssetID` field name.
+
 The importer maps `multipart/form-data` request bodies to
 `MultipartRequest()`. It maps `application/x-www-form-urlencoded` request
 bodies to `FormRequest()`. Both request body schemas must define an object.
@@ -167,11 +172,21 @@ JSON-compatible `x-*` extensions are preserved at document, operation, schema,
 parameter, request-body, and response scopes. Extensions at unsupported scopes
 remain explicit import diagnostics and are never discarded silently.
 
-With `--allow-lossy`, the importer supports the common Spring inheritance
-shape `allOf: [$ref, inline object]`. It renders the parent with `Extend(...)`
-and keeps the inline properties and required fields. Regenerated OpenAPI
-flattens this inheritance relationship. Other `allOf` shapes remain blocked.
-The importer also blocks `oneOf`, `anyOf`, and `not`.
+A single-member `allOf` containing a local schema reference imports losslessly
+as that reference. With `--allow-lossy`, the importer also supports the common
+Spring inheritance shape `allOf: [$ref, inline object]`. It renders the parent
+with `Extend(...)` and keeps the inline properties and required fields.
+Regenerated OpenAPI flattens this inheritance relationship. When such an
+inline object is used directly as array items, the importer promotes it to a
+deterministically named component so Loom can render the array. The promotion
+is reported as a lossy warning because it changes the schema's component
+structure without changing its fields or validation. Other `allOf` shapes
+remain blocked. The importer also blocks `oneOf`, `anyOf`, and `not`.
+
+An operation must define exactly one primary successful response. The importer
+uses its single 2xx response when present. If no 2xx response exists, it uses a
+single 3xx response instead, so redirect-only operations import without
+inventing a 2xx response. Other responses remain method errors.
 
 For a single non-JSON success response, the importer keeps the media type and
 schema as an OpenAPI-only body. It uses `FileResponse()` for a compatible
@@ -207,9 +222,11 @@ also omits parameter-level or header-level `deprecated`. The HTTP DSL has no
 deprecated marker for these items. The importer always preserves a schema's
 own `deprecated` keyword. It never
 downgrades contract-affecting diagnostics such as servers, security,
-extensions, callbacks, links, custom serialization, media encodings, or schema
-composition and structural keywords. Without `--skip-unrenderable`, these
-diagnostics prevent output. With that flag, the importer omits each affected
+extensions, callbacks, links, custom serialization, media encodings, or
+unsupported schema composition and structural keywords. The documented
+`allOf` flattening and inline array-item promotion are explicit lossy
+exceptions. Without `--skip-unrenderable`, other diagnostics prevent output.
+With that flag, the importer omits each affected
 operation. The document-level omissions use the separate behavior above.
 
 #### Generate Code (`loom gen`)

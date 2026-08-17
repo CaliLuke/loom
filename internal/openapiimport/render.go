@@ -392,7 +392,6 @@ type renderedMetadata struct {
 }
 
 func (r *renderer) parameters(source []Parameter, path string) ([]renderedParameter, error) {
-	used := make(map[string]int)
 	result := make([]renderedParameter, 0, len(source))
 	for i, parameter := range source {
 		resolved, componentName, err := r.resolveParameter(parameter, fmt.Sprintf("%s/%d", path, i))
@@ -412,11 +411,30 @@ func (r *renderer) parameters(source []Parameter, path string) ([]renderedParame
 		if resolved.In == "path" && (!token.IsIdentifier(resolved.Name) || token.Lookup(resolved.Name).IsKeyword()) {
 			return nil, fmt.Errorf("render OpenAPI design: %s/%d path parameter %q is not a Loom wildcard identifier", path, i, resolved.Name)
 		}
-		field := uniqueName(codegen.Goify(resolved.Name, false), used)
-		if field == "" {
-			return nil, fmt.Errorf("render OpenAPI design: %s/%d parameter %q has no usable field name", path, i, resolved.Name)
+		result = append(result, renderedParameter{parameter: resolved, componentName: componentName})
+	}
+
+	used := make(map[string]int, len(result))
+	for i := range result {
+		if result[i].parameter.In != "path" {
+			continue
 		}
-		result = append(result, renderedParameter{parameter: resolved, field: field, componentName: componentName})
+		name := result[i].parameter.Name
+		goName := codegen.Goify(name, false)
+		if uniqueName(goName, used) != goName {
+			return nil, fmt.Errorf("render OpenAPI design: %s/%d path parameter %q has a colliding Go field name", path, i, name)
+		}
+		result[i].field = name
+	}
+	for i := range result {
+		if result[i].parameter.In == "path" {
+			continue
+		}
+		field := uniqueName(codegen.Goify(result[i].parameter.Name, false), used)
+		if field == "" {
+			return nil, fmt.Errorf("render OpenAPI design: %s/%d parameter %q has no usable field name", path, i, result[i].parameter.Name)
+		}
+		result[i].field = field
 	}
 	return result, nil
 }

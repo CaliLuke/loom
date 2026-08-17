@@ -131,9 +131,10 @@ func (p *documentPlanner) operation(operation *Operation, path string) {
 	}
 	p.requestBody(operation.RequestBody, path+"/requestBody")
 	responseMode := operationResponseBodyMode(operation)
+	successClass := successResponseClass(operation.Responses)
 	successes := 0
 	for _, response := range operation.Responses {
-		if strings.HasPrefix(response.Status, "2") {
+		if isSuccessResponseStatus(response.Status, successClass) {
 			successes++
 		}
 		responsePath := path + "/responses/" + escapeJSONPointer(response.Status)
@@ -148,7 +149,7 @@ func (p *documentPlanner) operation(operation *Operation, path string) {
 		p.response(response.Response, responsePath, responseMode != responseBodyEncoded)
 	}
 	if successes != 1 {
-		p.unsupported("success-response-count", path+"/responses", fmt.Sprintf("must define exactly one 2xx response, got %d", successes))
+		p.unsupported("success-response-count", path+"/responses", fmt.Sprintf("must define exactly one 2xx response or, when absent, exactly one 3xx response, got %d", successes))
 	}
 }
 
@@ -245,8 +246,9 @@ func (p *documentPlanner) content(contentType string, schema *Schema, path strin
 }
 
 func operationResponseBodyMode(operation *Operation) responseBodyMode {
+	successClass := successResponseClass(operation.Responses)
 	for _, response := range operation.Responses {
-		if !strings.HasPrefix(response.Status, "2") || response.Response.Schema == nil ||
+		if !isSuccessResponseStatus(response.Status, successClass) || response.Response.Schema == nil ||
 			isJSONMediaType(response.Response.ContentType) {
 			continue
 		}
@@ -257,6 +259,19 @@ func operationResponseBodyMode(operation *Operation) responseBodyMode {
 		return responseBodyStream
 	}
 	return responseBodyEncoded
+}
+
+func successResponseClass(responses []StatusResponse) byte {
+	for _, response := range responses {
+		if len(response.Status) == 3 && response.Status[0] == '2' {
+			return '2'
+		}
+	}
+	return '3'
+}
+
+func isSuccessResponseStatus(status string, successClass byte) bool {
+	return len(status) == 3 && status[0] == successClass
 }
 
 func hasFileProtocolResponse(responses []StatusResponse) bool {
