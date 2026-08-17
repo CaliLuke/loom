@@ -18,7 +18,7 @@ returns a Loom fault until the application replaces it.
 ### Installation
 
 ```bash
-go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.13
+go install github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.14
 ```
 
 ### Pinning the Generator in a Module
@@ -27,7 +27,7 @@ Applications that want reproducible generation can record the Loom command as
 a Go tool dependency:
 
 ```bash
-go get -tool github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.13
+go get -tool github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.14
 go tool loom gen example.com/myservice/design
 ```
 
@@ -40,7 +40,7 @@ For an existing `//go:generate` or script that intentionally uses `go run`, add
 the command package—not only the root module—before invoking it:
 
 ```bash
-go get github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.13
+go get github.com/CaliLuke/loom/cmd/loom@v1.8.0-alpha.14
 go run github.com/CaliLuke/loom/cmd/loom gen example.com/myservice/design
 ```
 
