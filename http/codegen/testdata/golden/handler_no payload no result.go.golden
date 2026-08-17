@@ -13,26 +13,21 @@ func NewMethodNoPayloadNoResultHandler(
 		encodeResponse = EncodeMethodNoPayloadNoResultResponse(encoder)
 		encodeError    = loomhttp.ErrorEncoder(encoder, formatter)
 	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, loom.MethodKey, "MethodNoPayloadNoResult")
-		ctx = context.WithValue(ctx, loom.ServiceKey, "ServiceNoPayloadNoResult")
-		obs, w := loomtransport.BeginHTTPRequest(ctx, w, "ServiceNoPayloadNoResult", "MethodNoPayloadNoResult", r)
-		defer obs.End()
-		var err error
-		res, err := endpoint(ctx, nil)
-		if err != nil {
-			obs.Fail(loomtransport.ReasonHandlerError)
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
+	return loomhttp.NewUnaryHandler(loomhttp.UnaryHandlerSpec[struct{}, struct{}]{
+		Service: "ServiceNoPayloadNoResult",
+		Method:  "MethodNoPayloadNoResult",
+		Invoke: func(ctx context.Context, _ struct{}) (struct{}, error) {
+			_, err := endpoint(ctx, nil)
+			if err != nil {
+				var zero struct{}
+				return zero, err
 			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			obs.Fail(loomtransport.ReasonResponseWriteFailed)
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
+			return struct{}{}, nil
+		},
+		EncodeResponse: func(ctx context.Context, w http.ResponseWriter, _ struct{}) error {
+			return encodeResponse(ctx, w, nil)
+		},
+		EncodeError:   encodeError,
+		HandleFailure: errhandler,
 	})
 }

@@ -25,6 +25,7 @@ func TestHandlerInit(t *testing.T) {
 		{"no payload result", testdata.ServerNoPayloadResultDSL},
 		{"payload result", testdata.ServerPayloadResultDSL},
 		{"payload result error", testdata.ServerPayloadResultErrorDSL},
+		{"result any", testdata.ResultBodyPrimitiveAnyDSL},
 		{"skip response body encode decode", testdata.ServerSkipResponseBodyEncodeDecodeDSL},
 	}
 	for _, c := range cases {
@@ -79,8 +80,8 @@ func TestHandlerInitConstructorSignature(t *testing.T) {
 			for _, p := range c.WantParams {
 				require.Contains(t, code, p, "generated handler init must keep %q in its parameter list", p)
 			}
-			require.Contains(t, code, "loomtransport.BeginHTTPRequest(ctx, w,", "generated handler must wire the observer")
-			require.Contains(t, code, "defer obs.End()", "generated handler must defer obs.End()")
+			require.Contains(t, code, "loomhttp.NewUnaryHandler", "generated handler must delegate unary execution")
+			require.NotContains(t, code, "loomtransport.BeginHTTPRequest", "runtime must own unary observation")
 		})
 	}
 }

@@ -37,6 +37,21 @@ This 0.10-second difference is measurement noise, not a compile-time change.
 The `http` package statement coverage stays at 78.0 percent. The new runtime
 path has a direct dispatch test and generated-output coverage.
 
+### Unary HTTP phase
+
+Issue #280 moves the ordinary unary request lifecycle into `NewUnaryHandler`.
+Typed generated callbacks retain the exact payload and result types.
+
+The HTTP quality total decreases from 1,888 lines to 1,865 lines after this
+phase. Its server total decreases from 622 lines to 599 lines. Its `server.go`
+file decreases from 206 lines to 183 lines.
+
+The total decrease from the original HTTP quality baseline is 35 lines. The
+generated-quality gate compiles and analyzes all five fixture groups.
+
+The direct unary lifecycle tests increase `http` package coverage from 78.0
+percent to 78.4 percent.
+
 Use these commands to repeat the checks:
 
 ```bash
@@ -127,7 +142,8 @@ decisions, fixtures, error content, and retry policy.
 ## Delivery Sequence
 
 1. HTTP route mounting uses the runtime helper in this prototype.
-2. Issue #280 moves unary HTTP handler lifecycle into the runtime.
+2. Issue #280 moves unary HTTP handler lifecycle into the runtime. The phase
+   is implemented on its ticket branch.
 3. Issue #281 moves HTTP stream and raw-body lifecycle into the runtime.
 4. Issue #282 moves JSON-RPC dispatch lifecycle into the runtime.
 5. Issue #283 moves gRPC metadata and status lifecycle into the runtime.

@@ -144,16 +144,23 @@ func serverEndpointSections(e *EndpointData) []codegen.Section {
 
 func serverTemplateFuncs() map[string]any {
 	return map[string]any{
-		"join":                strings.Join,
-		"hasWebSocket":        HasWebSocket,
-		"isWebSocketEndpoint": IsWebSocketEndpoint,
-		"isSSEEndpoint":       IsSSEEndpoint,
-		"viewedServerBody":    viewedServerBody,
-		"mustDecodeRequest":   mustDecodeRequest,
-		"addLeadingSlash":     addLeadingSlash,
-		"dir":                 path.Dir,
-		"isObject":            expr.IsObject,
+		"join":                 strings.Join,
+		"hasWebSocket":         HasWebSocket,
+		"isPlainUnaryEndpoint": isPlainUnaryEndpoint,
+		"isWebSocketEndpoint":  IsWebSocketEndpoint,
+		"isSSEEndpoint":        IsSSEEndpoint,
+		"viewedServerBody":     viewedServerBody,
+		"mustDecodeRequest":    mustDecodeRequest,
+		"addLeadingSlash":      addLeadingSlash,
+		"dir":                  path.Dir,
+		"isObject":             expr.IsObject,
 	}
+}
+
+func isPlainUnaryEndpoint(endpoint *EndpointData) bool {
+	return endpoint.Redirect == nil && !IsWebSocketEndpoint(endpoint) && !IsSSEEndpoint(endpoint) &&
+		!endpoint.HasMixedResults && !endpoint.Method.FileResponse &&
+		!endpoint.Method.SkipRequestBodyEncodeDecode && !endpoint.Method.SkipResponseBodyEncodeDecode
 }
 
 func mappedFilesSection(data *ServiceData) codegen.Section {

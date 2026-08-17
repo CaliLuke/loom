@@ -190,6 +190,9 @@ filter, and serialization rules belong here.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.
+- Ordinary unary HTTP handlers delegate request context, observation, decode,
+  invocation, response encode, and failure routing to the typed runtime helper.
+  Redirect, file, raw-body, SSE, and WebSocket branches remain explicit.
 - Protocol errors must use event types compatible with the relevant client
   contract.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated

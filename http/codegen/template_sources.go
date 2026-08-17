@@ -60,6 +60,32 @@ func {{ .HandlerInit }}(
 	{{- if (or (mustDecodeRequest .) (not (or .Redirect (isWebSocketEndpoint .) (and (isSSEEndpoint .) (not .HasMixedResults)))) (not .Redirect) .Method.SkipResponseBodyEncodeDecode) }}
 	)
 	{{- end }}
+	{{- if isPlainUnaryEndpoint . }}
+	return loomhttp.NewUnaryHandler(loomhttp.UnaryHandlerSpec[{{ if .Payload.Ref }}{{ .Payload.Ref }}{{ else }}struct{}{{ end }}, {{ if or .Result.Ref .Result.IsAny }}loomhttp.UnaryResult[{{ if .Result.IsAny }}any{{ else }}{{ .Result.Ref }}{{ end }}]{{ else }}struct{}{{ end }}]{
+		Service: {{ printf "%q" .ServiceName }},
+		Method:  {{ printf "%q" .Method.Name }},
+		{{- if .Payload.Ref }}
+		Decode: decodeRequest,
+		{{- end }}
+		Invoke: func(ctx context.Context, {{ if .Payload.Ref }}payload{{ else }}_{{ end }} {{ if .Payload.Ref }}{{ .Payload.Ref }}{{ else }}struct{}{{ end }}) ({{ if or .Result.Ref .Result.IsAny }}loomhttp.UnaryResult[{{ if .Result.IsAny }}any{{ else }}{{ .Result.Ref }}{{ end }}]{{ else }}struct{}{{ end }}, error) {
+			{{ if or .Result.Ref .Result.IsAny }}res{{ else }}_{{ end }}, err := endpoint(ctx, {{ if .Payload.Ref }}payload{{ else }}nil{{ end }})
+			if err != nil {
+				var zero {{ if or .Result.Ref .Result.IsAny }}loomhttp.UnaryResult[{{ if .Result.IsAny }}any{{ else }}{{ .Result.Ref }}{{ end }}]{{ else }}struct{}{{ end }}
+				return zero, err
+			}
+			{{- if or .Result.Ref .Result.IsAny }}
+			return loomhttp.UnaryResult[{{ if .Result.IsAny }}any{{ else }}{{ .Result.Ref }}{{ end }}]{Value: res}, nil
+			{{- else }}
+			return struct{}{}, nil
+			{{- end }}
+		},
+		EncodeResponse: func(ctx context.Context, w http.ResponseWriter, {{ if or .Result.Ref .Result.IsAny }}result{{ else }}_{{ end }} {{ if or .Result.Ref .Result.IsAny }}loomhttp.UnaryResult[{{ if .Result.IsAny }}any{{ else }}{{ .Result.Ref }}{{ end }}]{{ else }}struct{}{{ end }}) error {
+			return encodeResponse(ctx, w, {{ if or .Result.Ref .Result.IsAny }}result.Value{{ else }}nil{{ end }})
+		},
+		EncodeError:   encodeError,
+		HandleFailure: errhandler,
+	})
+	{{- else }}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, loom.MethodKey, {{ printf "%q" .Method.Name }})
@@ -390,6 +416,7 @@ func {{ .HandlerInit }}(
 	{{- end }}
 	{{- end }}
 	})
+	{{- end }}
 }
 
 {{- if .HasMixedResults }}
