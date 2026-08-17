@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -122,6 +123,17 @@ func TestExampleSectionsStructuredDeclarations(t *testing.T) {
 	}))
 	require.Contains(t, authCode, "func (s *widgetsrvc) BasicAuth(ctx context.Context, user, pass string, scheme *security.BasicScheme) (context.Context, error) {")
 	testutil.AssertGo(t, "testdata/golden/sections_example_security_auth.go.golden", authCode)
+
+	multiAPIKeyCode := codegen.SectionCode(t, exampleSecurityAuthSection(&Data{
+		Name:    "Widget",
+		VarName: "widget",
+		Schemes: SchemesData{
+			{Type: "APIKey", SchemeName: "first"},
+			{Type: "APIKey", SchemeName: "second"},
+		},
+	}))
+	require.Equal(t, 1, strings.Count(multiAPIKeyCode, "func (s *widgetsrvc) APIKeyAuth("))
+	require.Contains(t, multiAPIKeyCode, "APIKey security scheme type.")
 
 	endpointCode := codegen.SectionCode(t, exampleEndpointSection(&basicEndpointData{
 		MethodData: &MethodData{

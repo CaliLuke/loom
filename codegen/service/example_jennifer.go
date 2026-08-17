@@ -27,8 +27,8 @@ func exampleServiceInitSection(data *Data) codegen.Section {
 
 func exampleSecurityAuthSection(data *Data) codegen.Section {
 	return codegen.NewJenniferSection("security-authfuncs", func(stmt *jen.Statement) {
-		for _, scheme := range data.Schemes {
-			codegen.Doc(stmt, fmt.Sprintf("%sAuth implements the authorization logic for service %q for the %q security scheme.", scheme.Type, data.Name, scheme.SchemeName))
+		for _, scheme := range data.Schemes.DedupeByType() {
+			codegen.Doc(stmt, fmt.Sprintf("%sAuth implements the authorization logic for service %q for the %s security scheme type.", scheme.Type, data.Name, scheme.Type))
 			authParams := []jen.Code{jen.Id("token").String()}
 			switch scheme.Type {
 			case "Basic":
