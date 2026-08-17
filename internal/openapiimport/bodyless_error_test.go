@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,11 +33,16 @@ paths:
 	design, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)
 	moduleDir := requireRenderedDesignGenerates(t, design)
-	require.Contains(t, string(design), `Error("Status413")`)
+	require.Contains(t, string(design), `Error("Status413", func() {`)
+	require.Contains(t, string(design), `Attribute("message", String)`)
 	require.NotContains(t, string(design), `Error("Status413", Empty)`)
 	require.Contains(t, string(design), "\t\t\t\tBody(Empty)\n")
 
 	generated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	parsed, err := libopenapi.NewDocument(generated)
+	require.NoError(t, err)
+	_, err = parsed.BuildV3Model()
 	require.NoError(t, err)
 	var contract map[string]any
 	require.NoError(t, json.Unmarshal(generated, &contract))
@@ -45,17 +51,15 @@ paths:
 			require.NotContains(t, schemas, "Problem")
 		}
 	}
-	for _, test := range []struct {
-		path   string
-		method string
-		status string
-	}{
-		{path: "/items", method: "post", status: "413"},
-		{path: "/items", method: "post", status: "429"},
-	} {
-		operation := operationFromImportedSpec(t, contract, test.path, test.method)
-		responses := requireUnconstrainedMap(t, operation["responses"], "responses")
-		response := requireUnconstrainedMap(t, responses[test.status], "bodyless error response")
-		require.NotContains(t, response, "content")
-	}
+	operation := operationFromImportedSpec(t, contract, "/items", "post")
+	responses := requireUnconstrainedMap(t, operation["responses"], "responses")
+	tooLarge := requireUnconstrainedMap(t, responses["413"], "payload too large response")
+	require.NotContains(t, tooLarge, "content")
+	require.NotContains(t, tooLarge, "headers")
+
+	tooMany := requireUnconstrainedMap(t, responses["429"], "too many requests response")
+	require.NotContains(t, tooMany, "content")
+	headers := requireUnconstrainedMap(t, tooMany["headers"], "too many requests headers")
+	require.Len(t, headers, 1)
+	require.Contains(t, headers, "Retry-After")
 }

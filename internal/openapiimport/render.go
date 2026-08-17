@@ -519,7 +519,13 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		return nil
 	}
 	if len(response.headers) == 0 && !wrapUnconstrainedError {
-		if call == "Error" && (response.response.Schema == nil || response.rawBody) {
+		if call == "Error" && response.response.Schema == nil {
+			r.open("Error(%q, func()", name)
+			r.line("Attribute(%q, String)", "message")
+			r.close()
+			return nil
+		}
+		if call == "Error" && response.rawBody {
 			r.line("Error(%q)", name)
 			return nil
 		}

@@ -79,7 +79,8 @@ it reports every unsupported construct it finds, writes no partial design or
 TODO placeholders, and never overwrites an existing target. Schema `title`,
 `default`, `example`, `examples`, `deprecated`, `readOnly`, and `writeOnly`
 import without a flag. Unformatted integers and numbers also import without a
-flag.
+flag. String schemas with `format: byte` or `format: binary` import as `Bytes`.
+Regeneration preserves the selected format.
 Representable media examples map to `Example(...)`.
 
 An unconstrained OpenAPI schema `{}` imports as `Any` wherever a schema can
@@ -119,6 +120,7 @@ Imported error responses preserve their authored descriptions verbatim. Loom
 normally prefixes error descriptions with the error name; for hand-authored
 designs, use `Meta("openapi:description:errorName", "false")` inside an HTTP
 error `Response(...)` only when an external contract requires exact wording.
+An imported schema-less error stays bodyless and gains no response headers.
 
 For TypeScript clients, use the endorsed `@hey-api/openapi-ts` workflow in
 `docs/typescript-clients.md`. Use the 3.1 compatibility target, pin the external

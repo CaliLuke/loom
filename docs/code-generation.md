@@ -129,7 +129,8 @@ as `B2B`.
 The importer maps `multipart/form-data` request bodies to
 `MultipartRequest()`. It maps `application/x-www-form-urlencoded` request
 bodies to `FormRequest()`. Both request body schemas must define an object.
-The importer maps `type: string, format: binary` to `Bytes`.
+The importer maps `type: string` schemas with `format: byte` or
+`format: binary` to `Bytes`. Regeneration preserves the selected format.
 
 If one request body lists multiple media types, each entry must use the same
 schema and examples. Loom imports supported entries as one documented raw
@@ -186,6 +187,9 @@ The importer preserves schema `title`, `example`, `examples`, `default`,
 `deprecated`, `readOnly`, and `writeOnly` without a flag. It also preserves
 unformatted integer and number schemas. The `int32`, `int64`, `float`, and
 `double` formats are also supported.
+
+A schema-less error response stays bodyless. The importer does not add response
+headers that are absent from the source contract.
 
 The importer maps these members to `Title(...)`, `Example(...)`, `Default(...)`,
 metadata, `Int`, or `Float64`. It also maps request and response media examples

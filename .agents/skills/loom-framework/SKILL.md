@@ -142,10 +142,14 @@ filter, and serialization rules belong here.
   and the generated Go code must compile. The generated OpenAPI contract must
   preserve the accepted source semantics.
 - Add each accepted response shape to an import-to-generation contract test.
-  Bodyless errors use a concrete error type and an explicit HTTP `Body(Empty)`
-  mapping. Never render `Error(name, Empty)`.
+  Schema-less errors use a concrete non-default error type and an explicit HTTP
+  `Body(Empty)` mapping. This prevents synthesized default error headers. Never
+  render `Error(name, Empty)`.
 - Retain supported source values in the normalized import model before
   rendering. A diagnostic-only path cannot recover discarded values later.
+- Preserve `byte` and `binary` string formats as separate OpenAPI contracts.
+  Both formats use Loom `Bytes`. The rendered design must retain `byte` in
+  metadata because `Bytes` defaults to `binary`.
 - Scope diagnostics by their JSON Pointer and owning layer, not by diagnostic
   code alone. The same code can identify a root omission or an operation
   blocker.
