@@ -153,6 +153,9 @@ func TestExampleSectionsStructuredDeclarations(t *testing.T) {
 		ResultIsStruct: true,
 	}))
 	require.Contains(t, endpointCode, "func (s *widgetsrvc) Do(ctx context.Context) (res *Widget, resp io.ReadCloser, err error) {")
+	require.Contains(t, endpointCode, `err = loom.Fault("widget.Do is not implemented")`)
+	require.NotContains(t, endpointCode, "res = &Widget{}")
+	require.NotContains(t, endpointCode, "resp = io.NopCloser")
 	testutil.AssertGo(t, "testdata/golden/sections_example_endpoint.go.golden", endpointCode)
 
 	streamCode := codegen.SectionCode(t, jsonrpcHandleStreamSection(&Data{
@@ -160,7 +163,121 @@ func TestExampleSectionsStructuredDeclarations(t *testing.T) {
 		PkgName: "widgetsvc",
 	}))
 	require.Contains(t, streamCode, "func (s *widgetsrvc) HandleStream(ctx context.Context, stream widgetsvc.Stream) error {")
+	require.Contains(t, streamCode, `return loom.Fault("widget.HandleStream is not implemented")`)
 	testutil.AssertGo(t, "testdata/golden/sections_jsonrpc_handle_stream.go.golden", streamCode)
+}
+
+func TestExampleEndpointBodiesFailClosed(t *testing.T) {
+	tests := []struct {
+		name string
+		data *basicEndpointData
+		want string
+	}{
+		{
+			name: "unary result",
+			data: &basicEndpointData{
+				MethodData: &MethodData{
+					Name:    "read",
+					VarName: "Read",
+					MethodResultData: MethodResultData{
+						Result: "Widget",
+					},
+				},
+				ServiceVarName: "widget",
+				ResultFullName: "Widget",
+				ResultFullRef:  "*Widget",
+				ResultIsStruct: true,
+			},
+			want: `err = loom.Fault("widget.Read is not implemented")`,
+		},
+		{
+			name: "raw body",
+			data: &basicEndpointData{
+				MethodData: &MethodData{
+					Name:    "proxy",
+					VarName: "Proxy",
+					MethodTransportData: MethodTransportData{
+						SkipRequestBodyEncodeDecode:  true,
+						SkipResponseBodyEncodeDecode: true,
+					},
+				},
+				ServiceVarName: "widget",
+			},
+			want: `err = loom.Fault("widget.Proxy is not implemented")`,
+		},
+		{
+			name: "file response",
+			data: &basicEndpointData{
+				MethodData: &MethodData{
+					Name:    "download",
+					VarName: "Download",
+					MethodTransportData: MethodTransportData{
+						FileResponse: true,
+					},
+				},
+				ServiceVarName: "widget",
+			},
+			want: `err = loom.Fault("widget.Download is not implemented")`,
+		},
+		{
+			name: "JSON-RPC server stream",
+			data: &basicEndpointData{
+				MethodData: &MethodData{
+					Name:    "watch",
+					VarName: "Watch",
+					MethodResultData: MethodResultData{
+						Result: "Widget",
+					},
+					MethodTransportData: MethodTransportData{
+						IsJSONRPC: true,
+					},
+					MethodStreamingData: MethodStreamingData{
+						ServerStream: &StreamData{},
+					},
+				},
+				ServiceVarName: "widget",
+				ResultFullName: "Widget",
+				ResultFullRef:  "*Widget",
+				ResultIsStruct: true,
+			},
+			want: `err = loom.Fault("widget.Watch is not implemented")`,
+		},
+		{
+			name: "viewed result",
+			data: &basicEndpointData{
+				MethodData: &MethodData{
+					Name:    "project",
+					VarName: "Project",
+					MethodResultData: MethodResultData{
+						Result:       "Widget",
+						ViewedResult: &ViewedResultTypeData{},
+					},
+				},
+				ServiceVarName: "widget",
+				ResultFullName: "Widget",
+				ResultFullRef:  "*Widget",
+				ResultIsStruct: true,
+				ResultView:     "default",
+			},
+			want: `err = loom.Fault("widget.Project is not implemented")`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			body := renderExampleEndpointBody(test.data)
+			require.Contains(t, body, test.want)
+			require.NotContains(t, body, "res = &")
+			require.NotContains(t, body, "resp = ")
+			require.NotContains(t, body, "file = ")
+			require.NotContains(t, body, "stream.Send")
+			require.NotContains(t, body, "stream.SetView")
+			require.NotContains(t, body, "view = ")
+			if test.data.SkipRequestBodyEncodeDecode {
+				require.Contains(t, body, "err = errors.Join(err, req.Close())")
+			}
+		})
+	}
 }
 
 func TestExampleInterceptorSectionStructuredDeclaration(t *testing.T) {

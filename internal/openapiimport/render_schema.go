@@ -157,7 +157,10 @@ func (r *renderer) schemaReferenceExpression(ref, path string) (string, bool, er
 func (r *renderer) objectSchemaExpression(schema *Schema, path string) (string, bool, error) {
 	if schema.AdditionalProperties == nil || schema.AdditionalProperties.Schema == nil {
 		if schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && *schema.AdditionalProperties.Allowed {
-			return "", false, fmt.Errorf("render OpenAPI design: %s additionalProperties true is not renderable without Any", path)
+			if len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Bases) > 0 {
+				return "", false, fmt.Errorf("render OpenAPI design: %s object members with additionalProperties true are not renderable", path)
+			}
+			return "MapOf(String, Any)", false, nil
 		}
 		return "", true, nil
 	}

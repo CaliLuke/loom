@@ -114,6 +114,9 @@ loom example example.com/hello/design
 go mod tidy
 ```
 
+`loom example` writes consumer-owned stubs. Each stub returns `loom.Fault`
+until you replace it, so an unfinished route cannot report success.
+
 In the generated starter file `hello.go`, replace the `Greet` method with:
 
 ```go

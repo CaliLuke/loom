@@ -21,7 +21,8 @@ renderer, or framework tests, use the `loom-framework` skill.
 3. Run `loom gen <module-import-path>/design` after every design change.
 4. Implement business logic outside `gen/`.
 5. Run `loom example <module-import-path>/design` only when scaffolding missing
-   starter files; it does not overwrite existing `cmd/` files.
+   starter files. Each service stub returns `loom.Fault` until you implement
+   it. The command does not overwrite existing `cmd/` files.
 6. Run the consuming repository's formatting, tests, and integration checks.
 
 Never edit `gen/` directly. `loom gen` deletes and recreates it transactionally,
@@ -88,6 +89,12 @@ and generated HTTP code accepts any JSON value. Generated fields use
 JSON `null`; direct named results keep their imported type and can return
 `nil`. Do not replace a typeless schema that has constraints with `Any`; the
 importer rejects that contract because `Any` would discard its assertions.
+
+An OpenAPI free-form object with `type: object` and
+`additionalProperties: true` imports as `MapOf(String, Any)`. Generated Go
+uses `map[string]any`, and regenerated OpenAPI preserves the object boundary.
+The importer rejects a schema that also declares object members because the
+Loom DSL cannot preserve both shapes.
 
 If you explicitly accept omitting non-contract
 metadata, unrecognized `format` values, or a parameter/header (not schema)

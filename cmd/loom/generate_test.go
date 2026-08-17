@@ -542,6 +542,46 @@ func TestGenerateRealBinaryPreservesModuleQualifiedGenPackage(t *testing.T) {
 	require.NoError(t, err, string(combined))
 }
 
+func TestGenerateRealBinaryExampleStubsFailClosedAndCompile(t *testing.T) {
+	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
+	require.NoError(t, err)
+
+	origWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(fixtureDir))
+	defer func() {
+		require.NoError(t, os.Chdir(origWD))
+	}()
+
+	outputDir, err := os.MkdirTemp(fixtureDir, "transactional-example-")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(outputDir))
+	})
+
+	_, _, err = captureOutput(t, func() error {
+		return generate("gen", "example.com/ticktock/design", outputDir, false)
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(outputDir))
+	_, _, err = captureOutput(t, func() error {
+		return generate("example", "example.com/ticktock/design", ".", false)
+	})
+	require.NoError(t, err)
+
+	serviceSource, err := os.ReadFile(filepath.Join(outputDir, "clock.go"))
+	require.NoError(t, err)
+	require.Contains(t, string(serviceSource), "loom.Fault(")
+	require.NotContains(t, string(serviceSource), "stream.Send(")
+	require.NotContains(t, string(serviceSource), "stream.SendAndClose(")
+
+	command := exec.Command("go", "test", "./...")
+	command.Dir = outputDir
+	command.Env = append(os.Environ(), "GOWORK=off")
+	combined, err := command.CombinedOutput()
+	require.NoError(t, err, string(combined))
+}
+
 func TestGenerateRealBinaryCommitFailureCleansStage(t *testing.T) {
 	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
 	require.NoError(t, err)

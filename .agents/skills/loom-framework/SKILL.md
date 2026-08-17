@@ -89,6 +89,9 @@ consumer validation.
   that genuinely benefits from templates.
 - Never edit checked-in generated fixtures manually. Regenerate them through
   the same Loom path consumers use.
+- Generated example service methods fail closed with a transport-neutral Loom
+  fault. They never create placeholder success bodies, files, or stream events.
+  The design remains the source of declared transport responses.
 - HTTP transport generation defaults to all artifacts. API metadata
   `Meta("http:generate", "server")` omits client, client-type, client-path, and
   aggregate CLI files while retaining service and server packages. Stale client

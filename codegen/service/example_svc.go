@@ -66,12 +66,13 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 		return nil // file already exists, skip it.
 	}
 	specs := []*codegen.ImportSpec{
-		{Path: "io"},
 		{Path: "context"},
+		{Path: "errors"},
 		{Path: "fmt"},
-		{Path: "strings"},
+		{Path: "io"},
 		{Path: path.Join(genpkg, svcName), Name: data.PkgName},
 		{Path: "github.com/CaliLuke/loom/clue/log"},
+		codegen.LoomImport(""),
 		{Path: "github.com/CaliLuke/loom/security"},
 	}
 	if hasFileResponse(data.Methods) {

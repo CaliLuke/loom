@@ -138,6 +138,9 @@ loom example hello/design
 go run ./cmd/hello
 ```
 
+Replace the generated service stubs before you call the API. Each unfinished
+stub returns a Loom fault instead of a successful placeholder response.
+
 ## Getting Started
 
 Start with the [Quickstart](quickstart.md) guide to install Loom and build your first service in minutes.

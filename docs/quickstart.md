@@ -106,13 +106,16 @@ This creates a `gen` folder containing:
   metadata `Meta("openapi:version", "3.1")` for compatibility output
 - Client code
 
-Now scaffold a working implementation:
+Now create the consumer-owned starter files:
 
 ```bash
 loom example hello/design
 ```
 
-> **Important:** The `gen` command regenerates the `gen/` folder each time you run it. The `example` command creates starter implementation files that you own and customize - Loom won't overwrite them on subsequent runs.
+Each service stub returns `loom.Fault` until you implement it. An unfinished
+route therefore cannot return a successful response.
+
+> **Important:** The `gen` command regenerates the `gen/` folder each time you run it. The `example` command creates starter implementation files that you own and customize. Loom does not overwrite them on subsequent runs.
 
 Your project structure now looks like this:
 

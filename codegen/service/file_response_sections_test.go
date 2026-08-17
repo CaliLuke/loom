@@ -69,5 +69,6 @@ func TestFileResponseServiceSections(t *testing.T) {
 		ResultFullRef:  "*files.DownloadResult",
 	}))
 	require.Contains(t, exampleCode, "file *loomhttp.FileResponse")
-	require.Contains(t, exampleCode, `file = &loomhttp.FileResponse{Name: "download", Content: strings.NewReader("download")}`)
+	require.Contains(t, exampleCode, `err = loom.Fault("files.Download is not implemented")`)
+	require.NotContains(t, exampleCode, "file = &loomhttp.FileResponse")
 }

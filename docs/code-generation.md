@@ -8,8 +8,8 @@ aliases:
 
 Loom's code generation transforms your design into production-ready service
 interfaces, endpoints, transport adapters, clients, and API contracts. The
-`loom example` command can scaffold runnable starter implementations, but the
-business logic stays in files you own.
+`loom example` command creates runnable starter files. Each service stub
+returns a Loom fault until the application replaces it.
 
 
 
@@ -155,6 +155,13 @@ methods as described above. Direct named results retain their imported result
 type and may return `nil`. A schema that omits `type` but declares constraints
 is not treated as unconstrained and remains a strict import error.
 
+A free-form object with `type: object` and `additionalProperties: true` imports
+as `MapOf(String, Any)`. Generated Go uses `map[string]any`. Regenerated
+OpenAPI preserves the object type and `additionalProperties: true`.
+
+An object cannot combine declared members with `additionalProperties: true`.
+The Loom DSL cannot preserve both parts of that contract, so import fails.
+
 JSON-compatible `x-*` extensions are preserved at document, operation, schema,
 parameter, request-body, and response scopes. Extensions at unsupported scopes
 remain explicit import diagnostics and are never discarded silently.
@@ -223,9 +230,13 @@ loom example <design-package-import-path> [-o <output-dir>] [--debug]
 
 A scaffolding command:
 - Creates a one-time example implementation
-- Generates handler stubs with example logic
+- Generates handler stubs that return `loom.Fault`
+- Does not create a success body, file, or stream event from a stub
 - Run once when starting a new project
 - Will NOT overwrite existing custom implementation
+
+The transport encodes the fault as its standard internal-error response. Loom
+does not add an undeclared HTTP `501` response to the design contract.
 
 #### Create Contract Tests (`loom test-scaffold`)
 

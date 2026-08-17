@@ -11,7 +11,7 @@ import (
 
 func exampleServiceStructSection(data *Data) codegen.Section {
 	return codegen.NewJenniferSection("basic-service-struct", func(stmt *jen.Statement) {
-		codegen.Doc(stmt, fmt.Sprintf("%s service example implementation.\nThe example methods log the requests and return zero values.", data.Name))
+		codegen.Doc(stmt, fmt.Sprintf("%s service starter implementation.\nThe starter methods fail until the application implements them.", data.Name))
 		stmt.Type().Id(data.VarName + "srvc").Struct()
 	})
 }
@@ -124,16 +124,7 @@ func jsonrpcHandleStreamSection(data *Data) codegen.Section {
 			Error().
 			BlockFunc(func(group *jen.Group) {
 				group.Add(codegen.Expr(`log.Printf(ctx, "` + data.VarName + `.HandleStream")`))
-				group.Line()
-				addExampleCommentBlock(group, "Example: In a real implementation you might read from an event source and send notifications via stream.Send(ctx, event). This stub returns when the context is canceled.")
-				group.Select().Block(
-					jen.Case(jen.Op("<-").Id("ctx").Dot("Done")).Block(
-						jen.Return(jen.Id("ctx").Dot("Err").Call()),
-					),
-					jen.Default().Block(
-						jen.Return(jen.Nil()),
-					),
-				)
+				group.Return(codegen.Expr("loom.Fault").Call(jen.Lit(data.VarName + ".HandleStream is not implemented")))
 			})
 	})
 }
@@ -142,64 +133,16 @@ func renderExampleEndpointBody(data *basicEndpointData) string {
 	var body sourceBuilder
 	if data.SkipRequestBodyEncodeDecode {
 		body.Add("// req is the HTTP request body stream.\n")
-		body.Add("defer req.Close()\n")
-	}
-	if data.Result != "" && data.ResultIsStruct && data.ServerStream == nil {
-		body.Add("res = &")
-		body.Add(data.ResultFullName)
-		body.Add("{}\n")
-	}
-	if data.SkipResponseBodyEncodeDecode {
-		body.Add("// resp is the HTTP response body stream.\n")
-		body.Add(`resp = io.NopCloser(strings.NewReader("`)
-		body.Add(data.Name)
-		body.Add(`"))` + "\n")
-	}
-	if data.FileResponse {
-		body.Add("// file is served with range and conditional request semantics.\n")
-		body.Add(`file = &loomhttp.FileResponse{Name: "`)
-		body.Add(data.Name)
-		body.Add(`", Content: strings.NewReader("`)
-		body.Add(data.Name)
-		body.Add(`")}` + "\n")
-	}
-	if data.ViewedResult != nil && data.ViewedResult.ViewName == "" {
-		if data.ServerStream != nil {
-			body.Add("stream.SetView(")
-			body.Add(fmt.Sprintf("%q", data.ResultView))
-			body.Add(")\n")
-		} else {
-			body.Add("view = ")
-			body.Add(fmt.Sprintf("%q", data.ResultView))
-			body.Add("\n")
-		}
+		body.Add("defer func() {\nerr = errors.Join(err, req.Close())\n}()\n")
 	}
 	body.Add(`log.Printf(ctx, "`)
 	body.Add(data.ServiceVarName)
 	body.Add(".")
 	body.Add(data.Name)
 	body.Add("\")\n")
-	if data.ServerStream != nil && data.IsJSONRPC && data.ResultFullName != "" {
-		body.Add("// Minimal example: emit one progress notification and one final response\n{\n")
-		body.Add("notif := ")
-		body.Add(exampleStreamValue(data, "progress"))
-		body.Add("\nif err := stream.Send(ctx, notif); err != nil {\nreturn err\n}\n")
-		body.Add("final := ")
-		body.Add(exampleStreamValue(data, "done"))
-		body.Add("\nreturn stream.SendAndClose(ctx, final)\n}\n")
-	}
+	body.Add(fmt.Sprintf("err = loom.Fault(%q)\n", data.ServiceVarName+"."+data.VarName+" is not implemented"))
 	body.Add("return\n")
 	return body.String()
-}
-
-func exampleStreamValue(data *basicEndpointData, text string) string {
-	if data.ResultIsStruct {
-		return "&" + data.ResultFullName + "{}"
-	}
-	if data.ResultFullName == "string" {
-		return data.ResultFullName + "(" + fmt.Sprintf("%q", text) + ")"
-	}
-	return data.ResultFullName + "(0)"
 }
 
 func appendExampleRawBlock(group *jen.Group, code string) {

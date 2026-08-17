@@ -1,8 +1,6 @@
 // Do runs the widget method.
 func (s *widgetsrvc) Do(ctx context.Context) (res *Widget, resp io.ReadCloser, err error) {
-	res = &Widget{}
-	// resp is the HTTP response body stream.
-	resp = io.NopCloser(strings.NewReader("Do"))
 	log.Printf(ctx, "widget.Do")
+	err = loom.Fault("widget.Do is not implemented")
 	return
 }
