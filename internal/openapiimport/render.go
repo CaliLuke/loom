@@ -371,11 +371,12 @@ type renderedBody struct {
 }
 
 type renderedResponse struct {
-	status   string
-	response Response
-	headers  []renderedHeader
-	body     string
-	rawBody  bool
+	status    string
+	errorName string
+	response  Response
+	headers   []renderedHeader
+	body      string
+	rawBody   bool
 }
 
 type renderedHeader struct {
@@ -496,7 +497,7 @@ func (r *renderer) result(response renderedResponse, path string) error {
 }
 
 func (r *renderer) errorDefinition(response renderedResponse, path string) error {
-	return r.responseType("Error", "Status"+response.status, response, path)
+	return r.responseType("Error", response.errorName, response, path)
 }
 
 func (r *renderer) responseType(call, name string, response renderedResponse, path string) error {

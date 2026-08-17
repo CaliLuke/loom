@@ -165,6 +165,9 @@ filter, and serialization rules belong here.
   may receive generated error methods.
 - Make every response-rendering branch honor `hasSchemaBlock`. Primitive and
   referenced-type shortcuts must not discard examples, defaults, or metadata.
+- Keep method-level error identities collision-safe across operations. Two
+  responses with the same HTTP status must not share a generated error type
+  when their schemas belong to different operation contracts.
 - For a newly supported import construct, cover analysis, rendered source, DSL
   evaluation, and regenerated contract shape. Keep unsupported variants as
   source-specific diagnostics.

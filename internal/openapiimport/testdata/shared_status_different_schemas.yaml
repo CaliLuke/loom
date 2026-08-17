@@ -1,0 +1,44 @@
+openapi: 3.1.1
+info:
+  title: Shared Status
+  version: "1"
+tags:
+  - name: SharedStatus
+paths:
+  /items:
+    get:
+      operationId: listItems
+      tags: [SharedStatus]
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Invalid cursor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvalidCursor"
+    post:
+      operationId: createItem
+      tags: [SharedStatus]
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Invalid fields
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+components:
+  schemas:
+    InvalidCursor:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string

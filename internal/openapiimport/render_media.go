@@ -155,6 +155,11 @@ func (r *renderer) renderedResponse(source StatusResponse, rawBody bool, path st
 		bodyField = uniqueName("body", used)
 	}
 	return renderedResponse{
-		status: source.Status, response: source.Response, headers: headers, body: bodyField, rawBody: rawBody,
+		status:    source.Status,
+		errorName: "Status" + source.Status,
+		response:  source.Response,
+		headers:   headers,
+		body:      bodyField,
+		rawBody:   rawBody,
 	}, nil
 }

@@ -97,6 +97,26 @@ func TestRenderOutputCompilesAndEvaluatesAsLoomDesign(t *testing.T) {
 	requireRenderedDesignEvaluates(t, source, 2)
 }
 
+func TestRenderDisambiguatesSharedErrorStatusesByOperation(t *testing.T) {
+	document, diagnostics, err := Analyze(readFixture(t, "shared_status_different_schemas.yaml"))
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+
+	source, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	design := string(source)
+	for _, want := range []string{
+		`Error("ListItemsStatus400", ImportedInvalidCursor)`,
+		`Response("ListItemsStatus400", 400, func() {`,
+		`Error("CreateItemStatus400", MapOf(String, ArrayOf(String)))`,
+		`Response("CreateItemStatus400", 400, func() {`,
+	} {
+		require.Contains(t, design, want)
+	}
+	require.NotContains(t, design, `Error("Status400"`)
+	requireRenderedDesignEvaluates(t, source, 2)
+}
+
 func TestRenderRoundTripsAPIKeySecurityContracts(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Secured API, version: "1"}
