@@ -125,7 +125,9 @@ must coexist with the map, the importer selects a collision-free map attribute
 with `Body(...)` and `FormRequest()`. Multi-media map bodies and optional
 multipart maps remain raw request streams so the application owns codec and
 content-negotiation policy. Optional form objects with required members also
-remain raw so omission does not trigger nested required-field validation.
+remain raw so omission does not trigger nested required-field validation. Form
+schemas with unconstrained values, including free-form maps, also remain raw
+because typed form decoding cannot reconstruct interface-valued data.
 
 A one-member `allOf` containing a local schema reference imports losslessly,
 including numeric bounds and compatible scalar defaults on the wrapper.
