@@ -27,7 +27,7 @@ func writeWebsocketRecvVars(b *sourceBuilder, ws *WebSocketData) {
 	} else {
 		bodyTypeRef := ws.RecvTypeRef
 		if ws.Response != nil && ws.Response.ClientBody != nil {
-			bodyTypeRef = ws.Response.ClientBody.VarName
+			bodyTypeRef = ws.Response.ClientBody.ValueRef
 		}
 		b.Addf("\t\tbody %s\n", bodyTypeRef)
 	}

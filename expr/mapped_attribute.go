@@ -40,15 +40,8 @@ func NewMappedAttributeExpr(att *AttributeExpr) *MappedAttributeExpr {
 	var (
 		nameMap    = make(map[string]string)
 		reverseMap = make(map[string]string)
-		validation *ValidationExpr
+		validation = inheritedAttributeValidation(att, make(map[string]struct{}))
 	)
-	if att.Validation != nil {
-		validation = att.Validation.Dup()
-	} else if ut, ok := att.Type.(UserType); ok {
-		if val := ut.Attribute().Validation; val != nil {
-			validation = val.Dup()
-		}
-	}
 	attr := DupAtt(att)
 	attr.Validation = validation
 	ma := &MappedAttributeExpr{
@@ -58,6 +51,24 @@ func NewMappedAttributeExpr(att *AttributeExpr) *MappedAttributeExpr {
 	}
 	ma.Remap()
 	return ma
+}
+
+func inheritedAttributeValidation(att *AttributeExpr, seen map[string]struct{}) *ValidationExpr {
+	if att == nil {
+		return nil
+	}
+	if att.Validation != nil {
+		return att.Validation.Dup()
+	}
+	userType, ok := att.Type.(UserType)
+	if !ok {
+		return nil
+	}
+	if _, ok := seen[userType.ID()]; ok {
+		return nil
+	}
+	seen[userType.ID()] = struct{}{}
+	return inheritedAttributeValidation(userType.Attribute(), seen)
 }
 
 // Remap recomputes the name mappings from the inner attribute. Use this if

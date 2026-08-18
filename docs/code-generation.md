@@ -156,6 +156,11 @@ Its zero value means the property was absent; `loom.NullValue[T]()` means it
 was explicitly null; and `loom.NullableValue(value)` carries a concrete value.
 Use `Present`, `IsNull`, and `Value` when handling generated service types.
 
+A two-member `oneOf` with one bare `null` branch and one local component
+reference imports as the same nullable named type when the referenced schema
+explicitly excludes null. Regenerated OpenAPI uses the equivalent `anyOf`
+representation. Other `oneOf` shapes remain strict import errors.
+
 An unconstrained schema `{}` imports as Loom `Any`. This applies to component
 schemas, object properties, array items, request bodies, and responses. The
 regenerated OpenAPI preserves `{}`, including named component identity, and the
@@ -208,7 +213,8 @@ inline object is used directly as array items, the importer promotes it to a
 deterministically named component so Loom can render the array. The promotion
 is reported as a lossy warning because it changes the schema's component
 structure without changing its fields or validation. Other `allOf` shapes
-remain blocked. The importer also blocks `oneOf`, `anyOf`, and `not`.
+remain blocked. The importer also blocks unsupported `oneOf`, `anyOf`, and
+`not` shapes.
 It rejects a Schema Object with `$ref` siblings because returning only the
 reference would discard the sibling constraints. Wrap the reference in a
 supported `allOf` shape instead.

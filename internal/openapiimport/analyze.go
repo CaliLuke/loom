@@ -493,6 +493,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	}
 	schema := newNormalizedSchema(source)
 	supportedNullableComposition := a.schemaNullableAnyOf(schema, source, path)
+	supportedNullableOneOf := schemaNullableReferenceOneOf(schema, source)
 	supportedAllOf := a.schemaAllOf(schema, source, path)
 	a.schemaTypeAndProperties(schema, source, path)
 	a.schemaCollections(schema, source, path)
@@ -501,7 +502,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	a.schemaDefault(schema, source, path)
 	a.schemaExamples(schema, source, path)
 	a.schemaFormat(schema, path)
-	a.schemaUnsupportedKeywords(schema, source, path, supportedAllOf, supportedNullableComposition)
+	a.schemaUnsupportedKeywords(schema, source, path, supportedAllOf, supportedNullableComposition, supportedNullableOneOf)
 	schema.Extensions = a.extensions(path, source.Extensions)
 	schema.Unconstrained = isUnconstrainedSchema(schema)
 	return schema

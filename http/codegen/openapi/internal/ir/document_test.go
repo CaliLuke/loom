@@ -38,6 +38,37 @@ func TestBuildDocumentIncludesRequestBodyAndResponses(t *testing.T) {
 	require.Equal(t, "No Content response.", operation.Responses["204"].Value.Description)
 }
 
+func TestBuildDocumentNullableAliasComponentReferencesUnderlyingType(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		widget := dsl.Type("Widget", func() {
+			dsl.Meta("openapi:typename:canonical", "true")
+			dsl.Attribute("name", dsl.String)
+			dsl.Required("name")
+		})
+		nullableWidget := dsl.Type("NullableWidget", widget, func() {
+			dsl.Meta("openapi:typename:canonical", "true")
+			dsl.Nullable()
+		})
+		dsl.Service("Widgets", func() {
+			dsl.Method("getWidget", func() {
+				dsl.Result(nullableWidget)
+				dsl.HTTP(func() {
+					dsl.GET("/widget")
+					dsl.Response(dsl.StatusOK)
+				})
+			})
+		})
+	})
+
+	doc := BuildDocument(root.API, root.Types, root.ResultTypes)
+
+	component := doc.Components.Schemas["NullableWidget"]
+	require.NotNil(t, component)
+	require.Len(t, component.AnyOf, 2)
+	require.Equal(t, "#/components/schemas/Widget", component.AnyOf[0].Ref)
+	require.Equal(t, "null", component.AnyOf[1].Type)
+}
+
 func TestBuildDocumentComposesRepeatedHTTPBlocks(t *testing.T) {
 	root := codegen.RunDSL(t, func() {
 		dsl.Service("svc", func() {

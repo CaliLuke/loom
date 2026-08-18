@@ -195,6 +195,10 @@ filter, and serialization rules belong here.
 - Normalize `anyOf: [{}, {type: "null"}]` to unconstrained `Any`. The empty
   schema already accepts null, so the explicit null branch adds no contract
   semantics and must not force a nullable wrapper.
+- Normalize `oneOf: [$ref, {type: "null"}]` to a nullable named alias only
+  when the local referenced schema explicitly excludes null. Regeneration may
+  use nullable `anyOf`; reject already-nullable targets because the two
+  applicators are not equivalent in that case.
 - Preserve canonical named aliases as OpenAPI components, including aliases of
   `Any`. Preserve the exact source component key even when multiple keys map to
   the same Go identifier. Canonical component identity takes precedence over

@@ -22,7 +22,7 @@ func nullableUnionType(types []string) (string, bool) {
 }
 
 func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path string) bool {
-	if len(source.AnyOf) != 2 || hasDirectAllOfSchemaShape(source) {
+	if len(source.AnyOf) != 2 || len(source.OneOf) > 0 || hasDirectAllOfSchemaShape(source) {
 		return false
 	}
 	var value *Schema
@@ -57,6 +57,50 @@ func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path
 		schema.Extensions = outerExtensions
 	}
 	return true
+}
+
+func schemaNullableReferenceOneOf(schema *Schema, source *base.Schema) bool {
+	if len(source.OneOf) != 2 || len(source.AnyOf) > 0 || len(source.AllOf) > 0 || hasDirectAllOfSchemaShape(source) {
+		return false
+	}
+	var ref string
+	for _, proxy := range source.OneOf {
+		if isNullOnlySchema(proxy) {
+			continue
+		}
+		if ref != "" || !isNonNullableLocalReference(proxy) {
+			return false
+		}
+		ref = proxy.GetReference()
+	}
+	if ref == "" {
+		return false
+	}
+	schema.Ref = ref
+	schema.Nullable = true
+	return true
+}
+
+func isNullOnlySchema(proxy *base.SchemaProxy) bool {
+	if proxy == nil || proxy.IsReference() {
+		return false
+	}
+	schema := proxy.Schema()
+	if schema == nil || len(schema.Type) != 1 || schema.Type[0] != "null" {
+		return false
+	}
+	node := proxy.GetValueNode()
+	return node != nil && len(node.Content) == 2 && node.Content[0].Value == "type"
+}
+
+func isNonNullableLocalReference(proxy *base.SchemaProxy) bool {
+	if proxy == nil || !proxy.IsReference() || proxy.IsTransformedRefWithSiblings() ||
+		!strings.HasPrefix(proxy.GetReference(), "#/components/schemas/") {
+		return false
+	}
+	resolved := proxy.Schema()
+	return resolved != nil && len(resolved.Type) == 1 && resolved.Type[0] != "null" &&
+		(resolved.Nullable == nil || !*resolved.Nullable)
 }
 
 func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string) bool {

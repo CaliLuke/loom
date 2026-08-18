@@ -61,6 +61,36 @@ func TestAnalyzerPreservesCanonicalAnyAliasAsComponent(t *testing.T) {
 	require.Empty(t, component.Type)
 }
 
+func TestAnalyzerNullableCanonicalAliasReferencesUnderlyingComponent(t *testing.T) {
+	t.Parallel()
+
+	widget := &expr.UserTypeExpr{
+		TypeName: "Widget",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+			Meta: expr.MetaExpr{"openapi:typename:canonical": []string{"true"}},
+		},
+	}
+	nullableWidget := &expr.UserTypeExpr{
+		TypeName: "NullableWidget",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:     widget,
+			Nullable: true,
+			Meta:     expr.MetaExpr{"openapi:typename:canonical": []string{"true"}},
+		},
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("nullable-alias"), false)
+
+	schema := analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: nullableWidget})
+
+	require.Equal(t, "#/components/schemas/NullableWidget", schema.Ref)
+	component := analyzer.Components()["NullableWidget"]
+	require.NotNil(t, component)
+	require.Len(t, component.AnyOf, 2)
+	require.Equal(t, "#/components/schemas/Widget", component.AnyOf[0].Ref)
+	require.Equal(t, "null", component.AnyOf[1].Type)
+}
+
 func TestAnalyzerPreservesNamedAliasConstraintOverlay(t *testing.T) {
 	minimum := float64(0)
 	maximum := float64(1)

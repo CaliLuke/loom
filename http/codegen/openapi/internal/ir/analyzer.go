@@ -199,7 +199,15 @@ func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.Attribu
 	if componentAttr.Meta == nil {
 		componentAttr.Meta = make(expr.MetaExpr)
 	}
+	_, aliasesUserType := componentAttr.Type.(expr.UserType)
+	if aliasesUserType {
+		delete(componentAttr.Meta, "openapi:typename")
+		delete(componentAttr.Meta, "openapi:typename:canonical")
+	}
 	for key, values := range attr.Meta {
+		if aliasesUserType && (key == "openapi:typename" || key == "openapi:typename:canonical") {
+			continue
+		}
 		componentAttr.Meta[key] = append([]string(nil), values...)
 	}
 	if attr.Description != "" {

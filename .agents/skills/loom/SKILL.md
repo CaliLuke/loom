@@ -102,6 +102,10 @@ The equivalent `anyOf: [{}, {type: "null"}]` form also imports as `Any`: `{}`
 already accepts null, so the explicit null branch does not narrow or widen the
 contract.
 
+A two-member `oneOf` with a bare `null` branch and a local `$ref` to a schema
+that explicitly excludes null imports as a nullable named type. Regeneration
+uses the equivalent nullable `anyOf` form. Other `oneOf` shapes remain blocked.
+
 An OpenAPI free-form object with `type: object` and
 `additionalProperties: true` imports as `MapOf(String, Any)`. Generated Go
 uses `map[string]any`, and regenerated OpenAPI preserves the object boundary.

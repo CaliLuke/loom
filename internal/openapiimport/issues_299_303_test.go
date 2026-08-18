@@ -147,6 +147,82 @@ paths:
 	require.Empty(t, value)
 }
 
+func TestRenderPreservesNullableReferenceOneOf(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Widgets, version: "1"}
+paths:
+  /widget:
+    get:
+      operationId: getWidget
+      responses:
+        "200":
+          description: current widget
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NullableWidget'}
+components:
+  schemas:
+    Widget:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+    NullableWidget:
+      oneOf:
+        - $ref: '#/components/schemas/Widget'
+        - type: "null"
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Len(t, document.Components.Schemas, 2)
+	var nullable *Schema
+	for _, named := range document.Components.Schemas {
+		if named.Name == "NullableWidget" {
+			nullable = named.Schema
+		}
+	}
+	require.NotNil(t, nullable)
+	require.Equal(t, "#/components/schemas/Widget", nullable.Ref)
+	require.True(t, nullable.Nullable)
+
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	design := string(rendered)
+	require.Contains(t, design, `var ImportedNullableWidget = Type("NullableWidget", ImportedWidget, func() {`)
+	require.Contains(t, design, "Nullable()")
+	requireRenderedDesignEvaluates(t, rendered, 1)
+
+	contract := readGeneratedOpenAPIContract(t, requireRenderedDesignGenerates(t, rendered))
+	nullableContract := contract["components"].(map[string]any)["schemas"].(map[string]any)["NullableWidget"].(map[string]any)
+	variants := nullableContract["anyOf"].([]any)
+	require.Len(t, variants, 2)
+	require.Equal(t, "#/components/schemas/Widget", variants[0].(map[string]any)["$ref"])
+	require.Equal(t, "null", variants[1].(map[string]any)["type"])
+}
+
+func TestNullableReferenceOneOfRejectsNullableTarget(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Widgets, version: "1"}
+paths: {}
+components:
+  schemas:
+    Widget:
+      type: [object, "null"]
+      properties:
+        name: {type: string}
+    NullableWidget:
+      oneOf:
+        - $ref: '#/components/schemas/Widget'
+        - type: "null"
+`)
+
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	requireDiagnosticCode(t, diagnostics, "schema-composition")
+}
+
 func TestRenderPreservesDynamicFormMapRequestBody(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Config, version: "1"}

@@ -303,6 +303,39 @@ func TestTransformNullableObjectCollectionPreservesNestedJSONPresence(t *testing
 	require.Contains(t, helpers[0].Code, "loom.OptionalValue")
 }
 
+func TestTransformNullableNamedObjectRootEmitsRequiredHelper(t *testing.T) {
+	serviceType := &expr.UserTypeExpr{
+		TypeName: "ServiceWidget",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:     &expr.Object{{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+			Nullable: true,
+		},
+	}
+	httpType := &expr.UserTypeExpr{
+		TypeName: "HTTPWidget",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:     &expr.Object{{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+			Nullable: true,
+		},
+	}
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, true, "", scope)
+
+	code, helpers, err := GoTransform(
+		&expr.AttributeExpr{Type: serviceType},
+		&expr.AttributeExpr{Type: httpType},
+		"result",
+		"body",
+		ctx,
+		ctx,
+		"marshal",
+		true,
+	)
+	require.NoError(t, err)
+	require.Len(t, helpers, 1)
+	require.Contains(t, code, helpers[0].Name)
+}
+
 func TestTransformJSONOptionalRecursiveUserTypeUsesHelper(t *testing.T) {
 	root := RunDSL(t, testdata.TestTypesDSL)
 	recursive := root.UserType("Recursive")

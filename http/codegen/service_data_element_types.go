@@ -81,6 +81,9 @@ type (
 		Def string
 		// Ref is the reference to the type.
 		Ref string
+		// ValueRef is the Go type used for a transport body value. It differs
+		// from VarName when the declared body type has semantic presence.
+		ValueRef string
 		// ValidateDef contains the validation code.
 		ValidateDef string
 		// ValidateRef contains the call to the validation code.

@@ -428,8 +428,25 @@ func typedDefaultValueLiteral(att *expr.AttributeExpr, value any, ta *TransformA
 //
 // seen keeps track of generated transform functions to avoid infinite recursion.
 func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
-	// Do not generate a transform function for the top most user type.
-	return appendNestedHelpers(source, target, true, ta, seen)
+	if expr.IsNullable(source) || expr.IsNullable(target) {
+		concreteSource := concretePresenceAttribute(source)
+		concreteTarget := concretePresenceAttribute(target)
+		if nullablePhysicalTypeRef(source, ta.SourceCtx) != nullablePhysicalTypeRef(target, ta.TargetCtx) &&
+			presenceUserObjectPair(concreteSource, concreteTarget) {
+			helper, helperErr := generateHelper(concreteSource, concreteTarget, true, ta, seen)
+			if helperErr != nil {
+				return nil, helperErr
+			}
+			if helper != nil {
+				helpers = append(helpers, helper)
+			}
+		}
+	}
+	// Non-nullable top-level user types are transformed inline and do not need
+	// their own helper. Nullable named object roots use a helper inside the
+	// presence transform and are collected above.
+	nested, err := appendNestedHelpers(source, target, true, ta, seen)
+	return append(helpers, nested...), err
 }
 
 // collectHelpers recurses through the given attributes and returns the transform

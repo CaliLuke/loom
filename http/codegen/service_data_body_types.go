@@ -193,6 +193,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		Description: data.desc,
 		Def:         data.def,
 		Ref:         data.ref,
+		ValueRef:    bodyValueRef(sd.Scope, body, data.varName),
 		Init:        init,
 		ValidateDef: data.validateDef,
 		ValidateRef: data.validateRef,
@@ -238,7 +239,7 @@ func projectResponseBodyView(body *expr.AttributeExpr, view *string, svr bool, s
 func initResponseBodyTypeData(body, att *expr.AttributeExpr, sd *ServiceData) *responseBodyTypeData {
 	return &responseBodyTypeData{
 		name:     body.Type.Name(),
-		ref:      sd.Scope.GoTypeRef(body),
+		ref:      bodyTypeRef(sd.Scope, body),
 		mustInit: att.Type != expr.Empty && needInit(body),
 	}
 }
@@ -254,7 +255,7 @@ func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.Attrib
 			return
 		}
 		target := "&body"
-		if expr.IsArray(ut) {
+		if expr.IsArray(ut) || expr.IsNullable(body) {
 			target = "body"
 		}
 		data.validateRef = fmt.Sprintf("err = Validate%s(%s)", data.varName, target)
@@ -352,8 +353,8 @@ func (sds *ServicesData) buildResponseBodyInit(
 
 	const sourceVar = "res"
 
-	rtname := codegen.Goify(sd.Scope.GoTypeName(body), true)
-	rtref := sd.Scope.GoTypeRef(body)
+	rtname := codegen.Goify(sd.Scope.GoValueTypeName(body), true)
+	rtref := bodyTypeRef(sd.Scope, body)
 	if _, ok := body.Type.(expr.UserType); !ok && !expr.IsPrimitive(body.Type) {
 		rtname = codegen.Goify(endpointName, true) + "ResponseBody"
 		rtref = rtname
@@ -397,6 +398,20 @@ func (sds *ServicesData) buildResponseBodyInit(
 		ServerCode:          code,
 		ServerArgs:          []*InitArgData{arg},
 	}
+}
+
+func bodyTypeRef(scope *codegen.NameScope, body *expr.AttributeExpr) string {
+	if expr.IsNullable(body) {
+		return scope.GoTypeName(body)
+	}
+	return scope.GoTypeRef(body)
+}
+
+func bodyValueRef(scope *codegen.NameScope, body *expr.AttributeExpr, varName string) string {
+	if expr.IsNullable(body) {
+		return scope.GoTypeName(body)
+	}
+	return varName
 }
 
 func serviceBodyTransformSource(att, body *expr.AttributeExpr, sourceVar string) (*expr.AttributeExpr, string, string) {

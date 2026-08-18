@@ -52,8 +52,9 @@ func (a *analyzer) schemaUnsupportedKeywords(
 	path string,
 	supportedAllOf bool,
 	supportedNullableComposition bool,
+	supportedNullableOneOf bool,
 ) {
-	if len(source.AllOf) > 0 && !supportedAllOf || len(source.OneOf) > 0 ||
+	if len(source.AllOf) > 0 && !supportedAllOf || len(source.OneOf) > 0 && !supportedNullableOneOf ||
 		len(source.AnyOf) > 0 && !supportedNullableComposition || source.Not != nil {
 		schema.unsupportedComposition = true
 	}

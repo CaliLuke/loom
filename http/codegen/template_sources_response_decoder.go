@@ -142,7 +142,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			templateSource{name: "single_response", source: `{{- with .Data }}
 	{{- if .ClientBody }}
 			var (
-				body {{ .ClientBody.VarName }}
+				body {{ .ClientBody.ValueRef }}
 				err error
 			)
 			err = decoder(resp).Decode(&body)

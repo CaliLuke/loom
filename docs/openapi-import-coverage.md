@@ -100,6 +100,9 @@ The following constructs are conditional:
 - A two-member `anyOf` that only adds `null` maps to `Nullable()`. When the
   value branch is `{}`, it normalizes to `Any` because the empty schema already
   accepts null.
+- A two-member `oneOf` containing one bare `null` schema and one local `$ref`
+  maps to a nullable named alias when the referenced schema explicitly excludes
+  null. Regeneration uses the equivalent nullable `anyOf` form.
 - `additionalProperties: true` maps to `map[string]any` only when the object
   has no declared properties.
 - A form request whose object has only schema-valued `additionalProperties`
@@ -111,8 +114,8 @@ The following constructs are conditional:
 - An optional form object with required members also stays raw so an absent
   body does not spuriously fail nested required-field validation.
 
-Loom rejects other composition and structural keywords, including `oneOf`,
-unsupported `anyOf` and `allOf` forms, `not`, tuple and contains constraints,
+Loom rejects other composition and structural keywords, including unsupported
+`oneOf`, `anyOf`, and `allOf` forms, `not`, tuple and contains constraints,
 conditional schemas, dependent schemas, pattern properties, unevaluated
 constraints, property-count constraints, `const`, `multipleOf`,
 `uniqueItems`, content annotations, XML, schema external documentation,

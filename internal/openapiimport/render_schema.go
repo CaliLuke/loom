@@ -345,7 +345,7 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 }
 
 func (r *renderer) referenceOverlayMetadata(schema *Schema) {
-	if schema.Ref != "" && r.hasSchemaBlock(schema) {
+	if schema.Ref != "" && !schema.Nullable && r.hasSchemaBlock(schema) {
 		r.line("Meta(%q, %q)", "openapi:allOf:reference", "true")
 	}
 }
