@@ -191,6 +191,8 @@ the map in a collision-free attribute, and selects it with `Body(...)` plus
 `FormRequest()`. A contract that lists JSON, form, and multipart encodings for
 the same map stays a raw request stream so the service owns content negotiation.
 Optional multipart maps use the same raw contract.
+Form schemas that contain unconstrained values also stay raw because typed form
+decoding cannot reconstruct interface-valued fields or map entries.
 An optional form object with required members also remains raw; this preserves
 the distinction between an absent body and a present body that must satisfy its
 required fields.

@@ -223,6 +223,48 @@ components:
 	requireDiagnosticCode(t, diagnostics, "schema-composition")
 }
 
+func TestNullableReferenceOneOfAcceptsNullMediaExample(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Nullable Widget Example, version: "1"}
+paths:
+  /widget:
+    get:
+      operationId: getWidget
+      responses:
+        "200":
+          description: current widget
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NullableWidget'}
+              examples:
+                missing:
+                  value: null
+components:
+  schemas:
+    Widget:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+    NullableWidget:
+      oneOf:
+        - $ref: '#/components/schemas/Widget'
+        - type: "null"
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	examples := document.Operations[0].Responses[0].Response.Examples
+	require.Len(t, examples, 1)
+	require.Nil(t, examples[0].Value)
+
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	requireRenderedDesignEvaluates(t, rendered, 1)
+	requireRenderedDesignGenerates(t, rendered)
+}
+
 func TestRenderPreservesDynamicFormMapRequestBody(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Config, version: "1"}
@@ -257,6 +299,42 @@ paths:
 	require.NotEqual(t, true, operation["requestBody"].(map[string]any)["required"])
 	require.Equal(t, "object", schema["type"])
 	require.Equal(t, "string", schema["additionalProperties"].(map[string]any)["type"])
+}
+
+func TestFreeFormMapRequestBodyUsesRawFormContract(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Free Form Config, version: "1"}
+paths:
+  /config:
+    patch:
+      operationId: updateConfig
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200": {description: OK}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	design := string(rendered)
+	require.Contains(t, design, "SkipRequestBodyEncodeDecode()")
+	require.Contains(t, design, `OpenAPIRequestBodyTypes(MapOf(String, Any), []string{"application/x-www-form-urlencoded"}, true)`)
+	require.NotContains(t, design, "FormRequest()")
+	requireRenderedDesignEvaluates(t, rendered, 1)
+
+	contract := readGeneratedOpenAPIContract(t, requireRenderedDesignGenerates(t, rendered))
+	operation := operationFromImportedSpec(t, contract, "/config", "patch")
+	schema := operation["requestBody"].(map[string]any)["content"].(map[string]any)["application/x-www-form-urlencoded"].(map[string]any)["schema"].(map[string]any)
+	require.Equal(t, "object", schema["type"])
+	require.Equal(t, true, schema["additionalProperties"])
 }
 
 func TestRenderPlansDynamicFormMapRequestBodies(t *testing.T) {

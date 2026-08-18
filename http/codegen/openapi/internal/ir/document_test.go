@@ -69,6 +69,47 @@ func TestBuildDocumentNullableAliasComponentReferencesUnderlyingType(t *testing.
 	require.Equal(t, "null", component.AnyOf[1].Type)
 }
 
+func TestOpenAPIExampleValueMatchesUntaggedUnionValidation(t *testing.T) {
+	start := &expr.UserTypeExpr{
+		TypeName: "ExampleStart",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{
+				Name: "kind",
+				Attribute: &expr.AttributeExpr{
+					Type:       expr.String,
+					Validation: &expr.ValidationExpr{Values: []any{"start"}},
+				},
+			}},
+			Validation: &expr.ValidationExpr{Required: []string{"kind"}},
+		},
+	}
+	stop := &expr.UserTypeExpr{
+		TypeName: "ExampleStop",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{
+				Name: "kind",
+				Attribute: &expr.AttributeExpr{
+					Type:       expr.String,
+					Validation: &expr.ValidationExpr{Values: []any{"stop"}},
+				},
+			}},
+			Validation: &expr.ValidationExpr{Required: []string{"kind"}},
+		},
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Union{
+		TypeName: "ExampleCommand",
+		Untagged: true,
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "start", Attribute: &expr.AttributeExpr{Type: start}},
+			{Name: "stop", Attribute: &expr.AttributeExpr{Type: stop}},
+		},
+	}}
+
+	value, ok := OpenAPIExampleValue(attribute, map[string]any{"kind": "start"})
+	require.True(t, ok)
+	require.Equal(t, map[string]any{"kind": "start"}, value)
+}
+
 func TestBuildDocumentComposesRepeatedHTTPBlocks(t *testing.T) {
 	root := codegen.RunDSL(t, func() {
 		dsl.Service("svc", func() {
@@ -448,7 +489,7 @@ func TestBuildDocumentMixedTransportContracts(t *testing.T) {
 }
 
 func openAPIExampleValueForTest(attr *expr.AttributeExpr, raw any) (any, bool) {
-	return openAPIExampleValue(attr, raw)
+	return OpenAPIExampleValue(attr, raw)
 }
 
 func mixedTransportDocumentDSL() {

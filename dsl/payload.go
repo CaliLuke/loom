@@ -163,8 +163,9 @@ func StreamingPayload(val any, args ...any) {
 
 func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.AttributeExpr {
 	var (
-		att *expr.AttributeExpr
-		fn  func()
+		att            *expr.AttributeExpr
+		fn             func()
+		directDataType bool
 	)
 	switch actual := p.(type) {
 	case func():
@@ -195,6 +196,7 @@ func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.Attr
 		}
 	case expr.DataType:
 		att = &expr.AttributeExpr{Type: actual}
+		directDataType = true
 	default:
 		eval.InvalidArgError("type or function", p)
 		return nil
@@ -211,6 +213,9 @@ func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.Attr
 		}
 	}
 	if fn != nil {
+		if directDataType {
+			att.Type = expr.Dup(att.Type)
+		}
 		eval.Execute(fn, att)
 		applyUnionMetaFromAttribute(att)
 		if obj, ok := att.Type.(*expr.Object); ok {

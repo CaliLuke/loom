@@ -297,6 +297,9 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 	if ut == expr.Empty {
 		return nil
 	}
+	if expr.IsUnion(ut.Attribute().Type) {
+		return nil
+	}
 	seen := rd.ServerTypeNames
 	if !server {
 		seen = rd.ClientTypeNames

@@ -62,7 +62,13 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 	if err != nil {
 		return nil, nil, SelectionReport{}, fmt.Errorf("build OpenAPI %s model: %w", version, err)
 	}
-	analyzer := analyzer{diagnostics: diagnostics, selection: selection, examples: make(map[string]Example), version: version}
+	analyzer := analyzer{
+		diagnostics: diagnostics,
+		selection:   selection,
+		examples:    make(map[string]Example),
+		schemas:     make(map[string]*Schema),
+		version:     version,
+	}
 	document := analyzer.document(&model.Model)
 	if selection.Active() {
 		closure := pruneComponents(document)
@@ -76,6 +82,7 @@ type analyzer struct {
 	selection   Selection
 	report      SelectionReport
 	examples    map[string]Example
+	schemas     map[string]*Schema
 	version     string
 }
 
@@ -175,12 +182,7 @@ func (a *analyzer) components(source *v3.Components) Components {
 			a.examples[name] = normalized
 		}
 	}
-	for name, schema := range source.Schemas.FromOldest() {
-		result.Schemas = append(result.Schemas, NamedSchema{
-			Name:   name,
-			Schema: a.schema(schema, "#/components/schemas/"+escapeJSONPointer(name)),
-		})
-	}
+	result.Schemas = a.componentSchemas(source)
 	assignSchemaNames(result.Schemas)
 	for name, scheme := range source.SecuritySchemes.FromOldest() {
 		if normalized, ok := a.securityScheme(name, scheme, "#/components/securitySchemes/"+escapeJSONPointer(name)); ok {
@@ -217,6 +219,33 @@ func (a *analyzer) components(source *v3.Components) Components {
 		a.unsupported("component-kind", "#/components", "links, callbacks, path items, and media types are not in the strict import subset")
 	}
 	a.unsupportedExtensions("#/components", source.Extensions)
+	return result
+}
+
+func (a *analyzer) componentSchemas(source *v3.Components) []NamedSchema {
+	type namedSchemaSource struct {
+		name   string
+		schema *base.SchemaProxy
+	}
+	sources := make([]namedSchemaSource, 0, orderedmap.Len(source.Schemas))
+	for name, schema := range source.Schemas.FromOldest() {
+		sources = append(sources, namedSchemaSource{name: name, schema: schema})
+	}
+	// Normalize non-oneOf components first so untagged-union examples can
+	// validate referenced branches regardless of source declaration order.
+	for _, oneOfPass := range []bool{false, true} {
+		for _, named := range sources {
+			sourceSchema := named.schema.Schema()
+			hasOneOf := sourceSchema != nil && len(sourceSchema.OneOf) > 0
+			if hasOneOf == oneOfPass {
+				a.schemas[named.name] = a.schema(named.schema, "#/components/schemas/"+escapeJSONPointer(named.name))
+			}
+		}
+	}
+	result := make([]NamedSchema, 0, len(sources))
+	for _, named := range sources {
+		result = append(result, NamedSchema{Name: named.name, Schema: a.schemas[named.name]})
+	}
 	return result
 }
 

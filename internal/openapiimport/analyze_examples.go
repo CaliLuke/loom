@@ -2,11 +2,15 @@ package openapiimport
 
 import (
 	"fmt"
+	"reflect"
+	"unicode/utf8"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	yaml4 "go.yaml.in/yaml/v4"
+
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path string) []Example {
@@ -80,7 +84,7 @@ func (a *analyzer) referencedExample(reference string, schema *Schema, path stri
 		a.unsupported("examples", path, fmt.Sprintf("example component %q does not resolve", name))
 		return Example{}, false
 	}
-	if !exampleCompatibleWithSchema(schema, example.Value) {
+	if !a.exampleCompatibleWithSchema(schema, example.Value, make(map[string]struct{})) {
 		a.unsupported("examples", path, "referenced example value is not compatible with its schema")
 		return Example{}, false
 	}
@@ -155,7 +159,7 @@ func (a *analyzer) exampleValue(node *yaml4.Node, schema *Schema, path string) (
 		return nil, false
 	}
 	if value == nil {
-		if schema != nil && schema.Nullable {
+		if a.exampleCompatibleWithSchema(schema, nil, make(map[string]struct{})) {
 			return nil, true
 		}
 		a.unsupported("examples", path, "null example requires a nullable schema")
@@ -165,20 +169,64 @@ func (a *analyzer) exampleValue(node *yaml4.Node, schema *Schema, path string) (
 		a.unsupported("examples", path, err.Error())
 		return nil, false
 	}
-	if !exampleCompatibleWithSchema(schema, value) {
+	if !a.exampleCompatibleWithSchema(schema, value, make(map[string]struct{})) {
 		a.unsupported("examples", path, "example value is not compatible with its schema")
 		return nil, false
 	}
 	return value, true
 }
 
-func exampleCompatibleWithSchema(schema *Schema, value any) bool {
-	if value == nil {
-		return schema != nil && schema.Nullable
+func (a *analyzer) exampleCompatibleWithSchema(schema *Schema, value any, seen map[string]struct{}) bool {
+	if schema == nil {
+		return value != nil
 	}
-	if schema == nil || schema.Ref != "" {
+	if value == nil && schema.Nullable {
 		return true
 	}
+	if schema.Ref != "" {
+		return a.referencedSchemaExampleCompatible(schema.Ref, value, seen)
+	}
+	if value == nil {
+		return false
+	}
+	if len(schema.OneOf) > 0 {
+		return a.oneOfExampleCompatible(schema.OneOf, value, seen)
+	}
+	if !normalizedExampleValidationMatches(schema, value) {
+		return false
+	}
+	return a.exampleTypeCompatible(schema, value)
+}
+
+func (a *analyzer) referencedSchemaExampleCompatible(ref string, value any, seen map[string]struct{}) bool {
+	name, err := localComponentReferenceName(ref, "#/components/schemas/")
+	if err != nil {
+		return false
+	}
+	if _, exists := seen[name]; exists {
+		return false
+	}
+	resolved, ok := a.schemas[name]
+	if !ok || resolved == nil {
+		return true
+	}
+	seen[name] = struct{}{}
+	matched := a.exampleCompatibleWithSchema(resolved, value, seen)
+	delete(seen, name)
+	return matched
+}
+
+func (a *analyzer) oneOfExampleCompatible(branches []*Schema, value any, seen map[string]struct{}) bool {
+	matches := 0
+	for _, branch := range branches {
+		if a.exampleCompatibleWithSchema(branch, value, seen) {
+			matches++
+		}
+	}
+	return matches == 1
+}
+
+func (a *analyzer) exampleTypeCompatible(schema *Schema, value any) bool {
 	switch schema.Type {
 	case "string":
 		_, ok := value.(string)
@@ -196,19 +244,19 @@ func exampleCompatibleWithSchema(schema *Schema, value any) bool {
 			return false
 		}
 		for _, item := range values {
-			if !exampleCompatibleWithSchema(schema.Items, item) {
+			if !a.exampleCompatibleWithSchema(schema.Items, item, make(map[string]struct{})) {
 				return false
 			}
 		}
 		return true
 	case "object":
-		return exampleObjectCompatible(schema, value)
+		return a.exampleObjectCompatible(schema, value)
 	default:
 		return false
 	}
 }
 
-func exampleObjectCompatible(schema *Schema, value any) bool {
+func (a *analyzer) exampleObjectCompatible(schema *Schema, value any) bool {
 	values, ok := value.(map[string]any)
 	if !ok {
 		return false
@@ -224,7 +272,7 @@ func exampleObjectCompatible(schema *Schema, value any) bool {
 	}
 	for name, item := range values {
 		property, defined := properties[name]
-		if defined && !exampleCompatibleWithSchema(property, item) {
+		if defined && !a.exampleCompatibleWithSchema(property, item, make(map[string]struct{})) {
 			return false
 		}
 		if !defined && schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
@@ -232,6 +280,91 @@ func exampleObjectCompatible(schema *Schema, value any) bool {
 		}
 	}
 	return true
+}
+
+func normalizedExampleValidationMatches(schema *Schema, value any) bool {
+	if len(schema.Enum) > 0 {
+		matched := false
+		for _, candidate := range schema.Enum {
+			if normalizedExampleValuesEqual(candidate, value) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	if stringValue, ok := value.(string); ok {
+		if schema.Pattern != "" && loom.ValidatePattern("example", stringValue, schema.Pattern) != nil {
+			return false
+		}
+		if _, recognized := stringFormatDSL(schema.Format); recognized &&
+			loom.ValidateFormat("example", stringValue, loom.Format(schema.Format)) != nil {
+			return false
+		}
+		length := int64(utf8.RuneCountInString(stringValue))
+		if schema.MinLength != nil && length < *schema.MinLength {
+			return false
+		}
+		if schema.MaxLength != nil && length > *schema.MaxLength {
+			return false
+		}
+	}
+	number, numeric := normalizedExampleNumber(value)
+	if !numeric {
+		return true
+	}
+	if schema.Minimum != nil && number < *schema.Minimum {
+		return false
+	}
+	if schema.ExclusiveMinimum != nil && number <= *schema.ExclusiveMinimum {
+		return false
+	}
+	if schema.Maximum != nil && number > *schema.Maximum {
+		return false
+	}
+	return schema.ExclusiveMaximum == nil || number < *schema.ExclusiveMaximum
+}
+
+func normalizedExampleValuesEqual(left, right any) bool {
+	leftNumber, leftNumeric := normalizedExampleNumber(left)
+	rightNumber, rightNumeric := normalizedExampleNumber(right)
+	if leftNumeric && rightNumeric {
+		return leftNumber == rightNumber
+	}
+	return reflect.DeepEqual(left, right)
+}
+
+func normalizedExampleNumber(value any) (float64, bool) {
+	switch actual := value.(type) {
+	case int:
+		return float64(actual), true
+	case int8:
+		return float64(actual), true
+	case int16:
+		return float64(actual), true
+	case int32:
+		return float64(actual), true
+	case int64:
+		return float64(actual), true
+	case uint:
+		return float64(actual), true
+	case uint8:
+		return float64(actual), true
+	case uint16:
+		return float64(actual), true
+	case uint32:
+		return float64(actual), true
+	case uint64:
+		return float64(actual), true
+	case float32:
+		return float64(actual), true
+	case float64:
+		return actual, true
+	default:
+		return 0, false
+	}
 }
 
 func isExampleInteger(value any) bool {

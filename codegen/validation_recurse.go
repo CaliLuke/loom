@@ -246,6 +246,9 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		}
 		return cond + code + "\n}"
 	}
+	if expr.IsUnion(ut.Attribute().Type) {
+		return recurseValidationCode(att, put, ctx, req, false, view, target, context, seen).String()
+	}
 	if !hasValidations(ctx, ut) {
 		return ""
 	}

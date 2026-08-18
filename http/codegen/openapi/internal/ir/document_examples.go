@@ -127,6 +127,9 @@ func completeOpenAPIMapExample(actual *expr.Map, val any) bool {
 }
 
 func completeOpenAPIUnionExample(actual *expr.Union, val any) bool {
+	if actual.Untagged {
+		return untaggedUnionExampleMatches(actual, val)
+	}
 	example, ok := val.(map[string]any)
 	if !ok {
 		return false

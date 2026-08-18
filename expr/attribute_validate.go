@@ -296,6 +296,10 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 						verr.Add(parent, "%suntagged OneOf branch %q field %q must be primitive", ctx, branch.Name, field.Name)
 					}
 					wireName := untaggedJSONFieldName(field.Name, field.Attribute)
+					if wireName == "" {
+						verr.Add(parent, "%suntagged OneOf branch %q field %q cannot use an empty JSON tag name", ctx, branch.Name, field.Name)
+						continue
+					}
 					if wireName == "-" {
 						verr.Add(parent, "%suntagged OneOf branch %q field %q cannot use json tag %q", ctx, branch.Name, field.Name, wireName)
 						continue

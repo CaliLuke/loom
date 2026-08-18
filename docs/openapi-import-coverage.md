@@ -117,6 +117,9 @@ The following constructs are conditional:
 - A form map combined with transport parameters uses an object payload and a
   selected `Body(...)` attribute. Multi-media and optional multipart maps use
   the documented raw-body contract instead of inventing codec policy.
+- A form schema containing an unconstrained value, including a free-form
+  `additionalProperties: true` map, stays raw because typed form decoding
+  cannot reconstruct interface-valued data.
 - An optional form object with required members also stays raw so an absent
   body does not spuriously fail nested required-field validation.
 

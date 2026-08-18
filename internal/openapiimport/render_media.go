@@ -3,6 +3,7 @@ package openapiimport
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 )
@@ -100,6 +101,15 @@ func (r *renderer) singleRequestBody(body RequestBody, mode requestBodyMode, pat
 			return nil, err
 		}
 	}
+	if mode == requestBodyForm {
+		requiresRaw, err := r.formBodyRequiresRaw(body.Schema, path+"/schema", make(map[string]struct{}))
+		if err != nil {
+			return nil, err
+		}
+		if requiresRaw {
+			return &renderedBody{body: body, mode: requestBodyRaw}, nil
+		}
+	}
 	mapPayload := false
 	if mode != requestBodyJSON {
 		var err error
@@ -121,6 +131,46 @@ func (r *renderer) singleRequestBody(body RequestBody, mode requestBodyMode, pat
 		}
 	}
 	return &renderedBody{body: body, field: "body", mode: mode, mapPayload: mapPayload}, nil
+}
+
+func (r *renderer) formBodyRequiresRaw(schema *Schema, path string, seen map[string]struct{}) (bool, error) {
+	if schema == nil {
+		return false, fmt.Errorf("render OpenAPI design: %s schema is nil", path)
+	}
+	if schema.Ref != "" {
+		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		named, ok := r.schemas[name]
+		if name == schema.Ref || name == "" || !ok {
+			return false, fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
+		}
+		if _, ok := seen[name]; ok {
+			return false, nil
+		}
+		seen[name] = struct{}{}
+		return r.formBodyRequiresRaw(named.Schema, path, seen)
+	}
+	if schema.Unconstrained {
+		return true, nil
+	}
+	for index, property := range schema.Properties {
+		requiresRaw, err := r.formBodyRequiresRaw(property.Schema, fmt.Sprintf("%s/properties/%d", path, index), seen)
+		if err != nil || requiresRaw {
+			return requiresRaw, err
+		}
+	}
+	if schema.Items != nil {
+		requiresRaw, err := r.formBodyRequiresRaw(schema.Items, path+"/items", seen)
+		if err != nil || requiresRaw {
+			return requiresRaw, err
+		}
+	}
+	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && *schema.AdditionalProperties.Allowed {
+		return true, nil
+	}
+	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
+		return r.formBodyRequiresRaw(schema.AdditionalProperties.Schema, path+"/additionalProperties", seen)
+	}
+	return false, nil
 }
 
 func (r *renderer) operationResponses(

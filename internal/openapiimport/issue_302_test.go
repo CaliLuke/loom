@@ -34,6 +34,7 @@ paths:
                     required: [error]
                     properties:
                       error: {type: string}
+                example: {data: ready}
 `)
 
 	document, diagnostics, err := Analyze(source)
@@ -63,6 +64,88 @@ paths:
 	require.NotContains(t, schema, "discriminator")
 	require.Equal(t, []any{"data"}, referencedSchema(t, contract, branches[0].(map[string]any)["$ref"].(string))["required"])
 	require.Equal(t, []any{"error"}, referencedSchema(t, contract, branches[1].(map[string]any)["$ref"].(string))["required"])
+	require.Equal(t, map[string]any{"data": "ready"}, schema["example"])
+}
+
+func TestUntaggedOneOfAcceptsMediaExample(t *testing.T) {
+	source := []byte(`openapi: 3.1.0
+info: {title: Examples, version: '1'}
+paths:
+  /items:
+    get:
+      operationId: getExample
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [data]
+                    properties: {data: {type: string}}
+                  - type: object
+                    required: [error]
+                    properties: {error: {type: string}}
+              examples:
+                response:
+                  value: {error: failed}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	examples := document.Operations[0].Responses[0].Response.Examples
+	require.Len(t, examples, 1)
+	require.Equal(t, map[string]any{"error": "failed"}, examples[0].Value)
+}
+
+func TestNestedNamedUntaggedUnionGeneratesCompilableHTTPTypes(t *testing.T) {
+	source := []byte(`openapi: 3.1.0
+info: {title: Nested Commands, version: '1'}
+paths:
+  /commands:
+    post:
+      operationId: runNestedCommand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Envelope'}
+      responses:
+        '200':
+          description: done
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Envelope'}
+components:
+  schemas:
+    Start:
+      type: object
+      required: [start]
+      properties: {start: {type: string}}
+    Stop:
+      type: object
+      required: [stop]
+      properties: {stop: {type: string}}
+    Command:
+      oneOf:
+        - $ref: '#/components/schemas/Start'
+        - $ref: '#/components/schemas/Stop'
+    Envelope:
+      type: object
+      required: [command]
+      properties:
+        command: {$ref: '#/components/schemas/Command'}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	requireRenderedDesignEvaluates(t, rendered, 1)
+	requireRenderedDesignGenerates(t, rendered)
 }
 
 func requireUntaggedUnionRuntime(t *testing.T, moduleDir string) {

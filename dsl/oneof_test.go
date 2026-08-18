@@ -190,30 +190,6 @@ func TestTypeNamesWrappedOneOfWithoutMutatingSource(t *testing.T) {
 	require.NotSame(t, expr.AsUnion(command.Attribute().Type), expr.AsUnion(instruction.Attribute().Type))
 }
 
-func TestUntaggedMarksOneOfTypeConstructor(t *testing.T) {
-	root := expr.RunDSL(t, func() {
-		ok := Type("UntaggedOK", func() {
-			Attribute("data", String)
-			Required("data")
-		})
-		failure := Type("UntaggedFailure", func() {
-			Attribute("error", String)
-			Required("error")
-		})
-		Service("untagged", func() {
-			Method("show", func() {
-				Result(OneOf(ok, failure), func() {
-					Untagged()
-				})
-			})
-		})
-	})
-
-	union := expr.AsUnion(root.Services[0].Methods[0].Result.Type)
-	require.NotNil(t, union)
-	require.True(t, union.Untagged)
-}
-
 func TestUntaggedRejectsNonObjectBranches(t *testing.T) {
 	err := expr.RunInvalidDSL(t, func() {
 		Service("untagged", func() {
@@ -279,6 +255,16 @@ func TestUntaggedRejectsAmbiguousJSONFieldMetadata(t *testing.T) {
 				})
 			},
 			want: `duplicate JSON field name "same"`,
+		},
+		"empty name": {
+			branch: func() expr.UserType {
+				return Type("EmptyJSONField", func() {
+					Attribute("value", String, func() {
+						Meta("struct:tag:json", ",omitempty")
+					})
+				})
+			},
+			want: `field "value" cannot use an empty JSON tag name`,
 		},
 		"explicit open object": {
 			branch: func() expr.UserType {

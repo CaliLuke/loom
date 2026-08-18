@@ -374,7 +374,7 @@ func initExamples(target interface {
 		}
 	default:
 		generator := exampleGeneratorForAttribute(rand, attr, closeObjects, context)
-		if val, ok := openAPIExampleValue(attr, attr.Example(generator)); ok {
+		if val, ok := OpenAPIExampleValue(attr, attr.Example(generator)); ok {
 			target.setExample(val)
 		}
 	}
@@ -387,7 +387,7 @@ func authoredOpenAPIExampleValue(attr *expr.AttributeExpr, example *expr.Example
 	if example == nil {
 		return nil, false
 	}
-	return openAPIExampleValue(attr, example.Value)
+	return OpenAPIExampleValue(attr, example.Value)
 }
 
 func buildExample(example *expr.ExampleExpr, value any) *Example {
@@ -417,7 +417,9 @@ func hasStructuredExampleMetadata(meta expr.MetaExpr) bool {
 	return dataValue || serialized
 }
 
-func openAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
+// OpenAPIExampleValue normalizes an example and reports whether it completely
+// represents its attribute's OpenAPI schema.
+func OpenAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 	if raw == nil {
 		if examples := attr.ExtractUserExamples(); len(examples) > 0 &&
 			examples[len(examples)-1].ExplicitNull && expr.AllowsNull(attr) {
