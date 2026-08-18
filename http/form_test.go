@@ -130,6 +130,19 @@ func TestFormValuesRoundTripMapOfObject(t *testing.T) {
 	require.Equal(t, in, out)
 }
 
+func TestFormValuesRoundTripRootMap(t *testing.T) {
+	in := map[string]string{"region": "west", "tier": "gold"}
+	values, err := EncodeFormValues(in)
+	require.NoError(t, err)
+	require.Equal(t, "west", values.Get("region"))
+	require.Equal(t, "gold", values.Get("tier"))
+
+	var out map[string]string
+	err = DecodeFormValues(values, &out)
+	require.NoError(t, err)
+	require.Equal(t, in, out)
+}
+
 func TestSetFormRequest(t *testing.T) {
 	req := httptest.NewRequest("POST", "/", nil)
 	err := SetFormRequest(req, testGrant{kind: "refresh_token", RefreshToken: "rt-1"})

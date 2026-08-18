@@ -102,6 +102,14 @@ The following constructs are conditional:
   accepts null.
 - `additionalProperties: true` maps to `map[string]any` only when the object
   has no declared properties.
+- A form request whose object has only schema-valued `additionalProperties`
+  maps to a typed root map. A body-only optional form also emits
+  `OptionalRequestBody()`.
+- A form map combined with transport parameters uses an object payload and a
+  selected `Body(...)` attribute. Multi-media and optional multipart maps use
+  the documented raw-body contract instead of inventing codec policy.
+- An optional form object with required members also stays raw so an absent
+  body does not spuriously fail nested required-field validation.
 
 Loom rejects other composition and structural keywords, including `oneOf`,
 unsupported `anyOf` and `allOf` forms, `not`, tuple and contains constraints,

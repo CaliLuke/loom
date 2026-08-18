@@ -1309,9 +1309,9 @@ Mapping expressions:
 - `Body` - Loads from request body
 
 Request body mode expressions:
-- `FormRequest` - Use `application/x-www-form-urlencoded` request encoding
+- `FormRequest` - Use typed `application/x-www-form-urlencoded` request encoding
 - `MultipartRequest` - Use `multipart/form-data` request encoding
-- `OptionalRequestBody` - Allow an omitted JSON body for an object body shape
+- `OptionalRequestBody` - Allow an omitted JSON object body or typed form object/map body
 - `SkipRequestBodyEncodeDecode` - Pass the raw request body reader to the service
 - `OpenAPIRequestBody` - Document a raw request stream in OpenAPI without decoding it
 - `OpenAPIRequestBodyTypes` - Document one raw request schema for multiple media types
@@ -1463,10 +1463,14 @@ Method("token", func() {
 })
 ```
 
-`FormRequest` supports object payloads and constructor union payloads. For
-constructor unions, scalar branches use the canonical discriminator/value form
-shape, while object branches are flattened onto top-level form fields so
-OAuth-style grant payloads do not need custom request decoders.
+`FormRequest` supports object payloads, map payloads, and constructor union
+payloads. A root `MapOf(String, T)` maps dynamic keys directly to form field
+names. To combine a map body with path, query, header, cookie, or security
+attributes, put it in an object payload and select the attribute with
+`Body("name")`. For constructor unions, scalar branches use the canonical
+discriminator/value form shape, while object branches are flattened onto
+top-level form fields so OAuth-style grant payloads do not need custom request
+decoders.
 
 Use `MultipartRequest` for multipart form uploads:
 
@@ -1495,10 +1499,12 @@ Unsupported multipart shapes keep the custom decoder hook instead of generating
 partial framework-owned behavior.
 
 Use `OptionalRequestBody` for endpoints that accept either no JSON request body
-or an optional object body. It cannot be combined with `FormRequest`,
-`MultipartRequest`, or `SkipRequestBodyEncodeDecode`. Empty-body EOF is
-accepted only for opted-in endpoints; required-body endpoints remain strict and
-malformed JSON still returns a decode error.
+or an optional object body. It also supports object and map bodies with
+`FormRequest`. It cannot be combined with `MultipartRequest` or
+`SkipRequestBodyEncodeDecode`. Empty-body EOF is accepted only for opted-in JSON
+endpoints, and empty forms are accepted only for opted-in form endpoints.
+Required-body endpoints remain strict and malformed input still returns a
+decode error.
 
 Use `SkipRequestBodyEncodeDecode` and `SkipResponseBodyEncodeDecode` for raw
 HTTP body streaming with `io.Reader` values. These flags are HTTP-only and are

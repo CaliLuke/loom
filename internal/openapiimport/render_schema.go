@@ -51,44 +51,6 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 	return nil
 }
 
-func (r *renderer) validateRequestTransportBodySchema(schema *Schema, path string) error {
-	resolved := schema
-	if schema != nil && schema.Ref != "" {
-		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-		named, ok := r.schemas[name]
-		if name == schema.Ref || name == "" || !ok {
-			return fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
-		}
-		resolved = named.Schema
-	}
-	if resolved == nil || resolved.Type != "object" {
-		return fmt.Errorf("render OpenAPI design: %s form and multipart bodies require an object schema", path)
-	}
-	_, object, err := r.objectSchemaExpression(resolved, path)
-	if err != nil {
-		return err
-	}
-	if !object {
-		return fmt.Errorf("render OpenAPI design: %s form and multipart bodies require object properties", path)
-	}
-	return nil
-}
-
-func (r *renderer) renderRequestTransportBody(schema *Schema, path string) error {
-	if err := r.validateRequestTransportBodySchema(schema, path); err != nil {
-		return err
-	}
-	if schema.Ref != "" {
-		expression, _, err := r.schemaExpression(schema, path)
-		if err != nil {
-			return err
-		}
-		r.line("Extend(%s)", expression)
-		return nil
-	}
-	return r.schemaBlock(schema, path, false)
-}
-
 func (r *renderer) openAPIBody(schema *Schema, path string) error {
 	expression, object, err := r.schemaExpression(schema, path)
 	if err != nil {

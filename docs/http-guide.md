@@ -207,12 +207,30 @@ Method("token", func() {
 })
 ```
 
-Loom generates form encoding and decoding for object payloads and constructor
-union payloads. Form fields use the payload attribute names unless the design
-uses HTTP element name mapping. For constructor unions, scalar branches use the
-canonical discriminator/value fields, while object branches are flattened onto
-standard top-level form fields. This supports OAuth-style token requests such
-as `grant_type=refresh_token` without app-local parser hooks.
+Loom generates form encoding and decoding for object, map, and constructor
+union payloads. A root `MapOf(String, T)` uses its keys as dynamic form field
+names. Form fields use the payload attribute names unless the design uses HTTP
+element name mapping. For constructor unions, scalar branches use the canonical
+discriminator/value fields, while object branches are flattened onto standard
+top-level form fields. This supports OAuth-style token requests such as
+`grant_type=refresh_token` without app-local parser hooks.
+
+When a dynamic form map must coexist with path, query, header, cookie, or
+security attributes, put the map in an object payload and select it with
+`Body(...)`:
+
+```go
+Payload(func() {
+    Attribute("config", MapOf(String, String))
+    Attribute("trace", String)
+})
+HTTP(func() {
+    PATCH("/config")
+    Header("trace:X-Trace")
+    Body("config")
+    FormRequest()
+})
+```
 
 ### Multipart Requests
 
@@ -247,10 +265,10 @@ are read and written.
 `MultipartRequest` does not support constructor union payloads. Use form
 requests for union-shaped OAuth-style payloads.
 
-### Optional JSON Bodies
+### Optional JSON and Form Bodies
 
-Use `OptionalRequestBody` when an endpoint accepts either no JSON body or a
-typed JSON object body:
+Use `OptionalRequestBody` when an endpoint accepts either no body or a typed
+JSON object body. Form requests may also use it with object or map bodies:
 
 ```go
 Method("search", func() {
@@ -267,11 +285,11 @@ Method("search", func() {
 })
 ```
 
-The optional body must be an object body and cannot contain required body
-attributes. It cannot be combined with `FormRequest`, `MultipartRequest`, or
-raw request body streaming. Generated decoders tolerate `io.EOF` only for
-endpoints that opt into `OptionalRequestBody`; malformed JSON and validation
-errors still fail normally.
+The optional body must be an object body, or a map when `FormRequest` is set,
+and cannot contain required body attributes. It cannot be combined with
+`MultipartRequest` or raw request body streaming. JSON decoders tolerate
+`io.EOF` only for endpoints that opt into `OptionalRequestBody`; form decoders
+accept an empty form. Malformed input and validation errors still fail normally.
 
 ### Raw Request and Response Bodies
 

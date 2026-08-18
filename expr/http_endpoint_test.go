@@ -203,8 +203,6 @@ func TestHTTPEndpointValidation(t *testing.T) {
 		},
 		"endpoint-optional-request-body-with-form": {
 			DSL: testdata.EndpointOptionalRequestBodyWithForm,
-			Error: `service "Service" HTTP endpoint "Method": HTTP endpoint cannot use OptionalRequestBody with FormRequest.
-service "Service" HTTP endpoint "Method": HTTP endpoint defines FormRequest and body. At most one of these must be defined.`,
 		},
 		"endpoint-optional-request-body-with-multipart": {
 			DSL: testdata.EndpointOptionalRequestBodyWithMultipart,
@@ -340,6 +338,44 @@ service "Service" HTTP endpoint "Method": HTTP endpoint request body must be emp
 					t.Errorf("got `%s`, expected `%s`", got, c.Error)
 				}
 			}
+		})
+	}
+}
+
+func TestFormRequestMapBodies(t *testing.T) {
+	tests := map[string]func(){
+		"optional root map": func() {
+			Service("Service", func() {
+				Method("Update", func() {
+					Payload(MapOf(String, String))
+					HTTP(func() {
+						PATCH("/config")
+						FormRequest()
+						OptionalRequestBody()
+					})
+				})
+			})
+		},
+		"selected map with parameter": func() {
+			Service("Service", func() {
+				Method("Update", func() {
+					Payload(func() {
+						Attribute("config", MapOf(String, String))
+						Attribute("trace", String)
+					})
+					HTTP(func() {
+						PATCH("/config")
+						Header("trace:X-Trace")
+						Body("config")
+						FormRequest()
+					})
+				})
+			})
+		},
+	}
+	for name, dsl := range tests {
+		t.Run(name, func(t *testing.T) {
+			expr.RunDSL(t, dsl)
 		})
 	}
 }

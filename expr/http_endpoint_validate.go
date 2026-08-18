@@ -365,9 +365,6 @@ func (e *HTTPEndpointExpr) validateObjectPayloadTransport(verr *eval.ValidationE
 	if e.MultipartRequest {
 		verr.Add(e, "HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.")
 	}
-	if e.FormRequest {
-		verr.Add(e, "HTTP endpoint defines FormRequest and body. At most one of these must be defined.")
-	}
 	bObj := AsObject(e.Body.Type)
 	if bObj == nil {
 		return
@@ -408,23 +405,31 @@ func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationError
 	if e.OptionalRequestBody && e.MultipartRequest {
 		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.")
 	}
-	if e.OptionalRequestBody && e.FormRequest {
-		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with FormRequest.")
-	}
 	if e.OpenAPIRequestBody != nil {
 		e.validateOpenAPIRequestBody(verr)
 	}
-	if e.OptionalRequestBody && e.Body != nil && !IsObject(e.Body.Type) {
-		verr.Add(e, "OptionalRequestBody requires an object request body.")
+	optionalBody := e.Body
+	if optionalBody == nil && e.FormRequest {
+		optionalBody = httpRequestBody(e)
 	}
-	if e.OptionalRequestBody && (e.Body == nil || e.Body.Type == Empty) {
+	if e.OptionalRequestBody && optionalBody != nil && !(IsObject(optionalBody.Type) || IsMap(optionalBody.Type)) {
+		verr.Add(e, "OptionalRequestBody requires an object or map request body.")
+	}
+	if e.OptionalRequestBody && (optionalBody == nil || optionalBody.Type == Empty) {
 		verr.Add(e, "HTTP endpoint uses OptionalRequestBody but does not define a request body.")
 	}
 	if e.MultipartRequest && IsUnion(e.MethodExpr.Payload.Type) {
 		verr.Add(e, "MultipartRequest requires an object payload, constructor unions are not supported")
 	}
-	if e.FormRequest && !(IsUnion(e.MethodExpr.Payload.Type) || IsObject(e.MethodExpr.Payload.Type)) {
-		verr.Add(e, "FormRequest requires an object or constructor union payload")
+	formBody := e.MethodExpr.Payload
+	if e.Body != nil {
+		formBody = e.Body
+	}
+	if e.FormRequest && !(IsUnion(formBody.Type) || IsObject(formBody.Type) || IsMap(formBody.Type)) {
+		verr.Add(e, "FormRequest requires an object, map, or constructor union payload")
+	}
+	if e.FormRequest && e.Body != nil && IsUnion(formBody.Type) {
+		verr.Add(e, "FormRequest does not support selecting a constructor union with Body")
 	}
 }
 

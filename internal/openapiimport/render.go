@@ -254,6 +254,15 @@ func (r *renderer) planOperation(operation *Operation, path string) (operationPl
 	if err != nil {
 		return operationPlan{}, err
 	}
+	if body != nil {
+		if err := validateRequestBodyGeneratedLocals(parameters); err != nil {
+			return operationPlan{}, err
+		}
+	}
+	if body != nil && body.mapPayload && body.mode != requestBodyRaw && len(parameters) > 0 {
+		body.envelope = true
+		body.field = requestBodyFieldName(parameters)
+	}
 	return operationPlan{
 		success: success, failures: failures, parameters: parameters, body: body, response: responseMode,
 	}, nil
@@ -291,32 +300,8 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 	if err := r.parameterMappings(plan.parameters, path+"/parameters"); err != nil {
 		return err
 	}
-	if plan.body != nil {
-		switch plan.body.mode {
-		case requestBodyMultipart:
-			r.line("MultipartRequest()")
-		case requestBodyForm:
-			r.line("FormRequest()")
-		case requestBodyRaw:
-			r.line("SkipRequestBodyEncodeDecode()")
-			if err := r.openAPIRequestBody(plan.body.body, path+"/requestBody"); err != nil {
-				return err
-			}
-		default:
-			if plan.body.body.Schema != nil && plan.body.body.Schema.Ref != "" {
-				name := strings.TrimPrefix(plan.body.body.Schema.Ref, "#/components/schemas/")
-				named, ok := r.schemas[name]
-				if !ok {
-					return fmt.Errorf("render OpenAPI design: %s/requestBody schema reference %q does not resolve", path, plan.body.body.Schema.Ref)
-				}
-				r.open("Body(%q, func()", plan.body.field)
-				r.line("Meta(%q, %q)", "openapi:typename", named.Name)
-				r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
-				r.close()
-			} else {
-				r.line("Body(%q)", plan.body.field)
-			}
-		}
+	if err := r.operationRequestBodyHTTP(plan.body, path); err != nil {
+		return err
 	}
 	switch plan.response {
 	case responseBodyStream:
@@ -345,9 +330,11 @@ type renderedParameter struct {
 }
 
 type renderedBody struct {
-	body  RequestBody
-	field string
-	mode  requestBodyMode
+	body       RequestBody
+	field      string
+	mode       requestBodyMode
+	mapPayload bool
+	envelope   bool
 }
 
 type renderedResponse struct {
@@ -424,6 +411,9 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 	if len(parameters) == 0 && !hasBody {
 		return nil
 	}
+	if hasBody && body.mapPayload && !body.envelope {
+		return r.renderRequestTransportMapPayload(body, path+"/requestBody/schema")
+	}
 	r.open("Payload(func()")
 	var required []string
 	for i, parameter := range parameters {
@@ -487,27 +477,6 @@ func parameterMetadata(parameter renderedParameter) ([]renderedMetadata, error) 
 	}
 	extensions, err := renderedExtensions("parameter", parameter.parameter.Extensions)
 	return append(metadata, extensions...), err
-}
-
-func (r *renderer) payloadBody(body *renderedBody, path string) (bool, error) {
-	schema := schemaWithExamples(body.body.Schema, body.body.Examples)
-	if body.mode != requestBodyJSON {
-		if err := r.emitExtensions("requestBody", body.body.Extensions); err != nil {
-			return false, err
-		}
-		if body.body.Description != "" {
-			r.line("Meta(%q, %q)", "openapi:description:requestBody", body.body.Description)
-		}
-		return false, r.renderRequestTransportBody(schema, path)
-	}
-	metadata, err := renderedExtensions("requestBody", body.body.Extensions)
-	if err != nil {
-		return false, err
-	}
-	if body.body.Description != "" {
-		metadata = append(metadata, renderedMetadata{name: "openapi:description:requestBody", value: body.body.Description})
-	}
-	return body.body.Required, r.attribute(body.field, schema, "", path, metadata...)
 }
 
 func (r *renderer) result(response renderedResponse, path string) error {

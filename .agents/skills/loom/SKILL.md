@@ -108,6 +108,15 @@ uses `map[string]any`, and regenerated OpenAPI preserves the object boundary.
 The importer rejects a schema that also declares object members because the
 Loom DSL cannot preserve both shapes.
 
+An OpenAPI form body with only schema-valued `additionalProperties` imports as
+a typed map. Body-only methods keep the map payload and use
+`OptionalRequestBody()` when the request body is optional. If transport fields
+must coexist with the map, the importer selects a collision-free map attribute
+with `Body(...)` and `FormRequest()`. Multi-media map bodies and optional
+multipart maps remain raw request streams so the application owns codec and
+content-negotiation policy. Optional form objects with required members also
+remain raw so omission does not trigger nested required-field validation.
+
 A one-member `allOf` containing a local schema reference imports losslessly,
 including numeric bounds and compatible scalar defaults on the wrapper.
 Regenerated OpenAPI retains the component reference in `allOf` and those
@@ -292,9 +301,12 @@ completion shapes are explicit generation limitations.
 
 ## HTTP Bodies and Parameters
 
-- Use `FormRequest()` for typed `application/x-www-form-urlencoded` payloads.
+- Use `FormRequest()` for typed object, map, or constructor-union
+  `application/x-www-form-urlencoded` payloads. Put a map in an object payload
+  and select it with `Body(...)` when other transport fields must coexist.
 - Use `MultipartRequest()` for supported multipart object payloads.
-- Use `OptionalRequestBody()` for optional JSON object bodies.
+- Use `OptionalRequestBody()` for optional JSON object bodies and optional
+  typed form object/map bodies.
 - Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
   request stream needs a documentation-only OpenAPI contract.
 - Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts

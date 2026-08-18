@@ -165,6 +165,15 @@ filter, and serialization rules belong here.
   Schema-less errors use a concrete non-default error type and an explicit HTTP
   `Body(Empty)` mapping. This prevents synthesized default error headers. Never
   render `Error(name, Empty)`.
+- Plan imported request bodies explicitly as raw, direct typed payloads, or
+  selected-body envelopes. Schema-valued dynamic form maps use direct map
+  payloads when body-only, selected `Body(...)` attributes when transport
+  fields coexist, and raw contracts for multi-media or optional multipart
+  bodies.
+- Generated HTTP request code currently reserves the local name `body`. Until
+  function-local names have an independent allocator, fail an imported
+  request-body operation closed when a parameter or security field Goifies to
+  `body`; never emit code known not to compile.
 - Retain supported source values in the normalized import model before
   rendering. A diagnostic-only path cannot recover discarded values later.
 - Preserve `byte` and `binary` string formats as separate OpenAPI contracts.

@@ -56,36 +56,71 @@ func (r *renderer) requestBody(source *RequestBody, path string) (*renderedBody,
 		return nil, fmt.Errorf("render OpenAPI design: %s has no content type", path)
 	}
 	if len(body.ContentTypes) > 1 {
-		for _, contentType := range body.ContentTypes {
-			if !isMultipartMediaType(contentType) && !isFormMediaType(contentType) {
-				continue
-			}
-			if err := r.validateRequestTransportBodySchema(
-				body.Schema,
-				path+"/content/"+escapeJSONPointer(contentType)+"/schema",
-			); err != nil {
-				return nil, err
-			}
-		}
-		return &renderedBody{body: body, mode: requestBodyRaw}, nil
+		return r.multipleRequestBody(body, path)
 	}
 	contentType := body.ContentTypes[0]
-	mode := requestBodyJSON
+	mode, err := requestBodyModeFor(contentType, path)
+	if err != nil {
+		return nil, err
+	}
+	return r.singleRequestBody(body, mode, path)
+}
+
+func (r *renderer) multipleRequestBody(body RequestBody, path string) (*renderedBody, error) {
+	for _, contentType := range body.ContentTypes {
+		if !isMultipartMediaType(contentType) && !isFormMediaType(contentType) {
+			continue
+		}
+		if err := r.validateRequestTransportBodySchema(
+			body.Schema,
+			path+"/content/"+escapeJSONPointer(contentType)+"/schema",
+		); err != nil {
+			return nil, err
+		}
+	}
+	return &renderedBody{body: body, mode: requestBodyRaw}, nil
+}
+
+func requestBodyModeFor(contentType, path string) (requestBodyMode, error) {
 	switch {
 	case isJSONMediaType(contentType):
+		return requestBodyJSON, nil
 	case isMultipartMediaType(contentType):
-		mode = requestBodyMultipart
+		return requestBodyMultipart, nil
 	case isFormMediaType(contentType):
-		mode = requestBodyForm
+		return requestBodyForm, nil
 	default:
-		return nil, fmt.Errorf("render OpenAPI design: %s content type %q is not renderable", path, contentType)
+		return requestBodyJSON, fmt.Errorf("render OpenAPI design: %s content type %q is not renderable", path, contentType)
 	}
+}
+
+func (r *renderer) singleRequestBody(body RequestBody, mode requestBodyMode, path string) (*renderedBody, error) {
 	if mode != requestBodyJSON {
 		if err := r.validateRequestTransportBodySchema(body.Schema, path+"/schema"); err != nil {
 			return nil, err
 		}
 	}
-	return &renderedBody{body: body, field: "body", mode: mode}, nil
+	mapPayload := false
+	if mode != requestBodyJSON {
+		var err error
+		mapPayload, err = r.requestTransportBodyIsMap(body.Schema, path+"/schema")
+		if err != nil {
+			return nil, err
+		}
+		if mapPayload && mode == requestBodyMultipart && !body.Required {
+			return &renderedBody{body: body, mode: requestBodyRaw, mapPayload: true}, nil
+		}
+		if !mapPayload && mode == requestBodyForm && !body.Required {
+			resolved, resolveErr := r.resolveRequestTransportBodySchema(body.Schema, path+"/schema")
+			if resolveErr != nil {
+				return nil, resolveErr
+			}
+			if len(resolved.Required) > 0 {
+				return &renderedBody{body: body, mode: requestBodyRaw}, nil
+			}
+		}
+	}
+	return &renderedBody{body: body, field: "body", mode: mode, mapPayload: mapPayload}, nil
 }
 
 func (r *renderer) operationResponses(

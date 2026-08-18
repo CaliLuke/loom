@@ -172,6 +172,23 @@ A free-form object with `type: object` and `additionalProperties: true` imports
 as `MapOf(String, Any)`. Generated Go uses `map[string]any`. Regenerated
 OpenAPI preserves the object type and `additionalProperties: true`.
 
+A form body with only schema-valued `additionalProperties` imports as a typed
+map. Body-only methods keep the map as the service payload; optional bodies add
+`OptionalRequestBody()`. When path, query, header, cookie, or security fields
+must coexist with the form map, the importer creates an object payload, places
+the map in a collision-free attribute, and selects it with `Body(...)` plus
+`FormRequest()`. A contract that lists JSON, form, and multipart encodings for
+the same map stays a raw request stream so the service owns content negotiation.
+Optional multipart maps use the same raw contract.
+An optional form object with required members also remains raw; this preserves
+the distinction between an absent body and a present body that must satisfy its
+required fields.
+
+Generated HTTP clients currently reserve the local name `body`. Until local
+names are independently scoped, an imported operation that combines any
+request body with a transport field that Goifies to `body` fails closed instead
+of emitting uncompilable code.
+
 An object cannot combine declared members with `additionalProperties: true`.
 The Loom DSL cannot preserve both parts of that contract, so import fails.
 

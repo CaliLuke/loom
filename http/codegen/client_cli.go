@@ -172,6 +172,7 @@ func endpointParser(
 	path := filepath.Join(codegen.Gendir, transport.PathName, "cli", pkg, "cli.go")
 	title := fmt.Sprintf("%s %s client CLI support package", svr.Name, transport.DisplayName)
 	specs := []*codegen.ImportSpec{
+		{Path: "encoding/json"},
 		{Path: "flag"},
 		{Path: "fmt"},
 		{Path: "net/http"},
