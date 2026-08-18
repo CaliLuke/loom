@@ -85,6 +85,22 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 	return renderAttributeTags(tags)
 }
 
+// JSONFieldName returns the effective JSON member name for an object field.
+// A complete json struct tag takes precedence over struct:tag:json:name; the
+// authored field name is used when neither metadata key is present.
+func JSONFieldName(fieldName string, att *expr.AttributeExpr) string {
+	if att == nil {
+		return fieldName
+	}
+	if tag, ok := att.Meta.Last("struct:tag:json"); ok {
+		return strings.Split(tag, ",")[0]
+	}
+	if name, ok := att.Meta.Last("struct:tag:json:name"); ok && name != "" {
+		return strings.Split(name, ",")[0]
+	}
+	return fieldName
+}
+
 func attributeTagValues(att *expr.AttributeExpr) (map[string]string, string) {
 	tags := make(map[string]string)
 	var jsonName string

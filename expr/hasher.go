@@ -75,6 +75,9 @@ func hashUnion(u *Union, ignoreFields, ignoreNames, ignoreTags bool, seen map[*O
 		return sorted[i].Name < sorted[j].Name
 	})
 	h := unionTypePrefix + u.TypeName
+	if u.Untagged {
+		h += ":untagged"
+	}
 	for _, nat := range sorted {
 		h += unionAttributePrefix + nat.Name + unionAttributeTypePrefix + hashAttribute(nat.Attribute, ignoreFields, ignoreNames, ignoreTags, seen)
 	}

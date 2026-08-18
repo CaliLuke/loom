@@ -583,8 +583,8 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			model: base.Schema{},
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.schema normalization", "ExclusiveMaximum", "ExclusiveMinimum", "Properties", "Title", "Maximum", "Minimum", "MaxLength", "MinLength", "Pattern", "MaxItems", "MinItems", "Required", "Description", "Nullable", "ReadOnly", "WriteOnly", "Deprecated", "Extensions"),
-				group(grammarConditional, "schema normalization and render planning", "Type", "AllOf", "AnyOf", "Examples", "Items", "Format", "Enum", "AdditionalProperties", "Default", "Example"),
-				group(grammarRejected, "schemaUnsupportedKeywords", "SchemaTypeRef", "OneOf", "Discriminator", "PrefixItems", "Contains", "MinContains", "MaxContains", "If", "Else", "Then", "DependentSchemas", "DependentRequired", "PatternProperties", "Defs", "PropertyNames", "UnevaluatedItems", "UnevaluatedProperties", "Id", "Anchor", "DynamicAnchor", "DynamicRef", "Comment", "ContentSchema", "Vocabulary", "Not", "MultipleOf", "UniqueItems", "MaxProperties", "MinProperties", "ContentEncoding", "ContentMediaType", "Const", "XML", "ExternalDocs"),
+				group(grammarConditional, "schema normalization and render planning", "Type", "AllOf", "AnyOf", "OneOf", "Examples", "Items", "Format", "Enum", "AdditionalProperties", "Default", "Example"),
+				group(grammarRejected, "schemaUnsupportedKeywords", "SchemaTypeRef", "Discriminator", "PrefixItems", "Contains", "MinContains", "MaxContains", "If", "Else", "Then", "DependentSchemas", "DependentRequired", "PatternProperties", "Defs", "PropertyNames", "UnevaluatedItems", "UnevaluatedProperties", "Id", "Anchor", "DynamicAnchor", "DynamicRef", "Comment", "ContentSchema", "Vocabulary", "Not", "MultipleOf", "UniqueItems", "MaxProperties", "MinProperties", "ContentEncoding", "ContentMediaType", "Const", "XML", "ExternalDocs"),
 				group(grammarLibrary, "libopenapi schema proxy state", "ParentProxy"),
 			},
 		},

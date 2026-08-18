@@ -81,6 +81,40 @@ func schemaNullableReferenceOneOf(schema *Schema, source *base.Schema) bool {
 	return true
 }
 
+func (a *analyzer) schemaUntaggedOneOf(schema *Schema, source *base.Schema, path string) bool {
+	if len(source.OneOf) < 2 || len(source.AnyOf) > 0 || len(source.AllOf) > 0 || hasDirectAllOfSchemaShape(source) {
+		return false
+	}
+	branches := make([]*Schema, 0, len(source.OneOf))
+	for index, proxy := range source.OneOf {
+		if proxy == nil || !isObjectSchemaProxy(proxy) {
+			return false
+		}
+		branch := a.schema(proxy, fmt.Sprintf("%s/oneOf/%d", path, index))
+		if branch == nil || branch.unsupportedComposition {
+			return false
+		}
+		branches = append(branches, branch)
+	}
+	schema.OneOf = branches
+	return true
+}
+
+func isObjectSchemaProxy(proxy *base.SchemaProxy) bool {
+	if proxy == nil {
+		return false
+	}
+	if proxy.IsReference() && !isNonNullableLocalReference(proxy) {
+		return false
+	}
+	resolved := proxy.Schema()
+	if resolved == nil || resolved.Nullable != nil && *resolved.Nullable {
+		return false
+	}
+	return len(resolved.Type) == 1 && resolved.Type[0] == "object" ||
+		len(resolved.Type) == 0 && orderedmap.Len(resolved.Properties) > 0
+}
+
 func isNullOnlySchema(proxy *base.SchemaProxy) bool {
 	if proxy == nil || proxy.IsReference() {
 		return false

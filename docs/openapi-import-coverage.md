@@ -103,6 +103,12 @@ The following constructs are conditional:
 - A two-member `oneOf` containing one bare `null` schema and one local `$ref`
   maps to a nullable named alias when the referenced schema explicitly excludes
   null. Regeneration uses the equivalent nullable `anyOf` form.
+- A `oneOf` containing two or more object branches in a JSON request or success
+  response body maps to an untagged typed union when every branch is a flat
+  object with primitive properties. Inline object branches are promoted to
+  deterministic components. Generated decoding validates exact JSON member
+  names, presence, nullability, closed-object membership, and Loom value
+  constraints for every branch, then accepts exactly one match.
 - `additionalProperties: true` maps to `map[string]any` only when the object
   has no declared properties.
 - A form request whose object has only schema-valued `additionalProperties`
@@ -115,7 +121,8 @@ The following constructs are conditional:
   body does not spuriously fail nested required-field validation.
 
 Loom rejects other composition and structural keywords, including unsupported
-`oneOf`, `anyOf`, and `allOf` forms, `not`, tuple and contains constraints,
+`oneOf` locations or branch shapes, unsupported `anyOf` and `allOf` forms,
+`not`, tuple and contains constraints,
 conditional schemas, dependent schemas, pattern properties, unevaluated
 constraints, property-count constraints, `const`, `multipleOf`,
 `uniqueItems`, content annotations, XML, schema external documentation,

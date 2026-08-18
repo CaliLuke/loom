@@ -199,6 +199,13 @@ filter, and serialization rules belong here.
   when the local referenced schema explicitly excludes null. Regeneration may
   use nullable `anyOf`; reject already-nullable targets because the two
   applicators are not equivalent in that case.
+- Normalize JSON request and success-response `oneOf` object branches to an
+  explicit untagged Loom union when every branch is a flat object with primitive
+  properties. Promote inline branches to deterministic named components,
+  retain the generated sum-type API, and select a decoded branch only after
+  exact JSON-shape and generated value validation succeeds. Reject zero or
+  multiple matches, nested branch fields, and string-encoded transport
+  locations.
 - Preserve canonical named aliases as OpenAPI components, including aliases of
   `Any`. Preserve the exact source component key even when multiple keys map to
   the same Go identifier. Canonical component identity takes precedence over

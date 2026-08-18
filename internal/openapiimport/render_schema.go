@@ -83,6 +83,20 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 	if schema.Ref != "" {
 		return r.schemaReferenceExpression(schema.Ref, path)
 	}
+	if len(schema.OneOf) > 0 {
+		branches := make([]string, 0, len(schema.OneOf))
+		for index, branch := range schema.OneOf {
+			expression, object, err := r.schemaExpression(branch, fmt.Sprintf("%s/oneOf/%d", path, index))
+			if err != nil {
+				return "", false, err
+			}
+			if object {
+				return "", false, fmt.Errorf("render OpenAPI design: %s/oneOf/%d inline object union branch is not renderable", path, index)
+			}
+			branches = append(branches, expression)
+		}
+		return "OneOf(" + strings.Join(branches, ", ") + ")", false, nil
+	}
 	if schema.Unconstrained {
 		return "Any", false, nil
 	}
@@ -285,6 +299,7 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 }
 
 func (r *renderer) validationBlock(schema *Schema, path string) error {
+	r.untaggedValidation(schema)
 	r.referenceOverlayMetadata(schema)
 	if schema.Title != "" {
 		r.line("Title(%q)", schema.Title)
@@ -344,6 +359,12 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 	return nil
 }
 
+func (r *renderer) untaggedValidation(schema *Schema) {
+	if len(schema.OneOf) > 0 {
+		r.line("Untagged()")
+	}
+}
+
 func (r *renderer) referenceOverlayMetadata(schema *Schema) {
 	if schema.Ref != "" && !schema.Nullable && r.hasSchemaBlock(schema) {
 		r.line("Meta(%q, %q)", "openapi:allOf:reference", "true")
@@ -389,7 +410,7 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if schema == nil {
 		return false
 	}
-	if schema.Title != "" || schema.Description != "" || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
+	if schema.Title != "" || schema.Description != "" || len(schema.OneOf) > 0 || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
 		schema.Pattern != "" || schema.Minimum != nil || schema.Maximum != nil || schema.ExclusiveMinimum != nil ||
 		schema.ExclusiveMaximum != nil || schema.MinLength != nil || schema.MaxLength != nil ||
 		schema.MinItems != nil || schema.MaxItems != nil ||

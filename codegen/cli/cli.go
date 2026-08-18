@@ -138,6 +138,9 @@ type (
 		// ReturnTypeAttributePointer is true if the return type attribute
 		// generated struct field holds a pointer
 		ReturnTypeAttributePointer bool
+		// ReturnTypeAttributeUnionValue is true if the generated transform
+		// returns a union pointer for a required value field.
+		ReturnTypeAttributeUnionValue bool
 		// ReturnIsStruct if true indicates that the method payload is an object.
 		ReturnIsStruct bool
 		// ReturnTypeName is the fully-qualified name of the payload.

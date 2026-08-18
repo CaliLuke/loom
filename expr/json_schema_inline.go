@@ -186,6 +186,17 @@ func populateInlineMapSchema(schema *InlineSchema, dt *Map, visited map[any]stru
 }
 
 func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]struct{}) error {
+	if dt.Untagged {
+		schema.OneOf = make([]*InlineSchema, 0, len(dt.Values))
+		for _, val := range dt.Values {
+			valueSchema, err := buildInlineJSONSchema(val.Attribute, visited)
+			if err != nil {
+				return err
+			}
+			schema.OneOf = append(schema.OneOf, valueSchema)
+		}
+		return nil
+	}
 	typeKey := dt.GetTypeKey()
 	valueKey := dt.GetValueKey()
 	schema.Type = jsonTypeObject

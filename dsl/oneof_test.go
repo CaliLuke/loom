@@ -164,6 +164,154 @@ func TestOneOfTypeConstructor(t *testing.T) {
 	}
 }
 
+func TestTypeNamesWrappedOneOfWithoutMutatingSource(t *testing.T) {
+	var base expr.DataType
+	var baseName string
+	root := expr.RunDSL(t, func() {
+		start := Type("WrappedStart", func() {
+			Attribute("start", String)
+		})
+		stop := Type("WrappedStop", func() {
+			Attribute("stop", String)
+		})
+		base = OneOf(start, stop)
+		baseName = expr.AsUnion(base).TypeName
+		Type("Command", base)
+		Type("Instruction", base)
+	})
+
+	command := root.UserType("Command")
+	instruction := root.UserType("Instruction")
+	require.NotNil(t, command)
+	require.NotNil(t, instruction)
+	require.Equal(t, "Command", expr.AsUnion(command.Attribute().Type).TypeName)
+	require.Equal(t, "Instruction", expr.AsUnion(instruction.Attribute().Type).TypeName)
+	require.Equal(t, baseName, expr.AsUnion(base).TypeName)
+	require.NotSame(t, expr.AsUnion(command.Attribute().Type), expr.AsUnion(instruction.Attribute().Type))
+}
+
+func TestUntaggedMarksOneOfTypeConstructor(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		ok := Type("UntaggedOK", func() {
+			Attribute("data", String)
+			Required("data")
+		})
+		failure := Type("UntaggedFailure", func() {
+			Attribute("error", String)
+			Required("error")
+		})
+		Service("untagged", func() {
+			Method("show", func() {
+				Result(OneOf(ok, failure), func() {
+					Untagged()
+				})
+			})
+		})
+	})
+
+	union := expr.AsUnion(root.Services[0].Methods[0].Result.Type)
+	require.NotNil(t, union)
+	require.True(t, union.Untagged)
+}
+
+func TestUntaggedRejectsNonObjectBranches(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		Service("untagged", func() {
+			Method("show", func() {
+				Result(OneOf(String, Int), func() {
+					Untagged()
+				})
+			})
+		})
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `untagged OneOf branch "String" must be a concrete named object type`)
+}
+
+func TestUntaggedRejectsNestedBranchFields(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		nested := Type("NestedUntagged", func() {
+			Attribute("child", func() {
+				Attribute("value", String)
+			})
+		})
+		flat := Type("FlatUntagged", func() {
+			Attribute("value", String)
+		})
+		Service("untagged", func() {
+			Method("show", func() {
+				Result(OneOf(nested, flat), func() {
+					Untagged()
+				})
+			})
+		})
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `untagged OneOf branch "NestedUntagged" field "child" must be primitive`)
+}
+
+func TestUntaggedRejectsAmbiguousJSONFieldMetadata(t *testing.T) {
+	tests := map[string]struct {
+		branch func() expr.UserType
+		want   string
+	}{
+		"ignored field": {
+			branch: func() expr.UserType {
+				return Type("IgnoredJSONField", func() {
+					Attribute("value", String, func() {
+						Meta("struct:tag:json", "-")
+					})
+				})
+			},
+			want: `field "value" cannot use json tag "-"`,
+		},
+		"duplicate name": {
+			branch: func() expr.UserType {
+				return Type("DuplicateJSONField", func() {
+					Attribute("first", String, func() {
+						Meta("struct:tag:json:name", "same")
+					})
+					Attribute("second", String, func() {
+						Meta("struct:tag:json", "same,omitempty")
+					})
+				})
+			},
+			want: `duplicate JSON field name "same"`,
+		},
+		"explicit open object": {
+			branch: func() expr.UserType {
+				return Type("ExplicitOpenJSONField", func() {
+					Meta("openapi:additionalProperties", "true")
+					Attribute("value", String)
+				})
+			},
+			want: "must use the default open object or openapi:additionalProperties false",
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, func() {
+				branch := test.branch()
+				other := Type("OtherJSONField", func() {
+					Attribute("other", String)
+				})
+				Service("untagged", func() {
+					Method("show", func() {
+						Result(OneOf(branch, other), func() {
+							Untagged()
+						})
+					})
+				})
+			})
+
+			require.Error(t, err)
+			require.Contains(t, err.Error(), test.want)
+		})
+	}
+}
+
 func TestOneOfTypeConstructorDuplicateNames(t *testing.T) {
 	expr.SetupTestDSL(t)
 

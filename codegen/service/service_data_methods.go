@@ -116,7 +116,9 @@ func buildMethodAttributeProjection(att *expr.AttributeExpr, kind, serviceName, 
 		Example:     att.Example(gen),
 	}
 	if dt, ok := att.Type.(expr.UserType); ok {
-		projection.Definition = scope.GoValueTypeDef(dt.Attribute(), false, true)
+		if expr.AsUnion(dt.Attribute().Type) == nil {
+			projection.Definition = scope.GoValueTypeDef(dt.Attribute(), false, true)
+		}
 		projection.Location = codegen.UserTypeLocation(dt)
 	}
 	projection.Reference = scope.GoFullTypeRef(att, projection.Location.PackageName())

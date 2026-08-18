@@ -35,6 +35,50 @@ func containsNullable(attribute *AttributeExpr) bool {
 	return containsNullableRecursive(attribute, make(map[string]struct{}))
 }
 
+func containsUntaggedUnion(attribute *AttributeExpr) bool {
+	return containsUntaggedUnionRecursive(attribute, make(map[string]struct{}))
+}
+
+func containsUntaggedUnionRecursive(attribute *AttributeExpr, seen map[string]struct{}) bool {
+	if attribute == nil || attribute.Type == nil || attribute.Type == Empty {
+		return false
+	}
+	if union := AsUnion(attribute.Type); union != nil {
+		if union.Untagged {
+			return true
+		}
+		for _, branch := range union.Values {
+			if containsUntaggedUnionRecursive(branch.Attribute, seen) {
+				return true
+			}
+		}
+		return false
+	}
+	if userType, ok := attribute.Type.(UserType); ok {
+		if _, ok := seen[userType.ID()]; ok {
+			return false
+		}
+		seen[userType.ID()] = struct{}{}
+		defer delete(seen, userType.ID())
+		return containsUntaggedUnionRecursive(userType.Attribute(), seen)
+	}
+	if object := AsObject(attribute.Type); object != nil {
+		for _, named := range *object {
+			if containsUntaggedUnionRecursive(named.Attribute, seen) {
+				return true
+			}
+		}
+	}
+	if array := AsArray(attribute.Type); array != nil {
+		return containsUntaggedUnionRecursive(array.ElemType, seen)
+	}
+	if mapping := AsMap(attribute.Type); mapping != nil {
+		return containsUntaggedUnionRecursive(mapping.KeyType, seen) ||
+			containsUntaggedUnionRecursive(mapping.ElemType, seen)
+	}
+	return false
+}
+
 func containsUnsupportedGRPCPresence(attribute *AttributeExpr) bool {
 	return containsUnsupportedGRPCPresenceRecursive(attribute, false, make(map[string]struct{}))
 }

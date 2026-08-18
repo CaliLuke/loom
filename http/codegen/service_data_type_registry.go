@@ -14,16 +14,26 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 	if endpointIR.Stream.RequestPayload != nil && endpointIR.Stream.RequestPayload.Type != expr.Empty {
 		collectUnionBranchUserTypes(endpointIR.Request.StreamingBody, unionBranchTypes)
 	}
+	for _, response := range endpointIR.Response.Responses {
+		collectUnionBranchUserTypes(response.Body, unionBranchTypes)
+	}
+	for _, response := range endpointIR.Response.ErrorResponses {
+		collectUnionBranchUserTypes(response.Body, unionBranchTypes)
+	}
+	ensureUnionBranchValidator := func(data *TypeData, userType expr.UserType) {
+		if data == nil || data.ValidateDef != "" {
+			return
+		}
+		if _, ok := unionBranchTypes[userType.ID()]; ok {
+			data.ValidateDef = "// no validations"
+			data.ValidateRef = fmt.Sprintf("err = Validate%s(v)", data.VarName)
+		}
+	}
 
 	appendTypeData := func(att *expr.AttributeExpr, ptr, server, jsonPresence bool, target *[]*TypeData) {
 		collectUserTypes(att.Type, func(ut expr.UserType) {
 			if d := sds.attributeTypeData(ut, true, ptr, server, jsonPresence, sd); d != nil {
-				if !server && d.ValidateDef == "" {
-					if _, ok := unionBranchTypes[ut.ID()]; ok {
-						d.ValidateDef = "// no validations"
-						d.ValidateRef = fmt.Sprintf("err = Validate%s(v)", d.VarName)
-					}
-				}
+				ensureUnionBranchValidator(d, ut)
 				*target = append(*target, d)
 			}
 		})
@@ -43,6 +53,7 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 			body := effectiveClientResponseBody(response.Body, endpointIR.Response.Result, md)
 			collectUserTypes(body.Type, func(ut expr.UserType) {
 				if d := sds.attributeTypeData(ut, false, true, false, true, sd); d != nil {
+					ensureUnionBranchValidator(d, ut)
 					sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
 				}
 			})
@@ -51,6 +62,7 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 	for _, httpError := range endpointIR.Response.ErrorResponses {
 		collectUserTypes(httpError.Body.Type, func(ut expr.UserType) {
 			if d := sds.attributeTypeData(ut, false, true, false, true, sd); d != nil {
+				ensureUnionBranchValidator(d, ut)
 				sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
 			}
 		})
@@ -102,9 +114,15 @@ func recordServerResponseNestedTypeLayouts(endpoint *transportir.Endpoint, sd *S
 		return
 	}
 	for _, response := range endpoint.Response.Responses {
+		if containsUntaggedUnion(response.Body) {
+			recordServerRequestValidationTypes(sd, response.Body)
+		}
 		recordNestedTypeLayouts(sd, response.Body, true, false, false, true)
 	}
 	for _, response := range endpoint.Response.ErrorResponses {
+		if containsUntaggedUnion(response.Body) {
+			recordServerRequestValidationTypes(sd, response.Body)
+		}
 		recordNestedTypeLayouts(sd, response.Body, true, false, false, true)
 	}
 }
@@ -313,15 +331,7 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 		ctx = "response"
 	}
 	desc = name + " is used to define fields on " + ctx + " body types."
-	if shouldGenerateAttributeValidation(ut, req, server, rd) {
-		// Generate validations for responses client-side and for
-		// requests server-side and CLI.
-		// Alias types are validated inline in the parent type
-		validate = codegen.ValidationCode(ut.Attribute(), ut, hctx, true, expr.IsAlias(ut), false, "body")
-		if validate == "" && req && !server && needsClientRequestBodyValidatorStub(ut) {
-			validate = "// no validations"
-		}
-	}
+	validate = attributeValidationDefinition(ut, req, server, rd, hctx)
 	if validate != "" {
 		validateRef = fmt.Sprintf("err = Validate%s(v)", name)
 	}
@@ -339,6 +349,21 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 		ValidateRef: validateRef,
 		Example:     example,
 	}
+}
+
+func attributeValidationDefinition(ut expr.UserType, req, server bool, rd *ServiceData, hctx *codegen.AttributeContext) string {
+	if !shouldGenerateAttributeValidation(ut, req, server, rd) {
+		return ""
+	}
+	// Generate validations for responses client-side and for requests
+	// server-side and CLI. Alias types are validated inline in the parent type.
+	validate := codegen.ValidationCode(ut.Attribute(), ut, hctx, true, expr.IsAlias(ut), false, "body")
+	serverUnionBranch := server && (rd.ServerRequestValidationTypes[ut.ID()] || rd.ServerRequestValidationTypes[ut.Name()])
+	clientRequestStub := req && !server && needsClientRequestBodyValidatorStub(ut)
+	if validate == "" && (serverUnionBranch || clientRequestStub) {
+		return "// no validations"
+	}
+	return validate
 }
 
 func shouldGenerateAttributeValidation(ut expr.UserType, request, server bool, data *ServiceData) bool {

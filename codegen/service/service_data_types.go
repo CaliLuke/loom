@@ -65,16 +65,18 @@ func collectTypes(at *expr.AttributeExpr, scope *codegen.NameScope, seen map[str
 		if typeLoc == nil {
 			typeLoc = loc
 		}
-		data = append(data, &UserTypeData{
-			Name:        dt.Name(),
-			VarName:     scope.GoValueTypeName(typeReference),
-			Description: dt.Attribute().Description,
-			Def:         scope.GoValueTypeDef(dt.Attribute(), false, true),
-			Ref:         scope.GoValueTypeRef(typeReference),
-			Loc:         typeLoc,
-			Type:        dt,
-		})
 		seen[dt.ID()] = struct{}{}
+		if expr.AsUnion(dt.Attribute().Type) == nil {
+			data = append(data, &UserTypeData{
+				Name:        dt.Name(),
+				VarName:     scope.GoValueTypeName(typeReference),
+				Description: dt.Attribute().Description,
+				Def:         scope.GoValueTypeDef(dt.Attribute(), false, true),
+				Ref:         scope.GoValueTypeRef(typeReference),
+				Loc:         typeLoc,
+				Type:        dt,
+			})
+		}
 		data = append(data, collect(dt.Attribute(), typeLoc)...)
 	case *expr.Object:
 		for _, nat := range *dt {
@@ -106,6 +108,17 @@ func collectUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, loc *c
 			return
 		}
 		seen[dt.ID()] = struct{}{}
+		if union := expr.AsUnion(dt.Attribute().Type); union != nil {
+			hash := union.Hash()
+			if _, ok := unions[hash]; !ok {
+				name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
+				unions[hash] = buildUnionTypeData(union, scope, codegen.UserTypeLocation(dt), name)
+			}
+			for _, nat := range union.Values {
+				collectUnionTypes(nat.Attribute, scope, codegen.UserTypeLocation(dt), unions, seen)
+			}
+			return
+		}
 		collectUnionTypes(dt.Attribute(), scope, codegen.UserTypeLocation(dt), unions, seen)
 	case *expr.Object:
 		for _, nat := range sortedNamedAttributes(*dt) {
@@ -129,9 +142,12 @@ func collectUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, loc *c
 
 // buildUnionTypeData creates the data needed to generate a sum-type union
 // struct, its discriminator kind, and branch metadata.
-func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Location) *UnionTypeData {
+func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Location, names ...string) *UnionTypeData {
 	att := &expr.AttributeExpr{Type: u}
 	name := scope.GoTypeName(att)
+	if len(names) > 0 {
+		name = names[0]
+	}
 	kindName := scope.Unique(name + "Kind")
 	unionPkg := loc.PackageName()
 
@@ -163,6 +179,10 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 			PrimitiveAliasType:        primitiveAliasType,
 			TypeTag:                   expr.UnionVariantTag(nat),
 		}
+		if u.Untagged {
+			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, scope)
+			fields[i].RequiredFields, fields[i].NonNullableFields, fields[i].JSONFields, fields[i].RejectUnknownJSONFields = unionBranchJSONFields(nat.Attribute)
+		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
 
@@ -173,6 +193,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		Loc:                 loc,
 		TypeKey:             u.GetTypeKey(),
 		ValueKey:            u.GetValueKey(),
+		Untagged:            u.Untagged,
 		HasScalarFormBranch: hasScalarFormBranch,
 	}
 }
@@ -206,6 +227,10 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 			PrimitiveAliasType:        primitiveAliasType,
 			TypeTag:                   expr.UnionVariantTag(nat),
 		}
+		if u.Untagged {
+			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, scope)
+			fields[i].RequiredFields, fields[i].NonNullableFields, fields[i].JSONFields, fields[i].RejectUnknownJSONFields = unionBranchJSONFields(nat.Attribute)
+		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
 
@@ -216,8 +241,38 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 		Loc:                 loc,
 		TypeKey:             u.GetTypeKey(),
 		ValueKey:            u.GetValueKey(),
+		Untagged:            u.Untagged,
 		HasScalarFormBranch: hasScalarFormBranch,
 	}
+}
+
+func unionBranchValidationCode(att *expr.AttributeExpr, scope *codegen.NameScope) string {
+	ut := att.Type.(expr.UserType)
+	return codegen.ValidationCode(ut.Attribute(), ut, typeContext(scope), true, false, false, "v")
+}
+
+func unionBranchJSONFields(att *expr.AttributeExpr) ([]string, []string, []string, bool) {
+	ut := att.Type.(expr.UserType)
+	parent := ut.Attribute()
+	object := expr.AsObject(ut.Attribute().Type)
+	required := make([]string, 0, len(parent.AllRequired()))
+	nonNullable := make([]string, 0, len(*object))
+	fields := make([]string, 0, len(*object))
+	for _, field := range *object {
+		name := codegen.JSONFieldName(field.Name, field.Attribute)
+		fields = append(fields, name)
+		if parent.IsRequired(field.Name) {
+			required = append(required, name)
+		}
+		if !expr.AllowsNull(field.Attribute) {
+			nonNullable = append(nonNullable, name)
+		}
+	}
+	sort.Strings(required)
+	sort.Strings(nonNullable)
+	sort.Strings(fields)
+	closed, _ := parent.Meta.Last("openapi:additionalProperties")
+	return required, nonNullable, fields, closed == "false"
 }
 
 // sortedNamedAttributes returns object fields sorted by attribute name.

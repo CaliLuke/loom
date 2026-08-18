@@ -112,8 +112,11 @@ func buildUserRequestBodyTypeDetails(
 	details := requestBodyTypeDetails{
 		varName:     varName,
 		description: fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.", varName, sd.Service.Name, endpointName),
-		definition:  goValueTypeDef(sd.Scope, userType.Attribute(), httpctx.Pointer, httpctx.UseDefault, httpctx.JSONPresence),
 	}
+	if expr.IsUnion(userType.Attribute().Type) {
+		return details
+	}
+	details.definition = goValueTypeDef(sd.Scope, userType.Attribute(), httpctx.Pointer, httpctx.UseDefault, httpctx.JSONPresence)
 	details.flatFormUnionField, details.flatFormUnionPointer, details.flatFormUnionTypeKey, details.flatFormUnionRef =
 		flatFormUnionMetadata(userType.Attribute(), formEncoded, sd.Scope)
 	if svr || containsUnionType(body.Type) {
@@ -176,12 +179,18 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	data := initResponseBodyTypeData(body, att, sd)
 	addMarshalTags(body, make(map[string]struct{}))
 
-	if ut, ok := body.Type.(expr.UserType); ok {
+	switch ut := body.Type.(type) {
+	case expr.UserType:
 		applyUserResponseBodyTypeData(data, body, ut, endpointName, httpctx, sd, svr, view == nil)
-	} else if !expr.IsPrimitive(body.Type) && data.mustInit {
-		applyStructuredResponseBodyTypeData(data, body, endpointName, httpctx, sd, svr)
-	} else {
-		applyPrimitiveResponseBodyTypeData(data, body, sd)
+	default:
+		switch {
+		case expr.IsUnion(body.Type):
+			applyUnionResponseBodyTypeData(data, body, endpointName, httpctx, sd)
+		case !expr.IsPrimitive(body.Type) && data.mustInit:
+			applyStructuredResponseBodyTypeData(data, body, endpointName, httpctx, sd, svr)
+		default:
+			applyPrimitiveResponseBodyTypeData(data, body, sd)
+		}
 	}
 	if svr {
 		collectServerResponseBodyTypes(sds, body, data.name, sd)
@@ -200,6 +209,12 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		Example:     body.Example(sds.Root.API.ExampleGenerator),
 		View:        viewName,
 	}
+}
+
+func applyUnionResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, endpointName string, httpctx *codegen.AttributeContext, sd *ServiceData) {
+	data.varName = sd.Scope.GoTypeName(body)
+	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
+	data.validateRef = codegen.ValidationCode(body, nil, httpctx, true, false, false, "body")
 }
 
 type responseBodyTypeData struct {
@@ -246,11 +261,16 @@ func initResponseBodyTypeData(body, att *expr.AttributeExpr, sd *ServiceData) *r
 
 func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, ut expr.UserType, endpointName string, httpctx *codegen.AttributeContext, sd *ServiceData, svr, allowValidateDef bool) {
 	data.varName = codegen.Goify(ut.Name(), true)
-	data.def = goValueTypeDef(sd.Scope, ut.Attribute(), !svr, svr, !svr)
+	if !expr.IsUnion(ut.Attribute().Type) {
+		data.def = goValueTypeDef(sd.Scope, ut.Attribute(), !svr, svr, !svr)
+	}
 	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
 	serverRequestValidation := svr && (sd.ServerRequestValidationTypes[ut.ID()] || sd.ServerRequestValidationTypes[ut.Name()])
 	if allowValidateDef && (!svr || serverRequestValidation) {
 		data.validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
+		if data.validateDef == "" && serverRequestValidation {
+			data.validateDef = "// no validations"
+		}
 		if data.validateDef == "" {
 			return
 		}
@@ -355,7 +375,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 
 	rtname := codegen.Goify(sd.Scope.GoValueTypeName(body), true)
 	rtref := bodyTypeRef(sd.Scope, body)
-	if _, ok := body.Type.(expr.UserType); !ok && !expr.IsPrimitive(body.Type) {
+	if _, ok := body.Type.(expr.UserType); !ok && !expr.IsPrimitive(body.Type) && !expr.IsUnion(body.Type) {
 		rtname = codegen.Goify(endpointName, true) + "ResponseBody"
 		rtref = rtname
 	}

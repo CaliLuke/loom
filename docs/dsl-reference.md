@@ -171,6 +171,29 @@ stable tag-to-component mappings. Custom `oneof:type:field` and
 `oneof:value:field` metadata changes the discriminator field and branch payload
 field used in that OpenAPI contract.
 
+Use `Untagged()` when an existing JSON contract encodes each named object
+branch directly instead of using Loom's discriminator/value envelope:
+
+```go
+Method("lookup", func() {
+    Result(OneOf(DataResult, ErrorResult), func() {
+        Untagged()
+    })
+})
+```
+
+Generated Go keeps the same sum-type constructors, `Kind`, and `As...`
+accessors. JSON marshaling emits only the selected branch object. Decoding
+validates every candidate and succeeds only when exactly one branch matches.
+Untagged branches must be concrete named flat object types whose fields are
+primitive or primitive aliases. This strict boundary lets decoding preserve
+case-sensitive JSON member names, nullability, required fields, and explicitly
+closed objects before it applies normal Loom value validation. Nested object,
+array, map, and union fields are rejected. OpenAPI renders branch component
+references directly under `oneOf` and omits the discriminator. This encoding
+is for JSON bodies; string-encoded parameters, headers, cookies, forms, and
+multipart bodies do not support it.
+
 #### Result View Requiredness
 
 Result views inherit canonical field requiredness by default. A view may

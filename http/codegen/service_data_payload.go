@@ -353,7 +353,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 	args := buildPayloadFieldArgs(request)
 	serverArgs = append(serverArgs, args...)
 	clientArgs = append(clientArgs, args...)
-	serverCode, clientCode, origin, pointer := b.buildTransformCode()
+	serverCode, clientCode, origin, pointer, unionValue := b.buildTransformCode()
 	return &InitData{
 		Name:                     name,
 		Description:              fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, b.svc.Name, b.endpointIR.Name),
@@ -368,6 +368,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		ServerCode:               serverCode,
 		ClientCode:               clientCode,
 		ReturnIsPrimitivePointer: pointer,
+		ReturnIsUnionValue:       unionValue,
 	}
 }
 
@@ -414,11 +415,12 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 	return serverArgs, clientArgs
 }
 
-func (b *payloadBuilder) buildTransformCode() (string, string, string, bool) {
+func (b *payloadBuilder) buildTransformCode() (string, string, string, bool, bool) {
 	serverCode := ""
 	clientCode := ""
 	origin := ""
 	pointer := false
+	unionValue := false
 	pAtt := b.payload
 	request := b.endpointIR.Request
 	if b.body != expr.Empty {
@@ -427,6 +429,7 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool) {
 			pAtt = expr.AsObject(b.payload.Type).Attribute(origin)
 			pAtt = serviceFieldTransformAttribute(b.payload, origin, pAtt)
 			pointer = !b.payload.IsRequired(o[0]) && expr.IsPrimitive(pAtt.Type)
+			unionValue = b.payload.IsRequired(o[0]) && expr.IsUnion(pAtt.Type)
 		}
 		var helpers []*codegen.TransformFunctionData
 		var err error
@@ -458,5 +461,5 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool) {
 			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
 		}
 	}
-	return serverCode, clientCode, origin, pointer
+	return serverCode, clientCode, origin, pointer, unionValue
 }

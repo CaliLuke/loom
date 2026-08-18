@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -237,7 +238,7 @@ func (a *Analyzer) analyzeInlineType(attr *expr.AttributeExpr, context string) (
 	case *expr.Map:
 		a.analyzeInlineMap(s, t, context)
 	case *expr.Union:
-		a.analyzeInlineUnion(s, t)
+		a.analyzeInlineUnion(s, t, context)
 	default:
 		panic(fmt.Sprintf("unknown type %T", t))
 	}
@@ -318,8 +319,17 @@ func (a *Analyzer) analyzeInlineMap(s *Schema, m *expr.Map, context string) {
 	}
 }
 
-func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union) {
+func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union, context string) {
 	values := sortedUnionValues(union)
+	if union.Untagged {
+		for _, val := range values {
+			s.OneOf = append(s.OneOf, a.analyzeSchema(
+				val.Attribute,
+				childExampleContext(context, "branch", expr.UnionVariantTag(val)),
+			))
+		}
+		return
+	}
 	s.Type = string(openapi.Object)
 	s.Discriminator = &Discriminator{
 		PropertyName: union.GetTypeKey(),
@@ -380,6 +390,9 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 		if metaName != "" {
 			typeName = metaName
 		}
+		if a.reuseEquivalentCanonicalSchema(s, attr, t, typeName, fingerprint, metaName) {
+			return s
+		}
 		typeName = a.ClaimExplicitName(typeName, fingerprint)
 	} else {
 		typeName = a.Uniquify(typeName, fingerprint)
@@ -393,6 +406,21 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 		a.schemas[typeName] = a.analyzeSchema(componentAttr, componentContext, true)
 	}
 	return s
+}
+
+func (a *Analyzer) reuseEquivalentCanonicalSchema(s *Schema, attr *expr.AttributeExpr, t expr.UserType, typeName, fingerprint, metaName string) bool {
+	existingFingerprint, ok := a.schemaFingerprints[typeName]
+	if !ok || existingFingerprint == fingerprint {
+		return false
+	}
+	componentContext := exampleContext("component", typeName)
+	candidate := a.analyzeSchema(componentAttribute(attr, t), componentContext, true)
+	if !reflect.DeepEqual(a.schemas[typeName], candidate) {
+		return false
+	}
+	s.Ref = toRef(typeName)
+	a.registerSchemaRef(fingerprint, s.Ref, metaName)
+	return true
 }
 
 func hasUserTypeConstraintOverlay(attr *expr.AttributeExpr) bool {

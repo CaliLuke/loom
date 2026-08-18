@@ -109,6 +109,9 @@ func Type(name string, args ...any) expr.UserType {
 		eval.InvalidArgError("type or function", args[0])
 		return nil
 	}
+	if union := expr.AsUnion(base); union != nil {
+		base = namedUnionCopy(union, name)
+	}
 
 	t := &expr.UserTypeExpr{
 		TypeName: name,
@@ -120,6 +123,19 @@ func Type(name string, args ...any) expr.UserType {
 	}
 	expr.Root.Types = append(expr.Root.Types, t)
 	return t
+}
+
+func namedUnionCopy(union *expr.Union, name string) *expr.Union {
+	cloned := *union
+	cloned.TypeName = name
+	cloned.ExplicitTypeName = true
+	cloned.Values = make([]*expr.NamedAttributeExpr, len(union.Values))
+	for index, branch := range union.Values {
+		attribute := expr.DupAtt(branch.Attribute)
+		attribute.Type = branch.Attribute.Type
+		cloned.Values[index] = &expr.NamedAttributeExpr{Name: branch.Name, Attribute: attribute}
+	}
+	return &cloned
 }
 
 // ArrayOf creates an array type from its element type.

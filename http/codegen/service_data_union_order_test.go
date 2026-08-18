@@ -83,6 +83,39 @@ func TestBuildHTTPUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
 	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
 }
 
+func TestNeedInitSupportsRootUnion(t *testing.T) {
+	union := makeTaggedUnionForTagTest()
+
+	require.True(t, needInit(&expr.AttributeExpr{Type: union}))
+}
+
+func TestRenderHTTPUntaggedUnionUsesExactFilteredMatch(t *testing.T) {
+	data := &svc.UnionTypeData{
+		Name:     "Outcome",
+		Untagged: true,
+		Fields: []*svc.UnionFieldData{
+			{
+				FieldName:               "OK",
+				FieldType:               "*OK",
+				KindConst:               "OutcomeKindOK",
+				RequiredFields:          []string{"wire_name"},
+				NonNullableFields:       []string{"wire_name"},
+				JSONFields:              []string{"wire_name"},
+				RejectUnknownJSONFields: true,
+				ValidateRef:             "ValidateOK(v)",
+			},
+		},
+	}
+
+	body := renderHTTPUnionUnmarshalJSONBody(data)
+	require.Contains(t, body, `rawObject["wire_name"]`)
+	require.Contains(t, body, `filtered["wire_name"] = value`)
+	require.Contains(t, body, "for name := range rawObject")
+	require.Contains(t, body, "matched.kind = OutcomeKindOK")
+	require.Contains(t, body, "*u = matched")
+	require.NotContains(t, body, "u.kind = OutcomeKindOK")
+}
+
 func TestRenderHTTPUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 	scope := cg.NewNameScope()
 	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)

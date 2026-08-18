@@ -104,7 +104,13 @@ contract.
 
 A two-member `oneOf` with a bare `null` branch and a local `$ref` to a schema
 that explicitly excludes null imports as a nullable named type. Regeneration
-uses the equivalent nullable `anyOf` form. Other `oneOf` shapes remain blocked.
+uses the equivalent nullable `anyOf` form. A JSON request or success response
+body `oneOf` with two or more object branches imports as an untagged typed
+union when every branch is a flat object with primitive properties: generated
+Go retains constructors and accessors, JSON uses the bare selected object, and
+decoding requires exactly one fully valid branch. Inline branches become
+deterministic components. Nested branch fields, scalar unions, and untagged
+unions in string-encoded transport locations remain blocked.
 
 An OpenAPI free-form object with `type: object` and
 `additionalProperties: true` imports as `MapOf(String, Any)`. Generated Go
@@ -130,7 +136,7 @@ With `--allow-lossy`, `allOf: [$ref, inline object]` renders with `Extend(...)`;
 the regenerated schema is flattened. Inline object array items are promoted
 to a deterministic component under the same flag so their fields and
 validation remain renderable. Both structural changes are reported as lossy
-warnings. Other `allOf`, `oneOf`, `anyOf`, and `not` shapes remain blocked.
+warnings. Unsupported `allOf`, `oneOf`, `anyOf`, and `not` shapes remain blocked.
 A Schema Object with `$ref` siblings is also blocked. Wrap the reference in a
 supported `allOf` shape so the importer does not discard sibling constraints.
 
@@ -292,6 +298,9 @@ completion shapes are explicit generation limitations.
 ## Unions, Views, and Projections
 
 - `OneOf(...)` works as both a named union declaration and a type constructor.
+- Add `Untagged()` in the union attribute, payload, or result block only when
+  JSON must encode the selected concrete named object branch directly. Decoding
+  tests every branch and requires exactly one match.
 - Explicit discriminator tags control wire values independently of schema and
   Go type names.
 - Optional object unions generate as pointers; required unions remain values.

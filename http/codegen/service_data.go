@@ -602,6 +602,9 @@ type (
 		// ReturnIsPrimitivePointer indicates whether the payload, result or error
 		// type is a primitive pointer.
 		ReturnIsPrimitivePointer bool
+		// ReturnIsUnionValue indicates that a detached union transform returns a
+		// pointer that must be dereferenced for a required struct field.
+		ReturnIsUnionValue bool
 		// SkipFieldInit disables the generic struct-field assignment path when
 		// a constructor already builds the full return value itself.
 		SkipFieldInit bool

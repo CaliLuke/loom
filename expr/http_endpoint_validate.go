@@ -418,15 +418,21 @@ func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationError
 	if e.OptionalRequestBody && (optionalBody == nil || optionalBody.Type == Empty) {
 		verr.Add(e, "HTTP endpoint uses OptionalRequestBody but does not define a request body.")
 	}
-	if e.MultipartRequest && IsUnion(e.MethodExpr.Payload.Type) {
-		verr.Add(e, "MultipartRequest requires an object payload, constructor unions are not supported")
-	}
 	formBody := e.MethodExpr.Payload
 	if e.Body != nil {
 		formBody = e.Body
 	}
+	if e.MultipartRequest && IsUnion(e.MethodExpr.Payload.Type) {
+		verr.Add(e, "MultipartRequest requires an object payload, constructor unions are not supported")
+	}
+	if e.MultipartRequest && containsUntaggedUnion(formBody) {
+		verr.Add(e, "MultipartRequest does not support untagged OneOf request bodies")
+	}
 	if e.FormRequest && !(IsUnion(formBody.Type) || IsObject(formBody.Type) || IsMap(formBody.Type)) {
 		verr.Add(e, "FormRequest requires an object, map, or constructor union payload")
+	}
+	if e.FormRequest && containsUntaggedUnion(formBody) {
+		verr.Add(e, "FormRequest does not support untagged OneOf request bodies")
 	}
 	if e.FormRequest && e.Body != nil && IsUnion(formBody.Type) {
 		verr.Add(e, "FormRequest does not support selecting a constructor union with Body")

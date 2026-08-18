@@ -58,6 +58,9 @@ type (
 	Union struct {
 		TypeName string
 		Values   []*NamedAttributeExpr
+		// Untagged encodes the selected branch directly instead of wrapping it in
+		// the canonical discriminator/value object.
+		Untagged bool
 		// ExplicitTypeName is true when the union type name was set explicitly
 		// via DSL metadata and should not be recomputed from derived variants.
 		ExplicitTypeName bool

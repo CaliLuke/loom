@@ -95,6 +95,7 @@ func (d *dupper) DupType(t DataType) DataType {
 		dp := Union{
 			TypeName:         actual.TypeName,
 			ExplicitTypeName: actual.ExplicitTypeName,
+			Untagged:         actual.Untagged,
 			Values:           make([]*NamedAttributeExpr, len(actual.Values)),
 			TypeKey:          actual.TypeKey,
 			ValueKey:         actual.ValueKey,

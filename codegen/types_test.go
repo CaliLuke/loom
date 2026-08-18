@@ -223,6 +223,36 @@ func TestAttributeTagsWithName_JSONName(t *testing.T) {
 	}
 }
 
+func TestJSONFieldNameUsesGeneratedTagPrecedence(t *testing.T) {
+	tests := map[string]struct {
+		attribute *expr.AttributeExpr
+		want      string
+	}{
+		"default": {
+			attribute: &expr.AttributeExpr{Type: expr.String},
+			want:      "AuthoredName",
+		},
+		"name metadata": {
+			attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:tag:json:name": {"wire_name"}}},
+			want:      "wire_name",
+		},
+		"complete tag wins": {
+			attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{
+				"struct:tag:json":      {"exact,omitempty"},
+				"struct:tag:json:name": {"ignored"},
+			}},
+			want: "exact",
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := JSONFieldName("AuthoredName", test.attribute); got != test.want {
+				t.Errorf("got %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestAttributeTagsWithName_DefaultJSONName(t *testing.T) {
 	parent := &expr.AttributeExpr{
 		Type: &expr.Object{

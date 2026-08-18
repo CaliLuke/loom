@@ -3,6 +3,8 @@ package openapi
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -71,6 +73,34 @@ func TestAttributeTypeSchemaUsesTaggedUnionExamplesAndEnums(t *testing.T) {
 	if _, ok := example[valueKey].(map[string]any); !ok {
 		t.Errorf("got value example %#v, expected nested object", example[valueKey])
 	}
+}
+
+func TestBuildUntaggedUnionTypeSchema(t *testing.T) {
+	ok := &expr.UserTypeExpr{
+		TypeName:      "OK",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{}},
+	}
+	failure := &expr.UserTypeExpr{
+		TypeName:      "Failure",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{}},
+	}
+	union := &expr.Union{
+		TypeName: "Outcome",
+		Untagged: true,
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "OK", Attribute: &expr.AttributeExpr{Type: ok}},
+			{Name: "Failure", Attribute: &expr.AttributeExpr{Type: failure}},
+		},
+	}
+
+	Definitions = make(map[string]*Schema)
+	schema := NewSchema()
+	buildUnionTypeSchema(&expr.APIExpr{ExampleGenerator: expr.NewRandom("untagged")}, schema, union, "")
+
+	require.Nil(t, schema.Discriminator)
+	require.Len(t, schema.OneOf, 2)
+	require.Equal(t, "#/$defs/OK", schema.OneOf[0].Ref)
+	require.Equal(t, "#/$defs/Failure", schema.OneOf[1].Ref)
 }
 
 func TestAttributeTypeSchemaLeavesAmbiguousUnionExampleUnchanged(t *testing.T) {

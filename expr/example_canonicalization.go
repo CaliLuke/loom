@@ -48,6 +48,9 @@ func CanonicalizeExample(att *AttributeExpr, example any) any {
 		if chosen == nil {
 			return example
 		}
+		if dt.Untagged {
+			return CanonicalizeExample(chosen.Attribute, example)
+		}
 		return map[string]any{
 			dt.GetTypeKey():  UnionVariantTag(chosen),
 			dt.GetValueKey(): CanonicalizeExample(chosen.Attribute, example),

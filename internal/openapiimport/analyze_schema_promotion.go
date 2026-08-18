@@ -92,6 +92,24 @@ func (a *analyzer) promoteSchemaArrayItems(
 		a.promoteSchemaArrayItems(document, schema.AdditionalProperties.Schema, name+"AdditionalProperty",
 			path+"/additionalProperties", used)
 	}
+	for index := range schema.OneOf {
+		branch := schema.OneOf[index]
+		branchName := name + "Variant"
+		if len(branch.Required) > 0 {
+			branchName = name + codegen.Goify(branch.Required[0], true)
+		}
+		a.promoteSchemaArrayItems(document, branch, branchName,
+			fmt.Sprintf("%s/oneOf/%d", path, index), used)
+		if branch.Ref != "" || branch.Type != "object" {
+			continue
+		}
+		componentName := uniqueComponentName(branchName, used)
+		document.Components.Schemas = append(document.Components.Schemas, NamedSchema{
+			Name:   componentName,
+			Schema: branch,
+		})
+		schema.OneOf[index] = &Schema{Ref: "#/components/schemas/" + componentName}
+	}
 	if schema.Items == nil {
 		return
 	}

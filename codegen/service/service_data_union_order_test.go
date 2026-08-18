@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -75,6 +76,83 @@ func TestBuildUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
 	require.Equal(t, "batch", data.Fields[1].TypeTag)
 }
 
+func TestNamedUnionUserTypeUsesUnionDefinition(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		start := dsl.Type("NamedUnionStart", func() {
+			dsl.Attribute("start", dsl.String)
+		})
+		stop := dsl.Type("NamedUnionStop", func() {
+			dsl.Attribute("stop", dsl.String)
+		})
+		command := dsl.Type("NamedUnionCommand", dsl.OneOf(start, stop))
+		dsl.Service("NamedUnionService", func() {
+			dsl.Method("Run", func() {
+				dsl.Payload(command)
+			})
+		})
+	})
+
+	data := NewServicesData(root).Get("NamedUnionService")
+	require.Len(t, data.unions, 1)
+	require.Equal(t, "NamedUnionCommand", data.unions[0].Name)
+	for _, userType := range data.userTypes {
+		require.NotEqual(t, "NamedUnionCommand", userType.Name)
+	}
+}
+
+func TestNamedUnionMethodProjectionUsesUnionDefinition(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		start := dsl.Type("ProjectedUnionStart", func() {
+			dsl.Attribute("start", dsl.String)
+		})
+		stop := dsl.Type("ProjectedUnionStop", func() {
+			dsl.Attribute("stop", dsl.String)
+		})
+		command := dsl.Type("ProjectedUnionCommand", dsl.OneOf(start, stop))
+		dsl.Service("ProjectedUnionService", func() {
+			dsl.Method("Run", func() {
+				dsl.Result(command)
+			})
+		})
+	})
+
+	data := NewServicesData(root).Get("ProjectedUnionService")
+	require.Len(t, data.Methods, 1)
+	require.Equal(t, "ProjectedUnionCommand", data.Methods[0].Result)
+	require.Equal(t, "*ProjectedUnionCommand", data.Methods[0].ResultRef)
+	require.Empty(t, data.Methods[0].ResultDef)
+	require.Len(t, data.unions, 1)
+	require.Equal(t, "ProjectedUnionCommand", data.unions[0].Name)
+}
+
+func TestUntaggedUnionMetadataUsesEffectiveJSONNames(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		first := dsl.Type("JSONNameFirst", func() {
+			dsl.Attribute("authored", dsl.String, func() {
+				dsl.Meta("struct:tag:json:name", "wire_name")
+			})
+			dsl.Required("authored")
+		})
+		second := dsl.Type("JSONNameSecond", func() {
+			dsl.Attribute("other", dsl.String)
+			dsl.Required("other")
+		})
+		dsl.Service("JSONNameService", func() {
+			dsl.Method("Show", func() {
+				dsl.Result(dsl.OneOf(first, second), func() {
+					dsl.Untagged()
+				})
+			})
+		})
+	})
+
+	data := NewServicesData(root).Get("JSONNameService")
+	require.Len(t, data.unions, 1)
+	require.Equal(t, []string{"wire_name"}, data.unions[0].Fields[0].RequiredFields)
+	require.Equal(t, []string{"wire_name"}, data.unions[0].Fields[0].NonNullableFields)
+	require.Equal(t, []string{"wire_name"}, data.unions[0].Fields[0].JSONFields)
+}
+
 func TestBuildViewUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
 	scope := codegen.NewNameScope()
 	loc := &codegen.Location{
@@ -131,6 +209,47 @@ func TestRenderUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 	require.Contains(t, body, `len(raw.Value) == 0 || string(raw.Value) == "null"`)
 	require.Contains(t, body, `return loom.InvalidEnumValueError("type", raw.Type, []any{`)
 	require.NotContains(t, body, `unexpected Selection type`)
+}
+
+func TestRenderUntaggedUnionJSONUsesBareValidatedBranches(t *testing.T) {
+	data := &UnionTypeData{
+		Name:     "Outcome",
+		KindName: "OutcomeKind",
+		Untagged: true,
+		Fields: []*UnionFieldData{
+			{
+				Name:                    "OK",
+				FieldName:               "OK",
+				FieldType:               "*OK",
+				KindConst:               "OutcomeKindOK",
+				ValidateCode:            "if v == nil {\n\terr = loom.MissingFieldError(\"ok\", \"v\")\n}",
+				RequiredFields:          []string{"wire_name"},
+				NonNullableFields:       []string{"wire_name"},
+				JSONFields:              []string{"wire_name"},
+				RejectUnknownJSONFields: true,
+			},
+			{
+				Name:         "Failure",
+				FieldName:    "Failure",
+				FieldType:    "*Failure",
+				KindConst:    "OutcomeKindFailure",
+				ValidateCode: "if v == nil {\n\terr = loom.MissingFieldError(\"failure\", \"v\")\n}",
+			},
+		},
+	}
+
+	marshal := renderUnionMarshalJSONBody(data)
+	require.Contains(t, marshal, "return json.Marshal(u.OK)")
+	require.NotContains(t, marshal, "Type  string")
+
+	unmarshal := renderUnionUnmarshalJSONBody(data)
+	require.Contains(t, unmarshal, "if branchErr == nil")
+	require.Contains(t, unmarshal, "if matches != 1")
+	require.Contains(t, unmarshal, "untagged union matched %d branches")
+	require.Contains(t, unmarshal, `filtered["wire_name"] = value`)
+	require.Contains(t, unmarshal, "matched.kind = OutcomeKindOK")
+	require.Contains(t, unmarshal, "*u = matched")
+	require.NotContains(t, unmarshal, "u.kind = OutcomeKindOK")
 }
 
 func TestRenderUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {

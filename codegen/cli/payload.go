@@ -39,6 +39,8 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData) codegen.Section {
 							value := values.Id(buildFunction.PayloadInit.ReturnTypeAttribute).Op(":")
 							if buildFunction.PayloadInit.ReturnTypeAttributePointer {
 								value.Op("&")
+							} else if buildFunction.PayloadInit.ReturnTypeAttributeUnionValue {
+								value.Op("*")
 							}
 							value.Id("v")
 						})

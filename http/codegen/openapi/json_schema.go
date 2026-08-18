@@ -415,6 +415,12 @@ func buildMapTypeSchema(api *expr.APIExpr, s *Schema, m *expr.Map) {
 }
 
 func buildUnionTypeSchema(api *expr.APIExpr, s *Schema, union *expr.Union, prefix string) {
+	if union.Untagged {
+		for _, val := range union.Values {
+			s.OneOf = append(s.OneOf, AttributeTypeSchemaWithPrefix(api, val.Attribute, prefix))
+		}
+		return
+	}
 	typeKey := union.GetTypeKey()
 	valueKey := union.GetValueKey()
 	s.Type = Object

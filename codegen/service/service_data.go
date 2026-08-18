@@ -455,6 +455,9 @@ type (
 		TypeKey string
 		// ValueKey is the value field name for JSON marshaling (defaults to "value").
 		ValueKey string
+		// Untagged reports whether JSON marshaling emits the selected branch value
+		// directly instead of the canonical discriminator/value wrapper.
+		Untagged bool
 		// HasScalarFormBranch is true when at least one branch keeps canonical
 		// type/value form encoding.
 		HasScalarFormBranch bool
@@ -470,6 +473,19 @@ type (
 		FieldName string
 		// FieldType is the Go type used in the union struct field and public API.
 		FieldType string
+		// ValidateCode validates a decoded untagged branch held in v.
+		ValidateCode string
+		// ValidateRef is the Go expression that validates a decoded branch.
+		ValidateRef string
+		// RequiredFields lists JSON object members that must be present.
+		RequiredFields []string
+		// NonNullableFields lists present JSON object members that reject null.
+		NonNullableFields []string
+		// JSONFields lists the exact JSON object members decoded by this branch.
+		JSONFields []string
+		// RejectUnknownJSONFields reports whether undeclared object members make
+		// this branch ineligible.
+		RejectUnknownJSONFields bool
 		// FlatFormObject is true when the branch value is object-shaped and form
 		// encoding should flatten its fields under the current prefix.
 		FlatFormObject bool

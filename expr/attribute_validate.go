@@ -280,11 +280,48 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 		return verr
 	}
 	if u := AsUnion(a.Type); u != nil {
+		if u.Untagged {
+			for _, branch := range u.Values {
+				userType, named := branch.Attribute.Type.(UserType)
+				if !named || IsAlias(userType) || !IsObject(userType) {
+					verr.Add(parent, "%suntagged OneOf branch %q must be a concrete named object type", ctx, branch.Name)
+					continue
+				}
+				if additional, ok := userType.Attribute().Meta.Last("openapi:additionalProperties"); ok && additional != "false" {
+					verr.Add(parent, "%suntagged OneOf branch %q must use the default open object or openapi:additionalProperties false", ctx, branch.Name)
+				}
+				wireNames := make(map[string]struct{})
+				for _, field := range *AsObject(userType) {
+					if !IsPrimitive(field.Attribute.Type) {
+						verr.Add(parent, "%suntagged OneOf branch %q field %q must be primitive", ctx, branch.Name, field.Name)
+					}
+					wireName := untaggedJSONFieldName(field.Name, field.Attribute)
+					if wireName == "-" {
+						verr.Add(parent, "%suntagged OneOf branch %q field %q cannot use json tag %q", ctx, branch.Name, field.Name, wireName)
+						continue
+					}
+					if _, duplicate := wireNames[wireName]; duplicate {
+						verr.Add(parent, "%suntagged OneOf branch %q has duplicate JSON field name %q", ctx, branch.Name, wireName)
+					}
+					wireNames[wireName] = struct{}{}
+				}
+			}
+		}
 		for _, ut := range u.Values {
 			verr.Merge(ut.Attribute.Validate(ctx, parent))
 		}
 	}
 	return verr
+}
+
+func untaggedJSONFieldName(name string, attribute *AttributeExpr) string {
+	if tag, ok := attribute.Meta.Last("struct:tag:json"); ok {
+		return strings.Split(tag, ",")[0]
+	}
+	if tag, ok := attribute.Meta.Last("struct:tag:json:name"); ok && tag != "" {
+		return strings.Split(tag, ",")[0]
+	}
+	return name
 }
 
 func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expression, obj *Object) *eval.ValidationErrors {

@@ -218,6 +218,15 @@ func completeOpenAPIMapExample(actual *expr.Map, val any) bool {
 }
 
 func completeOpenAPIUnionExample(actual *expr.Union, val any) bool {
+	if actual.Untagged {
+		matches := 0
+		for _, branch := range actual.Values {
+			if branch != nil && branch.Attribute != nil && isCompleteOpenAPIExample(branch.Attribute, val) {
+				matches++
+			}
+		}
+		return matches == 1
+	}
 	example, ok := val.(map[string]any)
 	if !ok {
 		return false

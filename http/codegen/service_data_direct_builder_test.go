@@ -14,6 +14,38 @@ import (
 )
 
 func TestHTTPDirectBuilderSeams(t *testing.T) {
+	t.Run("untagged unions retain exact required JSON fields", func(t *testing.T) {
+		_, _, svcData := firstHTTPBuildContext(t, func() {
+			start := Type("DirectUntaggedStart", func() {
+				Attribute("start", String)
+				Required("start")
+			})
+			stop := Type("DirectUntaggedStop", func() {
+				Attribute("stop", String)
+				Required("stop")
+			})
+			command := Type("DirectUntaggedCommand", OneOf(start, stop), func() {
+				Untagged()
+			})
+			Service("DirectUntagged", func() {
+				Method("run", func() {
+					Payload(command)
+					Result(command)
+					HTTP(func() {
+						POST("/")
+						Response(StatusOK)
+					})
+				})
+			})
+		})
+		require.NotEmpty(t, svcData.UnionTypes)
+		for _, union := range svcData.UnionTypes {
+			require.Len(t, union.Fields, 2)
+			require.Equal(t, []string{"start"}, union.Fields[0].RequiredFields, union.Name)
+			require.Equal(t, []string{"stop"}, union.Fields[1].RequiredFields, union.Name)
+		}
+	})
+
 	t.Run("server response layout wins over later request reuse", func(t *testing.T) {
 		nested := &expr.UserTypeExpr{
 			TypeName: "PetResponseBody",

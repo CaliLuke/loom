@@ -190,6 +190,8 @@ func needInitType(root *expr.AttributeExpr, dt expr.DataType) bool {
 	case *expr.Map:
 		return needInitType(root, actual.KeyType.Type) ||
 			needInitType(root, actual.ElemType.Type)
+	case *expr.Union:
+		return true
 	case *expr.Object:
 		for _, nat := range *actual {
 			if needInitType(root, nat.Attribute.Type) {

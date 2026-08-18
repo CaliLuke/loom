@@ -25,7 +25,7 @@ func makeHTTPType(att *expr.AttributeExpr) *expr.AttributeExpr {
 func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *expr.AttributeExpr {
 	switch dt := att.Type.(type) {
 	case expr.UserType:
-		if _, ok := dt.(*expr.ResultTypeExpr); !ok && !expr.IsObject(dt) {
+		if _, ok := dt.(*expr.ResultTypeExpr); !ok && !expr.IsObject(dt) && !expr.IsUnion(dt) {
 			att.Type = dt.Attribute().Type
 			if v := dt.Attribute().Validation; v != nil {
 				if att.Validation == nil {
@@ -98,6 +98,23 @@ func collectUnionBranchUserTypes(att *expr.AttributeExpr, ids map[string]struct{
 	collectUnionBranchUserTypesSeen(att, ids, make(map[string]struct{}))
 }
 
+func containsUntaggedUnion(att *expr.AttributeExpr) bool {
+	if att == nil || att.Type == expr.Empty {
+		return false
+	}
+	found := false
+	err := codegen.Walk(att, func(current *expr.AttributeExpr) error {
+		if union := expr.AsUnion(current.Type); union != nil && union.Untagged {
+			found = true
+		}
+		return nil
+	})
+	if err != nil {
+		panic(codegen.NewError(nil, att, err))
+	}
+	return found
+}
+
 func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, ids, seen map[string]struct{}) {
 	if att == nil || att.Type == expr.Empty {
 		return
@@ -168,6 +185,17 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 			return
 		}
 		seen[dt.ID()] = struct{}{}
+		if union := expr.AsUnion(dt.Attribute().Type); union != nil {
+			hash := union.Hash()
+			if _, ok := unions[hash]; !ok {
+				name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
+				unions[hash] = buildHTTPUnionTypeData(union, scope, name)
+			}
+			for _, nat := range union.Values {
+				collectHTTPUnionTypes(nat.Attribute, scope, unions, seen)
+			}
+			return
+		}
 		collectHTTPUnionTypes(dt.Attribute(), scope, unions, seen)
 	case *expr.Object:
 		for _, nat := range sortedNamedAttributes(*dt) {
@@ -189,9 +217,12 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 	}
 }
 
-func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope) *service.UnionTypeData {
+func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, names ...string) *service.UnionTypeData {
 	att := &expr.AttributeExpr{Type: u}
 	name := scope.GoTypeName(att)
+	if len(names) > 0 {
+		name = names[0]
+	}
 	kindName := scope.Unique(name + "Kind")
 
 	fields := make([]*service.UnionFieldData, len(u.Values))
@@ -211,6 +242,10 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope) *service.Un
 			EmptyValueExpr:            emptyObjectValueExpr(fieldType),
 			EmitPrimitiveAlias:        false,
 		}
+		if u.Untagged {
+			fields[i].ValidateRef = unionBranchValidateRef(fieldType)
+			fields[i].RequiredFields, fields[i].NonNullableFields, fields[i].JSONFields, fields[i].RejectUnknownJSONFields = serviceUnionBranchJSONFields(nat.Attribute)
+		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
 
@@ -220,8 +255,38 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope) *service.Un
 		Fields:              fields,
 		TypeKey:             u.GetTypeKey(),
 		ValueKey:            u.GetValueKey(),
+		Untagged:            u.Untagged,
 		HasScalarFormBranch: hasScalarFormBranch,
 	}
+}
+
+func unionBranchValidateRef(fieldType string) string {
+	typeName := strings.TrimPrefix(fieldType, "*")
+	return "Validate" + typeName + "(v)"
+}
+
+func serviceUnionBranchJSONFields(att *expr.AttributeExpr) ([]string, []string, []string, bool) {
+	ut := att.Type.(expr.UserType)
+	parent := ut.Attribute()
+	object := expr.AsObject(ut.Attribute().Type)
+	required := make([]string, 0, len(parent.AllRequired()))
+	nonNullable := make([]string, 0, len(*object))
+	fields := make([]string, 0, len(*object))
+	for _, field := range *object {
+		name := codegen.JSONFieldName(field.Name, field.Attribute)
+		fields = append(fields, name)
+		if parent.IsRequired(field.Name) {
+			required = append(required, name)
+		}
+		if !expr.AllowsNull(field.Attribute) {
+			nonNullable = append(nonNullable, name)
+		}
+	}
+	sort.Strings(required)
+	sort.Strings(nonNullable)
+	sort.Strings(fields)
+	closed, _ := parent.Meta.Last("openapi:additionalProperties")
+	return required, nonNullable, fields, closed == "false"
 }
 
 func sortedNamedAttributes(attrs []*expr.NamedAttributeExpr) []*expr.NamedAttributeExpr {

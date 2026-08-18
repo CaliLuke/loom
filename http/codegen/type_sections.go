@@ -204,7 +204,11 @@ func addHTTPUnionValidateMethod(stmt *jen.Statement, data *servicecodegen.UnionT
 }
 
 func addHTTPUnionMarshalJSONMethod(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
-	codegen.Doc(stmt, "MarshalJSON marshals the union into the canonical {type,value} JSON shape.")
+	description := "MarshalJSON marshals the union into the canonical {type,value} JSON shape."
+	if data.Untagged {
+		description = "MarshalJSON marshals the selected union branch directly."
+	}
+	codegen.Doc(stmt, description)
 	stmt.Func().
 		Params(jen.Id("u").Id(data.Name)).
 		Id("MarshalJSON").
@@ -243,7 +247,11 @@ func addHTTPUnionUnmarshalFormMethod(stmt *jen.Statement, data *servicecodegen.U
 }
 
 func addHTTPUnionUnmarshalJSONMethod(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
-	stmt.Comment("UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape.").Line()
+	description := "UnmarshalJSON unmarshals the union from the canonical {type,value} JSON shape."
+	if data.Untagged {
+		description = "UnmarshalJSON selects the single valid untagged union branch."
+	}
+	stmt.Comment(description).Line()
 	stmt.Func().
 		Params(jen.Id("u").Op("*").Id(data.Name)).
 		Id("UnmarshalJSON").
@@ -277,6 +285,9 @@ func renderHTTPUnionValidateBody(data *servicecodegen.UnionTypeData) string {
 }
 
 func renderHTTPUnionMarshalJSONBody(data *servicecodegen.UnionTypeData) string {
+	if data.Untagged {
+		return renderHTTPUntaggedUnionMarshalJSONBody(data)
+	}
 	var b sourceBuilder
 	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
 	b.Add("var (\n\tvalue any\n)\n")
@@ -287,6 +298,17 @@ func renderHTTPUnionMarshalJSONBody(data *servicecodegen.UnionTypeData) string {
 	b.Addf("\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
 	b.Addf("return json.Marshal(struct {\n\tType  string `json:\"%s\"`\n\tValue any    `json:\"%s\"`\n}{\n", data.TypeKey, data.ValueKey)
 	b.Add("\tType:  string(u.kind),\n\tValue: value,\n})")
+	return b.String()
+}
+
+func renderHTTPUntaggedUnionMarshalJSONBody(data *servicecodegen.UnionTypeData) string {
+	var b sourceBuilder
+	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
+	b.Add("switch u.kind {\n")
+	for _, field := range data.Fields {
+		b.Addf("\tcase %s:\n\t\treturn json.Marshal(u.%s)\n", field.KindConst, field.FieldName)
+	}
+	b.Addf("\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}", data.Name)
 	return b.String()
 }
 
@@ -345,6 +367,9 @@ func renderHTTPUnionUnmarshalFormBody(data *servicecodegen.UnionTypeData) string
 }
 
 func renderHTTPUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData) string {
+	if data.Untagged {
+		return renderHTTPUntaggedUnionUnmarshalJSONBody(data)
+	}
 	var b sourceBuilder
 	b.Addf("var raw struct {\n\tType  string          `json:\"%s\"`\n\tValue json.RawMessage `json:\"%s\"`\n}\n", data.TypeKey, data.ValueKey)
 	b.Add("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
@@ -362,6 +387,63 @@ func renderHTTPUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData) string
 		b.Addf("\t\t\tstring(%s),\n", field.KindConst)
 	}
 	b.Add("\t\t})\n\t}\nreturn nil")
+	return b.String()
+}
+
+func renderHTTPUntaggedUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData) string {
+	var b sourceBuilder
+	b.Add("var rawObject map[string]json.RawMessage\n")
+	b.Add("if err := json.Unmarshal(data, &rawObject); err != nil {\n\treturn err\n}\n")
+	b.Addf("if rawObject == nil {\n\treturn fmt.Errorf(\"decode %s: untagged union matched 0 branches\")\n}\n", data.Name)
+	b.Add("matches := 0\n")
+	b.Addf("var matched %s\n", data.Name)
+	for _, field := range data.Fields {
+		b.Addf("{\n\teligible := true\n\tvar v %s\n", field.FieldType)
+		for _, name := range field.RequiredFields {
+			b.Addf("\tif _, ok := rawObject[%q]; !ok {\n\t\teligible = false\n\t}\n", name)
+		}
+		for _, name := range field.NonNullableFields {
+			b.Addf("\tif value, ok := rawObject[%q]; ok {\n\t\tvar decoded any\n\t\tif err := json.Unmarshal(value, &decoded); err != nil || decoded == nil {\n\t\t\teligible = false\n\t\t}\n\t}\n", name)
+		}
+		if field.RejectUnknownJSONFields {
+			b.Add("\tfor name := range rawObject {\n\t\tswitch name {\n")
+			for _, name := range field.JSONFields {
+				b.Addf("\t\tcase %q:\n", name)
+			}
+			b.Add("\t\tdefault:\n\t\t\teligible = false\n\t\t}\n\t}\n")
+		}
+		b.Add("\tfiltered := make(map[string]json.RawMessage)\n")
+		for _, name := range field.JSONFields {
+			b.Addf("\tif value, ok := rawObject[%q]; ok {\n\t\tfiltered[%q] = value\n\t}\n", name, name)
+		}
+		b.Add("\tif eligible {\n")
+		b.Add("\tcandidateData, marshalErr := json.Marshal(filtered)\n")
+		b.Add("\tif marshalErr == nil {\n")
+		b.Add("\tif err := json.Unmarshal(candidateData, &v); err == nil {\n")
+		validated := false
+		if field.ValidateCode != "" {
+			b.Add("\t\tbranchErr := func() (err error) {\n")
+			b.Add(codegen.Indent(field.ValidateCode, "\t\t\t"))
+			b.Add("\n")
+			b.Add("\t\t\treturn\n\t\t}()\n")
+			b.Add("\t\tif branchErr == nil {\n")
+			validated = true
+		} else if field.ValidateRef != "" {
+			b.Addf("\t\tif err := %s; err == nil {\n", field.ValidateRef)
+			validated = true
+		}
+		indent := "\t\t"
+		if validated {
+			indent = "\t\t\t"
+		}
+		b.Addf("%smatches++\n%smatched.kind = %s\n%smatched.%s = v\n", indent, indent, field.KindConst, indent, field.FieldName)
+		if validated {
+			b.Add("\t\t}\n")
+		}
+		b.Add("\t}\n\t}\n\t}\n}\n")
+	}
+	b.Addf("if matches != 1 {\n\treturn fmt.Errorf(\"decode %s: untagged union matched %%d branches\", matches)\n}\n", data.Name)
+	b.Add("*u = matched\nreturn nil")
 	return b.String()
 }
 
@@ -432,6 +514,8 @@ func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 						valueExpr := "v"
 						if init.ReturnIsPrimitivePointer {
 							valueExpr = "&v"
+						} else if init.ReturnIsUnionValue {
+							valueExpr = "*v"
 						}
 						group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).CustomFunc(jen.Options{
 							Open:      "{",

@@ -380,6 +380,71 @@ func TestFormRequestMapBodies(t *testing.T) {
 	}
 }
 
+func TestFormRequestRejectsUntaggedOneOf(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		first := Type("FirstFormVariant", func() {
+			Attribute("first", String)
+		})
+		second := Type("SecondFormVariant", func() {
+			Attribute("second", String)
+		})
+		Service("Service", func() {
+			Method("Update", func() {
+				Payload(OneOf(first, second), func() {
+					Untagged()
+				})
+				HTTP(func() {
+					PATCH("/config")
+					FormRequest()
+				})
+			})
+		})
+	})
+
+	if err == nil {
+		t.Error("expected FormRequest with an untagged OneOf body to fail validation")
+	} else if !strings.Contains(err.Error(), "FormRequest does not support untagged OneOf request bodies") {
+		t.Errorf("got %q, expected untagged OneOf FormRequest validation error", err)
+	}
+}
+
+func TestEncodedRequestsRejectNestedUntaggedOneOf(t *testing.T) {
+	for name, requestDSL := range map[string]func(){
+		"form":      FormRequest,
+		"multipart": MultipartRequest,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, func() {
+				first := Type("NestedFirst"+name, func() {
+					Attribute("first", String)
+				})
+				second := Type("NestedSecond"+name, func() {
+					Attribute("second", String)
+				})
+				Service("Service", func() {
+					Method("Update", func() {
+						Payload(func() {
+							Attribute("choice", OneOf(first, second), func() {
+								Untagged()
+							})
+						})
+						HTTP(func() {
+							PATCH("/config")
+							requestDSL()
+						})
+					})
+				})
+			})
+
+			if err == nil {
+				t.Errorf("expected %s request with a nested untagged OneOf to fail validation", name)
+			} else if !strings.Contains(err.Error(), "does not support untagged OneOf request bodies") {
+				t.Errorf("got %q, expected untagged OneOf request validation error", err)
+			}
+		})
+	}
+}
+
 func TestHTTPEndpointStreamingValidationCoverage(t *testing.T) {
 	cases := map[string]struct {
 		DSL      func()

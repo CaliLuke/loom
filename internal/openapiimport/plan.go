@@ -134,10 +134,14 @@ func (p *documentPlanner) operation(operation *Operation, path string) {
 	successClass := successResponseClass(operation.Responses)
 	successes := 0
 	for _, response := range operation.Responses {
-		if isSuccessResponseStatus(response.Status, successClass) {
+		success := isSuccessResponseStatus(response.Status, successClass)
+		if success {
 			successes++
 		}
 		responsePath := path + "/responses/" + escapeJSONPointer(response.Status)
+		if !success && p.schemaContainsUntaggedOneOf(response.Response.Schema, make(map[string]struct{})) {
+			p.unsupported("schema-oneof-location", responsePath+"/content/schema", "untagged oneOf is supported only in JSON request and success response bodies")
+		}
 		if response.Response.Schema != nil && !isJSONMediaType(response.Response.ContentType) &&
 			responseMode == responseBodyEncoded {
 			p.unsupported(
@@ -165,6 +169,9 @@ func (p *documentPlanner) parameter(parameter Parameter, path string) {
 	if resolved.Schema == nil {
 		p.unsupported("parameter-schema", path, "parameter has no schema")
 	} else {
+		if p.schemaContainsUntaggedOneOf(resolved.Schema, make(map[string]struct{})) {
+			p.unsupported("schema-oneof-location", path+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
+		}
 		p.schema(resolved.Schema, path+"/schema")
 	}
 	if resolved.In != "query" && resolved.AllowEmptyValue {
@@ -205,6 +212,9 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 			p.unsupported("content-schema", contentPath+"/schema", "content type has no schema")
 			continue
 		}
+		if !isJSONMediaType(contentType) && p.schemaContainsUntaggedOneOf(body.Schema, make(map[string]struct{})) {
+			p.unsupported("schema-oneof-location", contentPath+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
+		}
 		p.schema(body.Schema, contentPath+"/schema")
 	}
 }
@@ -228,6 +238,9 @@ func (p *documentPlanner) response(response Response, path string, allowNonJSON 
 			p.unsupported("header-schema", headerPath, fmt.Sprintf("header %q has no schema", named.Name))
 			continue
 		}
+		if p.schemaContainsUntaggedOneOf(named.Header.Schema, make(map[string]struct{})) {
+			p.unsupported("schema-oneof-location", headerPath+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
+		}
 		p.schema(named.Header.Schema, headerPath+"/schema")
 	}
 }
@@ -242,7 +255,46 @@ func (p *documentPlanner) content(contentType string, schema *Schema, path strin
 	if contentType == "" || !allowNonJSON && !isJSONMediaType(contentType) {
 		p.unsupported("media-type", path+"/content", fmt.Sprintf("content type %q is not renderable", contentType))
 	}
+	if !isJSONMediaType(contentType) && p.schemaContainsUntaggedOneOf(schema, make(map[string]struct{})) {
+		p.unsupported("schema-oneof-location", path+"/content/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
+	}
 	p.schema(schema, path+"/content/schema")
+}
+
+func (p *documentPlanner) schemaContainsUntaggedOneOf(schema *Schema, seen map[string]struct{}) bool {
+	if schema == nil {
+		return false
+	}
+	if len(schema.OneOf) > 0 {
+		return true
+	}
+	if schema.Ref != "" {
+		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		if name == schema.Ref {
+			return false
+		}
+		if _, ok := seen[name]; ok {
+			return false
+		}
+		seen[name] = struct{}{}
+		named, ok := p.schemas[name]
+		return ok && p.schemaContainsUntaggedOneOf(named.Schema, seen)
+	}
+	for _, base := range schema.Bases {
+		if p.schemaContainsUntaggedOneOf(base, seen) {
+			return true
+		}
+	}
+	for _, property := range schema.Properties {
+		if p.schemaContainsUntaggedOneOf(property.Schema, seen) {
+			return true
+		}
+	}
+	if p.schemaContainsUntaggedOneOf(schema.Items, seen) {
+		return true
+	}
+	return schema.AdditionalProperties != nil &&
+		p.schemaContainsUntaggedOneOf(schema.AdditionalProperties.Schema, seen)
 }
 
 func operationResponseBodyMode(operation *Operation) responseBodyMode {
@@ -301,6 +353,23 @@ func (p *documentPlanner) schema(schema *Schema, path string) {
 		p.unsupported("schema-composition", path, "allOf, oneOf, anyOf, and not are not in the strict import subset")
 		return
 	}
+	if schema != nil && len(schema.OneOf) > 0 {
+		for index, branch := range schema.OneOf {
+			if branch == nil || branch.Ref == "" {
+				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object components")
+				continue
+			}
+			name := strings.TrimPrefix(branch.Ref, "#/components/schemas/")
+			named, ok := p.schemas[name]
+			if name == branch.Ref || !ok || named.Schema == nil || named.Schema.Ref != "" || named.Schema.Type != "object" {
+				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object components")
+				continue
+			}
+			if !p.schemaIsFlatPrimitiveObject(named.Schema) {
+				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must be flat objects with primitive properties")
+			}
+		}
+	}
 	renderer := renderer{document: p.document, schemas: p.schemas}
 	_, _, err := renderer.schemaExpression(schema, path)
 	if err == nil {
@@ -308,6 +377,49 @@ func (p *documentPlanner) schema(schema *Schema, path string) {
 	}
 	if err != nil {
 		p.unsupported("schema", path, strings.TrimPrefix(err.Error(), "render OpenAPI design: "))
+	}
+}
+
+func (p *documentPlanner) schemaIsFlatPrimitiveObject(schema *Schema) bool {
+	if schema == nil || schema.Type != "object" || len(schema.Bases) > 0 || schema.Items != nil || len(schema.OneOf) > 0 {
+		return false
+	}
+	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
+		return false
+	}
+	for _, property := range schema.Properties {
+		if !p.schemaIsPrimitive(property.Schema, make(map[string]struct{})) {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *documentPlanner) schemaIsPrimitive(schema *Schema, seen map[string]struct{}) bool {
+	if schema == nil {
+		return false
+	}
+	if schema.Ref != "" {
+		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		if name == schema.Ref {
+			return false
+		}
+		if _, ok := seen[name]; ok {
+			return false
+		}
+		seen[name] = struct{}{}
+		named, ok := p.schemas[name]
+		return ok && p.schemaIsPrimitive(named.Schema, seen)
+	}
+	if schema.Unconstrained {
+		return true
+	}
+	switch schema.Type {
+	case "boolean", "integer", "number", "string":
+		return len(schema.Bases) == 0 && len(schema.OneOf) == 0 && len(schema.Properties) == 0 &&
+			schema.Items == nil && schema.AdditionalProperties == nil
+	default:
+		return false
 	}
 }
 

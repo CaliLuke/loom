@@ -55,6 +55,24 @@ func OneOf(arg any, args ...any) expr.DataType {
 	return oneOfType(arg, args...)
 }
 
+// Untagged configures the current OneOf attribute to encode its selected JSON
+// branch directly, without the canonical discriminator/value wrapper. Every
+// branch must be a named flat object type with primitive fields so generated
+// decoders can validate all candidates and require exactly one match.
+func Untagged() {
+	attribute, ok := eval.Current().(*expr.AttributeExpr)
+	if !ok {
+		eval.IncompatibleDSL()
+		return
+	}
+	union := expr.AsUnion(attribute.Type)
+	if union == nil {
+		eval.ReportError("Untagged can only be used with OneOf")
+		return
+	}
+	union.Untagged = true
+}
+
 func oneOfAttribute(name string, args ...any) {
 	if len(args) == 0 {
 		eval.TooFewArgError()

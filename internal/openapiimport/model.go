@@ -310,6 +310,8 @@ type Schema struct {
 	Type string
 	// Nullable reports that the schema also accepts the JSON null value.
 	Nullable bool
+	// OneOf contains the branches of a supported untagged object union.
+	OneOf []*Schema
 	// Format is the authored schema format.
 	Format string
 	// Title is the schema title.
