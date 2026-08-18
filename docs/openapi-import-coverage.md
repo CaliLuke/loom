@@ -97,7 +97,9 @@ The following constructs are conditional:
 - A `$ref` plus inline-object `allOf` requires `--allow-lossy`.
 - An inline object used as array items requires `--allow-lossy`. Loom promotes
   it to a deterministic component.
-- A two-member `anyOf` that only adds `null` maps to `Nullable()`.
+- A two-member `anyOf` that only adds `null` maps to `Nullable()`. When the
+  value branch is `{}`, it normalizes to `Any` because the empty schema already
+  accepts null.
 - `additionalProperties: true` maps to `map[string]any` only when the object
   has no declared properties.
 

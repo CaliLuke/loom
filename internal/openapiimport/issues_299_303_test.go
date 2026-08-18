@@ -102,3 +102,46 @@ components:
 		})
 	}
 }
+
+func TestRenderPreservesNullableUnconstrainedSchema(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Values, version: "1"}
+paths:
+  /value:
+    get:
+      operationId: getValue
+      responses:
+        "200":
+          description: value
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    anyOf:
+                      - {}
+                      - type: "null"
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	property := document.Operations[0].Responses[0].Response.Schema.Properties[0].Schema
+	require.True(t, property.Unconstrained)
+	require.False(t, property.Nullable)
+
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	require.Contains(t, string(rendered), `Attribute("value", Any, func()`)
+	requireRenderedDesignEvaluates(t, rendered, 1)
+
+	contract := readGeneratedOpenAPIContract(t, requireRenderedDesignGenerates(t, rendered))
+	operation := operationFromImportedSpec(t, contract, "/value", "get")
+	responseSchema := operation["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+	if ref, ok := responseSchema["$ref"].(string); ok {
+		responseSchema = referencedSchema(t, contract, ref)
+	}
+	value := responseSchema["properties"].(map[string]any)["value"].(map[string]any)
+	require.Empty(t, value)
+}

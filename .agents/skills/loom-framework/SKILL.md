@@ -183,6 +183,9 @@ filter, and serialization rules belong here.
   assertions or applicators. Map that state to `Any`; do not infer `Any` from a
   missing type alone, because typeless constraints must continue to fail
   closed.
+- Normalize `anyOf: [{}, {type: "null"}]` to unconstrained `Any`. The empty
+  schema already accepts null, so the explicit null branch adds no contract
+  semantics and must not force a nullable wrapper.
 - Preserve canonical named aliases as OpenAPI components, including aliases of
   `Any`. Preserve the exact source component key even when multiple keys map to
   the same Go identifier. Canonical component identity takes precedence over

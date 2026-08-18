@@ -165,6 +165,8 @@ to distinguish an absent field from an explicit JSON `null`; use its presence
 methods as described above. Direct named results retain their imported result
 type and may return `nil`. A schema that omits `type` but declares constraints
 is not treated as unconstrained and remains a strict import error.
+The equivalent `anyOf: [{}, {type: "null"}]` form normalizes to `Any` because
+the empty schema already accepts null.
 
 A free-form object with `type: object` and `additionalProperties: true` imports
 as `MapOf(String, Any)`. Generated Go uses `map[string]any`. Regenerated

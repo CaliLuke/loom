@@ -98,6 +98,9 @@ and generated HTTP code accepts any JSON value. Generated fields use
 JSON `null`; direct named results keep their imported type and can return
 `nil`. Do not replace a typeless schema that has constraints with `Any`; the
 importer rejects that contract because `Any` would discard its assertions.
+The equivalent `anyOf: [{}, {type: "null"}]` form also imports as `Any`: `{}`
+already accepts null, so the explicit null branch does not narrow or widen the
+contract.
 
 An OpenAPI free-form object with `type: object` and
 `additionalProperties: true` imports as `MapOf(String, Any)`. Generated Go

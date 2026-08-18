@@ -41,13 +41,15 @@ func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path
 		}
 		value = a.schema(proxy, fmt.Sprintf("%s/anyOf/%d", path, index))
 	}
-	if value == nil || value.Type == "" && value.Ref == "" {
+	if value == nil || value.Type == "" && value.Ref == "" && !value.Unconstrained {
 		return false
 	}
 	outerDescription := schema.Description
 	outerExtensions := schema.Extensions
 	*schema = *value
-	schema.Nullable = true
+	// An unconstrained schema already accepts null, so its explicit null branch
+	// is semantically redundant and does not need a separate nullable wrapper.
+	schema.Nullable = !schema.Unconstrained
 	if outerDescription != "" {
 		schema.Description = outerDescription
 	}
