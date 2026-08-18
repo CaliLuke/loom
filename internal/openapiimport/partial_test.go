@@ -92,6 +92,47 @@ paths:
 	}
 }
 
+func TestAnalyzePartialRetainsOneOfBranchComponents(t *testing.T) {
+	source := []byte(`openapi: 3.1.0
+info: {title: PartialOneOf, version: "1"}
+paths:
+  /items:
+    get:
+      operationId: getItem
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required: [data]
+                    properties:
+                      data: {type: string}
+                  - type: object
+                    additionalProperties: false
+                    required: [error]
+                    properties:
+                      error: {type: string}
+`)
+
+	analysis, _, err := AnalyzePartial(source, Selection{}, false)
+	require.NoError(t, err)
+	require.Equal(t, 1, analysis.TotalOperations)
+	require.Equal(t, 2, analysis.TotalSchemas)
+	require.Len(t, analysis.Document.Operations, 1)
+	require.Empty(t, analysis.Blocked)
+	require.Empty(t, analysis.Skipped)
+	require.Len(t, analysis.Document.Components.Schemas, 2)
+	require.Equal(t, []string{"GetItemResponseData", "GetItemResponseError"}, []string{
+		analysis.Document.Components.Schemas[0].Name,
+		analysis.Document.Components.Schemas[1].Name,
+	})
+	require.Len(t, analysis.Document.Operations[0].Responses[0].Response.Schema.OneOf, 2)
+}
+
 func TestAnalyzePartialPreservesSupportedDocumentSecurity(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info:

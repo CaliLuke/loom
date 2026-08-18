@@ -274,6 +274,9 @@ func (p *componentPruner) visitSchema(schema *Schema) {
 	for _, base := range schema.Bases {
 		p.visitSchema(base)
 	}
+	for _, branch := range schema.OneOf {
+		p.visitSchema(branch)
+	}
 	for _, property := range schema.Properties {
 		p.visitSchema(property.Schema)
 	}
