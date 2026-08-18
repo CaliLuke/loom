@@ -107,6 +107,9 @@ func rewriteSchemaRefs(schema *openapi.Schema, resolveRef func(string) string) {
 	for _, def := range schema.Defs {
 		rewriteSchemaRefs(def, resolveRef)
 	}
+	for _, item := range schema.AllOf {
+		rewriteSchemaRefs(item, resolveRef)
+	}
 	for _, item := range schema.AnyOf {
 		rewriteSchemaRefs(item, resolveRef)
 	}
@@ -178,6 +181,9 @@ func collectSchemaRefs(schema *openapi.Schema, addRef func(string)) {
 	}
 	for _, def := range schema.Defs {
 		collectSchemaRefs(def, addRef)
+	}
+	for _, item := range schema.AllOf {
+		collectSchemaRefs(item, addRef)
 	}
 	for _, item := range schema.AnyOf {
 		collectSchemaRefs(item, addRef)
@@ -257,6 +263,7 @@ func isPureRefSchema(schema *openapi.Schema) bool {
 		len(schema.Required) == 0 &&
 		schema.AdditionalProperties == nil &&
 		schema.UnevaluatedProperties == nil &&
+		len(schema.AllOf) == 0 &&
 		len(schema.AnyOf) == 0 &&
 		len(schema.OneOf) == 0 &&
 		schema.Discriminator == nil &&

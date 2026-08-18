@@ -58,6 +58,7 @@ func (s *Schema) createMergeItems(other *Schema) mergeItems {
 		{&s.ContentSchema, other.ContentSchema, s.ContentSchema == nil},
 		{&s.PathStart, other.PathStart, s.PathStart == ""},
 		{&s.Enum, other.Enum, s.Enum == nil},
+		{&s.AllOf, other.AllOf, s.AllOf == nil},
 		{&s.AnyOf, other.AnyOf, s.AnyOf == nil},
 		{&s.OneOf, other.OneOf, s.OneOf == nil},
 		{&s.Discriminator, other.Discriminator, s.Discriminator == nil},

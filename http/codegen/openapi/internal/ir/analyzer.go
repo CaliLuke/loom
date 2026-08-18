@@ -345,6 +345,12 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 			return a.analyzeSchema(projectedAttr, context, noRef)
 		}
 	}
+	if !noRef && hasUserTypeConstraintOverlay(attr) {
+		base := a.analyzeUserType(&expr.AttributeExpr{Type: t}, t, context, false)
+		schema := &Schema{AllOf: []*Schema{{Ref: base.Ref}}}
+		a.applySchemaAttributeDetails(schema, attr, "", context)
+		return schema
+	}
 	metaName, canonical := schemaTypeNaming(attr, t)
 	if expr.IsAlias(t) && !canonical {
 		return a.analyzeSchema(t.Attribute(), context)
@@ -379,6 +385,14 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 		a.schemas[typeName] = a.analyzeSchema(componentAttr, componentContext, true)
 	}
 	return s
+}
+
+func hasUserTypeConstraintOverlay(attr *expr.AttributeExpr) bool {
+	if attr == nil {
+		return false
+	}
+	value, ok := attr.Meta.Last("openapi:allOf:reference")
+	return ok && value == "true"
 }
 
 func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeExpr, note, context string) {

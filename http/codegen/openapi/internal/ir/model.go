@@ -215,6 +215,7 @@ type (
 		AdditionalProperties  *BoolOrSchema
 		UnevaluatedProperties *BoolOrSchema
 
+		AllOf         []*Schema `json:",omitempty"`
 		AnyOf         []*Schema
 		OneOf         []*Schema
 		Discriminator *Discriminator

@@ -195,6 +195,11 @@ filter, and serialization rules belong here.
   may receive generated error methods.
 - Make every response-rendering branch honor `hasSchemaBlock`. Primitive and
   referenced-type shortcuts must not discard examples, defaults, or metadata.
+- Preserve numeric-bound and compatible scalar-default siblings on a
+  single-reference `allOf` as occurrence constraints over the canonical
+  component. The importer emits `openapi:allOf:reference` metadata so
+  regeneration retains the reference in `allOf`; other contract siblings
+  remain unsupported until Loom can preserve them without flattening.
 - Keep method-level error identities collision-safe across operations. Two
   responses with the same HTTP status must not share a generated error type
   when their schemas belong to different operation contracts.

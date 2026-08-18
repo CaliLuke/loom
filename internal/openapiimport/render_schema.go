@@ -323,6 +323,7 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 }
 
 func (r *renderer) validationBlock(schema *Schema, path string) error {
+	r.referenceOverlayMetadata(schema)
 	if schema.Title != "" {
 		r.line("Title(%q)", schema.Title)
 	}
@@ -379,6 +380,12 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 		r.line("MaxLength(%d)", *maxLength)
 	}
 	return nil
+}
+
+func (r *renderer) referenceOverlayMetadata(schema *Schema) {
+	if schema.Ref != "" && r.hasSchemaBlock(schema) {
+		r.line("Meta(%q, %q)", "openapi:allOf:reference", "true")
+	}
 }
 
 func (r *renderer) defaultAndExamples(schema *Schema, path string) error {

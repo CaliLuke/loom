@@ -269,6 +269,9 @@ func filterSchemaCompatibility(schema *openapi.Schema, seen map[*openapi.Schema]
 	for _, child := range schema.Defs {
 		filterSchemaCompatibility(child, seen)
 	}
+	for _, child := range schema.AllOf {
+		filterSchemaCompatibility(child, seen)
+	}
 	for _, child := range schema.AnyOf {
 		filterSchemaCompatibility(child, seen)
 	}

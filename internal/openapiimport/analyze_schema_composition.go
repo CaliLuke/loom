@@ -61,12 +61,15 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 	if len(source.AllOf) == 0 {
 		return false
 	}
-	if len(source.AllOf) == 1 && !hasDirectAllOfSchemaShape(source) {
+	if len(source.AllOf) == 1 && !hasUnsupportedSingleReferenceAllOfSiblings(source) {
 		proxy := source.AllOf[0]
 		if proxy != nil && proxy.IsReference() {
 			ref := proxy.GetReference()
 			if strings.HasPrefix(ref, "#/components/schemas/") {
 				schema.Ref = ref
+				if hasAllOfValidationSiblings(source) {
+					schema.Type = referencedSchemaType(proxy)
+				}
 				return true
 			}
 		}
@@ -110,6 +113,30 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 		"object inheritance is rendered with Extend and regenerated OpenAPI flattens the composition",
 	)
 	return true
+}
+
+func hasUnsupportedSingleReferenceAllOfSiblings(source *base.Schema) bool {
+	return len(source.Type) > 0 || orderedmap.Len(source.Properties) > 0 || len(source.Required) > 0 ||
+		source.Items != nil || source.AdditionalProperties != nil || len(source.Enum) > 0 || source.Format != "" ||
+		source.Pattern != "" || source.MinLength != nil || source.MaxLength != nil || source.MinItems != nil ||
+		source.MaxItems != nil
+}
+
+func hasAllOfValidationSiblings(source *base.Schema) bool {
+	return source.Minimum != nil || source.Maximum != nil || source.ExclusiveMinimum != nil ||
+		source.ExclusiveMaximum != nil || source.Default != nil
+}
+
+func referencedSchemaType(proxy *base.SchemaProxy) string {
+	resolved := proxy.Schema()
+	if resolved == nil {
+		return ""
+	}
+	if len(resolved.Type) == 1 && resolved.Type[0] != "null" {
+		return resolved.Type[0]
+	}
+	typeName, _ := nullableUnionType(resolved.Type)
+	return typeName
 }
 
 func hasDirectAllOfSchemaShape(source *base.Schema) bool {

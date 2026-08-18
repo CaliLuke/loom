@@ -250,11 +250,12 @@ func Maximum(val any) {
 
 func setNumericValidation(name, expectedType string, val any, apply func(*expr.ValidationExpr, float64)) {
 	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
+		kind := underlyingValidationKind(a.Type)
 		if a.Type != nil &&
-			a.Type.Kind() != expr.IntKind && a.Type.Kind() != expr.UIntKind &&
-			a.Type.Kind() != expr.Int32Kind && a.Type.Kind() != expr.UInt32Kind &&
-			a.Type.Kind() != expr.Int64Kind && a.Type.Kind() != expr.UInt64Kind &&
-			a.Type.Kind() != expr.Float32Kind && a.Type.Kind() != expr.Float64Kind {
+			kind != expr.IntKind && kind != expr.UIntKind &&
+			kind != expr.Int32Kind && kind != expr.UInt32Kind &&
+			kind != expr.Int64Kind && kind != expr.UInt64Kind &&
+			kind != expr.Float32Kind && kind != expr.Float64Kind {
 			incompatibleAttributeType(name, a.Type.Name(), expectedType)
 		} else {
 			f, ok := parseNumericValidationValue(val)
@@ -267,6 +268,16 @@ func setNumericValidation(name, expectedType string, val any, apply func(*expr.V
 			apply(a.Validation, f)
 		}
 	}
+}
+
+func underlyingValidationKind(dataType expr.DataType) expr.Kind {
+	if userType, ok := dataType.(expr.UserType); ok {
+		return underlyingValidationKind(userType.Attribute().Type)
+	}
+	if dataType == nil {
+		return 0
+	}
+	return dataType.Kind()
 }
 
 func parseNumericValidationValue(val any) (float64, bool) {

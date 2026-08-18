@@ -285,6 +285,7 @@ func normalizeSchemaForHash(schema *Schema, schemas map[string]*Schema, cache ma
 	cloned.ContentSchema = normalizeSchemaForHash(schema.ContentSchema, schemas, cache, stack)
 	cloned.Properties = normalizeSchemaMapForHash(schema.Properties, schemas, cache, stack)
 	cloned.Defs = normalizeSchemaMapForHash(schema.Defs, schemas, cache, stack)
+	cloned.AllOf = normalizeSchemaSliceForHash(schema.AllOf, schemas, cache, stack)
 	cloned.AnyOf = normalizeSchemaSliceForHash(schema.AnyOf, schemas, cache, stack)
 	cloned.OneOf = normalizeSchemaSliceForHash(schema.OneOf, schemas, cache, stack)
 	cloned.AdditionalProperties = normalizeBoolOrSchemaForHash(schema.AdditionalProperties, schemas, cache, stack)

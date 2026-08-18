@@ -91,7 +91,9 @@ The following constructs are conditional:
 
 - `format` supports known Loom formats. An unknown format requires
   `--allow-lossy`.
-- A one-member `allOf` with a local reference is lossless.
+- A one-member `allOf` with a local reference is lossless. Numeric bounds and
+  compatible scalar defaults are preserved on the reference occurrence; other
+  contract siblings remain rejected.
 - A `$ref` plus inline-object `allOf` requires `--allow-lossy`.
 - An inline object used as array items requires `--allow-lossy`. Loom promotes
   it to a deterministic component.

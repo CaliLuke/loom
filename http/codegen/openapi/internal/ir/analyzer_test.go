@@ -61,6 +61,41 @@ func TestAnalyzerPreservesCanonicalAnyAliasAsComponent(t *testing.T) {
 	require.Empty(t, component.Type)
 }
 
+func TestAnalyzerPreservesNamedAliasConstraintOverlay(t *testing.T) {
+	minimum := float64(0)
+	maximum := float64(1)
+	status := &expr.UserTypeExpr{
+		TypeName: "Status",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: expr.Int,
+			Meta: expr.MetaExpr{
+				"openapi:typename:canonical": []string{"true"},
+			},
+			Validation: &expr.ValidationExpr{Values: []any{0, 1}},
+		},
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+
+	schema := analyzer.AnalyzeSchema(&expr.AttributeExpr{
+		Type:         status,
+		DefaultValue: 1,
+		Meta: expr.MetaExpr{
+			"openapi:allOf:reference": []string{"true"},
+		},
+		Validation: &expr.ValidationExpr{
+			Minimum: &minimum,
+			Maximum: &maximum,
+		},
+	})
+
+	require.Len(t, schema.AllOf, 1)
+	require.Equal(t, "#/components/schemas/Status", schema.AllOf[0].Ref)
+	require.Equal(t, &minimum, schema.Minimum)
+	require.Equal(t, &maximum, schema.Maximum)
+	require.Equal(t, 1, schema.DefaultValue)
+	require.Equal(t, []any{0, 1}, analyzer.Components()["Status"].Enum)
+}
+
 func TestAnalyzerKeepsNamedAnyNullExampleOnOccurrence(t *testing.T) {
 	t.Parallel()
 

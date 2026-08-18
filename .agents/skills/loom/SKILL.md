@@ -105,7 +105,11 @@ uses `map[string]any`, and regenerated OpenAPI preserves the object boundary.
 The importer rejects a schema that also declares object members because the
 Loom DSL cannot preserve both shapes.
 
-A one-member `allOf` containing a local schema reference imports losslessly.
+A one-member `allOf` containing a local schema reference imports losslessly,
+including numeric bounds and compatible scalar defaults on the wrapper.
+Regenerated OpenAPI retains the component reference in `allOf` and those
+sibling constraints on the occurrence. Other contract siblings remain
+blocked.
 With `--allow-lossy`, `allOf: [$ref, inline object]` renders with `Extend(...)`;
 the regenerated schema is flattened. Inline object array items are promoted
 to a deterministic component under the same flag so their fields and

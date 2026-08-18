@@ -60,6 +60,31 @@ func TestEnumRequiresAtLeastOneValue(t *testing.T) {
 	}
 }
 
+func TestNumericBoundsOnNamedScalarAlias(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		status := Type("Status", Int, func() {
+			Enum(0, 1)
+		})
+		Type("Envelope", func() {
+			Attribute("status", status, func() {
+				Minimum(0)
+				Maximum(1)
+			})
+		})
+	})
+
+	status := root.UserType("Envelope").Attribute().Find("status")
+	if status == nil || status.Validation == nil {
+		t.Fatal("missing status validation")
+	}
+	if status.Validation.Minimum == nil || *status.Validation.Minimum != 0 {
+		t.Fatalf("unexpected minimum: %#v", status.Validation.Minimum)
+	}
+	if status.Validation.Maximum == nil || *status.Validation.Maximum != 1 {
+		t.Fatalf("unexpected maximum: %#v", status.Validation.Maximum)
+	}
+}
+
 func TestRequired(t *testing.T) {
 	att := &expr.AttributeExpr{
 		Type: &expr.UserTypeExpr{

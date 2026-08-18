@@ -299,7 +299,8 @@ type Header struct {
 }
 
 // Schema is the normalized JSON Schema subset expressible by the first import
-// phase. Ref is set instead of the remaining fields for a component reference.
+// phase. Ref may be accompanied by constraints authored beside a supported
+// single-reference allOf wrapper.
 type Schema struct {
 	// Ref is the authored local schema component reference.
 	Ref string

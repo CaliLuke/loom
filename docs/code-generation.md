@@ -178,7 +178,10 @@ parameter, request-body, and response scopes. Extensions at unsupported scopes
 remain explicit import diagnostics and are never discarded silently.
 
 A single-member `allOf` containing a local schema reference imports losslessly
-as that reference. With `--allow-lossy`, the importer also supports the common
+as that reference. Numeric bounds and compatible scalar defaults remain
+attached to the occurrence, and regenerated OpenAPI emits the canonical
+reference in `allOf` with those sibling constraints. Other contract siblings
+remain unsupported. With `--allow-lossy`, the importer also supports the common
 Spring inheritance shape `allOf: [$ref, inline object]`. It renders the parent
 with `Extend(...)` and keeps the inline properties and required fields.
 Regenerated OpenAPI flattens this inheritance relationship. When such an

@@ -54,6 +54,7 @@ type (
 		UnevaluatedProperties any      `json:"unevaluatedProperties,omitempty" yaml:"unevaluatedProperties,omitempty"`
 
 		// Union
+		AllOf         []*Schema      `json:"allOf,omitempty" yaml:"allOf,omitempty"`
 		AnyOf         []*Schema      `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
 		OneOf         []*Schema      `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
 		Discriminator *Discriminator `json:"discriminator,omitempty" yaml:"discriminator,omitempty"`
