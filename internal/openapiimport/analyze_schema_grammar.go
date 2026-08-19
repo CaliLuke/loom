@@ -66,7 +66,6 @@ func (a *analyzer) schemaUnsupportedKeywords(
 		a.unsupported("advanced-schema", path, "advanced JSON Schema applicators are not in the strict import subset")
 	}
 	if source.MultipleOf != nil || source.UniqueItems != nil || source.MaxProperties != nil || source.MinProperties != nil ||
-		source.Const != nil ||
 		source.ContentEncoding != "" || source.ContentMediaType != "" || source.XML != nil || source.ExternalDocs != nil {
 		a.unsupported("schema-keyword", path, "one or more schema keywords are not in the strict import subset")
 	}

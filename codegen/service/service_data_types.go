@@ -195,6 +195,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		ValueKey:            u.GetValueKey(),
 		Untagged:            u.Untagged,
 		HasScalarFormBranch: hasScalarFormBranch,
+		validations:         buildUntaggedUnionValidations(u, scope, loc),
 	}
 }
 
@@ -249,6 +250,29 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 func unionBranchValidationCode(att *expr.AttributeExpr, scope *codegen.NameScope) string {
 	ut := att.Type.(expr.UserType)
 	return codegen.ValidationCode(ut.Attribute(), ut, typeContext(scope), true, false, false, "v")
+}
+
+func buildUntaggedUnionValidations(union *expr.Union, scope *codegen.NameScope, loc *codegen.Location) []*unionValidationData {
+	if !union.Untagged {
+		return nil
+	}
+	types := collectTypes(&expr.AttributeExpr{Type: union}, scope, make(map[string]struct{}), loc)
+	validations := make([]*unionValidationData, 0, len(types))
+	for _, data := range types {
+		if !expr.IsObject(data.Type) || expr.IsAlias(data.Type) {
+			continue
+		}
+		validations = append(validations, &unionValidationData{
+			data: &ValidateData{
+				Name:        "Validate" + data.VarName,
+				Ref:         data.Ref,
+				Description: "runs the validations defined on " + data.VarName + ".",
+				Validate:    codegen.ValidationCode(data.Type.Attribute(), data.Type, typeContext(scope), true, false, false, "result"),
+			},
+			loc: data.Loc,
+		})
+	}
+	return validations
 }
 
 func unionBranchJSONFields(att *expr.AttributeExpr) ([]string, []string, []string, bool) {

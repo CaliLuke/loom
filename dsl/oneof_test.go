@@ -225,7 +225,30 @@ func TestUntaggedRejectsNestedBranchFields(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), `untagged OneOf branch "NestedUntagged" field "child" must be primitive`)
+	require.Contains(t, err.Error(), `untagged OneOf branch "NestedUntagged" field "child" must be primitive, a concrete named object type, or an array of either`)
+}
+
+func TestUntaggedAcceptsNamedObjectBranchFieldsAndArrays(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		child := Type("NamedUntaggedChild", func() {
+			Attribute("value", String)
+		})
+		first := Type("NamedUntaggedFirst", func() {
+			Attribute("child", child)
+		})
+		second := Type("NamedUntaggedSecond", func() {
+			Attribute("children", ArrayOf(child))
+		})
+		Service("untagged", func() {
+			Method("show", func() {
+				Result(OneOf(first, second), func() {
+					Untagged()
+				})
+			})
+		})
+	})
+
+	require.NotNil(t, root.Service("untagged"))
 }
 
 func TestUntaggedRejectsAmbiguousJSONFieldMetadata(t *testing.T) {

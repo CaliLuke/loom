@@ -292,8 +292,8 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 				}
 				wireNames := make(map[string]struct{})
 				for _, field := range *AsObject(userType) {
-					if !IsPrimitive(field.Attribute.Type) {
-						verr.Add(parent, "%suntagged OneOf branch %q field %q must be primitive", ctx, branch.Name, field.Name)
+					if !isUntaggedBranchFieldType(field.Attribute.Type) {
+						verr.Add(parent, "%suntagged OneOf branch %q field %q must be primitive, a concrete named object type, or an array of either", ctx, branch.Name, field.Name)
 					}
 					wireName := untaggedJSONFieldName(field.Name, field.Attribute)
 					if wireName == "" {
@@ -316,6 +316,17 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 		}
 	}
 	return verr
+}
+
+func isUntaggedBranchFieldType(dataType DataType) bool {
+	if IsPrimitive(dataType) {
+		return true
+	}
+	if userType, named := dataType.(UserType); named {
+		return !IsAlias(userType) && IsObject(userType)
+	}
+	array := AsArray(dataType)
+	return array != nil && isUntaggedBranchFieldType(array.ElemType.Type)
 }
 
 func untaggedJSONFieldName(name string, attribute *AttributeExpr) string {

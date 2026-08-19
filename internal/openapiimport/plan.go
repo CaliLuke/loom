@@ -365,8 +365,8 @@ func (p *documentPlanner) schema(schema *Schema, path string) {
 				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object components")
 				continue
 			}
-			if !p.schemaIsFlatPrimitiveObject(named.Schema) {
-				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must be flat objects with primitive properties")
+			if !p.schemaIsFlatUntaggedObject(named.Schema) {
+				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must be flat objects with primitive or named object properties, or arrays of either")
 			}
 		}
 	}
@@ -380,7 +380,7 @@ func (p *documentPlanner) schema(schema *Schema, path string) {
 	}
 }
 
-func (p *documentPlanner) schemaIsFlatPrimitiveObject(schema *Schema) bool {
+func (p *documentPlanner) schemaIsFlatUntaggedObject(schema *Schema) bool {
 	if schema == nil || schema.Type != "object" || len(schema.Bases) > 0 || schema.Items != nil || len(schema.OneOf) > 0 {
 		return false
 	}
@@ -388,11 +388,39 @@ func (p *documentPlanner) schemaIsFlatPrimitiveObject(schema *Schema) bool {
 		return false
 	}
 	for _, property := range schema.Properties {
-		if !p.schemaIsPrimitive(property.Schema, make(map[string]struct{})) {
+		if !p.schemaIsUntaggedProperty(property.Schema, make(map[string]struct{})) {
 			return false
 		}
 	}
 	return true
+}
+
+func (p *documentPlanner) schemaIsUntaggedProperty(schema *Schema, seen map[string]struct{}) bool {
+	if schema == nil || schema.Ref == "" {
+		if schema != nil && schema.Type == "array" && schema.Items != nil {
+			return p.schemaIsUntaggedProperty(schema.Items, seen)
+		}
+		return p.schemaIsPrimitive(schema, seen)
+	}
+	name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+	if name == schema.Ref {
+		return false
+	}
+	if _, ok := seen[name]; ok {
+		return false
+	}
+	seen[name] = struct{}{}
+	named, ok := p.schemas[name]
+	if !ok || named.Schema == nil {
+		return false
+	}
+	if named.Schema.Ref != "" {
+		return p.schemaIsUntaggedProperty(named.Schema, seen)
+	}
+	if named.Schema.Type == "object" && len(named.Schema.Bases) == 0 && len(named.Schema.OneOf) == 0 && named.Schema.Items == nil && named.Schema.AdditionalProperties == nil {
+		return true
+	}
+	return p.schemaIsPrimitive(named.Schema, seen)
 }
 
 func (p *documentPlanner) schemaIsPrimitive(schema *Schema, seen map[string]struct{}) bool {

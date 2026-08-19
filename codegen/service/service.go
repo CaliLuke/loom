@@ -24,11 +24,13 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	seen := make(map[string]struct{})
 	typeDefSections := make(map[string]map[string]codegen.Section)
 	typesByPath := make(map[string][]string)
+	validationUTF8Paths := make(map[string]bool)
 	svcSections := make([]codegen.Section, 0, 10)
 
 	addTypeDefSection := newTypeSectionCollector(typeDefSections, typesByPath, seen)
 	collectMethodTypeSections(svc, svcPath, addTypeDefSection, seen)
 	collectUserTypeSections(svc, svcPath, addTypeDefSection, seen)
+	collectUntaggedUnionValidationSections(svc, svcPath, addTypeDefSection, seen, validationUTF8Paths)
 	errorTypes := collectErrorTypeSections(svc, svcPath, addTypeDefSection, seen)
 	svcSections = append(svcSections, buildErrorSections(errorTypes, svc, svcPath, addTypeDefSection)...)
 	svcSections = append(svcSections, buildTypeInitSections(svc)...)
@@ -50,6 +52,9 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	if len(svc.unions) > 0 || hasFileResponse(svc.Methods) {
 		imports = append(imports, codegen.LoomNamedImport("http", "loomhttp"))
 	}
+	if validationUTF8Paths[svcPath] {
+		imports = append(imports, codegen.SimpleImport("unicode/utf8"))
+	}
 	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
 	def := serviceDefinitionSection(svc)
 
@@ -57,7 +62,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	files = append(files, &codegen.File{Path: svcPath, Sections: buildServiceFileSections(typeDefSections[svcPath], header, def, svcSections)})
 
 	files = append(files, InterceptorsFiles(genpkg, service, services)...)
-	return appendUserTypeFiles(files, svcPath, typeDefSections, typesByPath, userTypePkgs)
+	return appendUserTypeFiles(files, svcPath, typeDefSections, typesByPath, userTypePkgs, validationUTF8Paths)
 }
 
 func newTypeSectionCollector(typeDefSections map[string]map[string]codegen.Section, typesByPath map[string][]string, seen map[string]struct{}) func(string, string, codegen.Section) {
@@ -88,6 +93,25 @@ func collectUserTypeSections(svc *Data, svcPath string, addTypeDefSection func(s
 	}
 	for _, union := range svc.unions {
 		addTypeDefSection(pathWithDefault(union.Loc, svcPath), "~union:"+union.Name, unionTypeSection("service-union-type", union))
+	}
+}
+
+func collectUntaggedUnionValidationSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}, validationUTF8Paths map[string]bool) {
+	for _, union := range svc.unions {
+		for _, validation := range union.validations {
+			path := pathWithDefault(validation.loc, svcPath)
+			if strings.Contains(validation.data.Validate, "utf8.") {
+				validationUTF8Paths[path] = true
+			}
+			maybeAddNamedTypeSection(
+				true,
+				validation.data.Name,
+				path,
+				validateSection("untagged-union-validation", validation.data),
+				addTypeDefSection,
+				seen,
+			)
+		}
 	}
 }
 
@@ -162,7 +186,7 @@ func buildServiceFileSections(typeSections map[string]codegen.Section, header, d
 	return append(sections, svcSections...)
 }
 
-func appendUserTypeFiles(files []*codegen.File, svcPath string, typeDefSections map[string]map[string]codegen.Section, typesByPath map[string][]string, userTypePkgs map[string][]string) []*codegen.File {
+func appendUserTypeFiles(files []*codegen.File, svcPath string, typeDefSections map[string]map[string]codegen.Section, typesByPath map[string][]string, userTypePkgs map[string][]string, validationUTF8Paths map[string]bool) []*codegen.File {
 	paths := sortedTypePaths(typesByPath)
 	for _, path := range paths {
 		if path == svcPath {
@@ -172,7 +196,7 @@ func appendUserTypeFiles(files []*codegen.File, svcPath string, typeDefSections 
 		if len(sections) == 0 {
 			continue
 		}
-		files = append(files, newUserTypeFile(path, sections, hasUnion))
+		files = append(files, newUserTypeFile(path, sections, hasUnion, validationUTF8Paths[path]))
 	}
 	return files
 }
@@ -204,7 +228,7 @@ func collectUserTypeFileSections(path string, typeNames []string, typeSections m
 	return sections, hasUnion
 }
 
-func newUserTypeFile(path string, sections []codegen.Section, hasUnion bool) *codegen.File {
+func newUserTypeFile(path string, sections []codegen.Section, hasUnion, needsUTF8 bool) *codegen.File {
 	fullRelPath := filepath.Join(codegen.Gendir, path)
 	dir, _ := filepath.Split(fullRelPath)
 	imports := []*codegen.ImportSpec{
@@ -217,6 +241,9 @@ func newUserTypeFile(path string, sections []codegen.Section, hasUnion bool) *co
 			codegen.SimpleImport("net/url"),
 			codegen.LoomNamedImport("http", "loomhttp"),
 		)
+	}
+	if needsUTF8 {
+		imports = append(imports, codegen.SimpleImport("unicode/utf8"))
 	}
 	header := codegen.Header("User types", codegen.Goify(filepath.Base(dir), false), imports)
 	return &codegen.File{Path: fullRelPath, Sections: append([]codegen.Section{header}, sections...)}

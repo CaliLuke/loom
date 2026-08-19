@@ -106,11 +106,17 @@ A two-member `oneOf` with a bare `null` branch and a local `$ref` to a schema
 that explicitly excludes null imports as a nullable named type. Regeneration
 uses the equivalent nullable `anyOf` form. A JSON request or success response
 body `oneOf` with two or more object branches imports as an untagged typed
-union when every branch is a flat object with primitive properties: generated
-Go retains constructors and accessors, JSON uses the bare selected object, and
-decoding requires exactly one fully valid branch. Inline branches become
-deterministic components. Nested branch fields, scalar unions, and untagged
-unions in string-encoded transport locations remain blocked.
+union when every branch is a flat object whose fields are primitives, concrete
+named objects, or arrays of either: generated Go retains constructors and
+accessors, JSON uses the bare selected object, and decoding requires exactly
+one fully valid branch. Inline branches become deterministic components.
+Inline nested objects, scalar unions, and untagged unions in string-encoded
+transport locations remain blocked.
+
+A scalar JSON Schema `const` without a sibling `enum` imports as the equivalent
+one-value `Enum(...)` validation. Regenerated OpenAPI uses `enum` because Loom's
+DSL has no separate scalar-constant construct. Structured constants and schemas
+that combine `const` with `enum` remain blocked.
 
 An OpenAPI free-form object with `type: object` and
 `additionalProperties: true` imports as `MapOf(String, Any)`. Generated Go

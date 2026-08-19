@@ -461,6 +461,7 @@ type (
 		// HasScalarFormBranch is true when at least one branch keeps canonical
 		// type/value form encoding.
 		HasScalarFormBranch bool
+		validations         []*unionValidationData
 	}
 
 	// UnionFieldData describes a single branch of a union.
@@ -503,6 +504,11 @@ type (
 		PrimitiveAliasType string
 		// TypeTag is the JSON "type" discriminator value for this branch.
 		TypeTag string
+	}
+
+	unionValidationData struct {
+		data *ValidateData
+		loc  *codegen.Location
 	}
 )
 
