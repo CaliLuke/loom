@@ -226,7 +226,7 @@ func replaceOpenAPIVersion(t *testing.T, source []byte, version string) []byte {
 func writeRoundTripModule(t *testing.T, moduleDir, modulePath, repoRoot string) {
 	t.Helper()
 	goMod := fmt.Sprintf(
-		"module %s\n\ngo 1.27rc3\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n",
+		"module %s\n\ngo 1.27.0\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n",
 		modulePath,
 		repoRoot,
 	)

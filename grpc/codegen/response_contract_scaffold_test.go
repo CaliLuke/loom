@@ -100,7 +100,7 @@ func renderGRPCResponseContractModule(t *testing.T, dir, modulePath string, root
 
 	repoRoot, err := loomsource.RepositoryRoot(".")
 	require.NoError(t, err)
-	goMod := fmt.Sprintf("module %s\n\ngo 1.27rc3\n\nrequire github.com/CaliLuke/loom v1.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, repoRoot)
+	goMod := fmt.Sprintf("module %s\n\ngo 1.27.0\n\nrequire github.com/CaliLuke/loom v1.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, repoRoot)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 }
 

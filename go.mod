@@ -1,6 +1,6 @@
 module github.com/CaliLuke/loom
 
-go 1.27rc3
+go 1.27.0
 
 require (
 	github.com/alecthomas/kong v1.16.1

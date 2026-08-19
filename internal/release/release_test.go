@@ -79,8 +79,8 @@ func TestSubstantiveRelease(t *testing.T) {
 		"  property named `error` no longer collides with generated result accessors and\n" +
 		"  produces uncompilable Loom design code.\n\n" +
 		"## Upgrade notes\n\n" +
-		"This alpha requires Go 1.27rc3 or later. Install and require the exact\n" +
-		"prerelease tag.\n\n" +
+		"This alpha requires Go 1.27 or later. Install and require the exact\n" +
+		"Loom prerelease tag.\n\n" +
 		"**Full Changelog**: https://github.com/CaliLuke/loom/compare/v1.8.0-alpha.3...v1.8.0-alpha.4"
 	tests := []struct {
 		name    string

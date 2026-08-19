@@ -48,14 +48,13 @@ openapi-contract generated-code-quality`) in an isolated detached worktree
 before it creates a release commit or tag. That gate needs real tools on
 `PATH`, or it fails on environmental gaps that look like release bugs:
 
-- The Go version declared in `go.mod`; prerelease directives such as
-  `go 1.27rc3` require that exact preview toolchain or a launcher that can
-  download it automatically.
+- The stable Go version declared in `go.mod`; use a launcher that can download
+  that exact toolchain automatically when it is not installed locally.
 - `golangci-lint` — `make depend` installs the pinned version to
   `$(go env GOPATH)/bin`; make sure that bin directory is on `PATH`.
-- `staticcheck` — Go 1.27 preview releases require the separately pinned
-  Staticcheck RC installed by `make depend`; golangci-lint's bundled analyzer
-  remains disabled until its Go 1.27-compatible release is available.
+- `staticcheck` — Go 1.27 requires the separately pinned Staticcheck RC
+  installed by `make depend`; golangci-lint's bundled analyzer remains disabled
+  until its Go 1.27-compatible release is available.
 - `protoc` 35.1, `protoc-gen-go` v1.36.12, and
   `protoc-gen-go-grpc` v1.6.2 — `make depend` installs the exact supported
   toolchain. Do not substitute `@latest`.

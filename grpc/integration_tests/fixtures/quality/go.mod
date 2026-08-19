@@ -1,6 +1,6 @@
 module example.com/grpc-quality
 
-go 1.27rc3
+go 1.27.0
 
 require github.com/CaliLuke/loom v1.7.1
 
