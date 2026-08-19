@@ -35,6 +35,18 @@ func TestAnalyzeJSONYAMLParity(t *testing.T) {
 	require.Len(t, yamlDocument.Operations[2].Parameters, 3)
 	require.Equal(t, "#/components/parameters/PetID", yamlDocument.Operations[2].Parameters[0].Ref)
 	require.Equal(t, "#/components/schemas/Pet", yamlDocument.Operations[2].Responses[0].Response.Schema.Ref)
+	for _, named := range yamlDocument.Components.Schemas {
+		if named.Name != "NewPet" {
+			continue
+		}
+		for _, property := range named.Schema.Properties {
+			if property.Name == "active" {
+				require.Equal(t, []any{true}, property.Schema.Enum)
+				return
+			}
+		}
+	}
+	t.Fatal("NewPet.active schema was not imported")
 }
 
 func TestAnalyzeSupportsAPIKeySecurityContracts(t *testing.T) {

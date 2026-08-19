@@ -623,6 +623,23 @@ func (a *analyzer) schemaEnum(schema *Schema, source *base.Schema, path string) 
 		}
 		schema.Enum = append(schema.Enum, decoded)
 	}
+	if source.Const == nil {
+		return
+	}
+	if len(source.Enum) > 0 {
+		a.unsupported("schema-const", path+"/const", "const combined with enum is not in the strict import subset")
+		return
+	}
+	var decoded any
+	if err := source.Const.Decode(&decoded); err != nil {
+		a.unsupported("schema-const", path+"/const", fmt.Sprintf("const value cannot be decoded: %v", err))
+		return
+	}
+	if _, err := scalarLiteral(decoded); err != nil {
+		a.unsupported("schema-const", path+"/const", err.Error())
+		return
+	}
+	schema.Enum = append(schema.Enum, decoded)
 }
 
 func (a *analyzer) schemaExclusiveBounds(schema *Schema, source *base.Schema) {

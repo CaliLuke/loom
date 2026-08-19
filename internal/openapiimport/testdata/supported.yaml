@@ -89,6 +89,9 @@ components:
           type: string
           enum: [cat, dog]
           default: cat
+        active:
+          type: boolean
+          const: true
       required: [name]
       additionalProperties: false
     Pet:

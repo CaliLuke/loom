@@ -100,6 +100,113 @@ paths:
 	require.Equal(t, map[string]any{"error": "failed"}, examples[0].Value)
 }
 
+func TestUntaggedOneOfSupportsScalarConstantsAndNamedObjectFields(t *testing.T) {
+	source := []byte(`openapi: 3.1.0
+info: {title: Asset result, version: '1'}
+paths:
+  /assets:
+    get:
+      operationId: getAsset
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required: [data, status]
+                    properties:
+                      data: {$ref: '#/components/schemas/Asset'}
+                      status: {type: boolean, const: true}
+                  - type: object
+                    additionalProperties: false
+                    required: [error, status]
+                    properties:
+                      error: {type: string}
+                      status: {type: boolean, const: false}
+components:
+  schemas:
+    Asset:
+      type: object
+      required: [id]
+      properties:
+        id: {type: string, format: uuid}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	design := string(rendered)
+	require.Contains(t, design, `Attribute("data", ImportedAsset)`)
+	require.Contains(t, design, "Enum(true)")
+	require.Contains(t, design, "Enum(false)")
+
+	moduleDir := requireRenderedDesignGenerates(t, rendered)
+	requireNestedUntaggedUnionRuntime(t, moduleDir)
+	contract := readGeneratedOpenAPIContract(t, moduleDir)
+	operation := operationFromImportedSpec(t, contract, "/assets", "get")
+	response := operation["responses"].(map[string]any)["200"].(map[string]any)
+	schema := response["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+	branches := schema["oneOf"].([]any)
+	success := referencedSchema(t, contract, branches[0].(map[string]any)["$ref"].(string))
+	properties := success["properties"].(map[string]any)
+	require.Equal(t, "#/components/schemas/Asset", properties["data"].(map[string]any)["$ref"])
+	require.Equal(t, []any{true}, properties["status"].(map[string]any)["enum"])
+}
+
+func requireNestedUntaggedUnionRuntime(t *testing.T, moduleDir string) {
+	t.Helper()
+	serviceDir := filepath.Join(moduleDir, "gen", "asset_result")
+	testSource := []byte(`package assetresult
+
+import (
+	"encoding/json"
+	"testing"
+)
+
+func TestNestedUntaggedUnionRuntime(t *testing.T) {
+	var result GetAssetResponseDataOrGetAssetResponseError
+	if err := json.Unmarshal([]byte("{\"data\":{\"id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"},\"status\":true}"), &result); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := result.AsGetAssetResponseData(); !ok {
+		t.Fatalf("decoded result: %#v", result)
+	}
+	if err := json.Unmarshal([]byte("{\"data\":{\"id\":\"not-a-uuid\"},\"status\":true}"), &result); err == nil {
+		t.Fatal("invalid nested object unexpectedly matched")
+	}
+	if err := json.Unmarshal([]byte("{\"data\":{\"id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"},\"status\":false}"), &result); err == nil {
+		t.Fatal("invalid scalar constant unexpectedly matched")
+	}
+}
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(serviceDir, "nested_untagged_runtime_test.go"), testSource, 0o600))
+	command := exec.Command("go", "test", "-mod=mod", "./gen/asset_result")
+	command.Dir = moduleDir
+	output, err := command.CombinedOutput()
+	require.NoError(t, err, string(output))
+}
+
+func TestScalarConstKeepsUnrepresentableShapesRejected(t *testing.T) {
+	tests := map[string]string{
+		"combined with enum": "type: string\n                const: fixed\n                enum: [fixed]",
+		"structured value":   "type: object\n                const: {id: fixed}",
+	}
+	for name, schema := range tests {
+		t.Run(name, func(t *testing.T) {
+			source := []byte("openapi: 3.1.0\ninfo: {title: Const, version: '1'}\npaths:\n  /value:\n    get:\n      operationId: getValue\n      responses:\n        '200':\n          description: OK\n          content:\n            application/json:\n              schema:\n                " + schema + "\n")
+
+			_, diagnostics, err := Analyze(source)
+			require.NoError(t, err)
+			requireDiagnosticCode(t, diagnostics, "schema-const")
+		})
+	}
+}
+
 func TestNestedNamedUntaggedUnionGeneratesCompilableHTTPTypes(t *testing.T) {
 	source := []byte(`openapi: 3.1.0
 info: {title: Nested Commands, version: '1'}

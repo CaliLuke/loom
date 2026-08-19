@@ -161,11 +161,16 @@ reference imports as the same nullable named type when the referenced schema
 explicitly excludes null. Regenerated OpenAPI uses the equivalent `anyOf`
 representation. A `oneOf` of two or more object schemas in a JSON request or
 success response body imports as an untagged typed union when every branch is a
-flat object with primitive properties. Inline branches become deterministic
-named components, generated Go retains sum-type constructors and accessors, and
-JSON decoding requires exactly one fully valid branch. Nested branch fields,
-scalar unions, discriminated source unions, declared error unions, and untagged
-unions in string-encoded transport locations remain strict import errors.
+flat object whose fields are primitives, concrete named objects, or arrays of
+either. Inline branches become deterministic named components, generated Go
+retains sum-type constructors and accessors, and JSON decoding requires exactly
+one fully valid branch. Inline nested objects, scalar unions, discriminated
+source unions, declared error unions, and untagged unions in string-encoded
+transport locations remain strict import errors.
+
+A scalar JSON Schema `const` without a sibling `enum` imports as an equivalent
+one-member enum. Regenerated OpenAPI emits `enum`. Structured constants and
+schemas that combine `const` with `enum` remain strict import errors.
 
 An unconstrained schema `{}` imports as Loom `Any`. This applies to component
 schemas, object properties, array items, request bodies, and responses. The

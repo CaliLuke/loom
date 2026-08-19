@@ -200,12 +200,16 @@ filter, and serialization rules belong here.
   use nullable `anyOf`; reject already-nullable targets because the two
   applicators are not equivalent in that case.
 - Normalize JSON request and success-response `oneOf` object branches to an
-  explicit untagged Loom union when every branch is a flat object with primitive
-  properties. Promote inline branches to deterministic named components,
-  retain the generated sum-type API, and select a decoded branch only after
-  exact JSON-shape and generated value validation succeeds. Reject zero or
-  multiple matches, nested branch fields, and string-encoded transport
-  locations.
+  explicit untagged Loom union when every branch is a flat object whose fields
+  are primitives, concrete named objects, or arrays of either. Promote inline
+  branches to deterministic named components, retain the generated sum-type
+  API, and select a decoded branch only after exact JSON-shape and generated
+  value validation succeeds. Generate every nested named-type validator used
+  by a branch. Reject zero or multiple matches, inline nested object fields,
+  and string-encoded transport locations.
+- Normalize a scalar JSON Schema `const` without a sibling `enum` to a
+  one-member Loom enum. Keep structured constants and combined `const` plus
+  `enum` schemas rejected.
 - Preserve canonical named aliases as OpenAPI components, including aliases of
   `Any`. Preserve the exact source component key even when multiple keys map to
   the same Go identifier. Canonical component identity takes precedence over

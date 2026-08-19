@@ -107,7 +107,8 @@
         "type": "object",
         "properties": {
           "name": {"type": "string", "minLength": 1, "maxLength": 80},
-          "kind": {"type": "string", "enum": ["cat", "dog"], "default": "cat"}
+          "kind": {"type": "string", "enum": ["cat", "dog"], "default": "cat"},
+          "active": {"type": "boolean", "const": true}
         },
         "required": ["name"],
         "additionalProperties": false

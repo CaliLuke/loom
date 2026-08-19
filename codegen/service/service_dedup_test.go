@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	stest "github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/dsl"
 )
 
 // TestService_DedupEventMarkers verifies that when multiple streaming methods share the
@@ -32,4 +33,30 @@ func TestService_DedupEventMarkers(t *testing.T) {
 	// The marker has the shape: func (*SharedEvent) isdupStreamServiceEvent() {}
 	occurrences := strings.Count(code, "func (*SharedEvent) isdupStreamServiceEvent()")
 	require.Equal(t, 1, occurrences, "expected a single event marker for SharedEvent, got %d", occurrences)
+}
+
+func TestServiceDeduplicatesSharedSuccessAndErrorTypeByGoName(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		var response = dsl.Type("PlaneApiSerializersModuleModuleserializerResponse", func() {
+			dsl.Attribute("name", dsl.String)
+		})
+
+		dsl.Service("modules", func() {
+			dsl.Method("create", func() {
+				dsl.Result(response)
+			})
+			dsl.Method("update", func() {
+				dsl.Result(response)
+				dsl.Error("invalid", response)
+			})
+		})
+	})
+	services := NewServicesData(root)
+	files := Files("github.com/CaliLuke/loom/example", root.Services[0], services, make(map[string][]string))
+
+	buf := new(bytes.Buffer)
+	for _, section := range files[0].AllSections()[1:] {
+		require.NoError(t, section.Write(buf))
+	}
+	require.Equal(t, 1, strings.Count(buf.String(), "type PlaneAPISerializersModuleModuleserializerResponse struct"))
 }
