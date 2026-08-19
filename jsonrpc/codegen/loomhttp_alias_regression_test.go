@@ -134,7 +134,7 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 
 	goMod := fmt.Sprintf(`module %s
 
-go 1.27rc2
+go 1.27rc3
 
 require github.com/CaliLuke/loom v1.0.0
 
@@ -173,7 +173,7 @@ func renderMixedHTTPJSONRPCModule(t *testing.T, dir, modulePath string, root *ex
 
 	goMod := fmt.Sprintf(`module %s
 
-go 1.27rc2
+go 1.27rc3
 
 require github.com/CaliLuke/loom v1.0.0
 

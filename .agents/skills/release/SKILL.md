@@ -49,7 +49,7 @@ before it creates a release commit or tag. That gate needs real tools on
 `PATH`, or it fails on environmental gaps that look like release bugs:
 
 - The Go version declared in `go.mod`; prerelease directives such as
-  `go 1.27rc2` require that exact preview toolchain or a launcher that can
+  `go 1.27rc3` require that exact preview toolchain or a launcher that can
   download it automatically.
 - `golangci-lint` — `make depend` installs the pinned version to
   `$(go env GOPATH)/bin`; make sure that bin directory is on `PATH`.

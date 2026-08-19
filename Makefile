@@ -146,12 +146,13 @@ endif
 
 # Race + shuffled-order guard for the unit suite. Shuffling catches
 # order-coupled tests (the failing seed is printed for reproduction) and the
-# race detector catches data races the plain run cannot.
+# race detector catches data races the plain run cannot. The extended timeout
+# covers importer tests that compile generated temporary modules under race.
 test-race:
 ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" go test -race -shuffle=on -count=1 ./...
+	PATH="$(GOBIN_DIR):$$PATH" go test -race -shuffle=on -count=1 -timeout 20m ./...
 else
-	go test -race -shuffle=on -count=1 ./...
+	go test -race -shuffle=on -count=1 -timeout 20m ./...
 endif
 
 integration-test: build-loom
