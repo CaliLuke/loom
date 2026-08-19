@@ -102,7 +102,10 @@ func collectErrorTypeSections(svc *Data, svcPath string, addTypeDefSection func(
 			continue
 		}
 		seenErrs[errorType.Name] = struct{}{}
-		maybeAddNamedTypeSection(true, errorType.Name, pathWithDefault(errorType.Loc, svcPath), userTypeSection("error-user-type", errorType), addTypeDefSection, seen)
+		if _, ok := seen[errorType.VarName]; !ok {
+			addTypeDefSection(pathWithDefault(errorType.Loc, svcPath), errorType.Name, userTypeSection("error-user-type", errorType))
+			seen[errorType.VarName] = struct{}{}
+		}
 		errorTypes = append(errorTypes, errorType)
 	}
 	return errorTypes
