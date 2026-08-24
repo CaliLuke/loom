@@ -319,6 +319,9 @@ this section.
 validations, errors, and fields composed through helper functions. It also
 inspects the Go module that contains the design.
 
+Run this command periodically to audit API modeling. It is not part of the
+normal generation workflow or a routine local gate.
+
 The command reports these high-confidence errors:
 
 - application code calls `Handle` directly on a Loom mux instead of mounting a

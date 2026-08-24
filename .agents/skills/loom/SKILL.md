@@ -23,9 +23,7 @@ renderer, or framework tests, use the `loom-framework` skill.
 5. Run `loom example <module-import-path>/design` only when scaffolding missing
    starter files. Each service stub returns `loom.Fault` until you implement
    it. The command does not overwrite existing `cmd/` files.
-6. Run `loom vet <module-import-path>/design`. Fix adoption errors and review
-   heuristic contract warnings.
-7. Run the consuming repository's formatting, tests, and integration checks.
+6. Run the consuming repository's formatting, tests, and integration checks.
 
 Never edit `gen/` directly. `loom gen` deletes and recreates it transactionally,
 so manual changes are both temporary and misleading.
@@ -476,10 +474,13 @@ metrics and routing. Handle these values rather than parsing error messages:
 Use `loomhttp.NewDebugDoer` only for bounded, redacted development diagnostics.
 Set `DEBUG_LOOM=1` while generating when you need DSL/codegen decision traces.
 
-`loom vet <module-import-path>/design` evaluates the composed design. It checks
-the module for direct Loom mux routes and generated-version differences. It
-also reports missing HTTP error metadata and descriptions that imply missing
-validation. Use `--format=json` or `--format=sarif` in automation.
+`loom vet <module-import-path>/design` evaluates the composed design. Run it
+periodically to find APIs that need better modeling; do not add it to the
+routine generation or local check path.
+
+The command checks direct Loom mux routes, generated-version differences,
+missing HTTP error metadata, and descriptions that imply missing validation.
+Use `--format=json` or `--format=sarif` to archive or share audit results.
 
 Use `Meta("loom:vet:ignore", "<rule>")` to suppress an intentional design
 warning. Put `//loom:vet ignore route-outside-design -- <reason>` immediately
