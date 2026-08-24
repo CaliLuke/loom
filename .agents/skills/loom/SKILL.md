@@ -497,7 +497,7 @@ together so their version pins remain aligned.
 `loom vet` is available in `v1.9.0-alpha.1` and later releases.
 
 ```bash
-go install github.com/CaliLuke/loom/cmd/loom@v1.8.0
+go install github.com/CaliLuke/loom/cmd/loom@v1.9.0-alpha.1
 loom version
 loom import openapi openapi.yaml -o design
 loom gen <module-import-path>/design
