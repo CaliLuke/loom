@@ -7,7 +7,7 @@ llm_optimized: true
 aliases:
 ---
 
-> **Recommended release: `v1.9.0-alpha.2`.** These checked-in guides track Loom
+> **Recommended release: `v1.9.0-alpha.3`.** These checked-in guides track Loom
 > `main`; when read from a release tag, they describe that tagged snapshot.
 > Consult the [release notes](https://github.com/CaliLuke/loom/releases) when a
 > documented capability is not available in the recommended tag.
