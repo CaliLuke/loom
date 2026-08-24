@@ -494,8 +494,7 @@ consuming services unless intentionally testing an unreleased checkout. Loom's
 release workflow stamps this recommendation and the public installation guides
 together so their version pins remain aligned.
 
-`loom vet` is available on `main`. Add it to the pinned command sequence after
-the first release that contains the command.
+`loom vet` is available in `v1.9.0-alpha.1` and later releases.
 
 ```bash
 go install github.com/CaliLuke/loom/cmd/loom@v1.8.0
@@ -503,6 +502,7 @@ loom version
 loom import openapi openapi.yaml -o design
 loom gen <module-import-path>/design
 loom example <module-import-path>/design
+loom vet <module-import-path>/design
 ```
 
 ## Canonical Guides
