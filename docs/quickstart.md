@@ -21,7 +21,7 @@ Before you begin, ensure your environment meets these requirements:
 Install the Loom CLI tool:
 
 ```bash
-go install github.com/CaliLuke/loom/cmd/loom@v1.9.0-alpha.1
+go install github.com/CaliLuke/loom/cmd/loom@v1.9.0-alpha.2
 
 loom version
 ```
@@ -45,7 +45,7 @@ Create a new directory and initialize a Go module:
 ```bash
 mkdir hello-loom && cd hello-loom  
 go mod init hello
-go get github.com/CaliLuke/loom@v1.9.0-alpha.1
+go get github.com/CaliLuke/loom@v1.9.0-alpha.2
 ```
 
 > **Note:** We're using a simple module name `hello` for this guide. In real projects, you'd typically use a domain name like `github.com/yourusername/hello-loom`. The concepts work exactly the same way.
