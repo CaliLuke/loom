@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	loomvet "github.com/CaliLuke/loom/vet"
@@ -53,4 +56,23 @@ func TestParseVetOptionsRejectsUnknownFormat(t *testing.T) {
 	var stderr bytes.Buffer
 	_, err := parseVetOptions([]string{"example.com/service/design", "--format", "xml"}, &stderr)
 	require.EqualError(t, err, `unknown vet format "xml": expected text, json, or sarif`)
+}
+
+func TestVetGeneratorUsesDesignModuleDirectory(t *testing.T) {
+	moduleDir := t.TempDir()
+	generator := &Generator{
+		Command:       "vet",
+		DesignPath:    "example.com/service/design",
+		Output:        ".",
+		DesignVersion: 3,
+		moduleDir:     moduleDir,
+		bin:           "loom",
+	}
+	require.NoError(t, generator.Write(false))
+	t.Cleanup(func() { require.NoError(t, generator.Remove()) })
+
+	require.Equal(t, moduleDir, filepath.Dir(generator.tmpDir))
+	source, err := os.ReadFile(filepath.Join(generator.tmpDir, "main.go"))
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(source), `loomvet.Analyze(expr.Root, "`+moduleDir+`")`))
 }

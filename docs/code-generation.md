@@ -312,6 +312,9 @@ The primary command for code generation:
 loom vet <design-package-import-path> [--format text|json|sarif] [--debug]
 ```
 
+The command is available on `main`. Use it from the first release that contains
+this section.
+
 `loom vet` evaluates the design before analyzing it. This preserves
 validations, errors, and fields composed through helper functions. It also
 inspects the Go module that contains the design.

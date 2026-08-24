@@ -43,6 +43,9 @@ type Generator struct {
 	// tmpDir is the temporary directory used to compile the generator.
 	tmpDir string
 
+	// moduleDir is the root directory of the module that owns DesignPath.
+	moduleDir string
+
 	// hasVendorDirectory is a flag to indicate whether the project uses vendoring
 	hasVendorDirectory bool
 }
@@ -56,6 +59,7 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 
 	var version int
 	var hasVendorDirectory bool
+	var moduleDir string
 	{
 		version = codegen.DesignVersion
 		matched := false
@@ -67,6 +71,9 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 		for _, pkg := range pkgs {
 			// Nil check in case packages.Load can't get module info
 			if pkg.Module != nil {
+				if moduleDir == "" {
+					moduleDir = pkg.Module.Dir
+				}
 				if _, err := os.Stat(filepath.Join(pkg.Module.Dir, "vendor")); !os.IsNotExist(err) {
 					hasVendorDirectory = true
 				}
@@ -103,6 +110,7 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 		Output:             output,
 		DesignVersion:      version,
 		hasVendorDirectory: hasVendorDirectory,
+		moduleDir:          moduleDir,
 		bin:                bin,
 	}
 }
@@ -112,7 +120,9 @@ func (g *Generator) Write(_ bool) error {
 	var tmpDir string
 	{
 		wd := "."
-		if cwd, err := getwd(); err == nil {
+		if g.Command == "vet" && g.moduleDir != "" {
+			wd = g.moduleDir
+		} else if cwd, err := getwd(); err == nil {
 			wd = cwd
 		}
 		tmp, err := os.MkdirTemp(wd, "loom")
@@ -130,6 +140,7 @@ func (g *Generator) Write(_ bool) error {
 			"Command":       g.Command,
 			"DesignVersion": g.DesignVersion,
 			"Vet":           isVet,
+			"ModuleDir":     g.moduleDir,
 		}
 		imports := []*codegen.ImportSpec{
 			codegen.SimpleImport("flag"),
@@ -350,7 +361,7 @@ const mainT = `func main() {
 
 {{- if .Vet }}
 	startVet := time.Now()
-	report, err := loomvet.Analyze(expr.Root, ".")
+	report, err := loomvet.Analyze(expr.Root, {{ printf "%q" .ModuleDir }})
 	if err != nil {
 		failStage("vet.Analyze", err)
 	}

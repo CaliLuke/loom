@@ -9,7 +9,10 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-var describedRangePattern = regexp.MustCompile(`(?i)\bfrom\s+(-?\d+(?:\.\d+)?)\s+to\s+(-?\d+(?:\.\d+)?)\b`)
+var (
+	describedRangePattern = regexp.MustCompile(`(?i)\bfrom\s+(-?\d+(?:\.\d+)?)\s+to\s+(-?\d+(?:\.\d+)?)\b`)
+	normalizedWordPattern = regexp.MustCompile(`(?i)\bnormalized\b`)
+)
 
 // Analyze inspects an evaluated design and the Go module rooted at moduleDir.
 func Analyze(root *expr.RootExpr, moduleDir string) (Report, error) {
@@ -156,13 +159,28 @@ func analyzeAttributeSemantics(root *expr.RootExpr, report *Report) {
 	for _, resultType := range root.ResultTypes {
 		analyzeUserType(resultType, seenTypes, report)
 	}
+	seenErrors := make(map[*expr.ErrorExpr]struct{})
+	for _, errorExpr := range root.Errors {
+		analyzeErrorAttribute("api", errorExpr, seenErrors, report)
+	}
 	for _, service := range root.Services {
 		if service == nil {
 			continue
 		}
+		for _, errorExpr := range service.Errors {
+			analyzeErrorAttribute("service."+service.Name, errorExpr, seenErrors, report)
+		}
 		for _, method := range service.Methods {
 			if method == nil {
 				continue
+			}
+			for _, errorExpr := range method.Errors {
+				analyzeErrorAttribute(
+					fmt.Sprintf("service.%s.method.%s", service.Name, method.Name),
+					errorExpr,
+					seenErrors,
+					report,
+				)
 			}
 			prefix := fmt.Sprintf("service.%s.method.%s", service.Name, method.Name)
 			analyzeInlineAttribute(prefix+".payload", "payload", method.Payload, report, make(map[string]struct{}))
@@ -175,6 +193,23 @@ func analyzeAttributeSemantics(root *expr.RootExpr, report *Report) {
 			}
 		}
 	}
+}
+
+func analyzeErrorAttribute(prefix string, errorExpr *expr.ErrorExpr, seen map[*expr.ErrorExpr]struct{}, report *Report) {
+	if errorExpr == nil {
+		return
+	}
+	if _, exists := seen[errorExpr]; exists {
+		return
+	}
+	seen[errorExpr] = struct{}{}
+	analyzeInlineAttribute(
+		prefix+".error."+errorExpr.Name,
+		errorExpr.Name,
+		errorExpr.AttributeExpr,
+		report,
+		make(map[string]struct{}),
+	)
 }
 
 func analyzeUserType(userType expr.UserType, seen map[string]struct{}, report *Report) {
@@ -229,7 +264,7 @@ func analyzeInlineAttribute(path, name string, attribute *expr.AttributeExpr, re
 func analyzeAttributeDescription(path, name string, attribute *expr.AttributeExpr, report *Report) {
 	description := strings.ToLower(attribute.Description)
 	normalizedMissing := isNumber(attribute.Type) &&
-		strings.Contains(description, "normalized") &&
+		normalizedWordPattern.MatchString(description) &&
 		!hasRange(attribute, 0, 1) &&
 		!attributeSuppressed(attribute, RuleNormalizedRange)
 	if isNumber(attribute.Type) && strings.Contains(description, "1-based") && !hasLowerBound(attribute, 1, isInteger(attribute.Type)) && !attributeSuppressed(attribute, RuleDescriptionMinimum) {

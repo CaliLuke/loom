@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 const loomHTTPImportPath = "github.com/CaliLuke/loom/http"
@@ -63,7 +64,11 @@ func analyzeRoutes(root string) ([]Diagnostic, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
-			if path != root && skipDirectory(entry.Name()) {
+			skip, err := skipModuleDirectory(root, path, entry.Name())
+			if err != nil {
+				return err
+			}
+			if skip {
 				return filepath.SkipDir
 			}
 			return nil
@@ -93,6 +98,24 @@ func skipDirectory(name string) bool {
 	}
 }
 
+func skipModuleDirectory(root, path, name string) (bool, error) {
+	if path == root {
+		return false, nil
+	}
+	if skipDirectory(name) {
+		return true, nil
+	}
+	info, err := os.Stat(filepath.Join(path, "go.mod"))
+	switch {
+	case err == nil:
+		return info.Mode().IsRegular(), nil
+	case os.IsNotExist(err):
+		return false, nil
+	default:
+		return false, fmt.Errorf("inspect nested module %s: %w", path, err)
+	}
+}
+
 func analyzeRouteFile(root, path string) ([]Diagnostic, error) {
 	source, err := os.ReadFile(path)
 	if err != nil {
@@ -111,13 +134,13 @@ func analyzeRouteFile(root, path string) ([]Diagnostic, error) {
 		return nil, nil
 	}
 
-	globalMuxes := make(map[string]struct{})
+	globalScope := newMuxScope(nil)
 	for _, declaration := range file.Decls {
 		general, ok := declaration.(*ast.GenDecl)
 		if !ok {
 			continue
 		}
-		collectMuxValueSpecs(general.Specs, loomAliases, globalMuxes)
+		collectMuxValueSpecs(general.Specs, loomAliases, globalScope)
 	}
 
 	var diagnostics []Diagnostic
@@ -126,36 +149,116 @@ func analyzeRouteFile(root, path string) ([]Diagnostic, error) {
 		if !ok || function.Body == nil {
 			continue
 		}
-		muxes := cloneSet(globalMuxes)
-		collectMuxParameters(function.Type.Params, loomAliases, muxes)
-		ast.Inspect(function.Body, func(node ast.Node) bool {
-			switch actual := node.(type) {
-			case *ast.AssignStmt:
-				collectMuxAssignments(actual, loomAliases, muxes)
-			case *ast.DeclStmt:
-				if declaration, ok := actual.Decl.(*ast.GenDecl); ok {
-					collectMuxValueSpecs(declaration.Specs, loomAliases, muxes)
-				}
-			case *ast.CallExpr:
-				if !isMuxHandleCall(actual, loomAliases, muxes) || sourceSuppressed(fileSet, file, actual, RuleRouteOutsideDesign) {
-					return true
-				}
-				position := fileSet.Position(actual.Pos())
-				relative, relErr := filepath.Rel(root, path)
-				if relErr != nil {
-					relative = path
-				}
-				diagnostics = append(diagnostics, Diagnostic{
-					Rule:     RuleRouteOutsideDesign,
-					Severity: SeverityError,
-					Message:  unmanagedRouteMessage(actual),
-					Location: Location{Path: filepath.ToSlash(relative), Line: position.Line, Column: position.Column},
-				})
-			}
-			return true
-		})
+		functionScope := newMuxScope(globalScope)
+		collectMuxParameters(function.Type.Params, loomAliases, functionScope)
+		visitor := &routeVisitor{
+			root:        root,
+			path:        path,
+			fileSet:     fileSet,
+			file:        file,
+			aliases:     loomAliases,
+			scope:       functionScope,
+			diagnostics: &diagnostics,
+		}
+		ast.Walk(visitor, function.Body)
 	}
 	return diagnostics, nil
+}
+
+type muxScope struct {
+	parent *muxScope
+	values map[string]bool
+}
+
+func newMuxScope(parent *muxScope) *muxScope {
+	return &muxScope{parent: parent, values: make(map[string]bool)}
+}
+
+func (scope *muxScope) declare(name string, mux bool) {
+	scope.values[name] = mux
+}
+
+func (scope *muxScope) isMux(name string) bool {
+	for current := scope; current != nil; current = current.parent {
+		if mux, exists := current.values[name]; exists {
+			return mux
+		}
+	}
+	return false
+}
+
+type routeVisitor struct {
+	root        string
+	path        string
+	fileSet     *token.FileSet
+	file        *ast.File
+	aliases     map[string]struct{}
+	scope       *muxScope
+	diagnostics *[]Diagnostic
+}
+
+func (visitor *routeVisitor) Visit(node ast.Node) ast.Visitor {
+	if node == nil {
+		return nil
+	}
+	switch actual := node.(type) {
+	case *ast.BlockStmt:
+		return visitor.withScope(newMuxScope(visitor.scope))
+	case *ast.FuncLit:
+		child := newMuxScope(visitor.scope)
+		collectMuxParameters(actual.Type.Params, visitor.aliases, child)
+		return visitor.withScope(child)
+	case *ast.IfStmt, *ast.ForStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
+		return visitor.withScope(newMuxScope(visitor.scope))
+	case *ast.RangeStmt:
+		child := newMuxScope(visitor.scope)
+		if actual.Tok == token.DEFINE {
+			declareRangeNames(actual, child)
+		}
+		return visitor.withScope(child)
+	case *ast.AssignStmt:
+		collectMuxAssignments(actual, visitor.aliases, visitor.scope)
+	case *ast.DeclStmt:
+		if declaration, ok := actual.Decl.(*ast.GenDecl); ok {
+			collectMuxValueSpecs(declaration.Specs, visitor.aliases, visitor.scope)
+		}
+	case *ast.CallExpr:
+		visitor.reportMuxHandle(actual)
+	}
+	return visitor
+}
+
+func (visitor *routeVisitor) withScope(scope *muxScope) *routeVisitor {
+	child := *visitor
+	child.scope = scope
+	return &child
+}
+
+func (visitor *routeVisitor) reportMuxHandle(call *ast.CallExpr) {
+	if !isMuxHandleCall(call, visitor.aliases, visitor.scope) ||
+		sourceSuppressed(visitor.fileSet, visitor.file, call, RuleRouteOutsideDesign) {
+		return
+	}
+	position := visitor.fileSet.Position(call.Pos())
+	relative, err := filepath.Rel(visitor.root, visitor.path)
+	if err != nil {
+		relative = visitor.path
+	}
+	*visitor.diagnostics = append(*visitor.diagnostics, Diagnostic{
+		Rule:     RuleRouteOutsideDesign,
+		Severity: SeverityError,
+		Message:  unmanagedRouteMessage(call),
+		Location: Location{Path: filepath.ToSlash(relative), Line: position.Line, Column: position.Column},
+	})
+}
+
+func declareRangeNames(statement *ast.RangeStmt, scope *muxScope) {
+	if identifier, ok := statement.Key.(*ast.Ident); ok {
+		scope.declare(identifier.Name, false)
+	}
+	if identifier, ok := statement.Value.(*ast.Ident); ok {
+		scope.declare(identifier.Name, false)
+	}
 }
 
 func generatedByLoom(source []byte) bool {
@@ -184,16 +287,14 @@ func loomHTTPAliases(file *ast.File) map[string]struct{} {
 	return aliases
 }
 
-func collectMuxParameters(fields *ast.FieldList, aliases, muxes map[string]struct{}) {
+func collectMuxParameters(fields *ast.FieldList, aliases map[string]struct{}, scope *muxScope) {
 	if fields == nil {
 		return
 	}
 	for _, field := range fields.List {
-		if !isMuxType(field.Type, aliases) {
-			continue
-		}
+		mux := isMuxType(field.Type, aliases)
 		for _, name := range field.Names {
-			muxes[name.Name] = struct{}{}
+			scope.declare(name.Name, mux)
 		}
 	}
 }
@@ -218,37 +319,47 @@ func isMuxType(node ast.Expr, aliases map[string]struct{}) bool {
 	}
 }
 
-func collectMuxAssignments(assignment *ast.AssignStmt, aliases, muxes map[string]struct{}) {
-	for index, right := range assignment.Rhs {
-		if index >= len(assignment.Lhs) || !isMuxValue(right, aliases, muxes) {
+func collectMuxAssignments(assignment *ast.AssignStmt, aliases map[string]struct{}, scope *muxScope) {
+	if assignment.Tok != token.DEFINE {
+		return
+	}
+	for index, left := range assignment.Lhs {
+		identifier, ok := left.(*ast.Ident)
+		if !ok || identifier.Name == "_" {
 			continue
 		}
-		if identifier, ok := assignment.Lhs[index].(*ast.Ident); ok {
-			muxes[identifier.Name] = struct{}{}
+		if _, exists := scope.values[identifier.Name]; exists {
+			continue
 		}
+		mux := false
+		if len(assignment.Rhs) == len(assignment.Lhs) {
+			mux = isMuxValue(assignment.Rhs[index], aliases, scope)
+		}
+		scope.declare(identifier.Name, mux)
 	}
 }
 
-func collectMuxValueSpecs(specs []ast.Spec, aliases, muxes map[string]struct{}) {
+func collectMuxValueSpecs(specs []ast.Spec, aliases map[string]struct{}, scope *muxScope) {
 	for _, rawSpec := range specs {
 		spec, ok := rawSpec.(*ast.ValueSpec)
 		if !ok {
 			continue
 		}
-		for index, value := range spec.Values {
-			if index >= len(spec.Names) || !isMuxValue(value, aliases, muxes) {
-				continue
+		typedMux := isMuxType(spec.Type, aliases)
+		for index, name := range spec.Names {
+			mux := typedMux
+			if !mux && len(spec.Values) == len(spec.Names) {
+				mux = isMuxValue(spec.Values[index], aliases, scope)
 			}
-			muxes[spec.Names[index].Name] = struct{}{}
+			scope.declare(name.Name, mux)
 		}
 	}
 }
 
-func isMuxValue(node ast.Expr, aliases, muxes map[string]struct{}) bool {
+func isMuxValue(node ast.Expr, aliases map[string]struct{}, scope *muxScope) bool {
 	switch actual := node.(type) {
 	case *ast.Ident:
-		_, ok := muxes[actual.Name]
-		return ok
+		return scope.isMux(actual.Name)
 	case *ast.CallExpr:
 		selector, ok := actual.Fun.(*ast.SelectorExpr)
 		if !ok || selector.Sel.Name != "NewMuxer" {
@@ -265,12 +376,12 @@ func isMuxValue(node ast.Expr, aliases, muxes map[string]struct{}) bool {
 	}
 }
 
-func isMuxHandleCall(call *ast.CallExpr, aliases, muxes map[string]struct{}) bool {
+func isMuxHandleCall(call *ast.CallExpr, aliases map[string]struct{}, scope *muxScope) bool {
 	selector, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || selector.Sel.Name != "Handle" {
 		return false
 	}
-	return isMuxValue(selector.X, aliases, muxes)
+	return isMuxValue(selector.X, aliases, scope)
 }
 
 func unmanagedRouteMessage(call *ast.CallExpr) string {
@@ -318,14 +429,6 @@ func sourceSuppressed(fileSet *token.FileSet, file *ast.File, node ast.Node, rul
 	return false
 }
 
-func cloneSet(source map[string]struct{}) map[string]struct{} {
-	clone := make(map[string]struct{}, len(source))
-	for key := range source {
-		clone[key] = struct{}{}
-	}
-	return clone
-}
-
 func analyzeGeneratedVersions(root string) ([]Diagnostic, error) {
 	moduleData, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
@@ -346,7 +449,11 @@ func analyzeGeneratedVersions(root string) ([]Diagnostic, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
-			if path != root && skipDirectory(entry.Name()) {
+			skip, err := skipModuleDirectory(root, path, entry.Name())
+			if err != nil {
+				return err
+			}
+			if skip {
 				return filepath.SkipDir
 			}
 			return nil
@@ -385,20 +492,43 @@ func analyzeGeneratedVersions(root string) ([]Diagnostic, error) {
 	return diagnostics, nil
 }
 
-func effectiveLoomVersion(module *modfile.File) (string, bool) {
-	for _, replacement := range module.Replace {
+func effectiveLoomVersion(moduleFile *modfile.File) (string, bool) {
+	var requiredVersion string
+	for _, requirement := range moduleFile.Require {
+		if requirement.Mod.Path == "github.com/CaliLuke/loom" {
+			requiredVersion = requirement.Mod.Version
+			break
+		}
+	}
+	if !comparableModuleVersion(requiredVersion) {
+		return "", false
+	}
+
+	var wildcard *modfile.Replace
+	for _, replacement := range moduleFile.Replace {
 		if replacement.Old.Path != "github.com/CaliLuke/loom" {
 			continue
 		}
-		if replacement.New.Version == "" {
-			return "", false
+		if replacement.Old.Version == requiredVersion {
+			return comparableReplacementVersion(replacement.New.Version)
 		}
-		return replacement.New.Version, true
-	}
-	for _, requirement := range module.Require {
-		if requirement.Mod.Path == "github.com/CaliLuke/loom" {
-			return requirement.Mod.Version, requirement.Mod.Version != ""
+		if replacement.Old.Version == "" {
+			wildcard = replacement
 		}
 	}
-	return "", false
+	if wildcard != nil {
+		return comparableReplacementVersion(wildcard.New.Version)
+	}
+	return requiredVersion, true
+}
+
+func comparableReplacementVersion(version string) (string, bool) {
+	if !comparableModuleVersion(version) {
+		return "", false
+	}
+	return version, true
+}
+
+func comparableModuleVersion(version string) bool {
+	return version != "" && !module.IsPseudoVersion(version)
 }

@@ -73,6 +73,7 @@ func TestAnalyzeAttributeSemantics(t *testing.T) {
 		&expr.NamedAttributeExpr{Name: "confidence", Attribute: &expr.AttributeExpr{Type: expr.Float64, Description: "Normalized confidence."}},
 		&expr.NamedAttributeExpr{Name: "callback_url", Attribute: &expr.AttributeExpr{Type: expr.String, Description: "Callback URL."}},
 		&expr.NamedAttributeExpr{Name: "validated_email", Attribute: &expr.AttributeExpr{Type: emailType, Description: "Email address."}},
+		&expr.NamedAttributeExpr{Name: "denormalized_count", Attribute: &expr.AttributeExpr{Type: expr.Int, Description: "Denormalized count."}},
 		&expr.NamedAttributeExpr{Name: "bounded", Attribute: &expr.AttributeExpr{
 			Type:        expr.Int,
 			Description: "Value from 2 to 4.",
@@ -84,13 +85,23 @@ func TestAnalyzeAttributeSemantics(t *testing.T) {
 			Meta:        expr.MetaExpr{SuppressionMeta: []string{RuleStringFormat}},
 		}},
 	}
-	root := &expr.RootExpr{Types: []expr.UserType{
-		emailType,
-		&expr.UserTypeExpr{
-			TypeName:      "Metrics",
-			AttributeExpr: &expr.AttributeExpr{Type: &object},
+	errorObject := expr.Object{
+		&expr.NamedAttributeExpr{Name: "callback_url", Attribute: &expr.AttributeExpr{Type: expr.String, Description: "Callback URL."}},
+	}
+	inlineError := &expr.ErrorExpr{
+		Name:          "callback_failed",
+		AttributeExpr: &expr.AttributeExpr{Type: &errorObject},
+	}
+	root := &expr.RootExpr{
+		Types: []expr.UserType{
+			emailType,
+			&expr.UserTypeExpr{
+				TypeName:      "Metrics",
+				AttributeExpr: &expr.AttributeExpr{Type: &object},
+			},
 		},
-	}}
+		Errors: []*expr.ErrorExpr{inlineError},
+	}
 
 	var report Report
 	analyzeAttributeSemantics(root, &report)
@@ -100,6 +111,7 @@ func TestAnalyzeAttributeSemantics(t *testing.T) {
 		RuleDescriptionMinimum + ":type.Metrics.offset",
 		RuleNormalizedRange + ":type.Metrics.confidence",
 		RuleStringFormat + ":type.Metrics.callback_url",
+		RuleStringFormat + ":api.error.callback_failed.callback_url",
 	}, diagnosticKeys(report.Diagnostics))
 }
 
@@ -114,6 +126,13 @@ import loomhttp "github.com/CaliLuke/loom/http"
 func routes() {
 	mux := loomhttp.NewMuxer()
 	mux.Handle("GET", "/manual", nil)
+	{
+		mux := otherRouter()
+		mux.Handle("GET", "/not-loom", nil)
+	}
+	mux.Handle("GET", "/after-shadow", nil)
+	var typed loomhttp.Muxer
+	typed.Handle("GET", "/typed", nil)
 	//loom:vet ignore route-outside-design -- intentional probe
 	mux.Handle("GET", "/probe", nil)
 }
@@ -125,13 +144,37 @@ import loomhttp "github.com/CaliLuke/loom/http"
 
 func mount(mux loomhttp.Muxer) { mux.Handle("GET", "/generated", nil) }
 `)
+	writeTestFile(t, filepath.Join(root, "nested", "go.mod"), "module example.com/nested\n\nrequire github.com/CaliLuke/loom v9.9.9\n")
+	writeTestFile(t, filepath.Join(root, "nested", "gen", "loom.json"), `{"loom_version":"v0.0.1"}`)
+	writeTestFile(t, filepath.Join(root, "nested", "router.go"), `package nested
+
+import loomhttp "github.com/CaliLuke/loom/http"
+
+func routes() {
+	mux := loomhttp.NewMuxer()
+	mux.Handle("GET", "/nested", nil)
+}
+`)
 
 	diagnostics, err := analyzeModule(root)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{
 		RuleRouteOutsideDesign + ":router.go",
+		RuleRouteOutsideDesign + ":router.go",
+		RuleRouteOutsideDesign + ":router.go",
 		RuleGeneratedVersionSkew + ":gen/loom.json",
 	}, diagnosticKeys(diagnostics))
+	routeMessages := make([]string, 0, 3)
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Rule == RuleRouteOutsideDesign {
+			routeMessages = append(routeMessages, diagnostic.Message)
+		}
+	}
+	require.ElementsMatch(t, []string{
+		"route GET /manual is registered directly on a Loom mux; declare and mount it through the design",
+		"route GET /after-shadow is registered directly on a Loom mux; declare and mount it through the design",
+		"route GET /typed is registered directly on a Loom mux; declare and mount it through the design",
+	}, routeMessages)
 }
 
 func TestAnalyzeGeneratedVersionsSkipsLocalReplace(t *testing.T) {
@@ -143,6 +186,42 @@ func TestAnalyzeGeneratedVersionsSkipsLocalReplace(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
+}
+
+func TestAnalyzeGeneratedVersionsResolvesSelectedRequirement(t *testing.T) {
+	tests := []struct {
+		name     string
+		goMod    string
+		manifest string
+	}{
+		{
+			name:     "pseudo-version is not comparable",
+			goMod:    "module example.com/service\n\nrequire github.com/CaliLuke/loom v0.0.0-20260824010101-abcdefabcdef\n",
+			manifest: "v1.8.0",
+		},
+		{
+			name:     "unselected version replacement is ignored",
+			goMod:    "module example.com/service\n\nrequire github.com/CaliLuke/loom v1.3.0\nreplace github.com/CaliLuke/loom v1.2.0 => ../loom-old\n",
+			manifest: "v1.3.0",
+		},
+		{
+			name:     "selected version replacement is used",
+			goMod:    "module example.com/service\n\nrequire github.com/CaliLuke/loom v1.3.0\nreplace github.com/CaliLuke/loom v1.3.0 => example.com/loom-fork v1.4.0\n",
+			manifest: "v1.4.0",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeTestFile(t, filepath.Join(root, "go.mod"), test.goMod)
+			writeTestFile(t, filepath.Join(root, "gen", "loom.json"), `{"loom_version":"`+test.manifest+`"}`)
+
+			diagnostics, err := analyzeGeneratedVersions(root)
+
+			require.NoError(t, err)
+			require.Empty(t, diagnostics)
+		})
+	}
 }
 
 func TestWriteReportFormats(t *testing.T) {
