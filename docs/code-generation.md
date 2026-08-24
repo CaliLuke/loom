@@ -306,6 +306,56 @@ The primary command for code generation:
   failure restores the previous generated artifacts.
 - Run after every design change
 
+#### Analyze Adoption (`loom vet`)
+
+```bash
+loom vet <design-package-import-path> [--format text|json|sarif] [--debug]
+```
+
+`loom vet` evaluates the design before analyzing it. This preserves
+validations, errors, and fields composed through helper functions. It also
+inspects the Go module that contains the design.
+
+The command reports these high-confidence errors:
+
+- application code calls `Handle` directly on a Loom mux instead of mounting a
+  generated route
+- `go.mod` and a generated `loom.json` contain different Loom versions
+- an HTTP 5xx error does not declare `Fault()`
+- an HTTP 429, 502, or 503 error declares neither `Temporary()` nor
+  `RetryHint(...)`
+
+It reports warnings when descriptions imply missing contract validation:
+
+- `1-based` or `zero-based` without a lower bound
+- `from X to Y` without both numeric bounds
+- email, UUID, or URL strings without `Format(...)` or `Pattern(...)`
+- normalized numbers without bounds from 0 to 1
+
+Text output is the default. JSON emits a `diagnostics` array. SARIF output uses
+SARIF 2.1.0 for code-scanning integrations. The command exits with status 1
+when it emits any diagnostic.
+
+Suppress an evaluated-design diagnostic at its owning DSL expression:
+
+```go
+Attribute("callback_url", String, func() {
+    Description("Callback URL or an intentional empty-string sentinel.")
+    Meta("loom:vet:ignore", "string-format")
+})
+```
+
+Suppress an intentional direct Loom mux route with a reason immediately before
+the registration:
+
+```go
+//loom:vet ignore route-outside-design -- process-local diagnostic endpoint
+mux.Handle("GET", "/debug/status", debugStatus)
+```
+
+Prefer fixing the design. Suppress only when the application intentionally owns
+the exception.
+
 #### Create Example (`loom example`)
 
 ```bash

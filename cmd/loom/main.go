@@ -29,6 +29,13 @@ func main() {
 		return
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "vet" {
+		if exitCode := runVet(os.Args[2:], os.Stdout, os.Stderr); exitCode != 0 {
+			os.Exit(exitCode)
+		}
+		return
+	}
+
 	var (
 		cmd    string
 		path   string
@@ -313,6 +320,7 @@ Usage:
   loom gen PACKAGE [--output DIRECTORY] [--debug]
   loom example PACKAGE [--output DIRECTORY] [--debug]
   loom test-scaffold PACKAGE [--output DIRECTORY] [--debug]
+  loom vet PACKAGE [--format text|json|sarif] [--debug]
   loom version
 
 Commands:
@@ -324,6 +332,8 @@ Commands:
         Generate example server and client tool.
   test-scaffold
         Generate consumer-owned HTTP response contract tests.
+  vet
+        Analyze the evaluated design and consuming module for incomplete Loom adoption.
   version
         Print version information.
 
@@ -362,6 +372,9 @@ Flags:
   -o, --output DIRECTORY (gen, example, test-scaffold)
         output directory, defaults to the current working directory
 
+  --format text|json|sarif (vet)
+        diagnostic output format, defaults to text
+
   --debug
         Print debug information (mainly intended for Loom developers)
 
@@ -369,6 +382,7 @@ Example:
 
   loom import openapi openapi.yaml -o design
   loom gen github.com/CaliLuke/loom-examples/cellar/design -o gendir
+  loom vet github.com/CaliLuke/loom-examples/cellar/design
 
 `)
 }

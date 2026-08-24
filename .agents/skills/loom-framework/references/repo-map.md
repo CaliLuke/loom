@@ -22,6 +22,7 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   WebSocket lifecycle; typed transport generation; and integrations
 - `observability/`: framework-owned tracing, metrics, logging, and transport
   event contracts
+- `vet/`: evaluated-design and consuming-module adoption diagnostics
 - `internal/`: repository-private support packages and release/source tooling
 - `scripts/`, `Makefile`, `check.sh`: canonical verification and contributor
   workflows

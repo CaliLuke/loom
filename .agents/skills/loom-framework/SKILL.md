@@ -25,6 +25,7 @@ capabilities; there is no separate capability-maintenance skill.
    - `http/codegen/openapi/internal/ir` for OpenAPI analysis and contract
      decisions
    - `http/codegen/openapi/v3` for versioned OpenAPI rendering
+   - `vet/` for evaluated-design and consuming-module adoption diagnostics
 3. Inspect nearby direct tests and meaningful fixtures.
 4. Read the relevant public guide and the consumer `loom` skill only when the
    task changes how users design or operate a Loom service.
@@ -74,6 +75,9 @@ consumer validation.
 - Design DSL is the source of truth; evaluated semantics belong in `expr`.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
+- Put design-semantic vet rules over the evaluated `expr` graph. Use Go source
+  analysis only for module adoption facts that the graph cannot contain.
+- Classify heuristic vet rules as warnings and provide a scoped suppression.
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted

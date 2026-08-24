@@ -125,25 +125,34 @@ func (g *Generator) Write(_ bool) error {
 
 	var sections []codegen.Section
 	{
+		isVet := g.Command == "vet"
 		data := map[string]any{
 			"Command":       g.Command,
 			"DesignVersion": g.DesignVersion,
+			"Vet":           isVet,
 		}
 		imports := []*codegen.ImportSpec{
 			codegen.SimpleImport("flag"),
 			codegen.SimpleImport("fmt"),
 			codegen.SimpleImport("os"),
-			codegen.SimpleImport("path/filepath"),
+			codegen.SimpleImport("filepath"),
 			codegen.SimpleImport("sort"),
 			codegen.SimpleImport("strconv"),
 			codegen.SimpleImport("strings"),
 			codegen.SimpleImport("time"),
 			codegen.SimpleImport("github.com/CaliLuke/loom/codegen"),
-			codegen.SimpleImport("github.com/CaliLuke/loom/codegen/generator"),
 			codegen.SimpleImport("github.com/CaliLuke/loom/eval"),
 			codegen.SimpleImport("github.com/CaliLuke/loom/expr"),
 			codegen.NewImport("loom", "github.com/CaliLuke/loom/pkg"),
 			codegen.NewImport("_", g.DesignPath),
+		}
+		if isVet {
+			imports = append(imports,
+				codegen.SimpleImport("encoding/json"),
+				codegen.NewImport("loomvet", "github.com/CaliLuke/loom/vet"),
+			)
+		} else {
+			imports = append(imports, codegen.SimpleImport("github.com/CaliLuke/loom/codegen/generator"))
 		}
 		sections = []codegen.Section{
 			codegen.Header("Code Generator", "main", imports),
@@ -167,7 +176,7 @@ func (g *Generator) Compile(debug bool) error {
 			os.Environ(),
 			"GO111MODULE=on",
 			"GOWORK=off",
-			"GOFLAGS=-mod=mod",
+			"GOFLAGS="+g.moduleFlags(),
 		),
 	}, fmt.Sprintf(".%c%s", filepath.Separator, g.tmpDir))
 	if err != nil {
@@ -264,7 +273,7 @@ func (g *Generator) runGoCmd(args ...string) error {
 			os.Environ(),
 			"GO111MODULE=on",
 			"GOWORK=off",
-			"GOFLAGS=-mod=mod",
+			"GOFLAGS="+g.moduleFlags(),
 		),
 	}
 	out, err := c.CombinedOutput()
@@ -275,6 +284,13 @@ func (g *Generator) runGoCmd(args ...string) error {
 		return fmt.Errorf("failed to compile generator: %w", err)
 	}
 	return nil
+}
+
+func (g *Generator) moduleFlags() string {
+	if g.Command == "vet" {
+		return "-mod=readonly"
+	}
+	return "-mod=mod"
 }
 
 // mainT is the template for the generator main.
@@ -332,6 +348,18 @@ const mainT = `func main() {
 	codegen.DesignVersion = ver
 {{- end }}
 
+{{- if .Vet }}
+	startVet := time.Now()
+	report, err := loomvet.Analyze(expr.Root, ".")
+	if err != nil {
+		failStage("vet.Analyze", err)
+	}
+	debugStage(*debug, "vet.Analyze", startVet, "diagnostics=%d", len(report.Diagnostics))
+	debugStage(*debug, "total", startBinary, "diagnostics=%d", len(report.Diagnostics))
+	if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
+		failStage("vet.Encode", err)
+	}
+{{- else }}
 	startGenerate := time.Now()
 	outputs, err := generator.Generate(*out, {{ printf "%q" .Command }}, *debug)
 	if err != nil {
@@ -340,6 +368,7 @@ const mainT = `func main() {
 	debugStage(*debug, "generator.Generate", startGenerate, "outputs=%d", len(outputs))
 	debugStage(*debug, "total", startBinary, "outputs=%d", len(outputs))
 	fmt.Println(strings.Join(outputs, "\n"))
+{{- end }}
 }
 
 func fail(msg string, vals ...any) {
