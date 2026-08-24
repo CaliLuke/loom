@@ -283,8 +283,9 @@ type (
 		RequestPaths []string
 		// Root is the root server file path.
 		FilePath string
-		// Dir is true if the file server servers files under a
-		// directory, false if it serves a single file.
+		// IsDir reports whether the request path uses a wildcard and needs
+		// directory-style route mounting. The runtime resolves whether
+		// FilePath names a directory or a single file.
 		IsDir bool
 		// PathParam is the name of the parameter used to capture the
 		// path for file servers that serve files under a directory.

@@ -102,10 +102,11 @@ func renderServerInitBody(data *ServiceData) string {
 	}
 	for _, fs := range data.FileServers {
 		b.Addf("\tif %s == nil {\n\t\t%s = http.Dir(\".\")\n\t}\n", fs.ArgName, fs.ArgName)
-		prefix := addLeadingSlash(fs.FilePath)
-		if !fs.IsDir {
-			prefix = path.Dir(prefix)
+		if fs.IsDir {
+			continue
 		}
+		prefix := addLeadingSlash(fs.FilePath)
+		prefix = path.Dir(prefix)
 		b.Addf("\t%s = appendPrefix(%s, %q)\n", fs.ArgName, fs.ArgName, prefix)
 	}
 	b.Addf("\treturn &%s{\n", data.ServerStruct)
@@ -141,6 +142,15 @@ func renderServerInitBody(data *ServiceData) string {
 		b.Add("),\n")
 	}
 	for _, fs := range data.FileServers {
+		if fs.IsDir {
+			b.Addf(
+				"\t\t%s: loomhttp.NewStaticFileServer(%s, %q),\n",
+				fs.VarName,
+				fs.ArgName,
+				addLeadingSlash(fs.FilePath),
+			)
+			continue
+		}
 		b.Addf("\t\t%s: http.FileServer(%s),\n", fs.VarName, fs.ArgName)
 	}
 	b.Add("\t}\n")

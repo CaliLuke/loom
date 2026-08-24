@@ -67,7 +67,9 @@ func (f *HTTPFileServerExpr) Finalize() {
 	}
 }
 
-// IsDir returns true if the file server serves a directory, false otherwise.
+// IsDir reports whether the request path uses a wildcard and therefore needs
+// directory-style route mounting. The configured target may resolve to either
+// a directory or a single file at runtime.
 func (f *HTTPFileServerExpr) IsDir() bool {
 	return HTTPWildcardRegex.MatchString(f.RequestPaths[0])
 }

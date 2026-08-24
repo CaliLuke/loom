@@ -272,6 +272,10 @@ filter, and serialization rules belong here.
   observation, and commit-aware failure routing. File and raw-body branches
   also delegate writes and cleanup. Generated code retains typed result and
   stream adapters.
+- Generated wildcard static-file routes delegate target resolution to
+  `http.NewStaticFileServer`. Directory targets map the captured request suffix
+  below the target, while file targets serve the same file for every matching
+  route. Generators must not infer target kind from a path extension.
 - Protocol errors must use event types compatible with the relevant client
   contract.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated

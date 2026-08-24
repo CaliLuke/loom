@@ -41,3 +41,16 @@ func TestServerInit(t *testing.T) {
 		})
 	}
 }
+
+func TestServerInitUsesRuntimeStaticFileServerForWildcardTargets(t *testing.T) {
+	root := RunHTTPDSL(t, fileServerIntegrationDSL)
+	services := CreateHTTPServices(root)
+	files := ServerFiles("gen", services)
+	require.NotEmpty(t, files)
+
+	code := codegen.SectionCode(t, files[0].Section("server-init")[0])
+	require.Contains(t, code, `loomhttp.NewStaticFileServer(fileSystemDistAssets, "/./dist/assets")`)
+	require.Contains(t, code, `loomhttp.NewStaticFileServer(fileSystemDistIndexHTML, "/./dist/index.html")`)
+	require.NotContains(t, code, `appendPrefix(fileSystemDistAssets`)
+	require.NotContains(t, code, `appendPrefix(fileSystemDistIndexHTML`)
+}
