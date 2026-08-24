@@ -54,7 +54,7 @@ func TestAnalyzeHTTPErrorSemantics(t *testing.T) {
 		{
 			Rule:     RuleRetryableError,
 			Severity: SeverityError,
-			Message:  `HTTP 503 error "unavailable" must declare Temporary() or a RetryHint`,
+			Message:  "HTTP 503 error \"unavailable\" must declare Temporary() or Remedy(func() {\n    RetryHint(\"...\")\n})",
 			Location: Location{Path: "api.error.unavailable"},
 		},
 	}, report.Diagnostics)

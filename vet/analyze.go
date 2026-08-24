@@ -83,7 +83,11 @@ func analyzeHTTPErrorSemantics(root *expr.RootExpr, report *Report) {
 						httpError,
 						status,
 						RuleRetryableError,
-						fmt.Sprintf("HTTP %d error %q must declare Temporary() or a RetryHint", status, httpError.Name),
+						fmt.Sprintf(
+							"HTTP %d error %q must declare Temporary() or Remedy(func() {\n    RetryHint(\"...\")\n})",
+							status,
+							httpError.Name,
+						),
 					)
 				}
 			}

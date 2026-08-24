@@ -3,7 +3,9 @@ package openapiv3_test
 import (
 	"bytes"
 	"path/filepath"
+	"regexp"
 	"testing"
+	"unicode"
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -70,6 +72,20 @@ func TestFilesCanOmitSynthesizedExamplesWithoutRemovingAuthoredExamples(t *testi
 	require.NotContains(t, responseMedia(t, yamlSpec, "/stable"), "example")
 	require.Equal(t, "authored-example", responseExample(t, yamlSpec, "/authored"))
 	require.True(t, originalRandomizer == root.API.ExampleGenerator.Randomizer)
+}
+
+func TestFilesPatternExamplesArePrintable(t *testing.T) {
+	openapi.Definitions = make(map[string]*openapi.Schema)
+	artifacts := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, patternExampleDSL))
+	spec := decodeOpenAPIJSON(t, []byte(artifacts[filepath.Join(codegen.Gendir, "http", "openapi.json")]))
+
+	example := requireMap(t, responseExample(t, spec, "/pattern"), "pattern response example")
+	value := requireString(t, example["value"], "pattern value example")
+	require.Regexp(t, regexp.MustCompile(`^\S+$`), value)
+	for _, candidate := range value {
+		require.True(t, unicode.IsPrint(candidate), "example contains non-printable rune %U", candidate)
+		require.False(t, unicode.IsControl(candidate), "example contains control rune %U", candidate)
+	}
 }
 
 func renderOpenAPIExampleArtifacts(t *testing.T, root *expr.RootExpr) map[string]string {
@@ -178,4 +194,20 @@ func synthesizedExampleStabilityDSL(addMutableField, omitSynthesized bool) func(
 			})
 		})
 	}
+}
+
+func patternExampleDSL() {
+	Service("Pattern", func() {
+		Method("Show", func() {
+			Result(func() {
+				Attribute("value", String, func() {
+					Pattern(`^\S+$`)
+				})
+			})
+			HTTP(func() {
+				GET("/pattern")
+				Response(StatusOK)
+			})
+		})
+	})
 }

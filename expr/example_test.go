@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/CaliLuke/loom/expr"
@@ -36,6 +37,52 @@ func TestByPattern(t *testing.T) {
 				t.Errorf("got %s (len %d) exceeded expected len of %d", example, len(example), k.ExpectedMaxLen)
 			}
 		})
+	}
+}
+
+func TestByPatternPrefersPrintableASCII(t *testing.T) {
+	pattern := `^\S+$`
+	attribute := expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{Pattern: pattern},
+	}
+	random := &expr.ExampleGenerator{Randomizer: intRandomizer{Value: 2}}
+
+	example := attribute.Example(random).(string)
+
+	if !regexp.MustCompile(pattern).MatchString(example) {
+		t.Errorf("got %q, expected a match for %s", example, pattern)
+	}
+	for _, candidate := range example {
+		if !unicode.IsPrint(candidate) || unicode.IsControl(candidate) {
+			t.Errorf("got non-printable pattern example %q", example)
+		}
+		if candidate > unicode.MaxASCII {
+			t.Errorf("got non-ASCII pattern example %q", example)
+		}
+	}
+}
+
+func TestByPatternUsesPrintableUnicodeFallback(t *testing.T) {
+	pattern := `^[\x00-\x1fα]+$`
+	attribute := expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{Pattern: pattern},
+	}
+	random := &expr.ExampleGenerator{Randomizer: intRandomizer{Value: 0}}
+
+	example := attribute.Example(random).(string)
+
+	if !regexp.MustCompile(pattern).MatchString(example) {
+		t.Errorf("got %q, expected a match for %s", example, pattern)
+	}
+	for _, candidate := range example {
+		if !unicode.IsPrint(candidate) || unicode.IsControl(candidate) {
+			t.Errorf("got non-printable Unicode pattern example %q", example)
+		}
+		if candidate != 'α' {
+			t.Errorf("got %q, expected sparse printable fallback α", example)
+		}
 	}
 }
 

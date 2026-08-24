@@ -327,8 +327,14 @@ The command reports these high-confidence errors:
   generated route
 - `go.mod` and a generated `loom.json` contain different Loom versions
 - an HTTP 5xx error does not declare `Fault()`
-- an HTTP 429, 502, or 503 error declares neither `Temporary()` nor
-  `RetryHint(...)`
+- an HTTP 429, 502, or 503 error declares neither `Temporary()` nor a retry
+  hint nested in a remedy:
+
+  ```go
+  Remedy(func() {
+      RetryHint("Retry after the dependency recovers.")
+  })
+  ```
 
 It reports warnings when descriptions imply missing contract validation:
 

@@ -7,12 +7,21 @@ import (
 	"regexp/syntax"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
 	maxAttempts = 500 // Max number of retries to generate valid example.
 	maxLength   = 3   // Max length for array and map examples.
 )
+
+var printablePatternTables = []*unicode.RangeTable{
+	unicode.L,
+	unicode.M,
+	unicode.N,
+	unicode.P,
+	unicode.S,
+}
 
 // Example returns the example set on the attribute at design time. If there
 // isn't such a value then Example computes a random value for the attribute
@@ -278,19 +287,171 @@ func patgen(re *syntax.Regexp, r *ExampleGenerator) string {
 		}
 		return res.String()
 	case syntax.OpCharClass:
-		var chars []rune
-		for i := 0; i < len(re.Rune); i += 2 {
-			start, end := re.Rune[i], re.Rune[i+1]
-			for j := start; j <= end; j++ {
-				chars = append(chars, j)
-			}
-		}
-		return string(chars[r.Int()%len(chars)])
+		return string(patternClassRune(re.Rune, r))
 	case syntax.OpAnyChar, syntax.OpAnyCharNotNL:
 		return r.Characters(1)
 	default:
 		return ""
 	}
+}
+
+func patternClassRune(ranges []rune, r *ExampleGenerator) rune {
+	selection := r.Int()
+	if candidate, ok := selectPatternClassRune(ranges, ' ', '~', selection); ok {
+		return candidate
+	}
+	if candidate, ok := selectPrintablePatternClassRune(ranges, selection); ok {
+		return candidate
+	}
+	candidate, ok := selectPatternClassRune(ranges, 0, unicode.MaxRune, selection)
+	if !ok {
+		return unicode.ReplacementChar
+	}
+	return candidate
+}
+
+func selectPrintablePatternClassRune(ranges []rune, selection int) (rune, bool) {
+	count := 0
+	for _, table := range printablePatternTables {
+		for _, sequence := range table.R16 {
+			count += countPatternClassSequence(
+				ranges,
+				rune(sequence.Lo),
+				rune(sequence.Hi),
+				rune(sequence.Stride),
+			)
+		}
+		for _, sequence := range table.R32 {
+			count += countPatternClassSequence(
+				ranges,
+				rune(sequence.Lo),
+				rune(sequence.Hi),
+				rune(sequence.Stride),
+			)
+		}
+	}
+	if count == 0 {
+		return 0, false
+	}
+
+	offset := selection % count
+	if offset < 0 {
+		offset += count
+	}
+	for _, table := range printablePatternTables {
+		for _, sequence := range table.R16 {
+			if candidate, ok := selectPatternClassSequence(
+				ranges,
+				rune(sequence.Lo),
+				rune(sequence.Hi),
+				rune(sequence.Stride),
+				&offset,
+			); ok {
+				return candidate, true
+			}
+		}
+		for _, sequence := range table.R32 {
+			if candidate, ok := selectPatternClassSequence(
+				ranges,
+				rune(sequence.Lo),
+				rune(sequence.Hi),
+				rune(sequence.Stride),
+				&offset,
+			); ok {
+				return candidate, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func countPatternClassSequence(ranges []rune, sequenceStart, sequenceEnd, stride rune) int {
+	count := 0
+	for i := 0; i+1 < len(ranges); i += 2 {
+		first, last, ok := patternClassSequenceBounds(
+			ranges[i],
+			ranges[i+1],
+			sequenceStart,
+			sequenceEnd,
+			stride,
+		)
+		if ok {
+			count += int((last-first)/stride) + 1
+		}
+	}
+	return count
+}
+
+func selectPatternClassSequence(
+	ranges []rune,
+	sequenceStart, sequenceEnd, stride rune,
+	offset *int,
+) (rune, bool) {
+	for i := 0; i+1 < len(ranges); i += 2 {
+		first, last, ok := patternClassSequenceBounds(
+			ranges[i],
+			ranges[i+1],
+			sequenceStart,
+			sequenceEnd,
+			stride,
+		)
+		if !ok {
+			continue
+		}
+		count := int((last-first)/stride) + 1
+		if *offset < count {
+			return first + rune(*offset)*stride, true
+		}
+		*offset -= count
+	}
+	return 0, false
+}
+
+func patternClassSequenceBounds(
+	classStart, classEnd, sequenceStart, sequenceEnd, stride rune,
+) (rune, rune, bool) {
+	first := max(classStart, sequenceStart)
+	last := min(classEnd, sequenceEnd)
+	if first > last {
+		return 0, 0, false
+	}
+	remainder := (first - sequenceStart) % stride
+	if remainder != 0 {
+		first += stride - remainder
+	}
+	return first, last, first <= last
+}
+
+func selectPatternClassRune(ranges []rune, minimum, maximum rune, selection int) (rune, bool) {
+	count := 0
+	for i := 0; i+1 < len(ranges); i += 2 {
+		start := max(ranges[i], minimum)
+		end := min(ranges[i+1], maximum)
+		if start <= end {
+			count += int(end-start) + 1
+		}
+	}
+	if count == 0 {
+		return 0, false
+	}
+
+	offset := selection % count
+	if offset < 0 {
+		offset += count
+	}
+	for i := 0; i+1 < len(ranges); i += 2 {
+		start := max(ranges[i], minimum)
+		end := min(ranges[i+1], maximum)
+		if start > end {
+			continue
+		}
+		width := int(end-start) + 1
+		if offset < width {
+			return start + rune(offset), true
+		}
+		offset -= width
+	}
+	return 0, false
 }
 
 func byMinMax(a *AttributeExpr, r *ExampleGenerator) any {
