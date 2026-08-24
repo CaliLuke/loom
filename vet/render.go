@@ -75,8 +75,10 @@ type sarifLog struct {
 }
 
 type sarifRun struct {
-	Tool    sarifTool     `json:"tool"`
-	Results []sarifResult `json:"results"`
+	Tool             sarifTool     `json:"tool"`
+	Results          []sarifResult `json:"results"`
+	Language         string        `json:"language"`
+	NewlineSequences []string      `json:"newlineSequences"`
 }
 
 type sarifTool struct {
@@ -84,8 +86,9 @@ type sarifTool struct {
 }
 
 type sarifDriver struct {
-	Name  string          `json:"name"`
-	Rules []sarifRuleInfo `json:"rules"`
+	Name     string          `json:"name"`
+	Language string          `json:"language"`
+	Rules    []sarifRuleInfo `json:"rules"`
 }
 
 type sarifRuleInfo struct {
@@ -176,8 +179,14 @@ func buildSARIF(report Report) sarifLog {
 		Version: "2.1.0",
 		Schema:  "https://json.schemastore.org/sarif-2.1.0.json",
 		Runs: []sarifRun{{
-			Tool:    sarifTool{Driver: sarifDriver{Name: "loom vet", Rules: rules}},
-			Results: results,
+			Tool: sarifTool{Driver: sarifDriver{
+				Name:     "loom vet",
+				Language: "en-US",
+				Rules:    rules,
+			}},
+			Results:          results,
+			Language:         "en-US",
+			NewlineSequences: []string{"\n"},
 		}},
 	}
 }

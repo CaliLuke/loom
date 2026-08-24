@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
+	"golang.org/x/tools/go/packages"
 )
 
 const loomHTTPImportPath = "github.com/CaliLuke/loom/http"
@@ -58,33 +59,66 @@ func findModuleRoot(dir string) (string, error) {
 }
 
 func analyzeRoutes(root string) ([]Diagnostic, error) {
-	var diagnostics []Diagnostic
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			skip, err := skipModuleDirectory(root, path, entry.Name())
-			if err != nil {
-				return err
-			}
-			if skip {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		fileDiagnostics, err := analyzeRouteFile(root, path)
-		if err != nil {
-			return err
-		}
-		diagnostics = append(diagnostics, fileDiagnostics...)
-		return nil
-	})
+	loaded, err := packages.Load(&packages.Config{
+		Dir: root,
+		Mode: packages.NeedName |
+			packages.NeedCompiledGoFiles |
+			packages.NeedSyntax |
+			packages.NeedTypes |
+			packages.NeedTypesInfo,
+		ParseFile: func(fileSet *token.FileSet, filename string, source []byte) (*ast.File, error) {
+			return parser.ParseFile(fileSet, filename, source, parser.ParseComments)
+		},
+	}, "./...")
 	if err != nil {
-		return nil, fmt.Errorf("analyze Loom mux routes: %w", err)
+		return nil, fmt.Errorf("load Go module for Loom route analysis: %w", err)
+	}
+
+	var diagnostics []Diagnostic
+	var firstPackageError error
+	analyzablePackages := 0
+	for _, pkg := range loaded {
+		if len(pkg.Syntax) > 0 && pkg.TypesInfo != nil {
+			analyzablePackages++
+		}
+		if len(pkg.Errors) > 0 && firstPackageError == nil {
+			firstPackageError = pkg.Errors[0]
+		}
+		for index, file := range pkg.Syntax {
+			if index >= len(pkg.CompiledGoFiles) {
+				continue
+			}
+			path := pkg.CompiledGoFiles[index]
+			source, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return nil, fmt.Errorf("read %s: %w", path, readErr)
+			}
+			if generatedByLoom(source) {
+				continue
+			}
+			ast.Inspect(file, func(node ast.Node) bool {
+				call, ok := node.(*ast.CallExpr)
+				if !ok || !isTypedLoomMuxHandle(pkg, call) ||
+					sourceSuppressed(pkg.Fset, file, call, RuleRouteOutsideDesign) {
+					return true
+				}
+				position := pkg.Fset.Position(call.Pos())
+				relative, relErr := filepath.Rel(root, path)
+				if relErr != nil {
+					relative = path
+				}
+				diagnostics = append(diagnostics, Diagnostic{
+					Rule:     RuleRouteOutsideDesign,
+					Severity: SeverityError,
+					Message:  unmanagedRouteMessage(call),
+					Location: Location{Path: filepath.ToSlash(relative), Line: position.Line, Column: position.Column},
+				})
+				return true
+			})
+		}
+	}
+	if analyzablePackages == 0 && firstPackageError != nil {
+		return nil, fmt.Errorf("load Go module for Loom route analysis: %w", firstPackageError)
 	}
 	return diagnostics, nil
 }
@@ -116,151 +150,6 @@ func skipModuleDirectory(root, path, name string) (bool, error) {
 	}
 }
 
-func analyzeRouteFile(root, path string) ([]Diagnostic, error) {
-	source, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	if generatedByLoom(source) {
-		return nil, nil
-	}
-	fileSet := token.NewFileSet()
-	file, err := parser.ParseFile(fileSet, path, source, parser.ParseComments)
-	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-	loomAliases := loomHTTPAliases(file)
-	if len(loomAliases) == 0 {
-		return nil, nil
-	}
-
-	globalScope := newMuxScope(nil)
-	for _, declaration := range file.Decls {
-		general, ok := declaration.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
-		collectMuxValueSpecs(general.Specs, loomAliases, globalScope)
-	}
-
-	var diagnostics []Diagnostic
-	for _, declaration := range file.Decls {
-		function, ok := declaration.(*ast.FuncDecl)
-		if !ok || function.Body == nil {
-			continue
-		}
-		functionScope := newMuxScope(globalScope)
-		collectMuxParameters(function.Type.Params, loomAliases, functionScope)
-		visitor := &routeVisitor{
-			root:        root,
-			path:        path,
-			fileSet:     fileSet,
-			file:        file,
-			aliases:     loomAliases,
-			scope:       functionScope,
-			diagnostics: &diagnostics,
-		}
-		ast.Walk(visitor, function.Body)
-	}
-	return diagnostics, nil
-}
-
-type muxScope struct {
-	parent *muxScope
-	values map[string]bool
-}
-
-func newMuxScope(parent *muxScope) *muxScope {
-	return &muxScope{parent: parent, values: make(map[string]bool)}
-}
-
-func (scope *muxScope) declare(name string, mux bool) {
-	scope.values[name] = mux
-}
-
-func (scope *muxScope) isMux(name string) bool {
-	for current := scope; current != nil; current = current.parent {
-		if mux, exists := current.values[name]; exists {
-			return mux
-		}
-	}
-	return false
-}
-
-type routeVisitor struct {
-	root        string
-	path        string
-	fileSet     *token.FileSet
-	file        *ast.File
-	aliases     map[string]struct{}
-	scope       *muxScope
-	diagnostics *[]Diagnostic
-}
-
-func (visitor *routeVisitor) Visit(node ast.Node) ast.Visitor {
-	if node == nil {
-		return nil
-	}
-	switch actual := node.(type) {
-	case *ast.BlockStmt:
-		return visitor.withScope(newMuxScope(visitor.scope))
-	case *ast.FuncLit:
-		child := newMuxScope(visitor.scope)
-		collectMuxParameters(actual.Type.Params, visitor.aliases, child)
-		return visitor.withScope(child)
-	case *ast.IfStmt, *ast.ForStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
-		return visitor.withScope(newMuxScope(visitor.scope))
-	case *ast.RangeStmt:
-		child := newMuxScope(visitor.scope)
-		if actual.Tok == token.DEFINE {
-			declareRangeNames(actual, child)
-		}
-		return visitor.withScope(child)
-	case *ast.AssignStmt:
-		collectMuxAssignments(actual, visitor.aliases, visitor.scope)
-	case *ast.DeclStmt:
-		if declaration, ok := actual.Decl.(*ast.GenDecl); ok {
-			collectMuxValueSpecs(declaration.Specs, visitor.aliases, visitor.scope)
-		}
-	case *ast.CallExpr:
-		visitor.reportMuxHandle(actual)
-	}
-	return visitor
-}
-
-func (visitor *routeVisitor) withScope(scope *muxScope) *routeVisitor {
-	child := *visitor
-	child.scope = scope
-	return &child
-}
-
-func (visitor *routeVisitor) reportMuxHandle(call *ast.CallExpr) {
-	if !isMuxHandleCall(call, visitor.aliases, visitor.scope) ||
-		sourceSuppressed(visitor.fileSet, visitor.file, call, RuleRouteOutsideDesign) {
-		return
-	}
-	position := visitor.fileSet.Position(call.Pos())
-	relative, err := filepath.Rel(visitor.root, visitor.path)
-	if err != nil {
-		relative = visitor.path
-	}
-	*visitor.diagnostics = append(*visitor.diagnostics, Diagnostic{
-		Rule:     RuleRouteOutsideDesign,
-		Severity: SeverityError,
-		Message:  unmanagedRouteMessage(call),
-		Location: Location{Path: filepath.ToSlash(relative), Line: position.Line, Column: position.Column},
-	})
-}
-
-func declareRangeNames(statement *ast.RangeStmt, scope *muxScope) {
-	if identifier, ok := statement.Key.(*ast.Ident); ok {
-		scope.declare(identifier.Name, false)
-	}
-	if identifier, ok := statement.Value.(*ast.Ident); ok {
-		scope.declare(identifier.Name, false)
-	}
-}
-
 func generatedByLoom(source []byte) bool {
 	prefix := source
 	if len(prefix) > 512 {
@@ -269,119 +158,17 @@ func generatedByLoom(source []byte) bool {
 	return strings.Contains(string(prefix), "Code generated by Loom, DO NOT EDIT.")
 }
 
-func loomHTTPAliases(file *ast.File) map[string]struct{} {
-	aliases := make(map[string]struct{})
-	for _, spec := range file.Imports {
-		path, err := strconv.Unquote(spec.Path.Value)
-		if err != nil || path != loomHTTPImportPath {
-			continue
-		}
-		alias := "http"
-		if spec.Name != nil {
-			alias = spec.Name.Name
-		}
-		if alias != "." && alias != "_" {
-			aliases[alias] = struct{}{}
-		}
-	}
-	return aliases
-}
-
-func collectMuxParameters(fields *ast.FieldList, aliases map[string]struct{}, scope *muxScope) {
-	if fields == nil {
-		return
-	}
-	for _, field := range fields.List {
-		mux := isMuxType(field.Type, aliases)
-		for _, name := range field.Names {
-			scope.declare(name.Name, mux)
-		}
-	}
-}
-
-func isMuxType(node ast.Expr, aliases map[string]struct{}) bool {
-	selector, ok := node.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	identifier, ok := selector.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	if _, ok := aliases[identifier.Name]; !ok {
-		return false
-	}
-	switch selector.Sel.Name {
-	case "Muxer", "MiddlewareMuxer", "ResolverMuxer":
-		return true
-	default:
-		return false
-	}
-}
-
-func collectMuxAssignments(assignment *ast.AssignStmt, aliases map[string]struct{}, scope *muxScope) {
-	if assignment.Tok != token.DEFINE {
-		return
-	}
-	for index, left := range assignment.Lhs {
-		identifier, ok := left.(*ast.Ident)
-		if !ok || identifier.Name == "_" {
-			continue
-		}
-		if _, exists := scope.values[identifier.Name]; exists {
-			continue
-		}
-		mux := false
-		if len(assignment.Rhs) == len(assignment.Lhs) {
-			mux = isMuxValue(assignment.Rhs[index], aliases, scope)
-		}
-		scope.declare(identifier.Name, mux)
-	}
-}
-
-func collectMuxValueSpecs(specs []ast.Spec, aliases map[string]struct{}, scope *muxScope) {
-	for _, rawSpec := range specs {
-		spec, ok := rawSpec.(*ast.ValueSpec)
-		if !ok {
-			continue
-		}
-		typedMux := isMuxType(spec.Type, aliases)
-		for index, name := range spec.Names {
-			mux := typedMux
-			if !mux && len(spec.Values) == len(spec.Names) {
-				mux = isMuxValue(spec.Values[index], aliases, scope)
-			}
-			scope.declare(name.Name, mux)
-		}
-	}
-}
-
-func isMuxValue(node ast.Expr, aliases map[string]struct{}, scope *muxScope) bool {
-	switch actual := node.(type) {
-	case *ast.Ident:
-		return scope.isMux(actual.Name)
-	case *ast.CallExpr:
-		selector, ok := actual.Fun.(*ast.SelectorExpr)
-		if !ok || selector.Sel.Name != "NewMuxer" {
-			return false
-		}
-		identifier, ok := selector.X.(*ast.Ident)
-		if !ok {
-			return false
-		}
-		_, ok = aliases[identifier.Name]
-		return ok
-	default:
-		return false
-	}
-}
-
-func isMuxHandleCall(call *ast.CallExpr, aliases map[string]struct{}, scope *muxScope) bool {
+func isTypedLoomMuxHandle(pkg *packages.Package, call *ast.CallExpr) bool {
 	selector, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || selector.Sel.Name != "Handle" {
 		return false
 	}
-	return isMuxValue(selector.X, aliases, scope)
+	selection := pkg.TypesInfo.Selections[selector]
+	if selection == nil {
+		return false
+	}
+	method := selection.Obj()
+	return method.Pkg() != nil && method.Pkg().Path() == loomHTTPImportPath
 }
 
 func unmanagedRouteMessage(call *ast.CallExpr) string {
