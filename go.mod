@@ -17,7 +17,7 @@ require (
 	github.com/owenrumney/go-sarif/v3 v3.3.1
 	github.com/pb33f/libopenapi v0.38.7
 	github.com/redis/go-redis/v9 v9.22.0
-	github.com/sirupsen/logrus v1.10.0
+	github.com/sirupsen/logrus v1.10.1
 	github.com/stretchr/testify v1.12.0
 	github.com/tmaxmax/go-sse v0.11.0
 	go.opentelemetry.io/contrib/bridges/otellogrus v0.20.0
