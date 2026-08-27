@@ -157,5 +157,5 @@ func clockGuardedUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock guarded --token \"Incidunt facere officiis est et est tempore.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock guarded --token \"Inventore architecto.\"")
 }
