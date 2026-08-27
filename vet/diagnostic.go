@@ -30,6 +30,8 @@ const (
 	RuleRouteConflictWithDesign = "route-conflict-with-design"
 	// RuleGeneratedVersionSkew identifies generated output from another Loom version.
 	RuleGeneratedVersionSkew = "generated-version-skew"
+	// RuleGeneratedDesignSkew identifies generated output from another evaluated design.
+	RuleGeneratedDesignSkew = "generated-design-skew"
 	// RuleServerErrorFault identifies 5xx errors that are not marked as faults.
 	RuleServerErrorFault = "server-error-fault"
 	// RuleRetryableError identifies retryable HTTP statuses without retry metadata.

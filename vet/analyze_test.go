@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/designfingerprint"
 	externalsarif "github.com/owenrumney/go-sarif/v3/pkg/report/v210/sarif"
 	"github.com/stretchr/testify/require"
 )
@@ -264,7 +266,7 @@ func generatedRoutes() {
 	mux.Handle("POST", "/designed", nil)
 }
 `)
-	design := designRootWithHTTPRoute("widgets", "create", "POST", "/designed")
+	design := designRootWithHTTPRoute("create", "POST", "/designed")
 
 	report, err := Analyze(design, root)
 
@@ -298,7 +300,7 @@ func TestAnalyzeRouteConflictSuppression(t *testing.T) {
 	mux.Handle("POST", "/designed", nil)
 }
 `)
-	design := designRootWithHTTPRoute("widgets", "create", "POST", "/designed")
+	design := designRootWithHTTPRoute("create", "POST", "/designed")
 
 	report, err := Analyze(design, root)
 
@@ -404,6 +406,62 @@ func TestAnalyzeGeneratedVersionsFindsSkew(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, []string{RuleGeneratedVersionSkew + ":gen/loom.json"}, diagnosticKeys(diagnostics))
+}
+
+func TestAnalyzeGeneratedDesignFindsSkewAndRegenerationClearsIt(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/service\n\nrequire github.com/CaliLuke/loom v1.2.3\nreplace github.com/CaliLuke/loom => ../loom\n")
+	design := designRootWithHTTPRoute("show", "GET", "/widgets/{id}")
+	digest, err := designfingerprint.Digest(design, "gen", "example.com/service/gen", codegen.DesignVersion)
+	require.NoError(t, err)
+	writeTestFile(t, filepath.Join(root, "gen", "loom.json"), `{"loom_version":"v1.2.3","design_digest":"`+digest+`"}`)
+
+	diagnostics, err := analyzeGeneratedManifests(root, design)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+
+	design.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0].Path = "/inventory/{id}"
+	diagnostics, err = analyzeGeneratedManifests(root, design)
+	require.NoError(t, err)
+	require.Equal(t, []string{RuleGeneratedDesignSkew + ":gen/loom.json"}, diagnosticKeys(diagnostics))
+	require.Contains(t, diagnostics[0].Message, "run loom gen")
+	for _, format := range []Format{FormatText, FormatJSON, FormatSARIF} {
+		var output bytes.Buffer
+		require.NoError(t, WriteReport(&output, Report{Diagnostics: diagnostics}, format))
+		require.Contains(t, output.String(), RuleGeneratedDesignSkew)
+	}
+
+	digest, err = designfingerprint.Digest(design, "gen", "example.com/service/gen", codegen.DesignVersion)
+	require.NoError(t, err)
+	writeTestFile(t, filepath.Join(root, "gen", "loom.json"), `{"loom_version":"v1.2.3","design_digest":"`+digest+`"}`)
+	diagnostics, err = analyzeGeneratedManifests(root, design)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+}
+
+func TestAnalyzeGeneratedDesignReportsLegacyManifest(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/service\n\nrequire github.com/CaliLuke/loom v1.2.3\nreplace github.com/CaliLuke/loom => ../loom\n")
+	writeTestFile(t, filepath.Join(root, "gen", "loom.json"), `{"loom_version":"v1.2.3"}`)
+
+	diagnostics, err := analyzeGeneratedManifests(root, designRootWithHTTPRoute("show", "GET", "/widgets/{id}"))
+
+	require.NoError(t, err)
+	require.Equal(t, []string{RuleGeneratedDesignSkew + ":gen/loom.json"}, diagnosticKeys(diagnostics))
+	require.Contains(t, diagnostics[0].Message, "does not record a design digest")
+}
+
+func TestAnalyzeGeneratedDesignHonorsAPISuppression(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/service\n\nrequire github.com/CaliLuke/loom v1.2.3\nreplace github.com/CaliLuke/loom => ../loom\n")
+	writeTestFile(t, filepath.Join(root, "gen", "loom.json"), `{"loom_version":"v1.2.3","design_digest":"stale"}`)
+	design := designRootWithHTTPRoute("show", "GET", "/widgets/{id}")
+	design.API.Meta = expr.MetaExpr{SuppressionMeta: {RuleGeneratedDesignSkew}}
+
+	diagnostics, err := analyzeGeneratedManifests(root, design)
+
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
 }
 
 func TestAnalyzeGeneratedVersionsSkipsLocalReplace(t *testing.T) {
@@ -535,8 +593,8 @@ func diagnosticsForRule(diagnostics []Diagnostic, rule string) []Diagnostic {
 	return matching
 }
 
-func designRootWithHTTPRoute(serviceName, methodName, method, path string) *expr.RootExpr {
-	service := &expr.ServiceExpr{Name: serviceName}
+func designRootWithHTTPRoute(methodName, method, path string) *expr.RootExpr {
+	service := &expr.ServiceExpr{Name: "widgets"}
 	methodExpr := &expr.MethodExpr{Name: methodName, Service: service}
 	httpRoot := &expr.HTTPExpr{}
 	httpService := &expr.HTTPServiceExpr{Root: httpRoot, ServiceExpr: service}

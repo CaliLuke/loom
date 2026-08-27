@@ -100,7 +100,7 @@ func TestGenerateParallelManyFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
-	outputs = assertVersionFile(t, dir, outputs)
+	outputs = assertManifestFile(t, dir, outputs)
 
 	// Verify all generator files were written
 	if len(outputs) != numFiles {
@@ -164,7 +164,7 @@ func TestGenerateParallelWithMerge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
-	outputs = assertVersionFile(t, dir, outputs)
+	outputs = assertManifestFile(t, dir, outputs)
 
 	if len(outputs) != 2 {
 		t.Fatalf("expected 2 output files, got %d", len(outputs))
@@ -264,7 +264,7 @@ func TestGenerateParallelSingleFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
-	outputs = assertVersionFile(t, dir, outputs)
+	outputs = assertManifestFile(t, dir, outputs)
 
 	if len(outputs) != 1 {
 		t.Fatalf("expected 1 output file, got %d", len(outputs))
@@ -281,9 +281,9 @@ func TestGenerateParallelSingleFile(t *testing.T) {
 	}
 }
 
-// assertVersionFile checks that loom.json was emitted with the correct version
-// and returns the remaining outputs (excluding loom.json) for further assertions.
-func assertVersionFile(t *testing.T, dir string, outputs []string) []string {
+// assertManifestFile checks that loom.json was emitted with the correct version
+// and design digest, then returns the remaining outputs for further assertions.
+func assertManifestFile(t *testing.T, dir string, outputs []string) []string {
 	t.Helper()
 
 	versionPath := filepath.Join(codegen.Gendir, "loom.json")
@@ -299,6 +299,9 @@ func assertVersionFile(t *testing.T, dir string, outputs []string) []string {
 	}
 	if v := data["loom_version"]; v != loom.Version() {
 		t.Fatalf("loom.json version = %q, want %q", v, loom.Version())
+	}
+	if data["design_digest"] == "" {
+		t.Fatal("loom.json design_digest must not be empty")
 	}
 	if !bytes.HasSuffix(bs, []byte("}\n")) {
 		t.Fatalf("loom.json must end with exactly one LF, got final bytes %q", bs[max(0, len(bs)-2):])

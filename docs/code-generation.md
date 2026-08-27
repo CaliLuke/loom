@@ -332,6 +332,9 @@ The command reports these high-confidence errors:
 - an exact statically resolved manual method/path route conflicts with an
   evaluated design operation
 - `go.mod` and a generated `loom.json` contain different Loom versions
+- generated output does not match the evaluated design recorded in
+  `gen/loom.json`; manifests created before design digests were introduced also
+  require regeneration
 - an HTTP 5xx error does not declare `Fault()`
 - an HTTP 429, 502, or 503 error declares neither `Temporary()` nor a retry
   hint nested in a remedy:
@@ -366,6 +369,17 @@ Attribute("callback_url", String, func() {
     Meta("loom:vet:ignore", "string-format")
 })
 ```
+
+The `generated-design-skew` rule is owned by the API expression:
+
+```go
+API("inventory", func() {
+    Meta("loom:vet:ignore", "generated-design-skew")
+})
+```
+
+Use this suppression only when another workflow intentionally owns generated
+output. Regeneration clears the diagnostic in the normal workflow.
 
 Suppress an intentional direct Loom mux route with a reason immediately before
 the registration:

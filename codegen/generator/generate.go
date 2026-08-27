@@ -15,6 +15,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/designfingerprint"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -62,9 +63,13 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 		return nil, wrapStageError("emit-warnings", "", err)
 	}
 
-	// 8. Emit loom.json version file (gen command only).
+	// 8. Emit loom.json generation manifest (gen command only).
 	if cmd == "gen" {
-		genfiles = append(genfiles, codegen.VersionFile())
+		digest, err := designfingerprint.Digest(expr.Root, cmd, genpkg, codegen.DesignVersion)
+		if err != nil {
+			return nil, wrapStageError("design-digest", "", err)
+		}
+		genfiles = append(genfiles, codegen.ManifestFile(digest))
 	}
 
 	written, err := writeFiles(dir, genfiles, debug)

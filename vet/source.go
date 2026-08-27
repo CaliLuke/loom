@@ -2,6 +2,7 @@ package vet
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -10,6 +11,7 @@ import (
 	"go/types"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,8 +20,15 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/packages"
 
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/designfingerprint"
 )
+
+type generatedManifest struct {
+	Version      string `json:"loom_version"`
+	DesignDigest string `json:"design_digest"`
+}
 
 const loomHTTPImportPath = "github.com/CaliLuke/loom/http"
 
@@ -36,7 +45,7 @@ func analyzeModuleWithDesign(dir string, design *expr.RootExpr) ([]Diagnostic, e
 	if err != nil {
 		return nil, err
 	}
-	versions, err := analyzeGeneratedVersions(root)
+	versions, err := analyzeGeneratedManifests(root, design)
 	if err != nil {
 		return nil, err
 	}
@@ -373,6 +382,10 @@ func sourceSuppressed(fileSet *token.FileSet, file *ast.File, node ast.Node, rul
 }
 
 func analyzeGeneratedVersions(root string) ([]Diagnostic, error) {
+	return analyzeGeneratedManifests(root, nil)
+}
+
+func analyzeGeneratedManifests(root string, design *expr.RootExpr) ([]Diagnostic, error) {
 	moduleData, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
 		return nil, fmt.Errorf("read go.mod: %w", err)
@@ -382,9 +395,6 @@ func analyzeGeneratedVersions(root string) ([]Diagnostic, error) {
 		return nil, fmt.Errorf("parse go.mod: %w", err)
 	}
 	requiredVersion, comparable := effectiveLoomVersion(module)
-	if !comparable {
-		return nil, nil
-	}
 
 	var diagnostics []Diagnostic
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -404,35 +414,120 @@ func analyzeGeneratedVersions(root string) ([]Diagnostic, error) {
 		if entry.Name() != "loom.json" {
 			return nil
 		}
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
+		manifestDiagnostics, inspectErr := inspectGeneratedManifest(
+			module,
+			root,
+			path,
+			requiredVersion,
+			comparable,
+			design,
+		)
+		if inspectErr != nil {
+			return inspectErr
 		}
-		manifest := struct {
-			Version string `json:"loom_version"`
-		}{}
-		if unmarshalErr := json.Unmarshal(data, &manifest); unmarshalErr != nil {
-			return fmt.Errorf("parse %s: %w", path, unmarshalErr)
-		}
-		if manifest.Version == "" || manifest.Version == requiredVersion {
-			return nil
-		}
-		relative, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			relative = path
-		}
+		diagnostics = append(diagnostics, manifestDiagnostics...)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("inspect generated Loom manifests: %w", err)
+	}
+	return diagnostics, nil
+}
+
+func inspectGeneratedManifest(
+	moduleFile *modfile.File,
+	moduleRoot,
+	manifestPath,
+	requiredVersion string,
+	comparable bool,
+	design *expr.RootExpr,
+) ([]Diagnostic, error) {
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	var manifest generatedManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", manifestPath, err)
+	}
+	location := generatedManifestLocation(moduleRoot, manifestPath)
+	var diagnostics []Diagnostic
+	if comparable && manifest.Version != "" && manifest.Version != requiredVersion {
 		diagnostics = append(diagnostics, Diagnostic{
 			Rule:     RuleGeneratedVersionSkew,
 			Severity: SeverityError,
 			Message:  fmt.Sprintf("generated with Loom %s but go.mod requires %s; run loom gen", manifest.Version, requiredVersion),
-			Location: Location{Path: filepath.ToSlash(relative)},
+			Location: location,
 		})
-		return nil
-	})
+	}
+	designDiagnostic, err := generatedDesignDiagnostic(moduleFile, moduleRoot, manifestPath, manifest, design, location)
 	if err != nil {
-		return nil, fmt.Errorf("inspect generated Loom versions: %w", err)
+		return nil, err
+	}
+	if designDiagnostic != nil {
+		diagnostics = append(diagnostics, *designDiagnostic)
 	}
 	return diagnostics, nil
+}
+
+func generatedManifestLocation(moduleRoot, manifestPath string) Location {
+	relative, err := filepath.Rel(moduleRoot, manifestPath)
+	if err != nil {
+		relative = manifestPath
+	}
+	return Location{Path: filepath.ToSlash(relative)}
+}
+
+func generatedDesignDiagnostic(
+	moduleFile *modfile.File,
+	moduleRoot,
+	manifestPath string,
+	manifest generatedManifest,
+	design *expr.RootExpr,
+	location Location,
+) (*Diagnostic, error) {
+	if design == nil || design.API == nil || suppressed(design.API.Meta, RuleGeneratedDesignSkew) {
+		return nil, nil
+	}
+	genpkg, err := generatedPackagePath(moduleFile, moduleRoot, manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	currentDigest, err := designfingerprint.Digest(design, "gen", genpkg, codegen.DesignVersion)
+	if err != nil {
+		return nil, err
+	}
+	message := ""
+	if manifest.DesignDigest == "" {
+		message = "generated manifest does not record a design digest; run loom gen"
+	} else if manifest.DesignDigest != currentDigest {
+		message = "generated output does not match the evaluated design; run loom gen"
+	}
+	if message == "" {
+		return nil, nil
+	}
+	return &Diagnostic{
+		Rule:     RuleGeneratedDesignSkew,
+		Severity: SeverityError,
+		Message:  message,
+		Location: location,
+	}, nil
+}
+
+func generatedPackagePath(moduleFile *modfile.File, moduleRoot, manifestPath string) (string, error) {
+	if moduleFile.Module == nil || moduleFile.Module.Mod.Path == "" {
+		return "", errors.New("go.mod has no module path")
+	}
+	outputDir := filepath.Dir(filepath.Dir(manifestPath))
+	relativeOutput, err := filepath.Rel(moduleRoot, outputDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve generated output package: %w", err)
+	}
+	genpkg := moduleFile.Module.Mod.Path
+	if relativeOutput != "." {
+		genpkg = path.Join(genpkg, filepath.ToSlash(relativeOutput))
+	}
+	return path.Join(genpkg, codegen.Gendir), nil
 }
 
 func effectiveLoomVersion(moduleFile *modfile.File) (string, bool) {

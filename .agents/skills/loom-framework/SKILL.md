@@ -83,6 +83,10 @@ consumer validation.
   method/path constants from active source files and skip dynamic expressions
   rather than infer speculative runtime overlap.
 - Classify heuristic vet rules as warnings and provide a scoped suppression.
+- Fingerprint the evaluated design and output-affecting generation context in
+  `gen/loom.json`. The fingerprint must ignore runtime-only evaluator state,
+  serialize maps deterministically, and never include timestamps or filesystem
+  paths. `loom vet` reports design skew separately from Loom version skew.
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted

@@ -40,15 +40,23 @@ func ScaffoldHeader(title, pack string, imports []*ImportSpec) *SectionTemplate 
 	}
 }
 
-// VersionFile returns a file that contains the Loom version used to generate
-// the code. The file is written to gen/loom.json.
-func VersionFile() *File {
-	data := map[string]string{"loom_version": loom.Version()}
-	b, _ := json.MarshalIndent(data, "", "  ")
+// ManifestFile returns the generation manifest written to gen/loom.json.
+func ManifestFile(designDigest string) *File {
+	data := struct {
+		LoomVersion  string `json:"loom_version"`
+		DesignDigest string `json:"design_digest"`
+	}{
+		LoomVersion:  loom.Version(),
+		DesignDigest: designDigest,
+	}
+	b, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		panic(fmt.Sprintf("marshal generation manifest: %s", err))
+	}
 	return &File{
 		Path: filepath.Join(Gendir, "loom.json"),
 		Sections: []Section{&SectionTemplate{
-			Name:   "loom-version",
+			Name:   "loom-manifest",
 			Source: string(b),
 		}},
 	}

@@ -33,7 +33,8 @@ type (
 	}
 
 	generationManifest struct {
-		LoomVersion string `json:"loom_version"`
+		LoomVersion  string `json:"loom_version"`
+		DesignDigest string `json:"design_digest"`
 	}
 )
 
@@ -124,6 +125,9 @@ func (t *generationTransaction) validate(outputs []string) error {
 			manifest.LoomVersion,
 			loom.Version(),
 		)
+	}
+	if manifest.DesignDigest == "" {
+		return fmt.Errorf("staged generation manifest %s has no design digest", manifestPath)
 	}
 	for _, output := range outputs {
 		rel, err := t.stagedRelativePath(output)
