@@ -351,6 +351,14 @@ It reports warnings when descriptions imply missing contract validation:
 - `from X to Y` without both numeric bounds
 - email, UUID, or URL strings without `Format(...)` or `Pattern(...)`
 - normalized numbers without bounds from 0 to 1
+- `Any` attributes with strong scalar evidence, such as `*_at` timestamp names,
+  UUID descriptions, or unambiguous boolean, integer, number, URI, email, or IP
+  descriptions
+
+`untyped-semantic-attribute` is not a blanket warning for `Any`. Generic
+metadata, configuration, preference, and document fields do not warn by name.
+Bare `id` and `*_id` names require UUID evidence, and descriptions that permit
+multiple shapes do not trigger scalar inference.
 
 Source analysis follows the active packages selected by `go list ./...` for the
 current build environment. It excludes nested dependency modules and does not
@@ -367,6 +375,16 @@ Suppress an evaluated-design diagnostic at its owning DSL expression:
 Attribute("callback_url", String, func() {
     Description("Callback URL or an intentional empty-string sentinel.")
     Meta("loom:vet:ignore", "string-format")
+})
+```
+
+An intentionally unconstrained semantic-looking field can suppress the
+advisory warning at that attribute:
+
+```go
+Attribute("created_at", Any, func() {
+    Description("Provider-owned value with no stable scalar representation.")
+    Meta("loom:vet:ignore", "untyped-semantic-attribute")
 })
 ```
 

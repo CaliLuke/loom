@@ -9,9 +9,22 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+type scalarRecommendation struct {
+	semantic    string
+	replacement string
+}
+
 var (
 	describedRangePattern = regexp.MustCompile(`(?i)\bfrom\s+(-?\d+(?:\.\d+)?)\s+to\s+(-?\d+(?:\.\d+)?)\b`)
 	normalizedWordPattern = regexp.MustCompile(`(?i)\bnormalized\b`)
+	booleanAnyPattern     = regexp.MustCompile(`\b(boolean|true/false|true or false|whether)\b`)
+	integerAnyPattern     = regexp.MustCompile(`\b(integer|whole number|number of)\b`)
+	numberAnyPattern      = regexp.MustCompile(`\b(numeric value|decimal number|decimal value|floating-point|floating point|number value)\b`)
+	timestampAnyPattern   = regexp.MustCompile(`\b(timestamp|date-time|datetime|rfc3339|rfc 3339)\b`)
+	uuidAnyPattern        = regexp.MustCompile(`\b(uuid|universally unique identifier)\b`)
+	uriAnyPattern         = regexp.MustCompile(`\b(uri|url)\b`)
+	emailAnyPattern       = regexp.MustCompile(`\bemail (address|string|value)\b`)
+	ipAnyPattern          = regexp.MustCompile(`\b(ip|ipv4|ipv6) address\b`)
 )
 
 // Analyze inspects an evaluated design and the Go module rooted at moduleDir.
@@ -267,6 +280,19 @@ func analyzeInlineAttribute(path, name string, attribute *expr.AttributeExpr, re
 
 func analyzeAttributeDescription(path, name string, attribute *expr.AttributeExpr, report *Report) {
 	description := strings.ToLower(attribute.Description)
+	if recommendation, ok := untypedScalarRecommendation(name, description); isAny(attribute.Type) && ok && !attributeSuppressed(attribute, RuleUntypedSemanticAttribute) {
+		appendWarning(
+			report,
+			RuleUntypedSemanticAttribute,
+			path,
+			fmt.Sprintf(
+				"Any attribute %q has %s semantics; use %s instead of Any or suppress this warning",
+				name,
+				recommendation.semantic,
+				recommendation.replacement,
+			),
+		)
+	}
 	normalizedMissing := isNumber(attribute.Type) &&
 		normalizedWordPattern.MatchString(description) &&
 		!hasRange(attribute, 0, 1) &&
@@ -414,6 +440,55 @@ func mentionsUUIDContract(description string) bool {
 	return strings.HasPrefix(description, "uuid ") ||
 		strings.HasPrefix(description, "a uuid ") ||
 		strings.Contains(description, "must be a uuid")
+}
+
+func untypedScalarRecommendation(name, description string) (scalarRecommendation, bool) {
+	description = strings.TrimSpace(description)
+	if strings.Contains(description, " or ") && !strings.Contains(description, "true or false") {
+		return scalarRecommendation{}, false
+	}
+	lowerName := strings.ToLower(name)
+	switch {
+	case lowerName == "timestamp" || strings.HasSuffix(lowerName, "_at") || strings.HasSuffix(lowerName, "_timestamp"):
+		return scalarRecommendation{"timestamp", "String with Format(FormatDateTime)"}, true
+	case uuidAnyPattern.MatchString(description):
+		return scalarRecommendation{"UUID", "String with Format(FormatUUID)"}, true
+	case timestampAnyPattern.MatchString(description):
+		return scalarRecommendation{"timestamp", "String with Format(FormatDateTime)"}, true
+	case booleanAnyPattern.MatchString(description):
+		return scalarRecommendation{"boolean", "Boolean"}, true
+	case integerAnyPattern.MatchString(description):
+		return scalarRecommendation{"integer", "Int"}, true
+	case numberAnyPattern.MatchString(description):
+		return scalarRecommendation{"number", "Float64"}, true
+	case uriAnyPattern.MatchString(description):
+		return scalarRecommendation{"URI", "String with Format(FormatURI)"}, true
+	case emailAnyPattern.MatchString(description):
+		return scalarRecommendation{"email", "String with Format(FormatEmail)"}, true
+	case ipAnyPattern.MatchString(description):
+		return scalarRecommendation{"IP address", "String with Format(FormatIP)"}, true
+	default:
+		return scalarRecommendation{}, false
+	}
+}
+
+func isAny(dataType expr.DataType) bool {
+	seen := make(map[string]struct{})
+	for dataType != nil {
+		if dataType == expr.Any {
+			return true
+		}
+		userType, ok := dataType.(expr.UserType)
+		if !ok || userType.Attribute() == nil {
+			return false
+		}
+		if _, exists := seen[userType.ID()]; exists {
+			return false
+		}
+		seen[userType.ID()] = struct{}{}
+		dataType = userType.Attribute().Type
+	}
+	return false
 }
 
 func isString(dataType expr.DataType) bool {

@@ -487,9 +487,13 @@ The command checks incomplete target-module source analysis, direct Loom mux
 routes, exact duplicate manual routes, exact manual/design route conflicts,
 generated-version differences, generated output that no longer matches the
 evaluated design, missing HTTP error metadata, and descriptions that imply
-missing validation. A manifest created before design digests were introduced
-also requires `loom gen`. Source analysis follows the active packages selected
-by the current Go build environment and excludes dependency modules.
+missing validation or a concrete scalar hidden behind `Any`. The
+`untyped-semantic-attribute` warning is conservative: timestamp-style names or
+unambiguous scalar descriptions can trigger it, but `Any` by itself and generic
+metadata, configuration, preference, or document fields do not. A manifest
+created before design digests were introduced also requires `loom gen`. Source
+analysis follows the active packages selected by the current Go build
+environment and excludes dependency modules.
 
 Use `--format=json` or `--format=sarif` to archive or share audit results.
 

@@ -44,6 +44,8 @@ const (
 	RuleStringFormat = "string-format"
 	// RuleNormalizedRange identifies normalized numbers without zero-to-one bounds.
 	RuleNormalizedRange = "normalized-range"
+	// RuleUntypedSemanticAttribute identifies Any attributes with strong scalar semantics.
+	RuleUntypedSemanticAttribute = "untyped-semantic-attribute"
 )
 
 // SuppressionMeta is the DSL metadata key used to suppress vet diagnostics.

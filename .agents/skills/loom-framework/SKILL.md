@@ -83,6 +83,10 @@ consumer validation.
   method/path constants from active source files and skip dynamic expressions
   rather than infer speculative runtime overlap.
 - Classify heuristic vet rules as warnings and provide a scoped suppression.
+- Keep `untyped-semantic-attribute` conservative: never warn on `Any` alone;
+  allow name-only inference only for timestamp-style names such as `*_at`,
+  require explicit UUID evidence for IDs, and ignore ambiguous descriptions
+  that describe multiple possible shapes.
 - Fingerprint the evaluated design and output-affecting generation context in
   `gen/loom.json`. The fingerprint must ignore runtime-only evaluator state,
   serialize maps deterministically, and never include timestamps or filesystem
