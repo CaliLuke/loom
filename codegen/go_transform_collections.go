@@ -27,6 +27,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		TransformAttrs: ta,
 		LoopVar:        string(rune(105 + strings.Count(targetVar, "["))),
 		IsStruct:       expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
+		SourcePresence: ta.SourceCtx.CollectionElementPresence && !expr.AllowsNull(source.ElemType),
 	}
 	return renderTransformGoArray(data)
 }
@@ -203,9 +204,13 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 		typeName = data.TypeAliasName
 	}
 	var elemCode *jen.Statement
+	sourceElement := "val"
+	if data.SourcePresence {
+		sourceElement = "actual"
+	}
 	if !data.IsStruct {
 		var err error
-		elemCode, err = transformAttributeStmt(data.SourceElem, data.TargetElem, "val", data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
+		elemCode, err = transformAttributeStmt(data.SourceElem, data.TargetElem, sourceElement, data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
 		if err != nil {
 			return nil, err
 		}
@@ -215,8 +220,12 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 	stmt.For(
 		jen.List(Expr(data.LoopVar), jen.Id("val")).Op(":=").Range().Add(Expr(data.SourceVar)),
 	).BlockFunc(func(group *jen.Group) {
+		if data.SourcePresence {
+			group.List(jen.Id("actual"), jen.Id("ok")).Op(":=").Id("val").Dot("Value").Call()
+			group.If(jen.Op("!").Id("ok")).Block(jen.Continue())
+		}
 		if data.IsStruct {
-			group.If(Expr("val == nil")).BlockFunc(func(ifGroup *jen.Group) {
+			group.If(Expr(sourceElement + " == nil")).BlockFunc(func(ifGroup *jen.Group) {
 				ifGroup.Add(Expr(data.TargetVar)).Index(Expr(data.LoopVar)).Op("=").Nil()
 				ifGroup.Continue()
 			})
@@ -224,7 +233,7 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 				Index(Expr(data.LoopVar)).
 				Op("=").
 				Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
-				Call(Expr("val"))
+				Call(Expr(sourceElement))
 			return
 		}
 		group.Add(elemCode)
@@ -539,9 +548,11 @@ func generateHelper(source, target *expr.AttributeExpr, req bool, ta *TransformA
 	nested.TargetCtx = ta.TargetCtx.Dup()
 	if attributeUsesJSONPresence(source, nested.SourceCtx) {
 		nested.SourceCtx.JSONPresence = true
+		nested.SourceCtx.CollectionElementPresence = true
 	}
 	if attributeUsesJSONPresence(target, nested.TargetCtx) {
 		nested.TargetCtx.JSONPresence = true
+		nested.TargetCtx.CollectionElementPresence = true
 	}
 	ta = &nested
 

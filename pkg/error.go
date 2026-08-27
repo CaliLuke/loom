@@ -176,6 +176,17 @@ func InvalidFieldTypeError(name string, val any, expected string) error {
 		InvalidFieldType, "invalid value %#v for %q, must be a %s", val, name, expected)))
 }
 
+// InvalidNullElementError reports a null member in an array whose element
+// contract does not allow null. The field path includes the concrete index.
+func InvalidNullElementError(name string, index int) error {
+	field := fmt.Sprintf("%s[%d]", name, index)
+	message := fmt.Sprintf("invalid null value for %q; array element must be non-null", field)
+	return validationErrorWithSafe(
+		withField(field, PermanentError(InvalidFieldType, "%s", message)),
+		message,
+	)
+}
+
 // MissingFieldError is the error produced by the generated code when a payload
 // is missing a required field.
 func MissingFieldError(name, context string) error {

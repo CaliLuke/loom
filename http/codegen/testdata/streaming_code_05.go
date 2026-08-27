@@ -23,6 +23,14 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingres
 	if err != nil {
 		return rv, err
 	}
+	for i, e := range body {
+		if e == nil {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
 	res := NewStreamingResultUserTypeArrayMethodUserTypeOK(body)
 	return res, nil
 }
@@ -51,6 +59,14 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) RecvWithContext(ctx con
 			return rv, closeErr
 		}
 		return rv, io.EOF
+	}
+	if err != nil {
+		return rv, err
+	}
+	for i, e := range body {
+		if e == nil {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
 	}
 	if err != nil {
 		return rv, err

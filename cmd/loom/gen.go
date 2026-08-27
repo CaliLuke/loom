@@ -178,16 +178,21 @@ func (g *Generator) Write(_ bool) error {
 
 // Compile compiles the generator.
 func (g *Generator) Compile(debug bool) error {
+	buildFlags, err := g.moduleBuildFlags()
+	if err != nil {
+		return err
+	}
 	// We first need to go get the generated package to make sure that all
 	// dependencies are added to go.sum prior to compiling.
 	startLoad := time.Now()
 	pkgs, err := packages.Load(&packages.Config{
-		Mode: packages.NeedName,
+		Mode:       packages.NeedName,
+		BuildFlags: buildFlags,
 		Env: append(
 			os.Environ(),
 			"GO111MODULE=on",
 			"GOWORK=off",
-			"GOFLAGS="+g.moduleFlags(),
+			"GOFLAGS=",
 		),
 	}, fmt.Sprintf(".%c%s", filepath.Separator, g.tmpDir))
 	if err != nil {
@@ -199,7 +204,7 @@ func (g *Generator) Compile(debug bool) error {
 	debugStage(debug, "temp-package-load", startLoad, "tmpDir=%s packages=%d", g.tmpDir, len(pkgs))
 
 	startBuild := time.Now()
-	err = g.runGoCmd("build", "-o", g.bin)
+	err = g.runGoCmd(buildFlags, "build", "-o", g.bin)
 	debugStage(debug, "go-build", startBuild, "binary=%s", g.bin)
 
 	// If we're in vendor context we check the error string to see if it's an issue of unsatisfied dependencies
@@ -271,20 +276,20 @@ func (g *Generator) Remove() error {
 	return nil
 }
 
-func (g *Generator) runGoCmd(args ...string) error {
+func (g *Generator) runGoCmd(buildFlags []string, args ...string) error {
 	gobin, err := exec.LookPath("go")
 	if err != nil {
 		return fmt.Errorf(`failed to find a go compiler, looked in "%s"`, os.Getenv("PATH"))
 	}
 	c := exec.Cmd{
 		Path: gobin,
-		Args: append([]string{gobin}, args...),
+		Args: append(append([]string{gobin, args[0]}, buildFlags...), args[1:]...),
 		Dir:  g.tmpDir,
 		Env: append(
 			os.Environ(),
 			"GO111MODULE=on",
 			"GOWORK=off",
-			"GOFLAGS="+g.moduleFlags(),
+			"GOFLAGS=",
 		),
 	}
 	out, err := c.CombinedOutput()
@@ -297,11 +302,31 @@ func (g *Generator) runGoCmd(args ...string) error {
 	return nil
 }
 
-func (g *Generator) moduleFlags() string {
-	if g.Command == "vet" {
-		return "-mod=readonly"
+func (g *Generator) moduleBuildFlags() ([]string, error) {
+	if g.Command != "vet" || g.moduleDir == "" {
+		return []string{"-mod=mod"}, nil
 	}
-	return "-mod=mod"
+	modSource := filepath.Join(g.moduleDir, "go.mod")
+	modData, err := os.ReadFile(modSource)
+	if err != nil {
+		return nil, fmt.Errorf("read module file %s: %w", modSource, err)
+	}
+	modFile := filepath.Join(g.tmpDir, "loom-vet.mod")
+	if err := os.WriteFile(modFile, modData, 0o600); err != nil {
+		return nil, fmt.Errorf("write temporary vet module file %s: %w", modFile, err)
+	}
+
+	sumSource := filepath.Join(g.moduleDir, "go.sum")
+	sumData, err := os.ReadFile(sumSource)
+	if err == nil {
+		sumFile := strings.TrimSuffix(modFile, ".mod") + ".sum"
+		if err := os.WriteFile(sumFile, sumData, 0o600); err != nil {
+			return nil, fmt.Errorf("write temporary vet sum file %s: %w", sumFile, err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("read module sum file %s: %w", sumSource, err)
+	}
+	return []string{"-mod=mod", "-modfile=" + modFile}, nil
 }
 
 // mainT is the template for the generator main.

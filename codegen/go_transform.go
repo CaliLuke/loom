@@ -26,6 +26,7 @@ type (
 		TransformAttrs *TransformAttrs
 		LoopVar        string
 		IsStruct       bool
+		SourcePresence bool
 		TypeAliasName  string
 	}
 

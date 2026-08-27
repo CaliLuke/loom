@@ -83,9 +83,14 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 			Attribute("values", ArrayOf(String), func() {
 				MinLength(1)
 			})
+			Attribute("string_items", ArrayOf(String))
+			Attribute("object_items", ArrayOf(ServerDetails))
+			Attribute("nullable_items", ArrayOf(ServerDetails, func() {
+				Nullable()
+			}))
 			Attribute("optional_value", String)
 			Attribute("required_value", String)
-			Required("required_value")
+			Required("string_items", "object_items", "nullable_items", "required_value")
 		})
 		var ServerOrderRequest = Type("ServerOrderRequest", func() {
 			Attribute("nested", ServerSharedNested)
@@ -215,7 +220,7 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 		require.NoError(t, readErr)
 		clientTypes.Write(contents)
 	}
-	require.Contains(t, clientTypes.String(), "Labels loom.Optional[[]string]")
+	require.Contains(t, clientTypes.String(), "Labels loom.Optional[[]loom.Nullable[string]]")
 	require.Contains(t, clientTypes.String(), "body.Labels.Value()")
 	serverTypeFiles, err := filepath.Glob(filepath.Join(dir, "gen", "http", "optional_union_validation", "server", "types*.go"))
 	require.NoError(t, err)
@@ -225,7 +230,12 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 		require.NoError(t, readErr)
 		serverTypes.Write(contents)
 	}
-	require.Contains(t, serverTypes.String(), "Values loom.Optional[[]string]")
+	require.Contains(t, serverTypes.String(), "Values loom.Optional[[]loom.Nullable[string]]")
+	require.Contains(t, serverTypes.String(), "[]loom.Nullable[string]")
+	require.Contains(t, serverTypes.String(), "[]loom.Nullable[*ServerDetailsRequestBodyRequestBody]")
+	require.Contains(t, serverTypes.String(), "[]loom.Nullable[ServerDetailsRequestBodyRequestBody]")
+	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.string_items", i)`)
+	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.object_items", i)`)
 	require.Contains(t, serverTypes.String(), "OptionalValue loom.Optional[string]")
 	require.Contains(t, serverTypes.String(), "RequiredValue *string")
 	require.Contains(t, serverTypes.String(), "Field loom.Optional[string]")
@@ -236,9 +246,12 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "presence_regression_test.go"), []byte(`package optionalunionvalidation_test
 
 import (
+	"context"
 	json "encoding/json/v2"
+	"strings"
 	"testing"
 
+	loomhttp "github.com/CaliLuke/loom/http"
 	server "example.com/optionalunionvalidation/gen/http/optional_union_validation/server"
 )
 
@@ -254,6 +267,50 @@ func TestSharedRequestPresence(t *testing.T) {
 	}
 	if err := server.ValidateServerSharedNestedRequestBodyRequestBody(&missingRequired); err == nil {
 		t.Error("expected missing required value to be rejected")
+	}
+}
+
+func TestArrayItemNullability(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		wantErrorPath string
+	}{
+		{
+			name: "null scalar",
+			body: `+"`"+`{"string_items":[null],"object_items":[{"code":"ok"}],"nullable_items":[null],"required_value":"ok"}`+"`"+`,
+			wantErrorPath: "body.string_items[0]",
+		},
+		{
+			name: "null object",
+			body: `+"`"+`{"string_items":["ok"],"object_items":[null],"nullable_items":[null],"required_value":"ok"}`+"`"+`,
+			wantErrorPath: "body.object_items[0]",
+		},
+		{
+			name: "nullable object",
+			body: `+"`"+`{"string_items":["ok"],"object_items":[{"code":"ok"}],"nullable_items":[null],"required_value":"ok"}`+"`"+`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var body server.ServerSharedNestedRequestBodyRequestBody
+			if err := json.Unmarshal([]byte(test.body), &body); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			err := server.ValidateServerSharedNestedRequestBodyRequestBody(&body)
+			if test.wantErrorPath == "" {
+				if err != nil {
+					t.Fatalf("validate nullable item: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), test.wantErrorPath) {
+				t.Fatalf("validation error = %v, want path %s", err, test.wantErrorPath)
+			}
+			if status := loomhttp.NewErrorResponse(context.Background(), err).StatusCode(); status != 400 {
+				t.Fatalf("status = %d, want 400", status)
+			}
+		})
 	}
 }
 `), 0o600))

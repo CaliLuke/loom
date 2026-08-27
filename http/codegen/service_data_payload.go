@@ -433,7 +433,12 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool, boo
 		}
 		var helpers []*codegen.TransformFunctionData
 		var err error
-		serverCode, helpers, err = unmarshal(request.Body, pAtt, "body", b.httpsvrctx, b.svcctx)
+		serverContext := b.httpsvrctx.Dup()
+		_, bodyIsUserType := request.Body.Type.(expr.UserType)
+		if bodyIsUserType || expr.IsObject(request.Body.Type) || expr.IsUnion(request.Body.Type) {
+			serverContext.CollectionElementPresence = serverContext.JSONPresence
+		}
+		serverCode, helpers, err = unmarshal(request.Body, pAtt, "body", serverContext, b.svcctx)
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP server payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}

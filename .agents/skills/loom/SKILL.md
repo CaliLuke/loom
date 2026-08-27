@@ -307,6 +307,8 @@ completion shapes are explicit generation limitations.
 - `Nullable()` is supported for JSON HTTP bodies, JSON-RPC values, array
   elements, and map values. Do not use it for map keys, string-encoded HTTP
   parameters or metadata, forms, multipart bodies, or gRPC message fields.
+- Array elements reject JSON null by default. Put `Nullable()` on the element
+  definition to accept null members; array-field requiredness is independent.
 - OpenAPI 3.1/3.2 value-or-null unions and OpenAPI 3.0 `nullable: true` import
   to this same DSL contract.
 

@@ -16,6 +16,14 @@ func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) Recv() ([]*bidir
 	if err != nil {
 		return rv, err
 	}
+	for i, e := range body {
+		if e == nil {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
 	res := NewBidirectionalStreamingUserTypeArrayMethodResultTypeOK(body)
 	return res, nil
 }
@@ -36,6 +44,14 @@ func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) RecvWithContext(
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		return rv, io.EOF
+	}
+	if err != nil {
+		return rv, err
+	}
+	for i, e := range body {
+		if e == nil {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
 	}
 	if err != nil {
 		return rv, err

@@ -59,7 +59,7 @@ func goPrimitiveTypeDef(att *expr.AttributeExpr, actual expr.Primitive) string {
 }
 
 func goArrayTypeDef(scope *codegen.NameScope, actual *expr.Array, ptr, useDefault, jsonPresence bool) string {
-	return "[]" + goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault, jsonPresence)
+	return "[]" + goArrayElemTypeDef(scope, actual.ElemType, ptr, useDefault, jsonPresence)
 }
 
 func goMapTypeDef(scope *codegen.NameScope, actual *expr.Map, ptr, useDefault, jsonPresence bool) string {
@@ -72,6 +72,14 @@ func goCollectionElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, 
 	def := goTypeDef(scope, att, ptr, useDefault, jsonPresence)
 	if expr.IsObject(att.Type) && !codegen.IsExplicitPresenceType(att) {
 		def = "*" + def
+	}
+	return def
+}
+
+func goArrayElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
+	def := goCollectionElemTypeDef(scope, att, ptr, useDefault, jsonPresence)
+	if jsonPresence && !expr.AllowsNull(att) {
+		def = "loom.Nullable[" + def + "]"
 	}
 	return def
 }

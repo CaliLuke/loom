@@ -309,12 +309,32 @@ func renderRequiredValidation(data validationRenderData) string {
 	return "if " + data.Target + "." + field + " == nil {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
 }
 
-func renderArrayValidation(target, validation string, nonNullable bool, context string) string {
+func renderArrayValidation(target, validation string, rejectNativeNil, jsonPresence bool, context string) string {
 	var b sourceBuilder
-	b.Add("for _, e := range " + target + " {\n")
-	if nonNullable {
+	index := "_"
+	if rejectNativeNil || jsonPresence {
+		index = "i"
+	}
+	b.Add("for " + index + ", e := range " + target + " {\n")
+	if jsonPresence {
+		if validation == "" {
+			b.Add("\tif _, ok := e.Value(); !ok {\n")
+			b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
+			b.Add("\t}\n")
+			b.Add("}")
+			return b.String()
+		}
+		b.Add("\tif actual, ok := e.Value(); ok {\n")
+		b.Add(indentCode(indentCode(validation)))
+		b.Add("\t} else {\n")
+		b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
+		b.Add("\t}\n")
+		b.Add("}")
+		return b.String()
+	}
+	if rejectNativeNil {
 		b.Add("\tif e == nil {\n")
-		b.Add("\t\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(context) + ", \"[*]\"))\n")
+		b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
 		b.Add("\t}\n")
 	}
 	if validation != "" {

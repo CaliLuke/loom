@@ -10,7 +10,10 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/designfingerprint"
 	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/stretchr/testify/require"
 )
 
 // TestGenerateMergesSamePathFiles verifies that when two generators emit content
@@ -64,6 +67,37 @@ func TestGenerateMergesSamePathFiles(t *testing.T) {
 	if !strings.Contains(content, "func (*MergeTest) Marker() {}") {
 		t.Fatalf("merged file missing method definition:\n%s", content)
 	}
+}
+
+func TestGenerateManifestFingerprintsDesignBeforeGeneratorsMutateIt(t *testing.T) {
+	originalServices := expr.Root.Services
+	t.Cleanup(func() {
+		expr.Root.Services = originalServices
+		generatorLoader = generators
+	})
+
+	var expectedDigest string
+	generatorLoader = func(cmd string) ([]genfunc, error) {
+		return []genfunc{
+			func(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
+				var err error
+				expectedDigest, err = designfingerprint.Digest(expr.Root, cmd, genpkg, codegen.DesignVersion)
+				require.NoError(t, err)
+				expr.Root.Services = append(expr.Root.Services, &expr.ServiceExpr{Name: "generator-mutation"})
+				return nil, nil
+			},
+		}, nil
+	}
+
+	dir := t.TempDir()
+	_, err := Generate(dir, "gen", false)
+	require.NoError(t, err)
+
+	manifestData, err := os.ReadFile(filepath.Join(dir, codegen.Gendir, "loom.json"))
+	require.NoError(t, err)
+	var manifest map[string]string
+	require.NoError(t, json.Unmarshal(manifestData, &manifest))
+	require.Equal(t, expectedDigest, manifest["design_digest"])
 }
 
 // TestGenerateParallelManyFiles verifies that parallel file writing correctly

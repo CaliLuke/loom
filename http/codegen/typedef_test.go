@@ -134,7 +134,7 @@ func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
 	got := goTypeDef(codegen.NewNameScope(), attribute, true, false, true)
 	require.Contains(t, got, "Required *string")
 	require.Contains(t, got, "Optional loom.Optional[string]")
-	require.Contains(t, got, "Empty loom.Optional[[]string]")
+	require.Contains(t, got, "Empty loom.Optional[[]loom.Nullable[string]]")
 	require.Contains(t, got, "Nullable loom.Nullable[int]")
 	require.Contains(t, got, "Anything loom.Nullable[any]")
 	require.Contains(t, got, `json:"optional,omitzero"`)
@@ -142,6 +142,16 @@ func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
 	require.Contains(t, got, `json:"nullable,omitzero"`)
 	require.Contains(t, got, `json:"wire_name,omitzero,string"`)
 	require.Contains(t, got, `xml:"legacy"`)
+}
+
+func TestGoTypeDefUsesJSONPresenceForArrayElements(t *testing.T) {
+	nonNullable := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}
+	nullable := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String, Nullable: true}}}
+	scope := codegen.NewNameScope()
+
+	require.Equal(t, "[]string", goTypeDef(scope, nonNullable, true, false, false))
+	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nonNullable, true, false, true))
+	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nullable, true, false, true))
 }
 
 func TestGoValueTypeDefStripsNamedRootPresence(t *testing.T) {

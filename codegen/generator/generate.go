@@ -33,6 +33,13 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	if err != nil {
 		return nil, err
 	}
+	var designDigest string
+	if cmd == "gen" {
+		designDigest, err = designfingerprint.Digest(expr.Root, cmd, genpkg, codegen.DesignVersion)
+		if err != nil {
+			return nil, wrapStageError("design-digest", "", err)
+		}
+	}
 
 	genfuncs, err := loadGenerators(cmd, debug)
 	if err != nil {
@@ -65,11 +72,7 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 
 	// 8. Emit loom.json generation manifest (gen command only).
 	if cmd == "gen" {
-		digest, err := designfingerprint.Digest(expr.Root, cmd, genpkg, codegen.DesignVersion)
-		if err != nil {
-			return nil, wrapStageError("design-digest", "", err)
-		}
-		genfiles = append(genfiles, codegen.ManifestFile(digest))
+		genfiles = append(genfiles, codegen.ManifestFile(designDigest))
 	}
 
 	written, err := writeFiles(dir, genfiles, debug)

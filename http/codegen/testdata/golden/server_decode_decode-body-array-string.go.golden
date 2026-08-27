@@ -18,6 +18,10 @@ func DecodeMethodBodyArrayStringRequest(mux loomhttp.Muxer, decoder func(*http.R
 			}
 			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
+		err = ValidateMethodBodyArrayStringRequestBody(&body)
+		if err != nil {
+			return payload, err
+		}
 		payload = NewMethodBodyArrayStringPayload(&body)
 
 		return payload, nil

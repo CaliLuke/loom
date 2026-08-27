@@ -172,6 +172,43 @@ func TestNullableValidationUsesSemanticPresence(t *testing.T) {
 	require.Contains(t, code, "ValidatePattern")
 }
 
+func TestArrayValidationUsesElementNullability(t *testing.T) {
+	item := &expr.UserTypeExpr{
+		TypeName: "Item",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{
+			Name:      "name",
+			Attribute: &expr.AttributeExpr{Type: expr.String},
+		}}},
+	}
+	tests := []struct {
+		name             string
+		element          *expr.AttributeExpr
+		jsonPresence     bool
+		wantNullCheck    bool
+		wantPresenceRead bool
+	}{
+		{name: "native object", element: &expr.AttributeExpr{Type: item}, wantNullCheck: true},
+		{name: "JSON scalar", element: &expr.AttributeExpr{Type: expr.String}, jsonPresence: true, wantNullCheck: true, wantPresenceRead: true},
+		{name: "nullable object", element: &expr.AttributeExpr{Type: item, Nullable: true}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := NewAttributeContext(test.jsonPresence, false, false, "", NewNameScope())
+			ctx.JSONPresence = test.jsonPresence
+			ctx.CollectionElementPresence = test.jsonPresence
+			attribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: test.element}}
+
+			code := ValidationCode(attribute, nil, ctx, true, false, false, "body.items")
+
+			require.Equal(t, test.wantNullCheck, strings.Contains(code, "loom.InvalidNullElementError"), code)
+			require.Equal(t, test.wantPresenceRead, strings.Contains(code, ".Value()"), code)
+			if test.wantNullCheck {
+				require.Contains(t, code, "for i, e := range")
+			}
+		})
+	}
+}
+
 func TestValidationCodeEmitsOneRequiredFieldError(t *testing.T) {
 	tests := []struct {
 		name      string

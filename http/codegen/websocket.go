@@ -180,6 +180,7 @@ func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpo
 		)
 		httpctx := httpContext(sd.Scope, true, true)
 		httpctx.JSONPresence = true
+		httpctx.CollectionElementPresence = true
 		streamBody := makeHTTPType(endpointIR.Request.StreamingBody)
 		serverCode, helpers, err = marshal(streamBody, endpointIR.Stream.RequestPayload, "body", "v", httpctx, serviceContext(sd.Service.PkgName, sd.Service.Scope))
 		if err == nil {
@@ -238,6 +239,7 @@ func websocketPayloadValidationCode(body expr.DataType, sd *ServiceData) string 
 		return ""
 	}
 	httpctx := httpContext(sd.Scope, true, true)
+	httpctx.CollectionElementPresence = true
 	return codegen.ValidationCode(ut.Attribute(), ut, httpctx, true, expr.IsAlias(ut), false, "body")
 }
 

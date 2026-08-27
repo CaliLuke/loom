@@ -11,7 +11,7 @@ type ResulttypeResponseBody struct {
 }
 
 // RtCollectionResponseBody is used to define fields on response body types.
-type RtCollectionResponseBody []*RtResponseBody
+type RtCollectionResponseBody []loom.Nullable[*RtResponseBody]
 
 // RtResponseBody is used to define fields on response body types.
 type RtResponseBody struct {
@@ -37,11 +37,15 @@ func NewMethodResultWithResultCollectionResultOK(body *MethodResultWithResultCol
 func ValidateMethodResultWithResultCollectionResponseBody(body *MethodResultWithResultCollectionResponseBody) (err error) {
 	if actual, ok := body.A.Value(); ok {
 		if actual, ok := actual.X.Value(); ok {
-			for _, e := range actual {
-				if e != nil {
-					if err2 := ValidateRtResponseBody(e); err2 != nil {
-						err = loom.MergeErrors(err, err2)
+			for i, e := range actual {
+				if actual, ok := e.Value(); ok {
+					if actual != nil {
+						if err2 := ValidateRtResponseBody(actual); err2 != nil {
+							err = loom.MergeErrors(err, err2)
+						}
 					}
+				} else {
+					err = loom.MergeErrors(err, loom.InvalidNullElementError("body.a.x", i))
 				}
 			}
 		}
@@ -53,11 +57,15 @@ func ValidateMethodResultWithResultCollectionResponseBody(body *MethodResultWith
 // ResulttypeResponseBody
 func ValidateResulttypeResponseBody(body *ResulttypeResponseBody) (err error) {
 	if actual, ok := body.X.Value(); ok {
-		for _, e := range actual {
-			if e != nil {
-				if err2 := ValidateRtResponseBody(e); err2 != nil {
-					err = loom.MergeErrors(err, err2)
+		for i, e := range actual {
+			if actual, ok := e.Value(); ok {
+				if actual != nil {
+					if err2 := ValidateRtResponseBody(actual); err2 != nil {
+						err = loom.MergeErrors(err, err2)
+					}
 				}
+			} else {
+				err = loom.MergeErrors(err, loom.InvalidNullElementError("body.x", i))
 			}
 		}
 	}
@@ -67,11 +75,15 @@ func ValidateResulttypeResponseBody(body *ResulttypeResponseBody) (err error) {
 // ValidateRtCollectionResponseBody runs the validations defined on
 // RtCollectionResponseBody
 func ValidateRtCollectionResponseBody(body RtCollectionResponseBody) (err error) {
-	for _, e := range body {
-		if e != nil {
-			if err2 := ValidateRtResponseBody(e); err2 != nil {
-				err = loom.MergeErrors(err, err2)
+	for i, e := range body {
+		if actual, ok := e.Value(); ok {
+			if actual != nil {
+				if err2 := ValidateRtResponseBody(actual); err2 != nil {
+					err = loom.MergeErrors(err, err2)
+				}
 			}
+		} else {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
 		}
 	}
 	return

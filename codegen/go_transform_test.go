@@ -303,6 +303,38 @@ func TestTransformNullableObjectCollectionPreservesNestedJSONPresence(t *testing
 	require.Contains(t, helpers[0].Code, "loom.OptionalValue")
 }
 
+func TestTransformArrayUnwrapsNonNullableJSONElements(t *testing.T) {
+	attribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}
+	scope := NewNameScope()
+	sourceCtx := NewAttributeContext(true, false, false, "", scope)
+	sourceCtx.JSONPresence = true
+	sourceCtx.CollectionElementPresence = true
+	targetCtx := NewAttributeContext(false, false, true, "", scope)
+
+	code, _, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	require.NoError(t, err)
+	require.Contains(t, code, "actual, ok := val.Value()")
+	require.Contains(t, code, "values[i] = actual")
+}
+
+func TestTransformNullableArrayUnwrapsNonNullableJSONElements(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type:     &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+		Nullable: true,
+	}
+	scope := NewNameScope()
+	sourceCtx := NewAttributeContext(true, false, false, "", scope)
+	sourceCtx.JSONPresence = true
+	sourceCtx.CollectionElementPresence = true
+	targetCtx := NewAttributeContext(false, false, true, "", scope)
+
+	code, _, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	require.NoError(t, err)
+	require.Contains(t, code, "actual, ok := val.Value()")
+	require.Contains(t, code, "loom.NullableValue(valuesValue)")
+	require.NotEqual(t, "values := body", code)
+}
+
 func TestTransformNullableNamedObjectRootEmitsRequiredHelper(t *testing.T) {
 	serviceType := &expr.UserTypeExpr{
 		TypeName: "ServiceWidget",

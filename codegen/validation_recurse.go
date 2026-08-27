@@ -112,10 +112,29 @@ func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, 
 		ctx = attCtx.Dup()
 		ctx.Pointer = false
 	}
-	val := validateAttribute(ctx, arr.ElemType, put, "e", context+"[*]", true, view, seen)
-	if val != "" || arr.NonNullableElems {
-		appendValidationBlock(buf, first, renderArrayValidation(target, val, arr.NonNullableElems, context))
+	rejectNull := arr.NonNullableElems || !expr.AllowsNull(arr.ElemType)
+	jsonPresence := attCtx.CollectionElementPresence && rejectNull
+	elementTarget := "e"
+	if jsonPresence {
+		elementTarget = "actual"
 	}
+	val := validateAttribute(ctx, arr.ElemType, put, elementTarget, context+"[*]", true, view, seen)
+	rejectNativeNil := rejectNull && !jsonPresence && arrayElementCanBeNil(arr.ElemType)
+	if val != "" || rejectNativeNil || jsonPresence {
+		appendValidationBlock(buf, first, renderArrayValidation(target, val, rejectNativeNil, jsonPresence, context))
+	}
+}
+
+func arrayElementCanBeNil(attribute *expr.AttributeExpr) bool {
+	if attribute == nil || codegenPresenceType(attribute) {
+		return false
+	}
+	return expr.IsObject(attribute.Type) || expr.IsArray(attribute.Type) || expr.IsMap(attribute.Type) ||
+		attribute.Type.Kind() == expr.BytesKind || attribute.Type.Kind() == expr.AnyKind
+}
+
+func codegenPresenceType(attribute *expr.AttributeExpr) bool {
+	return expr.IsNullable(attribute) || IsExplicitPresenceType(attribute)
 }
 
 func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {

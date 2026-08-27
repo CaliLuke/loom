@@ -157,6 +157,17 @@ func TestGeneratedValidationErrorSafeMessages(t *testing.T) {
 			t.Errorf("got error %q", got)
 		}
 	})
+
+	t.Run("null array element", func(t *testing.T) {
+		err := InvalidNullElementError("body.events", 2)
+		want := `invalid null value for "body.events[2]"; array element must be non-null`
+		if got := ErrorSafeMessage(err); got != want {
+			t.Errorf("got safe message %q", got)
+		}
+		if got := err.Error(); got != want {
+			t.Errorf("got error %q", got)
+		}
+	})
 }
 
 func TestExtractErrorRemedy(t *testing.T) {

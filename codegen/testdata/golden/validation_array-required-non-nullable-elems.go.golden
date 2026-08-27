@@ -5,9 +5,9 @@ func Validate() (err error) {
 	if len(target.RequiredArray) < 1 {
 		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_array", target.RequiredArray, len(target.RequiredArray), 1, true))
 	}
-	for _, e := range target.RequiredArray {
+	for i, e := range target.RequiredArray {
 		if e == nil {
-			err = loom.MergeErrors(err, loom.MissingFieldError("target.required_array", "[*]"))
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("target.required_array", i))
 		}
 		if e != nil {
 			if err2 := ValidateInteger(e); err2 != nil {

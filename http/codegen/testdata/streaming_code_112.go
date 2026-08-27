@@ -52,6 +52,14 @@ func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) RecvWithContext(
 	if body == nil {
 		return rv, io.EOF
 	}
+	for i, e := range body {
+		if e == nil {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
 	return NewBidirectionalStreamingUserTypeArrayMethodArray(body), nil
 }
 `

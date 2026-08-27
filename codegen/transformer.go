@@ -49,6 +49,10 @@ type (
 		// JSONPresence indicates that optional object fields use loom.Optional
 		// to distinguish an absent JSON member from a concrete zero value.
 		JSONPresence bool
+		// CollectionElementPresence indicates that non-null array elements use
+		// loom.Nullable in a generated JSON decoding type so null can be rejected
+		// before conversion to the service type.
+		CollectionElementPresence bool
 		// JSONPresenceTypes records named types whose physical object fields use
 		// loom.Optional even when the root conversion itself uses native presence.
 		JSONPresenceTypes map[string]bool
@@ -285,16 +289,17 @@ func (a *AttributeContext) Pkg(att *expr.AttributeExpr) string {
 // Dup creates a shallow copy of the AttributeContext.
 func (a *AttributeContext) Dup() *AttributeContext {
 	return &AttributeContext{
-		Pointer:                 a.Pointer,
-		IgnoreRequired:          a.IgnoreRequired,
-		UseDefault:              a.UseDefault,
-		Scope:                   a.Scope,
-		DefaultPkg:              a.DefaultPkg,
-		SamePackageConversion:   a.SamePackageConversion,
-		JSONPresence:            a.JSONPresence,
-		JSONPresenceTypes:       a.JSONPresenceTypes,
-		PresencePointerTypes:    a.PresencePointerTypes,
-		PresenceUseDefaultTypes: a.PresenceUseDefaultTypes,
+		Pointer:                   a.Pointer,
+		IgnoreRequired:            a.IgnoreRequired,
+		UseDefault:                a.UseDefault,
+		Scope:                     a.Scope,
+		DefaultPkg:                a.DefaultPkg,
+		SamePackageConversion:     a.SamePackageConversion,
+		JSONPresence:              a.JSONPresence,
+		CollectionElementPresence: a.CollectionElementPresence,
+		JSONPresenceTypes:         a.JSONPresenceTypes,
+		PresencePointerTypes:      a.PresencePointerTypes,
+		PresenceUseDefaultTypes:   a.PresenceUseDefaultTypes,
 	}
 }
 

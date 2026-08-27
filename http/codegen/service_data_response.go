@@ -449,7 +449,13 @@ func (sds *ServicesData) buildClientBodyUnmarshalCode(
 	if len(sourceVar) > 0 && sourceVar[0] != "" {
 		src = sourceVar[0]
 	}
-	code, helpers, err := unmarshal(source, target, src, httpclictx, targetctx)
+	sourceContext := httpclictx
+	_, sourceIsUserType := source.Type.(expr.UserType)
+	if len(sourceVar) == 0 && httpclictx.JSONPresence && sourceIsUserType {
+		sourceContext = httpclictx.Dup()
+		sourceContext.CollectionElementPresence = true
+	}
+	code, helpers, err := unmarshal(source, target, src, sourceContext, targetctx)
 	if err != nil {
 		return "", err
 	}

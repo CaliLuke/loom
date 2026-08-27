@@ -4,7 +4,8 @@ func DecodeMethodQueryArrayBytesRequest(mux loomhttp.Muxer, _ func(*http.Request
 	return func(r *http.Request) (*servicequeryarraybytes.MethodQueryArrayBytesPayload, error) {
 		var payload *servicequeryarraybytes.MethodQueryArrayBytesPayload
 		var (
-			q [][]byte
+			q   [][]byte
+			err error
 		)
 		{
 			qRaw := r.URL.Query()["q"]
@@ -14,6 +15,14 @@ func DecodeMethodQueryArrayBytesRequest(mux loomhttp.Muxer, _ func(*http.Request
 					q[i] = []byte(rv)
 				}
 			}
+		}
+		for i, e := range q {
+			if e == nil {
+				err = loom.MergeErrors(err, loom.InvalidNullElementError("q", i))
+			}
+		}
+		if err != nil {
+			return payload, err
 		}
 		payload = NewMethodQueryArrayBytesPayload(q)
 

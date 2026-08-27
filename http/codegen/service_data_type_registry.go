@@ -268,6 +268,7 @@ func applyUserTypeLayout(ctx *codegen.AttributeContext, sd *ServiceData, attribu
 		}
 	}
 	ctx.JSONPresence = jsonPresence
+	ctx.CollectionElementPresence = jsonPresence
 	ctx.Pointer = pointerTypes[key]
 	ctx.UseDefault = useDefaultTypes[key]
 }

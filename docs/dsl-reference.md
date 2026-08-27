@@ -236,6 +236,19 @@ var Team = Type("Team", func() {
 })
 ```
 
+Array elements are non-null by default. A JSON `null` member is rejected with
+an error path that includes its zero-based index, such as `body.members[2]`.
+Use `Nullable()` in the element definition when `null` is part of the contract:
+
+```go
+var OptionalNames = ArrayOf(String, func() {
+    Nullable()
+})
+```
+
+Array requiredness is separate: `Required("members")` controls whether the
+array field must be present, while element nullability controls its members.
+
 #### Maps
 
 Maps provide key-value associations with type safety:

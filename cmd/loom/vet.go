@@ -74,7 +74,7 @@ func vetDesign(path string, debug bool) (report loomvet.Report, returnErr error)
 	}
 	generator := NewGenerator("vet", path, ".", debug)
 	defer func() {
-		if debug {
+		if debug && returnErr == nil {
 			return
 		}
 		if err := generator.Remove(); err != nil {

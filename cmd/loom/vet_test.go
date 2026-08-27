@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -75,4 +76,71 @@ func TestVetGeneratorUsesDesignModuleDirectory(t *testing.T) {
 	source, err := os.ReadFile(filepath.Join(generator.tmpDir, "main.go"))
 	require.NoError(t, err)
 	require.True(t, strings.Contains(string(source), `loomvet.Analyze(expr.Root, "`+moduleDir+`")`))
+}
+
+func TestVetDesignBuildsFromTidyConsumerWithoutChangingModuleFiles(t *testing.T) {
+	moduleDir := writeTidyVetConsumer(t, `package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("service", func() {})
+	`)
+
+	goModBefore, err := os.ReadFile(filepath.Join(moduleDir, "go.mod"))
+	require.NoError(t, err)
+	goSumBefore, err := os.ReadFile(filepath.Join(moduleDir, "go.sum"))
+	require.NoError(t, err)
+
+	t.Chdir(moduleDir)
+	_, err = vetDesign("example.com/service/design", false)
+	require.NoError(t, err)
+
+	goModAfter, err := os.ReadFile(filepath.Join(moduleDir, "go.mod"))
+	require.NoError(t, err)
+	goSumAfter, err := os.ReadFile(filepath.Join(moduleDir, "go.sum"))
+	require.NoError(t, err)
+	require.Equal(t, goModBefore, goModAfter)
+	require.Equal(t, goSumBefore, goSumAfter)
+	temporaryHelpers, err := filepath.Glob(filepath.Join(moduleDir, "loom*"))
+	require.NoError(t, err)
+	require.Empty(t, temporaryHelpers)
+}
+
+func TestVetDesignRemovesFailedHelperInDebugMode(t *testing.T) {
+	moduleDir := writeTidyVetConsumer(t, `package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("service", func() {})
+var _ = missingIdentifier
+	`)
+	t.Chdir(moduleDir)
+
+	_, err := vetDesign("example.com/service/design", true)
+	require.Error(t, err)
+	temporaryHelpers, globErr := filepath.Glob(filepath.Join(moduleDir, "loom*"))
+	require.NoError(t, globErr)
+	require.Empty(t, temporaryHelpers)
+}
+
+func writeTidyVetConsumer(t *testing.T, designSource string) string {
+	t.Helper()
+	repositoryRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err)
+	moduleDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(moduleDir, "design"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(
+		"module example.com/service\n\n"+
+			"go 1.27\n\n"+
+			"require github.com/CaliLuke/loom v0.0.0\n\n"+
+			"replace github.com/CaliLuke/loom => "+repositoryRoot+"\n",
+	), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "design", "design.go"), []byte(designSource), 0o644))
+
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = moduleDir
+	tidy.Env = append(os.Environ(), "GOWORK=off")
+	output, err := tidy.CombinedOutput()
+	require.NoError(t, err, string(output))
+	return moduleDir
 }

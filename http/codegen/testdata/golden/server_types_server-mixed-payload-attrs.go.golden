@@ -2,7 +2,7 @@
 // "MethodA" endpoint HTTP request body.
 type MethodARequestBody struct {
 	Any    loom.Nullable[any]                 `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"`
-	Array  []float32                          `form:"array,omitempty" json:"array,omitempty" xml:"array,omitempty"`
+	Array  []loom.Nullable[float32]           `form:"array,omitempty" json:"array,omitempty" xml:"array,omitempty"`
 	Map    loom.Optional[map[uint]any]        `form:"map,omitempty" json:"map,omitzero" xml:"map,omitempty"`
 	Object *BPayloadRequestBody               `form:"object,omitempty" json:"object,omitempty" xml:"object,omitempty"`
 	DupObj loom.Optional[BPayloadRequestBody] `form:"dup_obj,omitempty" json:"dup_obj,omitzero" xml:"dup_obj,omitempty"`
@@ -21,7 +21,11 @@ func NewMethodAAPayload(body *MethodARequestBody) *servicemixedpayloadinbody.APa
 	v.Any = body.Any
 	v.Array = make([]float32, len(body.Array))
 	for i, val := range body.Array {
-		v.Array[i] = val
+		actual, ok := val.Value()
+		if !ok {
+			continue
+		}
+		v.Array[i] = actual
 	}
 	if actual, ok := body.Map.Value(); ok {
 		vMapValue := make(map[uint]any, len(actual))
@@ -50,6 +54,11 @@ func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
 	}
 	if body.Object == nil {
 		err = loom.MergeErrors(err, loom.MissingFieldError("object", "body"))
+	}
+	for i, e := range body.Array {
+		if _, ok := e.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body.array", i))
+		}
 	}
 	if body.Object != nil {
 		if err2 := ValidateBPayloadRequestBody(body.Object); err2 != nil {
