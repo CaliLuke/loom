@@ -22,7 +22,7 @@ func BuildTickPayload(clockTickBody string) (*clock.TickPayload, error) {
 	{
 		err = json.Unmarshal([]byte(clockTickBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Aut delectus.\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Et veritatis.\"\n   }'")
 		}
 	}
 	v := &clock.TickPayload{
@@ -40,7 +40,7 @@ func BuildTockPayload(clockTockBody string) (*clock.TockPayload, error) {
 	{
 		err = json.Unmarshal([]byte(clockTockBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Voluptas alias nihil consectetur qui a voluptatem.\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Aut quis deserunt sit.\"\n   }'")
 		}
 	}
 	v := &clock.TockPayload{
