@@ -156,7 +156,8 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 	data.serverRecvTypeName = streamDesc.Payload.Name
 	data.serverRecvTypeRef = streamDesc.Payload.Ref
 	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, true, sd)
-	if needInit(endpointIR.Stream.RequestPayload) {
+	if needInit(endpointIR.Stream.RequestPayload) ||
+		expr.ContainsNonNullableArrayElement(endpointIR.Request.StreamingBody) {
 		initWebSocketPayloadConstructor(data.serverPayload, sds, endpointIR, sd)
 	}
 	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, false, sd)
@@ -218,13 +219,16 @@ func websocketPayloadInitArgs(sds *ServicesData, streamingBody *expr.AttributeEx
 	if expr.IsObject(body) {
 		ref = "&body"
 	}
+	httpctx := httpContext(sd.Scope, true, true)
+	httpctx.JSONPresence = true
+	httpctx.CollectionElementPresence = true
 	return []*InitArgData{{
 		Ref: ref,
 		AttributeData: &AttributeData{
 			Name:     "payload",
 			VarName:  "body",
 			TypeName: sd.Scope.GoTypeName(streamingBody),
-			TypeRef:  sd.Scope.GoTypeRef(streamingBody),
+			TypeRef:  goBodyTypeRef(sd.Scope, streamingBody, httpctx),
 			Type:     streamingBody.Type,
 			Required: true,
 			Example:  streamingBody.Example(sds.examplesFor(sd)),

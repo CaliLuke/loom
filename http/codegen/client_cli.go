@@ -263,7 +263,8 @@ func buildFlags(svc *ServiceData, e *EndpointData) ([]*cli.FlagData, *cli.BuildF
 	svcn := svc.Service.Name
 	en := e.Method.Name
 	if e.Payload != nil {
-		if e.Payload.Request.PayloadInit != nil {
+		if e.Payload.Request.PayloadInit != nil &&
+			len(e.Payload.Request.PayloadInit.ClientArgs)+len(e.Payload.Request.PayloadInit.CLIArgs) > 0 {
 			args := e.Payload.Request.PayloadInit.ClientArgs
 			args = append(args, e.Payload.Request.PayloadInit.CLIArgs...)
 			flags, buildFunction = makeFlags(e, args, e.Payload.Request.PayloadType)

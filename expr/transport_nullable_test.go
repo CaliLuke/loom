@@ -142,6 +142,30 @@ func TestAllowsNullResolvesNamedAny(t *testing.T) {
 	require.True(t, AllowsNull(&AttributeExpr{Type: anything}))
 }
 
+func TestArrayElementsAllowNullHonorsExplicitRequiredElements(t *testing.T) {
+	tests := []struct {
+		name  string
+		array *Array
+		want  bool
+	}{
+		{name: "string defaults non-null", array: &Array{ElemType: &AttributeExpr{Type: String}}, want: false},
+		{name: "nullable string", array: &Array{ElemType: &AttributeExpr{Type: String, Nullable: true}}, want: true},
+		{name: "any defaults nullable", array: &Array{ElemType: &AttributeExpr{Type: Any}}, want: true},
+		{name: "required any", array: &Array{ElemType: &AttributeExpr{Type: Any}, NonNullableElems: true}, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.want, ArrayElementsAllowNull(test.array))
+		})
+	}
+	require.True(t, ContainsNonNullableArrayElement(&AttributeExpr{Type: tests[0].array}))
+	require.False(t, ContainsNonNullableArrayElement(&AttributeExpr{Type: tests[1].array}))
+	require.True(t, ContainsNonNullableArrayElement(&AttributeExpr{Type: &Map{
+		KeyType:  &AttributeExpr{Type: String},
+		ElemType: &AttributeExpr{Type: tests[3].array},
+	}}))
+}
+
 func TestPresenceValidationRejectsConflictingMetadata(t *testing.T) {
 	nullableType := &UserTypeExpr{
 		TypeName:      "NullableText",

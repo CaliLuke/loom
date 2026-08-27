@@ -122,7 +122,12 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 	return nil
 }
 
-func buildBodyInitArg(scope *codegen.NameScope, body *expr.AttributeExpr, addressObject bool) *InitArgData {
+func buildBodyInitArg(
+	scope *codegen.NameScope,
+	body *expr.AttributeExpr,
+	addressObject bool,
+	httpctx *codegen.AttributeContext,
+) *InitArgData {
 	ref := "body"
 	if addressObject && (expr.IsObject(body.Type) || expr.IsUnion(body.Type)) && !expr.IsNullable(body) {
 		ref = "&body"
@@ -132,7 +137,7 @@ func buildBodyInitArg(scope *codegen.NameScope, body *expr.AttributeExpr, addres
 		AttributeData: &AttributeData{
 			Name:    "body",
 			VarName: "body",
-			TypeRef: bodyTypeRef(scope, body),
+			TypeRef: goBodyTypeRef(scope, body, httpctx),
 		},
 	}
 }

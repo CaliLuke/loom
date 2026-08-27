@@ -34,6 +34,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		svcctx  = serviceContext(pkg, sd.Service.Scope)
 	)
 	httpctx.JSONPresence = svr && !formEncoded && !multipart
+	httpctx.CollectionElementPresence = httpctx.JSONPresence
 	ensureTypeLayoutMaps(sd)
 	recordAttributeTypeLayouts(sd, body, svr, httpctx.JSONPresence, httpctx.Pointer, httpctx.UseDefault)
 	if svr {
@@ -87,12 +88,13 @@ func buildRequestBodyTypeDetails(
 		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
 	}
 	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !svr, "", sd.Scope)
+	ctx.CollectionElementPresence = httpctx.JSONPresence
 	validateReference := codegen.ValidationCode(body, nil, ctx, true, expr.IsAlias(body.Type), false, "body")
 	if svr && expr.IsObject(body.Type) {
 		body.Validation = nil
 	}
 	details := requestBodyTypeDetails{
-		varName:           sd.Scope.GoTypeRef(body),
+		varName:           goBodyTypeRef(sd.Scope, body, httpctx),
 		description:       body.Description,
 		validateReference: validateReference,
 	}
@@ -156,6 +158,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	}
 	httpctx := httpContext(sd.Scope, false, svr)
 	httpctx.JSONPresence = !svr
+	httpctx.CollectionElementPresence = httpctx.JSONPresence
 	ensureTypeLayoutMaps(sd)
 	if svr {
 		httpctx.JSONPresenceTypes = sd.ServerJSONPresenceTypes
@@ -189,7 +192,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		case !expr.IsPrimitive(body.Type) && data.mustInit:
 			applyStructuredResponseBodyTypeData(data, body, endpointName, httpctx, sd, svr)
 		default:
-			applyPrimitiveResponseBodyTypeData(data, body, sd)
+			applyPrimitiveResponseBodyTypeData(data, body, httpctx, sd)
 		}
 	}
 	if svr {
@@ -289,16 +292,22 @@ func applyStructuredResponseBodyTypeData(data *responseBodyTypeData, body *expr.
 		data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
 		data.def = goTypeDef(sd.Scope, body, !svr, svr, !svr)
 	} else {
-		data.varName = sd.Scope.GoTypeRef(body)
+		data.varName = goBodyTypeRef(sd.Scope, body, httpctx)
 		data.desc = body.Description
 	}
 	data.validateRef = codegen.ValidationCode(body, nil, httpctx, true, expr.IsAlias(body.Type), false, "body")
 }
 
-func applyPrimitiveResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, sd *ServiceData) {
-	httpctx := httpContext(sd.Scope, false, true)
-	data.validateRef = codegen.ValidationCode(body, nil, httpctx, true, expr.IsAlias(body.Type), false, "body")
-	data.varName = sd.Scope.GoTypeRef(body)
+func applyPrimitiveResponseBodyTypeData(
+	data *responseBodyTypeData,
+	body *expr.AttributeExpr,
+	httpctx *codegen.AttributeContext,
+	sd *ServiceData,
+) {
+	validationContext := httpContext(sd.Scope, false, true)
+	validationContext.CollectionElementPresence = httpctx.JSONPresence
+	data.validateRef = codegen.ValidationCode(body, nil, validationContext, true, expr.IsAlias(body.Type), false, "body")
+	data.varName = goBodyTypeRef(sd.Scope, body, httpctx)
 	data.desc = body.Description
 }
 

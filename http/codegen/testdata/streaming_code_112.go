@@ -14,7 +14,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) Recv() ([]*bidir
 func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) RecvWithContext(ctx context.Context) ([]*bidirectionalstreamingusertypearrayservice.RequestType, error) {
 	var (
 		rv   []*bidirectionalstreamingusertypearrayservice.RequestType
-		body []*RequestType
+		body []loom.Nullable[*RequestType]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -53,7 +53,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) RecvWithContext(
 		return rv, io.EOF
 	}
 	for i, e := range body {
-		if e == nil {
+		if _, ok := e.Value(); !ok {
 			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
 		}
 	}

@@ -107,10 +107,18 @@ func buildPayloadIDData(request *transportir.Request, payload *expr.AttributeExp
 }
 
 func (b *payloadBuilder) buildInit(request *RequestData) *InitData {
-	if !needInit(b.payload) {
+	needsServiceInit := needInit(b.payload)
+	needsPresenceInit := b.httpsvrctx.JSONPresence && expr.ContainsNonNullableArrayElement(b.bodyAttr)
+	if !needsServiceInit && !needsPresenceInit {
 		return nil
 	}
-	return b.buildInitData(request)
+	init := b.buildInitData(request)
+	if !needsServiceInit {
+		init.ClientArgs = nil
+		init.CLIArgs = nil
+		init.ClientCode = ""
+	}
+	return init
 }
 
 func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
@@ -392,7 +400,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			Name:     "body",
 			VarName:  "body",
 			TypeName: b.sd.Scope.GoTypeName(b.bodyAttr),
-			TypeRef:  b.sd.Scope.GoTypeRef(b.bodyAttr),
+			TypeRef:  goBodyTypeRef(b.sd.Scope, b.bodyAttr, b.httpsvrctx),
 			Type:     b.body,
 			Required: true,
 			Example:  b.bodyAttr.Example(b.sds.examplesFor(b.sd)),
@@ -434,10 +442,7 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool, boo
 		var helpers []*codegen.TransformFunctionData
 		var err error
 		serverContext := b.httpsvrctx.Dup()
-		_, bodyIsUserType := request.Body.Type.(expr.UserType)
-		if bodyIsUserType || expr.IsObject(request.Body.Type) || expr.IsUnion(request.Body.Type) {
-			serverContext.CollectionElementPresence = serverContext.JSONPresence
-		}
+		serverContext.CollectionElementPresence = serverContext.JSONPresence
 		serverCode, helpers, err = unmarshal(request.Body, pAtt, "body", serverContext, b.svcctx)
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP server payload transform for %s: %w", b.endpointIR.MethodName, err)))

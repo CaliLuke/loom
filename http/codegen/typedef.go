@@ -59,7 +59,7 @@ func goPrimitiveTypeDef(att *expr.AttributeExpr, actual expr.Primitive) string {
 }
 
 func goArrayTypeDef(scope *codegen.NameScope, actual *expr.Array, ptr, useDefault, jsonPresence bool) string {
-	return "[]" + goArrayElemTypeDef(scope, actual.ElemType, ptr, useDefault, jsonPresence)
+	return "[]" + goArrayElemTypeDef(scope, actual, ptr, useDefault, jsonPresence)
 }
 
 func goMapTypeDef(scope *codegen.NameScope, actual *expr.Map, ptr, useDefault, jsonPresence bool) string {
@@ -76,12 +76,20 @@ func goCollectionElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, 
 	return def
 }
 
-func goArrayElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
-	def := goCollectionElemTypeDef(scope, att, ptr, useDefault, jsonPresence)
-	if jsonPresence && !expr.AllowsNull(att) {
+func goArrayElemTypeDef(scope *codegen.NameScope, array *expr.Array, ptr, useDefault, jsonPresence bool) string {
+	def := goCollectionElemTypeDef(scope, array.ElemType, ptr, useDefault, jsonPresence)
+	if jsonPresence && !expr.ArrayElementsAllowNull(array) {
 		def = "loom.Nullable[" + def + "]"
 	}
 	return def
+}
+
+func goBodyTypeRef(scope *codegen.NameScope, attribute *expr.AttributeExpr, context *codegen.AttributeContext) string {
+	_, userType := attribute.Type.(expr.UserType)
+	if context.JSONPresence && !userType && expr.IsArray(attribute.Type) {
+		return goTypeDef(scope, attribute, context.Pointer, context.UseDefault, true)
+	}
+	return scope.GoTypeRef(attribute)
 }
 
 func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault, jsonPresence bool) string {

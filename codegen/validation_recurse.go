@@ -112,7 +112,7 @@ func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, 
 		ctx = attCtx.Dup()
 		ctx.Pointer = false
 	}
-	rejectNull := arr.NonNullableElems || !expr.AllowsNull(arr.ElemType)
+	rejectNull := !expr.ArrayElementsAllowNull(arr)
 	jsonPresence := attCtx.CollectionElementPresence && rejectNull
 	elementTarget := "e"
 	if jsonPresence {

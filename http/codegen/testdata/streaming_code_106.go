@@ -5,7 +5,7 @@ var BidirectionalStreamingPrimitiveArrayClientStreamRecvCode = `// Recv reads in
 func (s *BidirectionalStreamingPrimitiveArrayMethodClientStream) Recv() ([]string, error) {
 	var (
 		rv   []string
-		body []string
+		body []loom.Nullable[string]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -15,7 +15,16 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodClientStream) Recv() ([]strin
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for i, e := range body {
+		if _, ok := e.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewBidirectionalStreamingPrimitiveArrayMethodStringOK(body)
+	return res, nil
 }
 
 // RecvWithContext reads instances of "[]string" from the
@@ -24,7 +33,7 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodClientStream) Recv() ([]strin
 func (s *BidirectionalStreamingPrimitiveArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]string, error) {
 	var (
 		rv   []string
-		body []string
+		body []loom.Nullable[string]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -37,6 +46,15 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodClientStream) RecvWithContext
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for i, e := range body {
+		if _, ok := e.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewBidirectionalStreamingPrimitiveArrayMethodStringOK(body)
+	return res, nil
 }
 `

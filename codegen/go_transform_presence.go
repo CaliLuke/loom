@@ -135,7 +135,7 @@ func transformNativeToOptional(
 
 func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, defaultValue any, ta *TransformAttrs) (*jen.Statement, error) {
 	collectionLayoutDiffers := ta.SourceCtx.CollectionElementPresence != ta.TargetCtx.CollectionElementPresence &&
-		containsNonNullableArrayElement(source, make(map[string]struct{}))
+		expr.ContainsNonNullableArrayElement(source)
 	if defaultValue == nil && !collectionLayoutDiffers && nullablePhysicalTypeRef(source, ta.SourceCtx) == nullablePhysicalTypeRef(target, ta.TargetCtx) {
 		return directAssignment(sourceVar, targetVar, newVar), nil
 	}
@@ -194,42 +194,6 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		stmt.Else().Block(Expr(targetVar + " = loom.NullableValue(" + formatAttributeGoLiteral(targetValue, defaultValue) + ")"))
 	}
 	return stmt, nil
-}
-
-func containsNonNullableArrayElement(attribute *expr.AttributeExpr, seen map[string]struct{}) bool {
-	if attribute == nil || attribute.Type == nil {
-		return false
-	}
-	if userType, ok := attribute.Type.(expr.UserType); ok {
-		if _, ok := seen[userType.ID()]; ok {
-			return false
-		}
-		seen[userType.ID()] = struct{}{}
-		defer delete(seen, userType.ID())
-		return containsNonNullableArrayElement(userType.Attribute(), seen)
-	}
-	if array := expr.AsArray(attribute.Type); array != nil {
-		return !expr.AllowsNull(array.ElemType) || containsNonNullableArrayElement(array.ElemType, seen)
-	}
-	if mapping := expr.AsMap(attribute.Type); mapping != nil {
-		return containsNonNullableArrayElement(mapping.KeyType, seen) ||
-			containsNonNullableArrayElement(mapping.ElemType, seen)
-	}
-	if object := expr.AsObject(attribute.Type); object != nil {
-		for _, field := range *object {
-			if containsNonNullableArrayElement(field.Attribute, seen) {
-				return true
-			}
-		}
-	}
-	if union := expr.AsUnion(attribute.Type); union != nil {
-		for _, value := range union.Values {
-			if containsNonNullableArrayElement(value.Attribute, seen) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func transformRawAnyPresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {

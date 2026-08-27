@@ -147,11 +147,16 @@ func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
 func TestGoTypeDefUsesJSONPresenceForArrayElements(t *testing.T) {
 	nonNullable := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}
 	nullable := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String, Nullable: true}}}
+	requiredAny := &expr.AttributeExpr{Type: &expr.Array{
+		ElemType:         &expr.AttributeExpr{Type: expr.Any},
+		NonNullableElems: true,
+	}}
 	scope := codegen.NewNameScope()
 
 	require.Equal(t, "[]string", goTypeDef(scope, nonNullable, true, false, false))
 	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nonNullable, true, false, true))
 	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nullable, true, false, true))
+	require.Equal(t, "[]loom.Nullable[any]", goTypeDef(scope, requiredAny, true, false, true))
 }
 
 func TestGoValueTypeDefStripsNamedRootPresence(t *testing.T) {

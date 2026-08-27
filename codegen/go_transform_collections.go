@@ -27,7 +27,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		TransformAttrs: ta,
 		LoopVar:        string(rune(105 + strings.Count(targetVar, "["))),
 		IsStruct:       expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
-		SourcePresence: ta.SourceCtx.CollectionElementPresence && !expr.AllowsNull(source.ElemType),
+		SourcePresence: ta.SourceCtx.CollectionElementPresence && !expr.ArrayElementsAllowNull(source),
 	}
 	return renderTransformGoArray(data)
 }

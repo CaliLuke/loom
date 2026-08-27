@@ -34,13 +34,22 @@ func DecodeListResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 
 		resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
 		var (
-			body []string
+			body []loom.Nullable[string]
 			err  error
 		)
 		err = decoder(resp).Decode(&body)
 		if err != nil {
 			return nil, loomhttp.ErrDecodingError("calc", "list", err)
 		}
-		return body, nil
+		for i, e := range body {
+			if _, ok := e.Value(); !ok {
+				err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+			}
+		}
+		if err != nil {
+			return nil, loomhttp.ErrValidationError("calc", "list", err)
+		}
+		res := NewListStringOK(body)
+		return res, nil
 	}
 }

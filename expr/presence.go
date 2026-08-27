@@ -7,6 +7,54 @@ func AllowsNull(attribute *AttributeExpr) bool {
 	return IsNullable(attribute) || attribute != nil && resolvesToAny(attribute.Type, make(map[string]struct{}))
 }
 
+// ArrayElementsAllowNull reports whether an array accepts explicit null
+// elements. ArrayOfRequired overrides the element type's intrinsic nullability.
+func ArrayElementsAllowNull(array *Array) bool {
+	return array != nil && !array.NonNullableElems && AllowsNull(array.ElemType)
+}
+
+// ContainsNonNullableArrayElement reports whether an attribute contains an
+// array whose element contract rejects null.
+func ContainsNonNullableArrayElement(attribute *AttributeExpr) bool {
+	return containsNonNullableArrayElement(attribute, make(map[string]struct{}))
+}
+
+func containsNonNullableArrayElement(attribute *AttributeExpr, seen map[string]struct{}) bool {
+	if attribute == nil || attribute.Type == nil {
+		return false
+	}
+	if userType, ok := attribute.Type.(UserType); ok {
+		if _, ok := seen[userType.ID()]; ok {
+			return false
+		}
+		seen[userType.ID()] = struct{}{}
+		defer delete(seen, userType.ID())
+		return containsNonNullableArrayElement(userType.Attribute(), seen)
+	}
+	if array := AsArray(attribute.Type); array != nil {
+		return !ArrayElementsAllowNull(array) || containsNonNullableArrayElement(array.ElemType, seen)
+	}
+	if mapping := AsMap(attribute.Type); mapping != nil {
+		return containsNonNullableArrayElement(mapping.KeyType, seen) ||
+			containsNonNullableArrayElement(mapping.ElemType, seen)
+	}
+	if object := AsObject(attribute.Type); object != nil {
+		for _, field := range *object {
+			if containsNonNullableArrayElement(field.Attribute, seen) {
+				return true
+			}
+		}
+	}
+	if union := AsUnion(attribute.Type); union != nil {
+		for _, value := range union.Values {
+			if containsNonNullableArrayElement(value.Attribute, seen) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // IsNullable reports whether nullability is explicitly declared on an
 // attribute occurrence or inherited from a named type.
 func IsNullable(attribute *AttributeExpr) bool {

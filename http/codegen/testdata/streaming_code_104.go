@@ -12,7 +12,7 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) Recv() ([]int32
 func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) RecvWithContext(ctx context.Context) ([]int32, error) {
 	var (
 		rv   []int32
-		body []int32
+		body []loom.Nullable[int32]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -50,6 +50,14 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodServerStream) RecvWithContext
 	if body == nil {
 		return rv, io.EOF
 	}
-	return body, nil
+	for i, e := range body {
+		if _, ok := e.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	return NewBidirectionalStreamingPrimitiveArrayMethodArray(body), nil
 }
 `

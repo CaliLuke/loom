@@ -6,7 +6,7 @@ var StreamingPayloadPrimitiveArrayClientStreamRecvCode = `// CloseAndRecv stops 
 func (s *StreamingPayloadPrimitiveArrayMethodClientStream) CloseAndRecv() ([]string, error) {
 	var (
 		rv   []string
-		body []string
+		body []loom.Nullable[string]
 		err  error
 	)
 	defer s.conn.Close()
@@ -22,7 +22,16 @@ func (s *StreamingPayloadPrimitiveArrayMethodClientStream) CloseAndRecv() ([]str
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for i, e := range body {
+		if _, ok := e.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingPayloadPrimitiveArrayMethodStringOK(body)
+	return res, nil
 }
 
 // CloseAndRecvWithContext stops sending messages to the
@@ -31,7 +40,7 @@ func (s *StreamingPayloadPrimitiveArrayMethodClientStream) CloseAndRecv() ([]str
 func (s *StreamingPayloadPrimitiveArrayMethodClientStream) CloseAndRecvWithContext(ctx context.Context) ([]string, error) {
 	var (
 		rv   []string
-		body []string
+		body []loom.Nullable[string]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -50,6 +59,15 @@ func (s *StreamingPayloadPrimitiveArrayMethodClientStream) CloseAndRecvWithConte
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for i, e := range body {
+		if _, ok := e.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingPayloadPrimitiveArrayMethodStringOK(body)
+	return res, nil
 }
 `

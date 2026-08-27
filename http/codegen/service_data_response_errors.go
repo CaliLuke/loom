@@ -81,14 +81,14 @@ func (b *errorBuilder) buildSingle(errorResponse *transportir.ResponseStatus) (s
 func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus, pkg string, errctx *codegen.AttributeContext) *InitData {
 	httpError := errorResponse.Error
 	body := responseStatusBody(errorResponse).Type
-	if !needInit(httpError.Attribute) {
+	if !needInit(httpError.Attribute) && !expr.ContainsNonNullableArrayElement(responseStatusBody(errorResponse)) {
 		return nil
 	}
 	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope, b.sds.examplesFor(b.sd))
 	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope, b.sds.examplesFor(b.sd))
 	args := make([]*InitArgData, 0, len(headers)+len(cookies)+1)
 	if body != expr.Empty {
-		args = append(args, buildBodyInitArg(b.sd.Scope, responseStatusBody(errorResponse), true))
+		args = append(args, buildBodyInitArg(b.sd.Scope, responseStatusBody(errorResponse), true, b.httpclictx))
 	}
 	args = append(args, buildHeaderInitArgs(headers)...)
 	args = append(args, buildCookieInitArgs(cookies)...)

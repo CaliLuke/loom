@@ -14,7 +14,7 @@ func (s *StreamingPayloadUserTypeArrayMethodServerStream) Recv() ([]*streamingpa
 func (s *StreamingPayloadUserTypeArrayMethodServerStream) RecvWithContext(ctx context.Context) ([]*streamingpayloadusertypearrayservice.RequestType, error) {
 	var (
 		rv   []*streamingpayloadusertypearrayservice.RequestType
-		body []*RequestType
+		body []loom.Nullable[*RequestType]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -53,7 +53,7 @@ func (s *StreamingPayloadUserTypeArrayMethodServerStream) RecvWithContext(ctx co
 		return rv, io.EOF
 	}
 	for i, e := range body {
-		if e == nil {
+		if _, ok := e.Value(); !ok {
 			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
 		}
 	}

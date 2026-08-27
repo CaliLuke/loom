@@ -7,7 +7,7 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decod
 	return func(r *http.Request) (*servicebodyprimitivearrayuservalidate.PayloadType, error) {
 		var payload *servicebodyprimitivearrayuservalidate.PayloadType
 		var (
-			body []string
+			body []loom.Nullable[string]
 			err  error
 		)
 		err = decoder(r).Decode(&body)
@@ -24,8 +24,12 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decod
 		if len(body) < 1 {
 			err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, len(body), 1, true))
 		}
-		for _, e := range body {
-			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body[*]", e, loomPatternTest0))
+		for i, e := range body {
+			if actual, ok := e.Value(); ok {
+				err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body[*]", actual, loomPatternTest0))
+			} else {
+				err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+			}
 		}
 		if err != nil {
 			return payload, err

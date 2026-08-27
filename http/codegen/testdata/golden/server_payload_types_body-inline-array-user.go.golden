@@ -1,13 +1,17 @@
 // NewMethodBodyInlineArrayUserElemType builds a ServiceBodyInlineArrayUser
 // service MethodBodyInlineArrayUser endpoint payload.
-func NewMethodBodyInlineArrayUserElemType(body []*ElemTypeRequestBody) []*servicebodyinlinearrayuser.ElemType {
+func NewMethodBodyInlineArrayUserElemType(body []loom.Nullable[*ElemTypeRequestBody]) []*servicebodyinlinearrayuser.ElemType {
 	v := make([]*servicebodyinlinearrayuser.ElemType, len(body))
 	for i, val := range body {
-		if val == nil {
+		actual, ok := val.Value()
+		if !ok {
+			continue
+		}
+		if actual == nil {
 			v[i] = nil
 			continue
 		}
-		v[i] = unmarshalElemTypeRequestBodyToServicebodyinlinearrayuserElemType(val)
+		v[i] = unmarshalElemTypeRequestBodyToServicebodyinlinearrayuserElemType(actual)
 	}
 
 	return v

@@ -5,7 +5,7 @@ func DecodeMethodBodyPrimitiveArrayUserRequest(mux loomhttp.Muxer, decoder func(
 	return func(r *http.Request) (*servicebodyprimitivearrayuser.PayloadType, error) {
 		var payload *servicebodyprimitivearrayuser.PayloadType
 		var (
-			body []string
+			body []loom.Nullable[string]
 			err  error
 		)
 		err = decoder(r).Decode(&body)
@@ -19,6 +19,14 @@ func DecodeMethodBodyPrimitiveArrayUserRequest(mux loomhttp.Muxer, decoder func(
 				}
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
+		}
+		for i, e := range body {
+			if _, ok := e.Value(); !ok {
+				err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+			}
+		}
+		if err != nil {
+			return payload, err
 		}
 		payload = NewMethodBodyPrimitiveArrayUserPayloadType(body)
 

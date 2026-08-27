@@ -315,7 +315,7 @@ func (sds *ServicesData) buildResponseResultInit(
 	endpointIR *transportir.Endpoint,
 	sd *ServiceData,
 ) *InitData {
-	if !needInit(result) {
+	if !needInit(result) && !expr.ContainsNonNullableArrayElement(responseStatusBody(resp)) {
 		return nil
 	}
 	tname := sd.Service.Scope.GoFullTypeName(result, pkg)
@@ -385,7 +385,7 @@ func buildResponseResultInitArgs(
 	if resp.Body.Type == expr.Empty {
 		return clientArgs
 	}
-	bodyArg := buildBodyInitArg(sd.Scope, body, true)
+	bodyArg := buildBodyInitArg(sd.Scope, body, true, httpclictx)
 	bodyArg.AttributeData.Validate = validationCodeForBodyArg(body, httpclictx)
 	return append(clientArgs, bodyArg)
 }
@@ -450,8 +450,7 @@ func (sds *ServicesData) buildClientBodyUnmarshalCode(
 		src = sourceVar[0]
 	}
 	sourceContext := httpclictx
-	_, sourceIsUserType := source.Type.(expr.UserType)
-	if len(sourceVar) == 0 && httpclictx.JSONPresence && sourceIsUserType {
+	if len(sourceVar) == 0 && httpclictx.JSONPresence {
 		sourceContext = httpclictx.Dup()
 		sourceContext.CollectionElementPresence = true
 	}

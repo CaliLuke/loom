@@ -5,7 +5,7 @@ func DecodeMethodBodyPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, decod
 	return func(r *http.Request) ([]bool, error) {
 		var payload []bool
 		var (
-			body []bool
+			body []loom.Nullable[bool]
 			err  error
 		)
 		err = decoder(r).Decode(&body)
@@ -22,15 +22,19 @@ func DecodeMethodBodyPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, decod
 		if len(body) < 1 {
 			err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, len(body), 1, true))
 		}
-		for _, e := range body {
-			if !(e == true) {
-				err = loom.MergeErrors(err, loom.InvalidEnumValueError("body[*]", e, []any{true}))
+		for i, e := range body {
+			if actual, ok := e.Value(); ok {
+				if !(actual == true) {
+					err = loom.MergeErrors(err, loom.InvalidEnumValueError("body[*]", actual, []any{true}))
+				}
+			} else {
+				err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
 			}
 		}
 		if err != nil {
 			return payload, err
 		}
-		payload = body
+		payload = NewMethodBodyPrimitiveArrayBoolValidateBool(body)
 
 		return payload, nil
 	}

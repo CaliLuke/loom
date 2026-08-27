@@ -5,7 +5,7 @@ var StreamingResultUserTypeArrayClientStreamRecvCode = `// Recv reads instances 
 func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingresultusertypearrayservice.UserType, error) {
 	var (
 		rv   []*streamingresultusertypearrayservice.UserType
-		body []*UserTypeResponse
+		body []loom.Nullable[*UserTypeResponse]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -24,7 +24,7 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingres
 		return rv, err
 	}
 	for i, e := range body {
-		if e == nil {
+		if _, ok := e.Value(); !ok {
 			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
 		}
 	}
@@ -42,7 +42,7 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingres
 func (s *StreamingResultUserTypeArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]*streamingresultusertypearrayservice.UserType, error) {
 	var (
 		rv   []*streamingresultusertypearrayservice.UserType
-		body []*UserTypeResponse
+		body []loom.Nullable[*UserTypeResponse]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -64,7 +64,7 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) RecvWithContext(ctx con
 		return rv, err
 	}
 	for i, e := range body {
-		if e == nil {
+		if _, ok := e.Value(); !ok {
 			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
 		}
 	}

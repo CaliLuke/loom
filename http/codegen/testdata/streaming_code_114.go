@@ -6,7 +6,7 @@ var BidirectionalStreamingUserTypeArrayClientStreamRecvCode = `// Recv reads ins
 func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) Recv() ([]*bidirectionalstreamingusertypearrayservice.ResultType, error) {
 	var (
 		rv   []*bidirectionalstreamingusertypearrayservice.ResultType
-		body []*ResultTypeResponse
+		body []loom.Nullable[*ResultTypeResponse]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -17,7 +17,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) Recv() ([]*bidir
 		return rv, err
 	}
 	for i, e := range body {
-		if e == nil {
+		if _, ok := e.Value(); !ok {
 			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
 		}
 	}
@@ -35,7 +35,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) Recv() ([]*bidir
 func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]*bidirectionalstreamingusertypearrayservice.ResultType, error) {
 	var (
 		rv   []*bidirectionalstreamingusertypearrayservice.ResultType
-		body []*ResultTypeResponse
+		body []loom.Nullable[*ResultTypeResponse]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -49,7 +49,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) RecvWithContext(
 		return rv, err
 	}
 	for i, e := range body {
-		if e == nil {
+		if _, ok := e.Value(); !ok {
 			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
 		}
 	}

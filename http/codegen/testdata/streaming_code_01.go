@@ -1296,7 +1296,7 @@ var StreamingResultPrimitiveArrayClientStreamRecvCode = `// Recv reads instances
 func (s *StreamingResultPrimitiveArrayMethodClientStream) Recv() ([]int32, error) {
 	var (
 		rv   []int32
-		body []int32
+		body []loom.Nullable[int32]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -1314,7 +1314,16 @@ func (s *StreamingResultPrimitiveArrayMethodClientStream) Recv() ([]int32, error
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for i, e := range body {
+		if _, ok := e.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingResultPrimitiveArrayMethodInt32OK(body)
+	return res, nil
 }
 
 // RecvWithContext reads instances of "[]int32" from the
@@ -1323,7 +1332,7 @@ func (s *StreamingResultPrimitiveArrayMethodClientStream) Recv() ([]int32, error
 func (s *StreamingResultPrimitiveArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]int32, error) {
 	var (
 		rv   []int32
-		body []int32
+		body []loom.Nullable[int32]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -1344,6 +1353,15 @@ func (s *StreamingResultPrimitiveArrayMethodClientStream) RecvWithContext(ctx co
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for i, e := range body {
+		if _, ok := e.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingResultPrimitiveArrayMethodInt32OK(body)
+	return res, nil
 }
 `
