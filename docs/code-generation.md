@@ -327,6 +327,10 @@ The command reports these high-confidence errors:
   the diagnostic names the package and includes the underlying Go load error
 - application code calls `Handle` directly on a Loom mux instead of mounting a
   generated route
+- the same exact statically resolved manual method/path route is registered
+  more than once
+- an exact statically resolved manual method/path route conflicts with an
+  evaluated design operation
 - `go.mod` and a generated `loom.json` contain different Loom versions
 - an HTTP 5xx error does not declare `Fault()`
 - an HTTP 429, 502, or 503 error declares neither `Temporary()` nor a retry
@@ -370,6 +374,10 @@ the registration:
 //loom:vet ignore route-outside-design -- process-local diagnostic endpoint
 mux.Handle("GET", "/debug/status", debugStatus)
 ```
+
+The same source-comment form accepts `duplicate-route-registration` and
+`route-conflict-with-design`. Dynamic method or path expressions are never
+treated as duplicate or conflicting route facts.
 
 Prefer fixing the design. Suppress only when the application intentionally owns
 the exception.

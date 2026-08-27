@@ -484,16 +484,18 @@ periodically to find APIs that need better modeling; do not add it to the
 routine generation or local check path.
 
 The command checks incomplete target-module source analysis, direct Loom mux
-routes, generated-version differences, missing HTTP error metadata, and
-descriptions that imply missing validation. Source analysis follows the active
-packages selected by the current Go build environment and excludes dependency
-modules.
+routes, exact duplicate manual routes, exact manual/design route conflicts,
+generated-version differences, missing HTTP error metadata, and descriptions
+that imply missing validation. Source analysis follows the active packages
+selected by the current Go build environment and excludes dependency modules.
 
 Use `--format=json` or `--format=sarif` to archive or share audit results.
 
 Use `Meta("loom:vet:ignore", "<rule>")` to suppress an intentional design
 warning. Put `//loom:vet ignore route-outside-design -- <reason>` immediately
-before an intentional direct mux route.
+before an intentional direct mux route. The same source-comment form accepts
+`duplicate-route-registration` and `route-conflict-with-design`; Loom does not
+infer conflicts from dynamic method or path expressions.
 
 ## Installation and Commands
 

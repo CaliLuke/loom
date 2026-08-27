@@ -17,16 +17,22 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/packages"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
 const loomHTTPImportPath = "github.com/CaliLuke/loom/http"
 
 func analyzeModule(dir string) ([]Diagnostic, error) {
+	return analyzeModuleWithDesign(dir, nil)
+}
+
+func analyzeModuleWithDesign(dir string, design *expr.RootExpr) ([]Diagnostic, error) {
 	root, err := findModuleRoot(dir)
 	if err != nil {
 		return nil, err
 	}
-	routes, err := analyzeRoutes(root)
+	routes, err := analyzeRoutesWithDesign(root, design)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +66,7 @@ func findModuleRoot(dir string) (string, error) {
 	}
 }
 
-func analyzeRoutes(root string) ([]Diagnostic, error) {
+func analyzeRoutesWithDesign(root string, design *expr.RootExpr) ([]Diagnostic, error) {
 	loaded, err := packages.Load(&packages.Config{
 		Dir: root,
 		Mode: packages.NeedName |
@@ -78,14 +84,16 @@ func analyzeRoutes(root string) ([]Diagnostic, error) {
 	}
 
 	var diagnostics []Diagnostic
+	var manualRoutes []manualRoute
 	var firstPackageError error
 	analyzablePackages := 0
 	for _, pkg := range loaded {
-		packageDiagnostics, analyzeErr := analyzePackageRoutes(root, pkg)
+		packageDiagnostics, packageRoutes, analyzeErr := analyzePackageRoutes(root, pkg)
 		if analyzeErr != nil {
 			return nil, analyzeErr
 		}
 		diagnostics = append(diagnostics, packageDiagnostics...)
+		manualRoutes = append(manualRoutes, packageRoutes...)
 		if packageSyntaxUsable(pkg) {
 			analyzablePackages++
 		}
@@ -96,11 +104,14 @@ func analyzeRoutes(root string) ([]Diagnostic, error) {
 	if analyzablePackages == 0 && firstPackageError != nil && len(diagnostics) == 0 {
 		return nil, fmt.Errorf("load Go module for Loom route analysis: %w", firstPackageError)
 	}
+	diagnostics = append(diagnostics, duplicateManualRouteDiagnostics(manualRoutes)...)
+	diagnostics = append(diagnostics, designRouteConflictDiagnostics(manualRoutes, design)...)
 	return diagnostics, nil
 }
 
-func analyzePackageRoutes(root string, pkg *packages.Package) ([]Diagnostic, error) {
+func analyzePackageRoutes(root string, pkg *packages.Package) ([]Diagnostic, []manualRoute, error) {
 	var diagnostics []Diagnostic
+	var routes []manualRoute
 	if incomplete := incompleteAnalysisDiagnostic(root, pkg); incomplete != nil {
 		diagnostics = append(diagnostics, *incomplete)
 	}
@@ -111,14 +122,14 @@ func analyzePackageRoutes(root string, pkg *packages.Package) ([]Diagnostic, err
 		path := pkg.CompiledGoFiles[index]
 		source, err := os.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", path, err)
+			return nil, nil, fmt.Errorf("read %s: %w", path, err)
 		}
 		if generatedByLoom(source) {
 			continue
 		}
 		ast.Inspect(file, func(node ast.Node) bool {
 			call, registration, registered := typedLoomMuxRegistration(pkg, node)
-			if !registered || sourceSuppressed(pkg.Fset, file, call, RuleRouteOutsideDesign) {
+			if !registered {
 				return true
 			}
 			position := pkg.Fset.Position(call.Pos())
@@ -126,16 +137,30 @@ func analyzePackageRoutes(root string, pkg *packages.Package) ([]Diagnostic, err
 			if err != nil {
 				relative = path
 			}
-			diagnostics = append(diagnostics, Diagnostic{
-				Rule:     RuleRouteOutsideDesign,
-				Severity: SeverityError,
-				Message:  unmanagedRouteMessage(pkg, call, registration),
-				Location: Location{Path: filepath.ToSlash(relative), Line: position.Line, Column: position.Column},
-			})
+			location := Location{Path: filepath.ToSlash(relative), Line: position.Line, Column: position.Column}
+			if !sourceSuppressed(pkg.Fset, file, call, RuleRouteOutsideDesign) {
+				diagnostics = append(diagnostics, Diagnostic{
+					Rule:     RuleRouteOutsideDesign,
+					Severity: SeverityError,
+					Message:  unmanagedRouteMessage(pkg, call, registration),
+					Location: location,
+				})
+			}
+			method := stringConstantArgument(pkg, call, registration.methodArg)
+			path := stringConstantArgument(pkg, call, registration.pathArg)
+			if method != "" && path != "" {
+				routes = append(routes, manualRoute{
+					method:              method,
+					path:                path,
+					location:            location,
+					duplicateSuppressed: sourceSuppressed(pkg.Fset, file, call, RuleDuplicateRouteRegistration),
+					conflictSuppressed:  sourceSuppressed(pkg.Fset, file, call, RuleRouteConflictWithDesign),
+				})
+			}
 			return true
 		})
 	}
-	return diagnostics, nil
+	return diagnostics, routes, nil
 }
 
 func packageSyntaxUsable(pkg *packages.Package) bool {

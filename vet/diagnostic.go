@@ -22,6 +22,12 @@ const (
 	RuleVetAnalysisIncomplete = "vet-analysis-incomplete"
 	// RuleRouteOutsideDesign identifies routes registered directly on a Loom mux.
 	RuleRouteOutsideDesign = "route-outside-design"
+	// RuleDuplicateRouteRegistration identifies exact manual routes registered
+	// more than once.
+	RuleDuplicateRouteRegistration = "duplicate-route-registration"
+	// RuleRouteConflictWithDesign identifies a manual route that duplicates a
+	// designed route.
+	RuleRouteConflictWithDesign = "route-conflict-with-design"
 	// RuleGeneratedVersionSkew identifies generated output from another Loom version.
 	RuleGeneratedVersionSkew = "generated-version-skew"
 	// RuleServerErrorFault identifies 5xx errors that are not marked as faults.

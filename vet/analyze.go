@@ -20,7 +20,7 @@ func Analyze(root *expr.RootExpr, moduleDir string) (Report, error) {
 	analyzeHTTPErrorSemantics(root, &report)
 	analyzeAttributeSemantics(root, &report)
 
-	sourceDiagnostics, err := analyzeModule(moduleDir)
+	sourceDiagnostics, err := analyzeModuleWithDesign(moduleDir, root)
 	if err != nil {
 		return Report{}, err
 	}

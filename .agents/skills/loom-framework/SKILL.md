@@ -79,7 +79,9 @@ consumer validation.
   analysis only for module adoption facts that the graph cannot contain. A
   source analyzer must report when an active target-module package lacks
   complete syntax or type information, without repeating usable-package or
-  dependency diagnostics.
+  dependency diagnostics. Route conflict analysis must use exact typed
+  method/path constants from active source files and skip dynamic expressions
+  rather than infer speculative runtime overlap.
 - Classify heuristic vet rules as warnings and provide a scoped suppression.
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
