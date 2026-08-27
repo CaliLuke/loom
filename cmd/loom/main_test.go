@@ -1,10 +1,54 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestRunPackageCommandHelp(t *testing.T) {
+	original := gen
+	t.Cleanup(func() { gen = original })
+	gen = func(_, _, _ string, _ bool) error {
+		t.Error("generator must not run for help")
+		return nil
+	}
+
+	for _, command := range []string{"gen", "example", "test-scaffold"} {
+		for _, args := range [][]string{
+			{"-h"},
+			{"--help"},
+			{"example.com/service/design", "-h"},
+			{"example.com/service/design", "--help"},
+		} {
+			name := command + " " + strings.Join(args, " ")
+			t.Run(name, func(t *testing.T) {
+				var stderr bytes.Buffer
+
+				exitCode := runPackageCommand(command, args, &stderr)
+
+				require.Zero(t, exitCode)
+				require.Contains(t, stderr.String(), "Usage:\n  loom "+command+" PACKAGE")
+			})
+		}
+	}
+}
+
+func TestRunPackageCommandRequiresPackage(t *testing.T) {
+	for _, command := range []string{"gen", "example", "test-scaffold"} {
+		t.Run(command, func(t *testing.T) {
+			var stderr bytes.Buffer
+
+			exitCode := runPackageCommand(command, nil, &stderr)
+
+			require.Equal(t, 1, exitCode)
+			require.Contains(t, stderr.String(), "usage: loom "+command+" PACKAGE")
+		})
+	}
+}
 
 func TestCmdLine(t *testing.T) {
 	const (

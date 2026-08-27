@@ -2,13 +2,13 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"go/build"
+	"io"
 	"os"
 	"strings"
 	"time"
-
-	"flag"
 
 	"github.com/CaliLuke/loom/internal/openapiimport"
 	loom "github.com/CaliLuke/loom/pkg"
@@ -19,6 +19,12 @@ type generatorRunner interface {
 	Compile(bool) error
 	Run(bool) ([]string, error)
 	Remove() error
+}
+
+type packageCommandOptions struct {
+	packagePath string
+	output      string
+	debug       bool
 }
 
 func main() {
@@ -36,11 +42,6 @@ func main() {
 		return
 	}
 
-	var (
-		cmd    string
-		path   string
-		offset int
-	)
 	if len(os.Args) == 1 {
 		usage()
 		return
@@ -51,46 +52,122 @@ func main() {
 		fmt.Println("Loom version " + loom.Version())
 		os.Exit(0)
 	case "gen", "example", "test-scaffold":
-		if len(os.Args) == 2 {
-			usage()
-			return
+		if exitCode := runPackageCommand(os.Args[1], os.Args[2:], os.Stderr); exitCode != 0 {
+			os.Exit(exitCode)
 		}
-		cmd = os.Args[1]
-		path = os.Args[2]
-		offset = 2
+		return
 	default:
 		usage()
 		return
 	}
+}
 
-	var (
-		output = "."
-		debug  bool
-	)
-	if len(os.Args) > offset+1 {
-		var (
-			fset = flag.NewFlagSet("default", flag.ExitOnError)
-			o    = fset.String("o", "", "output `directory`")
-			out  = fset.String("output", output, "output `directory`")
+func runPackageCommand(command string, args []string, stderr io.Writer) int {
+	if packageCommandHelpRequested(args) {
+		return writePackageCommandHelpResult(stderr, command)
+	}
+	options, err := parsePackageCommandOptions(command, args)
+	if errors.Is(err, flag.ErrHelp) {
+		return writePackageCommandHelpResult(stderr, command)
+	}
+	if err != nil {
+		return writeCommandFailure(stderr, err)
+	}
+	if err := gen(command, options.packagePath, options.output, options.debug); err != nil {
+		return writeCommandFailure(stderr, err)
+	}
+	return 0
+}
+
+func parsePackageCommandOptions(command string, args []string) (packageCommandOptions, error) {
+	if len(args) == 0 {
+		return packageCommandOptions{}, fmt.Errorf("usage: %s", packageCommandUsage(command))
+	}
+	options := packageCommandOptions{packagePath: args[0], output: "."}
+	flags := flag.NewFlagSet(command, flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	shortOutput := flags.String("o", "", "output directory")
+	output := flags.String("output", options.output, "output directory")
+	flags.BoolVar(&options.debug, "debug", false, "print debug information")
+	if err := flags.Parse(args[1:]); err != nil {
+		return packageCommandOptions{}, err
+	}
+	if flags.NArg() != 0 {
+		return packageCommandOptions{}, fmt.Errorf(
+			"unexpected %s arguments: %s",
+			command,
+			strings.Join(flags.Args(), " "),
 		)
-		fset.BoolVar(&debug, "debug", false, "Print debug information")
+	}
+	if *shortOutput != "" {
+		*output = *shortOutput
+	}
+	options.output = *output
+	return options, nil
+}
 
-		fset.Usage = usage
-		if err := fset.Parse(os.Args[offset+1:]); err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-
-		output = *o
-		if output == "" {
-			output = *out
+func packageCommandHelpRequested(args []string) bool {
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			return true
 		}
 	}
+	return false
+}
 
-	if err := gen(cmd, path, output, debug); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+func writePackageCommandHelpResult(writer io.Writer, command string) int {
+	if err := writePackageCommandHelp(writer, command); err != nil {
+		return writeCommandFailure(writer, err)
 	}
+	return 0
+}
+
+func writePackageCommandHelp(writer io.Writer, command string) error {
+	description := ""
+	switch command {
+	case "gen":
+		description = "Generate service interfaces, endpoints, transport code, and OpenAPI specs."
+	case "example":
+		description = "Generate example server and client commands without overwriting existing files."
+	case "test-scaffold":
+		description = "Generate consumer-owned response contract test scaffolds."
+	default:
+		return fmt.Errorf("unknown package command %q", command)
+	}
+	if _, err := fmt.Fprintf(writer, `%s
+
+Usage:
+  %s
+
+Arguments:
+  PACKAGE
+        Go import path to design package
+
+Flags:
+  -h, --help
+        Show help for the %s command
+
+  -o, --output DIRECTORY
+        Output directory, defaults to the current working directory
+
+  --debug
+        Print debug information
+
+`, description, packageCommandUsage(command), command); err != nil {
+		return fmt.Errorf("write %s help: %w", command, err)
+	}
+	return nil
+}
+
+func packageCommandUsage(command string) string {
+	return "loom " + command + " PACKAGE [--output DIRECTORY] [--debug]"
+}
+
+func writeCommandFailure(writer io.Writer, err error) int {
+	if _, writeErr := fmt.Fprintln(writer, err.Error()); writeErr != nil {
+		return 1
+	}
+	return 1
 }
 
 func runOpenAPIImport(args []string) int {

@@ -18,19 +18,46 @@ type vetOptions struct {
 	debug       bool
 }
 
+const vetHelpText = `Analyze an evaluated design and consuming module for incomplete Loom adoption.
+
+Usage:
+  loom vet PACKAGE [--format text|json|sarif] [--debug]
+
+Arguments:
+  PACKAGE
+        Go import path to design package
+
+Flags:
+  -h, --help
+        Show help for the vet command
+
+  --format text|json|sarif
+        Report format, defaults to text
+
+  --debug
+        Print debug information
+
+`
+
 var analyzeVetDesign = vetDesign
 
 func runVet(args []string, stdout, stderr io.Writer) int {
+	if packageCommandHelpRequested(args) {
+		return writeVetHelpResult(stderr)
+	}
 	options, err := parseVetOptions(args, stderr)
+	if errors.Is(err, flag.ErrHelp) {
+		return writeVetHelpResult(stderr)
+	}
 	if err != nil {
-		return writeVetFailure(stderr, err)
+		return writeCommandFailure(stderr, err)
 	}
 	report, err := analyzeVetDesign(options.packagePath, options.debug)
 	if err != nil {
-		return writeVetFailure(stderr, err)
+		return writeCommandFailure(stderr, err)
 	}
 	if err := loomvet.WriteReport(stdout, report, options.format); err != nil {
-		return writeVetFailure(stderr, err)
+		return writeCommandFailure(stderr, err)
 	}
 	if report.HasDiagnostics() {
 		return 1
@@ -38,11 +65,11 @@ func runVet(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func writeVetFailure(stderr io.Writer, err error) int {
-	if _, writeErr := fmt.Fprintln(stderr, err.Error()); writeErr != nil {
-		return 1
+func writeVetHelpResult(writer io.Writer) int {
+	if _, err := fmt.Fprint(writer, vetHelpText); err != nil {
+		return writeCommandFailure(writer, fmt.Errorf("write vet help: %w", err))
 	}
-	return 1
+	return 0
 }
 
 func parseVetOptions(args []string, stderr io.Writer) (vetOptions, error) {
