@@ -17,6 +17,9 @@ const (
 )
 
 const (
+	// RuleVetAnalysisIncomplete identifies a target-module package that source
+	// analysis could not inspect completely.
+	RuleVetAnalysisIncomplete = "vet-analysis-incomplete"
 	// RuleRouteOutsideDesign identifies routes registered directly on a Loom mux.
 	RuleRouteOutsideDesign = "route-outside-design"
 	// RuleGeneratedVersionSkew identifies generated output from another Loom version.

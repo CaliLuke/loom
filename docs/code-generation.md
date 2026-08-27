@@ -323,6 +323,8 @@ normal generation workflow or a routine local gate.
 
 The command reports these high-confidence errors:
 
+- source analysis cannot parse or load an active package in the target module;
+  the diagnostic names the package and includes the underlying Go load error
 - application code calls `Handle` directly on a Loom mux instead of mounting a
   generated route
 - `go.mod` and a generated `loom.json` contain different Loom versions
@@ -342,6 +344,11 @@ It reports warnings when descriptions imply missing contract validation:
 - `from X to Y` without both numeric bounds
 - email, UUID, or URL strings without `Format(...)` or `Pattern(...)`
 - normalized numbers without bounds from 0 to 1
+
+Source analysis follows the active packages selected by `go list ./...` for the
+current build environment. It excludes nested dependency modules and does not
+repeat ordinary Go type errors when complete syntax and type information remain
+available for route inspection.
 
 Text output is the default. JSON emits a `diagnostics` array. SARIF output uses
 SARIF 2.1.0 for code-scanning integrations. The command exits with status 1

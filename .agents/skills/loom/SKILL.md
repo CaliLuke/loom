@@ -480,8 +480,12 @@ Set `DEBUG_LOOM=1` while generating when you need DSL/codegen decision traces.
 periodically to find APIs that need better modeling; do not add it to the
 routine generation or local check path.
 
-The command checks direct Loom mux routes, generated-version differences,
-missing HTTP error metadata, and descriptions that imply missing validation.
+The command checks incomplete target-module source analysis, direct Loom mux
+routes, generated-version differences, missing HTTP error metadata, and
+descriptions that imply missing validation. Source analysis follows the active
+packages selected by the current Go build environment and excludes dependency
+modules.
+
 Use `--format=json` or `--format=sarif` to archive or share audit results.
 
 Use `Meta("loom:vet:ignore", "<rule>")` to suppress an intentional design

@@ -65,6 +65,7 @@ func analyzeRoutes(root string) ([]Diagnostic, error) {
 		Dir: root,
 		Mode: packages.NeedName |
 			packages.NeedCompiledGoFiles |
+			packages.NeedModule |
 			packages.NeedSyntax |
 			packages.NeedTypes |
 			packages.NeedTypesInfo,
@@ -80,49 +81,151 @@ func analyzeRoutes(root string) ([]Diagnostic, error) {
 	var firstPackageError error
 	analyzablePackages := 0
 	for _, pkg := range loaded {
-		if len(pkg.Syntax) > 0 && pkg.TypesInfo != nil {
+		packageDiagnostics, analyzeErr := analyzePackageRoutes(root, pkg)
+		if analyzeErr != nil {
+			return nil, analyzeErr
+		}
+		diagnostics = append(diagnostics, packageDiagnostics...)
+		if packageSyntaxUsable(pkg) {
 			analyzablePackages++
 		}
 		if len(pkg.Errors) > 0 && firstPackageError == nil {
 			firstPackageError = pkg.Errors[0]
 		}
-		for index, file := range pkg.Syntax {
-			if index >= len(pkg.CompiledGoFiles) {
-				continue
-			}
-			path := pkg.CompiledGoFiles[index]
-			source, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return nil, fmt.Errorf("read %s: %w", path, readErr)
-			}
-			if generatedByLoom(source) {
-				continue
-			}
-			ast.Inspect(file, func(node ast.Node) bool {
-				call, registration, registered := typedLoomMuxRegistration(pkg, node)
-				if !registered ||
-					sourceSuppressed(pkg.Fset, file, call, RuleRouteOutsideDesign) {
-					return true
-				}
-				position := pkg.Fset.Position(call.Pos())
-				relative, relErr := filepath.Rel(root, path)
-				if relErr != nil {
-					relative = path
-				}
-				diagnostics = append(diagnostics, Diagnostic{
-					Rule:     RuleRouteOutsideDesign,
-					Severity: SeverityError,
-					Message:  unmanagedRouteMessage(pkg, call, registration),
-					Location: Location{Path: filepath.ToSlash(relative), Line: position.Line, Column: position.Column},
-				})
-				return true
-			})
-		}
 	}
-	if analyzablePackages == 0 && firstPackageError != nil {
+	if analyzablePackages == 0 && firstPackageError != nil && len(diagnostics) == 0 {
 		return nil, fmt.Errorf("load Go module for Loom route analysis: %w", firstPackageError)
 	}
 	return diagnostics, nil
+}
+
+func analyzePackageRoutes(root string, pkg *packages.Package) ([]Diagnostic, error) {
+	var diagnostics []Diagnostic
+	if incomplete := incompleteAnalysisDiagnostic(root, pkg); incomplete != nil {
+		diagnostics = append(diagnostics, *incomplete)
+	}
+	for index, file := range pkg.Syntax {
+		if index >= len(pkg.CompiledGoFiles) {
+			continue
+		}
+		path := pkg.CompiledGoFiles[index]
+		source, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		if generatedByLoom(source) {
+			continue
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			call, registration, registered := typedLoomMuxRegistration(pkg, node)
+			if !registered || sourceSuppressed(pkg.Fset, file, call, RuleRouteOutsideDesign) {
+				return true
+			}
+			position := pkg.Fset.Position(call.Pos())
+			relative, err := filepath.Rel(root, path)
+			if err != nil {
+				relative = path
+			}
+			diagnostics = append(diagnostics, Diagnostic{
+				Rule:     RuleRouteOutsideDesign,
+				Severity: SeverityError,
+				Message:  unmanagedRouteMessage(pkg, call, registration),
+				Location: Location{Path: filepath.ToSlash(relative), Line: position.Line, Column: position.Column},
+			})
+			return true
+		})
+	}
+	return diagnostics, nil
+}
+
+func packageSyntaxUsable(pkg *packages.Package) bool {
+	return len(pkg.Syntax) > 0 && pkg.TypesInfo != nil
+}
+
+func incompleteAnalysisDiagnostic(root string, pkg *packages.Package) *Diagnostic {
+	if !packageBelongsToModule(root, pkg) {
+		return nil
+	}
+	loadError, incomplete := incompletePackageError(pkg)
+	if !incomplete {
+		return nil
+	}
+	location := packageErrorLocation(root, pkg, loadError)
+	return &Diagnostic{
+		Rule:     RuleVetAnalysisIncomplete,
+		Severity: SeverityError,
+		Message:  fmt.Sprintf("package %q could not be fully analyzed: %s", pkg.PkgPath, loadError.Msg),
+		Location: location,
+	}
+}
+
+func packageBelongsToModule(root string, pkg *packages.Package) bool {
+	if pkg.Module == nil || pkg.Module.Dir == "" {
+		return false
+	}
+	moduleDir, err := filepath.Abs(pkg.Module.Dir)
+	if err != nil {
+		return false
+	}
+	return filepath.Clean(moduleDir) == filepath.Clean(root)
+}
+
+func incompletePackageError(pkg *packages.Package) (packages.Error, bool) {
+	for _, loadError := range pkg.Errors {
+		if loadError.Kind == packages.ParseError {
+			return loadError, true
+		}
+	}
+	if len(pkg.CompiledGoFiles) == len(pkg.Syntax) && pkg.Types != nil && pkg.TypesInfo != nil {
+		return packages.Error{}, false
+	}
+	if len(pkg.Errors) > 0 {
+		return pkg.Errors[0], true
+	}
+	return packages.Error{}, false
+}
+
+func packageErrorLocation(root string, pkg *packages.Package, loadError packages.Error) Location {
+	path, line, column := splitPackageErrorPosition(loadError.Pos)
+	if path == "" && len(pkg.CompiledGoFiles) > 0 {
+		path = pkg.CompiledGoFiles[0]
+	}
+	if path == "" {
+		return Location{Path: pkg.PkgPath}
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	if relative, err := filepath.Rel(root, path); err == nil {
+		path = relative
+	}
+	return Location{Path: filepath.ToSlash(path), Line: line, Column: column}
+}
+
+func splitPackageErrorPosition(position string) (string, int, int) {
+	if position == "" || position == "-" {
+		return "", 0, 0
+	}
+	path, column := position, 0
+	lastColon := strings.LastIndexByte(path, ':')
+	if lastColon < 0 {
+		return path, 0, 0
+	}
+	value, err := strconv.Atoi(path[lastColon+1:])
+	if err != nil {
+		return path, 0, 0
+	}
+	path = path[:lastColon]
+	column = value
+	lastColon = strings.LastIndexByte(path, ':')
+	if lastColon < 0 {
+		return path, column, 0
+	}
+	value, err = strconv.Atoi(path[lastColon+1:])
+	if err != nil {
+		return path, column, 0
+	}
+	return path[:lastColon], value, column
 }
 
 func skipDirectory(name string) bool {

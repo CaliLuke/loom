@@ -215,6 +215,43 @@ func routes() {
 	}, routeMessages)
 }
 
+func TestAnalyzeModuleReportsUnanalyzablePackage(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/service\n\ngo 1.27.0\n")
+	writeTestFile(t, filepath.Join(root, "service.go"), "package service\n")
+	writeTestFile(t, filepath.Join(root, "broken", "broken.go"), "package broken\n\nfunc invalid(\n")
+
+	diagnostics, err := analyzeModule(root)
+
+	require.NoError(t, err)
+	require.Len(t, diagnostics, 1)
+	require.Equal(t, RuleVetAnalysisIncomplete, diagnostics[0].Rule)
+	require.Equal(t, SeverityError, diagnostics[0].Severity)
+	require.Equal(t, "broken/broken.go", diagnostics[0].Location.Path)
+	require.Contains(t, diagnostics[0].Message, "example.com/service/broken")
+	require.Contains(t, diagnostics[0].Message, "expected ')'")
+
+	report := Report{Diagnostics: diagnostics}
+	for _, format := range []Format{FormatText, FormatJSON, FormatSARIF} {
+		var output bytes.Buffer
+		require.NoError(t, WriteReport(&output, report, format))
+		require.Contains(t, output.String(), "vet-analysis-incomplete")
+	}
+}
+
+func TestAnalyzeModuleIgnoresUnanalyzableDependency(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/service\n\ngo 1.27.0\n\nrequire example.com/broken v0.0.0\nreplace example.com/broken => ./dependency\n")
+	writeTestFile(t, filepath.Join(root, "service.go"), "package service\n\nimport _ \"example.com/broken\"\n")
+	writeTestFile(t, filepath.Join(root, "dependency", "go.mod"), "module example.com/broken\n\ngo 1.27.0\n")
+	writeTestFile(t, filepath.Join(root, "dependency", "broken.go"), "package broken\n\nfunc invalid(\n")
+
+	diagnostics, err := analyzeModule(root)
+
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+}
+
 func TestAnalyzeModuleFindsTypedMuxMountHandler(t *testing.T) {
 	tests := []struct {
 		name       string

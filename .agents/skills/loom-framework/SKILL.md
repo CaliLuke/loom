@@ -76,7 +76,10 @@ consumer validation.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
 - Put design-semantic vet rules over the evaluated `expr` graph. Use Go source
-  analysis only for module adoption facts that the graph cannot contain.
+  analysis only for module adoption facts that the graph cannot contain. A
+  source analyzer must report when an active target-module package lacks
+  complete syntax or type information, without repeating usable-package or
+  dependency diagnostics.
 - Classify heuristic vet rules as warnings and provide a scoped suppression.
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
