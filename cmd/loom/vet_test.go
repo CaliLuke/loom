@@ -52,6 +52,44 @@ func TestRunVet(t *testing.T) {
 	})
 }
 
+func TestRunVetHelp(t *testing.T) {
+	original := analyzeVetDesign
+	t.Cleanup(func() { analyzeVetDesign = original })
+	analyzeVetDesign = func(_ string, _ bool) (loomvet.Report, error) {
+		t.Error("vet analysis must not run for help")
+		return loomvet.Report{}, nil
+	}
+
+	for _, args := range [][]string{
+		{"-h"},
+		{"--help"},
+		{"example.com/service/design", "-h"},
+		{"example.com/service/design", "--help"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			exitCode := runVet(args, &stdout, &stderr)
+
+			require.Zero(t, exitCode)
+			require.Empty(t, stdout.String())
+			require.Contains(t, stderr.String(), "Usage:\n  loom vet PACKAGE")
+		})
+	}
+}
+
+func TestRunVetRequiresPackage(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runVet(nil, &stdout, &stderr)
+
+	require.Equal(t, 1, exitCode)
+	require.Empty(t, stdout.String())
+	require.Contains(t, stderr.String(), "usage: loom vet PACKAGE")
+}
+
 func TestParseVetOptionsRejectsUnknownFormat(t *testing.T) {
 	var stderr bytes.Buffer
 	_, err := parseVetOptions([]string{"example.com/service/design", "--format", "xml"}, &stderr)
