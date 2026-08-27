@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/CaliLuke/loom/expr"
 )
@@ -17,6 +18,7 @@ import (
 const formatVersion = "loom-design-v1"
 
 var reflectType = reflect.TypeFor[reflect.Type]()
+var metaExprType = reflect.TypeFor[expr.MetaExpr]()
 
 type (
 	encoder struct {
@@ -126,6 +128,9 @@ func (e *encoder) encodeMap(value reflect.Value, path string) error {
 	entries := make([]mapEntry, 0, value.Len())
 	iterator := value.MapRange()
 	for iterator.Next() {
+		if value.Type() == metaExprType && strings.HasPrefix(iterator.Key().String(), "loom:vet:") {
+			continue
+		}
 		keyEncoder := e.fork()
 		if err := keyEncoder.encode(iterator.Key(), path+".key"); err != nil {
 			return err
@@ -138,6 +143,10 @@ func (e *encoder) encodeMap(value reflect.Value, path string) error {
 			key:   keyEncoder.buffer.Bytes(),
 			value: valueEncoder.buffer.Bytes(),
 		})
+	}
+	if value.Type() == metaExprType && len(entries) == 0 {
+		e.writeString("nil")
+		return nil
 	}
 	sort.Slice(entries, func(i, j int) bool {
 		if comparison := bytes.Compare(entries[i].key, entries[j].key); comparison != 0 {

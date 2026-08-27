@@ -46,6 +46,8 @@ const (
 	RuleNormalizedRange = "normalized-range"
 	// RuleUntypedSemanticAttribute identifies Any attributes with strong scalar semantics.
 	RuleUntypedSemanticAttribute = "untyped-semantic-attribute"
+	// RuleServiceNotMounted identifies designed HTTP services missing from configured mount packages.
+	RuleServiceNotMounted = "service-not-mounted"
 )
 
 // SuppressionMeta is the DSL metadata key used to suppress vet diagnostics.

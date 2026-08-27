@@ -31,6 +31,30 @@ func TestDigestIsDeterministicForEquivalentDesigns(t *testing.T) {
 	require.Equal(t, leftDigest, rightDigest)
 }
 
+func TestDigestIgnoresVetMetadata(t *testing.T) {
+	base := &expr.RootExpr{API: &expr.APIExpr{Name: "widgets"}}
+	configured := &expr.RootExpr{API: &expr.APIExpr{
+		Name: "widgets",
+		Meta: expr.MetaExpr{
+			"loom:vet:http-entrypoint": {"./cmd/api"},
+			"loom:vet:ignore":          {"generated-design-skew"},
+		},
+	}}
+
+	baseDigest, err := Digest(base, "gen", "example.com/service/gen", 3)
+	require.NoError(t, err)
+	configuredDigest, err := Digest(configured, "gen", "example.com/service/gen", 3)
+	require.NoError(t, err)
+	require.Equal(t, baseDigest, configuredDigest)
+	generated := &expr.RootExpr{API: &expr.APIExpr{
+		Name: "widgets",
+		Meta: expr.MetaExpr{"http:generate": {"server"}},
+	}}
+	generatedDigest, err := Digest(generated, "gen", "example.com/service/gen", 3)
+	require.NoError(t, err)
+	require.NotEqual(t, baseDigest, generatedDigest)
+}
+
 func TestDigestChangesWithSemanticDesignOrGenerationInput(t *testing.T) {
 	base := &expr.RootExpr{API: &expr.APIExpr{Name: "widgets", Title: "Widgets"}}
 	changed := &expr.RootExpr{API: &expr.APIExpr{Name: "widgets", Title: "Inventory"}}

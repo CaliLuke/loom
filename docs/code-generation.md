@@ -335,6 +335,8 @@ The command reports these high-confidence errors:
 - generated output does not match the evaluated design recorded in
   `gen/loom.json`; manifests created before design digests were introduced also
   require regeneration
+- an application that opts into mount analysis has a designed HTTP service with
+  no typed generated server `Mount` call in any configured package
 - an HTTP 5xx error does not declare `Fault()`
 - an HTTP 429, 502, or 503 error declares neither `Temporary()` nor a retry
   hint nested in a remedy:
@@ -359,6 +361,20 @@ It reports warnings when descriptions imply missing contract validation:
 metadata, configuration, preference, and document fields do not warn by name.
 Bare `id` and `*_id` names require UUID evidence, and descriptions that permit
 multiple shapes do not trigger scalar inference.
+
+Applications opt into `service-not-mounted` at API scope:
+
+```go
+API("inventory", func() {
+    Meta("loom:vet:http-entrypoint", "./cmd/api", "./cmd/worker")
+})
+```
+
+Each value is a Go package pattern relative to the design module. Loom scans
+consumer-owned files in those packages for typed generated HTTP server `Mount`
+calls. Calls inside conditionals count; the rule does not attempt to prove which
+runtime branches execute. Add every package that owns mounts. Libraries remain
+opted out when this metadata is absent.
 
 Source analysis follows the active packages selected by `go list ./...` for the
 current build environment. It excludes nested dependency modules and does not
@@ -398,6 +414,14 @@ API("inventory", func() {
 
 Use this suppression only when another workflow intentionally owns generated
 output. Regeneration clears the diagnostic in the normal workflow.
+
+Suppress an intentionally unhosted designed service at service scope:
+
+```go
+Service("reports", func() {
+    Meta("loom:vet:ignore", "service-not-mounted")
+})
+```
 
 Suppress an intentional direct Loom mux route with a reason immediately before
 the registration:

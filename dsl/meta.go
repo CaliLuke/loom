@@ -191,6 +191,15 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("http:generate", "server")
 //	})
 //
+// - "loom:vet:http-entrypoint" opts an application into HTTP service mount
+// analysis. Each value is a Go package pattern, relative to the design module,
+// whose consumer-owned files contain generated server Mount calls. Add every
+// package that owns mounts. Applicable to API only.
+//
+//	var _ = API("MyAPI", func() {
+//	    Meta("loom:vet:http-entrypoint", "./cmd/api", "./cmd/worker")
+//	})
+//
 // - "openapi:generate" specifies whether OpenAPI specification should be
 // generated. Defaults to true. Applicable to Server, Host, services, methods,
 // file servers and attributes.

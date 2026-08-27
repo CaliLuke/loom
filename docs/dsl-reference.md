@@ -458,6 +458,23 @@ The most commonly used metadata keys are:
 | `openapi:component:response` | HTTP response | Hoist and name reusable responses |
 | `openapi:component:example` | Example | Hoist and name reusable examples |
 
+### Vet Metadata
+
+Applications can opt into missing HTTP service mount analysis with API metadata:
+
+```go
+API("inventory", func() {
+    Meta("loom:vet:http-entrypoint", "./cmd/api", "./cmd/worker")
+})
+```
+
+Each value is a Go package pattern relative to the design module. `loom vet`
+checks consumer-owned files in those packages for typed generated server
+`Mount` calls. Calls inside conditional branches count. Add each package that
+owns mounts. Omit the metadata for library-only modules. A deliberately
+unhosted service can use
+`Meta("loom:vet:ignore", "service-not-mounted")` at service scope.
+
 Synthesized examples are deterministic and isolated by stable schema and
 occurrence identity. The same design and generation options therefore produce
 byte-identical examples, and an unrelated schema change does not shift them.

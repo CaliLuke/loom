@@ -495,6 +495,20 @@ created before design digests were introduced also requires `loom gen`. Source
 analysis follows the active packages selected by the current Go build
 environment and excludes dependency modules.
 
+Applications can opt into missing-mount analysis at API scope:
+
+```go
+API("inventory", func() {
+    Meta("loom:vet:http-entrypoint", "./cmd/api", "./cmd/worker")
+})
+```
+
+Each value identifies a package whose consumer-owned files contain generated
+HTTP server `Mount` calls. Conditional calls count. Add every package that owns
+mounts; Loom does not prove runtime branch reachability. Library modules stay
+opted out by omitting this metadata. Suppress an intentionally unhosted service
+with `Meta("loom:vet:ignore", "service-not-mounted")` on that service.
+
 Use `--format=json` or `--format=sarif` to archive or share audit results.
 
 Use `Meta("loom:vet:ignore", "<rule>")` to suppress an intentional design

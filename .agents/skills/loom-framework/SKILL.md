@@ -87,10 +87,16 @@ consumer validation.
   allow name-only inference only for timestamp-style names such as `*_at`,
   require explicit UUID evidence for IDs, and ignore ambiguous descriptions
   that describe multiple possible shapes.
+- Keep `service-not-mounted` opt-in through API metadata. Scan typed `Mount`
+  calls only in the configured consumer packages, count calls in conditional
+  branches, support multiple packages, and let service metadata suppress an
+  intentional omission. Do not infer runtime reachability or enable the rule
+  for library modules that omit the metadata.
 - Fingerprint the evaluated design and output-affecting generation context in
   `gen/loom.json`. The fingerprint must ignore runtime-only evaluator state,
-  serialize maps deterministically, and never include timestamps or filesystem
-  paths. `loom vet` reports design skew separately from Loom version skew.
+  all `loom:vet:*` metadata, timestamps, and filesystem paths, and must
+  serialize maps deterministically. `loom vet` reports design skew separately
+  from Loom version skew.
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted

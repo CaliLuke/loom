@@ -45,10 +45,15 @@ func analyzeModuleWithDesign(dir string, design *expr.RootExpr) ([]Diagnostic, e
 	if err != nil {
 		return nil, err
 	}
+	mounts, err := analyzeConfiguredHTTPMounts(root, design)
+	if err != nil {
+		return nil, err
+	}
 	versions, err := analyzeGeneratedManifests(root, design)
 	if err != nil {
 		return nil, err
 	}
+	routes = append(routes, mounts...)
 	return append(routes, versions...), nil
 }
 
