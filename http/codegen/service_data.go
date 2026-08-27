@@ -90,8 +90,7 @@ type (
 		// CORS contains the generated service CORS policy, if any.
 		CORS *CORSData
 		// Scope initialized with all the server and client types.
-		Scope *codegen.NameScope
-
+		Scope            *codegen.NameScope
 		exampleGenerator *expr.ExampleGenerator
 	}
 
