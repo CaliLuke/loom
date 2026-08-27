@@ -76,11 +76,11 @@ Loom requires the Go version declared in [go.mod](go.mod#L3), currently Go
 Install the CLI and create a module:
 
 ```bash
-go install github.com/CaliLuke/loom/cmd/loom@v1.9.0-alpha.3
+go install github.com/CaliLuke/loom/cmd/loom@v1.9.0-alpha.4
 
 mkdir hello && cd hello
 go mod init example.com/hello
-go get github.com/CaliLuke/loom@v1.9.0-alpha.3
+go get github.com/CaliLuke/loom@v1.9.0-alpha.4
 mkdir design
 ```
 
