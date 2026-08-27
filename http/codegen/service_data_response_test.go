@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
@@ -43,4 +46,28 @@ func TestBuildProblemClientResultTransformCodeDereferencesOptionalBodyFields(t *
 			t.Fatalf("expected generated transform to contain %q, got:\n%s", want, code)
 		}
 	}
+}
+
+func TestClientResponseValidationEmitsOneRequiredNullablePresenceCheck(t *testing.T) {
+	code := renderClientTypesCode(t, func() {
+		dsl.Service("members", func() {
+			dsl.Method("show", func() {
+				dsl.Result(func() {
+					dsl.Attribute("company_role", dsl.String, func() {
+						dsl.Nullable()
+						dsl.Pattern("^[a-z]+$")
+					})
+					dsl.Required("company_role")
+				})
+				dsl.HTTP(func() {
+					dsl.GET("/members")
+					dsl.Response(dsl.StatusOK)
+				})
+			})
+		})
+	})
+
+	require.Equal(t, 1, strings.Count(code, `loom.MissingFieldError("company_role", "body")`), code)
+	require.Contains(t, code, "if actual, ok := body.CompanyRole.Value(); ok")
+	require.Contains(t, code, "ValidatePattern")
 }

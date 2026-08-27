@@ -74,6 +74,7 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		put = ut
 	}
 	mapped := expr.NewMappedAttributeExpr(att)
+	parentRequired := parentRequiredValidationFields(att, attCtx)
 	for _, nat := range *(expr.AsObject(att.Type)) {
 		tgt := target + "." + attCtx.Scope.Field(nat.Attribute, nat.Name, true)
 		ctx := context + "." + nat.Name
@@ -82,12 +83,27 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		case OptionalPresence:
 			val = validateOptionalAttribute(attCtx, nat.Attribute, put, tgt, ctx, view, seen)
 		case NullablePresence:
-			val = validateNullableAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
+			_, requiredByParent := parentRequired[nat.Name]
+			required := att.IsRequired(nat.Name) && !requiredByParent
+			val = validateNullableAttribute(attCtx, nat.Attribute, put, tgt, ctx, required, view, seen)
 		default:
 			val = validateAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
 		}
 		appendValidationBlock(buf, first, val)
 	}
+}
+
+func parentRequiredValidationFields(att *expr.AttributeExpr, attCtx *AttributeContext) map[string]struct{} {
+	validation := mergedValidation(att)
+	if validation == nil {
+		return nil
+	}
+	fields := generatedRequiredValidationFrom(att, validation, attCtx)
+	result := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		result[field] = struct{}{}
+	}
+	return result
 }
 
 func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {

@@ -172,6 +172,48 @@ func TestNullableValidationUsesSemanticPresence(t *testing.T) {
 	require.Contains(t, code, "ValidatePattern")
 }
 
+func TestValidationCodeEmitsOneRequiredFieldError(t *testing.T) {
+	tests := []struct {
+		name      string
+		nullable  bool
+		required  bool
+		pointer   bool
+		wantCount int
+	}{
+		{name: "required nullable pointer", nullable: true, required: true, pointer: true, wantCount: 1},
+		{name: "required nullable value", nullable: true, required: true, wantCount: 1},
+		{name: "required non-nullable pointer", required: true, pointer: true, wantCount: 1},
+		{name: "optional nullable pointer", nullable: true, pointer: true, wantCount: 0},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			field := &expr.AttributeExpr{
+				Type:       expr.String,
+				Nullable:   test.nullable,
+				Validation: &expr.ValidationExpr{Pattern: "^[a-z]+$"},
+			}
+			validation := &expr.ValidationExpr{}
+			if test.required {
+				validation.Required = []string{"value"}
+			}
+			attribute := &expr.AttributeExpr{
+				Type: &expr.Object{{
+					Name:      "value",
+					Attribute: field,
+				}},
+				Validation: validation,
+			}
+			ctx := NewAttributeContext(test.pointer, false, false, "", NewNameScope())
+			ctx.JSONPresence = true
+
+			code := ValidationCode(attribute, nil, ctx, true, false, false, "body")
+
+			require.Equal(t, test.wantCount, strings.Count(code, `loom.MissingFieldError("value", "body")`), code)
+			require.Contains(t, code, "ValidatePattern")
+		})
+	}
+}
+
 func TestRequiredDefaultJSONPresenceValidationUsesOptionalPresence(t *testing.T) {
 	root := RunDSL(t, func() {
 		dsl.Type("Sort", func() {
