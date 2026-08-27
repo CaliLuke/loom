@@ -91,6 +91,8 @@ type (
 		CORS *CORSData
 		// Scope initialized with all the server and client types.
 		Scope *codegen.NameScope
+
+		exampleGenerator *expr.ExampleGenerator
 	}
 
 	// EndpointData contains the data used to render the code related to a

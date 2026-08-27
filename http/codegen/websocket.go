@@ -226,7 +226,7 @@ func websocketPayloadInitArgs(sds *ServicesData, streamingBody *expr.AttributeEx
 			TypeRef:  sd.Scope.GoTypeRef(streamingBody),
 			Type:     streamingBody.Type,
 			Required: true,
-			Example:  streamingBody.Example(sds.Root.API.ExampleGenerator),
+			Example:  streamingBody.Example(sds.examplesFor(sd)),
 			Validate: websocketPayloadValidationCode(body, sd),
 		},
 	}}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/examplegen"
 )
 
 // buildMethodData creates the data needed to render the given endpoint. It
@@ -25,8 +26,10 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 	if desc == "" {
 		desc = codegen.Goify(m.Name, true) + " implements " + m.Name + "."
 	}
-	payloadData = buildMethodAttributeProjection(m.Payload, "payload", m.Service.Name, m.Name, d.Root.API.ExampleGenerator, scope)
-	resultData = buildMethodAttributeProjection(m.Result, "result", m.Service.Name, m.Name, d.Root.API.ExampleGenerator, scope)
+	payloadExamples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "payload")
+	resultExamples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "result")
+	payloadData = buildMethodAttributeProjection(m.Payload, "payload", m.Service.Name, m.Name, payloadExamples, scope)
+	resultData = buildMethodAttributeProjection(m.Result, "result", m.Service.Name, m.Name, resultExamples, scope)
 	errors, errorLocs = buildMethodErrorData(m.Errors, scope)
 
 	data := &MethodData{
@@ -218,7 +221,8 @@ func (d *ServicesData) buildStreamingResultData(data *MethodData, m *expr.Method
 	if !m.HasMixedResults() || m.StreamingResult == nil || m.StreamingResult.Type == expr.Empty {
 		return sresult
 	}
-	sresult = buildStreamAttributeData(m.StreamingResult, m, scope, d.Root.API.ExampleGenerator)
+	examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "streaming-result")
+	sresult = buildStreamAttributeData(m.StreamingResult, m, scope, examples)
 	data.StreamingResult = sresult.Name
 	data.StreamingResultRef = sresult.Ref
 	data.StreamingResultDef = sresult.Def
@@ -231,7 +235,8 @@ func (d *ServicesData) buildStreamingPayloadData(m *expr.MethodExpr, scope *code
 	if m.StreamingPayload == nil || m.StreamingPayload.Type == expr.Empty {
 		return streamAttributeData{}
 	}
-	return buildStreamAttributeData(m.StreamingPayload, m, scope, d.Root.API.ExampleGenerator)
+	examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "streaming-payload")
+	return buildStreamAttributeData(m.StreamingPayload, m, scope, examples)
 }
 
 func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope *codegen.NameScope, examples *expr.ExampleGenerator) streamAttributeData {

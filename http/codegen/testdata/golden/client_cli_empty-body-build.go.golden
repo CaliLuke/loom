@@ -8,7 +8,7 @@ func BuildMethodBodyPrimitiveArrayUserPayload(serviceBodyPrimitiveArrayUserMetho
 		if serviceBodyPrimitiveArrayUserMethodBodyPrimitiveArrayUserA != "" {
 			err = json.Unmarshal([]byte(serviceBodyPrimitiveArrayUserMethodBodyPrimitiveArrayUserA), &a)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for a, \nerror: %s, \nexample of valid JSON:\n%s", err, "'[\n      \"Perspiciatis repellendus harum et est.\",\n      \"Nisi quibusdam nisi sint sunt beatae.\"\n   ]'")
+				return nil, fmt.Errorf("invalid JSON for a, \nerror: %s, \nexample of valid JSON:\n%s", err, "'[\n      \"In et.\",\n      \"Voluptatem iste tenetur vitae ex aut laborum.\",\n      \"Qui earum aut at voluptatibus.\"\n   ]'")
 			}
 		}
 	}

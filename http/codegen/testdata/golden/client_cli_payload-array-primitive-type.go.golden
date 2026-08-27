@@ -50,7 +50,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 				err = json.Unmarshal([]byte(*serviceBodyPrimitiveArrayStringValidateMethodBodyPrimitiveArrayStringValidatePFlag), &val)
 				data = val
 				if err != nil {
-					return nil, nil, fmt.Errorf("invalid JSON for serviceBodyPrimitiveArrayStringValidateMethodBodyPrimitiveArrayStringValidatePFlag, \nerror: %s, \nexample of valid JSON:\n%s", err, "'[\n      \"val\",\n      \"val\",\n      \"val\"\n   ]'")
+					return nil, nil, fmt.Errorf("invalid JSON for serviceBodyPrimitiveArrayStringValidateMethodBodyPrimitiveArrayStringValidatePFlag, \nerror: %s, \nexample of valid JSON:\n%s", err, "'[\n      \"val\"\n   ]'")
 				}
 			}
 		}

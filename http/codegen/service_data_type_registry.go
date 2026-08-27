@@ -340,7 +340,7 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 	}
 	var example any
 	if sds != nil && sds.Root != nil && sds.Root.API != nil {
-		example = att.Example(sds.Root.API.ExampleGenerator)
+		example = att.Example(sds.examplesFor(rd))
 	}
 	return &TypeData{
 		Name:        ut.Name(),

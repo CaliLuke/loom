@@ -231,7 +231,7 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 					TypeRef:      b.sd.Scope.GoTypeRef(attr),
 					Validate:     codegen.AttributeValidationCode(attr, nil, b.httpsvrctx, param.Required, expr.IsAlias(attr.Type), varName, param.Name),
 					DefaultValue: attr.DefaultValue,
-					Example:      attr.Example(b.sds.Root.API.ExampleGenerator),
+					Example:      attr.Example(b.sds.examplesFor(b.sd)),
 				},
 			},
 		}
@@ -249,7 +249,7 @@ func (b *payloadBuilder) buildPathParams(params []*transportir.Parameter) []*Par
 		data = append(data, &ParamData{
 			Map:            false,
 			MapStringSlice: false,
-			Element:        b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope),
+			Element:        b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.sds.examplesFor(b.sd)),
 		})
 	}
 	return data
@@ -272,7 +272,7 @@ func (b *payloadBuilder) buildQueryParams(params []*transportir.Parameter) []*Pa
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
-			Element: b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope),
+			Element: b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.sds.examplesFor(b.sd)),
 		})
 	}
 	return data
@@ -299,7 +299,7 @@ func (b *payloadBuilder) buildHeaders(params []*transportir.Parameter) []*Header
 		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, b.svcctx)
 		headers = append(headers, &HeaderData{
 			CanonicalName: http.CanonicalHeaderKey(param.HTTPName),
-			Element:       b.sds.buildTransportElement(param.Name, param.HTTPName, hattr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, b.svcctx, b.sd.Scope),
+			Element:       b.sds.buildTransportElement(param.Name, param.HTTPName, hattr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, b.svcctx, b.sd.Scope, b.sds.examplesFor(b.sd)),
 		})
 	}
 	return headers
@@ -311,7 +311,7 @@ func (b *payloadBuilder) buildCookies(params []*transportir.Parameter) []*Cookie
 		if _, ok := param.Attribute.Meta["loom:transport-only-session-cookie"]; ok {
 			continue
 		}
-		cookies = append(cookies, b.sds.cookieData(param.Name, param.HTTPName, param.Required, param.PrimitivePointer, param.Attribute, b.payload, b.svcctx, b.sd.Scope))
+		cookies = append(cookies, b.sds.cookieData(param.Name, param.HTTPName, param.Required, param.PrimitivePointer, param.Attribute, b.payload, b.svcctx, b.sd.Scope, b.sds.examplesFor(b.sd)))
 	}
 	return cookies
 }
@@ -359,7 +359,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		Description:              fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, b.svc.Name, b.endpointIR.Name),
 		ServerArgs:               serverArgs,
 		ClientArgs:               clientArgs,
-		CLIArgs:                  buildBasicAuthCLIArgs(b.ep, b.endpointIR.Request.Payload, b.svc, b.httpsvrctx, b.sds.Root.API.ExampleGenerator),
+		CLIArgs:                  buildBasicAuthCLIArgs(b.ep, b.endpointIR.Request.Payload, b.svc, b.httpsvrctx, b.sds.examplesFor(b.sd)),
 		ReturnTypeName:           b.svc.Scope.GoFullTypeName(b.payload, b.pkg),
 		ReturnTypeRef:            b.svc.Scope.GoFullTypeRef(b.payload, b.pkg),
 		ReturnIsStruct:           expr.IsObject(b.payload.Type),
@@ -395,7 +395,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			TypeRef:  b.sd.Scope.GoTypeRef(b.bodyAttr),
 			Type:     b.body,
 			Required: true,
-			Example:  b.bodyAttr.Example(b.sds.Root.API.ExampleGenerator),
+			Example:  b.bodyAttr.Example(b.sds.examplesFor(b.sd)),
 			Validate: svcode,
 		},
 	})
@@ -408,7 +408,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			TypeRef:  b.sd.Scope.GoTypeRefWithDefaults(b.bodyAttr),
 			Type:     b.body,
 			Required: true,
-			Example:  b.bodyAttr.Example(b.sds.Root.API.ExampleGenerator),
+			Example:  b.bodyAttr.Example(b.sds.examplesFor(b.sd)),
 			Validate: cvcode,
 		},
 	})

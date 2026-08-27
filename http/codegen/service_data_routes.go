@@ -57,7 +57,7 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 				Type:        att.Type,
 				Pointer:     pointer,
 				Required:    true,
-				Example:     att.Example(sds.Root.API.ExampleGenerator),
+				Example:     att.Example(sds.examplesFor(sd)),
 				Validate:    validate,
 			},
 		}

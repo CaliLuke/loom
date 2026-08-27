@@ -538,6 +538,10 @@ groups derived from the first route path segment, for example
 methods remain available on `Client`, so existing consumers keep compiling
 while larger services gain a narrower navigation surface.
 
+Synthesized examples in generated service and HTTP CLI code use stable
+service and method scopes. Adding, changing, removing, or reordering an
+unrelated service does not perturb another service's example values.
+
 ### Service Interfaces
 
 Generated in `gen/<service>/service.go`:

@@ -8,6 +8,13 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
+func (sds *ServicesData) examplesFor(sd *ServiceData) *expr.ExampleGenerator {
+	if sd != nil && sd.exampleGenerator != nil {
+		return sd.exampleGenerator
+	}
+	return sds.Root.API.ExampleGenerator
+}
+
 func transportStringSlice(att *expr.AttributeExpr) bool {
 	arr := expr.AsArray(att.Type)
 	return arr != nil && arr.ElemType.Type.Kind() == expr.StringKind
@@ -40,6 +47,7 @@ func (sds *ServicesData) buildTransportAttributeData(
 	fieldPointer bool,
 	validateCtx *codegen.AttributeContext,
 	scope *codegen.NameScope,
+	examples *expr.ExampleGenerator,
 ) *AttributeData {
 	varName := scope.Name(codegen.Goify(name, false))
 	typeRef := scope.GoTypeRef(attr)
@@ -70,7 +78,7 @@ func (sds *ServicesData) buildTransportAttributeData(
 		Validate:          codegen.AttributeValidationCode(validateAttr, nil, validateCtx, validateRequired, expr.IsAlias(attr.Type), validateTarget, name),
 		IsTextUnmarshaler: textUnmarshaler,
 		DefaultValue:      attr.DefaultValue,
-		Example:           attr.Example(sds.Root.API.ExampleGenerator),
+		Example:           attr.Example(examples),
 	}
 }
 
@@ -105,17 +113,18 @@ func (sds *ServicesData) buildTransportElement(
 	fieldPointer bool,
 	validateCtx *codegen.AttributeContext,
 	scope *codegen.NameScope,
+	examples *expr.ExampleGenerator,
 ) *Element {
 	return &Element{
 		HTTPName:      elem,
 		AttributeName: name,
 		StringSlice:   stringSlice,
 		Slice:         expr.AsArray(attr.Type) != nil,
-		AttributeData: sds.buildTransportAttributeData(name, attr, required, pointer, fieldName, fieldType, fieldPointer, validateCtx, scope),
+		AttributeData: sds.buildTransportAttributeData(name, attr, required, pointer, fieldName, fieldType, fieldPointer, validateCtx, scope, examples),
 	}
 }
 
-func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*HeaderData {
+func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope, examples *expr.ExampleGenerator) []*HeaderData {
 	headers := make([]*HeaderData, 0, len(headersIR))
 	for _, headerIR := range headersIR {
 		name := headerIR.Name
@@ -130,20 +139,20 @@ func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt 
 		fieldName, fieldType, fieldPointer := transportFieldBinding(name, attr, svcAtt, svcCtx)
 		headers = append(headers, &HeaderData{
 			CanonicalName: http.CanonicalHeaderKey(elem),
-			Element:       sds.buildTransportElement(name, elem, hattr, stringSlice, headerIR.Required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope),
+			Element:       sds.buildTransportElement(name, elem, hattr, stringSlice, headerIR.Required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope, examples),
 		})
 	}
 	return headers
 }
 
-func (sds *ServicesData) extractResponseCookies(cookiesIR []*transportir.Cookie, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) []*CookieData {
+func (sds *ServicesData) extractResponseCookies(cookiesIR []*transportir.Cookie, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope, examples *expr.ExampleGenerator) []*CookieData {
 	cookies := make([]*CookieData, 0, len(cookiesIR))
 	for _, cookieIR := range cookiesIR {
 		name := cookieIR.Name
 		if name == "" {
 			continue
 		}
-		cookie := sds.cookieData(name, cookieIR.HTTPName, cookieIR.Required, cookieIR.PrimitivePointer, cookieIR.Attribute, svcAtt, svcCtx, scope)
+		cookie := sds.cookieData(name, cookieIR.HTTPName, cookieIR.Required, cookieIR.PrimitivePointer, cookieIR.Attribute, svcAtt, svcCtx, scope, examples)
 		cookie.MaxAge = cookieIR.MaxAge
 		cookie.Path = cookieIR.Path
 		cookie.Domain = cookieIR.Domain
@@ -164,7 +173,7 @@ func (sds *ServicesData) extractResponseCookies(cookiesIR []*transportir.Cookie,
 	return cookies
 }
 
-func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bool, mappedAttr *expr.AttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope) *CookieData {
+func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bool, mappedAttr *expr.AttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope, examples *expr.ExampleGenerator) *CookieData {
 	var hattr *expr.AttributeExpr
 	if hattr = svcAtt.Find(name); hattr == nil {
 		if mappedAttr != nil {
@@ -177,6 +186,6 @@ func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bo
 	hattr = makeHTTPType(hattr)
 	fieldName, fieldType, fieldPointer := transportFieldBinding(name, hattr, svcAtt, svcCtx)
 	return &CookieData{
-		Element: sds.buildTransportElement(name, elem, hattr, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope),
+		Element: sds.buildTransportElement(name, elem, hattr, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope, examples),
 	}
 }

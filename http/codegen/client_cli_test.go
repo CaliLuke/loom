@@ -1,10 +1,15 @@
 package codegen
 
 import (
-	"github.com/CaliLuke/loom/codegen/testutil"
+	"bytes"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
+	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -57,5 +62,104 @@ func TestClientCLIFiles(t *testing.T) {
 			code := codegen.SectionCode(t, sections[c.SectionIndex])
 			testutil.AssertGo(t, "testdata/golden/client_cli_"+c.Name+".go.golden", code)
 		})
+	}
+}
+
+func TestClientCLIExamplesAreStableAcrossUnrelatedServices(t *testing.T) {
+	baseline := renderServiceClientCLI(t, clientCLIExampleStabilityDSL(false, false), "stable")
+	changed := renderServiceClientCLI(t, clientCLIExampleStabilityDSL(true, false), "stable")
+	reordered := renderServiceClientCLI(t, clientCLIExampleStabilityDSL(false, true), "stable")
+	repeated := renderServiceClientCLI(t, clientCLIExampleStabilityDSL(false, false), "stable")
+	baselineUnrelated := renderServiceClientCLI(t, clientCLIExampleStabilityDSL(false, false), "alpha")
+	changedUnrelated := renderServiceClientCLI(t, clientCLIExampleStabilityDSL(true, false), "alpha")
+
+	require.NotEqual(t, baselineUnrelated, changedUnrelated)
+	require.Equal(t, baseline, changed)
+	require.Equal(t, baseline, reordered)
+	require.Equal(t, baseline, repeated)
+}
+
+func renderServiceClientCLI(t *testing.T, dsl func(), serviceName string) string {
+	t.Helper()
+	root := RunHTTPDSL(t, dsl)
+	services := CreateHTTPServices(root)
+	for _, file := range ClientCLIFiles("gen", services) {
+		for _, section := range file.Section("cli-command-usage") {
+			var output bytes.Buffer
+			require.NoError(t, section.Write(&output))
+			if strings.Contains(output.String(), codegen.Goify(serviceName, false)+"Usage") {
+				return output.String()
+			}
+		}
+	}
+	t.Fatalf("client CLI command usage for service %q not found", serviceName)
+	return ""
+}
+
+func clientCLIExampleStabilityDSL(changeUnrelated, reverse bool) func() {
+	return func() {
+		API("example-stability", func() {
+			Server("api", func() {
+				Services("stable", "alpha")
+				Host("development", func() {
+					URI("http://localhost:8080")
+				})
+			})
+		})
+		stable := func() {
+			Service("stable", func() {
+				Method("show", func() {
+					Payload(func() {
+						Attribute("stable_id", String, func() {
+							Format(FormatUUID)
+						})
+						Required("stable_id")
+					})
+					Result(String)
+					HTTP(func() {
+						GET("/stable/{stable_id}")
+						Param("stable_id")
+					})
+				})
+			})
+		}
+		unrelated := func() {
+			Service("alpha", func() {
+				Method("list", func() {
+					Payload(func() {
+						Attribute("filter", String)
+						if changeUnrelated {
+							Attribute("cursor", String, func() {
+								Format(FormatUUID)
+							})
+						}
+					})
+					Result(func() {
+						Attribute("id", String, func() {
+							Format(FormatUUID)
+						})
+						Required("id")
+						if changeUnrelated {
+							Attribute("detail", String)
+							Required("detail")
+						}
+					})
+					HTTP(func() {
+						GET("/unrelated")
+						Param("filter")
+						if changeUnrelated {
+							Param("cursor")
+						}
+					})
+				})
+			})
+		}
+		if reverse {
+			stable()
+			unrelated()
+			return
+		}
+		unrelated()
+		stable()
 	}
 }

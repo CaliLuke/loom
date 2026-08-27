@@ -8,6 +8,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/examplegen"
 )
 
 // transportGeneratedImportNames is the union of local names from literal
@@ -76,6 +77,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	irService := transportir.BuildService(httpSvc)
 	svc, scope := newHTTPAnalysisService(svc, sds.serviceImportAliases[httpSvc.Name()])
 	sd = newHTTPServiceData(svc, scope)
+	sd.exampleGenerator = examplegen.ForScope(sds.Root.API.ExampleGenerator, "http", httpSvc.Name())
 	sd.CORS = buildCORSData(httpSvc)
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
 	recordServiceTypeLayouts(irService.Endpoints, sd)

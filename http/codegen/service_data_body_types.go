@@ -59,7 +59,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		Init:                 init,
 		ValidateDef:          details.validateDefinition,
 		ValidateRef:          details.validateReference,
-		Example:              body.Example(sds.Root.API.ExampleGenerator),
+		Example:              body.Example(sds.examplesFor(sd)),
 		FlatFormUnionField:   details.flatFormUnionField,
 		FlatFormUnionPointer: details.flatFormUnionPointer,
 		FlatFormUnionTypeKey: details.flatFormUnionTypeKey,
@@ -206,7 +206,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		Init:        init,
 		ValidateDef: data.validateDef,
 		ValidateRef: data.validateRef,
-		Example:     body.Example(sds.Root.API.ExampleGenerator),
+		Example:     body.Example(sds.examplesFor(sd)),
 		View:        viewName,
 	}
 }
@@ -343,7 +343,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 			TypeRef:  sd.Service.Scope.GoFullTypeRef(att, pkg),
 			Type:     att.Type,
 			Validate: validateDef,
-			Example:  att.Example(sds.Root.API.ExampleGenerator),
+			Example:  att.Example(sds.examplesFor(sd)),
 		},
 	}
 	return &InitData{
@@ -407,7 +407,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 			TypeRef:  argTypeRef,
 			Type:     att.Type,
 			Validate: validateDef,
-			Example:  att.Example(sds.Root.API.ExampleGenerator),
+			Example:  att.Example(sds.examplesFor(sd)),
 		},
 	}
 	return &InitData{

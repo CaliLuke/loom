@@ -84,8 +84,8 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 	if !needInit(httpError.Attribute) {
 		return nil
 	}
-	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope)
-	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope)
+	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope, b.sds.examplesFor(b.sd))
+	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope, b.sds.examplesFor(b.sd))
 	args := make([]*InitArgData, 0, len(headers)+len(cookies)+1)
 	if body != expr.Empty {
 		args = append(args, buildBodyInitArg(b.sd.Scope, responseStatusBody(errorResponse), true))
@@ -131,8 +131,8 @@ func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseSt
 func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext, init *InitData) *ResponseData {
 	httpError := errorResponse.Error
 	serverBodyData, clientBodyData := b.buildResponseBodyData(errorResponse)
-	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope)
-	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope)
+	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope, b.sds.examplesFor(b.sd))
+	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope, b.sds.examplesFor(b.sd))
 	contentType := errorResponse.ContentType
 	headerSourceVar := "res"
 	problemTypeOverride := ""
