@@ -159,6 +159,49 @@ func TestGoTypeDefUsesJSONPresenceForArrayElements(t *testing.T) {
 	require.Equal(t, "[]loom.Nullable[any]", goTypeDef(scope, requiredAny, true, false, true))
 }
 
+func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
+	scope := codegen.NewNameScope()
+	context := codegen.NewAttributeContext(true, false, false, "", scope)
+	context.JSONPresence = true
+	tests := []struct {
+		name      string
+		attribute *expr.AttributeExpr
+		want      string
+	}{
+		{
+			name: "direct array",
+			attribute: &expr.AttributeExpr{Type: &expr.Array{
+				ElemType: &expr.AttributeExpr{Type: expr.String},
+			}},
+			want: "[]loom.Nullable[string]",
+		},
+		{
+			name: "map array value",
+			attribute: &expr.AttributeExpr{Type: &expr.Map{
+				KeyType: &expr.AttributeExpr{Type: expr.String},
+				ElemType: &expr.AttributeExpr{Type: &expr.Array{
+					ElemType: &expr.AttributeExpr{Type: expr.String},
+				}},
+			}},
+			want: "map[string][]loom.Nullable[string]",
+		},
+		{
+			name: "plain map",
+			attribute: &expr.AttributeExpr{Type: &expr.Map{
+				KeyType:  &expr.AttributeExpr{Type: expr.String},
+				ElemType: &expr.AttributeExpr{Type: expr.String},
+			}},
+			want: "map[string]string",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.want, goBodyTypeRef(scope, test.attribute, context))
+		})
+	}
+}
+
 func TestGoValueTypeDefStripsNamedRootPresence(t *testing.T) {
 	root := &expr.AttributeExpr{Type: expr.String, Nullable: true}
 	named := &expr.UserTypeExpr{TypeName: "NullableText", AttributeExpr: root}

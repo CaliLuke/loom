@@ -86,7 +86,8 @@ func goArrayElemTypeDef(scope *codegen.NameScope, array *expr.Array, ptr, useDef
 
 func goBodyTypeRef(scope *codegen.NameScope, attribute *expr.AttributeExpr, context *codegen.AttributeContext) string {
 	_, userType := attribute.Type.(expr.UserType)
-	if context.JSONPresence && !userType && expr.IsArray(attribute.Type) {
+	collection := expr.IsArray(attribute.Type) || expr.IsMap(attribute.Type)
+	if context.JSONPresence && !userType && collection && expr.ContainsNonNullableArrayElement(attribute) {
 		return goTypeDef(scope, attribute, context.Pointer, context.UseDefault, true)
 	}
 	return scope.GoTypeRef(attribute)

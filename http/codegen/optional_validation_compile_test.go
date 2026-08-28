@@ -126,6 +126,7 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 		var RequiredDefaultRequest = Type("RequiredDefaultRequest", func() {
 			Attribute("sort", RequiredDefaultSort)
 		})
+		var ValidationErrors = Type("ValidationErrors", MapOf(String, ArrayOf(String)))
 		Service("OptionalUnionValidation", func() {
 			Method("Show", func() {
 				Result(Envelope)
@@ -230,6 +231,13 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 					Response(StatusOK)
 				})
 			})
+			Method("ValidationErrorsShow", func() {
+				Result(ValidationErrors)
+				HTTP(func() {
+					GET("/validation-errors")
+					Response(StatusOK)
+				})
+			})
 		})
 	})
 	dir := t.TempDir()
@@ -244,6 +252,7 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 	}
 	require.Contains(t, clientTypes.String(), "Labels loom.Optional[[]loom.Nullable[string]]")
 	require.Contains(t, clientTypes.String(), "body.Labels.Value()")
+	require.Contains(t, clientTypes.String(), "body map[string][]loom.Nullable[string]")
 	serverTypeFiles, err := filepath.Glob(filepath.Join(dir, "gen", "http", "optional_union_validation", "server", "types*.go"))
 	require.NoError(t, err)
 	var serverTypes strings.Builder
@@ -376,6 +385,39 @@ func TestDirectArrayItemNullability(t *testing.T) {
 		_, err := client.DecodeDirectArrayShowResponse(loomhttp.ResponseDecoder, false)(response)
 		if err == nil || !strings.Contains(err.Error(), "body[0]") {
 			t.Fatalf("decode error = %v, want body[0]", err)
+		}
+	})
+}
+
+func TestMapArrayItemNullability(t *testing.T) {
+	t.Run("accepts valid response", func(t *testing.T) {
+		response := &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(`+"`"+`{"field":["required"]}`+"`"+`)),
+		}
+		result, err := client.DecodeValidationErrorsShowResponse(loomhttp.ResponseDecoder, false)(response)
+		if err != nil {
+			t.Fatalf("decode valid response: %v", err)
+		}
+		encoded, err := json.Marshal(result)
+		if err != nil {
+			t.Fatalf("encode decoded response: %v", err)
+		}
+		if got := string(encoded); got != `+"`"+`{"field":["required"]}`+"`"+` {
+			t.Fatalf("decoded response = %s", got)
+		}
+	})
+
+	t.Run("rejects null array member", func(t *testing.T) {
+		response := &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(`+"`"+`{"field":[null]}`+"`"+`)),
+		}
+		_, err := client.DecodeValidationErrorsShowResponse(loomhttp.ResponseDecoder, false)(response)
+		if err == nil || !strings.Contains(err.Error(), "body[key][0]") {
+			t.Fatalf("decode error = %v, want body[key][0]", err)
 		}
 	})
 }
