@@ -174,7 +174,7 @@ func addTestNode(t *testing.T, rdb *redis.Client, pool string, opts ...NodeOptio
 		WithWorkerTTL(time.Second),
 		WithWorkerShutdownTTL(5 * time.Second),
 		WithJobSinkBlockDuration(50 * time.Millisecond),
-		WithAckGracePeriod(time.Second),
+		WithAckGracePeriod(5 * time.Second),
 	}, opts...)
 	node, err := AddNode(t.Context(), pool, rdb, opts...)
 	require.NoError(t, err)
