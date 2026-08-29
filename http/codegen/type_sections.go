@@ -371,7 +371,7 @@ func renderHTTPUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData) string
 		return renderHTTPUntaggedUnionUnmarshalJSONBody(data)
 	}
 	var b sourceBuilder
-	b.Addf("var raw struct {\n\tType  string          `json:\"%s\"`\n\tValue json.RawMessage `json:\"%s\"`\n}\n", data.TypeKey, data.ValueKey)
+	b.Addf("var raw struct {\n\tType  string         `json:\"%s\"`\n\tValue jsontext.Value `json:\"%s\"`\n}\n", data.TypeKey, data.ValueKey)
 	b.Add("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
 	b.Add("switch raw.Type {\n")
 	for _, field := range data.Fields {
@@ -392,7 +392,7 @@ func renderHTTPUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData) string
 
 func renderHTTPUntaggedUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData) string {
 	var b sourceBuilder
-	b.Add("var rawObject map[string]json.RawMessage\n")
+	b.Add("var rawObject map[string]jsontext.Value\n")
 	b.Add("if err := json.Unmarshal(data, &rawObject); err != nil {\n\treturn err\n}\n")
 	b.Addf("if rawObject == nil {\n\treturn fmt.Errorf(\"decode %s: untagged union matched 0 branches\")\n}\n", data.Name)
 	b.Add("matches := 0\n")
@@ -412,7 +412,7 @@ func renderHTTPUntaggedUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData
 			}
 			b.Add("\t\tdefault:\n\t\t\teligible = false\n\t\t}\n\t}\n")
 		}
-		b.Add("\tfiltered := make(map[string]json.RawMessage)\n")
+		b.Add("\tfiltered := make(map[string]jsontext.Value)\n")
 		for _, name := range field.JSONFields {
 			b.Addf("\tif value, ok := rawObject[%q]; ok {\n\t\tfiltered[%q] = value\n\t}\n", name, name)
 		}

@@ -1,7 +1,8 @@
 package codegen
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -49,7 +50,7 @@ func ManifestFile(designDigest string) *File {
 		LoomVersion:  loom.Version(),
 		DesignDigest: designDigest,
 	}
-	b, err := json.MarshalIndent(data, "", "  ")
+	b, err := json.Marshal(data, json.Deterministic(true), jsontext.WithIndent("  "))
 	if err != nil {
 		panic(fmt.Sprintf("marshal generation manifest: %s", err))
 	}

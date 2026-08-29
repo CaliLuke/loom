@@ -2,7 +2,8 @@ package jsonrpc
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"math/big"
 	"testing"
@@ -87,9 +88,9 @@ func TestJSONRPCResponseHelpersAndRawRequest(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"jsonrpc":"2.0","method":"widgets.show","id":9007199254740993}`), &req))
 	require.True(t, req.HasID)
 	require.False(t, req.Invalid)
-	require.Equal(t, json.Number("9007199254740993"), req.ID)
+	require.Equal(t, jsontext.Value("9007199254740993"), req.ID)
 	require.Equal(t, "9007199254740993", IDToString(req.ID))
-	parsed, ok := new(big.Int).SetString(req.ID.(json.Number).String(), 10)
+	parsed, ok := new(big.Int).SetString(string(req.ID.(jsontext.Value)), 10)
 	require.True(t, ok)
 	require.Equal(t, "9007199254740993", parsed.String())
 

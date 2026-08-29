@@ -192,7 +192,7 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 		{Path: "net/http"},
 		{Path: "strconv"},
 		{Path: "strings"},
-		{Path: "encoding/json"},
+		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),

@@ -520,7 +520,7 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 		g.Id("copyJSONRPCResponseMetadata").Call(jen.Id("w"), jen.Id("capture"))
 		g.Var().Id("result").Any()
 		g.If(jen.Id("capture").Dot("body").Dot("Len").Call().Op(">").Lit(0)).Block(
-			jen.Id("result").Op("=").Qual("encoding/json", "RawMessage").Call(jen.Id("capture").Dot("body").Dot("Bytes").Call()),
+			jen.Id("result").Op("=").Qual("encoding/json/jsontext", "Value").Call(jen.Id("capture").Dot("body").Dot("Bytes").Call()),
 		)
 		g.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("result"))
 		g.If(

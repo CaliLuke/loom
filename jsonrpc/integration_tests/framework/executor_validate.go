@@ -2,7 +2,8 @@ package framework
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"strings"
 	"testing"
 
@@ -46,7 +47,7 @@ func (e *executor) executeBatch(t *testing.T, scenario Scenario) {
 	require.NoError(t, err, "Batch call failed")
 
 	// Parse batch response
-	var responses []json.RawMessage
+	var responses []jsontext.Value
 	err = json.Unmarshal(responseJSON, &responses)
 	require.NoError(t, err, "Failed to parse batch response")
 

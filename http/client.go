@@ -2,7 +2,8 @@ package http
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -222,34 +223,55 @@ func redactDebugBody(headers http.Header, data []byte, truncated bool) []byte {
 }
 
 func redactDebugJSON(data []byte) []byte {
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
-	var value any
-	if err := decoder.Decode(&value); err != nil {
+	value := jsontext.Value(data)
+	if !value.IsValid() {
 		return []byte("[invalid JSON body omitted]")
 	}
-	redactDebugValue(value)
-	redacted, err := json.Marshal(value)
+	redacted, err := redactDebugJSONValue(value)
 	if err != nil {
 		return []byte("[JSON body redaction failed]")
 	}
 	return redacted
 }
 
-func redactDebugValue(value any) {
-	switch typed := value.(type) {
-	case map[string]any:
-		for name, field := range typed {
+func redactDebugJSONValue(value jsontext.Value) (jsontext.Value, error) {
+	switch value.Kind() {
+	case '{':
+		var object map[string]jsontext.Value
+		if err := json.Unmarshal(value, &object); err != nil {
+			return nil, err
+		}
+		for name, field := range object {
 			if isSensitiveDebugName(name) {
-				typed[name] = debugRedactedValue
+				replacement, err := json.Marshal(debugRedactedValue)
+				if err != nil {
+					return nil, err
+				}
+				object[name] = replacement
 				continue
 			}
-			redactDebugValue(field)
+			redacted, err := redactDebugJSONValue(field)
+			if err != nil {
+				return nil, err
+			}
+			object[name] = redacted
 		}
-	case []any:
-		for _, item := range typed {
-			redactDebugValue(item)
+		return json.Marshal(object, json.Deterministic(true))
+	case '[':
+		var items []jsontext.Value
+		if err := json.Unmarshal(value, &items); err != nil {
+			return nil, err
 		}
+		for index, item := range items {
+			redacted, err := redactDebugJSONValue(item)
+			if err != nil {
+				return nil, err
+			}
+			items[index] = redacted
+		}
+		return json.Marshal(items)
+	default:
+		return value.Clone(), nil
 	}
 }
 

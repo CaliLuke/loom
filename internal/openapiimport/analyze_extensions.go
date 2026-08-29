@@ -1,7 +1,7 @@
 package openapiimport
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 
 	"github.com/pb33f/libopenapi/orderedmap"

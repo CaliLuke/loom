@@ -43,7 +43,7 @@ func exampleCLI(genpkg string, services *ServicesData, svr *expr.ServerExpr, ser
 
 	specs := []*codegen.ImportSpec{
 		{Path: "context"},
-		{Path: "encoding/json"},
+		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "flag"},
 		{Path: "fmt"},
 		{Path: "google.golang.org/grpc"},

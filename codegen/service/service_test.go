@@ -286,7 +286,8 @@ func TestStructPkgPath_UnionImportsJSON(t *testing.T) {
 		require.NoError(t, s.Write(buf))
 	}
 	code := buf.String()
-	require.Contains(t, code, "\"encoding/json\"", "expected encoding/json import in generated file:\n%s", code)
+	require.Contains(t, code, "\"encoding/json/jsontext\"", "expected jsontext import in generated file:\n%s", code)
+	require.Contains(t, code, "json \"encoding/json/v2\"", "expected JSON v2 import in generated file:\n%s", code)
 }
 
 func TestStructPkgPath_UnionJSONFieldBranchesGenerateAliases(t *testing.T) {
@@ -351,7 +352,7 @@ func TestServiceDataImportsAreCachedAndDeduped(t *testing.T) {
 		}
 		seen[*imp] = struct{}{}
 	}
-	require.Contains(t, seen, codegen.ImportSpec{Path: "encoding/json"})
+	require.Contains(t, seen, codegen.ImportSpec{Path: "encoding/json/jsontext"})
 	require.Contains(t, seen, codegen.ImportSpec{Name: "types", Path: "github.com/CaliLuke/loom/example/types"})
 }
 
@@ -359,7 +360,7 @@ var serviceDataImportCacheDSL = func() {
 	var CachedPayload = dsl.Type("CachedPayload", func() {
 		dsl.Meta("struct:pkg:path", "types")
 		dsl.Attribute("raw", dsl.String, func() {
-			dsl.Meta("struct:field:type", "json.RawMessage", "encoding/json")
+			dsl.Meta("struct:field:type", "jsontext.Value", "encoding/json/jsontext")
 		})
 	})
 

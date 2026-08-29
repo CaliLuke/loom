@@ -11,18 +11,18 @@ import (
 // not mandatory to have a Tag Object per tag used there.
 type Tag struct {
 	// Name of the tag.
-	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	Name string `json:"name,omitzero" yaml:"name,omitempty"`
 	// Summary is the short display label for the tag in OpenAPI 3.2.
-	Summary string `json:"summary,omitempty" yaml:"summary,omitempty"`
+	Summary string `json:"summary,omitzero" yaml:"summary,omitempty"`
 	// Description is a short description of the tag.
 	// GFM syntax can be used for rich text representation.
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	Description string `json:"description,omitzero" yaml:"description,omitempty"`
 	// Parent names the tag that contains this tag in OpenAPI 3.2.
-	Parent string `json:"parent,omitempty" yaml:"parent,omitempty"`
+	Parent string `json:"parent,omitzero" yaml:"parent,omitempty"`
 	// Kind classifies the tag in OpenAPI 3.2.
-	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Kind string `json:"kind,omitzero" yaml:"kind,omitempty"`
 	// ExternalDocs is additional external documentation for this tag.
-	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
+	ExternalDocs *ExternalDocs `json:"externalDocs,omitzero" yaml:"externalDocs,omitempty"`
 	// Extensions defines the OpenAPI extensions.
 	Extensions map[string]any `json:"-" yaml:"-"`
 }

@@ -44,7 +44,8 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	}
 	if len(svc.unions) > 0 {
 		imports = append(imports,
-			codegen.SimpleImport("encoding/json"),
+			codegen.SimpleImport("encoding/json/jsontext"),
+			codegen.NewImport("json", "encoding/json/v2"),
 			codegen.SimpleImport("fmt"),
 			codegen.SimpleImport("net/url"),
 		)
@@ -237,7 +238,8 @@ func newUserTypeFile(path string, sections []codegen.Section, hasUnion, needsUTF
 	}
 	if hasUnion {
 		imports = append(imports,
-			codegen.SimpleImport("encoding/json"),
+			codegen.SimpleImport("encoding/json/jsontext"),
+			codegen.NewImport("json", "encoding/json/v2"),
 			codegen.SimpleImport("net/url"),
 			codegen.LoomNamedImport("http", "loomhttp"),
 		)

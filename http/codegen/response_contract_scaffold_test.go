@@ -540,7 +540,7 @@ const responseContractWebSocketProviderHarness = `package contracttest
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -573,7 +573,7 @@ func watchWebSocketObservation(t *testing.T, _ loomhttp.WebSocketResponseContrac
 	_, _, terminalErr := conn.ReadMessage()
 	return &loomhttp.WebSocketResponseContractObservation{
 		Response:      response,
-		Messages:      []json.RawMessage{message},
+		Messages:      []jsontext.Value{message},
 		TerminalError: terminalErr,
 	}
 }

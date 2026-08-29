@@ -2,7 +2,8 @@ package jsonrpc
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -46,7 +47,7 @@ type (
 		// Type is the transport event type.
 		Type string
 		// Data is the JSON event payload.
-		Data json.RawMessage
+		Data jsontext.Value
 	}
 
 	// ResponseContractObservation contains values observed from a generated handler.
@@ -103,7 +104,7 @@ func validateStreamingResponseContract(prefix string, observation *ResponseContr
 	}
 	if contract.Stream.Terminal == "suppressed" {
 		for _, event := range observation.Events {
-			var envelope map[string]json.RawMessage
+			var envelope map[string]jsontext.Value
 			if json.Unmarshal(event.Data, &envelope) == nil && (envelope["result"] != nil || envelope["error"] != nil) {
 				return fmt.Errorf("%s: notification stream produced a terminal response", prefix)
 			}
@@ -121,7 +122,7 @@ func validateStreamingResponseContract(prefix string, observation *ResponseContr
 }
 
 func validateResponseContractEnvelope(prefix string, body []byte, contract ResponseContractCase) error {
-	var envelope map[string]json.RawMessage
+	var envelope map[string]jsontext.Value
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return fmt.Errorf("%s: decode JSON-RPC response: %w", prefix, err)
 	}

@@ -474,7 +474,7 @@ func renderUnionUnmarshalJSONBody(data *UnionTypeData) string {
 		return renderUntaggedUnionUnmarshalJSONBody(data)
 	}
 	var b sourceBuilder
-	fmt.Fprintf(&b, "var raw struct {\n\tType  string          `json:\"%s\"`\n\tValue json.RawMessage `json:\"%s\"`\n}\n", data.TypeKey, data.ValueKey)
+	fmt.Fprintf(&b, "var raw struct {\n\tType  string         `json:\"%s\"`\n\tValue jsontext.Value `json:\"%s\"`\n}\n", data.TypeKey, data.ValueKey)
 	b.Add("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
 	b.Add("switch raw.Type {\n")
 	for _, field := range data.Fields {
@@ -495,7 +495,7 @@ func renderUnionUnmarshalJSONBody(data *UnionTypeData) string {
 
 func renderUntaggedUnionUnmarshalJSONBody(data *UnionTypeData) string {
 	var b sourceBuilder
-	b.Add("var rawObject map[string]json.RawMessage\n")
+	b.Add("var rawObject map[string]jsontext.Value\n")
 	b.Add("if err := json.Unmarshal(data, &rawObject); err != nil {\n\treturn err\n}\n")
 	fmt.Fprintf(&b, "if rawObject == nil {\n\treturn fmt.Errorf(\"decode %s: untagged union matched 0 branches\")\n}\n", data.Name)
 	b.Add("matches := 0\n")
@@ -515,7 +515,7 @@ func renderUntaggedUnionUnmarshalJSONBody(data *UnionTypeData) string {
 			}
 			b.Add("\t\tdefault:\n\t\t\teligible = false\n\t\t}\n\t}\n")
 		}
-		b.Add("\tfiltered := make(map[string]json.RawMessage)\n")
+		b.Add("\tfiltered := make(map[string]jsontext.Value)\n")
 		for _, name := range field.JSONFields {
 			fmt.Fprintf(&b, "\tif value, ok := rawObject[%q]; ok {\n\t\tfiltered[%q] = value\n\t}\n", name, name)
 		}

@@ -1,7 +1,7 @@
 package http
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"io"
 	"net/http"
@@ -297,7 +297,7 @@ func TestValidateWebSocketResponseContract(t *testing.T) {
 				StatusCode: http.StatusSwitchingProtocols,
 				Header:     header,
 			},
-			Messages:      []json.RawMessage{json.RawMessage(`{"message":"ready"}`)},
+			Messages:      []jsontext.Value{jsontext.Value(`{"message":"ready"}`)},
 			TerminalError: &websocket.CloseError{Code: websocket.CloseNormalClosure, Text: "done"},
 		}
 	}
@@ -335,7 +335,7 @@ func TestValidateWebSocketResponseContract(t *testing.T) {
 			observation.Response.Header.Set("Sec-WebSocket-Accept", "")
 		}, wantErr: `WebSocket handshake header "Sec-WebSocket-Accept" is empty`},
 		{name: "invalid JSON", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
-			observation.Messages[0] = json.RawMessage("not-json")
+			observation.Messages[0] = jsontext.Value("not-json")
 		}, wantErr: "message 0 is not valid JSON"},
 		{name: "abnormal close", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
 			observation.TerminalError = &websocket.CloseError{Code: websocket.CloseAbnormalClosure}
@@ -380,10 +380,10 @@ func TestValidateWebSocketResponseContractFinalMessage(t *testing.T) {
 			StatusCode: http.StatusSwitchingProtocols,
 			Header:     make(http.Header),
 		},
-		Messages: []json.RawMessage{json.RawMessage(`{"count":1}`)},
+		Messages: []jsontext.Value{jsontext.Value(`{"count":1}`)},
 	}
 	require.NoError(t, ValidateWebSocketResponseContract(observation, contract))
 
-	observation.Messages = append(observation.Messages, json.RawMessage(`{"count":2}`))
+	observation.Messages = append(observation.Messages, jsontext.Value(`{"count":2}`))
 	require.ErrorContains(t, ValidateWebSocketResponseContract(observation, contract), "observed 2 WebSocket messages, want exactly one final message")
 }

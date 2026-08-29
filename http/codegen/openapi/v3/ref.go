@@ -1,7 +1,7 @@
 package openapiv3
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 )
 
 type (
@@ -134,7 +134,7 @@ func (r *MediaTypeRef) UnmarshalYAML(u func(any) error) error {
 }
 
 type refs struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref string `json:"$ref,omitzero" yaml:"$ref,omitempty"`
 }
 
 func marshalJSONRef(ref string, v any) ([]byte, error) {

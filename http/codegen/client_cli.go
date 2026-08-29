@@ -172,7 +172,7 @@ func endpointParser(
 	path := filepath.Join(codegen.Gendir, transport.PathName, "cli", pkg, "cli.go")
 	title := fmt.Sprintf("%s %s client CLI support package", svr.Name, transport.DisplayName)
 	specs := []*codegen.ImportSpec{
-		{Path: "encoding/json"},
+		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "flag"},
 		{Path: "fmt"},
 		{Path: "net/http"},
@@ -231,7 +231,7 @@ func payloadBuilders(
 	path := filepath.Join(codegen.Gendir, transport.PathName, sd.Service.PathName, "client", "cli.go")
 	title := fmt.Sprintf("%s %s client CLI support package", svc.Name(), transport.DisplayName)
 	specs := []*codegen.ImportSpec{
-		{Path: "encoding/json"},
+		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "fmt"},
 		{Path: "net/http"},
 		{Path: "os"},

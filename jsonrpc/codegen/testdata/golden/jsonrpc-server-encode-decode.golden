@@ -12,7 +12,7 @@ import (
 	calcviews "/calc/views"
 	"bytes"
 	"context"
-	"encoding/json"
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	loomhttp "github.com/CaliLuke/loom/http"

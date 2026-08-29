@@ -37,7 +37,8 @@ func exampleCLIMain(_ string, root *expr.RootExpr, svr *expr.ServerExpr, servers
 	}
 	specs := []*codegen.ImportSpec{
 		{Path: "context"},
-		{Path: "encoding/json"},
+		{Path: "encoding/json/jsontext"},
+		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "errors"},
 		{Path: "flag"},
 		{Path: "fmt"},

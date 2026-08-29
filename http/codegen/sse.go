@@ -228,7 +228,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "net/http"},
 				{Path: "sync"},
 				{Path: "time"},
-				{Path: "encoding/json"},
+				{Path: "encoding/json/v2", Name: "json"},
 				{Path: "fmt"},
 				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
 				codegen.LoomNamedImport("observability/transport", "loomtransport"),

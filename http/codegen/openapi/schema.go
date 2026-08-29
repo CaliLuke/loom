@@ -5,81 +5,81 @@ type (
 	// documents.
 	Schema struct {
 		// Schema identifies the JSON Schema dialect for this schema node.
-		Schema string `json:"$schema,omitempty" yaml:"$schema,omitempty"`
+		Schema string `json:"$schema,omitzero" yaml:"$schema,omitempty"`
 		// ID identifies this schema node.
-		ID string `json:"id,omitempty" yaml:"id,omitempty"`
+		ID string `json:"id,omitzero" yaml:"id,omitempty"`
 		// Title is the display name of the schema.
-		Title string `json:"title,omitempty" yaml:"title,omitempty"`
+		Title string `json:"title,omitzero" yaml:"title,omitempty"`
 		// Type is the JSON value type accepted by the schema.
-		Type Type `json:"type,omitempty" yaml:"type,omitempty"`
+		Type Type `json:"type,omitzero" yaml:"type,omitempty"`
 
 		// Items describes array members.
-		Items *Schema `json:"items,omitempty" yaml:"items,omitempty"`
+		Items *Schema `json:"items,omitzero" yaml:"items,omitempty"`
 		// Properties describes named object members.
-		Properties map[string]*Schema `json:"properties,omitempty" yaml:"properties,omitempty"`
+		Properties map[string]*Schema `json:"properties,omitzero,omitempty" yaml:"properties,omitempty"`
 		// Defs contains schema-local reusable definitions.
-		Defs map[string]*Schema `json:"$defs,omitempty" yaml:"$defs,omitempty"`
+		Defs map[string]*Schema `json:"$defs,omitzero,omitempty" yaml:"$defs,omitempty"`
 		// Description explains the schema contract.
-		Description string `json:"description,omitempty" yaml:"description,omitempty"`
+		Description string `json:"description,omitzero" yaml:"description,omitempty"`
 		// DefaultValue is the schema default.
-		DefaultValue any `json:"default,omitempty" yaml:"default,omitempty"`
+		DefaultValue any `json:"default,omitzero" yaml:"default,omitempty"`
 		// Example is an example value accepted by the schema.
-		Example any `json:"example,omitempty" yaml:"example,omitempty"`
+		Example any `json:"example,omitzero" yaml:"example,omitempty"`
 
 		// ReadOnly marks a value as response-only.
-		ReadOnly bool `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+		ReadOnly bool `json:"readOnly,omitzero" yaml:"readOnly,omitempty"`
 		// WriteOnly marks a value as request-only.
-		WriteOnly bool `json:"writeOnly,omitempty" yaml:"writeOnly,omitempty"`
+		WriteOnly bool `json:"writeOnly,omitzero" yaml:"writeOnly,omitempty"`
 		// Deprecated marks the schema contract as deprecated.
-		Deprecated bool `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
+		Deprecated bool `json:"deprecated,omitzero" yaml:"deprecated,omitempty"`
 		// ContentEncoding identifies the encoding applied to string content.
-		ContentEncoding string `json:"contentEncoding,omitempty" yaml:"contentEncoding,omitempty"`
+		ContentEncoding string `json:"contentEncoding,omitzero" yaml:"contentEncoding,omitempty"`
 		// ContentMediaType identifies the media type of encoded string content.
-		ContentMediaType string `json:"contentMediaType,omitempty" yaml:"contentMediaType,omitempty"`
+		ContentMediaType string `json:"contentMediaType,omitzero" yaml:"contentMediaType,omitempty"`
 		// ContentSchema describes content after decoding ContentEncoding and ContentMediaType.
-		ContentSchema *Schema `json:"contentSchema,omitempty" yaml:"contentSchema,omitempty"`
+		ContentSchema *Schema `json:"contentSchema,omitzero" yaml:"contentSchema,omitempty"`
 		// Ref references another schema.
-		Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+		Ref string `json:"$ref,omitzero" yaml:"$ref,omitempty"`
 
 		// Enum lists the accepted values.
-		Enum []any `json:"enum,omitempty" yaml:"enum,omitempty"`
+		Enum []any `json:"enum,omitzero,omitempty" yaml:"enum,omitempty"`
 		// Format refines the semantic format of a value.
-		Format string `json:"format,omitempty" yaml:"format,omitempty"`
+		Format string `json:"format,omitzero" yaml:"format,omitempty"`
 		// Pattern constrains string values with a regular expression.
-		Pattern string `json:"pattern,omitempty" yaml:"pattern,omitempty"`
+		Pattern string `json:"pattern,omitzero" yaml:"pattern,omitempty"`
 		// ExclusiveMinimum is the exclusive numeric lower bound.
-		ExclusiveMinimum *float64 `json:"exclusiveMinimum,omitempty" yaml:"exclusiveMinimum,omitempty"`
+		ExclusiveMinimum *float64 `json:"exclusiveMinimum,omitzero" yaml:"exclusiveMinimum,omitempty"`
 		// Minimum is the inclusive numeric lower bound.
-		Minimum *float64 `json:"minimum,omitempty" yaml:"minimum,omitempty"`
+		Minimum *float64 `json:"minimum,omitzero" yaml:"minimum,omitempty"`
 		// ExclusiveMaximum is the exclusive numeric upper bound.
-		ExclusiveMaximum *float64 `json:"exclusiveMaximum,omitempty" yaml:"exclusiveMaximum,omitempty"`
+		ExclusiveMaximum *float64 `json:"exclusiveMaximum,omitzero" yaml:"exclusiveMaximum,omitempty"`
 		// Maximum is the inclusive numeric upper bound.
-		Maximum *float64 `json:"maximum,omitempty" yaml:"maximum,omitempty"`
+		Maximum *float64 `json:"maximum,omitzero" yaml:"maximum,omitempty"`
 		// MinLength is the minimum string length.
-		MinLength *int `json:"minLength,omitempty" yaml:"minLength,omitempty"`
+		MinLength *int `json:"minLength,omitzero" yaml:"minLength,omitempty"`
 		// MaxLength is the maximum string length.
-		MaxLength *int `json:"maxLength,omitempty" yaml:"maxLength,omitempty"`
+		MaxLength *int `json:"maxLength,omitzero" yaml:"maxLength,omitempty"`
 		// MinItems is the minimum array length.
-		MinItems *int `json:"minItems,omitempty" yaml:"minItems,omitempty"`
+		MinItems *int `json:"minItems,omitzero" yaml:"minItems,omitempty"`
 		// MaxItems is the maximum array length.
-		MaxItems *int `json:"maxItems,omitempty" yaml:"maxItems,omitempty"`
+		MaxItems *int `json:"maxItems,omitzero" yaml:"maxItems,omitempty"`
 		// Required lists required object property names.
-		Required []string `json:"required,omitempty" yaml:"required,omitempty"`
+		Required []string `json:"required,omitzero,omitempty" yaml:"required,omitempty"`
 		// AdditionalProperties controls values for otherwise unnamed properties.
-		AdditionalProperties any `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+		AdditionalProperties any `json:"additionalProperties,omitzero" yaml:"additionalProperties,omitempty"`
 		// UnevaluatedProperties controls properties not covered by another keyword.
-		UnevaluatedProperties any `json:"unevaluatedProperties,omitempty" yaml:"unevaluatedProperties,omitempty"`
+		UnevaluatedProperties any `json:"unevaluatedProperties,omitzero" yaml:"unevaluatedProperties,omitempty"`
 
 		// AllOf requires every listed schema to match.
-		AllOf []*Schema `json:"allOf,omitempty" yaml:"allOf,omitempty"`
+		AllOf []*Schema `json:"allOf,omitzero,omitempty" yaml:"allOf,omitempty"`
 		// AnyOf requires at least one listed schema to match.
-		AnyOf []*Schema `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
+		AnyOf []*Schema `json:"anyOf,omitzero,omitempty" yaml:"anyOf,omitempty"`
 		// OneOf requires exactly one listed schema to match.
-		OneOf []*Schema `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+		OneOf []*Schema `json:"oneOf,omitzero,omitempty" yaml:"oneOf,omitempty"`
 		// Discriminator describes union branch selection.
-		Discriminator *Discriminator `json:"discriminator,omitempty" yaml:"discriminator,omitempty"`
+		Discriminator *Discriminator `json:"discriminator,omitzero" yaml:"discriminator,omitempty"`
 		// XML describes XML serialization metadata.
-		XML *XML `json:"xml,omitempty" yaml:"xml,omitempty"`
+		XML *XML `json:"xml,omitzero" yaml:"xml,omitempty"`
 
 		// Extensions contains OpenAPI extension properties.
 		Extensions map[string]any `json:"-" yaml:"-"`
@@ -93,9 +93,9 @@ type (
 		// PropertyName names the object property that selects the union branch.
 		PropertyName string `json:"propertyName" yaml:"propertyName"`
 		// Mapping maps discriminator values to schema references.
-		Mapping map[string]string `json:"mapping,omitempty" yaml:"mapping,omitempty"`
+		Mapping map[string]string `json:"mapping,omitzero,omitempty" yaml:"mapping,omitempty"`
 		// DefaultMapping identifies the fallback schema reference.
-		DefaultMapping string `json:"defaultMapping,omitempty" yaml:"defaultMapping,omitempty"`
+		DefaultMapping string `json:"defaultMapping,omitzero" yaml:"defaultMapping,omitempty"`
 		// Optional records that the discriminator property may be omitted in OpenAPI 3.2.
 		Optional bool `json:"-" yaml:"-"`
 	}
@@ -103,17 +103,17 @@ type (
 	// XML describes how a schema maps to XML nodes.
 	XML struct {
 		// Name overrides the XML node name.
-		Name string `json:"name,omitempty" yaml:"name,omitempty"`
+		Name string `json:"name,omitzero" yaml:"name,omitempty"`
 		// Namespace is the absolute XML namespace URI.
-		Namespace string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
+		Namespace string `json:"namespace,omitzero" yaml:"namespace,omitempty"`
 		// Prefix is the XML namespace prefix.
-		Prefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
+		Prefix string `json:"prefix,omitzero" yaml:"prefix,omitempty"`
 		// NodeType identifies the OpenAPI 3.2 XML node kind.
-		NodeType string `json:"nodeType,omitempty" yaml:"nodeType,omitempty"`
+		NodeType string `json:"nodeType,omitzero" yaml:"nodeType,omitempty"`
 		// Attribute emits the value as an XML attribute.
-		Attribute bool `json:"attribute,omitempty" yaml:"attribute,omitempty"`
+		Attribute bool `json:"attribute,omitzero" yaml:"attribute,omitempty"`
 		// Wrapped emits an array through a wrapping XML element.
-		Wrapped bool `json:"wrapped,omitempty" yaml:"wrapped,omitempty"`
+		Wrapped bool `json:"wrapped,omitzero" yaml:"wrapped,omitempty"`
 	}
 
 	// _Schema avoids recursively invoking Schema.MarshalJSON.

@@ -1,6 +1,6 @@
 package ir
 
-import "encoding/json"
+import "encoding/json/v2"
 
 type (
 	// Document is the root OpenAPI-oriented IR document.
@@ -214,7 +214,7 @@ type (
 		AdditionalProperties  *BoolOrSchema
 		UnevaluatedProperties *BoolOrSchema
 
-		AllOf         []*Schema `json:",omitempty"`
+		AllOf         []*Schema `json:",omitzero,omitempty"`
 		AnyOf         []*Schema
 		OneOf         []*Schema
 		Discriminator *Discriminator
@@ -244,14 +244,8 @@ type (
 		Prefix    string
 		NodeType  string
 	}
-)
 
-// MarshalJSON preserves the v1 structural encoding used to derive reusable
-// component names. Retired JSON Hyper-Schema slots remain zero-valued in the
-// hash encoding so removing them from the active model does not rename existing
-// OpenAPI components.
-func (s *Schema) MarshalJSON() ([]byte, error) {
-	type stableSchemaEncoding struct {
+	stableSchemaEncoding struct {
 		Ref          string
 		Type         string
 		Format       string
@@ -287,7 +281,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		AdditionalProperties  *BoolOrSchema
 		UnevaluatedProperties *BoolOrSchema
 
-		AllOf         []*Schema `json:",omitempty"`
+		AllOf         []*Schema `json:",omitzero,omitempty"`
 		AnyOf         []*Schema
 		OneOf         []*Schema
 		Discriminator *Discriminator
@@ -295,7 +289,13 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 
 		Extensions map[string]any
 	}
+)
 
+// MarshalJSON preserves the v1 structural encoding used to derive reusable
+// component names. Retired JSON Hyper-Schema slots remain zero-valued in the
+// hash encoding so removing them from the active model does not rename existing
+// OpenAPI components.
+func (s *Schema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(stableSchemaEncoding{
 		Ref:                   s.Ref,
 		Type:                  s.Type,
@@ -332,7 +332,11 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		Discriminator:         s.Discriminator,
 		XML:                   s.XML,
 		Extensions:            s.Extensions,
-	})
+	},
+		json.Deterministic(true),
+		json.FormatNilMapAsNull(true),
+		json.FormatNilSliceAsNull(true),
+	)
 }
 
 // MarshalJSON implements json.Marshaler.

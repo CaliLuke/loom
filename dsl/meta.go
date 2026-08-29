@@ -82,7 +82,7 @@ const DefaultProtoc = expr.DefaultProtoc
 //	var MyType = Type("BigOleMessage", func() {
 //	    Attribute("type", String, "Type of big payload")
 //	    Attribute("bigPayload", String, "Don't parse it if you don't have to",func() {
-//	        Meta("struct:field:type","json.RawMessage","encoding/json")
+//	        Meta("struct:field:type", "jsontext.Value", "encoding/json/jsontext")
 //	     })
 //	     Attribute("id", String, func() {
 //	         Meta("struct:field:type","bison.ObjectId", "github.com/globalsign/mgo/bson", "bison")

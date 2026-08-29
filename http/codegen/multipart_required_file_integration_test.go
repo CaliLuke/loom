@@ -56,7 +56,7 @@ const multipartRequiredFileIntegrationHarness = `package integration
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"mime/multipart"
 	"net/http"

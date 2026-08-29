@@ -92,7 +92,7 @@ default:
 		stmt.Line()
 		stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
 			Id("decodeResponse").
-			Params(jen.Id("data").Qual("encoding/json", "RawMessage")).
+			Params(jen.Id("data").Qual("encoding/json/jsontext", "Value")).
 			Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
 			Block(
 				jen.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{

@@ -3,7 +3,8 @@ package harness
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,7 +29,7 @@ type JSONRPCRequest struct {
 // SSEEvent represents a single Server-Sent Event frame.
 type SSEEvent struct {
 	Type string
-	Data json.RawMessage
+	Data jsontext.Value
 }
 
 // Default values
@@ -119,7 +120,7 @@ func NewClient(baseURL string, config *ClientConfig) (*Client, error) {
 }
 
 // CallHTTPRaw makes a raw HTTP call with the given body
-func (c *Client) CallHTTPRaw(ctx context.Context, body []byte) (json.RawMessage, error) {
+func (c *Client) CallHTTPRaw(ctx context.Context, body []byte) (jsontext.Value, error) {
 	endpoint := c.baseURL.ResolveReference(&url.URL{Path: c.config.JSONRPCPath})
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint.String(), bytes.NewReader(body))
 	if err != nil {
@@ -145,7 +146,7 @@ func (c *Client) CallHTTPRaw(ctx context.Context, body []byte) (json.RawMessage,
 
 	// For error responses, still return the body
 	if resp.StatusCode == http.StatusBadRequest {
-		return json.RawMessage(respBody), nil
+		return jsontext.Value(respBody), nil
 	}
 
 	// Check status code
@@ -158,11 +159,11 @@ func (c *Client) CallHTTPRaw(ctx context.Context, body []byte) (json.RawMessage,
 		return nil, nil
 	}
 
-	return json.RawMessage(respBody), nil
+	return jsontext.Value(respBody), nil
 }
 
 // CallHTTP makes a JSON-RPC call over HTTP
-func (c *Client) CallHTTP(ctx context.Context, req JSONRPCRequest) (json.RawMessage, error) {
+func (c *Client) CallHTTP(ctx context.Context, req JSONRPCRequest) (jsontext.Value, error) {
 	// Build JSON-RPC request envelope
 	envelope := map[string]any{
 		"method": req.Method,
@@ -224,7 +225,7 @@ func (c *Client) CallHTTP(ctx context.Context, req JSONRPCRequest) (json.RawMess
 		return nil, nil
 	}
 
-	return json.RawMessage(body), nil
+	return jsontext.Value(body), nil
 }
 
 // CallSSE makes a JSON-RPC call over SSE and returns all events.
@@ -314,7 +315,7 @@ func (c *Client) parseSSEEvents(r io.Reader) ([]SSEEvent, error) {
 	for _, event := range parsed {
 		events = append(events, SSEEvent{
 			Type: event.Type,
-			Data: json.RawMessage(event.Data),
+			Data: jsontext.Value(event.Data),
 		})
 	}
 	return events, nil
@@ -418,7 +419,7 @@ func (c *Client) SendWebSocket(ctx context.Context, req JSONRPCRequest) error {
 }
 
 // ReceiveWebSocket receives a message from WebSocket
-func (c *Client) ReceiveWebSocket(ctx context.Context) (json.RawMessage, error) {
+func (c *Client) ReceiveWebSocket(ctx context.Context) (jsontext.Value, error) {
 	if c.wsConn == nil {
 		return nil, fmt.Errorf("websocket not connected")
 	}
@@ -447,7 +448,7 @@ func (c *Client) ReceiveWebSocket(ctx context.Context) (json.RawMessage, error) 
 		return nil, fmt.Errorf("unexpected message type: %d", messageType)
 	}
 
-	return json.RawMessage(data), nil
+	return jsontext.Value(data), nil
 }
 
 // CloseWebSocket closes the WebSocket connection gracefully

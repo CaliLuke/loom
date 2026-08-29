@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -63,6 +63,10 @@ type (
 	contextKey int
 
 	decodeMode uint8
+
+	jsonResponseEncoder struct {
+		writer io.Writer
+	}
 )
 
 const (
@@ -73,7 +77,7 @@ const (
 // RequestDecoder returns a HTTP request body decoder suitable for the given
 // request. The decoder handles the following mime types:
 //
-//   - application/json using package encoding/json
+//   - application/json using package encoding/json/v2
 //   - application/xml using package encoding/xml
 //   - application/gob using package encoding/gob
 //   - text/html and text/plain for strings
@@ -110,7 +114,7 @@ func RequestDecoder(r *http.Request) Decoder {
 // set in the context under the AcceptTypeKey or the ContentTypeKey if any.
 // The encoder supports the following mime types:
 //
-//   - application/json using package encoding/json
+//   - application/json using package encoding/json/v2
 //   - application/xml using package encoding/xml
 //   - application/gob using package encoding/gob
 //   - text/html and text/plain for strings
@@ -145,7 +149,7 @@ func responseEncoderFromContentType(w http.ResponseWriter, ct string) Encoder {
 	}
 	switch {
 	case mt == "application/json" || strings.HasSuffix(mt, "+json"):
-		return json.NewEncoder(w)
+		return newJSONResponseEncoder(w)
 	case mt == "application/xml" || strings.HasSuffix(mt, "+xml"):
 		return xml.NewEncoder(w)
 	case mt == "application/gob" || strings.HasSuffix(mt, "+gob"):
@@ -153,7 +157,7 @@ func responseEncoderFromContentType(w http.ResponseWriter, ct string) Encoder {
 	case mt == "text/html" || mt == "text/plain" || strings.HasSuffix(mt, "+html") || strings.HasSuffix(mt, "+txt"):
 		return newTextEncoder(w, mt)
 	default:
-		return json.NewEncoder(w)
+		return newJSONResponseEncoder(w)
 	}
 }
 
@@ -173,7 +177,7 @@ func negotiatedResponseEncoder(w http.ResponseWriter, accept string) (Encoder, s
 func responseEncoderByAccept(w http.ResponseWriter, accept string) (Encoder, string) {
 	switch accept {
 	case "", "application/json":
-		return json.NewEncoder(w), "application/json"
+		return newJSONResponseEncoder(w), "application/json"
 	case "application/xml":
 		return xml.NewEncoder(w), "application/xml"
 	case "application/gob":
@@ -186,7 +190,7 @@ func responseEncoderByAccept(w http.ResponseWriter, accept string) (Encoder, str
 }
 
 // RequestEncoder returns a HTTP request encoder.
-// The encoder uses package encoding/json.
+// The encoder uses package encoding/json/v2.
 func RequestEncoder(r *http.Request) Encoder {
 	const k = "Content-Type"
 	if h := r.Header.Get(k); h == "" {
@@ -231,6 +235,26 @@ func (je *jsonEncoder) Encode(v any) error {
 	return nil
 }
 
+func newJSONResponseEncoder(w io.Writer) *jsonResponseEncoder {
+	return &jsonResponseEncoder{writer: w}
+}
+
+func (e *jsonResponseEncoder) Encode(v any) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	written, err := e.writer.Write(data)
+	if err != nil {
+		return err
+	}
+	if written != len(data) {
+		return io.ErrShortWrite
+	}
+	return nil
+}
+
 // GetBody returns a new reader of the encoded bytes, enabling request retries.
 // This is required for HTTP/2 connections to handle server GOAWAY during graceful shutdown.
 func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
@@ -243,7 +267,7 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 // ResponseDecoder returns a HTTP response decoder.
 // The decoder handles the following content types:
 //
-//   - application/json using package encoding/json (default)
+//   - application/json using package encoding/json/v2 (default)
 //   - application/xml using package encoding/xml
 //   - application/gob using package encoding/gob
 //   - text/html and text/plain for strings
@@ -421,7 +445,7 @@ func (e *textDecoder) Decode(v any) error {
 }
 
 func decodeJSON(r io.Reader, v any) error {
-	return json.NewDecoder(r).Decode(v)
+	return json.UnmarshalRead(r, v)
 }
 
 func decodeXML(r io.Reader, v any) error {

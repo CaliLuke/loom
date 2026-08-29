@@ -1,7 +1,7 @@
 package loom
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 	"fmt"
 	"net"
 	"net/mail"
@@ -120,7 +120,7 @@ func ValidateFormat(name string, val string, f Format) error {
 	case FormatRegexp:
 		_, err = regexp.Compile(val)
 	case FormatJSON:
-		if !json.Valid([]byte(val)) {
+		if !jsontext.Value(val).IsValid() {
 			err = fmt.Errorf("invalid JSON")
 		}
 	case FormatRFC1123:

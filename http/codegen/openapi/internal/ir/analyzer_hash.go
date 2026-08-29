@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"sort"
 	"strconv"
@@ -362,7 +362,7 @@ func (e *canonicalSchemaEncoder) writeInt(value int) {
 }
 
 func canonicalJSON(value any) string {
-	encoded, err := json.Marshal(toStringMap(value))
+	encoded, err := json.Marshal(toStringMap(value), json.Deterministic(true))
 	if err != nil {
 		panic(fmt.Sprintf("openapi: cannot fingerprint schema value: %v", err))
 	}

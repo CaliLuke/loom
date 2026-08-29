@@ -1,7 +1,8 @@
 package vet
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"sort"
@@ -63,9 +64,7 @@ func writeTextReport(writer io.Writer, report Report) error {
 }
 
 func writeJSON(writer io.Writer, value any) error {
-	encoder := json.NewEncoder(writer)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(value)
+	return json.MarshalEncode(jsontext.NewEncoder(writer, jsontext.WithIndent("  ")), value)
 }
 
 type sarifLog struct {
@@ -128,7 +127,7 @@ type sarifArtifactLocation struct {
 
 type sarifRegion struct {
 	StartLine   int `json:"startLine"`
-	StartColumn int `json:"startColumn,omitempty"`
+	StartColumn int `json:"startColumn,omitzero"`
 }
 
 func buildSARIF(report Report) sarifLog {

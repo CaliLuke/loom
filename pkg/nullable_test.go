@@ -1,7 +1,7 @@
 package loom
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,6 +38,14 @@ func TestNullableJSONPresence(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, `{}`, string(encoded))
 	encoded, err = json.Marshal(optionalDocument{Value: NullValue[string]()})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"value":null}`, string(encoded))
+
+	type anything any
+	type optionalNamedAnyDocument struct {
+		Value Nullable[anything] `json:"value,omitzero"`
+	}
+	encoded, err = json.Marshal(optionalNamedAnyDocument{Value: NullValue[anything]()})
 	require.NoError(t, err)
 	require.JSONEq(t, `{"value":null}`, string(encoded))
 }

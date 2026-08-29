@@ -56,7 +56,8 @@ func viewsHeader(serviceName string, unions []*UnionTypeData) codegen.Section {
 	}
 	if len(unions) > 0 {
 		imports = append(imports,
-			codegen.SimpleImport("encoding/json"),
+			codegen.SimpleImport("encoding/json/jsontext"),
+			codegen.NewImport("json", "encoding/json/v2"),
 			codegen.SimpleImport("fmt"),
 			codegen.SimpleImport("net/url"),
 			codegen.LoomNamedImport("http", "loomhttp"),

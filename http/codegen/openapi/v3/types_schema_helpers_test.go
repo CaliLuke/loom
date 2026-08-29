@@ -1,7 +1,7 @@
 package openapiv3
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"strings"
 	"testing"
 
@@ -214,7 +214,11 @@ func TestTypesOnlyDifferByEnum(t *testing.T) {
 
 		name := nameFromRef(svc1MethodRB)
 		derefed := types[name]
-		jsoned, _ := json.Marshal(derefed)
+		jsoned, err := json.Marshal(derefed)
+		if err != nil {
+			t.Errorf("marshal shared referenced type %q: %v", name, err)
+			return
+		}
 		t.Errorf("shared referenced type (%s) was: %v", name, string(jsoned))
 		return
 	}

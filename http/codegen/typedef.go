@@ -133,7 +133,7 @@ func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, pa
 		description = codegen.Comment(att.Description) + "\n\t"
 	}
 	optional := objectFieldOptional(ma, name, ptr, useDefault)
-	omitZero := wireOptional && (jsonPresence || codegen.IsExplicitPresenceType(att))
+	omitZero := wireOptional && (jsonPresence || codegen.IsExplicitPresenceType(att) || expr.AllowsNull(att))
 	tags := attributeTags(att, elem, optional, omitZero)
 	return fmt.Sprintf("\t%s%s %s%s", description, fieldName, typeDef, tags)
 }

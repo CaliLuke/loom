@@ -52,7 +52,7 @@ func clientEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 	return []*codegen.ImportSpec{
 		{Path: "bytes"},
 		{Path: "context"},
-		{Path: "encoding/json"},
+		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "fmt"},
 		{Path: "io"},
 		{Path: "mime/multipart"},

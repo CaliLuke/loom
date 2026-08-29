@@ -11,7 +11,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -135,9 +136,9 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 		switch eventType {
 		case "notification":
 			var notification struct {
-				JSONRPC string          `json:"jsonrpc"`
-				Method  string          `json:"method"`
-				Params  json.RawMessage `json:"params"`
+				JSONRPC string         `json:"jsonrpc"`
+				Method  string         `json:"method"`
+				Params  jsontext.Value `json:"params"`
 			}
 			if err := json.Unmarshal(data, &notification); err != nil {
 				return zero, fmt.Errorf("failed to parse notification: %w", err)
@@ -170,7 +171,7 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 			if err != nil {
 				return zero, fmt.Errorf("failed to marshal result: %w", err)
 			}
-			result, err := s.decodeResult(json.RawMessage(resultBytes))
+			result, err := s.decodeResult(jsontext.Value(resultBytes))
 			if err != nil {
 				return zero, fmt.Errorf("failed to decode final result: %w", err)
 			}
@@ -186,15 +187,15 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 			}
 			return zero, fmt.Errorf("unexpected error response")
 		case "", "message":
-			var envelope map[string]json.RawMessage
+			var envelope map[string]jsontext.Value
 			if err := json.Unmarshal(data, &envelope); err != nil {
 				return zero, fmt.Errorf("failed to parse message event: %w", err)
 			}
 			if _, ok := envelope["method"]; ok {
 				var notification struct {
-					JSONRPC string          `json:"jsonrpc"`
-					Method  string          `json:"method"`
-					Params  json.RawMessage `json:"params"`
+					JSONRPC string         `json:"jsonrpc"`
+					Method  string         `json:"method"`
+					Params  jsontext.Value `json:"params"`
 				}
 				if err := json.Unmarshal(data, &notification); err != nil {
 					return zero, fmt.Errorf("failed to parse notification: %w", err)
@@ -228,7 +229,7 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 			if err != nil {
 				return zero, fmt.Errorf("failed to marshal result: %w", err)
 			}
-			result, err := s.decodeResult(json.RawMessage(resultBytes))
+			result, err := s.decodeResult(jsontext.Value(resultBytes))
 			if err != nil {
 				return zero, fmt.Errorf("failed to decode final result: %w", err)
 			}
@@ -239,7 +240,7 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 		}
 	}
 }
-func (s *TickClientStream) decodeResult(data json.RawMessage) (*clock.TickResult, error) {
+func (s *TickClientStream) decodeResult(data jsontext.Value) (*clock.TickResult, error) {
 	resp := &http.Response{
 		Body:       io.NopCloser(bytes.NewReader(data)),
 		StatusCode: http.StatusOK,

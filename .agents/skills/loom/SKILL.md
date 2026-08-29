@@ -297,6 +297,10 @@ completion shapes are explicit generation limitations.
 
 ## JSON Presence and Nullability
 
+- Loom and generated transports use Go 1.27's `encoding/json/v2`. Decoding is
+  case-sensitive and rejects duplicate object names and invalid UTF-8. Use
+  `encoding/json/jsontext.Value` when application code needs to retain an
+  unparsed JSON value; do not use the legacy raw-message type.
 - Treat requiredness and nullability as independent. `Required("field")`
   requires presence; `Nullable()` allows a present field to contain JSON null.
 - Generated nullable fields use `loom.Nullable[T]`. Its zero value is absent;

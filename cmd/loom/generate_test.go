@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"io"
 	"os"

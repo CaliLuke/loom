@@ -2,7 +2,7 @@ package openapiimport
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -493,7 +493,7 @@ components:
 	require.Empty(t, diagnostics)
 	require.Equal(t, map[string]any{"reviewed": true}, document.Extensions["x-document"])
 	require.Equal(t, []any{"one", "two"}, document.Operations[0].Extensions["x-operation"])
-	require.Equal(t, float64(7), document.Operations[0].Parameters[0].Extensions["x-parameter"])
+	require.Equal(t, 7, document.Operations[0].Parameters[0].Extensions["x-parameter"])
 	require.Equal(t, "request-value", document.Operations[0].RequestBody.Extensions["x-request"])
 	require.Equal(t, map[string]any{"state": "created"}, document.Operations[0].Responses[0].Response.Extensions["x-response"])
 	require.Equal(t, map[string]any{"audience": "public"}, document.Components.Schemas[0].Schema.Extensions["x-schema"])

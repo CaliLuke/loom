@@ -226,7 +226,7 @@ const oauthIntegrationHarness = `package integration
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -292,7 +292,7 @@ func TestXOAuth2AuthCodeRequestUsesFlatFormFields(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		refreshToken := "refresh-123"
-		if err := json.NewEncoder(w).Encode(&token.TokenResponse{
+		if err := json.MarshalWrite(w, &token.TokenResponse{
 			AccessToken:  "access-123",
 			TokenType:    "Bearer",
 			RefreshToken: &refreshToken,
@@ -367,7 +367,7 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		refreshToken := "refresh-456"
-		if err := json.NewEncoder(w).Encode(&token.TokenResponse{
+		if err := json.MarshalWrite(w, &token.TokenResponse{
 			AccessToken:  "access-456",
 			TokenType:    "Bearer",
 			RefreshToken: &refreshToken,
@@ -446,7 +446,7 @@ func TestZeroFieldRefreshGrantDecodesFromDiscriminatorAndCookie(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(&token.TokenResponse{
+		if err := json.MarshalWrite(w, &token.TokenResponse{
 			AccessToken: "access-cookie",
 			TokenType:   "Bearer",
 		}); err != nil {

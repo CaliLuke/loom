@@ -28,6 +28,7 @@ var transportGeneratedImportNames = []string{
 	"http",
 	"io",
 	"json",
+	"jsontext",
 	"jsonrpc",
 	"log",
 	"loom",

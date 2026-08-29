@@ -164,7 +164,7 @@ func requireNestedUntaggedUnionRuntime(t *testing.T, moduleDir string) {
 	testSource := []byte(`package assetresult
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 )
 
@@ -261,7 +261,7 @@ func requireUntaggedUnionRuntime(t *testing.T, moduleDir string) {
 	testSource := []byte(`package gap
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 )
 
@@ -406,7 +406,7 @@ func requireNamedUntaggedUnionRuntime(t *testing.T, moduleDir string) {
 	serviceTest := []byte(`package commands
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 )
 
@@ -443,7 +443,7 @@ func TestNamedUntaggedUnionRuntime(t *testing.T) {
 	clientTest := []byte(`package client
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 )
 

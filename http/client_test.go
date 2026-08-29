@@ -181,6 +181,13 @@ func TestRedactDebugBody(t *testing.T) {
 			excludes:    []string{"secret"},
 		},
 		{
+			name:        "large JSON number",
+			contentType: "application/json",
+			body:        `{"id":900719925474099312345,"password":"secret"}`,
+			contains:    []string{`"id":900719925474099312345`, `"password":"[REDACTED]"`},
+			excludes:    []string{"secret"},
+		},
+		{
 			name:        "form",
 			contentType: "application/x-www-form-urlencoded",
 			body:        "name=widget&password=secret&session_id=session-secret",

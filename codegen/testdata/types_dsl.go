@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 
 	. "github.com/CaliLuke/loom/dsl"
 )
@@ -196,8 +196,8 @@ var TestTypesDSL = func() {
 				Default(100)
 			})
 			Attribute("raw_json", func() {
-				Meta("struct:field:type", "json.RawMessage", "json")
-				Default(json.RawMessage("foo"))
+				Meta("struct:field:type", "jsontext.Value", "encoding/json/jsontext")
+				Default(jsontext.Value("foo"))
 			})
 			Attribute("required_int", Int, func() {
 				Default(99)

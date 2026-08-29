@@ -149,6 +149,9 @@ There is one DSL parser, one shared semantic IR, and one renderer.
 - OpenAPI JSON uses Go 1.27 `encoding/json/v2` with deterministic ordering.
   Preserve two-space indentation, the final newline added by `codegen.File`,
   and configured prefix/indent behavior.
+- All Loom-owned runtime, generator, test, fixture, and example JSON uses Go
+  1.27 `encoding/json/v2` and `encoding/json/jsontext`. Generated code must use
+  the same packages; do not emit or retain the legacy JSON package.
 - OpenAPI output defaults to both canonical files. API metadata may select JSON
   or YAML alone; `codegen.File.RemovePaths` must remove only the stale sibling
   in the generator's deterministic post-write phase.

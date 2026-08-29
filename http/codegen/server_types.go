@@ -84,7 +84,8 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 
 func serverTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {
 	return []*codegen.ImportSpec{
-		{Path: "encoding/json"},
+		{Path: "encoding/json/jsontext"},
+		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "fmt"},
 		{Path: "net/url"},
 		{Path: "unicode/utf8"},

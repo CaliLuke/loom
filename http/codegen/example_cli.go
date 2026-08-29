@@ -77,7 +77,7 @@ func exampleCLIWithCache(
 	}
 	specs := []*codegen.ImportSpec{
 		{Path: "context"},
-		{Path: "encoding/json"},
+		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "flag"},
 		{Path: "fmt"},
 		{Path: "net/http"},

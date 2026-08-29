@@ -1,7 +1,7 @@
 package openapi
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -52,7 +52,7 @@ func extensionsFromExprWithPrefix(mdata expr.MetaExpr, prefix string) map[string
 			continue
 		}
 		val := value[0]
-		ival := any(val)
+		var ival any
 		if err := json.Unmarshal([]byte(val), &ival); err != nil {
 			extensions[name] = val
 			continue

@@ -5,8 +5,8 @@ import "github.com/CaliLuke/loom/expr"
 // ExternalDocs represents an OpenAPI External Documentation object as defined in
 // https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#externalDocumentationObject
 type ExternalDocs struct {
-	Description string         `json:"description,omitempty"`
-	URL         string         `json:"url,omitempty"`
+	Description string         `json:"description,omitzero"`
+	URL         string         `json:"url,omitzero"`
 	Extensions  map[string]any `json:"-" yaml:"-"`
 }
 

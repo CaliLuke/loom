@@ -57,7 +57,7 @@ func TestJSONRPCResponseMetadataPreservedInHandler(t *testing.T) {
 	require.Contains(t, serverCode, "encodeResponse := EncodeInitializeResponse(encoder)")
 	require.Contains(t, serverCode, "copyJSONRPCResponseMetadata(w, capture)")
 	require.Contains(t, serverCode, `case "Content-Length", "Content-Type", "Transfer-Encoding":`)
-	require.Contains(t, serverCode, `result = json.RawMessage(capture.body.Bytes())`)
+	require.Contains(t, serverCode, `result = jsontext.Value(capture.body.Bytes())`)
 }
 
 func TestJSONRPCNotificationHandlerDoesNotBindUnusedResult(t *testing.T) {

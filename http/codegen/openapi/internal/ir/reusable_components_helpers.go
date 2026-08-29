@@ -3,7 +3,7 @@ package ir
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"sort"
 	"strings"
@@ -405,7 +405,12 @@ func hashReusableValue(value any) (string, error) {
 	if value == nil {
 		return "", nil
 	}
-	data, err := json.Marshal(value)
+	data, err := json.Marshal(
+		value,
+		json.Deterministic(true),
+		json.FormatNilMapAsNull(true),
+		json.FormatNilSliceAsNull(true),
+	)
 	if err != nil {
 		return "", err
 	}

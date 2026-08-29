@@ -2,7 +2,7 @@ package openapiv3_test
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -562,10 +562,6 @@ func requireInt(t *testing.T, value any, label string) int {
 		return int(actual)
 	case int:
 		return actual
-	case json.Number:
-		parsed, err := strconv.Atoi(actual.String())
-		require.NoError(t, err)
-		return parsed
 	default:
 		t.Fatalf("%s should be a number, got %T", label, value)
 		return 0

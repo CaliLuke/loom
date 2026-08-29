@@ -30,7 +30,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean depend install-hooks lint lint-docs lint-filesize lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.PHONY: all all-tests ci ci-local clean depend install-hooks lint lint-docs lint-filesize lint-json-v2 lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -104,6 +104,7 @@ install-hooks:
 lint:
 ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_filesize.sh || (echo "^ - file size lint errors!" && echo && exit 1)
+	@bash ./scripts/lint_json_v2.sh || (echo "^ - JSON v2 lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_legacy_middleware.sh || (echo "^ - legacy middleware lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_toolchain.sh || (echo "^ - toolchain lint errors!" && echo && exit 1)
@@ -117,6 +118,9 @@ endif
 
 lint-filesize:
 	@bash ./scripts/lint_filesize.sh
+
+lint-json-v2:
+	@bash ./scripts/lint_json_v2.sh
 
 lint-legacy-middleware:
 	@bash ./scripts/lint_legacy_middleware.sh

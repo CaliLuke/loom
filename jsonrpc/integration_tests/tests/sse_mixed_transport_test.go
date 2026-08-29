@@ -3,7 +3,7 @@ package tests
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -178,7 +178,7 @@ func TestJSONRPCMixedRejectsOversizedRequestBody(t *testing.T) {
 			} `json:"data"`
 		} `json:"error"`
 	}
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&envelope))
+	require.NoError(t, json.UnmarshalRead(resp.Body, &envelope))
 	require.Equal(t, "2.0", envelope.JSONRPC)
 	require.Nil(t, envelope.ID)
 	require.Equal(t, -32600, envelope.Error.Code)

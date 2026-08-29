@@ -11,7 +11,8 @@ import (
 	jsonrpcwebsocketruntimeservice "/jsonrpc_web_socket_runtime_service"
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"fmt"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
@@ -203,7 +204,7 @@ func (s *StreamClientStream) handleError(errorType jsonrpc.StreamErrorType, err 
 		s.config.ErrorHandler(s.ctx, errorType, err, response)
 	}
 }
-func (s *StreamClientStream) decodeResponse(data json.RawMessage) (*jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult, error) {
+func (s *StreamClientStream) decodeResponse(data jsontext.Value) (*jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult, error) {
 	resp := &http.Response{
 		Body:       io.NopCloser(bytes.NewReader(data)),
 		StatusCode: http.StatusOK,

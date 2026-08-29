@@ -1,7 +1,7 @@
 package openapiv3
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/CaliLuke/loom/expr"

@@ -2,8 +2,9 @@ package jsonrpc
 
 import (
 	"bufio"
+	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"io"
@@ -56,6 +57,8 @@ type (
 	notificationWriter struct {
 		header http.Header
 	}
+
+	rawRequestBatch []RawRequest
 )
 
 // NewHTTPHandler creates a JSON-RPC HTTP handler. The handler owns envelope
@@ -168,7 +171,7 @@ func handleBatch(
 	observer *loomtransport.RequestObserver,
 	spec HTTPHandlerSpec,
 ) {
-	var requests []json.RawMessage
+	var requests rawRequestBatch
 	if err := spec.Decoder(r).Decode(&requests); err != nil {
 		observer.Fail(loomtransport.ReasonInvalidJSONRPCBatch)
 		code, message, data := envelopeDecodeError(err)
@@ -190,27 +193,42 @@ func handleBatch(
 	observer.SetJSONRPC("", "", len(requests), false)
 	w.Header().Set("Content-Type", "application/json")
 	writer := &batchWriter{writer: w}
-	for _, rawRequest := range requests {
-		var request RawRequest
-		if err := json.Unmarshal(rawRequest, &request); err != nil {
-			observer.Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
-			writeJSONRPCError(
-				ctx,
-				writer,
-				&RawRequest{},
-				InvalidRequest,
-				"Invalid request",
-				observer,
-				spec,
-			)
-			continue
-		}
-		processRequest(ctx, writer, r, &request, len(requests), observer, spec)
+	for i := range requests {
+		processRequest(ctx, writer, r, &requests[i], len(requests), observer, spec)
 	}
 	if err := writer.Close(); err != nil {
 		observer.Fail(loomtransport.ReasonResponseWriteFailed)
 		handleHTTPFailure(ctx, w, spec.HandleFailure, err)
 	}
+}
+
+// UnmarshalJSON decodes a complete JSON-RPC batch.
+func (b *rawRequestBatch) UnmarshalJSON(data []byte) error {
+	return b.unmarshalJSON(jsontext.NewDecoder(bytes.NewReader(data)))
+}
+
+func (b *rawRequestBatch) unmarshalJSON(decoder *jsontext.Decoder) error {
+	start, err := decoder.ReadToken()
+	if err != nil {
+		return err
+	}
+	if start.Kind() != jsontext.KindBeginArray {
+		return fmt.Errorf("JSON-RPC batch must be an array")
+	}
+	*b = (*b)[:0]
+	for decoder.PeekKind() != jsontext.KindEndArray {
+		data, err := decoder.ReadValue()
+		if err != nil {
+			return err
+		}
+		var request RawRequest
+		if err := request.unmarshalJSON(data); err != nil {
+			return fmt.Errorf("decode JSON-RPC batch item %q: %w", data, err)
+		}
+		*b = append(*b, request)
+	}
+	_, err = decoder.ReadToken()
+	return err
 }
 
 func processRequest(

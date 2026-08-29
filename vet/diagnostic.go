@@ -56,8 +56,8 @@ const SuppressionMeta = "loom:vet:ignore"
 // Location identifies either a Go source position or an evaluated design path.
 type Location struct {
 	Path   string `json:"path"`
-	Line   int    `json:"line,omitempty"`
-	Column int    `json:"column,omitempty"`
+	Line   int    `json:"line,omitzero"`
+	Column int    `json:"column,omitzero"`
 }
 
 // Diagnostic is one actionable Loom adoption finding.

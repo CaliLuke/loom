@@ -1,7 +1,7 @@
 package http
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"io"
@@ -128,7 +128,7 @@ type (
 		// Response is the HTTP upgrade response.
 		Response *http.Response
 		// Messages contains server-to-client JSON messages in wire order.
-		Messages []json.RawMessage
+		Messages []jsontext.Value
 		// TerminalError is the final error returned by the WebSocket reader. It is
 		// nil when the contract terminates with one final response message.
 		TerminalError error
@@ -203,7 +203,7 @@ func ValidateSSEResponseContract(observation *SSEResponseContractObservation, co
 		if event.Data == "" {
 			return fmt.Errorf("%s: SSE event %d has empty data", prefix, index)
 		}
-		if contract.SSE.DataEncoding == "json" && !json.Valid([]byte(event.Data)) {
+		if contract.SSE.DataEncoding == "json" && !jsontext.Value(event.Data).IsValid() {
 			return fmt.Errorf("%s: SSE event %d data is not valid JSON", prefix, index)
 		}
 		if contract.SSE.IDRequired && event.ID == "" {
@@ -244,7 +244,7 @@ func ValidateWebSocketResponseContract(observation *WebSocketResponseContractObs
 		return fmt.Errorf("%s: no WebSocket messages were observed", prefix)
 	}
 	for index, message := range observation.Messages {
-		if !json.Valid(message) {
+		if !message.IsValid() {
 			return fmt.Errorf("%s: WebSocket message %d is not valid JSON", prefix, index)
 		}
 	}

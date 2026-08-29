@@ -1,7 +1,8 @@
 package cli
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"reflect"
 	"strconv"
 	"strings"
@@ -152,7 +153,12 @@ func jsonExample(v any) string {
 	if r.Kind() == reflect.Map {
 		keys := r.MapKeys()
 		if len(keys) == 0 {
-			b, err := json.MarshalIndent(v, "   ", "   ")
+			b, err := json.Marshal(
+				v,
+				json.Deterministic(true),
+				jsontext.WithIndentPrefix("   "),
+				jsontext.WithIndent("   "),
+			)
 			if err == nil {
 				return string(b)
 			}
@@ -183,7 +189,12 @@ func jsonExample(v any) string {
 			v = a
 		}
 	}
-	b, err := json.MarshalIndent(v, "   ", "   ")
+	b, err := json.Marshal(
+		v,
+		json.Deterministic(true),
+		jsontext.WithIndentPrefix("   "),
+		jsontext.WithIndent("   "),
+	)
 	ex := "?"
 	if err == nil {
 		ex = string(b)

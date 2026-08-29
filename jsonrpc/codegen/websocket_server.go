@@ -22,7 +22,7 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	imports := make([]*codegen.ImportSpec, 0, 14+len(data.Service.UserTypeImports))
 	imports = append(imports,
 		&codegen.ImportSpec{Path: "context"},
-		&codegen.ImportSpec{Path: "encoding/json"},
+		&codegen.ImportSpec{Path: "encoding/json/v2", Name: "json"},
 		&codegen.ImportSpec{Path: "errors"},
 		&codegen.ImportSpec{Path: "fmt"},
 		&codegen.ImportSpec{Path: "io"},

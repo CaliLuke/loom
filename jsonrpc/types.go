@@ -1,8 +1,8 @@
 package jsonrpc
 
 import (
-	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"strconv"
 )
@@ -33,10 +33,10 @@ type (
 
 	// RawRequest represents a JSON-RPC request with a marshalled params.
 	RawRequest struct {
-		JSONRPC string          `json:"jsonrpc"`
-		Method  string          `json:"method"`
-		Params  json.RawMessage `json:"params,omitempty"`
-		ID      any             `json:"id"`
+		JSONRPC string         `json:"jsonrpc"`
+		Method  string         `json:"method"`
+		Params  jsontext.Value `json:"params,omitempty"`
+		ID      any            `json:"id"`
 		// HasID is true when the "id" key is present in the incoming JSON (even if null).
 		// It is consumed by generated templates (WebSocket/SSE/HTTP) to decide whether
 		// to send a response for this request. Do not remove even if unused by this package.
@@ -50,7 +50,7 @@ type (
 	// and error.
 	RawResponse struct {
 		JSONRPC string            `json:"jsonrpc"`
-		Result  json.RawMessage   `json:"result,omitempty"`
+		Result  jsontext.Value    `json:"result,omitempty"`
 		Error   *RawErrorResponse `json:"error,omitempty"`
 		ID      any               `json:"id,omitempty"`
 	}
@@ -58,9 +58,9 @@ type (
 	// RawErrorResponse represents a JSON-RPC error response with marshalled
 	// data.
 	RawErrorResponse struct {
-		Code    int             `json:"code"`
-		Message string          `json:"message"`
-		Data    json.RawMessage `json:"data,omitempty"`
+		Code    int            `json:"code"`
+		Message string         `json:"message"`
+		Data    jsontext.Value `json:"data,omitempty"`
 	}
 
 	// Code is a JSON-RPC error code, see JSON-RPC 2.0 section 5.1
@@ -136,8 +136,8 @@ func IDToString(id any) string {
 		return v
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64)
-	case json.Number:
-		return v.String()
+	case jsontext.Value:
+		return string(v)
 	default:
 		return ""
 	}
@@ -145,10 +145,23 @@ func IDToString(id any) string {
 
 // UnmarshalJSON decodes RawRequest and records whether the id field was present.
 func (r *RawRequest) UnmarshalJSON(data []byte) error {
+	return r.unmarshalJSON(data)
+}
+
+// UnmarshalJSONFrom decodes RawRequest directly from a JSON v2 token stream.
+func (r *RawRequest) UnmarshalJSONFrom(decoder *jsontext.Decoder) error {
+	data, err := decoder.ReadValue()
+	if err != nil {
+		return err
+	}
+	return r.unmarshalJSON(data)
+}
+
+func (r *RawRequest) unmarshalJSON(data []byte) error {
 	*r = RawRequest{}
-	var raw map[string]json.RawMessage
+	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
-		if json.Valid(data) {
+		if jsontext.Value(data).IsValid() {
 			r.Invalid = true
 			return nil
 		}
@@ -174,15 +187,15 @@ func (r *RawRequest) UnmarshalJSON(data []byte) error {
 		if string(v) == "null" {
 			r.ID = nil
 		} else {
-			var id any
-			dec := json.NewDecoder(bytes.NewReader(v))
-			dec.UseNumber()
-			if err := dec.Decode(&id); err != nil {
-				return err
-			}
-			switch id := id.(type) {
-			case string, json.Number:
+			switch v.Kind() {
+			case '"':
+				var id string
+				if err := json.Unmarshal(v, &id); err != nil {
+					return err
+				}
 				r.ID = id
+			case '0':
+				r.ID = v.Clone()
 			default:
 				r.Invalid = true
 				r.ID = nil

@@ -202,7 +202,7 @@ func writeJSONRPCNamedErrorDecode(g *jen.Group, group *httpcodegen.ErrorGroupDat
 	g.Var().Id("jerrData").Qual("github.com/CaliLuke/loom/jsonrpc", "ErrorData")
 	g.If(jen.Len(jen.Id("jresp").Dot("Error").Dot("Data")).Op(">").Lit(0)).Block(
 		jen.If(
-			jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("jresp").Dot("Error").Dot("Data"), jen.Op("&").Id("jerrData")),
+			jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("jresp").Dot("Error").Dot("Data"), jen.Op("&").Id("jerrData")),
 			jen.Err().Op("!=").Nil(),
 		).Block(
 			jen.Return(jen.Nil(), errDecodingExpr(e.ServiceName, e.Method.Name, jen.Id("err"))),

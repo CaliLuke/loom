@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"flag"
 	"fmt"
 	"net/url"
@@ -90,7 +91,11 @@ func main() {
 	}
 
 	if data != nil {
-		m, _ := json.MarshalIndent(data, "", "    ")
+		m, err := json.Marshal(data, json.Deterministic(true), jsontext.WithIndent("    "))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
 		fmt.Println(string(m))
 	}
 }

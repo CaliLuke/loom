@@ -3,7 +3,8 @@ package harness
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"os/exec"
@@ -46,7 +47,7 @@ func NewCLIClient(workDir, serverURL string) (*CLIClient, error) {
 }
 
 // CallMethod invokes a service method via the CLI
-func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payload any) (json.RawMessage, error) {
+func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payload any) (jsontext.Value, error) {
 	// Convert method name from snake_case to kebab-case for CLI
 	cliMethod := strings.ReplaceAll(method, "_", "-")
 
@@ -116,7 +117,7 @@ func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payl
 		line := strings.TrimSpace(lines[i])
 		if strings.HasPrefix(line, "{") {
 			var resp struct {
-				Result json.RawMessage `json:"result"`
+				Result jsontext.Value `json:"result"`
 				Error  *struct {
 					Code    int    `json:"code"`
 					Message string `json:"message"`
@@ -134,11 +135,11 @@ func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payl
 	if len(output) == 0 {
 		return nil, nil
 	}
-	return json.RawMessage(output), nil
+	return jsontext.Value(output), nil
 }
 
 // CallJSONRPC makes a raw JSON-RPC call via the CLI
-func (c *CLIClient) CallJSONRPC(ctx context.Context, request map[string]any) (json.RawMessage, error) {
+func (c *CLIClient) CallJSONRPC(ctx context.Context, request map[string]any) (jsontext.Value, error) {
 	// For JSON-RPC, we need to use the jsonrpc command if available
 	// Otherwise fall back to method call
 

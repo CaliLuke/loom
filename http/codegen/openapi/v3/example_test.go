@@ -1,7 +1,7 @@
 package openapiv3
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -47,7 +47,7 @@ func TestExplicitNullExampleMarshalsAsPresentNull(t *testing.T) {
 	initExamples(target, attribute, nil, false)
 
 	encoded, err := json.Marshal(struct {
-		Example any `json:"example,omitempty"`
+		Example any `json:"example,omitzero"`
 	}{Example: target.example})
 	require.NoError(t, err)
 	require.JSONEq(t, `{"example":null}`, string(encoded))

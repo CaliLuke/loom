@@ -110,9 +110,9 @@ func (s *StreamClientStream) Recv(ctx context.Context) (string, error) {
 		switch eventType {
 		case "notification":
 			var notification struct {
-				JSONRPC string          `json:"jsonrpc"`
-				Method  string          `json:"method"`
-				Params  json.RawMessage `json:"params"`
+				JSONRPC string         `json:"jsonrpc"`
+				Method  string         `json:"method"`
+				Params  jsontext.Value `json:"params"`
 			}
 			if err := json.Unmarshal(data, &notification); err != nil {
 				return zero, fmt.Errorf("failed to parse notification: %w", err)
@@ -145,7 +145,7 @@ func (s *StreamClientStream) Recv(ctx context.Context) (string, error) {
 			if err != nil {
 				return zero, fmt.Errorf("failed to marshal result: %w", err)
 			}
-			result, err := s.decodeResult(json.RawMessage(resultBytes))
+			result, err := s.decodeResult(jsontext.Value(resultBytes))
 			if err != nil {
 				return zero, fmt.Errorf("failed to decode final result: %w", err)
 			}
@@ -161,15 +161,15 @@ func (s *StreamClientStream) Recv(ctx context.Context) (string, error) {
 			}
 			return zero, fmt.Errorf("unexpected error response")
 		case "", "message":
-			var envelope map[string]json.RawMessage
+			var envelope map[string]jsontext.Value
 			if err := json.Unmarshal(data, &envelope); err != nil {
 				return zero, fmt.Errorf("failed to parse message event: %w", err)
 			}
 			if _, ok := envelope["method"]; ok {
 				var notification struct {
-					JSONRPC string          `json:"jsonrpc"`
-					Method  string          `json:"method"`
-					Params  json.RawMessage `json:"params"`
+					JSONRPC string         `json:"jsonrpc"`
+					Method  string         `json:"method"`
+					Params  jsontext.Value `json:"params"`
 				}
 				if err := json.Unmarshal(data, &notification); err != nil {
 					return zero, fmt.Errorf("failed to parse notification: %w", err)
@@ -203,7 +203,7 @@ func (s *StreamClientStream) Recv(ctx context.Context) (string, error) {
 			if err != nil {
 				return zero, fmt.Errorf("failed to marshal result: %w", err)
 			}
-			result, err := s.decodeResult(json.RawMessage(resultBytes))
+			result, err := s.decodeResult(jsontext.Value(resultBytes))
 			if err != nil {
 				return zero, fmt.Errorf("failed to decode final result: %w", err)
 			}
@@ -214,7 +214,7 @@ func (s *StreamClientStream) Recv(ctx context.Context) (string, error) {
 		}
 	}
 }
-func (s *StreamClientStream) decodeResult(data json.RawMessage) (string, error) {
+func (s *StreamClientStream) decodeResult(data jsontext.Value) (string, error) {
 	resp := &http.Response{
 		Body:       io.NopCloser(bytes.NewReader(data)),
 		StatusCode: http.StatusOK,

@@ -58,7 +58,7 @@ const requestBodyLimitHarness = `package bodylimitit_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -263,7 +263,7 @@ func requireRequestTooLarge(t *testing.T, response *http.Response) {
 		t.Errorf("Content-Type = %q, want %q", got, loomhttp.ProblemJSONContentType)
 	}
 	var problem loomhttp.ProblemResponse
-	if err := json.NewDecoder(response.Body).Decode(&problem); err != nil {
+	if err := json.UnmarshalRead(response.Body, &problem); err != nil {
 		t.Fatalf("decode problem response: %v", err)
 	}
 	if problem.Type != "about:blank" {

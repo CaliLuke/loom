@@ -1,7 +1,7 @@
 package log
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"strconv"
 	"time"
@@ -192,7 +192,10 @@ func appendJSONValue(b []byte, value any) []byte {
 	case codes.Code:
 		return appendJSONString(b, v.String())
 	default:
-		jsonValue, _ := json.Marshal(v)
+		jsonValue, err := json.Marshal(v)
+		if err != nil {
+			return appendJSONString(b, fmt.Sprintf("<invalid: %s>", err))
+		}
 		return append(b, jsonValue...)
 	}
 }

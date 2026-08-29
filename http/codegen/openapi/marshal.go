@@ -1,7 +1,7 @@
 package openapi
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"maps"
 
 	"gopkg.in/yaml.v3"
@@ -10,7 +10,7 @@ import (
 // MarshalJSON produces the JSON resulting from encoding an object composed of
 // the fields in v (which must me a struct) and the keys in extensions.
 func MarshalJSON(v any, extensions map[string]any) ([]byte, error) {
-	marshaled, err := json.Marshal(v)
+	marshaled, err := json.Marshal(v, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +23,7 @@ func MarshalJSON(v any, extensions map[string]any) ([]byte, error) {
 	}
 	asserted := unmarshaled.(map[string]any)
 	maps.Copy(asserted, extensions)
-	merged, err := json.Marshal(asserted)
+	merged, err := json.Marshal(asserted, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}

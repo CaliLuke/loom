@@ -196,10 +196,10 @@ func writeSSEClientNotificationCase(g *jen.Group, ed *httpcodegen.EndpointData) 
 	g.Var().Id("notification").Struct(
 		jen.Id("JSONRPC").String().Tag(map[string]string{"json": "jsonrpc"}),
 		jen.Id("Method").String().Tag(map[string]string{"json": "method"}),
-		jen.Id("Params").Qual("encoding/json", "RawMessage").Tag(map[string]string{"json": "params"}),
+		jen.Id("Params").Qual("encoding/json/jsontext", "Value").Tag(map[string]string{"json": "params"}),
 	)
 	g.If(
-		jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("notification")),
+		jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("notification")),
 		jen.Err().Op("!=").Nil(),
 	).Block(
 		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse notification: %w"), jen.Err())),
@@ -224,7 +224,7 @@ func writeSSEClientNotificationCase(g *jen.Group, ed *httpcodegen.EndpointData) 
 func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, closeOnSuccess bool) {
 	g.Var().Id("response").Add(codegen.TypeRef("jsonrpc.Response"))
 	g.If(
-		jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("response")),
+		jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("response")),
 		jen.Err().Op("!=").Nil(),
 	).Block(
 		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse response: %w"), jen.Err())),
@@ -246,11 +246,11 @@ func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, clos
 		g.If(jen.Id("response").Dot("Result").Op("==").Nil()).Block(
 			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("missing result in response"))),
 		)
-		g.List(jen.Id("resultBytes"), jen.Err()).Op(":=").Qual("encoding/json", "Marshal").Call(jen.Id("response").Dot("Result"))
+		g.List(jen.Id("resultBytes"), jen.Err()).Op(":=").Id("json").Dot("Marshal").Call(jen.Id("response").Dot("Result"))
 		g.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to marshal result: %w"), jen.Err())),
 		)
-		g.List(jen.Id("result"), jen.Err()).Op(":=").Id("s").Dot("decodeResult").Call(jen.Qual("encoding/json", "RawMessage").Call(jen.Id("resultBytes")))
+		g.List(jen.Id("result"), jen.Err()).Op(":=").Id("s").Dot("decodeResult").Call(jen.Qual("encoding/json/jsontext", "Value").Call(jen.Id("resultBytes")))
 		g.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode final result: %w"), jen.Err())),
 		)
@@ -269,7 +269,7 @@ func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, clos
 func writeSSEClientErrorCase(g *jen.Group) {
 	g.Var().Id("response").Add(codegen.TypeRef("jsonrpc.Response"))
 	g.If(
-		jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("response")),
+		jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("response")),
 		jen.Err().Op("!=").Nil(),
 	).Block(
 		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse error response: %w"), jen.Err())),
@@ -282,9 +282,9 @@ func writeSSEClientErrorCase(g *jen.Group) {
 }
 
 func writeSSEClientMessageCase(g *jen.Group, ed *httpcodegen.EndpointData) {
-	g.Var().Id("envelope").Map(jen.String()).Qual("encoding/json", "RawMessage")
+	g.Var().Id("envelope").Map(jen.String()).Qual("encoding/json/jsontext", "Value")
 	g.If(
-		jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("envelope")),
+		jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("envelope")),
 		jen.Err().Op("!=").Nil(),
 	).Block(
 		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to parse message event: %w"), jen.Err())),
@@ -301,7 +301,7 @@ func writeSSEClientMessageCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 func writeJSONRPCSSEDecodeResult(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
 		Id("decodeResult").
-		Params(jen.Id("data").Qual("encoding/json", "RawMessage")).
+		Params(jen.Id("data").Qual("encoding/json/jsontext", "Value")).
 		Params(codegen.TypeRef(ed.Result.Ref), jen.Error()).
 		Block(
 			jen.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{

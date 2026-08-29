@@ -20,7 +20,7 @@ optional arguments, for example these are all valid use of Attribute:
 	Attribute("name", String)
 	Attribute("name", String, "The name of the person")
 	Attribute("name", String, "The name of the person", func() {
-	    Meta("struct:field:type", "json.RawMessage")
+	    Meta("struct:field:type", "jsontext.Value", "encoding/json/jsontext")
 	})
 
 It is recommended to use "dot" import when importing the DSL package to improve

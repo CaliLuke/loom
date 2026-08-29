@@ -3,7 +3,7 @@ package tests
 import (
 	"bufio"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"net/http"
 	"os"

@@ -8,7 +8,7 @@
 package client
 
 import (
-	"encoding/json"
+	json "encoding/json/v2"
 	"fmt"
 
 	clock "example.com/mixedtick/gen/clock"

@@ -144,6 +144,18 @@ func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
 	require.Contains(t, got, `xml:"legacy"`)
 }
 
+func TestGoTypeDefPreservesNullableResponseFields(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type: &expr.Object{
+			{Name: "component", Attribute: &expr.AttributeExpr{Type: expr.Any}},
+		},
+	}
+
+	got := goTypeDef(codegen.NewNameScope(), attribute, false, true, false)
+	require.Contains(t, got, "Component loom.Nullable[any]")
+	require.Contains(t, got, `json:"component,omitzero"`)
+}
+
 func TestGoTypeDefUsesJSONPresenceForArrayElements(t *testing.T) {
 	nonNullable := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}
 	nullable := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String, Nullable: true}}}

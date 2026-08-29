@@ -3,7 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -30,7 +30,6 @@ func TestRequestEncoder(t *testing.T) {
 		ct      = "Content-Type"
 		ctJSON  = "application/json"
 		ctOther = "<other>"
-		wantT   = "*json.Encoder"
 	)
 	cases := []struct {
 		name      string
@@ -48,8 +47,9 @@ func TestRequestEncoder(t *testing.T) {
 				r.Header.Set(ct, c.requestCT)
 			}
 
-			_ = RequestEncoder(r)
+			encoder := RequestEncoder(r)
 
+			require.NotNil(t, encoder)
 			assert.Equal(t, c.wantCT, r.Header.Get(ct))
 		})
 	}
@@ -116,6 +116,44 @@ func TestRequestDecoder(t *testing.T) {
 	}
 }
 
+func TestRequestDecoderUsesJSONV2Semantics(t *testing.T) {
+	type payload struct {
+		Name string `json:"name"`
+	}
+
+	t.Run("rejects duplicate object names", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"first","name":"second"}`))
+		request.Header.Set("Content-Type", "application/json")
+
+		var got payload
+		err := RequestDecoder(request).Decode(&got)
+
+		require.Error(t, err)
+	})
+
+	t.Run("matches field names case sensitively", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"Name":"ignored"}`))
+		request.Header.Set("Content-Type", "application/json")
+
+		var got payload
+		err := RequestDecoder(request).Decode(&got)
+
+		require.NoError(t, err)
+		require.Empty(t, got.Name)
+	})
+
+	t.Run("rejects invalid UTF-8", func(t *testing.T) {
+		body := []byte{'{', '"', 'n', 'a', 'm', 'e', '"', ':', '"', 0xff, '"', '}'}
+		request := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+
+		var got payload
+		err := RequestDecoder(request).Decode(&got)
+
+		require.Error(t, err)
+	})
+}
+
 func TestUnsupportedDecoder(t *testing.T) {
 	// Write the response produced when writing the error returned the
 	// unsupported decoder to validate the response status code.
@@ -138,14 +176,14 @@ func TestResponseEncoder(t *testing.T) {
 		acceptType  string
 		encoderType string
 	}{
-		{"no ct, no at", "", "", "*json.Encoder"},
-		{"no ct, at json", "", "application/json", "*json.Encoder"},
+		{"no ct, no at", "", "", "*http.jsonResponseEncoder"},
+		{"no ct, at json", "", "application/json", "*http.jsonResponseEncoder"},
 		{"no ct, at xml", "", "application/xml", "*xml.Encoder"},
 		{"no ct, at gob", "", "application/gob", "*gob.Encoder"},
 		{"no ct, at html", "", "text/html", "*http.textEncoder"},
 		{"no ct, at plain", "", "text/plain", "*http.textEncoder"},
-		{"ct json", "application/json", "application/gob", "*json.Encoder"},
-		{"ct +json", "+json", "application/gob", "*json.Encoder"},
+		{"ct json", "application/json", "application/gob", "*http.jsonResponseEncoder"},
+		{"ct +json", "+json", "application/gob", "*http.jsonResponseEncoder"},
 		{"ct xml", "application/xml", "application/gob", "*xml.Encoder"},
 		{"ct +xml", "+xml", "application/gob", "*xml.Encoder"},
 		{"ct gob", "application/gob", "application/xml", "*gob.Encoder"},
@@ -154,13 +192,13 @@ func TestResponseEncoder(t *testing.T) {
 		{"ct +html", "+html", "application/gob", "*http.textEncoder"},
 		{"ct plain", "text/plain", "application/gob", "*http.textEncoder"},
 		{"ct +txt", "+txt", "application/gob", "*http.textEncoder"},
-		{"no ct, at json with params", "", "application/json; charset=utf-8", "*json.Encoder"},
+		{"no ct, at json with params", "", "application/json; charset=utf-8", "*http.jsonResponseEncoder"},
 		{"no ct, at xml with params", "", "application/xml; charset=utf-8", "*xml.Encoder"},
 		{"no ct, at gob with params", "", "application/gob; charset=utf-8", "*gob.Encoder"},
 		{"no ct, at html with params", "", "text/html; charset=utf-8", "*http.textEncoder"},
 		{"no ct, at plain with params", "", "text/plain; charset=utf-8", "*http.textEncoder"},
-		{"ct json with params", "application/json; charset=utf-8", "application/gob", "*json.Encoder"},
-		{"ct +json with params", "+json; charset=utf-8", "application/gob", "*json.Encoder"},
+		{"ct json with params", "application/json; charset=utf-8", "application/gob", "*http.jsonResponseEncoder"},
+		{"ct +json with params", "+json; charset=utf-8", "application/gob", "*http.jsonResponseEncoder"},
 		{"ct xml with params", "application/xml; charset=utf-8", "application/gob", "*xml.Encoder"},
 		{"ct +xml with params", "+xml; charset=utf-8", "application/gob", "*xml.Encoder"},
 		{"ct gob with params", "application/gob; charset=utf-8", "application/xml", "*gob.Encoder"},
@@ -192,7 +230,7 @@ func TestResponseEncoder_ContentTypeHeaderPreservesCharset(t *testing.T) {
 
 	encoder := ResponseEncoder(ctx, w)
 
-	require.Equal(t, "*json.Encoder", fmt.Sprintf("%T", encoder))
+	require.Equal(t, "*http.jsonResponseEncoder", fmt.Sprintf("%T", encoder))
 	assert.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 }
 
@@ -616,7 +654,7 @@ func requireRequestBodyTooLargeResponse(t *testing.T, err error) {
 	require.Equal(t, ProblemJSONContentType, w.Header().Get("Content-Type"))
 
 	var problem ProblemResponse
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&problem))
+	require.NoError(t, json.UnmarshalRead(w.Body, &problem))
 	require.Equal(t, "about:blank", problem.Type)
 	require.Equal(t, http.StatusText(http.StatusRequestEntityTooLarge), problem.Title)
 	require.Equal(t, http.StatusRequestEntityTooLarge, problem.Status)

@@ -159,7 +159,8 @@ func (g *Generator) Write(_ bool) error {
 		}
 		if isVet {
 			imports = append(imports,
-				codegen.SimpleImport("encoding/json"),
+				codegen.SimpleImport("encoding/json/jsontext"),
+				codegen.NewImport("json", "encoding/json/v2"),
 				codegen.NewImport("loomvet", "github.com/CaliLuke/loom/vet"),
 			)
 		} else {
@@ -392,7 +393,7 @@ const mainT = `func main() {
 	}
 	debugStage(*debug, "vet.Analyze", startVet, "diagnostics=%d", len(report.Diagnostics))
 	debugStage(*debug, "total", startBinary, "diagnostics=%d", len(report.Diagnostics))
-	if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
+	if err := json.MarshalEncode(jsontext.NewEncoder(os.Stdout), report); err != nil {
 		failStage("vet.Encode", err)
 	}
 {{- else }}

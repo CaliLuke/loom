@@ -2,7 +2,7 @@ package loom
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 )
 
@@ -68,7 +68,7 @@ func (n *Nullable[T]) SetNull() {
 	n.null = true
 }
 
-// IsZero reports whether the value is absent. It supports the encoding/json
+// IsZero reports whether the value is absent. It supports the encoding/json/v2
 // omitzero field option used by imported optional nullable properties.
 func (n Nullable[T]) IsZero() bool {
 	return !n.present
