@@ -108,7 +108,7 @@ func buildPayloadIDData(request *transportir.Request, payload *expr.AttributeExp
 
 func (b *payloadBuilder) buildInit(request *RequestData) *InitData {
 	needsServiceInit := needInit(b.payload)
-	needsPresenceInit := b.httpsvrctx.JSONPresence && expr.ContainsNonNullableArrayElement(b.bodyAttr)
+	needsPresenceInit := b.httpsvrctx.JSONPresence && expr.ContainsNonNullableCollectionElement(b.bodyAttr)
 	if !needsServiceInit && !needsPresenceInit {
 		return nil
 	}

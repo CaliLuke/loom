@@ -65,6 +65,9 @@ func goArrayTypeDef(scope *codegen.NameScope, actual *expr.Array, ptr, useDefaul
 func goMapTypeDef(scope *codegen.NameScope, actual *expr.Map, ptr, useDefault, jsonPresence bool) string {
 	keyDef := goCollectionElemTypeDef(scope, actual.KeyType, ptr, useDefault, jsonPresence)
 	elemDef := goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault, jsonPresence)
+	if jsonPresence && !expr.MapValuesAllowNull(actual) {
+		elemDef = "loom.Nullable[" + elemDef + "]"
+	}
 	return fmt.Sprintf("map[%s]%s", keyDef, elemDef)
 }
 
@@ -87,7 +90,7 @@ func goArrayElemTypeDef(scope *codegen.NameScope, array *expr.Array, ptr, useDef
 func goBodyTypeRef(scope *codegen.NameScope, attribute *expr.AttributeExpr, context *codegen.AttributeContext) string {
 	_, userType := attribute.Type.(expr.UserType)
 	collection := expr.IsArray(attribute.Type) || expr.IsMap(attribute.Type)
-	if context.JSONPresence && !userType && collection && expr.ContainsNonNullableArrayElement(attribute) {
+	if context.JSONPresence && !userType && collection && expr.ContainsNonNullableCollectionElement(attribute) {
 		return goTypeDef(scope, attribute, context.Pointer, context.UseDefault, true)
 	}
 	return scope.GoTypeRef(attribute)

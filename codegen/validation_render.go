@@ -344,21 +344,37 @@ func renderArrayValidation(target, validation string, rejectNativeNil, jsonPrese
 	return b.String()
 }
 
-func renderMapValidation(target, keyValidation, valueValidation string) string {
+func renderMapValidation(target, keyValidation, valueValidation string, jsonPresence bool, context string) string {
 	keyVar := "_"
 	if keyValidation != "" {
 		keyVar = "k"
 	}
 	valueVar := "_"
-	if valueValidation != "" {
+	if valueValidation != "" || jsonPresence {
 		valueVar = "v"
+		if target == "v" {
+			valueVar = "mv"
+		}
 	}
 	var b sourceBuilder
 	fmt.Fprintf(&b, "for %s, %s := range %s {\n", keyVar, valueVar, target)
 	if keyValidation != "" {
 		b.Add(indentCode(strings.TrimPrefix(keyValidation, "\n")))
 	}
-	if valueValidation != "" {
+	if jsonPresence {
+		if valueValidation == "" {
+			b.Add("\tif _, ok := " + valueVar + ".Value(); !ok {\n")
+			b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + quoteString(context+"[key]") + "))\n")
+			b.Add("\t}\n")
+			b.Add("}")
+			return b.String()
+		}
+		b.Add("\tif actual, ok := " + valueVar + ".Value(); ok {\n")
+		b.Add(indentCode(indentCode(strings.TrimPrefix(valueValidation, "\n"))))
+		b.Add("\t} else {\n")
+		b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + quoteString(context+"[key]") + "))\n")
+		b.Add("\t}\n")
+	} else if valueValidation != "" {
 		b.Add(indentCode(strings.TrimPrefix(valueValidation, "\n")))
 	}
 	b.Add("}")

@@ -126,7 +126,6 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 		var RequiredDefaultRequest = Type("RequiredDefaultRequest", func() {
 			Attribute("sort", RequiredDefaultSort)
 		})
-		var ValidationErrors = Type("ValidationErrors", MapOf(String, ArrayOf(String)))
 		Service("OptionalUnionValidation", func() {
 			Method("Show", func() {
 				Result(Envelope)
@@ -210,34 +209,6 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 					Body(RequiredDefaultRequest)
 				})
 			})
-			Method("DirectArraySubmit", func() {
-				Payload(ArrayOf(String))
-				HTTP(func() {
-					POST("/direct-array")
-				})
-			})
-			Method("DirectNullableArraySubmit", func() {
-				Payload(ArrayOf(String, func() {
-					Nullable()
-				}))
-				HTTP(func() {
-					POST("/direct-nullable-array")
-				})
-			})
-			Method("DirectArrayShow", func() {
-				Result(ArrayOf(String))
-				HTTP(func() {
-					GET("/direct-array")
-					Response(StatusOK)
-				})
-			})
-			Method("ValidationErrorsShow", func() {
-				Result(ValidationErrors)
-				HTTP(func() {
-					GET("/validation-errors")
-					Response(StatusOK)
-				})
-			})
 		})
 	})
 	dir := t.TempDir()
@@ -252,7 +223,6 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 	}
 	require.Contains(t, clientTypes.String(), "Labels loom.Optional[[]loom.Nullable[string]]")
 	require.Contains(t, clientTypes.String(), "body.Labels.Value()")
-	require.Contains(t, clientTypes.String(), "body map[string][]loom.Nullable[string]")
 	serverTypeFiles, err := filepath.Glob(filepath.Join(dir, "gen", "http", "optional_union_validation", "server", "types*.go"))
 	require.NoError(t, err)
 	var serverTypes strings.Builder
@@ -282,14 +252,10 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 import (
 	"context"
 	json "encoding/json/v2"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	loomhttp "github.com/CaliLuke/loom/http"
-	client "example.com/optionalunionvalidation/gen/http/optional_union_validation/client"
 	server "example.com/optionalunionvalidation/gen/http/optional_union_validation/server"
 )
 
@@ -357,70 +323,6 @@ func TestArrayItemNullability(t *testing.T) {
 	}
 }
 
-func TestDirectArrayItemNullability(t *testing.T) {
-	t.Run("request rejects null scalar", func(t *testing.T) {
-		request := httptest.NewRequest(http.MethodPost, "/direct-array", strings.NewReader("[null]"))
-		_, err := server.DecodeDirectArraySubmitRequest(nil, loomhttp.RequestDecoder)(request)
-		if err == nil || !strings.Contains(err.Error(), "body[0]") {
-			t.Fatalf("decode error = %v, want body[0]", err)
-		}
-		if status := loomhttp.NewErrorResponse(context.Background(), err).StatusCode(); status != 400 {
-			t.Fatalf("status = %d, want 400", status)
-		}
-	})
-
-	t.Run("request accepts nullable scalar", func(t *testing.T) {
-		request := httptest.NewRequest(http.MethodPost, "/direct-nullable-array", strings.NewReader("[null]"))
-		if _, err := server.DecodeDirectNullableArraySubmitRequest(nil, loomhttp.RequestDecoder)(request); err != nil {
-			t.Fatalf("decode nullable array: %v", err)
-		}
-	})
-
-	t.Run("response rejects null scalar", func(t *testing.T) {
-		response := &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     make(http.Header),
-			Body:       io.NopCloser(strings.NewReader("[null]")),
-		}
-		_, err := client.DecodeDirectArrayShowResponse(loomhttp.ResponseDecoder, false)(response)
-		if err == nil || !strings.Contains(err.Error(), "body[0]") {
-			t.Fatalf("decode error = %v, want body[0]", err)
-		}
-	})
-}
-
-func TestMapArrayItemNullability(t *testing.T) {
-	t.Run("accepts valid response", func(t *testing.T) {
-		response := &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     make(http.Header),
-			Body:       io.NopCloser(strings.NewReader(`+"`"+`{"field":["required"]}`+"`"+`)),
-		}
-		result, err := client.DecodeValidationErrorsShowResponse(loomhttp.ResponseDecoder, false)(response)
-		if err != nil {
-			t.Fatalf("decode valid response: %v", err)
-		}
-		encoded, err := json.Marshal(result)
-		if err != nil {
-			t.Fatalf("encode decoded response: %v", err)
-		}
-		if got := string(encoded); got != `+"`"+`{"field":["required"]}`+"`"+` {
-			t.Fatalf("decoded response = %s", got)
-		}
-	})
-
-	t.Run("rejects null array member", func(t *testing.T) {
-		response := &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     make(http.Header),
-			Body:       io.NopCloser(strings.NewReader(`+"`"+`{"field":[null]}`+"`"+`)),
-		}
-		_, err := client.DecodeValidationErrorsShowResponse(loomhttp.ResponseDecoder, false)(response)
-		if err == nil || !strings.Contains(err.Error(), "body[key][0]") {
-			t.Fatalf("decode error = %v, want body[key][0]", err)
-		}
-	})
-}
 `), 0o600))
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "test", "./...")

@@ -13,13 +13,18 @@ func ArrayElementsAllowNull(array *Array) bool {
 	return array != nil && !array.NonNullableElems && AllowsNull(array.ElemType)
 }
 
-// ContainsNonNullableArrayElement reports whether an attribute contains an
-// array whose element contract rejects null.
-func ContainsNonNullableArrayElement(attribute *AttributeExpr) bool {
-	return containsNonNullableArrayElement(attribute, make(map[string]struct{}))
+// MapValuesAllowNull reports whether a map accepts explicit null values.
+func MapValuesAllowNull(mapping *Map) bool {
+	return mapping != nil && AllowsNull(mapping.ElemType)
 }
 
-func containsNonNullableArrayElement(attribute *AttributeExpr, seen map[string]struct{}) bool {
+// ContainsNonNullableCollectionElement reports whether an attribute contains
+// an array element or map value contract that rejects null.
+func ContainsNonNullableCollectionElement(attribute *AttributeExpr) bool {
+	return containsNonNullableCollectionElement(attribute, make(map[string]struct{}))
+}
+
+func containsNonNullableCollectionElement(attribute *AttributeExpr, seen map[string]struct{}) bool {
 	if attribute == nil || attribute.Type == nil {
 		return false
 	}
@@ -29,25 +34,24 @@ func containsNonNullableArrayElement(attribute *AttributeExpr, seen map[string]s
 		}
 		seen[userType.ID()] = struct{}{}
 		defer delete(seen, userType.ID())
-		return containsNonNullableArrayElement(userType.Attribute(), seen)
+		return containsNonNullableCollectionElement(userType.Attribute(), seen)
 	}
 	if array := AsArray(attribute.Type); array != nil {
-		return !ArrayElementsAllowNull(array) || containsNonNullableArrayElement(array.ElemType, seen)
+		return !ArrayElementsAllowNull(array) || containsNonNullableCollectionElement(array.ElemType, seen)
 	}
 	if mapping := AsMap(attribute.Type); mapping != nil {
-		return containsNonNullableArrayElement(mapping.KeyType, seen) ||
-			containsNonNullableArrayElement(mapping.ElemType, seen)
+		return !MapValuesAllowNull(mapping) || containsNonNullableCollectionElement(mapping.ElemType, seen)
 	}
 	if object := AsObject(attribute.Type); object != nil {
 		for _, field := range *object {
-			if containsNonNullableArrayElement(field.Attribute, seen) {
+			if containsNonNullableCollectionElement(field.Attribute, seen) {
 				return true
 			}
 		}
 	}
 	if union := AsUnion(attribute.Type); union != nil {
 		for _, value := range union.Values {
-			if containsNonNullableArrayElement(value.Attribute, seen) {
+			if containsNonNullableCollectionElement(value.Attribute, seen) {
 				return true
 			}
 		}

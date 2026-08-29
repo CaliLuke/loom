@@ -278,7 +278,7 @@ func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.Attrib
 			return
 		}
 		target := "&body"
-		if expr.IsArray(ut) || expr.IsNullable(body) {
+		if expr.IsArray(ut) || expr.IsMap(ut) || expr.IsNullable(body) {
 			target = "body"
 		}
 		data.validateRef = fmt.Sprintf("err = Validate%s(%s)", data.varName, target)

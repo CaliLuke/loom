@@ -187,6 +187,16 @@ func InvalidNullElementError(name string, index int) error {
 	)
 }
 
+// InvalidNullMapValueError reports a null map value whose contract does not
+// allow null. The field path identifies the map key position.
+func InvalidNullMapValueError(name string) error {
+	message := fmt.Sprintf("invalid null value for %q; map value must be non-null", name)
+	return validationErrorWithSafe(
+		withField(name, PermanentError(InvalidFieldType, "%s", message)),
+		message,
+	)
+}
+
 // MissingFieldError is the error produced by the generated code when a payload
 // is missing a required field.
 func MissingFieldError(name, context string) error {

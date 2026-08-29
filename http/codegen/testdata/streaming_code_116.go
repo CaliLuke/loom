@@ -14,7 +14,7 @@ func (s *BidirectionalStreamingUserTypeMapMethodServerStream) Recv() (map[string
 func (s *BidirectionalStreamingUserTypeMapMethodServerStream) RecvWithContext(ctx context.Context) (map[string]*bidirectionalstreamingusertypemapservice.RequestType, error) {
 	var (
 		rv   map[string]*bidirectionalstreamingusertypemapservice.RequestType
-		body map[string]*RequestType
+		body map[string]loom.Nullable[*RequestType]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -51,6 +51,14 @@ func (s *BidirectionalStreamingUserTypeMapMethodServerStream) RecvWithContext(ct
 	}
 	if body == nil {
 		return rv, io.EOF
+	}
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
+	}
+	if err != nil {
+		return rv, err
 	}
 	return NewBidirectionalStreamingUserTypeMapMethodMap(body), nil
 }

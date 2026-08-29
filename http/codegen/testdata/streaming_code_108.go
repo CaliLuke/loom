@@ -12,7 +12,7 @@ func (s *BidirectionalStreamingPrimitiveMapMethodServerStream) Recv() (map[strin
 func (s *BidirectionalStreamingPrimitiveMapMethodServerStream) RecvWithContext(ctx context.Context) (map[string]int32, error) {
 	var (
 		rv   map[string]int32
-		body map[string]int32
+		body map[string]loom.Nullable[int32]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -50,6 +50,14 @@ func (s *BidirectionalStreamingPrimitiveMapMethodServerStream) RecvWithContext(c
 	if body == nil {
 		return rv, io.EOF
 	}
-	return body, nil
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	return NewBidirectionalStreamingPrimitiveMapMethodMap(body), nil
 }
 `

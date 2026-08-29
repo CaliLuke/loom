@@ -49,9 +49,9 @@ type (
 		// JSONPresence indicates that optional object fields use loom.Optional
 		// to distinguish an absent JSON member from a concrete zero value.
 		JSONPresence bool
-		// CollectionElementPresence indicates that non-null array elements use
-		// loom.Nullable in a generated JSON decoding type so null can be rejected
-		// before conversion to the service type.
+		// CollectionElementPresence indicates that non-null array elements and
+		// map values use loom.Nullable in a generated JSON decoding type so null
+		// can be rejected before conversion to the service type.
 		CollectionElementPresence bool
 		// JSONPresenceTypes records named types whose physical object fields use
 		// loom.Optional even when the root conversion itself uses native presence.

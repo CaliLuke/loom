@@ -5,7 +5,7 @@ var BidirectionalStreamingPrimitiveMapClientStreamRecvCode = `// Recv reads inst
 func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) Recv() (map[int]int, error) {
 	var (
 		rv   map[int]int
-		body map[int]int
+		body map[int]loom.Nullable[int]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -15,7 +15,16 @@ func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) Recv() (map[int]i
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewBidirectionalStreamingPrimitiveMapMethodMapIntIntOK(body)
+	return res, nil
 }
 
 // RecvWithContext reads instances of "map[int]int" from the
@@ -24,7 +33,7 @@ func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) Recv() (map[int]i
 func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) RecvWithContext(ctx context.Context) (map[int]int, error) {
 	var (
 		rv   map[int]int
-		body map[int]int
+		body map[int]loom.Nullable[int]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -37,6 +46,15 @@ func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) RecvWithContext(c
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewBidirectionalStreamingPrimitiveMapMethodMapIntIntOK(body)
+	return res, nil
 }
 `

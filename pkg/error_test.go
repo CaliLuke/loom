@@ -168,6 +168,17 @@ func TestGeneratedValidationErrorSafeMessages(t *testing.T) {
 			t.Errorf("got error %q", got)
 		}
 	})
+
+	t.Run("null map value", func(t *testing.T) {
+		err := InvalidNullMapValueError("body.labels[key]")
+		want := `invalid null value for "body.labels[key]"; map value must be non-null`
+		if got := ErrorSafeMessage(err); got != want {
+			t.Errorf("got safe message %q", got)
+		}
+		if got := err.Error(); got != want {
+			t.Errorf("got error %q", got)
+		}
+	})
 }
 
 func TestExtractErrorRemedy(t *testing.T) {

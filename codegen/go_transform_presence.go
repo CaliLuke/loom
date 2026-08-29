@@ -135,7 +135,7 @@ func transformNativeToOptional(
 
 func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, defaultValue any, ta *TransformAttrs) (*jen.Statement, error) {
 	collectionLayoutDiffers := ta.SourceCtx.CollectionElementPresence != ta.TargetCtx.CollectionElementPresence &&
-		expr.ContainsNonNullableArrayElement(source)
+		expr.ContainsNonNullableCollectionElement(source)
 	if defaultValue == nil && !collectionLayoutDiffers && nullablePhysicalTypeRef(source, ta.SourceCtx) == nullablePhysicalTypeRef(target, ta.TargetCtx) {
 		return directAssignment(sourceVar, targetVar, newVar), nil
 	}

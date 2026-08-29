@@ -209,6 +209,43 @@ func TestArrayValidationUsesElementNullability(t *testing.T) {
 	}
 }
 
+func TestMapValidationUsesValueNullability(t *testing.T) {
+	tests := []struct {
+		name          string
+		value         *expr.AttributeExpr
+		wantNullCheck bool
+	}{
+		{
+			name:          "non-null array value",
+			value:         &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			wantNullCheck: true,
+		},
+		{
+			name:  "nullable array value",
+			value: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}, Nullable: true},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := NewAttributeContext(true, false, false, "", NewNameScope())
+			ctx.JSONPresence = true
+			ctx.CollectionElementPresence = true
+			attribute := &expr.AttributeExpr{Type: &expr.Map{
+				KeyType:  &expr.AttributeExpr{Type: expr.String},
+				ElemType: test.value,
+			}}
+
+			code := ValidationCode(attribute, nil, ctx, true, false, false, "body")
+
+			require.Equal(t, test.wantNullCheck, strings.Contains(code, "loom.InvalidNullMapValueError"), code)
+			if test.wantNullCheck {
+				require.Contains(t, code, "actual, ok := v.Value()")
+				require.Contains(t, code, `loom.InvalidNullMapValueError("body[key]")`)
+			}
+		})
+	}
+}
+
 func TestValidationCodeEmitsOneRequiredFieldError(t *testing.T) {
 	tests := []struct {
 		name      string

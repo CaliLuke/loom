@@ -5,7 +5,7 @@ var StreamingResultPrimitiveMapClientStreamRecvCode = `// Recv reads instances o
 func (s *StreamingResultPrimitiveMapMethodClientStream) Recv() (map[int32]string, error) {
 	var (
 		rv   map[int32]string
-		body map[int32]string
+		body map[int32]loom.Nullable[string]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -23,7 +23,16 @@ func (s *StreamingResultPrimitiveMapMethodClientStream) Recv() (map[int32]string
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingResultPrimitiveMapMethodMapInt32StringOK(body)
+	return res, nil
 }
 
 // RecvWithContext reads instances of "map[int32]string" from the
@@ -32,7 +41,7 @@ func (s *StreamingResultPrimitiveMapMethodClientStream) Recv() (map[int32]string
 func (s *StreamingResultPrimitiveMapMethodClientStream) RecvWithContext(ctx context.Context) (map[int32]string, error) {
 	var (
 		rv   map[int32]string
-		body map[int32]string
+		body map[int32]loom.Nullable[string]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -53,6 +62,15 @@ func (s *StreamingResultPrimitiveMapMethodClientStream) RecvWithContext(ctx cont
 	if err != nil {
 		return rv, err
 	}
-	return body, nil
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
+	res := NewStreamingResultPrimitiveMapMethodMapInt32StringOK(body)
+	return res, nil
 }
 `

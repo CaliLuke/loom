@@ -158,12 +158,31 @@ func TestArrayElementsAllowNullHonorsExplicitRequiredElements(t *testing.T) {
 			require.Equal(t, test.want, ArrayElementsAllowNull(test.array))
 		})
 	}
-	require.True(t, ContainsNonNullableArrayElement(&AttributeExpr{Type: tests[0].array}))
-	require.False(t, ContainsNonNullableArrayElement(&AttributeExpr{Type: tests[1].array}))
-	require.True(t, ContainsNonNullableArrayElement(&AttributeExpr{Type: &Map{
+	require.True(t, ContainsNonNullableCollectionElement(&AttributeExpr{Type: tests[0].array}))
+	require.False(t, ContainsNonNullableCollectionElement(&AttributeExpr{Type: tests[1].array}))
+	require.True(t, ContainsNonNullableCollectionElement(&AttributeExpr{Type: &Map{
 		KeyType:  &AttributeExpr{Type: String},
 		ElemType: &AttributeExpr{Type: tests[3].array},
 	}}))
+}
+
+func TestMapValuesAllowNull(t *testing.T) {
+	nonNullable := &Map{
+		KeyType:  &AttributeExpr{Type: String},
+		ElemType: &AttributeExpr{Type: &Array{ElemType: &AttributeExpr{Type: String}}},
+	}
+	nullable := &Map{
+		KeyType: &AttributeExpr{Type: String},
+		ElemType: &AttributeExpr{
+			Type:     &Array{ElemType: &AttributeExpr{Type: String}},
+			Nullable: true,
+		},
+	}
+
+	require.False(t, MapValuesAllowNull(nonNullable))
+	require.True(t, MapValuesAllowNull(nullable))
+	require.True(t, ContainsNonNullableCollectionElement(&AttributeExpr{Type: nonNullable}))
+	require.True(t, ContainsNonNullableCollectionElement(&AttributeExpr{Type: nullable}))
 }
 
 func TestPresenceValidationRejectsConflictingMetadata(t *testing.T) {

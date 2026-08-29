@@ -183,7 +183,7 @@ func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
 					ElemType: &expr.AttributeExpr{Type: expr.String},
 				}},
 			}},
-			want: "map[string][]loom.Nullable[string]",
+			want: "map[string]loom.Nullable[[]loom.Nullable[string]]",
 		},
 		{
 			name: "plain map",
@@ -191,7 +191,18 @@ func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
 				KeyType:  &expr.AttributeExpr{Type: expr.String},
 				ElemType: &expr.AttributeExpr{Type: expr.String},
 			}},
-			want: "map[string]string",
+			want: "map[string]loom.Nullable[string]",
+		},
+		{
+			name: "nullable map array value",
+			attribute: &expr.AttributeExpr{Type: &expr.Map{
+				KeyType: &expr.AttributeExpr{Type: expr.String},
+				ElemType: &expr.AttributeExpr{
+					Type:     &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+					Nullable: true,
+				},
+			}},
+			want: "map[string]loom.Nullable[[]loom.Nullable[string]]",
 		},
 	}
 

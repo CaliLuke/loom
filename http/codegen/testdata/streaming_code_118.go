@@ -6,12 +6,20 @@ var BidirectionalStreamingUserTypeMapClientStreamRecvCode = `// Recv reads insta
 func (s *BidirectionalStreamingUserTypeMapMethodClientStream) Recv() (map[string]*bidirectionalstreamingusertypemapservice.ResultType, error) {
 	var (
 		rv   map[string]*bidirectionalstreamingusertypemapservice.ResultType
-		body map[string]*ResultTypeResponse
+		body map[string]loom.Nullable[*ResultTypeResponse]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		return rv, io.EOF
+	}
+	if err != nil {
+		return rv, err
+	}
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
 	}
 	if err != nil {
 		return rv, err
@@ -27,7 +35,7 @@ func (s *BidirectionalStreamingUserTypeMapMethodClientStream) Recv() (map[string
 func (s *BidirectionalStreamingUserTypeMapMethodClientStream) RecvWithContext(ctx context.Context) (map[string]*bidirectionalstreamingusertypemapservice.ResultType, error) {
 	var (
 		rv   map[string]*bidirectionalstreamingusertypemapservice.ResultType
-		body map[string]*ResultTypeResponse
+		body map[string]loom.Nullable[*ResultTypeResponse]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -36,6 +44,14 @@ func (s *BidirectionalStreamingUserTypeMapMethodClientStream) RecvWithContext(ct
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		return rv, io.EOF
+	}
+	if err != nil {
+		return rv, err
+	}
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
 	}
 	if err != nil {
 		return rv, err

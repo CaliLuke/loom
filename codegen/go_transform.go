@@ -44,6 +44,7 @@ type (
 		LoopVar        string
 		IsKeyStruct    bool
 		IsElemStruct   bool
+		SourcePresence bool
 		TypeAliasName  string
 	}
 

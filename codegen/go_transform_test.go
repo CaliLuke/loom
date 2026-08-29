@@ -317,6 +317,23 @@ func TestTransformArrayUnwrapsNonNullableJSONElements(t *testing.T) {
 	require.Contains(t, code, "values[i] = actual")
 }
 
+func TestTransformMapUnwrapsNonNullableJSONValues(t *testing.T) {
+	attribute := &expr.AttributeExpr{Type: &expr.Map{
+		KeyType:  &expr.AttributeExpr{Type: expr.String},
+		ElemType: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}},
+	}}
+	scope := NewNameScope()
+	sourceCtx := NewAttributeContext(true, false, false, "", scope)
+	sourceCtx.JSONPresence = true
+	sourceCtx.CollectionElementPresence = true
+	targetCtx := NewAttributeContext(false, false, true, "", scope)
+
+	code, _, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	require.NoError(t, err)
+	require.Contains(t, code, "actual, ok := val.Value()")
+	require.Contains(t, code, "tv := make([]string, len(actual))")
+}
+
 func TestTransformNullableArrayUnwrapsNonNullableJSONElements(t *testing.T) {
 	attribute := &expr.AttributeExpr{
 		Type:     &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},

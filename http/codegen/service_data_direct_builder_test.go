@@ -254,6 +254,15 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.Equal(t, "NewMethodBodyCollectionResponseBody", bodyType.Init.Name)
 	})
 
+	t.Run("buildResponseBodyType validates named map bodies by value", func(t *testing.T) {
+		services, endpointExpr, svcData := firstHTTPBuildContext(t, namedMapResponseBodyDSL)
+		method := svcData.Service.Method(endpointExpr.Name())
+
+		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), false, nil, svcData)
+		require.NotNil(t, bodyType)
+		require.Equal(t, "err = ValidateShowResponseBody(body)", bodyType.ValidateRef)
+	})
+
 	t.Run("mixed transport graph stays split across http and jsonrpc service data", func(t *testing.T) {
 		root := RunHTTPDSL(t, mixedTransportServiceDataDSL)
 
@@ -558,6 +567,19 @@ func responseInitArgsDSL() {
 					Header("code:X-Code")
 					Cookie("session:session")
 				})
+			})
+		})
+	})
+}
+
+func namedMapResponseBodyDSL() {
+	var body = Type("NamedMapResponseBody", MapOf(String, String))
+
+	Service("NamedMapResponse", func() {
+		Method("show", func() {
+			Result(body)
+			HTTP(func() {
+				GET("/")
 			})
 		})
 	})

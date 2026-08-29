@@ -6,7 +6,7 @@ var StreamingResultUserTypeMapClientStreamRecvCode = `// Recv reads instances of
 func (s *StreamingResultUserTypeMapMethodClientStream) Recv() (map[string]*streamingresultusertypemapservice.UserType, error) {
 	var (
 		rv   map[string]*streamingresultusertypemapservice.UserType
-		body map[string]*UserTypeResponse
+		body map[string]loom.Nullable[*UserTypeResponse]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -24,6 +24,14 @@ func (s *StreamingResultUserTypeMapMethodClientStream) Recv() (map[string]*strea
 	if err != nil {
 		return rv, err
 	}
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
+	}
+	if err != nil {
+		return rv, err
+	}
 	res := NewStreamingResultUserTypeMapMethodMapStringUserTypeOK(body)
 	return res, nil
 }
@@ -35,7 +43,7 @@ func (s *StreamingResultUserTypeMapMethodClientStream) Recv() (map[string]*strea
 func (s *StreamingResultUserTypeMapMethodClientStream) RecvWithContext(ctx context.Context) (map[string]*streamingresultusertypemapservice.UserType, error) {
 	var (
 		rv   map[string]*streamingresultusertypemapservice.UserType
-		body map[string]*UserTypeResponse
+		body map[string]loom.Nullable[*UserTypeResponse]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -52,6 +60,14 @@ func (s *StreamingResultUserTypeMapMethodClientStream) RecvWithContext(ctx conte
 			return rv, closeErr
 		}
 		return rv, io.EOF
+	}
+	if err != nil {
+		return rv, err
+	}
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
 	}
 	if err != nil {
 		return rv, err

@@ -315,7 +315,7 @@ func (sds *ServicesData) buildResponseResultInit(
 	endpointIR *transportir.Endpoint,
 	sd *ServiceData,
 ) *InitData {
-	if !needInit(result) && !expr.ContainsNonNullableArrayElement(responseStatusBody(resp)) {
+	if !needInit(result) && !expr.ContainsNonNullableCollectionElement(responseStatusBody(resp)) {
 		return nil
 	}
 	tname := sd.Service.Scope.GoFullTypeName(result, pkg)

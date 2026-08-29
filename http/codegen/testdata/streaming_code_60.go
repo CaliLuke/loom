@@ -14,7 +14,7 @@ func (s *StreamingPayloadUserTypeMapMethodServerStream) Recv() (map[string]*stre
 func (s *StreamingPayloadUserTypeMapMethodServerStream) RecvWithContext(ctx context.Context) (map[string]*streamingpayloadusertypemapservice.RequestType, error) {
 	var (
 		rv   map[string]*streamingpayloadusertypemapservice.RequestType
-		body map[string]*RequestType
+		body map[string]loom.Nullable[*RequestType]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
@@ -51,6 +51,14 @@ func (s *StreamingPayloadUserTypeMapMethodServerStream) RecvWithContext(ctx cont
 	}
 	if body == nil {
 		return rv, io.EOF
+	}
+	for _, v := range body {
+		if _, ok := v.Value(); !ok {
+			err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+		}
+	}
+	if err != nil {
+		return rv, err
 	}
 	return NewStreamingPayloadUserTypeMapMethodMap(body), nil
 }

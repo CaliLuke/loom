@@ -34,13 +34,22 @@ func DecodeIndexResponse(decoder func(*http.Response) loomhttp.Decoder, restoreB
 
 		resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
 		var (
-			body map[string]int
+			body map[string]loom.Nullable[int]
 			err  error
 		)
 		err = decoder(resp).Decode(&body)
 		if err != nil {
 			return nil, loomhttp.ErrDecodingError("calc", "index", err)
 		}
-		return body, nil
+		for _, v := range body {
+			if _, ok := v.Value(); !ok {
+				err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+			}
+		}
+		if err != nil {
+			return nil, loomhttp.ErrValidationError("calc", "index", err)
+		}
+		res := NewIndexMapStringIntOK(body)
+		return res, nil
 	}
 }

@@ -157,7 +157,7 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 	data.serverRecvTypeRef = streamDesc.Payload.Ref
 	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, true, sd)
 	if needInit(endpointIR.Stream.RequestPayload) ||
-		expr.ContainsNonNullableArrayElement(endpointIR.Request.StreamingBody) {
+		expr.ContainsNonNullableCollectionElement(endpointIR.Request.StreamingBody) {
 		initWebSocketPayloadConstructor(data.serverPayload, sds, endpointIR, sd)
 	}
 	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, false, sd)

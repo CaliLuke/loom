@@ -53,6 +53,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		TransformAttrs: ta,
 		IsKeyStruct:    expr.IsObject(target.KeyType.Type) && !expr.AllowsNull(target.KeyType),
 		IsElemStruct:   expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
+		SourcePresence: ta.SourceCtx.CollectionElementPresence && !expr.MapValuesAllowNull(source),
 	}
 	if depth := MapDepth(target); depth > 0 {
 		data.LoopVar = string(rune(97 + depth))
@@ -259,10 +260,14 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 		}
 	}
 	var elemCode *jen.Statement
+	sourceElement := "val"
+	if data.SourcePresence {
+		sourceElement = "actual"
+	}
 	if !data.IsElemStruct {
 		var err error
 		temp := "tv" + data.LoopVar
-		elemCode, err = transformAttributeStmt(data.SourceElem, data.TargetElem, "val", temp, true, data.TransformAttrs)
+		elemCode, err = transformAttributeStmt(data.SourceElem, data.TargetElem, sourceElement, temp, true, data.TransformAttrs)
 		if err != nil {
 			return nil, err
 		}
@@ -272,13 +277,17 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 	stmt.For(
 		jen.List(jen.Id("key"), jen.Id("val")).Op(":=").Range().Add(Expr(data.SourceVar)),
 	).BlockFunc(func(group *jen.Group) {
+		if data.SourcePresence {
+			group.List(jen.Id("actual"), jen.Id("ok")).Op(":=").Id("val").Dot("Value").Call()
+			group.If(jen.Op("!").Id("ok")).Block(jen.Continue())
+		}
 		if data.IsKeyStruct {
 			group.Id("tk").Op(":=").Id(transformHelperName(data.SourceKey, data.TargetKey, data.TransformAttrs)).Call(Expr("key"))
 		} else {
 			group.Add(keyCode)
 		}
 		if data.IsElemStruct {
-			group.If(Expr("val == nil")).BlockFunc(func(ifGroup *jen.Group) {
+			group.If(Expr(sourceElement + " == nil")).BlockFunc(func(ifGroup *jen.Group) {
 				ifGroup.Add(Expr(data.TargetVar)).Index(Expr("tk")).Op("=").Nil()
 				ifGroup.Continue()
 			})
@@ -286,7 +295,7 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 				Index(Expr("tk")).
 				Op("=").
 				Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
-				Call(Expr("val"))
+				Call(Expr(sourceElement))
 			return
 		}
 		temp := "tv" + data.LoopVar

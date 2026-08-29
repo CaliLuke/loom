@@ -320,6 +320,9 @@ filter, and serialization rules belong here.
   optional non-null fields. Reject nullable shapes at transports that cannot
   preserve absent, null, and concrete states instead of weakening the service
   contract.
+- JSON decoding types use `loom.Nullable[T]` for non-null array elements and
+  map values so validation can reject explicit `null` with stable collection
+  paths before conversion to service types.
 
 ## Verification Strategy
 

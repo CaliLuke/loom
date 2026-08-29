@@ -145,10 +145,15 @@ func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put ex
 		valueCtx = attCtx.Dup()
 		valueCtx.Pointer = false
 	}
+	jsonPresence := attCtx.CollectionElementPresence && !expr.MapValuesAllowNull(m)
+	valueTarget := "v"
+	if jsonPresence {
+		valueTarget = "actual"
+	}
 	keyVal := prefixedValidation(validateAttribute(keyCtx, m.KeyType, put, "k", context+".key", true, view, seen))
-	valueVal := prefixedValidation(validateAttribute(valueCtx, m.ElemType, put, "v", context+"[key]", true, view, seen))
-	if keyVal != "" || valueVal != "" {
-		appendValidationBlock(buf, first, renderMapValidation(target, keyVal, valueVal))
+	valueVal := prefixedValidation(validateAttribute(valueCtx, m.ElemType, put, valueTarget, context+"[key]", true, view, seen))
+	if keyVal != "" || valueVal != "" || jsonPresence {
+		appendValidationBlock(buf, first, renderMapValidation(target, keyVal, valueVal, jsonPresence, context))
 	}
 }
 
