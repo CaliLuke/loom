@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	httpgen "github.com/CaliLuke/loom/http/codegen"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 	"github.com/CaliLuke/loom/internal/testingx"
@@ -311,7 +310,6 @@ func renderOpenAPIArtifacts(t *testing.T, dsl func()) renderedOpenAPIArtifacts {
 func renderOpenAPIArtifactsForVersion(t *testing.T, dsl func(), target, want string) renderedOpenAPIArtifacts {
 	t.Helper()
 
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, dsl)
 	if target != "" {
 		if root.API.Meta == nil {

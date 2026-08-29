@@ -9,7 +9,6 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	httpgen "github.com/CaliLuke/loom/http/codegen"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
@@ -95,7 +94,6 @@ func TestSelectedOutputMarksStaleSiblingForRemoval(t *testing.T) {
 
 func openAPIOutputRoot(t *testing.T, format string) *expr.RootExpr {
 	t.Helper()
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, testdata.SimpleDSL)
 	if format != "" {
 		if root.API.Meta == nil {

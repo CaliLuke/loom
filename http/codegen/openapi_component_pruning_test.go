@@ -7,13 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 )
 
 func TestOpenAPIPrunesUnusedComponentSchemas(t *testing.T) {
 	root := RunHTTPDSL(t, openAPIUnusedComponentSchemasDSL)
-	openapi.Definitions = make(map[string]*openapi.Schema)
 
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)

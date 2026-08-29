@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
@@ -15,7 +14,6 @@ import (
 func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 	t.Run("service security is emitted on operations", func(t *testing.T) {
 		root := RunHTTPDSL(t, inheritedOperationSecurityDSL)
-		openapi.Definitions = make(map[string]*openapi.Schema)
 
 		spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 		parseOpenAPIV3Document(t, spec)
@@ -28,7 +26,6 @@ func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 
 	t.Run("session security is emitted on inherited operations", func(t *testing.T) {
 		root := RunHTTPDSL(t, apiLevelSessionCookieSecurityDSL)
-		openapi.Definitions = make(map[string]*openapi.Schema)
 
 		spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 		parseOpenAPIV3Document(t, spec)
@@ -41,7 +38,6 @@ func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 
 	t.Run("NoSecurity emits an explicit empty operation security array", func(t *testing.T) {
 		root := RunHTTPDSL(t, noSecurityOperationDSL)
-		openapi.Definitions = make(map[string]*openapi.Schema)
 
 		spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 		parseOpenAPIV3Document(t, spec)
@@ -54,7 +50,6 @@ func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 
 	t.Run("HTTP bearer requirements do not publish scopes", func(t *testing.T) {
 		root := RunHTTPDSL(t, scopedBearerOperationDSL)
-		openapi.Definitions = make(map[string]*openapi.Schema)
 
 		spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 		parseOpenAPIV3Document(t, spec)
@@ -68,7 +63,6 @@ func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 
 	t.Run("service session security applies to secured meal planner operations only", func(t *testing.T) {
 		root := RunHTTPDSL(t, testdata.MealPlannerDSL)
-		openapi.Definitions = make(map[string]*openapi.Schema)
 
 		spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 		parseOpenAPIV3Document(t, spec)

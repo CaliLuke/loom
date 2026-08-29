@@ -16,6 +16,9 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   decisions
 - `http/codegen/openapi/v3`: OpenAPI 3.2 rendering and 3.1 compatibility
   projection
+- `http/codegen/openapi`: active schema/document data model plus stateless
+  metadata, extension, tag, and marshaling helpers; no standalone schema
+  generator or package-global render state
 - `grpc/`: gRPC runtime-owned metadata, status, observation, and stream
   completion lifecycle; protobuf/transport generation; and typed error mapping
 - `jsonrpc/`: JSON-RPC runtime-owned envelope, batch, notification, SSE, and

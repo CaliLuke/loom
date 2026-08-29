@@ -359,8 +359,6 @@ func schemaToIR(schema *openapi.Schema) *openapiir.Schema {
 		ContentEncoding:       schema.ContentEncoding,
 		ContentMediaType:      schema.ContentMediaType,
 		ContentSchema:         schemaToIR(schema.ContentSchema),
-		PathStart:             schema.PathStart,
-		Links:                 linksToIR(schema.Links),
 		Enum:                  append([]any(nil), schema.Enum...),
 		Pattern:               schema.Pattern,
 		ExclusiveMinimum:      schema.ExclusiveMinimum,
@@ -380,12 +378,6 @@ func schemaToIR(schema *openapi.Schema) *openapiir.Schema {
 		Discriminator:         discriminatorToIR(schema.Discriminator),
 		XML:                   xmlToIR(schema.XML),
 		Extensions:            cloneStringAnyMap(schema.Extensions),
-	}
-	if schema.Media != nil {
-		out.Media = &openapiir.Media{
-			BinaryEncoding: schema.Media.BinaryEncoding,
-			Type:           schema.Media.Type,
-		}
 	}
 	return out
 }
@@ -434,27 +426,6 @@ func xmlToIR(xml *openapi.XML) *openapiir.XML {
 		Prefix:    xml.Prefix,
 		NodeType:  xml.NodeType,
 	}
-}
-
-func linksToIR(links []*openapi.Link) []*openapiir.Link {
-	if len(links) == 0 {
-		return nil
-	}
-	out := make([]*openapiir.Link, len(links))
-	for i, link := range links {
-		out[i] = &openapiir.Link{
-			Title:        link.Title,
-			Description:  link.Description,
-			Rel:          link.Rel,
-			Href:         link.Href,
-			Method:       link.Method,
-			Schema:       schemaToIR(link.Schema),
-			TargetSchema: schemaToIR(link.TargetSchema),
-			ResultType:   link.ResultType,
-			EncType:      link.EncType,
-		}
-	}
-	return out
 }
 
 func cloneStringMap(values map[string]string) map[string]string {

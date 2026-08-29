@@ -16,13 +16,11 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	httpgen "github.com/CaliLuke/loom/http/codegen"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestFilesEmitCanonicalOpenAPI32(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, testdata.AsyncSessionSecurityDSL)
 	root.API.Meta["openapi:self"] = []string{"https://api.example.com/openapi.json"}
 
@@ -74,7 +72,6 @@ func TestFilesUseNormativeJSONSchemaDialectForAllTargets(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			openapi.Definitions = make(map[string]*openapi.Schema)
 			root := httpgen.RunHTTPDSL(t, testdata.SimpleDSL)
 			if test.target != "" {
 				if root.API.Meta == nil {
@@ -123,7 +120,6 @@ func TestRendererSkipsOpenAPI32OnlySectionsFor31Target(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			openapi.Definitions = make(map[string]*openapi.Schema)
 			root := httpgen.RunHTTPDSL(t, testdata.OpenAPI32FeaturesDSL)
 			if test.version != "" {
 				root.API.Meta["openapi:version"] = []string{test.version}
@@ -245,7 +241,6 @@ func assertOpenAPI31CompatibilityProjection(t *testing.T, spec map[string]any) {
 }
 
 func TestFilesRejectUnsupportedOpenAPIVersion(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, testdata.SimpleDSL)
 	if root.API.Meta == nil {
 		root.API.Meta = make(map[string][]string)
@@ -257,7 +252,6 @@ func TestFilesRejectUnsupportedOpenAPIVersion(t *testing.T) {
 }
 
 func TestCanonicalOpenAPI32EmitsEveryNewFeatureFamily(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, testdata.OpenAPI32FeaturesDSL)
 	files, err := openapiv3.Files(root)
 	require.NoError(t, err)
@@ -430,7 +424,6 @@ func TestFiles(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			// Reset global variables
-			openapi.Definitions = make(map[string]*openapi.Schema)
 			root := httpgen.RunHTTPDSL(t, c.DSL)
 			oFiles, err := openapiv3.Files(root)
 			if err != nil {
@@ -459,7 +452,6 @@ func TestFiles(t *testing.T) {
 }
 
 func TestRenderedJSONFileEndsWithFinalLineFeed(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, testdata.SimpleDSL)
 	files, err := openapiv3.Files(root)
 	if err != nil {
@@ -806,7 +798,6 @@ func validateOpenAPIVersion(t *testing.T, b []byte, wantVersion string) {
 func renderYAMLOpenAPI(t *testing.T, dsl func()) string {
 	t.Helper()
 
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, dsl)
 	oFiles, err := openapiv3.Files(root)
 	if err != nil {

@@ -291,7 +291,6 @@ func normalizeSchemaForHash(schema *Schema, schemas map[string]*Schema, cache ma
 	cloned.AdditionalProperties = normalizeBoolOrSchemaForHash(schema.AdditionalProperties, schemas, cache, stack)
 	cloned.UnevaluatedProperties = normalizeBoolOrSchemaForHash(schema.UnevaluatedProperties, schemas, cache, stack)
 	cloned.Discriminator = normalizeDiscriminatorForHash(schema.Discriminator, schemas, cache, stack)
-	cloned.Links = normalizeLinksForHash(schema.Links, schemas, cache, stack)
 	return &cloned
 }
 
@@ -342,23 +341,6 @@ func normalizeDiscriminatorForHash(discriminator *Discriminator, schemas map[str
 		}
 	}
 	return &cloned
-}
-
-func normalizeLinksForHash(links []*Link, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) []*Link {
-	if len(links) == 0 {
-		return nil
-	}
-	cloned := make([]*Link, len(links))
-	for i, link := range links {
-		if link == nil {
-			continue
-		}
-		current := *link
-		current.Schema = normalizeSchemaForHash(link.Schema, schemas, cache, stack)
-		current.TargetSchema = normalizeSchemaForHash(link.TargetSchema, schemas, cache, stack)
-		cloned[i] = &current
-	}
-	return cloned
 }
 
 func schemaHashByName(name string, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) string {

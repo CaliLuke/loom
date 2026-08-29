@@ -122,13 +122,6 @@ func rewriteSchemaRefs(schema *openapi.Schema, resolveRef func(string) string) {
 	if nested, ok := schema.UnevaluatedProperties.(*openapi.Schema); ok {
 		rewriteSchemaRefs(nested, resolveRef)
 	}
-	for _, link := range schema.Links {
-		if link == nil {
-			continue
-		}
-		rewriteSchemaRefs(link.Schema, resolveRef)
-		rewriteSchemaRefs(link.TargetSchema, resolveRef)
-	}
 }
 
 func collectPathItemSchemaRefs(pathItem *PathItem, addRef func(string)) {
@@ -197,13 +190,6 @@ func collectSchemaRefs(schema *openapi.Schema, addRef func(string)) {
 	if nested, ok := schema.UnevaluatedProperties.(*openapi.Schema); ok {
 		collectSchemaRefs(nested, addRef)
 	}
-	for _, link := range schema.Links {
-		if link == nil {
-			continue
-		}
-		collectSchemaRefs(link.Schema, addRef)
-		collectSchemaRefs(link.TargetSchema, addRef)
-	}
 }
 
 func rewriteMediaTypeSchemaRefs(mediaTypes map[string]*MediaType, resolveRef func(string) string) {
@@ -240,15 +226,12 @@ func isPureRefSchema(schema *openapi.Schema) bool {
 		schema.Description == "" &&
 		schema.DefaultValue == nil &&
 		schema.Example == nil &&
-		schema.Media == nil &&
 		!schema.ReadOnly &&
 		!schema.WriteOnly &&
 		!schema.Deprecated &&
 		schema.ContentEncoding == "" &&
 		schema.ContentMediaType == "" &&
 		schema.ContentSchema == nil &&
-		schema.PathStart == "" &&
-		len(schema.Links) == 0 &&
 		len(schema.Enum) == 0 &&
 		schema.Format == "" &&
 		schema.Pattern == "" &&

@@ -142,6 +142,10 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   members.
 - Start OpenAPI contract changes in `http/codegen/openapi/internal/ir`; keep the
   `v3` package focused on rendering IR-owned decisions.
+- Keep `http/codegen/openapi` limited to the active schema/document model and
+  shared renderer helpers. Schema analysis state is per-render state owned by
+  `internal/ir`; do not reintroduce the legacy JSON Hyper-Schema generator,
+  package-global definitions, or compatibility aliases for those APIs.
 - OpenAPI JSON uses Go 1.27 `encoding/json/v2` with deterministic ordering.
   Preserve two-space indentation, the final newline added by `codegen.File`,
   and configured prefix/indent behavior.

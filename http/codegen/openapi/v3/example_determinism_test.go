@@ -14,25 +14,20 @@ import (
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	httpgen "github.com/CaliLuke/loom/http/codegen"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 )
 
 func TestFilesSynthesizedExamplesAreStableAcrossRepeatedGeneration(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	first := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, false)))
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	second := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, false)))
 
 	require.Equal(t, first, second)
 }
 
 func TestFilesUnrelatedSchemaChangesDoNotShiftSynthesizedExamples(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	before := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, false)))
 	beforeJSON := decodeOpenAPIJSON(t, []byte(before[filepath.Join(codegen.Gendir, "http", "openapi.json")]))
 
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	after := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(true, false)))
 	afterJSON := decodeOpenAPIJSON(t, []byte(after[filepath.Join(codegen.Gendir, "http", "openapi.json")]))
 
@@ -41,7 +36,6 @@ func TestFilesUnrelatedSchemaChangesDoNotShiftSynthesizedExamples(t *testing.T) 
 }
 
 func TestFilesSynthesizedExamplesDistinguishSchemaOccurrences(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	artifacts := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, false)))
 	spec := decodeOpenAPIJSON(t, []byte(artifacts[filepath.Join(codegen.Gendir, "http", "openapi.json")]))
 
@@ -54,7 +48,6 @@ func TestFilesSynthesizedExamplesDistinguishSchemaOccurrences(t *testing.T) {
 }
 
 func TestFilesCanOmitSynthesizedExamplesWithoutRemovingAuthoredExamples(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, true))
 	originalRandomizer := root.API.ExampleGenerator.Randomizer
 	artifacts := renderOpenAPIExampleArtifacts(t, root)
@@ -75,7 +68,6 @@ func TestFilesCanOmitSynthesizedExamplesWithoutRemovingAuthoredExamples(t *testi
 }
 
 func TestFilesPatternExamplesArePrintable(t *testing.T) {
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	artifacts := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, patternExampleDSL))
 	spec := decodeOpenAPIJSON(t, []byte(artifacts[filepath.Join(codegen.Gendir, "http", "openapi.json")]))
 

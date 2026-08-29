@@ -6,13 +6,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 )
 
 func TestOpenAPIApiLevelSSEConfiguration(t *testing.T) {
 	root := RunHTTPDSL(t, apiLevelSSEOpenAPIDSL)
-	openapi.Definitions = make(map[string]*openapi.Schema)
 
 	v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
 	doc := parseOpenAPIV3Document(t, v3JSON)

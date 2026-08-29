@@ -12,7 +12,6 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
@@ -34,7 +33,6 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 
 	t.Run("openapi uses cookie security scheme", func(t *testing.T) {
 		root := RunHTTPDSL(t, cookieAPIKeySecurityDSL)
-		openapi.Definitions = make(map[string]*openapi.Schema)
 
 		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
 		doc := parseOpenAPIV3Document(t, v3JSON)
@@ -121,7 +119,6 @@ func TestSessionSecurityInfersCookieBinding(t *testing.T) {
 		require.Len(t, root.API.Requirements, 0)
 		require.Len(t, root.API.SessionAuths, 1)
 
-		openapi.Definitions = make(map[string]*openapi.Schema)
 		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
 		doc := parseOpenAPIV3Document(t, v3JSON)
 		require.Len(t, doc.Security, 2)
@@ -129,7 +126,6 @@ func TestSessionSecurityInfersCookieBinding(t *testing.T) {
 
 	t.Run("openapi uses inferred cookie security scheme", func(t *testing.T) {
 		root := RunHTTPDSL(t, sessionCookieSecurityDSL)
-		openapi.Definitions = make(map[string]*openapi.Schema)
 
 		v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
 		doc := parseOpenAPIV3Document(t, v3JSON)
@@ -209,7 +205,6 @@ func TestStreamingSessionSecurityWebSocketHandshakeContracts(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			root := RunHTTPDSL(t, tc.DSL)
-			openapi.Definitions = make(map[string]*openapi.Schema)
 
 			v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
 			doc := parseOpenAPIV3Document(t, v3JSON)

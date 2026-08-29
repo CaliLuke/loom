@@ -7,14 +7,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestOpenAPIClosedObjectWrapperUnionExamplesAreSuppressed(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.MealPlannerDSL)
-	openapi.Definitions = make(map[string]*openapi.Schema)
 
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
@@ -37,7 +35,6 @@ func TestOpenAPIClosedObjectWrapperUnionExamplesAreSuppressed(t *testing.T) {
 
 func TestOpenAPIExampleFalseSuppressesWrapperRequestExamples(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.MealPlannerDSL)
-	openapi.Definitions = make(map[string]*openapi.Schema)
 
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
@@ -48,7 +45,6 @@ func TestOpenAPIExampleFalseSuppressesWrapperRequestExamples(t *testing.T) {
 
 func TestOpenAPIMultipartBinaryExamplesUseStrings(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.MealPlannerDSL)
-	openapi.Definitions = make(map[string]*openapi.Schema)
 
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
@@ -84,7 +80,6 @@ func TestOpenAPIMultipartBinaryExamplesUseStrings(t *testing.T) {
 
 func TestOpenAPISSEStreamingResponsesRemainHTTP200(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.MealPlannerDSL)
-	openapi.Definitions = make(map[string]*openapi.Schema)
 
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
@@ -98,7 +93,6 @@ func TestOpenAPISSEStreamingResponsesRemainHTTP200(t *testing.T) {
 
 func TestOpenAPIClosedObjectUnionCollectionExamplesAreSuppressed(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.ActivityFeedDSL)
-	openapi.Definitions = make(map[string]*openapi.Schema)
 
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
@@ -116,7 +110,6 @@ func TestOpenAPIClosedObjectUnionCollectionExamplesAreSuppressed(t *testing.T) {
 
 func TestOpenAPIStreamingSyntheticExamplesAreSuppressedWhenIncomplete(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.StreamingPartialExamplesDSL)
-	openapi.Definitions = make(map[string]*openapi.Schema)
 
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)

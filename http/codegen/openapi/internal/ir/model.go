@@ -1,5 +1,7 @@
 package ir
 
+import "encoding/json"
+
 type (
 	// Document is the root OpenAPI-oriented IR document.
 	Document struct {
@@ -191,15 +193,12 @@ type (
 		DefaultValue any
 		Example      any
 
-		Media            *Media
 		ReadOnly         bool
 		WriteOnly        bool
 		Deprecated       bool
 		ContentEncoding  string
 		ContentMediaType string
 		ContentSchema    *Schema
-		PathStart        string
-		Links            []*Link
 
 		Enum                  []any
 		Pattern               string
@@ -245,26 +244,96 @@ type (
 		Prefix    string
 		NodeType  string
 	}
-
-	// Media represents JSON hyper schema media.
-	Media struct {
-		BinaryEncoding string
-		Type           string
-	}
-
-	// Link represents JSON hyper schema link metadata.
-	Link struct {
-		Title        string
-		Description  string
-		Rel          string
-		Href         string
-		Method       string
-		Schema       *Schema
-		TargetSchema *Schema
-		ResultType   string
-		EncType      string
-	}
 )
+
+// MarshalJSON preserves the v1 structural encoding used to derive reusable
+// component names. Retired JSON Hyper-Schema slots remain zero-valued in the
+// hash encoding so removing them from the active model does not rename existing
+// OpenAPI components.
+func (s *Schema) MarshalJSON() ([]byte, error) {
+	type stableSchemaEncoding struct {
+		Ref          string
+		Type         string
+		Format       string
+		Items        *Schema
+		Properties   map[string]*Schema
+		Defs         map[string]*Schema
+		Title        string `json:",omitzero"`
+		Description  string
+		DefaultValue any
+		Example      any
+
+		Media            any
+		ReadOnly         bool
+		WriteOnly        bool
+		Deprecated       bool
+		ContentEncoding  string
+		ContentMediaType string
+		ContentSchema    *Schema
+		PathStart        string
+		Links            []any
+
+		Enum                  []any
+		Pattern               string
+		ExclusiveMinimum      *float64
+		Minimum               *float64
+		ExclusiveMaximum      *float64
+		Maximum               *float64
+		MinLength             *int
+		MaxLength             *int
+		MinItems              *int
+		MaxItems              *int
+		Required              []string
+		AdditionalProperties  *BoolOrSchema
+		UnevaluatedProperties *BoolOrSchema
+
+		AllOf         []*Schema `json:",omitempty"`
+		AnyOf         []*Schema
+		OneOf         []*Schema
+		Discriminator *Discriminator
+		XML           *XML
+
+		Extensions map[string]any
+	}
+
+	return json.Marshal(stableSchemaEncoding{
+		Ref:                   s.Ref,
+		Type:                  s.Type,
+		Format:                s.Format,
+		Items:                 s.Items,
+		Properties:            s.Properties,
+		Defs:                  s.Defs,
+		Title:                 s.Title,
+		Description:           s.Description,
+		DefaultValue:          s.DefaultValue,
+		Example:               s.Example,
+		ReadOnly:              s.ReadOnly,
+		WriteOnly:             s.WriteOnly,
+		Deprecated:            s.Deprecated,
+		ContentEncoding:       s.ContentEncoding,
+		ContentMediaType:      s.ContentMediaType,
+		ContentSchema:         s.ContentSchema,
+		Enum:                  s.Enum,
+		Pattern:               s.Pattern,
+		ExclusiveMinimum:      s.ExclusiveMinimum,
+		Minimum:               s.Minimum,
+		ExclusiveMaximum:      s.ExclusiveMaximum,
+		Maximum:               s.Maximum,
+		MinLength:             s.MinLength,
+		MaxLength:             s.MaxLength,
+		MinItems:              s.MinItems,
+		MaxItems:              s.MaxItems,
+		Required:              s.Required,
+		AdditionalProperties:  s.AdditionalProperties,
+		UnevaluatedProperties: s.UnevaluatedProperties,
+		AllOf:                 s.AllOf,
+		AnyOf:                 s.AnyOf,
+		OneOf:                 s.OneOf,
+		Discriminator:         s.Discriminator,
+		XML:                   s.XML,
+		Extensions:            s.Extensions,
+	})
+}
 
 // MarshalJSON implements json.Marshaler.
 func (NullExample) MarshalJSON() ([]byte, error) {

@@ -38,15 +38,12 @@ func RenderSchema(schema *Schema) *openapi.Schema {
 	out.Description = schema.Description
 	out.DefaultValue = schema.DefaultValue
 	out.Example = schema.Example
-	out.Media = renderMedia(schema.Media)
 	out.ReadOnly = schema.ReadOnly
 	out.WriteOnly = schema.WriteOnly
 	out.Deprecated = schema.Deprecated
 	out.ContentEncoding = schema.ContentEncoding
 	out.ContentMediaType = schema.ContentMediaType
 	out.ContentSchema = RenderSchema(schema.ContentSchema)
-	out.PathStart = schema.PathStart
-	out.Links = renderLinks(schema.Links)
 	out.Enum = schema.Enum
 	out.Pattern = schema.Pattern
 	out.ExclusiveMinimum = schema.ExclusiveMinimum
@@ -159,37 +156,6 @@ func renderXML(xml *XML) *openapi.XML {
 		Prefix:    xml.Prefix,
 		NodeType:  xml.NodeType,
 	}
-}
-
-func renderMedia(media *Media) *openapi.Media {
-	if media == nil {
-		return nil
-	}
-	return &openapi.Media{
-		BinaryEncoding: media.BinaryEncoding,
-		Type:           media.Type,
-	}
-}
-
-func renderLinks(links []*Link) []*openapi.Link {
-	if len(links) == 0 {
-		return nil
-	}
-	out := make([]*openapi.Link, len(links))
-	for i, link := range links {
-		out[i] = &openapi.Link{
-			Title:        link.Title,
-			Description:  link.Description,
-			Rel:          link.Rel,
-			Href:         link.Href,
-			Method:       link.Method,
-			Schema:       RenderSchema(link.Schema),
-			TargetSchema: RenderSchema(link.TargetSchema),
-			ResultType:   link.ResultType,
-			EncType:      link.EncType,
-		}
-	}
-	return out
 }
 
 func cloneMap[T any](in map[string]T) map[string]T {

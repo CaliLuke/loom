@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	openapi "github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -21,7 +20,6 @@ func TestOpenAPI(t *testing.T) {
 	}
 	for k, c := range cases {
 		// Reset global variables
-		openapi.Definitions = make(map[string]*openapi.Schema)
 		root := RunHTTPDSL(t, c.DSL)
 		spec, err := OpenAPIFiles(root)
 		require.NoError(t, err)
@@ -31,7 +29,6 @@ func TestOpenAPI(t *testing.T) {
 
 func TestOutputPath(t *testing.T) {
 	// Reset global variables
-	openapi.Definitions = make(map[string]*openapi.Schema)
 	root := RunHTTPDSL(t, testdata.SimpleDSL)
 	o, err := OpenAPIFiles(root)
 	require.NoError(t, err)
