@@ -364,11 +364,19 @@ Use repository gates rather than duplicating their logic:
 go fmt ./...
 make lint
 make test
+make coverage-ratchet         # protected consumer-aware boundaries
 make openapi-contract          # OpenAPI work
 make generated-code-quality    # generated Go/output work
 make integration-test          # transport behavior
 ./check.sh --full              # full repository verification
 ```
+
+The checked-in floors in `coverage/baselines.json` protect evaluated-design
+semantics, shared service codegen, HTTP/gRPC/JSON-RPC codegen, and the shared
+OpenAPI pipeline. `make coverage-baseline` rewrites them from the current
+consumer-aware profile. Treat any reduction as an explicit reviewed contract
+change and document its reason; aggregate coverage remains an inspection
+artifact, not the ratchet.
 
 ## Local and Remote Source Modes
 

@@ -131,8 +131,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	recursivepresence "example.com/recursivepresence/gen/recursive_presence"
 	loomhttp "github.com/CaliLuke/loom/http"
 	client "example.com/recursivepresence/gen/http/recursive_presence/client"
 	server "example.com/recursivepresence/gen/http/recursive_presence/server"
@@ -300,6 +302,54 @@ func TestRecursivePresenceNullabilityBehavior(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestIssue324GeneratedHandlerRejectsNullBeforeServiceInvocation(t *testing.T) {
+	var calls atomic.Int32
+	endpoints := &recursivepresence.Endpoints{
+		Issue324Request: func(context.Context, any) (any, error) {
+			calls.Add(1)
+			return nil, nil
+		},
+	}
+	mux := loomhttp.NewMuxer()
+	generated := server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	server.Mount(mux, generated)
+	httpServer := httptest.NewServer(mux)
+	t.Cleanup(httpServer.Close)
+
+	request, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		httpServer.URL+"/issue-324",
+		strings.NewReader("[null]"),
+	)
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := httpServer.Client().Do(request)
+	if err != nil {
+		t.Fatalf("send request: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := response.Body.Close(); closeErr != nil {
+			t.Errorf("close response body: %v", closeErr)
+		}
+	})
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read response body: %v", err)
+	}
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", response.StatusCode, http.StatusBadRequest, body)
+	}
+	if !strings.Contains(string(body), "body[0]") {
+		t.Fatalf("response body = %s, want indexed validation path", body)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("service invocation count = %d, want 0", got)
 	}
 }
 

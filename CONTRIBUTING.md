@@ -38,3 +38,16 @@ unit, integration, race, OpenAPI contract, and generated-code gates as
 direct-main GitHub CI exercise the change.
 6) Ensure the CI build passes when you issue a PR to Loom.
 7) Join the conversation on [GitHub Discussions](https://github.com/CaliLuke/loom/discussions).
+
+## Coverage Ratchet
+
+`make coverage-ratchet` runs a consumer-aware coverage profile over the
+evaluated design model, shared service codegen, all three transport generators,
+and the shared OpenAPI pipeline. Direct-main CI and `make ci-local` both run
+this gate. The ordinary aggregate `cover.out` remains available for broader
+inspection.
+
+The checked-in floors live in `coverage/baselines.json`. When an intentional
+change lowers one of those boundaries, run `make coverage-baseline`, inspect
+the resulting diff, and document the reason for the reduction in the commit or
+pull request. Do not lower an unrelated floor merely to make the gate pass.

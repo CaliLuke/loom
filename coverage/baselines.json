@@ -1,0 +1,91 @@
+{
+  "cover_packages": [
+    "github.com/CaliLuke/loom/dsl",
+    "github.com/CaliLuke/loom/eval",
+    "github.com/CaliLuke/loom/expr",
+    "github.com/CaliLuke/loom/codegen",
+    "github.com/CaliLuke/loom/codegen/service",
+    "github.com/CaliLuke/loom/http/codegen",
+    "github.com/CaliLuke/loom/http/codegen/internal/transportir",
+    "github.com/CaliLuke/loom/grpc/codegen",
+    "github.com/CaliLuke/loom/grpc/codegen/internal/transportir",
+    "github.com/CaliLuke/loom/jsonrpc/codegen",
+    "github.com/CaliLuke/loom/jsonrpc/codegen/internal/transportir",
+    "github.com/CaliLuke/loom/http/codegen/openapi",
+    "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir",
+    "github.com/CaliLuke/loom/http/codegen/openapi/v3"
+  ],
+  "test_packages": [
+    "./dsl",
+    "./eval",
+    "./expr",
+    "./codegen",
+    "./codegen/generator",
+    "./codegen/service",
+    "./http/codegen",
+    "./http/codegen/internal/transportir",
+    "./http/codegen/openapi/...",
+    "./grpc/codegen",
+    "./grpc/codegen/internal/transportir",
+    "./jsonrpc/codegen",
+    "./jsonrpc/codegen/internal/transportir"
+  ],
+  "boundaries": [
+    {
+      "name": "design-semantics",
+      "packages": [
+        "github.com/CaliLuke/loom/dsl",
+        "github.com/CaliLuke/loom/eval",
+        "github.com/CaliLuke/loom/expr"
+      ],
+      "minimum_basis_points": 8390,
+      "rationale": "Protects authored DSL evaluation and the semantic graph consumed by every generator."
+    },
+    {
+      "name": "service-codegen",
+      "packages": [
+        "github.com/CaliLuke/loom/codegen",
+        "github.com/CaliLuke/loom/codegen/service"
+      ],
+      "minimum_basis_points": 9027,
+      "rationale": "Protects the shared service model consumed by every transport generator."
+    },
+    {
+      "name": "http-codegen",
+      "packages": [
+        "github.com/CaliLuke/loom/http/codegen",
+        "github.com/CaliLuke/loom/http/codegen/internal/transportir"
+      ],
+      "minimum_basis_points": 9362,
+      "rationale": "Protects HTTP transport analysis, generation, transformation, and validation."
+    },
+    {
+      "name": "grpc-codegen",
+      "packages": [
+        "github.com/CaliLuke/loom/grpc/codegen",
+        "github.com/CaliLuke/loom/grpc/codegen/internal/transportir"
+      ],
+      "minimum_basis_points": 8864,
+      "rationale": "Protects gRPC transport analysis and generated protobuf adapters."
+    },
+    {
+      "name": "jsonrpc-codegen",
+      "packages": [
+        "github.com/CaliLuke/loom/jsonrpc/codegen",
+        "github.com/CaliLuke/loom/jsonrpc/codegen/internal/transportir"
+      ],
+      "minimum_basis_points": 9411,
+      "rationale": "Protects JSON-RPC transport analysis and generated protocol adapters."
+    },
+    {
+      "name": "openapi-contract",
+      "packages": [
+        "github.com/CaliLuke/loom/http/codegen/openapi",
+        "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir",
+        "github.com/CaliLuke/loom/http/codegen/openapi/v3"
+      ],
+      "minimum_basis_points": 8569,
+      "rationale": "Protects shared OpenAPI schema behavior, semantic IR decisions, and versioned rendering."
+    }
+  ]
+}

@@ -30,7 +30,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean depend install-hooks lint lint-docs lint-filesize lint-json-v2 lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend install-hooks lint lint-docs lint-filesize lint-json-v2 lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -43,13 +43,13 @@ all: lint test integration-test
 
 all-tests: lint test integration-test
 
-ci: depend all
+ci: depend all coverage-ratchet
 
 # ci-local mirrors the meaningful Linux gates in .github/workflows/test.yml.
 # Run `make depend` once to install the pinned Go tools. Node.js, npm/npx,
 # rsync, and network access are also required by the external contract gates.
 # The source mode is intentionally inherited from the worktree or LOOM_DIR.
-ci-local: all test-race openapi-contract generated-code-quality
+ci-local: all coverage-ratchet test-race openapi-contract generated-code-quality
 
 # Install protoc
 PROTOC_VERSION=35.1
@@ -148,6 +148,14 @@ else
 	go test -count=1 ./...
 endif
 
+coverage-ratchet:
+	go run ./scripts/coveragecheck
+
+# Rewrite the checked-in floors from the current consumer-aware profile. Review
+# every reduction and document why the protected boundary lost coverage.
+coverage-baseline:
+	go run ./scripts/coveragecheck --update
+
 # Race + shuffled-order guard for the unit suite. Shuffling catches
 # order-coupled tests (the failing seed is printed for reproduction) and the
 # race detector catches data races the plain run cannot. The extended timeout
@@ -236,7 +244,7 @@ $(GOBIN_DIR)/loom: $(CODEGEN_SOURCES)
 	@echo "rebuilding loom (codegen/cli source changed)"
 	cd cmd/loom && GOBIN="$(GOBIN_DIR)" go install .
 
-release-preflight: lint test-release integration-test openapi-contract generated-code-quality
+release-preflight: lint test-release coverage-ratchet integration-test openapi-contract generated-code-quality
 
 release:
 	@go run ./internal/cmd/release --version "$(VERSION)"
