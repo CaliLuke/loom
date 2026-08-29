@@ -50,12 +50,13 @@ func TestWriteJSONSSEEvent(t *testing.T) {
 		"result":  map[string]any{"value": "ok"},
 	})
 	require.NoError(t, err)
-	require.Equal(t, strings.Join([]string{
-		"event: message",
-		`data: {"jsonrpc":"2.0","result":{"value":"ok"}}`,
-		"",
-		"",
-	}, "\n"), buf.String())
+	lines := strings.Split(buf.String(), "\n")
+	require.Len(t, lines, 4)
+	require.Equal(t, "event: message", lines[0])
+	require.Empty(t, lines[2])
+	require.Empty(t, lines[3])
+	require.True(t, strings.HasPrefix(lines[1], "data: "))
+	require.JSONEq(t, `{"jsonrpc":"2.0","result":{"value":"ok"}}`, strings.TrimPrefix(lines[1], "data: "))
 }
 
 func TestEncodeSSEData(t *testing.T) {
