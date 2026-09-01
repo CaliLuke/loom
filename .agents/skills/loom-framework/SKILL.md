@@ -351,6 +351,8 @@ OpenAPI changes require:
   not exercise independent map seeds
 - deterministic nested serialization from every custom marshaler that can
   contribute map-valued schema, example, extension, or reference content
+- JSON v2 lint coverage that rejects direct `json.Marshal` calls inside
+  `MarshalJSON` methods unless they pass `json.Deterministic(true)`
 - `libopenapi` parsing
 - Redocly linting
 - downstream consumer smoke generation where applicable

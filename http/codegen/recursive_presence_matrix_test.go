@@ -206,21 +206,22 @@ func TestGeneratedRequestBodyWireContract(t *testing.T) {
 		name        string
 		path        string
 		body        string
+		wantStatus  int
 		wantCode    string
 		wantDetail  string
 		wantCalls   int32
 		wantPayload string
 	}{
-		{name: "required empty", path: "/issue-324", wantCode: loom.MissingPayload, wantDetail: "validation error"},
-		{name: "required whitespace", path: "/issue-324", body: " \t\r\n", wantCode: loom.MissingPayload, wantDetail: "validation error"},
-		{name: "required malformed", path: "/issue-324", body: ` + "`" + `{"broken":}` + "`" + `, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
-		{name: "required truncated", path: "/issue-324", body: ` + "`" + `[` + "`" + `, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
-		{name: "required valid", path: "/issue-324", body: ` + "`" + `[]` + "`" + `, wantCalls: 1, wantPayload: "[]"},
-		{name: "optional empty", path: "/optional", wantCalls: 1, wantPayload: "{}"},
-		{name: "optional whitespace", path: "/optional", body: " \t\r\n", wantCalls: 1, wantPayload: "{}"},
-		{name: "optional malformed", path: "/optional", body: ` + "`" + `{"broken":}` + "`" + `, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
-		{name: "optional truncated", path: "/optional", body: ` + "`" + `{"message":"unfinished` + "`" + `, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
-		{name: "optional valid", path: "/optional", body: ` + "`" + `{"message":"ok"}` + "`" + `, wantCalls: 1, wantPayload: ` + "`" + `{"message":"ok"}` + "`" + `},
+		{name: "required empty", path: "/issue-324", wantStatus: http.StatusBadRequest, wantCode: loom.MissingPayload, wantDetail: "validation error"},
+		{name: "required whitespace", path: "/issue-324", body: " \t\r\n", wantStatus: http.StatusBadRequest, wantCode: loom.MissingPayload, wantDetail: "validation error"},
+		{name: "required malformed", path: "/issue-324", body: ` + "`" + `{"broken":}` + "`" + `, wantStatus: http.StatusBadRequest, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
+		{name: "required truncated", path: "/issue-324", body: ` + "`" + `[` + "`" + `, wantStatus: http.StatusBadRequest, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
+		{name: "required valid", path: "/issue-324", body: ` + "`" + `[]` + "`" + `, wantStatus: http.StatusNoContent, wantCalls: 1, wantPayload: "[]"},
+		{name: "optional empty", path: "/optional", wantStatus: http.StatusNoContent, wantCalls: 1, wantPayload: "{}"},
+		{name: "optional whitespace", path: "/optional", body: " \t\r\n", wantStatus: http.StatusNoContent, wantCalls: 1, wantPayload: "{}"},
+		{name: "optional malformed", path: "/optional", body: ` + "`" + `{"broken":}` + "`" + `, wantStatus: http.StatusBadRequest, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
+		{name: "optional truncated", path: "/optional", body: ` + "`" + `{"message":"unfinished` + "`" + `, wantStatus: http.StatusBadRequest, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
+		{name: "optional valid", path: "/optional", body: ` + "`" + `{"message":"ok"}` + "`" + `, wantStatus: http.StatusNoContent, wantCalls: 1, wantPayload: ` + "`" + `{"message":"ok"}` + "`" + `},
 	}
 
 	for _, test := range tests {
@@ -268,14 +269,10 @@ func TestGeneratedRequestBodyWireContract(t *testing.T) {
 				t.Fatalf("read response body: %v", readErr)
 			}
 
-			if test.wantCode == "" {
-				if response.StatusCode >= http.StatusBadRequest {
-					t.Fatalf("status = %d, want success: %s", response.StatusCode, body)
-				}
-			} else {
-				if response.StatusCode != http.StatusBadRequest {
-					t.Errorf("status = %d, want %d: %s", response.StatusCode, http.StatusBadRequest, body)
-				}
+			if response.StatusCode != test.wantStatus {
+				t.Errorf("status = %d, want %d: %s", response.StatusCode, test.wantStatus, body)
+			}
+			if test.wantCode != "" {
 				if contentType := response.Header.Get("Content-Type"); !strings.HasPrefix(contentType, loomhttp.ProblemJSONContentType) {
 					t.Errorf("content type = %q, want %q", contentType, loomhttp.ProblemJSONContentType)
 				}

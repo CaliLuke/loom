@@ -119,7 +119,9 @@ No commented-out code—delete dead code.
 - Deterministic generated artifacts require exact-byte comparison across
   process-isolated generations. Semantic decoding and repeated generation in
   one process are insufficient. Custom marshalers that can contain maps must
-  preserve deterministic options or sort nested output explicitly.
+  preserve deterministic options or sort nested output explicitly. The JSON v2
+  lint requires direct `json.Marshal` calls inside `MarshalJSON` methods to pass
+  `json.Deterministic(true)`.
 - For OpenAPI contract work, validate rendered specs with `libopenapi` and lint the specimen outputs with Redocly.
 - Keep the OpenAPI specimen matrix meaningful. Reuse or extend the non-trivial fixtures under `http/codegen/testdata` instead of inventing throwaway one-off examples when a real contract shape is under test.
 - For external temp-module or fake-app generation loops, pin `github.com/CaliLuke/loom` to a pushed GitHub commit, not the local working tree, so CI can reproduce the result.

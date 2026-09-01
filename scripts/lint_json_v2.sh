@@ -12,3 +12,5 @@ if [[ -n "$matches" ]]; then
   echo "Loom-owned JSON must use encoding/json/v2 and encoding/json/jsontext." >&2
   exit 1
 fi
+
+go run ./scripts/jsonv2check
