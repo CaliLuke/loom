@@ -110,6 +110,14 @@ No commented-out code—delete dead code.
 - For framework/codegen bugs, add the failing test first, then change implementation.
 - Prefer direct seam tests for generator logic (`expr`, `http/codegen`, `codegen/service`) before leaning on broad goldens alone.
 - When output shape matters, pair direct structural assertions with rendered/golden coverage.
+- When changing a serialization library or API, preserve the prior error and
+  wire-contract matrix. For JSON request decoding, cover empty, JSON-whitespace,
+  malformed, truncated, and valid input at both the runtime seam and a generated
+  required or optional body path.
+- Deterministic generated artifacts require exact-byte comparison across
+  process-isolated generations. Semantic decoding and repeated generation in
+  one process are insufficient. Custom marshalers that can contain maps must
+  preserve deterministic options or sort nested output explicitly.
 - For OpenAPI contract work, validate rendered specs with `libopenapi` and lint the specimen outputs with Redocly.
 - Keep the OpenAPI specimen matrix meaningful. Reuse or extend the non-trivial fixtures under `http/codegen/testdata` instead of inventing throwaway one-off examples when a real contract shape is under test.
 - For external temp-module or fake-app generation loops, pin `github.com/CaliLuke/loom` to a pushed GitHub commit, not the local working tree, so CI can reproduce the result.

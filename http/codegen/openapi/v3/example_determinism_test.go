@@ -2,6 +2,9 @@ package openapiv3_test
 
 import (
 	"bytes"
+	"encoding/json/v2"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"testing"
@@ -15,13 +18,66 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	httpgen "github.com/CaliLuke/loom/http/codegen"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
+
+const openAPIDeterminismHelperDir = "LOOM_OPENAPI_DETERMINISM_HELPER_DIR"
 
 func TestFilesSynthesizedExamplesAreStableAcrossRepeatedGeneration(t *testing.T) {
 	first := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, false)))
 	second := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, false)))
 
 	require.Equal(t, first, second)
+}
+
+func TestFilesAreByteStableAcrossIndependentProcesses(t *testing.T) {
+	if outputDir := os.Getenv(openAPIDeterminismHelperDir); outputDir != "" {
+		root := httpgen.RunHTTPDSL(t, testdata.OpenAPIReusableComponentsDSL)
+		files, err := openapiv3.Files(root)
+		require.NoError(t, err)
+		for _, file := range files {
+			_, err = file.Render(outputDir)
+			require.NoError(t, err)
+		}
+		return
+	}
+
+	dirs := []string{t.TempDir(), t.TempDir()}
+	for _, dir := range dirs {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestFilesAreByteStableAcrossIndependentProcesses$")
+		cmd.Env = append(os.Environ(), openAPIDeterminismHelperDir+"="+dir)
+		output, err := cmd.CombinedOutput()
+		require.NoErrorf(t, err, "isolated OpenAPI generation failed:\n%s", output)
+	}
+
+	for _, name := range []string{"openapi.json", "openapi.yaml"} {
+		first, err := os.ReadFile(filepath.Join(dirs[0], "gen", "http", name))
+		require.NoError(t, err)
+		second, err := os.ReadFile(filepath.Join(dirs[1], "gen", "http", name))
+		require.NoError(t, err)
+		require.Equal(t, first, second, "%s differs across isolated generations", name)
+		if filepath.Ext(name) == ".json" {
+			require.True(t, bytes.HasSuffix(first, []byte("\n")), "generated JSON must retain its final newline")
+		}
+	}
+}
+
+func TestMediaTypeRefHonorsDeterministicNestedMapOrdering(t *testing.T) {
+	ref := &openapiv3.MediaTypeRef{Value: &openapiv3.MediaType{Example: map[string]any{
+		"zulu":    "z",
+		"yankee":  "y",
+		"xray":    "x",
+		"whiskey": "w",
+		"bravo":   "b",
+		"alpha":   "a",
+	}}}
+	const want = `{"example":{"alpha":"a","bravo":"b","whiskey":"w","xray":"x","yankee":"y","zulu":"z"}}`
+
+	for range 20 {
+		got, err := json.Marshal(ref, json.Deterministic(true))
+		require.NoError(t, err)
+		require.Equal(t, want, string(got))
+	}
 }
 
 func TestFilesUnrelatedSchemaChangesDoNotShiftSynthesizedExamples(t *testing.T) {

@@ -59,13 +59,13 @@ func InlineJSONSchema(attr *AttributeExpr) ([]byte, error) {
 		return json.Marshal(&InlineSchema{
 			Type:                 jsonTypeObject,
 			AdditionalProperties: false,
-		})
+		}, json.Deterministic(true))
 	}
 	schema, err := buildInlineJSONSchema(attr, make(map[any]struct{}))
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(schema)
+	return json.Marshal(schema, json.Deterministic(true))
 }
 
 func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}) (*InlineSchema, error) {

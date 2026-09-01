@@ -154,6 +154,47 @@ func TestRequestDecoderUsesJSONV2Semantics(t *testing.T) {
 	})
 }
 
+func TestRequestDecoderClassifiesJSONBodyShape(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		wantEOF bool
+		wantErr bool
+		want    string
+	}{
+		{name: "empty", wantEOF: true, wantErr: true},
+		{name: "JSON whitespace", body: " \t\r\n", wantEOF: true, wantErr: true},
+		{name: "non-JSON whitespace", body: "\u00a0", wantErr: true},
+		{name: "malformed", body: `{"value":}`, wantErr: true},
+		{name: "truncated", body: `{"value":"unfinished`, wantErr: true},
+		{name: "valid", body: `{"value":"decoded"}`, want: "decoded"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			var got struct {
+				Value string `json:"value"`
+			}
+
+			err := RequestDecoder(request).Decode(&got)
+
+			if test.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			if test.wantEOF {
+				require.ErrorIs(t, err, io.EOF)
+			} else {
+				require.NotErrorIs(t, err, io.EOF)
+			}
+			require.Equal(t, test.want, got.Value)
+		})
+	}
+}
+
 func TestUnsupportedDecoder(t *testing.T) {
 	// Write the response produced when writing the error returned the
 	// unsupported decoder to validate the response status code.

@@ -251,6 +251,37 @@ func TestInlineJSONSchema(t *testing.T) {
 	})
 }
 
+func TestInlineJSONSchemaUsesDeterministicObjectOrdering(t *testing.T) {
+	properties := &Object{
+		&NamedAttributeExpr{Name: "zulu", Attribute: &AttributeExpr{Type: String}},
+		&NamedAttributeExpr{Name: "yankee", Attribute: &AttributeExpr{Type: String}},
+		&NamedAttributeExpr{Name: "xray", Attribute: &AttributeExpr{Type: String}},
+		&NamedAttributeExpr{Name: "whiskey", Attribute: &AttributeExpr{Type: String}},
+		&NamedAttributeExpr{Name: "bravo", Attribute: &AttributeExpr{Type: String}},
+		&NamedAttributeExpr{Name: "alpha", Attribute: &AttributeExpr{Type: String}},
+	}
+	attr := &AttributeExpr{
+		Type: properties,
+		UserExamples: []*ExampleExpr{{Value: map[string]any{
+			"zulu":    "z",
+			"yankee":  "y",
+			"xray":    "x",
+			"whiskey": "w",
+			"bravo":   "b",
+			"alpha":   "a",
+		}}},
+	}
+	const wantExample = `"examples":[{"alpha":"a","bravo":"b","whiskey":"w","xray":"x","yankee":"y","zulu":"z"}]`
+	const wantProperties = `"properties":{"alpha":{"type":"string"},"bravo":{"type":"string"},"whiskey":{"type":"string"},"xray":{"type":"string"},"yankee":{"type":"string"},"zulu":{"type":"string"}}`
+
+	for range 20 {
+		schema, err := InlineJSONSchema(attr)
+		require.NoError(t, err)
+		require.Contains(t, string(schema), wantExample)
+		require.Contains(t, string(schema), wantProperties)
+	}
+}
+
 func mustInlineJSONSchema(t *testing.T, attr *AttributeExpr) map[string]any {
 	t.Helper()
 

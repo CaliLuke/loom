@@ -346,9 +346,19 @@ OpenAPI changes require:
 
 - direct structural assertions
 - meaningful rendered specimens under `http/codegen/testdata`
+- exact-byte comparison across process-isolated generations when output
+  determinism is part of the contract; same-process or semantic comparisons do
+  not exercise independent map seeds
+- deterministic nested serialization from every custom marshaler that can
+  contribute map-valued schema, example, extension, or reference content
 - `libopenapi` parsing
 - Redocly linting
 - downstream consumer smoke generation where applicable
+
+Serialization migrations must preserve error identity as well as successful
+decoding. At JSON request boundaries, test empty, JSON-whitespace-only,
+malformed, truncated, and valid bodies through both the handwritten runtime and
+generated required or optional body handling.
 
 SSE changes require coverage for:
 

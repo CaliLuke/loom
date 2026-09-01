@@ -404,7 +404,7 @@ func newTextDecoder(r io.Reader, ct string, mode decodeMode) Decoder {
 	return &textDecoder{r: r, ct: ct, mode: mode}
 }
 
-func newLimitedDecoder(r io.Reader, decode func(io.Reader, any) error, mode decodeMode) Decoder {
+func newLimitedDecoder(r io.Reader, decode func([]byte, any) error, mode decodeMode) Decoder {
 	return &limitedDecoder{r: r, decode: decode, mode: mode}
 }
 
@@ -416,7 +416,7 @@ type textDecoder struct {
 
 type limitedDecoder struct {
 	r      io.Reader
-	decode func(io.Reader, any) error
+	decode func([]byte, any) error
 	mode   decodeMode
 }
 
@@ -425,7 +425,7 @@ func (d *limitedDecoder) Decode(v any) error {
 	if err != nil {
 		return requestBodyDecodeError(err, d.mode)
 	}
-	return d.decode(bytes.NewReader(b), v)
+	return d.decode(b, v)
 }
 
 func (e *textDecoder) Decode(v any) error {
@@ -444,16 +444,30 @@ func (e *textDecoder) Decode(v any) error {
 	return nil
 }
 
-func decodeJSON(r io.Reader, v any) error {
-	return json.UnmarshalRead(r, v)
+func decodeJSON(data []byte, v any) error {
+	if jsonWhitespaceOnly(data) {
+		return io.EOF
+	}
+	return json.Unmarshal(data, v)
 }
 
-func decodeXML(r io.Reader, v any) error {
-	return xml.NewDecoder(r).Decode(v)
+func decodeXML(data []byte, v any) error {
+	return xml.NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
-func decodeGOB(r io.Reader, v any) error {
-	return gob.NewDecoder(r).Decode(v)
+func decodeGOB(data []byte, v any) error {
+	return gob.NewDecoder(bytes.NewReader(data)).Decode(v)
+}
+
+func jsonWhitespaceOnly(data []byte) bool {
+	for _, b := range data {
+		switch b {
+		case ' ', '\t', '\r', '\n':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func readAllLimited(r io.Reader, limit int64) ([]byte, error) {

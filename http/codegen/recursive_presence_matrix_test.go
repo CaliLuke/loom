@@ -34,6 +34,9 @@ func TestRecursivePresenceNullabilityMatrix(t *testing.T) {
 }
 
 func recursivePresenceNullabilityDSL() {
+	var OptionalMessage = Type("OptionalMessage", func() {
+		Attribute("message", String)
+	})
 	var PresenceRequest = Type("PresenceRequest", func() {
 		Attribute("optional_batches", ArrayOf(String))
 		Attribute("nullable_container", ArrayOf(String), func() {
@@ -75,6 +78,14 @@ func recursivePresenceNullabilityDSL() {
 			HTTP(func() {
 				POST("/presence")
 				Body(PresenceRequest)
+			})
+		})
+		Method("OptionalRequest", func() {
+			Payload(OptionalMessage)
+			HTTP(func() {
+				POST("/optional")
+				Body(OptionalMessage)
+				OptionalRequestBody()
 			})
 		})
 		Method("Issue327Success", func() {
@@ -127,6 +138,7 @@ const recursivePresenceRuntimeHarness = `package recursivepresence_test
 import (
 	"context"
 	json "encoding/json/v2"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -136,6 +148,7 @@ import (
 
 	recursivepresence "example.com/recursivepresence/gen/recursive_presence"
 	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 	client "example.com/recursivepresence/gen/http/recursive_presence/client"
 	server "example.com/recursivepresence/gen/http/recursive_presence/server"
 )
@@ -147,6 +160,45 @@ type matrixCase struct {
 	wantJSON          string
 	wantErrorPath     string
 	wantDeclaredError bool
+}
+
+func TestGeneratedRequestBodyPresenceContract(t *testing.T) {
+	tests := []struct {
+		name     string
+		body     string
+		decode   func(string) (any, error)
+		wantName string
+	}{
+		{name: "required empty", decode: decodeIssue324Request, wantName: loom.MissingPayload},
+		{name: "required whitespace", body: " \t\r\n", decode: decodeIssue324Request, wantName: loom.MissingPayload},
+		{name: "required malformed", body: ` + "`" + `{"broken":}` + "`" + `, decode: decodeIssue324Request, wantName: loom.DecodePayload},
+		{name: "required truncated", body: ` + "`" + `[` + "`" + `, decode: decodeIssue324Request, wantName: loom.DecodePayload},
+		{name: "required valid", body: ` + "`" + `[]` + "`" + `, decode: decodeIssue324Request},
+		{name: "optional empty", decode: decodeOptionalRequest},
+		{name: "optional whitespace", body: " \t\r\n", decode: decodeOptionalRequest},
+		{name: "optional malformed", body: ` + "`" + `{"broken":}` + "`" + `, decode: decodeOptionalRequest, wantName: loom.DecodePayload},
+		{name: "optional truncated", body: ` + "`" + `{"message":"unfinished` + "`" + `, decode: decodeOptionalRequest, wantName: loom.DecodePayload},
+		{name: "optional valid", body: ` + "`" + `{"message":"ok"}` + "`" + `, decode: decodeOptionalRequest},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := test.decode(test.body)
+			if test.wantName == "" {
+				if err != nil {
+					t.Fatalf("decode: %v", err)
+				}
+				return
+			}
+			var serviceErr *loom.ServiceError
+			if !errors.As(err, &serviceErr) {
+				t.Fatalf("decode error = %v, want Loom service error %q", err, test.wantName)
+			}
+			if serviceErr.Name != test.wantName {
+				t.Fatalf("decode error name = %q, want %q", serviceErr.Name, test.wantName)
+			}
+		})
+	}
 }
 
 func TestRecursivePresenceNullabilityBehavior(t *testing.T) {
@@ -366,6 +418,11 @@ func decodeNullableItemsRequest(body string) (any, error) {
 func decodePresenceRequest(body string) (any, error) {
 	request := httptest.NewRequest(http.MethodPost, "/presence", strings.NewReader(body))
 	return server.DecodePresenceRequestRequest(nil, loomhttp.RequestDecoder)(request)
+}
+
+func decodeOptionalRequest(body string) (any, error) {
+	request := httptest.NewRequest(http.MethodPost, "/optional", strings.NewReader(body))
+	return server.DecodeOptionalRequestRequest(nil, loomhttp.RequestDecoder)(request)
 }
 
 func decodeIssue327Success(body string) (any, error) {

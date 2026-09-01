@@ -139,9 +139,9 @@ type refs struct {
 
 func marshalJSONRef(ref string, v any) ([]byte, error) {
 	if len(ref) > 0 {
-		return json.Marshal(&refs{ref})
+		return json.Marshal(&refs{ref}, json.Deterministic(true))
 	}
-	return json.Marshal(v)
+	return json.Marshal(v, json.Deterministic(true))
 }
 
 func unmarshalJSONRef(data []byte, ref *string, v any) error {
