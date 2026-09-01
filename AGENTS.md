@@ -113,7 +113,9 @@ No commented-out code—delete dead code.
 - When changing a serialization library or API, preserve the prior error and
   wire-contract matrix. For JSON request decoding, cover empty, JSON-whitespace,
   malformed, truncated, and valid input at both the runtime seam and a generated
-  required or optional body path.
+  required and optional body path. Generated transport tests must also assert
+  HTTP status, problem code and detail, service invocation, and decoded payload
+  state.
 - Deterministic generated artifacts require exact-byte comparison across
   process-isolated generations. Semantic decoding and repeated generation in
   one process are insufficient. Custom marshalers that can contain maps must

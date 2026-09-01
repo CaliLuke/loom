@@ -201,6 +201,105 @@ func TestGeneratedRequestBodyPresenceContract(t *testing.T) {
 	}
 }
 
+func TestGeneratedRequestBodyWireContract(t *testing.T) {
+	tests := []struct {
+		name        string
+		path        string
+		body        string
+		wantCode    string
+		wantDetail  string
+		wantCalls   int32
+		wantPayload string
+	}{
+		{name: "required empty", path: "/issue-324", wantCode: loom.MissingPayload, wantDetail: "validation error"},
+		{name: "required whitespace", path: "/issue-324", body: " \t\r\n", wantCode: loom.MissingPayload, wantDetail: "validation error"},
+		{name: "required malformed", path: "/issue-324", body: ` + "`" + `{"broken":}` + "`" + `, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
+		{name: "required truncated", path: "/issue-324", body: ` + "`" + `[` + "`" + `, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
+		{name: "required valid", path: "/issue-324", body: ` + "`" + `[]` + "`" + `, wantCalls: 1, wantPayload: "[]"},
+		{name: "optional empty", path: "/optional", wantCalls: 1, wantPayload: "{}"},
+		{name: "optional whitespace", path: "/optional", body: " \t\r\n", wantCalls: 1, wantPayload: "{}"},
+		{name: "optional malformed", path: "/optional", body: ` + "`" + `{"broken":}` + "`" + `, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
+		{name: "optional truncated", path: "/optional", body: ` + "`" + `{"message":"unfinished` + "`" + `, wantCode: loom.DecodePayload, wantDetail: "invalid request body"},
+		{name: "optional valid", path: "/optional", body: ` + "`" + `{"message":"ok"}` + "`" + `, wantCalls: 1, wantPayload: ` + "`" + `{"message":"ok"}` + "`" + `},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var calls atomic.Int32
+			var payloadJSON string
+			capture := func(_ context.Context, payload any) (any, error) {
+				calls.Add(1)
+				encoded, err := json.Marshal(payload, json.Deterministic(true))
+				if err != nil {
+					return nil, err
+				}
+				payloadJSON = string(encoded)
+				return nil, nil
+			}
+			endpoints := &recursivepresence.Endpoints{
+				Issue324Request: capture,
+				OptionalRequest: capture,
+			}
+			mux := loomhttp.NewMuxer()
+			generated := server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+			server.Mount(mux, generated)
+			httpServer := httptest.NewServer(mux)
+			t.Cleanup(httpServer.Close)
+
+			request, err := http.NewRequestWithContext(
+				t.Context(),
+				http.MethodPost,
+				httpServer.URL+test.path,
+				strings.NewReader(test.body),
+			)
+			if err != nil {
+				t.Fatalf("create request: %v", err)
+			}
+			request.Header.Set("Content-Type", "application/json")
+			response, err := httpServer.Client().Do(request)
+			if err != nil {
+				t.Fatalf("send request: %v", err)
+			}
+			body, readErr := io.ReadAll(response.Body)
+			if closeErr := response.Body.Close(); closeErr != nil {
+				t.Errorf("close response body: %v", closeErr)
+			}
+			if readErr != nil {
+				t.Fatalf("read response body: %v", readErr)
+			}
+
+			if test.wantCode == "" {
+				if response.StatusCode >= http.StatusBadRequest {
+					t.Fatalf("status = %d, want success: %s", response.StatusCode, body)
+				}
+			} else {
+				if response.StatusCode != http.StatusBadRequest {
+					t.Errorf("status = %d, want %d: %s", response.StatusCode, http.StatusBadRequest, body)
+				}
+				if contentType := response.Header.Get("Content-Type"); !strings.HasPrefix(contentType, loomhttp.ProblemJSONContentType) {
+					t.Errorf("content type = %q, want %q", contentType, loomhttp.ProblemJSONContentType)
+				}
+				var problem loomhttp.ProblemResponse
+				if err := json.Unmarshal(body, &problem); err != nil {
+					t.Fatalf("decode problem response: %v", err)
+				}
+				if problem.Code != test.wantCode {
+					t.Errorf("problem code = %q, want %q", problem.Code, test.wantCode)
+				}
+				if problem.Detail != test.wantDetail {
+					t.Errorf("problem detail = %q, want %q", problem.Detail, test.wantDetail)
+				}
+			}
+			if got := calls.Load(); got != test.wantCalls {
+				t.Errorf("service invocation count = %d, want %d", got, test.wantCalls)
+			}
+			if payloadJSON != test.wantPayload {
+				t.Errorf("service payload = %s, want %s", payloadJSON, test.wantPayload)
+			}
+		})
+	}
+}
+
 func TestRecursivePresenceNullabilityBehavior(t *testing.T) {
 	tests := []matrixCase{
 		{

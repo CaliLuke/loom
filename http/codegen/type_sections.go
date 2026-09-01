@@ -297,7 +297,7 @@ func renderHTTPUnionMarshalJSONBody(data *servicecodegen.UnionTypeData) string {
 	}
 	b.Addf("\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
 	b.Addf("return json.Marshal(struct {\n\tType  string `json:\"%s\"`\n\tValue any    `json:\"%s\"`\n}{\n", data.TypeKey, data.ValueKey)
-	b.Add("\tType:  string(u.kind),\n\tValue: value,\n})")
+	b.Add("\tType:  string(u.kind),\n\tValue: value,\n}, json.Deterministic(true))")
 	return b.String()
 }
 
@@ -306,7 +306,11 @@ func renderHTTPUntaggedUnionMarshalJSONBody(data *servicecodegen.UnionTypeData) 
 	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
 	b.Add("switch u.kind {\n")
 	for _, field := range data.Fields {
-		b.Addf("\tcase %s:\n\t\treturn json.Marshal(u.%s)\n", field.KindConst, field.FieldName)
+		b.Addf(
+			"\tcase %s:\n\t\treturn json.Marshal(u.%s, json.Deterministic(true))\n",
+			field.KindConst,
+			field.FieldName,
+		)
 	}
 	b.Addf("\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}", data.Name)
 	return b.String()

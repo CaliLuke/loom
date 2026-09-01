@@ -53,6 +53,19 @@ func TestOptionalConcreteNilMarshalFails(t *testing.T) {
 	require.ErrorIs(t, err, ErrNullOptional)
 }
 
+func TestOptionalMarshalJSONPreservesDeterministicMapOrdering(t *testing.T) {
+	value := OptionalValue(map[string]string{
+		"zulu":  "last",
+		"alpha": "first",
+	})
+
+	for range 20 {
+		encoded, err := json.Marshal(value, json.Deterministic(true))
+		require.NoError(t, err)
+		require.Equal(t, `{"alpha":"first","zulu":"last"}`, string(encoded))
+	}
+}
+
 func TestJSONPresenceRoundTripsZeroEmptyAndNonEmptyValues(t *testing.T) {
 	type child struct {
 		Name string `json:"name"`

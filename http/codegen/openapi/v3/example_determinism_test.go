@@ -2,7 +2,9 @@ package openapiv3_test
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json/v2"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +23,12 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
-const openAPIDeterminismHelperDir = "LOOM_OPENAPI_DETERMINISM_HELPER_DIR"
+const (
+	openAPIDeterminismHelperDir    = "LOOM_OPENAPI_DETERMINISM_HELPER_DIR"
+	openAPIDeterminismHelperTarget = "LOOM_OPENAPI_DETERMINISM_HELPER_TARGET"
+	openAPIDeterminismHelperPrefix = "LOOM_OPENAPI_DETERMINISM_HELPER_PREFIX"
+	openAPIDeterminismHelperIndent = "LOOM_OPENAPI_DETERMINISM_HELPER_INDENT"
+)
 
 func TestFilesSynthesizedExamplesAreStableAcrossRepeatedGeneration(t *testing.T) {
 	first := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, false)))
@@ -33,6 +40,18 @@ func TestFilesSynthesizedExamplesAreStableAcrossRepeatedGeneration(t *testing.T)
 func TestFilesAreByteStableAcrossIndependentProcesses(t *testing.T) {
 	if outputDir := os.Getenv(openAPIDeterminismHelperDir); outputDir != "" {
 		root := httpgen.RunHTTPDSL(t, testdata.OpenAPIReusableComponentsDSL)
+		if root.API.Meta == nil {
+			root.API.Meta = make(expr.MetaExpr)
+		}
+		if target := os.Getenv(openAPIDeterminismHelperTarget); target != "" {
+			root.API.Meta["openapi:version"] = []string{target}
+		}
+		if prefix := os.Getenv(openAPIDeterminismHelperPrefix); prefix != "" {
+			root.API.Meta["openapi:json:prefix"] = []string{prefix}
+		}
+		if indent := os.Getenv(openAPIDeterminismHelperIndent); indent != "" {
+			root.API.Meta["openapi:json:indent"] = []string{indent}
+		}
 		files, err := openapiv3.Files(root)
 		require.NoError(t, err)
 		for _, file := range files {
@@ -42,23 +61,80 @@ func TestFilesAreByteStableAcrossIndependentProcesses(t *testing.T) {
 		return
 	}
 
-	dirs := []string{t.TempDir(), t.TempDir()}
-	for _, dir := range dirs {
-		cmd := exec.Command(os.Args[0], "-test.run=^TestFilesAreByteStableAcrossIndependentProcesses$")
-		cmd.Env = append(os.Environ(), openAPIDeterminismHelperDir+"="+dir)
-		output, err := cmd.CombinedOutput()
-		require.NoErrorf(t, err, "isolated OpenAPI generation failed:\n%s", output)
+	tests := []struct {
+		name         string
+		target       string
+		prefix       string
+		indent       string
+		wantVersion  string
+		wantJSONHash string
+		wantYAMLHash string
+	}{
+		{
+			name:         "OpenAPI 3.2 default formatting",
+			wantVersion:  openapiv3.OpenAPIVersion,
+			wantJSONHash: "0155d75681e60228e133c51772c2b2f665cc2711ac808f45bf32ba97c0af6849",
+			wantYAMLHash: "9a1b7524134c118c47fd2991cccdb7d65ff0ba1a5cc275069771efc360e59085",
+		},
+		{
+			name:         "OpenAPI 3.1 compatibility",
+			target:       "3.1",
+			wantVersion:  openapiv3.OpenAPICompatibilityVersion,
+			wantJSONHash: "b12e4b09aa00b8a87f8b66269e62ec319fa5e287b85bd3c4c433f39b4e723933",
+			wantYAMLHash: "afd35fd633bc6afca629ff0908f56a16bde008ab28859c7b1436d13367a3c532",
+		},
+		{
+			name:         "OpenAPI 3.2 configured formatting",
+			prefix:       " ",
+			indent:       "\t",
+			wantVersion:  openapiv3.OpenAPIVersion,
+			wantJSONHash: "2819c777fa02ced26dc261c8a2207dc522753024edae9cf5ab82ddaf31823a40",
+			wantYAMLHash: "9a1b7524134c118c47fd2991cccdb7d65ff0ba1a5cc275069771efc360e59085",
+		},
 	}
 
-	for _, name := range []string{"openapi.json", "openapi.yaml"} {
-		first, err := os.ReadFile(filepath.Join(dirs[0], "gen", "http", name))
-		require.NoError(t, err)
-		second, err := os.ReadFile(filepath.Join(dirs[1], "gen", "http", name))
-		require.NoError(t, err)
-		require.Equal(t, first, second, "%s differs across isolated generations", name)
-		if filepath.Ext(name) == ".json" {
-			require.True(t, bytes.HasSuffix(first, []byte("\n")), "generated JSON must retain its final newline")
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dirs := []string{t.TempDir(), t.TempDir(), t.TempDir()}
+			for _, dir := range dirs {
+				cmd := exec.Command(os.Args[0], "-test.run=^TestFilesAreByteStableAcrossIndependentProcesses$")
+				cmd.Env = append(
+					os.Environ(),
+					openAPIDeterminismHelperDir+"="+dir,
+					openAPIDeterminismHelperTarget+"="+test.target,
+					openAPIDeterminismHelperPrefix+"="+test.prefix,
+					openAPIDeterminismHelperIndent+"="+test.indent,
+				)
+				output, err := cmd.CombinedOutput()
+				require.NoErrorf(t, err, "isolated OpenAPI generation failed:\n%s", output)
+			}
+
+			for _, artifact := range []struct {
+				name     string
+				wantHash string
+			}{
+				{name: "openapi.json", wantHash: test.wantJSONHash},
+				{name: "openapi.yaml", wantHash: test.wantYAMLHash},
+			} {
+				first, err := os.ReadFile(filepath.Join(dirs[0], "gen", "http", artifact.name))
+				require.NoError(t, err)
+				for _, dir := range dirs[1:] {
+					repeated, readErr := os.ReadFile(filepath.Join(dir, "gen", "http", artifact.name))
+					require.NoError(t, readErr)
+					require.Equal(t, first, repeated, "%s differs across isolated generations", artifact.name)
+				}
+				require.Equal(t, artifact.wantHash, fmt.Sprintf("%x", sha256.Sum256(first)))
+				if filepath.Ext(artifact.name) == ".json" {
+					require.True(t, bytes.HasSuffix(first, []byte("\n")), "generated JSON must retain its final newline")
+					require.Contains(t, string(first), fmt.Sprintf("\"openapi\": \"%s\"", test.wantVersion))
+					if test.indent == "" {
+						require.True(t, bytes.HasPrefix(first, []byte("{\n  \"openapi\"")))
+					} else {
+						require.True(t, bytes.HasPrefix(first, []byte("{\n 	\"openapi\"")))
+					}
+				}
+			}
+		})
 	}
 }
 

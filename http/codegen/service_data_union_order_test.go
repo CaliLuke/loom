@@ -116,6 +116,26 @@ func TestRenderHTTPUntaggedUnionUsesExactFilteredMatch(t *testing.T) {
 	require.NotContains(t, body, "u.kind = OutcomeKindOK")
 }
 
+func TestRenderHTTPUnionMarshalJSONPreservesDeterministicNestedOrdering(t *testing.T) {
+	scope := cg.NewNameScope()
+	tagged := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
+
+	require.Contains(t, renderHTTPUnionMarshalJSONBody(tagged), "}, json.Deterministic(true))")
+
+	untagged := &svc.UnionTypeData{
+		Name:     "Outcome",
+		Untagged: true,
+		Fields: []*svc.UnionFieldData{
+			{FieldName: "OK", KindConst: "OutcomeKindOK"},
+		},
+	}
+	require.Contains(
+		t,
+		renderHTTPUnionMarshalJSONBody(untagged),
+		"return json.Marshal(u.OK, json.Deterministic(true))",
+	)
+}
+
 func TestRenderHTTPUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 	scope := cg.NewNameScope()
 	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)

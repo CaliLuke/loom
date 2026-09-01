@@ -400,7 +400,7 @@ func renderUnionMarshalJSONBody(data *UnionTypeData) string {
 	}
 	fmt.Fprintf(&b, "\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
 	fmt.Fprintf(&b, "return json.Marshal(struct {\n\tType  string `json:\"%s\"`\n\tValue any    `json:\"%s\"`\n}{\n", data.TypeKey, data.ValueKey)
-	b.Add("\tType:  string(u.kind),\n\tValue: value,\n})")
+	b.Add("\tType:  string(u.kind),\n\tValue: value,\n}, json.Deterministic(true))")
 	return b.String()
 }
 
@@ -409,7 +409,12 @@ func renderUntaggedUnionMarshalJSONBody(data *UnionTypeData) string {
 	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
 	b.Add("switch u.kind {\n")
 	for _, field := range data.Fields {
-		fmt.Fprintf(&b, "\tcase %s:\n\t\treturn json.Marshal(u.%s)\n", field.KindConst, field.FieldName)
+		fmt.Fprintf(
+			&b,
+			"\tcase %s:\n\t\treturn json.Marshal(u.%s, json.Deterministic(true))\n",
+			field.KindConst,
+			field.FieldName,
+		)
 	}
 	fmt.Fprintf(&b, "\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}", data.Name)
 	return b.String()

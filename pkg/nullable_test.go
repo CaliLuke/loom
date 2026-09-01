@@ -60,6 +60,19 @@ func TestNullableConcreteNilMarshalFails(t *testing.T) {
 	require.ErrorIs(t, err, ErrConcreteNullNullable)
 }
 
+func TestNullableMarshalJSONPreservesDeterministicMapOrdering(t *testing.T) {
+	value := NullableValue(map[string]string{
+		"zulu":  "last",
+		"alpha": "first",
+	})
+
+	for range 20 {
+		encoded, err := json.Marshal(value, json.Deterministic(true))
+		require.NoError(t, err)
+		require.Equal(t, `{"alpha":"first","zulu":"last"}`, string(encoded))
+	}
+}
+
 func TestNullableConcreteRoundTrips(t *testing.T) {
 	t.Run("scalar zero", func(t *testing.T) {
 		assertNullableRoundTrip(t, 0)

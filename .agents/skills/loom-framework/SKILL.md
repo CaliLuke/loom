@@ -358,7 +358,9 @@ OpenAPI changes require:
 Serialization migrations must preserve error identity as well as successful
 decoding. At JSON request boundaries, test empty, JSON-whitespace-only,
 malformed, truncated, and valid bodies through both the handwritten runtime and
-generated required or optional body handling.
+generated required and optional body handling. At the generated transport seam,
+assert HTTP status, problem code and detail, service invocation, and decoded
+payload state.
 
 SSE changes require coverage for:
 

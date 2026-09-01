@@ -239,7 +239,7 @@ func TestRenderUntaggedUnionJSONUsesBareValidatedBranches(t *testing.T) {
 	}
 
 	marshal := renderUnionMarshalJSONBody(data)
-	require.Contains(t, marshal, "return json.Marshal(u.OK)")
+	require.Contains(t, marshal, "return json.Marshal(u.OK, json.Deterministic(true))")
 	require.NotContains(t, marshal, "Type  string")
 
 	unmarshal := renderUnionUnmarshalJSONBody(data)
@@ -250,6 +250,17 @@ func TestRenderUntaggedUnionJSONUsesBareValidatedBranches(t *testing.T) {
 	require.Contains(t, unmarshal, "matched.kind = OutcomeKindOK")
 	require.Contains(t, unmarshal, "*u = matched")
 	require.NotContains(t, unmarshal, "u.kind = OutcomeKindOK")
+}
+
+func TestRenderTaggedUnionJSONPreservesDeterministicNestedOrdering(t *testing.T) {
+	scope := codegen.NewNameScope()
+	loc := &codegen.Location{
+		RelImportPath: "gen/service",
+	}
+	data := buildUnionTypeData(makeTaggedUnionForTagTest(), scope, loc)
+
+	marshal := renderUnionMarshalJSONBody(data)
+	require.Contains(t, marshal, "}, json.Deterministic(true))")
 }
 
 func TestRenderUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
